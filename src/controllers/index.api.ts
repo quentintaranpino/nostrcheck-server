@@ -1,12 +1,14 @@
 import { Application, Request, Response } from "express";
+import { LoadAvailableDomains } from "./domains";
 import { LoadNostraddressEndpoint } from "./nostraddress";
 import { LoadRegisterEndpoint } from "./register";
 
 export const loadApiEndpoints = (app: Application): void => {
 
 	//Root endpoint
-	app.get("/api/", (req: Request, res: Response): Response => {
-		//TODO :AÑADIR METODO PARA MOSTRAR TODOS LOS ENDPOINTS AUTOMATICAMENTE CON UN BUCLE
+	app.get("/api/v1", (req: Request, res: Response): Response => {
+
+		//TODO :ADD METHOD TO SHOW ALL ENDPOINTS AUTOMATICALLY WITH A LOOP
 
 		return res
 			.status(200)
@@ -20,13 +22,18 @@ export const loadApiEndpoints = (app: Application): void => {
 					`<a href='/api/v1/nostraddress'>/api/v1/nostraddress</a>` +
 					`<br>` +
 					`<a href='/api/v1/register'>/api/v1/register</a>` +
-					`<br>`
+					`<br>` + 
+					`<a href='/api/v1/domains'>/api/v1/domains</a>`
 			);
 	});
+
+	//Available domains endpoint
+	LoadAvailableDomains(app);
 
 	//Nostr address usernames endpoint
 	LoadNostraddressEndpoint(app);
 
 	//Register endpoint
 	LoadRegisterEndpoint(app);
+
 };

@@ -4,6 +4,11 @@ This repository contains the public API to interact with nostrcheck.me services.
 
 ## Endpoints
 
+### domains
+Return available domains on the server
+
+http://localhost:3000/api/v1/domains
+
 ### nostaddress 
 Return if an username is registered in the server. 
 
