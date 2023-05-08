@@ -8,10 +8,16 @@ interface RegisteredResults {
 	username: string;
 	hex: string;
 }
+interface ResultMessage extends RegisteredResults{
+	domain : string;
+	result: boolean;
+	description: string;
+}
 
 export const LoadNostraddressEndpoint = (app: Application): void => {
 	//Nostr address usernames endpoint
 	app.get("/api/nostraddress", async (req: Request, res: Response): Promise<Response> => {
+
 		const name = req.query.name as string;
 		const servername = req.hostname;
 		let isCached = false;
@@ -24,7 +30,7 @@ export const LoadNostraddressEndpoint = (app: Application): void => {
 				"|",
 				" ",
 				"|",
-				req.headers["x-forwarded-for"] || req.socket.remoteAddress
+				 req.socket.remoteAddress
 			);
 			logger.warn(
 				"RES -> 400 Bad request - name parameter not specified",
@@ -32,13 +38,8 @@ export const LoadNostraddressEndpoint = (app: Application): void => {
 				req.headers["x-forwarded-for"] || req.socket.remoteAddress
 			);
 
-			return res
-				.status(400)
-				.send(
-					"<b>Bad request</b> You have to specify the 'name' parameter <br><br>" +
-						"Example: <a href='/api/nostraddress?name=quentin'>https://nostrcheck.me/api/nostraddress?name=quentin</a> <br><br>" +
-						"Visit <a href='/api'>nostrcheck.me/api</a> for more info"
-				);
+			let result : ResultMessage = {username: "", hex: "", domain: "", result: false, description: "Bad request - You have to specify the 'name' parameter"}
+            return res.status(400).send(result);
 		}
 
 		//If name is too long (<50) return 400
@@ -49,41 +50,28 @@ export const LoadNostraddressEndpoint = (app: Application): void => {
 				"|",
 				`${name.substring(0, 50)}...`,
 				"|",
-				req.headers["x-forwarded-for"] || req.socket.remoteAddress
+				 req.socket.remoteAddress
 			);
 			logger.warn(
 				"RES -> 400 Bad request - name too long",
 				"|",
-				req.headers["x-forwarded-for"] || req.socket.remoteAddress
+				 req.socket.remoteAddress
 			);
 
-			return res
-				.status(400)
-				.send(
-					"<b>Bad request</b> The 'name' parameter is too long <br><br>" +
-						"Example: <a href='/api/nostraddress?name=quentin'>https://nostrcheck.me/api/nostraddress?name=quentin</a> <br><br>" +
-						"Visit <a href='/api'>nostrcheck.me/api</a> for more info"
-				);
+			let result : ResultMessage = {username: name.substring(0,50) + "...", hex: "", domain: "", result: false, description: "Bad request - Name is too long"}
+            return res.status(400).send(result);
 		}
 
-		//Debug
+		logger.info("REQ ->",servername,"|",name,"|",req.socket.remoteAddress);
 
-		logger.info(
-			"REQ ->",
-			servername,
-			"|",
-			name,
-			"|",
-			req.headers["x-forwarded-for"] || req.socket.remoteAddress
-		);
-
-		// Root _ hexkey
+		// Root _ pubkey
 		const rootkey = "134743ca8ad0203b3657c20a6869e64f160ce48ae6388dc1f5ca67f346019ee7"; //Especify the root domain hexkey
 		if (req.query.name === "_") {
-			return res.status(200).send(JSON.stringify({ names: { _: rootkey } }));
+			let result : RegisteredResults = {username: "_", hex: rootkey};
+			return res.status(200).send(JSON.stringify({ names: { [result.username] : result.hex } }));
 		}
 
-		const results: RegisteredResults = { username: "", hex: "" };
+		const result: RegisteredResults = { username: "", hex: "" };
 
 		try {
 			//Check if the name is cached
@@ -91,9 +79,7 @@ export const LoadNostraddressEndpoint = (app: Application): void => {
 			if (cached.username != "" && cached.hex != "") {
 				isCached = true;
 
-				//Debug
 				logger.info("RES ->", cached.hex, "|", "cached:", isCached);
-
 				return res.status(200).send(JSON.stringify({ names: { [cached.username]: cached.hex } }));
 			}
 
@@ -109,32 +95,29 @@ export const LoadNostraddressEndpoint = (app: Application): void => {
 			if (rowstemp[0] == undefined) {
 				logger.warn("RES ->", name, "|", "Username not registered");
 
-				return res
-					.status(404)
-					.send(
-						`${name} is not registered on ${servername} <br><br> visit <a href='https://nostrcheck.me/register'>nostrcheck.me</a> for more info`
-					);
+				let result : ResultMessage = {username: name, hex: "", domain: servername, result: false, description: name + " is not registered on " +
+				                               servername + " visit " + servername + "/register for more info"}
+				return res.status(404).send(result);
 			}
 
 			if (rowstemp != null) {
-				results.username = rowstemp[0].username;
-				results.hex = rowstemp[0].hex;
+				result.username = rowstemp[0].username;
+				result.hex = rowstemp[0].hex;
 			}
 		} catch (error) {
 			logger.error(error);
 
-			return res.status(500).send("Internal server error - Please try again later :(");
+			let result : ResultMessage = {username: "", hex: "", domain: servername, result: false, description: "Internal server error"}
+			return res.status(404).send(result);
 		}
 
-		await redisClient.set(results.username, JSON.stringify(results), {
+		await redisClient.set(result.username, JSON.stringify(result), {
 			EX: 300, // 5 minutes
 			NX: true, // Only set the key if it does not already exist
 		});
 
-		//Debug
-		logger.info("RES ->", results.hex, "|", "cached:", isCached);
-
-		return res.status(200).send(JSON.stringify({ names: { [results.username]: results.hex } }));
+		logger.info("RES ->", result.hex, "|", "cached:", isCached);
+		return res.status(200).send(JSON.stringify({ names: { [result.username] : result.hex } }));
 	});
 };
 
@@ -144,6 +127,5 @@ async function getJsonDataFromRedis(key: string): Promise<RegisteredResults> {
 	if (!data) {
 		return { username: "", hex: "" };
 	}
-
 	return JSON.parse(data.toString());
 }
