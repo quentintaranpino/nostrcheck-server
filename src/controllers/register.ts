@@ -228,7 +228,7 @@ export const LoadRegisterEndpoint = (app: Application): void => {
 		const hex = event.pubkey;
 		const pubkey = nip19.npubEncode(hex);
 		const domain = req.body.tags[1][1];
-		const createdate = "23-05-05 00:00:00"; //MUST BE CHANGED TO TIMESTAMP IN DATABASE STRUCTURE
+		const createdate = new Date(+req.body.created_at * 1000).toISOString().slice(0, 19).replace('T', ' ');
 
 		//Check if username alredy exist
 		const conn = await connect();
@@ -255,11 +255,25 @@ export const LoadRegisterEndpoint = (app: Application): void => {
 
 		//Insert user into database
 		const [dbInsert] = await conn.execute(
-			"INSERT INTO registered (id, pubkey, hex, username, password, domain, email, active, date, apikey, comments) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-			["0", pubkey, hex, username, "", domain, "", 1, createdate, "", ""]
+			"INSERT INTO registered (id, pubkey, hex, username, password, domain, active, date, comments) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+			[null, pubkey, hex, username, "", domain, 1, createdate, ""]
 		);
+		if(!dbInsert){
+			logger.warn("RES ->", username, "|", "Error inserting user into database");
+			conn.end();
+			const result: ResultMessage = {
+				username: req.body.tags[0][1],
+				hex: "",
+				domain: req.body.tags[1][1],
+				result: false,
+				description: "Username alredy registered",
+			};
+		}
+
+		//Send response, user registered, close connection
 		conn.end();
 
+		logger.info("RES ->", username, "|", hex, "|", domain, "|" , "Registered");
 		const result: ResultMessage = {
 			username: req.body.tags[0][1],
 			hex: event.pubkey,

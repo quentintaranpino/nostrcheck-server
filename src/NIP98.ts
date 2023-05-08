@@ -104,7 +104,7 @@ const CheckAuthEvent = (authevent: Event, req: Request): AuthEventResult => {
 		const created_at = authevent.created_at;
 		const now = Math.floor(Date.now() / 1000);
 		const diff = now - created_at;
-		if (diff > 600000000000000000000000000000) {
+		if (diff > 60) {
 			logger.warn(
 				"RES -> 400 Bad request - Auth header event created_at is not within a reasonable time window",
 				"|",
@@ -127,7 +127,7 @@ const CheckAuthEvent = (authevent: Event, req: Request): AuthEventResult => {
 		return result;
 	}
 
-	//Check if event authorization u Tag (URL) is valid (Must be the same as the server endpoint)
+	//Check if event authorization u tag (URL) is valid (Must be the same as the server endpoint)
 	try {
 		const AuthEventEndpoint = authevent.tags[0][1];
 		const ServerEndpoint = `${req.protocol}://${req.headers.host}${req.url}`;
