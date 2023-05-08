@@ -32,7 +32,6 @@ describe("GET /api", () => {
 	});
 });
 
-
 //Register endpoint
 describe("POST /api/register", () => {
 	// it("Should return 400 without body", () => {
@@ -53,7 +52,7 @@ describe("POST /api/register", () => {
 	// );
 	// it("Should return 400 without kind", () => {
 	// 	return request(app).post("/api/register").send({ id: "test", hex: "test", date: 0 }).expect(400);
-	// }	
+	// }
 	// );
 	// it("Should return 400 without tags", () => {
 	// 	return request(app).post("/api/register").send({ id: "test", hex: "test", date: 0, kind: "0" }).expect(400);
@@ -72,20 +71,18 @@ describe("POST /api/register", () => {
 	// }
 	// );
 
-		it('should create a new post', async () => {
-		  const res = await request(app)
-			.post('/api/register')
+	it("should create a new post", async () => {
+		const res = await request(app)
+			.post("/api/register")
 			.send({
 				id: "test",
 				hex: "test",
 				date: 1111111111111,
 				kind: "0",
 				tags: ["test"],
-				username: "test"
-			})
-		  expect(res.statusCode).toEqual(200)
-		  expect(res.body).toHaveProperty('post')
-		})
-
-
+				username: "test",
+			});
+		expect(res.statusCode).toEqual(200);
+		expect(res.body).toHaveProperty("post");
+	});
 });

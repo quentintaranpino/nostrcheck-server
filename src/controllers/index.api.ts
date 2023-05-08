@@ -6,9 +6,8 @@ import { LoadRegisterEndpoint } from "./register";
 export const loadApiEndpoints = (app: Application): void => {
 	//Root endpoint
 	app.get("/api/", (req: Request, res: Response): Response => {
-
 		//TODO :AÑADIR METODO PARA MOSTRAR TODOS LOS ENDPOINTS AUTOMATICAMENTE CON UN BUCLE
-		
+
 		return res
 			.status(200)
 			.send(
