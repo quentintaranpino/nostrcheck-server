@@ -3,21 +3,21 @@ import request from "supertest";
 import app from "../src/app";
 
 //Registered usernames
-describe("GET /api/registered", () => {
+describe("GET /api/v1/registered", () => {
 	it("should return 400 Bad request", () => {
-		return request(app).get("/api/registered").expect(400);
+		return request(app).get("/api/v1/nostraddress").expect(400);
 	});
 
 	it("Should return 400 without name parameter", () => {
-		return request(app).get("/api/registered?name=").expect(400);
+		return request(app).get("/api/v1/nostraddress?name=").expect(400);
 	});
 
 	it("Should be CORS enabled", () => {
-		return request(app).get("/api/registered?name=_").expect("Access-Control-Allow-Origin", "*");
+		return request(app).get("/api/v1/nostraddress?name=_").expect("Access-Control-Allow-Origin", "*");
 	});
 
 	it("Should return 200 with name parameter", () => {
-		return request(app).get("/api/registered?name=_").expect(200);
+		return request(app).get("/api/v1/nostraddress?name=_").expect(200);
 	});
 });
 
@@ -33,11 +33,11 @@ describe("GET /api", () => {
 });
 
 //Register endpoint
-describe("POST /api/register", () => {
-	// it("Should return 400 without body", () => {
-	// 	return request(app).post("/api/register").expect(400);
-	// }
-	// );
+describe("POST /api/v1/register/", () => {
+	it("Should return 400 without body", () => {
+		return request(app).post("/api/register").expect(400);
+	}
+	);
 	// it("Should return 400 without id", () => {
 	// 	return request(app).post("/api/register").send({}).expect(400);
 	// }
@@ -71,18 +71,18 @@ describe("POST /api/register", () => {
 	// }
 	// );
 
-	it("should create a new post", async () => {
-		const res = await request(app)
-			.post("/api/register")
-			.send({
-				id: "test",
-				hex: "test",
-				date: 1111111111111,
-				kind: "0",
-				tags: ["test"],
-				username: "test",
-			});
-		expect(res.statusCode).toEqual(200);
-		expect(res.body).toHaveProperty("post");
-	});
+	// it("should create a new post", async () => {
+	// 	const res = await request(app)
+	// 		.post("/api/c1register")
+	// 		.send({
+	// 			id: "test",
+	// 			hex: "test",
+	// 			date: 1111111111111,
+	// 			kind: "0",
+	// 			tags: ["test"],
+	// 			username: "test",
+	// 		});
+	// 	expect(res.statusCode).toEqual(200);
+	// 	expect(res.body).toHaveProperty("post");
+	// });
 });

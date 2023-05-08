@@ -228,7 +228,7 @@ export const LoadRegisterEndpoint = (app: Application): void => {
 		const hex = event.pubkey;
 		const pubkey = nip19.npubEncode(hex);
 		const domain = req.body.tags[1][1];
-		const createdate = "23-05-05 00:00:00";
+		const createdate = "23-05-05 00:00:00"; //MUST BE CHANGED TO TIMESTAMP IN DATABASE STRUCTURE
 
 		//Check if username alredy exist
 		const conn = await connect();
