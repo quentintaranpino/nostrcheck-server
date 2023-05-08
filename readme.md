@@ -7,17 +7,17 @@ This repository contains the public API to interact with nostrcheck.me services.
 ### nostaddress 
 Return if an username is registered in the server. 
 
-"http://localhost:3000/api/v1/nostraddress"
+http://localhost:3000/api/v1/nostraddress
 
 ### media
 Allows to upload, download and delete files
 
-"http://localhost:3000/api/v1/media"
+http://localhost:3000/api/v1/media
 
 ### register
 Allows to register in the service
 
-"http://localhost:3000/api/v1/register"
+http://localhost:3000/api/v1/register
 
 
 ## Running the app
