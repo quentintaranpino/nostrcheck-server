@@ -1,0 +1,19 @@
+  {
+    "compilerOptions": {
+      "module": "commonjs",
+      "esModuleInterop": true,
+      "allowSyntheticDefaultImports": true,
+      "target": "es2020",
+      "strict": true,
+      "moduleResolution": "node",
+      "outDir": "./dist",
+      "resolveJsonModule": true,
+      "noUnusedParameters": true,
+      "forceConsistentCasingInFileNames": true,
+      "inlineSourceMap": true
+    },
+    "include": [
+      "src/**/*",
+      "test/**/*",
+    ]
+  }
