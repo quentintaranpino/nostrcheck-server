@@ -177,7 +177,6 @@ export const LoadRegisterEndpoint = (app: Application): void => {
             let result : ResultMessage = {username: req.body.tags[0][1], hex: "", domain: req.body.tags[1][1], result: false, description: "Username alredy registered"}
             return res.status(406).send(result);
         }
-        
 
         //Insert user into database
         const [dbInsert] = await conn.execute("INSERT INTO registered (id, pubkey, hex, username, password, domain, email, active, date, apikey, comments) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",

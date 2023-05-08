@@ -1,13 +1,6 @@
 import { Application, Request, Response } from "express";
 import { logger } from "./logger";
-import {
-    Event,
-    Kind,
-    getEventHash,
-    validateEvent,
-    verifySignature
-  } from 'nostr-tools'
-import { kill } from "process";
+import { Event } from 'nostr-tools'
 
 //https://github.com/v0l/nips/blob/nip98/98.md
 
@@ -15,11 +8,10 @@ declare enum NIP98Kind {
     Authorization = 27235
 }
 
-
 interface AuthEventResult {
        result: boolean;
        description: string;
-  }
+}
 
   const ParseAuthEvent =  (req: Request): AuthEventResult => {
 
