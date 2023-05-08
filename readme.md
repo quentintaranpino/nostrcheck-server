@@ -14,8 +14,8 @@ Return if an username is registered in the server.
 
 http://localhost:3000/api/v1/nostraddress
 
-### media
-Allows to upload, download and delete files
+<!-- ### media
+Allows to upload, download and delete files -->
 
 http://localhost:3000/api/v1/media
 
