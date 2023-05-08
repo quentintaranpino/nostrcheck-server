@@ -270,6 +270,6 @@ export const LoadRegisterEndpoint = (app: Application): void => {
 
 		return res.status(200).send(result);
 
-		//HAY QUE REFACTORIZAR TODOS LOS METODOS DE CHECKS PARA QUE FORMEN PARTE DE UN TS A PARTE Y ESTE TODO MAS LIMPIO
+		//MUST REFACTOR ALL CHECKS INTO NEW TS FILE
 	});
 };
