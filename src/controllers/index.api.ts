@@ -18,9 +18,9 @@ export const loadApiEndpoints = (app: Application): void => {
 					)} in ${app.get("env")} mode` +
 					`<br>` +
 					`<h2>Endpoints</h2>` +
-					`<a href='/api/nostraddress'>/api/nostraddress</a>` +
+					`<a href='/api/v1/nostraddress'>/api/v1/nostraddress</a>` +
 					`<br>` +
-					`<a href='/api/register'>/api/register</a>` +
+					`<a href='/api/v1/register'>/api/v1/register</a>` +
 					`<br>`
 			);
 	});

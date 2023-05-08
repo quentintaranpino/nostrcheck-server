@@ -30,7 +30,7 @@ const AcceptedDomains = [
 
 export const LoadRegisterEndpoint = (app: Application): void => {
 
-    app.post("/api/register", async (req: Request, res: Response): Promise<Response> => {
+    app.post("/api/v1/register", async (req: Request, res: Response): Promise<Response> => {
         
         logger.info("POST /api/register", "|", req.socket.remoteAddress);
 
@@ -163,8 +163,6 @@ export const LoadRegisterEndpoint = (app: Application): void => {
         const pubkey = nip19.npubEncode(hex)
         const domain = req.body.tags[1][1];
         const createdate = "23-05-05 00:00:00";
-
-   
 
         //Check if username alredy exist
         const conn = await connect();

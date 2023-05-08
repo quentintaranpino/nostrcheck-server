@@ -16,7 +16,7 @@ interface ResultMessage extends RegisteredResults{
 
 export const LoadNostraddressEndpoint = (app: Application): void => {
 	//Nostr address usernames endpoint
-	app.get("/api/nostraddress", async (req: Request, res: Response): Promise<Response> => {
+	app.get("/api/v1/nostraddress", async (req: Request, res: Response): Promise<Response> => {
 
 		const name = req.query.name as string;
 		const servername = req.hostname;
