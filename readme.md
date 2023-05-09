@@ -48,21 +48,18 @@ npm run dev
 # generate production build
 npm run build
 
-Edit dist/src/database.js with your mysql credentials and database name
+# edit dist/src/database.js with your mysql credentials and database name
+nano dist/src/database.js
 
-# run generated content in dist folder on port 3000
+# run the server
 npm run start
 ```
 
-## Testing
+## Testing and linting
 
-```
+# run tests
 npm run test
-```
 
-## Linting
-
-```
 # run linter
 npm run lint
 
