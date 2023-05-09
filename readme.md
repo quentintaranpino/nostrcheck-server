@@ -54,6 +54,8 @@ proxy_set_header Connection "upgrade";
 
 ```
 
+The server must have mariadb and redis for database and cache.
+
 ## Running, developing and building the app
 
 ```
