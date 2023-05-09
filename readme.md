@@ -4,12 +4,12 @@ This repository contains the public API to interact with nostrcheck.me services.
 
 ## Available endpoints
 
-### domains
+### domains [GET]
 Return available domains on the server
 
 https://nostrcheck.me/api/v1/domains
 
-### nostaddress 
+### nostaddress [GET]
 Return if an username is registered in the server. 
 
 https://nostrcheck.me/api/v1/nostraddress
@@ -19,13 +19,13 @@ Allows to upload, download and delete files
 
 http://localhost:3000/api/v1/media -->
 
-### register
+### register [POST]
 Allows to register in the service
 
 https://nostrcheck.me/api/v1/register
 
-### verify
-Allows to verify a nostr note
+### verify [POST]
+Endpoint to verify a nostr note integrity and signature.
 
 https://nostrcheck.me/api/v1/verify
 
@@ -38,7 +38,7 @@ http://localhost:3000/api/v1/
 
 A redirection via reverse proxy with a server such as apache or nginx must be performed. 
 
-Example for nostr.json requests:
+Example for nostr.json requests with nginx server:
 
 ```
 #API redirect for nostr.json requests
@@ -54,7 +54,7 @@ proxy_set_header Connection "upgrade";
 
 ```
 
-## Running the app
+## Running, developing and building the app
 
 ```
 # install dependencies
