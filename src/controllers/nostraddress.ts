@@ -77,6 +77,9 @@ export const LoadNostraddressEndpoint = (app: Application): void => {
 		const result: RegisteredResults = { username: "", hex: "" };
 
 		try {
+
+			//TODO. WE HAVE TO STORE ALSO THE DOMAIN IN THE CACHE, BECAUSE IF WE HAVE 2 DOMAINS WITH THE SAME USERNAME, THE CACHE WILL RETURN THE FIRST ONE
+
 			//Check if the name is cached
 			const cached = await getJsonDataFromRedis(name);
 			if (cached.username != "" && cached.hex != "") {

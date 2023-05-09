@@ -26,7 +26,7 @@ export const loadApiEndpoints = (app: Application): void => {
 					`<br>` + 
 					`<a href='/api/v1/domains'>/api/v1/domains</a>` +
 					`<br>` + 
-					`<a href='/api/v1/domains'>/api/v1/verify</a>`
+					`<a href='/api/v1/verify'>/api/v1/verify</a>`
 			);
 	});
 
