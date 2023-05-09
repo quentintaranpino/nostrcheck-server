@@ -48,7 +48,7 @@ npm run dev
 # generate production build
 npm run build
 
-Edit database.js with your mysql credentials.
+Edit dist/src/database.js with your mysql credentials and database name
 
 # run generated content in dist folder on port 3000
 npm run start
