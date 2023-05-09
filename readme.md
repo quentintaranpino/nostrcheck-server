@@ -2,17 +2,17 @@
 
 This repository contains the public API to interact with nostrcheck.me services. Written in typescript.
 
-## Endpoints
+## Available endpoints
 
 ### domains
 Return available domains on the server
 
-http://localhost:3000/api/v1/domains
+https://nostrcheck.me/api/v1/domains
 
 ### nostaddress 
 Return if an username is registered in the server. 
 
-http://localhost:3000/api/v1/nostraddress
+https://nostrcheck.me/api/v1/nostraddress
 
 <!-- ### media
 Allows to upload, download and delete files
@@ -22,13 +22,19 @@ http://localhost:3000/api/v1/media -->
 ### register
 Allows to register in the service
 
-http://localhost:3000/api/v1/register
+https://nostrcheck.me/api/v1/register
 
 ### verify
 Allows to verify a nostr note
 
-http://localhost:3000/api/v1/verify
+https://nostrcheck.me/api/v1/verify
 
+
+### Installing and running
+
+The server runs on:
+
+http://localhost:3000/api/v1/
 
 ## Running the app
 
