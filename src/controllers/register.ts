@@ -5,21 +5,16 @@ import { connect } from "../database";
 import { logger } from "../logger";
 import { ParseAuthEvent } from "../NIP98";
 
+import { RegisterResultMessage } from "../types";
+
 const validation = require("validator");
 
-interface ResultMessage {
-	username: string;
-	hex: string;
-	domain: string;
-	result: boolean;
-	description: string;
-}
-
+//TODO: CALL DOMAINS ENDPOINT TO CHECK IF DOMAIN IS VALID
 const AcceptedDomains = ["nostrcheck.me", "nostr-check.me", "nostriches.club", "plebchain.club"];
 
 export const LoadRegisterEndpoint = (app: Application): void => {
 	app.post("/api/v1/register", async (req: Request, res: Response): Promise<Response> => {
-		logger.info("POST /api/register", "|", req.socket.remoteAddress);
+		logger.info("POST /api/v1/register", "|", req.socket.remoteAddress);
 
 		//Check if event authorization header is valid
 		const EventHeader = ParseAuthEvent(req);
@@ -29,9 +24,9 @@ export const LoadRegisterEndpoint = (app: Application): void => {
 				"|",
 				req.socket.remoteAddress
 			);
-			const result: ResultMessage = {
+			const result: RegisterResultMessage = {
 				username: "",
-				hex: "",
+				pubkey: "",
 				domain: "",
 				result: false,
 				description: EventHeader.description,
@@ -51,9 +46,9 @@ export const LoadRegisterEndpoint = (app: Application): void => {
 			req.body.sig == null
 		) {
 			logger.warn("RES -> 400 Bad request - malformed JSON");
-			const result: ResultMessage = {
+			const result: RegisterResultMessage = {
 				username: "",
-				hex: "",
+				pubkey: "",
 				domain: "",
 				result: false,
 				description: "Malformed JSON",
@@ -74,9 +69,9 @@ export const LoadRegisterEndpoint = (app: Application): void => {
 					"|",
 					req.headers["x-forwarded-for"] || req.socket.remoteAddress
 				);
-				const result: ResultMessage = {
+				const result: RegisterResultMessage = {
 					username: "",
-					hex: "",
+					pubkey: "",
 					domain: "",
 					result: false,
 					description: "Malformed or non-existent username tag",
@@ -90,9 +85,9 @@ export const LoadRegisterEndpoint = (app: Application): void => {
 				"|",
 				req.socket.remoteAddress
 			);
-			const result: ResultMessage = {
+			const result: RegisterResultMessage = {
 				username: "",
-				hex: "",
+				pubkey: "",
 				domain: "",
 				result: false,
 				description: "Malformed or non-existent username tag",
@@ -113,9 +108,9 @@ export const LoadRegisterEndpoint = (app: Application): void => {
 					"|",
 					req.headers["x-forwarded-for"] || req.socket.remoteAddress
 				);
-				const result: ResultMessage = {
+				const result: RegisterResultMessage = {
 					username: "",
-					hex: "",
+					pubkey: "",
 					domain: "",
 					result: false,
 					description: "Malformed or non-existent domain tag",
@@ -129,9 +124,9 @@ export const LoadRegisterEndpoint = (app: Application): void => {
 				"|",
 				req.socket.remoteAddress
 			);
-			const result: ResultMessage = {
+			const result: RegisterResultMessage = {
 				username: "",
-				hex: "",
+				pubkey: "",
 				domain: "",
 				result: false,
 				description: "Malformed or non-existent domain tag",
@@ -144,9 +139,9 @@ export const LoadRegisterEndpoint = (app: Application): void => {
 		const IsValidDomain = AcceptedDomains.indexOf(req.body.tags[1][1]) > -1;
 		if (!IsValidDomain) {
 			logger.warn("RES -> 406 Bad request - domain not accepted", "|", req.socket.remoteAddress);
-			const result: ResultMessage = {
+			const result: RegisterResultMessage = {
 				username: "",
-				hex: "",
+				pubkey: "",
 				domain: "",
 				result: false,
 				description: "Domain not accepted",
@@ -170,9 +165,9 @@ export const LoadRegisterEndpoint = (app: Application): void => {
 		try {
 			const IsEventHashValid = getEventHash(event);
 			if (IsEventHashValid != event.id) {
-				const result: ResultMessage = {
+				const result: RegisterResultMessage = {
 					username: "",
-					hex: "",
+					pubkey: "",
 					domain: "",
 					result: false,
 					description: "Event hash is not valid",
@@ -184,9 +179,9 @@ export const LoadRegisterEndpoint = (app: Application): void => {
 			const IsEventValid = validateEvent(event);
 			const IsEventSignatureValid = verifySignature(event);
 			if (!IsEventValid || !IsEventSignatureValid) {
-				const result: ResultMessage = {
+				const result: RegisterResultMessage = {
 					username: "",
-					hex: "",
+					pubkey: "",
 					domain: "",
 					result: false,
 					description: "Event signature is not valid",
@@ -196,9 +191,9 @@ export const LoadRegisterEndpoint = (app: Application): void => {
 			}
 		} catch (error) {
 			logger.warn(`RES -> 400 Bad request - ${error}`, "|", req.socket.remoteAddress);
-			const result: ResultMessage = {
+			const result: RegisterResultMessage = {
 				username: "",
-				hex: "",
+				pubkey: "",
 				domain: "",
 				result: false,
 				description: "Malformed event",
@@ -213,9 +208,9 @@ export const LoadRegisterEndpoint = (app: Application): void => {
 
 		if (IsValidUsernameCharacters == false || IsValidUsernamelenght == false) {
 			logger.warn("RES -> 422 Bad request - Username not allowed", "|", req.socket.remoteAddress);
-			const result: ResultMessage = {
+			const result: RegisterResultMessage = {
 				username: req.body.tags[0][1],
-				hex: "",
+				pubkey: "",
 				domain: req.body.tags[1][1],
 				result: false,
 				description: "Username not allowed",
@@ -242,9 +237,9 @@ export const LoadRegisterEndpoint = (app: Application): void => {
 			logger.warn("RES ->", username, "|", "Username alredy registered");
 			conn.end();
 
-			const result: ResultMessage = {
+			const result: RegisterResultMessage = {
 				username: req.body.tags[0][1],
-				hex: "",
+				pubkey: "",
 				domain: req.body.tags[1][1],
 				result: false,
 				description: "Username alredy registered",
@@ -261,9 +256,9 @@ export const LoadRegisterEndpoint = (app: Application): void => {
 		if(!dbInsert){
 			logger.warn("RES ->", username, "|", "Error inserting user into database");
 			conn.end();
-			const result: ResultMessage = {
+			const result: RegisterResultMessage = {
 				username: req.body.tags[0][1],
-				hex: "",
+				pubkey: "",
 				domain: req.body.tags[1][1],
 				result: false,
 				description: "Username alredy registered",
@@ -274,9 +269,9 @@ export const LoadRegisterEndpoint = (app: Application): void => {
 		conn.end();
 
 		logger.info("RES ->", username, "|", hex, "|", domain, "|" , "Registered");
-		const result: ResultMessage = {
+		const result: RegisterResultMessage = {
 			username: req.body.tags[0][1],
-			hex: event.pubkey,
+			pubkey: event.pubkey,
 			domain: req.body.tags[1][1],
 			result: true,
 			description: "Success",

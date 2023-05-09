@@ -24,6 +24,11 @@ Allows to register in the service
 
 http://localhost:3000/api/v1/register
 
+### verify
+Allows to verify a nostr note
+
+http://localhost:3000/api/v1/verify
+
 
 ## Running the app
 

@@ -2,6 +2,7 @@ import { Application, Request, Response } from "express";
 import { LoadAvailableDomains } from "./domains";
 import { LoadNostraddressEndpoint } from "./nostraddress";
 import { LoadRegisterEndpoint } from "./register";
+import { LoadVerifyEndpoint } from "./verify";
 
 export const loadApiEndpoints = (app: Application): void => {
 
@@ -23,7 +24,9 @@ export const loadApiEndpoints = (app: Application): void => {
 					`<br>` +
 					`<a href='/api/v1/register'>/api/v1/register</a>` +
 					`<br>` + 
-					`<a href='/api/v1/domains'>/api/v1/domains</a>`
+					`<a href='/api/v1/domains'>/api/v1/domains</a>` +
+					`<br>` + 
+					`<a href='/api/v1/domains'>/api/v1/verify</a>`
 			);
 	});
 
@@ -35,5 +38,8 @@ export const loadApiEndpoints = (app: Application): void => {
 
 	//Register endpoint
 	LoadRegisterEndpoint(app);
+
+	//Verify endpoint
+	LoadVerifyEndpoint(app);
 
 };
