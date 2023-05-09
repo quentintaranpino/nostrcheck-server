@@ -57,6 +57,7 @@ npm run start
 
 ## Testing and linting
 
+```
 # run tests
 npm run test
 
