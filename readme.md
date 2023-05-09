@@ -36,6 +36,24 @@ The server runs on:
 
 http://localhost:3000/api/v1/
 
+A redirection via reverse proxy with a server such as apache or nginx must be performed. 
+
+Example for nostr.json requests:
+
+```
+#API redirect for nostr.json requests
+location /.well-known/nostr.json {
+
+proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+proxy_set_header Host $host;
+proxy_pass http://127.0.0.1:3000/api/v1/nostraddress;
+proxy_http_version 1.1;
+proxy_set_header Upgrade $http_upgrade;
+proxy_set_header Connection "upgrade";
+}
+
+```
+
 ## Running the app
 
 ```
