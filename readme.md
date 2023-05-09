@@ -30,7 +30,7 @@ Allows to verify a nostr note
 https://nostrcheck.me/api/v1/verify
 
 
-### Installing and running
+# Installing and running
 
 The server runs on:
 
