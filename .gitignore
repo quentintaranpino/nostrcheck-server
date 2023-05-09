@@ -9,4 +9,5 @@ dist
 
 # # ignore vscode settings
 .vscode
+.vs
 nostrcheck-api.log
