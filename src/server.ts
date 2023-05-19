@@ -5,6 +5,7 @@ import { logger } from "./logger";
 /**
  * Start Express server.
  */
+
 const server = app.listen(app.get("port"), () => {
 
 	logger.silly("")
