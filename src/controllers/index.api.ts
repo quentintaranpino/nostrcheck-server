@@ -3,10 +3,17 @@ import { LoadAvailableDomains } from "./domains";
 import { LoadNostraddressEndpoint } from "./nostraddress";
 import { LoadRegisterEndpoint } from "./register";
 import { LoadVerifyEndpoint } from "./verify";
+import { LoadMediaEndpoint } from "./media";
+import { logger } from "../logger";
 
 export const loadApiEndpoints = (app: Application): void => {
 
 	//Root endpoint
+	app.get("/api", (_req: Request, res: Response): void => {
+		return res.redirect("/api/v1");
+	});
+
+	//v1
 	app.get("/api/v1", (req: Request, res: Response): Response => {
 
 		//TODO :ADD METHOD TO SHOW ALL ENDPOINTS AUTOMATICALLY WITH A LOOP
@@ -28,7 +35,8 @@ export const loadApiEndpoints = (app: Application): void => {
 					`<li><a href='/api/v1/nostraddress'>/api/v1/nostraddress</a></li>` +
 					`<li><a href='/api/v1/register'>/api/v1/register</a></li>` +
 					`<li><a href='/api/v1/domains'>/api/v1/domains</a></li>` +
-					`<li><a href='/api/v1/verify'>/api/v1/verify</a></li>`
+					`<li><a href='/api/v1/verify'>/api/v1/verify</a></li>` +
+					`<li><a href='/api/v1/media'>/api/v1/media</a></li>`
 			);
 	});
 
@@ -43,5 +51,8 @@ export const loadApiEndpoints = (app: Application): void => {
 
 	//Verify endpoint
 	LoadVerifyEndpoint(app);
+
+	//Verify endpoint
+	LoadMediaEndpoint(app);
 
 };
