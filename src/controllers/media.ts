@@ -35,6 +35,18 @@ export const LoadMediaEndpoint = (app: Application): void => {
 			return res.status(400).send(result);
 		}
 
+        //Check if pubkey is registered
+        let pubkey = EventHeader.pubkey;
+        const db = await connect();
+        const [dbResult] = await db.query("SELECT hex FROM registered WHERE hex = ?", [pubkey]);
+        const rowstemp = JSON.parse(JSON.stringify(dbResult));
+
+        if (rowstemp[0] == undefined) {
+            logger.warn("pubkey not registered, switching to public upload | ", req.socket.remoteAddress);
+            pubkey = app.get("pubkey");
+        }
+        logger.info("pubkey ->", pubkey, "|", req.socket.remoteAddress);
+
         //Check if upload type exists
         const uploadtype = req?.body.type;
         if (!uploadtype){
@@ -45,6 +57,7 @@ export const LoadMediaEndpoint = (app: Application): void => {
             };
             return res.status(400).send(result);
         }
+
         //Check if upload type is valid
         if(!UploadTypes.includes(uploadtype)){
             logger.warn(`RES -> 400 Bad request - incorrect upload type`, "|", req.socket.remoteAddress);
@@ -67,6 +80,7 @@ export const LoadMediaEndpoint = (app: Application): void => {
 			};
             return res.status(400).send(result);
         }
+
         //Check if filetype is allowed
         if(!allowedMimeTypes.includes(file.mimetype)){
             logger.warn(`RES -> 400 Bad request - Incorrect file type`, "|", req.socket.remoteAddress);
@@ -77,7 +91,6 @@ export const LoadMediaEndpoint = (app: Application): void => {
             return res.status(400).send(result);
         }
         logger.info("mime ->", file.mimetype, "|", req.socket.remoteAddress);
-
 
         //RETURN FILE URL
         logger.info(`RES -> 200 OK - File uploaded successfully`, "|", req.socket.remoteAddress);

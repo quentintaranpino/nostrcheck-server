@@ -13,6 +13,9 @@ app.set("version", process.env.npm_package_version ?? "0.0");
 app.use(express.json({limit: '25mb'}));
 app.use(express.urlencoded({limit: '25mb', extended: true}));
 
+// Public pubkey
+app.set("pubkey", process.env.PUBKEY ?? "134743ca8ad0203b3657c20a6869e64f160ce48ae6388dc1f5ca67f346019ee7");
+
 //Enable CORS
 app.use(cors());
 
