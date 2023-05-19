@@ -1,12 +1,12 @@
 import { Request } from "express";
 import { Event } from "nostr-tools";
-import { ResultMessage, NIP98Kind, VerifyResultMessage } from "./types";
+import { NIP98Kind, ResultMessage, VerifyResultMessage } from "./types";
 import { logger } from "./logger";
 import { devmode } from "./app";
 
 //https://github.com/v0l/nips/blob/nip98/98.md
 
-const ParseAuthEvent = (req: Request): ResultMessage => {
+const ParseAuthEvent = (req: Request): VerifyResultMessage => {
 	
 	//Check if request has authorization header
 	if (req.headers.authorization == undefined) {
@@ -15,7 +15,8 @@ const ParseAuthEvent = (req: Request): ResultMessage => {
 			"|",
 			req.socket.remoteAddress
 		);
-		const result: ResultMessage = {
+		const result: VerifyResultMessage = {
+			pubkey: "",
 			result: false,
 			description: "Authorization header not found",
 		};
@@ -34,7 +35,8 @@ const ParseAuthEvent = (req: Request): ResultMessage => {
 		);
 	} catch (error) {
 		logger.warn(`RES -> 400 Bad request - ${error}`, "|", req.socket.remoteAddress);
-		const result: ResultMessage = {
+		const result: VerifyResultMessage = {
+			pubkey: "",
 			result: false,
 			description: "Malformed authorization header",
 		};
@@ -50,7 +52,8 @@ const ParseAuthEvent = (req: Request): ResultMessage => {
 			"|", 
 			req.socket.remoteAddress
 		);
-		const result: ResultMessage = {
+		const result: VerifyResultMessage = {
+			pubkey: "",
 			result: false,
 			description: "Authorization header is invalid",
 		};

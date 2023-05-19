@@ -43,7 +43,7 @@ declare enum NIP98Kind {
 	Authorization = 27235,
 }
 
-export { ResultMessage, 
+export { ResultMessage,
 	     RegisterResultMessage, 
 		 VerifyResultMessage, 
 		 MediaResultMessage, 
