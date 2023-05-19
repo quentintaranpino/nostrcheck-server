@@ -10,14 +10,13 @@ export const LoadAvailableDomains = (app: Application): void => {
 
         logger.info("REQ -> Domain list ", "|", req.socket.remoteAddress);
        
-        try{
+    try{
         const conn = await connect();
-        const [rows] = await conn.execute("SELECT domain from domains");
-        const rowstemp = JSON.parse(JSON.stringify(rows));
-        if (rowstemp[0] != undefined) {
+        const rows = await conn.execute("SELECT domain from domains");
+        if (rows[0] != undefined) {
 			logger.info("RES -> Domain list ", "|", req.socket.remoteAddress);
 			conn.end();
-			return res.status(200).send({"available domains": rowstemp});
+			return res.status(200).send({"domains":rows[0]});
 		}else{
             logger.warn("RES -> Domain list ", "|", req.socket.remoteAddress);
             conn.end();
