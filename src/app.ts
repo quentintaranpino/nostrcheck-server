@@ -10,8 +10,8 @@ import { logger } from "./logger";
 const app = express();
 app.set("port", process.env.PORT ?? 3000);
 app.set("version", process.env.npm_package_version ?? "0.0");
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({limit: '25mb'}));
+app.use(express.urlencoded({limit: '25mb', extended: true}));
 
 //Enable CORS
 app.use(cors());
@@ -26,12 +26,14 @@ const redisClient = createClient();
 //Check database tables
 const dbtables = populateTables(false);
 if (!dbtables) {
-	console.error("Error creating database tables");
+	logger.error("Error creating database tables");
 	process.exit(1);
 }
 
 //Load API endpoints
 loadApiEndpoints(app);
+
+export const devmode = app.get("env") === "development";
 
 export { redisClient };
 export default app;

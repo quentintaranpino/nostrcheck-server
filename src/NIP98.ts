@@ -1,20 +1,13 @@
 import { Request } from "express";
 import { Event } from "nostr-tools";
-
+import { ResultMessage, NIP98Kind, VerifyResultMessage } from "./types";
 import { logger } from "./logger";
+import { devmode } from "./app";
 
 //https://github.com/v0l/nips/blob/nip98/98.md
 
-declare enum NIP98Kind {
-	Authorization = 27235,
-}
-
-interface AuthEventResult {
-	result: boolean;
-	description: string;
-}
-
-const ParseAuthEvent = (req: Request): AuthEventResult => {
+const ParseAuthEvent = (req: Request): ResultMessage => {
+	
 	//Check if request has authorization header
 	if (req.headers.authorization == undefined) {
 		logger.warn(
@@ -22,7 +15,7 @@ const ParseAuthEvent = (req: Request): AuthEventResult => {
 			"|",
 			req.socket.remoteAddress
 		);
-		const result: AuthEventResult = {
+		const result: ResultMessage = {
 			result: false,
 			description: "Authorization header not found",
 		};
@@ -41,7 +34,7 @@ const ParseAuthEvent = (req: Request): AuthEventResult => {
 		);
 	} catch (error) {
 		logger.warn(`RES -> 400 Bad request - ${error}`, "|", req.socket.remoteAddress);
-		const result: AuthEventResult = {
+		const result: ResultMessage = {
 			result: false,
 			description: "Malformed authorization header",
 		};
@@ -54,10 +47,10 @@ const ParseAuthEvent = (req: Request): AuthEventResult => {
 	if (!IsAuthEventValid.result) {
 		logger.warn(
 			`RES -> 400 Bad request - ${IsAuthEventValid.description}`,
-			"|",
+			"|", 
 			req.socket.remoteAddress
 		);
-		const result: AuthEventResult = {
+		const result: ResultMessage = {
 			result: false,
 			description: "Authorization header is invalid",
 		};
@@ -65,14 +58,17 @@ const ParseAuthEvent = (req: Request): AuthEventResult => {
 		return result;
 	}
 
-	const result: AuthEventResult = { result: true, description: "Authorization header is valid" };
+	const result: VerifyResultMessage = { 
+		pubkey: authevent.pubkey,
+		result: true, 
+		description: "Authorization header is valid" };
 
 	return result;
 };
 
 export { ParseAuthEvent };
 
-const CheckAuthEvent = (authevent: Event, req: Request): AuthEventResult => {
+const CheckAuthEvent = (authevent: Event, req: Request): ResultMessage => {
 	//Check if event authorization kind is valid (Must be 27235)
 	try {
 		const eventkind: NIP98Kind = +authevent.kind;
@@ -82,7 +78,7 @@ const CheckAuthEvent = (authevent: Event, req: Request): AuthEventResult => {
 				"|",
 				req.socket.remoteAddress
 			);
-			const result: AuthEventResult = {
+			const result: ResultMessage = {
 				result: false,
 				description: "Auth header event kind is not 27235 ",
 			};
@@ -91,7 +87,7 @@ const CheckAuthEvent = (authevent: Event, req: Request): AuthEventResult => {
 		}
 	} catch (error) {
 		logger.error(`RES -> 400 Bad request - ${error}`, "|", req.socket.remoteAddress);
-		const result: AuthEventResult = {
+		const result: ResultMessage = {
 			result: false,
 			description: "Auth header event kind is not 27235",
 		};
@@ -101,8 +97,11 @@ const CheckAuthEvent = (authevent: Event, req: Request): AuthEventResult => {
 
 	//Check if created_at is within a reasonable time window (60 seconds)
 	try {
-		const created_at = authevent.created_at;
+		let created_at = authevent.created_at;
 		const now = Math.floor(Date.now() / 1000);
+		if (devmode === true) { 
+			logger.warn("DEVMODE IS TRUE, SETTING CREATED_AT TO NOW", "|", req.socket.remoteAddress);
+			created_at = now - 30; } //If devmode is true, set created_at to now for testing purposes
 		const diff = now - created_at;
 		if (diff > 60) {
 			logger.warn(
@@ -110,7 +109,7 @@ const CheckAuthEvent = (authevent: Event, req: Request): AuthEventResult => {
 				"|",
 				req.socket.remoteAddress
 			);
-			const result: AuthEventResult = {
+			const result: ResultMessage = {
 				result: false,
 				description: `Auth header event created_at is not within a reasonable time window ${created_at}<>${now}`,
 			};
@@ -119,7 +118,7 @@ const CheckAuthEvent = (authevent: Event, req: Request): AuthEventResult => {
 		}
 	} catch (error) {
 		logger.error(`RES -> 400 Bad request - ${error}`, "|", req.socket.remoteAddress);
-		const result: AuthEventResult = {
+		const result: ResultMessage = {
 			result: false,
 			description: "Auth header event created_at is not within a reasonable time window",
 		};
@@ -141,7 +140,7 @@ const CheckAuthEvent = (authevent: Event, req: Request): AuthEventResult => {
 				"|",
 				req.socket.remoteAddress
 			);
-			const result: AuthEventResult = {
+			const result: ResultMessage = {
 				result: false,
 				description: `Auth header event endpoint is not valid: ${AuthEventEndpoint} <> ${ServerEndpoint}`,
 			};
@@ -150,7 +149,7 @@ const CheckAuthEvent = (authevent: Event, req: Request): AuthEventResult => {
 		}
 	} catch (error) {
 		logger.error(`RES -> 400 Bad request - ${error}`, "|", req.socket.remoteAddress);
-		const result: AuthEventResult = {
+		const result: ResultMessage = {
 			result: false,
 			description: "Auth header event endpoint is not valid",
 		};
@@ -168,7 +167,7 @@ const CheckAuthEvent = (authevent: Event, req: Request): AuthEventResult => {
 				"|",
 				req.socket.remoteAddress
 			);
-			const result: AuthEventResult = {
+			const result: ResultMessage = {
 				result: false,
 				description: `Auth header event method is not valid: ${receivedmethod} <> ${method}`,
 			};
@@ -177,7 +176,7 @@ const CheckAuthEvent = (authevent: Event, req: Request): AuthEventResult => {
 		}
 	} catch (error) {
 		logger.error(`RES -> 400 Bad request - ${error}`, "|", req.socket.remoteAddress);
-		const result: AuthEventResult = {
+		const result: ResultMessage = {
 			result: false,
 			description: "Auth header event method is not valid",
 		};
