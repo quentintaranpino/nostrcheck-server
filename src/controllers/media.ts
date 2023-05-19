@@ -3,7 +3,13 @@ import { Application, Request, Response } from "express";
 import { connect } from "../database";
 import { logger } from "../logger";
 import { ParseAuthEvent } from "../NIP98";
-import { allowedMimeTypes, MediaResultMessage, ResultMessage, UploadTypes, UploadVisibility } from "../types";
+import {
+	allowedMimeTypes,
+	MediaResultMessage,
+	ResultMessage,
+	UploadTypes,
+	UploadVisibility,
+} from "../types";
 
 const multer = require("multer");
 
@@ -12,14 +18,11 @@ const upload = multer({
 	limits: { fileSize: 100 * 1024 * 1024 }, //100MB max file size
 });
 
-
-
 export const LoadMediaEndpoint = (app: Application): void => {
 	app.post(
 		"/api/v1/media",
 		upload.single("mediafile"),
 		async (req: Request, res: Response): Promise<Response> => {
-
 			logger.info("POST /api/v1/media", "|", req.socket.remoteAddress);
 
 			//Check if event authorization header is valid (NIP98)
@@ -38,27 +41,29 @@ export const LoadMediaEndpoint = (app: Application): void => {
 				return res.status(400).send(result);
 			}
 
-            //Check if visibility is valid
-            let visibility = req.body.visibility;
-            if (!visibility) {
-                logger.warn(`RES -> 400 Bad request - missing visiblity`, "|", req.socket.remoteAddress);
-                const result: ResultMessage = {
-                    result: false,
-                    description: "missing visiblity",
-                };
-                return res.status(400).send(result);
-            }
+			//Check if visibility is valid
+			let visibility = req.body.visibility;
+			if (!visibility) {
+				logger.warn(`RES -> 400 Bad request - missing visiblity`, "|", req.socket.remoteAddress);
+				const result: ResultMessage = {
+					result: false,
+					description: "missing visiblity",
+				};
 
-            //Check if visiblity is valid
-            if (!UploadVisibility.includes(visibility)) {
-                logger.warn(`RES -> 400 Bad request - incorrect visiblity`, "|", req.socket.remoteAddress);
-                const result: ResultMessage = {
-                    result: false,
-                    description: "incorrect visiblity",
-                };
-                return res.status(400).send(result);
-            }
-            logger.info("visiblity ->", visibility, "|", req.socket.remoteAddress);
+				return res.status(400).send(result);
+			}
+
+			//Check if visiblity is valid
+			if (!UploadVisibility.includes(visibility)) {
+				logger.warn(`RES -> 400 Bad request - incorrect visiblity`, "|", req.socket.remoteAddress);
+				const result: ResultMessage = {
+					result: false,
+					description: "incorrect visiblity",
+				};
+
+				return res.status(400).send(result);
+			}
+			logger.info("visiblity ->", visibility, "|", req.socket.remoteAddress);
 
 			//Check if pubkey is registered
 			let pubkey = EventHeader.pubkey;
@@ -129,10 +134,7 @@ export const LoadMediaEndpoint = (app: Application): void => {
 			}
 			logger.info("mime ->", file.mimetype, "|", req.socket.remoteAddress);
 
-            //TODO: Transform files (video, audio, etc) 
-
-
-
+			//TODO: Transform files (video, audio, etc)
 
 			//RETURN FILE URL
 			logger.info(`RES -> 200 OK - File uploaded successfully`, "|", req.socket.remoteAddress);
