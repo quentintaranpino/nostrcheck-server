@@ -12,11 +12,14 @@ const upload = multer({
 	limits: { fileSize: 100 * 1024 * 1024 }, //100MB max file size
 });
 
+
+
 export const LoadMediaEndpoint = (app: Application): void => {
 	app.post(
 		"/api/v1/media",
-		upload.single("media"),
+		upload.single("mediafile"),
 		async (req: Request, res: Response): Promise<Response> => {
+
 			logger.info("POST /api/v1/media", "|", req.socket.remoteAddress);
 
 			//Check if event authorization header is valid (NIP98)
@@ -125,6 +128,11 @@ export const LoadMediaEndpoint = (app: Application): void => {
 				return res.status(400).send(result);
 			}
 			logger.info("mime ->", file.mimetype, "|", req.socket.remoteAddress);
+
+            //TODO: Transform files (video, audio, etc) 
+
+
+
 
 			//RETURN FILE URL
 			logger.info(`RES -> 200 OK - File uploaded successfully`, "|", req.socket.remoteAddress);

@@ -6,6 +6,11 @@ import { loadApiEndpoints } from "./controllers/index.api";
 import { populateTables } from "./database";
 import { logger } from "./logger";
 
+
+
+
+
+
 // Express configuration
 const app = express();
 app.set("port", process.env.PORT ?? 3000);
