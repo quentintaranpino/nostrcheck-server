@@ -87,3 +87,15 @@ npm run lint
 # fix lint issues
 npm run lint:fix
 ```
+## Dev mode
+
+The server don't verify NIP98 created_at integrity when is running on development mode.
+
+```
+# Dev mode
+export NODE_ENV=development
+
+
+# Production mode
+export NODE_ENV=production
+```
