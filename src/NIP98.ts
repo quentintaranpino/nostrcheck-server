@@ -1,15 +1,15 @@
 import { Request } from "express";
 import { Event } from "nostr-tools";
-import { NIP98Kind, ResultMessage, VerifyResultMessage } from "./types";
-import { logger } from "./logger";
+
 import { devmode } from "./app";
+import { logger } from "./logger";
+import { NIP98Kind, ResultMessage, VerifyResultMessage } from "./types";
 
 //https://github.com/v0l/nips/blob/nip98/98.md
 
 const ParseAuthEvent = (req: Request): VerifyResultMessage => {
-	
 	//Check if request has authorization header
-	if (req.headers.authorization == undefined) {
+	if (req.headers.authorization === undefined) {
 		logger.warn(
 			"RES -> 400 Bad request - Authorization header not found",
 			"|",
@@ -49,7 +49,7 @@ const ParseAuthEvent = (req: Request): VerifyResultMessage => {
 	if (!IsAuthEventValid.result) {
 		logger.warn(
 			`RES -> 400 Bad request - ${IsAuthEventValid.description}`,
-			"|", 
+			"|",
 			req.socket.remoteAddress
 		);
 		const result: VerifyResultMessage = {
@@ -61,10 +61,11 @@ const ParseAuthEvent = (req: Request): VerifyResultMessage => {
 		return result;
 	}
 
-	const result: VerifyResultMessage = { 
+	const result: VerifyResultMessage = {
 		pubkey: authevent.pubkey,
-		result: true, 
-		description: "Authorization header is valid" };
+		result: true,
+		description: "Authorization header is valid",
+	};
 
 	return result;
 };
@@ -102,9 +103,10 @@ const CheckAuthEvent = (authevent: Event, req: Request): ResultMessage => {
 	try {
 		let created_at = authevent.created_at;
 		const now = Math.floor(Date.now() / 1000);
-		if (devmode === true) { 
+		if (devmode) {
 			logger.warn("DEVMODE IS TRUE, SETTING CREATED_AT TO NOW", "|", req.socket.remoteAddress);
-			created_at = now - 30; } //If devmode is true, set created_at to now for testing purposes
+			created_at = now - 30;
+		} //If devmode is true, set created_at to now for testing purposes
 		const diff = now - created_at;
 		if (diff > 60) {
 			logger.warn(

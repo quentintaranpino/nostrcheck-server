@@ -4,7 +4,6 @@ import { Event, getEventHash, nip19, validateEvent, verifySignature } from "nost
 import { connect } from "../database";
 import { logger } from "../logger";
 import { ParseAuthEvent } from "../NIP98";
-
 import { RegisterResultMessage } from "../types";
 
 const validation = require("validator");
@@ -223,7 +222,10 @@ export const LoadRegisterEndpoint = (app: Application): void => {
 		const hex = event.pubkey;
 		const pubkey = nip19.npubEncode(hex);
 		const domain = req.body.tags[1][1];
-		const createdate = new Date(+req.body.created_at * 1000).toISOString().slice(0, 19).replace('T', ' ');
+		const createdate = new Date(+req.body.created_at * 1000)
+			.toISOString()
+			.slice(0, 19)
+			.replace("T", " ");
 
 		//Check if username alredy exist
 		const conn = await connect();
@@ -253,7 +255,7 @@ export const LoadRegisterEndpoint = (app: Application): void => {
 			"INSERT INTO registered (id, pubkey, hex, username, password, domain, active, date, comments) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
 			[null, pubkey, hex, username, "", domain, 1, createdate, ""]
 		);
-		if(!dbInsert){
+		if (!dbInsert) {
 			logger.warn("RES ->", username, "|", "Error inserting user into database");
 			conn.end();
 			const result: RegisterResultMessage = {
@@ -268,7 +270,7 @@ export const LoadRegisterEndpoint = (app: Application): void => {
 		//Send response, user registered, close connection
 		conn.end();
 
-		logger.info("RES ->", username, "|", hex, "|", domain, "|" , "Registered");
+		logger.info("RES ->", username, "|", hex, "|", domain, "|", "Registered");
 		const result: RegisterResultMessage = {
 			username: req.body.tags[0][1],
 			pubkey: event.pubkey,

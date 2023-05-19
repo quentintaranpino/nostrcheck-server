@@ -13,7 +13,9 @@ describe("GET /api/v1/registered", () => {
 	});
 
 	it("Should be CORS enabled", () => {
-		return request(app).get("/api/v1/nostraddress?name=_").expect("Access-Control-Allow-Origin", "*");
+		return request(app)
+			.get("/api/v1/nostraddress?name=_")
+			.expect("Access-Control-Allow-Origin", "*");
 	});
 
 	it("Should return 200 with name parameter", () => {
@@ -36,8 +38,7 @@ describe("GET /api", () => {
 describe("POST /api/v1/register/", () => {
 	it("Should return 400 without body", () => {
 		return request(app).post("/api/register").expect(400);
-	}
-	);
+	});
 	// it("Should return 400 without id", () => {
 	// 	return request(app).post("/api/register").send({}).expect(400);
 	// }

@@ -1,4 +1,5 @@
 import { createPool, Pool } from "mysql2/promise";
+
 import { logger } from "./logger";
 
 export async function connect(): Promise<Pool> {
@@ -14,81 +15,78 @@ export async function connect(): Promise<Pool> {
 	return connection;
 }
 
-export async function populateTables(resetTables : boolean): Promise<boolean>{
+export async function populateTables(resetTables: boolean): Promise<boolean> {
+	if (resetTables) {
+		//Drop registered table
+		const conn = await connect();
+		logger.info("Dropping table registered");
+		const RegisteredTableDropStatement = "DROP TABLE IF EXISTS registered;";
+		await conn.query(RegisteredTableDropStatement);
 
-	if (resetTables){
-	//Drop registered table
-	const conn = await connect();
-	logger.info("Dropping table registered");
-	let RegisteredTableDropStatement : string =	"DROP TABLE IF EXISTS registered;"
-	await conn.query(RegisteredTableDropStatement);
+		logger.info("Dropping table domains");
+		const DomainsTableDropStatement = "DROP TABLE IF EXISTS domains;";
+		await conn.query(DomainsTableDropStatement);
 
-	logger.info("Dropping table domains");
-	let DomainsTableDropStatement : string = "DROP TABLE IF EXISTS domains;"
-	await conn.query(DomainsTableDropStatement);
-
-	conn.end();
+		conn.end();
 	}
 
 	//Create registered table
 	const conn = await connect();
 
-	let ExistRegisteredTableStatement : string = "SHOW TABLES FROM `nostrcheck` LIKE 'registered';"
-	logger.info("Checking if table registered exist")
+	const ExistRegisteredTableStatement = "SHOW TABLES FROM `nostrcheck` LIKE 'registered';";
+	logger.info("Checking if table registered exist");
 	const [ExistRegisteredTable] = await conn.query(ExistRegisteredTableStatement);
 	const rowstempExistRegisteredTable = JSON.parse(JSON.stringify(ExistRegisteredTable));
-	if(rowstempExistRegisteredTable[0] == undefined){
-
-		let RegisteredTableCreateStatement : string =
-		"CREATE TABLE IF NOT EXISTS registered ("+
-		"id int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,"+
-		"pubkey varchar(64) NOT NULL,"+
-		"hex varchar(64) NOT NULL,"+
-		"username varchar(50) NOT NULL,"+
-		"password varchar(100) NOT NULL,"+
-		"domain varchar(50) NOT NULL,"+
-		"active boolean NOT NULL DEFAULT 0,"+
-		"date datetime NOT NULL,"+
-		"comments varchar(150)"+
-		") ENGINE=InnoDB DEFAULT CHARSET=latin1;"
+	if (rowstempExistRegisteredTable[0] == undefined) {
+		const RegisteredTableCreateStatement: string =
+			"CREATE TABLE IF NOT EXISTS registered (" +
+			"id int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY," +
+			"pubkey varchar(64) NOT NULL," +
+			"hex varchar(64) NOT NULL," +
+			"username varchar(50) NOT NULL," +
+			"password varchar(100) NOT NULL," +
+			"domain varchar(50) NOT NULL," +
+			"active boolean NOT NULL DEFAULT 0," +
+			"date datetime NOT NULL," +
+			"comments varchar(150)" +
+			") ENGINE=InnoDB DEFAULT CHARSET=latin1;";
 
 		logger.info("Creating table registered");
 		await conn.query(RegisteredTableCreateStatement);
-
-	}else{
+	} else {
 		logger.info("Table registered alredy exist, skipping creation");
-	}	
+	}
 
 	//Create domains table
-	let ExistDomainsTableStatement : string = "SHOW TABLES FROM `nostrcheck` LIKE 'domains';"
-	logger.info("Checking if table domains exist")
+	const ExistDomainsTableStatement = "SHOW TABLES FROM `nostrcheck` LIKE 'domains';";
+	logger.info("Checking if table domains exist");
 	const [ExistDomainsTable] = await conn.query(ExistDomainsTableStatement);
 	const rowstempExistDomainsTable = JSON.parse(JSON.stringify(ExistDomainsTable));
-	if(rowstempExistDomainsTable[0] == undefined){
-		let DomainsTableCreateStatement : string =
-		"CREATE TABLE IF NOT EXISTS domains ("+
-		"id int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,"+
-		"domain varchar(50) NOT NULL,"+
-		"active boolean NOT NULL DEFAULT 0,"+
-		"comments varchar(150)"+
-		") ENGINE=InnoDB DEFAULT CHARSET=latin1;"
+	if (rowstempExistDomainsTable[0] == undefined) {
+		const DomainsTableCreateStatement: string =
+			"CREATE TABLE IF NOT EXISTS domains (" +
+			"id int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY," +
+			"domain varchar(50) NOT NULL," +
+			"active boolean NOT NULL DEFAULT 0," +
+			"comments varchar(150)" +
+			") ENGINE=InnoDB DEFAULT CHARSET=latin1;";
 		logger.info("Creating table domains");
 		await conn.query(DomainsTableCreateStatement);
 
 		logger.info("Populating default domains");
-		let InsertDomainsTableStatement : string = "INSERT INTO domains (domain, active, comments) VALUES (?,?,?);"
-		await conn.execute(InsertDomainsTableStatement, ["nostrcheck.me", 1, "Default domain"]);	
-		await conn.execute(InsertDomainsTableStatement, ["nostr-check.me", 1, ""]);	
-		await conn.execute(InsertDomainsTableStatement, ["nostriches.club", 1, ""]);	
-		await conn.execute(InsertDomainsTableStatement, ["plebchain.club", 1, ""]);	
-		if(!InsertDomainsTableStatement){
+		const InsertDomainsTableStatement =
+			"INSERT INTO domains (domain, active, comments) VALUES (?,?,?);";
+		await conn.execute(InsertDomainsTableStatement, ["nostrcheck.me", 1, "Default domain"]);
+		await conn.execute(InsertDomainsTableStatement, ["nostr-check.me", 1, ""]);
+		await conn.execute(InsertDomainsTableStatement, ["nostriches.club", 1, ""]);
+		await conn.execute(InsertDomainsTableStatement, ["plebchain.club", 1, ""]);
+		if (!InsertDomainsTableStatement) {
 			logger.error("Error inserting default domains to database");
 		}
-
-	}else{
+	} else {
 		logger.info("Table domains alredy exist, skipping creation");
 	}
 	conn.end();
 
-return true;
+	return true;
 }
