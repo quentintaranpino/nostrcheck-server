@@ -5,10 +5,7 @@ import { createClient } from "redis";
 import { loadApiEndpoints } from "./controllers/index.api";
 import { populateTables } from "./database";
 import { logger } from "./logger";
-
-
-
-
+import helmet from "helmet";
 
 
 // Express configuration
@@ -17,6 +14,9 @@ app.set("port", process.env.PORT ?? 3000);
 app.set("version", process.env.npm_package_version ?? "0.0");
 app.use(express.json({ limit: "25mb" }));
 app.use(express.urlencoded({ limit: "25mb", extended: true }));
+
+//Helmet configuration
+app.use(helmet());
 
 // Public pubkey
 app.set(
