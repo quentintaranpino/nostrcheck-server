@@ -61,8 +61,7 @@ export const LoadVerifyEndpoint = (app: Application): void => {
             description: "Valid Event",
         };
 
-        return res.status(400).send(result);
+        return res.status(200).send(result);
     });
-
 
     }
