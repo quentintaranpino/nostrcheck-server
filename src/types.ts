@@ -15,9 +15,11 @@ interface VerifyResultMessage extends ResultMessage {
 
 interface MediaResultMessage extends ResultMessage {
 	url: string;
+	visibility: string;
 }
 
 const UploadTypes = ["avatar", "banner", "media"];
+const UploadVisibility = ["public", "private"];
 
 const allowedMimeTypes = [
 	"image/png",
@@ -46,5 +48,6 @@ export {
 	RegisterResultMessage,
 	ResultMessage,
 	UploadTypes,
+	UploadVisibility,
 	VerifyResultMessage,
 };

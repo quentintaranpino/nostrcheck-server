@@ -3,7 +3,7 @@ import { Application, Request, Response } from "express";
 import { connect } from "../database";
 import { logger } from "../logger";
 import { ParseAuthEvent } from "../NIP98";
-import { allowedMimeTypes, MediaResultMessage, ResultMessage, UploadTypes } from "../types";
+import { allowedMimeTypes, MediaResultMessage, ResultMessage, UploadTypes, UploadVisibility } from "../types";
 
 const multer = require("multer");
 
@@ -35,6 +35,28 @@ export const LoadMediaEndpoint = (app: Application): void => {
 				return res.status(400).send(result);
 			}
 
+            //Check if visibility is valid
+            let visibility = req.body.visibility;
+            if (!visibility) {
+                logger.warn(`RES -> 400 Bad request - missing visiblity`, "|", req.socket.remoteAddress);
+                const result: ResultMessage = {
+                    result: false,
+                    description: "missing visiblity",
+                };
+                return res.status(400).send(result);
+            }
+
+            //Check if visiblity is valid
+            if (!UploadVisibility.includes(visibility)) {
+                logger.warn(`RES -> 400 Bad request - incorrect visiblity`, "|", req.socket.remoteAddress);
+                const result: ResultMessage = {
+                    result: false,
+                    description: "incorrect visiblity",
+                };
+                return res.status(400).send(result);
+            }
+            logger.info("visiblity ->", visibility, "|", req.socket.remoteAddress);
+
 			//Check if pubkey is registered
 			let pubkey = EventHeader.pubkey;
 			const db = await connect();
@@ -47,6 +69,7 @@ export const LoadMediaEndpoint = (app: Application): void => {
 					"pubkey not registered, switching to public upload | ",
 					req.socket.remoteAddress
 				);
+				visibility = "public";
 				pubkey = app.get("pubkey");
 			}
 			logger.info("pubkey ->", pubkey, "|", req.socket.remoteAddress);
@@ -79,7 +102,7 @@ export const LoadMediaEndpoint = (app: Application): void => {
 			}
 			logger.info("type ->", uploadtype, "|", req.socket.remoteAddress);
 
-			//Check if file exist
+			//Check if file exist on POST
 			const file = req.file;
 			if (!file) {
 				logger.warn(`RES -> 400 Bad request - Empty file`, "|", req.socket.remoteAddress);
@@ -107,6 +130,7 @@ export const LoadMediaEndpoint = (app: Application): void => {
 			logger.info(`RES -> 200 OK - File uploaded successfully`, "|", req.socket.remoteAddress);
 			const result: MediaResultMessage = {
 				url: "FILENAME",
+				visibility,
 				result: true,
 				description: "File uploaded successfully",
 			};
