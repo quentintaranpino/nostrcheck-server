@@ -1,8 +1,8 @@
-import { Application, Request, Response } from "express";
+import { Request, Response } from "express";
 
-import { redisClient } from "../app";
-import { connect } from "../database";
-import { logger } from "../logger";
+import { redisClient } from "../lib/redis";
+import { connect } from "../lib/database";
+import { logger } from "../lib/logger";
 
 interface RegisteredResults {
 	username: string;

@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import { Event, getEventHash, validateEvent, verifySignature } from "nostr-tools";
 
-import { logger } from "../logger";
+import { logger } from "../lib/logger";
 import { VerifyResultMessage } from "../types";
 
 const VerifyNote = async (req: Request, res: Response): Promise<Response> => {

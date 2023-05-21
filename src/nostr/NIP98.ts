@@ -1,9 +1,9 @@
 import { Request } from "express";
 import { Event } from "nostr-tools";
 
-import { devmode } from "./app";
-import { logger } from "./logger";
-import { NIP98Kind, ResultMessage, VerifyResultMessage } from "./types";
+import { logger } from "../lib/logger";
+import { NIP98Kind, ResultMessage, VerifyResultMessage } from "../types";
+import app from "../app";
 
 //https://github.com/v0l/nips/blob/nip98/98.md
 
@@ -103,7 +103,7 @@ const CheckAuthEvent = (authevent: Event, req: Request): ResultMessage => {
 	try {
 		let created_at = authevent.created_at;
 		const now = Math.floor(Date.now() / 1000);
-		if (devmode) {
+		if (process.env.NODE_ENV == "development") {
 			logger.warn("DEVMODE IS TRUE, SETTING CREATED_AT TO NOW", "|", req.socket.remoteAddress);
 			created_at = now - 30;
 		} //If devmode is true, set created_at to now for testing purposes
@@ -112,7 +112,7 @@ const CheckAuthEvent = (authevent: Event, req: Request): ResultMessage => {
 			logger.warn(
 				"RES -> 400 Bad request - Auth header event created_at is not within a reasonable time window",
 				"|",
-				req.socket.remoteAddress
+				req.socket.remoteAddress, process.env.NODE_ENV
 			);
 			const result: ResultMessage = {
 				result: false,

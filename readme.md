@@ -92,10 +92,16 @@ npm run lint:fix
 The server don't verify NIP98 created_at integrity when is running on development mode.
 
 ```
-# Dev mode
+# Dev mode linux
 export NODE_ENV=development
 
+# Dev mode Windows (Powershell)
+$env:NODE_ENV="development"
 
-# Production mode
+# Production mode linux
 export NODE_ENV=production
+
+# Production mode Windows (Powershell)
+ $env:NODE_ENV="production"
+ 
 ```

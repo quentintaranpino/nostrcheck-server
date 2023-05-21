@@ -1,7 +1,6 @@
 import { Request, Response } from "express";
-
-import { connect } from "../database";
-import { logger } from "../logger";
+import { connect } from "../lib/database";
+import { logger } from "../lib/logger";
 
 const AvailableDomains = async (req: Request, res: Response): Promise<Response> => {
 	//Available domains endpoint

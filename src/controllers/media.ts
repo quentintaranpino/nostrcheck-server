@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
-import { connect } from "../database";
-import { logger } from "../logger";
-import { ParseAuthEvent } from "../NIP98";
+import { connect } from "../lib/database";
+import { logger } from "../lib/logger";
+import { ParseAuthEvent } from "../nostr/NIP98";
 import {
 	allowedMimeTypes,
 	ResultMessage,

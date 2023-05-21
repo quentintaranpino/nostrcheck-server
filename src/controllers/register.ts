@@ -1,9 +1,9 @@
 import { Application, Request, Response } from "express";
 import { Event, getEventHash, nip19, validateEvent, verifySignature } from "nostr-tools";
 
-import { connect } from "../database";
-import { logger } from "../logger";
-import { ParseAuthEvent } from "../NIP98";
+import { connect } from "../lib/database";
+import { logger } from "../lib/logger";
+import { ParseAuthEvent } from "../nostr/NIP98";
 import { RegisterResultMessage } from "../types";
 import validation from "validator";
 

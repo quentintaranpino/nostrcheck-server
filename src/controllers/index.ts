@@ -1,9 +1,11 @@
 import { Request, Response } from "express";
+import { logger } from "../lib/logger";
 
 import app from "../app";
 
 const APIIndex = async (req: Request, res: Response): Promise<Response> => {
 
+	logger.info("REQ -> API Index ", "|", req.socket.remoteAddress);
 	return res.status(200).send(
 		`<head><title>Nostrcheck.me REST API</title></head>` +
 			`<style>body{font-family:Arial,Helvetica,sans-serif;}</style>` +
@@ -22,7 +24,6 @@ const APIIndex = async (req: Request, res: Response): Promise<Response> => {
 			`<li><a href='/api/v1/verify'>/api/v1/verify</a></li>` +
 			`<li><a href='/api/v1/media'>/api/v1/media</a></li>`
 	);
-
 };
 
 export {APIIndex};

@@ -1,6 +1,12 @@
 import { createPool, Pool } from "mysql2/promise";
-
 import { logger } from "./logger";
+
+//Check database integrity
+const dbtables = populateTables(false);
+if (!dbtables) {
+	logger.error("Error creating database tables");
+	process.exit(1);
+}
 
 export async function connect(): Promise<Pool> {
 	const connection = await createPool({
