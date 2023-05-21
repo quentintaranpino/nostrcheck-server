@@ -1,18 +1,10 @@
 import cors from "cors";
 import express from "express";
 import { createClient } from "redis";
-
+import { LoadAPIv1 } from "./routes/routes.v1";
 import { populateTables } from "./database";
 import { logger } from "./logger";
 import helmet from "helmet";
-
-import { LoadVerifyEndpoint } from "./routes/verify.route";
-import { LoadIndexEndpoint } from "./routes/index.route";
-import { LoadDomainsEndpoint } from "./routes/domains.route";
-import { LoadNostraddressEndpoint } from "./routes/nostraddress.route";
-import { LoadRegisterEndpoint } from "./routes/register.route";
-import { LoadMediaEndpoint } from "./routes/media.route";
-
 
 // Express configuration
 const app = express();
@@ -49,15 +41,12 @@ if (!dbtables) {
 	process.exit(1);
 }
 
-//Load API endpoints
-LoadVerifyEndpoint(app);
-LoadIndexEndpoint(app);
-LoadDomainsEndpoint(app);
-LoadNostraddressEndpoint(app);
-LoadRegisterEndpoint(app);
-LoadMediaEndpoint(app);
+//Load Routes V1
+LoadAPIv1(app);
 
-export const devmode = app.get("env") === "development";
+
+//TODO. use app.gey(env) or set a global variable devmode, but not both
+export const devmode = app.get("env");
 
 export { redisClient };
 export default app;
