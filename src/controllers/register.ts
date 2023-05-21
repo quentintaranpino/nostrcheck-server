@@ -5,8 +5,7 @@ import { connect } from "../database";
 import { logger } from "../logger";
 import { ParseAuthEvent } from "../NIP98";
 import { RegisterResultMessage } from "../types";
-
-const validation = require("validator");
+import validation from "validator";
 
 //TODO: CALL DOMAINS ENDPOINT TO CHECK IF DOMAIN IS VALID
 const AcceptedDomains = ["nostrcheck.me", "nostr-check.me", "nostriches.club", "plebchain.club"];
