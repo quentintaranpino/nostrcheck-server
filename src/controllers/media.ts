@@ -1,5 +1,4 @@
 import { Application, Request, Response } from "express";
-
 import { connect } from "../database";
 import { logger } from "../logger";
 import { ParseAuthEvent } from "../NIP98";
@@ -10,13 +9,24 @@ import {
 	UploadTypes,
 	UploadVisibility,
 } from "../types";
+import * as fastq from "fastq";
+import * as multer from "multer";
+import type { queueAsPromised } from "fastq";
 
-const multer = require("multer");
-
-const upload = multer({
+const upload = multer.default({
 	storage: multer.memoryStorage(),
 	limits: { fileSize: 100 * 1024 * 1024 }, //100MB max file size
 });
+
+const requestQueue: queueAsPromised<any> = fastq.promise(asyncTransform, 1)
+async function asyncTransform (arg: any): Promise<ResultMessage> {
+
+  logger.info("asyncTransform", "->", arg.originalname);
+  return {
+	result: true,
+	description: "Transform file success",
+	  };
+}
 
 export const LoadMediaEndpoint = (app: Application): void => {
 	app.post(
@@ -41,7 +51,7 @@ export const LoadMediaEndpoint = (app: Application): void => {
 				return res.status(400).send(result);
 			}
 
-			//Check if visibility is valid
+			//Check if visibility exist
 			let visibility = req.body.visibility;
 			if (!visibility) {
 				logger.warn(`RES -> 400 Bad request - missing visiblity`, "|", req.socket.remoteAddress);
@@ -110,7 +120,7 @@ export const LoadMediaEndpoint = (app: Application): void => {
 			}
 			logger.info("type ->", uploadtype, "|", req.socket.remoteAddress);
 
-			//Check if file exist on POST
+			//Check if file exist on POST message
 			const file = req.file;
 			if (!file) {
 				logger.warn(`RES -> 400 Bad request - Empty file`, "|", req.socket.remoteAddress);
@@ -124,28 +134,32 @@ export const LoadMediaEndpoint = (app: Application): void => {
 
 			//Check if filetype is allowed
 			if (!allowedMimeTypes.includes(file.mimetype)) {
-				logger.warn(`RES -> 400 Bad request - Incorrect file type`, "|", req.socket.remoteAddress);
+				logger.warn(`RES -> 400 Bad request - `, file.mimetype, ` filetype not allowed`, "|", req.socket.remoteAddress);
 				const result: ResultMessage = {
 					result: false,
-					description: "Incorrect file type",
+					description: "filetype not allowed",
 				};
 
 				return res.status(400).send(result);
 			}
 			logger.info("mime ->", file.mimetype, "|", req.socket.remoteAddress);
 
-			//TODO: Transform files (video, audio, etc)
+			//Send file to transform queue
+			//Se tiene que cambiar, se debe enviar el objeto file en el metodo de transform
+			//se debe copiar tambien a su ubicacion final. Por lo tanto, se debe cambiar
+			//el nombre del metodo transformfile.
+			let returnfile = await requestQueue.push(file).catch((err) => console.error(err))
 
-			//RETURN FILE URL
-			logger.info(`RES -> 200 OK - File uploaded successfully`, "|", req.socket.remoteAddress);
-			const result: MediaResultMessage = {
-				url: "FILENAME",
-				visibility,
-				result: true,
-				description: "File uploaded successfully",
-			};
+			if (returnfile.result == false) {
+				logger.warn(`RES -> 400 Bad request - `, returnfile.description, "|", req.socket.remoteAddress);
+				const result: ResultMessage = {
+					result: returnfile.result,
+					description: returnfile.description,
+					};
+				return res.status(400).send(result);
+			}
 
-			return res.status(200).send(result);
+			return res.status(200).send(returnfile);
 		}
 	);
 };

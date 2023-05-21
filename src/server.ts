@@ -7,26 +7,26 @@ import { logger } from "./logger";
  */
 
 const server = app.listen(app.get("port"), () => {
-	logger.silly("");
-	logger.silly(
+	console.log("");
+	console.log("");
+	console.log(
 		"███╗   ██╗ ██████╗ ███████╗████████╗██████╗  ██████╗██╗  ██╗███████╗ ██████╗██╗  ██╗     █████╗ ██████╗ ██╗"
 	);
-	logger.silly(
+	console.log(
 		"████╗  ██║██╔═══██╗██╔════╝╚══██╔══╝██╔══██╗██╔════╝██║  ██║██╔════╝██╔════╝██║ ██╔╝    ██╔══██╗██╔══██╗██║"
 	);
-	logger.silly(
+	console.log(
 		"██╔██╗ ██║██║   ██║███████╗   ██║   ██████╔╝██║     ███████║█████╗  ██║     █████╔╝     ███████║██████╔╝██║"
 	);
-	logger.silly(
+	console.log(
 		"██║╚██╗██║██║   ██║╚════██║   ██║   ██╔══██╗██║     ██╔══██║██╔══╝  ██║     ██╔═██╗     ██╔══██║██╔═══╝ ██║"
 	);
-	logger.silly(
+	console.log(
 		"██║ ╚████║╚██████╔╝███████║   ██║   ██║  ██║╚██████╗██║  ██║███████╗╚██████╗██║  ██╗    ██║  ██║██║     ██║"
 	);
-	logger.silly(
+	console.log(
 		"╚═╝  ╚═══╝ ╚═════╝ ╚══════╝   ╚═╝   ╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝╚══════╝ ╚═════╝╚═╝  ╚═╝    ╚═╝  ╚═╝╚═╝     ╚═╝"
 	);
-	logger.silly("");
 
 	logger.info("Nostrcheck API server started, version %s", app.get("version"));
 	logger.info("Running at http://localhost:%d in %s mode", app.get("port"), app.get("env"));
