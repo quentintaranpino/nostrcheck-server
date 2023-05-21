@@ -2,10 +2,16 @@ import cors from "cors";
 import express from "express";
 import { createClient } from "redis";
 
-import { loadApiEndpoints } from "./controllers/index.api";
 import { populateTables } from "./database";
 import { logger } from "./logger";
 import helmet from "helmet";
+
+import { LoadVerifyEndpoint } from "./routes/verify.route";
+import { LoadIndexEndpoint } from "./routes/index.route";
+import { LoadDomainsEndpoint } from "./routes/domains.route";
+import { LoadNostraddressEndpoint } from "./routes/nostraddress.route";
+import { LoadRegisterEndpoint } from "./routes/register.route";
+import { LoadMediaEndpoint } from "./routes/media.route";
 
 
 // Express configuration
@@ -44,7 +50,12 @@ if (!dbtables) {
 }
 
 //Load API endpoints
-loadApiEndpoints(app);
+LoadVerifyEndpoint(app);
+LoadIndexEndpoint(app);
+LoadDomainsEndpoint(app);
+LoadNostraddressEndpoint(app);
+LoadRegisterEndpoint(app);
+LoadMediaEndpoint(app);
 
 export const devmode = app.get("env") === "development";
 

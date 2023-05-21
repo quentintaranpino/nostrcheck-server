@@ -1,11 +1,11 @@
-import { Application, Request, Response } from "express";
+import { Request, Response } from "express";
 
 import { connect } from "../database";
 import { logger } from "../logger";
 
-export const LoadAvailableDomains = (app: Application): void => {
+const AvailableDomains = async (req: Request, res: Response): Promise<Response> => {
 	//Available domains endpoint
-	app.get("/api/v1/domains", async (req: Request, res: Response): Promise<Response> => {
+
 		logger.info("REQ -> Domain list ", "|", req.socket.remoteAddress);
 
 		try {
@@ -26,5 +26,6 @@ export const LoadAvailableDomains = (app: Application): void => {
 
 			return res.status(500).send({ description: "Internal server error" });
 		}
-	});
 };
+
+export { AvailableDomains };

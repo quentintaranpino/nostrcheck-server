@@ -7,11 +7,11 @@ import { ParseAuthEvent } from "../NIP98";
 import { RegisterResultMessage } from "../types";
 import validation from "validator";
 
-//TODO: CALL DOMAINS ENDPOINT TO CHECK IF DOMAIN IS VALID
+//TODO: CALL DATABASE TO CHECK IF DOMAIN IS VALID
 const AcceptedDomains = ["nostrcheck.me", "nostr-check.me", "nostriches.club", "plebchain.club"];
 
-export const LoadRegisterEndpoint = (app: Application): void => {
-	app.post("/api/v1/register", async (req: Request, res: Response): Promise<Response> => {
+const Registernewpubkey = async (req: Request, res: Response): Promise<Response> => {
+	
 		logger.info("POST /api/v1/register", "|", req.socket.remoteAddress);
 
 		//Check if event authorization header is valid
@@ -281,5 +281,6 @@ export const LoadRegisterEndpoint = (app: Application): void => {
 		return res.status(200).send(result);
 
 		//MUST REFACTOR ALL CHECKS INTO NEW TS FILE
-	});
 };
+
+export {Registernewpubkey};

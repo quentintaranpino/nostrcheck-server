@@ -14,9 +14,8 @@ interface ResultMessage extends RegisteredResults {
 	description: string;
 }
 
-export const LoadNostraddressEndpoint = (app: Application): void => {
+const Checknostraddress = async (req: Request, res: Response): Promise<Response> => {
 	//Nostr address usernames endpoint
-	app.get("/api/v1/nostraddress", async (req: Request, res: Response): Promise<Response> => {
 		const name = req.query.name as string;
 		const servername = req.hostname;
 		let isCached = false;
@@ -138,7 +137,6 @@ export const LoadNostraddressEndpoint = (app: Application): void => {
 		logger.info("RES ->", result.hex, "|", "cached:", isCached);
 
 		return res.status(200).send(JSON.stringify({ names: { [result.username]: result.hex } }));
-	});
 };
 
 async function getJsonDataFromRedis(key: string): Promise<RegisteredResults> {
@@ -150,3 +148,5 @@ async function getJsonDataFromRedis(key: string): Promise<RegisteredResults> {
 
 	return JSON.parse(data.toString());
 }
+
+export { Checknostraddress };
