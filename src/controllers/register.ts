@@ -6,9 +6,7 @@ import { logger } from "../lib/logger";
 import { ParseAuthEvent } from "../nostr/NIP98";
 import { RegisterResultMessage } from "../types";
 import validation from "validator";
-
-//TODO: CALL DATABASE TO CHECK IF DOMAIN IS VALID
-const AcceptedDomains = ["nostrcheck.me", "nostr-check.me", "nostriches.club", "plebchain.club"];
+import {QueryAvailiableDomains} from "./domains";
 
 const Registernewpubkey = async (req: Request, res: Response): Promise<Response> => {
 	
@@ -134,7 +132,8 @@ const Registernewpubkey = async (req: Request, res: Response): Promise<Response>
 		}
 
 		//Check if domain is valid
-		const IsValidDomain = AcceptedDomains.indexOf(req.body.tags[1][1]) > -1;
+		const AcceptedDomains = await QueryAvailiableDomains();
+		const IsValidDomain = JSON.stringify(AcceptedDomains).indexOf(req.body.tags[1][1]) > -1;
 		if (!IsValidDomain) {
 			logger.warn("RES -> 406 Bad request - domain not accepted", "|", req.socket.remoteAddress);
 			const result: RegisterResultMessage = {
@@ -163,6 +162,12 @@ const Registernewpubkey = async (req: Request, res: Response): Promise<Response>
 		try {
 			const IsEventHashValid = getEventHash(event);
 			if (IsEventHashValid != event.id) {
+				logger.warn(
+					`RES -> 400 Bad request - Event hash is invalid: ${IsEventHashValid} != ${event.id}`,
+					"|",
+					req.socket.remoteAddress
+				);
+
 				const result: RegisterResultMessage = {
 					username: "",
 					pubkey: "",
@@ -177,6 +182,12 @@ const Registernewpubkey = async (req: Request, res: Response): Promise<Response>
 			const IsEventValid = validateEvent(event);
 			const IsEventSignatureValid = verifySignature(event);
 			if (!IsEventValid || !IsEventSignatureValid) {
+				logger.warn(
+					`RES -> 400 Bad request - Event signature is invalid: ${IsEventValid} or ${IsEventSignatureValid}`,
+					"|",
+					req.socket.remoteAddress
+				);
+				
 				const result: RegisterResultMessage = {
 					username: "",
 					pubkey: "",
