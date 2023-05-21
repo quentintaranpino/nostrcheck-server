@@ -1,7 +1,7 @@
-import { Application, } from "express";
-import {Checknostraddress} from "../controllers/nostraddress";
+import { Application } from "express";
 
-export const LoadNostraddressEndpoint = async (app: Application): Promise<void>=> {
+import { Checknostraddress } from "../controllers/nostraddress";
+
+export const LoadNostraddressEndpoint = async (app: Application): Promise<void> => {
 	app.get("/api/v1/nostraddress", Checknostraddress);
-	
 };

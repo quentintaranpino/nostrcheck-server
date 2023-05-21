@@ -1,31 +1,25 @@
 import { Request, Response } from "express";
+import type { queueAsPromised } from "fastq";
+import * as fastq from "fastq";
+
+import app from "../app";
 import { connect } from "../lib/database";
 import { logger } from "../lib/logger";
 import { ParseAuthEvent } from "../nostr/NIP98";
-import {
-	allowedMimeTypes,
-	ResultMessage,
-	UploadTypes,
-	UploadVisibility,
-} from "../types";
-import * as fastq from "fastq";
-import app from "../app";
-import type { queueAsPromised } from "fastq";
+import { allowedMimeTypes, ResultMessage, UploadTypes, UploadVisibility } from "../types";
 
-const requestQueue: queueAsPromised<any> = fastq.promise(asyncTransform, 1)
+const requestQueue: queueAsPromised<any> = fastq.promise(asyncTransform, 1);
 
-async function asyncTransform (arg: any): Promise<ResultMessage> {
+async function asyncTransform(arg: any): Promise<ResultMessage> {
+	logger.info("asyncTransform", "->", arg.originalname);
 
-  logger.info("asyncTransform", "->", arg.originalname);
-  return {
-	result: true,
-	description: "Transform file success",
-	  };
+	return {
+		result: true,
+		description: "Transform file success",
+	};
 }
 
-
 const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
-	
 	logger.info("POST /api/v1/media", "|", req.socket.remoteAddress);
 
 	//Check if event authorization header is valid (NIP98)
@@ -76,10 +70,7 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 
 	if (rowstemp[0] == undefined) {
 		//If not registered the upload will be public
-		logger.warn(
-			"pubkey not registered, switching to public upload | ",
-			req.socket.remoteAddress
-		);
+		logger.warn("pubkey not registered, switching to public upload | ", req.socket.remoteAddress);
 		visibility = "public";
 		pubkey = app.get("pubkey");
 	}
@@ -99,11 +90,7 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 
 	//Check if upload type is valid
 	if (!UploadTypes.includes(uploadtype)) {
-		logger.warn(
-			`RES -> 400 Bad request - incorrect upload type`,
-			"|",
-			req.socket.remoteAddress
-		);
+		logger.warn(`RES -> 400 Bad request - incorrect upload type`, "|", req.socket.remoteAddress);
 		const result: ResultMessage = {
 			result: false,
 			description: "incorrect upload type",
@@ -127,7 +114,13 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 
 	//Check if filetype is allowed
 	if (!allowedMimeTypes.includes(file.mimetype)) {
-		logger.warn(`RES -> 400 Bad request - `, file.mimetype, ` filetype not allowed`, "|", req.socket.remoteAddress);
+		logger.warn(
+			`RES -> 400 Bad request - `,
+			file.mimetype,
+			` filetype not allowed`,
+			"|",
+			req.socket.remoteAddress
+		);
 		const result: ResultMessage = {
 			result: false,
 			description: "filetype not allowed",
@@ -141,18 +134,19 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 	//Se tiene que cambiar, se debe enviar el objeto file en el metodo de transform
 	//se debe copiar tambien a su ubicacion final. Por lo tanto, se debe cambiar
 	//el nombre del metodo transformfile.
-	let returnfile = await requestQueue.push(file).catch((err) => console.error(err))
+	const returnfile = await requestQueue.push(file).catch((err) => console.error(err));
 
 	if (returnfile.result == false) {
 		logger.warn(`RES -> 400 Bad request - `, returnfile.description, "|", req.socket.remoteAddress);
 		const result: ResultMessage = {
 			result: returnfile.result,
 			description: returnfile.description,
-			};
+		};
+
 		return res.status(400).send(result);
 	}
 
 	return res.status(200).send(returnfile);
 };
 
-export {Uploadmedia};
+export { Uploadmedia };

@@ -1,4 +1,5 @@
 import { createPool, Pool } from "mysql2/promise";
+
 import { logger } from "./logger";
 
 //Check database integrity

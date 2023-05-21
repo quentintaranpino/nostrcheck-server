@@ -1,6 +1,7 @@
-import { Application, } from "express";
-import {Registernewpubkey} from "../controllers/register"
+import { Application } from "express";
 
-export const LoadRegisterEndpoint = async (app: Application): Promise<void>=> {
+import { Registernewpubkey } from "../controllers/register";
+
+export const LoadRegisterEndpoint = async (app: Application): Promise<void> => {
 	app.post("/api/v1/register", Registernewpubkey);
 };

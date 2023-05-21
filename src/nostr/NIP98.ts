@@ -3,7 +3,6 @@ import { Event } from "nostr-tools";
 
 import { logger } from "../lib/logger";
 import { NIP98Kind, ResultMessage, VerifyResultMessage } from "../types";
-import app from "../app";
 
 //https://github.com/v0l/nips/blob/nip98/98.md
 
@@ -112,7 +111,8 @@ const CheckAuthEvent = (authevent: Event, req: Request): ResultMessage => {
 			logger.warn(
 				"RES -> 400 Bad request - Auth header event created_at is not within a reasonable time window",
 				"|",
-				req.socket.remoteAddress, process.env.NODE_ENV
+				req.socket.remoteAddress,
+				process.env.NODE_ENV
 			);
 			const result: ResultMessage = {
 				result: false,
