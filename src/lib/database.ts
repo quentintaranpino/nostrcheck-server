@@ -1,9 +1,8 @@
 import { createPool, Pool } from "mysql2/promise";
-
 import { logger } from "./logger";
 
 //Check database integrity
-const dbtables = populateTables(false);
+const dbtables = populateTables(false); // true = reset tables
 if (!dbtables) {
 	logger.error("Error creating database tables");
 	process.exit(1);
@@ -24,7 +23,7 @@ export async function connect(): Promise<Pool> {
 
 export async function populateTables(resetTables: boolean): Promise<boolean> {
 	if (resetTables) {
-		//Drop registered table
+
 		const conn = await connect();
 		logger.info("Dropping table registered");
 		const RegisteredTableDropStatement = "DROP TABLE IF EXISTS registered;";
@@ -34,6 +33,10 @@ export async function populateTables(resetTables: boolean): Promise<boolean> {
 		const DomainsTableDropStatement = "DROP TABLE IF EXISTS domains;";
 		await conn.query(DomainsTableDropStatement);
 
+		logger.info("Dropping table userfiles");
+		const UserfilesTableDropStatement = "DROP TABLE IF EXISTS userfiles;";
+		await conn.query(UserfilesTableDropStatement);
+		
 		conn.end();
 	}
 
@@ -92,6 +95,29 @@ export async function populateTables(resetTables: boolean): Promise<boolean> {
 		}
 	} else {
 		logger.info("Table domains alredy exist, skipping creation");
+	}
+
+	//Create userfiles table
+	const ExistUserfilesTableStatement = "SHOW TABLES FROM `nostrcheck` LIKE 'userfiles';";
+	logger.info("Checking if table userfiles exist");
+	const [ExistUserfilesTable] = await conn.query(ExistUserfilesTableStatement);
+	const rowstempExistUserfilesTable = JSON.parse(JSON.stringify(ExistUserfilesTable));
+	if (rowstempExistUserfilesTable[0] == undefined) {
+		const UserfilesTableCreateStatement: string =
+
+			"CREATE TABLE IF NOT EXISTS userfiles (" +
+			"id int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY," +
+			"pubkey varchar(64) NOT NULL," +
+			"hex varchar(64) NOT NULL," +
+			"filename varchar(64) NOT NULL," +
+			"public boolean NOT NULL DEFAULT 0," +
+			"date datetime NOT NULL," +
+			"comments varchar(150)" +
+			") ENGINE=InnoDB DEFAULT CHARSET=latin1;";
+		logger.info("Creating table userfiles");
+		await conn.query(UserfilesTableCreateStatement);
+	} else {
+		logger.info("Table userfiles alredy exist, skipping creation");
 	}
 	conn.end();
 
