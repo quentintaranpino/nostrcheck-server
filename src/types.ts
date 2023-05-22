@@ -16,6 +16,7 @@ interface VerifyResultMessage extends ResultMessage {
 interface MediaResultMessage extends ResultMessage {
 	url: string;
 	visibility: string;
+	id: string;
 }
 
 const UploadTypes = ["avatar", "banner", "media"];
@@ -37,6 +38,22 @@ const allowedMimeTypes = [
 	"audio/mp3",
 ];
 
+const mime_transform : {[key: string]: string} = {
+	'image/png'       : 'webp',
+	'image/jpg'       : 'webp',
+	'image/jpeg'      : 'webp',
+	'image/gif'       : 'gif', 
+	'image/webp'      : 'webp',
+	'video/mp4'       : 'mp4', 
+	'video/quicktime' : 'mp4', 
+	'video/mpeg'      : 'mp4',
+	'video/webm'      : 'mp4', 
+	'audio/mpeg'      : 'mp3', 
+	'audio/mpg'       : 'mp3', 
+	'audio/mpeg3'     : 'mp3',
+	'audio/mp3'       : 'mp3'
+};
+
 declare enum NIP98Kind {
 	Authorization = 27235,
 }
@@ -50,4 +67,5 @@ export {
 	UploadTypes,
 	UploadVisibility,
 	VerifyResultMessage,
+	mime_transform
 };

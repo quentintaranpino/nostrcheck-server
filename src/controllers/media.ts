@@ -5,19 +5,35 @@ import * as fastq from "fastq";
 import app from "../app";
 import { connect } from "../lib/database";
 import { logger } from "../lib/logger";
-import { ParseAuthEvent } from "../nostr/NIP98";
-import { allowedMimeTypes, ResultMessage, UploadTypes, UploadVisibility } from "../types";
+import { ParseAuthEvent } from "../lib/nostr/NIP98";
+import { allowedMimeTypes, MediaResultMessage, mime_transform, ResultMessage, UploadTypes, UploadVisibility } from "../types";
+import { bufferToStream, convertFile } from "../lib/ffmpeg"
+import crypto from "crypto";
 
 const requestQueue: queueAsPromised<any> = fastq.promise(asyncTransform, 1);
 
-async function asyncTransform(arg: any): Promise<ResultMessage> {
-	logger.info("asyncTransform", "->", arg.originalname);
+async function asyncTransform(inputfile: any): Promise<MediaResultMessage> {
 
-	return {
-		result: true,
-		description: "Transform file success",
+	logger.info("asyncTransform", "->", inputfile.originalname);
+
+		//Transformed mime type
+		const newmime = mime_transform[inputfile.mimetype];
+		const id = crypto.randomBytes(24).toString("hex");
+		const newfilename = id + "." + newmime;
+
+		const stream = bufferToStream(inputfile.buffer)
+		const fileconversion = convertFile(stream, "./"+newfilename)
+
+		const result: MediaResultMessage = {
+			result: fileconversion.result,
+			description: fileconversion.description,
+			url: "",
+			visibility: inputfile.visibility,
+			id: id,
+		};
+
+	return result
 	};
-}
 
 const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 	logger.info("POST /api/v1/media", "|", req.socket.remoteAddress);
@@ -130,23 +146,17 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 	}
 	logger.info("mime ->", file.mimetype, "|", req.socket.remoteAddress);
 
-	//Send file to transform queue
-	//Se tiene que cambiar, se debe enviar el objeto file en el metodo de transform
-	//se debe copiar tambien a su ubicacion final. Por lo tanto, se debe cambiar
-	//el nombre del metodo transformfile.
-	const returnfile = await requestQueue.push(file).catch((err) => console.error(err));
 
-	if (returnfile.result == false) {
-		logger.warn(`RES -> 400 Bad request - `, returnfile.description, "|", req.socket.remoteAddress);
-		const result: ResultMessage = {
-			result: returnfile.result,
-			description: returnfile.description,
-		};
+	//Send file to request transform queue
+	const returnmessage = await requestQueue.push(file).catch((err) => console.error(err));
 
-		return res.status(400).send(result);
+	if (!returnmessage || returnmessage.result === false) {
+		logger.warn(`RES -> 400 Bad request - Error converting file`, "|", req.socket.remoteAddress);
+		return res.status(400).send(returnmessage);
 	}
 
-	return res.status(200).send(returnfile);
+	returnmessage.visibility = visibility;
+	return res.status(200).send(returnmessage);
 };
 
 export { Uploadmedia };
