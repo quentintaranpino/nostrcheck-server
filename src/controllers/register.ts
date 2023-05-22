@@ -4,7 +4,7 @@ import validation from "validator";
 
 import { connect } from "../lib/database";
 import { logger } from "../lib/logger";
-import { ParseAuthEvent } from "../nostr/NIP98";
+import { ParseAuthEvent } from "../lib/nostr/NIP98";
 import { RegisterResultMessage } from "../types";
 import { QueryAvailiableDomains } from "./domains";
 
