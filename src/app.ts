@@ -1,7 +1,7 @@
 import cors from "cors";
 import express from "express";
 import helmet from "helmet";
-
+import { cleanTempDir } from "./lib/ffmpeg";
 import { LoadAPIv1 } from "./routes/routes.v1";
 
 const app = express();
@@ -19,5 +19,8 @@ app.use(cors());
 
 //Load Routes V1
 LoadAPIv1(app);
+
+//Clean temp dir
+cleanTempDir()
 
 export default app;
