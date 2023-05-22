@@ -2,42 +2,52 @@ import ffmpeg from "fluent-ffmpeg"
 import { Readable } from "stream"
 import { ResultMessage } from "../types"
 import { logger } from "../lib/logger";
+import fs from "fs";
+import os from "os";
+import { ConvertFilesOpions } from "../types";
 
-function convertFile(imagePath: Readable, outputName: string): ResultMessage {
+function convertFile(inputFile: any, outputName: string, options : ConvertFilesOpions): ResultMessage {
+
+    //We write the file on filesystem because ffmpeg doesn't support streams
+    fs.writeFile("./tmp/" + options.id, inputFile.buffer, function(err) {
+        if(err) {
+            return logger.error(err);
+        }
+    }); 
 
     let totalTime: number
-
-    ffmpeg().input(imagePath).saveToFile(outputName)
+    ffmpeg()    
+        .addOption(['-movflags faststart'])
+        .input("./tmp/" + options.id)
+        .inputFormat(options.originalmime.toString().substring(options.originalmime.indexOf("/") +1, options.originalmime.length))
+        .size(options.width + "x" + options.height)
+        .saveToFile(outputName)
+        .toFormat(options.outputmime)
         .on("end", () => {
             if(totalTime === undefined || Number.isNaN(totalTime)) {totalTime = 0}
             logger.info("File converted successfully: " + outputName + " " + totalTime + " seconds")
-            return {
-                result: true,
-                description: "Image converted",
-            }
+            fs.unlink("./tmp/" + options.id, (err) => {
+                if (err) {
+                  return logger.error(err)
+                }
+              })
         })
-        .on("error", () => {
+        .on("error", (err) => {
             logger.error(
-                `Error converting file`,
+                `Error converting file`, err
             );
-            const result: ResultMessage = {
-                result: false,
-                description: `Error converting file`,
-            };
-            return result;
-            
         })
-        .on('codecData', data => {
+        .on('codecData', (data) => {
             totalTime = parseInt(data.duration.replace(/:/g, '')) 
          })
-         .on('progress', progress => {
+         .on('progress', (progress) => {
             const time = parseInt(progress.timemark.replace(/:/g, ''))
             let percent : number = (time / totalTime) * 100
             if (percent < 0) {percent = 0}
-            logger.info("Processing : " + outputName + " - " + Number(percent).toFixed(2) + " %")
+            logger.info("Processing : " + "..." + outputName.substring(38,outputName.length) + " - " + Number(percent).toFixed(2) + " %")
           })
 
-          return {
+        return {
             result: true,
             description: "File queued for conversion",
         }
@@ -51,4 +61,19 @@ function bufferToStream(buffer: Buffer): Readable {
     return readable
 }
 
-export { bufferToStream, convertFile }
+function cleanTempDir(){
+    logger.info("Cleaning temp dir");
+    fs.readdir("./tmp", (err, files) => {
+        if (err) {
+            logger.error(err);
+        }
+      
+        for (const file of files) {
+          fs.unlink("./tmp/" +  file, err => {
+            if (err) throw err;
+          });
+        }
+      });
+}
+
+export { bufferToStream, convertFile, cleanTempDir }

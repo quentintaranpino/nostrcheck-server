@@ -12,24 +12,27 @@ import crypto from "crypto";
 
 const requestQueue: queueAsPromised<any> = fastq.promise(asyncTransform, 1);
 
-async function asyncTransform(inputfile: any): Promise<MediaResultMessage> {
+async function asyncTransform(req: any): Promise<MediaResultMessage> {
 
-	logger.info("asyncTransform", "->", inputfile.originalname);
+	logger.info("asyncTransform", "->", req.file.originalname);
 
-		//Transformed mime type
-		const newmime = mime_transform[inputfile.mimetype];
-		const id = crypto.randomBytes(24).toString("hex");
-		const newfilename = id + "." + newmime;
+		const fileoptions = {
+			width: 640,
+			height: 480,
+			uploadtype: req.type,
+			originalmime: req.file.mimetype,
+			outputmime: mime_transform[req.file.mimetype],
+			id: crypto.randomBytes(24).toString("hex"),
+		};
 
-		const stream = bufferToStream(inputfile.buffer)
-		const fileconversion = convertFile(stream, "./"+newfilename)
+		const fileconversion = convertFile(req.file, "./" + fileoptions.id + "." + fileoptions.outputmime, fileoptions)
 
 		const result: MediaResultMessage = {
 			result: fileconversion.result,
 			description: fileconversion.description,
 			url: "",
-			visibility: inputfile.visibility,
-			id: id,
+			visibility: req.file.visibility,
+			id: fileoptions.id,
 		};
 
 	return result
@@ -147,8 +150,8 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 	logger.info("mime ->", file.mimetype, "|", req.socket.remoteAddress);
 
 
-	//Send file to request transform queue
-	const returnmessage = await requestQueue.push(file).catch((err) => console.error(err));
+	//Send request to request transform queue
+	const returnmessage = await requestQueue.push(req).catch((err) => console.error(err));
 
 	if (!returnmessage || returnmessage.result === false) {
 		logger.warn(`RES -> 400 Bad request - Error converting file`, "|", req.socket.remoteAddress);
