@@ -42,7 +42,7 @@ const mime_transform : {[key: string]: string} = {
 	'image/png'       : 'webp',
 	'image/jpg'       : 'webp',
 	'image/jpeg'      : 'webp',
-	'image/gif'       : 'gif', 
+	'image/gif'       : 'mp4', 
 	'image/webp'      : 'webp',
 	'video/mp4'       : 'mp4', 
 	'video/quicktime' : 'mp4', 
@@ -58,6 +58,16 @@ declare enum NIP98Kind {
 	Authorization = 27235,
 }
 
+
+interface ConvertFilesOpions {
+	width: number;
+	height: number;
+	uploadtype: typeof UploadTypes;
+	originalmime: typeof allowedMimeTypes;
+	outputmime: string;
+	id: string;
+}
+
 export {
 	allowedMimeTypes,
 	MediaResultMessage,
@@ -67,5 +77,6 @@ export {
 	UploadTypes,
 	UploadVisibility,
 	VerifyResultMessage,
-	mime_transform
+	mime_transform,
+	ConvertFilesOpions
 };
