@@ -1,3 +1,5 @@
+import { Request } from "express";
+
 interface ResultMessage {
 	result: boolean;
 	description: string;
@@ -63,9 +65,14 @@ interface ConvertFilesOpions {
 	width: number;
 	height: number;
 	uploadtype: typeof UploadTypes;
-	originalmime: typeof allowedMimeTypes;
+	originalmime: string;
 	outputmime: string;
 	id: string;
+}
+
+interface asyncTask {
+	req: Request;
+	fileoptions: ConvertFilesOpions;
 }
 
 export {
@@ -78,5 +85,6 @@ export {
 	UploadVisibility,
 	VerifyResultMessage,
 	mime_transform,
-	ConvertFilesOpions
+	ConvertFilesOpions,
+	asyncTask
 };

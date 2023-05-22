@@ -1,42 +1,11 @@
 import { Request, Response } from "express";
-import type { queueAsPromised } from "fastq";
-import * as fastq from "fastq";
-
 import app from "../app";
 import { connect } from "../lib/database";
 import { logger } from "../lib/logger";
 import { ParseAuthEvent } from "../lib/nostr/NIP98";
-import { allowedMimeTypes, MediaResultMessage, mime_transform, ResultMessage, UploadTypes, UploadVisibility } from "../types";
-import { bufferToStream, convertFile } from "../lib/ffmpeg"
+import { requestQueue } from "../lib/transform";
+import { allowedMimeTypes, ConvertFilesOpions, MediaResultMessage, mime_transform, ResultMessage, UploadTypes, UploadVisibility, asyncTask } from "../types";
 import crypto from "crypto";
-
-const requestQueue: queueAsPromised<any> = fastq.promise(asyncTransform, 1);
-
-async function asyncTransform(req: any): Promise<MediaResultMessage> {
-
-	logger.info("asyncTransform", "->", req.file.originalname);
-
-		const fileoptions = {
-			width: 640,
-			height: 480,
-			uploadtype: req.type,
-			originalmime: req.file.mimetype,
-			outputmime: mime_transform[req.file.mimetype],
-			id: crypto.randomBytes(24).toString("hex"),
-		};
-
-		const fileconversion = convertFile(req.file, "./" + fileoptions.id + "." + fileoptions.outputmime, fileoptions)
-
-		const result: MediaResultMessage = {
-			result: fileconversion.result,
-			description: fileconversion.description,
-			url: "",
-			visibility: req.file.visibility,
-			id: fileoptions.id,
-		};
-
-	return result
-	};
 
 const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 	logger.info("POST /api/v1/media", "|", req.socket.remoteAddress);
@@ -149,16 +118,44 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 	}
 	logger.info("mime ->", file.mimetype, "|", req.socket.remoteAddress);
 
-
 	//Send request to request transform queue
-	const returnmessage = await requestQueue.push(req).catch((err) => console.error(err));
 
-	if (!returnmessage || returnmessage.result === false) {
-		logger.warn(`RES -> 400 Bad request - Error converting file`, "|", req.socket.remoteAddress);
-		return res.status(400).send(returnmessage);
-	}
+	//For testing purposes, we need to specify the file options for each file type
+	const fileoptions :ConvertFilesOpions = {
+		width: 640,
+		height: 480,
+		uploadtype: uploadtype,
+		originalmime: file.mimetype,
+		outputmime: mime_transform[file.mimetype],
+		id: crypto.randomBytes(24).toString("hex"),
+	};
 
-	returnmessage.visibility = visibility;
+	const t: asyncTask = {
+		req: req,
+		fileoptions: fileoptions,
+	};
+
+	requestQueue.push(t)
+		.catch((err) => {
+			logger.error("Error pushing file to queue", err);
+			const result: MediaResultMessage = {
+				result: false,
+				description: "Error queueing file",
+				url: "",
+				visibility: "",
+				id: "",
+			};
+			return result;
+		});
+
+	const returnmessage = {
+		result: true,
+		description: "File queued for conversion",
+		url: "",
+		visibility: visibility,
+		id: fileoptions.id,
+	};
+
 	return res.status(200).send(returnmessage);
 };
 
