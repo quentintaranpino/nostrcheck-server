@@ -174,7 +174,7 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 };
 
 
-async function GetMediabyID (req: Request, res: Response) {
+const GetMediabyID = async(req: Request, res: Response) =>{
 
 	//A LOT OF TODO's HERE. Only POC
 	// Create checks for recieve an event
@@ -239,6 +239,5 @@ async function GetMediabyID (req: Request, res: Response) {
 
  
 };
-
 
 export { Uploadmedia, GetMediabyID };

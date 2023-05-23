@@ -192,8 +192,8 @@ const CheckAuthEvent = async (authevent: Event, req: Request): Promise<ResultMes
 		return result;
 	}
 
-	//Check if the request has a body and authorization event payload tag exist
-	if (req.body.constructor === Object && Object.keys(req.body).length != 0) {
+	//Check if the request has a body and authorization event payload tag exist. (!GET)
+	if (req.body.constructor === Object && Object.keys(req.body).length != 0 && req.method != "GET") {
 		try {
 			const payload = authevent.tags[2][1];
 			if ((!payload)) {
@@ -218,10 +218,11 @@ const CheckAuthEvent = async (authevent: Event, req: Request): Promise<ResultMes
 		}
 	}
 
-	//Check if authorization event payload tag is valid (must be equal than the request body sha256)
+	//Check if authorization event payload tag is valid (must be equal than the request body sha256) (!GET)
+	if (req.method != "GET"){
 	try {
 		const payload = authevent.tags[2][1];
-		const receivedpayload = crypto.createHash("sha256").update(req.body.toString(), 'binary').digest("hex"); //TODO CHECK IF THIS HASH IS CORRECT
+		const receivedpayload = crypto.createHash("sha256").update(req.body.toString(), 'binary').digest("hex"); //TODO CHECK IF THIS HASH IS CORRECT!!
 		if (payload != receivedpayload) {
 			logger.warn(
 				"RES -> 400 Bad request - Auth header event payload is not valid:", receivedpayload, " <> ", payload,
@@ -242,6 +243,7 @@ const CheckAuthEvent = async (authevent: Event, req: Request): Promise<ResultMes
 			};
 			return result
 	}
+}
 	
 	return { result: true, description: "Auth header event is valid" };
 };
