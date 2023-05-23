@@ -225,7 +225,7 @@ const CheckAuthEvent = async (authevent: Event, req: Request): Promise<ResultMes
 	if (req.method != "GET") {
 		try {
 
-			const payload = authevent.tags[2][1];
+			let payload = authevent.tags[2][1];
 
 			const receivedpayload = crypto
 				.createHash("sha256")
@@ -234,7 +234,7 @@ const CheckAuthEvent = async (authevent: Event, req: Request): Promise<ResultMes
 
 			if (process.env.NODE_ENV == "development") {
 				logger.warn("DEVMODE IS TRUE, BYPASSING PAYLOAD CHECK", "|", req.socket.remoteAddress);
-				payload === receivedpayload;
+				payload = receivedpayload;
 			} //If devmode is true, set the payload = receivedpayload for testing purposes
 
 			if (payload != receivedpayload) {
