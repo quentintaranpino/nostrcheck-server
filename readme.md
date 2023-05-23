@@ -89,7 +89,7 @@ npm run lint:fix
 ```
 ## Dev mode
 
-The server don't verify NIP98 created_at integrity when is running on development mode.
+The server don't verify NIP98 created_at integrity and payload when is running on development mode.
 
 ```
 # Dev mode linux
