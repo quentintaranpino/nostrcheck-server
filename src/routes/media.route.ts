@@ -9,9 +9,7 @@ const upload = multer.default({
 });
 
 export const LoadMediaEndpoint = async (app: Application): Promise<void> => {
-
-	app.post("/api/v1/media",upload.single("mediafile"), Uploadmedia);
+	app.post("/api/v1/media", upload.single("mediafile"), Uploadmedia);
 
 	app.get("/api/v1/media", GetMediabyID);
-
 };

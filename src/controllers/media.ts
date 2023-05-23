@@ -1,11 +1,21 @@
+import crypto from "crypto";
 import { Request, Response } from "express";
+
 import app from "../app";
 import { connect } from "../lib/database";
 import { logger } from "../lib/logger";
 import { ParseAuthEvent } from "../lib/nostr/NIP98";
 import { requestQueue } from "../lib/transform";
-import { allowedMimeTypes, ConvertFilesOpions, MediaResultMessage, mime_transform, ResultMessage, UploadTypes, UploadVisibility, asyncTask } from "../types";
-import crypto from "crypto";
+import {
+	allowedMimeTypes,
+	asyncTask,
+	ConvertFilesOpions,
+	MediaResultMessage,
+	mime_transform,
+	ResultMessage,
+	UploadTypes,
+	UploadVisibility,
+} from "../types";
 
 const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 	logger.info("POST /api/v1/media", "|", req.socket.remoteAddress);
@@ -64,7 +74,6 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 	}
 	logger.info("pubkey ->", pubkey, "|", req.socket.remoteAddress);
 
-
 	//Check if upload type exists
 	const uploadtype = req.body.type;
 	if (!uploadtype) {
@@ -119,46 +128,48 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 	}
 	logger.info("mime ->", file.mimetype, "|", req.socket.remoteAddress);
 
-
-
 	//For testing purposes, we need to specify the file options for each file type
-	const fileoptions :ConvertFilesOpions = {
+	const fileoptions: ConvertFilesOpions = {
 		width: 640,
 		height: 480,
-		uploadtype: uploadtype,
+		uploadtype,
 		originalmime: file.mimetype,
 		outputmime: mime_transform[file.mimetype],
 		id: crypto.randomBytes(24).toString("hex"),
 	};
 
 	const t: asyncTask = {
-		req: req,
-		fileoptions: fileoptions,
+		req,
+		fileoptions,
 	};
 
 	//Send request to request transform queue
-	requestQueue.push(t)
-		.catch((err) => {
-			logger.error("Error pushing file to queue", err);
-			const result: MediaResultMessage = {
-				result: false,
-				description: "Error queueing file",
-				url: "",
-				visibility: "",
-				id: "",
-			};
-			return result;
-		});
+	requestQueue.push(t).catch((err) => {
+		logger.error("Error pushing file to queue", err);
+		const result: MediaResultMessage = {
+			result: false,
+			description: "Error queueing file",
+			url: "",
+			visibility: "",
+			id: "",
+		};
+
+		return result;
+	});
 
 	//Add file to userfiles table
-	const createdate = new Date(Math.floor(Date.now()))
-	.toISOString()
-	.slice(0, 19)
-	.replace("T", " ");
+	const createdate = new Date(Math.floor(Date.now())).toISOString().slice(0, 19).replace("T", " ");
 
 	await db.query(
 		"INSERT INTO userfiles (pubkey, filename, status, date, ip_address, comments) VALUES (?, ?, ?, ?, ?, ?)",
-		[pubkey, fileoptions.id + "."+ fileoptions.outputmime, "pending", createdate, req.socket.remoteAddress, "comments"]
+		[
+			pubkey,
+			`${fileoptions.id}.${fileoptions.outputmime}`,
+			"pending",
+			createdate,
+			req.socket.remoteAddress,
+			"comments",
+		]
 	);
 
 	//Return file queued for conversion
@@ -166,16 +177,14 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 		result: true,
 		description: "File queued for conversion",
 		url: "",
-		visibility: visibility,
+		visibility,
 		id: fileoptions.id,
 	};
 
 	return res.status(200).send(returnmessage);
 };
 
-
-const GetMediabyID = async(req: Request, res: Response) =>{
-
+const GetMediabyID = async (req: Request, res: Response) => {
 	//A LOT OF TODO's HERE. Only POC
 	// Create checks for recieve an event
 	// Check if event is valid
@@ -196,10 +205,11 @@ const GetMediabyID = async(req: Request, res: Response) =>{
 			visibility: "",
 			id: "",
 		};
+
 		return res.status(401).send(result);
 	}
 
-	console.log(req.body.id)
+	console.log(req.body.id);
 
 	if (!req.body.id) {
 		logger.warn(`RES -> 400 Bad request - missing id`, "|", req.socket.remoteAddress);
@@ -210,14 +220,15 @@ const GetMediabyID = async(req: Request, res: Response) =>{
 			visibility: "",
 			id: "",
 		};
+
 		return res.status(401).send(result);
 	}
 
 	const db = await connect();
-	const [dbResult] = await db.query("SELECT * FROM userfiles WHERE filename = ?", req.body.id)
+	const [dbResult] = await db.query("SELECT * FROM userfiles WHERE filename = ?", req.body.id);
 	const rowstemp = JSON.parse(JSON.stringify(dbResult));
 	if (rowstemp[0] == undefined) {
-		logger.error("File not found in database: " + req.body.id);
+		logger.error(`File not found in database: ${req.body.id}`);
 		const result: MediaResultMessage = {
 			result: false,
 			description: "File not found",
@@ -225,6 +236,7 @@ const GetMediabyID = async(req: Request, res: Response) =>{
 			visibility: "",
 			id: "",
 		};
+
 		return res.status(404).send(result);
 	}
 
@@ -235,9 +247,8 @@ const GetMediabyID = async(req: Request, res: Response) =>{
 		visibility: rowstemp[0].status,
 		id: rowstemp[0].id,
 	};
-	return res.status(200).send(result);
 
- 
+	return res.status(200).send(result);
 };
 
-export { Uploadmedia, GetMediabyID };
+export { GetMediabyID, Uploadmedia };

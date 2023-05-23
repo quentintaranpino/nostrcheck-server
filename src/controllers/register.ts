@@ -8,8 +8,6 @@ import { ParseAuthEvent } from "../lib/nostr/NIP98";
 import { RegisterResultMessage } from "../types";
 import { QueryAvailiableDomains } from "./domains";
 
-
-
 const Registernewpubkey = async (req: Request, res: Response): Promise<Response> => {
 	logger.info("POST /api/v1/register", "|", req.socket.remoteAddress);
 
@@ -36,7 +34,9 @@ const Registernewpubkey = async (req: Request, res: Response): Promise<Response>
 	const conn = await connect();
 
 	//We check if the authorization header pubkey is allowed to register new pubkeys
-	const [isAllowedPubkey] = await conn.query("SELECT hex FROM registered WHERE hex = ?", [EventHeader.pubkey,	]);
+	const [isAllowedPubkey] = await conn.query("SELECT hex FROM registered WHERE hex = ?", [
+		EventHeader.pubkey,
+	]);
 	const isAllowedPubkeyrowstemp = JSON.parse(JSON.stringify(isAllowedPubkey));
 
 	if (isAllowedPubkeyrowstemp[0] == undefined) {
@@ -52,6 +52,7 @@ const Registernewpubkey = async (req: Request, res: Response): Promise<Response>
 			result: false,
 			description: "Pubkey is not allowed to register new pubkeys",
 		};
+
 		return res.status(401).send(result);
 	}
 

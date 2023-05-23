@@ -1,4 +1,5 @@
 import { createPool, Pool } from "mysql2/promise";
+
 import { logger } from "./logger";
 
 //Check database integrity
@@ -23,7 +24,6 @@ export async function connect(): Promise<Pool> {
 
 export async function populateTables(resetTables: boolean): Promise<boolean> {
 	if (resetTables) {
-
 		const conn = await connect();
 		logger.info("Dropping table registered");
 		const RegisteredTableDropStatement = "DROP TABLE IF EXISTS registered;";
@@ -36,7 +36,7 @@ export async function populateTables(resetTables: boolean): Promise<boolean> {
 		logger.info("Dropping table userfiles");
 		const UserfilesTableDropStatement = "DROP TABLE IF EXISTS userfiles;";
 		await conn.query(UserfilesTableDropStatement);
-		
+
 		conn.end();
 	}
 
@@ -105,14 +105,13 @@ export async function populateTables(resetTables: boolean): Promise<boolean> {
 	const rowstempExistUserfilesTable = JSON.parse(JSON.stringify(ExistUserfilesTable));
 	if (rowstempExistUserfilesTable[0] == undefined) {
 		const UserfilesTableCreateStatement: string =
-
 			"CREATE TABLE IF NOT EXISTS userfiles (" +
 			"id int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY," +
 			"pubkey varchar(64) NOT NULL," +
 			"filename varchar(64) NOT NULL," +
 			"status varchar(10) NOT NULL," +
 			"date datetime NOT NULL," +
-			"ip_address varchar(64) NOT NULL," + 
+			"ip_address varchar(64) NOT NULL," +
 			"comments varchar(150)" +
 			") ENGINE=InnoDB DEFAULT CHARSET=latin1;";
 		logger.info("Creating table userfiles");

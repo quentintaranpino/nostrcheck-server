@@ -1,6 +1,7 @@
 import cors from "cors";
 import express from "express";
 import helmet from "helmet";
+
 import { cleanTempDir } from "./lib/transform";
 import { LoadAPIv1 } from "./routes/routes.v1";
 
@@ -21,6 +22,6 @@ app.use(cors());
 LoadAPIv1(app);
 
 //Clean temp dir
-cleanTempDir()
+cleanTempDir();
 
 export default app;
