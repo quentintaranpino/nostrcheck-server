@@ -64,6 +64,7 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 	}
 	logger.info("pubkey ->", pubkey, "|", req.socket.remoteAddress);
 
+
 	//Check if upload type exists
 	const uploadtype = req.body.type;
 	if (!uploadtype) {
@@ -118,7 +119,7 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 	}
 	logger.info("mime ->", file.mimetype, "|", req.socket.remoteAddress);
 
-	//Send request to request transform queue
+
 
 	//For testing purposes, we need to specify the file options for each file type
 	const fileoptions :ConvertFilesOpions = {
@@ -135,6 +136,7 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 		fileoptions: fileoptions,
 	};
 
+	//Send request to request transform queue
 	requestQueue.push(t)
 		.catch((err) => {
 			logger.error("Error pushing file to queue", err);
@@ -148,6 +150,18 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 			return result;
 		});
 
+	//Add file to userfiles table
+	const createdate = new Date(Math.floor(Date.now()))
+	.toISOString()
+	.slice(0, 19)
+	.replace("T", " ");
+
+	await db.query(
+		"INSERT INTO userfiles (pubkey, filename, status, date, ip_address, comments) VALUES (?, ?, ?, ?, ?, ?)",
+		[pubkey, fileoptions.id + "."+ fileoptions.outputmime, "pending", createdate, req.socket.remoteAddress, "comments"]
+	);
+
+	//Return file queued for conversion
 	const returnmessage = {
 		result: true,
 		description: "File queued for conversion",
@@ -159,4 +173,72 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 	return res.status(200).send(returnmessage);
 };
 
-export { Uploadmedia };
+
+async function GetMediabyID (req: Request, res: Response) {
+
+	//A LOT OF TODO's HERE. Only POC
+	// Create checks for recieve an event
+	// Check if event is valid
+	// Create a function to create a full url for the file (if is not pending)
+
+	//Check if event authorization header is valid (NIP98)
+	const EventHeader = ParseAuthEvent(req);
+	if (!EventHeader.result) {
+		logger.warn(
+			`RES -> 400 Bad request - ${EventHeader.description}`,
+			"|",
+			req.socket.remoteAddress
+		);
+		const result: MediaResultMessage = {
+			result: false,
+			description: EventHeader.description,
+			url: "",
+			visibility: "",
+			id: "",
+		};
+		return res.status(401).send(result);
+	}
+
+	console.log(req.body.id)
+
+	if (!req.body.id) {
+		logger.warn(`RES -> 400 Bad request - missing id`, "|", req.socket.remoteAddress);
+		const result: MediaResultMessage = {
+			result: false,
+			description: "missing id",
+			url: "",
+			visibility: "",
+			id: "",
+		};
+		return res.status(401).send(result);
+	}
+
+	const db = await connect();
+	const [dbResult] = await db.query("SELECT * FROM userfiles WHERE filename = ?", req.body.id)
+	const rowstemp = JSON.parse(JSON.stringify(dbResult));
+	if (rowstemp[0] == undefined) {
+		logger.error("File not found in database: " + req.body.id);
+		const result: MediaResultMessage = {
+			result: false,
+			description: "File not found",
+			url: "",
+			visibility: "",
+			id: "",
+		};
+		return res.status(404).send(result);
+	}
+
+	const result: MediaResultMessage = {
+		result: true,
+		description: "File found",
+		url: rowstemp[0].filename,
+		visibility: rowstemp[0].status,
+		id: rowstemp[0].id,
+	};
+	return res.status(200).send(result);
+
+ 
+};
+
+
+export { Uploadmedia, GetMediabyID };

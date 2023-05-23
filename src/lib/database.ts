@@ -108,10 +108,10 @@ export async function populateTables(resetTables: boolean): Promise<boolean> {
 			"CREATE TABLE IF NOT EXISTS userfiles (" +
 			"id int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY," +
 			"pubkey varchar(64) NOT NULL," +
-			"hex varchar(64) NOT NULL," +
 			"filename varchar(64) NOT NULL," +
-			"public boolean NOT NULL DEFAULT 0," +
+			"status varchar(10) NOT NULL," +
 			"date datetime NOT NULL," +
+			"ip_address varchar(64) NOT NULL," + 
 			"comments varchar(150)" +
 			") ENGINE=InnoDB DEFAULT CHARSET=latin1;";
 		logger.info("Creating table userfiles");
