@@ -12,10 +12,10 @@ const Registernewpubkey = async (req: Request, res: Response): Promise<Response>
 	logger.info("POST /api/v1/register", "|", req.socket.remoteAddress);
 
 	//Check if event authorization header is valid
-	const EventHeader = ParseAuthEvent(req);
+	const EventHeader = await ParseAuthEvent(req);
 	if (!EventHeader.result) {
 		logger.warn(
-			`RES -> 400 Bad request - ${EventHeader.description}`,
+			`RES -> 401 unauthorized  - ${EventHeader.description}`,
 			"|",
 			req.socket.remoteAddress
 		);
@@ -27,7 +27,7 @@ const Registernewpubkey = async (req: Request, res: Response): Promise<Response>
 			description: EventHeader.description,
 		};
 
-		return res.status(400).send(result);
+		return res.status(401).send(result);
 	}
 
 	//Check all necessary fields

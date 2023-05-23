@@ -11,7 +11,7 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 	logger.info("POST /api/v1/media", "|", req.socket.remoteAddress);
 
 	//Check if event authorization header is valid (NIP98)
-	const EventHeader = ParseAuthEvent(req);
+	const EventHeader = await ParseAuthEvent(req);
 	if (!EventHeader.result) {
 		logger.warn(
 			`RES -> 400 Bad request - ${EventHeader.description}`,
@@ -182,7 +182,7 @@ async function GetMediabyID (req: Request, res: Response) {
 	// Create a function to create a full url for the file (if is not pending)
 
 	//Check if event authorization header is valid (NIP98)
-	const EventHeader = ParseAuthEvent(req);
+	const EventHeader = await ParseAuthEvent(req);
 	if (!EventHeader.result) {
 		logger.warn(
 			`RES -> 400 Bad request - ${EventHeader.description}`,

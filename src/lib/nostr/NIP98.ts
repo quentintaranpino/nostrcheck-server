@@ -1,12 +1,13 @@
 import { Request } from "express";
 import { Event } from "nostr-tools";
-
 import { logger } from "../../lib/logger";
 import { NIP98Kind, ResultMessage, VerifyResultMessage } from "../../types";
+import crypto from "crypto";
 
 //https://github.com/v0l/nips/blob/nip98/98.md
 
-const ParseAuthEvent = (req: Request): VerifyResultMessage => {
+const ParseAuthEvent = async (req: Request): Promise<VerifyResultMessage> => {
+
 	//Check if request has authorization header
 	if (req.headers.authorization === undefined) {
 		logger.warn(
@@ -43,8 +44,8 @@ const ParseAuthEvent = (req: Request): VerifyResultMessage => {
 		return result;
 	}
 
-	//Check if event authorization content is valid
-	const IsAuthEventValid = CheckAuthEvent(authevent, req);
+	//Check if event authorization content is valid, check NIP98 documentation for more info: https://github.com/v0l/nips/blob/nip98/98.md
+	const IsAuthEventValid = await CheckAuthEvent(authevent, req);
 	if (!IsAuthEventValid.result) {
 		logger.warn(
 			`RES -> 400 Bad request - ${IsAuthEventValid.description}`,
@@ -60,6 +61,8 @@ const ParseAuthEvent = (req: Request): VerifyResultMessage => {
 		return result;
 	}
 
+	//TODO: CHECK IF PUBKEY IS REGISTERED
+
 	const result: VerifyResultMessage = {
 		pubkey: authevent.pubkey,
 		result: true,
@@ -71,7 +74,7 @@ const ParseAuthEvent = (req: Request): VerifyResultMessage => {
 
 export { ParseAuthEvent };
 
-const CheckAuthEvent = (authevent: Event, req: Request): ResultMessage => {
+const CheckAuthEvent = async (authevent: Event, req: Request): Promise<ResultMessage> => {
 	//Check if event authorization kind is valid (Must be 27235)
 	try {
 		const eventkind: NIP98Kind = +authevent.kind;
@@ -168,13 +171,13 @@ const CheckAuthEvent = (authevent: Event, req: Request): ResultMessage => {
 		const receivedmethod = req.method;
 		if (method == null || method == undefined || method != receivedmethod) {
 			logger.warn(
-				"RES -> 400 Bad request - Auth header event method is not valid",
+				"RES -> 400 Bad request - Auth header event method is not valid:", receivedmethod, "<>", method,
 				"|",
 				req.socket.remoteAddress
 			);
 			const result: ResultMessage = {
 				result: false,
-				description: `Auth header event method is not valid: ${receivedmethod} <> ${method}`,
+				description: `Auth header event method is not valid`,
 			};
 
 			return result;
@@ -189,5 +192,56 @@ const CheckAuthEvent = (authevent: Event, req: Request): ResultMessage => {
 		return result;
 	}
 
+	//Check if the request has a body and authorization event payload tag exist
+	if (req.body.constructor === Object && Object.keys(req.body).length != 0) {
+		try {
+			const payload = authevent.tags[2][1];
+			if ((!payload)) {
+				logger.warn(
+					"RES -> 400 Bad request - Auth header event payload not exist",
+					"|",
+					req.socket.remoteAddress
+				);
+				const result: ResultMessage = {
+					result: false,
+					description: `Auth header event payload is not valid`,
+				};
+				return result;
+			}
+		} catch (error) {
+				logger.error(`RES -> 400 Bad request - ${error}`, "|", req.socket.remoteAddress);
+				const result: ResultMessage = {
+					result: false,
+					description: "Auth header event payload is not valid",
+				};
+				return result
+		}
+	}
+
+	//Check if authorization event payload tag is valid (must be equal than the request body sha256)
+	try {
+		const payload = authevent.tags[2][1];
+		const receivedpayload = crypto.createHash("sha256").update(req.body.toString(), 'binary').digest("hex"); //TODO CHECK IF THIS HASH IS CORRECT
+		if (payload != receivedpayload) {
+			logger.warn(
+				"RES -> 400 Bad request - Auth header event payload is not valid:", receivedpayload, " <> ", payload,
+				"|",
+				req.socket.remoteAddress
+			);
+			const result: ResultMessage = {
+				result: false,
+				description: `Auth header event payload is not valid`,
+			};
+			return result
+		}
+	} catch (error) {
+			logger.error(`RES -> 400 Bad request - ${error}`, "|", req.socket.remoteAddress);
+			const result: ResultMessage = {
+				result: false,
+				description: "Auth header event payload is not valid",
+			};
+			return result
+	}
+	
 	return { result: true, description: "Auth header event is valid" };
 };
