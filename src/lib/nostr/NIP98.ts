@@ -224,11 +224,19 @@ const CheckAuthEvent = async (authevent: Event, req: Request): Promise<ResultMes
 	//Check if authorization event payload tag is valid (must be equal than the request body sha256) (!GET)
 	if (req.method != "GET") {
 		try {
+
 			const payload = authevent.tags[2][1];
+
 			const receivedpayload = crypto
 				.createHash("sha256")
-				.update(req.body.toString(), "binary")
-				.digest("hex"); //TODO CHECK IF THIS HASH IS CORRECT!!
+				.update(JSON.stringify(req.body), "binary")
+				.digest("hex"); //TODO CHECK IF THIS HASH IS CORRECT!! (Only is hashing the body without the file data.)
+
+			if (process.env.NODE_ENV == "development") {
+				logger.warn("DEVMODE IS TRUE, BYPASSING PAYLOAD CHECK", "|", req.socket.remoteAddress);
+				payload === receivedpayload;
+			} //If devmode is true, set the payload = receivedpayload for testing purposes
+
 			if (payload != receivedpayload) {
 				logger.warn(
 					"RES -> 400 Bad request - Auth header event payload is not valid:",
