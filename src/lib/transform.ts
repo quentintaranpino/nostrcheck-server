@@ -5,35 +5,36 @@ import fs from "fs";
 import { asyncTask, ConvertFilesOpions } from "../types";
 import { logger } from "./logger";
 
-const requestQueue: queueAsPromised<any> = fastq.promise(PrepareFile, 2);
+const requestQueue: queueAsPromised<any> = fastq.promise(PrepareFile, 1); //number of workers for the queue
 
 async function PrepareFile(t: asyncTask): Promise<void> {
+
 	logger.info(`${requestQueue.length()} items in queue`);
 
 	if (!t.req.file) {
-		logger.error("PrepareFile", "->", "Empty file");
+		logger.error("Prepare File", "->", "Empty file");
 
 		return;
 	}
 
 	if (!t.req.file.mimetype) {
-		logger.error("PrepareFile", "->", "Empty mimetype");
+		logger.error("Prepare File", "->", "Empty mimetype");
 
 		return;
 	}
 
 	if (!t.req.body.type) {
-		logger.error("PrepareFile", "->", "Empty type");
+		logger.error("Prepare File", "->", "Empty type");
 
 		return;
 	}
 
 	logger.info(
-		"PrepareFile",
+		"Processing file",
 		":",
 		t.req.file.originalname,
 		"=>",
-		`...${t.fileoptions.id.substring(38, t.fileoptions.id.length)}.${t.fileoptions.outputmime}`
+		`...${t.fileoptions.id.substring(30, t.fileoptions.id.length)}.${t.fileoptions.outputmime}`
 	);
 
 	await convertFile(t.req.file, `./${t.fileoptions.id}.${t.fileoptions.outputmime}`, t.fileoptions);
@@ -64,7 +65,7 @@ async function convertFile(
 			.videoCodec("libx264")
 			.saveToFile(outputName)
 			.toFormat(options.outputmime)
-			.on("end", () => {
+			.on("end", (end) => {
 				if (totalTime === undefined || Number.isNaN(totalTime)) {
 					totalTime = 0;
 				}
@@ -79,7 +80,7 @@ async function convertFile(
 					}
 				});
 
-				resolve(true);
+				resolve(end);
 			})
 			.on("error", (err) => {
 				logger.error(`Error converting file`, err);
@@ -100,9 +101,6 @@ async function convertFile(
 						`...${outputName.substring(38, outputName.length)} - ${Number(percent).toFixed(2)} %`
 				);
 			})
-			.on("end", (end) => {
-				resolve(end);
-			});
 	});
 }
 

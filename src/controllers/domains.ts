@@ -8,7 +8,7 @@ const QueryAvailiableDomains = async (): Promise<JSON[]> => {
 	try {
 		const conn = await connect();
 		const rows = await conn.execute("SELECT domain from domains");
-		if (rows[0] != undefined) {
+		if (rows[0] !== undefined) {
 			conn.end();
 
 			return JSON.parse(JSON.stringify(rows[0]));
@@ -30,7 +30,7 @@ const AvailableDomains = async (req: Request, res: Response): Promise<Response> 
 
 	try {
 		const AvailableDomains = await QueryAvailiableDomains();
-		if (AvailableDomains[0] != undefined) {
+		if (AvailableDomains[0] !== undefined) {
 			logger.info("RES -> Domain list ", "|", req.socket.remoteAddress);
 
 			return res.status(200).send({ domains: AvailableDomains });

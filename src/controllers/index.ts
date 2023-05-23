@@ -12,7 +12,7 @@ const APIIndex = async (req: Request, res: Response): Promise<Response> => {
 			`<h1>Nostrcheck.me REST API</h1>` +
 			`Nostrcheck API ${app.get("version")} is running at ${req.hostname}:${app.get(
 				"port"
-			)} in ${app.get("env")} mode` +
+			)` in `}${app.get("env")} mode` +
 			`<br>` +
 			`<p>More information about the this API can be found at <a href='https://github.com/quentintaranpino/nostrcheck-api-ts/'>
 				https://github.com/quentintaranpino/nostrcheck-api-ts/</a></p>` +

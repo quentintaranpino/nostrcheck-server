@@ -24,7 +24,7 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 	const EventHeader = await ParseAuthEvent(req);
 	if (!EventHeader.result) {
 		logger.warn(
-			`RES -> 400 Bad request - ${EventHeader.description}`,
+			`RES -> 401 unauthorized - ${EventHeader.description}`,
 			"|",
 			req.socket.remoteAddress
 		);
@@ -33,7 +33,7 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 			description: EventHeader.description,
 		};
 
-		return res.status(400).send(result);
+		return res.status(401).send(result);
 	}
 
 	//Check if visibility exist
@@ -185,16 +185,19 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 };
 
 const GetMediabyID = async (req: Request, res: Response) => {
+
 	//A LOT OF TODO's HERE. Only POC
-	// Create checks for recieve an event
+	// Create checks for recieve a nostr event
 	// Check if event is valid
-	// Create a function to create a full url for the file (if is not pending)
+	// Create a function to create a full url for the file (if is not pending) with the username plus the filename
+
+	logger.info("GET /api/v1/media", "|", req.socket.remoteAddress);
 
 	//Check if event authorization header is valid (NIP98)
 	const EventHeader = await ParseAuthEvent(req);
 	if (!EventHeader.result) {
 		logger.warn(
-			`RES -> 400 Bad request - ${EventHeader.description}`,
+			`RES -> 401 unauthorized - ${EventHeader.description}`,
 			"|",
 			req.socket.remoteAddress
 		);
@@ -209,8 +212,6 @@ const GetMediabyID = async (req: Request, res: Response) => {
 		return res.status(401).send(result);
 	}
 
-	console.log(req.body.id);
-
 	if (!req.body.id) {
 		logger.warn(`RES -> 400 Bad request - missing id`, "|", req.socket.remoteAddress);
 		const result: MediaResultMessage = {
@@ -221,11 +222,11 @@ const GetMediabyID = async (req: Request, res: Response) => {
 			id: "",
 		};
 
-		return res.status(401).send(result);
+		return res.status(400).send(result);
 	}
 
 	const db = await connect();
-	const [dbResult] = await db.query("SELECT * FROM userfiles WHERE filename = ?", req.body.id);
+	const [dbResult] = await db.query("SELECT id, filename, status FROM userfiles WHERE filename = ?", req.body.id);
 	const rowstemp = JSON.parse(JSON.stringify(dbResult));
 	if (rowstemp[0] == undefined) {
 		logger.error(`File not found in database: ${req.body.id}`);
