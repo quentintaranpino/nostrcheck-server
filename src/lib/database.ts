@@ -58,6 +58,7 @@ export async function populateTables(resetTables: boolean): Promise<boolean> {
 			"domain varchar(50) NOT NULL," +
 			"active boolean NOT NULL DEFAULT 0," +
 			"date datetime NOT NULL," +
+			"allowed boolean NOT NULL DEFAULT 0," +
 			"comments varchar(150)" +
 			") ENGINE=InnoDB DEFAULT CHARSET=latin1;";
 
@@ -119,6 +120,7 @@ export async function populateTables(resetTables: boolean): Promise<boolean> {
 	} else {
 		logger.info("Table userfiles alredy exist, skipping creation");
 	}
+
 	conn.end();
 
 	return true;

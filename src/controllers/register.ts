@@ -8,6 +8,8 @@ import { ParseAuthEvent } from "../lib/nostr/NIP98";
 import { RegisterResultMessage } from "../types";
 import { QueryAvailiableDomains } from "./domains";
 
+
+
 const Registernewpubkey = async (req: Request, res: Response): Promise<Response> => {
 	logger.info("POST /api/v1/register", "|", req.socket.remoteAddress);
 
@@ -27,6 +29,29 @@ const Registernewpubkey = async (req: Request, res: Response): Promise<Response>
 			description: EventHeader.description,
 		};
 
+		return res.status(401).send(result);
+	}
+
+	//General connection with database
+	const conn = await connect();
+
+	//We check if the authorization header pubkey is allowed to register new pubkeys
+	const [isAllowedPubkey] = await conn.query("SELECT hex FROM registered WHERE hex = ?", [EventHeader.pubkey,	]);
+	const isAllowedPubkeyrowstemp = JSON.parse(JSON.stringify(isAllowedPubkey));
+
+	if (isAllowedPubkeyrowstemp[0] == undefined) {
+		logger.warn(
+			`RES -> 401 unauthorized  - ${EventHeader.pubkey} is not allowed to register new pubkeys`,
+			"|",
+			req.socket.remoteAddress
+		);
+		const result: RegisterResultMessage = {
+			username: "",
+			pubkey: "",
+			domain: "",
+			result: false,
+			description: "Pubkey is not allowed to register new pubkeys",
+		};
 		return res.status(401).send(result);
 	}
 
@@ -237,7 +262,7 @@ const Registernewpubkey = async (req: Request, res: Response): Promise<Response>
 		.replace("T", " ");
 
 	//Check if username alredy exist
-	const conn = await connect();
+
 	const [dbResult] = await conn.execute(
 		"SELECT * FROM registered where (username = ? and domain = ?) OR (hex = ? and domain = ?)",
 		[username, domain, hex, domain]
@@ -245,7 +270,7 @@ const Registernewpubkey = async (req: Request, res: Response): Promise<Response>
 	const rowstemp = JSON.parse(JSON.stringify(dbResult));
 
 	if (rowstemp[0] != undefined) {
-		logger.warn("RES ->", username, "|", "Username alredy registered");
+		logger.warn("RES ->", username, "|", "Username or pubkey alredy registered");
 		conn.end();
 
 		const result: RegisterResultMessage = {
@@ -253,7 +278,7 @@ const Registernewpubkey = async (req: Request, res: Response): Promise<Response>
 			pubkey: "",
 			domain: req.body.tags[1][1],
 			result: false,
-			description: "Username alredy registered",
+			description: "Username or pubkey alredy registered",
 		};
 
 		return res.status(406).send(result);
@@ -290,7 +315,7 @@ const Registernewpubkey = async (req: Request, res: Response): Promise<Response>
 
 	return res.status(200).send(result);
 
-	//MUST REFACTOR ALL CHECKS INTO NEW TS FILE
+	//TODO:?MUST REFACTOR ALL CHECKS INTO NEW TS FILE
 };
 
 export { Registernewpubkey };

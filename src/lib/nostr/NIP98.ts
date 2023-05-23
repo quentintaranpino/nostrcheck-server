@@ -61,8 +61,6 @@ const ParseAuthEvent = async (req: Request): Promise<VerifyResultMessage> => {
 		return result;
 	}
 
-	//TODO: CHECK IF PUBKEY IS REGISTERED
-
 	const result: VerifyResultMessage = {
 		pubkey: authevent.pubkey,
 		result: true,
