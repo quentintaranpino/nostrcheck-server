@@ -14,12 +14,12 @@ Returns whether a user name is registered on the server.
 
 http://localhost:3000/api/v1/nostraddress
 
-## media [POST]
+### media [POST]
 Allows to upload files
 
 http://localhost:3000/api/v1/media
 
-## media [GET]
+### media [GET]
 Allows to get the status of files
 
 http://localhost:3000/api/v1/media
