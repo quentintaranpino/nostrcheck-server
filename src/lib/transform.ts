@@ -34,10 +34,10 @@ async function PrepareFile(t: asyncTask): Promise<void> {
 		":",
 		t.req.file.originalname,
 		"=>",
-		`...${t.fileoptions.id.substring(30, t.fileoptions.id.length)}.${t.fileoptions.outputmime}`
+		`...${t.fileoptions.outputname.substring(30, t.fileoptions.outputname.length)}.${t.fileoptions.outputmime}`
 	);
 
-	await convertFile(t.req.file, `./${t.fileoptions.id}.${t.fileoptions.outputmime}`, t.fileoptions);
+	await convertFile(t.req.file, `./${t.fileoptions.outputname}.${t.fileoptions.outputmime}`, t.fileoptions);
 }
 
 async function convertFile(
@@ -45,9 +45,11 @@ async function convertFile(
 	outputName: string,
 	options: ConvertFilesOpions
 ): Promise<any> {
-	return new Promise((resolve, reject) => {
+
+	let NewDimensions = setMediaDimensions(`./tmp/${options.outputname}`, options);
+	return new Promise(async(resolve, reject) => {
 		//We write the file on filesystem because ffmpeg doesn't support streams
-		fs.writeFile(`./tmp/${options.id}`, inputFile.buffer, function (err) {
+		fs.writeFile(`./tmp/${options.outputname}`, inputFile.buffer, function (err) {
 			if (err) {
 				logger.error(err);
 
@@ -59,10 +61,9 @@ async function convertFile(
 
 		let totalTime: number;
 		ffmpeg()
-			.addInput(`./tmp/${options.id}`)
-			// .inputFormat(options.originalmime.toString().substring(options.originalmime.indexOf("/") +1, options.originalmime.length))
-			.size(`${options.width}x${options.height}`)
-			.videoCodec("libx264")
+			.addInput(`./tmp/${options.outputname}`)
+			//.videoFilter('crop=in_w:in_h-20')
+			.setSize((await NewDimensions).toString())
 			.saveToFile(outputName)
 			.toFormat(options.outputmime)
 			.on("end", (end) => {
@@ -70,7 +71,7 @@ async function convertFile(
 					totalTime = 0;
 				}
 				logger.info(`File converted successfully: ${outputName} ${totalTime} seconds`);
-				fs.unlink(`./tmp/${options.id}`, (err) => {
+				fs.unlink(`./tmp/${options.outputname}`, (err) => {
 					if (err) {
 						logger.error(err);
 
@@ -122,3 +123,48 @@ function cleanTempDir() {
 }
 
 export { cleanTempDir, convertFile, requestQueue };
+
+ async function setMediaDimensions(file:string, options:ConvertFilesOpions):Promise<string> {
+
+	const response:string = await new Promise ((resolve, reject) => {
+		ffmpeg.ffprobe(file, (err, metadata) => {
+		if (err) {
+			console.error(err);
+			reject(err);
+		} else {
+		
+			let mediaWidth = metadata.streams[0].width;
+			let mediaHeight = metadata.streams[0].height;
+			let newWidth = options.width;
+			let newHeight = options.height;
+
+			if (!mediaWidth || !mediaHeight) {
+				logger.error("Could not get media dimensions");
+
+			reject("error");
+			return;
+			}
+
+			if (mediaWidth > newWidth || mediaHeight > newHeight) {
+				if (mediaWidth > mediaHeight) {
+				  newHeight = (mediaHeight / mediaWidth) * newWidth;
+				} else {
+				  newWidth = (mediaWidth / mediaHeight) * newHeight;
+				}
+			  }else{
+				newWidth = mediaWidth;
+				newHeight = mediaHeight;
+			  }
+
+			
+
+			logger.info("Original dimensions:", mediaWidth, mediaHeight);
+			logger.info("New dimensions:", newWidth, newHeight);		
+
+			resolve(newWidth + "x?")
+		}})
+
+		});
+
+		return response;
+}
