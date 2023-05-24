@@ -13,8 +13,8 @@ import {
 	MediaResultMessage,
 	mime_transform,
 	ResultMessage,
-	UploadTypes,
-	UploadVisibility,
+	UploadStatus,
+	UploadTypes
 } from "../types";
 
 const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
@@ -36,48 +36,46 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 		return res.status(401).send(result);
 	}
 
-	//Check if visibility exist
-	let visibility = req.body.visibility;
-	if (!visibility) {
-		logger.warn(`RES -> 400 Bad request - missing visiblity`, "|", req.socket.remoteAddress);
+	//Check if username exist
+	if (!req.body.username) {
+		logger.warn("username not specified, switching to public upload | ", req.socket.remoteAddress);
+		req.body.username = "public";
+	}
+
+	//Check if username lenght is valid
+	if (req.body.username.length > 50 ) {
+		logger.warn(`RES -> 400 Bad request - username too long`, "|", req.socket.remoteAddress);
 		const result: ResultMessage = {
 			result: false,
-			description: "missing visiblity",
+			description: "username too long",
 		};
 
 		return res.status(400).send(result);
 	}
+	logger.info("username ->", req.body.username, "|", req.socket.remoteAddress);
 
-	//Check if visiblity is valid
-	if (!UploadVisibility.includes(visibility)) {
-		logger.warn(`RES -> 400 Bad request - incorrect visiblity`, "|", req.socket.remoteAddress);
-		const result: ResultMessage = {
-			result: false,
-			description: "incorrect visiblity",
-		};
-
-		return res.status(400).send(result);
-	}
-	logger.info("visiblity ->", visibility, "|", req.socket.remoteAddress);
-
-	//Check if pubkey is registered
+	//Check if pubkey and username are registered
+	const servername = "https://" + req.hostname; //TODO, get entire url from request
 	let pubkey = EventHeader.pubkey;
 	const db = await connect();
-	const [dbResult] = await db.query("SELECT hex FROM registered WHERE hex = ?", [pubkey]);
+	const [dbResult] = await db.query("SELECT hex, username FROM registered WHERE hex = ? and username = ? and domain = ?", [pubkey, req.body.username, servername]);
 	const rowstemp = JSON.parse(JSON.stringify(dbResult));
 
 	if (rowstemp[0] == undefined) {
-		//If not registered the upload will be public
+		//If not registered the upload will be public and a 
+		//FILE (https://github.com/nostr-protocol/nips/blob/master/94.md) 
+		// and LIST (https://github.com/nostr-protocol/nips/blob/master/51.md) event will be sent
 		logger.warn("pubkey not registered, switching to public upload | ", req.socket.remoteAddress);
-		visibility = "public";
+		req.body.username = "public";
 		pubkey = app.get("pubkey");
 	}
 	logger.info("pubkey ->", pubkey, "|", req.socket.remoteAddress);
+	logger.info("username ->", req.body.username, "|", req.socket.remoteAddress);
 
 	//Check if upload type exists
-	const uploadtype = req.body.type;
+	const uploadtype = req.body.uploadtype;
 	if (!uploadtype) {
-		logger.warn(`RES -> 400 Bad request - missing upload type`, "|", req.socket.remoteAddress);
+		logger.warn(`RES -> 400 Bad request - missing uploadtype`, "|", req.socket.remoteAddress);
 		const result: ResultMessage = {
 			result: false,
 			description: "missing upload type",
@@ -88,7 +86,7 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 
 	//Check if upload type is valid
 	if (!UploadTypes.includes(uploadtype)) {
-		logger.warn(`RES -> 400 Bad request - incorrect upload type`, "|", req.socket.remoteAddress);
+		logger.warn(`RES -> 400 Bad request - incorrect uploadtype`, "|", req.socket.remoteAddress);
 		const result: ResultMessage = {
 			result: false,
 			description: "incorrect upload type",
@@ -164,7 +162,7 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 			result: false,
 			description: "Error queueing file",
 			url: "",
-			visibility: "",
+			status:  ["failed"],
 			id: "",
 		};
 
@@ -172,9 +170,8 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 	});
 
 	//Add file to userfiles table
-	const createdate = new Date(Math.floor(Date.now())).toISOString().slice(0, 19).replace("T", " ");
-
 	try{
+	const createdate = new Date(Math.floor(Date.now())).toISOString().slice(0, 19).replace("T", " ");
 	await db.query(
 		"INSERT INTO userfiles (pubkey, filename, status, date, ip_address, comments) VALUES (?, ?, ?, ?, ?, ?)",
 		[
@@ -192,12 +189,13 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 			result: false,
 			description: "Error inserting file to database",
 			url: "",
-			visibility: "",
+			status:  ["failed"],
 			id: "",
 		};
 		return res.status(500).send(result);
 	}
 
+	//Get file ID
 	const [IDdbResult] = await db.query("SELECT id FROM userfiles WHERE filename = ? and pubkey = ?", [fileoptions.outputname + "." + fileoptions.outputmime, pubkey]);
 	const IDrowstemp = JSON.parse(JSON.stringify(IDdbResult));
 	if (IDrowstemp[0] == undefined) {
@@ -206,7 +204,7 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 			result: false,
 			description: "The requested file was not found in database",
 			url: "",
-			visibility: "",
+			status: ["failed"],
 			id: "",
 		};
 
@@ -217,8 +215,8 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 	const returnmessage: MediaResultMessage = {
 		result: true,
 		description: "File queued for conversion",
-		url: fileoptions.outputname + "." + fileoptions.outputmime,
-		visibility,
+		url: "",
+	    status: JSON.parse(JSON.stringify(UploadStatus[0])),
 		id: IDrowstemp[0].id,
 	};
 
@@ -234,6 +232,8 @@ const GetMediabyID = async (req: Request, res: Response) => {
 
 	logger.info("GET /api/v1/media", "|", req.socket.remoteAddress);
 
+	const servername = "https://" + req.hostname; //TODO, get entire url from request
+
 	//Check if event authorization header is valid (NIP98)
 	const EventHeader = await ParseAuthEvent(req);
 	if (!EventHeader.result) {
@@ -246,7 +246,7 @@ const GetMediabyID = async (req: Request, res: Response) => {
 			result: false,
 			description: EventHeader.description,
 			url: "",
-			visibility: "",
+			status:  ["failed"],
 			id: "",
 		};
 
@@ -259,7 +259,7 @@ const GetMediabyID = async (req: Request, res: Response) => {
 			result: false,
 			description: "missing id",
 			url: "",
-			visibility: "",
+			status:  ["failed"],
 			id: "",
 		};
 
@@ -272,7 +272,7 @@ const GetMediabyID = async (req: Request, res: Response) => {
 			result: false,
 			description: "missing pubkey",
 			url: "",
-			visibility: "",
+			status:  ["failed"],
 			id: "",
 		};
 		
@@ -288,18 +288,24 @@ const GetMediabyID = async (req: Request, res: Response) => {
 			result: false,
 			description: "The requested file was not found",
 			url: "",
-			visibility: "",
+			status:  ["failed"],
 			id: "",
 		};
 
 		return res.status(404).send(result);
 	}
 
+	//If file is completed return url.
+	let url = "";
+	if (rowstemp[0].status == "completed") {
+		url = servername + "/" + rowstemp[0].filename;
+	}
+
 	const result: MediaResultMessage = {
 		result: true,
 		description: "The requested file was found",
-		url: rowstemp[0].filename,
-		visibility: rowstemp[0].status,
+		url: url,
+		status: rowstemp[0].status,
 		id: rowstemp[0].id,
 	};
 

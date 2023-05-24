@@ -23,8 +23,14 @@ async function PrepareFile(t: asyncTask): Promise<void> {
 		return;
 	}
 
-	if (!t.req.body.type) {
+	if (!t.req.body.uploadtype) {
 		logger.error("Prepare File", "->", "Empty type");
+
+		return;
+	}
+
+	if (!t.req.body.username) {
+		logger.error("Prepare File", "->", "Empty username");
 
 		return;
 	}
@@ -34,7 +40,7 @@ async function PrepareFile(t: asyncTask): Promise<void> {
 		":",
 		t.req.file.originalname,
 		"=>",
-		`...${t.fileoptions.outputname.substring(30, t.fileoptions.outputname.length)}.${t.fileoptions.outputmime}`
+		`${t.fileoptions.outputname}.${t.fileoptions.outputmime}`
 	);
 
 	await convertFile(t.req.file, `./${t.fileoptions.outputname}.${t.fileoptions.outputmime}`, t.fileoptions);
@@ -91,17 +97,17 @@ async function convertFile(
 			.on("codecData", (data) => {
 				totalTime = parseInt(data.duration.replace(/:/g, ""));
 			})
-			.on("progress", (p) => {
-				const time = parseInt(p.timemark.replace(/:/g, ""));
-				let percent: number = (time / totalTime) * 100;
-				if (percent < 0) {
-					percent = 0;
-				}
-				logger.info(
-					`Processing : ` +
-						`...${outputName.substring(38, outputName.length)} - ${Number(percent).toFixed(2)} %`
-				);
-			})
+			// .on("progress", (p) => {
+			// 	const time = parseInt(p.timemark.replace(/:/g, ""));
+			// 	let percent: number = (time / totalTime) * 100;
+			// 	if (percent < 0) {
+			// 		percent = 0;
+			// 	}
+			// 	logger.info(
+			// 		`Processing : ` +
+			// 			`...${outputName.substring(38, outputName.length)} - ${Number(percent).toFixed(2)} %`
+			// 	);
+			// })
 	});
 }
 
