@@ -7,12 +7,12 @@ This repository contains the public API to interact with nostr backend api serve
 ### domains [GET]
 Return available domains on the server
 
-https://nostrcheck.me/api/v1/domains
+http://localhost:3000/api/v1/domains
 
 ### nostaddress [GET]
 Returns whether a user name is registered on the server.
 
-https://nostrcheck.me/api/v1/nostraddress
+http://localhost:3000/api/v1/nostraddress
 
 ## media [POST]
 Allows to upload files
@@ -27,13 +27,12 @@ http://localhost:3000/api/v1/media
 ### register [POST]
 Allows to register in the service
 
-https://nostrcheck.me/api/v1/register
+http://localhost:3000/api/v1/register
 
 ### verify [POST]
 Endpoint to verify a nostr note integrity and signature.
 
-https://nostrcheck.me/api/v1/verify
-
+http://localhost:3000/api/v1/verify
 
 # Installing and running
 
