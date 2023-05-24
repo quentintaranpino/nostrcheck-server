@@ -7,6 +7,8 @@ import { VerifyResultMessage } from "../types";
 const VerifyNote = async (req: Request, res: Response): Promise<Response> => {
 	logger.info("POST /api/v1/verify", "|", req.socket.remoteAddress);
 
+	//TODO: (maybe) Check if request has authorization header and parse it
+
 	//Create event object
 	const event: Event = {
 		kind: req.body.kind,
@@ -52,6 +54,8 @@ const VerifyNote = async (req: Request, res: Response): Promise<Response> => {
 
 		return res.status(400).send(result);
 	}
+
+	logger.info(`RES -> 200 OK - Valid event:`, event.id, "|", req.socket.remoteAddress)
 
 	const result: VerifyResultMessage = {
 		pubkey: event.pubkey,
