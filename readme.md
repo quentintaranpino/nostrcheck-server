@@ -1,6 +1,6 @@
-# Nostrcheck.me api server
+# Nostr backend api server
 
-This repository contains the public API to interact with nostrcheck.me services. Written in typescript.
+This repository contains the public API to interact with nostr backend api server services. Written in typescript.
 
 ## Available endpoints
 
@@ -14,10 +14,15 @@ Returns whether a user name is registered on the server.
 
 https://nostrcheck.me/api/v1/nostraddress
 
-<!-- ## media
-Allows to upload, download, share and delete files
+## media [POST]
+Allows to upload files
 
-http://localhost:3000/api/v1/media -->
+http://localhost:3000/api/v1/media
+
+## media [GET]
+Allows to get the status of files
+
+http://localhost:3000/api/v1/media
 
 ### register [POST]
 Allows to register in the service
