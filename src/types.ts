@@ -66,7 +66,7 @@ interface ConvertFilesOpions {
 	uploadtype: typeof UploadTypes;
 	originalmime: string;
 	outputmime: string;
-	id: string;
+	outputname: string;
 }
 
 interface asyncTask {
