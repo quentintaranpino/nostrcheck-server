@@ -1,6 +1,6 @@
-# Nostr backend api server
+# Nostrcheck-api-ts, backend server api for nostr.
 
-This repository contains the public API to interact with nostr backend api server services. Written in typescript.
+This repository contains the public API to interact with nostr as a backend api server. Written in typescript.
 
 ## Available endpoints
 
@@ -9,13 +9,18 @@ Return available domains on the server
 
 http://localhost:3000/api/v1/domains
 
+<!-- ### users [GET]
+Return available users from a domain registerd on the server
+
+http://localhost:3000/api/v1/users/[domain]/ -->
+
 ### nostaddress [GET]
 Returns whether a user name is registered on the server.
 
 http://localhost:3000/api/v1/nostraddress
 
 ### media [POST]
-Allows to upload files
+Allows to upload and delete files
 
 http://localhost:3000/api/v1/media
 
@@ -31,6 +36,8 @@ http://localhost:3000/api/v1/register
 
 ### verify [POST]
 Endpoint to verify a nostr note integrity and signature.
+
+
 
 http://localhost:3000/api/v1/verify
 
