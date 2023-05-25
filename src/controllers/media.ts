@@ -56,10 +56,9 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 	logger.info("username ->", req.body.username, "|", req.socket.remoteAddress);
 
 	//Check if pubkey and username are registered
-	const servername = "https://" + req.hostname; //TODO, get entire url from request
 	let pubkey = EventHeader.pubkey;
 	const db = await connect();
-	const [dbResult] = await db.query("SELECT hex, username FROM registered WHERE hex = ? and username = ? and domain = ?", [pubkey, req.body.username, servername]);
+	const [dbResult] = await db.query("SELECT hex, username FROM registered WHERE hex = ? and username = ? and domain = ?", [pubkey, req.body.username, req.hostname]);
 	const rowstemp = JSON.parse(JSON.stringify(dbResult));
 
 	if (rowstemp[0] == undefined) {
@@ -190,7 +189,8 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 	
 			return res.status(404).send(result);
 		}
-		fileoptions.id = IDrowstemp[0].id;
+
+	fileoptions.id = IDrowstemp[0].id;
 
 	const t: asyncTask = {
 		req,
@@ -287,7 +287,7 @@ const GetMediabyID = async (req: Request, res: Response) => {
 	}
 
 	const db = await connect();
-	const [dbResult] = await db.query("SELECT id, filename, status FROM userfiles WHERE id = ? and pubkey = ?", [req.body.id , req.body.pubkey]);
+	const [dbResult] = await db.query("SELECT userfiles.id, userfiles.filename, registered.username, status FROM userfiles INNER JOIN registered on userfiles.pubkey = registered.hex WHERE userfiles.id = ? and userfiles.pubkey = ?", [req.body.id , req.body.pubkey]);
 	const rowstemp = JSON.parse(JSON.stringify(dbResult));
 	if (rowstemp[0] == undefined) {
 		logger.error(`File not found in database: ${req.body.id}`);
@@ -307,7 +307,7 @@ const GetMediabyID = async (req: Request, res: Response) => {
 	let description = "";
 	let resultstatus = false;
 	if (rowstemp[0].status == "completed") {
-		url = servername + "/" + rowstemp[0].filename;
+		url = servername + "/" + rowstemp[0].username + "/" + rowstemp[0].filename;
 		description = "The requested file was found";
 		resultstatus = true;
 	}else if (rowstemp[0].status == "failed") {
@@ -336,3 +336,75 @@ const GetMediabyID = async (req: Request, res: Response) => {
 };
 
 export { GetMediabyID, Uploadmedia };
+
+
+// const fs = require('fs');
+// const http = require('http');
+// const path = require('path');
+
+// const port = 8000;
+// const directoryName = './public';
+
+// const types = {
+//   html: 'text/html',
+//   css: 'text/css',
+//   js: 'application/javascript',
+//   png: 'image/png',
+//   jpg: 'image/jpeg',
+//   jpeg: 'image/jpeg',
+//   gif: 'image/gif',
+//   json: 'application/json',
+//   xml: 'application/xml',
+// };
+
+// const root = path.normalize(path.resolve(directoryName));
+
+// const server = http.createServer((req, res) => {
+//   console.log(`${req.method} ${req.url}`);
+
+//   const extension = path.extname(req.url).slice(1);
+//   const type = extension ? types[extension] : types.html;
+//   const supportedExtension = Boolean(type);
+
+//   if (!supportedExtension) {
+//     res.writeHead(404, { 'Content-Type': 'text/html' });
+//     res.end('404: File not found');
+//     return;
+//   }
+
+//   let fileName = req.url;
+//   if (req.url === '/') fileName = 'index.html';
+//   else if (!extension) {
+//     try {
+//       fs.accessSync(path.join(root, req.url + '.html'), fs.constants.F_OK);
+//       fileName = req.url + '.html';
+//     } catch (e) {
+//       fileName = path.join(req.url, 'index.html');
+//     }
+//   }
+
+//   const filePath = path.join(root, fileName);
+//   const isPathUnderRoot = path
+//     .normalize(path.resolve(filePath))
+//     .startsWith(root);
+
+//   if (!isPathUnderRoot) {
+//     res.writeHead(404, { 'Content-Type': 'text/html' });
+//     res.end('404: File not found');
+//     return;
+//   }
+
+//   fs.readFile(filePath, (err, data) => {
+//     if (err) {
+//       res.writeHead(404, { 'Content-Type': 'text/html' });
+//       res.end('404: File not found');
+//     } else {
+//       res.writeHead(200, { 'Content-Type': type });
+//       res.end(data);
+//     }
+//   });
+// });
+
+// server.listen(port, () => {
+//   console.log(`Server is listening on port ${port}`);
+// });
