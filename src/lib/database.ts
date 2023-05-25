@@ -14,8 +14,8 @@ export async function connect(): Promise<Pool> {
 	try{
 		const connection = await createPool({
 			host: "localhost",
-			user: "root",
-			password: "root",
+			user: "nostrcheck",
+			password: "nostrcheck",
 			database: "nostrcheck",
 			waitForConnections: true,
 			connectionLimit: 10,
