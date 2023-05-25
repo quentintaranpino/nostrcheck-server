@@ -10,17 +10,24 @@ if (!dbtables) {
 }
 
 export async function connect(): Promise<Pool> {
-	const connection = await createPool({
-		host: "localhost",
-		user: "root",
-		password: "root",
-		database: "nostrcheck",
-		waitForConnections: true,
-		connectionLimit: 10,
-	});
 
-	return connection;
-}
+	try{
+		const connection = await createPool({
+			host: "localhost",
+			user: "root",
+			password: "root",
+			database: "nostrcheck",
+			waitForConnections: true,
+			connectionLimit: 10,
+			});
+			await connection.getConnection();
+			return connection;
+	}catch (error) {
+			logger.error(`There is a problem connecting to mysql server, is mysql-server package installed on your system? : ${error}`);
+			process.exit(1);
+	}
+
+};
 
 export async function populateTables(resetTables: boolean): Promise<boolean> {
 	if (resetTables) {
