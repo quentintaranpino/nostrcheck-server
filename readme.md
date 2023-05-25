@@ -55,11 +55,10 @@ npm install
 npm build
 
 sudo mariadb
-
 create database DATABASE_NAME;
 grant all privileges on DATABASE_NAME.* TO 'USER_NAME'@'localhost' identified by 'PASSWORD';
-
 flush privileges;
+#exit mariadb
 
 sudo nano dist/src/lib/database.js #(for npm run start)
 sudo nano src/lib/database.ts #(for npm run dev)
