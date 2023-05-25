@@ -44,8 +44,7 @@ async function PrepareFile(t: asyncTask): Promise<void> {
 		`${t.fileoptions.outputname}.${t.fileoptions.outputmime}`
 	);
 
-	await convertFile(t.req.file, t.fileoptions);
-}
+	await convertFile(t.req.file, t.fileoptions);}
 
 async function convertFile(
 	inputFile: any,
@@ -64,18 +63,18 @@ async function convertFile(
 				return;
 			}
 		});
-
+	  
 		let totalTime: number;
 		ffmpeg()
 			.addInput(`./tmp/${options.outputname}`)
 			//.videoFilter('crop=in_w:in_h-20')
 			.setSize((await NewDimensions).toString())
-			.saveToFile(`./media/${options.username}/` + options.outputname)
+			.saveToFile(`./media/${options.username}/${options.outputname}.${options.outputmime}`)
 			.toFormat(options.outputmime)
 			.on("end", (end) => {
-				if (totalTime === undefined || Number.isNaN(totalTime)) {
-					totalTime = 0;
-				}
+				// if (totalTime === undefined || Number.isNaN(totalTime)) {
+				// 	totalTime = 0;
+				// }
 					fs.unlink(`./tmp/${options.outputname}`, (err) => {
 					if (err) {
 						logger.error(err);
