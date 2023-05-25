@@ -4,6 +4,8 @@ import fs from "fs";
 
 import { asyncTask, ConvertFilesOpions } from "../types";
 import { logger } from "./logger";
+import { FileOptions } from "buffer";
+import { connect } from "./database";
 
 const requestQueue: queueAsPromised<any> = fastq.promise(PrepareFile, 1); //number of workers for the queue
 
@@ -87,17 +89,31 @@ async function convertFile(
 					}
 				});
 
+				//Set status completed on the database
+				const completed =  dbFileUpdate("completed", options);
+				if (!completed) {
+					logger.error("Could not update table userfiles, id: " + options.id, "status: completed");
+				}
 				resolve(end);
 			})
 			.on("error", (err) => {
 				logger.error(`Error converting file`, err);
-
+				const errorstate =  dbFileUpdate("failed", options);
+				if (!errorstate) {
+					logger.error("Could not update table userfiles, id: " + options.id, "status: failed");
+				}
 				reject(err);
 			})
-			.on("codecData", (data) => {
-				totalTime = parseInt(data.duration.replace(/:/g, ""));
+			// .on("codecData", (data) => {
+			// 	totalTime = parseInt(data.duration.replace(/:/g, ""));
+			// })
+			.on("progress", () => {
+				//Set status completed on the database
+				const processing =  dbFileUpdate("processing", options);
+				if (!processing) {
+					logger.error("Could not update table userfiles, id: " + options.id, "status: processing");
+				}
 			})
-			// .on("progress", (p) => {
 			// 	const time = parseInt(p.timemark.replace(/:/g, ""));
 			// 	let percent: number = (time / totalTime) * 100;
 			// 	if (percent < 0) {
@@ -178,3 +194,22 @@ export { cleanTempDir, convertFile, requestQueue };
 
 		return response;
 }
+
+async function dbFileUpdate(status: string, options: ConvertFilesOpions): Promise<boolean> {
+
+	const conn = await connect();
+	const [dbFileStatusUpdate] = await conn.execute(
+		"UPDATE userfiles set status = ? where id = ?",
+		[status, options.id]
+	);
+	if (!dbFileStatusUpdate) {
+		logger.error("RES -> Error updating userfiles table, id:", options.id, "status:", status);
+		conn.end();
+		return false;
+	}
+
+	conn.end();
+	return true
+
+}
+
