@@ -4,7 +4,6 @@ import fs from "fs";
 
 import { asyncTask, ConvertFilesOpions } from "../types";
 import { logger } from "./logger";
-import { FileOptions } from "buffer";
 import { connect } from "./database";
 
 const requestQueue: queueAsPromised<any> = fastq.promise(PrepareFile, 1); //number of workers for the queue
