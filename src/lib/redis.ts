@@ -1,13 +1,15 @@
 import { createClient } from "redis";
 
 import { logger } from "../lib/logger";
+import e from "express";
 
 //Redis configuration
 const redisClient = createClient();
 (async (): Promise<void> => {
-	redisClient.on("error", (error) =>
-		logger.error(`There is a problem connecting to redis server : ${error}`)
-	);
+	redisClient.on("error", (error) =>{
+		logger.error(`There is a problem connecting to redis server, is redis-server package installed on your system? : ${error}`);
+		process.exit(1);
+});
 	await redisClient.connect();
 })();
 
