@@ -7,6 +7,7 @@ import { logger } from "../lib/logger";
 import { ParseAuthEvent } from "../lib/nostr/NIP98";
 import { RegisterResultMessage } from "../types";
 import { QueryAvailiableDomains } from "./domains";
+import app from "../app";
 
 const Registernewpubkey = async (req: Request, res: Response): Promise<Response> => {
 	logger.info("POST /api/v1/register", "|", req.socket.remoteAddress);
@@ -34,10 +35,16 @@ const Registernewpubkey = async (req: Request, res: Response): Promise<Response>
 	const conn = await connect();
 
 	//We check if the authorization header pubkey is allowed to register new pubkeys
-	const [isAllowedPubkey] = await conn.query("SELECT hex FROM registered WHERE hex = ?", [
+	const [isAllowedPubkey] = await conn.query("SELECT hex FROM registered WHERE hex = ? and allowed = 1", [
 		EventHeader.pubkey,
 	]);
 	const isAllowedPubkeyrowstemp = JSON.parse(JSON.stringify(isAllowedPubkey));
+
+	if (app.get('env') === 'development') {
+		logger.warn(
+			"DEVMODE IS TRUE, ALLOWING ALL PUBKEYS TO REGISTER NEW USERNAMES", "|", req.socket.remoteAddress);
+			isAllowedPubkeyrowstemp[0] = true;
+	}
 
 	if (isAllowedPubkeyrowstemp[0] == undefined) {
 		logger.warn(
@@ -158,7 +165,13 @@ const Registernewpubkey = async (req: Request, res: Response): Promise<Response>
 
 	//Check if domain is valid
 	const AcceptedDomains = await QueryAvailiableDomains();
-	const IsValidDomain = JSON.stringify(AcceptedDomains).indexOf(req.body.tags[1][1]) > -1;
+	let IsValidDomain = JSON.stringify(AcceptedDomains).indexOf(req.body.tags[1][1]) > -1;
+	if (app.get('env') === 'development') {
+		logger.warn(
+			"DEVMODE IS TRUE, ALLOWING LOCALHOST DOMAIN TO NEW USERNAMES", "|", req.socket.remoteAddress);
+			IsValidDomain = true;
+	}
+
 	if (!IsValidDomain) {
 		logger.warn("RES -> 406 Bad request - domain not accepted", "|", req.socket.remoteAddress);
 		const result: RegisterResultMessage = {
