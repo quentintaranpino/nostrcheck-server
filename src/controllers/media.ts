@@ -16,6 +16,7 @@ import {
 	UploadStatus,
 	UploadTypes
 } from "../types";
+import fs from "fs";
 
 const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 	logger.info("POST /api/v1/media", "|", req.socket.remoteAddress);
@@ -62,9 +63,7 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 	const rowstemp = JSON.parse(JSON.stringify(dbResult));
 
 	if (rowstemp[0] == undefined) {
-		//If not registered the upload will be public and a 
-		//FILE (https://github.com/nostr-protocol/nips/blob/master/94.md) 
-		// and LIST (https://github.com/nostr-protocol/nips/blob/master/51.md) event will be sent
+		//If not registered the upload will be public and a warning will be logged
 		logger.warn("pubkey not registered, switching to public upload | ", req.socket.remoteAddress);
 		req.body.username = "public";
 		pubkey = app.get("pubkey");
@@ -75,6 +74,7 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 	//Check if upload type exists
 	let uploadtype = req.body.uploadtype;
 	if (!uploadtype) {
+		//If upload type is not specified will be "media" and a warning will be logged
 		logger.warn(`RES -> 400 Bad request - missing uploadtype`, "|", req.socket.remoteAddress);
 		logger.warn("assuming uploadtype = media");
 		req.body.uploadtype = "media";
@@ -123,17 +123,16 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 	}
 	logger.info("mime ->", file.mimetype, "|", req.socket.remoteAddress);
 
-	
-
 	//Standard conversion options
 	const fileoptions: ConvertFilesOpions = {
 		id: "",
+		username: req.body.username,
 		width: 1280,
 		height: 960,
 		uploadtype,
 		originalmime: file.mimetype,
 		outputmime: mime_transform[file.mimetype],
-		outputname: crypto.randomBytes(24).toString("hex"),
+		outputname: req.hostname + "_" + crypto.randomBytes(24).toString("hex"),
 	};
 
 	//Avatar conversion options
@@ -198,7 +197,13 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 		fileoptions,
 	};
 
-	//Send request to request transform queue
+	//If not exist create username folder
+	const userfolder = `./media/${req.body.username}`;
+	if (!fs.existsSync(userfolder)){
+		fs.mkdirSync(userfolder);
+	}
+
+	//Send request to transform queue
 	requestQueue.push(t).catch((err) => {
 		logger.error("Error pushing file to queue", err);
 		const result: MediaResultMessage = {

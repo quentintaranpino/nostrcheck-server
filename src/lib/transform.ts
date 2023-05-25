@@ -13,25 +13,25 @@ async function PrepareFile(t: asyncTask): Promise<void> {
 	logger.info(`${requestQueue.length()} items in queue`);
 
 	if (!t.req.file) {
-		logger.error("Prepare File", "->", "Empty file");
+		logger.error("ERR -> Preparing file for conversion, empty file");
 
 		return;
 	}
 
 	if (!t.req.file.mimetype) {
-		logger.error("Prepare File", "->", "Empty mimetype");
+		logger.error("ERR -> Preparing file for conversion, empty mimetype");
 
 		return;
 	}
 
 	if (!t.req.body.uploadtype) {
-		logger.error("Prepare File", "->", "Empty type");
+		logger.error("ERR -> Preparing file for conversion, empty type");
 
 		return;
 	}
 
 	if (!t.req.body.username) {
-		logger.error("Prepare File", "->", "Empty username");
+		logger.error("ERR -> Preparing file for conversion, empty username");
 
 		return;
 	}
@@ -44,12 +44,11 @@ async function PrepareFile(t: asyncTask): Promise<void> {
 		`${t.fileoptions.outputname}.${t.fileoptions.outputmime}`
 	);
 
-	await convertFile(t.req.file, `./${t.fileoptions.outputname}.${t.fileoptions.outputmime}`, t.fileoptions);
+	await convertFile(t.req.file, t.fileoptions);
 }
 
 async function convertFile(
 	inputFile: any,
-	outputName: string,
 	options: ConvertFilesOpions
 ): Promise<any> {
 
@@ -71,14 +70,13 @@ async function convertFile(
 			.addInput(`./tmp/${options.outputname}`)
 			//.videoFilter('crop=in_w:in_h-20')
 			.setSize((await NewDimensions).toString())
-			.saveToFile(outputName)
+			.saveToFile(`./media/${options.username}/` + options.outputname)
 			.toFormat(options.outputmime)
 			.on("end", (end) => {
 				if (totalTime === undefined || Number.isNaN(totalTime)) {
 					totalTime = 0;
 				}
-				logger.info(`File converted successfully: ${outputName} ${totalTime} seconds`);
-				fs.unlink(`./tmp/${options.outputname}`, (err) => {
+					fs.unlink(`./tmp/${options.outputname}`, (err) => {
 					if (err) {
 						logger.error(err);
 
@@ -88,7 +86,8 @@ async function convertFile(
 					}
 				});
 
-				//Set status completed on the database
+				//./${options.pubkey}/
+				logger.info(`File converted successfully: ${options.outputname} ${totalTime} seconds`);
 				const completed =  dbFileUpdate("completed", options);
 				if (!completed) {
 					logger.error("Could not update table userfiles, id: " + options.id, "status: completed");
@@ -126,9 +125,10 @@ async function convertFile(
 	});
 }
 
-function cleanTempDir() {
+function PrepareMediaFolders() {
 	let tempdir = "./tmp/";
 	logger.info("Cleaning temp dir");
+	//If not exist create temp folder
 	if (!fs.existsSync(tempdir)){
 		fs.mkdirSync(tempdir);
 	}
@@ -145,9 +145,16 @@ function cleanTempDir() {
 			});
 		}
 	});
+
+	//If not exist create media folder
+	const userfolder = `./media/`;
+	if (!fs.existsSync(userfolder)){
+		fs.mkdirSync(userfolder);
+	}
+
 }
 
-export { cleanTempDir, convertFile, requestQueue };
+export { PrepareMediaFolders, convertFile, requestQueue };
 
  async function setMediaDimensions(file:string, options:ConvertFilesOpions):Promise<string> {
 
