@@ -10,4 +10,6 @@ dist
 # # ignore vscode settings
 .vscode
 .vs
+./media
+./tmp
 nostrcheck-api.log
