@@ -10,7 +10,7 @@ app.set("port", process.env.PORT ?? 3000);
 app.set("version", process.env.npm_package_version ?? "0.0");
 app.set(
 	"pubkey",
-	process.env.PUBKEY ?? "134743ca8ad0203b3657c20a6869e64f160ce48ae6388dc1f5ca67f346019ee7"
+	process.env.PUBKEY ?? "89836015acd0c3e0227718fbe64b6251a8425cda33f27c3e4bbf794effbc7450"
 );
 app.use(express.json({ limit: "25mb" }));
 app.use(express.urlencoded({ limit: "25mb", extended: true }));
