@@ -61,6 +61,7 @@ declare enum NIP98Kind {
 }
 
 interface ConvertFilesOpions {
+	id: string;
 	width: number;
 	height: number;
 	uploadtype: typeof UploadTypes;
