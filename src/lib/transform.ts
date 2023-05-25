@@ -112,14 +112,18 @@ async function convertFile(
 }
 
 function cleanTempDir() {
+	let tempdir = "./tmp/";
 	logger.info("Cleaning temp dir");
-	fs.readdir("./tmp", (err, files) => {
+	if (!fs.existsSync(tempdir)){
+		fs.mkdirSync(tempdir);
+	}
+	fs.readdir(tempdir, (err, files) => {
 		if (err) {
 			logger.error(err);
 		}
 
 		for (const file of files) {
-			fs.unlink(`./tmp/${file}`, (err) => {
+			fs.unlink(tempdir + file, (err) => {
 				if (err) {
 					throw err;
 				}
