@@ -43,6 +43,31 @@ http://localhost:3000/api/v1/verify
 
 # Installing and running
 
+```
+sudo apt install git nodejs npm redis-server mariadb-server mariadb-client
+
+git clone https://github.com/quentintaranpino/nostrcheck-api-ts.git
+
+cd nostrcheck-api-ts
+
+npm install
+
+npm build
+
+sudo mariadb
+
+create database DATABASE_NAME;
+grant all privileges on DATABASE_NAME.* TO 'USER_NAME'@'localhost' identified by 'PASSWORD';
+
+flush privileges;
+
+sudo nano dist/src/lib/database.js #(for npm run start)
+sudo nano src/lib/database.ts #(for npm run dev)
+
+#edit with your credentials and save.
+
+```
+
 The server runs on:
 
 http://localhost:3000/api/v1/
