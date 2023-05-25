@@ -44,7 +44,7 @@ http://localhost:3000/api/v1/verify
 # Installing and running
 
 ```
-sudo apt install git nodejs npm redis-server mariadb-server mariadb-client
+sudo apt install git nodejs npm redis-server mariadb-server mariadb-client ffmpeg
 
 git clone https://github.com/quentintaranpino/nostrcheck-api-ts.git
 
