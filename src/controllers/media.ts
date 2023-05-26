@@ -238,11 +238,6 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 
 const GetMediaStatusbyID = async (req: Request, res: Response) => {
 
-	//A LOT OF TODO's HERE. Only POC
-	// Create checks for recieve a nostr event
-	// Check if event is valid
-	// Create a function to create a full url for the file (if is not pending) with the username plus the filename
-
 	logger.info("GET /api/v1/media", "|", req.socket.remoteAddress);
 
 	const servername = "https://" + req.hostname; //TODO, get entire url from request
@@ -267,7 +262,7 @@ const GetMediaStatusbyID = async (req: Request, res: Response) => {
 		return res.status(401).send(result);
 	}
 
-	if (!req.body.id) {
+	if (!req.query.id) {
 		logger.warn(`RES -> 400 Bad request - missing id`, "|", req.socket.remoteAddress);
 		const result: MediaResultMessage = {
 			result: false,
@@ -281,25 +276,15 @@ const GetMediaStatusbyID = async (req: Request, res: Response) => {
 		return res.status(400).send(result);
 	}
 
-	// if (!req.body.pubkey) {
-	// 	logger.warn(`RES -> 400 Bad request - missing pubkey`, "|", req.socket.remoteAddress);
-	// 	const result: MediaResultMessage = {
-	// 		result: false,
-	// 		description: "missing pubkey",
-	// 		url: "",
-	// 		status:  ["failed"],
-	// 		id: "",
-	// 		pubkey: "",
-	// 	};
-		
-	// 	return res.status(400).send(result);
-	// }
+	const id = req.query.id;
+
+	logger.info(`GET /api/v1/media?id=${id}`, "|", req.socket.remoteAddress);
 
 	const db = await connect();
-	const [dbResult] = await db.query("SELECT userfiles.id, userfiles.filename, registered.username, userfiles.pubkey, userfiles.status FROM userfiles INNER JOIN registered on userfiles.pubkey = registered.hex WHERE (userfiles.id = ? and userfiles.pubkey = ?) OR (userfiles.id = ? and userfiles.pubkey = ?)", [req.body.id , EventHeader.pubkey,req.body.id , app.get("pubkey")]);
+	const [dbResult] = await db.query("SELECT userfiles.id, userfiles.filename, registered.username, userfiles.pubkey, userfiles.status FROM userfiles INNER JOIN registered on userfiles.pubkey = registered.hex WHERE (userfiles.id = ? and userfiles.pubkey = ?) OR (userfiles.id = ? and userfiles.pubkey = ?)", [id , EventHeader.pubkey,id , app.get("pubkey")]);
 	const rowstemp = JSON.parse(JSON.stringify(dbResult));
 	if (rowstemp[0] == undefined) {
-		logger.error(`File not found in database: ${req.body.id}`);
+		logger.error(`File not found in database: ${req.query.id}`);
 		const result: MediaResultMessage = {
 			result: false,
 			description: "The requested file was not found",
@@ -320,6 +305,7 @@ const GetMediaStatusbyID = async (req: Request, res: Response) => {
 		url = servername + "/" + rowstemp[0].username + "/" + rowstemp[0].filename;
 		description = "The requested file was found";
 		resultstatus = true;
+		logger.info(`RES -> 200 OK - ${description}`, "|", req.socket.remoteAddress);
 	}else if (rowstemp[0].status == "failed") {
 		url = "";
 		description = "It was a problem processing this file";
