@@ -170,6 +170,7 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 				url: "",
 				status:  ["failed"],
 				id: "",
+				pubkey: "",
 			};
 			return res.status(500).send(result);
 		}
@@ -185,6 +186,7 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 				url: "",
 				status: ["failed"],
 				id: "",
+				pubkey: "",
 			};
 	
 			return res.status(404).send(result);
@@ -212,6 +214,7 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 			url: "",
 			status:  ["failed"],
 			id: "",
+			pubkey: "",
 		};
 
 		return result;
@@ -225,6 +228,7 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 		url: "",
 	    status: JSON.parse(JSON.stringify(UploadStatus[0])),
 		id: IDrowstemp[0].id,
+		pubkey: pubkey,
 	};
 
 	return res.status(200).send(returnmessage);
@@ -255,6 +259,7 @@ const GetMediabyID = async (req: Request, res: Response) => {
 			url: "",
 			status:  ["failed"],
 			id: "",
+			pubkey: "",
 		};
 
 		return res.status(401).send(result);
@@ -268,6 +273,7 @@ const GetMediabyID = async (req: Request, res: Response) => {
 			url: "",
 			status:  ["failed"],
 			id: "",
+			pubkey: "",
 		};
 
 		return res.status(400).send(result);
@@ -281,13 +287,14 @@ const GetMediabyID = async (req: Request, res: Response) => {
 			url: "",
 			status:  ["failed"],
 			id: "",
+			pubkey: "",
 		};
 		
 		return res.status(400).send(result);
 	}
 
 	const db = await connect();
-	const [dbResult] = await db.query("SELECT userfiles.id, userfiles.filename, registered.username, status FROM userfiles INNER JOIN registered on userfiles.pubkey = registered.hex WHERE userfiles.id = ? and userfiles.pubkey = ?", [req.body.id , req.body.pubkey]);
+	const [dbResult] = await db.query("SELECT userfiles.id, userfiles.filename, registered.username, userfiles.pubkey, userfiles.status FROM userfiles INNER JOIN registered on userfiles.pubkey = registered.hex WHERE userfiles.id = ? and userfiles.pubkey = ?", [req.body.id , req.body.pubkey]);
 	const rowstemp = JSON.parse(JSON.stringify(dbResult));
 	if (rowstemp[0] == undefined) {
 		logger.error(`File not found in database: ${req.body.id}`);
@@ -297,6 +304,7 @@ const GetMediabyID = async (req: Request, res: Response) => {
 			url: "",
 			status:  ["failed"],
 			id: "",
+			pubkey: "",
 		};
 
 		return res.status(404).send(result);
@@ -330,6 +338,7 @@ const GetMediabyID = async (req: Request, res: Response) => {
 		url: url,
 		status: rowstemp[0].status,
 		id: rowstemp[0].id,
+		pubkey: rowstemp[0].pubkey,
 	};
 
 	return res.status(200).send(result);
