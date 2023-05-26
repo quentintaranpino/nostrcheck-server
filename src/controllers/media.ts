@@ -220,6 +220,8 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 		return result;
 	});
 
+	logger.info(`${requestQueue.length()} items in queue`);
+
 
 	//Return file queued for conversion
 	const returnmessage: MediaResultMessage = {
@@ -234,7 +236,7 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 	return res.status(200).send(returnmessage);
 };
 
-const GetMediabyID = async (req: Request, res: Response) => {
+const GetMediaStatusbyID = async (req: Request, res: Response) => {
 
 	//A LOT OF TODO's HERE. Only POC
 	// Create checks for recieve a nostr event
@@ -279,22 +281,22 @@ const GetMediabyID = async (req: Request, res: Response) => {
 		return res.status(400).send(result);
 	}
 
-	if (!req.body.pubkey) {
-		logger.warn(`RES -> 400 Bad request - missing pubkey`, "|", req.socket.remoteAddress);
-		const result: MediaResultMessage = {
-			result: false,
-			description: "missing pubkey",
-			url: "",
-			status:  ["failed"],
-			id: "",
-			pubkey: "",
-		};
+	// if (!req.body.pubkey) {
+	// 	logger.warn(`RES -> 400 Bad request - missing pubkey`, "|", req.socket.remoteAddress);
+	// 	const result: MediaResultMessage = {
+	// 		result: false,
+	// 		description: "missing pubkey",
+	// 		url: "",
+	// 		status:  ["failed"],
+	// 		id: "",
+	// 		pubkey: "",
+	// 	};
 		
-		return res.status(400).send(result);
-	}
+	// 	return res.status(400).send(result);
+	// }
 
 	const db = await connect();
-	const [dbResult] = await db.query("SELECT userfiles.id, userfiles.filename, registered.username, userfiles.pubkey, userfiles.status FROM userfiles INNER JOIN registered on userfiles.pubkey = registered.hex WHERE userfiles.id = ? and userfiles.pubkey = ?", [req.body.id , req.body.pubkey]);
+	const [dbResult] = await db.query("SELECT userfiles.id, userfiles.filename, registered.username, userfiles.pubkey, userfiles.status FROM userfiles INNER JOIN registered on userfiles.pubkey = registered.hex WHERE (userfiles.id = ? and userfiles.pubkey = ?) OR (userfiles.id = ? and userfiles.pubkey = ?)", [req.body.id , EventHeader.pubkey,req.body.id , app.get("pubkey")]);
 	const rowstemp = JSON.parse(JSON.stringify(dbResult));
 	if (rowstemp[0] == undefined) {
 		logger.error(`File not found in database: ${req.body.id}`);
@@ -344,42 +346,41 @@ const GetMediabyID = async (req: Request, res: Response) => {
 	return res.status(200).send(result);
 };
 
-export { GetMediabyID, Uploadmedia };
+export { GetMediaStatusbyID, Uploadmedia };
 
 
-// const fs = require('fs');
-// const http = require('http');
+// const GetMediabyID = async (req: Request, res: Response) => {
+
+
 // const path = require('path');
+// const directoryName = './media/public';
 
-// const port = 8000;
-// const directoryName = './public';
-
-// const types = {
-//   html: 'text/html',
-//   css: 'text/css',
-//   js: 'application/javascript',
-//   png: 'image/png',
-//   jpg: 'image/jpeg',
-//   jpeg: 'image/jpeg',
-//   gif: 'image/gif',
-//   json: 'application/json',
-//   xml: 'application/xml',
-// };
+// // const types = {
+// //   html: 'text/html',
+// //   css: 'text/css',
+// //   js: 'application/javascript',
+// //   png: 'image/png',
+// //   jpg: 'image/jpeg',
+// //   jpeg: 'image/jpeg',
+// //   gif: 'image/gif',
+// //   json: 'application/json',
+// //   xml: 'application/xml',
+// // };
 
 // const root = path.normalize(path.resolve(directoryName));
 
-// const server = http.createServer((req, res) => {
+
 //   console.log(`${req.method} ${req.url}`);
 
 //   const extension = path.extname(req.url).slice(1);
-//   const type = extension ? types[extension] : types.html;
-//   const supportedExtension = Boolean(type);
+// //   const type = extension ? types[extension] : types.html;
+// //   const supportedExtension = Boolean(type);
 
-//   if (!supportedExtension) {
-//     res.writeHead(404, { 'Content-Type': 'text/html' });
-//     res.end('404: File not found');
-//     return;
-//   }
+// //   if (!supportedExtension) {
+// //     res.writeHead(404, { 'Content-Type': 'text/html' });
+// //     res.end('404: File not found');
+// //     return;
+// //   }
 
 //   let fileName = req.url;
 //   if (req.url === '/') fileName = 'index.html';
@@ -408,12 +409,12 @@ export { GetMediabyID, Uploadmedia };
 //       res.writeHead(404, { 'Content-Type': 'text/html' });
 //       res.end('404: File not found');
 //     } else {
-//       res.writeHead(200, { 'Content-Type': type });
+//       res.writeHead(200, { 'Content-Type': "test" });
 //       res.end(data);
 //     }
-//   });
+
 // });
 
-// server.listen(port, () => {
-//   console.log(`Server is listening on port ${port}`);
-// });
+// }
+
+
