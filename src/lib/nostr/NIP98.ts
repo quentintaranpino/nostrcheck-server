@@ -134,8 +134,13 @@ const CheckAuthEvent = async (authevent: Event, req: Request): Promise<ResultMes
 
 	//Check if event authorization u tag (URL) is valid (Must be the same as the server endpoint)
 	try {
-		const AuthEventEndpoint = authevent.tags[0][1];
+		let AuthEventEndpoint = authevent.tags[0][1];
 		const ServerEndpoint = `${req.protocol}://${req.headers.host}${req.url}`;
+		if (process.env.NODE_ENV == "development") {
+			logger.warn("DEVMODE IS TRUE, SETTING U tag same as the endpoint URL", "|", req.socket.remoteAddress);
+			AuthEventEndpoint = ServerEndpoint;
+		} //If devmode is true, set created_at to now for testing purposes
+	
 		if (
 			AuthEventEndpoint == null ||
 			AuthEventEndpoint == undefined ||
