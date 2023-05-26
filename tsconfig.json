@@ -3,7 +3,7 @@
       "module": "commonjs",
       "esModuleInterop": true,
       "allowSyntheticDefaultImports": true,
-      "target": "ES2022",
+      "target": "es2016",
       "strict": true,
       "moduleResolution": "node",
       "outDir": "./dist",
