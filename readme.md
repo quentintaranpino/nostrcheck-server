@@ -94,17 +94,18 @@ The server must have mariadb and redis for database and cache.
 # install dependencies
 npm install
 
-# run in dev mode on port 3000
+#edit config file with your data.
+sudo nano config/default.json
+
+# run in dev mode
 npm run dev
 
 # generate production build
 npm run build
 
-# edit dist/src/database.js with your mysql credentials and database name
-nano dist/src/database.js
-
 # run the server
 npm run start
+
 ```
 
 ## Testing and linting
@@ -121,7 +122,7 @@ npm run lint:fix
 ```
 ## Dev mode
 
-The server don't verify NIP98 created_at integrity and payload when is running on development mode.
+The server don't verify NIP98 created_at integrity, payload and u tag (url) when is running on development mode.
 
 ```
 # Dev mode linux
