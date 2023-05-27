@@ -1,7 +1,7 @@
 import { createClient } from "redis";
 
 import { logger } from "../lib/logger";
-import e from "express";
+
 
 //Redis configuration
 const redisClient = createClient();

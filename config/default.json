@@ -1,0 +1,37 @@
+{
+    "server": {
+      "host": "localhost",
+      "port": 3000,
+      "pubkey": "89836015acd0c3e0227718fbe64b6251a8425cda33f27c3e4bbf794effbc7450"
+    },
+    "database": {
+			"host": "localhost",
+			"user": "nostrcheck",
+			"password": "nostrcheck",
+			"database": "nostrcheck"
+    },
+    "media" : {
+      "maxfilesize": "25mb",
+      "transform" : {
+        "workers" : "1",
+        "default":{
+          "width" : "1280",
+          "height" : "960"
+        },
+        "avatar" : {
+          "width" : "400",
+          "height" : "400"
+        },
+        "banner" : {
+          "width" : "900",
+          "height" : "300"
+        }
+      }
+    },
+    "logger" :  {
+      "filename": "nostrcheck-api",
+      "size": "50M", 
+      "interval": "60d",
+      "compression": "gzip"
+    }
+  }

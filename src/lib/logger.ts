@@ -1,11 +1,12 @@
 import { createStream } from "rotating-file-stream";
 import { Logger } from "tslog";
+import config from "config";
 
 // Create a rotating write stream
-const stream = createStream("nostrcheck-api.log", {
-	size: "50M", // rotate every 10 MegaBytes written
-	interval: "60d", // rotate daily
-	compress: "gzip", // compress rotated files
+const stream = createStream(config.get('logger.filename') + ".log", {
+	size: config.get('logger.size'), 
+	interval: config.get('logger.interval'),
+	compress: config.get('logger.compression'), 
 });
 
 // Create a logger instance

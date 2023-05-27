@@ -18,6 +18,7 @@ import {
 	UploadTypes
 } from "../types";
 import fs from "fs";
+import config from "config";
 
 const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 	logger.info("POST /api/v1/media", "|", req.socket.remoteAddress);
@@ -127,8 +128,8 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 	const fileoptions: ConvertFilesOpions = {
 		id: "",
 		username: req.body.username,
-		width: 1280,
-		height: 960,
+		width: config.get("media.transform.default.width"),
+		height: config.get("media.transform.default.height"),
 		uploadtype,
 		originalmime: file.mimetype,
 		outputmime: mime_transform[file.mimetype],
@@ -137,15 +138,15 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 
 	//Avatar conversion options
 	if (fileoptions.uploadtype.toString() === "avatar"){
-		fileoptions.width = 400;
-		fileoptions.height = 400;
+		fileoptions.width = config.get("media.transform.avatar.width");
+		fileoptions.height = config.get("media.transform.avatar.height");
 		fileoptions.outputname = "avatar";
 	}
 
 	//Banner conversion options
 	if (fileoptions.uploadtype.toString() === "banner"){
-		fileoptions.width = 900;
-		fileoptions.height = 300;
+		fileoptions.width = config.get("media.transform.banner.height");
+		fileoptions.height = config.get("media.transform.banner.height");
 		fileoptions.outputname = "banner";
 	}
 
@@ -241,7 +242,7 @@ const GetMediaStatusbyID = async (req: Request, res: Response) => {
 
 	logger.info("GET /api/v1/media", "|", req.socket.remoteAddress);
 
-	const servername = req.protocol + "://" + req.hostname + ":" + app.get("port"); //TODO, get entire url from request
+	const servername = req.protocol + "://" + req.hostname + ":" + app.get("port"); 
 
 	//Check if event authorization header is valid (NIP98)
 	const EventHeader = await ParseAuthEvent(req);

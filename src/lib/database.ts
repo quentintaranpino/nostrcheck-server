@@ -1,5 +1,5 @@
 import { createPool, Pool } from "mysql2/promise";
-
+const config = require('config');
 import { logger } from "./logger";
 
 //Check database integrity
@@ -13,10 +13,10 @@ export async function connect(): Promise<Pool> {
 
 	try{
 		const connection = await createPool({
-			host: "localhost",
-			user: "nostrcheck",
-			password: "nostrcheck",
-			database: "nostrcheck",
+			host: config.get('database.host'),
+			user: config.get('database.user'),
+			password: config.get('database.password'),
+			database: config.get('database.database'),
 			waitForConnections: true,
 			connectionLimit: 10,
 			});

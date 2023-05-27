@@ -5,8 +5,8 @@ import fs from "fs";
 import { asyncTask, ConvertFilesOpions } from "../types";
 import { logger } from "./logger";
 import { connect } from "./database";
-
-const requestQueue: queueAsPromised<any> = fastq.promise(PrepareFile, 1); //number of workers for the queue
+import config from "config";
+const requestQueue: queueAsPromised<any> = fastq.promise(PrepareFile, config.get('media.transform.workers')); //number of workers for the queue
 
 async function PrepareFile(t: asyncTask): Promise<void> {
 
@@ -186,8 +186,6 @@ export { PrepareMediaFolders, convertFile, requestQueue };
 				newWidth = mediaWidth;
 				newHeight = mediaHeight;
 			  }
-
-			
 
 			logger.info("Original dimensions:", mediaWidth, mediaHeight);
 			logger.info("New dimensions:", newWidth, newHeight);		
