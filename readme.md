@@ -38,7 +38,6 @@ http://localhost:3000/api/v1/register
 Endpoint to verify a nostr note integrity and signature.
 
 
-
 http://localhost:3000/api/v1/verify
 
 # Installing and running
@@ -60,10 +59,8 @@ grant all privileges on DATABASE_NAME.* TO 'USER_NAME'@'localhost' identified by
 flush privileges;
 #exit mariadb
 
-sudo nano dist/src/lib/database.js #(for npm run start)
-sudo nano src/lib/database.ts #(for npm run dev)
-
-#edit with your credentials and save.
+sudo nano config/default.json
+#edit config file with your data.
 
 ```
 
