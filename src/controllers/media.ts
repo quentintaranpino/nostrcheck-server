@@ -11,6 +11,7 @@ import {
 	asyncTask,
 	ConvertFilesOpions,
 	MediaResultMessage,
+	mediaTypes,
 	mime_transform,
 	ResultMessage,
 	UploadStatus,
@@ -240,7 +241,7 @@ const GetMediaStatusbyID = async (req: Request, res: Response) => {
 
 	logger.info("GET /api/v1/media", "|", req.socket.remoteAddress);
 
-	const servername = "https://" + req.hostname; //TODO, get entire url from request
+	const servername = req.protocol + "://" + req.hostname + ":" + app.get("port"); //TODO, get entire url from request
 
 	//Check if event authorization header is valid (NIP98)
 	const EventHeader = await ParseAuthEvent(req);
@@ -297,12 +298,11 @@ const GetMediaStatusbyID = async (req: Request, res: Response) => {
 		return res.status(404).send(result);
 	}
 
-	//File get return logic
 	let url = "";
 	let description = "";
 	let resultstatus = false;
 	if (rowstemp[0].status == "completed") {
-		url = servername + "/" + rowstemp[0].username + "/" + rowstemp[0].filename;
+		url = servername + "/media/" + rowstemp[0].username + "/" + rowstemp[0].filename; //TODO, make it parametrizable
 		description = "The requested file was found";
 		resultstatus = true;
 		logger.info(`RES -> 200 OK - ${description}`, "|", req.socket.remoteAddress);
@@ -332,75 +332,47 @@ const GetMediaStatusbyID = async (req: Request, res: Response) => {
 	return res.status(200).send(result);
 };
 
-export { GetMediaStatusbyID, Uploadmedia };
+const GetMediabyURL = async (req: Request, res: Response) => {
 
+	const path = require('path');
+	const root = path.normalize(path.resolve("./media"));
 
-// const GetMediabyID = async (req: Request, res: Response) => {
+	logger.info(`${req.method} ${req.url}` + " | " + req.socket.remoteAddress);
 
+	let fileName = path.normalize(path.resolve("./" + req.url));
 
-// const path = require('path');
-// const directoryName = './media/public';
+	const isPathUnderRoot = path
+		.normalize(path.resolve(fileName))
+		.startsWith(root);
 
-// // const types = {
-// //   html: 'text/html',
-// //   css: 'text/css',
-// //   js: 'application/javascript',
-// //   png: 'image/png',
-// //   jpg: 'image/jpeg',
-// //   jpeg: 'image/jpeg',
-// //   gif: 'image/gif',
-// //   json: 'application/json',
-// //   xml: 'application/xml',
-// // };
+	if (!isPathUnderRoot) {
+		const result: ResultMessage = {
+			result: false,
+			description: "File not found",
+		};
+		return res.status(404).send(result);
+	}
 
-// const root = path.normalize(path.resolve(directoryName));
+	const ext = path.extname(fileName)
+	let mediaType :string = 'text/html'
+	if (ext.length > 0 && mediaTypes.hasOwnProperty(ext.slice(1))) {
+	mediaType = mediaTypes[ext.slice(1)]
+	}
 
+	fs.readFile(fileName, (err, data) => {
+		if (err) {
+			const result: ResultMessage = {
+				result: false,
+				description: "File not found",
+			};
+			return res.status(404).send(result);
+		} else {
+		res.setHeader('Content-Type', mediaType);
+		res.end(data);
+		}
 
-//   console.log(`${req.method} ${req.url}`);
+	});
 
-//   const extension = path.extname(req.url).slice(1);
-// //   const type = extension ? types[extension] : types.html;
-// //   const supportedExtension = Boolean(type);
+}
 
-// //   if (!supportedExtension) {
-// //     res.writeHead(404, { 'Content-Type': 'text/html' });
-// //     res.end('404: File not found');
-// //     return;
-// //   }
-
-//   let fileName = req.url;
-//   if (req.url === '/') fileName = 'index.html';
-//   else if (!extension) {
-//     try {
-//       fs.accessSync(path.join(root, req.url + '.html'), fs.constants.F_OK);
-//       fileName = req.url + '.html';
-//     } catch (e) {
-//       fileName = path.join(req.url, 'index.html');
-//     }
-//   }
-
-//   const filePath = path.join(root, fileName);
-//   const isPathUnderRoot = path
-//     .normalize(path.resolve(filePath))
-//     .startsWith(root);
-
-//   if (!isPathUnderRoot) {
-//     res.writeHead(404, { 'Content-Type': 'text/html' });
-//     res.end('404: File not found');
-//     return;
-//   }
-
-//   fs.readFile(filePath, (err, data) => {
-//     if (err) {
-//       res.writeHead(404, { 'Content-Type': 'text/html' });
-//       res.end('404: File not found');
-//     } else {
-//       res.writeHead(200, { 'Content-Type': "test" });
-//       res.end(data);
-//     }
-
-// });
-
-// }
-
-
+export { GetMediaStatusbyID, GetMediabyURL, Uploadmedia };

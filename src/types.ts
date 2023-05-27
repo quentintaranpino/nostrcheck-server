@@ -57,6 +57,12 @@ const mime_transform: { [key: string]: string } = {
 	"audio/mp3": "mp3",
 };
 
+const mediaTypes: { [key: string]: string } = {
+	'webp': 'image/webp',
+	'gif': 'image/gif',
+	'mp4': "video/mp4",
+  }
+
 declare enum NIP98Kind {
 	Authorization = 27235,
 }
@@ -83,6 +89,7 @@ export {
 	ConvertFilesOpions,
 	MediaResultMessage,
 	mime_transform,
+	mediaTypes,
 	NIP98Kind,
 	RegisterResultMessage,
 	ResultMessage,

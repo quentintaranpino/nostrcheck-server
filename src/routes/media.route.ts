@@ -1,7 +1,7 @@
 import { Application } from "express";
 import * as multer from "multer";
 
-import { GetMediaStatusbyID, Uploadmedia } from "../controllers/media";
+import { GetMediaStatusbyID, GetMediabyURL, Uploadmedia } from "../controllers/media";
 
 const upload = multer.default({
 	storage: multer.memoryStorage(),
@@ -13,6 +13,6 @@ export const LoadMediaEndpoint = async (app: Application): Promise<void> => {
 
 	app.get("/api/v1/media", GetMediaStatusbyID);
 
-	// app.get("/media/", GetMediabyID);
+	app.get("/media/*", GetMediabyURL);
 
 };
