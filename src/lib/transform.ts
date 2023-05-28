@@ -5,8 +5,7 @@ import fs from "fs";
 import { asyncTask, ConvertFilesOpions } from "../types";
 import { logger } from "./logger";
 import { connect } from "./database";
-import config from "config";
-const requestQueue: queueAsPromised<any> = fastq.promise(PrepareFile, config.get('media.transform.workers')); //number of workers for the queue
+const requestQueue: queueAsPromised<any> = fastq.promise(PrepareFile, 1); //number of workers for the queue
 
 async function PrepareFile(t: asyncTask): Promise<void> {
 
@@ -44,16 +43,23 @@ async function PrepareFile(t: asyncTask): Promise<void> {
 		`${t.fileoptions.outputname}.${t.fileoptions.outputmime}`
 	);
 
-	await convertFile(t.req.file, t.fileoptions);}
+	await convertFile(t.req.file, t.fileoptions, 0);
+
+}
+
 
 async function convertFile(
 	inputFile: any,
-	options: ConvertFilesOpions
-): Promise<any> {
+	options: ConvertFilesOpions,
+	retry:number = 0
+): Promise<boolean> {
+
+	if (retry > 5) {return false}
 
 	let NewDimensions = setMediaDimensions(`./tmp/${options.outputname}`, options);
 	return new Promise(async(resolve, reject) => {
 		//We write the file on filesystem because ffmpeg doesn't support streams
+
 		fs.writeFile(`./tmp/${options.outputname}`, inputFile.buffer, function (err) {
 			if (err) {
 				logger.error(err);
@@ -63,29 +69,33 @@ async function convertFile(
 				return;
 			}
 		});
+	
 	  
 		let totalTime: number;
 		ffmpeg()
-			.addInput(`./tmp/${options.outputname}`)
+
+			.input(`./tmp/${options.outputname}`)
 			//.videoFilter('crop=in_w:in_h-20')
 			.setSize((await NewDimensions).toString())
 			.saveToFile(`./media/${options.username}/${options.outputname}.${options.outputmime}`)
 			.toFormat(options.outputmime)
+			//.loop()
+
 			.on("end", (end) => {
+				
 				// if (totalTime === undefined || Number.isNaN(totalTime)) {
 				// 	totalTime = 0;
 				// }
-					fs.unlink(`./tmp/${options.outputname}`, (err) => {
-					if (err) {
-						logger.error(err);
+				fs.unlink(`./tmp/${options.outputname}`, (err) => {
+				if (err) {
+					logger.error(err);
 
-						reject(err);
+					reject(err);
 
-						return;
-					}
+					return;
+				}
 				});
 
-				//./${options.pubkey}/
 				logger.info(`File converted successfully: ${options.outputname} ${totalTime} seconds`);
 				const completed =  dbFileUpdate("completed", options);
 				if (!completed) {
@@ -94,12 +104,30 @@ async function convertFile(
 				resolve(end);
 			})
 			.on("error", (err) => {
-				logger.error(`Error converting file`, err);
-				const errorstate =  dbFileUpdate("failed", options);
-				if (!errorstate) {
-					logger.error("Could not update table userfiles, id: " + options.id, "status: failed");
+
+				logger.warn(`Error converting file, retrying file conversion: ${options.outputname} retry: ${retry}/5`);
+				retry++
+				fs.unlink(`./tmp/${options.outputname}`, (err) => {
+					if (err) {
+						logger.error(err);
+	
+						reject(err);
+	
+						return;
+					}
+				});
+
+				if (retry > 5){
+					logger.error(`Error converting file after 5 retries: ${inputFile.originalname}`);
+					const errorstate =  dbFileUpdate("failed", options);
+					if (!errorstate) {
+						logger.error("Could not update table userfiles, id: " + options.id, "status: failed");
+					}
+					resolve(err);
 				}
-				reject(err);
+				convertFile(inputFile, options, retry);
+				resolve(err);
+
 			})
 			// .on("codecData", (data) => {
 			// 	totalTime = parseInt(data.duration.replace(/:/g, ""));
@@ -160,7 +188,7 @@ export { PrepareMediaFolders, convertFile, requestQueue };
 	const response:string = await new Promise ((resolve, reject) => {
 		ffmpeg.ffprobe(file, (err, metadata) => {
 		if (err) {
-			console.error(err);
+			logger.error(err);
 			reject(err);
 		} else {
 		
@@ -186,6 +214,8 @@ export { PrepareMediaFolders, convertFile, requestQueue };
 				newWidth = mediaWidth;
 				newHeight = mediaHeight;
 			  }
+
+			
 
 			logger.info("Original dimensions:", mediaWidth, mediaHeight);
 			logger.info("New dimensions:", newWidth, newHeight);		
