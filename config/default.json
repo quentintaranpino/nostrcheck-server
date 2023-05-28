@@ -13,7 +13,6 @@
     "media" : {
       "maxfilesize": "25mb",
       "transform" : {
-        "workers" : "1",
         "default":{
           "width" : "1280",
           "height" : "960"
