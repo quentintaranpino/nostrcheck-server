@@ -69,8 +69,8 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 		req.body.username = "public";
 		pubkey = app.get("pubkey");
 	}
-	logger.info("pubkey ->", pubkey, "|", req.socket.remoteAddress);
-	logger.info("username ->", req.body.username, "|", req.socket.remoteAddress);
+	logger.info("assuming public pubkey =", pubkey, "|", req.socket.remoteAddress);
+	logger.info("assuming public username =", req.body.username, "|", req.socket.remoteAddress);
 
 	//Check if upload type exists
 	let uploadtype = req.body.uploadtype;
@@ -179,6 +179,7 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 				status:  ["failed"],
 				id: "",
 				pubkey: "",
+				hash: "",
 			};
 			return res.status(500).send(result);
 		}
@@ -195,6 +196,7 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 				status: ["failed"],
 				id: "",
 				pubkey: "",
+				hash: "",
 			};
 	
 			return res.status(404).send(result);
@@ -223,6 +225,7 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 			status:  ["failed"],
 			id: "",
 			pubkey: "",
+			hash: "",
 		};
 
 		return result;
@@ -239,6 +242,7 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 	    status: JSON.parse(JSON.stringify(UploadStatus[0])),
 		id: IDrowstemp[0].id,
 		pubkey: pubkey,
+		hash: "",
 	};
 
 	return res.status(200).send(returnmessage);
@@ -265,6 +269,7 @@ const GetMediaStatusbyID = async (req: Request, res: Response) => {
 			status:  ["failed"],
 			id: "",
 			pubkey: "",
+			hash: "",
 		};
 
 		return res.status(401).send(result);
@@ -279,6 +284,7 @@ const GetMediaStatusbyID = async (req: Request, res: Response) => {
 			status:  ["failed"],
 			id: "",
 			pubkey: "",
+			hash: "",
 		};
 
 		return res.status(400).send(result);
@@ -300,6 +306,7 @@ const GetMediaStatusbyID = async (req: Request, res: Response) => {
 			status:  ["failed"],
 			id: "",
 			pubkey: "",
+			hash: "",
 		};
 
 		return res.status(404).send(result);
@@ -334,6 +341,10 @@ const GetMediaStatusbyID = async (req: Request, res: Response) => {
 		status: rowstemp[0].status,
 		id: rowstemp[0].id,
 		pubkey: rowstemp[0].pubkey,
+		hash: crypto
+					.createHash("sha256")
+					.update(fs.readFileSync("./media/" + rowstemp[0].username + "/" + rowstemp[0].filename))
+					.digest("hex"),
 	};
 
 	return res.status(200).send(result);

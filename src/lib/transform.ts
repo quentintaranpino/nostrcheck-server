@@ -9,7 +9,7 @@ const requestQueue: queueAsPromised<any> = fastq.promise(PrepareFile, 1); //numb
 
 async function PrepareFile(t: asyncTask): Promise<void> {
 
-	logger.info(`${requestQueue.length()} items in queue`);
+	logger.info(`${requestQueue.length() +1} items in queue`);
 
 	if (!t.req.file) {
 		logger.error("ERR -> Preparing file for conversion, empty file");
@@ -147,7 +147,6 @@ async function convertFile(
 			// 			`...${outputName.substring(38, outputName.length)} - ${Number(percent).toFixed(2)} %`
 			// 	);
 			// })
-			console.log(command)
 	});
 	
 }

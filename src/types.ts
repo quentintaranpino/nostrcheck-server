@@ -20,6 +20,7 @@ interface MediaResultMessage extends ResultMessage {
 	status: typeof UploadStatus;
 	id: string;
 	pubkey: string;
+	hash: string;
 }
 
 const UploadTypes = ["avatar", "banner", "media"];
