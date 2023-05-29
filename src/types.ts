@@ -1,6 +1,7 @@
 import { Request } from "express";
 
 interface ResultMessage {
+
 	result: boolean;
 	description: string;
 }
@@ -16,10 +17,13 @@ interface VerifyResultMessage extends ResultMessage {
 }
 
 interface MediaResultMessage extends ResultMessage {
-	url: string;
 	status: typeof UploadStatus;
 	id: string;
 	pubkey: string;
+}
+
+interface MediaURLResultMessage extends MediaResultMessage {
+	url: string;
 	hash: string;
 }
 
@@ -96,6 +100,7 @@ export {
 	UploadTypes,
 	UploadStatus,
 	VerifyResultMessage,
+	MediaURLResultMessage,
 };
 
 
