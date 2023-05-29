@@ -70,21 +70,15 @@ async function convertFile(
 			}
 		});
 	
-		let totalTime: number;
-		var command = ffmpeg()
-
-			.input(`./tmp/${options.outputname}`)
+		let totalTime: number = 0;
+		ffmpeg(`./tmp/${options.outputname}`)
 			.outputOption(["-loop 0"])
-			//.videoFilter('crop=in_w:in_h-20')
 			.setSize((await NewDimensions).toString())
-			.saveToFile(`./media/${options.username}/${options.outputname}.${options.outputmime}`)
+			.output(`./media/${options.username}/${options.outputname}.${options.outputmime}`)
 			.toFormat(options.outputmime)
-			.on("end", (end) => {
+			.on("end", async(end) => {
 				
-				// if (totalTime === undefined || Number.isNaN(totalTime)) {
-				// 	totalTime = 0;
-				// }
-				fs.unlink(`./tmp/${options.outputname}`, (err) => {
+			    fs.unlink(`./tmp/${options.outputname}`, (err) => {
 				if (err) {
 					logger.error(err);
 
@@ -94,7 +88,7 @@ async function convertFile(
 				}
 				});
 
-				logger.info(`File converted successfully: ${options.outputname} ${totalTime} seconds`);
+				logger.info(`File converted successfully: ${options.outputname}.${options.outputmime} ${totalTime} seconds`);
 				const completed =  dbFileUpdate("completed", options);
 				if (!completed) {
 					logger.error("Could not update table userfiles, id: " + options.id, "status: completed");
@@ -127,26 +121,29 @@ async function convertFile(
 				resolve(err);
 
 			})
-			// .on("codecData", (data) => {
-			// 	totalTime = parseInt(data.duration.replace(/:/g, ""));
-			// })
-			.on("progress", () => {
+			.on("codecData", (data) => {
+				totalTime = parseInt(data.duration.replace(/:/g, ""));
+			})
+			.on("progress", (data) => {
 				//Set status completed on the database
 				const processing =  dbFileUpdate("processing", options);
 				if (!processing) {
 					logger.error("Could not update table userfiles, id: " + options.id, "status: processing");
 				}
+
+				const time = parseInt(data.timemark.replace(/:/g, ""));
+				let percent: number = (time / totalTime) * 100;
+				if (percent < 0) {
+					percent = 0;
+				}
+				logger.info(
+					`Processing : ` +
+						`${options.outputname} - ${Number(percent).toFixed(2)} %`
+				);
 			})
-			// 	const time = parseInt(p.timemark.replace(/:/g, ""));
-			// 	let percent: number = (time / totalTime) * 100;
-			// 	if (percent < 0) {
-			// 		percent = 0;
-			// 	}
-			// 	logger.info(
-			// 		`Processing : ` +
-			// 			`...${outputName.substring(38, outputName.length)} - ${Number(percent).toFixed(2)} %`
-			// 	);
-			// })
+			.run();
+			
+	
 	});
 	
 }
