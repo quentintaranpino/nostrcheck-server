@@ -70,17 +70,15 @@ async function convertFile(
 			}
 		});
 	
-	  
 		let totalTime: number;
-		ffmpeg()
+		var command = ffmpeg()
 
 			.input(`./tmp/${options.outputname}`)
+			.outputOption(["-loop 0"])
 			//.videoFilter('crop=in_w:in_h-20')
 			.setSize((await NewDimensions).toString())
 			.saveToFile(`./media/${options.username}/${options.outputname}.${options.outputmime}`)
 			.toFormat(options.outputmime)
-			//.loop()
-
 			.on("end", (end) => {
 				
 				// if (totalTime === undefined || Number.isNaN(totalTime)) {
@@ -149,7 +147,9 @@ async function convertFile(
 			// 			`...${outputName.substring(38, outputName.length)} - ${Number(percent).toFixed(2)} %`
 			// 	);
 			// })
+			console.log(command)
 	});
+	
 }
 
 function PrepareMediaFolders() {

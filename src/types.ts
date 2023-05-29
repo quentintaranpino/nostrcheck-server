@@ -45,7 +45,7 @@ const mime_transform: { [key: string]: string } = {
 	"image/png": "webp",
 	"image/jpg": "webp",
 	"image/jpeg": "webp",
-	"image/gif": "mp4",
+	"image/gif": "webp",
 	"image/webp": "webp",
 	"video/mp4": "mp4",
 	"video/quicktime": "mp4",
@@ -59,7 +59,6 @@ const mime_transform: { [key: string]: string } = {
 
 const mediaTypes: { [key: string]: string } = {
 	'webp': 'image/webp',
-	'gif': 'image/gif',
 	'mp4': "video/mp4",
   }
 

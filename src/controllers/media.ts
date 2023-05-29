@@ -150,11 +150,11 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 		fileoptions.outputname = "banner";
 	}
 
-	//Special conversion options for animated gif
-	if (fileoptions.originalmime.toString() === "image/gif" && isAnimatedGif(file.buffer.toString("base64"))) {
-		fileoptions.outputmime = "mp4";
-		logger.info("Animated gif detected, setting output mime to mp4");
-	}
+	// //Special conversion options for animated gif
+	// if (fileoptions.originalmime.toString() === "image/gif" && isAnimatedGif(file.buffer.toString("base64"))) {
+	// 	fileoptions.outputmime = "webp";
+	// 	logger.info("Animated gif detected, setting output mime to mp4");
+	// }
 
 	//Add file to userfiles table
 	try{
