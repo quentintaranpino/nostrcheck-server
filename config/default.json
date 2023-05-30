@@ -8,10 +8,11 @@
 			"host": "localhost",
 			"user": "nostrcheck",
 			"password": "nostrcheck",
-			"database": "nostrcheck"
+			"database": "nostrcheck",
+      "droptables": false
     },
     "media" : {
-      "maxfilesize": "25mb",
+      "maxMBfilesize": 100,
       "transform" : {
         "default":{
           "width" : "1280",
