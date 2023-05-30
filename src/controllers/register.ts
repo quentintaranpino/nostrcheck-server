@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import { Event, getEventHash, nip19, validateEvent, verifySignature } from "nostr-tools";
-import validation from "validator";
+import validator from "validator";
 
 import { connect } from "../lib/database.js";
 import { logger } from "../lib/logger.js";
@@ -250,8 +250,8 @@ const Registernewpubkey = async (req: Request, res: Response): Promise<Response>
 	}
 
 	//Check if username is valid
-	const IsValidUsernameCharacters = validation.matches(req.body.tags[0][1], /^[a-zA-Z0-9]+$/);
-	const IsValidUsernamelenght = validation.isLength(req.body.tags[0][1], { min: 3, max: 50 });
+	const IsValidUsernameCharacters = validator.default.matches(req.body.tags[0][1], /^[a-zA-Z0-9]+$/);
+	const IsValidUsernamelenght = validator.default.isLength(req.body.tags[0][1], { min: 3, max: 50 });
 
 	if (!IsValidUsernameCharacters || !IsValidUsernamelenght) {
 		logger.warn("RES -> 422 Bad request - Username not allowed", "|", req.socket.remoteAddress);
