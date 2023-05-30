@@ -212,11 +212,11 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 	// 	logger.info("Animated gif detected, setting output mime to mp4");
 	// }
 
-	//Add file to userfiles table
+	//Add file to mediafiles table
 	try{
 		const createdate = new Date(Math.floor(Date.now())).toISOString().slice(0, 19).replace("T", " ");
 		await db.query(
-			"INSERT INTO userfiles (pubkey, filename, status, date, ip_address, comments) VALUES (?, ?, ?, ?, ?, ?)",
+			"INSERT INTO mediafiles (pubkey, filename, status, date, ip_address, comments) VALUES (?, ?, ?, ?, ?, ?)",
 			[
 				pubkey,
 				`${fileoptions.outputname}.${fileoptions.outputmime}`,
@@ -236,7 +236,7 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 		}
 	
 		//Get file ID
-		const [IDdbResult] = await db.query("SELECT id FROM userfiles WHERE filename = ? and pubkey = ?", [fileoptions.outputname + "." + fileoptions.outputmime, pubkey]);
+		const [IDdbResult] = await db.query("SELECT id FROM mediafiles WHERE filename = ? and pubkey = ?", [fileoptions.outputname + "." + fileoptions.outputmime, pubkey]);
 		const IDrowstemp = JSON.parse(JSON.stringify(IDdbResult));
 		if (IDrowstemp[0] == undefined) {
 			logger.error("File not found in database:", fileoptions.outputname + "." + fileoptions.outputmime);
@@ -326,7 +326,7 @@ const GetMediaStatusbyID = async (req: Request, res: Response) => {
 	logger.info(`GET /api/v1/media?id=${id}`, "|", req.socket.remoteAddress);
 
 	const db = await connect();
-	const [dbResult] = await db.query("SELECT userfiles.id, userfiles.filename, registered.username, userfiles.pubkey, userfiles.status FROM userfiles INNER JOIN registered on userfiles.pubkey = registered.hex WHERE (userfiles.id = ? and userfiles.pubkey = ?) OR (userfiles.id = ? and userfiles.pubkey = ?)", [id , EventHeader.pubkey,id , app.get("pubkey")]);
+	const [dbResult] = await db.query("SELECT mediafiles.id, mediafiles.filename, registered.username, mediafiles.pubkey, mediafiles.status FROM mediafiles INNER JOIN registered on mediafiles.pubkey = registered.hex WHERE (mediafiles.id = ? and mediafiles.pubkey = ?) OR (mediafiles.id = ? and mediafiles.pubkey = ?)", [id , EventHeader.pubkey,id , app.get("pubkey")]);
 	const rowstemp = JSON.parse(JSON.stringify(dbResult));
 	if (rowstemp[0] == undefined) {
 		logger.error(`File not found in database: ${req.query.id}`);

@@ -40,9 +40,9 @@ export async function populateTables(resetTables: boolean): Promise<boolean> {
 		const DomainsTableDropStatement = "DROP TABLE IF EXISTS domains;";
 		await conn.query(DomainsTableDropStatement);
 
-		logger.info("Dropping table userfiles");
-		const UserfilesTableDropStatement = "DROP TABLE IF EXISTS userfiles;";
-		await conn.query(UserfilesTableDropStatement);
+		logger.info("Dropping table mediafiles");
+		const mediafilesTableDropStatement = "DROP TABLE IF EXISTS mediafiles;";
+		await conn.query(mediafilesTableDropStatement);
 
 		conn.end();
 	}
@@ -106,14 +106,14 @@ export async function populateTables(resetTables: boolean): Promise<boolean> {
 		logger.info("Table domains alredy exist, skipping creation");
 	}
 
-	//Create userfiles table
-	const ExistUserfilesTableStatement = "SHOW TABLES FROM `nostrcheck` LIKE 'userfiles';";
-	logger.info("Checking if table userfiles exist");
-	const [ExistUserfilesTable] = await conn.query(ExistUserfilesTableStatement);
-	const rowstempExistUserfilesTable = JSON.parse(JSON.stringify(ExistUserfilesTable));
-	if (rowstempExistUserfilesTable[0] == undefined) {
-		const UserfilesTableCreateStatement: string =
-			"CREATE TABLE IF NOT EXISTS userfiles (" +
+	//Create mediafiles table
+	const ExistmediafilesTableStatement = "SHOW TABLES FROM `nostrcheck` LIKE 'mediafiles';";
+	logger.info("Checking if table mediafiles exist");
+	const [ExistmediafilesTable] = await conn.query(ExistmediafilesTableStatement);
+	const rowstempExistmediafilesTable = JSON.parse(JSON.stringify(ExistmediafilesTable));
+	if (rowstempExistmediafilesTable[0] == undefined) {
+		const mediafilesTableCreateStatement: string =
+			"CREATE TABLE IF NOT EXISTS mediafiles (" +
 			"id int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY," +
 			"pubkey varchar(64) NOT NULL," +
 			"filename varchar(64) NOT NULL," +
@@ -122,10 +122,10 @@ export async function populateTables(resetTables: boolean): Promise<boolean> {
 			"ip_address varchar(64) NOT NULL," +
 			"comments varchar(150)" +
 			") ENGINE=InnoDB DEFAULT CHARSET=latin1;";
-		logger.info("Creating table userfiles");
-		await conn.query(UserfilesTableCreateStatement);
+		logger.info("Creating table mediafiles");
+		await conn.query(mediafilesTableCreateStatement);
 	} else {
-		logger.info("Table userfiles alredy exist, skipping creation");
+		logger.info("Table mediafiles alredy exist, skipping creation");
 	}
 
 	conn.end();
