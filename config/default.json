@@ -13,8 +13,8 @@
     },
     "media" : {
       "maxMBfilesize": 100,
-      "tempPath": "./temp/",
-      "mediaPath": "./media/",
+      "tempPath": "tmp/",
+      "mediaPath": "media/",
       "transform" : {
         "default":{
           "width" : "1280",

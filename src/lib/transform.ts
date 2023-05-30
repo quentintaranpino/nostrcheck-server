@@ -58,7 +58,8 @@ async function convertFile(
 
 	if (retry > 5) {return false}
 
-	let NewDimensions = setMediaDimensions(`./tmp/${options.outputname}`, options);
+	const tempPath : string = config.get("media.tempPath");
+	let NewDimensions = setMediaDimensions(tempPath + options.outputname, options);
 	return new Promise(async(resolve, reject) => {
 		//We write the file on filesystem because ffmpeg doesn't support streams
 		fs.writeFile(`./tmp/${options.outputname}`, inputFile.buffer, function (err) {
