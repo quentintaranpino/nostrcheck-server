@@ -13,8 +13,8 @@ app.set(
 	"pubkey",
 	process.env.PUBKEY ?? config.get('server.pubkey')
 );
-app.use(express.json({ limit: config.get('media.maxMBfilesize') }));
-app.use(express.urlencoded({ limit: config.get('media.maxMBfilesize'), extended: true }));
+app.use(express.json({ limit: '25MB' }));
+app.use(express.urlencoded({ limit: '25MB', extended: true }));
 
 
 
