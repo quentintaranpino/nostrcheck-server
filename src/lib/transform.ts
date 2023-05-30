@@ -91,7 +91,7 @@ async function convertFile(
 				logger.info(`File converted successfully: ${options.outputname}.${options.outputmime} ${ConversionDuration /2} seconds`);
 				const completed =  dbFileUpdate("completed", options);
 				if (!completed) {
-					logger.error("Could not update table userfiles, id: " + options.id, "status: completed");
+					logger.error("Could not update table mediafiles, id: " + options.id, "status: completed");
 				}
 				resolve(end);
 			})
@@ -113,7 +113,7 @@ async function convertFile(
 					logger.error(`Error converting file after 5 retries: ${inputFile.originalname}`);
 					const errorstate =  dbFileUpdate("failed", options);
 					if (!errorstate) {
-						logger.error("Could not update table userfiles, id: " + options.id, "status: failed");
+						logger.error("Could not update table mediafiles, id: " + options.id, "status: failed");
 					}
 					resolve(err);
 				}
@@ -128,7 +128,7 @@ async function convertFile(
 				//Set status completed on the database
 				const processing =  dbFileUpdate("processing", options);
 				if (!processing) {
-					logger.error("Could not update table userfiles, id: " + options.id, "status: processing");
+					logger.error("Could not update table mediafiles, id: " + options.id, "status: processing");
 				}
 
 				const time = parseInt(data.timemark.replace(/:/g, ""));
@@ -229,11 +229,11 @@ async function dbFileUpdate(status: string, options: ConvertFilesOpions): Promis
 
 	const conn = await connect();
 	const [dbFileStatusUpdate] = await conn.execute(
-		"UPDATE userfiles set status = ? where id = ?",
+		"UPDATE mediafiles set status = ? where id = ?",
 		[status, options.id]
 	);
 	if (!dbFileStatusUpdate) {
-		logger.error("RES -> Error updating userfiles table, id:", options.id, "status:", status);
+		logger.error("RES -> Error updating mediafiles table, id:", options.id, "status:", status);
 		conn.end();
 		return false;
 	}
