@@ -116,7 +116,7 @@ export async function populateTables(resetTables: boolean): Promise<boolean> {
 			"CREATE TABLE IF NOT EXISTS mediafiles (" +
 			"id int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY," +
 			"pubkey varchar(64) NOT NULL," +
-			"filename varchar(64) NOT NULL," +
+			"filename varchar(128) NOT NULL," +
 			"status varchar(10) NOT NULL," +
 			"date datetime NOT NULL," +
 			"ip_address varchar(64) NOT NULL," +
