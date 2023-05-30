@@ -26,6 +26,42 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 
 	//Check if event authorization header is valid (NIP98)
 	const EventHeader = await ParseAuthEvent(req);
+
+	//v0 compatibility, check if apikey is present on request body
+	if (req.body.apikey != undefined && req.body.apikey != "") {
+		
+		logger.warn("Detected apikey on request body ", "|", req.socket.remoteAddress);
+
+		//Check if apikey is valid
+		try{
+		const db = await connect();
+		const [dbResult] = await db.query("SELECT hex FROM registered WHERE apikey = ?", [req.body.apikey]);
+		const rowstemp = JSON.parse(JSON.stringify(dbResult));
+		if (rowstemp[0] == undefined) {
+			logger.warn("RES -> 401 unauthorized - Apikey not found", "|", req.socket.remoteAddress);
+			const result: ResultMessage = {
+				result: false,
+				description: "Apikey is deprecated, please use NIP98 header. Error: Apikey not found",
+			};
+			return res.status(401).send(result);
+		}
+
+		//We set eventheader.result as valid if apikey is present and valid.
+		EventHeader.result = true;
+		EventHeader.description = "Apikey is deprecated, please use NIP98 header";
+
+		}
+		catch (error: any) {
+			logger.error("Error checking apikey", error.message);
+			const result: ResultMessage = {
+				result: false,
+				description: "Apikey is deprecated, please use NIP98 header: Error checking apikey",
+			};
+			return res.status(500).send(result);
+			
+		}
+	};	
+
 	if (!EventHeader.result) {
 		logger.warn(
 			`RES -> 401 unauthorized - ${EventHeader.description}`,
@@ -75,12 +111,20 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 
 	//Check if upload type exists
 	let uploadtype = req.body.uploadtype;
+
+	//v0 compatibility, check if type is present on request body (v0 uses type instead of uploadtype)
+	if (req.body.type != undefined && req.body.type != "") {
+		logger.warn("Detected 'type' field (deprecated) on request body, setting 'uploadtype' with 'type' data ", "|", req.socket.remoteAddress);
+		uploadtype = req.body.type;
+		req.body.uploadtype = req.body.type;
+	}
+
 	if (!uploadtype) {
-		//If upload type is not specified will be "media" and a warning will be logged
-		logger.warn(`RES -> 400 Bad request - missing uploadtype`, "|", req.socket.remoteAddress);
-		logger.warn("assuming uploadtype = media");
-		req.body.uploadtype = "media";
-		uploadtype = "media";
+	//If upload type is not specified will be "media" and a warning will be logged
+	logger.warn(`RES -> 400 Bad request - missing uploadtype`, "|", req.socket.remoteAddress);
+	logger.warn("assuming uploadtype = media");
+	req.body.uploadtype = "media";
+	uploadtype = "media";
 	}
 
 	//Check if upload type is valid
@@ -96,7 +140,18 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 	logger.info("type ->", uploadtype, "|", req.socket.remoteAddress);
 
 	//Check if file exist on POST message
-	const file = req.file;
+	const files = req.files as {[fieldname: string]: Express.Multer.File[]};
+	let file: Express.Multer.File;
+	if (files.mediafile == undefined) {
+		//v0 API deprecated field
+		logger.warn("Detected 'publicgallery' field (deprecated) on request body, setting 'mediafile' with 'publicgallery' data ", "|", req.socket.remoteAddress);
+		file = files['publicgallery'][0];
+		req.file = files['publicgallery'][0];
+	}else{
+		file = files['mediafile'][0];
+		req.file = files['mediafile'][0];
+	}
+
 	if (!file) {
 		logger.warn(`RES -> 400 Bad request - Empty file`, "|", req.socket.remoteAddress);
 		const result: ResultMessage = {

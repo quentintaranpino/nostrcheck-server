@@ -1,5 +1,5 @@
 import cors from "cors";
-import express from "express";
+import express, { NextFunction } from "express";
 import helmet from "helmet";
 import config from "config";
 
@@ -13,8 +13,10 @@ app.set(
 	"pubkey",
 	process.env.PUBKEY ?? config.get('server.pubkey')
 );
-app.use(express.json({ limit: config.get('media.maxfilesize') }));
-app.use(express.urlencoded({ limit: config.get('media.maxfilesize'), extended: true }));
+app.use(express.json({ limit: config.get('media.maxMBfilesize') }));
+app.use(express.urlencoded({ limit: config.get('media.maxMBfilesize'), extended: true }));
+
+
 
 app.use(helmet());
 app.use(cors());
