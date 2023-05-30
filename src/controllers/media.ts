@@ -35,7 +35,7 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 		//Check if apikey is valid
 		try{
 		const db = await connect();
-		const [dbResult] = await db.query("SELECT hex FROM registered WHERE apikey = ?", [req.body.apikey]);
+		const [dbResult] = await db.query("SELECT hex, username FROM registered WHERE apikey = ?", [req.body.apikey]);
 		const rowstemp = JSON.parse(JSON.stringify(dbResult));
 		if (rowstemp[0] == undefined) {
 			logger.warn("RES -> 401 unauthorized - Apikey not found", "|", req.socket.remoteAddress);
@@ -50,6 +50,9 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 		EventHeader.result = true;
 		EventHeader.description = "Apikey is deprecated, please use NIP98 header";
 		EventHeader.pubkey = rowstemp[0].hex;
+		req.body.username = rowstemp[0].username;
+
+		logger.warn("(APIKEY) -> Setting username = " + req.body.username + " and pubkey = " + EventHeader.pubkey, "|", req.socket.remoteAddress);
 
 		}
 		catch (error: any) {
@@ -147,10 +150,10 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 		//v0 API deprecated field
 		logger.warn("Detected 'publicgallery' field (deprecated) on request body, setting 'mediafile' with 'publicgallery' data ", "|", req.socket.remoteAddress);
 		file = files['publicgallery'][0];
-		req.file = files['publicgallery'][0];
+		req.file = file;
 	}else{
 		file = files['mediafile'][0];
-		req.file = files['mediafile'][0];
+		req.file = file;
 	}
 
 	if (!file) {
@@ -163,6 +166,7 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 		return res.status(400).send(result);
 	}
 
+	console.log(file.mimetype);
 	//Check if filetype is allowed
 	if (!allowedMimeTypes.includes(file.mimetype)) {
 		logger.warn(
