@@ -49,6 +49,7 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 		//We set eventheader.result as valid if apikey is present and valid.
 		EventHeader.result = true;
 		EventHeader.description = "Apikey is deprecated, please use NIP98 header";
+		EventHeader.pubkey = rowstemp[0].hex;
 
 		}
 		catch (error: any) {
