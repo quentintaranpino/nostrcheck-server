@@ -59,7 +59,6 @@ async function convertFile(
 	let NewDimensions = setMediaDimensions(`./tmp/${options.outputname}`, options);
 	return new Promise(async(resolve, reject) => {
 		//We write the file on filesystem because ffmpeg doesn't support streams
-
 		fs.writeFile(`./tmp/${options.outputname}`, inputFile.buffer, function (err) {
 			if (err) {
 				logger.error(err);
@@ -70,7 +69,8 @@ async function convertFile(
 			}
 		});
 	
-		let totalTime: number = 0;
+		let MediaDuration: number = 0;
+		let ConversionDuration : number = 0;
 		ffmpeg(`./tmp/${options.outputname}`)
 			.outputOption(["-loop 0"])
 			.setSize((await NewDimensions).toString())
@@ -88,7 +88,7 @@ async function convertFile(
 				}
 				});
 
-				logger.info(`File converted successfully: ${options.outputname}.${options.outputmime} ${totalTime} seconds`);
+				logger.info(`File converted successfully: ${options.outputname}.${options.outputmime} ${ConversionDuration /2} seconds`);
 				const completed =  dbFileUpdate("completed", options);
 				if (!completed) {
 					logger.error("Could not update table userfiles, id: " + options.id, "status: completed");
@@ -122,7 +122,7 @@ async function convertFile(
 
 			})
 			.on("codecData", (data) => {
-				totalTime = parseInt(data.duration.replace(/:/g, ""));
+				MediaDuration = parseInt(data.duration.replace(/:/g, ""));
 			})
 			.on("progress", (data) => {
 				//Set status completed on the database
@@ -132,7 +132,8 @@ async function convertFile(
 				}
 
 				const time = parseInt(data.timemark.replace(/:/g, ""));
-				let percent: number = (time / totalTime) * 100;
+				let percent: number = (time / MediaDuration) * 100;
+				ConversionDuration = ConversionDuration + 1;
 				if (percent < 0) {
 					percent = 0;
 				}
