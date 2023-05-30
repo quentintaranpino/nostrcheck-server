@@ -274,9 +274,9 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 	};
 
 	//If not exist create username folder
-	const userfolder = `./media/${req.body.username}`;
-	if (!fs.existsSync(userfolder)){
-		fs.mkdirSync(userfolder);
+	const mediaPath = config.get("media.mediaPath") + req.body.username;
+	if (!fs.existsSync(mediaPath)){
+		fs.mkdirSync(mediaPath);
 	}
 
 	//Send request to transform queue
