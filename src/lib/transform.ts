@@ -5,6 +5,8 @@ import fs from "fs";
 import { asyncTask, ConvertFilesOpions } from "../types.js";
 import { logger } from "./logger.js";
 import { connect } from "./database.js";
+import config from "config";
+
 const requestQueue: queueAsPromised<any> = fastq.promise(PrepareFile, 1); //number of workers for the queue
 
 async function PrepareFile(t: asyncTask): Promise<void> {
@@ -69,12 +71,15 @@ async function convertFile(
 			}
 		});
 	
+		const MediaPath = config.get("media.mediaPath") + options.username + "/" + options.outputname + "." + options.outputmime;
+		logger.info("Using media path:", MediaPath);
+
 		let MediaDuration: number = 0;
 		let ConversionDuration : number = 0;
 		ffmpeg(`./tmp/${options.outputname}`)
 			.outputOption(["-loop 0"])
 			.setSize((await NewDimensions).toString())
-			.output(`./media/${options.username}/${options.outputname}.${options.outputmime}`)
+			.output(MediaPath)
 			.toFormat(options.outputmime)
 			.on("end", async(end) => {
 				
@@ -150,19 +155,19 @@ async function convertFile(
 }
 
 function PrepareMediaFolders() {
-	let tempdir = "./tmp/";
+	let tempPath : string = config.get("media.tempPath");
 	logger.info("Cleaning temp dir");
 	//If not exist create temp folder
-	if (!fs.existsSync(tempdir)){
-		fs.mkdirSync(tempdir);
+	if (!fs.existsSync(tempPath)){
+		fs.mkdirSync(tempPath);
 	}
-	fs.readdir(tempdir, (err, files) => {
+	fs.readdir(tempPath, (err, files) => {
 		if (err) {
 			logger.error(err);
 		}
 
 		for (const file of files) {
-			fs.unlink(tempdir + file, (err) => {
+			fs.unlink(tempPath + file, (err) => {
 				if (err) {
 					throw err;
 				}
@@ -171,9 +176,9 @@ function PrepareMediaFolders() {
 	});
 
 	//If not exist create media folder
-	const userfolder = `./media/`;
-	if (!fs.existsSync(userfolder)){
-		fs.mkdirSync(userfolder);
+	const MediaPath : string = config.get("media.mediaPath");
+	if (!fs.existsSync(MediaPath)){
+		fs.mkdirSync(MediaPath);
 	}
 
 }
