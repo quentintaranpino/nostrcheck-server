@@ -3,7 +3,7 @@ const config = require('config');
 import { logger } from "./logger";
 
 //Check database integrity
-const dbtables = populateTables(false); // true = reset tables
+const dbtables = populateTables(config.get('database.droptables')); // true = reset tables
 if (!dbtables) {
 	logger.error("Error creating database tables");
 	process.exit(1);
@@ -66,6 +66,7 @@ export async function populateTables(resetTables: boolean): Promise<boolean> {
 			"active boolean NOT NULL DEFAULT 0," +
 			"date datetime NOT NULL," +
 			"allowed boolean NOT NULL DEFAULT 0," +
+			"apikey varchar(64)," +
 			"comments varchar(150)" +
 			") ENGINE=InnoDB DEFAULT CHARSET=latin1;";
 
