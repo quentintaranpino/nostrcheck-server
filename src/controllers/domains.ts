@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 
-import { connect } from "../lib/database";
-import { logger } from "../lib/logger";
+import { connect } from "../lib/database.js";
+import { logger } from "../lib/logger.js";
 
 const QueryAvailiableDomains = async (): Promise<JSON[]> => {
 	//Query database for available domains

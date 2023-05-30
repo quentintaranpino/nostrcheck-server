@@ -67,7 +67,7 @@ const mediaTypes: { [key: string]: string } = {
 	'mp4': "video/mp4",
   }
 
-declare enum NIP98Kind {
+ enum NIP98Kind {
 	Authorization = 27235,
 }
 

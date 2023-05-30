@@ -1,6 +1,6 @@
 import { Application } from "express";
 
-import { VerifyNote } from "../controllers/verify";
+import { VerifyNote } from "../controllers/verify.js";
 
 export const LoadVerifyEndpoint = async (app: Application): Promise<void> => {
 	app.post("/api/v1/verify", VerifyNote);

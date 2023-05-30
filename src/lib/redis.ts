@@ -1,6 +1,6 @@
 import { createClient } from "redis";
 
-import { logger } from "../lib/logger";
+import { logger } from "../lib/logger.js";
 
 
 //Redis configuration

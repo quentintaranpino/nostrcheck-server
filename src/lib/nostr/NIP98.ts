@@ -2,8 +2,8 @@ import crypto from "crypto";
 import { Request } from "express";
 import { Event } from "nostr-tools";
 
-import { logger } from "../../lib/logger";
-import { NIP98Kind, ResultMessage, VerifyResultMessage } from "../../types";
+import { logger } from "../../lib/logger.js";
+import { NIP98Kind, ResultMessage, VerifyResultMessage } from "../../types.js";
 
 //https://github.com/v0l/nips/blob/nip98/98.md
 

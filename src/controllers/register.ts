@@ -2,12 +2,12 @@ import { Request, Response } from "express";
 import { Event, getEventHash, nip19, validateEvent, verifySignature } from "nostr-tools";
 import validation from "validator";
 
-import { connect } from "../lib/database";
-import { logger } from "../lib/logger";
-import { ParseAuthEvent } from "../lib/nostr/NIP98";
-import { RegisterResultMessage } from "../types";
-import { QueryAvailiableDomains } from "./domains";
-import app from "../app";
+import { connect } from "../lib/database.js";
+import { logger } from "../lib/logger.js";
+import { ParseAuthEvent } from "../lib/nostr/NIP98.js";
+import { RegisterResultMessage } from "../types.js";
+import { QueryAvailiableDomains } from "./domains.js";
+import app from "../app.js";
 
 const Registernewpubkey = async (req: Request, res: Response): Promise<Response> => {
 	logger.info("POST /api/v1/register", "|", req.socket.remoteAddress);

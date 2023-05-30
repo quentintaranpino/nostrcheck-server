@@ -1,8 +1,8 @@
 import { Request, Response } from "express";
 import { Event, getEventHash, validateEvent, verifySignature } from "nostr-tools";
 
-import { logger } from "../lib/logger";
-import { VerifyResultMessage } from "../types";
+import { logger } from "../lib/logger.js";
+import { VerifyResultMessage } from "../types.js";
 
 const VerifyNote = async (req: Request, res: Response): Promise<Response> => {
 	logger.info("POST /api/v1/verify", "|", req.socket.remoteAddress);

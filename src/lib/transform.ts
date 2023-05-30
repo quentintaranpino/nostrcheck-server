@@ -2,9 +2,9 @@ import fastq, { queueAsPromised } from "fastq";
 import ffmpeg from "fluent-ffmpeg";
 import fs from "fs";
 
-import { asyncTask, ConvertFilesOpions } from "../types";
-import { logger } from "./logger";
-import { connect } from "./database";
+import { asyncTask, ConvertFilesOpions } from "../types.js";
+import { logger } from "./logger.js";
+import { connect } from "./database.js";
 const requestQueue: queueAsPromised<any> = fastq.promise(PrepareFile, 1); //number of workers for the queue
 
 async function PrepareFile(t: asyncTask): Promise<void> {

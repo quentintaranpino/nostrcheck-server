@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 
-import app from "../app";
-import { logger } from "../lib/logger";
+import app from "../app.js";
+import { logger } from "../lib/logger.js";
 
 const APIIndex = async (req: Request, res: Response): Promise<Response> => {
 	logger.info("REQ -> API Index ", "|", req.socket.remoteAddress);

@@ -1,6 +1,6 @@
 import { Application } from "express";
 
-import { APIIndex } from "../controllers";
+import { APIIndex } from "../controllers/index.js";
 
 export const LoadIndexEndpoint = async (app: Application): Promise<void> => {
 	app.get("/", (_req, res) => {

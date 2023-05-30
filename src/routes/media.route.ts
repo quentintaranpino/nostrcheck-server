@@ -1,12 +1,15 @@
 import { Application } from "express";
-import * as multer from "multer";
-const config = require('config');
+import multer from "multer";
+import config from "config";
 
-import { GetMediaStatusbyID, GetMediabyURL, Uploadmedia } from "../controllers/media";
 
-const upload = multer.default({
+import { GetMediaStatusbyID, GetMediabyURL, Uploadmedia } from "../controllers/media.js";
+
+const maxMBfilesize :number = config.get('media.maxMBfilesize');
+
+const upload = multer({
 	storage: multer.memoryStorage(),
-	limits: { fileSize: config.get('media.maxMBfilesize') * 1024 * 1024 },
+	limits: { fileSize: maxMBfilesize * 1024 * 1024 },
 });
 
 export const LoadMediaEndpoint = async (app: Application): Promise<void> => {

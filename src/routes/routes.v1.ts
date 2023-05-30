@@ -1,12 +1,12 @@
 import { Application } from "express";
 
-import { LoadDomainsEndpoint } from "./domains.route";
-import { LoadIndexEndpoint } from "./index.route";
-import { LoadMediaEndpoint } from "./media.route";
-import { LoadNostraddressEndpoint } from "./nostraddress.route";
-import { LoadRegisterEndpoint } from "./register.route";
-import { LoadVerifyEndpoint } from "./verify.route";
-import { logger } from "../lib/logger";
+import { LoadDomainsEndpoint } from "./domains.route.js";
+import { LoadIndexEndpoint } from "./index.route.js";
+import { LoadMediaEndpoint } from "./media.route.js";
+import { LoadNostraddressEndpoint } from "./nostraddress.route.js";
+import { LoadRegisterEndpoint } from "./register.route.js";
+import { LoadVerifyEndpoint } from "./verify.route.js";
+import { logger } from "../lib/logger.js";
 
 //Load API v1 endpoints
 const LoadAPIv1 = async (app: Application): Promise<boolean> => {

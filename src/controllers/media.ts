@@ -1,11 +1,11 @@
 import crypto from "crypto";
 import { Request, Response } from "express";
 
-import app from "../app";
-import { connect } from "../lib/database";
-import { logger } from "../lib/logger";
-import { ParseAuthEvent } from "../lib/nostr/NIP98";
-import { requestQueue } from "../lib/transform";
+import app from "../app.js";
+import { connect } from "../lib/database.js";
+import { logger } from "../lib/logger.js";
+import { ParseAuthEvent } from "../lib/nostr/NIP98.js";
+import { requestQueue } from "../lib/transform.js";
 import {
 	allowedMimeTypes,
 	asyncTask,
@@ -17,9 +17,11 @@ import {
 	ResultMessage,
 	UploadStatus,
 	UploadTypes
-} from "../types";
+} from "../types.js";
 import fs from "fs";
 import config from "config";
+import {fileTypeFromBuffer, fileTypeFromFile} from 'file-type';
+
 
 const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 	logger.info("POST /api/v1/media", "|", req.socket.remoteAddress);
@@ -166,7 +168,18 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 		return res.status(400).send(result);
 	}
 
-	console.log(file.mimetype);
+	//Detect file mime type (v0 compatibility and security)
+	const DetectedFileType = await fileTypeFromBuffer(file.buffer);
+	if (DetectedFileType == undefined) {
+		logger.warn(`RES -> 400 Bad request - `, file.mimetype, ` filetype not detected`, "|", req.socket.remoteAddress);
+		const result: ResultMessage = {
+			result: false,
+			description: "filetype not allowed",
+		};
+		return res.status(400).send(result);
+	}
+	file.mimetype = DetectedFileType.mime;
+
 	//Check if filetype is allowed
 	if (!allowedMimeTypes.includes(file.mimetype)) {
 		logger.warn(

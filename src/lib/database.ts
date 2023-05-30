@@ -1,6 +1,6 @@
 import { createPool, Pool } from "mysql2/promise";
-const config = require('config');
-import { logger } from "./logger";
+import config from "config";
+import { logger } from "./logger.js";
 
 //Check database integrity
 const dbtables = populateTables(config.get('database.droptables')); // true = reset tables
@@ -11,12 +11,17 @@ if (!dbtables) {
 
 export async function connect(): Promise<Pool> {
 
+	const DatabaseHost :string 		 = config.get('database.host');
+	const DatabaseUser :string  	 = config.get('database.user');
+	const DatabasePassword :string 	 = config.get('database.password');
+	const Database :string  		 = config.get('database.database');
+
 	try{
 		const connection = await createPool({
-			host: config.get('database.host'),
-			user: config.get('database.user'),
-			password: config.get('database.password'),
-			database: config.get('database.database'),
+			host: DatabaseHost,
+			user: DatabaseUser,
+			password: DatabasePassword,
+			database: Database,
 			waitForConnections: true,
 			connectionLimit: 10,
 			});

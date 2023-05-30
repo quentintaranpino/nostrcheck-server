@@ -1,6 +1,6 @@
 /* eslint-disable no-console */
-import app from "./app";
-import { logger } from "./lib/logger";
+import app from "./app.js";
+import { logger } from "./lib/logger.js";
 
 // Start Express server.
 const server = app.listen(app.get("port"), () => {

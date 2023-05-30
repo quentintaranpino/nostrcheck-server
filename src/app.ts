@@ -3,8 +3,8 @@ import express, { NextFunction } from "express";
 import helmet from "helmet";
 import config from "config";
 
-import { PrepareMediaFolders } from "./lib/transform";
-import { LoadAPIv1 } from "./routes/routes.v1";
+import { PrepareMediaFolders } from "./lib/transform.js";
+import { LoadAPIv1 } from "./routes/routes.v1.js";
 
 const app = express();
 app.set("port", process.env.PORT ?? config.get('server.port'));
