@@ -13,4 +13,5 @@ dist
 media/*
 tmp/*
 nostrcheck-api.log
+./config/config.json
 
