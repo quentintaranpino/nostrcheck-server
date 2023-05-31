@@ -8,6 +8,7 @@ import { NIP98Kind, ResultMessage, VerifyResultMessage } from "../../types.js";
 //https://github.com/v0l/nips/blob/nip98/98.md
 
 const ParseAuthEvent = async (req: Request): Promise<VerifyResultMessage> => {
+
 	//Check if request has authorization header
 	if (req.headers.authorization === undefined) {
 		logger.warn(
@@ -104,7 +105,7 @@ const CheckAuthEvent = async (authevent: Event, req: Request): Promise<ResultMes
 		let created_at = authevent.created_at;
 		const now = Math.floor(Date.now() / 1000);
 		if (process.env.NODE_ENV == "development") {
-			logger.warn("DEVMODE IS TRUE, SETTING CREATED_AT TO NOW", "|", req.socket.remoteAddress);
+			logger.warn("DEVMODE: Setting created_at to now", "|", req.socket.remoteAddress);
 			created_at = now - 30;
 		} //If devmode is true, set created_at to now for testing purposes
 		const diff = now - created_at;
@@ -137,7 +138,7 @@ const CheckAuthEvent = async (authevent: Event, req: Request): Promise<ResultMes
 		let AuthEventEndpoint = authevent.tags[0][1];
 		const ServerEndpoint = `${req.protocol}://${req.headers.host}${req.url}`;
 		if (process.env.NODE_ENV == "development") {
-			logger.warn("DEVMODE IS TRUE, SETTING U tag same as the endpoint URL", "|", req.socket.remoteAddress);
+			logger.warn("DEVMODE: Setting 'u'(url) tag same as the endpoint URL", "|", req.socket.remoteAddress);
 			AuthEventEndpoint = ServerEndpoint;
 		} //If devmode is true, set created_at to now for testing purposes
 	
@@ -238,7 +239,7 @@ const CheckAuthEvent = async (authevent: Event, req: Request): Promise<ResultMes
 				.digest("hex"); //TODO CHECK IF THIS HASH IS CORRECT!! (Only is hashing the body without the file data.)
 
 			if (process.env.NODE_ENV == "development") {
-				logger.warn("DEVMODE IS TRUE, BYPASSING PAYLOAD CHECK", "|", req.socket.remoteAddress);
+				logger.warn("DEVMODE: Bypassing payload hash validation", "|", req.socket.remoteAddress);
 				payload = receivedpayload;
 			} //If devmode is true, set the payload = receivedpayload for testing purposes
 
