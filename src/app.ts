@@ -3,7 +3,7 @@ import express, { NextFunction } from "express";
 import helmet from "helmet";
 import config from "config";
 
-import { PrepareMediaFolders } from "./lib/transform.js";
+import { prepareAppFolders, prepareAPPConfig } from "./lib/config.js";
 import { LoadAPIv1 } from "./routes/routes.v1.js";
 
 const app = express();
@@ -15,9 +15,6 @@ app.set(
 );
 app.use(express.json({ limit: '25MB' }));
 app.use(express.urlencoded({ limit: '25MB', extended: true }));
-
-
-
 app.use(helmet());
 app.use(cors());
 
@@ -25,6 +22,9 @@ app.use(cors());
 LoadAPIv1(app);
 
 //Clean temp dir
-PrepareMediaFolders();
+prepareAppFolders();
+prepareAPPConfig();
+
+
 
 export default app;
