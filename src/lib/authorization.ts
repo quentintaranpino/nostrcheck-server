@@ -1,6 +1,6 @@
 import { connect } from "../lib/database.js";
 import { logger } from "../lib/logger.js";
-import app from "../app.js";
+import config from "config";
 
 const IsAuthorizedPubkey = async (pubkey:string): Promise<boolean> => {
 
@@ -14,7 +14,7 @@ const IsAuthorizedPubkey = async (pubkey:string): Promise<boolean> => {
 	]);
 	const isAllowedPubkeyrowstemp = JSON.parse(JSON.stringify(isAllowedPubkey));
 
-	if (app.get('env') === 'development') {
+	if (config.get("environment") === 'development') {
 		logger.warn("DEVMODE: Authorizing all pubkeys");
             return true;
 	}

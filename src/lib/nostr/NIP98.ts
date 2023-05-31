@@ -1,7 +1,7 @@
 import crypto from "crypto";
 import { Request } from "express";
 import { Event } from "nostr-tools";
-
+import config from "config";
 import { logger } from "../../lib/logger.js";
 import { NIP98Kind, ResultMessage, VerifyResultMessage } from "../../types.js";
 
@@ -104,7 +104,7 @@ const CheckAuthEvent = async (authevent: Event, req: Request): Promise<ResultMes
 	try {
 		let created_at = authevent.created_at;
 		const now = Math.floor(Date.now() / 1000);
-		if (process.env.NODE_ENV == "development") {
+		if (config.get("environment")  == "development") {
 			logger.warn("DEVMODE: Setting created_at to now", "|", req.socket.remoteAddress);
 			created_at = now - 30;
 		} //If devmode is true, set created_at to now for testing purposes
@@ -113,8 +113,7 @@ const CheckAuthEvent = async (authevent: Event, req: Request): Promise<ResultMes
 			logger.warn(
 				"RES -> 400 Bad request - Auth header event created_at is not within a reasonable time window",
 				"|",
-				req.socket.remoteAddress,
-				process.env.NODE_ENV
+				req.socket.remoteAddress
 			);
 			const result: ResultMessage = {
 				result: false,
@@ -137,7 +136,7 @@ const CheckAuthEvent = async (authevent: Event, req: Request): Promise<ResultMes
 	try {
 		let AuthEventEndpoint = authevent.tags[0][1];
 		const ServerEndpoint = `${req.protocol}://${req.headers.host}${req.url}`;
-		if (process.env.NODE_ENV == "development") {
+		if (config.get("environment") == "development") {
 			logger.warn("DEVMODE: Setting 'u'(url) tag same as the endpoint URL", "|", req.socket.remoteAddress);
 			AuthEventEndpoint = ServerEndpoint;
 		} //If devmode is true, set created_at to now for testing purposes
@@ -238,7 +237,7 @@ const CheckAuthEvent = async (authevent: Event, req: Request): Promise<ResultMes
 				.update(JSON.stringify(req.body), "binary")
 				.digest("hex"); //TODO CHECK IF THIS HASH IS CORRECT!! (Only is hashing the body without the file data.)
 
-			if (process.env.NODE_ENV == "development") {
+			if (config.get("environment") == "development") {
 				logger.warn("DEVMODE: Bypassing payload hash validation", "|", req.socket.remoteAddress);
 				payload = receivedpayload;
 			} //If devmode is true, set the payload = receivedpayload for testing purposes
