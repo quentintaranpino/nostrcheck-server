@@ -11,29 +11,23 @@ const requestQueue: queueAsPromised<any> = fastq.promise(PrepareFile, 1); //numb
 
 async function PrepareFile(t: asyncTask): Promise<void> {
 
-	logger.info(`${requestQueue.length() +1} items in queue`);
-
 	if (!t.req.file) {
 		logger.error("ERR -> Preparing file for conversion, empty file");
-
 		return;
 	}
 
 	if (!t.req.file.mimetype) {
 		logger.error("ERR -> Preparing file for conversion, empty mimetype");
-
 		return;
 	}
 
 	if (!t.req.body.uploadtype) {
 		logger.error("ERR -> Preparing file for conversion, empty type");
-
 		return;
 	}
 
-	if (!t.req.body.username) {
+	if (!t.fileoptions.username) {
 		logger.error("ERR -> Preparing file for conversion, empty username");
-
 		return;
 	}
 
@@ -58,11 +52,12 @@ async function convertFile(
 
 	if (retry > 5) {return false}
 
-	const tempPath : string = config.get("media.tempPath");
-	let NewDimensions = setMediaDimensions(tempPath + options.outputname, options);
+	const TempPath = config.get("media.tempPath") + options.outputname;
+	logger.info("Using temp path:", TempPath);
+	let NewDimensions = setMediaDimensions(TempPath, options);
 	return new Promise(async(resolve, reject) => {
 		//We write the file on filesystem because ffmpeg doesn't support streams
-		fs.writeFile(`./tmp/${options.outputname}`, inputFile.buffer, function (err) {
+		fs.writeFile(TempPath, inputFile.buffer, function (err) {
 			if (err) {
 				logger.error(err);
 
@@ -77,14 +72,14 @@ async function convertFile(
 
 		let MediaDuration: number = 0;
 		let ConversionDuration : number = 0;
-		ffmpeg(`./tmp/${options.outputname}`)
+		ffmpeg(TempPath)
 			.outputOption(["-loop 0"])
 			.setSize((await NewDimensions).toString())
 			.output(MediaPath)
 			.toFormat(options.outputmime)
 			.on("end", async(end) => {
 				
-			    fs.unlink(`./tmp/${options.outputname}`, (err) => {
+			    fs.unlink(TempPath, (err) => {
 				if (err) {
 					logger.error(err);
 
@@ -94,7 +89,7 @@ async function convertFile(
 				}
 				});
 
-				logger.info(`File converted successfully: ${options.outputname}.${options.outputmime} ${ConversionDuration /2} seconds`);
+				logger.info(`File converted successfully: ${MediaPath} ${ConversionDuration /2} seconds`);
 				const completed =  dbFileUpdate("completed", options);
 				if (!completed) {
 					logger.error("Could not update table mediafiles, id: " + options.id, "status: completed");
@@ -105,7 +100,7 @@ async function convertFile(
 
 				logger.warn(`Error converting file, retrying file conversion: ${options.outputname} retry: ${retry}/5`);
 				retry++
-				fs.unlink(`./tmp/${options.outputname}`, (err) => {
+				fs.unlink(TempPath, (err) => {
 					if (err) {
 						logger.error(err);
 	
@@ -156,19 +151,19 @@ async function convertFile(
 }
 
 function PrepareMediaFolders() {
-	let tempPath : string = config.get("media.tempPath");
+	let TempPath : string = config.get("media.tempPath");
 	logger.info("Cleaning temp dir");
 	//If not exist create temp folder
-	if (!fs.existsSync(tempPath)){
-		fs.mkdirSync(tempPath);
+	if (!fs.existsSync(TempPath)){
+		fs.mkdirSync(TempPath);
 	}
-	fs.readdir(tempPath, (err, files) => {
+	fs.readdir(TempPath, (err, files) => {
 		if (err) {
 			logger.error(err);
 		}
 
 		for (const file of files) {
-			fs.unlink(tempPath + file, (err) => {
+			fs.unlink(TempPath + file, (err) => {
 				if (err) {
 					throw err;
 				}
@@ -218,10 +213,8 @@ export { PrepareMediaFolders, convertFile, requestQueue };
 				newHeight = mediaHeight;
 			  }
 
-			
-
-			logger.info("Original dimensions:", mediaWidth, mediaHeight);
-			logger.info("New dimensions:", newWidth, newHeight);		
+			logger.info("Origin dimensions:", +mediaWidth + "px", +mediaHeight + "px",);
+			logger.info("Output dimensions:", +newWidth + "px", +newHeight + "px",);		
 
 			resolve(newWidth + "x?")
 		}})
