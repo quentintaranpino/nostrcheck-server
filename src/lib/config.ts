@@ -42,7 +42,7 @@ function prepareAppFolders(){
 function prepareAPPConfig(){
 
     const DefaultPath : string = "./config/default.json";
-    const ConfigPath : string = "./config/config.json";
+    const ConfigPath : string = "./config/local.json";
 
     //If config file exist return
 	if (fs.existsSync(ConfigPath)){
