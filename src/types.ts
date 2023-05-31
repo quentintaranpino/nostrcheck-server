@@ -47,19 +47,19 @@ const allowedMimeTypes = [
 ];
 
 const mime_transform: { [key: string]: string } = {
-	"image/png": "webp",
-	"image/jpg": "webp",
-	"image/jpeg": "webp",
-	"image/gif": "webp",
-	"image/webp": "webp",
-	"video/mp4": "mp4",
-	"video/quicktime": "mp4",
-	"video/mpeg": "mp4",
-	"video/webm": "mp4",
-	"audio/mpeg": "mp3",
-	"audio/mpg": "mp3",
-	"audio/mpeg3": "mp3",
-	"audio/mp3": "mp3",
+	"image/png"			: "webp",
+	"image/jpg"			: "webp",
+	"image/jpeg"		: "webp",
+	"image/gif"			: "webp",
+	"image/webp"		: "webp",
+	"video/mp4"			: "mp4",
+	"video/quicktime"	: "mp4",
+	"video/mpeg"		: "mp4",
+	"video/webm"		: "mp4",
+	"audio/mpeg"		: "mp3",
+	"audio/mpg"			: "mp3",
+	"audio/mpeg3"		: "mp3",
+	"audio/mp3"			: "mp3",
 };
 
 const mediaTypes: { [key: string]: string } = {
