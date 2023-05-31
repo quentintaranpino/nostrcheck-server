@@ -29,6 +29,9 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 	//Check if event authorization header is valid (NIP98)
 	const EventHeader = await ParseAuthEvent(req);
 
+	let username : string;
+	let pubkey : string;
+
 	//v0 compatibility, check if apikey is present on request body
 	if (req.body.apikey != undefined && req.body.apikey != "") {
 		
@@ -52,9 +55,9 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 		EventHeader.result = true;
 		EventHeader.description = "Apikey is deprecated, please use NIP98 header";
 		EventHeader.pubkey = rowstemp[0].hex;
-		req.body.username = rowstemp[0].username;
+		username = rowstemp[0].username;
 
-		logger.warn("(APIKEY) -> Setting username = " + req.body.username + " and pubkey = " + EventHeader.pubkey, "|", req.socket.remoteAddress);
+		logger.warn("(APIKEY) -> Setting username = " + username + " and pubkey = " + EventHeader.pubkey, "|", req.socket.remoteAddress);
 
 		}
 		catch (error: any) {
@@ -82,38 +85,26 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 		return res.status(401).send(result);
 	}
 
-	//Check if username exist
-	if (!req.body.username) {
-		logger.warn("username not specified, switching to public upload | ", req.socket.remoteAddress);
-		req.body.username = "public";
-	}
-
-	//Check if username lenght is valid
-	if (req.body.username.length > 50 ) {
-		logger.warn(`RES -> 400 Bad request - username too long`, "|", req.socket.remoteAddress);
-		const result: ResultMessage = {
-			result: false,
-			description: "username too long",
-		};
-
-		return res.status(400).send(result);
-	}
-	logger.info("username ->", req.body.username, "|", req.socket.remoteAddress);
-
-	//Check if pubkey and username are registered
-	let pubkey = EventHeader.pubkey;
+	//Check if pubkey is registered
+	pubkey = EventHeader.pubkey;
 	const db = await connect();
-	const [dbResult] = await db.query("SELECT hex, username FROM registered WHERE hex = ? and username = ? and domain = ?", [pubkey, req.body.username, req.hostname]);
+	const [dbResult] = await db.query("SELECT hex, username FROM registered WHERE hex = ? and domain = ?", [pubkey, req.hostname]);
 	const rowstemp = JSON.parse(JSON.stringify(dbResult));
 
 	if (rowstemp[0] == undefined) {
 		//If not registered the upload will be public and a warning will be logged
 		logger.warn("pubkey not registered, switching to public upload | ", req.socket.remoteAddress);
-		req.body.username = "public";
+		username = "public";
 		pubkey = app.get("pubkey");
+
+		logger.info("assuming public pubkey =", pubkey, "|", req.socket.remoteAddress);
+		logger.info("assuming public username =", username, "|", req.socket.remoteAddress);
+
+	}else{
+		username = rowstemp[0]['username'];
+		logger.info("username ->", username, "|", req.socket.remoteAddress);
+		logger.info("pubkey ->", pubkey, "|", req.socket.remoteAddress);
 	}
-	logger.info("assuming public pubkey =", pubkey, "|", req.socket.remoteAddress);
-	logger.info("assuming public username =", req.body.username, "|", req.socket.remoteAddress);
 
 	//Check if upload type exists
 	let uploadtype = req.body.uploadtype;
@@ -168,13 +159,13 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 		return res.status(400).send(result);
 	}
 
-	//Detect file mime type (v0 compatibility and security)
+	//Detect file mime type
 	const DetectedFileType = await fileTypeFromBuffer(file.buffer);
 	if (DetectedFileType == undefined) {
-		logger.warn(`RES -> 400 Bad request - `, file.mimetype, ` filetype not detected`, "|", req.socket.remoteAddress);
+		logger.error(`RES -> 400 Bad request - `, file.mimetype, ` filetype not detected`, "|", req.socket.remoteAddress);
 		const result: ResultMessage = {
 			result: false,
-			description: "filetype not allowed",
+			description: "file type not detected",
 		};
 		return res.status(400).send(result);
 	}
@@ -201,7 +192,7 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 	//Standard conversion options
 	const fileoptions: ConvertFilesOpions = {
 		id: "",
-		username: req.body.username,
+		username: username,
 		width: config.get("media.transform.default.width"),
 		height: config.get("media.transform.default.height"),
 		uploadtype,
@@ -268,18 +259,21 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 
 	fileoptions.id = IDrowstemp[0].id;
 
-	const t: asyncTask = {
-		req,
-		fileoptions,
-	};
-
 	//If not exist create username folder
-	const mediaPath = config.get("media.mediaPath") + req.body.username;
+	const mediaPath = config.get("media.mediaPath") + username;
 	if (!fs.existsSync(mediaPath)){
 		fs.mkdirSync(mediaPath);
 	}
 
+
 	//Send request to transform queue
+	const t: asyncTask = {
+		req,
+		fileoptions,
+	};
+	//Show queue status
+	logger.info(`${requestQueue.length() +1} items in queue`);
+
 	requestQueue.push(t).catch((err) => {
 		logger.error("Error pushing file to queue", err);
 		const result: ResultMessage = {
@@ -287,12 +281,8 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 			description: "Error queueing file",
 
 		};
-
 		return result;
 	});
-
-	logger.info(`${requestQueue.length()} items in queue`);
-
 
 	//Return file queued for conversion
 	const returnmessage: MediaResultMessage = {
