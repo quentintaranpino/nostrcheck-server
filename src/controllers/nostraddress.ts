@@ -12,11 +12,10 @@ const Checknostraddress = async (req: Request, res: Response): Promise<Response>
 	const name = req.query.name as string;
 	const servername = req.hostname;
 	let isCached = false;
-
-	logger.info("REQ ->", servername, "|", name.substring(0, 50) + "|", req.socket.remoteAddress);
-
+	
 	//If name is null return 400
 	if (!name) {
+		logger.info("REQ ->", servername, "|  name not specified  |", req.socket.remoteAddress);
 		logger.warn(
 			"RES -> 400 Bad request - name parameter not specified",
 			"|",
@@ -33,7 +32,7 @@ const Checknostraddress = async (req: Request, res: Response): Promise<Response>
 
 	//If name is too long (<50) return 400
 	if (name.length > 50) {
-		
+		logger.info("REQ ->", servername, "| " +  name.substring(0,50) + "..."  + " |", req.socket.remoteAddress);
 		logger.warn("RES -> 400 Bad request - name too long", "|", req.socket.remoteAddress);
 
 		const result: ResultMessage = {
@@ -43,6 +42,8 @@ const Checknostraddress = async (req: Request, res: Response): Promise<Response>
 
 		return res.status(400).send(result);
 	}
+
+	logger.info("REQ ->", servername, "|", name + "|", req.socket.remoteAddress);
 
 	// Root _ pubkey
 	const rootkey : string = config.get('server.pubkey'); 
