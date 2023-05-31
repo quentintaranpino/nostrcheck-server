@@ -7,12 +7,12 @@ import { logger } from "./logger.js";
 import { connect } from "./database.js";
 import config from "config";
 
-const requestQueue: queueAsPromised<any> = fastq.promise(PrepareFile, 1); //number of workers for the queue
+const requestQueue: queueAsPromised<any> = fastq.promise(PrepareFile, 2); //number of workers for the queue
 
 async function PrepareFile(t: asyncTask): Promise<void> {
 
 	//Show queue status
-	logger.info(`${requestQueue.length() +1} items in queue`);
+	logger.info(`Processing item, queue size = ${requestQueue.length() +1}`);
 
 	if (!t.req.file) {
 		logger.error("ERR -> Preparing file for conversion, empty file");
@@ -46,7 +46,6 @@ async function PrepareFile(t: asyncTask): Promise<void> {
 
 }
 
-
 async function convertFile(
 	inputFile: any,
 	options: ConvertFilesOpions,
@@ -69,28 +68,41 @@ async function convertFile(
 				return;
 			}
 		});
-	
+
+		//Set status processing on the database
+		const processing =  dbFileStatusUpdate("processing", options);
+		if (!processing) {
+			logger.error("Could not update table mediafiles, id: " + options.id, "status: processing");
+		}
+
 		const MediaPath = config.get("media.mediaPath") + options.username + "/" + options.outputname + "." + options.outputmime;
 		logger.info("Using media path:", MediaPath);
 
 		let MediaDuration: number = 0;
 		let ConversionDuration : number = 0;
-		ffmpeg(TempPath)
-			.outputOption(["-loop 0"])
+
+		let ConversionEngine = ffmpeg(TempPath)
+			.outputOption(["-loop 0"]) //Always loop. If is an image it will not apply
 			.setSize((await NewDimensions).toString())
 			.output(MediaPath)
 			.toFormat(options.outputmime)
+			
+		if (options.outputoptions != "") {
+			ConversionEngine.outputOptions(options.outputoptions)
+		}
+
+		ConversionEngine
 			.on("end", async(end) => {
-				
-			    fs.unlink(TempPath, (err) => {
-				if (err) {
-					logger.error(err);
+			
+			fs.unlink(TempPath, (err) => {
+			if (err) {
+				logger.error(err);
 
-					reject(err);
+				reject(err);
 
-					return;
-				}
-				});
+				return;
+			}
+			});
 
 				logger.info(`File converted successfully: ${MediaPath} ${ConversionDuration /2} seconds`);
 				const completed =  dbFileStatusUpdate("completed", options);
@@ -102,6 +114,7 @@ async function convertFile(
 			.on("error", (err) => {
 
 				logger.warn(`Error converting file, retrying file conversion: ${options.outputname} retry: ${retry}/5`);
+				logger.error(err);
 				retry++
 				fs.unlink(TempPath, (err) => {
 					if (err) {
@@ -129,11 +142,6 @@ async function convertFile(
 				MediaDuration = parseInt(data.duration.replace(/:/g, ""));
 			})
 			.on("progress", (data) => {
-				//Set status completed on the database
-				const processing =  dbFileStatusUpdate("processing", options);
-				if (!processing) {
-					logger.error("Could not update table mediafiles, id: " + options.id, "status: processing");
-				}
 
 				const time = parseInt(data.timemark.replace(/:/g, ""));
 				let percent: number = (time / MediaDuration) * 100;
@@ -141,10 +149,14 @@ async function convertFile(
 				if (percent < 0) {
 					percent = 0;
 				}
-				logger.info(
-					`Processing : ` +
-						`${options.outputname} - ${Number(percent).toFixed(2)} %`
-				);
+		
+				if (percent %25 > 0 && percent %25 < 1){
+					logger.info(
+						`Processing : ` +
+							`${options.outputname} - ${Number(percent).toFixed(2)} %`
+					);
+				}
+				
 			})
 			.run();
 			
@@ -158,11 +170,12 @@ export {convertFile, requestQueue };
 
  async function setMediaDimensions(file:string, options:ConvertFilesOpions):Promise<string> {
 
-	const response:string = await new Promise ((resolve, reject) => {
+	const response:string = await new Promise ((resolve) => {
 		ffmpeg.ffprobe(file, (err, metadata) => {
 		if (err) {
-			logger.error(err);
-			reject(err);
+			logger.error("Could not get media dimensions of file: " + options.outputname + " using default min width (640px)");
+			resolve("640" + "x?") //Default min width
+			return;
 		} else {
 		
 			let mediaWidth = metadata.streams[0].width;
@@ -171,10 +184,9 @@ export {convertFile, requestQueue };
 			let newHeight = options.height;
 
 			if (!mediaWidth || !mediaHeight) {
-				logger.error("Could not get media dimensions");
-
-			reject("error");
-			return;
+				logger.warn("Could not get media dimensions of file: " + options.outputname + " using default min width (640px)");
+				resolve("640" + "x?") //Default min width
+				return;
 			}
 
 			if (mediaWidth > newWidth || mediaHeight > newHeight) {

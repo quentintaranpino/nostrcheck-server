@@ -80,6 +80,7 @@ interface ConvertFilesOpions {
 	originalmime: string;
 	outputmime: string;
 	outputname: string;
+	outputoptions: string;
 }
 
 interface asyncTask {

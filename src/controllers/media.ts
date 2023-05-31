@@ -20,7 +20,7 @@ import {
 } from "../types.js";
 import fs from "fs";
 import config from "config";
-import {fileTypeFromBuffer, fileTypeFromFile} from 'file-type';
+import {fileTypeFromBuffer} from 'file-type';
 
 
 const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
@@ -39,8 +39,8 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 
 		//Check if apikey is valid
 		try{
-		const db = await connect();
-		const [dbResult] = await db.query("SELECT hex, username FROM registered WHERE apikey = ?", [req.body.apikey]);
+		let dbApikey = await connect();
+		const [dbResult] = await dbApikey.query("SELECT hex, username FROM registered WHERE apikey = ?", [req.body.apikey]);
 		const rowstemp = JSON.parse(JSON.stringify(dbResult));
 		if (rowstemp[0] == undefined) {
 			logger.warn("RES -> 401 unauthorized - Apikey not found", "|", req.socket.remoteAddress);
@@ -50,6 +50,8 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 			};
 			return res.status(401).send(result);
 		}
+
+		dbApikey.end();
 
 		//We set eventheader.result as valid if apikey is present and valid.
 		EventHeader.result = true;
@@ -87,8 +89,8 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 
 	//Check if pubkey is registered
 	pubkey = EventHeader.pubkey;
-	const db = await connect();
-	const [dbResult] = await db.query("SELECT hex, username FROM registered WHERE hex = ? and domain = ?", [pubkey, req.hostname]);
+	const dbPubkey = await connect();
+	const [dbResult] = await dbPubkey.query("SELECT hex, username FROM registered WHERE hex = ? and domain = ?", [pubkey, req.hostname]);
 	const rowstemp = JSON.parse(JSON.stringify(dbResult));
 
 	if (rowstemp[0] == undefined) {
@@ -105,6 +107,8 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 		logger.info("username ->", username, "|", req.socket.remoteAddress);
 		logger.info("pubkey ->", pubkey, "|", req.socket.remoteAddress);
 	}
+
+	dbPubkey.end();
 
 	//Check if upload type exists
 	let uploadtype = req.body.uploadtype;
@@ -193,13 +197,25 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 	const fileoptions: ConvertFilesOpions = {
 		id: "",
 		username: username,
-		width: config.get("media.transform.default.width"),
-		height: config.get("media.transform.default.height"),
+		width: config.get("media.transform.media.undefined.width"),
+		height: config.get("media.transform.media.undefined.height"),
 		uploadtype,
 		originalmime: file.mimetype,
 		outputmime: mime_transform[file.mimetype],
 		outputname: req.hostname + "_" + crypto.randomBytes(24).toString("hex"),
+		outputoptions: "",
 	};
+
+	//Video or image conversion options
+	if (file.mimetype.toString().startsWith("video")) {
+		fileoptions.width = config.get("media.transform.media.video.width");
+		fileoptions.height = config.get("media.transform.media.video.height");
+		fileoptions.outputoptions = '-preset veryfast';
+	}
+	if (file.mimetype.toString().startsWith("image")) {
+		fileoptions.width = config.get("media.transform.media.image.width");
+		fileoptions.height = config.get("media.transform.media.image.height");
+	}
 
 	//Avatar conversion options
 	if (fileoptions.uploadtype.toString() === "avatar"){
@@ -215,16 +231,12 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 		fileoptions.outputname = "banner";
 	}
 
-	// //Special conversion options for animated gif
-	// if (fileoptions.originalmime.toString() === "image/gif" && isAnimatedGif(file.buffer.toString("base64"))) {
-	// 	fileoptions.outputmime = "webp";
-	// 	logger.info("Animated gif detected, setting output mime to mp4");
-	// }
-
 	//Add file to mediafiles table
+	const dbFile = await connect();
 	try{
 		const createdate = new Date(Math.floor(Date.now())).toISOString().slice(0, 19).replace("T", " ");
-		await db.query(
+
+		await dbFile.query(
 			"INSERT INTO mediafiles (pubkey, filename, status, date, ip_address, comments) VALUES (?, ?, ?, ?, ?, ?)",
 			[
 				pubkey,
@@ -234,18 +246,24 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 				req.socket.remoteAddress,
 				"comments",
 			]
-		);}
+		);
+		
+		dbFile.end();
+		
+		}
 		catch (error) {
 			logger.error("Error inserting file to database", error);
 			const result: ResultMessage = {
 				result: false,
 				description: "Error inserting file to database",
 			};
+			dbFile.end();
 			return res.status(500).send(result);
 		}
 	
 		//Get file ID
-		const [IDdbResult] = await db.query("SELECT id FROM mediafiles WHERE filename = ? and pubkey = ?", [fileoptions.outputname + "." + fileoptions.outputmime, pubkey]);
+		const dbFileID = await connect();
+		const [IDdbResult] = await dbFileID.query("SELECT id FROM mediafiles WHERE filename = ? and pubkey = ?", [fileoptions.outputname + "." + fileoptions.outputmime, pubkey]);
 		const IDrowstemp = JSON.parse(JSON.stringify(IDdbResult));
 		if (IDrowstemp[0] == undefined) {
 			logger.error("File not found in database:", fileoptions.outputname + "." + fileoptions.outputmime);
@@ -254,9 +272,10 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 				description: "The requested file was not found in database",
 			};
 	
+			dbFileID.end();
 			return res.status(404).send(result);
 		}
-
+		dbFileID.end();
 	fileoptions.id = IDrowstemp[0].id;
 
 	//If not exist create username folder
@@ -265,13 +284,12 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 		fs.mkdirSync(mediaPath);
 	}
 
-
 	//Send request to transform queue
 	const t: asyncTask = {
 		req,
 		fileoptions,
 	};
-
+	logger.info(`${requestQueue.length() +1} items in queue`);
 	requestQueue.push(t).catch((err) => {
 		logger.error("Error pushing file to queue", err);
 		const result: ResultMessage = {
@@ -341,9 +359,11 @@ const GetMediaStatusbyID = async (req: Request, res: Response) => {
 			description: "The requested file was not found",
 
 		};
-
+		db.end();
 		return res.status(404).send(result);
 	}
+
+	db.end();
 
 	let url = "";
 	let description = "";
