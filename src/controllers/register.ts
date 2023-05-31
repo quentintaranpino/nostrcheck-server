@@ -5,9 +5,11 @@ import validator from "validator";
 import { connect } from "../lib/database.js";
 import { logger } from "../lib/logger.js";
 import { ParseAuthEvent } from "../lib/nostr/NIP98.js";
-import { RegisterResultMessage } from "../types.js";
+import { RegisterResultMessage, ResultMessage } from "../types.js";
 import { QueryAvailiableDomains } from "./domains.js";
+import { IsAuthorizedPubkey } from "../lib/authorization.js";
 import app from "../app.js";
+import exp from "constants";
 
 const Registernewpubkey = async (req: Request, res: Response): Promise<Response> => {
 	logger.info("POST /api/v1/register", "|", req.socket.remoteAddress);
@@ -31,36 +33,22 @@ const Registernewpubkey = async (req: Request, res: Response): Promise<Response>
 		return res.status(401).send(result);
 	}
 
-	//General connection with database
-	const conn = await connect();
-
-	//We check if the authorization header pubkey is allowed to register new pubkeys
-	const [isAllowedPubkey] = await conn.query("SELECT hex FROM registered WHERE hex = ? and allowed = 1", [
-		EventHeader.pubkey,
-	]);
-	const isAllowedPubkeyrowstemp = JSON.parse(JSON.stringify(isAllowedPubkey));
-
-	if (app.get('env') === 'development') {
+	//Check if pubkey is allowed to register new pubkeys
+	const allowed = IsAuthorizedPubkey(EventHeader.pubkey);
+	if (!allowed) {
 		logger.warn(
-			"DEVMODE IS TRUE, ALLOWING ALL PUBKEYS TO REGISTER NEW USERNAMES", "|", req.socket.remoteAddress);
-			isAllowedPubkeyrowstemp[0] = true;
-	}
-
-	if (isAllowedPubkeyrowstemp[0] == undefined) {
-		logger.warn(
-			`RES -> 401 unauthorized  - ${EventHeader.pubkey} is not allowed to register new pubkeys`,
+			`RES -> 401 unauthorized  - ${EventHeader.description}`,
 			"|",
 			req.socket.remoteAddress
 		);
-		const result: RegisterResultMessage = {
-			username: "",
-			pubkey: "",
-			domain: "",
-			result: false,
-			description: "Pubkey is not allowed to register new pubkeys",
-		};
 
-		return res.status(401).send(result);
+	const result: ResultMessage = {
+		result: false,
+		description: "Pubkey is not allowed to register new pubkeys",
+	};
+
+	return res.status(401).send(result);
+
 	}
 
 	//Check all necessary fields
@@ -168,7 +156,7 @@ const Registernewpubkey = async (req: Request, res: Response): Promise<Response>
 	let IsValidDomain = JSON.stringify(AcceptedDomains).indexOf(req.body.tags[1][1]) > -1;
 	if (app.get('env') === 'development') {
 		logger.warn(
-			"DEVMODE IS TRUE, ALLOWING LOCALHOST DOMAIN TO NEW USERNAMES", "|", req.socket.remoteAddress);
+			"DEVMODE: Allowing registers to 'localhost' domain", "|", req.socket.remoteAddress);
 			IsValidDomain = true;
 	}
 
@@ -276,7 +264,7 @@ const Registernewpubkey = async (req: Request, res: Response): Promise<Response>
 		.replace("T", " ");
 
 	//Check if username alredy exist
-
+	const conn = await connect();
 	const [dbResult] = await conn.execute(
 		"SELECT * FROM registered where (username = ? and domain = ?) OR (hex = ? and domain = ?)",
 		[username, domain, hex, domain]
