@@ -101,6 +101,12 @@ export {
 	UploadStatus,
 	VerifyResultMessage,
 	MediaURLResultMessage,
+	RegisteredUsernameResult
 };
+
+interface RegisteredUsernameResult {
+	username: string;
+	hex: string;
+}
 
 

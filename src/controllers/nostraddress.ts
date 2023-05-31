@@ -3,36 +3,26 @@ import { Request, Response } from "express";
 import { connect } from "../lib/database.js";
 import { logger } from "../lib/logger.js";
 import { redisClient } from "../lib/redis.js";
+import { RegisteredUsernameResult, ResultMessage } from "../types.js";
 
-interface RegisteredResults {
-	username: string;
-	hex: string;
-}
-interface ResultMessage extends RegisteredResults {
-	domain: string;
-	result: boolean;
-	description: string;
-}
-
-const Checknostraddress = async (req: Request, res: Response): Promise<Response> => {
 	//Nostr address usernames endpoint
+const Checknostraddress = async (req: Request, res: Response): Promise<Response> => {
+
 	const name = req.query.name as string;
 	const servername = req.hostname;
 	let isCached = false;
 
+	logger.info("REQ ->", servername, "|", name.substring(0, 50) + "...", "|", req.socket.remoteAddress);
+
 	//If name is null return 400
 	if (!name) {
-		logger.warn("REQ ->", servername, "|", " ", "|", req.socket.remoteAddress);
 		logger.warn(
 			"RES -> 400 Bad request - name parameter not specified",
 			"|",
-			req.headers["x-forwarded-for"] || req.socket.remoteAddress
+			req.socket.remoteAddress
 		);
 
 		const result: ResultMessage = {
-			username: "",
-			hex: "",
-			domain: "",
 			result: false,
 			description: "Bad request - You have to specify the 'name' parameter",
 		};
@@ -42,20 +32,10 @@ const Checknostraddress = async (req: Request, res: Response): Promise<Response>
 
 	//If name is too long (<50) return 400
 	if (name.length > 50) {
-		logger.warn(
-			"REQ ->",
-			servername,
-			"|",
-			`${name.substring(0, 50)}...`,
-			"|",
-			req.socket.remoteAddress
-		);
+		
 		logger.warn("RES -> 400 Bad request - name too long", "|", req.socket.remoteAddress);
 
 		const result: ResultMessage = {
-			username: `${name.substring(0, 50)}...`,
-			hex: "",
-			domain: "",
 			result: false,
 			description: "Bad request - Name is too long",
 		};
@@ -63,17 +43,15 @@ const Checknostraddress = async (req: Request, res: Response): Promise<Response>
 		return res.status(400).send(result);
 	}
 
-	logger.info("REQ ->", servername, "|", name, "|", req.socket.remoteAddress);
-
 	// Root _ pubkey
 	const rootkey = "134743ca8ad0203b3657c20a6869e64f160ce48ae6388dc1f5ca67f346019ee7"; //Especify the root domain hexkey
 	if (req.query.name === "_") {
-		const result: RegisteredResults = { username: "_", hex: rootkey };
+		const result: RegisteredUsernameResult = { username: "_", hex: rootkey };
 
-		return res.status(200).send(JSON.stringify({ names: { [result.username]: result.hex } }));
+		return res.status(200).send(JSON.stringify(result));
 	}
 
-	const result: RegisteredResults = { username: "", hex: "" };
+	const result: RegisteredUsernameResult = { username: "", hex: "" };
 
 	try {
 		//TODO. WE HAVE TO STORE ALSO THE DOMAIN IN THE CACHE, BECAUSE IF WE HAVE 2 DOMAINS WITH THE SAME USERNAME, THE CACHE WILL RETURN THE FIRST ONE
@@ -101,11 +79,8 @@ const Checknostraddress = async (req: Request, res: Response): Promise<Response>
 			logger.warn("RES ->", name, "|", "Username not registered");
 
 			const result: ResultMessage = {
-				username: name,
-				hex: "",
-				domain: servername,
 				result: false,
-				description: `${name} is not registered on ${servername} visit ${servername}/register for more info`,
+				description: `${name} is not registered on ${servername}`,
 			};
 
 			return res.status(404).send(result);
@@ -119,9 +94,6 @@ const Checknostraddress = async (req: Request, res: Response): Promise<Response>
 		logger.error(error);
 
 		const result: ResultMessage = {
-			username: "",
-			hex: "",
-			domain: servername,
 			result: false,
 			description: "Internal server error",
 		};
@@ -139,7 +111,7 @@ const Checknostraddress = async (req: Request, res: Response): Promise<Response>
 	return res.status(200).send(JSON.stringify({ names: { [result.username]: result.hex } }));
 };
 
-async function getJsonDataFromRedis(key: string): Promise<RegisteredResults> {
+async function getJsonDataFromRedis(key: string): Promise<RegisteredUsernameResult> {
 	const data = await redisClient.get(key);
 
 	if (!data) {
