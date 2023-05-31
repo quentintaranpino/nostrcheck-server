@@ -5,7 +5,7 @@ import { logger } from "./logger.js";
 //Check database integrity
 const dbtables = populateTables(config.get('database.droptables')); // true = reset tables
 if (!dbtables) {
-	logger.error("Error creating database tables");
+	logger.fatal("Error creating database tables");
 	process.exit(1);
 }
 
@@ -28,7 +28,7 @@ export async function connect(): Promise<Pool> {
 			await connection.getConnection();
 			return connection;
 	}catch (error) {
-			logger.error(`There is a problem connecting to mysql server, is mysql-server package installed on your system? : ${error}`);
+			logger.fatal(`There is a problem connecting to mysql server, is mysql-server package installed on your system? : ${error}`);
 			process.exit(1);
 	}
 
@@ -56,7 +56,6 @@ export async function populateTables(resetTables: boolean): Promise<boolean> {
 	const conn = await connect();
 
 	const ExistRegisteredTableStatement = "SHOW TABLES FROM `nostrcheck` LIKE 'registered';";
-	logger.info("Checking if table registered exist");
 	const [ExistRegisteredTable] = await conn.query(ExistRegisteredTableStatement);
 	const rowstempExistRegisteredTable = JSON.parse(JSON.stringify(ExistRegisteredTable));
 	if (rowstempExistRegisteredTable[0] == undefined) {
@@ -77,13 +76,10 @@ export async function populateTables(resetTables: boolean): Promise<boolean> {
 
 		logger.info("Creating table registered");
 		await conn.query(RegisteredTableCreateStatement);
-	} else {
-		logger.info("Table registered alredy exist, skipping creation");
-	}
+	} 
 
 	//Create domains table
 	const ExistDomainsTableStatement = "SHOW TABLES FROM `nostrcheck` LIKE 'domains';";
-	logger.info("Checking if table domains exist");
 	const [ExistDomainsTable] = await conn.query(ExistDomainsTableStatement);
 	const rowstempExistDomainsTable = JSON.parse(JSON.stringify(ExistDomainsTable));
 	if (rowstempExistDomainsTable[0] == undefined) {
@@ -105,15 +101,12 @@ export async function populateTables(resetTables: boolean): Promise<boolean> {
 		await conn.execute(InsertDomainsTableStatement, ["nostriches.club", 1, ""]);
 		await conn.execute(InsertDomainsTableStatement, ["plebchain.club", 1, ""]);
 		if (!InsertDomainsTableStatement) {
-			logger.error("Error inserting default domains to database");
+			logger.fatal("Error inserting default domains to database");
 		}
-	} else {
-		logger.info("Table domains alredy exist, skipping creation");
-	}
+	} 
 
 	//Create mediafiles table
 	const ExistmediafilesTableStatement = "SHOW TABLES FROM `nostrcheck` LIKE 'mediafiles';";
-	logger.info("Checking if table mediafiles exist");
 	const [ExistmediafilesTable] = await conn.query(ExistmediafilesTableStatement);
 	const rowstempExistmediafilesTable = JSON.parse(JSON.stringify(ExistmediafilesTable));
 	if (rowstempExistmediafilesTable[0] == undefined) {
@@ -129,10 +122,7 @@ export async function populateTables(resetTables: boolean): Promise<boolean> {
 			") ENGINE=InnoDB DEFAULT CHARSET=latin1;";
 		logger.info("Creating table mediafiles");
 		await conn.query(mediafilesTableCreateStatement);
-	} else {
-		logger.info("Table mediafiles alredy exist, skipping creation");
-	}
-
+	} 
 	conn.end();
 
 	return true;
