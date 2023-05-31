@@ -4,15 +4,16 @@ import { connect } from "../lib/database.js";
 import { logger } from "../lib/logger.js";
 import { redisClient } from "../lib/redis.js";
 import { RegisteredUsernameResult, ResultMessage } from "../types.js";
+import config from "config";
 
-	//Nostr address usernames endpoint
+//Nostr address usernames endpoint
 const Checknostraddress = async (req: Request, res: Response): Promise<Response> => {
 
 	const name = req.query.name as string;
 	const servername = req.hostname;
 	let isCached = false;
 
-	logger.info("REQ ->", servername, "|", name.substring(0, 50) + "...", "|", req.socket.remoteAddress);
+	logger.info("REQ ->", servername, "|", name.substring(0, 50) + "|", req.socket.remoteAddress);
 
 	//If name is null return 400
 	if (!name) {
@@ -44,7 +45,7 @@ const Checknostraddress = async (req: Request, res: Response): Promise<Response>
 	}
 
 	// Root _ pubkey
-	const rootkey = "134743ca8ad0203b3657c20a6869e64f160ce48ae6388dc1f5ca67f346019ee7"; //Especify the root domain hexkey
+	const rootkey : string = config.get('server.pubkey'); 
 	if (req.query.name === "_") {
 		const result: RegisteredUsernameResult = { username: "_", hex: rootkey };
 

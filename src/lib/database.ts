@@ -23,7 +23,7 @@ export async function connect(): Promise<Pool> {
 			password: DatabasePassword,
 			database: Database,
 			waitForConnections: true,
-			connectionLimit: 10,
+			connectionLimit: 100,
 			});
 			await connection.getConnection();
 			return connection;
