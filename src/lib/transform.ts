@@ -90,7 +90,7 @@ async function convertFile(
 				});
 
 				logger.info(`File converted successfully: ${MediaPath} ${ConversionDuration /2} seconds`);
-				const completed =  dbFileUpdate("completed", options);
+				const completed =  dbFileStatusUpdate("completed", options);
 				if (!completed) {
 					logger.error("Could not update table mediafiles, id: " + options.id, "status: completed");
 				}
@@ -112,7 +112,7 @@ async function convertFile(
 
 				if (retry > 5){
 					logger.error(`Error converting file after 5 retries: ${inputFile.originalname}`);
-					const errorstate =  dbFileUpdate("failed", options);
+					const errorstate =  dbFileStatusUpdate("failed", options);
 					if (!errorstate) {
 						logger.error("Could not update table mediafiles, id: " + options.id, "status: failed");
 					}
@@ -127,7 +127,7 @@ async function convertFile(
 			})
 			.on("progress", (data) => {
 				//Set status completed on the database
-				const processing =  dbFileUpdate("processing", options);
+				const processing =  dbFileStatusUpdate("processing", options);
 				if (!processing) {
 					logger.error("Could not update table mediafiles, id: " + options.id, "status: processing");
 				}
@@ -150,36 +150,8 @@ async function convertFile(
 	
 }
 
-function PrepareMediaFolders() {
-	let TempPath : string = config.get("media.tempPath");
-	logger.info("Cleaning temp dir");
-	//If not exist create temp folder
-	if (!fs.existsSync(TempPath)){
-		fs.mkdirSync(TempPath);
-	}
-	fs.readdir(TempPath, (err, files) => {
-		if (err) {
-			logger.error(err);
-		}
 
-		for (const file of files) {
-			fs.unlink(TempPath + file, (err) => {
-				if (err) {
-					throw err;
-				}
-			});
-		}
-	});
-
-	//If not exist create media folder
-	const MediaPath : string = config.get("media.mediaPath");
-	if (!fs.existsSync(MediaPath)){
-		fs.mkdirSync(MediaPath);
-	}
-
-}
-
-export { PrepareMediaFolders, convertFile, requestQueue };
+export {convertFile, requestQueue };
 
  async function setMediaDimensions(file:string, options:ConvertFilesOpions):Promise<string> {
 
@@ -224,7 +196,7 @@ export { PrepareMediaFolders, convertFile, requestQueue };
 		return response;
 }
 
-async function dbFileUpdate(status: string, options: ConvertFilesOpions): Promise<boolean> {
+async function dbFileStatusUpdate(status: string, options: ConvertFilesOpions): Promise<boolean> {
 
 	const conn = await connect();
 	const [dbFileStatusUpdate] = await conn.execute(
