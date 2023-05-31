@@ -59,7 +59,7 @@ grant all privileges on DATABASE_NAME.* TO 'USER_NAME'@'localhost' identified by
 flush privileges;
 #exit mariadb
 
-sudo nano config/default.json
+sudo nano config/config.json
 #edit config file with your data.
 
 ```
