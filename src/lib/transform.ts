@@ -11,6 +11,9 @@ const requestQueue: queueAsPromised<any> = fastq.promise(PrepareFile, 1); //numb
 
 async function PrepareFile(t: asyncTask): Promise<void> {
 
+	//Show queue status
+	logger.info(`${requestQueue.length() +1} items in queue`);
+
 	if (!t.req.file) {
 		logger.error("ERR -> Preparing file for conversion, empty file");
 		return;

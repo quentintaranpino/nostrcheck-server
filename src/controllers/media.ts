@@ -271,8 +271,6 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 		req,
 		fileoptions,
 	};
-	//Show queue status
-	logger.info(`${requestQueue.length() +1} items in queue`);
 
 	requestQueue.push(t).catch((err) => {
 		logger.error("Error pushing file to queue", err);
