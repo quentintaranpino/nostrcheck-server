@@ -9,10 +9,10 @@ Return available domains on the server
 
 http://localhost:3000/api/v1/domains
 
-<!-- ### users [GET]
+### users [GET]
 Return available users from a domain registerd on the server
 
-http://localhost:3000/api/v1/users/[domain]/ -->
+http://localhost:3000/api/v1/domains/[domain]/users
 
 ### nostaddress [GET]
 Returns whether a user name is registered on the server.
@@ -122,19 +122,16 @@ npm run lint:fix
 ```
 ## Dev mode
 
-The server don't verify NIP98 created_at integrity, payload and u tag (url) when is running on development mode.
+The server don't verify NIP98 integrity and authorization when is running on development mode.
 
 ```
-# Dev mode linux
-export NODE_ENV=development
+#edit config file
+sudo nano config/default.json
 
-# Dev mode Windows (Powershell)
-$env:NODE_ENV="development"
+#Set 'environment' to 'development'
+"environment" : "development", 
 
-# Production mode linux
-export NODE_ENV=production
-
-# Production mode Windows (Powershell)
- $env:NODE_ENV="production"
+#Set 'environment' to 'production'
+"environment" : "production", 
  
 ```
