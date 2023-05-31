@@ -2,8 +2,6 @@ import config from "config";
 import {logger} from "./logger.js";
 import fs from "fs";
 import { exit } from "process";
-import { json } from "body-parser";
-
 
 function prepareAppFolders(){
 
@@ -56,7 +54,11 @@ function prepareAPPConfig(){
         }
      
         logger.info("Creating config file: " + ConfigPath)
+		logger.warn("Please edit config file and restart the app.")
+		exit(1);
     });
+
+
 }
 
 export { prepareAppFolders, prepareAPPConfig };
