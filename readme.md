@@ -30,7 +30,7 @@ Allows to get the status of files
 http://localhost:3000/api/v1/media
 
 ### register [POST]
-Allows to register in the service
+Allows to register a new username to the database
 
 http://localhost:3000/api/v1/register
 
