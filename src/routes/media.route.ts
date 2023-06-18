@@ -13,7 +13,6 @@ const upload = multer({
 });
 
 export const LoadMediaEndpoint = async (app: Application): Promise<void> => {
-
 	
 	app.post("/api/v1/media",  upload.fields([{
 										name: 'mediafile', maxCount: 1

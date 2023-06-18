@@ -21,6 +21,7 @@ import {
 import fs from "fs";
 import config from "config";
 import {fileTypeFromBuffer} from 'file-type';
+import path from "path";
 
 
 const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
@@ -300,13 +301,17 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 		return result;
 	});
 
+	const servername = req.protocol + "://" + req.hostname + ":" + app.get("port"); 
+
 	//Return file queued for conversion
-	const returnmessage: MediaResultMessage = {
+	const returnmessage: MediaURLResultMessage = {
 		result: true,
 		description: "File queued for conversion",
 	    status: JSON.parse(JSON.stringify(UploadStatus[0])),
 		id: IDrowstemp[0].id,
 		pubkey: pubkey,
+		url: servername + "/media/" + username + "/" + fileoptions.outputname + "." + fileoptions.outputmime, //TODO, make it parametrizable",
+		hash: "",
 	};
 
 	return res.status(200).send(returnmessage);
@@ -412,7 +417,6 @@ const GetMediaStatusbyID = async (req: Request, res: Response) => {
 
 const GetMediabyURL = async (req: Request, res: Response) => {
 
-	const path = require('path');
 	const root = path.normalize(path.resolve("./media"));
 
 	logger.info(`${req.method} ${req.url}` + " | " + req.socket.remoteAddress);
