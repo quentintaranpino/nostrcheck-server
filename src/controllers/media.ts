@@ -301,7 +301,7 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 		return result;
 	});
 
-	const servername = req.protocol + "://" + req.hostname + ":" + app.get("port"); 
+	const servername = req.protocol + "://" + req.hostname;
 
 	//Return file queued for conversion
 	const returnmessage: MediaURLResultMessage = {
