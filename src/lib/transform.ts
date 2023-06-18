@@ -109,6 +109,10 @@ async function convertFile(
 				if (!completed) {
 					logger.error("Could not update table mediafiles, id: " + options.id, "status: completed");
 				}
+				const visibility =  dbFileVisibilityUpdate(true, options);
+				if (!visibility) {
+					logger.error("Could not update table mediafiles, id: " + options.id, "visibility: true");
+				}
 				resolve(end);
 			})
 			.on("error", (err) => {
@@ -220,6 +224,24 @@ async function dbFileStatusUpdate(status: string, options: ConvertFilesOpions): 
 	);
 	if (!dbFileStatusUpdate) {
 		logger.error("RES -> Error updating mediafiles table, id:", options.id, "status:", status);
+		conn.end();
+		return false;
+	}
+
+	conn.end();
+	return true
+
+}
+
+async function dbFileVisibilityUpdate(visibility: boolean, options: ConvertFilesOpions): Promise<boolean> {
+
+	const conn = await connect();
+	const [dbFileStatusUpdate] = await conn.execute(
+		"UPDATE mediafiles set status = ? where id = ?",
+		[visibility, options.id]
+	);
+	if (!dbFileStatusUpdate) {
+		logger.error("RES -> Error updating mediafiles table, id:", options.id, "visibility:", visibility);
 		conn.end();
 		return false;
 	}

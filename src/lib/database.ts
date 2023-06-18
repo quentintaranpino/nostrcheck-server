@@ -116,6 +116,7 @@ export async function populateTables(resetTables: boolean): Promise<boolean> {
 			"pubkey varchar(64) NOT NULL," +
 			"filename varchar(128) NOT NULL," +
 			"status varchar(10) NOT NULL," +
+			"visibility boolean NOT NULL DEFAULT 0," +
 			"date datetime NOT NULL," +
 			"ip_address varchar(64) NOT NULL," +
 			"comments varchar(150)" +
