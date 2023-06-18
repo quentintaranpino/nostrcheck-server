@@ -237,7 +237,7 @@ async function dbFileVisibilityUpdate(visibility: boolean, options: ConvertFiles
 
 	const conn = await connect();
 	const [dbFileStatusUpdate] = await conn.execute(
-		"UPDATE mediafiles set status = ? where id = ?",
+		"UPDATE mediafiles set visibility = ? where id = ?",
 		[visibility, options.id]
 	);
 	if (!dbFileStatusUpdate) {
