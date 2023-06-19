@@ -103,6 +103,23 @@ http://nostrcheck.me/api/v1/media
 
 This endpoint use the [NIP98](https://github.com/nostr-protocol/nips/blob/master/98.md) HTTP Auth for getting the media status. The NIP98's pubkey must be the same as the one who uploaded the file. 
 
+**Example**
+
+http://localhost:3000/api/v1/media?id=7
+
+```
+{
+	"result": true,
+	"description": "The requested file was found",
+	"url": "http://localhost:3000/media/public/localhost_7ccc5d74dca9724df213a5b6c648a20a4b2f0574ba7f741b.mp4",
+	"status": "completed",
+	"id": 7,
+	"pubkey": "b6f1e9f6fe120a4aa29a89cbf198592df6f11a382bb28705e9b8e7458b926f48",
+	"hash": "6a410196b565855e2a8e67e3dcae595fd5d9819ce0fbdbeadeee9117b1726f06"
+}
+
+```
+
 ### register [POST]
 Allows to register a new username to the database
 
