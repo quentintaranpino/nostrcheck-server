@@ -155,6 +155,31 @@ Endpoint to verify a nostr note integrity and signature.
 
 http://nostrcheck.me/api/v1/verify
 
+**Example**
+
+```
+{
+  "id": "3a3080d936db2d840ac09c251193f7a535e2474083785c7655503346998759b2",
+  "pubkey": "b6f1e9f6fe120a4aa29a89cbf198592df6f11a382bb28705e9b8e7458b926f48",
+  "created_at": 1683729184,
+  "kind": 1,
+  "tags": [],
+  "content": "TEST",
+  "sig": "6dac44ac1f4d85ac75961efb93bbaa1d334d0c683590aa53d823fbf3895261bccdd834306b3e3b8e7b5f38be2571158670694337d03787578d572558bab8749d"
+}
+```
+
+The server returns:
+
+```
+{
+	"pubkey": "0f1580f8dc1db5fbfa823cb4db1aa233f1b4ba253027b727ddb1918ebdea2ca9",
+	"result": true,
+	"description": "Valid Event"
+}
+```
+
+
 # Installing and running
 
 ```
