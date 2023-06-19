@@ -4,25 +4,93 @@ This repository contains the public API to interact with nostr as a backend api 
 
 ## Available endpoints
 
+
+
 ### domains [GET]
 Return available domains on the server
 
-http://localhost:3000/api/v1/domains
+http://nostrcheck.me/api/v1/domains
+
+**Example**
+```
+{
+	"domains": [
+		{
+			"domain": "nostrcheck.me"
+		},
+		{
+			"domain": "nostr-check.me"
+		},
+		{
+			"domain": "nostriches.club"
+		},
+		{
+			"domain": "plebchain.club"
+		}
+	]
+}
+```
 
 ### users [GET]
 Return available users from a domain registerd on the server
 
-http://localhost:3000/api/v1/domains/[domain]/users
+http://nostrcheck.me/api/v1/domains/[domain]/users
+
+**Example**
+
+http://nostrcheck.me/api/v1/domains/nostrcheck.me/users
+
+```
+{
+	"nostrcheck.me": [
+		{
+			"username": "public",
+			"hex": "0a60549f014123c34157071943a7ddddf5663a92cf5040e15740305bf193b7a7"
+		},
+		{
+			"username": "quentin",
+			"hex": "2d02bb19d41d733ec94f6e81fe928c7c5dc3574d2f4e1ff1f24e1aa3eae69049"
+		}
+	]
+}
+```
 
 ### nostaddress [GET]
 Returns whether a user name is registered on the server.
 
-http://localhost:3000/api/v1/nostraddress
+http://nostrcheck.me/api/v1/nostraddress
+
+**Example**
+
+[http://nostrcheck.me/api/v1/domains/nostrcheck.me/users](https://nostrcheck.me/api/v1/nostraddress?name=quentin)
+
+```
+{
+names: {
+        quentin: "89e14be49ed0073da83b678279cd29ba5ad86cf000b6a3d1a4c3dc4aa4fdd02c"
+       }
+}
+```
 
 ### media [POST]
-Allows to upload and delete files
+Allows to upload files
 
-http://localhost:3000/api/v1/media
+http://nostrcheck.me/api/v1/media
+
+This endpoint requires the following fields in the body:
+```
+uploadype: [media, avatar, banner]
+mediafile: [attached file]
+```
+if the uploadtype is not specified, the server will always interpret it as " media" (standard upload).
+
+This endpoint use the [NIP98](https://github.com/nostr-protocol/nips/blob/master/98.md) HTTP Auth and get this fields from auth note:
+
+```
+pubkey
+```
+If the pubkey is registered, the upload will be saved in the user's gallery, otherwise the upload will be public (with the public parametrized pubkey), 
+
 
 ### media [GET]
 Allows to get the status of files
