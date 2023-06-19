@@ -95,12 +95,39 @@ If the pubkey is registered, the upload will be saved in the user's gallery, oth
 ### media [GET]
 Allows to get the status of files
 
-http://localhost:3000/api/v1/media
+http://nostrcheck.me/api/v1/media
 
 ### register [POST]
 Allows to register a new username to the database
 
-http://localhost:3000/api/v1/register
+http://nostrcheck.me/api/v1/register
+
+h
+
+Example of a register note for a new username
+```
+{
+  "id": "2bb5408bf39277f6c9bbfa7a35c74169c9003a86a12b989947ddfe36cb19a0d7",
+  "pubkey": "b6f1e9f6fe120a4aa29a89cbf198592df6f11a382bb28705e9b8e7458b926f48",
+  "created_at": 1683729184,
+  "kind": 30078,
+  "tags": [
+    [
+      "username",
+      "quentin"
+    ],
+    [
+      "domain",
+      "yourdomain"
+    ]
+  ],
+  "content": "",
+  "sig": "57b015348d2220f7cd5049fc86de50cf54b2a7f1de6c579912f549ad9abf9e36e47b629e0397edd1afa5ce7d402e282f380c9a68577bce337095326be19bb571"
+}
+```
+
+This endpoint use the [NIP98](https://github.com/nostr-protocol/nips/blob/master/98.md) HTTP Auth for register new user authorization.
+
 
 ### verify [POST]
 Endpoint to verify a nostr note integrity and signature.
