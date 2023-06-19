@@ -11,6 +11,8 @@ Return available domains on the server
 
 http://nostrcheck.me/api/v1/domains
 
+This endpoint use the [NIP98](https://github.com/nostr-protocol/nips/blob/master/98.md) HTTP Auth for getting the available domains. The NIP98's pubkey must have the "allowed" field with "1" on registered database.
+
 **Example**
 ```
 {
@@ -35,6 +37,8 @@ http://nostrcheck.me/api/v1/domains
 Return available users from a domain registerd on the server
 
 http://nostrcheck.me/api/v1/domains/[domain]/users
+
+This endpoint use the [NIP98](https://github.com/nostr-protocol/nips/blob/master/98.md) HTTP Auth for getting the available users. The NIP98's pubkey must have the "allowed" field with "1" on registered database.
 
 **Example**
 
@@ -62,7 +66,7 @@ http://nostrcheck.me/api/v1/nostraddress
 
 **Example**
 
-[http://nostrcheck.me/api/v1/domains/nostrcheck.me/users](https://nostrcheck.me/api/v1/nostraddress?name=quentin)
+[https://nostrcheck.me/api/v1/nostraddress?name=quentin](https://nostrcheck.me/api/v1/nostraddress?name=quentin)
 
 ```
 {
@@ -97,6 +101,8 @@ Allows to get the status of files
 
 http://nostrcheck.me/api/v1/media
 
+This endpoint use the [NIP98](https://github.com/nostr-protocol/nips/blob/master/98.md) HTTP Auth for getting the media status. The NIP98's pubkey must be the same as the one who uploaded the file. 
+
 ### register [POST]
 Allows to register a new username to the database
 
@@ -124,14 +130,13 @@ Example of a register note for a new username
 }
 ```
 
-This endpoint use the [NIP98](https://github.com/nostr-protocol/nips/blob/master/98.md) HTTP Auth for register new user authorization. The NIp98 pubkey must have the "allowed" field with "1" on registered dabase.
+This endpoint use the [NIP98](https://github.com/nostr-protocol/nips/blob/master/98.md) HTTP Auth for register new user authorization. The NIP98's pubkey must have the "allowed" field with "1" on registered database.
 
 
 ### verify [POST]
 Endpoint to verify a nostr note integrity and signature.
 
-
-http://localhost:3000/api/v1/verify
+http://nostrcheck.me/api/v1/verify
 
 # Installing and running
 
