@@ -102,8 +102,6 @@ Allows to register a new username to the database
 
 http://nostrcheck.me/api/v1/register
 
-h
-
 Example of a register note for a new username
 ```
 {
@@ -126,7 +124,7 @@ Example of a register note for a new username
 }
 ```
 
-This endpoint use the [NIP98](https://github.com/nostr-protocol/nips/blob/master/98.md) HTTP Auth for register new user authorization.
+This endpoint use the [NIP98](https://github.com/nostr-protocol/nips/blob/master/98.md) HTTP Auth for register new user authorization. The NIp98 pubkey must have the "allowed" field with "1" on registered dabase.
 
 
 ### verify [POST]
