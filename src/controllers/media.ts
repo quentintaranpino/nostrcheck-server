@@ -91,7 +91,7 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 	//Check if pubkey is registered
 	pubkey = EventHeader.pubkey;
 	const dbPubkey = await connect();
-	const [dbResult] = await dbPubkey.query("SELECT hex, username FROM registered WHERE hex = ? and domain = ?", [pubkey, req.hostname]);
+	const [dbResult] = await dbPubkey.query("SELECT hex, username FROM registered WHERE hex = ?", [pubkey]);
 	const rowstemp = JSON.parse(JSON.stringify(dbResult));
 
 	if (rowstemp[0] == undefined) {
