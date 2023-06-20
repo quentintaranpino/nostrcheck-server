@@ -227,7 +227,7 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 
 	//Banner conversion options
 	if (fileoptions.uploadtype.toString() === "banner"){
-		fileoptions.width = config.get("media.transform.banner.height");
+		fileoptions.width = config.get("media.transform.banner.width");
 		fileoptions.height = config.get("media.transform.banner.height");
 		fileoptions.outputname = "banner";
 	}
