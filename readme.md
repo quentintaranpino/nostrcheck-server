@@ -5,7 +5,7 @@ This repository contains the public API to interact with nostr as a backend api 
 ## Available endpoints
 
 
-
+ 
 ### domains [GET]
 Return available domains on the server
 
