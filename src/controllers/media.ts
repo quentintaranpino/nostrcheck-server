@@ -389,15 +389,26 @@ const GetMediaStatusbyID = async (req: Request, res: Response) => {
 	let hash = "";
 	let response = 200;
 
-	try{
+
 		if (rowstemp[0].status == "completed") {
 			url = servername + "/media/" + rowstemp[0].username + "/" + rowstemp[0].filename; //TODO, make it parametrizable
 			description = "The requested file was found";
 			resultstatus = true;
-			hash = crypto
-					.createHash("sha256")
-					.update(fs.readFileSync("./media/" + rowstemp[0].username + "/" + rowstemp[0].filename))
-					.digest("hex");
+			try{
+				hash = crypto
+						.createHash("sha256")
+						.update(fs.readFileSync("./media/" + rowstemp[0].username + "/" + rowstemp[0].filename))
+						.digest("hex");
+				}
+			catch (error) {
+				logger.error("Error getting file hash", error);
+				const result: ResultMessage = {
+					result: false,
+					description: "Error getting file status",
+		
+				};
+				return res.status(500).send(result);
+			}
 			response = 200;
 			logger.info(`RES -> ${response} - ${description}`, "|", req.socket.remoteAddress);
 		}else if (rowstemp[0].status == "failed") {
@@ -428,16 +439,7 @@ const GetMediaStatusbyID = async (req: Request, res: Response) => {
 		};
 
 		return res.status(202).send(result);
-	}
-	catch (error) {
-		logger.error("Error getting file status", error);
-		const result: ResultMessage = {
-			result: false,
-			description: "Error getting file status",
-
-		};
-		return res.status(500).send(result);
-	}
+	
 };
 
 const GetMediabyURL = async (req: Request, res: Response) => {
