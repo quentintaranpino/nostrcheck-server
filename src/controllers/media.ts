@@ -159,7 +159,7 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 				description: "missing mediafile",
 			};
 
-			return res.status(500).send(result);
+			return res.status(400).send(result);
 		}
 
 		//v0 API deprecated field
