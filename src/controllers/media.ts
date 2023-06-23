@@ -91,7 +91,7 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 	//Check if pubkey is registered
 	pubkey = EventHeader.pubkey;
 	const dbPubkey = await connect();
-	const [dbResult] = await dbPubkey.query("SELECT hex, username FROM registered WHERE hex = ? and domain = ?", [pubkey, req.hostname]);
+	const [dbResult] = await dbPubkey.query("SELECT hex, username FROM registered WHERE hex = ?", [pubkey]);
 	const rowstemp = JSON.parse(JSON.stringify(dbResult));
 
 	if (rowstemp[0] == undefined) {
@@ -234,7 +234,7 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 
 	//Banner conversion options
 	if (fileoptions.uploadtype.toString() === "banner"){
-		fileoptions.width = config.get("media.transform.banner.height");
+		fileoptions.width = config.get("media.transform.banner.width");
 		fileoptions.height = config.get("media.transform.banner.height");
 		fileoptions.outputname = "banner";
 	}
@@ -245,11 +245,12 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 		const createdate = new Date(Math.floor(Date.now())).toISOString().slice(0, 19).replace("T", " ");
 
 		await dbFile.query(
-			"INSERT INTO mediafiles (pubkey, filename, status, date, ip_address, comments) VALUES (?, ?, ?, ?, ?, ?)",
+			"INSERT INTO mediafiles (pubkey, filename, status, visibility, date, ip_address, comments) VALUES (?, ?, ?, ?, ?, ?, ?)",
 			[
 				pubkey,
 				`${fileoptions.outputname}.${fileoptions.outputmime}`,
 				"pending",
+				1,
 				createdate,
 				req.socket.remoteAddress,
 				"comments",
@@ -271,7 +272,7 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 	
 		//Get file ID
 		const dbFileID = await connect();
-		const [IDdbResult] = await dbFileID.query("SELECT id FROM mediafiles WHERE filename = ? and pubkey = ?", [fileoptions.outputname + "." + fileoptions.outputmime, pubkey]);
+		const [IDdbResult] = await dbFileID.query("SELECT id FROM mediafiles WHERE filename = ? and pubkey = ? ORDER BY ID DESC", [fileoptions.outputname + "." + fileoptions.outputmime, pubkey]);
 		const IDrowstemp = JSON.parse(JSON.stringify(IDdbResult));
 		if (IDrowstemp[0] == undefined) {
 			logger.error("File not found in database:", fileoptions.outputname + "." + fileoptions.outputmime);
