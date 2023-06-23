@@ -152,10 +152,22 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 	const files = req.files as {[fieldname: string]: Express.Multer.File[]};
 	let file: Express.Multer.File;
 	if (files.mediafile == undefined) {
+		if (files.publicgallery == undefined) {
+			logger.warn(`RES -> 400 Bad request - missing mediafile or publicgallery field`, "|", req.socket.remoteAddress);
+			const result: ResultMessage = {
+				result: false,
+				description: "missing mediafile",
+			};
+
+			return res.status(500).send(result);
+		}
+
 		//v0 API deprecated field
 		logger.warn("Detected 'publicgallery' field (deprecated) on request body, setting 'mediafile' with 'publicgallery' data ", "|", req.socket.remoteAddress);
 		file = files['publicgallery'][0];
 		req.file = file;
+
+
 	}else{
 		file = files['mediafile'][0];
 		req.file = file;
