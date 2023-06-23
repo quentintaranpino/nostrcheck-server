@@ -331,8 +331,50 @@ const GetMediaStatusbyID = async (req: Request, res: Response) => {
 
 	const servername = req.protocol + "://" + req.hostname + ":" + app.get("port"); 
 
-	//Check if event authorization header is valid (NIP98)
 	const EventHeader = await ParseAuthEvent(req);
+
+	//v0 compatibility, check if apikey is present on request body
+	if (req.query.apikey) {
+		
+		logger.warn("Detected apikey on query URL ", "|", req.socket.remoteAddress);
+		logger.warn("Apikey:",req.query.apikey);
+
+		//Check if apikey is valid
+		try{
+		let dbApikey = await connect();
+		const [dbResult] = await dbApikey.query("SELECT hex, username FROM registered WHERE apikey = ?", [req.query.apikey]);
+		const rowstemp = JSON.parse(JSON.stringify(dbResult));
+		if (rowstemp[0] == undefined) {
+			logger.warn("RES -> 401 unauthorized - Apikey not found", "|", req.socket.remoteAddress);
+			const result: ResultMessage = {
+				result: false,
+				description: "Apikey is deprecated, please use NIP98 header. Error: Apikey not found",
+			};
+			return res.status(401).send(result);
+		}
+
+		dbApikey.end();
+
+		//We set eventheader.result as valid if apikey is present and valid.
+		EventHeader.result = true;
+		EventHeader.description = "Apikey is deprecated, please use NIP98 header";
+		EventHeader.pubkey = rowstemp[0].hex;
+
+		logger.warn("Setting pubkey = " + EventHeader.pubkey, "|", req.socket.remoteAddress);
+
+		}
+		catch (error: any) {
+			logger.error("Error checking apikey", error.message);
+			const result: ResultMessage = {
+				result: false,
+				description: "Apikey is deprecated, please use NIP98 header: Error checking apikey",
+			};
+			return res.status(500).send(result);
+			
+		}
+	};	
+
+	//Check if event authorization header is valid (NIP98)
 	if (!EventHeader.result) {
 		logger.warn(
 			`RES -> 401 unauthorized - ${EventHeader.description}`,
