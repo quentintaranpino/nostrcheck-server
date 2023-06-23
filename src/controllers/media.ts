@@ -389,6 +389,8 @@ const GetMediaStatusbyID = async (req: Request, res: Response) => {
 	let hash = "";
 	let response = 200;
 
+	
+
 
 		if (rowstemp[0].status == "completed") {
 			url = servername + "/media/" + rowstemp[0].username + "/" + rowstemp[0].filename; //TODO, make it parametrizable
@@ -397,7 +399,7 @@ const GetMediaStatusbyID = async (req: Request, res: Response) => {
 			try{
 				hash = crypto
 						.createHash("sha256")
-						.update(fs.readFileSync("./media/" + rowstemp[0].username + "/" + rowstemp[0].filename))
+						.update(fs.readFileSync(config.get("media.mediaPath") + rowstemp[0].username + "/" + rowstemp[0].filename))
 						.digest("hex");
 				}
 			catch (error) {
@@ -444,7 +446,7 @@ const GetMediaStatusbyID = async (req: Request, res: Response) => {
 
 const GetMediabyURL = async (req: Request, res: Response) => {
 
-	const root = path.normalize(path.resolve("./media"));
+	const root = path.normalize(path.resolve(config.get("media.mediaPath")));
 
 	logger.info(`${req.method} ${req.url}` + " | " + req.socket.remoteAddress);
 
