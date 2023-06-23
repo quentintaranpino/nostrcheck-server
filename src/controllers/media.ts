@@ -388,44 +388,56 @@ const GetMediaStatusbyID = async (req: Request, res: Response) => {
 	let resultstatus = false;
 	let hash = "";
 	let response = 200;
-	if (rowstemp[0].status == "completed") {
-		url = servername + "/media/" + rowstemp[0].username + "/" + rowstemp[0].filename; //TODO, make it parametrizable
-		description = "The requested file was found";
-		resultstatus = true;
-		hash = crypto
-				.createHash("sha256")
-				.update(fs.readFileSync("./media/" + rowstemp[0].username + "/" + rowstemp[0].filename))
-				.digest("hex");
-		response = 200;
-		logger.info(`RES -> ${response} - ${description}`, "|", req.socket.remoteAddress);
-	}else if (rowstemp[0].status == "failed") {
-		description = "It was a problem processing this file";
-		resultstatus = false;
-		response = 500;
-		logger.info(`RES -> ${response} - ${description}`, "|", req.socket.remoteAddress);
-	}else if (rowstemp[0].status == "pending") {
-		description = "The requested file is still pending";
-		resultstatus = false;
-		response = 202;
-		logger.info(`RES -> ${response} - ${description}`, "|", req.socket.remoteAddress);
-	}else if (rowstemp[0].status == "processing") {
-		description = "The requested file is processing";
-		resultstatus = false;
-		response = 202;
-		logger.info(`RES -> ${response} - ${description}`, "|", req.socket.remoteAddress);
-	}
 	
-	const result: MediaURLResultMessage = {
-		result: resultstatus,
-		description: description,
-		url: url,
-		status: rowstemp[0].status,
-		id: rowstemp[0].id,
-		pubkey: rowstemp[0].pubkey,
-		hash: hash,
-	};
+	try{
+		if (rowstemp[0].status == "completed") {
+			url = servername + "/media/" + rowstemp[0].username + "/" + rowstemp[0].filename; //TODO, make it parametrizable
+			description = "The requested file was found";
+			resultstatus = true;
+			hash = crypto
+					.createHash("sha256")
+					.update(fs.readFileSync("./media/" + rowstemp[0].username + "/" + rowstemp[0].filename))
+					.digest("hex");
+			response = 200;
+			logger.info(`RES -> ${response} - ${description}`, "|", req.socket.remoteAddress);
+		}else if (rowstemp[0].status == "failed") {
+			description = "It was a problem processing this file";
+			resultstatus = false;
+			response = 500;
+			logger.info(`RES -> ${response} - ${description}`, "|", req.socket.remoteAddress);
+		}else if (rowstemp[0].status == "pending") {
+			description = "The requested file is still pending";
+			resultstatus = false;
+			response = 202;
+			logger.info(`RES -> ${response} - ${description}`, "|", req.socket.remoteAddress);
+		}else if (rowstemp[0].status == "processing") {
+			description = "The requested file is processing";
+			resultstatus = false;
+			response = 202;
+			logger.info(`RES -> ${response} - ${description}`, "|", req.socket.remoteAddress);
+		}
+		
+		const result: MediaURLResultMessage = {
+			result: resultstatus,
+			description: description,
+			url: url,
+			status: rowstemp[0].status,
+			id: rowstemp[0].id,
+			pubkey: rowstemp[0].pubkey,
+			hash: hash,
+		};
 
-	return res.status(202).send(result);
+		return res.status(202).send(result);
+	}
+	catch (error) {
+		logger.error("Error getting file status");
+		const result: ResultMessage = {
+			result: false,
+			description: "Error getting file status",
+
+		};
+		return res.status(500).send(result);
+	}
 };
 
 const GetMediabyURL = async (req: Request, res: Response) => {
