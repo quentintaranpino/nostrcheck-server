@@ -388,7 +388,7 @@ const GetMediaStatusbyID = async (req: Request, res: Response) => {
 	let resultstatus = false;
 	let hash = "";
 	let response = 200;
-	
+
 	try{
 		if (rowstemp[0].status == "completed") {
 			url = servername + "/media/" + rowstemp[0].username + "/" + rowstemp[0].filename; //TODO, make it parametrizable
@@ -430,7 +430,7 @@ const GetMediaStatusbyID = async (req: Request, res: Response) => {
 		return res.status(202).send(result);
 	}
 	catch (error) {
-		logger.error("Error getting file status");
+		logger.error("Error getting file status", error);
 		const result: ResultMessage = {
 			result: false,
 			description: "Error getting file status",
