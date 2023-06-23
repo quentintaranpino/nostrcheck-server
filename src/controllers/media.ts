@@ -141,6 +141,13 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 	}
 	logger.info("type ->", uploadtype, "|", req.socket.remoteAddress);
 
+	//Check if the pubkey is public (the server pubkey) and uploadtype is different than media
+	if (pubkey == app.get("pubkey") && uploadtype != "media") {
+		logger.warn(`Public pubkey can only upload media files, setting uploadtype to media`, "|", req.socket.remoteAddress);
+		req.body.uploadtype = "media";
+		uploadtype = "media";
+	}
+
 	//Check if file exist on POST message
 	const files = req.files as {[fieldname: string]: Express.Multer.File[]};
 	let file: Express.Multer.File;
@@ -355,10 +362,14 @@ const GetMediaStatusbyID = async (req: Request, res: Response) => {
 	logger.info(`GET /api/v1/media?id=${id}`, "|", req.socket.remoteAddress);
 
 	const db = await connect();
-	const [dbResult] = await db.query("SELECT mediafiles.id, mediafiles.filename, registered.username, mediafiles.pubkey, mediafiles.status FROM mediafiles INNER JOIN registered on mediafiles.pubkey = registered.hex WHERE (mediafiles.id = ? and mediafiles.pubkey = ?) OR (mediafiles.id = ? and mediafiles.pubkey = ?)", [id , EventHeader.pubkey,id , app.get("pubkey")]);
-	const rowstemp = JSON.parse(JSON.stringify(dbResult));
+	const [dbResult] = await db.query("SELECT mediafiles.id, mediafiles.filename, registered.username, mediafiles.pubkey, mediafiles.status FROM mediafiles INNER JOIN registered on mediafiles.pubkey = registered.hex WHERE (mediafiles.id = ? and mediafiles.pubkey = ?)", [id , EventHeader.pubkey]);
+	let rowstemp = JSON.parse(JSON.stringify(dbResult));
 	if (rowstemp[0] == undefined) {
-		logger.error(`File not found in database: ${req.query.id}`);
+		logger.error(`File not found in database: ${req.query.id}, trying public file`, "|", req.socket.remoteAddress);
+		const [dbResult] = await db.query("SELECT mediafiles.id, mediafiles.filename, registered.username, mediafiles.pubkey, mediafiles.status FROM mediafiles INNER JOIN registered on mediafiles.pubkey = registered.hex WHERE (mediafiles.id = ? and mediafiles.pubkey = ?)", [id , app.get("pubkey")]);
+		rowstemp = JSON.parse(JSON.stringify(dbResult));
+		if (rowstemp[0] == undefined) {
+			logger.error(`File not found in database: ${req.query.id}`, "|", req.socket.remoteAddress);
 		const result: ResultMessage = {
 			result: false,
 			description: "The requested file was not found",
@@ -366,6 +377,7 @@ const GetMediaStatusbyID = async (req: Request, res: Response) => {
 		};
 		db.end();
 		return res.status(404).send(result);
+		}
 	}
 
 	db.end();
