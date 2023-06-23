@@ -366,7 +366,7 @@ const GetMediaStatusbyID = async (req: Request, res: Response) => {
 	const [dbResult] = await db.query("SELECT mediafiles.id, mediafiles.filename, registered.username, mediafiles.pubkey, mediafiles.status FROM mediafiles INNER JOIN registered on mediafiles.pubkey = registered.hex WHERE (mediafiles.id = ? and mediafiles.pubkey = ?)", [id , EventHeader.pubkey]);
 	let rowstemp = JSON.parse(JSON.stringify(dbResult));
 	if (rowstemp[0] == undefined) {
-		logger.warn(`File not found in database: ${req.query.id}, trying public file`, "|", req.socket.remoteAddress);
+		logger.warn(`File not found in database: ${req.query.id}, trying public server pubkey`, "|", req.socket.remoteAddress);
 		const [dbResult] = await db.query("SELECT mediafiles.id, mediafiles.filename, registered.username, mediafiles.pubkey, mediafiles.status FROM mediafiles INNER JOIN registered on mediafiles.pubkey = registered.hex WHERE (mediafiles.id = ? and mediafiles.pubkey = ?)", [id , app.get("pubkey")]);
 		rowstemp = JSON.parse(JSON.stringify(dbResult));
 		if (rowstemp[0] == undefined) {
