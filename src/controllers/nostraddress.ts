@@ -50,7 +50,8 @@ const Checknostraddress = async (req: Request, res: Response): Promise<Response>
 	if (req.query.name === "_") {
 		const result: RegisteredUsernameResult = { username: "_", hex: rootkey };
 
-		return res.status(200).send(JSON.stringify(result));
+		return res.status(200).send(JSON.stringify({ names: { ['_']: rootkey } }));
+
 	}
 
 	const result: RegisteredUsernameResult = { username: "", hex: "" };
