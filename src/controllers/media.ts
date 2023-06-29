@@ -141,14 +141,33 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 	}
 	logger.info("type ->", uploadtype, "|", req.socket.remoteAddress);
 
+	//Check if the pubkey is public (the server pubkey) and uploadtype is different than media
+	if (pubkey == app.get("pubkey") && uploadtype != "media") {
+		logger.warn(`Public pubkey can only upload media files, setting uploadtype to media`, "|", req.socket.remoteAddress);
+		req.body.uploadtype = "media";
+		uploadtype = "media";
+	}
+
 	//Check if file exist on POST message
 	const files = req.files as {[fieldname: string]: Express.Multer.File[]};
 	let file: Express.Multer.File;
 	if (files.mediafile == undefined) {
+		if (files.publicgallery == undefined) {
+			logger.warn(`RES -> 400 Bad request - missing mediafile or publicgallery field`, "|", req.socket.remoteAddress);
+			const result: ResultMessage = {
+				result: false,
+				description: "missing mediafile",
+			};
+
+			return res.status(400).send(result);
+		}
+
 		//v0 API deprecated field
 		logger.warn("Detected 'publicgallery' field (deprecated) on request body, setting 'mediafile' with 'publicgallery' data ", "|", req.socket.remoteAddress);
 		file = files['publicgallery'][0];
 		req.file = file;
+
+
 	}else{
 		file = files['mediafile'][0];
 		req.file = file;
@@ -324,8 +343,50 @@ const GetMediaStatusbyID = async (req: Request, res: Response) => {
 
 	const servername = req.protocol + "://" + req.hostname + ":" + app.get("port"); 
 
-	//Check if event authorization header is valid (NIP98)
 	const EventHeader = await ParseAuthEvent(req);
+
+	//v0 compatibility, check if apikey is present on request body
+	if (req.query.apikey) {
+		
+		logger.warn("Detected apikey on query URL ", "|", req.socket.remoteAddress);
+		logger.warn("Apikey:",req.query.apikey);
+
+		//Check if apikey is valid
+		try{
+		let dbApikey = await connect();
+		const [dbResult] = await dbApikey.query("SELECT hex, username FROM registered WHERE apikey = ?", [req.query.apikey]);
+		const rowstemp = JSON.parse(JSON.stringify(dbResult));
+		if (rowstemp[0] == undefined) {
+			logger.warn("RES -> 401 unauthorized - Apikey not found", "|", req.socket.remoteAddress);
+			const result: ResultMessage = {
+				result: false,
+				description: "Apikey is deprecated, please use NIP98 header. Error: Apikey not found",
+			};
+			return res.status(401).send(result);
+		}
+
+		dbApikey.end();
+
+		//We set eventheader.result as valid if apikey is present and valid.
+		EventHeader.result = true;
+		EventHeader.description = "Apikey is deprecated, please use NIP98 header";
+		EventHeader.pubkey = rowstemp[0].hex;
+
+		logger.warn("Setting pubkey = " + EventHeader.pubkey, "|", req.socket.remoteAddress);
+
+		}
+		catch (error: any) {
+			logger.error("Error checking apikey", error.message);
+			const result: ResultMessage = {
+				result: false,
+				description: "Apikey is deprecated, please use NIP98 header: Error checking apikey",
+			};
+			return res.status(500).send(result);
+			
+		}
+	};	
+
+	//Check if event authorization header is valid (NIP98)
 	if (!EventHeader.result) {
 		logger.warn(
 			`RES -> 401 unauthorized - ${EventHeader.description}`,
@@ -356,10 +417,14 @@ const GetMediaStatusbyID = async (req: Request, res: Response) => {
 	logger.info(`GET /api/v1/media?id=${id}`, "|", req.socket.remoteAddress);
 
 	const db = await connect();
-	const [dbResult] = await db.query("SELECT mediafiles.id, mediafiles.filename, registered.username, mediafiles.pubkey, mediafiles.status FROM mediafiles INNER JOIN registered on mediafiles.pubkey = registered.hex WHERE (mediafiles.id = ? and mediafiles.pubkey = ?) OR (mediafiles.id = ? and mediafiles.pubkey = ?)", [id , EventHeader.pubkey,id , app.get("pubkey")]);
-	const rowstemp = JSON.parse(JSON.stringify(dbResult));
+	const [dbResult] = await db.query("SELECT mediafiles.id, mediafiles.filename, registered.username, mediafiles.pubkey, mediafiles.status FROM mediafiles INNER JOIN registered on mediafiles.pubkey = registered.hex WHERE (mediafiles.id = ? and mediafiles.pubkey = ?)", [id , EventHeader.pubkey]);
+	let rowstemp = JSON.parse(JSON.stringify(dbResult));
 	if (rowstemp[0] == undefined) {
-		logger.error(`File not found in database: ${req.query.id}`);
+		logger.warn(`File not found in database: ${req.query.id}, trying public server pubkey`, "|", req.socket.remoteAddress);
+		const [dbResult] = await db.query("SELECT mediafiles.id, mediafiles.filename, registered.username, mediafiles.pubkey, mediafiles.status FROM mediafiles INNER JOIN registered on mediafiles.pubkey = registered.hex WHERE (mediafiles.id = ? and mediafiles.pubkey = ?)", [id , app.get("pubkey")]);
+		rowstemp = JSON.parse(JSON.stringify(dbResult));
+		if (rowstemp[0] == undefined) {
+			logger.error(`File not found in database: ${req.query.id}`, "|", req.socket.remoteAddress);
 		const result: ResultMessage = {
 			result: false,
 			description: "The requested file was not found",
@@ -367,6 +432,7 @@ const GetMediaStatusbyID = async (req: Request, res: Response) => {
 		};
 		db.end();
 		return res.status(404).send(result);
+		}
 	}
 
 	db.end();
@@ -376,14 +442,26 @@ const GetMediaStatusbyID = async (req: Request, res: Response) => {
 	let resultstatus = false;
 	let hash = "";
 	let response = 200;
+
 	if (rowstemp[0].status == "completed") {
 		url = servername + "/media/" + rowstemp[0].username + "/" + rowstemp[0].filename; //TODO, make it parametrizable
 		description = "The requested file was found";
 		resultstatus = true;
-		hash = crypto
-				.createHash("sha256")
-				.update(fs.readFileSync("./media/" + rowstemp[0].username + "/" + rowstemp[0].filename))
-				.digest("hex");
+		try{
+			hash = crypto
+					.createHash("sha256")
+					.update(fs.readFileSync(config.get("media.mediaPath") + rowstemp[0].username + "/" + rowstemp[0].filename))
+					.digest("hex");
+			}
+		catch (error) {
+			logger.error("Error getting file hash", error);
+			const result: ResultMessage = {
+				result: false,
+				description: "Error getting file status",
+	
+			};
+			return res.status(500).send(result);
+		}
 		response = 200;
 		logger.info(`RES -> ${response} - ${description}`, "|", req.socket.remoteAddress);
 	}else if (rowstemp[0].status == "failed") {
@@ -414,11 +492,12 @@ const GetMediaStatusbyID = async (req: Request, res: Response) => {
 	};
 
 	return res.status(202).send(result);
+	
 };
 
 const GetMediabyURL = async (req: Request, res: Response) => {
 
-	const root = path.normalize(path.resolve("./media"));
+	const root = path.normalize(path.resolve(config.get("media.mediaPath")));
 
 	logger.info(`${req.method} ${req.url}` + " | " + req.socket.remoteAddress);
 
