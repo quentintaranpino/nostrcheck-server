@@ -1,11 +1,18 @@
 import fastq, { queueAsPromised } from "fastq";
-import ffmpeg from "fluent-ffmpeg";
+import ffmpeg, { setFfmpegPath } from "fluent-ffmpeg";
 import fs from "fs";
 
 import { asyncTask, ConvertFilesOpions } from "../types.js";
 import { logger } from "./logger.js";
 import { connect } from "./database.js";
 import config from "config";
+
+const testffmpeg = ffmpeg.getAvailableCodecs(function(err) {
+	if (err) {
+		logger.error("Could not get ffmpeg executable, is ffmpeg package installed on your system? ");
+		process.exit(1);
+	}
+  });
 
 const requestQueue: queueAsPromised<any> = fastq.promise(PrepareFile, 2); //number of workers for the queue
 
