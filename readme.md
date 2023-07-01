@@ -96,7 +96,7 @@ pubkey
 If the pubkey is registered, the upload will be saved in the user's gallery, otherwise the upload will be public (with the public parametrized pubkey), 
 
 
-### media [GET]
+### media [GET] (ID)
 Allows to get the status of files
 
 http://nostrcheck.me/api/v1/media
@@ -105,20 +105,53 @@ This endpoint use the [NIP98](https://github.com/nostr-protocol/nips/blob/master
 
 **Example**
 
-http://localhost:3000/api/v1/media?id=7
+http://localhost:3000/api/v1/media/7
 
 ```
 {
-	"result": true,
-	"description": "The requested file was found",
-	"url": "http://localhost:3000/media/public/localhost_7ccc5d74dca9724df213a5b6c648a20a4b2f0574ba7f741b.mp4",
-	"status": "completed",
-	"id": 7,
-	"pubkey": "b6f1e9f6fe120a4aa29a89cbf198592df6f11a382bb28705e9b8e7458b926f48",
-	"hash": "6a410196b565855e2a8e67e3dcae595fd5d9819ce0fbdbeadeee9117b1726f06"
+    "result": true,
+    "description": "The requested file was found",
+    "url": "http://localhost:3000/media/public/localhost_f314d9dd69e4f2b7e409b7f46d277e3fd1cd9e53de36b4ad.webp",
+    "status": "completed",
+    "id": 7,
+    "pubkey": "89836015acd0c3e0227718fbe64b6251a8425cda33f27c3e4bbf794effbc7450",
+    "hash": "10fb7c4171ccc3ca60b5cdecb345fff396fcbdf350c01d89b4c370aa29aa1e8a",
+    "tags": [
+        "tag",
+        "test",
+        "best"
+    ]
 }
 
 ```
+
+### media [GET] (TAGS)
+Allows to get the status of files
+
+http://nostrcheck.me/api/v1/media/[id]/tags
+
+This endpoint use the [NIP98](https://github.com/nostr-protocol/nips/blob/master/98.md) HTTP Auth for getting the media status. The NIP98's pubkey must be the same as the one who uploaded the file. 
+
+**Example**
+
+http://localhost:3000/api/v1/media/7/tags
+
+```
+[
+    {
+        "tag": "landscape"
+    },
+    {
+        "tag": "meme"
+    },
+    {
+        "tag": "bitcoin"
+    }
+]
+
+```
+
+
 
 ### register [POST]
 Allows to register a new username to the database
