@@ -1,6 +1,6 @@
 {
   "name": "nostrcheck-api",
-  "version": "0.2.9",
+  "version": "0.2.10",
   "description": "",
   "exports": "./index.js",
   "type": "module",
