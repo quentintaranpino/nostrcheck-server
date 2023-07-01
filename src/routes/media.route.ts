@@ -14,6 +14,7 @@ const upload = multer({
 
 export const LoadMediaEndpoint = async (app: Application): Promise<void> => {
 	
+	//Upload media
 	app.post("/api/v1/media",  upload.fields([{
 										name: 'mediafile', maxCount: 1
 									}, {
@@ -21,10 +22,17 @@ export const LoadMediaEndpoint = async (app: Application): Promise<void> => {
 									}]), Uploadmedia);
 
 
+	//Get media status by id 
 	app.get("/api/v1/media", GetMediaStatusbyID);
+	app.get("/api/v1/media/:id", GetMediaStatusbyID);
 
+	//Get media tags by id
+	app.get("/api/v1/media/:fileId/tags/", GetMediaTags);
+
+	//Get media by tags
+	// app.get("/api/v1/media/tags/:tags", GetMediabyURL);
+
+	//Get media by url
 	app.get("/media/*", GetMediabyURL);
-
-	app.get("/api/v1/media/tags/:fileId", GetMediaTags);
 
 };

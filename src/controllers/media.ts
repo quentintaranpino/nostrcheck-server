@@ -402,7 +402,8 @@ const GetMediaStatusbyID = async (req: Request, res: Response) => {
 		return res.status(401).send(result);
 	}
 
-	if (!req.query.id) {
+	let id = req.params.id || req.query.id || "";
+	if (!id) {
 		logger.warn(`RES -> 400 Bad request - missing id`, "|", req.socket.remoteAddress);
 		const result: ResultMessage = {
 			result: false,
@@ -413,7 +414,7 @@ const GetMediaStatusbyID = async (req: Request, res: Response) => {
 		return res.status(400).send(result);
 	}
 
-	const id = req.query.id;
+	
 
 	logger.info(`GET /api/v1/media?id=${id}`, "|", req.socket.remoteAddress);
 
@@ -553,8 +554,8 @@ const GetMediabyURL = async (req: Request, res: Response) => {
 
 const GetMediaTags = async (req: Request, res: Response): Promise<Response> => {
 
-	//Available tags from a fileid
-	logger.info("REQ -> Media tag list from fileId:", req.params.fileId, "|", req.socket.remoteAddress);
+	//Get available tags for a specific media file
+	logger.info("REQ -> Media file tag list", "|", req.socket.remoteAddress);
 
 	//Check if event authorization header is valid
 	const EventHeader = await ParseAuthEvent(req);
@@ -571,6 +572,7 @@ const GetMediaTags = async (req: Request, res: Response): Promise<Response> => {
 
 		return res.status(401).send(result);
 	}
+	logger.info("REQ -> Media tag list -> pubkey:", EventHeader.pubkey, "-> id:", req.params.fileId, "|", req.socket.remoteAddress);
 
 	// //Check if pubkey is allowed to view available users
 	// const allowed = IsAuthorizedPubkey(EventHeader.pubkey);
@@ -593,15 +595,28 @@ const GetMediaTags = async (req: Request, res: Response): Promise<Response> => {
 	//Query database for media tags
 	try {
 		const conn = await connect();
-		const rows = await conn.execute("SELECT tag from mediatags where fileid = ?", [req.params.fileId]);
-		if (rows[0] !== undefined) {
+		const [rows] = await conn.execute("SELECT tag FROM mediatags INNER JOIN mediafiles ON mediatags.fileid = mediafiles.id where fileid = ? and pubkey = ? ", [req.params.fileId, EventHeader.pubkey]);
+		let rowstemp = JSON.parse(JSON.stringify(rows));
+
+		if (rowstemp[0] !== undefined) {
 			conn.end();
 			logger.info("RES -> Media tag list ", "|", req.socket.remoteAddress);
-			return res.status(200).send( JSON.parse(JSON.stringify(rows[0])));
+			return res.status(200).send( JSON.parse(JSON.stringify(rows)));
+		}else{
+			//If not found, try with public server pubkey
+			logger.info("Media tag list not found, trying with public server pubkey", "|", req.socket.remoteAddress);
+			const [Publicrows] = await conn.execute("SELECT tag FROM mediatags INNER JOIN mediafiles ON mediatags.fileid = mediafiles.id where fileid = ? and pubkey = ?", [req.params.fileId, app.get("pubkey")]);
+			let Publicrowstemp = JSON.parse(JSON.stringify(Publicrows));
+			if (Publicrowstemp[0] !== undefined) {
+				conn.end();
+				logger.info("RES -> Media tag list ", "|", req.socket.remoteAddress);
+				return res.status(200).send( JSON.parse(JSON.stringify(Publicrows)));
+			}
 		}
+
 		conn.end();
 		logger.warn("RES -> Empty media tag list ", "|", req.socket.remoteAddress);
-		return res.status(404).send( JSON.parse(JSON.stringify({ "media tags": "No media tags for file" && req.params.fileId })));
+		return res.status(404).send( JSON.parse(JSON.stringify({ "media tags": "No media tags found" })));
 	} catch (error) {
 		logger.error(error);
 
