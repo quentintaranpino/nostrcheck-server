@@ -3,7 +3,7 @@ import multer from "multer";
 import config from "config";
 
 
-import { GetMediaStatusbyID, GetMediabyURL, Uploadmedia } from "../controllers/media.js";
+import { GetMediaStatusbyID, GetMediabyURL, Uploadmedia, GetMediaTags } from "../controllers/media.js";
 
 const maxMBfilesize :number = config.get('media.maxMBfilesize');
 
@@ -24,5 +24,7 @@ export const LoadMediaEndpoint = async (app: Application): Promise<void> => {
 	app.get("/api/v1/media", GetMediaStatusbyID);
 
 	app.get("/media/*", GetMediabyURL);
+
+	app.get("/api/v1/media/tags/:fileId", GetMediaTags);
 
 };

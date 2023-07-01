@@ -332,6 +332,7 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 		pubkey: pubkey,
 		url: servername + "/media/" + username + "/" + fileoptions.outputname + "." + fileoptions.outputmime, //TODO, make it parametrizable",
 		hash: "",
+		tags: [],
 	};
 
 	return res.status(200).send(returnmessage);
@@ -480,7 +481,19 @@ const GetMediaStatusbyID = async (req: Request, res: Response) => {
 		response = 202;
 		logger.info(`RES -> ${response} - ${description}`, "|", req.socket.remoteAddress);
 	}
-	
+
+	//Get file tags
+	const dbTags = await connect();
+	const [dbTagsResult] = await dbTags.query("SELECT tag FROM mediatags WHERE fileid = ?", [rowstemp[0].id]);
+	const tagsrowstemp = JSON.parse(JSON.stringify(dbTagsResult));
+	let tags = [];
+	if (tagsrowstemp[0] !== undefined) {
+		for (let i = 0; i < tagsrowstemp.length; i++) {
+			tags.push(tagsrowstemp[i].tag);
+		}
+	}
+	dbTags.end();
+
 	const result: MediaURLResultMessage = {
 		result: resultstatus,
 		description: description,
@@ -489,6 +502,7 @@ const GetMediaStatusbyID = async (req: Request, res: Response) => {
 		id: rowstemp[0].id,
 		pubkey: rowstemp[0].pubkey,
 		hash: hash,
+		tags: tags,
 	};
 
 	return res.status(202).send(result);
@@ -537,6 +551,65 @@ const GetMediabyURL = async (req: Request, res: Response) => {
 
 }
 
+const GetMediaTags = async (req: Request, res: Response): Promise<Response> => {
+
+	//Available tags from a fileid
+	logger.info("REQ -> Media tag list from fileId:", req.params.fileId, "|", req.socket.remoteAddress);
+
+	//Check if event authorization header is valid
+	const EventHeader = await ParseAuthEvent(req);
+	if (!EventHeader.result) {
+		logger.warn(
+			`RES -> 401 unauthorized  - ${EventHeader.description}`,
+			"|",
+			req.socket.remoteAddress
+		);
+		const result = {
+			result: false,
+			description: EventHeader.description,
+		};
+
+		return res.status(401).send(result);
+	}
+
+	// //Check if pubkey is allowed to view available users
+	// const allowed = IsAuthorizedPubkey(EventHeader.pubkey);
+	// if (!allowed) {
+	// 	logger.warn(
+	// 		`RES -> 401 unauthorized  - ${EventHeader.description}`,
+	// 		"|",
+	// 		req.socket.remoteAddress
+	// 	);
+
+	// 	const result = {
+	// 		result: false,
+	// 		description: "Pubkey is not allowed to view available users",
+	// 	};
+
+	// 	return res.status(401).send(result);
+
+	// }
+
+	//Query database for media tags
+	try {
+		const conn = await connect();
+		const rows = await conn.execute("SELECT tag from mediatags where fileid = ?", [req.params.fileId]);
+		if (rows[0] !== undefined) {
+			conn.end();
+			logger.info("RES -> Media tag list ", "|", req.socket.remoteAddress);
+			return res.status(200).send( JSON.parse(JSON.stringify(rows[0])));
+		}
+		conn.end();
+		logger.warn("RES -> Empty media tag list ", "|", req.socket.remoteAddress);
+		return res.status(404).send( JSON.parse(JSON.stringify({ "media tags": "No media tags for file" && req.params.fileId })));
+	} catch (error) {
+		logger.error(error);
+
+		return res.status(500).send({ description: "Internal server error" });
+	}
+
+};
+
 function isAnimatedGif(imageData: string): boolean {
 	const base64 = imageData.substr(imageData.indexOf(',') + 1);
 	const binaryString = Buffer.from(base64, 'base64').toString('binary');
@@ -581,4 +654,4 @@ function isAnimatedGif(imageData: string): boolean {
 }
 
 
-export { GetMediaStatusbyID, GetMediabyURL, Uploadmedia };
+export { GetMediaStatusbyID, GetMediabyURL, Uploadmedia, GetMediaTags };

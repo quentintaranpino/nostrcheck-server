@@ -25,6 +25,7 @@ interface MediaResultMessage extends ResultMessage {
 interface MediaURLResultMessage extends MediaResultMessage {
 	url: string;
 	hash: string;
+	tags: Array<string>;
 }
 
 const UploadTypes = ["avatar", "banner", "media"];
