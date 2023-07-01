@@ -97,7 +97,7 @@ If the pubkey is registered, the upload will be saved in the user's gallery, oth
 
 
 ### media [GET] (ID)
-Allows to get the status of files
+Allows to get the status and information about a file
 
 http://nostrcheck.me/api/v1/media
 
@@ -126,7 +126,7 @@ http://localhost:3000/api/v1/media/7
 ```
 
 ### media [GET] (TAGS)
-Allows to get the status of files
+Allows to get the tags of a file
 
 http://nostrcheck.me/api/v1/media/[id]/tags
 
