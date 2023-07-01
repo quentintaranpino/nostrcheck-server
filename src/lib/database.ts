@@ -124,6 +124,24 @@ export async function populateTables(resetTables: boolean): Promise<boolean> {
 		logger.info("Creating table mediafiles");
 		await conn.query(mediafilesTableCreateStatement);
 	} 
+
+
+	//Create mediatags table
+	const ExistmediatagsTableStatement = "SHOW TABLES FROM `nostrcheck` LIKE 'mediatags';";
+	const [ExistmediatagsTable] = await conn.query(ExistmediatagsTableStatement);
+	const rowstempExistmediatagsTable = JSON.parse(JSON.stringify(ExistmediatagsTable));
+	if (rowstempExistmediatagsTable[0] == undefined) {
+		const mediatagsTableCreateStatement: string =
+			"CREATE TABLE IF NOT EXISTS mediatags (" +
+			"id int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY," +
+			"fileid int(11) NOT NULL," +
+			"tag varchar(64) NOT NULL" +
+			") ENGINE=InnoDB DEFAULT CHARSET=latin1;";
+		logger.info("Creating table mediatags");
+		await conn.query(mediatagsTableCreateStatement);
+	} 
+
+
 	conn.end();
 
 	return true;
