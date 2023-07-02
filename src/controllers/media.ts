@@ -552,7 +552,7 @@ const GetMediabyURL = async (req: Request, res: Response) => {
 
 }
 
-const GetMediaTags = async (req: Request, res: Response): Promise<Response> => {
+const GetMediaTagsbyID = async (req: Request, res: Response): Promise<Response> => {
 
 	//Get available tags for a specific media file
 	logger.info("REQ -> Media file tag list", "|", req.socket.remoteAddress);
@@ -625,6 +625,74 @@ const GetMediaTags = async (req: Request, res: Response): Promise<Response> => {
 
 };
 
+const GetMediabyTags = async (req: Request, res: Response): Promise<Response> => {
+
+	//Get media files by defined tags
+	logger.info("REQ -> Media files for specified tag", "|", req.socket.remoteAddress);
+
+	//Check if event authorization header is valid
+	const EventHeader = await ParseAuthEvent(req);
+	if (!EventHeader.result) {
+		logger.warn(
+			`RES -> 401 unauthorized  - ${EventHeader.description}`,
+			"|",
+			req.socket.remoteAddress
+		);
+		const result = {
+			result: false,
+			description: EventHeader.description,
+		};
+
+		return res.status(401).send(result);
+	}
+	logger.info("REQ -> Media files for specified tag -> pubkey:", EventHeader.pubkey, "-> tag:", req.params.tags, "|", req.socket.remoteAddress);
+
+	//Check database for media files by tags
+	try {
+		const conn = await connect();
+		const [rows] = await conn.execute("SELECT mediafiles.id, mediafiles.filename, registered.username, mediafiles.pubkey, mediafiles.status FROM mediatags INNER JOIN mediafiles ON mediatags.fileid = mediafiles.id INNER JOIN registered ON mediafiles.pubkey = registered.hex where tag = ? and mediafiles.pubkey = ? ", [req.params.tag, EventHeader.pubkey]);
+		let rowstemp = JSON.parse(JSON.stringify(rows));
+
+		if (rowstemp[0] !== undefined) {
+			conn.end();
+			logger.info("RES -> Media files for specified tag ", "|", req.socket.remoteAddress);
+			const result = {
+				result: true,
+				description: "Media files found",
+				mediafiles: rows,
+			};
+	
+			return res.status(200).send(result);
+		}else{
+			//If not found, try with public server pubkey
+			logger.info("Media files for specified tag not found, trying with public server pubkey", "|", req.socket.remoteAddress);
+			const [Publicrows] = await conn.execute("SELECT mediafiles.id, mediafiles.filename, registered.username, mediafiles.pubkey, mediafiles.status FROM mediatags INNER JOIN mediafiles ON mediatags.fileid = mediafiles.id INNER JOIN registered ON mediafiles.pubkey = registered.hex where tag = ? and mediafiles.pubkey = ?", [req.params.tag, app.get("pubkey")]);
+			let Publicrowstemp = JSON.parse(JSON.stringify(Publicrows));
+			if (Publicrowstemp[0] !== undefined) {
+				conn.end();
+				logger.info("RES -> Media files for specified tag ", "|", req.socket.remoteAddress);
+				const result = {
+					result: true,
+					description: "Media files found",
+					mediafiles: Publicrows,
+				};
+
+				return res.status(200).send(result);
+			}
+		}
+
+		conn.end();
+		logger.warn("RES -> Empty media files for specified tag ", "|", req.socket.remoteAddress);
+		return res.status(404).send( JSON.parse(JSON.stringify({ "media files": "No media files found" })));
+	} catch (error) {
+		logger.error(error);
+		
+		return res.status(500).send({ description: "Internal server error" });
+	}
+
+};
+
+
 function isAnimatedGif(imageData: string): boolean {
 	const base64 = imageData.substr(imageData.indexOf(',') + 1);
 	const binaryString = Buffer.from(base64, 'base64').toString('binary');
@@ -669,4 +737,4 @@ function isAnimatedGif(imageData: string): boolean {
 }
 
 
-export { GetMediaStatusbyID, GetMediabyURL, Uploadmedia, GetMediaTags };
+export { GetMediaStatusbyID, GetMediabyURL, Uploadmedia, GetMediaTagsbyID, GetMediabyTags };
