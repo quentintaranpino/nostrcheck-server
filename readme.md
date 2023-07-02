@@ -151,6 +151,40 @@ http://localhost:3000/api/v1/media/7/tags
 
 ```
 
+### media [GET] (FILES BY TAG)
+Allows to get the tags of a file.
+
+http://nostrcheck.me/api/v1/media/tags/[TAG]
+
+This endpoint use the [NIP98](https://github.com/nostr-protocol/nips/blob/master/98.md) HTTP Auth for getting the media status. The NIP98's pubkey must be the same as the one who uploaded the file. 
+
+**Example**
+
+http://localhost:3000/api/v1/media/tags/hodl
+
+```
+{
+    "result": true,
+    "description": "Media files found",
+    "mediafiles": [
+        {
+            "id": 11,
+            "filename": "localhost_b4ad17d5c66f372977a7191115f049a470e441102ef0be0e.webp",
+            "username": "public",
+            "pubkey": "89836015acd0c3e0227718fbe64b6251a8425cda33f27c3e4bbf794effbc7450",
+            "status": "completed"
+        },
+        {
+            "id": 10,
+            "filename": "localhost_f314d9dd69e4f2b7e409b7f46d277e3fd1cd9e53de36b4ad.webp",
+            "username": "public",
+            "pubkey": "89836015acd0c3e0227718fbe64b6251a8425cda33f27c3e4bbf794effbc7450",
+            "status": "completed"
+        }
+    ]
+}
+
+```
 
 
 ### register [POST]
