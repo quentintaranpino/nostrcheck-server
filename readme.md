@@ -122,11 +122,11 @@ http://localhost:3000/api/v1/media/7
         "best"
     ]
 }
-
+ 
 ```
 
 ### media [GET] (TAGS)
-Allows to get the tags of a file
+Allows to get the tags of a file.
 
 http://nostrcheck.me/api/v1/media/[id]/tags
 
