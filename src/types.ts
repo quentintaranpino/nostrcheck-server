@@ -20,10 +20,10 @@ interface MediaResultMessage extends ResultMessage {
 	status: typeof UploadStatus;
 	id: string;
 	pubkey: string;
+	url: string;
 }
 
-interface MediaURLResultMessage extends MediaResultMessage {
-	url: string;
+interface MediaExtraDataResultMessage extends MediaResultMessage {
 	hash: string;
 	tags: Array<string>;
 }
@@ -94,6 +94,7 @@ export {
 	asyncTask,
 	ConvertFilesOpions,
 	MediaResultMessage,
+	MediaExtraDataResultMessage,
 	mime_transform,
 	mediaTypes,
 	NIP98Kind,
@@ -102,8 +103,8 @@ export {
 	UploadTypes,
 	UploadStatus,
 	VerifyResultMessage,
-	MediaURLResultMessage,
-	RegisteredUsernameResult
+	RegisteredUsernameResult,
+
 };
 
 interface RegisteredUsernameResult {
