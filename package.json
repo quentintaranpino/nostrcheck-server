@@ -47,7 +47,7 @@
     "multer": "1.4.5-lts.1",
     "mysql2": "3.2.4",
     "nodemon": "2.0.22",
-    "nostr-tools": "1.11.1",
+    "nostr-tools": "1.12.1",
     "redis": "4.6.6",
     "rotating-file-stream": "3.1.0",
     "sha256": "0.2.0",
