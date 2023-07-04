@@ -68,8 +68,9 @@ const mediaTypes: { [key: string]: string } = {
 	'mp4': "video/mp4",
   }
 
- enum NIP98Kind {
-	Authorization = 27235,
+ enum NIPKinds {
+	NIP98 = 27235,
+	NIP94 = 1063,
 }
 
 interface ConvertFilesOpions {
@@ -97,7 +98,7 @@ export {
 	MediaExtraDataResultMessage,
 	mime_transform,
 	mediaTypes,
-	NIP98Kind,
+	NIPKinds,
 	RegisterResultMessage,
 	ResultMessage,
 	UploadTypes,

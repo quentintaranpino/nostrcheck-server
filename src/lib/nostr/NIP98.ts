@@ -3,7 +3,7 @@ import { Request } from "express";
 import { Event } from "nostr-tools";
 import config from "config";
 import { logger } from "../../lib/logger.js";
-import { NIP98Kind, ResultMessage, VerifyResultMessage } from "../../types.js";
+import { NIPKinds, ResultMessage, VerifyResultMessage } from "../../types.js";
 
 //https://github.com/nostr-protocol/nips/blob/master/98.md
 
@@ -76,8 +76,8 @@ export { ParseAuthEvent };
 const CheckAuthEvent = async (authevent: Event, req: Request): Promise<ResultMessage> => {
 	//Check if event authorization kind is valid (Must be 27235)
 	try {
-		const eventkind: NIP98Kind = +authevent.kind;
-		if (eventkind == null || eventkind == undefined || eventkind != 27235) {
+		const eventkind: number = +authevent.kind;
+		if (eventkind == null || eventkind == undefined || eventkind != NIPKinds.NIP98) {
 			logger.warn(
 				"RES -> 400 Bad request - Auth header event kind is not 27235",
 				"|",
