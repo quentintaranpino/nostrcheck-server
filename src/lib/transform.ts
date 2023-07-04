@@ -102,15 +102,15 @@ async function convertFile(
 		ConversionEngine
 			.on("end", async(end) => {
 			
-			fs.unlink(TempPath, (err) => {
-			if (err) {
-				logger.error(err);
+				fs.unlink(TempPath, (err) => {
+				if (err) {
+					logger.error(err);
 
-				reject(err);
+					reject(err);
 
-				return;
-			}
-			});
+					return;
+				}
+				});
 
 				const completed =  dbFileStatusUpdate("completed", options);
 				if (!completed) {
@@ -122,11 +122,12 @@ async function convertFile(
 				}
 				const hash =  dbFileHashupdate(MediaPath, options);
 				if (!hash) {
-					logger.error("Could not update table mediafiles, id: " + options.id, "hash: " + MediaPath);
+					logger.error("Could not update table mediafiles, id: " + options.id, "hash for file: " + MediaPath);
 				}
 				logger.info(`File converted successfully: ${MediaPath} ${ConversionDuration /2} seconds`);
 
 				resolve(end);
+
 			})
 			.on("error", (err) => {
 
