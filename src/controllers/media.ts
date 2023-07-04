@@ -10,16 +10,16 @@ import {
 	allowedMimeTypes,
 	asyncTask,
 	ConvertFilesOpions,
+	MediaExtraDataResultMessage,
 	MediaResultMessage,
 	mediaTypes,
-	MediaURLResultMessage,
 	mime_transform,
 	ResultMessage,
 	UploadStatus,
 	UploadTypes
 } from "../types.js";
 import fs from "fs";
-import config from "config";
+import config, { has } from "config";
 import {fileTypeFromBuffer} from 'file-type';
 import path from "path";
 
@@ -324,15 +324,13 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 	const servername = req.protocol + "://" + req.hostname;
 
 	//Return file queued for conversion
-	const returnmessage: MediaURLResultMessage = {
+	const returnmessage: MediaResultMessage = {
 		result: true,
 		description: "File queued for conversion",
 	    status: JSON.parse(JSON.stringify(UploadStatus[0])),
 		id: IDrowstemp[0].id,
 		pubkey: pubkey,
 		url: servername + "/media/" + username + "/" + fileoptions.outputname + "." + fileoptions.outputmime, //TODO, make it parametrizable",
-		hash: "",
-		tags: [],
 	};
 
 	return res.status(200).send(returnmessage);
@@ -443,27 +441,27 @@ const GetMediaStatusbyID = async (req: Request, res: Response) => {
 	let description = "";
 	let resultstatus = false;
 	let hash = "";
+	let tags = [];
 	let response = 200;
 
 	if (rowstemp[0].status == "completed") {
 		url = servername + "/media/" + rowstemp[0].username + "/" + rowstemp[0].filename; //TODO, make it parametrizable
 		description = "The requested file was found";
 		resultstatus = true;
-		try{
-			hash = crypto
-					.createHash("sha256")
-					.update(fs.readFileSync(config.get("media.mediaPath") + rowstemp[0].username + "/" + rowstemp[0].filename))
-					.digest("hex");
-			}
-		catch (error) {
-			logger.error("Error getting file hash", error);
-			const result: ResultMessage = {
-				result: false,
-				description: "Error getting file status",
-	
-			};
-			return res.status(500).send(result);
+		
+		//Get file hash
+		const dbHash = await connect();
+		const [dbHashResult] = await dbHash.query("SELECT hash FROM mediafiles WHERE id = ?", [rowstemp[0].id]);
+		const hashrowstemp = JSON.parse(JSON.stringify(dbHashResult));
+		if (hashrowstemp[0] !== undefined) {
+			hash = hashrowstemp[0].hash;
 		}
+		else{
+			logger.error("Error getting file hash from database");
+			hash = "Error getting hash from file";
+		}
+		dbHash.end();
+		
 		response = 200;
 		logger.info(`RES -> ${response} - ${description}`, "|", req.socket.remoteAddress);
 	}else if (rowstemp[0].status == "failed") {
@@ -487,7 +485,6 @@ const GetMediaStatusbyID = async (req: Request, res: Response) => {
 	const dbTags = await connect();
 	const [dbTagsResult] = await dbTags.query("SELECT tag FROM mediatags WHERE fileid = ?", [rowstemp[0].id]);
 	const tagsrowstemp = JSON.parse(JSON.stringify(dbTagsResult));
-	let tags = [];
 	if (tagsrowstemp[0] !== undefined) {
 		for (let i = 0; i < tagsrowstemp.length; i++) {
 			tags.push(tagsrowstemp[i].tag);
@@ -495,7 +492,7 @@ const GetMediaStatusbyID = async (req: Request, res: Response) => {
 	}
 	dbTags.end();
 
-	const result: MediaURLResultMessage = {
+	const result: MediaExtraDataResultMessage = {
 		result: resultstatus,
 		description: description,
 		url: url,
