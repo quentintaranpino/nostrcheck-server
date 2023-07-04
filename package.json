@@ -38,6 +38,7 @@
   "dependencies": {
     "config": "3.3.9",
     "cors": "2.8.5",
+    "create-torrent": "^6.0.11",
     "express": "4.18.2",
     "fastq": "1.15.0",
     "file-type": "18.4.0",
