@@ -5,7 +5,7 @@ import config from "config";
 import { logger } from "../../lib/logger.js";
 import { NIP98Kind, ResultMessage, VerifyResultMessage } from "../../types.js";
 
-//https://github.com/v0l/nips/blob/nip98/98.md
+//https://github.com/nostr-protocol/nips/blob/master/98.md
 
 const ParseAuthEvent = async (req: Request): Promise<VerifyResultMessage> => {
 
