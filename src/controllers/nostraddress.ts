@@ -2,9 +2,10 @@ import { Request, Response } from "express";
 
 import { connect } from "../lib/database.js";
 import { logger } from "../lib/logger.js";
-import { redisClient } from "../lib/redis.js";
+import { redisClient, getJsonDataFromRedis } from "../lib/redis.js";
 import { RegisteredUsernameResult, ResultMessage } from "../types.js";
 import config from "config";
+import server from "../server.js";
 
 //Nostr address usernames endpoint
 const Checknostraddress = async (req: Request, res: Response): Promise<Response> => {
@@ -54,10 +55,9 @@ const Checknostraddress = async (req: Request, res: Response): Promise<Response>
 	const result: RegisteredUsernameResult = { username: "", hex: "" };
 
 	try {
-		//TODO. WE HAVE TO STORE ALSO THE DOMAIN IN THE CACHE, BECAUSE IF WE HAVE 2 DOMAINS WITH THE SAME USERNAME, THE CACHE WILL RETURN THE FIRST ONE
 
 		//Check if the name is cached
-		const cached = await getJsonDataFromRedis(name);
+		const cached = await getJsonDataFromRedis(name + "-" + servername);
 		if (cached.username != "" && cached.hex != "") {
 			isCached = true;
 
@@ -101,7 +101,7 @@ const Checknostraddress = async (req: Request, res: Response): Promise<Response>
 		return res.status(404).send(result);
 	}
 
-	await redisClient.set(result.username, JSON.stringify(result), {
+	await redisClient.set(result.username + "-" + servername, JSON.stringify(result), {
 		EX: 300, // 5 minutes
 		NX: true, // Only set the key if it does not already exist
 	});
@@ -111,14 +111,5 @@ const Checknostraddress = async (req: Request, res: Response): Promise<Response>
 	return res.status(200).send(JSON.stringify({ names: { [result.username]: result.hex } }));
 };
 
-async function getJsonDataFromRedis(key: string): Promise<RegisteredUsernameResult> {
-	const data = await redisClient.get(key);
-
-	if (!data) {
-		return { username: "", hex: "" };
-	}
-
-	return JSON.parse(data.toString());
-}
 
 export { Checknostraddress };
