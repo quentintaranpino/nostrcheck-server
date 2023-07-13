@@ -2,7 +2,6 @@ import { createClient } from "redis";
 
 import { logger } from "../lib/logger.js";
 import { RegisteredUsernameResult } from "../types.js";
-import server from "../server.js";
 
 
 //Redis configuration
@@ -18,7 +17,6 @@ const redisClient = createClient();
 async function getJsonDataFromRedis(key: string): Promise<RegisteredUsernameResult> {
 	const data = await redisClient.get(key);
 
-	console.log("data", data);
 	if (!data) {
 		return { username: "", hex: "" };
 	}
