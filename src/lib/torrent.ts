@@ -2,13 +2,13 @@ import WebTorrent  from 'webtorrent'
 import { logger } from './logger.js';
 import config from 'config';
 
-const PublishTorrent = (filepath:string) => {
-
 const client =  new WebTorrent({
   // @ts-ignore missing from typedef
-  // torrentPort: config.get('torrent.torrentPort'),
-  // dhtPort: config.get('torrent.dhtPort'),
+  torrentPort: config.get('torrent.torrentPort'),
+  dhtPort: config.get('torrent.dhtPort'),
 });
+
+const PublishTorrent = (filepath:string) => {
 
 client
   .seed(filepath, function (torrent) {
