@@ -35,6 +35,8 @@ let event = {
   event.id = getEventHash(event)
   event.sig = getSignature(event, privateKey)
 
+  logger.debug(event.sig);
+
 
 
 
