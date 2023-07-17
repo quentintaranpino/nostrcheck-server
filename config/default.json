@@ -41,6 +41,10 @@
       }
     }
   },
+  "torrent": {
+    "torrentPort": 6881,
+    "dhtPort": 6882
+  },
   "logger" :  {
     "filename": "nostrcheck-api",
     "size": "50M", 
