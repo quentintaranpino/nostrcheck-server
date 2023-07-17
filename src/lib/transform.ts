@@ -7,6 +7,7 @@ import { asyncTask, ConvertFilesOpions } from "../types.js";
 import { logger } from "./logger.js";
 import { connect } from "./database.js";
 import config from "config";
+import { PublishTorrent } from "./torrent.js";
 
 const testffmpeg = ffmpeg.getAvailableCodecs(function(err) {
 	if (err) {
@@ -124,6 +125,8 @@ async function convertFile(
 				if (!hash) {
 					logger.error("Could not update table mediafiles, id: " + options.id, "hash for file: " + MediaPath);
 				}
+				PublishTorrent(MediaPath); //TORRENT TESTING POC
+
 				logger.info(`File converted successfully: ${MediaPath} ${ConversionDuration /2} seconds`);
 
 				resolve(end);

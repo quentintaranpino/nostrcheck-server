@@ -1,5 +1,5 @@
 import cors from "cors";
-import express, { NextFunction } from "express";
+import express from "express";
 import helmet from "helmet";
 import config from "config";
 
@@ -24,7 +24,5 @@ LoadAPIv1(app);
 //Clean temp dir
 prepareAppFolders();
 prepareAPPConfig();
-
-
 
 export default app;
