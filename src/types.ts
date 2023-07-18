@@ -25,6 +25,7 @@ interface MediaResultMessage extends ResultMessage {
 
 interface MediaExtraDataResultMessage extends MediaResultMessage {
 	hash: string;
+	magnet: string;
 	tags: Array<string>;
 }
 
