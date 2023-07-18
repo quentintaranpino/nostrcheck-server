@@ -1,6 +1,6 @@
   {
     "compilerOptions": {
-      "module": "esnext",
+      "module": "Node16",
       "esModuleInterop": true,
       "allowSyntheticDefaultImports": true,
       "target": "ES2022",
