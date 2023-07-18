@@ -1,6 +1,10 @@
 import { createPool, Pool } from "mysql2/promise";
 import config from "config";
 import { logger } from "./logger.js";
+import { ConvertFilesOpions } from "../types.js";
+import crypto from "crypto";
+import fs from "fs";
+import { CreateMagnet } from "./torrent.js";
 
 //Check database integrity
 const dbtables = populateTables(config.get('database.droptables')); // true = reset tables
@@ -9,7 +13,7 @@ if (!dbtables) {
 	process.exit(1);
 }
 
-export async function connect(): Promise<Pool> {
+async function connect(): Promise<Pool> {
 
 	const DatabaseHost :string 		 = config.get('database.host');
 	const DatabaseUser :string  	 = config.get('database.user');
@@ -34,7 +38,7 @@ export async function connect(): Promise<Pool> {
 
 };
 
-export async function populateTables(resetTables: boolean): Promise<boolean> {
+async function populateTables(resetTables: boolean): Promise<boolean> {
 	if (resetTables) {
 		const conn = await connect();
 		logger.info("Dropping table registered");
@@ -120,6 +124,7 @@ export async function populateTables(resetTables: boolean): Promise<boolean> {
 			"visibility boolean NOT NULL DEFAULT 0," +
 			"date datetime NOT NULL," +
 			"ip_address varchar(64) NOT NULL," +
+			"magnet varchar (512),"	+
 			"comments varchar(150)" +
 			") ENGINE=InnoDB DEFAULT CHARSET=latin1;";
 		logger.info("Creating table mediafiles");
@@ -147,3 +152,94 @@ export async function populateTables(resetTables: boolean): Promise<boolean> {
 
 	return true;
 }
+
+async function dbFileStatusUpdate(status: string, options: ConvertFilesOpions): Promise<boolean> {
+
+	const conn = await connect();
+	const [dbFileStatusUpdate] = await conn.execute(
+		"UPDATE mediafiles set status = ? where id = ?",
+		[status, options.id]
+	);
+	if (!dbFileStatusUpdate) {
+		logger.error("Error updating mediafiles table, id:", options.id, "status:", status);
+		conn.end();
+		return false;
+	}
+
+	conn.end();
+	return true
+
+}
+
+async function dbFileVisibilityUpdate(visibility: boolean, options: ConvertFilesOpions): Promise<boolean> {
+
+	const conn = await connect();
+	const [dbFileStatusUpdate] = await conn.execute(
+		"UPDATE mediafiles set visibility = ? where id = ?",
+		[visibility, options.id]
+	);
+	if (!dbFileStatusUpdate) {
+		logger.error("Error updating mediafiles table, id:", options.id, "visibility:", visibility);
+		conn.end();
+		return false;
+	}
+
+	conn.end();
+	return true
+
+}
+
+async function dbFileHashupdate(filepath:string, options: ConvertFilesOpions): Promise<boolean>{
+
+	let hash = '';
+	try{
+		logger.info("Generating file hash for file:", filepath)
+		hash = crypto
+				.createHash("sha256")
+				.update(fs.readFileSync(filepath))
+				.digest("hex");
+		logger.info("File hash:", hash);
+		}
+	catch (error) {
+		logger.error("Error getting file hash", error);
+		return false;
+	}
+
+	const conn = await connect();
+	const [dbFileHashUpdate] = await conn.execute(
+		"UPDATE mediafiles set hash = ? where id = ?",
+		[hash, options.id]
+	);
+	if (!dbFileHashUpdate) {
+		logger.error("Error updating mediafiles table (hash), id:", options.id, "hash:", hash);
+		conn.end();
+		return false;
+	}
+	conn.end();
+	return true
+}
+
+async function dbFileMagnetUpdate(MediaPath: string, options: ConvertFilesOpions): Promise<boolean> {
+	
+	try{
+		const magnet = await CreateMagnet(MediaPath);
+
+		const conn = await connect();
+		const [dbFileMagnetUpdate] = await conn.execute(
+			"UPDATE mediafiles set magnet = ? where id = ?",
+			[magnet, options.id]
+		);
+		if (!dbFileMagnetUpdate) {
+			logger.error("Error updating mediafiles table, id:", options.id, "magnet:", magnet);
+			conn.end();
+			return false;
+		}
+
+		conn.end();
+	}catch (error) {
+		return false;
+	}
+	return true
+}
+
+export { connect, populateTables, dbFileStatusUpdate, dbFileVisibilityUpdate, dbFileHashupdate, dbFileMagnetUpdate};
