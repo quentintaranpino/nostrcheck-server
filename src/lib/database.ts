@@ -80,8 +80,19 @@ async function populateTables(resetTables: boolean): Promise<boolean> {
 
 		logger.info("Creating table registered");
 		await conn.query(RegisteredTableCreateStatement);
-	} 
-
+	}else{
+		//Show table registered rows
+		const [dbRegisteredTable] = await conn.execute(
+			"SELECT * FROM registered");
+		if (!dbRegisteredTable) {
+			logger.error("Error getting registered table rows");
+			conn.end();
+			return false;
+		}
+		const result = JSON.parse(JSON.stringify(dbRegisteredTable));
+		logger.info("Registered users:", result.length);
+	}
+	
 	//Create domains table
 	const ExistDomainsTableStatement = "SHOW TABLES FROM `nostrcheck` LIKE 'domains';";
 	const [ExistDomainsTable] = await conn.query(ExistDomainsTableStatement);
@@ -107,7 +118,18 @@ async function populateTables(resetTables: boolean): Promise<boolean> {
 		if (!InsertDomainsTableStatement) {
 			logger.fatal("Error inserting default domains to database");
 		}
-	} 
+	}else{
+		//Show table domains rows
+		const [dbDomainsTable] = await conn.execute(
+			"SELECT * FROM domains");
+		if (!dbDomainsTable) {
+			logger.error("Error getting domains table rows");
+			conn.end();
+			return false;
+		}
+		const result = JSON.parse(JSON.stringify(dbDomainsTable));
+		logger.info("Configured domains:", result.length);
+	}
 
 	//Create mediafiles table
 	const ExistmediafilesTableStatement = "SHOW TABLES FROM `nostrcheck` LIKE 'mediafiles';";
@@ -129,7 +151,19 @@ async function populateTables(resetTables: boolean): Promise<boolean> {
 			") ENGINE=InnoDB DEFAULT CHARSET=latin1;";
 		logger.info("Creating table mediafiles");
 		await conn.query(mediafilesTableCreateStatement);
-	} 
+	}else{
+		//Show table mediafiles rows
+		const [dbmediafilesTable] = await conn.execute(
+			"SELECT * FROM mediafiles");
+		if (!dbmediafilesTable) {
+			logger.error("Error getting mediafiles table rows");
+			conn.end();
+			return false;
+		}
+		const result = JSON.parse(JSON.stringify(dbmediafilesTable));
+		logger.info("Media files:", result.length);
+	}
+
 
 
 	//Create mediatags table
@@ -145,8 +179,19 @@ async function populateTables(resetTables: boolean): Promise<boolean> {
 			") ENGINE=InnoDB DEFAULT CHARSET=latin1;";
 		logger.info("Creating table mediatags");
 		await conn.query(mediatagsTableCreateStatement);
-	} 
-
+	}else{
+		//Show table mediatags rows
+		const [dbmediatagsTable] = await conn.execute(
+			"SELECT * FROM mediatags");
+		if (!dbmediatagsTable) {
+			logger.error("Error getting mediatags table rows");
+			conn.end();
+			return false;
+		}
+		const result = JSON.parse(JSON.stringify(dbmediatagsTable));
+		logger.info("Media tags:", result.length);
+	}
+	
 
 	conn.end();
 
