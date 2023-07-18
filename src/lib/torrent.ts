@@ -1,4 +1,4 @@
-import WebTorrent  from 'webtorrent'
+import WebTorrent  from "webtorrent";
 import { logger } from './logger.js';
 import config from 'config';
 
@@ -8,21 +8,29 @@ const client =  new WebTorrent({
   dhtPort: config.get('torrent.dhtPort'),
 });
 
-const PublishTorrent = (filepath:string) => {
+const CreateMagnet = (filepath:string) : Promise<string> => {
 
-client
-  .seed(filepath, function (torrent) {
+   client
+    .seed(filepath, function (torrent: WebTorrent.Torrent) {
 
-      logger.info('Client is seeding:', torrent.magnetURI)
-      logger.info('Torrent info hash:', torrent.infoHash)
-      logger.info('Torrent announce-list:', torrent.announce)
+      logger.info('Generated magnet for file:', filepath);
+      // logger.info( "Magnet:", torrent.magnetURI);
+       logger.info('Torrent info hash:', torrent.infoHash)
+      // logger.info('Torrent announce-list:', torrent.announce)
     })
 
-  .on('error', function (err) {
-    logger.error(err)
-  })
+    return new Promise((resolve, reject) => {
+      client.on('torrent', function (torrent: WebTorrent.Torrent) {
+        resolve(torrent.magnetURI);
+      });
+      client.on('error', function (err: any) {
+        logger.error("error creating magnet for file", filepath);
+        reject(err);
+      });
+    }
+    );
 
-  
 }
-export { PublishTorrent }
+
+export { CreateMagnet }
 
