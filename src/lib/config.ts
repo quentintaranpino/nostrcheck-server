@@ -6,7 +6,7 @@ import { exit } from "process";
 function prepareAppFolders(){
 
 	let TempPath : string = config.get("media.tempPath");
-	logger.info("Cleaning temp dir");
+	logger.info("Cleaning temp dir:", TempPath);
 
 	//If not exist create temp folder
 	if (!fs.existsSync(TempPath)){
