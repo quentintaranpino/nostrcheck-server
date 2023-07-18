@@ -1,13 +1,11 @@
 import fastq, { queueAsPromised } from "fastq";
 import ffmpeg, { setFfmpegPath } from "fluent-ffmpeg";
 import fs from "fs";
-import crypto from "crypto";
 
 import { asyncTask, ConvertFilesOpions } from "../types.js";
 import { logger } from "./logger.js";
-import { connect } from "./database.js";
 import config from "config";
-import { PublishTorrent } from "./torrent.js";
+import { dbFileHashupdate, dbFileMagnetUpdate, dbFileStatusUpdate, dbFileVisibilityUpdate } from "./database.js";
 
 const testffmpeg = ffmpeg.getAvailableCodecs(function(err) {
 	if (err) {
@@ -113,10 +111,6 @@ async function convertFile(
 				}
 				});
 
-				const completed =  dbFileStatusUpdate("completed", options);
-				if (!completed) {
-					logger.error("Could not update table mediafiles, id: " + options.id, "status: completed");
-				}
 				const visibility =  dbFileVisibilityUpdate(true, options);
 				if (!visibility) {
 					logger.error("Could not update table mediafiles, id: " + options.id, "visibility: true");
@@ -125,8 +119,17 @@ async function convertFile(
 				if (!hash) {
 					logger.error("Could not update table mediafiles, id: " + options.id, "hash for file: " + MediaPath);
 				}
-				PublishTorrent(MediaPath); //TORRENT TESTING POC
+				
+				const magnet =  dbFileMagnetUpdate(MediaPath, options);
+				if (!magnet) {
+					logger.error("Could not update table mediafiles, id: " + options.id, "magnet for file: " + MediaPath);
+				}
 
+				const completed =  dbFileStatusUpdate("completed", options);
+				if (!completed) {
+					logger.error("Could not update table mediafiles, id: " + options.id, "status: completed");
+				}
+				
 				logger.info(`File converted successfully: ${MediaPath} ${ConversionDuration /2} seconds`);
 
 				resolve(end);
@@ -231,70 +234,3 @@ export {convertFile, requestQueue };
 
 		return response;
 }
-
-async function dbFileStatusUpdate(status: string, options: ConvertFilesOpions): Promise<boolean> {
-
-	const conn = await connect();
-	const [dbFileStatusUpdate] = await conn.execute(
-		"UPDATE mediafiles set status = ? where id = ?",
-		[status, options.id]
-	);
-	if (!dbFileStatusUpdate) {
-		logger.error("Error updating mediafiles table, id:", options.id, "status:", status);
-		conn.end();
-		return false;
-	}
-
-	conn.end();
-	return true
-
-}
-
-async function dbFileVisibilityUpdate(visibility: boolean, options: ConvertFilesOpions): Promise<boolean> {
-
-	const conn = await connect();
-	const [dbFileStatusUpdate] = await conn.execute(
-		"UPDATE mediafiles set visibility = ? where id = ?",
-		[visibility, options.id]
-	);
-	if (!dbFileStatusUpdate) {
-		logger.error("Error updating mediafiles table, id:", options.id, "visibility:", visibility);
-		conn.end();
-		return false;
-	}
-
-	conn.end();
-	return true
-
-}
-
-async function dbFileHashupdate(filepath:string, options: ConvertFilesOpions): Promise<boolean>{
-
-	let hash = '';
-	try{
-		logger.info("Getting file hash for file:", filepath)
-		hash = crypto
-				.createHash("sha256")
-				.update(fs.readFileSync(filepath))
-				.digest("hex");
-		logger.debug("File hash:", hash);
-		}
-	catch (error) {
-		logger.error("Error getting file hash", error);
-		return false;
-	}
-
-	const conn = await connect();
-	const [dbFileHashUpdate] = await conn.execute(
-		"UPDATE mediafiles set hash = ? where id = ?",
-		[hash, options.id]
-	);
-	if (!dbFileHashUpdate) {
-		logger.error("Error updating mediafiles table (hash), id:", options.id, "hash:", hash);
-		conn.end();
-		return false;
-	}
-	conn.end();
-	return true
-}
-
