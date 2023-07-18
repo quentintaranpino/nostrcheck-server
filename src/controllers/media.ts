@@ -442,7 +442,6 @@ const GetMediaStatusbyID = async (req: Request, res: Response) => {
 	let resultstatus = false;
 	let hash = "";
 	let tags = [];
-	let magnet = "";
 	let response = 200;
 
 	if (rowstemp[0].status == "completed") {
