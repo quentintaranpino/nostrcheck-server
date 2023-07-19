@@ -116,6 +116,7 @@ http://localhost:3000/api/v1/media/7
     "id": 7,
     "pubkey": "89836015acd0c3e0227718fbe64b6251a8425cda33f27c3e4bbf794effbc7450",
     "hash": "10fb7c4171ccc3ca60b5cdecb345fff396fcbdf350c01d89b4c370aa29aa1e8a",
+    "magnet": "magnet:?xt=urn:btih:80d04f20cd03ad98ae654d2e23d8ae81bac059c6&dn=localhost_ffb...(example)",
     "tags": [
         "tag",
         "test",
