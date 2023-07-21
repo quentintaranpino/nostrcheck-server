@@ -19,7 +19,7 @@ import {
 	UploadTypes
 } from "../types.js";
 import fs from "fs";
-import config, { has } from "config";
+import config  from "config";
 import {fileTypeFromBuffer} from 'file-type';
 import path from "path";
 
@@ -111,12 +111,16 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 
 	dbPubkey.end();
 
-	//Check if upload type exists
+	//Description for accepted media response
+	let description = "";
+
+	//Check if the upload type exists
 	let uploadtype = req.body.uploadtype;
 
 	//v0 compatibility, check if type is present on request body (v0 uses type instead of uploadtype)
 	if (req.body.type != undefined && req.body.type != "") {
 		logger.warn("Detected 'type' field (deprecated) on request body, setting 'uploadtype' with 'type' data ", "|", req.socket.remoteAddress);
+		description = "WARNING: Detected 'type' field (deprecated), setting 'uploadtype' ";
 		uploadtype = req.body.type;
 		req.body.uploadtype = req.body.type;
 	}
@@ -125,19 +129,19 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 	//If upload type is not specified will be "media" and a warning will be logged
 	logger.warn(`RES -> 400 Bad request - missing uploadtype`, "|", req.socket.remoteAddress);
 	logger.warn("assuming uploadtype = media");
+	description = "WARNING: missing uploadtype, assuming uploadtype = media | ";
 	req.body.uploadtype = "media";
 	uploadtype = "media";
 	}
 
 	//Check if upload type is valid
 	if (!UploadTypes.includes(uploadtype)) {
-		logger.warn(`RES -> 400 Bad request - incorrect uploadtype`, "|", req.socket.remoteAddress);
-		const result: ResultMessage = {
-			result: false,
-			description: "incorrect upload type",
-		};
+		logger.warn(`RES -> 400 Bad request - incorrect uploadtype: `, uploadtype,  "|", req.socket.remoteAddress);
+		logger.warn("assuming uploadtype = media");
+		description = "WARNING: incorrect uploadtype: " +  uploadtype + ", assuming uploadtype = media | ";
+		req.body.uploadtype = "media";
+		uploadtype = "media";
 
-		return res.status(400).send(result);
 	}
 	logger.info("type ->", uploadtype, "|", req.socket.remoteAddress);
 
@@ -213,6 +217,15 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 	}
 	logger.info("mime ->", file.mimetype, "|", req.socket.remoteAddress);
 
+	const servername = req.protocol + "://" + req.hostname;
+
+	//Uploaded file SHA256 hash
+	const filehash = crypto
+	.createHash("sha256")
+	.update(file.buffer)
+	.digest("hex");
+	logger.info("hash ->", filehash, "|", req.socket.remoteAddress);
+
 	//Standard conversion options
 	const fileoptions: ConvertFilesOpions = {
 		id: "",
@@ -251,16 +264,42 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 		fileoptions.outputname = "banner";
 	}
 
+	//Check if the (file SHA256 hash and pubkey) is already on the database, if exist (and the upload is media type) we return the existing file URL
+	const dbHash = await connect();
+	const [dbHashResult] = await dbHash.query("SELECT id, hash, magnet FROM mediafiles WHERE original_hash = ? and pubkey = ? and filename not like 'avatar%' and filename not like 'banner%' ", [filehash, pubkey]);	
+	const rowstempHash = JSON.parse(JSON.stringify(dbHashResult));
+	if (rowstempHash[0] !== undefined && uploadtype == "media") {
+		logger.info(`RES ->  File already in database, returning existing URL`, "|", req.socket.remoteAddress);
+
+		const returnmessage: MediaExtraDataResultMessage = {
+			result: true,
+			description: description + "File exist in database, returning existing URL",
+			url: servername + "/media/" + username + "/" + fileoptions.outputname + "." + fileoptions.outputmime, //TODO, make it parametrizable",
+			status: JSON.parse(JSON.stringify(UploadStatus[2])),
+			id: rowstempHash[0].id,
+			pubkey: pubkey,
+			hash: rowstempHash[0].hash,
+			magnet: rowstempHash[0].magnet,
+			tags: await GetFileTags(rowstempHash[0].id)
+		};
+
+		dbHash.end();
+		return res.status(200).send(returnmessage);
+		
+	}
+	dbHash.end();
+
 	//Add file to mediafiles table
 	const dbFile = await connect();
 	try{
 		const createdate = new Date(Math.floor(Date.now())).toISOString().slice(0, 19).replace("T", " ");
 
 		await dbFile.query(
-			"INSERT INTO mediafiles (pubkey, filename, status, visibility, date, ip_address, comments) VALUES (?, ?, ?, ?, ?, ?, ?)",
+			"INSERT INTO mediafiles (pubkey, filename, original_hash, status, visibility, date, ip_address, comments) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
 			[
 				pubkey,
 				`${fileoptions.outputname}.${fileoptions.outputmime}`,
+				filehash,
 				"pending",
 				1,
 				createdate,
@@ -321,12 +360,10 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 		return result;
 	});
 
-	const servername = req.protocol + "://" + req.hostname;
-
-	//Return file queued for conversion
+	//Return standard message with "file queued for conversion", status pending, URL and file ID
 	const returnmessage: MediaResultMessage = {
 		result: true,
-		description: "File queued for conversion",
+		description: description + "File queued for conversion",
 	    status: JSON.parse(JSON.stringify(UploadStatus[0])),
 		id: IDrowstemp[0].id,
 		pubkey: pubkey,
@@ -335,6 +372,7 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 
 	return res.status(200).send(returnmessage);
 };
+
 
 const GetMediaStatusbyID = async (req: Request, res: Response) => {
 
@@ -441,7 +479,6 @@ const GetMediaStatusbyID = async (req: Request, res: Response) => {
 	let description = "";
 	let resultstatus = false;
 	let hash = "";
-	let tags = [];
 	let response = 200;
 
 	if (rowstemp[0].status == "completed") {
@@ -481,16 +518,7 @@ const GetMediaStatusbyID = async (req: Request, res: Response) => {
 		logger.info(`RES -> ${response} - ${description}`, "|", req.socket.remoteAddress);
 	}
 
-	//Get file tags
-	const dbTags = await connect();
-	const [dbTagsResult] = await dbTags.query("SELECT tag FROM mediatags WHERE fileid = ?", [rowstemp[0].id]);
-	const tagsrowstemp = JSON.parse(JSON.stringify(dbTagsResult));
-	if (tagsrowstemp[0] !== undefined) {
-		for (let i = 0; i < tagsrowstemp.length; i++) {
-			tags.push(tagsrowstemp[i].tag);
-		}
-	}
-	dbTags.end();
+	let tags = await GetFileTags(rowstemp[0].id);
 
 	const result: MediaExtraDataResultMessage = {
 		result: resultstatus,
@@ -737,3 +765,25 @@ function isAnimatedGif(imageData: string): boolean {
 
 
 export { GetMediaStatusbyID, GetMediabyURL, Uploadmedia, GetMediaTagsbyID, GetMediabyTags };
+
+const GetFileTags = async (fileid: string): Promise<string[]> => {
+
+	let tags = [];
+
+	try{
+		const dbTags = await connect();
+		const [dbTagsResult] = await dbTags.query("SELECT tag FROM mediatags WHERE fileid = ?", [fileid]);
+		const tagsrowstemp = JSON.parse(JSON.stringify(dbTagsResult));
+		if (tagsrowstemp[0] !== undefined) {
+			for (let i = 0; i < tagsrowstemp.length; i++) {
+				tags.push(tagsrowstemp[i].tag);
+			}
+		}
+		dbTags.end();
+	}
+	catch (error) {
+		logger.error("Error getting file tags from database", error);
+	}
+	
+	return tags;
+}
