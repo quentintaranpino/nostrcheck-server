@@ -53,6 +53,7 @@
     "sha256": "0.2.0",
     "ts-node": "10.9.1",
     "tslog": "4.8.2",
+    "ut-metadata": "^0.6.1",
     "validator": "13.9.0",
     "webtorrent": "^2.1.12"
   },
