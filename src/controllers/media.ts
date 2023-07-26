@@ -378,7 +378,7 @@ const GetMediaStatusbyID = async (req: Request, res: Response) => {
 
 	logger.info("GET /api/v1/media", "|", req.socket.remoteAddress);
 
-	const servername = req.protocol + "://" + req.hostname + ":" + app.get("port"); 
+	const servername = req.protocol + "://" + req.hostname;
 
 	const EventHeader = await ParseAuthEvent(req);
 
