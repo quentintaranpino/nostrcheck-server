@@ -28,6 +28,7 @@ async function connect(): Promise<Pool> {
 			database: Database,
 			waitForConnections: true,
 			connectionLimit: 100,
+			connectTimeout: 15000,
 			});
 			await connection.getConnection();
 			return connection;
