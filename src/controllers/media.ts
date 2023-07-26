@@ -266,7 +266,7 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 
 	//Check if the (file SHA256 hash and pubkey) is already on the database, if exist (and the upload is media type) we return the existing file URL
 	const dbHash = await connect();
-	const [dbHashResult] = await dbHash.query("SELECT id, hash, magnet FROM mediafiles WHERE original_hash = ? and pubkey = ? and filename not like 'avatar%' and filename not like 'banner%' ", [filehash, pubkey]);	
+	const [dbHashResult] = await dbHash.query("SELECT id, hash, magnet, filename FROM mediafiles WHERE original_hash = ? and pubkey = ? and filename not like 'avatar%' and filename not like 'banner%' ", [filehash, pubkey]);	
 	const rowstempHash = JSON.parse(JSON.stringify(dbHashResult));
 	if (rowstempHash[0] !== undefined && uploadtype == "media") {
 		logger.info(`RES ->  File already in database, returning existing URL`, "|", req.socket.remoteAddress);
@@ -274,7 +274,7 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 		const returnmessage: MediaExtraDataResultMessage = {
 			result: true,
 			description: description + "File exist in database, returning existing URL",
-			url: servername + "/media/" + username + "/" + fileoptions.outputname + "." + fileoptions.outputmime, //TODO, make it parametrizable",
+			url: servername + "/media/" + username + "/" + rowstempHash[0].filename, //TODO, make it parametrizable",
 			status: JSON.parse(JSON.stringify(UploadStatus[2])),
 			id: rowstempHash[0].id,
 			pubkey: pubkey,
