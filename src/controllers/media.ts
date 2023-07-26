@@ -19,7 +19,7 @@ import {
 	UploadTypes
 } from "../types.js";
 import fs from "fs";
-import config  from "config";
+import config, { has }  from "config";
 import {fileTypeFromBuffer} from 'file-type';
 import path from "path";
 
@@ -264,6 +264,12 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 		fileoptions.outputname = "banner";
 	}
 
+	let status: typeof UploadStatus  = JSON.parse(JSON.stringify(UploadStatus[0]));
+	let filename = fileoptions.outputname + "." + fileoptions.outputmime;
+	let hash = "";
+	let magnet = "";
+	let convert = true;
+
 	//Check if the (file SHA256 hash and pubkey) is already on the database, if exist (and the upload is media type) we return the existing file URL
 	const dbHash = await connect();
 	const [dbHashResult] = await dbHash.query("SELECT id, hash, magnet, filename FROM mediafiles WHERE original_hash = ? and pubkey = ? and filename not like 'avatar%' and filename not like 'banner%' ", [filehash, pubkey]);	
@@ -271,20 +277,27 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 	if (rowstempHash[0] !== undefined && uploadtype == "media") {
 		logger.info(`RES ->  File already in database, returning existing URL`, "|", req.socket.remoteAddress);
 
-		const returnmessage: MediaExtraDataResultMessage = {
-			result: true,
-			description: description + "File exist in database, returning existing URL",
-			url: servername + "/media/" + username + "/" + rowstempHash[0].filename, //TODO, make it parametrizable",
-			status: JSON.parse(JSON.stringify(UploadStatus[2])),
-			id: rowstempHash[0].id,
-			pubkey: pubkey,
-			hash: rowstempHash[0].hash,
-			magnet: rowstempHash[0].magnet,
-			tags: await GetFileTags(rowstempHash[0].id)
-		};
+		status = JSON.parse(JSON.stringify(UploadStatus[2]));
+		description = description + "File exist in database, returning existing URL";
+		filename = rowstempHash[0].filename;
+		hash = rowstempHash[0].hash;
+		magnet = rowstempHash[0].magnet;
+		convert = false;
 
-		dbHash.end();
-		return res.status(200).send(returnmessage);
+		// const returnmessage: MediaExtraDataResultMessage = {
+		// 	result: true,
+		// 	description: description + "File exist in database, returning existing URL",
+		// 	url: servername + "/media/" + username + "/" + rowstempHash[0].filename, //TODO, make it parametrizable",
+		// 	status: JSON.parse(JSON.stringify(UploadStatus[2])),
+		// 	id: rowstempHash[0].id,
+		// 	pubkey: pubkey,
+		// 	hash: rowstempHash[0].hash,
+		// 	magnet: rowstempHash[0].magnet,
+		// 	tags: await GetFileTags(rowstempHash[0].id)
+		// };
+
+		// dbHash.end();
+		// return res.status(200).send(returnmessage);
 		
 	}
 	dbHash.end();
@@ -295,15 +308,17 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 		const createdate = new Date(Math.floor(Date.now())).toISOString().slice(0, 19).replace("T", " ");
 
 		await dbFile.query(
-			"INSERT INTO mediafiles (pubkey, filename, original_hash, status, visibility, date, ip_address, comments) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+			"INSERT INTO mediafiles (pubkey, filename, original_hash, hash, status, visibility, date, ip_address, magnet, comments) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
 			[
 				pubkey,
-				`${fileoptions.outputname}.${fileoptions.outputmime}`,
+				filename,
 				filehash,
-				"pending",
+				hash,
+				status,
 				1,
 				createdate,
 				req.socket.remoteAddress,
+				magnet,
 				"comments",
 			]
 		);
@@ -323,7 +338,7 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 	
 		//Get file ID
 		const dbFileID = await connect();
-		const [IDdbResult] = await dbFileID.query("SELECT id FROM mediafiles WHERE filename = ? and pubkey = ? ORDER BY ID DESC", [fileoptions.outputname + "." + fileoptions.outputmime, pubkey]);
+		const [IDdbResult] = await dbFileID.query("SELECT id FROM mediafiles WHERE filename = ? and pubkey = ? ORDER BY ID DESC", [filename, pubkey]);
 		const IDrowstemp = JSON.parse(JSON.stringify(IDdbResult));
 		if (IDrowstemp[0] == undefined) {
 			logger.error("File not found in database:", fileoptions.outputname + "." + fileoptions.outputmime);
@@ -344,30 +359,33 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 		fs.mkdirSync(mediaPath);
 	}
 
-	//Send request to transform queue
-	const t: asyncTask = {
-		req,
-		fileoptions,
-	};
-	logger.info(`${requestQueue.length() +1} items in queue`);
-	requestQueue.push(t).catch((err) => {
-		logger.error("Error pushing file to queue", err);
-		const result: ResultMessage = {
-			result: false,
-			description: "Error queueing file",
-
+	if (convert) {
+		//Send request to transform queue
+		const t: asyncTask = {
+			req,
+			fileoptions,
 		};
-		return result;
-	});
+		logger.info(`${requestQueue.length() +1} items in queue`);
+		requestQueue.push(t).catch((err) => {
+			logger.error("Error pushing file to queue", err);
+			const result: ResultMessage = {
+				result: false,
+				description: "Error queueing file",
+
+			};
+			description = description + "File queued for conversion";
+			return result;
+		});
+	}
 
 	//Return standard message with "file queued for conversion", status pending, URL and file ID
 	const returnmessage: MediaResultMessage = {
 		result: true,
-		description: description + "File queued for conversion",
-	    status: JSON.parse(JSON.stringify(UploadStatus[0])),
+		description: description,
+	    status: status,
 		id: IDrowstemp[0].id,
 		pubkey: pubkey,
-		url: servername + "/media/" + username + "/" + fileoptions.outputname + "." + fileoptions.outputmime, //TODO, make it parametrizable",
+		url: servername + "/media/" + username + "/" + filename, //TODO, make it parametrizable",
 	};
 
 	return res.status(200).send(returnmessage);
