@@ -379,13 +379,16 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 	}
 
 	//Return standard message with "file queued for conversion", status pending, URL and file ID
-	const returnmessage: MediaResultMessage = {
+	const returnmessage: MediaExtraDataResultMessage = {
 		result: true,
 		description: description,
 	    status: status,
 		id: IDrowstemp[0].id,
 		pubkey: pubkey,
 		url: servername + "/media/" + username + "/" + filename, //TODO, make it parametrizable",
+		hash: hash,
+		magnet: magnet,
+		tags: await GetFileTags(IDrowstemp[0].id)
 	};
 
 	return res.status(200).send(returnmessage);
@@ -468,8 +471,6 @@ const GetMediaStatusbyID = async (req: Request, res: Response) => {
 		return res.status(400).send(result);
 	}
 
-	
-
 	logger.info(`GET /api/v1/media?id=${id}`, "|", req.socket.remoteAddress);
 
 	const db = await connect();
@@ -516,7 +517,6 @@ const GetMediaStatusbyID = async (req: Request, res: Response) => {
 			hash = "Error getting hash from file";
 		}
 		dbHash.end();
-		
 		response = 200;
 		logger.info(`RES -> ${response} - ${description}`, "|", req.socket.remoteAddress);
 	}else if (rowstemp[0].status == "failed") {
@@ -551,7 +551,7 @@ const GetMediaStatusbyID = async (req: Request, res: Response) => {
 
 	};
 
-	return res.status(202).send(result);
+	return res.status(response).send(result);
 	
 };
 
