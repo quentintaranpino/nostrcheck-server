@@ -5,6 +5,21 @@ This repository contains the public API to interact with nostr as a backend api 
 ## Available endpoints
 
 
+### status [GET]
+Returns the status of the server
+
+http://nostrcheck.me/api/v1/status
+
+**Example**
+
+``` 
+{
+    "result": true,
+    "description": "Nostrcheck API server is running.",
+    "version": "0.3.3",
+    "uptime": "20:03:34"
+}
+```
  
 ### domains [GET]
 Return available domains on the server
@@ -343,3 +358,10 @@ sudo nano config/default.json
 "environment" : "production", 
  
 ```
+
+## License
+
+MIT
+```
+
+

@@ -6,6 +6,13 @@ interface ResultMessage {
 	description: string;
 }
 
+interface StatusResultMessage extends ResultMessage {
+
+	uptime: string;
+	version: string;
+
+}
+
 interface RegisterResultMessage extends ResultMessage {
 	username: string;
 	pubkey: string;
@@ -102,6 +109,7 @@ export {
 	NIPKinds,
 	RegisterResultMessage,
 	ResultMessage,
+	StatusResultMessage,
 	UploadTypes,
 	UploadStatus,
 	VerifyResultMessage,
