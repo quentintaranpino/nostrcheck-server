@@ -94,6 +94,11 @@ async function convertFile(
 			.setSize((await NewDimensions).toString())
 			.output(MediaPath)
 			.toFormat(options.outputmime)
+
+		if (options.outputmime == "webp" && options.originalmime != "image/gif") {
+			ConversionEngine.frames(1);
+			console.log("webp");
+		}
 			
 		if (options.outputoptions != "") {
 			ConversionEngine.outputOptions(options.outputoptions)
