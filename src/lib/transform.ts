@@ -90,13 +90,13 @@ async function convertFile(
 		
 
 		let ConversionEngine = ffmpeg(TempPath)
-			.outputOption(["-loop 0"]) //Always loop. If is an image it will not apply
+			.outputOption(["-loop 0"]) //Always loop. If is an image it will not apply.
 			.setSize((await NewDimensions).toString())
 			.output(MediaPath)
 			.toFormat(options.outputmime)
 
 		if (options.outputmime == "webp" && options.originalmime != "image/gif") {
-			ConversionEngine.frames(1); //Fix IOS issue when uploading some portrait images
+			ConversionEngine.frames(1); //Fix IOS issue when uploading some portrait images.
 		}
 			
 		if (options.outputoptions != "") {
