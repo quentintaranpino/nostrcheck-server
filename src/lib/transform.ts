@@ -96,8 +96,7 @@ async function convertFile(
 			.toFormat(options.outputmime)
 
 		if (options.outputmime == "webp" && options.originalmime != "image/gif") {
-			ConversionEngine.frames(1);
-			console.log("webp");
+			ConversionEngine.frames(1); //Fix IOS issue when uploading some portrait images
 		}
 			
 		if (options.outputoptions != "") {
