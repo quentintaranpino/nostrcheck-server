@@ -93,11 +93,14 @@ async function convertFile(
 			.output(MediaPath)
 			.toFormat(options.outputmime)
 
-		if (options.originalmime == "image/gif" || options.outputmime == "mp4") {
-			ConversionEngine.outputOption(["-loop 0"]) //Always loop.
+		// if (options.originalmime == "image/gif" || options.outputmime == "mp4") {
+		// 	ConversionEngine.outputOption(["-loop 0"]) //Always loop
+		// }
+
+		if (options.outputmime == "webp" && options.originalmime != "image/gif") {
 			ConversionEngine.frames(0) //Fix IOS issue with some portrait images
 		}
-			
+					
 		if (options.outputoptions != "") {
 			ConversionEngine.outputOptions(options.outputoptions)
 		}
