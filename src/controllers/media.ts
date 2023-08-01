@@ -13,6 +13,7 @@ import {
 	MediaExtraDataResultMessage,
 	MediaResultMessage,
 	mediaTypes,
+	MediaVisibilityResultMessage,
 	mime_transform,
 	ResultMessage,
 	UploadStatus,
@@ -583,10 +584,20 @@ const UpdateMediaVisibility = async (req: Request, res: Response): Promise<Respo
 
 	logger.info("REQ -> Update media visibility -> pubkey:", EventHeader.pubkey, "-> id:", req.params.fileId, "-> visibility:", req.params.visibility, "|", req.socket.remoteAddress);
 
+	//Check if fileId is not empty
+	if (!req.params.fileId) {
+		logger.warn("RES -> 400 Bad request - missing fileId", "|", req.socket.remoteAddress);
+		const result: ResultMessage = {
+			result: false,
+			description: "missing fileId",
+		};
+		return res.status(400).send(result);
+	}
+
 	//Check if visibility is valid
 	if (req.params.visibility != "1" && req.params.visibility != "0") {
 		logger.warn("RES -> Invalid visibility value", "|", req.socket.remoteAddress);
-		const result = {
+		const result: ResultMessage = {
 			result: false,
 			description: "Invalid visibility value",
 		};
@@ -601,9 +612,11 @@ const UpdateMediaVisibility = async (req: Request, res: Response): Promise<Respo
 		conn.end();
 		if (rowstemp.affectedRows !== 0) {
 			logger.info("RES -> Media visibility updated:", req.params.visibility, "|", req.socket.remoteAddress);
-			const result = {
+			const result: MediaVisibilityResultMessage = {
 				result: true,
-				description: "Media visibility updated",
+				description: "Media visibility has changed",
+				id: req.params.fileId,
+				visibility: req.params.visibility,
 			};
 			return res.status(200).send(result);
 		}

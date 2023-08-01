@@ -36,6 +36,11 @@ interface MediaExtraDataResultMessage extends MediaResultMessage {
 	tags: Array<string>;
 }
 
+interface MediaVisibilityResultMessage extends ResultMessage {
+	id: string;
+	visibility: string;
+}
+
 const UploadTypes = ["avatar", "banner", "media"];
 const UploadStatus = ["pending", "processing", "completed", "failed"];
 
@@ -104,6 +109,7 @@ export {
 	ConvertFilesOpions,
 	MediaResultMessage,
 	MediaExtraDataResultMessage,
+	MediaVisibilityResultMessage,
 	mime_transform,
 	mediaTypes,
 	NIPKinds,

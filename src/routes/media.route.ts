@@ -36,6 +36,6 @@ export const LoadMediaEndpoint = async (app: Application): Promise<void> => {
 	app.get("/media/*", GetMediabyURL);
 
 	//Update media visibility
-	app.put("/api/v1/media/:fileId/public/:visibility", UpdateMediaVisibility);
+	app.put("/api/v1/media/:fileId/visibility/:visibility", UpdateMediaVisibility);
 	
 };

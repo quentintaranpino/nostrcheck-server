@@ -202,6 +202,33 @@ http://localhost:3000/api/v1/media/tags/hodl
 
 ```
 
+### media [PUT] (Visibility)
+Allows to change the visibility of a file. If the file is private it will not show on the gallery, but always will be accessible by the url.
+
+http://nostrcheck.me/api/v1/media/[id]/visibility/[visibility]
+
+This endpoint use the [NIP98](https://github.com/nostr-protocol/nips/blob/master/98.md) HTTP Auth for getting the media status. The NIP98's pubkey must be the same as the one who uploaded the file. 
+
+Visibility options:
+
+```
+0 -> private
+1 -> public
+```
+
+**Example**
+
+http://localhost:3000/api/v1/media/7/visibility/1
+
+```
+{
+    "result": true,
+    "description": "Media visibility has changed",
+    "id": "60",
+    "visibility": "1"
+}
+
+```
 
 ### register [POST]
 Allows to register a new username to the database
