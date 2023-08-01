@@ -141,6 +141,7 @@ async function populateTables(resetTables: boolean): Promise<boolean> {
 			"id int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY," +
 			"pubkey varchar(64) NOT NULL," +
 			"filename varchar(128) NOT NULL," +
+			"original_hash varchar(64)," +
 			"hash varchar(64)," +
 			"status varchar(10) NOT NULL," +
 			"visibility boolean NOT NULL DEFAULT 0," +
