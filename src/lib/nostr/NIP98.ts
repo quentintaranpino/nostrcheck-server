@@ -11,7 +11,7 @@ import { connect } from "../../lib/database.js";
 const ParseAuthEvent = async (req: Request): Promise<VerifyResultMessage> => {
 
 	//v0 compatibility, check if apikey is present on request body instead of NIP98 authorization header.
-	if (req.query.apikey) {return await CheckApiKey(req)};	
+	if (req.query.apikey || req.body.apikey) {return await CheckApiKey(req)};	
 
 	//Check if request has authorization header
 	if (req.headers.authorization === undefined) {
@@ -279,12 +279,15 @@ const CheckAuthEvent = async (authevent: Event, req: Request): Promise<ResultMes
 const CheckApiKey = async (req: Request): Promise<VerifyResultMessage> => {
 
 	logger.warn("Detected apikey on query URL ", "|", req.socket.remoteAddress);
+
+	let apikey = req.query.apikey;
+	if (req.query.apikey == undefined) {apikey = req.body.apikey};
 	logger.warn("Apikey:",req.query.apikey);
 
 	//Check if apikey is valid
 	try{
 		let dbApikey = await connect();
-		const [dbResult] = await dbApikey.query("SELECT hex, username FROM registered WHERE apikey = ?", [req.query.apikey]);
+		const [dbResult] = await dbApikey.query("SELECT hex, username FROM registered WHERE apikey = ?", [apikey]);
 		const rowstemp = JSON.parse(JSON.stringify(dbResult));
 		dbApikey.end();
 		if (rowstemp[0] == undefined) {
