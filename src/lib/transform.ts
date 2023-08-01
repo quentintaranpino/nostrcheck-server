@@ -95,6 +95,7 @@ async function convertFile(
 
 		if (options.originalmime == "image/gif" || options.outputmime == "mp4") {
 			ConversionEngine.outputOption(["-loop 0"]) //Always loop.
+			ConversionEngine.frames(1) //Fix IOS issue with some portrait images
 		}
 			
 		if (options.outputoptions != "") {
