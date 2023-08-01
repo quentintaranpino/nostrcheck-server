@@ -89,10 +89,13 @@ async function convertFile(
 		let ConversionDuration : number = 0;
 
 		let ConversionEngine = ffmpeg(TempPath)
-			.outputOption(["-loop 0"]) //Always loop. If is an image it will not apply
 			.setSize((await NewDimensions).toString())
 			.output(MediaPath)
 			.toFormat(options.outputmime)
+
+		if (options.originalmime == "image/gif" || options.outputmime == "mp4") {
+			ConversionEngine.outputOption(["-loop 0"]) //Always loop.
+		}
 			
 		if (options.outputoptions != "") {
 			ConversionEngine.outputOptions(options.outputoptions)
