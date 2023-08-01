@@ -23,70 +23,15 @@ import config, { has }  from "config";
 import {fileTypeFromBuffer} from 'file-type';
 import path from "path";
 
-
 const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 	logger.info("POST /api/v1/media", "|", req.socket.remoteAddress);
 
-	//Check if event authorization header is valid (NIP98)
+	//Check if event authorization header is valid (NIP98) or if apikey is valid (v0)
 	const EventHeader = await ParseAuthEvent(req);
+	if (!EventHeader.result) {return res.status(401).send({"result": EventHeader.result, "description" : EventHeader.description});}
 
 	let username : string;
 	let pubkey : string;
-
-	//v0 compatibility, check if apikey is present on request body
-	if (req.body.apikey != undefined && req.body.apikey != "") {
-		
-		logger.warn("Detected apikey on request body ", "|", req.socket.remoteAddress);
-
-		//Check if apikey is valid
-		try{
-		let dbApikey = await connect();
-		const [dbResult] = await dbApikey.query("SELECT hex, username FROM registered WHERE apikey = ?", [req.body.apikey]);
-		const rowstemp = JSON.parse(JSON.stringify(dbResult));
-		if (rowstemp[0] == undefined) {
-			logger.warn("RES -> 401 unauthorized - Apikey not found", "|", req.socket.remoteAddress);
-			const result: ResultMessage = {
-				result: false,
-				description: "Apikey is deprecated, please use NIP98 header. Error: Apikey not found",
-			};
-			return res.status(401).send(result);
-		}
-
-		dbApikey.end();
-
-		//We set eventheader.result as valid if apikey is present and valid.
-		EventHeader.result = true;
-		EventHeader.description = "Apikey is deprecated, please use NIP98 header";
-		EventHeader.pubkey = rowstemp[0].hex;
-		username = rowstemp[0].username;
-
-		logger.warn("(APIKEY) -> Setting username = " + username + " and pubkey = " + EventHeader.pubkey, "|", req.socket.remoteAddress);
-
-		}
-		catch (error: any) {
-			logger.error("Error checking apikey", error.message);
-			const result: ResultMessage = {
-				result: false,
-				description: "Apikey is deprecated, please use NIP98 header: Error checking apikey",
-			};
-			return res.status(500).send(result);
-			
-		}
-	};	
-
-	if (!EventHeader.result) {
-		logger.warn(
-			`RES -> 401 unauthorized - ${EventHeader.description}`,
-			"|",
-			req.socket.remoteAddress
-		);
-		const result: ResultMessage = {
-			result: false,
-			description: EventHeader.description,
-		};
-
-		return res.status(401).send(result);
-	}
 
 	//Check if pubkey is registered
 	pubkey = EventHeader.pubkey;
@@ -284,21 +229,6 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 		magnet = rowstempHash[0].magnet;
 		convert = false;
 
-		// const returnmessage: MediaExtraDataResultMessage = {
-		// 	result: true,
-		// 	description: description + "File exist in database, returning existing URL",
-		// 	url: servername + "/media/" + username + "/" + rowstempHash[0].filename, //TODO, make it parametrizable",
-		// 	status: JSON.parse(JSON.stringify(UploadStatus[2])),
-		// 	id: rowstempHash[0].id,
-		// 	pubkey: pubkey,
-		// 	hash: rowstempHash[0].hash,
-		// 	magnet: rowstempHash[0].magnet,
-		// 	tags: await GetFileTags(rowstempHash[0].id)
-		// };
-
-		// dbHash.end();
-		// return res.status(200).send(returnmessage);
-		
 	}
 	dbHash.end();
 
@@ -394,70 +324,15 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 	return res.status(200).send(returnmessage);
 };
 
-
 const GetMediaStatusbyID = async (req: Request, res: Response) => {
 
 	logger.info("GET /api/v1/media", "|", req.socket.remoteAddress);
 
-	const servername = req.protocol + "://" + req.hostname;
-
+	//Check if event authorization header is valid (NIP98) or if apikey is valid (v0)
 	const EventHeader = await ParseAuthEvent(req);
+	if (!EventHeader.result) {return res.status(401).send({"result": EventHeader.result, "description" : EventHeader.description});}
 
-	//v0 compatibility, check if apikey is present on request body
-	if (req.query.apikey) {
-		
-		logger.warn("Detected apikey on query URL ", "|", req.socket.remoteAddress);
-		logger.warn("Apikey:",req.query.apikey);
-
-		//Check if apikey is valid
-		try{
-		let dbApikey = await connect();
-		const [dbResult] = await dbApikey.query("SELECT hex, username FROM registered WHERE apikey = ?", [req.query.apikey]);
-		const rowstemp = JSON.parse(JSON.stringify(dbResult));
-		if (rowstemp[0] == undefined) {
-			logger.warn("RES -> 401 unauthorized - Apikey not found", "|", req.socket.remoteAddress);
-			const result: ResultMessage = {
-				result: false,
-				description: "Apikey is deprecated, please use NIP98 header. Error: Apikey not found",
-			};
-			return res.status(401).send(result);
-		}
-
-		dbApikey.end();
-
-		//We set eventheader.result as valid if apikey is present and valid.
-		EventHeader.result = true;
-		EventHeader.description = "Apikey is deprecated, please use NIP98 header";
-		EventHeader.pubkey = rowstemp[0].hex;
-
-		logger.warn("Setting pubkey = " + EventHeader.pubkey, "|", req.socket.remoteAddress);
-
-		}
-		catch (error: any) {
-			logger.error("Error checking apikey", error.message);
-			const result: ResultMessage = {
-				result: false,
-				description: "Apikey is deprecated, please use NIP98 header: Error checking apikey",
-			};
-			return res.status(500).send(result);
-			
-		}
-	};	
-
-	//Check if event authorization header is valid (NIP98)
-	if (!EventHeader.result) {
-		logger.warn(
-			`RES -> 401 unauthorized - ${EventHeader.description}`,
-			"|",
-			req.socket.remoteAddress
-		);
-		const result: ResultMessage = {
-			result: false,
-			description: EventHeader.description,
-		};
-
-		return res.status(401).send(result);
-	}
+	const servername = req.protocol + "://" + req.hostname;
 
 	let id = req.params.id || req.query.id || "";
 	if (!id) {
@@ -604,38 +479,9 @@ const GetMediaTagsbyID = async (req: Request, res: Response): Promise<Response> 
 
 	//Check if event authorization header is valid
 	const EventHeader = await ParseAuthEvent(req);
-	if (!EventHeader.result) {
-		logger.warn(
-			`RES -> 401 unauthorized  - ${EventHeader.description}`,
-			"|",
-			req.socket.remoteAddress
-		);
-		const result = {
-			result: false,
-			description: EventHeader.description,
-		};
+	if (!EventHeader.result) {return res.status(401).send({"result": EventHeader.result, "description" : EventHeader.description});}
 
-		return res.status(401).send(result);
-	}
 	logger.info("REQ -> Media tag list -> pubkey:", EventHeader.pubkey, "-> id:", req.params.fileId, "|", req.socket.remoteAddress);
-
-	// //Check if pubkey is allowed to view available users
-	// const allowed = IsAuthorizedPubkey(EventHeader.pubkey);
-	// if (!allowed) {
-	// 	logger.warn(
-	// 		`RES -> 401 unauthorized  - ${EventHeader.description}`,
-	// 		"|",
-	// 		req.socket.remoteAddress
-	// 	);
-
-	// 	const result = {
-	// 		result: false,
-	// 		description: "Pubkey is not allowed to view available users",
-	// 	};
-
-	// 	return res.status(401).send(result);
-
-	// }
 
 	//Query database for media tags
 	try {
@@ -677,19 +523,8 @@ const GetMediabyTags = async (req: Request, res: Response): Promise<Response> =>
 
 	//Check if event authorization header is valid
 	const EventHeader = await ParseAuthEvent(req);
-	if (!EventHeader.result) {
-		logger.warn(
-			`RES -> 401 unauthorized  - ${EventHeader.description}`,
-			"|",
-			req.socket.remoteAddress
-		);
-		const result = {
-			result: false,
-			description: EventHeader.description,
-		};
+	if (!EventHeader.result) {return res.status(401).send({"result": EventHeader.result, "description" : EventHeader.description});}
 
-		return res.status(401).send(result);
-	}
 	logger.info("REQ -> Media files for specified tag -> pubkey:", EventHeader.pubkey, "-> tag:", req.params.tags, "|", req.socket.remoteAddress);
 
 	//Check database for media files by tags
@@ -737,6 +572,63 @@ const GetMediabyTags = async (req: Request, res: Response): Promise<Response> =>
 
 };
 
+const UpdateMediaVisibility = async (req: Request, res: Response): Promise<Response> => {
+
+	//Update media visibility
+	logger.info("REQ -> Update media visibility", "|", req.socket.remoteAddress);
+
+	//Check if event authorization header is valid
+	const EventHeader = await ParseAuthEvent(req);
+	if (!EventHeader.result) {return res.status(401).send({"result": EventHeader.result, "description" : EventHeader.description});}
+
+	logger.info("REQ -> Update media visibility -> pubkey:", EventHeader.pubkey, "-> id:", req.params.fileId, "-> visibility:", req.params.visibility, "|", req.socket.remoteAddress);
+
+	//Check if visibility is valid
+	if (req.params.visibility != "1" && req.params.visibility != "0") {
+		logger.warn("RES -> Invalid visibility value", "|", req.socket.remoteAddress);
+		const result = {
+			result: false,
+			description: "Invalid visibility value",
+		};
+		return res.status(400).send(result);
+	}
+
+	//Update table mediafiles whith new visibility
+	try {
+		const conn = await connect();
+		const [rows] = await conn.execute("UPDATE mediafiles SET visibility = ? WHERE id = ? and pubkey = ?", [req.params.visibility, req.params.fileId, EventHeader.pubkey]);
+		let rowstemp = JSON.parse(JSON.stringify(rows));
+		conn.end();
+		if (rowstemp.affectedRows !== 0) {
+			logger.info("RES -> Media visibility updated:", req.params.visibility, "|", req.socket.remoteAddress);
+			const result = {
+				result: true,
+				description: "Media visibility updated",
+			};
+			return res.status(200).send(result);
+		}
+
+		logger.warn("RES -> Media visibility not updated, media file not found ", "|", req.socket.remoteAddress);
+		const result = {
+			result: false,
+			description: "Media visibility not updated, media file not found",
+		};
+		return res.status(404).send(result);
+
+	} catch (error) {
+		logger.error(error);
+		const result = {
+			result: false,
+			description: "Internal server error",
+		};
+		return res.status(500).send(result);
+	}
+
+};
+
+
+
+export { GetMediaStatusbyID, GetMediabyURL, Uploadmedia, UpdateMediaVisibility, GetMediaTagsbyID, GetMediabyTags };
 
 function isAnimatedGif(imageData: string): boolean {
 	const base64 = imageData.substr(imageData.indexOf(',') + 1);
@@ -780,9 +672,6 @@ function isAnimatedGif(imageData: string): boolean {
 
 	return delayTime > 0;
 }
-
-
-export { GetMediaStatusbyID, GetMediabyURL, Uploadmedia, GetMediaTagsbyID, GetMediabyTags };
 
 const GetFileTags = async (fileid: string): Promise<string[]> => {
 
