@@ -35,4 +35,7 @@ export const LoadMediaEndpoint = async (app: Application): Promise<void> => {
 	//Get media by url
 	app.get("/media/*", GetMediabyURL);
 
+	//Update media by id
+	//app.put("/api/v1/media/:id", UpdateMedia);
+	
 };
