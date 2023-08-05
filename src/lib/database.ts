@@ -202,8 +202,6 @@ async function populateTables(resetTables: boolean): Promise<boolean> {
 			"CREATE TABLE IF NOT EXISTS lightning (" +
 			"id int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY," +
 			"pubkey varchar(64) NOT NULL," +
-			"username varchar(50) NOT NULL," +
-			"domain varchar(50) NOT NULL," +
 			"lightningaddress varchar(50) NOT NULL," +
 			"comments varchar(150)" +
 			") ENGINE=InnoDB DEFAULT CHARSET=latin1;";
