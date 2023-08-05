@@ -22,7 +22,7 @@ const APIIndex = async (req: Request, res: Response): Promise<Response> => {
 			`<li><a href='/api/v1/domains'>/api/v1/domains</a></li>` +
 			`<li><a href='/api/v1/verify'>/api/v1/verify</a></li>` +
 			`<li><a href='/api/v1/media'>/api/v1/media</a></li>` +
-			`<li><a href='/api/v1/lightning'>/api/v1/lightning</a></li>` +
+			`<li><a href='/api/v1/lightning'>/api/v1/lightningaddress</a></li>` +
 			`</ul>`
 	);
 };
