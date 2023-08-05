@@ -2,10 +2,9 @@ import { Request, Response } from "express";
 
 import { connect } from "../lib/database.js";
 import { logger } from "../lib/logger.js";
-import { redisClient, getJsonDataFromRedis } from "../lib/redis.js";
+import { redisClient, getNostrAddressFromRedis } from "../lib/redis.js";
 import { RegisteredUsernameResult, ResultMessage } from "../types.js";
 import config from "config";
-import server from "../server.js";
 
 //Nostr address usernames endpoint
 const Checknostraddress = async (req: Request, res: Response): Promise<Response> => {
@@ -16,9 +15,9 @@ const Checknostraddress = async (req: Request, res: Response): Promise<Response>
 	
 	//If name is null return 400
 	if (!name) {
-		logger.info("REQ ->", servername, "|  name not specified  |", req.socket.remoteAddress);
+		logger.info("REQ Nostraddress ->", servername, "|  name not specified  |", req.socket.remoteAddress);
 		logger.warn(
-			"RES -> 400 Bad request - name parameter not specified",
+			"RES Nostraddress -> 400 Bad request - name parameter not specified",
 			"|",
 			req.socket.remoteAddress
 		);
@@ -31,10 +30,10 @@ const Checknostraddress = async (req: Request, res: Response): Promise<Response>
 		return res.status(400).send(result);
 	}
 
-	//If name is too long (<50) return 400
+	//If name is too long (>50) return 400
 	if (name.length > 50) {
-		logger.info("REQ ->", servername, "| " +  name.substring(0,50) + "..."  + " |", req.socket.remoteAddress);
-		logger.warn("RES -> 400 Bad request - name too long", "|", req.socket.remoteAddress);
+		logger.info("REQ Nostraddress ->", servername, "| " +  name.substring(0,50) + "..."  + " |", req.socket.remoteAddress);
+		logger.warn("RES Nostraddress -> 400 Bad request - name too long", "|", req.socket.remoteAddress);
 
 		const result: ResultMessage = {
 			result: false,
@@ -44,7 +43,7 @@ const Checknostraddress = async (req: Request, res: Response): Promise<Response>
 		return res.status(400).send(result);
 	}
 
-	logger.info("REQ ->", servername, "|", name + "|", req.socket.remoteAddress);
+	logger.info("REQ Nostraddress ->", servername, "|", name + "|", req.socket.remoteAddress);
 
 	// Root _ pubkey
 	const rootkey : string = config.get('server.pubkey'); 
@@ -57,11 +56,11 @@ const Checknostraddress = async (req: Request, res: Response): Promise<Response>
 	try {
 
 		//Check if the name is cached
-		const cached = await getJsonDataFromRedis(name + "-" + servername);
+		const cached = await getNostrAddressFromRedis(name + "-" + servername);
 		if (cached.username != "" && cached.hex != "") {
 			isCached = true;
 
-			logger.info("RES ->", cached.hex, "|", "cached:", isCached);
+			logger.info("RES Nostraddress ->", cached.hex, "|", "cached:", isCached);
 
 			return res.status(200).send(JSON.stringify({ names: { [cached.username]: cached.hex } }));
 		}
@@ -76,7 +75,7 @@ const Checknostraddress = async (req: Request, res: Response): Promise<Response>
 		conn.end();
 
 		if (rowstemp[0] == undefined) {
-			logger.warn("RES ->", name, "|", "Username not registered");
+			logger.warn("RES Nostraddress ->", name, "|", "Username not registered");
 
 			const result: ResultMessage = {
 				result: false,
@@ -106,7 +105,7 @@ const Checknostraddress = async (req: Request, res: Response): Promise<Response>
 		NX: true, // Only set the key if it does not already exist
 	});
 
-	logger.info("RES ->", result.hex, "|", "cached:", isCached);
+	logger.info("RES Nostraddress ->", result.hex, "|", "cached:", isCached);
 
 	return res.status(200).send(JSON.stringify({ names: { [result.username]: result.hex } }));
 };
