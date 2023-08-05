@@ -94,11 +94,11 @@ names: {
 ### lightning [GET]
 Returns the lightning redirect from a registered nostr address.
 
-http://nostrcheck.me/api/v1/lightning
+http://nostrcheck.me/api/v1/lightningaddress
 
 **Example**
 
-[https://nostrcheck.me/api/v1/lightning?name=quentin](https://nostrcheck.me/api/v1/lightning?name=quentin)
+[https://nostrcheck.me/api/v1/lightningaddress?name=quentin](https://nostrcheck.me/api/v1/lightningaddress?name=quentin)
 
 (Example response from walletofsatoshi server)
 
@@ -112,6 +112,26 @@ commentAllowed: 32,
 tag: "payRequest",
 allowsNostr: true,
 nostrPubkey: "be1d89794bf92de5dd64c1e60f6a2c70c140abac9932418fee30c5c637fe9479"
+}
+```
+
+### lightning [PUT]
+Allows to update or create a lightning address redirect for a pubkey
+
+http://nostrcheck.me/api/v1/lightningaddress/
+
+**Example**
+
+[https://nostrcheck.me/api/v1/lightningaddress/test@test.com]
+
+This endpoint use the [NIP98](https://github.com/nostr-protocol/nips/blob/master/98.md) HTTP Auth for getting the pubkey. The NIP98's pubkey must be registered on the database.
+
+
+Response from server:
+```
+{
+	"result": true,
+	"description": "Lightning redirect for pubkey 89836015acd0c3e0227718fbe64b6251a8425cda33f27c3e4bbf794effbc7450 updated"
 }
 ```
 
