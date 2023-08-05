@@ -56,9 +56,9 @@ async function populateTables(resetTables: boolean): Promise<boolean> {
 		conn.end();
 	}
 
-	//Create registered table
 	const conn = await connect();
 
+	//Create registered table
 	const ExistRegisteredTableStatement = "SHOW TABLES FROM `nostrcheck` LIKE 'registered';";
 	const [ExistRegisteredTable] = await conn.query(ExistRegisteredTableStatement);
 	const rowstempExistRegisteredTable = JSON.parse(JSON.stringify(ExistRegisteredTable));
@@ -192,8 +192,37 @@ async function populateTables(resetTables: boolean): Promise<boolean> {
 		const result = JSON.parse(JSON.stringify(dbmediatagsTable));
 		logger.info("Media tags:", result.length);
 	}
-	
 
+	//Create lightning address table
+	const ExistLightningTableStatement = "SHOW TABLES FROM `nostrcheck` LIKE 'lightning';";
+	const [ExistLightningTable] = await conn.query(ExistLightningTableStatement);
+	const rowstempExistLightningTable = JSON.parse(JSON.stringify(ExistLightningTable));
+	if (rowstempExistLightningTable[0] == undefined) {
+		const LightningTableCreateStatement: string =
+			"CREATE TABLE IF NOT EXISTS lightning (" +
+			"id int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY," +
+			"pubkey varchar(64) NOT NULL," +
+			"username varchar(50) NOT NULL," +
+			"domain varchar(50) NOT NULL," +
+			"lightningaddress varchar(50) NOT NULL," +
+			"comments varchar(150)" +
+			") ENGINE=InnoDB DEFAULT CHARSET=latin1;";
+
+		logger.info("Creating table lightning");
+		await conn.query(LightningTableCreateStatement);
+	}else{
+		//Show table lightning rows
+		const [dbLightningTable] = await conn.execute(
+			"SELECT * FROM lightning");
+		if (!dbLightningTable) {
+			logger.error("Error getting lightning table rows");
+			conn.end();
+			return false;
+		}
+		const result = JSON.parse(JSON.stringify(dbLightningTable));
+		logger.info("Lightning redirections:", result.length);
+	}
+	
 	conn.end();
 
 	return true;

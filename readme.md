@@ -91,6 +91,30 @@ names: {
 }
 ```
 
+### lightning [GET]
+Returns the lightning redirect from a registered nostr address.
+
+http://nostrcheck.me/api/v1/lightning
+
+**Example**
+
+[https://nostrcheck.me/api/v1/lightning?name=quentin](https://nostrcheck.me/api/v1/lightning?name=quentin)
+
+(Example response from walletofsatoshi server)
+
+```
+{
+callback: "https://livingroomofsatoshi.com/api/v1/lnurl/payreq/000000000-0000-0000-0000-000000000000",
+maxSendable: 100000000000,
+minSendable: 1000,
+metadata: "[["text/plain","Pay to Wallet of Satoshi user: perkynurse82"],["text/identifier","perkynurse82@walletofsatoshi.com"]]",
+commentAllowed: 32,
+tag: "payRequest",
+allowsNostr: true,
+nostrPubkey: "be1d89794bf92de5dd64c1e60f6a2c70c140abac9932418fee30c5c637fe9479"
+}
+```
+
 ### media [POST]
 Allows to upload files
 

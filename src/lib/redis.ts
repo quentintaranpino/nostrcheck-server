@@ -1,8 +1,7 @@
 import { createClient } from "redis";
 
 import { logger } from "../lib/logger.js";
-import { RegisteredUsernameResult } from "../types.js";
-
+import { LightningUsernameResult, RegisteredUsernameResult } from "../types.js";
 
 //Redis configuration
 const redisClient = createClient();
@@ -14,7 +13,7 @@ const redisClient = createClient();
 	await redisClient.connect();
 })();
 
-async function getJsonDataFromRedis(key: string): Promise<RegisteredUsernameResult> {
+async function getNostrAddressFromRedis(key: string): Promise<RegisteredUsernameResult> {
 	const data = await redisClient.get(key);
 
 	if (!data) {
@@ -25,5 +24,15 @@ async function getJsonDataFromRedis(key: string): Promise<RegisteredUsernameResu
 	return JSON.parse(data.toString());
 }
 
+async function getLightningAddressFromRedis(key: string): Promise<LightningUsernameResult> {
+	const data = await redisClient.get(key);
 
-export { redisClient, getJsonDataFromRedis };
+	if (!data) {
+		return {lightningserver: "", lightninguser: ""};
+	}
+
+
+	return JSON.parse(data.toString());
+}
+
+export { redisClient, getNostrAddressFromRedis, getLightningAddressFromRedis };

@@ -1,16 +1,13 @@
 import { Request } from "express";
 
 interface ResultMessage {
-
 	result: boolean;
 	description: string;
 }
 
 interface StatusResultMessage extends ResultMessage {
-
 	uptime: string;
 	version: string;
-
 }
 
 interface RegisterResultMessage extends ResultMessage {
@@ -120,12 +117,18 @@ export {
 	UploadStatus,
 	VerifyResultMessage,
 	RegisteredUsernameResult,
+	LightningUsernameResult,
 
 };
 
 interface RegisteredUsernameResult {
 	username: string;
 	hex: string;
+}
+
+interface LightningUsernameResult {
+	lightningserver: string;
+	lightninguser: string;
 }
 
 
