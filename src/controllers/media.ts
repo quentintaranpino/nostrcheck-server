@@ -640,8 +640,174 @@ const UpdateMediaVisibility = async (req: Request, res: Response): Promise<Respo
 };
 
 
+const DeleteMedia = async (req: Request, res: Response): Promise<any> => {
+	
 
-export { GetMediaStatusbyID, GetMediabyURL, Uploadmedia, UpdateMediaVisibility, GetMediaTagsbyID, GetMediabyTags };
+	const servername = req.hostname;
+	let fileId = req.params.fileId;
+	let filehash = "";
+	let mediafiles = [];
+	let username = "";
+
+	logger.info("REQ Delete mediafile ->", servername, "|", req.socket.remoteAddress);
+
+	//Check if fileId is not empty
+	if (!fileId) {
+		logger.warn("RES -> 400 Bad request - missing fileId", "|", req.socket.remoteAddress);
+		const result: ResultMessage = {
+			result: false,
+			description: "missing fileId",
+		};
+		return res.status(400).send(result);
+	}
+
+	//Check if fileId is a number
+	if (isNaN(fileId as any)) {
+		logger.warn("RES -> 400 Bad request - fileId is not a number", "|", req.socket.remoteAddress);
+		const result: ResultMessage = {
+			result: false,
+			description: "fileId must be a number",
+		};
+		return res.status(400).send(result);
+	}
+
+	//Check if fileId length is > 10
+	if (fileId.length > 10) {
+		logger.warn("RES -> 400 Bad request - fileId too long > 10", "|", req.socket.remoteAddress);
+		const result: ResultMessage = {
+			result: false,
+			description: "fileId too long",
+		};
+		return res.status(400).send(result);
+	}
+
+	//We don't accept v0 apikey for deletion. Only NIP98
+	if (req.query.apikey || req.body.apikey) {
+		logger.warn("RES -> 400 Bad request - apikey not allowed for deletion", "|", req.socket.remoteAddress);
+		const result: ResultMessage = {
+			result: false,
+			description: "apikey v0 not allowed for deletion",
+		};
+		return res.status(400).send(result);
+	}
+	
+	//Check if event authorization header is valid (NIP98) or if apikey is valid (v0)
+	const EventHeader = await ParseAuthEvent(req);
+	if (!EventHeader.result) {return res.status(401).send({"result": EventHeader.result, "description" : EventHeader.description});}
+
+	//Check if mediafile exist on database
+	try{
+		const conn = await connect();
+		const [rows] = await conn.execute(
+			"SELECT mediafiles.id, mediafiles.filename, mediafiles.hash, registered.username FROM mediafiles LEFT JOIN registered on mediafiles.pubkey = registered.hex WHERE mediafiles.pubkey = ? and mediafiles.id = ?",
+			[EventHeader.pubkey, fileId]
+		);
+		let rowstemp = JSON.parse(JSON.stringify(rows));
+		conn.end();
+		if (rowstemp[0] == undefined) {
+			logger.warn("RES Delete Mediafile -> 404 Not found", "|", req.socket.remoteAddress);
+			const result: ResultMessage = {
+				result: false,
+				description: `Mediafile deletion for id: ${fileId} and pubkey ${EventHeader.pubkey} not found`,
+			};
+			return res.status(404).send(result);
+		}
+
+		//We store filehash for delete all files with same hash
+		if (rowstemp[0].hash !== undefined){
+		filehash = rowstemp[0].hash;
+		}else{
+			logger.error("Error getting file hash from database");
+			const result: ResultMessage = {
+				result: false,
+				description: "Error getting file hash from database",
+			};
+			return res.status(500).send(result);
+		}
+
+		//We store filenames for delete all files with same hash
+		if (rowstemp[0].filename !== undefined && rowstemp.length > 0){
+			for (let i = 0; i < rowstemp.length; i++) {
+				mediafiles.push(rowstemp[i].filename);
+			}
+		}else{
+			logger.error("Error getting filenames from database");
+			const result: ResultMessage = {
+				result: false,
+				description: "Error getting filenames from database",
+			};
+			return res.status(500).send(result);
+		}
+
+		//We store username for delete folder
+		if (rowstemp[0].username !== undefined){
+			username = rowstemp[0].username;
+		}else{
+			logger.error("Error getting username from database");
+			const result: ResultMessage = {
+				result: false,
+				description: "Error getting username from database",
+			};
+			return res.status(500).send(result);
+		}
+		
+	}catch (error) {
+		logger.error(error);
+		const result: ResultMessage = {
+			result: false,
+			description: "Internal server error",
+		};
+		return res.status(500).send(result);
+	}
+
+	logger.info("REQ Delete mediafile ->", servername, " | pubkey:",  EventHeader.pubkey, " | fileId:",  fileId, "|", req.socket.remoteAddress);
+
+	try {
+		const conn = await connect();
+		const [rows] = await conn.execute(
+			"DELETE FROM mediafiles WHERE hash = ? and pubkey = ?", [filehash, EventHeader.pubkey]
+		);
+		let rowstemp = JSON.parse(JSON.stringify(rows));
+		conn.end();
+		if (rowstemp.affectedRows == 0) {
+			logger.warn("RES Delete Mediafile -> 404 Not found", "|", req.socket.remoteAddress);
+			const result: ResultMessage = {
+				result: false,
+				description: `Mediafile deletion for id: ${fileId} and pubkey ${EventHeader.pubkey} not found`,
+			};
+			return res.status(404).send(result);
+		}
+
+		logger.info("Deleting files from database:", rowstemp.affectedRows, "|", req.socket.remoteAddress);
+
+		//Delete file from disk
+		for (let i = 0; i < mediafiles.length; i++) {
+			const mediaPath = config.get("media.mediaPath") + username + "/" + mediafiles[i];
+			if (fs.existsSync(mediaPath)){
+				logger.info("Deleting file from disk:", mediaPath);
+				fs.unlinkSync(mediaPath);
+			}
+		}
+	}
+	catch (error) {
+		logger.error(error);
+		const result: ResultMessage = {
+			result: false,
+			description: "Internal server error",
+		};
+		return res.status(500).send(result);
+	}
+
+	logger.info("RES Delete mediafile ->", servername, " | pubkey:",  EventHeader.pubkey, " | fileId:",  fileId, "|", "mediafile(s) deleted", "|", req.socket.remoteAddress);
+	const result: ResultMessage = {
+		result: true,
+		description: `Mediafile deletion for id: ${fileId} and pubkey ${EventHeader.pubkey} successful`,
+	};
+	return res.status(200).send(result);
+
+};
+
+export { GetMediaStatusbyID, GetMediabyURL, Uploadmedia, DeleteMedia, UpdateMediaVisibility, GetMediaTagsbyID, GetMediabyTags };
 
 function isAnimatedGif(imageData: string): boolean {
 	const base64 = imageData.substr(imageData.indexOf(',') + 1);

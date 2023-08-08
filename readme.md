@@ -136,13 +136,15 @@ Response from server:
 ```
 
 ### lightning [DELETE]
-Allows to **delete** or create a lightning address redirect for a pubkey
+Allows to **delete** a mediafile from database and disk.
 
-http://nostrcheck.me/api/v1/lightningaddress/
+This endpoint delete all files with the same hash of selected file.
+
+http://nostrcheck.me/api/v1/media/
 
 **Example**
 
-[https://nostrcheck.me/api/v1/lightningaddress]
+[https://nostrcheck.me/api/v1/media/1]
 
 This endpoint use the [NIP98](https://github.com/nostr-protocol/nips/blob/master/98.md) HTTP Auth for getting the pubkey. The NIP98's pubkey must be registered on the database.
 
@@ -151,7 +153,7 @@ Response from server:
 ```
 {
 	"result": true,
-	"description": "Lightning redirect for pubkey 89836015acd0c3e0227718fbe64b6251a8425cda33f27c3e4bbf794effbc7450 deleted"
+	"description": "Mediafile deletion for id: 1 and pubkey 40ea82aa4a450ea86cbb185a81f810edf2ac9810262f8e5952521f95ddfd8d97 successful"
 }
 ```
 
@@ -294,6 +296,26 @@ http://localhost:3000/api/v1/media/7/visibility/1
     "visibility": "1"
 }
 
+```
+
+### Media [DELETE]
+Allows to **delete** a lightning address redirect for a pubkey
+
+http://nostrcheck.me/api/v1/lightningaddress/
+
+**Example**
+
+[https://nostrcheck.me/api/v1/lightningaddress]
+
+This endpoint use the [NIP98](https://github.com/nostr-protocol/nips/blob/master/98.md) HTTP Auth for getting the pubkey. The NIP98's pubkey must be registered on the database.
+
+
+Response from server:
+```
+{
+	"result": true,
+	"description": "Lightning redirect for pubkey 89836015acd0c3e0227718fbe64b6251a8425cda33f27c3e4bbf794effbc7450 deleted"
+}
 ```
 
 ### register [POST]
