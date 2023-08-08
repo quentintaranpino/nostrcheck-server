@@ -150,7 +150,7 @@ This endpoint use the [NIP98](https://github.com/nostr-protocol/nips/blob/master
 
 
 Response from server:
-```
+``` 
 {
 	"result": true,
 	"description": "Mediafile deletion for id: 1 and pubkey 40ea82aa4a450ea86cbb185a81f810edf2ac9810262f8e5952521f95ddfd8d97 successful"
