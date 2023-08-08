@@ -18,7 +18,7 @@ const SeedMediafilesMagnets = async () => {
   try{
     const conn = await connect();
     const [dbFileMagnet] = await conn.execute(
-      "SELECT filename, username FROM mediafiles inner join registered on mediafiles.pubkey = registered.hex where magnet is not null");
+      "SELECT DISTINCT filename, username FROM mediafiles inner join registered on mediafiles.pubkey = registered.hex where magnet is not null");
     if (!dbFileMagnet) {
       conn.end();
       return "";
