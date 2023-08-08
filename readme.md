@@ -135,6 +135,28 @@ Response from server:
 }
 ```
 
+### lightning [DELETE]
+Allows to **delete** or create a lightning address redirect for a pubkey
+
+http://nostrcheck.me/api/v1/lightningaddress/
+
+**Example**
+
+[https://nostrcheck.me/api/v1/lightningaddress]
+
+This endpoint use the [NIP98](https://github.com/nostr-protocol/nips/blob/master/98.md) HTTP Auth for getting the pubkey. The NIP98's pubkey must be registered on the database.
+
+
+Response from server:
+```
+{
+	"result": true,
+	"description": "Lightning redirect for pubkey 89836015acd0c3e0227718fbe64b6251a8425cda33f27c3e4bbf794effbc7450 deleted"
+}
+```
+
+
+
 ### media [POST]
 Allows to upload files
 

@@ -118,7 +118,7 @@ const UpdateLightningAddress = async (req: Request, res: Response): Promise<any>
 	//Check if event authorization header is valid (NIP98) or if apikey is valid (v0)
 	const EventHeader = await ParseAuthEvent(req);
 	if (!EventHeader.result) {return res.status(401).send({"result": EventHeader.result, "description" : EventHeader.description});}
-	
+
 	//If lightningaddress is null return 400
 	if (!lightningaddress || lightningaddress.trim() == "") {
 		logger.info("REQ Update lightningaddress ->", servername, " | pubkey:",  EventHeader.pubkey, " | ligntningaddress:",  "ligntningaddress not specified  |", req.socket.remoteAddress);
@@ -139,7 +139,7 @@ const UpdateLightningAddress = async (req: Request, res: Response): Promise<any>
 	//If lightningaddress is too long (>50) return 400
 	if (lightningaddress.length > 50) {
 		logger.info("REQ Update lightningaddress ->", servername, " | pubkey:",  EventHeader.pubkey, " | ligntningaddress:",  lightningaddress.substring(0,50) + "...", "|", req.socket.remoteAddress);
-	
+
 		logger.info("REQ Update lightningaddress-> ", servername, " |" +  lightningaddress.substring(0,50) + "..."  + " |", req.socket.remoteAddress);
 		logger.warn("RES Update Lightningaddress -> 400 Bad request - lightningaddress too long", "|", req.socket.remoteAddress);
 
@@ -150,10 +150,10 @@ const UpdateLightningAddress = async (req: Request, res: Response): Promise<any>
 
 		return res.status(400).send(result);
 	}
-	
+
 	logger.info("REQ Update lightningaddress ->", servername, " | pubkey:",  EventHeader.pubkey, " | ligntningaddress:",  lightningaddress, "|", req.socket.remoteAddress);
 
-	
+
 	try {
 		const conn = await connect();
 		const [rows] = await conn.execute(
@@ -174,7 +174,7 @@ const UpdateLightningAddress = async (req: Request, res: Response): Promise<any>
 
 			if (!dbInsert) {
 				logger.warn("RES Update Lightningaddress ->", EventHeader.pubkey, "|", "Error inserting lightning address into database");
-				
+
 				const result: ResultMessage = {
 					result: false,
 					description: "Error inserting lightning address into database",
@@ -207,7 +207,10 @@ const UpdateLightningAddress = async (req: Request, res: Response): Promise<any>
 	if (rowstemp[0] != undefined) {
 
 		//Delete redis cache
-		await redisClient.del("LNURL" + "-" + rowstemp[0].username + "-" + rowstemp[0].domain);
+		const deletecache = await redisClient.del("LNURL" + "-" + rowstemp[0].username + "-" + rowstemp[0].domain);
+		if (deletecache != 0) {
+			logger.info("Update Lightningaddress ->", EventHeader.pubkey, "|", "Redis cache cleared");
+		}
 	}
 
 	logger.info("RES Update lightningaddress ->", servername, " | pubkey:",  EventHeader.pubkey, " | ligntningaddress:",  lightningaddress, "|", "Lightning redirect updated", "|", req.socket.remoteAddress);
@@ -221,4 +224,106 @@ const UpdateLightningAddress = async (req: Request, res: Response): Promise<any>
 
 };
 
-export { Redirectlightningddress, UpdateLightningAddress };
+const DeleteLightningAddress = async (req: Request, res: Response): Promise<any> => {
+
+	const servername = req.hostname;
+	let lightningaddress = "";
+
+	//Check if event authorization header is valid (NIP98) or if apikey is valid (v0)
+	const EventHeader = await ParseAuthEvent(req);
+	if (!EventHeader.result) {return res.status(401).send({"result": EventHeader.result, "description" : EventHeader.description});}
+
+	//Check if pubkey's lightningaddress exists on database
+	try{
+		const conn = await connect();
+		const [rows] = await conn.execute(
+			"SELECT lightningaddress FROM lightning WHERE pubkey = ?",
+			[EventHeader.pubkey]
+		);
+		let rowstemp = JSON.parse(JSON.stringify(rows));
+		conn.end();
+		if (rowstemp[0] == undefined) {
+			logger.warn("RES Delete Lightningaddress -> 404 Not found", "|", req.socket.remoteAddress);
+			const result: ResultMessage = {
+				result: false,
+				description: `Lightning redirect for pubkey ${EventHeader.pubkey} not found`,
+			};
+			return res.status(404).send(result);
+		}
+		lightningaddress = rowstemp[0].lightningaddress;
+
+	}catch (error) {
+		logger.error(error);
+		const result: ResultMessage = {
+			result: false,
+			description: "Internal server error",
+		};
+		return res.status(500).send(result);
+	}
+
+	logger.info("REQ Delete lightningaddress ->", servername, " | pubkey:",  EventHeader.pubkey, " | ligntningaddress:",  lightningaddress, "|", req.socket.remoteAddress);
+
+	try {
+		const conn = await connect();
+		const [rows] = await conn.execute(
+			"DELETE FROM lightning WHERE pubkey = ?",
+			[EventHeader.pubkey]
+		);
+		let rowstemp = JSON.parse(JSON.stringify(rows));
+		conn.end();
+		if (rowstemp.affectedRows == 0) {
+			logger.info("Delete Lightningaddress ->", EventHeader.pubkey, "|", "Lightning redirect not found");
+
+			const result: ResultMessage = {
+				result: false,
+				description: `Lightning redirect for pubkey ${EventHeader.pubkey} not found`,
+			};
+
+			return res.status(404).send(result);
+		}
+
+	}
+	catch (error) {
+		logger.error(error);
+
+		const result: ResultMessage = {
+			result: false,
+			description: "Internal server error",
+		};
+
+		return res.status(500).send(result);
+	}
+
+	//select lightningaddress from database
+	const conn = await connect();
+
+	const [rows] = await conn.execute(
+		"SELECT username, domain FROM registered WHERE hex = ?",
+		[EventHeader.pubkey]
+	);
+	let rowstemp = JSON.parse(JSON.stringify(rows));
+	conn.end();
+	if (rowstemp[0] != undefined) {
+
+		//Delete redis cache
+		const deletecache = await redisClient.del("LNURL" + "-" + rowstemp[0].username + "-" + rowstemp[0].domain);
+		if (deletecache != 0) {
+			logger.info("Delete Lightningaddress ->", EventHeader.pubkey, "|", "Redis cache cleared");
+		}
+
+	}
+
+	logger.info("RES Delete lightningaddress ->", servername, " | pubkey:",  EventHeader.pubkey, " | ligntningaddress:",  lightningaddress, "|", "Lightning redirect deleted", "|", req.socket.remoteAddress);
+
+	const result: ResultMessage = {
+		result: true,
+		description: `Lightning redirect for pubkey ${EventHeader.pubkey} deleted`,
+	};
+
+	return res.status(200).send(result);
+
+};
+
+
+
+export { Redirectlightningddress, UpdateLightningAddress, DeleteLightningAddress };
