@@ -273,24 +273,19 @@ const DeleteLightningAddress = async (req: Request, res: Response): Promise<any>
 		conn.end();
 		if (rowstemp.affectedRows == 0) {
 			logger.info("Delete Lightningaddress ->", EventHeader.pubkey, "|", "Lightning redirect not found");
-
 			const result: ResultMessage = {
 				result: false,
 				description: `Lightning redirect for pubkey ${EventHeader.pubkey} not found`,
 			};
-
 			return res.status(404).send(result);
 		}
-
 	}
 	catch (error) {
 		logger.error(error);
-
 		const result: ResultMessage = {
 			result: false,
 			description: "Internal server error",
 		};
-
 		return res.status(500).send(result);
 	}
 
@@ -323,7 +318,5 @@ const DeleteLightningAddress = async (req: Request, res: Response): Promise<any>
 	return res.status(200).send(result);
 
 };
-
-
 
 export { Redirectlightningddress, UpdateLightningAddress, DeleteLightningAddress };
