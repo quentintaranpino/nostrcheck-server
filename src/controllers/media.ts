@@ -163,7 +163,7 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 	}
 	logger.info("mime ->", file.mimetype, "|", req.socket.remoteAddress);
 
-	const servername = req.protocol + "://" + req.hostname;
+	const servername = "https://" + req.hostname;
 
 	//Uploaded file SHA256 hash
 	const filehash = crypto
@@ -333,7 +333,7 @@ const GetMediaStatusbyID = async (req: Request, res: Response) => {
 	const EventHeader = await ParseAuthEvent(req);
 	if (!EventHeader.result) {return res.status(401).send({"result": EventHeader.result, "description" : EventHeader.description});}
 
-	const servername = req.protocol + "://" + req.hostname;
+	const servername = "https://" + req.hostname;
 
 	let id = req.params.id || req.query.id || "";
 	if (!id) {
