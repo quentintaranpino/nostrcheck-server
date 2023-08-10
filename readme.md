@@ -333,8 +333,9 @@ Response from server:
 ```
 {
 	"result": true,
-	"description": "Lightning redirect for pubkey 89836015acd0c3e0227718fbe64b6251a8425cda33f27c3e4bbf794effbc7450 deleted"
+	"description": "Mediafile deletion for id: 82 and pubkey 40ea82aa4a450ea86cbb185a81f810edf2ac9810262f8e5952521f95ddfd8d97 successful"
 }
+
 ```
 
 ### register [POST]
