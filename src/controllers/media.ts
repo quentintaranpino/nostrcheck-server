@@ -433,13 +433,12 @@ const GetMediaStatusbyID = async (req: Request, res: Response) => {
 
 const GetMediabyURL = async (req: Request, res: Response) => {
 
+	//Allow CORS
 	res.set("access-control-allow-origin", "*");
 	res.set("access-control-allow-methods", "GET");
 	res.set("Cross-Origin-Opener-Policy", "*");
 	res.set("Cross-Origin-Resource-Policy", "*");
 	res.set("X-frame-options", "*")
-
-	logger.info(res.header, "|", req.socket.remoteAddress);
 
 	//Check if username is not empty
 	if (!req.params.username) {
