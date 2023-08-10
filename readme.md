@@ -209,6 +209,25 @@ http://localhost:3000/api/v1/media/7
  
 ```
 
+
+### media [GET] (URL)
+Allows to download a file
+
+http://nostrcheck.me/api/v1/media/:username/:filename
+
+
+**Example**
+
+https://nostrcheck.me/media/quentin/nostrcheck.me_02f004aa2b7d1d7e969f7a0523594bffba663e8aeb332ec0.webp
+
+If the mediafile is not found the server return the image defined on config file field:
+
+
+```
+"notFoudFilePath" : "media/file-not-found.webp",
+ 
+```
+
 ### media [GET] (TAGS)
 Allows to get the tags of a file.
 

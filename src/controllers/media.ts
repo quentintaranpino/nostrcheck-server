@@ -433,17 +433,71 @@ const GetMediaStatusbyID = async (req: Request, res: Response) => {
 
 const GetMediabyURL = async (req: Request, res: Response) => {
 
-	const root = path.normalize(path.resolve(config.get("media.mediaPath")));
 
-	logger.info(`${req.method} ${req.url}` + " | " + req.socket.remoteAddress);
+	//Check if username is not empty
+	if (!req.params.username) {
+		logger.warn(`RES Media URL -> 400 Bad request - missing username`, "|", req.socket.remoteAddress);
+		const result: ResultMessage = {
+			result: false,
+			description: "missing username",
+			
+		};
+		return res.status(400).send(result);
+	}
 
-	let fileName = path.normalize(path.resolve("./" + req.url));
+	//Check if username is no longer than 50
+	if (req.params.username.length > 50) {
+		logger.warn(`RES Media URL -> 400 Bad request - username too long`, "|", req.socket.remoteAddress);
+		const result: ResultMessage = {
+			result: false,
+			description: "username too long",
+		};
+		return res.status(400).send(result);
+	}
+
+	//Check if filename is not empty
+	if (!req.params.filename) {
+		logger.warn(`RES Media URL -> 400 Bad request - missing filename`, "|", req.socket.remoteAddress);
+		const result: ResultMessage = {
+			result: false,
+			description: "missing filename",
+
+		};
+		return res.status(400).send(result);
+	}
+
+	//Check if filename is no longer than 128
+	if (req.params.filename.length > 128) {
+		logger.warn(`RES Media URL -> 400 Bad request - filename too long`, "|", req.socket.remoteAddress);
+		const result: ResultMessage = {
+			result: false,
+			description: "filename too long",
+		};
+		return res.status(400).send(result);
+	}
+	
+	const mediaPath = path.normalize(path.resolve(config.get("media.mediaPath")));
+
+	//Check if mediaPath is not empty
+	if (!mediaPath) {
+		logger.warn(`RES Media URL -> 500 Internal Server Error - mediaPath not set`, "|", req.socket.remoteAddress);
+		const result: ResultMessage = {
+			result: false,
+			description: "mediaPath not set",
+		};
+		return res.status(500).send(result);
+	}
+	
+	let fileName = path.normalize(path.resolve(mediaPath + "/" + req.params.username + "/" + req.params.filename));
+
+	logger.info(`RES Media URL -> username: ${req.params.username} | filename: ${fileName}`, "|", req.socket.remoteAddress);
 
 	const isPathUnderRoot = path
 		.normalize(path.resolve(fileName))
-		.startsWith(root);
+		.startsWith(mediaPath);
 
 	if (!isPathUnderRoot) {
+		logger.warn(`RES -> 403 Forbidden - ${req.url}`, "|", req.socket.remoteAddress);
 		const result: ResultMessage = {
 			result: false,
 			description: "File not found",
@@ -459,11 +513,22 @@ const GetMediabyURL = async (req: Request, res: Response) => {
 
 	fs.readFile(fileName, (err, data) => {
 		if (err) {
-			const result: ResultMessage = {
-				result: false,
-				description: "File not found",
-			};
-			return res.status(404).send(result);
+
+			// If file not found, return not found media file
+			logger.warn(`RES -> 404 Not Found - ${req.url}`, "| Returning not found media file.", req.socket.remoteAddress);
+
+			const NotFoundFilePath = path.normalize(path.resolve(config.get("media.notFoudFilePath")));
+
+			res.setHeader('Content-Type', mediaType);
+			fs.readFile(NotFoundFilePath, (err, data) => {
+				if (err) {
+					logger.warn(`RES -> 404 Not Found - ${req.url}`, "| Returning not found media file.", req.socket.remoteAddress);
+					res.status(404).send("File not found");
+				} else {
+					res.end(data);
+				}
+			});
+
 		} else {
 		res.setHeader('Content-Type', mediaType);
 		res.end(data);
@@ -471,7 +536,7 @@ const GetMediabyURL = async (req: Request, res: Response) => {
 
 	});
 
-}
+};
 
 const GetMediaTagsbyID = async (req: Request, res: Response): Promise<Response> => {
 

@@ -16,6 +16,7 @@
     "maxMBfilesize": 100,
     "tempPath": "tmp/",
     "mediaPath": "media/",
+    "notFoudFilePath" : "resources/file-not-found.webp",
     "transform" : {
       "media":{
           "undefined" : {
