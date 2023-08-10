@@ -746,14 +746,34 @@ const DeleteMedia = async (req: Request, res: Response): Promise<any> => {
 		return res.status(400).send(result);
 	}
 
-	//We don't accept v0 apikey for deletion. Only NIP98
+	//We don't allow deletions from server apikey for security reasons
 	if (req.query.apikey || req.body.apikey) {
-		logger.warn("RES -> 400 Bad request - apikey not allowed for deletion", "|", req.socket.remoteAddress);
-		const result: ResultMessage = {
-			result: false,
-			description: "apikey v0 not allowed for deletion",
-		};
-		return res.status(400).send(result);
+
+		try {
+			const conn = await connect();
+			const [rows] = await conn.execute("SELECT hex FROM registered WHERE apikey = ?", [req.query.apikey || req.body.apikey]);
+			let rowstemp = JSON.parse(JSON.stringify(rows));
+			conn.end();
+			if (rowstemp.length !== 0) {
+				let pubkey = rowstemp[0].hex;
+				if (pubkey == config.get("server.pubkey")){
+					//We don't authorize server apikey for deletion
+					logger.warn("RES -> 400 Bad request - apikey not allowed for deletion", "|", req.socket.remoteAddress);
+					const result: ResultMessage = {
+						result: false,
+						description: "apikey not allowed for deletion",
+					};
+					return res.status(400).send(result);
+				}
+			}
+		} catch (error) {
+			logger.error(error);
+			const result = {
+				result: false,
+				description: "Internal server error",
+			};
+			return res.status(500).send(result);
+		}
 	}
 	
 	//Check if event authorization header is valid (NIP98) or if apikey is valid (v0)
