@@ -435,6 +435,7 @@ const GetMediabyURL = async (req: Request, res: Response) => {
 
 	res.set("access-control-allow-origin", "*");
 	res.set("access-control-allow-headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization");
+	res.set("access-control-allow-methods", "GET");
 
 	//Check if username is not empty
 	if (!req.params.username) {
