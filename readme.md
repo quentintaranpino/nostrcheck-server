@@ -166,7 +166,7 @@ http://nostrcheck.me/api/v1/media
 
 This endpoint requires the following fields in the body:
 ```
-uploadype: [media, avatar, banner]
+uploadtype: [media, avatar, banner]
 mediafile: [attached file]
 ```
 if the uploadtype is not specified, the server will always interpret it as " media" (standard upload).
