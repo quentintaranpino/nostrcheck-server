@@ -531,7 +531,8 @@ const GetMediabyURL = async (req: Request, res: Response) => {
 					logger.warn(`RES -> 404 Not Found - ${req.url}`, "| Returning not found media file.", req.socket.remoteAddress);
 					res.status(404).send("File not found");
 				} else {
-					res.end(data);
+				res.setHeader('Content-Type', 'image/webp');
+				res.end(data);
 				}
 			});
 

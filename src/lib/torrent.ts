@@ -35,8 +35,8 @@ const SeedMediafilesMagnets = async () => {
   //Loop through results and seed each magnet link  
   result.forEach((element: RowDataPacket) => {
     const MediaPath = config.get("media.mediaPath") + element.username + "/" + element.filename;
-
     try{
+        fs.accessSync(MediaPath, fs.constants.R_OK); //check if file exists and is readable
         client.seed(MediaPath);
       }catch (error) {
         logger.error("error seeding magnet for file", MediaPath);
