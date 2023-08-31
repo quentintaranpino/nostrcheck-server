@@ -100,6 +100,20 @@ interface asyncTask {
 	fileoptions: ConvertFilesOpions;
 }
 
+interface RegisteredUsernameResult {
+	username: string;
+	hex: string;
+}
+
+interface LightningUsernameResult {
+	lightningserver: string;
+	lightninguser: string;
+}
+
+interface AvailableDomainsResult {
+	domains: string;
+}
+
 export {
 	allowedMimeTypes,
 	asyncTask,
@@ -118,17 +132,7 @@ export {
 	VerifyResultMessage,
 	RegisteredUsernameResult,
 	LightningUsernameResult,
+	AvailableDomainsResult,
 
 };
-
-interface RegisteredUsernameResult {
-	username: string;
-	hex: string;
-}
-
-interface LightningUsernameResult {
-	lightningserver: string;
-	lightninguser: string;
-}
-
 

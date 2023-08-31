@@ -4,18 +4,22 @@ import { connect } from "../lib/database.js";
 import { logger } from "../lib/logger.js";
 import { ParseAuthEvent } from "../lib/nostr/NIP98.js";
 import { IsAuthorizedPubkey } from "../lib/authorization.js";
+import { AvailableDomainsResult, ResultMessage } from "../types.js";
+import { redisClient } from "../lib/redis.js";
 
-const QueryAvailiableDomains = async (): Promise<JSON[]> => {
+const QueryAvailiableDomains = async (): Promise<AvailableDomainsResult> => {
 	//Query database for available domains
 	try {
 		const conn = await connect();
-		const rows = await conn.execute("SELECT domain from domains");
-		if (rows[0] !== undefined) {
-			conn.end();
-
-			return JSON.parse(JSON.stringify(rows[0]));
-		}
+		const rows = await conn.execute("SELECT * from domains");
+		const rowstemp = JSON.parse(JSON.stringify(rows));
 		conn.end();
+		if (rowstemp !== undefined) {
+			const result:AvailableDomainsResult = {
+				domains:rowstemp[0],
+			};
+			return result;
+		}
 
 		return JSON.parse(JSON.stringify({ "available domains": "No domains available" }));
 	} catch (error) {
@@ -87,11 +91,11 @@ const AvailableDomains = async (req: Request, res: Response): Promise<Response> 
 	}
 
 	try {
-		const AvailableDomains = await QueryAvailiableDomains();
-		if (AvailableDomains[0] !== undefined) {
+		const AvailableDomains: AvailableDomainsResult = await QueryAvailiableDomains();
+		if (AvailableDomains !== undefined) {
 			logger.info("RES -> Domain list ", "|", req.socket.remoteAddress);
 
-			return res.status(200).send({ domains: AvailableDomains });
+			return res.status(200).send({AvailableDomains });
 		}
 		logger.warn("RES -> Domain list ", "|", req.socket.remoteAddress);
 
@@ -159,4 +163,111 @@ const AvailableUsers = async (req: Request, res: Response): Promise<Response> =>
 	}
 };
 
-export { AvailableDomains, QueryAvailiableDomains, AvailableUsers };
+const UpdateUserDomain = async (req: Request, res: Response): Promise<any> => {
+
+	const servername = req.hostname;
+	const domain = req.params.domain;
+
+	//Check if event authorization header is valid (NIP98) or if apikey is valid (v0)
+	const EventHeader = await ParseAuthEvent(req);
+	if (!EventHeader.result) {return res.status(401).send({"result": EventHeader.result, "description" : EventHeader.description});}
+
+	//If domain is null return 400
+	if (!domain || domain.trim() == "") {
+
+		logger.info("REQ Update user domain ->", servername, " | pubkey:",  EventHeader.pubkey, " | domain:",  "domain not specified  |", req.socket.remoteAddress);
+		logger.warn(
+			"RES Update user domain -> 400 Bad request - domain parameter not specified",
+			"|",
+			req.socket.remoteAddress
+		);
+
+		const result: ResultMessage = {
+			result: false,
+			description: "Bad request - You have to specify the 'domain' parameter",
+		};
+
+		return res.status(400).send(result);
+	}
+
+	//If domain is too long (>50) return 400
+	if (domain.length > 50) {
+
+		logger.info("REQ Update user domain ->", servername, " | pubkey:",  EventHeader.pubkey, " | domain:",  domain.substring(0,50) + "...", "|", req.socket.remoteAddress);
+		logger.warn("RES Update user domain -> 400 Bad request - domain too long", "|", req.socket.remoteAddress);
+
+		const result: ResultMessage = {
+			result: false,
+			description: "Bad request - Domain is too long",
+		};
+
+		return res.status(400).send(result);
+	}
+
+	//Query if domain exist
+	let CurrentDomains : AvailableDomainsResult = await QueryAvailiableDomains();
+
+	logger.debug("Current domains: ", CurrentDomains);
+
+	try {
+		const conn = await connect();
+		const [rows] = await conn.execute(
+			"UPDATE registered SET domain = ? WHERE hex = ?",
+			[domain, EventHeader.pubkey]
+		);
+		let rowstemp = JSON.parse(JSON.stringify(rows));
+		conn.end();
+		if (rowstemp.affectedRows == 0) {
+			
+			logger.warn("RES Update user domain -> 404  not found, can't update user domain", "|", req.socket.remoteAddress);
+
+			const result: ResultMessage = {
+				result: false,
+				description: "Can't update user domain, contact administrator",
+			};
+
+			return res.status(404).send(result);
+		}
+
+	}
+	catch (error) {
+		logger.error(error);
+
+		const result: ResultMessage = {
+			result: false,
+			description: "Internal server error",
+		};
+
+		return res.status(500).send(result);
+	}
+
+	//select domain from database
+	const conn = await connect();
+	const [rows] = await conn.execute(
+		"SELECT username, domain FROM registered WHERE hex = ?",
+		[EventHeader.pubkey]
+	);
+	let rowstemp = JSON.parse(JSON.stringify(rows));
+	conn.end();
+	if (rowstemp[0] != undefined) {
+
+		//Delete redis cache
+		const deletecache = await redisClient.del(rowstemp[0].username + "-" + rowstemp[0].domain);
+		if (deletecache != 0) {
+			logger.info("Update user domain ->", EventHeader.pubkey, "|", "Redis cache cleared");
+		}
+	}
+
+	logger.info("RES Update user domain ->", servername, " | pubkey:",  EventHeader.pubkey, " | domain:",  domain, "|", "User domain updated", "|", req.socket.remoteAddress);
+
+	const result: ResultMessage = {
+		result: true,
+		description: `User domain for pubkey ${EventHeader.pubkey} updated`,
+	};
+
+	return res.status(200).send(result);
+
+};
+
+
+export { AvailableDomains, QueryAvailiableDomains, AvailableUsers, UpdateUserDomain };
