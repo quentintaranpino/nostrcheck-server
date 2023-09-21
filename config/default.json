@@ -13,6 +13,7 @@
     "droptables": false
   },
   "media" : {
+    "tosURL" : "https://your.server/tos",
     "maxMBfilesize": 100,
     "tempPath": "tmp/",
     "mediaPath": "media/",
