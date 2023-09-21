@@ -15,3 +15,4 @@ tmp/*
 nostrcheck-api.log
 config/local.json
 
+src/lib/nostr/nip96.json
