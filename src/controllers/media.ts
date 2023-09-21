@@ -60,14 +60,20 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 	let description = "";
 
 	//Check if the upload type exists
-	let uploadtype = req.body.uploadtype;
+	let uploadtype = req.body.media_type;
 
 	//v0 compatibility, check if type is present on request body (v0 uses type instead of uploadtype)
 	if (req.body.type != undefined && req.body.type != "") {
 		logger.warn("Detected 'type' field (deprecated) on request body, setting 'uploadtype' with 'type' data ", "|", req.socket.remoteAddress);
 		description = "WARNING: Detected 'type' field (deprecated), setting 'uploadtype' ";
 		uploadtype = req.body.type;
-		req.body.uploadtype = req.body.type;
+		req.body.media_type = req.body.type;
+	}
+
+	//v1 compatibility, check if uploadtype is present on request body (v1 uses uploadtype instead of media_type)
+	if (req.body.uploadtype != undefined && req.body.uploadtype != "") {
+		uploadtype = req.body.uploadtype;
+		req.body.media_type = req.body.uploadtype;
 	}
 
 	if (!uploadtype) {
