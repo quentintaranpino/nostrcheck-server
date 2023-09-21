@@ -15,11 +15,7 @@ const upload = multer({
 export const LoadMediaEndpoint = async (app: Application): Promise<void> => {
 	
 	//Upload media
-	app.post("/api/v1/media",  upload.fields([{
-										name: 'mediafile', maxCount: 1
-									}, {
-										name: 'publicgallery', maxCount: 1
-									}]), Uploadmedia);
+	app.post("/api/v1/media",  upload.any(), Uploadmedia);
 
 	//Delete media
 	app.delete("/api/v1/media/:fileId", DeleteMedia);
