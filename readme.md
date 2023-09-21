@@ -338,6 +338,43 @@ Response from server:
 
 ```
 
+### nip96 [GET]
+Returns NIP96 server configuration
+
+http://nostrcheck.me/api/v1/nip96
+
+**Example**
+
+[https://nostrcheck.me/api/v1/nip96](https://nostrcheck.me/api/v1/nip96)
+
+```
+{
+api_url: "https://nostrcheck.me/api/v1/media",
+download_url: "https://nostrcheck.me/media",
+supported_nips: [
+"NIP-94",
+"NIP-98",
+"NIP-96"
+],
+tos_url: "https://nostrcheck.me/register/tos.php",
+content_types: [
+"image/png",
+"image/jpg",
+"image/jpeg",
+"image/gif",
+"image/webp",
+"video/mp4",
+"video/quicktime",
+"video/mpeg",
+"video/webm",
+"audio/mpeg",
+"audio/mpg",
+"audio/mpeg3",
+"audio/mp3"
+]
+}
+```
+
 ### register [POST]
 Allows to register a new username to the database
 
@@ -426,7 +463,7 @@ The server runs on:
 
 http://localhost:3000/api/v1/
 
-A redirection via reverse proxy with a server such as apache or nginx must be performed. 
+Several redirections via reverse proxy with a server such as apache or nginx must be performed. 
 
 Example for nostr.json requests with nginx server:
 
@@ -440,6 +477,23 @@ proxy_pass http://127.0.0.1:3000/api/v1/nostraddress;
 proxy_http_version 1.1;
 proxy_set_header Upgrade $http_upgrade;
 proxy_set_header Connection "upgrade";
+}
+
+```
+
+Example for nip96.json requests with nginx server:
+
+```
+#API redirect for nip96.json requests
+location /.well-known/nip96.json {
+
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header Host $host;
+    proxy_pass http://127.0.0.1:3000/api/v1/nip96;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "upgrade";
+
 }
 
 ```
