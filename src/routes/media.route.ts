@@ -17,7 +17,7 @@ export const LoadMediaEndpoint = async (app: Application): Promise<void> => {
 	app.get("/api/v1/nip96", GetNIP96file);
 	
 	//Upload media
-	app.post("/api/v1/media",  upload.any(), Uploadmedia);
+	app.post("/api/v1/media", upload.any(), Uploadmedia);
 
 	//Delete media
 	app.delete("/api/v1/media/:fileId", DeleteMedia);

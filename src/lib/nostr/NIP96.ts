@@ -16,8 +16,17 @@ const GetNIP96file = async (req: Request, res: Response): Promise<Response> => {
         "download_url": "https://" + servername + "/media",
         "supported_nips": ["NIP-94", "NIP-98","NIP-96"],
         "tos_url": config.get("media.tosURL"),
-        "content_types": allowedMimeTypes
-
+        "content_types": allowedMimeTypes,
+        "plans": {
+            "free": {
+              "name": "Free Tier",
+              "is_nip98_required": false,
+              "url": "",
+              "max_byte_size": Number(config.get("media.maxMBfilesize"))*1024*1024,
+              "file_expiration": [0, 0],
+              "image_transformations": ["resizing"]
+            }
+        }
     };
 
 	return res.status(200).send(JSON.stringify(nip96file));
