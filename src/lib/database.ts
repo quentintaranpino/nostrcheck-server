@@ -315,4 +315,24 @@ async function dbFileMagnetUpdate(MediaPath: string, options: ConvertFilesOpions
 	return true
 }
 
-export { connect, populateTables, dbFileStatusUpdate, dbFileVisibilityUpdate, dbFileHashupdate, dbFileMagnetUpdate};
+async function dbSelectUsername(pubkey: string): Promise<string> {
+
+	const dbPubkey = await connect();
+	const [dbResult] = await dbPubkey.query("SELECT username FROM registered WHERE hex = ?", [pubkey]);
+	const rowstemp = JSON.parse(JSON.stringify(dbResult));
+
+	if (rowstemp[0] == undefined) {
+		return "";	
+	}else{
+		console.log("TEST", rowstemp[0]['username']);
+		return rowstemp[0]['username'];
+	}
+}
+
+export { connect, 
+		 populateTables,
+		 dbFileStatusUpdate, 
+		 dbFileVisibilityUpdate, 
+		 dbFileHashupdate, 
+		 dbFileMagnetUpdate, 
+		 dbSelectUsername};

@@ -2,7 +2,7 @@ import crypto from "crypto";
 import { Request, Response } from "express";
 
 import app from "../app.js";
-import { connect } from "../lib/database.js";
+import { connect, dbSelectUsername } from "../lib/database.js";
 import { logger } from "../lib/logger.js";
 import { ParseAuthEvent } from "../lib/nostr/NIP98.js";
 import { requestQueue } from "../lib/transform.js";
@@ -30,31 +30,18 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 	const EventHeader = await ParseAuthEvent(req);
 	if (!EventHeader.result) {return res.status(401).send({"result": EventHeader.result, "description" : EventHeader.description});}
 
-	let username : string;
-	let pubkey : string;
+	let pubkey : string = EventHeader.pubkey;
+	let username : string = await dbSelectUsername(pubkey);
 
-	//Check if pubkey is registered
-	pubkey = EventHeader.pubkey;
-	const dbPubkey = await connect();
-	const [dbResult] = await dbPubkey.query("SELECT hex, username FROM registered WHERE hex = ?", [pubkey]);
-	const rowstemp = JSON.parse(JSON.stringify(dbResult));
-
-	if (rowstemp[0] == undefined) {
-		//If not registered the upload will be public and a warning will be logged
-		logger.warn("pubkey not registered, switching to public upload | ", req.socket.remoteAddress);
+	//If username is not on the db the upload will be public and a warning will be logged.
+	if (username === "") {
 		username = "public";
 		pubkey = app.get("pubkey");
-
-		logger.info("assuming public pubkey =", pubkey, "|", req.socket.remoteAddress);
-		logger.info("assuming public username =", username, "|", req.socket.remoteAddress);
-
-	}else{
-		username = rowstemp[0]['username'];
-		logger.info("username ->", username, "|", req.socket.remoteAddress);
-		logger.info("pubkey ->", pubkey, "|", req.socket.remoteAddress);
+		logger.warn("pubkey not registered, switching to public upload | ", req.socket.remoteAddress);
 	}
 
-	dbPubkey.end();
+	logger.info("username ->", username, "|", req.socket.remoteAddress);
+	logger.info("pubkey ->", pubkey, "|", req.socket.remoteAddress);
 
 	//Description for accepted media response
 	let description = "";
@@ -166,7 +153,7 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 		uploadtype,
 		originalmime: file.mimetype,
 		outputmime: mime_transform[file.mimetype],
-		outputname: req.hostname + "_" + crypto.randomBytes(24).toString("hex"),
+		outputname: filehash,
 		outputoptions: "",
 	};
 
