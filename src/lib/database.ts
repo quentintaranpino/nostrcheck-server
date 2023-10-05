@@ -163,6 +163,18 @@ async function populateTables(resetTables: boolean): Promise<boolean> {
 		}
 		const result = JSON.parse(JSON.stringify(dbmediafilesTable));
 		logger.info("Media files:", result.length);
+
+		//Show table mediafiles magnet rows
+		const [dbmediamagnetfilesTable] = await conn.execute(
+			"SELECT DISTINCT filename, username FROM mediafiles inner join registered on mediafiles.pubkey = registered.hex where magnet is not null");
+		if (!dbmediamagnetfilesTable) {
+			logger.error("Error getting magnet links table rows");
+			conn.end();
+			return false;
+		}
+		const resultmagnet = JSON.parse(JSON.stringify(dbmediamagnetfilesTable));
+		logger.info("Magnet links:", resultmagnet.length);
+
 	}
 
 
@@ -324,7 +336,6 @@ async function dbSelectUsername(pubkey: string): Promise<string> {
 	if (rowstemp[0] == undefined) {
 		return "";	
 	}else{
-		console.log("TEST", rowstemp[0]['username']);
 		return rowstemp[0]['username'];
 	}
 }

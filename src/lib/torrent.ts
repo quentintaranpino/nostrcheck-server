@@ -30,8 +30,6 @@ const SeedMediafilesMagnets = async () => {
     return "";
     }
 
-    logger.info('Seeding', result.length, 'magnets from database')
-
   //Loop through results and seed each magnet link  
   result.forEach((element: RowDataPacket) => {
     const MediaPath = config.get("media.mediaPath") + element.username + "/" + element.filename;

@@ -1,7 +1,6 @@
 /* eslint-disable no-console */
 import app from "./app.js";
 import { logger } from "./lib/logger.js";
-import { SeedMediafilesMagnets } from "./lib/torrent.js";
 import { prepareAppFolders, prepareAPPConfig } from "./lib/config.js";
 
 // Start Express server.
@@ -35,8 +34,6 @@ const server = app.listen(app.get("port"), () => {
 	prepareAppFolders();
 	prepareAPPConfig();
 
-	//Start seeding magnets
-	SeedMediafilesMagnets();
 });
 
 export default server;
