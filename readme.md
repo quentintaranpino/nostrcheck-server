@@ -507,7 +507,7 @@ The server must have mariadb and redis for database and cache.
 npm install
 
 #edit config file with your data.
-sudo nano config/default.json
+sudo nano config/local.json
 
 # run in dev mode
 npm run dev
@@ -517,6 +517,26 @@ npm run build
 
 # run the server
 npm run start
+
+```
+
+## Loglevel
+
+You can define your preferred log level in the configuration file. Default loglevel is set to 4 (Warning messages)
+
+```
+
+#edit config file with your data.
+sudo nano config/local.json
+
+#set "minLevel" to your preferred level:
+#0: silly
+#1: trace
+#2: debug
+#3: info
+#4: warn
+#5: error
+#6: fatal
 
 ```
 
