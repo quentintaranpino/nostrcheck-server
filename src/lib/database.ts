@@ -80,17 +80,6 @@ async function populateTables(resetTables: boolean): Promise<boolean> {
 
 		logger.info("Creating table registered");
 		await conn.query(RegisteredTableCreateStatement);
-	}else{
-		//Show table registered rows
-		const [dbRegisteredTable] = await conn.execute(
-			"SELECT * FROM registered");
-		if (!dbRegisteredTable) {
-			logger.error("Error getting registered table rows");
-			conn.end();
-			return false;
-		}
-		const result = JSON.parse(JSON.stringify(dbRegisteredTable));
-		logger.info("Registered users:", result.length);
 	}
 	
 	//Create domains table
@@ -118,17 +107,6 @@ async function populateTables(resetTables: boolean): Promise<boolean> {
 		if (!InsertDomainsTableStatement) {
 			logger.fatal("Error inserting default domains to database");
 		}
-	}else{
-		//Show table domains rows
-		const [dbDomainsTable] = await conn.execute(
-			"SELECT * FROM domains");
-		if (!dbDomainsTable) {
-			logger.error("Error getting domains table rows");
-			conn.end();
-			return false;
-		}
-		const result = JSON.parse(JSON.stringify(dbDomainsTable));
-		logger.info("Configured domains:", result.length);
 	}
 
 	//Create mediafiles table
@@ -152,20 +130,7 @@ async function populateTables(resetTables: boolean): Promise<boolean> {
 			") ENGINE=InnoDB DEFAULT CHARSET=latin1;";
 		logger.info("Creating table mediafiles");
 		await conn.query(mediafilesTableCreateStatement);
-	}else{
-		//Show table mediafiles rows
-		const [dbmediafilesTable] = await conn.execute(
-			"SELECT * FROM mediafiles");
-		if (!dbmediafilesTable) {
-			logger.error("Error getting mediafiles table rows");
-			conn.end();
-			return false;
-		}
-		const result = JSON.parse(JSON.stringify(dbmediafilesTable));
-		logger.info("Media files:", result.length);
 	}
-
-
 
 	//Create mediatags table
 	const ExistmediatagsTableStatement = "SHOW TABLES FROM `nostrcheck` LIKE 'mediatags';";
@@ -180,17 +145,6 @@ async function populateTables(resetTables: boolean): Promise<boolean> {
 			") ENGINE=InnoDB DEFAULT CHARSET=latin1;";
 		logger.info("Creating table mediatags");
 		await conn.query(mediatagsTableCreateStatement);
-	}else{
-		//Show table mediatags rows
-		const [dbmediatagsTable] = await conn.execute(
-			"SELECT * FROM mediatags");
-		if (!dbmediatagsTable) {
-			logger.error("Error getting mediatags table rows");
-			conn.end();
-			return false;
-		}
-		const result = JSON.parse(JSON.stringify(dbmediatagsTable));
-		logger.info("Media tags:", result.length);
 	}
 
 	//Create lightning address table
@@ -208,17 +162,6 @@ async function populateTables(resetTables: boolean): Promise<boolean> {
 
 		logger.info("Creating table lightning");
 		await conn.query(LightningTableCreateStatement);
-	}else{
-		//Show table lightning rows
-		const [dbLightningTable] = await conn.execute(
-			"SELECT * FROM lightning");
-		if (!dbLightningTable) {
-			logger.error("Error getting lightning table rows");
-			conn.end();
-			return false;
-		}
-		const result = JSON.parse(JSON.stringify(dbLightningTable));
-		logger.info("Lightning redirections:", result.length);
 	}
 	
 	conn.end();
@@ -315,4 +258,94 @@ async function dbFileMagnetUpdate(MediaPath: string, options: ConvertFilesOpions
 	return true
 }
 
-export { connect, populateTables, dbFileStatusUpdate, dbFileVisibilityUpdate, dbFileHashupdate, dbFileMagnetUpdate};
+async function dbSelectUsername(pubkey: string): Promise<string> {
+
+	const dbPubkey = await connect();
+	const [dbResult] = await dbPubkey.query("SELECT username FROM registered WHERE hex = ?", [pubkey]);
+	const rowstemp = JSON.parse(JSON.stringify(dbResult));
+
+	if (rowstemp[0] == undefined) {
+		return "";	
+	}else{
+		return rowstemp[0]['username'];
+	}
+}
+
+async function showDBStats(){
+
+	const conn = await connect();
+	const result = [];
+
+	//Show table registered rows
+	const [dbRegisteredTable] = await conn.execute(
+		"SELECT * FROM registered");
+	if (!dbRegisteredTable) {
+		logger.error("Error getting registered table rows");
+	}
+	let dbresult = JSON.parse(JSON.stringify(dbRegisteredTable));
+	result.push(`Registered users: ${dbresult.length}`);
+	dbresult = "";
+
+	//Show table domains rows
+	const [dbDomainsTable] = await conn.execute(
+		"SELECT * FROM domains");
+	if (!dbDomainsTable) {
+		logger.error("Error getting domains table rows");
+	}
+	dbresult = JSON.parse(JSON.stringify(dbDomainsTable));
+	result.push(`Configured domains: ${dbresult.length}`);
+	dbresult = "";
+
+	//Show table mediafiles rows
+	const [dbmediafilesTable] = await conn.execute(
+		"SELECT * FROM mediafiles");
+	if (!dbmediafilesTable) {
+		logger.error("Error getting mediafiles table rows");
+	}
+	dbresult = JSON.parse(JSON.stringify(dbmediafilesTable));
+	result.push(`Uploaded files: ${dbresult.length}`);
+	dbresult = "";
+
+	//Show table mediafiles magnet rows
+	const [dbmediamagnetfilesTable] = await conn.execute(
+		"SELECT DISTINCT filename, username FROM mediafiles inner join registered on mediafiles.pubkey = registered.hex where magnet is not null");
+	if (!dbmediamagnetfilesTable) {
+		logger.error("Error getting magnet links table rows");
+	}
+	dbresult = JSON.parse(JSON.stringify(dbmediamagnetfilesTable));
+	result.push(`Magnet links: ${dbresult.length}`);
+	dbresult = "";
+
+	//Show table mediatags rows
+	const [dbmediatagsTable] = await conn.execute(
+		"SELECT * FROM mediatags");
+	if (!dbmediatagsTable) {
+		logger.error("Error getting mediatags table rows");
+	}
+	dbresult =  JSON.parse(JSON.stringify(dbmediatagsTable));
+	result.push(`Media tags: ${dbresult.length}`);
+	dbresult = "";
+
+	//Show table lightning rows
+	const [dbLightningTable] = await conn.execute(
+		"SELECT * FROM lightning");
+	if (!dbLightningTable) {
+		logger.error("Error getting lightning table rows");
+	}
+	dbresult = JSON.parse(JSON.stringify(dbLightningTable));
+	result.push(`Lightning redirections: ${dbresult.length}`);
+	
+	conn.end();
+
+	console.log(
+		result.join('\r\n'),'\n');
+}
+
+export { connect, 
+		 populateTables,
+		 dbFileStatusUpdate, 
+		 dbFileVisibilityUpdate, 
+		 dbFileHashupdate, 
+		 dbFileMagnetUpdate, 
+		 dbSelectUsername,
+		 showDBStats};

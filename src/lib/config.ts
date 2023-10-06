@@ -6,7 +6,6 @@ import { exit } from "process";
 function prepareAppFolders(){
 
 	let TempPath : string = config.get("media.tempPath");
-	logger.info("Cleaning temp dir:", TempPath);
 
 	//If not exist create temp folder
 	if (!fs.existsSync(TempPath)){
@@ -19,6 +18,7 @@ function prepareAppFolders(){
             exit(1);
 		}
 
+		//Delete all files in temp folder
 		for (const file of files) {
 			fs.unlink(TempPath + file, (err) => {
 				if (err) {

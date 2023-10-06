@@ -11,6 +11,7 @@ const stream = createStream(config.get('logger.filename') + ".log", {
 
 // Create a logger instance
 const logger = new Logger({
+	minLevel: config.get('logger.minLevel'),
 	prettyLogTemplate: "{{yyyy}}.{{mm}}.{{dd}} {{hh}}:{{MM}}:{{ss}}:{{ms}}\t{{logLevelName}} - ",
 	prettyErrorTemplate: "\n{{errorName}} {{errorMessage}}\nerror stack:\n{{errorStack}}",
 	prettyErrorStackTemplate: "  • {{fileName}}\t{{method}}\n\t{{filePathWithLine}}",

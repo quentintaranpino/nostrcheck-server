@@ -338,6 +338,43 @@ Response from server:
 
 ```
 
+### nip96 [GET]
+Returns NIP96 server configuration
+
+http://nostrcheck.me/api/v1/nip96
+
+**Example**
+
+[https://nostrcheck.me/api/v1/nip96](https://nostrcheck.me/api/v1/nip96)
+
+```
+{
+api_url: "https://nostrcheck.me/api/v1/media",
+download_url: "https://nostrcheck.me/media",
+supported_nips: [
+"NIP-94",
+"NIP-98",
+"NIP-96"
+],
+tos_url: "https://nostrcheck.me/register/tos.php",
+content_types: [
+"image/png",
+"image/jpg",
+"image/jpeg",
+"image/gif",
+"image/webp",
+"video/mp4",
+"video/quicktime",
+"video/mpeg",
+"video/webm",
+"audio/mpeg",
+"audio/mpg",
+"audio/mpeg3",
+"audio/mp3"
+]
+}
+```
+
 ### register [POST]
 Allows to register a new username to the database
 
@@ -426,7 +463,7 @@ The server runs on:
 
 http://localhost:3000/api/v1/
 
-A redirection via reverse proxy with a server such as apache or nginx must be performed. 
+Several redirections via reverse proxy with a server such as apache or nginx must be performed. 
 
 Example for nostr.json requests with nginx server:
 
@@ -444,6 +481,23 @@ proxy_set_header Connection "upgrade";
 
 ```
 
+Example for nip96.json requests with nginx server:
+
+```
+#API redirect for nip96.json requests
+location /.well-known/nip96.json {
+
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header Host $host;
+    proxy_pass http://127.0.0.1:3000/api/v1/nip96;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "upgrade";
+
+}
+
+```
+
 The server must have mariadb and redis for database and cache.
 
 ## Running, developing and building the app
@@ -453,7 +507,7 @@ The server must have mariadb and redis for database and cache.
 npm install
 
 #edit config file with your data.
-sudo nano config/default.json
+sudo nano config/local.json
 
 # run in dev mode
 npm run dev
@@ -463,6 +517,26 @@ npm run build
 
 # run the server
 npm run start
+
+```
+
+## Loglevel
+
+You can define your preferred log level in the configuration file. Default loglevel is set to 4 (Warning messages)
+
+```
+
+#edit config file with your data.
+sudo nano config/local.json
+
+#set "minLevel" to your preferred level:
+#0: silly
+#1: trace
+#2: debug
+#3: info
+#4: warn
+#5: error
+#6: fatal
 
 ```
 
@@ -496,7 +570,15 @@ sudo nano config/default.json
 
 ## License
 
-MIT
+MIT License (MIT)
+
+```
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the “Software”), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 ```
 
 

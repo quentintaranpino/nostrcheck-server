@@ -13,6 +13,7 @@
     "droptables": false
   },
   "media" : {
+    "tosURL" : "https://your.server/tos",
     "maxMBfilesize": 100,
     "tempPath": "tmp/",
     "mediaPath": "media/",
@@ -47,6 +48,7 @@
     "dhtPort": 6882
   },
   "logger" :  {
+    "minLevel": "5", 
     "filename": "nostrcheck-api",
     "size": "50M", 
     "interval": "60d",

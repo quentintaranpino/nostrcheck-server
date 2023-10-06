@@ -2,7 +2,7 @@ import crypto from "crypto";
 import { Request, Response } from "express";
 
 import app from "../app.js";
-import { connect } from "../lib/database.js";
+import { connect, dbSelectUsername } from "../lib/database.js";
 import { logger } from "../lib/logger.js";
 import { ParseAuthEvent } from "../lib/nostr/NIP98.js";
 import { requestQueue } from "../lib/transform.js";
@@ -11,7 +11,6 @@ import {
 	asyncTask,
 	ConvertFilesOpions,
 	MediaExtraDataResultMessage,
-	MediaResultMessage,
 	mediaTypes,
 	MediaVisibilityResultMessage,
 	mime_transform,
@@ -20,7 +19,7 @@ import {
 	UploadTypes
 } from "../types.js";
 import fs from "fs";
-import config, { has }  from "config";
+import config from "config";
 import {fileTypeFromBuffer} from 'file-type';
 import path from "path";
 
@@ -31,44 +30,37 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 	const EventHeader = await ParseAuthEvent(req);
 	if (!EventHeader.result) {return res.status(401).send({"result": EventHeader.result, "description" : EventHeader.description});}
 
-	let username : string;
-	let pubkey : string;
+	let pubkey : string = EventHeader.pubkey;
+	let username : string = await dbSelectUsername(pubkey);
 
-	//Check if pubkey is registered
-	pubkey = EventHeader.pubkey;
-	const dbPubkey = await connect();
-	const [dbResult] = await dbPubkey.query("SELECT hex, username FROM registered WHERE hex = ?", [pubkey]);
-	const rowstemp = JSON.parse(JSON.stringify(dbResult));
-
-	if (rowstemp[0] == undefined) {
-		//If not registered the upload will be public and a warning will be logged
-		logger.warn("pubkey not registered, switching to public upload | ", req.socket.remoteAddress);
+	//If username is not on the db the upload will be public and a warning will be logged.
+	if (username === "") {
 		username = "public";
 		pubkey = app.get("pubkey");
-
-		logger.info("assuming public pubkey =", pubkey, "|", req.socket.remoteAddress);
-		logger.info("assuming public username =", username, "|", req.socket.remoteAddress);
-
-	}else{
-		username = rowstemp[0]['username'];
-		logger.info("username ->", username, "|", req.socket.remoteAddress);
-		logger.info("pubkey ->", pubkey, "|", req.socket.remoteAddress);
+		logger.warn("pubkey not registered, switching to public upload | ", req.socket.remoteAddress);
 	}
 
-	dbPubkey.end();
+	logger.info("username ->", username, "|", req.socket.remoteAddress);
+	logger.info("pubkey ->", pubkey, "|", req.socket.remoteAddress);
 
 	//Description for accepted media response
 	let description = "";
 
 	//Check if the upload type exists
-	let uploadtype = req.body.uploadtype;
+	let uploadtype = req.body.media_type;
 
 	//v0 compatibility, check if type is present on request body (v0 uses type instead of uploadtype)
 	if (req.body.type != undefined && req.body.type != "") {
 		logger.warn("Detected 'type' field (deprecated) on request body, setting 'uploadtype' with 'type' data ", "|", req.socket.remoteAddress);
 		description = "WARNING: Detected 'type' field (deprecated), setting 'uploadtype' ";
 		uploadtype = req.body.type;
-		req.body.uploadtype = req.body.type;
+		req.body.media_type = req.body.type;
+	}
+
+	//v1 compatibility, check if uploadtype is present on request body (v1 uses uploadtype instead of media_type)
+	if (req.body.uploadtype != undefined && req.body.uploadtype != "") {
+		uploadtype = req.body.uploadtype;
+		req.body.media_type = req.body.uploadtype;
 	}
 
 	if (!uploadtype) {
@@ -99,29 +91,9 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 	}
 
 	//Check if file exist on POST message
-	const files = req.files as {[fieldname: string]: Express.Multer.File[]};
-	let file: Express.Multer.File;
-	if (files.mediafile == undefined) {
-		if (files.publicgallery == undefined) {
-			logger.warn(`RES -> 400 Bad request - missing mediafile or publicgallery field`, "|", req.socket.remoteAddress);
-			const result: ResultMessage = {
-				result: false,
-				description: "missing mediafile",
-			};
-
-			return res.status(400).send(result);
-		}
-
-		//v0 API deprecated field
-		logger.warn("Detected 'publicgallery' field (deprecated) on request body, setting 'mediafile' with 'publicgallery' data ", "|", req.socket.remoteAddress);
-		file = files['publicgallery'][0];
-		req.file = file;
-
-
-	}else{
-		file = files['mediafile'][0];
-		req.file = file;
-	}
+	const files : any | Express.Multer.File[] = req.files;
+	let file: Express.Multer.File = req.file? req.file : files[0];
+	req.file = file;
 
 	if (!file) {
 		logger.warn(`RES -> 400 Bad request - Empty file`, "|", req.socket.remoteAddress);
@@ -181,7 +153,7 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 		uploadtype,
 		originalmime: file.mimetype,
 		outputmime: mime_transform[file.mimetype],
-		outputname: req.hostname + "_" + crypto.randomBytes(24).toString("hex"),
+		outputname: filehash,
 		outputoptions: "",
 	};
 

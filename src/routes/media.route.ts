@@ -2,9 +2,10 @@ import { Application } from "express";
 import multer from "multer";
 import config from "config";
 
-
 import { GetMediaStatusbyID, GetMediabyURL, Uploadmedia, DeleteMedia, UpdateMediaVisibility, GetMediaTagsbyID, GetMediabyTags } from "../controllers/media.js";
-
+import { GetNIP96file } from "../lib/nostr/NIP96.js";
+import { ResultMessage } from "../types.js";
+import { logger } from "../lib/logger.js";
 const maxMBfilesize :number = config.get('media.maxMBfilesize');
 
 const upload = multer({
@@ -13,13 +14,25 @@ const upload = multer({
 });
 
 export const LoadMediaEndpoint = async (app: Application): Promise<void> => {
+
+	//NIP96 json file
+	app.get("/api/v1/nip96", GetNIP96file);
 	
 	//Upload media
-	app.post("/api/v1/media",  upload.fields([{
-										name: 'mediafile', maxCount: 1
-									}, {
-										name: 'publicgallery', maxCount: 1
-									}]), Uploadmedia);
+	app.post("/api/v1/media", function (req, res){
+		upload.any()(req, res, function (err) {
+			//Return 413 Payload Too Large if file size is larger than maxMBfilesize from config file
+			if (err instanceof multer.MulterError && err.code === "LIMIT_FILE_SIZE") {
+				logger.warn("Upload attempt failed: File too large", "|", req.socket.remoteAddress);
+				const result: ResultMessage = {
+					result: false,
+					description: "File too large, max filesize allowed is " + maxMBfilesize + "MB",
+				};
+				return res.status(413).send(result);
+			}
+			Uploadmedia(req, res);
+		  })
+	});
 
 	//Delete media
 	app.delete("/api/v1/media/:fileId", DeleteMedia);
