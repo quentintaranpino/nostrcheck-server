@@ -13,12 +13,8 @@ const upload = multer({
 });
 
 export const LoadMediaEndpoint = async (app: Application, version:string): Promise<void> => {
-
 	
 	if (version == "v1"){
-
-		//NIP96 json file
-		app.get("/api/v1/nip96", GetNIP96file);
 		
 		//Upload media
 		app.post("/api/v1/media", function (req, res){

@@ -1,21 +1,16 @@
-import { Request, Response } from "express";
 import config from "config";
-import { logger } from "../../lib/logger.js";
-
 import {allowedMimeTypes} from "../../interfaces/media.js";
+import {NIP96file} from "../../interfaces/nostr.js";
 
-const GetNIP96file = async (req: Request, res: Response): Promise<Response> => {
 
-    const servername = req.hostname;
-
-    logger.info("REQ nip96.json ->", servername, "|", req.socket.remoteAddress);
+const GetNIP96file = (hostname : string): NIP96file => {
 
     let nip96file = {
     
-        "api_url": "https://" + servername + "/api/v1/media",
-        "download_url": "https://" + servername + "/media",
+        "api_url": "https://" + hostname + "/api/v1/media",
+        "download_url": "https://" + hostname + "/media",
         "supported_nips": ["NIP-94", "NIP-98","NIP-96"],
-        "tos_url": config.get("media.tosURL"),
+        "tos_url": config.get("media.tosURL") as string,
         "content_types": allowedMimeTypes,
         "plans": {
             "free": {
@@ -29,8 +24,9 @@ const GetNIP96file = async (req: Request, res: Response): Promise<Response> => {
         }
     };
 
-	return res.status(200).send(JSON.stringify(nip96file));
+    return nip96file;
 
-    }
+}
+
 
 export {GetNIP96file};

@@ -1,9 +1,5 @@
 
-import { Event, getEventHash, getSignature, getPublicKey } from "nostr-tools";
-import config from "config";
-import { logger } from "../../lib/logger.js";
-import { ResultMessage } from "../../interfaces/server.js";
-import { NIPKinds } from "../../interfaces/kinds.js";
+import { NIPKinds } from "../../interfaces/nostr.js";
 
 //https://github.com/nostr-protocol/nips/blob/master/94.md
 

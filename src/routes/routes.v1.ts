@@ -7,6 +7,7 @@ import { LoadNostraddressEndpoint } from "./nostraddress.route.js";
 import { LoadRegisterEndpoint } from "./register.route.js";
 import { LoadVerifyEndpoint } from "./verify.route.js";
 import { LoadStatusesEndpoint } from "./status.route.js";
+import { LoadNIP96Endpoint } from "./nip96.route.js";
 import { logger } from "../lib/logger.js";
 import { LoadLightningaddressEndpoint } from "./lightningaddress.route.js";
 
@@ -22,6 +23,7 @@ const LoadAPI = async (app: Application, version:string): Promise<boolean> => {
 		await LoadMediaEndpoint(app, version);
 		await LoadStatusesEndpoint(app, version);
 		await LoadLightningaddressEndpoint(app, version);
+		await LoadNIP96Endpoint(app, version);
 	}catch(err){
 		logger.error(err);
 		return false;

@@ -6,7 +6,7 @@ import { logger } from "../../lib/logger.js";
 import { VerifyResultMessage } from "../../interfaces/verify.js";
 import { ResultMessage } from "../../interfaces/server.js";
 
-import { NIPKinds } from "../../interfaces/kinds.js";
+import { NIPKinds } from "../../interfaces/nostr.js";
 import { connect } from "../../lib/database.js";
 
 //https://github.com/nostr-protocol/nips/blob/master/98.md
