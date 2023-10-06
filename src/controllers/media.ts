@@ -49,49 +49,12 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 	let description = "";
 
 	//Check if the upload type exists
-	let media_type = req.body.media_type;
-
-	//v0 compatibility, check if type is present on request body (v0 uses type instead of uploadtype)
-	if (req.body.type != undefined && req.body.type != "") {
-		logger.warn("Detected 'type' field (deprecated v0) on request body, setting 'media_type' with 'type' data ", "|", req.socket.remoteAddress);
-		description = "WARNING: Detected 'type' field (deprecated), setting 'media_type' ";
-		media_type = req.body.type;
-		req.body.media_type = req.body.type;
-	}
-
-	//v1 compatibility, check if uploadtype is present on request body (v1 uses uploadtype instead of media_type)
-	if (req.body.uploadtype != undefined && req.body.uploadtype != "") {
-		logger.warn("Detected 'uploadtype' field (deprecated v1) on request body, setting 'media_type' with 'type' data ", "|", req.socket.remoteAddress);
-		description = "WARNING: Detected 'type' field (deprecated), setting 'media_type' ";
-		media_type = req.body.uploadtype;
-		req.body.media_type = req.body.uploadtype;
-	}
-
-	if (!media_type) {
-	//If upload type is not specified will be "media" and a warning will be logged
-	logger.warn(`RES -> 400 Bad request - missing media_type`, "|", req.socket.remoteAddress);
-	logger.warn("assuming media_type -> media");
-	description = "WARNING: missing media_type, assuming media_type = media | ";
-	req.body.uploadtype = "media";
-	media_type = "media";
-	}
-
-	//Check if upload type is valid
-	if (!UploadTypes.includes(media_type)) {
-		logger.warn(`RES -> 400 Bad request - incorrect uploadtype: `, media_type,  "|", req.socket.remoteAddress);
-		logger.warn("assuming uploadtype = media");
-		description = "WARNING: incorrect uploadtype: " +  media_type + ", assuming uploadtype = media | ";
-		req.body.uploadtype = "media";
-		media_type = "media";
-
-	}
-
+	let media_type : string = ParseMediaType(req);
 	logger.info("type ->", media_type, "|", req.socket.remoteAddress);
 
 	//Check if the pubkey is public (the server pubkey) and media_type is different than media
 	if (pubkey == app.get("pubkey") && media_type != "media") {
 		logger.warn(`Public pubkey can only upload media files, setting media_type to "media"`, "|", req.socket.remoteAddress);
-		req.body.uploadtype = "media";
 		media_type = "media";
 	}
 
@@ -155,12 +118,14 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 		username: username,
 		width: config.get("media.transform.media.undefined.width"),
 		height: config.get("media.transform.media.undefined.height"),
-		media_type,
+		media_type: media_type,
 		originalmime: file.mimetype,
 		outputmime: mime_transform[file.mimetype],
 		outputname: filehash,
 		outputoptions: "",
 	};
+
+	logger.debug(fileoptions);
 
 	//Video or image conversion options
 	if (file.mimetype.toString().startsWith("video")) {
@@ -193,7 +158,7 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 	let magnet = "";
 	let convert = true;
 	let insertfiledb = true;
-	let fileid = "";
+
 
 	//Check if the (file SHA256 hash and pubkey) is already on the database, if exist (and the upload is media type) we return the existing file URL
 	const dbHash = await connect();
@@ -209,7 +174,7 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 		magnet = rowstempHash[0].magnet;
 		convert = false; 
 		insertfiledb = false;
-		fileid = rowstempHash[0].id;
+		fileoptions.id = rowstempHash[0].id;
 
 	}
 	dbHash.end();
@@ -264,7 +229,7 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 				return res.status(404).send(result);
 			}
 			dbFileID.end();
-			fileid = IDrowstemp[0].id;
+			fileoptions.id = IDrowstemp[0].id;
 	}
 
 	//If not exist create username folder
@@ -297,12 +262,12 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 		result: true,
 		description: description,
 	    status: status,
-		id: fileid,
+		id: fileoptions.id,
 		pubkey: pubkey,
 		url: servername + "/media/" + username + "/" + filename, //TODO, make it parametrizable",
 		hash: hash,
 		magnet: magnet,
-		tags: await GetFileTags(fileid)
+		tags: await GetFileTags(fileoptions.id)
 	};
 
 	return res.status(200).send(returnmessage);
@@ -884,48 +849,6 @@ const DeleteMedia = async (req: Request, res: Response): Promise<any> => {
 
 export { GetMediaStatusbyID, GetMediabyURL, Uploadmedia, DeleteMedia, UpdateMediaVisibility, GetMediaTagsbyID, GetMediabyTags };
 
-function isAnimatedGif(imageData: string): boolean {
-	const base64 = imageData.substr(imageData.indexOf(',') + 1);
-	const binaryString = Buffer.from(base64, 'base64').toString('binary');
-	const len = binaryString.length;
-	const bytes = new Uint8Array(len);
-	for (let i = 0; i < len; i++) {
-		bytes[i] = binaryString.charCodeAt(i);
-	}
-	const buffer = bytes.buffer;
-
-	const HEADER_LEN = 6;                 // offset bytes for the header section
-	const LOGICAL_SCREEN_DESC_LEN = 7;    // offset bytes for logical screen description section
-
-	// Start from last 4 bytes of the Logical Screen Descriptor
-	const dv = new DataView(buffer, HEADER_LEN + LOGICAL_SCREEN_DESC_LEN - 3);
-	let offset = 0;
-	const globalColorTable = dv.getUint8(0);	// aka packet byte
-	let globalColorTableSize = 0;
-
-	// check first bit, if 0, then we don't have a Global Color Table
-	if (globalColorTable & 0x80) {
-		// grab the last 3 bits, to calculate the global color table size -> RGB * 2^(N+1)
-		// N is the value in the last 3 bits.
-		globalColorTableSize = 3 * (2 ** ((globalColorTable & 0x7) + 1));
-	}
-
-	// move on to the Graphics Control Extension
-	offset = 3 + globalColorTableSize;
-
-	const extensionIntroducer = dv.getUint8(offset);
-	const graphicsConrolLabel = dv.getUint8(offset + 1);
-	let delayTime = 0;
-
-	// Graphics Control Extension section is where GIF animation data is stored
-	// First 2 bytes must be 0x21 and 0xF9
-	if ((extensionIntroducer & 0x21) && (graphicsConrolLabel & 0xF9)) {
-		// skip to the 2 bytes with the delay time
-		delayTime = dv.getUint16(offset + 4);
-	}
-
-	return delayTime > 0;
-}
 
 const GetFileTags = async (fileid: string): Promise<string[]> => {
 
@@ -947,4 +870,37 @@ const GetFileTags = async (fileid: string): Promise<string[]> => {
 	}
 	
 	return tags;
+}
+
+
+const ParseMediaType = (req : any): string  => {
+
+	let media_type = "";
+
+	//v0 compatibility, check if type is present on request body (v0 uses type instead of uploadtype)
+	if (req.body.type != undefined && req.body.type != "") {
+		logger.warn("Detected 'type' field (deprecated v0) on request body, setting 'media_type' with 'type' data ", "|", req.socket.remoteAddress);
+		media_type = req.body.type;
+	}
+
+	//v1 compatibility, check if uploadtype is present on request body (v1 uses uploadtype instead of media_type)
+	if (req.body.uploadtype != undefined && req.body.uploadtype != "") {
+		logger.warn("Detected 'uploadtype' field (deprecated v1) on request body, setting 'media_type' with 'type' data ", "|", req.socket.remoteAddress);
+		media_type = req.body.uploadtype;
+	}
+
+	//v2 compatibility, check if media_type is present on request body
+	if (req.body.media_type != undefined && req.body.media_type != "") {
+		media_type = req.body.media_type;
+	}
+	
+	//Check if media_type is valid
+	if (!UploadTypes.includes(media_type)) {
+		logger.warn(`RES -> 400 Bad request - incorrect uploadtype: `, media_type,  "|", req.socket.remoteAddress);
+		logger.warn("assuming uploadtype = media");
+		media_type = ("media");
+	}
+
+	return media_type;
+
 }

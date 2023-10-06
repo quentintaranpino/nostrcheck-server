@@ -64,7 +64,7 @@ const mediaTypes: { [key: string]: string } = {
 	username: string;
 	width: number;
 	height: number;
-	media_type: typeof UploadTypes;
+	media_type: typeof UploadTypes[number];
 	originalmime: string;
 	outputmime: string;
 	outputname: string;

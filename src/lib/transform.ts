@@ -31,7 +31,7 @@ async function PrepareFile(t: asyncTask): Promise<void> {
 		return;
 	}
 
-	if (!t.req.body.uploadtype) {
+	if (!t.fileoptions.media_type) {
 		logger.error("ERR -> Preparing file for conversion, empty type");
 		return;
 	}
