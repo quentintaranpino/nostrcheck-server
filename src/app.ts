@@ -3,7 +3,7 @@ import express from "express";
 import helmet from "helmet";
 import config from "config";
 
-import { LoadAPIv1 } from "./routes/routes.v1.js";
+import { LoadAPI } from "./routes/routes.v1.js";
 import { SeedMediafilesMagnets } from "./lib/torrent.js";
 
 const app = express();
@@ -21,7 +21,7 @@ app.use(helmet());
 app.use(cors());
 
 //Load Routes V1
-LoadAPIv1(app);
+LoadAPI(app, "v1");
 
 
 //Start seeding magnets

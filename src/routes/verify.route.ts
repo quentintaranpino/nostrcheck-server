@@ -2,11 +2,10 @@ import { Application } from "express";
 
 import { VerifyNote } from "../controllers/verify.js";
 
-export const LoadVerifyEndpoint = async (app: Application): Promise<void> => {
-	app.post("/api/v1/verify", VerifyNote);
+export const LoadVerifyEndpoint = async (app: Application, version:string): Promise<void> => {
 
-	// app.get("/api/v1/verify", (_req, res) => {
-	// 	res.status(200).send("Verify endpoint");
-	// }
-	// );
+	if (version == "v1"){
+	app.post("/api/v1/verify", VerifyNote);
+	}
+
 };

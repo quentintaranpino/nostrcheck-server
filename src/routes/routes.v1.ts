@@ -10,18 +10,18 @@ import { LoadStatusesEndpoint } from "./status.route.js";
 import { logger } from "../lib/logger.js";
 import { LoadLightningaddressEndpoint } from "./lightningaddress.route.js";
 
-//Load API v1 endpoints
-const LoadAPIv1 = async (app: Application): Promise<boolean> => {
+//Load API endpoints
+const LoadAPI = async (app: Application, version:string): Promise<boolean> => {
 	
 	try{
-		await LoadVerifyEndpoint(app);
-		await LoadIndexEndpoint(app);
-		await LoadDomainsEndpoint(app);
-		await LoadNostraddressEndpoint(app);
-		await LoadRegisterEndpoint(app);
-		await LoadMediaEndpoint(app);
-		await LoadStatusesEndpoint(app);
-		await LoadLightningaddressEndpoint(app);
+		await LoadVerifyEndpoint(app, version);
+		await LoadIndexEndpoint(app, version);
+		await LoadDomainsEndpoint(app, version);
+		await LoadNostraddressEndpoint(app, version);
+		await LoadRegisterEndpoint(app, version);
+		await LoadMediaEndpoint(app, version);
+		await LoadStatusesEndpoint(app, version);
+		await LoadLightningaddressEndpoint(app, version);
 	}catch(err){
 		logger.error(err);
 		return false;
@@ -30,4 +30,5 @@ const LoadAPIv1 = async (app: Application): Promise<boolean> => {
 	return true;
 };
 
-export { LoadAPIv1 };
+
+export { LoadAPI };

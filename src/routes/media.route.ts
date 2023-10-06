@@ -13,44 +13,51 @@ const upload = multer({
 	limits: { fileSize: maxMBfilesize * 1024 * 1024 },
 });
 
-export const LoadMediaEndpoint = async (app: Application): Promise<void> => {
+export const LoadMediaEndpoint = async (app: Application, version:string): Promise<void> => {
 
-	//NIP96 json file
-	app.get("/api/v1/nip96", GetNIP96file);
 	
-	//Upload media
-	app.post("/api/v1/media", function (req, res){
-		upload.any()(req, res, function (err) {
-			//Return 413 Payload Too Large if file size is larger than maxMBfilesize from config file
-			if (err instanceof multer.MulterError && err.code === "LIMIT_FILE_SIZE") {
-				logger.warn("Upload attempt failed: File too large", "|", req.socket.remoteAddress);
-				const result: ResultMessage = {
-					result: false,
-					description: "File too large, max filesize allowed is " + maxMBfilesize + "MB",
-				};
-				return res.status(413).send(result);
-			}
-			Uploadmedia(req, res);
-		  })
-	});
+	if (version == "v1"){
 
-	//Delete media
-	app.delete("/api/v1/media/:fileId", DeleteMedia);
+		//NIP96 json file
+		app.get("/api/v1/nip96", GetNIP96file);
+		
+		//Upload media
+		app.post("/api/v1/media", function (req, res){
+			upload.any()(req, res, function (err) {
+				//Return 413 Payload Too Large if file size is larger than maxMBfilesize from config file
+				if (err instanceof multer.MulterError && err.code === "LIMIT_FILE_SIZE") {
+					logger.warn("Upload attempt failed: File too large", "|", req.socket.remoteAddress);
+					const result: ResultMessage = {
+						result: false,
+						description: "File too large, max filesize allowed is " + maxMBfilesize + "MB",
+					};
+					return res.status(413).send(result);
+				}
+				Uploadmedia(req, res);
+			})
+		});
 
-	//Get media status by id 
-	app.get("/api/v1/media", GetMediaStatusbyID);
-	app.get("/api/v1/media/:id", GetMediaStatusbyID);
+		//Delete media
+		app.delete("/api/v1/media/:fileId", DeleteMedia);
 
-	//Get media tags by id
-	app.get("/api/v1/media/:fileId/tags/", GetMediaTagsbyID);
+		//Get media status by id 
+		app.get("/api/v1/media", GetMediaStatusbyID);
+		app.get("/api/v1/media/:id", GetMediaStatusbyID);
 
-	//Get media by tags
-    app.get("/api/v1/media/tag/:tag", GetMediabyTags);
+		//Get media tags by id
+		app.get("/api/v1/media/:fileId/tags/", GetMediaTagsbyID);
 
-	//Get media by url
-	app.get("/api/v1/media/:username/:filename", GetMediabyURL);
+		//Get media by tags
+		app.get("/api/v1/media/tag/:tag", GetMediabyTags);
 
-	//Update media visibility
-	app.put("/api/v1/media/:fileId/visibility/:visibility", UpdateMediaVisibility);
+		//Get media by url
+		app.get("/api/v1/media/:username/:filename", GetMediabyURL);
+
+		//Update media visibility
+		app.put("/api/v1/media/:fileId/visibility/:visibility", UpdateMediaVisibility);
+
+	}
+
+	
 	
 };
