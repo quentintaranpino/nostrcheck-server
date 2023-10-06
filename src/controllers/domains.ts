@@ -4,7 +4,8 @@ import { connect } from "../lib/database.js";
 import { logger } from "../lib/logger.js";
 import { ParseAuthEvent } from "../lib/nostr/NIP98.js";
 import { IsAuthorizedPubkey } from "../lib/authorization.js";
-import { AvailableDomainsResult, ResultMessage } from "../types.js";
+import { AvailableDomainsResult } from "../interfaces/domains.js";
+import { ResultMessage } from "../interfaces/server.js";
 import { redisClient } from "../lib/redis.js";
 
 const QueryAvailiableDomains = async (): Promise<AvailableDomainsResult> => {

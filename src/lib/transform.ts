@@ -2,7 +2,7 @@ import fastq, { queueAsPromised } from "fastq";
 import ffmpeg, { setFfmpegPath } from "fluent-ffmpeg";
 import fs from "fs";
 
-import { asyncTask, ConvertFilesOpions } from "../types.js";
+import { asyncTask, ConvertFilesOpions } from "../interfaces/media.js";
 import { logger } from "./logger.js";
 import config from "config";
 import { dbFileHashupdate, dbFileMagnetUpdate, dbFileStatusUpdate, dbFileVisibilityUpdate } from "./database.js";

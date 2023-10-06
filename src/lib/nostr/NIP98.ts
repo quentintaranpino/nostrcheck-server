@@ -3,7 +3,10 @@ import { Request } from "express";
 import { Event } from "nostr-tools";
 import config from "config";
 import { logger } from "../../lib/logger.js";
-import { NIPKinds, ResultMessage, VerifyResultMessage } from "../../types.js";
+import { VerifyResultMessage } from "../../interfaces/verify.js";
+import { ResultMessage } from "../../interfaces/server.js";
+
+import { NIPKinds } from "../../interfaces/kinds.js";
 import { connect } from "../../lib/database.js";
 
 //https://github.com/nostr-protocol/nips/blob/master/98.md

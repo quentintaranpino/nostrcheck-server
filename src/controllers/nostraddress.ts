@@ -3,7 +3,8 @@ import { Request, Response } from "express";
 import { connect } from "../lib/database.js";
 import { logger } from "../lib/logger.js";
 import { redisClient, getNostrAddressFromRedis } from "../lib/redis.js";
-import { RegisteredUsernameResult, ResultMessage } from "../types.js";
+import { RegisteredUsernameResult } from "../interfaces/register.js";
+import { ResultMessage } from "../interfaces/server.js";
 import config from "config";
 
 //Nostr address usernames endpoint

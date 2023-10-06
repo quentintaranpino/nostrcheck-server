@@ -1,10 +1,9 @@
 import { Application } from "express";
 import multer from "multer";
 import config from "config";
-
 import { GetMediaStatusbyID, GetMediabyURL, Uploadmedia, DeleteMedia, UpdateMediaVisibility, GetMediaTagsbyID, GetMediabyTags } from "../controllers/media.js";
 import { GetNIP96file } from "../lib/nostr/NIP96.js";
-import { ResultMessage } from "../types.js";
+import { ResultMessage } from "../interfaces/server.js";
 import { logger } from "../lib/logger.js";
 const maxMBfilesize :number = config.get('media.maxMBfilesize');
 

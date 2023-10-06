@@ -1,7 +1,7 @@
 import { createPool, Pool } from "mysql2/promise";
 import config from "config";
 import { logger } from "./logger.js";
-import { ConvertFilesOpions } from "../types.js";
+import { ConvertFilesOpions } from "../interfaces/media.js";
 import crypto from "crypto";
 import fs from "fs";
 import { CreateMagnet } from "./torrent.js";

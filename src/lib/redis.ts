@@ -1,7 +1,8 @@
 import { createClient } from "redis";
 
 import { logger } from "../lib/logger.js";
-import { LightningUsernameResult, RegisteredUsernameResult } from "../types.js";
+import { RegisteredUsernameResult } from "../interfaces/register.js";
+import { LightningUsernameResult } from "../interfaces/lightning.js";
 
 //Redis configuration
 const redisClient = createClient();

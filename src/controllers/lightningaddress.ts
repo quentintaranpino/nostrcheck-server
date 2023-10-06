@@ -3,7 +3,8 @@ import { Request, Response } from "express";
 import { connect } from "../lib/database.js";
 import { logger } from "../lib/logger.js";
 import { redisClient, getLightningAddressFromRedis } from "../lib/redis.js";
-import { LightningUsernameResult, ResultMessage } from "../types.js";
+import { ResultMessage } from "../interfaces/server.js";
+import { LightningUsernameResult } from "../interfaces/lightning.js";
 import { ParseAuthEvent } from "../lib/nostr/NIP98.js";
 
 //Nostr address usernames endpoint

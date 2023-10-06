@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 
 import { logger } from "../lib/logger.js";
-import { StatusResultMessage } from "../types.js";
+import { StatusResultMessage } from "../interfaces/status.js";
 
 const ServerStatus = async (req: Request, res: Response): Promise<Response> => {
 	logger.info("GET /api/v1/status", "|", req.socket.remoteAddress);

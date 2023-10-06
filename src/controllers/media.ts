@@ -14,10 +14,12 @@ import {
 	mediaTypes,
 	MediaVisibilityResultMessage,
 	mime_transform,
-	ResultMessage,
 	UploadStatus,
 	UploadTypes
-} from "../types.js";
+} from "../interfaces/media.js";
+
+import { ResultMessage } from "../interfaces/server.js";
+
 import fs from "fs";
 import config from "config";
 import {fileTypeFromBuffer} from 'file-type';

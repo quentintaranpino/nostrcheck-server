@@ -2,7 +2,7 @@ import { Request, Response } from "express";
 import config from "config";
 import { logger } from "../../lib/logger.js";
 
-import {allowedMimeTypes} from "../../types.js";
+import {allowedMimeTypes} from "../../interfaces/media.js";
 
 const GetNIP96file = async (req: Request, res: Response): Promise<Response> => {
 

@@ -1,24 +1,5 @@
+import { ResultMessage } from "./server.js";
 import { Request } from "express";
-
-interface ResultMessage {
-	result: boolean;
-	description: string;
-}
-
-interface StatusResultMessage extends ResultMessage {
-	uptime: string;
-	version: string;
-}
-
-interface RegisterResultMessage extends ResultMessage {
-	username: string;
-	pubkey: string;
-	domain: string;
-}
-
-interface VerifyResultMessage extends ResultMessage {
-	pubkey: string;
-}
 
 interface MediaResultMessage extends ResultMessage {
 	status: typeof UploadStatus;
@@ -78,12 +59,7 @@ const mediaTypes: { [key: string]: string } = {
 	'mp4': "video/mp4",
   }
 
- enum NIPKinds {
-	NIP98 = 27235,
-	NIP94 = 1063,
-}
-
-interface ConvertFilesOpions {
+  interface ConvertFilesOpions {
 	id: string;
 	username: string;
 	width: number;
@@ -100,19 +76,6 @@ interface asyncTask {
 	fileoptions: ConvertFilesOpions;
 }
 
-interface RegisteredUsernameResult {
-	username: string;
-	hex: string;
-}
-
-interface LightningUsernameResult {
-	lightningserver: string;
-	lightninguser: string;
-}
-
-interface AvailableDomainsResult {
-	domains: string;
-}
 
 export {
 	allowedMimeTypes,
@@ -123,16 +86,7 @@ export {
 	MediaVisibilityResultMessage,
 	mime_transform,
 	mediaTypes,
-	NIPKinds,
-	RegisterResultMessage,
 	ResultMessage,
-	StatusResultMessage,
 	UploadTypes,
 	UploadStatus,
-	VerifyResultMessage,
-	RegisteredUsernameResult,
-	LightningUsernameResult,
-	AvailableDomainsResult,
-
 };
-
