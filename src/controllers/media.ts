@@ -69,9 +69,9 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 
 	if (!media_type) {
 	//If upload type is not specified will be "media" and a warning will be logged
-	logger.warn(`RES -> 400 Bad request - missing uploadtype`, "|", req.socket.remoteAddress);
-	logger.warn("assuming uploadtype = media");
-	description = "WARNING: missing uploadtype, assuming uploadtype = media | ";
+	logger.warn(`RES -> 400 Bad request - missing media_type`, "|", req.socket.remoteAddress);
+	logger.warn("assuming media_type -> media");
+	description = "WARNING: missing media_type, assuming media_type = media | ";
 	req.body.uploadtype = "media";
 	media_type = "media";
 	}
@@ -85,11 +85,12 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 		media_type = "media";
 
 	}
+
 	logger.info("type ->", media_type, "|", req.socket.remoteAddress);
 
-	//Check if the pubkey is public (the server pubkey) and uploadtype is different than media
+	//Check if the pubkey is public (the server pubkey) and media_type is different than media
 	if (pubkey == app.get("pubkey") && media_type != "media") {
-		logger.warn(`Public pubkey can only upload media files, setting uploadtype to media`, "|", req.socket.remoteAddress);
+		logger.warn(`Public pubkey can only upload media files, setting media_type to "media"`, "|", req.socket.remoteAddress);
 		req.body.uploadtype = "media";
 		media_type = "media";
 	}
@@ -143,9 +144,9 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 
 	//Uploaded file SHA256 hash
 	const filehash = crypto
-	.createHash("sha256")
-	.update(file.buffer)
-	.digest("hex");
+					.createHash("sha256")
+					.update(file.buffer)
+					.digest("hex");
 	logger.info("hash ->", filehash, "|", req.socket.remoteAddress);
 
 	//Standard conversion options
@@ -191,6 +192,8 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 	let hash = "";
 	let magnet = "";
 	let convert = true;
+	let insertfiledb = true;
+	let fileid = "";
 
 	//Check if the (file SHA256 hash and pubkey) is already on the database, if exist (and the upload is media type) we return the existing file URL
 	const dbHash = await connect();
@@ -204,61 +207,65 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 		filename = rowstempHash[0].filename;
 		hash = rowstempHash[0].hash;
 		magnet = rowstempHash[0].magnet;
-		convert = false;
+		convert = false; 
+		insertfiledb = false;
+		fileid = rowstempHash[0].id;
 
 	}
 	dbHash.end();
 
 	//Add file to mediafiles table
-	const dbFile = await connect();
-	try{
-		const createdate = new Date(Math.floor(Date.now())).toISOString().slice(0, 19).replace("T", " ");
+	if (insertfiledb) {
+		const dbFile = await connect();
+		try{
+			const createdate = new Date(Math.floor(Date.now())).toISOString().slice(0, 19).replace("T", " ");
 
-		await dbFile.query(
-			"INSERT INTO mediafiles (pubkey, filename, original_hash, hash, status, visibility, date, ip_address, magnet, comments) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-			[
-				pubkey,
-				filename,
-				filehash,
-				hash,
-				status,
-				1,
-				createdate,
-				req.socket.remoteAddress,
-				magnet,
-				"comments",
-			]
-		);
-		
-		dbFile.end();
-		
-		}
-		catch (error) {
-			logger.error("Error inserting file to database", error);
-			const result: ResultMessage = {
-				result: false,
-				description: "Error inserting file to database",
-			};
+			await dbFile.query(
+				"INSERT INTO mediafiles (pubkey, filename, original_hash, hash, status, visibility, date, ip_address, magnet, comments) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+				[
+					pubkey,
+					filename,
+					filehash,
+					hash,
+					status,
+					1,
+					createdate,
+					req.socket.remoteAddress,
+					magnet,
+					"comments",
+				]
+			);
+			
 			dbFile.end();
-			return res.status(500).send(result);
-		}
-	
-		//Get file ID
-		const dbFileID = await connect();
-		const [IDdbResult] = await dbFileID.query("SELECT id FROM mediafiles WHERE filename = ? and pubkey = ? ORDER BY ID DESC", [filename, pubkey]);
-		const IDrowstemp = JSON.parse(JSON.stringify(IDdbResult));
-		if (IDrowstemp[0] == undefined) {
-			logger.error("File not found in database:", fileoptions.outputname + "." + fileoptions.outputmime);
-			const result: ResultMessage = {
-				result: false,
-				description: "The requested file was not found in database",
-			};
-	
+			
+			}
+			catch (error) {
+				logger.error("Error inserting file to database", error);
+				const result: ResultMessage = {
+					result: false,
+					description: "Error inserting file to database",
+				};
+				dbFile.end();
+				return res.status(500).send(result);
+			}
+		
+			//Get file ID
+			const dbFileID = await connect();
+			const [IDdbResult] = await dbFileID.query("SELECT id FROM mediafiles WHERE filename = ? and pubkey = ? ORDER BY ID DESC", [filename, pubkey]);
+			const IDrowstemp = JSON.parse(JSON.stringify(IDdbResult));
+			if (IDrowstemp[0] == undefined) {
+				logger.error("File not found in database:", fileoptions.outputname + "." + fileoptions.outputmime);
+				const result: ResultMessage = {
+					result: false,
+					description: "The requested file was not found in database",
+				};
+		
+				dbFileID.end();
+				return res.status(404).send(result);
+			}
 			dbFileID.end();
-			return res.status(404).send(result);
-		}
-		dbFileID.end();
-	fileoptions.id = IDrowstemp[0].id;
+			fileid = IDrowstemp[0].id;
+	}
 
 	//If not exist create username folder
 	const mediaPath = config.get("media.mediaPath") + username;
@@ -290,12 +297,12 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 		result: true,
 		description: description,
 	    status: status,
-		id: IDrowstemp[0].id,
+		id: fileid,
 		pubkey: pubkey,
 		url: servername + "/media/" + username + "/" + filename, //TODO, make it parametrizable",
 		hash: hash,
 		magnet: magnet,
-		tags: await GetFileTags(IDrowstemp[0].id)
+		tags: await GetFileTags(fileid)
 	};
 
 	return res.status(200).send(returnmessage);
