@@ -48,17 +48,11 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 	//Description for accepted media response
 	let description = "";
 
-	//Check if the upload type exists
-	let media_type : string = ParseMediaType(req);
+	//Parse upload type. If not defined, default is "media"
+	let media_type : string = ParseMediaType(req, pubkey);
 	logger.info("type ->", media_type, "|", req.socket.remoteAddress);
 
-	//Check if the pubkey is public (the server pubkey) and media_type is different than media
-	if (pubkey == app.get("pubkey") && media_type != "media") {
-		logger.warn(`Public pubkey can only upload media files, setting media_type to "media"`, "|", req.socket.remoteAddress);
-		media_type = "media";
-	}
-
-	//Check if file exist on POST message
+	//Check if file exist on request body
 	const files : any | Express.Multer.File[] = req.files;
 	let file: Express.Multer.File = req.file? req.file : files[0];
 	req.file = file;
@@ -873,7 +867,7 @@ const GetFileTags = async (fileid: string): Promise<string[]> => {
 }
 
 
-const ParseMediaType = (req : any): string  => {
+const ParseMediaType = (req : Request, pubkey : string): string  => {
 
 	let media_type = "";
 
@@ -899,6 +893,12 @@ const ParseMediaType = (req : any): string  => {
 		logger.warn(`RES -> 400 Bad request - incorrect uploadtype: `, media_type,  "|", req.socket.remoteAddress);
 		logger.warn("assuming uploadtype = media");
 		media_type = ("media");
+	}
+
+	//Check if the pubkey is public (the server pubkey) and media_type is different than media
+	if (pubkey == app.get("pubkey") && media_type != "media") {
+		logger.warn(`Public pubkey can only upload media files, setting media_type to "media"`, "|", req.socket.remoteAddress);
+		media_type = "media";
 	}
 
 	return media_type;
