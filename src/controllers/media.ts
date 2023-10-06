@@ -53,7 +53,7 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 
 	//v0 compatibility, check if type is present on request body (v0 uses type instead of uploadtype)
 	if (req.body.type != undefined && req.body.type != "") {
-		logger.warn("Detected 'type' field (deprecated) on request body, setting 'uploadtype' with 'type' data ", "|", req.socket.remoteAddress);
+		logger.warn("Detected 'type' field (deprecated v0) on request body, setting 'media_type' with 'type' data ", "|", req.socket.remoteAddress);
 		description = "WARNING: Detected 'type' field (deprecated), setting 'media_type' ";
 		media_type = req.body.type;
 		req.body.media_type = req.body.type;
@@ -61,6 +61,8 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 
 	//v1 compatibility, check if uploadtype is present on request body (v1 uses uploadtype instead of media_type)
 	if (req.body.uploadtype != undefined && req.body.uploadtype != "") {
+		logger.warn("Detected 'uploadtype' field (deprecated v1) on request body, setting 'media_type' with 'type' data ", "|", req.socket.remoteAddress);
+		description = "WARNING: Detected 'type' field (deprecated), setting 'media_type' ";
 		media_type = req.body.uploadtype;
 		req.body.media_type = req.body.uploadtype;
 	}
