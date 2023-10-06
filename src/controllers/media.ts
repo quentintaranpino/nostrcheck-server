@@ -5,7 +5,7 @@ import app from "../app.js";
 import { connect, dbSelectUsername } from "../lib/database.js";
 import { logger } from "../lib/logger.js";
 import { ParseAuthEvent } from "../lib/nostr/NIP98.js";
-import { requestQueue } from "../lib/transform.js";
+import { requestQueue } from "../lib/media.js";
 import {
 	allowedMimeTypes,
 	asyncTask,
