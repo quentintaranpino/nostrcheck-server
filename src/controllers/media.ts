@@ -49,47 +49,47 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 	let description = "";
 
 	//Check if the upload type exists
-	let uploadtype = req.body.media_type;
+	let media_type = req.body.media_type;
 
 	//v0 compatibility, check if type is present on request body (v0 uses type instead of uploadtype)
 	if (req.body.type != undefined && req.body.type != "") {
 		logger.warn("Detected 'type' field (deprecated) on request body, setting 'uploadtype' with 'type' data ", "|", req.socket.remoteAddress);
-		description = "WARNING: Detected 'type' field (deprecated), setting 'uploadtype' ";
-		uploadtype = req.body.type;
+		description = "WARNING: Detected 'type' field (deprecated), setting 'media_type' ";
+		media_type = req.body.type;
 		req.body.media_type = req.body.type;
 	}
 
 	//v1 compatibility, check if uploadtype is present on request body (v1 uses uploadtype instead of media_type)
 	if (req.body.uploadtype != undefined && req.body.uploadtype != "") {
-		uploadtype = req.body.uploadtype;
+		media_type = req.body.uploadtype;
 		req.body.media_type = req.body.uploadtype;
 	}
 
-	if (!uploadtype) {
+	if (!media_type) {
 	//If upload type is not specified will be "media" and a warning will be logged
 	logger.warn(`RES -> 400 Bad request - missing uploadtype`, "|", req.socket.remoteAddress);
 	logger.warn("assuming uploadtype = media");
 	description = "WARNING: missing uploadtype, assuming uploadtype = media | ";
 	req.body.uploadtype = "media";
-	uploadtype = "media";
+	media_type = "media";
 	}
 
 	//Check if upload type is valid
-	if (!UploadTypes.includes(uploadtype)) {
-		logger.warn(`RES -> 400 Bad request - incorrect uploadtype: `, uploadtype,  "|", req.socket.remoteAddress);
+	if (!UploadTypes.includes(media_type)) {
+		logger.warn(`RES -> 400 Bad request - incorrect uploadtype: `, media_type,  "|", req.socket.remoteAddress);
 		logger.warn("assuming uploadtype = media");
-		description = "WARNING: incorrect uploadtype: " +  uploadtype + ", assuming uploadtype = media | ";
+		description = "WARNING: incorrect uploadtype: " +  media_type + ", assuming uploadtype = media | ";
 		req.body.uploadtype = "media";
-		uploadtype = "media";
+		media_type = "media";
 
 	}
-	logger.info("type ->", uploadtype, "|", req.socket.remoteAddress);
+	logger.info("type ->", media_type, "|", req.socket.remoteAddress);
 
 	//Check if the pubkey is public (the server pubkey) and uploadtype is different than media
-	if (pubkey == app.get("pubkey") && uploadtype != "media") {
+	if (pubkey == app.get("pubkey") && media_type != "media") {
 		logger.warn(`Public pubkey can only upload media files, setting uploadtype to media`, "|", req.socket.remoteAddress);
 		req.body.uploadtype = "media";
-		uploadtype = "media";
+		media_type = "media";
 	}
 
 	//Check if file exist on POST message
@@ -152,7 +152,7 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 		username: username,
 		width: config.get("media.transform.media.undefined.width"),
 		height: config.get("media.transform.media.undefined.height"),
-		uploadtype,
+		media_type,
 		originalmime: file.mimetype,
 		outputmime: mime_transform[file.mimetype],
 		outputname: filehash,
@@ -171,14 +171,14 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 	}
 
 	//Avatar conversion options
-	if (fileoptions.uploadtype.toString() === "avatar"){
+	if (fileoptions.media_type.toString() === "avatar"){
 		fileoptions.width = config.get("media.transform.avatar.width");
 		fileoptions.height = config.get("media.transform.avatar.height");
 		fileoptions.outputname = "avatar";
 	}
 
 	//Banner conversion options
-	if (fileoptions.uploadtype.toString() === "banner"){
+	if (fileoptions.media_type.toString() === "banner"){
 		fileoptions.width = config.get("media.transform.banner.width");
 		fileoptions.height = config.get("media.transform.banner.height");
 		fileoptions.outputname = "banner";
@@ -194,7 +194,7 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 	const dbHash = await connect();
 	const [dbHashResult] = await dbHash.query("SELECT id, hash, magnet, filename FROM mediafiles WHERE original_hash = ? and pubkey = ? and filename not like 'avatar%' and filename not like 'banner%' ", [filehash, pubkey]);	
 	const rowstempHash = JSON.parse(JSON.stringify(dbHashResult));
-	if (rowstempHash[0] !== undefined && uploadtype == "media") {
+	if (rowstempHash[0] !== undefined && media_type == "media") {
 		logger.info(`RES ->  File already in database, returning existing URL`, "|", req.socket.remoteAddress);
 
 		status = JSON.parse(JSON.stringify(UploadStatus[2]));
