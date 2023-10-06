@@ -7,13 +7,10 @@ import { NIPKinds, ResultMessage } from "../../types.js";
 //https://github.com/nostr-protocol/nips/blob/master/94.md
 
 
-//TODO config privatekey
-
-const privateKey: string = config.get("nostr.privatekey")
 
 let event = {
     id : "",
-    pubkey: getPublicKey(privateKey),
+    pubkey: "",
     created_at: Math.floor(Date.now() / 1000),
     kind: NIPKinds.NIP94,
     tags: [
@@ -32,10 +29,6 @@ let event = {
 
   }
 
-  event.id = getEventHash(event)
-  event.sig = getSignature(event, privateKey)
-
-  logger.debug(event.sig);
 
 
 
