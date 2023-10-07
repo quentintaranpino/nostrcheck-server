@@ -8,7 +8,7 @@ This repository contains the public API to interact with nostr as a backend api 
 ### status [GET]
 Returns the status of the server
 
-http://nostrcheck.me/api/v1/status
+https://nostrcheck.me/api/v1/status
 
 **Example**
 
@@ -24,7 +24,7 @@ http://nostrcheck.me/api/v1/status
 ### domains [GET]
 Return available domains on the server
 
-http://nostrcheck.me/api/v1/domains
+https://nostrcheck.me/api/v1/domains
 
 This endpoint use the [NIP98](https://github.com/nostr-protocol/nips/blob/master/98.md) HTTP Auth for getting the available domains. The NIP98's pubkey must have the "allowed" field with "1" on registered database.
 
@@ -51,13 +51,13 @@ This endpoint use the [NIP98](https://github.com/nostr-protocol/nips/blob/master
 ### users [GET]
 Return available users from a domain registerd on the server
 
-http://nostrcheck.me/api/v1/domains/[domain]/users
+https://nostrcheck.me/api/v1/domains/[domain]/users
 
 This endpoint use the [NIP98](https://github.com/nostr-protocol/nips/blob/master/98.md) HTTP Auth for getting the available users. The NIP98's pubkey must have the "allowed" field with "1" on registered database.
 
 **Example**
 
-http://nostrcheck.me/api/v1/domains/nostrcheck.me/users
+https://nostrcheck.me/api/v1/domains/nostrcheck.me/users
 
 ```
 {
@@ -77,7 +77,7 @@ http://nostrcheck.me/api/v1/domains/nostrcheck.me/users
 ### nostaddress [GET]
 Returns whether a user name is registered on the server.
 
-http://nostrcheck.me/api/v1/nostraddress
+https://nostrcheck.me/api/v1/nostraddress
 
 **Example**
 
@@ -94,7 +94,7 @@ names: {
 ### lightning [GET]
 Returns the lightning redirect from a registered nostr address.
 
-http://nostrcheck.me/api/v1/lightningaddress
+https://nostrcheck.me/api/v1/lightningaddress
 
 **Example**
 
@@ -118,7 +118,7 @@ nostrPubkey: "be1d89794bf92de5dd64c1e60f6a2c70c140abac9932418fee30c5c637fe9479"
 ### lightning [PUT]
 Allows to update or create a lightning address redirect for a pubkey
 
-http://nostrcheck.me/api/v1/lightningaddress/
+https://nostrcheck.me/api/v1/lightningaddress/
 
 **Example**
 
@@ -140,7 +140,7 @@ Allows to **delete** a mediafile from database and disk.
 
 This endpoint delete all files with the same hash of selected file.
 
-http://nostrcheck.me/api/v1/media/
+https://nostrcheck.me/api/v1/media/
 
 **Example**
 
@@ -162,7 +162,7 @@ Response from server:
 ### media [POST]
 Allows to upload files
 
-http://nostrcheck.me/api/v1/media
+https://nostrcheck.me/api/v1/media
 
 This endpoint requires the following fields in the body:
 ```
@@ -182,7 +182,7 @@ If the pubkey is registered, the upload will be saved in the user's gallery, oth
 ### media [GET] (ID)
 Allows to get the status and information about a file
 
-http://nostrcheck.me/api/v1/media
+https://nostrcheck.me/api/v1/media
 
 This endpoint use the [NIP98](https://github.com/nostr-protocol/nips/blob/master/98.md) HTTP Auth for getting the media status. The NIP98's pubkey must be the same as the one who uploaded the file. 
 
@@ -213,7 +213,7 @@ http://localhost:3000/api/v1/media/7
 ### media [GET] (URL)
 Allows to download a file
 
-http://nostrcheck.me/api/v1/media/:username/:filename
+https://nostrcheck.me/api/v1/media/:username/:filename
 
 
 **Example**
@@ -231,7 +231,7 @@ If the mediafile is not found the server return the image defined on config file
 ### media [GET] (TAGS)
 Allows to get the tags of a file.
 
-http://nostrcheck.me/api/v1/media/[id]/tags
+https://nostrcheck.me/api/v1/media/[id]/tags
 
 This endpoint use the [NIP98](https://github.com/nostr-protocol/nips/blob/master/98.md) HTTP Auth for getting the media status. The NIP98's pubkey must be the same as the one who uploaded the file. 
 
@@ -257,7 +257,7 @@ http://localhost:3000/api/v1/media/7/tags
 ### media [GET] (FILES BY TAG)
 Allows to get the tags of a file.
 
-http://nostrcheck.me/api/v1/media/tags/[TAG]
+https://nostrcheck.me/api/v1/media/tags/[TAG]
 
 This endpoint use the [NIP98](https://github.com/nostr-protocol/nips/blob/master/98.md) HTTP Auth for getting the media status. The NIP98's pubkey must be the same as the one who uploaded the file. 
 
@@ -292,7 +292,7 @@ http://localhost:3000/api/v1/media/tags/hodl
 ### media [PUT] (Visibility)
 Allows to change the visibility of a file. If the file is private it will not show on the gallery, but always will be accessible by the url.
 
-http://nostrcheck.me/api/v1/media/[id]/visibility/[visibility]
+https://nostrcheck.me/api/v1/media/[id]/visibility/[visibility]
 
 This endpoint use the [NIP98](https://github.com/nostr-protocol/nips/blob/master/98.md) HTTP Auth for getting the media status. The NIP98's pubkey must be the same as the one who uploaded the file. 
 
@@ -320,7 +320,7 @@ http://localhost:3000/api/v1/media/7/visibility/1
 ### Media [DELETE]
 Allows to **delete** a lightning address redirect for a pubkey
 
-http://nostrcheck.me/api/v1/lightningaddress/
+https://nostrcheck.me/api/v1/lightningaddress/
 
 **Example**
 
@@ -341,7 +341,7 @@ Response from server:
 ### nip96 [GET]
 Returns NIP96 server configuration
 
-http://nostrcheck.me/api/v1/nip96
+https://nostrcheck.me/api/v1/nip96
 
 **Example**
 
@@ -378,7 +378,7 @@ content_types: [
 ### register [POST]
 Allows to register a new username to the database
 
-http://nostrcheck.me/api/v1/register
+https://nostrcheck.me/api/v1/register
 
 Example of a register note for a new username
 ```
@@ -408,7 +408,7 @@ This endpoint use the [NIP98](https://github.com/nostr-protocol/nips/blob/master
 ### verify [POST]
 Endpoint to verify a nostr note integrity and signature.
 
-http://nostrcheck.me/api/v1/verify
+https://nostrcheck.me/api/v1/verify
 
 **Example**
 
