@@ -1,6 +1,6 @@
-# Nostrcheck-api-ts, backend server api for nostr.
+# Nostrcheck-api-ts, backend server for nostr.
 
-This repository contains the public API to interact with nostr as a backend api server. Written in typescript.
+This repository contains the public API to interact with nostr as a backend server. Written in typescript.
 
 ## Available endpoints
 
