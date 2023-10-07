@@ -2,10 +2,13 @@ import fastq, { queueAsPromised } from "fastq";
 import ffmpeg from "fluent-ffmpeg";
 import fs from "fs";
 
-import { asyncTask, ConvertFilesOpions } from "../interfaces/media.js";
+import { allowedMimeTypes, asyncTask, ConvertFilesOpions, UploadTypes } from "../interfaces/media.js";
 import { logger } from "./logger.js";
 import config from "config";
 import { dbFileHashupdate, dbFileMagnetUpdate, dbFileStatusUpdate, dbFileVisibilityUpdate } from "./database.js";
+import {fileTypeFromBuffer} from 'file-type';
+import { Request } from "express";
+import app from "../app.js";
 
 const requestQueue: queueAsPromised<any> = fastq.promise(PrepareFile, 2); //number of workers for the queue
 
@@ -187,8 +190,64 @@ async function convertFile(
 	
 }
 
+const ParseMediaType = (req : Request, pubkey : string): string  => {
 
-export {convertFile, requestQueue };
+	let media_type = "";
+
+	//v0 compatibility, check if type is present on request body (v0 uses type instead of uploadtype)
+	if (req.body.type != undefined && req.body.type != "") {
+		logger.warn("Detected 'type' field (deprecated v0) on request body, setting 'media_type' with 'type' data ", "|", req.socket.remoteAddress);
+		media_type = req.body.type;
+	}
+
+	//v1 compatibility, check if uploadtype is present on request body (v1 uses uploadtype instead of media_type)
+	if (req.body.uploadtype != undefined && req.body.uploadtype != "") {
+		logger.warn("Detected 'uploadtype' field (deprecated v1) on request body, setting 'media_type' with 'type' data ", "|", req.socket.remoteAddress);
+		media_type = req.body.uploadtype;
+	}
+
+	//v2 compatibility, check if media_type is present on request body
+	if (req.body.media_type != undefined && req.body.media_type != "") {
+		media_type = req.body.media_type;
+	}
+	
+	//Check if media_type is valid
+	if (!UploadTypes.includes(media_type)) {
+		logger.warn(`RES -> 400 Bad request - incorrect uploadtype: `, media_type,  "|", req.socket.remoteAddress);
+		logger.warn("assuming uploadtype = media");
+		media_type = ("media");
+	}
+
+	//Check if the pubkey is public (the server pubkey) and media_type is different than media
+	if (pubkey == app.get("pubkey") && media_type != "media") {
+		logger.warn(`Public pubkey can only upload media files, setting media_type to "media"`, "|", req.socket.remoteAddress);
+		media_type = "media";
+	}
+
+	return media_type;
+
+}
+
+const ParseFileType = async (req: Request, file :Express.Multer.File): Promise<string> => {
+
+	//Detect file mime type
+	const DetectedFileType = await fileTypeFromBuffer(file.buffer);
+	if (DetectedFileType == undefined) {
+		logger.warn(`RES -> 400 Bad request - Could not detect file mime type `,  "|", req.socket.remoteAddress);
+		return "";
+	}
+	
+	//Check if filetype is allowed
+	if (!allowedMimeTypes.includes(file.mimetype)) {
+		logger.warn(`RES -> 400 Bad request - filetype not allowed: `, DetectedFileType.mime,  "|", req.socket.remoteAddress);
+		return "";
+	}
+
+	return DetectedFileType.mime;
+
+}
+
+export {convertFile, requestQueue, ParseMediaType, ParseFileType };
 
  async function setMediaDimensions(file:string, options:ConvertFilesOpions):Promise<string> {
 

@@ -5,9 +5,9 @@ import app from "../app.js";
 import { connect, dbSelectUsername } from "../lib/database.js";
 import { logger } from "../lib/logger.js";
 import { ParseAuthEvent } from "../lib/nostr/NIP98.js";
+import { ParseMediaType, ParseFileType } from "../lib/media.js"
 import { requestQueue } from "../lib/media.js";
 import {
-	allowedMimeTypes,
 	asyncTask,
 	ConvertFilesOpions,
 	MediaExtraDataResultMessage,
@@ -15,14 +15,12 @@ import {
 	MediaVisibilityResultMessage,
 	mime_transform,
 	UploadStatus,
-	UploadTypes
 } from "../interfaces/media.js";
 
 import { ResultMessage } from "../interfaces/server.js";
 
 import fs from "fs";
 import config from "config";
-import {fileTypeFromBuffer} from 'file-type';
 import path from "path";
 
 const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
@@ -32,8 +30,12 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 	const EventHeader = await ParseAuthEvent(req);
 	if (!EventHeader.result) {return res.status(401).send({"result": EventHeader.result, "description" : EventHeader.description});}
 
+	const servername = "https://" + req.hostname;
 	let pubkey : string = EventHeader.pubkey;
 	let username : string = await dbSelectUsername(pubkey);
+	let description = "";
+	let hash = "";
+	let magnet = "";
 
 	//If username is not on the db the upload will be public and a warning will be logged.
 	if (username === "") {
@@ -41,12 +43,8 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 		pubkey = app.get("pubkey");
 		logger.warn("pubkey not registered, switching to public upload | ", req.socket.remoteAddress);
 	}
-
 	logger.info("username ->", username, "|", req.socket.remoteAddress);
 	logger.info("pubkey ->", pubkey, "|", req.socket.remoteAddress);
-
-	//Description for accepted media response
-	let description = "";
 
 	//Parse upload type. If not defined, default is "media"
 	let media_type : string = ParseMediaType(req, pubkey);
@@ -67,37 +65,17 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 		return res.status(400).send(result);
 	}
 
-	//Detect file mime type
-	const DetectedFileType = await fileTypeFromBuffer(file.buffer);
-	if (DetectedFileType == undefined) {
+	//Parse file type. If not defined or not allowed, reject upload.
+	file.mimetype = await ParseFileType(req, file);
+	if (file.mimetype === "") {
 		logger.error(`RES -> 400 Bad request - `, file.mimetype, ` filetype not detected`, "|", req.socket.remoteAddress);
 		const result: ResultMessage = {
 			result: false,
-			description: "file type not detected",
+			description: "file type not detected or not allowed",
 		};
-		return res.status(400).send(result);
-	}
-	file.mimetype = DetectedFileType.mime;
-
-	//Check if filetype is allowed
-	if (!allowedMimeTypes.includes(file.mimetype)) {
-		logger.warn(
-			`RES -> 400 Bad request - `,
-			file.mimetype,
-			` filetype not allowed`,
-			"|",
-			req.socket.remoteAddress
-		);
-		const result: ResultMessage = {
-			result: false,
-			description: "filetype not allowed",
-		};
-
 		return res.status(400).send(result);
 	}
 	logger.info("mime ->", file.mimetype, "|", req.socket.remoteAddress);
-
-	const servername = "https://" + req.hostname;
 
 	//Uploaded file SHA256 hash
 	const filehash = crypto
@@ -118,8 +96,6 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 		outputname: filehash,
 		outputoptions: "",
 	};
-
-	logger.debug(fileoptions);
 
 	//Video or image conversion options
 	if (file.mimetype.toString().startsWith("video")) {
@@ -148,11 +124,10 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 
 	let status: typeof UploadStatus  = JSON.parse(JSON.stringify(UploadStatus[0]));
 	let filename = fileoptions.outputname + "." + fileoptions.outputmime;
-	let hash = "";
-	let magnet = "";
 	let convert = true;
 	let insertfiledb = true;
 
+	logger.debug(fileoptions);
 
 	//Check if the (file SHA256 hash and pubkey) is already on the database, if exist (and the upload is media type) we return the existing file URL
 	const dbHash = await connect();
@@ -864,43 +839,4 @@ const GetFileTags = async (fileid: string): Promise<string[]> => {
 	}
 	
 	return tags;
-}
-
-
-const ParseMediaType = (req : Request, pubkey : string): string  => {
-
-	let media_type = "";
-
-	//v0 compatibility, check if type is present on request body (v0 uses type instead of uploadtype)
-	if (req.body.type != undefined && req.body.type != "") {
-		logger.warn("Detected 'type' field (deprecated v0) on request body, setting 'media_type' with 'type' data ", "|", req.socket.remoteAddress);
-		media_type = req.body.type;
-	}
-
-	//v1 compatibility, check if uploadtype is present on request body (v1 uses uploadtype instead of media_type)
-	if (req.body.uploadtype != undefined && req.body.uploadtype != "") {
-		logger.warn("Detected 'uploadtype' field (deprecated v1) on request body, setting 'media_type' with 'type' data ", "|", req.socket.remoteAddress);
-		media_type = req.body.uploadtype;
-	}
-
-	//v2 compatibility, check if media_type is present on request body
-	if (req.body.media_type != undefined && req.body.media_type != "") {
-		media_type = req.body.media_type;
-	}
-	
-	//Check if media_type is valid
-	if (!UploadTypes.includes(media_type)) {
-		logger.warn(`RES -> 400 Bad request - incorrect uploadtype: `, media_type,  "|", req.socket.remoteAddress);
-		logger.warn("assuming uploadtype = media");
-		media_type = ("media");
-	}
-
-	//Check if the pubkey is public (the server pubkey) and media_type is different than media
-	if (pubkey == app.get("pubkey") && media_type != "media") {
-		logger.warn(`Public pubkey can only upload media files, setting media_type to "media"`, "|", req.socket.remoteAddress);
-		media_type = "media";
-	}
-
-	return media_type;
-
 }
