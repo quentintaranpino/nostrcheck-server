@@ -59,9 +59,10 @@ const mediaTypes: { [key: string]: string } = {
 	'mp4': "video/mp4",
   }
 
-  interface ConvertFilesOpions {
-	id: string;
+  interface ProcessingFileData {
+	fileid: string;
 	username: string;
+	pubkey: string;
 	width: number;
 	height: number;
 	media_type: typeof UploadTypes[number];
@@ -69,18 +70,23 @@ const mediaTypes: { [key: string]: string } = {
 	outputmime: string;
 	outputname: string;
 	outputoptions: string;
+	originalhash: string;
+	hash: string;
+	url: string;
+	magnet: string;
+	torrent_infohash: string;
 }
 
 interface asyncTask {
 	req: Request;
-	fileoptions: ConvertFilesOpions;
+	filedata: ProcessingFileData;
 }
 
 
 export {
 	allowedMimeTypes,
 	asyncTask,
-	ConvertFilesOpions,
+	ProcessingFileData,
 	MediaResultMessage,
 	MediaExtraDataResultMessage,
 	MediaVisibilityResultMessage,

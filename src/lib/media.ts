@@ -2,7 +2,7 @@ import fastq, { queueAsPromised } from "fastq";
 import ffmpeg from "fluent-ffmpeg";
 import fs from "fs";
 
-import { allowedMimeTypes, asyncTask, ConvertFilesOpions, UploadTypes } from "../interfaces/media.js";
+import { allowedMimeTypes, asyncTask, ProcessingFileData, UploadTypes } from "../interfaces/media.js";
 import { logger } from "./logger.js";
 import config from "config";
 import { dbFileHashupdate, dbFileMagnetUpdate, dbFileStatusUpdate, dbFileVisibilityUpdate } from "./database.js";
@@ -27,12 +27,12 @@ async function PrepareFile(t: asyncTask): Promise<void> {
 		return;
 	}
 
-	if (!t.fileoptions.media_type) {
+	if (!t.filedata.media_type) {
 		logger.error("ERR -> Preparing file for conversion, empty type");
 		return;
 	}
 
-	if (!t.fileoptions.username) {
+	if (!t.filedata.username) {
 		logger.error("ERR -> Preparing file for conversion, empty username");
 		return;
 	}
@@ -42,16 +42,16 @@ async function PrepareFile(t: asyncTask): Promise<void> {
 		":",
 		t.req.file.originalname,
 		"=>",
-		`${t.fileoptions.outputname}.${t.fileoptions.outputmime}`
+		`${t.filedata.outputname}.${t.filedata.outputmime}`
 	);
 
-	await convertFile(t.req.file, t.fileoptions, 0);
+	await convertFile(t.req.file, t.filedata, 0);
 
 }
 
 async function convertFile(
 	inputFile: any,
-	options: ConvertFilesOpions,
+	options: ProcessingFileData,
 	retry:number = 0
 ): Promise<boolean> {
 
@@ -75,7 +75,7 @@ async function convertFile(
 		//Set status processing on the database
 		const processing =  dbFileStatusUpdate("processing", options);
 		if (!processing) {
-			logger.error("Could not update table mediafiles, id: " + options.id, "status: processing");
+			logger.error("Could not update table mediafiles, id: " + options.fileid, "status: processing");
 		}
 
 		const MediaPath = config.get("media.mediaPath") + options.username + "/" + options.outputname + "." + options.outputmime;
@@ -114,21 +114,21 @@ async function convertFile(
 
 				const visibility =  dbFileVisibilityUpdate(true, options);
 				if (!visibility) {
-					logger.error("Could not update table mediafiles, id: " + options.id, "visibility: true");
+					logger.error("Could not update table mediafiles, id: " + options.fileid, "visibility: true");
 				}
 				const hash =  dbFileHashupdate(MediaPath, options);
 				if (!hash) {
-					logger.error("Could not update table mediafiles, id: " + options.id, "hash for file: " + MediaPath);
+					logger.error("Could not update table mediafiles, id: " + options.fileid, "hash for file: " + MediaPath);
 				}
 				
 				const magnet =  dbFileMagnetUpdate(MediaPath, options);
 				if (!magnet) {
-					logger.error("Could not update table mediafiles, id: " + options.id, "magnet for file: " + MediaPath);
+					logger.error("Could not update table mediafiles, id: " + options.fileid, "magnet for file: " + MediaPath);
 				}
 
 				const completed =  dbFileStatusUpdate("completed", options);
 				if (!completed) {
-					logger.error("Could not update table mediafiles, id: " + options.id, "status: completed");
+					logger.error("Could not update table mediafiles, id: " + options.fileid, "status: completed");
 				}
 				
 				logger.info(`File converted successfully: ${MediaPath} ${ConversionDuration /2} seconds`);
@@ -155,7 +155,7 @@ async function convertFile(
 					logger.error(`Error converting file after 5 retries: ${inputFile.originalname}`);
 					const errorstate =  dbFileStatusUpdate("failed", options);
 					if (!errorstate) {
-						logger.error("Could not update table mediafiles, id: " + options.id, "status: failed");
+						logger.error("Could not update table mediafiles, id: " + options.fileid, "status: failed");
 					}
 					resolve(err);
 				}
@@ -184,7 +184,6 @@ async function convertFile(
 				
 			})
 			.run();
-			
 	
 	});
 	
@@ -249,7 +248,7 @@ const ParseFileType = async (req: Request, file :Express.Multer.File): Promise<s
 
 export {convertFile, requestQueue, ParseMediaType, ParseFileType };
 
- async function setMediaDimensions(file:string, options:ConvertFilesOpions):Promise<string> {
+ async function setMediaDimensions(file:string, options:ProcessingFileData):Promise<string> {
 
 	const response:string = await new Promise ((resolve) => {
 		ffmpeg.ffprobe(file, (err, metadata) => {

@@ -1,7 +1,7 @@
 import { createPool, Pool } from "mysql2/promise";
 import config from "config";
 import { logger } from "./logger.js";
-import { ConvertFilesOpions } from "../interfaces/media.js";
+import { ProcessingFileData } from "../interfaces/media.js";
 import crypto from "crypto";
 import fs from "fs";
 import { CreateMagnet } from "./torrent.js";
@@ -169,15 +169,15 @@ async function populateTables(resetTables: boolean): Promise<boolean> {
 	return true;
 }
 
-async function dbFileStatusUpdate(status: string, options: ConvertFilesOpions): Promise<boolean> {
+async function dbFileStatusUpdate(status: string, options: ProcessingFileData): Promise<boolean> {
 
 	const conn = await connect();
 	const [dbFileStatusUpdate] = await conn.execute(
 		"UPDATE mediafiles set status = ? where id = ?",
-		[status, options.id]
+		[status, options.fileid]
 	);
 	if (!dbFileStatusUpdate) {
-		logger.error("Error updating mediafiles table, id:", options.id, "status:", status);
+		logger.error("Error updating mediafiles table, id:", options.fileid, "status:", status);
 		conn.end();
 		return false;
 	}
@@ -187,15 +187,15 @@ async function dbFileStatusUpdate(status: string, options: ConvertFilesOpions): 
 
 }
 
-async function dbFileVisibilityUpdate(visibility: boolean, options: ConvertFilesOpions): Promise<boolean> {
+async function dbFileVisibilityUpdate(visibility: boolean, options: ProcessingFileData): Promise<boolean> {
 
 	const conn = await connect();
 	const [dbFileStatusUpdate] = await conn.execute(
 		"UPDATE mediafiles set visibility = ? where id = ?",
-		[visibility, options.id]
+		[visibility, options.fileid]
 	);
 	if (!dbFileStatusUpdate) {
-		logger.error("Error updating mediafiles table, id:", options.id, "visibility:", visibility);
+		logger.error("Error updating mediafiles table, id:", options.fileid, "visibility:", visibility);
 		conn.end();
 		return false;
 	}
@@ -205,7 +205,7 @@ async function dbFileVisibilityUpdate(visibility: boolean, options: ConvertFiles
 
 }
 
-async function dbFileHashupdate(filepath:string, options: ConvertFilesOpions): Promise<boolean>{
+async function dbFileHashupdate(filepath:string, options: ProcessingFileData): Promise<boolean>{
 
 	let hash = '';
 	try{
@@ -224,10 +224,10 @@ async function dbFileHashupdate(filepath:string, options: ConvertFilesOpions): P
 	const conn = await connect();
 	const [dbFileHashUpdate] = await conn.execute(
 		"UPDATE mediafiles set hash = ? where id = ?",
-		[hash, options.id]
+		[hash, options.fileid]
 	);
 	if (!dbFileHashUpdate) {
-		logger.error("Error updating mediafiles table (hash), id:", options.id, "hash:", hash);
+		logger.error("Error updating mediafiles table (hash), id:", options.fileid, "hash:", hash);
 		conn.end();
 		return false;
 	}
@@ -235,7 +235,7 @@ async function dbFileHashupdate(filepath:string, options: ConvertFilesOpions): P
 	return true
 }
 
-async function dbFileMagnetUpdate(MediaPath: string, options: ConvertFilesOpions): Promise<boolean> {
+async function dbFileMagnetUpdate(MediaPath: string, options: ProcessingFileData): Promise<boolean> {
 	
 	try{
 		const magnet = await CreateMagnet(MediaPath);
@@ -243,10 +243,10 @@ async function dbFileMagnetUpdate(MediaPath: string, options: ConvertFilesOpions
 		const conn = await connect();
 		const [dbFileMagnetUpdate] = await conn.execute(
 			"UPDATE mediafiles set magnet = ? where id = ?",
-			[magnet, options.id]
+			[magnet, options.fileid]
 		);
 		if (!dbFileMagnetUpdate) {
-			logger.error("Error updating mediafiles table, id:", options.id, "magnet:", magnet);
+			logger.error("Error updating mediafiles table, id:", options.fileid, "magnet:", magnet);
 			conn.end();
 			return false;
 		}
