@@ -5,10 +5,11 @@ import fs from "fs";
 import { allowedMimeTypes, asyncTask, ProcessingFileData, UploadTypes } from "../interfaces/media.js";
 import { logger } from "./logger.js";
 import config from "config";
-import { dbFileHashupdate, dbFileMagnetUpdate, dbFileStatusUpdate, dbFileVisibilityUpdate } from "./database.js";
+import { dbFileHashupdate, dbFileMagnetUpdate, dbFileStatusUpdate, dbFileVisibilityUpdate, dbFileblurhashupdate } from "./database.js";
 import {fileTypeFromBuffer} from 'file-type';
 import { Request } from "express";
 import app from "../app.js";
+import { generateBlurhash } from "./blurhash.js";
 
 const requestQueue: queueAsPromised<any> = fastq.promise(PrepareFile, 2); //number of workers for the queue
 
@@ -112,24 +113,29 @@ async function convertFile(
 				}
 				});
 
-				const visibility =  dbFileVisibilityUpdate(true, options);
+				const visibility = dbFileVisibilityUpdate(true, options);
 				if (!visibility) {
 					logger.error("Could not update table mediafiles, id: " + options.fileid, "visibility: true");
 				}
-				const hash =  dbFileHashupdate(MediaPath, options);
+				const hash = dbFileHashupdate(MediaPath, options);
 				if (!hash) {
 					logger.error("Could not update table mediafiles, id: " + options.fileid, "hash for file: " + MediaPath);
 				}
 				
-				const magnet =  dbFileMagnetUpdate(MediaPath, options);
+				const magnet = dbFileMagnetUpdate(MediaPath, options);
 				if (!magnet) {
 					logger.error("Could not update table mediafiles, id: " + options.fileid, "magnet for file: " + MediaPath);
 				}
 
-				const completed =  dbFileStatusUpdate("completed", options);
+				const completed = dbFileStatusUpdate("completed", options);
 				if (!completed) {
 					logger.error("Could not update table mediafiles, id: " + options.fileid, "status: completed");
 				}
+
+				// const blurhash = dbFileblurhashupdate(await generateBlurhash(inputFile), options);
+				// if (!blurhash) {
+				// 	logger.error("Could not update table mediafiles, id: " + options.fileid, "blurhash for file: " + TempPath);
+				// }
 				
 				logger.info(`File converted successfully: ${MediaPath} ${ConversionDuration /2} seconds`);
 

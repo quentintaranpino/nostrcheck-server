@@ -21,7 +21,7 @@ const PrepareNIP94_event = async (filedata : ProcessingFileData): Promise<NIP94_
                         ["dim",filedata.width + "x" + filedata.height],
                         ["magnet", filedata.magnet],
                         ["i", filedata.torrent_infohash],
-                        ["blurhash", "TODO"] //TODO https://github.com/woltapp/blurhash/tree/master/TypeScript
+                        ["blurhash", filedata.blurhash]
                 ],              
                 content: '',
                 sig : "",

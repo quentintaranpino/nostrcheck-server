@@ -1,29 +1,23 @@
-import { encode } from "blurhash";
+import {encode} from 'blurhash'
+import { createCanvas, loadImage, Image } from 'canvas'
+import { logger } from './logger.js'
 
-//Blurhash lib from https://github.com/woltapp/blurhash/tree/master/TypeScript
+const getImageData = (image: Image) => {
+  const canvas = createCanvas(image.width, image.height)
+  const context = canvas.getContext('2d')
+  context.drawImage(image, 0, 0)
+  return context.getImageData(0, 0, image.width, image.height)
+}
 
-const loadImage = async (src: string) =>
-  new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => resolve(img);
-    img.onerror = (...args) => reject(args);
-    img.src = src;
-  });
-
-const getImageData = (image:any) => {
-  const canvas = document.createElement("canvas");
-  canvas.width = image.width;
-  canvas.height = image.height;
-  const context = canvas.getContext("2d");
-  if (!context) throw new Error("Could not get canvas context");
-  context.drawImage(image, 0, 0);
-  return context.getImageData(0, 0, image.width, image.height);
-};
-
-const encodeImageToBlurhash = async (imageUrl :string) => {
-  const image = await loadImage(imageUrl);
+const generateBlurhash = async (file:any): Promise<string> => {
+  
+  logger.debug("INIT blurhash generation for file:", file.originalname);
+  let image = await loadImage(file.buffer);
   const imageData = getImageData(image);
-  return encode(imageData.data, imageData.width, imageData.height, 4, 4);
-};
+  let blurhash = encode(imageData.data,imageData.width,imageData.height,4,4);
+  logger.debug("END blurhash generation for file:", file.originalname, ":", blurhash);
+  return blurhash;
 
-export { encodeImageToBlurhash };
+}
+
+export { generateBlurhash};

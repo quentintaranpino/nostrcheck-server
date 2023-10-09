@@ -126,6 +126,7 @@ async function populateTables(resetTables: boolean): Promise<boolean> {
 			"date datetime NOT NULL," +
 			"ip_address varchar(64) NOT NULL," +
 			"magnet varchar (512),"	+
+			"blurhash varchar (256)," +
 			"comments varchar(150)" +
 			") ENGINE=InnoDB DEFAULT CHARSET=latin1;";
 		logger.info("Creating table mediafiles");
@@ -233,6 +234,25 @@ async function dbFileHashupdate(filepath:string, options: ProcessingFileData): P
 	}
 	conn.end();
 	return true
+}
+
+async function dbFileblurhashupdate(blurhash:string, options: ProcessingFileData): Promise<boolean>{
+
+
+	const conn = await connect();
+	const [dbFileBlurHashUpdate] = await conn.execute(
+		"UPDATE mediafiles set blurhash = ? where id = ?",
+		[blurhash, options.fileid]
+	);
+	if (!dbFileBlurHashUpdate) {
+		logger.error("Error updating mediafiles table, id:", options.fileid, "blurhash:", blurhash);
+		conn.end();
+		return false;
+	}
+
+	conn.end();
+	return true
+
 }
 
 async function dbFileMagnetUpdate(MediaPath: string, options: ProcessingFileData): Promise<boolean> {
@@ -346,6 +366,7 @@ export { connect,
 		 dbFileStatusUpdate, 
 		 dbFileVisibilityUpdate, 
 		 dbFileHashupdate, 
+		 dbFileblurhashupdate,
 		 dbFileMagnetUpdate, 
 		 dbSelectUsername,
 		 showDBStats};

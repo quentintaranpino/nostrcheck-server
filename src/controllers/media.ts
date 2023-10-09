@@ -24,7 +24,7 @@ import config from "config";
 import path from "path";
 import { NIP94_event } from "../interfaces/nostr.js";
 import { PrepareNIP94_event } from "../lib/nostr/NIP94.js";
-import { encodeImageToBlurhash } from "../lib/blurhash.js";
+import { generateBlurhash } from "../lib/blurhash.js";
 
 const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 	logger.info("POST /api/v1/media", "|", req.socket.remoteAddress);
@@ -102,6 +102,7 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 		url: "",
 		magnet: "",
 		torrent_infohash: "",
+		blurhash: ""
 	};
 
 	//URL
@@ -158,6 +159,9 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 	}
 	dbHash.end();
 
+	//Generate blurhash
+	filedata.blurhash = await generateBlurhash(file);
+
 	//Add file to mediafiles table
 	if (insertfiledb) {
 		const dbFile = await connect();
@@ -165,7 +169,7 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 			const createdate = new Date(Math.floor(Date.now())).toISOString().slice(0, 19).replace("T", " ");
 
 			await dbFile.query(
-				"INSERT INTO mediafiles (pubkey, filename, original_hash, hash, status, visibility, date, ip_address, magnet, comments) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+				"INSERT INTO mediafiles (pubkey, filename, original_hash, hash, status, visibility, date, ip_address, magnet, blurhash, comments) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
 				[
 					pubkey,
 					filename,
@@ -176,6 +180,7 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 					createdate,
 					req.socket.remoteAddress,
 					filedata.magnet,
+					filedata.blurhash,
 					"comments",
 				]
 			);
@@ -235,10 +240,6 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 			return result;
 		});
 	}
-
-	// //Blurhash
-	// let blurtest = await encodeImageToBlurhash(mediaPath + "/" + filename);
-	// logger.debug("Blurhash:", blurtest);
 
 	//Return standard message with "file queued for conversion", status pending, URL and file ID
 	const returnmessage: MediaExtraDataResultMessage = {

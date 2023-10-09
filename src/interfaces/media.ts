@@ -75,6 +75,7 @@ const mediaTypes: { [key: string]: string } = {
 	url: string;
 	magnet: string;
 	torrent_infohash: string;
+	blurhash: string;
 }
 
 interface asyncTask {
