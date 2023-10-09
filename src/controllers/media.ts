@@ -137,25 +137,25 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 	let convert = true;
 	let insertfiledb = true;
 
-	// //Check if the (file SHA256 hash and pubkey) is already on the database, if exist (and the upload is media type) we return the existing file URL
-	// const dbHash = await connect("Uploadmedia");
-	// const [dbHashResult] = await dbHash.query("SELECT id, hash, magnet, blurhash filename FROM mediafiles WHERE original_hash = ? and pubkey = ? and filename not like 'avatar%' and filename not like 'banner%' ", [filehash, pubkey]);	
-	// const rowstempHash = JSON.parse(JSON.stringify(dbHashResult));
-	// if (rowstempHash[0] !== undefined && media_type == "media") {
-	// 	logger.info(`RES ->  File already in database, returning existing URL`, "|", req.socket.remoteAddress);
+	//Check if the (file SHA256 hash and pubkey) is already on the database, if exist (and the upload is media type) we return the existing file URL
+	const dbHash = await connect("Uploadmedia");
+	const [dbHashResult] = await dbHash.query("SELECT id, hash, magnet, blurhash filename FROM mediafiles WHERE original_hash = ? and pubkey = ? and filename not like 'avatar%' and filename not like 'banner%' ", [filehash, pubkey]);	
+	const rowstempHash = JSON.parse(JSON.stringify(dbHashResult));
+	if (rowstempHash[0] !== undefined && media_type == "media") {
+		logger.info(`RES ->  File already in database, returning existing URL`, "|", req.socket.remoteAddress);
 
-	// 	status = JSON.parse(JSON.stringify(UploadStatus[2]));
-	// 	description = description + "File exist in database, returning existing URL";
-	// 	filedata.filename = rowstempHash[0].filename;
-	// 	filedata.magnet = rowstempHash[0].magnet;
-	// 	filedata.fileid = rowstempHash[0].id;
-	// 	filedata.hash = rowstempHash[0].hash;
-	// 	filedata.blurhash = rowstempHash[0].blurhash;
-	// 	convert = false; 
-	// 	insertfiledb = false;
+		status = JSON.parse(JSON.stringify(UploadStatus[2]));
+		description = description + "File exist in database, returning existing URL";
+		filedata.filename = rowstempHash[0].filename;
+		filedata.magnet = rowstempHash[0].magnet;
+		filedata.fileid = rowstempHash[0].id;
+		filedata.hash = rowstempHash[0].hash;
+		filedata.blurhash = rowstempHash[0].blurhash;
+		convert = false; 
+		insertfiledb = false;
 
-	// }
-	// dbHash.end();
+	}
+	dbHash.end();
 
 	logger.debug(filedata);
 
