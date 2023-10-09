@@ -32,6 +32,7 @@ interface NIP94_event {
             ["url", string],
             ["m", string],
             ["x", string],
+            ["ox", string],
             ["size", string],
             ["dim",string],
             ["magnet", string],

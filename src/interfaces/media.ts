@@ -59,23 +59,28 @@ const mediaTypes: { [key: string]: string } = {
 	'mp4': "video/mp4",
   }
 
-  interface ProcessingFileData {
-	fileid: string;
-	username: string;
-	pubkey: string;
+
+interface FileData{
+	filename: string;
 	width: number;
 	height: number;
-	media_type: typeof UploadTypes[number];
-	originalmime: string;
-	outputmime: string;
-	outputname: string;
-	outputoptions: string;
+	fileid: string;
+	pubkey: string;
+	username: string;
 	originalhash: string;
 	hash: string;
+	blurhash: string;
 	url: string;
 	magnet: string;
 	torrent_infohash: string;
-	blurhash: string;
+}
+
+interface ProcessingFileData extends FileData{
+
+	media_type: typeof UploadTypes[number];
+	originalmime: string;
+	outputoptions: string;
+
 }
 
 interface asyncTask {
@@ -87,6 +92,7 @@ interface asyncTask {
 export {
 	allowedMimeTypes,
 	asyncTask,
+	FileData,
 	ProcessingFileData,
 	MediaResultMessage,
 	MediaExtraDataResultMessage,

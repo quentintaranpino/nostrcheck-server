@@ -28,6 +28,7 @@ async function connect(source:string): Promise<Pool> {
 			database: Database,
 			waitForConnections: true,
 			connectionLimit: 100,
+
 			});
 			await connection.getConnection();
 			logger.debug("Created new connection thread to database", source)
@@ -249,12 +250,11 @@ async function dbFileHashupdate(filepath:string, options: ProcessingFileData): P
 
 	let hash = '';
 	try{
-		logger.info("Generating file hash for file:", filepath)
 		hash = crypto
 				.createHash("sha256")
 				.update(fs.readFileSync(filepath))
 				.digest("hex");
-		logger.info("File hash:", hash);
+		logger.info("File hash:", hash, "for file:", filepath);
 		}
 	catch (error) {
 		logger.error("Error getting file hash", error);
@@ -283,7 +283,6 @@ async function dbFileHashupdate(filepath:string, options: ProcessingFileData): P
 }
 
 async function dbFileblurhashupdate(blurhash:string, options: ProcessingFileData): Promise<boolean>{
-
 
 	const conn = await connect("dbFileblurhashupdate");
 	try{

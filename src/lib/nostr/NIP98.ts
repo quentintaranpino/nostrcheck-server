@@ -285,11 +285,11 @@ const CheckApiKey = async (req: Request): Promise<VerifyResultMessage> => {
 
 	let apikey = req.query.apikey;
 	if (req.query.apikey == undefined) {apikey = req.body.apikey};
-	logger.warn("Apikey:",req.query.apikey);
+	logger.warn("Apikey:",apikey);
 
 	//Check if apikey is valid
+	let dbApikey = await connect("CheckApiKey");
 	try{
-		let dbApikey = await connect();
 		const [dbResult] = await dbApikey.query("SELECT hex, username FROM registered WHERE apikey = ?", [apikey]);
 		const rowstemp = JSON.parse(JSON.stringify(dbResult));
 		dbApikey.end();
@@ -312,12 +312,12 @@ const CheckApiKey = async (req: Request): Promise<VerifyResultMessage> => {
 		}
 	}catch (error: any) {
 		logger.error("Error checking apikey", error.message);
+		dbApikey.end();
 		const result: VerifyResultMessage = {
 			pubkey: "",
 			result: false,
 			description: "Apikey is deprecated, please use NIP98 header: Error checking apikey",
 		};
-
 		return result;	
 	}
 };

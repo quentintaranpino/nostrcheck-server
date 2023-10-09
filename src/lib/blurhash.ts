@@ -10,11 +10,11 @@ const getImageData = (image: Image) => {
 }
 
 const generateBlurhash = async (file:any): Promise<string> => {
-  
+
   logger.debug("INIT blurhash generation for file:", file.originalname);
   let image = await loadImage(file.buffer);
   const imageData = getImageData(image);
-  let blurhash = encode(imageData.data,imageData.width,imageData.height,4,4);
+  let blurhash = encode(imageData.data,imageData.width,imageData.height,4,3);
   logger.debug("END blurhash generation for file:", file.originalname, ":", blurhash);
   return blurhash;
 

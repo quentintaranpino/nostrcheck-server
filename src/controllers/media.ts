@@ -15,6 +15,7 @@ import {
 	MediaVisibilityResultMessage,
 	mime_transform,
 	UploadStatus,
+	FileData,
 } from "../interfaces/media.js";
 
 import { ResultMessage } from "../interfaces/server.js";
@@ -85,8 +86,9 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 					.digest("hex");
 	logger.info("hash ->", filehash, "|", req.socket.remoteAddress);
 
-	//Standard conversion options
+	//Filedata generation
 	const filedata: ProcessingFileData = {
+		filename: filehash +  "." + mime_transform[file.mimetype],
 		fileid: "",
 		username: username,
 		pubkey: pubkey,
@@ -94,8 +96,6 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 		height: config.get("media.transform.media.undefined.height"),
 		media_type: media_type,
 		originalmime: file.mimetype,
-		outputmime: mime_transform[file.mimetype],
-		outputname: filehash,
 		outputoptions: "",
 		originalhash: filehash,
 		hash: "",
@@ -106,7 +106,7 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 	};
 
 	//URL
-	filedata.url = servername + "/media/" + username + "/" + filedata.outputname + "." + filedata.outputmime; //TODO, make it parametrizable
+	filedata.url = servername + "/media/" + username + "/" + filedata.filename;
 
 	//Video or image conversion options
 	if (file.mimetype.toString().startsWith("video")) {
@@ -123,48 +123,49 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 	if (filedata.media_type.toString() === "avatar"){
 		filedata.width = config.get("media.transform.avatar.width");
 		filedata.height = config.get("media.transform.avatar.height");
-		filedata.outputname = "avatar";
+		filedata.filename = "avatar.webp";
 	}
 
 	//Banner conversion options
 	if (filedata.media_type.toString() === "banner"){
 		filedata.width = config.get("media.transform.banner.width");
 		filedata.height = config.get("media.transform.banner.height");
-		filedata.outputname = "banner";
+		filedata.filename = "banner.webp";
 	}
 
-	let status: typeof UploadStatus  = JSON.parse(JSON.stringify(UploadStatus[0]));
-	let filename = filedata.outputname + "." + filedata.outputmime;
+	let status: typeof UploadStatus = JSON.parse(JSON.stringify(UploadStatus[0]));
 	let convert = true;
 	let insertfiledb = true;
 
+	// //Check if the (file SHA256 hash and pubkey) is already on the database, if exist (and the upload is media type) we return the existing file URL
+	// const dbHash = await connect("Uploadmedia");
+	// const [dbHashResult] = await dbHash.query("SELECT id, hash, magnet, blurhash filename FROM mediafiles WHERE original_hash = ? and pubkey = ? and filename not like 'avatar%' and filename not like 'banner%' ", [filehash, pubkey]);	
+	// const rowstempHash = JSON.parse(JSON.stringify(dbHashResult));
+	// if (rowstempHash[0] !== undefined && media_type == "media") {
+	// 	logger.info(`RES ->  File already in database, returning existing URL`, "|", req.socket.remoteAddress);
+
+	// 	status = JSON.parse(JSON.stringify(UploadStatus[2]));
+	// 	description = description + "File exist in database, returning existing URL";
+	// 	filedata.filename = rowstempHash[0].filename;
+	// 	filedata.magnet = rowstempHash[0].magnet;
+	// 	filedata.fileid = rowstempHash[0].id;
+	// 	filedata.hash = rowstempHash[0].hash;
+	// 	filedata.blurhash = rowstempHash[0].blurhash;
+	// 	convert = false; 
+	// 	insertfiledb = false;
+
+	// }
+	// dbHash.end();
+
 	logger.debug(filedata);
-
-	//Check if the (file SHA256 hash and pubkey) is already on the database, if exist (and the upload is media type) we return the existing file URL
-	const dbHash = await connect();
-	const [dbHashResult] = await dbHash.query("SELECT id, hash, magnet, filename FROM mediafiles WHERE original_hash = ? and pubkey = ? and filename not like 'avatar%' and filename not like 'banner%' ", [filehash, pubkey]);	
-	const rowstempHash = JSON.parse(JSON.stringify(dbHashResult));
-	if (rowstempHash[0] !== undefined && media_type == "media") {
-		logger.info(`RES ->  File already in database, returning existing URL`, "|", req.socket.remoteAddress);
-
-		status = JSON.parse(JSON.stringify(UploadStatus[2]));
-		description = description + "File exist in database, returning existing URL";
-		filename = rowstempHash[0].filename;
-		filedata.magnet = rowstempHash[0].magnet;
-		filedata.fileid = rowstempHash[0].id;
-		filedata.hash = rowstempHash[0].hash;
-		convert = false; 
-		insertfiledb = false;
-
-	}
-	dbHash.end();
-
-	//Generate blurhash
-	filedata.blurhash = await generateBlurhash(file);
 
 	//Add file to mediafiles table
 	if (insertfiledb) {
-		const dbFile = await connect();
+
+		// //Generate blurhash
+		// filedata.blurhash = await generateBlurhash(file);
+
+		const dbFile = await connect("Uploadmedia");
 		try{
 			const createdate = new Date(Math.floor(Date.now())).toISOString().slice(0, 19).replace("T", " ");
 
@@ -172,7 +173,7 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 				"INSERT INTO mediafiles (pubkey, filename, original_hash, hash, status, visibility, date, ip_address, magnet, blurhash, comments) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
 				[
 					pubkey,
-					filename,
+					filedata.filename,
 					filedata.originalhash,
 					filedata.hash,
 					status,
@@ -199,11 +200,11 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 			}
 		
 			//Get file ID
-			const dbFileID = await connect();
-			const [IDdbResult] = await dbFileID.query("SELECT id FROM mediafiles WHERE filename = ? and pubkey = ? ORDER BY ID DESC", [filename, pubkey]);
+			const dbFileID = await connect("Uploadmedia");
+			const [IDdbResult] = await dbFileID.query("SELECT id FROM mediafiles WHERE filename = ? and pubkey = ? ORDER BY ID DESC", [filedata.filename, pubkey]);
 			const IDrowstemp = JSON.parse(JSON.stringify(IDdbResult));
 			if (IDrowstemp[0] == undefined) {
-				logger.error("File not found in database:", filedata.outputname + "." + filedata.outputmime);
+				logger.error("File not found in database:", filedata.filename);
 				const result: ResultMessage = {
 					result: false,
 					description: "The requested file was not found in database",
@@ -285,15 +286,15 @@ const GetMediaStatusbyID = async (req: Request, res: Response) => {
 
 	logger.info(`GET /api/v1/media?id=${id}`, "|", req.socket.remoteAddress);
 
-	const db = await connect();
-	const [dbResult] = await db.query("SELECT mediafiles.id, mediafiles.filename, registered.username, mediafiles.pubkey, mediafiles.status, mediafiles.magnet FROM mediafiles INNER JOIN registered on mediafiles.pubkey = registered.hex WHERE (mediafiles.id = ? and mediafiles.pubkey = ?)", [id , EventHeader.pubkey]);
+	const db = await connect("GetMediaStatusbyID");
+	const [dbResult] = await db.query("SELECT mediafiles.id, mediafiles.filename, registered.username, mediafiles.pubkey, mediafiles.status, mediafiles.magnet, mediafiles.original_hash, mediafiles.hash, mediafiles.blurhash, mediafiles.dimensions FROM mediafiles INNER JOIN registered on mediafiles.pubkey = registered.hex WHERE (mediafiles.id = ? and mediafiles.pubkey = ?)", [id , EventHeader.pubkey]);
 	let rowstemp = JSON.parse(JSON.stringify(dbResult));
 	if (rowstemp[0] == undefined) {
-		logger.warn(`File not found in database: ${req.query.id}, trying public server pubkey`, "|", req.socket.remoteAddress);
-		const [dbResult] = await db.query("SELECT mediafiles.id, mediafiles.filename, registered.username, mediafiles.pubkey, mediafiles.status, mediafiles.magnet FROM mediafiles INNER JOIN registered on mediafiles.pubkey = registered.hex WHERE (mediafiles.id = ? and mediafiles.pubkey = ?)", [id , app.get("pubkey")]);
+		logger.warn(`File not found in database: ${id}, trying public server pubkey`, "|", req.socket.remoteAddress);
+		const [dbResult] = await db.query("SELECT mediafiles.id, mediafiles.filename, registered.username, mediafiles.pubkey, mediafiles.status, mediafiles.magnet, mediafiles.original_hash, mediafiles.hash, mediafiles.blurhash, mediafiles.dimensions FROM mediafiles INNER JOIN registered on mediafiles.pubkey = registered.hex WHERE (mediafiles.id = ? and mediafiles.pubkey = ?)", [id , app.get("pubkey")]);
 		rowstemp = JSON.parse(JSON.stringify(dbResult));
 		if (rowstemp[0] == undefined) {
-			logger.error(`File not found in database: ${req.query.id}`, "|", req.socket.remoteAddress);
+			logger.error(`File not found in database: ${id}`, "|", req.socket.remoteAddress);
 		const result: ResultMessage = {
 			result: false,
 			description: "The requested file was not found",
@@ -306,29 +307,30 @@ const GetMediaStatusbyID = async (req: Request, res: Response) => {
 
 	db.end();
 
-	let url = "";
+	//Generate filedata
+	let filedata : FileData = {
+		filename: rowstemp[0].filename,
+		width: rowstemp[0].dimensions?.split("x")[0],
+		height: rowstemp[0].dimensions?.split("x")[1],
+		fileid: rowstemp[0].id,
+		username: rowstemp[0].username,
+		pubkey: rowstemp[0].pubkey,
+		originalhash: rowstemp[0].original_hash,
+		hash: rowstemp[0].hash,
+		url: servername + "/media/" + rowstemp[0].username + "/" + rowstemp[0].filename,
+		magnet: rowstemp[0].magnet,
+		torrent_infohash: "",
+		blurhash: rowstemp[0].blurhash
+	};
+
+
 	let description = "";
 	let resultstatus = false;
-	let hash = "";
 	let response = 200;
 
 	if (rowstemp[0].status == "completed") {
-		url = servername + "/media/" + rowstemp[0].username + "/" + rowstemp[0].filename; //TODO, make it parametrizable
 		description = "The requested file was found";
 		resultstatus = true;
-		
-		//Get file hash
-		const dbHash = await connect();
-		const [dbHashResult] = await dbHash.query("SELECT hash FROM mediafiles WHERE id = ?", [rowstemp[0].id]);
-		const hashrowstemp = JSON.parse(JSON.stringify(dbHashResult));
-		if (hashrowstemp[0] !== undefined) {
-			hash = hashrowstemp[0].hash;
-		}
-		else{
-			logger.error("Error getting file hash from database");
-			hash = "Error getting hash from file";
-		}
-		dbHash.end();
 		response = 200;
 		logger.info(`RES -> ${response} - ${description}`, "|", req.socket.remoteAddress);
 	}else if (rowstemp[0].status == "failed") {
@@ -353,18 +355,24 @@ const GetMediaStatusbyID = async (req: Request, res: Response) => {
 	const result: MediaExtraDataResultMessage = {
 		result: resultstatus,
 		description: description,
-		url: url,
+		url: filedata.url,
 		status: rowstemp[0].status,
 		id: rowstemp[0].id,
 		pubkey: rowstemp[0].pubkey,
-		hash: hash,
+		hash: filedata.hash,
 		magnet: rowstemp[0].magnet,
 		tags: tags,
 
 	};
 
+	//TEST NIP94 event response. TODO, remove this
+	const returnMessageNIP94Test : NIP94_event = await PrepareNIP94_event(filedata);
+	logger.debug(returnMessageNIP94Test);
+
 	return res.status(response).send(result);
 	
+
+
 };
 
 const GetMediabyURL = async (req: Request, res: Response) => {
@@ -494,7 +502,7 @@ const GetMediaTagsbyID = async (req: Request, res: Response): Promise<Response> 
 
 	//Query database for media tags
 	try {
-		const conn = await connect();
+		const conn = await connect("GetMediaTagsbyID");
 		const [rows] = await conn.execute("SELECT tag FROM mediatags INNER JOIN mediafiles ON mediatags.fileid = mediafiles.id where fileid = ? and pubkey = ? ", [req.params.fileId, EventHeader.pubkey]);
 		let rowstemp = JSON.parse(JSON.stringify(rows));
 
@@ -538,7 +546,7 @@ const GetMediabyTags = async (req: Request, res: Response): Promise<Response> =>
 
 	//Check database for media files by tags
 	try {
-		const conn = await connect();
+		const conn = await connect("GetMediabyTags");
 		const [rows] = await conn.execute("SELECT mediafiles.id, mediafiles.filename, registered.username, mediafiles.pubkey, mediafiles.status FROM mediatags INNER JOIN mediafiles ON mediatags.fileid = mediafiles.id INNER JOIN registered ON mediafiles.pubkey = registered.hex where tag = ? and mediafiles.pubkey = ? ", [req.params.tag, EventHeader.pubkey]);
 		let rowstemp = JSON.parse(JSON.stringify(rows));
 
@@ -614,7 +622,7 @@ const UpdateMediaVisibility = async (req: Request, res: Response): Promise<Respo
 
 	//Update table mediafiles whith new visibility
 	try {
-		const conn = await connect();
+		const conn = await connect("UpdateMediaVisibility");
 		const [rows] = await conn.execute("UPDATE mediafiles SET visibility = ? WHERE id = ? and pubkey = ?", [req.params.visibility, req.params.fileId, EventHeader.pubkey]);
 		let rowstemp = JSON.parse(JSON.stringify(rows));
 		conn.end();
@@ -693,7 +701,7 @@ const DeleteMedia = async (req: Request, res: Response): Promise<any> => {
 	if (req.query.apikey || req.body.apikey) {
 
 		try {
-			const conn = await connect();
+			const conn = await connect("DeleteMedia");
 			const [rows] = await conn.execute("SELECT hex FROM registered WHERE apikey = ?", [req.query.apikey || req.body.apikey]);
 			let rowstemp = JSON.parse(JSON.stringify(rows));
 			conn.end();
@@ -725,7 +733,7 @@ const DeleteMedia = async (req: Request, res: Response): Promise<any> => {
 
 	//Check if mediafile exist on database
 	try{
-		const conn = await connect();
+		const conn = await connect("DeleteMedia");
 		const [rows] = await conn.execute(
 			"SELECT mediafiles.id, mediafiles.filename, mediafiles.hash, registered.username FROM mediafiles LEFT JOIN registered on mediafiles.pubkey = registered.hex WHERE mediafiles.pubkey = ? and mediafiles.id = ?",
 			[EventHeader.pubkey, fileId]
@@ -791,7 +799,7 @@ const DeleteMedia = async (req: Request, res: Response): Promise<any> => {
 	logger.info("REQ Delete mediafile ->", servername, " | pubkey:",  EventHeader.pubkey, " | fileId:",  fileId, "|", req.socket.remoteAddress);
 
 	try {
-		const conn = await connect();
+		const conn = await connect("DeleteMedia");
 		const [rows] = await conn.execute(
 			"DELETE FROM mediafiles WHERE hash = ? and pubkey = ?", [filehash, EventHeader.pubkey]
 		);
@@ -841,9 +849,8 @@ export { GetMediaStatusbyID, GetMediabyURL, Uploadmedia, DeleteMedia, UpdateMedi
 const GetFileTags = async (fileid: string): Promise<string[]> => {
 
 	let tags = [];
-
+	const dbTags = await connect("GetFileTags");
 	try{
-		const dbTags = await connect();
 		const [dbTagsResult] = await dbTags.query("SELECT tag FROM mediatags WHERE fileid = ?", [fileid]);
 		const tagsrowstemp = JSON.parse(JSON.stringify(dbTagsResult));
 		if (tagsrowstemp[0] !== undefined) {
@@ -855,6 +862,7 @@ const GetFileTags = async (fileid: string): Promise<string[]> => {
 	}
 	catch (error) {
 		logger.error("Error getting file tags from database", error);
+		dbTags.end();
 	}
 	
 	return tags;

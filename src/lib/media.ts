@@ -5,11 +5,12 @@ import fs from "fs";
 import { allowedMimeTypes, asyncTask, ProcessingFileData, UploadTypes } from "../interfaces/media.js";
 import { logger } from "./logger.js";
 import config from "config";
-import { dbFileHashupdate, dbFileMagnetUpdate, dbFileStatusUpdate, dbFileVisibilityUpdate, dbFileblurhashupdate } from "./database.js";
+import { dbFileHashupdate, dbFileMagnetUpdate, dbFileStatusUpdate, dbFileVisibilityUpdate, dbFileDimensionsUpdate, dbFileblurhashupdate } from "./database.js";
 import {fileTypeFromBuffer} from 'file-type';
 import { Request } from "express";
 import app from "../app.js";
 import { generateBlurhash } from "./blurhash.js";
+import crypto from "crypto";
 
 const requestQueue: queueAsPromised<any> = fastq.promise(PrepareFile, 2); //number of workers for the queue
 
@@ -43,7 +44,7 @@ async function PrepareFile(t: asyncTask): Promise<void> {
 		":",
 		t.req.file.originalname,
 		"=>",
-		`${t.filedata.outputname}.${t.filedata.outputmime}`
+		`${t.filedata.filename}`
 	);
 
 	await convertFile(t.req.file, t.filedata, 0);
@@ -58,17 +59,17 @@ async function convertFile(
 
 	if (retry > 5) {return false}
 
-	const TempPath = config.get("media.tempPath") + options.outputname;
+	const TempPath = config.get("media.tempPath") + crypto.randomBytes(8).toString('hex') + options.filename;
+
 	logger.info("Using temp path:", TempPath);
 	let NewDimensions = setMediaDimensions(TempPath, options);
 	return new Promise(async(resolve, reject) => {
-		//We write the file on filesystem because ffmpeg doesn't support streams
+
+		//We write the file on filesystem because ffmpeg doesn't support streams.
 		fs.writeFile(TempPath, inputFile.buffer, function (err) {
 			if (err) {
 				logger.error(err);
-
 				reject(err);
-
 				return;
 			}
 		});
@@ -79,20 +80,21 @@ async function convertFile(
 			logger.error("Could not update table mediafiles, id: " + options.fileid, "status: processing");
 		}
 
-		const MediaPath = config.get("media.mediaPath") + options.username + "/" + options.outputname + "." + options.outputmime;
+		const MediaPath = config.get("media.mediaPath") + options.username + "/" + options.filename;
 		logger.info("Using media path:", MediaPath);
 
 		let MediaDuration: number = 0;
 		let ConversionDuration : number = 0;
 		
+		let newfilesize = (await NewDimensions).toString()
 
 		let ConversionEngine = ffmpeg(TempPath)
 			.outputOption(["-loop 0"]) //Always loop. If is an image it will not apply.
-			.setSize((await NewDimensions).toString())
+			.setSize(newfilesize)
 			.output(MediaPath)
-			.toFormat(options.outputmime)
+			.toFormat(options.filename.split(".").pop() || "")
 
-		if (options.outputmime == "webp" && options.originalmime != "image/gif") {
+		if (options.filename.split(".").pop() == "webp" && options.originalmime != "image/gif") {
 			ConversionEngine.frames(1); //Fix IOS issue when uploading some portrait images.
 		}
 			
@@ -113,30 +115,39 @@ async function convertFile(
 				}
 				});
 
-				const visibility = dbFileVisibilityUpdate(true, options);
+				// if (options.originalmime.toString().startsWith("image")){
+				// 	const blurhash =  dbFileblurhashupdate(await generateBlurhash(inputFile), options);
+				// 	if (!blurhash) {
+				// 		logger.error("Could not update table mediafiles, id: " + options.fileid, "blurhash for file: " + TempPath);
+				// 	}
+		
+				// }
+
+				const visibility =  dbFileVisibilityUpdate(true, options);
 				if (!visibility) {
 					logger.error("Could not update table mediafiles, id: " + options.fileid, "visibility: true");
 				}
-				const hash = dbFileHashupdate(MediaPath, options);
+				const hash =  dbFileHashupdate(MediaPath, options);
 				if (!hash) {
 					logger.error("Could not update table mediafiles, id: " + options.fileid, "hash for file: " + MediaPath);
 				}
 				
-				const magnet = dbFileMagnetUpdate(MediaPath, options);
+				const magnet =  dbFileMagnetUpdate(MediaPath, options);
 				if (!magnet) {
 					logger.error("Could not update table mediafiles, id: " + options.fileid, "magnet for file: " + MediaPath);
 				}
 
-				const completed = dbFileStatusUpdate("completed", options);
+				const completed =  dbFileStatusUpdate("completed", options);
 				if (!completed) {
 					logger.error("Could not update table mediafiles, id: " + options.fileid, "status: completed");
 				}
 
-				// const blurhash = dbFileblurhashupdate(await generateBlurhash(inputFile), options);
-				// if (!blurhash) {
-				// 	logger.error("Could not update table mediafiles, id: " + options.fileid, "blurhash for file: " + TempPath);
-				// }
-				
+				logger.debug(newfilesize);
+				const dimensions =  dbFileDimensionsUpdate(+newfilesize.split("x")[0], +newfilesize.split("x")[1], options);
+				if (!dimensions) {
+					logger.error("Could not update table mediafiles, id: " + options.fileid, "dimensions for file: " + MediaPath);
+				}
+			
 				logger.info(`File converted successfully: ${MediaPath} ${ConversionDuration /2} seconds`);
 
 				resolve(end);
@@ -144,7 +155,7 @@ async function convertFile(
 			})
 			.on("error", (err) => {
 
-				logger.warn(`Error converting file, retrying file conversion: ${options.outputname} retry: ${retry}/5`);
+				logger.warn(`Error converting file, retrying file conversion: ${options.filename} retry: ${retry}/5`);
 				logger.error(err);
 				retry++
 				fs.unlink(TempPath, (err) => {
@@ -184,7 +195,7 @@ async function convertFile(
 				if (percent %25 > 0 && percent %25 < 1){
 					logger.info(
 						`Processing : ` +
-							`${options.outputname} - ${Number(percent).toFixed(2)} %`
+							`${options.filename} - ${Number(percent).toFixed(2)} %`
 					);
 				}
 				
@@ -259,8 +270,8 @@ export {convertFile, requestQueue, ParseMediaType, ParseFileType };
 	const response:string = await new Promise ((resolve) => {
 		ffmpeg.ffprobe(file, (err, metadata) => {
 		if (err) {
-			logger.error("Could not get media dimensions of file: " + options.outputname + " using default min width (640px)");
-			resolve("640" + "x?") //Default min width
+			logger.error("Could not get media dimensions of file: " + options.filename + " using default min width (640px)");
+			resolve("640x480"); //Default min width
 			return;
 		} else {
 		
@@ -270,8 +281,8 @@ export {convertFile, requestQueue, ParseMediaType, ParseFileType };
 			let newHeight = options.height;
 
 			if (!mediaWidth || !mediaHeight) {
-				logger.warn("Could not get media dimensions of file: " + options.outputname + " using default min width (640px)");
-				resolve("640" + "x?") //Default min width
+				logger.warn("Could not get media dimensions of file: " + options.filename + " using default min width (640px)");
+				resolve("640x480"); //Default min width
 				return;
 			}
 
@@ -286,10 +297,13 @@ export {convertFile, requestQueue, ParseMediaType, ParseFileType };
 				newHeight = mediaHeight;
 			  }
 
-			logger.info("Origin dimensions:", +mediaWidth + "px", +mediaHeight + "px",);
+			//newHeigt truncated to 0 decimals
+			newHeight = Math.trunc(+newHeight);
+
+			logger.debug("Origin dimensions:", +mediaWidth + "px", +mediaHeight + "px",);
 			logger.info("Output dimensions:", +newWidth + "px", +newHeight + "px",);		
 
-			resolve(newWidth + "x?")
+			resolve(newWidth + "x" + newHeight);
 		}})
 
 		});
