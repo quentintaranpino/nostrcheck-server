@@ -37,6 +37,7 @@
     "typescript": "5.1.6"
   },
   "dependencies": {
+    "blurhash": "^2.0.5",
     "config": "3.3.9",
     "cors": "2.8.5",
     "express": "4.18.2",

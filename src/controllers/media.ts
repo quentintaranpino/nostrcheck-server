@@ -24,6 +24,7 @@ import config from "config";
 import path from "path";
 import { NIP94_event } from "../interfaces/nostr.js";
 import { PrepareNIP94_event } from "../lib/nostr/NIP94.js";
+import { encodeImageToBlurhash } from "../lib/blurhash.js";
 
 const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 	logger.info("POST /api/v1/media", "|", req.socket.remoteAddress);
@@ -235,6 +236,10 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 		});
 	}
 
+	// //Blurhash
+	// let blurtest = await encodeImageToBlurhash(mediaPath + "/" + filename);
+	// logger.debug("Blurhash:", blurtest);
+
 	//Return standard message with "file queued for conversion", status pending, URL and file ID
 	const returnmessage: MediaExtraDataResultMessage = {
 		result: true,
@@ -248,8 +253,9 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 		tags: await GetFileTags(filedata.fileid)
 	};
 
+	//TEST NIP94 event response. TODO, remove this
 	const returnMessageNIP94Test : NIP94_event = await PrepareNIP94_event(filedata);
-	console.log(returnMessageNIP94Test);
+	logger.debug(returnMessageNIP94Test);
 
 	return res.status(200).send(returnmessage);
 };
