@@ -2,6 +2,7 @@
 import app from "./app.js";
 import { prepareAppFolders, prepareAPPConfig } from "./lib/config.js";
 import { showDBStats } from "./lib/database.js";
+import { SeedMediafilesMagnets } from "./lib/torrent.js";
 
 // Start Express server.
 const server = app.listen(app.get("port"), async () => {
@@ -36,6 +37,9 @@ const server = app.listen(app.get("port"), async () => {
 
 	//Show startup stats
 	showDBStats();
+
+	//Start seeding magnets
+	SeedMediafilesMagnets();
 
 
 });
