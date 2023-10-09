@@ -265,7 +265,7 @@ const Registernewpubkey = async (req: Request, res: Response): Promise<Response>
 		.replace("T", " ");
 
 	//Check if username alredy exist
-	const conn = await connect();
+	const conn = await connect("Registernewpubkey");
 	const [dbResult] = await conn.execute(
 		"SELECT * FROM registered where (username = ? and domain = ?) OR (hex = ? and domain = ?)",
 		[username, domain, hex, domain]

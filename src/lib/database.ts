@@ -7,13 +7,13 @@ import fs from "fs";
 import { CreateMagnet } from "./torrent.js";
 
 //Check database integrity
-const dbtables = populateTables(config.get('database.droptables')); // true = reset tables
+const dbtables = await populateTables(config.get('database.droptables')); // true = reset tables
 if (!dbtables) {
 	logger.fatal("Error creating database tables");
 	process.exit(1);
 }
 
-async function connect(): Promise<Pool> {
+async function connect(source:string): Promise<Pool> {
 
 	const DatabaseHost :string 		 = config.get('database.host');
 	const DatabaseUser :string  	 = config.get('database.user');
@@ -30,6 +30,7 @@ async function connect(): Promise<Pool> {
 			connectionLimit: 100,
 			});
 			await connection.getConnection();
+			logger.debug("Created new connection thread to database", source)
 			return connection;
 	}catch (error) {
 			logger.fatal(`There is a problem connecting to mysql server, is mysql-server package installed on your system? : ${error}`);
@@ -40,7 +41,7 @@ async function connect(): Promise<Pool> {
 
 async function populateTables(resetTables: boolean): Promise<boolean> {
 	if (resetTables) {
-		const conn = await connect();
+		const conn = await connect("populateTables");
 		logger.info("Dropping table registered");
 		const RegisteredTableDropStatement = "DROP TABLE IF EXISTS registered;";
 		await conn.query(RegisteredTableDropStatement);
@@ -56,7 +57,7 @@ async function populateTables(resetTables: boolean): Promise<boolean> {
 		conn.end();
 	}
 
-	const conn = await connect();
+	const conn = await connect("populateTables");
 
 	//Create registered table
 	const ExistRegisteredTableStatement = "SHOW TABLES FROM `nostrcheck` LIKE 'registered';";
@@ -127,6 +128,7 @@ async function populateTables(resetTables: boolean): Promise<boolean> {
 			"ip_address varchar(64) NOT NULL," +
 			"magnet varchar (512),"	+
 			"blurhash varchar (256)," +
+			"dimensions varchar (15)," +
 			"comments varchar(150)" +
 			") ENGINE=InnoDB DEFAULT CHARSET=latin1;";
 		logger.info("Creating table mediafiles");
@@ -172,37 +174,74 @@ async function populateTables(resetTables: boolean): Promise<boolean> {
 
 async function dbFileStatusUpdate(status: string, options: ProcessingFileData): Promise<boolean> {
 
-	const conn = await connect();
-	const [dbFileStatusUpdate] = await conn.execute(
-		"UPDATE mediafiles set status = ? where id = ?",
-		[status, options.fileid]
-	);
-	if (!dbFileStatusUpdate) {
+
+	const conn = await connect("dbFileStatusUpdate");
+	try{
+		const [dbFileStatusUpdate] = await conn.execute(
+			"UPDATE mediafiles set status = ? where id = ?",
+			[status, options.fileid]
+		);
+		if (!dbFileStatusUpdate) {
+			logger.error("Error updating mediafiles table, id:", options.fileid, "status:", status);
+			conn.end();
+			return false;
+		}
+
+		conn.end();
+		return true
+	}catch (error) {
 		logger.error("Error updating mediafiles table, id:", options.fileid, "status:", status);
 		conn.end();
 		return false;
 	}
 
-	conn.end();
-	return true
+}
+
+async function dbFileDimensionsUpdate(width: number, height:number, options: ProcessingFileData): Promise<boolean> {
+
+	const conn = await connect("dbFileDimensionsUpdate");
+	try{
+		const [dbFileStatusUpdate] = await conn.execute(
+			"UPDATE mediafiles set dimensions = ? where id = ?",
+			[width + "x" + height, options.fileid]
+		);
+		if (!dbFileStatusUpdate) {
+			logger.error("Error updating mediafiles table, id:", options.fileid, "dimensions:", width + "x" + height);
+			conn.end();
+			return false;
+		}
+
+		conn.end();
+		return true
+	}catch (error) {
+		logger.error("Error updating mediafiles table, id:", options.fileid, "dimensions:", width + "x" + height);
+		conn.end();
+		return false;
+	}
 
 }
 
 async function dbFileVisibilityUpdate(visibility: boolean, options: ProcessingFileData): Promise<boolean> {
 
-	const conn = await connect();
-	const [dbFileStatusUpdate] = await conn.execute(
-		"UPDATE mediafiles set visibility = ? where id = ?",
-		[visibility, options.fileid]
-	);
-	if (!dbFileStatusUpdate) {
+	const conn = await connect("dbFileVisibilityUpdate");
+	try{
+		const [dbFileStatusUpdate] = await conn.execute(
+			"UPDATE mediafiles set visibility = ? where id = ?",
+			[visibility, options.fileid]
+		);
+		if (!dbFileStatusUpdate) {
+			logger.error("Error updating mediafiles table, id:", options.fileid, "visibility:", visibility);
+			conn.end();
+			return false;
+		}
+
+		conn.end();
+		return true
+	}catch (error) {
 		logger.error("Error updating mediafiles table, id:", options.fileid, "visibility:", visibility);
 		conn.end();
 		return false;
 	}
-
-	conn.end();
-	return true
 
 }
 
@@ -222,36 +261,49 @@ async function dbFileHashupdate(filepath:string, options: ProcessingFileData): P
 		return false;
 	}
 
-	const conn = await connect();
-	const [dbFileHashUpdate] = await conn.execute(
-		"UPDATE mediafiles set hash = ? where id = ?",
-		[hash, options.fileid]
-	);
-	if (!dbFileHashUpdate) {
-		logger.error("Error updating mediafiles table (hash), id:", options.fileid, "hash:", hash);
+	const conn = await connect("dbFileHashupdate");
+	try{
+		const [dbFileHashUpdate] = await conn.execute(
+			"UPDATE mediafiles set hash = ? where id = ?",
+			[hash, options.fileid]
+		);
+		if (!dbFileHashUpdate) {
+			logger.error("Error updating mediafiles table (hash), id:", options.fileid, "hash:", hash);
+			conn.end();
+			return false;
+		}
 		conn.end();
-		return false;
-	}
+		return true
+	}catch (error) {
+	logger.error("Error updating mediafiles table (hash), id:", options.fileid, "hash:", hash);
 	conn.end();
-	return true
+	return false;
+	}
+
 }
 
 async function dbFileblurhashupdate(blurhash:string, options: ProcessingFileData): Promise<boolean>{
 
 
-	const conn = await connect();
-	const [dbFileBlurHashUpdate] = await conn.execute(
-		"UPDATE mediafiles set blurhash = ? where id = ?",
-		[blurhash, options.fileid]
-	);
-	if (!dbFileBlurHashUpdate) {
+	const conn = await connect("dbFileblurhashupdate");
+	try{
+		const [dbFileBlurHashUpdate] = await conn.execute(
+			"UPDATE mediafiles set blurhash = ? where id = ?",
+			[blurhash, options.fileid]
+		);
+		if (!dbFileBlurHashUpdate) {
+			logger.error("Error updating mediafiles table, id:", options.fileid, "blurhash:", blurhash);
+			conn.end();
+			return false;
+		}
+
+		conn.end();
+		return true
+	}catch (error) {
 		logger.error("Error updating mediafiles table, id:", options.fileid, "blurhash:", blurhash);
 		conn.end();
 		return false;
 	}
-
-	conn.end();
-	return true
 
 }
 
@@ -259,8 +311,9 @@ async function dbFileMagnetUpdate(MediaPath: string, options: ProcessingFileData
 	
 	try{
 		const magnet = await CreateMagnet(MediaPath);
+		logger.debug("Magnet link:", magnet, "for file:", MediaPath, "id:", options.fileid)
 
-		const conn = await connect();
+		const conn = await connect("dbFileMagnetUpdate");
 		const [dbFileMagnetUpdate] = await conn.execute(
 			"UPDATE mediafiles set magnet = ? where id = ?",
 			[magnet, options.fileid]
@@ -280,20 +333,27 @@ async function dbFileMagnetUpdate(MediaPath: string, options: ProcessingFileData
 
 async function dbSelectUsername(pubkey: string): Promise<string> {
 
-	const dbPubkey = await connect();
-	const [dbResult] = await dbPubkey.query("SELECT username FROM registered WHERE hex = ?", [pubkey]);
-	const rowstemp = JSON.parse(JSON.stringify(dbResult));
+	const dbPubkey = await connect("dbSelectUsername");
+	try{
+		const [dbResult] = await dbPubkey.query("SELECT username FROM registered WHERE hex = ?", [pubkey]);
+		const rowstemp = JSON.parse(JSON.stringify(dbResult));
+		dbPubkey.end();
+		if (rowstemp[0] == undefined) {
+			return "";	
+		}else{
 
-	if (rowstemp[0] == undefined) {
-		return "";	
-	}else{
-		return rowstemp[0]['username'];
+			return rowstemp[0]['username'];
+		}
+	}catch (error) {
+	logger.error("Error getting username from database");
+	return "";
 	}
+	
 }
 
 async function showDBStats(){
 
-	const conn = await connect();
+	const conn = await connect("showDBStats");
 	const result = [];
 
 	//Show table registered rows
@@ -369,4 +429,5 @@ export { connect,
 		 dbFileblurhashupdate,
 		 dbFileMagnetUpdate, 
 		 dbSelectUsername,
-		 showDBStats};
+		 showDBStats,
+		 dbFileDimensionsUpdate};

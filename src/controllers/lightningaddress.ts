@@ -62,7 +62,7 @@ const Redirectlightningddress = async (req: Request, res: Response): Promise<any
 		}
 
 		//If not cached, query the database
-		const conn = await connect();
+		const conn = await connect("Redirectlightningddress");
 		const [rows] = await conn.execute(
 			"SELECT lightningaddress FROM lightning INNER JOIN registered ON lightning.pubkey = registered.hex WHERE registered.username = ? and registered.domain = ?",
 			[name, servername]
@@ -156,7 +156,7 @@ const UpdateLightningAddress = async (req: Request, res: Response): Promise<any>
 
 
 	try {
-		const conn = await connect();
+		const conn = await connect("UpdateLightningAddress");
 		const [rows] = await conn.execute(
 			"UPDATE lightning SET lightningaddress = ? WHERE pubkey = ?",
 			[lightningaddress, EventHeader.pubkey]
@@ -167,7 +167,7 @@ const UpdateLightningAddress = async (req: Request, res: Response): Promise<any>
 			logger.info("Update Lightningaddress ->", EventHeader.pubkey, "|", "Lightning redirect not found, creating...");
 
 			//Insert lightning address into database
-			const conn = await connect();
+			const conn = await connect("UpdateLightningAddress");
 			const [dbInsert] = await conn.execute(
 			"INSERT INTO lightning (pubkey, lightningaddress) VALUES (?, ?)",
 			[EventHeader.pubkey, lightningaddress]
@@ -198,7 +198,7 @@ const UpdateLightningAddress = async (req: Request, res: Response): Promise<any>
 	}
 
 	//select lightningaddress from database
-	const conn = await connect();
+	const conn = await connect("UpdateLightningAddress");
 	const [rows] = await conn.execute(
 		"SELECT username, domain FROM registered WHERE hex = ?",
 		[EventHeader.pubkey]
@@ -236,7 +236,7 @@ const DeleteLightningAddress = async (req: Request, res: Response): Promise<any>
 
 	//Check if pubkey's lightningaddress exists on database
 	try{
-		const conn = await connect();
+		const conn = await connect("DeleteLightningAddress");
 		const [rows] = await conn.execute(
 			"SELECT lightningaddress FROM lightning WHERE pubkey = ?",
 			[EventHeader.pubkey]
@@ -265,7 +265,7 @@ const DeleteLightningAddress = async (req: Request, res: Response): Promise<any>
 	logger.info("REQ Delete lightningaddress ->", servername, " | pubkey:",  EventHeader.pubkey, " | ligntningaddress:",  lightningaddress, "|", req.socket.remoteAddress);
 
 	try {
-		const conn = await connect();
+		const conn = await connect("DeleteLightningAddress");
 		const [rows] = await conn.execute(
 			"DELETE FROM lightning WHERE pubkey = ?",
 			[EventHeader.pubkey]
@@ -291,7 +291,7 @@ const DeleteLightningAddress = async (req: Request, res: Response): Promise<any>
 	}
 
 	//select lightningaddress from database
-	const conn = await connect();
+	const conn = await connect("DeleteLightningAddress");
 
 	const [rows] = await conn.execute(
 		"SELECT username, domain FROM registered WHERE hex = ?",

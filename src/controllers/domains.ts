@@ -11,7 +11,7 @@ import { redisClient } from "../lib/redis.js";
 const QueryAvailiableDomains = async (): Promise<AvailableDomainsResult> => {
 	//Query database for available domains
 	try {
-		const conn = await connect();
+		const conn = await connect("QueryAvailiableDomains");
 		const rows = await conn.execute("SELECT * from domains");
 		const rowstemp = JSON.parse(JSON.stringify(rows));
 		conn.end();
@@ -34,7 +34,7 @@ const QueryAvailiableUsers = async (domain:string): Promise<JSON[]> => {
 
 	//Query database for available users from a domain
 	try {
-		const db = await connect();
+		const db = await connect("QueryAvailiableUsers");
 		const [dbResult] = await db.query("SELECT username, hex FROM registered where domain = ?", [domain]);
 		const rowstemp = JSON.parse(JSON.stringify(dbResult));
 		if (rowstemp[0] == undefined) {
@@ -211,7 +211,7 @@ const UpdateUserDomain = async (req: Request, res: Response): Promise<any> => {
 	logger.debug("Current domains: ", CurrentDomains);
 
 	try {
-		const conn = await connect();
+		const conn = await connect("UpdateUserDomain");
 		const [rows] = await conn.execute(
 			"UPDATE registered SET domain = ? WHERE hex = ?",
 			[domain, EventHeader.pubkey]
@@ -243,7 +243,7 @@ const UpdateUserDomain = async (req: Request, res: Response): Promise<any> => {
 	}
 
 	//select domain from database
-	const conn = await connect();
+	const conn = await connect("UpdateUserDomain");
 	const [rows] = await conn.execute(
 		"SELECT username, domain FROM registered WHERE hex = ?",
 		[EventHeader.pubkey]

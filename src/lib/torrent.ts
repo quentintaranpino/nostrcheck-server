@@ -16,7 +16,7 @@ const SeedMediafilesMagnets = async () => {
   //Retrieve magnet links from database
   let result;
   try{
-    const conn = await connect();
+    const conn = await connect("SeedMediafilesMagnets");
     const [dbFileMagnet] = await conn.execute(
       "SELECT DISTINCT filename, username FROM mediafiles inner join registered on mediafiles.pubkey = registered.hex where magnet is not null");
     if (!dbFileMagnet) {
