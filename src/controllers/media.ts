@@ -255,9 +255,9 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 		tags: await GetFileTags(filedata.fileid)
 	};
 
-	//TEST NIP94 event response. TODO, remove this
-	const returnMessageNIP94Test : NIP94_event = await PrepareNIP94_event(filedata);
-	logger.debug(returnMessageNIP94Test);
+	// //TEST NIP94 event response. TODO, remove this
+	// const returnMessageNIP94Test : NIP94_event = await PrepareNIP94_event(filedata);
+	// logger.debug(returnMessageNIP94Test);
 
 	return res.status(200).send(returnmessage);
 };
@@ -365,9 +365,9 @@ const GetMediaStatusbyID = async (req: Request, res: Response) => {
 
 	};
 
-	//TEST NIP94 event response. TODO, remove this
-	const returnMessageNIP94Test : NIP94_event = await PrepareNIP94_event(filedata);
-	logger.debug(returnMessageNIP94Test);
+	// //TEST NIP94 event response. TODO, remove this
+	// const returnMessageNIP94Test : NIP94_event = await PrepareNIP94_event(filedata);
+	// logger.debug(returnMessageNIP94Test);
 
 	return res.status(response).send(result);
 	
