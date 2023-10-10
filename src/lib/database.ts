@@ -5,6 +5,13 @@ import { ProcessingFileData } from "../interfaces/media.js";
 import crypto from "crypto";
 import fs from "fs";
 import { CreateMagnet } from "./torrent.js";
+import { 
+	DatabaseTables, 
+	DomainsTableFields, 
+	LightningTableFields, 
+	MediafilesTableFields, 
+	MediatagsTableFields, 
+	RegisteredTableFields} from "../interfaces/database.js";
 
 //Check database integrity
 const dbtables = await populateTables(config.get('database.droptables')); // true = reset tables
@@ -41,136 +48,143 @@ async function connect(source:string): Promise<Pool> {
 };
 
 async function populateTables(resetTables: boolean): Promise<boolean> {
+	
 	if (resetTables) {
 		const conn = await connect("populateTables");
-		logger.info("Dropping table registered");
-		const RegisteredTableDropStatement = "DROP TABLE IF EXISTS registered;";
-		await conn.query(RegisteredTableDropStatement);
-
-		logger.info("Dropping table domains");
-		const DomainsTableDropStatement = "DROP TABLE IF EXISTS domains;";
-		await conn.query(DomainsTableDropStatement);
-
-		logger.info("Dropping table mediafiles");
-		const mediafilesTableDropStatement = "DROP TABLE IF EXISTS mediafiles;";
-		await conn.query(mediafilesTableDropStatement);
-
+		try{
+		for (let i = 0; i < DatabaseTables.length; i++) {
+			logger.info("Dropping table:", DatabaseTables[i]);
+			const DropTableStatement = "DROP TABLE IF EXISTS " + DatabaseTables[i] + ";";
+			await conn.query(DropTableStatement);
+		}
 		conn.end();
+		}catch (error) {
+			logger.error("Error dropping tables", error);
+			conn.end();
+			return false;
+		}
 	}
+		
+	//Check tables consistency
+	for (let i = 0; i < DatabaseTables.length; i++) {
 
-	const conn = await connect("populateTables");
-
-	//Create registered table
-	const ExistRegisteredTableStatement = "SHOW TABLES FROM `nostrcheck` LIKE 'registered';";
-	const [ExistRegisteredTable] = await conn.query(ExistRegisteredTableStatement);
-	const rowstempExistRegisteredTable = JSON.parse(JSON.stringify(ExistRegisteredTable));
-	if (rowstempExistRegisteredTable[0] == undefined) {
-		const RegisteredTableCreateStatement: string =
-			"CREATE TABLE IF NOT EXISTS registered (" +
-			"id int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY," +
-			"pubkey varchar(64) NOT NULL," +
-			"hex varchar(64) NOT NULL," +
-			"username varchar(50) NOT NULL," +
-			"password varchar(100) NOT NULL," +
-			"domain varchar(50) NOT NULL," +
-			"active boolean NOT NULL DEFAULT 0," +
-			"date datetime NOT NULL," +
-			"allowed boolean NOT NULL DEFAULT 0," +
-			"apikey varchar(64)," +
-			"comments varchar(150)" +
-			") ENGINE=InnoDB DEFAULT CHARSET=latin1;";
-
-		logger.info("Creating table registered");
-		await conn.query(RegisteredTableCreateStatement);
-	}
-	
-	//Create domains table
-	const ExistDomainsTableStatement = "SHOW TABLES FROM `nostrcheck` LIKE 'domains';";
-	const [ExistDomainsTable] = await conn.query(ExistDomainsTableStatement);
-	const rowstempExistDomainsTable = JSON.parse(JSON.stringify(ExistDomainsTable));
-	if (rowstempExistDomainsTable[0] == undefined) {
-		const DomainsTableCreateStatement: string =
-			"CREATE TABLE IF NOT EXISTS domains (" +
-			"id int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY," +
-			"domain varchar(50) NOT NULL," +
-			"active boolean NOT NULL DEFAULT 0," +
-			"comments varchar(150)" +
-			") ENGINE=InnoDB DEFAULT CHARSET=latin1;";
-		logger.info("Creating table domains");
-		await conn.query(DomainsTableCreateStatement);
-
-		logger.info("Populating default domains");
-		const InsertDomainsTableStatement =
-			"INSERT INTO domains (domain, active, comments) VALUES (?,?,?);";
-		await conn.execute(InsertDomainsTableStatement, ["nostrcheck.me", 1, "Default domain"]);
-		await conn.execute(InsertDomainsTableStatement, ["nostr-check.me", 1, ""]);
-		await conn.execute(InsertDomainsTableStatement, ["nostriches.club", 1, ""]);
-		await conn.execute(InsertDomainsTableStatement, ["plebchain.club", 1, ""]);
-		if (!InsertDomainsTableStatement) {
-			logger.fatal("Error inserting default domains to database");
+		//domains table
+		if (DatabaseTables[i] == "domains") {
+			for (const [key, value] of Object.entries(DomainsTableFields)) {
+				const test = await checkDatabaseConsistency(DatabaseTables[i], key, value);
+				if (!test) {
+					logger.fatal("Error checking database table domains");
+					process.exit(1);
+				}
+			}
+		}
+		//lightning table
+		if (DatabaseTables[i] == "lightning") {
+			for (const [key, value] of Object.entries(LightningTableFields)) {
+				const test = await checkDatabaseConsistency(DatabaseTables[i], key, value);
+				if (!test) {
+					logger.fatal("Error checking database table lightning");
+					process.exit(1);
+				}
+			}
+		}
+		//mediafiles table
+		if (DatabaseTables[i] == "mediafiles") {
+			for (const [key, value] of Object.entries(MediafilesTableFields)) {
+				const test = await checkDatabaseConsistency(DatabaseTables[i], key, value);
+				if (!test) {
+					logger.fatal("Error checking database table mediafiles");
+					process.exit(1);
+				}
+			}
+		}
+		//mediatags table
+		if (DatabaseTables[i] == "mediatags") {
+			for (const [key, value] of Object.entries(MediatagsTableFields)) {
+				const test = await checkDatabaseConsistency(DatabaseTables[i], key, value);
+				if (!test) {
+					logger.fatal("Error checking database table mediatags");
+					process.exit(1);
+				}
+			}
+		}
+		//registered table
+		if (DatabaseTables[i] == "registered") {
+			for (const [key, value] of Object.entries(RegisteredTableFields)) {
+				const test = await checkDatabaseConsistency(DatabaseTables[i], key, value);
+				if (!test) {
+					logger.fatal("Error checking database table registered");
+					process.exit(1);
+				}
+			}
 		}
 	}
 
-	//Create mediafiles table
-	const ExistmediafilesTableStatement = "SHOW TABLES FROM `nostrcheck` LIKE 'mediafiles';";
-	const [ExistmediafilesTable] = await conn.query(ExistmediafilesTableStatement);
-	const rowstempExistmediafilesTable = JSON.parse(JSON.stringify(ExistmediafilesTable));
-	if (rowstempExistmediafilesTable[0] == undefined) {
-		const mediafilesTableCreateStatement: string =
-			"CREATE TABLE IF NOT EXISTS mediafiles (" +
-			"id int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY," +
-			"pubkey varchar(64) NOT NULL," +
-			"filename varchar(128) NOT NULL," +
-			"original_hash varchar(64)," +
-			"hash varchar(64)," +
-			"status varchar(10) NOT NULL," +
-			"visibility boolean NOT NULL DEFAULT 0," +
-			"date datetime NOT NULL," +
-			"ip_address varchar(64) NOT NULL," +
-			"magnet varchar (512),"	+
-			"blurhash varchar (256)," +
-			"dimensions varchar (15)," +
-			"comments varchar(150)" +
-			") ENGINE=InnoDB DEFAULT CHARSET=latin1;";
-		logger.info("Creating table mediafiles");
-		await conn.query(mediafilesTableCreateStatement);
-	}
-
-	//Create mediatags table
-	const ExistmediatagsTableStatement = "SHOW TABLES FROM `nostrcheck` LIKE 'mediatags';";
-	const [ExistmediatagsTable] = await conn.query(ExistmediatagsTableStatement);
-	const rowstempExistmediatagsTable = JSON.parse(JSON.stringify(ExistmediatagsTable));
-	if (rowstempExistmediatagsTable[0] == undefined) {
-		const mediatagsTableCreateStatement: string =
-			"CREATE TABLE IF NOT EXISTS mediatags (" +
-			"id int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY," +
-			"fileid int(11) NOT NULL," +
-			"tag varchar(64) NOT NULL" +
-			") ENGINE=InnoDB DEFAULT CHARSET=latin1;";
-		logger.info("Creating table mediatags");
-		await conn.query(mediatagsTableCreateStatement);
-	}
-
-	//Create lightning address table
-	const ExistLightningTableStatement = "SHOW TABLES FROM `nostrcheck` LIKE 'lightning';";
-	const [ExistLightningTable] = await conn.query(ExistLightningTableStatement);
-	const rowstempExistLightningTable = JSON.parse(JSON.stringify(ExistLightningTable));
-	if (rowstempExistLightningTable[0] == undefined) {
-		const LightningTableCreateStatement: string =
-			"CREATE TABLE IF NOT EXISTS lightning (" +
-			"id int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY," +
-			"pubkey varchar(64) NOT NULL," +
-			"lightningaddress varchar(50) NOT NULL," +
-			"comments varchar(150)" +
-			") ENGINE=InnoDB DEFAULT CHARSET=latin1;";
-
-		logger.info("Creating table lightning");
-		await conn.query(LightningTableCreateStatement);
-	}
-	
-	conn.end();
-
 	return true;
+}
+
+
+async function checkDatabaseConsistency(table: string, column_name:string, type:string): Promise<boolean> {
+
+	const conn = await connect("checkDatabaseConsistency");
+
+	//Check if table exist
+	const CheckTableExistStatement: string =
+	"SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES " +
+	"WHERE (table_name = ?) " +
+	"AND (table_schema = DATABASE())";
+
+	try{
+		const [CheckTable] = await conn.query(CheckTableExistStatement, [table]);
+		const rowstempCheckTable = JSON.parse(JSON.stringify(CheckTable));
+		if (rowstempCheckTable[0]['COUNT(*)'] == 0) {
+			logger.error("Table not found:", table);
+			logger.info("Creating table:", table);
+			const CreateTableStatement: string =
+				"CREATE TABLE IF NOT EXISTS " + table + " (" + column_name + " " + type + ");";
+			await conn.query(CreateTableStatement);
+			conn.end();
+			if (!CreateTableStatement) {
+				logger.error("Error creating table:", table);
+				return false;
+			}
+			return true;
+		}
+	}catch (error) {
+		logger.error("Error checking table consistency", error);
+		conn.end();
+		return false;
+	}
+
+	const CheckTableColumnsStatement: string =
+	"SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS " +
+	"WHERE (table_name = ?) " +
+	"AND (table_schema = DATABASE()) " +
+	"AND (column_name = ?)";
+
+	try{
+		const [CheckTable] = await conn.query(CheckTableColumnsStatement, [table, column_name]);
+		const rowstempCheckTable = JSON.parse(JSON.stringify(CheckTable));
+		if (rowstempCheckTable[0]['COUNT(*)'] == 0) {
+			logger.error("Column not found in table:", table, "column:", column_name);
+			logger.info("Creating column:", column_name, "in table:", table);
+			const AlterTableStatement: string =
+				"ALTER TABLE " + table + " ADD " + column_name + " " + type + ";";
+			await conn.query(AlterTableStatement);
+			conn.end();
+			if (!AlterTableStatement) {
+				logger.error("Error creating column:", column_name, "in table:", table);
+				return false;
+			}
+			return true;
+		}
+		conn.end();
+		return true;
+	}catch (error) {
+		logger.error("Error checking table consistency", error);
+		conn.end();
+		return false;
+	}
 }
 
 async function dbFileStatusUpdate(status: string, options: ProcessingFileData): Promise<boolean> {

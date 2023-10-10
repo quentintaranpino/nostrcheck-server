@@ -1,4 +1,5 @@
 /* eslint-disable no-console */
+import config from "config";
 import app from "./app.js";
 import { prepareAppFolders, prepareAPPConfig } from "./lib/config.js";
 import { showDBStats } from "./lib/database.js";
@@ -31,7 +32,7 @@ const server = app.listen(app.get("port"), async () => {
 	console.log("Running at https://" + app.get('host') + ":%s - ", app.get("port"), app.get("env"), "mode");
 	console.log("Press CTRL-C to exit\n");
 
-	//Clean temp dir
+	//Prepare app folders and config
 	prepareAppFolders();
 	prepareAPPConfig();
 
@@ -40,7 +41,6 @@ const server = app.listen(app.get("port"), async () => {
 
 	//Start seeding magnets
 	SeedMediafilesMagnets();
-
 
 });
 
