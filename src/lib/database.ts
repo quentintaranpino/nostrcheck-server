@@ -16,7 +16,7 @@ import {
 //Check database integrity
 const dbtables = await populateTables(config.get('database.droptables')); // true = reset tables
 if (!dbtables) {
-	logger.fatal("Error creating database tables");
+	logger.fatal("Error checking database integrity");
 	process.exit(1);
 }
 
@@ -189,7 +189,6 @@ async function checkDatabaseConsistency(table: string, column_name:string, type:
 
 async function dbFileStatusUpdate(status: string, options: ProcessingFileData): Promise<boolean> {
 
-
 	const conn = await connect("dbFileStatusUpdate");
 	try{
 		const [dbFileStatusUpdate] = await conn.execute(
@@ -201,7 +200,6 @@ async function dbFileStatusUpdate(status: string, options: ProcessingFileData): 
 			conn.end();
 			return false;
 		}
-
 		conn.end();
 		return true
 	}catch (error) {
@@ -225,7 +223,6 @@ async function dbFileDimensionsUpdate(width: number, height:number, options: Pro
 			conn.end();
 			return false;
 		}
-
 		conn.end();
 		return true
 	}catch (error) {
@@ -249,7 +246,6 @@ async function dbFileVisibilityUpdate(visibility: boolean, options: ProcessingFi
 			conn.end();
 			return false;
 		}
-
 		conn.end();
 		return true
 	}catch (error) {
@@ -309,7 +305,6 @@ async function dbFileblurhashupdate(blurhash:string, options: ProcessingFileData
 			conn.end();
 			return false;
 		}
-
 		conn.end();
 		return true
 	}catch (error) {
@@ -336,7 +331,6 @@ async function dbFileMagnetUpdate(MediaPath: string, options: ProcessingFileData
 			conn.end();
 			return false;
 		}
-
 		conn.end();
 	}catch (error) {
 		return false;
