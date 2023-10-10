@@ -254,7 +254,7 @@ const ParseFileType = async (req: Request, file :Express.Multer.File): Promise<s
 	}
 	
 	//Check if filetype is allowed
-	if (!allowedMimeTypes.includes(file.mimetype)) {
+	if (!allowedMimeTypes.includes(DetectedFileType.mime)) {
 		logger.warn(`RES -> 400 Bad request - filetype not allowed: `, DetectedFileType.mime,  "|", req.socket.remoteAddress);
 		return "";
 	}
