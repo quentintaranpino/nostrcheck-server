@@ -2,6 +2,7 @@ import config from "config";
 import {allowedMimeTypes} from "../../interfaces/media.js";
 import {NIP96file} from "../../interfaces/nostr.js";
 
+//https://github.com/nostr-protocol/nips/blob/master/96.md
 
 const GetNIP96file = (hostname : string): NIP96file => {
 
@@ -28,5 +29,4 @@ const GetNIP96file = (hostname : string): NIP96file => {
 
 }
 
-
-export {GetNIP96file};
+export {GetNIP96file}; 
