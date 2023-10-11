@@ -2,7 +2,7 @@ import { ResultMessage } from "./server.js";
 import { Request } from "express";
 
 interface MediaResultMessage extends ResultMessage {
-	status: typeof UploadStatus;
+	status: string;
 	id: string;
 	pubkey: string;
 	url: string;
@@ -21,6 +21,7 @@ interface MediaVisibilityResultMessage extends ResultMessage {
 
 const UploadTypes = ["avatar", "banner", "media"];
 const UploadStatus = ["pending", "processing", "completed", "failed"];
+const Uploadstatusv2 = ["processing", "success", "error"];
 
 const allowedMimeTypes = [
 	"image/png",
@@ -65,6 +66,7 @@ interface FileData{
 	width: number;
 	height: number;
 	fileid: string;
+	filesize: number;
 	pubkey: string;
 	username: string;
 	originalhash: string;
@@ -80,6 +82,8 @@ interface ProcessingFileData extends FileData{
 	media_type: typeof UploadTypes[number];
 	originalmime: string;
 	outputoptions: string;
+	status: string;
+	description: string;
 
 }
 
@@ -102,4 +106,5 @@ export {
 	ResultMessage,
 	UploadTypes,
 	UploadStatus,
+	Uploadstatusv2,
 };
