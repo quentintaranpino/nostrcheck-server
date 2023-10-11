@@ -1,6 +1,5 @@
 import crypto from "crypto";
 import { Request, Response } from "express";
-
 import app from "../app.js";
 import { connect, dbSelectUsername } from "../lib/database.js";
 import { logger } from "../lib/logger.js";
@@ -15,20 +14,19 @@ import {
 	MediaVisibilityResultMessage,
 	mime_transform,
 	UploadStatus,
+	Uploadstatusv2,
 	FileData,
 } from "../interfaces/media.js";
-
 import { ResultMessage } from "../interfaces/server.js";
-
 import fs from "fs";
 import config from "config";
 import path from "path";
 import { NIP94_event } from "../interfaces/nostr.js";
 import { PrepareNIP94_event } from "../lib/nostr/NIP94.js";
-import { generateBlurhash } from "../lib/blurhash.js";
 
-const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
-	logger.info("POST /api/v1/media", "|", req.socket.remoteAddress);
+const Uploadmedia = async (req: Request, res: Response, version:string): Promise<Response> => {
+	
+	logger.info("POST /api/" + version + "/media", "|", req.socket.remoteAddress);
 
 	//Check if event authorization header is valid (NIP98) or if apikey is valid (v0)
 	const EventHeader = await ParseAuthEvent(req);
@@ -37,7 +35,6 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 	const servername = "https://" + req.hostname;
 	let pubkey : string = EventHeader.pubkey;
 	let username : string = await dbSelectUsername(pubkey);
-	let description = "";
 
 	//If username is not on the db the upload will be public and a warning will be logged.
 	if (username === "") {
@@ -80,16 +77,14 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 	logger.info("mime ->", file.mimetype, "|", req.socket.remoteAddress);
 
 	//Uploaded file SHA256 hash
-	const filehash = crypto
-					.createHash("sha256")
-					.update(file.buffer)
-					.digest("hex");
+	const filehash = crypto.createHash("sha256").update(file.buffer).digest("hex");
 	logger.info("hash ->", filehash, "|", req.socket.remoteAddress);
 
-	//Filedata generation
+	//Filedata
 	const filedata: ProcessingFileData = {
 		filename: filehash +  "." + mime_transform[file.mimetype],
 		fileid: "",
+		filesize: file.size,
 		username: username,
 		pubkey: pubkey,
 		width: config.get("media.transform.media.undefined.width"),
@@ -102,55 +97,41 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 		url: "",
 		magnet: "",
 		torrent_infohash: "",
-		blurhash: ""
+		blurhash: "",
+		status: "",
+		description: "",
 	};
 
 	//URL
 	filedata.url = servername + "/media/" + username + "/" + filedata.filename;
 
-	//Video or image conversion options
-	if (file.mimetype.toString().startsWith("video")) {
-		filedata.width = config.get("media.transform.media.video.width");
-		filedata.height = config.get("media.transform.media.video.height");
-		filedata.outputoptions = '-preset veryfast';
-	}
-	if (file.mimetype.toString().startsWith("image")) {
-		filedata.width = config.get("media.transform.media.image.width");
-		filedata.height = config.get("media.transform.media.image.height");
-	}
+	//Standard media conversions
+	loadStandardMediaConversion(filedata, file);
+	
+	//Status
+	if (version == "v1"){filedata.status = JSON.parse(JSON.stringify(UploadStatus[0]));}
+	if (version == "v2"){filedata.status = JSON.parse(JSON.stringify(Uploadstatusv2[0]));}
 
-	//Avatar conversion options
-	if (filedata.media_type.toString() === "avatar"){
-		filedata.width = config.get("media.transform.avatar.width");
-		filedata.height = config.get("media.transform.avatar.height");
-		filedata.filename = "avatar.webp";
-	}
-
-	//Banner conversion options
-	if (filedata.media_type.toString() === "banner"){
-		filedata.width = config.get("media.transform.banner.width");
-		filedata.height = config.get("media.transform.banner.height");
-		filedata.filename = "banner.webp";
-	}
-
-	let status: typeof UploadStatus = JSON.parse(JSON.stringify(UploadStatus[0]));
 	let convert = true;
 	let insertfiledb = true;
 
 	//Check if the (file SHA256 hash and pubkey) is already on the database, if exist (and the upload is media type) we return the existing file URL
 	const dbHash = await connect("Uploadmedia");
-	const [dbHashResult] = await dbHash.query("SELECT id, hash, magnet, blurhash, filename FROM mediafiles WHERE original_hash = ? and pubkey = ? and filename not like 'avatar%' and filename not like 'banner%' ", [filehash, pubkey]);	
+	const [dbHashResult] = await dbHash.query("SELECT id, hash, magnet, blurhash, filename, filesize FROM mediafiles WHERE original_hash = ? and pubkey = ? and filename not like 'avatar%' and filename not like 'banner%' ", [filehash, pubkey]);	
 	const rowstempHash = JSON.parse(JSON.stringify(dbHashResult));
 	if (rowstempHash[0] !== undefined && media_type == "media") {
 		logger.info(`RES ->  File already in database, returning existing URL:`, servername + "/media/" + username + "/" + filedata.filename, "|", req.socket.remoteAddress);
 
-		status = JSON.parse(JSON.stringify(UploadStatus[2]));
-		description = description + "File exist in database, returning existing URL";
+		if (version == "v1"){filedata.status = JSON.parse(JSON.stringify(UploadStatus[2]));}
+		if (version == "v2"){filedata.status = JSON.parse(JSON.stringify(Uploadstatusv2[1]));}
+		filedata.description = "File exist in database, returning existing URL";
 		filedata.filename = rowstempHash[0].filename;
 		filedata.magnet = rowstempHash[0].magnet;
 		filedata.fileid = rowstempHash[0].id;
 		filedata.hash = rowstempHash[0].hash;
 		filedata.blurhash = rowstempHash[0].blurhash;
+		filedata.filesize = rowstempHash[0].filesize;
+		
 		filedata.url = servername + "/media/" + username + "/" + filedata.filename;
 		convert = false; 
 		insertfiledb = false;
@@ -170,23 +151,25 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 		try{
 			const createdate = new Date(Math.floor(Date.now())).toISOString().slice(0, 19).replace("T", " ");
 
-			await dbFile.query(
-				"INSERT INTO mediafiles (pubkey, filename, original_hash, hash, status, visibility, date, ip_address, magnet, blurhash, comments) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+			const dbquery = await dbFile.query(
+				"INSERT INTO mediafiles (pubkey, filename, original_hash, hash, status, visibility, date, ip_address, magnet, blurhash, filesize, comments) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
 				[
-					pubkey,
+					filedata.pubkey,
 					filedata.filename,
 					filedata.originalhash,
 					filedata.hash,
-					status,
+					filedata.status,
 					1,
 					createdate,
 					req.socket.remoteAddress,
 					filedata.magnet,
 					filedata.blurhash,
+					filedata.filesize,
 					"comments",
 				]
 			);
-			
+
+			filedata.fileid = JSON.parse(JSON.stringify(dbquery[0])).insertId;
 			dbFile.end();
 			
 			}
@@ -200,22 +183,6 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 				return res.status(500).send(result);
 			}
 		
-			//Get file ID
-			const dbFileID = await connect("Uploadmedia");
-			const [IDdbResult] = await dbFileID.query("SELECT id FROM mediafiles WHERE filename = ? and pubkey = ? ORDER BY ID DESC", [filedata.filename, pubkey]);
-			const IDrowstemp = JSON.parse(JSON.stringify(IDdbResult));
-			if (IDrowstemp[0] == undefined) {
-				logger.error("File not found in database:", filedata.filename);
-				const result: ResultMessage = {
-					result: false,
-					description: "The requested file was not found in database",
-				};
-		
-				dbFileID.end();
-				return res.status(404).send(result);
-			}
-			dbFileID.end();
-			filedata.fileid = IDrowstemp[0].id;
 	}
 
 	//If not exist create username folder
@@ -226,19 +193,15 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 
 	if (convert) {
 		//Send request to transform queue
-		const t: asyncTask = {
-			req,
-			filedata,
-		};
+		const t: asyncTask = {req,filedata,};
 		logger.info(`${requestQueue.length() +1} items in queue`);
 		requestQueue.push(t).catch((err) => {
 			logger.error("Error pushing file to queue", err);
 			const result: ResultMessage = {
 				result: false,
 				description: "Error queueing file",
-
 			};
-			description = description + "File queued for conversion";
+			filedata.description + "File queued for conversion";
 			return result;
 		});
 	}
@@ -246,8 +209,8 @@ const Uploadmedia = async (req: Request, res: Response): Promise<Response> => {
 	//Return standard message with "file queued for conversion", status pending, URL and file ID
 	const returnmessage: MediaExtraDataResultMessage = {
 		result: true,
-		description: description,
-	    status: status,
+		description: filedata.description,
+	    status: filedata.status,
 		id: filedata.fileid,
 		pubkey: filedata.pubkey,
 		url: filedata.url,
@@ -288,11 +251,11 @@ const GetMediaStatusbyID = async (req: Request, res: Response) => {
 	logger.info(`GET /api/v1/media?id=${id}`, "|", req.socket.remoteAddress);
 
 	const db = await connect("GetMediaStatusbyID");
-	const [dbResult] = await db.query("SELECT mediafiles.id, mediafiles.filename, registered.username, mediafiles.pubkey, mediafiles.status, mediafiles.magnet, mediafiles.original_hash, mediafiles.hash, mediafiles.blurhash, mediafiles.dimensions FROM mediafiles INNER JOIN registered on mediafiles.pubkey = registered.hex WHERE (mediafiles.id = ? and mediafiles.pubkey = ?)", [id , EventHeader.pubkey]);
+	const [dbResult] = await db.query("SELECT mediafiles.id, mediafiles.filename, registered.username, mediafiles.pubkey, mediafiles.status, mediafiles.magnet, mediafiles.original_hash, mediafiles.hash, mediafiles.blurhash, mediafiles.dimensions, mediafiles.filesize FROM mediafiles INNER JOIN registered on mediafiles.pubkey = registered.hex WHERE (mediafiles.id = ? and mediafiles.pubkey = ?)", [id , EventHeader.pubkey]);
 	let rowstemp = JSON.parse(JSON.stringify(dbResult));
 	if (rowstemp[0] == undefined) {
 		logger.warn(`File not found in database: ${id}, trying public server pubkey`, "|", req.socket.remoteAddress);
-		const [dbResult] = await db.query("SELECT mediafiles.id, mediafiles.filename, registered.username, mediafiles.pubkey, mediafiles.status, mediafiles.magnet, mediafiles.original_hash, mediafiles.hash, mediafiles.blurhash, mediafiles.dimensions FROM mediafiles INNER JOIN registered on mediafiles.pubkey = registered.hex WHERE (mediafiles.id = ? and mediafiles.pubkey = ?)", [id , app.get("pubkey")]);
+		const [dbResult] = await db.query("SELECT mediafiles.id, mediafiles.filename, registered.username, mediafiles.pubkey, mediafiles.status, mediafiles.magnet, mediafiles.original_hash, mediafiles.hash, mediafiles.blurhash, mediafiles.dimensions, mediafiles.filesize FROM mediafiles INNER JOIN registered on mediafiles.pubkey = registered.hex WHERE (mediafiles.id = ? and mediafiles.pubkey = ?)", [id , app.get("pubkey")]);
 		rowstemp = JSON.parse(JSON.stringify(dbResult));
 		if (rowstemp[0] == undefined) {
 			logger.error(`File not found in database: ${id}`, "|", req.socket.remoteAddress);
@@ -313,6 +276,7 @@ const GetMediaStatusbyID = async (req: Request, res: Response) => {
 		filename: rowstemp[0].filename,
 		width: rowstemp[0].dimensions?.split("x")[0],
 		height: rowstemp[0].dimensions?.split("x")[1],
+		filesize: rowstemp[0].filesize,
 		fileid: rowstemp[0].id,
 		username: rowstemp[0].username,
 		pubkey: rowstemp[0].pubkey,
@@ -371,8 +335,6 @@ const GetMediaStatusbyID = async (req: Request, res: Response) => {
 	// logger.debug(returnMessageNIP94Test);
 
 	return res.status(response).send(result);
-	
-
 
 };
 
@@ -658,7 +620,6 @@ const UpdateMediaVisibility = async (req: Request, res: Response): Promise<Respo
 
 
 const DeleteMedia = async (req: Request, res: Response): Promise<any> => {
-	
 
 	const servername = req.hostname;
 	let fileId = req.params.fileId;
@@ -867,4 +828,35 @@ const GetFileTags = async (fileid: string): Promise<string[]> => {
 	}
 	
 	return tags;
+}
+
+const loadStandardMediaConversion = (filedata : ProcessingFileData , file:Express.Multer.File) :void  => {
+
+		//Video or image conversion options
+		if (file.mimetype.toString().startsWith("video")) {
+			filedata.width = config.get("media.transform.media.video.width");
+			filedata.height = config.get("media.transform.media.video.height");
+			filedata.outputoptions = '-preset veryfast';
+		}
+		if (file.mimetype.toString().startsWith("image")) {
+			filedata.width = config.get("media.transform.media.image.width");
+			filedata.height = config.get("media.transform.media.image.height");
+		}
+	
+		//Avatar conversion options
+		if (filedata.media_type.toString() === "avatar"){
+			filedata.width = config.get("media.transform.avatar.width");
+			filedata.height = config.get("media.transform.avatar.height");
+			filedata.filename = "avatar.webp";
+		}
+	
+		//Banner conversion options
+		if (filedata.media_type.toString() === "banner"){
+			filedata.width = config.get("media.transform.banner.width");
+			filedata.height = config.get("media.transform.banner.height");
+			filedata.filename = "banner.webp";
+		}
+
+		return;
+
 }
