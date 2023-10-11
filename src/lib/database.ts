@@ -240,6 +240,29 @@ async function dbFileStatusUpdate(status: string, options: ProcessingFileData): 
 
 }
 
+async function dbFilesizeUpdate(filesize: number, options: ProcessingFileData): Promise<boolean> {
+
+	const conn = await connect("dbFileStatusUpdate");
+	try{
+		const [dbFilesizeUpdate] = await conn.execute(
+			"UPDATE mediafiles set filesize = ? where id = ?",
+			[filesize, options.fileid]
+		);
+		if (!dbFilesizeUpdate) {
+			logger.error("Error updating filesize table, id:", options.fileid, "filesize:", filesize);
+			conn.end();
+			return false;
+		}
+		conn.end();
+		return true
+	}catch (error) {
+		logger.error("Error updating mediafiles table, id:", options.fileid, "filesize:", filesize);
+		conn.end();
+		return false;
+	}
+
+}
+
 async function dbFileDimensionsUpdate(width: number, height:number, options: ProcessingFileData): Promise<boolean> {
 
 	const conn = await connect("dbFileDimensionsUpdate");
@@ -467,4 +490,5 @@ export { connect,
 		 dbFileMagnetUpdate, 
 		 dbSelectUsername,
 		 showDBStats,
-		 dbFileDimensionsUpdate};
+		 dbFileDimensionsUpdate,
+		 dbFilesizeUpdate};

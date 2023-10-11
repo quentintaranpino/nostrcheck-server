@@ -5,7 +5,7 @@ import fs from "fs";
 import { allowedMimeTypes, asyncTask, ProcessingFileData, UploadTypes } from "../interfaces/media.js";
 import { logger } from "./logger.js";
 import config from "config";
-import { dbFileHashupdate, dbFileMagnetUpdate, dbFileStatusUpdate, dbFileVisibilityUpdate, dbFileDimensionsUpdate, dbFileblurhashupdate } from "./database.js";
+import { dbFileHashupdate, dbFileMagnetUpdate, dbFileStatusUpdate, dbFileVisibilityUpdate, dbFileDimensionsUpdate, dbFileblurhashupdate, dbFilesizeUpdate } from "./database.js";
 import {fileTypeFromBuffer} from 'file-type';
 import { Request } from "express";
 import app from "../app.js";
@@ -85,12 +85,11 @@ async function convertFile(
 
 		let MediaDuration: number = 0;
 		let ConversionDuration : number = 0;
-		
-		let newfilesize = (await NewDimensions).toString()
+		let newfiledimensions = (await NewDimensions).toString()
 
 		let ConversionEngine = ffmpeg(TempPath)
 			.outputOption(["-loop 0"]) //Always loop. If is an image it will not apply.
-			.setSize(newfilesize)
+			.setSize(newfiledimensions)
 			.output(MediaPath)
 			.toFormat(options.filename.split(".").pop() || "")
 
@@ -142,8 +141,15 @@ async function convertFile(
 					logger.error("Could not update table mediafiles, id: " + options.fileid, "status: completed");
 				}
 
-				logger.debug(newfilesize);
-				const dimensions =  dbFileDimensionsUpdate(+newfilesize.split("x")[0], +newfilesize.split("x")[1], options);
+				logger.debug("Old Filesize:", options.filesize);
+				logger.debug("New Filesize:", +fs.statSync(MediaPath).size);
+
+				const filesize =  dbFilesizeUpdate(+fs.statSync(MediaPath).size, options);
+				if (!filesize) {
+					logger.error("Could not update table mediafiles, id: " + options.fileid, "status: completed");
+				}
+
+				const dimensions =  dbFileDimensionsUpdate(+newfiledimensions.split("x")[0], +newfiledimensions.split("x")[1], options);
 				if (!dimensions) {
 					logger.error("Could not update table mediafiles, id: " + options.fileid, "dimensions for file: " + MediaPath);
 				}
