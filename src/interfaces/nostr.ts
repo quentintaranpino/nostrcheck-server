@@ -1,3 +1,4 @@
+import { ResultMessage } from "./server.js";
 
 enum NIPKinds {
 	NIP98 = 27235,
@@ -44,43 +45,14 @@ interface NIP94_event {
 
   }
 
-// interface NIP96_event extends ResultMessage{
+interface NIP96_event{
 
-// 	nip96: {
-// 	  code: typeof UploadResponseCode;
-// 	  message: string, //Old description
-// 	  // This uses the NIP-94 event format but DO NOT need
-// 	  // to fill some fields like "id", "pubkey", "created_at" and "sig"
-// 	  //
-// 	  // This holds the download url ("url"),
-// 	  // the ORIGINAL file hash before server transformations ("ox")
-// 	  // and, optionally, all file metadata the server wants to make available
-// 	  //
-// 	  // nip94_event field is absent if unsuccessful upload
-// 	  nip94_event: {
-// 		tags: [
-// 		  ["url", string],
-// 		  [
-// 			"ox",
-// 			string,
-// 			// Server hostname where one can find the
-// 			// /.well-known/nostr/nip96.json config resource.
-// 			//
-// 			// This value is an important hint that clients can use
-// 			// to find new NIP-96 compatible file storage servers.
-// 			string,
-// 		  ],
-// 		  // Optional. SHA-256 hash of the saved file after any server transformations.
-// 		  // The server can but does not need to store this value.
-// 		  ["x", string],
-// 		  // Optional
-// 		  ["m", string], //MimeType
-// 		  MediaExtraDataResultMessage
-// 		],
-// 		content: ""
-// 	  }
-// 	}
-//   }
+	nip96: {
+	  status: string, 
+	  message: string, 
+	  nip94_event : NIP94_event
+	}
+  }
 
 
-export { NIPKinds, NIP96file, NIP94_event };
+export { NIPKinds, NIP96file, NIP94_event, NIP96_event};
