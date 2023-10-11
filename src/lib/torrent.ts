@@ -18,7 +18,14 @@ const SeedMediafilesMagnets = async () => {
   try{
     const conn = await connect("SeedMediafilesMagnets");
     const [dbFileMagnet] = await conn.execute(
-      "SELECT DISTINCT filename, username FROM mediafiles inner join registered on mediafiles.pubkey = registered.hex where magnet is not null");
+      "SELECT DISTINCT " + 
+              "filename, "+ 
+              "username " + 
+        "FROM mediafiles " + 
+        "INNER JOIN registered on mediafiles.pubkey = registered.hex " + 
+        "WHERE " + 
+              "mediafiles.magnet is not null and " + 
+              "mediafiles.filename not like ('%avatar%' or '%banner%')");
     if (!dbFileMagnet) {
       conn.end();
       return "";
@@ -26,12 +33,15 @@ const SeedMediafilesMagnets = async () => {
     result = JSON.parse(JSON.stringify(dbFileMagnet));
     conn.end();
     }catch (error) {
-      logger.error("Error getting magnet links from mediafiles table");
+      logger.error("Error getting magnet links from mediafiles table", error);
     return "";
     }
 
   //Loop through results and seed each magnet link  
+  let filenames: string[] = [];
   result.forEach((element: RowDataPacket) => {
+    if (filenames.includes(element.filename)) return;
+    filenames.push(element.filename);
     const MediaPath = config.get("media.mediaPath") + element.username + "/" + element.filename;
     try{
         fs.accessSync(MediaPath, fs.constants.R_OK); //check if file exists and is readable
@@ -41,7 +51,6 @@ const SeedMediafilesMagnets = async () => {
       }
     }
   );
-
 }
 
 const CreateMagnet = (filepath:string) : Promise<string> => {
