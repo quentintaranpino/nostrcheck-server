@@ -71,8 +71,13 @@ async function populateTables(resetTables: boolean): Promise<boolean> {
 		//domains table
 		if (DatabaseTables[i] == "domains") {
 			for (const [key, value] of Object.entries(DomainsTableFields)) {
-				const test = await checkDatabaseConsistency(DatabaseTables[i], key, value);
-				if (!test) {
+
+				let after_column :string = "";
+				if (Object.keys(DomainsTableFields).indexOf(key,0) != 0){
+					after_column = Object.entries(DomainsTableFields)[Object.keys(DomainsTableFields).indexOf(key,0)-1][0];
+				}
+				const check = await checkDatabaseConsistency(DatabaseTables[i], key, value, after_column);
+				if (!check) {
 					logger.fatal("Error checking database table domains");
 					process.exit(1);
 				}
@@ -81,8 +86,13 @@ async function populateTables(resetTables: boolean): Promise<boolean> {
 		//lightning table
 		if (DatabaseTables[i] == "lightning") {
 			for (const [key, value] of Object.entries(LightningTableFields)) {
-				const test = await checkDatabaseConsistency(DatabaseTables[i], key, value);
-				if (!test) {
+
+				let after_column :string = "";
+				if (Object.keys(LightningTableFields).indexOf(key,0) != 0){
+					after_column = Object.entries(LightningTableFields)[Object.keys(LightningTableFields).indexOf(key,0)-1][0];
+				}
+				const check = await checkDatabaseConsistency(DatabaseTables[i], key, value, after_column);
+				if (!check) {
 					logger.fatal("Error checking database table lightning");
 					process.exit(1);
 				}
@@ -91,8 +101,14 @@ async function populateTables(resetTables: boolean): Promise<boolean> {
 		//mediafiles table
 		if (DatabaseTables[i] == "mediafiles") {
 			for (const [key, value] of Object.entries(MediafilesTableFields)) {
-				const test = await checkDatabaseConsistency(DatabaseTables[i], key, value);
-				if (!test) {
+
+				let after_column :string = "";
+				if (Object.keys(MediafilesTableFields).indexOf(key,0) != 0){
+					after_column = Object.entries(MediafilesTableFields)[Object.keys(MediafilesTableFields).indexOf(key,0)-1][0];
+				}
+				const check = await checkDatabaseConsistency(DatabaseTables[i], key, value, after_column);
+
+				if (!check) {
 					logger.fatal("Error checking database table mediafiles");
 					process.exit(1);
 				}
@@ -101,18 +117,29 @@ async function populateTables(resetTables: boolean): Promise<boolean> {
 		//mediatags table
 		if (DatabaseTables[i] == "mediatags") {
 			for (const [key, value] of Object.entries(MediatagsTableFields)) {
-				const test = await checkDatabaseConsistency(DatabaseTables[i], key, value);
-				if (!test) {
+
+				let after_column :string = "";
+				if (Object.keys(MediatagsTableFields).indexOf(key,0) != 0){
+					after_column = Object.entries(MediatagsTableFields)[Object.keys(MediatagsTableFields).indexOf(key,0)-1][0];
+				}
+				const check = await checkDatabaseConsistency(DatabaseTables[i], key, value, after_column);
+				if (!check) {
 					logger.fatal("Error checking database table mediatags");
 					process.exit(1);
 				}
 			}
 		}
+		
 		//registered table
 		if (DatabaseTables[i] == "registered") {
 			for (const [key, value] of Object.entries(RegisteredTableFields)) {
-				const test = await checkDatabaseConsistency(DatabaseTables[i], key, value);
-				if (!test) {
+
+				let after_column :string = "";
+				if (Object.keys(RegisteredTableFields).indexOf(key,0) != 0){
+					after_column = Object.entries(RegisteredTableFields)[Object.keys(RegisteredTableFields).indexOf(key,0)-1][0];
+				}
+				const check = await checkDatabaseConsistency(DatabaseTables[i], key, value, after_column);
+				if (!check) {
 					logger.fatal("Error checking database table registered");
 					process.exit(1);
 				}
@@ -124,7 +151,7 @@ async function populateTables(resetTables: boolean): Promise<boolean> {
 }
 
 
-async function checkDatabaseConsistency(table: string, column_name:string, type:string): Promise<boolean> {
+async function checkDatabaseConsistency(table: string, column_name:string, type:string, after_column:string): Promise<boolean> {
 
 	const conn = await connect("checkDatabaseConsistency");
 
@@ -138,7 +165,7 @@ async function checkDatabaseConsistency(table: string, column_name:string, type:
 		const [CheckTable] = await conn.query(CheckTableExistStatement, [table]);
 		const rowstempCheckTable = JSON.parse(JSON.stringify(CheckTable));
 		if (rowstempCheckTable[0]['COUNT(*)'] == 0) {
-			logger.error("Table not found:", table);
+			logger.warn("Table not found:", table);
 			logger.info("Creating table:", table);
 			const CreateTableStatement: string =
 				"CREATE TABLE IF NOT EXISTS " + table + " (" + column_name + " " + type + ");";
@@ -162,14 +189,17 @@ async function checkDatabaseConsistency(table: string, column_name:string, type:
 	"AND (table_schema = DATABASE()) " +
 	"AND (column_name = ?)";
 
+	//If exist, we insert before the specified column
+	if (after_column != "") {after_column = " AFTER " + after_column;}
+
 	try{
 		const [CheckTable] = await conn.query(CheckTableColumnsStatement, [table, column_name]);
 		const rowstempCheckTable = JSON.parse(JSON.stringify(CheckTable));
 		if (rowstempCheckTable[0]['COUNT(*)'] == 0) {
-			logger.error("Column not found in table:", table, "column:", column_name);
+			logger.warn("Column not found in table:", table, "column:", column_name);
 			logger.info("Creating column:", column_name, "in table:", table);
 			const AlterTableStatement: string =
-				"ALTER TABLE " + table + " ADD " + column_name + " " + type + ";";
+				"ALTER TABLE " + table + " ADD " + column_name + " " + type + after_column + ";";
 			await conn.query(AlterTableStatement);
 			conn.end();
 			if (!AlterTableStatement) {

@@ -47,6 +47,7 @@ interface MediafilesTable {
 	magnet: string;
 	blurhash: string;
 	dimensions: string;
+	filesize: string;
 	comments: string;
 }
 
@@ -63,6 +64,7 @@ const MediafilesTableFields: MediafilesTable = {
 	magnet: "varchar(512)",
 	blurhash: "varchar(256)",
 	dimensions: "varchar(15)",
+	filesize: "varchar(15)",
 	comments: "varchar(150)",
 };
 
