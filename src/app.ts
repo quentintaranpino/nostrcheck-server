@@ -3,7 +3,7 @@ import express from "express";
 import helmet from "helmet";
 import config from "config";
 
-import { LoadAPI } from "./routes/routes.v1.js";
+import { LoadAPI } from "./routes/routes.js";
 
 const app = express();
 
@@ -21,5 +21,8 @@ app.use(cors());
 
 //Load Routes V1
 LoadAPI(app, "v1");
+
+//Load Routes V2
+LoadAPI(app, "v2");
 
 export default app;

@@ -14,10 +14,10 @@ const upload = multer({
 
 export const LoadMediaEndpoint = async (app: Application, version:string): Promise<void> => {
 	
-	if (version == "v1"){
+	if (version == "v1" || version == "v2"){
 		
 		//Upload media
-		app.post("/api/v1/media", function (req, res){
+		app.post("/api/" + version + "/media", function (req, res){
 			upload.any()(req, res, function (err) {
 				//Return 413 Payload Too Large if file size is larger than maxMBfilesize from config file
 				if (err instanceof multer.MulterError && err.code === "LIMIT_FILE_SIZE") {
@@ -28,31 +28,29 @@ export const LoadMediaEndpoint = async (app: Application, version:string): Promi
 					};
 					return res.status(413).send(result);
 				}
-				Uploadmedia(req, res);
+				Uploadmedia(req, res, version);
 			})
 		});
 
 		//Delete media
-		app.delete("/api/v1/media/:fileId", DeleteMedia);
+		app.delete("/api/" + version + "/media/:fileId", DeleteMedia);
 
 		//Get media status by id 
-		app.get("/api/v1/media", GetMediaStatusbyID);
-		app.get("/api/v1/media/:id", GetMediaStatusbyID);
+		app.get("/api/" + version + "/media", GetMediaStatusbyID);
+		app.get("/api/" + version + "/media/:id", GetMediaStatusbyID);
 
 		//Get media tags by id
-		app.get("/api/v1/media/:fileId/tags/", GetMediaTagsbyID);
+		app.get("/api/" + version + "/media/:fileId/tags/", GetMediaTagsbyID);
 
 		//Get media by tags
-		app.get("/api/v1/media/tag/:tag", GetMediabyTags);
+		app.get("/api/" + version + "/media/tag/:tag", GetMediabyTags);
 
 		//Get media by url
-		app.get("/api/v1/media/:username/:filename", GetMediabyURL);
+		app.get("/api/" + version + "/media/:username/:filename", GetMediabyURL);
 
 		//Update media visibility
-		app.put("/api/v1/media/:fileId/visibility/:visibility", UpdateMediaVisibility);
+		app.put("/api/" + version + "/media/:fileId/visibility/:visibility", UpdateMediaVisibility);
 
 	}
 
-	
-	
 };
