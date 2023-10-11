@@ -84,6 +84,7 @@ interface ProcessingFileData extends FileData{
 	outputoptions: string;
 	status: string;
 	description: string;
+	servername: string;
 
 }
 

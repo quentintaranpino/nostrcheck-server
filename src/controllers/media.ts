@@ -21,8 +21,8 @@ import { ResultMessage } from "../interfaces/server.js";
 import fs from "fs";
 import config from "config";
 import path from "path";
-import { NIP94_event } from "../interfaces/nostr.js";
-import { PrepareNIP94_event } from "../lib/nostr/NIP94.js";
+import { NIP96_event } from "../interfaces/nostr.js";
+import { PrepareNIP96_event } from "../lib/nostr/NIP96.js";
 
 const Uploadmedia = async (req: Request, res: Response, version:string): Promise<Response> => {
 	
@@ -32,7 +32,6 @@ const Uploadmedia = async (req: Request, res: Response, version:string): Promise
 	const EventHeader = await ParseAuthEvent(req);
 	if (!EventHeader.result) {return res.status(401).send({"result": EventHeader.result, "description" : EventHeader.description});}
 
-	const servername = "https://" + req.hostname;
 	let pubkey : string = EventHeader.pubkey;
 	let username : string = await dbSelectUsername(pubkey);
 
@@ -100,10 +99,11 @@ const Uploadmedia = async (req: Request, res: Response, version:string): Promise
 		blurhash: "",
 		status: "",
 		description: "",
+		servername: "https://" + req.hostname
 	};
 
 	//URL
-	filedata.url = servername + "/media/" + username + "/" + filedata.filename;
+	filedata.url = filedata.servername + "/media/" + username + "/" + filedata.filename;
 
 	//Standard media conversions
 	loadStandardMediaConversion(filedata, file);
@@ -120,7 +120,7 @@ const Uploadmedia = async (req: Request, res: Response, version:string): Promise
 	const [dbHashResult] = await dbHash.query("SELECT id, hash, magnet, blurhash, filename, filesize FROM mediafiles WHERE original_hash = ? and pubkey = ? and filename not like 'avatar%' and filename not like 'banner%' ", [filehash, pubkey]);	
 	const rowstempHash = JSON.parse(JSON.stringify(dbHashResult));
 	if (rowstempHash[0] !== undefined && media_type == "media") {
-		logger.info(`RES ->  File already in database, returning existing URL:`, servername + "/media/" + username + "/" + filedata.filename, "|", req.socket.remoteAddress);
+		logger.info(`RES ->  File already in database, returning existing URL:`, filedata.servername + "/media/" + username + "/" + filedata.filename, "|", req.socket.remoteAddress);
 
 		if (version == "v1"){filedata.status = JSON.parse(JSON.stringify(UploadStatus[2]));}
 		if (version == "v2"){filedata.status = JSON.parse(JSON.stringify(Uploadstatusv2[1]));}
@@ -131,8 +131,7 @@ const Uploadmedia = async (req: Request, res: Response, version:string): Promise
 		filedata.hash = rowstempHash[0].hash;
 		filedata.blurhash = rowstempHash[0].blurhash;
 		filedata.filesize = rowstempHash[0].filesize;
-		
-		filedata.url = servername + "/media/" + username + "/" + filedata.filename;
+		filedata.url = filedata.servername + "/media/" + username + "/" + filedata.filename;
 		convert = false; 
 		insertfiledb = false;
 
@@ -206,7 +205,13 @@ const Uploadmedia = async (req: Request, res: Response, version:string): Promise
 		});
 	}
 
-	//Return standard message with "file queued for conversion", status pending, URL and file ID
+	//Return message v2.
+	if (version == "v2") {
+		const returnmessage : NIP96_event = await PrepareNIP96_event(filedata);
+		return res.status(200).send(returnmessage);
+	}
+
+	//Return message v0 and v1.
 	const returnmessage: MediaExtraDataResultMessage = {
 		result: true,
 		description: filedata.description,
@@ -219,11 +224,8 @@ const Uploadmedia = async (req: Request, res: Response, version:string): Promise
 		tags: await GetFileTags(filedata.fileid)
 	};
 
-	// //TEST NIP94 event response. TODO, remove this
-	// const returnMessageNIP94Test : NIP94_event = await PrepareNIP94_event(filedata);
-	// logger.debug(returnMessageNIP94Test);
-
 	return res.status(200).send(returnmessage);
+
 };
 
 const GetMediaStatusbyID = async (req: Request, res: Response) => {

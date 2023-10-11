@@ -1,5 +1,3 @@
-import { ResultMessage } from "./server.js";
-
 enum NIPKinds {
 	NIP98 = 27235,
 	NIP94 = 1063,
@@ -47,11 +45,11 @@ interface NIP94_event {
 
 interface NIP96_event{
 
-	nip96: {
 	  status: string, 
-	  message: string, 
+	  message: string,
+    processing_url: string,
 	  nip94_event : NIP94_event
-	}
+
   }
 
 
