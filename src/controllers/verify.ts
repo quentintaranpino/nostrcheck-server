@@ -5,7 +5,7 @@ import { logger } from "../lib/logger.js";
 import { VerifyResultMessage } from "../interfaces/verify.js";
 
 const VerifyNote = async (req: Request, res: Response): Promise<Response> => {
-	logger.info("POST /api/v1/verify", "|", req.socket.remoteAddress);
+	logger.info("POST /api/v1/verify", "|", req.headers['x-forwarded-for']);
 
 	//TODO: (maybe) Check if request has authorization header and parse it
 
@@ -45,7 +45,7 @@ const VerifyNote = async (req: Request, res: Response): Promise<Response> => {
 			return res.status(400).send(result);
 		}
 	} catch (error) {
-		logger.warn(`RES -> 400 Bad request - ${error}`, "|", req.socket.remoteAddress);
+		logger.warn(`RES -> 400 Bad request - ${error}`, "|", req.headers['x-forwarded-for']);
 		const result: VerifyResultMessage = {
 			pubkey: event.pubkey,
 			result: false,
@@ -55,7 +55,7 @@ const VerifyNote = async (req: Request, res: Response): Promise<Response> => {
 		return res.status(400).send(result);
 	}
 
-	logger.info(`RES -> 200 OK - Valid event:`, event.id, "|", req.socket.remoteAddress)
+	logger.info(`RES -> 200 OK - Valid event:`, event.id, "|", req.headers['x-forwarded-for'])
 
 	const result: VerifyResultMessage = {
 		pubkey: event.pubkey,

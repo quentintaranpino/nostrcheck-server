@@ -4,7 +4,7 @@ import app from "../app.js";
 import { logger } from "../lib/logger.js";
 
 const APIIndex = async (req: Request, res: Response): Promise<Response> => {
-	logger.info("REQ -> API Index v2 ", "|", req.socket.remoteAddress);
+	logger.info("REQ -> API Index v2 ", "|", req.headers['x-forwarded-for']);
 
 	return res.status(200).send(
 		`<head><title>Nostrcheck server</title></head>` +

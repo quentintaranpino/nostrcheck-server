@@ -14,6 +14,7 @@ app.set(
 	"pubkey",
 	process.env.PUBKEY ?? config.get('server.pubkey')
 );
+app.set('trust proxy',true); 
 app.use(express.json({ limit: '25MB' }));
 app.use(express.urlencoded({ limit: '25MB', extended: true }));
 app.use(helmet());

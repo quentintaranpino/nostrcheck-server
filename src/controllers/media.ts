@@ -26,7 +26,7 @@ import { PrepareNIP96_event } from "../lib/nostr/NIP96.js";
 
 const Uploadmedia = async (req: Request, res: Response, version:string): Promise<Response> => {
 	
-	logger.info("POST /api/" + version + "/media", "|", req.socket.remoteAddress);
+	logger.info("POST /api/" + version + "/media", "|", req.headers['x-forwarded-for']);
 
 	//Check if event authorization header is valid (NIP98) or if apikey is valid (v0)
 	const EventHeader = await ParseAuthEvent(req);
@@ -39,14 +39,14 @@ const Uploadmedia = async (req: Request, res: Response, version:string): Promise
 	if (username === "") {
 		username = "public";
 		pubkey = app.get("pubkey");
-		logger.warn("pubkey not registered, switching to public upload | ", req.socket.remoteAddress);
+		logger.warn("pubkey not registered, switching to public upload | ", req.headers['x-forwarded-for']);
 	}
-	logger.info("username ->", username, "|", req.socket.remoteAddress);
-	logger.info("pubkey ->", pubkey, "|", req.socket.remoteAddress);
+	logger.info("username ->", username, "|", req.headers['x-forwarded-for']);
+	logger.info("pubkey ->", pubkey, "|", req.headers['x-forwarded-for']);
 
 	//Parse upload type. If not defined, default is "media"
-	let media_type : string = ParseMediaType(req, pubkey);
-	logger.info("type ->", media_type, "|", req.socket.remoteAddress);
+	let media_type : string = await ParseMediaType(req, pubkey);
+	logger.info("type ->", media_type, "|", req.headers['x-forwarded-for']);
 
 	//Check if file exist on request body
 	const files : any | Express.Multer.File[] = req.files;
@@ -54,7 +54,7 @@ const Uploadmedia = async (req: Request, res: Response, version:string): Promise
 	req.file = file;
 
 	if (!file) {
-		logger.warn(`RES -> 400 Bad request - Empty file`, "|", req.socket.remoteAddress);
+		logger.warn(`RES -> 400 Bad request - Empty file`, "|", req.headers['x-forwarded-for']);
 		const result: ResultMessage = {
 			result: false,
 			description: "Empty file",
@@ -66,18 +66,18 @@ const Uploadmedia = async (req: Request, res: Response, version:string): Promise
 	//Parse file type. If not defined or not allowed, reject upload.
 	file.mimetype = await ParseFileType(req, file);
 	if (file.mimetype === "") {
-		logger.error(`RES -> 400 Bad request - `, file.mimetype, ` filetype not detected`, "|", req.socket.remoteAddress);
+		logger.error(`RES -> 400 Bad request - `, file.mimetype, ` filetype not detected`, "|", req.headers['x-forwarded-for']);
 		const result: ResultMessage = {
 			result: false,
 			description: "file type not detected or not allowed",
 		};
 		return res.status(400).send(result);
 	}
-	logger.info("mime ->", file.mimetype, "|", req.socket.remoteAddress);
+	logger.info("mime ->", file.mimetype, "|", req.headers['x-forwarded-for']);
 
 	//Uploaded file SHA256 hash
 	const filehash = crypto.createHash("sha256").update(file.buffer).digest("hex");
-	logger.info("hash ->", filehash, "|", req.socket.remoteAddress);
+	logger.info("hash ->", filehash, "|", req.headers['x-forwarded-for']);
 
 	//Filedata
 	const filedata: ProcessingFileData = {
@@ -120,7 +120,7 @@ const Uploadmedia = async (req: Request, res: Response, version:string): Promise
 	const [dbHashResult] = await dbHash.query("SELECT id, hash, magnet, blurhash, filename, filesize FROM mediafiles WHERE original_hash = ? and pubkey = ? and filename not like 'avatar%' and filename not like 'banner%' ", [filehash, pubkey]);	
 	const rowstempHash = JSON.parse(JSON.stringify(dbHashResult));
 	if (rowstempHash[0] !== undefined && media_type == "media") {
-		logger.info(`RES ->  File already in database, returning existing URL:`, filedata.servername + "/media/" + username + "/" + filedata.filename, "|", req.socket.remoteAddress);
+		logger.info(`RES ->  File already in database, returning existing URL:`, filedata.servername + "/media/" + username + "/" + filedata.filename, "|", req.headers['x-forwarded-for']);
 
 		if (version == "v1"){filedata.status = JSON.parse(JSON.stringify(UploadStatus[2]));}
 		if (version == "v2"){filedata.status = JSON.parse(JSON.stringify(Uploadstatusv2[1]));}
@@ -160,7 +160,7 @@ const Uploadmedia = async (req: Request, res: Response, version:string): Promise
 					filedata.status,
 					1,
 					createdate,
-					req.socket.remoteAddress,
+					req.headers['x-forwarded-for'],
 					filedata.magnet,
 					filedata.blurhash,
 					filedata.filesize,
@@ -230,7 +230,7 @@ const Uploadmedia = async (req: Request, res: Response, version:string): Promise
 
 const GetMediaStatusbyID = async (req: Request, res: Response) => {
 
-	logger.info("GET /api/v1/media", "|", req.socket.remoteAddress);
+	logger.info("GET /api/v1/media", "|", req.headers['x-forwarded-for']);
 
 	//Check if event authorization header is valid (NIP98) or if apikey is valid (v0)
 	const EventHeader = await ParseAuthEvent(req);
@@ -240,7 +240,7 @@ const GetMediaStatusbyID = async (req: Request, res: Response) => {
 
 	let id = req.params.id || req.query.id || "";
 	if (!id) {
-		logger.warn(`RES -> 400 Bad request - missing id`, "|", req.socket.remoteAddress);
+		logger.warn(`RES -> 400 Bad request - missing id`, "|", req.headers['x-forwarded-for']);
 		const result: ResultMessage = {
 			result: false,
 			description: "missing id",
@@ -250,17 +250,17 @@ const GetMediaStatusbyID = async (req: Request, res: Response) => {
 		return res.status(400).send(result);
 	}
 
-	logger.info(`GET /api/v1/media?id=${id}`, "|", req.socket.remoteAddress);
+	logger.info(`GET /api/v1/media?id=${id}`, "|", req.headers['x-forwarded-for']);
 
 	const db = await connect("GetMediaStatusbyID");
 	const [dbResult] = await db.query("SELECT mediafiles.id, mediafiles.filename, registered.username, mediafiles.pubkey, mediafiles.status, mediafiles.magnet, mediafiles.original_hash, mediafiles.hash, mediafiles.blurhash, mediafiles.dimensions, mediafiles.filesize FROM mediafiles INNER JOIN registered on mediafiles.pubkey = registered.hex WHERE (mediafiles.id = ? and mediafiles.pubkey = ?)", [id , EventHeader.pubkey]);
 	let rowstemp = JSON.parse(JSON.stringify(dbResult));
 	if (rowstemp[0] == undefined) {
-		logger.warn(`File not found in database: ${id}, trying public server pubkey`, "|", req.socket.remoteAddress);
+		logger.warn(`File not found in database: ${id}, trying public server pubkey`, "|", req.headers['x-forwarded-for']);
 		const [dbResult] = await db.query("SELECT mediafiles.id, mediafiles.filename, registered.username, mediafiles.pubkey, mediafiles.status, mediafiles.magnet, mediafiles.original_hash, mediafiles.hash, mediafiles.blurhash, mediafiles.dimensions, mediafiles.filesize FROM mediafiles INNER JOIN registered on mediafiles.pubkey = registered.hex WHERE (mediafiles.id = ? and mediafiles.pubkey = ?)", [id , app.get("pubkey")]);
 		rowstemp = JSON.parse(JSON.stringify(dbResult));
 		if (rowstemp[0] == undefined) {
-			logger.error(`File not found in database: ${id}`, "|", req.socket.remoteAddress);
+			logger.error(`File not found in database: ${id}`, "|", req.headers['x-forwarded-for']);
 		const result: ResultMessage = {
 			result: false,
 			description: "The requested file was not found",
@@ -299,22 +299,22 @@ const GetMediaStatusbyID = async (req: Request, res: Response) => {
 		description = "The requested file was found";
 		resultstatus = true;
 		response = 200;
-		logger.info(`RES -> ${response} - ${description}`, "|", req.socket.remoteAddress);
+		logger.info(`RES -> ${response} - ${description}`, "|", req.headers['x-forwarded-for']);
 	}else if (rowstemp[0].status == "failed") {
 		description = "It was a problem processing this file";
 		resultstatus = false;
 		response = 500;
-		logger.info(`RES -> ${response} - ${description}`, "|", req.socket.remoteAddress);
+		logger.info(`RES -> ${response} - ${description}`, "|", req.headers['x-forwarded-for']);
 	}else if (rowstemp[0].status == "pending") {
 		description = "The requested file is still pending";
 		resultstatus = false;
 		response = 202;
-		logger.info(`RES -> ${response} - ${description}`, "|", req.socket.remoteAddress);
+		logger.info(`RES -> ${response} - ${description}`, "|", req.headers['x-forwarded-for']);
 	}else if (rowstemp[0].status == "processing") {
 		description = "The requested file is processing";
 		resultstatus = false;
 		response = 202;
-		logger.info(`RES -> ${response} - ${description}`, "|", req.socket.remoteAddress);
+		logger.info(`RES -> ${response} - ${description}`, "|", req.headers['x-forwarded-for']);
 	}
 
 	let tags = await GetFileTags(rowstemp[0].id);
@@ -351,7 +351,7 @@ const GetMediabyURL = async (req: Request, res: Response) => {
 
 	//Check if username is not empty
 	if (!req.params.username) {
-		logger.warn(`RES Media URL -> 400 Bad request - missing username`, "|", req.socket.remoteAddress);
+		logger.warn(`RES Media URL -> 400 Bad request - missing username`, "|", req.headers['x-forwarded-for']);
 		const result: ResultMessage = {
 			result: false,
 			description: "missing username",
@@ -362,7 +362,7 @@ const GetMediabyURL = async (req: Request, res: Response) => {
 
 	//Check if username is no longer than 50
 	if (req.params.username.length > 50) {
-		logger.warn(`RES Media URL -> 400 Bad request - username too long`, "|", req.socket.remoteAddress);
+		logger.warn(`RES Media URL -> 400 Bad request - username too long`, "|", req.headers['x-forwarded-for']);
 		const result: ResultMessage = {
 			result: false,
 			description: "username too long",
@@ -372,7 +372,7 @@ const GetMediabyURL = async (req: Request, res: Response) => {
 
 	//Check if filename is not empty
 	if (!req.params.filename) {
-		logger.warn(`RES Media URL -> 400 Bad request - missing filename`, "|", req.socket.remoteAddress);
+		logger.warn(`RES Media URL -> 400 Bad request - missing filename`, "|", req.headers['x-forwarded-for']);
 		const result: ResultMessage = {
 			result: false,
 			description: "missing filename",
@@ -383,7 +383,7 @@ const GetMediabyURL = async (req: Request, res: Response) => {
 
 	//Check if filename is no longer than 128
 	if (req.params.filename.length > 128) {
-		logger.warn(`RES Media URL -> 400 Bad request - filename too long`, "|", req.socket.remoteAddress);
+		logger.warn(`RES Media URL -> 400 Bad request - filename too long`, "|", req.headers['x-forwarded-for']);
 		const result: ResultMessage = {
 			result: false,
 			description: "filename too long",
@@ -395,7 +395,7 @@ const GetMediabyURL = async (req: Request, res: Response) => {
 
 	//Check if mediaPath is not empty
 	if (!mediaPath) {
-		logger.warn(`RES Media URL -> 500 Internal Server Error - mediaPath not set`, "|", req.socket.remoteAddress);
+		logger.warn(`RES Media URL -> 500 Internal Server Error - mediaPath not set`, "|", req.headers['x-forwarded-for']);
 		const result: ResultMessage = {
 			result: false,
 			description: "mediaPath not set",
@@ -405,14 +405,14 @@ const GetMediabyURL = async (req: Request, res: Response) => {
 	
 	let fileName = path.normalize(path.resolve(mediaPath + "/" + req.params.username + "/" + req.params.filename));
 
-	logger.info(`RES Media URL -> username: ${req.params.username} | filename: ${fileName}`, "|", req.socket.remoteAddress);
+	logger.info(`RES Media URL -> username: ${req.params.username} | filename: ${fileName}`, "|", req.headers['x-forwarded-for']);
 
 	const isPathUnderRoot = path
 		.normalize(path.resolve(fileName))
 		.startsWith(mediaPath);
 
 	if (!isPathUnderRoot) {
-		logger.warn(`RES -> 403 Forbidden - ${req.url}`, "|", req.socket.remoteAddress);
+		logger.warn(`RES -> 403 Forbidden - ${req.url}`, "|", req.headers['x-forwarded-for']);
 		const result: ResultMessage = {
 			result: false,
 			description: "File not found",
@@ -430,14 +430,14 @@ const GetMediabyURL = async (req: Request, res: Response) => {
 		if (err) {
 
 			// If file not found, return not found media file
-			logger.warn(`RES -> 404 Not Found - ${req.url}`, "| Returning not found media file.", req.socket.remoteAddress);
+			logger.warn(`RES -> 404 Not Found - ${req.url}`, "| Returning not found media file.", req.headers['x-forwarded-for']);
 
 			const NotFoundFilePath = path.normalize(path.resolve(config.get("media.notFoudFilePath")));
 
 			res.setHeader('Content-Type', mediaType);
 			fs.readFile(NotFoundFilePath, (err, data) => {
 				if (err) {
-					logger.warn(`RES -> 404 Not Found - ${req.url}`, "| Returning not found media file.", req.socket.remoteAddress);
+					logger.warn(`RES -> 404 Not Found - ${req.url}`, "| Returning not found media file.", req.headers['x-forwarded-for']);
 					res.status(404).send("File not found");
 				} else {
 				res.setHeader('Content-Type', 'image/webp');
@@ -457,13 +457,13 @@ const GetMediabyURL = async (req: Request, res: Response) => {
 const GetMediaTagsbyID = async (req: Request, res: Response): Promise<Response> => {
 
 	//Get available tags for a specific media file
-	logger.info("REQ -> Media file tag list", "|", req.socket.remoteAddress);
+	logger.info("REQ -> Media file tag list", "|", req.headers['x-forwarded-for']);
 
 	//Check if event authorization header is valid
 	const EventHeader = await ParseAuthEvent(req);
 	if (!EventHeader.result) {return res.status(401).send({"result": EventHeader.result, "description" : EventHeader.description});}
 
-	logger.info("REQ -> Media tag list -> pubkey:", EventHeader.pubkey, "-> id:", req.params.fileId, "|", req.socket.remoteAddress);
+	logger.info("REQ -> Media tag list -> pubkey:", EventHeader.pubkey, "-> id:", req.params.fileId, "|", req.headers['x-forwarded-for']);
 
 	//Query database for media tags
 	try {
@@ -473,22 +473,22 @@ const GetMediaTagsbyID = async (req: Request, res: Response): Promise<Response> 
 
 		if (rowstemp[0] !== undefined) {
 			conn.end();
-			logger.info("RES -> Media tag list ", "|", req.socket.remoteAddress);
+			logger.info("RES -> Media tag list ", "|", req.headers['x-forwarded-for']);
 			return res.status(200).send( JSON.parse(JSON.stringify(rows)));
 		}else{
 			//If not found, try with public server pubkey
-			logger.info("Media tag list not found, trying with public server pubkey", "|", req.socket.remoteAddress);
+			logger.info("Media tag list not found, trying with public server pubkey", "|", req.headers['x-forwarded-for']);
 			const [Publicrows] = await conn.execute("SELECT tag FROM mediatags INNER JOIN mediafiles ON mediatags.fileid = mediafiles.id where fileid = ? and pubkey = ?", [req.params.fileId, app.get("pubkey")]);
 			let Publicrowstemp = JSON.parse(JSON.stringify(Publicrows));
 			if (Publicrowstemp[0] !== undefined) {
 				conn.end();
-				logger.info("RES -> Media tag list ", "|", req.socket.remoteAddress);
+				logger.info("RES -> Media tag list ", "|", req.headers['x-forwarded-for']);
 				return res.status(200).send( JSON.parse(JSON.stringify(Publicrows)));
 			}
 		}
 
 		conn.end();
-		logger.warn("RES -> Empty media tag list ", "|", req.socket.remoteAddress);
+		logger.warn("RES -> Empty media tag list ", "|", req.headers['x-forwarded-for']);
 		return res.status(404).send( JSON.parse(JSON.stringify({ "media tags": "No media tags found" })));
 	} catch (error) {
 		logger.error(error);
@@ -501,13 +501,13 @@ const GetMediaTagsbyID = async (req: Request, res: Response): Promise<Response> 
 const GetMediabyTags = async (req: Request, res: Response): Promise<Response> => {
 
 	//Get media files by defined tags
-	logger.info("REQ -> Media files for specified tag", "|", req.socket.remoteAddress);
+	logger.info("REQ -> Media files for specified tag", "|", req.headers['x-forwarded-for']);
 
 	//Check if event authorization header is valid
 	const EventHeader = await ParseAuthEvent(req);
 	if (!EventHeader.result) {return res.status(401).send({"result": EventHeader.result, "description" : EventHeader.description});}
 
-	logger.info("REQ -> Media files for specified tag -> pubkey:", EventHeader.pubkey, "-> tag:", req.params.tags, "|", req.socket.remoteAddress);
+	logger.info("REQ -> Media files for specified tag -> pubkey:", EventHeader.pubkey, "-> tag:", req.params.tags, "|", req.headers['x-forwarded-for']);
 
 	//Check database for media files by tags
 	try {
@@ -517,7 +517,7 @@ const GetMediabyTags = async (req: Request, res: Response): Promise<Response> =>
 
 		if (rowstemp[0] !== undefined) {
 			conn.end();
-			logger.info("RES -> Media files for specified tag ", "|", req.socket.remoteAddress);
+			logger.info("RES -> Media files for specified tag ", "|", req.headers['x-forwarded-for']);
 			const result = {
 				result: true,
 				description: "Media files found",
@@ -527,12 +527,12 @@ const GetMediabyTags = async (req: Request, res: Response): Promise<Response> =>
 			return res.status(200).send(result);
 		}else{
 			//If not found, try with public server pubkey
-			logger.info("Media files for specified tag not found, trying with public server pubkey", "|", req.socket.remoteAddress);
+			logger.info("Media files for specified tag not found, trying with public server pubkey", "|", req.headers['x-forwarded-for']);
 			const [Publicrows] = await conn.execute("SELECT mediafiles.id, mediafiles.filename, registered.username, mediafiles.pubkey, mediafiles.status FROM mediatags INNER JOIN mediafiles ON mediatags.fileid = mediafiles.id INNER JOIN registered ON mediafiles.pubkey = registered.hex where tag = ? and mediafiles.pubkey = ?", [req.params.tag, app.get("pubkey")]);
 			let Publicrowstemp = JSON.parse(JSON.stringify(Publicrows));
 			if (Publicrowstemp[0] !== undefined) {
 				conn.end();
-				logger.info("RES -> Media files for specified tag ", "|", req.socket.remoteAddress);
+				logger.info("RES -> Media files for specified tag ", "|", req.headers['x-forwarded-for']);
 				const result = {
 					result: true,
 					description: "Media files found",
@@ -544,7 +544,7 @@ const GetMediabyTags = async (req: Request, res: Response): Promise<Response> =>
 		}
 
 		conn.end();
-		logger.warn("RES -> Empty media files for specified tag ", "|", req.socket.remoteAddress);
+		logger.warn("RES -> Empty media files for specified tag ", "|", req.headers['x-forwarded-for']);
 		return res.status(404).send( JSON.parse(JSON.stringify({ "media files": "No media files found" })));
 	} catch (error) {
 		logger.error(error);
@@ -557,17 +557,17 @@ const GetMediabyTags = async (req: Request, res: Response): Promise<Response> =>
 const UpdateMediaVisibility = async (req: Request, res: Response): Promise<Response> => {
 
 	//Update media visibility
-	logger.info("REQ -> Update media visibility", "|", req.socket.remoteAddress);
+	logger.info("REQ -> Update media visibility", "|", req.headers['x-forwarded-for']);
 
 	//Check if event authorization header is valid
 	const EventHeader = await ParseAuthEvent(req);
 	if (!EventHeader.result) {return res.status(401).send({"result": EventHeader.result, "description" : EventHeader.description});}
 
-	logger.info("REQ -> Update media visibility -> pubkey:", EventHeader.pubkey, "-> id:", req.params.fileId, "-> visibility:", req.params.visibility, "|", req.socket.remoteAddress);
+	logger.info("REQ -> Update media visibility -> pubkey:", EventHeader.pubkey, "-> id:", req.params.fileId, "-> visibility:", req.params.visibility, "|", req.headers['x-forwarded-for']);
 
 	//Check if fileId is not empty
 	if (!req.params.fileId) {
-		logger.warn("RES -> 400 Bad request - missing fileId", "|", req.socket.remoteAddress);
+		logger.warn("RES -> 400 Bad request - missing fileId", "|", req.headers['x-forwarded-for']);
 		const result: ResultMessage = {
 			result: false,
 			description: "missing fileId",
@@ -577,7 +577,7 @@ const UpdateMediaVisibility = async (req: Request, res: Response): Promise<Respo
 
 	//Check if visibility is valid
 	if (req.params.visibility != "1" && req.params.visibility != "0") {
-		logger.warn("RES -> Invalid visibility value", "|", req.socket.remoteAddress);
+		logger.warn("RES -> Invalid visibility value", "|", req.headers['x-forwarded-for']);
 		const result: ResultMessage = {
 			result: false,
 			description: "Invalid visibility value",
@@ -592,7 +592,7 @@ const UpdateMediaVisibility = async (req: Request, res: Response): Promise<Respo
 		let rowstemp = JSON.parse(JSON.stringify(rows));
 		conn.end();
 		if (rowstemp.affectedRows !== 0) {
-			logger.info("RES -> Media visibility updated:", req.params.visibility, "|", req.socket.remoteAddress);
+			logger.info("RES -> Media visibility updated:", req.params.visibility, "|", req.headers['x-forwarded-for']);
 			const result: MediaVisibilityResultMessage = {
 				result: true,
 				description: "Media visibility has changed",
@@ -602,7 +602,7 @@ const UpdateMediaVisibility = async (req: Request, res: Response): Promise<Respo
 			return res.status(200).send(result);
 		}
 
-		logger.warn("RES -> Media visibility not updated, media file not found ", "|", req.socket.remoteAddress);
+		logger.warn("RES -> Media visibility not updated, media file not found ", "|", req.headers['x-forwarded-for']);
 		const result = {
 			result: false,
 			description: "Media visibility not updated, media file not found",
@@ -629,11 +629,11 @@ const DeleteMedia = async (req: Request, res: Response): Promise<any> => {
 	let mediafiles = [];
 	let username = "";
 
-	logger.info("REQ Delete mediafile ->", servername, "|", req.socket.remoteAddress);
+	logger.info("REQ Delete mediafile ->", servername, "|", req.headers['x-forwarded-for']);
 
 	//Check if fileId is not empty
 	if (!fileId) {
-		logger.warn("RES -> 400 Bad request - missing fileId", "|", req.socket.remoteAddress);
+		logger.warn("RES -> 400 Bad request - missing fileId", "|", req.headers['x-forwarded-for']);
 		const result: ResultMessage = {
 			result: false,
 			description: "missing fileId",
@@ -643,7 +643,7 @@ const DeleteMedia = async (req: Request, res: Response): Promise<any> => {
 
 	//Check if fileId is a number
 	if (isNaN(fileId as any)) {
-		logger.warn("RES -> 400 Bad request - fileId is not a number", "|", req.socket.remoteAddress);
+		logger.warn("RES -> 400 Bad request - fileId is not a number", "|", req.headers['x-forwarded-for']);
 		const result: ResultMessage = {
 			result: false,
 			description: "fileId must be a number",
@@ -653,7 +653,7 @@ const DeleteMedia = async (req: Request, res: Response): Promise<any> => {
 
 	//Check if fileId length is > 10
 	if (fileId.length > 10) {
-		logger.warn("RES -> 400 Bad request - fileId too long > 10", "|", req.socket.remoteAddress);
+		logger.warn("RES -> 400 Bad request - fileId too long > 10", "|", req.headers['x-forwarded-for']);
 		const result: ResultMessage = {
 			result: false,
 			description: "fileId too long",
@@ -673,7 +673,7 @@ const DeleteMedia = async (req: Request, res: Response): Promise<any> => {
 				let pubkey = rowstemp[0].hex;
 				if (pubkey == config.get("server.pubkey")){
 					//We don't authorize server apikey for deletion
-					logger.warn("RES -> 400 Bad request - apikey not allowed for deletion", "|", req.socket.remoteAddress);
+					logger.warn("RES -> 400 Bad request - apikey not allowed for deletion", "|", req.headers['x-forwarded-for']);
 					const result: ResultMessage = {
 						result: false,
 						description: "apikey not allowed for deletion",
@@ -705,7 +705,7 @@ const DeleteMedia = async (req: Request, res: Response): Promise<any> => {
 		let rowstemp = JSON.parse(JSON.stringify(rows));
 		conn.end();
 		if (rowstemp[0] == undefined) {
-			logger.warn("RES Delete Mediafile -> 404 Not found", "|", req.socket.remoteAddress);
+			logger.warn("RES Delete Mediafile -> 404 Not found", "|", req.headers['x-forwarded-for']);
 			const result: ResultMessage = {
 				result: false,
 				description: `Mediafile deletion for id: ${fileId} and pubkey ${EventHeader.pubkey} not found`,
@@ -760,7 +760,7 @@ const DeleteMedia = async (req: Request, res: Response): Promise<any> => {
 		return res.status(500).send(result);
 	}
 
-	logger.info("REQ Delete mediafile ->", servername, " | pubkey:",  EventHeader.pubkey, " | fileId:",  fileId, "|", req.socket.remoteAddress);
+	logger.info("REQ Delete mediafile ->", servername, " | pubkey:",  EventHeader.pubkey, " | fileId:",  fileId, "|", req.headers['x-forwarded-for']);
 
 	try {
 		const conn = await connect("DeleteMedia");
@@ -770,7 +770,7 @@ const DeleteMedia = async (req: Request, res: Response): Promise<any> => {
 		let rowstemp = JSON.parse(JSON.stringify(rows));
 		conn.end();
 		if (rowstemp.affectedRows == 0) {
-			logger.warn("RES Delete Mediafile -> 404 Not found", "|", req.socket.remoteAddress);
+			logger.warn("RES Delete Mediafile -> 404 Not found", "|", req.headers['x-forwarded-for']);
 			const result: ResultMessage = {
 				result: false,
 				description: `Mediafile deletion for id: ${fileId} and pubkey ${EventHeader.pubkey} not found`,
@@ -778,7 +778,7 @@ const DeleteMedia = async (req: Request, res: Response): Promise<any> => {
 			return res.status(404).send(result);
 		}
 
-		logger.info("Deleting files from database:", rowstemp.affectedRows, "|", req.socket.remoteAddress);
+		logger.info("Deleting files from database:", rowstemp.affectedRows, "|", req.headers['x-forwarded-for']);
 
 		//Delete file from disk
 		for (let i = 0; i < mediafiles.length; i++) {
@@ -798,7 +798,7 @@ const DeleteMedia = async (req: Request, res: Response): Promise<any> => {
 		return res.status(500).send(result);
 	}
 
-	logger.info("RES Delete mediafile ->", servername, " | pubkey:",  EventHeader.pubkey, " | fileId:",  fileId, "|", "mediafile(s) deleted", "|", req.socket.remoteAddress);
+	logger.info("RES Delete mediafile ->", servername, " | pubkey:",  EventHeader.pubkey, " | fileId:",  fileId, "|", "mediafile(s) deleted", "|", req.headers['x-forwarded-for']);
 	const result: ResultMessage = {
 		result: true,
 		description: `Mediafile deletion for id: ${fileId} and pubkey ${EventHeader.pubkey} successful`,
