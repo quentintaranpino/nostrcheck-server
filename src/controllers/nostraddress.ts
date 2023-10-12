@@ -76,7 +76,7 @@ const Checknostraddress = async (req: Request, res: Response): Promise<Response>
 		conn.end();
 
 		if (rowstemp[0] == undefined) {
-			logger.warn("RES Nostraddress ->", name, "|", "Username not registered", "|", req.socket.remoteAddress);
+			logger.warn("RES Nostraddress ->", name, "|", "Username not registered", "|", req.headers['x-forwarded-for']);
 
 			const result: ResultMessage = {
 				result: false,
