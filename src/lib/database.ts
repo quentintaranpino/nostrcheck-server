@@ -370,6 +370,9 @@ async function dbFileblurhashupdate(blurhash:string, options: ProcessingFileData
 
 async function dbFileMagnetUpdate(MediaPath: string, options: ProcessingFileData): Promise<boolean> {
 	
+	//Only create magnets for type media (not avatar or banner)
+	if (options.media_type != "media"){return true;}
+
 	try{
 		const magnet = await CreateMagnet(MediaPath);
 		logger.debug("Magnet link:", magnet, "for file:", MediaPath, "id:", options.fileid)
