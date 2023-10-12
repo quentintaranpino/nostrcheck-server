@@ -45,7 +45,7 @@ const Uploadmedia = async (req: Request, res: Response, version:string): Promise
 	logger.info("pubkey ->", pubkey, "|", req.socket.remoteAddress);
 
 	//Parse upload type. If not defined, default is "media"
-	let media_type : string = ParseMediaType(req, pubkey);
+	let media_type : string = await ParseMediaType(req, pubkey);
 	logger.info("type ->", media_type, "|", req.socket.remoteAddress);
 
 	//Check if file exist on request body
