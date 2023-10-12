@@ -218,13 +218,13 @@ const ParseMediaType = (req : Request, pubkey : string): string  => {
 
 	//v0 compatibility, check if type is present on request body (v0 uses type instead of uploadtype)
 	if (req.body.type != undefined && req.body.type != "") {
-		logger.warn("Detected 'type' field (deprecated v0) on request body, setting 'media_type' with 'type' data ", "|", req.socket.remoteAddress);
+		logger.warn("Detected 'type' field (deprecated v0) on request body, setting 'media_type' with 'type' data ", "|", req.headers['x-forwarded-for']);
 		media_type = req.body.type;
 	}
 
 	//v1 compatibility, check if uploadtype is present on request body (v1 uses uploadtype instead of media_type)
 	if (req.body.uploadtype != undefined && req.body.uploadtype != "") {
-		logger.warn("Detected 'uploadtype' field (deprecated v1) on request body, setting 'media_type' with 'type' data ", "|", req.socket.remoteAddress);
+		logger.warn("Detected 'uploadtype' field (deprecated v1) on request body, setting 'media_type' with 'type' data ", "|", req.headers['x-forwarded-for']);
 		media_type = req.body.uploadtype;
 	}
 
@@ -235,14 +235,14 @@ const ParseMediaType = (req : Request, pubkey : string): string  => {
 	
 	//Check if media_type is valid
 	if (!UploadTypes.includes(media_type)) {
-		logger.warn(`RES -> 400 Bad request - incorrect uploadtype: `, media_type,  "|", req.socket.remoteAddress);
+		logger.warn(`RES -> 400 Bad request - incorrect uploadtype: `, media_type,  "|", req.headers['x-forwarded-for']);
 		logger.warn("assuming uploadtype = media");
 		media_type = ("media");
 	}
 
 	//Check if the pubkey is public (the server pubkey) and media_type is different than media
 	if (pubkey == app.get("pubkey") && media_type != "media") {
-		logger.warn(`Public pubkey can only upload media files, setting media_type to "media"`, "|", req.socket.remoteAddress);
+		logger.warn(`Public pubkey can only upload media files, setting media_type to "media"`, "|", req.headers['x-forwarded-for']);
 		media_type = "media";
 	}
 
@@ -255,13 +255,13 @@ const ParseFileType = async (req: Request, file :Express.Multer.File): Promise<s
 	//Detect file mime type
 	const DetectedFileType = await fileTypeFromBuffer(file.buffer);
 	if (DetectedFileType == undefined) {
-		logger.warn(`RES -> 400 Bad request - Could not detect file mime type `,  "|", req.socket.remoteAddress);
+		logger.warn(`RES -> 400 Bad request - Could not detect file mime type `,  "|", req.headers['x-forwarded-for']);
 		return "";
 	}
 	
 	//Check if filetype is allowed
 	if (!allowedMimeTypes.includes(DetectedFileType.mime)) {
-		logger.warn(`RES -> 400 Bad request - filetype not allowed: `, DetectedFileType.mime,  "|", req.socket.remoteAddress);
+		logger.warn(`RES -> 400 Bad request - filetype not allowed: `, DetectedFileType.mime,  "|", req.headers['x-forwarded-for']);
 		return "";
 	}
 

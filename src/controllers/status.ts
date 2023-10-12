@@ -4,7 +4,7 @@ import { logger } from "../lib/logger.js";
 import { ServerStatusMessage } from "../interfaces/status.js";
 
 const ServerStatus = async (req: Request, res: Response): Promise<Response> => {
-	logger.info("GET /api/v1/status", "|", req.socket.remoteAddress);
+	logger.info("GET /api/v1/status", "|", req.headers['x-forwarded-for']);
 
 	const result: ServerStatusMessage = {
 		result: true,

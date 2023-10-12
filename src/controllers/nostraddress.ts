@@ -16,11 +16,11 @@ const Checknostraddress = async (req: Request, res: Response): Promise<Response>
 	
 	//If name is null return 400
 	if (!name) {
-		logger.info("REQ Nostraddress ->", servername, "|  name not specified  |", req.socket.remoteAddress);
+		logger.info("REQ Nostraddress ->", servername, "|  name not specified  |", req.headers['x-forwarded-for']);
 		logger.warn(
 			"RES Nostraddress -> 400 Bad request - name parameter not specified",
 			"|",
-			req.socket.remoteAddress
+			req.headers['x-forwarded-for']
 		);
 
 		const result: ResultMessage = {
@@ -33,8 +33,8 @@ const Checknostraddress = async (req: Request, res: Response): Promise<Response>
 
 	//If name is too long (>50) return 400
 	if (name.length > 50) {
-		logger.info("REQ Nostraddress ->", servername, "| " +  name.substring(0,50) + "..."  + " |", req.socket.remoteAddress);
-		logger.warn("RES Nostraddress -> 400 Bad request - name too long", "|", req.socket.remoteAddress);
+		logger.info("REQ Nostraddress ->", servername, "| " +  name.substring(0,50) + "..."  + " |", req.headers['x-forwarded-for']);
+		logger.warn("RES Nostraddress -> 400 Bad request - name too long", "|", req.headers['x-forwarded-for']);
 
 		const result: ResultMessage = {
 			result: false,
@@ -44,7 +44,7 @@ const Checknostraddress = async (req: Request, res: Response): Promise<Response>
 		return res.status(400).send(result);
 	}
 
-	logger.info("REQ Nostraddress ->", servername, "|", name + "|", req.socket.remoteAddress);
+	logger.info("REQ Nostraddress ->", servername, "|", name + "|", req.headers['x-forwarded-for']);
 
 	// Root _ pubkey
 	const rootkey : string = config.get('server.pubkey'); 
