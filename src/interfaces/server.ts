@@ -3,4 +3,9 @@ interface ResultMessage {
 	description: string;
 }
 
-export { ResultMessage };
+interface ResultMessagev2 {
+	status: string, 
+	message: string,
+}
+
+export { ResultMessage, ResultMessagev2 };
