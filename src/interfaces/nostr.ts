@@ -1,3 +1,5 @@
+import { ResultMessagev2 } from "./server.js";
+
 enum NIPKinds {
 	NIP98 = 27235,
 	NIP94 = 1063,
@@ -43,14 +45,11 @@ interface NIP94_event {
 
   }
 
-interface NIP96_event{
+interface NIP96_event extends ResultMessagev2{
 
-	  status: string, 
-	  message: string,
     processing_url: string,
-	  nip94_event : NIP94_event
+	nip94_event : NIP94_event
 
-  }
-
+}
 
 export { NIPKinds, NIP96file, NIP94_event, NIP96_event};

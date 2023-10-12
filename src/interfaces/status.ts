@@ -1,8 +1,8 @@
 import { ResultMessage } from './server.js';
 
-interface StatusResultMessage extends ResultMessage {
+interface ServerStatusMessage extends ResultMessage {
 	uptime: string;
 	version: string;
 }
 
-export { StatusResultMessage };
+export { ServerStatusMessage };

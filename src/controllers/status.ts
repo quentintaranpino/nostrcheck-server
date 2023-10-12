@@ -1,12 +1,12 @@
 import { Request, Response } from "express";
 
 import { logger } from "../lib/logger.js";
-import { StatusResultMessage } from "../interfaces/status.js";
+import { ServerStatusMessage } from "../interfaces/status.js";
 
 const ServerStatus = async (req: Request, res: Response): Promise<Response> => {
 	logger.info("GET /api/v1/status", "|", req.socket.remoteAddress);
 
-	const result: StatusResultMessage = {
+	const result: ServerStatusMessage = {
 		result: true,
 		description: "Nostrcheck API server is running.",
 		version: process.env.npm_package_version || "0.0.0",
