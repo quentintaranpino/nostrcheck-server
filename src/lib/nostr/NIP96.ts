@@ -21,7 +21,10 @@ const GetNIP96file = (hostname : string): NIP96file => {
               "url": "",
               "max_byte_size": Number(config.get("media.maxMBfilesize"))*1024*1024,
               "file_expiration": [0, 0],
-              "image_transformations": ["resizing", "format_conversion", "compression"]
+              media_transformations: {
+                "image": ["resizing", "format_conversion", "compression"],
+                "video": ["resizing", "format_conversion", "compression"]
+                }
             }
         }
     };

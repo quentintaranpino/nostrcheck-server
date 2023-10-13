@@ -19,7 +19,10 @@ interface NIP96file {
             url: string,
             max_byte_size: number,
             file_expiration: number[],
-            image_transformations: string[]
+            media_transformations: {
+                "image": string[],
+                "video": string[],
+            }
         }
     }
 }
