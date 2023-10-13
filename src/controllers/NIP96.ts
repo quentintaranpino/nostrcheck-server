@@ -6,6 +6,7 @@ const NIP96Data = async (req: Request, res: Response): Promise<Response> => {
 
     logger.info("REQ nip96.json ->", req.hostname, "|", req.headers['x-forwarded-for']);
 
+    res.setHeader('Content-Type', 'application/json');
 	return res.status(200).send(JSON.stringify(GetNIP96file(req.hostname)));
 
     };

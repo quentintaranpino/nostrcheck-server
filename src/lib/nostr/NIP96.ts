@@ -7,7 +7,7 @@ import { PrepareNIP94_event } from "./NIP94.js";
 
 const GetNIP96file = (hostname : string): NIP96file => {
 
-    let nip96file = {
+    let nip96file : NIP96file= {
     
         "api_url": "https://" + hostname + "/api/v2/media",
         "download_url": "https://" + hostname + "/media",
