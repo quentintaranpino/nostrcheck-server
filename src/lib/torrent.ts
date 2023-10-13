@@ -43,12 +43,19 @@ const SeedMediafilesMagnets = async () => {
     if (filenames.includes(element.filename)) return;
     filenames.push(element.filename);
     const MediaPath = config.get("media.mediaPath") + element.username + "/" + element.filename;
+    //Before try check if file exists and is readable
     try{
         fs.accessSync(MediaPath, fs.constants.R_OK); //check if file exists and is readable
+    }catch (error) {
+        logger.warn("File", MediaPath, "not exist, skipping magnet seeding");
+        return;
+    }
+    try{
         client.seed(MediaPath);
-      }catch (error) {
+    }catch (error) {
         logger.error("error seeding magnet for file", MediaPath);
-      }
+        return;
+    }
     }
   );
 }
