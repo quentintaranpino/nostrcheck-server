@@ -1,10 +1,10 @@
-import crypto from "crypto";
+import crypto, { randomBytes } from "crypto";
 import { Request, Response } from "express";
 import app from "../app.js";
 import { connect, dbSelectUsername } from "../lib/database.js";
 import { logger } from "../lib/logger.js";
 import { ParseAuthEvent } from "../lib/nostr/NIP98.js";
-import { ParseMediaType, ParseFileType } from "../lib/media.js"
+import { ParseMediaType, ParseFileType, convertFile } from "../lib/media.js"
 import { requestQueue } from "../lib/media.js";
 import {
 	asyncTask,
@@ -24,6 +24,7 @@ import path from "path";
 import { NIP96_event } from "../interfaces/nostr.js";
 import { PrepareNIP96_event } from "../lib/nostr/NIP96.js";
 import { getClientIp } from "../lib/server.js";
+import { generatefileHashfrombuffer } from "../lib/hash.js";
 
 const Uploadmedia = async (req: Request, res: Response, version:string): Promise<Response> => {
 
@@ -77,13 +78,9 @@ const Uploadmedia = async (req: Request, res: Response, version:string): Promise
 	}
 	logger.info("mime ->", file.mimetype, "|", getClientIp(req));
 
-	//Uploaded file SHA256 hash
-	const filehash = crypto.createHash("sha256").update(file.buffer).digest("hex");
-	logger.info("hash ->", filehash, "|", getClientIp(req));
-
 	//Filedata
 	const filedata: ProcessingFileData = {
-		filename: filehash +  "." + mime_transform[file.mimetype],
+		filename: "",
 		fileid: "",
 		filesize: file.size,
 		username: username,
@@ -93,7 +90,7 @@ const Uploadmedia = async (req: Request, res: Response, version:string): Promise
 		media_type: media_type,
 		originalmime: file.mimetype,
 		outputoptions: "",
-		originalhash: filehash,
+		originalhash: "",
 		hash: "",
 		url: "",
 		magnet: "",
@@ -103,6 +100,11 @@ const Uploadmedia = async (req: Request, res: Response, version:string): Promise
 		description: "",
 		servername: "https://" + req.hostname
 	};
+
+	//Uploaded file SHA256 hash and filename
+	filedata.originalhash = generatefileHashfrombuffer(file);
+	filedata.filename = filedata.originalhash +  "." + mime_transform[file.mimetype]
+	logger.info("hash ->", filedata.originalhash, "|", getClientIp(req));
 
 	//URL
 	filedata.url = filedata.servername + "/media/" + username + "/" + filedata.filename;
@@ -114,12 +116,12 @@ const Uploadmedia = async (req: Request, res: Response, version:string): Promise
 	if (version == "v1"){filedata.status = JSON.parse(JSON.stringify(UploadStatus[0]));}
 	if (version == "v2"){filedata.status = JSON.parse(JSON.stringify(Uploadstatusv2[0]));}
 
-	let convert = true;
+	let convert = true;filedata.hash
 	let insertfiledb = true;
 
 	//Check if the (file SHA256 hash and pubkey) is already on the database, if exist (and the upload is media type) we return the existing file URL
 	const dbHash = await connect("Uploadmedia");
-	const [dbHashResult] = await dbHash.query("SELECT id, hash, magnet, blurhash, filename, filesize FROM mediafiles WHERE original_hash = ? and pubkey = ? and filename not like 'avatar%' and filename not like 'banner%' ", [filehash, pubkey]);	
+	const [dbHashResult] = await dbHash.query("SELECT id, hash, magnet, blurhash, filename, filesize FROM mediafiles WHERE original_hash = ? and pubkey = ? and filename not like 'avatar%' and filename not like 'banner%' ", [filedata.originalhash, pubkey]);	
 	const rowstempHash = JSON.parse(JSON.stringify(dbHashResult));
 	if (rowstempHash[0] !== undefined && media_type == "media") {
 		logger.info(`RES ->  File already in database, returning existing URL:`, filedata.servername + "/media/" + username + "/" + filedata.filename, "|", getClientIp(req));
@@ -192,7 +194,21 @@ const Uploadmedia = async (req: Request, res: Response, version:string): Promise
 		fs.mkdirSync(mediaPath);
 	}
 
-	if (convert) {
+	//Copy file to username folder. It is required by NIP96
+	const filePath = mediaPath + "/" + filedata.filename;
+	fs.writeFile(filePath, file.buffer, function (err) {
+		if (err) {
+			logger.error("Error copying file to disk", err);
+			const result: ResultMessage = {
+				result: false,
+				description: "Error copying file to disk",
+			};
+			return res.status(500).send(result);
+		}
+	});
+
+	//NIP96 PoC, enter the conversion queue when is a video.
+	if (convert && filedata.originalmime.startsWith("video")) {
 		//Send request to transform queue
 		const t: asyncTask = {req,filedata,};
 		logger.info(`${requestQueue.length() +1} items in queue`);
@@ -205,6 +221,12 @@ const Uploadmedia = async (req: Request, res: Response, version:string): Promise
 			filedata.description + "File queued for conversion";
 			return result;
 		});
+	}
+
+	//NIP96 PoC, return inmediately converted when is an image.
+	if (convert && filedata.originalmime.startsWith("image")) {
+		await convertFile(req.file, filedata, 0);
+		filedata.status = JSON.parse(JSON.stringify(Uploadstatusv2[1]));
 	}
 
 	//Return message v2.

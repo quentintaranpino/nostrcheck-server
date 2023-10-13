@@ -4,16 +4,16 @@ import fs from "fs";
 
 import { allowedMimeTypes, asyncTask, ProcessingFileData, UploadTypes } from "../interfaces/media.js";
 import { logger } from "./logger.js";
-import config from "config";
+import config, { has } from "config";
 import { dbFileHashupdate, dbFileMagnetUpdate, dbFileStatusUpdate, dbFileVisibilityUpdate, dbFileDimensionsUpdate, dbFileblurhashupdate, dbFilesizeUpdate } from "./database.js";
 import {fileTypeFromBuffer} from 'file-type';
 import { Request } from "express";
 import app from "../app.js";
-import { generateBlurhash } from "./blurhash.js";
+import { generateBlurhash, generatefileHashfromfile } from "./hash.js";
 import crypto from "crypto";
 import { getClientIp } from "./server.js";
 
-const requestQueue: queueAsPromised<any> = fastq.promise(PrepareFile, 2); //number of workers for the queue
+const requestQueue: queueAsPromised<any> = fastq.promise(PrepareFile, 1); //number of workers for the queue
 
 async function PrepareFile(t: asyncTask): Promise<void> {
 
@@ -123,35 +123,39 @@ async function convertFile(
 		
 				// }
 
-				const visibility =  dbFileVisibilityUpdate(true, options);
+				const visibility = dbFileVisibilityUpdate(true, options);
 				if (!visibility) {
 					logger.error("Could not update table mediafiles, id: " + options.fileid, "visibility: true");
 				}
-				const hash =  dbFileHashupdate(MediaPath, options);
-				if (!hash) {
+
+				let hash = generatefileHashfromfile(MediaPath);
+				options.hash = hash;
+				logger.info("Hash for file:", options.filename, ":", hash);
+				const hashDBUpdate =  dbFileHashupdate(options);
+				if (!hashDBUpdate) {
 					logger.error("Could not update table mediafiles, id: " + options.fileid, "hash for file: " + MediaPath);
 				}
 				
-				const magnet =  dbFileMagnetUpdate(MediaPath, options);
-				if (!magnet) {
+				const magnetDBupdate =  dbFileMagnetUpdate(MediaPath, options);
+				if (!magnetDBupdate) {
 					logger.error("Could not update table mediafiles, id: " + options.fileid, "magnet for file: " + MediaPath);
 				}
 
-				const completed =  dbFileStatusUpdate("completed", options);
-				if (!completed) {
+				const fileStatusDbUpdate =  dbFileStatusUpdate("completed", options);
+				if (!fileStatusDbUpdate) {
 					logger.error("Could not update table mediafiles, id: " + options.fileid, "status: completed");
 				}
 
 				logger.debug("Old Filesize:", options.filesize);
 				logger.debug("New Filesize:", +fs.statSync(MediaPath).size);
 
-				const filesize =  dbFilesizeUpdate(+fs.statSync(MediaPath).size, options);
-				if (!filesize) {
+				const filesizeDbUpdate =  dbFilesizeUpdate(+fs.statSync(MediaPath).size, options);
+				if (!filesizeDbUpdate) {
 					logger.error("Could not update table mediafiles, id: " + options.fileid, "status: completed");
 				}
 
-				const dimensions =  dbFileDimensionsUpdate(+newfiledimensions.split("x")[0], +newfiledimensions.split("x")[1], options);
-				if (!dimensions) {
+				const dimensionsDbUpdate =  dbFileDimensionsUpdate(+newfiledimensions.split("x")[0], +newfiledimensions.split("x")[1], options);
+				if (!dimensionsDbUpdate) {
 					logger.error("Could not update table mediafiles, id: " + options.fileid, "dimensions for file: " + MediaPath);
 				}
 			
@@ -236,8 +240,7 @@ const ParseMediaType = (req : Request, pubkey : string): string  => {
 	
 	//Check if media_type is valid
 	if (!UploadTypes.includes(media_type)) {
-		logger.warn(`RES -> 400 Bad request - incorrect uploadtype: `, media_type,  "|", getClientIp(req));
-		logger.warn("assuming uploadtype = media");
+		logger.warn(`Incorrect uploadtype or not present: `, media_type, "assuming uploadtype = media", "|", getClientIp(req));
 		media_type = ("media");
 	}
 

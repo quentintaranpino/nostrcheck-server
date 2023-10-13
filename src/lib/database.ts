@@ -309,36 +309,23 @@ async function dbFileVisibilityUpdate(visibility: boolean, options: ProcessingFi
 
 }
 
-async function dbFileHashupdate(filepath:string, options: ProcessingFileData): Promise<boolean>{
-
-	let hash = '';
-	try{
-		hash = crypto
-				.createHash("sha256")
-				.update(fs.readFileSync(filepath))
-				.digest("hex");
-		logger.info("File hash:", hash, "for file:", filepath);
-		}
-	catch (error) {
-		logger.error("Error getting file hash", error);
-		return false;
-	}
+async function dbFileHashupdate(options: ProcessingFileData): Promise<boolean>{
 
 	const conn = await connect("dbFileHashupdate");
 	try{
 		const [dbFileHashUpdate] = await conn.execute(
 			"UPDATE mediafiles set hash = ? where id = ?",
-			[hash, options.fileid]
+			[options.hash, options.fileid]
 		);
 		if (!dbFileHashUpdate) {
-			logger.error("Error updating mediafiles table (hash), id:", options.fileid, "hash:", hash);
+			logger.error("Error updating mediafiles table (hash), id:", options.fileid, "hash:", options.hash);
 			conn.end();
 			return false;
 		}
 		conn.end();
 		return true
 	}catch (error) {
-	logger.error("Error updating mediafiles table (hash), id:", options.fileid, "hash:", hash);
+	logger.error("Error updating mediafiles table (hash), id:", options.fileid, "hash:", options.hash);
 	conn.end();
 	return false;
 	}
