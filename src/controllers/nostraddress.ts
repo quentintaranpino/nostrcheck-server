@@ -45,7 +45,7 @@ const Checknostraddress = async (req: Request, res: Response): Promise<Response>
 		return res.status(400).send(result);
 	}
 
-	logger.info("REQ Nostraddress ->", servername, "|", name + "|", getClientIp(req));
+	logger.info("REQ Nostraddress ->", servername, "|", name, "|", getClientIp(req));
 
 	// Root _ pubkey
 	const rootkey : string = config.get('server.pubkey'); 
