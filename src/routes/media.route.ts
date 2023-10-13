@@ -37,8 +37,8 @@ export const LoadMediaEndpoint = async (app: Application, version:string): Promi
 		app.delete("/api/" + version + "/media/:fileId", DeleteMedia);
 
 		//Get media status by id 
-		app.get("/api/" + version + "/media", GetMediaStatusbyID);
-		app.get("/api/" + version + "/media/:id", GetMediaStatusbyID);
+		app.get("/api/" + version + "/media", function (req, res){GetMediaStatusbyID(req,res,version)});
+		app.get("/api/" + version + "/media/:id", function (req, res){GetMediaStatusbyID(req,res,version)});
 
 		//Get media tags by id
 		app.get("/api/" + version + "/media/:fileId/tags/", GetMediaTagsbyID);

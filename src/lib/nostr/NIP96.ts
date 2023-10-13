@@ -35,13 +35,10 @@ const GetNIP96file = (hostname : string): NIP96file => {
 
 const PrepareNIP96_event = async (filedata : ProcessingFileData): Promise<NIP96_event> => {
 
-    let processing_url:string = filedata.servername + "/api/v2/media/" + filedata.fileid;
-    if (filedata.status == "success"){processing_url = ""}
-
     let event: NIP96_event = {
         status: filedata.status,
         message: filedata.description,
-        processing_url: processing_url,
+        processing_url: filedata.processing_url,
         nip94_event: await PrepareNIP94_event(filedata)
     }
 

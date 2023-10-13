@@ -52,11 +52,7 @@ async function PrepareFile(t: asyncTask): Promise<void> {
 
 }
 
-async function convertFile(
-	inputFile: any,
-	options: ProcessingFileData,
-	retry:number = 0
-): Promise<boolean> {
+async function convertFile(	inputFile: any,	options: ProcessingFileData,retry:number = 0): Promise<boolean> {
 
 	if (retry > 5) {return false}
 
@@ -64,7 +60,7 @@ async function convertFile(
 
 	logger.info("Using temp path:", TempPath);
 	let NewDimensions = setMediaDimensions(TempPath, options);
-	return new Promise(async(resolve, reject) => {
+	let result = new Promise(async(resolve, reject) => {
 
 		//We write the file on filesystem because ffmpeg doesn't support streams.
 		fs.writeFile(TempPath, inputFile.buffer, function (err) {
@@ -214,6 +210,8 @@ async function convertFile(
 			.run();
 	
 	});
+
+	return result.then(() => true).catch(() => false);
 	
 }
 

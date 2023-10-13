@@ -14,10 +14,10 @@ import {
 	MediaVisibilityResultMessage,
 	mime_transform,
 	UploadStatus,
-	Uploadstatusv2,
+	MediaStatus,
 	FileData,
 } from "../interfaces/media.js";
-import { ResultMessage } from "../interfaces/server.js";
+import { ResultMessage, ResultMessagev2 } from "../interfaces/server.js";
 import fs from "fs";
 import config from "config";
 import path from "path";
@@ -28,12 +28,22 @@ import { generatefileHashfrombuffer } from "../lib/hash.js";
 
 const Uploadmedia = async (req: Request, res: Response, version:string): Promise<Response> => {
 
-
 	logger.info("POST /api/" + version + "/media", "|", getClientIp(req));
 
 	//Check if event authorization header is valid (NIP98) or if apikey is valid (v0)
 	const EventHeader = await ParseAuthEvent(req);
-	if (!EventHeader.result) {return res.status(401).send({"result": EventHeader.result, "description" : EventHeader.description});}
+	if (!EventHeader.result) {
+		
+		//v0 and v1 compatibility
+		if(version != "v2"){return res.status(401).send({"result": EventHeader.result, "description" : EventHeader.description});}
+
+		const result : ResultMessagev2 = {
+			status: MediaStatus[1],
+			message: EventHeader.description
+		}
+		return res.status(401).send(result);
+
+	}
 
 	let pubkey : string = EventHeader.pubkey;
 	let username : string = await dbSelectUsername(pubkey);
@@ -58,11 +68,14 @@ const Uploadmedia = async (req: Request, res: Response, version:string): Promise
 
 	if (!file) {
 		logger.warn(`RES -> 400 Bad request - Empty file`, "|", getClientIp(req));
-		const result: ResultMessage = {
-			result: false,
-			description: "Empty file",
-		};
 
+		//v0 and v1 compatibility
+		if(version != "v2"){return res.status(400).send({"result": false, "description" : "Empty file"});}
+
+		const result: ResultMessagev2 = {
+			status: MediaStatus[1],
+			message: "Empty file"
+		};
 		return res.status(400).send(result);
 	}
 
@@ -70,9 +83,13 @@ const Uploadmedia = async (req: Request, res: Response, version:string): Promise
 	file.mimetype = await ParseFileType(req, file);
 	if (file.mimetype === "") {
 		logger.error(`RES -> 400 Bad request - `, file.mimetype, ` filetype not detected`, "|", getClientIp(req));
-		const result: ResultMessage = {
-			result: false,
-			description: "file type not detected or not allowed",
+
+		//v0 and v1 compatibility
+		if(version != "v2"){return res.status(400).send({"result": false, "description" : "file type not detected or not allowed"});}
+
+		const result: ResultMessagev2 = {
+			status: MediaStatus[1],
+			message: "file type not detected or not allowed",
 		};
 		return res.status(400).send(result);
 	}
@@ -98,7 +115,8 @@ const Uploadmedia = async (req: Request, res: Response, version:string): Promise
 		blurhash: "",
 		status: "",
 		description: "",
-		servername: "https://" + req.hostname
+		servername: "https://" + req.hostname,
+		processing_url:""
 	};
 
 	//Uploaded file SHA256 hash and filename
@@ -114,7 +132,7 @@ const Uploadmedia = async (req: Request, res: Response, version:string): Promise
 	
 	//Status
 	if (version == "v1"){filedata.status = JSON.parse(JSON.stringify(UploadStatus[0]));}
-	if (version == "v2"){filedata.status = JSON.parse(JSON.stringify(Uploadstatusv2[0]));}
+	if (version == "v2"){filedata.status = JSON.parse(JSON.stringify(MediaStatus[0]));}
 
 	let convert = true;filedata.hash
 	let insertfiledb = true;
@@ -127,7 +145,7 @@ const Uploadmedia = async (req: Request, res: Response, version:string): Promise
 		logger.info(`RES ->  File already in database, returning existing URL:`, filedata.servername + "/media/" + username + "/" + filedata.filename, "|", getClientIp(req));
 
 		if (version == "v1"){filedata.status = JSON.parse(JSON.stringify(UploadStatus[2]));}
-		if (version == "v2"){filedata.status = JSON.parse(JSON.stringify(Uploadstatusv2[1]));}
+		if (version == "v2"){filedata.status = JSON.parse(JSON.stringify(MediaStatus[0]));}
 		filedata.description = "File exist in database, returning existing URL";
 		filedata.filename = rowstempHash[0].filename;
 		filedata.magnet = rowstempHash[0].magnet;
@@ -178,9 +196,13 @@ const Uploadmedia = async (req: Request, res: Response, version:string): Promise
 			}
 			catch (error) {
 				logger.error("Error inserting file to database", error);
-				const result: ResultMessage = {
-					result: false,
-					description: "Error inserting file to database",
+
+				//v0 and v1 compatibility
+				if(version != "v2"){return res.status(500).send({"result": false, "description" : "Error inserting file to database"});}
+
+				const result: ResultMessagev2 = {
+					status: MediaStatus[1],
+					message: "Error inserting file to database",
 				};
 				dbFile.end();
 				return res.status(500).send(result);
@@ -191,6 +213,7 @@ const Uploadmedia = async (req: Request, res: Response, version:string): Promise
 	//If not exist create username folder
 	const mediaPath = config.get("media.mediaPath") + username;
 	if (!fs.existsSync(mediaPath)){
+		logger.warn("Username folder not found, creating...", "|", getClientIp(req));
 		fs.mkdirSync(mediaPath);
 	}
 
@@ -198,10 +221,14 @@ const Uploadmedia = async (req: Request, res: Response, version:string): Promise
 	const filePath = mediaPath + "/" + filedata.filename;
 	fs.writeFile(filePath, file.buffer, function (err) {
 		if (err) {
-			logger.error("Error copying file to disk", err);
-			const result: ResultMessage = {
-				result: false,
-				description: "Error copying file to disk",
+			logger.error("Error copying file to disk", err, "|", getClientIp(req));
+
+			//v0 and v1 compatibility
+			if(version != "v2"){return res.status(500).send({"result": false, "description" : "Error copying file to disk"});}
+
+			const result: ResultMessagev2 = {
+				status: MediaStatus[1],
+				message: "Error copying file to disk",
 			};
 			return res.status(500).send(result);
 		}
@@ -209,72 +236,101 @@ const Uploadmedia = async (req: Request, res: Response, version:string): Promise
 
 	//NIP96 PoC, enter the conversion queue when is a video.
 	if (convert && filedata.originalmime.startsWith("video")) {
+		filedata.processing_url = filedata.servername + "/api/v2/media/" + filedata.fileid;
 		//Send request to transform queue
 		const t: asyncTask = {req,filedata,};
 		logger.info(`${requestQueue.length() +1} items in queue`);
+		filedata.description + "File queued for conversion";
 		requestQueue.push(t).catch((err) => {
 			logger.error("Error pushing file to queue", err);
-			const result: ResultMessage = {
-				result: false,
-				description: "Error queueing file",
+
+			//v0 and v1 compatibility
+			if(version != "v2"){return res.status(500).send({"result": false, "description" : "Error queueing file"});}
+
+			const result: ResultMessagev2 = {
+				status: MediaStatus[1],
+				message: "Error queueing file",
 			};
-			filedata.description + "File queued for conversion";
 			return result;
 		});
 	}
 
 	//NIP96 PoC, return inmediately converted when is an image.
 	if (convert && filedata.originalmime.startsWith("image")) {
-		await convertFile(req.file, filedata, 0);
-		filedata.status = JSON.parse(JSON.stringify(Uploadstatusv2[1]));
+		let conversion : boolean = await convertFile(req.file, filedata, 0);
+		if (!conversion) {
+			filedata.status = JSON.parse(JSON.stringify(MediaStatus[1]));
+			filedata.description = "Error converting file";
+
+			//v0 and v1 compatibility
+			if(version != "v2"){return res.status(500).send({"result": false, "description" : "Error converting file"});}
+
+			const result: ResultMessagev2 = {
+				status: MediaStatus[1],
+				message: "Error converting file",
+			};
+			return res.status(500).send(result);
+		} 
 	}
 
-	//Return message v2.
-	if (version == "v2") {
-		const returnmessage : NIP96_event = await PrepareNIP96_event(filedata);
+	//v0 and v1 compatibility
+	if (version != "v2"){
+		const returnmessage: MediaExtraDataResultMessage = {
+			result: true,
+			description: filedata.description,
+			status: filedata.status,
+			id: filedata.fileid,
+			pubkey: filedata.pubkey,
+			url: filedata.url,
+			hash: filedata.hash,
+			magnet: filedata.magnet,
+			tags: await GetFileTags(filedata.fileid)
+		};
+		logger.info(`RES -> 200 OK - ${filedata.description}`, "|", getClientIp(req));
 		return res.status(200).send(returnmessage);
 	}
 
-	//Return message v0 and v1.
-	const returnmessage: MediaExtraDataResultMessage = {
-		result: true,
-		description: filedata.description,
-	    status: filedata.status,
-		id: filedata.fileid,
-		pubkey: filedata.pubkey,
-		url: filedata.url,
-		hash: filedata.hash,
-		magnet: filedata.magnet,
-		tags: await GetFileTags(filedata.fileid)
-	};
-
+	const returnmessage : NIP96_event = await PrepareNIP96_event(filedata);
 	return res.status(200).send(returnmessage);
 
 };
 
-const GetMediaStatusbyID = async (req: Request, res: Response) => {
+const GetMediaStatusbyID = async (req: Request, res: Response, version:string): Promise<Response> => {
 
-	logger.info("GET /api/v1/media", "|", getClientIp(req));
+	logger.info("GET /api/" + version + "/media", "|", getClientIp(req));
 
 	//Check if event authorization header is valid (NIP98) or if apikey is valid (v0)
 	const EventHeader = await ParseAuthEvent(req);
-	if (!EventHeader.result) {return res.status(401).send({"result": EventHeader.result, "description" : EventHeader.description});}
+	if (!EventHeader.result) {
+		
+		//v0 and v1 compatibility
+		if(version != "v2"){return res.status(401).send({"result": EventHeader.result, "description" : EventHeader.description});}
+
+		const result : ResultMessagev2 = {
+			status: MediaStatus[1],
+			message: EventHeader.description
+		}
+		return res.status(401).send(result);
+
+	}
 
 	const servername = "https://" + req.hostname;
 
 	let id = req.params.id || req.query.id || "";
 	if (!id) {
 		logger.warn(`RES -> 400 Bad request - missing id`, "|", getClientIp(req));
-		const result: ResultMessage = {
-			result: false,
-			description: "missing id",
 
+		//v0 and v1 compatibility
+		if(version != "v2"){return res.status(400).send({"result": false, "description" : "missing id"});}
+
+		const result: ResultMessagev2 = {
+			status: MediaStatus[1],
+			message: "missing id",
 		};
-
 		return res.status(400).send(result);
 	}
 
-	logger.info(`GET /api/v1/media?id=${id}`, "|", getClientIp(req));
+	logger.info(`GET /api/${version}/media/id/${id}`, "|", getClientIp(req));
 
 	const db = await connect("GetMediaStatusbyID");
 	const [dbResult] = await db.query("SELECT mediafiles.id, mediafiles.filename, registered.username, mediafiles.pubkey, mediafiles.status, mediafiles.magnet, mediafiles.original_hash, mediafiles.hash, mediafiles.blurhash, mediafiles.dimensions, mediafiles.filesize FROM mediafiles INNER JOIN registered on mediafiles.pubkey = registered.hex WHERE (mediafiles.id = ? and mediafiles.pubkey = ?)", [id , EventHeader.pubkey]);
@@ -285,11 +341,14 @@ const GetMediaStatusbyID = async (req: Request, res: Response) => {
 		rowstemp = JSON.parse(JSON.stringify(dbResult));
 		if (rowstemp[0] == undefined) {
 			logger.error(`File not found in database: ${id}`, "|", getClientIp(req));
-		const result: ResultMessage = {
-			result: false,
-			description: "The requested file was not found",
 
-		};
+			//v0 and v1 compatibility
+			if(version != "v2"){return res.status(404).send({"result": false, "description" : "The requested file was not found"});}
+
+			const result: ResultMessagev2 = {
+				status: MediaStatus[1],
+				message: "The requested file was not found",
+			};
 		db.end();
 		return res.status(404).send(result);
 		}
@@ -298,7 +357,7 @@ const GetMediaStatusbyID = async (req: Request, res: Response) => {
 	db.end();
 
 	//Generate filedata
-	let filedata : FileData = {
+	let filedata : ProcessingFileData = {
 		filename: rowstemp[0].filename,
 		width: rowstemp[0].dimensions?.split("x")[0],
 		height: rowstemp[0].dimensions?.split("x")[1],
@@ -311,56 +370,76 @@ const GetMediaStatusbyID = async (req: Request, res: Response) => {
 		url: servername + "/media/" + rowstemp[0].username + "/" + rowstemp[0].filename,
 		magnet: rowstemp[0].magnet,
 		torrent_infohash: "",
-		blurhash: rowstemp[0].blurhash
+		blurhash: rowstemp[0].blurhash,
+		media_type: "", 
+		originalmime: "",
+		outputoptions: "",
+		status: rowstemp[0].status,
+		description: "",
+		servername: servername,
+		processing_url: ""
 	};
 
-
-	let description = "";
 	let resultstatus = false;
 	let response = 200;
 
-	if (rowstemp[0].status == "completed") {
-		description = "The requested file was found";
+	if (filedata.status == "completed") {
+		filedata.description = "The requested file was found";
 		resultstatus = true;
 		response = 200;
-		logger.info(`RES -> ${response} - ${description}`, "|", getClientIp(req));
-	}else if (rowstemp[0].status == "failed") {
-		description = "It was a problem processing this file";
+	}else if (filedata.status == "failed") {
+		filedata.description = "It was a problem processing this file";
 		resultstatus = false;
 		response = 500;
-		logger.info(`RES -> ${response} - ${description}`, "|", getClientIp(req));
-	}else if (rowstemp[0].status == "pending") {
-		description = "The requested file is still pending";
+	}else if (filedata.status == "pending") {
+		filedata.description = "The requested file is still pending";
 		resultstatus = false;
 		response = 202;
-		logger.info(`RES -> ${response} - ${description}`, "|", getClientIp(req));
-	}else if (rowstemp[0].status == "processing") {
-		description = "The requested file is processing";
+	}else if (filedata.status == "processing") {
+		filedata.description = "The requested file is processing";
 		resultstatus = false;
 		response = 202;
-		logger.info(`RES -> ${response} - ${description}`, "|", getClientIp(req));
 	}
-
 	let tags = await GetFileTags(rowstemp[0].id);
 
-	const result: MediaExtraDataResultMessage = {
-		result: resultstatus,
-		description: description,
-		url: filedata.url,
-		status: rowstemp[0].status,
-		id: rowstemp[0].id,
-		pubkey: rowstemp[0].pubkey,
-		hash: filedata.hash,
-		magnet: rowstemp[0].magnet,
-		tags: tags,
+	logger.info(`RES -> ${response} - ${filedata.description}`, "|", getClientIp(req));
 
-	};
+	//v0 and v1 compatibility
+	if(version != "v2"){
+		const result: MediaExtraDataResultMessage = {
+			result: resultstatus,
+			description: filedata.description,
+			url: filedata.url,
+			status: rowstemp[0].status,
+			id: rowstemp[0].id,
+			pubkey: rowstemp[0].pubkey,
+			hash: filedata.hash,
+			magnet: rowstemp[0].magnet,
+			tags: tags,
 
-	// //TEST NIP94 event response. TODO, remove this
-	// const returnMessageNIP94Test : NIP94_event = await PrepareNIP94_event(filedata);
-	// logger.debug(returnMessageNIP94Test);
+		};
+		return res.status(response).send(result);
+	}
 
-	return res.status(response).send(result);
+	if (filedata.status == "processing" || filedata.status == "pending") {
+		const result: ResultMessagev2 = {
+			status: MediaStatus[2],
+			message: filedata.description,
+		};
+		return res.status(404).send(result);
+	}
+
+	if (filedata.status == "failed") {
+		const result: ResultMessagev2 = {
+			status: MediaStatus[1],
+			message: filedata.description,
+		};
+		return res.status(404).send(result);
+	}
+
+	const returnmessage : NIP96_event = await PrepareNIP96_event(filedata);
+	return res.status(response).send(returnmessage);
+
 
 };
 

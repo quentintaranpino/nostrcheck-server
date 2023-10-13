@@ -21,7 +21,7 @@ interface MediaVisibilityResultMessage extends ResultMessage {
 
 const UploadTypes = ["avatar", "banner", "media"];
 const UploadStatus = ["pending", "processing", "completed", "failed"];
-const Uploadstatusv2 = ["processing", "success", "error"];
+const MediaStatus = ["success", "error", "processing"];
 
 const allowedMimeTypes = [
 	"image/png",
@@ -85,6 +85,7 @@ interface ProcessingFileData extends FileData{
 	status: string;
 	description: string;
 	servername: string;
+	processing_url: string;
 
 }
 
@@ -107,5 +108,5 @@ export {
 	ResultMessage,
 	UploadTypes,
 	UploadStatus,
-	Uploadstatusv2,
+	MediaStatus,
 };
