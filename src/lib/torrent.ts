@@ -74,10 +74,11 @@ const CreateMagnet = async (filepath:string, filedata: ProcessingFileData) : Pro
 
     client.on('torrent', async function (torrent: WebTorrent.Torrent) {
       filedata.magnet = torrent.magnetURI;
-      const magnetDBupdate =  await dbFileMagnetUpdate(filepath, filedata);
+      const magnetDBupdate =  await dbFileMagnetUpdate(filedata);
       if (!magnetDBupdate) {
         logger.error("Could not update table mediafiles, id: " + filedata.fileid, "magnet for file: " + filepath);
       }
+      logger.debug("Magnet link:", filedata.magnet, "for file:", filepath, "id:", filedata.fileid)
     });
     client.on('error', function (_err: any) {
       logger.error("error creating magnet for file", filepath);
