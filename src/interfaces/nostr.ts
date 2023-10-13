@@ -9,7 +9,7 @@ enum NIPKinds {
 interface NIP96file {
     api_url: string,
     download_url: string,
-    supported_nips: string[],
+    supported_nips: number[],
     tos_url: string,
     content_types: string[],
     plans: {
