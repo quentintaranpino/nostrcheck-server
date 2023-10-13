@@ -2,8 +2,9 @@ import WebTorrent  from "webtorrent";
 import { logger } from './logger.js';
 import config from 'config';
 import fs from "fs";
-import { connect } from "./database.js";
+import { connect, dbFileMagnetUpdate } from "./database.js";
 import { RowDataPacket } from "mysql2";
+import { ProcessingFileData } from "../interfaces/media.js";
 
 const client =  new WebTorrent({
   // @ts-ignore missing from typedef
@@ -60,33 +61,33 @@ const SeedMediafilesMagnets = async () => {
   );
 }
 
-const CreateMagnet = (filepath:string) : Promise<string> => {
+const CreateMagnet = async (filepath:string, filedata: ProcessingFileData) : Promise<ProcessingFileData> => {
 
   try {
     fs.accessSync(filepath, fs.constants.R_OK); //check if file exists and is readable
 
    client
     .seed(filepath, function (torrent: WebTorrent.Torrent) {
-
       logger.info('Generated magnet for file:', filepath);
       logger.info('Torrent info hash:', torrent.infoHash)
     })
 
-    return new Promise((resolve, reject) => {
-      client.on('torrent', function (torrent: WebTorrent.Torrent) {
-        resolve(torrent.magnetURI);
-      });
-      client.on('error', function (err: any) {
-        logger.error("error creating magnet for file", filepath);
-        reject(err);
-      });
-    }
-    );
+    client.on('torrent', async function (torrent: WebTorrent.Torrent) {
+      filedata.magnet = torrent.magnetURI;
+      const magnetDBupdate =  await dbFileMagnetUpdate(filepath, filedata);
+      if (!magnetDBupdate) {
+        logger.error("Could not update table mediafiles, id: " + filedata.fileid, "magnet for file: " + filepath);
+      }
+    });
+    client.on('error', function (_err: any) {
+      logger.error("error creating magnet for file", filepath);
+    });
 
   } catch (err) {
     logger.error("error creating magnet for file", filepath);
-    return Promise.reject(err);
   }
+
+  return filedata;
 
 }
 

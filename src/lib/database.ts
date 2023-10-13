@@ -361,16 +361,16 @@ async function dbFileMagnetUpdate(MediaPath: string, options: ProcessingFileData
 	if (options.media_type != "media"){return true;}
 
 	try{
-		const magnet = await CreateMagnet(MediaPath);
-		logger.debug("Magnet link:", magnet, "for file:", MediaPath, "id:", options.fileid)
+		await CreateMagnet(MediaPath, options);
+		logger.debug("Magnet link:", options.magnet, "for file:", MediaPath, "id:", options.fileid)
 
 		const conn = await connect("dbFileMagnetUpdate");
 		const [dbFileMagnetUpdate] = await conn.execute(
 			"UPDATE mediafiles set magnet = ? where id = ?",
-			[magnet, options.fileid]
+			[options.magnet, options.fileid]
 		);
 		if (!dbFileMagnetUpdate) {
-			logger.error("Error updating mediafiles table, id:", options.fileid, "magnet:", magnet);
+			logger.error("Error updating mediafiles table, id:", options.fileid, "magnet:", options.magnet);
 			conn.end();
 			return false;
 		}

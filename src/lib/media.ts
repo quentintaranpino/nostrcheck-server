@@ -12,6 +12,7 @@ import app from "../app.js";
 import { generateBlurhash, generatefileHashfromfile } from "./hash.js";
 import crypto from "crypto";
 import { getClientIp } from "./server.js";
+import { CreateMagnet } from "./torrent.js";
 
 const requestQueue: queueAsPromised<any> = fastq.promise(PrepareFile, 1); //number of workers for the queue
 
@@ -132,10 +133,8 @@ async function convertFile(	inputFile: any,	options: ProcessingFileData,retry:nu
 					logger.error("Could not update table mediafiles, id: " + options.fileid, "hash for file: " + MediaPath);
 				}
 				
-				const magnetDBupdate =  dbFileMagnetUpdate(MediaPath, options);
-				if (!magnetDBupdate) {
-					logger.error("Could not update table mediafiles, id: " + options.fileid, "magnet for file: " + MediaPath);
-				}
+				//Create magnet link
+				CreateMagnet(MediaPath, options);
 
 				const fileStatusDbUpdate =  dbFileStatusUpdate("completed", options);
 				if (!fileStatusDbUpdate) {
