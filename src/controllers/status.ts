@@ -2,9 +2,10 @@ import { Request, Response } from "express";
 
 import { logger } from "../lib/logger.js";
 import { ServerStatusMessage } from "../interfaces/status.js";
+import { getClientIp } from "../lib/server.js";
 
 const ServerStatus = async (req: Request, res: Response): Promise<Response> => {
-	logger.info("GET /api/v1/status", "|", req.headers['x-forwarded-for']);
+	logger.info("GET /api/v1/status", "|", getClientIp(req));
 
 	const result: ServerStatusMessage = {
 		result: true,

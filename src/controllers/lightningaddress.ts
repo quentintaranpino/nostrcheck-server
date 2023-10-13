@@ -6,6 +6,7 @@ import { redisClient, getLightningAddressFromRedis } from "../lib/redis.js";
 import { ResultMessage } from "../interfaces/server.js";
 import { LightningUsernameResult } from "../interfaces/lightning.js";
 import { ParseAuthEvent } from "../lib/nostr/NIP98.js";
+import { getClientIp } from "../lib/server.js";
 
 //Nostr address usernames endpoint
 const Redirectlightningddress = async (req: Request, res: Response): Promise<any> => {
@@ -16,11 +17,11 @@ const Redirectlightningddress = async (req: Request, res: Response): Promise<any
 
 	//If name is null return 400
 	if (!name || name.trim() == "") {
-		logger.info("REQ GET lightningaddress ->", servername, " | name:",  "name not specified", "|", req.headers['x-forwarded-for']);
+		logger.info("REQ GET lightningaddress ->", servername, " | name:",  "name not specified", "|", getClientIp(req));
 		logger.warn(
 			"RES GET Lightningaddress -> 400 Bad request - name parameter not specified",
 			"|",
-			req.headers['x-forwarded-for']
+			getClientIp(req)
 		);
 
 		const result: ResultMessage = {
@@ -33,8 +34,8 @@ const Redirectlightningddress = async (req: Request, res: Response): Promise<any
 
 	//If name is too long (>50) return 400
 	if (name.length > 50) {
-		logger.info("REQ GET lightningaddress ->", servername, " | name:",  name.substring(0,50) + "..." , "|", req.headers['x-forwarded-for']);
-		logger.warn("RES GET Lightningaddress -> 400 Bad request - name too long", "|", req.headers['x-forwarded-for']);
+		logger.info("REQ GET lightningaddress ->", servername, " | name:",  name.substring(0,50) + "..." , "|", getClientIp(req));
+		logger.warn("RES GET Lightningaddress -> 400 Bad request - name too long", "|", getClientIp(req));
 
 		const result: ResultMessage = {
 			result: false,
@@ -44,7 +45,7 @@ const Redirectlightningddress = async (req: Request, res: Response): Promise<any
 		return res.status(400).send(result);
 	}
 
-	logger.info("REQ GET lightningaddress ->", servername, " | name:",  name , "|", req.headers['x-forwarded-for']);
+	logger.info("REQ GET lightningaddress ->", servername, " | name:",  name , "|", getClientIp(req));
 
 	let lightningdata: LightningUsernameResult = { lightningserver: "", lightninguser: "" };
 	try {
@@ -122,11 +123,11 @@ const UpdateLightningAddress = async (req: Request, res: Response): Promise<any>
 
 	//If lightningaddress is null return 400
 	if (!lightningaddress || lightningaddress.trim() == "") {
-		logger.info("REQ Update lightningaddress ->", servername, " | pubkey:",  EventHeader.pubkey, " | ligntningaddress:",  "ligntningaddress not specified  |", req.headers['x-forwarded-for']);
+		logger.info("REQ Update lightningaddress ->", servername, " | pubkey:",  EventHeader.pubkey, " | ligntningaddress:",  "ligntningaddress not specified  |", getClientIp(req));
 		logger.warn(
 			"RES Update Lightningaddress -> 400 Bad request - lightningaddress parameter not specified",
 			"|",
-			req.headers['x-forwarded-for']
+			getClientIp(req)
 		);
 
 		const result: ResultMessage = {
@@ -139,10 +140,10 @@ const UpdateLightningAddress = async (req: Request, res: Response): Promise<any>
 
 	//If lightningaddress is too long (>50) return 400
 	if (lightningaddress.length > 50) {
-		logger.info("REQ Update lightningaddress ->", servername, " | pubkey:",  EventHeader.pubkey, " | ligntningaddress:",  lightningaddress.substring(0,50) + "...", "|", req.headers['x-forwarded-for']);
+		logger.info("REQ Update lightningaddress ->", servername, " | pubkey:",  EventHeader.pubkey, " | ligntningaddress:",  lightningaddress.substring(0,50) + "...", "|", getClientIp(req));
 
-		logger.info("REQ Update lightningaddress-> ", servername, " |" +  lightningaddress.substring(0,50) + "..."  + " |", req.headers['x-forwarded-for']);
-		logger.warn("RES Update Lightningaddress -> 400 Bad request - lightningaddress too long", "|", req.headers['x-forwarded-for']);
+		logger.info("REQ Update lightningaddress-> ", servername, " |" +  lightningaddress.substring(0,50) + "..."  + " |", getClientIp(req));
+		logger.warn("RES Update Lightningaddress -> 400 Bad request - lightningaddress too long", "|", getClientIp(req));
 
 		const result: ResultMessage = {
 			result: false,
@@ -152,7 +153,7 @@ const UpdateLightningAddress = async (req: Request, res: Response): Promise<any>
 		return res.status(400).send(result);
 	}
 
-	logger.info("REQ Update lightningaddress ->", servername, " | pubkey:",  EventHeader.pubkey, " | ligntningaddress:",  lightningaddress, "|", req.headers['x-forwarded-for']);
+	logger.info("REQ Update lightningaddress ->", servername, " | pubkey:",  EventHeader.pubkey, " | ligntningaddress:",  lightningaddress, "|", getClientIp(req));
 
 
 	try {
@@ -214,7 +215,7 @@ const UpdateLightningAddress = async (req: Request, res: Response): Promise<any>
 		}
 	}
 
-	logger.info("RES Update lightningaddress ->", servername, " | pubkey:",  EventHeader.pubkey, " | ligntningaddress:",  lightningaddress, "|", "Lightning redirect updated", "|", req.headers['x-forwarded-for']);
+	logger.info("RES Update lightningaddress ->", servername, " | pubkey:",  EventHeader.pubkey, " | ligntningaddress:",  lightningaddress, "|", "Lightning redirect updated", "|", getClientIp(req));
 
 	const result: ResultMessage = {
 		result: true,
@@ -244,7 +245,7 @@ const DeleteLightningAddress = async (req: Request, res: Response): Promise<any>
 		let rowstemp = JSON.parse(JSON.stringify(rows));
 		conn.end();
 		if (rowstemp[0] == undefined) {
-			logger.warn("RES Delete Lightningaddress -> 404 Not found", "|", req.headers['x-forwarded-for']);
+			logger.warn("RES Delete Lightningaddress -> 404 Not found", "|", getClientIp(req));
 			const result: ResultMessage = {
 				result: false,
 				description: `Lightning redirect for pubkey ${EventHeader.pubkey} not found`,
@@ -262,7 +263,7 @@ const DeleteLightningAddress = async (req: Request, res: Response): Promise<any>
 		return res.status(500).send(result);
 	}
 
-	logger.info("REQ Delete lightningaddress ->", servername, " | pubkey:",  EventHeader.pubkey, " | ligntningaddress:",  lightningaddress, "|", req.headers['x-forwarded-for']);
+	logger.info("REQ Delete lightningaddress ->", servername, " | pubkey:",  EventHeader.pubkey, " | ligntningaddress:",  lightningaddress, "|", getClientIp(req));
 
 	try {
 		const conn = await connect("DeleteLightningAddress");
@@ -309,7 +310,7 @@ const DeleteLightningAddress = async (req: Request, res: Response): Promise<any>
 
 	}
 
-	logger.info("RES Delete lightningaddress ->", servername, " | pubkey:",  EventHeader.pubkey, " | ligntningaddress:",  lightningaddress, "|", "Lightning redirect deleted", "|", req.headers['x-forwarded-for']);
+	logger.info("RES Delete lightningaddress ->", servername, " | pubkey:",  EventHeader.pubkey, " | ligntningaddress:",  lightningaddress, "|", "Lightning redirect deleted", "|", getClientIp(req));
 
 	const result: ResultMessage = {
 		result: true,

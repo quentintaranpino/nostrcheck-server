@@ -2,9 +2,10 @@ import { Request, Response } from "express";
 
 import app from "../app.js";
 import { logger } from "../lib/logger.js";
+import { getClientIp } from "../lib/server.js";
 
 const APIIndex = async (req: Request, res: Response): Promise<Response> => {
-	logger.info("REQ -> API Index v2 ", "|", req.headers['x-forwarded-for']);
+	logger.info("REQ -> API Index v2 ", "|", getClientIp(req));
 
 	return res.status(200).send(
 		`<head><title>Nostrcheck server</title></head>` +

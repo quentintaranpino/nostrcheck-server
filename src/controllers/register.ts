@@ -10,10 +10,10 @@ import { ResultMessage } from "../interfaces/server.js";
 import { QueryAvailiableDomains } from "./domains.js";
 import { IsAuthorizedPubkey } from "../lib/authorization.js";
 import app from "../app.js";
-import exp from "constants";
+import { getClientIp } from "../lib/server.js";
 
 const Registernewpubkey = async (req: Request, res: Response): Promise<Response> => {
-	logger.info("POST /api/v1/register", "|", req.headers['x-forwarded-for']);
+	logger.info("POST /api/v1/register", "|", getClientIp(req));
 
 	//Check if event authorization header is valid
 	const EventHeader = await ParseAuthEvent(req);
@@ -21,7 +21,7 @@ const Registernewpubkey = async (req: Request, res: Response): Promise<Response>
 		logger.warn(
 			`RES -> 401 unauthorized  - ${EventHeader.description}`,
 			"|",
-			req.headers['x-forwarded-for']
+			getClientIp(req)
 		);
 		const result: RegisterResultMessage = {
 			username: "",
@@ -40,7 +40,7 @@ const Registernewpubkey = async (req: Request, res: Response): Promise<Response>
 		logger.warn(
 			`RES -> 401 unauthorized  - ${EventHeader.description}`,
 			"|",
-			req.headers['x-forwarded-for']
+			getClientIp(req)
 		);
 
 	const result: ResultMessage = {
@@ -84,7 +84,7 @@ const Registernewpubkey = async (req: Request, res: Response): Promise<Response>
 			logger.warn(
 				"RES -> 400 Bad request - malformed or non-existent username tag",
 				"|",
-				req.headers["x-forwarded-for"] || req.headers['x-forwarded-for']
+				req.headers["x-forwarded-for"] || getClientIp(req)
 			);
 			const result: RegisterResultMessage = {
 				username: "",
@@ -100,7 +100,7 @@ const Registernewpubkey = async (req: Request, res: Response): Promise<Response>
 		logger.warn(
 			"RES -> 400 Bad request - malformed or non-existent username tag",
 			"|",
-			req.headers['x-forwarded-for']
+			getClientIp(req)
 		);
 		const result: RegisterResultMessage = {
 			username: "",
@@ -123,7 +123,7 @@ const Registernewpubkey = async (req: Request, res: Response): Promise<Response>
 			logger.warn(
 				"RES -> 400 Bad request - malformed or non-existent domain tag",
 				"|",
-				req.headers["x-forwarded-for"] || req.headers['x-forwarded-for']
+				req.headers["x-forwarded-for"] || getClientIp(req)
 			);
 			const result: RegisterResultMessage = {
 				username: "",
@@ -139,7 +139,7 @@ const Registernewpubkey = async (req: Request, res: Response): Promise<Response>
 		logger.warn(
 			"RES -> 400 Bad request - malformed or non-existent domain tag",
 			"|",
-			req.headers['x-forwarded-for']
+			getClientIp(req)
 		);
 		const result: RegisterResultMessage = {
 			username: "",
@@ -157,12 +157,12 @@ const Registernewpubkey = async (req: Request, res: Response): Promise<Response>
 	let IsValidDomain = JSON.stringify(AcceptedDomains).indexOf(req.body.tags[1][1]) > -1;
 	if (app.get('env') === 'development') {
 		logger.warn(
-			"DEVMODE: Allowing registers to 'localhost' domain", "|", req.headers['x-forwarded-for']);
+			"DEVMODE: Allowing registers to 'localhost' domain", "|", getClientIp(req));
 			IsValidDomain = true;
 	}
 
 	if (!IsValidDomain) {
-		logger.warn("RES -> 406 Bad request - domain not accepted", "|", req.headers['x-forwarded-for']);
+		logger.warn("RES -> 406 Bad request - domain not accepted", "|", getClientIp(req));
 		const result: RegisterResultMessage = {
 			username: "",
 			pubkey: "",
@@ -192,7 +192,7 @@ const Registernewpubkey = async (req: Request, res: Response): Promise<Response>
 			logger.warn(
 				`RES -> 400 Bad request - Event hash is invalid: ${IsEventHashValid} != ${event.id}`,
 				"|",
-				req.headers['x-forwarded-for']
+				getClientIp(req)
 			);
 
 			const result: RegisterResultMessage = {
@@ -212,7 +212,7 @@ const Registernewpubkey = async (req: Request, res: Response): Promise<Response>
 			logger.warn(
 				`RES -> 400 Bad request - Event signature is invalid: ${IsEventValid} or ${IsEventSignatureValid}`,
 				"|",
-				req.headers['x-forwarded-for']
+				getClientIp(req)
 			);
 
 			const result: RegisterResultMessage = {
@@ -226,7 +226,7 @@ const Registernewpubkey = async (req: Request, res: Response): Promise<Response>
 			return res.status(400).send(result);
 		}
 	} catch (error) {
-		logger.warn(`RES -> 400 Bad request - ${error}`, "|", req.headers['x-forwarded-for']);
+		logger.warn(`RES -> 400 Bad request - ${error}`, "|", getClientIp(req));
 		const result: RegisterResultMessage = {
 			username: "",
 			pubkey: "",
@@ -243,7 +243,7 @@ const Registernewpubkey = async (req: Request, res: Response): Promise<Response>
 	const IsValidUsernamelenght = validator.default.isLength(req.body.tags[0][1], { min: 3, max: 50 });
 
 	if (!IsValidUsernameCharacters || !IsValidUsernamelenght) {
-		logger.warn("RES -> 422 Bad request - Username not allowed", "|", req.headers['x-forwarded-for']);
+		logger.warn("RES -> 422 Bad request - Username not allowed", "|", getClientIp(req));
 		const result: RegisterResultMessage = {
 			username: req.body.tags[0][1],
 			pubkey: "",

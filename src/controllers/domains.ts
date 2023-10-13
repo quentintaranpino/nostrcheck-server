@@ -7,6 +7,7 @@ import { IsAuthorizedPubkey } from "../lib/authorization.js";
 import { AvailableDomainsResult } from "../interfaces/domains.js";
 import { ResultMessage } from "../interfaces/server.js";
 import { redisClient } from "../lib/redis.js";
+import { getClientIp } from "../lib/server.js";
 
 const QueryAvailiableDomains = async (): Promise<AvailableDomainsResult> => {
 	//Query database for available domains
@@ -55,7 +56,7 @@ const QueryAvailiableUsers = async (domain:string): Promise<JSON[]> => {
 const AvailableDomains = async (req: Request, res: Response): Promise<Response> => {
 
 	//Available domains endpoint
-	logger.info("REQ -> Domain list ", "|", req.headers['x-forwarded-for']);
+	logger.info("REQ -> Domain list ", "|", getClientIp(req));
 
 	//Check if event authorization header is valid
 	const EventHeader = await ParseAuthEvent(req);
@@ -63,7 +64,7 @@ const AvailableDomains = async (req: Request, res: Response): Promise<Response> 
 		logger.warn(
 			`RES -> 401 unauthorized  - ${EventHeader.description}`,
 			"|",
-			req.headers['x-forwarded-for']
+			getClientIp(req)
 		);
 		const result = {
 			result: false,
@@ -79,7 +80,7 @@ const AvailableDomains = async (req: Request, res: Response): Promise<Response> 
 		logger.warn(
 			`RES -> 401 unauthorized  - ${EventHeader.description}`,
 			"|",
-			req.headers['x-forwarded-for']
+			getClientIp(req)
 		);
 
 		const result = {
@@ -94,11 +95,11 @@ const AvailableDomains = async (req: Request, res: Response): Promise<Response> 
 	try {
 		const AvailableDomains: AvailableDomainsResult = await QueryAvailiableDomains();
 		if (AvailableDomains !== undefined) {
-			logger.info("RES -> Domain list ", "|", req.headers['x-forwarded-for']);
+			logger.info("RES -> Domain list ", "|", getClientIp(req));
 
 			return res.status(200).send({AvailableDomains });
 		}
-		logger.warn("RES -> Domain list ", "|", req.headers['x-forwarded-for']);
+		logger.warn("RES -> Domain list ", "|", getClientIp(req));
 
 		return res.status(404).send({ "available domains": "No domains available" });
 	} catch (error) {
@@ -111,7 +112,7 @@ const AvailableDomains = async (req: Request, res: Response): Promise<Response> 
 const AvailableUsers = async (req: Request, res: Response): Promise<Response> => {
 
 	//Available users from a domain endpoint
-	logger.info("REQ -> User list from domain:", req.params.domain, "|", req.headers['x-forwarded-for']);
+	logger.info("REQ -> User list from domain:", req.params.domain, "|", getClientIp(req));
 
 	//Check if event authorization header is valid
 	const EventHeader = await ParseAuthEvent(req);
@@ -119,7 +120,7 @@ const AvailableUsers = async (req: Request, res: Response): Promise<Response> =>
 		logger.warn(
 			`RES -> 401 unauthorized  - ${EventHeader.description}`,
 			"|",
-			req.headers['x-forwarded-for']
+			getClientIp(req)
 		);
 		const result = {
 			result: false,
@@ -135,7 +136,7 @@ const AvailableUsers = async (req: Request, res: Response): Promise<Response> =>
 		logger.warn(
 			`RES -> 401 unauthorized  - ${EventHeader.description}`,
 			"|",
-			req.headers['x-forwarded-for']
+			getClientIp(req)
 		);
 
 		const result = {
@@ -150,11 +151,11 @@ const AvailableUsers = async (req: Request, res: Response): Promise<Response> =>
 	try {
 		const AvailableUsers = await QueryAvailiableUsers(req.params.domain);
 		if (AvailableUsers == undefined) {
-			logger.warn("RES -> Empty user list ", "|", req.headers['x-forwarded-for']);
+			logger.warn("RES -> Empty user list ", "|", getClientIp(req));
 			return res.status(404).send({ [req.params.domain]: "No users available" });
 		}
 
-		logger.info("RES -> User list ", "|", req.headers['x-forwarded-for']);
+		logger.info("RES -> User list ", "|", getClientIp(req));
 		return res.status(200).send({ [req.params.domain]: AvailableUsers });
 		
 	} catch (error) {
@@ -176,11 +177,11 @@ const UpdateUserDomain = async (req: Request, res: Response): Promise<any> => {
 	//If domain is null return 400
 	if (!domain || domain.trim() == "") {
 
-		logger.info("REQ Update user domain ->", servername, " | pubkey:",  EventHeader.pubkey, " | domain:",  "domain not specified  |", req.headers['x-forwarded-for']);
+		logger.info("REQ Update user domain ->", servername, " | pubkey:",  EventHeader.pubkey, " | domain:",  "domain not specified  |", getClientIp(req));
 		logger.warn(
 			"RES Update user domain -> 400 Bad request - domain parameter not specified",
 			"|",
-			req.headers['x-forwarded-for']
+			getClientIp(req)
 		);
 
 		const result: ResultMessage = {
@@ -194,8 +195,8 @@ const UpdateUserDomain = async (req: Request, res: Response): Promise<any> => {
 	//If domain is too long (>50) return 400
 	if (domain.length > 50) {
 
-		logger.info("REQ Update user domain ->", servername, " | pubkey:",  EventHeader.pubkey, " | domain:",  domain.substring(0,50) + "...", "|", req.headers['x-forwarded-for']);
-		logger.warn("RES Update user domain -> 400 Bad request - domain too long", "|", req.headers['x-forwarded-for']);
+		logger.info("REQ Update user domain ->", servername, " | pubkey:",  EventHeader.pubkey, " | domain:",  domain.substring(0,50) + "...", "|", getClientIp(req));
+		logger.warn("RES Update user domain -> 400 Bad request - domain too long", "|", getClientIp(req));
 
 		const result: ResultMessage = {
 			result: false,
@@ -220,7 +221,7 @@ const UpdateUserDomain = async (req: Request, res: Response): Promise<any> => {
 		conn.end();
 		if (rowstemp.affectedRows == 0) {
 			
-			logger.warn("RES Update user domain -> 404  not found, can't update user domain", "|", req.headers['x-forwarded-for']);
+			logger.warn("RES Update user domain -> 404  not found, can't update user domain", "|", getClientIp(req));
 
 			const result: ResultMessage = {
 				result: false,
@@ -259,7 +260,7 @@ const UpdateUserDomain = async (req: Request, res: Response): Promise<any> => {
 		}
 	}
 
-	logger.info("RES Update user domain ->", servername, " | pubkey:",  EventHeader.pubkey, " | domain:",  domain, "|", "User domain updated", "|", req.headers['x-forwarded-for']);
+	logger.info("RES Update user domain ->", servername, " | pubkey:",  EventHeader.pubkey, " | domain:",  domain, "|", "User domain updated", "|", getClientIp(req));
 
 	const result: ResultMessage = {
 		result: true,

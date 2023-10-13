@@ -6,6 +6,7 @@ import { redisClient, getNostrAddressFromRedis } from "../lib/redis.js";
 import { RegisteredUsernameResult } from "../interfaces/register.js";
 import { ResultMessage } from "../interfaces/server.js";
 import config from "config";
+import { getClientIp } from "../lib/server.js";
 
 //Nostr address usernames endpoint
 const Checknostraddress = async (req: Request, res: Response): Promise<Response> => {
@@ -16,11 +17,11 @@ const Checknostraddress = async (req: Request, res: Response): Promise<Response>
 	
 	//If name is null return 400
 	if (!name) {
-		logger.info("REQ Nostraddress ->", servername, "|  name not specified  |", req.headers['x-forwarded-for']);
+		logger.info("REQ Nostraddress ->", servername, "|  name not specified  |", getClientIp(req));
 		logger.warn(
 			"RES Nostraddress -> 400 Bad request - name parameter not specified",
 			"|",
-			req.headers['x-forwarded-for']
+			getClientIp(req)
 		);
 
 		const result: ResultMessage = {
@@ -33,8 +34,8 @@ const Checknostraddress = async (req: Request, res: Response): Promise<Response>
 
 	//If name is too long (>50) return 400
 	if (name.length > 50) {
-		logger.info("REQ Nostraddress ->", servername, "| " +  name.substring(0,50) + "..."  + " |", req.headers['x-forwarded-for']);
-		logger.warn("RES Nostraddress -> 400 Bad request - name too long", "|", req.headers['x-forwarded-for']);
+		logger.info("REQ Nostraddress ->", servername, "| " +  name.substring(0,50) + "..."  + " |", getClientIp(req));
+		logger.warn("RES Nostraddress -> 400 Bad request - name too long", "|", getClientIp(req));
 
 		const result: ResultMessage = {
 			result: false,
@@ -44,7 +45,7 @@ const Checknostraddress = async (req: Request, res: Response): Promise<Response>
 		return res.status(400).send(result);
 	}
 
-	logger.info("REQ Nostraddress ->", servername, "|", name + "|", req.headers['x-forwarded-for']);
+	logger.info("REQ Nostraddress ->", servername, "|", name + "|", getClientIp(req));
 
 	// Root _ pubkey
 	const rootkey : string = config.get('server.pubkey'); 
@@ -76,7 +77,7 @@ const Checknostraddress = async (req: Request, res: Response): Promise<Response>
 		conn.end();
 
 		if (rowstemp[0] == undefined) {
-			logger.warn("RES Nostraddress ->", name, "|", "Username not registered", "|", req.headers['x-forwarded-for']);
+			logger.warn("RES Nostraddress ->", name, "|", "Username not registered", "|", getClientIp(req));
 
 			const result: ResultMessage = {
 				result: false,

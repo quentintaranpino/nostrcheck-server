@@ -3,9 +3,10 @@ import { Event, getEventHash, validateEvent, verifySignature } from "nostr-tools
 
 import { logger } from "../lib/logger.js";
 import { VerifyResultMessage } from "../interfaces/verify.js";
+import { getClientIp } from "../lib/server.js";
 
 const VerifyNote = async (req: Request, res: Response): Promise<Response> => {
-	logger.info("POST /api/v1/verify", "|", req.headers['x-forwarded-for']);
+	logger.info("POST /api/v1/verify", "|", getClientIp(req));
 
 	//TODO: (maybe) Check if request has authorization header and parse it
 
@@ -45,7 +46,7 @@ const VerifyNote = async (req: Request, res: Response): Promise<Response> => {
 			return res.status(400).send(result);
 		}
 	} catch (error) {
-		logger.warn(`RES -> 400 Bad request - ${error}`, "|", req.headers['x-forwarded-for']);
+		logger.warn(`RES -> 400 Bad request - ${error}`, "|", getClientIp(req));
 		const result: VerifyResultMessage = {
 			pubkey: event.pubkey,
 			result: false,
@@ -55,7 +56,7 @@ const VerifyNote = async (req: Request, res: Response): Promise<Response> => {
 		return res.status(400).send(result);
 	}
 
-	logger.info(`RES -> 200 OK - Valid event:`, event.id, "|", req.headers['x-forwarded-for'])
+	logger.info(`RES -> 200 OK - Valid event:`, event.id, "|", getClientIp(req))
 
 	const result: VerifyResultMessage = {
 		pubkey: event.pubkey,
