@@ -304,6 +304,7 @@ export {convertFile, requestQueue, ParseMediaType, ParseFileType };
 			  }
 
 			//newHeigt truncated to 0 decimals
+			newWidth = Math.trunc(+newWidth);
 			newHeight = Math.trunc(+newHeight);
 
 			logger.debug("Origin dimensions:", +mediaWidth + "px", +mediaHeight + "px",);

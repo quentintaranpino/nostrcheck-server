@@ -28,6 +28,11 @@ const Uploadmedia = async (req: Request, res: Response, version:string): Promise
 	
 	logger.info("POST /api/" + version + "/media", "|", req.headers['x-forwarded-for']);
 
+	//TODO, dirty and temporary fix for database error inserting data when the server is not behind a proxy
+	if (!req.headers['x-forwarded-for']){
+		req.headers['x-forwarded-for'] = '127.0.0.1';
+	}
+
 	//Check if event authorization header is valid (NIP98) or if apikey is valid (v0)
 	const EventHeader = await ParseAuthEvent(req);
 	if (!EventHeader.result) {return res.status(401).send({"result": EventHeader.result, "description" : EventHeader.description});}
