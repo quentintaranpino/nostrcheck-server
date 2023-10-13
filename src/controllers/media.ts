@@ -234,44 +234,41 @@ const Uploadmedia = async (req: Request, res: Response, version:string): Promise
 		}
 	});
 
-	//NIP96 PoC, enter the conversion queue when is a video.
-	if (convert && filedata.originalmime.startsWith("video")) {
-		filedata.processing_url = filedata.servername + "/api/v2/media/" + filedata.fileid;
-		//Send request to transform queue
-		const t: asyncTask = {req,filedata,};
-		logger.info(`${requestQueue.length() +1} items in queue`);
-		filedata.description + "File queued for conversion";
-		requestQueue.push(t).catch((err) => {
-			logger.error("Error pushing file to queue", err);
+	filedata.processing_url = filedata.servername + "/api/v2/media/" + filedata.fileid;
+	//Send request to transform queue
+	const t: asyncTask = {req,filedata,};
+	logger.info(`${requestQueue.length() +1} items in queue`);
+	filedata.description + "File queued for conversion";
+	requestQueue.push(t).catch((err) => {
+		logger.error("Error pushing file to queue", err);
 
-			//v0 and v1 compatibility
-			if(version != "v2"){return res.status(500).send({"result": false, "description" : "Error queueing file"});}
+		//v0 and v1 compatibility
+		if(version != "v2"){return res.status(500).send({"result": false, "description" : "Error queueing file"});}
 
-			const result: ResultMessagev2 = {
-				status: MediaStatus[1],
-				message: "Error queueing file",
-			};
-			return result;
-		});
-	}
+		const result: ResultMessagev2 = {
+			status: MediaStatus[1],
+			message: "Error queueing file",
+		};
+		return result;
+	});
 
-	//NIP96 PoC, return inmediately converted when is an image.
-	if (convert && filedata.originalmime.startsWith("image")) {
-		let conversion : boolean = await convertFile(req.file, filedata, 0);
-		if (!conversion) {
-			filedata.status = JSON.parse(JSON.stringify(MediaStatus[1]));
-			filedata.description = "Error converting file";
+	// //NIP96 PoC, return inmediately converted when is an image.
+	// if (convert && filedata.originalmime.startsWith("image")) {
+	// 	let conversion : boolean = await convertFile(req.file, filedata, 0);
+	// 	if (!conversion) {
+	// 		filedata.status = JSON.parse(JSON.stringify(MediaStatus[1]));
+	// 		filedata.description = "Error converting file";
 
-			//v0 and v1 compatibility
-			if(version != "v2"){return res.status(500).send({"result": false, "description" : "Error converting file"});}
+	// 		//v0 and v1 compatibility
+	// 		if(version != "v2"){return res.status(500).send({"result": false, "description" : "Error converting file"});}
 
-			const result: ResultMessagev2 = {
-				status: MediaStatus[1],
-				message: "Error converting file",
-			};
-			return res.status(500).send(result);
-		} 
-	}
+	// 		const result: ResultMessagev2 = {
+	// 			status: MediaStatus[1],
+	// 			message: "Error converting file",
+	// 		};
+	// 		return res.status(500).send(result);
+	// 	} 
+	// }
 
 	//v0 and v1 compatibility
 	if (version != "v2"){
