@@ -2,7 +2,7 @@
 
 This repository contains the public API to interact with nostr as a backend server. Written in typescript.
 
-BETA: New install script, you can test it [here] (https://github.com/quentintaranpino/nostrcheck-api-ts/blob/main/scripts/install.sh)
+BETA: New install script, you can [test it here](https://github.com/quentintaranpino/nostrcheck-api-ts/blob/main/scripts/install.sh)
 
 
 ## Available endpoints
