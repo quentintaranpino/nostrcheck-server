@@ -2,6 +2,9 @@
 
 This repository contains the public API to interact with nostr as a backend server. Written in typescript.
 
+BETA: New install script, you can test it [here] (https://github.com/quentintaranpino/nostrcheck-api-ts/blob/main/scripts/install.sh)
+
+
 ## Available endpoints
 
 
@@ -153,7 +156,7 @@ Response from server:
 ``` 
 {
 	"result": true,
-	"description": "Mediafile deletion for id: 1 and pubkey 40ea82aa4a450ea86cbb185a81f810edf2ac9810262f8e5952521f95ddfd8d97 successful"
+	"description": "Lightning deletion for id: 1 and pubkey 40ea82aa4a450ea86cbb185a81f810edf2ac9810262f8e5952521f95ddfd8d97 successful"
 }
 ```
 
@@ -435,70 +438,6 @@ The server returns:
 ```
 
 
-# Installing and running
-
-```
-sudo apt install git nodejs npm redis-server mariadb-server mariadb-client ffmpeg
-
-git clone https://github.com/quentintaranpino/nostrcheck-api-ts.git
-
-cd nostrcheck-api-ts
-
-npm install
-
-npm build
-
-sudo mariadb
-create database DATABASE_NAME;
-grant all privileges on DATABASE_NAME.* TO 'USER_NAME'@'localhost' identified by 'PASSWORD';
-flush privileges;
-#exit mariadb
-
-sudo nano config/local.json
-#edit config file with your data.
-
-```
-
-The server runs on:
-
-http://localhost:3000/api/v1/
-
-Several redirections via reverse proxy with a server such as apache or nginx must be performed. 
-
-Example for nostr.json requests with nginx server:
-
-```
-#API redirect for nostr.json requests
-location /.well-known/nostr.json {
-
-proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-proxy_set_header Host $host;
-proxy_pass http://127.0.0.1:3000/api/v1/nostraddress;
-proxy_http_version 1.1;
-proxy_set_header Upgrade $http_upgrade;
-proxy_set_header Connection "upgrade";
-}
-
-```
-
-Example for nip96.json requests with nginx server:
-
-```
-#API redirect for nip96.json requests
-location /.well-known/nip96.json {
-
-    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    proxy_set_header Host $host;
-    proxy_pass http://127.0.0.1:3000/api/v1/nip96;
-    proxy_http_version 1.1;
-    proxy_set_header Upgrade $http_upgrade;
-    proxy_set_header Connection "upgrade";
-
-}
-
-```
-
-The server must have mariadb and redis for database and cache.
 
 ## Running, developing and building the app
 
