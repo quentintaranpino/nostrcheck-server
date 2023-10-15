@@ -12,8 +12,10 @@ readonly date="20231015"
 NODE_MAJOR=18
 
 # Database variables
+HOST="nostcheck.me"
 DB="nostrcheck"
 USER="nostrcheck"
+MEDIAPATH="media/"
 
 clear
 echo ""
@@ -65,7 +67,7 @@ sudo apt-get install nodejs -y
 # Install necessary packages
 echo ""
 echo "Installing necessary packages..."
-sudo apt install git redis-server mariadb-server mariadb-client ffmpeg jq -y
+sudo apt install nginx git redis-server mariadb-server mariadb-client ffmpeg jq -y
 
 # Clone the repository
 echo ""
@@ -131,6 +133,15 @@ echo ""
 echo "Database, tables and user created successfully!"
 echo ""
 
+# Set media path
+echo ""
+echo "Media path [default: $MEDIAPATH]:"
+echo ""
+read -r inputMEDIAPATH
+if [ ! -z "$inputMEDIAPATH" ]; then
+    MEDIAPATH=$inputMEDIAPATH
+fi
+
 # Update local.json with generated password
 echo ""
 echo "Creating user config file..."
@@ -139,6 +150,114 @@ cp config/default.json config/local.json
 jq --arg a "$DB" '.database.database = $a' config/local.json > tmp.json && mv tmp.json config/local.json
 jq --arg a "$USER" '.database.user = $a' config/local.json > tmp.json && mv tmp.json config/local.json
 jq --arg a "$PASS" '.database.password = $a' config/local.json > tmp.json && mv tmp.json config/local.json
+jq --arg a "$MEDIAPATH" '.media.mediaPath = $a' config/local.json > tmp.json && mv tmp.json config/local.json
+
+
+# Create nginx config file
+echo ""
+echo "Creating nginx config file..."
+echo ""
+
+cat > /etc/nginx/sites-available/$HOST.conf <<EOF
+server {
+    listen 80;
+    server_name $HOST;
+
+    location / {
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_set_header Host \$host;
+        proxy_pass http://localhost:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host \$host;
+    }
+
+    #API redirect for nostr.json requests
+    location /.well-known/nostr.json {
+
+      proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+      proxy_set_header X-Forwarded-Proto \$scheme;
+      proxy_set_header Host \$host;
+      proxy_pass http://localhost:3000/api/v2/nostraddress;
+      proxy_http_version 1.1;
+      proxy_set_header Upgrade \$http_upgrade;
+      proxy_set_header Connection "upgrade";
+
+    }
+
+    #API redirect for nip96.json requests
+    location /.well-known/nostr/nip96.json {
+
+      proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+      proxy_set_header X-Forwarded-Proto \$scheme;
+      proxy_set_header Host \$host;
+      proxy_pass http://127.0.0.1:3000/api/v2/nip96;
+      proxy_http_version 1.1;
+      proxy_set_header Upgrade \$http_upgrade;
+      proxy_set_header Connection "upgrade";
+
+    }
+
+    #API redirect for media URL requests
+    location /media {
+       proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+       proxy_set_header X-Forwarded-Proto \$scheme;
+       proxy_set_header Host \$host;
+       proxy_pass http://127.0.0.1:3000/api/v2/media;
+       proxy_http_version 1.1;
+       proxy_set_header Upgrade \$http_upgrade;
+       proxy_set_header Connection "upgrade";
+     }
+}
+EOF
+
+# Enable the site
+echo ""
+echo "Enabling nginx site..."
+echo ""
+ln -s /etc/nginx/sites-available/$HOST.conf /etc/nginx/sites-enabled/$HOST.conf
+
+# Restart nginx
+echo ""
+echo "Restarting nginx..."
+echo ""
+sudo service nginx restart
+
+# # Create systemd service
+# echo ""
+# echo "Creating systemd service..."
+# echo ""
+
+# cat > /etc/systemd/system/nostrcheck.service <<EOF
+# [Unit]
+# Description=Nostrcheck server
+# After=network.target
+
+# [Service]
+# Type=simple
+# User=$SUDO_USER
+# WorkingDirectory=$BASEDIR/nostrcheck-api-ts
+# ExecStart=/usr/bin/npm run start
+# Restart=on-failure
+
+# [Install]
+# WantedBy=multi-user.target
+# Alias=nostrcheck.service
+# EOF
+
+# # Enable the service
+# echo ""
+# echo "Enabling systemd service..."
+# echo ""
+# sudo systemctl enable nostrcheck.service
+
+# # Start the service
+# echo ""
+# echo "Starting systemd service..."
+# echo ""
+# systemctl start nostrcheck.service
 
 # End of script
 echo ""
