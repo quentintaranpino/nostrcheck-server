@@ -17,7 +17,7 @@ const GetNIP96file = (hostname : string): NIP96file => {
         "plans": {
             "free": {
               "name": "Free Tier",
-              "is_nip98_required": false,
+              "is_nip98_required": true,
               "url": "",
               "max_byte_size": Number(config.get("media.maxMBfilesize"))*1024*1024,
               "file_expiration": [0, 0],
