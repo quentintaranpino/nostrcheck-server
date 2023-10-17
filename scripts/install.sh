@@ -120,7 +120,7 @@ echo ""
 
 # Construct the MySQL query
 readonly Q1="CREATE DATABASE IF NOT EXISTS $DB ;"
-readonly Q2="GRANT ALL ON *.* TO '$USER'@'localhost' IDENTIFIED BY '$PASS';"
+readonly Q2="GRANT ALL ON $DB.* TO '$USER'@'localhost' IDENTIFIED BY '$PASS';"
 readonly Q3="FLUSH PRIVILEGES;"
 readonly SQL="${Q1}${Q2}${Q3}"
 
