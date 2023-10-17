@@ -67,7 +67,7 @@ sudo apt-get install nodejs -y
 # Install necessary packages
 echo ""
 echo "Installing necessary packages..."
-sudo apt install nginx git redis-server mariadb-server mariadb-client ffmpeg jq -y
+sudo apt install nginx git redis-server mariadb-server mariadb-client ffmpeg jq certbot python3-certbot-nginx -y
 
 # Clone the repository
 echo ""
@@ -99,7 +99,7 @@ sudo service start mariadb
 
 #MYSQL
 readonly MYSQL=`which mysql`
-
+echo ""
 echo "Database name [default: $DB]:"
 echo ""
 read -r inputDB
@@ -115,7 +115,6 @@ if [ ! -z "$inputUSER" ]; then
 fi
 
 PASS=`openssl rand -base64 32`
-echo ""
 echo "Generating password for user $USER..."
 echo ""
 
@@ -143,7 +142,6 @@ if [ ! -z "$inputMEDIAPATH" ]; then
 fi
 
 # Update local.json with generated password
-echo ""
 echo "Creating user config file..."
 cp config/default.json config/local.json
 
@@ -214,7 +212,6 @@ server {
 EOF
 
 # Enable the site
-echo ""
 echo "Enabling nginx site..."
 echo ""
 ln -s /etc/nginx/sites-available/$HOST.conf /etc/nginx/sites-enabled/$HOST.conf
@@ -259,8 +256,31 @@ sudo service nginx restart
 # echo ""
 # systemctl start nostrcheck.service
 
-# End of script
-echo ""
+# End of standard installation
 echo "Installation complete!"
 echo ""
+
+# Ask user if want to execute certbot for SSL
+echo ""
+echo "Do you want to execute certbot for SSL certificate " $HOST"? [y/n]"
+echo ""
+read -r input
+if [ "$input" = "y" ]; then
+    echo ""
+    echo "Executing certbot for SSL..."
+    echo ""
+    sudo certbot --nginx -d $HOST
+
+    # Restart nginx
+    echo ""
+    echo "Restarting nginx..."
+    echo ""
+    sudo service nginx restart
+
+fi
+
+# End message
+echo "--------------------------------------------------------------------------------"
+echo ""
 echo "You can now start the server by running ' cd nostrcheck-api-ts && npm run start'"
+echo ""
