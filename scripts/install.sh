@@ -28,7 +28,7 @@ echo "╚═╝  ╚═══╝ ╚═════╝ ╚══════╝ 
 echo ""
 echo "Nostrcheck server installation script v$version"
 echo "Last updated: $date"
-echi "Project repository: https://github.com/quentintaranpino/nostrcheck-api-ts/
+echo "Project repository: https://github.com/quentintaranpino/nostrcheck-api-ts/"
 echo "--------------------------------------------------------------------------------"
 echo ""
 echo "This script will install and configure the nostrcheck server on your system."
@@ -130,7 +130,7 @@ $MYSQL -uroot -e "$SQL"
 
 # Let the user know the database was created
 echo ""
-echo "Database, tables and user created successfully!"
+echo "Database tables and user created successfully!"
 echo ""
 
 # Set media path
