@@ -25,7 +25,7 @@ const APIIndex = async (req: Request, res: Response): Promise<Response> => {
 			`<li><a href='/api/v1/media'>/api/v1/media</a></li>` +
 			`<li><a href='/api/v1/lightningaddress'>/api/v1/lightningaddress</a></li>` +
 			`<h3>v2</h3>` +
-			`<li><a href='/api/v1/status'>/api/v2/status</a></li>` +
+			`<li><a href='/api/v2/status'>/api/v2/status</a></li>` +
 			`<li><a href='/api/v2/media'>/api/v2/media</a></li>` +
 			`<li><a href='/api/v2/nip96'>/api/v2/nip96</a></li>` +
 			`</ul>`
