@@ -8,4 +8,9 @@ interface ResultMessagev2 {
 	message: string,
 }
 
-export { ResultMessage, ResultMessagev2 };
+interface ServerStatusMessage extends ResultMessagev2 {
+	uptime: string;
+	version: string;
+}
+
+export { ResultMessage, ResultMessagev2, ServerStatusMessage };
