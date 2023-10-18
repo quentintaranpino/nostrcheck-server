@@ -267,7 +267,7 @@ echo ""
 read -r input
 if [ "$input" = "y" ]; then
     echo ""
-    echo "Executing certbot for SSL..."
+    echo "Executing certbot SSL certificate for " $HOST"..."
     echo ""
     sudo certbot --nginx -d $HOST
 
