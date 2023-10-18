@@ -6,7 +6,7 @@ echo "$BASEDIR"
 
 readonly E_BADARGS=65
 readonly version="0.1"
-readonly date="20231015"
+readonly date="20231018"
 
 # Node version
 NODE_MAJOR=18
@@ -28,7 +28,8 @@ echo "╚═╝  ╚═══╝ ╚═════╝ ╚══════╝ 
 echo ""
 echo "Nostrcheck server installation script v$version"
 echo "Last updated: $date"
-echo "-----------------------------------------"
+echi "Project repository: https://github.com/quentintaranpino/nostrcheck-api-ts/
+echo "--------------------------------------------------------------------------------"
 echo ""
 echo "This script will install and configure the nostrcheck server on your system."
 echo "WARNING: This script is still in development and may not work as expected."
@@ -267,7 +268,7 @@ echo ""
 read -r input
 if [ "$input" = "y" ]; then
     echo ""
-    echo "Executing certbot for SSL..."
+    echo "Executing certbot SSL certificate for " $HOST"..."
     echo ""
     sudo certbot --nginx -d $HOST
 
