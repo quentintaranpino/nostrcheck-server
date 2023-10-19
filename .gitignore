@@ -16,3 +16,4 @@ nostrcheck-api.log
 config/local.json
 .VSCodeCounter/*
 installation.md
+coverage/*

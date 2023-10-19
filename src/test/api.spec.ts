@@ -1,6 +1,5 @@
 import request from "supertest";
-
-import app from "../src/app.js";
+import app from "../app.js";
 
 //Registered usernames
 describe("GET /api/v1/registered", () => {

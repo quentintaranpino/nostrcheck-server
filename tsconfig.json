@@ -1,6 +1,7 @@
   {
     "compilerOptions": {
       "module": "Node16",
+      "types": ["node", "jest"],
       "esModuleInterop": true,
       "allowSyntheticDefaultImports": true,
       "target": "ES2022",
@@ -14,6 +15,6 @@
     },
     "include": [
       "src/**/*",
-      "test/**/*",
+      "src/test/**/*",
     ]
   }

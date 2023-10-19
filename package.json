@@ -10,7 +10,7 @@
     "build": "tsc",
     "lint": "eslint --ignore-path .gitignore . --ext .ts",
     "lint:fix": "npm run lint -- --fix",
-    "test": "jest --verbose --detectOpenHandles"
+    "test": "jest --clearCache && jest --coverage --verbose --detectOpenHandles --forceExit --runInBand --no-cache --testTimeout=30000"
   },
   "author": "https://github.com/quentintaranpino",
   "license": "apache-2.0",
