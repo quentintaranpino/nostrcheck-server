@@ -2,9 +2,6 @@ import { createPool, Pool } from "mysql2/promise";
 import config from "config";
 import { logger } from "./logger.js";
 import { ProcessingFileData } from "../interfaces/media.js";
-import crypto from "crypto";
-import fs from "fs";
-import { CreateMagnet } from "./torrent.js";
 import { 
 	DatabaseTables, 
 	DomainsTableFields, 
@@ -14,8 +11,8 @@ import {
 	RegisteredTableFields} from "../interfaces/database.js";
 
 //Check database integrity
-const dbtables = await populateTables(config.get('database.droptables')); // true = reset tables
-if (!dbtables) {
+const dbtables = async () =>await populateTables(config.get('database.droptables')); // true = reset tables
+if (!dbtables()) {
 	logger.fatal("Error checking database integrity");
 	process.exit(1);
 }
