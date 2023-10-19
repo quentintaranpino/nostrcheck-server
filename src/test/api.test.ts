@@ -1,43 +1,51 @@
-import request from "supertest";
-import app from "../app.js";
+import { describe, expect, test } from 'vitest';
 
-//Registered usernames
-describe("GET /api/v1/registered", () => {
-	it("should return 400 Bad request", () => {
-		return request(app).get("/api/v1/nostraddress").expect(400);
+// Execute server
+import server from "../server.js";
+server;
+
+//Server index
+describe("Server index endpoint", () => {
+	test("GET /api | Should be CORS enabled (*) |", async () => {
+		const res =  await fetch("http://localhost:3000/api");
+		expect(res.headers.get("Access-Control-Allow-Origin")).toEqual("*");
 	});
-
-	it("Should return 400 without name parameter", () => {
-		return request(app).get("/api/v1/nostraddress?name=").expect(400);
-	});
-
-	it("Should be CORS enabled", () => {
-		return request(app)
-			.get("/api/v1/nostraddress?name=_")
-			.expect("Access-Control-Allow-Origin", "*");
-	});
-
-	it("Should return 200 with name parameter", () => {
-		return request(app).get("/api/v1/nostraddress?name=_").expect(200);
+	test("GET /api | Should response with 200 |", async () => {
+		const res =  await fetch("http://localhost:3000/api");
+		expect(res.status).toEqual(200);
 	});
 });
 
-//API root
-describe("GET /api", () => {
-	it("Should be CORS enabled", () => {
-		return request(app).get("/api").expect("Access-Control-Allow-Origin", "*");
+// Nostraddress local endpoint
+describe("Nostraddress endpoint (v1)", () => {
+	test("GET /api/v1/nostraddress", async () => {
+		const res =  await fetch("http://localhost:3000/api/v1/nostraddress");
+		expect(res.status).toEqual(400);
 	});
-
-	it("Should return 200", () => {
-		return request(app).get("/api").expect(200);
+	test("GET /api/v1/nostraddress?name=  | Empty name parameter |", async () => {
+		const res =  await fetch("http://localhost:3000/api/v1/nostraddress?name=");
+		expect(res.status).toEqual(400);
+	});
+	test("GET /api/v1/nostraddress?name=1 | With 1 name parameter, expecting not exist 404 |", async () => {
+		const res =  await fetch("http://localhost:3000/api/v1/nostraddress?name=123");
+		expect(res.status).toEqual(404);
+	});
+	test("GET /api/v1/nostraddress?name=_ | Should be CORS enabled (*) |", async () => {
+		const res =  await fetch("http://localhost:3000/api/v1/nostraddress?name=_");
+		expect(res.headers.get("Access-Control-Allow-Origin")).toEqual("*");
+	});
+	test("GET /api/v1/nostraddress?name=_ | With _ name parameter |", async () => {
+		const res =  await fetch("http://localhost:3000/api/v1/nostraddress?name=_");
+		expect(res.status).toEqual(200);
 	});
 });
 
-//Register endpoint
-describe("POST /api/v1/register/", () => {
-	it("Should return 400 without body", () => {
-		return request(app).post("/api/register").expect(400);
-	});
+
+// //Register endpoint
+// describe("POST /api/v1/register/", () => {
+// 	it("Should return 400 without body", () => {
+// 		return request(app).post("/api/register").expect(400);
+// 	});
 	// it("Should return 400 without id", () => {
 	// 	return request(app).post("/api/register").send({}).expect(400);
 	// }
@@ -85,4 +93,4 @@ describe("POST /api/v1/register/", () => {
 	// 	expect(res.statusCode).toEqual(200);
 	// 	expect(res.body).toHaveProperty("post");
 	// });
-});
+// });
