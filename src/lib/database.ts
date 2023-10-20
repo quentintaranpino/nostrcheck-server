@@ -147,10 +147,9 @@ async function populateTables(resetTables: boolean): Promise<boolean> {
 	return true;
 }
 
-
 async function checkDatabaseConsistency(table: string, column_name:string, type:string, after_column:string): Promise<boolean> {
 
-	const conn = await connect("checkDatabaseConsistency");
+	const conn = await connect("checkDatabaseConsistency | Table: " + table + " | Column: " + column_name, );
 
 	//Check if table exist
 	const CheckTableExistStatement: string =
