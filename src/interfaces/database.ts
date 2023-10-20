@@ -41,6 +41,7 @@ interface MediafilesTable {
 	original_hash: string;
 	hash: string;
 	status: string;
+	percentage: string;
 	visibility: string;
 	date: string;
 	ip_address: string;
@@ -58,6 +59,7 @@ const MediafilesTableFields: MediafilesTable = {
 	original_hash: "varchar(64)",
 	hash: "varchar(64)",
 	status: "varchar(10) NOT NULL",
+	percentage: "int(3) NOT NULL DEFAULT 0",
 	visibility: "boolean NOT NULL DEFAULT 0",
 	date: "datetime NOT NULL",
 	ip_address: "varchar(64) NOT NULL",

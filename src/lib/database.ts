@@ -237,6 +237,29 @@ async function dbFileStatusUpdate(status: string, options: ProcessingFileData): 
 
 }
 
+async function dbFilePercentageUpdate(percentage: string, options: ProcessingFileData): Promise<boolean> {
+
+	const conn = await connect("dbFilePercentageUpdate");
+	try{
+		const [dbFilePercentageUpdate] = await conn.execute(
+			"UPDATE mediafiles set percentage = ? where id = ?",
+			[percentage, options.fileid]
+		);
+		if (!dbFilePercentageUpdate) {
+			logger.error("Error updating mediafiles table, id:", options.fileid, "percentage:", status);
+			conn.end();
+			return false;
+		}
+		conn.end();
+		return true
+	}catch (error) {
+		logger.error("Error updating mediafiles table, id:", options.fileid, "percentage:", status);
+		conn.end();
+		return false;
+	}
+
+}
+
 async function dbFilesizeUpdate(filesize: number, options: ProcessingFileData): Promise<boolean> {
 
 	const conn = await connect("dbFileStatusUpdate");
@@ -465,14 +488,16 @@ async function showDBStats(){
 		result.join('\r\n'),'\n');
 }
 
-export { connect, 
-		 populateTables,
-		 dbFileStatusUpdate, 
-		 dbFileVisibilityUpdate, 
-		 dbFileHashupdate, 
-		 dbFileblurhashupdate,
-		 dbFileMagnetUpdate, 
-		 dbSelectUsername,
-		 showDBStats,
-		 dbFileDimensionsUpdate,
-		 dbFilesizeUpdate};
+export { 
+	    connect, 
+		populateTables,
+		dbFileStatusUpdate, 
+		dbFileVisibilityUpdate, 
+		dbFileHashupdate, 
+		dbFileblurhashupdate,
+		dbFileMagnetUpdate, 
+		dbSelectUsername,
+		showDBStats,
+		dbFileDimensionsUpdate,
+		dbFilesizeUpdate,
+		dbFilePercentageUpdate};

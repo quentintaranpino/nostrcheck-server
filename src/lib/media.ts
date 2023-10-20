@@ -5,7 +5,7 @@ import fs from "fs";
 import { allowedMimeTypes, asyncTask, ProcessingFileData, UploadTypes } from "../interfaces/media.js";
 import { logger } from "./logger.js";
 import config, { has } from "config";
-import { dbFileHashupdate, dbFileMagnetUpdate, dbFileStatusUpdate, dbFileVisibilityUpdate, dbFileDimensionsUpdate, dbFileblurhashupdate, dbFilesizeUpdate } from "./database.js";
+import { dbFileHashupdate, dbFileMagnetUpdate, dbFileStatusUpdate, dbFileVisibilityUpdate, dbFileDimensionsUpdate, dbFileblurhashupdate, dbFilesizeUpdate, dbFilePercentageUpdate } from "./database.js";
 import {fileTypeFromBuffer} from 'file-type';
 import { Request } from "express";
 import app from "../app.js";
@@ -120,6 +120,11 @@ async function convertFile(	inputFile: any,	options: ProcessingFileData,retry:nu
 		
 				// }
 
+				const percentage = dbFilePercentageUpdate("100", options);
+				if (!percentage) {
+					logger.error("Could not update table mediafiles, id: " + options.fileid, "percentage: 100");
+				}
+
 				const visibility = dbFileVisibilityUpdate(true, options);
 				if (!visibility) {
 					logger.error("Could not update table mediafiles, id: " + options.fileid, "visibility: true");
@@ -136,7 +141,7 @@ async function convertFile(	inputFile: any,	options: ProcessingFileData,retry:nu
 				//Create magnet link
 				CreateMagnet(MediaPath, options);
 
-				const fileStatusDbUpdate =  dbFileStatusUpdate("completed", options);
+				const fileStatusDbUpdate =  dbFileStatusUpdate("success", options);
 				if (!fileStatusDbUpdate) {
 					logger.error("Could not update table mediafiles, id: " + options.fileid, "status: completed");
 				}
@@ -176,7 +181,7 @@ async function convertFile(	inputFile: any,	options: ProcessingFileData,retry:nu
 
 				if (retry > 5){
 					logger.error(`Error converting file after 5 retries: ${inputFile.originalname}`);
-					const errorstate =  dbFileStatusUpdate("failed", options);
+					const errorstate =  dbFileStatusUpdate("error", options);
 					if (!errorstate) {
 						logger.error("Could not update table mediafiles, id: " + options.fileid, "status: failed");
 					}
@@ -198,11 +203,12 @@ async function convertFile(	inputFile: any,	options: ProcessingFileData,retry:nu
 					percent = 0;
 				}
 		
-				if (percent %25 > 0 && percent %25 < 1){
-					logger.info(
+				if (percent %4 > 0 && percent %4 < 1){
+					logger.debug(
 						`Processing : ` +
-							`${options.filename} - ${Number(percent).toFixed(2)} %`
+							`${options.filename} - ${Number(percent).toFixed(0)} %`
 					);
+				dbFilePercentageUpdate(Number(percent).toFixed(0), options);	
 				}
 				
 			})

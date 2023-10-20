@@ -21,7 +21,7 @@ import { ResultMessage, ResultMessagev2 } from "../interfaces/server.js";
 import fs from "fs";
 import config from "config";
 import path from "path";
-import { NIP96_event } from "../interfaces/nostr.js";
+import { NIP96_event, NIP96_processing } from "../interfaces/nostr.js";
 import { PrepareNIP96_event } from "../lib/nostr/NIP96.js";
 import { getClientIp } from "../lib/server.js";
 import { generatefileHashfrombuffer } from "../lib/hash.js";
@@ -235,22 +235,24 @@ const Uploadmedia = async (req: Request, res: Response, version:string): Promise
 	});
 
 	filedata.processing_url = filedata.servername + "/api/v2/media/" + filedata.fileid;
-	//Send request to transform queue
-	const t: asyncTask = {req,filedata,};
-	logger.info(`${requestQueue.length() +1} items in queue`);
-	filedata.description + "File queued for conversion";
-	requestQueue.push(t).catch((err) => {
-		logger.error("Error pushing file to queue", err);
+	if (convert){
+		//Send request to transform queue
+		const t: asyncTask = {req,filedata,};
+		logger.info(`${requestQueue.length() +1} items in queue`);
+		filedata.description + "File queued for conversion";
+		requestQueue.push(t).catch((err) => {
+			logger.error("Error pushing file to queue", err);
 
-		//v0 and v1 compatibility
-		if(version != "v2"){return res.status(500).send({"result": false, "description" : "Error queueing file"});}
+			//v0 and v1 compatibility
+			if(version != "v2"){return res.status(500).send({"result": false, "description" : "Error queueing file"});}
 
-		const result: ResultMessagev2 = {
-			status: MediaStatus[1],
-			message: "Error queueing file",
-		};
-		return result;
-	});
+			const result: ResultMessagev2 = {
+				status: MediaStatus[1],
+				message: "Error queueing file",
+			};
+			return result;
+		});
+	}
 
 	// //NIP96 PoC, return inmediately converted when is an image.
 	// if (convert && filedata.originalmime.startsWith("image")) {
@@ -419,17 +421,37 @@ const GetMediaStatusbyID = async (req: Request, res: Response, version:string): 
 	}
 
 	if (filedata.status == "processing" || filedata.status == "pending") {
-		const result: ResultMessagev2 = {
+
+		//Select mediafiles table for percentage
+		const db = await connect("GetMediaStatusbyID");
+		const [dbResult] = await db.query("SELECT percentage FROM mediafiles WHERE id = ?", [id]);
+		let rowstemp = JSON.parse(JSON.stringify(dbResult));
+		if (rowstemp[0] == undefined) {
+			logger.error(`File not found in database: ${id}`, "|", getClientIp(req));
+
+			const result: NIP96_processing = {
+				status: MediaStatus[1],
+				message: "The requested file was not found",
+				percentage: 0,
+			};
+			db.end();
+			return res.status(404).send(result);
+		}
+		db.end();
+
+		const result: NIP96_processing = {
 			status: MediaStatus[2],
 			message: filedata.description,
+			percentage: rowstemp[0].percentage,
 		};
-		return res.status(404).send(result);
+		return res.status(202).send(result);
 	}
 
 	if (filedata.status == "failed") {
-		const result: ResultMessagev2 = {
+		const result: NIP96_processing = {
 			status: MediaStatus[1],
 			message: filedata.description,
+			percentage: 0,
 		};
 		return res.status(404).send(result);
 	}
