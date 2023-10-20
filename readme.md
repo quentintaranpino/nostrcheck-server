@@ -14,7 +14,7 @@ wget https://raw.githubusercontent.com/quentintaranpino/nostrcheck-api-ts/main/s
 ### status [GET]
 Returns the status of the server
 
-https://nostrcheck.me/api/v1/status
+https://nostrcheck.me/api/v2/status
 
 **Example**
 
@@ -347,7 +347,7 @@ Response from server:
 ### nip96 [GET]
 Returns NIP96 server configuration
 
-https://nostrcheck.me/api/v1/nip96
+https://nostrcheck.me/api/v2/nip96
 
 **Example**
 
