@@ -1,4 +1,4 @@
-# Nostrcheck-api-ts, backend server for nostr.
+# Nostrcheck server, backend server for nostr.
 
 ![image](https://github.com/quentintaranpino/nostrcheck-api-ts/assets/125748180/53b67caf-ec98-4ac7-9829-742748a50fa6)
 
