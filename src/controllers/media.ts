@@ -234,8 +234,11 @@ const Uploadmedia = async (req: Request, res: Response, version:string): Promise
 		}
 	});
 
-	filedata.processing_url = filedata.servername + "/api/v2/media/" + filedata.fileid;
 	if (convert){
+
+		//If we transform the file we fill the processing_url field
+		filedata.processing_url = filedata.servername + "/api/v2/media/" + filedata.fileid;
+
 		//Send request to transform queue
 		const t: asyncTask = {req,filedata,};
 		logger.info(`${requestQueue.length() +1} items in queue`);
