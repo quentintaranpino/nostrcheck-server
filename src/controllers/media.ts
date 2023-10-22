@@ -234,10 +234,15 @@ const Uploadmedia = async (req: Request, res: Response, version:string): Promise
 		}
 	});
 
+	let responseStatus = 201;
+
 	if (convert){
 
 		//If we transform the file we fill the processing_url field
 		filedata.processing_url = filedata.servername + "/api/v2/media/" + filedata.fileid;
+
+		// Response with 202 Accepted
+		responseStatus = 202;
 
 		//Send request to transform queue
 		const t: asyncTask = {req,filedata,};
@@ -293,7 +298,7 @@ const Uploadmedia = async (req: Request, res: Response, version:string): Promise
 	}
 
 	const returnmessage : NIP96_event = await PrepareNIP96_event(filedata);
-	return res.status(200).send(returnmessage);
+	return res.status(responseStatus).send(returnmessage);
 
 };
 
@@ -388,7 +393,7 @@ const GetMediaStatusbyID = async (req: Request, res: Response, version:string): 
 	if (filedata.status == "completed") {
 		filedata.description = "The requested file was found";
 		resultstatus = true;
-		response = 200;
+		response = 201;
 	}else if (filedata.status == "failed") {
 		filedata.description = "It was a problem processing this file";
 		resultstatus = false;
@@ -396,11 +401,11 @@ const GetMediaStatusbyID = async (req: Request, res: Response, version:string): 
 	}else if (filedata.status == "pending") {
 		filedata.description = "The requested file is still pending";
 		resultstatus = false;
-		response = 202;
+		response = 200;
 	}else if (filedata.status == "processing") {
 		filedata.description = "The requested file is processing";
 		resultstatus = false;
-		response = 202;
+		response = 200;
 	}
 	let tags = await GetFileTags(rowstemp[0].id);
 
