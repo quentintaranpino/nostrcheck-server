@@ -10,12 +10,17 @@ fi
 
 # Detect the script base path
 BASEDIR=$(dirname "$0")
+echo "$BASEDIR"
 
-# If we are not inside scripts folder exit whith error
-if [ "$BASEDIR" != "./scripts" ]; then
-    echo "You must run this script from the scripts folder"
+# If the folder name is not scripts exit
+if [ "$(basename "$(pwd)")" != "scripts" ]; then
+    echo ""
+    echo "This script must be run from the scripts folder"
+    echo ""
     exit $E_BADARGS
 fi
+
+cd ..
 
 readonly E_BADARGS=65
 readonly version="0.1"
@@ -68,7 +73,7 @@ echo "Updating repository data..."
 echo ""
 git stash -u
 git pull
-it stash pop
+git stash pop
 
 # Update node modules
 echo ""

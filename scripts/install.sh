@@ -1,5 +1,13 @@
 #!/bin/bash
 
+# Check if the user is root
+if [ "$(id -u)" != "0" ]; then
+    echo ""
+    echo "This script must be run as root. Try using sudo"
+    echo ""
+    exit $E_BADARGS
+fi
+
 # Detect the script base path
 BASEDIR=$(dirname "$0")
 echo "$BASEDIR"
@@ -7,15 +15,6 @@ echo "$BASEDIR"
 readonly E_BADARGS=65
 readonly version="0.1"
 readonly date="20231018"
-
-# Node version
-NODE_MAJOR=18
-
-# Database variables
-HOST="nostcheck.me"
-DB="nostrcheck"
-USER="nostrcheck"
-MEDIAPATH="media/"
 
 clear
 echo ""
@@ -35,20 +34,21 @@ echo "This script will install and configure the nostrcheck server on your syste
 echo "WARNING: This script is still in development and may not work as expected."
 echo ""
 
+# Node version
+NODE_MAJOR=18
+
+# Database variables
+HOST="nostcheck.me"
+DB="nostrcheck"
+USER="nostrcheck"
+MEDIAPATH="media/"
+
 # We ask user if want to continue
 echo "Do you want to proceed with the installation? [y/n]"
 echo ""
 read -r input
 if [ "$input" != "y" ]; then
     echo "Exiting..."
-    exit $E_BADARGS
-fi
-
-# Check if the user is root
-if [ "$(id -u)" != "0" ]; then
-    echo ""
-    echo "This script must be run as root. Try using sudo"
-    echo ""
     exit $E_BADARGS
 fi
 
