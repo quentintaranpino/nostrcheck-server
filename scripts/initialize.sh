@@ -63,11 +63,14 @@ fi
 
 # Prompt user for server pubkey (hex)
 echo "Please enter the server public key (HEX format):"
-echo "You can use https://nostrcheck.me/converter/" 
+echo "You can use https://nostrcheck.me/converter/ for convert your pubkey to HEX format" 
+echo ""
 read -r HEX
 
 # Prompt user for server pubkey (npub)
 echo "Please enter the server public key (npub format):"
+echo "You can use https://nostrcheck.me/converter/ for convert your hex to NPUB format" 
+echo ""
 read -r NPUB
 
 # Prompt user for default domain name (without http:// or https://)
