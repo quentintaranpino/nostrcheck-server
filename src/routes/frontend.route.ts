@@ -1,8 +1,8 @@
 import { Application } from "express";
 
-import { APIIndex } from "../controllers/index.js";
+import { APIIndex } from "../controllers/frontend.js";
 
-export const LoadIndexEndpoint = async (app: Application, _version:string): Promise<void> => {
+export const LoadFrontendEndpoint = async (app: Application, _version:string): Promise<void> => {
 
 	app.get("/", (_req, res) => {
 		res.redirect("/api/v2");

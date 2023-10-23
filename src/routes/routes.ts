@@ -1,7 +1,7 @@
 import { Application } from "express";
 
 import { LoadDomainsEndpoint } from "./domains.route.js";
-import { LoadIndexEndpoint } from "./index.route.js";
+import { LoadFrontendEndpoint } from "./frontend.route.js";
 import { LoadMediaEndpoint } from "./media.route.js";
 import { LoadNostraddressEndpoint } from "./nostraddress.route.js";
 import { LoadRegisterEndpoint } from "./register.route.js";
@@ -15,8 +15,8 @@ import { LoadAdminEndpoint } from "./admin.route.js";
 const LoadAPI = async (app: Application, version:string): Promise<boolean> => {
 	
 	try{
+		await LoadFrontendEndpoint(app, version);
 		await LoadVerifyEndpoint(app, version);
-		await LoadIndexEndpoint(app, version);
 		await LoadDomainsEndpoint(app, version);
 		await LoadNostraddressEndpoint(app, version);
 		await LoadRegisterEndpoint(app, version);

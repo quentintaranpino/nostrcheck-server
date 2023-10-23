@@ -1,6 +1,13 @@
-# Nostrcheck-api-ts, backend server for nostr.
+# Nostrcheck server, backend server for nostr.
 
-This repository contains the public API to interact with nostr as a backend server. Written in typescript.
+![image](https://github.com/quentintaranpino/nostrcheck-api-ts/assets/125748180/53b67caf-ec98-4ac7-9829-742748a50fa6)
+
+Nostrcheck server is a set of tools to interact with nostr and be sovereign of your data. 
+
+It allows to validate nostr address (NIP05), multimedia uploads (NIP94, NIP96), nostr notes integrity check and lightning redirects. All under NIP98 authentication 100% nostr compatible.
+
+The server can be installed anywhere and allows anyone to become a nostr service provider. 
+
 
 BETA: New install script, you can [see it here](https://github.com/quentintaranpino/nostrcheck-api-ts/blob/main/scripts/install.sh)
 
@@ -14,7 +21,7 @@ wget https://raw.githubusercontent.com/quentintaranpino/nostrcheck-api-ts/main/s
 ### status [GET]
 Returns the status of the server
 
-https://nostrcheck.me/api/v1/status
+https://nostrcheck.me/api/v2/status
 
 **Example**
 
@@ -347,7 +354,7 @@ Response from server:
 ### nip96 [GET]
 Returns NIP96 server configuration
 
-https://nostrcheck.me/api/v1/nip96
+https://nostrcheck.me/api/v2/nip96
 
 **Example**
 
@@ -440,7 +447,30 @@ The server returns:
 }
 ```
 
+### stop [POST]
+Endpoint to stop the server remotely. This endpoint use the an Authorization api token.
 
+Type: Api key
+
+KEY: authorization
+
+VALUE: database password. (You can found it at local.json file)
+
+https://nostrcheck.me/api/v2/admin/stop
+
+**Example**
+Whithout authorization key:
+```
+{
+	"message": "Unauthorized"
+}
+```
+Whit authorization key:
+```
+{
+	"message": "Stopping server..."
+}
+```
 
 ## Running, developing and building the app
 

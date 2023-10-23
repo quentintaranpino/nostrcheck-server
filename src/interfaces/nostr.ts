@@ -55,4 +55,8 @@ interface NIP96_event extends ResultMessagev2{
 
 }
 
-export { NIPKinds, NIP96file, NIP94_event, NIP96_event};
+interface NIP96_processing extends ResultMessagev2{
+    percentage : number,
+}
+
+export { NIPKinds, NIP96file, NIP94_event, NIP96_event, NIP96_processing};
