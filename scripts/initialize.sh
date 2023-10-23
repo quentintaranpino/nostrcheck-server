@@ -85,7 +85,11 @@ echo "Default domain successfully inserted on table domains"
 # Insert a new user on table registered using username and password from config/local.json and pubkey from user input
 mysql -u $(cat config/local.json | jq -r '.database.user') -p$(cat config/local.json | jq -r '.database.password') $DATABASE -e "INSERT INTO registered (pubkey, hex, username, password, domain, active, date, allowed, apikey, comments) VALUES ('$NPUB', '$HEX', 'public', '$PASS', '$DEFAULT_DOMAIN', '1', '$CREATE_DATE', '1', '$apikey', 'server default account' );"
 
-echo "Default user successfully inserted on table registered"
+# Set server pubkey on config/local.json
+jq --arg a "$HEX" '.server.pubkey = $a' config/local.json > tmp.json && mv tmp.json config/local.json
+
+
+echo "Default server user successfully created!"
 
 # Show all variables to user
 echo ""
