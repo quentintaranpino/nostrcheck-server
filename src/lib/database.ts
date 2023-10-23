@@ -10,12 +10,14 @@ import {
 	MediatagsTableFields, 
 	RegisteredTableFields} from "../interfaces/database.js";
 
+let retry :number = 0;
 async function connect(source:string): Promise<Pool> {
 
 	const DatabaseHost :string 		 = config.get('database.host');
 	const DatabaseUser :string  	 = config.get('database.user');
 	const DatabasePassword :string 	 = config.get('database.password');
 	const Database :string  		 = config.get('database.database');
+
 
 	try{
 		const connection = await createPool({
@@ -29,9 +31,21 @@ async function connect(source:string): Promise<Pool> {
 			});
 			await connection.getConnection();
 			logger.debug("Created new connection thread to database", source)
+			retry = 0;
 			return connection;
 	}catch (error) {
 			logger.fatal(`There is a problem connecting to mysql server, is mysql-server package installed on your system? : ${error}`);
+			retry++;
+			if (retry === 3){
+				logger.fatal("Mariadb server is not responding, please check your configuration");
+				process.exit(1);
+			}
+			logger.fatal("Retrying connection to database in 10 seconds", "retry:", retry + "/3");
+			await new Promise(resolve => setTimeout(resolve, 10000));
+			let conn_retry = await connect(source);
+			if (conn_retry != undefined){
+				return conn_retry;
+			}
 			process.exit(1);
 	}
 
