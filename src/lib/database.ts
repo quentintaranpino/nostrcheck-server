@@ -10,13 +10,6 @@ import {
 	MediatagsTableFields, 
 	RegisteredTableFields} from "../interfaces/database.js";
 
-//Check database integrity
-const dbtables = async () =>await populateTables(config.get('database.droptables')); // true = reset tables
-if (!dbtables()) {
-	logger.fatal("Error checking database integrity");
-	process.exit(1);
-}
-
 async function connect(source:string): Promise<Pool> {
 
 	const DatabaseHost :string 		 = config.get('database.host');
