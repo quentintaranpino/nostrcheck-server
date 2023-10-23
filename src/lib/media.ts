@@ -147,9 +147,16 @@ async function convertFile(	inputFile: any,	options: ProcessingFileData,retry:nu
 				}
 
 				logger.debug("Old Filesize:", options.filesize);
-				logger.debug("New Filesize:", +fs.statSync(MediaPath).size);
+				
+				let newfilesize : number = 0;
+				try{
+					newfilesize = +fs.statSync(MediaPath).size;
+					logger.debug("New Filesize:", newfilesize);
+				}catch(err){
+					logger.error(err);
+				}
 
-				const filesizeDbUpdate =  dbFilesizeUpdate(+fs.statSync(MediaPath).size, options);
+				const filesizeDbUpdate =  dbFilesizeUpdate(newfilesize, options);
 				if (!filesizeDbUpdate) {
 					logger.error("Could not update table mediafiles, id: " + options.fileid, "status: completed");
 				}
