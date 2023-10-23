@@ -63,6 +63,7 @@ fi
 
 # Prompt user for server pubkey (hex)
 echo "Please enter the server public key (HEX format):"
+echo "You can use https://nostrcheck.me/converter/" 
 read -r HEX
 
 # Prompt user for server pubkey (npub)
