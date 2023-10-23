@@ -280,6 +280,13 @@ if [ "$input" = "y" ]; then
 
 fi
 
+# Set execute permissions for scripts
+echo ""
+echo "Setting execute permissions for scripts..."
+echo ""
+pwd
+sudo chmod +x scripts/*.sh
+
 # End message
 echo "--------------------------------------------------------------------------------"
 echo ""
