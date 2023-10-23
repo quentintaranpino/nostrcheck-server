@@ -283,7 +283,8 @@ fi
 # End message
 echo "--------------------------------------------------------------------------------"
 echo ""
-echo "You can now start the server by running ' cd nostrcheck-api-ts && npm run start'"
+echo "You can now start nostrcheck server by running ' cd nostrcheck-api-ts && npm run start'"
 echo "Before installation, please execute the server to create the database tables and then"
 echo "execute 'cd scripts && ./initialize.sh' to initialize the server with default values."
 echo ""
+echo "--------------------------------------------------------------------------------"
