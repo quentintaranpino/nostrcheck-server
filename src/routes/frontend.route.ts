@@ -17,6 +17,6 @@ export const LoadFrontendEndpoint = async (app: Application, _version:string): P
 	});
 
 	app.get("/api/v2", getFrontendIndex);
-	app.get("/tos",getFrontendTOS);
+	app.get("/api/tos",getFrontendTOS);
 		
 };

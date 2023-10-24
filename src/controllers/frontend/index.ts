@@ -13,7 +13,7 @@ const getFrontendIndex = async (req: Request, res: Response): Promise<Response> 
 			`<style>body{font-family:Arial,Helvetica,sans-serif; padding:15px;}</style>` +
 			`<body>` +
 			`<img src='data:image/webp;base64,` + getServerLogo() + `' alt='Nostrcheck server logo' width='350' height='143' style='padding-bottom:15px'> <br>` +
-			`Nostrcheck server ${app.get("version")} is running at ${req.hostname} in ${app.get("env")} mode. By using this server you agree the <a href='/tos'>Terms of Service</a>` +
+			`Nostrcheck server ${app.get("version")} is running at ${req.hostname} in ${app.get("env")} mode. By using this server you agree the <a href='/api/tos'>Terms of Service</a>` +
 			`<br>` +
 			`<p>More information, installation instructions and documentation about the this software can be found at <a href='https://github.com/quentintaranpino/nostrcheck-api-ts/'>
 				https://github.com/quentintaranpino/nostrcheck-api-ts/</a></p>` +
