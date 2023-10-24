@@ -1,6 +1,7 @@
 import { Application } from "express";
 
-import { APIIndex } from "../controllers/frontend.js";
+import { getFrontendIndex } from "../controllers/frontend/index.js";
+import { getFrontendTOS } from "../controllers/frontend/tos.js";
 
 export const LoadFrontendEndpoint = async (app: Application, _version:string): Promise<void> => {
 
@@ -15,6 +16,7 @@ export const LoadFrontendEndpoint = async (app: Application, _version:string): P
 		res.redirect("/api/v2");
 	});
 
-	app.get("/api/v2", APIIndex);
+	app.get("/api/v2", getFrontendIndex);
+	app.get("/tos",getFrontendTOS);
 		
 };
