@@ -262,24 +262,6 @@ const Uploadmedia = async (req: Request, res: Response, version:string): Promise
 		});
 	}
 
-	// //NIP96 PoC, return inmediately converted when is an image.
-	// if (convert && filedata.originalmime.startsWith("image")) {
-	// 	let conversion : boolean = await convertFile(req.file, filedata, 0);
-	// 	if (!conversion) {
-	// 		filedata.status = JSON.parse(JSON.stringify(MediaStatus[1]));
-	// 		filedata.description = "Error converting file";
-
-	// 		//v0 and v1 compatibility
-	// 		if(version != "v2"){return res.status(500).send({"result": false, "description" : "Error converting file"});}
-
-	// 		const result: ResultMessagev2 = {
-	// 			status: MediaStatus[1],
-	// 			message: "Error converting file",
-	// 		};
-	// 		return res.status(500).send(result);
-	// 	} 
-	// }
-
 	//v0 and v1 compatibility
 	if (version != "v2"){
 		const returnmessage: MediaExtraDataResultMessage = {
