@@ -50,6 +50,19 @@ const Uploadmedia = async (req: Request, res: Response, version:string): Promise
 
 	//If username is not on the db the upload will be public and a warning will be logged.
 	if (username === "") {
+		if (config.get("media.allowPublicUploads") == false) {
+			// We don't allow public uploads
+			logger.warn("pubkey not registered, public uploads not allowed | ", getClientIp(req));
+
+			//v0 and v1 compatibility
+			if(version != "v2"){return res.status(401).send({"result": false, "description" : "public uploads not allowed"});}
+
+			const result: ResultMessagev2 = {
+				status: MediaStatus[1],
+				message: "public uploads not allowed",
+			};
+			return res.status(401).send(result);
+		}
 		username = "public";
 		pubkey = app.get("pubkey");
 		logger.warn("pubkey not registered, switching to public upload | ", getClientIp(req));
@@ -276,24 +289,6 @@ const Uploadmedia = async (req: Request, res: Response, version:string): Promise
 			return result;
 		});
 	}
-
-	// //NIP96 PoC, return inmediately converted when is an image.
-	// if (convert && filedata.originalmime.startsWith("image")) {
-	// 	let conversion : boolean = await convertFile(req.file, filedata, 0);
-	// 	if (!conversion) {
-	// 		filedata.status = JSON.parse(JSON.stringify(MediaStatus[1]));
-	// 		filedata.description = "Error converting file";
-
-	// 		//v0 and v1 compatibility
-	// 		if(version != "v2"){return res.status(500).send({"result": false, "description" : "Error converting file"});}
-
-	// 		const result: ResultMessagev2 = {
-	// 			status: MediaStatus[1],
-	// 			message: "Error converting file",
-	// 		};
-	// 		return res.status(500).send(result);
-	// 	} 
-	// }
 
 	//v0 and v1 compatibility
 	if (version != "v2"){
@@ -577,7 +572,7 @@ const GetMediabyURL = async (req: Request, res: Response) => {
 			// If file not found, return not found media file
 			logger.warn(`RES -> 404 Not Found - ${req.url}`, "| Returning not found media file.", getClientIp(req));
 
-			const NotFoundFilePath = path.normalize(path.resolve(config.get("media.notFoudFilePath")));
+			const NotFoundFilePath = path.normalize(path.resolve(config.get("media.notFoundFilePath")));
 
 			res.setHeader('Content-Type', mediaType);
 			fs.readFile(NotFoundFilePath, (err, data) => {
