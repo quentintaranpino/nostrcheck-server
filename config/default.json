@@ -7,7 +7,7 @@
     "logoFilePath" : "resources/logo-server.webp"
   },
   "database": {
-    "host": "localhost",
+    "host": "127.0.0.1",
     "user": "nostrcheck",
     "password": "nostrcheck",
     "database": "nostrcheck",
