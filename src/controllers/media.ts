@@ -63,7 +63,22 @@ const Uploadmedia = async (req: Request, res: Response, version:string): Promise
 
 	//Check if file exist on request body
 	const files : any | Express.Multer.File[] = req.files;
-	let file: Express.Multer.File = req.file? req.file : files[0];
+	let file: Express.Multer.File;
+	try{
+		file = req.file? req.file : files[0];
+	}catch(error){
+		logger.warn(`RES -> 400 Bad request - Empty file`, "|", getClientIp(req));
+
+		//v0 and v1 compatibility
+		if(version != "v2"){return res.status(400).send({"result": false, "description" : "Empty file"});}
+
+		const result: ResultMessagev2 = {
+			status: MediaStatus[1],
+			message: "Empty file"
+		};
+		return res.status(400).send(result);
+	}
+	
 	req.file = file;
 
 	if (!file) {
