@@ -1,17 +1,8 @@
 <head>
-  <%- include('./partials/head'); %>
+  <%- include('./partials/head',{title:"Nostrcheck Server - Terms of Service"}); %>
 </head>
 <body>
-  <head>
-    <title>localhost server TOS</title>
-</head>
-<style>
-    body{font-family:Arial,Helvetica,sans-serif; padding:15px;}
-</style>
-
-<body>
-  <%- include('./components/logo'); %>
-  <br>
+  <%- include('./components/navbar', {active:"tos"}); %>; %>
   <h2>Terms of Service</h2>
   <p>We know that freedom is something very important to you, but the responsibility we have in offering a service to third parties where foreign content can be hosted is very great. Therefore it is necessary that you agree to these points, we believe it is reasonable to agree to this before proceeding. By using our website you are agreed with this:</p>
   <ul>
