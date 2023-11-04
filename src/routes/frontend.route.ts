@@ -1,8 +1,5 @@
 import { Application } from "express";
 
-import { getFrontendIndex } from "../controllers/frontend/index.js";
-import { getFrontendTOS } from "../controllers/frontend/tos.js";
-
 export const LoadFrontendEndpoint = async (app: Application, _version:string): Promise<void> => {
 
 	app.get("/", (_req, res) => {
@@ -16,7 +13,8 @@ export const LoadFrontendEndpoint = async (app: Application, _version:string): P
 		res.redirect("/api/v2");
 	});
 
-	app.get("/api/v2", getFrontendIndex);
-	app.get("/api/tos",getFrontendTOS);
-		
+	app.get("/api/v2", (_req, res) => res.render("index.ejs", {request: _req}))
+
+	app.get("/api/tos", (_req, res) => res.render("tos.ejs", {request: _req}))
+
 };

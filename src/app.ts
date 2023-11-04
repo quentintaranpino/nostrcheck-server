@@ -15,10 +15,14 @@ app.set(
 	process.env.PUBKEY ?? config.get('server.pubkey')
 );
 app.set('trust proxy',true); 
+app.set("view engine", "ejs")
+app.set('views','./src/pages/');
 app.use(express.json({ limit: '25MB' }));
 app.use(express.urlencoded({ limit: '25MB', extended: true }));
+app.use(express.static('./resources'));
 app.use(helmet());
 app.use(cors());
+
 
 //Load Routes V1
 LoadAPI(app, "v1");

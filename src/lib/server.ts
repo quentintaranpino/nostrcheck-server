@@ -5,7 +5,8 @@ import config from "config";
 import { ResultMessagev2 } from "../interfaces/server.js";
 import { logger } from "./logger.js";
 import fs from "fs";
-import path from "path";
+import path from 'path';
+import url from 'url';
 
 const getClientIp = (req: any) =>{
 
@@ -91,4 +92,9 @@ const getTOSUrl = (hostname: string) : string => {
     };
 }
 
-export { getClientIp, IsAuthorized, format, getServerLogo, getTOSUrl};
+const currDir = (fileUrl:string) : string =>{
+    const __filename = url.fileURLToPath(fileUrl);
+    return path.dirname(__filename);
+}
+
+export { getClientIp, IsAuthorized, format, getServerLogo, getTOSUrl, currDir};
