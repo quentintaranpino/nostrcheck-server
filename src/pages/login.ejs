@@ -1,9 +1,10 @@
 <html lang="en">
 <%- include('./partials/head',{title:"Nostrcheck Server - Home"}); %>
 <link rel="stylesheet" href="css/login.css">
-<body class="text-center">
+<body>
+    <%- include('./components/navbar', {active:'login'}); %>
+    <center>
     <form class="form-signin">
-        <%- include('./components/logo'); %>
       <h1 class="h3 mb-3 font-weight-normal">Log in</h1>
       <label for="inputUsername" class="sr-only">Username</label>
       <input type="text" id="inputUsername" class="form-control" placeholder="Username" required autofocus>
@@ -16,5 +17,6 @@
       </div>
       <button class="btn btn-lg btn-primary btn-block" type="submit">Log in</button>
     </form>
+    </center>
   </body>
 </html>

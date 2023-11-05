@@ -1,4 +1,5 @@
 import { Application } from "express";
+import { Session } from "express-session";
 
 export const LoadFrontendEndpoint = async (app: Application, _version:string): Promise<void> => {
 
@@ -13,10 +14,23 @@ export const LoadFrontendEndpoint = async (app: Application, _version:string): P
 		res.redirect("/api/v2");
 	});
 
-	app.get("/api/v2", (_req, res) => res.render("index.ejs", {request: _req}))
+	//Frontend
+	app.get("/login", (req, res) => {
+		res.render("login.ejs", {request: req});
+	});
 
-	app.get("/tos", (_req, res) => res.render("tos.ejs", {request: _req}))
-	app.get("/login", (_req, res) => res.render("login.ejs", {request: _req}))
+	app.get("/api/v2", (req, res, next) => {
+		if (req.session == null){
+			res.redirect('/login');
+		}   else{
+			next();
+		}
+		res.render("index.ejs", {request: req});
+	});
+	app.get("/tos", (req, res) => {
+		res.render("tos.ejs", {request: req});
+	});
+
 
 
 
