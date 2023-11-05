@@ -10,3 +10,13 @@ body {
 main {
   padding:10px;
 }
+
+.btn-primary {
+  background-color: #343a40;
+  border-color: #343a40;
+}
+
+.btn-primary:hover {
+  background-color: #212529;
+  border-color: #212529;
+}
