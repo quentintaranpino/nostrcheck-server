@@ -19,7 +19,7 @@ app.set("view engine", "ejs")
 app.set('views','./src/pages/');
 app.use(express.json({ limit: '25MB' }));
 app.use(express.urlencoded({ limit: '25MB', extended: true }));
-app.use(express.static('./resources'));
+app.use(express.static('./src/pages/'));
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(cors());
 
