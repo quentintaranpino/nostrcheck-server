@@ -15,6 +15,9 @@ export const LoadFrontendEndpoint = async (app: Application, _version:string): P
 
 	app.get("/api/v2", (_req, res) => res.render("index.ejs", {request: _req}))
 
-	app.get("/api/tos", (_req, res) => res.render("tos.ejs", {request: _req}))
+	app.get("/tos", (_req, res) => res.render("tos.ejs", {request: _req}))
+	app.get("/login", (_req, res) => res.render("login.ejs", {request: _req}))
+
+
 
 };
