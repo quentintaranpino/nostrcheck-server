@@ -400,7 +400,7 @@ const GetMediaStatusbyID = async (req: Request, res: Response, version:string): 
 	let resultstatus = false;
 	let response = 200;
 
-	if (filedata.status == "completed") {
+	if (filedata.status == "completed" || filedata.status == "success") {
 		filedata.description = "The requested file was found";
 		resultstatus = true;
 		response = 201;
