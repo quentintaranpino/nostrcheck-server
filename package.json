@@ -24,7 +24,7 @@
     "@types/node": "20.4.9",
     "@types/sha256": "0.2.0",
     "@types/validator": "13.11.1",
-    "@types/webtorrent": "^0.109.3",
+    "@types/webtorrent": "^0.109.6",
     "eslint": "8.46.0",
     "eslint-config-codely": "3.0.0",
     "eslint-plugin-jest": "27.2.3",
@@ -46,14 +46,14 @@
     "mysql2": "3.6.0",
     "nodemon": "^3.0.1",
     "nostr-tools": "1.14.0",
-    "redis": "4.6.7",
+    "redis": "^4.6.10",
     "rotating-file-stream": "3.1.1",
     "sha256": "0.2.0",
     "ts-node": "10.9.1",
     "tslog": "4.9.1",
     "ut_metadata": "^4.0.3",
     "validator": "13.11.0",
-    "webtorrent": "^2.1.20"
+    "webtorrent": "^2.1.29"
   },
   "engines": {
     "node": ">=16"
