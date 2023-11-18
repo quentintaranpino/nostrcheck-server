@@ -7,7 +7,7 @@ import { LightningUsernameResult } from "../interfaces/lightning.js";
 //Redis configuration
 const redisClient = createClient();
 (async (): Promise<void> => {
-	redisClient.on("error", (error) =>{
+	redisClient.on("error", (error: any) =>{
 		logger.error(`There is a problem connecting to redis server, is redis-server package installed on your system? : ${error}`);
 		process.exit(1);
 });
