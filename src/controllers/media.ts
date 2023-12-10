@@ -162,12 +162,12 @@ const Uploadmedia = async (req: Request, res: Response, version:string): Promise
 	if (version == "v1"){filedata.status = JSON.parse(JSON.stringify(UploadStatus[0]));}
 	if (version == "v2"){filedata.status = JSON.parse(JSON.stringify(MediaStatus[0]));}
 
-	let convert = true;filedata.hash
+	let convert = true;
 	let insertfiledb = true;
 
 	//Check if the (file SHA256 hash and pubkey) is already on the database, if exist (and the upload is media type) we return the existing file URL
 	const dbHash = await connect("Uploadmedia");
-	const [dbHashResult] = await dbHash.query("SELECT id, hash, magnet, blurhash, filename, filesize FROM mediafiles WHERE original_hash = ? and pubkey = ? and filename not like 'avatar%' and filename not like 'banner%' ", [filedata.originalhash, pubkey]);	
+	const [dbHashResult] = await dbHash.query("SELECT id, hash, magnet, blurhash, filename, filesize, dimensions FROM mediafiles WHERE original_hash = ? and pubkey = ? and filename not like 'avatar%' and filename not like 'banner%' ", [filedata.originalhash, pubkey]);	
 	const rowstempHash = JSON.parse(JSON.stringify(dbHashResult));
 	if (rowstempHash[0] !== undefined && media_type == "media") {
 		logger.info(`RES ->  File already in database, returning existing URL:`, filedata.servername + "/media/" + username + "/" + filedata.filename, "|", getClientIp(req));
@@ -181,6 +181,8 @@ const Uploadmedia = async (req: Request, res: Response, version:string): Promise
 		filedata.hash = rowstempHash[0].hash;
 		filedata.blurhash = rowstempHash[0].blurhash;
 		filedata.filesize = rowstempHash[0].filesize;
+		filedata.width = rowstempHash[0].dimensions.split("x")[0];
+		filedata.height = rowstempHash[0].dimensions.split("x")[1];
 		filedata.url = filedata.servername + "/media/" + username + "/" + filedata.filename;
 		convert = false; 
 		insertfiledb = false;

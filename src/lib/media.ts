@@ -146,8 +146,8 @@ async function convertFile(	inputFile: any,	options: ProcessingFileData,retry:nu
 					logger.error("Could not update table mediafiles, id: " + options.fileid, "status: completed");
 				}
 
+				//File size
 				logger.debug("Old Filesize:", options.filesize);
-				
 				let newfilesize : number = 0;
 				try{
 					newfilesize = +fs.statSync(MediaPath).size;
@@ -161,6 +161,7 @@ async function convertFile(	inputFile: any,	options: ProcessingFileData,retry:nu
 					logger.error("Could not update table mediafiles, id: " + options.fileid, "status: completed");
 				}
 
+				//File dimensions
 				const dimensionsDbUpdate =  dbFileDimensionsUpdate(+newfiledimensions.split("x")[0], +newfiledimensions.split("x")[1], options);
 				if (!dimensionsDbUpdate) {
 					logger.error("Could not update table mediafiles, id: " + options.fileid, "dimensions for file: " + MediaPath);
