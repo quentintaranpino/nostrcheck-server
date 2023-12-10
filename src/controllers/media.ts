@@ -181,8 +181,10 @@ const Uploadmedia = async (req: Request, res: Response, version:string): Promise
 		filedata.hash = rowstempHash[0].hash;
 		filedata.blurhash = rowstempHash[0].blurhash;
 		filedata.filesize = rowstempHash[0].filesize;
-		filedata.width = rowstempHash[0].dimensions.split("x")[0];
-		filedata.height = rowstempHash[0].dimensions.split("x")[1];
+		if (rowstempHash[0].dimensions) {
+			filedata.width = rowstempHash[0].dimensions.split("x")[0];
+			filedata.height = rowstempHash[0].dimensions.split("x")[1];
+		}
 		filedata.url = filedata.servername + "/media/" + username + "/" + filedata.filename;
 		convert = false; 
 		insertfiledb = false;
