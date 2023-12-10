@@ -375,6 +375,11 @@ const GetMediaStatusbyID = async (req: Request, res: Response, version:string): 
 		}
 	}
 
+	//Fix dimensions for old API requests
+	if (rowstemp[0].dimensions == null) {
+		rowstemp[0].dimensions = 0x0;
+	}
+
 	db.end();
 
 	//Generate filedata
