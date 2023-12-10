@@ -175,16 +175,18 @@ Response from server:
 ### media [POST]
 Allows to upload files
 
-https://nostrcheck.me/api/v1/media
+https://nostrcheck.me/api/v2/media
 
 This endpoint requires the following fields in the body:
+
 ```
-uploadtype: [media, avatar, banner]
-mediafile: [attached file]
+uploadtype: [media, avatar, banner] (Optional)
+[attached file] 
 ```
 if the uploadtype is not specified, the server will always interpret it as " media" (standard upload).
 
-This endpoint use the [NIP98](https://github.com/nostr-protocol/nips/blob/master/98.md) HTTP Auth and get this fields from auth note:
+This endpoint use the [NIP98](https://github.com/nostr-protocol/nips/blob/master/98.md) HTTP Auth and get this fields from auth note.
+This endpoint use the [NIP96](https://github.com/arthurfranca/nips/blob/nip-95-contender/96.md) HTTP File Storage Integration standard.
 
 ```
 pubkey
@@ -192,32 +194,69 @@ pubkey
 If the pubkey is registered, the upload will be saved in the user's gallery, otherwise the upload will be public (with the public parametrized pubkey), 
 
 
-### media [GET] (ID)
+### media [GET] (ID) 
 Allows to get the status and information about a file
 
-https://nostrcheck.me/api/v1/media
+https://nostrcheck.me/api/v2/media
 
 This endpoint use the [NIP98](https://github.com/nostr-protocol/nips/blob/master/98.md) HTTP Auth for getting the media status. The NIP98's pubkey must be the same as the one who uploaded the file. 
+This endpoint use the [NIP96](https://github.com/arthurfranca/nips/blob/nip-95-contender/96.md) HTTP File Storage Integration standard.
 
 **Example**
 
-http://localhost:3000/api/v1/media/7
+http://localhost:3000/api/v2/media/7
 
 ```
 {
-    "result": true,
-    "description": "The requested file was found",
-    "url": "http://localhost:3000/media/public/localhost_f314d9dd69e4f2b7e409b7f46d277e3fd1cd9e53de36b4ad.webp",
-    "status": "completed",
-    "id": 7,
-    "pubkey": "89836015acd0c3e0227718fbe64b6251a8425cda33f27c3e4bbf794effbc7450",
-    "hash": "10fb7c4171ccc3ca60b5cdecb345fff396fcbdf350c01d89b4c370aa29aa1e8a",
-    "magnet": "magnet:?xt=urn:btih:80d04f20cd03ad98ae654d2e23d8ae81bac059c6&dn=localhost_ffb...(example)",
-    "tags": [
-        "tag",
-        "test",
-        "best"
-    ]
+	"status": "success",
+	"message": "The requested file was found",
+	"processing_url": "",
+	"nip94_event": {
+		"id": "",
+		"pubkey": "134743ca8ad0203b3657c20a6869e64f160ce48ae6388dc1f5ca67f346019ee7",
+		"created_at": "1702229660",
+		"kind": 1063,
+		"tags": [
+			[
+				"url",
+				"http://localhost:3000/media/public/61b08dd1809b459e16d917bfae87c7b11acf0f4f2061334a567b3976de73c388.webp"
+			],
+			[
+				"m",
+				"image/webp"
+			],
+			[
+				"x",
+				"fdb457b9ff0243aebbd3b83a2136768e8392ce1e748feb640de7217edec0ea8f"
+			],
+			[
+				"ox",
+				"61b08dd1809b459e16d917bfae87c7b11acf0f4f2061334a567b3976de73c388"
+			],
+			[
+				"size",
+				"61282"
+			],
+			[
+				"dim",
+				"1096x620"
+			],
+			[
+				"magnet",
+				"magnet:?xt=urn:btih:721e3cb561a006228cc6a4b7f8d8a48e1c81bdab&dn=61b08dd1809b459e16d917bfae87c7b11acf0f4f2061334a567b3976de73c388.webp&tr=udp%3A%2F%2Ftracker.leechers-paradise.org%3A6969&tr=udp%3A%2F%2Ftracker.coppersurfer.tk%3A6969&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337&tr=udp%3A%2F%2Fexplodie.org%3A6969&tr=udp%3A%2F%2Ftracker.empire-js.us%3A1337&tr=wss%3A%2F%2Ftracker.btorrent.xyz&tr=wss%3A%2F%2Ftracker.openwebtorrent.com&tr=wss%3A%2F%2Ftracker.webtorrent.dev"
+			],
+			[
+				"i",
+				""
+			],
+			[
+				"blurhash",
+				""
+			]
+		],
+		"content": "",
+		"sig": ""
+	}
 }
  
 ```
@@ -226,12 +265,12 @@ http://localhost:3000/api/v1/media/7
 ### media [GET] (URL)
 Allows to download a file
 
-https://nostrcheck.me/api/v1/media/:username/:filename
+https://nostrcheck.me/api/v2/media/:username/:filename
 
 
 **Example**
 
-https://nostrcheck.me/api/v1/media/quentin/nostrcheck.me_02f004aa2b7d1d7e969f7a0523594bffba663e8aeb332ec0.webp
+https://nostrcheck.me/api/v2/media/quentin/nostrcheck.me_02f004aa2b7d1d7e969f7a0523594bffba663e8aeb332ec0.webp
 
 If the mediafile is not found the server return the image defined on config file field:
 
