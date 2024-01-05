@@ -385,8 +385,8 @@ const GetMediaStatusbyID = async (req: Request, res: Response, version:string): 
 	//Generate filedata
 	let filedata : ProcessingFileData = {
 		filename: rowstemp[0].filename,
-		width: rowstemp[0].dimensions?.split("x")[0],
-		height: rowstemp[0].dimensions?.split("x")[1],
+		width: rowstemp[0].dimensions?.toString().split("x")[0],
+		height: rowstemp[0].dimensions?.toString().split("x")[1],
 		filesize: rowstemp[0].filesize,
 		fileid: rowstemp[0].id,
 		username: rowstemp[0].username,
