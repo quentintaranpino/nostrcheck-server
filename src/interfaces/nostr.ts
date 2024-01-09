@@ -30,7 +30,7 @@ interface NIP96file {
 interface NIP94_event {
     id : string,
     pubkey: string,
-    created_at: string,
+    created_at: number,
     kind: NIPKinds.NIP94,
     tags: [
             ["url", string],

@@ -10,7 +10,7 @@ const PrepareNIP94_event = async (filedata : FileData): Promise<NIP94_event> => 
         let event : NIP94_event = {
                 id : "",
                 pubkey: filedata.pubkey,
-                created_at: Math.floor(Date.now() / 1000).toString(),
+                created_at: Math.floor(Date.now() / 1000),
                 kind: NIPKinds.NIP94,
                 tags: [
                         ["url", filedata.url],
