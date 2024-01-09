@@ -34,7 +34,7 @@ export const LoadMediaEndpoint = async (app: Application, version:string): Promi
 		});
 
 		//Delete media
-		app.delete("/api/" + version + "/media/:fileId", DeleteMedia);
+		app.delete("/api/" + version + "/media/:fileId", function (req, res){DeleteMedia(req,res,version)});
 
 		//Get media status by id 
 		app.get("/api/" + version + "/media", function (req, res){GetMediaStatusbyID(req,res,version)});

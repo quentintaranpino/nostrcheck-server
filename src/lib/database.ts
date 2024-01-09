@@ -408,6 +408,7 @@ async function dbSelectUsername(pubkey: string): Promise<string> {
 
 	const dbPubkey = await connect("dbSelectUsername");
 	try{
+		logger.debug("Getting username from database", pubkey)
 		const [dbResult] = await dbPubkey.query("SELECT username FROM registered WHERE hex = ?", [pubkey]);
 		const rowstemp = JSON.parse(JSON.stringify(dbResult));
 		dbPubkey.end();

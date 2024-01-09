@@ -770,7 +770,7 @@ const UpdateMediaVisibility = async (req: Request, res: Response): Promise<Respo
 };
 
 
-const DeleteMedia = async (req: Request, res: Response): Promise<any> => {
+const DeleteMedia = async (req: Request, res: Response, version:string): Promise<Response> => {
 
 	const servername = req.hostname;
 	let fileId = req.params.fileId;
@@ -790,75 +790,103 @@ const DeleteMedia = async (req: Request, res: Response): Promise<any> => {
 		return res.status(400).send(result);
 	}
 
-	//Check if fileId is a number
-	if (isNaN(fileId as any)) {
-		logger.warn("RES -> 400 Bad request - fileId is not a number", "|", getClientIp(req));
-		const result: ResultMessage = {
-			result: false,
-			description: "fileId must be a number",
-		};
-		return res.status(400).send(result);
-	}
+	// Legacy support
+	if (version === "v1"){
 
-	//Check if fileId length is > 10
-	if (fileId.length > 10) {
-		logger.warn("RES -> 400 Bad request - fileId too long > 10", "|", getClientIp(req));
-		const result: ResultMessage = {
-			result: false,
-			description: "fileId too long",
-		};
-		return res.status(400).send(result);
-	}
-
-	//We don't allow deletions from server apikey for security reasons
-	if (req.query.apikey || req.body.apikey) {
-
-		try {
-			const conn = await connect("DeleteMedia");
-			const [rows] = await conn.execute("SELECT hex FROM registered WHERE apikey = ?", [req.query.apikey || req.body.apikey]);
-			let rowstemp = JSON.parse(JSON.stringify(rows));
-			conn.end();
-			if (rowstemp.length !== 0) {
-				let pubkey = rowstemp[0].hex;
-				if (pubkey == config.get("server.pubkey")){
-					//We don't authorize server apikey for deletion
-					logger.warn("RES -> 400 Bad request - apikey not allowed for deletion", "|", getClientIp(req));
-					const result: ResultMessage = {
-						result: false,
-						description: "apikey not allowed for deletion",
-					};
-					return res.status(400).send(result);
-				}
-			}
-		} catch (error) {
-			logger.error(error);
-			const result = {
+		//Check if fileId is a number
+		if (isNaN(fileId as any)) {
+			logger.warn("RES -> 400 Bad request - fileId is not a number", "|", getClientIp(req));
+			const result: ResultMessage = {
 				result: false,
-				description: "Internal server error",
+				description: "fileId must be a number",
 			};
-			return res.status(500).send(result);
+			return res.status(400).send(result);
 		}
+
+		//Check if fileId length is > 10
+		if (fileId.length > 10) {
+			logger.warn("RES -> 400 Bad request - fileId too long > 10", "|", getClientIp(req));
+			const result: ResultMessage = {
+				result: false,
+				description: "fileId too long",
+			};
+			return res.status(400).send(result);
+		}
+
+		//We don't allow deletions from server apikey for security reasons
+		if (req.query.apikey || req.body.apikey) {
+
+			try {
+				const conn = await connect("DeleteMedia");
+				const [rows] = await conn.execute("SELECT hex FROM registered WHERE apikey = ?", [req.query.apikey || req.body.apikey]);
+				let rowstemp = JSON.parse(JSON.stringify(rows));
+				conn.end();
+				if (rowstemp.length !== 0) {
+					let pubkey = rowstemp[0].hex;
+					if (pubkey == config.get("server.pubkey")){
+						//We don't authorize server apikey for deletion
+						logger.warn("RES -> 400 Bad request - apikey not allowed for deletion", "|", getClientIp(req));
+						const result: ResultMessage = {
+							result: false,
+							description: "apikey not allowed for deletion",
+						};
+						return res.status(400).send(result);
+					}
+				}
+			} catch (error) {
+				logger.error(error);
+				const result = {
+					result: false,
+					description: "Internal server error",
+				};
+				return res.status(500).send(result);
+			}
+		}
+
 	}
 	
 	//Check if event authorization header is valid (NIP98) or if apikey is valid (v0)
 	const EventHeader = await ParseAuthEvent(req);
-	if (!EventHeader.result) {return res.status(401).send({"result": EventHeader.result, "description" : EventHeader.description});}
+	if (!EventHeader.result) {
+		
+		//v0 and v1 compatibility
+		if(version != "v2"){return res.status(401).send({"result": EventHeader.result, "description" : EventHeader.description});}
+
+		const result : ResultMessagev2 = {
+			status: MediaStatus[1],
+			message: EventHeader.description
+		}
+		return res.status(401).send(result);
+
+	}
 
 	//Check if mediafile exist on database
 	try{
+
 		const conn = await connect("DeleteMedia");
+		let DeleteSelect : string = "SELECT mediafiles.id, mediafiles.filename, mediafiles.hash, registered.username FROM mediafiles LEFT JOIN registered on mediafiles.pubkey = registered.hex WHERE mediafiles.pubkey = ? and mediafiles.filename = ?";
+		if (version === "v1"){
+			DeleteSelect = "SELECT mediafiles.id, mediafiles.filename, mediafiles.hash, registered.username FROM mediafiles LEFT JOIN registered on mediafiles.pubkey = registered.hex WHERE mediafiles.pubkey = ? and mediafiles.id = ?";
+		}
+		logger.debug(DeleteSelect)
+		logger.debug(fileId, EventHeader.pubkey)
 		const [rows] = await conn.execute(
-			"SELECT mediafiles.id, mediafiles.filename, mediafiles.hash, registered.username FROM mediafiles LEFT JOIN registered on mediafiles.pubkey = registered.hex WHERE mediafiles.pubkey = ? and mediafiles.id = ?",
+			DeleteSelect,
 			[EventHeader.pubkey, fileId]
 		);
 		let rowstemp = JSON.parse(JSON.stringify(rows));
 		conn.end();
 		if (rowstemp[0] == undefined) {
 			logger.warn("RES Delete Mediafile -> 404 Not found", "|", getClientIp(req));
-			const result: ResultMessage = {
-				result: false,
-				description: `Mediafile deletion for id: ${fileId} and pubkey ${EventHeader.pubkey} not found`,
+
+			//v0 and v1 compatibility
+			if(version != "v2"){return res.status(404).send({"result": false, "description" : "Mediafile deletion not found"});}
+			
+			const result: ResultMessagev2 = {
+				status: MediaStatus[1],
+				message: "Mediafile not found",
 			};
+
 			return res.status(404).send(result);
 		}
 
@@ -920,10 +948,15 @@ const DeleteMedia = async (req: Request, res: Response): Promise<any> => {
 		conn.end();
 		if (rowstemp.affectedRows == 0) {
 			logger.warn("RES Delete Mediafile -> 404 Not found", "|", getClientIp(req));
-			const result: ResultMessage = {
-				result: false,
-				description: `Mediafile deletion for id: ${fileId} and pubkey ${EventHeader.pubkey} not found`,
+
+			//v0 and v1 compatibility
+			if(version != "v2"){return res.status(404).send({"result": false, "description" : "Mediafile deletion not found"});}
+
+			const result: ResultMessagev2 = {
+				status: MediaStatus[1],
+				message: "Mediafile not found",
 			};
+
 			return res.status(404).send(result);
 		}
 
@@ -948,9 +981,19 @@ const DeleteMedia = async (req: Request, res: Response): Promise<any> => {
 	}
 
 	logger.info("RES Delete mediafile ->", servername, " | pubkey:",  EventHeader.pubkey, " | fileId:",  fileId, "|", "mediafile(s) deleted", "|", getClientIp(req));
-	const result: ResultMessage = {
-		result: true,
-		description: `Mediafile deletion for id: ${fileId} and pubkey ${EventHeader.pubkey} successful`,
+
+	//v0 and v1 compatibility
+	if (version != "v2"){
+		const result: ResultMessage = {
+			result: true,
+			description: `Mediafile deletion for id: ${fileId} and pubkey ${EventHeader.pubkey} successful`,
+		};
+		return res.status(200).send(result);
+	}
+
+	const result: ResultMessagev2 = {
+		status: MediaStatus[0],
+		message: `Mediafile deletion with name: ${fileId} and pubkey: ${EventHeader.pubkey} successful`,
 	};
 	return res.status(200).send(result);
 
