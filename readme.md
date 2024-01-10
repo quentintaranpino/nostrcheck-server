@@ -149,18 +149,15 @@ Response from server:
 ```
 
 ### lightning [DELETE]
-Allows to **delete** a mediafile from database and disk.
+Allows to **delete** a lightning address redirect for a pubkey
 
-This endpoint delete all files with the same hash of selected file.
-
-https://nostrcheck.me/api/v1/media/
+https://nostrcheck.me/api/v1/lightningaddress/
 
 **Example**
 
-[https://nostrcheck.me/api/v1/media/1]
+[https://nostrcheck.me/api/v1/lightningaddress]
 
 This endpoint use the [NIP98](https://github.com/nostr-protocol/nips/blob/master/98.md) HTTP Auth for getting the pubkey. The NIP98's pubkey must be registered on the database.
-
 
 Response from server:
 ``` 
@@ -169,6 +166,7 @@ Response from server:
 	"description": "Lightning deletion for id: 1 and pubkey 40ea82aa4a450ea86cbb185a81f810edf2ac9810262f8e5952521f95ddfd8d97 successful"
 }
 ```
+
 
 
 
@@ -186,7 +184,7 @@ uploadtype: [media, avatar, banner] (Optional)
 if the uploadtype is not specified, the server will always interpret it as " media" (standard upload).
 
 This endpoint use the [NIP98](https://github.com/nostr-protocol/nips/blob/master/98.md) HTTP Auth and get this fields from auth note.
-This endpoint use the [NIP96](https://github.com/arthurfranca/nips/blob/nip-95-contender/96.md) HTTP File Storage Integration standard.
+This endpoint use the [NIP96](https://github.com/nostr-protocol/nips/blob/96.md) HTTP File Storage Integration standard.
 
 ```
 pubkey
@@ -200,7 +198,7 @@ Allows to get the status and information about a file
 https://nostrcheck.me/api/v2/media
 
 This endpoint use the [NIP98](https://github.com/nostr-protocol/nips/blob/master/98.md) HTTP Auth for getting the media status. The NIP98's pubkey must be the same as the one who uploaded the file. 
-This endpoint use the [NIP96](https://github.com/arthurfranca/nips/blob/nip-95-contender/96.md) HTTP File Storage Integration standard.
+This endpoint use the [NIP96](https://github.com/nostr-protocol/nips/blob/96.md) HTTP File Storage Integration standard.
 
 **Example**
 
@@ -370,16 +368,18 @@ http://localhost:3000/api/v1/media/7/visibility/1
 ```
 
 ### Media [DELETE]
-Allows to **delete** a lightning address redirect for a pubkey
+Allows to **delete** a mediafile from database and disk.
 
-https://nostrcheck.me/api/v1/lightningaddress/
+This endpoint delete all files with the same hash of selected file.
+
+https://nostrcheck.me/api/v2/media/
 
 **Example**
 
-[https://nostrcheck.me/api/v1/lightningaddress]
+[https://nostrcheck.me/api/v2media/61b08dd1809b459e16d917bfae87c7b11acf0f4f2061334a567b3976de73c388.webp"]
 
 This endpoint use the [NIP98](https://github.com/nostr-protocol/nips/blob/master/98.md) HTTP Auth for getting the pubkey. The NIP98's pubkey must be registered on the database.
-
+This endpoint use the [NIP96](https://github.com/nostr-protocol/nips/blob/96.md) HTTP File Storage Integration standard.
 
 Response from server:
 ```
