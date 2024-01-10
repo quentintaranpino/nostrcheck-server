@@ -376,9 +376,10 @@ https://nostrcheck.me/api/v2/media/
 
 **Example**
 
-[https://nostrcheck.me/api/v2media/61b08dd1809b459e16d917bfae87c7b11acf0f4f2061334a567b3976de73c388.webp"]
+[https://nostrcheck.me/api/v2/media/61b08dd1809b459e16d917bfae87c7b11acf0f4f2061334a567b3976de73c388.webp"]
 
 This endpoint use the [NIP98](https://github.com/nostr-protocol/nips/blob/master/98.md) HTTP Auth for getting the pubkey. The NIP98's pubkey must be registered on the database.
+
 This endpoint use the [NIP96](https://github.com/nostr-protocol/nips/blob/96.md) HTTP File Storage Integration standard.
 
 Response from server:
