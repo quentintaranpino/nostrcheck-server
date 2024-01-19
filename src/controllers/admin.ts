@@ -40,7 +40,8 @@ const adminLogin = async (req: Request): Promise<boolean> => {
     //Check if default admin credentials are used
     if (req.body.username == "admin" && req.body.password == "admin"){
         //We refuse to login with default credentials
-        logger.warn("WARNING - Default admin credentials used to login. Refusing.");
+        logger.warn("RES -> 401 unauthorized  - ", getClientIp(req));
+        logger.warn("Default admin credentials used to login. Refusing.");
        return false;
     }
 
@@ -48,7 +49,7 @@ const adminLogin = async (req: Request): Promise<boolean> => {
     if (req.body.username == config.get('server.admin.username') && req.body.password == config.get('server.admin.password')){
         req.session.username = config.get('server.admin.username');
         if (req.body.rememberme == "true"){req.session.cookie.maxAge = config.get('session.maxAge');}
-        logger.warn("logged in as", req.session.username);
+        logger.info("logged in as", req.session.username, " - ", getClientIp(req));
         return true;
     }
 
