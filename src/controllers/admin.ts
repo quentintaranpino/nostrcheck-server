@@ -3,6 +3,7 @@ import { Request, Response } from "express";
 import { logger } from "../lib/logger.js";
 import { getClientIp, IsAuthorized, format } from "../lib/server.js";
 import { ResultMessagev2, ServerStatusMessage } from "../interfaces/server.js";
+import config from "config";
 
 const ServerStatus = async (req: Request, res: Response): Promise<Response> => {
 	logger.info("GET /api/v1/status", "|", getClientIp(req));
@@ -34,5 +35,28 @@ const StopServer = async (req: Request, res: Response): Promise<void> => {
     process.exit(0);
 };
 
-export { ServerStatus, StopServer };
+const adminLogin = async (req: Request): Promise<boolean> => {
+
+    //Check if default admin credentials are used
+    if (req.body.username == "admin" && req.body.password == "admin"){
+        //We refuse to login with default credentials
+        logger.warn("WARNING - Default admin credentials used to login. Refusing.");
+       return false;
+    }
+
+    //Check if credentials are correct
+    if (req.body.username == config.get('server.admin.username') && req.body.password == config.get('server.admin.password')){
+        req.session.username = config.get('server.admin.username');
+        if (req.body.rememberme == "true"){req.session.cookie.maxAge = config.get('session.maxAge');}
+        logger.warn("logged in as", req.session.username);
+        return true;
+    }
+
+    //Credentials are incorrect
+    logger.warn("WARNING - Incorrect admin credentials used to login. Refusing.");
+    return false;
+
+};
+
+export { ServerStatus, StopServer, adminLogin };
 
