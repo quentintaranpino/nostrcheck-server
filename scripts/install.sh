@@ -13,8 +13,8 @@ BASEDIR=$(dirname "$0")
 echo "$BASEDIR"
 
 readonly E_BADARGS=65
-readonly version="0.1"
-readonly date="20231018"
+readonly version="0.2"
+readonly date="20240119"
 
 clear
 echo ""
@@ -84,7 +84,7 @@ cd nostrcheck-api-ts
 # Install dependencies
 echo ""
 echo "Installing dependencies..."
-sudo npm install -g npm@10.2.0
+sudo npm install -g npm@latest
 npm install
 
 # Build the project
@@ -115,8 +115,14 @@ if [ ! -z "$inputUSER" ]; then
     USER=$inputUSER
 fi
 
+# Generate a random password for database user
 PASS=`openssl rand -base64 32`
 echo "Generating password for user $USER..."
+echo ""
+
+# Generate a random secret for session
+SECRET=`openssl rand -base64 32`
+echo "Generating secret for session cookies..."
 echo ""
 
 # Construct the MySQL query
@@ -150,6 +156,7 @@ jq --arg a "$DB" '.database.database = $a' config/local.json > tmp.json && mv tm
 jq --arg a "$USER" '.database.user = $a' config/local.json > tmp.json && mv tmp.json config/local.json
 jq --arg a "$PASS" '.database.password = $a' config/local.json > tmp.json && mv tmp.json config/local.json
 jq --arg a "$MEDIAPATH" '.media.mediaPath = $a' config/local.json > tmp.json && mv tmp.json config/local.json
+jq --arg a "$SECRET" '.session.secret = $a' config/local.json > tmp.json && mv tmp.json config/local.json
 
 
 # Create nginx config file
@@ -223,40 +230,6 @@ echo "Restarting nginx..."
 echo ""
 sudo service nginx restart
 
-# # Create systemd service
-# echo ""
-# echo "Creating systemd service..."
-# echo ""
-
-# cat > /etc/systemd/system/nostrcheck.service <<EOF
-# [Unit]
-# Description=Nostrcheck server
-# After=network.target
-
-# [Service]
-# Type=simple
-# User=$SUDO_USER
-# WorkingDirectory=$BASEDIR/nostrcheck-api-ts
-# ExecStart=/usr/bin/npm run start
-# Restart=on-failure
-
-# [Install]
-# WantedBy=multi-user.target
-# Alias=nostrcheck.service
-# EOF
-
-# # Enable the service
-# echo ""
-# echo "Enabling systemd service..."
-# echo ""
-# sudo systemctl enable nostrcheck.service
-
-# # Start the service
-# echo ""
-# echo "Starting systemd service..."
-# echo ""
-# systemctl start nostrcheck.service
-
 # End of standard installation
 echo "Installation complete!"
 echo ""
@@ -284,7 +257,7 @@ fi
 echo "--------------------------------------------------------------------------------"
 echo ""
 echo "You can now start nostrcheck server by running ' cd nostrcheck-api-ts && npm run start'"
-echo "Before installation, please execute the server to create the database tables and then"
+echo "Please execute the server once to create the database tables and then"
 echo "execute 'cd scripts && ./initialize.sh' to initialize the server with default values."
 echo ""
 echo "--------------------------------------------------------------------------------"
