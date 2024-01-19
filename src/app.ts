@@ -2,8 +2,10 @@ import cors from "cors";
 import express from "express";
 import helmet from "helmet";
 import config from "config";
+import session from "express-session";
 
 import { LoadAPI } from "./routes/routes.js";
+
 
 const app = express();
 
@@ -23,7 +25,23 @@ app.use(express.static('./src/pages/'));
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(cors());
 
-
+//Express-session
+let secureCoockie: boolean = true
+if (config.get('environment') != "production"){
+	secureCoockie = false;
+}
+app.use(
+    session({
+        secret: config.get('session.secret'),
+		proxy: true,
+        resave: false,
+        saveUninitialized: false,
+        cookie: {
+            secure: secureCoockie,
+            maxAge: 3600000 // Default 1 hour
+        }
+    })
+)
 //Load Routes V1
 LoadAPI(app, "v1");
 
