@@ -6,7 +6,7 @@ declare module 'express-session' {
 	interface Session {
 	   username: string;
 	 }
-	}
+}
 
 export const LoadFrontendEndpoint = async (app: Application, _version:string): Promise<void> => {
 
