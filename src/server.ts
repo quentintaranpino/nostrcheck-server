@@ -33,10 +33,6 @@ const server = app.listen(app.get("port"), async () => {
 	console.log("Running at http://" + app.get('host') + ":%s - ", app.get("port"), app.get("env"), "mode");
 	console.log("Press CTRL-C to exit\n");
 
-	//Prepare app folders and config
-	prepareAppFolders();
-	prepareAPPConfig();
-
 	//Check database integrity
 	const dbtables = await populateTables(config.get('database.droptables')); // true = reset tables
 	if (!dbtables) {

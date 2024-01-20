@@ -2,13 +2,17 @@ import cors from "cors";
 import express from "express";
 import helmet from "helmet";
 import config from "config";
-import iniSession from "./lib/session.js";
-
+import initSession from "./lib/session.js";
+import { prepareAPPConfig, prepareAppFolders } from "./lib/config.js";
 
 import { LoadAPI } from "./routes/routes.js";
-import { Express } from "express-serve-static-core";
 
+async function prepareAPP() {
+    await prepareAPPConfig();
+	await prepareAppFolders();
+}
 
+prepareAPP();
 
 const app = express();
 
@@ -29,7 +33,7 @@ app.use(helmet({ contentSecurityPolicy: false }));
 app.use(cors());
 
 //Initialise session cookies
-iniSession(app);
+await initSession(app);
 
 //Load Routes V1
 LoadAPI(app, "v1");
