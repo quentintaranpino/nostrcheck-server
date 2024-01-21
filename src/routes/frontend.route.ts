@@ -1,13 +1,6 @@
 import { Application } from "express";
 import { adminLogin } from "../controllers/admin.js";
 
-
-declare module 'express-session' {
-	interface Session {
-	   username: string;
-	 }
-}
-
 export const LoadFrontendEndpoint = async (app: Application, _version:string): Promise<void> => {
 
 	//Legacy routes
@@ -23,7 +16,7 @@ export const LoadFrontendEndpoint = async (app: Application, _version:string): P
 
 	//Current v2 routes
 	app.get("/api/v2", (req, res) => {
-		if (req.session.username == null){
+		if (req.session.pubkey == null){
 			res.redirect('/login');
 		}else{
 		res.render("index.ejs", {request: req});
@@ -35,13 +28,7 @@ export const LoadFrontendEndpoint = async (app: Application, _version:string): P
 		res.render("login.ejs", {request: req});
 	});
 	app.post("/login", (req, res) => {
-		adminLogin(req).then((result) => {
-			if (result){
-				res.redirect('/api/v2');
-			}else{
-				res.redirect('/login');
-			}
-		});
+		adminLogin(req,res)
 	});
 
 	//Tos
