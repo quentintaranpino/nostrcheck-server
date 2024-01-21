@@ -49,4 +49,14 @@ export const LoadFrontendEndpoint = async (app: Application, _version:string): P
 		res.render("tos.ejs", {request: req});
 	});
 
+	//Logout
+	app.get("/logout", (req, res) => {
+		req.session.destroy((err) => {
+			if (err) {
+				return console.log(err);
+			}
+			res.redirect("/login");
+		});
+	});
+
 };
