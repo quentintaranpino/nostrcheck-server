@@ -2,9 +2,10 @@
 <%- include('./partials/head',{title:"Nostrcheck Server - Home"}); %>
 <link rel="stylesheet" href="css/login.css">
 <body>
-    <%- include('./components/navbar', {active:'login'}); %>
-    <center>
-      <%- include('./components/loginform'); %>
-    </center> 
-  </body>
+  <%- include('./partials/navbar', {active:'login'}); %>
+  <center>
+    <%- include('./components/loginform'); %>
+  </center> 
+  <%- include('./partials/footer'); %>
+</body>
 </html>
