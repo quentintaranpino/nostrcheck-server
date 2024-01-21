@@ -38,7 +38,8 @@ async function fetchServer(data) {
     try {
         const response = await fetch('/login', {method: 'POST',headers: {'Content-Type': 'application/json'},body: data});
         //read responsoe, no json
-        if (response){
+        console.log(response);
+        if (response.status === 200){
             console.log('Login success');
             window.location.replace('/api/v2');
         }
