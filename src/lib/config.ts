@@ -1,5 +1,4 @@
 import config, { has } from "config";
-import {logger} from "./logger.js";
 import fs from "fs";
 import { exit } from "process";
 
@@ -17,7 +16,7 @@ function prepareAppFolders(){
 
 	fs.readdir(TempPath, (err, files) => {
 		if (err) {
-			logger.fatal(err);
+			console.error(err);
             exit(1);
 		}
 
@@ -25,7 +24,7 @@ function prepareAppFolders(){
 		for (const file of files) {
 			fs.unlink(TempPath + file, (err) => {
 				if (err) {
-                    logger.error(err);
+                    console.error(err);
                     exit(1);
 				}
 			});
@@ -49,12 +48,12 @@ async function prepareAPPConfig(): Promise<boolean>{
 	}else{
 		fs.copyFile(defaultPath, localPath, function (err) {
 			if (err) {
-				logger.fatal("An error occured while writing config JSON File.", err);
+				console.error("An error occured while writing config JSON File.", err);
 				exit(1);
 			}
 		
-			logger.info("Creating local config file: " + localPath)
-			logger.warn("Please edit config file and then restart the app.")
+			console.info("Creating local config file: " + localPath)
+			console.warn("Please edit config file and then restart the app.")
 			exit(1);
     	});
 	}
@@ -73,10 +72,11 @@ const syncDefaultConfigValues = async (defaultConf : string, localConf: string) 
 	if (!configChanged) return;
 	
 	try{
+		console.debug("Updating config file: " + localConf)
 		fs.copyFileSync(localConf, localConf + ".bak");
 		fs.writeFileSync(localConf, JSON.stringify(LocalConfig, null, 4));
 	}catch(err){
-		logger.error("Error writing config file: ", err);
+		console.error("Error writing config file: ", err);
 	}
 	
 };
@@ -118,13 +118,14 @@ const updateLocalConfigKey = async (key: string, value: any) : Promise<boolean> 
 	}
 
 	try{
+		console.debug("Updating config file: " + localPath + " with key: " + key + " and value: " + value)
 		fs.copyFileSync(localPath, localPath + ".bak");
 		fs.writeFileSync(localPath, JSON.stringify(LocalConfig, null, 4));
 
 		return true;
 
 	}catch(err){
-		logger.error("Error writing config file: ", err);
+		console.error("Error writing config file: ", err);
 		return false;
 	}
 

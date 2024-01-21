@@ -12,7 +12,7 @@ async function prepareAPP() {
 	await prepareAppFolders();
 }
 
-prepareAPP();
+await prepareAPP();
 
 const app = express();
 
