@@ -6,6 +6,12 @@ import { logger } from "./logger.js";
 import { Application } from "express"
 import { updateLocalConfigKey } from "./config.js";
 
+declare module 'express-session' {
+	interface Session {
+	   pubkey: string;
+	 }
+}
+
 const initSession = async (app:Application): Promise<void> => {
 
     //Check if session secret is insecure and generate new secret if needed
