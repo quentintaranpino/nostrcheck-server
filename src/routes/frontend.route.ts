@@ -1,5 +1,8 @@
 import { Application } from "express";
 import { adminLogin } from "../controllers/admin.js";
+import fs from "fs";
+import { markdownToHtml } from "../lib/server.js";
+import { logger } from "../lib/logger.js";
 
 export const LoadFrontendEndpoint = async (app: Application, _version:string): Promise<void> => {
 
@@ -19,12 +22,15 @@ export const LoadFrontendEndpoint = async (app: Application, _version:string): P
 		if (req.session.pubkey == null){
 			res.redirect('/login');
 		}else{
+			req.body.version = app.get("version");
+			logger.debug(req.body.version);
 		res.render("index.ejs", {request: req});
 		}
 	});
 
 	//Login
 	app.get("/login", (req, res) => {
+		req.body.version = app.get("version");
 		res.render("login.ejs", {request: req});
 	});
 	app.post("/login", (req, res) => {
@@ -33,7 +39,9 @@ export const LoadFrontendEndpoint = async (app: Application, _version:string): P
 
 	//Tos
 	app.get("/tos", (req, res) => {
-		res.render("tos.ejs", {request: req});
+		req.body.version = app.get("version");
+		const tosFile = markdownToHtml(fs.readFileSync("./resources/tos.md").toString());
+		res.render("tos.ejs", { request: req, tos: tosFile });
 	});
 
 	//Logout

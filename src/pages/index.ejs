@@ -3,7 +3,7 @@
   <body>
     <%- include('./partials/navbar', {active:'home'}); %>
     <main>
-    <p>Nostrcheck server 0.4.2 is running at localhost in development mode. By using this server you agree the <a href='/tos'>Terms of Service</a></p>
+    <p>Nostrcheck server <%= request.body.version %> is running at localhost in development mode. By using this server you agree the <a href='/tos'>Terms of Service</a></p>
     <h2>Active endpoints</h2>
     <ul>
         <h3>v1</h3>
