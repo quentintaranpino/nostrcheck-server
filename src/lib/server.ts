@@ -7,6 +7,7 @@ import { logger } from "./logger.js";
 import fs from "fs";
 import path from 'path';
 import url from 'url';
+import markdownit from 'markdown-it';
 
 const getClientIp = (req: any) =>{
 
@@ -97,4 +98,15 @@ const currDir = (fileUrl:string) : string =>{
     return path.dirname(__filename);
 }
 
-export { getClientIp, IsAuthorized, format, getServerLogo, getTOSUrl, currDir};
+const markdownToHtml = (text:string) : string => {
+
+    const md = markdownit();
+    try{
+        return md.render(text).toString();
+    }catch(err){
+        logger.error("Error parsing markdown to html: ", err);
+        return "";
+    }
+}
+
+export { getClientIp, IsAuthorized, format, getServerLogo, getTOSUrl, currDir, markdownToHtml};
