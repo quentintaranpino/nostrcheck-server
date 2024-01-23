@@ -15,49 +15,49 @@
         "enabled": true,
         "path": "/nostraddress",
         "methods": ["GET"],
-        "description": "Returns a public key's nostraddress"
+        "description": "Returns the pubkey of a nostr address name"
       },
       "media":{
         "enabled": true,
         "path": "/media",
         "methods": ["GET","POST","PUT","DELETE"],
-        "description": "Returns the media file"
+        "description": "This module handles media uploads and downloads."
       },
       "lightning" :{
         "enabled": true,
         "path": "/lightning",
         "methods": ["GET","PUT", "DELETE"],
-        "description": "Returns the lightning invoice"
+        "description": "Lightning redirections for nostr addresses."
       },
       "verify" :{
         "enabled": true,
         "path": "/verify",
         "methods": ["POST"],
-        "description": "Returns the verification status of the server"
+        "description": "This module can verify a nostr note integrity."
       },
       "register" : {
         "enabled": true,
         "path": "/register",
         "methods": ["POST"],
-        "description": "Registers a new user"
+        "description": "Register new usernames from trusted pubkeys."
       },
       "domains" : {
         "enabled": true,
         "path": "/domains",
         "methods": ["GET"],
-        "description": "Returns the domains of the server"
+        "description": "Get the list of registered domains."
       },
       "admin" : {
         "enabled": true,
         "path": "/admin",
         "methods": ["GET","POST"],
-        "description": "Returns the admin panel"
+        "description": "Admin API, reboot, status, etc."
       },
       "frontend" : {
         "enabled": true,
         "path": "/",
         "methods": ["GET","POST"],
-        "description": "Returns the frontend"
+        "description": "Frontend, login, register, etc."
       }
     }
   },
