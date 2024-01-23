@@ -3,7 +3,7 @@ import express from "express";
 import helmet from "helmet";
 import config from "config";
 import initSession from "./lib/session.js";
-import { prepareAPPConfig, prepareAppFolders } from "./lib/config.js";
+import { prepareAPPConfig, prepareAppFolders, loadconfigEndpoints  } from "./lib/config.js";
 
 import { LoadAPI } from "./routes/routes.js";
 
@@ -26,13 +26,14 @@ app.set(
 app.set('trust proxy',true); 
 app.set("view engine", "ejs")
 app.set('views','./src/pages/');
+app.set("activeEndpoints", await loadconfigEndpoints());
 app.use(express.json({ limit: '25MB' }));
 app.use(express.urlencoded({ limit: '25MB', extended: true }));
 app.use(express.static('./src/pages/'));
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(cors());
 
-//Initialise session cookies
+// Initialise session cookies
 await initSession(app);
 
 const loadAPIs = async () => {

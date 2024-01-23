@@ -14,15 +14,12 @@ import { loadFrontendEndpoint } from "./frontend.route.js";
 //Load API endpoints
 const LoadAPI = async (app: Application, version:string): Promise<boolean> => {
 
-	const activeEndpoints: { [key: string]: boolean } = config.get("server.activeEndpoints");
 	logger.debug("Loading API endpoints", "version: " + version);
 
-	for (const key in activeEndpoints) {
-		if(activeEndpoints[key] != true){
-			logger.debug("Skipping endpoint: " + key)
-			continue;
-		}
+	for (const key in app.get("activeEndpoints")) {
+
 		logger.debug("Loading endpoint: " + key + " version: " + version)
+
 		switch (key) {
 			case "nostraddress":
 				await loadNostraddressEndpoint(app, version);

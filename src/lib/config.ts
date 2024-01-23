@@ -131,4 +131,18 @@ const updateLocalConfigKey = async (key: string, value: any) : Promise<boolean> 
 
 }
 
-export { prepareAppFolders, prepareAPPConfig, updateLocalConfigKey };
+// Load enabled API endpoints
+const loadconfigEndpoints = async () : Promise<{ [key: string]: boolean }> => {
+
+	const configEndpoints: { [key: string]: boolean } = config.get("server.activeEndpoints");
+	let endpoints: { [key: string]: boolean } = {};
+
+	for (const key in configEndpoints) {
+		if(configEndpoints[key] == true){
+			endpoints[key] = true;
+		}
+	}
+	return endpoints;
+}
+
+export { prepareAppFolders, prepareAPPConfig, updateLocalConfigKey, loadconfigEndpoints };
