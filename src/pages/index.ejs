@@ -3,15 +3,14 @@
   <body>
     <%- include('./partials/navbar', {active:'home'}); %>
     <main>
-    <p>Nostrcheck server <%= request.body.version %> is running at localhost in development mode. By using this server you agree the <a href='/tos'>Terms of Service</a></p>
-    <h2>Active endpoints</h2>
-    <div class="container mt-2">
+    <h1 class="col-12 text-center">Active endpoints</h1>
+    <div class="container mt-5">
       <div class="row">
         <% let i = 0; %>
         <% for(const key in request.body.activeEndpoints) { %>
           <% i++; %>
           <div class="col-lg-3 col-md-4 col-sm-6">
-            <div class="card mb-3" style="width: 15rem; height: 18rem;">
+            <div class="card mb-3" style="width: 15rem; height: 15rem;">
               <div class="card-body">
                 <h4 class="card-title"><%= key %></h5>
                 <h6 class="card-subtitle mb-2 text-muted"><a href="<%= request.body.APIversion + request.body.activeEndpoints[key]['path'] %>"><%= request.body.activeEndpoints[key]['path'] %></a></h6>
@@ -31,28 +30,16 @@
                   <% } %>
                   <span class="badge <%= badgeClass %>"><%= request.body.activeEndpoints[key]["methods"][method]  %></span>
                   <% } %>
-                <p class="card-text"><%= request.body.activeEndpoints[key]["description"] %></p>
-                <a href="#" class="card-link">Documentation</a>
+                <p class="card-text mt-2"><%= request.body.activeEndpoints[key]["description"] %></p>
+                <a href="https://github.com/quentintaranpino/nostrcheck-api-ts/blob/main/docs.md" class="card-link">Docs</a>
               </div>
             </div>
           </div>
         <% } %>
       </div>
     </div>
+    <p class="text-center mt-3">Nostrcheck server <%= request.body.version %> is running at localhost in development mode. By using this server you agree the <a href='/tos'>Terms of Service</a></p>
 
-    <ul>
-        <h3>v1</h3>
-        <li><a href='/api/v1/nostraddress'>/api/v1/nostraddress</a></li>
-        <li><a href='/api/v1/register'>/api/v1/register</a></li>
-        <li><a href='/api/v1/domains'>/api/v1/domains</a></li>
-        <li><a href='/api/v1/verify'>/api/v1/verify</a></li>
-        <li><a href='/api/v1/media'>/api/v1/media</a></li>
-        <li><a href='/api/v1/lightningaddress'>/api/v1/lightningaddress</a></li>
-        <h3>v2</h3>
-        <li><a href='/api/v2/status'>/api/v2/status</a></li>
-        <li><a href='/api/v2/media'>/api/v2/media</a></li>
-        <li><a href='/api/v2/nip96'>/api/v2/nip96</a></li>
-    </ul>
     </main>
     <%- include('./partials/footer'); %>
   </body>
