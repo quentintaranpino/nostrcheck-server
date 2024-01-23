@@ -5,6 +5,7 @@ import { GetMediaStatusbyID, GetMediabyURL, Uploadmedia, DeleteMedia, UpdateMedi
 import { ResultMessage } from "../interfaces/server.js";
 import { logger } from "../lib/logger.js";
 import { getClientIp } from "../lib/server.js";
+import { NIP96Data } from "../controllers/NIP96.js";
 
 const maxMBfilesize :number = config.get('media.maxMBfilesize');
 
@@ -13,7 +14,7 @@ const upload = multer({
 	limits: { fileSize: maxMBfilesize * 1024 * 1024 },
 });
 
-export const LoadMediaEndpoint = async (app: Application, version:string): Promise<void> => {
+export const loadMediaEndpoint = async (app: Application, version:string): Promise<void> => {
 	
 	if (version == "v1" || version == "v2"){
 		
@@ -52,6 +53,11 @@ export const LoadMediaEndpoint = async (app: Application, version:string): Promi
 		//Update media visibility
 		app.put("/api/" + version + "/media/:fileId/visibility/:visibility", UpdateMediaVisibility);
 
+	}
+
+	if (version == "v2"){
+        //NIP96 json file
+        app.get("/api/v2/nip96", NIP96Data);
 	}
 
 };

@@ -2,10 +2,10 @@ import { Application } from "express";
 
 import { verifyEventController } from "../controllers/verify.js";
 
-export const LoadVerifyEndpoint = async (app: Application, version:string): Promise<void> => {
+export const loadVerifyEndpoint = async (app: Application, version:string): Promise<void> => {
 
-	if (version == "v1"){
-	app.post("/api/v1/verify", verifyEventController);
+	if (version == "v1" || version == "v2"){
+	app.post("/api/" + version + "/verify", verifyEventController);
 	}
 
 };
