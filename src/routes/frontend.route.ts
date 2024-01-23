@@ -1,24 +1,29 @@
 import { Application } from "express";
 import { adminLogin } from "../controllers/admin.js";
-import fs from "fs";
 import { markdownToHtml } from "../lib/server.js";
 
-export const loadFrontendEndpoint = async (app: Application, _version:string): Promise<void> => {
+import fs from "fs";
+import config from "config";
 
-	// Legacy routes
+export const loadFrontendEndpoint = async (app: Application, version:string): Promise<void> => {
+
+	// Legacy frontend routes
 	app.get("/", (_req, res) => {
-		res.redirect("/api/v2");
+		res.redirect("/api/");
 	});
 	app.get("/api", (_req, res) => {
-		res.redirect("/api/v2");
+		res.redirect("/api/v1");
 	});
 	app.get("/api/v1", (_req, res) => {
 		res.redirect("/api/v2");
 	});
 
 	// Current v2 routes
-	app.get("/api/v2", (req, res) => {
+	app.get("/api/" + version, (req, res) => {
 		req.body.version = app.get("version");
+		req.body.APIversion = version;
+		req.body.activeEndpoints = app.get("activeEndpoints");
+		console.log(req.body.activeEndpoints);
 		res.render("index.ejs", {request: req});
 	});
 
@@ -34,12 +39,11 @@ export const loadFrontendEndpoint = async (app: Application, _version:string): P
 	// Tos
 	app.get("/tos", (req, res) => {
 		req.body.version = app.get("version");
-		const tosFile = markdownToHtml(fs.readFileSync("./resources/tos.md").toString());
+		const tosFile = markdownToHtml(fs.readFileSync(config.get("server.tosFilePath")).toString());
 		res.render("tos.ejs", { request: req, tos: tosFile });
 	});
 
 	// Dashboard
-
 	app.get("/dashboard", (req, res) => {
 		if (req.session.pubkey == null){
 			res.redirect('/login');
@@ -48,7 +52,6 @@ export const loadFrontendEndpoint = async (app: Application, _version:string): P
 			res.render("dashboard.ejs", {request: req});
 		}
 	});
-
 
 	// Logout
 	app.get("/logout", (req, res) => {

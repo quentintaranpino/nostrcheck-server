@@ -5,6 +5,41 @@
     <main>
     <p>Nostrcheck server <%= request.body.version %> is running at localhost in development mode. By using this server you agree the <a href='/tos'>Terms of Service</a></p>
     <h2>Active endpoints</h2>
+    <div class="container mt-2">
+      <div class="row">
+        <% let i = 0; %>
+        <% for(const key in request.body.activeEndpoints) { %>
+          <% i++; %>
+          <div class="col-lg-3 col-md-4 col-sm-6">
+            <div class="card mb-3" style="width: 15rem; height: 18rem;">
+              <div class="card-body">
+                <h4 class="card-title"><%= key %></h5>
+                <h6 class="card-subtitle mb-2 text-muted"><a href="<%= request.body.APIversion + request.body.activeEndpoints[key]['path'] %>"><%= request.body.activeEndpoints[key]['path'] %></a></h6>
+                <% for(const method in request.body.activeEndpoints[key]["methods"]) { %>
+                  <% var badgeClass; %>
+                  <% if (request.body.activeEndpoints[key]["methods"][method]  === 'GET') { %>
+                      <% badgeClass = 'badge-success'; %>
+                  <% } %>
+                  <% if (request.body.activeEndpoints[key]["methods"][method]  === 'POST') { %>
+                      <% badgeClass = 'badge-warning'; %>
+                  <% } %>
+                  <% if (request.body.activeEndpoints[key]["methods"][method]  === 'PUT') { %>
+                      <% badgeClass = 'badge-primary'; %>
+                  <% } %>
+                  <% if (request.body.activeEndpoints[key]["methods"][method]  === 'DELETE') { %>
+                      <% badgeClass = 'badge-danger'; %>
+                  <% } %>
+                  <span class="badge <%= badgeClass %>"><%= request.body.activeEndpoints[key]["methods"][method]  %></span>
+                  <% } %>
+                <p class="card-text"><%= request.body.activeEndpoints[key]["description"] %></p>
+                <a href="#" class="card-link">Documentation</a>
+              </div>
+            </div>
+          </div>
+        <% } %>
+      </div>
+    </div>
+
     <ul>
         <h3>v1</h3>
         <li><a href='/api/v1/nostraddress'>/api/v1/nostraddress</a></li>
