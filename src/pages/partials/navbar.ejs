@@ -14,15 +14,19 @@
       <li <% if(active === 'home'){ %><%- "class='nav-item active'"%><% } else { %><%- "class='nav-item'"%><%}%>>
         <a class="nav-link" href="/">Home <span class="sr-only">(current)</span></a>
       </li>
+      <li <% if(active === 'dashboard'){ %><%- "class='nav-item active'"%><% } else { %><%- "class='nav-item'"%><%}%> <% if (!request.session.pubkey) { %>style="display: none;"<% } %>>
+        <a class="nav-link" href="/dashboard">Dashboard</a>
+      </li>
       <li <% if(active === 'tos'){ %><%- "class='nav-item active'"%><% } else { %><%- "class='nav-item'"%><%}%>>
         <a class="nav-link" href="/tos">Terms of Service</a>
       </li>
       <li <% if(active === 'login'){ %><%- "class='nav-item active'"%><% } else { %><%- "class='nav-item'"%><%}%> <% if (request.session.pubkey) { %>style="display: none;"<% } %>>
         <a class="nav-link" href="/login">Log In</a>
-    </li>
-    <li <% if(active === 'logout'){ %><%- "class='nav-item active'"%><% } else { %><%- "class='nav-item'"%><%}%> <% if (!request.session.pubkey) { %>style="display: none;"<% } %>>
-      <a class="nav-link" href="/logout">Logout</a>
-  </li>
+      </li>
+      <li <% if(active === 'logout'){ %><%- "class='nav-item active'"%><% } else { %><%- "class='nav-item'"%><%}%> <% if (!request.session.pubkey) { %>style="display: none;"<% } %>>
+        <a class="nav-link" href="/logout">Logout</a>
+      </li>
+
     </ul>
   </div>
 </nav>
