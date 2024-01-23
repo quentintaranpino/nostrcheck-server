@@ -8,6 +8,16 @@
     "adminPanel": {
       "pubkey":"",
       "legacyPassword": ""
+    },
+    "activeEndpoints": {
+      "nostraddress" : true,
+      "media" : true,
+      "lightning" : true,
+      "verify" : true,
+      "register" : true,
+      "domains" : true,
+      "admin" : true,
+      "frontend" : true
     }
   },
   "database": {

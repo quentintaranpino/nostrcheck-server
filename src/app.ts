@@ -35,10 +35,10 @@ app.use(cors());
 //Initialise session cookies
 await initSession(app);
 
-//Load Routes V1
-LoadAPI(app, "v1");
-
-//Load Routes V2
-LoadAPI(app, "v2");
+const loadAPIs = async () => {
+	await LoadAPI(app, "v1");
+	await LoadAPI(app, "v2");
+}
+loadAPIs();
 
 export default app;
