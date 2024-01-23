@@ -7,13 +7,13 @@ export const loadLightningaddressEndpoint = async (app: Application, version:str
 	if(version == "v1" || version == "v2"){
 
 		//Get lightning redirect
-		app.get("/api/" + version + "/lightningaddress", Redirectlightningddress);
+		app.get("/api/" + version + app.get("activeEndpoints")["lightning"]["path"], Redirectlightningddress);
 
 		//Update lightning address
-		app.put("/api/" + version + "/lightningaddress/:lightningaddress", UpdateLightningAddress);
+		app.put("/api/" + version + app.get("activeEndpoints")["lightning"]["path"] + "/:lightningaddress", UpdateLightningAddress);
 
 		//Delete lightning address
-		app.delete("/api/" + version + "/lightningaddress", DeleteLightningAddress);
+		app.delete("/api/" + version + app.get("activeEndpoints")["lightning"]["path"], DeleteLightningAddress);
 
 	}
 

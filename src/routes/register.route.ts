@@ -5,7 +5,7 @@ import { Registernewpubkey } from "../controllers/register.js";
 export const loadRegisterEndpoint = async (app: Application, version:string): Promise<void> => {
 
 	if (version == "v1" || version == "v2"){
-		app.post("/api/" + version + "/register", Registernewpubkey);
+		app.post("/api/" + version + app.get("activeEndpoints")["register"]["path"], Registernewpubkey);
 	}
 	
 };

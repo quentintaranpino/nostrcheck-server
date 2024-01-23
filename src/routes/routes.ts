@@ -16,11 +16,10 @@ const LoadAPI = async (app: Application, version:string): Promise<boolean> => {
 
 	logger.debug("Loading API endpoints", "version: " + version);
 
-	for (const key in app.get("activeEndpoints")) {
+	for (const endpoint in app.get("activeEndpoints")) {
 
-		logger.debug("Loading endpoint: " + key + " version: " + version)
-
-		switch (key) {
+		logger.debug("Loading endpoint: " + endpoint + " version: " + version)
+		switch (endpoint) {
 			case "nostraddress":
 				await loadNostraddressEndpoint(app, version);
 				break;
@@ -46,7 +45,7 @@ const LoadAPI = async (app: Application, version:string): Promise<boolean> => {
 				await loadFrontendEndpoint(app, version);
 				break;
 			default:
-				logger.warn("Unknown endpoint: " + key);
+				logger.warn("Unknown endpoint: " + endpoint);
 				break;
 		}
 	}

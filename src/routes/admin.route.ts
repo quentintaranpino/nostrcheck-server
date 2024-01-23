@@ -4,9 +4,13 @@ import { Application } from "express";
 import { ServerStatus, StopServer } from "../controllers/admin.js";
 
 
-export const loadAdminEndpoint = async (app: Application, _version:string): Promise<void> => {
+export const loadAdminEndpoint = async (app: Application, version:string): Promise<void> => {
 
-        app.post("/api/v2/admin/stop", StopServer)
-        app.get("/api/v2/status", ServerStatus);
+        if (version == "v2"){
+
+        app.post("/api/" + version + app.get("activeEndpoints")["admin"]["path"] + "/stop", StopServer)
+        app.get("/api/" + version + app.get("activeEndpoints")["admin"]["path"] + "/status", ServerStatus);
+
+        }
 
 };
