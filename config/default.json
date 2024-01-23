@@ -5,19 +5,60 @@
     "port": 3000,
     "pubkey": "89836015acd0c3e0227718fbe64b6251a8425cda33f27c3e4bbf794effbc7450",
     "logoFilePath" : "resources/logo-server.webp",
+    "tosFilePath" : "resources/tos.md",
     "adminPanel": {
       "pubkey":"",
       "legacyPassword": ""
     },
-    "activeEndpoints": {
-      "nostraddress" : true,
-      "media" : true,
-      "lightning" : true,
-      "verify" : true,
-      "register" : true,
-      "domains" : true,
-      "admin" : true,
-      "frontend" : true
+    "availableEendpoints": {
+      "nostraddress" :{
+        "enabled": true,
+        "path": "/nostraddress",
+        "methods": ["GET"],
+        "description": "Returns a public key's nostraddress"
+      },
+      "media":{
+        "enabled": true,
+        "path": "/media",
+        "methods": ["GET","POST","PUT","DELETE"],
+        "description": "Returns the media file"
+      },
+      "lightning" :{
+        "enabled": true,
+        "path": "/lightning",
+        "methods": ["GET","PUT", "DELETE"],
+        "description": "Returns the lightning invoice"
+      },
+      "verify" :{
+        "enabled": true,
+        "path": "/verify",
+        "methods": ["POST"],
+        "description": "Returns the verification status of the server"
+      },
+      "register" : {
+        "enabled": true,
+        "path": "/register",
+        "methods": ["POST"],
+        "description": "Registers a new user"
+      },
+      "domains" : {
+        "enabled": true,
+        "path": "/domains",
+        "methods": ["GET"],
+        "description": "Returns the domains of the server"
+      },
+      "admin" : {
+        "enabled": true,
+        "path": "/admin",
+        "methods": ["GET","POST"],
+        "description": "Returns the admin panel"
+      },
+      "frontend" : {
+        "enabled": true,
+        "path": "/",
+        "methods": ["GET","POST"],
+        "description": "Returns the frontend"
+      }
     }
   },
   "database": {

@@ -23,10 +23,10 @@ app.set(
 	"pubkey",
 	process.env.PUBKEY ?? config.get('server.pubkey')
 );
+app.set("activeEndpoints", await loadconfigEndpoints());
 app.set('trust proxy',true); 
 app.set("view engine", "ejs")
 app.set('views','./src/pages/');
-app.set("activeEndpoints", await loadconfigEndpoints());
 app.use(express.json({ limit: '25MB' }));
 app.use(express.urlencoded({ limit: '25MB', extended: true }));
 app.use(express.static('./src/pages/'));

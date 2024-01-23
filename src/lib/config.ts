@@ -1,9 +1,10 @@
-import config, { has } from "config";
+import config from "config";
 import fs from "fs";
 import { exit } from "process";
 
 const defaultPath : string = "./config/default.json";
 const localPath : string = "./config/local.json";
+import { IEndpoints } from "../interfaces/config.js";
 
 function prepareAppFolders(){
 
@@ -131,18 +132,21 @@ const updateLocalConfigKey = async (key: string, value: any) : Promise<boolean> 
 
 }
 
-// Load enabled API endpoints
-const loadconfigEndpoints = async () : Promise<{ [key: string]: boolean }> => {
+// Load enabled API endpoints for runtime
+const loadconfigEndpoints = async () : Promise<IEndpoints> => {
 
-	const configEndpoints: { [key: string]: boolean } = config.get("server.activeEndpoints");
-	let endpoints: { [key: string]: boolean } = {};
+	const configEndpoints: IEndpoints = config.get("server.availableEendpoints");
+	let runtimeEndpoints: IEndpoints = {};
 
-	for (const key in configEndpoints) {
-		if(configEndpoints[key] == true){
-			endpoints[key] = true;
+	for (const endpoint in configEndpoints) {
+		for (const [key, value] of Object.entries(configEndpoints[endpoint])) {
+
+			if (key === "enabled" && value === true) {
+				runtimeEndpoints[endpoint] = configEndpoints[endpoint];
+			}
 		}
 	}
-	return endpoints;
+	return runtimeEndpoints;
 }
 
 export { prepareAppFolders, prepareAPPConfig, updateLocalConfigKey, loadconfigEndpoints };
