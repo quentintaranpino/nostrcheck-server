@@ -8,7 +8,7 @@ import { ResultMessagev2, ServerStatusMessage } from "../interfaces/server.js";
 import { verifyNIP07login } from "../lib/nostr/NIP07.js";
 
 const ServerStatus = async (req: Request, res: Response): Promise<Response> => {
-	logger.info("GET /api/v1/status", "|", getClientIp(req));
+	logger.info("GET /api/v2/status", "|", getClientIp(req));
 
 	const result: ServerStatusMessage = {
         status: "success",

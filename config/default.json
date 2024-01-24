@@ -26,7 +26,7 @@
       },
       "lightning" :{
         "enabled": true,
-        "path": "/lightning",
+        "path": "/lightningaddress",
         "methods": ["GET","PUT", "DELETE"],
         "description": "Lightning redirections for nostr addresses."
       },
