@@ -4,7 +4,7 @@ import { exit } from "process";
 
 const defaultPath : string = "./config/default.json";
 const localPath : string = "./config/local.json";
-import { IEndpoints } from "../interfaces/config.js";
+import { IModule, IModules } from "../interfaces/config.js";
 
 function prepareAppFolders(){
 
@@ -132,21 +132,21 @@ const updateLocalConfigKey = async (key: string, value: any) : Promise<boolean> 
 
 }
 
-// Load enabled API endpoints for runtime
-const loadconfigEndpoints = async () : Promise<IEndpoints> => {
+// Load enabled API modules for runtime
+const loadconfigModules = async () : Promise<IModules> => {
 
-	const configEndpoints: IEndpoints = config.get("server.availableEendpoints");
-	let runtimeEndpoints: IEndpoints = {};
+	const configModules: IModules = config.get("server.availableModules");
+	let runtimeModules: IModules = {};
 
-	for (const endpoint in configEndpoints) {
-		for (const [key, value] of Object.entries(configEndpoints[endpoint])) {
+	for (const module in configModules) {
+		for (const [key, value] of Object.entries(configModules[module])) {
 
 			if (key === "enabled" && value === true) {
-				runtimeEndpoints[endpoint] = configEndpoints[endpoint];
+				runtimeModules[module] = configModules[module];
 			}
 		}
 	}
-	return runtimeEndpoints;
+	return runtimeModules;
 }
 
 async function prepareAPP() {
@@ -154,4 +154,4 @@ async function prepareAPP() {
 	await prepareAppFolders();
 }
 
-export { updateLocalConfigKey, loadconfigEndpoints, prepareAPP };
+export { updateLocalConfigKey, loadconfigModules, prepareAPP };

@@ -3,7 +3,7 @@ import express from "express";
 import helmet from "helmet";
 import config from "config";
 import initSession from "./lib/session.js";
-import { prepareAPP, loadconfigEndpoints  } from "./lib/config.js";
+import { prepareAPP, loadconfigModules  } from "./lib/config.js";
 
 import { loadAPIs } from "./routes/routes.js";
 import { initDatabase } from "./lib/database.js";
@@ -24,7 +24,7 @@ app.set(
 	"pubkey",
 	process.env.PUBKEY ?? config.get('server.pubkey')
 );
-app.set("activeEndpoints", await loadconfigEndpoints());
+app.set("activeModules", await loadconfigModules());
 app.set('trust proxy',true); 
 app.set("view engine", "ejs")
 app.set('views','./src/pages/');
@@ -38,7 +38,7 @@ app.use(cors());
 // Initialise session cookies
 await initSession(app);
 
-// Initialise API endpoints
+// Initialise API modules
 await loadAPIs(app);
 
 //Start seeding magnets

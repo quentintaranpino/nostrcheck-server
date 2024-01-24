@@ -8,7 +8,6 @@ import { LightningUsernameResult } from "../interfaces/lightning.js";
 import { ParseAuthEvent } from "../lib/nostr/NIP98.js";
 import { getClientIp } from "../lib/server.js";
 
-//Nostr address usernames endpoint
 const Redirectlightningddress = async (req: Request, res: Response): Promise<any> => {
 
 	const name = req.query.name as string;

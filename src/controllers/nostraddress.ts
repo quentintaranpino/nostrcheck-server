@@ -8,7 +8,6 @@ import { ResultMessage } from "../interfaces/server.js";
 import config from "config";
 import { getClientIp } from "../lib/server.js";
 
-//Nostr address usernames endpoint
 const checkNostrAddress = async (req: Request, res: Response): Promise<Response> => {
 
 	const name = req.query.name as string;

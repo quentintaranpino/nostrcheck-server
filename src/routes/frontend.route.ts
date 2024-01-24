@@ -22,8 +22,7 @@ export const loadFrontendEndpoint = async (app: Application, version:string): Pr
 	app.get("/api/" + version, (req, res) => {
 		req.body.version = app.get("version");
 		req.body.APIversion = version;
-		req.body.activeEndpoints = app.get("activeEndpoints");
-		console.log(req.body.activeEndpoints);
+		req.body.activeModules = app.get("activeModules");
 		res.render("index.ejs", {request: req});
 	});
 

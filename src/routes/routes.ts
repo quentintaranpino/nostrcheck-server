@@ -11,15 +11,15 @@ import { loadDomainsEndpoint } from "./domains.route.js";
 import { loadAdminEndpoint } from "./admin.route.js";
 import { loadFrontendEndpoint } from "./frontend.route.js";
 
-//Load API endpoints
+//Load API modules
 const LoadAPI = async (app: Application, version:string): Promise<boolean> => {
 
-	logger.debug("Loading API endpoints", "version: " + version);
+	logger.debug("Loading API modules", "version: " + version);
 
-	for (const endpoint in app.get("activeEndpoints")) {
+	for (const module in app.get("activeModules")) {
 
-		logger.debug("Loading endpoint: " + endpoint + " version: " + version)
-		switch (endpoint) {
+		logger.debug("Loading module: " + module + " version: " + version)
+		switch (module) {
 			case "nostraddress":
 				await loadNostraddressEndpoint(app, version);
 				break;
@@ -45,7 +45,7 @@ const LoadAPI = async (app: Application, version:string): Promise<boolean> => {
 				await loadFrontendEndpoint(app, version);
 				break;
 			default:
-				logger.warn("Unknown endpoint: " + endpoint);
+				logger.warn("Unknown module: " + module);
 				break;
 		}
 	}

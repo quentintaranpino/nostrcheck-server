@@ -19,7 +19,7 @@ export const loadMediaEndpoint = async (app: Application, version:string): Promi
 	if (version == "v1" || version == "v2"){
 		
 		//Upload media
-		app.post("/api/" + version + app.get("activeEndpoints")["media"]["path"], function (req, res){
+		app.post("/api/" + version + app.get("activeModules")["media"]["path"], function (req, res){
 			upload.any()(req, res, function (err) {
 				//Return 413 Payload Too Large if file size is larger than maxMBfilesize from config file
 				if (err instanceof multer.MulterError && err.code === "LIMIT_FILE_SIZE") {
@@ -35,23 +35,23 @@ export const loadMediaEndpoint = async (app: Application, version:string): Promi
 		});
 
 		//Delete media
-		app.delete("/api/" + version + app.get("activeEndpoints")["nostraddress"]["path"] + "/:fileId", DeleteMedia);
+		app.delete("/api/" + version + app.get("activeModules")["nostraddress"]["path"] + "/:fileId", DeleteMedia);
 
 		//Get media status by id 
-		app.get("/api/" + version + app.get("activeEndpoints")["nostraddress"]["path"], function (req, res){GetMediaStatusbyID(req,res,version)});
-		app.get("/api/" + version + app.get("activeEndpoints")["nostraddress"]["path"] + "/:id", function (req, res){GetMediaStatusbyID(req,res,version)});
+		app.get("/api/" + version + app.get("activeModules")["nostraddress"]["path"], function (req, res){GetMediaStatusbyID(req,res,version)});
+		app.get("/api/" + version + app.get("activeModules")["nostraddress"]["path"] + "/:id", function (req, res){GetMediaStatusbyID(req,res,version)});
 
 		//Get media tags by id
-		app.get("/api/" + version + app.get("activeEndpoints")["nostraddress"]["path"] + "/:fileId/tags/", GetMediaTagsbyID);
+		app.get("/api/" + version + app.get("activeModules")["nostraddress"]["path"] + "/:fileId/tags/", GetMediaTagsbyID);
 
 		//Get media by tags
-		app.get("/api/" + version + app.get("activeEndpoints")["nostraddress"]["path"] + "/tag/:tag", GetMediabyTags);
+		app.get("/api/" + version + app.get("activeModules")["nostraddress"]["path"] + "/tag/:tag", GetMediabyTags);
 
 		//Get media by url
-		app.get("/api/" + version + app.get("activeEndpoints")["nostraddress"]["path"] + "/:username/:filename", GetMediabyURL);
+		app.get("/api/" + version + app.get("activeModules")["nostraddress"]["path"] + "/:username/:filename", GetMediabyURL);
 
 		//Update media visibility
-		app.put("/api/" + version + app.get("activeEndpoints")["nostraddress"]["path"] + "/:fileId/visibility/:visibility", UpdateMediaVisibility);
+		app.put("/api/" + version + app.get("activeModules")["nostraddress"]["path"] + "/:fileId/visibility/:visibility", UpdateMediaVisibility);
 
 	}
 

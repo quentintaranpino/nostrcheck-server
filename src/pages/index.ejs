@@ -3,32 +3,32 @@
   <body>
     <%- include('./partials/navbar', {active:'home'}); %>
     <main>
-    <h1 class="col-12 text-center">Active endpoints</h1>
+    <h1 class="col-12 text-center">Active modules</h1>
     <div class="container mt-5">
       <div class="row">
-        <% for(const key in request.body.activeEndpoints) { %>
+        <% for(const key in request.body.activeModules) { %>
           <div class="col-xl-3 col-lg-4 col-md-6 col-sm-12">
-            <div class="card mb-3 container-fluid" style="width: 16rem; height: 13rem;">
-              <div class="card-body">
+            <div class="card mb-3 container-fluid" style="width: 16rem; min-height: 15rem;">
+              <div class="card-body pl-1 pr-1">
                 <h4 class="card-title"><%= key %></h5>
-                <h6 class="card-subtitle mb-2 text-muted"><a href="<%= request.body.APIversion + request.body.activeEndpoints[key]['path'] %>"><%= request.body.activeEndpoints[key]['path'] %></a></h6>
-                <% for(const method in request.body.activeEndpoints[key]["methods"]) { %>
+                <h6 class="card-subtitle mb-2 text-muted"><a href="<%= request.body.APIversion + request.body.activeModules[key]['path'] %>"><%= request.body.activeModules[key]['path'] %></a></h6>
+                <% for(const method in request.body.activeModules[key]["methods"]) { %>
                   <% var badgeClass; %>
-                  <% if (request.body.activeEndpoints[key]["methods"][method]  === 'GET') { %>
+                  <% if (request.body.activeModules[key]["methods"][method]  === 'GET') { %>
                       <% badgeClass = 'badge-success'; %>
                   <% } %>
-                  <% if (request.body.activeEndpoints[key]["methods"][method]  === 'POST') { %>
+                  <% if (request.body.activeModules[key]["methods"][method]  === 'POST') { %>
                       <% badgeClass = 'badge-warning'; %>
                   <% } %>
-                  <% if (request.body.activeEndpoints[key]["methods"][method]  === 'PUT') { %>
+                  <% if (request.body.activeModules[key]["methods"][method]  === 'PUT') { %>
                       <% badgeClass = 'badge-primary'; %>
                   <% } %>
-                  <% if (request.body.activeEndpoints[key]["methods"][method]  === 'DELETE') { %>
+                  <% if (request.body.activeModules[key]["methods"][method]  === 'DELETE') { %>
                       <% badgeClass = 'badge-danger'; %>
                   <% } %>
-                  <span class="badge <%= badgeClass %>"><%= request.body.activeEndpoints[key]["methods"][method]  %></span>
+                  <span class="badge <%= badgeClass %>"><%= request.body.activeModules[key]["methods"][method]  %></span>
                   <% } %>
-                <p class="card-text mt-2"><%= request.body.activeEndpoints[key]["description"] %></p>
+                <p class="card-text mt-2"><%= request.body.activeModules[key]["description"] %></p>
                 <a href="https://github.com/quentintaranpino/nostrcheck-api-ts/blob/main/docs.md" class="card-link">Docs</a>
               </div>
             </div>

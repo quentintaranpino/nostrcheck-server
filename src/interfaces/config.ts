@@ -1,13 +1,13 @@
 
-interface IEndpoints {
-	[key: string]: IEndpoint;
+interface IModules {
+	[key: string]: IModule;
 }
 
-interface IEndpoint {
+interface IModule {
 	enabled: boolean;
 	path: string;
 	method: string;
 	comments: string;
 }
 
-export { IEndpoints, IEndpoint}
+export { IModules, IModule}
