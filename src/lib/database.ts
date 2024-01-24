@@ -461,6 +461,7 @@ async function showDBStats(){
 	dbresult = "";
 
 	//Show table mediafiles magnet rows
+	if (config.get('server.enableTorrentSeeding')) {
 	const [dbmediamagnetfilesTable] = await conn.execute(
 		"SELECT DISTINCT filename, username FROM mediafiles inner join registered on mediafiles.pubkey = registered.hex where magnet is not null");
 	if (!dbmediamagnetfilesTable) {
@@ -469,6 +470,7 @@ async function showDBStats(){
 	dbresult = JSON.parse(JSON.stringify(dbmediamagnetfilesTable));
 	result.push(`Magnet links: ${dbresult.length}`);
 	dbresult = "";
+	};
 
 	//Show table mediatags rows
 	const [dbmediatagsTable] = await conn.execute(
@@ -495,6 +497,17 @@ async function showDBStats(){
 		result.join('\r\n'),'\n');
 }
 
+const initDatabase = async (): Promise<void> => {
+
+	//Check database integrity
+	const dbtables = await populateTables(config.get('database.droptables')); // true = reset tables
+	if (!dbtables) {
+	logger.fatal("Error checking database integrity");
+	process.exit(1);
+	}
+
+}
+
 export { 
 	    connect, 
 		populateTables,
@@ -507,4 +520,5 @@ export {
 		showDBStats,
 		dbFileDimensionsUpdate,
 		dbFilesizeUpdate,
-		dbFilePercentageUpdate};
+		dbFilePercentageUpdate,
+		initDatabase};

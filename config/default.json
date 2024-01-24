@@ -4,7 +4,63 @@
     "host": "localhost",
     "port": 3000,
     "pubkey": "89836015acd0c3e0227718fbe64b6251a8425cda33f27c3e4bbf794effbc7450",
-    "logoFilePath" : "resources/logo-server.webp"
+    "logoFilePath" : "resources/logo-server.webp",
+    "tosFilePath" : "resources/tos.md",
+    "adminPanel": {
+      "pubkey":"",
+      "legacyPassword": ""
+    },
+    "enableTorrentSeeding": false,
+    "availableModules": {
+      "nostraddress" :{
+        "enabled": true,
+        "path": "/nostraddress",
+        "methods": ["GET"],
+        "description": "Returns the pubkey of a nostr address name"
+      },
+      "media":{
+        "enabled": true,
+        "path": "/media",
+        "methods": ["GET","POST","PUT","DELETE"],
+        "description": "This module handles media uploads and downloads."
+      },
+      "lightning" :{
+        "enabled": true,
+        "path": "/lightning",
+        "methods": ["GET","PUT", "DELETE"],
+        "description": "Lightning redirections for nostr addresses."
+      },
+      "verify" :{
+        "enabled": true,
+        "path": "/verify",
+        "methods": ["POST"],
+        "description": "This module can verify a nostr note integrity."
+      },
+      "register" : {
+        "enabled": true,
+        "path": "/register",
+        "methods": ["POST"],
+        "description": "Register new usernames from trusted pubkeys."
+      },
+      "domains" : {
+        "enabled": true,
+        "path": "/domains",
+        "methods": ["GET"],
+        "description": "Get the list of registered domains."
+      },
+      "admin" : {
+        "enabled": true,
+        "path": "/admin",
+        "methods": ["GET","POST"],
+        "description": "Admin API, reboot, status, etc."
+      },
+      "frontend" : {
+        "enabled": true,
+        "path": "/",
+        "methods": ["GET","POST"],
+        "description": "Frontend, login, register, etc."
+      }
+    }
   },
   "database": {
     "host": "127.0.0.1",
@@ -55,5 +111,9 @@
     "size": "50M", 
     "interval": "60d",
     "compression": "gzip"
+  },
+  "session" : {
+    "secret": "nostrcheck",
+    "maxAge": 2592000000
   }
 }

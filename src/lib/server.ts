@@ -5,7 +5,10 @@ import config from "config";
 import { ResultMessagev2 } from "../interfaces/server.js";
 import { logger } from "./logger.js";
 import fs from "fs";
-import path from "path";
+import path from 'path';
+import url from 'url';
+import markdownit from 'markdown-it';
+import { Application } from "express";
 
 const getClientIp = (req: any) =>{
 
@@ -91,4 +94,68 @@ const getTOSUrl = (hostname: string) : string => {
     };
 }
 
-export { getClientIp, IsAuthorized, format, getServerLogo, getTOSUrl};
+const currDir = (fileUrl:string) : string =>{
+    const __filename = url.fileURLToPath(fileUrl);
+    return path.dirname(__filename);
+}
+
+const markdownToHtml = (text:string) : string => {
+
+    const md = markdownit();
+    try{
+        return md.render(text).toString();
+    }catch(err){
+        logger.error("Error parsing markdown to html: ", err);
+        return "";
+    }
+}
+
+const loadConsoleBanner = (app: Application) : void => {
+
+    console.log("");
+	console.log("");
+
+	console.log(
+	"███╗   ██╗ ██████╗ ███████╗████████╗██████╗  ██████╗██╗  ██╗███████╗ ██████╗██╗  ██╗"
+	);
+	console.log(
+		"████╗  ██║██╔═══██╗██╔════╝╚══██╔══╝██╔══██╗██╔════╝██║  ██║██╔════╝██╔════╝██║ ██╔╝" 
+	);
+	console.log(
+		"██╔██╗ ██║██║   ██║███████╗   ██║   ██████╔╝██║     ███████║█████╗  ██║     █████╔╝" 
+	);
+	console.log(
+		"██║╚██╗██║██║   ██║╚════██║   ██║   ██╔══██╗██║     ██╔══██║██╔══╝  ██║     ██╔═██╗"  
+	);
+	console.log(
+		"██║ ╚████║╚██████╔╝███████║   ██║   ██║  ██║╚██████╗██║  ██║███████╗╚██████╗██║  ██╗"
+	);
+	console.log(
+		"╚═╝  ╚═══╝ ╚═════╝ ╚══════╝   ╚═╝   ╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝╚══════╝ ╚═════╝╚═╝  ╚═╝"
+	);
+	console.log("");
+	console.log(
+		"███████╗███████╗██████╗ ██╗   ██╗███████╗██████╗ "
+	);
+	console.log(
+		"██╔════╝██╔════╝██╔══██╗██║   ██║██╔════╝██╔══██╗"
+	);
+	console.log(
+		"███████╗█████╗  ██████╔╝██║   ██║█████╗  ██████╔╝"
+	);
+	console.log(
+		"╚════██║██╔══╝  ██╔══██╗╚██╗ ██╔╝██╔══╝  ██╔══██╗"
+	);
+	console.log(
+		"███████║███████╗██║  ██║ ╚████╔╝ ███████╗██║  ██║"
+	);
+	console.log(
+		"╚══════╝╚══════╝╚═╝  ╚═╝  ╚═══╝  ╚══════╝╚═╝  ╚═╝"
+	);
+
+	console.log("Nostrcheck server started, version %s", app.get("version"));
+	console.log("Running at http://" + app.get('host') + ":%s - ", app.get("port"), app.get("env"), "mode");
+	console.log("Press CTRL-C to exit\n");
+}
+
+export { getClientIp, IsAuthorized, format, getServerLogo, getTOSUrl, currDir, markdownToHtml, loadConsoleBanner};

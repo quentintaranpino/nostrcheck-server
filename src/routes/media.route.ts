@@ -5,6 +5,7 @@ import { GetMediaStatusbyID, GetMediabyURL, Uploadmedia, DeleteMedia, UpdateMedi
 import { ResultMessage } from "../interfaces/server.js";
 import { logger } from "../lib/logger.js";
 import { getClientIp } from "../lib/server.js";
+import { NIP96Data } from "../controllers/NIP96.js";
 
 const maxMBfilesize :number = config.get('media.maxMBfilesize');
 
@@ -13,12 +14,12 @@ const upload = multer({
 	limits: { fileSize: maxMBfilesize * 1024 * 1024 },
 });
 
-export const LoadMediaEndpoint = async (app: Application, version:string): Promise<void> => {
+export const loadMediaEndpoint = async (app: Application, version:string): Promise<void> => {
 	
 	if (version == "v1" || version == "v2"){
 		
 		//Upload media
-		app.post("/api/" + version + "/media", function (req, res){
+		app.post("/api/" + version + app.get("activeModules")["media"]["path"], function (req, res){
 			upload.any()(req, res, function (err) {
 				//Return 413 Payload Too Large if file size is larger than maxMBfilesize from config file
 				if (err instanceof multer.MulterError && err.code === "LIMIT_FILE_SIZE") {
@@ -37,21 +38,26 @@ export const LoadMediaEndpoint = async (app: Application, version:string): Promi
 		app.delete("/api/" + version + "/media/:fileId", function (req, res){DeleteMedia(req,res,version)});
 
 		//Get media status by id 
-		app.get("/api/" + version + "/media", function (req, res){GetMediaStatusbyID(req,res,version)});
-		app.get("/api/" + version + "/media/:id", function (req, res){GetMediaStatusbyID(req,res,version)});
+		app.get("/api/" + version + app.get("activeModules")["nostraddress"]["path"], function (req, res){GetMediaStatusbyID(req,res,version)});
+		app.get("/api/" + version + app.get("activeModules")["nostraddress"]["path"] + "/:id", function (req, res){GetMediaStatusbyID(req,res,version)});
 
 		//Get media tags by id
-		app.get("/api/" + version + "/media/:fileId/tags/", GetMediaTagsbyID);
+		app.get("/api/" + version + app.get("activeModules")["nostraddress"]["path"] + "/:fileId/tags/", GetMediaTagsbyID);
 
 		//Get media by tags
-		app.get("/api/" + version + "/media/tag/:tag", GetMediabyTags);
+		app.get("/api/" + version + app.get("activeModules")["nostraddress"]["path"] + "/tag/:tag", GetMediabyTags);
 
 		//Get media by url
-		app.get("/api/" + version + "/media/:username/:filename", GetMediabyURL);
+		app.get("/api/" + version + app.get("activeModules")["nostraddress"]["path"] + "/:username/:filename", GetMediabyURL);
 
 		//Update media visibility
-		app.put("/api/" + version + "/media/:fileId/visibility/:visibility", UpdateMediaVisibility);
+		app.put("/api/" + version + app.get("activeModules")["nostraddress"]["path"] + "/:fileId/visibility/:visibility", UpdateMediaVisibility);
 
+	}
+
+	if (version == "v2"){
+        //NIP96 json file
+        app.get("/api/v2/nip96", NIP96Data);
 	}
 
 };

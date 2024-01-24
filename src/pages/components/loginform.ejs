@@ -1,0 +1,17 @@
+<form class="form-signin" onkeydown=" if (event.keyCode === 13) {logIn('legacy');}">
+    <h1 class="h3 mb-3 font-weight-normal">Login</h1>
+    <label for="password" class="sr-only">Password</label>
+    <input type="password" id="password"  name="password" class="form-control" placeholder="Password" >
+    <div class="checkbox mb-1">
+      <label>
+        <input type="checkbox" value="true" id="rememberme" name="rememberme"> Remember me
+      </label>
+    </div>
+    <div class="d-grid gap-2">
+      <button class="btn btn-lg btn-primary" name="Submit" type="button" onclick="logIn('legacy', $('#rememberme:checked').val())">Login</button>
+      <button class="btn btn-lg btn-primary" name="NIP07_submit" type="button" onclick="logIn('nostr', $('#rememberme:checked').val())"><i class="fa-solid fa-puzzle-piece me-2"></i>Nostr login</button>
+    </div>
+  
+  </form>
+
+  

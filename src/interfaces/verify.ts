@@ -4,4 +4,11 @@ interface VerifyResultMessage extends ResultMessage {
 	pubkey: string;
 }
 
-export { VerifyResultMessage };
+enum eventVerifyTypes {
+	valid = 0,
+	hashError = -1,
+	signatureError = -2,
+	malformed = -3,
+}
+
+export { VerifyResultMessage, eventVerifyTypes };

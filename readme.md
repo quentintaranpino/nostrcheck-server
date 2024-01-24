@@ -1,6 +1,7 @@
 # Nostrcheck server, backend server for nostr.
 
-![image](https://github.com/quentintaranpino/nostrcheck-api-ts/assets/125748180/e2bf94f4-b68f-4e8f-8781-27fccfbbb382)
+![image](https://github.com/quentintaranpino/nostrcheck-api-ts/assets/125748180/b4a7a4c3-938f-4f60-af81-3af4e5178ec4)
+
 
 
 Nostrcheck server is a set of tools to interact with nostr and be sovereign of your data. 

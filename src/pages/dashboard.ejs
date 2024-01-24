@@ -1,0 +1,44 @@
+<html lang="en">
+<%- include('./partials/head',{title:"Nostrcheck Server - Home"}); %>
+<body class="d-flex flex-column h-100">
+    <%- include('./partials/navbar', {active:'home'}); %>
+    <main class="pb-1">
+    <h1 class="col-12 text-center">Active modules</h1>
+    <div class="container mt-4">
+      <div class="row">
+        <% for(const key in request.body.activeModules) { %>
+          <div class="col-xl-3 col-lg-4 col-md-6 col-sm-12">
+            <div class="card mb-3 container-fluid" style="width: 16rem; min-height: 15rem;">
+              <div class="card-body pl-1 pr-1">
+                <h4 class="card-title"><%= key %></h5>
+                <h6 class="card-subtitle mb-2 text-muted"><a href="<%= request.body.APIversion + request.body.activeModules[key]['path'] %>"><%= request.body.activeModules[key]['path'] %></a></h6>
+                <% for(const method in request.body.activeModules[key]["methods"]) { %>
+                  <% var badgeClass; %>
+                  <% if (request.body.activeModules[key]["methods"][method]  === 'GET') { %>
+                      <% badgeClass = 'text-bg-success'; %>
+                  <% } %>
+                  <% if (request.body.activeModules[key]["methods"][method]  === 'POST') { %>
+                      <% badgeClass = 'text-bg-warning'; %>
+                  <% } %>
+                  <% if (request.body.activeModules[key]["methods"][method]  === 'PUT') { %>
+                      <% badgeClass = 'text-bg-primary'; %>
+                  <% } %>
+                  <% if (request.body.activeModules[key]["methods"][method]  === 'DELETE') { %>
+                      <% badgeClass = 'text-bg-danger'; %>
+                  <% } %>
+                  <span class="badge <%= badgeClass %>"><%= request.body.activeModules[key]["methods"][method]  %></span>
+                  <% } %>
+                <p class="card-text mt-2"><%= request.body.activeModules[key]["description"] %></p>
+                <a href="https://github.com/quentintaranpino/nostrcheck-api-ts/blob/main/docs.md" class="card-link">Docs</a>
+              </div>
+            </div>
+          </div>
+        <% } %>
+      </div>
+    </div>
+    <p class="text-center mt-3">Nostrcheck server <%= request.body.version %> is running at localhost in development mode. By using this server you agree the <a href='/tos'>Terms of Service</a></p>
+
+    </main>
+    <%- include('./partials/footer'); %>
+  </body>
+</html>

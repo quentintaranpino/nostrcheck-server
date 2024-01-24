@@ -1,0 +1,26 @@
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background-color: #f5f5f5;
+}
+
+main {
+  padding:10px;
+}
+
+.btn-primary {
+  background-color: #343a40;
+  border-color: #343a40;
+}
+
+.btn-primary:hover {
+  background-color: #212529;
+  border-color: #212529;
+}
+
+a {
+  text-decoration: none;
+}

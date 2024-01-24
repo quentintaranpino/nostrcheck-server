@@ -55,7 +55,6 @@ const QueryAvailiableUsers = async (domain:string): Promise<JSON[]> => {
 
 const AvailableDomains = async (req: Request, res: Response): Promise<Response> => {
 
-	//Available domains endpoint
 	logger.info("REQ -> Domain list ", "|", getClientIp(req));
 
 	//Check if event authorization header is valid
@@ -111,7 +110,6 @@ const AvailableDomains = async (req: Request, res: Response): Promise<Response> 
 
 const AvailableUsers = async (req: Request, res: Response): Promise<Response> => {
 
-	//Available users from a domain endpoint
 	logger.info("REQ -> User list from domain:", req.params.domain, "|", getClientIp(req));
 
 	//Check if event authorization header is valid

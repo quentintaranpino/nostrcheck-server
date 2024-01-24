@@ -4,11 +4,10 @@ import { Event, getEventHash, validateEvent, verifySignature } from "nostr-tools
 import { logger } from "../lib/logger.js";
 import { VerifyResultMessage } from "../interfaces/verify.js";
 import { getClientIp } from "../lib/server.js";
+import { verifyEvent } from "../lib/verify.js";
 
-const VerifyNote = async (req: Request, res: Response): Promise<Response> => {
+const verifyEventController = async (req: Request, res: Response): Promise<Response> => {
 	logger.info("POST /api/v1/verify", "|", getClientIp(req));
-
-	//TODO: (maybe) Check if request has authorization header and parse it
 
 	//Create event object
 	const event: Event = {
@@ -21,50 +20,39 @@ const VerifyNote = async (req: Request, res: Response): Promise<Response> => {
 		sig: req.body.sig,
 	};
 
-	// Check if event is valid
-	try {
-		const IsEventHashValid = getEventHash(event);
-		if (IsEventHashValid != event.id) {
-			const result: VerifyResultMessage = {
-				pubkey: event.pubkey,
-				result: false,
-				description: "Event hash is not valid",
-			};
+	let verifyResult = await verifyEvent(event);
 
-			return res.status(400).send(result);
-		}
+	let result: VerifyResultMessage = {
+		pubkey: "",
+		result: false,
+		description: "",
+	};
+	let status : number = 400;
 
-		const IsEventValid = validateEvent(event);
-		const IsEventSignatureValid = verifySignature(event);
-		if (!IsEventValid || !IsEventSignatureValid) {
-			const result: VerifyResultMessage = {
-				pubkey: event.pubkey,
-				result: false,
-				description: "Event signature is not valid",
-			};
-
-			return res.status(400).send(result);
-		}
-	} catch (error) {
-		logger.warn(`RES -> 400 Bad request - ${error}`, "|", getClientIp(req));
-		const result: VerifyResultMessage = {
-			pubkey: event.pubkey,
-			result: false,
-			description: "Malformed event",
-		};
-
-		return res.status(400).send(result);
+	if (verifyResult === 0) {
+			logger.info(`RES -> 200 OK - Valid event:`, event.id, "|", getClientIp(req))
+			result.pubkey = event.pubkey;
+			result.result = true;
+			result.description = "Valid Event";
+			status = 200;
+	}
+	if (verifyResult === -1) {
+			logger.warn(`RES -> 400 Bad request - Event hash is not valid`, "|", getClientIp(req));
+				result.pubkey = event.pubkey;
+				result.description= "Event hash is not valid";
+	}
+	if (verifyResult === -2) {
+			logger.warn(`RES -> 400 Bad request - Event signature is not valid`, "|", getClientIp(req));
+			result.pubkey = event.pubkey;
+			result.description=  "Event signature is not valid";
+	}
+	if (verifyResult === -3) {
+			logger.warn(`RES -> 400 Bad request - Malformed event`, "|", getClientIp(req));
+				result.description= "Malformed event";
 	}
 
-	logger.info(`RES -> 200 OK - Valid event:`, event.id, "|", getClientIp(req))
+	return res.status(status).send(result);
 
-	const result: VerifyResultMessage = {
-		pubkey: event.pubkey,
-		result: true,
-		description: "Valid Event",
-	};
-
-	return res.status(200).send(result);
 };
 
-export { VerifyNote };
+export { verifyEventController };

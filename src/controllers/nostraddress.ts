@@ -8,8 +8,7 @@ import { ResultMessage } from "../interfaces/server.js";
 import config from "config";
 import { getClientIp } from "../lib/server.js";
 
-//Nostr address usernames endpoint
-const Checknostraddress = async (req: Request, res: Response): Promise<Response> => {
+const checkNostrAddress = async (req: Request, res: Response): Promise<Response> => {
 
 	const name = req.query.name as string;
 	const servername = req.hostname;
@@ -113,4 +112,4 @@ const Checknostraddress = async (req: Request, res: Response): Promise<Response>
 };
 
 
-export { Checknostraddress };
+export { checkNostrAddress };
