@@ -33,7 +33,7 @@ app.use(express.json({ limit: '25MB' }));
 app.use(express.urlencoded({ limit: '25MB', extended: true }));
 app.use(express.static('./src/pages/'));
 app.use(helmet({ contentSecurityPolicy: false }));
-app.use(limiter)
+// app.use(limiter)
 app.use(cors());
 
 // Initialise session cookies
