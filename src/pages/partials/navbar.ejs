@@ -1,30 +1,30 @@
-<nav class="navbar navbar-expand-md navbar-dark bg-dark mb-2">
+<nav class="navbar navbar-expand-md navbar-dark bg-dark mb-2 ps-3 pe-3">
   <a class="navbar-brand" href="/">
       <img src="../resources/navbar-logo.webp"
       alt='Nostrcheck server logo' 
       width='150' 
       height='51'>
   </a>
-  <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarsExample05" aria-controls="navbarsExample05" aria-expanded="false" aria-label="Toggle navigation">
+  <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#server-navbar" aria-controls="server-navbar" aria-expanded="false" aria-label="Toggle navigation">
     <span class="navbar-toggler-icon"></span>
   </button>
 
-  <div class="collapse navbar-collapse" id="navbarsExample05">
-    <ul class="navbar-nav mr-auto">
+  <div class="collapse navbar-collapse" id="server-navbar">
+    <ul class="navbar-nav me-auto">
       <li <% if(active === 'home'){ %><%- "class='nav-item active'"%><% } else { %><%- "class='nav-item'"%><%}%>>
-        <a class="nav-link" href="/"><i class="fa-solid fa-house mr-2"></i>Home <span class="sr-only">(current)</span></a>
+        <a class="nav-link" href="/"><i class="fa-solid fa-house me-2"></i>Home <span class="sr-only">(current)</span></a>
       </li>
       <li <% if(active === 'dashboard'){ %><%- "class='nav-item active'"%><% } else { %><%- "class='nav-item'"%><%}%> <% if (!request.session.pubkey) { %>style="display: none;"<% } %>>
-        <a class="nav-link" href="/dashboard"><i class="fa-solid fa-gauge mr-2"></i>Dashboard</a>
+        <a class="nav-link" href="/dashboard"><i class="fa-solid fa-gauge me-2"></i>Dashboard</a>
       </li>
       <li <% if(active === 'tos'){ %><%- "class='nav-item active'"%><% } else { %><%- "class='nav-item'"%><%}%>>
-        <a class="nav-link" href="/tos"><i class="fa-solid fa-file-contract mr-2"></i>Terms of Service</a>
+        <a class="nav-link" href="/tos"><i class="fa-solid fa-file-contract me-2"></i>Terms of Service</a>
       </li>
       <li <% if(active === 'login'){ %><%- "class='nav-item active'"%><% } else { %><%- "class='nav-item'"%><%}%> <% if (request.session.pubkey) { %>style="display: none;"<% } %>>
-        <a class="nav-link" href="/login"><i class="fa-solid fa-user  mr-2"></i></i> Log In</a>
+        <a class="nav-link" href="/login"><i class="fa-solid fa-user  me-2"></i></i> Log In</a>
       </li>
       <li <% if(active === 'logout'){ %><%- "class='nav-item active'"%><% } else { %><%- "class='nav-item'"%><%}%> <% if (!request.session.pubkey) { %>style="display: none;"<% } %>>
-        <a class="nav-link" href="/logout"><i class="fa-solid fa-right-to-bracket mr-2"></i>Logout</a>
+        <a class="nav-link" href="/logout"><i class="fa-solid fa-right-to-bracket me-2"></i>Logout</a>
       </li>
 
     </ul>
