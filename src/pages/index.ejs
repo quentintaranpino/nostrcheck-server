@@ -6,11 +6,9 @@
     <h1 class="col-12 text-center">Active endpoints</h1>
     <div class="container mt-5">
       <div class="row">
-        <% let i = 0; %>
         <% for(const key in request.body.activeEndpoints) { %>
-          <% i++; %>
-          <div class="col-lg-3 col-md-4 col-sm-6">
-            <div class="card mb-3" style="width: 15rem; height: 15rem;">
+          <div class="col-xl-3 col-lg-4 col-md-6 col-sm-12">
+            <div class="card mb-3 container-fluid" style="width: 16rem; height: 13rem;">
               <div class="card-body">
                 <h4 class="card-title"><%= key %></h5>
                 <h6 class="card-subtitle mb-2 text-muted"><a href="<%= request.body.APIversion + request.body.activeEndpoints[key]['path'] %>"><%= request.body.activeEndpoints[key]['path'] %></a></h6>
