@@ -10,6 +10,7 @@
       "pubkey":"",
       "legacyPassword": ""
     },
+    "enableTorrentSeeding": true,
     "availableEendpoints": {
       "nostraddress" :{
         "enabled": true,
