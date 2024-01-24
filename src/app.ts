@@ -2,7 +2,7 @@ import cors from "cors";
 import express from "express";
 import helmet from "helmet";
 import config from "config";
-import initSession from "./lib/session.js";
+import { initSession, limiter } from "./lib/session.js";
 import { prepareAPP, loadconfigModules  } from "./lib/config.js";
 
 import { loadAPIs } from "./routes/routes.js";
@@ -25,7 +25,7 @@ app.set(
 	process.env.PUBKEY ?? config.get('server.pubkey')
 );
 app.set("activeModules", await loadconfigModules());
-app.set('trust proxy',true); 
+app.set('trust proxy', 1); 
 app.set("view engine", "ejs")
 app.set('views','./src/pages/');
 
@@ -33,6 +33,7 @@ app.use(express.json({ limit: '25MB' }));
 app.use(express.urlencoded({ limit: '25MB', extended: true }));
 app.use(express.static('./src/pages/'));
 app.use(helmet({ contentSecurityPolicy: false }));
+app.use(limiter)
 app.use(cors());
 
 // Initialise session cookies
