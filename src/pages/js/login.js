@@ -1,9 +1,9 @@
 //NIP07 login
-async function logIn(type) {
+async function logIn(type, rememberMe) {
 
     if (type === 'legacy') {
         console.log('Legacy logIn attempt');
-        await fetchServer(JSON.stringify({password:  document.getElementById('password').value}));
+        await fetchServer(JSON.stringify({password:  document.getElementById('password').value, rememberMe: rememberMe}));
     }
 
     if (type === 'nostr') {

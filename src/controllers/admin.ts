@@ -19,7 +19,6 @@ const ServerStatus = async (req: Request, res: Response): Promise<Response> => {
 	return res.status(200).send(result);
 };
 
-// Stop server endpoint
 const StopServer = async (req: Request, res: Response): Promise<void> => {
 
     // Check if the request is authorized
@@ -31,9 +30,8 @@ const StopServer = async (req: Request, res: Response): Promise<void> => {
         return;
     }
 
-    logger.info("RES -> 200 Stopping server from IP:", getClientIp(req));
+    logger.warn("RES -> 200 Stopping server from IP:", getClientIp(req));
     res.status(200).json({ message: "Stopping server..." });
-    logger.warn("Stopping server from API endpoint");
     process.exit(0);
 };
 
@@ -59,7 +57,7 @@ const adminLogin = async (req: Request, res: Response): Promise<Response> => {
         }
 
         req.session.pubkey = config.get('server.adminPanel.pubkey');
-        if (req.body.rememberme == "true"){req.session.cookie.maxAge = config.get('session.maxAge');}
+        if (req.body.rememberMe == "true"){req.session.cookie.maxAge = config.get('session.maxAge');}
         logger.info("logged in as", req.session.pubkey, " - ", getClientIp(req));
         return res.status(200).send(true);
     }
@@ -74,7 +72,7 @@ const adminLogin = async (req: Request, res: Response): Promise<Response> => {
     //Check if legacy credentials are correct
     if (req.body.password != "" && req.body.password == config.get('server.adminPanel.legacyPassword')){
         req.session.pubkey = config.get('server.adminPanel.pubkey');
-        if (req.body.rememberme == "true"){req.session.cookie.maxAge = config.get('session.maxAge');}
+        if (req.body.rememberMe == "true"){req.session.cookie.maxAge = config.get('session.maxAge');}
         logger.info("logged in as", req.session.pubkey, " - ", getClientIp(req));
         return res.status(200).send(true);
     }
