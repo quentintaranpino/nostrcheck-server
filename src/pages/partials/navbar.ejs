@@ -14,16 +14,16 @@
       <li <% if(active === 'home'){ %><%- "class='nav-item active'"%><% } else { %><%- "class='nav-item'"%><%}%>>
         <a class="nav-link" href="/"><i class="fa-solid fa-house me-2"></i>Home <span class="sr-only">(current)</span></a>
       </li>
-      <li <% if(active === 'dashboard'){ %><%- "class='nav-item active'"%><% } else { %><%- "class='nav-item'"%><%}%> <% if (!request.session.pubkey) { %>style="display: none;"<% } %>>
+      <li <% if(active === 'dashboard'){ %><%- "class='nav-item active'"%><% } else { %><%- "class='nav-item'"%><%}%> <% if (!request.session.identifier) { %>style="display: none;"<% } %>>
         <a class="nav-link" href="/dashboard"><i class="fa-solid fa-gauge me-2"></i>Dashboard</a>
       </li>
       <li <% if(active === 'tos'){ %><%- "class='nav-item active'"%><% } else { %><%- "class='nav-item'"%><%}%>>
         <a class="nav-link" href="/tos"><i class="fa-solid fa-file-contract me-2"></i>Terms of Service</a>
       </li>
-      <li <% if(active === 'login'){ %><%- "class='nav-item active'"%><% } else { %><%- "class='nav-item'"%><%}%> <% if (request.session.pubkey) { %>style="display: none;"<% } %>>
+      <li <% if(active === 'login'){ %><%- "class='nav-item active'"%><% } else { %><%- "class='nav-item'"%><%}%> <% if (request.session.identifier) { %>style="display: none;"<% } %>>
         <a class="nav-link" href="/login"><i class="fa-solid fa-user  me-2"></i></i> Log In</a>
       </li>
-      <li <% if(active === 'logout'){ %><%- "class='nav-item active'"%><% } else { %><%- "class='nav-item'"%><%}%> <% if (!request.session.pubkey) { %>style="display: none;"<% } %>>
+      <li <% if(active === 'logout'){ %><%- "class='nav-item active'"%><% } else { %><%- "class='nav-item'"%><%}%> <% if (!request.session.identifier) { %>style="display: none;"<% } %>>
         <a class="nav-link" href="/logout"><i class="fa-solid fa-right-to-bracket me-2"></i>Logout</a>
       </li>
 

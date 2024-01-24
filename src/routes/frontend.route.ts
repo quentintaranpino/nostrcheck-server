@@ -44,7 +44,7 @@ export const loadFrontendEndpoint = async (app: Application, version:string): Pr
 
 	// Dashboard
 	app.get("/dashboard", (req, res) => {
-		if (req.session.pubkey == null){
+		if (req.session.identifier == null){
 			res.redirect('/login');
 		}else{
 			req.body.version = app.get("version");
