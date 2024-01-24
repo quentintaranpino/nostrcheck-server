@@ -17,3 +17,4 @@ config/local.json
 .VSCodeCounter/*
 installation.md
 coverage/*
+config/local.json.bak
