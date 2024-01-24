@@ -8,6 +8,7 @@ import fs from "fs";
 import path from 'path';
 import url from 'url';
 import markdownit from 'markdown-it';
+import { Application } from "express";
 
 const getClientIp = (req: any) =>{
 
@@ -109,4 +110,52 @@ const markdownToHtml = (text:string) : string => {
     }
 }
 
-export { getClientIp, IsAuthorized, format, getServerLogo, getTOSUrl, currDir, markdownToHtml};
+const loadConsoleBanner = (app: Application) : void => {
+
+    console.log("");
+	console.log("");
+
+	console.log(
+	"███╗   ██╗ ██████╗ ███████╗████████╗██████╗  ██████╗██╗  ██╗███████╗ ██████╗██╗  ██╗"
+	);
+	console.log(
+		"████╗  ██║██╔═══██╗██╔════╝╚══██╔══╝██╔══██╗██╔════╝██║  ██║██╔════╝██╔════╝██║ ██╔╝" 
+	);
+	console.log(
+		"██╔██╗ ██║██║   ██║███████╗   ██║   ██████╔╝██║     ███████║█████╗  ██║     █████╔╝" 
+	);
+	console.log(
+		"██║╚██╗██║██║   ██║╚════██║   ██║   ██╔══██╗██║     ██╔══██║██╔══╝  ██║     ██╔═██╗"  
+	);
+	console.log(
+		"██║ ╚████║╚██████╔╝███████║   ██║   ██║  ██║╚██████╗██║  ██║███████╗╚██████╗██║  ██╗"
+	);
+	console.log(
+		"╚═╝  ╚═══╝ ╚═════╝ ╚══════╝   ╚═╝   ╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝╚══════╝ ╚═════╝╚═╝  ╚═╝"
+	);
+	console.log("");
+	console.log(
+		"███████╗███████╗██████╗ ██╗   ██╗███████╗██████╗ "
+	);
+	console.log(
+		"██╔════╝██╔════╝██╔══██╗██║   ██║██╔════╝██╔══██╗"
+	);
+	console.log(
+		"███████╗█████╗  ██████╔╝██║   ██║█████╗  ██████╔╝"
+	);
+	console.log(
+		"╚════██║██╔══╝  ██╔══██╗╚██╗ ██╔╝██╔══╝  ██╔══██╗"
+	);
+	console.log(
+		"███████║███████╗██║  ██║ ╚████╔╝ ███████╗██║  ██║"
+	);
+	console.log(
+		"╚══════╝╚══════╝╚═╝  ╚═╝  ╚═══╝  ╚══════╝╚═╝  ╚═╝"
+	);
+
+	console.log("Nostrcheck server started, version %s", app.get("version"));
+	console.log("Running at http://" + app.get('host') + ":%s - ", app.get("port"), app.get("env"), "mode");
+	console.log("Press CTRL-C to exit\n");
+}
+
+export { getClientIp, IsAuthorized, format, getServerLogo, getTOSUrl, currDir, markdownToHtml, loadConsoleBanner};

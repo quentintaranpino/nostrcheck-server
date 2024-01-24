@@ -149,4 +149,9 @@ const loadconfigEndpoints = async () : Promise<IEndpoints> => {
 	return runtimeEndpoints;
 }
 
-export { prepareAppFolders, prepareAPPConfig, updateLocalConfigKey, loadconfigEndpoints };
+async function prepareAPP() {
+    await prepareAPPConfig();
+	await prepareAppFolders();
+}
+
+export { updateLocalConfigKey, loadconfigEndpoints, prepareAPP };

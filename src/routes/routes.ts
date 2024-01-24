@@ -53,5 +53,10 @@ const LoadAPI = async (app: Application, version:string): Promise<boolean> => {
 	return true;
 };
 
+// Initialise routes
+const loadAPIs = async (app: Application) => {
+	await LoadAPI(app, "v1");
+	await LoadAPI(app, "v2");
+}
 
-export { LoadAPI };
+export { loadAPIs };
