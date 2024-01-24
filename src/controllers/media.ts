@@ -1,4 +1,3 @@
-import crypto, { randomBytes } from "crypto";
 import { Request, Response } from "express";
 import app from "../app.js";
 import { connect, dbSelectUsername } from "../lib/database.js";
