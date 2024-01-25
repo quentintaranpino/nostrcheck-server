@@ -9,13 +9,13 @@ export const loadFrontendEndpoint = async (app: Application, version:string): Pr
 
 	// Legacy frontend routes
 	app.get("/", (_req, res) => {
-		res.redirect("/api/");
+		res.redirect("/api/v2/");
 	});
 	app.get("/api", (_req, res) => {
-		res.redirect("/api/v1");
+		res.redirect("/api/v2/");
 	});
 	app.get("/api/v1", (_req, res) => {
-		res.redirect("/api/v2");
+		res.redirect("/api/v2/");
 	});
 
 	// Current v2 routes

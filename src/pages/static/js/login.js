@@ -41,7 +41,7 @@ async function fetchServer(data) {
         console.log(response);
         if (response.status === 200){
             console.log('Login success');
-            window.location.replace('/api/v2');
+            window.location.replace('/');
         }
     } catch (error) {
         console.error(error);
