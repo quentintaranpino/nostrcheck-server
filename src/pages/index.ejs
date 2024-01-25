@@ -11,7 +11,7 @@
             <div class="card mb-3 container-fluid" style="width: 16rem; min-height: 15rem;">
               <div class="card-body pl-1 pr-1">
                 <h4 class="card-title"><%= key %></h5>
-                <h6 class="card-subtitle mb-2 text-muted"><a href="<%= request.body.APIversion + request.body.activeModules[key]['path'] %>"><%= request.body.activeModules[key]['path'] %></a></h6>
+                <h6 class="card-subtitle mb-2 text-muted"><a href="<%= request.body.activeModules[key]['path'].replace('/','') %>"><%= request.body.activeModules[key]['path'] %></a></h6>
                 <% for(const method in request.body.activeModules[key]["methods"]) { %>
                   <% var badgeClass; %>
                   <% if (request.body.activeModules[key]["methods"][method]  === 'GET') { %>
