@@ -10,6 +10,7 @@ import {
 	MediatagsTableFields, 
 	RegisteredTableFields} from "../interfaces/database.js";
 import { ResultMessagev2 } from "../interfaces/server.js";
+import { registeredTableResponse } from "../interfaces/frontend.js";
 
 let retry :number = 0;
 async function connect(source:string): Promise<Pool> {
@@ -426,12 +427,12 @@ async function dbSelectUsername(pubkey: string): Promise<string> {
 	
 }
 
-async function dbSelectAllUsernames(): Promise<JSON> {
+async function dbSelectAllUsernames(): Promise<registeredTableResponse> {
 
 	const conenction = await connect("dbSelectAllUsernames");
 	try{
 		logger.debug("Getting all data from registered table")
-		const [dbResult] = await conenction.query("SELECT id, username, pubkey, domain, date, active, allowed, comments FROM registered");
+		const [dbResult] = await conenction.query("SELECT id, username, pubkey,domain, active, allowed, date, comments FROM registered");
 		const rowstemp = JSON.parse(JSON.stringify(dbResult));
 		conenction.end();
 		if (rowstemp[0] == undefined) {
@@ -441,8 +442,10 @@ async function dbSelectAllUsernames(): Promise<JSON> {
 			}
 			return JSON.parse(JSON.stringify(result));
 		}else{
-
-			return rowstemp;
+			let result : registeredTableResponse ={
+				usernames: rowstemp
+			}
+			return result;
 		}
 	}catch (error) {
 		logger.error("Error getting all data from registered table from database");
