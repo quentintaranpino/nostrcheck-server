@@ -425,7 +425,7 @@ async function dbSelectUsername(pubkey: string): Promise<string> {
 	
 }
 
-async function showDBStats(){
+const showDBStats = async(): Promise<string> => {
 
 	const conn = await connect("showDBStats");
 	const result = [];
@@ -461,7 +461,7 @@ async function showDBStats(){
 	dbresult = "";
 
 	//Show table mediafiles magnet rows
-	if (config.get('server.enableTorrentSeeding')) {
+	if (config.get('torrent.enableTorrentSeeding')) {
 	const [dbmediamagnetfilesTable] = await conn.execute(
 		"SELECT DISTINCT filename, username FROM mediafiles inner join registered on mediafiles.pubkey = registered.hex where magnet is not null");
 	if (!dbmediamagnetfilesTable) {
@@ -492,9 +492,8 @@ async function showDBStats(){
 	result.push(`Lightning redirections: ${dbresult.length}`);
 	
 	conn.end();
-
-	console.log(
-		result.join('\r\n'),'\n');
+	let resultstring = result.join('\r\n').toString();
+	return resultstring;
 }
 
 const initDatabase = async (): Promise<void> => {

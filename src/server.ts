@@ -1,6 +1,6 @@
 import app from "./app.js";
 import { showDBStats } from "./lib/database.js";
-import { loadConsoleBanner } from "./lib/server.js";
+import { loadConsoleBanner, showActiveModules } from "./lib/server.js";
 
 // Start Express server.
 const server = app.listen(app.get("port"), async () => {
@@ -9,8 +9,11 @@ const server = app.listen(app.get("port"), async () => {
 	loadConsoleBanner(app);
 
 	// Show server startup stactics
-	showDBStats();
+	console.log(await showDBStats());
 
+	// Show server active modules
+	console.log(showActiveModules(app));
+	
 });
 
 export default server;
