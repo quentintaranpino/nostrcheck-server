@@ -14,7 +14,7 @@ echo "$BASEDIR"
 
 readonly E_BADARGS=65
 readonly version="0.2"
-readonly date="20240119"
+readonly date="20240125"
 
 clear
 echo ""
@@ -24,6 +24,13 @@ echo "██╔██╗ ██║██║   ██║███████╗ 
 echo "██║╚██╗██║██║   ██║╚════██║   ██║   ██╔══██╗██║     ██╔══██║██╔══╝  ██║     ██╔═██╗     ╚════██║██╔══╝  ██╔══██╗╚██╗ ██╔╝██╔══╝  ██╔══██╗"
 echo "██║ ╚████║╚██████╔╝███████║   ██║   ██║  ██║╚██████╗██║  ██║███████╗╚██████╗██║  ██╗    ███████║███████╗██║  ██║ ╚████╔╝ ███████╗██║  ██║"
 echo "╚═╝  ╚═══╝ ╚═════╝ ╚══════╝   ╚═╝   ╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝╚══════╝ ╚═════╝╚═╝  ╚═╝    ╚══════╝╚══════╝╚═╝  ╚═╝  ╚═══╝  ╚══════╝╚═╝  ╚═╝"
+echo ""
+echo "███████╗███████╗██████╗ ██╗   ██╗███████╗██████╗ "
+echo "██╔════╝██╔════╝██╔══██╗██║   ██║██╔════╝██╔══██╗"
+echo "███████╗█████╗  ██████╔╝██║   ██║█████╗  ██████╔╝"
+echo "╚════██║██╔══╝  ██╔══██╗╚██╗ ██╔╝██╔══╝  ██╔══██╗"
+echo "███████║███████╗██║  ██║ ╚████╔╝ ███████╗██║  ██║"
+echo "╚══════╝╚══════╝╚═╝  ╚═╝  ╚═══╝  ╚══════╝╚═╝  ╚═╝"
 echo ""
 echo "Nostrcheck server installation script v$version"
 echo "Last updated: $date"
@@ -35,7 +42,7 @@ echo "WARNING: This script is still in development and may not work as expected.
 echo ""
 
 # Node version
-NODE_MAJOR=18
+NODE_MAJOR=20
 
 # Database variables
 HOST="nostcheck.me"
@@ -256,7 +263,7 @@ fi
 # End message
 echo "--------------------------------------------------------------------------------"
 echo ""
-echo "You can now start nostrcheck server by running ' cd nostrcheck-api-ts && npm run start'"
+echo "You can now start nostrcheck server by running 'cd nostrcheck-api-ts && npm run start'"
 echo "Please execute the server once to create the database tables and then"
 echo "execute 'cd scripts && ./initialize.sh' to initialize the server with default values."
 echo ""
