@@ -10,7 +10,6 @@
       "pubkey":"",
       "legacyPassword": ""
     },
-    "enableTorrentSeeding": false,
     "availableModules": {
       "nostraddress" :{
         "enabled": true,
@@ -102,6 +101,7 @@
     }
   },
   "torrent": {
+    "enableTorrentSeeding": false,
     "torrentPort": 6881,
     "dhtPort": 6882
   },

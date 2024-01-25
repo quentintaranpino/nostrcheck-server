@@ -43,6 +43,6 @@ await initSession(app);
 await loadAPIs(app);
 
 //Start seeding magnets
-if (config.get("server.enableTorrentSeeding")) {SeedMediafilesMagnets();}
+if (config.get("torrent.enableTorrentSeeding")) {SeedMediafilesMagnets();}
 
 export default app;
