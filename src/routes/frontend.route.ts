@@ -27,25 +27,25 @@ export const loadFrontendEndpoint = async (app: Application, version:string): Pr
 	});
 
 	// Login
-	app.get("/login", (req, res) => {
+	app.get("/api/" +  version + "/login", (req, res) => {
 		req.body.version = app.get("version");
 		res.render("login.ejs", {request: req});
 	});
-	app.post("/login", (req, res) => {
+	app.post("/api/" +  version + "/login", (req, res) => {
 		adminLogin(req,res)
 	});
 
 	// Tos
-	app.get("/tos", (req, res) => {
+	app.get("/api/" +  version + "/tos", (req, res) => {
 		req.body.version = app.get("version");
 		const tosFile = markdownToHtml(fs.readFileSync(config.get("server.tosFilePath")).toString());
 		res.render("tos.ejs", { request: req, tos: tosFile });
 	});
 
 	// Dashboard
-	app.get("/dashboard", (req, res) => {
+	app.get("/api/" +  version + "/dashboard", (req, res) => {
 		if (req.session.identifier == null){
-			res.redirect('/login');
+			res.redirect("/api/" +  version + "/login");
 		}else{
 			req.body.version = app.get("version");
 			res.render("dashboard.ejs", {request: req});
@@ -53,12 +53,12 @@ export const loadFrontendEndpoint = async (app: Application, version:string): Pr
 	});
 
 	// Logout
-	app.get("/logout", (req, res) => {
+	app.get("/api/" +  version + "/logout", (req, res) => {
 		req.session.destroy((err) => {
 			if (err) {
 				return console.log(err);
 			}
-			res.redirect("/login");
+			res.redirect("/api/" +  version + "/login");
 		});
 	});
 
