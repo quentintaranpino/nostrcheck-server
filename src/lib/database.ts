@@ -9,6 +9,7 @@ import {
 	MediafilesTableFields, 
 	MediatagsTableFields, 
 	RegisteredTableFields} from "../interfaces/database.js";
+import { ResultMessagev2 } from "../interfaces/server.js";
 
 let retry :number = 0;
 async function connect(source:string): Promise<Pool> {
@@ -425,6 +426,35 @@ async function dbSelectUsername(pubkey: string): Promise<string> {
 	
 }
 
+async function dbSelectAllUsernames(): Promise<JSON> {
+
+	const conenction = await connect("dbSelectAllUsernames");
+	try{
+		logger.debug("Getting all data from registered table")
+		const [dbResult] = await conenction.query("SELECT id, username, pubkey, domain, date, active, allowed, comments FROM registered");
+		const rowstemp = JSON.parse(JSON.stringify(dbResult));
+		conenction.end();
+		if (rowstemp[0] == undefined) {
+			let result : ResultMessagev2 ={
+				status: "error",
+				message: "No registered users found"
+			}
+			return JSON.parse(JSON.stringify(result));
+		}else{
+
+			return rowstemp;
+		}
+	}catch (error) {
+		logger.error("Error getting all data from registered table from database");
+		let result : ResultMessagev2 ={
+			status: "error",
+			message: "Internal server error"
+		}
+		return JSON.parse(JSON.stringify(result));
+	}
+	
+}
+
 const showDBStats = async(): Promise<string> => {
 
 	const conn = await connect("showDBStats");
@@ -520,4 +550,5 @@ export {
 		dbFileDimensionsUpdate,
 		dbFilesizeUpdate,
 		dbFilePercentageUpdate,
-		initDatabase};
+		initDatabase,
+		dbSelectAllUsernames};
