@@ -4,6 +4,7 @@ import { markdownToHtml } from "../lib/server.js";
 
 import fs from "fs";
 import config from "config";
+import { dbSelectAllUsernames } from "../lib/database.js";
 
 export const loadFrontendEndpoint = async (app: Application, version:string): Promise<void> => {
 
@@ -43,11 +44,16 @@ export const loadFrontendEndpoint = async (app: Application, version:string): Pr
 	});
 
 	// Dashboard
-	app.get("/api/" +  version + "/dashboard", (req, res) => {
+	app.get("/api/" +  version + "/dashboard", async (req, res) => {
 		if (req.session.identifier == null){
 			res.redirect("/api/" +  version + "/login");
 		}else{
 			req.body.version = app.get("version");
+			req.body.registeredUsernames = await dbSelectAllUsernames();
+			console.debug(req.body.registeredUsernames)
+			for (const key in req.body.registeredUsernames) {
+				console.debug("Registered username: " + req.body.registeredUsernames[key]);
+			}
 			res.render("dashboard.ejs", {request: req});
 		}
 	});
