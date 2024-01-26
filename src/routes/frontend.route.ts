@@ -4,7 +4,7 @@ import { markdownToHtml } from "../lib/server.js";
 
 import fs from "fs";
 import config from "config";
-import { dbSelectAllMediaFiles, dbSelectAllRegistered } from "../lib/database.js";
+import { dbSelectAllLightning, dbSelectAllMediaFiles, dbSelectAllRegistered } from "../lib/database.js";
 
 export const loadFrontendEndpoint = async (app: Application, version:string): Promise<void> => {
 
@@ -51,6 +51,7 @@ export const loadFrontendEndpoint = async (app: Application, version:string): Pr
 			req.body.version = app.get("version");
 			req.body.registeredData = await dbSelectAllRegistered();
 			req.body.mediafilesData = await dbSelectAllMediaFiles();
+			req.body.lightningData = await dbSelectAllLightning();
 			console.log(req.body.registeredUsernames);
 			res.render("dashboard.ejs", {request: req});
 		}

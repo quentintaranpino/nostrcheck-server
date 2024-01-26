@@ -11,17 +11,17 @@
     <div class="container-fluid mt-4 overflow-auto ">
       <h3>Registered Users</h3>
       <div id="regUsersTable-toolbar">
-        <button id="createUser" class="btn btn-info" disabled>
+        <button id="regUsersTable-add" class="btn btn-info" disabled>
           <i class="fa fa-add"></i>
         </button>
         <div class="btn-group" role="group" aria-label="Edit user properties">
-          <button id="disable" class="btn btn-warning" disabled>
+          <button id="regUsersTable-disable" class="btn btn-warning" disabled>
             <i class="fa fa-ban"></i> 
           </button>
-          <button id="makeAdmin" class="btn btn-success" disabled>
+          <button id="regUsersTable-admin" class="btn btn-success" disabled>
             <i class="fa fa-user-tie"></i> 
           </button>
-          <button id="editUser" class="btn btn-secondary" disabled>
+          <button id="regUsersTable-edit" class="btn btn-secondary" disabled>
             <i class="fa fa-edit"></i> 
           </button>
         </div>
@@ -46,14 +46,12 @@
           </tr>
           </thead>
       </table>
-
-
       <h3>Media files</h3>
       <div id="mediaFilesTable-toolbar">
-        <button id="addMedia" class="btn btn-info" disabled>
+        <button id="mediaFiles-add" class="btn btn-info" disabled>
           <i class="fa fa-add"></i>
         </button>
-          <button id="disable" class="btn btn-warning" disabled>
+          <button id="mediaFiles-disable" class="btn btn-warning" disabled>
             <i class="fa fa-ban"></i> 
           </button>
         <button id="mediaFiles-remove" class="btn btn-danger" disabled>
@@ -80,6 +78,28 @@
           </tr>
           </thead>
       </table>
+      <h3>Lightning redirections</h3>
+      <div id="lightningTable-toolbar">
+        <button id="lightning-add" class="btn btn-info" disabled>
+          <i class="fa fa-add"></i>
+        </button>
+        <button id="lightning-remove" class="btn btn-danger" disabled>
+          <i class="fa fa-trash"></i> 
+        </button>
+      </div>
+      <table 
+            id="lightningTable"
+            >
+        <thead>
+          <tr>
+            <th data-field="state" data-checkbox="true"></th>
+            <th data-field="id" data-sortable="true">ID</th>
+            <th data-field="pubkey" data-sortable="true">Pubkey (hex)</th>
+            <th data-field="filename" data-sortable="true">Lightning address</th>
+            <th data-field="original_hash" data-sortable="true">Comments</th>
+          </tr>
+          </thead>
+      </table>
     </div>
 
     </main>
@@ -89,4 +109,5 @@
   <script>
     initTable("#regUsersTable",'<%- JSON.stringify(request.body.registeredData) %>')
     initTable("#mediaFilesTable",'<%- JSON.stringify(request.body.mediafilesData) %>')
+    initTable("#lightningTable",'<%- JSON.stringify(request.body.lightningData) %>')
   </script>
