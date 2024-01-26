@@ -9,19 +9,24 @@
     <main class="pb-1">
     <h1 class="col-12 text-center">Dashboard</h1>
     <div class="container-fluid mt-4 overflow-auto ">
-      <h3 class="col-3 ">Registered Users</h3>
+      <h3>Registered Users</h3>
       <div id="toolbar">
-        <button id="disable" class="btn btn-warning" disabled>
-          <i class="fa fa-ban"></i> Disable
+        <button id="createUser" class="btn btn-info" disabled>
+          <i class="fa fa-add"></i>
         </button>
+        <div class="btn-group" role="group" aria-label="Edit user properties">
+          <button id="disable" class="btn btn-warning" disabled>
+            <i class="fa fa-ban"></i> 
+          </button>
+          <button id="makeAdmin" class="btn btn-success" disabled>
+            <i class="fa fa-user-tie"></i> 
+          </button>
+          <button id="editUser" class="btn btn-secondary" disabled>
+            <i class="fa fa-edit"></i> 
+          </button>
+        </div>
         <button id="remove" class="btn btn-danger" disabled>
-          <i class="fa fa-trash"></i> Delete
-        </button>
-        <button id="makeAdmin" class="btn btn-success" disabled>
-          <i class="fa fa-user-tie"></i> Admin
-        </button>
-        <button id="editUser" class="btn btn-secondary" disabled>
-          <i class="fa fa-edit"></i> Edit
+          <i class="fa fa-trash"></i> 
         </button>
       </div>
       <table 
@@ -50,9 +55,6 @@
           </tr>
           </thead>
       </table>
-      <button id="createUser" class="btn btn-info" disabled>
-        <i class="fa fa-add"></i> Create new user
-      </button>
     </div>
 
     </main>
