@@ -432,7 +432,7 @@ async function dbSelectAllRegistered(): Promise<string> {
 	const conenction = await connect("dbSelectAllUsernames");
 	try{
 		logger.debug("Getting all data from registered table")
-		const [dbResult] = await conenction.query("SELECT id, username, pubkey, domain, active, allowed, date, comments FROM registered");
+		const [dbResult] = await conenction.query("SELECT id, username, pubkey, domain, active, allowed, date, comments FROM registered ORDER BY id DESC");
 		const rowstemp = JSON.parse(JSON.stringify(dbResult));
 		conenction.end();
 		if (rowstemp[0] == undefined) {
@@ -460,7 +460,7 @@ async function dbSelectAllMediaFiles(): Promise<string> {
 	const conenction = await connect("dbSelectAllUsernames");
 	try{
 		logger.debug("Getting all data from mediafiles table")
-		const [dbResult] = await conenction.query("SELECT id, pubkey, filename, original_hash, hash, status, visibility, dimensions, filesize, date, comments FROM mediafiles");
+		const [dbResult] = await conenction.query("SELECT id, pubkey, filename, original_hash, hash, status, visibility, dimensions, filesize, date, comments FROM mediafiles ORDER BY id DESC");
 		const rowstemp = JSON.parse(JSON.stringify(dbResult));
 		conenction.end();
 		if (rowstemp[0] == undefined) {
