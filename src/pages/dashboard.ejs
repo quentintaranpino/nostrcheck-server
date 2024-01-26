@@ -101,13 +101,42 @@
           </thead>
       </table>
     </div>
-
+    <div>
+      <canvas id="myChart"></canvas>
+    </div>
     </main>
     <%- include('./partials/footer'); %>
   </body>
+
   <script src="/static/js/table.js"></script>
   <script>
     initTable("#regUsersTable",'<%- JSON.stringify(request.body.registeredData) %>')
     initTable("#mediaFilesTable",'<%- JSON.stringify(request.body.mediafilesData) %>')
     initTable("#lightningTable",'<%- JSON.stringify(request.body.lightningData) %>')
   </script>
+
+
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  const ctx = document.getElementById('myChart');
+
+  new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: ['Red', 'Blue', 'Yellow', 'Green', 'Purple', 'Orange'],
+      datasets: [{
+        label: '# of Votes',
+        data: [12, 19, 3, 5, 2, 3],
+        borderWidth: 1
+      }]
+    },
+    options: {
+      scales: {
+        y: {
+          beginAtZero: true
+        }
+      }
+    }
+  });
+</script>
