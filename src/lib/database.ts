@@ -427,60 +427,36 @@ async function dbSelectUsername(pubkey: string): Promise<string> {
 	
 }
 
-async function dbSelectAllRegistered(): Promise<string> {
+async function dbSelectAllRecords(table:string, query:string): Promise<string> {
 
-	const conenction = await connect("dbSelectAllUsernames");
+	const conenction = await connect("dbSelectAllRecords" + table);
 	try{
-		logger.debug("Getting all data from registered table")
-		const [dbResult] = await conenction.query("SELECT id, username, pubkey, domain, active, allowed, date, comments FROM registered ORDER BY id DESC");
+		logger.debug("Getting all data from " + table + " table")
+		const [dbResult] = await conenction.query(query);
 		const rowstemp = JSON.parse(JSON.stringify(dbResult));
 		conenction.end();
 		if (rowstemp[0] == undefined) {
-			let result : ResultMessagev2 ={
-				status: "error",
-				message: "No registered users found"
-			}
-			return JSON.parse(JSON.stringify(result));
+			return "";
 		}else{
 			return rowstemp;
 		}
 	}catch (error) {
 		logger.error("Error getting all data from registered table from database");
-		let result : ResultMessagev2 ={
-			status: "error",
-			message: "Internal server error"
-		}
-		return JSON.parse(JSON.stringify(result));
+		return "";
 	}
 	
 }
 
-async function dbSelectAllMediaFiles(): Promise<string> {
+async function dbSelectAllRegistered(): Promise<string> {
+	return dbSelectAllRecords("registered", "SELECT id, username, pubkey, domain, active, allowed, date, comments FROM registered ORDER BY id DESC");
+}
 
-	const conenction = await connect("dbSelectAllUsernames");
-	try{
-		logger.debug("Getting all data from mediafiles table")
-		const [dbResult] = await conenction.query("SELECT id, pubkey, filename, original_hash, hash, status, visibility, dimensions, filesize, date, comments FROM mediafiles ORDER BY id DESC");
-		const rowstemp = JSON.parse(JSON.stringify(dbResult));
-		conenction.end();
-		if (rowstemp[0] == undefined) {
-			let result : ResultMessagev2 ={
-				status: "error",
-				message: "No mediafiles found"
-			}
-			return JSON.parse(JSON.stringify(result));
-		}else{
-			return rowstemp;
-		}
-	}catch (error) {
-		logger.error("Error getting all data from mediafiles table from database");
-		let result : ResultMessagev2 ={
-			status: "error",
-			message: "Internal server error"
-		}
-		return JSON.parse(JSON.stringify(result));
-	}
-	
+async function dbSelectAllMediaFiles(): Promise<string> {
+	return dbSelectAllRecords("mediafiles", "SELECT id, pubkey, filename, original_hash, hash, status, visibility, dimensions, filesize, date, comments FROM mediafiles ORDER BY id DESC");
+}
+
+async function dbSelectAllLightning(): Promise<string> {
+	return dbSelectAllRecords("lightning", "SELECT id, pubkey, lightningaddress, comments FROM lightning ORDER BY id DESC");
 }
 
 const showDBStats = async(): Promise<string> => {
@@ -580,4 +556,5 @@ export {
 		dbFilePercentageUpdate,
 		initDatabase,
 		dbSelectAllRegistered,
-		dbSelectAllMediaFiles};
+		dbSelectAllMediaFiles,
+		dbSelectAllLightning};
