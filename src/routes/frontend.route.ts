@@ -4,7 +4,7 @@ import { markdownToHtml } from "../lib/server.js";
 
 import fs from "fs";
 import config from "config";
-import { dbSelectAllUsernames } from "../lib/database.js";
+import { dbSelectAllMediaFiles, dbSelectAllRegistered } from "../lib/database.js";
 
 export const loadFrontendEndpoint = async (app: Application, version:string): Promise<void> => {
 
@@ -49,7 +49,8 @@ export const loadFrontendEndpoint = async (app: Application, version:string): Pr
 			res.redirect("/api/" +  version + "/login");
 		}else{
 			req.body.version = app.get("version");
-			req.body.registeredUsernames = await dbSelectAllUsernames();
+			req.body.registeredData = await dbSelectAllRegistered();
+			req.body.mediafilesData = await dbSelectAllMediaFiles();
 			console.log(req.body.registeredUsernames);
 			res.render("dashboard.ejs", {request: req});
 		}

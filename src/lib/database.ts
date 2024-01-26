@@ -427,7 +427,7 @@ async function dbSelectUsername(pubkey: string): Promise<string> {
 	
 }
 
-async function dbSelectAllUsernames(): Promise<string> {
+async function dbSelectAllRegistered(): Promise<string> {
 
 	const conenction = await connect("dbSelectAllUsernames");
 	try{
@@ -446,6 +446,34 @@ async function dbSelectAllUsernames(): Promise<string> {
 		}
 	}catch (error) {
 		logger.error("Error getting all data from registered table from database");
+		let result : ResultMessagev2 ={
+			status: "error",
+			message: "Internal server error"
+		}
+		return JSON.parse(JSON.stringify(result));
+	}
+	
+}
+
+async function dbSelectAllMediaFiles(): Promise<string> {
+
+	const conenction = await connect("dbSelectAllUsernames");
+	try{
+		logger.debug("Getting all data from mediafiles table")
+		const [dbResult] = await conenction.query("SELECT id, pubkey, filename, original_hash, hash, status, visibility, dimensions, filesize, date, comments FROM mediafiles");
+		const rowstemp = JSON.parse(JSON.stringify(dbResult));
+		conenction.end();
+		if (rowstemp[0] == undefined) {
+			let result : ResultMessagev2 ={
+				status: "error",
+				message: "No mediafiles found"
+			}
+			return JSON.parse(JSON.stringify(result));
+		}else{
+			return rowstemp;
+		}
+	}catch (error) {
+		logger.error("Error getting all data from mediafiles table from database");
 		let result : ResultMessagev2 ={
 			status: "error",
 			message: "Internal server error"
@@ -551,4 +579,5 @@ export {
 		dbFilesizeUpdate,
 		dbFilePercentageUpdate,
 		initDatabase,
-		dbSelectAllUsernames};
+		dbSelectAllRegistered,
+		dbSelectAllMediaFiles};

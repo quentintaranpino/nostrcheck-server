@@ -10,7 +10,7 @@
     <h1 class="col-12 text-center">Dashboard</h1>
     <div class="container-fluid mt-4 overflow-auto ">
       <h3>Registered Users</h3>
-      <div id="toolbar">
+      <div id="regUsersTable-toolbar">
         <button id="createUser" class="btn btn-info" disabled>
           <i class="fa fa-add"></i>
         </button>
@@ -25,21 +25,12 @@
             <i class="fa fa-edit"></i> 
           </button>
         </div>
-        <button id="remove" class="btn btn-danger" disabled>
+        <button id="regUsersTable-remove" class="btn btn-danger" disabled>
           <i class="fa fa-trash"></i> 
         </button>
       </div>
       <table 
-            id="registeredUsersTable"
-            data-show-columns="true"
-            data-search="true"
-            data-pagination="true"
-            data-resizable="true"
-            data-page-size="10"
-            data-click-to-select="true"
-            data-remember-order="true"
-            data-id-field="id"
-            data-toolbar="#toolbar"
+            id="regUsersTable"
             >
         <thead>
           <tr>
@@ -55,24 +46,47 @@
           </tr>
           </thead>
       </table>
+
+
+      <h3>Media files</h3>
+      <div id="mediaFilesTable-toolbar">
+        <button id="addMedia" class="btn btn-info" disabled>
+          <i class="fa fa-add"></i>
+        </button>
+          <button id="disable" class="btn btn-warning" disabled>
+            <i class="fa fa-ban"></i> 
+          </button>
+        <button id="mediaFiles-remove" class="btn btn-danger" disabled>
+          <i class="fa fa-trash"></i> 
+        </button>
+      </div>
+      <table 
+            id="mediaFilesTable"
+            >
+        <thead>
+          <tr>
+            <th data-field="state" data-checkbox="true"></th>
+            <th data-field="id" data-sortable="true">ID</th>
+            <th data-field="pubkey" data-sortable="true">Pubkey (hex)</th>
+            <th data-field="filename" data-sortable="true">Filename</th>
+            <th data-field="original_hash" data-sortable="true">Original hash</th>
+            <th data-field="hash" data-sortable="true">Hash</th>
+            <th data-field="status" data-sortable="true">Status</th>
+            <th data-field="visibility" data-sortable="true">Visibility</th>
+            <th data-field="dimensions" data-sortable="true">Dimensions</th>
+            <th data-field="filesize" data-sortable="true">Filesize</th>
+            <th data-field="date" data-sortable="true" data-formatter="dateFormat">Date</th>
+            <th data-field="comments">Comments</th>
+          </tr>
+          </thead>
+      </table>
     </div>
 
     </main>
     <%- include('./partials/footer'); %>
   </body>
+  <script src="/static/js/table.js"></script>
   <script>
-    var $registeredUsersTable = $('#registeredUsersTable')
-    $(function() {
-      var regUsersArray = []
-      var regUsersData = JSON.parse('<%- JSON.stringify(request.body.registeredUsernames) %>')
-      regUsersData.forEach(element => {
-        regUsersArray.push(element)
-      });
-      $registeredUsersTable.bootstrapTable({data: regUsersArray})
-    })
-
-    function dateFormat(value, row, index) {
-      return new Date(value).toLocaleString([], { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
-    }
+    initTable("#regUsersTable",'<%- JSON.stringify(request.body.registeredData) %>')
+    initTable("#mediaFilesTable",'<%- JSON.stringify(request.body.mediafilesData) %>')
   </script>
-</html>
