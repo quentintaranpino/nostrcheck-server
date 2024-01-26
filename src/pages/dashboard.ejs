@@ -28,7 +28,7 @@
             <th data-field="domain">Domain</th>
             <th data-field="active">Active</th>
             <th data-field="allowed">Allowed</th>
-            <th data-field="date">Date</th>
+            <th data-field="date" data-formatter="dateFormat">Date</th>
             <th data-field="comments">Comments</th>
           </tr>
           </thead>
@@ -48,5 +48,9 @@
       });
       $registeredUsersTable.bootstrapTable({data: regUsersArray})
     })
+
+    function dateFormat(value, row, index) {
+      return new Date(value).toLocaleString([], { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+    }
   </script>
 </html>
