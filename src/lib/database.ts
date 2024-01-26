@@ -442,7 +442,7 @@ async function dbSelectAllUsernames(): Promise<string> {
 			}
 			return JSON.parse(JSON.stringify(result));
 		}else{
-			return rowstemp[0];
+			return rowstemp;
 		}
 	}catch (error) {
 		logger.error("Error getting all data from registered table from database");

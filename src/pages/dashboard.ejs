@@ -36,9 +36,12 @@
   <script>
     var $registeredUsersTable = $('#registeredUsersTable')
     $(function() {
-      var registeredUsersData = []
-      registeredUsersData.push(JSON.parse('<%- JSON.stringify(request.body.registeredUsernames) %>'));
-      $registeredUsersTable.bootstrapTable({data: registeredUsersData})
+      var regUsersArray = []
+      var regUsersData = JSON.parse('<%- JSON.stringify(request.body.registeredUsernames) %>')
+      regUsersData.forEach(element => {
+        regUsersArray.push(element)
+      });
+      $registeredUsersTable.bootstrapTable({data: regUsersArray})
     })
   </script>
 </html>
