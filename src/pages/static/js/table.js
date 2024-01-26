@@ -4,10 +4,13 @@ const initTable = (tableId, data) => {
 
     var arr = []
     var data = JSON.parse(data)
+    if (data.length == 0) {
+        console.log('No data')
+        data = [{id: '-'}] // dummy data for table creation
+    }
     data.forEach(element => {
         arr.push(element)
     });
-    // $(tableId).bootstrapTable({data: arr})
 
     $(tableId).bootstrapTable({
         data: arr,
@@ -22,18 +25,7 @@ const initTable = (tableId, data) => {
         }
         )
 
-    // data-show-columns="true" X
-    // data-search="true" X
-    // data-pagination="true" X
-    // data-resizable="true" X
-    // data-page-size="10" X
-    // data-click-to-select="true" X
-    // data-remember-order="true"
-    // data-id-field="id"
-    // data-toolbar="#regUsersTable-toolbar"
-
-    
-    // remove button
+    // Remove button
     $(tableId).on('check.bs.table uncheck.bs.table check-all.bs.table uncheck-all.bs.table', function () {
     $(tableId + '-remove').prop('disabled', !$(tableId).bootstrapTable('getSelections').length)
     })
@@ -48,12 +40,6 @@ const initTable = (tableId, data) => {
     })
     $(tableId + '-remove').prop('disabled', true)
     })
-
-
-
-// var $table = $('#regUsersTable')
-// var $remove = $('#regUsersTable-remove')
-
 }
 
 function dateFormat(value) {
