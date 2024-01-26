@@ -427,12 +427,12 @@ async function dbSelectUsername(pubkey: string): Promise<string> {
 	
 }
 
-async function dbSelectAllUsernames(): Promise<registeredTableResponse> {
+async function dbSelectAllUsernames(): Promise<string> {
 
 	const conenction = await connect("dbSelectAllUsernames");
 	try{
 		logger.debug("Getting all data from registered table")
-		const [dbResult] = await conenction.query("SELECT id, username, pubkey,domain, active, allowed, date, comments FROM registered");
+		const [dbResult] = await conenction.query("SELECT id, username, pubkey, domain, active, allowed, date, comments FROM registered");
 		const rowstemp = JSON.parse(JSON.stringify(dbResult));
 		conenction.end();
 		if (rowstemp[0] == undefined) {
@@ -442,10 +442,7 @@ async function dbSelectAllUsernames(): Promise<registeredTableResponse> {
 			}
 			return JSON.parse(JSON.stringify(result));
 		}else{
-			let result : registeredTableResponse ={
-				usernames: rowstemp
-			}
-			return result;
+			return rowstemp[0];
 		}
 	}catch (error) {
 		logger.error("Error getting all data from registered table from database");

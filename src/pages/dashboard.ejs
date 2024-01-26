@@ -1,36 +1,44 @@
 <html lang="en">
 <%- include('./partials/head',{title:"Nostrcheck Server - Home"}); %>
 <% const usernames = request.body.registeredUsernames %>
-<link rel="stylesheet" href="/static/css/table.css">
+<link href="https://cdn.jsdelivr.net/npm/jquery-resizable-columns@0.2.3/dist/jquery.resizableColumns.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-table@1.22.2/dist/bootstrap-table.min.css" rel="stylesheet">
 <body class="d-flex flex-column h-100">
     <%- include('./partials/navbar', {active:'home'}); %>
     <main class="pb-1">
     <h1 class="col-12 text-center">Dashboard</h1>
-    <div class="container mt-4 overflow-auto">
-      <table id="usersTable" class="table table-striped table-hover text-nowrap">
+    <div class="container-fluid mt-4 overflow-auto">
+      <h3 class="col-3 ">Registered Users</h3>
+      <table 
+            id="registeredUsersTable"
+            data-show-columns="true"
+            data-search="true"
+            data-show-toggle="true"
+            data-pagination="true"
+            data-resizable="true">
         <thead>
-        <tr>
-          <th id="id"><button id="id-btn" onclick="sortTable(usersTable,0)">ID</button></th>
-          <th id="username"><button id="username-btn" onclick="sortTable(usersTable,1)">Username</button></th>
-          <th id="pubkey" ><button id="pubkey-btn" onclick="sortTable(usersTable,2)">Pubkey</button></th>
-          <th id="domain"><button id="domain-btn" onclick="sortTable(usersTable,3)">Domain</button></th>
-          <th id="active" ><button id="active-btn" onclick="sortTable(usersTable,4)">Active</button></th>
-          <th id="allowed"><button id="allowed-btn" onclick="sortTable(usersTable,5)">Allowed</button></th>
-          <th id="date"><button id="date-btn" onclick="sortTable(usersTable,6)">Date</button></th>
-          <th id="comments"><button id="comments-btn" onclick="sortTable(usersTable,7)">Comments</button></th>
-        </tr>
-        </thead>
-        <tbody id="usersTableTbody"></tbody>
+          <tr>
+            <th data-field="id">ID</th>
+            <th data-field="username">Username</th>
+            <th data-field="pubkey">Pubkey</th>
+            <th data-field="domain">Domain</th>
+            <th data-field="active">Active</th>
+            <th data-field="allowed">Allowed</th>
+            <th data-field="date">Date</th>
+            <th data-field="comments">Comments</th>
+          </tr>
+          </thead>
       </table>
     </div>
     </main>
     <%- include('./partials/footer'); %>
   </body>
-  <script src="/static/js/table.js"></script>
   <script>
-    var registeredUsernames = '<%- JSON.stringify(request.body.registeredUsernames) %>';
-   getTableContent('usersTableTbody', JSON.parse(registeredUsernames).usernames);
-   createResizableTable(document.getElementById('usersTable'));
+    var $registeredUsersTable = $('#registeredUsersTable')
+    $(function() {
+      var registeredUsersData = []
+      registeredUsersData.push(JSON.parse('<%- JSON.stringify(request.body.registeredUsernames) %>'));
+      $registeredUsersTable.bootstrapTable({data: registeredUsersData})
+    })
   </script>
-  </html>
-
+</html>

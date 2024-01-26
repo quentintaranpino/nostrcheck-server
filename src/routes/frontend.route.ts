@@ -50,10 +50,7 @@ export const loadFrontendEndpoint = async (app: Application, version:string): Pr
 		}else{
 			req.body.version = app.get("version");
 			req.body.registeredUsernames = await dbSelectAllUsernames();
-			console.debug(req.body.registeredUsernames)
-			for (const key in req.body.registeredUsernames) {
-				console.debug("Registered username: " + req.body.registeredUsernames[key]);
-			}
+			console.log(req.body.registeredUsernames);
 			res.render("dashboard.ejs", {request: req});
 		}
 	});
