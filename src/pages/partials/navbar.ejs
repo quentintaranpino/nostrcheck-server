@@ -26,7 +26,7 @@
       <li <% if(active === 'logout'){ %><%- "class='nav-item active'"%><% } else { %><%- "class='nav-item'"%><%}%> <% if (!request.session.identifier) { %>style="display: none;"<% } %>>
         <a class="nav-link" href="logout"><i class="fa-solid fa-right-to-bracket me-2"></i>Logout</a>
       </li>
-
     </ul>
+      <span class="navbar-text"><span id="server-uptime" class="me-2"></span><i class="fa-solid fa-tower-broadcast"></i></span>
   </div>
 </nav>
