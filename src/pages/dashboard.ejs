@@ -10,6 +10,20 @@
     <h1 class="col-12 text-center">Dashboard</h1>
     <div class="container-fluid mt-4 overflow-auto ">
       <h3 class="col-3 ">Registered Users</h3>
+      <div id="toolbar">
+        <button id="disable" class="btn btn-warning" disabled>
+          <i class="fa fa-ban"></i> Disable
+        </button>
+        <button id="remove" class="btn btn-danger" disabled>
+          <i class="fa fa-trash"></i> Delete
+        </button>
+        <button id="makeAdmin" class="btn btn-success" disabled>
+          <i class="fa fa-user-tie"></i> Admin
+        </button>
+        <button id="editUser" class="btn btn-secondary" disabled>
+          <i class="fa fa-edit"></i> Edit
+        </button>
+      </div>
       <table 
             id="registeredUsersTable"
             data-show-columns="true"
@@ -18,21 +32,27 @@
             data-resizable="true"
             data-page-size="10"
             data-click-to-select="true"
+            data-remember-order="true"
+            data-id-field="id"
+            data-toolbar="#toolbar"
             >
         <thead>
           <tr>
             <th data-field="state" data-checkbox="true"></th>
-            <th data-field="id">ID</th>
-            <th data-field="username">Username</th>
-            <th data-field="pubkey">Pubkey</th>
-            <th data-field="domain">Domain</th>
-            <th data-field="active">Active</th>
-            <th data-field="allowed">Allowed</th>
-            <th data-field="date" data-formatter="dateFormat">Date</th>
+            <th data-field="id" data-sortable="true">ID</th>
+            <th data-field="username" data-sortable="true">Username</th>
+            <th data-field="pubkey" data-sortable="true">Pubkey</th>
+            <th data-field="domain" data-sortable="true">Domain</th>
+            <th data-field="active" data-sortable="true">Active</th>
+            <th data-field="allowed" data-sortable="true">Allowed</th>
+            <th data-field="date" data-sortable="true" data-formatter="dateFormat">Date</th>
             <th data-field="comments">Comments</th>
           </tr>
           </thead>
       </table>
+      <button id="createUser" class="btn btn-info" disabled>
+        <i class="fa fa-add"></i> Create new user
+      </button>
     </div>
 
     </main>
