@@ -7,7 +7,7 @@
     <%- include('./partials/navbar', {active:'home'}); %>
     <main class="pb-1">
     <h1 class="col-12 text-center">Dashboard</h1>
-    <div class="container-fluid mt-4 overflow-auto">
+    <div class="container-fluid mt-4 overflow-auto ">
       <h3 class="col-3 ">Registered Users</h3>
       <table 
             id="registeredUsersTable"
@@ -15,6 +15,8 @@
             data-search="true"
             data-show-toggle="true"
             data-pagination="true"
+            data-height="500"
+            
             data-resizable="true">
         <thead>
           <tr>
