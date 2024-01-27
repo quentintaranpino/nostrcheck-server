@@ -27,9 +27,14 @@
                                               ['domain','enabled'],
                                               ['active','enabled'],
                                               ['allowed','enabled'],
-                                              ['comments','enabled']
+                                              ['comments','enabled'],
+                                              ['date','enabled'],
                                               ]
                                       }); %>
+
+        <div>
+          <canvas id="registeredData-chart"></canvas>
+        </div>
 
         <%- include('./components/table', {
                                       tableName:"Media files", 
@@ -92,10 +97,7 @@
                                         ]
                                         }); %> 
       </div>
-      <div>
-        <canvas id="myChart"></canvas>
-      </div>
-    </main>
+     </main>
     <%- include('./partials/footer'); %>                               
   </body>
 
@@ -111,15 +113,22 @@
 <!-- TESTING -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-  const ctx = document.getElementById('myChart');
-
+  const ctx = document.getElementById('registeredData-chart');
+  const rawData = JSON.parse('<%- JSON.stringify(request.body.registeredData) %>');
+  const monthCounts = new Array(12).fill(0); // Initialize an array of 12 zeros
+  rawData.forEach(item => {
+    const date = new Date(item.date);
+    const month = date.getUTCMonth(); // Use getUTCMonth instead of getMonth
+    monthCounts[month]++; // Increment the count for this month
+  });
+  const labels = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11','12']
   new Chart(ctx, {
     type: 'bar',
     data: {
-      labels: ['Red', 'Blue', 'Yellow', 'Green', 'Purple', 'Orange'],
+      labels: labels,
       datasets: [{
-        label: '# of Votes',
-        data: [12, 19, 3, 5, 2, 3],
+        label: 'registerd users', 
+        data: monthCounts,
         borderWidth: 1
       }]
     },
@@ -131,5 +140,12 @@
       }
     }
   });
+
+   //Retrieve data from req.body.registeredData
+    //Create a new array with the data
+    //Create a new chart with the data
+
+    
+
   </script>
 </html>
