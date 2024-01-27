@@ -4,148 +4,155 @@
 
 <html lang="en">
   <%- include('./partials/head',{title:"Nostrcheck Server - Dashboard"}); %>
-
   <body class="d-flex flex-column h-100">
     <%- include('./partials/navbar', {active:'home'}); %>
     <main class="pb-1">
       <h1 class="col-12 text-center">Dashboard</h1>
-      <div class="container-fluid mt-4 overflow-auto ">
-        <%- include('./components/table', {
-                                      tableName:"Registered users", 
-                                      tableId:"registeredData", 
-                                      buttons:[
-                                              ['add','show'],
-                                              ['disable','show'],
-                                              ['admin','show'],
-                                              ['edit','show'],
-                                              ['password','show'],
-                                              ['remove','show']
-                                              ],
-                                      fields:[
-                                              ['username','enabled'],
-                                              ['pubkey','enabled'],
-                                              ['domain','enabled'],
-                                              ['active','enabled'],
-                                              ['allowed','enabled'],
-                                              ['comments','enabled'],
-                                              ['date','enabled'],
-                                              ]
-                                      }); %>
-
-        <div>
-          <canvas id="registeredData-chart"></canvas>
+      <div class= "container-fluid mt-4">
+        <div class="row">
+          <% if (request.body.nostraddressData && request.body.nostraddressData.length > 0) { %>
+            <%- include('./components/dashcard', {dashcardName:"Registered users",data: request.body.nostraddressData}); %>
+          <% } %>
+          <% if (request.body.mediaData && request.body.mediaData.length > 0) { %>
+            <%- include('./components/dashcard', {dashcardName:"Media files",data: request.body.mediaData}); %>
+          <% } %>
+          <% if (request.body.lightningData && request.body.lightningData.length > 0) { %>
+            <%- include('./components/dashcard', {dashcardName:"Lightning redirections",data: request.body.lightningData}); %>
+          <% } %>
+          <% if (request.body.domainsData && request.body.domainsData.length > 0) { %>
+            <%- include('./components/dashcard', {dashcardName:"Active domain names",data: request.body.domainsData}); %>
+          <% } %>
         </div>
-
-        <%- include('./components/table', {
-                                      tableName:"Media files", 
-                                      tableId:"mediafilesData", 
-                                      buttons:[
-                                              ['add','show'],
-                                              ['disable','show'],
-                                              ['admin','hide'],
-                                              ['edit','show'],
-                                              ['password','hide'],
-                                              ['remove','show']
-                                              ],
-                                      fields:[
-                                              ['pubkey','enabled'],
-                                              ['filename','disabled'],
-                                              ['original_hash','disabled'],
-                                              ['hash','disabled'],
-                                              ['status','enabled'],
-                                              ['visibility','enabled'],
-                                              ['dimensions','enabled'],
-                                              ['filesize','enabled'],
-                                              ['date','enabled'],
-                                              ['comments','enabled']
-                                              ]
-                                      }); %>
-
-        <%- include('./components/table', {
-                                        tableName:"Lightning redirections", 
-                                        tableId:"lightningData", 
+      </div>
+      <div class= "container-fluid mt-4">
+        <div class="row">
+          <div class="col-xl-6 col-lg-6 col-md-6 col-sm-12">
+            <canvas id="nostraddressData-chart"> </canvas>
+          </div>
+          <div class="col-xl-6 col-lg-6 col-md-6 col-sm-12">
+            <canvas id="mediaData-chart" class="col-xl-3 col-lg-4 col-md-12 col-sm-12"></canvas>
+          </div>
+        </div> 
+      </div> 
+      <div class="container-fluid mt-4 overflow-auto ">
+        <% if(request.body.nostraddressData && request.body.nostraddressData.length > 0) { %>
+          <%- include('./components/table', {
+                                        tableName:"Registered users", 
+                                        tableId:"nostraddressData", 
                                         buttons:[
-                                          ['add','show'],
-                                          ['disable','hide'],
-                                          ['admin','hide'],
-                                          ['edit','show'],
-                                          ['password','hide'],
-                                          ['remove','show']
-                                        ],
+                                                ['add','show'],
+                                                ['disable','show'],
+                                                ['admin','show'],
+                                                ['edit','show'],
+                                                ['password','show'],
+                                                ['remove','show']
+                                                ],
                                         fields:[
-                                        ['pubkey','enabled'],
-                                        ['lightningaddress','enabled'],
-                                        ['comments','enabled']
-                                        ]
+                                                ['username','enabled'],
+                                                ['pubkey','enabled'],
+                                                ['domain','enabled'],
+                                                ['active','enabled'],
+                                                ['allowed','enabled'],
+                                                ['comments','enabled'],
+                                                ['date','enabled'],
+                                                ]
                                         }); %>
-     
-        <%- include('./components/table', {
-                                        tableName:"Active domain names", 
-                                        tableId:"domainsData", 
+        <% } %>
+        <% if(request.body.mediaData && request.body.mediaData.length > 0) { %>
+          <%- include('./components/table', {
+                                        tableName:"Media files", 
+                                        tableId:"mediaData", 
                                         buttons:[
-                                          ['add','show'],
-                                          ['disable','show'],
-                                          ['admin','hide'],
-                                          ['edit','show'],
-                                          ['password','hide'],
-                                          ['remove','show']
-                                        ],
+                                                ['add','show'],
+                                                ['disable','show'],
+                                                ['admin','hide'],
+                                                ['edit','show'],
+                                                ['password','hide'],
+                                                ['remove','show']
+                                                ],
                                         fields:[
-                                        ['domain','enabled'],
-                                        ['active','enabled'],
-                                        ['comments','enabled']
-                                        ]
-                                        }); %> 
+                                                ['pubkey','enabled'],
+                                                ['filename','disabled'],
+                                                ['original_hash','disabled'],
+                                                ['hash','disabled'],
+                                                ['status','enabled'],
+                                                ['visibility','enabled'],
+                                                ['dimensions','enabled'],
+                                                ['filesize','enabled'],
+                                                ['date','enabled'],
+                                                ['comments','enabled']
+                                                ]
+                                        }); %>
+        <% } %>
+        <% if(request.body.lightningData && request.body.lightningData.length > 0) { %>
+          <%- include('./components/table', {
+                                          tableName:"Lightning redirections", 
+                                          tableId:"lightningData", 
+                                          buttons:[
+                                            ['add','show'],
+                                            ['disable','hide'],
+                                            ['admin','hide'],
+                                            ['edit','show'],
+                                            ['password','hide'],
+                                            ['remove','show']
+                                          ],
+                                          fields:[
+                                          ['pubkey','enabled'],
+                                          ['lightningaddress','enabled'],
+                                          ['comments','enabled']
+                                          ]
+                                          }); %>
+        <% } %>
+        <% if(request.body.domainsData && request.body.domainsData.length > 0) { %>
+          <%- include('./components/table', {
+                                          tableName:"Active domain names", 
+                                          tableId:"domainsData", 
+                                          buttons:[
+                                            ['add','show'],
+                                            ['disable','show'],
+                                            ['admin','hide'],
+                                            ['edit','show'],
+                                            ['password','hide'],
+                                            ['remove','show']
+                                          ],
+                                          fields:[
+                                          ['domain','enabled'],
+                                          ['active','enabled'],
+                                          ['comments','enabled']
+                                          ]
+                                          }); %> 
+        <% } %>
       </div>
      </main>
     <%- include('./partials/footer'); %>                               
   </body>
 
+<!-- Tables data -->
   <script src="/static/js/table.js"></script>
   <script>
-    initTable("#registeredData",'<%- JSON.stringify(request.body.registeredData) %>')
-    initTable("#mediafilesData",'<%- JSON.stringify(request.body.mediafilesData) %>')
-    initTable("#lightningData",'<%- JSON.stringify(request.body.lightningData) %>')
-    initTable("#domainsData",'<%- JSON.stringify(request.body.domainsData) %>')
-  </script>
-
-
-<!-- TESTING -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script>
-  const ctx = document.getElementById('registeredData-chart');
-  const rawData = JSON.parse('<%- JSON.stringify(request.body.registeredData) %>');
-  const monthCounts = new Array(12).fill(0); // Initialize an array of 12 zeros
-  rawData.forEach(item => {
-    const date = new Date(item.date);
-    const month = date.getUTCMonth(); // Use getUTCMonth instead of getMonth
-    monthCounts[month]++; // Increment the count for this month
-  });
-  const labels = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11','12']
-  new Chart(ctx, {
-    type: 'bar',
-    data: {
-      labels: labels,
-      datasets: [{
-        label: 'registerd users', 
-        data: monthCounts,
-        borderWidth: 1
-      }]
-    },
-    options: {
-      scales: {
-        y: {
-          beginAtZero: true
-        }
-      }
+    if("<%- request.body.nostraddressData && request.body.nostraddressData.length > 0 %>"){
+      initTable("#nostraddressData",'<%- JSON.stringify(request.body.nostraddressData) %>')
     }
-  });
-
-   //Retrieve data from req.body.registeredData
-    //Create a new array with the data
-    //Create a new chart with the data
-
-    
-
+    if("<%- request.body.mediaData && request.body.mediaData.length > 0 %>"){
+      initTable("#mediaData",'<%- JSON.stringify(request.body.mediaData) %>')
+    }
+    if("<%- request.body.lightningData && request.body.lightningData.length > 0 %>"){
+      initTable("#lightningData",'<%- JSON.stringify(request.body.lightningData) %>')
+    }
+    if("<%- request.body.domainsData && request.body.domainsData.length > 0 %>"){
+      initTable("#domainsData",'<%- JSON.stringify(request.body.domainsData) %>')
+    }
   </script>
+
+<!-- Charts data -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="/static/js/chart.js"></script>
+<script>
+  if("<%- JSON.stringify(request.body.nostraddressData && request.body.nostraddressData.length > 0 ) %>"){
+    initMonthChart("#nostraddressData-chart",'Registered users','<%- JSON.stringify(request.body.nostraddressData) %>','<%- JSON.stringify(request.body.nostraddressData) %>')
+  }
+  if("<%- JSON.stringify(request.body.mediaData && request.body.mediaData.length > 0 ) %>"){
+    initMonthChart("#mediaData-chart",'Media files','<%- JSON.stringify(request.body.mediaData) %>','<%- JSON.stringify(request.body.mediaData) %>')
+  }
+</script>
 </html>
