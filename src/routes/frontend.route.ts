@@ -1,10 +1,5 @@
 import { Application } from "express";
-import { adminLogin } from "../controllers/admin.js";
-import { markdownToHtml } from "../lib/server.js";
-
-import fs from "fs";
-import config from "config";
-import { dbSelectAllLightning, dbSelectAllMediaFiles, dbSelectAllRegistered } from "../lib/database.js";
+import { frontendLogin, loadDashboardPage, loadTosPage, loadLoginPage, loadIndexPage } from "../controllers/frontend.js";
 
 export const loadFrontendEndpoint = async (app: Application, version:string): Promise<void> => {
 
@@ -21,26 +16,21 @@ export const loadFrontendEndpoint = async (app: Application, version:string): Pr
 
 	// Current v2 routes
 	app.get("/api/" + version, (req, res) => {
-		req.body.version = app.get("version");
-		req.body.APIversion = version;
-		req.body.activeModules = app.get("activeModules");
-		res.render("index.ejs", {request: req});
+		loadIndexPage(req,res,version);
 	});
 
 	// Login
 	app.get("/api/" +  version + "/login", (req, res) => {
-		req.body.version = app.get("version");
-		res.render("login.ejs", {request: req});
+		loadLoginPage(req,res,version);
 	});
+
 	app.post("/api/" +  version + "/login", (req, res) => {
-		adminLogin(req,res)
+		frontendLogin(req,res)
 	});
 
 	// Tos
 	app.get("/api/" +  version + "/tos", (req, res) => {
-		req.body.version = app.get("version");
-		const tosFile = markdownToHtml(fs.readFileSync(config.get("server.tosFilePath")).toString());
-		res.render("tos.ejs", { request: req, tos: tosFile });
+		loadTosPage(req,res,version);
 	});
 
 	// Dashboard
@@ -48,12 +38,7 @@ export const loadFrontendEndpoint = async (app: Application, version:string): Pr
 		if (req.session.identifier == null){
 			res.redirect("/api/" +  version + "/login");
 		}else{
-			req.body.version = app.get("version");
-			req.body.registeredData = await dbSelectAllRegistered();
-			req.body.mediafilesData = await dbSelectAllMediaFiles();
-			req.body.lightningData = await dbSelectAllLightning();
-			console.log(req.body.registeredUsernames);
-			res.render("dashboard.ejs", {request: req});
+		loadDashboardPage(req,res,version);
 		}
 	});
 
