@@ -6,18 +6,18 @@ import { logger } from "../lib/logger.js";
 import { getClientIp, markdownToHtml } from "../lib/server.js";
 import { verifyNIP07login } from "../lib/nostr/NIP07.js";
 import app from "../app.js";
-import { dbSelectAllLightning, dbSelectAllMediaFiles, dbSelectAllRegistered, dbSelectAllDomains } from "../lib/database.js";
+import { dbSelectModuleData} from "../lib/database.js";
 
 const loadDashboardPage = async (req: Request, res: Response, version:string): Promise<void> => {
 	logger.info("GET /api/" + version + "/dashboard", "|", getClientIp(req));
 
-        req.body.version = app.get("version");
-        req.body.registeredData = await dbSelectAllRegistered();
-        req.body.mediafilesData = await dbSelectAllMediaFiles();
-        req.body.lightningData = await dbSelectAllLightning();
-        req.body.domainsData = await dbSelectAllDomains();
-        console.log(req.body.registeredUsernames);
-        res.render("dashboard.ejs", {request: req});
+    req.body.version = app.get("version");
+    const activeModules = Object.entries(app.get("activeModules"));
+    req.body.activeModules = [];
+    for (const [key] of activeModules) {
+        req.body[key + "Data"] = await dbSelectModuleData(key);
+    }
+    res.render("dashboard.ejs", {request: req});
 };
 
 const loadTosPage = async (req: Request, res: Response, version:string): Promise<void> => {

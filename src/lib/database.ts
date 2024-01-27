@@ -447,20 +447,25 @@ async function dbSelectAllRecords(table:string, query:string): Promise<string> {
 	
 }
 
-async function dbSelectAllRegistered(): Promise<string> {
-	return dbSelectAllRecords("registered", "SELECT id, username, pubkey, domain, active, allowed, date, comments FROM registered ORDER BY id DESC");
-}
 
-async function dbSelectAllMediaFiles(): Promise<string> {
-	return dbSelectAllRecords("mediafiles", "SELECT id, pubkey, filename, original_hash, hash, status, visibility, dimensions, filesize, date, comments FROM mediafiles ORDER BY id DESC");
-}
 
-async function dbSelectAllLightning(): Promise<string> {
-	return dbSelectAllRecords("lightning", "SELECT id, pubkey, lightningaddress, comments FROM lightning ORDER BY id DESC");
-}
+async function dbSelectModuleData(module:string): Promise<string> {
 
-async function dbSelectAllDomains(): Promise<string> {
-	return dbSelectAllRecords("domains", "SELECT id, domain, active, comments FROM domains ORDER BY id DESC");
+	console.log("dbSelectModuleData", module);
+
+	if (module == "nostraddress"){
+		return await dbSelectAllRecords("registered", "SELECT id, username, pubkey, domain, active, allowed, date, comments FROM registered ORDER BY id DESC");
+	}
+	if (module == "media"){
+		return await dbSelectAllRecords("mediafiles", "SELECT id, pubkey, filename, original_hash, hash, status, visibility, dimensions, filesize, date, comments FROM mediafiles ORDER BY id DESC");
+	}
+	if (module == "lightning"){
+		return await dbSelectAllRecords("lightning", "SELECT id, pubkey, lightningaddress, comments FROM lightning ORDER BY id DESC");
+	}
+	if (module == "domains"){
+		return await dbSelectAllRecords("domains", "SELECT id, domain, active, comments FROM domains ORDER BY id DESC");
+	}
+	return "";
 }
 
 const showDBStats = async(): Promise<string> => {
@@ -559,7 +564,4 @@ export {
 		dbFilesizeUpdate,
 		dbFilePercentageUpdate,
 		initDatabase,
-		dbSelectAllRegistered,
-		dbSelectAllMediaFiles,
-		dbSelectAllLightning,
-		dbSelectAllDomains};
+		dbSelectModuleData};
