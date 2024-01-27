@@ -459,6 +459,10 @@ async function dbSelectAllLightning(): Promise<string> {
 	return dbSelectAllRecords("lightning", "SELECT id, pubkey, lightningaddress, comments FROM lightning ORDER BY id DESC");
 }
 
+async function dbSelectAllDomains(): Promise<string> {
+	return dbSelectAllRecords("domains", "SELECT id, domain, active, comments FROM domains ORDER BY id DESC");
+}
+
 const showDBStats = async(): Promise<string> => {
 
 	const conn = await connect("showDBStats");
@@ -557,4 +561,5 @@ export {
 		initDatabase,
 		dbSelectAllRegistered,
 		dbSelectAllMediaFiles,
-		dbSelectAllLightning};
+		dbSelectAllLightning,
+		dbSelectAllDomains};

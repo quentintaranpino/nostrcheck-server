@@ -1,0 +1,24 @@
+<div class="modal fade modal-lg" id="<%- tableId %>-modal" tabindex="-1" aria-labelledby="<%- tableId %>-modal" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h1 class="modal-title fs-5" id="<%- tableId %>-modal-title">Edit record</h1>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <form>
+            <% for(let i=0; i<fields.length; i++){ %>
+            <div class="mb-3">
+              <label for="<%- tableId %>-<%- fields[i] %>" class="col-form-label"><%- fields[i][0] %></label>
+              <input type="text" <%- fields[i][1] %> class="form-control" id="<%- tableId %>-<%- fields[i][0] %>">
+            </div>
+            <% } %>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+          <button type="button" class="btn btn-primary">Save</button>
+        </div>
+      </div>
+    </div>
+  </div>

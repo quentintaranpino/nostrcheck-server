@@ -6,7 +6,7 @@ import { logger } from "../lib/logger.js";
 import { getClientIp, markdownToHtml } from "../lib/server.js";
 import { verifyNIP07login } from "../lib/nostr/NIP07.js";
 import app from "../app.js";
-import { dbSelectAllLightning, dbSelectAllMediaFiles, dbSelectAllRegistered } from "../lib/database.js";
+import { dbSelectAllLightning, dbSelectAllMediaFiles, dbSelectAllRegistered, dbSelectAllDomains } from "../lib/database.js";
 
 const loadDashboardPage = async (req: Request, res: Response, version:string): Promise<void> => {
 	logger.info("GET /api/" + version + "/dashboard", "|", getClientIp(req));
@@ -15,6 +15,7 @@ const loadDashboardPage = async (req: Request, res: Response, version:string): P
         req.body.registeredData = await dbSelectAllRegistered();
         req.body.mediafilesData = await dbSelectAllMediaFiles();
         req.body.lightningData = await dbSelectAllLightning();
+        req.body.domainsData = await dbSelectAllDomains();
         console.log(req.body.registeredUsernames);
         res.render("dashboard.ejs", {request: req});
 };

@@ -1,160 +1,114 @@
+<link href="https://cdn.jsdelivr.net/npm/jquery-resizable-columns@0.2.3/dist/jquery.resizableColumns.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-table@1.22.2/dist/bootstrap-table.min.css" rel="stylesheet">
+<link rel="stylesheet" href="/static/css/table.css">
+
 <html lang="en">
   <%- include('./partials/head',{title:"Nostrcheck Server - Dashboard"}); %>
-  <link href="https://cdn.jsdelivr.net/npm/jquery-resizable-columns@0.2.3/dist/jquery.resizableColumns.min.css" rel="stylesheet">
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap-table@1.22.2/dist/bootstrap-table.min.css" rel="stylesheet">
-  <link rel="stylesheet" href="/static/css/table.css">
+
   <body class="d-flex flex-column h-100">
     <%- include('./partials/navbar', {active:'home'}); %>
     <main class="pb-1">
       <h1 class="col-12 text-center">Dashboard</h1>
       <div class="container-fluid mt-4 overflow-auto ">
-        <h3>Registered Users</h3>
-        <div id="regUsersTable-toolbar">
-          <button id="regUsersTable-add" class="btn btn-info" disabled>
-            <i class="fa fa-add"></i>
-          </button>
-          <div class="btn-group" role="group" aria-label="Edit user properties">
-            <button id="regUsersTable-disable" class="btn btn-warning" disabled>
-              <i class="fa fa-ban"></i> 
-            </button>
-            <button id="regUsersTable-admin" class="btn btn-success" disabled>
-              <i class="fa fa-user-tie"></i> 
-            </button>
-            <button id="regUsersTable-edit" 
-                    class="btn btn-secondary" disabled
-                    data-bs-toggle="modal" 
-                    data-bs-target="#regUsersTable-modal" 
-                    data-bs-whatever="put whatever data in this kind of fields">
-              <i class="fa fa-edit"></i> 
-            </button>
-          </div>
-          <button id="regUsersTable-remove" class="btn btn-danger" disabled>
-            <i class="fa fa-trash"></i> 
-          </button>
-          <button id="regUsersTable-password" class="btn btn-danger" disabled>
-            <i class="fa fa-reset"></i> Reset pass via DM 
-            MENSAJE NOSR CAMERI CNAME
-          </button>
-        </div>
-        <table 
-              id="regUsersTable"
-              >
-          <thead>
-            <tr>
-              <th data-field="state" data-checkbox="true"></th>
-              <th data-field="id" data-sortable="true">ID</th>
-              <th data-field="username" data-sortable="true">Username</th>
-              <th data-field="pubkey" data-sortable="true">Pubkey</th>
-              <th data-field="domain" data-sortable="true">Domain</th>
-              <th data-field="active" data-sortable="true">Active</th>
-              <th data-field="allowed" data-sortable="true">Allowed</th>
-              <th data-field="date" data-sortable="true" data-formatter="dateFormat">Date</th>
-              <th data-field="comments">Comments</th>
-            </tr>
-            </thead>
-        </table>
-        <h3>Media files</h3>
-        <div id="mediaFilesTable-toolbar">
-          <button id="mediaFiles-add" class="btn btn-info" disabled>
-            <i class="fa fa-add"></i>
-          </button>
-            <button id="mediaFiles-disable" class="btn btn-warning" disabled>
-              <i class="fa fa-ban"></i> 
-            </button>
-          <button id="mediaFiles-remove" class="btn btn-danger" disabled>
-            <i class="fa fa-trash"></i> 
-          </button>
-        </div>
-        <table 
-              id="mediaFilesTable"
-              >
-          <thead>
-            <tr>
-              <th data-field="state" data-checkbox="true"></th>
-              <th data-field="id" data-sortable="true">ID</th>
-              <th data-field="pubkey" data-sortable="true">Pubkey (hex)</th>
-              <th data-field="filename" data-sortable="true">Filename</th>
-              <th data-field="original_hash" data-sortable="true">Original hash</th>
-              <th data-field="hash" data-sortable="true">Hash</th>
-              <th data-field="status" data-sortable="true">Status</th>
-              <th data-field="visibility" data-sortable="true">Visibility</th>
-              <th data-field="dimensions" data-sortable="true">Dimensions</th>
-              <th data-field="filesize" data-sortable="true">Filesize</th>
-              <th data-field="date" data-sortable="true" data-formatter="dateFormat">Date</th>
-              <th data-field="comments">Comments</th>
-            </tr>
-            </thead>
-        </table>
-        <h3>Lightning redirections</h3>
-        <div id="lightningTable-toolbar">
-          <button id="lightning-add" class="btn btn-info" disabled>
-            <i class="fa fa-add"></i>
-          </button>
-          <button id="lightning-remove" class="btn btn-danger" disabled>
-            <i class="fa fa-trash"></i> 
-          </button>
-        </div>
-        <table 
-              id="lightningTable"
-              >
-          <thead>
-            <tr>
-              <th data-field="state" data-checkbox="true"></th>
-              <th data-field="id" data-sortable="true">ID</th>
-              <th data-field="pubkey" data-sortable="true">Pubkey (hex)</th>
-              <th data-field="lightningaddress" data-sortable="true">Lightning address</th>
-              <th data-field="comments" data-sortable="true">Comments</th>
-            </tr>
-            </thead>
-        </table>
+        <%- include('./components/table', {
+                                      tableName:"Registered users", 
+                                      tableId:"registeredData", 
+                                      buttons:[
+                                              ['add','show'],
+                                              ['disable','show'],
+                                              ['admin','show'],
+                                              ['edit','show'],
+                                              ['password','show'],
+                                              ['remove','show']
+                                              ],
+                                      fields:[
+                                              ['username','enabled'],
+                                              ['pubkey','enabled'],
+                                              ['domain','enabled'],
+                                              ['active','enabled'],
+                                              ['allowed','enabled'],
+                                              ['comments','enabled']
+                                              ]
+                                      }); %>
+
+        <%- include('./components/table', {
+                                      tableName:"Media files", 
+                                      tableId:"mediafilesData", 
+                                      buttons:[
+                                              ['add','show'],
+                                              ['disable','show'],
+                                              ['admin','hide'],
+                                              ['edit','show'],
+                                              ['password','hide'],
+                                              ['remove','show']
+                                              ],
+                                      fields:[
+                                              ['pubkey','enabled'],
+                                              ['filename','disabled'],
+                                              ['original_hash','disabled'],
+                                              ['hash','disabled'],
+                                              ['status','enabled'],
+                                              ['visibility','enabled'],
+                                              ['dimensions','enabled'],
+                                              ['filesize','enabled'],
+                                              ['date','enabled'],
+                                              ['comments','enabled']
+                                              ]
+                                      }); %>
+
+        <%- include('./components/table', {
+                                        tableName:"Lightning redirections", 
+                                        tableId:"lightningData", 
+                                        buttons:[
+                                          ['add','show'],
+                                          ['disable','hide'],
+                                          ['admin','hide'],
+                                          ['edit','show'],
+                                          ['password','hide'],
+                                          ['remove','show']
+                                        ],
+                                        fields:[
+                                        ['pubkey','enabled'],
+                                        ['lightningaddress','enabled'],
+                                        ['comments','enabled']
+                                        ]
+                                        }); %>
+     
+        <%- include('./components/table', {
+                                        tableName:"Active domain names", 
+                                        tableId:"domainsData", 
+                                        buttons:[
+                                          ['add','show'],
+                                          ['disable','show'],
+                                          ['admin','hide'],
+                                          ['edit','show'],
+                                          ['password','hide'],
+                                          ['remove','show']
+                                        ],
+                                        fields:[
+                                        ['domain','enabled'],
+                                        ['active','enabled'],
+                                        ['comments','enabled']
+                                        ]
+                                        }); %> 
       </div>
       <div>
         <canvas id="myChart"></canvas>
       </div>
     </main>
-    <%- include('./partials/footer'); %>
-
-    
-<div class="modal fade" id="regUsersTable-modal" tabindex="-1" aria-labelledby="regUsersTable" aria-hidden="true">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h1 class="modal-title fs-5" id="regUsersTable-modal-title">Edit record</h1>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <div class="modal-body">
-        <form>
-          <div class="mb-3">
-            <label for="username" class="col-form-label">username:</label>
-            <input type="text" class="form-control" id="username">
-          </div>
-          <div class="mb-3">
-            <label for="pubkey" class="col-form-label">pubkey:</label>
-            <input type="text" class="form-control" id="pubkey"></input>
-          </div>
-          <div class="mb-3">
-            <label for="comments" class="col-form-label">comments:</label>
-            <textarea class="form-control" id="comments"></textarea>
-          </div>
-        </form>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-        <button type="button" class="btn btn-primary">Save</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-    
+    <%- include('./partials/footer'); %>                               
   </body>
+
   <script src="/static/js/table.js"></script>
   <script>
-    initTable("#regUsersTable",'<%- JSON.stringify(request.body.registeredData) %>')
-    initTable("#mediaFilesTable",'<%- JSON.stringify(request.body.mediafilesData) %>')
-    initTable("#lightningTable",'<%- JSON.stringify(request.body.lightningData) %>')
+    initTable("#registeredData",'<%- JSON.stringify(request.body.registeredData) %>')
+    initTable("#mediafilesData",'<%- JSON.stringify(request.body.mediafilesData) %>')
+    initTable("#lightningData",'<%- JSON.stringify(request.body.lightningData) %>')
+    initTable("#domainsData",'<%- JSON.stringify(request.body.domainsData) %>')
   </script>
 
+
+<!-- TESTING -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
   const ctx = document.getElementById('myChart');
