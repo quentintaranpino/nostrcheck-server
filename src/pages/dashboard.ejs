@@ -42,6 +42,7 @@
                                         buttons:[
                                                 ['add','show'],
                                                 ['disable','show'],
+                                                ['enable','show'],
                                                 ['admin','show'],
                                                 ['edit','show'],
                                                 ['password','show'],
@@ -65,6 +66,7 @@
                                         buttons:[
                                                 ['add','show'],
                                                 ['disable','show'],
+                                                ['enable','show'],                                                
                                                 ['admin','hide'],
                                                 ['edit','show'],
                                                 ['password','hide'],
@@ -91,6 +93,7 @@
                                           buttons:[
                                             ['add','show'],
                                             ['disable','hide'],
+                                            ['enable','hide'],
                                             ['admin','hide'],
                                             ['edit','show'],
                                             ['password','hide'],
@@ -110,6 +113,7 @@
                                           buttons:[
                                             ['add','show'],
                                             ['disable','show'],
+                                            ['enable','show'],
                                             ['admin','hide'],
                                             ['edit','show'],
                                             ['password','hide'],
@@ -124,23 +128,24 @@
         <% } %>
       </div>
      </main>
-    <%- include('./partials/footer'); %>                               
+    <%- include('./partials/footer'); %>        
+                           
   </body>
 
 <!-- Tables data -->
   <script src="/static/js/table.js"></script>
   <script>
     if("<%- request.body.nostraddressData && request.body.nostraddressData.length > 0 %>"){
-      initTable("#nostraddressData",'<%- JSON.stringify(request.body.nostraddressData) %>')
+      initTable("#nostraddressData",'<%- JSON.stringify(request.body.nostraddressData) %>','user')
     }
     if("<%- request.body.mediaData && request.body.mediaData.length > 0 %>"){
-      initTable("#mediaData",'<%- JSON.stringify(request.body.mediaData) %>')
+      initTable("#mediaData",'<%- JSON.stringify(request.body.mediaData) %>', 'media file')
     }
     if("<%- request.body.lightningData && request.body.lightningData.length > 0 %>"){
-      initTable("#lightningData",'<%- JSON.stringify(request.body.lightningData) %>')
+      initTable("#lightningData",'<%- JSON.stringify(request.body.lightningData) %>', 'lightning redirection')
     }
     if("<%- request.body.domainsData && request.body.domainsData.length > 0 %>"){
-      initTable("#domainsData",'<%- JSON.stringify(request.body.domainsData) %>')
+      initTable("#domainsData",'<%- JSON.stringify(request.body.domainsData) %>', 'domain name')
     }
   </script>
 

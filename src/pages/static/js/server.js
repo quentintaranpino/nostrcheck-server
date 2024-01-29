@@ -7,4 +7,3 @@
     setTimeout(getServerUptime, 1000);
   }
   getServerUptime();
-  
