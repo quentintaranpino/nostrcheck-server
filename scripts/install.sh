@@ -42,7 +42,7 @@ echo "WARNING: This script is still in development and may not work as expected.
 echo ""
 
 # Node version
-NODE_MAJOR=20
+NODE_MAJOR=21
 
 # Database variables
 HOST="nostcheck.me"
