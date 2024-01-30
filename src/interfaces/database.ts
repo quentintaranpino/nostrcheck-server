@@ -43,6 +43,7 @@ interface MediafilesTable {
 	status: string;
 	percentage: string;
 	visibility: string;
+	active: string;
 	date: string;
 	ip_address: string;
 	magnet: string;
@@ -61,6 +62,7 @@ const MediafilesTableFields: MediafilesTable = {
 	status: "varchar(10) NOT NULL",
 	percentage: "int(3) NOT NULL DEFAULT 0",
 	visibility: "boolean NOT NULL DEFAULT 0",
+	active: "boolean NOT NULL DEFAULT 0",
 	date: "datetime NOT NULL",
 	ip_address: "varchar(64) NOT NULL",
 	magnet: "varchar(512)",
@@ -110,6 +112,11 @@ const RegisteredTableFields: RegisteredTable = {
 	comments: "varchar(150)",
 };
 
+//If you add a new field that is substituting an old one, add it here
+const newFieldcompatibility = [
+	{ newfield: 'newFieldname', oldField: 'oldFiedName' },
+  ];
+
 export {
 	DatabaseTables,
 	DomainsTableFields,
@@ -117,5 +124,6 @@ export {
 	MediafilesTableFields,
 	MediatagsTableFields,
 	RegisteredTableFields,
+	newFieldcompatibility
 };	
 	

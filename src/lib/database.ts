@@ -4,13 +4,12 @@ import { logger } from "./logger.js";
 import { ProcessingFileData } from "../interfaces/media.js";
 import { 
 	DatabaseTables, 
+	newFieldcompatibility, 
 	DomainsTableFields, 
 	LightningTableFields, 
 	MediafilesTableFields, 
 	MediatagsTableFields, 
 	RegisteredTableFields} from "../interfaces/database.js";
-import { ResultMessagev2 } from "../interfaces/server.js";
-import { registeredTableResponse } from "../interfaces/frontend.js";
 
 let retry :number = 0;
 async function connect(source:string): Promise<Pool> {
@@ -207,6 +206,18 @@ async function checkDatabaseConsistency(table: string, column_name:string, type:
 				"ALTER TABLE " + table + " ADD " + column_name + " " + type + after_column + ";";
 			await conn.query(AlterTableStatement);
 			conn.end();
+
+			// Check if the new column is a migration from an old column, migrate data and delete old column.
+			let result = false;
+			for (let i = 0; i < newFieldcompatibility.length; i++) {
+				if (newFieldcompatibility[i].newfield == column_name){
+					result = await migrateOldFields(table, newFieldcompatibility[i].oldField, newFieldcompatibility[i].newfield);
+				}
+				if (result){
+					result = await deleteOldFields(table, newFieldcompatibility[i].oldField);
+				}
+			}
+
 			if (!AlterTableStatement) {
 				logger.error("Error creating column:", column_name, "in table:", table);
 				return false;
@@ -457,7 +468,7 @@ async function dbSelectModuleData(module:string): Promise<string> {
 		return await dbSelectAllRecords("registered", "SELECT id, username, pubkey, domain, active, allowed, date, comments FROM registered ORDER BY id DESC");
 	}
 	if (module == "media"){
-		return await dbSelectAllRecords("mediafiles", "SELECT id, pubkey, filename, original_hash, hash, status, visibility, dimensions, filesize, date, comments FROM mediafiles ORDER BY id DESC");
+		return await dbSelectAllRecords("mediafiles", "SELECT id, pubkey, filename, original_hash, hash, status, active, dimensions, filesize, date, comments FROM mediafiles ORDER BY id DESC");
 	}
 	if (module == "lightning"){
 		return await dbSelectAllRecords("lightning", "SELECT id, pubkey, lightningaddress, comments FROM lightning ORDER BY id DESC");
@@ -549,6 +560,53 @@ const initDatabase = async (): Promise<void> => {
 	}
 
 }
+
+const migrateOldFields = async (table:string, oldField:string, newField:string): Promise<boolean> => {
+	
+	const conn = await connect("migrateOldFields");
+	try{
+		const [dbFileStatusUpdate] = await conn.execute(
+			"UPDATE " + table + " set " + newField + " = " + oldField + " where " + oldField + " is not null"
+		);
+		if (!dbFileStatusUpdate) {
+			logger.error("Error migrating old fields");
+			conn.end();
+			return false;
+		}
+		logger.warn("Migrated all data from old fields, table:", table, "| Old field:", oldField, "-> New field :", newField);
+		conn.end();
+		return true;
+	}catch (error) {
+		logger.error("Error migrating old fields");
+		conn.end();
+		return false;
+	}
+}
+
+const deleteOldFields = async (table:string, oldField:string): Promise<boolean> => {
+
+	//Drop oldField from table
+	const conn = await connect("deleteOldFields");
+	try{
+		const [dbFileStatusUpdate] = await conn.execute(
+			"ALTER TABLE " + table + " DROP " + oldField
+		);
+		if (!dbFileStatusUpdate) {
+			logger.error("Error deleting old fields");
+			conn.end();
+			return false;
+		}
+		logger.warn("Deleted old fields, table:", table, "| Old field:", oldField);
+		conn.end();
+		return true;
+
+	}catch (error) {
+		logger.error("Error deleting old fields");
+		conn.end();
+		return false;
+	}
+}
+
 
 export { 
 	    connect, 
