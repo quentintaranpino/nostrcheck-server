@@ -10,7 +10,7 @@
             "legacyPassword": "test"
         },
         "tosFilePath": "resources/tos.md",
-        "availableEendpoints": {
+        "availableEendpoints": { 
             "nostraddress": {
                 "enabled": true,
                 "path": "/nostraddress",
