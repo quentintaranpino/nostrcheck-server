@@ -3,7 +3,6 @@ import { logger } from './logger.js'
 import crypto from 'crypto'
 import fs from 'fs'
 import { ProcessingFileData } from '../interfaces/media.js'
-import sharp from 'sharp'
 
 const generatefileHashfromfile = (filepath:string, options: ProcessingFileData): string => {
 
