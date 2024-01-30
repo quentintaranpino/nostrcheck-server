@@ -15,21 +15,33 @@
     <i class="fa fa-check"></i> 
     </button>
 </div>
+<div class="btn-group" role="group" aria-label="Visible invisible buttons">
+    <button id="<%- tableId %>-button-show" 
+        class="btn btn-success <%= buttons[3][1] == 'hide' ? 'd-none' : '' %> " disabled
+        >
+        <i class="fa-solid fa-eye"></i>
+    </button>
+    <button id="<%- tableId %>-button-hide" 
+        class="btn btn-secondary <%= buttons[4][1] == 'hide' ? 'd-none' : '' %> " disabled
+        >
+        <i class="fa-solid fa-eye-slash"></i>
+    </button>
+</div>
 <div class="btn-group" role="group" aria-label="Edit buttons">
-    <button id="<%- tableId %>-button-admin"   class="btn btn-secondary <%= buttons[3][1] == 'hide' ? 'd-none' : '' %> " disabled>
+    <button id="<%- tableId %>-button-admin"   class="btn btn-secondary <%= buttons[5][1] == 'hide' ? 'd-none' : '' %> " disabled>
     <i class="fa fa-user-tie"></i> 
     </button>
     <button id="<%- tableId %>-button-edit" 
 
-            class="btn btn-secondary <%= buttons[4][1] == 'hide' ? 'd-none' : '' %> " disabled
+            class="btn btn-secondary <%= buttons[6][1] == 'hide' ? 'd-none' : '' %> " disabled
             >
     <i class="fa fa-edit"></i> 
     </button>
-    <button id="<%- tableId %>-button-password"  class="btn btn-secondary <%= buttons[5][1] == 'hide' ? 'd-none' : '' %> " disabled>
+    <button id="<%- tableId %>-button-password"  class="btn btn-secondary <%= buttons[7][1] == 'hide' ? 'd-none' : '' %> " disabled>
         <i class="fa fa-key"></i>
     </button>
 </div>
-<button id="<%- tableId %>-button-remove"  class="btn btn-danger <%= buttons[6][1] == 'hide' ? 'd-none' : '' %> " disabled>
+<button id="<%- tableId %>-button-remove"  class="btn btn-danger <%= buttons[8][1] == 'hide' ? 'd-none' : '' %> " disabled>
     <i class="fa fa-trash"></i> 
 </button>
 </div>

@@ -21,13 +21,18 @@ const initTable = (tableId, data, objectName) => {
         clickToSelect: true,
         showColumns: true,
         idField: 'id',
+        detailView: true,
+        detailFormatter: "detailFormatter",
     })
 
     // Buttons logic
     $(tableId).on('check.bs.table uncheck.bs.table check-all.bs.table uncheck-all.bs.table', function () {
-        $(tableId + '-button-remove').prop('disabled', !$(tableId).bootstrapTable('getSelections').length)
         $(tableId + '-button-disable').prop('disabled', !$(tableId).bootstrapTable('getSelections').length)
         $(tableId + '-button-enable').prop('disabled', !$(tableId).bootstrapTable('getSelections').length)
+        $(tableId + '-button-show').prop('disabled', !$(tableId).bootstrapTable('getSelections').length)
+        $(tableId + '-button-hide').prop('disabled', !$(tableId).bootstrapTable('getSelections').length)
+        $(tableId + '-button-remove').prop('disabled', !$(tableId).bootstrapTable('getSelections').length)
+
         if ($(tableId).bootstrapTable('getSelections').length == 1) {
             $(tableId + '-button-admin').prop('disabled', false)
             $(tableId + '-button-edit').prop('disabled', false)
@@ -63,10 +68,12 @@ const initTable = (tableId, data, objectName) => {
                     row: editedRow
                 });
                 $(tableId).bootstrapTable('uncheckAll')
+
             }
         });
 
         // TODO FETCH DATA TO SERVER
+        // TODO GET NEW ID FROM SERVER
     }
     )
 
@@ -115,6 +122,52 @@ const initTable = (tableId, data, objectName) => {
 
         // TODO FETCH DATA TO SERVER
     })
+
+    // Show button
+    $(tableId + '-button-show').click(async function () {
+        var ids = $.map($(tableId).bootstrapTable('getSelections'), function (row) {
+        return row.id
+        })
+
+        if (await initConfirmModal(tableId,ids,'show',objectName)) {
+
+            // Update active field from row id to reverse value
+            for (let id of ids) {
+                $(tableId).bootstrapTable('updateByUniqueId', {
+                    id: id,
+                    row: {
+                        visibility: 1
+                    }
+                });
+            }
+        }
+
+        // TODO FETCH DATA TO SERVER
+    }
+    )
+
+    // Hide button
+    $(tableId + '-button-hide').click(async function () {
+        var ids = $.map($(tableId).bootstrapTable('getSelections'), function (row) {
+        return row.id
+        })
+
+        if (await initConfirmModal(tableId,ids,'hide',objectName)) {
+
+            // Update active field from row id to reverse value
+            for (let id of ids) {
+                $(tableId).bootstrapTable('updateByUniqueId', {
+                    id: id,
+                    row: {
+                        visibility: 0
+                    }
+                });
+            }
+        }
+
+        // TODO FETCH DATA TO SERVER
+    }
+    )
 
     // Admin button
     $(tableId + '-button-admin').click(async function () {
@@ -178,10 +231,33 @@ const initTable = (tableId, data, objectName) => {
 
     })
 
-   
+    // Pasword button
+    $(tableId + '-button-password').click(async function () {
+        var ids = $.map($(tableId).bootstrapTable('getSelections'), function (row) {
+        return row.id
+        })
+
+        if (await initConfirmModal(tableId,ids,'send new generated password to ',objectName)) {
+            // TODO SEND DATA TO USER BY DM
+            console.log('TODO: Send password by DM!')
+        }
+    })
+
 }
 
 
 function dateFormat(value) {
   return new Date(value).toLocaleString([], { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+}
+
+
+function detailFormatter(index, row) {
+var html = []
+html.push('<div class="container-fluid ps-4">')
+html.push('<h3><b>Details:</b></h3>')
+$.each(row, function (key, value) {
+    html.push('<p><b>' + key + ':</b> ' + value + '</p>')
+})
+html.push('</div>')
+return html.join('')
 }

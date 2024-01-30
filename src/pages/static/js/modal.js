@@ -32,7 +32,7 @@ const initEditModal = async (tableId, row, objectName, newRow) => {
         for (var key in row) {
             if (row.hasOwnProperty(key)) {
                 $(tableId + '-edit-modal .modal-body')
-                        .append('<label for="' + key + '" class="col-form-label">' + key + '</label><input type="text" class="form-control" id="' + key + '" placeholder="' + key + '" value="' + row[key] + '">')
+                        .append('<label for="' + key + '" class="col-form-label strong">' + key + '</label><input type="text" class="form-control" id="' + key + '" placeholder="' + key + '" value="' + row[key] + '">')
             
             if (newRow && key == 'id') {
                 $('#' + key).prop('disabled', true)
