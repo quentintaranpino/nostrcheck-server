@@ -1,18 +1,10 @@
 import {encode} from 'blurhash'
-import { createCanvas, loadImage, Image } from 'canvas'
 import { logger } from './logger.js'
 import crypto from 'crypto'
 import fs from 'fs'
+import { ProcessingFileData } from '../interfaces/media.js'
 
-const getImageData = (image: Image) => {
-  const canvas = createCanvas(image.width, image.height)
-  const context = canvas.getContext('2d')
-  context.drawImage(image, 0, 0)
-  return context.getImageData(0, 0, image.width, image.height)
-}
-
-
-const generatefileHashfromfile = (filepath:string): string => {
+const generatefileHashfromfile = (filepath:string, options: ProcessingFileData): string => {
 
   logger.debug("INIT hash generation for file:", filepath);
 
@@ -28,6 +20,7 @@ const generatefileHashfromfile = (filepath:string): string => {
     return "";
   }
   logger.debug("END hash generation for file:", filepath, ":", hash);
+  logger.info("Hash for file:", options.filename, ":", hash);
 
   return hash;
 
@@ -55,15 +48,21 @@ const generatefileHashfrombuffer = (file:Express.Multer.File): string => {
 }
 
 
-const generateBlurhash = async (file:any): Promise<string> => {
+import sharp from 'sharp'
 
-  logger.debug("INIT blurhash generation for file:", file.originalname);
-  let image = await loadImage(file.buffer);
-  const imageData = getImageData(image);
-  let blurhash = encode(imageData.data,imageData.width,imageData.height,4,3);
-  logger.debug("END blurhash generation for file:", file.originalname, ":", blurhash);
-  return blurhash;
-
-}
+const generateBlurhash = async (path:string): Promise<string> =>
+  new Promise((resolve, reject) => {
+    logger.debug("INIT blurhash generation for file:", path);
+    sharp.cache(false);
+    sharp(path)
+      .raw()
+      .ensureAlpha()
+      .resize(32, 32, { fit: "inside" })
+      .toBuffer((err, buffer, { width, height }) => {
+        if (err) return reject(err);
+        logger.debug("END blurhash generation for file:", path, "blurhash:", encode(new Uint8ClampedArray(buffer), width, height, 4, 4));
+        resolve(encode(new Uint8ClampedArray(buffer), width, height, 4, 4));
+      });
+  });
 
 export { generateBlurhash, generatefileHashfromfile, generatefileHashfrombuffer};
