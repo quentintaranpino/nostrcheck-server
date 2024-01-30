@@ -9,7 +9,7 @@ import { dbFileFieldUpdate } from "./database.js";
 import {fileTypeFromBuffer} from 'file-type';
 import { Request } from "express";
 import app from "../app.js";
-import { generateBlurhash, generatefileHashfromfile } from "./hash.js";
+import { generatefileHashfromfile } from "./hash.js";
 import crypto from "crypto";
 import { getClientIp } from "./server.js";
 import { CreateMagnet } from "./torrent.js";
