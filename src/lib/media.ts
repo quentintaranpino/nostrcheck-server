@@ -112,9 +112,9 @@ async function convertFile(	inputFile: any,	options: ProcessingFileData,retry:nu
 					await dbFileFieldUpdate('mediafiles','status','success', options);
 					await dbFileFieldUpdate('mediafiles', 'filesize', getFileSize(MediaPath,options).toString(), options);
 					await dbFileFieldUpdate('mediafiles','dimensions',newfiledimensions.split("x")[0] + 'x' + newfiledimensions.split("x")[1], options);
-					if (options.originalmime.toString().startsWith("image")){
-						await dbFileFieldUpdate('mediafiles', 'blurhash', await generateBlurhash(MediaPath), options);
-					}
+					// if (options.originalmime.toString().startsWith("image")){
+					// 	await dbFileFieldUpdate('mediafiles', 'blurhash', await generateBlurhash(MediaPath), options);
+					// }
 					logger.info(`File converted successfully: ${MediaPath} ${ConversionDuration /2} seconds`);
 					resolve(end);
 				}
