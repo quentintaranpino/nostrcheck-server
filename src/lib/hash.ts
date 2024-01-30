@@ -1,8 +1,9 @@
-import {encode} from 'blurhash'
 import { logger } from './logger.js'
 import crypto from 'crypto'
 import fs from 'fs'
 import { ProcessingFileData } from '../interfaces/media.js'
+import sharp from 'sharp'
+import { encode } from 'blurhash'
 
 const generatefileHashfromfile = (filepath:string, options: ProcessingFileData): string => {
 
@@ -47,19 +48,19 @@ const generatefileHashfrombuffer = (file:Express.Multer.File): string => {
 
 }
 
-// const generateBlurhash = async (path:string): Promise<string> =>
-//   new Promise((resolve, reject) => {
-//     logger.debug("INIT blurhash generation for file:", path);
-//     sharp.cache(false);
-//     sharp(path)
-//       .raw()
-//       .ensureAlpha()
-//       .resize(32, 32, { fit: "inside" })
-//       .toBuffer((err, buffer, { width, height }) => {
-//         if (err) return reject(err);
-//         logger.debug("END blurhash generation for file:", path, "blurhash:", encode(new Uint8ClampedArray(buffer), width, height, 4, 4));
-//         resolve(encode(new Uint8ClampedArray(buffer), width, height, 4, 4));
-//       });
-//   });
+const generateBlurhash = async (path:string): Promise<string> =>
+  new Promise((resolve, reject) => {
+    logger.debug("INIT blurhash generation for file:", path);
+    sharp.cache(false);
+    sharp(path)
+      .raw()
+      .ensureAlpha()
+      .resize(32, 32, { fit: "inside" })
+      .toBuffer((err, buffer, { width, height }) => {
+        if (err) return reject(err);
+        logger.debug("END blurhash generation for file:", path, "blurhash:", encode(new Uint8ClampedArray(buffer), width, height, 4, 4));
+        resolve(encode(new Uint8ClampedArray(buffer), width, height, 4, 4));
+      });
+  });
 
-export { generatefileHashfromfile, generatefileHashfrombuffer};
+export { generateBlurhash, generatefileHashfromfile, generatefileHashfrombuffer};
