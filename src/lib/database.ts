@@ -233,188 +233,27 @@ async function checkDatabaseConsistency(table: string, column_name:string, type:
 	}
 }
 
-async function dbFileStatusUpdate(status: string, options: ProcessingFileData): Promise<boolean> {
 
-	const conn = await connect("dbFileStatusUpdate");
+const dbFileFieldUpdate = async (tableName :string, fieldName: string, fieldValue: string, options: ProcessingFileData): Promise<boolean> =>{
+
+	const conn = await connect("dbFileFieldUpdate:" + fieldName + " | Table: " + tableName);
 	try{
-		const [dbFileStatusUpdate] = await conn.execute(
-			"UPDATE mediafiles set status = ? where id = ?",
-			[status, options.fileid]
+		const [dbFileFieldUpdate] = await conn.execute(
+			"UPDATE " + tableName + " set " + fieldName + " = ? where id = ?",
+			[fieldValue, options.fileid]
 		);
-		if (!dbFileStatusUpdate) {
-			logger.error("Error updating mediafiles table, id:", options.fileid, "status:", status);
+		if (!dbFileFieldUpdate) {
+			logger.error("Error updating " + tableName + " table, id:", options.fileid, fieldName + ":", fieldValue);
 			conn.end();
 			return false;
 		}
 		conn.end();
 		return true
 	}catch (error) {
-		logger.error("Error updating mediafiles table, id:", options.fileid, "status:", status);
+		logger.error("Error updating " + tableName + " table, id:", options.fileid, fieldName + ":", fieldValue);
 		conn.end();
 		return false;
 	}
-
-}
-
-async function dbFilePercentageUpdate(percentage: string, options: ProcessingFileData): Promise<boolean> {
-
-	const conn = await connect("dbFilePercentageUpdate");
-	try{
-		const [dbFilePercentageUpdate] = await conn.execute(
-			"UPDATE mediafiles set percentage = ? where id = ?",
-			[percentage, options.fileid]
-		);
-		if (!dbFilePercentageUpdate) {
-			logger.error("Error updating mediafiles table, id:", options.fileid, "percentage:", status);
-			conn.end();
-			return false;
-		}
-		conn.end();
-		return true
-	}catch (error) {
-		logger.error("Error updating mediafiles table, id:", options.fileid, "percentage:", status);
-		conn.end();
-		return false;
-	}
-
-}
-
-async function dbFilesizeUpdate(filesize: number, options: ProcessingFileData): Promise<boolean> {
-
-	const conn = await connect("dbFileStatusUpdate");
-	try{
-		const [dbFilesizeUpdate] = await conn.execute(
-			"UPDATE mediafiles set filesize = ? where id = ?",
-			[filesize, options.fileid]
-		);
-		if (!dbFilesizeUpdate) {
-			logger.error("Error updating filesize table, id:", options.fileid, "filesize:", filesize);
-			conn.end();
-			return false;
-		}
-		conn.end();
-		return true
-	}catch (error) {
-		logger.error("Error updating mediafiles table, id:", options.fileid, "filesize:", filesize);
-		conn.end();
-		return false;
-	}
-
-}
-
-async function dbFileDimensionsUpdate(width: number, height:number, options: ProcessingFileData): Promise<boolean> {
-
-	const conn = await connect("dbFileDimensionsUpdate");
-	try{
-		const [dbFileStatusUpdate] = await conn.execute(
-			"UPDATE mediafiles set dimensions = ? where id = ?",
-			[width + "x" + height, options.fileid]
-		);
-		if (!dbFileStatusUpdate) {
-			logger.error("Error updating mediafiles table, id:", options.fileid, "dimensions:", width + "x" + height);
-			conn.end();
-			return false;
-		}
-		conn.end();
-		return true
-	}catch (error) {
-		logger.error("Error updating mediafiles table, id:", options.fileid, "dimensions:", width + "x" + height);
-		conn.end();
-		return false;
-	}
-
-}
-
-async function dbFileVisibilityUpdate(visibility: boolean, options: ProcessingFileData): Promise<boolean> {
-
-	const conn = await connect("dbFileVisibilityUpdate");
-	try{
-		const [dbFileStatusUpdate] = await conn.execute(
-			"UPDATE mediafiles set visibility = ? where id = ?",
-			[visibility, options.fileid]
-		);
-		if (!dbFileStatusUpdate) {
-			logger.error("Error updating mediafiles table, id:", options.fileid, "visibility:", visibility);
-			conn.end();
-			return false;
-		}
-		conn.end();
-		return true
-	}catch (error) {
-		logger.error("Error updating mediafiles table, id:", options.fileid, "visibility:", visibility);
-		conn.end();
-		return false;
-	}
-
-}
-
-async function dbFileHashupdate(options: ProcessingFileData): Promise<boolean>{
-
-	const conn = await connect("dbFileHashupdate");
-	try{
-		const [dbFileHashUpdate] = await conn.execute(
-			"UPDATE mediafiles set hash = ? where id = ?",
-			[options.hash, options.fileid]
-		);
-		if (!dbFileHashUpdate) {
-			logger.error("Error updating mediafiles table (hash), id:", options.fileid, "hash:", options.hash);
-			conn.end();
-			return false;
-		}
-		conn.end();
-		return true
-	}catch (error) {
-	logger.error("Error updating mediafiles table (hash), id:", options.fileid, "hash:", options.hash);
-	conn.end();
-	return false;
-	}
-
-}
-
-async function dbFileblurhashupdate(blurhash:string, options: ProcessingFileData): Promise<boolean>{
-
-	const conn = await connect("dbFileblurhashupdate");
-	try{
-		const [dbFileBlurHashUpdate] = await conn.execute(
-			"UPDATE mediafiles set blurhash = ? where id = ?",
-			[blurhash, options.fileid]
-		);
-		if (!dbFileBlurHashUpdate) {
-			logger.error("Error updating mediafiles table, id:", options.fileid, "blurhash:", blurhash);
-			conn.end();
-			return false;
-		}
-		conn.end();
-		return true
-	}catch (error) {
-		logger.error("Error updating mediafiles table, id:", options.fileid, "blurhash:", blurhash);
-		conn.end();
-		return false;
-	}
-
-}
-
-async function dbFileMagnetUpdate(options: ProcessingFileData): Promise<boolean> {
-	
-	//Only create magnets for type media (not avatar or banner)
-	if (options.media_type != "media"){return true;}
-
-	try{
-		const conn = await connect("dbFileMagnetUpdate");
-		const [dbFileMagnetUpdate] = await conn.execute(
-			"UPDATE mediafiles set magnet = ? where id = ?",
-			[options.magnet, options.fileid]
-		);
-		if (!dbFileMagnetUpdate) {
-			logger.error("Error updating mediafiles table, id:", options.fileid, "magnet:", options.magnet);
-			conn.end();
-			return false;
-		}
-		conn.end();
-	}catch (error) {
-		return false;
-	}
-	return true
 }
 
 async function dbSelectUsername(pubkey: string): Promise<string> {
@@ -611,15 +450,8 @@ const deleteOldFields = async (table:string, oldField:string): Promise<boolean> 
 export { 
 	    connect, 
 		populateTables,
-		dbFileStatusUpdate, 
-		dbFileVisibilityUpdate, 
-		dbFileHashupdate, 
-		dbFileblurhashupdate,
-		dbFileMagnetUpdate, 
 		dbSelectUsername,
 		showDBStats,
-		dbFileDimensionsUpdate,
-		dbFilesizeUpdate,
-		dbFilePercentageUpdate,
+		dbFileFieldUpdate,
 		initDatabase,
 		dbSelectModuleData};

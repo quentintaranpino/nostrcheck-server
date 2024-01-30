@@ -2,7 +2,7 @@ import WebTorrent  from "webtorrent";
 import { logger } from './logger.js';
 import config from 'config';
 import fs from "fs";
-import { connect, dbFileMagnetUpdate } from "./database.js";
+import { connect, dbFileFieldUpdate } from "./database.js";
 import { RowDataPacket } from "mysql2";
 import { ProcessingFileData } from "../interfaces/media.js";
 
@@ -74,10 +74,7 @@ const CreateMagnet = async (filepath:string, filedata: ProcessingFileData) : Pro
 
     client.on('torrent', async function (torrent: WebTorrent.Torrent) {
       filedata.magnet = torrent.magnetURI;
-      const magnetDBupdate =  await dbFileMagnetUpdate(filedata);
-      if (!magnetDBupdate) {
-        logger.error("Could not update table mediafiles, id: " + filedata.fileid, "magnet for file: " + filepath);
-      }
+      await dbFileFieldUpdate('mediafiles', 'magnet', filedata.magnet, filedata);
       logger.debug("Magnet link:", filedata.magnet, "for file:", filepath, "id:", filedata.fileid)
     });
     client.on('error', function (_err: any) {

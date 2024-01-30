@@ -4,8 +4,8 @@ import fs from "fs";
 
 import { allowedMimeTypes, asyncTask, ProcessingFileData, UploadTypes } from "../interfaces/media.js";
 import { logger } from "./logger.js";
-import config, { has } from "config";
-import { dbFileHashupdate, dbFileMagnetUpdate, dbFileStatusUpdate, dbFileVisibilityUpdate, dbFileDimensionsUpdate, dbFileblurhashupdate, dbFilesizeUpdate, dbFilePercentageUpdate } from "./database.js";
+import config from "config";
+import { dbFileFieldUpdate } from "./database.js";
 import {fileTypeFromBuffer} from 'file-type';
 import { Request } from "express";
 import app from "../app.js";
@@ -73,7 +73,7 @@ async function convertFile(	inputFile: any,	options: ProcessingFileData,retry:nu
 		});
 
 		//Set status processing on the database
-		const processing =  dbFileStatusUpdate("processing", options);
+		const processing =  dbFileFieldUpdate('mediafiles','status','processing', options);
 		if (!processing) {
 			logger.error("Could not update table mediafiles, id: " + options.fileid, "status: processing");
 		}
@@ -102,94 +102,39 @@ async function convertFile(	inputFile: any,	options: ProcessingFileData,retry:nu
 		ConversionEngine
 			.on("end", async(end) => {
 			
-				fs.unlink(TempPath, (err) => {
-				if (err) {
-					logger.error(err);
-
-					reject(err);
-
-					return;
-				}
-				});
-
-				// if (options.originalmime.toString().startsWith("image")){
-				// 	const blurhash =  dbFileblurhashupdate(await generateBlurhash(inputFile), options);
-				// 	if (!blurhash) {
-				// 		logger.error("Could not update table mediafiles, id: " + options.fileid, "blurhash for file: " + TempPath);
-				// 	}
-		
-				// }
-
-				const percentage = dbFilePercentageUpdate("100", options);
-				if (!percentage) {
-					logger.error("Could not update table mediafiles, id: " + options.fileid, "percentage: 100");
-				}
-
-				const visibility = dbFileVisibilityUpdate(true, options);
-				if (!visibility) {
-					logger.error("Could not update table mediafiles, id: " + options.fileid, "visibility: true");
-				}
-
-				let hash = generatefileHashfromfile(MediaPath);
-				options.hash = hash;
-				logger.info("Hash for file:", options.filename, ":", hash);
-				const hashDBUpdate =  dbFileHashupdate(options);
-				if (!hashDBUpdate) {
-					logger.error("Could not update table mediafiles, id: " + options.fileid, "hash for file: " + MediaPath);
-				}
-				
-				//Create magnet link
-				CreateMagnet(MediaPath, options);
-
-				const fileStatusDbUpdate =  dbFileStatusUpdate("success", options);
-				if (!fileStatusDbUpdate) {
-					logger.error("Could not update table mediafiles, id: " + options.fileid, "status: completed");
-				}
-
-				//File size
-				logger.debug("Old Filesize:", options.filesize);
-				let newfilesize : number = 0;
 				try{
-					newfilesize = +fs.statSync(MediaPath).size;
-					logger.debug("New Filesize:", newfilesize);
-				}catch(err){
-					logger.error(err);
+					await deleteFile(TempPath);
+					await dbFileFieldUpdate('mediafiles','percentage','100', options);
+					await dbFileFieldUpdate('mediafiles','visibility','1', options);
+					await dbFileFieldUpdate('mediafiles','active','1', options);
+					await dbFileFieldUpdate('mediafiles', 'hash', await generatefileHashfromfile(MediaPath, options), options);
+					if (config.get("torrent.enableTorrentSeeding")) {await CreateMagnet(MediaPath, options);}
+					await dbFileFieldUpdate('mediafiles','status','success', options);
+					await dbFileFieldUpdate('mediafiles', 'filesize', getFileSize(MediaPath,options).toString(), options);
+					await dbFileFieldUpdate('mediafiles','dimensions',newfiledimensions.split("x")[0] + 'x' + newfiledimensions.split("x")[1], options);
+					if (options.originalmime.toString().startsWith("image")){
+						await dbFileFieldUpdate('mediafiles', 'blurhash', await generateBlurhash(MediaPath), options);
+					}
+					logger.info(`File converted successfully: ${MediaPath} ${ConversionDuration /2} seconds`);
+					resolve(end);
 				}
-
-				const filesizeDbUpdate =  dbFilesizeUpdate(newfilesize, options);
-				if (!filesizeDbUpdate) {
-					logger.error("Could not update table mediafiles, id: " + options.fileid, "status: completed");
+				catch(err){
+					logger.error("Error while making postprocessing methods after file conversion", err);
+					reject(err);
 				}
-
-				//File dimensions
-				const dimensionsDbUpdate =  dbFileDimensionsUpdate(+newfiledimensions.split("x")[0], +newfiledimensions.split("x")[1], options);
-				if (!dimensionsDbUpdate) {
-					logger.error("Could not update table mediafiles, id: " + options.fileid, "dimensions for file: " + MediaPath);
-				}
-			
-				logger.info(`File converted successfully: ${MediaPath} ${ConversionDuration /2} seconds`);
-
-				resolve(end);
 
 			})
-			.on("error", (err) => {
+			.on("error", async (err) => {
 
 				logger.warn(`Error converting file, retrying file conversion: ${options.filename} retry: ${retry}/5`);
 				logger.error(err);
 				retry++
-				fs.unlink(TempPath, (err) => {
-					if (err) {
-						logger.error(err);
-	
-						reject(err);
-	
-						return;
-					}
-				});
+				await new Promise((resolve) => setTimeout(resolve, 3000));
+				if (!await deleteFile(TempPath)){reject(err);}
 
 				if (retry > 5){
 					logger.error(`Error converting file after 5 retries: ${inputFile.originalname}`);
-					const errorstate =  dbFileStatusUpdate("error", options);
+					const errorstate =  await dbFileFieldUpdate('mediafiles','status','error', options);;
 					if (!errorstate) {
 						logger.error("Could not update table mediafiles, id: " + options.fileid, "status: failed");
 					}
@@ -202,7 +147,7 @@ async function convertFile(	inputFile: any,	options: ProcessingFileData,retry:nu
 			.on("codecData", (data) => {
 				MediaDuration = parseInt(data.duration.replace(/:/g, ""));
 			})
-			.on("progress", (data) => {
+			.on("progress", async (data) => {
 
 				const time = parseInt(data.timemark.replace(/:/g, ""));
 				let percent: number = (time / MediaDuration) * 100;
@@ -216,7 +161,8 @@ async function convertFile(	inputFile: any,	options: ProcessingFileData,retry:nu
 						`Processing : ` +
 							`${options.filename} - ${Number(percent).toFixed(0)} %`
 					);
-				dbFilePercentageUpdate(Number(percent).toFixed(0), options);	
+
+				await dbFileFieldUpdate('mediafiles','percentage',Number(percent).toFixed(0).toString(), options);
 				}
 				
 			})
@@ -284,9 +230,9 @@ const ParseFileType = async (req: Request, file :Express.Multer.File): Promise<s
 
 }
 
-export {convertFile, requestQueue, ParseMediaType, ParseFileType };
+export {convertFile, requestQueue, ParseMediaType, ParseFileType};
 
- async function setMediaDimensions(file:string, options:ProcessingFileData):Promise<string> {
+async function setMediaDimensions(file:string, options:ProcessingFileData):Promise<string> {
 
 	const response:string = await new Promise ((resolve) => {
 		ffmpeg.ffprobe(file, (err, metadata) => {
@@ -328,7 +274,36 @@ export {convertFile, requestQueue, ParseMediaType, ParseFileType };
 			resolve(newWidth + "x" + newHeight);
 		}})
 
-		});
+	});
 
-		return response;
+	return response;
+
+}
+
+const getFileSize = (path:string,options:ProcessingFileData) :number => {
+
+	logger.debug("Old Filesize:", options.filesize);
+	let newfilesize : number = 0;
+	try{
+		newfilesize = +fs.statSync(path).size;
+		logger.debug("New Filesize:", newfilesize);
+		return newfilesize;
+	}catch(err){
+		logger.error(err);
+		return 0;
+	}
+
+}
+
+const deleteFile = async (path:string) :Promise<boolean> => {
+	
+	try{
+		fs.unlinkSync(path);
+		logger.debug("File deleted:", path);
+		return true;
+	}catch(err){
+		logger.error(err);
+		return false;
+	}
+
 }
