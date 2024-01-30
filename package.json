@@ -54,6 +54,7 @@
     "redis": "^4.6.10",
     "rotating-file-stream": "3.1.1",
     "sha256": "0.2.0",
+    "sharp": "^0.33.2",
     "ts-node": "10.9.1",
     "tslog": "4.9.1",
     "ut_metadata": "^4.0.3",
@@ -61,6 +62,7 @@
     "webtorrent": "^2.1.29"
   },
   "engines": {
-    "node": ">=16"
+    "node": ">=21",
+    "npm": ">=10.4.0"
   }
 }
