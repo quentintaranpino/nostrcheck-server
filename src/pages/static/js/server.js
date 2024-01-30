@@ -1,5 +1,5 @@
   function getServerUptime() {
-    fetch('https://nostrcheck.me/api/v2/admin/status')
+    fetch(window.location.protocol + "//" + window.location.host + '/api/v2/admin/status')
     .then(res => res.json())
     .then(out =>
       document.getElementById('server-uptime').innerHTML = out.uptime)

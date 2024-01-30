@@ -6,7 +6,7 @@ import { getClientIp, IsAuthorized, format } from "../lib/server.js";
 import { ResultMessagev2, ServerStatusMessage } from "../interfaces/server.js";
 
 const ServerStatus = async (req: Request, res: Response): Promise<Response> => {
-	logger.info("GET /api/v2/status", "|", getClientIp(req));
+	logger.debug("GET /api/v2/status", "|", getClientIp(req));
 
 	const result: ServerStatusMessage = {
         status: "success",
