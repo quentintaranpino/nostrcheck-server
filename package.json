@@ -50,7 +50,7 @@
     "multer": "1.4.5-lts.1",
     "mysql2": "3.6.0",
     "nodemon": "^3.0.1",
-    "nostr-tools": "^2.1.2",
+    "nostr-tools": "^2.1.5",
     "redis": "^4.6.10",
     "rotating-file-stream": "3.1.1",
     "sha256": "0.2.0",
