@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { Event, getEventHash, validateEvent, verifySignature } from "nostr-tools";
+import { Event } from "nostr-tools";
 
 import { logger } from "../lib/logger.js";
 import { VerifyResultMessage } from "../interfaces/verify.js";

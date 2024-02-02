@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { Event, getEventHash, nip19, validateEvent, verifySignature } from "nostr-tools";
+import { Event, getEventHash, nip19, validateEvent } from "nostr-tools";
 import validator from "validator";
 
 import { connect } from "../lib/database.js";
@@ -207,10 +207,9 @@ const Registernewpubkey = async (req: Request, res: Response): Promise<Response>
 		}
 
 		const IsEventValid = validateEvent(event);
-		const IsEventSignatureValid = verifySignature(event);
-		if (!IsEventValid || !IsEventSignatureValid) {
+		if (!IsEventValid) {
 			logger.warn(
-				`RES -> 400 Bad request - Event signature is invalid: ${IsEventValid} or ${IsEventSignatureValid}`,
+				`RES -> 400 Bad request - Event signature is invalid: ${IsEventValid}`,
 				"|",
 				getClientIp(req)
 			);

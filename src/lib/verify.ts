@@ -1,4 +1,4 @@
-import { Event, getEventHash, validateEvent, verifySignature } from "nostr-tools";
+import { Event, getEventHash, validateEvent } from "nostr-tools";
 
 import { eventVerifyTypes } from "../interfaces/verify.js";
 import { logger } from "./logger.js";
@@ -12,8 +12,7 @@ const verifyEvent = async (event:Event): Promise<eventVerifyTypes> => {
 			return eventVerifyTypes.hashError;
 		}
 		const IsEventValid = validateEvent(event);
-		const IsEventSignatureValid = verifySignature(event);
-		if (!IsEventValid || !IsEventSignatureValid) {
+		if (!IsEventValid) {
             logger.debug("Event signature is not valid");
 			return eventVerifyTypes.signatureError;
 		}
