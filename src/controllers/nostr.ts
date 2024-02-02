@@ -12,6 +12,13 @@ const NIP96Data = async (req: Request, res: Response): Promise<Response> => {
 
     };
 
-export { NIP96Data };
+const sendNostrDM = async (req: Request, res: Response): Promise<Response> => {
+    logger.info("REQ sendNostrDM ->", req.hostname, "|", getClientIp(req));
+    return res.status(200).send("OK");
+
+    //server autentication 
+};
+
+export { NIP96Data, sendNostrDM };
 
 
