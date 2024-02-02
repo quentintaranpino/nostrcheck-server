@@ -3,7 +3,8 @@
   "server": {
     "host": "localhost",
     "port": 3000,
-    "pubkey": "89836015acd0c3e0227718fbe64b6251a8425cda33f27c3e4bbf794effbc7450",
+    "pubkey": "",
+    "secretKey": "",
     "logoFilePath" : "resources/logo-server.webp",
     "tosFilePath" : "resources/tos.md",
     "adminPanel": {
