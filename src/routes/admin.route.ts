@@ -16,8 +16,8 @@ export const loadAdminEndpoint = async (app: Application, version:string): Promi
 
                 app.get("/api/" + version + app.get("activeModules")["admin"]["path"] + "/status", ServerStatus);
 
-                // NIP04 nostr DM's
-                app.get("/api/" + version + app.get("activeModules")["admin"]["path"] + "/sendnote",sendNostrDM);
+                // Server NIP04 nostr DM's
+                app.get("/api/" + version + app.get("activeModules")["admin"]["path"] + "/sendnote/:pubkey/:message", sendNostrDM);
 
         }
 
