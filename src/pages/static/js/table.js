@@ -4,10 +4,6 @@ const initTable = (tableId, data, objectName, authkey) => {
 
     var data = JSON.parse(data)
     if (data.length == 0) {data = [{id: '-'}]} // dummy data for table creation
-    var arr = []
-    // data.forEach(element => {
-    //     if(element.date) element.date = dateFormat(element.date)
-    //     arr.push(element)});
 
     $(tableId).bootstrapTable({
         data: data,
@@ -263,12 +259,6 @@ const initTable = (tableId, data, objectName, authkey) => {
     })
 
 }
-
-
-function dateFormat(value) {
-  return new Date(value).toLocaleString([], { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
-}
-
 
 function detailFormatter(index, row) {
 var html = []

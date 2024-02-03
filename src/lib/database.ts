@@ -279,6 +279,7 @@ async function dbSelectUsername(pubkey: string): Promise<string> {
 
 async function dbSelectAllRecords(table:string, query:string): Promise<string> {
 
+	logger.debug("dbSelectAllRecords", table, query);
 	const conenction = await connect("dbSelectAllRecords" + table);
 	try{
 		logger.debug("Getting all data from " + table + " table")
@@ -288,6 +289,7 @@ async function dbSelectAllRecords(table:string, query:string): Promise<string> {
 		if (rowstemp[0] == undefined) {
 			return "";
 		}else{
+			logger.debug(rowstemp)
 			return rowstemp;
 		}
 	}catch (error) {
@@ -304,10 +306,10 @@ async function dbSelectModuleData(module:string): Promise<string> {
 	console.log("dbSelectModuleData", module);
 
 	if (module == "nostraddress"){
-		return await dbSelectAllRecords("registered", "SELECT id, username, pubkey, hex, domain, active, allowed, date, comments FROM registered ORDER BY id DESC");
+		return await dbSelectAllRecords("registered", "SELECT id, username, pubkey, hex, domain, active, allowed, DATE_FORMAT(date, '%y/%m/%d %h:%i %p') as date, comments FROM registered ORDER BY id DESC");
 	}
 	if (module == "media"){
-		return await dbSelectAllRecords("mediafiles", "SELECT id, pubkey, filename, original_hash, hash, status, active, visibility, dimensions, filesize, date, comments FROM mediafiles ORDER BY id DESC");
+		return await dbSelectAllRecords("mediafiles", "SELECT id, pubkey, filename, original_hash, hash, status, active, visibility, dimensions, filesize, DATE_FORMAT(date, '%y/%m/%d %h:%i %p') as date, comments FROM mediafiles ORDER BY id DESC");
 	}
 	if (module == "lightning"){
 		return await dbSelectAllRecords("lightning", "SELECT id, pubkey, lightningaddress, comments FROM lightning ORDER BY id DESC");
