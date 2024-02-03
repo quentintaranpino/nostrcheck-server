@@ -288,7 +288,6 @@ async function dbSelectAllRecords(table:string, query:string): Promise<string> {
 		if (rowstemp[0] == undefined) {
 			return "";
 		}else{
-			logger.debug(rowstemp)
 			return rowstemp;
 		}
 	}catch (error) {
