@@ -24,4 +24,15 @@ const verifyEvent = async (event:Event): Promise<eventVerifyTypes> => {
     return eventVerifyTypes.valid;
 };
 
-export { verifyEvent };
+const verifyEventTimestamp = async (event:Event): Promise<boolean> => {
+
+	logger.debug("Verifying event timestamp", event);
+	const diff =  (Math.floor(Date.now() / 1000) - event.created_at);
+	logger.debug("Event is", diff, "seconds old");
+	if (diff > 60){ //60 seconds max event age
+		return false;
+	}
+	return true;
+}
+
+export { verifyEvent, verifyEventTimestamp };
