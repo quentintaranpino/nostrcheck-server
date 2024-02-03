@@ -5,7 +5,6 @@
     "port": 3000,
     "pubkey": "",
     "secretKey": "",
-    "logoFilePath" : "resources/logo-server.webp",
     "tosFilePath" : "resources/tos.md",
     "adminPanel": {
       "legacyPassword": ""
@@ -69,7 +68,6 @@
     "droptables": false
   },
   "media" : {
-    "tosURL" : "",
     "maxMBfilesize": 100,
     "tempPath": "tmp/",
     "mediaPath": "media/",

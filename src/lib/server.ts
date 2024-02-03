@@ -28,27 +28,6 @@ function format(seconds:number):string{
   
 	return pad(hours) + ':' + pad(minutes) + ':' + pad(seconds);
   }
-
-const getServerLogo = () : string => {
-    try{
-        const serverLogo :Buffer = fs.readFileSync(path.normalize(path.resolve(config.get("server.logoFilePath"))));
-        if (serverLogo.length > 0) {
-            return Buffer.from(serverLogo).toString("base64");
-        }
-    }catch(err){
-        logger.error("Error reading server logo file: ", err);
-    }
-    return "";
-}
-
-const getTOSUrl = (hostname: string) : string => {
-    if(config.get("media.tosURL")){
-        return config.get("media.tosURL")
-    }else{
-        return "https://" + hostname + "/tos"
-    };
-}
-
 const currDir = (fileUrl:string) : string =>{
     const __filename = url.fileURLToPath(fileUrl);
     return path.dirname(__filename);
@@ -125,4 +104,4 @@ const showActiveModules = (app: Application) : string => {
 		return activeModules;
 }
 
-export { getClientIp, format, getServerLogo, getTOSUrl, currDir, markdownToHtml, loadConsoleBanner, showActiveModules};
+export { getClientIp, format, currDir, markdownToHtml, loadConsoleBanner, showActiveModules};
