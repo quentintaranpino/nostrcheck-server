@@ -5,12 +5,12 @@ const initTable = (tableId, data, objectName, authkey) => {
     var data = JSON.parse(data)
     if (data.length == 0) {data = [{id: '-'}]} // dummy data for table creation
     var arr = []
-    data.forEach(element => {
-        if(element.date) element.date = dateFormat(element.date)
-        arr.push(element)});
+    // data.forEach(element => {
+    //     if(element.date) element.date = dateFormat(element.date)
+    //     arr.push(element)});
 
     $(tableId).bootstrapTable({
-        data: arr,
+        data: data,
         uniqueId: 'id',
         pagination: true,
         search: true,
