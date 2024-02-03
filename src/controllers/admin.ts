@@ -8,6 +8,7 @@ import { IsAdminAuthorized } from "../lib/authorization.js";
 import { sendMessage } from "../lib/nostr/NIP04.js";
 import { connect } from "../lib/database.js";
 import crypto from "crypto";
+import bcrypt from "bcrypt";
 
 const ServerStatus = async (req: Request, res: Response): Promise<Response> => {
 	logger.debug("GET /api/v2/status", "|", getClientIp(req));
@@ -71,9 +72,15 @@ const resetUserPassword = async (req: Request, res: Response): Promise<Response>
 
     // Update registered table with new password
     const newPass = crypto.randomBytes(20).toString('hex');
+    const saltRounds = 10
+    const hashPass = await bcrypt.genSalt(saltRounds).then(salt => {return bcrypt.hash(newPass, salt).catch(err => {logger.error(err)})});
+  
+
+    console.log("bcryptPas: ", hashPass)
+
     const conn = await connect("resetUserPassword");
     try {
-        await conn.query("UPDATE registered SET password = ? WHERE hex = ?", [newPass, req.body.pubkey]);
+        await conn.query("UPDATE registered SET password = ? WHERE hex = ?", [hashPass, req.body.pubkey]);
         conn.end();
     } catch (error) {
         logger.error(error);

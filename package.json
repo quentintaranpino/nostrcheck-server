@@ -15,6 +15,7 @@
   "author": "https://github.com/quentintaranpino",
   "license": "MIT",
   "devDependencies": {
+    "@types/bcrypt": "^5.0.2",
     "@types/config": "3.3.0",
     "@types/cors": "2.8.13",
     "@types/express": "^4.17.21",
@@ -35,6 +36,7 @@
     "vitest": "^0.34.6"
   },
   "dependencies": {
+    "bcrypt": "^5.1.1",
     "blurhash": "^2.0.5",
     "config": "3.3.9",
     "cors": "2.8.5",
