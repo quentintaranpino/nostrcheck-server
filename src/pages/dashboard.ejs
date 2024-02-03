@@ -53,6 +53,7 @@
                                         fields:[
                                                 ['username','enabled'],
                                                 ['pubkey','enabled'],
+                                                ['hex','enabled'],
                                                 ['domain','enabled'],
                                                 ['active','enabled'],
                                                 ['allowed','enabled'],
@@ -144,8 +145,9 @@
 <!-- Tables data -->
   <script src="/static/js/table.js"></script>
   <script>
+    let authkey = "<%= request.session.authkey %>"
     if("<%- request.body.nostraddressData && request.body.nostraddressData.length > 0 %>"){
-      initTable("#nostraddressData",'<%- JSON.stringify(request.body.nostraddressData) %>','user')
+      initTable("#nostraddressData",'<%- JSON.stringify(request.body.nostraddressData) %>','user', authkey)
     }
     if("<%- request.body.mediaData && request.body.mediaData.length > 0 %>"){
       initTable("#mediaData",'<%- JSON.stringify(request.body.mediaData) %>', 'media file')

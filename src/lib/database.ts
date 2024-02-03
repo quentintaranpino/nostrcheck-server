@@ -304,7 +304,7 @@ async function dbSelectModuleData(module:string): Promise<string> {
 	console.log("dbSelectModuleData", module);
 
 	if (module == "nostraddress"){
-		return await dbSelectAllRecords("registered", "SELECT id, username, pubkey, domain, active, allowed, date, comments FROM registered ORDER BY id DESC");
+		return await dbSelectAllRecords("registered", "SELECT id, username, pubkey, hex, domain, active, allowed, date, comments FROM registered ORDER BY id DESC");
 	}
 	if (module == "media"){
 		return await dbSelectAllRecords("mediafiles", "SELECT id, pubkey, filename, original_hash, hash, status, active, visibility, dimensions, filesize, date, comments FROM mediafiles ORDER BY id DESC");

@@ -18,6 +18,7 @@ const loadDashboardPage = async (req: Request, res: Response, version:string): P
     for (const [key] of activeModules) {
         req.body[key + "Data"] = await dbSelectModuleData(key);
     }
+
     res.render("dashboard.ejs", {request: req});
 };
 

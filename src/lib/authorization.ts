@@ -1,5 +1,4 @@
 import { connect } from "../lib/database.js";
-import config from "config";
 import { logger } from "./logger.js";
 
 const isPubkeyAllowed = async (pubkey:string): Promise<boolean> => {
@@ -24,33 +23,35 @@ const isPubkeyAllowed = async (pubkey:string): Promise<boolean> => {
 
 }
 
-const IsAdminAuthorized = async (req: any) : Promise<boolean> =>{
+const IsAdminAuthorized = async (authkey:any) : Promise<boolean> =>{
 
 	logger.info("New admin authorization request")
 
     //Check if request has authorization header
-	if (req.headers.authorization === undefined) {
+	if (!authkey) {
 		logger.warn("Unauthorized request, no authorization header");
 		return false
 	}
+
+	logger.debug(authkey)
 
 	// Query database if authkey is present
 	const conn = await connect("IsAdminAuthorized");
 	try {
 		const [isAuthorized] = await conn.query("SELECT authkey FROM registered WHERE authkey = ? and allowed = 1", [
-			req.headers.authorization.toString(),
+			authkey,
 		]);
 		const isAuthorizedrowstemp = JSON.parse(JSON.stringify(isAuthorized));
 
 		if (isAuthorizedrowstemp[0] == undefined) {
 			logger.warn(
-				`RES -> 401 unauthorized  - ${req.headers.authorization} is not authorized`,
+				`RES -> 401 unauthorized  - ${authkey} is not authorized`,
 			);
 			conn.end();
 			return false;
 		}
 
-		logger.info("Admin request authorized ->", req.headers.authorization)
+		logger.info("Admin request authorized ->", authkey)
 		conn.end();
 		return true;
 	} catch (error) {

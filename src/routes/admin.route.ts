@@ -1,7 +1,7 @@
 import { Application } from "express";
 
 import { ServerStatus, StopServer } from "../controllers/admin.js";
-import { sendNostrDM } from "../controllers/nostr.js";
+import { resetUserPassword } from "../controllers/admin.js";
 
 export const loadAdminEndpoint = async (app: Application, version:string): Promise<void> => {
 
@@ -17,7 +17,7 @@ export const loadAdminEndpoint = async (app: Application, version:string): Promi
                 app.get("/api/" + version + app.get("activeModules")["admin"]["path"] + "/status", ServerStatus);
 
                 // Server NIP04 nostr DM's
-                app.get("/api/" + version + app.get("activeModules")["admin"]["path"] + "/sendnote/:pubkey/:message", sendNostrDM);
+                app.post("/api/" + version + app.get("activeModules")["admin"]["path"] + "/resetpassword/", resetUserPassword);
 
         }
 

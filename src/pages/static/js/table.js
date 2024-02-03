@@ -1,4 +1,4 @@
-const initTable = (tableId, data, objectName) => {
+const initTable = (tableId, data, objectName, authkey) => {
     console.log('Initializing table:', tableId)
     console.log('Data:', data)
 
@@ -238,8 +238,26 @@ const initTable = (tableId, data, objectName) => {
         })
 
         if (await initConfirmModal(tableId,ids,'send new generated password to ',objectName)) {
-            // TODO SEND DATA TO USER BY DM
-            console.log('TODO: Send password by DM!')
+
+            let url = "http://localhost:3000/api/v2/admin/resetpassword/";
+
+            let data = {
+                pubkey: $(tableId).bootstrapTable('getSelections')[0].hex,
+            };
+
+            fetch(url, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "authorization": authkey
+                },
+                body: JSON.stringify(data)
+            })
+            .then(response => response.json())
+            .then(data => console.log(data))
+            .catch((error) => {
+                console.error('Error:', error);
+            });
         }
     })
 
