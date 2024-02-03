@@ -3,7 +3,7 @@ import { Request, Response } from "express";
 import { connect } from "../lib/database.js";
 import { logger } from "../lib/logger.js";
 import { ParseAuthEvent } from "../lib/nostr/NIP98.js";
-import { IsAuthorizedPubkey } from "../lib/authorization.js";
+import { isPubkeyAllowed } from "../lib/authorization.js";
 import { AvailableDomainsResult } from "../interfaces/domains.js";
 import { ResultMessage } from "../interfaces/server.js";
 import { redisClient } from "../lib/redis.js";
@@ -74,7 +74,7 @@ const AvailableDomains = async (req: Request, res: Response): Promise<Response> 
 	}
 
 	//Check if pubkey is allowed to view available domains
-	const allowed = IsAuthorizedPubkey(EventHeader.pubkey);
+	const allowed = isPubkeyAllowed(EventHeader.pubkey);
 	if (!allowed) {
 		logger.warn(
 			`RES -> 401 unauthorized  - ${EventHeader.description}`,
@@ -129,7 +129,7 @@ const AvailableUsers = async (req: Request, res: Response): Promise<Response> =>
 	}
 
 	//Check if pubkey is allowed to view available users
-	const allowed = IsAuthorizedPubkey(EventHeader.pubkey);
+	const allowed = isPubkeyAllowed(EventHeader.pubkey);
 	if (!allowed) {
 		logger.warn(
 			`RES -> 401 unauthorized  - ${EventHeader.description}`,

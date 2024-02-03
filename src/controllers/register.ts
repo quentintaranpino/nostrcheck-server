@@ -8,7 +8,7 @@ import { ParseAuthEvent } from "../lib/nostr/NIP98.js";
 import { RegisterResultMessage } from "../interfaces/register.js";
 import { ResultMessage } from "../interfaces/server.js";
 import { QueryAvailiableDomains } from "./domains.js";
-import { IsAuthorizedPubkey } from "../lib/authorization.js";
+import { isPubkeyAllowed } from "../lib/authorization.js";
 import app from "../app.js";
 import { getClientIp } from "../lib/server.js";
 
@@ -35,7 +35,7 @@ const Registernewpubkey = async (req: Request, res: Response): Promise<Response>
 	}
 
 	//Check if pubkey is allowed to register new pubkeys
-	const allowed = IsAuthorizedPubkey(EventHeader.pubkey);
+	const allowed = isPubkeyAllowed(EventHeader.pubkey);
 	if (!allowed) {
 		logger.warn(
 			`RES -> 401 unauthorized  - ${EventHeader.description}`,
