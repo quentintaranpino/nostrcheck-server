@@ -239,7 +239,7 @@ const initTable = (tableId, data, objectName, authkey) => {
 
         if (await initConfirmModal(tableId,ids,'send new generated password to ',objectName)) {
 
-            let url = "http://localhost:3000/api/v2/admin/resetpassword/";
+            let url = "admin/resetpassword/";
 
             let data = {
                 pubkey: $(tableId).bootstrapTable('getSelections')[0].hex,
