@@ -9,7 +9,7 @@ const sendMessage = async (message: string, sendToPubkey : string) : Promise<boo
 
     let sk : string = config.get('server.secretKey');
     if (sk == "") {
-        logger.error("No secret key found in config file");
+        logger.error("No secret key found in config file, if you want to send nostr DM's edit config/local.json file and add the secret key (HEX) on server.secretKey field. The restart the server.");
         return false
     }
 
