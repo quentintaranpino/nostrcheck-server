@@ -8,7 +8,6 @@
     "logoFilePath" : "resources/logo-server.webp",
     "tosFilePath" : "resources/tos.md",
     "adminPanel": {
-      "pubkey":"",
       "legacyPassword": ""
     },
     "availableModules": {

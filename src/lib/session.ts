@@ -10,6 +10,7 @@ import { rateLimit } from 'express-rate-limit'
 declare module 'express-session' {
 	interface Session {
 	   identifier: string;
+       authkey: string;
 	 }
 }
 

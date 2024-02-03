@@ -94,6 +94,7 @@ interface RegisteredTable{
 	active: string;
 	date: string;
 	allowed: string;
+	authkey: string;
 	apikey: string;
 	comments: string;
 }
@@ -108,6 +109,7 @@ const RegisteredTableFields: RegisteredTable = {
 	active: "boolean NOT NULL DEFAULT 0",
 	date: "datetime NOT NULL",
 	allowed: "boolean NOT NULL DEFAULT 0",
+	authkey: "varchar(64)",
 	apikey: "varchar(64)",
 	comments: "varchar(150)",
 };

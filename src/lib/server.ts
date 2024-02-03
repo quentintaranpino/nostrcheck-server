@@ -2,7 +2,6 @@
 //General server functions
 
 import config from "config";
-import { ResultMessagev2 } from "../interfaces/server.js";
 import { logger } from "./logger.js";
 import fs from "fs";
 import path from 'path';
@@ -17,50 +16,6 @@ const getClientIp = (req: any) =>{
         ip = ip.substr(7)
     }
     return ip;
-};
-
-const IsAuthorized = async (req: any) : Promise<ResultMessagev2> =>{
-
-    const ip = getClientIp(req);
-
-    //Check if request has authorization header
-	if (req.headers.authorization === undefined) {
-		logger.warn(
-			"RES -> 400 Bad request - Authorization header not found",
-			"|",
-			req.socket.remoteAddress
-		);
-		const result: ResultMessagev2 = {
-            status: "error",
-            message: "Authorization header not found"
-		};
-
-		return result;
-	}
-
-    //Check if authorization header is valid
-    const DbPassword = config.get("database.password")
-    const AuthHeader = req.headers.authorization.toString();
-    if (AuthHeader !== DbPassword) {
-        logger.warn(
-            "RES -> 401 unauthorized  - ",
-            ip
-        );
-        const result: ResultMessagev2 = {
-            status: "error",
-            message: "Unauthorized"
-        };
-
-        return result;
-    }
-
-    const result: ResultMessagev2 = {
-        status: "success",
-        message: "Authorized"
-    };
-
-    return result;
-
 };
 
 function format(seconds:number):string{
@@ -170,4 +125,4 @@ const showActiveModules = (app: Application) : string => {
 		return activeModules;
 }
 
-export { getClientIp, IsAuthorized, format, getServerLogo, getTOSUrl, currDir, markdownToHtml, loadConsoleBanner, showActiveModules};
+export { getClientIp, format, getServerLogo, getTOSUrl, currDir, markdownToHtml, loadConsoleBanner, showActiveModules};
