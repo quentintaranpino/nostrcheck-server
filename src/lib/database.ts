@@ -279,7 +279,6 @@ async function dbSelectUsername(pubkey: string): Promise<string> {
 
 async function dbSelectAllRecords(table:string, query:string): Promise<string> {
 
-	logger.debug("dbSelectAllRecords", table, query);
 	const conenction = await connect("dbSelectAllRecords" + table);
 	try{
 		logger.debug("Getting all data from " + table + " table")
