@@ -23,6 +23,7 @@ const initTable = (tableId, data, objectName, authkey) => {
         idField: 'id',
         detailView: true,
         detailFormatter: "detailFormatter",
+        dataSidePagination: "server",
     })
 
     // Buttons logic
