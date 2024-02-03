@@ -2,7 +2,8 @@ const initMonthChart = (chartId, label, data) => {
   const rawData = JSON.parse(data);
   const monthCounts = new Array(12).fill(0);
   rawData.forEach(item => {
-    const date = new Date(item.date);
+    const date = new Date(item.date.toString().substring(0,10));
+    console.debug('Date:', item.date.toString().substring(0,10));
     const month = date.getUTCMonth(); 
     monthCounts[month]++; 
   });
