@@ -307,7 +307,7 @@ async function dbSelectModuleData(module:string): Promise<string> {
 		return await dbSelectAllRecords("registered", "SELECT id, username, pubkey, hex, domain, active, allowed, DATE_FORMAT(date, '%Y-%m-%d %H:%i') as date, comments FROM registered ORDER BY id DESC");
 	}
 	if (module == "media"){
-		return await dbSelectAllRecords("mediafiles", "SELECT id, pubkey, filename, original_hash, hash, status, active, visibility, dimensions, filesize, DATE_FORMAT(date, '%Y-%m-%d %H:%i') as date, comments FROM mediafiles ORDER BY id DESC");
+		return await dbSelectAllRecords("mediafiles", "SELECT registered.username, mediafiles.id, registered.pubkey, mediafiles.pubkey as 'hex', mediafiles.filename, mediafiles.original_hash, mediafiles.hash, mediafiles.status, mediafiles.active, mediafiles.visibility, mediafiles.dimensions, ROUND(mediafiles.filesize / 1024 / 1024, 2) as 'filesize (MB)' , DATE_FORMAT(mediafiles.date, '%Y-%m-%d %H:%i') as date, mediafiles.comments FROM mediafiles LEFT JOIN registered on mediafiles.pubkey = registered.hex ORDER BY id DESC");
 	}
 	if (module == "lightning"){
 		return await dbSelectAllRecords("lightning", "SELECT id, pubkey, lightningaddress, comments FROM lightning ORDER BY id DESC");
