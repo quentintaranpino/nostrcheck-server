@@ -307,7 +307,23 @@ async function dbSelectModuleData(module:string): Promise<string> {
 		return await dbSelectAllRecords("registered", "SELECT id, username, pubkey, hex, domain, active, allowed, DATE_FORMAT(date, '%Y-%m-%d %H:%i') as date, comments FROM registered ORDER BY id DESC");
 	}
 	if (module == "media"){
-		return await dbSelectAllRecords("mediafiles", "SELECT registered.username, mediafiles.id, registered.pubkey, mediafiles.pubkey as 'hex', mediafiles.filename, mediafiles.original_hash, mediafiles.hash, mediafiles.status, mediafiles.active, mediafiles.visibility, mediafiles.dimensions, ROUND(mediafiles.filesize / 1024 / 1024, 2) as 'filesize (MB)' , DATE_FORMAT(mediafiles.date, '%Y-%m-%d %H:%i') as date, mediafiles.comments FROM mediafiles LEFT JOIN registered on mediafiles.pubkey = registered.hex ORDER BY id DESC");
+		return await dbSelectAllRecords("mediafiles", 
+		"SELECT mediafiles.id," +
+		"(SELECT registered.username FROM registered WHERE mediafiles.pubkey = registered.hex LIMIT 1) as username, " +
+		"(SELECT registered.pubkey FROM registered WHERE mediafiles.pubkey = registered.hex LIMIT 1) as pubkey, " +
+		"mediafiles.pubkey as 'hex', " +
+		"mediafiles.filename, " +
+		"mediafiles.original_hash, " +
+		"mediafiles.hash, " +
+		"mediafiles.status, " +
+		"mediafiles.active, " +
+		"mediafiles.visibility, " +
+		"ROUND(mediafiles.filesize / 1024 / 1024, 2) as 'filesize (MB)', " +
+		"mediafiles.filesize, " +
+		"DATE_FORMAT(mediafiles.date, '%Y-%m-%d %H:%i') as date, " +
+		"mediafiles.comments " +
+ 		"FROM mediafiles " +
+		"ORDER BY id DESC;");
 	}
 	if (module == "lightning"){
 		return await dbSelectAllRecords("lightning", "SELECT id, pubkey, lightningaddress, comments FROM lightning ORDER BY id DESC");
