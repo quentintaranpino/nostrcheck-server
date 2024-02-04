@@ -10,8 +10,13 @@ import { connect } from "../lib/database.js";
 import crypto from "crypto";
 import bcrypt from "bcrypt";
 
-const ServerStatus = async (req: Request, res: Response): Promise<Response> => {
-	logger.debug("GET /api/v2/status", "|", getClientIp(req));
+let hits = 0;
+const serverStatus = async (req: Request, res: Response): Promise<Response> => {
+	
+    hits++;
+    if (hits % 100 == 0) {
+        logger.info("RES -> ServerStatus calls: ", hits, " | ", getClientIp(req));
+    }
 
 	const result: ServerStatusMessage = {
         status: "success",
@@ -74,9 +79,6 @@ const resetUserPassword = async (req: Request, res: Response): Promise<Response>
     const newPass = crypto.randomBytes(20).toString('hex');
     const saltRounds = 10
     const hashPass = await bcrypt.genSalt(saltRounds).then(salt => {return bcrypt.hash(newPass, salt).catch(err => {logger.error(err)})});
-  
-
-    console.log("bcryptPas: ", hashPass)
 
     const conn = await connect("resetUserPassword");
     try {
@@ -113,4 +115,4 @@ const resetUserPassword = async (req: Request, res: Response): Promise<Response>
     }
 };
 
-export { ServerStatus, StopServer, resetUserPassword};
+export { serverStatus, StopServer, resetUserPassword};
