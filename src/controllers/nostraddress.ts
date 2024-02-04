@@ -69,8 +69,8 @@ const checkNostrAddress = async (req: Request, res: Response): Promise<Response>
 		//If not cached, query the database
 		const conn = await connect("Checknostraddress");
 		const [rows] = await conn.execute(
-			"SELECT username , hex  FROM registered WHERE username = ? and domain = ?",
-			[name, servername]
+			"SELECT username , hex  FROM registered WHERE username = ? and domain = ? and active = ?",
+			[name, servername, 1]
 		);
 		const rowstemp = JSON.parse(JSON.stringify(rows));
 		conn.end();
