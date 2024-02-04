@@ -20,7 +20,6 @@ const sendMessage = async (message: string, sendToPubkey : string) : Promise<boo
 
     try {
         let encriptedMessage =  await nip04.encrypt(sk, sendToPubkey, message)
-        logger.debug(encriptedMessage)
 
         let eventTemplate : NIP04_event= {
             kind: 4,
@@ -34,6 +33,7 @@ const sendMessage = async (message: string, sendToPubkey : string) : Promise<boo
         const relay = await initRelays("wss://relay.damus.io");
         if (relay != undefined){
             relay.publish(signedEvent);
+            logger.info("DM sent to", sendToPubkey)
         }
         
         return true

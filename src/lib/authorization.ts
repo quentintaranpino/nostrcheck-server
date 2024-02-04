@@ -1,5 +1,6 @@
 import { connect } from "../lib/database.js";
 import { logger } from "./logger.js";
+import config from "config";
 
 const isPubkeyAllowed = async (pubkey:string): Promise<boolean> => {
 
@@ -33,7 +34,12 @@ const IsAdminAuthorized = async (authkey:any) : Promise<boolean> =>{
 		return false
 	}
 
-	logger.debug(authkey)
+
+	// Check if authkey is the legacy server.admin.legacyPassword from config file
+	if (authkey == config.get("server.adminPanel.legacyPassword")) {
+		logger.info("Admin request authorized using legacy password ->", authkey)
+		return true;
+	}
 
 	// Query database if authkey is present
 	const conn = await connect("IsAdminAuthorized");
