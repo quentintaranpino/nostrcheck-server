@@ -318,7 +318,7 @@ async function dbSelectModuleData(module:string): Promise<string> {
 		"mediafiles.status, " +
 		"mediafiles.active, " +
 		"mediafiles.visibility, " +
-		"ROUND(mediafiles.filesize / 1024 / 1024, 2) as 'filesize (MB)', " +
+		"ROUND(mediafiles.filesize / 1024 / 1024, 2) as 'filesize', " +
 		"mediafiles.filesize, " +
 		"DATE_FORMAT(mediafiles.date, '%Y-%m-%d %H:%i') as date, " +
 		"mediafiles.comments " +
