@@ -4,11 +4,13 @@ import { Request, Response } from "express";
 import { logger } from "../lib/logger.js";
 import { getClientIp, format } from "../lib/server.js";
 import { ResultMessagev2, ServerStatusMessage } from "../interfaces/server.js";
-import { IsAdminAuthorized } from "../lib/authorization.js";
+import { IsAdminAuthorized, generateAuthKey, isPubkeyAllowed } from "../lib/authorization.js";
 import { sendMessage } from "../lib/nostr/NIP04.js";
 import { connect } from "../lib/database.js";
 import crypto from "crypto";
 import bcrypt from "bcrypt";
+import config from "config";
+import { verifyNIP07login } from "../lib/nostr/NIP07.js";
 
 let hits = 0;
 const serverStatus = async (req: Request, res: Response): Promise<Response> => {
@@ -115,4 +117,60 @@ const resetUserPassword = async (req: Request, res: Response): Promise<Response>
     }
 };
 
-export { serverStatus, StopServer, resetUserPassword};
+const adminLogin = async (req: Request, res: Response): Promise<Response> => {
+
+    logger.info("POST /api/v1/login", "|", getClientIp(req));
+
+    if (req.body.pubkey == "" && req.body.password == ""){
+        logger.warn("RES -> 401 unauthorized  - ", getClientIp(req));
+        logger.warn("No credentials used to login. Refusing", getClientIp(req));
+        return res.status(401).send(false);
+    }
+
+    // Set session maxAge
+    if (req.body.rememberMe == "true"){
+
+        req.session.cookie.maxAge = config.get('session.maxAge');
+        logger.debug("Remember me is true, max age:", req.session.cookie.maxAge);
+    }
+
+    // NIP07 login
+    if (req.body.pubkey != undefined){
+        // Check if pubkey is allowed to login
+        const allowed = await isPubkeyAllowed(req.body.pubkey);
+        if (!allowed) {
+            logger.warn(`RES -> 401 unauthorized  - ${req.body.pubkey}`,"|",getClientIp(req));
+            return res.status(401).send(false);
+        }
+
+        // Check if NIP07 credentials are correct
+        let result = await verifyNIP07login(req);
+        if (!result){return res.status(401).send(false);}
+
+        // Set session identifier and generate authkey
+        req.session.identifier = req.body.pubkey;
+        req.session.authkey = await generateAuthKey(req.body.pubkey);
+
+        if (req.session.authkey == ""){
+            logger.error("Failed to generate authkey for", req.session.identifier);
+            return res.status(500).send(false);
+        }
+
+        logger.info("logged in as", req.session.identifier, " - ", getClientIp(req));
+        return res.status(200).send(true);
+    }
+
+    // Legacy login
+    if (req.body.password != "" && req.body.password == config.get('server.adminPanel.legacyPassword')){
+        req.session.identifier = "legacyLogin";
+        req.session.authkey = config.get('server.adminPanel.legacyPassword');
+        logger.info("logged in as", req.session.identifier, " - ", getClientIp(req));
+        return res.status(200).send(true);
+    }
+
+    logger.warn("RES -> 401 unauthorized  - ", getClientIp(req));
+    return res.status(401).send(false);
+};
+
+
+export { serverStatus, StopServer, resetUserPassword, adminLogin};
