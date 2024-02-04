@@ -42,8 +42,13 @@ const initEditModal = async (tableId, row, objectName, newRow, columns) => {
                 // Search key in columns object 
                 columns.forEach(function(column) {
                     if (column.field == key) {
-                        if (column.class == 'disabled') {
-                            $('#' + key).prop('disabled', true)
+                        if (column.class) {
+                            var classes = column.class.split(' ');
+                            classes.forEach(function(className) {
+                                if (className == 'disabled') {
+                                    $('#' + key).prop('disabled', true)
+                                }
+                            });
                         }
                     }
                 });
