@@ -4,7 +4,7 @@
     <%- include('./partials/navbar', {active:'home'}); %>
     <main class="pb-1">
     <h1 class="col-12 text-center">Active modules</h1>
-    <p class="text-center mt-2"><i class="fa-solid fa-tower-broadcast me-2"></i><span><b>Uptime: </b></span><span id="server-uptime" class="me-2"></span></p>
+    <p class="text-center mt-2"><i class="fa-solid fa-tower-broadcast me-2"></i><span><b>Uptime: </b></span><span class="server-uptime me-2"></span></p>
     <div class="container mt-4">
       <div class="row">
         <% for(const key in request.body.activeModules) { %>
