@@ -5,7 +5,7 @@ import { verifyEvent, verifyEventTimestamp } from "../verify.js";
 
 const verifyNIP07login = async (req: Request) : Promise<boolean> => {
 
-  logger.info("Verifying login event attempt", req.body, " - ", getClientIp(req));
+  logger.info("Verifying login event attempt -", getClientIp(req));
 
     if (await verifyEvent(req.body) !== 0){
         logger.warn("RES -> 401 unauthorized  - ", getClientIp(req));
