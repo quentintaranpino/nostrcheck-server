@@ -21,7 +21,8 @@ const initConfirmModal = async (tableId, ids, action, objectName) => {
 
 }
 
-const initEditModal = async (tableId, row, objectName, newRow) => {
+const initEditModal = async (tableId, row, objectName, newRow, columns) => {
+
     var edit = new bootstrap.Modal($(tableId + '-edit-modal'));
 
     $(edit._element).on('show.bs.modal', function () {
@@ -31,13 +32,21 @@ const initEditModal = async (tableId, row, objectName, newRow) => {
         // Create each input field
         for (var key in row) {
             if (row.hasOwnProperty(key)) {
+                if (key == 'state'){continue}
                 $(tableId + '-edit-modal .modal-body')
                         .append('<label for="' + key + '" class="col-form-label strong">' + key + '</label><input type="text" class="form-control" id="' + key + '" placeholder="' + key + '" value="' + row[key] + '">')
             
-            if (newRow && key == 'id') {
-                $('#' + key).prop('disabled', true)
-            }
-
+                if (key == 'id') {
+                    $('#' + key).prop('disabled', true)
+                }
+                // Search key in columns object 
+                columns.forEach(function(column) {
+                    if (column.field == key) {
+                        if (column.class == 'disabled') {
+                            $('#' + key).prop('disabled', true)
+                        }
+                    }
+                });
             }
         }
 

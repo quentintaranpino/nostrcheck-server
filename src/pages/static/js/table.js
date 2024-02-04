@@ -195,7 +195,8 @@ const initTable = (tableId, data, objectName, authkey) => {
      $(tableId + '-button-edit').click(function () {
         // Get row data
         var row = $(tableId).bootstrapTable('getSelections')[0]
-        initEditModal(tableId,row,objectName).then((editedRow) => {
+        var columns = $(tableId).bootstrapTable('getOptions').columns[0];
+        initEditModal(tableId,row,objectName,null,columns).then((editedRow) => {
             if (editedRow) {
                 // Update rows with modal form inputs
                 $(tableId).bootstrapTable('updateByUniqueId', {
