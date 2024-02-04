@@ -51,14 +51,14 @@
                                                 ['remove','show']
                                                 ],
                                         fields:[
-                                                ['username','enabled'],
-                                                ['pubkey','enabled'],
-                                                ['hex','enabled'],
-                                                ['domain','enabled'],
-                                                ['active','enabled'],
-                                                ['allowed','enabled'],
-                                                ['comments','enabled'],
-                                                ['date','disabled'],
+                                                ['username','enabled','show'],
+                                                ['pubkey','enabled','show'],
+                                                ['hex','enabled','hide'],
+                                                ['domain','enabled','show'],
+                                                ['active','enabled','show'],
+                                                ['allowed','enabled','show'],
+                                                ['comments','enabled','show'],
+                                                ['date','disabled','show'],
                                                 ]
                                         }); %>
         <% } %>
@@ -78,17 +78,19 @@
                                                 ['remove','show']
                                                 ],
                                         fields:[
-                                                ['pubkey','enabled'],
-                                                ['filename','disabled'],
-                                                ['original_hash','disabled'],
-                                                ['hash','disabled'],
-                                                ['status','disabled'],
-                                                ['active','enabled'],
-                                                ['visibility','enabled'],
-                                                ['dimensions','disabled'],
-                                                ['filesize','disabled'],
-                                                ['date','disabled'],
-                                                ['comments','enabled']
+                                                ['username','enabled','show'],  
+                                                ['pubkey','enabled','hide'],
+                                                ['hex','enabled','hide'],
+                                                ['filename','disabled','show'],
+                                                ['original_hash','disabled','hide'],
+                                                ['hash','disabled','show'],
+                                                ['status','disabled','show'],
+                                                ['active','enabled','show'],
+                                                ['visibility','enabled','show'],
+                                                ['dimensions','disabled','show'],
+                                                ['filesize (MB)','disabled','show'],
+                                                ['date','disabled','show'],
+                                                ['comments','enabled','show']
                                                 ]
                                         }); %>
         <% } %>
@@ -108,9 +110,9 @@
                                             ['remove','show']
                                           ],
                                           fields:[
-                                          ['pubkey','enabled'],
-                                          ['lightningaddress','enabled'],
-                                          ['comments','enabled']
+                                          ['pubkey','enabled','show'],
+                                          ['lightningaddress','enabled','show'],
+                                          ['comments','enabled','show']
                                           ]
                                           }); %>
         <% } %>
@@ -130,9 +132,9 @@
                                             ['remove','show']
                                           ],
                                           fields:[
-                                          ['domain','enabled'],
-                                          ['active','enabled'],
-                                          ['comments','enabled']
+                                          ['domain','enabled','show'],
+                                          ['active','enabled','show'],
+                                          ['comments','enabled','show']
                                           ]
                                           }); %> 
         <% } %>

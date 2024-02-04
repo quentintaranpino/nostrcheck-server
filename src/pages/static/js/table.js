@@ -22,6 +22,20 @@ const initTable = (tableId, data, objectName, authkey) => {
         dataSidePagination: "server",
     })
 
+    // Hide columns if hide is specified
+    var columns = $(tableId).bootstrapTable('getOptions').columns[0];
+    for (let column of columns) {
+        if (column.class) {
+            var classes = column.class.split(' ');
+            classes.forEach(function(className) {
+                if (className == 'hide') {
+                    $(tableId).bootstrapTable('hideColumn', column.field);
+                }
+            });
+        }
+    }
+
+
     // Buttons logic
     $(tableId).on('check.bs.table uncheck.bs.table check-all.bs.table uncheck-all.bs.table', function () {
         $(tableId + '-button-disable').prop('disabled', !$(tableId).bootstrapTable('getSelections').length)
@@ -196,7 +210,7 @@ const initTable = (tableId, data, objectName, authkey) => {
         // Get row data
         var row = $(tableId).bootstrapTable('getSelections')[0]
         var columns = $(tableId).bootstrapTable('getOptions').columns[0];
-        initEditModal(tableId,row,objectName,null,columns).then((editedRow) => {
+        initEditModal(tableId,row,objectName,false,columns).then((editedRow) => {
             if (editedRow) {
                 // Update rows with modal form inputs
                 $(tableId).bootstrapTable('updateByUniqueId', {
