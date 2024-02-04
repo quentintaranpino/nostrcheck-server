@@ -1,5 +1,6 @@
 import { Application } from "express";
-import { frontendLogin, loadDashboardPage, loadTosPage, loadLoginPage, loadIndexPage } from "../controllers/frontend.js";
+import { loadDashboardPage, loadTosPage, loadLoginPage, loadIndexPage } from "../controllers/frontend.js";
+import { adminLogin } from "../controllers/admin.js";
 
 export const loadFrontendEndpoint = async (app: Application, version:string): Promise<void> => {
 
@@ -14,18 +15,19 @@ export const loadFrontendEndpoint = async (app: Application, version:string): Pr
 		res.redirect("/api/v2/");
 	});
 
-	// Current v2 routes
+	// Current v2 routes (index)
 	app.get("/api/" + version, (req, res) => {
 		loadIndexPage(req,res,version);
 	});
 
-	// Login
+	// Login page
 	app.get("/api/" +  version + "/login", (req, res) => {
 		loadLoginPage(req,res,version);
 	});
 
+	// Login POST
 	app.post("/api/" +  version + "/login", (req, res) => {
-		frontendLogin(req,res)
+		adminLogin(req,res)
 	});
 
 	// Tos

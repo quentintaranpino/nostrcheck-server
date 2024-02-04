@@ -4,6 +4,7 @@
     <%- include('./partials/navbar', {active:'home'}); %>
     <main class="pb-1">
     <h1 class="col-12 text-center">Active modules</h1>
+    <p class="text-center mt-2"><i class="fa-solid fa-tower-broadcast me-2"></i><span><b>Uptime: </b></span><span id="server-uptime" class="me-2"></span></p>
     <div class="container mt-4">
       <div class="row">
         <% for(const key in request.body.activeModules) { %>
@@ -30,7 +31,7 @@
                   <% } %>
                 <p class="card-text mt-2"><%= request.body.activeModules[key]["description"] %></p>
                 <button class="btn btn-primary" type="button">                
-                  <a class="text-white" href="https://github.com/quentintaranpino/nostrcheck-api-ts/blob/main/documentation.md" class="card-link"><i class="fa-solid fa-book me-2"></i>Docs</a>
+                  <a class="text-white" href="https://github.com/quentintaranpino/nostrcheck-api-ts/blob/main/documentation.md#<%= key %>" class="card-link"><i class="fa-solid fa-book me-2"></i>Docs</a>
                 </button>
 
               </div>
@@ -39,8 +40,8 @@
         <% } %>
       </div>
     </div>
-    <p class="text-center mt-3">Nostrcheck server <%= request.body.version %> is running at localhost in development mode. By using this server you agree the <a href='/tos'>Terms of Service</a></p>
-
+    <p class="text-center mt-3">Nostrcheck server running <b><%= request.body.version %> version.</b> By using this server you agree the <a href='/tos'>Terms of Service</a></p>
+    <p class="text-center"><span><b>Contact: </b><a href="https://nostrcheck.me/u/<%- request.body.serverPubkey %>"><%- request.body.serverPubkey %></a></p>
     </main>
     <%- include('./partials/footer'); %>
   </body>
