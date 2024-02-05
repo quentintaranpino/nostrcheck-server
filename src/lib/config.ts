@@ -8,14 +8,18 @@ import { IModule, IModules } from "../interfaces/config.js";
 
 function prepareAppFolders(){
 
-	let TempPath : string = config.get("media.tempPath");
-
-	//If not exist create temp folder
-	if (!fs.existsSync(TempPath)){
-		fs.mkdirSync(TempPath);
+	// tempPath checks
+	let tempPath : string = config.get("media.tempPath");
+	if(!tempPath){
+		console.error("TempPath is not defined in config file.");
+		exit(1);
 	}
 
-	fs.readdir(TempPath, (err, files) => {
+	if (!fs.existsSync(tempPath)){
+		fs.mkdirSync(tempPath);
+	}
+
+	fs.readdir(tempPath, (err, files) => {
 		if (err) {
 			console.error(err);
             exit(1);
@@ -23,7 +27,7 @@ function prepareAppFolders(){
 
 		//Delete all files in temp folder
 		for (const file of files) {
-			fs.unlink(TempPath + file, (err) => {
+			fs.unlink(tempPath + file, (err) => {
 				if (err) {
                     console.error(err);
                     exit(1);
@@ -32,10 +36,14 @@ function prepareAppFolders(){
 		}
 	});
 
-	//If not exist create media folder
-	const MediaPath : string = config.get("media.mediaPath");
-	if (!fs.existsSync(MediaPath)){
-		fs.mkdirSync(MediaPath);
+	// mediaPath checks
+	const mediaPath : string = config.get("media.mediaPath");
+	if (!mediaPath){
+		console.error("MediaPath is not defined in config file.");
+		exit(1);
+	}
+	if (!fs.existsSync(mediaPath)){
+		fs.mkdirSync(mediaPath);
 	}
 
 }
