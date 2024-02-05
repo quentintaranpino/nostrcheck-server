@@ -88,123 +88,13 @@ const initTable = (tableId, data, objectName, authkey) => {
     }
     )
 
-    // Disable button
-    $(tableId + '-button-disable').click(async function () {
-        var ids = $.map($(tableId).bootstrapTable('getSelections'), function (row) {
-        return row.id
-        })
-
-        if (await initConfirmModal(tableId,ids,'disable',objectName)) {
-
-            // Update active field from row id to reverse value
-            for (let id of ids) {
-                $(tableId).bootstrapTable('updateByUniqueId', {
-                    id: id,
-                    row: {
-                        active: 0,
-                        visibility: 0
-                    }
-                });
-            }
-        }
-
-        // TODO FETCH DATA TO SERVER
-    })
-
-    // Enable button
-    $(tableId + '-button-enable').click(async function () {
-        var ids = $.map($(tableId).bootstrapTable('getSelections'), function (row) {
-        return row.id
-        })
-
-        if (await initConfirmModal(tableId,ids,'enable',objectName)) {
-
-            // Update active field from row id to reverse value
-            for (let id of ids) {
-                $(tableId).bootstrapTable('updateByUniqueId', {
-                    id: id,
-                    row: {
-                        active: 1,
-                        visibility: 1
-                    }
-                });
-            }
-        }
-
-        // TODO FETCH DATA TO SERVER
-    })
-
-    // Show button
-    $(tableId + '-button-show').click(async function () {
-        var ids = $.map($(tableId).bootstrapTable('getSelections'), function (row) {
-        return row.id
-        })
-
-        if (await initConfirmModal(tableId,ids,'show',objectName)) {
-
-            // Update active field from row id to reverse value
-            for (let id of ids) {
-                $(tableId).bootstrapTable('updateByUniqueId', {
-                    id: id,
-                    row: {
-                        visibility: 1
-                    }
-                });
-            }
-        }
-
-        // TODO FETCH DATA TO SERVER
-    }
-    )
-
-    // Hide button
-    $(tableId + '-button-hide').click(async function () {
-        var ids = $.map($(tableId).bootstrapTable('getSelections'), function (row) {
-        return row.id
-        })
-
-        if (await initConfirmModal(tableId,ids,'hide',objectName)) {
-
-            // Update active field from row id to reverse value
-            for (let id of ids) {
-                $(tableId).bootstrapTable('updateByUniqueId', {
-                    id: id,
-                    row: {
-                        visibility: 0
-                    }
-                });
-            }
-        }
-
-        // TODO FETCH DATA TO SERVER
-    }
-    )
-
-    // Admin button
-    $(tableId + '-button-admin').click(async function () {
-        var ids = $.map($(tableId).bootstrapTable('getSelections'), function (row) {
-        return row.id
-        })
-
-        if (await initConfirmModal(tableId,ids,'toggle admin',objectName)) {
-
-            // Update active field from row id to reverse value
-            for (let id of ids) {
-                let row = $(tableId).bootstrapTable('getRowByUniqueId', id);
-                let allowed = row.allowed === 0 ? 1 : 0;
-                $(tableId).bootstrapTable('updateByUniqueId', {
-                    id: id,
-                    row: {
-                        allowed: allowed
-                    }
-                });
-            }
-        }
-
-        // TODO FECHT DATA TO SERVER
-
-    })
-
+    // Admin, hide and show, enable and disable buttons
+    initButton(tableId, '-button-admin', objectName, 'toggle admin', 'allowed', authkey, null)
+    initButton(tableId, '-button-hide', objectName, 'hide', 'visibility', authkey, 0)
+    initButton(tableId, '-button-show', objectName, 'show', 'visibility', authkey, 1)
+    initButton(tableId, '-button-disable', objectName, 'disable', 'active', authkey, 0)
+    initButton(tableId, '-button-enable', objectName, 'enable', 'active', authkey, 1)
+ 
      // Edit button
      $(tableId + '-button-edit').click(function () {
         // Get row data
@@ -284,4 +174,75 @@ $.each(row, function (key, value) {
 })
 html.push('</div>')
 return html.join('')
+}
+
+function highlihtRow(tableId, ids) {
+    var row = $(tableId).bootstrapTable('getRowByUniqueId', ids[0]);
+    var index = $(tableId).bootstrapTable('getData').indexOf(row);
+    var $row = $(tableId).find('tbody tr').eq(index);
+    $row.removeClass('selected');
+    $row.addClass('table-danger');
+    setTimeout(function () {
+        $row.removeClass('table-danger');
+        $row.addClass('selected');
+    }, 2000);
+}
+
+function initButton(tableId, buttonSuffix, objectName, modaltext, field, authkey, fieldValue) {
+    $(tableId + buttonSuffix).click(async function () {
+        var ids = $.map($(tableId).bootstrapTable('getSelections'), function (row) {
+            return row.id
+        })
+
+        if (await initConfirmModal(tableId, ids, modaltext, objectName)) {
+            for (let id of ids) {
+            updateField(tableId, id, field, fieldValue, authkey)
+            }
+        }
+    })
+}
+
+function updateField(tableId, id, field, fieldValue, authkey){
+
+    let row = $(tableId).bootstrapTable('getRowByUniqueId', id);
+    let url = "admin/updaterecord/"
+
+    if (field === "allowed") {
+        fieldValue = $(tableId).bootstrapTable('getSelections')[0].allowed === 0 ? 1 : 0;
+    }
+
+    let data = {
+        table: tableId.split('-')[0].split('#')[1],
+        field: field,
+        value: fieldValue,
+        id: row.id,
+    }
+    
+    fetch(url, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "authorization": authkey
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(responseData => {
+
+        if (responseData.status == "success") {
+            console.log(responseData.message)
+            let updateData = {};
+            updateData[field] = responseData.message; // Use bracket notation here
+            $(tableId).bootstrapTable('updateByUniqueId', {
+                id: id,
+                row: updateData
+            });
+        } else {
+            console.log(responseData)
+            highlihtRow(tableId, ids)
+        }
+        })
+    .catch((error) => {
+        console.error('Error:', error);
+    });
 }
