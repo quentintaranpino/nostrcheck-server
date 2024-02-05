@@ -1,15 +1,16 @@
-import { createPool, Pool } from "mysql2/promise";
+import { createPool, Pool,RowDataPacket } from "mysql2/promise";
 import config from "config";
 import { logger } from "./logger.js";
 import { ProcessingFileData } from "../interfaces/media.js";
 import { 
-	DatabaseTables, 
+	
 	newFieldcompatibility, 
 	DomainsTableFields, 
 	LightningTableFields, 
 	MediafilesTableFields, 
 	MediatagsTableFields, 
-	RegisteredTableFields} from "../interfaces/database.js";
+	RegisteredTableFields,
+	DatabaseTablestest} from "../interfaces/database.js";
 
 let retry :number = 0;
 async function connect(source:string): Promise<Pool> {
@@ -53,104 +54,41 @@ async function connect(source:string): Promise<Pool> {
 };
 
 async function populateTables(resetTables: boolean): Promise<boolean> {
-	
+
 	if (resetTables) {
 		const conn = await connect("populateTables");
 		try{
-		for (let i = 0; i < DatabaseTables.length; i++) {
-			logger.info("Dropping table:", DatabaseTables[i]);
-			const DropTableStatement = "DROP TABLE IF EXISTS " + DatabaseTables[i] + ";";
-			await conn.query(DropTableStatement);
-		}
-		conn.end();
+			DatabaseTablestest.forEach(async (table) => {
+				logger.info("Dropping table:", Object.keys(table).toString());
+				const DropTableStatement = "DROP TABLE IF EXISTS " + Object.keys(table).toString() + ";";
+				await conn.query(DropTableStatement);
+				conn.end();
+			});
 		}catch (error) {
-			logger.error("Error dropping tables", error);
 			conn.end();
+			logger.error("Error dropping tables", error);
 			return false;
 		}
 	}
-		
-	//Check tables consistency
-	for (let i = 0; i < DatabaseTables.length; i++) {
 
-		//domains table
-		if (DatabaseTables[i] == "domains") {
-			for (const [key, value] of Object.entries(DomainsTableFields)) {
+	//Check tables consistency
+	DatabaseTablestest.forEach(async (table) => {
+		Object.values(table).forEach(async (structure : object) => {
+			for (const [key, value] of Object.entries(structure)) {
+				if (key == "constructor") {continue;}
 
 				let after_column :string = "";
-				if (Object.keys(DomainsTableFields).indexOf(key,0) != 0){
-					after_column = Object.entries(DomainsTableFields)[Object.keys(DomainsTableFields).indexOf(key,0)-1][0];
+				if (Object.keys(structure).indexOf(key,0) != 0){
+					after_column = Object.entries(structure)[Object.keys(structure).indexOf(key,0)-1][0];
 				}
-				const check = await checkDatabaseConsistency(DatabaseTables[i], key, value, after_column);
+				const check = await checkDatabaseConsistency(Object.keys(table).toString(), key, value, after_column);
 				if (!check) {
 					logger.fatal("Error checking database table domains");
 					process.exit(1);
 				}
 			}
-		}
-		//lightning table
-		if (DatabaseTables[i] == "lightning") {
-			for (const [key, value] of Object.entries(LightningTableFields)) {
-
-				let after_column :string = "";
-				if (Object.keys(LightningTableFields).indexOf(key,0) != 0){
-					after_column = Object.entries(LightningTableFields)[Object.keys(LightningTableFields).indexOf(key,0)-1][0];
-				}
-				const check = await checkDatabaseConsistency(DatabaseTables[i], key, value, after_column);
-				if (!check) {
-					logger.fatal("Error checking database table lightning");
-					process.exit(1);
-				}
-			}
-		}
-		//mediafiles table
-		if (DatabaseTables[i] == "mediafiles") {
-			for (const [key, value] of Object.entries(MediafilesTableFields)) {
-
-				let after_column :string = "";
-				if (Object.keys(MediafilesTableFields).indexOf(key,0) != 0){
-					after_column = Object.entries(MediafilesTableFields)[Object.keys(MediafilesTableFields).indexOf(key,0)-1][0];
-				}
-				const check = await checkDatabaseConsistency(DatabaseTables[i], key, value, after_column);
-
-				if (!check) {
-					logger.fatal("Error checking database table mediafiles");
-					process.exit(1);
-				}
-			}
-		}
-		//mediatags table
-		if (DatabaseTables[i] == "mediatags") {
-			for (const [key, value] of Object.entries(MediatagsTableFields)) {
-
-				let after_column :string = "";
-				if (Object.keys(MediatagsTableFields).indexOf(key,0) != 0){
-					after_column = Object.entries(MediatagsTableFields)[Object.keys(MediatagsTableFields).indexOf(key,0)-1][0];
-				}
-				const check = await checkDatabaseConsistency(DatabaseTables[i], key, value, after_column);
-				if (!check) {
-					logger.fatal("Error checking database table mediatags");
-					process.exit(1);
-				}
-			}
-		}
-		
-		//registered table
-		if (DatabaseTables[i] == "registered") {
-			for (const [key, value] of Object.entries(RegisteredTableFields)) {
-
-				let after_column :string = "";
-				if (Object.keys(RegisteredTableFields).indexOf(key,0) != 0){
-					after_column = Object.entries(RegisteredTableFields)[Object.keys(RegisteredTableFields).indexOf(key,0)-1][0];
-				}
-				const check = await checkDatabaseConsistency(DatabaseTables[i], key, value, after_column);
-				if (!check) {
-					logger.fatal("Error checking database table registered");
-					process.exit(1);
-				}
-			}
-		}
-	}
+		});
+	});
 
 	return true;
 }
@@ -233,48 +171,40 @@ async function checkDatabaseConsistency(table: string, column_name:string, type:
 	}
 }
 
-
-const dbFileFieldUpdate = async (tableName :string, fieldName: string, fieldValue: string, options: ProcessingFileData): Promise<boolean> =>{
+const dbUpdate = async (tableName :string, fieldName: string, fieldValue: string, idValue: string): Promise<boolean> =>{
 
 	const conn = await connect("dbFileFieldUpdate:" + fieldName + " | Table: " + tableName);
 	try{
 		const [dbFileFieldUpdate] = await conn.execute(
 			"UPDATE " + tableName + " set " + fieldName + " = ? where id = ?",
-			[fieldValue, options.fileid]
+			[fieldValue, idValue]
 		);
 		if (!dbFileFieldUpdate) {
-			logger.error("Error updating " + tableName + " table, id:", options.fileid, fieldName + ":", fieldValue);
+			logger.error("Error updating " + tableName + " table, id:", idValue, fieldName + ":", fieldValue);
 			conn.end();
 			return false;
 		}
 		conn.end();
 		return true
 	}catch (error) {
-		logger.error("Error updating " + tableName + " table, id:", options.fileid, fieldName + ":", fieldValue);
+		logger.error("Error updating " + tableName + " table, id:", idValue, fieldName + ":", fieldValue);
 		conn.end();
 		return false;
 	}
 }
 
-async function dbSelectUsername(pubkey: string): Promise<string> {
+const dbSelect = async (query: string, queryField :string, whereFields: string[], table: RowDataPacket): Promise<string> => {
 
-	const dbPubkey = await connect("dbSelectUsername");
-	try{
-		logger.debug("Getting username from database", pubkey)
-		const [dbResult] = await dbPubkey.query("SELECT username FROM registered WHERE hex = ?", [pubkey]);
-		const rowstemp = JSON.parse(JSON.stringify(dbResult));
-		dbPubkey.end();
-		if (rowstemp[0] == undefined) {
-			return "";	
-		}else{
-
-			return rowstemp[0]['username'];
-		}
-	}catch (error) {
-	logger.error("Error getting username from database");
-	return "";
+	logger.debug("dbSimpleSelect: " + table.constructor + " | queryField: " + queryField + " | whereFields: " + whereFields.join(", "));
+	try {
+		const conn = await connect("dbSimpleSelect: " + table + " | Fields: " + whereFields.join(", "));
+		const [rows] = await conn.query<typeof table[]>(query, whereFields);
+		conn.end();
+		return rows[0]?.[queryField] || "";
+	} catch (error) {
+		logger.error("Error getting " + queryField + " from database");
+		return "";
 	}
-	
 }
 
 async function dbSelectAllRecords(table:string, query:string): Promise<string> {
@@ -296,8 +226,6 @@ async function dbSelectAllRecords(table:string, query:string): Promise<string> {
 	}
 	
 }
-
-
 
 async function dbSelectModuleData(module:string): Promise<string> {
 
@@ -466,8 +394,8 @@ const deleteOldFields = async (table:string, oldField:string): Promise<boolean> 
 export { 
 	    connect, 
 		populateTables,
-		dbSelectUsername,
+		dbSelect,
+		dbUpdate,
 		showDBStats,
-		dbFileFieldUpdate,
 		initDatabase,
 		dbSelectModuleData};

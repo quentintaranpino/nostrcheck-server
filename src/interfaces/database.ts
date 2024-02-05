@@ -1,26 +1,23 @@
-const DatabaseTables = [
-	"domains",
-	"lightning",
-	"mediafiles",
-	"mediatags",
-	"registered",
-];
+import { RowDataPacket } from "mysql2";
 
-interface DomainsTable {
+interface DomainsTableStructure extends RowDataPacket{
 	id: string;
 	domain: string;
 	active: string;
 	comments: string;
 }
 
-const DomainsTableFields : DomainsTable = {
+const DomainsTableFields : DomainsTableStructure = {
 	"id" : "int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY",
 	"domain" : "varchar(50) NOT NULL",
 	"active" : "boolean NOT NULL DEFAULT 0",
 	"comments" : "varchar(150)",
+	constructor: {
+		name: 'RowDataPacket',
+	},
 } 
 
-interface LightningTable {
+interface LightningTable extends RowDataPacket {
 	id: string;
 	pubkey: string;
 	lightningaddress: string;
@@ -32,9 +29,13 @@ const LightningTableFields: LightningTable = {
 	pubkey: "varchar(64) NOT NULL",
 	lightningaddress: "varchar(50) NOT NULL",
 	comments: "varchar(150)",
+	constructor: {
+		name: 'RowDataPacket',
+	},
+
 };
 
-interface MediafilesTable {
+interface MediafilesTable extends RowDataPacket {
 	id: string;
 	pubkey: string;
 	filename: string;
@@ -70,9 +71,12 @@ const MediafilesTableFields: MediafilesTable = {
 	dimensions: "varchar(15)",
 	filesize: "varchar(15)",
 	comments: "varchar(150)",
+	constructor: {
+		name: 'RowDataPacket',
+	},
 };
 
-interface MediatagsTable {
+interface MediatagsTable extends RowDataPacket {
 	id: string;
 	fileid: string;
 	tag: string;
@@ -82,9 +86,12 @@ const MediatagsTableFields: MediatagsTable = {
 	id: "int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY",
 	fileid: "int(11) NOT NULL",
 	tag: "varchar(64) NOT NULL",
+	constructor: {
+		name: 'RowDataPacket',
+	},
 };
 
-interface RegisteredTable{
+interface RegisteredTable extends RowDataPacket{
 	id: string;
 	pubkey: string;
 	hex: string;
@@ -112,6 +119,9 @@ const RegisteredTableFields: RegisteredTable = {
 	authkey: "varchar(64)",
 	apikey: "varchar(64)",
 	comments: "varchar(150)",
+	constructor: {
+		name: 'RowDataPacket',
+	},
 };
 
 //If you add a new field that is substituting an old one, add it here
@@ -119,13 +129,22 @@ const newFieldcompatibility = [
 	{ newfield: 'newFieldname', oldField: 'oldFiedName' },
   ];
 
+  const DatabaseTablestest = [
+	{"domains": DomainsTableFields},
+	{"lightning": LightningTableFields},
+	{"mediafiles": MediafilesTableFields},
+	{"mediatags": MediatagsTableFields},
+	{"registered": RegisteredTableFields}
+];
+
+
 export {
-	DatabaseTables,
 	DomainsTableFields,
 	LightningTableFields,
 	MediafilesTableFields,
 	MediatagsTableFields,
 	RegisteredTableFields,
-	newFieldcompatibility
+	newFieldcompatibility,
+	DatabaseTablestest
 };	
 	
