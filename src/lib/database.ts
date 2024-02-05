@@ -3,14 +3,15 @@ import config from "config";
 import { logger } from "./logger.js";
 import { ProcessingFileData } from "../interfaces/media.js";
 import { 
-	
 	newFieldcompatibility, 
-	DomainsTableFields, 
-	LightningTableFields, 
-	MediafilesTableFields, 
-	MediatagsTableFields, 
-	RegisteredTableFields,
-	DatabaseTablestest} from "../interfaces/database.js";
+	domainsTableFields, 
+	lightningTableFields, 
+	mediafilesTableFields, 
+	mediatagsTableFields, 
+	registeredTableFields,
+	databaseTables} from "../interfaces/database.js";
+import { updateLocalConfigKey } from "./config.js";
+import { exit } from "process";
 
 let retry :number = 0;
 async function connect(source:string): Promise<Pool> {
@@ -52,46 +53,49 @@ async function connect(source:string): Promise<Pool> {
 	}
 
 };
-
 async function populateTables(resetTables: boolean): Promise<boolean> {
+    if (await resetTables) {
+        // Put database.droptables to false for next run
+        if (!await updateLocalConfigKey("database.droptables", false)){
+            logger.error("Error updating database.droptables in config file, exiting program to avoid data corruption");
+            exit(1);
+        }
 
-	if (resetTables) {
-		const conn = await connect("populateTables");
-		try{
-			DatabaseTablestest.forEach(async (table) => {
-				logger.info("Dropping table:", Object.keys(table).toString());
-				const DropTableStatement = "DROP TABLE IF EXISTS " + Object.keys(table).toString() + ";";
-				await conn.query(DropTableStatement);
-				conn.end();
-			});
-		}catch (error) {
-			conn.end();
-			logger.error("Error dropping tables", error);
-			return false;
-		}
-	}
+        const conn = await connect("populateTables");
+        try {
+            for (const table of databaseTables) {
+                logger.info("Dropping table:", Object.keys(table).toString());
+                const DropTableStatement = "DROP TABLE IF EXISTS " + Object.keys(table).toString() + ";";
+                await conn.query(DropTableStatement);
+            }
+        } catch (error) {
+            conn.end();
+            logger.error("Error dropping tables", error);
+            return false;
+        }
+    }
 
-	//Check tables consistency
-	DatabaseTablestest.forEach(async (table) => {
-		Object.values(table).forEach(async (structure : object) => {
-			for (const [key, value] of Object.entries(structure)) {
-				if (key == "constructor") {continue;}
+    // Check tables consistency
+    for (const table of databaseTables) {
+        for (const structure of Object.values(table)) {
+            for (const [key, value] of Object.entries(structure as object)) {
+                if (key == "constructor") {continue;}
 
-				let after_column :string = "";
-				if (Object.keys(structure).indexOf(key,0) != 0){
-					after_column = Object.entries(structure)[Object.keys(structure).indexOf(key,0)-1][0];
-				}
-				const check = await checkDatabaseConsistency(Object.keys(table).toString(), key, value, after_column);
-				if (!check) {
-					logger.fatal("Error checking database table domains");
-					process.exit(1);
-				}
-			}
-		});
-	});
-
-	return true;
+                let after_column :string = "";
+                if (Object.keys(structure).indexOf(key,0) != 0){
+                    after_column = Object.entries(structure)[Object.keys(structure).indexOf(key,0)-1][0];
+                }
+                const check = await checkDatabaseConsistency(Object.keys(table).toString(), key, value, after_column);
+                if (!check) {
+                    logger.fatal("Error checking database table domains");
+                    process.exit(1);
+                }
+            }
+        }
+    }
+    return true;
 }
+
 
 async function checkDatabaseConsistency(table: string, column_name:string, type:string, after_column:string): Promise<boolean> {
 

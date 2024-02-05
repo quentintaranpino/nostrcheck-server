@@ -38,6 +38,7 @@ const initSession = async (app:Application): Promise<void> => {
             maxAge: 3600000 // Default 1 hour
         }
     }))
+    app.use(limiter);
 
 }
 

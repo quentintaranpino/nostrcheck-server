@@ -1,13 +1,13 @@
 import { RowDataPacket } from "mysql2";
 
-interface DomainsTableStructure extends RowDataPacket{
+interface domainsTableStructure extends RowDataPacket{
 	id: string;
 	domain: string;
 	active: string;
 	comments: string;
 }
 
-const DomainsTableFields : DomainsTableStructure = {
+const domainsTableFields : domainsTableStructure = {
 	"id" : "int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY",
 	"domain" : "varchar(50) NOT NULL",
 	"active" : "boolean NOT NULL DEFAULT 0",
@@ -17,14 +17,14 @@ const DomainsTableFields : DomainsTableStructure = {
 	},
 } 
 
-interface LightningTable extends RowDataPacket {
+interface lightningTable extends RowDataPacket {
 	id: string;
 	pubkey: string;
 	lightningaddress: string;
 	comments: string;
 }
 
-const LightningTableFields: LightningTable = {
+const lightningTableFields: lightningTable = {
 	id: "int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY",
 	pubkey: "varchar(64) NOT NULL",
 	lightningaddress: "varchar(50) NOT NULL",
@@ -35,7 +35,7 @@ const LightningTableFields: LightningTable = {
 
 };
 
-interface MediafilesTable extends RowDataPacket {
+interface mediafilesTable extends RowDataPacket {
 	id: string;
 	pubkey: string;
 	filename: string;
@@ -54,7 +54,7 @@ interface MediafilesTable extends RowDataPacket {
 	comments: string;
 }
 
-const MediafilesTableFields: MediafilesTable = {
+const mediafilesTableFields: mediafilesTable = {
 	id: "int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY",
 	pubkey: "varchar(64) NOT NULL",
 	filename: "varchar(128) NOT NULL",
@@ -76,13 +76,13 @@ const MediafilesTableFields: MediafilesTable = {
 	},
 };
 
-interface MediatagsTable extends RowDataPacket {
+interface mediatagsTable extends RowDataPacket {
 	id: string;
 	fileid: string;
 	tag: string;
 }
 
-const MediatagsTableFields: MediatagsTable = {
+const mediatagsTableFields: mediatagsTable = {
 	id: "int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY",
 	fileid: "int(11) NOT NULL",
 	tag: "varchar(64) NOT NULL",
@@ -91,7 +91,7 @@ const MediatagsTableFields: MediatagsTable = {
 	},
 };
 
-interface RegisteredTable extends RowDataPacket{
+interface registeredTable extends RowDataPacket{
 	id: string;
 	pubkey: string;
 	hex: string;
@@ -106,7 +106,7 @@ interface RegisteredTable extends RowDataPacket{
 	comments: string;
 }
 
-const RegisteredTableFields: RegisteredTable = {
+const registeredTableFields: registeredTable = {
 	id: "int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY",
 	pubkey: "varchar(64) NOT NULL",
 	hex: "varchar(64) NOT NULL",
@@ -129,22 +129,22 @@ const newFieldcompatibility = [
 	{ newfield: 'newFieldname', oldField: 'oldFiedName' },
   ];
 
-  const DatabaseTablestest = [
-	{"domains": DomainsTableFields},
-	{"lightning": LightningTableFields},
-	{"mediafiles": MediafilesTableFields},
-	{"mediatags": MediatagsTableFields},
-	{"registered": RegisteredTableFields}
+  const databaseTables = [
+	{"domains": domainsTableFields},
+	{"lightning": lightningTableFields},
+	{"mediafiles": mediafilesTableFields},
+	{"mediatags": mediatagsTableFields},
+	{"registered": registeredTableFields}
 ];
 
 
 export {
-	DomainsTableFields,
-	LightningTableFields,
-	MediafilesTableFields,
-	MediatagsTableFields,
-	RegisteredTableFields,
+	domainsTableFields,
+	lightningTableFields,
+	mediafilesTableFields,
+	mediatagsTableFields,
+	registeredTableFields,
 	newFieldcompatibility,
-	DatabaseTablestest
+	databaseTables
 };	
 	
