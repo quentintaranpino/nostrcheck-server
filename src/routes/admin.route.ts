@@ -1,7 +1,7 @@
 import { Application } from "express";
 
 import { serverStatus, StopServer } from "../controllers/admin.js";
-import { resetUserPassword } from "../controllers/admin.js";
+import { resetUserPassword, updateDBRecord } from "../controllers/admin.js";
 
 export const loadAdminEndpoint = async (app: Application, version:string): Promise<void> => {
 
@@ -16,8 +16,11 @@ export const loadAdminEndpoint = async (app: Application, version:string): Promi
 
                 app.get("/api/" + version + app.get("activeModules")["admin"]["path"] + "/status", serverStatus);
 
-                // Server NIP04 nostr DM's
+                // Reset user password
                 app.post("/api/" + version + app.get("activeModules")["admin"]["path"] + "/resetpassword/", resetUserPassword);
+
+                // Enable or disable a record
+                app.post("/api/" + version + app.get("activeModules")["admin"]["path"] + "/updaterecord/", updateDBRecord);
 
         }
 

@@ -152,13 +152,13 @@
       initTable("#nostraddressData",'<%- JSON.stringify(request.body.nostraddressData) %>','user', authkey)
     }
     if("<%- request.body.mediaData && request.body.mediaData.length > 0 %>"){
-      initTable("#mediaData",'<%- JSON.stringify(request.body.mediaData) %>', 'media file')
+      initTable("#mediaData",'<%- JSON.stringify(request.body.mediaData) %>', 'media file', authkey)
     }
     if("<%- request.body.lightningData && request.body.lightningData.length > 0 %>"){
-      initTable("#lightningData",'<%- JSON.stringify(request.body.lightningData) %>', 'lightning redirection')
+      initTable("#lightningData",'<%- JSON.stringify(request.body.lightningData) %>', 'lightning redirection', authkey)
     }
     if("<%- request.body.domainsData && request.body.domainsData.length > 0 %>"){
-      initTable("#domainsData",'<%- JSON.stringify(request.body.domainsData) %>', 'domain name')
+      initTable("#domainsData",'<%- JSON.stringify(request.body.domainsData) %>', 'domain name', authkey)
     }
   </script>
 

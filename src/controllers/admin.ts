@@ -6,7 +6,7 @@ import { getClientIp, format } from "../lib/server.js";
 import { ResultMessagev2, ServerStatusMessage } from "../interfaces/server.js";
 import { IsAdminAuthorized, generateAuthKey, isPubkeyAllowed } from "../lib/authorization.js";
 import { sendMessage } from "../lib/nostr/NIP04.js";
-import { connect } from "../lib/database.js";
+import { connect, dbUpdate } from "../lib/database.js";
 import crypto from "crypto";
 import bcrypt from "bcrypt";
 import config from "config";
@@ -51,6 +51,77 @@ const StopServer = async (req: Request, res: Response): Promise<Response> => {
     res.status(200).json(result);
     process.exit(0);
 };
+
+const updateDBRecord = async (req: Request, res: Response): Promise<Response> => {
+
+    logger.info("REQ -> updateDBRecord", req.hostname, "|", getClientIp(req));
+    res.setHeader('Content-Type', 'application/json');
+
+    // Check header has authorization token
+    const authorized = await IsAdminAuthorized(req.headers.authorization)
+    if ( !authorized) {
+        let result : ResultMessagev2 = {
+            status: "error",
+            message: "Unauthorized"
+            };
+        logger.error("RES -> Unauthorized" + " | " + getClientIp(req));
+        return res.status(401).send(result);
+    }
+    
+    // Check if the request has the required parameters
+     if (!req.body.table || !req.body.field || req.body.value === undefined || req.body.value === null || !req.body.id) {
+        let result : ResultMessagev2 = {
+            status: "error",
+            message: "Invalid parameters"
+            };
+        logger.error("RES -> Invalid parameters" + " | " + getClientIp(req));
+        return res.status(400).send(result);
+    }
+
+    // Fon't show the user the real table names
+    let table = req.body.table;
+    if (req.body.table == "nostraddressData") {table = "registered";}
+    if (req.body.table == "mediaData") {table = "mediafiles";}
+    if (req.body.table == "lightningData") {table = "lightning";}
+    if (req.body.table == "domainsData") {table = "domains";}
+
+    // Define a list of allowed table names and field names
+    const allowedTableNames = ["registered", "mediafiles", "lightning", "domains"];
+    const allowedFieldNames = ["allowed", "active", "visibility", "comments", "username", "pubkey","hex", "domain"]; 
+    const allowedFieldValues = [0, 1]; 
+
+    logger.debug("table: ", table, " | field: ", req.body.field, " | value: ", req.body.value, " | id: ", req.body.id)
+
+    // Check if the provided table name and field name are allowed
+    if (!allowedTableNames.includes(table) || 
+        !allowedFieldNames.includes(req.body.field) || 
+        !allowedFieldValues.includes(req.body.value)){
+            let result : ResultMessagev2 = {
+                status: "error",
+                message: "Invalid table name or field name"
+            };
+            logger.warn("RES -> Invalid table name or field name" + " | " + getClientIp(req));
+            return res.status(400).send(result);
+    }
+
+    // Update table with new value
+    const update = await dbUpdate(table, req.body.field, req.body.value, req.body.id);
+    if (update) {
+        let result : ResultMessagev2 = {
+            status: "success",
+            message: req.body.value
+            };
+        logger.info("RES -> Record updated" + " | " + getClientIp(req));
+        return res.status(200).send(result);
+    } else {
+        let result : ResultMessagev2 = {
+            status: "error",
+            message: "Failed to update record"
+            };
+        logger.error("RES -> Failed to update record" + " | " + getClientIp(req));
+        return res.status(500).send(result);
+    }
+}
 
 const resetUserPassword = async (req: Request, res: Response): Promise<Response> => {
    
@@ -173,4 +244,4 @@ const adminLogin = async (req: Request, res: Response): Promise<Response> => {
 };
 
 
-export { serverStatus, StopServer, resetUserPassword, adminLogin};
+export { serverStatus, StopServer, resetUserPassword, adminLogin, updateDBRecord};
