@@ -14,7 +14,6 @@ import {
 	mime_transform,
 	UploadStatus,
 	MediaStatus,
-	FileData,
 } from "../interfaces/media.js";
 import { ResultMessage, ResultMessagev2 } from "../interfaces/server.js";
 import fs from "fs";
@@ -23,7 +22,7 @@ import path from "path";
 import { NIP96_event, NIP96_processing } from "../interfaces/nostr.js";
 import { PrepareNIP96_event } from "../lib/nostr/NIP96.js";
 import { getClientIp } from "../lib/server.js";
-import { generatefileHashfrombuffer } from "../lib/hash.js";
+import { generateBlurhash, generatefileHashfrombuffer } from "../lib/hash.js";
 import { registeredTableFields } from "../interfaces/database.js";
 
 const Uploadmedia = async (req: Request, res: Response, version:string): Promise<Response> => {
@@ -198,9 +197,6 @@ const Uploadmedia = async (req: Request, res: Response, version:string): Promise
 	//Add file to mediafiles table
 	if (insertfiledb) {
 
-		// //Generate blurhash
-		// filedata.blurhash = await generateBlurhash(file);
-
 		const dbFile = await connect("Uploadmedia");
 		try{
 			const createdate = new Date(Math.floor(Date.now())).toISOString().slice(0, 19).replace("T", " ");
@@ -252,21 +248,28 @@ const Uploadmedia = async (req: Request, res: Response, version:string): Promise
 
 	//Copy file to username folder. It is required by NIP96
 	const filePath = mediaPath + "/" + filedata.filename;
-	fs.writeFile(filePath, file.buffer, function (err) {
-		if (err) {
-			logger.error("Error copying file to disk", err, "|", getClientIp(req));
-
-			//v0 and v1 compatibility
-			if(version != "v2"){return res.status(500).send({"result": false, "description" : "Error copying file to disk"});}
-
-			const result: ResultMessagev2 = {
-				status: MediaStatus[1],
-				message: "Error copying file to disk",
-			};
-			return res.status(500).send(result);
+	try {
+		await fs.promises.writeFile(filePath, file.buffer);
+	} catch (err) {
+		logger.error("Error copying file to disk", err, "|", getClientIp(req));
+	
+		//v0 and v1 compatibility
+		if(version != "v2"){
+			return res.status(500).send({"result": false, "description" : "Error copying file to disk"});
 		}
-	});
+	
+		const result: ResultMessagev2 = {
+			status: MediaStatus[1],
+			message: "Error copying file to disk",
+		};
+		return res.status(500).send(result);
+	}
 
+	// generate blurhash
+	if (filedata.originalmime.toString().startsWith("image")){
+		filedata.blurhash = await generateBlurhash(filePath);
+	}
+	
 	let responseStatus = 201;
 
 	if (convert){
