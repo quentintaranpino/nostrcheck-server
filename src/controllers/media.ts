@@ -23,7 +23,7 @@ import { NIP96_event, NIP96_processing } from "../interfaces/nostr.js";
 import { PrepareNIP96_event } from "../lib/nostr/NIP96.js";
 import { getClientIp } from "../lib/server.js";
 import { generateBlurhash, generatefileHashfrombuffer } from "../lib/hash.js";
-import { registeredTableFields } from "../interfaces/database.js";
+import { mediafilesTableFields, registeredTableFields } from "../interfaces/database.js";
 
 const Uploadmedia = async (req: Request, res: Response, version:string): Promise<Response> => {
 
@@ -545,8 +545,8 @@ const GetMediabyURL = async (req: Request, res: Response) => {
 		return res.status(400).send(result);
 	}
 
-	//Check if filename is no longer than 128
-	if (req.params.filename.length > 128) {
+	//Check if filename is no longer than 70
+	if (req.params.filename.length > 70) {
 		logger.warn(`RES Media URL -> 400 Bad request - filename too long`, "|", getClientIp(req));
 		const result: ResultMessage = {
 			result: false,
@@ -554,15 +554,15 @@ const GetMediabyURL = async (req: Request, res: Response) => {
 		};
 		return res.status(400).send(result);
 	}
-	
-	const mediaPath = path.normalize(path.resolve(config.get("media.mediaPath")));
+
+	let mediaPath = path.normalize(path.resolve(config.get("media.mediaPath")));
 
 	//Check if mediaPath is not empty
 	if (!mediaPath) {
 		logger.warn(`RES Media URL -> 500 Internal Server Error - mediaPath not set`, "|", getClientIp(req));
-		const result: ResultMessage = {
-			result: false,
-			description: "mediaPath not set",
+		const result: ResultMessagev2 = {
+			status: MediaStatus[1],
+			message: "mediaPath not set",
 		};
 		return res.status(500).send(result);
 	}
@@ -577,9 +577,9 @@ const GetMediabyURL = async (req: Request, res: Response) => {
 
 	if (!isPathUnderRoot) {
 		logger.warn(`RES -> 403 Forbidden - ${req.url}`, "|", getClientIp(req));
-		const result: ResultMessage = {
-			result: false,
-			description: "File not found",
+		const result: ResultMessagev2 = {
+			status: MediaStatus[1],
+			message: "File not found",
 		};
 		return res.status(404).send(result);
 	}
@@ -590,31 +590,57 @@ const GetMediabyURL = async (req: Request, res: Response) => {
 	mediaType = mediaTypes[ext.slice(1)]
 	}
 
-	fs.readFile(fileName, (err, data) => {
-		if (err) {
+	let fileNotFound = false;
 
+	fs.readFile(fileName, async (err, data) => {
+		if (err) {
 			// If file not found, return not found media file
 			logger.warn(`RES -> 404 Not Found - ${req.url}`, "| Returning not found media file.", getClientIp(req));
-
-			const NotFoundFilePath = path.normalize(path.resolve(config.get("media.notFoundFilePath")));
-
-			res.setHeader('Content-Type', mediaType);
-			fs.readFile(NotFoundFilePath, (err, data) => {
+			let notFoundPath = path.normalize(path.resolve(config.get("media.notFoundFilePath")));
+			fs.readFile(notFoundPath, async (err, data) => {
 				if (err) {
-					logger.warn(`RES -> 404 Not Found - ${req.url}`, "| Returning not found media file.", getClientIp(req));
-					res.status(404).send("File not found");
-				} else {
+					logger.error(`RES -> 404 Not Found - ${req.url}`, "| Not found media file not found.", getClientIp(req));
+					res.setHeader('Content-Type', mediaType);
+					res.end(null);
+				}
 				res.setHeader('Content-Type', 'image/webp');
 				res.end(data);
-				}
 			});
-
 		} else {
-		res.setHeader('Content-Type', mediaType);
-		res.end(data);
+			// Check if file is active on the database
+			let active : string = await dbSelect("SELECT active FROM mediafiles WHERE filename = ? ", "active", [req.params.filename], mediafilesTableFields);
+			logger.debug(active)
+			if (active != "1") {
+				logger.warn(`RES -> 401 File not active - ${req.url}`, "| Returning not found media file.", getClientIp(req));
+				let notFoundPath = path.normalize(path.resolve(config.get("media.notFoundFilePath")));
+				fs.readFile(notFoundPath, async (err, data) => {
+					if (err) {
+						logger.error(`RES -> 404 Not Found - ${req.url}`, "| Not found media file not found.", getClientIp(req));
+						res.setHeader('Content-Type', mediaType);
+						res.end(null);
+					}
+					res.setHeader('Content-Type', 'image/webp');
+					res.end(data);
+				});
+			}else{
+				res.setHeader('Content-Type', mediaType);
+				res.end(data);
+			}
 		}
-
 	});
+
+	if (fileNotFound) {
+		let notFoundPath = path.normalize(path.resolve(config.get("media.notFoundFilePath")));
+		fs.readFile(notFoundPath, async (err, data) => {
+			if (err) {
+				logger.error(`RES -> 404 Not Found - ${req.url}`, "| Not found media file not found.", getClientIp(req));
+				res.setHeader('Content-Type', mediaType);
+				res.end(null);
+			}
+			res.setHeader('Content-Type', mediaType);
+			res.end(data);
+		});
+	}
 
 };
 
