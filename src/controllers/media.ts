@@ -148,7 +148,7 @@ const Uploadmedia = async (req: Request, res: Response, version:string): Promise
 	};
 
 	//Uploaded file SHA256 hash and filename
-	filedata.originalhash = generatefileHashfrombuffer(file);
+	filedata.originalhash = await generatefileHashfrombuffer(file);
 	filedata.filename = filedata.originalhash +  "." + mime_transform[file.mimetype]
 	logger.info("hash ->", filedata.originalhash, "|", getClientIp(req));
 
@@ -164,6 +164,8 @@ const Uploadmedia = async (req: Request, res: Response, version:string): Promise
 
 	let convert = true;
 	let insertfiledb = true;
+	let makeBlurhash = true;
+	let fileDBExists = false;
 
 	//Check if the (file SHA256 hash and pubkey) is already on the database, if exist (and the upload is media type) we return the existing file URL
 	const dbHash = await connect("Uploadmedia");
@@ -188,11 +190,51 @@ const Uploadmedia = async (req: Request, res: Response, version:string): Promise
 		filedata.url = filedata.servername + "/media/" + username + "/" + filedata.filename;
 		convert = false; 
 		insertfiledb = false;
+		makeBlurhash = false;
+		fileDBExists = true;
 
 	}
 	dbHash.end();
 
-	logger.debug(filedata);
+	//If not exist create username folder
+	const mediaPath = config.get("media.mediaPath") + username;
+	if (!fs.existsSync(mediaPath)){
+		logger.warn("Username folder not found, creating...", "|", getClientIp(req));
+		fs.mkdirSync(mediaPath);
+	}
+
+	// If not exist, copy file to username folder
+	const filePath = mediaPath + "/" + filedata.filename;
+	if (!fs.existsSync(filePath)) {
+		try {
+			if (fileDBExists) {
+				logger.warn("File already in database but not found on username folder, copying now and processing as new file", "|", getClientIp(req));
+				convert = true;
+			}
+			logger.info("Copying file to username folder", "|", getClientIp(req));
+			await fs.promises.writeFile(filePath, file.buffer);
+		} catch (err) {
+			logger.error("Error copying file to username folder", err, "|", getClientIp(req));
+		
+			//v0 and v1 compatibility
+			if(version != "v2"){
+				return res.status(500).send({"result": false, "description" : "Error copying file to disk"});
+			}
+		
+			const result: ResultMessagev2 = {
+				status: MediaStatus[1],
+				message: "Error copying file to disk",
+			};
+			return res.status(500).send(result);
+		}
+	}
+
+	// generate blurhash
+	if (makeBlurhash) {
+		if (filedata.originalmime.toString().startsWith("image")){
+			filedata.blurhash = await generateBlurhash(filePath);
+		}
+	}
 
 	//Add file to mediafiles table
 	if (insertfiledb) {
@@ -237,37 +279,6 @@ const Uploadmedia = async (req: Request, res: Response, version:string): Promise
 				return res.status(500).send(result);
 			}
 		
-	}
-
-	//If not exist create username folder
-	const mediaPath = config.get("media.mediaPath") + username;
-	if (!fs.existsSync(mediaPath)){
-		logger.warn("Username folder not found, creating...", "|", getClientIp(req));
-		fs.mkdirSync(mediaPath);
-	}
-
-	//Copy file to username folder. It is required by NIP96
-	const filePath = mediaPath + "/" + filedata.filename;
-	try {
-		await fs.promises.writeFile(filePath, file.buffer);
-	} catch (err) {
-		logger.error("Error copying file to disk", err, "|", getClientIp(req));
-	
-		//v0 and v1 compatibility
-		if(version != "v2"){
-			return res.status(500).send({"result": false, "description" : "Error copying file to disk"});
-		}
-	
-		const result: ResultMessagev2 = {
-			status: MediaStatus[1],
-			message: "Error copying file to disk",
-		};
-		return res.status(500).send(result);
-	}
-
-	// generate blurhash
-	if (filedata.originalmime.toString().startsWith("image")){
-		filedata.blurhash = await generateBlurhash(filePath);
 	}
 	
 	let responseStatus = 201;

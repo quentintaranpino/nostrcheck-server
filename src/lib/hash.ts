@@ -27,7 +27,7 @@ const generatefileHashfromfile = (filepath:string, options: ProcessingFileData):
 
 }
 
-const generatefileHashfrombuffer = (file:Express.Multer.File): string => {
+const generatefileHashfrombuffer = async (file:Express.Multer.File): Promise<string> => {
 
   logger.debug("INIT hash generation from buffer", file.originalname);
 
