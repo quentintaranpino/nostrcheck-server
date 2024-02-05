@@ -1,7 +1,7 @@
 import { Application } from "express";
 import multer from "multer";
 import config from "config";
-import { GetMediaStatusbyID, GetMediabyURL, Uploadmedia, DeleteMedia, UpdateMediaVisibility, GetMediaTagsbyID, GetMediabyTags } from "../controllers/media.js";
+import { GetMediaStatusbyID, getMediabyURL, Uploadmedia, DeleteMedia, UpdateMediaVisibility, GetMediaTagsbyID, GetMediabyTags } from "../controllers/media.js";
 import { ResultMessage } from "../interfaces/server.js";
 import { logger } from "../lib/logger.js";
 import { getClientIp } from "../lib/server.js";
@@ -48,7 +48,7 @@ export const loadMediaEndpoint = async (app: Application, version:string): Promi
 		app.get("/api/" + version + app.get("activeModules")["media"]["path"] + "/tag/:tag", GetMediabyTags);
 
 		//Get media by url
-		app.get("/api/" + version + app.get("activeModules")["media"]["path"] + "/:username/:filename", GetMediabyURL);
+		app.get("/api/" + version + app.get("activeModules")["media"]["path"] + "/:username/:filename", getMediabyURL);
 
 		//Update media visibility
 		app.put("/api/" + version + app.get("activeModules")["media"]["path"] + "/:fileId/visibility/:visibility", UpdateMediaVisibility);

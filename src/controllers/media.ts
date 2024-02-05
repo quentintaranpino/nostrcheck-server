@@ -19,11 +19,13 @@ import { ResultMessage, ResultMessagev2 } from "../interfaces/server.js";
 import fs from "fs";
 import config from "config";
 import path from "path";
+import validator from "validator";
 import { NIP96_event, NIP96_processing } from "../interfaces/nostr.js";
 import { PrepareNIP96_event } from "../lib/nostr/NIP96.js";
 import { getClientIp } from "../lib/server.js";
 import { generateBlurhash, generatefileHashfrombuffer } from "../lib/hash.js";
 import { mediafilesTableFields, registeredTableFields } from "../interfaces/database.js";
+
 
 const Uploadmedia = async (req: Request, res: Response, version:string): Promise<Response> => {
 
@@ -504,7 +506,7 @@ const GetMediaStatusbyID = async (req: Request, res: Response, version:string): 
 
 };
 
-const GetMediabyURL = async (req: Request, res: Response) => {
+const getMediabyURL = async (req: Request, res: Response) => {
 
 	//Allow CORS
 	res.set("access-control-allow-origin", "*");
@@ -513,136 +515,68 @@ const GetMediabyURL = async (req: Request, res: Response) => {
 	res.set("Cross-Origin-Resource-Policy", "*");
 	res.set("X-frame-options", "*")
 
-	//Check if username is not empty
-	if (!req.params.username) {
-		logger.warn(`RES Media URL -> 400 Bad request - missing username`, "|", getClientIp(req));
-		const result: ResultMessage = {
-			result: false,
-			description: "missing username",
-			
-		};
-		return res.status(400).send(result);
+	// Initial security checks
+	if (!req.params.username || 
+		req.params.username.length > 50 || 
+		!validator.default.matches(req.params.username, /^[a-zA-Z0-9]+$/) ||
+		!req.params.filename || 
+		req.params.filename.length > 70 ||
+		!validator.default.matches(req.params.filename, /^[a-zA-Z0-9]+\.[a-zA-Z0-9]+$/)) {
+		logger.warn(`RES Media URL -> 400 Bad request`, "|", getClientIp(req));
+		return returnNotFoundMediaFile(req, res);
 	}
 
-	//Check if username is no longer than 50
-	if (req.params.username.length > 50) {
-		logger.warn(`RES Media URL -> 400 Bad request - username too long`, "|", getClientIp(req));
-		const result: ResultMessage = {
-			result: false,
-			description: "username too long",
-		};
-		return res.status(400).send(result);
-	}
-
-	//Check if filename is not empty
-	if (!req.params.filename) {
-		logger.warn(`RES Media URL -> 400 Bad request - missing filename`, "|", getClientIp(req));
-		const result: ResultMessage = {
-			result: false,
-			description: "missing filename",
-
-		};
-		return res.status(400).send(result);
-	}
-
-	//Check if filename is no longer than 70
-	if (req.params.filename.length > 70) {
-		logger.warn(`RES Media URL -> 400 Bad request - filename too long`, "|", getClientIp(req));
-		const result: ResultMessage = {
-			result: false,
-			description: "filename too long",
-		};
-		return res.status(400).send(result);
-	}
-
+	// mediaPath checks
 	let mediaPath = path.normalize(path.resolve(config.get("media.mediaPath")));
-
-	//Check if mediaPath is not empty
 	if (!mediaPath) {
-		logger.warn(`RES Media URL -> 500 Internal Server Error - mediaPath not set`, "|", getClientIp(req));
-		const result: ResultMessagev2 = {
-			status: MediaStatus[1],
-			message: "mediaPath not set",
-		};
-		return res.status(500).send(result);
+		logger.error(`RES Media URL -> 500 Internal Server Error - mediaPath not set`, "|", getClientIp(req));
+		return returnNotFoundMediaFile(req, res);
 	}
-	
 	let fileName = path.normalize(path.resolve(mediaPath + "/" + req.params.username + "/" + req.params.filename));
-
 	logger.info(`RES Media URL -> username: ${req.params.username} | filename: ${fileName}`, "|", getClientIp(req));
 
-	const isPathUnderRoot = path
-		.normalize(path.resolve(fileName))
-		.startsWith(mediaPath);
-
-	if (!isPathUnderRoot) {
+	// Try to prevent directory traversal attacks
+	if (!path.normalize(path.resolve(fileName)).startsWith(mediaPath)) {
 		logger.warn(`RES -> 403 Forbidden - ${req.url}`, "|", getClientIp(req));
-		const result: ResultMessagev2 = {
-			status: MediaStatus[1],
-			message: "File not found",
-		};
-		return res.status(404).send(result);
+		return returnNotFoundMediaFile(req, res);
 	}
 
-	const ext = path.extname(fileName)
-	let mediaType :string = 'text/html'
-	if (ext.length > 0 && mediaTypes.hasOwnProperty(ext.slice(1))) {
-	mediaType = mediaTypes[ext.slice(1)]
-	}
+	// file extension checks and media type
+	const ext = path.extname(fileName).slice(1);
+	const mediaType: string = mediaTypes.hasOwnProperty(ext) ? mediaTypes[ext] : 'text/html';
 
-	let fileNotFound = false;
-
+	// Check if file exist on the filesystem and is active on the database
 	fs.readFile(fileName, async (err, data) => {
 		if (err) {
-			// If file not found, return not found media file
 			logger.warn(`RES -> 404 Not Found - ${req.url}`, "| Returning not found media file.", getClientIp(req));
-			let notFoundPath = path.normalize(path.resolve(config.get("media.notFoundFilePath")));
-			fs.readFile(notFoundPath, async (err, data) => {
-				if (err) {
-					logger.error(`RES -> 404 Not Found - ${req.url}`, "| Not found media file not found.", getClientIp(req));
-					res.setHeader('Content-Type', mediaType);
-					res.end(null);
-				}
-				res.setHeader('Content-Type', 'image/webp');
-				res.end(data);
-			});
-		} else {
-			// Check if file is active on the database
-			let active : string = await dbSelect("SELECT active FROM mediafiles WHERE filename = ? ", "active", [req.params.filename], mediafilesTableFields);
-			logger.debug(active)
-			if (active != "1") {
-				logger.warn(`RES -> 401 File not active - ${req.url}`, "| Returning not found media file.", getClientIp(req));
-				let notFoundPath = path.normalize(path.resolve(config.get("media.notFoundFilePath")));
-				fs.readFile(notFoundPath, async (err, data) => {
-					if (err) {
-						logger.error(`RES -> 404 Not Found - ${req.url}`, "| Not found media file not found.", getClientIp(req));
-						res.setHeader('Content-Type', mediaType);
-						res.end(null);
-					}
-					res.setHeader('Content-Type', 'image/webp');
-					res.end(data);
-				});
-			}else{
-				res.setHeader('Content-Type', mediaType);
-				res.end(data);
-			}
-		}
-	});
-
-	if (fileNotFound) {
-		let notFoundPath = path.normalize(path.resolve(config.get("media.notFoundFilePath")));
-		fs.readFile(notFoundPath, async (err, data) => {
-			if (err) {
-				logger.error(`RES -> 404 Not Found - ${req.url}`, "| Not found media file not found.", getClientIp(req));
-				res.setHeader('Content-Type', mediaType);
-				res.end(null);
-			}
+			return returnNotFoundMediaFile(req, res);
+		} 
+		// Check if file is active on the database
+		if (await dbSelect("SELECT active FROM mediafiles WHERE filename = ? ", "active", [req.params.filename], mediafilesTableFields) != "1") {
+			logger.warn(`RES -> 401 File not active - ${req.url}`, "| Returning not found media file.", getClientIp(req));
+			return returnNotFoundMediaFile(req, res);
+		}else{
+			// Return file
 			res.setHeader('Content-Type', mediaType);
 			res.end(data);
-		});
-	}
-
+		}
+	});
 };
+
+const returnNotFoundMediaFile = async (req: Request, res: Response) => {
+	// If file not found, return not found media file
+	let notFoundPath = path.normalize(path.resolve(config.get("media.notFoundFilePath")));
+	fs.readFile(notFoundPath, async (err, data) => {
+		if (err) {
+			logger.error(`RES -> 404 Not Found - ${req.url}`, "| Not found media file not found.", getClientIp(req));
+			res.setHeader('Content-Type', 'image/webp');
+			res.end(null);
+		}
+		res.setHeader('Content-Type', 'image/webp');
+		res.end(data);
+	});
+}
+
 
 const GetMediaTagsbyID = async (req: Request, res: Response): Promise<Response> => {
 
@@ -1040,7 +974,7 @@ const DeleteMedia = async (req: Request, res: Response, version:string): Promise
 
 };
 
-export { GetMediaStatusbyID, GetMediabyURL, Uploadmedia, DeleteMedia, UpdateMediaVisibility, GetMediaTagsbyID, GetMediabyTags };
+export { GetMediaStatusbyID, getMediabyURL, Uploadmedia, DeleteMedia, UpdateMediaVisibility, GetMediaTagsbyID, GetMediabyTags };
 
 
 const GetFileTags = async (fileid: string): Promise<string[]> => {
