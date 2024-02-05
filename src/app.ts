@@ -2,18 +2,7 @@ import cors from "cors";
 import express from "express";
 import helmet from "helmet";
 import config from "config";
-import { initSession, limiter } from "./lib/session.js";
-import { prepareAPP, loadconfigModules  } from "./lib/config.js";
-
-import { loadAPIs } from "./routes/routes.js";
-import { initDatabase } from "./lib/database.js";
-import { SeedMediafilesMagnets } from "./lib/torrent.js";
-
-// Initialise config and folders
-await prepareAPP();
-
-// Initialise Database
-await initDatabase();
+import {  loadconfigModules  } from "./lib/config.js";
 
 // Initialise Express
 const app = express();
@@ -33,16 +22,6 @@ app.use(express.json({ limit: '25MB' }));
 app.use(express.urlencoded({ limit: '25MB', extended: true }));
 app.use(express.static('./src/pages/'));
 app.use(helmet({ contentSecurityPolicy: false }));
-app.use(limiter)
 app.use(cors());
-
-// Initialise session cookies
-await initSession(app);
-
-// Initialise API modules
-await loadAPIs(app);
-
-//Start seeding magnets
-if (config.get("torrent.enableTorrentSeeding")) {SeedMediafilesMagnets();}
 
 export default app;
