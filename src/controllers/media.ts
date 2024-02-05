@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import app from "../app.js";
-import { connect, dbSelectUsername } from "../lib/database.js";
+import { connect, dbSelect } from "../lib/database.js";
 import { logger } from "../lib/logger.js";
 import { ParseAuthEvent } from "../lib/nostr/NIP98.js";
 import { ParseMediaType, ParseFileType, convertFile } from "../lib/media.js"
@@ -24,6 +24,7 @@ import { NIP96_event, NIP96_processing } from "../interfaces/nostr.js";
 import { PrepareNIP96_event } from "../lib/nostr/NIP96.js";
 import { getClientIp } from "../lib/server.js";
 import { generatefileHashfrombuffer } from "../lib/hash.js";
+import { RegisteredTableFields } from "../interfaces/database.js";
 
 const Uploadmedia = async (req: Request, res: Response, version:string): Promise<Response> => {
 
@@ -44,8 +45,9 @@ const Uploadmedia = async (req: Request, res: Response, version:string): Promise
 
 	}
 
+	//Check if pubkey is on the database
 	let pubkey : string = EventHeader.pubkey;
-	let username : string = await dbSelectUsername(pubkey);
+	let username : string = await dbSelect("SELECT username FROM registered WHERE hex = ?", "username", [pubkey], RegisteredTableFields);
 
 	//If username is not on the db the upload will be public and a warning will be logged.
 	if (username === "") {

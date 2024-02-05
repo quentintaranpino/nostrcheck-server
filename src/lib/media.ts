@@ -5,7 +5,7 @@ import fs from "fs";
 import { allowedMimeTypes, asyncTask, ProcessingFileData, UploadTypes } from "../interfaces/media.js";
 import { logger } from "./logger.js";
 import config from "config";
-import { dbFileFieldUpdate } from "./database.js";
+import { dbUpdate } from "./database.js";
 import {fileTypeFromBuffer} from 'file-type';
 import { Request } from "express";
 import app from "../app.js";
@@ -73,7 +73,7 @@ async function convertFile(	inputFile: any,	options: ProcessingFileData,retry:nu
 		});
 
 		//Set status processing on the database
-		const processing =  dbFileFieldUpdate('mediafiles','status','processing', options);
+		const processing =  dbUpdate('mediafiles','status','processing', options.fileid);
 		if (!processing) {
 			logger.error("Could not update table mediafiles, id: " + options.fileid, "status: processing");
 		}
@@ -104,16 +104,16 @@ async function convertFile(	inputFile: any,	options: ProcessingFileData,retry:nu
 			
 				try{
 					await deleteFile(TempPath);
-					await dbFileFieldUpdate('mediafiles','percentage','100', options);
-					await dbFileFieldUpdate('mediafiles','visibility','1', options);
-					await dbFileFieldUpdate('mediafiles','active','1', options);
-					await dbFileFieldUpdate('mediafiles', 'hash', await generatefileHashfromfile(MediaPath, options), options);
+					await dbUpdate('mediafiles','percentage','100', options.fileid);
+					await dbUpdate('mediafiles','visibility','1', options.fileid);
+					await dbUpdate('mediafiles','active','1', options.fileid);
+					await dbUpdate('mediafiles', 'hash', await generatefileHashfromfile(MediaPath, options), options.fileid);
 					if (config.get("torrent.enableTorrentSeeding")) {await CreateMagnet(MediaPath, options);}
-					await dbFileFieldUpdate('mediafiles','status','success', options);
-					await dbFileFieldUpdate('mediafiles', 'filesize', getFileSize(MediaPath,options).toString(), options);
-					await dbFileFieldUpdate('mediafiles','dimensions',newfiledimensions.split("x")[0] + 'x' + newfiledimensions.split("x")[1], options);
+					await dbUpdate('mediafiles','status','success', options.fileid);
+					await dbUpdate('mediafiles', 'filesize', getFileSize(MediaPath,options).toString(), options.fileid);
+					await dbUpdate('mediafiles','dimensions',newfiledimensions.split("x")[0] + 'x' + newfiledimensions.split("x")[1], options.fileid);
 					if (options.originalmime.toString().startsWith("image")){
-						await dbFileFieldUpdate('mediafiles', 'blurhash', await generateBlurhash(MediaPath), options);
+						await dbUpdate('mediafiles', 'blurhash', await generateBlurhash(MediaPath), options.fileid);
 					}
 					logger.info(`File converted successfully: ${MediaPath} ${ConversionDuration /2} seconds`);
 					resolve(end);
@@ -134,7 +134,7 @@ async function convertFile(	inputFile: any,	options: ProcessingFileData,retry:nu
 
 				if (retry > 5){
 					logger.error(`Error converting file after 5 retries: ${inputFile.originalname}`);
-					const errorstate =  await dbFileFieldUpdate('mediafiles','status','error', options);;
+					const errorstate =  await dbUpdate('mediafiles','status','error', options.fileid);;
 					if (!errorstate) {
 						logger.error("Could not update table mediafiles, id: " + options.fileid, "status: failed");
 					}
@@ -162,7 +162,7 @@ async function convertFile(	inputFile: any,	options: ProcessingFileData,retry:nu
 							`${options.filename} - ${Number(percent).toFixed(0)} %`
 					);
 
-				await dbFileFieldUpdate('mediafiles','percentage',Number(percent).toFixed(0).toString(), options);
+				await dbUpdate('mediafiles','percentage',Number(percent).toFixed(0).toString(), options.fileid);
 				}
 				
 			})
