@@ -198,10 +198,8 @@ const dbUpdate = async (tableName :string, fieldName: string, fieldValue: string
 }
 
 const dbSelect = async (query: string, queryField :string, whereFields: string[], table: RowDataPacket): Promise<string> => {
-
-	logger.debug("dbSimpleSelect: " + table.constructor + " | queryField: " + queryField + " | whereFields: " + whereFields.join(", "));
 	try {
-		const conn = await connect("dbSimpleSelect: " + table + " | Fields: " + whereFields.join(", "));
+		const conn = await connect("dbSimpleSelect: " + query + " | Fields: " + whereFields.join(", "));
 		const [rows] = await conn.query<typeof table[]>(query, whereFields);
 		conn.end();
 		return rows[0]?.[queryField] || "";
@@ -211,10 +209,9 @@ const dbSelect = async (query: string, queryField :string, whereFields: string[]
 	}
 }
 
-async function dbSelectAllRecords(table:string, query:string): Promise<string> {
-
-	const conenction = await connect("dbSelectAllRecords" + table);
+const dbSelectAllRecords = async (table:string, query:string): Promise<string> =>{
 	try{
+		const conenction = await connect("dbSelectAllRecords" + table);
 		logger.debug("Getting all data from " + table + " table")
 		const [dbResult] = await conenction.query(query);
 		const rowstemp = JSON.parse(JSON.stringify(dbResult));
@@ -232,9 +229,6 @@ async function dbSelectAllRecords(table:string, query:string): Promise<string> {
 }
 
 async function dbSelectModuleData(module:string): Promise<string> {
-
-	console.log("dbSelectModuleData", module);
-
 	if (module == "nostraddress"){
 		return await dbSelectAllRecords("registered", "SELECT id, username, pubkey, hex, domain, active, allowed, DATE_FORMAT(date, '%Y-%m-%d %H:%i') as date, comments FROM registered ORDER BY id DESC");
 	}
