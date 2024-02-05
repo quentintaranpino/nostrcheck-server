@@ -23,6 +23,8 @@ const initConfirmModal = async (tableId, ids, action, objectName) => {
 
 const initEditModal = async (tableId, row, objectName, newRow, columns) => {
 
+    console.log(tableId, row, objectName, newRow, columns)
+
     var edit = new bootstrap.Modal($(tableId + '-edit-modal'));
 
     $(edit._element).on('show.bs.modal', function () {

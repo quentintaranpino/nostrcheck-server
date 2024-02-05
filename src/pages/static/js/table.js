@@ -70,8 +70,8 @@ const initTable = (tableId, data, objectName, authkey) => {
                 row[element.field] = ''
             }
         });
-
-        initEditModal(tableId,row,objectName, true).then((editedRow) => {
+        var columns = $(tableId).bootstrapTable('getOptions').columns[0];
+        initEditModal(tableId,row,objectName, true, columns).then((editedRow) => {
             if (editedRow) {
                 // add a new row with modal form inputs
                 $(tableId).bootstrapTable('insertRow', {
@@ -89,7 +89,7 @@ const initTable = (tableId, data, objectName, authkey) => {
     )
 
     // Admin, hide and show, enable and disable buttons
-    initButton(tableId, '-button-admin', objectName, 'toggle admin', 'allowed', authkey, null)
+    initButton(tableId, '-button-admin', objectName, 'toggle admin permissions', 'allowed', authkey, null)
     initButton(tableId, '-button-hide', objectName, 'hide', 'visibility', authkey, 0)
     initButton(tableId, '-button-show', objectName, 'show', 'visibility', authkey, 1)
     initButton(tableId, '-button-disable', objectName, 'disable', 'active', authkey, 0)
