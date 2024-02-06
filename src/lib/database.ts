@@ -1,7 +1,6 @@
 import { createPool, Pool,RowDataPacket } from "mysql2/promise";
 import config from "config";
 import { logger } from "./logger.js";
-import { ProcessingFileData } from "../interfaces/media.js";
 import { 
 	newFieldcompatibility, 
 	domainsTableFields, 
@@ -12,6 +11,7 @@ import {
 	databaseTables} from "../interfaces/database.js";
 import { updateLocalConfigKey } from "./config.js";
 import { exit } from "process";
+import { npubEncode } from "nostr-tools/nip19";
 
 let retry :number = 0;
 async function connect(source:string): Promise<Pool> {
@@ -175,23 +175,44 @@ async function checkDatabaseConsistency(table: string, column_name:string, type:
 	}
 }
 
-const dbUpdate = async (tableName :string, fieldName: string, fieldValue: string, idValue: string): Promise<boolean> =>{
+const dbUpdate = async (tableName :string, selectFieldName: string, selectFieldValue: string, whereFieldName :string, whereFieldValue: string): Promise<boolean> =>{
 
-	const conn = await connect("dbFileFieldUpdate:" + fieldName + " | Table: " + tableName);
+	const conn = await connect("dbFileFieldUpdate: " + selectFieldName + " | Table: " + tableName);
 	try{
 		const [dbFileFieldUpdate] = await conn.execute(
-			"UPDATE " + tableName + " set " + fieldName + " = ? where id = ?",
-			[fieldValue, idValue]
+			"UPDATE " + tableName + " set " + selectFieldName + " = ? where " + whereFieldName + " = ?",
+			[selectFieldValue, whereFieldValue]
 		);
 		if (!dbFileFieldUpdate) {
-			logger.error("Error updating " + tableName + " table, id:", idValue, fieldName + ":", fieldValue);
+			logger.error("Error updating " + tableName + " table | " + whereFieldName + " :", whereFieldValue +  " | " + selectFieldName + " :", selectFieldValue);
 			conn.end();
 			return false;
 		}
 		conn.end();
 		return true
 	}catch (error) {
-		logger.error("Error updating " + tableName + " table, id:", idValue, fieldName + ":", fieldValue);
+		logger.error("Error updating " + tableName + " table | " + whereFieldName + " :", whereFieldValue +  " | " + selectFieldName + " :", selectFieldValue);
+		conn.end();
+		return false;
+	}
+}
+
+const dbInsert = async (tableName :string, fields: string[], values: string[]): Promise<boolean> =>{
+	const conn = await connect("dbInsert:" + tableName);
+	try{
+		const [dbFileInsert] = await conn.execute(
+			"INSERT INTO " + tableName + " (" + fields.join(", ") + ") VALUES (" + Array(fields.length).fill("?").join(", ") + ")",
+			values
+		);
+		if (!dbFileInsert) {
+			logger.error("Error inserting data into " + tableName + " table");
+			conn.end();
+			return false;
+		}
+		conn.end();
+		return true;
+	}catch (error) {
+		logger.error("Error inserting data into " + tableName + " table");
 		conn.end();
 		return false;
 	}
@@ -247,7 +268,8 @@ async function dbSelectModuleData(module:string): Promise<string> {
 		"ROUND(mediafiles.filesize / 1024 / 1024, 2) as 'filesize', " +
 		"mediafiles.filesize, " +
 		"DATE_FORMAT(mediafiles.date, '%Y-%m-%d %H:%i') as date, " +
-		"mediafiles.comments " +
+		"mediafiles.comments, " +
+		"mediafiles.checked " +
  		"FROM mediafiles " +
 		"ORDER BY id DESC;");
 	}
@@ -339,6 +361,18 @@ const initDatabase = async (): Promise<void> => {
 	logger.fatal("Error checking database integrity");
 	process.exit(1);
 	}
+
+	// // Check if public username exist on registered table and create it if not
+	// const publicUsername = await dbSelect("SELECT username", "username", ["public"], registeredTableFields);
+	// if (publicUsername == ""){
+	// 	const fields = ["pubkey", "hex", "username", "password", "domain", "active", "date", "allowed", "comments"];
+	// 	const values = [npubEncode(config.get('server.pubkey')), config.get('server.pubkey'), "public", "public", "public", "1", "2021-01-01 00:00:00", "1", "public"];
+	// 	const insert = await dbInsert("registered", fields, values);
+	// 	if (!insert){
+	// 		logger.fatal("Error creating public username");
+	// 		process.exit(1);
+	// 	}
+	// }
 
 }
 
