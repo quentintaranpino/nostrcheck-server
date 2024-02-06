@@ -72,11 +72,8 @@ const initTable = (tableId, data, objectName, authkey) => {
         var columns = $(tableId).bootstrapTable('getOptions').columns[0];
         initEditModal(tableId,row,objectName, true, columns).then((editedRow) => {
             if (editedRow) {
-                // add a new row with modal form inputs
-                $(tableId).bootstrapTable('insertRow', {
-                    index: 0,
-                    row: editedRow
-                });
+               
+                insertRecord(tableId, editedRow, authkey)
                 $(tableId).bootstrapTable('uncheckAll')
 
             }
@@ -223,6 +220,47 @@ function modifyRecord(tableId, id, field, fieldValue, authkey, remove = false){
                     row: updateData
                 });
             }
+        } else {
+            initAlertModal(tableId, responseData.message)
+            highlihtRow(tableId, row)
+        }
+        })
+    .catch((error) => {
+        console.error(error);
+        initAlertModal(tableId, responseData.message)
+    });
+}
+
+function insertRecord(tableId, row, authkey){
+
+    let url = "admin/insertrecord/";
+
+    let data = {
+        table: tableId.split('-')[0].split('#')[1],
+        row: row
+    }
+
+    fetch(url, {
+    method: "POST",
+    headers: {
+        "Content-Type": "application/json",
+        "authorization": authkey
+    },
+    body: JSON.stringify(data)
+
+    })
+
+    .then(response => response.json())
+    .then(responseData => {
+
+        if (responseData.status == "success") {
+           
+             // add a new row with modal form inputs
+             $(tableId).bootstrapTable('insertRow', {
+                index: 0,
+                row: data.row
+            });
+           
         } else {
             initAlertModal(tableId, responseData.message)
             highlihtRow(tableId, row)
