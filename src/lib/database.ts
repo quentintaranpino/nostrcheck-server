@@ -231,6 +231,7 @@ const dbSelect = async (query: string, queryField :string, whereFields: string[]
 	}
 }
 
+
 const dbDelete = async (tableName :string, whereFieldName :string, whereFieldValue: string): Promise<boolean> =>{
 	const conn = await connect("dbDelete:" + tableName);
 
@@ -469,6 +470,7 @@ export {
 		dbSelect,
 		dbUpdate,
 		dbDelete,
+		dbInsert,
 		showDBStats,
 		initDatabase,
 		dbSelectModuleData};
