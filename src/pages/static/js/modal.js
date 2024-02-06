@@ -23,8 +23,6 @@ const initConfirmModal = async (tableId, ids, action, objectName) => {
 
 const initEditModal = async (tableId, row, objectName, newRow, columns) => {
 
-    console.log(tableId, row, objectName, newRow, columns)
-
     var edit = new bootstrap.Modal($(tableId + '-edit-modal'));
 
     $(edit._element).on('show.bs.modal', function () {
@@ -77,13 +75,15 @@ const initEditModal = async (tableId, row, objectName, newRow, columns) => {
 
     let result = await new Promise((resolve) => {
         $(tableId + '-edit-modal .save-button').click(function () {
-            // Update row values from modal form inputs
+            // Create a new row object and fill it with modal form inputs
+            let editedRow = {}
             for (var key in row) {
+                if (key == 'state'){continue}
                 if (row.hasOwnProperty(key)) {
-                    row[key] = $('#' + key).val()
+                    editedRow[key] = $('#' + key).val()
                 }
             }
-            resolve(row);
+            resolve(editedRow);
         });
         $(tableId + '-edit-modal .cancel-button').click(function () {
             resolve(null);
@@ -93,4 +93,25 @@ const initEditModal = async (tableId, row, objectName, newRow, columns) => {
     edit.hide();
     return result;
 
+}
+
+const initAlertModal = async (tableId, message) => {
+    var alert = new bootstrap.Modal($(tableId + '-alert-modal'));
+
+    $(alert._element).on('show.bs.modal', function () {
+        $(tableId + '-alert-modal .alert ').text(message)
+    })
+    alert.show();
+
+    await new Promise((resolve) => {
+        $(tableId + '-alert-modal .save-button').click(function () {
+            resolve(true);
+        });
+        // wait 3 seconds before closing
+        setTimeout(() => {
+            resolve(true);
+        }, 3000);
+    });
+
+    alert.hide();
 }

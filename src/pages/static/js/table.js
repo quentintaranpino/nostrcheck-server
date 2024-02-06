@@ -1,6 +1,5 @@
 const initTable = (tableId, data, objectName, authkey) => {
     console.log('Initializing table:', tableId)
-    console.log('Data:', data)
 
     var data = JSON.parse(data)
     if (data.length == 0) {data = [{id: '-'}]} // dummy data for table creation
@@ -102,16 +101,18 @@ const initTable = (tableId, data, objectName, authkey) => {
         var columns = $(tableId).bootstrapTable('getOptions').columns[0];
         initEditModal(tableId,row,objectName,false,columns).then((editedRow) => {
             if (editedRow) {
-                // Update rows with modal form inputs
-                $(tableId).bootstrapTable('updateByUniqueId', {
-                    id: row.id,
-                    row: editedRow
-                });
+
+                // For each field in editedRow execute updateField(tableId, row.id, field, fieldValue, authkey)
+                for (let field in editedRow) {
+
+                    // If field has been edited
+                    if (editedRow[field] != row[field]){
+                        console.log(field, editedRow[field], row[field])
+                        updateField(tableId, row.id, field, editedRow[field], authkey)
+                    }
+                }
             }
         });
-
-        // TODO FETCH DATA TO SERVER
-        
     })
 
     // Remove button
@@ -158,7 +159,8 @@ const initTable = (tableId, data, objectName, authkey) => {
             .then(response => response.json())
             .then(data => console.log(data))
             .catch((error) => {
-                console.error('Error:', error);
+                initAlertModal(tableId, error)
+                console.error(error);
             });
         }
     })
@@ -176,8 +178,7 @@ html.push('</div>')
 return html.join('')
 }
 
-function highlihtRow(tableId, ids) {
-    var row = $(tableId).bootstrapTable('getRowByUniqueId', ids[0]);
+function highlihtRow(tableId, row) {
     var index = $(tableId).bootstrapTable('getData').indexOf(row);
     var $row = $(tableId).find('tbody tr').eq(index);
     $row.removeClass('selected');
@@ -230,7 +231,6 @@ function updateField(tableId, id, field, fieldValue, authkey){
     .then(responseData => {
 
         if (responseData.status == "success") {
-            console.log(responseData.message)
             let updateData = {};
             updateData[field] = responseData.message; // Use bracket notation here
             $(tableId).bootstrapTable('updateByUniqueId', {
@@ -238,11 +238,12 @@ function updateField(tableId, id, field, fieldValue, authkey){
                 row: updateData
             });
         } else {
-            console.log(responseData)
-            highlihtRow(tableId, ids)
+            initAlertModal(tableId, responseData.message)
+            highlihtRow(tableId, row)
         }
         })
     .catch((error) => {
-        console.error('Error:', error);
+        console.error(error);
+        initAlertModal(tableId, responseData.message)
     });
 }
