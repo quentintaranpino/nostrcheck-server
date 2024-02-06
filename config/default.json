@@ -7,7 +7,7 @@
     "secretKey": "",
     "tosFilePath" : "resources/tos.md",
     "adminPanel": {
-      "legacyPassword": ""
+      "masterPassword": ""
     },
     "availableModules": {
       "nostraddress" :{

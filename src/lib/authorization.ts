@@ -37,9 +37,9 @@ const IsAdminAuthorized = async (authkey:any) : Promise<boolean> =>{
 	}
 
 
-	// Check if authkey is the legacy server.admin.legacyPassword from config file
-	if (authkey == config.get("server.adminPanel.legacyPassword")) {
-		logger.info("Admin request authorized using legacy password ->", authkey)
+	// Check if authkey is the legacy server.admin.masterPassword from config file
+	if (authkey == config.get("server.adminPanel.masterPassword")) {
+		logger.info("Admin request authorized using master password ->", authkey)
 		return true;
 	}
 

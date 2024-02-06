@@ -255,9 +255,9 @@ const adminLogin = async (req: Request, res: Response): Promise<Response> => {
     }
 
     // Legacy login
-    if (req.body.password != "" && req.body.password == config.get('server.adminPanel.legacyPassword')){
+    if (req.body.password != "" && req.body.password == config.get('server.adminPanel.masterPassword')){
         req.session.identifier = "legacyLogin";
-        req.session.authkey = config.get('server.adminPanel.legacyPassword');
+        req.session.authkey = config.get('server.adminPanel.masterPassword');
         logger.info("logged in as", req.session.identifier, " - ", getClientIp(req));
         return res.status(200).send(true);
     }
