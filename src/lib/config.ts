@@ -4,7 +4,7 @@ import { exit } from "process";
 
 const defaultPath : string = "./config/default.json";
 const localPath : string = "./config/local.json";
-import { IModule, IModules } from "../interfaces/config.js";
+import { IModules } from "../interfaces/config.js";
 
 function prepareAppFolders(){
 
@@ -50,9 +50,9 @@ function prepareAppFolders(){
 
 async function prepareAPPConfig(): Promise<boolean>{
 
-    //If config file exist return
 	if (fs.existsSync(localPath)){
 		await syncDefaultConfigValues(defaultPath,localPath);
+		await checkConfigNecessaryKeys();
 		return true;
 	}else{
 		fs.copyFile(defaultPath, localPath, function (err) {
@@ -70,6 +70,42 @@ async function prepareAPPConfig(): Promise<boolean>{
 	return false;
 
 }
+
+const checkConfigNecessaryKeys = async () : Promise<void> => {
+	
+	const necessaryKeys = [	"server.host", 
+							"server.port", 
+							"server.pubkey", 
+							"server.tosFilePath", 
+							"server.adminPanel.masterPassword",
+							"database.host",
+							"database.user",
+							"database.password",
+							"database.database"
+						]
+	let localConfig = JSON.parse(fs.readFileSync(localPath).toString());
+	let missingFields = [];
+
+	for (const key of necessaryKeys){
+		if (config.get(key) === undefined || config.get(key) === ""){
+			missingFields.push(key);
+		}
+	}
+
+	if (missingFields.length > 0){
+		console.error("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+		console.error("Missing necessary fields in config file.")
+		console.error("Please edit config file and then restart the app.")
+		console.error("Missing fields: ", missingFields.join(", "));
+		console.error("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+		exit(1);
+	}
+
+}
+
+
+
+	
 
 const syncDefaultConfigValues = async (defaultConf : string, localConf: string) : Promise<void> => {
 
