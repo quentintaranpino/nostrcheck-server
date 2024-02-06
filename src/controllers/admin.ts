@@ -7,8 +7,9 @@ import { getClientIp, format } from "../lib/server.js";
 import { ResultMessagev2, ServerStatusMessage } from "../interfaces/server.js";
 import { IsAdminAuthorized, generateAuthKey, generateNewPassword, isPubkeyAllowed } from "../lib/authorization.js";
 import { sendMessage } from "../lib/nostr/NIP04.js";
-import { dbDelete, dbUpdate } from "../lib/database.js";
+import { dbDelete, dbInsert, dbUpdate } from "../lib/database.js";
 import { verifyNIP07login } from "../lib/nostr/NIP07.js";
+import { allowedFieldNames, allowedFieldNamesAndValues, allowedTableNames } from "../interfaces/admin.js";
 
 let hits = 0;
 const serverStatus = async (req: Request, res: Response): Promise<Response> => {
@@ -82,22 +83,6 @@ const updateDBRecord = async (req: Request, res: Response): Promise<Response> =>
     if (req.body.table == "mediaData") {table = "mediafiles";}
     if (req.body.table == "lightningData") {table = "lightning";}
     if (req.body.table == "domainsData") {table = "domains";}
-
-    // Define a list of allowed table names and field names
-    const allowedTableNames = ["registered", "mediafiles", "lightning", "domains"];
-    const allowedFieldNames = ["allowed", "active", "visibility", "comments", "username", "pubkey", "hex", "domain", "checked"]; 
-
-    const allowedFieldNamesAndValues = [
-        {field: "allowed", values: [0, 1]},
-        {field: "active", values: [0, 1]},
-        {field: "visibility", values: [0, 1]},
-        {field: "checked", values: [0, 1]},
-        {field: "comments", values: ["string"]},
-        {field: "username", values: ["string"]},
-        {field: "pubkey", values: ["string"]},
-        {field: "hex", values: ["string"]},
-        {field: "domain", values: ["string"]}
-    ];
 
     logger.debug("table: ", table, " | field: ", req.body.field, " | value: ", req.body.value, " | id: ", req.body.id)
 
@@ -353,4 +338,118 @@ const deleteDBRecord = async (req: Request, res: Response): Promise<Response> =>
     }
 }
 
-export { serverStatus, StopServer, resetUserPassword, adminLogin, updateDBRecord, deleteDBRecord};
+const insertDBRecord = async (req: Request, res: Response): Promise<Response> => {
+
+    logger.info("REQ -> insertDBRecord", req.hostname, "|", getClientIp(req));
+    res.setHeader('Content-Type', 'application/json');
+
+    // Check header has authorization token
+    const authorized = await IsAdminAuthorized(req.headers.authorization)
+    if ( !authorized) {
+        let result : ResultMessagev2 = {
+            status: "error",
+            message: "Unauthorized"
+            };
+        logger.error("RES -> Unauthorized" + " | " + getClientIp(req));
+        return res.status(401).send(result);
+    }
+
+    console.debug(req.body.table, req.body.row)
+
+    // Check if the request has the required parameters
+    if (!req.body.table || !req.body.row) {
+        let result : ResultMessagev2 = {
+            status: "error",
+            message: "Invalid parameters"
+            };
+        logger.error("RES -> Invalid parameters" + " | " + getClientIp(req));
+        return res.status(400).send(result);
+    }
+
+    // Don't show the user the real table names
+    let table = req.body.table;
+    if (req.body.table == "nostraddressData") {table = "registered";}
+    if (req.body.table == "mediaData") {table = "mediafiles";}
+    if (req.body.table == "lightningData") {table = "lightning";}
+    if (req.body.table == "domainsData") {table = "domains";}
+
+
+    req.body.row.array.forEach((element: { field: string; value: any; }) => {
+        console.debug(element)
+        if(!element.field || !element.value){
+            let result : ResultMessagev2 = {
+                status: "error",
+                message: "Invalid parameters"
+                };
+            logger.error("RES -> Invalid parameters" + " | " + getClientIp(req));
+            return res.status(400).send(result);
+        }
+        if (!allowedTableNames.includes(table) || 
+            !allowedFieldNamesAndValues.some(e => e.field === element.field) ||
+            !allowedFieldNames.includes(element.field)     
+            ){
+                let result : ResultMessagev2 = {
+                    status: "error",
+                    message: "Invalid table name or field name"
+                };
+                logger.warn("RES -> Invalid table name or field name" + " | " + getClientIp(req));
+                return res.status(400).send(result);
+        }
+
+        // Check if the provided value is empty
+        if ((element.value === "" && element.field != "comments") || (element.value === "" && element.field != "id") || element.value === null || element.value === undefined){
+            let result : ResultMessagev2 = {
+                status: "error",
+                message: element.field + " cannot be empty."
+                };
+            logger.warn("RES -> Value is empty: " + element.field +  " | " + getClientIp(req));
+            return res.status(400).send(result);
+        }
+        
+    });
+
+    // Check if the provided table name and field name are allowed.
+    for (let fieldObj of req.body.row) {
+        if (!allowedTableNames.includes(table) || 
+            !allowedFieldNamesAndValues.some(e => e.field === fieldObj.field) ||
+            !allowedFieldNames.includes(fieldObj.field)     
+            ){
+                let result : ResultMessagev2 = {
+                    status: "error",
+                    message: "Invalid table name or field name"
+                };
+                logger.warn("RES -> Invalid table name or field name" + " | " + getClientIp(req));
+                return res.status(400).send(result);
+        }
+
+        // Check if the provided value is empty
+        if (fieldObj.value === "" && fieldObj.field != "comments" || fieldObj.value === null || fieldObj.value === undefined){
+            let result : ResultMessagev2 = {
+                status: "error",
+                message: fieldObj.field + " cannot be empty."
+                };
+            logger.warn("RES -> Value is empty: " + fieldObj.field +  " | " + getClientIp(req));
+            return res.status(400).send(result);
+        }
+    }
+
+    // Insert records into table
+    const insert = await dbInsert(table, req.body.fields, req.body.fields[1].value);
+    if (!insert) {
+        let result : ResultMessagev2 = {
+            status: "error",
+            message: "Failed to insert records"
+            };
+        logger.error("RES -> Failed to insert records" + " | " + getClientIp(req));
+        return res.status(500).send(result);
+    }
+
+    let result : ResultMessagev2 = {
+        status: "success",
+        message: "Records inserted"
+        };
+    logger.info("RES -> Records inserted" + " | " + getClientIp(req));
+    return res.status(200).send(result);
+}
+
+export { serverStatus, StopServer, resetUserPassword, adminLogin, updateDBRecord, deleteDBRecord, insertDBRecord};
