@@ -73,7 +73,7 @@ async function convertFile(	inputFile: any,	options: ProcessingFileData,retry:nu
 		});
 
 		//Set status processing on the database
-		const processing =  dbUpdate('mediafiles','status','processing', 'id', options.fileid);
+		const processing = await dbUpdate('mediafiles','status','processing', 'id', options.fileid);
 		if (!processing) {
 			logger.error("Could not update table mediafiles, id: " + options.fileid, "status: processing");
 		}
