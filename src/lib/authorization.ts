@@ -1,6 +1,8 @@
 import { connect } from "../lib/database.js";
 import { logger } from "./logger.js";
 import config from "config";
+import crypto from "crypto";
+import bcrypt from "bcrypt";
 
 const isPubkeyAllowed = async (pubkey:string): Promise<boolean> => {
 
@@ -86,5 +88,20 @@ const generateAuthKey = async (pubkey :string): Promise<string> => {
     }
 }
 
+const generateNewPassword = async (): Promise<string> => {
+	
+	try{
+		const saltRounds = 10;
+		let newPass = await bcrypt.genSalt(saltRounds).then(salt => {return bcrypt.hash(crypto.randomBytes(20).toString('hex'), salt).catch(err => {logger.error(err)})});
+		if (newPass == undefined) {
+			return "";
+		}
+		return newPass;
+	}catch (error) {
+		logger.error(error);
+		return "";
+	}
+    
+}
 
-export { isPubkeyAllowed, IsAdminAuthorized, generateAuthKey };
+export { isPubkeyAllowed, IsAdminAuthorized, generateAuthKey, generateNewPassword };

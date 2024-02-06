@@ -4,11 +4,9 @@ import { Request, Response } from "express";
 import { logger } from "../lib/logger.js";
 import { getClientIp, format } from "../lib/server.js";
 import { ResultMessagev2, ServerStatusMessage } from "../interfaces/server.js";
-import { IsAdminAuthorized, generateAuthKey, isPubkeyAllowed } from "../lib/authorization.js";
+import { IsAdminAuthorized, generateAuthKey, generateNewPassword, isPubkeyAllowed } from "../lib/authorization.js";
 import { sendMessage } from "../lib/nostr/NIP04.js";
-import { connect, dbUpdate } from "../lib/database.js";
-import crypto from "crypto";
-import bcrypt from "bcrypt";
+import { connect, dbSelect, dbUpdate } from "../lib/database.js";
 import config from "config";
 import { verifyNIP07login } from "../lib/nostr/NIP07.js";
 
@@ -87,15 +85,27 @@ const updateDBRecord = async (req: Request, res: Response): Promise<Response> =>
 
     // Define a list of allowed table names and field names
     const allowedTableNames = ["registered", "mediafiles", "lightning", "domains"];
-    const allowedFieldNames = ["allowed", "active", "visibility", "comments", "username", "pubkey","hex", "domain"]; 
-    const allowedFieldValues = [0, 1]; 
+    const allowedFieldNames = ["allowed", "active", "visibility", "comments", "username", "pubkey", "hex", "domain", "checked"]; 
+
+    const allowedFieldNamesAndValues = [
+        {field: "allowed", values: [0, 1]},
+        {field: "active", values: [0, 1]},
+        {field: "visibility", values: [0, 1]},
+        {field: "checked", values: [0, 1]},
+        {field: "comments", values: ["string"]},
+        {field: "username", values: ["string"]},
+        {field: "pubkey", values: ["string"]},
+        {field: "hex", values: ["string"]},
+        {field: "domain", values: ["string"]}
+    ];
 
     logger.debug("table: ", table, " | field: ", req.body.field, " | value: ", req.body.value, " | id: ", req.body.id)
 
-    // Check if the provided table name and field name are allowed
+    // Check if the provided table name and field name are allowed.
     if (!allowedTableNames.includes(table) || 
-        !allowedFieldNames.includes(req.body.field) || 
-        !allowedFieldValues.includes(req.body.value)){
+        !allowedFieldNamesAndValues.some(e => e.field === req.body.field) ||
+        !allowedFieldNames.includes(req.body.field)     
+        ){
             let result : ResultMessagev2 = {
                 status: "error",
                 message: "Invalid table name or field name"
@@ -104,8 +114,18 @@ const updateDBRecord = async (req: Request, res: Response): Promise<Response> =>
             return res.status(400).send(result);
     }
 
+    // Check if the provided value is empty
+    if (req.body.value === "" && req.body.field != "comments" || req.body.value === null || req.body.value === undefined){
+        let result : ResultMessagev2 = {
+            status: "error",
+            message: req.body.field + " cannot be empty."
+            };
+        logger.warn("RES -> Value is empty: " + req.body.field +  " | " + getClientIp(req));
+        return res.status(400).send(result);
+    }
+
     // Update table with new value
-    const update = await dbUpdate(table, req.body.field, req.body.value, req.body.id);
+    const update = await dbUpdate(table, req.body.field, req.body.value, "id", req.body.id);
     if (update) {
         let result : ResultMessagev2 = {
             status: "success",
@@ -139,6 +159,7 @@ const resetUserPassword = async (req: Request, res: Response): Promise<Response>
         return res.status(401).send(result);
     }
 
+    // Check if the request has the required parameters
     if (!req.body.pubkey) {
         let result : ResultMessagev2 = {
             status: "error",
@@ -148,18 +169,20 @@ const resetUserPassword = async (req: Request, res: Response): Promise<Response>
         return res.status(400).send(result);
     }
 
-    // Update registered table with new password
-    const newPass = crypto.randomBytes(20).toString('hex');
-    const saltRounds = 10
-    const hashPass = await bcrypt.genSalt(saltRounds).then(salt => {return bcrypt.hash(newPass, salt).catch(err => {logger.error(err)})});
+    // Generate new password
+    const newPass = await generateNewPassword();
+    if (newPass == "") {
+        let result : ResultMessagev2 = {
+            status: "error",
+            message: "Failed to generate new password"
+            };
+        logger.error("RES -> Failed to generate new password" + " | " + getClientIp(req));
+        return res.status(500).send(result);
+    }
 
-    const conn = await connect("resetUserPassword");
-    try {
-        await conn.query("UPDATE registered SET password = ? WHERE hex = ?", [hashPass, req.body.pubkey]);
-        conn.end();
-    } catch (error) {
-        logger.error(error);
-        conn.end();
+    // Update password in database
+    let update = await dbUpdate("registered", "password", newPass, "hex", req.body.pubkey);
+    if (!update) {
         let result : ResultMessagev2 = {
             status: "error",
             message: "Failed to update password"
@@ -167,7 +190,7 @@ const resetUserPassword = async (req: Request, res: Response): Promise<Response>
         return res.status(500).send(result);
     }
 
-    //send new password to pubkey
+    // Send new password to pubkey
     try{
         await sendMessage("Your new password: ",req.body.pubkey);
         await sendMessage(newPass,req.body.pubkey);
