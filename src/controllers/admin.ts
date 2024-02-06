@@ -1,13 +1,13 @@
 
 import { Request, Response } from "express";
+import config from "config";
 
 import { logger } from "../lib/logger.js";
 import { getClientIp, format } from "../lib/server.js";
 import { ResultMessagev2, ServerStatusMessage } from "../interfaces/server.js";
 import { IsAdminAuthorized, generateAuthKey, generateNewPassword, isPubkeyAllowed } from "../lib/authorization.js";
 import { sendMessage } from "../lib/nostr/NIP04.js";
-import { connect, dbSelect, dbUpdate } from "../lib/database.js";
-import config from "config";
+import { dbDelete, dbUpdate } from "../lib/database.js";
 import { verifyNIP07login } from "../lib/nostr/NIP07.js";
 
 let hits = 0;
@@ -223,7 +223,6 @@ const adminLogin = async (req: Request, res: Response): Promise<Response> => {
 
     // Set session maxAge
     if (req.body.rememberMe == "true"){
-
         req.session.cookie.maxAge = config.get('session.maxAge');
         logger.debug("Remember me is true, max age:", req.session.cookie.maxAge);
     }
@@ -266,5 +265,92 @@ const adminLogin = async (req: Request, res: Response): Promise<Response> => {
     return res.status(401).send(false);
 };
 
+const deleteDBRecord = async (req: Request, res: Response): Promise<Response> => {
 
-export { serverStatus, StopServer, resetUserPassword, adminLogin, updateDBRecord};
+    logger.info("REQ -> deleteDBRecord", req.hostname, "|", getClientIp(req));
+    res.setHeader('Content-Type', 'application/json');
+
+    // Check header has authorization token
+    const authorized = await IsAdminAuthorized(req.headers.authorization)
+    if ( !authorized) {
+        let result : ResultMessagev2 = {
+            status: "error",
+            message: "Unauthorized"
+            };
+        logger.error("RES -> Unauthorized" + " | " + getClientIp(req));
+        return res.status(401).send(result);
+    }
+
+    // Check if the request has the required parameters
+    if (!req.body.table || !req.body.id) {
+        let result : ResultMessagev2 = {
+            status: "error",
+            message: "Invalid parameters"
+            };
+        logger.error("RES -> Invalid parameters" + " | " + getClientIp(req));
+        return res.status(400).send(result);
+    }
+
+      // Verify that table is a string
+      if (typeof req.body.table !== 'string') {
+        let result : ResultMessagev2 = {
+            status: "error",
+            message: "Invalid table parameter"
+        };
+        logger.error("RES -> Invalid table parameter" + " | " + getClientIp(req));
+        return res.status(400).send(result);
+    }
+
+    // Verify that id is a number
+    if (typeof req.body.id !== 'number') {
+        let result : ResultMessagev2 = {
+            status: "error",
+            message: "Invalid id parameter"
+        };
+        logger.error("RES -> Invalid id parameter" + " | " + getClientIp(req));
+        return res.status(400).send(result);
+    }
+
+    // Don't show the user the real table names
+    let table = req.body.table;
+    if (req.body.table == "nostraddressData") {table = "registered";}
+    if (req.body.table == "mediaData") {table = "mediafiles";}
+    if (req.body.table == "lightningData") {table = "lightning";}
+    if (req.body.table == "domainsData") {table = "domains";}
+
+    // Define a list of allowed table names
+    const allowedTableNames = ["registered", "mediafiles", "lightning", "domains"];
+
+    logger.debug("table: ", table, " | id: ", req.body.id)
+
+    // Check if the provided table name is allowed.
+
+    if (!allowedTableNames.includes(table)){
+        let result : ResultMessagev2 = {
+            status: "error",
+            message: "Invalid table name"
+        };
+        logger.warn("RES -> Invalid table name" + " | " + getClientIp(req));
+        return res.status(400).send(result);
+    }
+
+    // Delete record from table
+    const deletedRecord = await dbDelete(table, 'id', req.body.id);
+    if(deletedRecord){
+        let result : ResultMessagev2 = {
+            status: "success",
+            message: "Record deleted succesfully"
+            };
+        logger.info("RES -> Record deleted - id: " + req.body.id + " from table: " + table + " | " + getClientIp(req));
+        return res.status(200).send(result);
+    } else {
+        let result : ResultMessagev2 = {
+            status: "error",
+            message: "Failed to delete record"
+            };
+        logger.error("RES -> Failed to delete record" + " | " + getClientIp(req));
+        return res.status(500).send(result);
+    }
+}
+
+export { serverStatus, StopServer, resetUserPassword, adminLogin, updateDBRecord, deleteDBRecord};

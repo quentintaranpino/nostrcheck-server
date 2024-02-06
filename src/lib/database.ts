@@ -231,6 +231,36 @@ const dbSelect = async (query: string, queryField :string, whereFields: string[]
 	}
 }
 
+const dbDelete = async (tableName :string, whereFieldName :string, whereFieldValue: string): Promise<boolean> =>{
+	const conn = await connect("dbDelete:" + tableName);
+
+	// Check if wherefieldValue is not empty
+	if (whereFieldValue == ""){
+		logger.error("Error deleting data from " + tableName + " table, whereFieldValue is empty");
+		conn.end();
+		return false;
+	}
+
+	try{
+		const [dbFileDelete] = await conn.execute(
+			"DELETE FROM " + tableName + " where " + whereFieldName + " = ?",
+			[whereFieldValue]
+		);
+		if (!dbFileDelete) {
+			logger.error("Error deleting data from " + tableName + " table");
+			conn.end();
+			return false;
+		}
+		conn.end();
+		return true;
+	}catch (error) {
+		logger.error("Error deleting data from " + tableName + " table");
+		conn.end();
+		return false;
+	}
+}
+
+
 const dbSelectAllRecords = async (table:string, query:string): Promise<string> =>{
 	try{
 		const conenction = await connect("dbSelectAllRecords" + table);
@@ -438,6 +468,7 @@ export {
 		populateTables,
 		dbSelect,
 		dbUpdate,
+		dbDelete,
 		showDBStats,
 		initDatabase,
 		dbSelectModuleData};

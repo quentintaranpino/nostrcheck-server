@@ -93,45 +93,22 @@ const initTable = (tableId, data, objectName, authkey) => {
     initButton(tableId, '-button-show', objectName, 'show', 'visibility', authkey, 1)
     initButton(tableId, '-button-disable', objectName, 'disable', 'active', authkey, 0)
     initButton(tableId, '-button-enable', objectName, 'enable', 'active', authkey, 1)
+    initButton(tableId, '-button-remove', objectName, 'remove', '', authkey, null)
  
      // Edit button
      $(tableId + '-button-edit').click(function () {
-        // Get row data
         var row = $(tableId).bootstrapTable('getSelections')[0]
         var columns = $(tableId).bootstrapTable('getOptions').columns[0];
         initEditModal(tableId,row,objectName,false,columns).then((editedRow) => {
             if (editedRow) {
-
-                // For each field in editedRow execute updateField(tableId, row.id, field, fieldValue, authkey)
                 for (let field in editedRow) {
-
-                    // If field has been edited
                     if (editedRow[field] != row[field]){
                         console.log(field, editedRow[field], row[field])
-                        updateField(tableId, row.id, field, editedRow[field], authkey)
+                        modifyRecord(tableId, row.id, field, editedRow[field], authkey)
                     }
                 }
             }
         });
-    })
-
-    // Remove button
-    $(tableId + '-button-remove').click(async function () {
-        var ids = $.map($(tableId).bootstrapTable('getSelections'), function (row) {
-        return row.id
-        })
-
-        if (await initConfirmModal(tableId,ids,'remove',objectName)) {
-            // Remove rows from table
-            $(tableId).bootstrapTable('remove', {
-                field: 'id',
-                values: ids
-            })
-            $(tableId + '-button-remove').prop('disabled', true)
-        }
-
-        // TODO FETCH DATA TO SERVER
-
     })
 
     // Pasword button
@@ -197,16 +174,21 @@ function initButton(tableId, buttonSuffix, objectName, modaltext, field, authkey
 
         if (await initConfirmModal(tableId, ids, modaltext, objectName)) {
             for (let id of ids) {
-            updateField(tableId, id, field, fieldValue, authkey)
+                if (modaltext === 'remove') {
+                    modifyRecord(tableId, id, field, fieldValue, authkey, true)
+                } else {
+                    modifyRecord(tableId, id, field, fieldValue, authkey)
+                }
             }
         }
     })
 }
 
-function updateField(tableId, id, field, fieldValue, authkey){
+function modifyRecord(tableId, id, field, fieldValue, authkey, remove = false){
 
     let row = $(tableId).bootstrapTable('getRowByUniqueId', id);
     let url = "admin/updaterecord/"
+    if (remove) {url = "admin/deleterecord/"}
 
     if (field === "allowed") {
         fieldValue = $(tableId).bootstrapTable('getSelections')[0].allowed === 0 ? 1 : 0;
@@ -231,12 +213,16 @@ function updateField(tableId, id, field, fieldValue, authkey){
     .then(responseData => {
 
         if (responseData.status == "success") {
-            let updateData = {};
-            updateData[field] = responseData.message; // Use bracket notation here
-            $(tableId).bootstrapTable('updateByUniqueId', {
-                id: id,
-                row: updateData
-            });
+            if (remove) {
+                $(tableId).bootstrapTable('removeByUniqueId', id);
+            } else {
+                let updateData = {};
+                updateData[field] = responseData.message;
+                $(tableId).bootstrapTable('updateByUniqueId', {
+                    id: id,
+                    row: updateData
+                });
+            }
         } else {
             initAlertModal(tableId, responseData.message)
             highlihtRow(tableId, row)
