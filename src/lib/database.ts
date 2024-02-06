@@ -364,7 +364,7 @@ const initDatabase = async (): Promise<void> => {
 	}
 
 	// Check if public username exist on registered table and create it if not
-	const publicUsername = await dbSelect("SELECT username", "username", ["public"], registeredTableFields);
+	const publicUsername = await dbSelect("SELECT username FROM registered WHERE username = ?", "username", ["public"], registeredTableFields);
 	if (publicUsername == ""){
 		logger.warn("Public username not found, creating it");
 		const fields: string[] = ["pubkey", "hex", "username", "password", "domain", "active", "date", "allowed", "comments"];
