@@ -3,6 +3,8 @@ const initConfirmModal = async (tableId, ids, action, objectName) => {
 
     $(alert._element).on('show.bs.modal', function () {
         $(tableId + '-message-modal .modal-body').text('Are you sure you want to ' + action + ' ' + ids.length + ' ' + objectName + (ids.length > 1 ? 's' : '') + '?');
+        if (action == 'remove')$(tableId + '-message-modal .modal-body').append('<br><br><strong>Warning:</strong> This action cannot be undone.');
+        if (action == 'disable')$(tableId + '-message-modal .modal-body').append('<br><br><strong>Attention:</strong> Disabling a record can take up to 5 minutes to become effective.');
         $(tableId + '-message-modal .modal-title').text('Confirm')
     })
     alert.show();
