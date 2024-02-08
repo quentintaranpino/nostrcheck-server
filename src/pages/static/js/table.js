@@ -20,6 +20,7 @@ const initTable = (tableId, data, objectName, authkey) => {
         detailView: true,
         detailFormatter: "detailFormatter",
         dataSidePagination: "server",
+
     })
 
     // Hide columns if hide is specified
@@ -35,6 +36,39 @@ const initTable = (tableId, data, objectName, authkey) => {
         }
     }
 
+    // If the row field name is pubkey show the data with a link to the pubkey on every row
+    for (let column of columns) {
+        if (column.field == 'pubkey') {
+            // Get all rows
+            let rows = $(tableId).bootstrapTable('getData');
+
+            // Update each row
+            for (let i = 0; i < rows.length; i++) {
+                console.log("updating pubkey")
+                $(tableId).bootstrapTable('updateCell', {
+                    index: i, 
+                    field: 'pubkey', 
+                    value: '<a href="https://nostrcheck.me/u/' + rows[i].pubkey + '">' + rows[i].pubkey + '</a>'
+                });
+            }
+        }
+        if (column.field == 'filename'){
+            // Get all rows
+            let rows = $(tableId).bootstrapTable('getData');
+
+            // Update each row
+            for (let i = 0; i < rows.length; i++) {
+                console.log("updating filename")
+                $(tableId).bootstrapTable('updateCell', {
+                    index: i, 
+                    field: 'filename', 
+                    value: '<a href="/' + rows[i].username + '/' + rows[i].filename + '">' + rows[i].filename + '</a>'
+                });
+            }
+
+        }
+    }
+        
 
     // Buttons logic
     $(tableId).on('check.bs.table uncheck.bs.table check-all.bs.table uncheck-all.bs.table', function () {
