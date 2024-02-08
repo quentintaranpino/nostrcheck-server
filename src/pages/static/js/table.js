@@ -1,6 +1,5 @@
 const initTable = (tableId, data, objectName, authkey) => {
     console.log('Initializing table:', tableId)
-    console.log('Data:', data)
 
     var data = JSON.parse(data)
     if (data.length == 0) {data = [{id: '-'}]} // dummy data for table creation
@@ -107,11 +106,8 @@ const initTable = (tableId, data, objectName, authkey) => {
         var columns = $(tableId).bootstrapTable('getOptions').columns[0];
         initEditModal(tableId,row,objectName, true, columns).then((editedRow) => {
             if (editedRow) {
-                // add a new row with modal form inputs
-                $(tableId).bootstrapTable('insertRow', {
-                    index: 0,
-                    row: editedRow
-                });
+               
+                insertRecord(tableId, editedRow, authkey)
                 $(tableId).bootstrapTable('uncheckAll')
 
             }
@@ -128,43 +124,22 @@ const initTable = (tableId, data, objectName, authkey) => {
     initButton(tableId, '-button-show', objectName, 'show', 'visibility', authkey, 1)
     initButton(tableId, '-button-disable', objectName, 'disable', 'active', authkey, 0)
     initButton(tableId, '-button-enable', objectName, 'enable', 'active', authkey, 1)
+    initButton(tableId, '-button-remove', objectName, 'remove', '', authkey, null)
  
      // Edit button
      $(tableId + '-button-edit').click(function () {
-        // Get row data
         var row = $(tableId).bootstrapTable('getSelections')[0]
         var columns = $(tableId).bootstrapTable('getOptions').columns[0];
         initEditModal(tableId,row,objectName,false,columns).then((editedRow) => {
             if (editedRow) {
-                // Update rows with modal form inputs
-                $(tableId).bootstrapTable('updateByUniqueId', {
-                    id: row.id,
-                    row: editedRow
-                });
+                for (let field in editedRow) {
+                    if (editedRow[field] != row[field]){
+                        console.log(field, editedRow[field], row[field])
+                        modifyRecord(tableId, row.id, field, editedRow[field], authkey)
+                    }
+                }
             }
         });
-
-        // TODO FETCH DATA TO SERVER
-        
-    })
-
-    // Remove button
-    $(tableId + '-button-remove').click(async function () {
-        var ids = $.map($(tableId).bootstrapTable('getSelections'), function (row) {
-        return row.id
-        })
-
-        if (await initConfirmModal(tableId,ids,'remove',objectName)) {
-            // Remove rows from table
-            $(tableId).bootstrapTable('remove', {
-                field: 'id',
-                values: ids
-            })
-            $(tableId + '-button-remove').prop('disabled', true)
-        }
-
-        // TODO FETCH DATA TO SERVER
-
     })
 
     // Pasword button
@@ -192,7 +167,8 @@ const initTable = (tableId, data, objectName, authkey) => {
             .then(response => response.json())
             .then(data => console.log(data))
             .catch((error) => {
-                console.error('Error:', error);
+                initAlertModal(tableId, error)
+                console.error(error);
             });
         }
     })
@@ -210,8 +186,7 @@ html.push('</div>')
 return html.join('')
 }
 
-function highlihtRow(tableId, ids) {
-    var row = $(tableId).bootstrapTable('getRowByUniqueId', ids[0]);
+function highlihtRow(tableId, row) {
     var index = $(tableId).bootstrapTable('getData').indexOf(row);
     var $row = $(tableId).find('tbody tr').eq(index);
     $row.removeClass('selected');
@@ -230,16 +205,21 @@ function initButton(tableId, buttonSuffix, objectName, modaltext, field, authkey
 
         if (await initConfirmModal(tableId, ids, modaltext, objectName)) {
             for (let id of ids) {
-            updateField(tableId, id, field, fieldValue, authkey)
+                if (modaltext === 'remove') {
+                    modifyRecord(tableId, id, field, fieldValue, authkey, true)
+                } else {
+                    modifyRecord(tableId, id, field, fieldValue, authkey)
+                }
             }
         }
     })
 }
 
-function updateField(tableId, id, field, fieldValue, authkey){
+function modifyRecord(tableId, id, field, fieldValue, authkey, remove = false){
 
     let row = $(tableId).bootstrapTable('getRowByUniqueId', id);
     let url = "admin/updaterecord/"
+    if (remove) {url = "admin/deleterecord/"}
 
     if (field === "allowed") {
         fieldValue = $(tableId).bootstrapTable('getSelections')[0].allowed === 0 ? 1 : 0;
@@ -264,19 +244,64 @@ function updateField(tableId, id, field, fieldValue, authkey){
     .then(responseData => {
 
         if (responseData.status == "success") {
-            console.log(responseData.message)
-            let updateData = {};
-            updateData[field] = responseData.message; // Use bracket notation here
-            $(tableId).bootstrapTable('updateByUniqueId', {
-                id: id,
-                row: updateData
-            });
+            if (remove) {
+                $(tableId).bootstrapTable('removeByUniqueId', id);
+            } else {
+                let updateData = {};
+                updateData[field] = responseData.message;
+                $(tableId).bootstrapTable('updateByUniqueId', {
+                    id: id,
+                    row: updateData
+                });
+            }
         } else {
-            console.log(responseData)
-            highlihtRow(tableId, ids)
+            initAlertModal(tableId, responseData.message)
+            highlihtRow(tableId, row)
         }
         })
     .catch((error) => {
-        console.error('Error:', error);
+        console.error(error);
+        initAlertModal(tableId, responseData.message)
+    });
+}
+
+function insertRecord(tableId, row, authkey){
+
+    let url = "admin/insertrecord/";
+
+    let data = {
+        table: tableId.split('-')[0].split('#')[1],
+        row: row
+    }
+
+    fetch(url, {
+    method: "POST",
+    headers: {
+        "Content-Type": "application/json",
+        "authorization": authkey
+    },
+    body: JSON.stringify(data)
+
+    })
+
+    .then(response => response.json())
+    .then(responseData => {
+
+        if (responseData.status == "success") {
+           
+             // add a new row with modal form inputs
+             $(tableId).bootstrapTable('insertRow', {
+                index: 0,
+                row: data.row
+            });
+           
+        } else {
+            initAlertModal(tableId, responseData.message)
+            highlihtRow(tableId, row)
+        }
+        })
+    .catch((error) => {
+        console.error(error);
+        initAlertModal(tableId, responseData.message)
     });
 }

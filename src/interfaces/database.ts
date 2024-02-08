@@ -52,6 +52,7 @@ interface mediafilesTable extends RowDataPacket {
 	dimensions: string;
 	filesize: string;
 	comments: string;
+	checked: string;
 }
 
 const mediafilesTableFields: mediafilesTable = {
@@ -71,6 +72,7 @@ const mediafilesTableFields: mediafilesTable = {
 	dimensions: "varchar(15)",
 	filesize: "varchar(15)",
 	comments: "varchar(150)",
+	checked: "boolean NOT NULL DEFAULT 0",
 	constructor: {
 		name: 'RowDataPacket',
 	},
