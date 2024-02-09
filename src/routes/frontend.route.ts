@@ -48,7 +48,7 @@ export const loadFrontendEndpoint = async (app: Application, version:string): Pr
 	app.get("/api/" +  version + "/logout", (req, res) => {
 		req.session.destroy((err) => {
 			if (err) {
-				return console.log(err);
+				return err;
 			}
 			res.redirect("/api/" +  version + "/login");
 		});

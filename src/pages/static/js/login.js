@@ -3,7 +3,7 @@ async function logIn(type, rememberMe) {
 
     if (type === 'legacy') {
         console.log('Legacy logIn attempt');
-        await fetchServer(JSON.stringify({password:  document.getElementById('password').value, rememberMe: rememberMe}));
+        await fetchServer(JSON.stringify({username: document.getElementById('username').value, password:  document.getElementById('password').value, rememberMe: rememberMe}));
     }
 
     if (type === 'nostr') {
