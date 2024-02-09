@@ -6,9 +6,9 @@ import { connect } from "../lib/database.js";
 import { logger } from "../lib/logger.js";
 import { ParseAuthEvent } from "../lib/nostr/NIP98.js";
 import { RegisterResultMessage } from "../interfaces/register.js";
-import { ResultMessage } from "../interfaces/server.js";
+import { ResultMessagev2 } from "../interfaces/server.js";
 import { QueryAvailiableDomains } from "./domains.js";
-import { isPubkeyAllowed } from "../lib/authorization.js";
+import { checkAuthkey } from "../lib/authorization.js";
 import app from "../app.js";
 import { getClientIp } from "../lib/server.js";
 
@@ -34,23 +34,16 @@ const Registernewpubkey = async (req: Request, res: Response): Promise<Response>
 		return res.status(401).send(result);
 	}
 
-	//Check if pubkey is allowed to register new pubkeys
-	const allowed = isPubkeyAllowed(EventHeader.pubkey);
-	if (!allowed) {
-		logger.warn(
-			`RES -> 401 unauthorized  - ${EventHeader.description}`,
-			"|",
-			getClientIp(req)
-		);
-
-	const result: ResultMessage = {
-		result: false,
-		description: "Pubkey is not allowed to register new pubkeys",
-	};
-
-	return res.status(401).send(result);
-
-	}
+    // Check header has authorization token
+    const authorized = await checkAuthkey(req.headers.authorization)
+    if ( !authorized) {
+        let result : ResultMessagev2 = {
+            status: "error",
+            message: "Unauthorized"
+            };
+        logger.error("RES -> Unauthorized" + " | " + getClientIp(req));
+        return res.status(401).send(result);
+    }
 
 	//Check all necessary fields
 	if (

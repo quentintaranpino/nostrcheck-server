@@ -3,9 +3,9 @@ import { Request, Response } from "express";
 import { connect } from "../lib/database.js";
 import { logger } from "../lib/logger.js";
 import { ParseAuthEvent } from "../lib/nostr/NIP98.js";
-import { isPubkeyAllowed } from "../lib/authorization.js";
+import { checkAuthkey, isPubkeyAllowed } from "../lib/authorization.js";
 import { AvailableDomainsResult } from "../interfaces/domains.js";
-import { ResultMessage } from "../interfaces/server.js";
+import { ResultMessage, ResultMessagev2 } from "../interfaces/server.js";
 import { redisClient } from "../lib/redis.js";
 import { getClientIp } from "../lib/server.js";
 
@@ -73,22 +73,15 @@ const AvailableDomains = async (req: Request, res: Response): Promise<Response> 
 		return res.status(401).send(result);
 	}
 
-	//Check if pubkey is allowed to view available domains
-	const allowed = isPubkeyAllowed(EventHeader.pubkey);
-	if (!allowed) {
-		logger.warn(
-			`RES -> 401 unauthorized  - ${EventHeader.description}`,
-			"|",
-			getClientIp(req)
-		);
-
-		const result = {
-			result: false,
-			description: "Pubkey is not allowed to view available domains",
-		};
-
+	// Check header has authorization token
+	const authorized = await checkAuthkey(req.headers.authorization)
+	if ( !authorized) {
+		let result : ResultMessagev2 = {
+			status: "error",
+			message: "Unauthorized"
+			};
+		logger.error("RES -> Unauthorized" + " | " + getClientIp(req));
 		return res.status(401).send(result);
-
 	}
 
 	try {
@@ -128,22 +121,15 @@ const AvailableUsers = async (req: Request, res: Response): Promise<Response> =>
 		return res.status(401).send(result);
 	}
 
-	//Check if pubkey is allowed to view available users
-	const allowed = isPubkeyAllowed(EventHeader.pubkey);
-	if (!allowed) {
-		logger.warn(
-			`RES -> 401 unauthorized  - ${EventHeader.description}`,
-			"|",
-			getClientIp(req)
-		);
-
-		const result = {
-			result: false,
-			description: "Pubkey is not allowed to view available users",
-		};
-
+	// Check header has authorization token
+	const authorized = await checkAuthkey(req.headers.authorization)
+	if ( !authorized) {
+		let result : ResultMessagev2 = {
+			status: "error",
+			message: "Unauthorized"
+			};
+		logger.error("RES -> Unauthorized" + " | " + getClientIp(req));
 		return res.status(401).send(result);
-
 	}
 
 	try {
