@@ -36,7 +36,7 @@ const initTable = (tableId, data, objectName, authkey) => {
     }
 
     // Set field links for pubkey and filename
-    let rows = $(tableId).bootstrapTable('getData');
+    let rows = $(tableId).bootstrapTable('getData', true);
     setFieldLinks(tableId, rows);
 
 
