@@ -37,6 +37,7 @@ const initTable = (tableId, data, objectName, authkey) => {
 
     // Set field links for pubkey and filename
     let rows = $(tableId).bootstrapTable('getData', true);
+    console.log (rows.length, rows)
     setFieldLinks(tableId, rows);
 
 
@@ -261,29 +262,24 @@ function modifyRecord(tableId, id, field, fieldValue, authkey, action = 'modify'
 
 function setFieldLinks(tableId, rows){
 
-    console.log("setting field links", tableId, rows)
+    for (i = 0; i < $(tableId).bootstrapTable('getOptions').pageSize; i++) {
+        if (rows[i] === undefined) {break}
+        $(tableId).bootstrapTable('getVisibleColumns').forEach(function(column) {
 
-    // If the row field name is pubkey or filename show the data with a link
-
-    rows.forEach(element => {
-        console.log(element.id, element.pubkey, element.filename)
-
-        if (element.pubkey) {
-            $(tableId).bootstrapTable('updateCellByUniqueId', {
-                id: element.id, 
+            if (column.field === 'pubkey') {
+            $(tableId).bootstrapTable('updateCell', {
+                index: i,
                 field: 'pubkey', 
-                value: '<a href="https://nostrcheck.me/u/' + element.pubkey + '">' + element.pubkey + '</a>'
+                value: '<a href="https://nostrcheck.me/u/' + rows[i].pubkey + '">' + rows[i].pubkey + '</a>'
             });
-            console.log("updating pubkey", element.pubkey)
-        }
-
-        if (element.filename) {
-            $(tableId).bootstrapTable('updateCellByUniqueId', {
-                id: element.id, 
-                field: 'filename', 
-                value: '<a href="/' + element.username + '/' + element.filename + '">' + element.filename + '</a>'
-            });
-            console.log("updating filename")
-        }
+            }
+            if (column.field === 'filename') {
+                $(tableId).bootstrapTable('updateCell', {
+                    index: i, 
+                        field: 'filename', 
+                        value: '<a href="/' + rows[i].username + '/' + rows[i].filename + '">' + rows[i].filename + '</a>'
+                });
+            }
     });
+}
 }
