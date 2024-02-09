@@ -11,7 +11,9 @@
         {field: "username", values: ["string"]},
         {field: "pubkey", values: ["string"]},
         {field: "hex", values: ["string"]},
-        {field: "domain", values: ["string"]}
+        {field: "domain", values: ["string"]},
+        {field: "id", values: ["number"]},
+        {field: "date", values: ["string"]}
     ];
 
     export { allowedTableNames, allowedFieldNames, allowedFieldNamesAndValues };

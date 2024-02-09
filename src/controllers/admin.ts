@@ -354,8 +354,6 @@ const insertDBRecord = async (req: Request, res: Response): Promise<Response> =>
         return res.status(401).send(result);
     }
 
-    console.debug(req.body.table, req.body.row)
-
     // Check if the request has the required parameters
     if (!req.body.table || !req.body.row) {
         let result : ResultMessagev2 = {
@@ -373,69 +371,55 @@ const insertDBRecord = async (req: Request, res: Response): Promise<Response> =>
     if (req.body.table == "lightningData") {table = "lightning";}
     if (req.body.table == "domainsData") {table = "domains";}
 
-
-    req.body.row.array.forEach((element: { field: string; value: any; }) => {
-        console.debug(element)
-        if(!element.field || !element.value){
-            let result : ResultMessagev2 = {
-                status: "error",
-                message: "Invalid parameters"
-                };
-            logger.error("RES -> Invalid parameters" + " | " + getClientIp(req));
-            return res.status(400).send(result);
-        }
+    let errorFound = false;
+    await Object.entries(req.body.row).forEach(([field, value]) => {
+        if (field == "id" || field == "date" || field == "comments"){return;}
         if (!allowedTableNames.includes(table) || 
-            !allowedFieldNamesAndValues.some(e => e.field === element.field) ||
-            !allowedFieldNames.includes(element.field)     
+            !allowedFieldNamesAndValues.some(e => e.field === field) ||
+            !allowedFieldNames.includes(field)     
             ){
-                let result : ResultMessagev2 = {
-                    status: "error",
-                    message: "Invalid table name or field name"
-                };
-                logger.warn("RES -> Invalid table name or field name" + " | " + getClientIp(req));
-                return res.status(400).send(result);
+                logger.warn("RES -> Invalid table name or field name: " + " table: " + table + " field: " +  field + " | " + getClientIp(req));
+                errorFound = true;
         }
 
         // Check if the provided value is empty
-        if ((element.value === "" && element.field != "comments") || (element.value === "" && element.field != "id") || element.value === null || element.value === undefined){
-            let result : ResultMessagev2 = {
-                status: "error",
-                message: element.field + " cannot be empty."
-                };
-            logger.warn("RES -> Value is empty: " + element.field +  " | " + getClientIp(req));
-            return res.status(400).send(result);
+        if (value === ""){
+            logger.warn("RES -> Value is empty: " + field +  " | " + getClientIp(req));
+            errorFound = true;
         }
         
     });
 
-    // Check if the provided table name and field name are allowed.
-    for (let fieldObj of req.body.row) {
-        if (!allowedTableNames.includes(table) || 
-            !allowedFieldNamesAndValues.some(e => e.field === fieldObj.field) ||
-            !allowedFieldNames.includes(fieldObj.field)     
-            ){
-                let result : ResultMessagev2 = {
-                    status: "error",
-                    message: "Invalid table name or field name"
-                };
-                logger.warn("RES -> Invalid table name or field name" + " | " + getClientIp(req));
-                return res.status(400).send(result);
-        }
-
-        // Check if the provided value is empty
-        if (fieldObj.value === "" && fieldObj.field != "comments" || fieldObj.value === null || fieldObj.value === undefined){
-            let result : ResultMessagev2 = {
-                status: "error",
-                message: fieldObj.field + " cannot be empty."
-                };
-            logger.warn("RES -> Value is empty: " + fieldObj.field +  " | " + getClientIp(req));
-            return res.status(400).send(result);
-        }
+    if (errorFound){
+        let result : ResultMessagev2 = {
+            status: "error",
+            message: "Invalid table name or field name"
+        };
+        return res.status(400).send(result);
     }
 
+    // Remove id from row object
+    delete req.body.row["id"];
+
+    // Update req.body.row (field date) with current date in mysql format
+    req.body.row["date"] = new Date().toISOString().slice(0, 19).replace('T', ' ');
+
+    // If table is 'registered', we generate a new password and insert it into row object
+    if (req.body.table == "nostraddressData"){
+        req.body.row["password"] = await generateNewPassword();
+        if (req.body.row["password"] == "") {
+            let result : ResultMessagev2 = {
+                status: "error",
+                message: "Failed to generate new password"
+                };
+            logger.error("RES -> Failed to generate new password" + " | " + getClientIp(req));
+            return res.status(500).send(result);
+        }
+    }
+    
     // Insert records into table
-    const insert = await dbInsert(table, req.body.fields, req.body.fields[1].value);
-    if (!insert) {
+    const insert = await dbInsert(table, Object.keys(req.body.row), Object.values(req.body.row));
+    if (insert === 0) {
         let result : ResultMessagev2 = {
             status: "error",
             message: "Failed to insert records"
@@ -446,8 +430,9 @@ const insertDBRecord = async (req: Request, res: Response): Promise<Response> =>
 
     let result : ResultMessagev2 = {
         status: "success",
-        message: "Records inserted"
+        message: insert.toString()
         };
+
     logger.info("RES -> Records inserted" + " | " + getClientIp(req));
     return res.status(200).send(result);
 }
