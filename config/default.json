@@ -6,9 +6,6 @@
     "pubkey": "",
     "secretKey": "",
     "tosFilePath" : "resources/tos.md",
-    "adminPanel": {
-      "masterPassword": ""
-    },
     "availableModules": {
       "nostraddress" :{
         "enabled": true,
