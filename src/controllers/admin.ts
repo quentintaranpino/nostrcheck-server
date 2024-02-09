@@ -1,15 +1,12 @@
 
 import { Request, Response } from "express";
-import config from "config";
-
 import { logger } from "../lib/logger.js";
 import { getClientIp, format } from "../lib/server.js";
 import { ResultMessagev2, ServerStatusMessage } from "../interfaces/server.js";
-import { checkAuthkey, generateCredentials, isPubkeyAllowed, isUserAllowed } from "../lib/authorization.js";
+import { checkAuthkey, generateCredentials } from "../lib/authorization.js";
 import { sendMessage } from "../lib/nostr/NIP04.js";
-import { dbDelete, dbInsert, dbSelect, dbUpdate } from "../lib/database.js";
+import { dbDelete, dbInsert, dbUpdate } from "../lib/database.js";
 import { allowedFieldNames, allowedFieldNamesAndValues, allowedTableNames } from "../interfaces/admin.js";
-import { registeredTableFields } from "../interfaces/database.js";
 
 let hits = 0;
 const serverStatus = async (req: Request, res: Response): Promise<Response> => {
@@ -184,51 +181,6 @@ const resetUserPassword = async (req: Request, res: Response): Promise<Response>
         return res.status(500).send(result);
     }
 };
-
-const adminLogin = async (req: Request, res: Response): Promise<Response> => {
-
-    logger.info("POST /api/v1/login", "|", getClientIp(req));
-
-    if ((req.body.pubkey == "" && req.body.username) || (req.body.pubkey == "" && req.body.password == "")){
-        logger.warn("RES -> 401 unauthorized  - ", getClientIp(req));
-        logger.warn("No credentials used to login. Refusing", getClientIp(req));
-        return res.status(401).send(false);
-    }
-
-    // Set session maxAge
-    if (req.body.rememberMe == "true"){
-        req.session.cookie.maxAge = config.get('session.maxAge');
-    }
-
-    let allowed = false;
-
-    if (req.body.pubkey != undefined){
-        allowed = await isPubkeyAllowed(req);
-    };
-    if (req.body.username != undefined && req.body.password != undefined){
-        allowed = await isUserAllowed(req.body.username, req.body.password);
-        req.body.pubkey = await dbSelect("SELECT hex FROM registered WHERE username = ?", "hex", [req.body.username], registeredTableFields);
-    };
-    if (!allowed) {
-        logger.warn(`RES -> 401 unauthorized  - ${req.body.pubkey}`,"|",getClientIp(req));
-        return res.status(401).send(false);
-    }
-
-    // Set session identifier and generate authkey
-    req.session.identifier = req.body.pubkey;
-    req.session.authkey = await generateCredentials('authkey',req.body.pubkey);
-
-    if (req.session.authkey == ""){
-        logger.error("Failed to generate authkey for", req.session.identifier);
-        return res.status(500).send(false);
-    }
-
-    logger.info("logged in as", req.session.identifier, " - ", getClientIp(req));
-    return res.status(200).send(true);
-
-    
-};
-
 
 const deleteDBRecord = async (req: Request, res: Response): Promise<Response> => {
 
@@ -417,4 +369,4 @@ const insertDBRecord = async (req: Request, res: Response): Promise<Response> =>
     return res.status(200).send(result);
 }
 
-export { serverStatus, StopServer, resetUserPassword, adminLogin, updateDBRecord, deleteDBRecord, insertDBRecord};
+export { serverStatus, StopServer, resetUserPassword, updateDBRecord, deleteDBRecord, insertDBRecord};
