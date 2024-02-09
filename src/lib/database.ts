@@ -3,10 +3,6 @@ import config from "config";
 import { logger } from "./logger.js";
 import { 
 	newFieldcompatibility, 
-	domainsTableFields, 
-	lightningTableFields, 
-	mediafilesTableFields, 
-	mediatagsTableFields, 
 	registeredTableFields,
 	databaseTables} from "../interfaces/database.js";
 import { updateLocalConfigKey } from "./config.js";
