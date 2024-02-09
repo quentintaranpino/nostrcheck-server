@@ -35,11 +35,14 @@ const initTable = (tableId, data, objectName, authkey) => {
         }
     }
 
-    // Set field links for pubkey and filename
     let rows = $(tableId).bootstrapTable('getData', true);
-    console.log (rows.length, rows)
     setFieldLinks(tableId, rows);
-
+    $(tableId).on('page-change.bs.table', function (e, number, size) {
+        // Get only the rows in the current page
+        console.log(number, size)
+        let rows = $(tableId).bootstrapTable('getData', true);
+        setFieldLinks(tableId, rows, number);
+    });
 
     // Buttons logic
     $(tableId).on('check.bs.table uncheck.bs.table check-all.bs.table uncheck-all.bs.table', function () {
@@ -96,11 +99,6 @@ const initTable = (tableId, data, objectName, authkey) => {
      // Edit button
      $(tableId + '-button-edit').click(function () {
         var row = $(tableId).bootstrapTable('getSelections')[0]
-
-        // Update pubkey and filename fields to remove the links
-        if (row.pubkey && row.pubkey.includes('<')) {row.pubkey = row.pubkey.split('>')[1].split('<')[0]}
-        if (row.filename && row.filename.includes('<')) {row.filename = row.filename.split('>')[1].split('<')[0]}
-
         var columns = $(tableId).bootstrapTable('getOptions').columns[0];
         initEditModal(tableId,row,objectName,false,columns).then(async (editedRow) => {
             if (editedRow) {
@@ -171,9 +169,6 @@ function highlihtRow(tableId, row) {
 function initButton(tableId, buttonSuffix, objectName, modaltext, field, authkey, fieldValue) {
     $(tableId + buttonSuffix).click(async function () {
         var ids = $.map($(tableId).bootstrapTable('getSelections'), function (row) {
-            // Update pubkey and filename fields to remove the links
-            if (row.pubkey && row.pubkey.includes('<')) {row.pubkey = row.pubkey.split('>')[1].split('<')[0]}
-            if (row.filename && row.filename.includes('<')) {row.filename = row.filename.split('>')[1].split('<')[0]}
             return row.id
         })
 
@@ -239,7 +234,6 @@ function modifyRecord(tableId, id, field, fieldValue, authkey, action = 'modify'
                     index: 0,
                     row: data.row
                 });
-                setFieldLinks(tableId, [row]);
             }else {
                 let updateData = {};
                 updateData[field] = responseData.message;
@@ -247,7 +241,6 @@ function modifyRecord(tableId, id, field, fieldValue, authkey, action = 'modify'
                     id: id,
                     row: updateData
                 });
-                setFieldLinks(tableId, [row]);
             }
         } else {
             initAlertModal(tableId, responseData.message)
@@ -260,22 +253,25 @@ function modifyRecord(tableId, id, field, fieldValue, authkey, action = 'modify'
     });
 }
 
-function setFieldLinks(tableId, rows){
+function setFieldLinks(tableId, rows, number = 1){
+
+
+    initNumber = $(tableId).bootstrapTable('getOptions').pageSize * (number - 1);
+    console.log("initNumber", initNumber)
 
     for (i = 0; i < $(tableId).bootstrapTable('getOptions').pageSize; i++) {
         if (rows[i] === undefined) {break}
         $(tableId).bootstrapTable('getVisibleColumns').forEach(function(column) {
-
-            if (column.field === 'pubkey') {
-            $(tableId).bootstrapTable('updateCell', {
-                index: i,
-                field: 'pubkey', 
-                value: '<a href="https://nostrcheck.me/u/' + rows[i].pubkey + '">' + rows[i].pubkey + '</a>'
-            });
-            }
-            if (column.field === 'filename') {
+            if (column.field === 'pubkey' && !rows[i].pubkey.includes('<')) {
                 $(tableId).bootstrapTable('updateCell', {
-                    index: i, 
+                    index: i,
+                    field: 'pubkey', 
+                    value: '<a href="https://nostrcheck.me/u/' + rows[i].pubkey + '">' + rows[i].pubkey + '</a>'
+                });
+            }
+            if (column.field === 'filename' && !rows[i].filename.includes('<')) {
+                $(tableId).bootstrapTable('updateCell', {
+                    index: i,
                         field: 'filename', 
                         value: '<a href="/' + rows[i].username + '/' + rows[i].filename + '">' + rows[i].filename + '</a>'
                 });
