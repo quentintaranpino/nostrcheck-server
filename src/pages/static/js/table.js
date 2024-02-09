@@ -35,39 +35,10 @@ const initTable = (tableId, data, objectName, authkey) => {
         }
     }
 
-    // If the row field name is pubkey show the data with a link to the pubkey on every row
-    for (let column of columns) {
-        if (column.field == 'pubkey') {
-            // Get all rows
-            let rows = $(tableId).bootstrapTable('getData');
+    // Set field links for pubkey and filename
+    let rows = $(tableId).bootstrapTable('getData');
+    setFieldLinks(tableId, rows);
 
-            // Update each row
-            for (let i = 0; i < rows.length; i++) {
-                console.log("updating pubkey")
-                $(tableId).bootstrapTable('updateCell', {
-                    index: i, 
-                    field: 'pubkey', 
-                    value: '<a href="https://nostrcheck.me/u/' + rows[i].pubkey + '">' + rows[i].pubkey + '</a>'
-                });
-            }
-        }
-        if (column.field == 'filename'){
-            // Get all rows
-            let rows = $(tableId).bootstrapTable('getData');
-
-            // Update each row
-            for (let i = 0; i < rows.length; i++) {
-                console.log("updating filename")
-                $(tableId).bootstrapTable('updateCell', {
-                    index: i, 
-                    field: 'filename', 
-                    value: '<a href="/' + rows[i].username + '/' + rows[i].filename + '">' + rows[i].filename + '</a>'
-                });
-            }
-
-        }
-    }
-        
 
     // Buttons logic
     $(tableId).on('check.bs.table uncheck.bs.table check-all.bs.table uncheck-all.bs.table', function () {
@@ -104,17 +75,12 @@ const initTable = (tableId, data, objectName, authkey) => {
             }
         });
         var columns = $(tableId).bootstrapTable('getOptions').columns[0];
-        initEditModal(tableId,row,objectName, true, columns).then((editedRow) => {
+        initEditModal(tableId,row,objectName, true, columns).then(async (editedRow) => {
             if (editedRow) {
-               
-                insertRecord(tableId, editedRow, authkey)
+                await modifyRecord(tableId, null, null, null, authkey, 'insert', editedRow)
                 $(tableId).bootstrapTable('uncheckAll')
-
             }
         });
-
-        // TODO FETCH DATA TO SERVER
-        // TODO GET NEW ID FROM SERVER
     }
     )
 
@@ -129,13 +95,17 @@ const initTable = (tableId, data, objectName, authkey) => {
      // Edit button
      $(tableId + '-button-edit').click(function () {
         var row = $(tableId).bootstrapTable('getSelections')[0]
+
+        // Update pubkey and filename fields to remove the links
+        if (row.pubkey && row.pubkey.includes('<')) {row.pubkey = row.pubkey.split('>')[1].split('<')[0]}
+        if (row.filename && row.filename.includes('<')) {row.filename = row.filename.split('>')[1].split('<')[0]}
+
         var columns = $(tableId).bootstrapTable('getOptions').columns[0];
-        initEditModal(tableId,row,objectName,false,columns).then((editedRow) => {
+        initEditModal(tableId,row,objectName,false,columns).then(async (editedRow) => {
             if (editedRow) {
                 for (let field in editedRow) {
                     if (editedRow[field] != row[field]){
-                        console.log(field, editedRow[field], row[field])
-                        modifyRecord(tableId, row.id, field, editedRow[field], authkey)
+                        await modifyRecord(tableId, row.id, field, editedRow[field], authkey, 'modify')
                     }
                 }
             }
@@ -200,38 +170,51 @@ function highlihtRow(tableId, row) {
 function initButton(tableId, buttonSuffix, objectName, modaltext, field, authkey, fieldValue) {
     $(tableId + buttonSuffix).click(async function () {
         var ids = $.map($(tableId).bootstrapTable('getSelections'), function (row) {
+            // Update pubkey and filename fields to remove the links
+            if (row.pubkey && row.pubkey.includes('<')) {row.pubkey = row.pubkey.split('>')[1].split('<')[0]}
+            if (row.filename && row.filename.includes('<')) {row.filename = row.filename.split('>')[1].split('<')[0]}
             return row.id
         })
 
         if (await initConfirmModal(tableId, ids, modaltext, objectName)) {
             for (let id of ids) {
                 if (modaltext === 'remove') {
-                    modifyRecord(tableId, id, field, fieldValue, authkey, true)
+                    modifyRecord(tableId, id, field, fieldValue, authkey, 'remove')
                 } else {
-                    modifyRecord(tableId, id, field, fieldValue, authkey)
+                    modifyRecord(tableId, id, field, fieldValue, authkey, 'modify')
                 }
             }
         }
     })
 }
 
-function modifyRecord(tableId, id, field, fieldValue, authkey, remove = false){
+function modifyRecord(tableId, id, field, fieldValue, authkey, action = 'modify', row = null){
 
-    let row = $(tableId).bootstrapTable('getRowByUniqueId', id);
-    let url = "admin/updaterecord/"
-    if (remove) {url = "admin/deleterecord/"}
+    if(row === null) {row = $(tableId).bootstrapTable('getRowByUniqueId', id)};
+    if (action === 'modify') {url = "admin/updaterecord/"}
+    if (action === 'remove') {url = "admin/deleterecord/"}
+    if (action === 'insert') {url = "admin/insertrecord/"}
+
+    console.log(action, url , id, field, fieldValue, authkey, row)
 
     if (field === "allowed") {
         fieldValue = $(tableId).bootstrapTable('getSelections')[0].allowed === 0 ? 1 : 0;
     }
 
-    let data = {
-        table: tableId.split('-')[0].split('#')[1],
-        field: field,
-        value: fieldValue,
-        id: row.id,
-    }
+    let data = {};
+    if (action === 'remove' || action === 'modify') {
+        
+            data.table = tableId.split('-')[0].split('#')[1],
+            data.field = field,
+            data.value = fieldValue,
+            data.id = row.id
+        }
     
+    if (action === 'insert') {
+            data.table = tableId.split('-')[0].split('#')[1],
+            data.row = row
+    }
+
     fetch(url, {
         method: "POST",
         headers: {
@@ -244,15 +227,26 @@ function modifyRecord(tableId, id, field, fieldValue, authkey, remove = false){
     .then(responseData => {
 
         if (responseData.status == "success") {
-            if (remove) {
+            if (action === 'remove') {
                 $(tableId).bootstrapTable('removeByUniqueId', id);
-            } else {
+            } else if (action === 'insert') {
+                 // Add returned id to the row
+                 row.id = +responseData.message;
+           
+                 // add a new row with modal form inputs
+                 $(tableId).bootstrapTable('insertRow', {
+                    index: 0,
+                    row: data.row
+                });
+                setFieldLinks(tableId, [row]);
+            }else {
                 let updateData = {};
                 updateData[field] = responseData.message;
                 $(tableId).bootstrapTable('updateByUniqueId', {
                     id: id,
                     row: updateData
                 });
+                setFieldLinks(tableId, [row]);
             }
         } else {
             initAlertModal(tableId, responseData.message)
@@ -265,43 +259,31 @@ function modifyRecord(tableId, id, field, fieldValue, authkey, remove = false){
     });
 }
 
-function insertRecord(tableId, row, authkey){
+function setFieldLinks(tableId, rows){
 
-    let url = "admin/insertrecord/";
+    console.log("setting field links", tableId, rows)
 
-    let data = {
-        table: tableId.split('-')[0].split('#')[1],
-        row: row
-    }
+    // If the row field name is pubkey or filename show the data with a link
 
-    fetch(url, {
-    method: "POST",
-    headers: {
-        "Content-Type": "application/json",
-        "authorization": authkey
-    },
-    body: JSON.stringify(data)
+    rows.forEach(element => {
+        console.log(element.id, element.pubkey, element.filename)
 
-    })
-
-    .then(response => response.json())
-    .then(responseData => {
-
-        if (responseData.status == "success") {
-           
-             // add a new row with modal form inputs
-             $(tableId).bootstrapTable('insertRow', {
-                index: 0,
-                row: data.row
+        if (element.pubkey) {
+            $(tableId).bootstrapTable('updateCellByUniqueId', {
+                id: element.id, 
+                field: 'pubkey', 
+                value: '<a href="https://nostrcheck.me/u/' + element.pubkey + '">' + element.pubkey + '</a>'
             });
-           
-        } else {
-            initAlertModal(tableId, responseData.message)
-            highlihtRow(tableId, row)
+            console.log("updating pubkey", element.pubkey)
         }
-        })
-    .catch((error) => {
-        console.error(error);
-        initAlertModal(tableId, responseData.message)
+
+        if (element.filename) {
+            $(tableId).bootstrapTable('updateCellByUniqueId', {
+                id: element.id, 
+                field: 'filename', 
+                value: '<a href="/' + element.username + '/' + element.filename + '">' + element.filename + '</a>'
+            });
+            console.log("updating filename")
+        }
     });
 }
