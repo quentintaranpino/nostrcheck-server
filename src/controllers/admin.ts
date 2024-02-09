@@ -5,11 +5,11 @@ import config from "config";
 import { logger } from "../lib/logger.js";
 import { getClientIp, format } from "../lib/server.js";
 import { ResultMessagev2, ServerStatusMessage } from "../interfaces/server.js";
-import { IsAdminAuthorized, generateAuthKey, generateNewPassword, isPubkeyAllowed } from "../lib/authorization.js";
+import { checkAuthkey, generateCredentials, isPubkeyAllowed, isUserAllowed } from "../lib/authorization.js";
 import { sendMessage } from "../lib/nostr/NIP04.js";
-import { dbDelete, dbInsert, dbUpdate } from "../lib/database.js";
-import { verifyNIP07login } from "../lib/nostr/NIP07.js";
+import { dbDelete, dbInsert, dbSelect, dbUpdate } from "../lib/database.js";
 import { allowedFieldNames, allowedFieldNamesAndValues, allowedTableNames } from "../interfaces/admin.js";
+import { registeredTableFields } from "../interfaces/database.js";
 
 let hits = 0;
 const serverStatus = async (req: Request, res: Response): Promise<Response> => {
@@ -32,7 +32,7 @@ const serverStatus = async (req: Request, res: Response): Promise<Response> => {
 const StopServer = async (req: Request, res: Response): Promise<Response> => {
 
     // Check if the request is authorized
-    const authorized = await IsAdminAuthorized(req.headers.authorization);
+    const authorized = await checkAuthkey(req.headers.authorization);
     if ( !authorized) {
         let result : ResultMessagev2 = {
             status: "error",
@@ -57,7 +57,7 @@ const updateDBRecord = async (req: Request, res: Response): Promise<Response> =>
     res.setHeader('Content-Type', 'application/json');
 
     // Check header has authorization token
-    const authorized = await IsAdminAuthorized(req.headers.authorization)
+    const authorized = await checkAuthkey(req.headers.authorization)
     if ( !authorized) {
         let result : ResultMessagev2 = {
             status: "error",
@@ -134,7 +134,7 @@ const resetUserPassword = async (req: Request, res: Response): Promise<Response>
     res.setHeader('Content-Type', 'application/json');
     
     // Check header has authorization token
-    const authorized = await IsAdminAuthorized(req.headers.authorization)
+    const authorized = await checkAuthkey(req.headers.authorization)
     if ( !authorized) {
         let result : ResultMessagev2 = {
             status: "error",
@@ -154,24 +154,13 @@ const resetUserPassword = async (req: Request, res: Response): Promise<Response>
         return res.status(400).send(result);
     }
 
-    // Generate new password
-    const newPass = await generateNewPassword();
+    const newPass = await generateCredentials('password',req.body.pubkey)
     if (newPass == "") {
         let result : ResultMessagev2 = {
             status: "error",
             message: "Failed to generate new password"
             };
         logger.error("RES -> Failed to generate new password" + " | " + getClientIp(req));
-        return res.status(500).send(result);
-    }
-
-    // Update password in database
-    let update = await dbUpdate("registered", "password", newPass, "hex", req.body.pubkey);
-    if (!update) {
-        let result : ResultMessagev2 = {
-            status: "error",
-            message: "Failed to update password"
-            };
         return res.status(500).send(result);
     }
 
@@ -200,7 +189,7 @@ const adminLogin = async (req: Request, res: Response): Promise<Response> => {
 
     logger.info("POST /api/v1/login", "|", getClientIp(req));
 
-    if (req.body.pubkey == "" && req.body.password == ""){
+    if ((req.body.pubkey == "" && req.body.username) || (req.body.pubkey == "" && req.body.password == "")){
         logger.warn("RES -> 401 unauthorized  - ", getClientIp(req));
         logger.warn("No credentials used to login. Refusing", getClientIp(req));
         return res.status(401).send(false);
@@ -209,46 +198,37 @@ const adminLogin = async (req: Request, res: Response): Promise<Response> => {
     // Set session maxAge
     if (req.body.rememberMe == "true"){
         req.session.cookie.maxAge = config.get('session.maxAge');
-        logger.debug("Remember me is true, max age:", req.session.cookie.maxAge);
     }
 
-    // NIP07 login
+    let allowed = false;
+
     if (req.body.pubkey != undefined){
-        // Check if pubkey is allowed to login
-        const allowed = await isPubkeyAllowed(req.body.pubkey);
-        if (!allowed) {
-            logger.warn(`RES -> 401 unauthorized  - ${req.body.pubkey}`,"|",getClientIp(req));
-            return res.status(401).send(false);
-        }
-
-        // Check if NIP07 credentials are correct
-        let result = await verifyNIP07login(req);
-        if (!result){return res.status(401).send(false);}
-
-        // Set session identifier and generate authkey
-        req.session.identifier = req.body.pubkey;
-        req.session.authkey = await generateAuthKey(req.body.pubkey);
-
-        if (req.session.authkey == ""){
-            logger.error("Failed to generate authkey for", req.session.identifier);
-            return res.status(500).send(false);
-        }
-
-        logger.info("logged in as", req.session.identifier, " - ", getClientIp(req));
-        return res.status(200).send(true);
+        allowed = await isPubkeyAllowed(req);
+    };
+    if (req.body.username != undefined && req.body.password != undefined){
+        allowed = await isUserAllowed(req.body.username, req.body.password);
+        req.body.pubkey = await dbSelect("SELECT hex FROM registered WHERE username = ?", "hex", [req.body.username], registeredTableFields);
+    };
+    if (!allowed) {
+        logger.warn(`RES -> 401 unauthorized  - ${req.body.pubkey}`,"|",getClientIp(req));
+        return res.status(401).send(false);
     }
 
-    // Legacy login
-    if (req.body.password != "" && req.body.password == config.get('server.adminPanel.masterPassword')){
-        req.session.identifier = "legacyLogin";
-        req.session.authkey = config.get('server.adminPanel.masterPassword');
-        logger.info("logged in as", req.session.identifier, " - ", getClientIp(req));
-        return res.status(200).send(true);
+    // Set session identifier and generate authkey
+    req.session.identifier = req.body.pubkey;
+    req.session.authkey = await generateCredentials('authkey',req.body.pubkey);
+
+    if (req.session.authkey == ""){
+        logger.error("Failed to generate authkey for", req.session.identifier);
+        return res.status(500).send(false);
     }
 
-    logger.warn("RES -> 401 unauthorized  - ", getClientIp(req));
-    return res.status(401).send(false);
+    logger.info("logged in as", req.session.identifier, " - ", getClientIp(req));
+    return res.status(200).send(true);
+
+    
 };
+
 
 const deleteDBRecord = async (req: Request, res: Response): Promise<Response> => {
 
@@ -256,7 +236,7 @@ const deleteDBRecord = async (req: Request, res: Response): Promise<Response> =>
     res.setHeader('Content-Type', 'application/json');
 
     // Check header has authorization token
-    const authorized = await IsAdminAuthorized(req.headers.authorization)
+    const authorized = await checkAuthkey(req.headers.authorization)
     if ( !authorized) {
         let result : ResultMessagev2 = {
             status: "error",
@@ -344,7 +324,7 @@ const insertDBRecord = async (req: Request, res: Response): Promise<Response> =>
     res.setHeader('Content-Type', 'application/json');
 
     // Check header has authorization token
-    const authorized = await IsAdminAuthorized(req.headers.authorization)
+    const authorized = await checkAuthkey(req.headers.authorization)
     if ( !authorized) {
         let result : ResultMessagev2 = {
             status: "error",
@@ -406,7 +386,7 @@ const insertDBRecord = async (req: Request, res: Response): Promise<Response> =>
 
     // If table is 'registered', we generate a new password and insert it into row object
     if (req.body.table == "nostraddressData"){
-        req.body.row["password"] = await generateNewPassword();
+        req.body.row["password"] = await generateCredentials('password');
         if (req.body.row["password"] == "") {
             let result : ResultMessagev2 = {
                 status: "error",

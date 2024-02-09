@@ -63,4 +63,10 @@ const generateBlurhash = async (path:string): Promise<string> =>
       });
   });
 
-export { generateBlurhash, generatefileHashfromfile, generatefileHashfrombuffer};
+  const hashString = (input:string): string => {
+    const salt = 10;
+    return crypto.createHash('sha256').update(input + salt).digest('hex');
+  }
+
+
+export { generateBlurhash, generatefileHashfromfile, generatefileHashfrombuffer, hashString};

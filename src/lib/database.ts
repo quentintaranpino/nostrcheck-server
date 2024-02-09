@@ -12,7 +12,7 @@ import {
 import { updateLocalConfigKey } from "./config.js";
 import { exit } from "process";
 import { npubEncode } from "nostr-tools/nip19";
-import { generateNewPassword } from "./authorization.js";
+import { generateCredentials } from "./authorization.js";
 
 let retry :number = 0;
 async function connect(source:string): Promise<Pool> {
@@ -216,24 +216,34 @@ const dbInsert = async (tableName :string, fields: string[], values: string[]): 
 		conn.end();
 		return JSON.parse(JSON.stringify(dbFileInsert)).insertId;
 	}catch (error) {
-		console.error(error);
+		logger.error(error);
 		logger.error("Error inserting data into " + tableName + " table");
 		conn.end();
 		return 0;
 	}
 }
 
-const dbSelect = async (query: string, queryField :string, whereFields: string[], table: RowDataPacket): Promise<string> => {
+
+/**
+ * Executes a SELECT SQL query on a database and returns the specified field from the first row of the result.
+ * @param {string} queryStatement - The SQL query to be executed.
+ * @param {string} returnField - The field to be returned from the first row of the result.
+ * @param {string[]} whereFields - The fields to be used in the WHERE clause of the SQL query.
+ * @param {RowDataPacket} table - The table object where the SQL query will be executed.
+ * @returns {Promise<string>} A promise that resolves to the value of the specified return field from the first row of the result, or an empty string if an error occurs or if the result is empty.
+ */
+const dbSelect = async (queryStatement: string, returnField :string, whereFields: string[], table: RowDataPacket): Promise<string> => {
 	try {
-		const conn = await connect("dbSimpleSelect: " + query + " | Fields: " + whereFields.join(", "));
-		const [rows] = await conn.query<typeof table[]>(query, whereFields);
+		const conn = await connect("dbSimpleSelect: " + queryStatement + " | Fields: " + whereFields.join(", "));
+		const [rows] = await conn.query<typeof table[]>(queryStatement, whereFields);
 		conn.end();
-		return rows[0]?.[queryField] || "";
+		return rows[0]?.[returnField] || "";
 	} catch (error) {
-		logger.error("Error getting " + queryField + " from database");
+		logger.error("Error getting " + returnField + " from database");
 		return "";
 	}
 }
+
 
 
 const dbDelete = async (tableName :string, whereFieldName :string, whereFieldValue: string): Promise<boolean> =>{
@@ -405,7 +415,7 @@ const initDatabase = async (): Promise<void> => {
 		const fields: string[] = ["pubkey", "hex", "username", "password", "domain", "active", "date", "allowed", "comments"];
 		const values: string[] = [	npubEncode(config.get('server.pubkey')), 
 									config.get('server.pubkey'), "public", 
-									await generateNewPassword(), 
+									await generateCredentials('password',config.get('server.pubkey')), 
 									config.get('server.host'), 
 									"1", 
 									new Date().toISOString().slice(0, 19).replace('T', ' '),

@@ -16,4 +16,6 @@
         {field: "date", values: ["string"]}
     ];
 
-    export { allowedTableNames, allowedFieldNames, allowedFieldNamesAndValues };
+    type credentialTypes = 'password' | 'authkey';
+
+    export { allowedTableNames, allowedFieldNames, allowedFieldNamesAndValues, credentialTypes };

@@ -77,7 +77,6 @@ const checkConfigNecessaryKeys = async () : Promise<void> => {
 							"server.port", 
 							"server.pubkey", 
 							"server.tosFilePath", 
-							"server.adminPanel.masterPassword",
 							"database.host",
 							"database.user",
 							"database.password",
