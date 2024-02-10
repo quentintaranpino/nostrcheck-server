@@ -3,7 +3,7 @@ import { Request, Response } from "express";
 import { connect } from "../lib/database.js";
 import { logger } from "../lib/logger.js";
 import { ParseAuthEvent } from "../lib/nostr/NIP98.js";
-import { checkAuthkey, isPubkeyAllowed } from "../lib/authorization.js";
+import { checkAuthkey } from "../lib/authorization.js";
 import { AvailableDomainsResult } from "../interfaces/domains.js";
 import { ResultMessage, ResultMessagev2 } from "../interfaces/server.js";
 import { redisClient } from "../lib/redis.js";
@@ -74,7 +74,7 @@ const AvailableDomains = async (req: Request, res: Response): Promise<Response> 
 	}
 
 	// Check header has authorization token
-	const authorized = await checkAuthkey(req.headers.authorization)
+	const authorized = await checkAuthkey(req)
 	if ( !authorized) {
 		let result : ResultMessagev2 = {
 			status: "error",
@@ -122,7 +122,7 @@ const AvailableUsers = async (req: Request, res: Response): Promise<Response> =>
 	}
 
 	// Check header has authorization token
-	const authorized = await checkAuthkey(req.headers.authorization)
+	const authorized = await checkAuthkey(req)
 	if ( !authorized) {
 		let result : ResultMessagev2 = {
 			status: "error",

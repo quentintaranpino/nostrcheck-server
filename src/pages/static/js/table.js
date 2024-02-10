@@ -1,4 +1,6 @@
-const initTable = (tableId, data, objectName, authkey) => {
+
+const initTable = (tableId, data, objectName) => {
+
     console.log('Initializing table:', tableId)
 
     var data = JSON.parse(data)
@@ -81,7 +83,7 @@ const initTable = (tableId, data, objectName, authkey) => {
         var columns = $(tableId).bootstrapTable('getOptions').columns[0];
         initEditModal(tableId,row,objectName, true, columns).then(async (editedRow) => {
             if (editedRow) {
-                await modifyRecord(tableId, null, null, null, authkey, 'insert', editedRow)
+                authkey = await modifyRecord(tableId, null, null, null, 'insert', editedRow)
                 $(tableId).bootstrapTable('uncheckAll')
             }
         });
@@ -89,12 +91,12 @@ const initTable = (tableId, data, objectName, authkey) => {
     )
 
     // Admin, hide and show, enable and disable buttons
-    initButton(tableId, '-button-admin', objectName, 'toggle admin permissions', 'allowed', authkey, null)
-    initButton(tableId, '-button-hide', objectName, 'hide', 'visibility', authkey, 0)
-    initButton(tableId, '-button-show', objectName, 'show', 'visibility', authkey, 1)
-    initButton(tableId, '-button-disable', objectName, 'disable', 'active', authkey, 0)
-    initButton(tableId, '-button-enable', objectName, 'enable', 'active', authkey, 1)
-    initButton(tableId, '-button-remove', objectName, 'remove', '', authkey, null)
+    initButton(tableId, '-button-admin', objectName, 'toggle admin permissions', 'allowed', null)
+    initButton(tableId, '-button-hide', objectName, 'hide', 'visibility', 0)
+    initButton(tableId, '-button-show', objectName, 'show', 'visibility', 1)
+    initButton(tableId, '-button-disable', objectName, 'disable', 'active', 0)
+    initButton(tableId, '-button-enable', objectName, 'enable', 'active', 1)
+    initButton(tableId, '-button-remove', objectName, 'remove', '', null)
  
      // Edit button
      $(tableId + '-button-edit').click(function () {
@@ -104,7 +106,7 @@ const initTable = (tableId, data, objectName, authkey) => {
             if (editedRow) {
                 for (let field in editedRow) {
                     if (editedRow[field] != row[field]){
-                        await modifyRecord(tableId, row.id, field, editedRow[field], authkey, 'modify')
+                        authkey = await modifyRecord(tableId, row.id, field, editedRow[field], 'modify')
                     }
                 }
             }
@@ -134,7 +136,10 @@ const initTable = (tableId, data, objectName, authkey) => {
                 body: JSON.stringify(data)
             })
             .then(response => response.json())
-            .then(data => console.log(data))
+            .then(data => {
+                console.log(data)
+                authkey = data.authkey;
+                })
             .catch((error) => {
                 initAlertModal(tableId, error)
                 console.error(error);
@@ -144,7 +149,7 @@ const initTable = (tableId, data, objectName, authkey) => {
 
 }
 
-function detailFormatter(index, row) {
+function detailFormatter(row) {
 var html = []
 html.push('<div class="container-fluid ps-4">')
 html.push('<h3><b>Details:</b></h3>')
@@ -166,7 +171,7 @@ function highlihtRow(tableId, row) {
     }, 2000);
 }
 
-function initButton(tableId, buttonSuffix, objectName, modaltext, field, authkey, fieldValue) {
+function initButton(tableId, buttonSuffix, objectName, modaltext, field, fieldValue) {
     $(tableId + buttonSuffix).click(async function () {
         var ids = $.map($(tableId).bootstrapTable('getSelections'), function (row) {
             return row.id
@@ -175,23 +180,21 @@ function initButton(tableId, buttonSuffix, objectName, modaltext, field, authkey
         if (await initConfirmModal(tableId, ids, modaltext, objectName)) {
             for (let id of ids) {
                 if (modaltext === 'remove') {
-                    modifyRecord(tableId, id, field, fieldValue, authkey, 'remove')
+                    authkey = await modifyRecord(tableId, id, field, fieldValue, 'remove')
                 } else {
-                    modifyRecord(tableId, id, field, fieldValue, authkey, 'modify')
+                    authkey = await modifyRecord(tableId, id, field, fieldValue, 'modify')
                 }
             }
         }
     })
 }
 
-function modifyRecord(tableId, id, field, fieldValue, authkey, action = 'modify', row = null){
+function modifyRecord(tableId, id, field, fieldValue, action = 'modify', row = null){
 
     if(row === null) {row = $(tableId).bootstrapTable('getRowByUniqueId', id)};
     if (action === 'modify') {url = "admin/updaterecord/"}
     if (action === 'remove') {url = "admin/deleterecord/"}
     if (action === 'insert') {url = "admin/insertrecord/"}
-
-    console.log(action, url , id, field, fieldValue, authkey, row)
 
     if (field === "allowed") {
         fieldValue = $(tableId).bootstrapTable('getSelections')[0].allowed === 0 ? 1 : 0;
@@ -211,7 +214,7 @@ function modifyRecord(tableId, id, field, fieldValue, authkey, action = 'modify'
             data.row = row
     }
 
-    fetch(url, {
+    return fetch(url, {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
@@ -242,6 +245,7 @@ function modifyRecord(tableId, id, field, fieldValue, authkey, action = 'modify'
                     row: updateData
                 });
             }
+            return responseData.authkey;
         } else {
             initAlertModal(tableId, responseData.message)
             highlihtRow(tableId, row)
@@ -254,7 +258,6 @@ function modifyRecord(tableId, id, field, fieldValue, authkey, action = 'modify'
 }
 
 function setFieldLinks(tableId, rows, number = 1){
-
 
     initNumber = $(tableId).bootstrapTable('getOptions').pageSize * (number - 1);
     console.log("initNumber", initNumber)
@@ -273,7 +276,7 @@ function setFieldLinks(tableId, rows, number = 1){
                 $(tableId).bootstrapTable('updateCell', {
                     index: i,
                         field: 'filename', 
-                        value: '<a href="/' + rows[i].username + '/' + rows[i].filename + '">' + rows[i].filename + '</a>'
+                        value: '<a href="/media/' + rows[i].username + '/' + rows[i].filename + '">' + rows[i].filename + '</a>'
                 });
             }
     });

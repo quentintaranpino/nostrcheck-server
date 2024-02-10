@@ -1,9 +1,11 @@
 import { logger } from './logger.js'
 import crypto from 'crypto'
+import bcrypt from "bcrypt"; 
 import fs from 'fs'
 import { ProcessingFileData } from '../interfaces/media.js'
 import sharp from 'sharp'
 import { encode } from 'blurhash'
+import { credentialTypes } from '../interfaces/admin.js';
 
 const generatefileHashfromfile = (filepath:string, options: ProcessingFileData): string => {
 
@@ -63,15 +65,47 @@ const generateBlurhash = async (path:string): Promise<string> =>
       });
   });
 
-const hashString = (input:string): string => {
+
+/**
+ * Hashes a given string using bcrypt with a specified number of salt rounds.
+ * @param {string} input - The string to be hashed.
+ * @param {number} saltRounds - The number of rounds to use when generating the salt (default is 40).
+ * @returns {Promise<string>} A promise that resolves to the hashed string, or an empty string if an error occurs or if the input is undefined.
+ */
+const hashString = async (input:string, type: credentialTypes, saltRounds:number = 10) : Promise<string> => {
+
+  let hashedString; 
   try{
-    const salt = 10;
-    return crypto.createHash('sha256').update(input + salt).digest('hex');
+    if (type == "password"){
+      hashedString = await bcrypt.genSalt(saltRounds).then(salt => {return bcrypt.hash(input, salt).catch(err => {logger.error(err)})});
+    }
+    else if (type == "authkey"){
+      hashedString =  await crypto.createHash('sha256').update(input + saltRounds).digest('hex');
+    }
+    else{
+      logger.error("Invalid credential type");
+      return "";
+    }
+		if (hashedString == undefined) {
+			return "";
+		}
+    return hashedString;
   }catch (error) {
     logger.error(error);
     return "";
   }
 }
 
+const validateHash = async (input:string, hash:string): Promise<boolean> => {
+  
+    try{
+      logger.debug("Validating hash", input, hash)
+      let result = await bcrypt.compare(input, hash);
+      return result;
+    }catch (error) {
+      logger.error(error);
+      return false;
+    }
+  }
 
-export { generateBlurhash, generatefileHashfromfile, generatefileHashfrombuffer, hashString};
+export { generateBlurhash, generatefileHashfromfile, generatefileHashfrombuffer, hashString, validateHash};

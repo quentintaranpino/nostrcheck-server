@@ -5,7 +5,7 @@ import app from "../app.js";
 import { logger } from "../lib/logger.js";
 import { getClientIp, markdownToHtml } from "../lib/server.js";
 import { dbSelect, dbSelectModuleData} from "../lib/database.js";
-import { generateCredentials, isPubkeyAllowed, isUserAllowed } from "../lib/authorization.js";
+import { generateCredentials, isPubkeyValid, isUserPasswordValid } from "../lib/authorization.js";
 import { registeredTableFields } from "../interfaces/database.js";
 
 const loadDashboardPage = async (req: Request, res: Response, version:string): Promise<void> => {
@@ -65,11 +65,11 @@ const frontendLogin = async (req: Request, res: Response): Promise<Response> => 
     let allowed = false;
 
     if (req.body.pubkey != undefined){
-        allowed = await isPubkeyAllowed(req);
+        allowed = await isPubkeyValid(req);
     };
     if (req.body.username != undefined && req.body.password != undefined){
-        allowed = await isUserAllowed(req.body.username, req.body.password);
-        req.body.pubkey = await dbSelect("SELECT hex FROM registered WHERE username = ?", "hex", [req.body.username], registeredTableFields);
+        allowed = await isUserPasswordValid(req.body.username, req.body.password);
+        if (allowed){req.body.pubkey = await dbSelect("SELECT hex FROM registered WHERE username = ?", "hex", [req.body.username], registeredTableFields)};
     };
     if (!allowed) {
         logger.warn(`RES -> 401 unauthorized  - ${req.body.pubkey}`,"|",getClientIp(req));

@@ -35,7 +35,7 @@ const Registernewpubkey = async (req: Request, res: Response): Promise<Response>
 	}
 
     // Check header has authorization token
-    const authorized = await checkAuthkey(req.headers.authorization)
+    const authorized = await checkAuthkey(req)
     if ( !authorized) {
         let result : ResultMessagev2 = {
             status: "error",

@@ -1,6 +1,8 @@
 import { Application } from "express";
 import { loadDashboardPage, loadTosPage, loadLoginPage, loadIndexPage } from "../controllers/frontend.js";
-import { adminLogin } from "../controllers/admin.js";
+import { frontendLogin } from "../controllers/frontend.js";
+import { logger } from "../lib/logger.js";
+import { isPubkeyValid } from "../lib/authorization.js";
 
 export const loadFrontendEndpoint = async (app: Application, version:string): Promise<void> => {
 
@@ -27,7 +29,7 @@ export const loadFrontendEndpoint = async (app: Application, version:string): Pr
 
 	// Login POST
 	app.post("/api/" +  version + "/login", (req, res) => {
-		adminLogin(req,res)
+		frontendLogin(req,res)
 	});
 
 	// Tos
@@ -39,8 +41,10 @@ export const loadFrontendEndpoint = async (app: Application, version:string): Pr
 	app.get("/api/" +  version + "/dashboard", async (req, res) => {
 		if (req.session.identifier == null){
 			res.redirect("/api/" +  version + "/login");
+		}else if (await isPubkeyValid(req, true) == false){
+			res.redirect("/api/v2/");
 		}else{
-		loadDashboardPage(req,res,version);
+			loadDashboardPage(req,res,version);
 		}
 	});
 
@@ -48,7 +52,8 @@ export const loadFrontendEndpoint = async (app: Application, version:string): Pr
 	app.get("/api/" +  version + "/logout", (req, res) => {
 		req.session.destroy((err) => {
 			if (err) {
-				return err;
+				logger.error(err)
+				res.redirect("/api/v2/");
 			}
 			res.redirect("/api/" +  version + "/login");
 		});

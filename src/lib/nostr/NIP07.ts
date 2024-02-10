@@ -18,6 +18,7 @@ const verifyNIP07login = async (req: Request) : Promise<boolean> => {
         logger.warn("Detected an attempt to log in with an old event. Refusing", getClientIp(req));
         return false;
     }
+    logger.info("Login event verified", getClientIp(req));
     return true;
 }
 

@@ -2,29 +2,42 @@ import { connect, dbSelect, dbUpdate } from "../lib/database.js";
 import { logger } from "./logger.js";
 import { credentialTypes } from "../interfaces/admin.js";
 import { registeredTableFields } from "../interfaces/database.js";
-import { hashString } from "./hash.js";
+import { hashString, validateHash } from "./hash.js";
 import { Request } from "express";
 import { verifyNIP07login } from "./nostr/NIP07.js";
+import crypto from "crypto";
 
-const isPubkeyAllowed = async (req: Request): Promise<boolean> => {
 
-	if (!req.body.pubkey) {
+/**
+ * Validates a public key by checking if it exists in the registered table of the database. 
+ * Optionally checks if the public key has admin privileges.
+ * @param {Request} req - The request object, which should contain the public key in the body or session.
+ * @param {boolean} checkAdminPrivileges - Optional parameter. If true, the function checks if the public key has admin privileges (default is false).
+ * @returns {Promise<boolean>} A promise that resolves to a boolean indicating whether the public key is valid and, if checkAdminPrivileges is true, whether it has admin privileges. Returns false if an error occurs, if the public key is not provided, or if it does not exist in the registered table.
+ */
+const isPubkeyValid = async (req: Request, checkAdminPrivileges :boolean = false): Promise<boolean> => {
+
+	if (!req.body.pubkey && !req.session.identifier) {
 		logger.warn("No pubkey provided");
 		return false;
 	}
 
-	logger.info("Checking if pubkey is allowed ->", req.body.pubkey)
+	let pubkey = req.body.pubkey || req.session.identifier;
+
+	logger.info("Checking if pubkey is allowed ->", pubkey)
 
     const conn = await connect("IsAuthorizedPubkey");
-    try{
-		const [isAllowedPubkey] = await conn.query("SELECT hex FROM registered WHERE hex = ? and allowed = 1", [req.body.pubkey]);
-		const isAllowedPubkeyrowstemp = JSON.parse(JSON.stringify(isAllowedPubkey));
 
-		if (isAllowedPubkeyrowstemp[0] == undefined) {
-			conn.end();
+	let queryString : string = "SELECT hex FROM registered WHERE hex = ?";
+	if (checkAdminPrivileges) queryString = "SELECT hex FROM registered WHERE allowed = 1 and hex = ?";
+    try{
+
+		let result = await dbSelect(queryString, "hex", [pubkey], registeredTableFields)
+		if (result == "") {
 			return false;
 		}
-		conn.end();
+
+		if (req.session.identifier) return true;
 
 		return await verifyNIP07login(req);
 
@@ -34,15 +47,20 @@ const isPubkeyAllowed = async (req: Request): Promise<boolean> => {
 
 }
 
-const isUserAllowed = async (username:string, password:string): Promise<boolean> => {
+/**
+ * Validates a user's password by comparing it with the hashed password stored in the database.
+ * @param {string} username - The username of the user.
+ * @param {string} password - The password provided by the user to be validated.
+ * @returns {Promise<boolean>} A promise that resolves to a boolean indicating whether the provided password matches the hashed password stored in the database for the given username. Returns false if an error occurs.
+ */
+const isUserPasswordValid = async (username:string, password:string): Promise<boolean> => {
 	try{
-		let userAllowed = await dbSelect("SELECT username, password FROM registered WHERE username = ? and password = ? and allowed = 1", 
-								"username", 
-								[username, hashString(password), "1"], 
+		let userDBPassword = await dbSelect("SELECT password FROM registered WHERE username = ?", 
+								"password", 
+								[username], 
 								registeredTableFields)
 
-		if (userAllowed == ""){return false;}
-		return true;
+		return await validateHash(password, userDBPassword);
 	}catch (error) {
 		logger.error(error);
 		return false;
@@ -55,19 +73,27 @@ const isUserAllowed = async (username:string, password:string): Promise<boolean>
  * @param {string} authkey - The authorization key.
  * @returns {Promise<boolean>} The result of the authorization check.
  */
-const checkAuthkey = async (authkey:any) : Promise<boolean> =>{
+const checkAuthkey = async (req: Request) : Promise<boolean> =>{
 
-	logger.info("New admin authorization request")
-	if (!authkey) {
+
+	if (!req.headers.authorization) {
 		logger.warn("Unauthorized request, no authorization header");
 		return false
 	}
-	let hashedAuthkey = hashString(authkey);
+	let hashedAuthkey = await hashString(req.headers.authorization, 'authkey');
 	try{
-		let result =  await dbSelect("SELECT authkey FROM registered WHERE authkey = ? and allowed = 1", "authkey", [hashedAuthkey, "1"], registeredTableFields)
-		if (result == ""){
+		let hex =  await dbSelect("SELECT hex FROM registered WHERE authkey = ? and allowed = ?", "hex", [hashedAuthkey,"1"], registeredTableFields)
+		if (hex == ""){
 			logger.warn("Unauthorized request, authkey not found")
 			return false;}
+
+		// Generate a new authkey for each request
+		req.session.authkey = await generateCredentials('authkey',hex);
+		logger.debug("New authkey generated for", req.session.identifier, ":", req.session.authkey)
+		if (req.session.authkey == ""){
+			logger.error("Failed to generate authkey for", req.session.identifier);
+			return false;
+		}
 		return true;
 	}catch (error) {
 		logger.error(error);
@@ -82,10 +108,10 @@ const checkAuthkey = async (authkey:any) : Promise<boolean> =>{
  * @returns {Promise<string>} The generated credentials.
  */
 const generateCredentials = async (type: credentialTypes, pubkey :string = ""): Promise<string> => {
-
     try {
-		const credential = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-		let hashedCredential = hashString(credential);
+
+		const credential = crypto.randomBytes(20).toString('hex');
+		let hashedCredential = await hashString(credential, type);
 		const update = await dbUpdate("registered", type, hashedCredential, "hex", pubkey);
 		if (update){
 			logger.debug("New credential generated and saved to database");
@@ -98,4 +124,4 @@ const generateCredentials = async (type: credentialTypes, pubkey :string = ""): 
     }
 }
 
-export { isPubkeyAllowed, isUserAllowed, checkAuthkey, generateCredentials };
+export { isPubkeyValid, isUserPasswordValid, checkAuthkey, generateCredentials };

@@ -235,6 +235,7 @@ const dbSelect = async (queryStatement: string, returnField :string, whereFields
 		conn.end();
 		return rows[0]?.[returnField] || "";
 	} catch (error) {
+		logger.debug(error)
 		logger.error("Error getting " + returnField + " from database");
 		return "";
 	}
