@@ -67,11 +67,15 @@ echo "Installing Node.js..."
 echo ""
 sudo apt-get update
 sudo apt-get install -y ca-certificates curl gnupg
-sudo mkdir -p /etc/apt/keyrings
-curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key
-#remove old key
-sudo rm -f /etc/apt/keyrings/nodesource.gpg
-sudo gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg
+# if /etc/apt/keyrings does not exist, create it
+if [ ! -d "/etc/apt/keyrings" ]; then
+    sudo mkdir -p /etc/apt/keyrings
+fi
+# if /etc/apt/keyrings/nodesource.gpg exist remove it
+if [ -f "/etc/apt/keyrings/nodesource.gpg" ]; then
+    sudo rm /etc/apt/keyrings/nodesource.gpg
+fi
+curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | sudo gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg
 echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_$NODE_MAJOR.x nodistro main" | sudo tee /etc/apt/sources.list.d/nodesource.list
 
 sudo apt-get update
