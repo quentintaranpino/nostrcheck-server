@@ -164,7 +164,7 @@ echo ""
 
 # Set hostname
 clear
-echo "Server hostname (without http or https) [default: $HOST]:"
+echo "Server hostname: (ex. nostrcheck.me):"
 echo ""
 echo "WARNING: This hostname will be used to create the nginx configuration file."
 echo "If you want to use SSL, make sure to have a valid domain name and DNS records pointing to this server."
@@ -177,6 +177,8 @@ fi
 # if HOST is empty, prompt another time
 if [ -z "$HOST" ]; then
     clear
+    echo "WARNING: Server hostname is required to continue the installation."
+    echo ""
     echo "Server hostname: (ex. nostrcheck.me):"
     echo ""
     echo "WARNING: This hostname will be used to create the nginx configuration file."
@@ -191,7 +193,7 @@ fi
 
 # if HOST is still empty, exit
 if [ -z "$HOST" ]; then
-    echo "cant install without a hostname, exiting..."
+    echo "cant install without server hostname, exiting..."
     exit $E_BADARGS
 fi
 
