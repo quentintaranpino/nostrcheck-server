@@ -241,6 +241,7 @@ if [ ! -z "$PUBKEY" ]; then
         if [ -z "$SECRETKEY" ]; then
             PUBKEY=""
         fi
+    fi
 fi
 
 # Update local.json with generated fields.
