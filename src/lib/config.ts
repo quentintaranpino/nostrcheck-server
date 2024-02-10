@@ -95,7 +95,7 @@ const checkConfigNecessaryKeys = async () : Promise<void> => {
 	if (missingFields.length > 0){
 		console.error("  ___________________________________________________________ ")
 		console.error("| Missing necessary fields in config file.                   |")
-		console.error("| File: config/local.json		    			            |")
+		console.error("| File: config/local.json                                    |")
 		console.error("| Please edit config file and then restart the app.          |")
 		console.error("| Missing fields: ", missingFields.join(", "));
 		console.error("| __________________________________________________________ |")
