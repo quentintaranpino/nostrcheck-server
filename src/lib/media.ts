@@ -5,7 +5,7 @@ import fs from "fs";
 import { allowedMimeTypes, asyncTask, ProcessingFileData, UploadTypes } from "../interfaces/media.js";
 import { logger } from "./logger.js";
 import config from "config";
-import { dbUpdate } from "./database.js";
+import { connect, dbUpdate } from "./database.js";
 import {fileTypeFromBuffer} from 'file-type';
 import { Request } from "express";
 import app from "../app.js";
@@ -227,7 +227,61 @@ const ParseFileType = async (req: Request, file :Express.Multer.File): Promise<s
 
 }
 
-export {convertFile, requestQueue, ParseMediaType, ParseFileType};
+const GetFileTags = async (fileid: string): Promise<string[]> => {
+
+	let tags = [];
+	
+	const dbTags = await connect("GetFileTags");
+	try{
+		const [dbTagsResult] = await dbTags.query("SELECT tag FROM mediatags WHERE fileid = ?", [fileid]);
+		const tagsrowstemp = JSON.parse(JSON.stringify(dbTagsResult));
+		if (tagsrowstemp[0] !== undefined) {
+			for (let i = 0; i < tagsrowstemp.length; i++) {
+				tags.push(tagsrowstemp[i].tag);
+			}
+		}
+		dbTags.end();
+	}
+	catch (error) {
+		logger.error("Error getting file tags from database", error);
+		dbTags.end();
+	}
+	
+	return tags;
+}
+
+const standardMediaConversion = (filedata : ProcessingFileData , file:Express.Multer.File) :void  => {
+
+		//Video or image conversion options
+		if (file.mimetype.toString().startsWith("video")) {
+			filedata.width = config.get("media.transform.media.video.width");
+			filedata.height = config.get("media.transform.media.video.height");
+			filedata.outputoptions = '-preset veryfast';
+		}
+		if (file.mimetype.toString().startsWith("image")) {
+			filedata.width = config.get("media.transform.media.image.width");
+			filedata.height = config.get("media.transform.media.image.height");
+		}
+	
+		//Avatar conversion options
+		if (filedata.media_type.toString() === "avatar"){
+			filedata.width = config.get("media.transform.avatar.width");
+			filedata.height = config.get("media.transform.avatar.height");
+			filedata.filename = "avatar.webp";
+		}
+	
+		//Banner conversion options
+		if (filedata.media_type.toString() === "banner"){
+			filedata.width = config.get("media.transform.banner.width");
+			filedata.height = config.get("media.transform.banner.height");
+			filedata.filename = "banner.webp";
+		}
+
+		return;
+
+}
+
+export {convertFile, requestQueue, ParseMediaType, ParseFileType,GetFileTags, standardMediaConversion};
 
 async function setMediaDimensions(file:string, options:ProcessingFileData):Promise<string> {
 
@@ -304,3 +358,4 @@ const deleteFile = async (path:string) :Promise<boolean> => {
 	}
 
 }
+
