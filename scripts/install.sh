@@ -18,12 +18,12 @@ readonly date="20240210"
 
 clear
 echo ""
-echo "███╗   ██╗ ██████╗ ███████╗████████╗██████╗  ██████╗██╗  ██╗███████╗ ██████╗██╗  ██╗    ███████╗███████╗██████╗ ██╗   ██╗███████╗██████╗ "
-echo "████╗  ██║██╔═══██╗██╔════╝╚══██╔══╝██╔══██╗██╔════╝██║  ██║██╔════╝██╔════╝██║ ██╔╝    ██╔════╝██╔════╝██╔══██╗██║   ██║██╔════╝██╔══██╗"
-echo "██╔██╗ ██║██║   ██║███████╗   ██║   ██████╔╝██║     ███████║█████╗  ██║     █████╔╝     ███████╗█████╗  ██████╔╝██║   ██║█████╗  ██████╔╝"
-echo "██║╚██╗██║██║   ██║╚════██║   ██║   ██╔══██╗██║     ██╔══██║██╔══╝  ██║     ██╔═██╗     ╚════██║██╔══╝  ██╔══██╗╚██╗ ██╔╝██╔══╝  ██╔══██╗"
-echo "██║ ╚████║╚██████╔╝███████║   ██║   ██║  ██║╚██████╗██║  ██║███████╗╚██████╗██║  ██╗    ███████║███████╗██║  ██║ ╚████╔╝ ███████╗██║  ██║"
-echo "╚═╝  ╚═══╝ ╚═════╝ ╚══════╝   ╚═╝   ╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝╚══════╝ ╚═════╝╚═╝  ╚═╝    ╚══════╝╚══════╝╚═╝  ╚═╝  ╚═══╝  ╚══════╝╚═╝  ╚═╝"
+echo "███╗   ██╗ ██████╗ ███████╗████████╗██████╗  ██████╗██╗  ██╗███████╗ ██████╗██╗  ██╗ "
+echo "████╗  ██║██╔═══██╗██╔════╝╚══██╔══╝██╔══██╗██╔════╝██║  ██║██╔════╝██╔════╝██║ ██╔╝ "
+echo "██╔██╗ ██║██║   ██║███████╗   ██║   ██████╔╝██║     ███████║█████╗  ██║     █████╔╝  "
+echo "██║╚██╗██║██║   ██║╚════██║   ██║   ██╔══██╗██║     ██╔══██║██╔══╝  ██║     ██╔═██╗  "
+echo "██║ ╚████║╚██████╔╝███████║   ██║   ██║  ██║╚██████╗██║  ██║███████╗╚██████╗██║  ██╗ "
+echo "╚═╝  ╚═══╝ ╚═════╝ ╚══════╝   ╚═╝   ╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝╚══════╝ ╚═════╝╚═╝  ╚═╝ "
 echo ""
 echo "███████╗███████╗██████╗ ██╗   ██╗███████╗██████╗ "
 echo "██╔════╝██╔════╝██╔══██╗██║   ██║██╔════╝██╔══██╗"
@@ -35,7 +35,7 @@ echo ""
 echo "Nostrcheck server installation script v$version"
 echo "Last updated: $date"
 echo "Project repository: https://github.com/quentintaranpino/nostrcheck-api-ts/"
-echo "--------------------------------------------------------------------------------"
+echo "----------------------------------------------------------------------------"
 echo ""
 echo "This script will install and configure the nostrcheck server on your system."
 echo "WARNING: This script is still in development and may not work as expected."
@@ -77,11 +77,13 @@ sudo apt-get install nodejs -y
 # Install necessary packages
 echo ""
 echo "Installing necessary packages..."
+echo ""
 sudo apt install nginx git redis-server mariadb-server mariadb-client ffmpeg jq certbot python3-certbot-nginx -y
 
 # Clone the repository
 echo ""
 echo "Cloning the repository..."
+echo ""
 #git clone https://github.com/quentintaranpino/nostrcheck-api-ts.git
 git clone -b '0.5.0' https://github.com/quentintaranpino/nostrcheck-api-ts.git
 
@@ -152,6 +154,7 @@ echo ""
 # Set hostname
 echo ""
 echo "Server hostname (without http or https) [default: $HOST]:"
+echo ""
 echo "WARNING: This hostname will be used to create the nginx configuration file."
 echo "If you want to use SSL, make sure to have a valid domain name and DNS records pointing to this server."
 echo ""
@@ -163,6 +166,7 @@ fi
 # Set media path
 echo ""
 echo "Media path [default: $MEDIAPATH]:"
+echo ""
 echo "WARNING: This path will be used to store media files."
 echo "If you want to use a different path, make sure to have the necessary permissions."
 echo ""
@@ -173,6 +177,7 @@ fi
 
 # Prompt user for server pubkey (hex)
 echo "Please enter the server PUBLIC key (HEX format):"
+echo ""
 echo "You can use https://nostrcheck.me/converter/ for convert your pubkey to HEX format" 
 echo "Leave it empty if you want to generate a new pubkey/secret"
 echo ""
@@ -181,12 +186,14 @@ read -r PUBKEY
 # if PUBKEY is not empty, prompt user for server SECRET key.
 if [ ! -z "$PUBKEY" ]; then
     echo "Please enter the server SECRET key (HEX format):"
+    echo ""
     echo "You can use https://nostrcheck.me/converter/ for convert your nsec to HEX format" 
     echo ""
     read -r SECRETKEY
 fi
 
 # Update local.json with generated fields.
+echo ""
 echo "Creating user config file..."
 cp config/default.json config/local.json
 
@@ -294,18 +301,19 @@ if [ "$input" = "y" ]; then
 
 fi
 
+clear
 # End message
-echo "------------------------------------------------------------------------------------------"
-echo "-                                                                                        -"
-echo "- You can now start nostrcheck server by running 'cd nostrcheck-api-ts && npm run start' -"
-echo "-                                                                                        -"
-echo "- Server documentation:                                                                  -"
-echo "- https://github.com/quentintaranpino/nostrcheck-api-ts/blob/main/documentation.md       -" 
-echo "-                                                                                        -"   
+echo "-------------------------------------------------------------------------------------------"
+echo "-                                                                                         -"
+echo "-  You can now start nostrcheck server by running 'cd nostrcheck-api-ts && npm run start' -"
+echo "-                                                                                         -"
+echo "-  Server documentation:                                                                  -"
+echo "-  https://github.com/quentintaranpino/nostrcheck-api-ts/blob/main/documentation.md       -" 
 # if PUBKEY was empty show a message
 if [ -z "$PUBKEY" ]; then
-echo "- Please execute the server once to generate the server pubkey and secret key, the new   -"
-echo "- generated keys will be stored in config/local.json file.                               -"
+echo "-                                                                                         -"   
+echo "-  Please execute the server once to generate the server pubkey and secret key, the new   -"
+echo "-  generated keys will be stored in config/local.json file.                               -"
 fi
-echo "-                                                                                        -" 
-echo "------------------------------------------------------------------------------------------"
+echo "-                                                                                         -" 
+echo "-------------------------------------------------------------------------------------------"
