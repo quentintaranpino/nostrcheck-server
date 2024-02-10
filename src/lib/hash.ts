@@ -99,7 +99,6 @@ const hashString = async (input:string, type: credentialTypes, saltRounds:number
 const validateHash = async (input:string, hash:string): Promise<boolean> => {
   
     try{
-      logger.debug("Validating hash", input, hash)
       let result = await bcrypt.compare(input, hash);
       return result;
     }catch (error) {
