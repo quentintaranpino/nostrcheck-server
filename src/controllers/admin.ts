@@ -2,9 +2,8 @@
 import { Request, Response } from "express";
 import { logger } from "../lib/logger.js";
 import { getClientIp, format } from "../lib/server.js";
-import { ResultMessagev2, ServerStatusMessage, authkeyResultMessage } from "../interfaces/server.js";
+import { ResultMessagev2, ServerStatusMessage, authkeyResultMessage, passwordResultMessage } from "../interfaces/server.js";
 import { checkAuthkey, generateCredentials } from "../lib/authorization.js";
-import { sendMessage } from "../lib/nostr/NIP04.js";
 import { dbDelete, dbInsert, dbUpdate } from "../lib/database.js";
 import { allowedFieldNames, allowedFieldNamesAndValues, allowedTableNames } from "../interfaces/admin.js";
 
@@ -153,7 +152,7 @@ const resetUserPassword = async (req: Request, res: Response): Promise<Response>
         return res.status(400).send(result);
     }
 
-    const newPass = await generateCredentials('password',req.body.pubkey)
+    const newPass = await generateCredentials('password',req.body.pubkey, true)
     if (newPass == "") {
         let result : ResultMessagev2 = {
             status: "error",
@@ -163,26 +162,15 @@ const resetUserPassword = async (req: Request, res: Response): Promise<Response>
         return res.status(500).send(result);
     }
 
-    // Send new password to pubkey
-    try{
-        await sendMessage("Your new password: ",req.body.pubkey);
-        await sendMessage(newPass,req.body.pubkey);
-        let result : authkeyResultMessage = {
-            status: "success",
-            message: "New password generated for " + req.body.pubkey,
-            authkey: req.session.authkey
-            };
-        logger.info("RES -> New password sent to " + req.body.pubkey);
-        return res.status(200).send(result);
+    let result : authkeyResultMessage = {
+        status: "success",
+        message: "New password generated for " + req.body.pubkey,
+        authkey: req.session.authkey
+        };
+    logger.info("RES -> New password sent to " + req.body.pubkey);
+    return res.status(200).send(result);
 
-    }catch (error) {
-        logger.error(error);
-        let result : ResultMessagev2 = {
-            status: "error",
-            message: "Failed to send DM to " + req.body.pubkey + " with new password."
-            };
-        return res.status(500).send(result);
-    }
+   
 };
 
 const deleteDBRecord = async (req: Request, res: Response): Promise<Response> => {
@@ -336,31 +324,38 @@ const insertDBRecord = async (req: Request, res: Response): Promise<Response> =>
     // Remove id from row object
     delete req.body.row["id"];
 
-    // Update req.body.row (field date) with current date in mysql format
-    req.body.row["date"] = new Date().toISOString().slice(0, 19).replace('T', ' ');
-
-    // If table is 'registered', we generate a new password and insert it into row object
+    // Specific case for registered table
     if (req.body.table == "nostraddressData"){
-        req.body.row["password"] = await generateCredentials('password');
-        if (req.body.row["password"] == "") {
-            let result : ResultMessagev2 = {
+    req.body.row["date"] = new Date().toISOString().slice(0, 19).replace('T', ' ');
+    req.body.row["password"] = await generateCredentials('password'); // Generate a random password only for user creation (can't be empty) the we recreate it in the next step
+    
+    }
+
+    // Insert records into the table
+    const insert = await dbInsert(table, Object.keys(req.body.row), Object.values(req.body.row));
+    if (insert === 0) {
+        let result : authkeyResultMessage = {
+            status: "error",
+            message: "Failed to insert records",
+            authkey: req.session.authkey
+            };
+        logger.error("RES -> Failed to insert records" + " | " + getClientIp(req));
+        return res.status(500).send(result);
+    }
+
+    // If table is 'registered', we generate a new password and insert it into new created record. Then we send it to the user via DM
+    if (req.body.table == "nostraddressData"){
+        let newPass = await generateCredentials('password',req.body.row["hex"], true)
+        if (newPass == "") {
+            let result : authkeyResultMessage = {
                 status: "error",
-                message: "Failed to generate new password"
+                message: "Failed to generate new password",
+                authkey: req.session.authkey
                 };
             logger.error("RES -> Failed to generate new password" + " | " + getClientIp(req));
             return res.status(500).send(result);
         }
-    }
-    
-    // Insert records into table
-    const insert = await dbInsert(table, Object.keys(req.body.row), Object.values(req.body.row));
-    if (insert === 0) {
-        let result : ResultMessagev2 = {
-            status: "error",
-            message: "Failed to insert records"
-            };
-        logger.error("RES -> Failed to insert records" + " | " + getClientIp(req));
-        return res.status(500).send(result);
+        logger.debug(newPass)
     }
 
     let result : authkeyResultMessage = {

@@ -6,6 +6,7 @@ import { hashString, validateHash } from "./hash.js";
 import { Request } from "express";
 import { verifyNIP07login } from "./nostr/NIP07.js";
 import crypto from "crypto";
+import { sendMessage } from "./nostr/NIP04.js";
 
 
 /**
@@ -102,12 +103,17 @@ const checkAuthkey = async (req: Request) : Promise<boolean> =>{
 }
 
 /**
- * Generates credentials.
- * @param {('password'|'authkey')} type - The type of credential to generate. Can be either 'password' or 'authkey'.
- * @param {string} pubkey - The public key. If not provided, the new credential will not be saved to the database.
- * @returns {Promise<string>} The generated credentials.
+ * Generates and saves a new credential of the specified type to the database.
+ * If a public key is provided and direct messaging is indicated, 
+ * the new password will be sent to the provided public key.
+ *
+ * @param {credentialTypes} type - The type of credential to generate.
+ * @param {string} [pubkey=""] - The public key to which to send the new password. Optional.
+ * @param {boolean} [sendDM=false] - Indicates whether to send a direct message with the new password. Optional.
+ * @returns {Promise<string>} The newly generated credential, or an empty string if an error occurs or if the database update fails.
+ * @throws {Error} If an error occurs during the credential generation or the database update or sending the direct message.
  */
-const generateCredentials = async (type: credentialTypes, pubkey :string = ""): Promise<string> => {
+const generateCredentials = async (type: credentialTypes, pubkey :string = "", sendDM : boolean = false): Promise<string> => {
     try {
 
 		const credential = crypto.randomBytes(20).toString('hex');
@@ -115,6 +121,13 @@ const generateCredentials = async (type: credentialTypes, pubkey :string = ""): 
 		const update = await dbUpdate("registered", type, hashedCredential, "hex", pubkey);
 		if (update){
 			logger.debug("New credential generated and saved to database");
+			if (pubkey != "" && sendDM){
+				let message = await sendMessage("Your new password: ",pubkey);
+				message = await sendMessage(credential,pubkey);	
+				if (!message) {
+					return "";
+				}
+			}
 			return credential;
 		}
 		return "";
