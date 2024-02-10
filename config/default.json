@@ -59,9 +59,9 @@
   },
   "database": {
     "host": "127.0.0.1",
-    "user": "nostrcheck",
-    "password": "nostrcheck",
-    "database": "nostrcheck",
+    "user": "",
+    "password": "",
+    "database": "",
     "droptables": false
   },
   "media" : {
