@@ -1,12 +1,12 @@
 #!/bin/bash
 
-# Check if the user is root
-if [ "$(id -u)" != "0" ]; then
-    echo ""
-    echo "This script must be run as root. Try using sudo"
-    echo ""
-    exit $E_BADARGS
-fi
+# # Check if the user is root
+# if [ "$(id -u)" != "0" ]; then
+#     echo ""
+#     echo "This script must be run as root. Try using sudo"
+#     echo ""
+#     exit $E_BADARGS
+# fi
 
 # Detect the script base path
 BASEDIR=$(dirname "$0")
@@ -62,7 +62,7 @@ if [ "$input" != "y" ]; then
 fi
 
 # Install Node.js
-echo ""
+clear
 echo "Installing Node.js..."
 echo ""
 sudo apt-get update
@@ -82,41 +82,49 @@ sudo apt-get update
 sudo apt-get install nodejs -y
 
 # Install necessary packages
-echo ""
+clear
 echo "Installing necessary packages..."
 echo ""
 sudo apt install nginx git redis-server mariadb-server mariadb-client ffmpeg jq certbot python3-certbot-nginx -y
 
 # Clone the repository
-echo ""
+clear
 echo "Cloning the repository..."
 echo ""
 #git clone https://github.com/quentintaranpino/nostrcheck-api-ts.git
 git clone -b '0.5.0' https://github.com/quentintaranpino/nostrcheck-api-ts.git
 
 # Prepare installation directory
-echo ""
-echo "Changing directory permissions..."
-sudo chown -R $SUDO_USER:$SUDO_USER nostrcheck-api-ts
+# echo ""
+# echo "Changing directory permissions..."
+# sudo chown -R $SUDO_USER:$SUDO_USER nostrcheck-api-ts
 cd nostrcheck-api-ts
 
 # Install dependencies
+clear
+echo "Installing latest npm package manager"
 echo ""
+npm install -g npm@latest
+
+# install dependencies
+clear
 echo "Installing dependencies..."
-sudo npm install -g npm@latest
+echo ""
 npm install
 
+
 # Build the project
-echo ""
+clear
 echo "Building..."
+echo ""
 npm run build
 
 # Starting services
-echo ""
+clear
 echo "Starting services..."
+echo ""
 sudo service start redis-server
 sudo service start mariadb
-
 
 
 #MYSQL
