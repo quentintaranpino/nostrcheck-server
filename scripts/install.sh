@@ -220,6 +220,7 @@ read -r PUBKEY
 
 # if PUBKEY is not empty, prompt user for server SECRET key.
 if [ ! -z "$PUBKEY" ]; then
+    clear
     echo "Server secret key (HEX format):"
     echo ""
     echo "You can use https://nostrcheck.me/converter/ for convert your nsec to HEX format" 
@@ -228,6 +229,7 @@ if [ ! -z "$PUBKEY" ]; then
 
     # if SECRETKEY is empty, prompt another time
     if [ -z "$SECRETKEY" ]; then
+        clear
         echo "WARNING: Server secret key is required if you provide a pubkey"
         echo "If you are not confortable with this leave it blank to generate a new public and secret keypair."
         echo ""
