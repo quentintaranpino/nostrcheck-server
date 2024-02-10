@@ -110,7 +110,10 @@ echo "Starting services..."
 sudo service start redis-server
 sudo service start mariadb
 
+
+
 #MYSQL
+clear
 readonly MYSQL=`which mysql`
 echo ""
 echo "Database name [default: $DB]:"
@@ -120,6 +123,7 @@ if [ ! -z "$inputDB" ]; then
     DB=$inputDB
 fi
 
+clear
 echo "Database user [default: $USER]:"
 echo ""
 read -r inputUSER
@@ -128,6 +132,7 @@ if [ ! -z "$inputUSER" ]; then
 fi
 
 # Generate a random password for database user
+clear
 PASS=`openssl rand -base64 32`
 echo "Generating password for user $USER..."
 echo ""
@@ -152,6 +157,7 @@ echo "Database tables and user created successfully!"
 echo ""
 
 # Set hostname
+clear
 echo ""
 echo "Server hostname (without http or https) [default: $HOST]:"
 echo ""
@@ -164,6 +170,7 @@ if [ ! -z "$inputHOST" ]; then
 fi
 
 # Set media path
+clear
 echo ""
 echo "Media path [default: $MEDIAPATH]:"
 echo ""
@@ -176,6 +183,7 @@ if [ ! -z "$inputMEDIAPATH" ]; then
 fi
 
 # Prompt user for server pubkey (hex)
+clear
 echo "Please enter the server PUBLIC key (HEX format):"
 echo ""
 echo "You can use https://nostrcheck.me/converter/ for convert your pubkey to HEX format" 
@@ -193,6 +201,7 @@ if [ ! -z "$PUBKEY" ]; then
 fi
 
 # Update local.json with generated fields.
+clear
 echo ""
 echo "Creating user config file..."
 cp config/default.json config/local.json
@@ -279,6 +288,7 @@ echo ""
 sudo service nginx restart
 
 # End of standard installation
+clear
 echo "Installation complete!"
 echo ""
 
