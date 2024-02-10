@@ -122,7 +122,6 @@ sudo service start mariadb
 #MYSQL
 clear
 readonly MYSQL=`which mysql`
-echo ""
 echo "Database name [default: $DB]:"
 echo ""
 read -r inputDB
@@ -165,7 +164,6 @@ echo ""
 
 # Set hostname
 clear
-echo ""
 echo "Server hostname (without http or https) [default: $HOST]:"
 echo ""
 echo "WARNING: This hostname will be used to create the nginx configuration file."
@@ -174,6 +172,26 @@ echo ""
 read -r inputHOST
 if [ ! -z "$inputHOST" ]; then
     HOST=$inputHOST
+fi
+
+# if HOST is empty, prompt another time
+if [ -z "$HOST" ]; then
+    clear
+    echo "Server hostname (without http or https) [default: $HOST]:"
+    echo ""
+    echo "WARNING: This hostname will be used to create the nginx configuration file."
+    echo "If you want to use SSL, make sure to have a valid domain name and DNS records pointing to this server."
+    echo ""
+    read -r inputHOST
+    if [ ! -z "$inputHOST" ]; then
+        HOST=$inputHOST
+    fi
+fi
+
+# if HOST is still empty, exit
+if [ -z "$HOST" ]; then
+    echo "cant install without a hostname, exiting..."
+    exit $E_BADARGS
 fi
 
 # Set media path
