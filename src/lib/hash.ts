@@ -1,11 +1,11 @@
 import { logger } from './logger.js'
 import crypto from 'crypto'
-import bcrypt from "bcrypt"; 
 import fs from 'fs'
 import { ProcessingFileData } from '../interfaces/media.js'
 import sharp from 'sharp'
 import { encode } from 'blurhash'
 import { credentialTypes } from '../interfaces/admin.js';
+import bcrypt from 'bcrypt';
 
 const generatefileHashfromfile = (filepath:string, options: ProcessingFileData): string => {
 
@@ -72,12 +72,12 @@ const generateBlurhash = async (path:string): Promise<string> =>
  * @param {number} saltRounds - The number of rounds to use when generating the salt (default is 40).
  * @returns {Promise<string>} A promise that resolves to the hashed string, or an empty string if an error occurs or if the input is undefined.
  */
-const hashString = async (input:string, type: credentialTypes, saltRounds:number = 10) : Promise<string> => {
+const hashString = async (input:string, type: credentialTypes, saltRounds:number = 10): Promise<string> => {
 
   let hashedString; 
   try{
     if (type == "password"){
-      hashedString = await bcrypt.genSalt(saltRounds).then(salt => {return bcrypt.hash(input, salt).catch(err => {logger.error(err)})});
+      hashedString = await bcrypt.hash(input, saltRounds).catch(err => {logger.error(err)});
     }
     else if (type == "authkey"){
       hashedString =  await crypto.createHash('sha256').update(input + saltRounds).digest('hex');
@@ -98,8 +98,12 @@ const hashString = async (input:string, type: credentialTypes, saltRounds:number
 
 const validateHash = async (input:string, hash:string): Promise<boolean> => {
   
+  hash = hash.replace(/^\$2y(.+)$/i, '$2a$1'); // PHP old hashes compatibility
+
     try{
+      logger.debug("Validating hash", input, hash)
       let result = await bcrypt.compare(input, hash);
+      logger.debug("Hash validation result", result);
       return result;
     }catch (error) {
       logger.error(error);
