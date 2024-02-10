@@ -104,7 +104,7 @@ cd nostrcheck-api-ts
 clear
 echo "Installing latest npm package manager"
 echo ""
-npm install -g npm@latest
+sudo npm install -g npm@latest
 
 # install dependencies
 clear
