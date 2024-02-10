@@ -14,7 +14,7 @@ echo "$BASEDIR"
 
 readonly E_BADARGS=65
 readonly version="0.2"
-readonly date="20240125"
+readonly date="20240210"
 
 clear
 echo ""
@@ -44,11 +44,13 @@ echo ""
 # Node version
 NODE_MAJOR=21
 
-# Database variables
-HOST="nostcheck.me"
+# Variables
+HOST=""
 DB="nostrcheck"
 USER="nostrcheck"
 MEDIAPATH="media/"
+PUBKEY=""
+SECRETKEY=""
 
 # We ask user if want to continue
 echo "Do you want to proceed with the installation? [y/n]"
@@ -146,19 +148,50 @@ echo ""
 echo "Database tables and user created successfully!"
 echo ""
 
+# Set hostname
+echo ""
+echo "Server hostname (without http or https) [default: $HOST]:"
+echo "WARNING: This hostname will be used to create the nginx configuration file."
+echo "If you want to use SSL, make sure to have a valid domain name and DNS records pointing to this server."
+echo ""
+read -r inputHOST
+if [ ! -z "$inputHOST" ]; then
+    HOST=$inputHOST
+fi
+
 # Set media path
 echo ""
 echo "Media path [default: $MEDIAPATH]:"
+echo "WARNING: This path will be used to store media files."
+echo "If you want to use a different path, make sure to have the necessary permissions."
 echo ""
 read -r inputMEDIAPATH
 if [ ! -z "$inputMEDIAPATH" ]; then
     MEDIAPATH=$inputMEDIAPATH
 fi
 
-# Update local.json with generated password
+# Prompt user for server pubkey (hex)
+echo "Please enter the server PUBLIC key (HEX format):"
+echo "You can use https://nostrcheck.me/converter/ for convert your pubkey to HEX format" 
+echo "Leave it empty if you want to generate a new pubkey/secret"
+echo ""
+read -r PUBKEY
+
+# if PUBKEY is not empty, prompt user for server SECRET key.
+if [ ! -z "$PUBKEY" ]; then
+    echo "Please enter the server SECRET key (HEX format):"
+    echo "You can use https://nostrcheck.me/converter/ for convert your nsec to HEX format" 
+    echo ""
+    read -r SECRETKEY
+fi
+
+# Update local.json with generated fields.
 echo "Creating user config file..."
 cp config/default.json config/local.json
 
+jq --arg a "$HOST" '.server.host = $a' config/local.json > tmp.json && mv tmp.json config/local.json
+jq --arg a "$PUBKEY" '.server.pubkey = $a' config/local.json > tmp.json && mv tmp.json config/local.json
+jq --arg a "$SECRETKEY" '.server.secretKey = $a' config/local.json > tmp.json && mv tmp.json config/local.json
 jq --arg a "$DB" '.database.database = $a' config/local.json > tmp.json && mv tmp.json config/local.json
 jq --arg a "$USER" '.database.user = $a' config/local.json > tmp.json && mv tmp.json config/local.json
 jq --arg a "$PASS" '.database.password = $a' config/local.json > tmp.json && mv tmp.json config/local.json
@@ -261,10 +294,17 @@ if [ "$input" = "y" ]; then
 fi
 
 # End message
-echo "--------------------------------------------------------------------------------"
-echo ""
-echo "You can now start nostrcheck server by running 'cd nostrcheck-api-ts && npm run start'"
-echo "Please execute the server once to create the database tables and then"
-echo "execute 'cd scripts && ./initialize.sh' to initialize the server with default values."
-echo ""
-echo "--------------------------------------------------------------------------------"
+echo "------------------------------------------------------------------------------------------"
+echo "-                                                                                        -"
+echo "- You can now start nostrcheck server by running 'cd nostrcheck-api-ts && npm run start' -"
+echo "-                                                                                        -"
+echo "- Server documentation:                                                                  -"
+echo "- https://github.com/quentintaranpino/nostrcheck-api-ts/blob/main/documentation.md       -" 
+echo "-                                                                                        -"   
+# if PUBKEY was empty show a message
+if [ -z "$PUBKEY" ]; then
+echo "- Please execute the server once to generate the server pubkey and secret key, the new   -"
+echo "- generated keys will be stored in config/local.json file.                               -"
+fi
+echo "-                                                                                        -" 
+echo "------------------------------------------------------------------------------------------"
