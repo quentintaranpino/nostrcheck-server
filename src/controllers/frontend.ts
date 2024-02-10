@@ -78,7 +78,7 @@ const frontendLogin = async (req: Request, res: Response): Promise<Response> => 
 
     // Set session identifier and generate authkey
     req.session.identifier = req.body.pubkey;
-    req.session.authkey = await generateCredentials('authkey',req.body.pubkey);
+    req.session.authkey = await generateCredentials('authkey', false, req.body.pubkey);
 
     if (req.session.authkey == ""){
         logger.error("Failed to generate authkey for", req.session.identifier);
