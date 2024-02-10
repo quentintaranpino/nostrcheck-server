@@ -59,5 +59,6 @@
     </thead>
 </table>
 <%- include('edit-modal', {"tableId":tableId, "fields": fields}); %>
-<%- include('message-modal', {"tableName":tableName, "rows": fields}); %>
+<%- include('message-modal', {"tableName":tableName}); %>
+<%- include('confirm-modal', {"tableName":tableName, "rows": fields}); %>
 <%- include('alert-modal', {"tableName":tableName, "rows": fields}); %>

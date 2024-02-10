@@ -237,6 +237,7 @@ function modifyRecord(tableId, id, field, fieldValue, action = 'modify', row = n
                     index: 0,
                     row: data.row
                 });
+                initMessageModal(tableId, "username: " + row.username + " | password: " + responseData.password, "New user created")
             }else {
                 let updateData = {};
                 updateData[field] = responseData.message;
@@ -245,11 +246,11 @@ function modifyRecord(tableId, id, field, fieldValue, action = 'modify', row = n
                     row: updateData
                 });
             }
-            return responseData.authkey;
         } else {
             initAlertModal(tableId, responseData.message)
             highlihtRow(tableId, row)
         }
+        return responseData.authkey;
         })
     .catch((error) => {
         console.error(error);

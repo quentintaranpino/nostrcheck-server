@@ -1,19 +1,19 @@
 const initConfirmModal = async (tableId, ids, action, objectName) => {
-    var alert = new bootstrap.Modal($(tableId + '-message-modal'));
+    var alert = new bootstrap.Modal($(tableId + '-confirm-modal'));
 
     $(alert._element).on('show.bs.modal', function () {
-        $(tableId + '-message-modal .modal-body').text('Are you sure you want to ' + action + ' ' + ids.length + ' ' + objectName + (ids.length > 1 ? 's' : '') + '?');
-        if (action == 'remove')$(tableId + '-message-modal .modal-body').append('<br><br><strong>Warning:</strong> This action cannot be undone.');
-        if (action == 'disable')$(tableId + '-message-modal .modal-body').append('<br><br><strong>Attention:</strong> Disabling a record can take up to 5 minutes to become effective.');
-        $(tableId + '-message-modal .modal-title').text('Confirm')
+        $(tableId + '-confirm-modal .modal-body').text('Are you sure you want to ' + action + ' ' + ids.length + ' ' + objectName + (ids.length > 1 ? 's' : '') + '?');
+        if (action == 'remove')$(tableId + '-confirm-modal .modal-body').append('<br><br><strong>Warning:</strong> This action cannot be undone.');
+        if (action == 'disable')$(tableId + '-confirm-modal .modal-body').append('<br><br><strong>Attention:</strong> Disabling a record can take up to 5 minutes to become effective.');
+        $(tableId + '-confirm-modal .modal-title').text('Confirm')
     })
     alert.show();
 
     let result = await new Promise((resolve, reject) => {
-        $(tableId + '-message-modal .save-button').click(function () {
+        $(tableId + '-confirm-modal .save-button').click(function () {
             resolve(true);
         });
-        $(tableId + '-message-modal .cancel-button').click(function () {
+        $(tableId + '-confirm-modal .cancel-button').click(function () {
             resolve(false);
         });
     });
@@ -97,7 +97,7 @@ const initEditModal = async (tableId, row, objectName, newRow, columns) => {
 
 }
 
-const initAlertModal = async (tableId, message) => {
+const initAlertModal = async (tableId, message, timeout = 3000) => {
     var alert = new bootstrap.Modal($(tableId + '-alert-modal'));
 
     $(alert._element).on('show.bs.modal', function () {
@@ -110,10 +110,32 @@ const initAlertModal = async (tableId, message) => {
             resolve(true);
         });
         // wait 3 seconds before closing
-        setTimeout(() => {
+        if (timeout < 0) {
+            setTimeout(() => {
+                resolve(true);
+            }, timeout);
+        }
+        });
+
+    alert.hide();
+}
+
+const initMessageModal = async (tableId, message, title) => {
+    var alert = new bootstrap.Modal($(tableId + '-message-modal'));
+
+    $(alert._element).on('show.bs.modal', function () {
+        $(tableId + '-message-modal .modal-body').text(message);
+        $(tableId + '-message-modal .modal-title').text(title)
+    })
+    alert.show();
+
+    let result = await new Promise((resolve, reject) => {
+        $(tableId + '-message-modal .save-button').click(function () {
             resolve(true);
-        }, 3000);
+        });
     });
 
     alert.hide();
+    return result;
+
 }
