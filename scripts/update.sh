@@ -67,16 +67,6 @@ fi
 
 echo $(cd ../ && pwd)
 
-# Read config/local.json to get the database.password value
-echo ""
-DB_PASSWORD=$(cat config/local.json | jq -r '.database.password')
-
-# Stop the server using POST request http://localhost:3000/api/v2/admin/stop 
-echo ""
-echo "Stopping the server..."
-echo ""
-curl --location --request POST 'http://localhost:3000/api/v2/admin/stop' --header 'authorization: $DB_PASSWORD'
-
 # Update repository data
 echo ""
 echo "Updating repository data..."
