@@ -76,6 +76,7 @@ const checkConfigNecessaryKeys = async () : Promise<void> => {
 	const necessaryKeys = [	"server.host", 
 							"server.port", 
 							"server.pubkey", 
+							"server.secretKey", 
 							"server.tosFilePath", 
 							"database.host",
 							"database.user",
@@ -92,19 +93,16 @@ const checkConfigNecessaryKeys = async () : Promise<void> => {
 	}
 
 	if (missingFields.length > 0){
-		console.error("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-		console.error("Missing necessary fields in config file.")
-		console.error("Please edit config file and then restart the app.")
-		console.error("Missing fields: ", missingFields.join(", "));
-		console.error("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+		console.error("  ___________________________________________________________ ")
+		console.error("| Missing necessary fields in config file.                   |")
+		console.error("| File: config/local.json		    			            |")
+		console.error("| Please edit config file and then restart the app.          |")
+		console.error("| Missing fields: ", missingFields.join(", "));
+		console.error("| __________________________________________________________ |")
 		exit(1);
 	}
 
 }
-
-
-
-	
 
 const syncDefaultConfigValues = async (defaultConf : string, localConf: string) : Promise<void> => {
 
