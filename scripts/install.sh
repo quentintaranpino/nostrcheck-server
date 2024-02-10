@@ -163,7 +163,7 @@ readonly Q3="FLUSH PRIVILEGES;"
 readonly SQL="${Q1}${Q2}${Q3}"
 
 # Run the actual command
-$MYSQL -uroot -e "$SQL"
+sudo $MYSQL -uroot -e "$SQL"
 
 # Let the user know the database was created
 echo ""
