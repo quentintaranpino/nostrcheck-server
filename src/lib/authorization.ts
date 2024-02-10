@@ -89,7 +89,7 @@ const checkAuthkey = async (req: Request) : Promise<boolean> =>{
 			return false;}
 
 		// Generate a new authkey for each request
-		req.session.authkey = await generateCredentials('authkey',hex);
+		req.session.authkey = await generateCredentials('authkey',false, hex);
 		logger.debug("New authkey generated for", req.session.identifier, ":", req.session.authkey)
 		if (req.session.authkey == ""){
 			logger.error("Failed to generate authkey for", req.session.identifier);
@@ -109,11 +109,12 @@ const checkAuthkey = async (req: Request) : Promise<boolean> =>{
  *
  * @param {credentialTypes} type - The type of credential to generate.
  * @param {string} [pubkey=""] - The public key to which to send the new password. Optional.
+ * @param {boolean} [returnHashed=false] - Returns the hashed credential instead of the plain text. Optional.
  * @param {boolean} [sendDM=false] - Indicates whether to send a direct message with the new password. Optional.
  * @returns {Promise<string>} The newly generated credential, or an empty string if an error occurs or if the database update fails.
  * @throws {Error} If an error occurs during the credential generation or the database update or sending the direct message.
  */
-const generateCredentials = async (type: credentialTypes, pubkey :string = "", sendDM : boolean = false): Promise<string> => {
+const generateCredentials = async (type: credentialTypes, returnHashed: boolean = false, pubkey :string = "", sendDM : boolean = false): Promise<string> => {
     try {
 
 		const credential = crypto.randomBytes(20).toString('hex');
@@ -128,6 +129,7 @@ const generateCredentials = async (type: credentialTypes, pubkey :string = "", s
 					return "";
 				}
 			}
+			if (returnHashed) return hashedCredential;
 			return credential;
 		}
 		return "";

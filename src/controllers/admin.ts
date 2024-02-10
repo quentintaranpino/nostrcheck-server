@@ -152,7 +152,7 @@ const resetUserPassword = async (req: Request, res: Response): Promise<Response>
         return res.status(400).send(result);
     }
 
-    const newPass = await generateCredentials('password',req.body.pubkey, true)
+    const newPass = await generateCredentials('password',false, req.body.pubkey, true)
     if (newPass == "") {
         let result : ResultMessagev2 = {
             status: "error",
@@ -345,7 +345,7 @@ const insertDBRecord = async (req: Request, res: Response): Promise<Response> =>
 
     // If table is 'registered', we generate a new password and insert it into new created record. Then we send it to the user via DM
     if (req.body.table == "nostraddressData"){
-        let newPass = await generateCredentials('password',req.body.row["hex"], true)
+        let newPass = await generateCredentials('password', false, req.body.row["hex"], true)
         if (newPass == "") {
             let result : authkeyResultMessage = {
                 status: "error",
