@@ -14,7 +14,7 @@ The server can be installed anywhere and allows anyone to become a nostr service
 BETA: New install script, you can [see it here](https://github.com/quentintaranpino/nostrcheck-api-ts/blob/main/scripts/install.sh)
 
 ```
-curl https://raw.githubusercontent.com/quentintaranpino/nostrcheck-api-ts/0.5.0/scripts/install.sh --output install.sh && chmod +x install.sh && sudo ./install.sh
+curl https://raw.githubusercontent.com/quentintaranpino/nostrcheck-api-ts/0.5.0/scripts/install.sh --output install.sh && chmod +x install.sh && ./install.sh
 ```
 
 ## Available endpoints
