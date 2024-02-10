@@ -218,31 +218,7 @@ echo "INFO: Leave it empty if you want to generate a new pubkey/secret"
 echo ""
 read -r PUBKEY
 
-# if PUBKEY is not empty, prompt user for server SECRET key.
-if [ ! -z "$PUBKEY" ]; then
-    echo "Server secret key (HEX format):"
-    echo ""
-    echo "You can use https://nostrcheck.me/converter/ for convert your nsec to HEX format" 
-    echo ""
-    read -r SECRETKEY
 
-    # if SECRETKEY is empty, prompt another time
-    if [ -z "$SECRETKEY" ]; then
-        echo "WARNING: Server secret key is required if you provide a pubkey"
-        echo "If you are not confortable with this leave it blank to generate a new public and secret keypair."
-        echo ""
-        echo "Server secret key (HEX format):"
-        echo ""
-        echo "You can use https://nostrcheck.me/converter/ for convert your nsec to HEX format"
-        echo ""
-        read -r SECRETKEY
-
-        # if SECRETKEY is still empty, remove PUBKEY value
-        if [ -z "$SECRETKEY" ]; then
-            PUBKEY=""
-        fi
-    fi
-fi
 
 # Update local.json with generated fields.
 clear
