@@ -2,7 +2,7 @@
 import { Request, Response } from "express";
 import { logger } from "../lib/logger.js";
 import { getClientIp, format } from "../lib/server.js";
-import { ResultMessagev2, ServerStatusMessage, authkeyResultMessage, passwordResultMessage } from "../interfaces/server.js";
+import { ResultMessagev2, ServerStatusMessage, authkeyResultMessage } from "../interfaces/server.js";
 import { checkAuthkey, generateCredentials } from "../lib/authorization.js";
 import { dbDelete, dbInsert, dbUpdate } from "../lib/database.js";
 import { allowedFieldNames, allowedFieldNamesAndValues, allowedTableNames } from "../interfaces/admin.js";
