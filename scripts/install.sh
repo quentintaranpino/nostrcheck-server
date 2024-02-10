@@ -82,7 +82,8 @@ sudo apt install nginx git redis-server mariadb-server mariadb-client ffmpeg jq 
 # Clone the repository
 echo ""
 echo "Cloning the repository..."
-git clone https://github.com/quentintaranpino/nostrcheck-api-ts.git
+#git clone https://github.com/quentintaranpino/nostrcheck-api-ts.git
+git clone -b '0.5.0' https://github.com/quentintaranpino/nostrcheck-api-ts.git
 
 # Prepare installation directory
 echo ""
