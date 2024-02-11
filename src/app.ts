@@ -5,8 +5,10 @@ import config from "config";
 import {  loadconfigModules  } from "./lib/config.js";
 
 const app = express();
-app.set("server.host", process.env.HOSTNAME ?? config.get('server.host'));
-app.set("server.port", process.env.PORT ?? config.get('server.port'));
+app.set("server.host", config.get('server.host'));
+app.set("server.port", config.get('server.port'));
+app.set("server.pubkey", await config.get('server.pubkey'));
+app.set("server.secretKey", await config.get('server.secretKey'));
 app.set("version", process.env.npm_package_version ?? "0.0");
 
 app.set("activeModules", await loadconfigModules());
