@@ -7,7 +7,7 @@ import { PrepareNIP94_event } from "./NIP94.js";
 
 const getNIP96file = (hostname : string): NIP96file => {
 
-    let nip96file : NIP96file= {
+    const nip96file : NIP96file= {
     
         "api_url": "https://" + hostname + "/api/v2/media",
         "download_url": "https://" + hostname + "/media",
@@ -35,7 +35,7 @@ const getNIP96file = (hostname : string): NIP96file => {
 
 const PrepareNIP96_event = async (filedata : ProcessingFileData): Promise<NIP96_event> => {
 
-    let event: NIP96_event = {
+    const event: NIP96_event = {
         status: filedata.status,
         message: filedata.description,
         processing_url: filedata.processing_url,

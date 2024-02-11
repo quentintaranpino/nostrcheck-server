@@ -1,5 +1,4 @@
 import {Relay} from "nostr-tools"
-import { logger } from "../logger.js"
 import 'websocket-polyfill'
 
 const initRelays = async (_url : string) : Promise<Relay> => {

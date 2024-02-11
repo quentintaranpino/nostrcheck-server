@@ -1,14 +1,14 @@
 import { nip04, finalizeEvent} from "nostr-tools"
 import { hexToBytes } from '@noble/hashes/utils'
-import config from "config";
 import { logger } from "../logger.js";
 import { initRelays } from "./relays.js";
 import { NIP04_event } from "../../interfaces/nostr.js";
+import app from "../../app.js";
 
 const sendMessage = async (message: string, sendToPubkey : string) : Promise<boolean> => {
 
-    let sk : string = config.get('server.secretKey');
-    if (sk == "") {
+    const sk : string = app.get('server.secretKey');
+    if (sk == "" || sk == undefined) {
         logger.error("No secret key found in config file, if you want to send nostr DM's edit config/local.json file and add the secret key (HEX) on server.secretKey field. The restart the server.");
         return false
     }
@@ -19,9 +19,9 @@ const sendMessage = async (message: string, sendToPubkey : string) : Promise<boo
     }
 
     try {
-        let encriptedMessage =  await nip04.encrypt(sk, sendToPubkey, message)
+        const encriptedMessage =  await nip04.encrypt(sk, sendToPubkey, message)
 
-        let eventTemplate : NIP04_event= {
+        const eventTemplate : NIP04_event= {
             kind: 4,
             created_at: Math.floor(Date.now() / 1000),
             tags: [["p", sendToPubkey]],

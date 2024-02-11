@@ -1,6 +1,5 @@
 import { Application } from "express";
 import { logger } from "../lib/logger.js";
-import config from "config";
 
 import { loadNostraddressEndpoint } from "./nostraddress.route.js";
 import { loadMediaEndpoint } from "./media.route.js";
