@@ -46,7 +46,7 @@ const Redirectlightningddress = async (req: Request, res: Response): Promise<any
 
 	logger.info("REQ GET lightningaddress ->", servername, " | name:",  name , "|", getClientIp(req));
 
-	let lightningdata: LightningUsernameResult = { lightningserver: "", lightninguser: "" };
+	const lightningdata: LightningUsernameResult = { lightningserver: "", lightninguser: "" };
 	try {
 
 		//Check if the name is cached
@@ -111,7 +111,7 @@ const Redirectlightningddress = async (req: Request, res: Response): Promise<any
 
 };
 
-const UpdateLightningAddress = async (req: Request, res: Response): Promise<any> => {
+const UpdateLightningAddress = async (req: Request, res: Response): Promise<Response> => {
 
 	const servername = req.hostname;
 	const lightningaddress = req.params.lightningaddress;
@@ -161,7 +161,7 @@ const UpdateLightningAddress = async (req: Request, res: Response): Promise<any>
 			"UPDATE lightning SET lightningaddress = ? WHERE pubkey = ?",
 			[lightningaddress, EventHeader.pubkey]
 		);
-		let rowstemp = JSON.parse(JSON.stringify(rows));
+		const rowstemp = JSON.parse(JSON.stringify(rows));
 		conn.end();
 		if (rowstemp.affectedRows == 0) {
 			logger.info("Update Lightningaddress ->", EventHeader.pubkey, "|", "Lightning redirect not found, creating...");
@@ -203,7 +203,7 @@ const UpdateLightningAddress = async (req: Request, res: Response): Promise<any>
 		"SELECT username, domain FROM registered WHERE hex = ?",
 		[EventHeader.pubkey]
 	);
-	let rowstemp = JSON.parse(JSON.stringify(rows));
+	const rowstemp = JSON.parse(JSON.stringify(rows));
 	conn.end();
 	if (rowstemp[0] != undefined) {
 
@@ -225,7 +225,7 @@ const UpdateLightningAddress = async (req: Request, res: Response): Promise<any>
 
 };
 
-const DeleteLightningAddress = async (req: Request, res: Response): Promise<any> => {
+const DeleteLightningAddress = async (req: Request, res: Response): Promise<Response> => {
 
 	const servername = req.hostname;
 	let lightningaddress = "";
@@ -241,7 +241,7 @@ const DeleteLightningAddress = async (req: Request, res: Response): Promise<any>
 			"SELECT lightningaddress FROM lightning WHERE pubkey = ?",
 			[EventHeader.pubkey]
 		);
-		let rowstemp = JSON.parse(JSON.stringify(rows));
+		const rowstemp = JSON.parse(JSON.stringify(rows));
 		conn.end();
 		if (rowstemp[0] == undefined) {
 			logger.warn("RES Delete Lightningaddress -> 404 Not found", "|", getClientIp(req));
@@ -270,7 +270,7 @@ const DeleteLightningAddress = async (req: Request, res: Response): Promise<any>
 			"DELETE FROM lightning WHERE pubkey = ?",
 			[EventHeader.pubkey]
 		);
-		let rowstemp = JSON.parse(JSON.stringify(rows));
+		const rowstemp = JSON.parse(JSON.stringify(rows));
 		conn.end();
 		if (rowstemp.affectedRows == 0) {
 			logger.info("Delete Lightningaddress ->", EventHeader.pubkey, "|", "Lightning redirect not found");
@@ -297,7 +297,7 @@ const DeleteLightningAddress = async (req: Request, res: Response): Promise<any>
 		"SELECT username, domain FROM registered WHERE hex = ?",
 		[EventHeader.pubkey]
 	);
-	let rowstemp = JSON.parse(JSON.stringify(rows));
+	const rowstemp = JSON.parse(JSON.stringify(rows));
 	conn.end();
 	if (rowstemp[0] != undefined) {
 
