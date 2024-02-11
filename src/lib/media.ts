@@ -199,7 +199,7 @@ const ParseMediaType = (req : Request, pubkey : string): string  => {
 	}
 
 	//Check if the pubkey is public (the server pubkey) and media_type is different than media
-	if (pubkey == app.get("pubkey") && media_type != "media") {
+	if (pubkey == app.get("server.pubkey") && media_type != "media") {
 		logger.warn(`Public pubkey can only upload media files, setting media_type to "media"`, "|", getClientIp(req));
 		media_type = "media";
 	}

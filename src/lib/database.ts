@@ -9,6 +9,7 @@ import { updateLocalConfigKey } from "./config.js";
 import { exit } from "process";
 import { npubEncode } from "nostr-tools/nip19";
 import { generateCredentials } from "./authorization.js";
+import app from "../app.js";
 
 let retry :number = 0;
 async function connect(source:string): Promise<Pool> {
@@ -410,9 +411,9 @@ const initDatabase = async (): Promise<void> => {
 	if (publicUsername == ""){
 		logger.warn("Public username not found, creating it");
 		const fields: string[] = ["pubkey", "hex", "username", "password", "domain", "active", "date", "allowed", "comments"];
-		const values: string[] = [	npubEncode(config.get('server.pubkey')), 
-									config.get('server.pubkey'), "public", 
-									await generateCredentials('password',true, config.get('server.pubkey'), true), 
+		const values: string[] = [	npubEncode(app.get('server.pubkey')), 
+									app.get('server.pubkey'), "public", 
+									await generateCredentials('password',true, app.get('server.pubkey'), true), 
 									config.get('server.host'), 
 									"1", 
 									new Date().toISOString().slice(0, 19).replace('T', ' '),

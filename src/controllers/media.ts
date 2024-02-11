@@ -66,7 +66,7 @@ const Uploadmedia = async (req: Request, res: Response, version:string): Promise
 			return res.status(401).send(result);
 		}
 		username = "public";
-		pubkey = app.get("pubkey");
+		pubkey = app.get("server.pubkey");
 		logger.warn("pubkey not registered, switching to public upload | ", getClientIp(req));
 	}
 	logger.info("username ->", username, "|", getClientIp(req));
@@ -375,7 +375,7 @@ const GetMediaStatusbyID = async (req: Request, res: Response, version:string): 
 	let rowstemp = JSON.parse(JSON.stringify(dbResult));
 	if (rowstemp[0] == undefined) {
 		logger.warn(`File not found in database: ${id}, trying public server pubkey`, "|", getClientIp(req));
-		const [dbResult] = await db.query("SELECT mediafiles.id, mediafiles.filename, registered.username, mediafiles.pubkey, mediafiles.status, mediafiles.magnet, mediafiles.original_hash, mediafiles.hash, mediafiles.blurhash, mediafiles.dimensions, mediafiles.filesize FROM mediafiles INNER JOIN registered on mediafiles.pubkey = registered.hex WHERE (mediafiles.id = ? and mediafiles.pubkey = ?)", [id , app.get("pubkey")]);
+		const [dbResult] = await db.query("SELECT mediafiles.id, mediafiles.filename, registered.username, mediafiles.pubkey, mediafiles.status, mediafiles.magnet, mediafiles.original_hash, mediafiles.hash, mediafiles.blurhash, mediafiles.dimensions, mediafiles.filesize FROM mediafiles INNER JOIN registered on mediafiles.pubkey = registered.hex WHERE (mediafiles.id = ? and mediafiles.pubkey = ?)", [id , app.get("server.pubkey")]);
 		rowstemp = JSON.parse(JSON.stringify(dbResult));
 		if (rowstemp[0] == undefined) {
 			logger.error(`File not found in database: ${id}`, "|", getClientIp(req));
@@ -602,7 +602,7 @@ const GetMediaTagsbyID = async (req: Request, res: Response): Promise<Response> 
 		}else{
 			//If not found, try with public server pubkey
 			logger.info("Media tag list not found, trying with public server pubkey", "|", getClientIp(req));
-			const [Publicrows] = await conn.execute("SELECT tag FROM mediatags INNER JOIN mediafiles ON mediatags.fileid = mediafiles.id where fileid = ? and pubkey = ?", [req.params.fileId, app.get("pubkey")]);
+			const [Publicrows] = await conn.execute("SELECT tag FROM mediatags INNER JOIN mediafiles ON mediatags.fileid = mediafiles.id where fileid = ? and pubkey = ?", [req.params.fileId, app.get("server.pubkey")]);
 			let Publicrowstemp = JSON.parse(JSON.stringify(Publicrows));
 			if (Publicrowstemp[0] !== undefined) {
 				conn.end();
@@ -652,7 +652,7 @@ const GetMediabyTags = async (req: Request, res: Response): Promise<Response> =>
 		}else{
 			//If not found, try with public server pubkey
 			logger.info("Media files for specified tag not found, trying with public server pubkey", "|", getClientIp(req));
-			const [Publicrows] = await conn.execute("SELECT mediafiles.id, mediafiles.filename, registered.username, mediafiles.pubkey, mediafiles.status FROM mediatags INNER JOIN mediafiles ON mediatags.fileid = mediafiles.id INNER JOIN registered ON mediafiles.pubkey = registered.hex where tag = ? and mediafiles.pubkey = ?", [req.params.tag, app.get("pubkey")]);
+			const [Publicrows] = await conn.execute("SELECT mediafiles.id, mediafiles.filename, registered.username, mediafiles.pubkey, mediafiles.status FROM mediatags INNER JOIN mediafiles ON mediatags.fileid = mediafiles.id INNER JOIN registered ON mediafiles.pubkey = registered.hex where tag = ? and mediafiles.pubkey = ?", [req.params.tag, app.get("server.pubkey")]);
 			let Publicrowstemp = JSON.parse(JSON.stringify(Publicrows));
 			if (Publicrowstemp[0] !== undefined) {
 				conn.end();
@@ -798,7 +798,7 @@ const DeleteMedia = async (req: Request, res: Response, version:string): Promise
 				conn.end();
 				if (rowstemp.length !== 0) {
 					let pubkey = rowstemp[0].hex;
-					if (pubkey == config.get("server.pubkey")){
+					if (pubkey == app.get("server.pubkey")){
 						//We don't authorize server apikey for deletion
 						logger.warn("RES -> 400 Bad request - apikey not allowed for deletion", "|", getClientIp(req));
 						const result: ResultMessage = {

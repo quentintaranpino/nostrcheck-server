@@ -5,8 +5,8 @@ import { logger } from "../lib/logger.js";
 import { redisClient, getNostrAddressFromRedis } from "../lib/redis.js";
 import { RegisteredUsernameResult } from "../interfaces/register.js";
 import { ResultMessage } from "../interfaces/server.js";
-import config from "config";
 import { getClientIp } from "../lib/server.js";
+import app from "../app.js";
 
 const checkNostrAddress = async (req: Request, res: Response): Promise<Response> => {
 
@@ -47,7 +47,7 @@ const checkNostrAddress = async (req: Request, res: Response): Promise<Response>
 	logger.info("REQ Nostraddress ->", servername, "|", name, "|", getClientIp(req));
 
 	// Root _ pubkey
-	const rootkey : string = config.get('server.pubkey'); 
+	const rootkey : string = app.get('server.pubkey'); 
 	if (req.query.name === "_") {
 		return res.status(200).send(JSON.stringify({ names: { ['_']: rootkey } }));
 	}

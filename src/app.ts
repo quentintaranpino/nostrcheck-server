@@ -4,15 +4,11 @@ import helmet from "helmet";
 import config from "config";
 import {  loadconfigModules  } from "./lib/config.js";
 
-// Initialise Express
 const app = express();
-app.set("host", process.env.HOSTNAME ?? config.get('server.host'));
-app.set("port", process.env.PORT ?? config.get('server.port'));
+app.set("server.host", process.env.HOSTNAME ?? config.get('server.host'));
+app.set("server.port", process.env.PORT ?? config.get('server.port'));
 app.set("version", process.env.npm_package_version ?? "0.0");
-app.set(
-	"pubkey",
-	process.env.PUBKEY ?? config.get('server.pubkey')
-);
+
 app.set("activeModules", await loadconfigModules());
 app.set('trust proxy', 1); 
 app.set("view engine", "ejs")

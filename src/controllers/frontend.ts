@@ -43,7 +43,7 @@ const loadIndexPage = async (req: Request, res: Response, version:string): Promi
     req.body.version = app.get("version");
     req.body.APIversion = version;
     req.body.activeModules = app.get("activeModules");
-    req.body.serverPubkey = config.get("server.pubkey");
+    req.body.serverPubkey = app.get("server.pubkey");
     res.render("index.ejs", {request: req});
 };
 
