@@ -122,16 +122,9 @@ const UpdateUserDomain = async (req: Request, res: Response): Promise<Response> 
 	const servername = req.hostname;
 	const domain = req.params.domain;
 
-	// Check header has authorization token
-	const authorized = await checkAuthkey(req)
-	if ( authorized.status != "success") {
-		const result : ResultMessagev2 = {
-			status: "error",
-			message: "Unauthorized"
-			};
-		logger.error("RES -> Unauthorized" + " | " + getClientIp(req));
-		return res.status(401).send(result);
-	}
+	//Check if event authorization header is valid (NIP98) or if apikey is valid (v0)
+	const EventHeader = await ParseAuthEvent(req);
+	if (!EventHeader.result) {return res.status(401).send({"result": EventHeader.result, "description" : EventHeader.description});}
 
 	//If domain is null return 400
 	if (!domain || domain.trim() == "") {
