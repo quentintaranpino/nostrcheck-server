@@ -76,7 +76,7 @@ const AvailableDomains = async (req: Request, res: Response): Promise<Response> 
 	// Check header has authorization token
 	const authorized = await checkAuthkey(req)
 	if ( !authorized) {
-		let result : ResultMessagev2 = {
+		const result : ResultMessagev2 = {
 			status: "error",
 			message: "Unauthorized"
 			};
@@ -124,7 +124,7 @@ const AvailableUsers = async (req: Request, res: Response): Promise<Response> =>
 	// Check header has authorization token
 	const authorized = await checkAuthkey(req)
 	if ( !authorized) {
-		let result : ResultMessagev2 = {
+		const result : ResultMessagev2 = {
 			status: "error",
 			message: "Unauthorized"
 			};
@@ -149,7 +149,7 @@ const AvailableUsers = async (req: Request, res: Response): Promise<Response> =>
 	}
 };
 
-const UpdateUserDomain = async (req: Request, res: Response): Promise<any> => {
+const UpdateUserDomain = async (req: Request, res: Response): Promise<Response> => {
 
 	const servername = req.hostname;
 	const domain = req.params.domain;
@@ -191,7 +191,7 @@ const UpdateUserDomain = async (req: Request, res: Response): Promise<any> => {
 	}
 
 	//Query if domain exist
-	let CurrentDomains : AvailableDomainsResult = await QueryAvailiableDomains();
+	const CurrentDomains : AvailableDomainsResult = await QueryAvailiableDomains();
 
 	logger.debug("Current domains: ", CurrentDomains);
 
@@ -201,7 +201,7 @@ const UpdateUserDomain = async (req: Request, res: Response): Promise<any> => {
 			"UPDATE registered SET domain = ? WHERE hex = ?",
 			[domain, EventHeader.pubkey]
 		);
-		let rowstemp = JSON.parse(JSON.stringify(rows));
+		const rowstemp = JSON.parse(JSON.stringify(rows));
 		conn.end();
 		if (rowstemp.affectedRows == 0) {
 			
@@ -233,7 +233,7 @@ const UpdateUserDomain = async (req: Request, res: Response): Promise<any> => {
 		"SELECT username, domain FROM registered WHERE hex = ?",
 		[EventHeader.pubkey]
 	);
-	let rowstemp = JSON.parse(JSON.stringify(rows));
+	const rowstemp = JSON.parse(JSON.stringify(rows));
 	conn.end();
 	if (rowstemp[0] != undefined) {
 
