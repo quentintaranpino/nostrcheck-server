@@ -20,9 +20,9 @@ const verifyEventController = async (req: Request, res: Response): Promise<Respo
 		sig: req.body.sig,
 	};
 
-	let verifyResult = await verifyEvent(event);
+	const verifyResult = await verifyEvent(event);
 
-	let result: VerifyResultMessage = {
+	const result: VerifyResultMessage = {
 		pubkey: "",
 		result: false,
 		description: "",

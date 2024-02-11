@@ -12,7 +12,7 @@ import app from "../app.js";
 function prepareAppFolders(){
 
 	// tempPath checks
-	let tempPath : string = config.get("media.tempPath");
+	const tempPath : string = config.get("media.tempPath");
 	if(!tempPath){
 		console.error("TempPath is not defined in config file.");
 		exit(1);
@@ -67,7 +67,7 @@ async function prepareAPPConfig(): Promise<boolean>{
 			console.info("Creating local config file: " + localPath)
 			console.warn("Please edit config file and then restart the app.")
 			exit(1);
-    	});
+		});
 	}
 
 	return false;
@@ -86,7 +86,7 @@ const checkConfigNecessaryKeys = async () : Promise<void> => {
 	// Pubkey and secretkey generation if missing
 	if (missingFields.includes("server.pubkey") || missingFields.includes("server.secretKey")){
 		console.warn("No pubkey or secret key found in config file. Generating new keys.")
-		let keyPair = await createkeyPair();
+		const keyPair = await createkeyPair();
 		if (keyPair.publicKey && keyPair.secretKey){
 			missingFields = missingFields.filter((field) => field !== "server.pubkey" && field !== "server.secretKey");
 			await updateLocalConfigKey("server.pubkey", keyPair.publicKey) && await updateLocalConfigKey("server.secretKey", keyPair.secretKey);
@@ -120,7 +120,7 @@ const syncDefaultConfigValues = async (defaultConf : string, localConf: string) 
 	const DefaultConfig = JSON.parse(fs.readFileSync(defaultConf).toString());
 	const LocalConfig = JSON.parse(fs.readFileSync(localConf).toString());
 	
-	let configChanged = await mergeConfigkey(DefaultConfig, LocalConfig);
+	const configChanged = await mergeConfigkey(DefaultConfig, LocalConfig);
 	if (!configChanged) return;
 	
 	try{
@@ -134,9 +134,7 @@ const syncDefaultConfigValues = async (defaultConf : string, localConf: string) 
 };
 
 let hasChanged = false;
-
-const mergeConfigkey = async (defaultConfig: any, localConfig: any): Promise<boolean> => {
-
+const mergeConfigkey = async (defaultConfig: Record<string, unknown>, localConfig: Record<string, unknown>): Promise<boolean> => {
     const promises = [];
 
     for (const key in defaultConfig) {
@@ -145,8 +143,8 @@ const mergeConfigkey = async (defaultConfig: any, localConfig: any): Promise<boo
                 localConfig[key] = {};
                 hasChanged = true;
             }
-            promises.push(mergeConfigkey(defaultConfig[key], localConfig[key]));
-        } else if (!localConfig.hasOwnProperty(key)) {
+            promises.push(mergeConfigkey(defaultConfig[key] as Record<string, unknown>, localConfig[key] as Record<string, unknown>));
+        } else if (!Object.prototype.hasOwnProperty.call(localConfig, key)) {
             localConfig[key] = defaultConfig[key];
             console.warn("Missing config key: " + key + " - Adding default value:", defaultConfig[key]);
             hasChanged = true;
@@ -157,7 +155,7 @@ const mergeConfigkey = async (defaultConfig: any, localConfig: any): Promise<boo
     return hasChanged;
 }
 
-const updateLocalConfigKey = async (key: string, value: any) : Promise<boolean> => {
+const updateLocalConfigKey = async (key: string, value: string) : Promise<boolean> => {
 	
 	const LocalConfig = JSON.parse(fs.readFileSync(localPath).toString());
 
@@ -187,7 +185,7 @@ const updateLocalConfigKey = async (key: string, value: any) : Promise<boolean> 
 const loadconfigModules = async () : Promise<IModules> => {
 
 	const configModules: IModules = config.get("server.availableModules");
-	let runtimeModules: IModules = {};
+	const runtimeModules: IModules = {};
 
 	for (const module in configModules) {
 		for (const [key, value] of Object.entries(configModules[module])) {
