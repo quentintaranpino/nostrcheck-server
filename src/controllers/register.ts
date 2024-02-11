@@ -37,10 +37,10 @@ const Registernewpubkey = async (req: Request, res: Response): Promise<Response>
     // Check header has authorization token
     const authorized = await checkAuthkey(req)
     if ( !authorized) {
-        let result : ResultMessagev2 = {
-            status: "error",
-            message: "Unauthorized"
-            };
+        const result : ResultMessagev2 = {
+			status: "error",
+			message: "Unauthorized"
+			};
         logger.error("RES -> Unauthorized" + " | " + getClientIp(req));
         return res.status(401).send(result);
     }
@@ -294,6 +294,7 @@ const Registernewpubkey = async (req: Request, res: Response): Promise<Response>
 			result: false,
 			description: "Username alredy registered",
 		};
+		res.status(406).send(result);
 	}
 
 	//Send response, user registered, close connection
