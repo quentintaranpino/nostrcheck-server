@@ -4,7 +4,10 @@ import { exit } from "process";
 
 const defaultPath : string = "./config/default.json";
 const localPath : string = "./config/local.json";
-import { IModules } from "../interfaces/config.js";
+
+import { IModules, necessaryKeys } from "../interfaces/config.js";
+import { createkeyPair } from "./nostr/core.js";
+import app from "../app.js";
 
 function prepareAppFolders(){
 
@@ -72,23 +75,23 @@ async function prepareAPPConfig(): Promise<boolean>{
 }
 
 const checkConfigNecessaryKeys = async () : Promise<void> => {
-	
-	const necessaryKeys = [	"server.host", 
-							"server.port", 
-							"server.pubkey", 
-							"server.secretKey", 
-							"server.tosFilePath", 
-							"database.host",
-							"database.user",
-							"database.password",
-							"database.database"
-						]
-	let localConfig = JSON.parse(fs.readFileSync(localPath).toString());
-	let missingFields = [];
 
+	let missingFields = [];
 	for (const key of necessaryKeys){
 		if (config.get(key) === undefined || config.get(key) === ""){
 			missingFields.push(key);
+		}
+	}
+
+	// Pubkey and secretkey generation if missing
+	if (missingFields.includes("server.pubkey") || missingFields.includes("server.secretKey")){
+		console.warn("No pubkey or secret key found in config file. Generating new keys.")
+		let keyPair = await createkeyPair();
+		if (keyPair.publicKey && keyPair.secretKey){
+			missingFields = missingFields.filter((field) => field !== "server.pubkey" && field !== "server.secretKey");
+			await updateLocalConfigKey("server.pubkey", keyPair.publicKey) && await updateLocalConfigKey("server.secretKey", keyPair.secretKey);
+			app.set("server.pubkey", keyPair.publicKey);
+			app.set("server.secretKey", keyPair.secretKey);
 		}
 	}
 

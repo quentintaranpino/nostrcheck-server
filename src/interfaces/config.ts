@@ -10,4 +10,16 @@ interface IModule {
 	comments: string;
 }
 
-export { IModules, IModule}
+const necessaryKeys = [	
+	"server.host", 
+	"server.port", 
+	"server.pubkey", 
+	"server.secretKey", 
+	"server.tosFilePath", 
+	"database.host",
+	"database.user",
+	"database.password",
+	"database.database"
+]
+
+export { IModules, IModule, necessaryKeys}
