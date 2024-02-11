@@ -30,7 +30,7 @@ const StopServer = async (req: Request, res: Response): Promise<Response> => {
     // Check if the request is authorized
     const authorized = await checkAuthkey(req);
     if ( !authorized) {
-        let result : ResultMessagev2 = {
+        const result : ResultMessagev2 = {
             status: "error",
             message: "Unauthorized"
             };
@@ -39,7 +39,7 @@ const StopServer = async (req: Request, res: Response): Promise<Response> => {
     }
 
     logger.warn("RES -> 200 Stopping server from IP:", getClientIp(req));
-    let result : authkeyResultMessage = {
+    const result : authkeyResultMessage = {
         status: "success",
         message: "Stopping server...",
         authkey: req.session.authkey
@@ -56,7 +56,7 @@ const updateDBRecord = async (req: Request, res: Response): Promise<Response> =>
     // Check header has authorization token
     const authorized = await checkAuthkey(req)
     if ( !authorized) {
-        let result : ResultMessagev2 = {
+        const result : ResultMessagev2 = {
             status: "error",
             message: "Unauthorized"
             };
@@ -66,7 +66,7 @@ const updateDBRecord = async (req: Request, res: Response): Promise<Response> =>
     
     // Check if the request has the required parameters
      if (!req.body.table || !req.body.field || req.body.value === undefined || req.body.value === null || !req.body.id) {
-        let result : ResultMessagev2 = {
+        const result : ResultMessagev2 = {
             status: "error",
             message: "Invalid parameters"
             };
@@ -88,7 +88,7 @@ const updateDBRecord = async (req: Request, res: Response): Promise<Response> =>
         !allowedFieldNamesAndValues.some(e => e.field === req.body.field) ||
         !allowedFieldNames.includes(req.body.field)     
         ){
-            let result : ResultMessagev2 = {
+            const result : ResultMessagev2 = {
                 status: "error",
                 message: "Invalid table name or field name"
             };
@@ -98,7 +98,7 @@ const updateDBRecord = async (req: Request, res: Response): Promise<Response> =>
 
     // Check if the provided value is empty
     if (req.body.value === "" && req.body.field != "comments" || req.body.value === null || req.body.value === undefined){
-        let result : ResultMessagev2 = {
+        const result : ResultMessagev2 = {
             status: "error",
             message: req.body.field + " cannot be empty."
             };
@@ -109,7 +109,7 @@ const updateDBRecord = async (req: Request, res: Response): Promise<Response> =>
     // Update table with new value
     const update = await dbUpdate(table, req.body.field, req.body.value, "id", req.body.id);
     if (update) {
-        let result : authkeyResultMessage = {
+        const result : authkeyResultMessage = {
             status: "success",
             message: req.body.value,
             authkey: req.session.authkey
@@ -117,7 +117,7 @@ const updateDBRecord = async (req: Request, res: Response): Promise<Response> =>
         logger.info("RES -> Record updated" + " | " + getClientIp(req));
         return res.status(200).send(result);
     } else {
-        let result : ResultMessagev2 = {
+        const result : ResultMessagev2 = {
             status: "error",
             message: "Failed to update record"
             };
@@ -134,7 +134,7 @@ const resetUserPassword = async (req: Request, res: Response): Promise<Response>
     // Check header has authorization token
     const authorized = await checkAuthkey(req)
     if ( !authorized) {
-        let result : ResultMessagev2 = {
+        const result : ResultMessagev2 = {
             status: "error",
             message: "Unauthorized"
             };
@@ -144,7 +144,7 @@ const resetUserPassword = async (req: Request, res: Response): Promise<Response>
 
     // Check if the request has the required parameters
     if (!req.body.pubkey) {
-        let result : ResultMessagev2 = {
+        const result : ResultMessagev2 = {
             status: "error",
             message: "Invalid parameters"
             };
@@ -154,7 +154,7 @@ const resetUserPassword = async (req: Request, res: Response): Promise<Response>
 
     const newPass = await generateCredentials('password',false, req.body.pubkey, true)
     if (newPass == "") {
-        let result : ResultMessagev2 = {
+        const result : ResultMessagev2 = {
             status: "error",
             message: "Failed to generate new password"
             };
@@ -162,7 +162,7 @@ const resetUserPassword = async (req: Request, res: Response): Promise<Response>
         return res.status(500).send(result);
     }
 
-    let result : authkeyResultMessage = {
+    const result : authkeyResultMessage = {
         status: "success",
         message: "New password generated for " + req.body.pubkey,
         authkey: req.session.authkey
@@ -181,7 +181,7 @@ const deleteDBRecord = async (req: Request, res: Response): Promise<Response> =>
     // Check header has authorization token
     const authorized = await checkAuthkey(req)
     if ( !authorized) {
-        let result : ResultMessagev2 = {
+        const result : ResultMessagev2 = {
             status: "error",
             message: "Unauthorized"
             };
@@ -191,7 +191,7 @@ const deleteDBRecord = async (req: Request, res: Response): Promise<Response> =>
 
     // Check if the request has the required parameters
     if (!req.body.table || !req.body.id) {
-        let result : ResultMessagev2 = {
+        const result : ResultMessagev2 = {
             status: "error",
             message: "Invalid parameters"
             };
@@ -201,7 +201,7 @@ const deleteDBRecord = async (req: Request, res: Response): Promise<Response> =>
 
       // Verify that table is a string
       if (typeof req.body.table !== 'string') {
-        let result : ResultMessagev2 = {
+        const result : ResultMessagev2 = {
             status: "error",
             message: "Invalid table parameter"
         };
@@ -211,7 +211,7 @@ const deleteDBRecord = async (req: Request, res: Response): Promise<Response> =>
 
     // Verify that id is a number
     if (typeof req.body.id !== 'number') {
-        let result : ResultMessagev2 = {
+        const result : ResultMessagev2 = {
             status: "error",
             message: "Invalid id parameter"
         };
@@ -233,7 +233,7 @@ const deleteDBRecord = async (req: Request, res: Response): Promise<Response> =>
 
     // Check if the provided table name is allowed.
     if (!allowedTableNames.includes(table)){
-        let result : ResultMessagev2 = {
+        const result : ResultMessagev2 = {
             status: "error",
             message: "Invalid table name"
         };
@@ -244,7 +244,7 @@ const deleteDBRecord = async (req: Request, res: Response): Promise<Response> =>
     // Delete record from table
     const deletedRecord = await dbDelete(table, 'id', req.body.id);
     if(deletedRecord){
-        let result : authkeyResultMessage = {
+        const result : authkeyResultMessage = {
             status: "success",
             message: "Record deleted succesfully",
             authkey: req.session.authkey
@@ -252,7 +252,7 @@ const deleteDBRecord = async (req: Request, res: Response): Promise<Response> =>
         logger.info("RES -> Record deleted - id: " + req.body.id + " from table: " + table + " | " + getClientIp(req));
         return res.status(200).send(result);
     } else {
-        let result : ResultMessagev2 = {
+        const result : ResultMessagev2 = {
             status: "error",
             message: "Failed to delete record"
             };
@@ -269,7 +269,7 @@ const insertDBRecord = async (req: Request, res: Response): Promise<Response> =>
     // Check header has authorization token
     const authorized = await checkAuthkey(req)
     if ( !authorized) {
-        let result : ResultMessagev2 = {
+        const result : ResultMessagev2 = {
             status: "error",
             message: "Unauthorized"
             };
@@ -279,7 +279,7 @@ const insertDBRecord = async (req: Request, res: Response): Promise<Response> =>
 
     // Check if the request has the required parameters
     if (!req.body.table || !req.body.row) {
-        let result : ResultMessagev2 = {
+        const result : ResultMessagev2 = {
             status: "error",
             message: "Invalid parameters"
             };
@@ -314,7 +314,7 @@ const insertDBRecord = async (req: Request, res: Response): Promise<Response> =>
     });
 
     if (errorFound){
-        let result : ResultMessagev2 = {
+        const result : ResultMessagev2 = {
             status: "error",
             message: "Invalid table name or field name"
         };
@@ -334,7 +334,7 @@ const insertDBRecord = async (req: Request, res: Response): Promise<Response> =>
     // Insert records into the table
     const insert = await dbInsert(table, Object.keys(req.body.row), Object.values(req.body.row));
     if (insert === 0) {
-        let result : authkeyResultMessage = {
+        const result : authkeyResultMessage = {
             status: "error",
             message: "Failed to insert records",
             authkey: req.session.authkey
@@ -345,9 +345,9 @@ const insertDBRecord = async (req: Request, res: Response): Promise<Response> =>
 
     // If table is 'registered', we generate a new password and insert it into new created record. Then we send it to the user via DM
     if (req.body.table == "nostraddressData"){
-        let newPass = await generateCredentials('password', false, req.body.row["hex"], true)
+        const newPass = await generateCredentials('password', false, req.body.row["hex"], true)
         if (newPass == "") {
-            let result : authkeyResultMessage = {
+            const result : authkeyResultMessage = {
                 status: "error",
                 message: "Failed to generate new password",
                 authkey: req.session.authkey
@@ -358,7 +358,7 @@ const insertDBRecord = async (req: Request, res: Response): Promise<Response> =>
         logger.debug(newPass)
     }
 
-    let result : authkeyResultMessage = {
+    const result : authkeyResultMessage = {
         status: "success",
         message: insert.toString(),
         authkey: req.session.authkey
