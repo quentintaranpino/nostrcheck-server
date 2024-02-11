@@ -73,15 +73,11 @@ const Uploadmedia = async (req: Request, res: Response, version:string): Promise
 	logger.info("pubkey ->", pubkey, "|", getClientIp(req));
 
 	//Parse upload type. If not defined, default is "media"
-	let media_type : string = await ParseMediaType(req, pubkey);
+	const media_type : string = await ParseMediaType(req, pubkey);
 	logger.info("type ->", media_type, "|", getClientIp(req));
 
 	//Check if file exist on request body
-	const files : any | Express.Multer.File[] = req.files;
-	let file: Express.Multer.File;
-	try{
-		file = req.file? req.file : files[0];
-	}catch(error){
+	if (!req.files || req.files == undefined || req.files.length == 0) {
 		logger.warn(`RES -> 400 Bad request - Empty file`, "|", getClientIp(req));
 
 		//v0 and v1 compatibility
@@ -92,9 +88,12 @@ const Uploadmedia = async (req: Request, res: Response, version:string): Promise
 			message: "Empty file"
 		};
 		return res.status(400).send(result);
-	}
 	
-	req.file = file;
+	}
+	let file: Express.Multer.File | null = null;
+	if (Array.isArray(req.files) && req.files.length > 0) {
+		file = req.files[0];
+	}
 
 	if (!file) {
 		logger.warn(`RES -> 400 Bad request - Empty file`, "|", getClientIp(req));
@@ -354,7 +353,7 @@ const GetMediaStatusbyID = async (req: Request, res: Response, version:string): 
 
 	const servername = "https://" + req.hostname;
 
-	let id = req.params.id || req.query.id || "";
+	const id = req.params.id || req.query.id || "";
 	if (!id) {
 		logger.warn(`RES -> 400 Bad request - missing id`, "|", getClientIp(req));
 
@@ -400,7 +399,7 @@ const GetMediaStatusbyID = async (req: Request, res: Response, version:string): 
 	db.end();
 
 	//Generate filedata
-	let filedata : ProcessingFileData = {
+	const filedata : ProcessingFileData = {
 		filename: rowstemp[0].filename,
 		width: rowstemp[0].dimensions?.toString().split("x")[0],
 		height: rowstemp[0].dimensions?.toString().split("x")[1],
@@ -443,7 +442,7 @@ const GetMediaStatusbyID = async (req: Request, res: Response, version:string): 
 		resultstatus = false;
 		response = 200;
 	}
-	let tags = await GetFileTags(rowstemp[0].id);
+	const tags = await GetFileTags(rowstemp[0].id);
 
 	logger.info(`RES -> ${response} - ${filedata.description}`, "|", getClientIp(req));
 
@@ -469,7 +468,7 @@ const GetMediaStatusbyID = async (req: Request, res: Response, version:string): 
 		//Select mediafiles table for percentage
 		const db = await connect("GetMediaStatusbyID");
 		const [dbResult] = await db.query("SELECT percentage FROM mediafiles WHERE id = ?", [id]);
-		let rowstemp = JSON.parse(JSON.stringify(dbResult));
+		const rowstemp = JSON.parse(JSON.stringify(dbResult));
 		if (rowstemp[0] == undefined) {
 			logger.error(`File not found in database: ${id}`, "|", getClientIp(req));
 
@@ -527,12 +526,12 @@ const getMediabyURL = async (req: Request, res: Response) => {
 	}
 
 	// mediaPath checks
-	let mediaPath = path.normalize(path.resolve(config.get("media.mediaPath")));
+	const mediaPath = path.normalize(path.resolve(config.get("media.mediaPath")));
 	if (!mediaPath) {
 		logger.error(`RES Media URL -> 500 Internal Server Error - mediaPath not set`, "|", getClientIp(req));
 		return returnNotFoundMediaFile(req, res);
 	}
-	let fileName = path.normalize(path.resolve(mediaPath + "/" + req.params.username + "/" + req.params.filename));
+	const fileName = path.normalize(path.resolve(mediaPath + "/" + req.params.username + "/" + req.params.filename));
 	logger.info(`RES Media URL -> username: ${req.params.username} | filename: ${fileName}`, "|", getClientIp(req));
 
 	// Try to prevent directory traversal attacks
@@ -543,7 +542,7 @@ const getMediabyURL = async (req: Request, res: Response) => {
 
 	// file extension checks and media type
 	const ext = path.extname(fileName).slice(1);
-	const mediaType: string = mediaTypes.hasOwnProperty(ext) ? mediaTypes[ext] : 'text/html';
+	const mediaType: string = Object.prototype.hasOwnProperty.call(mediaTypes, ext) ? mediaTypes[ext] : 'text/html';
 
 	// Check if file exist on the filesystem and is active on the database
 	fs.readFile(fileName, async (err, data) => {
@@ -565,7 +564,7 @@ const getMediabyURL = async (req: Request, res: Response) => {
 
 const returnNotFoundMediaFile = async (req: Request, res: Response) => {
 	// If file not found, return not found media file
-	let notFoundPath = path.normalize(path.resolve(config.get("media.notFoundFilePath")));
+	const notFoundPath = path.normalize(path.resolve(config.get("media.notFoundFilePath")));
 	fs.readFile(notFoundPath, async (err, data) => {
 		if (err) {
 			logger.error(`RES -> 404 Not Found - ${req.url}`, "| Not found media file not found.", getClientIp(req));
@@ -593,7 +592,7 @@ const GetMediaTagsbyID = async (req: Request, res: Response): Promise<Response> 
 	try {
 		const conn = await connect("GetMediaTagsbyID");
 		const [rows] = await conn.execute("SELECT tag FROM mediatags INNER JOIN mediafiles ON mediatags.fileid = mediafiles.id where fileid = ? and pubkey = ? ", [req.params.fileId, EventHeader.pubkey]);
-		let rowstemp = JSON.parse(JSON.stringify(rows));
+		const rowstemp = JSON.parse(JSON.stringify(rows));
 
 		if (rowstemp[0] !== undefined) {
 			conn.end();
@@ -603,7 +602,7 @@ const GetMediaTagsbyID = async (req: Request, res: Response): Promise<Response> 
 			//If not found, try with public server pubkey
 			logger.info("Media tag list not found, trying with public server pubkey", "|", getClientIp(req));
 			const [Publicrows] = await conn.execute("SELECT tag FROM mediatags INNER JOIN mediafiles ON mediatags.fileid = mediafiles.id where fileid = ? and pubkey = ?", [req.params.fileId, app.get("server.pubkey")]);
-			let Publicrowstemp = JSON.parse(JSON.stringify(Publicrows));
+			const Publicrowstemp = JSON.parse(JSON.stringify(Publicrows));
 			if (Publicrowstemp[0] !== undefined) {
 				conn.end();
 				logger.info("RES -> Media tag list ", "|", getClientIp(req));
@@ -637,7 +636,7 @@ const GetMediabyTags = async (req: Request, res: Response): Promise<Response> =>
 	try {
 		const conn = await connect("GetMediabyTags");
 		const [rows] = await conn.execute("SELECT mediafiles.id, mediafiles.filename, registered.username, mediafiles.pubkey, mediafiles.status FROM mediatags INNER JOIN mediafiles ON mediatags.fileid = mediafiles.id INNER JOIN registered ON mediafiles.pubkey = registered.hex where tag = ? and mediafiles.pubkey = ? ", [req.params.tag, EventHeader.pubkey]);
-		let rowstemp = JSON.parse(JSON.stringify(rows));
+		const rowstemp = JSON.parse(JSON.stringify(rows));
 
 		if (rowstemp[0] !== undefined) {
 			conn.end();
@@ -653,7 +652,7 @@ const GetMediabyTags = async (req: Request, res: Response): Promise<Response> =>
 			//If not found, try with public server pubkey
 			logger.info("Media files for specified tag not found, trying with public server pubkey", "|", getClientIp(req));
 			const [Publicrows] = await conn.execute("SELECT mediafiles.id, mediafiles.filename, registered.username, mediafiles.pubkey, mediafiles.status FROM mediatags INNER JOIN mediafiles ON mediatags.fileid = mediafiles.id INNER JOIN registered ON mediafiles.pubkey = registered.hex where tag = ? and mediafiles.pubkey = ?", [req.params.tag, app.get("server.pubkey")]);
-			let Publicrowstemp = JSON.parse(JSON.stringify(Publicrows));
+			const Publicrowstemp = JSON.parse(JSON.stringify(Publicrows));
 			if (Publicrowstemp[0] !== undefined) {
 				conn.end();
 				logger.info("RES -> Media files for specified tag ", "|", getClientIp(req));
@@ -713,7 +712,7 @@ const UpdateMediaVisibility = async (req: Request, res: Response): Promise<Respo
 	try {
 		const conn = await connect("UpdateMediaVisibility");
 		const [rows] = await conn.execute("UPDATE mediafiles SET visibility = ? WHERE id = ? and pubkey = ?", [req.params.visibility, req.params.fileId, EventHeader.pubkey]);
-		let rowstemp = JSON.parse(JSON.stringify(rows));
+		const rowstemp = JSON.parse(JSON.stringify(rows));
 		conn.end();
 		if (rowstemp.affectedRows !== 0) {
 			logger.info("RES -> Media visibility updated:", req.params.visibility, "|", getClientIp(req));
@@ -744,13 +743,12 @@ const UpdateMediaVisibility = async (req: Request, res: Response): Promise<Respo
 
 };
 
-
 const DeleteMedia = async (req: Request, res: Response, version:string): Promise<Response> => {
 
 	const servername = req.hostname;
-	let fileId = req.params.fileId;
+	const fileId = req.params.fileId;
 	let filehash = "";
-	let mediafiles = [];
+	const mediafiles = [];
 	let username = "";
 
 	logger.info("REQ Delete mediafile ->", servername, "|", getClientIp(req));
@@ -769,7 +767,7 @@ const DeleteMedia = async (req: Request, res: Response, version:string): Promise
 	if (version === "v1"){
 
 		//Check if fileId is a number
-		if (isNaN(fileId as any)) {
+		if (isNaN(+fileId)) {
 			logger.warn("RES -> 400 Bad request - fileId is not a number", "|", getClientIp(req));
 			const result: ResultMessage = {
 				result: false,
@@ -794,10 +792,10 @@ const DeleteMedia = async (req: Request, res: Response, version:string): Promise
 			try {
 				const conn = await connect("DeleteMedia");
 				const [rows] = await conn.execute("SELECT hex FROM registered WHERE apikey = ?", [req.query.apikey || req.body.apikey]);
-				let rowstemp = JSON.parse(JSON.stringify(rows));
+				const rowstemp = JSON.parse(JSON.stringify(rows));
 				conn.end();
 				if (rowstemp.length !== 0) {
-					let pubkey = rowstemp[0].hex;
+					const pubkey = rowstemp[0].hex;
 					if (pubkey == app.get("server.pubkey")){
 						//We don't authorize server apikey for deletion
 						logger.warn("RES -> 400 Bad request - apikey not allowed for deletion", "|", getClientIp(req));
@@ -849,7 +847,7 @@ const DeleteMedia = async (req: Request, res: Response, version:string): Promise
 			DeleteSelect,
 			[EventHeader.pubkey, fileId]
 		);
-		let rowstemp = JSON.parse(JSON.stringify(rows));
+		const rowstemp = JSON.parse(JSON.stringify(rows));
 		conn.end();
 		if (rowstemp[0] == undefined) {
 			logger.warn("RES Delete Mediafile -> 404 Not found", "|", getClientIp(req));
@@ -919,7 +917,7 @@ const DeleteMedia = async (req: Request, res: Response, version:string): Promise
 		const [rows] = await conn.execute(
 			"DELETE FROM mediafiles WHERE hash = ? and pubkey = ?", [filehash, EventHeader.pubkey]
 		);
-		let rowstemp = JSON.parse(JSON.stringify(rows));
+		const rowstemp = JSON.parse(JSON.stringify(rows));
 		conn.end();
 		if (rowstemp.affectedRows == 0) {
 			logger.warn("RES Delete Mediafile -> 404 Not found", "|", getClientIp(req));

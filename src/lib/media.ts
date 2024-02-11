@@ -14,19 +14,22 @@ import crypto from "crypto";
 import { getClientIp } from "./server.js";
 import { CreateMagnet } from "./torrent.js";
 
-const requestQueue: queueAsPromised<any> = fastq.promise(PrepareFile, 1); //number of workers for the queue
-
-async function PrepareFile(t: asyncTask): Promise<void> {
+const PrepareFile = async (t: asyncTask): Promise<void> =>{
 
 	//Show queue status
 	logger.info(`Processing item, queue size = ${requestQueue.length() +1}`);
 
-	if (!t.req.file) {
+	if (!Array.isArray(t.req.files) || t.req.files.length == 0) {
+		logger.error("ERR -> Preparing file for conversion, empty file");
+		return;
+
+	}
+	if (!t.req.files[0]) {
 		logger.error("ERR -> Preparing file for conversion, empty file");
 		return;
 	}
 
-	if (!t.req.file.mimetype) {
+	if (!t.req.files[0].mimetype) {
 		logger.error("ERR -> Preparing file for conversion, empty mimetype");
 		return;
 	}
@@ -44,24 +47,26 @@ async function PrepareFile(t: asyncTask): Promise<void> {
 	logger.info(
 		"Processing file",
 		":",
-		t.req.file.originalname,
+		t.req.files[0].originalname,
 		"=>",
 		`${t.filedata.filename}`
 	);
 
-	await convertFile(t.req.file, t.filedata, 0);
+	await convertFile(t.req.files[0], t.filedata, 0);
 
 }
 
-async function convertFile(	inputFile: any,	options: ProcessingFileData,retry:number = 0): Promise<boolean> {
+const requestQueue: queueAsPromised<asyncTask> = fastq.promise(PrepareFile, 1); //number of workers for the queue
+
+
+const convertFile = async(	inputFile: Express.Multer.File,	options: ProcessingFileData,retry:number = 0): Promise<boolean> =>{
 
 	if (retry > 5) {return false}
 
 	const TempPath = config.get("media.tempPath") + crypto.randomBytes(8).toString('hex') + options.filename;
 
 	logger.info("Using temp path:", TempPath);
-	let NewDimensions = setMediaDimensions(TempPath, options);
-	let result = new Promise(async(resolve, reject) => {
+	const result = new Promise(async(resolve, reject) => {
 
 		//We write the file on filesystem because ffmpeg doesn't support streams.
 		fs.writeFile(TempPath, inputFile.buffer, function (err) {
@@ -83,21 +88,9 @@ async function convertFile(	inputFile: any,	options: ProcessingFileData,retry:nu
 
 		let MediaDuration: number = 0;
 		let ConversionDuration : number = 0;
-		let newfiledimensions = (await NewDimensions).toString()
+		const newfiledimensions = (await setMediaDimensions(TempPath, options)).toString()
 
-		let ConversionEngine = ffmpeg(TempPath)
-			.outputOption(["-loop 0"]) //Always loop. If is an image it will not apply.
-			.setSize(newfiledimensions)
-			.output(MediaPath)
-			.toFormat(options.filename.split(".").pop() || "")
-
-		if (options.filename.split(".").pop() == "webp" && options.originalmime != "image/gif") {
-			ConversionEngine.frames(1); //Fix IOS issue when uploading some portrait images.
-		}
-			
-		if (options.outputoptions != "") {
-			ConversionEngine.outputOptions(options.outputoptions)
-		}
+		const ConversionEngine = initConversionEngine(TempPath, MediaPath, newfiledimensions, options);
 
 		ConversionEngine
 			.on("end", async(end) => {
@@ -131,7 +124,7 @@ async function convertFile(	inputFile: any,	options: ProcessingFileData,retry:nu
 
 				if (retry > 5){
 					logger.error(`Error converting file after 5 retries: ${inputFile.originalname}`);
-					const errorstate =  await dbUpdate('mediafiles','status','error','id', options.fileid);;
+					const errorstate =  await dbUpdate('mediafiles','status','error','id', options.fileid);
 					if (!errorstate) {
 						logger.error("Could not update table mediafiles, id: " + options.fileid, "status: failed");
 					}
@@ -169,6 +162,26 @@ async function convertFile(	inputFile: any,	options: ProcessingFileData,retry:nu
 
 	return result.then(() => true).catch(() => false);
 	
+}
+
+
+const initConversionEngine = (TempPath: string, MediaPath: string, newfiledimensions: string, options: ProcessingFileData) => {
+
+    const ffmpegEngine = ffmpeg(TempPath)
+        .outputOption(["-loop 0"]) //Always loop. If is an image it will not apply.
+        .setSize(newfiledimensions)
+        .output(MediaPath)
+        .toFormat(options.filename.split(".").pop() || "");
+
+    if (options.filename.split(".").pop() == "webp" && options.originalmime != "image/gif") {
+        ffmpegEngine.frames(1); //Fix IOS issue when uploading some portrait images.
+    }
+
+    if (options.outputoptions != "") {
+        ffmpegEngine.outputOptions(options.outputoptions)
+    }
+
+    return ffmpegEngine;
 }
 
 const ParseMediaType = (req : Request, pubkey : string): string  => {
@@ -229,7 +242,7 @@ const ParseFileType = async (req: Request, file :Express.Multer.File): Promise<s
 
 const GetFileTags = async (fileid: string): Promise<string[]> => {
 
-	let tags = [];
+	const tags = [];
 	
 	const dbTags = await connect("GetFileTags");
 	try{
@@ -293,11 +306,12 @@ async function setMediaDimensions(file:string, options:ProcessingFileData):Promi
 			return;
 		} else {
 		
-			let mediaWidth = metadata.streams[0].width;
-			let mediaHeight = metadata.streams[0].height;
+			const mediaWidth = metadata.streams[0].width;
+			const mediaHeight = metadata.streams[0].height;
 			let newWidth = options.width;
 			let newHeight = options.height;
 
+			
 			if (!mediaWidth || !mediaHeight) {
 				logger.warn("Could not get media dimensions of file: " + options.filename + " using default min width (640px)");
 				resolve("640x480"); //Default min width
@@ -306,14 +320,14 @@ async function setMediaDimensions(file:string, options:ProcessingFileData):Promi
 
 			if (mediaWidth > newWidth || mediaHeight > newHeight) {
 				if (mediaWidth > mediaHeight) {
-				  newHeight = (mediaHeight / mediaWidth) * newWidth;
-				} else {
-				  newWidth = (mediaWidth / mediaHeight) * newHeight;
+					newHeight = (mediaHeight / mediaWidth) * newWidth;
+				}else{
+					newWidth = (mediaWidth / mediaHeight) * newHeight;
 				}
-			  }else{
+			}else{
 				newWidth = mediaWidth;
 				newHeight = mediaHeight;
-			  }
+			}
 
 			//newHeigt truncated to 0 decimals
 			newWidth = Math.trunc(+newWidth);
