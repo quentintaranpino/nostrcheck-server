@@ -9,9 +9,9 @@ import { rateLimit } from 'express-rate-limit'
 
 declare module 'express-session' {
 	interface Session {
-	   identifier: string;
+       identifier: string;
        authkey: string;
-	 }
+    }
 }
 
 const initSession = async (app:Application): Promise<void> => {

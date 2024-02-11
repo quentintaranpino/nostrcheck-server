@@ -1,4 +1,4 @@
-import { connect, dbSelect, dbUpdate } from "../lib/database.js";
+import { dbSelect, dbUpdate } from "../lib/database.js";
 import { logger } from "./logger.js";
 import { credentialTypes } from "../interfaces/admin.js";
 import { registeredTableFields } from "../interfaces/database.js";
@@ -23,23 +23,18 @@ const isPubkeyValid = async (req: Request, checkAdminPrivileges :boolean = false
 		return false;
 	}
 
-	let pubkey = req.body.pubkey || req.session.identifier;
-
+	const pubkey = req.body.pubkey || req.session.identifier;
 	logger.info("Checking if pubkey is allowed ->", pubkey)
-
-    const conn = await connect("IsAuthorizedPubkey");
 
 	let queryString : string = "SELECT hex FROM registered WHERE hex = ?";
 	if (checkAdminPrivileges) queryString = "SELECT hex FROM registered WHERE allowed = 1 and hex = ?";
     try{
 
-		let result = await dbSelect(queryString, "hex", [pubkey], registeredTableFields)
+		const result = await dbSelect(queryString, "hex", [pubkey], registeredTableFields)
 		if (result == "") {
 			return false;
 		}
-
 		if (req.session.identifier) return true;
-
 		return await verifyNIP07login(req);
 
 	}catch (error) {
@@ -56,7 +51,7 @@ const isPubkeyValid = async (req: Request, checkAdminPrivileges :boolean = false
  */
 const isUserPasswordValid = async (username:string, password:string): Promise<boolean> => {
 	try{
-		let userDBPassword = await dbSelect("SELECT password FROM registered WHERE username = ?", 
+		const userDBPassword = await dbSelect("SELECT password FROM registered WHERE username = ?", 
 								"password", 
 								[username], 
 								registeredTableFields)
@@ -81,9 +76,9 @@ const checkAuthkey = async (req: Request) : Promise<boolean> =>{
 		logger.warn("Unauthorized request, no authorization header");
 		return false
 	}
-	let hashedAuthkey = await hashString(req.headers.authorization, 'authkey');
+	const hashedAuthkey = await hashString(req.headers.authorization, 'authkey');
 	try{
-		let hex =  await dbSelect("SELECT hex FROM registered WHERE authkey = ? and allowed = ?", "hex", [hashedAuthkey,"1"], registeredTableFields)
+		const hex =  await dbSelect("SELECT hex FROM registered WHERE authkey = ? and allowed = ?", "hex", [hashedAuthkey,"1"], registeredTableFields)
 		if (hex == ""){
 			logger.warn("Unauthorized request, authkey not found")
 			return false;}
@@ -118,7 +113,7 @@ const generateCredentials = async (type: credentialTypes, returnHashed: boolean 
     try {
 
 		const credential = crypto.randomBytes(20).toString('hex');
-		let hashedCredential = await hashString(credential, type);
+		const hashedCredential = await hashString(credential, type);
 		const update = await dbUpdate("registered", type, hashedCredential, "hex", pubkey);
 		if (update){
 			logger.debug("New credential generated and saved to database");

@@ -1,33 +1,30 @@
-
-//General server functions
-
-import config from "config";
 import { logger } from "./logger.js";
-import fs from "fs";
 import path from 'path';
 import url from 'url';
 import markdownit from 'markdown-it';
 import { Application } from "express";
+import { Request } from "express";
 
-const getClientIp = (req: any) =>{
+const getClientIp = (req: Request) =>{
 
     let ip = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
-    if (ip.substr(0, 7) == "::ffff:") {
-        ip = ip.substr(7)
+    if (typeof ip === 'string' && ip.startsWith("::ffff:")) {
+        ip = ip.substring(7);
     }
     return ip;
 };
 
-function format(seconds:number):string{
+const format = (seconds:number):string =>{
 	function pad(s: number){
-	  return (s < 10 ? '0' : '') + s;
+		return (s < 10 ? '0' : '') + s;
 	}
-	var hours = Math.floor(seconds / (60*60));
-	var minutes = Math.floor(seconds % (60*60) / 60);
-	var seconds = Math.floor(seconds % 60);
+	const hours = Math.floor(seconds / (60*60));
+	const minutes = Math.floor(seconds % (60*60) / 60);
+	const secs = Math.floor(seconds % 60);
   
-	return pad(hours) + ':' + pad(minutes) + ':' + pad(seconds);
-  }
+	return pad(hours) + ':' + pad(minutes) + ':' + pad(secs);
+}
+
 const currDir = (fileUrl:string) : string =>{
     const __filename = url.fileURLToPath(fileUrl);
     return path.dirname(__filename);

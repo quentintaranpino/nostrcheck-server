@@ -101,7 +101,7 @@ const validateHash = async (input:string, hash:string): Promise<boolean> => {
   hash = hash.replace(/^\$2y(.+)$/i, '$2a$1'); // PHP old hashes compatibility
 
     try{
-      let result = await bcrypt.compare(input, hash);
+      const result = await bcrypt.compare(input, hash);
       logger.debug("Hash validation result", result);
       return result;
     }catch (error) {
