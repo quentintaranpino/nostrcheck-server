@@ -57,25 +57,9 @@ const AvailableDomains = async (req: Request, res: Response): Promise<Response> 
 
 	logger.info("REQ -> Domain list ", "|", getClientIp(req));
 
-	//Check if event authorization header is valid
-	const EventHeader = await ParseAuthEvent(req);
-	if (!EventHeader.result) {
-		logger.warn(
-			`RES -> 401 unauthorized  - ${EventHeader.description}`,
-			"|",
-			getClientIp(req)
-		);
-		const result = {
-			result: false,
-			description: EventHeader.description,
-		};
-
-		return res.status(401).send(result);
-	}
-
 	// Check header has authorization token
 	const authorized = await checkAuthkey(req)
-	if ( !authorized) {
+	if ( authorized.status != "success") {
 		const result : ResultMessagev2 = {
 			status: "error",
 			message: "Unauthorized"
@@ -89,7 +73,7 @@ const AvailableDomains = async (req: Request, res: Response): Promise<Response> 
 		if (AvailableDomains !== undefined) {
 			logger.info("RES -> Domain list ", "|", getClientIp(req));
 
-			return res.status(200).send({AvailableDomains });
+			return res.status(200).send({AvailableDomains, "authkey" : authorized.authkey});
 		}
 		logger.warn("RES -> Domain list ", "|", getClientIp(req));
 
@@ -105,25 +89,9 @@ const AvailableUsers = async (req: Request, res: Response): Promise<Response> =>
 
 	logger.info("REQ -> User list from domain:", req.params.domain, "|", getClientIp(req));
 
-	//Check if event authorization header is valid
-	const EventHeader = await ParseAuthEvent(req);
-	if (!EventHeader.result) {
-		logger.warn(
-			`RES -> 401 unauthorized  - ${EventHeader.description}`,
-			"|",
-			getClientIp(req)
-		);
-		const result = {
-			result: false,
-			description: EventHeader.description,
-		};
-
-		return res.status(401).send(result);
-	}
-
 	// Check header has authorization token
 	const authorized = await checkAuthkey(req)
-	if ( !authorized) {
+	if ( authorized.status != "success") {
 		const result : ResultMessagev2 = {
 			status: "error",
 			message: "Unauthorized"
@@ -140,7 +108,7 @@ const AvailableUsers = async (req: Request, res: Response): Promise<Response> =>
 		}
 
 		logger.info("RES -> User list ", "|", getClientIp(req));
-		return res.status(200).send({ [req.params.domain]: AvailableUsers });
+		return res.status(200).send({ [req.params.domain]: AvailableUsers, "authkey" : authorized.authkey});
 		
 	} catch (error) {
 		logger.error(error);
@@ -154,9 +122,16 @@ const UpdateUserDomain = async (req: Request, res: Response): Promise<Response> 
 	const servername = req.hostname;
 	const domain = req.params.domain;
 
-	//Check if event authorization header is valid (NIP98) or if apikey is valid (v0)
-	const EventHeader = await ParseAuthEvent(req);
-	if (!EventHeader.result) {return res.status(401).send({"result": EventHeader.result, "description" : EventHeader.description});}
+	// Check header has authorization token
+	const authorized = await checkAuthkey(req)
+	if ( authorized.status != "success") {
+		const result : ResultMessagev2 = {
+			status: "error",
+			message: "Unauthorized"
+			};
+		logger.error("RES -> Unauthorized" + " | " + getClientIp(req));
+		return res.status(401).send(result);
+	}
 
 	//If domain is null return 400
 	if (!domain || domain.trim() == "") {

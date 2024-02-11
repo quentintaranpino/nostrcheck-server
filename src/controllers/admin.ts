@@ -29,7 +29,7 @@ const StopServer = async (req: Request, res: Response): Promise<Response> => {
 
     // Check if the request is authorized
     const authorized = await checkAuthkey(req);
-    if ( !authorized) {
+    if ( authorized.status !== "success" ) {
         const result : ResultMessagev2 = {
             status: "error",
             message: "Unauthorized"
@@ -42,7 +42,7 @@ const StopServer = async (req: Request, res: Response): Promise<Response> => {
     const result : authkeyResultMessage = {
         status: "success",
         message: "Stopping server...",
-        authkey: req.session.authkey
+        authkey: authorized.authkey
         };
     res.status(200).json(result);
     process.exit(0);
@@ -55,7 +55,7 @@ const updateDBRecord = async (req: Request, res: Response): Promise<Response> =>
 
     // Check header has authorization token
     const authorized = await checkAuthkey(req)
-    if ( !authorized) {
+    if ( authorized.status != "success") {
         const result : ResultMessagev2 = {
             status: "error",
             message: "Unauthorized"
@@ -112,7 +112,7 @@ const updateDBRecord = async (req: Request, res: Response): Promise<Response> =>
         const result : authkeyResultMessage = {
             status: "success",
             message: req.body.value,
-            authkey: req.session.authkey
+            authkey: authorized.authkey
             };
         logger.info("RES -> Record updated" + " | " + getClientIp(req));
         return res.status(200).send(result);
@@ -133,7 +133,7 @@ const resetUserPassword = async (req: Request, res: Response): Promise<Response>
     
     // Check header has authorization token
     const authorized = await checkAuthkey(req)
-    if ( !authorized) {
+    if ( authorized.status != "success") {
         const result : ResultMessagev2 = {
             status: "error",
             message: "Unauthorized"
@@ -165,7 +165,7 @@ const resetUserPassword = async (req: Request, res: Response): Promise<Response>
     const result : authkeyResultMessage = {
         status: "success",
         message: "New password generated for " + req.body.pubkey,
-        authkey: req.session.authkey
+        authkey: authorized.authkey
         };
     logger.info("RES -> New password sent to " + req.body.pubkey);
     return res.status(200).send(result);
@@ -180,7 +180,7 @@ const deleteDBRecord = async (req: Request, res: Response): Promise<Response> =>
 
     // Check header has authorization token
     const authorized = await checkAuthkey(req)
-    if ( !authorized) {
+    if ( authorized.status != "success") {
         const result : ResultMessagev2 = {
             status: "error",
             message: "Unauthorized"
@@ -247,7 +247,7 @@ const deleteDBRecord = async (req: Request, res: Response): Promise<Response> =>
         const result : authkeyResultMessage = {
             status: "success",
             message: "Record deleted succesfully",
-            authkey: req.session.authkey
+            authkey: authorized.authkey
             };
         logger.info("RES -> Record deleted - id: " + req.body.id + " from table: " + table + " | " + getClientIp(req));
         return res.status(200).send(result);
@@ -268,7 +268,7 @@ const insertDBRecord = async (req: Request, res: Response): Promise<Response> =>
 
     // Check header has authorization token
     const authorized = await checkAuthkey(req)
-    if ( !authorized) {
+    if ( authorized.status != "success") {
         const result : ResultMessagev2 = {
             status: "error",
             message: "Unauthorized"
@@ -337,7 +337,7 @@ const insertDBRecord = async (req: Request, res: Response): Promise<Response> =>
         const result : authkeyResultMessage = {
             status: "error",
             message: "Failed to insert records",
-            authkey: req.session.authkey
+            authkey: authorized.authkey
             };
         logger.error("RES -> Failed to insert records" + " | " + getClientIp(req));
         return res.status(500).send(result);

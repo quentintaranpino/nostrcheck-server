@@ -4,7 +4,6 @@ import validator from "validator";
 
 import { connect } from "../lib/database.js";
 import { logger } from "../lib/logger.js";
-import { ParseAuthEvent } from "../lib/nostr/NIP98.js";
 import { RegisterResultMessage } from "../interfaces/register.js";
 import { ResultMessagev2 } from "../interfaces/server.js";
 import { QueryAvailiableDomains } from "./domains.js";
@@ -15,28 +14,9 @@ import { getClientIp } from "../lib/server.js";
 const Registernewpubkey = async (req: Request, res: Response): Promise<Response> => {
 	logger.info("POST /api/v1/register", "|", getClientIp(req));
 
-	//Check if event authorization header is valid
-	const EventHeader = await ParseAuthEvent(req);
-	if (!EventHeader.result) {
-		logger.warn(
-			`RES -> 401 unauthorized  - ${EventHeader.description}`,
-			"|",
-			getClientIp(req)
-		);
-		const result: RegisterResultMessage = {
-			username: "",
-			pubkey: "",
-			domain: "",
-			result: false,
-			description: EventHeader.description,
-		};
-
-		return res.status(401).send(result);
-	}
-
     // Check header has authorization token
     const authorized = await checkAuthkey(req)
-    if ( !authorized) {
+    if ( authorized.status != "success") {
         const result : ResultMessagev2 = {
 			status: "error",
 			message: "Unauthorized"
@@ -309,7 +289,7 @@ const Registernewpubkey = async (req: Request, res: Response): Promise<Response>
 		description: "Success",
 	};
 
-	return res.status(200).send(result);
+	return res.status(200).send({result, "authkey": authorized.authkey});
 
 	//TODO:?MUST REFACTOR ALL CHECKS INTO NEW TS FILE
 };

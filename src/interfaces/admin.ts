@@ -18,4 +18,11 @@
 
     type credentialTypes = 'password' | 'authkey';
 
-    export { allowedTableNames, allowedFieldNames, allowedFieldNamesAndValues, credentialTypes };
+    interface checkAuthkeyResult {
+        status: string, 
+        message: string,
+        authkey: string
+    }
+    
+
+    export { allowedTableNames, allowedFieldNames, allowedFieldNamesAndValues, credentialTypes, checkAuthkeyResult };

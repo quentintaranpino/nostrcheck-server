@@ -1,6 +1,6 @@
 import { dbSelect, dbUpdate } from "../lib/database.js";
 import { logger } from "./logger.js";
-import { credentialTypes } from "../interfaces/admin.js";
+import { checkAuthkeyResult, credentialTypes } from "../interfaces/admin.js";
 import { registeredTableFields } from "../interfaces/database.js";
 import { hashString, validateHash } from "./hash.js";
 import { Request } from "express";
@@ -65,35 +65,43 @@ const isUserPasswordValid = async (username:string, password:string): Promise<bo
 
 
 /**
- * Checks if the request is authorized.
- * @param {string} authkey - The authorization key.
- * @returns {Promise<boolean>} The result of the authorization check.
+ * Verifies the authorization of a request by checking the provided authorization key.
+ * If the key is valid, a new authorization key is generated for the session.
+ * @param {Request} req - The incoming request.
+ * @returns {Promise<checkAuthkeyResult>} The result of the authorization check, including the status, a message, and the new authkey if the check was successful.
  */
-const checkAuthkey = async (req: Request) : Promise<boolean> =>{
-
+const checkAuthkey = async (req: Request) : Promise<checkAuthkeyResult> =>{
 
 	if (!req.headers.authorization) {
 		logger.warn("Unauthorized request, no authorization header");
-		return false
+		return {status: "error", message: "Unauthorized", authkey: ""};
 	}
-	const hashedAuthkey = await hashString(req.headers.authorization, 'authkey');
+	let token;
+	if (req.headers.authorization.startsWith('Bearer ')) {
+		// Remove "Bearer " from string
+		token = req.headers.authorization.split(' ')[1];
+	} else {
+		token = req.headers.authorization;
+	}
+	const hashedAuthkey = await hashString(token, 'authkey');
 	try{
 		const hex =  await dbSelect("SELECT hex FROM registered WHERE authkey = ? and allowed = ?", "hex", [hashedAuthkey,"1"], registeredTableFields)
 		if (hex == ""){
 			logger.warn("Unauthorized request, authkey not found")
-			return false;}
+			return {status: "error", message: "Unauthorized", authkey: ""};
+		}
 
 		// Generate a new authkey for each request
-		req.session.authkey = await generateCredentials('authkey',false, hex);
-		logger.debug("New authkey generated for", req.session.identifier, ":", req.session.authkey)
-		if (req.session.authkey == ""){
+		const newAuthkey = await generateCredentials('authkey',false, hex);
+		logger.debug("New authkey generated for", hex, ":", newAuthkey)
+		if (newAuthkey == ""){
 			logger.error("Failed to generate authkey for", req.session.identifier);
-			return false;
+			return {status: "error", message: "Internal server error", authkey: ""};
 		}
-		return true;
+		return {status: "success", message: "Authorized", authkey: newAuthkey};
 	}catch (error) {
 		logger.error(error);
-		return false;
+		return {status: "error", message: "Internal server error", authkey: ""};
 	}
 }
 
