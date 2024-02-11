@@ -108,7 +108,7 @@
     "compression": "gzip"
   },
   "session" : {
-    "secret": "nostrcheck",
+    "secret": "",
     "maxAge": 2592000000
   }
 }
