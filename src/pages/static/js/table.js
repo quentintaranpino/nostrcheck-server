@@ -192,6 +192,7 @@ function initButton(tableId, buttonSuffix, objectName, modaltext, field, fieldVa
 function modifyRecord(tableId, id, field, fieldValue, action = 'modify', row = null){
 
     if(row === null) {row = $(tableId).bootstrapTable('getRowByUniqueId', id)};
+    let url = "";
     if (action === 'modify') {url = "admin/updaterecord/"}
     if (action === 'remove') {url = "admin/deleterecord/"}
     if (action === 'insert') {url = "admin/insertrecord/"}
