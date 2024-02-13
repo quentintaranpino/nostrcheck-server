@@ -13,6 +13,12 @@
     "database": "nostrcheck",
     "droptables": false
   },
+  "redis": {
+    "host": "redis",
+    "port": "6379",
+    "user": "default",
+    "password": ""
+  },
   "media" : {
     "tosURL" : "",
     "maxMBfilesize": 100,
