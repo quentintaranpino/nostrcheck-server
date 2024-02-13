@@ -517,10 +517,10 @@ const getMediabyURL = async (req: Request, res: Response) => {
 	// Initial security checks
 	if (!req.params.username || 
 		req.params.username.length > 50 || 
-		!validator.matches(req.params.username, /^[a-zA-Z0-9_]+$/) ||
+		!validator.default.matches(req.params.username, /^[a-zA-Z0-9_]+$/) ||
 		!req.params.filename || 
 		req.params.filename.length > 70 ||
-		!validator.matches(req.params.filename, /^[a-zA-Z0-9_]+(\.[a-zA-Z0-9_]+)*\.[a-zA-Z0-9_]+$/)) {
+		!validator.default.matches(req.params.filename, /^[a-zA-Z0-9_]+(\.[a-zA-Z0-9_]+)*\.[a-zA-Z0-9_]+$/)) {
 		logger.warn(`RES Media URL -> 400 Bad request`, "|", getClientIp(req));
 		return returnNotFoundMediaFile(req, res);
 	}
