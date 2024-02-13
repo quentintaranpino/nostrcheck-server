@@ -58,7 +58,7 @@
     </tr>
     </thead>
 </table>
-<%- include('edit-modal', {"tableId":tableId, "fields": fields}); %>
-<%- include('message-modal', {"tableName":tableName}); %>
-<%- include('confirm-modal', {"tableName":tableName, "rows": fields}); %>
-<%- include('alert-modal', {"tableName":tableName, "rows": fields}); %>
+<%- include('edit-modal', {"objectId":tableId, "fields": fields}); %>
+<%- include('message-modal', {"objectId":tableId}); %>
+<%- include('confirm-modal', {"objectId":tableId, "rows": fields}); %>
+<%- include('alert-modal', {"objectId":tableId}); %>

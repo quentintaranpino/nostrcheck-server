@@ -1,8 +1,6 @@
 
 const initTable = (tableId, data, objectName) => {
 
-    console.log('Initializing table:', tableId)
-
     var data = JSON.parse(data)
     if (data.length == 0) {data = [{id: '-'}]} // dummy data for table creation
 
@@ -137,7 +135,6 @@ const initTable = (tableId, data, objectName) => {
             })
             .then(response => response.json())
             .then(data => {
-                console.log(data)
                 authkey = data.authkey;
                 })
             .catch((error) => {
@@ -238,7 +235,7 @@ function modifyRecord(tableId, id, field, fieldValue, action = 'modify', row = n
                     index: 0,
                     row: data.row
                 });
-                initMessageModal(tableId, "username: " + row.username + " | password: " + responseData.password, "New user created")
+                initMessageModal(tableId, "username: " + row.username + ". A new password has been sent via DM. ", "User added successfully.")
             }else {
                 let updateData = {};
                 updateData[field] = responseData.message;
