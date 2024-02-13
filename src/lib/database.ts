@@ -296,7 +296,7 @@ const dbSelectAllRecords = async (table:string, query:string): Promise<string> =
 
 async function dbSelectModuleData(module:string): Promise<string> {
 	if (module == "nostraddress"){
-		return await dbSelectAllRecords("registered", "SELECT id, active, allowed, username, pubkey, hex, domain, DATE_FORMAT(date, '%Y-%m-%d %H:%i') as date, comments FROM registered ORDER BY id DESC");
+		return await dbSelectAllRecords("registered", "SELECT id, checked, active, allowed, username, pubkey, hex, domain, DATE_FORMAT(date, '%Y-%m-%d %H:%i') as date, comments FROM registered ORDER BY id DESC");
 	}
 	if (module == "media"){
 		return await dbSelectAllRecords("mediafiles", 
