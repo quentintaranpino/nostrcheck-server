@@ -9,7 +9,7 @@ const initConfirmModal = async (objectId, ids, action, objectName) => {
     })
     alert.show();
 
-    let result = await new Promise((resolve, reject) => {
+    let result = await new Promise((resolve) => {
         $(objectId + '-confirm-modal .save-button').click(function () {
             resolve(true);
         });
@@ -35,13 +35,33 @@ const initEditModal = async (objectId, row, objectName, newRow, columns) => {
         for (var key in row) {
             if (row.hasOwnProperty(key)) {
                 if (key == 'state'){continue}
-                $(objectId + '-edit-modal .modal-body')
-                        .append('<label for="' + key + '" class="col-form-label strong">' + key + '</label><input type="text" class="form-control" id="' + key + '" placeholder="' + key + '" value="' + row[key] + '">')
-            
+
+                // Extract the link text if the value is a link
+                let keyValue = "";
+                if (typeof row[key] === 'string' && row[key].startsWith('<a')) {
+                    console.log('row[key]', row[key]);
+                    keyValue = $(row[key]).text();
+                    console.log('keyValue', keyValue);
+                } else {
+                    keyValue = row[key];
+                }
+
+                var isCheckbox = false;
+                columns.forEach(function(column) {
+                    if (column.field == key && column.class && column.class.includes('checkbox')) {
+                        isCheckbox = true;
+                    }
+                });
+                if (isCheckbox) {
+                    $(objectId + '-edit-modal .modal-body')
+                        .append('<div class="form-check form-switch mt-3 mb-2"><input type="checkbox" class="form-check-input" id="' + key + '" ' + (keyValue ? 'checked' : '') + '><label for="' + key + '" class="form-check-label strong">' + key + '</label></div>');
+                } else {
+                    $(objectId + '-edit-modal .modal-body')
+                        .append('<label for="' + key + '" class="col-form-label strong">' + key + '</label><input type="text" class="form-control" id="' + key + '" placeholder="' + key + '" value="' + keyValue + '">');
+                }
                 if (key == 'id') {
                     $('#' + key).prop('disabled', true)
                 }
-                // Search key in columns object 
                 columns.forEach(function(column) {
                     if (column.field == key) {
                         if (column.class) {
@@ -57,19 +77,10 @@ const initEditModal = async (objectId, row, objectName, newRow, columns) => {
             }
         }
 
-        // Fill modal with all row data inside a loop
-        for (var key in row) {
-            if (row.hasOwnProperty(key)) {
-                $('#' + key).val(row[key])
-            }
-        }
     })
 
     $(edit._element).on('hide.bs.modal', function () {
-        // Remove all input fields
         $(objectId + '-edit-modal .modal-body').empty();
-
-        // Remove row data
         row = {}
     });
 
@@ -82,7 +93,18 @@ const initEditModal = async (objectId, row, objectName, newRow, columns) => {
             for (var key in row) {
                 if (key == 'state'){continue}
                 if (row.hasOwnProperty(key)) {
-                    editedRow[key] = $('#' + key).val()
+                    var isCheckbox = false;
+                    // Search key in columns object 
+                    columns.forEach(function(column) {
+                        if (column.field == key && column.class && column.class.includes('checkbox')) {
+                            isCheckbox = true;
+                        }
+                    });
+                    if (isCheckbox) {
+                        editedRow[key] = $('#' + key).is(':checked') ? 1 : 0; 
+                    } else {
+                        editedRow[key] = $('#' + key).val();
+                    }
                 }
             }
             resolve(editedRow);
@@ -94,7 +116,6 @@ const initEditModal = async (objectId, row, objectName, newRow, columns) => {
 
     edit.hide();
     return result;
-
 }
 
 const initAlertModal = async (objectId, message, timeout = 3000) => {
