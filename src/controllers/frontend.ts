@@ -18,6 +18,8 @@ const loadDashboardPage = async (req: Request, res: Response, version:string): P
         req.body[key + "Data"] = await dbSelectModuleData(key);
     }
 
+    req.session.authkey = await generateCredentials('authkey', false, req.session.identifier);
+
     res.render("dashboard.ejs", {request: req});
 };
 
