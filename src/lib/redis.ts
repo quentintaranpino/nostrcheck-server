@@ -1,4 +1,5 @@
 import { createClient } from "redis";
+import config from "config";
 
 import { logger } from "../lib/logger.js";
 import { RegisteredUsernameResult } from "../interfaces/register.js";
@@ -6,10 +7,10 @@ import { LightningUsernameResult } from "../interfaces/lightning.js";
 import app from "../app.js";
 
 //Redis configuration
-const redisHost: string = app.get('redis.host');
-const redisPort: string = app.get('redis.port');
-const redisUser: string = app.get('redis.user');
-const redisPassword: string = app.get('redis.password');
+const redisHost: string = config.get('redis.host');
+const redisPort: string = config.get('redis.port');
+const redisUser: string = config.get('redis.user');
+const redisPassword: string = config.get('redis.password');
 const redisClient = createClient({ url: `redis://${redisUser}:${redisPassword}@${redisHost}:${redisPort}` });
 (async (): Promise<void> => {
 	redisClient.on("error", (error: any) =>{
