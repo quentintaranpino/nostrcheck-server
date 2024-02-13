@@ -509,8 +509,8 @@ const GetMediabyURL = async (req: Request, res: Response) => {
 		return res.status(400).send(result);
 	}
 
-	//Check if username is no longer than 50
-	if (req.params.username.length > 50) {
+	//Check if username is no longer than 64
+	if (req.params.username.length > 64) {
 		logger.warn(`RES Media URL -> 400 Bad request - username too long`, "|", getClientIp(req));
 		const result: ResultMessage = {
 			result: false,
