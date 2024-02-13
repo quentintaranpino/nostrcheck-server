@@ -330,7 +330,7 @@ async function dbSelectModuleData(module:string): Promise<string> {
 const showDBStats = async(): Promise<string> => {
 
 	const conn = await connect("showDBStats");
-	const result = [];
+	const result: string[] = [];
 
 	//Show table registered rows
 	const [dbRegisteredTable] = await conn.execute(
