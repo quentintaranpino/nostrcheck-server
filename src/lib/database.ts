@@ -311,8 +311,8 @@ async function dbSelectModuleData(module:string): Promise<string> {
 		"mediafiles.original_hash, " +
 		"mediafiles.hash, " +
 		"mediafiles.status, " +
+		"mediafiles.dimensions, " +
 		"ROUND(mediafiles.filesize / 1024 / 1024, 2) as 'filesize', " +
-		"mediafiles.filesize, " +
 		"DATE_FORMAT(mediafiles.date, '%Y-%m-%d %H:%i') as date, " +
 		"mediafiles.comments " +
 		"FROM mediafiles " +
