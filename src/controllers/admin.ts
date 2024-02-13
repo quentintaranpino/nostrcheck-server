@@ -98,9 +98,10 @@ const updateDBRecord = async (req: Request, res: Response): Promise<Response> =>
 
     // Check if the provided value is empty
     if (req.body.value === "" && req.body.field != "comments" || req.body.value === null || req.body.value === undefined){
-        const result : ResultMessagev2 = {
+        const result : authkeyResultMessage = {
             status: "error",
-            message: req.body.field + " cannot be empty."
+            message: req.body.field + " cannot be empty.",
+            authkey: authorized.authkey
             };
         logger.warn("RES -> Value is empty: " + req.body.field +  " | " + getClientIp(req));
         return res.status(400).send(result);
@@ -252,9 +253,10 @@ const deleteDBRecord = async (req: Request, res: Response): Promise<Response> =>
         logger.info("RES -> Record deleted - id: " + req.body.id + " from table: " + table + " | " + getClientIp(req));
         return res.status(200).send(result);
     } else {
-        const result : ResultMessagev2 = {
+        const result : authkeyResultMessage = {
             status: "error",
-            message: "Failed to delete record"
+            message: "Failed to delete record",
+            authkey: authorized.authkey
             };
         logger.error("RES -> Failed to delete record" + " | " + getClientIp(req));
         return res.status(500).send(result);
@@ -350,7 +352,7 @@ const insertDBRecord = async (req: Request, res: Response): Promise<Response> =>
             const result : authkeyResultMessage = {
                 status: "error",
                 message: "Failed to generate new password",
-                authkey: req.session.authkey
+                authkey: authorized.authkey
                 };
             logger.error("RES -> Failed to generate new password" + " | " + getClientIp(req));
             return res.status(500).send(result);
@@ -361,7 +363,7 @@ const insertDBRecord = async (req: Request, res: Response): Promise<Response> =>
     const result : authkeyResultMessage = {
         status: "success",
         message: insert.toString(),
-        authkey: req.session.authkey
+        authkey: authorized.authkey
         };
 
     logger.info("RES -> Records inserted" + " | " + getClientIp(req));
