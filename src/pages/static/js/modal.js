@@ -39,9 +39,7 @@ const initEditModal = async (objectId, row, objectName, newRow, columns) => {
                 // Extract the link text if the value is a link
                 let keyValue = "";
                 if (typeof row[key] === 'string' && row[key].startsWith('<a')) {
-                    console.log('row[key]', row[key]);
-                    keyValue = $(row[key]).text();
-                    console.log('keyValue', keyValue);
+                    row[key] = $(row[key]).text();
                 } else {
                     keyValue = row[key];
                 }
@@ -54,10 +52,10 @@ const initEditModal = async (objectId, row, objectName, newRow, columns) => {
                 });
                 if (isCheckbox) {
                     $(objectId + '-edit-modal .modal-body')
-                        .append('<div class="form-check form-switch mt-3 mb-2"><input type="checkbox" class="form-check-input" id="' + key + '" ' + (keyValue ? 'checked' : '') + '><label for="' + key + '" class="form-check-label strong">' + key + '</label></div>');
+                        .append('<div class="form-check form-switch mt-3 mb-2"><input type="checkbox" class="form-check-input" id="' + key + '" ' + (row[key] ? 'checked' : '') + '><label for="' + key + '" class="form-check-label strong">' + key + '</label></div>');
                 } else {
                     $(objectId + '-edit-modal .modal-body')
-                        .append('<label for="' + key + '" class="col-form-label strong">' + key + '</label><input type="text" class="form-control" id="' + key + '" placeholder="' + key + '" value="' + keyValue + '">');
+                        .append('<label for="' + key + '" class="col-form-label strong">' + key + '</label><input type="text" class="form-control" id="' + key + '" placeholder="' + key + '" value="' + row[key] + '">');
                 }
                 if (key == 'id') {
                     $('#' + key).prop('disabled', true)
@@ -100,10 +98,15 @@ const initEditModal = async (objectId, row, objectName, newRow, columns) => {
                             isCheckbox = true;
                         }
                     });
-                    if (isCheckbox) {
-                        editedRow[key] = $('#' + key).is(':checked') ? 1 : 0; 
-                    } else {
-                        editedRow[key] = $('#' + key).val();
+                    console.log('key', key, $('#' + key).val());
+                    console.log('row[key]', row[key]);
+                    if (row[key] != $('#' + key).val()) {
+                        if (isCheckbox) {
+                            editedRow[key] = $('#' + key).is(':checked') ? 1 : 0; 
+                        } else {
+                            console.log('key', key, $('#' + key).val());
+                            editedRow[key] = $('#' + key).val();
+                        }
                     }
                 }
             }

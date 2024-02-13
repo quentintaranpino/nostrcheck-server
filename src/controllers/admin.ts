@@ -74,7 +74,7 @@ const updateDBRecord = async (req: Request, res: Response): Promise<Response> =>
         return res.status(400).send(result);
     }
 
-    // Fon't show the user the real table names
+    // Don't show the user the real table names
     let table = req.body.table;
     if (req.body.table == "nostraddressData") {table = "registered";}
     if (req.body.table == "mediaData") {table = "mediafiles";}
@@ -110,6 +110,7 @@ const updateDBRecord = async (req: Request, res: Response): Promise<Response> =>
     // Update table with new value
     const update = await dbUpdate(table, req.body.field, req.body.value, "id", req.body.id);
     if (update) {
+        
         const result : authkeyResultMessage = {
             status: "success",
             message: req.body.value,
@@ -118,6 +119,8 @@ const updateDBRecord = async (req: Request, res: Response): Promise<Response> =>
         logger.info("RES -> Record updated" + " | " + getClientIp(req));
         return res.status(200).send(result);
     } else {
+        
+    logger.debug("test no")
         const result : ResultMessagev2 = {
             status: "error",
             message: "Failed to update record"
