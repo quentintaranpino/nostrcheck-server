@@ -64,6 +64,12 @@
     "database": "",
     "droptables": false
   },
+  "redis": {
+    "host": "127.0.0.1",
+    "port": "6379",
+    "user": "default",
+    "password": ""
+  },
   "media" : {
     "maxMBfilesize": 100,
     "tempPath": "tmp/",

@@ -1,19 +1,19 @@
-const initConfirmModal = async (tableId, ids, action, objectName) => {
-    var alert = new bootstrap.Modal($(tableId + '-confirm-modal'));
+const initConfirmModal = async (objectId, ids, action, objectName) => {
+    var alert = new bootstrap.Modal($(objectId + '-confirm-modal'));
 
     $(alert._element).on('show.bs.modal', function () {
-        $(tableId + '-confirm-modal .modal-body').text('Are you sure you want to ' + action + ' ' + ids.length + ' ' + objectName + (ids.length > 1 ? 's' : '') + '?');
-        if (action == 'remove')$(tableId + '-confirm-modal .modal-body').append('<br><br><strong>Warning:</strong> This action cannot be undone.');
-        if (action == 'disable')$(tableId + '-confirm-modal .modal-body').append('<br><br><strong>Attention:</strong> Disabling a record can take up to 5 minutes to become effective.');
-        $(tableId + '-confirm-modal .modal-title').text('Confirm')
+        $(objectId + '-confirm-modal .modal-body').text('Are you sure you want to ' + action + ' ' + ids.length + ' ' + objectName + (ids.length > 1 ? 's' : '') + '?');
+        if (action == 'remove')$(objectId + '-confirm-modal .modal-body').append('<br><br><strong>Warning:</strong> This action cannot be undone.');
+        if (action == 'disable')$(objectId + '-confirm-modal .modal-body').append('<br><br><strong>Attention:</strong> Disabling a record can take up to 5 minutes to become effective.');
+        $(objectId + '-confirm-modal .modal-title').text('Confirm')
     })
     alert.show();
 
-    let result = await new Promise((resolve, reject) => {
-        $(tableId + '-confirm-modal .save-button').click(function () {
+    let result = await new Promise((resolve) => {
+        $(objectId + '-confirm-modal .save-button').click(function () {
             resolve(true);
         });
-        $(tableId + '-confirm-modal .cancel-button').click(function () {
+        $(objectId + '-confirm-modal .cancel-button').click(function () {
             resolve(false);
         });
     });
@@ -23,25 +23,43 @@ const initConfirmModal = async (tableId, ids, action, objectName) => {
 
 }
 
-const initEditModal = async (tableId, row, objectName, newRow, columns) => {
+const initEditModal = async (objectId, row, objectName, newRow, columns) => {
 
-    var edit = new bootstrap.Modal($(tableId + '-edit-modal'));
+    var edit = new bootstrap.Modal($(objectId + '-edit-modal'));
 
     $(edit._element).on('show.bs.modal', function () {
 
-        $(tableId + '-edit-modal .modal-title').text(newRow ? 'Add new ' + objectName : 'Edit ' + objectName)
+        $(objectId + '-edit-modal .modal-title').text(newRow ? 'Add new ' + objectName : 'Edit ' + objectName)
 
         // Create each input field
         for (var key in row) {
             if (row.hasOwnProperty(key)) {
                 if (key == 'state'){continue}
-                $(tableId + '-edit-modal .modal-body')
-                        .append('<label for="' + key + '" class="col-form-label strong">' + key + '</label><input type="text" class="form-control" id="' + key + '" placeholder="' + key + '" value="' + row[key] + '">')
-            
+
+                // Extract the link text if the value is a link
+                let keyValue = "";
+                if (typeof row[key] === 'string' && row[key].startsWith('<a')) {
+                    row[key] = $(row[key]).text();
+                } else {
+                    keyValue = row[key];
+                }
+
+                var isCheckbox = false;
+                columns.forEach(function(column) {
+                    if (column.field == key && column.class && column.class.includes('checkbox')) {
+                        isCheckbox = true;
+                    }
+                });
+                if (isCheckbox) {
+                    $(objectId + '-edit-modal .modal-body')
+                        .append('<div class="form-check form-switch mt-3 mb-2"><input type="checkbox" class="form-check-input" id="' + key + '" ' + (row[key] ? 'checked' : '') + '><label for="' + key + '" class="form-check-label strong">' + key + '</label></div>');
+                } else {
+                    $(objectId + '-edit-modal .modal-body')
+                        .append('<label for="' + key + '" class="col-form-label strong">' + key + '</label><input type="text" class="form-control" id="' + key + '" placeholder="' + key + '" value="' + row[key] + '">');
+                }
                 if (key == 'id') {
                     $('#' + key).prop('disabled', true)
                 }
-                // Search key in columns object 
                 columns.forEach(function(column) {
                     if (column.field == key) {
                         if (column.class) {
@@ -57,56 +75,64 @@ const initEditModal = async (tableId, row, objectName, newRow, columns) => {
             }
         }
 
-        // Fill modal with all row data inside a loop
-        for (var key in row) {
-            if (row.hasOwnProperty(key)) {
-                $('#' + key).val(row[key])
-            }
-        }
     })
 
     $(edit._element).on('hide.bs.modal', function () {
-        // Remove all input fields
-        $(tableId + '-edit-modal .modal-body').empty();
-
-        // Remove row data
+        $(objectId + '-edit-modal .modal-body').empty();
         row = {}
     });
 
     edit.show();
 
     let result = await new Promise((resolve) => {
-        $(tableId + '-edit-modal .save-button').click(function () {
+        $(objectId + '-edit-modal .save-button').click(function () {
             // Create a new row object and fill it with modal form inputs
             let editedRow = {}
             for (var key in row) {
                 if (key == 'state'){continue}
                 if (row.hasOwnProperty(key)) {
-                    editedRow[key] = $('#' + key).val()
+                    var isCheckbox = false;
+                    // Search key in columns object 
+                    columns.forEach(function(column) {
+                        if (column.field == key && column.class && column.class.includes('checkbox')) {
+                            isCheckbox = true;
+                        }
+                    });
+                    console.log('key', key, $('#' + key).val());
+                    console.log('row[key]', row[key]);
+                    if (row[key] != $('#' + key).val()) {
+                        if (isCheckbox) {
+                            editedRow[key] = $('#' + key).is(':checked') ? 1 : 0; 
+                        } else {
+                            console.log('key', key, $('#' + key).val());
+                            editedRow[key] = $('#' + key).val();
+                        }
+                    }
                 }
             }
             resolve(editedRow);
         });
-        $(tableId + '-edit-modal .cancel-button').click(function () {
+        $(objectId + '-edit-modal .cancel-button').click(function () {
             resolve(null);
         });
     });
 
     edit.hide();
     return result;
-
 }
 
-const initAlertModal = async (tableId, message, timeout = 3000) => {
-    var alert = new bootstrap.Modal($(tableId + '-alert-modal'));
+const initAlertModal = async (objectId, message, timeout = 3000) => {
+
+    console.log('initAlertModal', objectId + '-alert-modal', message, timeout);
+    var alert = new bootstrap.Modal($(objectId + '-alert-modal'));
 
     $(alert._element).on('show.bs.modal', function () {
-        $(tableId + '-alert-modal .alert ').text(message)
+        $(objectId + '-alert-modal .alert ').text(message)
     })
     alert.show();
 
     await new Promise((resolve) => {
-        $(tableId + '-alert-modal .save-button').click(function () {
+        $(objectId + '-alert-modal .save-button').click(function () {
             resolve(true);
         });
         // wait 3 seconds before closing
@@ -120,17 +146,17 @@ const initAlertModal = async (tableId, message, timeout = 3000) => {
     alert.hide();
 }
 
-const initMessageModal = async (tableId, message, title) => {
-    var alert = new bootstrap.Modal($(tableId + '-message-modal'));
+const initMessageModal = async (objectId, message, title) => {
+    var alert = new bootstrap.Modal($(objectId + '-message-modal'));
 
     $(alert._element).on('show.bs.modal', function () {
-        $(tableId + '-message-modal .modal-body').text(message);
-        $(tableId + '-message-modal .modal-title').text(title)
+        $(objectId + '-message-modal .modal-body').text(message);
+        $(objectId + '-message-modal .modal-title').text(title)
     })
     alert.show();
 
     let result = await new Promise((resolve, reject) => {
-        $(tableId + '-message-modal .save-button').click(function () {
+        $(objectId + '-message-modal .save-button').click(function () {
             resolve(true);
         });
     });

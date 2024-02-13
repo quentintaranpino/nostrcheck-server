@@ -373,6 +373,9 @@ echo "-  You can now start nostrcheck server by running 'cd nostrcheck-api-ts &&
 echo "-                                                                                         -"
 echo "-  Server documentation:                                                                  -"
 echo "-  https://github.com/quentintaranpino/nostrcheck-api-ts/blob/main/documentation.md       -" 
+echo "-                                                                                         -"
+echo "-  If you like this project, please consider donating to keep it alive:                   -"
+echo "-  https://nostrcheck.me/about/support-us.php                                             -"
 # if PUBKEY was empty show a message
 if [ -z "$PUBKEY" ]; then
 echo "-                                                                                         -"   

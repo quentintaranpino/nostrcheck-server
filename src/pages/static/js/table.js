@@ -1,8 +1,6 @@
 
 const initTable = (tableId, data, objectName) => {
 
-    console.log('Initializing table:', tableId)
-
     var data = JSON.parse(data)
     if (data.length == 0) {data = [{id: '-'}]} // dummy data for table creation
 
@@ -41,9 +39,9 @@ const initTable = (tableId, data, objectName) => {
     setFieldLinks(tableId, rows);
     $(tableId).on('page-change.bs.table', function (e, number, size) {
         // Get only the rows in the current page
-        console.log(number, size)
+        console.log(number -1 + size)
         let rows = $(tableId).bootstrapTable('getData', true);
-        setFieldLinks(tableId, rows, number);
+        setFieldLinks(tableId, rows, number -1 + size);
     });
 
     // Buttons logic
@@ -137,7 +135,6 @@ const initTable = (tableId, data, objectName) => {
             })
             .then(response => response.json())
             .then(data => {
-                console.log(data)
                 authkey = data.authkey;
                 })
             .catch((error) => {
@@ -238,7 +235,7 @@ function modifyRecord(tableId, id, field, fieldValue, action = 'modify', row = n
                     index: 0,
                     row: data.row
                 });
-                initMessageModal(tableId, "username: " + row.username + " | password: " + responseData.password, "New user created")
+                initMessageModal(tableId, "username: " + row.username + ". A new password has been sent via DM. ", "User added successfully.")
             }else {
                 let updateData = {};
                 updateData[field] = responseData.message;
@@ -259,12 +256,9 @@ function modifyRecord(tableId, id, field, fieldValue, action = 'modify', row = n
     });
 }
 
-function setFieldLinks(tableId, rows, number = 1){
+function setFieldLinks(tableId, rows, number = 0){
 
-    initNumber = $(tableId).bootstrapTable('getOptions').pageSize * (number - 1);
-    console.log("initNumber", initNumber)
-
-    for (i = 0; i < $(tableId).bootstrapTable('getOptions').pageSize; i++) {
+    for (i = number; i < number + $(tableId).bootstrapTable('getOptions').pageSize +1; i++) {
         if (rows[i] === undefined) {break}
         $(tableId).bootstrapTable('getVisibleColumns').forEach(function(column) {
             if (column.field === 'pubkey' && !rows[i].pubkey.includes('<')) {

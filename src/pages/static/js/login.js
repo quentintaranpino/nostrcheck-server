@@ -2,12 +2,10 @@
 async function logIn(type, rememberMe) {
 
     if (type === 'legacy') {
-        console.log('Legacy logIn attempt');
         await fetchServer(JSON.stringify({username: document.getElementById('username').value, password:  document.getElementById('password').value, rememberMe: rememberMe}));
     }
 
     if (type === 'nostr') {
-        console.log('NIP07 logIn attempt');
         if (!window.nostr) {console.debug('NIP07 not found');return;}
         try {
             const pubKey = await window.nostr.getPublicKey();
@@ -22,10 +20,8 @@ async function logIn(type, rememberMe) {
             };
 
             const signedEvent = JSON.stringify(await window.nostr.signEvent(event));
-            console.debug(JSON.stringify(signedEvent));
 
             if (signedEvent){
-                console.log('Login event signed, sending to API server');
                 await fetchServer(signedEvent);
             }
         } catch (error) {
@@ -40,10 +36,12 @@ async function fetchServer(data) {
         //read responsoe, no json
         console.log(response);
         if (response.status === 200){
-            console.log('Login success');
             window.location.replace('/api');
+        }else{
+            initAlertModal("#login", 'Login failed');
         }
     } catch (error) {
         console.error(error);
+        initAlertModal("#login", error);
     }
 }

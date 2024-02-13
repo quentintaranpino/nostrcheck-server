@@ -9,6 +9,12 @@ app.set("server.host", config.get('server.host'));
 app.set("server.port", config.get('server.port'));
 app.set("server.pubkey", await config.get('server.pubkey'));
 app.set("server.secretKey", await config.get('server.secretKey'));
+
+app.set("redis.host", config.get('redis.host'));
+app.set("redis.port", config.get('redis.port'));
+app.set("redis.user", config.get('redis.user'));
+app.set("redis.password", config.get('redis.password'));
+
 app.set("version", process.env.npm_package_version ?? "0.0");
 
 app.set("activeModules", await loadconfigModules());
