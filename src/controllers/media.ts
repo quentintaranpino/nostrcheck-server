@@ -258,7 +258,7 @@ const Uploadmedia = async (req: Request, res: Response, version:string): Promise
 					filedata.magnet,
 					filedata.blurhash,
 					filedata.filesize,
-					"comments",
+					"",
 				]
 			);
 
