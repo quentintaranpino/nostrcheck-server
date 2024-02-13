@@ -4,7 +4,6 @@ import config from "config";
 import { logger } from "../lib/logger.js";
 import { RegisteredUsernameResult } from "../interfaces/register.js";
 import { LightningUsernameResult } from "../interfaces/lightning.js";
-import app from "../app.js";
 
 //Redis configuration
 const redisHost: string = config.get('redis.host');
