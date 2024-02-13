@@ -1,0 +1,70 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./config:/usr/src/app/config
+      - ./resources:/usr/src/app/resources
+      - ./tmp:/usr/src/app/tmp
+      - media:/usr/src/app/media
+    restart: always
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.services.app.loadbalancer.server.port=3000"
+      - "traefik.http.routers.app.entrypoints=web"
+      # /.well-known/nostr.json -> /api/v2/nostraddress
+      - "traefik.http.routers.app-nostrjson.rule=Path(`/.well-known/nostr.json`)"
+      - "traefik.http.routers.app-nostrjson.middlewares=replacepath-nostrjson"
+      - "traefik.http.middlewares.replacepath-nostrjson.replacepath.path=/api/v2/nostraddress"
+      - "traefik.http.routers.app-nostrjson.service=app"
+      # /.well-known/nostr/nip96.json -> /api/v2/nip96
+      - "traefik.http.routers.app-nip96.rule=Path(`/.well-known/nostr/nip96.json`)"
+      - "traefik.http.routers.app-nip96.middlewares=replacepath-nip96"
+      - "traefik.http.middlewares.replacepath-nip96.replacepath.path=/api/v2/nip96"
+      - "traefik.http.routers.app-nip96.service=app"
+      # /media -> /api/v2/media
+      - "traefik.http.routers.app-media.rule=PathPrefix(`/media`)"
+      - "traefik.http.routers.app-media.middlewares=replacepathregex-media"
+      - "traefik.http.middlewares.replacepathregex-media.replacepathregex.regex=^/media/(.*)"
+      - "traefik.http.middlewares.replacepathregex-media.replacepathregex.replacement=/api/v2/media/$$1"
+      - "traefik.http.routers.app-media.service=app"
+      # /.well-known/nostr.json -> /api/v2/nostraddress
+      - "traefik.http.routers.app.rule=PathPrefix(`/`)"
+      - "traefik.http.routers.app.service=app"
+  mariadb:
+    image: mariadb:10
+    ports:
+      - "3306:3306"
+    volumes:
+      - ./data/mysql:/var/lib/mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: nostrcheck
+      MYSQL_DATABASE: nostrcheck
+      MYSQL_USER: nostrcheck
+      MYSQL_PASSWORD: nostrcheck
+  redis:
+    image: redis:6
+    ports:
+      - "6379:6379"
+    volumes:
+      - ./data/redis:/data
+    restart: always
+  traefik:
+    image: traefik:2.10
+    command:
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--entrypoints.web.address=:80"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entryPoints.web.forwardedHeaders.trustedIPs=100.64.0.0/10"
+    ports:
+      - "80:80"
+      - "8080:8080" # Traefik Dashboard
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock"
+volumes:
+  media:
