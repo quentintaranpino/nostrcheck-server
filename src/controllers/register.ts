@@ -211,8 +211,8 @@ const Registernewpubkey = async (req: Request, res: Response): Promise<Response>
 	}
 
 	//Check if username is valid
-	const IsValidUsernameCharacters = validator.default.matches(req.body.tags[0][1], /^[a-zA-Z0-9]+$/);
-	const IsValidUsernamelenght = validator.default.isLength(req.body.tags[0][1], { min: 3, max: 50 });
+	const IsValidUsernameCharacters = validator.matches(req.body.tags[0][1], /^[a-zA-Z0-9]+$/);
+	const IsValidUsernamelenght = validator.isLength(req.body.tags[0][1], { min: 3, max: 50 });
 
 	if (!IsValidUsernameCharacters || !IsValidUsernamelenght) {
 		logger.warn("RES -> 422 Bad request - Username not allowed", "|", getClientIp(req));
