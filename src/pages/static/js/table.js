@@ -39,9 +39,9 @@ const initTable = (tableId, data, objectName) => {
     setFieldLinks(tableId, rows);
     $(tableId).on('page-change.bs.table', function (e, number, size) {
         // Get only the rows in the current page
-        console.log(number, size)
+        console.log(number -1 + size)
         let rows = $(tableId).bootstrapTable('getData', true);
-        setFieldLinks(tableId, rows, number);
+        setFieldLinks(tableId, rows, number -1 + size);
     });
 
     // Buttons logic
@@ -258,10 +258,7 @@ function modifyRecord(tableId, id, field, fieldValue, action = 'modify', row = n
 
 function setFieldLinks(tableId, rows, number = 1){
 
-    initNumber = $(tableId).bootstrapTable('getOptions').pageSize * (number - 1);
-    console.log("initNumber", initNumber)
-
-    for (i = 0; i < $(tableId).bootstrapTable('getOptions').pageSize; i++) {
+    for (i = number; i < number + $(tableId).bootstrapTable('getOptions').pageSize; i++) {
         if (rows[i] === undefined) {break}
         $(tableId).bootstrapTable('getVisibleColumns').forEach(function(column) {
             if (column.field === 'pubkey' && !rows[i].pubkey.includes('<')) {
