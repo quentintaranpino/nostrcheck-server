@@ -4,6 +4,8 @@ import { frontendLogin } from "../controllers/frontend.js";
 import { logger } from "../lib/logger.js";
 import { isPubkeyValid } from "../lib/authorization.js";
 
+import { limiter } from "../lib/session.js"
+
 export const loadFrontendEndpoint = async (app: Application, version:string): Promise<void> => {
 
 	// Legacy frontend routes
@@ -18,17 +20,17 @@ export const loadFrontendEndpoint = async (app: Application, version:string): Pr
 	});
 
 	// Current v2 routes (index)
-	app.get("/api/" + version, (req, res) => {
+	app.get("/api/" + version, limiter(100), (req, res) => {
 		loadIndexPage(req,res,version);
 	});
 
 	// Login page
-	app.get("/api/" +  version + "/login", (req, res) => {
+	app.get("/api/" +  version + "/login", limiter(10), (req, res) => {
 		loadLoginPage(req,res,version);
 	});
 
 	// Login POST
-	app.post("/api/" +  version + "/login", (req, res) => {
+	app.post("/api/" +  version + "/login", limiter(5), (req, res) => {
 		frontendLogin(req,res)
 	});
 
@@ -38,7 +40,7 @@ export const loadFrontendEndpoint = async (app: Application, version:string): Pr
 	});
 
 	// Dashboard
-	app.get("/api/" +  version + "/dashboard", async (req, res) => {
+	app.get("/api/" +  version + "/dashboard", limiter(100), async (req, res) => {
 		if (req.session.identifier == null){
 			res.redirect("/api/" +  version + "/login");
 		}else if (await isPubkeyValid(req, true) == false){
