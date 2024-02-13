@@ -60,7 +60,6 @@ services:
       - "--providers.docker=true"
       - "--entrypoints.web.address=:80"
       - "--providers.docker.exposedbydefault=false"
-      - "--entryPoints.web.forwardedHeaders.trustedIPs=100.64.0.0/10"
     ports:
       - "80:80"
       - "8080:8080" # Traefik Dashboard
