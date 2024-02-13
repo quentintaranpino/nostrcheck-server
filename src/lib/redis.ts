@@ -1,6 +1,6 @@
 import { createClient } from "redis";
 
-import { logger } from "../lib/logger.js";
+import { logger } from "./logger.js";
 import { RegisteredUsernameResult } from "../interfaces/register.js";
 import { LightningUsernameResult } from "../interfaces/lightning.js";
 import app from "../app.js";
