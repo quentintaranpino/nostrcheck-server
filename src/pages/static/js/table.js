@@ -256,9 +256,9 @@ function modifyRecord(tableId, id, field, fieldValue, action = 'modify', row = n
     });
 }
 
-function setFieldLinks(tableId, rows, number = 1){
+function setFieldLinks(tableId, rows, number = 0){
 
-    for (i = number; i < number + $(tableId).bootstrapTable('getOptions').pageSize; i++) {
+    for (i = number; i < number + $(tableId).bootstrapTable('getOptions').pageSize +1; i++) {
         if (rows[i] === undefined) {break}
         $(tableId).bootstrapTable('getVisibleColumns').forEach(function(column) {
             if (column.field === 'pubkey' && !rows[i].pubkey.includes('<')) {
