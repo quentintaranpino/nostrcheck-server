@@ -34,10 +34,17 @@ const ParseAuthEvent = async (req: Request): Promise<VerifyResultMessage> => {
 
 	//Create authevent object from authorization header
 	let authevent: Event;
+	logger.debug("Parsing authorization header", req.headers.authorization, "|", req.socket.remoteAddress);
 	try {
+		let token : string;
+		if (req.headers.authorization.startsWith('Bearer ')) {
+			token = req.headers.authorization.split(' ')[1];
+		} else {
+			token = req.headers.authorization;
+		}
 		authevent = JSON.parse(
 			Buffer.from(
-				req.headers.authorization.substring(6, req.headers.authorization.length),
+				token,
 				"base64"
 			).toString("utf8")
 		);
