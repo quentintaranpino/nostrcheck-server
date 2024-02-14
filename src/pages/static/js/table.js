@@ -20,7 +20,7 @@ const initTable = (tableId, data, objectName) => {
         detailView: true,
         detailFormatter: "detailFormatter",
         dataSidePagination: "server",
-        buttons: filterButtons(),
+        buttons: initFilterButton(),
     })
 
     // Hide columns if hide is specified
@@ -144,27 +144,33 @@ const initTable = (tableId, data, objectName) => {
         }
     })
 
-    function filterButtons () {
+    // Filter buttons
+    function initFilterButton () {
         return {
             btnFilterUnchecked: {
                 text: 'Show unchecked records',
-                icon: 'bi bi-bookmark-heart-fill', // Cambia el icono dependiendo del estado
-                event: function () {
+                icon: 'bi bi-bookmark-heart-fill',
+                event: async function () {
+                    // dirty hack to force the filter to work
                     if (isFilterActive) {
-                        $(tableId).bootstrapTable('filterBy', {}); // Si el filtro está activo, lo desactivamos
+                        $(tableId).bootstrapTable('filterBy', {}); 
+                        $(tableId).bootstrapTable('filterBy', {checked: [0]}); 
+                        $(tableId).bootstrapTable('filterBy', {}); 
                     } else {
-                        $(tableId).bootstrapTable('filterBy', {checked: [0]}); // Si el filtro no está activo, lo activamos
+                        $(tableId).bootstrapTable('filterBy', {checked: [0]});
+                        $(tableId).bootstrapTable('filterBy', {}); 
+                        $(tableId).bootstrapTable('filterBy', {checked: [0]}); 
                     }
-                    isFilterActive = !isFilterActive; // Cambiamos el estado del filtro
+                    isFilterActive = !isFilterActive; 
+                    setFieldLinks(tableId);
                 },
                 attributes: {
                     title: 'Show only unchecked records',
-                    id: 'btnFilterUnchecked' // Agrega un identificador al botón
+                    id: 'btnFilterUnchecked'
                 }
             }
         }
     }
-
 }
 
 function detailFormatter(row) {
@@ -293,22 +299,21 @@ function setFieldLinks(tableId, number = 0){
             }
             if (column.field === 'filename' && !rows[i].filename.includes('<')) {
                 let filename = rows[i].filename;
+                let rowID = rows[i].id;
                 $(tableId).bootstrapTable('updateCell', {
                     index: i,
                         field: 'filename', 
-                        value: '<div id ="' + i + '_preview"><span class="cursor-zoom-in text-primary">' + rows[i].filename + '</span></div>'
+                        value: '<div id ="' + rowID + '_preview"><span class="cursor-zoom-in text-primary">' + rows[i].filename + '</span></div>'
                 });
 
-                
-                (function(i) {
-                    $(document).off("click", "#" + i + "_preview").on("click", "#" + i + "_preview", async function() {
-                        let currentRow = $(tableId).bootstrapTable('getData', true)[i]; // Obtener la fila actual
-                        let modalCheched = await initMediaModal(currentRow.username, filename, currentRow.checked);
-                        if (modalCheched != currentRow.checked) {
-                            authkey = await modifyRecord(tableId, currentRow.id, 'checked', modalCheched, 'modify');
-                        }
-                    });
-                })(i);
+                $(document).off("click", "#" + rowID + "_preview").on("click", "#" + rowID + "_preview", async function() {
+                    let currentRow = $(tableId).bootstrapTable('getData', true).find(row => row.id === rowID);
+                    console.log(currentRow, rowID, filename)
+                    let modalCheched = await initMediaModal(currentRow.username, filename, currentRow.checked);
+                    if (modalCheched != currentRow.checked) {
+                        authkey = await modifyRecord(tableId, currentRow.id, 'checked', modalCheched, 'modify');
+                    }
+                });
             }
         });
     }
