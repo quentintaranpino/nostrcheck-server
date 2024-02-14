@@ -4,6 +4,7 @@ const initTable = (tableId, data, objectName) => {
     var data = JSON.parse(data)
     if (data.length == 0) {data = [{id: '-'}]} // dummy data for table creation
 
+    let isFilterActive = false;
     $(tableId).bootstrapTable({
         data: data,
         uniqueId: 'id',
@@ -19,6 +20,7 @@ const initTable = (tableId, data, objectName) => {
         detailView: true,
         detailFormatter: "detailFormatter",
         dataSidePagination: "server",
+        buttons: filterButtons(),
     })
 
     // Hide columns if hide is specified
@@ -141,6 +143,27 @@ const initTable = (tableId, data, objectName) => {
             });
         }
     })
+
+    function filterButtons () {
+        return {
+            btnFilterUnchecked: {
+                text: 'Show unchecked records',
+                icon: 'bi bi-bookmark-heart-fill', // Cambia el icono dependiendo del estado
+                event: function () {
+                    if (isFilterActive) {
+                        $(tableId).bootstrapTable('filterBy', {}); // Si el filtro está activo, lo desactivamos
+                    } else {
+                        $(tableId).bootstrapTable('filterBy', {checked: [0]}); // Si el filtro no está activo, lo activamos
+                    }
+                    isFilterActive = !isFilterActive; // Cambiamos el estado del filtro
+                },
+                attributes: {
+                    title: 'Show only unchecked records',
+                    id: 'btnFilterUnchecked' // Agrega un identificador al botón
+                }
+            }
+        }
+    }
 
 }
 
@@ -270,16 +293,22 @@ function setFieldLinks(tableId, number = 0){
             }
             if (column.field === 'filename' && !rows[i].filename.includes('<')) {
                 let filename = rows[i].filename;
-                let username = rows[i].username;
                 $(tableId).bootstrapTable('updateCell', {
                     index: i,
                         field: 'filename', 
                         value: '<div id ="' + i + '_preview"><span class="cursor-zoom-in text-primary">' + rows[i].filename + '</span></div>'
                 });
 
-                $(document).on("click", "#" + i + "_preview", function() {
-                    initMediaModal(username, filename);
-                });
+                
+                (function(i) {
+                    $(document).off("click", "#" + i + "_preview").on("click", "#" + i + "_preview", async function() {
+                        let currentRow = $(tableId).bootstrapTable('getData', true)[i]; // Obtener la fila actual
+                        let modalCheched = await initMediaModal(currentRow.username, filename, currentRow.checked);
+                        if (modalCheched != currentRow.checked) {
+                            authkey = await modifyRecord(tableId, currentRow.id, 'checked', modalCheched, 'modify');
+                        }
+                    });
+                })(i);
             }
         });
     }

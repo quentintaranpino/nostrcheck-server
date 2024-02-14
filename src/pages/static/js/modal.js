@@ -162,9 +162,15 @@ const initMessageModal = async (objectId, message, title) => {
 
 }
 
-const initMediaModal = async (username, filename) => {
+const initMediaModal = async (username, filename, checked) => {
 
     var mediaModal = new bootstrap.Modal($('#media-modal'));
+
+    console.log(checked)
+    $('#modalSwitch').prop('checked', checked);
+    $('#modalSwitch').change(function() {
+        checked = this.checked ? 1 : 0; 
+    });
 
     if (filename.includes('.mp4')) {
         $('#media-modal .mediapreview-video').attr('src', 'media/' + username + '/' + filename);
@@ -195,12 +201,12 @@ const initMediaModal = async (username, filename) => {
     mediaModal.show();
 
     let result = await new Promise((resolve) => {
-        $('#media-modal .close-button').click(function () {
-            resolve(true);
+        $(mediaModal._element).on('hidden.bs.modal', function () {
+            // Resto de tu código...
+            resolve(checked); // Resolver la Promise con el valor del switch
         });
     });
 
-    mediaModal.hide();
-    return result;
+    return result; // Devolver el resultado de la Promise
 
 }
