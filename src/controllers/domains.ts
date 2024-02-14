@@ -33,11 +33,9 @@ const AvailableDomains = async (req: Request, res: Response): Promise<Response> 
 			return res.status(200).send({AvailableDomains, "authkey" : authorized.authkey});
 		}
 		logger.warn("RES -> Domain list ", "|", getClientIp(req));
-
 		return res.status(404).send({ "available domains": "No domains available" });
 	} catch (error) {
 		logger.error(error);
-
 		return res.status(500).send({ description: "Internal server error" });
 	}
 };
@@ -79,7 +77,7 @@ const UpdateUserDomain = async (req: Request, res: Response): Promise<Response> 
 	const servername = req.hostname;
 	const domain = req.params.domain;
 
-	//Check if event authorization header is valid (NIP98) or if apikey is valid (v0)
+	//Check if event authorization header is valid (NIP98)
 	const EventHeader = await ParseAuthEvent(req);
 	if (!EventHeader.result) {return res.status(401).send({"result": EventHeader.result, "description" : EventHeader.description});}
 
@@ -168,6 +166,5 @@ const UpdateUserDomain = async (req: Request, res: Response): Promise<Response> 
 	};
 	return res.status(200).send(result);
 };
-
 
 export { AvailableDomains, AvailableUsers, UpdateUserDomain };

@@ -31,8 +31,8 @@ const Uploadmedia = async (req: Request, res: Response, version:string): Promise
 
 	logger.info("POST /api/" + version + "/media", "|", getClientIp(req));
 
-	//Check if event authorization header is valid (NIP98) or if apikey is valid (v0)
-	const EventHeader = await ParseAuthEvent(req);
+	//Check if event authorization header is valid (NIP98)
+	const EventHeader = await ParseAuthEvent(req, "Uploadmedia");
 	if (!EventHeader.result) {
 		
 		//v0 and v1 compatibility
@@ -336,7 +336,7 @@ const GetMediaStatusbyID = async (req: Request, res: Response, version:string): 
 
 	logger.info("GET /api/" + version + "/media", "|", getClientIp(req));
 
-	//Check if event authorization header is valid (NIP98) or if apikey is valid (v0)
+	//Check if event authorization header is valid (NIP98)
 	const EventHeader = await ParseAuthEvent(req);
 	if (!EventHeader.result) {
 		
@@ -763,62 +763,27 @@ const DeleteMedia = async (req: Request, res: Response, version:string): Promise
 		return res.status(400).send(result);
 	}
 
-	// Legacy support
-	if (version === "v1"){
-
-		//Check if fileId is a number
-		if (isNaN(+fileId)) {
-			logger.warn("RES -> 400 Bad request - fileId is not a number", "|", getClientIp(req));
-			const result: ResultMessage = {
-				result: false,
-				description: "fileId must be a number",
-			};
-			return res.status(400).send(result);
-		}
-
-		//Check if fileId length is > 10
-		if (fileId.length > 10) {
-			logger.warn("RES -> 400 Bad request - fileId too long > 10", "|", getClientIp(req));
-			const result: ResultMessage = {
-				result: false,
-				description: "fileId too long",
-			};
-			return res.status(400).send(result);
-		}
-
-		//We don't allow deletions from server apikey for security reasons
-		if (req.query.apikey || req.body.apikey) {
-
-			try {
-				const conn = await connect("DeleteMedia");
-				const [rows] = await conn.execute("SELECT hex FROM registered WHERE apikey = ?", [req.query.apikey || req.body.apikey]);
-				const rowstemp = JSON.parse(JSON.stringify(rows));
-				conn.end();
-				if (rowstemp.length !== 0) {
-					const pubkey = rowstemp[0].hex;
-					if (pubkey == app.get("server.pubkey")){
-						//We don't authorize server apikey for deletion
-						logger.warn("RES -> 400 Bad request - apikey not allowed for deletion", "|", getClientIp(req));
-						const result: ResultMessage = {
-							result: false,
-							description: "apikey not allowed for deletion",
-						};
-						return res.status(400).send(result);
-					}
-				}
-			} catch (error) {
-				logger.error(error);
-				const result = {
-					result: false,
-					description: "Internal server error",
-				};
-				return res.status(500).send(result);
-			}
-		}
-
+	//Check if fileId is a number
+	if (isNaN(+fileId)) {
+		logger.warn("RES -> 400 Bad request - fileId is not a number", "|", getClientIp(req));
+		const result: ResultMessage = {
+			result: false,
+			description: "fileId must be a number",
+		};
+		return res.status(400).send(result);
 	}
-	
-	//Check if event authorization header is valid (NIP98) or if apikey is valid (v0)
+
+	//Check if fileId length is > 10
+	if (fileId.length > 10) {
+		logger.warn("RES -> 400 Bad request - fileId too long > 10", "|", getClientIp(req));
+		const result: ResultMessage = {
+			result: false,
+			description: "fileId too long",
+		};
+		return res.status(400).send(result);
+	}
+
+	//Check if event authorization header is valid (NIP98)
 	const EventHeader = await ParseAuthEvent(req);
 	if (!EventHeader.result) {
 		
@@ -841,8 +806,6 @@ const DeleteMedia = async (req: Request, res: Response, version:string): Promise
 		if (version === "v1"){
 			DeleteSelect = "SELECT mediafiles.id, mediafiles.filename, mediafiles.hash, registered.username FROM mediafiles LEFT JOIN registered on mediafiles.pubkey = registered.hex WHERE mediafiles.pubkey = ? and mediafiles.id = ?";
 		}
-		logger.debug(DeleteSelect)
-		logger.debug(fileId, EventHeader.pubkey)
 		const [rows] = await conn.execute(
 			DeleteSelect,
 			[EventHeader.pubkey, fileId]

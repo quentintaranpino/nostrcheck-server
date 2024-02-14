@@ -7,14 +7,32 @@ import { VerifyResultMessage } from "../../interfaces/verify.js";
 import { ResultMessage } from "../../interfaces/server.js";
 
 import { NIPKinds } from "../../interfaces/nostr.js";
-import { connect } from "../../lib/database.js";
+import { connect, dbSelect } from "../../lib/database.js";
+import app from "../../app.js";
+import { registeredTableFields } from "../../interfaces/database.js";
 
 //https://github.com/nostr-protocol/nips/blob/master/98.md
 
-const ParseAuthEvent = async (req: Request): Promise<VerifyResultMessage> => {
+/**
+ * Parses the authorization header and checks if it is valid.
+ * 
+ * @param req - The request object.
+ * @param endpoint - The endpoint of the request.
+ * @returns A promise that resolves to a VerifyResultMessage object.
+ */
+const ParseAuthEvent = async (req: Request, endpoint:string = ""): Promise<VerifyResultMessage> => {
 
 	//v0 compatibility, check if apikey is present on request body instead of NIP98 authorization header.
-	if (req.query.apikey || req.body.apikey) {return await CheckApiKey(req)}
+	if (req.query.apikey || req.body.apikey) {
+		 
+		const hexApikey = await CheckApiKey(req, endpoint);
+		const result: VerifyResultMessage = {
+			pubkey: "",
+			result: hexApikey ? true : false,
+			description: hexApikey ? "Apikey is valid" : "Apikey is not valid",
+		};
+		return result;
+	}
 
 	//Check if request has authorization header
 	if (req.headers.authorization === undefined) {
@@ -286,45 +304,40 @@ const CheckAuthEvent = async (authevent: Event, req: Request): Promise<ResultMes
 	return { result: true, description: "Auth header event is valid" };
 };
 
-const CheckApiKey = async (req: Request): Promise<VerifyResultMessage> => {
+/**
+ * Checks if the request has a valid apikey.
+ * 
+ * @param req - The request object.
+ * @param endpoint - The endpoint of the request.
+ * @returns A promise that resolves to a VerifyResultMessage object.
+ */
+const CheckApiKey = async (req: Request, endpoint: string = ""): Promise<boolean> => {
+	let apikey = req.query.apikey || req.body.apikey;
 
-	logger.warn("Detected apikey on query URL ", "|", req.socket.remoteAddress);
-
-	let apikey = req.query.apikey;
-	if (req.query.apikey == undefined) {apikey = req.body.apikey}
-	logger.warn("Apikey:",apikey);
-
-	//Check if apikey is valid
-	const dbApikey = await connect("CheckApiKey");
-	try{
-		const [dbResult] = await dbApikey.query("SELECT hex, username FROM registered WHERE apikey = ?", [apikey]);
-		const rowstemp = JSON.parse(JSON.stringify(dbResult));
-		dbApikey.end();
-		if (rowstemp[0] == undefined) {
-			logger.warn("RES -> 401 unauthorized - Apikey not found", "|", req.socket.remoteAddress);
-			const result: VerifyResultMessage = {
-				pubkey: "",
-				result: false,
-				description: "Apikey is deprecated, please use NIP98 header: Apikey not found"
-			};
-			return result;
-		}else{
-		logger.warn("Apikey found, setting pubkey = " + rowstemp[0].hex, "|", req.socket.remoteAddress);
-		const result: VerifyResultMessage = {
-			pubkey: rowstemp[0].hex,
-			result: true,
-			description: "Apikey is deprecated, please use NIP98 header: Apikey found"
-		};
-		return result;
-		}
-	}catch (error) {
-		logger.error("Error checking apikey", error, "|", req.socket.remoteAddress);
-		dbApikey.end();
-		const result: VerifyResultMessage = {
-			pubkey: "",
-			result: false,
-			description: "Apikey is deprecated, please use NIP98 header: Error checking apikey",
-		};
-		return result;	
+	if (!apikey) {
+		logger.warn("RES -> 400 Bad request - Apikey not found", "|", req.socket.remoteAddress);
+		return false;
 	}
+
+	logger.debug("Checking apikey", apikey, "|", req.socket.remoteAddress);
+
+	// We only allow server apikey for uploadMedia endpoint
+	const serverApikey = await dbSelect("SELECT apikey FROM registered WHERE username = ?", "apikey", ["public"], registeredTableFields);
+	const hexApikey : string = await dbSelect(
+		endpoint != "Uploadmedia"
+			? "SELECT hex FROM registered WHERE apikey = ? and apikey <> ?"
+			: "SELECT hex FROM registered WHERE apikey = ?",
+		"hex",
+		endpoint != "Uploadmedia" ? [apikey, serverApikey] : [apikey.toString()],
+		registeredTableFields
+	);
+
+	logger.debug("Apikey found, setting pubkey = " + hexApikey, "|")
+	if (hexApikey === "") {
+		logger.warn("RES -> 401 unauthorized - Apikey not found", "|", req.socket.remoteAddress);
+		return false;
+	}
+
+	logger.warn("Apikey found, setting pubkey = " + hexApikey, "|", req.socket.remoteAddress);
+	return true;
 };

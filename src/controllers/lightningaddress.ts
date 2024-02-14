@@ -116,7 +116,7 @@ const UpdateLightningAddress = async (req: Request, res: Response): Promise<Resp
 	const servername = req.hostname;
 	const lightningaddress = req.params.lightningaddress;
 
-	//Check if event authorization header is valid (NIP98) or if apikey is valid (v0)
+	//Check if event authorization header is valid (NIP98)
 	const EventHeader = await ParseAuthEvent(req);
 	if (!EventHeader.result) {return res.status(401).send({"result": EventHeader.result, "description" : EventHeader.description});}
 
