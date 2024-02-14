@@ -51,7 +51,7 @@ const loadIndexPage = async (req: Request, res: Response, version:string): Promi
 
 const frontendLogin = async (req: Request, res: Response): Promise<Response> => {
 
-    logger.info("POST /api/v1/login", "|", getClientIp(req));
+    logger.info("POST /api/v2/login", "|", getClientIp(req));
 
     if ((req.body.pubkey == "" && req.body.username) || (req.body.pubkey == "" && req.body.password == "")){
         logger.warn("RES -> 401 unauthorized  - ", getClientIp(req));
