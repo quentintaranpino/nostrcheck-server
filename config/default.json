@@ -40,7 +40,7 @@
       "domains" : {
         "enabled": true,
         "path": "/domains",
-        "methods": ["GET"],
+        "methods": ["GET", "PUT"],
         "description": "This module handle lists of registered domains and usernames."
       },
       "admin" : {
