@@ -39,7 +39,8 @@ const initTable = (tableId, data, objectName) => {
     setFieldLinks(tableId);
     $(document).on('page-change.bs.table', tableId, function (e, number, size) {
         console.log('page change');
-        setFieldLinks(tableId, number -1 + size);
+        console.log(number, size);
+        setFieldLinks(tableId, (size * number) - size );
     });
 
     // Buttons logic
@@ -285,6 +286,7 @@ function modifyRecord(tableId, id, field, fieldValue, action = 'modify', row = n
 
 function setFieldLinks(tableId, number = 0){
 
+    console.log('setFieldLinks', tableId, number)
     let rows = $(tableId).bootstrapTable('getData', true);
 
     for (i = number; i < number + $(tableId).bootstrapTable('getOptions').pageSize +1; i++) {
