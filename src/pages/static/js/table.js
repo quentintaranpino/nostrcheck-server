@@ -314,7 +314,7 @@ function setFieldLinks(tableId, number = 0){
                 $(document).off("click", "#" + rowID + "_preview").on("click", "#" + rowID + "_preview", async function() {
                     console.log(row, rowID, filename)
                     let modalCheched = await initMediaModal(row.username, filename, row.checked);
-                    if (modalCheched != currentRow.checked) {
+                    if (modalCheched != row.checked) {
                         authkey = await modifyRecord(tableId, row.id, 'checked', modalCheched, 'modify');
                     }
                 });
