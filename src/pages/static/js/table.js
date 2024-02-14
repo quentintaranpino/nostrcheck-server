@@ -316,6 +316,7 @@ function setFieldLinks(tableId, number = 0){
                     let modalCheched = await initMediaModal(row.username, filename, row.checked);
                     if (modalCheched != row.checked) {
                         authkey = await modifyRecord(tableId, row.id, 'checked', modalCheched, 'modify');
+                        setFieldLinks(tableId);
                     }
                 });
             }
