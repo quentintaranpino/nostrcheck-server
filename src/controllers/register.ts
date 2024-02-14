@@ -6,7 +6,7 @@ import { connect } from "../lib/database.js";
 import { logger } from "../lib/logger.js";
 import { RegisterResultMessage } from "../interfaces/register.js";
 import { ResultMessagev2 } from "../interfaces/server.js";
-import { QueryAvailiableDomains } from "./domains.js";
+import { QueryAvailiableDomains } from "../lib/domains.js";
 import { checkAuthkey } from "../lib/authorization.js";
 import app from "../app.js";
 import { getClientIp } from "../lib/server.js";

@@ -1,57 +1,14 @@
 import { Request, Response } from "express";
 
-import { connect } from "../lib/database.js";
 import { logger } from "../lib/logger.js";
 import { ParseAuthEvent } from "../lib/nostr/NIP98.js";
 import { checkAuthkey } from "../lib/authorization.js";
-import { AvailableDomainsResult } from "../interfaces/domains.js";
 import { ResultMessage, ResultMessagev2 } from "../interfaces/server.js";
 import { redisClient } from "../lib/redis.js";
 import { getClientIp } from "../lib/server.js";
-
-const QueryAvailiableDomains = async (): Promise<AvailableDomainsResult> => {
-	//Query database for available domains
-	try {
-		const conn = await connect("QueryAvailiableDomains");
-		const rows = await conn.execute("SELECT * from domains");
-		const rowstemp = JSON.parse(JSON.stringify(rows));
-		conn.end();
-		if (rowstemp !== undefined) {
-			const result:AvailableDomainsResult = {
-				domains:rowstemp[0],
-			};
-			return result;
-		}
-
-		return JSON.parse(JSON.stringify({ "available domains": "No domains available" }));
-	} catch (error) {
-		logger.error(error);
-
-		return JSON.parse(JSON.stringify({ description: "Internal server error" }));
-	}
-};
-
-const QueryAvailiableUsers = async (domain:string): Promise<JSON[]> => {
-
-	//Query database for available users from a domain
-	try {
-		const db = await connect("QueryAvailiableUsers");
-		const [dbResult] = await db.query("SELECT username, hex FROM registered where domain = ?", [domain]);
-		const rowstemp = JSON.parse(JSON.stringify(dbResult));
-		if (rowstemp[0] == undefined) {
-			logger.error(`No results for domain ${domain}`);
-			return JSON.parse(JSON.stringify({result: 'false', description: 'No results for domain' }));
-		}
-
-		return (rowstemp);
-
-	} catch (error) {
-		logger.error(error);
-
-		return JSON.parse(JSON.stringify({ description: "Internal server error" }));
-	}
-
-};
+import { QueryAvailiableDomains, QueryAvailiableUsers } from "../lib/domains.js";
+import { dbUpdate, dbSelect } from "../lib/database.js";
+import { registeredTableFields } from "../interfaces/database.js";
 
 const AvailableDomains = async (req: Request, res: Response): Promise<Response> => {
 
@@ -69,7 +26,7 @@ const AvailableDomains = async (req: Request, res: Response): Promise<Response> 
 	}
 
 	try {
-		const AvailableDomains: AvailableDomainsResult = await QueryAvailiableDomains();
+		const AvailableDomains = await QueryAvailiableDomains();
 		if (AvailableDomains !== undefined) {
 			logger.info("RES -> Domain list ", "|", getClientIp(req));
 
@@ -158,70 +115,59 @@ const UpdateUserDomain = async (req: Request, res: Response): Promise<Response> 
 		return res.status(400).send(result);
 	}
 
+	logger.info("REQ Update user domain ->", servername, " | pubkey:",  EventHeader.pubkey, " | domain:",  domain, "|", getClientIp(req));
+
 	//Query if domain exist
-	const CurrentDomains : AvailableDomainsResult = await QueryAvailiableDomains();
-
-	logger.debug("Current domains: ", CurrentDomains);
-
-	try {
-		const conn = await connect("UpdateUserDomain");
-		const [rows] = await conn.execute(
-			"UPDATE registered SET domain = ? WHERE hex = ?",
-			[domain, EventHeader.pubkey]
-		);
-		const rowstemp = JSON.parse(JSON.stringify(rows));
-		conn.end();
-		if (rowstemp.affectedRows == 0) {
-			
-			logger.warn("RES Update user domain -> 404  not found, can't update user domain", "|", getClientIp(req));
-
-			const result: ResultMessage = {
-				result: false,
-				description: "Can't update user domain, contact administrator",
-			};
-
-			return res.status(404).send(result);
-		}
-
-	}
-	catch (error) {
-		logger.error(error);
+	const CurrentDomains = await QueryAvailiableDomains();
+	logger.debug("Current domains: ", CurrentDomains.join(", "));
+	if (!CurrentDomains.includes(domain)) {
+		logger.warn("RES Update user domain -> 404  not found, domain not found", "|", getClientIp(req));
 
 		const result: ResultMessage = {
 			result: false,
-			description: "Internal server error",
+			description: "Domain not found",
 		};
 
+		return res.status(404).send(result);
+	}
+
+	try {
+		const updateUserDomain = await dbUpdate("registered","domain",domain,"hex",EventHeader.pubkey);
+		if (!updateUserDomain) {
+			logger.warn("RES Update user domain -> 404  not found, can't update user domain", "|", getClientIp(req));
+			const result: ResultMessagev2 = {
+				status: "error",
+				message: "Can't update user domain, contact administrator",
+			};
+			return res.status(404).send(result);
+		}
+	}
+	catch (error) {
+		logger.error(error);
+		const result: ResultMessagev2 = {
+			status: "error",
+			message: "Internal server error",
+		};
 		return res.status(500).send(result);
 	}
 
-	//select domain from database
-	const conn = await connect("UpdateUserDomain");
-	const [rows] = await conn.execute(
-		"SELECT username, domain FROM registered WHERE hex = ?",
-		[EventHeader.pubkey]
-	);
-	const rowstemp = JSON.parse(JSON.stringify(rows));
-	conn.end();
-	if (rowstemp[0] != undefined) {
-
-		//Delete redis cache
-		const deletecache = await redisClient.del(rowstemp[0].username + "-" + rowstemp[0].domain);
+	//select username and domain from database for redis cache delete
+	const selectUsername = await dbSelect("SELECT username FROM registered WHERE hex = ?", "username", [EventHeader.pubkey],registeredTableFields);
+	const selectDomain = await dbSelect("SELECT domain FROM registered WHERE hex = ?", "domain", [EventHeader.pubkey],registeredTableFields);
+	if (selectUsername != undefined && selectDomain != undefined) {
+		const deletecache = await redisClient.del(selectUsername + "-" + selectDomain);
 		if (deletecache != 0) {
-			logger.info("Update user domain ->", EventHeader.pubkey, "|", "Redis cache cleared");
+			logger.debug("Update user domain ->", EventHeader.pubkey, "|", "Redis cache cleared");
 		}
 	}
 
 	logger.info("RES Update user domain ->", servername, " | pubkey:",  EventHeader.pubkey, " | domain:",  domain, "|", "User domain updated", "|", getClientIp(req));
-
-	const result: ResultMessage = {
-		result: true,
-		description: `User domain for pubkey ${EventHeader.pubkey} updated`,
+	const result: ResultMessagev2 = {
+		status: "success",
+		message: `User domain for pubkey ${EventHeader.pubkey} updated`,
 	};
-
 	return res.status(200).send(result);
-
 };
 
 
-export { AvailableDomains, QueryAvailiableDomains, AvailableUsers, UpdateUserDomain };
+export { AvailableDomains, AvailableUsers, UpdateUserDomain };
