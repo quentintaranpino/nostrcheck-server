@@ -5,6 +5,13 @@ import { initRelays } from "./relays.js";
 import { NIP04_event } from "../../interfaces/nostr.js";
 import app from "../../app.js";
 
+/**
+ * Sends a message to a specified public key.
+ * 
+ * @param message - The message to be sent.
+ * @param sendToPubkey - The public key of the recipient.
+ * @returns A promise that resolves to a boolean indicating whether the message was sent successfully.
+ */
 const sendMessage = async (message: string, sendToPubkey : string) : Promise<boolean> => {
 
     const sk : string = app.get('server.secretKey');

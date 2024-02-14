@@ -1,10 +1,7 @@
 import { createPool, Pool,RowDataPacket } from "mysql2/promise";
 import config from "config";
 import { logger } from "./logger.js";
-import { 
-	newFieldcompatibility, 
-	registeredTableFields,
-	databaseTables} from "../interfaces/database.js";
+import { newFieldcompatibility, registeredTableFields,databaseTables} from "../interfaces/database.js";
 import { updateLocalConfigKey } from "./config.js";
 import { exit } from "process";
 import { npubEncode } from "nostr-tools/nip19";
@@ -18,7 +15,6 @@ async function connect(source:string): Promise<Pool> {
 	const DatabaseUser :string  	 = config.get('database.user');
 	const DatabasePassword :string 	 = config.get('database.password');
 	const Database :string  		 = config.get('database.database');
-
 
 	try{
 		const connection = await createPool({
@@ -174,6 +170,16 @@ async function checkDatabaseConsistency(table: string, column_name:string, type:
 	}
 }
 
+/**
+ * Updates a record in the database table.
+ * 
+ * @param tableName - The name of the table to update.
+ * @param selectFieldName - The name of the field to update.
+ * @param selectFieldValue - The new value for the field.
+ * @param whereFieldName - The name of the field to use in the WHERE clause.
+ * @param whereFieldValue - The value of the field to use in the WHERE clause.
+ * @returns A Promise that resolves to a boolean indicating whether the update was successful.
+ */
 const dbUpdate = async (tableName :string, selectFieldName: string, selectFieldValue: string, whereFieldName :string, whereFieldValue: string): Promise<boolean> =>{
 
 	const conn = await connect("dbFileFieldUpdate: " + selectFieldName + " | Table: " + tableName);
@@ -196,6 +202,15 @@ const dbUpdate = async (tableName :string, selectFieldName: string, selectFieldV
 	}
 }
 
+
+/**
+ * Inserts data into the specified table in the database.
+ * 
+ * @param tableName - The name of the table to insert data into.
+ * @param fields - An array of field names in the table.
+ * @param values - An array of values to insert into the table.
+ * @returns A Promise that resolves to the ID of the inserted record, or 0 if an error occurred.
+ */
 const dbInsert = async (tableName :string, fields: string[], values: string[]): Promise<number> =>{
 	const conn = await connect("dbInsert:" + tableName);
 
@@ -242,8 +257,6 @@ const dbSelect = async (queryStatement: string, returnField :string, whereFields
 		return "";
 	}
 }
-
-
 
 const dbDelete = async (tableName :string, whereFieldName :string, whereFieldValue: string): Promise<boolean> =>{
 	const conn = await connect("dbDelete:" + tableName);
