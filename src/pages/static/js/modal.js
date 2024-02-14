@@ -98,13 +98,10 @@ const initEditModal = async (objectId, row, objectName, newRow, columns) => {
                             isCheckbox = true;
                         }
                     });
-                    console.log('key', key, $('#' + key).val());
-                    console.log('row[key]', row[key]);
                     if (row[key] != $('#' + key).val()) {
                         if (isCheckbox) {
                             editedRow[key] = $('#' + key).is(':checked') ? 1 : 0; 
                         } else {
-                            console.log('key', key, $('#' + key).val());
                             editedRow[key] = $('#' + key).val();
                         }
                     }
@@ -123,7 +120,6 @@ const initEditModal = async (objectId, row, objectName, newRow, columns) => {
 
 const initAlertModal = async (objectId, message, timeout = 3000) => {
 
-    console.log('initAlertModal', objectId + '-alert-modal', message, timeout);
     var alert = new bootstrap.Modal($(objectId + '-alert-modal'));
 
     $(alert._element).on('show.bs.modal', function () {
@@ -162,6 +158,49 @@ const initMessageModal = async (objectId, message, title) => {
     });
 
     alert.hide();
+    return result;
+
+}
+
+const initMediaModal = async (username, filename) => {
+
+    var mediaModal = new bootstrap.Modal($('#media-modal'));
+
+    if (filename.includes('.mp4')) {
+        $('#media-modal .mediapreview-video').attr('src', 'media/' + username + '/' + filename);
+        $('#media-modal .mediapreview-video source').attr('src', 'media/' + username + '/' + filename);
+        $('#media-modal .mediapreview-video').removeClass('d-none');
+        $('#media-modal .mediapreview-video')[0].play();
+    } else if (filename.includes('.webp')) {
+        $('#media-modal .mediapreview-image').attr('src', 'media/' + username + '/' + filename);
+        $('#media-modal .mediapreview-image').removeClass('d-none');
+    } else if (filename.includes('mp3')){
+        $('#media-modal .mediapreview-audio').attr('src', 'media/' + username + '/' + filename);
+        $('#media-modal .mediapreview-audio source').attr('src', 'media/' + username + '/' + filename);
+        $('#media-modal .mediapreview-audio').removeClass('d-none');
+        $('#media-modal .mediapreview-audio')[0].play();
+    }
+
+    $(mediaModal._element).on('hidden.bs.modal', function () {
+        $('#media-modal .mediapreview-video source').attr('src', '');
+        $('#media-modal .mediapreview-video').addClass('d-none');
+        $('#media-modal .mediapreview-video')[0].load();
+        $('#media-modal .mediapreview-image').attr('src', '');
+        $('#media-modal .mediapreview-image').addClass('d-none');
+        $('#media-modal .mediapreview-audio source').attr('src', '');
+        $('#media-modal .mediapreview-audio').addClass('d-none');
+        $('#media-modal .mediapreview-audio')[0].load();
+    });
+
+    mediaModal.show();
+
+    let result = await new Promise((resolve) => {
+        $('#media-modal .close-button').click(function () {
+            resolve(true);
+        });
+    });
+
+    mediaModal.hide();
     return result;
 
 }

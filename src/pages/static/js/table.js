@@ -38,8 +38,6 @@ const initTable = (tableId, data, objectName) => {
     let rows = $(tableId).bootstrapTable('getData', true);
     setFieldLinks(tableId, rows);
     $(tableId).on('page-change.bs.table', function (e, number, size) {
-        // Get only the rows in the current page
-        console.log(number -1 + size)
         let rows = $(tableId).bootstrapTable('getData', true);
         setFieldLinks(tableId, rows, number -1 + size);
     });
@@ -265,16 +263,22 @@ function setFieldLinks(tableId, rows, number = 0){
                 $(tableId).bootstrapTable('updateCell', {
                     index: i,
                     field: 'pubkey', 
-                    value: '<a href="https://nostrcheck.me/u/' + rows[i].pubkey + '">' + rows[i].pubkey + '</a>'
+                    value: '<a href="https://nostrcheck.me/u/'  + rows[i].pubkey + '" target="_blank">' + rows[i].pubkey + '</a>'
                 });
             }
             if (column.field === 'filename' && !rows[i].filename.includes('<')) {
+                let filename = rows[i].filename;
+                let username = rows[i].username;
                 $(tableId).bootstrapTable('updateCell', {
                     index: i,
                         field: 'filename', 
-                        value: '<a href="/media/' + rows[i].username + '/' + rows[i].filename + '">' + rows[i].filename + '</a>'
+                        value: '<div id ="' + i + '_preview"><span class="cursor-zoom-in">' + rows[i].filename + '</span></div>'
+                });
+
+                $(document).on("click", "#" + i + "_preview", function() {
+                    initMediaModal(username, filename);
                 });
             }
-    });
-}
+        });
+    }
 }

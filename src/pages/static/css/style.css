@@ -24,3 +24,7 @@ main {
 a {
   text-decoration: none;
 }
+
+.cursor-zoom-in {
+  cursor: zoom-in;
+}
