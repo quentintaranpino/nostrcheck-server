@@ -19,7 +19,6 @@ const initTable = (tableId, data, objectName) => {
         detailView: true,
         detailFormatter: "detailFormatter",
         dataSidePagination: "server",
-
     })
 
     // Hide columns if hide is specified
@@ -35,11 +34,10 @@ const initTable = (tableId, data, objectName) => {
         }
     }
 
-    let rows = $(tableId).bootstrapTable('getData', true);
-    setFieldLinks(tableId, rows);
-    $(tableId).on('page-change.bs.table', function (e, number, size) {
-        let rows = $(tableId).bootstrapTable('getData', true);
-        setFieldLinks(tableId, rows, number -1 + size);
+    setFieldLinks(tableId);
+    $(document).on('page-change.bs.table', tableId, function (e, number, size) {
+        console.log('page change');
+        setFieldLinks(tableId, number -1 + size);
     });
 
     // Buttons logic
@@ -81,6 +79,7 @@ const initTable = (tableId, data, objectName) => {
             if (editedRow) {
                 authkey = await modifyRecord(tableId, null, null, null, 'insert', editedRow)
                 $(tableId).bootstrapTable('uncheckAll')
+                setFieldLinks(tableId);
             }
         });
     }
@@ -103,6 +102,7 @@ const initTable = (tableId, data, objectName) => {
                 for (let field in editedRow) {
                     if (editedRow[field] != row[field]){
                         authkey = await modifyRecord(tableId, row.id, field, editedRow[field], 'modify')
+                        setFieldLinks(tableId);
                     }
                 }
             }
@@ -254,7 +254,9 @@ function modifyRecord(tableId, id, field, fieldValue, action = 'modify', row = n
     });
 }
 
-function setFieldLinks(tableId, rows, number = 0){
+function setFieldLinks(tableId, number = 0){
+
+    let rows = $(tableId).bootstrapTable('getData', true);
 
     for (i = number; i < number + $(tableId).bootstrapTable('getOptions').pageSize +1; i++) {
         if (rows[i] === undefined) {break}
@@ -272,7 +274,7 @@ function setFieldLinks(tableId, rows, number = 0){
                 $(tableId).bootstrapTable('updateCell', {
                     index: i,
                         field: 'filename', 
-                        value: '<div id ="' + i + '_preview"><span class="cursor-zoom-in">' + rows[i].filename + '</span></div>'
+                        value: '<div id ="' + i + '_preview"><span class="cursor-zoom-in text-primary">' + rows[i].filename + '</span></div>'
                 });
 
                 $(document).on("click", "#" + i + "_preview", function() {

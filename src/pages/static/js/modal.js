@@ -38,7 +38,7 @@ const initEditModal = async (objectId, row, objectName, newRow, columns) => {
 
                 // Extract the link text if the value is a link
                 let keyValue = "";
-                if (typeof row[key] === 'string' && row[key].startsWith('<a')) {
+                if (typeof row[key] === 'string' && row[key].startsWith('<')) {
                     row[key] = $(row[key]).text();
                 } else {
                     keyValue = row[key];
