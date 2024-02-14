@@ -291,29 +291,31 @@ function setFieldLinks(tableId, number = 0){
 
     for (i = number; i < number + $(tableId).bootstrapTable('getOptions').pageSize +1; i++) {
         if (rows[i] === undefined) {break}
+        let rowID = rows[i].id;
+        let row = $(tableId).bootstrapTable('getRowByUniqueId', rowID);
         $(tableId).bootstrapTable('getVisibleColumns').forEach(function(column) {
-            if (column.field === 'pubkey' && !rows[i].pubkey.includes('<')) {
-                $(tableId).bootstrapTable('updateCell', {
-                    index: i,
-                    field: 'pubkey', 
-                    value: '<a href="https://nostrcheck.me/u/'  + rows[i].pubkey + '" target="_blank">' + rows[i].pubkey + '</a>'
+            if (column.field === 'pubkey' && !row.pubkey.includes('<')) {
+                $(tableId).bootstrapTable('updateByUniqueId', {
+                    id: rowID,
+                    row: {
+                        pubkey: '<a href="https://nostrcheck.me/u/'  + row.pubkey + '" target="_blank">' + row.pubkey + '</a>'
+                    }
                 });
             }
-            if (column.field === 'filename' && !rows[i].filename.includes('<')) {
-                let filename = rows[i].filename;
-                let rowID = rows[i].id;
-                $(tableId).bootstrapTable('updateCell', {
-                    index: i,
-                        field: 'filename', 
-                        value: '<div id ="' + rowID + '_preview"><span class="cursor-zoom-in text-primary">' + rows[i].filename + '</span></div>'
+            if (column.field === 'filename' && !row.filename.includes('<')) {
+                let filename = row.filename;
+                $(tableId).bootstrapTable('updateByUniqueId', {
+                    id: rowID,
+                    row: {
+                        filename: '<div id ="' + rowID + '_preview"><span class="cursor-zoom-in text-primary">' + row.filename + '</span></div>'
+                    }
                 });
 
                 $(document).off("click", "#" + rowID + "_preview").on("click", "#" + rowID + "_preview", async function() {
-                    let currentRow = $(tableId).bootstrapTable('getData', true).find(row => row.id === rowID);
-                    console.log(currentRow, rowID, filename)
-                    let modalCheched = await initMediaModal(currentRow.username, filename, currentRow.checked);
+                    console.log(row, rowID, filename)
+                    let modalCheched = await initMediaModal(row.username, filename, row.checked);
                     if (modalCheched != currentRow.checked) {
-                        authkey = await modifyRecord(tableId, currentRow.id, 'checked', modalCheched, 'modify');
+                        authkey = await modifyRecord(tableId, row.id, 'checked', modalCheched, 'modify');
                     }
                 });
             }
