@@ -38,8 +38,6 @@ const initTable = (tableId, data, objectName) => {
 
     setFieldLinks(tableId);
     $(document).on('page-change.bs.table', tableId, function (e, number, size) {
-        console.log('page change');
-        console.log(number, size);
         setFieldLinks(tableId, (size * number) - size );
     });
 
@@ -316,7 +314,9 @@ function setFieldLinks(tableId, number = 0){
                     let modalCheched = await initMediaModal(row.username, filename, row.checked);
                     if (modalCheched != row.checked) {
                         authkey = await modifyRecord(tableId, row.id, 'checked', modalCheched, 'modify');
-                        setFieldLinks(tableId);
+                        let pageNumber = $(tableId).bootstrapTable('getOptions').pageNumber;
+                        let pageSize = $(tableId).bootstrapTable('getOptions').pageSize;
+                        setFieldLinks(tableId, (pageSize * pageNumber) - pageSize );
                     }
                 });
             }
