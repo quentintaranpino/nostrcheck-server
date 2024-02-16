@@ -111,6 +111,21 @@ const parseAuthEvent = async (req: Request, endpoint: string = "", checkAdminPri
 		return result;
 	}
 
+	if (checkAdminPrivileges) {
+		const admin = await dbSelect("SELECT allowed FROM registered WHERE hex = ?", "allowed", [authevent.pubkey], registeredTableFields);
+		if (admin === "0") {
+			logger.warn("RES -> 403 forbidden - Pubkey does not have admin privileges", "|", req.socket.remoteAddress);
+			const result: VerifyResultMessage = {
+				status: "error",
+				message: "This pubkey does not have admin privileges",
+				pubkey: authevent.pubkey,
+				authkey: ""
+			};
+
+			return result;
+		}
+	}
+
 	const result: VerifyResultMessage = {
 		status: "success",
 		message: "Authorization header is valid",
