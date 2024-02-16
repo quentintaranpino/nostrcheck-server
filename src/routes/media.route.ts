@@ -2,7 +2,7 @@ import { Application } from "express";
 import multer from "multer";
 import config from "config";
 import { GetMediaStatusbyID, getMediabyURL, Uploadmedia, DeleteMedia, UpdateMediaVisibility, GetMediaTagsbyID, GetMediabyTags } from "../controllers/media.js";
-import { ResultMessage } from "../interfaces/server.js";
+import { ResultMessage, ResultMessagev2 } from "../interfaces/server.js";
 import { logger } from "../lib/logger.js";
 import { getClientIp } from "../lib/server.js";
 import { NIP96Data } from "../controllers/nostr.js";
@@ -16,44 +16,42 @@ const upload = multer({
 
 export const loadMediaEndpoint = async (app: Application, version:string): Promise<void> => {
 	
-	if (version == "v1" || version == "v2"){
-		
-		//Upload media
-		app.post("/api/" + version + app.get("activeModules")["media"]["path"], function (req, res){
-			upload.any()(req, res, function (err) {
-				//Return 413 Payload Too Large if file size is larger than maxMBfilesize from config file
-				if (err instanceof multer.MulterError && err.code === "LIMIT_FILE_SIZE") {
-					logger.warn("Upload attempt failed: File too large", "|", getClientIp(req));
-					const result: ResultMessage = {
-						result: false,
-						description: "File too large, max filesize allowed is " + maxMBfilesize + "MB",
-					};
-					return res.status(413).send(result);
-				}
-				Uploadmedia(req, res, version);
-			})
-		});
+	//Upload media
+	app.post("/api/" + version + app.get("activeModules")["media"]["path"], function (req, res){
+		upload.any()(req, res, function (err) {
+			//Return 413 Payload Too Large if file size is larger than maxMBfilesize from config file
+			if (err instanceof multer.MulterError && err.code === "LIMIT_FILE_SIZE") {
+				logger.warn("Upload attempt failed: File too large", "|", getClientIp(req));
+				if (version == "v1"){ const result: ResultMessage = { result: false , description: "File too large, max filesize allowed is " + maxMBfilesize + "MB" }; return res.status(413).send(result); }
+				const result: ResultMessagev2 = {
+					status: "error",
+					message: "File too large, max filesize allowed is " + maxMBfilesize + "MB",
+				};
+				return res.status(413).send(result);
+			}
+			Uploadmedia(req, res, version);
+		})
+	});
 
-		//Delete media
-		app.delete("/api/" + version +  app.get("activeModules")["media"]["path"] + "/:fileId", function (req, res){DeleteMedia(req,res,version)});
+	//Delete media
+	app.delete("/api/" + version +  app.get("activeModules")["media"]["path"] + "/:fileId", function (req, res){DeleteMedia(req,res,version)});
 
-		//Get media status by id 
-		app.get("/api/" + version + app.get("activeModules")["media"]["path"], function (req, res){GetMediaStatusbyID(req,res,version)});
-		app.get("/api/" + version + app.get("activeModules")["media"]["path"] + "/:id", function (req, res){GetMediaStatusbyID(req,res,version)});
+	//Get media status by id 
+	app.get("/api/" + version + app.get("activeModules")["media"]["path"], function (req, res){GetMediaStatusbyID(req,res,version)});
+	app.get("/api/" + version + app.get("activeModules")["media"]["path"] + "/:id", function (req, res){GetMediaStatusbyID(req,res,version)});
 
-		//Get media tags by id
-		app.get("/api/" + version + app.get("activeModules")["media"]["path"] + "/:fileId/tags/", GetMediaTagsbyID);
+	//Get media tags by id
+	app.get("/api/" + version + app.get("activeModules")["media"]["path"] + "/:fileId/tags/", GetMediaTagsbyID);
 
-		//Get media by tags
-		app.get("/api/" + version + app.get("activeModules")["media"]["path"] + "/tag/:tag", GetMediabyTags);
+	//Get media by tags
+	app.get("/api/" + version + app.get("activeModules")["media"]["path"] + "/tag/:tag", GetMediabyTags);
 
-		//Get media by url
-		app.get("/api/" + version + app.get("activeModules")["media"]["path"] + "/:username/:filename", getMediabyURL);
+	//Get media by url
+	app.get("/api/" + version + app.get("activeModules")["media"]["path"] + "/:username/:filename", getMediabyURL);
 
-		//Update media visibility
-		app.put("/api/" + version + app.get("activeModules")["media"]["path"] + "/:fileId/visibility/:visibility", UpdateMediaVisibility);
+	//Update media visibility
+	app.put("/api/" + version + app.get("activeModules")["media"]["path"] + "/:fileId/visibility/:visibility", UpdateMediaVisibility);
 
-	}
 
 	if (version == "v2"){
         //NIP96 json file
