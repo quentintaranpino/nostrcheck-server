@@ -1,9 +1,8 @@
 import { Request, Response } from "express";
 
 import { logger } from "../lib/logger.js";
-import { ParseAuthEvent } from "../lib/nostr/NIP98.js";
-import { checkAuthkey } from "../lib/authorization.js";
-import { ResultMessage, ResultMessagev2 } from "../interfaces/server.js";
+import { parseAuthEvent} from "../lib/authorization.js";
+import { ResultMessagev2 } from "../interfaces/server.js";
 import { redisClient } from "../lib/redis.js";
 import { getClientIp } from "../lib/server.js";
 import { QueryAvailiableDomains, QueryAvailiableUsers } from "../lib/domains.js";
@@ -14,23 +13,16 @@ const AvailableDomains = async (req: Request, res: Response): Promise<Response> 
 
 	logger.info("REQ -> Domain list ", "|", getClientIp(req));
 
-	// Check header has authorization token
-	const authorized = await checkAuthkey(req)
-	if ( authorized.status != "success") {
-		const result : ResultMessagev2 = {
-			status: "error",
-			message: "Unauthorized"
-			};
-		logger.error("RES -> Unauthorized" + " | " + getClientIp(req));
-		return res.status(401).send(result);
-	}
+    //Check if event authorization header is valid (NIP98)
+	const EventHeader = await parseAuthEvent(req);
+	if (EventHeader.status !== "success") {return res.status(401).send({"status": EventHeader.status, "message" : EventHeader.message});}
 
 	try {
 		const AvailableDomains = await QueryAvailiableDomains();
 		if (AvailableDomains !== undefined) {
 			logger.info("RES -> Domain list ", "|", getClientIp(req));
 
-			return res.status(200).send({AvailableDomains, "authkey" : authorized.authkey});
+			return res.status(200).send({AvailableDomains, "authkey" : EventHeader.authkey});
 		}
 		logger.warn("RES -> Domain list ", "|", getClientIp(req));
 		return res.status(404).send({ "available domains": "No domains available" });
@@ -44,16 +36,9 @@ const AvailableUsers = async (req: Request, res: Response): Promise<Response> =>
 
 	logger.info("REQ -> User list from domain:", req.params.domain, "|", getClientIp(req));
 
-	// Check header has authorization token
-	const authorized = await checkAuthkey(req)
-	if ( authorized.status != "success") {
-		const result : ResultMessagev2 = {
-			status: "error",
-			message: "Unauthorized"
-			};
-		logger.error("RES -> Unauthorized" + " | " + getClientIp(req));
-		return res.status(401).send(result);
-	}
+    //Check if event authorization header is valid (NIP98)
+	const EventHeader = await parseAuthEvent(req);
+	if (EventHeader.status !== "success") {return res.status(401).send({"status": EventHeader.status, "message" : EventHeader.message});}
 
 	try {
 		const AvailableUsers = await QueryAvailiableUsers(req.params.domain);
@@ -63,7 +48,7 @@ const AvailableUsers = async (req: Request, res: Response): Promise<Response> =>
 		}
 
 		logger.info("RES -> User list ", "|", getClientIp(req));
-		return res.status(200).send({ [req.params.domain]: AvailableUsers, "authkey" : authorized.authkey});
+		return res.status(200).send({ [req.params.domain]: AvailableUsers, "authkey" : EventHeader.authkey});
 		
 	} catch (error) {
 		logger.error(error);
@@ -78,8 +63,8 @@ const UpdateUserDomain = async (req: Request, res: Response): Promise<Response> 
 	const domain = req.params.domain;
 
 	//Check if event authorization header is valid (NIP98)
-	const EventHeader = await ParseAuthEvent(req);
-	if (!EventHeader.result) {return res.status(401).send({"result": EventHeader.result, "description" : EventHeader.description});}
+	const EventHeader = await parseAuthEvent(req);
+	if (EventHeader.status !== "success") {return res.status(401).send({"status": EventHeader.status, "message" : EventHeader.message});}
 
 	//If domain is null return 400
 	if (!domain || domain.trim() == "") {
@@ -91,9 +76,9 @@ const UpdateUserDomain = async (req: Request, res: Response): Promise<Response> 
 			getClientIp(req)
 		);
 
-		const result: ResultMessage = {
-			result: false,
-			description: "Bad request - You have to specify the 'domain' parameter",
+		const result: ResultMessagev2 = {
+			status: "error",
+			message: "Bad request - You have to specify the 'domain' parameter",
 		};
 
 		return res.status(400).send(result);
@@ -105,9 +90,9 @@ const UpdateUserDomain = async (req: Request, res: Response): Promise<Response> 
 		logger.info("REQ Update user domain ->", servername, " | pubkey:",  EventHeader.pubkey, " | domain:",  domain.substring(0,50) + "...", "|", getClientIp(req));
 		logger.warn("RES Update user domain -> 400 Bad request - domain too long", "|", getClientIp(req));
 
-		const result: ResultMessage = {
-			result: false,
-			description: "Bad request - Domain is too long",
+		const result: ResultMessagev2 = {
+			status: "error",
+			message: "Bad request - Domain is too long",
 		};
 
 		return res.status(400).send(result);
@@ -121,9 +106,9 @@ const UpdateUserDomain = async (req: Request, res: Response): Promise<Response> 
 	if (!CurrentDomains.includes(domain)) {
 		logger.warn("RES Update user domain -> 404  not found, domain not found", "|", getClientIp(req));
 
-		const result: ResultMessage = {
-			result: false,
-			description: "Domain not found",
+		const result: ResultMessagev2 = {
+			status: "error",
+			message: "Domain not found",
 		};
 
 		return res.status(404).send(result);
