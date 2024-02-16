@@ -7,7 +7,6 @@ import { generateCredentials } from "../lib/authorization.js";
 import { dbDelete, dbInsert, dbUpdate } from "../lib/database.js";
 import { allowedFieldNames, allowedFieldNamesAndValues, allowedTableNames } from "../interfaces/admin.js";
 import { parseAuthEvent} from "../lib/authorization.js"
-import { parse } from "path";
 
 let hits = 0;
 /**
