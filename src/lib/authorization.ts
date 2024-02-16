@@ -1,16 +1,14 @@
 import { dbSelect, dbUpdate } from "../lib/database.js";
 import { logger } from "./logger.js";
-import { credentialTypes, isAuthkeyValidResult } from "../interfaces/admin.js";
+import { credentialTypes, authHeaderResult } from "../interfaces/authorization.js";
 import { registeredTableFields } from "../interfaces/database.js";
 import { hashString, validateHash } from "./hash.js";
 import { Request } from "express";
 import { verifyNIP07login } from "./nostr/NIP07.js";
 import crypto from "crypto";
 import { sendMessage } from "./nostr/NIP04.js";
-import { VerifyResultMessage } from "../interfaces/verify.js";
 import { isNIP98Valid } from "./nostr/NIP98.js";
 import { Event } from "nostr-tools";
-
 
 
 /**
@@ -20,14 +18,14 @@ import { Event } from "nostr-tools";
  * @param endpoint - The endpoint of the request.
  * @returns A promise that resolves to a VerifyResultMessage object.
  */
-const parseAuthEvent = async (req: Request, endpoint: string = "", checkAdminPrivileges = true): Promise<VerifyResultMessage> => {
+const parseAuthEvent = async (req: Request, endpoint: string = "", checkAdminPrivileges = true): Promise<authHeaderResult> => {
 
 	// Check if apikey is present on request body or query
 	if (req.query.apikey || req.body.apikey) {
 		 
 		const hexApikey = await isApikeyValid(req, endpoint, checkAdminPrivileges);
 		
-		const result: VerifyResultMessage = {
+		const result: authHeaderResult = {
 			status: hexApikey ? "success" : "error",
 			message: hexApikey ? "Apikey is valid" : "Apikey is not valid",
 			pubkey: "",
@@ -43,7 +41,7 @@ const parseAuthEvent = async (req: Request, endpoint: string = "", checkAdminPri
 			"|",
 			req.socket.remoteAddress
 		);
-		const result: VerifyResultMessage = {
+		const result: authHeaderResult = {
 			status: "error",
 			message: "Authorization header not found",
 			pubkey: "",
@@ -61,7 +59,7 @@ const parseAuthEvent = async (req: Request, endpoint: string = "", checkAdminPri
 	// Check if authkey is present on the header authorization Bearer and validate it.
 	if (!req.headers.authorization.startsWith('Auth')) {
 		const authorized = await isAuthkeyValid(req);
-		const result: isAuthkeyValidResult = {
+		const result: authHeaderResult = {
 			status: authorized.status,
 			message: authorized.message,
 			pubkey: authorized.pubkey,
@@ -83,7 +81,7 @@ const parseAuthEvent = async (req: Request, endpoint: string = "", checkAdminPri
 	} catch (error) {
 
 		logger.warn(`RES -> 400 Bad request - ${error}`, "|", req.socket.remoteAddress);
-		const result: VerifyResultMessage = {
+		const result: authHeaderResult = {
 			status: "error",
 			message: "Malformed authorization header",
 			pubkey: "",
@@ -101,7 +99,7 @@ const parseAuthEvent = async (req: Request, endpoint: string = "", checkAdminPri
 			"|",
 			req.socket.remoteAddress
 		);
-		const result: VerifyResultMessage = {
+		const result: authHeaderResult = {
 			status: "error",
 			message: "Authorization header is invalid",
 			pubkey: "",
@@ -115,7 +113,7 @@ const parseAuthEvent = async (req: Request, endpoint: string = "", checkAdminPri
 		const admin = await dbSelect("SELECT allowed FROM registered WHERE hex = ?", "allowed", [authevent.pubkey], registeredTableFields);
 		if (admin === "0") {
 			logger.warn("RES -> 403 forbidden - Pubkey does not have admin privileges", "|", req.socket.remoteAddress);
-			const result: VerifyResultMessage = {
+			const result: authHeaderResult = {
 				status: "error",
 				message: "This pubkey does not have admin privileges",
 				pubkey: authevent.pubkey,
@@ -126,7 +124,7 @@ const parseAuthEvent = async (req: Request, endpoint: string = "", checkAdminPri
 		}
 	}
 
-	const result: VerifyResultMessage = {
+	const result: authHeaderResult = {
 		status: "success",
 		message: "Authorization header is valid",
 		pubkey: authevent.pubkey,
@@ -195,7 +193,7 @@ const isUserPasswordValid = async (username:string, password:string): Promise<bo
  * @param {Request} req - The incoming request.
  * @returns {Promise<checkAuthkeyResult>} The result of the authorization check, including the status, a message, and the new authkey if the check was successful.
  */
-const isAuthkeyValid = async (req: Request) : Promise<isAuthkeyValidResult> =>{
+const isAuthkeyValid = async (req: Request) : Promise<authHeaderResult> =>{
 
 	if (!req.headers.authorization) {
 		logger.warn("Unauthorized request, no authorization header");
@@ -274,7 +272,7 @@ const generateCredentials = async (type: credentialTypes, returnHashed: boolean 
  * @param req - The request object.
  * @param endpoint - The endpoint of the request.
  * @param checkAdminPrivileges - A boolean indicating whether to check if the apikey has admin privileges. Optional.
- * @returns A promise that resolves to a VerifyResultMessage object.
+ * @returns A promise that resolves to a boolean indicating whether the apikey is valid. Returns false if the apikey is not found or if an error occurs.
  */
 const isApikeyValid = async (req: Request, endpoint: string = "", checkAdminPrivileges = false): Promise<boolean> => {
 	let apikey = req.query.apikey || req.body.apikey;
