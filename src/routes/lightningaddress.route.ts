@@ -1,20 +1,16 @@
 import { Application } from "express";
 
-import { Redirectlightningddress, UpdateLightningAddress, DeleteLightningAddress } from "../controllers/lightningaddress.js";
+import { redirectlightningddress, updateLightningAddress, deleteLightningAddress } from "../controllers/lightningaddress.js";
 
 export const loadLightningaddressEndpoint = async (app: Application, version:string): Promise<void> => {
 
-	if(version == "v1" || version == "v2"){
+	//Get lightning redirect
+	app.get("/api/" + version + app.get("activeModules")["lightning"]["path"], redirectlightningddress);
 
-		//Get lightning redirect
-		app.get("/api/" + version + app.get("activeModules")["lightning"]["path"], Redirectlightningddress);
+	//Update lightning address
+	app.put("/api/" + version + app.get("activeModules")["lightning"]["path"] + "/:lightningaddress", updateLightningAddress);
 
-		//Update lightning address
-		app.put("/api/" + version + app.get("activeModules")["lightning"]["path"] + "/:lightningaddress", UpdateLightningAddress);
-
-		//Delete lightning address
-		app.delete("/api/" + version + app.get("activeModules")["lightning"]["path"], DeleteLightningAddress);
-
-	}
+	//Delete lightning address
+	app.delete("/api/" + version + app.get("activeModules")["lightning"]["path"], deleteLightningAddress);
 
 };

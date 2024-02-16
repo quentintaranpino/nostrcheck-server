@@ -27,12 +27,12 @@ import { generateBlurhash, generatefileHashfrombuffer } from "../lib/hash.js";
 import { mediafilesTableFields, registeredTableFields } from "../interfaces/database.js";
 
 
-const Uploadmedia = async (req: Request, res: Response, version:string): Promise<Response> => {
+const uploadmedia = async (req: Request, res: Response, version:string): Promise<Response> => {
 
 	logger.info("POST /api/" + version + "/media", "|", getClientIp(req));
 
 	//Check if event authorization header is valid (NIP98)
-	const EventHeader = await parseAuthEvent(req, "Uploadmedia");
+	const EventHeader = await parseAuthEvent(req, "uploadmedia", false);
 	if (EventHeader.status != "success") {
 		
 		//v0 and v1 compatibility
@@ -332,12 +332,12 @@ const Uploadmedia = async (req: Request, res: Response, version:string): Promise
 
 };
 
-const GetMediaStatusbyID = async (req: Request, res: Response, version:string): Promise<Response> => {
+const getMediaStatusbyID = async (req: Request, res: Response, version:string): Promise<Response> => {
 
 	logger.info("GET /api/" + version + "/media", "|", getClientIp(req));
 
 	//Check if event authorization header is valid (NIP98)
-	const EventHeader = await parseAuthEvent(req);
+	const EventHeader = await parseAuthEvent(req, "getMediaStatusbyID", false);
 	if (EventHeader.status !== "success") {
 		
 		//v0 and v1 compatibility
@@ -577,13 +577,13 @@ const returnNotFoundMediaFile = async (req: Request, res: Response) => {
 }
 
 
-const GetMediaTagsbyID = async (req: Request, res: Response): Promise<Response> => {
+const getMediaTagsbyID = async (req: Request, res: Response): Promise<Response> => {
 
 	//Get available tags for a specific media file
 	logger.info("REQ -> Media file tag list", "|", getClientIp(req));
 
 	//Check if event authorization header is valid
-	const EventHeader = await parseAuthEvent(req);
+	const EventHeader = await parseAuthEvent(req, "getMediaTagsbyID", false);
 	if (EventHeader.status !== "success") {return res.status(401).send({"result": EventHeader.status, "description" : EventHeader.message});}
 
 	logger.info("REQ -> Media tag list -> pubkey:", EventHeader.pubkey, "-> id:", req.params.fileId, "|", getClientIp(req));
@@ -621,13 +621,13 @@ const GetMediaTagsbyID = async (req: Request, res: Response): Promise<Response> 
 
 };
 
-const GetMediabyTags = async (req: Request, res: Response): Promise<Response> => {
+const getMediabyTags = async (req: Request, res: Response): Promise<Response> => {
 
 	//Get media files by defined tags
 	logger.info("REQ -> Media files for specified tag", "|", getClientIp(req));
 
 	//Check if event authorization header is valid
-	const EventHeader = await parseAuthEvent(req);
+	const EventHeader = await parseAuthEvent(req, "getMediabyTags", false);
 	if (EventHeader.status !== "success") {return res.status(401).send({"result": EventHeader.status, "description" : EventHeader.message});}
 
 	logger.info("REQ -> Media files for specified tag -> pubkey:", EventHeader.pubkey, "-> tag:", req.params.tags, "|", getClientIp(req));
@@ -677,13 +677,13 @@ const GetMediabyTags = async (req: Request, res: Response): Promise<Response> =>
 
 };
 
-const UpdateMediaVisibility = async (req: Request, res: Response): Promise<Response> => {
+const updateMediaVisibility = async (req: Request, res: Response): Promise<Response> => {
 
 	//Update media visibility
 	logger.info("REQ -> Update media visibility", "|", getClientIp(req));
 
 	//Check if event authorization header is valid
-	const EventHeader = await parseAuthEvent(req);
+	const EventHeader = await parseAuthEvent(req, "updateMediaVisibility", false);
 	if (EventHeader.status !== "success") {return res.status(401).send({"result": EventHeader.status, "description" : EventHeader.message});}
 
 	logger.info("REQ -> Update media visibility -> pubkey:", EventHeader.pubkey, "-> id:", req.params.fileId, "-> visibility:", req.params.visibility, "|", getClientIp(req));
@@ -743,7 +743,7 @@ const UpdateMediaVisibility = async (req: Request, res: Response): Promise<Respo
 
 };
 
-const DeleteMedia = async (req: Request, res: Response, version:string): Promise<Response> => {
+const deleteMedia = async (req: Request, res: Response, version:string): Promise<Response> => {
 
 	const servername = req.hostname;
 	const fileId = req.params.fileId;
@@ -784,7 +784,7 @@ const DeleteMedia = async (req: Request, res: Response, version:string): Promise
 	}
 
 	//Check if event authorization header is valid (NIP98)
-	const EventHeader = await parseAuthEvent(req);
+	const EventHeader = await parseAuthEvent(req, "deleteMedia", false);
 	if (EventHeader.status !== "success") {
 		
 		//v0 and v1 compatibility
@@ -935,4 +935,4 @@ const DeleteMedia = async (req: Request, res: Response, version:string): Promise
 
 };
 
-export { GetMediaStatusbyID, getMediabyURL, Uploadmedia, DeleteMedia, UpdateMediaVisibility, GetMediaTagsbyID, GetMediabyTags };
+export { getMediaStatusbyID, getMediabyURL, uploadmedia, deleteMedia, updateMediaVisibility, getMediaTagsbyID, getMediabyTags };

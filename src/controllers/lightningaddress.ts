@@ -8,7 +8,7 @@ import { LightningUsernameResult } from "../interfaces/lightning.js";
 import { parseAuthEvent } from "../lib/authorization.js";
 import { getClientIp } from "../lib/server.js";
 
-const Redirectlightningddress = async (req: Request, res: Response): Promise<any> => {
+const redirectlightningddress = async (req: Request, res: Response): Promise<any> => {
 
 	const name = req.query.name as string;
 	const servername = req.hostname;
@@ -111,13 +111,13 @@ const Redirectlightningddress = async (req: Request, res: Response): Promise<any
 
 };
 
-const UpdateLightningAddress = async (req: Request, res: Response): Promise<Response> => {
+const updateLightningAddress = async (req: Request, res: Response): Promise<Response> => {
 
 	const servername = req.hostname;
 	const lightningaddress = req.params.lightningaddress;
 
     //Check if event authorization header is valid
-	const EventHeader = await parseAuthEvent(req);
+	const EventHeader = await parseAuthEvent(req, "updateLightningAddress", false);
 	if (EventHeader.status !== "success") {return res.status(401).send({"status": EventHeader.status, "message" : EventHeader.message});}
 
 	//If lightningaddress is null return 400
@@ -225,13 +225,13 @@ const UpdateLightningAddress = async (req: Request, res: Response): Promise<Resp
 
 };
 
-const DeleteLightningAddress = async (req: Request, res: Response): Promise<Response> => {
+const deleteLightningAddress = async (req: Request, res: Response): Promise<Response> => {
 
 	const servername = req.hostname;
 	let lightningaddress = "";
 
     //Check if event authorization header is valid (NIP98)
-	const EventHeader = await parseAuthEvent(req);
+	const EventHeader = await parseAuthEvent(req, "deleteLightningAddress", false);
 	if (EventHeader.status !== "success") {return res.status(401).send({"status": EventHeader.status, "message" : EventHeader.message});}
 
 	//Check if pubkey's lightningaddress exists on database
@@ -320,4 +320,4 @@ const DeleteLightningAddress = async (req: Request, res: Response): Promise<Resp
 
 };
 
-export { Redirectlightningddress, UpdateLightningAddress, DeleteLightningAddress };
+export { redirectlightningddress, updateLightningAddress, deleteLightningAddress };

@@ -14,7 +14,7 @@ const registernewpubkey = async (req: Request, res: Response): Promise<Response>
 	logger.info("POST /api/v1/register", "|", getClientIp(req));
 
     //Check if event authorization header is valid (NIP98)
-	const EventHeader = await parseAuthEvent(req, "register", true);
+	const EventHeader = await parseAuthEvent(req, "registernewpubkey", true);
 	if (EventHeader.status !== "success") {return res.status(401).send({"status": EventHeader.status, "message" : EventHeader.message});}
 
 	//Check all necessary fields
