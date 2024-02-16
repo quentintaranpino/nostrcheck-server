@@ -4,7 +4,7 @@ import fs from 'fs'
 import { ProcessingFileData } from '../interfaces/media.js'
 import sharp from 'sharp'
 import { encode } from 'blurhash'
-import { credentialTypes } from '../interfaces/admin.js';
+import { credentialTypes } from '../interfaces/authorization.js';
 import bcrypt from 'bcrypt';
 
 const generatefileHashfromfile = (filepath:string, options: ProcessingFileData): string => {
