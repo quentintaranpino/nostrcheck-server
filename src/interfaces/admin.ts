@@ -1,3 +1,5 @@
+import { ResultMessagev2 } from "./server.js";
+
     // Define a list of allowed table names and field names
     const allowedTableNames = ["registered", "mediafiles", "lightning", "domains"];
     const allowedFieldNames = ["allowed", "active", "visibility", "comments", "username", "pubkey", "hex", "domain", "checked"]; 
@@ -18,11 +20,9 @@
 
     type credentialTypes = 'password' | 'authkey';
 
-    interface checkAuthkeyResult {
-        status: string, 
-        message: string,
-        authkey: string
+    interface isAuthkeyValidResult extends ResultMessagev2 {
+        authkey: string,
+        pubkey: string
     }
-    
 
-    export { allowedTableNames, allowedFieldNames, allowedFieldNamesAndValues, credentialTypes, checkAuthkeyResult };
+    export { allowedTableNames, allowedFieldNames, allowedFieldNamesAndValues, credentialTypes, isAuthkeyValidResult };
