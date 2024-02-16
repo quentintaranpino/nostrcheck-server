@@ -292,7 +292,7 @@ const isApikeyValid = async (req: Request, endpoint: string = "", checkAdminPriv
 	// We only allow server apikey for uploadMedia endpoint
 	const serverApikey = await dbSelect("SELECT apikey FROM registered WHERE username = ?", "apikey", ["public"], registeredTableFields);
 	const hexApikey : string = await dbSelect(
-		endpoint != "uploadmedia"
+		(endpoint != "uploadmedia" && endpoint != "getMediaStatusbyID")
 			? "SELECT hex FROM registered WHERE apikey = ? and apikey <> ?"
 			: "SELECT hex FROM registered WHERE apikey = ?",
 		"hex",
