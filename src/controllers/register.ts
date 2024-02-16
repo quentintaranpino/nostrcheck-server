@@ -5,25 +5,17 @@ import validator from "validator";
 import { connect } from "../lib/database.js";
 import { logger } from "../lib/logger.js";
 import { RegisterResultMessage } from "../interfaces/register.js";
-import { ResultMessagev2 } from "../interfaces/server.js";
 import { QueryAvailiableDomains } from "../lib/domains.js";
-import { checkAuthkey } from "../lib/authorization.js";
 import app from "../app.js";
 import { getClientIp } from "../lib/server.js";
+import { parseAuthEvent } from "../lib/authorization.js";
 
-const Registernewpubkey = async (req: Request, res: Response): Promise<Response> => {
+const registernewpubkey = async (req: Request, res: Response): Promise<Response> => {
 	logger.info("POST /api/v1/register", "|", getClientIp(req));
 
-    // Check header has authorization token
-    const authorized = await checkAuthkey(req)
-    if ( authorized.status != "success") {
-        const result : ResultMessagev2 = {
-			status: "error",
-			message: "Unauthorized"
-			};
-        logger.error("RES -> Unauthorized" + " | " + getClientIp(req));
-        return res.status(401).send(result);
-    }
+    //Check if event authorization header is valid (NIP98)
+	const EventHeader = await parseAuthEvent(req, "register", true);
+	if (EventHeader.status !== "success") {return res.status(401).send({"status": EventHeader.status, "message" : EventHeader.message});}
 
 	//Check all necessary fields
 	if (
@@ -40,8 +32,8 @@ const Registernewpubkey = async (req: Request, res: Response): Promise<Response>
 			username: "",
 			pubkey: "",
 			domain: "",
-			result: false,
-			description: "Malformed JSON",
+			status: "error",
+			message: "Malformed JSON",
 		};
 
 		return res.status(400).send(result);
@@ -63,8 +55,8 @@ const Registernewpubkey = async (req: Request, res: Response): Promise<Response>
 				username: "",
 				pubkey: "",
 				domain: "",
-				result: false,
-				description: "Malformed or non-existent username tag",
+				status: "error",
+				message: "Malformed or non-existent username tag",
 			};
 
 			return res.status(400).send(result);
@@ -79,8 +71,8 @@ const Registernewpubkey = async (req: Request, res: Response): Promise<Response>
 			username: "",
 			pubkey: "",
 			domain: "",
-			result: false,
-			description: "Malformed or non-existent username tag",
+			status: "error",
+			message: "Malformed or non-existent username tag",
 		};
 
 		return res.status(400).send(result);
@@ -102,8 +94,8 @@ const Registernewpubkey = async (req: Request, res: Response): Promise<Response>
 				username: "",
 				pubkey: "",
 				domain: "",
-				result: false,
-				description: "Malformed or non-existent domain tag",
+				status: "error",
+				message: "Malformed or non-existent domain tag",
 			};
 
 			return res.status(400).send(result);
@@ -118,8 +110,8 @@ const Registernewpubkey = async (req: Request, res: Response): Promise<Response>
 			username: "",
 			pubkey: "",
 			domain: "",
-			result: false,
-			description: "Malformed or non-existent domain tag",
+			status: "error",
+			message: "Malformed or non-existent domain tag",
 		};
 
 		return res.status(400).send(result);
@@ -140,8 +132,8 @@ const Registernewpubkey = async (req: Request, res: Response): Promise<Response>
 			username: "",
 			pubkey: "",
 			domain: "",
-			result: false,
-			description: "Domain not accepted",
+			status: "error",
+			message: "Domain not accepted",
 		};
 
 		return res.status(406).send(result);
@@ -172,8 +164,8 @@ const Registernewpubkey = async (req: Request, res: Response): Promise<Response>
 				username: "",
 				pubkey: "",
 				domain: "",
-				result: false,
-				description: "Event hash is not valid",
+				status: "error",
+				message: "Event hash is not valid",
 			};
 
 			return res.status(400).send(result);
@@ -191,8 +183,8 @@ const Registernewpubkey = async (req: Request, res: Response): Promise<Response>
 				username: "",
 				pubkey: "",
 				domain: "",
-				result: false,
-				description: "Event signature is not valid",
+				status: "error",
+				message: "Event signature is not valid",
 			};
 
 			return res.status(400).send(result);
@@ -203,8 +195,8 @@ const Registernewpubkey = async (req: Request, res: Response): Promise<Response>
 			username: "",
 			pubkey: "",
 			domain: "",
-			result: false,
-			description: "Malformed event",
+			status: "error",
+			message: "Malformed event",
 		};
 
 		return res.status(400).send(result);
@@ -220,8 +212,8 @@ const Registernewpubkey = async (req: Request, res: Response): Promise<Response>
 			username: req.body.tags[0][1],
 			pubkey: "",
 			domain: req.body.tags[1][1],
-			result: false,
-			description: "Username not allowed",
+			status: "error",
+			message: "Username not allowed",
 		};
 
 		return res.status(422).send(result);
@@ -252,8 +244,8 @@ const Registernewpubkey = async (req: Request, res: Response): Promise<Response>
 			username: req.body.tags[0][1],
 			pubkey: "",
 			domain: req.body.tags[1][1],
-			result: false,
-			description: "Username or pubkey alredy registered",
+			status: "error",
+			message: "Username or pubkey alredy registered",
 		};
 
 		return res.status(406).send(result);
@@ -271,8 +263,8 @@ const Registernewpubkey = async (req: Request, res: Response): Promise<Response>
 			username: req.body.tags[0][1],
 			pubkey: "",
 			domain: req.body.tags[1][1],
-			result: false,
-			description: "Username alredy registered",
+			status: "error",
+			message: "Username alredy registered",
 		};
 		res.status(406).send(result);
 	}
@@ -285,13 +277,12 @@ const Registernewpubkey = async (req: Request, res: Response): Promise<Response>
 		username: req.body.tags[0][1],
 		pubkey: event.pubkey,
 		domain: req.body.tags[1][1],
-		result: true,
-		description: "Success",
+		status: "success",
+		message: "New user registered successfully",
 	};
 
-	return res.status(200).send({result, "authkey": authorized.authkey});
+	return res.status(200).send({result, "authkey": EventHeader.authkey});
 
-	//TODO:?MUST REFACTOR ALL CHECKS INTO NEW TS FILE
 };
 
-export { Registernewpubkey };
+export { registernewpubkey };

@@ -1,6 +1,6 @@
-import { ResultMessage } from './server.js';
+import { ResultMessagev2 } from './server.js';
 
-interface RegisterResultMessage extends ResultMessage {
+interface RegisterResultMessage extends ResultMessagev2 {
 	username: string;
 	pubkey: string;
 	domain: string;
