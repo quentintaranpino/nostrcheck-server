@@ -9,6 +9,7 @@ import crypto from "crypto";
 import { sendMessage } from "./nostr/NIP04.js";
 import { isNIP98Valid } from "./nostr/NIP98.js";
 import { Event } from "nostr-tools";
+import server from "../server.js";
 
 
 /**
@@ -300,6 +301,10 @@ const isApikeyValid = async (req: Request, endpoint: string = "", checkAdminPriv
 	);
 
 	if (hexApikey === "") {
+		if (serverApikey){
+			logger.warn("RES -> 401 unauthorized - Apikey not authorized for this action", "|", req.socket.remoteAddress);
+			return false;
+		}
 		logger.warn("RES -> 401 unauthorized - Apikey not found", "|", req.socket.remoteAddress);
 		return false;
 	}
