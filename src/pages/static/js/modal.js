@@ -198,15 +198,18 @@ const initMediaModal = async (username, filename, checked) => {
         $('#media-modal .mediapreview-audio')[0].load();
     });
 
+    $('#media-modal').on('shown.bs.modal', function () {
+        $('#modalSwitch').focus();
+    });
+
     mediaModal.show();
 
     let result = await new Promise((resolve) => {
         $(mediaModal._element).on('hidden.bs.modal', function () {
-            // Resto de tu código...
-            resolve(checked); // Resolver la Promise con el valor del switch
+            resolve(checked); 
         });
     });
 
-    return result; // Devolver el resultado de la Promise
+    return result; 
 
 }
