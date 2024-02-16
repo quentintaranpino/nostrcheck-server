@@ -6,7 +6,7 @@ import { ResultMessagev2, ServerStatusMessage, authkeyResultMessage } from "../i
 import { generateCredentials } from "../lib/authorization.js";
 import { dbDelete, dbInsert, dbUpdate } from "../lib/database.js";
 import { allowedFieldNames, allowedFieldNamesAndValues, allowedTableNames } from "../interfaces/admin.js";
-import { parseAuthEvent} from "../lib/authorization.js"
+import { parseAuthEvent} from "../lib/authorization.js";
 
 let hits = 0;
 /**
