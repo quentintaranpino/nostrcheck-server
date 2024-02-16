@@ -4,7 +4,7 @@ import { connect } from "../lib/database.js";
 import { logger } from "../lib/logger.js";
 import { redisClient, getNostrAddressFromRedis } from "../lib/redis.js";
 import { RegisteredUsernameResult } from "../interfaces/register.js";
-import { ResultMessage } from "../interfaces/server.js";
+import { ResultMessagev2 } from "../interfaces/server.js";
 import { getClientIp } from "../lib/server.js";
 import app from "../app.js";
 
@@ -23,9 +23,9 @@ const checkNostrAddress = async (req: Request, res: Response): Promise<Response>
 			getClientIp(req)
 		);
 
-		const result: ResultMessage = {
-			result: false,
-			description: "Bad request - You have to specify the 'name' parameter",
+		const result: ResultMessagev2 = {
+			status: "error",
+			message:  "Bad request - You have to specify the 'name' parameter",
 		};
 
 		return res.status(400).send(result);
@@ -36,9 +36,9 @@ const checkNostrAddress = async (req: Request, res: Response): Promise<Response>
 		logger.info("REQ Nostraddress ->", servername, "| " +  name.substring(0,50) + "..."  + " |", getClientIp(req));
 		logger.warn("RES Nostraddress -> 400 Bad request - name too long", "|", getClientIp(req));
 
-		const result: ResultMessage = {
-			result: false,
-			description: "Bad request - Name is too long",
+		const result: ResultMessagev2 = {
+			status: "error",
+			message:  "Bad request - Name is too long",
 		};
 
 		return res.status(400).send(result);
@@ -78,9 +78,9 @@ const checkNostrAddress = async (req: Request, res: Response): Promise<Response>
 		if (rowstemp[0] == undefined) {
 			logger.warn("RES Nostraddress ->", name, "|", "Username not registered", "|", getClientIp(req));
 
-			const result: ResultMessage = {
-				result: false,
-				description: `${name} is not registered on ${servername}`,
+			const result: ResultMessagev2 = {
+				status: "error",
+				message: `${name} is not registered on ${servername}`,
 			};
 
 			return res.status(404).send(result);
@@ -93,9 +93,9 @@ const checkNostrAddress = async (req: Request, res: Response): Promise<Response>
 	} catch (error) {
 		logger.error(error);
 
-		const result: ResultMessage = {
-			result: false,
-			description: "Internal server error",
+		const result: ResultMessagev2 = {
+			status: "error",
+			message:  "Internal server error",
 		};
 
 		return res.status(404).send(result);
