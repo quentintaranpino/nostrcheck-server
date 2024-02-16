@@ -20,12 +20,13 @@ import { Event } from "nostr-tools";
  * @param endpoint - The endpoint of the request.
  * @returns A promise that resolves to a VerifyResultMessage object.
  */
-const parseAuthEvent = async (req: Request, endpoint: string = ""): Promise<VerifyResultMessage> => {
+const parseAuthEvent = async (req: Request, endpoint: string = "", checkAdminPrivileges = true): Promise<VerifyResultMessage> => {
 
-	// Check if apikey is present on request body instead of NIP98 authorization header.
+	// Check if apikey is present on request body or query
 	if (req.query.apikey || req.body.apikey) {
 		 
-		const hexApikey = await isApikeyValid(req, endpoint);
+		const hexApikey = await isApikeyValid(req, endpoint, checkAdminPrivileges);
+		
 		const result: VerifyResultMessage = {
 			status: hexApikey ? "success" : "error",
 			message: hexApikey ? "Apikey is valid" : "Apikey is not valid",
@@ -35,7 +36,7 @@ const parseAuthEvent = async (req: Request, endpoint: string = ""): Promise<Veri
 		return result;
 	}
 
-	//Check if request has authorization header
+	//Check if request has authorization header (NIP98 event or authkey)
 	if (req.headers.authorization === undefined) {
 		logger.warn(
 			"RES -> 400 Bad request - Authorization header not found",
@@ -57,19 +58,19 @@ const parseAuthEvent = async (req: Request, endpoint: string = ""): Promise<Veri
 		req.headers.authorization = req.headers.authorization.split(' ')[1];
 	} 
 
-	// Check if req.headers.authorization startsWith 'Auth'. Check if authkey is present on the header authorization Bearer and validate it.
+	// Check if authkey is present on the header authorization Bearer and validate it.
 	if (!req.headers.authorization.startsWith('Auth')) {
 		const authorized = await isAuthkeyValid(req);
 		const result: isAuthkeyValidResult = {
-		status: authorized.status,
-		message: authorized.message,
-		pubkey: authorized.pubkey,
-		authkey: authorized.authkey
+			status: authorized.status,
+			message: authorized.message,
+			pubkey: authorized.pubkey,
+			authkey: authorized.authkey
 		};
 		return result;
 	}
 
-	//Check if authorization header NIP98 event is valid
+	//Check if NIP98 is present on the header authorization Bearer and validate it.
 	let authevent: Event;
 	logger.debug("Parsing authorization header", req.headers.authorization, "|", req.socket.remoteAddress);
 	try {
@@ -124,9 +125,10 @@ const parseAuthEvent = async (req: Request, endpoint: string = ""): Promise<Veri
  * Validates a public key by checking if it exists in the registered table of the database. 
  * Optionally checks if the public key has admin privileges.
  * @param {Request} req - The request object, which should contain the public key in the body or session.
+ * @param {boolean} [checkAdminPrivileges=false] - A boolean indicating whether to check if the public key has admin privileges. Optional.
  * @returns {Promise<boolean>} A promise that resolves to a boolean indicating whether the public key is valid and, if checkAdminPrivileges is true, whether it has admin privileges. Returns false if an error occurs, if the public key is not provided, or if it does not exist in the registered table.
  */
-const isPubkeyValid = async (req: Request): Promise<boolean> => {
+const isPubkeyValid = async (req: Request, checkAdminPrivileges = false): Promise<boolean> => {
 
 	if (!req.body.pubkey && !req.session.identifier) {
 		logger.warn("No pubkey provided");
@@ -134,20 +136,20 @@ const isPubkeyValid = async (req: Request): Promise<boolean> => {
 	}
 
 	const pubkey = req.body.pubkey || req.session.identifier;
-	logger.info("Checking if pubkey is allowed ->", pubkey)
-
-    try{
-
-		const result = await dbSelect("SELECT hex FROM registered WHERE hex = ?", "hex", [pubkey], registeredTableFields)
-		if (result == "") {
-			return false;
-		}
-		if (req.session.identifier) return true;
-		return await verifyNIP07login(req);
-
-	}catch (error) {
+	const hex = await dbSelect("SELECT hex FROM registered WHERE hex = ?", "hex", [pubkey], registeredTableFields)
+	if (hex == "") {
 		return false;
 	}
+
+	if (checkAdminPrivileges) {
+		const admin = await dbSelect("SELECT allowed FROM registered WHERE hex = ?", "allowed", [hex], registeredTableFields);
+		if (admin === "0") {
+			logger.warn("RES -> 403 forbidden - Apikey does not have admin privileges", "|", req.socket.remoteAddress);
+			return false;
+		}
+	}
+	if (req.session.identifier) return true;
+	return await verifyNIP07login(req);
 
 }
 
@@ -256,17 +258,16 @@ const generateCredentials = async (type: credentialTypes, returnHashed: boolean 
  * 
  * @param req - The request object.
  * @param endpoint - The endpoint of the request.
+ * @param checkAdminPrivileges - A boolean indicating whether to check if the apikey has admin privileges. Optional.
  * @returns A promise that resolves to a VerifyResultMessage object.
  */
-const isApikeyValid = async (req: Request, endpoint: string = ""): Promise<boolean> => {
+const isApikeyValid = async (req: Request, endpoint: string = "", checkAdminPrivileges = false): Promise<boolean> => {
 	let apikey = req.query.apikey || req.body.apikey;
 
 	if (!apikey) {
 		logger.warn("RES -> 400 Bad request - Apikey not found", "|", req.socket.remoteAddress);
 		return false;
 	}
-
-	logger.debug("Checking apikey", apikey, "|", req.socket.remoteAddress);
 
 	// We only allow server apikey for uploadMedia endpoint
 	const serverApikey = await dbSelect("SELECT apikey FROM registered WHERE username = ?", "apikey", ["public"], registeredTableFields);
@@ -279,13 +280,19 @@ const isApikeyValid = async (req: Request, endpoint: string = ""): Promise<boole
 		registeredTableFields
 	);
 
-	logger.debug("Apikey found, setting pubkey = " + hexApikey, "|")
 	if (hexApikey === "") {
 		logger.warn("RES -> 401 unauthorized - Apikey not found", "|", req.socket.remoteAddress);
 		return false;
 	}
 
-	logger.warn("Apikey found, setting pubkey = " + hexApikey, "|", req.socket.remoteAddress);
+	if (checkAdminPrivileges) {
+		const admin = await dbSelect("SELECT allowed FROM registered WHERE hex = ?", "allowed", [hexApikey], registeredTableFields);
+		if (admin === "0") {
+			logger.warn("RES -> 403 forbidden - Apikey does not have admin privileges", "|", req.socket.remoteAddress);
+			return false;
+		}
+	}
+
 	return true;
 };
 
