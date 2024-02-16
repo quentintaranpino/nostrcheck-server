@@ -3,11 +3,20 @@ import { Request, Response } from "express";
 import { logger } from "../lib/logger.js";
 import { getClientIp, format } from "../lib/server.js";
 import { ResultMessagev2, ServerStatusMessage, authkeyResultMessage } from "../interfaces/server.js";
-import { checkAuthkey, generateCredentials } from "../lib/authorization.js";
+import { generateCredentials } from "../lib/authorization.js";
 import { dbDelete, dbInsert, dbUpdate } from "../lib/database.js";
 import { allowedFieldNames, allowedFieldNamesAndValues, allowedTableNames } from "../interfaces/admin.js";
+import { parseAuthEvent} from "../lib/authorization.js"
+import { parse } from "path";
 
 let hits = 0;
+/**
+ * Retrieves the server status.
+ * 
+ * @param req - The request object.
+ * @param res - The response object.
+ * @returns A promise that resolves to the server status response.
+ */
 const serverStatus = async (req: Request, res: Response): Promise<Response> => {
 	
     hits++;
@@ -25,44 +34,45 @@ const serverStatus = async (req: Request, res: Response): Promise<Response> => {
 	return res.status(200).send(result);
 };
 
+
+/**
+ * Stops the server.
+ * 
+ * @param req - The request object.
+ * @param res - The response object.
+ * @returns A promise that resolves to the response object.
+ */
 const StopServer = async (req: Request, res: Response): Promise<Response> => {
 
-    // Check if the request is authorized
-    const authorized = await checkAuthkey(req);
-    if ( authorized.status !== "success" ) {
-        const result : ResultMessagev2 = {
-            status: "error",
-            message: "Unauthorized"
-            };
-        logger.error("RES -> Unauthorized" + " | " + getClientIp(req));
-        return res.status(401).send(result);
-    }
+    //Check if event authorization header is valid (NIP98)
+	const EventHeader = await parseAuthEvent(req);
+	if (EventHeader.status !== "success") {return res.status(401).send({"status": EventHeader.status, "message" : EventHeader.message});}
 
     logger.warn("RES -> 200 Stopping server from IP:", getClientIp(req));
     const result : authkeyResultMessage = {
         status: "success",
         message: "Stopping server...",
-        authkey: authorized.authkey
+        authkey: EventHeader.authkey
         };
     res.status(200).json(result);
     process.exit(0);
 };
 
+/**
+ * Updates a record in the database.
+ * 
+ * @param req - The request object.
+ * @param res - The response object.
+ * @returns A promise that resolves to the response object.
+ */
 const updateDBRecord = async (req: Request, res: Response): Promise<Response> => {
 
     logger.info("REQ -> updateDBRecord", req.hostname, "|", getClientIp(req));
     res.setHeader('Content-Type', 'application/json');
 
-    // Check header has authorization token
-    const authorized = await checkAuthkey(req)
-    if ( authorized.status != "success") {
-        const result : ResultMessagev2 = {
-            status: "error",
-            message: "Unauthorized"
-            };
-        logger.error("RES -> Unauthorized" + " | " + getClientIp(req));
-        return res.status(401).send(result);
-    }
+    //Check if event authorization header is valid (NIP98)
+	const EventHeader = await parseAuthEvent(req);
+	if (EventHeader.status !== "success") {return res.status(401).send({"status": EventHeader.status, "message" : EventHeader.message});}
     
     // Check if the request has the required parameters
      if (!req.body.table || !req.body.field || req.body.value === undefined || req.body.value === null || !req.body.id) {
@@ -101,7 +111,7 @@ const updateDBRecord = async (req: Request, res: Response): Promise<Response> =>
         const result : authkeyResultMessage = {
             status: "error",
             message: req.body.field + " cannot be empty.",
-            authkey: authorized.authkey
+            authkey: EventHeader.authkey
             };
         logger.warn("RES -> Value is empty: " + req.body.field +  " | " + getClientIp(req));
         return res.status(400).send(result);
@@ -114,7 +124,7 @@ const updateDBRecord = async (req: Request, res: Response): Promise<Response> =>
         const result : authkeyResultMessage = {
             status: "success",
             message: req.body.value,
-            authkey: authorized.authkey
+            authkey: EventHeader.authkey
             };
         logger.info("RES -> Record updated" + " | " + getClientIp(req));
         return res.status(200).send(result);
@@ -130,21 +140,21 @@ const updateDBRecord = async (req: Request, res: Response): Promise<Response> =>
     }
 }
 
+/**
+ * Resets the password for a user.
+ * 
+ * @param req - The request object.
+ * @param res - The response object.
+ * @returns A promise that resolves to the response object.
+ */
 const resetUserPassword = async (req: Request, res: Response): Promise<Response> => {
    
     logger.info("REQ -> reset user password", req.hostname, "|", getClientIp(req));
     res.setHeader('Content-Type', 'application/json');
     
-    // Check header has authorization token
-    const authorized = await checkAuthkey(req)
-    if ( authorized.status != "success") {
-        const result : ResultMessagev2 = {
-            status: "error",
-            message: "Unauthorized"
-            };
-        logger.error("RES -> Unauthorized" + " | " + getClientIp(req));
-        return res.status(401).send(result);
-    }
+    //Check if event authorization header is valid (NIP98)
+	const EventHeader = await parseAuthEvent(req);
+	if (EventHeader.status !== "success") {return res.status(401).send({"status": EventHeader.status, "message" : EventHeader.message});}
 
     // Check if the request has the required parameters
     if (!req.body.pubkey) {
@@ -169,7 +179,7 @@ const resetUserPassword = async (req: Request, res: Response): Promise<Response>
     const result : authkeyResultMessage = {
         status: "success",
         message: "New password generated for " + req.body.pubkey,
-        authkey: authorized.authkey
+        authkey: EventHeader.authkey
         };
     logger.info("RES -> New password sent to " + req.body.pubkey);
     return res.status(200).send(result);
@@ -177,21 +187,21 @@ const resetUserPassword = async (req: Request, res: Response): Promise<Response>
    
 };
 
+/**
+ * Deletes a record from the database.
+ * 
+ * @param req - The request object.
+ * @param res - The response object.
+ * @returns A Promise that resolves to the response object.
+ */
 const deleteDBRecord = async (req: Request, res: Response): Promise<Response> => {
 
     logger.info("REQ -> deleteDBRecord", req.hostname, "|", getClientIp(req));
     res.setHeader('Content-Type', 'application/json');
 
-    // Check header has authorization token
-    const authorized = await checkAuthkey(req)
-    if ( authorized.status != "success") {
-        const result : ResultMessagev2 = {
-            status: "error",
-            message: "Unauthorized"
-            };
-        logger.error("RES -> Unauthorized" + " | " + getClientIp(req));
-        return res.status(401).send(result);
-    }
+    //Check if event authorization header is valid (NIP98)
+	const EventHeader = await parseAuthEvent(req);
+	if (EventHeader.status !== "success") {return res.status(401).send({"status": EventHeader.status, "message" : EventHeader.message});}
 
     // Check if the request has the required parameters
     if (!req.body.table || !req.body.id) {
@@ -251,7 +261,7 @@ const deleteDBRecord = async (req: Request, res: Response): Promise<Response> =>
         const result : authkeyResultMessage = {
             status: "success",
             message: "Record deleted succesfully",
-            authkey: authorized.authkey
+            authkey: EventHeader.authkey
             };
         logger.info("RES -> Record deleted - id: " + req.body.id + " from table: " + table + " | " + getClientIp(req));
         return res.status(200).send(result);
@@ -259,28 +269,28 @@ const deleteDBRecord = async (req: Request, res: Response): Promise<Response> =>
         const result : authkeyResultMessage = {
             status: "error",
             message: "Failed to delete record",
-            authkey: authorized.authkey
+            authkey: EventHeader.authkey
             };
         logger.error("RES -> Failed to delete record" + " | " + getClientIp(req));
         return res.status(500).send(result);
     }
 }
 
+/**
+ * Inserts a record into the database.
+ * 
+ * @param req - The request object.
+ * @param res - The response object.
+ * @returns A promise that resolves to the response object.
+ */
 const insertDBRecord = async (req: Request, res: Response): Promise<Response> => {
 
     logger.info("REQ -> insertDBRecord", req.hostname, "|", getClientIp(req));
     res.setHeader('Content-Type', 'application/json');
 
-    // Check header has authorization token
-    const authorized = await checkAuthkey(req)
-    if ( authorized.status != "success") {
-        const result : ResultMessagev2 = {
-            status: "error",
-            message: "Unauthorized"
-            };
-        logger.error("RES -> Unauthorized" + " | " + getClientIp(req));
-        return res.status(401).send(result);
-    }
+    //Check if event authorization header is valid (NIP98)
+	const EventHeader = await parseAuthEvent(req);
+	if (EventHeader.status !== "success") {return res.status(401).send({"status": EventHeader.status, "message" : EventHeader.message});}
 
     // Check if the request has the required parameters
     if (!req.body.table || !req.body.row) {
@@ -342,7 +352,7 @@ const insertDBRecord = async (req: Request, res: Response): Promise<Response> =>
         const result : authkeyResultMessage = {
             status: "error",
             message: "Failed to insert records",
-            authkey: authorized.authkey
+            authkey: EventHeader.authkey
             };
         logger.error("RES -> Failed to insert records" + " | " + getClientIp(req));
         return res.status(500).send(result);
@@ -355,7 +365,7 @@ const insertDBRecord = async (req: Request, res: Response): Promise<Response> =>
             const result : authkeyResultMessage = {
                 status: "error",
                 message: "Failed to generate new password",
-                authkey: authorized.authkey
+                authkey: EventHeader.authkey
                 };
             logger.error("RES -> Failed to generate new password" + " | " + getClientIp(req));
             return res.status(500).send(result);
@@ -366,7 +376,7 @@ const insertDBRecord = async (req: Request, res: Response): Promise<Response> =>
     const result : authkeyResultMessage = {
         status: "success",
         message: insert.toString(),
-        authkey: authorized.authkey
+        authkey: EventHeader.authkey
         };
 
     logger.info("RES -> Records inserted" + " | " + getClientIp(req));
