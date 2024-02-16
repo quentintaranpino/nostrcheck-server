@@ -217,7 +217,7 @@ const updateLightningAddress = async (req: Request, res: Response): Promise<Resp
 	logger.info("RES Update lightningaddress ->", servername, " | pubkey:",  EventHeader.pubkey, " | ligntningaddress:",  lightningaddress, "|", "Lightning redirect updated", "|", getClientIp(req));
 
 	const result: ResultMessagev2 = {
-		status: "error",
+		status: "success",
 		message: `Lightning redirect for pubkey ${EventHeader.pubkey} updated`,
 	};
 
