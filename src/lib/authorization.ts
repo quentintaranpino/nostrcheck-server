@@ -23,12 +23,17 @@ const parseAuthEvent = async (req: Request, endpoint: string = "", checkAdminPri
 	// Check if apikey is present on request body or query
 	if (req.query.apikey || req.body.apikey) {
 		 
+		logger.debug("Apikey found on request", req.query.apikey || req.body.apikey, "|", req.socket.remoteAddress)
 		const hexApikey = await isApikeyValid(req, endpoint, checkAdminPrivileges);
-		
+
+		let pubkey = "";
+		if (hexApikey) {
+			pubkey = await dbSelect("SELECT hex FROM registered WHERE apikey = ?", "hex", [req.query.apikey || req.body.apikey], registeredTableFields);
+		}
 		const result: authHeaderResult = {
 			status: hexApikey ? "success" : "error",
 			message: hexApikey ? "Apikey is valid" : "Apikey is not valid",
-			pubkey: "",
+			pubkey: pubkey,
 			authkey: ""
 		};
 		return result;
@@ -57,7 +62,8 @@ const parseAuthEvent = async (req: Request, endpoint: string = "", checkAdminPri
 	} 
 
 	// Check if authkey is present on the header authorization Bearer and validate it.
-	if (!req.headers.authorization.startsWith('Auth')) {
+	if (req.headers.authorization.startsWith('Auth')) {
+		logger.debug("Authkey found on request", "|", req.socket.remoteAddress);
 		const authorized = await isAuthkeyValid(req);
 		const result: authHeaderResult = {
 			status: authorized.status,
@@ -70,7 +76,7 @@ const parseAuthEvent = async (req: Request, endpoint: string = "", checkAdminPri
 
 	//Check if NIP98 is present on the header authorization Bearer and validate it.
 	let authevent: Event;
-	logger.debug("Parsing authorization header", req.headers.authorization, "|", req.socket.remoteAddress);
+	logger.debug("Parsing NIP 98 authorization header", req.headers.authorization, "|", req.socket.remoteAddress);
 	try {
 		authevent = JSON.parse(
 			Buffer.from(
@@ -285,7 +291,7 @@ const isApikeyValid = async (req: Request, endpoint: string = "", checkAdminPriv
 	// We only allow server apikey for uploadMedia endpoint
 	const serverApikey = await dbSelect("SELECT apikey FROM registered WHERE username = ?", "apikey", ["public"], registeredTableFields);
 	const hexApikey : string = await dbSelect(
-		endpoint != "Uploadmedia"
+		endpoint != "uploadmedia"
 			? "SELECT hex FROM registered WHERE apikey = ? and apikey <> ?"
 			: "SELECT hex FROM registered WHERE apikey = ?",
 		"hex",
