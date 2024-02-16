@@ -3,9 +3,9 @@ import { Request, Response } from "express";
 import { connect } from "../lib/database.js";
 import { logger } from "../lib/logger.js";
 import { redisClient, getLightningAddressFromRedis } from "../lib/redis.js";
-import { ResultMessage } from "../interfaces/server.js";
+import { ResultMessagev2 } from "../interfaces/server.js";
 import { LightningUsernameResult } from "../interfaces/lightning.js";
-import { ParseAuthEvent } from "../lib/nostr/NIP98.js";
+import { parseAuthEvent } from "../lib/authorization.js";
 import { getClientIp } from "../lib/server.js";
 
 const Redirectlightningddress = async (req: Request, res: Response): Promise<any> => {
@@ -23,9 +23,9 @@ const Redirectlightningddress = async (req: Request, res: Response): Promise<any
 			getClientIp(req)
 		);
 
-		const result: ResultMessage = {
-			result: false,
-			description: "Bad request - You have to specify the 'name' parameter",
+		const result: ResultMessagev2 = {
+			status: "error",
+			message: "Bad request - You have to specify the 'name' parameter",
 		};
 
 		return res.status(400).send(result);
@@ -36,9 +36,9 @@ const Redirectlightningddress = async (req: Request, res: Response): Promise<any
 		logger.info("REQ GET lightningaddress ->", servername, " | name:",  name.substring(0,50) + "..." , "|", getClientIp(req));
 		logger.warn("RES GET Lightningaddress -> 400 Bad request - name too long", "|", getClientIp(req));
 
-		const result: ResultMessage = {
-			result: false,
-			description: "Bad request - Name is too long",
+		const result: ResultMessagev2 = {
+			status: "error",
+			message: "Bad request - Name is too long",
 		};
 
 		return res.status(400).send(result);
@@ -73,9 +73,9 @@ const Redirectlightningddress = async (req: Request, res: Response): Promise<any
 		if (rowstemp[0] == undefined) {
 			logger.warn("RES GET Lightningaddress ->", name, "|", "Lightning redirect not found");
 
-			const result: ResultMessage = {
-				result: false,
-				description: `Lightning redirect for username ${name} not found`,
+			const result: ResultMessagev2 = {
+				status: "error",
+				message: `Lightning redirect for username ${name} not found`,
 			};
 
 			return res.status(404).send(result);
@@ -89,9 +89,9 @@ const Redirectlightningddress = async (req: Request, res: Response): Promise<any
 	} catch (error) {
 		logger.error(error);
 
-		const result: ResultMessage = {
-			result: false,
-			description: "Internal server error",
+		const result: ResultMessagev2 = {
+			status: "error",
+			message:  "Internal server error",
 		};
 
 		return res.status(404).send(result);
@@ -116,9 +116,9 @@ const UpdateLightningAddress = async (req: Request, res: Response): Promise<Resp
 	const servername = req.hostname;
 	const lightningaddress = req.params.lightningaddress;
 
-	//Check if event authorization header is valid (NIP98)
-	const EventHeader = await ParseAuthEvent(req);
-	if (!EventHeader.result) {return res.status(401).send({"result": EventHeader.result, "description" : EventHeader.description});}
+    //Check if event authorization header is valid
+	const EventHeader = await parseAuthEvent(req);
+	if (EventHeader.status !== "success") {return res.status(401).send({"status": EventHeader.status, "message" : EventHeader.message});}
 
 	//If lightningaddress is null return 400
 	if (!lightningaddress || lightningaddress.trim() == "") {
@@ -129,9 +129,9 @@ const UpdateLightningAddress = async (req: Request, res: Response): Promise<Resp
 			getClientIp(req)
 		);
 
-		const result: ResultMessage = {
-			result: false,
-			description: "Bad request - You have to specify the 'lightningaddress' parameter",
+		const result: ResultMessagev2 = {
+			status: "error",
+			message:  "Bad request - You have to specify the 'lightningaddress' parameter",
 		};
 
 		return res.status(400).send(result);
@@ -144,9 +144,9 @@ const UpdateLightningAddress = async (req: Request, res: Response): Promise<Resp
 		logger.info("REQ Update lightningaddress-> ", servername, " |" +  lightningaddress.substring(0,50) + "..."  + " |", getClientIp(req));
 		logger.warn("RES Update Lightningaddress -> 400 Bad request - lightningaddress too long", "|", getClientIp(req));
 
-		const result: ResultMessage = {
-			result: false,
-			description: "Bad request - Lightningaddress is too long",
+		const result: ResultMessagev2 = {
+			status: "error",
+			message:  "Bad request - Lightningaddress is too long",
 		};
 
 		return res.status(400).send(result);
@@ -176,9 +176,9 @@ const UpdateLightningAddress = async (req: Request, res: Response): Promise<Resp
 			if (!dbInsert) {
 				logger.warn("RES Update Lightningaddress ->", EventHeader.pubkey, "|", "Error inserting lightning address into database");
 
-				const result: ResultMessage = {
-					result: false,
-					description: "Error inserting lightning address into database",
+				const result: ResultMessagev2 = {
+					status: "error",
+					message:  "Error inserting lightning address into database",
 			};
 			conn.end();
 			return res.status(406).send(result);
@@ -189,9 +189,9 @@ const UpdateLightningAddress = async (req: Request, res: Response): Promise<Resp
 	catch (error) {
 		logger.error(error);
 
-		const result: ResultMessage = {
-			result: false,
-			description: "Internal server error",
+		const result: ResultMessagev2 = {
+			status: "error",
+			message:  "Internal server error",
 		};
 
 		return res.status(500).send(result);
@@ -216,9 +216,9 @@ const UpdateLightningAddress = async (req: Request, res: Response): Promise<Resp
 
 	logger.info("RES Update lightningaddress ->", servername, " | pubkey:",  EventHeader.pubkey, " | ligntningaddress:",  lightningaddress, "|", "Lightning redirect updated", "|", getClientIp(req));
 
-	const result: ResultMessage = {
-		result: true,
-		description: `Lightning redirect for pubkey ${EventHeader.pubkey} updated`,
+	const result: ResultMessagev2 = {
+		status: "error",
+		message: `Lightning redirect for pubkey ${EventHeader.pubkey} updated`,
 	};
 
 	return res.status(200).send(result);
@@ -230,9 +230,9 @@ const DeleteLightningAddress = async (req: Request, res: Response): Promise<Resp
 	const servername = req.hostname;
 	let lightningaddress = "";
 
-	//Check if event authorization header is valid (NIP98)
-	const EventHeader = await ParseAuthEvent(req);
-	if (!EventHeader.result) {return res.status(401).send({"result": EventHeader.result, "description" : EventHeader.description});}
+    //Check if event authorization header is valid (NIP98)
+	const EventHeader = await parseAuthEvent(req);
+	if (EventHeader.status !== "success") {return res.status(401).send({"status": EventHeader.status, "message" : EventHeader.message});}
 
 	//Check if pubkey's lightningaddress exists on database
 	try{
@@ -245,9 +245,9 @@ const DeleteLightningAddress = async (req: Request, res: Response): Promise<Resp
 		conn.end();
 		if (rowstemp[0] == undefined) {
 			logger.warn("RES Delete Lightningaddress -> 404 Not found", "|", getClientIp(req));
-			const result: ResultMessage = {
-				result: false,
-				description: `Lightning redirect for pubkey ${EventHeader.pubkey} not found`,
+			const result: ResultMessagev2 = {
+				status: "error",
+				message:  `Lightning redirect for pubkey ${EventHeader.pubkey} not found`,
 			};
 			return res.status(404).send(result);
 		}
@@ -255,9 +255,9 @@ const DeleteLightningAddress = async (req: Request, res: Response): Promise<Resp
 
 	}catch (error) {
 		logger.error(error);
-		const result: ResultMessage = {
-			result: false,
-			description: "Internal server error",
+		const result: ResultMessagev2 = {
+			status: "error",
+			message:  "Internal server error",
 		};
 		return res.status(500).send(result);
 	}
@@ -274,18 +274,18 @@ const DeleteLightningAddress = async (req: Request, res: Response): Promise<Resp
 		conn.end();
 		if (rowstemp.affectedRows == 0) {
 			logger.info("Delete Lightningaddress ->", EventHeader.pubkey, "|", "Lightning redirect not found");
-			const result: ResultMessage = {
-				result: false,
-				description: `Lightning redirect for pubkey ${EventHeader.pubkey} not found`,
+			const result: ResultMessagev2 = {
+				status: "error",
+				message:  `Lightning redirect for pubkey ${EventHeader.pubkey} not found`,
 			};
 			return res.status(404).send(result);
 		}
 	}
 	catch (error) {
 		logger.error(error);
-		const result: ResultMessage = {
-			result: false,
-			description: "Internal server error",
+		const result: ResultMessagev2 = {
+			status: "error",
+			message:  "Internal server error",
 		};
 		return res.status(500).send(result);
 	}
@@ -311,9 +311,9 @@ const DeleteLightningAddress = async (req: Request, res: Response): Promise<Resp
 
 	logger.info("RES Delete lightningaddress ->", servername, " | pubkey:",  EventHeader.pubkey, " | ligntningaddress:",  lightningaddress, "|", "Lightning redirect deleted", "|", getClientIp(req));
 
-	const result: ResultMessage = {
-		result: true,
-		description: `Lightning redirect for pubkey ${EventHeader.pubkey} deleted`,
+	const result: ResultMessagev2 = {
+		status: "success",
+		message: `Lightning redirect for pubkey ${EventHeader.pubkey} deleted`,
 	};
 
 	return res.status(200).send(result);
