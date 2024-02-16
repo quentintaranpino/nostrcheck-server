@@ -18,11 +18,4 @@ import { ResultMessagev2 } from "./server.js";
         {field: "date", values: ["string"]}
     ];
 
-    type credentialTypes = 'password' | 'authkey';
-
-    interface isAuthkeyValidResult extends ResultMessagev2 {
-        authkey: string,
-        pubkey: string
-    }
-
-    export { allowedTableNames, allowedFieldNames, allowedFieldNamesAndValues, credentialTypes, isAuthkeyValidResult };
+    export { allowedTableNames, allowedFieldNames, allowedFieldNamesAndValues };
