@@ -81,7 +81,7 @@ const parseAuthEvent = async (req: Request, endpoint: string = "", checkAdminPri
 	try {
 		authevent = JSON.parse(
 			Buffer.from(
-				req.headers.authorization,
+				req.headers.authorization.split(' ')[1],
 				"base64"
 			).toString("utf8")
 		);
