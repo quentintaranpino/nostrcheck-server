@@ -57,88 +57,100 @@ const parseAuthEvent = async (req: Request, endpoint: string = "", checkAdminPri
 		return result;
 	}
 
-	// Remove string "Bearer" from header if exist.
+	// Check if authkey is present on the header authorization Bearer and validate it.
 	if (req.headers.authorization.startsWith('Bearer ')) {
 		req.headers.authorization = req.headers.authorization.split(' ')[1];
+		if (req.headers.authorization.startsWith('Auth')) {
+			logger.debug("Authkey found on request", "|", req.socket.remoteAddress);
+			const authorized = await isAuthkeyValid(req);
+			const result: authHeaderResult = {
+				status: authorized.status,
+				message: authorized.message,
+				pubkey: authorized.pubkey,
+				authkey: authorized.authkey
+			};
+			return result;
+		}
 	} 
 
-	// Check if authkey is present on the header authorization Bearer and validate it.
-	if (req.headers.authorization.startsWith('Auth')) {
-		logger.debug("Authkey found on request", "|", req.socket.remoteAddress);
-		const authorized = await isAuthkeyValid(req);
-		const result: authHeaderResult = {
-			status: authorized.status,
-			message: authorized.message,
-			pubkey: authorized.pubkey,
-			authkey: authorized.authkey
-		};
-		return result;
-	}
-
 	//Check if NIP98 is present on the header authorization Bearer and validate it.
-	let authevent: Event;
-	logger.debug("Parsing NIP 98 authorization header", req.headers.authorization, "|", req.socket.remoteAddress);
-	try {
-		authevent = JSON.parse(
-			Buffer.from(
-				req.headers.authorization,
-				"base64"
-			).toString("utf8")
-		);
-	} catch (error) {
+	if (req.headers.authorization.startsWith('Nostr ')) {
+		req.headers.authorization = req.headers.authorization.split(' ')[1];
+		let authevent: Event;
+		logger.debug("Parsing NIP 98 authorization header", req.headers.authorization, "|", req.socket.remoteAddress);
+		try {
+			authevent = JSON.parse(
+				Buffer.from(
+					req.headers.authorization,
+					"base64"
+				).toString("utf8")
+			);
+		} catch (error) {
 
-		logger.warn(`RES -> 400 Bad request - ${error}`, "|", req.socket.remoteAddress);
-		const result: authHeaderResult = {
-			status: "error",
-			message: "Malformed authorization header",
-			pubkey: "",
-			authkey: ""
-		};
-
-		return result;
-	}
-
-	//Check if event authorization content is valid, check NIP98 documentation for more info: https://github.com/v0l/nips/blob/nip98/98.md
-	const IsAuthEventValid = await isNIP98Valid(authevent, req);
-	if (IsAuthEventValid.status !== "success") {
-		logger.warn(
-			`RES -> 400 Bad request - ${IsAuthEventValid.message}`,
-			"|",
-			req.socket.remoteAddress
-		);
-		const result: authHeaderResult = {
-			status: "error",
-			message: "Authorization header is invalid",
-			pubkey: "",
-			authkey:""
-		};
-
-		return result;
-	}
-
-	if (checkAdminPrivileges) {
-		const admin = await dbSelect("SELECT allowed FROM registered WHERE hex = ?", "allowed", [authevent.pubkey], registeredTableFields);
-		if (admin === "0") {
-			logger.warn("RES -> 403 forbidden - Pubkey does not have admin privileges", "|", req.socket.remoteAddress);
+			logger.warn(`RES -> 400 Bad request - ${error}`, "|", req.socket.remoteAddress);
 			const result: authHeaderResult = {
 				status: "error",
-				message: "This pubkey does not have admin privileges",
-				pubkey: authevent.pubkey,
+				message: "Malformed authorization header",
+				pubkey: "",
 				authkey: ""
 			};
 
 			return result;
 		}
+
+		//Check if event authorization content is valid, check NIP98 documentation for more info: https://github.com/v0l/nips/blob/nip98/98.md
+		const IsAuthEventValid = await isNIP98Valid(authevent, req);
+		if (IsAuthEventValid.status !== "success") {
+			logger.warn(
+				`RES -> 400 Bad request - ${IsAuthEventValid.message}`,
+				"|",
+				req.socket.remoteAddress
+			);
+			const result: authHeaderResult = {
+				status: "error",
+				message: "Authorization header is invalid",
+				pubkey: "",
+				authkey:""
+			};
+
+			return result;
+		}
+
+		if (checkAdminPrivileges) {
+			const admin = await dbSelect("SELECT allowed FROM registered WHERE hex = ?", "allowed", [authevent.pubkey], registeredTableFields);
+			if (admin === "0") {
+				logger.warn("RES -> 403 forbidden - Pubkey does not have admin privileges", "|", req.socket.remoteAddress);
+				const result: authHeaderResult = {
+					status: "error",
+					message: "This pubkey does not have admin privileges",
+					pubkey: authevent.pubkey,
+					authkey: ""
+				};
+
+				return result;
+			}
+		}
+
+		const result: authHeaderResult = {
+			status: "success",
+			message: "Authorization header is valid",
+			pubkey: authevent.pubkey,
+			authkey: ""
+		};
+
+		return result;
+
 	}
 
+	logger.warn("RES -> 400 Bad request - Authorization header not found", "|", req.socket.remoteAddress);
 	const result: authHeaderResult = {
-		status: "success",
-		message: "Authorization header is valid",
-		pubkey: authevent.pubkey,
+		status: "error",
+		message: "Authorization header not found",
+		pubkey: "",
 		authkey: ""
 	};
-
 	return result;
+
 };
 
 /**
