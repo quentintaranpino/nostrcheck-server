@@ -313,12 +313,14 @@ function setFieldLinks(tableId, number = 0){
 
                 $(document).off("click", "#" + rowID + "_preview").on("click", "#" + rowID + "_preview", async function() {
                     console.log(row, rowID, filename)
-                    let modalCheched = await initMediaModal(row.username, filename, row.checked);
-                    if (modalCheched != row.checked) {
-                        authkey = await modifyRecord(tableId, row.id, 'checked', modalCheched, 'modify');
-                        let pageNumber = $(tableId).bootstrapTable('getOptions').pageNumber;
-                        let pageSize = $(tableId).bootstrapTable('getOptions').pageSize;
-                        setFieldLinks(tableId, (pageSize * pageNumber) - pageSize );
+                    let modalResult = await initMediaModal(row.username, filename, row.checked, row.visibility);
+                    for (let field in modalResult) {
+                        if (modalResult[field] != row[field]){
+                            authkey = await modifyRecord(tableId, row.id, field, modalResult[field], 'modify')
+                            let pageNumber = $(tableId).bootstrapTable('getOptions').pageNumber;
+                            let pageSize = $(tableId).bootstrapTable('getOptions').pageSize;
+                            setFieldLinks(tableId, (pageSize * pageNumber) - pageSize );
+                        }
                     }
                 });
             }

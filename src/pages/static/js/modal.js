@@ -162,14 +162,18 @@ const initMessageModal = async (objectId, message, title) => {
 
 }
 
-const initMediaModal = async (username, filename, checked) => {
+const initMediaModal = async (username, filename, checked, visible) => {
 
     var mediaModal = new bootstrap.Modal($('#media-modal'));
 
-    console.log(checked)
-    $('#modalSwitch').prop('checked', checked);
-    $('#modalSwitch').change(function() {
+    $('#modalSwitch-checked').prop('checked', checked);
+    $('#modalSwitch-checked').change(function() {
         checked = this.checked ? 1 : 0; 
+    });
+
+    $('#modalSwitch-visible').prop('checked', visible);
+    $('#modalSwitch-visible').change(function() {
+        visible = this.checked ? 1 : 0;
     });
 
     if (filename.includes('.mp4')) {
@@ -199,14 +203,14 @@ const initMediaModal = async (username, filename, checked) => {
     });
 
     $('#media-modal').on('shown.bs.modal', function () {
-        $('#modalSwitch').focus();
+        $('#modalSwitch-checked').focus();
     });
 
     mediaModal.show();
 
     let result = await new Promise((resolve) => {
         $(mediaModal._element).on('hidden.bs.modal', function () {
-            resolve(checked); 
+            resolve({"checked":checked, "visibility":visible}); 
         });
     });
 
