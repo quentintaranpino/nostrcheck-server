@@ -128,7 +128,7 @@ const initTable = (tableId, data, objectName) => {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
-                    "authorization": authkey
+                    "authorization": "Bearer " + authkey
                 },
                 body: JSON.stringify(data)
             })
@@ -242,7 +242,7 @@ function modifyRecord(tableId, id, field, fieldValue, action = 'modify', row = n
         method: "POST",
         headers: {
             "Content-Type": "application/json",
-            "authorization": authkey
+            "authorization": "Bearer " + authkey
         },
         body: JSON.stringify(data)
     })
