@@ -53,27 +53,24 @@ const frontendLogin = async (req: Request, res: Response): Promise<Response> => 
 
     logger.info("POST /api/v2/login", "|", getClientIp(req));
 
-    if ((req.body.pubkey == "" && req.body.username) || (req.body.pubkey == "" && req.body.password == "")){
+    if ((req.body.pubkey === "" || req.body.pubkey == undefined) && (req.body.username === '' || req.body.password === '')){
         logger.warn("RES -> 401 unauthorized  - ", getClientIp(req));
         logger.warn("No credentials used to login. Refusing", getClientIp(req));
         return res.status(401).send(false);
     }
 
     // Set session maxAge
-    if (req.body.rememberMe == "true"){
-        req.session.cookie.maxAge = config.get('session.maxAge');
-    }
+    if (req.body.rememberMe == "true"){req.session.cookie.maxAge = config.get('session.maxAge');}
 
-    let allowed = false;
-
+    let canLogin = false;
     if (req.body.pubkey != undefined){
-        allowed = await isPubkeyValid(req);
+        canLogin = await isPubkeyValid(req, false);
     }
     if (req.body.username != undefined && req.body.password != undefined){
-        allowed = await isUserPasswordValid(req.body.username, req.body.password);
-        if (allowed){req.body.pubkey = await dbSelect("SELECT hex FROM registered WHERE username = ?", "hex", [req.body.username], registeredTableFields)}
+        canLogin = await isUserPasswordValid(req.body.username, req.body.password);
+        if (canLogin){req.body.pubkey = await dbSelect("SELECT hex FROM registered WHERE username = ?", "hex", [req.body.username], registeredTableFields)}
     }
-    if (!allowed) {
+    if (!canLogin) {
         logger.warn(`RES -> 401 unauthorized  - ${req.body.pubkey}`,"|",getClientIp(req));
         return res.status(401).send(false);
     }

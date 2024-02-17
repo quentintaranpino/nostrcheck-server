@@ -88,7 +88,7 @@ const isPubkeyValid = async (req: Request, checkAdminPrivileges = false): Promis
 
 	if (checkAdminPrivileges) {
 		const admin = await dbSelect("SELECT allowed FROM registered WHERE hex = ?", "allowed", [hex], registeredTableFields);
-		if (admin === "0") {
+		if (admin != "1") {
 			logger.warn("RES -> 403 forbidden - Apikey does not have admin privileges", "|", req.socket.remoteAddress);
 			return false;
 		}
@@ -104,8 +104,17 @@ const isPubkeyValid = async (req: Request, checkAdminPrivileges = false): Promis
  * @param {string} password - The password provided by the user to be validated.
  * @returns {Promise<boolean>} A promise that resolves to a boolean indicating whether the provided password matches the hashed password stored in the database for the given username. Returns false if an error occurs.
  */
-const isUserPasswordValid = async (username:string, password:string): Promise<boolean> => {
+const isUserPasswordValid = async (username:string, password:string, checkAdminPrivileges = true ): Promise<boolean> => {
+
 	try{
+
+		if (checkAdminPrivileges) {
+			const admin = await dbSelect("SELECT allowed FROM registered WHERE username = ?", "allowed", [username], registeredTableFields);
+			if (admin === "0") {
+				logger.warn("RES -> 403 forbidden - Username does not have admin privileges", "|", username);
+				return false;
+			}
+		}
 		const userDBPassword = await dbSelect("SELECT password FROM registered WHERE username = ?", 
 								"password", 
 								[username], 
