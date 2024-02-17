@@ -39,7 +39,7 @@ const parseAuthHeader = async (req: Request, endpoint: string = "", checkAdminPr
 	} 
 
 	//Check if NIP98 is present on the header authorization and validate it.
-	if (!req.headers.authorization.startsWith('Nostr ')) {
+	if (req.headers.authorization.startsWith('Nostr ')) {
 		let authevent: Event;
 		logger.debug("NIP 98 found on request", req.headers.authorization, "|", req.socket.remoteAddress);
 		try {
