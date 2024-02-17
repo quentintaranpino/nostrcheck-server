@@ -8,13 +8,13 @@ import { RegisterResultMessage } from "../interfaces/register.js";
 import { QueryAvailiableDomains } from "../lib/domains.js";
 import app from "../app.js";
 import { getClientIp } from "../lib/server.js";
-import { parseAuthEvent } from "../lib/authorization.js";
+import { parseAuthHeader } from "../lib/authorization.js";
 
 const registernewpubkey = async (req: Request, res: Response): Promise<Response> => {
 	logger.info("POST /api/v1/register", "|", getClientIp(req));
 
-    //Check if event authorization header is valid (NIP98)
-	const EventHeader = await parseAuthEvent(req, "registernewpubkey", true);
+    // Check if authorization header is valid
+	const EventHeader = await parseAuthHeader(req, "registernewpubkey", true);
 	if (EventHeader.status !== "success") {return res.status(401).send({"status": EventHeader.status, "message" : EventHeader.message});}
 
 	//Check all necessary fields

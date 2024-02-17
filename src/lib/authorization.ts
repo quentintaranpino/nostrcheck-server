@@ -9,7 +9,6 @@ import crypto from "crypto";
 import { sendMessage } from "./nostr/NIP04.js";
 import { isNIP98Valid } from "./nostr/NIP98.js";
 import { Event } from "nostr-tools";
-import server from "../server.js";
 
 
 /**
@@ -19,126 +18,52 @@ import server from "../server.js";
  * @param endpoint - The endpoint of the request.
  * @returns A promise that resolves to a VerifyResultMessage object.
  */
-const parseAuthEvent = async (req: Request, endpoint: string = "", checkAdminPrivileges = true): Promise<authHeaderResult> => {
+const parseAuthHeader = async (req: Request, endpoint: string = "", checkAdminPrivileges = true): Promise<authHeaderResult> => {
 
-	// Check if apikey is present on request body or query
+	// Apikey is checked first, if it exists, it will be used to authenticate the request
 	if (req.query.apikey || req.body.apikey) {
-		 
 		logger.debug("Apikey found on request", req.query.apikey || req.body.apikey, "|", req.socket.remoteAddress)
-		const hexApikey = await isApikeyValid(req, endpoint, checkAdminPrivileges);
-
-		let pubkey = "";
-		if (hexApikey) {
-			pubkey = await dbSelect("SELECT hex FROM registered WHERE apikey = ?", "hex", [req.query.apikey || req.body.apikey], registeredTableFields);
-		}
-		const result: authHeaderResult = {
-			status: hexApikey ? "success" : "error",
-			message: hexApikey ? "Apikey is valid" : "Apikey is not valid",
-			pubkey: pubkey,
-			authkey: ""
-		};
-		return result;
+		return await isApikeyValid(req, endpoint, checkAdminPrivileges);
 	}
 
-	//Check if request has authorization header (NIP98 event or authkey)
+	//Check if request has authorization header (Nostr NIP98 event or Bearer authkey)
 	if (req.headers.authorization === undefined) {
-		logger.warn(
-			"RES -> 400 Bad request - Authorization header not found",
-			"|",
-			req.socket.remoteAddress
-		);
-		const result: authHeaderResult = {
-			status: "error",
-			message: "Authorization header not found",
-			pubkey: "",
-			authkey: ""
-		};
-
-		return result;
+		logger.warn("RES -> 400 Bad request - Authorization header not found","|",req.socket.remoteAddress);
+		return {status: "error", message: "Authorization header not found", pubkey:"", authkey:""};
 	}
 
-	// Remove string "Bearer" from header if exist.
+	// Check if authkey is present on the header authorization and validate it.
 	if (req.headers.authorization.startsWith('Bearer ')) {
-		req.headers.authorization = req.headers.authorization.split(' ')[1];
+		logger.debug("authkey found on request", "|", req.socket.remoteAddress);
+		return await isAuthkeyValid(req.headers.authorization.split(' ')[1]);
 	} 
 
-	// Check if authkey is present on the header authorization Bearer and validate it.
-	if (req.headers.authorization.startsWith('Auth')) {
-		logger.debug("Authkey found on request", "|", req.socket.remoteAddress);
-		const authorized = await isAuthkeyValid(req);
-		const result: authHeaderResult = {
-			status: authorized.status,
-			message: authorized.message,
-			pubkey: authorized.pubkey,
-			authkey: authorized.authkey
-		};
-		return result;
-	}
+	//Check if NIP98 is present on the header authorization and validate it.
+	if (!req.headers.authorization.startsWith('Nostr ')) {
+		let authevent: Event;
+		logger.debug("NIP 98 found on request", req.headers.authorization, "|", req.socket.remoteAddress);
+		try {
+			authevent = JSON.parse(
+				Buffer.from(
+					req.headers.authorization.split(' ')[1],
+					"base64"
+				).toString("utf8")
+			);
+		} catch (error) {
 
-	//Check if NIP98 is present on the header authorization Bearer and validate it.
-	let authevent: Event;
-	logger.debug("Parsing NIP 98 authorization header", req.headers.authorization, "|", req.socket.remoteAddress);
-	try {
-		authevent = JSON.parse(
-			Buffer.from(
-				req.headers.authorization.split(' ')[1],
-				"base64"
-			).toString("utf8")
-		);
-	} catch (error) {
-
-		logger.warn(`RES -> 400 Bad request - ${error}`, "|", req.socket.remoteAddress);
-		const result: authHeaderResult = {
-			status: "error",
-			message: "Malformed authorization header",
-			pubkey: "",
-			authkey: ""
-		};
-
-		return result;
-	}
-
-	//Check if event authorization content is valid, check NIP98 documentation for more info: https://github.com/v0l/nips/blob/nip98/98.md
-	const IsAuthEventValid = await isNIP98Valid(authevent, req);
-	if (IsAuthEventValid.status !== "success") {
-		logger.warn(
-			`RES -> 400 Bad request - ${IsAuthEventValid.message}`,
-			"|",
-			req.socket.remoteAddress
-		);
-		const result: authHeaderResult = {
-			status: "error",
-			message: "Authorization header is invalid",
-			pubkey: "",
-			authkey:""
-		};
-
-		return result;
-	}
-
-	if (checkAdminPrivileges) {
-		const admin = await dbSelect("SELECT allowed FROM registered WHERE hex = ?", "allowed", [authevent.pubkey], registeredTableFields);
-		if (admin === "0") {
-			logger.warn("RES -> 403 forbidden - Pubkey does not have admin privileges", "|", req.socket.remoteAddress);
-			const result: authHeaderResult = {
-				status: "error",
-				message: "This pubkey does not have admin privileges",
-				pubkey: authevent.pubkey,
-				authkey: ""
-			};
-
-			return result;
+			logger.warn(`RES -> 400 Bad request - ${error}`, "|", req.socket.remoteAddress);
+			return {status: "error", message: "Malformed authorization header", pubkey:"", authkey : ""};
 		}
+
+		// Check if NIP98 event authorization content is valid, 
+		return await isNIP98Valid(authevent, req, checkAdminPrivileges);
+		
 	}
+	
+	// If none of the above, return error
+	logger.warn("RES -> 400 Bad request - Authorization header not found", "|", req.socket.remoteAddress);
+	return {status: "error", message: "Authorization header not found", pubkey:"", authkey:""};
 
-	const result: authHeaderResult = {
-		status: "success",
-		message: "Authorization header is valid",
-		pubkey: authevent.pubkey,
-		authkey: ""
-	};
-
-	return result;
 };
 
 /**
@@ -200,20 +125,14 @@ const isUserPasswordValid = async (username:string, password:string): Promise<bo
  * @param {Request} req - The incoming request.
  * @returns {Promise<checkAuthkeyResult>} The result of the authorization check, including the status, a message, and the new authkey if the check was successful.
  */
-const isAuthkeyValid = async (req: Request) : Promise<authHeaderResult> =>{
+const isAuthkeyValid = async (authString: string) : Promise<authHeaderResult> =>{
 
-	if (!req.headers.authorization) {
+	if (authString === undefined || authString === "") {
 		logger.warn("Unauthorized request, no authorization header");
 		return {status: "error", message: "Unauthorized", authkey: "", pubkey:""};
 	}
-	let token;
-	if (req.headers.authorization.startsWith('Bearer ')) {
-		// Remove "Bearer " from string
-		token = req.headers.authorization.split(' ')[1];
-	} else {
-		token = req.headers.authorization;
-	}
-	const hashedAuthkey = await hashString(token, 'authkey');
+
+	const hashedAuthkey = await hashString(authString, 'authkey');
 	try{
 		const hex =  await dbSelect("SELECT hex FROM registered WHERE authkey = ? and allowed = ?", "hex", [hashedAuthkey,"1"], registeredTableFields)
 		if (hex == ""){
@@ -225,7 +144,7 @@ const isAuthkeyValid = async (req: Request) : Promise<authHeaderResult> =>{
 		const newAuthkey = await generateCredentials('authkey',false, hex);
 		logger.debug("New authkey generated for", hex, ":", newAuthkey)
 		if (newAuthkey == ""){
-			logger.error("Failed to generate authkey for", req.session.identifier);
+			logger.error("Failed to generate authkey for", hex);
 			return {status: "error", message: "Internal server error", authkey: "", pubkey: ""};
 		}
 		return {status: "success", message: "Authorized", authkey: newAuthkey, pubkey:hex};
@@ -281,12 +200,12 @@ const generateCredentials = async (type: credentialTypes, returnHashed: boolean 
  * @param checkAdminPrivileges - A boolean indicating whether to check if the apikey has admin privileges. Optional.
  * @returns A promise that resolves to a boolean indicating whether the apikey is valid. Returns false if the apikey is not found or if an error occurs.
  */
-const isApikeyValid = async (req: Request, endpoint: string = "", checkAdminPrivileges = false): Promise<boolean> => {
-	let apikey = req.query.apikey || req.body.apikey;
+const isApikeyValid = async (req: Request, endpoint: string = "", checkAdminPrivileges = true): Promise<authHeaderResult> => {
 
+	let apikey = req.query.apikey || req.body.apikey;
 	if (!apikey) {
 		logger.warn("RES -> 400 Bad request - Apikey not found", "|", req.socket.remoteAddress);
-		return false;
+		return {status: "error", message: "Apikey not found", pubkey:"", authkey:""};
 	}
 
 	// We only allow server apikey for uploadMedia endpoint
@@ -300,24 +219,30 @@ const isApikeyValid = async (req: Request, endpoint: string = "", checkAdminPriv
 		registeredTableFields
 	);
 
-	if (hexApikey === "") {
+	if (hexApikey === "" || hexApikey === undefined) {
 		if (serverApikey){
 			logger.warn("RES -> 401 unauthorized - Apikey not authorized for this action", "|", req.socket.remoteAddress);
-			return false;
+			return {status: "error", message: "Apikey not authorized for this action", pubkey:"", authkey:""};
 		}
 		logger.warn("RES -> 401 unauthorized - Apikey not found", "|", req.socket.remoteAddress);
-		return false;
+		return {status: "error", message: "Apikey not authorized for this action", pubkey:"", authkey:""};
 	}
 
 	if (checkAdminPrivileges) {
 		const admin = await dbSelect("SELECT allowed FROM registered WHERE hex = ?", "allowed", [hexApikey], registeredTableFields);
 		if (admin === "0") {
 			logger.warn("RES -> 403 forbidden - Apikey does not have admin privileges", "|", req.socket.remoteAddress);
-			return false;
+			return {status: "error", message: "Apikey not authorized for this action", pubkey:"", authkey:""};
 		}
 	}
 
-	return true;
+	const result: authHeaderResult = {
+		status: "success",
+		message: "Apikey is valid",
+		pubkey: hexApikey,
+		authkey: ""
+	};
+	return result;
 };
 
-export { isPubkeyValid, isUserPasswordValid, isApikeyValid, isAuthkeyValid, generateCredentials, parseAuthEvent };
+export { isPubkeyValid, isUserPasswordValid, isApikeyValid, isAuthkeyValid, generateCredentials, parseAuthHeader };

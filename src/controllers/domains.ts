@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 
 import { logger } from "../lib/logger.js";
-import { parseAuthEvent} from "../lib/authorization.js";
+import { parseAuthHeader} from "../lib/authorization.js";
 import { ResultMessagev2 } from "../interfaces/server.js";
 import { redisClient } from "../lib/redis.js";
 import { getClientIp } from "../lib/server.js";
@@ -13,8 +13,8 @@ const AvailableDomains = async (req: Request, res: Response): Promise<Response> 
 
 	logger.info("REQ -> Domain list ", "|", getClientIp(req));
 
-    //Check if event authorization header is valid (NIP98)
-	const EventHeader = await parseAuthEvent(req);
+     // Check if authorization header is valid
+	const EventHeader = await parseAuthHeader(req, "AvailableDomains", true);
 	if (EventHeader.status !== "success") {return res.status(401).send({"status": EventHeader.status, "message" : EventHeader.message});}
 
 	try {
@@ -36,8 +36,8 @@ const AvailableUsers = async (req: Request, res: Response): Promise<Response> =>
 
 	logger.info("REQ -> User list from domain:", req.params.domain, "|", getClientIp(req));
 
-    //Check if event authorization header is valid (NIP98)
-	const EventHeader = await parseAuthEvent(req);
+    // Check if authorization header is valid
+	const EventHeader = await parseAuthHeader(req, "AvailableUsers", true);
 	if (EventHeader.status !== "success") {return res.status(401).send({"status": EventHeader.status, "message" : EventHeader.message});}
 
 	try {
@@ -62,8 +62,8 @@ const UpdateUserDomain = async (req: Request, res: Response): Promise<Response> 
 	const servername = req.hostname;
 	const domain = req.params.domain;
 
-	//Check if event authorization header is valid (NIP98)
-	const EventHeader = await parseAuthEvent(req);
+	// Check if authorization header is valid
+	const EventHeader = await parseAuthHeader(req, "UpdateUserDomain", false);
 	if (EventHeader.status !== "success") {return res.status(401).send({"status": EventHeader.status, "message" : EventHeader.message});}
 
 	//If domain is null return 400

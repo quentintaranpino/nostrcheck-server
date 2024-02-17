@@ -5,7 +5,7 @@ import { logger } from "../lib/logger.js";
 import { redisClient, getLightningAddressFromRedis } from "../lib/redis.js";
 import { ResultMessagev2 } from "../interfaces/server.js";
 import { LightningUsernameResult } from "../interfaces/lightning.js";
-import { parseAuthEvent } from "../lib/authorization.js";
+import { parseAuthHeader } from "../lib/authorization.js";
 import { getClientIp } from "../lib/server.js";
 
 const redirectlightningddress = async (req: Request, res: Response): Promise<any> => {
@@ -116,8 +116,8 @@ const updateLightningAddress = async (req: Request, res: Response): Promise<Resp
 	const servername = req.hostname;
 	const lightningaddress = req.params.lightningaddress;
 
-    //Check if event authorization header is valid
-	const EventHeader = await parseAuthEvent(req, "updateLightningAddress", false);
+    // Check if authorization header is valid
+	const EventHeader = await parseAuthHeader(req, "updateLightningAddress", false);
 	if (EventHeader.status !== "success") {return res.status(401).send({"status": EventHeader.status, "message" : EventHeader.message});}
 
 	//If lightningaddress is null return 400
@@ -230,8 +230,8 @@ const deleteLightningAddress = async (req: Request, res: Response): Promise<Resp
 	const servername = req.hostname;
 	let lightningaddress = "";
 
-    //Check if event authorization header is valid (NIP98)
-	const EventHeader = await parseAuthEvent(req, "deleteLightningAddress", false);
+    // Check if authorization header is valid
+	const EventHeader = await parseAuthHeader(req, "deleteLightningAddress", false);
 	if (EventHeader.status !== "success") {return res.status(401).send({"status": EventHeader.status, "message" : EventHeader.message});}
 
 	//Check if pubkey's lightningaddress exists on database

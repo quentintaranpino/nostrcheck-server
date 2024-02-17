@@ -2,7 +2,7 @@ import { Request, Response } from "express";
 import app from "../app.js";
 import { connect, dbSelect } from "../lib/database.js";
 import { logger } from "../lib/logger.js";
-import { parseAuthEvent } from "../lib//authorization.js";
+import { parseAuthHeader } from "../lib//authorization.js";
 import { ParseMediaType, ParseFileType, GetFileTags, standardMediaConversion } from "../lib/media.js"
 import { requestQueue } from "../lib/media.js";
 import {
@@ -31,8 +31,8 @@ const uploadmedia = async (req: Request, res: Response, version:string): Promise
 
 	logger.info("POST /api/" + version + "/media", "|", getClientIp(req));
 
-	//Check if event authorization header is valid (NIP98)
-	const EventHeader = await parseAuthEvent(req, "uploadmedia", false);
+	// Check if authorization header is valid
+	const EventHeader = await parseAuthHeader(req, "uploadmedia", false);
 	if (EventHeader.status != "success") {
 		
 		//v0 and v1 compatibility
@@ -336,8 +336,8 @@ const getMediaStatusbyID = async (req: Request, res: Response, version:string): 
 
 	logger.info("GET /api/" + version + "/media", "|", getClientIp(req));
 
-	//Check if event authorization header is valid (NIP98)
-	const EventHeader = await parseAuthEvent(req, "getMediaStatusbyID", false);
+	// Check if authorization header is valid
+	const EventHeader = await parseAuthHeader(req, "getMediaStatusbyID", false);
 	if (EventHeader.status !== "success") {
 		
 		//v0 and v1 compatibility
@@ -579,11 +579,11 @@ const returnNotFoundMediaFile = async (req: Request, res: Response) => {
 
 const getMediaTagsbyID = async (req: Request, res: Response): Promise<Response> => {
 
-	//Get available tags for a specific media file
+	// Get available tags for a specific media file
 	logger.info("REQ -> Media file tag list", "|", getClientIp(req));
 
-	//Check if event authorization header is valid
-	const EventHeader = await parseAuthEvent(req, "getMediaTagsbyID", false);
+	// Check if authorization header is valid
+	const EventHeader = await parseAuthHeader(req, "getMediaTagsbyID", false);
 	if (EventHeader.status !== "success") {return res.status(401).send({"result": EventHeader.status, "description" : EventHeader.message});}
 
 	logger.info("REQ -> Media tag list -> pubkey:", EventHeader.pubkey, "-> id:", req.params.fileId, "|", getClientIp(req));
@@ -626,8 +626,8 @@ const getMediabyTags = async (req: Request, res: Response): Promise<Response> =>
 	//Get media files by defined tags
 	logger.info("REQ -> Media files for specified tag", "|", getClientIp(req));
 
-	//Check if event authorization header is valid
-	const EventHeader = await parseAuthEvent(req, "getMediabyTags", false);
+	// Check if authorization header is valid
+	const EventHeader = await parseAuthHeader(req, "getMediabyTags", false);
 	if (EventHeader.status !== "success") {return res.status(401).send({"result": EventHeader.status, "description" : EventHeader.message});}
 
 	logger.info("REQ -> Media files for specified tag -> pubkey:", EventHeader.pubkey, "-> tag:", req.params.tags, "|", getClientIp(req));
@@ -682,8 +682,8 @@ const updateMediaVisibility = async (req: Request, res: Response): Promise<Respo
 	//Update media visibility
 	logger.info("REQ -> Update media visibility", "|", getClientIp(req));
 
-	//Check if event authorization header is valid
-	const EventHeader = await parseAuthEvent(req, "updateMediaVisibility", false);
+	// Check if authorization header is valid
+	const EventHeader = await parseAuthHeader(req, "updateMediaVisibility", false);
 	if (EventHeader.status !== "success") {return res.status(401).send({"result": EventHeader.status, "description" : EventHeader.message});}
 
 	logger.info("REQ -> Update media visibility -> pubkey:", EventHeader.pubkey, "-> id:", req.params.fileId, "-> visibility:", req.params.visibility, "|", getClientIp(req));
@@ -783,8 +783,8 @@ const deleteMedia = async (req: Request, res: Response, version:string): Promise
 		return res.status(400).send(result);
 	}
 
-	//Check if event authorization header is valid (NIP98)
-	const EventHeader = await parseAuthEvent(req, "deleteMedia", false);
+	// Check if authorization header is valid
+	const EventHeader = await parseAuthHeader(req, "deleteMedia", false);
 	if (EventHeader.status !== "success") {
 		
 		//v0 and v1 compatibility

@@ -6,7 +6,7 @@ import { ResultMessagev2, ServerStatusMessage, authkeyResultMessage } from "../i
 import { generateCredentials } from "../lib/authorization.js";
 import { dbDelete, dbInsert, dbUpdate } from "../lib/database.js";
 import { allowedFieldNames, allowedFieldNamesAndValues, allowedTableNames } from "../interfaces/admin.js";
-import { parseAuthEvent} from "../lib/authorization.js";
+import { parseAuthHeader} from "../lib/authorization.js";
 
 let hits = 0;
 /**
@@ -43,8 +43,8 @@ const serverStatus = async (req: Request, res: Response): Promise<Response> => {
  */
 const StopServer = async (req: Request, res: Response): Promise<Response> => {
 
-    //Check if event authorization header is valid (NIP98)
-	const EventHeader = await parseAuthEvent(req);
+    // Check if authorization header is valid
+	const EventHeader = await parseAuthHeader(req,"StopServer", true);
 	if (EventHeader.status !== "success") {return res.status(401).send({"status": EventHeader.status, "message" : EventHeader.message});}
 
     logger.warn("RES -> 200 Stopping server from IP:", getClientIp(req));
@@ -69,8 +69,8 @@ const updateDBRecord = async (req: Request, res: Response): Promise<Response> =>
     logger.info("REQ -> updateDBRecord", req.hostname, "|", getClientIp(req));
     res.setHeader('Content-Type', 'application/json');
 
-    //Check if event authorization header is valid (NIP98)
-	const EventHeader = await parseAuthEvent(req);
+     // Check if authorization header is valid
+	const EventHeader = await parseAuthHeader(req, "updateDBRecord", true);
 	if (EventHeader.status !== "success") {return res.status(401).send({"status": EventHeader.status, "message" : EventHeader.message});}
     
     // Check if the request has the required parameters
@@ -151,8 +151,8 @@ const resetUserPassword = async (req: Request, res: Response): Promise<Response>
     logger.info("REQ -> reset user password", req.hostname, "|", getClientIp(req));
     res.setHeader('Content-Type', 'application/json');
     
-    //Check if event authorization header is valid (NIP98)
-	const EventHeader = await parseAuthEvent(req);
+     // Check if authorization header is valid
+	const EventHeader = await parseAuthHeader(req, "resetUserPassword", true);
 	if (EventHeader.status !== "success") {return res.status(401).send({"status": EventHeader.status, "message" : EventHeader.message});}
 
     // Check if the request has the required parameters
@@ -198,8 +198,8 @@ const deleteDBRecord = async (req: Request, res: Response): Promise<Response> =>
     logger.info("REQ -> deleteDBRecord", req.hostname, "|", getClientIp(req));
     res.setHeader('Content-Type', 'application/json');
 
-    //Check if event authorization header is valid (NIP98)
-	const EventHeader = await parseAuthEvent(req);
+     // Check if authorization header is valid
+	const EventHeader = await parseAuthHeader(req, "deleteDBRecord", true);
 	if (EventHeader.status !== "success") {return res.status(401).send({"status": EventHeader.status, "message" : EventHeader.message});}
 
     // Check if the request has the required parameters
@@ -287,8 +287,8 @@ const insertDBRecord = async (req: Request, res: Response): Promise<Response> =>
     logger.info("REQ -> insertDBRecord", req.hostname, "|", getClientIp(req));
     res.setHeader('Content-Type', 'application/json');
 
-    //Check if event authorization header is valid (NIP98)
-	const EventHeader = await parseAuthEvent(req);
+     // Check if authorization header is valid
+	const EventHeader = await parseAuthHeader(req, "insertDBRecord", true);
 	if (EventHeader.status !== "success") {return res.status(401).send({"status": EventHeader.status, "message" : EventHeader.message});}
 
     // Check if the request has the required parameters
