@@ -36,7 +36,7 @@ const uploadmedia = async (req: Request, res: Response, version:string): Promise
 	if (EventHeader.status != "success") {
 		
 		//v0 and v1 compatibility
-		if(version != "v2"){return res.status(401).send({"result": EventHeader.status, "description" : EventHeader.message});}
+		if(version != "v2"){return res.status(401).send({"result": false, "description" : EventHeader.message});}
 
 		const result : ResultMessagev2 = {
 			status: MediaStatus[1],
@@ -341,7 +341,7 @@ const getMediaStatusbyID = async (req: Request, res: Response, version:string): 
 	if (EventHeader.status !== "success") {
 		
 		//v0 and v1 compatibility
-		if(version != "v2"){return res.status(401).send({"result": EventHeader.status, "description" : EventHeader.message});}
+		if(version != "v2"){return res.status(401).send({"result": false, "description" : EventHeader.message});}
 
 		const result : ResultMessagev2 = {
 			status: MediaStatus[1],
