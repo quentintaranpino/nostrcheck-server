@@ -204,8 +204,10 @@ function initButton(tableId, buttonSuffix, objectName, modaltext, field, fieldVa
             for (let id of ids) {
                 if (modaltext === 'remove') {
                     authkey = await modifyRecord(tableId, id, field, fieldValue, 'remove')
+                    setFieldLinks(tableId);
                 } else {
                     authkey = await modifyRecord(tableId, id, field, fieldValue, 'modify')
+                    setFieldLinks(tableId);
                 }
             }
         }
