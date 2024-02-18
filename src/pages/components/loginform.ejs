@@ -1,9 +1,14 @@
-<form class="form-signin" onkeydown=" if (event.keyCode === 13) {logIn('legacy');}">
+<form class="form login-form" onkeydown=" if (event.keyCode === 13) {logIn('legacy');}">
     <h1 class="h3 mb-3 font-weight-normal">Login</h1>
     <label for="username" class="sr-only">Username</label>
     <input type="text" id="username" name="username" class="form-control mb-2" placeholder="Username" required autofocus>
     <label for="password" class="sr-only">Password</label>
-    <input type="password" id="password"  name="password" class="form-control" placeholder="Password" >
+    <div class="input-group">
+      <input type="password" id="password"  name="password" class="form-control" placeholder="Password" >
+      <button id="toggle-password" type="button" class="d-none"
+        aria-label="Show password as plain text. Warning: this will display your password on the screen.">
+      </button>
+  </div>
     <div class="checkbox mb-3">
       <label>
         <input type="checkbox" value="true" id="rememberme" name="rememberme"> Remember me
@@ -13,4 +18,4 @@
       <button class="btn btn-lg btn-primary" name="Submit" type="button" onclick="logIn('legacy', $('#rememberme:checked').val())">Login</button>
       <button class="btn btn-lg btn-primary" name="NIP07_submit" type="button" onclick="logIn('nostr', $('#rememberme:checked').val())"><i class="fa-solid fa-puzzle-piece me-2"></i>Nostr login</button>
     </div>
-  </form>
+</form>

@@ -1,11 +1,11 @@
 <html lang="en">
   <%- include('./partials/head',{title:"Nostrcheck Server - Login"}); %>
-  <link rel="stylesheet" href="/static/css/login.css">
+  <link rel="stylesheet" href="/static/css/form.css">
   <body class="d-flex flex-column h-100"">
     <%- include('./partials/navbar', {active:'login'}); %>
       <%- include('./components/loginform'); %>
     <%- include('./partials/footer'); %>
     <%- include('./components/alert-modal', {"objectId":"login"}); %>
-    <script src="/static/js/login.js"></script>
+    <script src="/static/js/form.js"></script>
   </body>
 </html>
