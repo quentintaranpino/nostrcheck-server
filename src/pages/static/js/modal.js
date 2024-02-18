@@ -177,16 +177,16 @@ const initMediaModal = async (username, filename, checked, visible) => {
     });
 
     if (filename.includes('.mp4')) {
-        $('#media-modal .mediapreview-video').attr('src', 'media/' + username + '/' + filename);
-        $('#media-modal .mediapreview-video source').attr('src', 'media/' + username + '/' + filename);
+        $('#media-modal .mediapreview-video').attr('src', '/media/' + username + '/' + filename);
+        $('#media-modal .mediapreview-video source').attr('src', '/media/' + username + '/' + filename);
         $('#media-modal .mediapreview-video').removeClass('d-none');
         $('#media-modal .mediapreview-video')[0].play();
     } else if (filename.includes('.webp')) {
-        $('#media-modal .mediapreview-image').attr('src', 'media/' + username + '/' + filename);
+        $('#media-modal .mediapreview-image').attr('src', '/media/' + username + '/' + filename);
         $('#media-modal .mediapreview-image').removeClass('d-none');
     } else if (filename.includes('mp3')){
-        $('#media-modal .mediapreview-audio').attr('src', 'media/' + username + '/' + filename);
-        $('#media-modal .mediapreview-audio source').attr('src', 'media/' + username + '/' + filename);
+        $('#media-modal .mediapreview-audio').attr('src', '/media/' + username + '/' + filename);
+        $('#media-modal .mediapreview-audio source').attr('src', '/media/' + username + '/' + filename);
         $('#media-modal .mediapreview-audio').removeClass('d-none');
         $('#media-modal .mediapreview-audio')[0].play();
     }
