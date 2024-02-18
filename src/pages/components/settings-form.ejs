@@ -1,0 +1,11 @@
+<form class="form settings-form">
+    <label for="serverPubkey" class="mt-2">Server pubkey</label>
+    <input type="text" id="serverPubkey"  name="serverPubkey" class="form-control"  value="<%= request.body.settingServerPubkey %>" placeholder="" >
+    <label for="serverSecretKey" class="mt-2">Server secret key</label>
+    <div class="input-group">
+        <input type="password" id="serverSecretkey" name="serverSecretkey" class="form-control mb-2" value="<%= request.body.settingServerSecretkey %>" placeholder="" required autofocus>
+        <button id="toggle-password" type="button" class="d-none"
+          aria-label="Show secret key as plain text. Warning: this will display your password on the screen.">
+        </button>
+    </div>
+</form>
