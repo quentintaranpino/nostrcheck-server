@@ -181,6 +181,11 @@ const initConversionEngine = (TempPath: string, MediaPath: string, newfiledimens
         ffmpegEngine.outputOptions(options.outputoptions)
     }
 
+	if (options.filename.split(".").pop() == "mp4") {
+		ffmpegEngine.videoCodec("libx264");
+		ffmpegEngine.fps(30);
+	}
+
     return ffmpegEngine;
 }
 
