@@ -1,0 +1,11 @@
+<html lang="en">
+  <%- include('./partials/head',{title:"Nostrcheck Server - Home"}); %>
+  <link rel="stylesheet" href="/static/css/form.css">
+  <body class="d-flex flex-column h-100">
+    <%- include('./partials/navbar', {active:'login'}); %>
+    <h1 class="col-12 text-center">Server settings</h1>
+    <%- include('./components/settings-form'); %>
+    <%- include('./partials/footer'); %>
+    <script src="/static/js/form.js"></script>
+  </body>
+</html>

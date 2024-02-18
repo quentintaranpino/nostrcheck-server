@@ -23,6 +23,17 @@ const loadDashboardPage = async (req: Request, res: Response, version:string): P
     res.render("dashboard.ejs", {request: req});
 };
 
+const loadSettingsPage = async (req: Request, res: Response, version:string): Promise<void> => {
+    logger.info("GET /api/" + version + "/settings", "|", getClientIp(req));
+
+    req.body.version = app.get("version");
+    req.body.settingServerPubkey = app.get("server.pubkey");
+    req.body.settingServerSecretkey =  app.get("server.secretKey");
+    req.session.authkey = await generateCredentials('authkey', false, req.session.identifier);
+
+    res.render("settings.ejs", {request: req});
+};
+
 const loadTosPage = async (req: Request, res: Response, version:string): Promise<void> => {
 	logger.info("GET /api/" + version + "/tos", "|", getClientIp(req));
 
@@ -89,4 +100,4 @@ const frontendLogin = async (req: Request, res: Response): Promise<Response> => 
     
 };
 
-export {loadDashboardPage, loadTosPage, loadLoginPage, loadIndexPage, frontendLogin};
+export {loadDashboardPage, loadSettingsPage, loadTosPage, loadLoginPage, loadIndexPage, frontendLogin};

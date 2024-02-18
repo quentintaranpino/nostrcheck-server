@@ -1,5 +1,5 @@
 import { Application } from "express";
-import { loadDashboardPage, loadTosPage, loadLoginPage, loadIndexPage } from "../controllers/frontend.js";
+import { loadDashboardPage, loadSettingsPage, loadTosPage, loadLoginPage, loadIndexPage } from "../controllers/frontend.js";
 import { frontendLogin } from "../controllers/frontend.js";
 import { logger } from "../lib/logger.js";
 import { isPubkeyValid } from "../lib/authorization.js";
@@ -47,6 +47,17 @@ export const loadFrontendEndpoint = async (app: Application, version:string): Pr
 			res.redirect("/api/v2/");
 		}else{
 			loadDashboardPage(req,res,version);
+		}
+	});
+
+	// Settings
+	app.get("/api/" +  version + "/settings", limiter(100), async (req, res) => {
+		if (req.session.identifier == null){
+			res.redirect("/api/" +  version + "/login");
+		}else if (await isPubkeyValid(req, true) == false){
+			res.redirect("/api/v2/");
+		}else{
+			loadSettingsPage(req,res,version);
 		}
 	});
 
