@@ -21,12 +21,20 @@
         <a class="nav-link" href="tos"><i class="fa-solid fa-file-contract me-2"></i>Terms of Service</a>
       </li>
       <li <% if(active === 'login'){ %><%- "class='nav-item active'"%><% } else { %><%- "class='nav-item'"%><%}%> <% if (request.session.identifier) { %>style="display: none;"<% } %>>
-        <a class="nav-link" href="login"><i class="fa-solid fa-user  me-2"></i></i> Log In</a>
+        <a class="nav-link" href="login"><i class="fa-solid fa-user me-2"></i></i> Log In</a>
       </li>
-      <li <% if(active === 'logout'){ %><%- "class='nav-item active'"%><% } else { %><%- "class='nav-item'"%><%}%> <% if (!request.session.identifier) { %>style="display: none;"<% } %>>
-        <a class="nav-link" href="logout"><i class="fa-solid fa-right-to-bracket me-2"></i>Logout</a>
+     
+    </ul>
+    <ul class="navbar-nav ms-auto" <% if (!request.session.identifier) { %>style="display: none;"<% } %>>
+      <li class="nav-item dropdown">
+          <a href="#" class="nav-link dropdown-toggle" data-bs-toggle="dropdown"><i class="fa-solid fa-user me-2"></i>User menu</a>
+          <div class="dropdown-menu dropdown-menu-end">
+              <a href="#" class="dropdown-item disabled">Profile</a>
+              <a href="settings" class="dropdown-item">Settings</a>
+              <div class="dropdown-divider"></div>
+              <a href="logout" class="dropdown-item">Logout</a>
+          </div>
       </li>
     </ul>
-      <span class="navbar-text"><span class="server-uptime me-2"></span><i class="fa-solid fa-tower-broadcast"></i></span>
   </div>
 </nav>
