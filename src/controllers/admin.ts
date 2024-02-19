@@ -7,6 +7,8 @@ import { generateCredentials } from "../lib/authorization.js";
 import { dbDelete, dbInsert, dbUpdate } from "../lib/database.js";
 import { allowedFieldNames, allowedFieldNamesAndValues, allowedTableNames } from "../interfaces/admin.js";
 import { parseAuthHeader} from "../lib/authorization.js";
+import { updateLocalConfigKey } from "../lib/config.js";
+import app from "../app.js";
 
 let hits = 0;
 /**
@@ -382,4 +384,55 @@ const insertDBRecord = async (req: Request, res: Response): Promise<Response> =>
     return res.status(200).send(result);
 }
 
-export { serverStatus, StopServer, resetUserPassword, updateDBRecord, deleteDBRecord, insertDBRecord};
+
+/**
+ * Updates the settings of the server.
+ * 
+ * @param req - The request object with the new settings on the body. (name and value)
+ * @param res - The response object with the result of the operation.
+ * @returns A promise that resolves to the response object.
+ */
+const updateSettings = async (req: Request, res: Response): Promise<Response> => {
+
+    logger.info("REQ -> updateSettings", req.hostname, "|", getClientIp(req));
+    res.setHeader('Content-Type', 'application/json');
+
+     // Check if authorization header is valid
+	const EventHeader = await parseAuthHeader(req, "updateSettings", true);
+	if (EventHeader.status !== "success") {return res.status(401).send({"status": EventHeader.status, "message" : EventHeader.message});}
+
+    if (req.body.name === "" || req.body.name === null || req.body.name === undefined || req.body.value === "" || req.body.value === null || req.body.value === undefined) {
+        // return error 
+        const result: authkeyResultMessage = {
+            status: "error",
+            message: "Invalid parameters",
+            authkey: ""
+        }
+        return res.status(400).send(result);
+    }
+
+    let updated = await updateLocalConfigKey(req.body.name, req.body.value.toString());
+    if (!updated) {
+        const result : authkeyResultMessage = {
+            status: "error",
+            message: "Failed to update settings.",
+            authkey: EventHeader.authkey
+            };
+        logger.error("RES -> Failed to update settings" + " | " + getClientIp(req));
+        return res.status(500).send(result);
+    }
+
+    app.set(req.body.name, req.body.value.toString());
+
+    const result : authkeyResultMessage = {
+        status: "success",
+        message: "Succesfully updated settings.",
+        authkey: EventHeader.authkey
+        };
+
+    logger.info("RES -> Settings updated" + " | " + getClientIp(req));
+    return res.status(200).send(result);
+    
+}
+
+export { serverStatus, StopServer, resetUserPassword, updateDBRecord, deleteDBRecord, insertDBRecord, updateSettings};

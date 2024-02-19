@@ -1,7 +1,7 @@
 import { Application } from "express";
 
 import { deleteDBRecord, serverStatus, StopServer } from "../controllers/admin.js";
-import { resetUserPassword, updateDBRecord, insertDBRecord } from "../controllers/admin.js";
+import { resetUserPassword, updateDBRecord, insertDBRecord, updateSettings } from "../controllers/admin.js";
 
 export const loadAdminEndpoint = async (app: Application, version:string): Promise<void> => {
 
@@ -27,6 +27,9 @@ export const loadAdminEndpoint = async (app: Application, version:string): Promi
 
                 // Insert DB record
                 app.post("/api/" + version + app.get("activeModules")["admin"]["path"] + "/insertrecord/", insertDBRecord);
+
+                // Update settings value
+                app.post("/api/" + version + app.get("activeModules")["admin"]["path"] + "/updatesettings/", updateSettings);
 
         }
 

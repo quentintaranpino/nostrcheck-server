@@ -6,6 +6,11 @@
     <h1 class="col-12 text-center">Server settings</h1>
     <%- include('./components/settings-form'); %>
     <%- include('./partials/footer'); %>
+    <%- include('./components/alert-modal', {"objectId":"settings"}); %>
     <script src="/static/js/form.js"></script>
+    <script src="/static/js/settings.js"></script>
+    <script>
+      let authkey = "<%= request.session.authkey %>" 
+    </script>
   </body>
 </html>
