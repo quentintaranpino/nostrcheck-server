@@ -14,9 +14,6 @@
       <li <% if(active === 'home'){ %><%- "class='nav-item active'"%><% } else { %><%- "class='nav-item'"%><%}%>>
         <a class="nav-link" href="/api/v2/"><i class="fa-solid fa-house me-2"></i>Home <span class="sr-only">(current)</span></a>
       </li>
-      <li <% if(active === 'dashboard'){ %><%- "class='nav-item active'"%><% } else { %><%- "class='nav-item'"%><%}%> <% if (!request.session.identifier) { %>style="display: none;"<% } %>>
-        <a class="nav-link" href="dashboard"><i class="fa-solid fa-gauge me-2"></i>Dashboard</a>
-      </li>
       <li <% if(active === 'tos'){ %><%- "class='nav-item active'"%><% } else { %><%- "class='nav-item'"%><%}%>>
         <a class="nav-link" href="tos"><i class="fa-solid fa-file-contract me-2"></i>Terms of Service</a>
       </li>
@@ -25,16 +22,19 @@
       </li>
      
     </ul>
+
     <ul class="navbar-nav ms-auto" <% if (!request.session.identifier) { %>style="display: none;"<% } %>>
       <li class="nav-item dropdown">
-          <a href="#" class="nav-link dropdown-toggle" data-bs-toggle="dropdown"><i class="fa-solid fa-user me-2"></i>User menu</a>
-          <div class="dropdown-menu dropdown-menu-end">
-              <a href="#" class="dropdown-item disabled">Profile</a>
-              <a href="settings" class="dropdown-item">Settings</a>
-              <div class="dropdown-divider"></div>
-              <a href="logout" class="dropdown-item">Logout</a>
-          </div>
-      </li>
+        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownMenuLink" role="button" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+          <img src="https://s3.eu-central-1.amazonaws.com/bootstrapbaymisc/blog/24_days_bootstrap/fox.jpg" width="40" height="40" class="rounded-circle">
+        </a>
+        <div class="dropdown-menu dropdown-menu-end">
+          <a href="dashboard" class="dropdown-item ">Dashboard</a>
+          <a href="settings" class="dropdown-item">Settings</a>
+          <div class="dropdown-divider"></div>
+          <a href="logout" class="dropdown-item">Logout</a>
+      </div>
+      </li>  
     </ul>
   </div>
 </nav>
