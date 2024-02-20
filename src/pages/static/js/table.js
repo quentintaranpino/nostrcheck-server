@@ -1,8 +1,10 @@
 
 const initTable = (tableId, data, objectName) => {
 
-    var data = JSON.parse(data)
-    if (data.length == 0) {data = [{id: '-'}]} // dummy data for table creation
+    if (data == "") { // dummy data for table creation
+        return "";
+    }
+    data = JSON.parse(data)
 
     let isFilterActive = false;
     $(tableId).bootstrapTable({
