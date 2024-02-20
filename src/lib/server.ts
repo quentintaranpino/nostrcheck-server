@@ -89,16 +89,4 @@ const loadConsoleBanner = (app: Application) : void => {
 	console.log("Press CTRL-C to exit\n");
 }
 
-const showActiveModules = (app: Application) : string => {
-		let activeModules : string = "Active modules: ";
-		let first : boolean = true;
-		for(const key in app.get("activeModules")){
-			if (app.get("activeModules")[key]["enabled"] == true) {
-				if (first) { activeModules = activeModules + key; first = false;}
-				else { activeModules = activeModules + ", " + key;}
-			}
-		}
-		return activeModules;
-}
-
-export { getClientIp, format, currDir, markdownToHtml, loadConsoleBanner, showActiveModules};
+export { getClientIp, format, currDir, markdownToHtml, loadConsoleBanner};

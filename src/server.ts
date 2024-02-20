@@ -1,8 +1,8 @@
 import config from "config";
 import app from "./app.js";
-import { prepareAPP } from "./lib/config.js";
+import { loadconfigActiveModules, prepareAPP } from "./lib/config.js";
 import { initDatabase, showDBStats } from "./lib/database.js";
-import { loadConsoleBanner, showActiveModules } from "./lib/server.js";
+import { loadConsoleBanner } from "./lib/server.js";
 import { initSession } from "./lib/session.js";
 import { loadAPIs } from "./routes/routes.js";
 import { SeedMediafilesMagnets } from "./lib/torrent.js";
@@ -32,7 +32,7 @@ const server = app.listen(app.get("server.port"), async () => {
 	console.log(await showDBStats());
 
 	// Show server active modules
-	console.log(showActiveModules(app));
+	console.log("Active modules: ", loadconfigActiveModules(app).map((module) => module[0]).join(", "));
 	
 });
 
