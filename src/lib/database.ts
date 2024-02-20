@@ -455,6 +455,11 @@ const initDatabase = async (): Promise<void> => {
 		logger.info("Default domain created");
 	}
 
+	// Clear all authkeys from registered table
+	const conn = await connect("initDatabase");
+	logger.debug("Clearing all authkeys from registered table");
+	await conn.execute("UPDATE registered SET authkey = NULL ");
+	conn.end();
 }
 
 const migrateOldFields = async (table:string, oldField:string, newField:string): Promise<boolean> => {
