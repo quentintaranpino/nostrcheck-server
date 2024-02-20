@@ -9,8 +9,16 @@ import { QueryAvailiableDomains } from "../lib/domains.js";
 import app from "../app.js";
 import { getClientIp } from "../lib/server.js";
 import { parseAuthHeader } from "../lib/authorization.js";
+import { isModuleEnabled } from "../lib/config.js";
 
 const registernewpubkey = async (req: Request, res: Response): Promise<Response> => {
+
+	// Check if current module is enabled
+	if (!isModuleEnabled("register", app)) {
+		logger.warn("RES -> Module is not enabled" + " | " + getClientIp(req));
+		return res.status(400).send({"status": "error", "message": "Module is not enabled"});
+	}
+
 	logger.info("POST /api/v1/register", "|", getClientIp(req));
 
     // Check if authorization header is valid

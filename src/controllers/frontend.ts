@@ -7,8 +7,16 @@ import { getClientIp, markdownToHtml } from "../lib/server.js";
 import { dbSelect, dbSelectModuleData} from "../lib/database.js";
 import { generateCredentials, isPubkeyValid, isUserPasswordValid } from "../lib/authorization.js";
 import { registeredTableFields } from "../interfaces/database.js";
+import { isModuleEnabled } from "../lib/config.js";
 
-const loadDashboardPage = async (req: Request, res: Response, version:string): Promise<void> => {
+const loadDashboardPage = async (req: Request, res: Response, version:string): Promise<Response | void> => {
+
+    // Check if current module is enabled
+	if (!isModuleEnabled("frontend", app)) {
+		logger.warn("RES -> Module is not enabled" + " | " + getClientIp(req));
+		return res.status(400).send({"status": "error", "message": "Module is not enabled"});
+	}
+
 	logger.info("GET /api/" + version + "/dashboard", "|", getClientIp(req));
 
     req.body.version = app.get("version");
@@ -24,7 +32,14 @@ const loadDashboardPage = async (req: Request, res: Response, version:string): P
     res.render("dashboard.ejs", {request: req});
 };
 
-const loadSettingsPage = async (req: Request, res: Response, version:string): Promise<void> => {
+const loadSettingsPage = async (req: Request, res: Response, version:string): Promise<Response | void> => {
+
+    // Check if current module is enabled
+	if (!isModuleEnabled("frontend", app)) {
+		logger.warn("RES -> Module is not enabled" + " | " + getClientIp(req));
+		return res.status(400).send({"status": "error", "message": "Module is not enabled"});
+	}
+
     logger.info("GET /api/" + version + "/settings", "|", getClientIp(req));
 
     req.body.version = app.get("version");
@@ -35,7 +50,14 @@ const loadSettingsPage = async (req: Request, res: Response, version:string): Pr
     res.render("settings.ejs", {request: req});
 };
 
-const loadTosPage = async (req: Request, res: Response, version:string): Promise<void> => {
+const loadTosPage = async (req: Request, res: Response, version:string): Promise<Response | void> => {
+
+    // Check if current module is enabled
+	if (!isModuleEnabled("frontend", app)) {
+		logger.warn("RES -> Module is not enabled" + " | " + getClientIp(req));
+		return res.status(400).send({"status": "error", "message": "Module is not enabled"});
+	}
+
 	logger.info("GET /api/" + version + "/tos", "|", getClientIp(req));
 
     req.body.version = app.get("version");
@@ -44,14 +66,28 @@ const loadTosPage = async (req: Request, res: Response, version:string): Promise
     res.render("tos.ejs", {request: req, tos: tosFile });
 };
 
-const loadLoginPage = async (req: Request, res: Response, version:string): Promise<void> => {
+const loadLoginPage = async (req: Request, res: Response, version:string): Promise<Response | void>  => {
+
+    // Check if current module is enabled
+	if (!isModuleEnabled("frontend", app)) {
+		logger.warn("RES -> Module is not enabled" + " | " + getClientIp(req));
+		return res.status(400).send({"status": "error", "message": "Module is not enabled"});
+	}
+
 	logger.info("GET /api/" + version + "/login", "|", getClientIp(req));
 
     req.body.version = app.get("version");
     res.render("login.ejs", {request: req});
 };
 
-const loadIndexPage = async (req: Request, res: Response, version:string): Promise<void> => {
+const loadIndexPage = async (req: Request, res: Response, version:string): Promise<Response | void>  => {
+
+    // Check if current module is enabled
+	if (!isModuleEnabled("frontend", app)) {
+		logger.warn("RES -> Module is not enabled" + " | " + getClientIp(req));
+		return res.status(400).send({"status": "error", "message": "Module is not enabled"});
+	}
+
 	logger.info("GET /api/" + version + "/index", "|", getClientIp(req));
 
     req.body.version = app.get("version");
@@ -69,6 +105,12 @@ const loadIndexPage = async (req: Request, res: Response, version:string): Promi
 };
 
 const frontendLogin = async (req: Request, res: Response): Promise<Response> => {
+
+    // Check if current module is enabled
+	if (!isModuleEnabled("frontend", app)) {
+		logger.warn("RES -> Module is not enabled" + " | " + getClientIp(req));
+		return res.status(400).send({"status": "error", "message": "Module is not enabled"});
+	}
 
     logger.info("POST /api/v2/login", "|", getClientIp(req));
 

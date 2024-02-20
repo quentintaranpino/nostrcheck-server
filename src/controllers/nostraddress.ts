@@ -7,8 +7,15 @@ import { RegisteredUsernameResult } from "../interfaces/register.js";
 import { ResultMessagev2 } from "../interfaces/server.js";
 import { getClientIp } from "../lib/server.js";
 import app from "../app.js";
+import { isModuleEnabled } from "../lib/config.js";
 
 const checkNostrAddress = async (req: Request, res: Response): Promise<Response> => {
+
+	// Check if current module is enabled
+	if (!isModuleEnabled("nostraddress", app)) {
+		logger.warn("RES -> Module is not enabled" + " | " + getClientIp(req));
+		return res.status(400).send({"status": "error", "message": "Module is not enabled"});
+	}
 
 	const name = req.query.name as string;
 	const servername = req.hostname;
@@ -102,8 +109,8 @@ const checkNostrAddress = async (req: Request, res: Response): Promise<Response>
 	}
 
 	await redisClient.set(result.username + "-" + servername, JSON.stringify(result), {
-		EX: 300, // 5 minutes
-		NX: true, // Only set the key if it does not already exist
+		EX: 300, 
+		NX: true,
 	});
 
 	logger.info("RES Nostraddress ->", result.hex, "|", "cached:", isCached);

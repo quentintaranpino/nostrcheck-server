@@ -7,8 +7,16 @@ import { ResultMessagev2 } from "../interfaces/server.js";
 import { LightningUsernameResult } from "../interfaces/lightning.js";
 import { parseAuthHeader } from "../lib/authorization.js";
 import { getClientIp } from "../lib/server.js";
+import { isModuleEnabled } from "../lib/config.js";
+import app from "../app.js";
 
 const redirectlightningddress = async (req: Request, res: Response): Promise<any> => {
+
+	// Check if current module is enabled
+	if (!isModuleEnabled("lightning", app)) {
+		logger.warn("RES -> Module is not enabled" + " | " + getClientIp(req));
+		return res.status(400).send({"status": "error", "message": "Module is not enabled"});
+	}
 
 	const name = req.query.name as string;
 	const servername = req.hostname;
@@ -112,6 +120,12 @@ const redirectlightningddress = async (req: Request, res: Response): Promise<any
 };
 
 const updateLightningAddress = async (req: Request, res: Response): Promise<Response> => {
+
+	// Check if current module is enabled
+	if (!isModuleEnabled("lightning", app)) {
+		logger.warn("RES -> Module is not enabled" + " | " + getClientIp(req));
+		return res.status(400).send({"status": "error", "message": "Module is not enabled"});
+	}
 
 	const servername = req.hostname;
 	const lightningaddress = req.params.lightningaddress;
@@ -226,6 +240,12 @@ const updateLightningAddress = async (req: Request, res: Response): Promise<Resp
 };
 
 const deleteLightningAddress = async (req: Request, res: Response): Promise<Response> => {
+
+	// Check if current module is enabled
+	if (!isModuleEnabled("lightning", app)) {
+		logger.warn("RES -> Module is not enabled" + " | " + getClientIp(req));
+		return res.status(400).send({"status": "error", "message": "Module is not enabled"});
+	}
 
 	const servername = req.hostname;
 	let lightningaddress = "";

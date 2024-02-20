@@ -8,8 +8,16 @@ import { getClientIp } from "../lib/server.js";
 import { QueryAvailiableDomains, QueryAvailiableUsers } from "../lib/domains.js";
 import { dbUpdate, dbSelect } from "../lib/database.js";
 import { registeredTableFields } from "../interfaces/database.js";
+import { isModuleEnabled } from "../lib/config.js";
+import app from "../app.js";
 
 const AvailableDomains = async (req: Request, res: Response): Promise<Response> => {
+
+	// Check if current module is enabled
+	if (!isModuleEnabled("domains", app)) {
+		logger.warn("RES -> Module is not enabled" + " | " + getClientIp(req));
+		return res.status(400).send({"status": "error", "message": "Module is not enabled"});
+	}
 
 	logger.info("REQ -> Domain list ", "|", getClientIp(req));
 
@@ -33,6 +41,12 @@ const AvailableDomains = async (req: Request, res: Response): Promise<Response> 
 };
 
 const AvailableUsers = async (req: Request, res: Response): Promise<Response> => {
+
+	// Check if current module is enabled
+	if (!isModuleEnabled("domains", app)) {
+		logger.warn("RES -> Module is not enabled" + " | " + getClientIp(req));
+		return res.status(400).send({"status": "error", "message": "Module is not enabled"});
+	}
 
 	logger.info("REQ -> User list from domain:", req.params.domain, "|", getClientIp(req));
 
@@ -58,6 +72,12 @@ const AvailableUsers = async (req: Request, res: Response): Promise<Response> =>
 };
 
 const UpdateUserDomain = async (req: Request, res: Response): Promise<Response> => {
+
+	// Check if current module is enabled
+	if (!isModuleEnabled("domains", app)) {
+		logger.warn("RES -> Module is not enabled" + " | " + getClientIp(req));
+		return res.status(400).send({"status": "error", "message": "Module is not enabled"});
+	}
 
 	const servername = req.hostname;
 	const domain = req.params.domain;

@@ -25,9 +25,16 @@ import { PrepareNIP96_event } from "../lib/nostr/NIP96.js";
 import { getClientIp } from "../lib/server.js";
 import { generateBlurhash, generatefileHashfrombuffer } from "../lib/hash.js";
 import { mediafilesTableFields, registeredTableFields } from "../interfaces/database.js";
+import { isModuleEnabled } from "../lib/config.js";
 
 
 const uploadmedia = async (req: Request, res: Response, version:string): Promise<Response> => {
+
+	// Check if current module is enabled
+	if (!isModuleEnabled("media", app)) {
+		logger.warn("RES -> Module is not enabled" + " | " + getClientIp(req));
+		return res.status(400).send({"status": "error", "message": "Module is not enabled"});
+	}
 
 	logger.info("POST /api/" + version + "/media", "|", getClientIp(req));
 
@@ -334,6 +341,12 @@ const uploadmedia = async (req: Request, res: Response, version:string): Promise
 
 const getMediaStatusbyID = async (req: Request, res: Response, version:string): Promise<Response> => {
 
+	// Check if current module is enabled
+	if (!isModuleEnabled("media", app)) {
+		logger.warn("RES -> Module is not enabled" + " | " + getClientIp(req));
+		return res.status(400).send({"status": "error", "message": "Module is not enabled"});
+	}
+
 	logger.info("GET /api/" + version + "/media", "|", getClientIp(req));
 
 	// Check if authorization header is valid
@@ -507,6 +520,12 @@ const getMediaStatusbyID = async (req: Request, res: Response, version:string): 
 
 const getMediabyURL = async (req: Request, res: Response) => {
 
+	// Check if current module is enabled
+	if (!isModuleEnabled("media", app)) {
+		logger.warn("RES -> Module is not enabled" + " | " + getClientIp(req));
+		return res.status(400).send({"status": "error", "message": "Module is not enabled"});
+	}
+
 	//Allow CORS
 	res.set("access-control-allow-origin", "*");
 	res.set("access-control-allow-methods", "GET");
@@ -563,7 +582,13 @@ const getMediabyURL = async (req: Request, res: Response) => {
 };
 
 const returnNotFoundMediaFile = async (req: Request, res: Response) => {
-	// If file not found, return not found media file
+
+	// Check if current module is enabled
+	if (!isModuleEnabled("media", app)) {
+		logger.warn("RES -> Module is not enabled" + " | " + getClientIp(req));
+		return res.status(400).send({"status": "error", "message": "Module is not enabled"});
+	}
+	
 	const notFoundPath = path.normalize(path.resolve(config.get("media.notFoundFilePath")));
 	fs.readFile(notFoundPath, async (err, data) => {
 		if (err) {
@@ -578,6 +603,12 @@ const returnNotFoundMediaFile = async (req: Request, res: Response) => {
 
 
 const getMediaTagsbyID = async (req: Request, res: Response): Promise<Response> => {
+
+	// Check if current module is enabled
+	if (!isModuleEnabled("media", app)) {
+		logger.warn("RES -> Module is not enabled" + " | " + getClientIp(req));
+		return res.status(400).send({"status": "error", "message": "Module is not enabled"});
+	}
 
 	// Get available tags for a specific media file
 	logger.info("REQ -> Media file tag list", "|", getClientIp(req));
@@ -622,6 +653,12 @@ const getMediaTagsbyID = async (req: Request, res: Response): Promise<Response> 
 };
 
 const getMediabyTags = async (req: Request, res: Response): Promise<Response> => {
+
+	// Check if current module is enabled
+	if (!isModuleEnabled("media", app)) {
+		logger.warn("RES -> Module is not enabled" + " | " + getClientIp(req));
+		return res.status(400).send({"status": "error", "message": "Module is not enabled"});
+	}
 
 	//Get media files by defined tags
 	logger.info("REQ -> Media files for specified tag", "|", getClientIp(req));
@@ -678,6 +715,12 @@ const getMediabyTags = async (req: Request, res: Response): Promise<Response> =>
 };
 
 const updateMediaVisibility = async (req: Request, res: Response): Promise<Response> => {
+
+	// Check if current module is enabled
+	if (!isModuleEnabled("media", app)) {
+		logger.warn("RES -> Module is not enabled" + " | " + getClientIp(req));
+		return res.status(400).send({"status": "error", "message": "Module is not enabled"});
+	}
 
 	//Update media visibility
 	logger.info("REQ -> Update media visibility", "|", getClientIp(req));
@@ -744,6 +787,12 @@ const updateMediaVisibility = async (req: Request, res: Response): Promise<Respo
 };
 
 const deleteMedia = async (req: Request, res: Response, version:string): Promise<Response> => {
+
+	// Check if current module is enabled
+	if (!isModuleEnabled("media", app)) {
+		logger.warn("RES -> Module is not enabled" + " | " + getClientIp(req));
+		return res.status(400).send({"status": "error", "message": "Module is not enabled"});
+	}
 
 	const servername = req.hostname;
 	const fileId = req.params.fileId;

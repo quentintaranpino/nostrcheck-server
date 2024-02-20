@@ -7,7 +7,7 @@ import { generateCredentials } from "../lib/authorization.js";
 import { dbDelete, dbInsert, dbUpdate } from "../lib/database.js";
 import { allowedFieldNames, allowedFieldNamesAndValues, allowedTableNames } from "../interfaces/admin.js";
 import { parseAuthHeader} from "../lib/authorization.js";
-import { updateLocalConfigKey } from "../lib/config.js";
+import { isModuleEnabled, updateLocalConfigKey } from "../lib/config.js";
 import app from "../app.js";
 
 let hits = 0;
@@ -19,6 +19,12 @@ let hits = 0;
  * @returns A promise that resolves to the server status response.
  */
 const serverStatus = async (req: Request, res: Response): Promise<Response> => {
+
+    // Check if current module is enabled
+    if (!isModuleEnabled("admin", app)) {
+        logger.warn("RES -> Module is not enabled" + " | " + getClientIp(req));
+        return res.status(400).send({"status": "error", "message": "Module is not enabled"});
+    }
 	
     hits++;
     if (hits % 100 == 0) {
@@ -45,6 +51,15 @@ const serverStatus = async (req: Request, res: Response): Promise<Response> => {
  */
 const StopServer = async (req: Request, res: Response): Promise<Response> => {
 
+    // Check if current module is enabled
+    if (!isModuleEnabled("admin", app)) {
+        logger.warn("RES -> Module is not enabled" + " | " + getClientIp(req));
+        return res.status(400).send({"status": "error", "message": "Module is not enabled"});
+    }
+
+    logger.info("REQ -> StopServer", req.hostname, "|", getClientIp(req));
+    res.setHeader('Content-Type', 'application/json');
+    
     // Check if authorization header is valid
 	const EventHeader = await parseAuthHeader(req,"StopServer", true);
 	if (EventHeader.status !== "success") {return res.status(401).send({"status": EventHeader.status, "message" : EventHeader.message});}
@@ -67,6 +82,12 @@ const StopServer = async (req: Request, res: Response): Promise<Response> => {
  * @returns A promise that resolves to the response object.
  */
 const updateDBRecord = async (req: Request, res: Response): Promise<Response> => {
+
+    // Check if current module is enabled
+    if (!isModuleEnabled("admin", app)) {
+        logger.warn("RES -> Module is not enabled" + " | " + getClientIp(req));
+        return res.status(400).send({"status": "error", "message": "Module is not enabled"});
+    }
 
     logger.info("REQ -> updateDBRecord", req.hostname, "|", getClientIp(req));
     res.setHeader('Content-Type', 'application/json');
@@ -149,6 +170,12 @@ const updateDBRecord = async (req: Request, res: Response): Promise<Response> =>
  * @returns A promise that resolves to the response object.
  */
 const resetUserPassword = async (req: Request, res: Response): Promise<Response> => {
+
+    // Check if current module is enabled
+    if (!isModuleEnabled("admin", app)) {
+        logger.warn("RES -> Module is not enabled" + " | " + getClientIp(req));
+        return res.status(400).send({"status": "error", "message": "Module is not enabled"});
+    }
    
     logger.info("REQ -> reset user password", req.hostname, "|", getClientIp(req));
     res.setHeader('Content-Type', 'application/json');
@@ -196,6 +223,12 @@ const resetUserPassword = async (req: Request, res: Response): Promise<Response>
  * @returns A Promise that resolves to the response object.
  */
 const deleteDBRecord = async (req: Request, res: Response): Promise<Response> => {
+
+    // Check if current module is enabled
+    if (!isModuleEnabled("admin", app)) {
+        logger.warn("RES -> Module is not enabled" + " | " + getClientIp(req));
+        return res.status(400).send({"status": "error", "message": "Module is not enabled"});
+    }
 
     logger.info("REQ -> deleteDBRecord", req.hostname, "|", getClientIp(req));
     res.setHeader('Content-Type', 'application/json');
@@ -285,6 +318,12 @@ const deleteDBRecord = async (req: Request, res: Response): Promise<Response> =>
  * @returns A promise that resolves to the response object.
  */
 const insertDBRecord = async (req: Request, res: Response): Promise<Response> => {
+
+    // Check if current module is enabled
+    if (!isModuleEnabled("admin", app)) {
+        logger.warn("RES -> Module is not enabled" + " | " + getClientIp(req));
+        return res.status(400).send({"status": "error", "message": "Module is not enabled"});
+    }
 
     logger.info("REQ -> insertDBRecord", req.hostname, "|", getClientIp(req));
     res.setHeader('Content-Type', 'application/json');
@@ -394,6 +433,12 @@ const insertDBRecord = async (req: Request, res: Response): Promise<Response> =>
  */
 const updateSettings = async (req: Request, res: Response): Promise<Response> => {
 
+    // Check if current module is enabled
+    if (!isModuleEnabled("admin", app)) {
+        logger.warn("RES -> Module is not enabled" + " | " + getClientIp(req));
+        return res.status(400).send({"status": "error", "message": "Module is not enabled"});
+    }
+
     logger.info("REQ -> updateSettings", req.hostname, "|", getClientIp(req));
     res.setHeader('Content-Type', 'application/json');
 
@@ -422,13 +467,12 @@ const updateSettings = async (req: Request, res: Response): Promise<Response> =>
         return res.status(500).send(result);
     }
 
-    if (req.body.name.startsWith("server.availModules.")){
+    if (req.body.name.startsWith("server.availableModules.")){
         const module = req.body.name.split(".")[2];
         const enabled = req.body.value;
         app.set("availableModules", { ...app.get("availableModules"), [module]: { enabled } });
-        logger.debug(app.get("availableModules"))
     }else{
-        app.set(req.body.name, req.body.value.toString());
+        app.set(req.body.name, req.body.value.toString()); 
     }
 
     const result : authkeyResultMessage = {

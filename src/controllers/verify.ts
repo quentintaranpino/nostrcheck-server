@@ -5,8 +5,17 @@ import { logger } from "../lib/logger.js";
 import { VerifyResultMessage } from "../interfaces/verify.js";
 import { getClientIp } from "../lib/server.js";
 import { verifyEvent } from "../lib/verify.js";
+import { isModuleEnabled } from "../lib/config.js";
+import app from "../app.js";
 
 const verifyEventController = async (req: Request, res: Response): Promise<Response> => {
+
+	// Check if current module is enabled
+	if (!isModuleEnabled("verify", app)) {
+		logger.warn("RES -> Module is not enabled" + " | " + getClientIp(req));
+		return res.status(400).send({"status": "error", "message": "Module is not enabled"});
+	}
+
 	logger.info("POST /api/v1/verify", "|", getClientIp(req));
 
 	//Create event object
