@@ -24,7 +24,10 @@ const loadDashboardPage = async (req: Request, res: Response, version:string): P
     req.body.activeModules = [];
     for (const [key] of availableModules) {
         if(app.get("availableModules")[key]["enabled"] == true){
-            req.body[key + "Data"] = await dbSelectModuleData(key);
+            let data = await dbSelectModuleData(key);
+            if (data != undefined && data != null && data != ""){
+                req.body[key + "Data"] = data;
+            }
         }
     }
 
@@ -95,7 +98,6 @@ const loadIndexPage = async (req: Request, res: Response, version:string): Promi
     const availableModules = Object.entries(app.get("availableModules"));
      req.body.activeModules = [];
     for (const [key] of availableModules) {
-        logger.debug("Checking if", key, "is enabled", app.get("availableModules")[key]["enabled"] );
         if(app.get("availableModules")[key]["enabled"] == true){
             req.body.activeModules.push(app.get("availableModules")[key]);
         }
