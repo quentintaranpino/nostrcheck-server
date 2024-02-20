@@ -4,6 +4,7 @@ import helmet from "helmet";
 import config from "config";
 import {  loadconfigModules  } from "./lib/config.js";
 import { nip19 } from "nostr-tools";
+import { hextoNpub } from "./lib/nostr/NIP19.js";
 
 const app = express();
 
@@ -11,7 +12,7 @@ app.set("server.host", config.get('server.host'));
 app.set("server.port", config.get('server.port'));
 app.set("server.pubkey", await config.get('server.pubkey'));
 app.set("server.secretKey", await config.get('server.secretKey'));
-app.set("server.npub", nip19.npubEncode(app.get("server.pubkey")));
+app.set("server.npub", await hextoNpub(app.get("server.pubkey")));
 
 app.set("redis.host", config.get('redis.host'));
 app.set("redis.port", config.get('redis.port'));
