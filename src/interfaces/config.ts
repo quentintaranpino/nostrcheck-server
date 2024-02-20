@@ -1,13 +1,14 @@
 
-interface IModules {
-	[key: string]: IModule;
+interface Modules {
+	[key: string]: Module;
 }
 
-interface IModule {
-	enabled: boolean;
-	path: string;
-	method: string;
-	comments: string;
+interface Module {
+    enabled: boolean;
+    path: string;
+    methods: string[];
+    description: string;
+    name: string;
 }
 
 const necessaryKeys = [	
@@ -22,4 +23,4 @@ const necessaryKeys = [
 	"database.database"
 ]
 
-export { IModules, IModule, necessaryKeys}
+export { Modules, Module, necessaryKeys}

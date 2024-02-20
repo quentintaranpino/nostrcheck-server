@@ -5,9 +5,10 @@ import { exit } from "process";
 const defaultPath : string = "./config/default.json";
 const localPath : string = "./config/local.json";
 
-import { IModules, necessaryKeys } from "../interfaces/config.js";
+import { Module, Modules, necessaryKeys } from "../interfaces/config.js";
 import { createkeyPair } from "./nostr/core.js";
 import app from "../app.js";
+import { Application } from "express";
 
 function prepareAppFolders(){
 
@@ -194,8 +195,26 @@ const updateLocalConfigKey = async (key: string, value: string) : Promise<boolea
 }
 
 // Load API modules for runtime
-const loadconfigModules = async () : Promise<IModules> => {
+const loadconfigModules = async () : Promise<Modules> => {
 	return config.get("server.availableModules");;
+}
+
+const loadconfigActiveModules = (app: Application) : [string, Module][] => {
+
+	const availableModules = Object.entries(app.get("availableModules") as Record<string, Module>);
+	const activeModules = availableModules.filter((module) => module[1]["enabled"] == true);
+
+	return activeModules;
+}
+
+const isModuleEnabled = (moduleName: string, app: Application) : boolean => {
+	const availableModules = loadconfigActiveModules(app)
+	const module = availableModules.find((module) => module[0] === moduleName);
+	if (module){
+		return module[1]["enabled"];
+	}else{
+		return false;
+	}
 }
 
 async function prepareAPP() {
@@ -203,4 +222,4 @@ async function prepareAPP() {
 	await prepareAppFolders();
 }
 
-export { updateLocalConfigKey, loadconfigModules, prepareAPP };
+export { updateLocalConfigKey, loadconfigModules, loadconfigActiveModules, isModuleEnabled, prepareAPP };
