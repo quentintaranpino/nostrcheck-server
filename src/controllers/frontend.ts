@@ -64,7 +64,8 @@ const loadTosPage = async (req: Request, res: Response, version:string): Promise
 	logger.info("GET /api/" + version + "/tos", "|", getClientIp(req));
 
     req.body.version = app.get("version");
-    const tosFile = markdownToHtml(fs.readFileSync(config.get("server.tosFilePath")).toString());
+    let tosFile = markdownToHtml(fs.readFileSync(config.get("server.tosFilePath")).toString());
+    tosFile = tosFile.replace(/\[SERVERADDRESS\]/g, app.get("server.host"));
     
     res.render("tos.ejs", {request: req, tos: tosFile });
 };
