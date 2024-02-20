@@ -8,48 +8,56 @@
     "tosFilePath" : "resources/tos.md",
     "availableModules": {
       "nostraddress" :{
+        "name": "nostraddress",
         "enabled": true,
         "path": "/nostraddress",
         "methods": ["GET"],
         "description": "This module returns the pubkey for a nostraddress name for each domain."
       },
       "media":{
+        "name": "media",
         "enabled": true,
         "path": "/media",
         "methods": ["GET","POST","PUT","DELETE"],
         "description": "This module handles media uploads, downloads, media tags, etc."
       },
       "lightning" :{
+        "name": "lightning",
         "enabled": true,
         "path": "/lightningaddress",
         "methods": ["GET","PUT", "DELETE"],
         "description": "This module handles ightning redirections for a nostraddress."
       },
       "verify" :{
+        "name": "verify",
         "enabled": true,
         "path": "/verify",
         "methods": ["POST"],
         "description": "This module can verify a nostr note integrity and timestamp."
       },
       "register" : {
+        "name": "register",
         "enabled": true,
         "path": "/register",
         "methods": ["POST"],
         "description": "This module handles usernames creation from trusted pubkeys."
       },
       "domains" : {
+        "name": "domains",
         "enabled": true,
         "path": "/domains",
         "methods": ["GET", "PUT"],
         "description": "This module handle lists of registered domains and usernames."
       },
       "admin" : {
+        "name": "admin",
         "enabled": true,
         "path": "/admin",
         "methods": ["GET","POST"],
         "description": "Admin API, reboot, update remove and modify fields, server status, etc."
       },
       "frontend" : {
+        "name": "frontend",
         "enabled": true,
         "path": "/",
         "methods": ["GET","POST"],
