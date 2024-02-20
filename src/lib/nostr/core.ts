@@ -4,7 +4,6 @@ import { NostrEvent } from "nostr-tools"
 import {SimplePool } from "nostr-tools/pool"
 import 'websocket-polyfill'
 import { logger } from "../logger.js"
-import { E } from "vitest/dist/reporters-LLiOBu3g.js";
 
 const relays = [
 	"wss://relay.nostrcheck.me",
