@@ -157,45 +157,45 @@ const mergeConfigkey = async (defaultConfig: Record<string, unknown>, localConfi
 
 const updateLocalConfigKey = async (key: string, value: string) : Promise<boolean> => {
 	
-	const LocalConfig = JSON.parse(fs.readFileSync(localPath).toString());
+	try {
 
-	//If key is nested
-	if (key.includes(".")){
-		const keyArray = key.split(".");
-		LocalConfig[keyArray[0]][keyArray[1]] = value;
-	}else{
-		LocalConfig[key] = value;
-	}
+		const LocalConfig = JSON.parse(fs.readFileSync(localPath).toString());
 
-	try{
-		console.debug("Updating config file: " + localPath + " with key: " + key + " and value: " + value)
-		fs.copyFileSync(localPath, localPath + ".bak");
-		fs.writeFileSync(localPath, JSON.stringify(LocalConfig, null, 4));
+		// Split the key into its parts
+		const keyParts = key.split(".");
 
-		return true;
+		// Start with the full config object
+		let currentPart = LocalConfig;
 
-	}catch(err){
-		console.error("Error writing config file: ", err);
-		return false;
-	}
+		// Loop over all parts of the key except the last one
+		for (let i = 0; i < keyParts.length - 1; i++) {
+			// If this part of the key doesn't exist yet, create it as an empty object
+			if (!currentPart[keyParts[i]]) {
+				currentPart[keyParts[i]] = {};
+			}
 
+			// Move to the next part of the object
+			currentPart = currentPart[keyParts[i]];
+		}
+
+		// Set the value on the last part of the key
+		currentPart[keyParts[keyParts.length - 1]] = value;
+
+
+        console.debug("Updating config file: " + localPath + " with key: " + key + " and value: " + value)
+        fs.copyFileSync(localPath, localPath + ".bak");
+        fs.writeFileSync(localPath, JSON.stringify(LocalConfig, null, 4));
+
+        return true;
+    } catch(err) {
+        console.error("Error writing config file: ", err);
+        return false;
+    }
 }
 
-// Load enabled API modules for runtime
+// Load API modules for runtime
 const loadconfigModules = async () : Promise<IModules> => {
-
-	const configModules: IModules = config.get("server.availableModules");
-	const runtimeModules: IModules = {};
-
-	for (const module in configModules) {
-		for (const [key, value] of Object.entries(configModules[module])) {
-
-			if (key === "enabled" && value === true) {
-				runtimeModules[module] = configModules[module];
-			}
-		}
-	}
-	return runtimeModules;
+	return config.get("server.availableModules");;
 }
 
 async function prepareAPP() {
