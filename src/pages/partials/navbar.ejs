@@ -18,17 +18,19 @@
         <a class="nav-link" href="tos"><i class="fa-solid fa-file-contract me-2"></i>Terms of Service</a>
       </li>
       <li <% if(active === 'login'){ %><%- "class='nav-item active'"%><% } else { %><%- "class='nav-item'"%><%}%> <% if (request.session.identifier) { %>style="display: none;"<% } %>>
-        <a class="nav-link" href="login"><i class="fa-solid fa-user me-2"></i></i> Log In</a>
+        
       </li>
      
     </ul>
 
-    <ul class="navbar-nav ms-auto" <% if (!request.session.identifier) { %>style="display: none;"<% } %>>
-      <li class="nav-item dropdown">
+    <ul class="navbar-nav ms-auto">
+      <a <% if (request.session.identifier) { %>style="display: none;"<% } %> class="nav-link" href="login"><i class="fa-solid fa-user me-2"></i>Log In</a>
+      <li class="nav-item dropdown"  <% if (!request.session.identifier) { %>style="display: none;"<% } %> >
         <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownMenuLink" role="button" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-          <img src="https://s3.eu-central-1.amazonaws.com/bootstrapbaymisc/blog/24_days_bootstrap/fox.jpg" width="40" height="40" class="rounded-circle">
+          <img <% if (request.session.identifier) { %>src=  <%- JSON.stringify(request.session.metadata.picture)%> <% }else{src="https://s3.eu-central-1.amazonaws.com/bootstrapbaymisc/blog/24_days_bootstrap/fox.jpg"} %> width="40" height="40" class="rounded-circle">
         </a>
         <div class="dropdown-menu dropdown-menu-end">
+          <a href="profile" class="dropdown-item disabled">Profile</a>
           <a href="dashboard" class="dropdown-item ">Dashboard</a>
           <a href="settings" class="dropdown-item">Settings</a>
           <div class="dropdown-divider"></div>
