@@ -411,7 +411,7 @@ const updateSettings = async (req: Request, res: Response): Promise<Response> =>
         return res.status(400).send(result);
     }
 
-    let updated = await updateLocalConfigKey(req.body.name, req.body.value.toString());
+    let updated = await updateLocalConfigKey(req.body.name, req.body.value);
     if (!updated) {
         const result : authkeyResultMessage = {
             status: "error",
@@ -422,7 +422,14 @@ const updateSettings = async (req: Request, res: Response): Promise<Response> =>
         return res.status(500).send(result);
     }
 
-    app.set(req.body.name, req.body.value.toString());
+    if (req.body.name.startsWith("server.availModules.")){
+        const module = req.body.name.split(".")[2];
+        const enabled = req.body.value;
+        app.set("availableModules", { ...app.get("availableModules"), [module]: { enabled } });
+        logger.debug(app.get("availableModules"))
+    }else{
+        app.set(req.body.name, req.body.value.toString());
+    }
 
     const result : authkeyResultMessage = {
         status: "success",

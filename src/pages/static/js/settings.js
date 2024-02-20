@@ -1,8 +1,10 @@
 function saveSettings() {
-    const formFields = document.querySelectorAll('.form.settings-form input, .form.settings-form select, .form.settings-form textarea');
+    const formFields = document.querySelectorAll('.form.settings-form input, .form.settings-form select, .form.settings-form textarea, .form.settings-form checkbox');
     console.log(formFields);
     formFields.forEach(field => {
-        if (field.value !== field.defaultValue) {
+        console.log(field.value, field.defaultValue, field.name);
+        if (field.value !== field.defaultValue || (field.type === 'checkbox' && field.checked !== field.defaultChecked)) {
+            const value = field.type === 'checkbox' ? field.checked : field.value;
             fetch('admin/updatesettings', {
                 method: 'POST',
                 headers: {
@@ -11,7 +13,7 @@ function saveSettings() {
                 },
                 body: JSON.stringify({
                     name: field.name,
-                    value: field.value
+                    value: value
                 })
             })
             .then(response => response.json())
