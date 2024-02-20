@@ -12,14 +12,15 @@ const loadDashboardPage = async (req: Request, res: Response, version:string): P
 	logger.info("GET /api/" + version + "/dashboard", "|", getClientIp(req));
 
     req.body.version = app.get("version");
-    const activeModules = Object.entries(app.get("activeModules"));
+    const availableModules = Object.entries(app.get("availableModules"));
     req.body.activeModules = [];
-    for (const [key] of activeModules) {
-        req.body[key + "Data"] = await dbSelectModuleData(key);
+    for (const [key] of availableModules) {
+        if(app.get("availableModules")[key]["enabled"] == true){
+            req.body[key + "Data"] = await dbSelectModuleData(key);
+        }
     }
 
     req.session.authkey = await generateCredentials('authkey', false, req.session.identifier);
-
     res.render("dashboard.ejs", {request: req});
 };
 
@@ -27,10 +28,10 @@ const loadSettingsPage = async (req: Request, res: Response, version:string): Pr
     logger.info("GET /api/" + version + "/settings", "|", getClientIp(req));
 
     req.body.version = app.get("version");
+    req.body.availableModules = app.get("availableModules");
     req.body.settingServerPubkey = app.get("server.pubkey");
     req.body.settingServerSecretkey =  app.get("server.secretKey");
     req.session.authkey = await generateCredentials('authkey', false, req.session.identifier);
-
     res.render("settings.ejs", {request: req});
 };
 
@@ -55,7 +56,14 @@ const loadIndexPage = async (req: Request, res: Response, version:string): Promi
 
     req.body.version = app.get("version");
     req.body.APIversion = version;
-    req.body.activeModules = app.get("activeModules");
+    const availableModules = Object.entries(app.get("availableModules"));
+     req.body.activeModules = [];
+    for (const [key] of availableModules) {
+        logger.debug("Checking if", key, "is enabled", app.get("availableModules")[key]["enabled"] );
+        if(app.get("availableModules")[key]["enabled"] == true){
+            req.body.activeModules.push(app.get("availableModules")[key]);
+        }
+    }
     req.body.serverPubkey = app.get("server.npub");
     res.render("index.ejs", {request: req});
 };
