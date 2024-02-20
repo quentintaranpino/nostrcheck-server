@@ -8,6 +8,7 @@ import { dbSelect, dbSelectModuleData} from "../lib/database.js";
 import { generateCredentials, isPubkeyValid, isUserPasswordValid } from "../lib/authorization.js";
 import { registeredTableFields } from "../interfaces/database.js";
 import { isModuleEnabled } from "../lib/config.js";
+import { getProfileMetadata } from "../lib/nostr/core.js";
 
 const loadDashboardPage = async (req: Request, res: Response, version:string): Promise<Response | void> => {
 
@@ -21,7 +22,6 @@ const loadDashboardPage = async (req: Request, res: Response, version:string): P
 
     req.body.version = app.get("version");
     const availableModules = Object.entries(app.get("availableModules"));
-    req.body.activeModules = [];
     for (const [key] of availableModules) {
         if(app.get("availableModules")[key]["enabled"] == true){
             let data = await dbSelectModuleData(key);
@@ -146,6 +146,12 @@ const frontendLogin = async (req: Request, res: Response): Promise<Response> => 
         logger.error("Failed to generate authkey for", req.session.identifier);
         return res.status(500).send(false);
     }
+
+
+    // User metadata from nostr
+    const metadata = await getProfileMetadata(req.session.identifier);
+    logger.debug("Metadata for", req.session.identifier, ":", metadata);
+    req.session.metadata = metadata;
 
     logger.info("logged in as", req.session.identifier, " - ", getClientIp(req));
     return res.status(200).send(true);

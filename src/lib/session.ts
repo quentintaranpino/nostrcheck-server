@@ -11,6 +11,7 @@ declare module 'express-session' {
 	interface Session {
        identifier: string;
        authkey: string;
+       metadata: object;
     }
 }
 
