@@ -15,7 +15,7 @@ const LoadAPI = async (app: Application, version:string): Promise<boolean> => {
 
 	logger.debug("Loading API modules", "version: " + version);
 
-	for (const module in app.get("activeModules")) {
+	for (const module in app.get("availableModules")) {
 
 		logger.debug("Loading module: " + module + " version: " + version)
 		switch (module) {

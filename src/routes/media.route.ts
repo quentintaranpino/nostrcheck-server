@@ -17,7 +17,7 @@ const upload = multer({
 export const loadMediaEndpoint = async (app: Application, version:string): Promise<void> => {
 	
 	//Upload media
-	app.post("/api/" + version + app.get("activeModules")["media"]["path"], function (req, res){
+	app.post("/api/" + version + app.get("availableModules")["media"]["path"], function (req, res){
 		upload.any()(req, res, function (err) {
 			//Return 413 Payload Too Large if file size is larger than maxMBfilesize from config file
 			if (err instanceof multer.MulterError && err.code === "LIMIT_FILE_SIZE") {
@@ -34,23 +34,23 @@ export const loadMediaEndpoint = async (app: Application, version:string): Promi
 	});
 
 	//Delete media
-	app.delete("/api/" + version +  app.get("activeModules")["media"]["path"] + "/:fileId", function (req, res){deleteMedia(req,res,version)});
+	app.delete("/api/" + version +  app.get("availableModules")["media"]["path"] + "/:fileId", function (req, res){deleteMedia(req,res,version)});
 
 	//Get media status by id 
-	app.get("/api/" + version + app.get("activeModules")["media"]["path"], function (req, res){getMediaStatusbyID(req,res,version)});
-	app.get("/api/" + version + app.get("activeModules")["media"]["path"] + "/:id", function (req, res){getMediaStatusbyID(req,res,version)});
+	app.get("/api/" + version + app.get("availableModules")["media"]["path"], function (req, res){getMediaStatusbyID(req,res,version)});
+	app.get("/api/" + version + app.get("availableModules")["media"]["path"] + "/:id", function (req, res){getMediaStatusbyID(req,res,version)});
 
 	//Get media tags by id
-	app.get("/api/" + version + app.get("activeModules")["media"]["path"] + "/:fileId/tags/", getMediaTagsbyID);
+	app.get("/api/" + version + app.get("availableModules")["media"]["path"] + "/:fileId/tags/", getMediaTagsbyID);
 
 	//Get media by tags
-	app.get("/api/" + version + app.get("activeModules")["media"]["path"] + "/tag/:tag", getMediabyTags);
+	app.get("/api/" + version + app.get("availableModules")["media"]["path"] + "/tag/:tag", getMediabyTags);
 
 	//Get media by url
-	app.get("/api/" + version + app.get("activeModules")["media"]["path"] + "/:username/:filename", getMediabyURL);
+	app.get("/api/" + version + app.get("availableModules")["media"]["path"] + "/:username/:filename", getMediabyURL);
 
 	//Update media visibility
-	app.put("/api/" + version + app.get("activeModules")["media"]["path"] + "/:fileId/visibility/:visibility", updateMediaVisibility);
+	app.put("/api/" + version + app.get("availableModules")["media"]["path"] + "/:fileId/visibility/:visibility", updateMediaVisibility);
 
 
 	if (version == "v2"){

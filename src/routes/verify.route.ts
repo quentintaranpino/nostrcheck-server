@@ -5,7 +5,7 @@ import { verifyEventController } from "../controllers/verify.js";
 export const loadVerifyEndpoint = async (app: Application, version:string): Promise<void> => {
 
 	if (version == "v1" || version == "v2"){
-	app.post("/api/" + version + app.get("activeModules")["verify"]["path"], verifyEventController);
+	app.post("/api/" + version + app.get("availableModules")["verify"]["path"], verifyEventController);
 	}
 
 };
