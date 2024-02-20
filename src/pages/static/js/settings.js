@@ -1,8 +1,6 @@
 function saveSettings() {
     const formFields = document.querySelectorAll('.form.settings-form input, .form.settings-form select, .form.settings-form textarea, .form.settings-form checkbox');
-    console.log(formFields);
     formFields.forEach(field => {
-        console.log(field.value, field.defaultValue, field.name);
         if (field.value !== field.defaultValue || (field.type === 'checkbox' && field.checked !== field.defaultChecked)) {
             const value = field.type === 'checkbox' ? field.checked : field.value;
             fetch('admin/updatesettings', {
@@ -18,9 +16,12 @@ function saveSettings() {
             })
             .then(response => response.json())
             .then(data => {
-                console.log(data);
                 if (data.status === 'success') {
-                    field.defaultValue = field.value;
+                    if (field.type === 'checkbox') {
+                        field.defaultChecked = field.checked;
+                    }else{
+                        field.defaultValue = field.value;
+                    }
                     authkey = data.authkey;
                 }else{
                     console.error('Error:', data);
