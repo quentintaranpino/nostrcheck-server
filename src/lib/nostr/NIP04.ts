@@ -1,7 +1,7 @@
 import { nip04, finalizeEvent} from "nostr-tools"
 import { hexToBytes } from '@noble/hashes/utils'
 import { logger } from "../logger.js";
-import { initRelays } from "./relays.js";
+import { publishEvent } from "./core.js";
 import { NIP04_event } from "../../interfaces/nostr.js";
 import app from "../../app.js";
 
@@ -37,13 +37,8 @@ const sendMessage = async (message: string, sendToPubkey : string) : Promise<boo
 
         const signedEvent = finalizeEvent(eventTemplate, hexToBytes(sk))
 
-        const relay = await initRelays("wss://relay.damus.io");
-        if (relay != undefined){
-            relay.publish(signedEvent);
-            logger.info("DM sent to", sendToPubkey)
-        }
-        
-        return true
+        return await publishEvent(signedEvent)
+
     } catch (error) {
         logger.fatal("Cannot send DM")
         return false
