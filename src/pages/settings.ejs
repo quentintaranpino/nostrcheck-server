@@ -4,7 +4,9 @@
   <body class="d-flex flex-column h-100">
     <%- include('./partials/navbar', {active:'login'}); %>
     <h1 class="col-12 text-center">Server settings</h1>
-    <%- include('./components/settings-form'); %>
+    <main class="pb-1">
+      <%- include('./components/settings-form'); %>
+    </main>
     <%- include('./partials/footer'); %>
     <%- include('./components/alert-modal', {"objectId":"settings"}); %>
     <script src="/static/js/form.js"></script>

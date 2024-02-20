@@ -1,12 +1,22 @@
 <form class="form settings-form">
-    <label for="serverPubkey" class="mt-2">Server pubkey</label>
-    <input type="text" id="serverPubkey"  name="server.pubkey" class="form-control"  value="<%= request.body.settingServerPubkey %>" placeholder="" >
-    <label for="serverSecretKey" class="mt-2">Server secret key</label>
+
+    <h3>Nostr</h3>
+    <label for="server.pubkey" class="mt-2">Server pubkey</label>
+    <input type="text" id="server.pubkey"  name="server.pubkey" class="form-control" value="<%= request.body.settingServerPubkey %>" placeholder="Server pubkey (HEX format)" >
+    <label for="server.secretKey" class="mt-2">Server secret key</label>
     <div class="input-group">
-        <input type="password" id="serverSecretkey" name="server.secretKey" class="form-control mb-2" defaultValue="<%= request.body.settingServerSecretkey %>" value="<%= request.body.settingServerSecretkey %>" placeholder="" required autofocus>
+        <input type="password" id="server.secretKey" name="server.secretKey" class="form-control mb-2" defaultValue="<%= request.body.settingServerSecretkey %>" value="<%= request.body.settingServerSecretkey %>" placeholder="Server secret key (HEX format)" required autofocus>
         <button id="toggle-password" type="button" class="d-none"
           aria-label="Show secret key as plain text. Warning: this will display your password on the screen.">
         </button>
     </div>
+    <h3>Modules</h3>
+    <% for(const key in request.body.availableModules) { %>
+    <label for="<%= key %>" class="mt-2"><%= key %></label>
+    <div class="form-check form-switch mx-auto">
+      <input class="form-check-input" type="checkbox" value="<%= request.body.availableModules[key]['enabled'] ? true : false %>" <%= request.body.availableModules[key]['enabled'] ? 'checked' : '' %> name="server.availableModules.<%= key %>.enabled" id="server.availableModules.<%= key %>.enabled">
+      <label class="form-check-label" for="server.availableModules.<%= key %>.enabled">Enabled</label>
+    </div>
+    <% } %>
     <button class="btn btn-lg btn-primary mt-2" name="Submit" type="button" onclick="saveSettings()">Save</button>
 </form>
