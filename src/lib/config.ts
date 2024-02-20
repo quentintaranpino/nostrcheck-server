@@ -6,7 +6,7 @@ const defaultPath : string = "./config/default.json";
 const localPath : string = "./config/local.json";
 
 import { Module, Modules, necessaryKeys } from "../interfaces/config.js";
-import { createkeyPair } from "./nostr/core.js";
+import { createkeyPair, getPubkeyFromSecret } from "./nostr/core.js";
 import app from "../app.js";
 import { Application } from "express";
 
@@ -81,6 +81,17 @@ const checkConfigNecessaryKeys = async () : Promise<void> => {
 	for (const key of necessaryKeys){
 		if (config.get(key) === undefined || config.get(key) === ""){
 			missingFields.push(key);
+		}
+	}
+	
+	// Regenerate pubkey if missing and secretkey is present
+	if (missingFields.includes("server.pubkey") && !missingFields.includes("server.secretKey")){
+		console.warn("No pubkey found in config file. Generating new pubkey.")
+		const pubkey = await getPubkeyFromSecret(config.get("server.secretKey"));
+		if (pubkey !== "") {
+			missingFields = missingFields.filter((field) => field !== "server.pubkey");
+			await updateLocalConfigKey("server.pubkey", pubkey);
+			app.set("server.pubkey", pubkey);
 		}
 	}
 
