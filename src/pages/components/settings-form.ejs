@@ -120,12 +120,10 @@
   </div>
   <div id="loggerSettings">
     <h3 class="mt-3">Logging</h3>
-    <p> In this section, you can configure the log settings of your server. 
+    <p> In this section, you can configure the log settings of your server. The log level determines the verbosity of the logs:
+        debug (2), info (3), warn (4), error (5)
     </p>
     <label for="logger.level" class="mt-2 mb-1 fw-bold">Log level</label>
-    <p>The log level determines the verbosity of the logs:
-      debug (2), info (3), warn (4), error (5)</p>
-      
     <div class="col-3">
       <input  type="number" 
               id="logger.minLevel" 
@@ -135,15 +133,30 @@
               placeholder="Loglevel" 
               >
     </div>
-    <div class="alert alert-warning mt-3 col-9" role="alert">
-      <i class="fa-solid fa-triangle-exclamation"></i> Change this only if you know what you are doing.
+    <div class="alert alert-warning mt-3" role="alert">
+      <i class="fa-solid fa-triangle-exclamation"></i> <b>Change this only if you know what you are doing.</b> After changing the log level, you need to <b>restart the server</b> to apply the changes.
     </div>
   </div>
   <div id="logHistory">
     <h3 class="mt-3">Log history</h3>
-    <p> Only the last 1000 records with severity greater than 4 (warning) will be displayed.
+    <p> Only the last 1000 records with severity greater than 4 (warning) will be displayed here. 
+        If you need to see more details, you can check the server's generated log files.
     </p>
-    <textarea class="form-control" id="logHistory" name="logHistory" rows="10" disabled><%= JSON.stringify(request.body.logHistory) %></textarea>
+    <textarea class="form-control" id="logHistory" name="logHistory" rows="10" disabled>
+      <% request.body.logHistory.slice().reverse().forEach(function(log) { 
+        var date = new Date(log.date);
+        var formattedDate = date.getFullYear() + '-' + 
+            ('0' + (date.getMonth()+1)).slice(-2) + '-' + 
+            ('0' + date.getDate()).slice(-2) + ' ' + 
+            ('0' + date.getHours()).slice(-2) + ':' + 
+            ('0' + date.getMinutes()).slice(-2) + ':' + 
+            ('0' + date.getSeconds()).slice(-2) + '.' + 
+            ('00' + date.getMilliseconds()).slice(-3);
+    %>
+  Severity: <%= log.severity %> - Date: <%= formattedDate %>
+  Message: <%= log.message %>
+    <% }); %>
+      </textarea>
   <button class="btn btn-lg btn-primary mt-4" name="Submit" type="button" onclick="saveSettings()">Save</button>
 
 </form>
