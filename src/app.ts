@@ -2,13 +2,13 @@ import cors from "cors";
 import express from "express";
 import helmet from "helmet";
 import config from "config";
-import {  loadconfigOptions  } from "./lib/config.js";
+import { loadConfigOptions } from "./lib/config.js";
 
 const app = express();
 
-app.set("config.server", await loadconfigOptions("server"));
-app.set("config.media", await loadconfigOptions("media"));
-app.set("config.logger", await loadconfigOptions("logger"));
+app.set("config.server", await loadConfigOptions("server"));
+app.set("config.media", await loadConfigOptions("media"));
+app.set("config.logger", await loadConfigOptions("logger"));
 
 app.set("redis.host", config.get('redis.host'));
 app.set("redis.port", config.get('redis.port'));

@@ -205,14 +205,13 @@ const updateLocalConfigKey = async (key: string, value: string) : Promise<boolea
     }
 }
 
-// Load API modules for runtime
-const loadconfigModules = async () : Promise<Modules> => {
-	return config.get("server.availableModules");;
+const loadConfigOptions = async (section:string) : Promise<Modules> => {
+	return config.get(section);;
 }
 
 const loadconfigActiveModules = (app: Application) : [string, Module][] => {
 
-	const availableModules = Object.entries(app.get("availableModules") as Record<string, Module>);
+	const availableModules = Object.entries(app.get("config.server")["availableModules"] as Record<string, Module>);
 	const activeModules = availableModules.filter((module) => module[1]["enabled"] == true);
 
 	return activeModules;
@@ -233,4 +232,4 @@ async function prepareAPP() {
 	await prepareAppFolders();
 }
 
-export { updateLocalConfigKey, loadconfigModules, loadconfigActiveModules, isModuleEnabled, prepareAPP };
+export { updateLocalConfigKey, loadConfigOptions, loadconfigActiveModules, isModuleEnabled, prepareAPP };
