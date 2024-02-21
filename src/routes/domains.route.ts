@@ -6,11 +6,11 @@ export const loadDomainsEndpoint = async (app: Application, version:string): Pro
 
 	if (version == "v1" || version == "v2"){
 
-		app.get("/api/" + version + app.get("availableModules")["domains"]["path"], AvailableDomains);
+		app.get("/api/" + version + app.get("config.server")["availableModules"]["domains"]["path"], AvailableDomains);
 
-		app.get("/api/" + version + app.get("availableModules")["domains"]["path"] + "/:domain/users", AvailableUsers)
+		app.get("/api/" + version + app.get("config.server")["availableModules"]["domains"]["path"] + "/:domain/users", AvailableUsers)
 
-		app.put("/api/" + version + app.get("availableModules")["domains"]["path"] + "/:domain", UpdateUserDomain)
+		app.put("/api/" + version + app.get("config.server")["availableModules"]["domains"]["path"] + "/:domain", UpdateUserDomain)
 	}
 
 };

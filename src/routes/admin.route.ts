@@ -7,29 +7,29 @@ export const loadAdminEndpoint = async (app: Application, version:string): Promi
 
         if (version == "v2"){
 
-                app.post("/api/" + version + app.get("availableModules")["admin"]["path"] + "/stop", StopServer)
+                app.post("/api/" + version + app.get("config.server")["availableModules"]["admin"]["path"] + "/stop", StopServer)
 
                 // Legacy status endpoint
                 app.get("/api/" + version + "/status", (_req, res) => {
-                        res.redirect("/api/" + version + app.get("availableModules")["admin"]["path"] + "/status");
+                        res.redirect("/api/" + version + app.get("config.server")["availableModules"]["admin"]["path"] + "/status");
                 });
 
-                app.get("/api/" + version + app.get("availableModules")["admin"]["path"] + "/status", serverStatus);
+                app.get("/api/" + version + app.get("config.server")["availableModules"]["admin"]["path"] + "/status", serverStatus);
 
                 // Reset user password
-                app.post("/api/" + version + app.get("availableModules")["admin"]["path"] + "/resetpassword/", resetUserPassword);
+                app.post("/api/" + version + app.get("config.server")["availableModules"]["admin"]["path"] + "/resetpassword/", resetUserPassword);
 
                 // Update DB record
-                app.post("/api/" + version + app.get("availableModules")["admin"]["path"] + "/updaterecord/", updateDBRecord);
+                app.post("/api/" + version +app.get("config.server")["availableModules"]["admin"]["path"] + "/updaterecord/", updateDBRecord);
 
                 // Delete DB record
-                app.post("/api/" + version + app.get("availableModules")["admin"]["path"] + "/deleterecord/", deleteDBRecord);
+                app.post("/api/" + version + app.get("config.server")["availableModules"]["admin"]["path"] + "/deleterecord/", deleteDBRecord);
 
                 // Insert DB record
-                app.post("/api/" + version + app.get("availableModules")["admin"]["path"] + "/insertrecord/", insertDBRecord);
+                app.post("/api/" + version + app.get("config.server")["availableModules"]["admin"]["path"] + "/insertrecord/", insertDBRecord);
 
                 // Update settings value
-                app.post("/api/" + version + app.get("availableModules")["admin"]["path"] + "/updatesettings/", updateSettings);
+                app.post("/api/" + version + app.get("config.server")["availableModules"]["admin"]["path"] + "/updatesettings/", updateSettings);
 
         }
 

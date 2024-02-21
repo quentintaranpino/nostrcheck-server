@@ -9,6 +9,8 @@ import { generateCredentials, isPubkeyValid, isUserPasswordValid } from "../lib/
 import { registeredTableFields } from "../interfaces/database.js";
 import { isModuleEnabled } from "../lib/config.js";
 import { getProfileMetadata } from "../lib/nostr/core.js";
+import { hextoNpub } from "../lib/nostr/NIP19.js";
+import { logHistory } from "../lib/logger.js";
 
 const loadDashboardPage = async (req: Request, res: Response, version:string): Promise<Response | void> => {
 
@@ -21,9 +23,9 @@ const loadDashboardPage = async (req: Request, res: Response, version:string): P
 	logger.info("GET /api/" + version + "/dashboard", "|", getClientIp(req));
 
     req.body.version = app.get("version");
-    const availableModules = Object.entries(app.get("availableModules"));
+    const availableModules = Object.entries(app.get("config.server")["availableModules"]);
     for (const [key] of availableModules) {
-        if(app.get("availableModules")[key]["enabled"] == true){
+        if(app.get("config.server")["availableModules"][key]["enabled"] == true){
             let data = await dbSelectModuleData(key);
             if (data != undefined && data != null && data != ""){
                 req.body[key + "Data"] = data;
@@ -46,10 +48,14 @@ const loadSettingsPage = async (req: Request, res: Response, version:string): Pr
     logger.info("GET /api/" + version + "/settings", "|", getClientIp(req));
 
     req.body.version = app.get("version");
-    req.body.availableModules = app.get("availableModules");
-    req.body.settingServerPubkey = app.get("server.pubkey");
-    req.body.settingServerSecretkey =  app.get("server.secretKey");
+    req.body.availableModules = app.get("config.server")["availableModules"];
+    req.body.settingServerPubkey = app.get("config.server")["pubkey"];
+    req.body.settingServerSecretkey =  app.get("config.server")["secretKey"];
+    req.body.settingsMedia = app.get("config.media");
+    req.body.settingsLogger = app.get("config.logger");
+    req.body.logHistory = logHistory;
     req.session.authkey = await generateCredentials('authkey', false, req.session.identifier);
+    
     res.render("settings.ejs", {request: req});
 };
 
@@ -65,7 +71,7 @@ const loadTosPage = async (req: Request, res: Response, version:string): Promise
 
     req.body.version = app.get("version");
     let tosFile = markdownToHtml(fs.readFileSync(config.get("server.tosFilePath")).toString());
-    tosFile = tosFile.replace(/\[SERVERADDRESS\]/g, app.get("server.host"));
+    tosFile = tosFile.replace(/\[SERVERADDRESS\]/g, app.get("config.server")["host"]);
     
     res.render("tos.ejs", {request: req, tos: tosFile });
 };
@@ -96,14 +102,15 @@ const loadIndexPage = async (req: Request, res: Response, version:string): Promi
 
     req.body.version = app.get("version");
     req.body.APIversion = version;
-    const availableModules = Object.entries(app.get("availableModules"));
+    const availableModules = Object.entries(app.get("config.server")["availableModules"]);
      req.body.activeModules = [];
     for (const [key] of availableModules) {
-        if(app.get("availableModules")[key]["enabled"] == true){
-            req.body.activeModules.push(app.get("availableModules")[key]);
+        if(app.get("config.server")["availableModules"][key]["enabled"] == true){
+            req.body.activeModules.push(app.get("config.server")["availableModules"][key]);
         }
     }
-    req.body.serverPubkey = app.get("server.npub");
+    
+    req.body.serverPubkey = await hextoNpub(app.get("config.server")["pubkey"]);
     res.render("index.ejs", {request: req});
 };
 

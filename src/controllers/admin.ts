@@ -470,7 +470,7 @@ const updateSettings = async (req: Request, res: Response): Promise<Response> =>
     if (req.body.name.startsWith("server.availableModules.")){
         const module = req.body.name.split(".")[2];
         const enabled = req.body.value;
-        app.set("availableModules", { ...app.get("availableModules"), [module]: { enabled } });
+        app.set("availableModules", { ...app.get("config.server")["availableModules"], [module]: { enabled } });
     }else{
         app.set(req.body.name, req.body.value.toString()); 
     }
