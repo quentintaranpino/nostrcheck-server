@@ -27,7 +27,8 @@
       <a <% if (request.session.identifier) { %>style="display: none;"<% } %> class="nav-link" href="login"><i class="fa-solid fa-user me-2"></i>Log In</a>
       <li class="nav-item dropdown"  <% if (!request.session.identifier) { %>style="display: none;"<% } %> >
         <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownMenuLink" role="button" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-          <img <% if (request.session.identifier) { %>src=  <%- JSON.stringify(request.session.metadata.picture)%> <% }else{src="https://s3.eu-central-1.amazonaws.com/bootstrapbaymisc/blog/24_days_bootstrap/fox.jpg"} %> width="40" height="40" class="rounded-circle">
+          <img <% if (request.session.identifier) { %>src=  <%- JSON.stringify(request.session.metadata.picture)%> <% }%> width="40" height="40" class="rounded-circle">
+          <span class="ms-2"><% if (request.session.identifier) { %> <%= request.session.metadata.display_name %> <% }else{"Profile"} %></span>
         </a>
         <div class="dropdown-menu dropdown-menu-end">
           <a href="profile" class="dropdown-item disabled">Profile</a>

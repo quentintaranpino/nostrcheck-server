@@ -329,3 +329,19 @@ function setFieldLinks(tableId, number = 0){
         });
     }
 }
+
+function detailFormatter(index, row) {
+    var html = []
+    $.each(row, function (key, value) {
+        if(key === 'state') {return}
+        if (key === 'filename') {
+            let parser = new DOMParser();
+            let doc = parser.parseFromString(value, 'text/html');
+            let parsedFilename = doc.querySelector('.cursor-zoom-in.text-primary').textContent;
+            html.push('<p><b>' + key + ':</b> ' + parsedFilename + '</p>')
+            return
+        }
+        html.push('<p><b>' + key + ':</b> ' + value + '</p>')
+    })
+    return html.join('')
+}
