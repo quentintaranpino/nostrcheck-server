@@ -4,7 +4,7 @@
     <%- include('./partials/navbar', {active:'documentation'}); %>
     <main class="pb-1">
     <h1 class="col-12 text-center">Documentation</h1>
-    <p class="text-center mt-2">Here you can find the documentation for the Nostrcheck server. The server is running on the following modules:</p>
+    <p class="text-center mt-2">Here you can find the documentation for the active modules.</p>
     <div class="container mt-4">
       <div class="row">
         <% for(const key in request.body.activeModules) { %>
@@ -40,8 +40,6 @@
         <% } %>
       </div>
     </div>
-    <p class="text-center mt-3">Nostrcheck server running <b><%= request.body.version %> version.</b> By using this server you agree the <a href='tos'>Terms of Service</a></p>
-    <p class="text-center"><span><b>Contact: </b><a href="https://nostrcheck.me/u/<%- request.body.serverPubkey %>"><%- request.body.serverPubkey %></a></p>
     </main>
     <%- include('./partials/footer'); %>
   </body>
