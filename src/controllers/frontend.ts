@@ -101,17 +101,9 @@ const loadIndexPage = async (req: Request, res: Response, version:string): Promi
 	logger.info("GET /api/" + version + "/index", "|", getClientIp(req));
 
     req.body.version = app.get("version");
-    req.body.APIversion = version;
     req.body.serverHost = app.get("config.server")["host"];
-    const availableModules = Object.entries(app.get("config.server")["availableModules"]);
-     req.body.activeModules = [];
-    for (const [key] of availableModules) {
-        if(app.get("config.server")["availableModules"][key]["enabled"] == true){
-            req.body.activeModules.push(app.get("config.server")["availableModules"][key]);
-        }
-    }
-    
     req.body.serverPubkey = await hextoNpub(app.get("config.server")["pubkey"]);
+    
     res.render("index.ejs", {request: req});
 };
 
@@ -123,10 +115,9 @@ const loadDocsPage = async (req: Request, res: Response, version:string): Promis
 		return res.status(400).send({"status": "error", "message": "Module is not enabled"});
 	}
 
-	logger.info("GET /api/" + version + "/index", "|", getClientIp(req));
+	logger.info("GET /api/" + version + "/documentation", "|", getClientIp(req));
 
     req.body.version = app.get("version");
-    req.body.APIversion = version;
     const availableModules = Object.entries(app.get("config.server")["availableModules"]);
      req.body.activeModules = [];
     for (const [key] of availableModules) {
