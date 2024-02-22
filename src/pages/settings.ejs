@@ -3,9 +3,11 @@
   <link rel="stylesheet" href="/static/css/form.css">
   <body class="d-flex flex-column h-100">
     <%- include('./partials/navbar', {active:'settings'}); %>
-    <h1 class="col-12 text-center">Server settings</h1>
     <main class="pb-1">
-      <%- include('./components/settings-form'); %>
+      <div class="container">
+        <h1 class="text-center">Server settings</h1>
+        <%- include('./components/settings-form'); %>
+      </div>
     </main>
     <%- include('./partials/footer'); %>
     <%- include('./components/alert-modal', {"objectId":"settings"}); %>
