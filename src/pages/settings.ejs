@@ -194,6 +194,7 @@
     <%- include('./partials/footer'); %>
     <%- include('./components/alert-modal', {"objectId":"settings"}); %>
     <script>
+      let authkey = "<%= request.session.authkey %>"
       let logHistory = "<%= request.body.logHistory %>"
       window.logData = <%- JSON.stringify(request.body.logHistory || []) %>;
 </script>
