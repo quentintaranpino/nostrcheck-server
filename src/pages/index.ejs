@@ -9,9 +9,9 @@
         <div class="d-flex justify-content-center">
             <div class="text-center z-1">
                 <h1 class="mx-auto my-0 text-uppercase">Welcome to <%= request.body.serverHost %></h1>
-                <h2 class="text-white-50 mx-auto mt-2 mb-4">This server is running version <b><%= request.body.version %></h2>
-                <p class="text-white-50 mx-auto mt-2 mb-1"> Contact: <a class="text-white-50" href="https://nostrcheck.me/u/<%- request.body.serverPubkey %>"><%- request.body.serverPubkey.toString().substring(0, 14) + ":" + request.body.serverPubkey.toString().substring(request.body.serverPubkey.toString().length - 14) %></a></p>
-                <p  class="text-white-50 mx-auto mt-2 mb-4">By using our services you agree the <a class="text-white-50 underline-primary" href='tos'>Terms of Service</a></p>
+                <h2 class="text-white-50 mx-auto mt-2 mb-4">Be sovereign of your data</h2>
+                <p class="text-white-50 mx-auto mt-2 mb-1 "> Contact: <a class="text-white-50 text-decoration-none" href="https://nostrcheck.me/u/<%- request.body.serverPubkey %>"><%- request.body.serverPubkey.toString().substring(0, 14) + ":" + request.body.serverPubkey.toString().substring(request.body.serverPubkey.toString().length - 14) %></a></p>
+                <p  class="text-white mx-auto mt-2 mb-4">By using our services you agree the <a class="text-white" href='tos'>Terms of Service</a></p>
                 <a class="btn btn-primary" href="#about">See documentation</a>
             </div>
         </div>
