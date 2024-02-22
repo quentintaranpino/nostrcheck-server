@@ -102,6 +102,7 @@ const loadIndexPage = async (req: Request, res: Response, version:string): Promi
 
     req.body.version = app.get("version");
     req.body.APIversion = version;
+    req.body.serverHost = app.get("config.server")["host"];
     const availableModules = Object.entries(app.get("config.server")["availableModules"]);
      req.body.activeModules = [];
     for (const [key] of availableModules) {
