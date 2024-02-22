@@ -34,3 +34,19 @@ function saveSettings() {
         }
     });
 }
+
+// Log data
+window.onload = function() {
+    let logHistory = document.getElementById('log');
+    window.logData.slice().reverse().forEach(function(log, index) {
+        var date = new Date(log.date);
+        var formattedDate = date.getFullYear() + '-' + 
+            ('0' + (date.getMonth()+1)).slice(-2) + '-' + 
+            ('0' + date.getDate()).slice(-2) + ' ' + 
+            ('0' + date.getHours()).slice(-2) + ':' + 
+            ('0' + date.getMinutes()).slice(-2) + ':' + 
+            ('0' + date.getSeconds()).slice(-2) + '.' + 
+            ('00' + date.getMilliseconds()).slice(-3);
+        logHistory.value += `${index + 1}-  ${log.severity} - ${formattedDate} - ${log.message}\n`;
+    });
+}

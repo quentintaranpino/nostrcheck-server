@@ -2,7 +2,6 @@
   <%- include('./partials/head',{title:"Nostrcheck Server - Home"}); %>
   <link rel="stylesheet" href="/static/css/form.css">
   <link rel="stylesheet" href="/static/css/coloris.min.css">
-  <script src="/static/js/coloris.min.js"></script>
   <body class="d-flex flex-column h-100">
     <%- include('./partials/navbar', {active:'settings'}); %>
     <main class="pb-1">
@@ -181,26 +180,12 @@
               <i class="fa-solid fa-triangle-exclamation"></i> <b>Change this only if you know what you are doing.</b> After changing the log level, you need to <b>restart the server</b> to apply the changes.
             </div>
           </div>
-          <div id="logHistory">
+          <div>
             <h3 class="mt-3">Log history</h3>
             <p> Only the last 1000 records with severity greater than 4 (warning) will be displayed here. 
                 If you need to see more details, you can check the server's generated log files.
             </p>
-            <textarea class="form-control" id="logHistory" name="logHistory" rows="10" disabled>
-              <% request.body.logHistory.slice().reverse().forEach(function(log) { 
-                var date = new Date(log.date);
-                var formattedDate = date.getFullYear() + '-' + 
-                    ('0' + (date.getMonth()+1)).slice(-2) + '-' + 
-                    ('0' + date.getDate()).slice(-2) + ' ' + 
-                    ('0' + date.getHours()).slice(-2) + ':' + 
-                    ('0' + date.getMinutes()).slice(-2) + ':' + 
-                    ('0' + date.getSeconds()).slice(-2) + '.' + 
-                    ('00' + date.getMilliseconds()).slice(-3);
-            %>
-          Severity: <%= log.severity %> - Date: <%= formattedDate %>
-          Message: <%= log.message %>
-            <% }); %>
-              </textarea>
+            <textarea class="form-control" id="log" name="log" rows="10" disabled></textarea>
           <button class="btn btn-lg btn-primary mt-4" name="Submit" type="button" onclick="saveSettings()">Save</button>
         
         </form>
@@ -208,10 +193,15 @@
     </main>
     <%- include('./partials/footer'); %>
     <%- include('./components/alert-modal', {"objectId":"settings"}); %>
+    <script>
+      let logHistory = "<%= request.body.logHistory %>"
+      window.logData = <%- JSON.stringify(request.body.logHistory || []) %>;
+</script>
+    <script>
+  </script>
     <script src="/static/js/form.js"></script>
     <script src="/static/js/settings.js"></script>
-    <script>
-      let authkey = "<%= request.session.authkey %>" 
-    </script>
+    <script src="/static/js/coloris.min.js"></script>
+
   </body>
 </html>
