@@ -1,5 +1,5 @@
 import { Application } from "express";
-import { loadDashboardPage, loadSettingsPage, loadTosPage, loadLoginPage, loadIndexPage } from "../controllers/frontend.js";
+import { loadDashboardPage, loadSettingsPage, loadTosPage, loadDocsPage, loadLoginPage, loadIndexPage } from "../controllers/frontend.js";
 import { frontendLogin } from "../controllers/frontend.js";
 import { logger } from "../lib/logger.js";
 import { isPubkeyValid } from "../lib/authorization.js";
@@ -37,6 +37,11 @@ export const loadFrontendEndpoint = async (app: Application, version:string): Pr
 	// Tos
 	app.get("/api/" +  version + "/tos", (req, res) => {
 		loadTosPage(req,res,version);
+	});
+
+	// Documentation
+	app.get("/api/" +  version + "/documentation", (req, res) => {
+		loadDocsPage(req,res,version);
 	});
 
 	// Dashboard
