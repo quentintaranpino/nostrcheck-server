@@ -1,48 +1,26 @@
 <html lang="en">
 <%- include('./partials/head',{title:"Nostrcheck Server - Home"}); %>
+<link rel="stylesheet" href="/static/css/index.css">
+<link rel="stylesheet" href="/static/css/particles.css">
 <body class="d-flex flex-column h-100">
-    <%- include('./partials/navbar', {active:'home'}); %>
-    <main class="pb-1">
-    <h1 class="col-12 text-center">Active modules</h1>
-    <p class="text-center mt-2"><i class="fa-solid fa-tower-broadcast me-2"></i><span><b>Uptime: </b></span><span class="server-uptime me-2"></span></p>
-    <div class="container mt-4">
-      <div class="row">
-        <% for(const key in request.body.activeModules) { %>
-          <div class="col-xl-3 col-lg-4 col-md-6 col-sm-12">
-            <div class="card mb-3 container-fluid" style="width: 16rem; min-height: 15rem;">
-              <div class="card-body pl-1 pr-1">
-                <h4 class="card-title"><%= request.body.activeModules[key]["name"] %></h5>
-                <h6 class="card-subtitle mb-2 text-muted"><a href="<%= request.body.activeModules[key]['path'].replace('/','') %>"><%= request.body.activeModules[key]['path'] %></a></h6>
-                <% for(const method in request.body.activeModules[key]["methods"]) { %>
-                  <% var badgeClass; %>
-                  <% if (request.body.activeModules[key]["methods"][method]  === 'GET') { %>
-                      <% badgeClass = 'text-bg-success'; %>
-                  <% } %>
-                  <% if (request.body.activeModules[key]["methods"][method]  === 'POST') { %>
-                      <% badgeClass = 'text-bg-warning'; %>
-                  <% } %>
-                  <% if (request.body.activeModules[key]["methods"][method]  === 'PUT') { %>
-                      <% badgeClass = 'text-bg-primary'; %>
-                  <% } %>
-                  <% if (request.body.activeModules[key]["methods"][method]  === 'DELETE') { %>
-                      <% badgeClass = 'text-bg-danger'; %>
-                  <% } %>
-                  <span class="badge <%= badgeClass %>"><%= request.body.activeModules[key]["methods"][method]  %></span>
-                  <% } %>
-                <p class="card-text mt-2"><%= request.body.activeModules[key]["description"] %></p>
-                <button class="btn btn-primary" type="button">                
-                  <a class="text-white" href="https://github.com/quentintaranpino/nostrcheck-api-ts/blob/main/documentation.md#<%= key %>" class="card-link"><i class="fa-solid fa-book me-2"></i>Docs</a>
-                </button>
-
-              </div>
+  <%- include('./partials/navbar', {active:'home'}); %>
+  <header class="poster">
+    <div class="container px-4 px-lg-5 d-flex h-100 align-items-center justify-content-center">
+        <div class="d-flex justify-content-center">
+            <div class="text-center z-1">
+                <h1 class="mx-auto my-0 text-uppercase">Welcome to <%= request.body.serverHost %></h1>
+                <h2 class="text-white-50 mx-auto mt-2 mb-4">This server is running version <b><%= request.body.version %></h2>
+                <p class="text-white-50 mx-auto mt-2 mb-1"> Contact: <a class="text-white-50" href="https://nostrcheck.me/u/<%- request.body.serverPubkey %>"><%- request.body.serverPubkey.toString().substring(0, 14) + ":" + request.body.serverPubkey.toString().substring(request.body.serverPubkey.toString().length - 14) %></a></p>
+                <p  class="text-white-50 mx-auto mt-2 mb-4">By using our services you agree the <a class="text-white-50 underline-primary" href='tos'>Terms of Service</a></p>
+                <a class="btn btn-primary" href="#about">See documentation</a>
             </div>
-          </div>
-        <% } %>
-      </div>
+        </div>
     </div>
-    <p class="text-center mt-3">Nostrcheck server running <b><%= request.body.version %> version.</b> By using this server you agree the <a href='tos'>Terms of Service</a></p>
-    <p class="text-center"><span><b>Contact: </b><a href="https://nostrcheck.me/u/<%- request.body.serverPubkey %>"><%- request.body.serverPubkey %></a></p>
-    </main>
-    <%- include('./partials/footer'); %>
-  </body>
+</header>
+<div class="animation-wrapper">
+  <div class="particle particle-1"></div>
+  <div class="particle particle-2"></div>
+</div>
+  <%- include('./partials/footer'); %>
+</body>
 </html>
