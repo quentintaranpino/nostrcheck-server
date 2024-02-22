@@ -28,3 +28,14 @@ a {
 .cursor-zoom-in {
   cursor: zoom-in;
 }
+
+.dropdown-item.active {
+  background-color: #71767c;
+  color: #fff;
+}
+
+.dropdown-menu {
+
+--bs-dropdown-link-active-bg: #a575ff;
+
+}
