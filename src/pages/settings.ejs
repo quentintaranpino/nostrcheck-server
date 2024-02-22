@@ -1,12 +1,209 @@
 <html lang="en">
   <%- include('./partials/head',{title:"Nostrcheck Server - Home"}); %>
   <link rel="stylesheet" href="/static/css/form.css">
+  <link rel="stylesheet" href="/static/css/coloris.min.css">
+  <script src="/static/js/coloris.min.js"></script>
   <body class="d-flex flex-column h-100">
     <%- include('./partials/navbar', {active:'settings'}); %>
     <main class="pb-1">
       <div class="container">
         <h1 class="text-center">Server settings</h1>
-        <%- include('./components/settings-form'); %>
+        <form class="form settings-form">
+          <div>
+            <h3>Personalization</h3>
+            <p> In this section, you can personalize the server color scheme and logo according to your specific requirements. 
+            </p>
+            <label for="server.logo" class="mt-2 mb-1 fw-bold disabled">Server logo</label>
+            <p>Upload a logo for your server. The logo will be displayed in the top left corner of the server's frontend.</p>
+            <input type="file" id="server.logo" name="server.logo" class="form-control disabled" accept="image/*" >
+            <label for="server.colorScheme" class="mt-2 mb-1 fw-bold ">Server color scheme</label>
+            <p>Choose a color scheme for your server. The color scheme will be used to style the server's frontend.</p>
+            <div>
+              <input type="text" data-coloris class="form-control position-static disabled"><span class="ms-2">Primary</span>
+              <input type="text" data-coloris class="form-control position-static disabled"><span class="ms-2">Secondary</span>
+            </div>  
+            <label for="server.frontendBackground" class="mt-2 mb-1 fw-bold">Frontend background</label>
+            <p>Choose a color for the frontend background.</p>
+            <input type="text" data-coloris class="form-control position-static disabled"><span class="ms-2">Background</span>
+          </div>
+          <div>
+            <h3 class="mt-3">Nostr</h3>
+            <p>
+                Server nostr account is identified using this public/private keypair, the server will use the following credentials to interact with nostr. The public key will be used in NIP96 and NIP05. The private key will be used to send DM's and sign notes.
+            </p>
+            <label for="server.pubkey" class="mt-2 mb-1 fw-bold">Server pubkey</label>
+            <p>This is the public key of the server. It's used to return the server's pubkey to the "_" NIP05 requests.</p>
+            <input  type="text" 
+                    id="server.pubkey"  
+                    name="server.pubkey" 
+                    class="form-control" 
+                    value="<%= request.body.settingServerPubkey %>" 
+                    placeholder="Server pubkey (HEX format)" 
+                    required
+                    >
+            <label for="server.secretKey" class="mt-2 mb-1 fw-bold">Server secret key</label>
+            <p>Used to sign and decrypt the server DM's and notes.</p>
+            <div class="input-group">
+                <input  type="password" 
+                id="server.secretKey" 
+                name="server.secretKey" 
+                class="form-control mb-2" 
+                defaultValue="<%= request.body.settingServerSecretkey %>" 
+                value="<%= request.body.settingServerSecretkey %>" 
+                placeholder="Server secret key (HEX format)" 
+                required 
+                >
+                <button id="toggle-password" type="button" class="d-none"
+                  aria-label="Show secret key as plain text. Warning: this will display your password on the screen.">
+                </button>
+            </div>
+            <div class="alert alert-warning mt-3" role="alert">
+              <i class="fa-solid fa-triangle-exclamation"></i> Be careful, <b>both keys must be modified simultaneously,
+              </b> otherwise the server won't function properly.
+            </div>
+          </div>
+          <div>
+            <h3 class="mt-3">Modules</h3>
+            <p>
+                In this section, you can enable or disable server modules as needed. 
+                It provides you with the flexibility to customize the functionality of your server according to your specific requirements. 
+            </p>
+            <div class="row mx-auto ">
+            <% let counter = 0; %>
+            <% for(const key in request.body.availableModules) { %>
+                <% if (counter % 6 === 0 && counter !== 0) { %>
+                    </div><div class="row mx-auto ">
+                <% } %>
+                <div class="col-6">
+                    <label for="<%= key %>" class="mt-3 mb-1 fw-bold"><%= key %></label>
+                    <div class="form-check form-switch">
+                      <input class="form-check-input" type="checkbox" value="<%= request.body.availableModules[key]['enabled'] ? true : false %>" <%= request.body.availableModules[key]['enabled'] ? 'checked' : '' %> name="server.availableModules.<%= key %>.enabled" id="server.availableModules.<%= key %>.enabled">
+                    </div>
+                </div>
+                <% counter++; %>
+            <% } %>
+            </div>
+            <div class="alert alert-warning mt-3" role="alert">
+              <i class="fa-solid fa-triangle-exclamation"></i> Attention, if you disable the "admin" or "frontend" modules, you will need to manage the server via<b> shell commands.</b>
+            </div>    
+          </div>
+          <div id ="settingsMedia">
+            <h3 class="mt-3">Media</h3>
+            <p> In this section, you can configure the media settings of your server. 
+                It provides you with the flexibility to customize the media settings according to your specific requirements. 
+            </p>
+            <label for="media.allowPublicUploads" class="mt-2 mb-1 fw-bold">Allow public uploads</label>
+            <p>If disabled, only registered pubkeys can upload files.</p>
+            <div class="form-check form-switch">
+              <input  class="form-check-input" 
+                      type="checkbox" 
+                      value="<%= request.body.settingsMedia['allowPublicUploads'] ? true : false %>" 
+                      <%= request.body.settingsMedia['allowPublicUploads'] ? 'checked' : '' %> 
+                      name="media.allowPublicUploads" 
+                      id="media.allowPublicUploads"
+                      >
+            </div>
+            <label for="media.maxMBfilesize" class="mt-2 mb-1 mt-3 fw-bold">Max file size (MB)</label>
+            <p>Specify the maximum file size allowed for uploads in megabytes.</p>
+              <div class="col-12">
+                <input  type="text" 
+                        id="media.maxMBfilesize" 
+                        name="media.maxMBfilesize" 
+                        class="form-control" 
+                        value="<%= request.body.settingsMedia['maxMBfilesize'] %>" 
+                        placeholder="Max file size (in MB)" 
+                        required 
+                        autofocus
+                        >
+             </div>
+            <label class="mt-2 mb-1 fw-bold">Image and video resizing</label>
+            <p>In this section, you can specify the default target size for image and video uploads in pixels. 
+              By setting the target size, you can optimize the filesize and disk space of your server.</p>
+            <div class="row">
+              <label class="mb-1">Images</label>
+                <div class="col-3">
+                    <input  type="number" 
+                            id="media.transform.image.width" 
+                            name="media.transform.image.width" 
+                            class="form-control" 
+                            placeholder="Width" 
+                            value="<%= request.body.settingsMedia['transform']['media']['image']['width'] %>" 
+                            >
+                </div>
+                <div class="col-3">
+                  <input  type="number" 
+                          id="media.transform.image.height" 
+                          name="media.transform.image.height" 
+                          class="form-control" 
+                          placeholder="Width" 
+                          value="<%= request.body.settingsMedia['transform']['media']['image']['height'] %>" 
+                          >
+              </div>
+            </div>
+            <div class="row">
+              <label class="mt-2 mb-1">Videos</label>
+                <div class="col-3">
+                    <input  type="number" 
+                            id="media.transform.image.width" 
+                            name="media.transform.image.width" 
+                            class="form-control" 
+                            placeholder="Width" 
+                            value="<%= request.body.settingsMedia['transform']['media']['video']['width'] %>" 
+                            >
+                </div>
+                <div class="col-3">
+                  <input  type="number" 
+                          id="media.transform.image.height" 
+                          name="media.transform.image.height" 
+                          class="form-control" 
+                          placeholder="Width" 
+                          value="<%= request.body.settingsMedia['transform']['media']['video']['height'] %>" 
+                          >
+              </div>
+            </div>
+          </div>
+          <div id="loggerSettings">
+            <h3 class="mt-3">Logging</h3>
+            <p> In this section, you can configure the log settings of your server. The log level determines the verbosity of the logs:
+                debug (2), info (3), warn (4), error (5)
+            </p>
+            <label for="logger.level" class="mt-2 mb-1 fw-bold">Log level</label>
+            <div class="col-3">
+              <input  type="number" 
+                      id="logger.minLevel" 
+                      name="logger.minLevel" 
+                      class="form-control" 
+                      value="<%= request.body.settingsLogger['minLevel'] %>" 
+                      placeholder="Loglevel" 
+                      >
+            </div>
+            <div class="alert alert-warning mt-3" role="alert">
+              <i class="fa-solid fa-triangle-exclamation"></i> <b>Change this only if you know what you are doing.</b> After changing the log level, you need to <b>restart the server</b> to apply the changes.
+            </div>
+          </div>
+          <div id="logHistory">
+            <h3 class="mt-3">Log history</h3>
+            <p> Only the last 1000 records with severity greater than 4 (warning) will be displayed here. 
+                If you need to see more details, you can check the server's generated log files.
+            </p>
+            <textarea class="form-control" id="logHistory" name="logHistory" rows="10" disabled>
+              <% request.body.logHistory.slice().reverse().forEach(function(log) { 
+                var date = new Date(log.date);
+                var formattedDate = date.getFullYear() + '-' + 
+                    ('0' + (date.getMonth()+1)).slice(-2) + '-' + 
+                    ('0' + date.getDate()).slice(-2) + ' ' + 
+                    ('0' + date.getHours()).slice(-2) + ':' + 
+                    ('0' + date.getMinutes()).slice(-2) + ':' + 
+                    ('0' + date.getSeconds()).slice(-2) + '.' + 
+                    ('00' + date.getMilliseconds()).slice(-3);
+            %>
+          Severity: <%= log.severity %> - Date: <%= formattedDate %>
+          Message: <%= log.message %>
+            <% }); %>
+              </textarea>
+          <button class="btn btn-lg btn-primary mt-4" name="Submit" type="button" onclick="saveSettings()">Save</button>
+        
+        </form>
       </div>
     </main>
     <%- include('./partials/footer'); %>
