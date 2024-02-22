@@ -21,9 +21,6 @@ main {
   border-color: #212529;
 }
 
-a {
-  text-decoration: none;
-}
 
 .cursor-zoom-in {
   cursor: zoom-in;
