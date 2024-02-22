@@ -162,6 +162,25 @@ const updateDBRecord = async (req: Request, res: Response): Promise<Response> =>
     }
 }
 
+
+const updateLogo = async (req: Request, res: Response): Promise<Response> => {
+
+      // Check if current module is enabled
+      if (!isModuleEnabled("admin", app)) {
+        logger.warn("RES -> Module is not enabled" + " | " + getClientIp(req));
+        return res.status(400).send({"status": "error", "message": "Module is not enabled"});
+    }
+
+    logger.info("REQ -> updateDBRecord", req.hostname, "|", getClientIp(req));
+    res.setHeader('Content-Type', 'application/json');
+
+     // Check if authorization header is valid
+	const EventHeader = await parseAuthHeader(req, "updateDBRecord", true);
+	if (EventHeader.status !== "success") {return res.status(401).send({"status": EventHeader.status, "message" : EventHeader.message});}
+
+    return res.status(200).send({"status": "success", "message": "Logo updated"});
+}
+
 /**
  * Resets the password for a user.
  * 
@@ -470,7 +489,13 @@ const updateSettings = async (req: Request, res: Response): Promise<Response> =>
     if (req.body.name.startsWith("server.availableModules.")){
         const module = req.body.name.split(".")[2];
         const enabled = req.body.value;
-        app.set("availableModules", { ...app.get("config.server")["availableModules"], [module]: { enabled } });
+        app.set("config.server", { 
+            ...app.get("config.server"), 
+            ["availableModules"]: { 
+                ...app.get("config.server")["availableModules"], 
+                [module]: { enabled } 
+            } 
+        });
     }else{
         app.set(req.body.name, req.body.value.toString()); 
     }
@@ -486,4 +511,4 @@ const updateSettings = async (req: Request, res: Response): Promise<Response> =>
     
 }
 
-export { serverStatus, StopServer, resetUserPassword, updateDBRecord, deleteDBRecord, insertDBRecord, updateSettings};
+export { serverStatus, StopServer, resetUserPassword, updateDBRecord, deleteDBRecord, insertDBRecord, updateSettings, updateLogo};
