@@ -114,6 +114,30 @@ const loadIndexPage = async (req: Request, res: Response, version:string): Promi
     res.render("index.ejs", {request: req});
 };
 
+const loadDocsPage = async (req: Request, res: Response, version:string): Promise<Response | void>  => {
+
+    // Check if current module is enabled
+	if (!isModuleEnabled("frontend", app)) {
+		logger.warn("RES -> Module is not enabled" + " | " + getClientIp(req));
+		return res.status(400).send({"status": "error", "message": "Module is not enabled"});
+	}
+
+	logger.info("GET /api/" + version + "/index", "|", getClientIp(req));
+
+    req.body.version = app.get("version");
+    req.body.APIversion = version;
+    const availableModules = Object.entries(app.get("config.server")["availableModules"]);
+     req.body.activeModules = [];
+    for (const [key] of availableModules) {
+        if(app.get("config.server")["availableModules"][key]["enabled"] == true){
+            req.body.activeModules.push(app.get("config.server")["availableModules"][key]);
+        }
+    }
+    
+    req.body.serverPubkey = await hextoNpub(app.get("config.server")["pubkey"]);
+    res.render("documentation.ejs", {request: req});
+};
+
 const frontendLogin = async (req: Request, res: Response): Promise<Response> => {
 
     // Check if current module is enabled
@@ -166,4 +190,4 @@ const frontendLogin = async (req: Request, res: Response): Promise<Response> => 
     
 };
 
-export {loadDashboardPage, loadSettingsPage, loadTosPage, loadLoginPage, loadIndexPage, frontendLogin};
+export {loadDashboardPage, loadSettingsPage, loadTosPage, loadDocsPage, loadLoginPage, loadIndexPage, frontendLogin};
