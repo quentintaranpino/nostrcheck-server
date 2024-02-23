@@ -13,13 +13,14 @@ function saveSettings() {
                 value: value
             });
             
-            let result = updateSettings(field.name, value, url, body, headers);
-            if (!result) {
-                return;
-            }
-            if (field.type === 'checkbox') {
-                field.defaultChecked = field.checked;
-            }
+            updateSettings(field.name, value, url, body, headers).then(result => {
+                if (result) {
+                    if (field.type === 'checkbox') {
+                        field.defaultChecked = field.checked;
+                    }
+                    field.defaultValue = field.value;
+                }
+            });
         }
     });
 }
@@ -64,7 +65,7 @@ window.onload = function() {
     });
 }
 
-// Update logo
+// Update logo or restore default
 const updateLogo = (setDefault = false) => {
 
     let fieldName = 'server.logo';
