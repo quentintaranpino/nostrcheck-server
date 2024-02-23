@@ -1,51 +1,50 @@
 function saveSettings() {
-    const formFields = document.querySelectorAll('.form.settings-form input, .form.settings-form select, .form.settings-form textarea, .form.settings-form checkbox, .form.settings-form file');
+    const formFields = document.querySelectorAll('.form.settings-form input, .form.settings-form select, .form.settings-form textarea, .form.settings-form checkbox');
     formFields.forEach(field => {
         if (field.value !== field.defaultValue && field.name != "log" || (field.type === 'checkbox' && field.checked !== field.defaultChecked)) {
             const value = field.type === 'checkbox' ? field.checked : field.value;
-            let url = field.name === 'server.logo' ? 'admin/updatelogo' : 'admin/updatesettings';
-            let body;
+            let url = 'admin/updatesettings';
             let headers = {
-                "authorization": "Bearer " + authkey
+                "authorization": "Bearer " + authkey,
+                "Content-Type": "application/json"
             };
-            
-            if (field.name === 'server.logo') {
-                body = new FormData();
-                body.append('logo', field.files[0]);
-            } else {
-                headers["Content-Type"] = "application/json";
-                body = JSON.stringify({
-                    name: field.name,
-                    value: value
-                });
-            }
-            
-            fetch(url, {
-                method: 'POST',
-                headers: headers,
-                body: body
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    if (field.type === 'checkbox') {
-                        field.defaultChecked = field.checked;
-                    }else if(field.name === 'server.logo' || field.name === 'server.logo.default'){
-                        document.getElementById('server-logo').src = document.getElementById('server-logo').src + '?' + new Date().getTime();
-                        field.files = null;
-                    }else{
-                        field.defaultValue = field.value;
-                    }
-                    authkey = data.authkey;
-                }else{
-                    console.error('Error:', data);
-                    initAlertModal("#settings", data.message);
-                }
-                })
-            .catch((error) => {
-                console.error('Error:', error);
+            let body = JSON.stringify({
+                name: field.name,
+                value: value
             });
+            
+            let result = updateSettings(field.name, value, url, body, headers);
+            if (!result) {
+                return;
+            }
+            if (field.type === 'checkbox') {
+                field.defaultChecked = field.checked;
+            }
         }
+    });
+}
+
+const updateSettings = (fieldName, fieldValue, url, body, headers) => {
+    return fetch(url, {
+        method: 'POST',
+        headers: headers,
+        body: body
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success') {
+            document.getElementById(fieldName).defaultValue = fieldValue;
+            authkey = data.authkey;
+            return true;
+        } else {
+            console.error('Error:', data);
+            initAlertModal("#settings", data.message);
+            return false;
+        }
+    })
+    .catch((error) => {
+        console.error('Error:', error);
+        return false;
     });
 }
 
@@ -63,4 +62,29 @@ window.onload = function() {
             ('00' + date.getMilliseconds()).slice(-3);
         logHistory.value += `${index + 1}-  ${log.severity} - ${formattedDate} - ${log.message}\n`;
     });
+}
+
+// Update logo
+const updateLogo = (setDefault = false) => {
+
+    let fieldName = 'server.logo';
+    let body = new FormData();
+    let field = document.getElementById('server.logo');
+    body.append('server.logo', field.files[0]);
+
+    if (setDefault === true) {
+        document.getElementById('server.logo.default').value = setDefault;
+        body['server.logo'] = null;
+        fieldName = 'server.logo.default';
+    }
+       
+    let headers = {"authorization": "Bearer " + authkey};
+    
+    updateSettings(fieldName, '', 'admin/updatelogo', body, headers).then(result => {
+        if (result) {
+            document.getElementById('server-logo').src = document.getElementById('server-logo').src + '?' + new Date().getTime();
+            $('input[type=file]').val('');
+        }
+    });
+
 }
