@@ -12,18 +12,18 @@
             <h3>Personalization</h3>
             <p> In this section, you can personalize the server color scheme and logo according to your specific requirements. 
             </p>
-            <label for="server.logo" class="mt-2 mb-1 fw-bold disabled">Server logo</label>
+            <label for="lookandfeel.server.logo" class="mt-2 mb-1 fw-bold disabled">Server logo</label>
             <p>Upload a new logo for your server. For better results, use an image with transparent background. </p>
             <div class="row mx-auto mb-1">
               <div class="col-10">
-                  <input type="file" id="server.logo" name="server.logo" class="form-control" accept="image/*" onchange="updateLogo()">
+                  <input type="file" id="lookandfeel.server.logo" name="lookandfeel.server.logo" class="form-control" accept="image/*" onchange="updateLogo()">
               </div>
               <div class="col-2">
-                  <input type='text' class="d-none" id='server.logo.default' name='server.logo.default' value='false'>
+                  <input type='text' class="d-none" id='lookandfeel.server.logo.default' name='lookandfeel.server.logo.default' value='false'>
                   <button class="form-control btn btn-md btn-primary" type="button" onclick="updateLogo(true)">Restore</button>            
               </div>
             </div>
-            <label for="server.colorScheme" class="mt-2 mb-1 fw-bold ">Color scheme</label>
+            <label for="lookandfeel.server.colorScheme" class="mt-2 mb-1 fw-bold ">Color scheme</label>
             <p>Choose a color scheme for your server.</p>
             <div class="row mx-auto mb-1">
               <div class="col-6">
@@ -37,7 +37,7 @@
                 <button class="form-control btn btn-md btn-primary" type="button" onclick="updateLogo(true)">Restore</button>            
               </div>
             </div>  
-            <label for="server.frontendBackground" class="mt-2 mb-1 fw-bold">Frontend background</label>
+            <label for="lookandfeel.server.frontendBackground" class="mt-2 mb-1 fw-bold">Frontend background</label>
             <p>Choose the colors for the frontend background.</p>
             <div class="row mx-auto mb-1">
               <div class="col-6">

@@ -1,7 +1,7 @@
 function saveSettings() {
     const formFields = document.querySelectorAll('.form.settings-form input, .form.settings-form select, .form.settings-form textarea, .form.settings-form checkbox');
     formFields.forEach(field => {
-        if (field.value !== field.defaultValue && field.name != "log" || (field.type === 'checkbox' && field.checked !== field.defaultChecked)) {
+        if (field.value !== field.defaultValue && field.name != "log" && !field.name.toString().startsWith('lookandfeel') || (field.type === 'checkbox' && field.checked !== field.defaultChecked)) {
             const value = field.type === 'checkbox' ? field.checked : field.value;
             let url = 'admin/updatesettings';
             let headers = {
@@ -68,15 +68,15 @@ window.onload = function() {
 // Update logo or restore default
 const updateLogo = (setDefault = false) => {
 
-    let fieldName = 'server.logo';
+    let fieldName = 'lookandfeel.server.logo';
     let body = new FormData();
-    let field = document.getElementById('server.logo');
-    body.append('server.logo', field.files[0]);
+    let field = document.getElementById('lookandfeel.server.logo');
+    body.append('lookandfeel.server.logo', field.files[0]);
 
     if (setDefault === true) {
-        document.getElementById('server.logo.default').value = setDefault;
-        body['server.logo'] = null;
-        fieldName = 'server.logo.default';
+        document.getElementById('lookandfeel.server.logo.default').value = setDefault;
+        body['lookandfeel.server.logo'] = null;
+        fieldName = 'lookandfeel.server.logo.default';
     }
        
     let headers = {"authorization": "Bearer " + authkey};
