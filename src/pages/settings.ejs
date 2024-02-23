@@ -14,12 +14,15 @@
             </p>
             <label for="server.logo" class="mt-2 mb-1 fw-bold disabled">Server logo</label>
             <p>Upload a new logo for your server. The logo should have transparent background</p>
-            <input type="file" id="server.logo" name="server.logo" class="form-control" accept="image/*" >
-            <div class="row col-3">
-              <input type='text' class="d-none" id='server.logo.default' name='server.logo.default' value='false'>
-              <button class="btn btn-sm btn-secondary mt-2" type="button" onclick="$('input[type=file]').val('');document.getElementById('server.logo.default').value = 'true'">Restore default</button>            
-            </div>
-
+            <div class="row mx-auto mb-1">
+              <div class="col-7">
+                  <input type="file" id="server.logo" name="server.logo" class="form-control" accept="image/*" onchange="updateLogo()">
+              </div>
+              <div class="col-3">
+                  <input type='text' class="d-none" id='server.logo.default' name='server.logo.default' value='false'>
+                  <button class="form-control btn btn-md btn-primary" type="button" onclick="updateLogo(true)">Restore default</button>            
+              </div>
+          </div>
             <label for="server.colorScheme" class="mt-2 mb-1 fw-bold ">Server color scheme</label>
             <p>Choose a color scheme for your server. The color scheme will be used to style the server's frontend.</p>
             <div>
