@@ -179,10 +179,17 @@ const updateLogo = async (req: Request, res: Response): Promise<Response> => {
      // Check if authorization header is valid
 	const EventHeader = await parseAuthHeader(req, "updateDBRecord", true);
 	if (EventHeader.status !== "success") {return res.status(401).send({"status": EventHeader.status, "message" : EventHeader.message});}
-    
+
     if (!req.files || req.files == undefined || req.files.length == 0) {
-        logger.error("RES -> No files uploaded" + " | " + getClientIp(req));
-        return res.status(400).send({"status": "error", "message": "No files uploaded", "authkey": EventHeader.authkey});
+        // Check if is server.logo.default for restoring default logo
+        try {
+            await fs.promises.copyFile('./src/pages/static/resources/navbar-logo.default.webp', './src/pages/static/resources/navbar-logo.webp');
+            logger.info("RES -> Default logo restored" + " | " + getClientIp(req));
+            return res.status(200).send({status: "success", message: "Default logo restored", authkey: EventHeader.authkey});
+        } catch (error) {
+            logger.error("RES -> Failed to restore default logo" + " | " + getClientIp(req));
+            return res.status(500).send({status: "error", message: "Failed to restore default logo", authkey: EventHeader.authkey});
+        }
     }
 
     let file: Express.Multer.File | null = null;
@@ -203,8 +210,7 @@ const updateLogo = async (req: Request, res: Response): Promise<Response> => {
 
 
     await sharp(file.buffer)
-    .resize(150)
-    .resize({ fit: 'contain' })
+    .resize(150, 51, { fit: sharp.fit.cover })
     .webp({ quality: 95 })
     .toBuffer()
     .then( async data => { 
@@ -512,19 +518,6 @@ const updateSettings = async (req: Request, res: Response): Promise<Response> =>
             authkey: ""
         }
         return res.status(400).send(result);
-    }
-
-    // Check if is server.logo.default
-    if (req.body.name === "server.logo.default") {
-        // Restore default logo copying it from /src/pages/static/resources/navbar-logo.default.webp to /src/pages/static/resources/navbar-logo.webp
-        try {
-            await fs.promises.copyFile('./src/pages/static/resources/navbar-logo.default.webp', './src/pages/static/resources/navbar-logo.webp');
-            logger.info("RES -> Default logo restored" + " | " + getClientIp(req));
-            return res.status(200).send({status: "success", message: "Default logo restored", authkey: EventHeader.authkey});
-        } catch (error) {
-            logger.error("RES -> Failed to restore default logo" + " | " + getClientIp(req));
-            return res.status(500).send({status: "error", message: "Failed to restore default logo", authkey: EventHeader.authkey});
-        }
     }
 
     let updated = await updateLocalConfigKey(req.body.name, req.body.value);
