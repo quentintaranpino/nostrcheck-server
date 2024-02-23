@@ -531,19 +531,23 @@ const updateSettings = async (req: Request, res: Response): Promise<Response> =>
         return res.status(500).send(result);
     }
 
-    if (req.body.name.startsWith("server.availableModules.")){
-        const module = req.body.name.split(".")[2];
-        const enabled = req.body.value;
-        app.set("config.server", { 
-            ...app.get("config.server"), 
-            ["availableModules"]: { 
-                ...app.get("config.server")["availableModules"], 
-                [module]: { enabled } 
-            } 
-        });
-    }else{
-        app.set(req.body.name, req.body.value.toString()); 
+    let parts = req.body.name.split(".");
+    let mainConfigName = `config.${parts.shift()}`;
+    let configField = parts.pop();
+    let rootConfig = JSON.parse(JSON.stringify(app.get(mainConfigName))); // Deep copy
+    let currentConfig = rootConfig;
+    for (let part of parts) {
+        if (currentConfig[part] === undefined) {
+            return res.status(500).send({"status":"error", "message":`Config field not found: ${part}`});
+        }
+        currentConfig = currentConfig[part];
     }
+    if (currentConfig[configField] === undefined) {
+        return res.status(500).send({"status":"error", "message":`Config field not found: ${configField}`});
+    }
+    
+    currentConfig[configField] = req.body.value;
+    app.set(mainConfigName, rootConfig);
 
     const result : authkeyResultMessage = {
         status: "success",
