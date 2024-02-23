@@ -13,8 +13,13 @@
             <p> In this section, you can personalize the server color scheme and logo according to your specific requirements. 
             </p>
             <label for="server.logo" class="mt-2 mb-1 fw-bold disabled">Server logo</label>
-            <p>Upload a logo for your server. The logo will be displayed in the top left corner of the server's frontend.</p>
-            <input type="file" id="server.logo" name="server.logo" class="form-control disabled" accept="image/*" >
+            <p>Upload a new logo for your server. The logo should have transparent background</p>
+            <input type="file" id="server.logo" name="server.logo" class="form-control" accept="image/*" >
+            <div class="row col-3">
+              <input type='text' class="d-none" id='server.logo.default' name='server.logo.default' value='false'>
+              <button class="btn btn-sm btn-secondary mt-2" type="button" onclick="$('input[type=file]').val('');document.getElementById('server.logo.default').value = 'true'">Restore default</button>            
+            </div>
+
             <label for="server.colorScheme" class="mt-2 mb-1 fw-bold ">Server color scheme</label>
             <p>Choose a color scheme for your server. The color scheme will be used to style the server's frontend.</p>
             <div>
@@ -112,7 +117,7 @@
                         value="<%= request.body.settingsMedia['maxMBfilesize'] %>" 
                         placeholder="Max file size (in MB)" 
                         required 
-                        autofocus
+                        
                         >
              </div>
             <label class="mt-2 mb-1 fw-bold">Image and video resizing</label>
@@ -143,8 +148,8 @@
               <label class="mt-2 mb-1">Videos</label>
                 <div class="col-3">
                     <input  type="number" 
-                            id="media.transform.image.width" 
-                            name="media.transform.image.width" 
+                            id="media.transform.video.width" 
+                            name="media.transform.video.width" 
                             class="form-control" 
                             placeholder="Width" 
                             value="<%= request.body.settingsMedia['transform']['media']['video']['width'] %>" 
@@ -152,8 +157,8 @@
                 </div>
                 <div class="col-3">
                   <input  type="number" 
-                          id="media.transform.image.height" 
-                          name="media.transform.image.height" 
+                          id="media.transform.video.height" 
+                          name="media.transform.video.height" 
                           class="form-control" 
                           placeholder="Width" 
                           value="<%= request.body.settingsMedia['transform']['media']['video']['height'] %>" 

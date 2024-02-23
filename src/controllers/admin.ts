@@ -9,6 +9,9 @@ import { allowedFieldNames, allowedFieldNamesAndValues, allowedTableNames } from
 import { parseAuthHeader} from "../lib/authorization.js";
 import { isModuleEnabled, updateLocalConfigKey } from "../lib/config.js";
 import app from "../app.js";
+import { ParseFileType } from "../lib/media.js";
+import fs from "fs";
+import sharp from "sharp";
 
 let hits = 0;
 /**
@@ -165,20 +168,56 @@ const updateDBRecord = async (req: Request, res: Response): Promise<Response> =>
 
 const updateLogo = async (req: Request, res: Response): Promise<Response> => {
 
-      // Check if current module is enabled
-      if (!isModuleEnabled("admin", app)) {
-        logger.warn("RES -> Module is not enabled" + " | " + getClientIp(req));
-        return res.status(400).send({"status": "error", "message": "Module is not enabled"});
+    // Check if current module is enabled
+    if (!isModuleEnabled("admin", app)) {
+    logger.warn("RES -> Module is not enabled" + " | " + getClientIp(req));
+    return res.status(400).send({"status": "error", "message": "Module is not enabled"});
     }
 
-    logger.info("REQ -> updateDBRecord", req.hostname, "|", getClientIp(req));
-    res.setHeader('Content-Type', 'application/json');
+    logger.debug("POST /api/v2/admin/updatelogo", "|", getClientIp(req));
 
      // Check if authorization header is valid
 	const EventHeader = await parseAuthHeader(req, "updateDBRecord", true);
 	if (EventHeader.status !== "success") {return res.status(401).send({"status": EventHeader.status, "message" : EventHeader.message});}
+    
+    if (!req.files || req.files == undefined || req.files.length == 0) {
+        logger.error("RES -> No files uploaded" + " | " + getClientIp(req));
+        return res.status(400).send({"status": "error", "message": "No files uploaded", "authkey": EventHeader.authkey});
+    }
 
-    return res.status(200).send({"status": "success", "message": "Logo updated"});
+    let file: Express.Multer.File | null = null;
+	if (Array.isArray(req.files) && req.files.length > 0) {
+		file = req.files[0];
+	}
+
+    if (!file) {
+		logger.warn(`RES -> 400 Bad request - Empty file`, "|", getClientIp(req));
+		return res.status(400).send({"status": "error", "message": "Empty file", "authkey": EventHeader.authkey});
+	}
+
+	file.mimetype = await ParseFileType(req, file);
+	if (file.mimetype === "") {
+		logger.error(`RES -> 400 Bad request - `, file.mimetype, ` filetype not detected`, "|", getClientIp(req));
+		return res.status(400).send({"status": "error", "message": "file type not detected or not allowed", "authkey": EventHeader.authkey});
+	}
+
+
+    await sharp(file.buffer)
+    .resize(150)
+    .resize({ fit: 'contain' })
+    .webp({ quality: 95 })
+    .toBuffer()
+    .then( async data => { 
+        await fs.promises.writeFile('./src/pages/static/resources/navbar-logo.webp', data);
+        logger.info("RES -> Logo updated" + " | " + getClientIp(req));
+    })
+    .catch( err => { 
+        logger.error("RES -> Error updating logo" + " | " + err);
+        return res.status(500).send({"status": "error", "message": "Error updating logo", "authkey": EventHeader.authkey});
+     });
+
+     return res.status(200).send({"status": "success", "message": "Logo updated", "authkey": EventHeader.authkey});
+
 }
 
 /**
@@ -473,6 +512,19 @@ const updateSettings = async (req: Request, res: Response): Promise<Response> =>
             authkey: ""
         }
         return res.status(400).send(result);
+    }
+
+    // Check if is server.logo.default
+    if (req.body.name === "server.logo.default") {
+        // Restore default logo copying it from /src/pages/static/resources/navbar-logo.default.webp to /src/pages/static/resources/navbar-logo.webp
+        try {
+            await fs.promises.copyFile('./src/pages/static/resources/navbar-logo.default.webp', './src/pages/static/resources/navbar-logo.webp');
+            logger.info("RES -> Default logo restored" + " | " + getClientIp(req));
+            return res.status(200).send({status: "success", message: "Default logo restored", authkey: EventHeader.authkey});
+        } catch (error) {
+            logger.error("RES -> Failed to restore default logo" + " | " + getClientIp(req));
+            return res.status(500).send({status: "error", message: "Failed to restore default logo", authkey: EventHeader.authkey});
+        }
     }
 
     let updated = await updateLocalConfigKey(req.body.name, req.body.value);

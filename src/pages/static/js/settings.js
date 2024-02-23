@@ -1,7 +1,7 @@
 function saveSettings() {
     const formFields = document.querySelectorAll('.form.settings-form input, .form.settings-form select, .form.settings-form textarea, .form.settings-form checkbox, .form.settings-form file');
     formFields.forEach(field => {
-        if (field.value !== field.defaultValue || (field.type === 'checkbox' && field.checked !== field.defaultChecked)) {
+        if (field.value !== field.defaultValue && field.name != "log" || (field.type === 'checkbox' && field.checked !== field.defaultChecked)) {
             const value = field.type === 'checkbox' ? field.checked : field.value;
             let url = field.name === 'server.logo' ? 'admin/updatelogo' : 'admin/updatesettings';
             let body;
@@ -30,6 +30,9 @@ function saveSettings() {
                 if (data.status === 'success') {
                     if (field.type === 'checkbox') {
                         field.defaultChecked = field.checked;
+                    }else if(field.name === 'server.logo' || field.name === 'server.logo.default'){
+                        document.getElementById('server-logo').src = document.getElementById('server-logo').src + '?' + new Date().getTime();
+                        field.files = null;
                     }else{
                         field.defaultValue = field.value;
                     }
