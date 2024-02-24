@@ -1,10 +1,9 @@
-import { Event, generateSecretKey, getPublicKey } from "nostr-tools";
+import { generateSecretKey, getPublicKey } from "nostr-tools";
 import { bytesToHex } from '@noble/hashes/utils'
 import { NostrEvent } from "nostr-tools"
 import {SimplePool } from "nostr-tools/pool"
 import 'websocket-polyfill'
 import { logger } from "../logger.js"
-import app from "../../app.js";
 
 const relays = [
 	"wss://relay.nostrcheck.me",
@@ -15,7 +14,6 @@ const relays = [
 	"wss://nostr-pub.wellorder.net/",
 	"wss://relay.current.fyi"
 	]
-
 const relaysPool = new SimplePool()
 
 /**
@@ -65,83 +63,4 @@ const publishEvent = async (event : NostrEvent): Promise<boolean> => {
         
 }
 
-/**
- * Retrieves the profile data of a user from the Nostr network (Kind 0).
- * @param pubkey - The public key of the user, hex format.
- * @returns A promise that resolves to the content data of the kind 0 note.
- */
-const getProfileMetadata = async (pubkey : string) : Promise<Object> => {
-	
-    let resolveEvent : (event : Event) => void;
-    let subscribePromise : Promise<Event> = new Promise(resolve => resolveEvent = resolve);
-    
-    const data = relaysPool.subscribeMany(
-		relays,
-		[{
-			authors: [pubkey],
-			kinds: [0],
-		}],
-		{
-			eoseTimeout: 1000,
-			onevent(e) {
-				resolveEvent(e);
-			},
-			oneose() {
-				data.close();
-				return resolveEvent(JSON.parse({kind: 0, created_at: 0, tags: [["#followers",[app.get("followers")]]], content: "{}", pubkey: "", id: "", sig: ""}.content));
-			},
-		},
-	);
-
-    let event : Event = await subscribePromise;
-	if (event.content === undefined) {
-		return JSON.parse({kind: 0, created_at: 0, tags: [], content: "{}", pubkey: "", id: "", sig: ""}.content);
-	}
-
-    if (!app.get("#p_" + pubkey)){
-		getProfileFollowers(pubkey);
-	} 
-
-	// Add followers to the profile metadata
-	let result = JSON.parse(event.content)
-	result["followers"] = app.get("#p_" + pubkey)
-	return result;
-	
-}
-
-/**
- * Retrieves the followers of a user from relays (Kind 3). Asynchronously updates the app state with the number of followers.
- * @param pubkey - The public key of the user, hex format.
- * @returns A boolean indicating whether the operation was successful.
- */
-const getProfileFollowers = (pubkey : string) : Boolean => {
-	
-	let eventList : Event[] = []
-	
-	try{
-		const data = relaysPool.subscribeMany(
-			relays,
-			[{
-				kinds: [3],
-				"#p": [pubkey],
-			}],
-			{
-				eoseTimeout: 1000,
-				onevent(e) {
-					eventList.push(e);
-				},
-				oneose() {
-					data.close();
-					app.set("#p_" + pubkey, eventList.length);
-				},
-			},
-		);
-	}catch (error) {
-		logger.error(error)
-		return false
-	}
-	
-	return true;
-}
-
-export {publishEvent, createkeyPair, getPubkeyFromSecret, getProfileMetadata}
+export {publishEvent, createkeyPair, getPubkeyFromSecret, relays, relaysPool}

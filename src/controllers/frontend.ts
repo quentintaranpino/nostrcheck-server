@@ -8,7 +8,7 @@ import { dbSelect, dbSelectModuleData} from "../lib/database.js";
 import { generateCredentials, isPubkeyValid, isUserPasswordValid } from "../lib/authorization.js";
 import { registeredTableFields } from "../interfaces/database.js";
 import { isModuleEnabled } from "../lib/config.js";
-import { getProfileMetadata } from "../lib/nostr/core.js";
+import { getProfileMetadata } from "../lib/frontend.js";
 import { hextoNpub } from "../lib/nostr/NIP19.js";
 import { logHistory } from "../lib/logger.js";
 
@@ -63,6 +63,25 @@ const loadSettingsPage = async (req: Request, res: Response, version:string): Pr
     req.session.metadata = await getProfileMetadata(req.session.identifier);
     
     res.render("settings.ejs", {request: req});
+};
+
+const loadProfilePage = async (req: Request, res: Response, version:string): Promise<Response | void> => {
+
+    // Check if current module is enabled
+	if (!isModuleEnabled("frontend", app)) {
+		logger.warn("RES -> Module is not enabled" + " | " + getClientIp(req));
+		return res.status(400).send({"status": "error", "message": "Module is not enabled"});
+	}
+
+	logger.info("GET /api/" + version + "/profile", "|", getClientIp(req));
+
+    req.body.version = app.get("version");
+    req.session.authkey = await generateCredentials('authkey', false, req.session.identifier);
+
+    // User metadata from nostr
+    req.session.metadata = await getProfileMetadata(req.session.identifier);
+
+    res.render("profile.ejs", {request: req});
 };
 
 const loadTosPage = async (req: Request, res: Response, version:string): Promise<Response | void> => {
@@ -185,4 +204,11 @@ const frontendLogin = async (req: Request, res: Response): Promise<Response> => 
     
 };
 
-export {loadDashboardPage, loadSettingsPage, loadTosPage, loadDocsPage, loadLoginPage, loadIndexPage, frontendLogin};
+export {loadDashboardPage, 
+        loadSettingsPage, 
+        loadTosPage, 
+        loadDocsPage, 
+        loadLoginPage, 
+        loadIndexPage, 
+        frontendLogin,
+        loadProfilePage};
