@@ -31,7 +31,16 @@ main {
 }
 
 .dropdown-menu {
-
 --bs-dropdown-link-active-bg: #a575ff;
-
 }
+
+.background-style-1 {
+  background-image: -webkit-linear-gradient(to top, rgb(151, 149, 240) 0%, rgb(0 0 0) 100%);
+  background-image: linear-gradient(to top, rgb(151, 149, 240) 0%, rgb(0 0 0) 100%);
+}
+
+.background-style-2 {
+  background: -webkit-linear-gradient(to right, rgb(200 128 179), rgb(130 170 235));
+  background: linear-gradient(to right, rgb(200 128 179), rgb(130 170 235))
+}
+

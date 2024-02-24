@@ -31,7 +31,7 @@
           <span class="ms-2"><% if (request.session.identifier) { %> <%= request.session.metadata.display_name %> <% }else{"Profile"} %></span>
         </a>
         <div class="dropdown-menu dropdown-menu-end">
-          <a href="profile" class="dropdown-item disabled">Profile</a>
+          <a href="profile"  <% if(active === 'profile'){ %><%- "class='dropdown-item active'"%><% } else { %><%- "class='dropdown-item'"%><%}%>>Profile</a>
           <a href="dashboard" <% if(active === 'dashboard'){ %><%- "class='dropdown-item active'"%><% } else { %><%- "class='dropdown-item'"%><%}%>>Dashboard</a>
           <a href="settings" <% if(active === 'settings'){ %><%- "class='dropdown-item active'"%><% } else { %><%- "class='dropdown-item'"%><%}%>>Settings</a>
           <div class="dropdown-divider"></div>
