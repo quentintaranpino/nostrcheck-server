@@ -81,13 +81,13 @@ const isPubkeyValid = async (req: Request, checkAdminPrivileges = false): Promis
 	}
 
 	const pubkey = req.body.pubkey || req.session.identifier;
-	const hex = await dbSelect("SELECT hex FROM registered WHERE hex = ?", "hex", [pubkey], registeredTableFields)
+	const hex = await dbSelect("SELECT hex FROM registered WHERE hex = ?", "hex", [pubkey], registeredTableFields) as string;
 	if (hex == "") {
 		return false;
 	}
 
 	if (checkAdminPrivileges) {
-		const admin = await dbSelect("SELECT allowed FROM registered WHERE hex = ?", "allowed", [hex], registeredTableFields);
+		const admin = await dbSelect("SELECT allowed FROM registered WHERE hex = ?", "allowed", [hex], registeredTableFields) as string;
 		if (admin != "1") {
 			logger.warn("RES -> 403 forbidden - Apikey does not have admin privileges", "|", req.socket.remoteAddress);
 			return false;
@@ -109,7 +109,7 @@ const isUserPasswordValid = async (username:string, password:string, checkAdminP
 	try{
 
 		if (checkAdminPrivileges) {
-			const admin = await dbSelect("SELECT allowed FROM registered WHERE username = ?", "allowed", [username], registeredTableFields);
+			const admin = await dbSelect("SELECT allowed FROM registered WHERE username = ?", "allowed", [username], registeredTableFields) as string;
 			if (admin === "0") {
 				logger.warn("RES -> 403 forbidden - Username does not have admin privileges", "|", username);
 				return false;
@@ -118,7 +118,7 @@ const isUserPasswordValid = async (username:string, password:string, checkAdminP
 		const userDBPassword = await dbSelect("SELECT password FROM registered WHERE username = ?", 
 								"password", 
 								[username], 
-								registeredTableFields)
+								registeredTableFields) as string;
 
 		return await validateHash(password, userDBPassword);
 	}catch (error) {
@@ -143,7 +143,7 @@ const isAuthkeyValid = async (authString: string) : Promise<authHeaderResult> =>
 
 	const hashedAuthkey = await hashString(authString, 'authkey');
 	try{
-		const hex =  await dbSelect("SELECT hex FROM registered WHERE authkey = ? and allowed = ?", "hex", [hashedAuthkey,"1"], registeredTableFields)
+		const hex =  await dbSelect("SELECT hex FROM registered WHERE authkey = ? and allowed = ?", "hex", [hashedAuthkey,"1"], registeredTableFields) as string;
 		if (hex == ""){
 			logger.warn("Unauthorized request, authkey not found")
 			return {status: "error", message: "Unauthorized", authkey: "", pubkey:""};
@@ -219,14 +219,14 @@ const isApikeyValid = async (req: Request, endpoint: string = "", checkAdminPriv
 
 	// We only allow server apikey for uploadMedia endpoint
 	const serverApikey = await dbSelect("SELECT apikey FROM registered WHERE username = ?", "apikey", ["public"], registeredTableFields);
-	const hexApikey : string = await dbSelect(
+	const hexApikey = await dbSelect(
 		(endpoint != "uploadmedia" && endpoint != "getMediaStatusbyID")
 			? "SELECT hex FROM registered WHERE apikey = ? and apikey <> ?"
 			: "SELECT hex FROM registered WHERE apikey = ?",
 		"hex",
 		endpoint != "Uploadmedia" ? [apikey, serverApikey] : [apikey.toString()],
 		registeredTableFields
-	);
+	) as string;
 
 	if (hexApikey === "" || hexApikey === undefined) {
 		if (serverApikey){
@@ -238,7 +238,7 @@ const isApikeyValid = async (req: Request, endpoint: string = "", checkAdminPriv
 	}
 
 	if (checkAdminPrivileges) {
-		const admin = await dbSelect("SELECT allowed FROM registered WHERE hex = ?", "allowed", [hexApikey], registeredTableFields);
+		const admin = await dbSelect("SELECT allowed FROM registered WHERE hex = ?", "allowed", [hexApikey], registeredTableFields) as string;
 		if (admin === "0") {
 			logger.warn("RES -> 403 forbidden - Apikey does not have admin privileges", "|", req.socket.remoteAddress);
 			return {status: "error", message: "Apikey not authorized for this action", pubkey:"", authkey:""};

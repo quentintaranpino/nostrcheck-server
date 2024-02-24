@@ -55,7 +55,7 @@ const uploadmedia = async (req: Request, res: Response, version:string): Promise
 
 	//Check if pubkey is on the database
 	let pubkey : string = EventHeader.pubkey;
-	let username : string = await dbSelect("SELECT username FROM registered WHERE hex = ?", "username", [pubkey], registeredTableFields);
+	let username = await dbSelect("SELECT username FROM registered WHERE hex = ?", "username", [pubkey], registeredTableFields) as string;
 
 	//If username is not on the db the upload will be public and a warning will be logged.
 	if (username === "") {
@@ -570,7 +570,7 @@ const getMediabyURL = async (req: Request, res: Response) => {
 			return returnNotFoundMediaFile(req, res);
 		} 
 		// Check if file is active on the database
-		if (await dbSelect("SELECT active FROM mediafiles WHERE filename = ? ", "active", [req.params.filename], mediafilesTableFields) != "1") {
+		if (await dbSelect("SELECT active FROM mediafiles WHERE filename = ? ", "active", [req.params.filename], mediafilesTableFields) as string != "1")  {
 			logger.warn(`RES -> 401 File not active - ${req.url}`, "| Returning not found media file.", getClientIp(req));
 			return returnNotFoundMediaFile(req, res);
 		}else{

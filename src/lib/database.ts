@@ -243,19 +243,25 @@ const dbInsert = async (tableName :string, fields: string[], values: string[]): 
  * @param {string} returnField - The field to be returned from the first row of the result.
  * @param {string[]} whereFields - The fields to be used in the WHERE clause of the SQL query.
  * @param {RowDataPacket} table - The table object where the SQL query will be executed.
+ * @param {boolean} [onlyFirstResult=true] - A boolean indicating whether to return only the first result from the query or all results.
  * @returns {Promise<string>} A promise that resolves to the value of the specified return field from the first row of the result, or an empty string if an error occurs or if the result is empty.
  */
-const dbSelect = async (queryStatement: string, returnField :string, whereFields: string[], table: RowDataPacket): Promise<string> => {
-	try {
-		const conn = await connect("dbSimpleSelect: " + queryStatement + " | Fields: " + whereFields.join(", "));
-		const [rows] = await conn.query<typeof table[]>(queryStatement, whereFields);
-		conn.end();
-		return rows[0]?.[returnField] || "";
-	} catch (error) {
-		logger.debug(error)
-		logger.error("Error getting " + returnField + " from database");
-		return "";
-	}
+const dbSelect = async (queryStatement: string, returnField :string, whereFields: string[], table: RowDataPacket, onlyFirstResult = true): Promise<string | string[]> => {
+    try {
+        const conn = await connect("dbSimpleSelect: " + queryStatement + " | Fields: " + whereFields.join(", "));
+        const [rows] = await conn.query<typeof table[]>(queryStatement, whereFields);
+        conn.end();
+        if (onlyFirstResult){
+            return rows[0]?.[returnField] as string || "";
+        }
+        const result = rows.map(row => row[returnField] as string);
+        return result;
+        
+    } catch (error) {
+        logger.debug(error)
+        logger.error("Error getting " + returnField + " from database");
+        return "";
+    }
 }
 
 const dbDelete = async (tableName :string, whereFieldName :string, whereFieldValue: string): Promise<boolean> =>{
@@ -421,7 +427,7 @@ const initDatabase = async (): Promise<void> => {
 	}
 
 	// Check if public username exist on registered table and create it if not. Also it sends a DM to the pubkey with the credentials
-	const publicUsername = await dbSelect("SELECT username FROM registered WHERE username = ?", "username", ["public"], registeredTableFields);
+	const publicUsername = await dbSelect("SELECT username FROM registered WHERE username = ?", "username", ["public"], registeredTableFields) as string;
 	if (publicUsername == ""){
 		logger.warn("Public username not found, creating it");
 		const fields: string[] = ["pubkey", "hex", "username", "password", "domain", "active", "date", "allowed", "comments"];
@@ -442,7 +448,7 @@ const initDatabase = async (): Promise<void> => {
 	}
 
 	// Check if default domain exist on domains table and create it if not.
-	const defaultDomain = await dbSelect("SELECT domain FROM domains WHERE domain = ?", "domain", [app.get("config.server")["host"]], registeredTableFields);
+	const defaultDomain = await dbSelect("SELECT domain FROM domains WHERE domain = ?", "domain", [app.get("config.server")["host"]], registeredTableFields) as string;
 	if (defaultDomain == ""){
 		logger.warn("Default domain not found, creating it");
 		const fields: string[] = ["domain", "active", "comments"];
@@ -456,7 +462,7 @@ const initDatabase = async (): Promise<void> => {
 	}
 
 	// Check if public lightning address exist on lightning table and create it if not.
-	const publicLightning = await dbSelect("SELECT lightningaddress FROM lightning", "lightningaddress", [], registeredTableFields);
+	const publicLightning = await dbSelect("SELECT lightningaddress FROM lightning", "lightningaddress", [], registeredTableFields) as string;
 	if (publicLightning == ""){
 		logger.warn("Public lightning address not found, creating it");
 		const fields: string[] = ["pubkey", "lightningaddress", "comments"];

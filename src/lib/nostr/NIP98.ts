@@ -123,7 +123,7 @@ const isNIP98Valid = async (authevent: Event, req: Request, checkAdminPrivileges
 
 	// This is not from NIP98 spec, but some server endpoints require admin privileges
 	if (checkAdminPrivileges) {
-		const isPubkeyAdmin = await dbSelect("SELECT allowed FROM registered WHERE hex = ?", "allowed", [authevent.pubkey], registeredTableFields);
+		const isPubkeyAdmin = await dbSelect("SELECT allowed FROM registered WHERE hex = ?", "allowed", [authevent.pubkey], registeredTableFields) as string;
 		if (isPubkeyAdmin === "0") {
 			logger.warn("RES -> 403 forbidden - Pubkey does not have admin privileges", "|", req.socket.remoteAddress);
 			return {status: "error", message: "This pubkey does not have admin privileges", pubkey: authevent.pubkey, authkey: ""};
