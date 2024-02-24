@@ -1,5 +1,5 @@
 import app from "../app.js";
-import { mediafilesTableFields } from "../interfaces/database.js";
+import { mediafilesTableFields, registeredTableFields } from "../interfaces/database.js";
 import { dbSelect } from "./database.js";
 import { logger } from "./logger.js";
 import { getProfileData, getProfileFollowers, getProfileFollowing } from "./nostr/NIP01.js";
@@ -22,8 +22,12 @@ const getProfileMetadata = async (pubkey: string): Promise<Object> => {
     result["following"] = app.get("#f_" + pubkey) ? app.get("#f_" + pubkey) : 0
 
     // Get profile mediafiles count from database
-    const count = await dbSelect("SELECT COUNT(*) as 'count' FROM mediafiles WHERE pubkey = ?","count", [pubkey], mediafilesTableFields);
-    result["mediaFiles"] = count ? count : 0;
+    const mediaFiles = await dbSelect("SELECT filename FROM mediafiles WHERE pubkey = ?","filename", [pubkey], mediafilesTableFields, false) as string[];
+    result["mediaFiles"] = mediaFiles ? mediaFiles : [];
+
+    // Get profile username from database
+    const username = await dbSelect("SELECT username FROM registered WHERE hex = ?","username", [pubkey], registeredTableFields) as string;
+    result["username"] = username ? username : "";
 
     return result;
 
