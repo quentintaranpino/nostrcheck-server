@@ -54,7 +54,7 @@ const checkNostrAddress = async (req: Request, res: Response): Promise<Response>
 	logger.info("REQ Nostraddress ->", servername, "|", name, "|", getClientIp(req));
 
 	// Root _ pubkey
-	const rootkey : string = app.get('server.pubkey'); 
+	const rootkey : string = app.get("config.server")["pubkey"];
 	if (req.query.name === "_") {
 		return res.status(200).send(JSON.stringify({ names: { ['_']: rootkey } }));
 	}
