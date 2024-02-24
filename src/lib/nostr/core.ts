@@ -109,6 +109,11 @@ const getProfileMetadata = async (pubkey : string) : Promise<Object> => {
 	
 }
 
+/**
+ * Retrieves the followers of a user from relays (Kind 3). Asynchronously updates the app state with the number of followers.
+ * @param pubkey - The public key of the user, hex format.
+ * @returns A boolean indicating whether the operation was successful.
+ */
 const getProfileFollowers = (pubkey : string) : Boolean => {
 	
 	let eventList : Event[] = []
@@ -140,5 +145,3 @@ const getProfileFollowers = (pubkey : string) : Boolean => {
 }
 
 export {publishEvent, createkeyPair, getPubkeyFromSecret, getProfileMetadata}
-
-
