@@ -42,11 +42,11 @@
               <div class="card-body p-4 text-black mb-2">
                 <div class="d-flex justify-content-between align-items-center mb-4 pb-1">
                   <p class="lead fw-normal mb-0">Recent media</p>
-                  <p class="mb-0"><a href="#!" class="text-muted">Show all</a></p>
+                  <p class="mb-0"><a href="#!" class="text-muted" onclick="showAllMedia()">Show all</a></p>
                 </div>
                 <div class="row row-cols-1 row-cols-md-2 g-2">
                   <% for(let i = 0; i < request.session.metadata.mediaFiles.length; i++) { %>
-                    <div class="col mb-0">
+                    <div class="col mb-0 <%= i >= 16 ? 'd-none hidden-media' : '' %>">
                       <% let file = request.session.metadata.mediaFiles[i]; %>
                       <% let ext = file.split('.').pop(); %>
                       <% if (ext === 'webp') { %>
@@ -73,6 +73,15 @@
     <script src="/static/js/particles.min.js"></script>
     <script>
       particlesJS("particles-js", {"particles":{"number":{"value":80,"density":{"enable":true,"value_area":800}},"color":{"value":"#ffffff"},"shape":{"type":"circle","stroke":{"width":0,"color":"#000000"},"polygon":{"nb_sides":5},"image":{"src":"img/github.svg","width":100,"height":100}},"opacity":{"value":0.5,"random":false,"anim":{"enable":false,"speed":1,"opacity_min":0.1,"sync":false}},"size":{"value":3,"random":true,"anim":{"enable":false,"speed":40,"size_min":0.1,"sync":false}},"line_linked":{"enable":true,"distance":150,"color":"#ffffff","opacity":0.4,"width":1},"move":{"enable":true,"speed":6,"direction":"none","random":false,"straight":false,"out_mode":"out","bounce":false,"attract":{"enable":false,"rotateX":600,"rotateY":1200}}},"interactivity":{"detect_on":"canvas","events":{"onhover":{"enable":false,"mode":"grab"},"onclick":{"enable":true,"mode":"push"},"resize":true},"modes":{"grab":{"distance":400,"line_linked":{"opacity":1}},"bubble":{"distance":400,"size":40,"duration":2,"opacity":8,"speed":3},"repulse":{"distance":200,"duration":0.4},"push":{"particles_nb":4},"remove":{"particles_nb":2}}},"retina_detect":true});var count_particles, update; count_particles = document.querySelector('.js-count-particles'); 
+    </script>
+    <script>
+      const showAllMedia = () => {
+        console.log('show all media')
+        let hiddenMedia = document.querySelectorAll('.hidden-media');
+        hiddenMedia.forEach(function(media) {
+          media.classList.remove('d-none');
+        });
+      }
     </script>
     <%- include('./partials/footer'); %>
     <%- include('./components/alert-modal', {"objectId":"profile"}); %>
