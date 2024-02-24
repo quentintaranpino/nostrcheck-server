@@ -46,18 +46,16 @@
                 </div>
                 <div class="row row-cols-1 row-cols-md-2 g-2">
                   <% for(let i = 0; i < request.session.metadata.mediaFiles.length; i++) { %>
-                    <div class="col mb-0">
+                    <div class="col mb-0 d-flex justify-content-center">
                       <% let file = request.session.metadata.mediaFiles[i]; %>
                       <% let ext = file.split('.').pop(); %>
                       <% if (ext === 'webp') { %>
-                        <div style="background: url('media/<%= request.session.metadata.username %>/<%= file %>') center center / cover no-repeat; height: 220px;" class="rounded-3"></div>
+                        <img src="media/<%= request.session.metadata.username %>/<%= file %>" style="object-fit: cover; max-width: 100%;" class="rounded-3">
                       <% } else if (ext === 'mp4') { %>
-                        <div style="height: 220px; overflow: hidden; position: relative;" class="rounded-3">
-                          <video controls autoplay muted playsinline loop src="media/<%= request.session.metadata.username %>/<%= file %>" class="w-100 position-absolute">Your browser does not support the video tag.</video>
-                        </div>
+                        <video style="object-fit: contain; max-width: 100%;" controls autoplay muted playsinline loop src="media/<%= request.session.metadata.username %>/<%= file %>" class="rounded-3">Your browser does not support the video tag.</video>
                       <% } else if (ext === 'mp3') { %>
-                        <div style="height: 220px;background: url('/static/resources/banner-audio.webp') center center / cover no-repeat;" class="rounded-3 d-flex flex-column align-items-center justify-content-end pb-2">
-                          <audio controls src="media/<%= request.session.metadata.username %>/<%= file %>" class="w-80 h-80">Your browser does not support the audio tag.</audio>
+                        <div style="background: url('/static/resources/banner-audio.webp') center center / cover no-repeat;" class="rounded-3 d-flex flex-column align-items-center justify-content-end pb-2">
+                          <audio controls src="media/<%= request.session.metadata.username %>/<%= file %>" >Your browser does not support the audio tag.</audio>
                         </div>
                       <% } %>
                     </div>
