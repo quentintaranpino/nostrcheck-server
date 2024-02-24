@@ -4,13 +4,16 @@ import { NostrEvent } from "nostr-tools"
 import {SimplePool } from "nostr-tools/pool"
 import 'websocket-polyfill'
 import { logger } from "../logger.js"
+import app from "../../app.js";
 
 const relays = [
 	"wss://relay.nostrcheck.me",
 	"wss://relay.damus.io",
 	"wss://relay.nostr.band",
 	"wss://nos.lol",
-	"wss://relay.primal.net"
+	"wss://relay.primal.net",
+	"wss://nostr-pub.wellorder.net/",
+	"wss://relay.current.fyi"
 	]
 
 const relaysPool = new SimplePool()
@@ -67,7 +70,7 @@ const publishEvent = async (event : NostrEvent): Promise<boolean> => {
  * @param pubkey - The public key of the user, hex format.
  * @returns A promise that resolves to the content data of the kind 0 note.
  */
-const getProfileMetadata = async (pubkey : string) : Promise<Event> => {
+const getProfileMetadata = async (pubkey : string) : Promise<Object> => {
 	
     let resolveEvent : (event : Event) => void;
     let subscribePromise : Promise<Event> = new Promise(resolve => resolveEvent = resolve);
@@ -85,18 +88,54 @@ const getProfileMetadata = async (pubkey : string) : Promise<Event> => {
 			},
 			oneose() {
 				data.close();
-				return resolveEvent(JSON.parse({kind: 0, created_at: 0, tags: [], content: "{}", pubkey: "", id: "", sig: ""}.content));
+				return resolveEvent(JSON.parse({kind: 0, created_at: 0, tags: [["#followers",[app.get("followers")]]], content: "{}", pubkey: "", id: "", sig: ""}.content));
 			},
 		},
 	);
+
+	
 
     let event : Event = await subscribePromise;
 	if (event.content === undefined) {
 		return JSON.parse({kind: 0, created_at: 0, tags: [], content: "{}", pubkey: "", id: "", sig: ""}.content);
 	}
-	return JSON.parse(event.content);
+
+	let result = JSON.parse(event.content)
+	result["followers"] = app.get("followers")
+	return result;
+	
 }
 
-export {publishEvent, createkeyPair, getPubkeyFromSecret, getProfileMetadata}
+const getProfileFollowers = (pubkey : string) : Boolean => {
+	
+	let eventList : Event[] = []
+	
+	try{
+		const data = relaysPool.subscribeMany(
+			relays,
+			[{
+				kinds: [3],
+				"#p": [pubkey],
+			}],
+			{
+				eoseTimeout: 1000,
+				onevent(e) {
+					eventList.push(e);
+				},
+				oneose() {
+					data.close();
+					app.set("followers", eventList.length);
+				},
+			},
+		);
+	}catch (error) {
+		logger.error(error)
+		return false
+	}
+	
+	return true;
+}
+
+export {publishEvent, createkeyPair, getPubkeyFromSecret, getProfileMetadata, getProfileFollowers}
 
 
