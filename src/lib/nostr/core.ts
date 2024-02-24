@@ -1,4 +1,4 @@
-import { Event, generateSecretKey, getPublicKey, nip19 } from "nostr-tools";
+import { Event, generateSecretKey, getPublicKey } from "nostr-tools";
 import { bytesToHex } from '@noble/hashes/utils'
 import { NostrEvent } from "nostr-tools"
 import {SimplePool } from "nostr-tools/pool"
@@ -93,15 +93,18 @@ const getProfileMetadata = async (pubkey : string) : Promise<Object> => {
 		},
 	);
 
-	
-
     let event : Event = await subscribePromise;
 	if (event.content === undefined) {
 		return JSON.parse({kind: 0, created_at: 0, tags: [], content: "{}", pubkey: "", id: "", sig: ""}.content);
 	}
 
+    if (!app.get("#p_" + pubkey)){
+		getProfileFollowers(pubkey);
+	} 
+
+	// Add followers to the profile metadata
 	let result = JSON.parse(event.content)
-	result["followers"] = app.get("followers")
+	result["followers"] = app.get("#p_" + pubkey)
 	return result;
 	
 }
@@ -124,7 +127,7 @@ const getProfileFollowers = (pubkey : string) : Boolean => {
 				},
 				oneose() {
 					data.close();
-					app.set("followers", eventList.length);
+					app.set("#p_" + pubkey, eventList.length);
 				},
 			},
 		);
@@ -136,6 +139,6 @@ const getProfileFollowers = (pubkey : string) : Boolean => {
 	return true;
 }
 
-export {publishEvent, createkeyPair, getPubkeyFromSecret, getProfileMetadata, getProfileFollowers}
+export {publishEvent, createkeyPair, getPubkeyFromSecret, getProfileMetadata}
 
 

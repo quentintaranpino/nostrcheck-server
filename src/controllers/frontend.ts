@@ -8,7 +8,7 @@ import { dbSelect, dbSelectModuleData} from "../lib/database.js";
 import { generateCredentials, isPubkeyValid, isUserPasswordValid } from "../lib/authorization.js";
 import { registeredTableFields } from "../interfaces/database.js";
 import { isModuleEnabled } from "../lib/config.js";
-import { getProfileFollowers, getProfileMetadata } from "../lib/nostr/core.js";
+import { getProfileMetadata } from "../lib/nostr/core.js";
 import { hextoNpub } from "../lib/nostr/NIP19.js";
 import { logHistory } from "../lib/logger.js";
 
@@ -32,10 +32,11 @@ const loadDashboardPage = async (req: Request, res: Response, version:string): P
             }
         }
     }
-
-    req.session.metadata = await getProfileMetadata(req.session.identifier);
-    logger.debug("Metadata for", req.session.identifier, ":", req.session.metadata);
     req.session.authkey = await generateCredentials('authkey', false, req.session.identifier);
+
+    // User metadata from nostr
+    req.session.metadata = await getProfileMetadata(req.session.identifier);
+
     res.render("dashboard.ejs", {request: req});
 };
 
@@ -57,6 +58,9 @@ const loadSettingsPage = async (req: Request, res: Response, version:string): Pr
     req.body.settingsLogger = app.get("config.logger");
     req.body.logHistory = logHistory;
     req.session.authkey = await generateCredentials('authkey', false, req.session.identifier);
+
+    // User metadata from nostr
+    req.session.metadata = await getProfileMetadata(req.session.identifier);
     
     res.render("settings.ejs", {request: req});
 };
@@ -173,15 +177,8 @@ const frontendLogin = async (req: Request, res: Response): Promise<Response> => 
         return res.status(500).send(false);
     }
 
-
     // User metadata from nostr
-    const metadata = await getProfileMetadata(req.session.identifier);
-    logger.debug("Metadata for", req.session.identifier, ":", metadata);
-    req.session.metadata = metadata;
-
-
-    const followers = await getProfileFollowers(req.session.identifier);
-    logger.debug("Followers for", req.session.identifier, ":", followers);
+    req.session.metadata = await getProfileMetadata(req.session.identifier);
 
     logger.info("logged in as", req.session.identifier, " - ", getClientIp(req));
     return res.status(200).send(true);
