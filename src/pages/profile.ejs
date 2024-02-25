@@ -51,12 +51,12 @@
                         <div style="background: url('media/<%= request.session.metadata.username %>/<%= file %>') center center / cover no-repeat; height: 220px;" class="rounded-3"></div>
                       <% } else if (ext === 'mp4') { %>
                         <div style="height: 220px; overflow: hidden; position: relative;" class="rounded-3">
-                          <video style="width: 100%; height: 100%; object-fit: cover;" autoplay muted playsinline loop data-src="media/<%= request.session.metadata.username %>/<%= file %>" class="w-100 position-absolute">
-                            <source  data-src="media/<%= request.session.metadata.username %>/<%= file %>">Your browser does not support the video tag.</video>
+                          <video style="width: 100%; height: 100%; object-fit: cover;" autoplay muted playsinline loop data-src="media/<%= request.session.metadata.username %>/<%= file %>" poster="/static/resources/video-loading.webp" class="w-100 position-absolute">
+                            <source data-src="media/<%= request.session.metadata.username %>/<%= file %>">Your browser does not support the video tag.</video>
                         </div>
                       <% } else if (ext === 'mp3') { %>
-                        <div style="height: 220px;background: url('/static/resources/banner-audio.webp') center center / cover no-repeat;" class="rounded-3 d-flex flex-column align-items-center justify-content-end pb-2">
-                          <audio controls data-src="media/<%= request.session.metadata.username %>/<%= file %>" class="w-80 h-80">Your browser does not support the audio tag.</audio>
+                        <div style="height: 220px;background: url('/static/resources/music-loading.webp') center center / cover no-repeat;" class="rounded-3 d-flex flex-column align-items-center justify-content-end pb-2">
+                          <audio controls data-src="media/<%= request.session.metadata.username %>/<%= file %>" class="w-75 h-75">Your browser does not support the audio tag.</audio>
                         </div>
                       <% } %>
                     </div>
