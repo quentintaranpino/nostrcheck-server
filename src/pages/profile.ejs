@@ -52,12 +52,12 @@
                         <div style="background: url('media/<%= request.session.metadata.username %>/<%= file %>') center center / cover no-repeat; height: 220px;" class="rounded-3"></div>
                       <% } else if (ext === 'mp4') { %>
                         <div style="height: 220px; overflow: hidden; position: relative;" class="rounded-3">
-                          <video style="width: 100%; height: 100%; object-fit: cover;" autoplay muted playsinline loop src="media/<%= request.session.metadata.username %>/<%= file %>" class="w-100 position-absolute">
-                            <source  src="media/<%= request.session.metadata.username %>/<%= file %>">Your browser does not support the video tag.</video>
+                          <video style="width: 100%; height: 100%; object-fit: cover;" autoplay muted playsinline loop data-src="media/<%= request.session.metadata.username %>/<%= file %>" class="w-100 position-absolute">
+                            <source  data-src="media/<%= request.session.metadata.username %>/<%= file %>">Your browser does not support the video tag.</video>
                         </div>
                       <% } else if (ext === 'mp3') { %>
                         <div style="height: 220px;background: url('/static/resources/banner-audio.webp') center center / cover no-repeat;" class="rounded-3 d-flex flex-column align-items-center justify-content-end pb-2">
-                          <audio controls src="media/<%= request.session.metadata.username %>/<%= file %>" class="w-80 h-80">Your browser does not support the audio tag.</audio>
+                          <audio controls data-src="media/<%= request.session.metadata.username %>/<%= file %>" class="w-80 h-80">Your browser does not support the audio tag.</audio>
                         </div>
                       <% } %>
                     </div>
@@ -82,6 +82,25 @@
           media.classList.remove('d-none');
         });
       }
+
+
+      document.addEventListener('DOMContentLoaded', (event) => {
+    const observer = new IntersectionObserver((entries, observer) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          const media = entry.target;
+          const src = media.getAttribute('data-src');
+          media.setAttribute('src', src);
+          observer.unobserve(media);
+        }
+      });
+    });
+
+    const medias = document.querySelectorAll('img[data-src], video[data-src], audio[data-src]');
+    medias.forEach(media => {
+      observer.observe(media);
+    });
+    });
     </script>
 
     <%- include('./components/alert-modal', {"objectId":"profile"}); %>
