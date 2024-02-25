@@ -44,7 +44,7 @@
                 </div>
                 <div class="row row-cols-1 row-cols-md-2 g-2">
                   <% for(let i = 0; i < request.session.metadata.mediaFiles.length; i++) { %>
-                    <div class="col mb-0 <%= i >= 2 ? 'd-none hidden-media' : '' %>">
+                    <div class="col mb-0 <%= i >= 4 ? 'd-none hidden-media' : '' %>">
                       <% let file = request.session.metadata.mediaFiles[i]; %>
                       <% let ext = file.split('.').pop(); %>
                       <% if (ext === 'webp') { %>
@@ -76,7 +76,7 @@
     </script>
     <script>
     
-    let shownMediaCount = 2; // Start from 4 because the first 4 media are already shown
+    let shownMediaCount = 4; // Start from 4 because the first 4 media are already shown
 
     const showMore = () => {
       console.log('show more media')
