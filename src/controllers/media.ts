@@ -575,16 +575,14 @@ const getMediabyURL = async (req: Request, res: Response) => {
 		const start = Number(range.replace(/\D/g, ""));
 		const end = Math.min(start + CHUNK_SIZE, videoSize - 1);
 		const contentLength = end - start + 1;
-		const headers = {
-			"Content-Range": `bytes ${start}-${end}/${videoSize}`,
-			"Accept-Ranges": "bytes",
-			"Content-Length": contentLength,
-			"Content-Type": "video/mp4",
-		};
-		res.writeHead(206, headers);
+		
+		res.setHeader("Content-Range", `bytes ${start}-${end}/${videoSize}`)
+		res.setHeader("Accept-Ranges", "bytes")
+		res.setHeader("Content-Length", contentLength)
+		res.setHeader("Content-Type", "video/mp4")
 		const videoStream = fs.createReadStream(videoPath, { start, end });
 		logger.info(`RES -> 206 Partial Content - ${req.url}`, "|", getClientIp(req));
-		return videoStream.pipe(res);
+		return res.status(206).send(videoStream);
 	}
 
 	// Check if file exist on the filesystem and is active on the database
