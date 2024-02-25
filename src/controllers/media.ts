@@ -559,28 +559,56 @@ const getMediabyURL = async (req: Request, res: Response) => {
 		return res.status(403).send(getNotFoundMediaFile());
 	}
 
+	// Check if file is active on the database
+	if (await dbSelect("SELECT active FROM mediafiles WHERE filename = ? ", "active", [req.params.filename], mediafilesTableFields) as string != "1")  {
+		logger.warn(`RES -> 401 File not active - ${req.url}`, "| Returning not found media file.", getClientIp(req));
+		return res.status(401).send(getNotFoundMediaFile());
+	}
+
 	// file extension checks and media type
 	const ext = path.extname(fileName).slice(1);
 	const mediaType: string = Object.prototype.hasOwnProperty.call(mediaTypes, ext) ? mediaTypes[ext] : 'text/html';
 
+	// If is a video file we return an stream
+	if (mediaType.startsWith("video")) {
+		let range = req.headers.range;
+		if (!range) {range = "bytes=0-";}
 
+		let videoSize;
+		try {
+			videoSize = fs.statSync(fileName).size;
+		} catch (err) {
+			logger.warn(`RES -> 404 Not Found - ${req.url}`, "| Returning not found media file.", getClientIp(req));
+			return res.status(404).send(getNotFoundMediaFile());
+		}
 
-	// Check if file exist on the filesystem and is active on the database
+		const CHUNK_SIZE = 10 ** 6;
+		const start = Number(range.replace(/\D/g, ""));
+		const end = Math.min(start + CHUNK_SIZE, videoSize - 1);
+		const contentLength = end - start + 1;
+		const headers = {
+			"Content-Range": `bytes ${start}-${end}/${videoSize}`,
+			"Accept-Ranges": "bytes",
+			"Content-Length": contentLength,
+			"Content-Type": "video/mp4",
+		};
+		res.writeHead(206, headers);
+		const videoStream = fs.createReadStream(fileName, { start, end });
+		logger.info(`RES -> 206 Partial Content - ${req.url}`, "|", getClientIp(req));
+		return videoStream.pipe(res);
+	}
+
+	// If is an image or audio file we return the entire file
 	fs.readFile(fileName, async (err, data) => {
 		if (err) {
 			logger.warn(`RES -> 404 Not Found - ${req.url}`, "| Returning not found media file.", getClientIp(req));
 			return res.status(404).send(getNotFoundMediaFile());
 		} 
-		// Check if file is active on the database
-		if (await dbSelect("SELECT active FROM mediafiles WHERE filename = ? ", "active", [req.params.filename], mediafilesTableFields) as string != "1")  {
-			logger.warn(`RES -> 401 File not active - ${req.url}`, "| Returning not found media file.", getClientIp(req));
-			return res.status(401).send(getNotFoundMediaFile());
-		}else{
-			// Return file
-			res.setHeader('Content-Type', mediaType);
-			res.status(200).send(data);
-		}
+		res.setHeader('Content-Type', mediaType);
+		res.status(200).send(data);
+
 	});
+
 };
 
 const getMediaTagsbyID = async (req: Request, res: Response): Promise<Response> => {
