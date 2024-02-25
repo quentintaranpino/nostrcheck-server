@@ -1,10 +1,9 @@
 <html lang="en">
   <%- include('./partials/head',{title:"Nostrcheck Server - profile"}); %>
   <link rel="stylesheet" href="/static/css/particles.css">
-  <body class="d-flex flex-column">
+  <body class="d-flex flex-column background-style-2">
     <%- include('./partials/navbar', {active:'profile'}); %>
-    <main class="background-style-2 h-100">
-      <div class="container py-3 h-100">
+    <main class="container py-3">
         <div class="row d-flex justify-content-center align-items-center">
           <div class="col col-md-10 col-lg-9 col-xl-8 col-xxl-7">
             <div class="card">
@@ -46,7 +45,7 @@
                 </div>
                 <div class="row row-cols-1 row-cols-md-2 g-2">
                   <% for(let i = 0; i < request.session.metadata.mediaFiles.length; i++) { %>
-                    <div class="col mb-0 <%= i >= 5 ? 'd-none hidden-media' : '' %>">
+                    <div class="col mb-0 <%= i >= 0 ? 'd-none hidden-media' : '' %>">
                       <% let file = request.session.metadata.mediaFiles[i]; %>
                       <% let ext = file.split('.').pop(); %>
                       <% if (ext === 'webp') { %>
@@ -68,8 +67,8 @@
             </div>
           </div>
         </div>
-      </div>
     </main>
+    <%- include('./partials/footer'); %>
     <div id="particles-js"></div> 
     <script src="/static/js/particles.min.js"></script>
     <script>
@@ -84,7 +83,7 @@
         });
       }
     </script>
-    <%- include('./partials/footer'); %>
+
     <%- include('./components/alert-modal', {"objectId":"profile"}); %>
   </body>
 </html>
