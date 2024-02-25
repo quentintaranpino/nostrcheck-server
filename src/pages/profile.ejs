@@ -3,22 +3,22 @@
   <link rel="stylesheet" href="/static/css/particles.css">
   <body class="d-flex flex-column">
     <%- include('./partials/navbar', {active:'profile'}); %>
-    <main class="background-style-2">
-      <div class="container py-4  h-100">
+    <main class="background-style-2 h-100">
+      <div class="container py-3 h-100">
         <div class="row d-flex justify-content-center align-items-center">
           <div class="col col-md-10 col-lg-9 col-xl-8 col-xxl-7">
-            <div class="card z-1">
+            <div class="card">
               <div  class="rounded-top text-white d-flex flex-row" 
                     style="background-image:url('<%= request.session.metadata.banner %>');background-size: cover; height:215px;">
-                <div class="ms-4 mt-5 d-flex flex-column align-middle" style="width: 150px;">
+                <div class="ms-4 mt-5 d-flex flex-column align-middle z-1" style="width: 150px;">
                   <img src=  <%- JSON.stringify(request.session.metadata.picture)%> 
-                    alt="Profile image" class="img-fluid img-thumbnail mt-5 mb-1 z-1">
-                  <div class="text-center text-black z-1">
+                    alt="Profile image" class="img-fluid img-thumbnail mt-5 mb-1">
+                  <div class="text-center text-black ">
                     <h4><%= request.session.metadata.display_name %></h4>
                   </div>
                 </div>
               </div>
-              <div class="pt-2 pe-3 pb-2 text-black">
+              <div class="pt-2 pe-3 pb-2 text-black z-1">
                 <div class="d-flex justify-content-end text-center py-1">
                   <div>
                     <p class="mb-1 h5"><%= JSON.parse(JSON.stringify(request.session.metadata.mediaFiles)).length %></p>
@@ -39,7 +39,7 @@
                     </p>
                 </div>
               </div>
-              <div class="card-body p-4 text-black mb-2">
+              <div class="card-body p-4 text-black mb-2  z-1">
                 <div class="d-flex justify-content-between align-items-center mb-4 pb-1">
                   <p class="lead fw-normal mb-0">Recent media</p>
                   <p class="mb-0"><a href="#!" class="text-muted" onclick="showAllMedia()">Show all</a></p>
