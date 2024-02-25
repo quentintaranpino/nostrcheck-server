@@ -77,11 +77,20 @@
 document.addEventListener('DOMContentLoaded', (event) => {
   const observer = new IntersectionObserver((entries, observer) => {
     entries.forEach(entry => {
+      const media = entry.target;
       if (entry.isIntersecting) {
-        const media = entry.target;
         const src = media.getAttribute('data-src');
         media.setAttribute('src', src);
-        console.log(media);
+        if (media.tagName === 'VIDEO') {
+          media.play();
+        }
+      } else {
+        if (media.tagName === 'VIDEO') {
+          media.pause();
+          media.currentTime = 0;
+          media.removeAttribute('src'); // remove source
+          media.load(); // load media again
+        }
       }
     });
   });
