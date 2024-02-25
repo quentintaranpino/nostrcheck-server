@@ -13,6 +13,8 @@ import { generatefileHashfromfile } from "./hash.js";
 import crypto from "crypto";
 import { getClientIp } from "./server.js";
 import { CreateMagnet } from "./torrent.js";
+import path from "path";
+import { buffer } from "stream/consumers";
 
 const PrepareFile = async (t: asyncTask): Promise<void> =>{
 
@@ -299,8 +301,6 @@ const standardMediaConversion = (filedata : ProcessingFileData , file:Express.Mu
 
 }
 
-export {convertFile, requestQueue, ParseMediaType, ParseFileType,GetFileTags, standardMediaConversion};
-
 async function setMediaDimensions(file:string, options:ProcessingFileData):Promise<string> {
 
 	const response:string = await new Promise ((resolve) => {
@@ -378,3 +378,19 @@ const deleteFile = async (path:string) :Promise<boolean> => {
 
 }
 
+
+const getNotFoundMediaFile = async (): Promise<Buffer> => {
+
+	const notFoundPath = path.normalize(path.resolve(config.get("media.notFoundFilePath")));
+	fs.readFile(notFoundPath, async (err, data) => {
+		if (err) {
+			logger.error(err);
+			return Buffer.from("");			
+		}
+		return data;
+	});
+
+	return Buffer.from("");
+}
+
+export {convertFile, requestQueue, ParseMediaType, ParseFileType,GetFileTags, standardMediaConversion, getNotFoundMediaFile};
