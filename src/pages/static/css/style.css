@@ -37,10 +37,16 @@ main {
 .background-style-1 {
   background-image: -webkit-linear-gradient(to top, rgb(151, 149, 240) 0%, rgb(0 0 0) 100%);
   background-image: linear-gradient(to top, rgb(151, 149, 240) 0%, rgb(0 0 0) 100%);
+  background-repeat: no-repeat;
+  background-size: cover;
+  background-attachment: fixed;
 }
 
 .background-style-2 {
   background: -webkit-linear-gradient(to right, rgb(200 128 179), rgb(130 170 235));
-  background: linear-gradient(to right, rgb(200 128 179), rgb(130 170 235))
+  background: linear-gradient(to right, rgb(200 128 179), rgb(130 170 235));
+  background-repeat: no-repeat;
+  background-size: cover;
+  background-attachment: fixed;
 }
 

@@ -1,12 +1,12 @@
-<html lang="en">
+<html lang="en" class="h-100">
   <%- include('./partials/head',{title:"Nostrcheck Server - profile"}); %>
   <link rel="stylesheet" href="/static/css/particles.css">
-  <body class="d-flex flex-column h-100 background-style-2">
+  <body class="d-flex flex-column h-100 background-style-1">
     <%- include('./partials/navbar', {active:'profile'}); %>
     <main class="container py-3">
         <div class="row d-flex justify-content-center align-items-center">
           <div class="col col-md-12 col-lg-10 col-xl-8 col-xxl-7">
-            <div class="card">
+            <div class="card z-1">
               <div class="rounded-top text-white d-flex flex-row" 
                     style="background-image:url('<%= request.session.metadata.banner %>');background-size: cover; height:215px;">
                 <div class="ms-4 mt-5 d-flex flex-column align-middle z-1 col-4 col-sm-4 col-md-3 col-lg-3 col-xl-3">
@@ -48,15 +48,15 @@
                       <% let file = request.session.metadata.mediaFiles[i]; %>
                       <% let ext = file.split('.').pop(); %>
                       <% if (ext === 'webp' || ext === 'gif' || ext === 'jpg') { %>
-                        <div style="background: url('media/<%= request.session.metadata.username %>/<%= file %>') center center / cover no-repeat; height: 220px;" class="rounded-3"></div>
-                      <% } else if (ext === 'mp4') { %>
-                        <div style="height: 220px; overflow: hidden; position: relative;" class="rounded-3">
-                          <video style="width: 100%; height: 100%; object-fit: cover;" autoplay muted playsinline loop data-src="media/<%= request.session.metadata.username %>/<%= file %>" poster="/static/resources/video-loading.webp" class="w-100 position-absolute">
-                            <source data-src="media/<%= request.session.metadata.username %>/<%= file %>">Your browser does not support the video tag.</video>
+                        <div style="height: 220px; overflow: hidden;" class="rounded-3">
+                          <img data-src="media/<%= request.session.metadata.username %>/<%= file %>" class="rounded-3 w-100" loading="lazy">
                         </div>
+                      <% } else if (ext === 'mp4') { %>
+                        <video data-src="media/<%= request.session.metadata.username %>/<%= file %>" style="width: 100%; height: 220px; object-fit: cover;" class="rounded-3" autoplay muted playsinline loop loading="lazy">
+                          <source data-src="media/<%= request.session.metadata.username %>/<%= file %>">Your browser does not support the video tag.</video>
                       <% } else if (ext === 'mp3') { %>
                         <div style="height: 220px;background: url('/static/resources/music-loading.webp') center center / cover no-repeat;" class="rounded-3 d-flex flex-column align-items-center justify-content-end pb-2">
-                          <audio controls data-src="media/<%= request.session.metadata.username %>/<%= file %>" class="w-75 h-75">Your browser does not support the audio tag.</audio>
+                          <audio controls data-src="media/<%= request.session.metadata.username %>/<%= file %>" class="w-75 h-75" loading="lazy">Your browser does not support the audio tag.</audio>
                         </div>
                       <% } %>
                     </div>
