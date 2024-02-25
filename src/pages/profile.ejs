@@ -46,7 +46,7 @@
                 </div>
                 <div class="row row-cols-1 row-cols-md-2 g-2">
                   <% for(let i = 0; i < request.session.metadata.mediaFiles.length; i++) { %>
-                    <div class="col mb-0 <%= i >= 16 ? 'd-none hidden-media' : '' %>">
+                    <div class="col mb-0 <%= i >= 5 ? 'd-none hidden-media' : '' %>">
                       <% let file = request.session.metadata.mediaFiles[i]; %>
                       <% let ext = file.split('.').pop(); %>
                       <% if (ext === 'webp') { %>
