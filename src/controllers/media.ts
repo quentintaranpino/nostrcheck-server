@@ -3,7 +3,7 @@ import app from "../app.js";
 import { connect, dbSelect } from "../lib/database.js";
 import { logger } from "../lib/logger.js";
 import { parseAuthHeader } from "../lib//authorization.js";
-import { ParseMediaType, ParseFileType, GetFileTags, standardMediaConversion, getNotFoundMediaFile } from "../lib/media.js"
+import { ParseMediaType, ParseFileType, GetFileTags, standardMediaConversion, getNotFoundMediaFile, readRangeHeader } from "../lib/media.js"
 import { requestQueue } from "../lib/media.js";
 import {
 	asyncTask,
@@ -14,6 +14,7 @@ import {
 	mime_transform,
 	UploadStatus,
 	MediaStatus,
+	videoHeaderRange,
 } from "../interfaces/media.js";
 import { ResultMessage, ResultMessagev2 } from "../interfaces/server.js";
 import fs from "fs";
@@ -568,32 +569,40 @@ const getMediabyURL = async (req: Request, res: Response) => {
 	// file extension checks and media type
 	const ext = path.extname(fileName).slice(1);
 	const mediaType: string = Object.prototype.hasOwnProperty.call(mediaTypes, ext) ? mediaTypes[ext] : 'text/html';
+	res.setHeader('Content-Type', mediaType);
 
 	// If is a video file we return an stream
 	if (mediaType.startsWith("video")) {
-		let range = req.headers.range;
-		if (!range) {range = "bytes=0-";}
-
-		let videoSize;
+		
+		let range : videoHeaderRange;
+		let videoSize : number;
 		try {
 			videoSize = fs.statSync(fileName).size;
+			range = readRangeHeader(req.headers.range, videoSize);
 		} catch (err) {
 			logger.warn(`RES -> 404 Not Found - ${req.url}`, "| Returning not found media file.", getClientIp(req));
 			return res.status(404).send(getNotFoundMediaFile());
 		}
 
-		const CHUNK_SIZE = 10 ** 6;
-		const start = Number(range.replace(/\D/g, ""));
-		const end = Math.min(start + CHUNK_SIZE, videoSize - 1);
-		const contentLength = end - start + 1;
-		const headers = {
-			"Content-Range": `bytes ${start}-${end}/${videoSize}`,
-			"Accept-Ranges": "bytes",
-			"Content-Length": contentLength,
-			"Content-Type": "video/mp4",
-		};
-		res.writeHead(206, headers);
-		const videoStream = fs.createReadStream(fileName, { start, end });
+		res.setHeader("Content-Range", `bytes ${range.Start}-${range.End}/${videoSize}`);
+
+		// If the range can't be fulfilled.
+		if (range.Start >= videoSize || range.End >= videoSize) {
+			logger.debug(`RES -> 416 Range Not Satisfiable - ${req.url}`, "|", getClientIp(req));
+			res.setHeader("Content-Range", `bytes */ ${videoSize}`)
+			range.Start = 0;
+			range.End = videoSize - 1;
+		}
+
+		const contentLength = range.Start == range.End ? 0 : (range.End - range.Start + 1);
+		res.setHeader("Accept-Ranges", "bytes");
+		res.setHeader("Content-Length", contentLength);
+		res.setHeader("Cache-Control", "no-cache")
+		res.status(206);
+
+		logger.debug("range", range, "|", getClientIp(req));
+
+		const videoStream = fs.createReadStream(fileName, {start: range.Start, end: range.End});
 		logger.info(`RES -> 206 Partial Content - ${req.url}`, "|", getClientIp(req));
 		return videoStream.pipe(res);
 	}
@@ -604,7 +613,6 @@ const getMediabyURL = async (req: Request, res: Response) => {
 			logger.warn(`RES -> 404 Not Found - ${req.url}`, "| Returning not found media file.", getClientIp(req));
 			return res.status(404).send(getNotFoundMediaFile());
 		} 
-		res.setHeader('Content-Type', mediaType);
 		res.status(200).send(data);
 
 	});
