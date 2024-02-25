@@ -552,7 +552,6 @@ const getMediabyURL = async (req: Request, res: Response) => {
 		return res.status(500).send(getNotFoundMediaFile());
 	}
 	const fileName = path.normalize(path.resolve(mediaPath + "/" + req.params.username + "/" + req.params.filename));
-	logger.info(`RES Media URL -> username: ${req.params.username} | filename: ${fileName}`, "|", getClientIp(req));
 
 	// Try to prevent directory traversal attacks
 	if (!path.normalize(path.resolve(fileName)).startsWith(mediaPath)) {
@@ -588,7 +587,6 @@ const getMediabyURL = async (req: Request, res: Response) => {
 
 		// If the range can't be fulfilled.
 		if (range.Start >= videoSize || range.End >= videoSize) {
-			logger.debug(`RES -> 416 Range Not Satisfiable - ${req.url}`, "|", getClientIp(req));
 			res.setHeader("Content-Range", `bytes */ ${videoSize}`)
 			range.Start = 0;
 			range.End = videoSize - 1;
@@ -600,10 +598,8 @@ const getMediabyURL = async (req: Request, res: Response) => {
 		res.setHeader("Cache-Control", "no-cache")
 		res.status(206);
 
-		logger.debug("range", range, "|", getClientIp(req));
-
 		const videoStream = fs.createReadStream(fileName, {start: range.Start, end: range.End});
-		logger.info(`RES -> 206 Partial Content - ${req.url}`, "|", getClientIp(req));
+		logger.info(`RES -> 206 Video partial Content - start: ${range.Start} end: ${range.End} | ${req.url}`, "|", getClientIp(req));
 		return videoStream.pipe(res);
 	}
 
@@ -613,6 +609,7 @@ const getMediabyURL = async (req: Request, res: Response) => {
 			logger.warn(`RES -> 404 Not Found - ${req.url}`, "| Returning not found media file.", getClientIp(req));
 			return res.status(404).send(getNotFoundMediaFile());
 		} 
+		logger.info(`RES -> 200 Media file ${req.url}`, "|", getClientIp(req));
 		res.status(200).send(data);
 
 	});
