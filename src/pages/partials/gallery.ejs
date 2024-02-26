@@ -13,7 +13,8 @@
                                 style="height: 220px;" 
                                 class="rounded-3 w-100 object-fit-cover" 
                                 autoplay muted playsinline loop 
-                                loading="lazy">
+                                loading="lazy"
+                                poster="/static/resources/video-loading.webp">
                                     <source data-src="media/<%= request.session.metadata.username %>/<%= file %>">Your browser does not support the video tag.
                             </video>
                         <% } else if (ext==='mp3' ) { %>
