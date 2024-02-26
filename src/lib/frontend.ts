@@ -38,7 +38,7 @@ const getProfileMetadata = async (pubkey: string): Promise<userMetadata> => {
     result["following"] = app.get("#f_" + pubkey) ? app.get("#f_" + pubkey) : 0
 
     // Get profile mediafiles count from database
-    const mediaFiles = await dbSelect("SELECT filename FROM mediafiles WHERE  active = '1' and pubkey = ? ","filename", [pubkey], mediafilesTableFields, false) as string[];
+    const mediaFiles = await dbSelect("SELECT filename FROM mediafiles WHERE active = ? and visibility = ? and pubkey = ? ","filename", ['1', '1', pubkey], mediafilesTableFields, false) as string[];
     result["mediaFiles"] = mediaFiles ? mediaFiles : [];
 
     // Get profile username from database
