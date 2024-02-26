@@ -155,8 +155,8 @@ const UpdateUserDomain = async (req: Request, res: Response): Promise<Response> 
 	}
 
 	//select username and domain from database for redis cache delete
-	const selectUsername = await dbSelect("SELECT username FROM registered WHERE hex = ?", "username", [EventHeader.pubkey],registeredTableFields);
-	const selectDomain = await dbSelect("SELECT domain FROM registered WHERE hex = ?", "domain", [EventHeader.pubkey],registeredTableFields);
+	const selectUsername = await dbSelect("SELECT username FROM registered WHERE hex = ?", "username", [EventHeader.pubkey],registeredTableFields) as string;
+	const selectDomain = await dbSelect("SELECT domain FROM registered WHERE hex = ?", "domain", [EventHeader.pubkey],registeredTableFields) as string;
 	if (selectUsername != undefined && selectDomain != undefined) {
 		const deletecache = await redisClient.del(selectUsername + "-" + selectDomain);
 		if (deletecache != 0) {

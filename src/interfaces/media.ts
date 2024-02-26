@@ -94,6 +94,11 @@ interface asyncTask {
 	filedata: ProcessingFileData;
 }
 
+interface videoHeaderRange {
+	Start: number;
+	End: number;
+}
+
 
 export {
 	allowedMimeTypes,
@@ -109,4 +114,5 @@ export {
 	UploadTypes,
 	UploadStatus,
 	MediaStatus,
+	videoHeaderRange
 };

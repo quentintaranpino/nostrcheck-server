@@ -2,7 +2,7 @@ import fastq, { queueAsPromised } from "fastq";
 import ffmpeg from "fluent-ffmpeg";
 import fs from "fs";
 
-import { allowedMimeTypes, asyncTask, ProcessingFileData, UploadTypes } from "../interfaces/media.js";
+import { allowedMimeTypes, asyncTask, ProcessingFileData, UploadTypes, videoHeaderRange } from "../interfaces/media.js";
 import { logger } from "./logger.js";
 import config from "config";
 import { connect, dbUpdate } from "./database.js";
@@ -13,6 +13,7 @@ import { generatefileHashfromfile } from "./hash.js";
 import crypto from "crypto";
 import { getClientIp } from "./server.js";
 import { CreateMagnet } from "./torrent.js";
+import path from "path";
 
 const PrepareFile = async (t: asyncTask): Promise<void> =>{
 
@@ -299,8 +300,6 @@ const standardMediaConversion = (filedata : ProcessingFileData , file:Express.Mu
 
 }
 
-export {convertFile, requestQueue, ParseMediaType, ParseFileType,GetFileTags, standardMediaConversion};
-
 async function setMediaDimensions(file:string, options:ProcessingFileData):Promise<string> {
 
 	const response:string = await new Promise ((resolve) => {
@@ -378,3 +377,45 @@ const deleteFile = async (path:string) :Promise<boolean> => {
 
 }
 
+
+const getNotFoundMediaFile = async (): Promise<Buffer> => {
+
+	const notFoundPath = path.normalize(path.resolve(config.get("media.notFoundFilePath")));
+	fs.readFile(notFoundPath, async (err, data) => {
+		if (err) {
+			logger.error(err);
+			return Buffer.from("");			
+		}
+		return data;
+	});
+
+	return Buffer.from("");
+}
+
+const readRangeHeader = (range : string | undefined, totalLength : number ): videoHeaderRange => {
+
+	if (range == null || range.length == 0 || range == undefined)
+		return { Start: 0, End: totalLength - 1};
+
+	const array = range.split(/bytes=([0-9]*)-([0-9]*)/);
+	const start = parseInt(array[1]);
+	const end = parseInt(array[2]);
+	const result = {
+		Start: isNaN(start) ? 0 : start,
+		End: isNaN(end) ? (totalLength - 1) : end
+	};
+
+	if (!isNaN(start) && isNaN(end)) {
+		result.Start = start;
+		result.End = totalLength - 1;
+	}
+
+	if (isNaN(start) && !isNaN(end)) {
+		result.Start = totalLength - end;
+		result.End = totalLength - 1;
+	}
+
+	return result;
+}
+
+export {convertFile, requestQueue, ParseMediaType, ParseFileType,GetFileTags, standardMediaConversion, getNotFoundMediaFile, readRangeHeader};

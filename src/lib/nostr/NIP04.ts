@@ -14,7 +14,7 @@ import app from "../../app.js";
  */
 const sendMessage = async (message: string, sendToPubkey : string) : Promise<boolean> => {
 
-    const sk : string = app.get('server.secretKey');
+    const sk : string = app.get("config.server")["secretKey"];
     if (sk == "" || sk == undefined) {
         logger.error("No secret key found in config file, if you want to send nostr DM's edit config/local.json file and add the secret key (HEX) on server.secretKey field. The restart the server.");
         return false

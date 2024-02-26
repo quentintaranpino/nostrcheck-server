@@ -1,4 +1,4 @@
-import { Event, generateSecretKey, getPublicKey, nip19 } from "nostr-tools";
+import { generateSecretKey, getPublicKey } from "nostr-tools";
 import { bytesToHex } from '@noble/hashes/utils'
 import { NostrEvent } from "nostr-tools"
 import {SimplePool } from "nostr-tools/pool"
@@ -10,9 +10,10 @@ const relays = [
 	"wss://relay.damus.io",
 	"wss://relay.nostr.band",
 	"wss://nos.lol",
-	"wss://relay.primal.net"
+	"wss://relay.primal.net",
+	"wss://nostr-pub.wellorder.net/",
+	"wss://relay.current.fyi"
 	]
-
 const relaysPool = new SimplePool()
 
 /**
@@ -62,41 +63,4 @@ const publishEvent = async (event : NostrEvent): Promise<boolean> => {
         
 }
 
-/**
- * Retrieves the profile data of a user from the Nostr network (Kind 0).
- * @param pubkey - The public key of the user, hex format.
- * @returns A promise that resolves to the content data of the kind 0 note.
- */
-const getProfileMetadata = async (pubkey : string) : Promise<Event> => {
-	
-    let resolveEvent : (event : Event) => void;
-    let subscribePromise : Promise<Event> = new Promise(resolve => resolveEvent = resolve);
-    
-    const data = relaysPool.subscribeMany(
-		relays,
-		[{
-			authors: [pubkey],
-			kinds: [0],
-		}],
-		{
-			eoseTimeout: 1000,
-			onevent(e) {
-				resolveEvent(e);
-			},
-			oneose() {
-				data.close();
-				return resolveEvent(JSON.parse({kind: 0, created_at: 0, tags: [], content: "{}", pubkey: "", id: "", sig: ""}.content));
-			},
-		},
-	);
-
-    let event : Event = await subscribePromise;
-	if (event.content === undefined) {
-		return JSON.parse({kind: 0, created_at: 0, tags: [], content: "{}", pubkey: "", id: "", sig: ""}.content);
-	}
-	return JSON.parse(event.content);
-}
-
-export {publishEvent, createkeyPair, getPubkeyFromSecret, getProfileMetadata}
-
-
+export {publishEvent, createkeyPair, getPubkeyFromSecret, relays, relaysPool}

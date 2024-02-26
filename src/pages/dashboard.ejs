@@ -151,6 +151,7 @@
   <script src="/static/js/table.js"></script>
   <script>
     let authkey = "<%= request.session.authkey %>"
+    let metadata = <%- JSON.stringify(request.session.metadata) %>
     if("<%- request.body.nostraddressData && request.body.nostraddressData.length > 0 %>"){
       initTable("#nostraddressData",'<%- JSON.stringify(request.body.nostraddressData) %>','user')
     }

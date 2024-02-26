@@ -192,6 +192,12 @@ const initMediaModal = async (username, filename, checked, visible) => {
     }
 
     $(mediaModal._element).on('hidden.bs.modal', function () {
+
+        var videoElement = $('#media-modal .mediapreview-video')[0];
+        videoElement.pause();
+        videoElement.src = "";
+        videoElement.load();
+
         $('#media-modal .mediapreview-video source').attr('src', '');
         $('#media-modal .mediapreview-video').addClass('d-none');
         $('#media-modal .mediapreview-video')[0].load();

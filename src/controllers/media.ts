@@ -3,7 +3,7 @@ import app from "../app.js";
 import { connect, dbSelect } from "../lib/database.js";
 import { logger } from "../lib/logger.js";
 import { parseAuthHeader } from "../lib//authorization.js";
-import { ParseMediaType, ParseFileType, GetFileTags, standardMediaConversion } from "../lib/media.js"
+import { ParseMediaType, ParseFileType, GetFileTags, standardMediaConversion, getNotFoundMediaFile, readRangeHeader } from "../lib/media.js"
 import { requestQueue } from "../lib/media.js";
 import {
 	asyncTask,
@@ -14,6 +14,7 @@ import {
 	mime_transform,
 	UploadStatus,
 	MediaStatus,
+	videoHeaderRange,
 } from "../interfaces/media.js";
 import { ResultMessage, ResultMessagev2 } from "../interfaces/server.js";
 import fs from "fs";
@@ -55,7 +56,7 @@ const uploadmedia = async (req: Request, res: Response, version:string): Promise
 
 	//Check if pubkey is on the database
 	let pubkey : string = EventHeader.pubkey;
-	let username : string = await dbSelect("SELECT username FROM registered WHERE hex = ?", "username", [pubkey], registeredTableFields);
+	let username = await dbSelect("SELECT username FROM registered WHERE hex = ?", "username", [pubkey], registeredTableFields) as string;
 
 	//If username is not on the db the upload will be public and a warning will be logged.
 	if (username === "") {
@@ -541,66 +542,79 @@ const getMediabyURL = async (req: Request, res: Response) => {
 		req.params.filename.length > 70 ||
 		!validator.default.matches(req.params.filename, /^[a-zA-Z0-9_]+(\.[a-zA-Z0-9_]+)*\.[a-zA-Z0-9_]+$/)) {
 		logger.warn(`RES Media URL -> 400 Bad request`, "|", getClientIp(req));
-		return returnNotFoundMediaFile(req, res);
+		return res.status(400).send(getNotFoundMediaFile());
 	}
 
 	// mediaPath checks
 	const mediaPath = path.normalize(path.resolve(config.get("media.mediaPath")));
 	if (!mediaPath) {
 		logger.error(`RES Media URL -> 500 Internal Server Error - mediaPath not set`, "|", getClientIp(req));
-		return returnNotFoundMediaFile(req, res);
+		return res.status(500).send(getNotFoundMediaFile());
 	}
 	const fileName = path.normalize(path.resolve(mediaPath + "/" + req.params.username + "/" + req.params.filename));
-	logger.info(`RES Media URL -> username: ${req.params.username} | filename: ${fileName}`, "|", getClientIp(req));
 
 	// Try to prevent directory traversal attacks
 	if (!path.normalize(path.resolve(fileName)).startsWith(mediaPath)) {
 		logger.warn(`RES -> 403 Forbidden - ${req.url}`, "|", getClientIp(req));
-		return returnNotFoundMediaFile(req, res);
+		return res.status(403).send(getNotFoundMediaFile());
+	}
+
+	// Check if file is active on the database
+	if (await dbSelect("SELECT active FROM mediafiles WHERE filename = ? ", "active", [req.params.filename], mediafilesTableFields) as string != "1")  {
+		logger.warn(`RES -> 401 File not active - ${req.url}`, "| Returning not found media file.", getClientIp(req));
+		return res.status(401).send(getNotFoundMediaFile());
 	}
 
 	// file extension checks and media type
 	const ext = path.extname(fileName).slice(1);
 	const mediaType: string = Object.prototype.hasOwnProperty.call(mediaTypes, ext) ? mediaTypes[ext] : 'text/html';
+	res.setHeader('Content-Type', mediaType);
 
-	// Check if file exist on the filesystem and is active on the database
+	// If is a video file we return an stream
+	if (mediaType.startsWith("video")) {
+		
+		let range : videoHeaderRange;
+		let videoSize : number;
+		try {
+			videoSize = fs.statSync(fileName).size;
+			range = readRangeHeader(req.headers.range, videoSize);
+		} catch (err) {
+			logger.warn(`RES -> 404 Not Found - ${req.url}`, "| Returning not found media file.", getClientIp(req));
+			return res.status(404).send(getNotFoundMediaFile());
+		}
+
+		res.setHeader("Content-Range", `bytes ${range.Start}-${range.End}/${videoSize}`);
+
+		// If the range can't be fulfilled.
+		if (range.Start >= videoSize || range.End >= videoSize) {
+			res.setHeader("Content-Range", `bytes */ ${videoSize}`)
+			range.Start = 0;
+			range.End = videoSize - 1;
+		}
+
+		const contentLength = range.Start == range.End ? 0 : (range.End - range.Start + 1);
+		res.setHeader("Accept-Ranges", "bytes");
+		res.setHeader("Content-Length", contentLength);
+		res.setHeader("Cache-Control", "no-cache")
+		res.status(206);
+
+		const videoStream = fs.createReadStream(fileName, {start: range.Start, end: range.End});
+		logger.info(`RES -> 206 Video partial Content - start: ${range.Start} end: ${range.End} | ${req.url}`, "|", getClientIp(req));
+		return videoStream.pipe(res);
+	}
+
+	// If is an image or audio file we return the entire file
 	fs.readFile(fileName, async (err, data) => {
 		if (err) {
 			logger.warn(`RES -> 404 Not Found - ${req.url}`, "| Returning not found media file.", getClientIp(req));
-			return returnNotFoundMediaFile(req, res);
+			return res.status(404).send(getNotFoundMediaFile());
 		} 
-		// Check if file is active on the database
-		if (await dbSelect("SELECT active FROM mediafiles WHERE filename = ? ", "active", [req.params.filename], mediafilesTableFields) != "1") {
-			logger.warn(`RES -> 401 File not active - ${req.url}`, "| Returning not found media file.", getClientIp(req));
-			return returnNotFoundMediaFile(req, res);
-		}else{
-			// Return file
-			res.setHeader('Content-Type', mediaType);
-			res.end(data);
-		}
+		logger.info(`RES -> 200 Media file ${req.url}`, "|", getClientIp(req));
+		res.status(200).send(data);
+
 	});
+
 };
-
-const returnNotFoundMediaFile = async (req: Request, res: Response) => {
-
-	// Check if current module is enabled
-	if (!isModuleEnabled("media", app)) {
-		logger.warn("RES -> Module is not enabled" + " | " + getClientIp(req));
-		return res.status(400).send({"status": "error", "message": "Module is not enabled"});
-	}
-	
-	const notFoundPath = path.normalize(path.resolve(config.get("media.notFoundFilePath")));
-	fs.readFile(notFoundPath, async (err, data) => {
-		if (err) {
-			logger.error(`RES -> 404 Not Found - ${req.url}`, "| Not found media file not found.", getClientIp(req));
-			res.setHeader('Content-Type', 'image/webp');
-			res.end(null);
-		}
-		res.setHeader('Content-Type', 'image/webp');
-		res.end(data);
-	});
-}
-
 
 const getMediaTagsbyID = async (req: Request, res: Response): Promise<Response> => {
 
