@@ -9,13 +9,15 @@
             <div class="card border-light z-1">
               <div class="rounded-top text-white d-flex flex-row" 
                     style="background-image:url('<%= request.session.metadata.banner %>');background-size: cover; height:215px;">
-                <div class="ms-4 mt-5 d-flex flex-column align-middle z-1 col-4 col-sm-4 col-md-3 col-lg-3 col-xl-3">
-                  <img src= <%- JSON.stringify(request.session.metadata.picture)%> 
-                    alt="Profile image" class="img-fluid img-thumbnail mt-5 mb-1" width="auto">
-                  <div class="text-center text-black ">
-                    <h4><%= request.session.metadata.display_name %></h4>
+                    <div class="ms-4 mt-5 d-flex flex-column align-middle z-1 col-4 col-sm-4 col-md-3 col-lg-3 col-xl-3  ">
+                      <div class="ratio ratio-1x1">
+                          <img src="http://localhost:3000/api/v2/media/quentin/685d18a2ea9c47510c5c36add0d299ba46b2b691f549b0a436d510e5a7bd610a.webp" 
+                              alt="Profile image" class="img-thumbnail mt-5 mb-1 object-fit-cover aspect-ratio-content">
+                      </div>
+                      <div class="text-center text-black ">
+                          <h4><%= request.session.metadata.display_name %></h4>
+                      </div>
                   </div>
-                </div>
               </div>
               <div class="pt-2 pe-3 pb-2 text-black z-1">
                 <div class="d-flex justify-content-end text-center py-1">
