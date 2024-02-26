@@ -5,7 +5,6 @@
                 <% let ext=file.split('.').pop(); %>
                     <% if (ext==='webp' || ext==='gif' || ext==='jpg' || ext==='jpeg' ) { %>
                         <img 
-                            src="/static/resources/loading-image.webp"
                             data-src="media/<%= request.session.metadata.username %>/<%= file %>"
                             style="height: 220px;" 
                             class="rounded-3 w-100 object-fit-cover" 
