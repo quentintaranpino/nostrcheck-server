@@ -3,6 +3,7 @@
         <div class="col mb-0 fade-in">
             <% let file=request.session.metadata.mediaFiles[i]; %>
                 <% let ext=file.split('.').pop(); %>
+                <%=  file %>
                     <% if (ext==='webp' || ext==='gif' || ext==='jpg' ) { %>
                         <img data-src="media/<%= request.session.metadata.username %>/<%= file %>"
                             style="height: 220px;" 
