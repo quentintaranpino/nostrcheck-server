@@ -67,6 +67,12 @@ const initTable = (tableId, data, objectName) => {
     // Add button
     $(tableId + '-button-add').click(function () {
 
+        // If tableid is mediaFiles execute the following funciton
+        if (tableId === '#mediaData') {
+            uploadMedia()
+            return
+        }
+
         // Deselect all rows
         $(tableId).bootstrapTable('uncheckAll')
 
@@ -344,4 +350,42 @@ function detailFormatter(index, row) {
         html.push('<p><b>' + key + ':</b> ' + value + '</p>')
     })
     return html.join('')
+}
+
+// uploadMedia 
+
+const uploadMedia = async () => {
+
+    var input = $(document.createElement("input"));
+    input.attr("type", "file");
+    input.trigger("click");
+
+    input.on("change", function (e) {
+        var files = e.target.files;
+        var data = new FormData();
+        data.append("file", files[0]);
+   
+        fetch('media/', {
+            method: "POST",
+            headers: {
+                "authorization": "Bearer " + authkey
+            },
+            body: data
+        })
+        .then(response => response.json())
+        .then(data => {
+            console.log(data)
+            authkey = data.authkey;
+            // reload page
+            location.reload();
+            // return data.processing_url.toString().split("/").pop();
+            })
+        .catch((error) => {
+            initAlertModal(tableId, error)
+            console.error(error);
+            return "";
+        });
+});
+
+return ""
 }
