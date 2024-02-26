@@ -571,7 +571,6 @@ const getMediabyURL = async (req: Request, res: Response) => {
 
 	// Check if file is active on the database
 	const cached = await redisClient.get(req.params.filename + "-" + pubkey);
-	logger.debug(cached);
 	if (cached === null || cached === undefined) {
 		if ((await dbSelect("SELECT active FROM mediafiles WHERE filename = ? and pubkey = ? ", "active", [req.params.filename, pubkey], mediafilesTableFields)) as string != "1")  {
 			logger.warn(`RES -> 401 File not active - ${req.url}`, "| Returning not found media file.", getClientIp(req));
