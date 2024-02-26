@@ -4,7 +4,9 @@
             <% let file=request.session.metadata.mediaFiles[i]; %>
                 <% let ext=file.split('.').pop(); %>
                     <% if (ext==='webp' || ext==='gif' || ext==='jpg' || ext==='jpeg' ) { %>
-                        <img data-src="media/<%= request.session.metadata.username %>/<%= file %>"
+                        <img 
+                            src="/static/resources/loading-image.webp"
+                            data-src="media/<%= request.session.metadata.username %>/<%= file %>"
                             style="height: 220px;" 
                             class="rounded-3 w-100 object-fit-cover" 
                             loading="lazy">
@@ -14,11 +16,11 @@
                                 class="rounded-3 w-100 object-fit-cover" 
                                 autoplay muted playsinline loop 
                                 loading="lazy"
-                                poster="/static/resources/video-loading.webp">
+                                poster="/static/resources/loading-video.webp">
                                     <source data-src="media/<%= request.session.metadata.username %>/<%= file %>">Your browser does not support the video tag.
                             </video>
                         <% } else if (ext==='mp3' ) { %>
-                            <div style="height: 220px;background: url('/static/resources/music-loading.webp') center center / cover no-repeat;"
+                            <div style="height: 220px;background: url('/static/resources/loading-music.webp') center center / cover no-repeat;"
                                 class="rounded-3 d-flex flex-column align-items-center justify-content-end pb-2">
                                 <audio controls
                                     data-src="media/<%= request.session.metadata.username %>/<%= file %>"
