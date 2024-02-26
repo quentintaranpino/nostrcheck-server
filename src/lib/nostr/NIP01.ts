@@ -3,41 +3,51 @@ import { relays, relaysPool } from "./core.js";
 import app from "../../app.js";
 import { logger } from "../logger.js";
 
+let counter = 0;
+
+
+
 /**
  * Retrieves the profile data of a user from the Nostr network (Kind 0).
  * @param pubkey - The public key of the user, hex format.
  * @returns A promise that resolves to the content data of the kind 0 note.
  */
 const getProfileData = async (pubkey : string) : Promise<Event> => {
-	
+
+    logger.debug('CONNECTIONS: ' + counter);
+    
     let resolveEvent : (event : Event) => void;
     let subscribePromise : Promise<Event> = new Promise(resolve => resolveEvent = resolve);
-    
+
+    counter++;
+
     const data = relaysPool.subscribeMany(
-		relays,
-		[{
-			authors: [pubkey],
-			kinds: [0],
-		}],
-		{
-			eoseTimeout: 1000,
-			onevent(e) {
-				resolveEvent(e);
-			},
-			oneose() {
-				data.close();
-				return resolveEvent(JSON.parse({kind: 0, created_at: 0, tags: [], content: "{}", pubkey: "", id: "", sig: ""}.content));
-			},
-		},
-	);
+        relays,
+        [{
+            authors: [pubkey],
+            kinds: [0],
+        }],
+        {
+            eoseTimeout: 100,
+            onevent(e) {
+                resolveEvent(e);
+            },
+            oneose() {
+                data.close();
+                counter--;
+                logger.debug('CONNECTIONS: ' + counter);
+                return resolveEvent({kind: 0, created_at: 0, tags: [], content: "{}", pubkey: "", id: "", sig: ""});
+            },
+        },
+    );
 
     let event : Event = await subscribePromise;
-	if (event.content === undefined) {
-		return JSON.parse({kind: 0, created_at: 0, tags: [], content: "{}", pubkey: "", id: "", sig: ""}.content);
-	}
+    if (event.content === undefined) {
+        return {kind: 0, created_at: 0, tags: [], content: "{}", pubkey: "", id: "", sig: ""};
+    }
 
-	return event;
-	
+    return event;
+    
 }
 
 /**
@@ -48,7 +58,9 @@ const getProfileData = async (pubkey : string) : Promise<Event> => {
 const getProfileFollowers = (pubkey : string) : Boolean => {
 	
 	let followerList : Event[] = []
-	
+
+	counter++;
+
 	try{
 		const data = relaysPool.subscribeMany(
 			relays,
@@ -57,13 +69,14 @@ const getProfileFollowers = (pubkey : string) : Boolean => {
 				"#p": [pubkey],
 			}],
 			{
-				eoseTimeout: 1000,
+				eoseTimeout: 100,
 				onevent(e) {
 					followerList.push(e);
 				},
 				oneose() {
 					data.close();
-					logger.debug("Subscription closed for followers list");
+					counter--;
+					logger.debug('CONNECTIONS: ' + counter);
 					app.set("#p_" + pubkey, followerList.length);
 				},
 			},
@@ -79,7 +92,9 @@ const getProfileFollowers = (pubkey : string) : Boolean => {
 const getProfileFollowing = (pubkey : string) : Boolean => {
 	
 	let followingList = []
-	
+
+	counter++;
+
 	try{
 		const data = relaysPool.subscribeMany(
 			relays,
@@ -88,7 +103,7 @@ const getProfileFollowing = (pubkey : string) : Boolean => {
 				kinds: [3],
 			}],
 			{
-				eoseTimeout: 1000,
+				eoseTimeout: 100,
 				onevent(e) {
 					for (let tag of e.tags) {
                         followingList.push(tag);
@@ -96,7 +111,8 @@ const getProfileFollowing = (pubkey : string) : Boolean => {
 				},
 				oneose() {
 					data.close();
-					logger.debug("Subscription closed for following list");
+					counter--;
+					logger.debug('CONNECTIONS: ' + counter);
 					app.set("#f_" + pubkey, followingList.length);
 				},
 			},

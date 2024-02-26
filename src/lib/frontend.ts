@@ -12,25 +12,17 @@ const getProfileMetadata = async (pubkey: string): Promise<userMetadata> => {
         return {"about": "", "banner": "", "display_name": "", "followers": 0, "following": 0, "lud16": "", "mediaFiles": [], "name": "", "nip05": "", "picture": "", "username": "", "website": ""};
     }
     let metadata = await getProfileData(pubkey)
-    if (!metadata || metadata == undefined || metadata == null){
+    if (!metadata || metadata == undefined || metadata == null || metadata.content == undefined || metadata.content == null){
         return {"about": "", "banner": "", "display_name": "", "followers": 0, "following": 0, "lud16": "", "mediaFiles": [], "name": "", "nip05": "", "picture": "", "username": "", "website": ""};
     }
 
-    try{
-        if (!app.get("#p_" + pubkey)){
-           await getProfileFollowers(pubkey);
-        } 
-        if (!app.get("#f_" + pubkey)){
-            await getProfileFollowing(pubkey);
-        }
-    }catch (error){
-        logger.error(error)
-        return {"about": "", "banner": "", "display_name": "", "followers": 0, "following": 0, "lud16": "", "mediaFiles": [], "name": "", "nip05": "", "picture": "", "username": "", "website": ""};
+    if (!app.get("#p_" + pubkey)){
+        await getProfileFollowers(pubkey);
+    } 
+    if (!app.get("#f_" + pubkey)){
+        await getProfileFollowing(pubkey);
     }
-    
-    if (!metadata.content || metadata.content == undefined || metadata.content == null){
-        return {"about": "", "banner": "", "display_name": "", "followers": 0, "following": 0, "lud16": "", "mediaFiles": [], "name": "", "nip05": "", "picture": "", "username": "", "website": ""};
-    }
+
     let result : userMetadata = JSON.parse(metadata.content)
 
     // Add followers and following to the profile metadata.
