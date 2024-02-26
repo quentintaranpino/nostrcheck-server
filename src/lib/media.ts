@@ -378,18 +378,18 @@ const deleteFile = async (path:string) :Promise<boolean> => {
 }
 
 
-const getNotFoundMediaFile = async (): Promise<Buffer> => {
-
-	const notFoundPath = path.normalize(path.resolve(config.get("media.notFoundFilePath")));
-	fs.readFile(notFoundPath, async (err, data) => {
-		if (err) {
-			logger.error(err);
-			return Buffer.from("");			
-		}
-		return data;
-	});
-
-	return Buffer.from("");
+const getNotFoundMediaFile = (): Promise<Buffer> => {
+    return new Promise((resolve) => {
+        const notFoundPath = path.normalize(path.resolve(config.get("media.notFoundFilePath")));
+        fs.readFile(notFoundPath, (err, data) => {
+            if (err) {
+                logger.error(err);
+                resolve(Buffer.from(""));
+            } else {
+                resolve(data);
+            }
+        });
+    });
 }
 
 const readRangeHeader = (range : string | undefined, totalLength : number ): videoHeaderRange => {

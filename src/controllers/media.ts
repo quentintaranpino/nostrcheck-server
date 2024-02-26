@@ -542,28 +542,39 @@ const getMediabyURL = async (req: Request, res: Response) => {
 		req.params.filename.length > 70 ||
 		!validator.default.matches(req.params.filename, /^[a-zA-Z0-9_]+(\.[a-zA-Z0-9_]+)*\.[a-zA-Z0-9_]+$/)) {
 		logger.warn(`RES Media URL -> 400 Bad request`, "|", getClientIp(req));
-		return res.status(400).send(getNotFoundMediaFile());
+		res.setHeader('Content-Type', 'image/webp');
+		return res.status(400).send(await getNotFoundMediaFile());
 	}
 
 	// mediaPath checks
 	const mediaPath = path.normalize(path.resolve(config.get("media.mediaPath")));
 	if (!mediaPath) {
 		logger.error(`RES Media URL -> 500 Internal Server Error - mediaPath not set`, "|", getClientIp(req));
-		return res.status(500).send(getNotFoundMediaFile());
+		res.setHeader('Content-Type', 'image/webp');
+		return res.status(500).send(await getNotFoundMediaFile());
 	}
 	const fileName = path.normalize(path.resolve(mediaPath + "/" + req.params.username + "/" + req.params.filename));
 
 	// Try to prevent directory traversal attacks
 	if (!path.normalize(path.resolve(fileName)).startsWith(mediaPath)) {
 		logger.warn(`RES -> 403 Forbidden - ${req.url}`, "|", getClientIp(req));
-		return res.status(403).send(getNotFoundMediaFile());
+		res.setHeader('Content-Type', 'image/webp');
+		return res.status(403).send(await getNotFoundMediaFile());
 	}
 
-	// Check if file is active on the database
-	if (await dbSelect("SELECT active FROM mediafiles WHERE filename = ? ", "active", [req.params.filename], mediafilesTableFields) as string != "1")  {
-		logger.warn(`RES -> 401 File not active - ${req.url}`, "| Returning not found media file.", getClientIp(req));
-		return res.status(401).send(getNotFoundMediaFile());
+	// Get pubkey from username string and check if is registered, if not we use the public server pubkey
+	let pubkey = await dbSelect("SELECT hex FROM registered WHERE username = ?", "hex", [req.params.username], registeredTableFields) as string;
+	if (pubkey === "") {
+		pubkey = app.get("config.server")["pubkey"];
 	}
+
+// Check if file is active on the database
+if ((await dbSelect("SELECT active FROM mediafiles WHERE filename = ? and pubkey = ? ", "active", [req.params.filename, pubkey], mediafilesTableFields)) as string != "1")  {
+    logger.debug("SELECT active FROM mediafiles WHERE filename = ? ", "active", [req.params.filename])
+    logger.warn(`RES -> 401 File not active - ${req.url}`, "| Returning not found media file.", getClientIp(req));
+	res.setHeader('Content-Type', 'image/webp');
+    return res.status(401).send(await getNotFoundMediaFile());
+}
 
 	// file extension checks and media type
 	const ext = path.extname(fileName).slice(1);
@@ -580,7 +591,8 @@ const getMediabyURL = async (req: Request, res: Response) => {
 			range = readRangeHeader(req.headers.range, videoSize);
 		} catch (err) {
 			logger.warn(`RES -> 404 Not Found - ${req.url}`, "| Returning not found media file.", getClientIp(req));
-			return res.status(404).send(getNotFoundMediaFile());
+			res.setHeader('Content-Type', 'image/webp');
+			return res.status(404).send(await getNotFoundMediaFile());
 		}
 
 		res.setHeader("Content-Range", `bytes ${range.Start}-${range.End}/${videoSize}`);
@@ -607,7 +619,8 @@ const getMediabyURL = async (req: Request, res: Response) => {
 	fs.readFile(fileName, async (err, data) => {
 		if (err) {
 			logger.warn(`RES -> 404 Not Found - ${req.url}`, "| Returning not found media file.", getClientIp(req));
-			return res.status(404).send(getNotFoundMediaFile());
+			res.setHeader('Content-Type', 'image/webp');
+			return res.status(404).send(await getNotFoundMediaFile());
 		} 
 		logger.info(`RES -> 200 Media file ${req.url}`, "|", getClientIp(req));
 		res.status(200).send(data);
