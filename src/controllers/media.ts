@@ -27,6 +27,7 @@ import { getClientIp } from "../lib/server.js";
 import { generateBlurhash, generatefileHashfrombuffer } from "../lib/hash.js";
 import { mediafilesTableFields, registeredTableFields } from "../interfaces/database.js";
 import { isModuleEnabled } from "../lib/config.js";
+import { redisClient } from "../lib/redis.js";
 
 
 const uploadmedia = async (req: Request, res: Response, version:string): Promise<Response> => {
@@ -568,13 +569,27 @@ const getMediabyURL = async (req: Request, res: Response) => {
 		pubkey = app.get("config.server")["pubkey"];
 	}
 
-// Check if file is active on the database
-if ((await dbSelect("SELECT active FROM mediafiles WHERE filename = ? and pubkey = ? ", "active", [req.params.filename, pubkey], mediafilesTableFields)) as string != "1")  {
-    logger.debug("SELECT active FROM mediafiles WHERE filename = ? ", "active", [req.params.filename])
-    logger.warn(`RES -> 401 File not active - ${req.url}`, "| Returning not found media file.", getClientIp(req));
-	res.setHeader('Content-Type', 'image/webp');
-    return res.status(401).send(await getNotFoundMediaFile());
-}
+	// Check if file is active on the database
+	const cached = await redisClient.get(req.params.filename + "-" + pubkey);
+	logger.debug(cached);
+	if (cached === null || cached === undefined) {
+		if ((await dbSelect("SELECT active FROM mediafiles WHERE filename = ? and pubkey = ? ", "active", [req.params.filename, pubkey], mediafilesTableFields)) as string != "1")  {
+			logger.warn(`RES -> 401 File not active - ${req.url}`, "| Returning not found media file.", getClientIp(req));
+
+			await redisClient.set(req.params.filename + "-" + pubkey, "0", {
+				EX: 30, 
+				NX: true,
+			});
+			logger.warn(`RES -> 401 File not active - ${req.url}`, "returning not found media file |", getClientIp(req), "|", "cached:", cached ? true : false);
+
+			res.setHeader('Content-Type', 'image/webp');
+			return res.status(401).send(await getNotFoundMediaFile());
+		}
+		await redisClient.set(req.params.filename + "-" + pubkey, "1", {
+			EX: 30, 
+			NX: true,
+		});
+	}
 
 	// file extension checks and media type
 	const ext = path.extname(fileName).slice(1);
@@ -611,7 +626,7 @@ if ((await dbSelect("SELECT active FROM mediafiles WHERE filename = ? and pubkey
 		res.status(206);
 
 		const videoStream = fs.createReadStream(fileName, {start: range.Start, end: range.End});
-		logger.info(`RES -> 206 Video partial Content - start: ${range.Start} end: ${range.End} | ${req.url}`, "|", getClientIp(req));
+		logger.info(`RES -> 206 Video partial Content - start: ${range.Start} end: ${range.End} | ${req.url}`, "|", getClientIp(req), "|", cached ? true : false);
 		return videoStream.pipe(res);
 	}
 
@@ -622,7 +637,7 @@ if ((await dbSelect("SELECT active FROM mediafiles WHERE filename = ? and pubkey
 			res.setHeader('Content-Type', 'image/webp');
 			return res.status(404).send(await getNotFoundMediaFile());
 		} 
-		logger.info(`RES -> 200 Media file ${req.url}`, "|", getClientIp(req));
+		logger.info(`RES -> 200 Media file ${req.url}`, "|", getClientIp(req), "|", "cached:", cached ? true : false);
 		res.status(200).send(data);
 
 	});
