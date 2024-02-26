@@ -1,5 +1,5 @@
 <html lang="en">
-  <%- include('./partials/head',{title:"Nostrcheck Server - Login"}); %>
+  <%- include('./partials/head',{title: `${request.body.serverHost} - Login`}); %>
   <link rel="stylesheet" href="/static/css/form.css">
   <body class="d-flex flex-column h-100"">
     <%- include('./partials/navbar', {active:'login'}); %>

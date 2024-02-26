@@ -22,7 +22,7 @@ const loadDashboardPage = async (req: Request, res: Response, version:string): P
 
 	logger.info("GET /api/" + version + "/dashboard", "|", getClientIp(req));
 
-    req.body.version = app.get("version");
+
     const availableModules = Object.entries(app.get("config.server")["availableModules"]);
     for (const [key] of availableModules) {
         if(app.get("config.server")["availableModules"][key]["enabled"] == true){
@@ -32,6 +32,9 @@ const loadDashboardPage = async (req: Request, res: Response, version:string): P
             }
         }
     }
+
+    req.body.version = app.get("version");
+    req.body.serverHost = app.get("config.server")["host"];
     req.session.authkey = await generateCredentials('authkey', false, req.session.identifier);
 
     // User metadata from nostr
@@ -51,6 +54,7 @@ const loadSettingsPage = async (req: Request, res: Response, version:string): Pr
     logger.info("GET /api/" + version + "/settings", "|", getClientIp(req));
 
     req.body.version = app.get("version");
+    req.body.serverHost = app.get("config.server")["host"];
     req.body.availableModules = app.get("config.server")["availableModules"];
     req.body.settingServerPubkey = app.get("config.server")["pubkey"];
     req.body.settingServerSecretkey =  app.get("config.server")["secretKey"];
@@ -76,6 +80,7 @@ const loadProfilePage = async (req: Request, res: Response, version:string): Pro
 	logger.info("GET /api/" + version + "/profile", "|", getClientIp(req));
 
     req.body.version = app.get("version");
+    req.body.serverHost = app.get("config.server")["host"];
     req.session.authkey = await generateCredentials('authkey', false, req.session.identifier);
 
     // User metadata from nostr
@@ -95,6 +100,7 @@ const loadTosPage = async (req: Request, res: Response, version:string): Promise
 	logger.info("GET /api/" + version + "/tos", "|", getClientIp(req));
 
     req.body.version = app.get("version");
+    req.body.serverHost = app.get("config.server")["host"];
     let tosFile = markdownToHtml(fs.readFileSync(config.get("server.tosFilePath")).toString());
     tosFile = tosFile.replace(/\[SERVERADDRESS\]/g, app.get("config.server")["host"]);
     
@@ -112,6 +118,7 @@ const loadLoginPage = async (req: Request, res: Response, version:string): Promi
 	logger.info("GET /api/" + version + "/login", "|", getClientIp(req));
 
     req.body.version = app.get("version");
+    req.body.serverHost = app.get("config.server")["host"];
     res.render("login.ejs", {request: req});
 };
 
@@ -142,7 +149,6 @@ const loadDocsPage = async (req: Request, res: Response, version:string): Promis
 
 	logger.info("GET /api/" + version + "/documentation", "|", getClientIp(req));
 
-    req.body.version = app.get("version");
     const availableModules = Object.entries(app.get("config.server")["availableModules"]);
      req.body.activeModules = [];
     for (const [key] of availableModules) {
@@ -151,6 +157,8 @@ const loadDocsPage = async (req: Request, res: Response, version:string): Promis
         }
     }
     
+    req.body.version = app.get("version");
+    req.body.serverHost = app.get("config.server")["host"];
     req.body.serverPubkey = await hextoNpub(app.get("config.server")["pubkey"]);
     res.render("documentation.ejs", {request: req});
 };
