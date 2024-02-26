@@ -63,6 +63,7 @@ const getProfileFollowers = (pubkey : string) : Boolean => {
 				},
 				oneose() {
 					data.close();
+					logger.debug("Subscription closed for followers list");
 					app.set("#p_" + pubkey, followerList.length);
 				},
 			},
@@ -95,6 +96,7 @@ const getProfileFollowing = (pubkey : string) : Boolean => {
 				},
 				oneose() {
 					data.close();
+					logger.debug("Subscription closed for following list");
 					app.set("#f_" + pubkey, followingList.length);
 				},
 			},
