@@ -563,19 +563,21 @@ const getMediabyURL = async (req: Request, res: Response) => {
 		return res.status(403).send(await getNotFoundMediaFile());
 	}
 
-	// Get pubkey from username string and check if is registered, if not we use the public server pubkey
-	let pubkey = await dbSelect("SELECT hex FROM registered WHERE username = ?", "hex", [req.params.username], registeredTableFields) as string;
-	if (pubkey === "") {
-		pubkey = app.get("config.server")["pubkey"];
-	}
 
 	// Check if file is active on the database
-	const cached = await redisClient.get(req.params.filename + "-" + pubkey);
+	const cached = await redisClient.get(req.params.filename + "-" + req.params.username);
 	if (cached === null || cached === undefined) {
+
+		// Get pubkey from username string and check if is registered, if not we use the public server pubkey
+		let pubkey = await dbSelect("SELECT hex FROM registered WHERE username = ?", "hex", [req.params.username], registeredTableFields) as string;
+		if (pubkey === "") {
+			pubkey = app.get("config.server")["pubkey"];
+		}
+
 		if ((await dbSelect("SELECT active FROM mediafiles WHERE filename = ? and pubkey = ? ", "active", [req.params.filename, pubkey], mediafilesTableFields)) as string != "1")  {
 			logger.warn(`RES -> 401 File not active - ${req.url}`, "| Returning not found media file.", getClientIp(req));
 
-			await redisClient.set(req.params.filename + "-" + pubkey, "0", {
+			await redisClient.set(req.params.filename + "-" + req.params.username, "0", {
 				EX: 30, 
 				NX: true,
 			});
@@ -584,10 +586,11 @@ const getMediabyURL = async (req: Request, res: Response) => {
 			res.setHeader('Content-Type', 'image/webp');
 			return res.status(401).send(await getNotFoundMediaFile());
 		}
-		await redisClient.set(req.params.filename + "-" + pubkey, "1", {
+		await redisClient.set(req.params.filename + "-" + req.params.username, "1", {
 			EX: 30, 
 			NX: true,
 		});
+
 	}
 
 	// file extension checks and media type
