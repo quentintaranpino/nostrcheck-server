@@ -141,6 +141,8 @@ const syncDefaultConfigValues = async (defaultConf : string, localConf: string) 
 		fs.writeFileSync(localConf, JSON.stringify(LocalConfig, null, 4));
 	}catch(err){
 		console.error("Error writing config file: ", err);
+		console.error("Please make sure the file is writable and then restart the server")
+		exit(1);
 	}
 	
 };

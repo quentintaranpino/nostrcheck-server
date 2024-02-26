@@ -8,6 +8,10 @@ const getProfileMetadata = async (pubkey: string): Promise<Object> => {
 
     let metadata = await getProfileData(pubkey)
 
+    if (!metadata || metadata == undefined || metadata == null){
+        return {};
+    }
+
     if (!app.get("#p_" + pubkey)){
         getProfileFollowers(pubkey);
     } 
