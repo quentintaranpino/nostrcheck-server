@@ -56,6 +56,7 @@ const loadSettingsPage = async (req: Request, res: Response, version:string): Pr
     req.body.version = app.get("version");
     req.body.serverHost = app.get("config.server")["host"];
     req.body.availableModules = app.get("config.server")["availableModules"];
+    req.body.settingsServerHost = app.get("config.server")["host"];
     req.body.settingServerPubkey = app.get("config.server")["pubkey"];
     req.body.settingServerSecretkey =  app.get("config.server")["secretKey"];
     req.body.settingsMedia = app.get("config.media");
