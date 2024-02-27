@@ -5,11 +5,11 @@
     <%- include('./partials/navbar', {active:'profile'}); %>
     <main class="container py-3">
         <div class="row d-flex justify-content-center align-items-center">
-          <div class="col col-md-12 col-lg-10 col-xl-8 col-xxl-7">
+          <div class="col col-md-12 col-lg-10 col-xl-9 col-xxl-8">
             <div class="card border-light z-1">
               <div class="rounded-top text-white d-flex flex-row" 
                     style="background-image:url('<%= request.session.metadata.banner %>');background-size: cover; height:215px;">
-                    <div class="ms-4 mt-5 d-flex flex-column align-middle z-1 col-4 col-sm-4 col-md-3 col-lg-3 col-xl-3  ">
+                    <div class="ms-4 mt-5 mt-xl-4 mt-xxl-3 d-flex flex-column align-middle z-1 col-4 col-sm-4 col-md-3 col-lg-3 col-xl-3  ">
                       <div class="ratio ratio-1x1">
                           <img src="<%= request.session.metadata.picture %>" 
                               alt="Profile image" class="img-thumbnail mt-5 mb-1 object-fit-cover aspect-ratio-content">

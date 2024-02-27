@@ -1,4 +1,4 @@
-<div id="media-container" class="row row-cols-2 row-cols-md-3 row-cols-xl-4 g-2">
+<div id="media-container" class="row row-cols-2 row-cols-md-3 row-cols-xxl-3 g-2">
 </div>
 <div id="sentinel"></div>
 <div class="d-flex justify-content-center">
@@ -19,12 +19,12 @@
                         const response = await fetch(`/api/v2/gallerydata?page=${page}`);
                         page++;
                         const userData = await response.json();
-                        // if (userData.mediaFiles.toString() === "") {
-                        //     observer.unobserve(document.getElementById('sentinel'));
-                        //     const spinner = document.querySelector('.spinner-border');
-                        //     spinner.remove();
-                        //     return;
-                        // }
+                        if (userData.mediaFiles.toString() === "") {
+                            observer.unobserve(document.getElementById('sentinel'));
+                            const spinner = document.querySelector('.spinner-border');
+                            spinner.remove();
+                            return;
+                        }
                         const mediaContainer = document.getElementById('media-container');
                         for (const file of userData.mediaFiles) {
 
