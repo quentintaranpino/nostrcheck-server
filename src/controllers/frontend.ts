@@ -103,7 +103,7 @@ const loadGalleryData = async (req: Request, res: Response): Promise<Response | 
         page = 1;
     }
 
-    const pageSize = 6;
+    const pageSize = 18;
 
     req.session.authkey = await generateCredentials('authkey', false, req.session.identifier);
 
@@ -111,7 +111,6 @@ const loadGalleryData = async (req: Request, res: Response): Promise<Response | 
     req.session.metadata = await getProfileMetadata(req.session.identifier);
 
     const mediaFiles = req.session.metadata.mediaFiles.slice((page - 1) * pageSize, page * pageSize);
-    logger.debug( req.session.metadata.mediaFiles)
     res.json(mediaFiles);
 }
 
