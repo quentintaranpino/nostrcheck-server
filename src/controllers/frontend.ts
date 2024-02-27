@@ -85,7 +85,7 @@ const loadProfilePage = async (req: Request, res: Response, version:string): Pro
     req.session.authkey = await generateCredentials('authkey', false, req.session.identifier);
 
     // User metadata from nostr
-    req.session.metadata = await getProfileMetadata(req.session.identifier);
+    req.session.metadata = await getProfileMetadata(req.session.identifier,true,true);
 
     res.render("profile.ejs", {request: req});
 };

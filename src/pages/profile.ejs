@@ -22,7 +22,7 @@
               <div class="pt-2 pe-3 pb-2 text-black z-1">
                 <div class="d-flex justify-content-end text-center py-1">
                   <div>
-                    <p class="mb-1 h5"><%= JSON.parse(JSON.stringify(request.session.metadata.mediaFiles || 0)).length %></p>
+                    <p class="mb-1 h5"><%= JSON.parse(JSON.stringify(request.session.metadata.mediaFiles || "0")).length %></p>
                     <p class="small text-muted mb-0">Media</p>
                   </div>
                   <div class="px-3">
