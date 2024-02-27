@@ -337,7 +337,7 @@ const uploadmedia = async (req: Request, res: Response, version:string): Promise
 	}
 
 	const returnmessage : NIP96_event = await PrepareNIP96_event(filedata);
-	return res.status(responseStatus).send({returnmessage});
+	return res.status(responseStatus).send(returnmessage);
 
 };
 
@@ -515,7 +515,7 @@ const getMediaStatusbyID = async (req: Request, res: Response, version:string): 
 	}
 
 	const returnmessage : NIP96_event = await PrepareNIP96_event(filedata);
-	return res.status(response).send({returnmessage});
+	return res.status(response).send(returnmessage);
 
 
 };
