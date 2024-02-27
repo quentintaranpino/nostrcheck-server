@@ -105,7 +105,18 @@ const loadGalleryData = async (req: Request, res: Response): Promise<Response | 
 
     const pageSize = 18;
 
+    logger.info("GET /api/v2/gallery", "|", getClientIp(req));
+
+    if (req.session.identifier == undefined || req.session.identifier == null || req.session.identifier == ""){
+        logger.warn("No identifier found in session. Refusing", getClientIp(req));
+        return res.status(401).send("");
+    }
+
     req.session.authkey = await generateCredentials('authkey', false, req.session.identifier);
+    if (req.session.authkey == ""){
+        logger.error("Failed to generate authkey for", req.session.identifier);
+        return res.status(500).send("");
+    }
 
     // User metadata from local database
     req.session.metadata = await getProfileMetadata(req.session.identifier, true);
