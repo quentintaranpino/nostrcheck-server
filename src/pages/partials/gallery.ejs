@@ -57,11 +57,12 @@
                                 mediaElement.load();
 
                                 // Autoplay video patch
+                                mediaElement.muted = true;
                                 const playPromise = mediaElement.play();
                                 if (playPromise !== undefined) {
                                     playPromise.then(() => {
                                         }).catch(error => {
-                                            mediaElement.muted = true;
+
                                             mediaElement.play();
                                         });
                                     }
