@@ -33,9 +33,17 @@
                             const username = '<%= request.session.metadata.username %>'; 
                             if (ext==='webp' || ext==='gif' || ext==='jpg' || ext==='jpeg' ) {
                                 mediaElement = document.createElement('img');
-                                mediaElement.src = `media/${userData.username}/${file}`;
+                                mediaElement.src = '/static/resources/loading-image.webp'; // Set default image
                                 mediaElement.style.height = "220px";
                                 mediaElement.classList.add("rounded-3", "w-100", "object-fit-cover");
+                                
+                                const img = new Image();
+                                img.src = `media/${userData.username}/${file}`;
+                                img.onload = function() {
+                                    mediaElement.src = this.src; // Change src when image is loaded
+                                };
+
+
                             } else if (ext==='mp4' || ext==='mov' ) {
                                 mediaElement = document.createElement('video');
                                 mediaElement.src = `media/${userData.username}/${file}`;
