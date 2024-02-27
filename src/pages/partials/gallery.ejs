@@ -40,11 +40,7 @@
                                 const img = new Image();
                                 img.src = `media/${userData.username}/${file}`;
                                 img.onload = function() {
-                                    mediaElement.classList.remove("fade-in");
                                     mediaElement.src = this.src; // Change src when image is loaded
-                                    setTimeout(() => {
-                                        mediaElement.classList.add("fade-in");
-                                    }, 50);
                                 };
 
 
