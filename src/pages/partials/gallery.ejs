@@ -41,7 +41,7 @@
                                 mediaElement.src = `media/${username}/${file}`;
                                 mediaElement.style.height = "220px";
                                 mediaElement.classList.add("rounded-3", "w-100", "object-fit-cover");
-                                mediaElement.setAttribute('muted', 'true');
+                                mediaElement.setAttribute('muted', '');
                                 mediaElement.setAttribute('playsinline', '');
                                 mediaElement.setAttribute('autoplay', '');
                                 mediaElement.setAttribute('loop', '');
@@ -57,6 +57,17 @@
                                                 mediaElement.play();
                                             });
                                         }
+
+                                const videoObserver = new IntersectionObserver((entries) => {
+                                    entries.forEach(entry => {
+                                        if (!entry.isIntersecting) {
+                                            entry.target.pause();
+                                        }else{
+                                            entry.target.play();
+                                        }
+                                    });
+                                });
+                                videoObserver.observe(mediaElement);
 
                             }else if (ext==='mp3' ) {
                                 mediaElement = document.createElement('audio');
