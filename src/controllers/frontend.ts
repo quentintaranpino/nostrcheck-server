@@ -90,6 +90,31 @@ const loadProfilePage = async (req: Request, res: Response, version:string): Pro
     res.render("profile.ejs", {request: req});
 };
 
+const loadGalleryData = async (req: Request, res: Response): Promise<Response | void> => {
+
+    // Check if current module is enabled
+	if (!isModuleEnabled("frontend", app)) {
+		logger.warn("RES -> Module is not enabled" + " | " + getClientIp(req));
+		return res.status(400).send({"status": "error", "message": "Module is not enabled"});
+	}
+   
+    let page = Number(req.query.page);
+    if (isNaN(page) || page < 1) {
+        page = 1;
+    }
+
+    const pageSize = 6;
+
+    req.session.authkey = await generateCredentials('authkey', false, req.session.identifier);
+
+    // User metadata from nostr
+    req.session.metadata = await getProfileMetadata(req.session.identifier);
+
+    const mediaFiles = req.session.metadata.mediaFiles.slice((page - 1) * pageSize, page * pageSize);
+    logger.debug( req.session.metadata.mediaFiles)
+    res.json(mediaFiles);
+}
+
 const loadTosPage = async (req: Request, res: Response, version:string): Promise<Response | void> => {
 
     // Check if current module is enabled
@@ -220,4 +245,5 @@ export {loadDashboardPage,
         loadLoginPage, 
         loadIndexPage, 
         frontendLogin,
-        loadProfilePage};
+        loadProfilePage,
+        loadGalleryData};

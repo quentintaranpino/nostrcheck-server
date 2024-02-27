@@ -1,5 +1,13 @@
 import { Application } from "express";
-import { loadDashboardPage, loadSettingsPage, loadTosPage, loadDocsPage, loadLoginPage, loadIndexPage, loadProfilePage } from "../controllers/frontend.js";
+import { 	loadDashboardPage, 
+			loadSettingsPage, 
+			loadTosPage, 
+			loadDocsPage, 
+			loadLoginPage, 
+			loadIndexPage, 
+			loadProfilePage,
+			loadGalleryData
+		} from "../controllers/frontend.js";
 import { frontendLogin } from "../controllers/frontend.js";
 import { logger } from "../lib/logger.js";
 import { isPubkeyValid } from "../lib/authorization.js";
@@ -75,6 +83,11 @@ export const loadFrontendEndpoint = async (app: Application, version:string): Pr
 		}else{
 			loadProfilePage(req,res,version);
 		}
+	});
+
+	// Gallery images json
+	app.get("/api/" +  version + "/gallerydata", limiter(100), async (req, res) => {
+		loadGalleryData(req,res);
 	});
 
 	// Logout
