@@ -17,6 +17,7 @@
                     if (media.id === 'sentinel' || page === 1) {
                         console.log('Intersecting', media.id)
                         const response = await fetch(`/api/v1/gallerydata?page=${page}`);
+                        console.log(response)
                         page++;
                         const files = await response.json();
                         if (files.length === 0) {
