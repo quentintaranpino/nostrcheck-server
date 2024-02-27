@@ -53,6 +53,7 @@ main {
 .fade-in {
   opacity: 0;
   animation: fadeIn 1s forwards;
+  transition: opacity 1s;
 }
 
 @keyframes fadeIn {
