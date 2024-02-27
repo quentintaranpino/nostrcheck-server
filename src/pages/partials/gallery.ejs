@@ -1,66 +1,87 @@
-<div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-2">
-    <% for(let i=request.session.metadata.mediaFiles.length - 1; i>= 0; i--) { %>
-        <div class="col mb-0 fade-in">
-            <% let file=request.session.metadata.mediaFiles[i]; %>
-                <% let ext=file.split('.').pop(); %>
-                    <% if (ext==='webp' || ext==='gif' || ext==='jpg' || ext==='jpeg' ) { %>
-                        <img 
-                            src="/static/resources/loading-image.webp"
-                            data-src="media/<%= request.session.metadata.username %>/<%= file %>"
-                            style="height: 220px;" 
-                            class="rounded-3 w-100 object-fit-cover" 
-                            loading="lazy">
-                        <% } else if (ext==='mp4' || ext==='mov' ) { %>
-                            <video data-src="media/<%= request.session.metadata.username %>/<%= file %>"
-                                style="height: 220px;" 
-                                class="rounded-3 w-100 object-fit-cover" 
-                                autoplay muted playsinline loop 
-                                loading="lazy"
-                                poster="/static/resources/loading-video.webp">
-                                    <source data-src="media/<%= request.session.metadata.username %>/<%= file %>">Your browser does not support the video tag.
-                            </video>
-                        <% } else if (ext==='mp3' ) { %>
-                            <div style="height: 220px;background: url('/static/resources/loading-music.webp') center center / cover no-repeat;"
-                                class="rounded-3 d-flex flex-column align-items-center justify-content-end pb-2">
-                                <audio controls
-                                    data-src="media/<%= request.session.metadata.username %>/<%= file %>"
-                                    class="w-75 h-75" 
-                                    loading="lazy">Your browser does not support the audio
-                                    tag.
-                                </audio>
-                            </div>
-                        <% } %>
-        </div>
-        <% } %>
+<div id="media-container" class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-2">
+</div>
+<div id="sentinel"></div>
+<div class="d-flex justify-content-center">
+    <div class="spinner-border text-secondary mt-5" role="status">
+        <span class="visually-hidden">Loading...</span>
+    </div>
 </div>
 <script>
     document.addEventListener('DOMContentLoaded', (event) => {
-        const observer = new IntersectionObserver((entries, observer) => {
-            entries.forEach(entry => {
+        let page = 1;
+        const observer = new IntersectionObserver(async (entries, observer) => {
+            entries.forEach(async entry => {
                 const media = entry.target;
                 if (entry.isIntersecting) {
 
-                    media.parentElement.style.opacity = 1;
-                    media.parentElement.parentElement.style.opacity = 1; // For audio elements
-                    media.setAttribute('src', media.getAttribute('data-src'));
+                    if (media.id === 'sentinel' || page === 1) {
+                        console.log('Intersecting', media.id)
+                        const response = await fetch(`/api/v1/gallerydata?page=${page}`);
+                        page++;
+                        const files = await response.json();
+                        if (files.length === 0) {
+                            observer.unobserve(document.getElementById('sentinel'));
+                            const spinner = document.querySelector('.spinner-border');
+                            spinner.remove();
+                            return;
+                        }
+                        const mediaContainer = document.getElementById('media-container');
+                        for (const file of files) {
+                            const ext = file.split('.').pop();
+                            let mediaElement;
+                            const username = '<%= request.session.metadata.username %>'; 
+                            if (ext==='webp' || ext==='gif' || ext==='jpg' || ext==='jpeg' ) {
+                                mediaElement = document.createElement('img');
+                                mediaElement.src = `media/${username}/${file}`;
+                                mediaElement.style.height = "220px";
+                                mediaElement.classList.add("rounded-3", "w-100", "object-fit-cover");
+                            } else if (ext==='mp4' || ext==='mov' ) {
+                                mediaElement = document.createElement('video');
+                                mediaElement.src = `media/${username}/${file}`;
+                                mediaElement.style.height = "220px";
+                                mediaElement.classList.add("rounded-3", "w-100", "object-fit-cover");
+                                mediaElement.setAttribute('muted', 'true');
+                                mediaElement.setAttribute('playsinline', '');
+                                mediaElement.setAttribute('autoplay', '');
+                                mediaElement.setAttribute('loop', '');
+                                mediaElement.setAttribute('poster', '/static/resources/loading-video.webp');
+                                mediaElement.load();
 
-                    if (media.tagName === 'VIDEO') {
-                        media.play();
-                    }
-                } else {
-                    if (media.tagName === 'VIDEO') {
-                        media.pause();
-                        // media.currentTime = 0;
-                        // media.removeAttribute('src'); 
-                        // media.load();
+                                // Autoplay video patch
+                                const playPromise = mediaElement.play();
+                                    if (playPromise !== undefined) {
+                                        playPromise.then(() => {
+                                            }).catch(error => {
+                                                mediaElement.muted = true;
+                                                mediaElement.play();
+                                            });
+                                        }
+
+                            }else if (ext==='mp3' ) {
+                                mediaElement = document.createElement('audio');
+                                mediaElement.src = `media/${username}/${file}`;
+                                mediaElement.classList.add("w-75", "h-75");
+                                mediaElement.setAttribute('controls', '');
+                            }
+
+                            if (mediaElement) {
+                                const mediaDiv = document.createElement('div');
+                                mediaDiv.classList.add("col", "mb-0");
+                                if (ext==='mp3' ) {
+                                    mediaDiv.style.height = "220px";
+                                    mediaDiv.style.background = "url('/static/resources/loading-music.webp') center center / cover no-repeat";
+                                    mediaDiv.classList.add("rounded-3", "d-flex", "flex-column", "align-items-center", "justify-content-end", "pb-2");
+                                }
+                                mediaDiv.appendChild(mediaElement);
+                                mediaContainer.appendChild(mediaDiv);
+                            }
+                        
+                        }
+                    observer.observe(document.getElementById('sentinel'));
                     }
                 }
             });
         });
-
-        const medias = document.querySelectorAll('img[data-src], video[data-src], audio[data-src]');
-        medias.forEach(media => {
-            observer.observe(media);
-        });
+        observer.observe(document.getElementById('sentinel'));
     });
 </script>
