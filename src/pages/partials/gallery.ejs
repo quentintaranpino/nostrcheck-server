@@ -15,11 +15,10 @@
                 if (entry.isIntersecting) {
 
                     if (media.id === 'sentinel' || page === 1) {
-                        console.log('Intersecting', media.id)
+                        console.debug('Intersecting', media.id)
                         const response = await fetch(`/api/v2/gallerydata?page=${page}`);
                         page++;
                         const userData = await response.json();
-                        console.log(userData.mediaFiles.toString())
                         if (userData.mediaFiles.toString() === "") {
                             observer.unobserve(document.getElementById('sentinel'));
                             const spinner = document.querySelector('.spinner-border');
@@ -68,7 +67,7 @@
 
                             if (mediaElement) {
                                 const mediaDiv = document.createElement('div');
-                                mediaDiv.classList.add("col", "mb-0");
+                                mediaDiv.classList.add("col", "mb-0", "fade-in");
                                 if (ext==='mp3' ) {
                                     mediaDiv.style.height = "220px";
                                     mediaDiv.style.background = "url('/static/resources/loading-music.webp') center center / cover no-repeat";

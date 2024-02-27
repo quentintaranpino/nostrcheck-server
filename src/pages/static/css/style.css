@@ -52,5 +52,11 @@ main {
 
 .fade-in {
   opacity: 0;
-  transition: opacity 0.5s ease-in;
+  animation: fadeIn 1s forwards;
+}
+
+@keyframes fadeIn {
+  to {
+      opacity: 1;
+  }
 }
