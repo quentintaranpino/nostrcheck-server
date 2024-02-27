@@ -2,28 +2,31 @@ import app from "../app.js";
 import { mediafilesTableFields, registeredTableFields } from "../interfaces/database.js";
 import { userMetadata } from "../interfaces/frontend.js";
 import { dbSelect } from "./database.js";
-import { logger } from "./logger.js";
 import { getProfileData, getProfileFollowers, getProfileFollowing } from "./nostr/NIP01.js";
 
-
-const getProfileMetadata = async (pubkey: string): Promise<userMetadata> => {
+const getProfileMetadata = async (pubkey: string, onlyLocalData = false): Promise<userMetadata> => {
 
     if (!pubkey || pubkey == undefined || pubkey == null){
         return {"about": "", "banner": "", "display_name": "", "followers": 0, "following": 0, "lud16": "", "mediaFiles": [], "name": "", "nip05": "", "picture": "", "username": "", "website": ""};
     }
-    let metadata = await getProfileData(pubkey)
-    if (!metadata || metadata == undefined || metadata == null || metadata.content == undefined || metadata.content == null){
-        return {"about": "", "banner": "", "display_name": "", "followers": 0, "following": 0, "lud16": "", "mediaFiles": [], "name": "", "nip05": "", "picture": "", "username": "", "website": ""};
-    }
 
-    if (!app.get("#p_" + pubkey)){
-        await getProfileFollowers(pubkey);
-    } 
-    if (!app.get("#f_" + pubkey)){
-        await getProfileFollowing(pubkey);
-    }
+    let result : userMetadata = {"about": "", "banner": "", "display_name": "", "followers": 0, "following": 0, "lud16": "", "mediaFiles": [], "name": "", "nip05": "", "picture": "", "username": "", "website": ""};
+   
+    if (onlyLocalData == false){
+        let metadata = await getProfileData(pubkey)
+        if (!metadata || metadata == undefined || metadata == null || metadata.content == undefined || metadata.content == null){
+            return {"about": "", "banner": "", "display_name": "", "followers": 0, "following": 0, "lud16": "", "mediaFiles": [], "name": "", "nip05": "", "picture": "", "username": "", "website": ""};
+        }
 
-    let result : userMetadata = JSON.parse(metadata.content)
+        if (!app.get("#p_" + pubkey)){
+            await getProfileFollowers(pubkey);
+        } 
+        if (!app.get("#f_" + pubkey)){
+            await getProfileFollowing(pubkey);
+        }
+
+        result = JSON.parse(metadata.content)
+    }
 
     // Add followers and following to the profile metadata.
     result["followers"] = app.get("#p_" + pubkey) ? app.get("#p_" + pubkey) : 0

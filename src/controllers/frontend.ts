@@ -107,8 +107,8 @@ const loadGalleryData = async (req: Request, res: Response): Promise<Response | 
 
     req.session.authkey = await generateCredentials('authkey', false, req.session.identifier);
 
-    // User metadata from nostr
-    req.session.metadata = await getProfileMetadata(req.session.identifier);
+    // User metadata from local database
+    req.session.metadata = await getProfileMetadata(req.session.identifier, true);
 
     const mediaFiles = req.session.metadata.mediaFiles.slice((page - 1) * pageSize, page * pageSize);
     res.json(mediaFiles);
