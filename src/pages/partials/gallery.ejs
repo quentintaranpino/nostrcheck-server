@@ -17,28 +17,29 @@
                     if (media.id === 'sentinel' || page === 1) {
                         console.log('Intersecting', media.id)
                         const response = await fetch(`/api/v2/gallerydata?page=${page}`);
-                        console.log(response)
                         page++;
-                        const files = await response.json();
-                        if (files.length === 0) {
+                        const userData = await response.json();
+                        console.log(userData.mediaFiles.toString())
+                        if (userData.mediaFiles.toString() === "") {
                             observer.unobserve(document.getElementById('sentinel'));
                             const spinner = document.querySelector('.spinner-border');
                             spinner.remove();
                             return;
                         }
                         const mediaContainer = document.getElementById('media-container');
-                        for (const file of files) {
+                        for (const file of userData.mediaFiles) {
+
                             const ext = file.split('.').pop();
                             let mediaElement;
                             const username = '<%= request.session.metadata.username %>'; 
                             if (ext==='webp' || ext==='gif' || ext==='jpg' || ext==='jpeg' ) {
                                 mediaElement = document.createElement('img');
-                                mediaElement.src = `media/${username}/${file}`;
+                                mediaElement.src = `media/${userData.username}/${file}`;
                                 mediaElement.style.height = "220px";
                                 mediaElement.classList.add("rounded-3", "w-100", "object-fit-cover");
                             } else if (ext==='mp4' || ext==='mov' ) {
                                 mediaElement = document.createElement('video');
-                                mediaElement.src = `media/${username}/${file}`;
+                                mediaElement.src = `media/${userData.username}/${file}`;
                                 mediaElement.style.height = "220px";
                                 mediaElement.classList.add("rounded-3", "w-100", "object-fit-cover");
                                 mediaElement.setAttribute('muted', '');
@@ -50,28 +51,17 @@
 
                                 // Autoplay video patch
                                 const playPromise = mediaElement.play();
-                                    if (playPromise !== undefined) {
-                                        playPromise.then(() => {
-                                            }).catch(error => {
-                                                mediaElement.muted = true;
-                                                mediaElement.play();
-                                            });
-                                        }
-
-                                const videoObserver = new IntersectionObserver((entries) => {
-                                    entries.forEach(entry => {
-                                        if (!entry.isIntersecting) {
-                                            entry.target.pause();
-                                        }else{
-                                            entry.target.play();
-                                        }
-                                    });
-                                });
-                                videoObserver.observe(mediaElement);
+                                if (playPromise !== undefined) {
+                                    playPromise.then(() => {
+                                        }).catch(error => {
+                                            mediaElement.muted = true;
+                                            mediaElement.play();
+                                        });
+                                    }
 
                             }else if (ext==='mp3' ) {
                                 mediaElement = document.createElement('audio');
-                                mediaElement.src = `media/${username}/${file}`;
+                                mediaElement.src = `media/${userData.username}/${file}`;
                                 mediaElement.classList.add("w-75", "h-75");
                                 mediaElement.setAttribute('controls', '');
                             }

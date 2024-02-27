@@ -119,10 +119,10 @@ const loadGalleryData = async (req: Request, res: Response): Promise<Response | 
     }
 
     // User metadata from local database
-    req.session.metadata = await getProfileMetadata(req.session.identifier, true);
+    req.session.metadata = await getProfileMetadata(req.session.identifier, false, true);
 
     const mediaFiles = req.session.metadata.mediaFiles.slice((page - 1) * pageSize, page * pageSize);
-    res.json(mediaFiles);
+    res.json({"username": req.session.metadata.username, "mediaFiles": mediaFiles});
 }
 
 const loadTosPage = async (req: Request, res: Response, version:string): Promise<Response | void> => {

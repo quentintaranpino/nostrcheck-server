@@ -4,7 +4,7 @@ import { userMetadata } from "../interfaces/frontend.js";
 import { dbSelect } from "./database.js";
 import { getProfileData, getProfileFollowers, getProfileFollowing } from "./nostr/NIP01.js";
 
-const getProfileMetadata = async (pubkey: string, onlyLocalData = false): Promise<userMetadata> => {
+const getProfileMetadata = async (pubkey: string, nostrData = true, localData = false): Promise<userMetadata> => {
 
     if (!pubkey || pubkey == undefined || pubkey == null){
         return {"about": "", "banner": "", "display_name": "", "followers": 0, "following": 0, "lud16": "", "mediaFiles": [], "name": "", "nip05": "", "picture": "", "username": "", "website": ""};
@@ -12,7 +12,7 @@ const getProfileMetadata = async (pubkey: string, onlyLocalData = false): Promis
 
     let result : userMetadata = {"about": "", "banner": "", "display_name": "", "followers": 0, "following": 0, "lud16": "", "mediaFiles": [], "name": "", "nip05": "", "picture": "", "username": "", "website": ""};
    
-    if (onlyLocalData == false){
+    if (nostrData == true){
         let metadata = await getProfileData(pubkey)
         if (!metadata || metadata == undefined || metadata == null || metadata.content == undefined || metadata.content == null){
             return {"about": "", "banner": "", "display_name": "", "followers": 0, "following": 0, "lud16": "", "mediaFiles": [], "name": "", "nip05": "", "picture": "", "username": "", "website": ""};
@@ -32,13 +32,15 @@ const getProfileMetadata = async (pubkey: string, onlyLocalData = false): Promis
     result["followers"] = app.get("#p_" + pubkey) ? app.get("#p_" + pubkey) : 0
     result["following"] = app.get("#f_" + pubkey) ? app.get("#f_" + pubkey) : 0
 
-    // Get profile mediafiles count from database
-    const mediaFiles = await dbSelect("SELECT filename FROM mediafiles WHERE active = ? and visibility = ? and pubkey = ? ","filename", ['1', '1', pubkey], mediafilesTableFields, false) as string[];
-    result["mediaFiles"] = mediaFiles ? mediaFiles : [];
+    if (localData == true){
+        // Get profile mediafiles count from database
+        const mediaFiles = await dbSelect("SELECT filename FROM mediafiles WHERE active = ? and visibility = ? and pubkey = ? ","filename", ['1', '1', pubkey], mediafilesTableFields, false) as string[];
+        result["mediaFiles"] = mediaFiles ? mediaFiles : [];
 
-    // Get profile username from database
-    const username = await dbSelect("SELECT username FROM registered WHERE hex = ?","username", [pubkey], registeredTableFields) as string;
-    result["username"] = username ? username : "";
+        // Get profile username from database
+        const username = await dbSelect("SELECT username FROM registered WHERE hex = ?","username", [pubkey], registeredTableFields) as string;
+        result["username"] = username ? username : "";
+    }
 
     return result;
 
