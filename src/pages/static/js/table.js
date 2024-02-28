@@ -265,13 +265,17 @@ function modifyRecord(tableId, id, field, fieldValue, action = 'modify', row = n
             } else if (action === 'insert') {
                  // Add returned id to the row
                  row.id = +responseData.message;
+                 console.log(responseData)
            
                  // add a new row with modal form inputs
                  $(tableId).bootstrapTable('insertRow', {
                     index: 0,
                     row: data.row
                 });
-                initMessageModal(tableId, "username: " + row.username + ". A new password has been sent via DM. ", "User added successfully.")
+                if (tableId === '#nostraddressData'){
+                    initMessageModal(tableId, "username: " + row.username + ". A new password has been sent via DM. ", "User added successfully.")
+                }
+                initMessageModal(tableId, "New record added successfully. ", "Success.")
             }else {
                 let updateData = {};
                 updateData[field] = responseData.message;
