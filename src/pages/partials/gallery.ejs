@@ -114,20 +114,18 @@ document.addEventListener('DOMContentLoaded', (event) => {
                                     const media = entry.target;
                                     if (entry.isIntersecting) {
                                         if (media.dataset.src) {
-                                            console.log('Loading', media.dataset.src)
                                             media.src = media.dataset.src;
                                             media.dataset.src = '';
                                         }
                                     } else {
                                         if (media.src) {
-                                            console.log('Unloading', media.src)
                                             media.dataset.src = media.src;
                                             media.src = '';
                                         }
                                     }
                                 });
                             }, {
-                                rootMargin: '2000px'  // Adjust this value to your needs
+                                rootMargin: '3000px'
                             });
 
                             // Add the media element to the observer
