@@ -155,7 +155,6 @@ const updateDBRecord = async (req: Request, res: Response): Promise<Response> =>
         return res.status(200).send(result);
     } else {
         
-    logger.debug("test no")
         const result : ResultMessagev2 = {
             status: "error",
             message: "Failed to update record"
