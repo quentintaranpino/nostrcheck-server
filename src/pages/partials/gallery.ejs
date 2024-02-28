@@ -9,21 +9,22 @@
 <script>
     document.addEventListener('DOMContentLoaded', (event) => {
         let page = 1;
+        let isIntersecting = false;
         const observer = new IntersectionObserver(async (entries, observer) => {
             entries.forEach(async entry => {
                 const media = entry.target;
                 if (entry.isIntersecting) {
-
-                    if (media.id === 'sentinel' || page === 1) {
+                    isIntersecting = true;
+                    while (isIntersecting) {
                         console.debug('Intersecting', media.id)
                         const response = await fetch(`/api/v2/gallerydata?page=${page}`);
                         page++;
                         const userData = await response.json();
                         if (userData.mediaFiles.toString() === "") {
-                            observer.unobserve(document.getElementById('sentinel'));
                             const spinner = document.querySelector('.spinner-border');
                             spinner.remove();
-                            return;
+                            isIntersecting = false;
+                            break;
                         }
                         const mediaContainer = document.getElementById('media-container');
                         for (const file of userData.mediaFiles) {
@@ -42,8 +43,6 @@
                                 img.onload = function() {
                                     mediaElement.src = this.src; // Change src when image is loaded
                                 };
-
-
                             } else if (ext==='mp4' || ext==='mov' ) {
                                 mediaElement = document.createElement('video');
                                 mediaElement.src = `media/${userData.username}/${file}`;
@@ -62,12 +61,10 @@
                                 if (playPromise !== undefined) {
                                     playPromise.then(() => {
                                         }).catch(error => {
-
                                             mediaElement.play();
                                         });
                                     }
-
-                            }else if (ext==='mp3' ) {
+                            } else if (ext==='mp3' ) {
                                 mediaElement = document.createElement('audio');
                                 mediaElement.src = `media/${userData.username}/${file}`;
                                 mediaElement.classList.add("w-75", "h-75");
@@ -85,12 +82,14 @@
                                 mediaDiv.appendChild(mediaElement);
                                 mediaContainer.appendChild(mediaDiv);
                             }
-                        
                         }
-                    observer.observe(document.getElementById('sentinel'));
                     }
+                } else {
+                    isIntersecting = false;
                 }
             });
+        }, {
+            rootMargin: '400px'  // Adjust this value to your needs
         });
         observer.observe(document.getElementById('sentinel'));
     });
