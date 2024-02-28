@@ -14,7 +14,8 @@ function saveSettings() {
             });
             
             updateSettings(field.name, value, url, body, headers).then(result => {
-                if (result.true) {
+                console.log(result)
+                if (result == true) {
                     if (field.type === 'checkbox') {
                         field.defaultChecked = field.checked;
                     }
