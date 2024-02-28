@@ -15,6 +15,7 @@ interface userMetadata {
 	picture : string;
 	username : string;
 	website : string;
+	pubkey : string;
 }
 
 export { registeredTableResponse, userMetadata };

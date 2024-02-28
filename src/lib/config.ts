@@ -1,6 +1,7 @@
 import config from "config";
 import fs from "fs";
 import { exit } from "process";
+import path from "path";
 
 const defaultPath : string = "./config/default.json";
 const localPath : string = "./config/local.json";
@@ -9,8 +10,10 @@ import { Module, Modules, necessaryKeys } from "../interfaces/config.js";
 import { createkeyPair, getPubkeyFromSecret } from "./nostr/core.js";
 import app from "../app.js";
 import { Application } from "express";
+import { dbMultiSelect, dbSelect } from "./database.js";
+import { mediafilesTableFields } from "../interfaces/database.js";
 
-function prepareAppFolders(){
+const prepareAppFolders = async() =>{
 
 	// tempPath checks
 	const tempPath : string = config.get("media.tempPath");
@@ -48,6 +51,32 @@ function prepareAppFolders(){
 	}
 	if (!fs.existsSync(mediaPath)){
 		fs.mkdirSync(mediaPath);
+	}
+
+
+	let folderMigrationData = await dbMultiSelect("SELECT DISTINCT registered.username, mediafiles.pubkey FROM mediafiles INNER JOIN registered on mediafiles.pubkey = registered.hex WHERE ?  ",['username', 'pubkey'], ['1=1'], mediafilesTableFields, false);
+	console.debug(folderMigrationData);
+
+	try {
+		folderMigrationData.forEach((item) => {
+		const [oldName, newName] = item.split(',');
+
+		const oldPath = path.join(mediaPath, oldName);
+		const newPath = path.join(mediaPath, newName);
+
+		if (fs.existsSync(oldPath)) {
+			console.debug(`Renaming folder: ${oldPath} to ${newPath}`);
+			if (fs.existsSync(newPath)) {
+				console.warn(`Folder with the name ${newName} already exists. Skipping...`);
+			} else {
+				console.debug(`Renaming folder: ${oldPath} to ${newPath}`);
+				fs.renameSync(oldPath, newPath);
+			}
+		}
+	});
+	} catch (err) {
+		console.error("Error renaming folders: ", err);
+		process.exit(1);
 	}
 
 }

@@ -270,6 +270,44 @@ const dbSelect = async (queryStatement: string, returnField :string, whereFields
     }
 }
 
+const dbMultiSelect = async (queryStatement: string, returnFields : string[], whereFields: string[], table: RowDataPacket, onlyFirstResult = true): Promise<string[]> => {
+
+	if (returnFields.length == 0){
+		logger.error("Error getting data from database, returnFields are empty");
+		return [];
+	}
+
+    try {
+        const conn = await connect("dbSimpleSelect: " + queryStatement + " | Fields: " + whereFields.join(", "));
+        const [rows] = await conn.query<typeof table[]>(queryStatement, whereFields);
+        conn.end();
+
+		let returnData :string[] = [];
+        if (onlyFirstResult){
+			returnFields.forEach((field) => {
+				returnData.push(rows[0]?.[field] as string || "");
+			}
+			);
+			return returnData;
+		}
+		rows.forEach((row) => {
+			let rowdata :string[] = [];
+			returnFields.forEach((field) => {
+				rowdata.push(row[field] as string);
+			}
+			);
+			returnData.push(rowdata.join(","));
+		}
+		);
+		return returnData;
+
+    } catch (error) {
+        logger.debug(error)
+        logger.error("Error getting " + returnFields.join(',') + " from database");
+        return [];
+    }
+}
+
 const dbDelete = async (tableName :string, whereFieldName :string, whereFieldValue: string): Promise<boolean> =>{
 	const conn = await connect("dbDelete:" + tableName);
 
@@ -330,8 +368,8 @@ async function dbSelectModuleData(module:string): Promise<string> {
 		"mediafiles.active, " +
 		"mediafiles.visibility, " +
 		"(SELECT registered.username FROM registered WHERE mediafiles.pubkey = registered.hex LIMIT 1) as username, " +
-		"(SELECT registered.pubkey FROM registered WHERE mediafiles.pubkey = registered.hex LIMIT 1) as pubkey, " +
-		"mediafiles.pubkey as 'hex', " +
+		"(SELECT registered.pubkey FROM registered WHERE mediafiles.pubkey = registered.hex LIMIT 1) as npub, " +
+		"mediafiles.pubkey as 'pubkey', " +
 		"mediafiles.filename, " +
 		"mediafiles.original_hash, " +
 		"mediafiles.hash, " +
@@ -541,6 +579,7 @@ export {
 		dbSelect,
 		dbUpdate,
 		dbDelete,
+		dbMultiSelect,
 		dbInsert,
 		showDBStats,
 		initDatabase,

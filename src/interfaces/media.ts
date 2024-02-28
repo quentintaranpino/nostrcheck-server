@@ -73,7 +73,6 @@ interface FileData{
 	fileid: string;
 	filesize: number;
 	pubkey: string;
-	username: string;
 	originalhash: string;
 	hash: string;
 	blurhash: string;

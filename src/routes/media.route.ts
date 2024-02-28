@@ -47,7 +47,7 @@ export const loadMediaEndpoint = async (app: Application, version:string): Promi
 	app.get("/api/" + version + app.get("config.server")["availableModules"]["media"]["path"] + "/tag/:tag", getMediabyTags);
 
 	//Get media by url
-	app.get("/api/" + version + app.get("config.server")["availableModules"]["media"]["path"] + "/:username/:filename", getMediabyURL);
+	app.get("/api/" + version + app.get("config.server")["availableModules"]["media"]["path"] + "/:pubkey/:filename", getMediabyURL);
 
 	//Update media visibility
 	app.put("/api/" + version + app.get("config.server")["availableModules"]["media"]["path"] + "/:fileId/visibility/:visibility", updateMediaVisibility);

@@ -31,16 +31,17 @@ document.addEventListener('DOMContentLoaded', (event) => {
 
                         const ext = file.split('.').pop();
                         let mediaElement;
-                        const username = '<%= request.session.metadata.username %>'; 
+                        console.log('<%- request.session.metadata.pubkey %>')
+                        const pubkey = '<%= request.session.metadata.pubkey %>'; 
                         if (ext==='webp' || ext==='gif' || ext==='jpg' || ext==='jpeg' ) {
                             mediaElement = document.createElement('img');
                             mediaElement.src = '/static/resources/loading-image.webp';
                             mediaElement.style.height = "220px";
                             mediaElement.classList.add("rounded-3", "w-100", "object-fit-cover");
-                            mediaElement.src = `media/${userData.username}/${file}`;
+                            mediaElement.src = `media/${pubkey}/${file}`;
                         } else if (ext==='mp4' || ext==='mov' ) {
                             mediaElement = document.createElement('video');
-                            mediaElement.src = `media/${userData.username}/${file}`;
+                            mediaElement.src = `media/${pubkey}/${file}`;
                             mediaElement.style.height = "220px";
                             mediaElement.classList.add("rounded-3", "w-100", "object-fit-cover");
                             mediaElement.setAttribute('muted', '');
@@ -74,7 +75,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
 
                         } else if (ext==='mp3' ) {
                             mediaElement = document.createElement('audio');
-                            mediaElement.src = `media/${userData.username}/${file}`;
+                            mediaElement.src = `media/${pubkey}/${file}`;
                             mediaElement.classList.add("ps-5", "pe-5");
                             mediaElement.setAttribute('controls', '');
 
@@ -94,7 +95,6 @@ document.addEventListener('DOMContentLoaded', (event) => {
                                 });
                             });
                             audioObserver.observe(mediaElement);
-
                         }
 
                         if (mediaElement) {
