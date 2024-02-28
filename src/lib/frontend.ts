@@ -34,7 +34,7 @@ const getProfileMetadata = async (pubkey: string, nostrData = true, localData = 
 
     if (localData == true){
         // Get profile mediafiles count from database
-        const mediaFiles = await dbSelect("SELECT filename FROM mediafiles WHERE active = ? and visibility = ? and pubkey = ? ","filename", ['1', '1', pubkey], mediafilesTableFields, false) as string[];
+        const mediaFiles = await dbSelect("SELECT filename FROM mediafiles WHERE active = ? and visibility = ? and pubkey = ? ORDER BY date DESC ","filename", ['1', '1', pubkey], mediafilesTableFields, false) as string[];
         result["mediaFiles"] = mediaFiles ? mediaFiles : [];
 
         // Get profile username from database
