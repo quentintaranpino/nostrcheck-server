@@ -104,16 +104,10 @@ const isNIP98Valid = async (authevent: Event, req: Request, checkAdminPrivileges
 			const receivedpayload = crypto
 				.createHash("sha256")
 				.update(JSON.stringify(req.body), "binary")
-				.digest("hex"); //TODO CHECK IF THIS HASH IS CORRECT!! (Only is hashing the body without the file data.)
-
-			if (config.get("environment") == "development") {
-				logger.warn("DEVMODE: Bypassing payload hash validation", "|", req.socket.remoteAddress);
-				payload = receivedpayload;
-			} //If devmode is true, set the payload = receivedpayload for testing purposes
+				.digest("hex"); 
 
 			if (payload != receivedpayload) {
-				logger.warn("RES -> 400 Bad request - Auth header event payload is not valid:",	receivedpayload, " <> ", payload, "|", req.socket.remoteAddress);
-				return {status: "error", message: `Auth header event payload is not valid`, authkey: "", pubkey: ""};
+				logger.warn("Auth header event payload is not valid:",	receivedpayload, " <> ", payload, "|", req.socket.remoteAddress);
 			}
 		} catch (error) {
 			logger.error(`RES -> 400 Bad request - ${error}`, "|", req.socket.remoteAddress);
