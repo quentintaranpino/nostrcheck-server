@@ -214,6 +214,13 @@ const dbUpdate = async (tableName :string, selectFieldName: string, selectFieldV
 const dbInsert = async (tableName :string, fields: string[], values: string[]): Promise<number> =>{
 	const conn = await connect("dbInsert:" + tableName);
 
+	// Check if fields are not empty
+	if (fields.length == 0){
+		logger.error("Error inserting data into " + tableName + " table, fields are empty");
+		conn.end();
+		return 0;
+	}
+
 	try{
 		const [dbFileInsert] = await conn.execute(
 			"INSERT INTO " + tableName + " (" + fields.join(", ") + ") VALUES (" + Array(fields.length).fill("?").join(", ") + ")",
@@ -229,7 +236,6 @@ const dbInsert = async (tableName :string, fields: string[], values: string[]): 
 		conn.end();
 		return JSON.parse(JSON.stringify(dbFileInsert)).insertId;
 	}catch (error) {
-		logger.error(error);
 		logger.error("Error inserting data into " + tableName + " table");
 		conn.end();
 		return 0;
