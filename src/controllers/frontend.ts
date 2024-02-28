@@ -103,7 +103,7 @@ const loadGalleryData = async (req: Request, res: Response): Promise<Response | 
         page = 1;
     }
 
-    const pageSize = 6;
+    const pageSize = 18;
 
     logger.info("GET /api/v2/gallery", "|", getClientIp(req));
 
