@@ -25,7 +25,7 @@ const serverStatus = async (req: Request, res: Response): Promise<Response> => {
 
     // Check if current module is enabled
     if (!isModuleEnabled("admin", app)) {
-        logger.warn("RES -> Module is not enabled" + " | " + getClientIp(req));
+        logger.warn("Attempt to access a non-active module:","admin","|","IP:", getClientIp(req));
         return res.status(400).send({"status": "error", "message": "Module is not enabled"});
     }
 	
@@ -56,7 +56,7 @@ const StopServer = async (req: Request, res: Response): Promise<Response> => {
 
     // Check if current module is enabled
     if (!isModuleEnabled("admin", app)) {
-        logger.warn("RES -> Module is not enabled" + " | " + getClientIp(req));
+        logger.warn("Attempt to access a non-active module:","admin","|","IP:", getClientIp(req));
         return res.status(400).send({"status": "error", "message": "Module is not enabled"});
     }
 
@@ -88,7 +88,7 @@ const updateDBRecord = async (req: Request, res: Response): Promise<Response> =>
 
     // Check if current module is enabled
     if (!isModuleEnabled("admin", app)) {
-        logger.warn("RES -> Module is not enabled" + " | " + getClientIp(req));
+        logger.warn("Attempt to access a non-active module:","admin","|","IP:", getClientIp(req));
         return res.status(400).send({"status": "error", "message": "Module is not enabled"});
     }
 
@@ -169,7 +169,7 @@ const updateLogo = async (req: Request, res: Response): Promise<Response> => {
 
     // Check if current module is enabled
     if (!isModuleEnabled("admin", app)) {
-    logger.warn("RES -> Module is not enabled" + " | " + getClientIp(req));
+        logger.warn("Attempt to access a non-active module:","admin","|","IP:", getClientIp(req));
     return res.status(400).send({"status": "error", "message": "Module is not enabled"});
     }
 
@@ -236,7 +236,7 @@ const resetUserPassword = async (req: Request, res: Response): Promise<Response>
 
     // Check if current module is enabled
     if (!isModuleEnabled("admin", app)) {
-        logger.warn("RES -> Module is not enabled" + " | " + getClientIp(req));
+        logger.warn("Attempt to access a non-active module:","admin","|","IP:", getClientIp(req));
         return res.status(400).send({"status": "error", "message": "Module is not enabled"});
     }
    
@@ -289,7 +289,7 @@ const deleteDBRecord = async (req: Request, res: Response): Promise<Response> =>
 
     // Check if current module is enabled
     if (!isModuleEnabled("admin", app)) {
-        logger.warn("RES -> Module is not enabled" + " | " + getClientIp(req));
+        logger.warn("Attempt to access a non-active module:","admin","|","IP:", getClientIp(req));
         return res.status(400).send({"status": "error", "message": "Module is not enabled"});
     }
 
@@ -384,7 +384,7 @@ const insertDBRecord = async (req: Request, res: Response): Promise<Response> =>
 
     // Check if current module is enabled
     if (!isModuleEnabled("admin", app)) {
-        logger.warn("RES -> Module is not enabled" + " | " + getClientIp(req));
+        logger.warn("Attempt to access a non-active module:","admin","|","IP:", getClientIp(req));
         return res.status(400).send({"status": "error", "message": "Module is not enabled"});
     }
 
@@ -498,7 +498,7 @@ const updateSettings = async (req: Request, res: Response): Promise<Response> =>
 
     // Check if current module is enabled
     if (!isModuleEnabled("admin", app)) {
-        logger.warn("RES -> Module is not enabled" + " | " + getClientIp(req));
+        logger.warn("Attempt to access a non-active module:","admin","|","IP:", getClientIp(req));
         return res.status(400).send({"status": "error", "message": "Module is not enabled"});
     }
 

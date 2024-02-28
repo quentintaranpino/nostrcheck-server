@@ -15,7 +15,7 @@ const registernewpubkey = async (req: Request, res: Response): Promise<Response>
 
 	// Check if current module is enabled
 	if (!isModuleEnabled("register", app)) {
-		logger.warn("RES -> Module is not enabled" + " | " + getClientIp(req));
+        logger.warn("Attempt to access a non-active module:","register","|","IP:", getClientIp(req));
 		return res.status(400).send({"status": "error", "message": "Module is not enabled"});
 	}
 
