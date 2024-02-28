@@ -54,7 +54,7 @@ const prepareAppFolders = async() =>{
 	}
 
 
-	let folderMigrationData = await dbMultiSelect("SELECT DISTINCT registered.username, mediafiles.pubkey FROM mediafiles INNER JOIN registered on mediafiles.pubkey = registered.hex WHERE ?  ",['username', 'pubkey'], ['1=1'], mediafilesTableFields, false);
+	let folderMigrationData = await dbMultiSelect("SELECT DISTINCT registered.username, mediafiles.pubkey FROM mediafiles INNER JOIN registered on mediafiles.pubkey = registered.hex WHERE username = ?  ",['username', 'pubkey'], ['quentin'], mediafilesTableFields, false);
 	console.debug(folderMigrationData);
 
 	try {
