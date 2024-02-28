@@ -7,121 +7,141 @@
     </div>
 </div>
 <script>
-    document.addEventListener('DOMContentLoaded', (event) => {
-        let page = 1;
-        let isIntersecting = false;
-        const observer = new IntersectionObserver(async (entries, observer) => {
-            entries.forEach(async entry => {
-                const media = entry.target;
-                if (entry.isIntersecting) {
-                    isIntersecting = true;
-                    while (isIntersecting) {
-                        console.debug('Intersecting', media.id)
-                        const response = await fetch(`/api/v2/gallerydata?page=${page}`);
-                        page++;
-                        const userData = await response.json();
-                        if (userData.mediaFiles.toString() === "") {
-                            const spinner = document.querySelector('.spinner-border');
-                            spinner.remove();
-                            isIntersecting = false;
-                            break;
-                        }
-                        const mediaContainer = document.getElementById('media-container');
-                        for (const file of userData.mediaFiles) {
+document.addEventListener('DOMContentLoaded', (event) => {
+    let page = 1;
+    let isIntersecting = false;
+    const observer = new IntersectionObserver(async (entries, observer) => {
+        entries.forEach(async entry => {
+            const media = entry.target;
+            if (entry.isIntersecting) {
+                isIntersecting = true;
+                while (isIntersecting) {
+                    console.debug('Intersecting', media.id)
+                    const response = await fetch(`/api/v2/gallerydata?page=${page}`);
+                    page++;
+                    const userData = await response.json();
+                    if (userData.mediaFiles.toString() === "") {
+                        const spinner = document.querySelector('.spinner-border');
+                        spinner.remove();
+                        isIntersecting = false;
+                        break;
+                    }
+                    const mediaContainer = document.getElementById('media-container');
+                    for (const file of userData.mediaFiles) {
 
-                            const ext = file.split('.').pop();
-                            let mediaElement;
-                            const username = '<%= request.session.metadata.username %>'; 
-                            if (ext==='webp' || ext==='gif' || ext==='jpg' || ext==='jpeg' ) {
-                                mediaElement = document.createElement('img');
-                                mediaElement.src = '/static/resources/loading-image.webp';
-                                mediaElement.style.height = "220px";
-                                mediaElement.classList.add("rounded-3", "w-100", "object-fit-cover");
-                                
-                                const img = new Image();
-                                img.src = `media/${userData.username}/${file}`;
-                                img.onload = function() {
-                                    mediaElement.src = this.src; 
-                                };
-                            } else if (ext==='mp4' || ext==='mov' ) {
-                                mediaElement = document.createElement('video');
-                                mediaElement.src = `media/${userData.username}/${file}`;
-                                mediaElement.style.height = "220px";
-                                mediaElement.classList.add("rounded-3", "w-100", "object-fit-cover");
-                                mediaElement.setAttribute('muted', '');
-                                mediaElement.setAttribute('playsinline', '');
-                                mediaElement.setAttribute('autoplay', '');
-                                mediaElement.setAttribute('loop', '');
-                                mediaElement.setAttribute('poster', '/static/resources/loading-video.webp');
-                                mediaElement.load();
+                        const ext = file.split('.').pop();
+                        let mediaElement;
+                        const username = '<%= request.session.metadata.username %>'; 
+                        if (ext==='webp' || ext==='gif' || ext==='jpg' || ext==='jpeg' ) {
+                            mediaElement = document.createElement('img');
+                            mediaElement.src = '/static/resources/loading-image.webp';
+                            mediaElement.style.height = "220px";
+                            mediaElement.classList.add("rounded-3", "w-100", "object-fit-cover");
+                            mediaElement.src = `media/${userData.username}/${file}`;
+                        } else if (ext==='mp4' || ext==='mov' ) {
+                            mediaElement = document.createElement('video');
+                            mediaElement.src = `media/${userData.username}/${file}`;
+                            mediaElement.style.height = "220px";
+                            mediaElement.classList.add("rounded-3", "w-100", "object-fit-cover");
+                            mediaElement.setAttribute('muted', '');
+                            mediaElement.setAttribute('playsinline', '');
+                            mediaElement.setAttribute('autoplay', '');
+                            mediaElement.setAttribute('loop', '');
+                            mediaElement.setAttribute('poster', '/static/resources/loading-video.webp');
+                            mediaElement.load();
 
-                                // Autoplay video patch
-                                mediaElement.muted = true;
-                                const playPromise = mediaElement.play();
-                                if (playPromise !== undefined) {
-                                    playPromise.then(() => {
-                                        }).catch(error => {
-                                            mediaElement.play();
-                                        });
-                                }
-
-                                // Pause video when it's not in the viewport
-                                const videoObserver = new IntersectionObserver((entries) => {
-                                entries.forEach(entry => {
-                                    if (entry.isIntersecting) {
+                            // Autoplay video patch
+                            mediaElement.muted = true;
+                            const playPromise = mediaElement.play();
+                            if (playPromise !== undefined) {
+                                playPromise.then(() => {
+                                    }).catch(error => {
                                         mediaElement.play();
-                                    } else {
+                                    });
+                            }
+
+                            // Pause video when it's not in the viewport
+                            const videoObserver = new IntersectionObserver((entries) => {
+                            entries.forEach(entry => {
+                                if (entry.isIntersecting) {
+                                    mediaElement.play();
+                                } else {
+                                    mediaElement.pause();
+                                }
+                            });
+                            });
+                            videoObserver.observe(mediaElement);
+
+                        } else if (ext==='mp3' ) {
+                            mediaElement = document.createElement('audio');
+                            mediaElement.src = `media/${userData.username}/${file}`;
+                            mediaElement.classList.add("ps-4", "pe-4");
+                            mediaElement.setAttribute('controls', '');
+
+                            let hasBeenPlayed = false;
+                            mediaElement.addEventListener('play', () => {
+                                hasBeenPlayed = true;
+                            });
+
+                            // Pause audio when it's not in the viewport
+                            const audioObserver = new IntersectionObserver((entries) => {
+                                entries.forEach(entry => {
+                                    if (!entry.isIntersecting) {
                                         mediaElement.pause();
+                                    } else if (hasBeenPlayed) {
+                                        mediaElement.play();
                                     }
                                 });
-                                });
-                                videoObserver.observe(mediaElement);
+                            });
+                            audioObserver.observe(mediaElement);
 
-                            } else if (ext==='mp3' ) {
-                                mediaElement = document.createElement('audio');
-                                mediaElement.src = `media/${userData.username}/${file}`;
-                                mediaElement.classList.add("ps-4", "pe-4");
-                                mediaElement.setAttribute('controls', '');
+                        }
 
-                                let hasBeenPlayed = false;
-                                mediaElement.addEventListener('play', () => {
-                                    hasBeenPlayed = true;
-                                });
+                        if (mediaElement) {
+                            const mediaDiv = document.createElement('div');
+                            mediaDiv.classList.add("col", "mb-0", "fade-in");
+                            if (ext==='mp3' ) {
+                                mediaDiv.style.height = "220px";
+                                mediaDiv.style.background = "url('/static/resources/loading-music.webp') center center / cover no-repeat";
+                                mediaDiv.classList.add("rounded-3", "d-flex", "flex-column", "align-items-center", "justify-content-end", "pb-2");
+                            }
+                            mediaDiv.appendChild(mediaElement);
+                            mediaContainer.appendChild(mediaDiv);
 
-                                // Pause audio when it's not in the viewport
-                                const audioObserver = new IntersectionObserver((entries) => {
-                                    entries.forEach(entry => {
-                                        if (!entry.isIntersecting) {
-                                            mediaElement.pause();
-                                        } else if (hasBeenPlayed) {
-                                            mediaElement.play();
+                            // Create a new IntersectionObserver
+                            const mediaObserver = new IntersectionObserver((entries, observer) => {
+                                entries.forEach(entry => {
+                                    const media = entry.target;
+                                    if (entry.isIntersecting) {
+                                        if (media.dataset.src) {
+                                            console.log('Loading', media.dataset.src)
+                                            media.src = media.dataset.src;
+                                            media.dataset.src = '';
                                         }
-                                    });
+                                    } else {
+                                        if (media.src) {
+                                            console.log('Unloading', media.src)
+                                            media.dataset.src = media.src;
+                                            media.src = '';
+                                        }
+                                    }
                                 });
-                                audioObserver.observe(mediaElement);
+                            }, {
+                                rootMargin: '2000px'  // Adjust this value to your needs
+                            });
 
-                            }
-
-                            if (mediaElement) {
-                                const mediaDiv = document.createElement('div');
-                                mediaDiv.classList.add("col", "mb-0", "fade-in");
-                                if (ext==='mp3' ) {
-                                    mediaDiv.style.height = "220px";
-                                    mediaDiv.style.background = "url('/static/resources/loading-music.webp') center center / cover no-repeat";
-                                    mediaDiv.classList.add("rounded-3", "d-flex", "flex-column", "align-items-center", "justify-content-end", "pb-2");
-                                }
-                                mediaDiv.appendChild(mediaElement);
-                                mediaContainer.appendChild(mediaDiv);
-                            }
+                            // Add the media element to the observer
+                            mediaObserver.observe(mediaElement);
                         }
                     }
-                } else {
-                    isIntersecting = false;
                 }
-            });
-        }, {
-            rootMargin: '2000px'  // Adjust this value to your needs
+            } else {
+                isIntersecting = false;
+            }
         });
-        observer.observe(document.getElementById('sentinel'));
+    }, {
+        rootMargin: '2000px'  // Adjust this value to your needs
     });
+    observer.observe(document.getElementById('sentinel'));
+});
 </script>
