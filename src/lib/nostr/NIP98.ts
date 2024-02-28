@@ -55,6 +55,8 @@ const isNIP98Valid = async (authevent: Event, req: Request, checkAdminPrivileges
 	// Check if event authorization u tag (URL) is valid (Must be the same as the server endpoint)
 	try {
 		let AuthEventEndpoint = authevent.tags[0][1];
+		logger.debug("AuthEventEndpoint:", AuthEventEndpoint, "|", req.socket.remoteAddress); 
+		logger.debug("ServerEndpoint:", `${req.protocol}://${req.headers.host}${req.url}`, "|", req.socket.remoteAddress);
 		const ServerEndpoint = `${req.protocol}://${req.headers.host}${req.url}`;
 		if (config.get("environment") == "development") {
 			logger.warn("DEVMODE: Setting 'u'(url) tag same as the endpoint URL", "|", req.socket.remoteAddress); // If devmode is true, set created_at to now for testing purposes
