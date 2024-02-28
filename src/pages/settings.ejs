@@ -56,7 +56,7 @@
             </div>
           </div>
           <div>
-            <h3 class="mt-4">Server</h3>
+            <h3 class="mt-5">Server</h3>
             <p>
                 You can configure the server related settings in this section. 
               Server is identified using this public/private keypair, it will use the following credentials to interact with nostr. The public key will be used in NIP96 and NIP05. The private key will be used to send DM's and sign notes.
@@ -106,7 +106,7 @@
             </div>
           </div>
           <div>
-            <h3 class="mt-4">Modules</h3>
+            <h3 class="mt-5">Modules</h3>
             <p>
                 In this section, you can enable or disable server modules as needed. 
                 It provides you with the flexibility to customize the functionality of your server according to your specific requirements. 
@@ -120,18 +120,22 @@
                 <div class="col-6">
                     <label for="<%= key %>" class="mt-3 mb-1 fw-bold"><%= key %></label>
                     <div class="form-check form-switch">
-                      <input class="form-check-input" type="checkbox" value="<%= request.body.availableModules[key]['enabled'] ? true : false %>" <%= request.body.availableModules[key]['enabled'] ? 'checked' : '' %> name="server.availableModules.<%= key %>.enabled" id="server.availableModules.<%= key %>.enabled">
+                      <input 
+                        class="form-check-input" 
+                        type="checkbox" 
+                        value="<%= request.body.availableModules[key]['enabled'] ? true : false %>" 
+                        <%= request.body.availableModules[key]['enabled'] ? 'checked' : '' %> 
+                        name="server.availableModules.<%= key %>.enabled" 
+                        id="server.availableModules.<%= key %>.enabled" 
+                        onclick="handleCheckboxClick('<%= key %>',this.checked)">
                     </div>
                 </div>
                 <% counter++; %>
             <% } %>
             </div>
-            <div class="alert alert-warning mt-3" role="alert">
-              <i class="fa-solid fa-triangle-exclamation"></i> Attention, if you disable the "admin" or "frontend" modules, you will need to manage the server via<b> shell commands.</b>
-            </div>    
           </div>
           <div id ="settingsMedia">
-            <h3 class="mt-4">Media</h3>
+            <h3 class="mt-5">Media</h3>
             <p> In this section, you can configure the media settings of your server. 
                 It provides you with the flexibility to customize the media settings according to your specific requirements. 
             </p>
@@ -206,7 +210,7 @@
             </div>
           </div>
           <div id="loggerSettings">
-            <h3 class="mt-3">Logging</h3>
+            <h3 class="mt-5">Logging</h3>
             <p> In this section, you can configure the log settings of your server. The log level determines the verbosity of the logs:
                 debug (2), info (3), warn (4), error (5)
             </p>

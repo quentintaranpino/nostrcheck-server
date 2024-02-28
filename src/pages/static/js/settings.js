@@ -95,3 +95,10 @@ const updateLogo = (setDefault = false) => {
     });
 
 }
+
+
+function handleCheckboxClick(id, isChecked) {
+    if ((id === 'admin' || id === 'frontend') && !isChecked) {
+        initAlertModal("#settings", "Attention, if you disable this module, you will need to manage the server only via<b> shell commands.</b>",10000);
+    }
+}
