@@ -14,11 +14,16 @@ function saveSettings() {
             });
             
             updateSettings(field.name, value, url, body, headers).then(result => {
-                if (result) {
+                if (result.true) {
                     if (field.type === 'checkbox') {
                         field.defaultChecked = field.checked;
                     }
                     field.defaultValue = field.value;
+                }else{
+                    if (field.type === 'checkbox') {
+                        field.checked = field.defaultChecked;
+                    }
+                    field.value = field.defaultValue;
                 }
             });
         }
