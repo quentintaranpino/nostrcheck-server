@@ -8,7 +8,7 @@ import { dbSelect, dbSelectModuleData} from "../lib/database.js";
 import { generateCredentials, isPubkeyValid, isUserPasswordValid } from "../lib/authorization.js";
 import { registeredTableFields } from "../interfaces/database.js";
 import { isModuleEnabled } from "../lib/config.js";
-import { getProfileMetadata } from "../lib/frontend.js";
+import { getProfileNostrMetadata, getProfileLocalMetadata } from "../lib/frontend.js";
 import { hextoNpub } from "../lib/nostr/NIP19.js";
 import { logHistory } from "../lib/logger.js";
 
@@ -38,7 +38,7 @@ const loadDashboardPage = async (req: Request, res: Response, version:string): P
     req.session.authkey = await generateCredentials('authkey', false, req.session.identifier);
 
     // User metadata from nostr
-    req.session.metadata = await getProfileMetadata(req.session.identifier);
+    req.session.metadata = await getProfileNostrMetadata(req.session.identifier);
 
     res.render("dashboard.ejs", {request: req});
 };
@@ -65,7 +65,7 @@ const loadSettingsPage = async (req: Request, res: Response, version:string): Pr
     req.session.authkey = await generateCredentials('authkey', false, req.session.identifier);
 
     // User metadata from nostr
-    req.session.metadata = await getProfileMetadata(req.session.identifier);
+    req.session.metadata = await getProfileNostrMetadata(req.session.identifier);
     
     res.render("settings.ejs", {request: req});
 };
@@ -85,7 +85,12 @@ const loadProfilePage = async (req: Request, res: Response, version:string): Pro
     req.session.authkey = await generateCredentials('authkey', false, req.session.identifier);
 
     // User metadata from nostr
-    req.session.metadata = await getProfileMetadata(req.session.identifier,true,true);
+    req.session.metadata = await getProfileNostrMetadata(req.session.identifier);
+
+    // User metadata from local database
+    const profileLocalData = await getProfileLocalMetadata(req.session.identifier);
+    req.session.metadata.mediaFiles = profileLocalData.mediaFiles;
+    req.session.metadata.username = profileLocalData.username;
 
     res.render("profile.ejs", {request: req});
 };
@@ -119,7 +124,9 @@ const loadGalleryData = async (req: Request, res: Response): Promise<Response | 
     }
 
     // User metadata from local database
-    req.session.metadata = await getProfileMetadata(req.session.identifier, false, true);
+    const profileLocalData = await getProfileLocalMetadata(req.session.identifier);
+    req.session.metadata.mediaFiles = profileLocalData.mediaFiles;
+    req.session.metadata.username = profileLocalData.username;
 
     const mediaFiles = req.session.metadata.mediaFiles.slice((page - 1) * pageSize, page * pageSize);
     res.json({"username": req.session.metadata.username, "mediaFiles": mediaFiles});
@@ -192,6 +199,8 @@ const loadDocsPage = async (req: Request, res: Response, version:string): Promis
             req.body.activeModules.push(app.get("config.server")["availableModules"][key]);
         }
     }
+
+    logger.debug(req.session.metadata)
     
     req.body.version = app.get("version");
     req.body.serverHost = app.get("config.server")["host"];
@@ -241,7 +250,7 @@ const frontendLogin = async (req: Request, res: Response): Promise<Response> => 
     }
 
     // User metadata from nostr
-    req.session.metadata = await getProfileMetadata(req.session.identifier);
+    req.session.metadata = await getProfileNostrMetadata(req.session.identifier);
 
     logger.info("logged in as", req.session.identifier, " - ", getClientIp(req));
     return res.status(200).send(true);
