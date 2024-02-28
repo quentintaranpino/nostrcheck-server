@@ -265,7 +265,6 @@ function modifyRecord(tableId, id, field, fieldValue, action = 'modify', row = n
             } else if (action === 'insert') {
                  // Add returned id to the row
                  row.id = +responseData.message;
-                 console.log(responseData)
            
                  // add a new row with modal form inputs
                  $(tableId).bootstrapTable('insertRow', {
@@ -298,7 +297,6 @@ function modifyRecord(tableId, id, field, fieldValue, action = 'modify', row = n
 
 function setFieldLinks(tableId, number = 0){
 
-    console.log('setFieldLinks', tableId, number)
     let rows = $(tableId).bootstrapTable('getData', true);
 
     for (i = number; i < number + $(tableId).bootstrapTable('getOptions').pageSize +1; i++) {
@@ -324,7 +322,6 @@ function setFieldLinks(tableId, number = 0){
                 });
 
                 $(document).off("click", "#" + rowID + "_preview").on("click", "#" + rowID + "_preview", async function() {
-                    console.log(row, rowID, filename)
                     let modalResult = await initMediaModal(row.username, filename, row.checked, row.visibility);
                     for (let field in modalResult) {
                         if (modalResult[field] != row[field]){
@@ -378,11 +375,8 @@ const uploadMedia = async () => {
         })
         .then(response => response.json())
         .then(data => {
-            console.log(data)
             authkey = data.authkey;
-            // reload page
             location.reload();
-            // return data.processing_url.toString().split("/").pop();
             })
         .catch((error) => {
             initAlertModal(tableId, error)
