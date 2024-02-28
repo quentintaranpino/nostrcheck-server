@@ -123,17 +123,16 @@ const initAlertModal = async (objectId, message, timeout = 3000) => {
     var alert = new bootstrap.Modal($(objectId + '-alert-modal'));
 
     $(alert._element).on('show.bs.modal', function () {
-        $(objectId + '-alert-modal .alert ').text(message)
+        $(objectId + '-alert-modal .alert').empty();
+        $(objectId + '-alert-modal .alert').append('<i class="fa-solid fa-triangle-exclamation"></i> ');
+        $(objectId + '-alert-modal .alert ').append(message)
     })
     alert.show();
 
     await new Promise((resolve) => {
-        $(objectId + '-alert-modal .save-button').click(function () {
-            resolve(true);
-        });
-        // wait 3 seconds before closing
-        if (timeout < 0) {
+        if (timeout > 0) {
             setTimeout(() => {
+                alert.hide();
                 resolve(true);
             }, timeout);
         }
