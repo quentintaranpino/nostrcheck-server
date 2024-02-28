@@ -34,14 +34,14 @@
                             const username = '<%= request.session.metadata.username %>'; 
                             if (ext==='webp' || ext==='gif' || ext==='jpg' || ext==='jpeg' ) {
                                 mediaElement = document.createElement('img');
-                                mediaElement.src = '/static/resources/loading-image.webp'; // Set default image
+                                mediaElement.src = '/static/resources/loading-image.webp';
                                 mediaElement.style.height = "220px";
                                 mediaElement.classList.add("rounded-3", "w-100", "object-fit-cover");
                                 
                                 const img = new Image();
                                 img.src = `media/${userData.username}/${file}`;
                                 img.onload = function() {
-                                    mediaElement.src = this.src; // Change src when image is loaded
+                                    mediaElement.src = this.src; 
                                 };
                             } else if (ext==='mp4' || ext==='mov' ) {
                                 mediaElement = document.createElement('video');
@@ -63,12 +63,43 @@
                                         }).catch(error => {
                                             mediaElement.play();
                                         });
+                                }
+
+                                // Pause video when it's not in the viewport
+                                const videoObserver = new IntersectionObserver((entries) => {
+                                entries.forEach(entry => {
+                                    if (entry.isIntersecting) {
+                                        mediaElement.play();
+                                    } else {
+                                        mediaElement.pause();
                                     }
+                                });
+                                });
+                                videoObserver.observe(mediaElement);
+
                             } else if (ext==='mp3' ) {
                                 mediaElement = document.createElement('audio');
                                 mediaElement.src = `media/${userData.username}/${file}`;
-                                mediaElement.classList.add("w-75", "h-75");
+                                mediaElement.classList.add("ps-4", "pe-4");
                                 mediaElement.setAttribute('controls', '');
+
+                                let hasBeenPlayed = false;
+                                mediaElement.addEventListener('play', () => {
+                                    hasBeenPlayed = true;
+                                });
+
+                                // Pause audio when it's not in the viewport
+                                const audioObserver = new IntersectionObserver((entries) => {
+                                    entries.forEach(entry => {
+                                        if (!entry.isIntersecting) {
+                                            mediaElement.pause();
+                                        } else if (hasBeenPlayed) {
+                                            mediaElement.play();
+                                        }
+                                    });
+                                });
+                                audioObserver.observe(mediaElement);
+
                             }
 
                             if (mediaElement) {
@@ -89,7 +120,7 @@
                 }
             });
         }, {
-            rootMargin: '600px'  // Adjust this value to your needs
+            rootMargin: '2000px'  // Adjust this value to your needs
         });
         observer.observe(document.getElementById('sentinel'));
     });
