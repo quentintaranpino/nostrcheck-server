@@ -532,10 +532,12 @@ const getMediabyURL = async (req: Request, res: Response) => {
 	res.set("X-frame-options", "*")
 
 	// Old API compatibility (username instead of pubkey)
+	let username : string = "";
 	if (req.params.pubkey.length < 64) {
 		const hex = await dbSelect("SELECT hex FROM registered WHERE username = ?", "hex", [req.params.pubkey], registeredTableFields);
 		if (hex) {
-			logger.debug("Old API compatibility (username instead of pubkey)", "|", getClientIp(req));
+			logger.debug("Old API compatibility (username instead of pubkey)", req.params.pubkey,"-", hex, "|", getClientIp(req));
+			username = req.params.pubkey;
 			req.params.pubkey = hex as string;
 		}
 	}
@@ -559,7 +561,19 @@ const getMediabyURL = async (req: Request, res: Response) => {
 		res.setHeader('Content-Type', 'image/webp');
 		return res.status(500).send(await getNotFoundMediaFile());
 	}
-	const fileName = path.normalize(path.resolve(mediaPath + "/" + req.params.pubkey + "/" + req.params.filename));
+
+	// Check if file path exists.
+	let fileName = path.normalize(path.resolve(mediaPath + "/" + req.params.pubkey + "/" + req.params.filename));
+	if (!fs.existsSync(fileName)) {
+		// try with username instead of pubkey (Old API compatibility)
+			 fileName = path.normalize(path.resolve(mediaPath + "/" + username + "/" + req.params.filename));
+		if (!fs.existsSync(fileName)) {
+			logger.warn(`RES Media URL -> 404 Not Found`, "|", getClientIp(req));
+			res.setHeader('Content-Type', 'image/webp');
+			return res.status(404).send(await getNotFoundMediaFile());
+		}
+	}
+	logger.debug(fileName)
 
 	// Try to prevent directory traversal attacks
 	if (!path.normalize(path.resolve(fileName)).startsWith(mediaPath)) {
