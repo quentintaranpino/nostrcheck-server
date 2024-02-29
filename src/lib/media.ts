@@ -213,7 +213,7 @@ const ParseMediaType = (req : Request, pubkey : string): string  => {
 	
 	//Check if media_type is valid
 	if (!UploadTypes.includes(media_type)) {
-		logger.warn(`Incorrect uploadtype or not present: `, media_type, "assuming uploadtype = media", "|", getClientIp(req));
+		logger.info(`Incorrect uploadtype or not present: `, media_type, "assuming uploadtype = media", "|", getClientIp(req));
 		media_type = ("media");
 	}
 
