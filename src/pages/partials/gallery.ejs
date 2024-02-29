@@ -31,7 +31,6 @@ document.addEventListener('DOMContentLoaded', (event) => {
 
                         const ext = file.split('.').pop();
                         let mediaElement;
-                        console.log('<%- request.session.metadata.pubkey %>')
                         const pubkey = '<%= request.session.metadata.pubkey %>'; 
                         if (ext==='webp' || ext==='gif' || ext==='jpg' || ext==='jpeg' ) {
                             mediaElement = document.createElement('img');
