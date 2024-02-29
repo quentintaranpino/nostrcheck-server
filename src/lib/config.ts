@@ -10,7 +10,7 @@ import { Module, Modules, necessaryKeys } from "../interfaces/config.js";
 import { createkeyPair, getPubkeyFromSecret } from "./nostr/core.js";
 import app from "../app.js";
 import { Application } from "express";
-import { dbMultiSelect, dbSelect } from "./database.js";
+import { dbMultiSelect } from "./database.js";
 import { mediafilesTableFields } from "../interfaces/database.js";
 
 const prepareAppFolders = async() =>{
@@ -55,8 +55,9 @@ const prepareAppFolders = async() =>{
 
 
 	let folderMigrationData = await dbMultiSelect("SELECT DISTINCT registered.username, registered.hex FROM registered",['username', 'hex'], ['1=1'], mediafilesTableFields, false);
-	console.debug(folderMigrationData);
 
+
+	const cantRename : string[] = [];
 	try {
 		folderMigrationData.forEach((item) => {
 		const [oldName, newName] = item.split(',');
@@ -68,18 +69,31 @@ const prepareAppFolders = async() =>{
 			console.debug(`Renaming folder: ${oldPath} to ${newPath}`);
 			if (fs.existsSync(newPath)) {
 				console.warn(`Folder with the name ${newName} already exists. Skipping...`);
+				cantRename.push(oldName + " -> " + newName);
 			} else {
 				console.debug(`Renaming folder: ${oldPath} to ${newPath}`);
 				fs.renameSync(oldPath, newPath);
 			}
 		}
-	});
+		});
+
+		if (cantRename.length > 0){
+			cantRename.forEach(element => {
+				console.warn("Cant rename folder: ", element);
+			});
+			console.warn("WARNING", cantRename.length,"- Folders not migrated to new version. Server will shut down to prevent data loss.");
+			exit(1);
+		}
+
+
 	} catch (err) {
 		console.error("Error renaming folders: ", err);
 		process.exit(1);
 	}
 
 }
+
+
 
 async function prepareAPPConfig(): Promise<boolean>{
 
