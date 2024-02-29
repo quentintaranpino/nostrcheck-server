@@ -57,10 +57,9 @@ const uploadmedia = async (req: Request, res: Response, version:string): Promise
 
 	//Check if pubkey is on the database
 	let pubkey : string = EventHeader.pubkey;
-	let username = await dbSelect("SELECT username FROM registered WHERE hex = ?", "username", [pubkey], registeredTableFields) as string;
 
-	//If username is not on the db the upload will be public and a warning will be logged.
-	if (username === "") {
+	//If pubkey is not on the db the upload will be public and a warning will be logged.
+	if (pubkey != await dbSelect("SELECT hex FROM registered WHERE hex = ?", "hex", [pubkey], registeredTableFields) as string) {
 		if (config.get("media.allowPublicUploads") == false) {
 			// We don't allow public uploads
 			logger.warn("pubkey not registered, public uploads not allowed | ", getClientIp(req));
@@ -74,11 +73,10 @@ const uploadmedia = async (req: Request, res: Response, version:string): Promise
 			};
 			return res.status(401).send(result);
 		}
-		username = "public";
-		pubkey = app.get("config.server")["pubkey"];
-		logger.warn("pubkey not registered, switching to public upload | ", getClientIp(req));
+		// pubkey = app.get("config.server")["pubkey"];
+		// logger.warn("pubkey not registered, switching to public upload | ", getClientIp(req));
+		logger.info("pubkey not registered, uploading as guest | ", getClientIp(req));
 	}
-	logger.info("username ->", username, "|", getClientIp(req));
 	logger.info("pubkey ->", pubkey, "|", getClientIp(req));
 
 	//Parse upload type. If not defined, default is "media"
@@ -138,7 +136,6 @@ const uploadmedia = async (req: Request, res: Response, version:string): Promise
 		filename: "",
 		fileid: "",
 		filesize: file.size,
-		username: username,
 		pubkey: pubkey,
 		width: config.get("media.transform.media.undefined.width"),
 		height: config.get("media.transform.media.undefined.height"),
@@ -163,7 +160,7 @@ const uploadmedia = async (req: Request, res: Response, version:string): Promise
 	logger.info("hash ->", filedata.originalhash, "|", getClientIp(req));
 
 	//URL
-	filedata.url = filedata.servername + "/media/" + username + "/" + filedata.filename;
+	filedata.url = filedata.servername + "/media/" + pubkey + "/" + filedata.filename;
 
 	//Standard media conversions
 	standardMediaConversion(filedata, file);
@@ -182,7 +179,7 @@ const uploadmedia = async (req: Request, res: Response, version:string): Promise
 	const [dbHashResult] = await dbHash.query("SELECT id, hash, magnet, blurhash, filename, filesize, dimensions FROM mediafiles WHERE original_hash = ? and pubkey = ? and filename not like 'avatar%' and filename not like 'banner%' ", [filedata.originalhash, pubkey]);	
 	const rowstempHash = JSON.parse(JSON.stringify(dbHashResult));
 	if (rowstempHash[0] !== undefined && media_type == "media") {
-		logger.info(`RES ->  File already in database, returning existing URL:`, filedata.servername + "/media/" + username + "/" + filedata.filename, "|", getClientIp(req));
+		logger.info(`RES ->  File already in database, returning existing URL:`, filedata.servername + "/media/" + pubkey + "/" + filedata.filename, "|", getClientIp(req));
 
 		if (version == "v1"){filedata.status = JSON.parse(JSON.stringify(UploadStatus[2]));}
 		if (version == "v2"){filedata.status = JSON.parse(JSON.stringify(MediaStatus[0]));}
@@ -197,7 +194,7 @@ const uploadmedia = async (req: Request, res: Response, version:string): Promise
 			filedata.width = rowstempHash[0].dimensions.split("x")[0];
 			filedata.height = rowstempHash[0].dimensions.split("x")[1];
 		}
-		filedata.url = filedata.servername + "/media/" + username + "/" + filedata.filename;
+		filedata.url = filedata.servername + "/media/" + pubkey + "/" + filedata.filename;
 		convert = false; 
 		insertfiledb = false;
 		makeBlurhash = false;
@@ -206,25 +203,25 @@ const uploadmedia = async (req: Request, res: Response, version:string): Promise
 	}
 	dbHash.end();
 
-	//If not exist create username folder
-	const mediaPath = config.get("media.mediaPath") + username;
+	//If not exist create pubkey folder
+	const mediaPath = config.get("media.mediaPath") + pubkey;
 	if (!fs.existsSync(mediaPath)){
-		logger.warn("Username folder not found, creating...", "|", getClientIp(req));
+		logger.warn("Pubkey folder not found, creating...", "|", getClientIp(req));
 		fs.mkdirSync(mediaPath);
 	}
 
-	// If not exist, copy file to username folder
+	// If not exist, copy file to pubkey folder
 	const filePath = mediaPath + "/" + filedata.filename;
 	if (!fs.existsSync(filePath)) {
 		try {
 			if (fileDBExists) {
-				logger.warn("File already in database but not found on username folder, copying now and processing as new file", "|", getClientIp(req));
+				logger.warn("File already in database but not found on pubkey folder, copying now and processing as new file", "|", getClientIp(req));
 				convert = true;
 			}
-			logger.info("Copying file to username folder", "|", getClientIp(req));
+			logger.info("Copying file to pubkey folder", "|", getClientIp(req));
 			await fs.promises.writeFile(filePath, file.buffer);
 		} catch (err) {
-			logger.error("Error copying file to username folder", err, "|", getClientIp(req));
+			logger.error("Error copying file to pubkey folder", err, "|", getClientIp(req));
 		
 			//v0 and v1 compatibility
 			if(version != "v2"){
@@ -385,11 +382,11 @@ const getMediaStatusbyID = async (req: Request, res: Response, version:string): 
 	logger.info(`GET /api/${version}/media/id/${id}`, "|", getClientIp(req));
 
 	const db = await connect("GetMediaStatusbyID");
-	const [dbResult] = await db.query("SELECT mediafiles.id, mediafiles.filename, registered.username, mediafiles.pubkey, mediafiles.status, mediafiles.magnet, mediafiles.original_hash, mediafiles.hash, mediafiles.blurhash, mediafiles.dimensions, mediafiles.filesize FROM mediafiles INNER JOIN registered on mediafiles.pubkey = registered.hex WHERE (mediafiles.id = ? and mediafiles.pubkey = ?)", [id , EventHeader.pubkey]);
+	const [dbResult] = await db.query("SELECT mediafiles.id, mediafiles.filename, mediafiles.pubkey, mediafiles.status, mediafiles.magnet, mediafiles.original_hash, mediafiles.hash, mediafiles.blurhash, mediafiles.dimensions, mediafiles.filesize FROM mediafiles WHERE (mediafiles.id = ? and mediafiles.pubkey = ?)", [id , EventHeader.pubkey]);
 	let rowstemp = JSON.parse(JSON.stringify(dbResult));
 	if (rowstemp[0] == undefined) {
 		logger.warn(`File not found in database: ${id}, trying public server pubkey`, "|", getClientIp(req));
-		const [dbResult] = await db.query("SELECT mediafiles.id, mediafiles.filename, registered.username, mediafiles.pubkey, mediafiles.status, mediafiles.magnet, mediafiles.original_hash, mediafiles.hash, mediafiles.blurhash, mediafiles.dimensions, mediafiles.filesize FROM mediafiles INNER JOIN registered on mediafiles.pubkey = registered.hex WHERE (mediafiles.id = ? and mediafiles.pubkey = ?)", [id , app.get("config.server")["pubkey"]]);
+		const [dbResult] = await db.query("SELECT mediafiles.id, mediafiles.filename, mediafiles.pubkey, mediafiles.status, mediafiles.magnet, mediafiles.original_hash, mediafiles.hash, mediafiles.blurhash, mediafiles.dimensions, mediafiles.filesize FROM mediafiles WHERE (mediafiles.id = ? and mediafiles.pubkey = ?)", [id , app.get("config.server")["pubkey"]]);
 		rowstemp = JSON.parse(JSON.stringify(dbResult));
 		if (rowstemp[0] == undefined) {
 			logger.error(`File not found in database: ${id}`, "|", getClientIp(req));
@@ -420,11 +417,10 @@ const getMediaStatusbyID = async (req: Request, res: Response, version:string): 
 		height: rowstemp[0].dimensions?.toString().split("x")[1],
 		filesize: rowstemp[0].filesize,
 		fileid: rowstemp[0].id,
-		username: rowstemp[0].username,
 		pubkey: rowstemp[0].pubkey,
 		originalhash: rowstemp[0].original_hash,
 		hash: rowstemp[0].hash,
-		url: servername + "/media/" + rowstemp[0].username + "/" + rowstemp[0].filename,
+		url: servername + "/media/" + rowstemp[0].pubkey + "/" + rowstemp[0].filename,
 		magnet: rowstemp[0].magnet,
 		torrent_infohash: "",
 		blurhash: rowstemp[0].blurhash,
@@ -535,10 +531,21 @@ const getMediabyURL = async (req: Request, res: Response) => {
 	res.set("Cross-Origin-Resource-Policy", "*");
 	res.set("X-frame-options", "*")
 
+	// Old API compatibility (username instead of pubkey)
+	let username : string = "";
+	if (req.params.pubkey.length < 64) {
+		const hex = await dbSelect("SELECT hex FROM registered WHERE username = ?", "hex", [req.params.pubkey], registeredTableFields);
+		if (hex) {
+			logger.debug("Old API compatibility (username instead of pubkey)", req.params.pubkey,"-", hex, "|", getClientIp(req));
+			username = req.params.pubkey;
+			req.params.pubkey = hex as string;
+		}
+	}
+
 	// Initial security checks
-	if (!req.params.username || 
-		req.params.username.length > 50 || 
-		!validator.default.matches(req.params.username, /^[a-zA-Z0-9_]+$/) ||
+	if (!req.params.pubkey || 
+		req.params.pubkey.length > 64 || 
+		!validator.default.matches(req.params.pubkey, /^[a-zA-Z0-9_]+$/) ||
 		!req.params.filename || 
 		req.params.filename.length > 70 ||
 		!validator.default.matches(req.params.filename, /^[a-zA-Z0-9_]+(\.[a-zA-Z0-9_]+)*\.[a-zA-Z0-9_]+$/)) {
@@ -554,7 +561,19 @@ const getMediabyURL = async (req: Request, res: Response) => {
 		res.setHeader('Content-Type', 'image/webp');
 		return res.status(500).send(await getNotFoundMediaFile());
 	}
-	const fileName = path.normalize(path.resolve(mediaPath + "/" + req.params.username + "/" + req.params.filename));
+
+	// Check if file path exists.
+	let fileName = path.normalize(path.resolve(mediaPath + "/" + req.params.pubkey + "/" + req.params.filename));
+	if (!fs.existsSync(fileName)) {
+		// try with username instead of pubkey (Old API compatibility)
+			 fileName = path.normalize(path.resolve(mediaPath + "/" + username + "/" + req.params.filename));
+		if (!fs.existsSync(fileName)) {
+			logger.warn(`RES Media URL -> 404 Not Found`, "|", getClientIp(req));
+			res.setHeader('Content-Type', 'image/webp');
+			return res.status(404).send(await getNotFoundMediaFile());
+		}
+	}
+	logger.debug(fileName)
 
 	// Try to prevent directory traversal attacks
 	if (!path.normalize(path.resolve(fileName)).startsWith(mediaPath)) {
@@ -563,21 +582,14 @@ const getMediabyURL = async (req: Request, res: Response) => {
 		return res.status(403).send(await getNotFoundMediaFile());
 	}
 
-
 	// Check if file is active on the database
-	const cached = await redisClient.get(req.params.filename + "-" + req.params.username);
+	const cached = await redisClient.get(req.params.filename + "-" + req.params.pubkey);
 	if (cached === null || cached === undefined) {
 
-		// Get pubkey from username string and check if is registered, if not we use the public server pubkey
-		let pubkey = await dbSelect("SELECT hex FROM registered WHERE username = ?", "hex", [req.params.username], registeredTableFields) as string;
-		if (pubkey === "") {
-			pubkey = app.get("config.server")["pubkey"];
-		}
-
-		if ((await dbSelect("SELECT active FROM mediafiles WHERE filename = ? and pubkey = ? ", "active", [req.params.filename, pubkey], mediafilesTableFields)) as string != "1")  {
+		if ((await dbSelect("SELECT active FROM mediafiles WHERE filename = ? and pubkey = ? ", "active", [req.params.filename, req.params.pubkey], mediafilesTableFields)) as string != "1")  {
 			logger.warn(`RES -> 401 File not active - ${req.url}`, "| Returning not found media file.", getClientIp(req));
 
-			await redisClient.set(req.params.filename + "-" + req.params.username, "0", {
+			await redisClient.set(req.params.filename + "-" + req.params.pubkey, "0", {
 				EX: 30, 
 				NX: true,
 			});
@@ -586,7 +598,7 @@ const getMediabyURL = async (req: Request, res: Response) => {
 			res.setHeader('Content-Type', 'image/webp');
 			return res.status(401).send(await getNotFoundMediaFile());
 		}
-		await redisClient.set(req.params.filename + "-" + req.params.username, "1", {
+		await redisClient.set(req.params.filename + "-" + req.params.pubkey, "1", {
 			EX: 30, 
 			NX: true,
 		});
@@ -597,9 +609,10 @@ const getMediabyURL = async (req: Request, res: Response) => {
 	const ext = path.extname(fileName).slice(1);
 	const mediaType: string = Object.prototype.hasOwnProperty.call(mediaTypes, ext) ? mediaTypes[ext] : 'text/html';
 	res.setHeader('Content-Type', mediaType);
+	logger.debug(mediaType)
 
 	// If is a video file we return an stream
-	if (mediaType.startsWith("video")) {
+	if (mediaType.startsWith("video") || mediaType.startsWith("audio")) {
 		
 		let range : videoHeaderRange;
 		let videoSize : number;
@@ -632,7 +645,7 @@ const getMediabyURL = async (req: Request, res: Response) => {
 		return videoStream.pipe(res);
 	}
 
-	// If is an image or audio file we return the entire file
+	// If is an image we return the entire file
 	fs.readFile(fileName, async (err, data) => {
 		if (err) {
 			logger.warn(`RES -> 404 Not Found - ${req.url}`, "| Returning not found media file.", getClientIp(req));
@@ -716,7 +729,7 @@ const getMediabyTags = async (req: Request, res: Response): Promise<Response> =>
 	//Check database for media files by tags
 	try {
 		const conn = await connect("GetMediabyTags");
-		const [rows] = await conn.execute("SELECT mediafiles.id, mediafiles.filename, registered.username, mediafiles.pubkey, mediafiles.status FROM mediatags INNER JOIN mediafiles ON mediatags.fileid = mediafiles.id INNER JOIN registered ON mediafiles.pubkey = registered.hex where tag = ? and mediafiles.pubkey = ? ", [req.params.tag, EventHeader.pubkey]);
+		const [rows] = await conn.execute("SELECT mediafiles.id, mediafiles.filename, mediafiles.pubkey, mediafiles.status FROM mediatags INNER JOIN mediafiles ON mediatags.fileid = mediafiles.id WHERE tag = ? and mediafiles.pubkey = ? ", [req.params.tag, EventHeader.pubkey]);
 		const rowstemp = JSON.parse(JSON.stringify(rows));
 
 		if (rowstemp[0] !== undefined) {
@@ -732,7 +745,7 @@ const getMediabyTags = async (req: Request, res: Response): Promise<Response> =>
 		}else{
 			//If not found, try with public server pubkey
 			logger.info("Media files for specified tag not found, trying with public server pubkey", "|", getClientIp(req));
-			const [Publicrows] = await conn.execute("SELECT mediafiles.id, mediafiles.filename, registered.username, mediafiles.pubkey, mediafiles.status FROM mediatags INNER JOIN mediafiles ON mediatags.fileid = mediafiles.id INNER JOIN registered ON mediafiles.pubkey = registered.hex where tag = ? and mediafiles.pubkey = ?", [req.params.tag, app.get("config.server")["pubkey"]]);
+			const [Publicrows] = await conn.execute("SELECT mediafiles.id, mediafiles.filename, mediafiles.pubkey, mediafiles.status FROM mediatags INNER JOIN mediafiles ON mediatags.fileid = mediafiles.id WHERE tag = ? and mediafiles.pubkey = ?", [req.params.tag, app.get("config.server")["pubkey"]]);
 			const Publicrowstemp = JSON.parse(JSON.stringify(Publicrows));
 			if (Publicrowstemp[0] !== undefined) {
 				conn.end();
@@ -842,7 +855,6 @@ const deleteMedia = async (req: Request, res: Response, version:string): Promise
 	const fileId = req.params.fileId;
 	let filehash = "";
 	const mediafiles = [];
-	let username = "";
 
 	logger.info("REQ Delete mediafile ->", servername, "|", getClientIp(req));
 
@@ -895,9 +907,9 @@ const deleteMedia = async (req: Request, res: Response, version:string): Promise
 	try{
 
 		const conn = await connect("DeleteMedia");
-		let DeleteSelect : string = "SELECT mediafiles.id, mediafiles.filename, mediafiles.hash, registered.username FROM mediafiles LEFT JOIN registered on mediafiles.pubkey = registered.hex WHERE mediafiles.pubkey = ? and mediafiles.filename = ?";
+		let DeleteSelect : string = "SELECT mediafiles.id, mediafiles.filename, mediafiles.hash, FROM mediafiles WHERE mediafiles.pubkey = ? and mediafiles.filename = ?";
 		if (version === "v1"){
-			DeleteSelect = "SELECT mediafiles.id, mediafiles.filename, mediafiles.hash, registered.username FROM mediafiles LEFT JOIN registered on mediafiles.pubkey = registered.hex WHERE mediafiles.pubkey = ? and mediafiles.id = ?";
+			DeleteSelect = "SELECT mediafiles.id, mediafiles.filename, mediafiles.hash, FROM mediafiles WHERE mediafiles.pubkey = ? and mediafiles.id = ?";
 		}
 		const [rows] = await conn.execute(
 			DeleteSelect,
@@ -944,19 +956,7 @@ const deleteMedia = async (req: Request, res: Response, version:string): Promise
 			};
 			return res.status(500).send(result);
 		}
-
-		//We store username for delete folder
-		if (rowstemp[0].username !== undefined){
-			username = rowstemp[0].username;
-		}else{
-			logger.error("Error getting username from database");
-			const result: ResultMessage = {
-				result: false,
-				description: "Error getting username from database",
-			};
-			return res.status(500).send(result);
-		}
-		
+	
 	}catch (error) {
 		logger.error(error);
 		const result: ResultMessage = {
@@ -993,7 +993,7 @@ const deleteMedia = async (req: Request, res: Response, version:string): Promise
 
 		//Delete file from disk
 		for (let i = 0; i < mediafiles.length; i++) {
-			const mediaPath = config.get("media.mediaPath") + username + "/" + mediafiles[i];
+			const mediaPath = config.get("media.mediaPath") + EventHeader.pubkey + "/" + mediafiles[i];
 			if (fs.existsSync(mediaPath)){
 				logger.info("Deleting file from disk:", mediaPath);
 				fs.unlinkSync(mediaPath);

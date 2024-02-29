@@ -88,9 +88,7 @@ const loadProfilePage = async (req: Request, res: Response, version:string): Pro
     req.session.metadata = await getProfileNostrMetadata(req.session.identifier);
 
     // User metadata from local database
-    const profileLocalData = await getProfileLocalMetadata(req.session.identifier);
-    req.session.metadata.mediaFiles = profileLocalData.mediaFiles;
-    req.session.metadata.username = profileLocalData.username;
+    req.session.metadata.mediaFiles =  await getProfileLocalMetadata(req.session.identifier);
 
     res.render("profile.ejs", {request: req});
 };
@@ -124,9 +122,8 @@ const loadGalleryData = async (req: Request, res: Response): Promise<Response | 
     }
 
     // User metadata from local database
-    const profileLocalData = await getProfileLocalMetadata(req.session.identifier);
-    req.session.metadata.mediaFiles = profileLocalData.mediaFiles;
-    req.session.metadata.username = profileLocalData.username;
+    req.session.metadata.mediaFiles = await getProfileLocalMetadata(req.session.identifier);
+    logger.debug(req.session.metadata)
 
     const mediaFiles = req.session.metadata.mediaFiles.slice((page - 1) * pageSize, page * pageSize);
     res.json({"username": req.session.metadata.username, "mediaFiles": mediaFiles});

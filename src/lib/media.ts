@@ -40,8 +40,8 @@ const PrepareFile = async (t: asyncTask): Promise<void> =>{
 		return;
 	}
 
-	if (!t.filedata.username) {
-		logger.error("ERR -> Preparing file for conversion, empty username");
+	if (!t.filedata.pubkey) {
+		logger.error("ERR -> Preparing file for conversion, empty pubkey");
 		return;
 	}
 
@@ -84,7 +84,7 @@ const convertFile = async(	inputFile: Express.Multer.File,	options: ProcessingFi
 			logger.error("Could not update table mediafiles, id: " + options.fileid, "status: processing");
 		}
 
-		const MediaPath = config.get("media.mediaPath") + options.username + "/" + options.filename;
+		const MediaPath = config.get("media.mediaPath") + options.pubkey + "/" + options.filename;
 		logger.info("Using media path:", MediaPath);
 
 		let MediaDuration: number = 0;
@@ -376,7 +376,6 @@ const deleteFile = async (path:string) :Promise<boolean> => {
 	}
 
 }
-
 
 const getNotFoundMediaFile = (): Promise<Buffer> => {
     return new Promise((resolve) => {
