@@ -175,12 +175,12 @@ const initMediaModal = async (pubkey, filename, checked, visible) => {
         visible = this.checked ? 1 : 0;
     });
 
-    if (filename.includes('.mp4')) {
+    if (filename.includes('.mp4', '.webm', '.mov')) {
         $('#media-modal .mediapreview-video').attr('src', 'media/' + pubkey + '/' + filename);
         $('#media-modal .mediapreview-video source').attr('src', 'media/' + pubkey + '/' + filename);
         $('#media-modal .mediapreview-video').removeClass('d-none');
         $('#media-modal .mediapreview-video')[0].play();
-    } else if (filename.includes('.webp')) {
+    } else if (filename.includes('.webp', '.png', '.jpg', '.jpeg', '.gif')) {
         $('#media-modal .mediapreview-image').attr('src', 'media/' + pubkey + '/' + filename);
         $('#media-modal .mediapreview-image').removeClass('d-none');
     } else if (filename.includes('mp3')){
