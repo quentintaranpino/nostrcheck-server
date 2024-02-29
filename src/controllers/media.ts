@@ -609,9 +609,10 @@ const getMediabyURL = async (req: Request, res: Response) => {
 	const ext = path.extname(fileName).slice(1);
 	const mediaType: string = Object.prototype.hasOwnProperty.call(mediaTypes, ext) ? mediaTypes[ext] : 'text/html';
 	res.setHeader('Content-Type', mediaType);
+	logger.debug(mediaType)
 
 	// If is a video file we return an stream
-	if (mediaType.startsWith("video")) {
+	if (mediaType.startsWith("video") || mediaType.startsWith("audio")) {
 		
 		let range : videoHeaderRange;
 		let videoSize : number;
@@ -644,7 +645,7 @@ const getMediabyURL = async (req: Request, res: Response) => {
 		return videoStream.pipe(res);
 	}
 
-	// If is an image or audio file we return the entire file
+	// If is an image we return the entire file
 	fs.readFile(fileName, async (err, data) => {
 		if (err) {
 			logger.warn(`RES -> 404 Not Found - ${req.url}`, "| Returning not found media file.", getClientIp(req));

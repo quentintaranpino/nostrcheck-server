@@ -63,6 +63,7 @@ const mediaTypes: { [key: string]: string } = {
 	'gif': 'image/gif',
 	'mov': 'video/quicktime',
 	'mp4': "video/mp4",
+	'mp3': "audio/mpeg",
   }
 
 
