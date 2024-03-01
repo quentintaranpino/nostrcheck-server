@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 
-import { connect } from "../lib/database.js";
+import { connect, dbSelect } from "../lib/database.js";
 import { logger } from "../lib/logger.js";
 import { redisClient, getLightningAddressFromRedis } from "../lib/redis.js";
 import { ResultMessagev2 } from "../interfaces/server.js";
@@ -9,6 +9,7 @@ import { parseAuthHeader } from "../lib/authorization.js";
 import { getClientIp } from "../lib/server.js";
 import { isModuleEnabled } from "../lib/config.js";
 import app from "../app.js";
+import { lightningTableFields } from "../interfaces/database.js";
 
 const redirectlightningddress = async (req: Request, res: Response): Promise<any> => {
 
@@ -83,15 +84,13 @@ const redirectlightningddress = async (req: Request, res: Response): Promise<any
 		}
 
 		//If not cached, query the database
-		const conn = await connect("Redirectlightningddress");
-		const [rows] = await conn.execute(
-			"SELECT lightningaddress FROM lightning INNER JOIN registered ON lightning.pubkey = registered.hex WHERE registered.username = ? and registered.domain = ?",
-			[name, servername]
-		);
-		const rowstemp = JSON.parse(JSON.stringify(rows));
-		conn.end();
+		const lightningAddress = 
+			await dbSelect("SELECT lightningaddress FROM lightning INNER JOIN registered ON lightning.pubkey = registered.hex WHERE registered.username = ? and registered.domain = ? and lightning.active = 1", 
+			"lightningaddress", 
+			[name, servername], 
+			lightningTableFields) as string;
 
-		if (rowstemp[0] == undefined) {
+		if  (lightningAddress == "" || lightningAddress == undefined) {
 			logger.warn("RES GET Lightningaddress ->", name, "|", "Lightning redirect not found");
 
 			const result: ResultMessagev2 = {
@@ -100,13 +99,12 @@ const redirectlightningddress = async (req: Request, res: Response): Promise<any
 			};
 
 			return res.status(404).send(result);
+		}else{
+			logger.debug("Lightning redirect found for username", name, ":", lightningAddress);
+			lightningdata.lightningserver = lightningAddress.split("@")[1];
+			lightningdata.lightninguser = lightningAddress.split("@")[0];
 		}
-
-		if (rowstemp != null) {
-			lightningdata.lightningserver = rowstemp[0].lightningaddress.split("@")[1];
-			lightningdata.lightninguser = rowstemp[0].lightningaddress.split("@")[0];
-		}
-
+		
 	} catch (error) {
 		logger.error(error);
 
@@ -119,7 +117,7 @@ const redirectlightningddress = async (req: Request, res: Response): Promise<any
 	}
 
 	await redisClient.set("LNURL" + "-" + name + "-" + servername, JSON.stringify(lightningdata), {
-		EX: 300, // 5 minutes
+		EX: app.get("config.redis")["expireTime"],
 		NX: true, // Only set the key if it does not already exist
 	});
 
