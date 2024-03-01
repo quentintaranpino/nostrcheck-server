@@ -317,6 +317,22 @@ server {
 
     }
 
+<<<<<<< Updated upstream
+=======
+    #API redirect for lightning redirect requests
+    location /.well-known/lnurlp/ {
+
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_set_header Host \$host;
+        proxy_pass http://127.0.0.1:3000/api/v2/lightningaddress/;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection "upgrade";
+
+    }
+
+>>>>>>> Stashed changes
     #API redirect for media URL requests
     location /media {
        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;

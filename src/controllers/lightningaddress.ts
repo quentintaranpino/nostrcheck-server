@@ -18,7 +18,20 @@ const redirectlightningddress = async (req: Request, res: Response): Promise<any
 		return res.status(400).send({"status": "error", "message": "Module is not enabled"});
 	}
 
-	const name = req.query.name as string;
+	const name = req.query.name || req.params.name as string;
+
+	if (typeof name !== "string") {
+		logger.info("REQ GET lightningaddress ->", req.hostname, " | name:",  name , "|", getClientIp(req));
+		logger.warn("RES GET Lightningaddress -> 400 Bad request - name parameter not specified", "|", getClientIp(req));
+
+		const result: ResultMessagev2 = {
+			status: "error",
+			message: "Bad request - You have to specify the 'name' parameter",
+		};
+
+		return res.status(400).send(result);
+	}
+
 	const servername = req.hostname;
 	let isCached = false;
 

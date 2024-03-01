@@ -5,7 +5,8 @@ import { redirectlightningddress, updateLightningAddress, deleteLightningAddress
 export const loadLightningaddressEndpoint = async (app: Application, version:string): Promise<void> => {
 
 	//Get lightning redirect
-	app.get("/api/" + version + app.get("config.server")["availableModules"]["lightning"]["path"], redirectlightningddress);
+	app.get("/api/" + version + app.get("config.server")["availableModules"]["lightning"]["path"], redirectlightningddress); // V0 and V1
+	app.get("/api/" + version + app.get("config.server")["availableModules"]["lightning"]["path"] + "/:name", redirectlightningddress);
 
 	//Update lightning address
 	app.put("/api/" + version + app.get("config.server")["availableModules"]["lightning"]["path"] + "/:lightningaddress", updateLightningAddress);
