@@ -8,6 +8,7 @@ import { dbDelete, dbInsert, dbUpdate } from "../lib/database.js";
 import { allowedFieldNames, allowedFieldNamesAndValues, allowedTableNames } from "../interfaces/admin.js";
 import { parseAuthHeader} from "../lib/authorization.js";
 import { isModuleEnabled, updateLocalConfigKey } from "../lib/config.js";
+import { flushRedisCache } from "../lib/redis.js";
 import app from "../app.js";
 import { ParseFileType } from "../lib/media.js";
 import fs from "fs";
@@ -163,7 +164,6 @@ const updateDBRecord = async (req: Request, res: Response): Promise<Response> =>
         return res.status(500).send(result);
     }
 }
-
 
 const updateLogo = async (req: Request, res: Response): Promise<Response> => {
 
@@ -547,6 +547,13 @@ const updateSettings = async (req: Request, res: Response): Promise<Response> =>
     
     currentConfig[configField] = req.body.value;
     app.set(mainConfigName, rootConfig);
+
+
+    // If the setting is expireTime from redis we flush redis cache
+    if (req.body.name == "redis.expireTime") {
+        let result = await flushRedisCache();
+        logger.debug("Purging cache", result);
+    }
 
     const result : authkeyResultMessage = {
         status: "success",

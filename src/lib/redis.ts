@@ -10,6 +10,7 @@ const redisPort: string = app.get("config.redis")["port"];
 const redisUser: string = app.get("config.redis")["user"];
 const redisPassword: string = app.get("config.redis")["password"];
 const redisClient = createClient({ url: `redis://${redisUser}:${redisPassword}@${redisHost}:${redisPort}` });
+
 (async (): Promise<void> => {
 	redisClient.on("error", (error: Error) =>{
 		logger.error(`There is a problem connecting to redis server, is redis-server package installed on your system? : ${error}`);
@@ -17,6 +18,10 @@ const redisClient = createClient({ url: `redis://${redisUser}:${redisPassword}@$
 });
 	await redisClient.connect();
 })();
+
+const flushRedisCache = async (): Promise<void> => {
+	return await redisClient.sendCommand(['flushall']);
+}
 
 async function getNostrAddressFromRedis(key: string): Promise<RegisteredUsernameResult> {
 	const data = await redisClient.get(key);
@@ -40,4 +45,4 @@ async function getLightningAddressFromRedis(key: string): Promise<LightningUsern
 	return JSON.parse(data.toString());
 }
 
-export { redisClient, getNostrAddressFromRedis, getLightningAddressFromRedis };
+export { redisClient, flushRedisCache, getNostrAddressFromRedis, getLightningAddressFromRedis };
