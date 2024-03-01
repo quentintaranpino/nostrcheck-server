@@ -109,7 +109,7 @@ const checkNostrAddress = async (req: Request, res: Response): Promise<Response>
 	}
 
 	await redisClient.set(result.username + "-" + servername, JSON.stringify(result), {
-		EX: 300, 
+		EX: app.get("config.redis")["expireTime"],
 		NX: true,
 	});
 

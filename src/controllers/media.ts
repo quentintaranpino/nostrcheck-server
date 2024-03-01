@@ -590,7 +590,7 @@ const getMediabyURL = async (req: Request, res: Response) => {
 			logger.warn(`RES -> 401 File not active - ${req.url}`, "| Returning not found media file.", getClientIp(req));
 
 			await redisClient.set(req.params.filename + "-" + req.params.pubkey, "0", {
-				EX: 30, 
+				EX: app.get("config.redis")["expireTime"],
 				NX: true,
 			});
 			logger.warn(`RES -> 401 File not active - ${req.url}`, "returning not found media file |", getClientIp(req), "|", "cached:", cached ? true : false);
@@ -599,7 +599,7 @@ const getMediabyURL = async (req: Request, res: Response) => {
 			return res.status(401).send(await getNotFoundMediaFile());
 		}
 		await redisClient.set(req.params.filename + "-" + req.params.pubkey, "1", {
-			EX: 30, 
+			EX: app.get("config.redis")["expireTime"],
 			NX: true,
 		});
 
