@@ -19,6 +19,7 @@ const domainsTableFields : domainsTableStructure = {
 
 interface lightningTable extends RowDataPacket {
 	id: string;
+	active : string;
 	pubkey: string;
 	lightningaddress: string;
 	comments: string;
@@ -26,6 +27,7 @@ interface lightningTable extends RowDataPacket {
 
 const lightningTableFields: lightningTable = {
 	id: "int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY",
+	active: "boolean NOT NULL DEFAULT 1",
 	pubkey: "varchar(64) NOT NULL",
 	lightningaddress: "varchar(50) NOT NULL",
 	comments: "varchar(150)",
