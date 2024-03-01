@@ -151,7 +151,7 @@ const initMessageModal = async (objectId, message, title) => {
     alert.show();
 
     let result = await new Promise((resolve, reject) => {
-        $(objectId + '-message-modal .save-button').click(function () {
+        $(objectId + '-message-modal .btn-close').click(function () {
             resolve(true);
         });
     });
