@@ -17,5 +17,16 @@ const hextoNpub = async (hex : string) : Promise<string> => {
     return "";
 
 }
+
+const npubToHex = async (npub : string) : Promise<string> => {
     
-export {hextoNpub}
+        try {
+            return await nip19.decode(npub).data.toString();
+        } catch (error) {
+            logger.error("Error while encoding server pubkey to npup: ", error);
+        }
+    
+        return "";
+}
+    
+export {hextoNpub, npubToHex}
