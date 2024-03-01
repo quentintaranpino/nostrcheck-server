@@ -161,7 +161,7 @@ const initMessageModal = async (objectId, message, title) => {
 
 }
 
-const initMediaModal = async (username, filename, checked, visible) => {
+const initMediaModal = async (pubkey, filename, checked, visible) => {
 
     var mediaModal = new bootstrap.Modal($('#media-modal'));
 
@@ -175,17 +175,17 @@ const initMediaModal = async (username, filename, checked, visible) => {
         visible = this.checked ? 1 : 0;
     });
 
-    if (filename.includes('.mp4')) {
-        $('#media-modal .mediapreview-video').attr('src', 'media/' + username + '/' + filename);
-        $('#media-modal .mediapreview-video source').attr('src', 'media/' + username + '/' + filename);
+    if (['.mp4', '.webp', '.mov'].some(ext => filename.includes(ext))) {
+        $('#media-modal .mediapreview-video').attr('src', 'media/' + pubkey + '/' + filename);
+        $('#media-modal .mediapreview-video source').attr('src', 'media/' + pubkey + '/' + filename);
         $('#media-modal .mediapreview-video').removeClass('d-none');
         $('#media-modal .mediapreview-video')[0].play();
-    } else if (filename.includes('.webp')) {
-        $('#media-modal .mediapreview-image').attr('src', 'media/' + username + '/' + filename);
+    } else if (['.webp', '.png', '.jpg', '.jpeg', '.gif'].some(ext => filename.includes(ext))) {
+        $('#media-modal .mediapreview-image').attr('src', 'media/' + pubkey + '/' + filename);
         $('#media-modal .mediapreview-image').removeClass('d-none');
     } else if (filename.includes('mp3')){
-        $('#media-modal .mediapreview-audio').attr('src', 'media/' + username + '/' + filename);
-        $('#media-modal .mediapreview-audio source').attr('src', 'media/' + username + '/' + filename);
+        $('#media-modal .mediapreview-audio').attr('src', 'media/' + pubkey + '/' + filename);
+        $('#media-modal .mediapreview-audio source').attr('src', 'media/' + pubkey + '/' + filename);
         $('#media-modal .mediapreview-audio').removeClass('d-none');
         $('#media-modal .mediapreview-audio')[0].play();
     }
