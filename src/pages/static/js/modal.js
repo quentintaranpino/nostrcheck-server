@@ -175,15 +175,15 @@ const initMediaModal = async (pubkey, filename, checked, visible) => {
         visible = this.checked ? 1 : 0;
     });
 
-    if (['.mp4', '.webp', '.mov'].some(ext => filename.includes(ext))) {
+    if (['.mp4', '.webm', '.mov'].some(ext => filename.endsWith(ext))) {
         $('#media-modal .mediapreview-video').attr('src', 'media/' + pubkey + '/' + filename);
         $('#media-modal .mediapreview-video source').attr('src', 'media/' + pubkey + '/' + filename);
         $('#media-modal .mediapreview-video').removeClass('d-none');
         $('#media-modal .mediapreview-video')[0].play();
-    } else if (['.webp', '.png', '.jpg', '.jpeg', '.gif'].some(ext => filename.includes(ext))) {
+    } else if (['.webp', '.png', '.jpg', '.jpeg', '.gif'].some(ext => filename.endsWith(ext))) {
         $('#media-modal .mediapreview-image').attr('src', 'media/' + pubkey + '/' + filename);
         $('#media-modal .mediapreview-image').removeClass('d-none');
-    } else if (filename.includes('mp3')){
+    } else if (filename.endsWith('.mp3')){
         $('#media-modal .mediapreview-audio').attr('src', 'media/' + pubkey + '/' + filename);
         $('#media-modal .mediapreview-audio source').attr('src', 'media/' + pubkey + '/' + filename);
         $('#media-modal .mediapreview-audio').removeClass('d-none');
