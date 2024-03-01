@@ -317,8 +317,6 @@ server {
 
     }
 
-<<<<<<< Updated upstream
-=======
     #API redirect for lightning redirect requests
     location /.well-known/lnurlp/ {
 
@@ -332,7 +330,6 @@ server {
 
     }
 
->>>>>>> Stashed changes
     #API redirect for media URL requests
     location /media {
        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
