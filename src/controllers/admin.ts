@@ -1,5 +1,10 @@
 
 import { Request, Response } from "express";
+import fs from "fs";
+import sharp from "sharp";
+
+import app from "../app.js";
+
 import { logger } from "../lib/logger.js";
 import { getClientIp, format } from "../lib/server.js";
 import { ResultMessagev2, ServerStatusMessage, authkeyResultMessage } from "../interfaces/server.js";
@@ -9,10 +14,9 @@ import { allowedFieldNames, allowedFieldNamesAndValues, allowedTableNames } from
 import { parseAuthHeader} from "../lib/authorization.js";
 import { isModuleEnabled, updateLocalConfigKey } from "../lib/config.js";
 import { flushRedisCache } from "../lib/redis.js";
-import app from "../app.js";
 import { ParseFileType } from "../lib/media.js";
-import fs from "fs";
-import sharp from "sharp";
+import { npubToHex } from "../lib/nostr/NIP19.js";
+
 
 let hits = 0;
 /**
@@ -444,6 +448,19 @@ const insertDBRecord = async (req: Request, res: Response): Promise<Response> =>
 
     // Specific case for registered table
     if (req.body.table == "nostraddressData"){
+
+    // Check if the provided pubkey is valid
+    let decodedHex = await npubToHex(req.body.row["pubkey"]);
+    if (decodedHex != req.body.row["hex"]){
+        const result : authkeyResultMessage = {
+            status: "error",
+            message: "Invalid npub / hex",
+            authkey: EventHeader.authkey
+            };
+        logger.error("RES -> Invalid pubkey" + " | " + getClientIp(req));
+        return res.status(400).send(result);
+    }
+
     req.body.row["date"] = new Date().toISOString().slice(0, 19).replace('T', ' ');
     req.body.row["password"] = await generateCredentials('password'); // Generate a random password only for user creation (can't be empty) the we recreate it in the next step
     
