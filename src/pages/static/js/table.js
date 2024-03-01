@@ -1,4 +1,3 @@
-
 const initTable = (tableId, data, objectName) => {
 
     if (data == "") { // dummy data for table creation
@@ -86,9 +85,16 @@ const initTable = (tableId, data, objectName) => {
         var columns = $(tableId).bootstrapTable('getOptions').columns[0];
         initEditModal(tableId,row,objectName, true, columns).then(async (editedRow) => {
             if (editedRow) {
-                authkey = await modifyRecord(tableId, null, null, null, 'insert', editedRow)
+                response = await modifyRecord(tableId, null, null, null, 'insert', editedRow)
+                authkey = response.authkey
                 $(tableId).bootstrapTable('uncheckAll')
                 setFieldLinks(tableId);
+                if (response.status != "error"){
+                    if (tableId === '#nostraddressData'){
+                       await initMessageModal(tableId, "username: " + row.username + ". A new password has been sent via DM. ", "User added successfully.")
+                    }
+                await initMessageModal(tableId, "New record added successfully. ", "Success.")
+                }
             }
         });
     }
@@ -110,7 +116,7 @@ const initTable = (tableId, data, objectName) => {
             if (editedRow) {
                 for (let field in editedRow) {
                     if (editedRow[field] != row[field]){
-                        authkey = await modifyRecord(tableId, row.id, field, editedRow[field], 'modify')
+                        authkey = (await modifyRecord(tableId, row.id, field, editedRow[field], 'modify')).authkey
                         setFieldLinks(tableId);
                     }
                 }
@@ -211,13 +217,16 @@ function initButton(tableId, buttonSuffix, objectName, modaltext, field, fieldVa
         if (await initConfirmModal(tableId, ids, modaltext, objectName)) {
             for (let id of ids) {
                 if (modaltext === 'remove') {
-                    authkey = await modifyRecord(tableId, id, field, fieldValue, 'remove')
+                    authkey = (await modifyRecord(tableId, id, field, fieldValue, 'remove')).authkey
                     setFieldLinks(tableId);
                 } else {
-                    authkey = await modifyRecord(tableId, id, field, fieldValue, 'modify')
+                    authkey = (await modifyRecord(tableId, id, field, fieldValue, 'modify')).authkey
                     setFieldLinks(tableId);
                 }
             }
+            if (modaltext != 'remove' && (tableId === '#nostraddressData' || tableId === '#lightningData')){
+                initMessageModal(tableId, "Changes will not take effect for 5 minutes due to system cache", "Success.")
+            }          
         }
     })
 }
@@ -258,8 +267,7 @@ function modifyRecord(tableId, id, field, fieldValue, action = 'modify', row = n
     })
     .then(response => response.json())
     .then(responseData => {
-
-        if (responseData.status == "success") {
+        if (responseData.status === "success") {
             if (action === 'remove') {
                 $(tableId).bootstrapTable('removeByUniqueId', id);
             } else if (action === 'insert') {
@@ -271,10 +279,7 @@ function modifyRecord(tableId, id, field, fieldValue, action = 'modify', row = n
                     index: 0,
                     row: data.row
                 });
-                if (tableId === '#nostraddressData'){
-                    initMessageModal(tableId, "username: " + row.username + ". A new password has been sent via DM. ", "User added successfully.")
-                }
-                initMessageModal(tableId, "New record added successfully. ", "Success.")
+              
             }else {
                 let updateData = {};
                 updateData[field] = responseData.message;
@@ -282,15 +287,13 @@ function modifyRecord(tableId, id, field, fieldValue, action = 'modify', row = n
                     id: id,
                     row: updateData
                 });
-                if (tableId === '#nostraddressData' || tableId === '#lightningData'){
-                    initMessageModal(tableId, "Changes will not take effect for 5 minutes due to system cache", "Success.")
-                }
             }
         } else {
             initAlertModal(tableId, responseData.message)
             highlihtRow(tableId, row)
+            console.error(responseData);
         }
-        return responseData.authkey;
+        return responseData;
         })
     .catch((error) => {
         console.error(error);
@@ -328,7 +331,7 @@ function setFieldLinks(tableId, number = 0){
                     let modalResult = await initMediaModal(row.pubkey, filename, row.checked, row.visibility);
                     for (let field in modalResult) {
                         if (modalResult[field] != row[field]){
-                            authkey = await modifyRecord(tableId, row.id, field, modalResult[field], 'modify')
+                            authkey = (await modifyRecord(tableId, row.id, field, modalResult[field], 'modify')).authkey
                             let pageNumber = $(tableId).bootstrapTable('getOptions').pageNumber;
                             let pageSize = $(tableId).bootstrapTable('getOptions').pageSize;
                             setFieldLinks(tableId, (pageSize * pageNumber) - pageSize );
