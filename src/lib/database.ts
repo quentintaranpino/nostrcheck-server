@@ -382,7 +382,7 @@ async function dbSelectModuleData(module:string): Promise<string> {
 		"ORDER BY id DESC;");
 	}
 	if (module == "lightning"){
-		return await dbSelectAllRecords("lightning", "SELECT id, pubkey, lightningaddress, comments FROM lightning ORDER BY id DESC");
+		return await dbSelectAllRecords("lightning", "SELECT id, active, pubkey, lightningaddress, comments FROM lightning ORDER BY id DESC");
 	}
 	if (module == "domains"){
 		return await dbSelectAllRecords("domains", "SELECT id, active, domain, comments FROM domains ORDER BY id DESC");

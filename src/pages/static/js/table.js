@@ -282,6 +282,9 @@ function modifyRecord(tableId, id, field, fieldValue, action = 'modify', row = n
                     id: id,
                     row: updateData
                 });
+                if (tableId === '#nostraddressData' || tableId === '#lightningData'){
+                    initMessageModal(tableId, "Changes will not take effect for 5 minutes due to system cache", "Success.")
+                }
             }
         } else {
             initAlertModal(tableId, responseData.message)
