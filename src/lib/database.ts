@@ -211,7 +211,7 @@ const dbUpdate = async (tableName :string, selectFieldName: string, selectFieldV
  * @param values - An array of values to insert into the table.
  * @returns A Promise that resolves to the ID of the inserted record, or 0 if an error occurred.
  */
-const dbInsert = async (tableName :string, fields: string[], values: string[]): Promise<number> =>{
+const dbInsert = async (tableName: string, fields: string[], values: (string | number | boolean)[]): Promise<number> => {
 	const conn = await connect("dbInsert:" + tableName);
 
 	// Check if fields are not empty
@@ -287,7 +287,7 @@ const dbMultiSelect = async (queryStatement: string, returnFields : string[], wh
 	}
 
     try {
-        const conn = await connect("dbSimpleSelect: " + queryStatement + " | Fields: " + whereFields.join(", "));
+        const conn = await connect("dbMultiSelect: " + queryStatement + " | Fields: " + whereFields.join(", "));
         const [rows] = await conn.query<typeof table[]>(queryStatement, whereFields);
         conn.end();
 
