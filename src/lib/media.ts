@@ -196,13 +196,13 @@ const ParseMediaType = (req : Request, pubkey : string): string  => {
 
 	//v0 compatibility, check if type is present on request body (v0 uses type instead of uploadtype)
 	if (req.body.type != undefined && req.body.type != "") {
-		logger.warn("Detected 'type' field (deprecated v0) on request body, setting 'media_type' with 'type' data ", "|", getClientIp(req));
+		logger.info("Detected 'type' field (deprecated v0) on request body, setting 'media_type' with 'type' data ", "|", getClientIp(req));
 		media_type = req.body.type;
 	}
 
 	//v1 compatibility, check if uploadtype is present on request body (v1 uses uploadtype instead of media_type)
 	if (req.body.uploadtype != undefined && req.body.uploadtype != "") {
-		logger.warn("Detected 'uploadtype' field (deprecated v1) on request body, setting 'media_type' with 'type' data ", "|", getClientIp(req));
+		logger.info("Detected 'uploadtype' field (deprecated v1) on request body, setting 'media_type' with 'type' data ", "|", getClientIp(req));
 		media_type = req.body.uploadtype;
 	}
 
