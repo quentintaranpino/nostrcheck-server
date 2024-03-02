@@ -907,9 +907,9 @@ const deleteMedia = async (req: Request, res: Response, version:string): Promise
 	try{
 
 		const conn = await connect("DeleteMedia");
-		let DeleteSelect : string = "SELECT mediafiles.id, mediafiles.filename, mediafiles.hash, FROM mediafiles WHERE mediafiles.pubkey = ? and mediafiles.filename = ?";
+		let DeleteSelect : string = "SELECT mediafiles.id, mediafiles.filename, mediafiles.hash FROM mediafiles WHERE mediafiles.pubkey = ? and mediafiles.filename = ?";
 		if (version === "v1"){
-			DeleteSelect = "SELECT mediafiles.id, mediafiles.filename, mediafiles.hash, FROM mediafiles WHERE mediafiles.pubkey = ? and mediafiles.id = ?";
+			DeleteSelect = "SELECT mediafiles.id, mediafiles.filename, mediafiles.hash FROM mediafiles WHERE mediafiles.pubkey = ? and mediafiles.id = ?";
 		}
 		const [rows] = await conn.execute(
 			DeleteSelect,
