@@ -538,7 +538,6 @@ const getMediabyURL = async (req: Request, res: Response) => {
 			return res.status(404).send(await getNotFoundMediaFile());
 		}
 	}
-	logger.debug(fileName)
 
 	// Try to prevent directory traversal attacks
 	if (!path.normalize(path.resolve(fileName)).startsWith(mediaPath)) {
@@ -551,7 +550,7 @@ const getMediabyURL = async (req: Request, res: Response) => {
 	const cached = await redisClient.get(req.params.filename + "-" + req.params.pubkey);
 	if (cached === null || cached === undefined) {
 
-		if ((await dbSelect("SELECT active FROM mediafiles WHERE filename = ? and pubkey = ? ", "active", [req.params.filename, req.params.pubkey], mediafilesTableFields)) as string != "1")  {
+		if ((await dbSelect("SELECT active FROM mediafiles WHERE filename = ? and pubkey = ? ", "active", [req.params.filename, req.params.pubkey], mediafilesTableFields) as string) != "1")  {
 			logger.warn(`RES -> 401 File not active - ${req.url}`, "| Returning not found media file.", getClientIp(req));
 
 			await redisClient.set(req.params.filename + "-" + req.params.pubkey, "0", {
@@ -568,6 +567,11 @@ const getMediabyURL = async (req: Request, res: Response) => {
 			NX: true,
 		});
 
+	}
+	if (cached === "0") {
+		logger.warn(`RES -> 401 File not active - ${req.url}`, "returning not found media file |", getClientIp(req), "|", "cached:", cached ? true : false);
+		res.setHeader('Content-Type', 'image/webp');
+		return res.status(401).send(await getNotFoundMediaFile());
 	}
 
 	// file extension checks and media type
