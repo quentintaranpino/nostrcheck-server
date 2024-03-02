@@ -5,13 +5,17 @@ import markdownit from 'markdown-it';
 import { Application } from "express";
 import { Request } from "express";
 
-const getClientIp = (req: Request) =>{
-
-    let ip = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
+const getClientIp = (req: Request): string => {
+    let ip = req.headers['x-forwarded-for'];
+    if (Array.isArray(ip)) {
+        ip = ip[0];
+    } else {
+        ip = ip || req.connection.remoteAddress;
+    }
     if (typeof ip === 'string' && ip.startsWith("::ffff:")) {
         ip = ip.substring(7);
     }
-    return ip;
+    return ip || "";
 };
 
 const format = (seconds:number):string =>{
