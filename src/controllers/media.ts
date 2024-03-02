@@ -551,7 +551,6 @@ const getMediabyURL = async (req: Request, res: Response) => {
 	if (cachedStatus === null || cachedStatus === undefined) {
 
 		const filedata = await dbMultiSelect("SELECT id, active FROM mediafiles WHERE filename = ? and pubkey = ? ", ["id", "active"], [req.params.filename, req.params.pubkey], mediafilesTableFields) as string[];
-		logger.debug(filedata)
 		if (filedata[0] == undefined || filedata[0] == "" || filedata[0] == null) {
 			logger.warn(`RES -> 404 Not Found - ${req.url}`, "| Returning not found media file.", getClientIp(req));
 			res.setHeader('Content-Type', 'image/webp');
@@ -585,9 +584,8 @@ const getMediabyURL = async (req: Request, res: Response) => {
 	const ext = path.extname(fileName).slice(1);
 	const mediaType: string = Object.prototype.hasOwnProperty.call(mediaTypes, ext) ? mediaTypes[ext] : 'text/html';
 	res.setHeader('Content-Type', mediaType);
-	logger.debug(mediaType)
 
-	// If is a video file we return an stream
+	// If is a video or audio file we return an stream
 	if (mediaType.startsWith("video") || mediaType.startsWith("audio")) {
 		
 		let range : videoHeaderRange;
