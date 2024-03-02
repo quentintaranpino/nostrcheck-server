@@ -1,7 +1,7 @@
 import { Application } from "express";
 import multer from "multer";
 import config from "config";
-import { getMediaStatusbyID, getMediabyURL, uploadmedia, deleteMedia, updateMediaVisibility, getMediaTagsbyID, getMediabyTags } from "../controllers/media.js";
+import { uploadMedia, getMediaStatusbyID, getMediabyURL, deleteMedia, updateMediaVisibility, getMediaTagsbyID, getMediabyTags } from "../controllers/media.js";
 import { ResultMessage, ResultMessagev2 } from "../interfaces/server.js";
 import { logger } from "../lib/logger.js";
 import { getClientIp } from "../lib/server.js";
@@ -29,7 +29,7 @@ export const loadMediaEndpoint = async (app: Application, version:string): Promi
 				};
 				return res.status(413).send(result);
 			}
-			uploadmedia(req, res, version);
+			uploadMedia(req, res, version);
 		})
 	});
 

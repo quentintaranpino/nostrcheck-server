@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import app from "../app.js";
-import { connect, dbDelete, dbMultiSelect, dbSelect } from "../lib/database.js";
+import { connect, dbDelete, dbInsert, dbMultiSelect, dbSelect } from "../lib/database.js";
 import { logger } from "../lib/logger.js";
 import { parseAuthHeader } from "../lib//authorization.js";
 import { ParseMediaType, ParseFileType, GetFileTags, standardMediaConversion, getNotFoundMediaFile, readRangeHeader } from "../lib/media.js"
@@ -30,7 +30,7 @@ import { isModuleEnabled } from "../lib/config.js";
 import { redisClient } from "../lib/redis.js";
 
 
-const uploadmedia = async (req: Request, res: Response, version:string): Promise<Response> => {
+const uploadMedia = async (req: Request, res: Response, version:string): Promise<Response> => {
 
 	// Check if current module is enabled
 	if (!isModuleEnabled("media", app)) {
@@ -43,8 +43,6 @@ const uploadmedia = async (req: Request, res: Response, version:string): Promise
 	// Check if authorization header is valid
 	const EventHeader = await parseAuthHeader(req, "uploadmedia", false);
 	if (EventHeader.status != "success") {
-		
-		//v0 and v1 compatibility
 		if(version != "v2"){return res.status(401).send({"result": false, "description" : EventHeader.message});}
 
 		const result : ResultMessagev2 = {
@@ -55,16 +53,11 @@ const uploadmedia = async (req: Request, res: Response, version:string): Promise
 
 	}
 
-	//Check if pubkey is on the database
+	// Check if pubkey is on the database
 	let pubkey : string = EventHeader.pubkey;
-
-	//If pubkey is not on the db the upload will be public and a warning will be logged.
 	if (pubkey != await dbSelect("SELECT hex FROM registered WHERE hex = ?", "hex", [pubkey], registeredTableFields) as string) {
 		if (config.get("media.allowPublicUploads") == false) {
-			// We don't allow public uploads
 			logger.warn("pubkey not registered, public uploads not allowed | ", getClientIp(req));
-
-			//v0 and v1 compatibility
 			if(version != "v2"){return res.status(401).send({"result": false, "description" : "public uploads not allowed"});}
 
 			const result: ResultMessagev2 = {
@@ -73,21 +66,16 @@ const uploadmedia = async (req: Request, res: Response, version:string): Promise
 			};
 			return res.status(401).send(result);
 		}
-		// pubkey = app.get("config.server")["pubkey"];
-		// logger.warn("pubkey not registered, switching to public upload | ", getClientIp(req));
 		logger.info("pubkey not registered, uploading as guest | ", getClientIp(req));
 	}
 	logger.info("pubkey ->", pubkey, "|", getClientIp(req));
 
-	//Parse upload type. If not defined, default is "media"
+	// Parse upload type. If not defined, default is "media"
 	const media_type : string = await ParseMediaType(req, pubkey);
-	logger.info("type ->", media_type, "|", getClientIp(req));
 
-	//Check if file exist on request body
+	// Check if file exist on request body
 	if (!req.files || req.files == undefined || req.files.length == 0) {
 		logger.warn(`RES -> 400 Bad request - Empty file`, "|", getClientIp(req));
-
-		//v0 and v1 compatibility
 		if(version != "v2"){return res.status(400).send({"result": false, "description" : "Empty file"});}
 
 		const result: ResultMessagev2 = {
@@ -104,8 +92,6 @@ const uploadmedia = async (req: Request, res: Response, version:string): Promise
 
 	if (!file) {
 		logger.warn(`RES -> 400 Bad request - Empty file`, "|", getClientIp(req));
-
-		//v0 and v1 compatibility
 		if(version != "v2"){return res.status(400).send({"result": false, "description" : "Empty file"});}
 
 		const result: ResultMessagev2 = {
@@ -115,12 +101,10 @@ const uploadmedia = async (req: Request, res: Response, version:string): Promise
 		return res.status(400).send(result);
 	}
 
-	//Parse file type. If not defined or not allowed, reject upload.
+	// Parse file type. If not defined or not allowed, reject upload.
 	file.mimetype = await ParseFileType(req, file);
 	if (file.mimetype === "") {
 		logger.error(`RES -> 400 Bad request - `, file.mimetype, ` filetype not detected`, "|", getClientIp(req));
-
-		//v0 and v1 compatibility
 		if(version != "v2"){return res.status(400).send({"result": false, "description" : "file type not detected or not allowed"});}
 
 		const result: ResultMessagev2 = {
@@ -131,7 +115,7 @@ const uploadmedia = async (req: Request, res: Response, version:string): Promise
 	}
 	logger.info("mime ->", file.mimetype, "|", getClientIp(req));
 
-	//Filedata
+	// Filedata
 	const filedata: ProcessingFileData = {
 		filename: "",
 		fileid: "",
@@ -154,18 +138,18 @@ const uploadmedia = async (req: Request, res: Response, version:string): Promise
 		processing_url:""
 	};
 
-	//Uploaded file SHA256 hash and filename
+	// Uploaded file SHA256 hash and filename
 	filedata.originalhash = await generatefileHashfrombuffer(file);
 	filedata.filename = filedata.originalhash +  "." + mime_transform[file.mimetype]
 	logger.info("hash ->", filedata.originalhash, "|", getClientIp(req));
 
-	//URL
+	// URL
 	filedata.url = filedata.servername + "/media/" + pubkey + "/" + filedata.filename;
 
-	//Standard media conversions
+	// Standard media conversions
 	standardMediaConversion(filedata, file);
 	
-	//Status
+	// Status
 	if (version == "v1"){filedata.status = JSON.parse(JSON.stringify(UploadStatus[0]));}
 	if (version == "v2"){filedata.status = JSON.parse(JSON.stringify(MediaStatus[0]));}
 
@@ -174,40 +158,53 @@ const uploadmedia = async (req: Request, res: Response, version:string): Promise
 	let makeBlurhash = true;
 	let fileDBExists = false;
 
-	//Check if the (file SHA256 hash and pubkey) is already on the database, if exist (and the upload is media type) we return the existing file URL
-	const dbHash = await connect("Uploadmedia");
-	const [dbHashResult] = await dbHash.query("SELECT id, hash, magnet, blurhash, filename, filesize, dimensions FROM mediafiles WHERE original_hash = ? and pubkey = ? and filename not like 'avatar%' and filename not like 'banner%' ", [filedata.originalhash, pubkey]);	
-	const rowstempHash = JSON.parse(JSON.stringify(dbHashResult));
-	if (rowstempHash[0] !== undefined && media_type == "media") {
+	// Check if the (file SHA256 hash and pubkey) is already on the database, if exist (and the upload is media type) we return the existing file URL
+	const dbHash = await dbMultiSelect(
+								"SELECT id, hash, magnet, blurhash, filename, filesize, dimensions " +
+								"FROM mediafiles " + 
+								"WHERE original_hash = ? and pubkey = ? and filename not like 'avatar%' and filename not like 'banner%' ",
+								["id", "hash", "magnet", "blurhash", "filename", "filesize", "dimensions"],
+								[filedata.originalhash, pubkey],
+								mediafilesTableFields) as string[];
+
+	if (dbHash[0].length != 0 && media_type == "media") {
 		logger.info(`RES ->  File already in database, returning existing URL:`, filedata.servername + "/media/" + pubkey + "/" + filedata.filename, "|", getClientIp(req));
 
 		if (version == "v1"){filedata.status = JSON.parse(JSON.stringify(UploadStatus[2]));}
 		if (version == "v2"){filedata.status = JSON.parse(JSON.stringify(MediaStatus[0]));}
-		filedata.description = "File exist in database, returning existing URL";
-		filedata.filename = rowstempHash[0].filename;
-		filedata.magnet = rowstempHash[0].magnet;
-		filedata.fileid = rowstempHash[0].id;
-		filedata.hash = rowstempHash[0].hash;
-		filedata.blurhash = rowstempHash[0].blurhash;
-		filedata.filesize = rowstempHash[0].filesize;
-		if (rowstempHash[0].dimensions) {
-			filedata.width = rowstempHash[0].dimensions.split("x")[0];
-			filedata.height = rowstempHash[0].dimensions.split("x")[1];
+		filedata.fileid = dbHash[0];
+		filedata.hash = dbHash[1];
+		filedata.magnet = dbHash[2];
+		filedata.blurhash = dbHash[3];
+		filedata.filename = dbHash[4];
+		filedata.filesize = +dbHash[5];
+		if (dbHash[6] != undefined || dbHash[6] != null || dbHash[6] != "") {
+			filedata.width = +(dbHash[6].split("x")[0]);
+			filedata.height = +(dbHash[6].split("x")[1]);
 		}
+		filedata.description = "File exist in database, returning existing URL";
 		filedata.url = filedata.servername + "/media/" + pubkey + "/" + filedata.filename;
 		convert = false; 
 		insertfiledb = false;
 		makeBlurhash = false;
 		fileDBExists = true;
-
 	}
-	dbHash.end();
 
-	//If not exist create pubkey folder
-	const mediaPath = config.get("media.mediaPath") + pubkey;
-	if (!fs.existsSync(mediaPath)){
-		logger.warn("Pubkey folder not found, creating...", "|", getClientIp(req));
-		fs.mkdirSync(mediaPath);
+	// If not exist create pubkey folder
+	const mediaPath = config.get("media.mediaPath") + pubkey
+	try{
+		if (!fs.existsSync(mediaPath)){
+			logger.warn("Pubkey folder not found, creating...", "|", getClientIp(req));
+			fs.mkdirSync(mediaPath);
+		}
+	}catch{
+		logger.error("Error creating pubkey folder", "|", getClientIp(req));
+		if (version != "v2"){return res.status(500).send({"result": false, "description" : "Error creating pubkey folder"});}
+		const result : ResultMessagev2 = {
+			status: MediaStatus[1],
+			message: "Error creating pubkey folder",
+		}
+		return res.status(500).send(result);
 	}
 
 	// If not exist, copy file to pubkey folder
@@ -224,9 +221,7 @@ const uploadmedia = async (req: Request, res: Response, version:string): Promise
 			logger.error("Error copying file to pubkey folder", err, "|", getClientIp(req));
 		
 			//v0 and v1 compatibility
-			if(version != "v2"){
-				return res.status(500).send({"result": false, "description" : "Error copying file to disk"});
-			}
+			if(version != "v2"){return res.status(500).send({"result": false, "description" : "Error copying file to disk"});}
 		
 			const result: ResultMessagev2 = {
 				status: MediaStatus[1],
@@ -243,59 +238,31 @@ const uploadmedia = async (req: Request, res: Response, version:string): Promise
 		}
 	}
 
-	//Add file to mediafiles table
+	// Add file to mediafiles table
 	if (insertfiledb) {
+		const createdate = new Date(Math.floor(Date.now())).toISOString().slice(0, 19).replace("T", " ");
+		const insertResult = await dbInsert(
+			"mediafiles", 
+			["pubkey", "filename", "original_hash", "hash", "status", "visibility", "date", "ip_address", "magnet", "blurhash", "filesize", "comments"],
+			[filedata.pubkey, filedata.filename, filedata.originalhash, filedata.hash, filedata.status, 1, createdate, getClientIp(req), filedata.magnet, filedata.blurhash, filedata.filesize, ""]);
 
-		const dbFile = await connect("Uploadmedia");
-		try{
-			const createdate = new Date(Math.floor(Date.now())).toISOString().slice(0, 19).replace("T", " ");
-
-			const dbquery = await dbFile.query(
-				"INSERT INTO mediafiles (pubkey, filename, original_hash, hash, status, visibility, date, ip_address, magnet, blurhash, filesize, comments) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-				[
-					filedata.pubkey,
-					filedata.filename,
-					filedata.originalhash,
-					filedata.hash,
-					filedata.status,
-					1,
-					createdate,
-					getClientIp(req),
-					filedata.magnet,
-					filedata.blurhash,
-					filedata.filesize,
-					"",
-				]
-			);
-
-			filedata.fileid = JSON.parse(JSON.stringify(dbquery[0])).insertId;
-			dbFile.end();
-			
-			}
-			catch (error) {
-				logger.error("Error inserting file to database", error);
-
-				//v0 and v1 compatibility
-				if(version != "v2"){return res.status(500).send({"result": false, "description" : "Error inserting file to database"});}
-
-				const result: ResultMessagev2 = {
-					status: MediaStatus[1],
-					message: "Error inserting file to database",
-				};
-				dbFile.end();
-				return res.status(500).send(result);
-			}
-		
+		filedata.fileid = insertResult.toString();
+		if (insertResult == 0) {
+			logger.error("Error inserting file to database", "|", getClientIp(req));
+			if(version != "v2"){return res.status(500).send({"result": false, "description" : "Error inserting file to database"});}
+			const result: ResultMessagev2 = {
+				status: MediaStatus[1],
+				message: "Error inserting file to database",
+			};
+			return res.status(500).send(result);
+		}
 	}
 	
 	let responseStatus = 201;
 
 	if (convert){
 
-		//If we transform the file we fill the processing_url field
 		filedata.processing_url = filedata.servername + "/api/v2/media/" + filedata.fileid;
-
-		// Response with 202 Accepted
 		responseStatus = 202;
 
 		//Send request to transform queue
@@ -304,8 +271,6 @@ const uploadmedia = async (req: Request, res: Response, version:string): Promise
 		filedata.description + "File queued for conversion";
 		requestQueue.push(t).catch((err) => {
 			logger.error("Error pushing file to queue", err);
-
-			//v0 and v1 compatibility
 			if(version != "v2"){return res.status(500).send({"result": false, "description" : "Error queueing file"});}
 
 			const result: ResultMessagev2 = {
@@ -969,4 +934,10 @@ const deleteMedia = async (req: Request, res: Response, version:string): Promise
 
 };
 
-export { getMediaStatusbyID, getMediabyURL, uploadmedia, deleteMedia, updateMediaVisibility, getMediaTagsbyID, getMediabyTags };
+export { uploadMedia,
+		getMediaStatusbyID, 
+		getMediabyURL, 
+		deleteMedia, 
+		updateMediaVisibility, 
+		getMediaTagsbyID, 
+		getMediabyTags };
