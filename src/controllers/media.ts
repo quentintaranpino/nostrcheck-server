@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import app from "../app.js";
-import { connect, dbSelect } from "../lib/database.js";
+import { connect, dbDelete, dbMultiSelect, dbSelect } from "../lib/database.js";
 import { logger } from "../lib/logger.js";
 import { parseAuthHeader } from "../lib//authorization.js";
 import { ParseMediaType, ParseFileType, GetFileTags, standardMediaConversion, getNotFoundMediaFile, readRangeHeader } from "../lib/media.js"
@@ -851,39 +851,24 @@ const deleteMedia = async (req: Request, res: Response, version:string): Promise
 		return res.status(400).send({"status": "error", "message": "Module is not enabled"});
 	}
 
-	const servername = req.hostname;
-	const fileId = req.params.fileId;
-	let filehash = "";
-	const mediafiles = [];
-
-	logger.info("REQ Delete mediafile ->", servername, "|", getClientIp(req));
-
 	//Check if fileId is not empty
-	if (!fileId) {
+	if (!req.params.id || req.params.id === "" || req.params.id === undefined || req.params.id === null) {
 		logger.warn("RES -> 400 Bad request - missing fileId", "|", getClientIp(req));
-		const result: ResultMessage = {
-			result: false,
-			description: "missing fileId",
+		if(version != "v2"){return res.status(400).send({"result": false, "description" : "missing fileId"});}
+		const result: ResultMessagev2 = {
+			status: "error",
+			message: "missing fileId",
 		};
 		return res.status(400).send(result);
 	}
 
-	//Check if fileId is a number
-	if (isNaN(+fileId)) {
-		logger.warn("RES -> 400 Bad request - fileId is not a number", "|", getClientIp(req));
-		const result: ResultMessage = {
-			result: false,
-			description: "fileId must be a number",
-		};
-		return res.status(400).send(result);
-	}
-
-	//Check if fileId length is > 10
-	if (fileId.length > 10) {
-		logger.warn("RES -> 400 Bad request - fileId too long > 10", "|", getClientIp(req));
-		const result: ResultMessage = {
-			result: false,
-			description: "fileId too long",
+	//Check if fileId length is > 70
+	if (req.params.id.length > 70) {
+		logger.warn("RES -> 400 Bad request - fileId too long", "|", getClientIp(req));
+		if(version != "v2"){return res.status(400).send({"result": false, "description" : "fileId too long"});}
+		const result: ResultMessagev2 = {
+			status: "error",
+			message: "fileId too long",
 		};
 		return res.status(400).send(result);
 	}
@@ -902,127 +887,83 @@ const deleteMedia = async (req: Request, res: Response, version:string): Promise
 		return res.status(401).send(result);
 
 	}
+	
+	logger.info("REQ Delete mediafile ->", req.hostname, " | pubkey:",  EventHeader.pubkey, " | fileId:",  req.params.id, "|", getClientIp(req));
 
 	//Check if mediafile exist on database
+	let deleteSelect = "SELECT id, filename FROM mediafiles WHERE pubkey = ? and filename = ?";
+	if (version != "v2") {deleteSelect = "SELECT id, filename FROM mediafiles WHERE pubkey = ? and id = ?";}
+
+	const selectedFile = await dbMultiSelect(deleteSelect, ["id","filename", "hash"], [EventHeader.pubkey, req.params.id], mediafilesTableFields, true);
+	if (selectedFile[0].length == 0) {
+		logger.warn("RES Delete Mediafile -> 404 Not found", EventHeader.pubkey, req.params.id, "|", getClientIp(req));
+		if(version != "v2"){return res.status(404).send({"result": false, "description" : "Mediafile deletion not found"});}
+
+		const result: ResultMessagev2 = {
+			status: MediaStatus[1],
+			message: "Mediafile not found",
+		};
+
+		return res.status(404).send(result);
+	}
+
+	const fileid = selectedFile[0];
+	const filename = path.parse(selectedFile[1]).name;
+
+	if (filename === undefined || filename === null || filename === "") {
+		logger.error("Error getting file data from database", EventHeader.pubkey, fileid, "|", getClientIp(req));
+		if(version != "v2"){return res.status(500).send({"result": false, "description" : "Error getting file data from database"});}
+		const result: ResultMessagev2 = {
+			status: "error",
+			message: "Error getting file data from database",
+		};
+		return res.status(500).send(result);
+	}
+
+	//Delete mediafile from database
+	logger.info("Deleting file from database with id:", fileid, "pubkey:", EventHeader.pubkey, "filename:", filename, "|", getClientIp(req));
+	const deleteResult = await dbDelete("mediafiles", ["id","pubkey"],[fileid, EventHeader.pubkey]);
+	if (deleteResult == false) {
+		logger.warn("RES Delete Mediafile -> 404 Not found on database", EventHeader.pubkey, filename, "|", getClientIp(req));
+
+		//v0 and v1 compatibility
+		if(version != "v2"){return res.status(404).send({"result": false, "description" : "Mediafile  not found on database"});}
+
+		const result: ResultMessagev2 = {
+			status: MediaStatus[1],
+			message: "Mediafile not found on database",
+		};
+		return res.status(404).send(result);
+	}
+
+	// Delete file from disk
 	try{
-
-		const conn = await connect("DeleteMedia");
-		let DeleteSelect : string = "SELECT mediafiles.id, mediafiles.filename, mediafiles.hash FROM mediafiles WHERE mediafiles.pubkey = ? and mediafiles.filename = ?";
-		if (version === "v1"){
-			DeleteSelect = "SELECT mediafiles.id, mediafiles.filename, mediafiles.hash FROM mediafiles WHERE mediafiles.pubkey = ? and mediafiles.id = ?";
+		const mediaPath = config.get("media.mediaPath") + EventHeader.pubkey + "/" + filename;
+		if (fs.existsSync(mediaPath)){
+			logger.info("Deleting file from disk:", mediaPath);
+			fs.unlinkSync(mediaPath);
 		}
-		const [rows] = await conn.execute(
-			DeleteSelect,
-			[EventHeader.pubkey, fileId]
-		);
-		const rowstemp = JSON.parse(JSON.stringify(rows));
-		conn.end();
-		if (rowstemp[0] == undefined) {
-			logger.warn("RES Delete Mediafile -> 404 Not found", "|", getClientIp(req));
+	}catch{
+		logger.error("Error deleting file from disk", EventHeader.pubkey, filename, "|", getClientIp(req));
+		//v0 and v1 compatibility
+		if(version != "v2"){return res.status(500).send({"result": false, "description" : "Error deleting file from disk"})};
 
-			//v0 and v1 compatibility
-			if(version != "v2"){return res.status(404).send({"result": false, "description" : "Mediafile deletion not found"});}
-			
-			const result: ResultMessagev2 = {
-				status: MediaStatus[1],
-				message: "Mediafile not found",
-			};
-
-			return res.status(404).send(result);
-		}
-
-		//We store filehash for delete all files with same hash
-		if (rowstemp[0].hash !== undefined){
-		filehash = rowstemp[0].hash;
-		}else{
-			logger.error("Error getting file hash from database");
-			const result: ResultMessage = {
-				result: false,
-				description: "Error getting file hash from database",
-			};
-			return res.status(500).send(result);
-		}
-
-		//We store filenames for delete all files with same hash
-		if (rowstemp[0].filename !== undefined && rowstemp.length > 0){
-			for (let i = 0; i < rowstemp.length; i++) {
-				mediafiles.push(rowstemp[i].filename);
-			}
-		}else{
-			logger.error("Error getting filenames from database");
-			const result: ResultMessage = {
-				result: false,
-				description: "Error getting filenames from database",
-			};
-			return res.status(500).send(result);
-		}
-	
-	}catch (error) {
-		logger.error(error);
-		const result: ResultMessage = {
-			result: false,
-			description: "Internal server error",
+		const result: ResultMessagev2 = {
+			status: MediaStatus[1],
+			message: "Error deleting file from disk",
 		};
 		return res.status(500).send(result);
 	}
-
-	logger.info("REQ Delete mediafile ->", servername, " | pubkey:",  EventHeader.pubkey, " | fileId:",  fileId, "|", getClientIp(req));
-
-	try {
-		const conn = await connect("DeleteMedia");
-		const [rows] = await conn.execute(
-			"DELETE FROM mediafiles WHERE hash = ? and pubkey = ?", [filehash, EventHeader.pubkey]
-		);
-		const rowstemp = JSON.parse(JSON.stringify(rows));
-		conn.end();
-		if (rowstemp.affectedRows == 0) {
-			logger.warn("RES Delete Mediafile -> 404 Not found", "|", getClientIp(req));
-
-			//v0 and v1 compatibility
-			if(version != "v2"){return res.status(404).send({"result": false, "description" : "Mediafile deletion not found"});}
-
-			const result: ResultMessagev2 = {
-				status: MediaStatus[1],
-				message: "Mediafile not found",
-			};
-
-			return res.status(404).send(result);
-		}
-
-		logger.info("Deleting files from database:", rowstemp.affectedRows, "|", getClientIp(req));
-
-		//Delete file from disk
-		for (let i = 0; i < mediafiles.length; i++) {
-			const mediaPath = config.get("media.mediaPath") + EventHeader.pubkey + "/" + mediafiles[i];
-			if (fs.existsSync(mediaPath)){
-				logger.info("Deleting file from disk:", mediaPath);
-				fs.unlinkSync(mediaPath);
-			}
-		}
-	}
-	catch (error) {
-		logger.error(error);
-		const result: ResultMessage = {
-			result: false,
-			description: "Internal server error",
-		};
-		return res.status(500).send(result);
-	}
-
-	logger.info("RES Delete mediafile ->", servername, " | pubkey:",  EventHeader.pubkey, " | fileId:",  fileId, "|", "mediafile(s) deleted", "|", getClientIp(req));
+	logger.info("RES Deleted mediafile ->", req.hostname, " | pubkey:",  EventHeader.pubkey, " | fileId:",  fileid, "|", getClientIp(req));
 
 	//v0 and v1 compatibility
 	if (version != "v2"){
-		const result: ResultMessage = {
-			result: true,
-			description: `Mediafile deletion for id: ${fileId} and pubkey ${EventHeader.pubkey} successful`,
-		};
-		return res.status(200).send(result);
+		return res.status(200).send({result: true, description: `Mediafile deletion for id: ${fileid}, filename: ${filename} and pubkey ${EventHeader.pubkey} successful`});
 	}
 
 	const result: ResultMessagev2 = {
 		status: MediaStatus[0],
-		message: `Mediafile deletion with name: ${fileId} and pubkey: ${EventHeader.pubkey} successful`,
+		message: `Mediafile deletion with id: ${fileid}, filename: ${filename} and pubkey: ${EventHeader.pubkey} successful`,
 	};
 	return res.status(200).send(result);
 
