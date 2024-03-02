@@ -43,20 +43,25 @@ const logger = new Logger({
 });
 
 logger.attachTransport((log) => {
-	stream.write(`${JSON.stringify(log)}\n`);
-	// only push to transports if logLevel is greater than or equal to 4 (warn)
-	if (log._meta.logLevelId >= 4) {
-		const logEvent: logEvent = {
-			date : log._meta.date,
-			severity: log._meta.logLevelName,
-			message: log['0'].toString(),
-		};
-		logHistory.push(logEvent);
-		// Keep only the last 1000 lines in logHistory
-		if (logHistory.length > 1000) {
-			logHistory.shift();
+	try{
+		stream.write(`${JSON.stringify(log)}\n`);
+		// only push to transports if logLevel is greater than or equal to 4 (warn)
+		if (log._meta.logLevelId >= 4) {
+			const logEvent: logEvent = {
+				date : log._meta.date,
+				severity: log._meta.logLevelName,
+				message: log['0'].toString(),
+			};
+			logHistory.push(logEvent);
+			// Keep only the last 1000 lines in logHistory
+			if (logHistory.length > 1000) {
+				logHistory.shift();
+			}
 		}
+	}catch(e){
+		logger.fatal("Can't write to log file");
 	}
+	
 });
 
 export { logger, logHistory };
