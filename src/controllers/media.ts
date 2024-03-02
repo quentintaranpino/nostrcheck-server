@@ -856,10 +856,10 @@ const deleteMedia = async (req: Request, res: Response, version:string): Promise
 	logger.info("REQ Delete mediafile ->", req.hostname, " | pubkey:",  EventHeader.pubkey, " | fileId:",  req.params.id, "|", getClientIp(req));
 
 	//Check if mediafile exist on database
-	let deleteSelect = "SELECT id, filename FROM mediafiles WHERE pubkey = ? and filename = ?";
+	let deleteSelect = "SELECT id, filename FROM mediafiles WHERE pubkey = ? and (filename = ? OR original_hash = ?)";
 	if (version != "v2") {deleteSelect = "SELECT id, filename FROM mediafiles WHERE pubkey = ? and id = ?";}
 
-	const selectedFile = await dbMultiSelect(deleteSelect, ["id","filename", "hash"], [EventHeader.pubkey, req.params.id], mediafilesTableFields, true);
+	const selectedFile = await dbMultiSelect(deleteSelect, ["id","filename", "hash"], [EventHeader.pubkey, req.params.id, path.parse(req.params.id).name], mediafilesTableFields, true);
 	if (selectedFile[0].length == 0) {
 		logger.warn("RES Delete Mediafile -> 404 Not found", EventHeader.pubkey, req.params.id, "|", getClientIp(req));
 		if(version != "v2"){return res.status(404).send({"result": false, "description" : "Mediafile deletion not found"});}
@@ -873,7 +873,7 @@ const deleteMedia = async (req: Request, res: Response, version:string): Promise
 	}
 
 	const fileid = selectedFile[0];
-	const filename = path.parse(selectedFile[1]).name;
+	const filename = selectedFile[1];
 
 	if (filename === undefined || filename === null || filename === "") {
 		logger.error("Error getting file data from database", EventHeader.pubkey, fileid, "|", getClientIp(req));
@@ -904,6 +904,7 @@ const deleteMedia = async (req: Request, res: Response, version:string): Promise
 	// Delete file from disk
 	try{
 		const mediaPath = config.get("media.mediaPath") + EventHeader.pubkey + "/" + filename;
+		logger.debug("Deleting file from disk:", mediaPath, "|", getClientIp(req));
 		if (fs.existsSync(mediaPath)){
 			logger.info("Deleting file from disk:", mediaPath);
 			fs.unlinkSync(mediaPath);
