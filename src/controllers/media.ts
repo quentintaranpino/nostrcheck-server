@@ -547,17 +547,24 @@ const getMediabyURL = async (req: Request, res: Response) => {
 	}
 
 	// Check if file is active on the database
-	const cached = await redisClient.get(req.params.filename + "-" + req.params.pubkey);
-	if (cached === null || cached === undefined) {
+	const cachedStatus = await redisClient.get(req.params.filename + "-" + req.params.pubkey);
+	if (cachedStatus === null || cachedStatus === undefined) {
 
-		if ((await dbSelect("SELECT active FROM mediafiles WHERE filename = ? and pubkey = ? ", "active", [req.params.filename, req.params.pubkey], mediafilesTableFields) as string) != "1")  {
+		const filedata = await dbMultiSelect("SELECT id, active FROM mediafiles WHERE filename = ? and pubkey = ? ", ["id", "active"], [req.params.filename, req.params.pubkey], mediafilesTableFields) as string[];
+		logger.debug(filedata)
+		if (filedata[0] == undefined || filedata[0] == "" || filedata[0] == null) {
+			logger.warn(`RES -> 404 Not Found - ${req.url}`, "| Returning not found media file.", getClientIp(req));
+			res.setHeader('Content-Type', 'image/webp');
+			return res.status(404).send(await getNotFoundMediaFile());
+		}
+		if (filedata[1] != "1")  {
 			logger.warn(`RES -> 401 File not active - ${req.url}`, "| Returning not found media file.", getClientIp(req));
 
 			await redisClient.set(req.params.filename + "-" + req.params.pubkey, "0", {
 				EX: app.get("config.redis")["expireTime"],
 				NX: true,
 			});
-			logger.warn(`RES -> 401 File not active - ${req.url}`, "returning not found media file |", getClientIp(req), "|", "cached:", cached ? true : false);
+			logger.warn(`RES -> 401 File not active - ${req.url}`, "returning not found media file |", getClientIp(req), "|", "cached:", cachedStatus ? true : false);
 
 			res.setHeader('Content-Type', 'image/webp');
 			return res.status(401).send(await getNotFoundMediaFile());
@@ -568,8 +575,8 @@ const getMediabyURL = async (req: Request, res: Response) => {
 		});
 
 	}
-	if (cached === "0") {
-		logger.warn(`RES -> 401 File not active - ${req.url}`, "returning not found media file |", getClientIp(req), "|", "cached:", cached ? true : false);
+	if (cachedStatus === "0") {
+		logger.warn(`RES -> 401 File not active - ${req.url}`, "returning not found media file |", getClientIp(req), "|", "cached:", cachedStatus ? true : false);
 		res.setHeader('Content-Type', 'image/webp');
 		return res.status(401).send(await getNotFoundMediaFile());
 	}
@@ -610,7 +617,7 @@ const getMediabyURL = async (req: Request, res: Response) => {
 		res.status(206);
 
 		const videoStream = fs.createReadStream(fileName, {start: range.Start, end: range.End});
-		logger.info(`RES -> 206 Video partial Content - start: ${range.Start} end: ${range.End} | ${req.url}`, "|", getClientIp(req), "|", cached ? true : false);
+		logger.info(`RES -> 206 Video partial Content - start: ${range.Start} end: ${range.End} | ${req.url}`, "|", getClientIp(req), "|", cachedStatus ? true : false);
 		return videoStream.pipe(res);
 	}
 
@@ -621,7 +628,7 @@ const getMediabyURL = async (req: Request, res: Response) => {
 			res.setHeader('Content-Type', 'image/webp');
 			return res.status(404).send(await getNotFoundMediaFile());
 		} 
-		logger.info(`RES -> 200 Media file ${req.url}`, "|", getClientIp(req), "|", "cached:", cached ? true : false);
+		logger.info(`RES -> 200 Media file ${req.url}`, "|", getClientIp(req), "|", "cached:", cachedStatus ? true : false);
 		res.status(200).send(data);
 
 	});
