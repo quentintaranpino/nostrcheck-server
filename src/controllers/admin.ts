@@ -357,7 +357,7 @@ const deleteDBRecord = async (req: Request, res: Response): Promise<Response> =>
     }
 
     // Delete record from table
-    const deletedRecord = await dbDelete(table, 'id', req.body.id);
+    const deletedRecord = await dbDelete(table, ['id'], [req.body.id]);
     if(deletedRecord){
         const result : authkeyResultMessage = {
             status: "success",

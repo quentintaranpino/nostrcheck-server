@@ -270,6 +270,15 @@ const dbSelect = async (queryStatement: string, returnField :string, whereFields
     }
 }
 
+/**
+/  * Executes a SELECT SQL query on a database and returns the specified fields from the result.
+/  * @param {string} queryStatement - The SQL query to be executed.
+/  * @param {string[]} returnFields - The fields to be returned from the result.
+/  * @param {string[]} whereFields - The fields to be used in the WHERE clause of the SQL query.
+/  * @param {RowDataPacket} table - The table object where the SQL query will be executed.
+/  * @param {boolean} [onlyFirstResult=true] - A boolean indicating whether to return only the first result from the query or all results.
+/  * @returns {Promise<string[]>} A promise that resolves to an array of values of the specified return fields from the result, or an empty array if an error occurs or if the result is empty.
+*/
 const dbMultiSelect = async (queryStatement: string, returnFields : string[], whereFields: string[], table: RowDataPacket, onlyFirstResult = true): Promise<string[]> => {
 
 	if (returnFields.length == 0){
@@ -308,11 +317,20 @@ const dbMultiSelect = async (queryStatement: string, returnFields : string[], wh
     }
 }
 
-const dbDelete = async (tableName :string, whereFieldName :string, whereFieldValue: string): Promise<boolean> =>{
+/**
+ * Deletes records from a specified table in the database where the specified conditions are met.
+ *
+ * @param tableName - The name of the table from which records will be deleted.
+ * @param whereFieldNames - An array of field names that will be used in the WHERE clause of the DELETE query.
+ * @param whereFieldValues - An array of corresponding values for the field names in `whereFieldNames` that will be used in the WHERE clause of the DELETE query.
+ * @returns A Promise that resolves to a boolean. The Promise will resolve to `true` if the deletion was successful, and `false` otherwise.
+ */
+const dbDelete = async (tableName :string, whereFieldNames :string[], whereFieldValues: string[]): Promise<boolean> =>{
+	
 	const conn = await connect("dbDelete:" + tableName);
 
 	// Check if wherefieldValue is not empty
-	if (whereFieldValue == ""){
+	if (whereFieldValues.length == 0){
 		logger.error("Error deleting data from " + tableName + " table, whereFieldValue is empty");
 		conn.end();
 		return false;
@@ -320,8 +338,8 @@ const dbDelete = async (tableName :string, whereFieldName :string, whereFieldVal
 
 	try{
 		const [dbFileDelete] = await conn.execute(
-			"DELETE FROM " + tableName + " where " + whereFieldName + " = ?",
-			[whereFieldValue]
+			"DELETE FROM " + tableName + " WHERE " + whereFieldNames.join(" = ? and ") + " = ?",
+			[...whereFieldValues]
 		);
 		if (!dbFileDelete) {
 			logger.error("Error deleting data from " + tableName + " table");
