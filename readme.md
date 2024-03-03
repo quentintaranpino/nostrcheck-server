@@ -10,7 +10,6 @@ It allows to validate nostr address (NIP05), multimedia uploads (NIP94, NIP96), 
 
 The server can be installed anywhere and allows anyone to become a nostr service provider. 
 
-
 ## Installation
 
 To install the server use the following script, you can the script [here](https://github.com/quentintaranpino/nostrcheck-api-ts/blob/main/scripts/install.sh)
@@ -21,6 +20,28 @@ curl https://raw.githubusercontent.com/quentintaranpino/nostrcheck-api-ts/0.5.0/
 ## Documentantion
 
 See documentation at [docs](https://github.com/quentintaranpino/nostrcheck-api-ts/blob/0.5.0/DOCS.md)
+
+## Screenshots
+### Dashboard
+![image](https://github.com/quentintaranpino/nostrcheck-api-ts/assets/125748180/f9f4ab55-3560-49c2-b437-c90079b7a66c)
+### User public / private profile
+![image](https://github.com/quentintaranpino/nostrcheck-api-ts/assets/125748180/3b2507d7-5ba1-4d09-8cb1-06aa6298d681)
+
+### Server settings page
+![image](https://github.com/quentintaranpino/nostrcheck-api-ts/assets/125748180/89127444-fba3-4ce9-860c-d221989b011b)
+
+### Login 
+![image](https://github.com/quentintaranpino/nostrcheck-api-ts/assets/125748180/507ff222-6272-4c33-8144-10ca3264b778)
+
+### Public API docs
+![image](https://github.com/quentintaranpino/nostrcheck-api-ts/assets/125748180/6c6f9976-fccc-40fb-a63c-5f9dd507faf0)
+
+### Customizable frontpage and logo
+![image](https://github.com/quentintaranpino/nostrcheck-api-ts/assets/125748180/9de9cfc6-52d1-4056-b781-0c7b6278cbb8)
+![image](https://github.com/quentintaranpino/nostrcheck-api-ts/assets/125748180/6299137f-e862-4854-bfe0-f793ef0417e6)
+
+
+
 
 ## Supported nips
 
