@@ -14,6 +14,7 @@ import crypto from "crypto";
 import { getClientIp } from "./server.js";
 import { CreateMagnet } from "./torrent.js";
 import path from "path";
+import sharp from "sharp";
 
 const PrepareFile = async (t: asyncTask): Promise<void> =>{
 
@@ -302,16 +303,28 @@ const standardMediaConversion = (filedata : ProcessingFileData , file:Express.Mu
 
 async function setMediaDimensions(file:string, options:ProcessingFileData):Promise<string> {
 
-	const response:string = await new Promise ((resolve) => {
+	const response:string = await new Promise (async (resolve) => {
+
+		let mediaWidth : number | undefined;
+		let mediaHeight : number | undefined;
+		
+		// If is an image and has orientation, swap width and height. More info: https://github.com/lovell/sharp/commit/4ac65054bcf4d59a90764f908f8921f5e927d364 
+		if (options.originalmime.startsWith("image")) {
+			const imageInfo = await sharp(file).metadata()
+			if (imageInfo.orientation && imageInfo.orientation >= 5) {
+				mediaWidth = imageInfo.height;
+				mediaHeight = imageInfo.width;
+			}
+		}
+	
 		ffmpeg.ffprobe(file, (err, metadata) => {
 		if (err) {
 			logger.error("Could not get media dimensions of file: " + options.filename + " using default min width (640px)");
 			resolve("640x480"); //Default min width
 			return;
 		} else {
-		
-			const mediaWidth = metadata.streams[0].width;
-			const mediaHeight = metadata.streams[0].height;
+			mediaWidth = mediaWidth? mediaWidth : metadata.streams[0].width;
+			mediaHeight = mediaHeight? mediaHeight : metadata.streams[0].height;
 			let newWidth = options.width;
 			let newHeight = options.height;
 
