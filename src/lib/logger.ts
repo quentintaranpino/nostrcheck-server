@@ -47,10 +47,16 @@ logger.attachTransport((log) => {
 		stream.write(`${JSON.stringify(log)}\n`);
 		// only push to transports if logLevel is greater than or equal to 4 (warn)
 		if (log._meta.logLevelId >= 4) {
+			let logMessage: string = "";
+			for (let key in log) {
+				if (!isNaN(Number(key))) {
+					logMessage += log[key];
+				}
+			}
 			const logEvent: logEvent = {
 				date : log._meta.date,
 				severity: log._meta.logLevelName,
-				message: log['0'].toString(),
+				message: logMessage,
 			};
 			logHistory.push(logEvent);
 			// Keep only the last 1000 lines in logHistory
