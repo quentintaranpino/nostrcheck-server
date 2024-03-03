@@ -3,7 +3,7 @@
 <img src= "https://github.com/quentintaranpino/nostrcheck-api-ts/assets/125748180/b4a7a4c3-938f-4f60-af81-3af4e5178ec4">
 </p>
 
-## about
+## About
 Nostrcheck server is a set of tools to interact with nostr and be sovereign of your data. 
 
 It allows to validate nostr address (NIP05), multimedia uploads (NIP94, NIP96), nostr notes integrity check and lightning redirects. All under NIP98 authentication 100% nostr compatible.
