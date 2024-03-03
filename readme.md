@@ -20,7 +20,7 @@ curl https://raw.githubusercontent.com/quentintaranpino/nostrcheck-api-ts/0.5.0/
 ```
 ## Documentantion
 
-See documentation at [docs](https://github.com/quentintaranpino/nostrcheck-api-ts/blob/main/DOCS.md)
+See documentation at [docs](https://github.com/quentintaranpino/nostrcheck-api-ts/blob/0.5.0/DOCS.md)
 
 ## License
 
