@@ -50,7 +50,7 @@ logger.attachTransport((log) => {
 			let logMessage: string = "";
 			for (let key in log) {
 				if (!isNaN(Number(key))) {
-					logMessage += log[key];
+					logMessage += " " + log[key];
 				}
 			}
 			const logEvent: logEvent = {
