@@ -1,9 +1,9 @@
 # nostrcheck-server
 <p align="center">
-<img src "https://github.com/quentintaranpino/nostrcheck-api-ts/assets/125748180/b4a7a4c3-938f-4f60-af81-3af4e5178ec4">
+<img src= "https://github.com/quentintaranpino/nostrcheck-api-ts/assets/125748180/b4a7a4c3-938f-4f60-af81-3af4e5178ec4">
 </p>
 
-# about
+## about
 Nostrcheck server is a set of tools to interact with nostr and be sovereign of your data. 
 
 It allows to validate nostr address (NIP05), multimedia uploads (NIP94, NIP96), nostr notes integrity check and lightning redirects. All under NIP98 authentication 100% nostr compatible.
@@ -11,15 +11,16 @@ It allows to validate nostr address (NIP05), multimedia uploads (NIP94, NIP96), 
 The server can be installed anywhere and allows anyone to become a nostr service provider. 
 
 
-BETA: New install script, you can [see it here](https://github.com/quentintaranpino/nostrcheck-api-ts/blob/main/scripts/install.sh)
+## Installation
+
+To install the server use the following script, you can the script [here](https://github.com/quentintaranpino/nostrcheck-api-ts/blob/main/scripts/install.sh)
 
 ```
 curl https://raw.githubusercontent.com/quentintaranpino/nostrcheck-api-ts/0.5.0/scripts/install.sh --output install.sh && chmod +x install.sh && ./install.sh
 ```
-# Documentantion
+## Documentantion
 
 See documentation at [docs](https://github.com/quentintaranpino/nostrcheck-api-ts/blob/main/DOCS.md)
-
 
 ## License
 
