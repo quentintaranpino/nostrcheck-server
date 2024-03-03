@@ -22,6 +22,17 @@ curl https://raw.githubusercontent.com/quentintaranpino/nostrcheck-api-ts/0.5.0/
 
 See documentation at [docs](https://github.com/quentintaranpino/nostrcheck-api-ts/blob/0.5.0/DOCS.md)
 
+## Supported nips
+
+- [x] NIP01
+- [x] NIP04
+- [x] NIP07
+- [x] NIP19
+- [x] NIP44
+- [x] NIP94
+- [x] NIP96
+- [x] NIP98
+
 ## License
 
 MIT License (MIT)
