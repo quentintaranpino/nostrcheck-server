@@ -4,12 +4,18 @@ import { connect } from "../lib/database.js";
 import { logger } from "../lib/logger.js";
 import { redisClient, getNostrAddressFromRedis } from "../lib/redis.js";
 import { RegisteredUsernameResult } from "../interfaces/register.js";
-import { ResultMessage } from "../interfaces/server.js";
-import config from "config";
+import { ResultMessagev2 } from "../interfaces/server.js";
 import { getClientIp } from "../lib/server.js";
+import app from "../app.js";
+import { isModuleEnabled } from "../lib/config.js";
 
-//Nostr address usernames endpoint
-const Checknostraddress = async (req: Request, res: Response): Promise<Response> => {
+const checkNostrAddress = async (req: Request, res: Response): Promise<Response> => {
+
+	// Check if current module is enabled
+	if (!isModuleEnabled("nostraddress", app)) {
+        logger.warn("Attempt to access a non-active module:","nostraddress","|","IP:", getClientIp(req));
+		return res.status(400).send({"status": "error", "message": "Module is not enabled"});
+	}
 
 	const name = req.query.name as string;
 	const servername = req.hostname;
@@ -24,9 +30,9 @@ const Checknostraddress = async (req: Request, res: Response): Promise<Response>
 			getClientIp(req)
 		);
 
-		const result: ResultMessage = {
-			result: false,
-			description: "Bad request - You have to specify the 'name' parameter",
+		const result: ResultMessagev2 = {
+			status: "error",
+			message:  "Bad request - You have to specify the 'name' parameter",
 		};
 
 		return res.status(400).send(result);
@@ -37,9 +43,9 @@ const Checknostraddress = async (req: Request, res: Response): Promise<Response>
 		logger.info("REQ Nostraddress ->", servername, "| " +  name.substring(0,50) + "..."  + " |", getClientIp(req));
 		logger.warn("RES Nostraddress -> 400 Bad request - name too long", "|", getClientIp(req));
 
-		const result: ResultMessage = {
-			result: false,
-			description: "Bad request - Name is too long",
+		const result: ResultMessagev2 = {
+			status: "error",
+			message:  "Bad request - Name is too long",
 		};
 
 		return res.status(400).send(result);
@@ -48,7 +54,7 @@ const Checknostraddress = async (req: Request, res: Response): Promise<Response>
 	logger.info("REQ Nostraddress ->", servername, "|", name, "|", getClientIp(req));
 
 	// Root _ pubkey
-	const rootkey : string = config.get('server.pubkey'); 
+	const rootkey : string = app.get("config.server")["pubkey"];
 	if (req.query.name === "_") {
 		return res.status(200).send(JSON.stringify({ names: { ['_']: rootkey } }));
 	}
@@ -70,8 +76,8 @@ const Checknostraddress = async (req: Request, res: Response): Promise<Response>
 		//If not cached, query the database
 		const conn = await connect("Checknostraddress");
 		const [rows] = await conn.execute(
-			"SELECT username , hex  FROM registered WHERE username = ? and domain = ?",
-			[name, servername]
+			"SELECT username , hex  FROM registered WHERE username = ? and domain = ? and active = ?",
+			[name, servername, 1]
 		);
 		const rowstemp = JSON.parse(JSON.stringify(rows));
 		conn.end();
@@ -79,9 +85,9 @@ const Checknostraddress = async (req: Request, res: Response): Promise<Response>
 		if (rowstemp[0] == undefined) {
 			logger.warn("RES Nostraddress ->", name, "|", "Username not registered", "|", getClientIp(req));
 
-			const result: ResultMessage = {
-				result: false,
-				description: `${name} is not registered on ${servername}`,
+			const result: ResultMessagev2 = {
+				status: "error",
+				message: `${name} is not registered on ${servername}`,
 			};
 
 			return res.status(404).send(result);
@@ -94,17 +100,17 @@ const Checknostraddress = async (req: Request, res: Response): Promise<Response>
 	} catch (error) {
 		logger.error(error);
 
-		const result: ResultMessage = {
-			result: false,
-			description: "Internal server error",
+		const result: ResultMessagev2 = {
+			status: "error",
+			message:  "Internal server error",
 		};
 
 		return res.status(404).send(result);
 	}
 
 	await redisClient.set(result.username + "-" + servername, JSON.stringify(result), {
-		EX: 300, // 5 minutes
-		NX: true, // Only set the key if it does not already exist
+		EX: app.get("config.redis")["expireTime"],
+		NX: true,
 	});
 
 	logger.info("RES Nostraddress ->", result.hex, "|", "cached:", isCached);
@@ -113,4 +119,4 @@ const Checknostraddress = async (req: Request, res: Response): Promise<Response>
 };
 
 
-export { Checknostraddress };
+export { checkNostrAddress };

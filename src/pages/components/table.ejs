@@ -1,0 +1,66 @@
+<h3><%- tableName %></h3>
+<div id="<%- tableId %>-toolbar">
+    <button id="<%- tableId %>-button-add"%> class="btn btn-info <%= buttons[0][1] == 'hide' ? 'd-none' : '' %> ">
+        <i class="fa fa-add"></i>
+    </button>
+    <div class="btn-group" role="group" aria-label="Enable disable buttons">
+        <button id="<%- tableId %>-button-disable" 
+            class="btn btn-warning <%= buttons[1][1] == 'hide' ? 'd-none' : '' %> " disabled
+            >
+        <i class="fa fa-ban"></i> 
+        </button>
+        <button id="<%- tableId %>-button-enable" 
+            class="btn btn-success <%= buttons[2][1] == 'hide' ? 'd-none' : '' %> " disabled
+            >
+        <i class="fa fa-check"></i> 
+        </button>
+    </div>
+    <div class="btn-group" role="group" aria-label="Visible invisible buttons">
+        <button id="<%- tableId %>-button-show" 
+            class="btn btn-success <%= buttons[3][1] == 'hide' ? 'd-none' : '' %> " disabled
+            >
+            <i class="fa-solid fa-eye"></i>
+        </button>
+        <button id="<%- tableId %>-button-hide" 
+            class="btn btn-secondary <%= buttons[4][1] == 'hide' ? 'd-none' : '' %> " disabled
+            >
+            <i class="fa-solid fa-eye-slash"></i>
+        </button>
+    </div>
+    <div class="btn-group" role="group" aria-label="Edit buttons">
+        <button id="<%- tableId %>-button-admin"   class="btn btn-secondary <%= buttons[5][1] == 'hide' ? 'd-none' : '' %> " disabled>
+        <i class="fa fa-user-tie"></i> 
+        </button>
+        <button id="<%- tableId %>-button-edit" 
+
+                class="btn btn-secondary <%= buttons[6][1] == 'hide' ? 'd-none' : '' %> " disabled
+                >
+        <i class="fa fa-edit"></i> 
+        </button>
+        <button id="<%- tableId %>-button-password"  class="btn btn-secondary <%= buttons[7][1] == 'hide' ? 'd-none' : '' %> " disabled>
+            <i class="fa fa-key"></i>
+        </button>
+    </div>
+    <button id="<%- tableId %>-button-remove"  class="btn btn-danger <%= buttons[8][1] == 'hide' ? 'd-none' : '' %> " disabled>
+        <i class="fa fa-trash"></i> 
+    </button>
+</div>
+
+<table 
+    id="<%- tableId %>"
+    >
+<thead>
+    <tr>
+        <th data-field="state" data-checkbox="true"></th>
+        <th data-field="id" data-sortable="true">ID</th>
+        <% for(var i=0; i<fields.length; i++) { %>
+            <th data-field="<%= fields[i][0] %>" data-sortable="true" class="<%= fields[i][1] %> <%= fields[i][2] %> <%= fields[i][3] %>"><%= fields[i][0] %></th>
+        <% } %>
+    </tr>
+    </thead>
+</table>
+<%- include('edit-modal', {"objectId":tableId, "fields": fields}); %>
+<%- include('message-modal', {"objectId":tableId}); %>
+<%- include('confirm-modal', {"objectId":tableId, "rows": fields}); %>
+<%- include('alert-modal', {"objectId":tableId}); %>
+<%- include('media-modal', {"objectId":tableId}); %>

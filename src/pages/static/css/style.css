@@ -1,0 +1,62 @@
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background-color: #f5f5f5;
+}
+
+main {
+  padding:10px;
+}
+
+.btn-primary {
+  background-color: #343a40;
+  border-color: #343a40;
+}
+
+.btn-primary:hover {
+  background-color: #212529;
+  border-color: #212529;
+}
+
+.cursor-zoom-in {
+  cursor: zoom-in;
+}
+
+.dropdown-item.active {
+  background-color: #71767c;
+  color: #fff;
+}
+
+.dropdown-menu {
+--bs-dropdown-link-active-bg: #a575ff;
+}
+
+.background-style-1 {
+  background-image: -webkit-linear-gradient(to top, rgb(151, 149, 240) 0%, rgb(0 0 0) 100%);
+  background-image: linear-gradient(to top, rgb(151, 149, 240) 0%, rgb(0 0 0) 100%);
+  background-repeat: no-repeat;
+  background-size: cover;
+  background-attachment: fixed;
+}
+
+.background-style-2 {
+  background: -webkit-linear-gradient(to right, rgb(200 128 179), rgb(130 170 235));
+  background: linear-gradient(to right, rgb(200 128 179), rgb(130 170 235));
+  background-repeat: no-repeat;
+  background-size: cover;
+  background-attachment: fixed;
+}
+
+.fade-in {
+  opacity: 0;
+  animation: fadeIn 1s forwards;
+}
+
+@keyframes fadeIn {
+  to {
+      opacity: 1;
+  }
+}

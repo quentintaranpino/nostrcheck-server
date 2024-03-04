@@ -1,22 +1,104 @@
 import { Application } from "express";
+import { 	loadDashboardPage, 
+			loadSettingsPage, 
+			loadTosPage, 
+			loadDocsPage, 
+			loadLoginPage, 
+			loadIndexPage, 
+			loadProfilePage,
+			loadGalleryData
+		} from "../controllers/frontend.js";
+import { frontendLogin } from "../controllers/frontend.js";
+import { logger } from "../lib/logger.js";
+import { isPubkeyValid } from "../lib/authorization.js";
 
-import { getFrontendIndex } from "../controllers/frontend/index.js";
-import { getFrontendTOS } from "../controllers/frontend/tos.js";
+import { limiter } from "../lib/session.js"
 
-export const LoadFrontendEndpoint = async (app: Application, _version:string): Promise<void> => {
+export const loadFrontendEndpoint = async (app: Application, version:string): Promise<void> => {
 
+	// Legacy frontend routes
 	app.get("/", (_req, res) => {
-		res.redirect("/api/v2");
+		res.redirect("/api/v2/");
 	});
 	app.get("/api", (_req, res) => {
-		res.redirect("/api/v2");
+		res.redirect("/api/v2/");
 	});
-
 	app.get("/api/v1", (_req, res) => {
-		res.redirect("/api/v2");
+		res.redirect("/api/v2/");
 	});
 
-	app.get("/api/v2", getFrontendIndex);
-	app.get("/api/tos",getFrontendTOS);
-		
+	// Current v2 routes (index)
+	app.get("/api/" + version, limiter(100), (req, res) => {
+		loadIndexPage(req,res,version);
+	});
+
+	// Login page
+	app.get("/api/" +  version + "/login", limiter(10), (req, res) => {
+		loadLoginPage(req,res,version);
+	});
+
+	// Login POST
+	app.post("/api/" +  version + "/login", limiter(5), (req, res) => {
+		frontendLogin(req,res)
+	});
+
+	// Tos
+	app.get("/api/" +  version + "/tos", (req, res) => {
+		loadTosPage(req,res,version);
+	});
+
+	// Documentation
+	app.get("/api/" +  version + "/documentation", (req, res) => {
+		loadDocsPage(req,res,version);
+	});
+
+	// Dashboard
+	app.get("/api/" +  version + "/dashboard", limiter(100), async (req, res) => {
+		if (req.session.identifier == null){
+			res.redirect("/api/" +  version + "/login");
+		}else if (await isPubkeyValid(req, true) == false){
+			res.redirect("/api/v2/");
+		}else{
+			loadDashboardPage(req,res,version);
+		}
+	});
+
+	// Settings
+	app.get("/api/" +  version + "/settings", limiter(100), async (req, res) => {
+		if (req.session.identifier == null){
+			res.redirect("/api/" +  version + "/login");
+		}else if (await isPubkeyValid(req, true) == false){
+			res.redirect("/api/v2/");
+		}else{
+			loadSettingsPage(req,res,version);
+		}
+	});
+
+	// Profile
+	app.get("/api/" +  version + "/profile", limiter(100), async (req, res) => {
+		if (req.session.identifier == null){
+			res.redirect("/api/" +  version + "/login");
+		}else if (await isPubkeyValid(req, true) == false){
+			res.redirect("/api/v2/");
+		}else{
+			loadProfilePage(req,res,version);
+		}
+	});
+
+	// Gallery images json
+	app.get("/api/" +  version + "/gallerydata", limiter(100), async (req, res) => {
+		loadGalleryData(req,res);
+	});
+
+	// Logout
+	app.get("/api/" +  version + "/logout", (req, res) => {
+		req.session.destroy((err) => {
+			if (err) {
+				logger.error(err)
+				res.redirect("/api/v2/");
+			}
+			res.redirect("/api/" +  version + "/login");
+		});
+	});
+
 };

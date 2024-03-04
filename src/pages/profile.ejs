@@ -1,0 +1,90 @@
+<html lang="en" class="h-100">
+  <%- include('./partials/head',{title: `${request.body.serverHost} - Profile`}); %>
+  <link rel="stylesheet" href="/static/css/particles.css">
+  <body class="d-flex flex-column h-100 background-style-1">
+    <%- include('./partials/navbar', {active:'profile'}); %>
+    <main class="container py-3">
+        <div class="row d-flex justify-content-center align-items-center">
+          <div class="col col-md-12 col-lg-10 col-xl-9 col-xxl-8">
+            <div class="card border-light z-1">
+              <div class="rounded-top text-white d-flex flex-row" 
+                    style="background-image:url('<%= request.session.metadata.banner %>');background-size: cover; height:215px;">
+                    <div class="ms-4 mt-5 mt-xl-4 mt-xxl-3 d-flex flex-column align-middle z-1 col-4 col-sm-4 col-md-3 col-lg-3 col-xl-3  ">
+                      <div class="ratio ratio-1x1">
+                          <img src="<%= request.session.metadata.picture %>" 
+                              alt="Profile image" class="img-thumbnail mt-5 mb-1 object-fit-cover aspect-ratio-content">
+                      </div>
+                      <div class="text-center text-black ">
+                          <h4><%= request.session.metadata.display_name %></h4>
+                      </div>
+                  </div>
+              </div>
+              <div class="pt-2 pe-3 pb-2 text-black z-1">
+                <div class="d-flex justify-content-end text-center py-1">
+                  <div>
+                    <p class="mb-1 h5"><%= JSON.parse(JSON.stringify(request.session.metadata.mediaFiles || "0")).length %></p>
+                    <p class="small text-muted mb-0">Media</p>
+                  </div>
+                  <div class="px-3">
+                    <p class="mb-1 h5"><%= request.session.metadata.followers %></p>
+                    <p class="small text-muted mb-0">Followers</p>
+                  </div>
+                  <div>
+                    <p class="mb-1 h5"><%= request.session.metadata.following %></p>
+                    <p class="small text-muted mb-0">Following</p> 
+                  </div>
+                </div>
+                <div class="pt-5 ps-4 pe-4">
+                    <p class="mb-0">
+                      <%= request.session.metadata.about %>
+                    </p>
+                </div>
+              </div>
+              <div class="card-body p-4 text-black mb-2 z-1">
+                <div class="d-flex justify-content-between align-items-center mb-3 pb-1">
+                  <p class="lead fw-normal mb-0">Media files</p>
+                </div>
+                <%- include('./partials/gallery'); %>
+              </div>
+            </div>
+          </div>
+        </div>
+    </main>
+    <%- include('./partials/footer'); %>
+    <div id="particles-js"></div> 
+    <script src="/static/js/particles.min.js"></script>
+    <script>
+      particlesJS("particles-js", {"particles":{"number":{"value":80,"density":{"enable":true,"value_area":800}},"color":{"value":"#ffffff"},"shape":{"type":"circle","stroke":{"width":0,"color":"#000000"},"polygon":{"nb_sides":5},"image":{"src":"img/github.svg","width":100,"height":100}},"opacity":{"value":0.5,"random":false,"anim":{"enable":false,"speed":1,"opacity_min":0.1,"sync":false}},"size":{"value":3,"random":true,"anim":{"enable":false,"speed":40,"size_min":0.1,"sync":false}},"line_linked":{"enable":true,"distance":150,"color":"#ffffff","opacity":0.4,"width":1},"move":{"enable":true,"speed":6,"direction":"none","random":false,"straight":false,"out_mode":"out","bounce":false,"attract":{"enable":false,"rotateX":600,"rotateY":1200}}},"interactivity":{"detect_on":"canvas","events":{"onhover":{"enable":false,"mode":"grab"},"onclick":{"enable":true,"mode":"push"},"resize":true},"modes":{"grab":{"distance":400,"line_linked":{"opacity":1}},"bubble":{"distance":400,"size":40,"duration":2,"opacity":8,"speed":3},"repulse":{"distance":200,"duration":0.4},"push":{"particles_nb":4},"remove":{"particles_nb":2}}},"retina_detect":true});var count_particles, update; count_particles = document.querySelector('.js-count-particles'); 
+    </script>
+<script>
+document.addEventListener('DOMContentLoaded', (event) => {
+  const observer = new IntersectionObserver((entries, observer) => {
+    entries.forEach(entry => {
+      const media = entry.target;
+      if (entry.isIntersecting) {
+        const src = media.getAttribute('data-src');
+        media.setAttribute('src', src);
+        if (media.tagName === 'VIDEO') {
+          media.play();
+        }
+      } else {
+        if (media.tagName === 'VIDEO') {
+          media.pause();
+          media.currentTime = 0;
+          media.removeAttribute('src'); // remove source
+          media.load(); // load media again
+        }
+      }
+    });
+  });
+
+  const medias = document.querySelectorAll('img[data-src], video[data-src], audio[data-src]');
+  medias.forEach(media => {
+    observer.observe(media);
+  });
+});
+  </script>
+
+    <%- include('./components/alert-modal', {"objectId":"profile"}); %>
+  </body>
+</html>

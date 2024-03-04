@@ -1,11 +1,11 @@
 import { Application } from "express";
 
-import { Registernewpubkey } from "../controllers/register.js";
+import { registernewpubkey } from "../controllers/register.js";
 
-export const LoadRegisterEndpoint = async (app: Application, version:string): Promise<void> => {
+export const loadRegisterEndpoint = async (app: Application, version:string): Promise<void> => {
 
-	if (version == "v1"){
-		app.post("/api/v1/register", Registernewpubkey);
+	if (version == "v1" || version == "v2"){
+		app.post("/api/" + version + app.get("config.server")["availableModules"]["register"]["path"], registernewpubkey);
 	}
 	
 };

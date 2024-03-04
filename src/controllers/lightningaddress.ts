@@ -1,17 +1,38 @@
 import { Request, Response } from "express";
 
-import { connect } from "../lib/database.js";
+import { connect, dbSelect } from "../lib/database.js";
 import { logger } from "../lib/logger.js";
 import { redisClient, getLightningAddressFromRedis } from "../lib/redis.js";
-import { ResultMessage } from "../interfaces/server.js";
+import { ResultMessagev2 } from "../interfaces/server.js";
 import { LightningUsernameResult } from "../interfaces/lightning.js";
-import { ParseAuthEvent } from "../lib/nostr/NIP98.js";
+import { parseAuthHeader } from "../lib/authorization.js";
 import { getClientIp } from "../lib/server.js";
+import { isModuleEnabled } from "../lib/config.js";
+import app from "../app.js";
+import { lightningTableFields } from "../interfaces/database.js";
 
-//Nostr address usernames endpoint
-const Redirectlightningddress = async (req: Request, res: Response): Promise<any> => {
+const redirectlightningddress = async (req: Request, res: Response): Promise<any> => {
 
-	const name = req.query.name as string;
+	// Check if current module is enabled
+	if (!isModuleEnabled("lightning", app)) {
+        logger.warn("Attempt to access a non-active module:","lightning","|","IP:", getClientIp(req));
+		return res.status(400).send({"status": "error", "message": "Module is not enabled"});
+	}
+
+	const name = req.query.name || req.params.name as string;
+
+	if (typeof name !== "string") {
+		logger.info("REQ GET lightningaddress ->", req.hostname, " | name:",  name , "|", getClientIp(req));
+		logger.warn("RES GET Lightningaddress -> 400 Bad request - name parameter not specified", "|", getClientIp(req));
+
+		const result: ResultMessagev2 = {
+			status: "error",
+			message: "Bad request - You have to specify the 'name' parameter",
+		};
+
+		return res.status(400).send(result);
+	}
+
 	const servername = req.hostname;
 	let isCached = false;
 
@@ -24,9 +45,9 @@ const Redirectlightningddress = async (req: Request, res: Response): Promise<any
 			getClientIp(req)
 		);
 
-		const result: ResultMessage = {
-			result: false,
-			description: "Bad request - You have to specify the 'name' parameter",
+		const result: ResultMessagev2 = {
+			status: "error",
+			message: "Bad request - You have to specify the 'name' parameter",
 		};
 
 		return res.status(400).send(result);
@@ -37,9 +58,9 @@ const Redirectlightningddress = async (req: Request, res: Response): Promise<any
 		logger.info("REQ GET lightningaddress ->", servername, " | name:",  name.substring(0,50) + "..." , "|", getClientIp(req));
 		logger.warn("RES GET Lightningaddress -> 400 Bad request - name too long", "|", getClientIp(req));
 
-		const result: ResultMessage = {
-			result: false,
-			description: "Bad request - Name is too long",
+		const result: ResultMessagev2 = {
+			status: "error",
+			message: "Bad request - Name is too long",
 		};
 
 		return res.status(400).send(result);
@@ -47,7 +68,7 @@ const Redirectlightningddress = async (req: Request, res: Response): Promise<any
 
 	logger.info("REQ GET lightningaddress ->", servername, " | name:",  name , "|", getClientIp(req));
 
-	let lightningdata: LightningUsernameResult = { lightningserver: "", lightninguser: "" };
+	const lightningdata: LightningUsernameResult = { lightningserver: "", lightninguser: "" };
 	try {
 
 		//Check if the name is cached
@@ -63,43 +84,40 @@ const Redirectlightningddress = async (req: Request, res: Response): Promise<any
 		}
 
 		//If not cached, query the database
-		const conn = await connect("Redirectlightningddress");
-		const [rows] = await conn.execute(
-			"SELECT lightningaddress FROM lightning INNER JOIN registered ON lightning.pubkey = registered.hex WHERE registered.username = ? and registered.domain = ?",
-			[name, servername]
-		);
-		const rowstemp = JSON.parse(JSON.stringify(rows));
-		conn.end();
+		const lightningAddress = 
+			await dbSelect("SELECT lightningaddress FROM lightning INNER JOIN registered ON lightning.pubkey = registered.hex WHERE registered.username = ? and registered.domain = ? and lightning.active = 1", 
+			"lightningaddress", 
+			[name, servername], 
+			lightningTableFields) as string;
 
-		if (rowstemp[0] == undefined) {
+		if  (lightningAddress == "" || lightningAddress == undefined) {
 			logger.warn("RES GET Lightningaddress ->", name, "|", "Lightning redirect not found");
 
-			const result: ResultMessage = {
-				result: false,
-				description: `Lightning redirect for username ${name} not found`,
+			const result: ResultMessagev2 = {
+				status: "error",
+				message: `Lightning redirect for username ${name} not found`,
 			};
 
 			return res.status(404).send(result);
+		}else{
+			logger.debug("Lightning redirect found for username", name, ":", lightningAddress);
+			lightningdata.lightningserver = lightningAddress.split("@")[1];
+			lightningdata.lightninguser = lightningAddress.split("@")[0];
 		}
-
-		if (rowstemp != null) {
-			lightningdata.lightningserver = rowstemp[0].lightningaddress.split("@")[1];
-			lightningdata.lightninguser = rowstemp[0].lightningaddress.split("@")[0];
-		}
-
+		
 	} catch (error) {
 		logger.error(error);
 
-		const result: ResultMessage = {
-			result: false,
-			description: "Internal server error",
+		const result: ResultMessagev2 = {
+			status: "error",
+			message:  "Internal server error",
 		};
 
 		return res.status(404).send(result);
 	}
 
 	await redisClient.set("LNURL" + "-" + name + "-" + servername, JSON.stringify(lightningdata), {
-		EX: 300, // 5 minutes
+		EX: app.get("config.redis")["expireTime"],
 		NX: true, // Only set the key if it does not already exist
 	});
 
@@ -112,14 +130,20 @@ const Redirectlightningddress = async (req: Request, res: Response): Promise<any
 
 };
 
-const UpdateLightningAddress = async (req: Request, res: Response): Promise<any> => {
+const updateLightningAddress = async (req: Request, res: Response): Promise<Response> => {
+
+	// Check if current module is enabled
+	if (!isModuleEnabled("lightning", app)) {
+        logger.warn("Attempt to access a non-active module:","lightning","|","IP:", getClientIp(req));
+		return res.status(400).send({"status": "error", "message": "Module is not enabled"});
+	}
 
 	const servername = req.hostname;
 	const lightningaddress = req.params.lightningaddress;
 
-	//Check if event authorization header is valid (NIP98) or if apikey is valid (v0)
-	const EventHeader = await ParseAuthEvent(req);
-	if (!EventHeader.result) {return res.status(401).send({"result": EventHeader.result, "description" : EventHeader.description});}
+    // Check if authorization header is valid
+	const EventHeader = await parseAuthHeader(req, "updateLightningAddress", false);
+	if (EventHeader.status !== "success") {return res.status(401).send({"status": EventHeader.status, "message" : EventHeader.message});}
 
 	//If lightningaddress is null return 400
 	if (!lightningaddress || lightningaddress.trim() == "") {
@@ -130,9 +154,9 @@ const UpdateLightningAddress = async (req: Request, res: Response): Promise<any>
 			getClientIp(req)
 		);
 
-		const result: ResultMessage = {
-			result: false,
-			description: "Bad request - You have to specify the 'lightningaddress' parameter",
+		const result: ResultMessagev2 = {
+			status: "error",
+			message:  "Bad request - You have to specify the 'lightningaddress' parameter",
 		};
 
 		return res.status(400).send(result);
@@ -145,9 +169,9 @@ const UpdateLightningAddress = async (req: Request, res: Response): Promise<any>
 		logger.info("REQ Update lightningaddress-> ", servername, " |" +  lightningaddress.substring(0,50) + "..."  + " |", getClientIp(req));
 		logger.warn("RES Update Lightningaddress -> 400 Bad request - lightningaddress too long", "|", getClientIp(req));
 
-		const result: ResultMessage = {
-			result: false,
-			description: "Bad request - Lightningaddress is too long",
+		const result: ResultMessagev2 = {
+			status: "error",
+			message:  "Bad request - Lightningaddress is too long",
 		};
 
 		return res.status(400).send(result);
@@ -162,7 +186,7 @@ const UpdateLightningAddress = async (req: Request, res: Response): Promise<any>
 			"UPDATE lightning SET lightningaddress = ? WHERE pubkey = ?",
 			[lightningaddress, EventHeader.pubkey]
 		);
-		let rowstemp = JSON.parse(JSON.stringify(rows));
+		const rowstemp = JSON.parse(JSON.stringify(rows));
 		conn.end();
 		if (rowstemp.affectedRows == 0) {
 			logger.info("Update Lightningaddress ->", EventHeader.pubkey, "|", "Lightning redirect not found, creating...");
@@ -177,9 +201,9 @@ const UpdateLightningAddress = async (req: Request, res: Response): Promise<any>
 			if (!dbInsert) {
 				logger.warn("RES Update Lightningaddress ->", EventHeader.pubkey, "|", "Error inserting lightning address into database");
 
-				const result: ResultMessage = {
-					result: false,
-					description: "Error inserting lightning address into database",
+				const result: ResultMessagev2 = {
+					status: "error",
+					message:  "Error inserting lightning address into database",
 			};
 			conn.end();
 			return res.status(406).send(result);
@@ -190,9 +214,9 @@ const UpdateLightningAddress = async (req: Request, res: Response): Promise<any>
 	catch (error) {
 		logger.error(error);
 
-		const result: ResultMessage = {
-			result: false,
-			description: "Internal server error",
+		const result: ResultMessagev2 = {
+			status: "error",
+			message:  "Internal server error",
 		};
 
 		return res.status(500).send(result);
@@ -204,7 +228,7 @@ const UpdateLightningAddress = async (req: Request, res: Response): Promise<any>
 		"SELECT username, domain FROM registered WHERE hex = ?",
 		[EventHeader.pubkey]
 	);
-	let rowstemp = JSON.parse(JSON.stringify(rows));
+	const rowstemp = JSON.parse(JSON.stringify(rows));
 	conn.end();
 	if (rowstemp[0] != undefined) {
 
@@ -217,23 +241,29 @@ const UpdateLightningAddress = async (req: Request, res: Response): Promise<any>
 
 	logger.info("RES Update lightningaddress ->", servername, " | pubkey:",  EventHeader.pubkey, " | ligntningaddress:",  lightningaddress, "|", "Lightning redirect updated", "|", getClientIp(req));
 
-	const result: ResultMessage = {
-		result: true,
-		description: `Lightning redirect for pubkey ${EventHeader.pubkey} updated`,
+	const result: ResultMessagev2 = {
+		status: "success",
+		message: `Lightning redirect for pubkey ${EventHeader.pubkey} updated`,
 	};
 
 	return res.status(200).send(result);
 
 };
 
-const DeleteLightningAddress = async (req: Request, res: Response): Promise<any> => {
+const deleteLightningAddress = async (req: Request, res: Response): Promise<Response> => {
+
+	// Check if current module is enabled
+	if (!isModuleEnabled("lightning", app)) {
+        logger.warn("Attempt to access a non-active module:","lightning","|","IP:", getClientIp(req));
+		return res.status(400).send({"status": "error", "message": "Module is not enabled"});
+	}
 
 	const servername = req.hostname;
 	let lightningaddress = "";
 
-	//Check if event authorization header is valid (NIP98) or if apikey is valid (v0)
-	const EventHeader = await ParseAuthEvent(req);
-	if (!EventHeader.result) {return res.status(401).send({"result": EventHeader.result, "description" : EventHeader.description});}
+    // Check if authorization header is valid
+	const EventHeader = await parseAuthHeader(req, "deleteLightningAddress", false);
+	if (EventHeader.status !== "success") {return res.status(401).send({"status": EventHeader.status, "message" : EventHeader.message});}
 
 	//Check if pubkey's lightningaddress exists on database
 	try{
@@ -242,13 +272,13 @@ const DeleteLightningAddress = async (req: Request, res: Response): Promise<any>
 			"SELECT lightningaddress FROM lightning WHERE pubkey = ?",
 			[EventHeader.pubkey]
 		);
-		let rowstemp = JSON.parse(JSON.stringify(rows));
+		const rowstemp = JSON.parse(JSON.stringify(rows));
 		conn.end();
 		if (rowstemp[0] == undefined) {
 			logger.warn("RES Delete Lightningaddress -> 404 Not found", "|", getClientIp(req));
-			const result: ResultMessage = {
-				result: false,
-				description: `Lightning redirect for pubkey ${EventHeader.pubkey} not found`,
+			const result: ResultMessagev2 = {
+				status: "error",
+				message:  `Lightning redirect for pubkey ${EventHeader.pubkey} not found`,
 			};
 			return res.status(404).send(result);
 		}
@@ -256,9 +286,9 @@ const DeleteLightningAddress = async (req: Request, res: Response): Promise<any>
 
 	}catch (error) {
 		logger.error(error);
-		const result: ResultMessage = {
-			result: false,
-			description: "Internal server error",
+		const result: ResultMessagev2 = {
+			status: "error",
+			message:  "Internal server error",
 		};
 		return res.status(500).send(result);
 	}
@@ -271,22 +301,22 @@ const DeleteLightningAddress = async (req: Request, res: Response): Promise<any>
 			"DELETE FROM lightning WHERE pubkey = ?",
 			[EventHeader.pubkey]
 		);
-		let rowstemp = JSON.parse(JSON.stringify(rows));
+		const rowstemp = JSON.parse(JSON.stringify(rows));
 		conn.end();
 		if (rowstemp.affectedRows == 0) {
 			logger.info("Delete Lightningaddress ->", EventHeader.pubkey, "|", "Lightning redirect not found");
-			const result: ResultMessage = {
-				result: false,
-				description: `Lightning redirect for pubkey ${EventHeader.pubkey} not found`,
+			const result: ResultMessagev2 = {
+				status: "error",
+				message:  `Lightning redirect for pubkey ${EventHeader.pubkey} not found`,
 			};
 			return res.status(404).send(result);
 		}
 	}
 	catch (error) {
 		logger.error(error);
-		const result: ResultMessage = {
-			result: false,
-			description: "Internal server error",
+		const result: ResultMessagev2 = {
+			status: "error",
+			message:  "Internal server error",
 		};
 		return res.status(500).send(result);
 	}
@@ -298,7 +328,7 @@ const DeleteLightningAddress = async (req: Request, res: Response): Promise<any>
 		"SELECT username, domain FROM registered WHERE hex = ?",
 		[EventHeader.pubkey]
 	);
-	let rowstemp = JSON.parse(JSON.stringify(rows));
+	const rowstemp = JSON.parse(JSON.stringify(rows));
 	conn.end();
 	if (rowstemp[0] != undefined) {
 
@@ -312,13 +342,13 @@ const DeleteLightningAddress = async (req: Request, res: Response): Promise<any>
 
 	logger.info("RES Delete lightningaddress ->", servername, " | pubkey:",  EventHeader.pubkey, " | ligntningaddress:",  lightningaddress, "|", "Lightning redirect deleted", "|", getClientIp(req));
 
-	const result: ResultMessage = {
-		result: true,
-		description: `Lightning redirect for pubkey ${EventHeader.pubkey} deleted`,
+	const result: ResultMessagev2 = {
+		status: "success",
+		message: `Lightning redirect for pubkey ${EventHeader.pubkey} deleted`,
 	};
 
 	return res.status(200).send(result);
 
 };
 
-export { Redirectlightningddress, UpdateLightningAddress, DeleteLightningAddress };
+export { redirectlightningddress, updateLightningAddress, deleteLightningAddress };

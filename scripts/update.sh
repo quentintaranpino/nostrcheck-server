@@ -23,8 +23,11 @@ fi
 cd ..
 
 readonly E_BADARGS=65
-readonly version="0.1"
-readonly date="20231018"
+readonly version="0.2"
+readonly date="20240130"
+
+# Node version
+NODE_MAJOR=21
 
 clear
 echo ""
@@ -35,6 +38,13 @@ echo "██╔██╗ ██║██║   ██║███████╗ 
 echo "██║╚██╗██║██║   ██║╚════██║   ██║   ██╔══██╗██║     ██╔══██║██╔══╝  ██║     ██╔═██╗     ╚════██║██╔══╝  ██╔══██╗╚██╗ ██╔╝██╔══╝  ██╔══██╗"
 echo "██║ ╚████║╚██████╔╝███████║   ██║   ██║  ██║╚██████╗██║  ██║███████╗╚██████╗██║  ██╗    ███████║███████╗██║  ██║ ╚████╔╝ ███████╗██║  ██║"
 echo "╚═╝  ╚═══╝ ╚═════╝ ╚══════╝   ╚═╝   ╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝╚══════╝ ╚═════╝╚═╝  ╚═╝    ╚══════╝╚══════╝╚═╝  ╚═╝  ╚═══╝  ╚══════╝╚═╝  ╚═╝"
+echo ""
+echo "███████╗███████╗██████╗ ██╗   ██╗███████╗██████╗ "
+echo "██╔════╝██╔════╝██╔══██╗██║   ██║██╔════╝██╔══██╗"
+echo "███████╗█████╗  ██████╔╝██║   ██║█████╗  ██████╔╝"
+echo "╚════██║██╔══╝  ██╔══██╗╚██╗ ██╔╝██╔══╝  ██╔══██╗"
+echo "███████║███████╗██║  ██║ ╚████╔╝ ███████╗██║  ██║"
+echo "╚══════╝╚══════╝╚═╝  ╚═╝  ╚═══╝  ╚══════╝╚═╝  ╚═╝"
 echo ""
 echo "Nostrcheck server update script v$version"
 echo "Last updated: $date"
@@ -57,16 +67,6 @@ fi
 
 echo $(cd ../ && pwd)
 
-# Read config/local.json to get the database.password value
-echo ""
-DB_PASSWORD=$(cat config/local.json | jq -r '.database.password')
-
-# Stop the server using POST request http://localhost:3000/api/v2/admin/stop 
-echo ""
-echo "Stopping the server..."
-echo ""
-curl --location --request POST 'http://localhost:3000/api/v2/admin/stop' --header 'authorization: $DB_PASSWORD'
-
 # Update repository data
 echo ""
 echo "Updating repository data..."
@@ -75,12 +75,27 @@ git stash -u
 git pull
 git stash pop
 
+# Update Node.js
+echo ""
+echo "Updating Node.js..."
+echo ""
+sudo apt-get update
+sudo apt-get install -y ca-certificates curl gnupg
+sudo mkdir -p /etc/apt/keyrings
+curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | sudo gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg
+echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_$NODE_MAJOR.x nodistro main" | sudo tee /etc/apt/sources.list.d/nodesource.list
+
+sudo apt-get update
+sudo apt-get install nodejs -y
+
+# Update npm
+npm install -g npm@latest
+
 # Update node modules
 echo ""
 echo "Updating node modules..."
 echo ""
 npm install
-
 
 # Build the project
 echo ""

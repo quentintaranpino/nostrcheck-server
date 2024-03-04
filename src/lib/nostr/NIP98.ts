@@ -3,118 +3,41 @@ import { Request } from "express";
 import { Event } from "nostr-tools";
 import config from "config";
 import { logger } from "../../lib/logger.js";
-import { VerifyResultMessage } from "../../interfaces/verify.js";
-import { ResultMessage } from "../../interfaces/server.js";
-
 import { NIPKinds } from "../../interfaces/nostr.js";
-import { connect } from "../../lib/database.js";
+import { authHeaderResult } from "../../interfaces/authorization.js";
+import { dbSelect } from "../database.js";
+import { registeredTableFields } from "../../interfaces/database.js";
 
-//https://github.com/nostr-protocol/nips/blob/master/98.md
+/**
+ * Parses the authorization Nostr header (NIP98) and checks if it is valid. Visit for more information: https://github.com/nostr-protocol/nips/blob/master/98.md
+ * 
+ * @param req - The request object.
+ * @param endpoint - The endpoint of the request.
+ * @returns A promise that resolves to a VerifyResultMessage object.
+ */
+const isNIP98Valid = async (authevent: Event, req: Request, checkAdminPrivileges = true): Promise<authHeaderResult> => {
 
-const ParseAuthEvent = async (req: Request): Promise<VerifyResultMessage> => {
-
-	//v0 compatibility, check if apikey is present on request body instead of NIP98 authorization header.
-	if (req.query.apikey || req.body.apikey) {return await CheckApiKey(req)};	
-
-	//Check if request has authorization header
-	if (req.headers.authorization === undefined) {
-		logger.warn(
-			"RES -> 400 Bad request - Authorization header not found",
-			"|",
-			req.socket.remoteAddress
-		);
-		const result: VerifyResultMessage = {
-			pubkey: "",
-			result: false,
-			description: "Authorization header not found",
-		};
-
-		return result;
-	}
-
-	//Create authevent object from authorization header
-	let authevent: Event;
-	try {
-		authevent = JSON.parse(
-			Buffer.from(
-				req.headers.authorization.substring(6, req.headers.authorization.length),
-				"base64"
-			).toString("utf8")
-		);
-	} catch (error) {
-		logger.warn(`RES -> 400 Bad request - ${error}`, "|", req.socket.remoteAddress);
-		const result: VerifyResultMessage = {
-			pubkey: "",
-			result: false,
-			description: "Malformed authorization header",
-		};
-
-		return result;
-	}
-
-	//Check if event authorization content is valid, check NIP98 documentation for more info: https://github.com/v0l/nips/blob/nip98/98.md
-	const IsAuthEventValid = await CheckAuthEvent(authevent, req);
-	if (!IsAuthEventValid.result) {
-		logger.warn(
-			`RES -> 400 Bad request - ${IsAuthEventValid.description}`,
-			"|",
-			req.socket.remoteAddress
-		);
-		const result: VerifyResultMessage = {
-			pubkey: "",
-			result: false,
-			description: "Authorization header is invalid",
-		};
-
-		return result;
-	}
-
-	const result: VerifyResultMessage = {
-		pubkey: authevent.pubkey,
-		result: true,
-		description: "Authorization header is valid",
-	};
-
-	return result;
-};
-
-export { ParseAuthEvent };
-
-const CheckAuthEvent = async (authevent: Event, req: Request): Promise<ResultMessage> => {
-	//Check if event authorization kind is valid (Must be 27235)
+	// Check if event authorization kind is valid (Must be 27235)
 	try {
 		const eventkind: number = +authevent.kind;
 		if (eventkind == null || eventkind == undefined || eventkind != NIPKinds.NIP98) {
-			logger.warn(
-				"RES -> 400 Bad request - Auth header event kind is not 27235",
-				"|",
-				req.socket.remoteAddress
-			);
-			const result: ResultMessage = {
-				result: false,
-				description: "Auth header event kind is not 27235 ",
-			};
-
-			return result;
+			logger.warn("RES -> 400 Bad request - Auth header event kind is not 27235","|",	req.socket.remoteAddress);
+			return {status: "error", message: "Auth header event kind is not 27235", authkey: "", pubkey: ""};
 		}
+
 	} catch (error) {
 		logger.error(`RES -> 400 Bad request - ${error}`, "|", req.socket.remoteAddress);
-		const result: ResultMessage = {
-			result: false,
-			description: "Auth header event kind is not 27235",
-		};
-
-		return result;
+		return {status: "error", message: "Auth header event kind is not 27235", authkey: "", pubkey: ""};
 	}
 
-	//Check if created_at is within a reasonable time window (60 seconds)
+	// Check if created_at is within a reasonable time window (60 seconds)
 	try {
 		let created_at = authevent.created_at;
 		const now = Math.floor(Date.now() / 1000);
 		if (config.get("environment")  == "development") {
-			logger.warn("DEVMODE: Setting created_at to now", "|", req.socket.remoteAddress);
+			logger.warn("DEVMODE: Setting created_at to now", "|", req.socket.remoteAddress); //If devmode is true, set created_at to now for testing purposes
 			created_at = now - 30;
-		} //If devmode is true, set created_at to now for testing purposes
+		} 
 		const diff = now - created_at;
 		if (diff > 60) {
 			logger.warn(
@@ -122,202 +45,93 @@ const CheckAuthEvent = async (authevent: Event, req: Request): Promise<ResultMes
 				"|",
 				req.socket.remoteAddress
 			);
-			const result: ResultMessage = {
-				result: false,
-				description: `Auth header event created_at is not within a reasonable time window ${created_at}<>${now}`,
-			};
-
-			return result;
+			return {status: "error", message: `Auth header event created_at is not within a reasonable time window ${created_at}<>${now}`, authkey: "", pubkey: ""};
 		}
 	} catch (error) {
 		logger.error(`RES -> 400 Bad request - ${error}`, "|", req.socket.remoteAddress);
-		const result: ResultMessage = {
-			result: false,
-			description: "Auth header event created_at is not within a reasonable time window",
-		};
-
-		return result;
+		return {status: "error", message: "Auth header event created_at is not within a reasonable time window", authkey: "", pubkey: ""};
 	}
 
-	//Check if event authorization u tag (URL) is valid (Must be the same as the server endpoint)
+	// Event endpoint
+	const uTag = authevent.tags.find(tag => tag[0] === "u");
+	let eventEndpoint = uTag ? uTag[1] : null;
+
+	// Check if event authorization u tag (URL) is valid (Must be the same as the server endpoint)
 	try {
-		let AuthEventEndpoint = authevent.tags[0][1];
 		const ServerEndpoint = `${req.protocol}://${req.headers.host}${req.url}`;
 		if (config.get("environment") == "development") {
-			logger.warn("DEVMODE: Setting 'u'(url) tag same as the endpoint URL", "|", req.socket.remoteAddress);
-			AuthEventEndpoint = ServerEndpoint;
-		} //If devmode is true, set created_at to now for testing purposes
-	
-		if (
-			AuthEventEndpoint == null ||
-			AuthEventEndpoint == undefined ||
-			AuthEventEndpoint != ServerEndpoint
-		) {
-			logger.warn(
-				"RES -> 400 Bad request - Auth header event endpoint is not valid",
-				"|",
-				req.socket.remoteAddress
-			);
-			const result: ResultMessage = {
-				result: false,
-				description: `Auth header event endpoint is not valid: ${AuthEventEndpoint} <> ${ServerEndpoint}`,
-			};
-
-			return result;
+			logger.warn("DEVMODE: Setting 'u'(url) tag same as the endpoint URL", "|", req.socket.remoteAddress); // If devmode is true, set created_at to now for testing purposes
+			eventEndpoint = ServerEndpoint;
+		} 
+		if (eventEndpoint == null || eventEndpoint == undefined || eventEndpoint != ServerEndpoint) {
+			logger.warn("RES -> 400 Bad request - Auth header event endpoint is not valid", eventEndpoint, "<>", ServerEndpoint,	"|", req.socket.remoteAddress);
+			return {status: "error", message: `Auth header event endpoint is not valid: ${eventEndpoint} <> ${ServerEndpoint}`, authkey: "", pubkey: ""};
 		}
 	} catch (error) {
 		logger.error(`RES -> 400 Bad request - ${error}`, "|", req.socket.remoteAddress);
-		const result: ResultMessage = {
-			result: false,
-			description: "Auth header event endpoint is not valid",
-		};
-
-		return result;
+		return {status: "error", message: "Auth header event endpoint is not valid", authkey: "", pubkey: ""};
 	}
 
-	//Check if authorization event method tag is valid (Must be the same as the request method)
+	// Method
+	const methodTag = authevent.tags.find(tag => tag[0] === "method");
+	let eventMethod = methodTag ? methodTag[1] : null;
+
+	// Check if authorization event method tag is valid (Must be the same as the request method)
 	try {
-		const method = authevent.tags[1][1];
-		const receivedmethod = req.method;
-		if (method == null || method == undefined || method != receivedmethod) {
-			logger.warn(
-				"RES -> 400 Bad request - Auth header event method is not valid:",
-				receivedmethod,
-				"<>",
-				method,
-				"|",
-				req.socket.remoteAddress
-			);
-			const result: ResultMessage = {
-				result: false,
-				description: `Auth header event method is not valid`,
-			};
 
-			return result;
+		if (eventMethod == null || eventMethod == undefined || eventMethod != req.method) {
+			logger.warn("RES -> 400 Bad request - Auth header event method is not valid:",eventMethod,"<>",req.method,"|",req.socket.remoteAddress);
+			return {status: "error", message: `Auth header event method is not valid`, authkey: "", pubkey: ""};
 		}
 	} catch (error) {
 		logger.error(`RES -> 400 Bad request - ${error}`, "|", req.socket.remoteAddress);
-		const result: ResultMessage = {
-			result: false,
-			description: "Auth header event method is not valid",
-		};
-
-		return result;
+		return {status: "error", message: "Auth header event method is not valid", authkey: "", pubkey: ""};
 	}
 
-	//Check if the request has a body and authorization event payload tag exist. (!GET)
+	// Payload
+	const payloadTag = authevent.tags.find(tag => tag[0] === "payload");
+	let eventPayload = payloadTag ? payloadTag[1] : null;
+
+	// Check if the request has a body and authorization event payload tag exist. (!GET)
 	if (req.body.constructor === Object && Object.keys(req.body).length != 0 && req.method != "GET") {
 		try {
-			const payload = authevent.tags[2][1];
-			if (!payload) {
-				logger.warn(
-					"RES -> 400 Bad request - Auth header event payload not exist",
-					"|",
-					req.socket.remoteAddress
-				);
-				const result: ResultMessage = {
-					result: false,
-					description: `Auth header event payload is not valid`,
-				};
-
-				return result;
+			if (!eventPayload) {
+				logger.warn("Auth header event payload not exist",	"|", req.socket.remoteAddress);
 			}
 		} catch (error) {
-			logger.error(`RES -> 400 Bad request - ${error}`, "|", req.socket.remoteAddress);
-			const result: ResultMessage = {
-				result: false,
-				description: "Auth header event payload is not valid",
-			};
-
-			return result;
+			logger.warn("Auth header event payload not exist",	"|", req.socket.remoteAddress);
 		}
 	}
 
-	//Check if authorization event payload tag is valid (must be equal than the request body sha256) (!GET)
+	// Check if authorization event payload tag is valid (must be equal than the request body sha256) (!GET)
 	if (req.method != "GET") {
 		try {
-
-			let payload = authevent.tags[2][1];
-
 			const receivedpayload = crypto
 				.createHash("sha256")
 				.update(JSON.stringify(req.body), "binary")
-				.digest("hex"); //TODO CHECK IF THIS HASH IS CORRECT!! (Only is hashing the body without the file data.)
+				.digest("hex"); 
 
-			if (config.get("environment") == "development") {
-				logger.warn("DEVMODE: Bypassing payload hash validation", "|", req.socket.remoteAddress);
-				payload = receivedpayload;
-			} //If devmode is true, set the payload = receivedpayload for testing purposes
-
-			if (payload != receivedpayload) {
-				logger.warn(
-					"RES -> 400 Bad request - Auth header event payload is not valid:",
-					receivedpayload,
-					" <> ",
-					payload,
-					"|",
-					req.socket.remoteAddress
-				);
-				const result: ResultMessage = {
-					result: false,
-					description: `Auth header event payload is not valid`,
-				};
-
-				return result;
+			if (eventPayload != receivedpayload) {
+				logger.warn("Auth header event payload is not valid:", eventPayload, " <> ", receivedpayload, "|", req.socket.remoteAddress);
 			}
 		} catch (error) {
 			logger.error(`RES -> 400 Bad request - ${error}`, "|", req.socket.remoteAddress);
-			const result: ResultMessage = {
-				result: false,
-				description: "Auth header event payload is not valid",
-			};
-
-			return result;
+			return {status: "error", message: "Auth header event payload is not valid", authkey: "", pubkey: ""};
 		}
 	}
 
-	return { result: true, description: "Auth header event is valid" };
-};
+	logger.debug("NIP 98 data |", "method:", eventMethod, "| u:", eventEndpoint, "| payload", eventPayload)
 
-const CheckApiKey = async (req: Request): Promise<VerifyResultMessage> => {
-
-	logger.warn("Detected apikey on query URL ", "|", req.socket.remoteAddress);
-
-	let apikey = req.query.apikey;
-	if (req.query.apikey == undefined) {apikey = req.body.apikey};
-	logger.warn("Apikey:",apikey);
-
-	//Check if apikey is valid
-	let dbApikey = await connect("CheckApiKey");
-	try{
-		const [dbResult] = await dbApikey.query("SELECT hex, username FROM registered WHERE apikey = ?", [apikey]);
-		const rowstemp = JSON.parse(JSON.stringify(dbResult));
-		dbApikey.end();
-		if (rowstemp[0] == undefined) {
-			logger.warn("RES -> 401 unauthorized - Apikey not found", "|", req.socket.remoteAddress);
-			const result: VerifyResultMessage = {
-				pubkey: "",
-				result: false,
-				description: "Apikey is deprecated, please use NIP98 header: Apikey not found"
-			};
-			return result;
-		}else{
-		logger.warn("Apikey found, setting pubkey = " + rowstemp[0].hex, "|", req.socket.remoteAddress);
-		const result: VerifyResultMessage = {
-			pubkey: rowstemp[0].hex,
-			result: true,
-			description: "Apikey is deprecated, please use NIP98 header: Apikey found"
-		};
-		return result;
+	// This is not from NIP98 spec, but some server endpoints require admin privileges
+	if (checkAdminPrivileges) {
+		const isPubkeyAdmin = await dbSelect("SELECT allowed FROM registered WHERE hex = ?", "allowed", [authevent.pubkey], registeredTableFields) as string;
+		if (isPubkeyAdmin === "0") {
+			logger.warn("RES -> 403 forbidden - Pubkey does not have admin privileges", "|", req.socket.remoteAddress);
+			return {status: "error", message: "This pubkey does not have admin privileges", pubkey: authevent.pubkey, authkey: ""};
 		}
-	}catch (error: any) {
-		logger.error("Error checking apikey", error.message);
-		dbApikey.end();
-		const result: VerifyResultMessage = {
-			pubkey: "",
-			result: false,
-			description: "Apikey is deprecated, please use NIP98 header: Error checking apikey",
-		};
-		return result;	
 	}
+
+	return { status: "success", message: "Auth header event is valid", authkey: "", pubkey: authevent.pubkey };
 };
+
+export { isNIP98Valid };

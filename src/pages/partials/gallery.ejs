@@ -1,0 +1,144 @@
+<div id="media-container" class="row row-cols-1 row-cols-md-3 row-cols-xxl-3 g-2">
+</div>
+<div id="sentinel"></div>
+<div class="d-flex justify-content-center">
+    <div class="spinner-border text-secondary mt-5" role="status">
+        <span class="visually-hidden">Loading...</span>
+    </div>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', (event) => {
+    let page = 1;
+    let isIntersecting = false;
+    const observer = new IntersectionObserver(async (entries, observer) => {
+        entries.forEach(async entry => {
+            const media = entry.target;
+            if (entry.isIntersecting) {
+                isIntersecting = true;
+                while (isIntersecting) {
+                    console.debug('Intersecting', media.id)
+                    const response = await fetch(`/api/v2/gallerydata?page=${page}`);
+                    page++;
+                    const userData = await response.json();
+                    if (userData.mediaFiles.toString() === "") {
+                        const spinner = document.querySelector('.spinner-border');
+                        spinner.remove();
+                        isIntersecting = false;
+                        break;
+                    }
+                    const mediaContainer = document.getElementById('media-container');
+                    for (const file of userData.mediaFiles) {
+
+                        const ext = file.split('.').pop();
+                        let mediaElement;
+                        const pubkey = '<%= request.session.metadata.pubkey %>'; 
+                        if (ext==='webp' || ext==='gif' || ext==='jpg' || ext==='jpeg' ) {
+                            mediaElement = document.createElement('img');
+                            mediaElement.src = '/static/resources/loading-image.webp';
+                            mediaElement.style.height = "220px";
+                            mediaElement.classList.add("rounded-3", "w-100", "object-fit-cover");
+                            mediaElement.src = `media/${pubkey}/${file}`;
+                        } else if (ext==='mp4' || ext==='mov' ) {
+                            mediaElement = document.createElement('video');
+                            mediaElement.src = `media/${pubkey}/${file}`;
+                            mediaElement.style.height = "220px";
+                            mediaElement.classList.add("rounded-3", "w-100", "object-fit-cover");
+                            mediaElement.setAttribute('muted', '');
+                            mediaElement.setAttribute('playsinline', '');
+                            mediaElement.setAttribute('autoplay', '');
+                            mediaElement.setAttribute('loop', '');
+                            mediaElement.setAttribute('poster', '/static/resources/loading-video.webp');
+                            mediaElement.load();
+
+                            // Autoplay video patch
+                            mediaElement.muted = true;
+                            const playPromise = mediaElement.play();
+                            if (playPromise !== undefined) {
+                                playPromise.then(() => {
+                                    }).catch(error => {
+                                        mediaElement.play();
+                                    });
+                            }
+
+                            // Pause video when it's not in the viewport
+                            const videoObserver = new IntersectionObserver((entries) => {
+                            entries.forEach(entry => {
+                                if (entry.isIntersecting) {
+                                    mediaElement.play();
+                                } else {
+                                    mediaElement.pause();
+                                }
+                            });
+                            });
+                            videoObserver.observe(mediaElement);
+
+                        } else if (ext==='mp3' ) {
+                            mediaElement = document.createElement('audio');
+                            mediaElement.src = `media/${pubkey}/${file}`;
+                            mediaElement.classList.add("ps-5", "pe-5");
+                            mediaElement.setAttribute('controls', '');
+
+                            let hasBeenPlayed = false;
+                            mediaElement.addEventListener('play', () => {
+                                hasBeenPlayed = true;
+                            });
+
+                            // Pause audio when it's not in the viewport
+                            const audioObserver = new IntersectionObserver((entries) => {
+                                entries.forEach(entry => {
+                                    if (!entry.isIntersecting) {
+                                        mediaElement.pause();
+                                    } else if (hasBeenPlayed) {
+                                        mediaElement.play();
+                                    }
+                                });
+                            });
+                            audioObserver.observe(mediaElement);
+                        }
+
+                        if (mediaElement) {
+                            const mediaDiv = document.createElement('div');
+                            mediaDiv.classList.add("col", "mb-0", "fade-in");
+                            if (ext==='mp3' ) {
+                                mediaDiv.style.height = "220px";
+                                mediaDiv.style.background = "url('/static/resources/loading-music.webp') center center / cover no-repeat";
+                                mediaDiv.classList.add("rounded-3", "d-flex", "flex-column", "align-items-center", "justify-content-end", "pb-2");
+                            }
+                            mediaDiv.appendChild(mediaElement);
+                            mediaContainer.appendChild(mediaDiv);
+
+                            // Create a new IntersectionObserver
+                            const mediaObserver = new IntersectionObserver((entries, observer) => {
+                                entries.forEach(entry => {
+                                    const media = entry.target;
+                                    if (entry.isIntersecting) {
+                                        if (media.dataset.src) {
+                                            media.src = media.dataset.src;
+                                            media.dataset.src = '';
+                                        }
+                                    } else {
+                                        if (media.src) {
+                                            media.dataset.src = media.src;
+                                            media.src = '';
+                                        }
+                                    }
+                                });
+                            }, {
+                                rootMargin: '3000px'
+                            });
+
+                            // Add the media element to the observer
+                            mediaObserver.observe(mediaElement);
+                        }
+                    }
+                }
+            } else {
+                isIntersecting = false;
+            }
+        });
+    }, {
+        rootMargin: '2000px'  // Adjust this value to your needs
+    });
+    observer.observe(document.getElementById('sentinel'));
+});
+</script>
