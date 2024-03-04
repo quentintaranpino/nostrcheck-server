@@ -12,7 +12,17 @@ RUN npm install
 RUN npm install --include=optional sharp
 RUN npm install -g npm@latest
 COPY ./src ./src
+
+# Config files
 COPY ./config/default.json /usr/src/app/config/
+RUN echo "{ \
+    \"database\": { \
+        \"host\": \"127.0.0.1", \
+        \"user\": \"nostrcheck, \
+        \"password\": \"nostrcheck", \
+        \"database\": \"nostrcheck" \
+    } \
+}" > /usr/src/app/config/local.json
 RUN npm run build
 
 EXPOSE 3000
