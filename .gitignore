@@ -18,3 +18,9 @@ config/local.json
 installation.md
 coverage/*
 config/local.json.bak
+
+# Docker compose volumes
+compose.override.yml
+data/
+
+
