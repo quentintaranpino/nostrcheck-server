@@ -3,7 +3,7 @@ version: '3.8'
 services:
   app:
     networks:
-    - nostrcheck_network
+    - localnet
     build: .
     depends_on:
         redis:
@@ -50,7 +50,7 @@ services:
     command: sh -c "/wait && npm run start"
   mariadb:
     networks:
-     - nostrcheck_network
+     - localnet
     image: mariadb:10
     volumes:
       - ./data/mysql:/var/lib/mysql
@@ -62,7 +62,7 @@ services:
       MYSQL_PASSWORD: nostrcheck
   redis:
     networks:
-     - nostrcheck_network
+     - localnet
     image: redis:6
     volumes:
       - ./data/redis:/data
@@ -74,7 +74,7 @@ services:
       retries: 5
   traefik:
     networks:
-      - nostrcheck_network
+      - localnet
     image: traefik:2.10
     command:
       - "--api.insecure=true"
@@ -88,4 +88,4 @@ services:
 volumes:
   media:
 networks:
-  nostrcheck_network:
+  localnet:
