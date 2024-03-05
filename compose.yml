@@ -3,6 +3,9 @@ version: '3.8'
 services:
   app:
     build: .
+    depends_on:
+        redis:
+          condition: service_healthy
     ports:
       - "3000:3000"
     volumes:
@@ -39,6 +42,12 @@ services:
       - "traefik.http.routers.app-lightning.middlewares=replacepath-lightning"
       - "traefik.http.middlewares.replacepath-lightning.replacepath.path=/api/v2/lightningaddress"
       - "traefik.http.routers.app-lightning.service=app"
+    environment:
+      - WAIT_HOSTS=redis:6379
+      - WAIT_HOSTS_TIMEOUT=300
+      - WAIT_SLEEP_INTERVAL=30
+      - WAIT_HOST_CONNECT_TIMEOUT=30
+    command: sh -c "/wait && /npm run start"
   mariadb:
     image: mariadb:10
     ports:
