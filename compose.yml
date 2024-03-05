@@ -2,6 +2,8 @@ version: '3.8'
 
 services:
   app:
+    networks:
+    - nostrcheck_network
     build: .
     depends_on:
         redis:
@@ -9,8 +11,6 @@ services:
     ports:
       - "3000:3000"
     volumes:
-      - ./config:/usr/src/app/config
-      - ./resources:/usr/src/app/resources
       - ./tmp:/usr/src/app/tmp
       - media:/usr/src/app/media
     restart: always
@@ -47,11 +47,11 @@ services:
       - WAIT_HOSTS_TIMEOUT=300
       - WAIT_SLEEP_INTERVAL=30
       - WAIT_HOST_CONNECT_TIMEOUT=30
-    command: sh -c "/wait && /npm run start"
+    command: sh -c "/wait && npm run start"
   mariadb:
+    networks:
+     - nostrcheck_network
     image: mariadb:10
-    ports:
-      - "3306:3306"
     volumes:
       - ./data/mysql:/var/lib/mysql
     restart: always
@@ -61,13 +61,20 @@ services:
       MYSQL_USER: nostrcheck
       MYSQL_PASSWORD: nostrcheck
   redis:
+    networks:
+     - nostrcheck_network
     image: redis:6
-    ports:
-      - "6379:6379"
     volumes:
       - ./data/redis:/data
     restart: always
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
   traefik:
+    networks:
+      - nostrcheck_network
     image: traefik:2.10
     command:
       - "--api.insecure=true"
@@ -75,9 +82,10 @@ services:
       - "--entrypoints.web.address=:80"
       - "--providers.docker.exposedbydefault=false"
     ports:
-      - "80:80"
-      - "8080:8080" # Traefik Dashboard
+      - "8081:80"
     volumes:
       - "/var/run/docker.sock:/var/run/docker.sock"
 volumes:
   media:
+networks:
+  nostrcheck_network:
