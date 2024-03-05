@@ -154,16 +154,16 @@
     let authkey = "<%= request.session.authkey %>"
     let metadata = <%- JSON.stringify(request.session.metadata) %>
     if("<%- request.body.nostraddressData && request.body.nostraddressData.length > 0 %>"){
-      initTable("#nostraddressData",'<%- JSON.stringify(request.body.nostraddressData) %>','user')
+      initTable("#nostraddressData",'<%- request.body.nostraddressData %>','user')
     }
     if("<%- request.body.mediaData && request.body.mediaData.length > 0 %>"){
-      initTable("#mediaData",'<%- JSON.stringify(request.body.mediaData) %>', 'media file')
+      initTable("#mediaData",'<%- request.body.mediaData %>', 'media file')
     }
     if("<%- request.body.lightningData && request.body.lightningData.length > 0 %>"){
-      initTable("#lightningData",'<%- JSON.stringify(request.body.lightningData) %>', 'lightning redirection')
+      initTable("#lightningData",'<%- request.body.lightningData %>', 'lightning redirection')
     }
     if("<%- request.body.domainsData && request.body.domainsData.length > 0 %>"){
-      initTable("#domainsData",'<%- JSON.stringify(request.body.domainsData) %>', 'domain name')
+      initTable("#domainsData",'<%- request.body.domainsData %>', 'domain name')
     }
   </script>
 
@@ -172,10 +172,10 @@
 <script src="/static/js/chart.js"></script>
 <script>
   if("<%- JSON.stringify(request.body.nostraddressData && request.body.nostraddressData.length > 0 ) %>"){
-    initMonthChart("#nostraddressData-chart",'Registered users','<%- JSON.stringify(request.body.nostraddressData) %>','<%- JSON.stringify(request.body.nostraddressData) %>')
+    initMonthChart("#nostraddressData-chart",'Registered users','<%- request.body.nostraddressData %>')
   }
   if("<%- JSON.stringify(request.body.mediaData && request.body.mediaData.length > 0 ) %>"){
-    initMonthChart("#mediaData-chart",'Media files','<%- JSON.stringify(request.body.mediaData) %>','<%- JSON.stringify(request.body.mediaData) %>')
+    initMonthChart("#mediaData-chart",'Media files','<%- request.body.mediaData %>')
   }
 </script>
 </html>

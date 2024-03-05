@@ -28,7 +28,7 @@ const loadDashboardPage = async (req: Request, res: Response, version:string): P
         if(app.get("config.server")["availableModules"][key]["enabled"] == true){
             let data = await dbSelectModuleData(key);
             if (data != undefined && data != null && data != ""){
-                req.body[key + "Data"] = data;
+                req.body[key + "Data"] = JSON.stringify(data).replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/'/g, "\\'");
             }
         }
     }
