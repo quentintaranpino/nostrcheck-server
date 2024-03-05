@@ -81,7 +81,7 @@ const isPubkeyValid = async (req: Request, checkAdminPrivileges = false): Promis
 	}
 
 	const pubkey = req.body.pubkey || req.session.identifier;
-	const hex = await dbSelect("SELECT hex FROM registered WHERE hex = ?", "hex", [pubkey], registeredTableFields) as string;
+	const hex = await dbSelect("SELECT hex FROM registered WHERE hex = ? and active = ?", "hex", [pubkey, '1'], registeredTableFields) as string;
 	if (hex == "") {
 		return false;
 	}
