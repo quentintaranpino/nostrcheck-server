@@ -16,21 +16,23 @@ COPY ./src ./src
 
 # Config files
 COPY ./config/default.json /usr/src/app/config/
-RUN echo "{ \
-    \"database\": { \
-        \"host\": \"mariadb\", \
-        \"user\": \"nostrcheck\", \
-        \"password\": \"nostrcheck\", \
-        \"database\": \"nostrcheck\" \
-    }, \
-    \"redis\": { \
-        \"host\": \"redis\", \
-        \"port\": \"6379\", \
-        \"user\": \"default\", \
-        \"password\": \"\", \
-        \"expireTime\": 300 \
-    } \
-}" > /usr/src/app/config/local.json
+RUN if [ ! -f /usr/src/app/config/local.json ]; then \
+    echo "{ \
+        \"database\": { \
+            \"host\": \"mariadb\", \
+            \"user\": \"nostrcheck\", \
+            \"password\": \"nostrcheck\", \
+            \"database\": \"nostrcheck\" \
+        }, \
+        \"redis\": { \
+            \"host\": \"redis\", \
+            \"port\": \"6379\", \
+            \"user\": \"default\", \
+            \"password\": \"\", \
+            \"expireTime\": 300 \
+        } \
+    }" > /usr/src/app/config/local.json; \
+fi
 RUN npm run build
 
 EXPOSE 3000
