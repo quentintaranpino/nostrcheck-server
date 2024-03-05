@@ -169,8 +169,8 @@ const isAuthkeyValid = async (authString: string) : Promise<authHeaderResult> =>
  * the new password will be sent to the provided public key.
  *
  * @param {credentialTypes} type - The type of credential to generate.
- * @param {string} [pubkey=""] - The public key to which to send the new password. Optional.
  * @param {boolean} [returnHashed=false] - Returns the hashed credential instead of the plain text. Optional.
+ * @param {string} [pubkey=""] - The public key to which to send the new password. Optional.
  * @param {boolean} [sendDM=false] - Indicates whether to send a direct message with the new password. Optional.
  * @returns {Promise<string>} The newly generated credential, or an empty string if an error occurs or if the database update fails.
  * @throws {Error} If an error occurs during the credential generation or the database update or sending the direct message.
