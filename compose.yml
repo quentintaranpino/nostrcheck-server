@@ -14,7 +14,7 @@ services:
     volumes:
       - ./tmp:/usr/src/app/tmp
       - media:/usr/src/app/media
-      - resources:/usr/src/app/resources
+      - ./resources:/usr/src/app/resources
     restart: always
     labels:
       - "traefik.enable=true"
