@@ -90,5 +90,6 @@ services:
     restart: always
 volumes:
   media:
+  resources:
 networks:
   localnet:
