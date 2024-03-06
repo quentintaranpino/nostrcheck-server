@@ -508,6 +508,7 @@ const initDatabase = async (): Promise<void> => {
 			process.exit(1);
 		}
 		logger.info("Public username created");
+		app.set("firstUse", true); // Important, if firstUse is true, the server will show public nsec and npub on the frontend
 	}
 
 	// Check if default domain exist on domains table and create it if not.

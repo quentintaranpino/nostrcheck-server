@@ -1,8 +1,10 @@
 import app from "../app.js";
-import { mediafilesTableFields, registeredTableFields } from "../interfaces/database.js";
+import { mediafilesTableFields } from "../interfaces/database.js";
 import { userMetadata } from "../interfaces/frontend.js";
+import { generateCredentials } from "./authorization.js";
 import { dbSelect } from "./database.js";
 import { getProfileData, getProfileFollowers, getProfileFollowing } from "./nostr/NIP01.js";
+import { Request } from "express";
 
 const getProfileNostrMetadata = async (pubkey: string): Promise<userMetadata> => {
 
@@ -41,4 +43,22 @@ const getProfileLocalMetadata = async (pubkey: string): Promise<string[]> => {
     return  mediaFiles ? mediaFiles : [];
 }
 
-export { getProfileNostrMetadata, getProfileLocalMetadata }
+const isFirstUse = async (req : Request): Promise<boolean> => {
+	
+	if (app.get("firstUse") == true){
+        req.session.identifier = app.get("config.server")["pubkey"];
+        req.session.authkey = await generateCredentials('authkey', false, req.session.identifier);
+        req.session.metadata = await getProfileNostrMetadata(req.session.identifier);
+        req.body.firstUse =  
+            "You are logged in to the server with the super admin (<b>public</b>) user. " + 
+            "You can see the server pubkey and the private key on the settings page. " +
+            "<br></br><b>A DM has been sent to this pubkey</b> with the login password. " + 
+            "<br></br>The server <b>will not autologin again</b>, please note this before exiting.";
+        app.set("firstUse", false);
+        return true;
+    }
+
+    return false;
+}
+
+export { getProfileNostrMetadata, getProfileLocalMetadata, isFirstUse }
