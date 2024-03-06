@@ -141,8 +141,15 @@ const loadTosPage = async (req: Request, res: Response, version:string): Promise
 
     req.body.version = app.get("version");
     req.body.serverHost = app.get("config.server")["host"];
-    let tosFile = markdownToHtml(fs.readFileSync(config.get("server.tosFilePath")).toString());
-    tosFile = tosFile.replace(/\[SERVERADDRESS\]/g, app.get("config.server")["host"]);
+    let tosFile : string = "";
+    try{
+        tosFile = fs.readFileSync(config.get("server.tosFilePath")).toString();
+        tosFile = markdownToHtml(fs.readFileSync(config.get("server.tosFilePath")).toString());
+        tosFile = tosFile.replace(/\[SERVERADDRESS\]/g, app.get("config.server")["host"]);
+    }catch(e){
+        logger.error("Failed to read tos file", e);
+        tosFile = "Failed to read tos file. Please contact the server administrator."
+    }
     
     res.render("tos.ejs", {request: req, tos: tosFile });
 };
