@@ -29,6 +29,11 @@ const getProfileNostrMetadata = async (pubkey: string): Promise<userMetadata> =>
     metadata = JSON.parse(nostrMetadata.content)
     metadata.pubkey = pubkey;
 
+    // If If the user picture is not set, we will use the default one.
+    if (!metadata.picture){metadata.picture = "/static/resources/picture-default.webp";}
+    if (!metadata.banner){metadata.banner = "/static/resources/banner-default.webp";}
+
+
     // Add followers and following to the profile metadata.
     metadata["followers"] = app.get("#p_" + pubkey) ? app.get("#p_" + pubkey) : 0
     metadata["following"] = app.get("#f_" + pubkey) ? app.get("#f_" + pubkey) : 0
