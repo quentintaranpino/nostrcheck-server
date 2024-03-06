@@ -29,7 +29,7 @@ git clone https://github.com/quentintaranpino/nostrcheck-api-ts.git && cd nostrc
 
 ## Documentantion
 
-See documentation at [docs](https://github.com/quentintaranpino/nostrcheck-api-ts/blob/0.5.0/DOCS.md)
+See documentation [here](https://github.com/quentintaranpino/nostrcheck-api-ts/blob/0.5.0/DOCS.md)
 
 ## Screenshots
 ### Dashboard
