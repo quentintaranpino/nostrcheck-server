@@ -1,5 +1,6 @@
 <div id="media-container" class="row row-cols-1 row-cols-md-3 row-cols-xxl-3 g-2">
 </div>
+<div id="no-media" class="visually-hidden text-center py-5"><p>No media files found <i class="fa-regular fa-face-frown-open"></i></p></div>
 <div id="sentinel"></div>
 <div class="d-flex justify-content-center">
     <div class="spinner-border text-secondary mt-5" role="status">
@@ -24,6 +25,8 @@ document.addEventListener('DOMContentLoaded', (event) => {
                         const spinner = document.querySelector('.spinner-border');
                         spinner.remove();
                         isIntersecting = false;
+                        const noMediaElement = document.getElementById('no-media');
+                        noMediaElement.classList.remove('visually-hidden');
                         break;
                     }
                     const mediaContainer = document.getElementById('media-container');
