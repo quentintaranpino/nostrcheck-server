@@ -4,6 +4,7 @@ services:
   app:
     networks:
     - localnet
+    image: nostrcheckme/nostrcheck-server:app
     build: .
     depends_on:
         redis:
