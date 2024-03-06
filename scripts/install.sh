@@ -99,7 +99,7 @@ sudo npm install -g npm@latest
 clear
 echo "Installing dependencies..."
 echo ""
-npm install
+npm install --include=optional sharp
 
 # Build the project
 clear
@@ -383,6 +383,7 @@ sudo systemctl start nostrcheck
 fi
 
 # Ask user if want to execute certbot for SSL
+clear
 echo ""
 echo "Do you want to execute certbot for SSL certificate " $HOST"? [y/n]"
 echo ""
