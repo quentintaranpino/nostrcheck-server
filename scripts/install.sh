@@ -1,20 +1,12 @@
 #!/bin/bash
 
-# # Check if the user is root
-# if [ "$(id -u)" != "0" ]; then
-#     echo ""
-#     echo "This script must be run as root. Try using sudo"
-#     echo ""
-#     exit $E_BADARGS
-# fi
-
 # Detect the script base path
 BASEDIR=$(dirname "$0")
 echo "$BASEDIR"
 
 readonly E_BADARGS=65
-readonly version="0.2"
-readonly date="20240210"
+readonly version="0.2.1"
+readonly date="20240306"
 
 clear
 echo ""
@@ -95,9 +87,6 @@ echo ""
 git clone -b '0.5.0' https://github.com/quentintaranpino/nostrcheck-api-ts.git
 
 # Prepare installation directory
-# echo ""
-# echo "Changing directory permissions..."
-# sudo chown -R $SUDO_USER:$SUDO_USER nostrcheck-api-ts
 cd nostrcheck-api-ts
 
 # Install dependencies
@@ -112,7 +101,6 @@ echo "Installing dependencies..."
 echo ""
 npm install
 
-
 # Build the project
 clear
 echo "Building..."
@@ -126,8 +114,7 @@ echo ""
 sudo service start redis-server
 sudo service start mariadb
 
-
-#MYSQL
+# MYSQL
 clear
 readonly MYSQL=`which mysql`
 echo "Database name [default: $DB]:"
@@ -359,6 +346,42 @@ clear
 echo "Installation complete!"
 echo ""
 
+# Ask user if want to creat a service for the server
+clear
+echo "Do you want to create a systemd service for the server? [y/n]"
+echo ""
+read -r input
+if [ "$input" = "y" ]; then
+    echo ""
+    echo "Creating systemd service..."
+    echo ""
+
+    cat > /etc/systemd/system/nostrcheck.service <<EOF
+[Unit]
+Description=Nostrcheck server
+After=network.target
+
+[Service]
+Type=simple
+User=$SUDO_USER
+WorkingDirectory=$ABSOLUTE_PATH/nostrcheck-api-ts
+ExecStart=/usr/bin/npm run start
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+# Enable and start the service
+clear
+echo ""
+echo "Enabling and starting the service..."
+echo ""
+sudo systemctl enable nostrcheck
+sudo systemctl start nostrcheck
+
+fi
+
 # Ask user if want to execute certbot for SSL
 echo ""
 echo "Do you want to execute certbot for SSL certificate " $HOST"? [y/n]"
@@ -385,10 +408,15 @@ echo "-                                                                         
 echo "-  You can now start nostrcheck server by running 'cd nostrcheck-api-ts && npm run start' -"
 echo "-                                                                                         -"
 echo "-  Server documentation:                                                                  -"
-echo "-  https://github.com/quentintaranpino/nostrcheck-api-ts/blob/main/documentation.md       -" 
+echo "-  https://github.com/quentintaranpino/nostrcheck-api-ts/blob/main/DOCS.md                -" 
 echo "-                                                                                         -"
 echo "-  If you like this project, please consider donating to keep it alive:                   -"
 echo "-  https://nostrcheck.me/about/support-us.php                                             -"
+echo "-                                                                                         -"
+echo "-  WARNING:                                                                               -" 
+echo "-  The first time you visit the server's frontend, it will autologin with server admin    -"
+echo "-  user (public) and it will send a new password to its pubkey via DM. Please, make sure  -"
+echo "-  that you are able to login with the new password before closing this session.          -"
 # if PUBKEY was empty show a message
 if [ -z "$PUBKEY" ]; then
 echo "-                                                                                         -"   
