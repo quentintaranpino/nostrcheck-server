@@ -10,13 +10,23 @@ It allows to validate nostr address (NIP05), multimedia uploads (NIP94, NIP96), 
 
 The server can be installed anywhere and allows anyone to become a nostr service provider. 
 
-## Installation
+## Installation (standalone)
 
-To install the server use the following script, you can the script [here](https://github.com/quentintaranpino/nostrcheck-api-ts/blob/main/scripts/install.sh)
+To make a standalone installation you can use the following script. You can find the code [here](https://github.com/quentintaranpino/nostrcheck-api-ts/blob/main/scripts/install.sh)
 
 ```
 curl https://raw.githubusercontent.com/quentintaranpino/nostrcheck-api-ts/0.5.0/scripts/install.sh --output install.sh && chmod +x install.sh && ./install.sh
 ```
+
+## Installation (docker) 
+
+To install and run the server using docker you can use the following script.( Warning, this script is still in BETA)
+
+```
+git clone https://github.com/quentintaranpino/nostrcheck-api-ts.git && cd nostrcheck-api-ts && sudo docker-compose up --build
+
+```
+
 ## Documentantion
 
 See documentation at [docs](https://github.com/quentintaranpino/nostrcheck-api-ts/blob/0.5.0/DOCS.md)
