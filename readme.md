@@ -57,9 +57,6 @@ See documentation [here](https://github.com/quentintaranpino/nostrcheck-api-ts/b
 ![image](https://github.com/quentintaranpino/nostrcheck-api-ts/assets/125748180/9de9cfc6-52d1-4056-b781-0c7b6278cbb8)
 ![image](https://github.com/quentintaranpino/nostrcheck-api-ts/assets/125748180/6299137f-e862-4854-bfe0-f793ef0417e6)
 
-
-
-
 ## Supported nips
 
 - [x] NIP01
@@ -70,6 +67,11 @@ See documentation [here](https://github.com/quentintaranpino/nostrcheck-api-ts/b
 - [x] NIP94
 - [x] NIP96
 - [x] NIP98
+
+
+## Software libraries
+
+![TypeScript](https://img.shields.io/badge/typescript-%23007ACC.svg?style=for-the-badge&logo=typescript&logoColor=white) ![NodeJS](https://img.shields.io/badge/node.js-6DA55F?style=for-the-badge&logo=node.js&logoColor=white) ![MariaDB](https://img.shields.io/badge/MariaDB-003545?style=for-the-badge&logo=mariadb&logoColor=white) ![Redis](https://img.shields.io/badge/redis-%23DD0031.svg?style=for-the-badge&logo=redis&logoColor=white) ![Docker](https://img.shields.io/badge/docker-%230db7ed.svg?style=for-the-badge&logo=docker&logoColor=white) ![Nginx](https://img.shields.io/badge/nginx-%23009639.svg?style=for-the-badge&logo=nginx&logoColor=white)
 
 ## License
 
