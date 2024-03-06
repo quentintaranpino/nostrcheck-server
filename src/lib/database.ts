@@ -491,7 +491,7 @@ const initDatabase = async (): Promise<void> => {
 	// Check if public username exist on registered table and create it if not. Also it sends a DM to the pubkey with the credentials
 	const publicUsername = await dbSelect("SELECT username FROM registered WHERE username = ?", "username", ["public"], registeredTableFields) as string;
 	logger.debug("Public username:", publicUsername);
-	if (publicUsername == ""){
+	if (publicUsername == "" || publicUsername == undefined || publicUsername == null){
 		logger.warn("Public username not found, creating it");
 		const fields: string[] = ["pubkey", "hex", "username", "password", "domain", "active", "date", "allowed", "comments"];
 		const values: string[] = [	npubEncode(app.get("config.server")["pubkey"]), 
