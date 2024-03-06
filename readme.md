@@ -11,7 +11,9 @@ It allows to validate nostr address (NIP05), multimedia uploads (NIP94, NIP96), 
 The server can be installed anywhere and allows anyone to become a nostr service provider. 
 
 ## Installation
-the standalone installation allows you to configure more parameters, such as the database name, the public key of the server or other aspects. On the other hand, the installation via docker is simpler.
+The installation can be done in two ways, standalone where the system resources will be used natively and via docker where the software will be encapsulated in an isolated image. 
+
+The standalone installation allows you to configure more parameters, such as the database name, the public key of the server or other aspects. On the other hand, the docker installation is simpler and more secure, so use docker if you are not sure which one to choose.
 
 In either case, all parameters can be modified using the settings page in the server administration panel.
 
