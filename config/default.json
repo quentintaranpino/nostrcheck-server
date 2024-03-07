@@ -116,7 +116,7 @@
     "dhtPort": 6882
   },
   "logger" :  {
-    "minLevel": "2", 
+    "minLevel": "5", 
     "filename": "nostrcheck-api",
     "size": "50M", 
     "interval": "60d",
