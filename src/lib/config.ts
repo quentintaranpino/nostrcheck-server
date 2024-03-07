@@ -55,7 +55,10 @@ const prepareAppFolders = async() =>{
 
 
 	let folderMigrationData = await dbMultiSelect("SELECT DISTINCT registered.username, registered.hex FROM registered",['username', 'hex'], ['1=1'], mediafilesTableFields, false);
-
+	if (folderMigrationData == undefined || folderMigrationData == null || folderMigrationData.length == 0){
+		console.debug("No Data to migrate.");
+		return;
+	}
 
 	const cantRename : string[] = [];
 	try {
