@@ -21,6 +21,7 @@ services:
       - "traefik.http.services.app.loadbalancer.server.port=3000"
       - "traefik.http.services.app.loadbalancer.sticky.cookie=true"
       - "traefik.http.services.app.loadbalancer.sticky.cookie.name=app_session"
+      - "traefik.http.middlewares.app-sticky.cookie.sticky.name=app_session"
 
       - "traefik.http.routers.app.entrypoints=web"
       # /.well-known/nostr.json -> /api/v2/nostraddress
