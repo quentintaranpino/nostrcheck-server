@@ -21,12 +21,78 @@ services:
       - "traefik.http.services.app.loadbalancer.server.port=3000"
       - "traefik.http.services.app.loadbalancer.sticky.cookie=true"
       - "traefik.http.services.app.loadbalancer.sticky.cookie.name=app_session"
+
       - "traefik.http.routers.app.entrypoints=web"
-      # ... (resto de tus etiquetas)
+      # /.well-known/nostr.json -> /api/v2/nostraddress
+      - "traefik.http.routers.app-nostrjson.rule=Path(`/.well-known/nostr.json`)"
+      - "traefik.http.routers.app-nostrjson.middlewares=replacepath-nostrjson"
+      - "traefik.http.middlewares.replacepath-nostrjson.replacepath.path=/api/v2/nostraddress"
+      - "traefik.http.routers.app-nostrjson.service=app"
+      # /.well-known/nostr/nip96.json -> /api/v2/nip96
+      - "traefik.http.routers.app-nip96.rule=Path(`/.well-known/nostr/nip96.json`)"
+      - "traefik.http.routers.app-nip96.middlewares=replacepath-nip96"
+      - "traefik.http.middlewares.replacepath-nip96.replacepath.path=/api/v2/nip96"
+      - "traefik.http.routers.app-nip96.service=app"
+      # /media -> /api/v2/media
+      - "traefik.http.routers.app-media.rule=PathPrefix(`/media`)"
+      - "traefik.http.routers.app-media.middlewares=replacepathregex-media"
+      - "traefik.http.middlewares.replacepathregex-media.replacepathregex.regex=^/media/(.*)"
+      - "traefik.http.middlewares.replacepathregex-media.replacepathregex.replacement=/api/v2/media/$$1"
+      - "traefik.http.routers.app-media.service=app"
+      # /.well-known/nostr.json -> /api/v2/nostraddress
+      - "traefik.http.routers.app.rule=PathPrefix(`/`)"
+      - "traefik.http.routers.app.service=app"
+      # /.well-known/nostr.json -> /api/v2/lightning
+      - "traefik.http.routers.app-lightning.rule=Path(`/.well-known/lnurlp`)"
+      - "traefik.http.routers.app-lightning.middlewares=replacepath-lightning"
+      - "traefik.http.middlewares.replacepath-lightning.replacepath.path=/api/v2/lightningaddress"
+      - "traefik.http.routers.app-lightning.service=app"
     environment:
       - WAIT_HOSTS=redis:6379
       - WAIT_HOSTS_TIMEOUT=300
       - WAIT_SLEEP_INTERVAL=30
       - WAIT_HOST_CONNECT_TIMEOUT=30
     command: sh -c "/wait && npm run start"
-  # ... (resto de tus servicios)
+  mariadb:
+    networks:
+     - localnet
+    image: mariadb:10
+    volumes:
+      - ./data/mysql:/var/lib/mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: nostrcheck
+      MYSQL_DATABASE: nostrcheck
+      MYSQL_USER: nostrcheck
+      MYSQL_PASSWORD: nostrcheck
+  redis:
+    networks:
+     - localnet
+    image: redis:6
+    volumes:
+      - ./data/redis:/data
+    restart: always
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+  traefik:
+    networks:
+      - localnet
+    image: traefik:2.10
+    command:
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--entrypoints.web.address=:80"
+      - "--providers.docker.exposedbydefault=false"
+    ports:
+      - "8081:80"
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock"
+    restart: always
+volumes:
+  media:
+  resources:
+networks:
+  localnet:
