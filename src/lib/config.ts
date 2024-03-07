@@ -137,7 +137,9 @@ const checkConfigNecessaryKeys = async () : Promise<void> => {
 		if (pubkey !== "") {
 			missingFields = missingFields.filter((field) => field !== "server.pubkey");
 			await updateLocalConfigKey("server.pubkey", pubkey);
-			app.set("server.pubkey", pubkey);
+			let configServer = Object.assign({}, app.get("config.server"));
+			configServer.pubkey = pubkey;
+			app.set("config.server", configServer);
 		}
 	}
 
@@ -148,8 +150,10 @@ const checkConfigNecessaryKeys = async () : Promise<void> => {
 		if (keyPair.publicKey && keyPair.secretKey){
 			missingFields = missingFields.filter((field) => field !== "server.pubkey" && field !== "server.secretKey");
 			await updateLocalConfigKey("server.pubkey", keyPair.publicKey) && await updateLocalConfigKey("server.secretKey", keyPair.secretKey);
-			app.set("server.pubkey", keyPair.publicKey);
-			app.set("server.secretKey", keyPair.secretKey);
+			let configServer = Object.assign({}, app.get("config.server"));
+			configServer.pubkey = keyPair.publicKey;
+			configServer.secretKey = keyPair.secretKey;
+			app.set("config.server", configServer);
 		}
 	}
 
