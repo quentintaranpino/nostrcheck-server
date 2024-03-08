@@ -34,7 +34,7 @@ git clone https://github.com/quentintaranpino/nostrcheck-api-ts.git && cd nostrc
 
 ```
 
-## Documentantion
+## Documentation
 
 See documentation [here](https://github.com/quentintaranpino/nostrcheck-api-ts/blob/0.5.0/DOCS.md)
 
