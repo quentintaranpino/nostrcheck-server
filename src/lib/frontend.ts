@@ -59,8 +59,8 @@ const isFirstUse = async (req : Request): Promise<boolean> => {
         "<p>You are automatically logged in with the user administrator '<b>public</b>'. This user is created automatically. " + 
         "It is essential to keep this user in the database for the proper functioning of the server, <b>Don't delete this user</b>.</p>" +
         "<h5 class='mt-3 mb-2'>Keys</h5>" +
-        "<p>public user has been created using the key pair specified in the <a class='text-decoration-none' href='https://github.com/quentintaranpino/nostrcheck-api-ts/blob/main/CONFIG.md' target='blank'>configuration file</a> to facilitate easy first access to the frontend.<br>" +
-        "The server interacts with the outside using the keys specified in the configuration page.</p> " + 
+        "<p>public user has been created using the key pair specified in the <a class='text-decoration-none' href='https://github.com/quentintaranpino/nostrcheck-api-ts/blob/main/CONFIG.md' target='blank'>configuration file</a> to facilitate easy first access to the frontend. " +
+        "The server interacts with the outside using the key pair specified in the configuration file located at config/local.json</p> " + 
         "<div class='alert alert-warning ps-2 pe-2 pt-1 pb-0' role='alert'>" +
         "<p><b>The server's pubkey should always match public user pubkey.</b> " +
             "Keep these two keys the same to avoid data inconsistency problems.</p>" +
