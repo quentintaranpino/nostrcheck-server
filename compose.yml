@@ -7,8 +7,8 @@ services:
     image: nostrcheckme/nostrcheck-server:latest
     build: .
     depends_on:
-        redis:
-          condition: service_healthy
+      - mariadb
+      - redis
     ports:
       - "3000:3000"
     volumes:
