@@ -48,7 +48,6 @@ services:
       - "traefik.http.routers.app-lightning.middlewares=replacepath-lightning"
       - "traefik.http.middlewares.replacepath-lightning.replacepath.path=/api/v2/lightningaddress"
       - "traefik.http.routers.app-lightning.service=app"
-    environment:
     command: npm run start"
   mariadb:
     networks:
