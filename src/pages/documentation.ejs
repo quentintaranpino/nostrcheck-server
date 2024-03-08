@@ -42,11 +42,11 @@
     </div>
     </main>
     <%- include('./partials/footer'); %>
-    <%- include('./components/alert-modal', {"objectId":"fisrtUse"}); %>
+    <%- include('./components/message-modal', {"objectId":"fisrtUse"}); %>
   </body>
 <script>
   if ("<%= request.body.firstUse %>" != undefined && "<%= request.body.firstUse %>" != null && "<%= request.body.firstUse %>" != "") {
-    initAlertModal("#fisrtUse", "<%- request.body.firstUse %>", 50000);
+    initMessageModal("#fisrtUse", "<%- request.body.firstUse %>", "Read this carefully");
   }
 </script>
 </html>

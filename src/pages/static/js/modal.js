@@ -145,7 +145,7 @@ const initMessageModal = async (objectId, message, title) => {
     var alert = new bootstrap.Modal($(objectId + '-message-modal'));
 
     $(alert._element).on('show.bs.modal', function () {
-        $(objectId + '-message-modal .modal-body').text(message);
+        $(objectId + '-message-modal .modal-body').append(message);
         $(objectId + '-message-modal .modal-title').text(title)
     })
     alert.show();
