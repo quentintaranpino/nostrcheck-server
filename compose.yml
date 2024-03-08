@@ -53,7 +53,7 @@ services:
       - WAIT_HOSTS_TIMEOUT=300
       - WAIT_SLEEP_INTERVAL=30
       - WAIT_HOST_CONNECT_TIMEOUT=30
-    command: sh -c "/wait && npm run start"
+    command: npm run start"
   mariadb:
     networks:
      - localnet
