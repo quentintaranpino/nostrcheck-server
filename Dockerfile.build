@@ -18,12 +18,6 @@ COPY ./src ./src
 COPY ./config/default.json /usr/src/app/config/
 RUN if [ ! -f /usr/src/app/config/local.json ]; then \
     echo "{ \
-        \"database\": { \
-            \"host\": \"mariadb\", \
-            \"user\": \"nostrcheck\", \
-            \"password\": \"nostrcheck\", \
-            \"database\": \"nostrcheck\" \
-        }, \
         \"redis\": { \
             \"host\": \"redis\", \
             \"port\": \"6379\", \

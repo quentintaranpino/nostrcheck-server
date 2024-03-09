@@ -16,6 +16,11 @@ services:
       - media:/usr/src/app/media
       - ./resources:/usr/src/app/resources
     restart: always
+    environment:  # Aquí es donde defines las variables de entorno
+      DATABASE_HOST: "mariadb"
+      DATABASE_USER: "nostrcheck"
+      DATABASE_PASSWORD: "nostrcheck"
+      DATABASE_DATABASE: "nostrcheck"
     labels:
       - "traefik.enable=true"
       - "traefik.http.services.app.loadbalancer.server.port=3000"
