@@ -16,10 +16,10 @@ async function connect(source:string): Promise<Pool> {
 		return pool;
 	}
 
-	const DatabaseHost :string 		 = config.get('database.host');
-	const DatabaseUser :string  	 = config.get('database.user');
-	const DatabasePassword :string 	 = config.get('database.password');
-	const Database :string  		 = config.get('database.database');
+	const DatabaseHost :string = process.env.DATABASE_HOST || config.get('database.host');
+	const DatabaseUser :string = process.env.DATABASE_USER || config.get('database.user');
+	const DatabasePassword :string = process.env.DATABASE_PASSWORD || config.get('database.password');
+	const Database :string = process.env.DATABASE_DATABASE || config.get('database.database');
 
 	try{
 		const connection = await createPool({

@@ -125,8 +125,14 @@ const checkConfigNecessaryKeys = async () : Promise<void> => {
 
 	let missingFields = [];
 	for (const key of necessaryKeys){
-		if (config.get(key) === undefined || config.get(key) === ""){
-			missingFields.push(key);
+		let value = config.get(key);
+		if (value === undefined || value === "") {
+			let envKey = key.toUpperCase().replace(/\./g, '_');
+			value = process.env[envKey];
+			console.debug(envKey, process.env[envKey])
+			if (value === undefined || value === "") {
+				missingFields.push(key);
+			}
 		}
 	}
 	
