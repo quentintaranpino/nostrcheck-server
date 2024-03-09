@@ -87,6 +87,7 @@ services:
       - "--providers.docker=true"
       - "--entrypoints.web.address=:80"
       - "--providers.docker.exposedbydefault=false"
+      - "--api.dashboard=true" 
     ports:
       - "8081:80"
     volumes:
