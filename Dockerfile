@@ -1,2 +1,2 @@
-FROM nostrcheckme/nostrcheck-server
+FROM nostrcheckme/nostrcheck-server:latest
 CMD ["npm", "start"]
