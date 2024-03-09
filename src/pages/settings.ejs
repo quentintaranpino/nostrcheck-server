@@ -151,6 +151,16 @@
             <p> In this section, you can configure the media settings of your server. 
                 It provides you with the flexibility to customize the media settings according to your specific requirements. 
             </p>
+            <label for="media.returnURL" class="mt-2 mb-1 fw-bold">Return URL</label>
+            <p>Specify the return URL for the media uploads. This URL will be used to return the uploaded media to the client.</p>
+            <input  type="text" 
+                    id="media.returnURL" 
+                    name="media.returnURL" 
+                    class="form-control" 
+                    value="<%= request.body.settingsMedia['returnURL'] %>" 
+                    placeholder="default: https://servername/media/"
+                    required
+                    >
             <label for="media.allowPublicUploads" class="mt-2 mb-1 fw-bold">Allow public uploads</label>
             <p>If disabled, only registered pubkeys can upload files.</p>
             <div class="form-check form-switch">

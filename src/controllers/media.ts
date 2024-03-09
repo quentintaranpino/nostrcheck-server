@@ -144,7 +144,10 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 	logger.info("hash ->", filedata.originalhash, "|", getClientIp(req));
 
 	// URL
-	filedata.url = filedata.servername + "/media/" + pubkey + "/" + filedata.filename;
+	const returnURL = app.get("config.media")["returnURL"];
+	filedata.url = returnURL 	
+    ? `${returnURL}/${pubkey}/${filedata.filename}`
+    : `${filedata.servername}/media/${pubkey}/${filedata.filename}`;
 
 	// Standard media conversions
 	standardMediaConversion(filedata, file);
@@ -183,7 +186,6 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 			filedata.height = +(dbHash[6].split("x")[1]);
 		}
 		filedata.description = "File exist in database, returning existing URL";
-		filedata.url = filedata.servername + "/media/" + pubkey + "/" + filedata.filename;
 		convert = false; 
 		insertfiledb = false;
 		makeBlurhash = false;

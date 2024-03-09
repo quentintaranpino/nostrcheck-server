@@ -85,6 +85,7 @@
     "mediaPath": "media/",
     "notFoundFilePath" : "resources/file-not-found.webp",
     "allowPublicUploads" : true,
+    "returnURL" : "",
     "transform" : {
       "media":{
           "undefined" : {
