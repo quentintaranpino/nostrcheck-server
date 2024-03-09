@@ -8,8 +8,13 @@ import { npubEncode } from "nostr-tools/nip19";
 import { generateCredentials } from "./authorization.js";
 import app from "../app.js";
 
+let pool: Pool;
 let retry :number = 0;
 async function connect(source:string): Promise<Pool> {
+
+	if (pool) {
+		return pool;
+	}
 
 	const DatabaseHost :string 		 = config.get('database.host');
 	const DatabaseUser :string  	 = config.get('database.user');
