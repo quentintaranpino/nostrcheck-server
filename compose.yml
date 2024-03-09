@@ -16,7 +16,7 @@ services:
       - media:/usr/src/app/media
       - ./resources:/usr/src/app/resources
     restart: always
-    environment:  # Aquí es donde defines las variables de entorno
+    environment: 
       DATABASE_HOST: "mariadb"
       DATABASE_USER: "nostrcheck"
       DATABASE_PASSWORD: "nostrcheck"
