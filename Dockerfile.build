@@ -12,6 +12,7 @@ RUN npm install -g npm@latest
 RUN npm install --include=optional sharp
 
 COPY ./src ./src
+COPY ./config/default.json /usr/src/app/config/
 
 RUN npm run build
 
