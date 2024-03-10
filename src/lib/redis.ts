@@ -4,11 +4,11 @@ import { RegisteredUsernameResult } from "../interfaces/register.js";
 import { LightningUsernameResult } from "../interfaces/lightning.js";
 import app from "../app.js";
 
-//Redis configuration
-const redisHost: string = app.get("config.redis")["host"];
-const redisPort: string = app.get("config.redis")["port"];
-const redisUser: string = app.get("config.redis")["user"];
-const redisPassword: string = app.get("config.redis")["password"];
+const redisHost: string = process.env.REDIS_HOST || app.get("config.redis")["host"];
+const redisPort: string = process.env.REDIS_PORT || app.get("config.redis")["port"];
+const redisUser: string = process.env.REDIS_USER ||app.get("config.redis")["user"];
+const redisPassword: string = process.env.REDIS_PASSWORD || app.get("config.redis")["password"];
+
 const redisClient = createClient({ url: `redis://${redisUser}:${redisPassword}@${redisHost}:${redisPort}` });
 
 (async (): Promise<void> => {
