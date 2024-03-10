@@ -6,8 +6,10 @@ import { initConfig } from "./controllers/config.js";
 
 const app = express();
 
-console.log("Preparing app...")
-await initConfig();
+(async () => {
+    console.log("Preparing app...")
+    await initConfig();
+})();
 
 app.set("config.server", await loadConfigOptions("server"));
 app.set("config.media", await loadConfigOptions("media"));
