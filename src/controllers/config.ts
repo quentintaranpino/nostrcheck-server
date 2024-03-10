@@ -58,7 +58,7 @@ const checkConfigNecessaryKeys = async () : Promise<void> => {
 		console.error("|  Execute: nano config/local.json                           |")
 		console.error(" ------------------------------------------------------------ ")
 		console.error(" For more information visit:")
-		console.error(" https://github.com/quentintaranpino/nostrcheck-api-ts/blob/main/configuration.md") 
+		console.error(" https://github.com/quentintaranpino/nostrcheck-api-ts/blob/main/CONFIG.md") 
 		console.error(" ")
 		console.error(" Missing fields: ");
 		missingFields.forEach((field) => {
