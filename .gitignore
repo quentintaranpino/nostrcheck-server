@@ -12,7 +12,7 @@ dist
 .vs
 media/*
 tmp/*
-config/*
+config/*.json
 nostrcheck-api.log*
 .VSCodeCounter/*
 installation.md
