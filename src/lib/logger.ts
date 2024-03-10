@@ -1,20 +1,25 @@
 import { createStream } from "rotating-file-stream";
 import { Logger } from "tslog";
-import config from "config";
 import { logEvent } from "../interfaces/logger.js";
-
+import config from "config";
 const logHistory: logEvent[] = [];
 
+const filename = (config.has('logger.filename') ? config.get('logger.filename') : 'server') + '.log';
+const fileSize = (config.has('logger.size') ? config.get('logger.size') : '10M') as string;
+const fileInterval = (config.has('logger.interval') ? config.get('logger.interval') : '1d') as string;
+const fileCompress = (config.has('logger.compression') ? config.get('logger.compression') : 'gzip') as string;
+const minLevel = (config.has('logger.minLevel') ? config.get('logger.minLevel') : 5) as number;
+
 // Create a rotating write stream
-const stream = createStream(config.get('logger.filename') + ".log", {
-	size: config.get('logger.size'), 
-	interval: config.get('logger.interval'),
-	compress: config.get('logger.compression'), 
+const stream = createStream(filename, {
+	size: fileSize, 
+	interval: fileInterval,
+	compress: fileCompress, 
 });
 
 // Create a logger instance
 const logger = new Logger({
-	minLevel: config.get('logger.minLevel'),
+	minLevel: minLevel,
 	prettyLogTemplate: "{{yyyy}}.{{mm}}.{{dd}} {{hh}}:{{MM}}:{{ss}}:{{ms}}\t{{logLevelName}} - ",
 	prettyErrorTemplate: "\n{{errorName}} {{errorMessage}}\nerror stack:\n{{errorStack}}",
 	prettyErrorStackTemplate: "  • {{fileName}}\t{{method}}\n\t{{filePathWithLine}}",
