@@ -22,6 +22,11 @@ services:
       DATABASE_USER: "nostrcheck"
       DATABASE_PASSWORD: "nostrcheck"
       DATABASE_DATABASE: "nostrcheck"
+      REDIS_HOST: "redis"
+      REDIS_PORT: "6379"
+      REDIS_USER: "default"
+      REDIS_PASSWORD: ""
+
     labels:
       - "traefik.enable=true"
       - "traefik.http.services.app.loadbalancer.server.port=3000"
