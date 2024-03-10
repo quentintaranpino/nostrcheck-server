@@ -553,7 +553,7 @@ The server don't verify NIP98 integrity and authorization when is running on dev
 
 ```
 #edit config file
-sudo nano config/default.json
+sudo nano config/local.json
 
 #Set 'environment' to 'development'
 "environment" : "development", 
