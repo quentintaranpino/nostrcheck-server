@@ -9,8 +9,6 @@ services:
     depends_on:
       - mariadb
       - redis
-    ports:
-      - "3000:3000"
     volumes:
       - ./tmp:/usr/src/app/tmp
       - media:/usr/src/app/media
@@ -26,7 +24,6 @@ services:
       REDIS_PORT: "6379"
       REDIS_USER: "default"
       REDIS_PASSWORD: ""
-
     labels:
       - "traefik.enable=true"
       - "traefik.http.services.app.loadbalancer.server.port=3000"
@@ -87,13 +84,11 @@ services:
       - localnet
     image: traefik:2.10
     command:
-      - "--api.insecure=true"
       - "--providers.docker=true"
-      - "--entrypoints.web.address=:80"
       - "--providers.docker.exposedbydefault=false"
-      - "--api.dashboard=true" 
+      - "--entrypoints.web.address=:3000"
     ports:
-      - "8081:8080"
+      - "3000:3000"
     volumes:
       - "/var/run/docker.sock:/var/run/docker.sock"
     restart: always
