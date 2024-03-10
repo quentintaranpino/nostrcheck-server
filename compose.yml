@@ -15,6 +15,7 @@ services:
       - ./tmp:/usr/src/app/tmp
       - media:/usr/src/app/media
       - ./resources:/usr/src/app/resources
+      - ./config:/usr/src/app/config
     restart: always
     environment: 
       DATABASE_HOST: "mariadb"
