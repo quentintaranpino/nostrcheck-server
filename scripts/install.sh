@@ -245,17 +245,27 @@ fi
 clear
 echo ""
 echo "Creating user config file..."
-cp config/default.json config/local.json
 
-jq --arg a "$HOST" '.server.host = $a' config/local.json > tmp.json && mv tmp.json config/local.json
-jq --arg a "$PUBKEY" '.server.pubkey = $a' config/local.json > tmp.json && mv tmp.json config/local.json
-jq --arg a "$SECRETKEY" '.server.secretKey = $a' config/local.json > tmp.json && mv tmp.json config/local.json
-jq --arg a "$DB" '.database.database = $a' config/local.json > tmp.json && mv tmp.json config/local.json
-jq --arg a "$USER" '.database.user = $a' config/local.json > tmp.json && mv tmp.json config/local.json
-jq --arg a "$PASS" '.database.password = $a' config/local.json > tmp.json && mv tmp.json config/local.json
-jq --arg a "$MEDIAPATH" '.media.mediaPath = $a' config/local.json > tmp.json && mv tmp.json config/local.json
-jq --arg a "$SECRET" '.session.secret = $a' config/local.json > tmp.json && mv tmp.json config/local.json
-
+# Create a new JSON object with the specified values.
+jq -n --arg a "$HOST" --arg b "$PUBKEY" --arg c "$SECRETKEY" --arg d "$DB" --arg e "$USER" --arg f "$PASS" --arg g "$MEDIAPATH" --arg h "$SECRET" \
+'{
+    "server": {
+        "host": $a,
+        "pubkey": $b,
+        "secretKey": $c
+    },
+    "database": {
+        "database": $d,
+        "user": $e,
+        "password": $f
+    },
+    "media": {
+        "mediaPath": $g
+    },
+    "session": {
+        "secret": $h
+    }
+}' > config/local.json
 
 # Create nginx config file
 echo ""
