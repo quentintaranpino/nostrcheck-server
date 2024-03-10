@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import { logger } from "../lib/logger.js";
 import { getNIP96file } from "../lib/nostr/NIP96.js";
-import { getClientIp } from "../lib/server.js";
+import { getClientIp } from "../lib/utils.js";
 import { isModuleEnabled } from "../lib/config.js";
 import app from "../app.js";
 

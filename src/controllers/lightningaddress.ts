@@ -6,7 +6,7 @@ import { redisClient, getLightningAddressFromRedis } from "../lib/redis.js";
 import { ResultMessagev2 } from "../interfaces/server.js";
 import { LightningUsernameResult } from "../interfaces/lightning.js";
 import { parseAuthHeader } from "../lib/authorization.js";
-import { getClientIp } from "../lib/server.js";
+import { getClientIp } from "../lib/utils.js";
 import { isModuleEnabled } from "../lib/config.js";
 import app from "../app.js";
 import { lightningTableFields } from "../interfaces/database.js";

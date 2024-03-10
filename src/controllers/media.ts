@@ -23,7 +23,7 @@ import path from "path";
 import validator from "validator";
 import { NIP96_event, NIP96_processing } from "../interfaces/nostr.js";
 import { PrepareNIP96_event } from "../lib/nostr/NIP96.js";
-import { getClientIp } from "../lib/server.js";
+import { getClientIp } from "../lib/utils.js";
 import { generateBlurhash, generatefileHashfrombuffer } from "../lib/hash.js";
 import { mediafilesTableFields, registeredTableFields } from "../interfaces/database.js";
 import { isModuleEnabled } from "../lib/config.js";

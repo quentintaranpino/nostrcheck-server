@@ -7,7 +7,7 @@ import { logger } from "../lib/logger.js";
 import { RegisterResultMessage } from "../interfaces/register.js";
 import { QueryAvailiableDomains } from "../lib/domains.js";
 import app from "../app.js";
-import { getClientIp } from "../lib/server.js";
+import { getClientIp } from "../lib/utils.js";
 import { parseAuthHeader } from "../lib/authorization.js";
 import { isModuleEnabled } from "../lib/config.js";
 

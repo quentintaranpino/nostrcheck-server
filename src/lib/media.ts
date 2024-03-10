@@ -11,7 +11,7 @@ import { Request } from "express";
 import app from "../app.js";
 import { generatefileHashfromfile } from "./hash.js";
 import crypto from "crypto";
-import { getClientIp } from "./server.js";
+import { getClientIp } from "./utils.js";
 import { CreateMagnet } from "./torrent.js";
 import path from "path";
 import sharp from "sharp";

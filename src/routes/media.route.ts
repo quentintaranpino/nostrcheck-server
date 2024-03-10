@@ -4,7 +4,7 @@ import config from "config";
 import { uploadMedia, getMediaStatusbyID, getMediabyURL, deleteMedia, updateMediaVisibility, getMediaTagsbyID, getMediabyTags } from "../controllers/media.js";
 import { ResultMessage, ResultMessagev2 } from "../interfaces/server.js";
 import { logger } from "../lib/logger.js";
-import { getClientIp } from "../lib/server.js";
+import { getClientIp } from "../lib/utils.js";
 import { NIP96Data } from "../controllers/nostr.js";
 
 const maxMBfilesize :number = config.get('media.maxMBfilesize');

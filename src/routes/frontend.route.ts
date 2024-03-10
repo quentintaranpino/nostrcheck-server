@@ -14,7 +14,7 @@ import { isPubkeyValid } from "../lib/authorization.js";
 
 import { limiter } from "../lib/session.js"
 import { isFirstUse } from "../lib/frontend.js";
-import { getClientIp } from "../lib/server.js";
+import { getClientIp } from "../lib/utils.js";
 
 export const loadFrontendEndpoint = async (app: Application, version:string): Promise<void> => {
 

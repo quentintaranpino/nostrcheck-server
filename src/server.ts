@@ -1,17 +1,18 @@
-import config from "config";
 import app from "./app.js";
-import { loadconfigActiveModules, prepareAPP } from "./lib/config.js";
+import { loadconfigActiveModules} from "./lib/config.js";
+import { prepareApp } from "./controllers/config.js";
 import { initDatabase, showDBStats } from "./lib/database.js";
 import { loadConsoleBanner } from "./lib/server.js";
 import { initSession } from "./lib/session.js";
 import { loadAPIs } from "./routes/routes.js";
 import { SeedMediafilesMagnets } from "./lib/torrent.js";
+import config from "config";
 
 // Start Express server.
 const server = app.listen(app.get("config.server")["port"], async () => {
-	
+
 	// Initialise config and folders
-	await prepareAPP();
+	await prepareApp();
 
 	// Initialise Database
 	await initDatabase();

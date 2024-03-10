@@ -3,7 +3,7 @@ import fs from "fs";
 import config from "config";
 import app from "../app.js";
 import { logger } from "../lib/logger.js";
-import { getClientIp, markdownToHtml } from "../lib/server.js";
+import { getClientIp, markdownToHtml } from "../lib/utils.js";
 import { dbSelect, dbSelectModuleData} from "../lib/database.js";
 import { generateCredentials, isPubkeyValid, isUserPasswordValid } from "../lib/authorization.js";
 import { registeredTableFields } from "../interfaces/database.js";

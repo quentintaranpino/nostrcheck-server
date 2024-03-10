@@ -3,7 +3,7 @@ import { Event } from "nostr-tools";
 
 import { logger } from "../lib/logger.js";
 import { VerifyResultMessage } from "../interfaces/verify.js";
-import { getClientIp } from "../lib/server.js";
+import { getClientIp } from "../lib/utils.js";
 import { verifyEvent } from "../lib/verify.js";
 import { isModuleEnabled } from "../lib/config.js";
 import app from "../app.js";

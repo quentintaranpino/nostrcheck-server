@@ -6,7 +6,7 @@ import sharp from "sharp";
 import app from "../app.js";
 
 import { logger } from "../lib/logger.js";
-import { getClientIp, format } from "../lib/server.js";
+import { getClientIp, format } from "../lib/utils.js";
 import { ResultMessagev2, ServerStatusMessage, authkeyResultMessage } from "../interfaces/server.js";
 import { generateCredentials } from "../lib/authorization.js";
 import { dbDelete, dbInsert, dbUpdate } from "../lib/database.js";

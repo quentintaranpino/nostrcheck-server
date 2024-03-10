@@ -4,7 +4,7 @@ import { logger } from "../lib/logger.js";
 import { parseAuthHeader} from "../lib/authorization.js";
 import { ResultMessagev2 } from "../interfaces/server.js";
 import { redisClient } from "../lib/redis.js";
-import { getClientIp } from "../lib/server.js";
+import { getClientIp } from "../lib/utils.js";
 import { QueryAvailiableDomains, QueryAvailiableUsers } from "../lib/domains.js";
 import { dbUpdate, dbSelect } from "../lib/database.js";
 import { registeredTableFields } from "../interfaces/database.js";

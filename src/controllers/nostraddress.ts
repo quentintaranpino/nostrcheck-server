@@ -5,7 +5,7 @@ import { logger } from "../lib/logger.js";
 import { redisClient, getNostrAddressFromRedis } from "../lib/redis.js";
 import { RegisteredUsernameResult } from "../interfaces/register.js";
 import { ResultMessagev2 } from "../interfaces/server.js";
-import { getClientIp } from "../lib/server.js";
+import { getClientIp } from "../lib/utils.js";
 import app from "../app.js";
 import { isModuleEnabled } from "../lib/config.js";
 
