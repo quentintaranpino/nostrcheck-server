@@ -36,6 +36,8 @@ const startServer = async () => {
     
     // Start Express server.
     const server = app.listen(app.get("config.server")["port"]);
+
+	return server;
 }
 
 export default startServer;
