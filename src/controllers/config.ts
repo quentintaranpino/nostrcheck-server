@@ -1,5 +1,5 @@
 import path from "path";
-import fs from "fs";
+import fs, { promises as fsPromises } from "fs";
 import { defaultConfig, localPath, necessaryKeys } from "../interfaces/config.js";
 import { createkeyPair, getPubkeyFromSecret } from "../lib/nostr/core.js";
 import { syncDefaultConfigValues, updateLocalConfigKey } from "../lib/config.js";
@@ -70,46 +70,7 @@ const checkConfigNecessaryKeys = async () : Promise<void> => {
 
 }
 
-const prepareAppFolders = async() =>{
-
-	// tempPath checks
-	const tempPath : string = config.get("media.tempPath");
-	if(!tempPath){
-		console.error("TempPath is not defined in config file.");
-		exit(1);
-	}
-
-	if (!fs.existsSync(tempPath)){
-		fs.mkdirSync(tempPath);
-	}
-
-	fs.readdir(tempPath, (err, files) => {
-		if (err) {
-			console.error(err);
-            exit(1);
-		}
-
-		//Delete all files in temp folder
-		for (const file of files) {
-			fs.unlink(tempPath + file, (err) => {
-				if (err) {
-                    console.error(err);
-                    exit(1);
-				}
-			});
-		}
-	});
-
-	// mediaPath checks
-	const mediaPath : string = config.get("media.mediaPath");
-	if (!mediaPath){
-		console.error("MediaPath is not defined in config file.");
-		exit(1);
-	}
-	if (!fs.existsSync(mediaPath)){
-		fs.mkdirSync(mediaPath);
-	}
-
+const migrateFolders = async(mediaPath:string) => {
 
 	let folderMigrationData = await dbMultiSelect("SELECT DISTINCT registered.username, registered.hex FROM registered",['username', 'hex'], ['1=1'], mediafilesTableFields, false);
 	if (folderMigrationData == undefined || folderMigrationData == null || folderMigrationData.length == 0){
@@ -150,7 +111,6 @@ const prepareAppFolders = async() =>{
 		console.error("Error renaming folders: ", err);
 		process.exit(1);
 	}
-
 }
 
 const prepareAPPConfig = async(): Promise<boolean> =>{
@@ -175,10 +135,38 @@ const prepareAPPConfig = async(): Promise<boolean> =>{
     return false;
 }
 
+
+const prepareAppFolders = async () => {
+    const paths = ["media.tempPath", "media.mediaPath"];
+
+    for (const path of paths) {
+        if (!config.has(path)) {
+            console.error(`${path} is not defined in config file. Check config file.`);
+            process.exit(1);
+        }
+
+        try {
+            await fsPromises.access(config.get(path));
+        } catch {
+            try {
+                await fsPromises.mkdir(config.get(path));
+            } catch (err) {
+                console.error(`Failed to create directory: ${config.get(path)}`, err);
+                process.exit(1);
+            }
+        }
+
+        if (path === "media.tempPath") {
+            const files = await fsPromises.readdir(config.get(path));
+            await Promise.all(files.map(file => fsPromises.unlink(`${config.get(path)}${file}`).catch(err => console.error(`Failed to delete file: ${file}`, err))));
+        }
+    }
+}
+
 const prepareApp = async() => {
 	await prepareAPPConfig();
 	await prepareAppFolders();
-
+	await migrateFolders(config.get("media.mediaPath"));
 }
 
-export { checkConfigNecessaryKeys, prepareApp};
+export { checkConfigNecessaryKeys, migrateFolders, prepareApp };
