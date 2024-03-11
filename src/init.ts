@@ -1,6 +1,7 @@
 // init.ts
 import fs from "fs";
 import { defaultConfig, localPath } from "./interfaces/config.js";
+import startServer from "./server.js";
 
 (async () => {
     console.log("Checking local config file: " + localPath);
@@ -16,7 +17,5 @@ import { defaultConfig, localPath } from "./interfaces/config.js";
             process.exit(1);
         }
     }
-    await new Promise((resolve) => setTimeout(resolve, 1));
-    const startServer = await import('./server.js');
-    await startServer.default();
+    await startServer();
 })();
