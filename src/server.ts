@@ -1,3 +1,4 @@
+// server.ts
 import app from "./app.js";
 import { loadconfigActiveModules} from "./lib/config.js";
 import { prepareApp } from "./controllers/config.js";
@@ -8,34 +9,33 @@ import { loadAPIs } from "./routes/routes.js";
 import { SeedMediafilesMagnets } from "./lib/torrent.js";
 import config from "config";
 
+const startServer = async () => {
+    // Initialise config and folders
+    await prepareApp();
 
-// Start Express server.
-const server = app.listen(app.get("config.server")["port"], async () => {
+    // Initialise Database
+    await initDatabase();
 
-	// Initialise config and folders
-	await prepareApp();
+    // Initialise session cookies
+    await initSession(app);
 
-	// Initialise Database
-	await initDatabase();
+    // Initialise API modules
+    await loadAPIs(app);
 
-	// Initialise session cookies
-	await initSession(app);
+    //Start seeding magnets
+    if (config.get("torrent.enableTorrentSeeding")) {await SeedMediafilesMagnets();}
 
-	// Initialise API modules
-	await loadAPIs(app);
+    // Show server startup message
+    loadConsoleBanner(app);
 
-	//Start seeding magnets
-	if (config.get("torrent.enableTorrentSeeding")) {await SeedMediafilesMagnets();}
+    // Show server startup stactics
+    console.log(await showDBStats());
 
-	// Show server startup message
-	loadConsoleBanner(app);
+    // Show server active modules
+    console.log("Active modules: ", loadconfigActiveModules(app).map((module) => module[0]).join(", "));
+    
+    // Start Express server.
+    const server = app.listen(app.get("config.server")["port"]);
+}
 
-	// Show server startup stactics
-	console.log(await showDBStats());
-
-	// Show server active modules
-	console.log("Active modules: ", loadconfigActiveModules(app).map((module) => module[0]).join(", "));
-	
-});
-
-export default server;
+export default startServer;
