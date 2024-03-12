@@ -34,11 +34,7 @@ By enabling or disabling modules in this configuration, you can control which fe
 ## Database
 
 ```json
-"database
-
-":
-
- {
+"database": {
 	"host": "127.0.0.1",
 	"user": "",
 	"password": "",
