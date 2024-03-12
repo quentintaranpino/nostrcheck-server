@@ -8,6 +8,7 @@ RUN apt-get update && \
 
 WORKDIR /usr/src/app
 COPY package*.json tsconfig.json ./
+COPY /resources ./resources
 RUN npm install -g npm@latest
 RUN npm install --include=optional sharp
 
