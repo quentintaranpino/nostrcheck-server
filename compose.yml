@@ -45,13 +45,13 @@ services:
       - "traefik.http.middlewares.replacepathregex-media.replacepathregex.regex=^/media/(.*)"
       - "traefik.http.middlewares.replacepathregex-media.replacepathregex.replacement=/api/v2/media/$$1"
       - "traefik.http.routers.app-media.service=app"
-      # /.well-known/nostr.json -> /api/v2/nostraddress
+      # 
       - "traefik.http.routers.app.rule=PathPrefix(`/`)"
       - "traefik.http.routers.app.service=app"
-      # /.well-known/nostr.json -> /api/v2/lightning
-      - "traefik.http.routers.app-lightning.rule=Path(`/.well-known/lnurlp`)"
+      # /.well-known/lnurlp -> /api/v2/lightning
+      - "traefik.http.routers.app-lightning.rule=Path(`/.well-known/lnurlp/`)"
       - "traefik.http.routers.app-lightning.middlewares=replacepath-lightning"
-      - "traefik.http.middlewares.replacepath-lightning.replacepath.path=/api/v2/lightningaddress"
+      - "traefik.http.middlewares.replacepath-lightning.replacepath.path=/api/v2/lightningaddress/"
       - "traefik.http.routers.app-lightning.service=app"
     command: "npm run start"
   mariadb:
