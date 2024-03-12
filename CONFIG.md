@@ -23,7 +23,9 @@ This setting defines the environment in which the application is running. By def
 }
 ```
 
-Server configuration, including the host and port on which it runs. Also includes the public and private key for nostr authentication. `tosFilePath` is the path to the terms of service file. `availableModules` is an object containing the configuration of the available modules in the application.
+The server configuration includes the host and port on which the server runs. It also includes the pubkey and secretKey for Nostr authentication, and tosFilePath is the path to the terms of service file.
+
+If the pubkey and secretKey do not exist or do not match, the server will automatically generate a new pair of keys upon startup. This ensures that the server always has a valid pair of keys for Nostr authentication, even if the provided keys are missing or incorrect.
 
 ## Server Available Modules
 This section of the configuration file specifies the modules that are available for use in the application. Each key-value pair within this object represents a module. The key is the name of the module, and the value is a boolean indicating whether the module is enabled (true) or disabled (false).
