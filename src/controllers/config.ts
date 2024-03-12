@@ -137,7 +137,7 @@ const prepareAPPConfig = async(): Promise<boolean> =>{
 
 
 const prepareAppFolders = async () => {
-    const paths = ["media.tempPath", "media.mediaPath"];
+    const paths = ["media.tempPath", "media.mediaPath", "logger.logPath"];
 
     for (const path of paths) {
         if (!config.has(path)) {

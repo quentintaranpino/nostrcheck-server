@@ -9,9 +9,10 @@ const fileSize = (config.has('logger.size') ? config.get('logger.size') : '10M')
 const fileInterval = (config.has('logger.interval') ? config.get('logger.interval') : '1d') as string;
 const fileCompress = (config.has('logger.compression') ? config.get('logger.compression') : 'gzip') as string;
 const minLevel = (config.has('logger.minLevel') ? config.get('logger.minLevel') : 5) as number;
+const logPath = (config.has('logger.logPath') ? config.get('logger.logPath') : 'logs/') as string;
 
 // Create a rotating write stream
-const stream = createStream(filename, {
+const stream = createStream(logPath + filename, {
 	size: fileSize, 
 	interval: fileInterval,
 	compress: fileCompress, 

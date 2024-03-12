@@ -147,7 +147,8 @@ const defaultConfig = {
 		"filename": "nostrcheck-api",
 		"size": "50M", 
 		"interval": "60d",
-		"compression": "gzip"
+		"compression": "gzip",
+		"logPath": "logs/"
 	},
 	"session" : {
 		"secret": "",
