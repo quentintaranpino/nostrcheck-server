@@ -1,1 +1,127 @@
-todo, soon 🙏💜
+# Configuration
+
+The server configuration is found in a JSON file located at config/local.json and contains several sections.
+
+## Environment
+
+```json
+"environment" : "development"
+```
+
+This setting defines the environment in which the application is running. By default, it is set to "development". In this mode, the application does not perform NIP98 authentication checks, making it useful for testing purposes. However, for security reasons, it is crucial to switch this setting to "production" before deploying a server to the public. In "production" mode, the application will enforce NIP98 authentication checks as an additional security measure.
+
+
+## Server
+
+```json
+"server": {
+	"host "localhost",
+	"port": 3000,
+	"pubkey": "",
+	"secretKey": "",
+	"tosFilePath" : "resources/tos.md",
+	"availableModules": {...}
+}
+```
+
+Server configuration, including the host and port on which it runs. Also includes the public and private key for authentication. `tosFilePath` is the path to the terms of service file. `availableModules` is an object containing the configuration of the available modules in the application.
+
+## Database
+
+```json
+"database
+
+":
+
+ {
+	"host": "127.0.0.1",
+	"user": "",
+	"password": "",
+	"database": "",
+	"droptables": false
+}
+```
+
+Database configuration, including the host, username, password, database name, and whether to drop existing tables. The database configuration can also be set through environment variables as shown in the code snippet below:
+
+```typescript
+const DatabaseHost :string = process.env.DATABASE_HOST || config.get('database.host');
+const DatabaseUser :string = process.env.DATABASE_USER || config.get('database.user');
+const DatabasePassword :string = process.env.DATABASE_PASSWORD || config.get('database.password');
+const Database :string = process.env.DATABASE_DATABASE || config.get('database.database');
+```
+
+## Redis
+
+```json
+"redis": {
+	"host": "127.0.0.1",
+	"port": "6379",
+	"user": "default",
+	"password": "",
+	"expireTime": 300
+}
+```
+
+Redis configuration, including the host, port, username, password, and key expiration time. The Redis configuration can also be set through environment variables as shown in the code snippet below:
+
+```typescript
+const redisHost: string = process.env.REDIS_HOST || app.get("config.redis")["host"];
+const redisPort: string = process.env.REDIS_PORT || app.get("config.redis")["port"];
+const redisUser: string = process.env.REDIS_USER || app.get("config.redis")["user"];
+const redisPassword: string = process.env.REDIS_PASSWORD || app.get("config.redis")["password"];
+```
+
+## Media
+
+```json
+"media" : {
+	"maxMBfilesize": 100,
+	"tempPath": "tmp/",
+	"mediaPath": "media/",
+	"notFoundFilePath" : "resources/file-not-found.webp",
+	"allowPublicUploads" : true,
+	"returnURL" : "",
+	"transform" : {...}
+}
+```
+
+Media files configuration, including the maximum file size, temporary path, media files path, image file path when a file is not found, whether public uploads are allowed, return URL, and media files transformations.
+
+## Torrent
+
+```json
+"torrent": {
+	"enableTorrentSeeding": false,
+	"torrentPort": 6881,
+	"dhtPort": 6882
+}
+```
+
+Torrent configuration, including whether torrent seeding is enabled and the ports for Torrent and DHT.
+
+## Logger
+
+```json
+"logger" :  {
+	"minLevel": "5", 
+	"filename": "nostrcheck-api",
+	"size": "50M", 
+	"interval": "60d",
+	"compression": "gzip",
+	"logPath": "logs/"
+}
+```
+
+Logger configuration, including the minimum log level, log file name, maximum log file size, log rotation interval, compression type, and logs path.
+
+## Session
+
+```json
+"session" : {
+	"secret": "",
+	"maxAge": 2592000000
+}
+```
+
+Session configuration, including the session secret and maximum session age.
