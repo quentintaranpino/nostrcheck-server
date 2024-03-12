@@ -15,11 +15,11 @@ This setting defines the environment in which the application is running. By def
 
 ```json
 "server": {
-	"host"localhost",
+	"host": localhost",
 	"port": 3000,
 	"pubkey": "",
 	"secretKey": "",
-	"tosFilePath" : "resources/tos.md",
+	"tosFilePath" : "resources/tos.md"
 }
 ```
 
