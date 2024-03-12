@@ -4,23 +4,23 @@
 ### status [GET]
 Returns the status of the server
 
-https://nostrcheck.me/api/v2/status
+https://nostrcheck.me/api/v2/admin/status
 
 **Example**
 
 ``` 
 {
-    "result": true,
-    "description": "Nostrcheck API server is running.",
-    "version": "0.3.3",
-    "uptime": "20:03:34"
+    "status": "success",
+    "message": "Nostrcheck API server is running.",
+    "version": "0.5.0.1469",
+    "uptime": "01:45:04"
 }
 ```
  
 ### domains [GET]
 Return available domains on the server
 
-https://nostrcheck.me/api/v1/domains
+https://nostrcheck.me/api/v2/domains
 
 This endpoint use the [NIP98](https://github.com/nostr-protocol/nips/blob/master/98.md) HTTP Auth for getting the available domains. The NIP98's pubkey must have the "allowed" field with "1" on registered database.
 
@@ -47,13 +47,13 @@ This endpoint use the [NIP98](https://github.com/nostr-protocol/nips/blob/master
 ### users [GET]
 Return available users from a domain registerd on the server
 
-https://nostrcheck.me/api/v1/domains/[domain]/users
+https://nostrcheck.me/api/v2/domains/[domain]/users
 
 This endpoint use the [NIP98](https://github.com/nostr-protocol/nips/blob/master/98.md) HTTP Auth for getting the available users. The NIP98's pubkey must have the "allowed" field with "1" on registered database.
 
 **Example**
 
-https://nostrcheck.me/api/v1/domains/nostrcheck.me/users
+https://nostrcheck.me/api/v2/domains/nostrcheck.me/users
 
 ```
 {
@@ -73,11 +73,11 @@ https://nostrcheck.me/api/v1/domains/nostrcheck.me/users
 ### nostaddress [GET]
 Returns whether a user name is registered on the server.
 
-https://nostrcheck.me/api/v1/nostraddress
+https://nostrcheck.me/api/v2/nostraddress
 
 **Example**
 
-[https://nostrcheck.me/api/v1/nostraddress?name=quentin](https://nostrcheck.me/api/v1/nostraddress?name=quentin)
+[https://nostrcheck.me/api/v2/nostraddress?name=quentin](https://nostrcheck.me/api/v1/nostraddress?name=quentin)
 
 ```
 {
@@ -90,11 +90,11 @@ names: {
 ### lightning [GET]
 Returns the lightning redirect from a registered nostr address.
 
-https://nostrcheck.me/api/v1/lightningaddress
+https://nostrcheck.me/api/v2/lightningaddress
 
 **Example**
 
-[https://nostrcheck.me/api/v1/lightningaddress?name=quentin](https://nostrcheck.me/api/v1/lightningaddress?name=quentin)
+[https://nostrcheck.me/api/v2/lightningaddress/quentin](https://nostrcheck.me/api/v1/lightningaddress/quentin)
 
 (Example response from walletofsatoshi server)
 
@@ -114,11 +114,11 @@ nostrPubkey: "be1d89794bf92de5dd64c1e60f6a2c70c140abac9932418fee30c5c637fe9479"
 ### lightning [PUT]
 Allows to update or create a lightning address redirect for a pubkey
 
-https://nostrcheck.me/api/v1/lightningaddress/
+https://nostrcheck.me/api/v2/lightningaddress/
 
 **Example**
 
-[https://nostrcheck.me/api/v1/lightningaddress/test@test.com]
+[https://nostrcheck.me/api/v2/lightningaddress/test@test.com]
 
 This endpoint use the [NIP98](https://github.com/nostr-protocol/nips/blob/master/98.md) HTTP Auth for getting the pubkey. The NIP98's pubkey must be registered on the database.
 
@@ -126,8 +126,8 @@ This endpoint use the [NIP98](https://github.com/nostr-protocol/nips/blob/master
 Response from server:
 ```
 {
-	"result": true,
-	"description": "Lightning redirect for pubkey 89836015acd0c3e0227718fbe64b6251a8425cda33f27c3e4bbf794effbc7450 updated"
+	"status": "success",
+	"message": "Lightning redirect for pubkey 89836015acd0c3e0227718fbe64b6251a8425cda33f27c3e4bbf794effbc7450 updated"
 }
 ```
 
@@ -138,15 +138,15 @@ https://nostrcheck.me/api/v1/lightningaddress/
 
 **Example**
 
-[https://nostrcheck.me/api/v1/lightningaddress]
+[https://nostrcheck.me/api/v2/lightningaddress]
 
 This endpoint use the [NIP98](https://github.com/nostr-protocol/nips/blob/master/98.md) HTTP Auth for getting the pubkey. The NIP98's pubkey must be registered on the database.
 
 Response from server:
 ``` 
 {
-	"result": true,
-	"description": "Lightning deletion for id: 1 and pubkey 40ea82aa4a450ea86cbb185a81f810edf2ac9810262f8e5952521f95ddfd8d97 successful"
+	"status": "success",
+	"message": "Lightning deletion for id: 1 and pubkey 40ea82aa4a450ea86cbb185a81f810edf2ac9810262f8e5952521f95ddfd8d97 successful"
 }
 ```
 
@@ -167,6 +167,7 @@ uploadtype: [media, avatar, banner] (Optional)
 if the uploadtype is not specified, the server will always interpret it as " media" (standard upload).
 
 This endpoint use the [NIP98](https://github.com/nostr-protocol/nips/blob/master/98.md) HTTP Auth and get this fields from auth note.
+
 This endpoint use the [NIP96](https://github.com/nostr-protocol/nips/blob/96.md) HTTP File Storage Integration standard.
 
 ```
@@ -200,7 +201,7 @@ http://localhost:3000/api/v2/media/7
 		"tags": [
 			[
 				"url",
-				"http://localhost:3000/media/public/61b08dd1809b459e16d917bfae87c7b11acf0f4f2061334a567b3976de73c388.webp"
+				"http://localhost:3000/media/375fdc8cb766664da915d638f46ca0399cd13cbd81a3f25eb37371d9dbe1bc81/61b08dd1809b459e16d917bfae87c7b11acf0f4f2061334a567b3976de73c388.webp"
 			],
 			[
 				"m",
@@ -264,7 +265,7 @@ If the mediafile is not found the server return the image defined on config file
 ### media [GET] (TAGS)
 Allows to get the tags of a file.
 
-https://nostrcheck.me/api/v1/media/[id]/tags
+https://nostrcheck.me/api/v2/media/[id]/tags
 
 This endpoint use the [NIP98](https://github.com/nostr-protocol/nips/blob/master/98.md) HTTP Auth for getting the media status. The NIP98's pubkey must be the same as the one who uploaded the file. 
 
@@ -290,13 +291,13 @@ http://localhost:3000/api/v1/media/7/tags
 ### media [GET] (FILES BY TAG)
 Allows to get the tags of a file.
 
-https://nostrcheck.me/api/v1/media/tags/[TAG]
+https://nostrcheck.me/api/v2/media/tags/[TAG]
 
 This endpoint use the [NIP98](https://github.com/nostr-protocol/nips/blob/master/98.md) HTTP Auth for getting the media status. The NIP98's pubkey must be the same as the one who uploaded the file. 
 
 **Example**
 
-http://localhost:3000/api/v1/media/tags/hodl
+http://localhost:3000/api/v2/media/tags/hodl
 
 ```
 {
@@ -325,7 +326,7 @@ http://localhost:3000/api/v1/media/tags/hodl
 ### media [PUT] (Visibility)
 Allows to change the visibility of a file. If the file is private it will not show on the gallery, but always will be accessible by the url.
 
-https://nostrcheck.me/api/v1/media/[id]/visibility/[visibility]
+https://nostrcheck.me/api/v2/media/[id]/visibility/[visibility]
 
 This endpoint use the [NIP98](https://github.com/nostr-protocol/nips/blob/master/98.md) HTTP Auth for getting the media status. The NIP98's pubkey must be the same as the one who uploaded the file. 
 
@@ -338,12 +339,12 @@ Visibility options:
 
 **Example**
 
-http://localhost:3000/api/v1/media/7/visibility/1
+http://localhost:3000/api/v2/media/7/visibility/1
 
 ```
 {
-    "result": true,
-    "description": "Media visibility has changed",
+    "status": "success",
+    "message": "Media visibility has changed",
     "id": "60",
     "visibility": "1"
 }
@@ -368,8 +369,8 @@ This endpoint use the [NIP96](https://github.com/nostr-protocol/nips/blob/96.md)
 Response from server:
 ```
 {
-	"result": true,
-	"description": "Mediafile deletion for id: 82 and pubkey 40ea82aa4a450ea86cbb185a81f810edf2ac9810262f8e5952521f95ddfd8d97 successful"
+	"status": "success",
+	"message": "Mediafile deletion for id: 82 and pubkey 40ea82aa4a450ea86cbb185a81f810edf2ac9810262f8e5952521f95ddfd8d97 successful"
 }
 
 ```
@@ -414,7 +415,7 @@ content_types: [
 ### register [POST]
 Allows to register a new username to the database
 
-https://nostrcheck.me/api/v1/register
+https://nostrcheck.me/api/v2/register
 
 Example of a register note for a new username
 ```
@@ -444,7 +445,7 @@ This endpoint use the [NIP98](https://github.com/nostr-protocol/nips/blob/master
 ### verify [POST]
 Endpoint to verify a nostr note integrity and signature.
 
-https://nostrcheck.me/api/v1/verify
+https://nostrcheck.me/api/v2/verify
 
 **Example**
 
@@ -552,28 +553,13 @@ npm run lint:fix
 The server don't verify NIP98 integrity and authorization when is running on development mode.
 
 ```
-#edit config file
+# Edit config file
 sudo nano config/local.json
 
-#Set 'environment' to 'development'
+# Set 'environment' to 'development'
 "environment" : "development", 
 
-#Set 'environment' to 'production'
+# Set 'environment' to 'production'
 "environment" : "production", 
  
 ```
-
-## License
-
-MIT License (MIT)
-
-```
-Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the “Software”), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-```
-
-
