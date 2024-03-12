@@ -8,7 +8,7 @@ The server configuration is found in a JSON file located at config/local.json an
 "environment" : "development"
 ```
 
-This setting defines the environment in which the application is running. By default, it is set to "development". In this mode, the application does not perform NIP98 authentication checks, making it useful for testing purposes. However, for security reasons, it is crucial to switch this setting to "production" before deploying a server to the public. In "production" mode, the application will enforce NIP98 authentication checks as an additional security measure.
+This setting defines the environment in which the application is running. By default, it is set to "development". In this mode, the application does not perform NIP98 authentication checks, making it useful for testing purposes. However, **for security reasons, it is crucial to switch this setting to "production" before deploying a server to the public**. In "production" mode, the application will enforce NIP98 authentication checks as an additional security measure.
 
 
 ## Server
@@ -24,7 +24,7 @@ This setting defines the environment in which the application is running. By def
 }
 ```
 
-Server configuration, including the host and port on which it runs. Also includes the public and private key for authentication. `tosFilePath` is the path to the terms of service file. `availableModules` is an object containing the configuration of the available modules in the application.
+Server configuration, including the host and port on which it runs. Also includes the public and private key for nostr authentication. `tosFilePath` is the path to the terms of service file. `availableModules` is an object containing the configuration of the available modules in the application.
 
 ## Database
 
@@ -42,13 +42,13 @@ Server configuration, including the host and port on which it runs. Also include
 }
 ```
 
-Database configuration, including the host, username, password, database name, and whether to drop existing tables. The database configuration can also be set through environment variables as shown in the code snippet below:
+Database configuration, including the host, username, password, database name, and whether to drop existing tables. The database configuration can also be set through environment variables as shown in the snippet below:
 
-```typescript
-const DatabaseHost :string = process.env.DATABASE_HOST || config.get('database.host');
-const DatabaseUser :string = process.env.DATABASE_USER || config.get('database.user');
-const DatabasePassword :string = process.env.DATABASE_PASSWORD || config.get('database.password');
-const Database :string = process.env.DATABASE_DATABASE || config.get('database.database');
+```
+DATABASE_HOST
+DATABASE_USER
+DATABASE_PASSWORD
+DATABASE_DATABASE
 ```
 
 ## Redis
@@ -63,13 +63,13 @@ const Database :string = process.env.DATABASE_DATABASE || config.get('database.d
 }
 ```
 
-Redis configuration, including the host, port, username, password, and key expiration time. The Redis configuration can also be set through environment variables as shown in the code snippet below:
+Redis configuration, including the host, port, username, password, and key expiration time. The Redis configuration can also be set through environment variables as shown in the snippet below:
 
-```typescript
-const redisHost: string = process.env.REDIS_HOST || app.get("config.redis")["host"];
-const redisPort: string = process.env.REDIS_PORT || app.get("config.redis")["port"];
-const redisUser: string = process.env.REDIS_USER || app.get("config.redis")["user"];
-const redisPassword: string = process.env.REDIS_PASSWORD || app.get("config.redis")["password"];
+```
+REDIS_HOST
+REDIS_PORT
+REDIS_USER
+REDIS_PASSWORD
 ```
 
 ## Media
