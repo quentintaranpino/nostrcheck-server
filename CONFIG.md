@@ -26,6 +26,11 @@ This setting defines the environment in which the application is running. By def
 
 Server configuration, including the host and port on which it runs. Also includes the public and private key for nostr authentication. `tosFilePath` is the path to the terms of service file. `availableModules` is an object containing the configuration of the available modules in the application.
 
+## Server Available Modules
+This section of the configuration file specifies the modules that are available for use in the application. Each key-value pair within this object represents a module. The key is the name of the module, and the value is a boolean indicating whether the module is enabled (true) or disabled (false).
+
+By enabling or disabling modules in this configuration, you can control which features are available in the application. This allows for a flexible setup where only the necessary modules are active, potentially improving performance and reducing resource usage.
+
 ## Database
 
 ```json
