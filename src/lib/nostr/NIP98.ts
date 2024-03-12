@@ -7,6 +7,7 @@ import { NIPKinds } from "../../interfaces/nostr.js";
 import { authHeaderResult } from "../../interfaces/authorization.js";
 import { dbSelect } from "../database.js";
 import { registeredTableFields } from "../../interfaces/database.js";
+import app from "../../app.js";
 
 /**
  * Parses the authorization Nostr header (NIP98) and checks if it is valid. Visit for more information: https://github.com/nostr-protocol/nips/blob/master/98.md
@@ -34,7 +35,7 @@ const isNIP98Valid = async (authevent: Event, req: Request, checkAdminPrivileges
 	try {
 		let created_at = authevent.created_at;
 		const now = Math.floor(Date.now() / 1000);
-		if (config.get("environment")  == "development") {
+		if (app.get('config.environment')  == "development") {
 			logger.warn("DEVMODE: Setting created_at to now", "|", req.socket.remoteAddress); //If devmode is true, set created_at to now for testing purposes
 			created_at = now - 30;
 		} 
@@ -59,7 +60,7 @@ const isNIP98Valid = async (authevent: Event, req: Request, checkAdminPrivileges
 	// Check if event authorization u tag (URL) is valid (Must be the same as the server endpoint)
 	try {
 		const ServerEndpoint = `${req.protocol}://${req.headers.host}${req.url}`;
-		if (config.get("environment") == "development") {
+		if (app.get('config.environment') == "development") {
 			logger.warn("DEVMODE: Setting 'u'(url) tag same as the endpoint URL", "|", req.socket.remoteAddress); // If devmode is true, set created_at to now for testing purposes
 			eventEndpoint = ServerEndpoint;
 		} 

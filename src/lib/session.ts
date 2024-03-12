@@ -26,7 +26,7 @@ const initSession = async (app:Application): Promise<void> => {
 
     //Disable secure cookie in development environment
     let secureCoockie: boolean = true
-    if (config.get('environment') != "production"){
+    if (app.get('config.environment') != "production"){
         secureCoockie = false;
     }
 

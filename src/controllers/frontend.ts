@@ -223,6 +223,12 @@ const frontendLogin = async (req: Request, res: Response): Promise<Response> => 
 
     logger.info("POST /api/v2/login", "|", getClientIp(req));
 
+    // Check if secureCookie is true and if the request is not secure
+    if (req.session.cookie.secure && !req.secure) {
+        logger.warn("Attempt to access a secure session over HTTP:","|","IP:", getClientIp(req));
+        return res.status(400).send(false);
+    }
+
     if ((req.body.pubkey === "" || req.body.pubkey == undefined) && (req.body.username === '' || req.body.password === '')){
         logger.warn("RES -> 401 unauthorized  - ", getClientIp(req));
         logger.warn("No credentials used to login. Refusing", getClientIp(req));
