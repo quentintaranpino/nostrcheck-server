@@ -1,22 +1,197 @@
-## Available endpoints
+# Documentation
 
+## Admin
+
+### resetpassword [POST]
+This method generates a new password for a user. The request must include a valid pubkey and an Authorization header with a valid authkey. On success, it returns a message indicating that the new password was generated, along with an authkey.
+
+Endpoint: https://nostrcheck.me/api/v2/admin/resetpassword
+
+**Headers**
+
+- `Content-Type`: application/json
+- `Authorization`: Bearer {authkey}
+
+**Parameters**
+
+- `pubkey`: The public key of the user.
+
+**Example Request**
+
+```json
+{
+    "method": "POST",
+    "url": "https://nostrcheck.me/api/v2/admin/resetpassword",
+    "headers": {
+        "Content-Type": "application/json",      
+	"Authorization": "Bearer Auth37f3352fe10584d7396f010eb501482930dd712f"
+    },
+    "body": {
+        "pubkey": "user_public_key"
+    }
+}
+```
+
+**Example Response**
+
+```json
+{
+    "status": "success",
+    "message": "New password generated for user_key",
+    "authkey": "auth_key"
+}
+```
+
+### stop [POST]
+This method stops the server. The request must include a valid Authorization header with a valid authkey. On success, it returns a message indicating that the server is stopping, along with an authkey.
+
+Endpoint: https://nostrcheck.me/api/v2/admin/stop
+
+**Headers**
+
+- `Content-Type`: application/json
+- `Authorization`: Bearer {authkey}
+
+**Example Request**
+
+```json
+{
+    "method": "POST",
+    "url": "https://nostrcheck.me/api/v2/admin/stop",
+    "headers": {
+        "Content-Type": "application/json",      
+        "Authorization": "Bearer Auth37f3352fe10584d7396f010eb501482930dd712f"
+    }
+}
+```
+
+**Example Response**
+
+```json
+{
+    "status": "success",
+    "message": "Stopping server...",
+    "authkey": "auth_key"
+}
+```
 
 ### status [GET]
-Returns the status of the server
+This method returns the status of the server. It does not require any parameters or an Authorization header.
 
-https://nostrcheck.me/api/v2/admin/status
+Endpoint: https://nostrcheck.me/api/v2/admin/status
 
-**Example**
+**Example Request**
 
-``` 
+```json
+{
+    "method": "GET",
+    "url": "https://nostrcheck.me/api/v2/admin/status",
+    "headers": {
+        "Content-Type": "application/json"
+    }
+}
+```
+
+**Example Response**
+
+```json
 {
     "status": "success",
     "message": "Nostrcheck API server is running.",
-    "version": "0.5.0.1469",
+    "version": "0.5.0.1470",
     "uptime": "01:45:04"
 }
 ```
- 
+
+### updaterecord [POST]
+This method updates a record in the database. The request must include a valid Authorization header with a valid authkey. The request body must include the table name, field name, new value, and the id of the record to be updated.
+
+Endpoint: https://nostrcheck.me/api/v2/admin/updaterecord
+
+**Headers**
+
+- `Content-Type`: application/json
+- `Authorization`: Bearer {authkey}
+
+**Body**
+
+- `table`: The name of the table in the database.
+- `field`: The name of the field to be updated.
+- `value`: The new value for the field.
+- `id`: The id of the record to be updated.
+
+**Example Request**
+
+```json
+{
+    "method": "POST",
+    "url": "https://nostrcheck.me/api/v2/admin/updaterecord",
+    "headers": {
+        "Content-Type": "application/json",
+   "Authorization": "Bearer Auth37f3352fe10584d7396f010eb501482930dd712f"
+    },
+    "body": {
+        "table": "registered",
+        "field": "username",
+        "value": "newUsername",
+        "id": "123"
+    }
+}
+```
+
+**Example Response**
+
+```json
+{
+    "status": "success",
+    "message": "newUsername",
+    "authkey": "auth_key"
+}
+```
+
+### deleterecord [POST]
+This method deletes a record in the database. The request must include a valid Authorization header with a valid authkey. The request body must include the table name and the id of the record to be deleted.
+
+Endpoint: https://nostrcheck.me/api/v2/admin/deleterecord
+
+**Headers**
+
+- `Content-Type`: application/json
+- `Authorization`: Bearer {authkey}
+
+**Body**
+
+- `table`: The name of the table in the database.
+- `id`: The id of the record to be deleted.
+
+**Example Request**
+
+```json
+{
+    "method": "POST",
+    "url": "https://nostrcheck.me/api/v2/admin/deleterecord",
+    "headers": {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer Auth37f3352fe10584d7396f010eb501482930dd712f"
+    },
+    "body": {
+        "table": "registered",
+        "id": 123
+    }
+}
+```
+
+**Example Response**
+
+```json
+{
+    "status": "success",
+    "message": "Record deleted succesfully",
+    "authkey": "auth_key"
+}
+```
+
+
 ### domains [GET]
 Return available domains on the server
 
