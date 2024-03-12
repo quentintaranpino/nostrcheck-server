@@ -468,6 +468,8 @@ With NIP98
 }
 ```
 
+TODO. REFACTOR BELOW
+
 ### nostaddress [GET]
 Returns whether a user name is registered on the server.
 
