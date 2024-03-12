@@ -366,30 +366,105 @@ With NIP98
 }
 ```
 
-
 ### users [GET]
-Return available users from a domain registerd on the server
+This method retrieves a list of available users for a specific domain in the application. The request must include a valid module name, an Authorization header with a valid authkey, and a domain parameter in the URL. 
 
-https://nostrcheck.me/api/v2/domains/[domain]/users
+This endpoint also can use the [NIP98](https://github.com/nostr-protocol/nips/blob/master/98.md) HTTP Auth for getting the user's authkey. The NIP98's pubkey must have the "allowed" field with "1" on registered database.
 
-This endpoint use the [NIP98](https://github.com/nostr-protocol/nips/blob/master/98.md) HTTP Auth for getting the available users. The NIP98's pubkey must have the "allowed" field with "1" on registered database.
+Endpoint: https://nostrcheck.me/api/v2/domains/{domain}/users
 
-**Example**
+**Headers**
 
-https://nostrcheck.me/api/v2/domains/nostrcheck.me/users
+- `Content-Type`: application/json
+- `Authorization`: Bearer {authkey}
 
-```
+**Parameters**
+
+- `domain`: The domain for which to retrieve the list of available users.
+
+**Example Request**
+
+With authkey
+```json
 {
-	"nostrcheck.me": [
-		{
-			"username": "public",
-			"hex": "0a60549f014123c34157071943a7ddddf5663a92cf5040e15740305bf193b7a7"
-		},
-		{
-			"username": "quentin",
-			"hex": "2d02bb19d41d733ec94f6e81fe928c7c5dc3574d2f4e1ff1f24e1aa3eae69049"
-		}
-	]
+    "method": "GET",
+    "url": "https://nostrcheck.me/api/v2/domains/example.com/users",
+    "headers": {
+        "Content-Type": "/json",
+        "Authorization": "Bearer Auth37f3352fe10584d7396f010eb501482930dd712f"
+    }
+}
+```
+
+With NIP98
+```json
+{
+    "method": "GET",
+    "url": "https://nostrcheck.me/api/v2/domains/domain1.com/users",
+    "headers": {
+        "Content-Type": "application/json",
+        "Authorization": "Nostr ewogICJpZCI6ICI5MzMxMDUyY2FlYzQzNTE4NDRlMzM4YTgyZDhmMGRhNzEzZmVkNDk1ODViN2ZjNTVkMDg5MWVlOWZiMDYyYTJjIiwKICAicHVia2V5IjogIjgyMDhmYWNkY2FiMjk4NzgyYzllM2I3YjllZmIyMmJjMjQ2ZDE1NzcwZTBiNGY5NmJiZTUxYzQwNjViODJhZjAiLAogICJjcmVhdGVkX2F0IjogMTcwOTExNDEwNywKICAia2luZCI6IDI3MjM1LAogICJ0YWdzIjogWwogICAgWwogICAgICAibWV0aG9kIiwKICAgICAgIkdFVCIKICAgIF0sCiAgICBbCiAgICAgICJ1IiwKICAgICAgImh0dHBzOi8vbm9zdHJjaGVjay5tZS9hcGkvdjIvZG9tYWlucyIKICAgIF0KICBdLAogICJjb250ZW50IjogIiIsCiAgInNpZyI6ICI3ZDYyMzk1OGZhMjY5ZTY2NzhlYmZlOGVhN2JlOTlhMzgxNDlhYTc2NTdmZjJlZTVlYmM0ODYyNWFlODY3M2Y4Yjk0ZDM2YWUxMTAyOGVhOWU0MzNjZWY3ZmZhNWEwZDcxYjIyYzI0OGMyNDA5M2NkNGFmMjBmYjVjM2Y5MGE0MiIKfQ"
+    }
+}
+```
+
+**Example Response**
+
+```json
+{
+    "domain1.com": ["user1", "user2"],
+    "authkey": "auth_key"
+}
+```
+
+### domain [PUT]
+This method updates the domain of a user in the application. The request must include a valid module name, an Authorization header with a valid authkey, and a domain parameter in the request URL. On success, it returns a success message.
+
+This endpoint also can use the [NIP98](https://github.com/nostr-protocol/nips/blob/master/98.md) HTTP Auth for getting the user's authkey. The NIP98's pubkey must have the "allowed" field with "1" on registered database.
+
+Endpoint: https://nostrcheck.me/api/v2/domains/{domain}
+
+**Headers**
+
+- `Content-Type`: application/json
+- `Authorization`: Bearer {authkey}
+
+**Parameters**
+
+- `domain`: The domain to be updated for the user.
+
+**Example Request**
+
+With authkey
+```json
+{
+    "method": "PUT",
+    "url": "https://nostrcheck.me/api/v2/domains/example.com",
+    "headers": {
+        "Content-Type": "application/json",
+	"Authorization": "Bearer Auth37f3352fe10584d7396f010eb501482930dd712f"
+    }
+}
+```
+
+With NIP98
+```json
+{
+    "method": "GET",
+    "url": "https://nostrcheck.me/api/v2/domains/domain1.com",
+    "headers": {
+        "Content-Type": "application/json",
+        "Authorization": "Nostr ewogICJpZCI6ICJlYjlkMWY2OWJhZDYwN2IyZDg5OTFhYjJmNTAxYzQwMGNkZTQ4MTk0YmZlMDg3NmI5ZWMzN2I4NjRlZDYwMmVmIiwKICAicHVia2V5IjogIjgyMDhmYWNkY2FiMjk4NzgyYzllM2I3YjllZmIyMmJjMjQ2ZDE1NzcwZTBiNGY5NmJiZTUxYzQwNjViODJhZjAiLAogICJjcmVhdGVkX2F0IjogMTcwOTExNDEwNywKICAia2luZCI6IDI3MjM1LAogICJ0YWdzIjogWwogICAgWwogICAgICAibWV0aG9kIiwKICAgICAgIlBVVCIKICAgIF0sCiAgICBbCiAgICAgICJ1IiwKICAgICAgImh0dHBzOi8vbm9zdHJjaGVjay5tZS9hcGkvdjIvZG9tYWlucyIKICAgIF0KICBdLAogICJjb250ZW50IjogIiIsCiAgInNpZyI6ICI5MjZlZGNhYThkNjllNTUyZTI4NDZlZWJlMjY3ZGMxMDQ3YWU3ZjJiMjc0NzU0ZjZlYWI4YWQwZTQxZDJmZGY1YzI2MDdmNTM3YmE3NTUxMmRkZWIzNWE2NWVlZDQxZjEzNDRiODE2YTlmMzgzZWUzYTJkZTljMTgzNWU3MjBjOCIKfQ=="
+    }
+}
+```
+
+**Example Response**
+
+```json
+{
+    "status": "success",
+    "message": "User domain for pubkey Auth37f3352fe10584d7396f010eb501482930dd712f updated"
 }
 ```
 
