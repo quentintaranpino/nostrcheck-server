@@ -73,7 +73,15 @@
                     placeholder="Server host" 
                     required
                     >
-           
+
+            <label for="environment" class="mt-2 mb-1 fw-bold">Environment</label>
+            <p>Configure the server's environment. For security reasons, a server exposed to the internet should be set to "production" mode, it enables certain security features that are not necessary in a development environment.</p>
+            <div class="col-12 col-md-4 col-lg-5">
+              <select id="environment" name="environment" class="form-select">
+                <option value="development" <% if (request.body.settingsEnvironment === 'development') { %>selected<% } %>>development</option>
+                <option value="production" <% if (request.body.settingsEnvironment === 'production') { %>selected<% } %>>production</option>
+              </select>
+            </div>
             <label for="server.pubkey" class="mt-3 mb-1 fw-bold">Server pubkey</label>
             <p>This is the public key of the server. It's used to return the server's pubkey to the "_" NIP05 requests.</p>
             <input  type="text" 
