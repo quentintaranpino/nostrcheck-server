@@ -1,6 +1,11 @@
 # Configuration
 
-The server configuration is found in a JSON file located at config/local.json and contains several sections.
+The server configuration is located in a JSON file at config/local.json and is divided into several sections.
+
+Many of these parameters can be managed directly from the settings screen in the administration panel. This provides a user-friendly interface for adjusting the server configuration without having to manually edit the JSON file.
+
+![image](https://github.com/quentintaranpino/nostrcheck-api-ts/assets/125748180/913e05f8-dfdf-4f73-ab75-f842776ef620)
+
 
 ## Environment
 
