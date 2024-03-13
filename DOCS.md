@@ -831,80 +831,13 @@ The upload will be saved in the user's gallery, whether registered or not.
 
 
 
-TODO. REFACTOR BELOW
-
-### nostaddress [GET]
-Returns whether a user name is registered on the server.
-
-https://nostrcheck.me/api/v2/nostraddress
-
-**Example**
-
-[https://nostrcheck.me/api/v2/nostraddress?name=quentin](https://nostrcheck.me/api/v1/nostraddress?name=quentin)
-
-```
-{
-names: {
-        quentin: "89e14be49ed0073da83b678279cd29ba5ad86cf000b6a3d1a4c3dc4aa4fdd02c"
-       }
-}
-```
-
-### lightning [GET]
-Returns the lightning redirect from a registered nostr address.
-
-https://nostrcheck.me/api/v2/lightningaddress
-
-**Example**
-
-[https://nostrcheck.me/api/v2/lightningaddress/quentin](https://nostrcheck.me/api/v1/lightningaddress/quentin)
-
-(Example response from walletofsatoshi server)
-
-```
-{
-callback: "https://livingroomofsatoshi.com/api/v1/lnurl/payreq/000000000-0000-0000-0000-000000000000",
-maxSendable: 100000000000,
-minSendable: 1000,
-metadata: "[["text/plain","Pay to Wallet of Satoshi user: perkynurse82"],["text/identifier","perkynurse82@walletofsatoshi.com"]]",
-commentAllowed: 32,
-tag: "payRequest",
-allowsNostr: true,
-nostrPubkey: "be1d89794bf92de5dd64c1e60f6a2c70c140abac9932418fee30c5c637fe9479"
-}
-```
-
-
-
-### media [POST]
-Allows to upload files
-
-https://nostrcheck.me/api/v2/media
-
-This endpoint requires the following fields in the body:
-
-```
-uploadtype: [media, avatar, banner] (Optional)
-[attached file] 
-```
-if the uploadtype is not specified, the server will always interpret it as " media" (standard upload).
-
-This endpoint use the [NIP98](https://github.com/nostr-protocol/nips/blob/master/98.md) HTTP Auth and get this fields from auth note.
-
-This endpoint use the [NIP96](https://github.com/nostr-protocol/nips/blob/96.md) HTTP File Storage Integration standard.
-
-```
-pubkey
-```
-If the pubkey is registered, the upload will be saved in the user's gallery, otherwise the upload will be public (with the public parametrized pubkey), 
-
-
 ### media [GET] (ID) 
 Allows to get the status and information about a file
 
 https://nostrcheck.me/api/v2/media
 
 This endpoint use the [NIP98](https://github.com/nostr-protocol/nips/blob/master/98.md) HTTP Auth for getting the media status. The NIP98's pubkey must be the same as the one who uploaded the file. 
+
 This endpoint use the [NIP96](https://github.com/nostr-protocol/nips/blob/96.md) HTTP File Storage Integration standard.
 
 **Example**
@@ -994,7 +927,7 @@ This endpoint use the [NIP98](https://github.com/nostr-protocol/nips/blob/master
 
 **Example**
 
-http://localhost:3000/api/v1/media/7/tags
+http://localhost:3000/api/v2/media/7/tags
 
 ```
 [
@@ -1075,6 +1008,7 @@ http://localhost:3000/api/v2/media/7/visibility/1
 ```
 
 ### Media [DELETE]
+
 Allows to **delete** a mediafile from database and disk.
 
 This endpoint delete all files with the same hash of selected file.
@@ -1105,11 +1039,11 @@ https://nostrcheck.me/api/v2/nip96
 
 **Example**
 
-[https://nostrcheck.me/api/v1/nip96](https://nostrcheck.me/api/v1/nip96)
+[https://nostrcheck.me/api/v1/nip96](https://nostrcheck.me/api/v2/nip96)
 
 ```
 {
-api_url: "https://nostrcheck.me/api/v1/media",
+api_url: "https://nostrcheck.me/api/v2/media",
 download_url: "https://nostrcheck.me/media",
 supported_nips: [
 "NIP-94",
@@ -1134,6 +1068,29 @@ content_types: [
 ]
 }
 ```
+
+
+TODO. REFACTOR BELOW
+
+### nostaddress [GET]
+Returns whether a user name is registered on the server.
+
+https://nostrcheck.me/api/v2/nostraddress
+
+**Example**
+
+[https://nostrcheck.me/api/v2/nostraddress?name=quentin](https://nostrcheck.me/api/v1/nostraddress?name=quentin)
+
+```
+{
+names: {
+        quentin: "89e14be49ed0073da83b678279cd29ba5ad86cf000b6a3d1a4c3dc4aa4fdd02c"
+       }
+}
+```
+
+
+
 
 ### register [POST]
 Allows to register a new username to the database
