@@ -118,13 +118,17 @@ const initEditModal = async (objectId, row, objectName, newRow, columns) => {
     return result;
 }
 
-const initAlertModal = async (objectId, message, timeout = 3000) => {
+const initAlertModal = async (objectId, message, timeout = 3000, alertClass = "alert-warning") => {
 
     var alert = new bootstrap.Modal($(objectId + '-alert-modal'));
 
+    $(objectId + '-alert-modal .alert').addClass(alertClass);
+
     $(alert._element).on('show.bs.modal', function () {
         $(objectId + '-alert-modal .alert').empty();
-        $(objectId + '-alert-modal .alert').append('<i class="fa-solid fa-triangle-exclamation"></i> ');
+        if (alertClass === "alert-warning") {
+            $(objectId + '-alert-modal .alert').append('<i class="fa-solid fa-triangle-exclamation"></i> ');
+        } 
         $(objectId + '-alert-modal .alert ').append(message)
     })
     alert.show();
