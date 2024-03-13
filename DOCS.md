@@ -724,7 +724,7 @@ On success, a message is returned indicating the Lightning address has been dele
 
 ### media [POST]
 
-This endpoint allows for file uploads. The request must include a valid module name, an Authorization header.
+This endpoint allows for file uploads. The request must include a valid module name and a valid Authorization header.
 
 Endpoint: https://nostrcheck.me/api/v2/media
 
