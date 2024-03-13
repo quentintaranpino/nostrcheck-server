@@ -1069,9 +1069,9 @@ content_types: [
 }
 ```
 
-# nostaddress
+# nostraddress
 
-### nostaddress [GET]
+### nostraddress [GET]
 Returns whether a user name is registered on the server.
 
 https://nostrcheck.me/api/v2/nostraddress
