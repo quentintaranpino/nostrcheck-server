@@ -38,6 +38,10 @@ git clone https://github.com/quentintaranpino/nostrcheck-api-ts.git && cd nostrc
 
 See documentation [here](https://github.com/quentintaranpino/nostrcheck-api-ts/blob/0.5.0/DOCS.md)
 
+## Configuration
+
+See configuration [here](https://github.com/quentintaranpino/nostrcheck-api-ts/blob/0.5.0/CONFIG.md)
+
 ## Screenshots
 ### Dashboard
 ![image](https://github.com/quentintaranpino/nostrcheck-api-ts/assets/125748180/f9f4ab55-3560-49c2-b437-c90079b7a66c)
