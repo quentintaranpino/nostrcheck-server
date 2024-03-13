@@ -468,6 +468,113 @@ With NIP98
 }
 ```
 
+## Frontend
+
+### api/v2 [GET]
+
+Loads the index page. If it's the first use, it shows an alert on the frontend.
+
+### api/v2/login [GET]
+
+Loads the login page. If the user is already logged in, it redirects to the current API version. If it's the first use, it sets the first use to true and redirects to the front page where an alert will be shown.
+
+### api/v2/login [POST]
+
+Handles the login request. The user can log in using either a public key or a username and password. If the user chooses to remember their login, the session cookie's max age is set to the value specified in the configuration.
+
+**Parameters**
+
+- `pubkey`: The user's public key (optional).
+- `username`: The user's username (optional).
+- `password`: The user's password (optional).
+- `rememberMe`: Whether to remember the user's login (optional).
+
+**Example Request**
+
+```json
+{
+    "username": "user123",
+    "password": "password123",
+    "rememberMe": "true"
+}
+```
+
+**Example Response**
+
+```json
+true
+```
+
+This response indicates that the login was successful. If the login fails, the response will be `false`.
+
+**Error Responses**
+
+- `400`: The frontend module is not enabled, or an attempt was made to access a secure session over HTTP.
+- `401`: No credentials were provided, or the provided credentials were invalid.
+- `500`: Failed to generate an authkey for the user.
+
+### api/v2/tos [GET]
+
+Loads the Terms of Service page. If it's the first use, it shows an alert on the frontend.
+
+### api/v2/documentation [GET]
+
+Loads the documentation page. If it's the first use, it shows an alert on the frontend.
+
+### api/v2/dashboard [GET]
+
+Loads the dashboard page. If the user is not logged in or the public key is not valid, it redirects to the login page or the current API version respectively.
+
+### api/v2/settings [GET]
+
+Loads the settings page. If the user is not logged in or the public key is not valid, it redirects to the login page or the current API version respectively.
+
+### api/v2/profile [GET]
+
+Loads the profile page. If the user is not logged in or the public key is not valid, it redirects to the login page or the current API version respectively.
+
+### api/v2/gallerydata [GET]
+
+Loads the gallery data for the logged-in user. The page number can be specified as a query parameter. If no page number is specified, the first page is returned. Each page contains 18 media files.
+
+**Parameters**
+
+- `page`: The page number (optional).
+
+**Example Response**
+
+```json
+{
+    "username": "user123",
+    "mediaFiles": [
+        {
+            "id": "file1",
+            "url": "https://example.com/media/file1.jpg",
+            "title": "File 1",
+            "description": "This is file 1",
+            "uploadDate": "2022-01-01T00:00:00Z"
+        },
+        {
+            "id": "file2",
+            "url": "https://example.com/media/file2.jpg",
+            "title": "File 2",
+            "description": "This is file 2",
+            "uploadDate": "2022-01-02T00:00:00Z"
+        },
+        // ... more media files ...
+    ]
+}
+```
+
+This response includes the username and an array of media files. Each media file object includes the file ID, URL, title, description, and upload date.
+
+### api/v2/logout [GET]
+
+Logs out the user and redirects to the login page. If there's an error during the session destruction, it redirects to the current API version.
+
+
+Note: All routes are rate-limited for security reasons. The limit varies depending on the route.
+
 TODO. REFACTOR BELOW
 
 ### nostaddress [GET]
