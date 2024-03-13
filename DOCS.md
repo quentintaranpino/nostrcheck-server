@@ -1069,8 +1069,7 @@ content_types: [
 }
 ```
 
-
-TODO. REFACTOR BELOW
+# nostaddress
 
 ### nostaddress [GET]
 Returns whether a user name is registered on the server.
@@ -1079,7 +1078,7 @@ https://nostrcheck.me/api/v2/nostraddress
 
 **Example**
 
-[https://nostrcheck.me/api/v2/nostraddress?name=quentin](https://nostrcheck.me/api/v1/nostraddress?name=quentin)
+[https://nostrcheck.me/api/v2/nostraddress?name=quentin](https://nostrcheck.me/api/v2/nostraddress?name=quentin)
 
 ```
 {
@@ -1089,8 +1088,7 @@ names: {
 }
 ```
 
-
-
+# register
 
 ### register [POST]
 Allows to register a new username to the database
@@ -1121,6 +1119,7 @@ Example of a register note for a new username
 
 This endpoint use the [NIP98](https://github.com/nostr-protocol/nips/blob/master/98.md) HTTP Auth for register new user authorization. The NIP98's pubkey must have the "allowed" field with "1" on registered database.
 
+# verify
 
 ### verify [POST]
 Endpoint to verify a nostr note integrity and signature.
@@ -1151,32 +1150,7 @@ The server returns:
 }
 ```
 
-### stop [POST]
-Endpoint to stop the server remotely. This endpoint use the an Authorization api token.
-
-Type: Api key
-
-KEY: authorization
-
-VALUE: database password. (You can found it at local.json file)
-
-https://nostrcheck.me/api/v2/admin/stop
-
-**Example**
-Whithout authorization key:
-```
-{
-	"message": "Unauthorized"
-}
-```
-Whit authorization key:
-```
-{
-	"message": "Stopping server..."
-}
-```
-
-## Running, developing and building the app
+# Running, developing and building the app
 
 ```
 # install dependencies
@@ -1198,7 +1172,7 @@ npm run start
 
 ## Loglevel
 
-You can define your preferred log level in the configuration file. Default loglevel is set to 4 (Warning messages)
+You can define your preferred log level in the configuration file. Default loglevel is set to 5 (Error messages)
 
 ```
 
