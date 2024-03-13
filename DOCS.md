@@ -720,6 +720,90 @@ On success, a message is returned indicating the Lightning address has been dele
 }
 ```
 
+# Media
+
+### media [POST]
+
+This endpoint allows for file uploads. The request must include a valid module name, an Authorization header.
+
+Endpoint: https://nostrcheck.me/api/v2/media
+
+**Body Parameters**
+
+- `uploadtype`: Optional. Can be one of the following: `media`, `avatar`, `banner`. If not specified, the server will interpret it as "media" (standard upload).
+- `[attached file]`: The file to be uploaded.
+
+This endpoint uses the [NIP98](https://github.com/nostr-protocol/nips/blob/master/98.md) HTTP Auth and gets the `pubkey` field from the auth note. 
+
+It also uses the [NIP96](https://github.com/nostr-protocol/nips/blob/96.md) HTTP File Storage Integration standard. 
+
+The upload will be saved in the user's gallery, whether registered or not.
+
+**Example Request**
+
+```json
+{
+    "method": "POST",
+    "url": "https://nostrcheck.me/api/v2/media",
+    "headers": {
+        "Content-Type":"multipart/form-data",
+        "Authorization": "Bearer Auth37f3352fe10584d7396f010eb501482930dd712f"
+    },
+    "body": {
+        "uploadtype": "media",
+        "file": "[attached file]"
+    }
+}
+```
+
+**Example Request with NIP98**
+
+```json
+{
+    "method": "POST",
+    "url": "https://nostrcheck.me/api/v2/media",
+    "headers": {
+        "Content-Type": "multipart/form-data",
+        "Authorization": "Nostr ewogICJpZCI6ICJmOTNkMzg4MGNhM2U1NjYyZWM5MjhhZGEzYjFiMmY3MjlhOGRlNjk1MjJlODJlODQ0YTE2MzE0MDM5YmVhNzI3IiwKICAicHVia2V5IjogIjVjNTM0MDI4Y2QzNWNkNzg4YTFiNWU4OGQ0M2MxZTQxMzYwNDk3ZDM4MWIwZTUyNzUyNjUwNDQyZjkyYjczYTAiLAogICJjcmVhdGVkX2F0IjogMTY4MjMyNzg1MiwKICAia2luZCI6IDI3MjM1LAogICJ0YWdzIjogWwogICAgWwogICAgICAidSIsCiAgICAgICJodHRwczovbm9zdHJjaGVjay5tZS9hcGkvdjIvbWVkaWEiCiAgICBdLAogICAgWwogICAgICAibWV0aG9kIiwKICAgICAgIlBPU1QiCiAgICBdCiAgXSwKICAiY29udGVudCI6ICIiLAogICJzaWciOiAiZTIwOTcxNjQ5MDEwMjE5ZjdhMDFkNTc1NDVmNTJlZTVjZjIzOTMzMWM3NTA2ZGI3ZjYxOTc5OTUzOTJjMjZiYzQ4ZjYzYzBlYzNmM2I1ZjRmNmI3NzFhZGEzYzAwOThkN2RjNDFjM2ViNjJlYzcxODVjNTRmMzlkODlmNTI1YjkiCn0"
+    },
+    "body": {
+        "uploadtype": "media",
+        "file": "[attached file]"
+    }
+}
+```
+
+**Example Response**
+
+```json
+{
+    "status": "success",
+    "message": "File uploaded successfully",
+    "processing_url": "processing url",
+    "nip94_event": {
+        "id": "event id",
+        "pubkey": "public key",
+        "created_at": 1709114107,
+        "kind": 27235,
+        "tags": [
+            ["url", "file url"],
+            ["m", "m value"],
+            ["x", "x value"],
+            ["ox", "ox value"],
+            ["size", "file size"],
+            ["dim", "file dimensions"],
+            ["magnet", "file magnet"],
+            ["i", "i value"],
+            ["blurhash", "blurhash value"]
+        ],
+        "content": "event content",
+        "sig": "event signature"
+    }
+}
+```
+
+
+
 TODO. REFACTOR BELOW
 
 ### nostaddress [GET]
