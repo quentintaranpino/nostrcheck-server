@@ -575,6 +575,44 @@ Logs out the user and redirects to the login page. If there's an error during th
 
 Note: All routes are rate-limited for security reasons. The limit varies depending on the route.
 
+# Lightning
+
+### lightningaddress [GET]
+
+This method redirects to a user's Lightning address in the application. The request must include a valid username in the query parameter or in the route parameters. On success, it returns the details of the user's Lightning address.
+
+Endpoint: https://nostrcheck.me/api/v2/lightningaddress/{name}
+
+**Parameters**
+
+- `name`: The username for which the Lightning address is being sought.
+
+**Example Request**
+
+```json
+{
+    "method": "GET",
+    "url": "https://nostrcheck.me/api/v2/lightningaddress/quentin"
+}
+```
+
+**Example Response**
+
+Returns the details of the user's Lightning address, for example:
+
+```json
+{
+    "callback": "https://livingroomofsatoshi.com/api/v1/lnurl/payreq/01cbf321-ed95-4d31-a0d0-64365e6d8ced",
+    "maxSendable": 100000000000,
+    "minSendable": 1000,
+    "metadata": "[[\"text/plain\",\"Pay to Wallet of Satoshi user: quentin\"],[\"text/identifier\",\"quentin@walletofsatoshi.com\"]]",
+    "commentAllowed": 255,
+    "tag": "payRequest",
+    "allowsNostr": true,
+    "nostrPubkey": "be1d89794bf92de5dd64c1e60f6a2c70c140abac9932418fee30c5c637fe9479"
+}
+```
+
 TODO. REFACTOR BELOW
 
 ### nostaddress [GET]
