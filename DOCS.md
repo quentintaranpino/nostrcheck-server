@@ -613,13 +613,11 @@ Returns the details of the user's Lightning address, for example:
 }
 ```
 
-Based on your active selection and the provided information, here is the updated documentation for the `updateLightningAddress` method:
-
 ### lightningaddress [PUT]
 
 This method updates a user's Lightning address in the application. The request must include a valid `lightningaddress` in the route parameters and a valid authorization header. On success, it updates the user's Lightning address and returns a success message.
 
-This endpoint also can use the [NIP98](https://github.com/nostr-protocol/nips/blob/master/98.md) HTTP Auth for getting the user's authkey. The NIP98's pubkey must have the "allowed" field with "1" on registered database.
+This endpoint also can use the [NIP98](https://github.com/nostr-protocol/nips/blob/master/98.md) HTTP Auth for getting the user's authkey. 
 
 Endpoint: https://nostrcheck.me/api/v2/lightningaddress/{lightningaddress}
 
@@ -637,7 +635,7 @@ Endpoint: https://nostrcheck.me/api/v2/lightningaddress/{lightningaddress}
 ```json
 {
     "method": "POST",
-    "url": "https://nostrcheck.me/api/v2/lightningaddress/01cbf321-ed95-4d31-a0d0-64365e68ced",
+    "url": "https://nostrcheck.me/api/v2/lightningaddress/username@example.com",
     "headers": {
         "Content-Type": "application/json",   
  	"Authorization": "Bearer Auth37f3352fe10584d7396f010eb501482930dd712f"
@@ -650,7 +648,7 @@ Endpoint: https://nostrcheck.me/api/v2/lightningaddress/{lightningaddress}
 ```json
 {
     "method": "POST",
-    "url": "https://nostrcheck.me/api/v2/lightningaddress/01cbf321-ed95-4d31-a0d0-64365e68ced",
+    "url": "https://nostrcheck.me/api/v2/lightningaddress/username@example.com",
     "headers": {
         "Content-Type": "application/json",
         "Authorization": "Nostr ewogICJpZCI6ICIyNzhmYmQ4ZjUyYTczNGIwMjFkNDlkN2MwMGFkMWIwM2Q3MjA2MmM2MTBmMDJhMmNiZDY4NTNkZGIwYTFmODlmIiwKICAicHVia2V5IjogImFjMjI4MThhYzQyMTBmOGY2NjZmZWI4NjJhYTE2MDZmOGJmN2Y5YzI1OTZlNTVkY2JjMjY1ZWI0NTRhY2FkYjAiLAogICJjcmVhdGVkX2F0IjogMTcwOTExNDEwNywKICAia2luZCI6IDI3MjM1LAogICJ0YWdzIjogWwogICAgWwogICAgICAibWV0aG9kIiwKICAgICAgIlBVVCIKICAgIF0sCiAgICBbCiAgICAgICJ1IiwKICAgICAgImh0dHBzOi8vbm9zdHJjaGVjay5tZS9hcGkvdjIvbGlnaHRuaW5nYWRkcmVzcyIKICAgIF0KICBdLAogICJjb250ZW50IjogIiIsCiAgInNpZyI6ICJkMDM5ZmFmMWExZTQyZjI4Y2EzMDQwNjIyZDg4ODg3NDk3NGUxMGRkZjAwZTAxNWIxNDM1ZGQ0NjVhZjA4OGQyYzJjYmRhYTNkYTYzOTk1ZDhjNWI5ZWMzM2Y0MWJhODMzM2I0OWVhYzI0YmUwZjFkMGIzMjA4MGQ5NjBiMTllYSIKfQ=="
@@ -669,28 +667,58 @@ On success, a message is returned indicating the Lightning address has been upda
 }
 ```
 
+### lightningaddress [DELETE]
 
-### lightning [DELETE]
-Allows to **delete** a lightning address redirect for a pubkey
+This method deletes a user's Lightning address in the application. The request must include a valid `lightningaddress` in the route parameters and a valid authorization header. On success, it deletes the user's Lightning address and returns a success message.
 
-https://nostrcheck.me/api/v1/lightningaddress/
+This endpoint also can use the [NIP98](https://github.com/nostr-protocol/nips/blob/master/98.md) HTTP Auth for getting the user's authkey. 
 
-**Example**
+Endpoint: https://nostrcheck.me/api/v2/lightningaddress
 
-[https://nostrcheck.me/api/v2/lightningaddress]
+**Parameters**
 
-This endpoint use the [NIP98](https://github.com/nostr-protocol/nips/blob/master/98.md) HTTP Auth for getting the pubkey. The NIP98's pubkey must be registered on the database.
+- `lightningaddress`: The Lightning address that needs to be deleted.
 
-Response from server:
-``` 
+**Headers**
+
+- `Content-Type`: Should be `application/json`.
+- `Authorization`: A valid authorization header. This can be a bearer token (authkey) or a NIP98 token.
+
+**Example Request with authkey**
+
+```json
 {
-	"status": "success",
-	"message": "Lightning deletion for id: 1 and pubkey 40ea82aa4a450ea86cbb185a81f810edf2ac9810262f8e5952521f95ddfd8d97 successful"
+    "method": "DELETE",
+    "url": "https://nostrcheck.me/api/v2/lightningaddress",
+    "headers": {
+        "Content-Type": "application/json",   
+	"Authorization": "Bearer Auth37f3352fe10584d7396f010eb501482930dd712f"
+    }
 }
 ```
 
+**Example Request with NIP98**
 
+```json
+{
+    "method": "DELETE",
+    "url": "https://nostrcheck.me/api/v2/lightningaddress/01cbf321-ed95-4d31-a0d0-64365e68ced",
+    "headers": {
+        "Content-Type": "application/json",
+        "Authorization": "Nostr ewogICJpZCI6ICIyNzhmYmQ4ZjUyYTczNGIwMjFkNDlkN2MwMGFkMWIwM2Q3MjA2MmM2MTBmMDJhMmNiZDY4NTNkZGIwYTFmODlmIiwKICAicHVia2V5IjogImFjMjI4MThhYzQyMTBmOGY2NjZmZWI4NjJhYTE2MDZmOGJmN2Y5YzI1OTZlNTVkY2JjMjY1ZWI0NTRhY2FkYjAiLAogICJjcmVhdGVkX2F0IjogMTcwOTExNDEwNywKICAia2luZCI6IDI3MjM1LAogICJ0YWdzIjogWwogICAgWwogICAgICAibWV0aG9kIiwKICAgICAgIkRFTEVURSIKICAgIF0sCiAgICBbCiAgICAgICJ1IiwKICAgICAgImh0dHBzOi8vbm9zdHJjaGVjay5tZS9hcGkvdjIvbGlnaHRuaW5nYWRkcmVzcyIKICAgIF0KICBdLAogICJjb250ZW50IjogIiIsCiAgInNpZyI"
+	}
+}
+```
+Example Response
 
+On success, a message is returned indicating the Lightning address has been deleted:
+
+```json
+{
+    "status": "success",
+    "message": "Lightning redirect for pubkey {pubkey} deleted"
+}
+```
 
 TODO. REFACTOR BELOW
 
