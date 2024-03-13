@@ -778,26 +778,53 @@ The upload will be saved in the user's gallery, whether registered or not.
 ```json
 {
     "status": "success",
-    "message": "File uploaded successfully",
-    "processing_url": "processing url",
+    "message": "",
+    "processing_url": "https://nostrcheck.me.com/api/v2/media/3225",
     "nip94_event": {
-        "id": "event id",
-        "pubkey": "public key",
-        "created_at": 1709114107,
-        "kind": 27235,
+        "id": "",
+        "pubkey": "62c76eb094369d938f5895442eef7f53ebbf019f69707d64e77d4d182b609309",
+        "created_at": 1710328339,
+        "kind": 1063,
         "tags": [
-            ["url", "file url"],
-            ["m", "m value"],
-            ["x", "x value"],
-            ["ox", "ox value"],
-            ["size", "file size"],
-            ["dim", "file dimensions"],
-            ["magnet", "file magnet"],
-            ["i", "i value"],
-            ["blurhash", "blurhash value"]
+            [
+                "url",
+                "https://nostrcheck.me/media/62c76eb094369d938f5895442eef7f53ebbf019f69707d64e77d4d182b609309/c35277dbcedebb0e3b80361762c8baadb66dcdfb6396949e50630159a472c3b2.webp"
+            ],
+            [
+                "m",
+                "image/webp"
+            ],
+            [
+                "x",
+                ""
+            ],
+            [
+                "ox",
+                "c35277dbcedebb0e3b80361762c8baadb66dcdfb6396949e50630159a472c3b2"
+            ],
+            [
+                "size",
+                "31356"
+            ],
+            [
+                "dim",
+                "1280x960"
+            ],
+            [
+                "magnet",
+                ""
+            ],
+            [
+                "i",
+                ""
+            ],
+            [
+                "blurhash",
+                "UI5Gw}UcX8knqFU{kCoyW@axoeflajockAa#"
+            ]
         ],
-        "content": "event content",
-        "sig": "event signature"
+        "content": "",
+        "sig": ""
     }
 }
 ```
