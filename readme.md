@@ -34,6 +34,11 @@ git clone https://github.com/quentintaranpino/nostrcheck-api-ts.git && cd nostrc
 
 ```
 
+
+https://github.com/quentintaranpino/nostrcheck-api-ts/assets/125748180/dff0933a-0325-4c0b-bad5-5e2702337ea0
+
+
+
 ## Documentation
 
 See documentation [here](https://github.com/quentintaranpino/nostrcheck-api-ts/blob/0.5.0/DOCS.md)
