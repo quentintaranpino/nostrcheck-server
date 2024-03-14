@@ -1,0 +1,21 @@
+FROM node:20
+
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && \
+    apt-get install -y ffmpeg nano && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+WORKDIR /usr/src/app
+COPY package*.json tsconfig.json ./
+COPY /resources ./resources
+RUN npm install -g npm@latest
+RUN npm install --include=optional sharp
+
+COPY ./src ./src
+
+RUN npm run build
+
+EXPOSE 3000
+
+CMD ["npm", "start"]

@@ -12,9 +12,15 @@ dist
 .vs
 media/*
 tmp/*
-nostrcheck-api.log
-config/local.json
+config/local.json*
+nostrcheck-api.log*
 .VSCodeCounter/*
 installation.md
 coverage/*
-config/local.json.bak
+
+# Docker compose volumes
+compose.override.yml
+data/
+
+
+

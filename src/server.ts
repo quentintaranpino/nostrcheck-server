@@ -1,55 +1,42 @@
-/* eslint-disable no-console */
-import config from "config";
+// server.ts
 import app from "./app.js";
-import { prepareAppFolders, prepareAPPConfig } from "./lib/config.js";
-import { populateTables, showDBStats } from "./lib/database.js";
+import { loadconfigActiveModules} from "./lib/config.js";
+import { prepareApp } from "./controllers/config.js";
+import { initDatabase, showDBStats } from "./lib/database.js";
+import { loadConsoleBanner } from "./lib/server.js";
+import { initSession } from "./lib/session.js";
+import { loadAPIs } from "./routes/routes.js";
 import { SeedMediafilesMagnets } from "./lib/torrent.js";
-import { logger } from "./lib/logger.js";
+import config from "config";
 
-// Start Express server.
-const server = app.listen(app.get("port"), async () => {
-	console.log("");
-	console.log("");
-	console.log(
-		"███╗   ██╗ ██████╗ ███████╗████████╗██████╗  ██████╗██╗  ██╗███████╗ ██████╗██╗  ██╗    ███████╗███████╗██████╗ ██╗   ██╗███████╗██████╗ "
-	);
-	console.log(
-		"████╗  ██║██╔═══██╗██╔════╝╚══██╔══╝██╔══██╗██╔════╝██║  ██║██╔════╝██╔════╝██║ ██╔╝    ██╔════╝██╔════╝██╔══██╗██║   ██║██╔════╝██╔══██╗"
-	);
-	console.log(
-		"██╔██╗ ██║██║   ██║███████╗   ██║   ██████╔╝██║     ███████║█████╗  ██║     █████╔╝     ███████╗█████╗  ██████╔╝██║   ██║█████╗  ██████╔╝"
-	);
-	console.log(
-		"██║╚██╗██║██║   ██║╚════██║   ██║   ██╔══██╗██║     ██╔══██║██╔══╝  ██║     ██╔═██╗     ╚════██║██╔══╝  ██╔══██╗╚██╗ ██╔╝██╔══╝  ██╔══██╗"
-	);
-	console.log(
-		"██║ ╚████║╚██████╔╝███████║   ██║   ██║  ██║╚██████╗██║  ██║███████╗╚██████╗██║  ██╗    ███████║███████╗██║  ██║ ╚████╔╝ ███████╗██║  ██║"
-	);
-	console.log(
-		"╚═╝  ╚═══╝ ╚═════╝ ╚══════╝   ╚═╝   ╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝╚══════╝ ╚═════╝╚═╝  ╚═╝    ╚══════╝╚══════╝╚═╝  ╚═╝  ╚═══╝  ╚══════╝╚═╝  ╚═╝"
-	);
+const startServer = async () => {
+    // Initialise config and folders
+    await prepareApp();
 
-	console.log("Nostrcheck server started, version %s", app.get("version"));
-	console.log("Running at http://" + app.get('host') + ":%s - ", app.get("port"), app.get("env"), "mode");
-	console.log("Press CTRL-C to exit\n");
+    // Initialise Database
+    await initDatabase();
 
-	//Prepare app folders and config
-	prepareAppFolders();
-	prepareAPPConfig();
+    // Initialise session cookies
+    await initSession(app);
 
-	//Check database integrity
-	const dbtables = await populateTables(config.get('database.droptables')); // true = reset tables
-	if (!dbtables) {
-	logger.fatal("Error checking database integrity");
-	process.exit(1);
+    // Initialise API modules
+    await loadAPIs(app);
+
+    //Start seeding magnets
+    if (config.get("torrent.enableTorrentSeeding")) {await SeedMediafilesMagnets();}
+
+    // Show server startup message
+    loadConsoleBanner(app);
+
+    // Show server startup stactics
+    console.log(await showDBStats());
+
+    // Show server active modules
+    console.log("Active modules: ", loadconfigActiveModules(app).map((module) => module[0]).join(", "));
+    
+    // Start Express server.
+    app.listen(app.get("config.server")["port"]);
+
 }
 
-	//Show startup stats
-	showDBStats();
-
-	//Start seeding magnets
-	SeedMediafilesMagnets();
-
-});
-
-export default server;
+export default startServer;

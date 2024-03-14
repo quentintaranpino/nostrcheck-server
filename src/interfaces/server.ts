@@ -13,4 +13,8 @@ interface ServerStatusMessage extends ResultMessagev2 {
 	version: string;
 }
 
-export { ResultMessage, ResultMessagev2, ServerStatusMessage };
+interface authkeyResultMessage extends ResultMessagev2 {
+	authkey: string;
+}
+
+export { ResultMessage, ResultMessagev2, ServerStatusMessage, authkeyResultMessage };

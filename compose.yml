@@ -1,0 +1,98 @@
+version: '3.8'
+
+services:
+  app:
+    networks:
+    - localnet
+    image: nostrcheckme/nostrcheck-server:latest
+    build: .
+    depends_on:
+      - mariadb
+      - redis
+    volumes:
+      - ./media:/usr/src/app/media
+      - ./resources:/usr/src/app/resources
+      - ./config:/usr/src/app/config
+    restart: always
+    environment: 
+      DATABASE_HOST: "mariadb"
+      DATABASE_USER: "nostrcheck"
+      DATABASE_PASSWORD: "nostrcheck"
+      DATABASE_DATABASE: "nostrcheck"
+      REDIS_HOST: "redis"
+      REDIS_PORT: "6379"
+      REDIS_USER: "default"
+      REDIS_PASSWORD: ""
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.services.app.loadbalancer.server.port=3000"
+      - "traefik.http.services.app.loadbalancer.sticky=true"
+      - "traefik.http.services.app.loadbalancer.sticky.cookie.name=app_session"
+      - "traefik.http.routers.app.entrypoints=web"
+      # /.well-known/nostr.json -> /api/v2/nostraddress
+      - "traefik.http.routers.app-nostrjson.rule=Path(`/.well-known/nostr.json`)"
+      - "traefik.http.routers.app-nostrjson.middlewares=replacepath-nostrjson"
+      - "traefik.http.middlewares.replacepath-nostrjson.replacepath.path=/api/v2/nostraddress"
+      - "traefik.http.routers.app-nostrjson.service=app"
+      # /.well-known/nostr/nip96.json -> /api/v2/nip96
+      - "traefik.http.routers.app-nip96.rule=Path(`/.well-known/nostr/nip96.json`)"
+      - "traefik.http.routers.app-nip96.middlewares=replacepath-nip96"
+      - "traefik.http.middlewares.replacepath-nip96.replacepath.path=/api/v2/nip96"
+      - "traefik.http.routers.app-nip96.service=app"
+      # /media -> /api/v2/media
+      - "traefik.http.routers.app-media.rule=PathPrefix(`/media`)"
+      - "traefik.http.routers.app-media.middlewares=replacepathregex-media"
+      - "traefik.http.middlewares.replacepathregex-media.replacepathregex.regex=^/media/(.*)"
+      - "traefik.http.middlewares.replacepathregex-media.replacepathregex.replacement=/api/v2/media/$$1"
+      - "traefik.http.routers.app-media.service=app"
+      # 
+      - "traefik.http.routers.app.rule=PathPrefix(`/`)"
+      - "traefik.http.routers.app.service=app"
+      # /.well-known/lnurlp -> /api/v2/lightning
+      - "traefik.http.routers.app-lightning.rule=Path(`/.well-known/lnurlp/`)"
+      - "traefik.http.routers.app-lightning.middlewares=replacepath-lightning"
+      - "traefik.http.middlewares.replacepath-lightning.replacepath.path=/api/v2/lightningaddress/"
+      - "traefik.http.routers.app-lightning.service=app"
+    command: "npm run start"
+  mariadb:
+    networks:
+     - localnet
+    image: mariadb:10
+    volumes:
+      - ./data/mysql:/var/lib/mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: nostrcheck
+      MYSQL_DATABASE: nostrcheck
+      MYSQL_USER: nostrcheck
+      MYSQL_PASSWORD: nostrcheck
+  redis:
+    networks:
+     - localnet
+    image: redis:6
+    volumes:
+      - ./data/redis:/data
+    restart: always
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+  traefik:
+    networks:
+      - localnet
+    image: traefik:2.10
+    command:
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:3000"
+    ports:
+      - "3000:3000"
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock"
+    restart: always
+volumes:
+  media:
+  resources:
+networks:
+  localnet:

@@ -2,12 +2,12 @@ import WebTorrent  from "webtorrent";
 import { logger } from './logger.js';
 import config from 'config';
 import fs from "fs";
-import { connect, dbFileMagnetUpdate } from "./database.js";
+import { connect, dbUpdate } from "./database.js";
 import { RowDataPacket } from "mysql2";
 import { ProcessingFileData } from "../interfaces/media.js";
 
 const client =  new WebTorrent({
-  // @ts-ignore missing from typedef
+  // @ts-expect-error missing from typedef
   torrentPort: config.get('torrent.torrentPort'),
   dhtPort: config.get('torrent.dhtPort'),
 });
@@ -39,7 +39,7 @@ const SeedMediafilesMagnets = async () => {
     }
 
   //Loop through results and seed each magnet link  
-  let filenames: string[] = [];
+  const filenames: string[] = [];
   result.forEach((element: RowDataPacket) => {
     if (filenames.includes(element.filename)) return;
     filenames.push(element.filename);
@@ -74,13 +74,10 @@ const CreateMagnet = async (filepath:string, filedata: ProcessingFileData) : Pro
 
     client.on('torrent', async function (torrent: WebTorrent.Torrent) {
       filedata.magnet = torrent.magnetURI;
-      const magnetDBupdate =  await dbFileMagnetUpdate(filedata);
-      if (!magnetDBupdate) {
-        logger.error("Could not update table mediafiles, id: " + filedata.fileid, "magnet for file: " + filepath);
-      }
+      await dbUpdate('mediafiles', 'magnet', filedata.magnet,'id', filedata.fileid);
       logger.debug("Magnet link:", filedata.magnet, "for file:", filepath, "id:", filedata.fileid)
     });
-    client.on('error', function (_err: any) {
+    client.on('error', function () {
       logger.error("error creating magnet for file", filepath);
     });
 

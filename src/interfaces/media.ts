@@ -57,7 +57,13 @@ const mime_transform: { [key: string]: string } = {
 
 const mediaTypes: { [key: string]: string } = {
 	'webp': 'image/webp',
+	'png': 'image/png',
+	'jpg': 'image/jpeg',
+	'jpeg': 'image/jpeg',
+	'gif': 'image/gif',
+	'mov': 'video/quicktime',
 	'mp4': "video/mp4",
+	'mp3': "audio/mpeg",
   }
 
 
@@ -68,7 +74,6 @@ interface FileData{
 	fileid: string;
 	filesize: number;
 	pubkey: string;
-	username: string;
 	originalhash: string;
 	hash: string;
 	blurhash: string;
@@ -94,6 +99,11 @@ interface asyncTask {
 	filedata: ProcessingFileData;
 }
 
+interface videoHeaderRange {
+	Start: number;
+	End: number;
+}
+
 
 export {
 	allowedMimeTypes,
@@ -109,4 +119,5 @@ export {
 	UploadTypes,
 	UploadStatus,
 	MediaStatus,
+	videoHeaderRange
 };

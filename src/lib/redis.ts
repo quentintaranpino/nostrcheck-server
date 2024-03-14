@@ -1,23 +1,27 @@
 import { createClient } from "redis";
-import config from "config";
-
-import { logger } from "../lib/logger.js";
+import { logger } from "./logger.js";
 import { RegisteredUsernameResult } from "../interfaces/register.js";
 import { LightningUsernameResult } from "../interfaces/lightning.js";
+import app from "../app.js";
 
-//Redis configuration
-const redisHost: string = config.get('redis.host');
-const redisPort: string = config.get('redis.port');
-const redisUser: string = config.get('redis.user');
-const redisPassword: string = config.get('redis.password');
+const redisHost: string = process.env.REDIS_HOST || app.get("config.redis")["host"];
+const redisPort: string = process.env.REDIS_PORT || app.get("config.redis")["port"];
+const redisUser: string = process.env.REDIS_USER || app.get("config.redis")["user"];
+const redisPassword: string = process.env.REDIS_PASSWORD || app.get("config.redis")["password"];
+
 const redisClient = createClient({ url: `redis://${redisUser}:${redisPassword}@${redisHost}:${redisPort}` });
+
 (async (): Promise<void> => {
-	redisClient.on("error", (error: any) =>{
+	redisClient.on("error", (error: Error) =>{
 		logger.error(`There is a problem connecting to redis server, is redis-server package installed on your system? : ${error}`);
 		process.exit(1);
 });
 	await redisClient.connect();
 })();
+
+const flushRedisCache = async (): Promise<void> => {
+	return await redisClient.sendCommand(['flushall']);
+}
 
 async function getNostrAddressFromRedis(key: string): Promise<RegisteredUsernameResult> {
 	const data = await redisClient.get(key);
@@ -41,4 +45,4 @@ async function getLightningAddressFromRedis(key: string): Promise<LightningUsern
 	return JSON.parse(data.toString());
 }
 
-export { redisClient, getNostrAddressFromRedis, getLightningAddressFromRedis };
+export { redisClient, flushRedisCache, getNostrAddressFromRedis, getLightningAddressFromRedis };

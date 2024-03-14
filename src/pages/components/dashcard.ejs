@@ -1,0 +1,12 @@
+<div class="col-xl-3 col-lg-4 col-md-6 col-sm-12">
+    <div class="card mb-3">
+        <div class="card-body">
+        <h5 class="card-title"><%- dashcardName %></h5>
+        <p class="card-text">Total number of <%- dashcardName %></p>
+        <h1 id="kpi_<%- dashcardName %>" class="card-text"></h1>
+        </div>
+    </div>
+</div>
+<script>
+document.getElementById('kpi_<%- dashcardName %>').textContent = JSON.parse("<%- data %>").length;
+</script>

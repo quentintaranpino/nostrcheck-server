@@ -1,11 +1,11 @@
 import { Application } from "express";
 
-import { Checknostraddress } from "../controllers/nostraddress.js";
+import { checkNostrAddress } from "../controllers/nostraddress.js";
 
-export const LoadNostraddressEndpoint = async (app: Application, version:string): Promise<void> => {
+export const loadNostraddressEndpoint = async (app: Application, version:string): Promise<void> => {
 
 	if (version == "v1" || version == "v2"){
-		app.get("/api/" + version + "/nostraddress", Checknostraddress);
+		app.get("/api/" + version + app.get("config.server")["availableModules"]["nostraddress"]["path"], checkNostrAddress);
 	}
 
 };

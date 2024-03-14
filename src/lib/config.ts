@@ -1,64 +1,108 @@
 import config from "config";
-import {logger} from "./logger.js";
 import fs from "fs";
 import { exit } from "process";
+import { Application } from "express";
+import { Module, Modules } from "../interfaces/config.js";
+import { localPath } from "../interfaces/config.js";
 
-function prepareAppFolders(){
+const syncDefaultConfigValues = async (defaultConf : Record<string,any>, localConf: string) : Promise<void> => {
 
-	let TempPath : string = config.get("media.tempPath");
-
-	//If not exist create temp folder
-	if (!fs.existsSync(TempPath)){
-		fs.mkdirSync(TempPath);
-	}
-
-	fs.readdir(TempPath, (err, files) => {
-		if (err) {
-			logger.fatal(err);
-            exit(1);
-		}
-
-		//Delete all files in temp folder
-		for (const file of files) {
-			fs.unlink(TempPath + file, (err) => {
-				if (err) {
-                    logger.error(err);
-                    exit(1);
-				}
-			});
-		}
-	});
-
-	//If not exist create media folder
-	const MediaPath : string = config.get("media.mediaPath");
-	if (!fs.existsSync(MediaPath)){
-		fs.mkdirSync(MediaPath);
-	}
-
-}
-
-function prepareAPPConfig(){
-
-    const DefaultPath : string = "./config/default.json";
-    const ConfigPath : string = "./config/local.json";
-
-    //If config file exist return
-	if (fs.existsSync(ConfigPath)){
-		return
-	}
-
-    fs.copyFile(DefaultPath, ConfigPath, function (err) {
-        if (err) {
-            logger.fatal("An error occured while writing config JSON File.", err);
-            exit(1);
-        }
-     
-        logger.info("Creating config file: " + ConfigPath)
-		logger.warn("Please edit config file and restart the app.")
+	//Compare default config with local config json files
+	const LocalConfig = JSON.parse(fs.readFileSync(localConf).toString());
+	
+	const configChanged = await mergeConfigkey(defaultConf, LocalConfig);
+	if (!configChanged) return;
+	
+	try{
+		console.debug("Updating config file: " + localConf)
+		fs.copyFileSync(localConf, localConf + ".bak");
+		fs.writeFileSync(localConf, JSON.stringify(LocalConfig, null, 4));
+	}catch(err){
+		console.error("Error writing config file: ", err);
+		console.error("Please make sure the file is writable and then restart the server")
 		exit(1);
-    });
+	}
+	
+};
 
+let hasChanged = false;
+const mergeConfigkey = async (defaultConfig: Record<string, unknown>, localConfig: Record<string, unknown>): Promise<boolean> => {
+    const promises = [];
 
+    for (const key in defaultConfig) {
+        if (typeof defaultConfig[key] === 'object' && defaultConfig[key] !== null && !Array.isArray(defaultConfig[key])) {
+            if (!localConfig[key]){
+                localConfig[key] = {};
+                hasChanged = true;
+            }
+            promises.push(mergeConfigkey(defaultConfig[key] as Record<string, unknown>, localConfig[key] as Record<string, unknown>));
+        } else if (!Object.prototype.hasOwnProperty.call(localConfig, key)) {
+            localConfig[key] = defaultConfig[key];
+            console.warn("Missing config key: " + key + " - Adding default value:", defaultConfig[key]);
+            hasChanged = true;
+        }
+    }
+
+    await Promise.all(promises);
+    return hasChanged;
 }
 
-export { prepareAppFolders, prepareAPPConfig };
+const updateLocalConfigKey = async (key: string, value: string) : Promise<boolean> => {
+	
+	try {
+
+		const LocalConfig = JSON.parse(fs.readFileSync(localPath).toString());
+		const keyParts = key.split(".");
+		let currentPart = LocalConfig;
+
+		for (let i = 0; i < keyParts.length - 1; i++) {
+			if (!currentPart[keyParts[i]]) {
+				currentPart[keyParts[i]] = {};
+			}
+			currentPart = currentPart[keyParts[i]];
+		}
+		currentPart[keyParts[keyParts.length - 1]] = value;
+        console.debug("Updating config file: " + localPath + " with key: " + key + " and value: " + value)
+        fs.copyFileSync(localPath, localPath + ".bak");
+        fs.writeFileSync(localPath, JSON.stringify(LocalConfig, null, 4));
+
+        return true;
+    } catch(err) {
+        console.error("Error writing config file: ", err);
+        return false;
+    }
+}
+
+
+const loadconfigActiveModules = (app: Application) : [string, Module][] => {
+	const availableModules = Object.entries(app.get("config.server")["availableModules"] as Record<string, Module>);
+	const activeModules = availableModules.filter((module) => module[1]["enabled"] == true);
+	return activeModules;
+}
+
+const isModuleEnabled = (moduleName: string, app: Application) : boolean => {
+	const availableModules = loadconfigActiveModules(app)
+	const module = availableModules.find((module) => module[0] === moduleName);
+	if (module){
+		return module[1]["enabled"];
+	}else{
+		return false;
+	}
+}
+
+const loadConfigOptions = async (section:string) : Promise<Modules> => {
+	try{
+		return config.get(section);
+	}catch(err){
+		console.error("Error loading config options: ", err);
+		return {};
+	}
+}
+
+export { 
+			updateLocalConfigKey, 
+			syncDefaultConfigValues,
+			loadconfigActiveModules,
+			isModuleEnabled,
+			loadConfigOptions,
+			};
