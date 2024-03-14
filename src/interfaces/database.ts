@@ -115,7 +115,7 @@ const registeredTableFields: registeredTable = {
 	id: "int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY",
 	pubkey: "varchar(64) NOT NULL",
 	hex: "varchar(64) NOT NULL",
-	username: "varchar(50) NOT NULL",
+	username: "varchar(64) NOT NULL",
 	password: "varchar(100) NOT NULL",
 	domain: "varchar(50) NOT NULL",
 	active: "boolean NOT NULL DEFAULT 0",
