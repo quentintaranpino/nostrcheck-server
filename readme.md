@@ -22,7 +22,7 @@ In either case, all parameters can be modified using the settings page in the se
 To make a standalone installation you can use the following script. You can find the code [here](https://github.com/quentintaranpino/nostrcheck-api-ts/blob/main/scripts/install.sh)
 
 ```
-curl https://raw.githubusercontent.com/quentintaranpino/nostrcheck-api-ts/0.5.0/scripts/install.sh --output install.sh && chmod +x install.sh && ./install.sh
+curl https://raw.githubusercontent.com/quentintaranpino/nostrcheck-api-ts/scripts/install.sh --output install.sh && chmod +x install.sh && ./install.sh
 ```
 
 ### Installation (docker) 
@@ -30,7 +30,7 @@ curl https://raw.githubusercontent.com/quentintaranpino/nostrcheck-api-ts/0.5.0/
 To install and run the server using docker you can use the following script.
 
 ```
-git clone https://github.com/quentintaranpino/nostrcheck-api-ts.git && cd nostrcheck-api-ts && git switch 0.5.0 && sudo docker-compose up -d --build
+git clone https://github.com/quentintaranpino/nostrcheck-api-ts.git && cd nostrcheck-api-ts && sudo docker-compose up -d --build
 
 ```
 
@@ -41,11 +41,11 @@ https://github.com/quentintaranpino/nostrcheck-api-ts/assets/125748180/dff0933a-
 
 ## Documentation
 
-See documentation [here](https://github.com/quentintaranpino/nostrcheck-api-ts/blob/0.5.0/DOCS.md)
+See documentation [here](https://github.com/quentintaranpino/nostrcheck-api-ts/blob/DOCS.md)
 
 ## Configuration
 
-See configuration [here](https://github.com/quentintaranpino/nostrcheck-api-ts/blob/0.5.0/CONFIG.md)
+See configuration [here](https://github.com/quentintaranpino/nostrcheck-api-ts/blob/CONFIG.md)
 
 ## Screenshots
 ### Dashboard

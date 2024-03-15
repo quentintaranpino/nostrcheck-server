@@ -84,7 +84,7 @@ clear
 echo "Cloning the repository..."
 echo ""
 #git clone https://github.com/quentintaranpino/nostrcheck-api-ts.git
-git clone -b '0.5.0' https://github.com/quentintaranpino/nostrcheck-api-ts.git
+git clone https://github.com/quentintaranpino/nostrcheck-api-ts.git
 
 # Prepare installation directory
 cd nostrcheck-api-ts
