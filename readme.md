@@ -41,11 +41,11 @@ https://github.com/quentintaranpino/nostrcheck-api-ts/assets/125748180/dff0933a-
 
 ## Documentation
 
-See documentation [here](https://github.com/quentintaranpino/nostrcheck-api-ts/blob/DOCS.md)
+See documentation [here](https://github.com/quentintaranpino/nostrcheck-api-ts/blob/main/DOCS.md)
 
 ## Configuration
 
-See configuration [here](https://github.com/quentintaranpino/nostrcheck-api-ts/blob/CONFIG.md)
+See configuration [here](https://github.com/quentintaranpino/nostrcheck-api-ts/blob/main/CONFIG.md)
 
 ## Screenshots
 ### Dashboard
