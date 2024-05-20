@@ -245,8 +245,8 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 		const createdate = new Date(Math.floor(Date.now())).toISOString().slice(0, 19).replace("T", " ");
 		const insertResult = await dbInsert(
 			"mediafiles", 
-			["pubkey", "filename", "original_hash", "hash", "status", "visibility", "date", "ip_address", "magnet", "blurhash", "filesize", "comments"],
-			[filedata.pubkey, filedata.filename, filedata.originalhash, filedata.hash, filedata.status, 1, createdate, getClientIp(req), filedata.magnet, filedata.blurhash, filedata.filesize, ""]);
+			["pubkey", "filename", "original_hash", "hash", "status", "active", "visibility", "date", "ip_address", "magnet", "blurhash", "filesize", "comments"],
+			[filedata.pubkey, filedata.filename, filedata.originalhash, filedata.hash, filedata.status, 1, 1, createdate, getClientIp(req), filedata.magnet, filedata.blurhash, filedata.filesize, ""]);
 
 		filedata.fileid = insertResult.toString();
 		if (insertResult == 0) {
@@ -558,6 +558,7 @@ const getMediabyURL = async (req: Request, res: Response) => {
 			res.setHeader('Content-Type', 'image/webp');
 			return res.status(404).send(await getNotFoundMediaFile());
 		}
+		logger.debug(filedata[1])
 		if (filedata[1] != "1")  {
 			logger.warn(`RES -> 401 File not active - ${req.url}`, "| Returning not found media file.", getClientIp(req));
 
