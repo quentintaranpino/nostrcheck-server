@@ -43,7 +43,7 @@ const SeedMediafilesMagnets = async () => {
   result.forEach((element: RowDataPacket) => {
     if (filenames.includes(element.filename)) return;
     filenames.push(element.filename);
-    const MediaPath = config.get("media.mediaPath") + element.username + "/" + element.filename;
+    const MediaPath = config.get("storage.local.mediaPath") + element.username + "/" + element.filename;
     //Before try check if file exists and is readable
     try{
         fs.accessSync(MediaPath, fs.constants.R_OK); //check if file exists and is readable
