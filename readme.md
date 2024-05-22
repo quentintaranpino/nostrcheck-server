@@ -92,11 +92,14 @@ See configuration [here](https://github.com/quentintaranpino/nostrcheck-api-ts/b
 - [x] Frontend UI (settings)
 - [x] Frontend UI (homepage)
 - [x] Frontend UI (docs and ToS)
-- [ ] Enable lightning payments
+- [ ] Object Storage
+- [ ] Multi-server mirroring
+- [ ] Lightning payments
 - [ ] Import / Export data
 - [ ] Custom frontend templates
 - [ ] Frontend UI (profile)
 - [ ] Frontend UI (public gallery)
+- [ ] Frontend UI (public upload)
 - [ ] Frontend UI (directory)
 - [ ] Frontend UI (register)
 - [ ] Umbrel appstore integration
