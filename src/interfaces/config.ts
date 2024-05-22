@@ -107,8 +107,6 @@ const defaultConfig = {
 	},
 	"media" : {
 		"maxMBfilesize": 100,
-		"tempPath": "tmp/",
-		"mediaPath": "media/",
 		"notFoundFilePath" : "resources/file-not-found.webp",
 		"allowPublicUploads" : true,
 		"returnURL" : "",
@@ -153,7 +151,22 @@ const defaultConfig = {
 	"session" : {
 		"secret": "",
 		"maxAge": 2592000000
-	}
+	},
+	"storage" : {
+		"type": "local",
+		"local" : {
+			"mediaPath": "media/",
+			"tempPath": "tmp/"
+		},
+		"remote" : {
+			"endpoint": "https://<your_r2_account_id>.r2.cloudflarestorage.com",
+			"accessKeyId": "<your_r2_access_key_id>",
+			"secretAccessKey": "<your_r2_secret_access_key>",
+			"region": "auto",
+			"s3ForcePathStyle": true,
+			"signatureVersion": "v4"
+		}
+	},
 }
 
 const localPath = "./config/local.json";

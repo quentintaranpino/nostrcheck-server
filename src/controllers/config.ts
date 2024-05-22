@@ -137,7 +137,7 @@ const prepareAPPConfig = async(): Promise<boolean> =>{
 
 
 const prepareAppFolders = async () => {
-    const paths = ["media.tempPath", "media.mediaPath", "logger.logPath"];
+    const paths = ["storage.local.tempPath", "storage.local.mediaPath", "logger.logPath"];
 
     for (const path of paths) {
         if (!config.has(path)) {
@@ -156,7 +156,7 @@ const prepareAppFolders = async () => {
             }
         }
 
-        if (path === "media.tempPath") {
+        if (path === "storage.local.tempPath") {
             const files = await fsPromises.readdir(config.get(path));
             await Promise.all(files.map(file => fsPromises.unlink(`${config.get(path)}${file}`).catch(err => console.error(`Failed to delete file: ${file}`, err))));
         }
@@ -166,7 +166,7 @@ const prepareAppFolders = async () => {
 const prepareApp = async() => {
 	await prepareAPPConfig();
 	await prepareAppFolders();
-	await migrateFolders(config.get("media.mediaPath"));
+	await migrateFolders(config.get("storage.local.mediaPath"));
 }
 
 export { checkConfigNecessaryKeys, migrateFolders, prepareApp };
