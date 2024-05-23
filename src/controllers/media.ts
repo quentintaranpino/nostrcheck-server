@@ -17,10 +17,10 @@ import {
 	videoHeaderRange,
 } from "../interfaces/media.js";
 import { ResultMessage, ResultMessagev2 } from "../interfaces/server.js";
-import fs from "fs";
 import config from "config";
 import path from "path";
 import validator from "validator";
+import fs from "fs";
 import { NIP96_event, NIP96_processing } from "../interfaces/nostr.js";
 import { PrepareNIP96_event } from "../lib/nostr/NIP96.js";
 import { getClientIp } from "../lib/utils.js";
@@ -28,6 +28,10 @@ import { generateBlurhash, generatefileHashfrombuffer } from "../lib/hash.js";
 import { mediafilesTableFields, registeredTableFields } from "../interfaces/database.js";
 import { isModuleEnabled } from "../lib/config.js";
 import { redisClient } from "../lib/redis.js";
+import { saveFile } from "../lib/storage/helper.js";
+import { fileExist } from "../lib/storage/helper.js";
+import crypto from "crypto";
+import { writeFileLocal } from "../lib/storage/local.js";
 
 
 const uploadMedia = async (req: Request, res: Response, version:string): Promise<Response> => {
@@ -135,7 +139,8 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 		status: "",
 		description: "",
 		servername: "https://" + req.hostname,
-		processing_url:""
+		processing_url:"",
+		tempPath: "",
 	};
 
 	// Uploaded file SHA256 hash and filename
@@ -192,51 +197,38 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 		fileDBExists = true;
 	}
 
-	// If not exist create pubkey folder
-	const mediaPath = config.get("media.mediaPath") + pubkey
-	try{
-		if (!fs.existsSync(mediaPath)){
-			logger.warn("Pubkey folder not found, creating...", "|", getClientIp(req));
-			fs.mkdirSync(mediaPath);
-		}
-	}catch{
-		logger.error("Error creating pubkey folder", "|", getClientIp(req));
-		if (version != "v2"){return res.status(500).send({"result": false, "description" : "Error creating pubkey folder"});}
-		const result : ResultMessagev2 = {
-			status: MediaStatus[1],
-			message: "Error creating pubkey folder",
-		}
-		return res.status(500).send(result);
+	if (fileDBExists && !await fileExist(filedata.filename)){
+		logger.warn("File already in database but not found on pubkey folder, copying now and processing as new file", "|", getClientIp(req));
+		convert = true;
 	}
 
-	// If not exist, copy file to pubkey folder
-	const filePath = mediaPath + "/" + filedata.filename;
-	if (!fs.existsSync(filePath)) {
-		try {
-			if (fileDBExists) {
-				logger.warn("File already in database but not found on pubkey folder, copying now and processing as new file", "|", getClientIp(req));
-				convert = true;
-			}
-			logger.info("Copying file to pubkey folder", "|", getClientIp(req));
-			await fs.promises.writeFile(filePath, file.buffer);
-		} catch (err) {
-			logger.error("Error copying file to pubkey folder", err, "|", getClientIp(req));
-		
-			//v0 and v1 compatibility
-			if(version != "v2"){return res.status(500).send({"result": false, "description" : "Error copying file to disk"});}
-		
-			const result: ResultMessagev2 = {
-				status: MediaStatus[1],
-				message: "Error copying file to disk",
-			};
-			return res.status(500).send(result);
-		}
+	// Write temp file to disk
+	filedata.tempPath = config.get("storage.local.tempPath") + "in" + crypto.randomBytes(20).toString('hex') + filedata.filename;
+	if (!await writeFileLocal(filedata.tempPath, file.buffer)) {
+		logger.error("Could not write temp file to disk", "|", filedata.tempPath);
+		if(version != "v2"){return res.status(500).send({"result": false, "description" : "Could not write temp file to disk"});}
+
+		const result: ResultMessagev2 = {
+			status: MediaStatus[1],
+			message: "Could not write temp file to disk",
+		};
+	}
+
+	if (!await saveFile(filedata, filedata.tempPath)){
+		logger.error("Error saving file", "|", getClientIp(req));
+		if(version != "v2"){return res.status(500).send({"result": false, "description" : "Error saving file"});}
+
+		const result: ResultMessagev2 = {
+			status: MediaStatus[1],
+			message: "Error saving file",
+		};
+		return res.status(500).send(result);
 	}
 
 	// generate blurhash
 	if (makeBlurhash) {
 		if (filedata.originalmime.toString().startsWith("image")){
-			filedata.blurhash = await generateBlurhash(filePath);
+			filedata.blurhash = await generateBlurhash(filedata.tempPath);
 		}
 	}
 
@@ -397,7 +389,8 @@ const getMediaStatusbyID = async (req: Request, res: Response, version:string): 
 		status: rowstemp[0].status,
 		description: "",
 		servername: servername,
-		processing_url: ""
+		processing_url: "", 
+		tempPath: "",
 	};
 
 	let resultstatus = false;
@@ -522,7 +515,7 @@ const getMediabyURL = async (req: Request, res: Response) => {
 	}
 
 	// mediaPath checks
-	const mediaPath = path.normalize(path.resolve(config.get("media.mediaPath")));
+	const mediaPath = path.normalize(path.resolve(config.get("storage.local.mediaPath")));
 	if (!mediaPath) {
 		logger.error(`RES Media URL -> 500 Internal Server Error - mediaPath not set`, "|", getClientIp(req));
 		res.setHeader('Content-Type', 'image/webp');
@@ -531,10 +524,10 @@ const getMediabyURL = async (req: Request, res: Response) => {
 
 	// Check if file path exists.
 	let fileName = path.normalize(path.resolve(mediaPath + "/" + req.params.pubkey + "/" + req.params.filename));
-	if (!fs.existsSync(fileName)) {
+	if (!fileExist(fileName)) {
 		// try with username instead of pubkey (Old API compatibility)
 			 fileName = path.normalize(path.resolve(mediaPath + "/" + username + "/" + req.params.filename));
-		if (!fs.existsSync(fileName)) {
+		if (!fileExist(fileName)) {
 			logger.warn(`RES Media URL -> 404 Not Found`, "|", getClientIp(req));
 			res.setHeader('Content-Type', 'image/webp');
 			return res.status(404).send(await getNotFoundMediaFile());
@@ -915,9 +908,9 @@ const deleteMedia = async (req: Request, res: Response, version:string): Promise
 
 	// Delete file from disk
 	try{
-		const mediaPath = config.get("media.mediaPath") + EventHeader.pubkey + "/" + filename;
+		const mediaPath = config.get("storage.local.mediaPath") + EventHeader.pubkey + "/" + filename;
 		logger.debug("Deleting file from disk:", mediaPath, "|", getClientIp(req));
-		if (fs.existsSync(mediaPath)){
+		if (await fileExist(mediaPath)){
 			logger.info("Deleting file from disk:", mediaPath);
 			fs.unlinkSync(mediaPath);
 		}

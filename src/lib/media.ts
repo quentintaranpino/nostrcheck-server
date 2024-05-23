@@ -15,6 +15,8 @@ import { getClientIp } from "./utils.js";
 import { CreateMagnet } from "./torrent.js";
 import path from "path";
 import sharp from "sharp";
+import { deleteFileLocal, writeFileLocal } from "./storage/local.js";
+import { saveFile } from "./storage/helper.js";
 
 const PrepareFile = async (t: asyncTask): Promise<void> =>{
 
@@ -61,23 +63,15 @@ const PrepareFile = async (t: asyncTask): Promise<void> =>{
 const requestQueue: queueAsPromised<asyncTask> = fastq.promise(PrepareFile, 1); //number of workers for the queue
 
 
-const convertFile = async(	inputFile: Express.Multer.File,	options: ProcessingFileData,retry:number = 0): Promise<boolean> =>{
+const convertFile = async(	inputFile: Express.Multer.File,	options: ProcessingFileData, retry:number = 0): Promise<boolean> =>{
 
 	if (retry > 5) {return false}
 
-	const TempPath = config.get("media.tempPath") + crypto.randomBytes(8).toString('hex') + options.filename;
+	const outputPath = config.get("storage.local.tempPath") + "out" + crypto.randomBytes(20).toString('hex') + options.filename;
 
-	logger.info("Using temp path:", TempPath);
+	logger.info("Using temporary paths:", options.tempPath, outputPath);
+
 	const result = new Promise(async(resolve, reject) => {
-
-		//We write the file on filesystem because ffmpeg doesn't support streams.
-		fs.writeFile(TempPath, inputFile.buffer, function (err) {
-			if (err) {
-				logger.error(err);
-				reject(err);
-				return;
-			}
-		});
 
 		//Set status processing on the database
 		const processing = await dbUpdate('mediafiles','status','processing', 'id', options.fileid);
@@ -85,29 +79,31 @@ const convertFile = async(	inputFile: Express.Multer.File,	options: ProcessingFi
 			logger.error("Could not update table mediafiles, id: " + options.fileid, "status: processing");
 		}
 
-		const MediaPath = config.get("media.mediaPath") + options.pubkey + "/" + options.filename;
-		logger.info("Using media path:", MediaPath);
-
 		let MediaDuration: number = 0;
 		let ConversionDuration : number = 0;
-		const newfiledimensions = (await setMediaDimensions(TempPath, options)).toString()
+		const newfiledimensions = (await setMediaDimensions(options.tempPath, options)).toString()
 
-		const ConversionEngine = initConversionEngine(TempPath, MediaPath, newfiledimensions, options);
+		const ConversionEngine = initConversionEngine(options.tempPath, outputPath, newfiledimensions, options);
 
 		ConversionEngine
 			.on("end", async(end) => {
 			
 				try{
-					await deleteFile(TempPath);
 					await dbUpdate('mediafiles','percentage','100','id', options.fileid);
 					await dbUpdate('mediafiles','visibility','1','id', options.fileid);
 					await dbUpdate('mediafiles','active','1','id', options.fileid);
-					await dbUpdate('mediafiles', 'hash', await generatefileHashfromfile(MediaPath, options), 'id', options.fileid);
-					if (config.get("torrent.enableTorrentSeeding")) {await CreateMagnet(MediaPath, options);}
+					await dbUpdate('mediafiles', 'hash', await generatefileHashfromfile(outputPath, options), 'id', options.fileid);
+					if (config.get("torrent.enableTorrentSeeding")) {await CreateMagnet(outputPath, options);}
 					await dbUpdate('mediafiles','status','success','id', options.fileid);
-					await dbUpdate('mediafiles', 'filesize', getFileSize(MediaPath,options).toString(),'id', options.fileid);
+					await dbUpdate('mediafiles', 'filesize', getFileSize(outputPath,options).toString(),'id', options.fileid);
 					await dbUpdate('mediafiles','dimensions',newfiledimensions.split("x")[0] + 'x' + newfiledimensions.split("x")[1],'id',  options.fileid);
-					logger.info(`File converted successfully: ${MediaPath} ${ConversionDuration /2} seconds`);
+					logger.info(`File converted successfully: ${outputPath} ${ConversionDuration /2} seconds`);
+
+					await saveFile(options, outputPath);
+
+					await deleteFileLocal(options.tempPath);
+					await deleteFileLocal(outputPath);
+
 					resolve(end);
 				}
 				catch(err){
@@ -122,7 +118,7 @@ const convertFile = async(	inputFile: Express.Multer.File,	options: ProcessingFi
 				logger.error(err);
 				retry++
 				await new Promise((resolve) => setTimeout(resolve, 3000));
-				if (!await deleteFile(TempPath)){reject(err);}
+				if (!await deleteFileLocal(options.tempPath)){reject(err);}
 
 				if (retry > 5){
 					logger.error(`Error converting file after 5 retries: ${inputFile.originalname}`);
@@ -167,12 +163,12 @@ const convertFile = async(	inputFile: Express.Multer.File,	options: ProcessingFi
 }
 
 
-const initConversionEngine = (TempPath: string, MediaPath: string, newfiledimensions: string, options: ProcessingFileData) => {
+const initConversionEngine = (inputPath: string, outputPath: string, newfiledimensions: string, options: ProcessingFileData) => {
 
-    const ffmpegEngine = ffmpeg(TempPath)
+    const ffmpegEngine = ffmpeg(inputPath)
         .outputOption(["-loop 0"]) //Always loop. If is an image it will not apply.
         .setSize(newfiledimensions)
-        .output(MediaPath)
+        .output(outputPath)
         .toFormat(options.filename.split(".").pop() || "");
 
     if (options.filename.split(".").pop() == "webp" && options.originalmime != "image/gif") {
@@ -373,19 +369,6 @@ const getFileSize = (path:string,options:ProcessingFileData) :number => {
 	}catch(err){
 		logger.error(err);
 		return 0;
-	}
-
-}
-
-const deleteFile = async (path:string) :Promise<boolean> => {
-	
-	try{
-		fs.unlinkSync(path);
-		logger.debug("File deleted:", path);
-		return true;
-	}catch(err){
-		logger.error(err);
-		return false;
 	}
 
 }
