@@ -140,7 +140,8 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 		description: "",
 		servername: "https://" + req.hostname,
 		processing_url:"",
-		tempPath: "",
+		conversionInputPath: "",
+		conversionOutputPath: "",
 	};
 
 	// Uploaded file SHA256 hash and filename
@@ -203,9 +204,9 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 	}
 
 	// Write temp file to disk
-	filedata.tempPath = config.get("storage.local.tempPath") + "in" + crypto.randomBytes(20).toString('hex') + filedata.filename;
-	if (!await writeFileLocal(filedata.tempPath, file.buffer)) {
-		logger.error("Could not write temp file to disk", "|", filedata.tempPath);
+	filedata.conversionInputPath = config.get("storage.local.tempPath") + "in" + crypto.randomBytes(20).toString('hex') + filedata.filename;
+	if (!await writeFileLocal(filedata.conversionInputPath, file.buffer)) {
+		logger.error("Could not write temp file to disk", "|", filedata.conversionInputPath);
 		if(version != "v2"){return res.status(500).send({"result": false, "description" : "Internal server error."});}
 
 		const result: ResultMessagev2 = {
@@ -218,7 +219,7 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 	// generate blurhash
 	if (makeBlurhash) {
 		if (filedata.originalmime.toString().startsWith("image")){
-			filedata.blurhash = await generateBlurhash(filedata.tempPath);
+			filedata.blurhash = await generateBlurhash(filedata.conversionInputPath);
 		}
 	}
 
@@ -380,7 +381,8 @@ const getMediaStatusbyID = async (req: Request, res: Response, version:string): 
 		description: "",
 		servername: servername,
 		processing_url: "", 
-		tempPath: "",
+		conversionInputPath: "",
+		conversionOutputPath: "",
 	};
 
 	let resultstatus = false;

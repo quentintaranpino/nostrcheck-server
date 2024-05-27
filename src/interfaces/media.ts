@@ -107,7 +107,8 @@ interface ProcessingFileData extends FileData{
 	description: string;
 	servername: string;
 	processing_url: string;
-	tempPath: string;
+	conversionInputPath: string;
+	conversionOutputPath: string;	
 
 }
 

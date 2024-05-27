@@ -67,9 +67,9 @@ const convertFile = async(	inputFile: Express.Multer.File,	options: ProcessingFi
 
 	if (retry > 5) {return false}
 
-	const outputPath = config.get("storage.local.tempPath") + "out" + crypto.randomBytes(20).toString('hex') + options.filename;
+	options.conversionOutputPath = config.get("storage.local.tempPath") + "out" + crypto.randomBytes(20).toString('hex') + options.filename;
 
-	logger.info("Using temporary paths:", options.tempPath, outputPath);
+	logger.info("Using temporary paths:", options.conversionInputPath, options.conversionOutputPath);
 
 	const result = new Promise(async(resolve, reject) => {
 
@@ -81,9 +81,9 @@ const convertFile = async(	inputFile: Express.Multer.File,	options: ProcessingFi
 
 		let MediaDuration: number = 0;
 		let ConversionDuration : number = 0;
-		const newfiledimensions = (await setMediaDimensions(options.tempPath, options)).toString()
+		const newfiledimensions = (await setMediaDimensions(options.conversionInputPath, options)).toString()
 
-		const ConversionEngine = initConversionEngine(options.tempPath, outputPath, newfiledimensions, options);
+		const ConversionEngine = initConversionEngine(options.conversionInputPath, options.conversionOutputPath, newfiledimensions, options);
 
 		ConversionEngine
 			.on("end", async(end) => {
@@ -92,17 +92,17 @@ const convertFile = async(	inputFile: Express.Multer.File,	options: ProcessingFi
 					await dbUpdate('mediafiles','percentage','100','id', options.fileid);
 					await dbUpdate('mediafiles','visibility','1','id', options.fileid);
 					await dbUpdate('mediafiles','active','1','id', options.fileid);
-					await dbUpdate('mediafiles', 'hash', await generatefileHashfromfile(outputPath, options), 'id', options.fileid);
-					if (config.get("torrent.enableTorrentSeeding")) {await CreateMagnet(outputPath, options);}
+					await dbUpdate('mediafiles', 'hash', await generatefileHashfromfile(options.conversionOutputPath, options), 'id', options.fileid);
+					if (config.get("torrent.enableTorrentSeeding")) {await CreateMagnet(options.conversionOutputPath, options);}
 					await dbUpdate('mediafiles','status','success','id', options.fileid);
-					await dbUpdate('mediafiles', 'filesize', getFileSize(outputPath,options).toString(),'id', options.fileid);
+					await dbUpdate('mediafiles', 'filesize', getFileSize(options.conversionOutputPath,options).toString(),'id', options.fileid);
 					await dbUpdate('mediafiles','dimensions',newfiledimensions.split("x")[0] + 'x' + newfiledimensions.split("x")[1],'id',  options.fileid);
-					logger.info(`File converted successfully: ${outputPath} ${ConversionDuration /2} seconds`);
+					logger.info(`File converted successfully: ${options.conversionOutputPath} ${ConversionDuration /2} seconds`);
 
-					await saveFile(options, outputPath);
+					await saveFile(options, options.conversionOutputPath);
 
-					await deleteFileLocal(options.tempPath);
-					await deleteFileLocal(outputPath);
+					await deleteFileLocal(options.conversionInputPath);
+					await deleteFileLocal(options.conversionOutputPath);
 
 					resolve(end);
 				}
@@ -118,7 +118,7 @@ const convertFile = async(	inputFile: Express.Multer.File,	options: ProcessingFi
 				logger.error(err);
 				retry++
 				await new Promise((resolve) => setTimeout(resolve, 3000));
-				if (!await deleteFileLocal(options.tempPath)){reject(err);}
+				if (!await deleteFileLocal(options.conversionInputPath)){reject(err);}
 
 				if (retry > 5){
 					logger.error(`Error converting file after 5 retries: ${inputFile.originalname}`);
