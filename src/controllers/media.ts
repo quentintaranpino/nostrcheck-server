@@ -11,10 +11,10 @@ import {
 	MediaExtraDataResultMessage,
 	mediaTypes,
 	MediaVisibilityResultMessage,
-	mime_transform,
 	UploadStatus,
 	MediaStatus,
 	videoHeaderRange,
+	mime_extension,
 } from "../interfaces/media.js";
 import { ResultMessage, ResultMessagev2 } from "../interfaces/server.js";
 import config from "config";
@@ -145,7 +145,7 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 
 	// Uploaded file SHA256 hash and filename
 	filedata.originalhash = await generatefileHashfrombuffer(file);
-	filedata.filename = filedata.originalhash +  "." + mime_transform[file.mimetype]
+	filedata.filename = filedata.originalhash +  "." + mime_extension[file.mimetype]
 	logger.info("hash ->", filedata.originalhash, "|", getClientIp(req));
 
 	// URL
@@ -166,36 +166,36 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 	let makeBlurhash = true;
 	let fileDBExists = false;
 
-	// Check if the (file SHA256 hash and pubkey) is already on the database, if exist (and the upload is media type) we return the existing file URL
-	const dbHash = await dbMultiSelect(
-								"SELECT id, hash, magnet, blurhash, filename, filesize, dimensions " +
-								"FROM mediafiles " + 
-								"WHERE original_hash = ? and pubkey = ? and filename not like 'avatar%' and filename not like 'banner%' ",
-								["id", "hash", "magnet", "blurhash", "filename", "filesize", "dimensions"],
-								[filedata.originalhash, pubkey],
-								mediafilesTableFields) as string[];
+	// // Check if the (file SHA256 hash and pubkey) is already on the database, if exist (and the upload is media type) we return the existing file URL
+	// const dbHash = await dbMultiSelect(
+	// 							"SELECT id, hash, magnet, blurhash, filename, filesize, dimensions " +
+	// 							"FROM mediafiles " + 
+	// 							"WHERE original_hash = ? and pubkey = ? and filename not like 'avatar%' and filename not like 'banner%' ",
+	// 							["id", "hash", "magnet", "blurhash", "filename", "filesize", "dimensions"],
+	// 							[filedata.originalhash, pubkey],
+	// 							mediafilesTableFields) as string[];
 
-	if (dbHash[0].length != 0 && media_type == "media") {
-		logger.info(`RES ->  File already in database, returning existing URL:`, filedata.servername + "/media/" + pubkey + "/" + filedata.filename, "|", getClientIp(req));
+	// if (dbHash[0].length != 0 && media_type == "media") {
+	// 	logger.info(`RES ->  File already in database, returning existing URL:`, filedata.servername + "/media/" + pubkey + "/" + filedata.filename, "|", getClientIp(req));
 
-		if (version == "v1"){filedata.status = JSON.parse(JSON.stringify(UploadStatus[2]));}
-		if (version == "v2"){filedata.status = JSON.parse(JSON.stringify(MediaStatus[0]));}
-		filedata.fileid = dbHash[0];
-		filedata.hash = dbHash[1];
-		filedata.magnet = dbHash[2];
-		filedata.blurhash = dbHash[3];
-		filedata.filename = dbHash[4];
-		filedata.filesize = +dbHash[5];
-		if (dbHash[6] != undefined || dbHash[6] != null || dbHash[6] != "") {
-			filedata.width = +(dbHash[6].split("x")[0]);
-			filedata.height = +(dbHash[6].split("x")[1]);
-		}
-		filedata.description = "File exist in database, returning existing URL";
-		convert = false; 
-		insertfiledb = false;
-		makeBlurhash = false;
-		fileDBExists = true;
-	}
+	// 	if (version == "v1"){filedata.status = JSON.parse(JSON.stringify(UploadStatus[2]));}
+	// 	if (version == "v2"){filedata.status = JSON.parse(JSON.stringify(MediaStatus[0]));}
+	// 	filedata.fileid = dbHash[0];
+	// 	filedata.hash = dbHash[1];
+	// 	filedata.magnet = dbHash[2];
+	// 	filedata.blurhash = dbHash[3];
+	// 	filedata.filename = dbHash[4];
+	// 	filedata.filesize = +dbHash[5];
+	// 	if (dbHash[6] != undefined || dbHash[6] != null || dbHash[6] != "") {
+	// 		filedata.width = +(dbHash[6].split("x")[0]);
+	// 		filedata.height = +(dbHash[6].split("x")[1]);
+	// 	}
+	// 	filedata.description = "File exist in database, returning existing URL";
+	// 	convert = false; 
+	// 	insertfiledb = false;
+	// 	makeBlurhash = false;
+	// 	fileDBExists = true;
+	// }
 
 	if (fileDBExists && !await fileExist(filedata.filename)){
 		logger.warn("File already in database but not found on pubkey folder, copying now and processing as new file", "|", getClientIp(req));

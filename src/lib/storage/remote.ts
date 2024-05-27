@@ -1,8 +1,7 @@
 import fs from 'fs';
-import path from 'path';
 import config from "config";
 import { S3Client, S3ClientConfig, PutObjectCommand } from "@aws-sdk/client-s3";
-import { ProcessingFileData } from '../../interfaces/media.js';
+import { ProcessingFileData, mime_conversion } from '../../interfaces/media.js';
 import { logger } from '../logger.js';
 
 const s3Config: S3ClientConfig = {
@@ -25,8 +24,10 @@ const saveFileS3 = async (filePath: string, filedata:ProcessingFileData): Promis
     Bucket: bucketName,
     Key: filedata.filename,
     Body: fs.readFileSync(filePath),
-    ContentType : filedata.media_type,
+    ContentType : mime_conversion[filedata.originalmime],
   };
+
+  logger.debug(params.ContentType)
   try {
     await s3Client.send(new PutObjectCommand(params));
     const fileUrl = `${config.get("storage.remote.endpoint")}/${params.Bucket}/${params.Key}`;

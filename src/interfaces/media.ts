@@ -39,7 +39,7 @@ const allowedMimeTypes = [
 	"audio/mp3",
 ];
 
-const mime_transform: { [key: string]: string } = {
+const mime_extension: { [key: string]: string } = {
 	"image/png"			: "webp",
 	"image/jpg"			: "webp",
 	"image/jpeg"		: "webp",
@@ -53,6 +53,22 @@ const mime_transform: { [key: string]: string } = {
 	"audio/mpg"			: "mp3",
 	"audio/mpeg3"		: "mp3",
 	"audio/mp3"			: "mp3",
+};
+
+const mime_conversion: { [key: string]: string } = {
+	"image/png"			: "image/webp",
+	"image/jpg"			: "image/webp",
+	"image/jpeg"		: "image/webp",
+	"image/gif"			: "image/webp",
+	"image/webp"		: "image/webp",
+	"video/mp4"			: "video/mp4",
+	"video/quicktime"	: "video/mp4",
+	"video/mpeg"		: "video/mp4",
+	"video/webm"		: "video/mp4",
+	"audio/mpeg"		: "audio/mpeg",
+	"audio/mpg"			: "audio/mpeg",
+	"audio/mpeg3"		: "audio/mpeg",
+	"audio/mp3"			: "audio/mpeg",
 };
 
 const mediaTypes: { [key: string]: string } = {
@@ -114,7 +130,8 @@ export {
 	MediaResultMessage,
 	MediaExtraDataResultMessage,
 	MediaVisibilityResultMessage,
-	mime_transform,
+	mime_extension,
+	mime_conversion,
 	mediaTypes,
 	ResultMessage,
 	UploadTypes,
