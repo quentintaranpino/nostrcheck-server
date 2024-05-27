@@ -15,7 +15,7 @@ import { getClientIp } from "./utils.js";
 import { CreateMagnet } from "./torrent.js";
 import path from "path";
 import sharp from "sharp";
-import { deleteFileLocal, writeFileLocal } from "./storage/local.js";
+import { deleteFileLocal } from "./storage/local.js";
 import { saveFile } from "./storage/helper.js";
 
 const PrepareFile = async (t: asyncTask): Promise<void> =>{
