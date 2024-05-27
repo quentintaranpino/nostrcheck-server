@@ -32,6 +32,8 @@ import { saveFile } from "../lib/storage/helper.js";
 import { fileExist } from "../lib/storage/helper.js";
 import crypto from "crypto";
 import { writeFileLocal } from "../lib/storage/local.js";
+import { getR2File } from "../lib/storage/remote.js";
+import { Readable } from "stream";
 
 
 const uploadMedia = async (req: Request, res: Response, version:string): Promise<Response> => {
@@ -506,33 +508,6 @@ const getMediabyURL = async (req: Request, res: Response) => {
 		return res.status(400).send(await getNotFoundMediaFile());
 	}
 
-	// mediaPath checks
-	const mediaPath = path.normalize(path.resolve(config.get("storage.local.mediaPath")));
-	if (!mediaPath) {
-		logger.error(`RES Media URL -> 500 Internal Server Error - mediaPath not set`, "|", getClientIp(req));
-		res.setHeader('Content-Type', 'image/webp');
-		return res.status(500).send(await getNotFoundMediaFile());
-	}
-
-	// Check if file path exists.
-	let fileName = path.normalize(path.resolve(mediaPath + "/" + req.params.pubkey + "/" + req.params.filename));
-	if (!fileExist(fileName)) {
-		// try with username instead of pubkey (Old API compatibility)
-			 fileName = path.normalize(path.resolve(mediaPath + "/" + username + "/" + req.params.filename));
-		if (!fileExist(fileName)) {
-			logger.warn(`RES Media URL -> 404 Not Found`, "|", getClientIp(req));
-			res.setHeader('Content-Type', 'image/webp');
-			return res.status(404).send(await getNotFoundMediaFile());
-		}
-	}
-
-	// Try to prevent directory traversal attacks
-	if (!path.normalize(path.resolve(fileName)).startsWith(mediaPath)) {
-		logger.warn(`RES -> 403 Forbidden - ${req.url}`, "|", getClientIp(req));
-		res.setHeader('Content-Type', 'image/webp');
-		return res.status(403).send(await getNotFoundMediaFile());
-	}
-
 	// Check if file is active on the database
 	const cachedStatus = await redisClient.get(req.params.filename + "-" + req.params.pubkey);
 	if (cachedStatus === null || cachedStatus === undefined) {
@@ -568,56 +543,109 @@ const getMediabyURL = async (req: Request, res: Response) => {
 		return res.status(401).send(await getNotFoundMediaFile());
 	}
 
+
+	// mediaPath checks
+	const mediaLocation = app.get("config.storage")["type"];
+	logger.debug("mediaLocation", mediaLocation);
+	
+	const mediaPath = path.normalize(path.resolve(config.get("storage.local.mediaPath")));
+	if (!mediaPath) {
+		logger.error(`RES Media URL -> 500 Internal Server Error - mediaPath not set`, "|", getClientIp(req));
+		res.setHeader('Content-Type', 'image/webp');
+		return res.status(500).send(await getNotFoundMediaFile());
+	}
+
+	// Check if file path exists.
+	let fileName = path.normalize(path.resolve(mediaPath + "/" + req.params.pubkey + "/" + req.params.filename));
+	if (!fileExist(fileName)) {
+		// try with username instead of pubkey (Old API compatibility)
+				fileName = path.normalize(path.resolve(mediaPath + "/" + username + "/" + req.params.filename));
+		if (!fileExist(fileName)) {
+			logger.warn(`RES Media URL -> 404 Not Found`, "|", getClientIp(req));
+			res.setHeader('Content-Type', 'image/webp');
+			return res.status(404).send(await getNotFoundMediaFile());
+		}
+	}
+
+	// Try to prevent directory traversal attacks
+	if (!path.normalize(path.resolve(fileName)).startsWith(mediaPath)) {
+		logger.warn(`RES -> 403 Forbidden - ${req.url}`, "|", getClientIp(req));
+		res.setHeader('Content-Type', 'image/webp');
+		return res.status(403).send(await getNotFoundMediaFile());
+	}
+
 	// file extension checks and media type
 	const ext = path.extname(fileName).slice(1);
 	const mediaType: string = Object.prototype.hasOwnProperty.call(mediaTypes, ext) ? mediaTypes[ext] : 'text/html';
 	res.setHeader('Content-Type', mediaType);
 
-	// If is a video or audio file we return an stream
-	if (mediaType.startsWith("video") || mediaType.startsWith("audio")) {
-		
-		let range : videoHeaderRange;
-		let videoSize : number;
-		try {
-			videoSize = fs.statSync(fileName).size;
-			range = readRangeHeader(req.headers.range, videoSize);
-		} catch (err) {
-			logger.warn(`RES -> 404 Not Found - ${req.url}`, "| Returning not found media file.", getClientIp(req));
-			res.setHeader('Content-Type', 'image/webp');
-			return res.status(404).send(await getNotFoundMediaFile());
-		}
-
-		res.setHeader("Content-Range", `bytes ${range.Start}-${range.End}/${videoSize}`);
-
-		// If the range can't be fulfilled.
-		if (range.Start >= videoSize || range.End >= videoSize) {
-			res.setHeader("Content-Range", `bytes */ ${videoSize}`)
-			range.Start = 0;
-			range.End = videoSize - 1;
-		}
-
-		const contentLength = range.Start == range.End ? 0 : (range.End - range.Start + 1);
-		res.setHeader("Accept-Ranges", "bytes");
-		res.setHeader("Content-Length", contentLength);
-		res.setHeader("Cache-Control", "no-cache")
-		res.status(206);
-
-		const videoStream = fs.createReadStream(fileName, {start: range.Start, end: range.End});
-		logger.info(`RES -> 206 Video partial Content - start: ${range.Start} end: ${range.End} | ${req.url}`, "|", getClientIp(req), "|", cachedStatus ? true : false);
-		return videoStream.pipe(res);
+	//TEST cloudflare signed URL
+	const remoteFile = await fetch(await getR2File(req.params.filename));
+	if (!remoteFile.ok || !remoteFile.body) {
+		logger.error('Failed to fetch from R2');
+		return res.status(404).send(await getNotFoundMediaFile());
 	}
 
-	// If is an image we return the entire file
-	fs.readFile(fileName, async (err, data) => {
-		if (err) {
-			logger.warn(`RES -> 404 Not Found - ${req.url}`, "| Returning not found media file.", getClientIp(req));
-			res.setHeader('Content-Type', 'image/webp');
-			return res.status(404).send(await getNotFoundMediaFile());
-		} 
-		logger.info(`RES -> 200 Media file ${req.url}`, "|", getClientIp(req), "|", "cached:", cachedStatus ? true : false);
-		res.status(200).send(data);
-
+	const reader = remoteFile.body.getReader();
+	const stream = new Readable({
+	read() {
+		reader.read().then(({ done, value }) => {
+		if (done) {
+			this.push(null);
+		} else {
+			this.push(Buffer.from(value));
+		}
+		});
+	}
 	});
+
+	stream.pipe(res);
+
+	// // If is a video or audio file we return an stream
+	// if (mediaType.startsWith("video") || mediaType.startsWith("audio")) {
+		
+	// 	let range : videoHeaderRange;
+	// 	let videoSize : number;
+	// 	try {
+	// 		videoSize = fs.statSync(fileName).size;
+	// 		range = readRangeHeader(req.headers.range, videoSize);
+	// 	} catch (err) {
+	// 		logger.warn(`RES -> 404 Not Found - ${req.url}`, "| Returning not found media file.", getClientIp(req));
+	// 		res.setHeader('Content-Type', 'image/webp');
+	// 		return res.status(404).send(await getNotFoundMediaFile());
+	// 	}
+
+	// 	res.setHeader("Content-Range", `bytes ${range.Start}-${range.End}/${videoSize}`);
+
+	// 	// If the range can't be fulfilled.
+	// 	if (range.Start >= videoSize || range.End >= videoSize) {
+	// 		res.setHeader("Content-Range", `bytes */ ${videoSize}`)
+	// 		range.Start = 0;
+	// 		range.End = videoSize - 1;
+	// 	}
+
+	// 	const contentLength = range.Start == range.End ? 0 : (range.End - range.Start + 1);
+	// 	res.setHeader("Accept-Ranges", "bytes");
+	// 	res.setHeader("Content-Length", contentLength);
+	// 	res.setHeader("Cache-Control", "no-cache")
+	// 	res.status(206);
+
+	// 	const videoStream = fs.createReadStream(fileName, {start: range.Start, end: range.End});
+	// 	logger.info(`RES -> 206 Video partial Content - start: ${range.Start} end: ${range.End} | ${req.url}`, "|", getClientIp(req), "|", cachedStatus ? true : false);
+	// 	return videoStream.pipe(res);
+	// }
+
+	// // If is an image we return the entire file
+	// fs.readFile(fileName, async (err, data) => {
+	// 	if (err) {
+	// 		logger.warn(`RES -> 404 Not Found - ${req.url}`, "| Returning not found media file.", getClientIp(req));
+	// 		res.setHeader('Content-Type', 'image/webp');
+	// 		return res.status(404).send(await getNotFoundMediaFile());
+	// 	} 
+	// 	logger.info(`RES -> 200 Media file ${req.url}`, "|", getClientIp(req), "|", "cached:", cachedStatus ? true : false);
+	// 	res.status(200).send(data);
+
+	// });
 
 };
 
