@@ -164,7 +164,7 @@ const defaultConfig = {
 			"secretAccessKey": "<your_r2_secret_access_key>",
 			"region": "auto",
 			"s3ForcePathStyle": true,
-			"signatureVersion": "v4"
+			"bucketName": "your-bucket-name"
 		}
 	},
 }
