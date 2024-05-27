@@ -1,6 +1,6 @@
 {
   "name": "nostrcheck-api-ts",
-  "version": "0.6.0.0001",
+  "version": "0.6.0.0002",
   "description": "",
   "exports": "./index.js",
   "type": "module",
@@ -36,7 +36,7 @@
     "vitest": "^1.0.1"
   },
   "dependencies": {
-    "aws-sdk": "^2.1625.0",
+    "@aws-sdk/client-s3": "^3.583.0",
     "bcrypt": "^5.1.1",
     "blurhash": "^2.0.5",
     "config": "3.3.9",
