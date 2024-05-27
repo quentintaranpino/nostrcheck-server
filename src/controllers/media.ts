@@ -206,21 +206,11 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 	filedata.tempPath = config.get("storage.local.tempPath") + "in" + crypto.randomBytes(20).toString('hex') + filedata.filename;
 	if (!await writeFileLocal(filedata.tempPath, file.buffer)) {
 		logger.error("Could not write temp file to disk", "|", filedata.tempPath);
-		if(version != "v2"){return res.status(500).send({"result": false, "description" : "Could not write temp file to disk"});}
+		if(version != "v2"){return res.status(500).send({"result": false, "description" : "Internal server error."});}
 
 		const result: ResultMessagev2 = {
 			status: MediaStatus[1],
-			message: "Could not write temp file to disk",
-		};
-	}
-
-	if (!await saveFile(filedata, filedata.tempPath)){
-		logger.error("Error saving file", "|", getClientIp(req));
-		if(version != "v2"){return res.status(500).send({"result": false, "description" : "Error saving file"});}
-
-		const result: ResultMessagev2 = {
-			status: MediaStatus[1],
-			message: "Error saving file",
+			message: "Internal server error.",
 		};
 		return res.status(500).send(result);
 	}
