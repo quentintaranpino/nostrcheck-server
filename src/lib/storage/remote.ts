@@ -1,5 +1,6 @@
 import fs from 'fs';
-import { S3Client, S3ClientConfig, PutObjectCommand } from "@aws-sdk/client-s3";
+import { S3Client, S3ClientConfig, PutObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { ProcessingFileData, mime_conversion } from '../../interfaces/media.js';
 import { logger } from '../logger.js';
 import app from '../../app.js';
@@ -28,7 +29,6 @@ const saveFileS3 = async (filePath: string, filedata:ProcessingFileData): Promis
     ContentType : mime_conversion[filedata.originalmime],
   };
 
-  logger.debug(params.ContentType)
   try {
     await s3Client.send(new PutObjectCommand(params));
     const fileUrl = `${app.get("config.storage")["remote"]["endpoint"]}/${params.Bucket}/${params.Key}`;
@@ -37,7 +37,27 @@ const saveFileS3 = async (filePath: string, filedata:ProcessingFileData): Promis
   } catch (error) {
       logger.error(`Error uploading file: ${error}`);
   }
-return "";
+
+  return "";
 }
 
-export { saveFileS3 };
+const getR2File = async (filename: string): Promise<string> => {
+  
+    const bucketName :string = app.get("config.storage")["remote"]["bucketName"];
+  
+    const params = new GetObjectCommand({
+      Bucket: bucketName,
+      Key: filename,
+    });
+  
+    try {
+      const url = await getSignedUrl(s3Client, params, { expiresIn: 60 });
+      return url;
+    } catch (error) {
+      logger.error(`Error generating signed URL: ${error}`);
+    }
+  
+    return "";
+}
+
+export { saveFileS3, getR2File };
