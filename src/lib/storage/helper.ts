@@ -1,10 +1,10 @@
 import app from "../../app.js";
-import { FileData } from "../../interfaces/media.js";
+import { ProcessingFileData } from "../../interfaces/media.js";
 import { logger } from "../logger.js";
 import { copyFileLocal, createFolderLocal, fileExistLocal } from "./local.js";
 import { saveFileS3 } from "./remote.js";
 
-const saveFile = async (filedata: FileData, originPath : string) : Promise<boolean> => {
+const saveFile = async (filedata: ProcessingFileData, originPath : string) : Promise<boolean> => {
 
     logger.debug("Saving file", "|", filedata);
     logger.debug("storage type", app.get("config.storage")["type"]);
@@ -30,7 +30,7 @@ const saveFile = async (filedata: FileData, originPath : string) : Promise<boole
     }
 
     if (app.get("config.storage")["type"] === "remote") {
-        saveFileS3(originPath);
+        saveFileS3(originPath, filedata);
     } 
     return true;
 }

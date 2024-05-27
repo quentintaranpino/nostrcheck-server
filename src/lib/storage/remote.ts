@@ -1,42 +1,41 @@
 import fs from 'fs';
 import path from 'path';
 import config from "config";
-import AWS from 'aws-sdk';
+import { S3Client, S3ClientConfig, PutObjectCommand } from "@aws-sdk/client-s3";
+import { ProcessingFileData } from '../../interfaces/media.js';
+import { logger } from '../logger.js';
 
-function initializeS3(): AWS.S3 {
-  return new AWS.S3({
-    endpoint: config.get("storage.remote.endpoint"),
+const s3Config: S3ClientConfig = {
+  endpoint: config.get("storage.remote.endpoint"),
+  credentials: {
     accessKeyId: config.get("storage.remote.accessKeyId"),
     secretAccessKey: config.get("storage.remote.secretAccessKey"),
-    region: config.get("storage.remote.region"),
-    s3ForcePathStyle: config.get("storage.remote.s3ForcePathStyle"),
-    signatureVersion: config.get("storage.remote.signatureVersion"),
-  });
-}
+  },
+  region: config.get("storage.remote.region"),
+  forcePathStyle: config.get("storage.remote.s3ForcePathStyle"),
+};
 
-const saveFileS3 = async (filePath: string): Promise<string> => {
+const s3Client = new S3Client(s3Config);
 
-  const s3 = initializeS3();
-  const bucketName = 'test'; 
-  const fileKey = path.basename(filePath);
-  const fileContent = fs.readFileSync(filePath);
+const saveFileS3 = async (filePath: string, filedata:ProcessingFileData): Promise<string> => {
+
+  const bucketName :string = config.get("storage.remote.bucketName");
 
   const params = {
     Bucket: bucketName,
-    Key: fileKey,
-    Body: fileContent,
-    ContentType : 'image/webp', //TESTING TODO MIME
+    Key: filedata.filename,
+    Body: fs.readFileSync(filePath),
+    ContentType : filedata.media_type,
   };
-
   try {
-        const result = await s3.upload(params).promise();
-        const fileUrl = `${config.get("storage.remote.endpoint")}/${bucketName}/${fileKey}`;
-        console.log(`Archivo subido exitosamente a ${fileUrl}`);
-        return fileUrl;
+    await s3Client.send(new PutObjectCommand(params));
+    const fileUrl = `${config.get("storage.remote.endpoint")}/${params.Bucket}/${params.Key}`;
+    logger.info(`Successfully uploaded file to ${fileUrl}`);
+    return fileUrl;
   } catch (error) {
-        console.error(`Error subiendo archivo: ${error}`);
+      logger.error(`Error uploading file: ${error}`);
   }
-  return "";
+return "";
 }
 
 export { saveFileS3 };
