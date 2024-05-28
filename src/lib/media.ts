@@ -15,8 +15,8 @@ import { getClientIp } from "./utils.js";
 import { CreateMagnet } from "./torrent.js";
 import path from "path";
 import sharp from "sharp";
-import { deleteFileLocal } from "./storage/local.js";
 import { saveFile } from "./storage/helper.js";
+import { deleteLocalFile } from "./storage/local.js";
 
 const prepareFile = async (t: asyncTask): Promise<void> =>{
 
@@ -78,8 +78,8 @@ const convertFile = async(	inputFile: Express.Multer.File,	options: ProcessingFi
 
 					await saveFile(options, options.conversionOutputPath);
 
-					await deleteFileLocal(options.conversionInputPath);
-					await deleteFileLocal(options.conversionOutputPath);
+					await deleteLocalFile(options.conversionInputPath);
+					await deleteLocalFile(options.conversionOutputPath);
 
 					resolve(end);
 				}
@@ -95,7 +95,7 @@ const convertFile = async(	inputFile: Express.Multer.File,	options: ProcessingFi
 				logger.error(err);
 				retry++
 				await new Promise((resolve) => setTimeout(resolve, 3000));
-				if (!await deleteFileLocal(options.conversionInputPath)){reject(err);}
+				if (!await deleteLocalFile(options.conversionInputPath)){reject(err);}
 
 				if (retry > 5){
 					logger.error(`Error converting file after 5 retries: ${inputFile.originalname}`);

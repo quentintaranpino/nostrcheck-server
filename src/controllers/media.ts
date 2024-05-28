@@ -28,12 +28,11 @@ import { generateBlurhash, generatefileHashfrombuffer } from "../lib/hash.js";
 import { mediafilesTableFields, registeredTableFields } from "../interfaces/database.js";
 import { isModuleEnabled } from "../lib/config.js";
 import { redisClient } from "../lib/redis.js";
-import { saveFile } from "../lib/storage/helper.js";
-import { fileExist } from "../lib/storage/helper.js";
+import { deleteFile, getFilePath } from "../lib/storage/helper.js";
 import crypto from "crypto";
 import { writeFileLocal } from "../lib/storage/local.js";
-import { deleteR2File, getR2File } from "../lib/storage/remote.js";
 import { Readable } from "stream";
+import { getRemoteFile } from "../lib/storage/remote.js";
 
 
 const uploadMedia = async (req: Request, res: Response, version:string): Promise<Response> => {
@@ -197,7 +196,7 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 		insertfiledb = false;
 		makeBlurhash = false;
 
-		if (!await fileExist(filedata.filename)){
+		if (await getFilePath(filedata.filename) == "") {
 			logger.warn("File already in database but not found on storage server, processing as new file", "|", getClientIp(req));
 			convert = true;
 		}
@@ -559,17 +558,13 @@ const getMediabyURL = async (req: Request, res: Response) => {
 			return res.status(500).send(await getNotFoundMediaFile());
 		}
 
-		// Check if file path exists.
-		let fileName = path.normalize(path.resolve(mediaPath + "/" + req.params.pubkey + "/" + req.params.filename));
-		if (!fileExist(fileName)) {
-			// try with username instead of pubkey (Old API compatibility)
-					fileName = path.normalize(path.resolve(mediaPath + "/" + username + "/" + req.params.filename));
-			if (!fileExist(fileName)) {
+		// Check if file exist on storage server
+		const fileName = await getFilePath(req.params.filename);
+		if (fileName == ""){ 
 				logger.warn(`RES Media URL -> 404 Not Found`, "|", getClientIp(req));
 				res.setHeader('Content-Type', 'image/webp');
 				return res.status(404).send(await getNotFoundMediaFile());
 			}
-		}
 
 		// Try to prevent directory traversal attacks
 		if (!path.normalize(path.resolve(fileName)).startsWith(mediaPath)) {
@@ -626,7 +621,7 @@ const getMediabyURL = async (req: Request, res: Response) => {
 
 	} else if (mediaLocation == "remote") {
 
-		const remoteFile = await fetch(await getR2File(req.params.filename));
+		const remoteFile = await fetch(await getRemoteFile(req.params.filename));
 		if (!remoteFile.ok || !remoteFile.body ) {
 			logger.error('Failed to fetch from remote file server || ' + req.params.filename, getClientIp(req));
 			res.setHeader('Content-Type', 'image/webp');
@@ -914,8 +909,29 @@ const deleteMedia = async (req: Request, res: Response, version:string): Promise
 		return res.status(500).send(result);
 	}
 
+
+	// Check if the file is the last one with the same hash, counting the number of files with the same hash
+	const hashCount = await dbSelect("SELECT COUNT(*) as 'count' FROM mediafiles WHERE filename = ?", "count", [filename], mediafilesTableFields);
+	if (hashCount != '1') {
+		logger.info("Detected more files with same hash, skipping deletion from storage server", EventHeader.pubkey, filename, "|", getClientIp(req));
+	}else{
+		logger.info("Detected last file with same hash, deleting from storage server", EventHeader.pubkey, filename, "|", getClientIp(req));
+		const result = deleteFile(filename);
+		if (!result) {
+			logger.error("Error deleting file from remote server", EventHeader.pubkey, filename, "|", getClientIp(req));
+			//v0 and v1 compatibility
+			if(version != "v2"){return res.status(500).send({"result": false, "description" : "Error deleting file from remote server"})};
+
+			const result: ResultMessagev2 = {
+				status: MediaStatus[1],
+				message: "Error deleting file from storage server",
+			};
+			return res.status(500).send(result);
+		}
+	}
+
 	//Delete mediafile from database
-	logger.info("Deleting file from database with id:", fileid, "pubkey:", EventHeader.pubkey, "filename:", filename, "|", getClientIp(req));
+	logger.debug("Deleting file from database with id:", fileid, "pubkey:", EventHeader.pubkey, "filename:", filename, "|", getClientIp(req));
 	const deleteResult = await dbDelete("mediafiles", ["id","pubkey"],[fileid, EventHeader.pubkey]);
 	if (deleteResult == false) {
 		logger.warn("RES Delete Mediafile -> 404 Not found on database", EventHeader.pubkey, filename, "|", getClientIp(req));
@@ -929,57 +945,6 @@ const deleteMedia = async (req: Request, res: Response, version:string): Promise
 		};
 		return res.status(404).send(result);
 	}
-
-	const mediaLocation = app.get("config.storage")["type"];
-	logger.debug("Media location:", mediaLocation, "|", getClientIp(req));
-
-	if (mediaLocation == "local") {
-
-		try{
-			const mediaPath = config.get("storage.local.mediaPath") + EventHeader.pubkey + "/" + filename;
-			logger.debug("Deleting file from disk:", mediaPath, "|", getClientIp(req));
-			if (await fileExist(mediaPath)){
-				logger.info("Deleting file from disk:", mediaPath);
-				fs.unlinkSync(mediaPath);
-			}
-		}catch{
-			logger.error("Error deleting file from disk", EventHeader.pubkey, filename, "|", getClientIp(req));
-
-			//v0 and v1 compatibility
-			if(version != "v2"){return res.status(500).send({"result": false, "description" : "Error deleting file from disk"})};
-
-			const result: ResultMessagev2 = {
-				status: MediaStatus[1],
-				message: "Error deleting file from disk",
-			};
-			return res.status(500).send(result);
-		}
-		logger.info("RES Deleted mediafile ->", req.hostname, " | pubkey:",  EventHeader.pubkey, " | fileId:",  fileid, "|", getClientIp(req));
-
-	}else if (mediaLocation == "remote"){
-
-		// Check if the file is the last one with the same hash, counting the number of files with the same hash
-		const hashCount = await dbSelect("SELECT COUNT(*) as count FROM mediafiles WHERE hash = ?", "count", [selectedFile[2]], mediafilesTableFields);
-		
-		if (hashCount != '') {
-			logger.info("Detected more files with same hash, skipping deletion from remote server", EventHeader.pubkey, filename, "|", getClientIp(req));
-		}else{
-			logger.info("Detected last file with same hash, deleting from remote server", EventHeader.pubkey, filename, "|", getClientIp(req));
-			const result = deleteR2File(filename);
-			if (!result) {
-				logger.error("Error deleting file from remote server", EventHeader.pubkey, filename, "|", getClientIp(req));
-				//v0 and v1 compatibility
-				if(version != "v2"){return res.status(500).send({"result": false, "description" : "Error deleting file from remote server"})};
-
-				const result: ResultMessagev2 = {
-					status: MediaStatus[1],
-					message: "Error deleting file from remote server",
-				};
-				return res.status(500).send(result);
-			}
-		}
-	}
-
 
 	//v0 and v1 compatibility
 	if (version != "v2"){
