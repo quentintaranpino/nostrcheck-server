@@ -110,4 +110,9 @@ const validateHash = async (input:string, hash:string): Promise<boolean> => {
     }
   }
 
-export { generateBlurhash, generatefileHashfromfile, generatefileHashfrombuffer, hashString, validateHash};
+const getHashedPath = async (filename : string) => {
+    const hash = crypto.createHash('md5').update(filename).digest('hex').slice(0, 4);
+    return hash.slice(0, 4);
+}
+
+export { generateBlurhash, generatefileHashfromfile, generatefileHashfrombuffer, hashString, validateHash, getHashedPath};
