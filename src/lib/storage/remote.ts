@@ -79,6 +79,7 @@ const deleteRemoteFile = async (filename: string): Promise<boolean> => {
     
       try {
         await s3Client.send(new DeleteObjectCommand(params));
+        logger.debug(`Successfully deleted file from remote storage server: ${filename}`);
         return true;
       } catch (error) {
         logger.error(`Error deleting file from remote server: ${error}`);

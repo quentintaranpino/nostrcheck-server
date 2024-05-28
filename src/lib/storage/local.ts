@@ -38,7 +38,7 @@ const deleteLocalFile = async (path:string) :Promise<boolean> => {
 	
 	try{
 		fs.unlinkSync(path);
-		logger.debug("File deleted:", path);
+        logger.debug(`Successfully deleted file from local storage server: ${path}`);
 		return true;
 	}catch(err){
 		logger.error(err);
