@@ -18,9 +18,8 @@ import sharp from "sharp";
 import { deleteFileLocal } from "./storage/local.js";
 import { saveFile } from "./storage/helper.js";
 
-const PrepareFile = async (t: asyncTask): Promise<void> =>{
+const prepareFile = async (t: asyncTask): Promise<void> =>{
 
-	//Show queue status
 	logger.info(`Processing item, queue size = ${requestQueue.length() +1}`);
 
 	if (!Array.isArray(t.req.files) || t.req.files.length == 0) {
@@ -28,40 +27,18 @@ const PrepareFile = async (t: asyncTask): Promise<void> =>{
 		return;
 
 	}
-	if (!t.req.files[0]) {
-		logger.error("ERR -> Preparing file for conversion, empty file");
-		return;
-	}
+	if (!t.req.files[0]) {logger.error("ERR -> Preparing file for conversion, empty file");	return;}
+	if (!t.req.files[0].mimetype) {logger.error("ERR -> Preparing file for conversion, empty mimetype");return;}
+	if (!t.filedata.media_type) {logger.error("ERR -> Preparing file for conversion, empty type");return;}
+	if (!t.filedata.pubkey) {logger.error("ERR -> Preparing file for conversion, empty pubkey");return;}
 
-	if (!t.req.files[0].mimetype) {
-		logger.error("ERR -> Preparing file for conversion, empty mimetype");
-		return;
-	}
-
-	if (!t.filedata.media_type) {
-		logger.error("ERR -> Preparing file for conversion, empty type");
-		return;
-	}
-
-	if (!t.filedata.pubkey) {
-		logger.error("ERR -> Preparing file for conversion, empty pubkey");
-		return;
-	}
-
-	logger.info(
-		"Processing file",
-		":",
-		t.req.files[0].originalname,
-		"=>",
-		`${t.filedata.filename}`
-	);
+	logger.info("Processing file :",t.req.files[0].originalname,"=>",t.filedata.filename);
 
 	await convertFile(t.req.files[0], t.filedata, 0);
 
 }
 
-const requestQueue: queueAsPromised<asyncTask> = fastq.promise(PrepareFile, 1); //number of workers for the queue
-
+const requestQueue: queueAsPromised<asyncTask> = fastq.promise(prepareFile, 1); //number of workers for the queue
 
 const convertFile = async(	inputFile: Express.Multer.File,	options: ProcessingFileData, retry:number = 0): Promise<boolean> =>{
 
