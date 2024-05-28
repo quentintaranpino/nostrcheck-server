@@ -34,7 +34,7 @@ const copyFileLocal = async (originPath: string, destPath: string) : Promise<boo
     return true;
 }
 
-const deleteFileLocal = async (path:string) :Promise<boolean> => {
+const deleteLocalFile = async (path:string) :Promise<boolean> => {
 	
 	try{
 		fs.unlinkSync(path);
@@ -47,7 +47,7 @@ const deleteFileLocal = async (path:string) :Promise<boolean> => {
 
 }
 
-const fileExistLocal = async (filePath: string) : Promise<boolean> => {
+const getLocalFile = async (filePath: string) : Promise<boolean> => {
     try {
         return fs.existsSync(filePath);
     } catch {
@@ -67,4 +67,4 @@ const writeFileLocal = async (filePath: string, file: Buffer) : Promise<boolean>
 }
 
 
-export { createFolderLocal, copyFileBufferLocal, copyFileLocal, deleteFileLocal, fileExistLocal, writeFileLocal };
+export { createFolderLocal, copyFileBufferLocal, copyFileLocal, deleteLocalFile, getLocalFile, writeFileLocal };
