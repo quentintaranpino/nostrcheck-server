@@ -177,7 +177,7 @@
                   you need to migrate the files to the new storage type <b>manually.</b>
             </div>  
             <label for="storage.local.tempPath" class="mt-2 mb-1 fw-bold">Temp path</label>
-            <p>This path is used to store the files before they are processed and moved to the final storage location.
+            <p>Path to store the files before they are processed and moved to the final storage location.
                 The path must finish with a slash. <b>(e.g. tmp/)</b>
             </p>
             <div class="col-12 col-sm-5 col-md-4">
@@ -190,12 +190,12 @@
               required
               >
             </div>
-            <h4 class="mt-3">Local storage</h4>
+            <h5 class="mt-3">Local storage</h5>
             <p> In this section, you can configure the local storage settings of your server. 
                 It provides you with the flexibility to customize the local storage settings according to your specific requirements.
             </p>
             <label for="storage.local.mediaPath" class="mt-2 mb-1 fw-bold">Media path</label>
-            <p>This path will be used to store the media files on the server's local disk when the storage type is set to "local". 
+            <p>Path to store the media files on the server's local disk (when the storage type is set to "local"). 
                 The path must finish with a slash. <b>(e.g. media/)</b>
             </p>
             <div class="col-12 col-sm-5 col-md-4">
@@ -208,12 +208,12 @@
               required
               >
             </div>
-            <h4 class="mt-3">S3 storage</h4>
+            <h5 class="mt-3">S3 storage</h5>
             <p> In this section, you can configure the remote (S3) storage settings of your server. 
                 It provides you with the flexibility to customize the S3 storage settings according to your specific requirements.
             </p>
             <label for="storage.remote.bucketName" class="mt-2 mb-1 fw-bold">Bucket name</label>
-            <p>Specify the bucket name for S3 storage. This bucket will be used to store the media files when the storage type is set to remote.</p>
+            <p>Specify the bucket name for remote (S3) storage.</p>
               <input  type="text" 
               id="storage.remote.bucketName" 
               name="storage.remote.bucketName" 
@@ -223,7 +223,7 @@
               required
               >
             <label for="storage.remote.endpoint" class="mt-2 mb-1 fw-bold">Endpoint</label>
-            <p>Specify the endpoint for S3 storage. This endpoint will be used to connect to the remote (S3) storage.</p>
+            <p>Specify the endpoint for remote (S3) storage.</p>
               <input  type="text" 
               id="storage.remote.endpoint" 
               name="storage.remote.endpoint" 
@@ -233,7 +233,7 @@
               required
               >
             <label for="storage.remote.accessKeyId" class="mt-2 mb-1 fw-bold">Access key ID</label>
-            <p>Specify the access key ID for S3 storage. This access key ID will be used to authenticate the server with the remote (S3) storage.</p>
+            <p>Specify the access key ID for remote (S3) storage.</p>
               <input  type="text" 
               id="storage.remote.accessKeyId" 
               name="storage.remote.accessKeyId" 
@@ -243,7 +243,7 @@
               required
               >
             <label for="storage.remote.secretAccessKey" class="mt-2 mb-1 fw-bold">Secret access key</label>
-            <p>Specify the secret access key for S3 storage. This secret access key will be used to authenticate the server with the remote (S3) storage.</p>
+            <p>Specify the secret access key for remote (S3) storage. </p>
               <input  type="text" 
               id="storage.remote.secretAccessKey" 
               name="storage.remote.secretAccessKey" 
@@ -253,7 +253,7 @@
               required
               >
             <label for="storage.remote.region" class="mt-2 mb-1 fw-bold">Region</label>
-            <p>Specify the region for S3 storage. This region will be used to connect to the remote (S3) storage. For Cloudflare storage always use "auto".</p>
+            <p>Specify the region for remote (S3) storage. For Cloudflare storage always use "auto".</p>
               <input  type="text" 
               id="storage.remote.region" 
               name="storage.remote.region" 
