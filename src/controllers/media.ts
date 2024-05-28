@@ -167,61 +167,61 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 	let convert = true;
 	let insertfiledb = true;
 	let makeBlurhash = true;
-	let fileDBExists = false;
 
-	// // Check if the (file SHA256 hash and pubkey) is already on the database, if exist (and the upload is media type) we return the existing file URL
-	// const dbHash = await dbMultiSelect(
-	// 							"SELECT id, hash, magnet, blurhash, filename, filesize, dimensions " +
-	// 							"FROM mediafiles " + 
-	// 							"WHERE original_hash = ? and pubkey = ? and filename not like 'avatar%' and filename not like 'banner%' ",
-	// 							["id", "hash", "magnet", "blurhash", "filename", "filesize", "dimensions"],
-	// 							[filedata.originalhash, pubkey],
-	// 							mediafilesTableFields) as string[];
+	// Check if the (file SHA256 hash and pubkey) is already on the database, if exist (and the upload is media type) we return the existing file URL
+	const dbHash = await dbMultiSelect(
+								"SELECT id, hash, magnet, blurhash, filename, filesize, dimensions " +
+								"FROM mediafiles " + 
+								"WHERE original_hash = ? and pubkey = ? and filename not like 'avatar%' and filename not like 'banner%' ",
+								["id", "hash", "magnet", "blurhash", "filename", "filesize", "dimensions"],
+								[filedata.originalhash, pubkey],
+								mediafilesTableFields) as string[];
 
-	// if (dbHash[0].length != 0 && media_type == "media") {
-	// 	logger.info(`RES ->  File already in database, returning existing URL:`, filedata.servername + "/media/" + pubkey + "/" + filedata.filename, "|", getClientIp(req));
+	if (dbHash[0].length != 0 && media_type == "media") {
+		logger.info(`RES ->  File already in database, returning existing URL:`, filedata.servername + "/media/" + pubkey + "/" + filedata.filename, "|", getClientIp(req));
 
-	// 	if (version == "v1"){filedata.status = JSON.parse(JSON.stringify(UploadStatus[2]));}
-	// 	if (version == "v2"){filedata.status = JSON.parse(JSON.stringify(MediaStatus[0]));}
-	// 	filedata.fileid = dbHash[0];
-	// 	filedata.hash = dbHash[1];
-	// 	filedata.magnet = dbHash[2];
-	// 	filedata.blurhash = dbHash[3];
-	// 	filedata.filename = dbHash[4];
-	// 	filedata.filesize = +dbHash[5];
-	// 	if (dbHash[6] != undefined || dbHash[6] != null || dbHash[6] != "") {
-	// 		filedata.width = +(dbHash[6].split("x")[0]);
-	// 		filedata.height = +(dbHash[6].split("x")[1]);
-	// 	}
-	// 	filedata.description = "File exist in database, returning existing URL";
-	// 	convert = false; 
-	// 	insertfiledb = false;
-	// 	makeBlurhash = false;
-	// 	fileDBExists = true;
-	// }
+		if (version == "v1"){filedata.status = JSON.parse(JSON.stringify(UploadStatus[2]));}
+		if (version == "v2"){filedata.status = JSON.parse(JSON.stringify(MediaStatus[0]));}
+		filedata.fileid = dbHash[0];
+		filedata.hash = dbHash[1];
+		filedata.magnet = dbHash[2];
+		filedata.blurhash = dbHash[3];
+		filedata.filename = dbHash[4];
+		filedata.filesize = +dbHash[5];
+		if (dbHash[6] != undefined || dbHash[6] != null || dbHash[6] != "") {
+			filedata.width = +(dbHash[6].split("x")[0]);
+			filedata.height = +(dbHash[6].split("x")[1]);
+		}
+		filedata.description = "File exist in database, returning existing URL";
+		convert = false; 
+		insertfiledb = false;
+		makeBlurhash = false;
 
-	if (fileDBExists && !await fileExist(filedata.filename)){
-		logger.warn("File already in database but not found on pubkey folder, copying now and processing as new file", "|", getClientIp(req));
-		convert = true;
+		if (!await fileExist(filedata.filename)){
+			logger.warn("File already in database but not found on storage server, processing as new file", "|", getClientIp(req));
+			convert = true;
+		}
 	}
 
 	// Write temp file to disk (for ffmpeg and blurhash)
-	filedata.conversionInputPath = app.get("config.storage")["local"]["tempPath"] + "in" + crypto.randomBytes(20).toString('hex') + filedata.filename;
-	if (!await writeFileLocal(filedata.conversionInputPath, file.buffer)) {
-		logger.error("Could not write temp file to disk", "|", filedata.conversionInputPath);
-		if(version != "v2"){return res.status(500).send({"result": false, "description" : "Internal server error."});}
+	if (convert){
+		filedata.conversionInputPath = app.get("config.storage")["local"]["tempPath"] + "in" + crypto.randomBytes(20).toString('hex') + filedata.filename;
+		if (!await writeFileLocal(filedata.conversionInputPath, file.buffer)) {
+			logger.error("Could not write temp file to disk", "|", filedata.conversionInputPath);
+			if(version != "v2"){return res.status(500).send({"result": false, "description" : "Internal server error."});}
 
-		const result: ResultMessagev2 = {
-			status: MediaStatus[1],
-			message: "Internal server error.",
-		};
-		return res.status(500).send(result);
-	}
+			const result: ResultMessagev2 = {
+				status: MediaStatus[1],
+				message: "Internal server error.",
+			};
+			return res.status(500).send(result);
+		}
 
-	// generate blurhash
-	if (makeBlurhash) {
-		if (filedata.originalmime.toString().startsWith("image")){
-			filedata.blurhash = await generateBlurhash(filedata.conversionInputPath);
+		// generate blurhash
+		if (makeBlurhash) {
+			if (filedata.originalmime.toString().startsWith("image")){
+				filedata.blurhash = await generateBlurhash(filedata.conversionInputPath);
+			}
 		}
 	}
 
@@ -930,13 +930,11 @@ const deleteMedia = async (req: Request, res: Response, version:string): Promise
 		return res.status(404).send(result);
 	}
 
-	// mediaPath checks
 	const mediaLocation = app.get("config.storage")["type"];
 	logger.debug("Media location:", mediaLocation, "|", getClientIp(req));
 
 	if (mediaLocation == "local") {
 
-		// Delete file from disk
 		try{
 			const mediaPath = config.get("storage.local.mediaPath") + EventHeader.pubkey + "/" + filename;
 			logger.debug("Deleting file from disk:", mediaPath, "|", getClientIp(req));
@@ -946,6 +944,7 @@ const deleteMedia = async (req: Request, res: Response, version:string): Promise
 			}
 		}catch{
 			logger.error("Error deleting file from disk", EventHeader.pubkey, filename, "|", getClientIp(req));
+
 			//v0 and v1 compatibility
 			if(version != "v2"){return res.status(500).send({"result": false, "description" : "Error deleting file from disk"})};
 
