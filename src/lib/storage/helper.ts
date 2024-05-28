@@ -2,12 +2,12 @@ import app from "../../app.js";
 import { ProcessingFileData } from "../../interfaces/media.js";
 import { logger } from "../logger.js";
 import { copyFileLocal, createFolderLocal, fileExistLocal } from "./local.js";
-import { saveFileS3 } from "./remote.js";
+import { saveR2File } from "./remote.js";
 
 const saveFile = async (filedata: ProcessingFileData, originPath : string) : Promise<boolean> => {
 
-    logger.debug("Saving file", "|", filedata);
-    logger.debug("storage type", app.get("config.storage")["type"]);
+    logger.debug("Saving file", "|", filedata.filename);
+    logger.debug("storage type:", app.get("config.storage")["type"]);
 
     if (app.get("config.storage")["type"] === "local") {
 
@@ -27,12 +27,15 @@ const saveFile = async (filedata: ProcessingFileData, originPath : string) : Pro
             }
         }
 
+        return true;
+
     }
 
     if (app.get("config.storage")["type"] === "remote") {
-        saveFileS3(originPath, filedata);
+        return saveR2File(originPath, filedata);
     } 
-    return true;
+
+    return false;
 }
 
 const fileExist = async (fileName: string) : Promise<boolean> => {
