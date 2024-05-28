@@ -18,7 +18,7 @@ const s3Config: S3ClientConfig = {
 
 const s3Client = new S3Client(s3Config);
 
-const saveR2File = async (filePath: string, filedata:ProcessingFileData): Promise<boolean> => {
+const saveRemoteFile = async (filePath: string, filedata:ProcessingFileData): Promise<boolean> => {
 
   const bucketName :string = app.get("config.storage")["remote"]["bucketName"];
 
@@ -41,7 +41,7 @@ const saveR2File = async (filePath: string, filedata:ProcessingFileData): Promis
   return false;
 }
 
-const getR2File = async (filename: string): Promise<string> => {
+const getRemoteFile = async (filename: string): Promise<string> => {
   
   const bucketName :string = app.get("config.storage")["remote"]["bucketName"];
 
@@ -68,7 +68,7 @@ const getR2File = async (filename: string): Promise<string> => {
   return "";
 }
 
-const deleteR2File = async (filename: string): Promise<boolean> => {
+const deleteRemoteFile = async (filename: string): Promise<boolean> => {
     
       const bucketName :string = app.get("config.storage")["remote"]["bucketName"];
     
@@ -81,10 +81,10 @@ const deleteR2File = async (filename: string): Promise<boolean> => {
         await s3Client.send(new DeleteObjectCommand(params));
         return true;
       } catch (error) {
-        logger.error(`Error deleting file: ${error}`);
+        logger.error(`Error deleting file from remote server: ${error}`);
       }
     
       return false;
   }
 
-export { saveR2File, getR2File, deleteR2File };
+export { saveRemoteFile, getRemoteFile, deleteRemoteFile };
