@@ -1,5 +1,5 @@
 import fs from 'fs';
-import { S3Client, S3ClientConfig, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
+import { S3Client, S3ClientConfig, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, HeadObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { ProcessingFileData, mime_conversion } from '../../interfaces/media.js';
 import { logger } from '../logger.js';
@@ -43,21 +43,29 @@ const saveR2File = async (filePath: string, filedata:ProcessingFileData): Promis
 
 const getR2File = async (filename: string): Promise<string> => {
   
-    const bucketName :string = app.get("config.storage")["remote"]["bucketName"];
-  
-    const params = new GetObjectCommand({
-      Bucket: bucketName,
-      Key: filename,
-    });
-  
-    try {
-      const url = await getSignedUrl(s3Client, params, { expiresIn: 60 });
-      return url;
-    } catch (error) {
-      logger.error(`Error generating signed URL: ${error}`);
-    }
-  
+  const bucketName :string = app.get("config.storage")["remote"]["bucketName"];
+
+  const params = {
+    Bucket: bucketName,
+    Key: filename,
+  };
+
+  try {
+    // Verificar si el archivo existe
+    await s3Client.send(new HeadObjectCommand(params));
+  } catch (error) {
+    logger.error(`File does not exist: ${error}`);
     return "";
+  }
+
+  try {
+    const url = await getSignedUrl(s3Client, new GetObjectCommand(params), { expiresIn: 60 });
+    return url;
+  } catch (error) {
+    logger.error(`Error generating signed URL: ${error}`);
+  }
+
+  return "";
 }
 
 const deleteR2File = async (filename: string): Promise<boolean> => {
