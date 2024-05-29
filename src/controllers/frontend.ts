@@ -1,6 +1,5 @@
 import { Request, Response } from "express";
 import fs from "fs";
-import config from "config";
 import app from "../app.js";
 import { logger } from "../lib/logger.js";
 import { getClientIp, markdownToHtml } from "../lib/utils.js";
@@ -145,8 +144,8 @@ const loadTosPage = async (req: Request, res: Response, version:string): Promise
     req.body.serverHost = app.get("config.server")["host"];
     let tosFile : string = "";
     try{
-        tosFile = fs.readFileSync(config.get("server.tosFilePath")).toString();
-        tosFile = markdownToHtml(fs.readFileSync(config.get("server.tosFilePath")).toString());
+        tosFile = fs.readFileSync(app.get("config.server")["tosFilePath"]).toString();
+        tosFile = markdownToHtml(fs.readFileSync(app.get("config.server")["tosFilePath"]).toString());
         tosFile = tosFile.replace(/\[SERVERADDRESS\]/g, app.get("config.server")["host"]);
     }catch(e){
         logger.error("Failed to read tos file", e);
@@ -237,7 +236,7 @@ const frontendLogin = async (req: Request, res: Response): Promise<Response> => 
     }
 
     // Set session maxAge
-    if (req.body.rememberMe == "true"){req.session.cookie.maxAge = config.get('session.maxAge');}
+    if (req.body.rememberMe == "true"){req.session.cookie.maxAge = app.get("config.session")["maxAge"];}
 
     let canLogin = false;
     if (req.body.pubkey != undefined){

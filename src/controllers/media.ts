@@ -17,7 +17,6 @@ import {
 	mime_extension,
 } from "../interfaces/media.js";
 import { ResultMessage, ResultMessagev2 } from "../interfaces/server.js";
-import config from "config";
 import path from "path";
 import validator from "validator";
 import fs from "fs";
@@ -61,7 +60,7 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 	// Check if pubkey is on the database
 	let pubkey : string = EventHeader.pubkey;
 	if (pubkey != await dbSelect("SELECT hex FROM registered WHERE hex = ?", "hex", [pubkey], registeredTableFields) as string) {
-		if (config.get("media.allowPublicUploads") == false) {
+		if (app.get("config.media")["allowPublicUploads"] == false) {
 			logger.warn("pubkey not registered, public uploads not allowed | ", getClientIp(req));
 			if(version != "v2"){return res.status(401).send({"result": false, "description" : "public uploads not allowed"});}
 
@@ -126,8 +125,8 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 		fileid: "",
 		filesize: file.size,
 		pubkey: pubkey,
-		width: config.get("media.transform.media.undefined.width"),
-		height: config.get("media.transform.media.undefined.height"),
+		width: app.get("config.media")["transform"]["media"]["undefined"]["width"],
+		height: app.get("config.media")["transform"]["media"]["undefined"]["height"],
 		media_type: media_type,
 		originalmime: file.mimetype,
 		outputoptions: "",
@@ -291,6 +290,8 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 
 const getMediaStatusbyID = async (req: Request, res: Response, version:string): Promise<Response> => {
 
+	logger.debug("getMediaStatusbyID", "|", getClientIp(req));
+
 	// Check if current module is enabled
 	if (!isModuleEnabled("media", app)) {
         logger.warn("Attempt to access a non-active module:","media","|","IP:", getClientIp(req));
@@ -423,7 +424,7 @@ const getMediaStatusbyID = async (req: Request, res: Response, version:string): 
 			magnet: rowstemp[0].magnet,
 			tags: tags,
 
-		};
+		}; 
 		return res.status(response).send(result);
 	}
 
@@ -471,6 +472,8 @@ const getMediaStatusbyID = async (req: Request, res: Response, version:string): 
 
 const getMediabyURL = async (req: Request, res: Response) => {
 
+	logger.debug("getMediabyURL", "|", getClientIp(req));
+
 	// Check if current module is enabled
 	if (!isModuleEnabled("media", app)) {
         logger.warn("Attempt to access a non-active module:","media","|","IP:", getClientIp(req));
@@ -484,27 +487,27 @@ const getMediabyURL = async (req: Request, res: Response) => {
 	res.set("Cross-Origin-Resource-Policy", "*");
 	res.set("X-frame-options", "*")
 
-	// Old API compatibility (username instead of pubkey)
-	let username : string = "";
-	if (req.params.pubkey.length < 64) {
-		const hex = await dbSelect("SELECT hex FROM registered WHERE username = ?", "hex", [req.params.pubkey], registeredTableFields);
-		if (hex) {
-			logger.debug("Old API compatibility (username instead of pubkey)", req.params.pubkey,"-", hex, "|", getClientIp(req));
-			username = req.params.pubkey;
-			req.params.pubkey = hex as string;
-		}
-	}
-
 	// Initial security checks
-	if (!req.params.pubkey || 
-		req.params.pubkey.length > 64 || 
-		!validator.default.matches(req.params.pubkey, /^[a-zA-Z0-9_]+$/) ||
+	if (
+		req.params.pubkey && req.params.pubkey.length > 64 || 
+		req.params.pubkey && !validator.default.matches(req.params.pubkey, /^[a-zA-Z0-9_]+$/) ||
 		!req.params.filename || 
 		req.params.filename.length > 70 ||
 		!validator.default.matches(req.params.filename, /^[a-zA-Z0-9_]+(\.[a-zA-Z0-9_]+)*\.[a-zA-Z0-9_]+$/)) {
 		logger.warn(`RES Media URL -> 400 Bad request:`, req.params.filename, "|", getClientIp(req));
 		res.setHeader('Content-Type', 'image/webp');
 		return res.status(400).send(await getNotFoundMediaFile());
+	}
+
+	// Old API compatibility (username instead of pubkey)
+	let username : string = "";
+	if (req.params.pubkey && req.params.pubkey.length < 64) {
+		const hex = await dbSelect("SELECT hex FROM registered WHERE username = ?", "hex", [req.params.pubkey], registeredTableFields);
+		if (hex) {
+			logger.debug("Old API compatibility (username instead of pubkey)", req.params.pubkey,"-", hex, "|", getClientIp(req));
+			username = req.params.pubkey;
+			req.params.pubkey = hex as string;
+		}
 	}
 
 	// Check if file is active on the database
