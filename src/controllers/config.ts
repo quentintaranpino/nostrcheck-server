@@ -2,12 +2,13 @@ import path from "path";
 import fs, { promises as fsPromises } from "fs";
 import { defaultConfig, localPath, necessaryKeys } from "../interfaces/config.js";
 import { createkeyPair, getPubkeyFromSecret } from "../lib/nostr/core.js";
-import { syncDefaultConfigValues, updateLocalConfigKey } from "../lib/config.js";
+import { updateLocalConfigKey } from "../lib/config.js";
 import app from "../app.js";
 import config from "config";
 import { exit } from "process";
-import { dbMultiSelect } from "../lib/database.js";
+import { dbMultiSelect, dbUpdate } from "../lib/database.js";
 import { mediafilesTableFields } from "../interfaces/database.js";
+import { getHashedPath } from "../lib/hash.js";
 
 const checkConfigNecessaryKeys = async () : Promise<void> => {
 
@@ -111,12 +112,70 @@ const migrateFolders = async(mediaPath:string) => {
 		console.error("Error renaming folders: ", err);
 		process.exit(1);
 	}
+
 }
+
+const migrateDBLocalpath = async () : Promise<boolean> => {
+    
+	const mediaFiles = await dbMultiSelect('SELECT filename, pubkey FROM mediafiles WHERE localpath IS NULL',['filename', 'pubkey'], ['1=1'], mediafilesTableFields, false);
+	if (mediaFiles == undefined || mediaFiles == null || mediaFiles.length == 0){
+        console.debug("No media files to process.");
+        return false;
+    }
+
+	console.log("Migrating", mediaFiles.length, "files", "to new localpath folder version, it can take a while...");
+	
+	for (const item of mediaFiles) {
+		const [filename, pubkey] = item.split(',');
+        const hashpath = await getHashedPath(filename);
+        const updateSuccess = await dbUpdate('mediafiles', 'localpath', hashpath, 'filename', filename);
+        if (!updateSuccess) {console.error(`Failed to update media file ${filename} with hashpath ${hashpath}`);};
+
+		const oldPath = path.join(app.get("config.storage")["local"]["mediaPath"], pubkey, filename);
+		const newPath = path.join(app.get("config.storage")["local"]["mediaPath"], hashpath, filename);
+
+		try {
+
+			if (!fs.existsSync(path.join(app.get("config.storage")["local"]["mediaPath"], hashpath))) {
+				fs.mkdirSync(path.join(app.get("config.storage")["local"]["mediaPath"], hashpath));
+			}
+            await fs.rename(oldPath, newPath, (err) => {
+				if (err) {
+					console.error(`Failed to move file ${filename} to ${newPath}: ${err}`);
+				} else {
+					console.log(`Moved file ${filename} to ${newPath}`);
+				}
+			});
+
+        } catch (error) {
+            console.error(`Failed to move file ${filename} to ${newPath}: ${error}`);
+        }
+    };
+
+	console.log("Cleaning empty folders...")
+	for (const item of mediaFiles) {
+		const [filename, pubkey] = item.split(',');
+		const oldPath = path.join(app.get("config.storage")["local"]["mediaPath"], pubkey);
+		try {
+			if (fs.existsSync(oldPath) && fs.readdirSync(oldPath).length === 0) {
+				fs.rmdirSync(oldPath);
+			}
+		}
+		catch (error) {
+			console.error(`Failed to remove empty folder ${oldPath}: ${error}`);
+		}
+	}
+
+	console.log("Migration complete.");
+
+    return true;
+}
+
+
 
 const prepareAPPConfig = async(): Promise<boolean> =>{
 
 	if (fs.existsSync(localPath)){
-        await syncDefaultConfigValues(defaultConfig, localPath);
 		await checkConfigNecessaryKeys();
 		return true;
 	}else{
@@ -167,6 +226,7 @@ const prepareApp = async() => {
 	await prepareAPPConfig();
 	await prepareAppFolders();
 	await migrateFolders(app.get("config.storage")["local"]["mediaPath"]);
+	await migrateDBLocalpath();
 }
 
 export { checkConfigNecessaryKeys, migrateFolders, prepareApp };
