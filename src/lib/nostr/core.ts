@@ -1,9 +1,11 @@
-import { generateSecretKey, getPublicKey } from "nostr-tools";
 import { bytesToHex } from '@noble/hashes/utils'
-import { NostrEvent } from "nostr-tools"
-import {SimplePool } from "nostr-tools/pool"
-import 'websocket-polyfill'
 import { logger } from "../logger.js"
+import { generateSecretKey, getPublicKey } from "nostr-tools";
+import { NostrEvent } from "nostr-tools"
+import {SimplePool, useWebSocketImplementation } from "nostr-tools/pool"
+import WebSocket from 'ws'
+useWebSocketImplementation(WebSocket)
+
 
 const relays = [
 	"wss://relay.nostrcheck.me",
