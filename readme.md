@@ -92,7 +92,7 @@ See configuration [here](https://github.com/quentintaranpino/nostrcheck-api-ts/b
 - [x] Frontend UI (settings)
 - [x] Frontend UI (homepage)
 - [x] Frontend UI (docs and ToS)
-- [ ] Object Storage
+- [x] Remote Object Storage (s3)
 - [ ] Multi-server mirroring
 - [ ] Lightning payments
 - [ ] Import / Export data
