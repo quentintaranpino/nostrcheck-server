@@ -58,6 +58,13 @@ const getLocalFile = async (filePath: string) : Promise<boolean> => {
 
 const writeFileLocal = async (filePath: string, file: Buffer) : Promise<boolean> => {
     try {
+        if (!fs.existsSync(filePath)) {
+            fs.mkdirSync(filePath);
+        }
+        if(!file || file.length == 0) {
+            logger.error("Error writing file", "|", filePath);
+            return false;
+        }
         await fs.promises.writeFile(filePath, file);
     } catch {
         logger.error("Error writing file", "|", filePath);
