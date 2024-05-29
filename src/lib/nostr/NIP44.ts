@@ -1,11 +1,11 @@
 import {nip44} from "nostr-tools"
 
- const encrypt = (message: string, pk: string, sk: string) : string => {
+ const encrypt = (message: string, pk: string, sk: Uint8Array) : string => {
     return nip44.v2.encrypt(message, getSharedSecret(sk, pk))
   }
 
 
- const getSharedSecret = (secretKey :string, publicKey :string) : Uint8Array => {
+ const getSharedSecret = (secretKey :Uint8Array, publicKey :string) : Uint8Array => {
     return nip44.v2.utils.getConversationKey(secretKey, publicKey);
 }
 
