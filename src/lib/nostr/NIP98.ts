@@ -1,7 +1,6 @@
 import crypto from "crypto";
 import { Request } from "express";
 import { Event } from "nostr-tools";
-import config from "config";
 import { logger } from "../../lib/logger.js";
 import { NIPKinds } from "../../interfaces/nostr.js";
 import { authHeaderResult } from "../../interfaces/authorization.js";
