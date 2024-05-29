@@ -1,23 +1,24 @@
 import { Application } from "express";
 import multer from "multer";
-import config from "config";
 import { uploadMedia, getMediaStatusbyID, getMediabyURL, deleteMedia, updateMediaVisibility, getMediaTagsbyID, getMediabyTags } from "../controllers/media.js";
 import { ResultMessage, ResultMessagev2 } from "../interfaces/server.js";
 import { logger } from "../lib/logger.js";
 import { getClientIp } from "../lib/utils.js";
 import { NIP96Data } from "../controllers/nostr.js";
+import app from "../app.js";
 
-const maxMBfilesize :number = config.get('media.maxMBfilesize');
+const maxMBfilesize :number = app.get("config.media")["maxMBfilesize"].replace(',', '.');
 
 const upload = multer({
 	storage: multer.memoryStorage(),
-	limits: { fileSize: maxMBfilesize * 1024 * 1024 },
+	limits: { fileSize: Math.round(maxMBfilesize * 1024 * 1024)},
 });
 
 export const loadMediaEndpoint = async (app: Application, version:string): Promise<void> => {
 	
 	//Upload media
 	app.post("/api/" + version + app.get("config.server")["availableModules"]["media"]["path"], function (req, res){
+		logger.debug(Math.round(maxMBfilesize * 1024 * 1024))
 		upload.any()(req, res, function (err) {
 			//Return 413 Payload Too Large if file size is larger than maxMBfilesize from config file
 			if (err instanceof multer.MulterError && err.code === "LIMIT_FILE_SIZE") {
