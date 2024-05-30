@@ -27,7 +27,7 @@ import { generateBlurhash, generatefileHashfrombuffer } from "../lib/hash.js";
 import { mediafilesTableFields, registeredTableFields } from "../interfaces/database.js";
 import { isModuleEnabled } from "../lib/config.js";
 import { redisClient } from "../lib/redis.js";
-import { deleteFile, getFilePath } from "../lib/storage/helper.js";
+import { deleteFile, getFilePath } from "../lib/storage/core.js";
 import crypto from "crypto";
 import { writeFileLocal } from "../lib/storage/local.js";
 import { Readable } from "stream";
