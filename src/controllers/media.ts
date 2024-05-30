@@ -29,7 +29,7 @@ import { isModuleEnabled } from "../lib/config.js";
 import { redisClient } from "../lib/redis.js";
 import { deleteFile, getFilePath } from "../lib/storage/core.js";
 import crypto from "crypto";
-import { writeFileLocal } from "../lib/storage/local.js";
+import { writeLocalFile } from "../lib/storage/local.js";
 import { Readable } from "stream";
 import { getRemoteFile } from "../lib/storage/remote.js";
 
@@ -204,7 +204,7 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 	// Write temp file to disk (for ffmpeg and blurhash)
 	if (convert){
 		filedata.conversionInputPath = app.get("config.storage")["local"]["tempPath"] + "in" + crypto.randomBytes(20).toString('hex') + filedata.filename;
-		if (!await writeFileLocal(filedata.conversionInputPath, file.buffer)) {
+		if (!await writeLocalFile(filedata.conversionInputPath, file.buffer)) {
 			logger.error("Could not write temp file to disk", "|", filedata.conversionInputPath);
 			if(version != "v2"){return res.status(500).send({"result": false, "description" : "Internal server error."});}
 

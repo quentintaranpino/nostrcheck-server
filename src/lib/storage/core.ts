@@ -4,9 +4,15 @@ import { ProcessingFileData } from "../../interfaces/media.js";
 import { dbSelect, dbUpdate } from "../database.js";
 import { getHashedPath } from "../hash.js";
 import { logger } from "../logger.js";
-import { copyFileLocal, createFolderLocal, getLocalFile, deleteLocalFile } from "./local.js";
+import { copyLocalFile, createLocalFolder, getLocalFile, deleteLocalFile } from "./local.js";
 import { deleteRemoteFile, getRemoteFile, saveRemoteFile } from "./remote.js";
 
+/**
+ * Save file to storage
+ * @param filedata File data
+ * @param originPath Origin path
+ * @returns Promise<boolean>
+ */
 const saveFile = async (filedata: ProcessingFileData, originPath : string) : Promise<boolean> => {
 
     logger.debug("Saving file", "|", filedata.filename);
@@ -19,14 +25,14 @@ const saveFile = async (filedata: ProcessingFileData, originPath : string) : Pro
         const mediaPath = app.get("config.storage")["local"]["mediaPath"] + hashpath
         const filePath = mediaPath + "/" + filedata.filename;
 
-        if(!await createFolderLocal(mediaPath)){
+        if(!await createLocalFolder(mediaPath)){
             logger.error("Error creating folder", "|", mediaPath);
             return false;   
 	    }
 
         if (!await getLocalFile(filePath)) {
 
-            if (!await copyFileLocal(originPath, filePath)){
+            if (!await copyLocalFile(originPath, filePath)){
                 logger.error("Error copying file to disk", "|", filePath);
                 return false;
             }
@@ -49,6 +55,11 @@ const saveFile = async (filedata: ProcessingFileData, originPath : string) : Pro
     return false;
 }
 
+/**
+ * Get file path
+ * @param fileName File name
+ * @returns Promise<string>
+ */
 const getFilePath = async (fileName: string) : Promise<string> => {
 
     logger.debug("Checking file exist", "|", fileName);
@@ -76,6 +87,12 @@ const getFilePath = async (fileName: string) : Promise<string> => {
     return ""; 
 }
 
+/**
+ * Delete file
+ * @param fileName File name
+ * @param forceLocal Force local
+ * @returns Promise<boolean>
+ */
 const deleteFile = async (fileName: string, forceLocal : boolean = false) : Promise<boolean> => {
     
         logger.debug("Deleting file", "|", fileName);

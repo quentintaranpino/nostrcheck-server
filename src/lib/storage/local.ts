@@ -1,7 +1,8 @@
 import fs from "fs";
 import { logger } from "../logger.js";
 
-const createFolderLocal = async (mediaPath: string) : Promise<boolean> => {
+
+const createLocalFolder = async (mediaPath: string) : Promise<boolean> => {
     try {
         if (!fs.existsSync(mediaPath)) {
             fs.mkdirSync(mediaPath);
@@ -13,7 +14,7 @@ const createFolderLocal = async (mediaPath: string) : Promise<boolean> => {
     return true;
 }
 
-const copyFileBufferLocal = async (filePath: string, file: Buffer) : Promise<boolean> => {
+const copyLocalFileBuffer = async (filePath: string, file: Buffer) : Promise<boolean> => {
     try {
         await fs.promises.writeFile(filePath, file);
     } catch {
@@ -23,7 +24,7 @@ const copyFileBufferLocal = async (filePath: string, file: Buffer) : Promise<boo
     return true;
 }
 
-const copyFileLocal = async (originPath: string, destPath: string) : Promise<boolean> => {
+const copyLocalFile = async (originPath: string, destPath: string) : Promise<boolean> => {
     try {
         fs.copyFileSync(originPath, destPath);
     } catch (err){
@@ -56,7 +57,7 @@ const getLocalFile = async (filePath: string) : Promise<boolean> => {
     }
 }
 
-const writeFileLocal = async (filePath: string, file: Buffer) : Promise<boolean> => {
+const writeLocalFile = async (filePath: string, file: Buffer) : Promise<boolean> => {
     try {
         if(!file || file.length == 0) {
             logger.error("Error writing file", "|", filePath);
@@ -71,4 +72,10 @@ const writeFileLocal = async (filePath: string, file: Buffer) : Promise<boolean>
 }
 
 
-export { createFolderLocal, copyFileBufferLocal, copyFileLocal, deleteLocalFile, getLocalFile, writeFileLocal };
+export { createLocalFolder, 
+         copyLocalFileBuffer, 
+         copyLocalFile, 
+         deleteLocalFile, 
+         getLocalFile, 
+         writeLocalFile 
+        };
