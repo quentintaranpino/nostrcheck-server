@@ -36,6 +36,8 @@
   "dependencies": {
     "@aws-sdk/client-s3": "^3.583.0",
     "@aws-sdk/s3-request-presigner": "^3.583.0",
+    "@getalby/lightning-tools": "^5.0.3",
+    "@getalby/sdk": "^3.5.1",
     "@noble/hashes": "^1.4.0",
     "@typescript-eslint/eslint-plugin": "^7.11.0",
     "@typescript-eslint/parser": "^7.11.0",
