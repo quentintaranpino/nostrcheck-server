@@ -167,6 +167,13 @@ const defaultConfig = {
 			"bucketName": "your-bucket-name"
 		}
 	},
+	"payments" : {
+		"paymentProvider": "getalby",
+		"LNAddress": "nostrcheckme@getalby.com",
+		"getalby" : {
+		"authToken": "",
+		},
+	},
 }
 
 const localPath = "./config/local.json";
