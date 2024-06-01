@@ -219,6 +219,8 @@ const dbUpdate = async (tableName :string, selectFieldName: string, selectFieldV
 const dbInsert = async (tableName: string, fields: string[], values: (string | number | boolean)[]): Promise<number> => {
 	const conn = await connect("dbInsert:" + tableName);
 
+	logger.debug("Inserting data into", tableName, "table with fields:", fields.join(", "), "and values:", values.join(", "));
+
 	// Check if fields are not empty
 	if (fields.length == 0){
 		logger.error("Error inserting data into " + tableName + " table, fields are empty");
