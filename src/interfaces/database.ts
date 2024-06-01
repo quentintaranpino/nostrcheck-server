@@ -1,3 +1,4 @@
+import { Invoice } from "@getalby/lightning-tools";
 import { RowDataPacket } from "mysql2";
 
 interface domainsTableStructure extends RowDataPacket{
@@ -132,6 +133,34 @@ const registeredTableFields: registeredTable = {
 	},
 };
 
+interface transactionsTable extends RowDataPacket {
+	id: string;
+	pubkey: string;
+	paymentrequest: string;
+	satoshi: string;
+	paid: string;
+	createddate: string;
+	expirydate: string;
+	paiddate: string;
+	comments: string;
+}
+
+const transactionsTableFields: transactionsTable = {
+	id: "int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY",
+	pubkey: "varchar(64) NOT NULL",
+	paymentrequest: "varchar(1637) NOT NULL",
+	paymenthash: "varchar(64)",
+	satoshi: "int(11) NOT NULL",
+	paid: "boolean NOT NULL DEFAULT 0",
+	createddate: "datetime NOT NULL",
+	expirydate: "datetime NOT NULL",
+	paiddate: "datetime",
+	comments: "varchar(150)",
+	constructor: {
+		name: 'RowDataPacket',
+	},
+};
+
 //If you add a new field that is substituting an old one, add it here
 const newFieldcompatibility = [
 	{ newfield: 'newFieldname', oldField: 'oldFiedName' },
@@ -142,7 +171,8 @@ const newFieldcompatibility = [
 	{"lightning": lightningTableFields},
 	{"mediafiles": mediafilesTableFields},
 	{"mediatags": mediatagsTableFields},
-	{"registered": registeredTableFields}
+	{"registered": registeredTableFields},
+	{"transactions": transactionsTableFields},
 ];
 
 
@@ -152,6 +182,7 @@ export {
 	mediafilesTableFields,
 	mediatagsTableFields,
 	registeredTableFields,
+	transactionsTableFields,
 	newFieldcompatibility,
 	databaseTables
 };	
