@@ -1,25 +1,53 @@
 // https://github.com/getAlby/js-sdk
 // https://github.com/getAlby/js-lightning-tools
 import { LightningAddress } from "@getalby/lightning-tools";
+import { invoice } from "../../interfaces/payments.js";
+import app from "../../app.js";
 
-const generateGetalbyInvoice = async () => {
-    const ln = new LightningAddress("nostrcheckme@getalby.com");
+const generateGetalbyInvoice = async (LNAddress: string, amount:number) : Promise<invoice> => {
+    const ln = new LightningAddress(LNAddress);
     await ln.fetch();
 
-    const invoice = await ln.requestInvoice({ satoshi: 1 });
-    console.log(invoice.paymentRequest); 
+    const getalbyInvoice = await ln.requestInvoice({ satoshi: amount });
 
-    while (!await invoice.isPaid()) {
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        console.log("Waiting for payment...");
-    }
-
-    const paid = await invoice.verifyPayment(); 
-    if (paid) {
-        console.log(invoice.preimage);
-    }
-
-    return invoice;
+    return getalbyInvoice;
 }
 
-export { generateGetalbyInvoice }
+const isInvoicePaid = async (paymentHash: string) : Promise<boolean> => {
+
+    const authToken = app.get("config.payments")["getalby"]["authToken"];
+
+    const response = await fetch(`https://api.getalby.com/invoices/${paymentHash}`, {
+        method: 'GET',
+        headers: {
+            'Authorization': `Bearer ${authToken}`
+        }
+    });
+
+    const data = await response.json();
+
+    if (data.preimage && data.preimage != "null") {
+        return true;
+    }
+
+    return false;
+}
+
+const getInvoiceQR = async (paymentHash: string) : Promise<string> => {
+
+    const authToken = app.get("config.payments")["getalby"]["authToken"];
+
+    const response = await fetch(`https://api.getalby.com/invoices/${paymentHash}`, {
+        method: 'GET',
+        headers: {
+            'Authorization': `Bearer ${authToken}`
+        }
+    });
+
+    const data = await response.json();
+
+    return data.qr_code_png;
+
+}
+
+export { generateGetalbyInvoice, isInvoicePaid, getInvoiceQR }
