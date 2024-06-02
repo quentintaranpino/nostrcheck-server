@@ -8,4 +8,9 @@ interface invoice {
     verifyPayment: () => boolean;
 }
 
-export { invoice }
+interface checkPaymentResult {
+    paymentRequest: string;
+    satoshi: number;
+}
+
+export { invoice, checkPaymentResult}

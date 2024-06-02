@@ -1,17 +1,18 @@
 import app from "../../app.js";
 import { transactionsTableFields } from "../../interfaces/database.js";
-import { invoice } from "../../interfaces/payments.js";
+import { checkPaymentResult, invoice } from "../../interfaces/payments.js";
 import { dbInsert, dbMultiSelect, dbSelect, dbUpdate } from "../database.js"
 import { logger } from "../logger.js";
 import { generateGetalbyInvoice, getInvoiceQR, isInvoicePaid } from "./getalby.js";
 
-const requestPayment = async (pubkey: string, satoshi: number, mediaid: string = "0"): Promise<string> => {
+const checkPayment = async (pubkey: string, satoshi: number, mediaid: string = "0"): Promise<checkPaymentResult | string> => {
 
     if (pubkey == "" || pubkey == undefined || satoshi == 0 || satoshi == undefined) {return "";}
 
     if (await isMediaPaid(mediaid, pubkey)) {
         logger.debug("Mediafile is already paid")
-        return "";}
+        return {paymentRequest: "", satoshi: 0};
+    }
 
     const balance = await getBalance(pubkey);
 
@@ -20,10 +21,10 @@ const requestPayment = async (pubkey: string, satoshi: number, mediaid: string =
     
     if (balance < satoshi) {
 
-        const transactionExist = await getMediaPaymentHash(mediaid)
+        const transactionExist = await getMediaPaymentRequest(mediaid)
         if (transactionExist) {
             logger.debug("Mediafile already has a transaction")
-            return getInvoiceQR(transactionExist.toString());
+            return {paymentRequest: transactionExist, satoshi: satoshi-balance};
         }
 
         const invoice = await generateLNInvoice(satoshi-balance);
@@ -34,7 +35,7 @@ const requestPayment = async (pubkey: string, satoshi: number, mediaid: string =
             await addTransacion("credit", pubkey, invoice, satoshi-balance);
         };
         logger.debug("Generated invoice for payment")
-        return getInvoiceQR(invoice.paymentHash);
+        return {paymentRequest: invoice.paymentRequest, satoshi: satoshi-balance};
 
     } else {
         const invoice = generateDebitInvoice();
@@ -47,7 +48,7 @@ const requestPayment = async (pubkey: string, satoshi: number, mediaid: string =
         };
 
         logger.debug("Local balance used for payment")
-        return "";
+        return {paymentRequest: "", satoshi: 0};
     }
 }
 
@@ -131,6 +132,10 @@ const getMediaPaymentHash = async (mediaid: string) : Promise<string> => {
     return result;
 }
 
+const getMediaPaymentRequest = async (mediaid: string) : Promise<string> => {
+    const result = await dbSelect("SELECT paymentrequest FROM transactions INNER JOIN mediafiles on transactions.id = mediafiles.transactionid WHERE mediafiles.id = ?", "paymentrequest", [mediaid], transactionsTableFields) as string;
+    return result;
+}
 
 
 setInterval(async () => {
@@ -145,4 +150,4 @@ setInterval(async () => {
     }
 }, 10000);
 
-export { requestPayment, getBalance}
+export { checkPayment, getBalance}

@@ -22,7 +22,7 @@ import validator from "validator";
 import fs from "fs";
 import { NIP96_event, NIP96_processing } from "../interfaces/nostr.js";
 import { PrepareNIP96_event } from "../lib/nostr/NIP96.js";
-import { getClientIp } from "../lib/utils.js";
+import { generateQRCode, getClientIp } from "../lib/utils.js";
 import { generateBlurhash, generatefileHashfrombuffer } from "../lib/hash.js";
 import { mediafilesTableFields, registeredTableFields } from "../interfaces/database.js";
 import { isModuleEnabled } from "../lib/config.js";
@@ -32,7 +32,8 @@ import crypto from "crypto";
 import { writeLocalFile } from "../lib/storage/local.js";
 import { Readable } from "stream";
 import { getRemoteFile } from "../lib/storage/remote.js";
-import { requestPayment } from "../lib/payments/core.js";
+import { checkPayment } from "../lib/payments/core.js";
+import { checkPaymentResult } from "../interfaces/payments.js";
 
 const uploadMedia = async (req: Request, res: Response, version:string): Promise<Response> => {
 
@@ -534,31 +535,15 @@ const getMediabyURL = async (req: Request, res: Response) => {
 		}
 
 		// Paid media check
-		const paymentQR = await requestPayment(req.params.pubkey, 1, filedata[0]);
-		if (paymentQR != "") {
+		const paymentRequest: checkPaymentResult = await checkPayment(req.params.pubkey, 1, filedata[0]) as checkPaymentResult;
+		if (paymentRequest.paymentRequest != "") {
 			logger.info(`RES -> 200 Paid media file ${req.url}`, "|", getClientIp(req), "|", "cached:", cachedStatus ? true : false);
-			const remoteQR = await fetch(paymentQR);
-			if (!remoteQR.ok || !remoteQR.body ) {
-				logger.error('Failed to fetch payment QR code', getClientIp(req));
-				res.setHeader('Content-Type', 'image/webp');
-				return res.status(404).send(await getNotFoundMediaFile());
-			}
 
-			const reader = remoteQR.body.getReader();
-			const stream = new Readable({
-			read() {
-				reader.read().then(({ done, value }) => {
-				if (done) {
-					this.push(null);
-				} else {
-					this.push(Buffer.from(value));
-				}
-				});
-			}
-			});
+			const bottomText = 'Texto inferior';
+			const qrImage = await generateQRCode(paymentRequest.paymentRequest, "Invoice amount: " + paymentRequest.satoshi + " sats");
+
 			res.setHeader('Content-Type', 'image/png');
-			return stream.pipe(res);
-
+			return res.status(200).send(qrImage);
 		}
 		
 		await redisClient.set(req.params.filename + "-" + req.params.pubkey, "1", {
