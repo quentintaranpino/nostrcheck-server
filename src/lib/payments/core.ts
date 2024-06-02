@@ -1,52 +1,104 @@
 import { transactionsTableFields } from "../../interfaces/database.js";
 import { invoice } from "../../interfaces/payments.js";
-import { dbInsert, dbSelect, dbUpdate } from "../database.js"
+import { dbInsert, dbMultiSelect, dbSelect, dbUpdate } from "../database.js"
 import { logger } from "../logger.js";
 import { generateGetalbyInvoice, getInvoiceQR, isInvoicePaid } from "./getalby.js";
 
+const requestPayment = async (pubkey: string, satoshi: number, mediaid: string = "0"): Promise<string> => {
 
-const requestPayment = async (pubkey: string, satoshi: number): Promise<string> => {
+    if (pubkey == "" || pubkey == undefined || satoshi == 0 || satoshi == undefined) {return "";}
+
+    if (await isMediaPaid(mediaid, pubkey)) {
+        logger.debug("Mediafile is already paid")
+        return "";}
+
     const balance = await getBalance(pubkey);
-    console.log("pending invoices: ", await getPendingInvoices());
+    logger.debug("Balance: ", balance, "Invoice satoshi amount: ", satoshi)
 
     if (balance < satoshi) {
-        console.log("Balance: ", balance, "Invoice satoshi amount: ", satoshi-balance)
         const invoice = await generateLNInvoice(satoshi-balance);
-        addTransacion(pubkey, invoice, satoshi-balance);
+
+        if (mediaid != "0"){
+            await dbUpdate("mediafiles", "transactionid", (await addTransacion("credit", pubkey, invoice, satoshi-balance)).toString(), "id", mediaid)
+        }else{
+            await addTransacion("credit", pubkey, invoice, satoshi-balance);
+        };
+        logger.debug("Generated invoice for payment")
         return getInvoiceQR(invoice.paymentHash);
+
     } else {
+        const invoice = generateDebitInvoice();
+        invoice.description = "Debit media file: " + mediaid;
+
+        if (mediaid != "0"){
+            await dbUpdate("mediafiles", "transactionid", (await addTransacion("debit", pubkey, invoice, -satoshi)).toString(), "id", mediaid)
+        }else{
+            await addTransacion("debit", pubkey, invoice, -satoshi);
+        };
+
+        logger.debug("Local balance used for payment")
         return "";
     }
 }
 
 const generateLNInvoice = async (amount: number) : Promise<invoice> => {
-    
     return await generateGetalbyInvoice("nostrcheckme@getalby.com", amount);
 }
 
-const addTransacion = async (pubkey: string, invoice: invoice, satoshi: number) : Promise<Boolean> => {
+const generateDebitInvoice = () => {
 
-    const result = await dbInsert(  "transactions",   
-                                    ["pubkey", 
+    const emptyInvoice : invoice = {
+        paymentRequest: "",
+        paymentHash: "",
+        createdDate: "",
+        expiryDate: "",
+        description: "",
+        isPaid: () => {return true},
+        verifyPayment: () => {return true}
+    }
+    return emptyInvoice;
+}
+
+const addTransacion = async (type: string, pubkey: string, invoice: invoice, satoshi: number) : Promise<number> => {
+
+    const test = new Date().toString();
+
+    return await dbInsert(  "transactions",   
+                                    ["type",
+                                    "pubkey", 
                                     "paymentrequest", 
                                     "paymenthash", 
                                     "satoshi", 
                                     "paid", 
                                     "createddate", 
-                                    "expirydate"], 
-                                    [pubkey,
-                                    invoice.paymentRequest, 
-                                    invoice.paymentHash, 
+                                    "expirydate",
+                                    "comments"], 
+                                    [type, 
+                                    pubkey,
+                                    invoice.paymentRequest? invoice.paymentRequest : "", 
+                                    invoice.paymentHash? invoice.paymentHash : "", 
                                     satoshi, 
-                                    false, 
-                                    invoice.createdDate, 
-                                    invoice.expiryDate]
+                                    (await invoice.isPaid()? 1 : 0).toString(), 
+                                    invoice.createdDate ? invoice.createdDate : new Date().toISOString().slice(0, 19).replace('T', ' '), 
+                                    invoice.expiryDate? invoice.expiryDate : new Date().toISOString().slice(0, 19).replace('T', ' '),
+                                    invoice.description? invoice.description : ""]
                                 );
-    if (result != 0 ) {
-        return true;
-    } else {
-        return false;
-    }
+}
+
+const payTransaction = async (transactionid: string, paymenthash: string) => {
+
+    if ((transactionid == "" || transactionid == undefined) && (paymenthash == "" || paymenthash == undefined)) {return false;}
+
+    const type = paymenthash? "paymenthash" : "id";
+
+    const result = await dbMultiSelect("SELECT pubkey, satoshi FROM transactions WHERE " + type + " = ?", ["pubkey", "satoshi"], [paymenthash || transactionid], transactionsTableFields);
+
+    const invoice = generateDebitInvoice();
+    invoice.description = "Debit invoice: " + paymenthash;
+    await addTransacion("debit", result[0], invoice, - result[1]);
+    
+    return await dbUpdate("transactions", "paid", "1", type, paymenthash || transactionid);
+
 }
 
 const getBalance = async (pubkey: string) => {
@@ -59,21 +111,22 @@ const getPendingInvoices = async () => {
     return result;
 }
 
+const isMediaPaid = async (mediaid: string, pubkey:string) : Promise<boolean> => {
+    const result = await dbSelect("SELECT paid FROM transactions INNER JOIN mediafiles ON transactions.id = mediafiles.transactionid WHERE mediafiles.id = ? and mediafiles.pubkey = ?", "paid", [mediaid, pubkey], transactionsTableFields);
+    return Boolean(result);
+}
+
+
 setInterval(async () => {
     const pendingInvoices = await getPendingInvoices();
-    console.log("pending", pendingInvoices)
+    logger.debug("pending invoices:", pendingInvoices)
 
     for (const invoiceHash of pendingInvoices) {
         const paid = await isInvoicePaid(invoiceHash);
         if (paid) {
-            const result = await dbUpdate("transactions", "paid", "1", "paymenthash", invoiceHash);
-            if (result != false) {
-                logger.info(`Payment has been made. Invoice: ${invoiceHash}`);
-            }else{
-                logger.error(`Error updating payment status. Invoice: ${invoiceHash}`);
-            }
+            await payTransaction("", invoiceHash)? logger.info(`Payment has been made. Invoice: ${invoiceHash}`) : logger.error(`Error updating payment status. Invoice: ${invoiceHash}`);
         }
     }
-}, 5000);
+}, 10000);
 
 export { requestPayment, getBalance}
