@@ -3,6 +3,9 @@ import path from 'path';
 import url from 'url';
 import markdownit from 'markdown-it';
 import { Request } from "express";
+import QRCode from 'qrcode';
+import sharp from "sharp";
+import fs from "fs";
 
 const getClientIp = (req: Request): string => {
     let ip = req.headers['x-forwarded-for'];
@@ -44,4 +47,48 @@ const markdownToHtml = (text:string) : string => {
     }
 }
 
-export { getClientIp, format, currDir, markdownToHtml};
+const generateQRCode = async (text: string, bottomText:string): Promise<Buffer> => {
+	return new Promise((resolve, reject) => {
+	  QRCode.toBuffer(text, { type: 'png' }, (err, buffer) => {
+		if (err) reject(err);
+		else resolve(addTextToImage(buffer, bottomText));
+	  });
+	});
+};
+
+const addTextToImage = async (imageBuffer: Buffer, bottomText: string): Promise<Buffer> => {
+
+	const image = sharp(imageBuffer);
+	const { width, height } = await image.metadata();
+  
+	const sideLength = Math.max(width!, height!);
+    
+    const svgBottomText = `
+    <svg width="${sideLength}" height="40">
+      <rect x="0" y="0" width="800" height="40" fill="transparent" />
+      <text x="50%" y="50%" alignment-baseline="middle" text-anchor="middle" font-size="14" font-family="Arial, sans-serif" fill="white">${bottomText}</text>
+    </svg>
+  `;
+
+    const bottomTextBuffer = Buffer.from(svgBottomText);
+	const bottomTextImage = await sharp(bottomTextBuffer).resize(sideLength + 60).toBuffer();
+	const logoImage = await sharp(fs.readFileSync('./src/pages/static/resources/navbar-logo.webp')).resize(sideLength).toBuffer();
+  
+	return sharp({
+	  create: {
+		width: sideLength + 60,
+		height: sideLength + 175,
+		channels: 4,
+		background: '#212529',
+	  },
+	})
+	  .composite([
+		{ input: logoImage, top: 15, left: 30 },
+		{ input: imageBuffer, top: 130, left: 30 },
+		{ input: bottomTextImage, top: sideLength + 135, left: 0 },
+	  ])
+	  .webp()
+	  .toBuffer();
+  };
+
+export { getClientIp, format, currDir, markdownToHtml, generateQRCode};
