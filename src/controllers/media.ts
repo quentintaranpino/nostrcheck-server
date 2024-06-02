@@ -32,7 +32,6 @@ import crypto from "crypto";
 import { writeLocalFile } from "../lib/storage/local.js";
 import { Readable } from "stream";
 import { getRemoteFile } from "../lib/storage/remote.js";
-import { requestPayment } from "../lib/payments/core.js";
 
 const uploadMedia = async (req: Request, res: Response, version:string): Promise<Response> => {
 
@@ -282,8 +281,6 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 		logger.info(`RES -> 200 OK - ${filedata.description}`, "|", getClientIp(req));
 		return res.status(200).send(returnmessage);
 	}
-
-	filedata.url = await requestPayment(EventHeader.pubkey, 1);
 
 	const returnmessage : NIP96_event = await PrepareNIP96_event(filedata);
 	return res.status(responseStatus).send(returnmessage);
