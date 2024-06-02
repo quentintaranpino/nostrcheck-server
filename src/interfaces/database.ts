@@ -56,6 +56,7 @@ interface mediafilesTable extends RowDataPacket {
 	filesize: string;
 	comments: string;
 	checked: string;
+	transactionid: string;
 	localPath: string;
 }
 
@@ -77,6 +78,7 @@ const mediafilesTableFields: mediafilesTable = {
 	filesize: "varchar(15)",
 	comments: "varchar(150)",
 	checked: "boolean NOT NULL DEFAULT 0",
+	transactionid: "int(11)",
 	localPath: "varchar(256)",
 	constructor: {
 		name: 'RowDataPacket',
@@ -135,6 +137,7 @@ const registeredTableFields: registeredTable = {
 
 interface transactionsTable extends RowDataPacket {
 	id: string;
+	type: string;
 	pubkey: string;
 	paymentrequest: string;
 	satoshi: string;
@@ -147,8 +150,9 @@ interface transactionsTable extends RowDataPacket {
 
 const transactionsTableFields: transactionsTable = {
 	id: "int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY",
+	type: "varchar(10) NOT NULL",
 	pubkey: "varchar(64) NOT NULL",
-	paymentrequest: "varchar(1637) NOT NULL",
+	paymentrequest: "varchar(1637)",
 	paymenthash: "varchar(64)",
 	satoshi: "int(11) NOT NULL",
 	paid: "boolean NOT NULL DEFAULT 0",
