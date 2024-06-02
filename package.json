@@ -1,6 +1,6 @@
 {
   "name": "nostrcheck-api-ts",
-  "version": "0.6.0.0067",
+  "version": "0.6.0.0087",
   "description": "",
   "exports": "./index.js",
   "type": "module",
@@ -26,6 +26,7 @@
     "@types/multer": "1.4.11",
     "@types/mysql2": "github:types/mysql2",
     "@types/node": "^20.12.12",
+    "@types/qrcode": "^1.5.5",
     "@types/validator": "13.11.10",
     "@types/webtorrent": "^0.109.8",
     "@types/ws": "^8.5.10",
@@ -58,6 +59,7 @@
     "mysql2": "3.9.8",
     "nodemon": "^3.1.2",
     "nostr-tools": "^2.7.0",
+    "qrcode": "^1.5.3",
     "redis": "^4.6.14",
     "rotating-file-stream": "3.2.1",
     "sha256": "^0.2.0",
