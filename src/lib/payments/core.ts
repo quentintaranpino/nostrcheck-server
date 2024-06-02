@@ -1,3 +1,4 @@
+import app from "../../app.js";
 import { transactionsTableFields } from "../../interfaces/database.js";
 import { invoice } from "../../interfaces/payments.js";
 import { dbInsert, dbMultiSelect, dbSelect, dbUpdate } from "../database.js"
@@ -13,9 +14,18 @@ const requestPayment = async (pubkey: string, satoshi: number, mediaid: string =
         return "";}
 
     const balance = await getBalance(pubkey);
-    logger.debug("Balance: ", balance, "Invoice satoshi amount: ", satoshi)
 
+    logger.debug("Balance for pubkey " + pubkey + " :", balance)
+    logger.debug("Requested payment for", satoshi, "satoshi")
+    
     if (balance < satoshi) {
+
+        const transactionExist = await getMediaPaymentHash(mediaid)
+        if (transactionExist) {
+            logger.debug("Mediafile already has a transaction")
+            return getInvoiceQR(transactionExist.toString());
+        }
+
         const invoice = await generateLNInvoice(satoshi-balance);
 
         if (mediaid != "0"){
@@ -42,7 +52,7 @@ const requestPayment = async (pubkey: string, satoshi: number, mediaid: string =
 }
 
 const generateLNInvoice = async (amount: number) : Promise<invoice> => {
-    return await generateGetalbyInvoice("nostrcheckme@getalby.com", amount);
+    return await generateGetalbyInvoice(app.get("config.payments")["LNAddress"], amount);
 }
 
 const generateDebitInvoice = () => {
@@ -115,6 +125,12 @@ const isMediaPaid = async (mediaid: string, pubkey:string) : Promise<boolean> =>
     const result = await dbSelect("SELECT paid FROM transactions INNER JOIN mediafiles ON transactions.id = mediafiles.transactionid WHERE mediafiles.id = ? and mediafiles.pubkey = ?", "paid", [mediaid, pubkey], transactionsTableFields);
     return Boolean(result);
 }
+
+const getMediaPaymentHash = async (mediaid: string) : Promise<string> => {
+    const result = await dbSelect("SELECT paymenthash FROM transactions INNER JOIN mediafiles on transactions.id = mediafiles.transactionid WHERE mediafiles.id = ?", "paymenthash", [mediaid], transactionsTableFields) as string;
+    return result;
+}
+
 
 
 setInterval(async () => {
