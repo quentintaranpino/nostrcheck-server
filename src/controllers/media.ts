@@ -32,6 +32,7 @@ import crypto from "crypto";
 import { writeLocalFile } from "../lib/storage/local.js";
 import { Readable } from "stream";
 import { getRemoteFile } from "../lib/storage/remote.js";
+import { requestPayment } from "../lib/payments/core.js";
 
 const uploadMedia = async (req: Request, res: Response, version:string): Promise<Response> => {
 
@@ -509,7 +510,7 @@ const getMediabyURL = async (req: Request, res: Response) => {
 		}
 	}
 
-	// Check if file is active on the database
+	// Check if file is active on the database and if payment is required
 	const cachedStatus = await redisClient.get(req.params.filename + "-" + req.params.pubkey);
 	if (cachedStatus === null || cachedStatus === undefined) {
 
@@ -531,6 +532,35 @@ const getMediabyURL = async (req: Request, res: Response) => {
 			res.setHeader('Content-Type', 'image/webp');
 			return res.status(401).send(await getNotFoundMediaFile());
 		}
+
+		// Paid media check
+		const paymentQR = await requestPayment(req.params.pubkey, 1, filedata[0]);
+		if (paymentQR != "") {
+			logger.info(`RES -> 200 Paid media file ${req.url}`, "|", getClientIp(req), "|", "cached:", cachedStatus ? true : false);
+			const remoteQR = await fetch(paymentQR);
+			if (!remoteQR.ok || !remoteQR.body ) {
+				logger.error('Failed to fetch payment QR code', getClientIp(req));
+				res.setHeader('Content-Type', 'image/webp');
+				return res.status(404).send(await getNotFoundMediaFile());
+			}
+
+			const reader = remoteQR.body.getReader();
+			const stream = new Readable({
+			read() {
+				reader.read().then(({ done, value }) => {
+				if (done) {
+					this.push(null);
+				} else {
+					this.push(Buffer.from(value));
+				}
+				});
+			}
+			});
+			res.setHeader('Content-Type', 'image/png');
+			return stream.pipe(res);
+
+		}
+		
 		await redisClient.set(req.params.filename + "-" + req.params.pubkey, "1", {
 			EX: app.get("config.redis")["expireTime"],
 			NX: true,
@@ -542,6 +572,10 @@ const getMediabyURL = async (req: Request, res: Response) => {
 		res.setHeader('Content-Type', 'image/webp');
 		return res.status(401).send(await getNotFoundMediaFile());
 	}
+
+
+
+	// }
 
 	// file extension checks and media type
 	const ext = path.extname(req.params.filename).slice(1);
