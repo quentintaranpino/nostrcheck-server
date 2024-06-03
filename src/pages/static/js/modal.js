@@ -37,11 +37,13 @@ const initEditModal = async (objectId, row, objectName, newRow, columns) => {
                 if (key == 'state'){continue}
 
                 // Extract the link text if the value is a link
-                let keyValue = "";
                 if (typeof row[key] === 'string' && row[key].startsWith('<')) {
                     row[key] = $(row[key]).text();
-                } else {
-                    keyValue = row[key];
+                }
+
+                // remove 'null' string from the input field
+                if (row[key] === null) {
+                    row[key] = '';
                 }
 
                 var isCheckbox = false;
@@ -98,10 +100,14 @@ const initEditModal = async (objectId, row, objectName, newRow, columns) => {
                             isCheckbox = true;
                         }
                     });
-                    if (row[key] != $('#' + key).val()) {
-                        if (isCheckbox) {
-                            editedRow[key] = $('#' + key).is(':checked') ? 1 : 0; 
-                        } else {
+                    if (isCheckbox) {
+                        let checkboxValue = $('#' + key).is(':checked') ? 1 : 0;
+                        if (row[key] !== checkboxValue) {
+                            editedRow[key] = checkboxValue;
+                        }
+                    } else {
+                        if (row[key] != $('#' + key).val()) {
+                            console.log(key, row[key], $('#' + key).val());
                             editedRow[key] = $('#' + key).val();
                         }
                     }
