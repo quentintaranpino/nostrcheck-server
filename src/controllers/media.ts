@@ -542,24 +542,36 @@ const getMediabyURL = async (req: Request, res: Response) => {
 
 		// Paid media check
 		const paymentRequest: checkPaymentResult = await checkPayment(req.params.pubkey, 1, filedata[0]) as checkPaymentResult;
+		let noCache = false;
 		if (paymentRequest.paymentRequest != "") {
-			logger.info(`RES -> 200 Paid media file ${req.url}`, "|", getClientIp(req), "|", "cached:", cachedStatus ? true : false);
-			const qrImage = await generateQRCode(paymentRequest.paymentRequest, 
-									"Invoice amount: " + paymentRequest.satoshi + " sats", 
-									"This file will be unlocked when the Lightning invoice " + 
-									"is paid. Then, it will be freely available to everyone");
 
-			res.setHeader('Content-Type', 'image/png');
-			res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
-			res.setHeader('Pragma', 'no-cache');
-			res.setHeader('Expires', '0');
-			return res.status(200).send(qrImage);
+			// If the payment is not paid, we check if the GET request has authorization header (for dashboard admin checking)
+			const EventHeader = await parseAuthHeader(req, "getMediaByURL", true);
+			if (EventHeader.status != "success") {
+				logger.info(`RES -> 200 Paid media file ${req.url}`, "|", getClientIp(req), "|", "cached:", cachedStatus ? true : false);
+				const qrImage = await generateQRCode(paymentRequest.paymentRequest, 
+										"Invoice amount: " + paymentRequest.satoshi + " sats", 
+										"This file will be unlocked when the Lightning invoice " + 
+										"is paid. Then, it will be freely available to everyone");
+
+				res.setHeader('Content-Type', 'image/png');
+				res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+				res.setHeader('Pragma', 'no-cache');
+				res.setHeader('Expires', '0');
+				return res.status(200).send(qrImage);
+			}else{
+				// If the GET request has authorization, we return the media file normally, without payment, cache and a new authkey.
+				noCache = true;
+				res.header("authkey", EventHeader.authkey);
+			}
 		}
 		
-		await redisClient.set(req.params.filename + "-" + req.params.pubkey, "1", {
-			EX: app.get("config.redis")["expireTime"],
-			NX: true,
-		});
+		if (noCache == false) {
+			await redisClient.set(req.params.filename + "-" + req.params.pubkey, "1", {
+				EX: app.get("config.redis")["expireTime"],
+				NX: true,
+			});
+		}
 
 	}
 	if (cachedStatus === "0") {
