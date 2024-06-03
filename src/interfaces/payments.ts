@@ -1,11 +1,11 @@
 interface invoice {
     paymentRequest: string;
     paymentHash: string;
-    createdDate: string;
-    expiryDate: string;
-    description: string;
-    isPaid: () => boolean;
-    verifyPayment: () => boolean;
+    createdDate: any;
+    expiryDate: any;
+    description: any;
+    isPaid: () => Promise<boolean>;
+    verifyPayment: () => Promise<boolean>;
 }
 
 interface checkPaymentResult {
