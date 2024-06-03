@@ -79,7 +79,7 @@
                 <i class="fa fa-edit "></i>
             </button>
         </div>
-    </div>  
+    </div>
     <div class="btn-group" role="group" aria-label="Remove buttons">
         <div tabindex="0" data-bs-toggle="tooltip" data-bs-title="Delete item">
             <button 
@@ -90,6 +90,16 @@
             </button>
         </div>
     </div>
+    <div class="btn-group" role="group" aria-label="Pay buttons">
+        <div tabindex="0" data-bs-toggle="tooltip" data-bs-title="Mark as paid item">
+            <button 
+                id="<%- tableId %>-button-pay" 
+                class="btn btn-secondary <%= buttons[9][1] == 'hide' ? 'd-none' : '' %> " 
+                disabled>
+                <i class="fa fa-image"></i>
+            </button>
+        </div>
+    </div>  
 </div>  
 <table 
     id="<%- tableId %>"

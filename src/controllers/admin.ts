@@ -9,13 +9,14 @@ import { logger } from "../lib/logger.js";
 import { getClientIp, format } from "../lib/utils.js";
 import { ResultMessagev2, ServerStatusMessage, authkeyResultMessage } from "../interfaces/server.js";
 import { generateCredentials } from "../lib/authorization.js";
-import { dbDelete, dbInsert, dbUpdate } from "../lib/database.js";
+import { dbDelete, dbInsert, dbSelect, dbUpdate } from "../lib/database.js";
 import { allowedFieldNames, allowedFieldNamesAndValues, allowedTableNames } from "../interfaces/admin.js";
 import { parseAuthHeader} from "../lib/authorization.js";
 import { isModuleEnabled, updateLocalConfigKey } from "../lib/config.js";
 import { flushRedisCache } from "../lib/redis.js";
 import { ParseFileType } from "../lib/media.js";
 import { npubToHex } from "../lib/nostr/NIP19.js";
+import { debitTransaction } from "../lib/payments/core.js";
 
 
 let hits = 0;
@@ -145,6 +146,28 @@ const updateDBRecord = async (req: Request, res: Response): Promise<Response> =>
             };
         logger.warn("RES -> Value is empty: " + req.body.field +  " | " + getClientIp(req));
         return res.status(400).send(result);
+    }
+
+    // If field is 'paid' we create a debit transaction and update the transaction as paid
+    if (req.body.field == "paid" && req.body.value == 1) {
+        const transactionid = await dbSelect("SELECT transactionid FROM " + table + " WHERE id = ?", "transactionid", [req.body.id]);
+        if (await debitTransaction(transactionid.toString(), "")) {
+            const result : authkeyResultMessage = {
+                status: "success",
+                message: req.body.value,
+                authkey: EventHeader.authkey
+                };
+            logger.info("RES -> Invoice paid by admin" + " | " + getClientIp(req));
+            return res.status(200).send(result);
+        }else{
+            const result : authkeyResultMessage = {
+                status: "error",
+                message: "Failed to pay invoice",
+                authkey: EventHeader.authkey
+                };
+            logger.error("RES -> Failed to pay invoice by admin" + " | " + getClientIp(req));
+            return res.status(500).send(result);
+        }
     }
 
     // Update table with new value

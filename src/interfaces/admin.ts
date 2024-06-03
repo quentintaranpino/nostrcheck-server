@@ -1,6 +1,6 @@
 
 const allowedTableNames = ["registered", "mediafiles", "lightning", "domains"];
-const allowedFieldNames = ["allowed", "active", "visibility", "comments", "username", "pubkey", "hex", "domain", "checked", "lightningaddress"]; 
+const allowedFieldNames = ["allowed", "active", "visibility", "comments", "username", "pubkey", "hex", "domain", "checked", "lightningaddress", "paid"]; 
 
 const allowedFieldNamesAndValues = [
     {field: "allowed", values: [0, 1]},
@@ -15,6 +15,7 @@ const allowedFieldNamesAndValues = [
     {field: "id", values: ["number"]},
     {field: "date", values: ["string"]},
     {field: "lightningaddress", values: ["string"]},
+    {field: "paid", values: [0, 1]},
 ];
 
 export { allowedTableNames, allowedFieldNames, allowedFieldNamesAndValues };
