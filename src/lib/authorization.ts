@@ -1,7 +1,6 @@
 import { dbSelect, dbUpdate } from "../lib/database.js";
 import { logger } from "./logger.js";
 import { credentialTypes, authHeaderResult } from "../interfaces/authorization.js";
-import { registeredTableFields } from "../interfaces/database.js";
 import { hashString, validateHash } from "./hash.js";
 import { Request } from "express";
 import { verifyNIP07login } from "./nostr/NIP07.js";

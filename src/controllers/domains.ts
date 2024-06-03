@@ -7,7 +7,6 @@ import { redisClient } from "../lib/redis.js";
 import { getClientIp } from "../lib/utils.js";
 import { QueryAvailiableDomains, QueryAvailiableUsers } from "../lib/domains.js";
 import { dbUpdate, dbSelect } from "../lib/database.js";
-import { registeredTableFields } from "../interfaces/database.js";
 import { isModuleEnabled } from "../lib/config.js";
 import app from "../app.js";
 

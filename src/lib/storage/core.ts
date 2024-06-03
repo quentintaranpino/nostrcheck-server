@@ -1,5 +1,4 @@
 import app from "../../app.js";
-import { mediafilesTableFields } from "../../interfaces/database.js";
 import { ProcessingFileData } from "../../interfaces/media.js";
 import { dbSelect, dbUpdate } from "../database.js";
 import { getHashedPath } from "../hash.js";

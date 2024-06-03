@@ -24,7 +24,6 @@ import { NIP96_event, NIP96_processing } from "../interfaces/nostr.js";
 import { PrepareNIP96_event } from "../lib/nostr/NIP96.js";
 import { generateQRCode, getClientIp } from "../lib/utils.js";
 import { generateBlurhash, generatefileHashfrombuffer } from "../lib/hash.js";
-import { mediafilesTableFields, registeredTableFields } from "../interfaces/database.js";
 import { isModuleEnabled } from "../lib/config.js";
 import { redisClient } from "../lib/redis.js";
 import { deleteFile, getFilePath } from "../lib/storage/core.js";
@@ -173,8 +172,8 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 								"FROM mediafiles " + 
 								"WHERE original_hash = ? and pubkey = ? and filename not like 'avatar%' and filename not like 'banner%' ",
 								["id", "hash", "magnet", "blurhash", "filename", "filesize", "dimensions"],
-								[filedata.originalhash, pubkey],
-								mediafilesTableFields) as string[];
+								[filedata.originalhash, pubkey]
+								) as string[];
 
 	if (dbHash[0].length != 0 && media_type == "media") {
 		logger.info(`RES ->  File already in database, returning existing URL:`, filedata.servername + "/media/" + pubkey + "/" + filedata.filename, "|", getClientIp(req));
@@ -521,7 +520,7 @@ const getMediabyURL = async (req: Request, res: Response) => {
 	const cachedStatus = await redisClient.get(req.params.filename + "-" + req.params.pubkey);
 	if (cachedStatus === null || cachedStatus === undefined) {
 
-		const filedata = await dbMultiSelect("SELECT id, active FROM mediafiles WHERE filename = ? and pubkey = ? ", ["id", "active"], [req.params.filename, req.params.pubkey], mediafilesTableFields) as string[];
+		const filedata = await dbMultiSelect("SELECT id, active FROM mediafiles WHERE filename = ? and pubkey = ? ", ["id", "active"], [req.params.filename, req.params.pubkey]) as string[];
 		if (filedata[0] == undefined || filedata[0] == "" || filedata[0] == null) {
 			logger.warn(`RES -> 404 Not Found - ${req.url}`, "| Returning not found media file.", getClientIp(req));
 			res.setHeader('Content-Type', 'image/webp');
@@ -922,7 +921,7 @@ const deleteMedia = async (req: Request, res: Response, version:string): Promise
 	let deleteSelect = "SELECT id, filename FROM mediafiles WHERE pubkey = ? and (filename = ? OR original_hash = ?)";
 	if (version != "v2") {deleteSelect = "SELECT id, filename FROM mediafiles WHERE pubkey = ? and id = ?";}
 
-	const selectedFile = await dbMultiSelect(deleteSelect, ["id","filename", "hash"], [EventHeader.pubkey, req.params.id, path.parse(req.params.id).name], mediafilesTableFields, true);
+	const selectedFile = await dbMultiSelect(deleteSelect, ["id","filename", "hash"], [EventHeader.pubkey, req.params.id, path.parse(req.params.id).name], true);
 	if (selectedFile[0].length == 0) {
 		logger.warn("RES Delete Mediafile -> 404 Not found", EventHeader.pubkey, req.params.id, "|", getClientIp(req));
 		if(version != "v2"){return res.status(404).send({"result": false, "description" : "Mediafile deletion not found"});}

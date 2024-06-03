@@ -5,7 +5,6 @@ import { logger } from "../lib/logger.js";
 import { getClientIp, markdownToHtml } from "../lib/utils.js";
 import { dbSelect, dbSelectModuleData} from "../lib/database.js";
 import { generateCredentials, isPubkeyValid, isUserPasswordValid } from "../lib/authorization.js";
-import { registeredTableFields } from "../interfaces/database.js";
 import { isModuleEnabled } from "../lib/config.js";
 import { getProfileNostrMetadata, getProfileLocalMetadata } from "../lib/frontend.js";
 import { hextoNpub } from "../lib/nostr/NIP19.js";

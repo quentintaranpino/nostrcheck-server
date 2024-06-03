@@ -1,5 +1,4 @@
 import app from "../app.js";
-import { mediafilesTableFields } from "../interfaces/database.js";
 import { userMetadata } from "../interfaces/frontend.js";
 import { generateCredentials } from "./authorization.js";
 import { dbSelect } from "./database.js";

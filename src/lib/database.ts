@@ -1,7 +1,7 @@
 import { createPool, Pool,RowDataPacket } from "mysql2/promise";
 import config from "config";
 import { logger } from "./logger.js";
-import { newFieldcompatibility, registeredTableFields,databaseTables} from "../interfaces/database.js";
+import { newFieldcompatibility, databaseTables} from "../interfaces/database.js";
 import { updateLocalConfigKey } from "./config.js";
 import { exit } from "process";
 import { npubEncode } from "nostr-tools/nip19";
@@ -285,7 +285,7 @@ const dbSelect = async (queryStatement: string, returnField :string, whereFields
 /  * @param {boolean} [onlyFirstResult=true] - A boolean indicating whether to return only the first result from the query or all results.
 /  * @returns {Promise<string[]>} A promise that resolves to an array of values of the specified return fields from the result, or an empty array if an error occurs or if the result is empty.
 */
-const dbMultiSelect = async (queryStatement: string, returnFields : string[], whereFields: string[], table: RowDataPacket, onlyFirstResult = true): Promise<string[]> => {
+const dbMultiSelect = async (queryStatement: string, returnFields : string[], whereFields: string[],  onlyFirstResult = true): Promise<string[]> => {
 
 	if (returnFields.length == 0){
 		logger.error("Error getting data from database, returnFields are empty");
@@ -294,7 +294,7 @@ const dbMultiSelect = async (queryStatement: string, returnFields : string[], wh
 
     try {
         const conn = await connect("dbMultiSelect: " + queryStatement + " | Fields: " + whereFields.join(", "));
-        const [rows] = await conn.query<typeof table[]>(queryStatement, whereFields);
+        const [rows] = await conn.query<RowDataPacket[]>(queryStatement, whereFields);
         conn.end();
 
 		let returnData :string[] = [];

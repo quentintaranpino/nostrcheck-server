@@ -5,7 +5,6 @@ import { logger } from "../../lib/logger.js";
 import { NIPKinds } from "../../interfaces/nostr.js";
 import { authHeaderResult } from "../../interfaces/authorization.js";
 import { dbSelect } from "../database.js";
-import { registeredTableFields } from "../../interfaces/database.js";
 import app from "../../app.js";
 
 /**

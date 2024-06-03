@@ -7,7 +7,6 @@ import app from "../app.js";
 import config from "config";
 import { exit } from "process";
 import { dbMultiSelect, dbUpdate } from "../lib/database.js";
-import { mediafilesTableFields } from "../interfaces/database.js";
 import { getHashedPath } from "../lib/hash.js";
 
 const checkConfigNecessaryKeys = async () : Promise<void> => {
@@ -73,7 +72,7 @@ const checkConfigNecessaryKeys = async () : Promise<void> => {
 
 const migrateFolders = async(mediaPath:string) => {
 
-	let folderMigrationData = await dbMultiSelect("SELECT DISTINCT registered.username, registered.hex FROM registered",['username', 'hex'], ['1=1'], mediafilesTableFields, false);
+	let folderMigrationData = await dbMultiSelect("SELECT DISTINCT registered.username, registered.hex FROM registered",['username', 'hex'], ['1=1'], false);
 	if (folderMigrationData == undefined || folderMigrationData == null || folderMigrationData.length == 0){
 		console.debug("No Data to migrate.");
 		return;
@@ -117,7 +116,7 @@ const migrateFolders = async(mediaPath:string) => {
 
 const migrateDBLocalpath = async () : Promise<boolean> => {
     
-	const mediaFiles = await dbMultiSelect('SELECT filename, pubkey FROM mediafiles WHERE localpath IS NULL',['filename', 'pubkey'], ['1=1'], mediafilesTableFields, false);
+	const mediaFiles = await dbMultiSelect('SELECT filename, pubkey FROM mediafiles WHERE localpath IS NULL',['filename', 'pubkey'], ['1=1'], false);
 	if (mediaFiles == undefined || mediaFiles == null || mediaFiles.length == 0){
         console.debug("No media files to process.");
         return false;
