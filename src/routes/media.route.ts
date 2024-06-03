@@ -7,7 +7,7 @@ import { getClientIp } from "../lib/utils.js";
 import { NIP96Data } from "../controllers/nostr.js";
 import app from "../app.js";
 
-const maxMBfilesize :number = app.get("config.media")["maxMBfilesize"].replace(',', '.');
+const maxMBfilesize :number = app.get("config.media")["maxMBfilesize"].toString().replace(',', '.');
 
 const upload = multer({
 	storage: multer.memoryStorage(),

@@ -64,8 +64,8 @@ const generateDebitInvoice = () => {
         createdDate: "",
         expiryDate: "",
         description: "",
-        isPaid: () => {return true},
-        verifyPayment: () => {return true}
+        isPaid: async () => {return true},
+        verifyPayment: async () => {return true}
     }
     return emptyInvoice;
 }
