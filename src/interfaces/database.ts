@@ -154,6 +154,7 @@ const ledgerTableFields: ledgerTable = {
 	transactionid: "int(11) NOT NULL",
 	debit: "int(11) NOT NULL",
 	credit: "int(11) NOT NULL",
+	createddate: "datetime NOT NULL",
 	comments: "varchar(150)",
 	constructor: {
 		name: 'RowDataPacket',
@@ -166,6 +167,26 @@ interface ledgerTable extends RowDataPacket {
 	transactionid : string;
 	debit: string;
 	credit: string;
+	createddate: string;
+	comments: string;
+}
+
+const accountsTableFields: accountsTable = {
+	id: "int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY",
+	accountname: "varchar(50) NOT NULL",
+	accounttype: "varchar(50) NOT NULL",
+	createddate: "datetime NOT NULL",
+	comments: "varchar(150)",
+	constructor: {
+		name: 'RowDataPacket',
+	},
+};
+
+interface accountsTable extends RowDataPacket {
+	id: string;
+	accountname: string;
+	accounttype: string;
+	createddate: string;
 	comments: string;
 }
 
@@ -199,6 +220,7 @@ const newFieldcompatibility = [
 	{"registered": registeredTableFields},
 	{"transactions": transactionsTableFields},
 	{"ledger": ledgerTableFields},
+	{"accounts": accountsTableFields},
 ];
 
 
