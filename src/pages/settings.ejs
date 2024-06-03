@@ -348,6 +348,40 @@
               </div>
             </div>
           </div>
+          <div id="settingsPayments">
+            <h3 class="mt-5">Payments</h3>
+            <p> In this section, you can configure the LN payment provider of your server. Currently only GetAlby is supported. 
+            </p>
+            <label for="payments.enabled" class="mt-2 mb-1 fw-bold">Enable payments</label>
+            <p>Enable or disable the payment functionality of the server.</p>
+            <div class="form-check form-switch">
+              <input  class="form-check-input" 
+                      type="checkbox" 
+                      value="<%= request.body.settingsPayments['enabled'] ? true : false %>" 
+                      <%= request.body.settingsPayments['enabled'] ? 'checked' : '' %> 
+                      name="payments.enabled" 
+                      id="payments.enabled"
+                      >
+            </div>
+            <label for="payments.provider" class="mt-2 mb-1 fw-bold">Payment provider</label>
+            <p>Choose the payment provider for your server.</p>
+            <div class="col-12 col-md-4">
+              <select id="payments.paymentProvider" name="payments.paymentProvider" class="form-select">
+                <option value="getalby" <% if (request.body.settingsPayments['paymentProvider'] === 'getalby') { %>selected<% } %>>GetAlby</option>
+              </select>
+            </div>
+            <label for="payments.getalby.authToken" class="mt-2 mb-1 fw-bold">GetAlby authToken</label>
+            <p>Specify the authToken for GetAlby payment provider.</p>
+              <input  type="text" 
+                      id="payments.getalby.authToken" 
+                      name="payments.getalby.authToken" 
+                      class="form-control" 
+                      value="<%= request.body.settingsPayments['getalby']['authToken'] %>" 
+                      placeholder="GetAlby authToken" 
+                      required
+                      >
+
+          </div>
           <div id="settingsLogger">
             <h3 class="mt-5">Logging</h3>
             <p> In this section, you can configure the log settings of your server. The log level determines the verbosity of the logs:

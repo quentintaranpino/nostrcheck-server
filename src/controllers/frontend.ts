@@ -62,6 +62,7 @@ const loadSettingsPage = async (req: Request, res: Response, version:string): Pr
     req.body.settingsRedisExpireTime = app.get("config.redis")["expireTime"];
     req.body.settingsStorage = app.get("config.storage");
     req.body.settingsMedia = app.get("config.media");
+    req.body.settingsPayments = app.get("config.payments");
     req.body.settingsLogger = app.get("config.logger");
     req.body.logHistory = logHistory;
     req.session.authkey = await generateCredentials('authkey', false, req.session.identifier);

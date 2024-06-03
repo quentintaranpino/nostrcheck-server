@@ -168,6 +168,7 @@ const defaultConfig = {
 		}
 	},
 	"payments" : {
+		"enabled": false,
 		"paymentProvider": "getalby",
 		"LNAddress": "nostrcheckme@getalby.com",
 		"getalby" : {
