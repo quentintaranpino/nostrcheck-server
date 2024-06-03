@@ -9,6 +9,11 @@ const checkPayment = async (pubkey: string, satoshi: number, mediaid: string = "
 
     if (pubkey == "" || pubkey == undefined || satoshi == 0 || satoshi == undefined) {return "";}
 
+    if (app.get("config.payments")["enabled"] == false) {
+        logger.debug("The payments module is not enabled")
+        return {paymentRequest: "", satoshi: 0};
+    }
+
     if (await isMediaPaid(mediaid, pubkey)) {
         logger.debug("Mediafile is already paid")
         return {paymentRequest: "", satoshi: 0};
@@ -96,7 +101,7 @@ const addTransacion = async (type: string, pubkey: string, invoice: invoice, sat
                                 );
 }
 
-const payTransaction = async (transactionid: string, paymenthash: string) => {
+const debitTransaction = async (transactionid: string, paymenthash: string) => {
 
     if ((transactionid == "" || transactionid == undefined) && (paymenthash == "" || paymenthash == undefined)) {return false;}
 
@@ -112,7 +117,13 @@ const payTransaction = async (transactionid: string, paymenthash: string) => {
 
 }
 
-const getBalance = async (pubkey: string) => {
+const getBalance = async (pubkey: string) : Promise<number> => {
+
+    if (app.get("config.payments")["enabled"] == false) {
+        logger.debug("The payments module is not enabled")
+        return 0;
+    }
+
     const result = Number(await dbSelect("SELECT SUM(satoshi) as 'balance' FROM transactions WHERE pubkey = ? and paid = 1", "balance", [pubkey], transactionsTableFields));
     return result;
 }
@@ -145,7 +156,7 @@ setInterval(async () => {
     for (const invoiceHash of pendingInvoices) {
         const paid = await isInvoicePaid(invoiceHash);
         if (paid) {
-            await payTransaction("", invoiceHash)? logger.info(`Payment has been made. Invoice: ${invoiceHash}`) : logger.error(`Error updating payment status. Invoice: ${invoiceHash}`);
+            await debitTransaction("", invoiceHash)? logger.info(`Payment has been made. Invoice: ${invoiceHash}`) : logger.error(`Error updating payment status. Invoice: ${invoiceHash}`);
         }
     }
 }, 10000);
