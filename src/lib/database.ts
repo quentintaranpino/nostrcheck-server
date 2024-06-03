@@ -281,7 +281,6 @@ const dbSelect = async (queryStatement: string, returnField :string, whereFields
 /  * @param {string} queryStatement - The SQL query to be executed.
 /  * @param {string[]} returnFields - The fields to be returned from the result.
 /  * @param {string[]} whereFields - The fields to be used in the WHERE clause of the SQL query.
-/  * @param {RowDataPacket} table - The table object where the SQL query will be executed.
 /  * @param {boolean} [onlyFirstResult=true] - A boolean indicating whether to return only the first result from the query or all results.
 /  * @returns {Promise<string[]>} A promise that resolves to an array of values of the specified return fields from the result, or an empty array if an error occurs or if the result is empty.
 */
