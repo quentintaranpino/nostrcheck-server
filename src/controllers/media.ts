@@ -388,6 +388,12 @@ const getMediaStatusbyID = async (req: Request, res: Response, version:string): 
 		conversionOutputPath: "",
 	};
 
+	// URL
+	const returnURL = app.get("config.media")["returnURL"];
+	filedata.url = returnURL 	
+	? `${returnURL}/${rowstemp[0].pubkey}/${filedata.filename}`
+	: `${filedata.servername}/media/${rowstemp[0].pubkey}/${filedata.filename}`;
+
 	let resultstatus = false;
 	let response = 200;
 
@@ -538,11 +544,15 @@ const getMediabyURL = async (req: Request, res: Response) => {
 		const paymentRequest: checkPaymentResult = await checkPayment(req.params.pubkey, 1, filedata[0]) as checkPaymentResult;
 		if (paymentRequest.paymentRequest != "") {
 			logger.info(`RES -> 200 Paid media file ${req.url}`, "|", getClientIp(req), "|", "cached:", cachedStatus ? true : false);
-
-			const bottomText = 'Texto inferior';
-			const qrImage = await generateQRCode(paymentRequest.paymentRequest, "Invoice amount: " + paymentRequest.satoshi + " sats");
+			const qrImage = await generateQRCode(paymentRequest.paymentRequest, 
+									"Invoice amount: " + paymentRequest.satoshi + " sats", 
+									"This file will be unlocked when the Lightning invoice " + 
+									"is paid. Then, it will be freely available to everyone");
 
 			res.setHeader('Content-Type', 'image/png');
+			res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+			res.setHeader('Pragma', 'no-cache');
+			res.setHeader('Expires', '0');
 			return res.status(200).send(qrImage);
 		}
 		
@@ -557,10 +567,6 @@ const getMediabyURL = async (req: Request, res: Response) => {
 		res.setHeader('Content-Type', 'image/webp');
 		return res.status(401).send(await getNotFoundMediaFile());
 	}
-
-
-
-	// }
 
 	// file extension checks and media type
 	const ext = path.extname(req.params.filename).slice(1);
