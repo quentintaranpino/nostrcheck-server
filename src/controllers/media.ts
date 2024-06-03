@@ -60,7 +60,7 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 
 	// Check if pubkey is on the database
 	let pubkey : string = EventHeader.pubkey;
-	if (pubkey != await dbSelect("SELECT hex FROM registered WHERE hex = ?", "hex", [pubkey], registeredTableFields) as string) {
+	if (pubkey != await dbSelect("SELECT hex FROM registered WHERE hex = ?", "hex", [pubkey]) as string) {
 		if (app.get("config.media")["allowPublicUploads"] == false) {
 			logger.warn("pubkey not registered, public uploads not allowed | ", getClientIp(req));
 			if(version != "v2"){return res.status(401).send({"result": false, "description" : "public uploads not allowed"});}
@@ -509,7 +509,7 @@ const getMediabyURL = async (req: Request, res: Response) => {
 	// Old API compatibility (username instead of pubkey)
 	let username : string = "";
 	if (req.params.pubkey && req.params.pubkey.length < 64) {
-		const hex = await dbSelect("SELECT hex FROM registered WHERE username = ?", "hex", [req.params.pubkey], registeredTableFields);
+		const hex = await dbSelect("SELECT hex FROM registered WHERE username = ?", "hex", [req.params.pubkey]);
 		if (hex) {
 			logger.debug("Old API compatibility (username instead of pubkey)", req.params.pubkey,"-", hex, "|", getClientIp(req));
 			username = req.params.pubkey;
@@ -950,7 +950,7 @@ const deleteMedia = async (req: Request, res: Response, version:string): Promise
 
 
 	// Check if the file is the last one with the same hash, counting the number of files with the same hash
-	const hashCount = await dbSelect("SELECT COUNT(*) as 'count' FROM mediafiles WHERE filename = ?", "count", [filename], mediafilesTableFields);
+	const hashCount = await dbSelect("SELECT COUNT(*) as 'count' FROM mediafiles WHERE filename = ?", "count", [filename]);
 	if (hashCount != '1') {
 		logger.info("Detected more files with same hash, skipping deletion from storage server", EventHeader.pubkey, filename, "|", getClientIp(req));
 	}else{

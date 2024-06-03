@@ -87,8 +87,7 @@ const redirectlightningddress = async (req: Request, res: Response): Promise<any
 		const lightningAddress = 
 			await dbSelect("SELECT lightningaddress FROM lightning INNER JOIN registered ON lightning.pubkey = registered.hex WHERE registered.username = ? and registered.domain = ? and lightning.active = 1", 
 			"lightningaddress", 
-			[name, servername], 
-			lightningTableFields) as string;
+			[name, servername]) as string;
 
 		if  (lightningAddress == "" || lightningAddress == undefined) {
 			logger.warn("RES GET Lightningaddress ->", name, "|", "Lightning redirect not found");

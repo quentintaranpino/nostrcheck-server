@@ -68,7 +68,7 @@ const getFilePath = async (fileName: string) : Promise<string> => {
     if (app.get("config.storage")["type"] === "local") {
 
         const mediaPath = app.get("config.storage")["local"]["mediaPath"];
-        const localPath = await dbSelect("SELECT localPath FROM mediafiles WHERE filename = ?", "localPath", [fileName], mediafilesTableFields);
+        const localPath = await dbSelect("SELECT localPath FROM mediafiles WHERE filename = ?", "localPath", [fileName]);
 
         // return await getLocalFile(mediaPath + localPath +  "/" + fileName);
 
@@ -101,7 +101,7 @@ const deleteFile = async (fileName: string, forceLocal : boolean = false) : Prom
         if (app.get("config.storage")["type"] === "local" || forceLocal) {
     
             const mediaPath = app.get("config.storage")["local"]["mediaPath"];
-            const localPath = await dbSelect("SELECT localPath FROM mediafiles WHERE filename = ?", "localPath", [fileName], mediafilesTableFields);
+            const localPath = await dbSelect("SELECT localPath FROM mediafiles WHERE filename = ?", "localPath", [fileName]);
             const filePath = mediaPath + localPath +  "/" + fileName;
     
             if (await getLocalFile(filePath)){

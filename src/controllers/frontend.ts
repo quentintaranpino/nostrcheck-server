@@ -245,7 +245,7 @@ const frontendLogin = async (req: Request, res: Response): Promise<Response> => 
     }
     if (req.body.username != undefined && req.body.password != undefined){
         canLogin = await isUserPasswordValid(req.body.username, req.body.password);
-        if (canLogin){req.body.pubkey = await dbSelect("SELECT hex FROM registered WHERE username = ?", "hex", [req.body.username], registeredTableFields) as string;}
+        if (canLogin){req.body.pubkey = await dbSelect("SELECT hex FROM registered WHERE username = ?", "hex", [req.body.username]) as string;}
     }
     if (!canLogin) {
         logger.warn(`RES -> 401 unauthorized  - ${req.body.pubkey}`,"|",getClientIp(req));

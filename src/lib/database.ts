@@ -255,14 +255,13 @@ const dbInsert = async (tableName: string, fields: string[], values: (string | n
  * @param {string} queryStatement - The SQL query to be executed.
  * @param {string} returnField - The field to be returned from the first row of the result.
  * @param {string[]} whereFields - The fields to be used in the WHERE clause of the SQL query.
- * @param {RowDataPacket} table - The table object where the SQL query will be executed.
  * @param {boolean} [onlyFirstResult=true] - A boolean indicating whether to return only the first result from the query or all results.
  * @returns {Promise<string>} A promise that resolves to the value of the specified return field from the first row of the result, or an empty string if an error occurs or if the result is empty.
  */
-const dbSelect = async (queryStatement: string, returnField :string, whereFields: string[], table: RowDataPacket, onlyFirstResult = true): Promise<string | string[]> => {
+const dbSelect = async (queryStatement: string, returnField :string, whereFields: string[], onlyFirstResult = true): Promise<string | string[]> => {
     try {
         const conn = await connect("dbSimpleSelect: " + queryStatement + " | Fields: " + whereFields.join(", "));
-        const [rows] = await conn.query<typeof table[]>(queryStatement, whereFields);
+        const [rows] = await conn.query<RowDataPacket[]>(queryStatement, whereFields);
         conn.end();
         if (onlyFirstResult){
             return rows[0]?.[returnField] as string || "";
@@ -413,6 +412,7 @@ async function dbSelectModuleData(module:string): Promise<string> {
 		"mediafiles.checked, " +
 		"mediafiles.active, " +
 		"mediafiles.visibility, " +
+		"transactions.paid, " +
 		"(SELECT registered.username FROM registered WHERE mediafiles.pubkey = registered.hex LIMIT 1) as username, " +
 		"(SELECT registered.pubkey FROM registered WHERE mediafiles.pubkey = registered.hex LIMIT 1) as npub, " +
 		"mediafiles.pubkey as 'pubkey', " +
@@ -423,7 +423,6 @@ async function dbSelectModuleData(module:string): Promise<string> {
 		"mediafiles.dimensions, " +
 		"ROUND(mediafiles.filesize / 1024 / 1024, 2) as 'filesize', " +
 		"DATE_FORMAT(mediafiles.date, '%Y-%m-%d %H:%i') as date, " +
-		"transactions.paid, " +
 		"mediafiles.comments " +
 		"FROM mediafiles LEFT JOIN transactions on mediafiles.transactionid = transactions.id " +
 		"ORDER BY id DESC;");
@@ -519,7 +518,7 @@ const initDatabase = async (): Promise<void> => {
 	}
 
 	// Check if public username exist on registered table and create it if not. Also it sends a DM to the pubkey with the credentials
-	const publicUsername = await dbSelect("SELECT username FROM registered WHERE username = ?", "username", ["public"], registeredTableFields) as string;
+	const publicUsername = await dbSelect("SELECT username FROM registered WHERE username = ?", "username", ["public"]) as string;
 	logger.info("Public username:", publicUsername);
 	if (publicUsername == "" || publicUsername == undefined || publicUsername == null){
 		logger.warn("Public username not found, creating it");
@@ -542,7 +541,7 @@ const initDatabase = async (): Promise<void> => {
 	}
 
 	// Check if default domain exist on domains table and create it if not.
-	const defaultDomain = await dbSelect("SELECT domain FROM domains WHERE domain = ?", "domain", [app.get("config.server")["host"]], registeredTableFields) as string;
+	const defaultDomain = await dbSelect("SELECT domain FROM domains WHERE domain = ?", "domain", [app.get("config.server")["host"]]) as string;
 	if (defaultDomain == ""){
 		logger.warn("Default domain not found, creating it");
 		const fields: string[] = ["domain", "active", "comments"];
@@ -556,7 +555,7 @@ const initDatabase = async (): Promise<void> => {
 	}
 
 	// Check if public lightning address exist on lightning table and create it if not.
-	const publicLightning = await dbSelect("SELECT lightningaddress FROM lightning", "lightningaddress", [], registeredTableFields) as string;
+	const publicLightning = await dbSelect("SELECT lightningaddress FROM lightning", "lightningaddress", []) as string;
 	if (publicLightning == ""){
 		logger.warn("Public lightning address not found, creating it");
 		const fields: string[] = ["pubkey", "lightningaddress", "comments"];

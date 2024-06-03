@@ -43,7 +43,9 @@ const getProfileNostrMetadata = async (pubkey: string): Promise<userMetadata> =>
 }
 
 const getProfileLocalMetadata = async (pubkey: string): Promise<string[]> => {
-    const mediaFiles = await dbSelect("SELECT filename FROM mediafiles WHERE active = ? and visibility = ? and pubkey = ? ORDER BY date DESC ","filename", ['1', '1', pubkey], mediafilesTableFields, false) as string[];
+    const mediaFiles = await dbSelect(  "SELECT filename FROM mediafiles WHERE active = ? and visibility = ? and pubkey = ? ORDER BY date DESC ","filename", 
+                                        ['1', '1', pubkey], 
+                                        false) as string[];
 
     return  mediaFiles ? mediaFiles : [];
 }
