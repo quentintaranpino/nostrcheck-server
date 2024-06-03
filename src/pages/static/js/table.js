@@ -49,6 +49,7 @@ const initTable = (tableId, data, objectName) => {
         $(tableId + '-button-show').prop('disabled', !$(tableId).bootstrapTable('getSelections').length)
         $(tableId + '-button-hide').prop('disabled', !$(tableId).bootstrapTable('getSelections').length)
         $(tableId + '-button-remove').prop('disabled', !$(tableId).bootstrapTable('getSelections').length)
+        $(tableId + '-button-pay').prop('disabled', !$(tableId).bootstrapTable('getSelections').length)
 
         if ($(tableId).bootstrapTable('getSelections').length == 1) {
             $(tableId + '-button-admin').prop('disabled', false)
@@ -97,8 +98,7 @@ const initTable = (tableId, data, objectName) => {
                 }
             }
         });
-    }
-    )
+    })
 
     // Admin, hide and show, enable and disable buttons
     initButton(tableId, '-button-admin', objectName, 'toggle admin permissions', 'allowed', null)
@@ -107,6 +107,7 @@ const initTable = (tableId, data, objectName) => {
     initButton(tableId, '-button-disable', objectName, 'disable', 'active', 0)
     initButton(tableId, '-button-enable', objectName, 'enable', 'active', 1)
     initButton(tableId, '-button-remove', objectName, 'remove', '', null)
+    initButton(tableId, '-button-pay', objectName, 'pay', 'paid', 1)
  
      // Edit button
      $(tableId + '-button-edit').click(function () {
@@ -184,6 +185,7 @@ const initTable = (tableId, data, objectName) => {
             }
         }
     }
+
 }
 
 function detailFormatter(row) {
@@ -232,6 +234,8 @@ function initButton(tableId, buttonSuffix, objectName, modaltext, field, fieldVa
 }
 
 function modifyRecord(tableId, id, field, fieldValue, action = 'modify', row = null){
+
+    console.log(tableId, id, field, fieldValue, action, row)
 
     if(row === null) {row = $(tableId).bootstrapTable('getRowByUniqueId', id)};
     let url = "";
