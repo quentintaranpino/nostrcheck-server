@@ -169,6 +169,8 @@ const initMediaModal = async (pubkey, filename, checked, visible) => {
 
     var mediaModal = new bootstrap.Modal($('#media-modal'));
 
+    MediaData = await loadMediaWithToken ('media/' + pubkey + '/' + filename, authkey)
+
     $('#modalSwitch-checked').prop('checked', checked);
     $('#modalSwitch-checked').change(function() {
         checked = this.checked ? 1 : 0; 
@@ -180,16 +182,16 @@ const initMediaModal = async (pubkey, filename, checked, visible) => {
     });
 
     if (['.mp4', '.webm', '.mov'].some(ext => filename.endsWith(ext))) {
-        $('#media-modal .mediapreview-video').attr('src', 'media/' + pubkey + '/' + filename);
-        $('#media-modal .mediapreview-video source').attr('src', 'media/' + pubkey + '/' + filename);
+        $('#media-modal .mediapreview-video').attr('src', MediaData.url);
+        $('#media-modal .mediapreview-video source').attr('src', MediaData.url);
         $('#media-modal .mediapreview-video').removeClass('d-none');
         $('#media-modal .mediapreview-video')[0].play();
     } else if (['.webp', '.png', '.jpg', '.jpeg', '.gif'].some(ext => filename.endsWith(ext))) {
-        $('#media-modal .mediapreview-image').attr('src', 'media/' + pubkey + '/' + filename);
+        $('#media-modal .mediapreview-image').attr('src', MediaData.url);
         $('#media-modal .mediapreview-image').removeClass('d-none');
     } else if (filename.endsWith('.mp3')){
-        $('#media-modal .mediapreview-audio').attr('src', 'media/' + pubkey + '/' + filename);
-        $('#media-modal .mediapreview-audio source').attr('src', 'media/' + pubkey + '/' + filename);
+        $('#media-modal .mediapreview-audio').attr('src', MediaData.url);
+        $('#media-modal .mediapreview-audio source').attr('src', MediaData.url);
         $('#media-modal .mediapreview-audio').removeClass('d-none');
         $('#media-modal .mediapreview-audio')[0].play();
     }
@@ -223,6 +225,16 @@ const initMediaModal = async (pubkey, filename, checked, visible) => {
         });
     });
 
-    return result; 
+    return {authkey: MediaData.authkey, data: result}; 
 
+}
+
+async function loadMediaWithToken(url, authkey) {
+    const response = await fetch(url, {
+        headers: {
+            'Authorization': `Bearer ${authkey}`
+        }
+    });
+    const blob = await response.blob();
+    return {authkey: response.headers.get('authkey'), url: URL.createObjectURL(blob)};
 }

@@ -328,7 +328,9 @@ function setFieldLinks(tableId, number = 0){
                 });
 
                 $(document).off("click", "#" + rowID + "_preview").on("click", "#" + rowID + "_preview", async function() {
-                    let modalResult = await initMediaModal(row.pubkey, filename, row.checked, row.visibility);
+                    let modal = await initMediaModal(row.pubkey, filename, row.checked, row.visibility);
+                    let modalResult = modal.data;
+                    if(modal.authkey) {authkey = modal.authkey};
                     for (let field in modalResult) {
                         if (modalResult[field] != row[field]){
                             authkey = (await modifyRecord(tableId, row.id, field, modalResult[field], 'modify')).authkey
