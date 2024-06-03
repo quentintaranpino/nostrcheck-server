@@ -520,7 +520,7 @@ const getMediabyURL = async (req: Request, res: Response) => {
 	const cachedStatus = await redisClient.get(req.params.filename + "-" + req.params.pubkey);
 	if (cachedStatus === null || cachedStatus === undefined) {
 
-		const filedata = await dbMultiSelect("SELECT id, active FROM mediafiles WHERE filename = ? and pubkey = ? ", ["id", "active"], [req.params.filename, req.params.pubkey]) as string[];
+		const filedata = await dbMultiSelect("SELECT id, active, transactionid FROM mediafiles WHERE filename = ? and pubkey = ? ", ["id", "active", "transactionid"], [req.params.filename, req.params.pubkey]) as string[];
 		if (filedata[0] == undefined || filedata[0] == "" || filedata[0] == null) {
 			logger.warn(`RES -> 404 Not Found - ${req.url}`, "| Returning not found media file.", getClientIp(req));
 			res.setHeader('Content-Type', 'image/webp');
@@ -540,7 +540,7 @@ const getMediabyURL = async (req: Request, res: Response) => {
 		}
 
 		// Paid media check
-		const paymentRequest: checkPaymentResult = await checkPayment(req.params.pubkey, 1, filedata[0]) as checkPaymentResult;
+		const paymentRequest: checkPaymentResult = await checkPayment(filedata[2], filedata[0], "mediafiles") as checkPaymentResult;
 		let noCache = false;
 		if (paymentRequest.paymentRequest != "") {
 
