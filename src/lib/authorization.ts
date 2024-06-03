@@ -16,6 +16,7 @@ import { Event } from "nostr-tools";
  * 
  * @param req - The request object.
  * @param endpoint - The endpoint of the request.
+ * @param checkAdminPrivileges - A boolean indicating whether to check if the apikey has admin privileges. Optional.
  * @returns A promise that resolves to a VerifyResultMessage object.
  */
 const parseAuthHeader = async (req: Request, endpoint: string = "", checkAdminPrivileges = true): Promise<authHeaderResult> => {
