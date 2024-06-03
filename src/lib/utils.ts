@@ -47,45 +47,74 @@ const markdownToHtml = (text:string) : string => {
     }
 }
 
-const generateQRCode = async (text: string, bottomText:string): Promise<Buffer> => {
+const generateQRCode = async (text: string, firstText:string, secondText:string): Promise<Buffer> => {
 	return new Promise((resolve, reject) => {
 	  QRCode.toBuffer(text, { type: 'png' }, (err, buffer) => {
 		if (err) reject(err);
-		else resolve(addTextToImage(buffer, bottomText));
+		else resolve(addTextToImage(buffer, firstText, secondText));
 	  });
 	});
 };
 
-const addTextToImage = async (imageBuffer: Buffer, bottomText: string): Promise<Buffer> => {
+const addTextToImage = async (imageBuffer: Buffer, firstText: string, secondText : string): Promise<Buffer> => {
 
 	const image = sharp(imageBuffer);
 	const { width, height } = await image.metadata();
   
 	const sideLength = Math.max(width!, height!);
     
-    const svgBottomText = `
+    let svgFirstText = `
     <svg width="${sideLength}" height="40">
       <rect x="0" y="0" width="800" height="40" fill="transparent" />
-      <text x="50%" y="50%" alignment-baseline="middle" text-anchor="middle" font-size="14" font-family="Arial, sans-serif" fill="white">${bottomText}</text>
+      <text x="50%" y="50%" alignment-baseline="middle" text-anchor="middle" font-size="12" font-family="Arial, sans-serif" fill="white">${firstText}</text>
     </svg>
-  `;
+  	`;
 
-    const bottomTextBuffer = Buffer.from(svgBottomText);
-	const bottomTextImage = await sharp(bottomTextBuffer).resize(sideLength + 60).toBuffer();
+	const words = secondText.split(' ');
+	const lines = [];
+	let currentLine = '';
+	  
+	  words.forEach(word => {
+		if ((currentLine + word).length <= 55) {
+		  currentLine += ` ${word}`;
+		} else {
+		  lines.push(currentLine);
+		  currentLine = word;
+		}
+	  });
+	  
+	  // Add the last line if it's not empty
+	  if (currentLine) {
+		lines.push(currentLine);
+	  }
+	  
+	  let svgSecondText = `<svg width="${sideLength}" height="${lines.length * 14 + 10}">`;
+	  svgSecondText += `<rect x="0" y="0" width="800" height="${lines.length * 14 + 10}" fill="transparent" />`;
+	  
+	  lines.forEach((line, index) => {
+		svgSecondText += `<text x="50%" y="${14 + (index * 14)}" alignment-baseline="middle" text-anchor="middle" font-size="12" font-family="Arial, sans-serif" fill="white">${line}</text>`;
+	  });
+	  
+	  svgSecondText += `</svg>`;
+
+
+	const firstTextImage = await sharp(Buffer.from(svgFirstText)).resize(sideLength + 130).toBuffer();
+	const secondTextImage = await sharp(Buffer.from(svgSecondText)).resize(sideLength + 130).toBuffer();
 	const logoImage = await sharp(fs.readFileSync('./src/pages/static/resources/navbar-logo.webp')).resize(sideLength).toBuffer();
   
 	return sharp({
 	  create: {
-		width: sideLength + 60,
-		height: sideLength + 175,
+		width: sideLength + 130,
+		height: sideLength + 255,
 		channels: 4,
 		background: '#212529',
 	  },
 	})
 	  .composite([
-		{ input: logoImage, top: 15, left: 30 },
-		{ input: imageBuffer, top: 130, left: 30 },
-		{ input: bottomTextImage, top: sideLength + 135, left: 0 },
+		{ input: logoImage, top: 20, left: 65 },
+		{ input: imageBuffer, top: 140, left: 65 },
+		{ input: firstTextImage, top: sideLength + 140, left: 0 },
+		{ input: secondTextImage, top: sideLength + 190, left: 0 },
 	  ])
 	  .webp()
 	  .toBuffer();
