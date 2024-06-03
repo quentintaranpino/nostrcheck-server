@@ -79,7 +79,7 @@ const mediafilesTableFields: mediafilesTable = {
 	comments: "varchar(150)",
 	checked: "boolean NOT NULL DEFAULT 0",
 	transactionid: "int(11)",
-	localPath: "varchar(256)",
+	localPath: "varchar(4)",
 	constructor: {
 		name: 'RowDataPacket',
 	},
@@ -148,6 +148,27 @@ interface transactionsTable extends RowDataPacket {
 	comments: string;
 }
 
+const ledgerTableFields: ledgerTable = {
+	id: "int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY",
+	accountid: "int(11) NOT NULL",
+	transactionid: "int(11) NOT NULL",
+	debit: "int(11) NOT NULL",
+	credit: "int(11) NOT NULL",
+	comments: "varchar(150)",
+	constructor: {
+		name: 'RowDataPacket',
+	},
+};
+
+interface ledgerTable extends RowDataPacket {
+	id: string;
+	accountid: string;
+	transactionid : string;
+	debit: string;
+	credit: string;
+	comments: string;
+}
+
 const transactionsTableFields: transactionsTable = {
 	id: "int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY",
 	type: "varchar(10) NOT NULL",
@@ -177,16 +198,11 @@ const newFieldcompatibility = [
 	{"mediatags": mediatagsTableFields},
 	{"registered": registeredTableFields},
 	{"transactions": transactionsTableFields},
+	{"ledger": ledgerTableFields},
 ];
 
 
 export {
-	domainsTableFields,
-	lightningTableFields,
-	mediafilesTableFields,
-	mediatagsTableFields,
-	registeredTableFields,
-	transactionsTableFields,
 	newFieldcompatibility,
 	databaseTables
 };	
