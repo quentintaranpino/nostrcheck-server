@@ -4,8 +4,9 @@ interface invoice {
     createdDate: any;
     expiryDate: any;
     description: any;
-    isPaid: () => Promise<boolean>;
-    verifyPayment: () => Promise<boolean>;
+    isPaid: boolean;
+    transactionid: number;
+    satoshi: number;
 }
 
 interface checkPaymentResult {
