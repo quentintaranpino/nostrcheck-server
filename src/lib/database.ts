@@ -185,7 +185,7 @@ async function checkDatabaseConsistency(table: string, column_name:string, type:
  * @param whereFieldValue - The value of the field to use in the WHERE clause.
  * @returns A Promise that resolves to a boolean indicating whether the update was successful.
  */
-const dbUpdate = async (tableName :string, selectFieldName: string, selectFieldValue: string, whereFieldName :string, whereFieldValue: string): Promise<boolean> =>{
+const dbUpdate = async (tableName :string, selectFieldName: string, selectFieldValue: any, whereFieldName :string, whereFieldValue: any): Promise<boolean> =>{
 
 	const conn = await connect("dbFileFieldUpdate: " + selectFieldName + " | Table: " + tableName);
 	try{
