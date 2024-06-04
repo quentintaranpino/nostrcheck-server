@@ -568,9 +568,13 @@ const initDatabase = async (): Promise<void> => {
 	}
 
 	// Check if standard accounts exist on accounts table and create it if not.
-	const checkAccounts = await dbSelect("SELECT accountid FROM accounts ", "accountname", [], false) as string[]
+	let checkAccounts = await dbSelect("SELECT accountid FROM accounts ", "accountid", [], false) as string[]
 	accounts.forEach(async (account) => {
-		if (!checkAccounts.includes(account.accountid.toString())){
+		// Log the current accountid and checkAccounts array
+		logger.info("Current accountid:", account.accountid.toString());
+		logger.info("checkAccounts:", checkAccounts.toString());
+	
+		if (!checkAccounts.toString().includes(account.accountid.toString())){
 			logger.warn("Standard account not found, creating it:", account.accountname);
 			const fields: string[] = ["accountid", "active", "accountname", "accounttype", "createddate", "comments"];
 			const values: any[] = [account.accountid, "1",  account.accountname, account.accounttype, new Date(), account.comments];
