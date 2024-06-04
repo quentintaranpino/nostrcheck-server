@@ -21,7 +21,7 @@ const checkPayment = async (transactionid : string, originId: string, orginTable
     if (existPayReq[1] && existPayReq[2] && existPayReq[3]) {
         const balance = await getBalance(existPayReq[1]);
         if (balance <= Number(existPayReq[3])) {
-            logger.debug("Already generated invoice for payment, skipping", existPayReq)
+            logger.debug("Already generated invoice for payment, skipping", existPayReq[1])
             return {paymentRequest: existPayReq[2], satoshi: Number(existPayReq[3])};
         }
     }
@@ -189,7 +189,7 @@ const getPendingInvoices = async () : Promise<invoice[]> => {
         const invoice = invoiceString.split(',');
         invoices.push({
             transactionid: Number(invoice[0]),
-            accountid: formatAccountNumber(Number(invoice[1])),
+            accountid: Number(invoice[1]),
             paymentRequest: invoice[2],
             paymentHash: invoice[3],
             createdDate: new Date(invoice[4]),
