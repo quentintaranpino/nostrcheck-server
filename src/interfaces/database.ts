@@ -151,7 +151,7 @@ interface transactionsTable extends RowDataPacket {
 const transactionsTableFields: transactionsTable = {
 	id: "int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY",
 	type: "varchar(10) NOT NULL",
-	accountid: "varchar(64) NOT NULL",
+	accountid: "varchar(12) NOT NULL",
 	paymentrequest: "varchar(1637)",
 	paymenthash: "varchar(64)",
 	satoshi: "int(11) NOT NULL",
@@ -167,7 +167,7 @@ const transactionsTableFields: transactionsTable = {
 
 const ledgerTableFields: ledgerTable = {
 	id: "int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY",
-	accountid: "int(11) NOT NULL",
+	accountid: "int(12) NOT NULL",
 	transactionid: "int(11) NOT NULL",
 	debit: "int(11) NOT NULL",
 	credit: "int(11) NOT NULL",
@@ -190,7 +190,7 @@ interface ledgerTable extends RowDataPacket {
 
 const accountsTableFields: accountsTable = {
 	id: "int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY",
-	accountid: "int(11) NOT NULL",
+	accountid: "int(12) NOT NULL",
 	active: "boolean NOT NULL DEFAULT 0",
 	accountname: "varchar(50) NOT NULL",
 	accounttype: "varchar(50) NOT NULL",
