@@ -7,6 +7,7 @@ import { exit } from "process";
 import { npubEncode } from "nostr-tools/nip19";
 import { generateCredentials } from "./authorization.js";
 import app from "../app.js";
+import { accounts } from "../interfaces/payments.js";
 
 let pool: Pool;
 let retry :number = 0;
@@ -206,7 +207,6 @@ const dbUpdate = async (tableName :string, selectFieldName: string, selectFieldV
 		return false;
 	}
 }
-
 
 /**
  * Inserts data into the specified table in the database.
@@ -566,6 +566,22 @@ const initDatabase = async (): Promise<void> => {
 		}
 		logger.info("Public lightning address created");
 	}
+
+	// Check if standard accounts exist on accounts table and create it if not.
+	const checkAccounts = await dbSelect("SELECT accountid FROM accounts ", "accountname", [], false) as string[]
+	accounts.forEach(async (account) => {
+		if (!checkAccounts.includes(account.accountid.toString())){
+			logger.warn("Standard account not found, creating it:", account.accountname);
+			const fields: string[] = ["accountid", "active", "accountname", "accounttype", "createddate", "comments"];
+			const values: any[] = [account.accountid, "1",  account.accountname, account.accounttype, new Date(), account.comments];
+			const insert = await dbInsert("accounts", fields, values);
+			if (insert === 0){
+				logger.fatal("Error creating standard account");
+				process.exit(1);
+			}
+			logger.info("Standard account created");
+		}
+	});
 
 	// Clear all authkeys from registered table
 	const conn = await connect("initDatabase");

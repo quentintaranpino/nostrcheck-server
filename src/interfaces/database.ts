@@ -190,6 +190,8 @@ interface ledgerTable extends RowDataPacket {
 
 const accountsTableFields: accountsTable = {
 	id: "int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY",
+	accountid: "int(11) NOT NULL",
+	active: "boolean NOT NULL DEFAULT 0",
 	accountname: "varchar(50) NOT NULL",
 	accounttype: "varchar(50) NOT NULL",
 	createddate: "datetime NOT NULL",
@@ -201,6 +203,8 @@ const accountsTableFields: accountsTable = {
 
 interface accountsTable extends RowDataPacket {
 	id: string;
+	accountid: string;
+	active: string;
 	accountname: string;
 	accounttype: string;
 	createddate: string;
