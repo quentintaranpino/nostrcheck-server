@@ -138,7 +138,7 @@ const registeredTableFields: registeredTable = {
 interface transactionsTable extends RowDataPacket {
 	id: string;
 	type: string;
-	pubkey: string;
+	accountid: string;
 	paymentrequest: string;
 	satoshi: string;
 	paid: string;
@@ -147,6 +147,23 @@ interface transactionsTable extends RowDataPacket {
 	paiddate: string;
 	comments: string;
 }
+
+const transactionsTableFields: transactionsTable = {
+	id: "int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY",
+	type: "varchar(10) NOT NULL",
+	accountid: "varchar(64) NOT NULL",
+	paymentrequest: "varchar(1637)",
+	paymenthash: "varchar(64)",
+	satoshi: "int(11) NOT NULL",
+	paid: "boolean NOT NULL DEFAULT 0",
+	createddate: "datetime NOT NULL",
+	expirydate: "datetime NOT NULL",
+	paiddate: "datetime",
+	comments: "varchar(150)",
+	constructor: {
+		name: 'RowDataPacket',
+	},
+};
 
 const ledgerTableFields: ledgerTable = {
 	id: "int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY",
@@ -189,23 +206,6 @@ interface accountsTable extends RowDataPacket {
 	createddate: string;
 	comments: string;
 }
-
-const transactionsTableFields: transactionsTable = {
-	id: "int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY",
-	type: "varchar(10) NOT NULL",
-	pubkey: "varchar(64) NOT NULL",
-	paymentrequest: "varchar(1637)",
-	paymenthash: "varchar(64)",
-	satoshi: "int(11) NOT NULL",
-	paid: "boolean NOT NULL DEFAULT 0",
-	createddate: "datetime NOT NULL",
-	expirydate: "datetime NOT NULL",
-	paiddate: "datetime",
-	comments: "varchar(150)",
-	constructor: {
-		name: 'RowDataPacket',
-	},
-};
 
 //If you add a new field that is substituting an old one, add it here
 const newFieldcompatibility = [

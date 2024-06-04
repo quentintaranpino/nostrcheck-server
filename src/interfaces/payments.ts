@@ -7,6 +7,7 @@ interface invoice {
     isPaid: boolean;
     transactionid: number;
     satoshi: number;
+    accountid: number;
 }
 
 interface checkPaymentResult {
