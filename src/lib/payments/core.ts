@@ -27,7 +27,7 @@ const checkPayment = async (transactionid : string, originId: string, orginTable
     }
 
     const pubkey = await dbSelect("SELECT pubkey FROM " + orginTable + " WHERE id = ?", "pubkey", [originId]) as string;
-    const accountid = Number(accounts[1].accountid.toString() + (await dbSelect("SELECT id FROM registered WHERE hex = ?", "id", [pubkey])));
+    const accountid = formatAccountNumber(Number(await dbSelect("SELECT id FROM registered WHERE hex = ?", "id", [pubkey])));
     const balance = await getBalance(pubkey);
     const satoshi = Number(await dbSelect("SELECT satoshi FROM transactions WHERE id = ?", "satoshi", [transactionid])) || 1 // TODO set satoshi amount on settings
     
@@ -153,10 +153,10 @@ const addBalance = async (pubkey: string, amount: number) : Promise<boolean> => 
             return false;
         }
 
-        const accountId = Number(await dbSelect("SELECT id FROM registered WHERE hex = ?", "id", [pubkey]));
+        const accountid = formatAccountNumber(Number(await dbSelect("SELECT id FROM registered WHERE hex = ?", "id", [pubkey])));
         const transaction = await addTransacion("credit",   
-                                                accountId, 
-                                                {   accountid: accountId,
+                                                accountid, 
+                                                {   accountid: accountid,
                                                     paymentRequest: "", 
                                                     paymentHash: "", 
                                                     createdDate: new Date().toISOString().slice(0, 19).replace('T', ' '), 
@@ -168,7 +168,7 @@ const addBalance = async (pubkey: string, amount: number) : Promise<boolean> => 
                                                 },
                                                 amount);
         if (transaction) {
-            const accountid = Number(await dbSelect("SELECT id FROM registered WHERE hex = ?", "id", [pubkey]));
+            const accountid = formatAccountNumber(Number(await dbSelect("SELECT id FROM registered WHERE hex = ?", "id", [pubkey])));
             await addJournalEntry(accountid, transaction, 0, amount, "Credit for pubkey: " + pubkey);
             return true;
         }
@@ -189,7 +189,7 @@ const getPendingInvoices = async () : Promise<invoice[]> => {
         const invoice = invoiceString.split(',');
         invoices.push({
             transactionid: Number(invoice[0]),
-            accountid: Number(invoice[1]),
+            accountid: formatAccountNumber(Number(invoice[1])),
             paymentRequest: invoice[2],
             paymentHash: invoice[3],
             createdDate: new Date(invoice[4]),
@@ -202,6 +202,16 @@ const getPendingInvoices = async () : Promise<invoice[]> => {
     })
     return invoices;
 }
+
+const formatAccountNumber = (id: number): number => {
+    let numStr = id.toString();
+    while (numStr.length < 6) {
+        numStr = '0' + numStr;
+    }
+    let prefix = accounts[1].accountid.toString();
+    return Number(prefix + numStr);
+}
+
 
 setInterval(async () => {
     const pendingInvoices = await getPendingInvoices();
