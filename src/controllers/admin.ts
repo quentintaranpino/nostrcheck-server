@@ -400,7 +400,15 @@ const payDBRecord = async (req: Request, res: Response): Promise<Response> => {
     const EventHeader = await parseAuthHeader(req, "payItem", true);
     if (EventHeader.status !== "success") {return res.status(401).send({"status": EventHeader.status, "message" : EventHeader.message});}
 
-    logger.debug(req.body)
+    // Check if the request has the required parameters
+    if (req.body.transactionid === undefined || req.body.transactionid === null) {
+        const result : ResultMessagev2 = {
+            status: "error",
+            message: "Invalid parameters"
+            };
+        logger.error("RES -> Invalid parameters" + " | " + getClientIp(req));
+        return res.status(400).send(result);
+    }
 
     const payTransaction = await payInvoiceFromExpenses(req.body.transactionid)
     if (payTransaction) {
