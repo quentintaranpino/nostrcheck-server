@@ -247,7 +247,11 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 
 	if (convert){
 
-		filedata.processing_url = filedata.servername + "/api/v2/media/" + filedata.fileid;
+		const procesingURL = app.get("config.media")["returnURL"]
+		filedata.processing_url = procesingURL
+		? `${procesingURL}/${filedata.fileid}`
+		: `${filedata.servername}/api/v2/media/${filedata.fileid}`;
+
 		responseStatus = 202;
 
 		//Send request to transform queue
@@ -520,7 +524,7 @@ const getMediabyURL = async (req: Request, res: Response) => {
 	const cachedStatus = await redisClient.get(req.params.filename + "-" + req.params.pubkey);
 	if (cachedStatus === null || cachedStatus === undefined) {
 
-		const filedata = await dbMultiSelect("SELECT id, active, transactionid FROM mediafiles WHERE filename = ? and pubkey = ? ", ["id", "active", "transactionid"], [req.params.filename, req.params.pubkey]) as string[];
+		const filedata = await dbMultiSelect("SELECT id, active, transactionid, filesize FROM mediafiles WHERE filename = ? and pubkey = ? ", ["id", "active", "transactionid", "filesize"], [req.params.filename, req.params.pubkey]) as string[];
 		if (filedata[0] == undefined || filedata[0] == "" || filedata[0] == null) {
 			logger.warn(`RES -> 404 Not Found - ${req.url}`, "| Returning not found media file.", getClientIp(req));
 			res.setHeader('Content-Type', 'image/webp');
@@ -540,7 +544,7 @@ const getMediabyURL = async (req: Request, res: Response) => {
 		}
 
 		// We check if exist a transaction for this media file and if it is paid.
-		const transaction = await checkTransaction(filedata[2], filedata[0], "mediafiles") as transaction;
+		const transaction = await checkTransaction(filedata[2], filedata[0], "mediafiles", Number(filedata[3])) as transaction;
 		let noCache = false;
 		if (transaction.paymentHash != "" && transaction.isPaid == false) {
 
