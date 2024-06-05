@@ -543,12 +543,12 @@ const getMediabyURL = async (req: Request, res: Response) => {
 			return res.status(401).send(await getNotFoundMediaFile());
 		}
 
-		// We check if exist a transaction for this media file and if it is paid.
+		// Check if exist a transaction for this media file and if it is paid.
 		const transaction = await checkTransaction(filedata[2], filedata[0], "mediafiles", Number(filedata[3])) as transaction;
 		let noCache = false;
 		if (transaction.paymentHash != "" && transaction.isPaid == false) {
 
-			// If is not paid, we check if the GET request has authorization header (for dashboard admin checking)
+			// If is not paid, check if the GET request has authorization header (for dashboard admin checking)
 			const EventHeader = await parseAuthHeader(req, "getMediaByURL", true);
 			if (EventHeader.status != "success") {
 

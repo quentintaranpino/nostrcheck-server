@@ -10,15 +10,15 @@ const checkTransaction = async (transactionid : string, originId: string, origin
         return emptyTransaction;
     }
 
-    // If transaction exist and is paid we return it.
+    // If transaction exist we return it.
     let transaction = await getTransaction(transactionid);
-    if (transaction.paymentHash != "" && transaction.isPaid == true) {return transaction};
+    if (transaction.paymentHash != "") {return transaction};
 
     // Needed fields
     const pubkey = await dbSelect("SELECT pubkey FROM " + originTable + " WHERE id = ?", "pubkey", [originId]) as string;
     const accountid = formatAccountNumber(Number(await dbSelect("SELECT id FROM registered WHERE hex = ?", "id", [pubkey])));
     const balance = await getBalance(accountid.toString());
-    const satoshi = calculateSatoshi(filesize);
+    const satoshi = await calculateSatoshi(filesize);
 
     // If transaction not exist we generate an invoice and fill the transaction
     if (transaction.paymentHash == ""){
@@ -338,7 +338,7 @@ const collectInvoice = async (invoice: invoice, collectFromExpenses = false) : P
 
 }
 
-const calculateSatoshi = (fileSize: number): number => {
+const calculateSatoshi = async (fileSize: number): Promise<number> => {
 
     const maxSize = Number(app.get("config.media")["maxMBfilesize"]);
     let fileSizeMB = fileSize / 1024 / 1024;
