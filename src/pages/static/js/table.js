@@ -49,18 +49,19 @@ const initTable = (tableId, data, objectName) => {
         $(tableId + '-button-show').prop('disabled', !$(tableId).bootstrapTable('getSelections').length)
         $(tableId + '-button-hide').prop('disabled', !$(tableId).bootstrapTable('getSelections').length)
         $(tableId + '-button-remove').prop('disabled', !$(tableId).bootstrapTable('getSelections').length)
-        $(tableId + '-button-pay').prop('disabled', !$(tableId).bootstrapTable('getSelections').length)
 
         if ($(tableId).bootstrapTable('getSelections').length == 1) {
             $(tableId + '-button-admin').prop('disabled', false)
             $(tableId + '-button-edit').prop('disabled', false)
             $(tableId + '-button-password').prop('disabled', false)
+            $(tableId + '-button-pay').prop('disabled', false)
         }
         else {
             $(tableId + '-button-add').prop('disabled', false)
             $(tableId + '-button-admin').prop('disabled', true)
             $(tableId + '-button-edit').prop('disabled', true)
             $(tableId + '-button-password').prop('disabled', true)
+            $(tableId + '-button-pay').prop('disabled', true)
         }
     })
 
@@ -107,7 +108,6 @@ const initTable = (tableId, data, objectName) => {
     initButton(tableId, '-button-disable', objectName, 'disable', 'active', 0)
     initButton(tableId, '-button-enable', objectName, 'enable', 'active', 1)
     initButton(tableId, '-button-remove', objectName, 'remove', '', null)
-    initButton(tableId, '-button-pay', objectName, 'pay', 'paid', 1)
  
      // Edit button
      $(tableId + '-button-edit').click(function () {
@@ -157,6 +157,57 @@ const initTable = (tableId, data, objectName) => {
             });
         }
     })
+
+    // Pay button 
+    $(tableId + '-button-pay').click(async function () {
+        var ids = $.map($(tableId).bootstrapTable('getSelections'), function (row) {
+        return row.id
+        })
+
+        if ($(tableId).bootstrapTable('getSelections')[0].paid === 1) {
+            initAlertModal(tableId, "Item already paid.", 1500,"alert-primary");
+            return
+        }
+
+        if (await initConfirmModal(tableId,ids,'pay ',objectName)) {
+            let url = "admin/payitem/";
+
+            let data = {
+                transactionid: $(tableId).bootstrapTable('getSelections')[0].transactionid,
+                satoshi: $(tableId).bootstrapTable('getSelections')[0].satoshi,
+
+            };
+
+            fetch(url, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "authorization": "Bearer " + authkey
+                },
+                body: JSON.stringify(data)
+            })
+            .then(response => response.json())
+            .then(data => {
+                authkey = data.authkey;
+                if (data.status === "success") {
+                    initMessageModal(tableId, "Payment for item " + $(tableId).bootstrapTable('getSelections')[0].id + " has been processed successfully.", "Success.")
+                    $(tableId).bootstrapTable('updateByUniqueId', {
+                        id: ids[0],
+                        row: {
+                            paid: 1
+                        }
+                    });
+                }else{
+                    initAlertModal(tableId, data.message)
+                }
+                })
+            .catch((error) => {
+                initAlertModal(tableId, error)
+                console.error(error);
+            });
+        }
+    })
+
 
     // Filter buttons
     function initFilterButton () {

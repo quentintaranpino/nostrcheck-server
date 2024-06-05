@@ -91,12 +91,12 @@
         </div>
     </div>
     <div class="btn-group" role="group" aria-label="Pay buttons">
-        <div tabindex="0" data-bs-toggle="tooltip" data-bs-title="Mark as paid item">
+        <div tabindex="0" data-bs-toggle="tooltip" data-bs-title="Mark as paid">
             <button 
                 id="<%- tableId %>-button-pay" 
-                class="btn btn-secondary <%= buttons[9][1] == 'hide' ? 'd-none' : '' %> " 
+                class="btn btn-warning <%= buttons[9][1] == 'hide' ? 'd-none' : '' %> " 
                 disabled>
-                <i class="fa fa-image"></i>
+                <i class="fa fa-solid fa-bolt-lightning"></i>
             </button>
         </div>
     </div>  

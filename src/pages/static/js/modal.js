@@ -124,7 +124,7 @@ const initEditModal = async (objectId, row, objectName, newRow, columns) => {
     return result;
 }
 
-const initAlertModal = async (objectId, message, timeout = 3000, alertClass = "alert-warning") => {
+const initAlertModal = async (objectId, message, timeout = 2000, alertClass = "alert-warning") => {
 
     var alert = new bootstrap.Modal($(objectId + '-alert-modal'));
 
