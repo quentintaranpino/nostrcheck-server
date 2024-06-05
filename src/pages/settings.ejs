@@ -353,7 +353,8 @@
             <p> In this section, you can configure the LN payment provider of your server. Currently only GetAlby is supported. 
             </p>
             <label for="payments.enabled" class="mt-2 mb-1 fw-bold">Enable payments</label>
-            <p>Enable or disable the payment functionality of the server.</p>
+            <p>Enable or disable the payment functionality of the server.if payments are enabled all file uploads will be paid with sats. 
+              The amount will be calculated based on the max allowed file size the "maxSatoshi" value.</p>
             <div class="form-check form-switch">
               <input  class="form-check-input" 
                       type="checkbox" 
@@ -363,14 +364,29 @@
                       id="payments.enabled"
                       >
             </div>
-            <label for="payments.provider" class="mt-2 mb-1 fw-bold">Payment provider</label>
-            <p>Choose the payment provider for your server.</p>
+            <label for="payments.provider" class="mt-4 mb-1 fw-bold">Payment provider</label>
+            <p>Choose the payment provider for your server. Currently only <a href="https://getalby.com/">getalby.com</a> is supported.
+            </p>
             <div class="col-12 col-md-4">
               <select id="payments.paymentProvider" name="payments.paymentProvider" class="form-select">
-                <option value="getalby" <% if (request.body.settingsPayments['paymentProvider'] === 'getalby') { %>selected<% } %>>GetAlby</option>
+                <option value="getalby" <% if (request.body.settingsPayments['paymentProvider'] === 'getalby') { %>selected<% } %>>Getalby</option>
               </select>
             </div>
-            <label for="payments.getalby.authToken" class="mt-2 mb-1 fw-bold">GetAlby authToken</label>
+            <label for="payments.maxSatoshi" class="mt-4 mb-1 fw-bold">Max Satoshi</label>
+            <p>Specify the maximum amount of sats that can be paid for the biggest accepted file size. 
+              If the file size exceeds a maximum limit, it uses this maxium for calculation.<b> It's always at least 1 sat.</b> 
+            </p>
+            <div class="col-12 col-md-4">
+              <input  type="text" 
+                      id="payments.maxSatoshi" 
+                      name="payments.maxSatoshi" 
+                      class="form-control" 
+                      value="<%= request.body.settingsPayments['maxSatoshi'] %>" 
+                      placeholder="ex. 1000" 
+                      required
+                      > 
+            </div>
+            <label for="payments.getalby.authToken" class="mt-4 mb-1 fw-bold">GetAlby authToken</label>
             <p>Specify the authToken for GetAlby payment provider.</p>
               <input  type="text" 
                       id="payments.getalby.authToken" 
