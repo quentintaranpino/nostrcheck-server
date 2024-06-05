@@ -1,90 +1,74 @@
 import app from "../../app.js";
-import { accounts, checkPaymentResult, invoice } from "../../interfaces/payments.js";
+import { accounts, emptyInvoice, emptyTransaction, invoice, transaction } from "../../interfaces/payments.js";
 import { dbInsert, dbMultiSelect, dbSelect, dbUpdate } from "../database.js"
 import { logger } from "../logger.js";
 import { generateGetalbyInvoice, isInvoicePaid } from "./getalby.js";
 
-const checkPayment = async (transactionid : string, originId: string, orginTable : string): Promise<checkPaymentResult | string> => {
+const checkTransaction = async (transactionid : string, originId: string, originTable : string): Promise<transaction> => {
 
     if (app.get("config.payments")["enabled"] == false) {
-        logger.debug("The payments module is not enabled")
-        return {paymentRequest: "", satoshi: 0};
+        return emptyTransaction;
     }
 
-    const isPaid = await dbSelect("SELECT paid FROM transactions WHERE id = ?", "paid", [transactionid])
-    if (isPaid) {
-        logger.debug("Mediafile is already paid")
-        return {paymentRequest: "", satoshi: 0};
-    }
+    // If transaction exist and is paid we return it.
+    let transaction = await getTransaction(transactionid);
+    if (transaction.paymentHash != "" && transaction.isPaid == true) {return transaction};
 
-    const existPayReq = await dbMultiSelect("SELECT id, accountid, paymentrequest, satoshi FROM transactions WHERE id = ?", ["id", "accountid", "paymentrequest", "satoshi", "pubkey"], [transactionid]);
-    if (existPayReq[1] && existPayReq[2] && existPayReq[3]) {
-        const balance = await getBalance(existPayReq[1]);
-        if (balance <= Number(existPayReq[3])) {
-            logger.debug("Already generated invoice for payment, skipping", existPayReq[1])
-            return {paymentRequest: existPayReq[2], satoshi: Number(existPayReq[3])};
-        }
-    }
-
-    const pubkey = await dbSelect("SELECT pubkey FROM " + orginTable + " WHERE id = ?", "pubkey", [originId]) as string;
+    // Needed fields
+    const pubkey = await dbSelect("SELECT pubkey FROM " + originTable + " WHERE id = ?", "pubkey", [originId]) as string;
     const accountid = formatAccountNumber(Number(await dbSelect("SELECT id FROM registered WHERE hex = ?", "id", [pubkey])));
-    const balance = await getBalance(pubkey);
-    const satoshi = Number(await dbSelect("SELECT satoshi FROM transactions WHERE id = ?", "satoshi", [transactionid])) || 1 // TODO set satoshi amount on settings
-    
-    logger.debug("Balance for pubkey " + pubkey + " :", balance)
-    logger.debug("Requested payment for", satoshi, "satoshi")
-    
-    if (balance < satoshi) {
-        
-        const invoice = await generateLNInvoice(satoshi);
-        invoice.description = "Invoice for: " + orginTable + ":" + originId;
+    const balance = await getBalance(accountid.toString());
+    const satoshi = 1; // This should be the amount of satoshi to be paid for the transaction
 
-        const transId = await addTransacion("invoice", accountid, invoice, satoshi)
-        await dbUpdate(orginTable, "transactionid", transId.toString() , "id", originId)
-        logger.debug("Generated invoice for " + orginTable + ":" + originId, " satoshi: ", satoshi, "transactionid: ", transId)
-
-        await addJournalEntry(accountid, transId, satoshi, 0, "invoice for " + orginTable + ":" + originId);
-        logger.debug("Journal entry added for debit transaction", transId, originId, orginTable)
-
-        return {paymentRequest: invoice.paymentRequest, satoshi: satoshi};
-
-    } else {
-    
-        const journalPayInvoice = await addJournalEntry(accountid, Number(existPayReq[0]) || 0, 0, satoshi ,"Payment for " + existPayReq[0]);
-        if (journalPayInvoice) {
-            logger.debug("Journal entry added for credit transaction", journalPayInvoice)
-        }
-
-        const journalSpendBalance = await addJournalEntry(accountid, Number(existPayReq[0]) || 0, satoshi , 0 ,"Spend balance for " + existPayReq[0]);
-        if (journalPayInvoice) {
-            logger.debug("Journal entry added for debit transaction", journalPayInvoice)
-        }
-
-        const journalRecInvoice = await addJournalEntry(accounts[0].accountid, Number(existPayReq[0]) || 0, 0, satoshi ,"Receipt of invoice payment " + existPayReq[0]);
-        if (journalRecInvoice) {
-            logger.debug("Journal entry added for credit transaction", journalRecInvoice)
-        }
-
-        if (journalPayInvoice && journalSpendBalance && journalRecInvoice) {
-            await dbUpdate("transactions", "paid", "1", "id", transactionid);
-            await dbUpdate("transactions", "paiddate", new Date(), "id", transactionid);
-            logger.debug("Transaction updated as paid", transactionid)
-            return {paymentRequest: "", satoshi: 0};
-        }
-
-        logger.debug("Error adding journal entry for debit transaction", transactionid, originId, orginTable)
-        return "";
+    // If transaction not exist we generate an invoice and fill the transaction
+    if (transaction.paymentHash == ""){
+        const invoice = await generateLNInvoice(accountid, satoshi, originTable, originId);
+        if (invoice.paymentRequest == "") {return emptyTransaction};
+        transaction = await getTransaction(invoice.transactionid.toString());
     }
+    
+    // If the balance is enough we pay the invoice
+    if (balance >= satoshi) {
+        let inv = await getInvoice(transaction.transactionid.toString());
+        inv.paidDate = new Date();
+        if (await collectInvoice(inv)){
+            logger.info("Paying invoice with user balance:", balance, "satoshi:", satoshi, "transactionid:", inv.transactionid, "Accountid:", inv.accountid)
+            return await getTransaction(inv.transactionid.toString())
+        };
+    }
+
+    return transaction;
+
 }
 
-const generateLNInvoice = async (amount: number) : Promise<invoice> => {
-    return await generateGetalbyInvoice(app.get("config.payments")["LNAddress"], amount);
+const generateLNInvoice = async (accountid: number, satoshi: number, originTable : string, originId : string) : Promise<invoice> => {
+    
+    const albyInvoice = await generateGetalbyInvoice(app.get("config.payments")["LNAddress"], satoshi);
+    albyInvoice.description = "Invoice for: " + originTable + ":" + originId;
+
+    const transId = await addTransacion("invoice", accountid, albyInvoice, satoshi)
+    if (transId) {
+        await dbUpdate(originTable, "transactionid", transId.toString() , "id", originId)
+        logger.info("Generated invoice for " + originTable + ":" + originId, " satoshi: ", satoshi, "transactionid: ", transId)
+        albyInvoice.transactionid = transId;
+    }
+
+    const debit = await addJournalEntry(accountid, transId, satoshi, 0, "invoice for " + originTable + ":" + originId);
+    const credit = await addJournalEntry(accounts[2].accountid, transId, 0, satoshi, "Accounts Receivable for " + originTable + ":" + originId);
+    if (credit && debit) {
+        logger.debug("Journal entry added for debit transaction", transId, originId, originTable)
+    }
+
+    if (transId && credit && debit) {
+        return albyInvoice;
+    }
+
+    return emptyInvoice;
 }
 
 const addTransacion = async (type: string, accountid: number, invoice: invoice, satoshi: number) : Promise<number> => {
 
     if (app.get("config.payments")["enabled"] == false) {
-        logger.debug("The payments module is not enabled")
         return 0;
     }
 
@@ -97,6 +81,7 @@ const addTransacion = async (type: string, accountid: number, invoice: invoice, 
                             "paid", 
                             "createddate", 
                             "expirydate",
+                            "paiddate",
                             "comments"], 
                             [type, 
                             accountid,
@@ -105,15 +90,15 @@ const addTransacion = async (type: string, accountid: number, invoice: invoice, 
                             satoshi, 
                             (invoice.isPaid? 1 : 0).toString(), 
                             invoice.createdDate ? invoice.createdDate : new Date().toISOString().slice(0, 19).replace('T', ' '), 
-                            invoice.expiryDate? invoice.expiryDate : new Date().toISOString().slice(0, 19).replace('T', ' '),
-                            invoice.description? invoice.description : ""]
+                            invoice.expiryDate? invoice.expiryDate : null,
+                            invoice.paidDate? invoice.paidDate : null,
+                            invoice.description]
                         );
 }
 
 const addJournalEntry = async (accountid: number, transactionid: number, debit: number, credit: number, comments: string) : Promise<number> => {
     
     if (app.get("config.payments")["enabled"] == false) {
-        logger.debug("The payments module is not enabled")
         return 0;
     }
     
@@ -134,22 +119,25 @@ const addJournalEntry = async (accountid: number, transactionid: number, debit: 
 
 }
 
-const getBalance = async (pubkey: string) : Promise<number> => {
+const getBalance = async (accountid: string) : Promise<number> => {
 
     if (app.get("config.payments")["enabled"] == false) {
-        logger.debug("The payments module is not enabled")
         return 0;
     }
 
-const result = Number(await dbSelect("SELECT SUM(credit) - SUM(debit) as 'balance' FROM ledger INNER JOIN registered on ledger.accountid = registered.id WHERE registered.hex = ?", "balance", [pubkey]));
-    logger.debug("Balance for pubkey", pubkey, ":", result)
+    if (!accountid) {
+        logger.warn("No accountid provided for balance check")
+        return 0;
+    }
+
+const result = Number(await dbSelect("SELECT SUM(credit) - SUM(debit) as 'balance' FROM ledger WHERE ledger.accountid = ?", "balance", [accountid]));
+    logger.debug("Balance for account", accountid, ":", result)
     return result;
 }
 
 const addBalance = async (pubkey: string, amount: number) : Promise<boolean> => {
     
         if (app.get("config.payments")["enabled"] == false) {
-            logger.debug("The payments module is not enabled")
             return false;
         }
 
@@ -161,6 +149,7 @@ const addBalance = async (pubkey: string, amount: number) : Promise<boolean> => 
                                                     paymentHash: "", 
                                                     createdDate: new Date().toISOString().slice(0, 19).replace('T', ' '), 
                                                     expiryDate: new Date().toISOString().slice(0, 19).replace('T', ' '), 
+                                                    paidDate: new Date().toISOString().slice(0, 19).replace('T', ' '),
                                                     description: "", 
                                                     isPaid: true, 
                                                     transactionid: 0, 
@@ -169,21 +158,25 @@ const addBalance = async (pubkey: string, amount: number) : Promise<boolean> => 
                                                 amount);
         if (transaction) {
             const accountid = formatAccountNumber(Number(await dbSelect("SELECT id FROM registered WHERE hex = ?", "id", [pubkey])));
-            await addJournalEntry(accountid, transaction, 0, amount, "Credit for pubkey: " + pubkey);
-            return true;
+            const debit = await addJournalEntry(accounts[4].accountid, transaction, amount, 0, "Expense for adding credit to account: " + accountid);
+            const credit = await addJournalEntry(accountid, transaction, 0, amount, "Credit added to account: " + accountid);
+            if (credit && debit) {
+                logger.debug("Journal entries added for adding balance to account:", accountid, "transaction:", transaction)
+                return true;
+            }
         }
         return false;
-
 }
 
 const getPendingInvoices = async () : Promise<invoice[]> => {
 
     if (app.get("config.payments")["enabled"] == false) {
-        logger.debug("The payments module is not enabled")
         return [];
     }
 
-    const result = await dbMultiSelect("SELECT id, accountid, paymentrequest, paymenthash, createddate, expirydate, satoshi FROM transactions WHERE paid = 0", ["id", "accountid", "paymentrequest", "paymenthash", "createddate", "expirydate", "satoshi"], ["paymenthash"], false);
+    const result = await dbMultiSelect("SELECT id, accountid, paymentrequest, paymenthash, satoshi, createddate, expirydate, paiddate, comments FROM transactions WHERE paid = 0", 
+                                    ["id", "accountid", "paymentrequest", "paymenthash",  "satoshi", "createddate", "expirydate", "paiddate", "comments",], 
+                                    [], false);
     const invoices : invoice[] = [];
     result.forEach(async (invoiceString) => {
         const invoice = invoiceString.split(',');
@@ -192,16 +185,105 @@ const getPendingInvoices = async () : Promise<invoice[]> => {
             accountid: Number(invoice[1]),
             paymentRequest: invoice[2],
             paymentHash: invoice[3],
-            createdDate: new Date(invoice[4]),
-            expiryDate: new Date(invoice[5]),
-            description: "",
+            satoshi: Number(invoice[4]),
             isPaid: false,
-            satoshi: Number(invoice[6]),
+            createdDate: new Date(invoice[5]),
+            expiryDate: new Date(invoice[6]),
+            paidDate: new Date(invoice[7]),
+            description: invoice[8],
+
+
 
         });
     })
     return invoices;
 }
+
+const getInvoice = async (transactionid: string) : Promise<invoice> => {
+
+    if (app.get("config.payments")["enabled"] == false) {
+        return emptyInvoice;
+    }
+
+    if (!transactionid || transactionid == "0") {
+        return emptyInvoice;
+    }
+
+    const result = await dbMultiSelect("SELECT id, accountid, paymentrequest, paymenthash, satoshi, paid, createddate, expirydate, paiddate, comments  FROM transactions WHERE id = ?", 
+                                        ["id", "accountid", "paymentrequest", "paymenthash", "satoshi", "paid", "createddate", "expirydate", "paiddate", "comments"], 
+                                        [transactionid], false);
+    if (result.length == 0) {return emptyInvoice};
+    const invoice = result[0].split(',');
+    return {
+        paymentRequest: invoice[2],
+        paymentHash: invoice[3],
+        satoshi: Number(invoice[4]),
+        isPaid: Boolean(Number(invoice[5])),
+        createdDate: new Date(invoice[6]),
+        expiryDate: new Date(invoice[7]),
+        paidDate: new Date(invoice[8]),
+        description: invoice[9],
+        transactionid: Number(invoice[0]),
+        accountid: Number(invoice[1])
+
+    }
+    
+    return emptyInvoice;
+
+}
+
+
+const getTransaction = async (transactionid: string) : Promise<transaction> => {
+
+    if (app.get("config.payments")["enabled"] == false) {
+        return emptyTransaction;
+    }
+
+    if (!transactionid || transactionid == "0") {
+        return emptyTransaction;
+    }
+
+    const result = await dbMultiSelect("SELECT id, type, accountid, paymentrequest, paymenthash, satoshi, paid, createddate, expirydate, paiddate, comments FROM transactions WHERE id = ?", 
+                                    ["id", "type", "accountid", "paymentrequest", "paymenthash", "satoshi", "paid", "createddate", "expirydate", "paiddate", "comments"], 
+                                    [transactionid], false);
+    if (result.length == 0) {return emptyTransaction};
+    const strTrans = result[0].split(',');
+    const transaction: transaction = {
+        transactionid: Number(strTrans[0]),
+        type: strTrans[1],
+        accountid: Number(strTrans[2]),
+        paymentRequest: strTrans[3],
+        paymentHash: strTrans[4],
+        satoshi: Number(strTrans[5]),
+        isPaid: Boolean(Number(strTrans[6])),
+        createdDate: new Date(strTrans[7]),
+        expiryDate: new Date(strTrans[8]),
+        paidDate: new Date(strTrans[9]),
+        comments: strTrans[10]
+    }
+
+    // If transaction expirydate is passed we generate a new LN invoice
+    if (transaction.type == "invoice" && transaction.expiryDate < new Date()) {
+        const inv = await generateGetalbyInvoice(app.get("config.payments")["LNAddress"], transaction.satoshi);
+        transaction.paymentRequest = inv.paymentRequest;
+        transaction.paymentHash = inv.paymentHash;
+        transaction.createdDate = inv.createdDate;
+        transaction.expiryDate = inv.expiryDate;
+        const updatePayreq = await dbUpdate("transactions", "paymentrequest", inv.paymentRequest, "id", transactionid);
+        const updatePayhash = await dbUpdate("transactions", "paymenthash", inv.paymentHash, "id", transactionid);
+        const updateCreated = await dbUpdate("transactions", "createddate", inv.createdDate, "id", transactionid);
+        const updateExpyry = await dbUpdate("transactions", "expirydate", inv.expiryDate, "id", transactionid);
+        if (!updatePayreq || !updatePayhash || !updateCreated || !updateExpyry) {
+            logger.error("Error updating transaction with new invoice data", transactionid)
+            return emptyTransaction;
+        }
+        logger.info("Invoice expired, new invoice generated for transaction:", transactionid)
+
+    }
+
+    return transaction;
+}
+
 
 const formatAccountNumber = (id: number): number => {
     let numStr = id.toString();
@@ -212,6 +294,41 @@ const formatAccountNumber = (id: number): number => {
     return Number(prefix + numStr);
 }
 
+const collectInvoice = async (invoice: invoice) : Promise<boolean> => {
+
+    if (app.get("config.payments")["enabled"] == false) {
+        logger.debug("The payments module is not enabled")
+        return false;
+    }
+
+    if (invoice.isPaid) {
+        logger.debug("Invoice already paid", invoice.transactionid)
+        return true;
+    }
+
+    const paid = await dbUpdate("transactions", "paid", "1", "id", invoice.transactionid.toString());
+    const paiddate = await dbUpdate("transactions", "paiddate", new Date(invoice.paidDate), "id", invoice.transactionid.toString());
+    if (paid && paiddate) {
+        logger.info("Invoice paid, transaction updated", invoice.transactionid);
+    }else{
+        logger.error("Error updating transaction", invoice.transactionid);
+        return false;
+    }
+
+    const debitMainWallet = await addJournalEntry(accounts[0].accountid, invoice.transactionid, invoice.satoshi, 0 , "Receipt of invoice payment " + invoice.transactionid);
+    const creditUserWallet = await addJournalEntry(invoice.accountid, invoice.transactionid, 0, invoice.satoshi, "Payment received for invoice: " + invoice.transactionid);
+    const debitAccountsReceivable = await addJournalEntry(accounts[2].accountid, invoice.transactionid, invoice.satoshi, 0, "Clear Accounts Receivable for invoice payment " + invoice.transactionid);
+    const creditRevenue = await addJournalEntry(accounts[3].accountid, invoice.transactionid, 0, invoice.satoshi, "Revenue from invoice payment " + invoice.transactionid);
+
+    if (debitMainWallet && creditUserWallet && debitAccountsReceivable && creditRevenue) {
+        logger.debug("Journal entries added for invoice payment", invoice.transactionid)
+        return true;
+    } else {
+        logger.error("Error adding journal entries for invoice payment", invoice.transactionid)
+        return false;
+    }
+
+}
 
 setInterval(async () => {
     const pendingInvoices = await getPendingInvoices();
@@ -219,14 +336,11 @@ setInterval(async () => {
     for (const invoice of pendingInvoices) {
         const paiddate = await isInvoicePaid(invoice.paymentHash);
         if (paiddate != "")  {
-            await dbUpdate("transactions", "paid", "1", "id", invoice.transactionid.toString());
-            await dbUpdate("transactions", "paiddate", new Date(paiddate), "id", invoice.transactionid.toString());
-            logger.info("Invoice paid, transaction updated", invoice.transactionid);
-            await addJournalEntry(invoice.accountid, invoice.transactionid, 0, invoice.satoshi, "Payment for invoice: " + invoice.paymentHash);
-            await addJournalEntry(accounts[0].accountid, invoice.transactionid, 0, invoice.satoshi, "Receipt of invoice payment " + invoice.paymentHash);
-            logger.info("Journal entry added for credit transaction", invoice.transactionid)
+            invoice.paidDate = paiddate;
+            await collectInvoice(invoice);
         }
     }
-}, 15000);
+    // await addBalance("366f9b18d39a30db0d370eeb3cf4b25bbedfc4a7aa18d523bad75ecdf10e15d2", 5)
+}, 5000);
 
-export { checkPayment, addBalance, getBalance}
+export { checkTransaction, addBalance, getBalance}
