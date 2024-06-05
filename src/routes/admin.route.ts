@@ -1,7 +1,7 @@
 import { Application } from "express";
 import multer from "multer";
 
-import { deleteDBRecord, serverStatus, StopServer } from "../controllers/admin.js";
+import { deleteDBRecord, payDBRecord, serverStatus, StopServer } from "../controllers/admin.js";
 import { resetUserPassword, updateDBRecord, insertDBRecord, updateSettings, updateLogo } from "../controllers/admin.js";
 import config from "config";
 import { logger } from "../lib/logger.js";
@@ -54,6 +54,9 @@ export const loadAdminEndpoint = async (app: Application, version:string): Promi
                                 updateLogo(req, res);
                         })
                 });
+
+                // Pay item
+                app.post("/api/" + version + app.get("config.server")["availableModules"]["admin"]["path"] + "/payitem/", payDBRecord);
 
         }
 
