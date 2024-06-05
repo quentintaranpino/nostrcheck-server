@@ -31,8 +31,8 @@ import crypto from "crypto";
 import { writeLocalFile } from "../lib/storage/local.js";
 import { Readable } from "stream";
 import { getRemoteFile } from "../lib/storage/remote.js";
-import { checkPayment } from "../lib/payments/core.js";
-import { checkPaymentResult } from "../interfaces/payments.js";
+import { transaction } from "../interfaces/payments.js";
+import { checkTransaction } from "../lib/payments/core.js";
 
 const uploadMedia = async (req: Request, res: Response, version:string): Promise<Response> => {
 
@@ -539,17 +539,19 @@ const getMediabyURL = async (req: Request, res: Response) => {
 			return res.status(401).send(await getNotFoundMediaFile());
 		}
 
-		// Paid media check
-		const paymentRequest: checkPaymentResult = await checkPayment(filedata[2], filedata[0], "mediafiles") as checkPaymentResult;
+		// We check if exist a transaction for this media file and if it is paid.
+		const transaction = await checkTransaction(filedata[2], filedata[0], "mediafiles") as transaction;
 		let noCache = false;
-		if (paymentRequest.paymentRequest != "") {
+		if (transaction.paymentHash != "" && transaction.isPaid == false) {
 
-			// If the payment is not paid, we check if the GET request has authorization header (for dashboard admin checking)
+			// If is not paid, we check if the GET request has authorization header (for dashboard admin checking)
 			const EventHeader = await parseAuthHeader(req, "getMediaByURL", true);
 			if (EventHeader.status != "success") {
+
+				// If the GET request has no authorization, we return a QR code with the payment request.
 				logger.info(`RES -> 200 Paid media file ${req.url}`, "|", getClientIp(req), "|", "cached:", cachedStatus ? true : false);
-				const qrImage = await generateQRCode(paymentRequest.paymentRequest, 
-										"Invoice amount: " + paymentRequest.satoshi + " sats", 
+				const qrImage = await generateQRCode(transaction.paymentRequest, 
+										"Invoice amount: " + transaction.satoshi + " sats", 
 										"This file will be unlocked when the Lightning invoice " + 
 										"is paid. Then, it will be freely available to everyone");
 
