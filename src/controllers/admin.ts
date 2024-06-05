@@ -9,13 +9,14 @@ import { logger } from "../lib/logger.js";
 import { getClientIp, format } from "../lib/utils.js";
 import { ResultMessagev2, ServerStatusMessage, authkeyResultMessage } from "../interfaces/server.js";
 import { generateCredentials } from "../lib/authorization.js";
-import { dbDelete, dbInsert, dbSelect, dbUpdate } from "../lib/database.js";
+import { dbDelete, dbInsert, dbUpdate } from "../lib/database.js";
 import { allowedFieldNames, allowedFieldNamesAndValues, allowedTableNames } from "../interfaces/admin.js";
 import { parseAuthHeader} from "../lib/authorization.js";
 import { isModuleEnabled, updateLocalConfigKey } from "../lib/config.js";
 import { flushRedisCache } from "../lib/redis.js";
 import { ParseFileType } from "../lib/media.js";
 import { npubToHex } from "../lib/nostr/NIP19.js";
+import { payInvoiceFromExpenses } from "../lib/payments/core.js";
 
 let hits = 0;
 /**
@@ -145,28 +146,6 @@ const updateDBRecord = async (req: Request, res: Response): Promise<Response> =>
         logger.warn("RES -> Value is empty: " + req.body.field +  " | " + getClientIp(req));
         return res.status(400).send(result);
     }
-
-    // // If field is 'paid' we create a debit transaction and update the transaction as paid
-    // if (req.body.field == "paid" && req.body.value == 1) {
-    //     const transactionid = await dbSelect("SELECT transactionid FROM " + table + " WHERE id = ?", "transactionid", [req.body.id]);
-    //     if (await debitTransaction(transactionid.toString(), "")) {
-    //         const result : authkeyResultMessage = {
-    //             status: "success",
-    //             message: req.body.value,
-    //             authkey: EventHeader.authkey
-    //             };
-    //         logger.info("RES -> Invoice paid by admin" + " | " + getClientIp(req));
-    //         return res.status(200).send(result);
-    //     }else{
-    //         const result : authkeyResultMessage = {
-    //             status: "error",
-    //             message: "Failed to pay invoice",
-    //             authkey: EventHeader.authkey
-    //             };
-    //         logger.error("RES -> Failed to pay invoice by admin" + " | " + getClientIp(req));
-    //         return res.status(500).send(result);
-    //     }
-    // }
 
     // Update table with new value
     const update = await dbUpdate(table, req.body.field, req.body.value, "id", req.body.id);
@@ -398,6 +377,45 @@ const deleteDBRecord = async (req: Request, res: Response): Promise<Response> =>
     }
 }
 
+
+/**
+ * Pays an item from the expenses account.
+ * 
+ * @param req - The request object.
+ * @param res - The response object.
+ * @returns A promise that resolves to the response object.
+ */
+const payDBRecord = async (req: Request, res: Response): Promise<Response> => {
+
+    // Check if current module is enabled
+    if (!isModuleEnabled("admin", app)) {
+        logger.warn("Attempt to access a non-active module:","admin","|","IP:", getClientIp(req));
+        return res.status(400).send({"status": "error", "message": "Module is not enabled"});
+    }
+
+    logger.info("REQ -> payItem", req.hostname, "|", getClientIp(req));
+    res.setHeader('Content-Type', 'application/json');
+
+     // Check if authorization header is valid
+    const EventHeader = await parseAuthHeader(req, "payItem", true);
+    if (EventHeader.status !== "success") {return res.status(401).send({"status": EventHeader.status, "message" : EventHeader.message});}
+
+    logger.debug(req.body)
+
+    const payTransaction = await payInvoiceFromExpenses(req.body.transactionid)
+    if (payTransaction) {
+        const result : authkeyResultMessage = {
+            status: "success",
+            message: "Item paid",
+            authkey: EventHeader.authkey
+            };
+        logger.info("RES -> Item paid" + " | " + getClientIp(req));
+        return res.status(200).send(result);
+    }
+    return res.status(500).send({"status": "error", "message": "Failed to pay item", "authkey": EventHeader.authkey});
+}
+
+   
 /**
  * Inserts a record into the database.
  * 
@@ -605,4 +623,4 @@ const updateSettings = async (req: Request, res: Response): Promise<Response> =>
     
 }
 
-export { serverStatus, StopServer, resetUserPassword, updateDBRecord, deleteDBRecord, insertDBRecord, updateSettings, updateLogo};
+export { serverStatus, StopServer, resetUserPassword, updateDBRecord, deleteDBRecord, insertDBRecord, updateSettings, updateLogo, payDBRecord};
