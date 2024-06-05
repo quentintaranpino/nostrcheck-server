@@ -1,7 +1,7 @@
 // https://github.com/getAlby/js-sdk
 // https://github.com/getAlby/js-lightning-tools
 import { LightningAddress } from "@getalby/lightning-tools";
-import { invoice } from "../../interfaces/payments.js";
+import { emptyInvoice, invoice } from "../../interfaces/payments.js";
 import app from "../../app.js";
 import { logger } from "../logger.js";
 
@@ -12,11 +12,11 @@ const generateGetalbyInvoice = async (LNAddress: string, amount:number) : Promis
     try{
         await ln.fetch();
         const getalbyInvoice = await ln.requestInvoice({ satoshi: amount });
-        return {accountid: 1, paymentRequest: getalbyInvoice.paymentRequest, paymentHash: getalbyInvoice.paymentHash, createdDate: getalbyInvoice.createdDate, expiryDate: getalbyInvoice.expiryDate, description: getalbyInvoice.description, isPaid: false, satoshi: getalbyInvoice.satoshi, transactionid: 0};
+        return {paymentRequest: getalbyInvoice.paymentRequest, paymentHash: getalbyInvoice.paymentHash, satoshi: getalbyInvoice.satoshi, isPaid: false, createdDate: getalbyInvoice.createdDate, expiryDate: getalbyInvoice.expiryDate, paidDate: "", description: getalbyInvoice.description, transactionid: 0, accountid: 0};
         
     }catch(e){
         logger.error("Error generating invoice", e);
-        return {accountid: 0, paymentRequest: "", paymentHash: "", createdDate: "", expiryDate: "", description: "", isPaid: false, satoshi: amount, transactionid: 0};
+        return emptyInvoice;
     }
 
 }
