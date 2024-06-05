@@ -411,6 +411,8 @@ async function dbSelectModuleData(module:string): Promise<string> {
 		"mediafiles.checked, " +
 		"mediafiles.active, " +
 		"mediafiles.visibility, " +
+		"transactions.id as 'transactionid', " +
+		"transactions.satoshi, " +
 		"transactions.paid, " +
 		"(SELECT registered.username FROM registered WHERE mediafiles.pubkey = registered.hex LIMIT 1) as username, " +
 		"(SELECT registered.pubkey FROM registered WHERE mediafiles.pubkey = registered.hex LIMIT 1) as npub, " +
