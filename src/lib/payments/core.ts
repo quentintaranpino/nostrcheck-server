@@ -4,7 +4,7 @@ import { dbInsert, dbMultiSelect, dbSelect, dbUpdate } from "../database.js"
 import { logger } from "../logger.js";
 import { generateGetalbyInvoice, isInvoicePaid } from "./getalby.js";
 
-const checkTransaction = async (transactionid : string, originId: string, originTable : string): Promise<transaction> => {
+const checkTransaction = async (transactionid : string, originId: string, originTable : string, filesize: number): Promise<transaction> => {
 
     if (app.get("config.payments")["enabled"] == false) {
         return emptyTransaction;
@@ -18,7 +18,7 @@ const checkTransaction = async (transactionid : string, originId: string, origin
     const pubkey = await dbSelect("SELECT pubkey FROM " + originTable + " WHERE id = ?", "pubkey", [originId]) as string;
     const accountid = formatAccountNumber(Number(await dbSelect("SELECT id FROM registered WHERE hex = ?", "id", [pubkey])));
     const balance = await getBalance(accountid.toString());
-    const satoshi = 1; // This should be the amount of satoshi to be paid for the transaction
+    const satoshi = calculateSatoshi(filesize);
 
     // If transaction not exist we generate an invoice and fill the transaction
     if (transaction.paymentHash == ""){
@@ -330,9 +330,20 @@ const collectInvoice = async (invoice: invoice) : Promise<boolean> => {
 
 }
 
+const calculateSatoshi = (fileSize: number): number => {
+
+    const maxSize = Number(app.get("config.media")["maxMBfilesize"]);
+    let fileSizeMB = fileSize / 1024 / 1024;
+    if (fileSizeMB > maxSize) {fileSizeMB = maxSize;}
+
+    const satoshi = Math.round((fileSizeMB / maxSize) * app.get("config.payments")["maxSatoshi"]);
+    logger.info("Filesize:", fileSizeMB, "Satoshi:", satoshi)
+    return satoshi >= 1 ? satoshi : 1;
+}
+
 setInterval(async () => {
     const pendingInvoices = await getPendingInvoices();
-    logger.info("Pending invoices:", pendingInvoices.length)
+    logger.debug("Pending invoices:", pendingInvoices.length)
     for (const invoice of pendingInvoices) {
         const paiddate = await isInvoicePaid(invoice.paymentHash);
         if (paiddate != "")  {
@@ -343,4 +354,4 @@ setInterval(async () => {
     // await addBalance("366f9b18d39a30db0d370eeb3cf4b25bbedfc4a7aa18d523bad75ecdf10e15d2", 5)
 }, 5000);
 
-export { checkTransaction, addBalance, getBalance}
+export { checkTransaction, addBalance, getBalance, calculateSatoshi}
