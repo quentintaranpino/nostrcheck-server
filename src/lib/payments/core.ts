@@ -294,7 +294,7 @@ const formatAccountNumber = (id: number): number => {
     return Number(prefix + numStr);
 }
 
-const collectInvoice = async (invoice: invoice) : Promise<boolean> => {
+const collectInvoice = async (invoice: invoice, collectFromExpenses = false) : Promise<boolean> => {
 
     if (app.get("config.payments")["enabled"] == false) {
         logger.debug("The payments module is not enabled")
@@ -315,12 +315,20 @@ const collectInvoice = async (invoice: invoice) : Promise<boolean> => {
         return false;
     }
 
-    const debitMainWallet = await addJournalEntry(accounts[0].accountid, invoice.transactionid, invoice.satoshi, 0 , "Receipt of invoice payment " + invoice.transactionid);
+    let debitExpenses : number = 0;
+    let debitMainWallet : number = 0;
+
+    // If we are collecting from expenses we don't need to debit the main wallet and we need to debit the expenses account.
+    if (collectFromExpenses) {
+        debitExpenses = await addJournalEntry(accounts[4].accountid, invoice.transactionid, invoice.satoshi, 0, "Expense for adding credit to account: " + invoice.accountid);
+    }else{
+        debitMainWallet = await addJournalEntry(accounts[0].accountid, invoice.transactionid, invoice.satoshi, 0 , "Receipt of invoice payment " + invoice.transactionid);
+    }
     const creditUserWallet = await addJournalEntry(invoice.accountid, invoice.transactionid, 0, invoice.satoshi, "Payment received for invoice: " + invoice.transactionid);
     const debitAccountsReceivable = await addJournalEntry(accounts[2].accountid, invoice.transactionid, invoice.satoshi, 0, "Clear Accounts Receivable for invoice payment " + invoice.transactionid);
     const creditRevenue = await addJournalEntry(accounts[3].accountid, invoice.transactionid, 0, invoice.satoshi, "Revenue from invoice payment " + invoice.transactionid);
 
-    if (debitMainWallet && creditUserWallet && debitAccountsReceivable && creditRevenue) {
+    if ((debitExpenses != 0 || debitMainWallet != 0) && creditUserWallet != 0 && debitAccountsReceivable != 0 && creditRevenue != 0) {
         logger.debug("Journal entries added for invoice payment", invoice.transactionid)
         return true;
     } else {
@@ -341,6 +349,37 @@ const calculateSatoshi = (fileSize: number): number => {
     return satoshi >= 1 ? satoshi : 1;
 }
 
+const payInvoiceFromExpenses = async (transactionid: string) : Promise<boolean> => {
+
+    if (app.get("config.payments")["enabled"] == false) {
+        return false;
+    }
+
+    if (!transactionid || transactionid == "0") {
+        return false;
+    }
+
+    const invoice = await getInvoice(transactionid);
+    if (invoice.paymentHash == "") {
+        logger.error("No payment hash found for transaction", transactionid)
+        return false;
+    }
+
+    if (invoice.isPaid) {
+        logger.debug("Invoice already paid", transactionid)
+        return true;
+    }
+
+    // We send the true parameter for collectInvoice to debit the expenses account instead of the main wallet.
+    const collect = await collectInvoice(invoice, true);
+    if (collect) {
+        logger.info("Invoice paid", transactionid)
+        return true;
+    }
+
+    return false
+}
+
 setInterval(async () => {
     const pendingInvoices = await getPendingInvoices();
     logger.debug("Pending invoices:", pendingInvoices.length)
@@ -354,4 +393,4 @@ setInterval(async () => {
     // await addBalance("366f9b18d39a30db0d370eeb3cf4b25bbedfc4a7aa18d523bad75ecdf10e15d2", 5)
 }, 5000);
 
-export { checkTransaction, addBalance, getBalance, calculateSatoshi}
+export { checkTransaction, addBalance, getBalance, payInvoiceFromExpenses}
