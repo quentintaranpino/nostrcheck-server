@@ -296,8 +296,11 @@ async function setMediaDimensions(file:string, options:ProcessingFileData):Promi
 			resolve("640x480"); //Default min width
 			return;
 		} else {
-			mediaWidth = mediaWidth? mediaWidth : metadata.streams[0].width;
-			mediaHeight = mediaHeight? mediaHeight : metadata.streams[0].height;
+			let videoStream = metadata.streams.find(stream => stream.codec_type === 'video');
+			if (videoStream) {
+				mediaWidth = mediaWidth ? mediaWidth : videoStream.width;
+				mediaHeight = mediaHeight ? mediaHeight : videoStream.height;
+			}
 			let newWidth = options.width;
 			let newHeight = options.height;
 
