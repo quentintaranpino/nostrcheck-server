@@ -11,7 +11,7 @@ const getNIP96file = (hostname : string): NIP96file => {
     
         "api_url": "https://" + hostname + "/api/v2/media",
         "download_url": "https://" + hostname + "/media",
-        "supported_nips": [1,78,94,96,98,],
+        "supported_nips": [1,4,5,78,94,96,98],
         "tos_url": "https://" + hostname + "/api/v2/tos/",
         "content_types": allowedMimeTypes,
         "plans": {
