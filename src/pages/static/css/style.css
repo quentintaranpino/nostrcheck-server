@@ -49,6 +49,13 @@ main {
   background-size: cover;
   background-attachment: fixed;
 }
+.background-style-3 {
+  background: -webkit-linear-gradient(to right, rgb(143 40 154), rgb(0 0 0) 90%);
+  background: linear-gradient(to top, rgb(143 40 154) 0%, rgb(0 0 0) 90%);
+  background-repeat: no-repeat;
+  background-size: cover;
+  background-attachment: fixed;
+}
 
 .fade-in {
   opacity: 0;
@@ -59,4 +66,26 @@ main {
   to {
       opacity: 1;
   }
+}
+
+.gradient-text {
+  background-image: linear-gradient(to right, #218bff, #953af0, #da2476);
+
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}         
+         
+.btn-grad {
+  background-image: linear-gradient(to right, #7b4397 0%, #dc2430  51%, #7b4397  100%);
+  margin: 10px;
+  padding: 15px 45px;
+  text-align: center;
+  text-transform: uppercase;
+  transition: 0.5s;
+  background-size: 200% auto;
+  color: white;            
+  box-shadow: 0 0 20px #eee;
+  border-radius: 10px;
+  display: block;
 }
