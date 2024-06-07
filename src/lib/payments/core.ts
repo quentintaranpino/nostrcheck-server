@@ -10,33 +10,49 @@ const checkTransaction = async (transactionid : string, originId: string, origin
         return emptyTransaction;
     }
 
-    // If transaction exist we return it.
-    let transaction = await getTransaction(transactionid);
-    if (transaction.paymentHash != "") {return transaction};
-
-    // Needed fields
+    // Necessary fields
     const pubkey = await dbSelect("SELECT pubkey FROM " + originTable + " WHERE id = ?", "pubkey", [originId]) as string;
     const accountid = formatAccountNumber(Number(await dbSelect("SELECT id FROM registered WHERE hex = ?", "id", [pubkey])));
-    const balance = await getBalance(accountid.toString());
+    const balance = await getBalance(accountid);
     const satoshi = await calculateSatoshi(filesize);
+
+    // Get the transaction
+    let transaction = await getTransaction(transactionid);
+    if (transaction.paymentHash != "") {
+        
+        // If the balance is enough we pay the transaction and return the updated transaction
+        if (balance >= satoshi) {
+            let inv = await getInvoice(transaction.transactionid.toString());
+            inv.paidDate = new Date();
+            if (await collectInvoice(inv)){
+                logger.info("Paying invoice with user balance:", balance, "satoshi:", satoshi, "transactionid:", inv.transactionid, "Accountid:", inv.accountid)
+                return await getTransaction(inv.transactionid.toString())
+            };
+        }
+
+        // If the balance is not enough we return the transaction
+        return transaction
+    };
 
     // If transaction not exist we generate an invoice and fill the transaction
     if (transaction.paymentHash == ""){
         const invoice = await generateLNInvoice(accountid, satoshi, originTable, originId);
         if (invoice.paymentRequest == "") {return emptyTransaction};
+
+        // Fill the transaction with the invoice data
         transaction = await getTransaction(invoice.transactionid.toString());
+
+        // If the balance is enough we pay the new transaction and return the updated transaction
+        if (balance >= satoshi) {
+            let invoice = await getInvoice(transaction.transactionid.toString());
+            invoice.paidDate = new Date();
+            if (await collectInvoice(invoice)){
+                logger.info("Paying invoice with user balance:", balance, "satoshi:", satoshi, "transactionid:", invoice.transactionid, "Accountid:", invoice.accountid)
+                return await getTransaction(invoice.transactionid.toString())
+            };
+        }
     }
     
-    // If the balance is enough we pay the invoice
-    if (balance >= satoshi) {
-        let inv = await getInvoice(transaction.transactionid.toString());
-        inv.paidDate = new Date();
-        if (await collectInvoice(inv)){
-            logger.info("Paying invoice with user balance:", balance, "satoshi:", satoshi, "transactionid:", inv.transactionid, "Accountid:", inv.accountid)
-            return await getTransaction(inv.transactionid.toString())
-        };
-    }
-
     return transaction;
 
 }
@@ -102,7 +118,7 @@ const addJournalEntry = async (accountid: number, transactionid: number, debit: 
         return 0;
     }
     
-    return await dbInsert(  "ledger", 
+    const insert = await dbInsert(  "ledger", 
                             ["accountid", 
                             "transactionid", 
                             "debit", 
@@ -117,9 +133,14 @@ const addJournalEntry = async (accountid: number, transactionid: number, debit: 
                             comments]
                         );
 
+    if (insert != 0) {return insert;}
+
+    logger.error("Error adding journal entry for account:", accountid, "transaction:", transactionid)
+    return 0;
+
 }
 
-const getBalance = async (accountid: string) : Promise<number> => {
+const getBalance = async (accountid: number) : Promise<number> => {
 
     if (app.get("config.payments")["enabled"] == false) {
         return 0;
@@ -130,9 +151,13 @@ const getBalance = async (accountid: string) : Promise<number> => {
         return 0;
     }
 
-const result = Number(await dbSelect("SELECT SUM(credit) - SUM(debit) as 'balance' FROM ledger WHERE ledger.accountid = ?", "balance", [accountid]));
+const result = Number(await dbSelect("SELECT SUM(credit) - SUM(debit) as 'balance' FROM ledger WHERE ledger.accountid = ?", "balance", [accountid.toString()]));
     logger.debug("Balance for account", accountid, ":", result)
-    return result;
+    const balance = await dbUpdate("registered", "balance", result.toString(), "id", formatRegisteredId(accountid));
+    if (balance) {
+        return result;
+    }
+    return 0;
 }
 
 const addBalance = async (pubkey: string, amount: number) : Promise<boolean> => {
@@ -162,6 +187,9 @@ const addBalance = async (pubkey: string, amount: number) : Promise<boolean> => 
             const credit = await addJournalEntry(accountid, transaction, 0, amount, "Credit added to account: " + accountid);
             if (credit && debit) {
                 logger.debug("Journal entries added for adding balance to account:", accountid, "transaction:", transaction)
+                
+                // Update the balance for the account
+                await getBalance(accountid);
                 return true;
             }
         }
@@ -214,6 +242,10 @@ const getInvoice = async (transactionid: string) : Promise<invoice> => {
                                         [transactionid], false);
     if (result.length == 0) {return emptyInvoice};
     const invoice = result[0].split(',');
+    
+    // Update the balance for the invoice's account
+    await getBalance(Number(invoice[1]));
+
     return {
         paymentRequest: invoice[2],
         paymentHash: invoice[3],
@@ -228,8 +260,6 @@ const getInvoice = async (transactionid: string) : Promise<invoice> => {
 
     }
     
-    return emptyInvoice;
-
 }
 
 
@@ -281,12 +311,15 @@ const getTransaction = async (transactionid: string) : Promise<transaction> => {
 
     }
 
+    // Update the balance for the transaction account
+    await getBalance(transaction.accountid);
+
     return transaction;
 }
 
 
-const formatAccountNumber = (id: number): number => {
-    let numStr = id.toString();
+const formatAccountNumber = (registeredid: number): number => {
+    let numStr = registeredid.toString();
     while (numStr.length < 6) {
         numStr = '0' + numStr;
     }
@@ -294,7 +327,14 @@ const formatAccountNumber = (id: number): number => {
     return Number(prefix + numStr);
 }
 
-const collectInvoice = async (invoice: invoice, collectFromExpenses = false) : Promise<boolean> => {
+const formatRegisteredId = (accountid: number): number => {
+    let numStr = accountid.toString();
+    let prefixLength = accounts[1].accountid.toString().length;
+    let originalIdStr = numStr.slice(prefixLength);
+    return Number(originalIdStr);
+}
+
+const collectInvoice = async (invoice: invoice, collectFromExpenses = false, collectFromPayment = false) : Promise<boolean> => {
 
     if (app.get("config.payments")["enabled"] == false) {
         logger.debug("The payments module is not enabled")
@@ -315,26 +355,31 @@ const collectInvoice = async (invoice: invoice, collectFromExpenses = false) : P
         return false;
     }
 
-    let debitExpenses : number = 0;
-    let debitMainWallet : number = 0;
-
     // If we are collecting from expenses we don't need to debit the main wallet and we need to debit the expenses account.
     if (collectFromExpenses) {
-        debitExpenses = await addJournalEntry(accounts[4].accountid, invoice.transactionid, invoice.satoshi, 0, "Expense for adding credit to account: " + invoice.accountid);
+        // Debit expenses account
+        await addJournalEntry(accounts[4].accountid, invoice.transactionid, invoice.satoshi, 0, "Expense for adding credit to account: " + invoice.accountid);
     }else{
-        debitMainWallet = await addJournalEntry(accounts[0].accountid, invoice.transactionid, invoice.satoshi, 0 , "Receipt of invoice payment " + invoice.transactionid);
+        // Debit main wallet
+        await addJournalEntry(accounts[0].accountid, invoice.transactionid, invoice.satoshi, 0 , "Receipt of invoice payment " + invoice.transactionid);
     }
-    const creditUserWallet = await addJournalEntry(invoice.accountid, invoice.transactionid, 0, invoice.satoshi, "Payment received for invoice: " + invoice.transactionid);
-    const debitAccountsReceivable = await addJournalEntry(accounts[2].accountid, invoice.transactionid, invoice.satoshi, 0, "Clear Accounts Receivable for invoice payment " + invoice.transactionid);
-    const creditRevenue = await addJournalEntry(accounts[3].accountid, invoice.transactionid, 0, invoice.satoshi, "Revenue from invoice payment " + invoice.transactionid);
 
-    if ((debitExpenses != 0 || debitMainWallet != 0) && creditUserWallet != 0 && debitAccountsReceivable != 0 && creditRevenue != 0) {
-        logger.debug("Journal entries added for invoice payment", invoice.transactionid)
-        return true;
-    } else {
-        logger.error("Error adding journal entries for invoice payment", invoice.transactionid)
-        return false;
+    if (collectFromPayment) {
+        // Credit user wallet
+        await addJournalEntry(invoice.accountid, invoice.transactionid, 0, invoice.satoshi, "Payment received for invoice: " + invoice.transactionid);
     }
+    
+    // Debit Accounts Receivable
+    await addJournalEntry(accounts[2].accountid, invoice.transactionid, invoice.satoshi, 0, "Clear Accounts Receivable for invoice payment " + invoice.transactionid);
+    
+    // Credit Revenue
+    await addJournalEntry(accounts[3].accountid, invoice.transactionid, 0, invoice.satoshi, "Revenue from invoice payment " + invoice.transactionid);
+
+    logger.debug("Journal entries added for invoice payment", invoice.transactionid)
+        
+    // Update the balance for the invoice's account
+    await getBalance(invoice.accountid);
+    return true;
 
 }
 
@@ -370,7 +415,7 @@ const payInvoiceFromExpenses = async (transactionid: string) : Promise<boolean> 
         return true;
     }
 
-    // We send the true parameter for collectInvoice to debit the expenses account instead of the main wallet.
+    // We send the parameter to debit the expenses account instead of the main wallet.
     const collect = await collectInvoice(invoice, true);
     if (collect) {
         logger.info("Invoice paid", transactionid)
@@ -387,10 +432,11 @@ setInterval(async () => {
         const paiddate = await isInvoicePaid(invoice.paymentHash);
         if (paiddate != "")  {
             invoice.paidDate = paiddate;
-            await collectInvoice(invoice);
+            // We send the parameter to collect from a payment and credit the user wallet
+            await collectInvoice(invoice, false, true);
         }
     }
-    // await addBalance("366f9b18d39a30db0d370eeb3cf4b25bbedfc4a7aa18d523bad75ecdf10e15d2", 5)
+    //   await addBalance("366f9b18d39a30db0d370eeb3cf4b25bbedfc4a7aa18d523bad75ecdf10e15d2", 10)
 }, 5000);
 
 export { checkTransaction, addBalance, getBalance, payInvoiceFromExpenses}
