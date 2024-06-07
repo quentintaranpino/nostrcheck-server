@@ -114,6 +114,7 @@ interface registeredTable extends RowDataPacket{
 	apikey: string;
 	comments: string;
 	checked: string;
+	balance: string;
 }
 
 const registeredTableFields: registeredTable = {
@@ -130,6 +131,7 @@ const registeredTableFields: registeredTable = {
 	apikey: "varchar(64)",
 	comments: "varchar(150)",
 	checked: "boolean NOT NULL DEFAULT 0",
+	balance: "int(11) NOT NULL DEFAULT 0",
 	constructor: {
 		name: 'RowDataPacket',
 	},
