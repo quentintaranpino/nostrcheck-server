@@ -398,18 +398,19 @@ async function dbSelectModuleData(module:string): Promise<string> {
 
 	if (module == "nostraddress" && app.get("config.payments")["enabled"] == true){
 		return await dbSelectAllRecords("registered", 
-										"SELECT id," +
-										"checked, " + 
-										"active, " + 
-										"allowed, " + 
-										"username, " + 
-										"pubkey, " + 
-										"hex, " +
-										"domain, " +
-										"DATE_FORMAT(date, '%Y-%m-%d %H:%i') as date," + 
-										"comments, " + 
-										"balance " + 
-										"FROM registered ORDER BY id DESC");
+										"SELECT registered.id," +
+										"registered.checked, " + 
+										"registered.active, " + 
+										"registered.allowed, " + 
+										"registered.username, " + 
+										"registered.pubkey, " + 
+										"registered.hex, " +
+										"registered.domain, " +
+										"DATE_FORMAT(registered.date, '%Y-%m-%d %H:%i') as date," + 
+										"registered.comments, " + 
+										"registered.balance, " + 
+										"registered.transactionid " +
+										"FROM registered LEFT JOIN transactions on registered.transactionid = transactions.id  ORDER BY registered.id DESC");
 	}
 
 	if (module == "media" && app.get("config.payments")["enabled"] == false){

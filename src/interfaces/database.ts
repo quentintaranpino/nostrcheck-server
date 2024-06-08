@@ -115,6 +115,7 @@ interface registeredTable extends RowDataPacket{
 	comments: string;
 	checked: string;
 	balance: string;
+	transactionid: string;
 }
 
 const registeredTableFields: registeredTable = {
@@ -132,6 +133,7 @@ const registeredTableFields: registeredTable = {
 	comments: "varchar(150)",
 	checked: "boolean NOT NULL DEFAULT 0",
 	balance: "int(11) NOT NULL DEFAULT 0",
+	transactionid: "int(11)",
 	constructor: {
 		name: 'RowDataPacket',
 	},
