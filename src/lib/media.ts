@@ -17,6 +17,7 @@ import path from "path";
 import sharp from "sharp";
 import { saveFile } from "./storage/core.js";
 import { deleteLocalFile } from "./storage/local.js";
+import { checkTransaction } from "./payments/core.js";
 
 const prepareFile = async (t: asyncTask): Promise<void> =>{
 
@@ -72,7 +73,8 @@ const convertFile = async(	inputFile: Express.Multer.File,	options: ProcessingFi
 					await dbUpdate('mediafiles', 'hash', await generatefileHashfromfile(options.conversionOutputPath, options), 'id', options.fileid);
 					if (config.get("torrent.enableTorrentSeeding")) {await CreateMagnet(options.conversionOutputPath, options);}
 					await dbUpdate('mediafiles','status','success','id', options.fileid);
-					await dbUpdate('mediafiles', 'filesize', getFileSize(options.conversionOutputPath,options).toString(),'id', options.fileid);
+					const filesize = getFileSize(options.conversionOutputPath,options)
+					await dbUpdate('mediafiles', 'filesize', filesize ,'id', options.fileid);
 					await dbUpdate('mediafiles','dimensions',newfiledimensions.split("x")[0] + 'x' + newfiledimensions.split("x")[1],'id',  options.fileid);
 					logger.info(`File converted successfully: ${options.conversionOutputPath} ${ConversionDuration /2} seconds`);
 
@@ -80,6 +82,9 @@ const convertFile = async(	inputFile: Express.Multer.File,	options: ProcessingFi
 
 					await deleteLocalFile(options.conversionInputPath);
 					await deleteLocalFile(options.conversionOutputPath);
+
+					// Create paid transaction if needed
+					await checkTransaction("", options.fileid, "mediafiles", filesize, options.pubkey);
 
 					resolve(end);
 				}

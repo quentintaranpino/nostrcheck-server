@@ -544,7 +544,7 @@ const getMediabyURL = async (req: Request, res: Response) => {
 		}
 
 		// Check if exist a transaction for this media file and if it is paid.
-		const transaction = await checkTransaction(filedata[2], filedata[0], "mediafiles", Number(filedata[3])) as transaction;
+		const transaction = await checkTransaction(filedata[2], filedata[0], "mediafiles", Number(filedata[3]), req.params.pubkey) as transaction;
 		let noCache = false;
 		if (transaction.paymentHash != "" && transaction.isPaid == false) {
 

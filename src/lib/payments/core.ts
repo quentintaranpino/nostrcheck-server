@@ -1,24 +1,28 @@
+import { S } from "vitest/dist/reporters-5f784f42.js";
 import app from "../../app.js";
 import { accounts, emptyInvoice, emptyTransaction, invoice, transaction } from "../../interfaces/payments.js";
 import { dbInsert, dbMultiSelect, dbSelect, dbUpdate } from "../database.js"
 import { logger } from "../logger.js";
 import { generateGetalbyInvoice, isInvoicePaid } from "./getalby.js";
 
-const checkTransaction = async (transactionid : string, originId: string, originTable : string, filesize: number): Promise<transaction> => {
+
+
+
+const checkTransaction = async (transactionid : string, originId: string, originTable : string, filesize: number, pubkey : string): Promise<transaction> => {
 
     if (app.get("config.payments")["enabled"] == false) {
         return emptyTransaction;
     }
 
-    // Necessary fields
-    const pubkey = await dbSelect("SELECT pubkey FROM " + originTable + " WHERE id = ?", "pubkey", [originId]) as string;
-    const accountid = formatAccountNumber(Number(await dbSelect("SELECT id FROM registered WHERE hex = ?", "id", [pubkey])));
-    const balance = await getBalance(accountid);
-    const satoshi = await calculateSatoshi(filesize);
-
     // Get the transaction
     let transaction = await getTransaction(transactionid);
+    const balance = await getBalance(transaction.accountid);
+    const satoshi = await calculateSatoshi(originTable, filesize);
+
     if (transaction.paymentHash != "") {
+
+        // If the transaction is already paid or if the balance is not enough we return the transaction
+        if (transaction.isPaid || balance <= satoshi) {return transaction};
         
         // If the balance is enough we pay the transaction and return the updated transaction
         if (balance >= satoshi) {
@@ -29,13 +33,11 @@ const checkTransaction = async (transactionid : string, originId: string, origin
                 return await getTransaction(inv.transactionid.toString())
             };
         }
-
-        // If the balance is not enough we return the transaction
-        return transaction
     };
 
     // If transaction not exist we generate an invoice and fill the transaction
     if (transaction.paymentHash == ""){
+        const accountid = formatAccountNumber(Number(await dbSelect("SELECT id FROM registered WHERE hex = ?", "id", [pubkey])));
         const invoice = await generateLNInvoice(accountid, satoshi, originTable, originId);
         if (invoice.paymentRequest == "") {return emptyTransaction};
 
@@ -383,15 +385,37 @@ const collectInvoice = async (invoice: invoice, collectFromExpenses = false, col
 
 }
 
-const calculateSatoshi = async (fileSize: number): Promise<number> => {
+const calculateSatoshi = async (originTable: string, size: number) : Promise<number> => {
 
-    const maxSize = Number(app.get("config.media")["maxMBfilesize"]);
-    let fileSizeMB = fileSize / 1024 / 1024;
-    if (fileSizeMB > maxSize) {fileSizeMB = maxSize;}
+    if (app.get("config.payments")["enabled"] == false) {
+        return 0;
+    }
 
-    const satoshi = Math.round((fileSizeMB / maxSize) * app.get("config.payments")["maxSatoshi"]);
-    logger.info("Filesize:", fileSizeMB, "Satoshi:", satoshi)
-    return satoshi >= 1 ? satoshi : 1;
+    if (originTable == "mediafiles") {
+    
+        // For mediafiles
+        const maxSize = Number(app.get("config.media")["maxMBfilesize"]);
+        let fileSizeMB = size / 1024 / 1024;
+        if (fileSizeMB > maxSize) {fileSizeMB = maxSize;}
+
+        const satoshi = Math.round((fileSizeMB / maxSize) * app.get("config.payments")["satoshi"]["mediaMaxSatoshi"]);
+        logger.info("Filesize:", fileSizeMB, "Satoshi:", satoshi)
+        return satoshi >= 1 ? satoshi : 1;
+
+    }
+
+    if (originTable == "registered") {
+        // For registered the minus size is more expensive
+        let sizeStr = size.toString().length;
+        if (sizeStr = 1) {return app.get("config.payments")["satoshi"]["registerMaxSatoshi"]};
+
+        const satoshi = Math.round(app.get("config.payments")["satoshi"]["registerMaxSatoshi"] / (Math.log(sizeStr + 100)))
+        logger.debug("Register size:", sizeStr, "Satoshi:", satoshi)
+        return satoshi >= 1 ? satoshi : 1;
+    }
+
+    return 0;
+    
 }
 
 const payInvoiceFromExpenses = async (transactionid: string) : Promise<boolean> => {
@@ -416,7 +440,7 @@ const payInvoiceFromExpenses = async (transactionid: string) : Promise<boolean> 
     }
 
     // We send the parameter to debit the expenses account instead of the main wallet.
-    const collect = await collectInvoice(invoice, true);
+    const collect = await collectInvoice(invoice, true, true);
     if (collect) {
         logger.info("Invoice paid", transactionid)
         return true;
