@@ -170,7 +170,10 @@ const defaultConfig = {
 	"payments" : {
 		"enabled": false,
 		"paymentProvider": "getalby",
-		"maxSatoshi" : 1000,
+		"satoshi" : {
+				"mediaMaxSatoshi": 1000,
+				"registerMaxSatoshi": 1000,
+		},
 		"LNAddress": "nostrcheckme@getalby.com",
 		"getalby" : {
 		"authToken": "",
