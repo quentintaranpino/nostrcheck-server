@@ -162,13 +162,12 @@ const result = Number(await dbSelect("SELECT SUM(credit) - SUM(debit) as 'balanc
     return 0;
 }
 
-const addBalance = async (pubkey: string, amount: number) : Promise<boolean> => {
+const addBalance = async (accountid: number, amount: number) : Promise<boolean> => {
     
         if (app.get("config.payments")["enabled"] == false) {
             return false;
         }
 
-        const accountid = formatAccountNumber(Number(await dbSelect("SELECT id FROM registered WHERE hex = ?", "id", [pubkey])));
         const transaction = await addTransacion("credit",   
                                                 accountid, 
                                                 {   accountid: accountid,
@@ -184,7 +183,6 @@ const addBalance = async (pubkey: string, amount: number) : Promise<boolean> => 
                                                 },
                                                 amount);
         if (transaction) {
-            const accountid = formatAccountNumber(Number(await dbSelect("SELECT id FROM registered WHERE hex = ?", "id", [pubkey])));
             const debit = await addJournalEntry(accounts[4].accountid, transaction, amount, 0, "Expense for adding credit to account: " + accountid);
             const credit = await addJournalEntry(accountid, transaction, 0, amount, "Credit added to account: " + accountid);
             if (credit && debit) {
@@ -460,7 +458,7 @@ setInterval(async () => {
             await collectInvoice(invoice, false, true);
         }
     }
-    //   await addBalance("366f9b18d39a30db0d370eeb3cf4b25bbedfc4a7aa18d523bad75ecdf10e15d2", 10)
+    //   await addBalance("1100000001", 10)
 }, 5000);
 
-export { checkTransaction, addBalance, getBalance, payInvoiceFromExpenses}
+export { checkTransaction, addBalance, getBalance, payInvoiceFromExpenses, formatAccountNumber}
