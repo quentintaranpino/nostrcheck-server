@@ -55,6 +55,7 @@ const initTable = (tableId, data, objectName) => {
             $(tableId + '-button-edit').prop('disabled', false)
             $(tableId + '-button-password').prop('disabled', false)
             $(tableId + '-button-pay').prop('disabled', false)
+            $(tableId + '-button-balance').prop('disabled', false)
         }
         else {
             $(tableId + '-button-add').prop('disabled', false)
@@ -62,6 +63,7 @@ const initTable = (tableId, data, objectName) => {
             $(tableId + '-button-edit').prop('disabled', true)
             $(tableId + '-button-password').prop('disabled', true)
             $(tableId + '-button-pay').prop('disabled', true)
+            $(tableId + '-button-balance').prop('disabled', true)
         }
     })
 
@@ -208,6 +210,52 @@ const initTable = (tableId, data, objectName) => {
         }
     })
 
+    // Balance button
+    $(tableId + '-button-balance').click(async function () {
+        var ids = $.map($(tableId).bootstrapTable('getSelections'), function (row) {
+        return row.id
+        })
+
+        await initConfirmModal(tableId,ids,'balance',objectName).then(async (amount) => {
+        if (amount) {
+console.log("balance", $(tableId).bootstrapTable('getSelections')[0].id, amount)
+            let url = "admin/addbalance/";
+
+            let data = {
+                id: $(tableId).bootstrapTable('getSelections')[0].id,
+                amount: amount,
+            };
+
+            fetch(url, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "authorization": "Bearer " + authkey
+                },
+                body: JSON.stringify(data)
+            })
+            .then(response => response.json())
+            .then(data => {
+                authkey = data.authkey;
+                if (data.status === "success") {
+                    initMessageModal(tableId, "Balance for " + $(tableId).bootstrapTable('getSelections')[0].username + " has been updated successfully.", "Success.")
+                    $(tableId).bootstrapTable('updateByUniqueId', {
+                        id: ids[0],
+                        row: {
+                            balance: data.message
+                        }
+                    });
+                }else{
+                    initAlertModal(tableId, data.message)
+                }
+                })
+            .catch((error) => {
+                initAlertModal(tableId, error)
+                console.error(error);
+            });
+        }
+    })
+    })
 
     // Filter buttons
     function initFilterButton () {

@@ -1,20 +1,26 @@
-const initConfirmModal = async (objectId, ids, action, objectName) => {
+const initConfirmModal = async (objectId, ids, action, objectName, value = "") => {
     var alert = new bootstrap.Modal($(objectId + '-confirm-modal'));
 
     $(alert._element).on('show.bs.modal', function () {
         $(objectId + '-confirm-modal .modal-body').text('Are you sure you want to ' + action + ' ' + ids.length + ' ' + objectName + (ids.length > 1 ? 's' : '') + '?');
         if (action == 'remove')$(objectId + '-confirm-modal .modal-body').append('<br><br><strong>Warning:</strong> This action cannot be undone.');
         if (action == 'disable')$(objectId + '-confirm-modal .modal-body').append('<br><br><strong>Attention:</strong> Disabling a record can take up to 5 minutes to become effective.');
+        if (action == 'balance'){
+            $(objectId + '-confirm-modal .modal-body').append('<br><br><label for="balance" class="col-form-label strong">Balance</label><input type="number" class="form-control" id="balance" placeholder="Balance" value="' + value + '">');
+        }
         $(objectId + '-confirm-modal .modal-title').text('Confirm')
     })
     alert.show();
 
     let result = await new Promise((resolve) => {
         $(objectId + '-confirm-modal .save-button').click(function () {
-            resolve(true);
+            if (action == 'balance') {
+                value = $('#balance').val();
+            }
+            resolve(value);
         });
         $(objectId + '-confirm-modal .cancel-button').click(function () {
-            resolve(false);
+            resolve(value);
         });
     });
 

@@ -100,6 +100,16 @@
             </button>
         </div>
     </div>  
+    <div class="btn-group" role="group" aria-label="Balance buttons">
+        <div tabindex="0" data-bs-toggle="tooltip" data-bs-title="Add balance">
+            <button 
+                id="<%- tableId %>-button-balance" 
+                class="btn btn-warning <%= buttons[10][1] == 'hide' ? 'd-none' : '' %> " 
+                disabled>
+                <i class="fa fa-solid fa-battery-half"></i>
+            </button>
+        </div>
+    </div>
 </div>  
 <table 
     id="<%- tableId %>"
