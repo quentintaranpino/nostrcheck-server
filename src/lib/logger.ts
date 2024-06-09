@@ -12,10 +12,11 @@ const minLevel = (config.has('logger.minLevel') ? config.get('logger.minLevel') 
 const logPath = (config.has('logger.logPath') ? config.get('logger.logPath') : 'logs/') as string;
 
 // Create a rotating write stream
-const stream = createStream(logPath + filename, {
+const stream = createStream(filename, {
 	size: fileSize, 
 	interval: fileInterval,
 	compress: fileCompress, 
+	path: logPath,
 });
 
 // Create a logger instance
