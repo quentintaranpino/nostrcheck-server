@@ -9,7 +9,7 @@
     <%- include('./partials/navbar', {active:'dashboard'}); %>
     <main class="pb-1">
       <h1 class="col-12 text-center gradient-text">Dashboard</h1>
-      <p class="text-center mt-2 ">Welcome <%= request.session.metadata.display_name %>, this is the status of your server today.</p>
+      <p class="text-center mt-2 ">Welcome <%= request.session.metadata.display_name %>, this is the status of your server today 🙂</p>
       <div class= "container-fluid mt-4">
         <div class="row">
           <% if (request.body.nostraddressData && request.body.nostraddressData.length > 0) { %>
@@ -19,10 +19,10 @@
             <%- include('./components/dashcard', {dashcardName:"Media files",data: request.body.mediaData}); %>
           <% } %>
           <% if (request.body.lightningData && request.body.lightningData.length > 0) { %>
-            <%- include('./components/dashcard', {dashcardName:"Lightning redirections",data: request.body.lightningData}); %>
+            <%- include('./components/dashcard', {dashcardName:"Lightning redirects",data: request.body.lightningData}); %>
           <% } %>
           <% if (request.body.domainsData && request.body.domainsData.length > 0) { %>
-            <%- include('./components/dashcard', {dashcardName:"Active domain names",data: request.body.domainsData}); %>
+            <%- include('./components/dashcard', {dashcardName:"Domains",data: request.body.domainsData}); %>
           <% } %>
         </div>
       </div>
@@ -37,7 +37,6 @@
         </div> 
       </div> 
       <div class="container-fluid mt-4 overflow-auto ">
-        <% if(request.body.nostraddressData && request.body.nostraddressData.length > 0) { %>
           <%- include('./components/table', {
                                         tableName:"Registered users", 
                                         tableId:"nostraddressData", 
@@ -68,8 +67,6 @@
                                                 ['transactionid', 'disabled', 'hide']
                                                 ]
                                         }); %>
-        <% } %>
-        <% if(request.body.mediaData && request.body.mediaData.length > 0) { %>
           <%- include('./components/table', {
                                         tableName:"Media files", 
                                         tableId:"mediaData", 
@@ -106,10 +103,8 @@
                                                 ['transactionid', 'disabled', 'hide']                                                
                                                 ]
                                         }); %>
-        <% } %>
-        <% if(request.body.lightningData && request.body.lightningData.length > 0) { %>
           <%- include('./components/table', {
-                                          tableName:"Lightning redirections", 
+                                          tableName:"Lightning redirects", 
                                           tableId:"lightningData", 
                                           buttons:[
                                             ['add','show'],
@@ -132,10 +127,8 @@
                                           ['transactionid', 'disabled', 'hide']
                                           ]
                                           }); %>
-        <% } %>
-        <% if(request.body.domainsData && request.body.domainsData.length > 0) { %>
           <%- include('./components/table', {
-                                          tableName:"Active domain names", 
+                                          tableName:"Domains", 
                                           tableId:"domainsData", 
                                           buttons:[
                                             ['add','show'],
@@ -156,7 +149,6 @@
                                           ['comments','enabled','show']
                                           ]
                                           }); %> 
-        <% } %>
       </div>
      </main>
     <%- include('./partials/footer'); %>        

@@ -1,5 +1,5 @@
-<h4><%- tableName %></h4>
-<div id="<%- tableId %>-toolbar">
+<h4 class="mt-5"><%- tableName %></h4>
+<div id="<%- tableId %>-toolbar" class="mb-3">
     <div class="btn-group" role="group" aria-label="Add buttons">
         <div tabindex="0" data-bs-toggle="tooltip" data-bs-title="Add new item">
             <button 
@@ -113,16 +113,21 @@
 </div>  
 <table 
     id="<%- tableId %>"
+    data-toggle="table"
+    data-emptytext="No data available"
     >
-<thead>
-    <tr>
-        <th data-field="state" data-checkbox="true"></th>
-        <th data-field="id" data-sortable="true">ID</th>
-        <% for(var i=0; i<fields.length; i++) { %>
-            <th data-field="<%= fields[i][0] %>" data-sortable="true" class="<%= fields[i][1] %> <%= fields[i][2] %> <%= fields[i][3] %>"><%= fields[i][0] %></th>
-        <% } %>
-    </tr>
+    <thead>
+        <tr>
+            <th data-field="state" data-checkbox="true"></th>
+            <th data-field="id" data-sortable="true">ID</th>
+            <% for(var i=0; i<fields.length; i++) { %>
+                <th data-field="<%= fields[i][0] %>" data-sortable="true" class="<%= fields[i][1] %> <%= fields[i][2] %> <%= fields[i][3] %>"><%= fields[i][0] %></th>
+            <% } %>
+        </tr>
     </thead>
+    <tbody>
+        <!-- Asegúrate de que este tbody esté vacío para mostrar el mensaje de "No data available" -->
+    </tbody>
 </table>
 <%- include('edit-modal', {"objectId":tableId, "fields": fields}); %>
 <%- include('message-modal', {"objectId":tableId}); %>
