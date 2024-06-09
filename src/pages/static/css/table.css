@@ -1,3 +1,7 @@
 .fixed-table-body{
     height: auto !important;
 }
+
+.bootstrap-table .table th, .bootstrap-table .table td {
+    font-size: 14px; /* Cambia este valor al tamaño de fuente deseado */
+  }

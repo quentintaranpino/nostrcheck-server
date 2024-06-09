@@ -70,11 +70,11 @@ main {
 }
 
 .gradient-text {
-  background-image: linear-gradient(to right, #218bff, #953af0, #da2476);
-
+  background-image: linear-gradient(to right, #376fac, #8b55c2, #e105c0);
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
+  display: inline-block;
 }         
          
 .btn-grad {

@@ -508,3 +508,15 @@ const uploadMedia = async () => {
 
 return ""
 }
+
+function checkbox(value, row, index) {
+    if (value === 1) {
+      return '<div class="text-center"><i class="fas fa-check-circle text-dark"></i></div>';
+    } else {
+      return '<div class="text-center"><i class="fas fa-times-circle text-secondary"></i></div>';
+    }
+  }
+
+  function satoshi(value, row, index) {
+    return value + ' <i class="fa-solid fa-bolt text-warning"></i>'
+  }

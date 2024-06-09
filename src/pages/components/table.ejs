@@ -1,4 +1,4 @@
-<h4 class="mt-4"><%- tableName %></h4>
+<h3 class="mt-4 mb-2 gradient-text"><%- tableName %></h3>
 <div id="<%- tableId %>-toolbar">
     <div class="btn-group" role="group" aria-label="Add buttons">
         <div tabindex="0" data-bs-toggle="tooltip" data-bs-title="Add new item">
@@ -121,7 +121,14 @@
             <th data-field="state" data-checkbox="true"></th>
             <th data-field="id" data-sortable="true">ID</th>
             <% for(var i=0; i<fields.length; i++) { %>
-                <th data-field="<%= fields[i][0] %>" data-sortable="true" class="<%= fields[i][1] %> <%= fields[i][2] %> <%= fields[i][3] %>"><%= fields[i][0] %></th>
+                <th data-field="<%= fields[i][0] %>" 
+                    data-formatter="<%= fields[i][3] %>"
+                    data-sortable="true" 
+                    class="<%= fields[i][1] %> <%= fields[i][2] %> <%= fields[i][3] %> <%= fields[i][4] %>"
+
+                >
+                    <%= fields[i][0] %>
+                </th>
             <% } %>
         </tr>
     </thead>
