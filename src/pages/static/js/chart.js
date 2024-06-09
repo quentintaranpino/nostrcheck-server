@@ -41,7 +41,10 @@ const initMonthChart = (chartId, title, data) => {
       plugins: {
         title: {
             display: true,
-            text: title + ' (Last 2 Years)'
+            text: title + ' (Last 2 Years)',
+            font: {
+              size: 20
+          }
         }
       },
       scales: {

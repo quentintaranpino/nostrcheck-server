@@ -1,12 +1,41 @@
 <div class="col-xl-3 col-lg-4 col-md-6 col-sm-12">
-    <div class="card mb-3">
-        <div class="card-body">
-        <h5 class="card-title"><%- dashcardName %></h5>
-        <p class="card-text">Total number of <%- dashcardName %></p>
-        <h1 id="kpi_<%- dashcardName %>" class="card-text"></h1>
+    <div class="card mb-3 shadow-sm">
+        <div class="card-body text-center">
+            <div class="d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0"><%- dashcardName %></h5>
+                <i class="fas fa-chart-simple fa-2x card-icon"></i>
+            </div>
+
+            <h1 id="<%- dashcardName %>" class="display-2 font-weight-bold"></h1>
         </div>
     </div>
 </div>
 <script>
-document.getElementById('kpi_<%- dashcardName %>').textContent = JSON.parse("<%- data %>").length;
+document.getElementById('<%- dashcardName %>').textContent = JSON.parse("<%- data %>").length;
 </script>
+
+<style>
+    .card {
+        border: none;
+        border-radius: 10px;
+        transition: transform 0.3s;
+    }
+    
+    .card:hover {
+        transform: scale(1.02);
+    }
+    
+    .card-title {
+        font-family: 'Arial', sans-serif;
+        font-weight: bold;
+        color: #575656;
+    }
+
+    .card-icon {
+        color: #c87bff;
+    }   
+    
+    .shadow-sm {
+        box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    }
+    </style>
