@@ -5,22 +5,31 @@ const initConfirmModal = async (objectId, ids, action, objectName, value = "") =
         $(objectId + '-confirm-modal .modal-body').text('Are you sure you want to ' + action + ' ' + ids.length + ' ' + objectName + (ids.length > 1 ? 's' : '') + '?');
         if (action == 'remove')$(objectId + '-confirm-modal .modal-body').append('<br><br><strong>Warning:</strong> This action cannot be undone.');
         if (action == 'disable')$(objectId + '-confirm-modal .modal-body').append('<br><br><strong>Attention:</strong> Disabling a record can take up to 5 minutes to become effective.');
-        if (action == 'balance'){
-            $(objectId + '-confirm-modal .modal-body').append('<br><br><label for="balance" class="col-form-label strong">Balance</label><input type="number" class="form-control" id="balance" placeholder="Balance" value="' + value + '">');
+        if (action == 'balance')$(objectId + '-confirm-modal .modal-body').text('Specify the amount to be added to user balance:');
+        if (value != ''){
+            $(objectId + '-confirm-modal .modal-body').append(  '<input type="number" class="form-control mt-4 mb-2" id="data" placeholder="' + 
+                                                                action + 
+                                                                '" value="' + 
+                                                                value + 
+                                                                '">');
         }
-        $(objectId + '-confirm-modal .modal-title').text('Confirm')
+
+        // Clear the modal title and append the title
+        $(objectId + '-confirm-modal .modal-title').empty();
+        $(objectId + '-confirm-modal .modal-title').append('Confirm <i class="fa-solid fa-circle-question"></i> ');
     })
     alert.show();
 
     let result = await new Promise((resolve) => {
         $(objectId + '-confirm-modal .save-button').click(function () {
-            if (action == 'balance') {
-                value = $('#balance').val();
-            }
-            resolve(value);
+            value = $('#data').val();
+            resolve({result : true, value : value});
         });
         $(objectId + '-confirm-modal .cancel-button').click(function () {
-            resolve(value);
+            resolve({result : false, value : value});
+        });
+        $(alert._element).on('hidden.bs.modal', function () {
+            resolve({result : false, value : value});
         });
     });
 
@@ -35,7 +44,12 @@ const initEditModal = async (objectId, row, objectName, newRow, columns) => {
 
     $(edit._element).on('show.bs.modal', function () {
 
-        $(objectId + '-edit-modal .modal-title').text(newRow ? 'Add new ' + objectName : 'Edit ' + objectName)
+        // Clear the modal body and append the title
+        $(objectId + '-edit-modal .modal-title').empty();
+        $(objectId + '-edit-modal .modal-body').empty();
+
+        $(objectId + '-edit-modal .modal-title').append('<i class="fa-solid fa-pen-to-square"></i>')
+        $(objectId + '-edit-modal .modal-title').append(newRow ? ' Add new ' + objectName : ' Edit ' + objectName)
 
         // Create each input field
         for (var key in row) {
@@ -161,6 +175,9 @@ const initMessageModal = async (objectId, message, title) => {
     var alert = new bootstrap.Modal($(objectId + '-message-modal'));
 
     $(alert._element).on('show.bs.modal', function () {
+
+        // Clear the modal body and append the message
+        $(objectId + '-message-modal .modal-body').empty();
         $(objectId + '-message-modal .modal-body').append(message);
         $(objectId + '-message-modal .modal-title').text(title)
     })

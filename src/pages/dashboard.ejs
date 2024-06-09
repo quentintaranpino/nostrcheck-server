@@ -59,12 +59,13 @@
                                                 ['active','enabled','show','checkbox'],
                                                 ['allowed','enabled','show','checkbox'],
                                                 ['username','enabled','show'],
-                                                ['balance', 'enabled', 'show'],
+                                                ['balance', 'disabled', 'show'],
                                                 ['pubkey','enabled','show'],
                                                 ['hex','enabled','hide'],
                                                 ['domain','enabled','show'],
                                                 ['comments','enabled','hide'],
                                                 ['date','disabled','show'],
+                                                ['transactionid', 'disabled', 'hide']
                                                 ]
                                         }); %>
         <% } %>
@@ -101,7 +102,8 @@
                                                 ['dimensions','disabled','show'],
                                                 ['filesize','disabled','show'],
                                                 ['date','disabled','show'],
-                                                ['comments','enabled','hide']                                                
+                                                ['comments','enabled','hide'],
+                                                ['transactionid', 'disabled', 'hide']                                                
                                                 ]
                                         }); %>
         <% } %>
@@ -126,7 +128,8 @@
                                           ['active','enabled','show','checkbox'],
                                           ['pubkey','enabled','show'],
                                           ['lightningaddress','enabled','show'],
-                                          ['comments','enabled','show']
+                                          ['comments','enabled','show'],
+                                          ['transactionid', 'disabled', 'hide']
                                           ]
                                           }); %>
         <% } %>

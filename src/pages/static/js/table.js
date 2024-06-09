@@ -95,9 +95,9 @@ const initTable = (tableId, data, objectName) => {
                 setFieldLinks(tableId);
                 if (response.status != "error"){
                     if (tableId === '#nostraddressData'){
-                       await initMessageModal(tableId, "username: " + row.username + ". A new password has been sent via DM. ", "User added successfully.")
+                       await initMessageModal(tableId, "username: " + row.username + ". A new password has been sent via DM. ", "User added successfully")
                     }
-                await initMessageModal(tableId, "New record added successfully. ", "Success.")
+                await initMessageModal(tableId, "New record added successfully. ", "Success")
                 }
             }
         });
@@ -133,7 +133,9 @@ const initTable = (tableId, data, objectName) => {
         return row.id
         })
 
-        if (await initConfirmModal(tableId,ids,'send new generated password to ',objectName)) {
+        const modal = await initConfirmModal(tableId,ids,'send new generated password to ',objectName)
+        if (modal.result == true) {
+            console.log("modal value", modal.value, "modal result", modal.result)
 
             let url = "admin/resetpassword/";
 
@@ -151,7 +153,10 @@ const initTable = (tableId, data, objectName) => {
             })
             .then(response => response.json())
             .then(data => {
-                authkey = data.authkey;
+                if (data.status === "success") {
+                    authkey = data.authkey;
+                    initMessageModal(tableId, "New password for " + $(tableId).bootstrapTable('getSelections')[0].username + " has been sent via nostr DM successfully.", "Success 🥳")
+                }
                 })
             .catch((error) => {
                 initAlertModal(tableId, error)
@@ -170,8 +175,8 @@ const initTable = (tableId, data, objectName) => {
             initAlertModal(tableId, "Item already paid.", 1500,"alert-primary");
             return
         }
-
-        if (await initConfirmModal(tableId,ids,'pay ',objectName)) {
+        const modal = await initConfirmModal(tableId,ids,'pay',objectName)
+        if (modal.result == true) {
             let url = "admin/payitem/";
 
             let data = {
@@ -192,7 +197,7 @@ const initTable = (tableId, data, objectName) => {
             .then(data => {
                 authkey = data.authkey;
                 if (data.status === "success") {
-                    initMessageModal(tableId, "Payment for item " + $(tableId).bootstrapTable('getSelections')[0].id + " has been processed successfully.", "Success.")
+                    initMessageModal(tableId, "Payment for item " + $(tableId).bootstrapTable('getSelections')[0].id + " has been processed successfully.", "Success 🥳")
                     $(tableId).bootstrapTable('updateByUniqueId', {
                         id: ids[0],
                         row: {
@@ -216,14 +221,13 @@ const initTable = (tableId, data, objectName) => {
         return row.id
         })
 
-        await initConfirmModal(tableId,ids,'balance',objectName).then(async (amount) => {
-        if (amount) {
-console.log("balance", $(tableId).bootstrapTable('getSelections')[0].id, amount)
+        const modal = await initConfirmModal(tableId,ids,'balance',objectName, '100')
+        if (modal.result == true) {
             let url = "admin/addbalance/";
 
             let data = {
                 id: $(tableId).bootstrapTable('getSelections')[0].id,
-                amount: amount,
+                amount: modal.value,
             };
 
             fetch(url, {
@@ -238,7 +242,7 @@ console.log("balance", $(tableId).bootstrapTable('getSelections')[0].id, amount)
             .then(data => {
                 authkey = data.authkey;
                 if (data.status === "success") {
-                    initMessageModal(tableId, "Balance for " + $(tableId).bootstrapTable('getSelections')[0].username + " has been updated successfully.", "Success.")
+                    initMessageModal(tableId, "Balance for " + $(tableId).bootstrapTable('getSelections')[0].username + " has been updated successfully.", "Success 🥳")
                     $(tableId).bootstrapTable('updateByUniqueId', {
                         id: ids[0],
                         row: {
@@ -255,7 +259,7 @@ console.log("balance", $(tableId).bootstrapTable('getSelections')[0].id, amount)
             });
         }
     })
-    })
+    }
 
     // Filter buttons
     function initFilterButton () {
@@ -285,8 +289,6 @@ console.log("balance", $(tableId).bootstrapTable('getSelections')[0].id, amount)
         }
     }
 
-}
-
 function detailFormatter(row) {
 var html = []
 html.push('<div class="container-fluid ps-4">')
@@ -315,7 +317,8 @@ function initButton(tableId, buttonSuffix, objectName, modaltext, field, fieldVa
             return row.id
         })
 
-        if (await initConfirmModal(tableId, ids, modaltext, objectName)) {
+        const modal = await initConfirmModal(tableId, ids, modaltext, objectName)
+        if (modal.result == true) {
             for (let id of ids) {
                 if (modaltext === 'remove') {
                     authkey = (await modifyRecord(tableId, id, field, fieldValue, 'remove')).authkey
@@ -325,14 +328,11 @@ function initButton(tableId, buttonSuffix, objectName, modaltext, field, fieldVa
                     setFieldLinks(tableId);
                 }
             }
-            if (modaltext != 'remove' && (tableId === '#nostraddressData' || tableId === '#lightningData')){
-                initMessageModal(tableId, "Changes will not take effect for 5 minutes due to system cache", "Success.")
-            }          
         }
     })
 }
 
-function modifyRecord(tableId, id, field, fieldValue, action = 'modify', row = null){
+async function modifyRecord(tableId, id, field, fieldValue, action = 'modify', row = null){
 
     console.log(tableId, id, field, fieldValue, action, row)
 
@@ -369,8 +369,11 @@ function modifyRecord(tableId, id, field, fieldValue, action = 'modify', row = n
         body: JSON.stringify(data)
     })
     .then(response => response.json())
-    .then(responseData => {
+    .then(async responseData => {
         if (responseData.status === "success") {
+
+            authkey = responseData.authkey;
+            
             if (action === 'remove') {
                 $(tableId).bootstrapTable('removeByUniqueId', id);
             } else if (action === 'insert') {
@@ -391,6 +394,13 @@ function modifyRecord(tableId, id, field, fieldValue, action = 'modify', row = n
                     row: updateData
                 });
             }
+
+            if (action != 'remove' && (tableId === '#nostraddressData' || tableId === '#lightningData')){
+                await initMessageModal(tableId, "Action completed successfully. Changes will not take effect after cache expires.", "Success 🥳")
+            }else{
+                await initMessageModal(tableId, "Action completed successfully.", "Success 🥳")
+            }
+    
         } else {
             initAlertModal(tableId, responseData.message)
             highlihtRow(tableId, row)
