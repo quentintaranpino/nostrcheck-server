@@ -17,7 +17,8 @@
     </div>
 </div>
 <script>
-document.getElementById('<%- dashcardName %>').textContent = JSON.parse("<%- data %>").length;
+document.getElementById('<%- dashcardName %>').textContent = JSON.parse("<%- data %>").length || JSON.parse("<%- data %>");
+
 </script>
 
 <style>
