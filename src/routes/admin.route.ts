@@ -5,7 +5,6 @@ import { logger } from "../lib/logger.js";
 import { getClientIp } from "../lib/utils.js";
 
 import {deleteDBRecord, 
-        payDBRecord, 
         serverStatus, 
         StopServer, 
         resetUserPassword, 
@@ -13,7 +12,6 @@ import {deleteDBRecord,
         insertDBRecord, 
         updateSettings, 
         updateLogo, 
-        addBalanceUser 
 } from "../controllers/admin.js";
 
 const maxMBfilesize :number = config.get('media.maxMBfilesize');
@@ -63,12 +61,6 @@ export const loadAdminEndpoint = async (app: Application, version:string): Promi
                                 updateLogo(req, res);
                         })
                 });
-
-                // Pay item
-                app.post("/api/" + version + app.get("config.server")["availableModules"]["admin"]["path"] + "/payitem/", payDBRecord);
-
-                // Add balance to user
-                app.post("/api/" + version + app.get("config.server")["availableModules"]["admin"]["path"] + "/addbalance/", addBalanceUser);
 
         }
 

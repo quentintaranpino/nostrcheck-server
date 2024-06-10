@@ -2,7 +2,7 @@ import { createPool, Pool,RowDataPacket } from "mysql2/promise";
 import config from "config";
 import { logger } from "./logger.js";
 import { newFieldcompatibility, databaseTables} from "../interfaces/database.js";
-import { updateLocalConfigKey } from "./config.js";
+import { isModuleEnabled, updateLocalConfigKey } from "./config.js";
 import { exit } from "process";
 import { npubEncode } from "nostr-tools/nip19";
 import { generateCredentials } from "./authorization.js";
@@ -381,7 +381,8 @@ const dbSelectAllRecords = async (table:string, query:string): Promise<string> =
 }
 
 async function dbSelectModuleData(module:string): Promise<string> {
-	if (module == "nostraddress" && app.get("config.payments")["enabled"] == false){
+
+	if (module == "nostraddress" && isModuleEnabled("payments", app) == false){
 		return await dbSelectAllRecords("registered", 
 										"SELECT id," +
 										"checked, " + 
@@ -396,7 +397,7 @@ async function dbSelectModuleData(module:string): Promise<string> {
 										"FROM registered ORDER BY id DESC");
 	}
 
-	if (module == "nostraddress" && app.get("config.payments")["enabled"] == true){
+	if (module == "nostraddress" && isModuleEnabled("payments", app) == true){
 		return await dbSelectAllRecords("registered", 
 										"SELECT registered.id," +
 										"registered.checked, " + 
@@ -413,7 +414,7 @@ async function dbSelectModuleData(module:string): Promise<string> {
 										"FROM registered LEFT JOIN transactions on registered.transactionid = transactions.id  ORDER BY registered.id DESC");
 	}
 
-	if (module == "media" && app.get("config.payments")["enabled"] == false){
+	if (module == "media" && isModuleEnabled("payments", app) == false){
 		return await dbSelectAllRecords("mediafiles", 
 		"SELECT mediafiles.id," +
 		"mediafiles.checked, " +
@@ -434,7 +435,7 @@ async function dbSelectModuleData(module:string): Promise<string> {
 		"ORDER BY id DESC;");
 	}
 
-	if (module == "media" && app.get("config.payments")["enabled"] == true){
+	if (module == "media" && isModuleEnabled("payments", app) == true){
 		return await dbSelectAllRecords("mediafiles", 
 		"SELECT mediafiles.id," +
 		"mediafiles.checked, " +
@@ -463,6 +464,11 @@ async function dbSelectModuleData(module:string): Promise<string> {
 	}
 	if (module == "domains"){
 		return await dbSelectAllRecords("domains", "SELECT id, active, domain, comments FROM domains ORDER BY id DESC");
+	}
+
+	if (module == "payments"){
+		return await dbSelectAllRecords("transactions", 
+			"SELECT id, type, accountid, paymentrequest, paymenthash, satoshi, paid, DATE_FORMAT(transactions.createddate, '%Y-%m-%d %H:%i') as createddate, DATE_FORMAT(expirydate, '%Y-%m-%d %H:%i') as expirydate, DATE_FORMAT(transactions.paiddate, '%Y-%m-%d %H:%i') as paiddate, comments FROM transactions ORDER BY id DESC");
 	}
 	return "";
 }

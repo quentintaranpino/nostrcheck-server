@@ -88,7 +88,14 @@ const defaultConfig = {
 			"path": "/",
 			"methods": ["GET","POST"],
 			"description": "This module handles the frontend, login page, register, dashboard, etc."
-		}
+		},
+		"payments" : {
+			"name": "payments",
+			"enabled": true,
+			"path": "/payments",
+			"methods": ["POST"],
+			"description": "This module handles payments, balance, invoices, etc."
+		},
 		}
 	},
 	"database": {
@@ -168,7 +175,6 @@ const defaultConfig = {
 		}
 	},
 	"payments" : {
-		"enabled": false,
 		"paymentProvider": "getalby",
 		"satoshi" : {
 				"mediaMaxSatoshi": 1000,
