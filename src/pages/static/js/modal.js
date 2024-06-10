@@ -68,7 +68,7 @@ const initEditModal = async (objectId, row, objectName, newRow, columns) => {
 
                 var isCheckbox = false;
                 columns.forEach(function(column) {
-                    if (column.field == key && column.class && column.class.includes('checkbox')) {
+                    if (column.field == key && column.class && column.class.includes('formatCheckbox')) {
                         isCheckbox = true;
                     }
                 });
