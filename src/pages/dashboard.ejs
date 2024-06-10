@@ -15,28 +15,28 @@
       <div class= "container-fluid mt-5">
         <div class="row">
           <% if (request.body.nostraddressData && request.body.nostraddressData.length > 0) { %>
-            <%- include('./components/dashcard', {icon: "chart", dashcardName: "Registered users",data: request.body.nostraddressData}); %>
+            <%- include('./components/dashcard', {icon: "chart", dashcardName: "Registered users",data: request.body.nostraddressData, link : '#nostraddressData'}); %>
           <% } %>
           <% if (request.body.mediaData && request.body.mediaData.length > 0) { %>
-            <%- include('./components/dashcard', {icon: "chart",dashcardName: "Media files",data: request.body.mediaData}); %>
+            <%- include('./components/dashcard', {icon: "chart",dashcardName: "Media files",data: request.body.mediaData, link : '#mediaData'}); %>
           <% } %>
           <% if (request.body.lightningData && request.body.lightningData.length > 0) { %>
-            <%- include('./components/dashcard', {icon: "chart",dashcardName: "Lightning redirects",data: request.body.lightningData}); %>
+            <%- include('./components/dashcard', {icon: "chart",dashcardName: "Lightning redirects",data: request.body.lightningData, link : '#lightningData'}); %>
           <% } %>
           <% if (request.body.domainsData && request.body.domainsData.length > 0) { %>
-            <%- include('./components/dashcard', {icon: "chart",dashcardName: "Domains",data: request.body.domainsData}); %>
+            <%- include('./components/dashcard', {icon: "chart",dashcardName: "Domains",data: request.body.domainsData, link : '#domainsData'}); %>
           <% } %>
           <% if (request.body.domainsData && request.body.domainsData.length > 0) { %>
-            <%- include('./components/dashcard', {icon: "warning",dashcardName: "Warning messages",data: request.body.domainsData}); %>
+            <%- include('./components/dashcard', {icon: "warning",dashcardName: "Warning messages",data: request.body.domainsData, link: '#domainsData'}); %>
           <% } %>
           <% if (request.body.paymentsData && request.body.paymentsData.length > 0) { %>
-            <%- include('./components/dashcard', {icon: "chart",dashcardName: "Transactions",data: request.body.paymentsData}); %>
-          <% } %>
-          <% if (request.body.domainsData && request.body.domainsData.length > 0) { %>
-            <%- include('./components/dashcard', {icon: "satoshi",dashcardName: "Pending sats",data: request.body.domainsData}); %>
+            <%- include('./components/dashcard', {icon: "chart",dashcardName: "Transactions",data: request.body.paymentsData, link: '#paymentsData'}); %>
           <% } %>
           <% if (request.body.paymentsData && request.body.paymentsData.length > 0) { %>
-            <%- include('./components/dashcard', {icon: "satoshi",dashcardName: "Balance",data: request.body.serverBalance}); %>
+            <%- include('./components/dashcard', {icon: "satoshi",dashcardName: "Unpaid transactions balance",data: request.body.unpaidTransactionsBalance, link : ''}); %>
+          <% } %>
+          <% if (request.body.paymentsData && request.body.paymentsData.length > 0) { %>
+            <%- include('./components/dashcard', {icon: "satoshi",dashcardName: "Server balance",data: request.body.serverBalance, link : ''}); %>
           <% } %>
         </div>
       </div>
@@ -181,6 +181,8 @@
                                           ],
                                           fields:[
                                           ['accountid','disabled','show'],
+                                          ['type', 'disabled', 'show'],
+                                          ['paymentrequest', 'disabled', 'hide'],
                                           ['paymenthash','disabled','show'],
                                           ['paid', 'disabled', 'show', 'formatCheckbox', 'text-center'],
                                           ['satoshi', 'disabled','show','formatSatoshi','text-end'],
