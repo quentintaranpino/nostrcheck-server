@@ -37,11 +37,6 @@ const initTable = (tableId, data, objectName) => {
         }
     }
 
-    setFieldLinks(tableId);
-    $(document).on('page-change.bs.table', tableId, function (e, number, size) {
-        setFieldLinks(tableId, (size * number) - size );
-    });
-
     // Buttons logic
     $(tableId).on('check.bs.table uncheck.bs.table check-all.bs.table uncheck-all.bs.table', function () {
         $(tableId + '-button-disable').prop('disabled', !$(tableId).bootstrapTable('getSelections').length)
@@ -92,12 +87,12 @@ const initTable = (tableId, data, objectName) => {
                 response = await modifyRecord(tableId, null, null, null, 'insert', editedRow)
                 authkey = response.authkey
                 $(tableId).bootstrapTable('uncheckAll')
-                setFieldLinks(tableId);
                 if (response.status != "error"){
                     if (tableId === '#nostraddressData'){
-                       await initMessageModal(tableId, "username: " + row.username + ". A new password has been sent via DM. ", "User added successfully")
+                       await initAlertModal(tableId, "New record added successfully. Username: " + row.username + ". A new password has been sent via DM 🥳", 1200,"alert-success");
+
                     }
-                await initMessageModal(tableId, "New record added successfully. ", "Success")
+                    await initAlertModal(tableId, "New record added successfully 🥳", 1200,"alert-success");
                 }
             }
         });
@@ -120,7 +115,6 @@ const initTable = (tableId, data, objectName) => {
                 for (let field in editedRow) {
                     if (editedRow[field] != row[field]){
                         authkey = (await modifyRecord(tableId, row.id, field, editedRow[field], 'modify')).authkey
-                        setFieldLinks(tableId);
                     }
                 }
             }
@@ -155,7 +149,7 @@ const initTable = (tableId, data, objectName) => {
             .then(data => {
                 if (data.status === "success") {
                     authkey = data.authkey;
-                    initMessageModal(tableId, "New password for " + $(tableId).bootstrapTable('getSelections')[0].username + " has been sent via nostr DM successfully.", "Success 🥳")
+                    initAlertModal(tableId, "New password for " + $(tableId).bootstrapTable('getSelections')[0].username + " has been sent via nostr DM successfully 🥳", 1200,"alert-success");
                 }
                 })
             .catch((error) => {
@@ -177,7 +171,7 @@ const initTable = (tableId, data, objectName) => {
         }
         const modal = await initConfirmModal(tableId,ids,'pay',objectName)
         if (modal.result == true) {
-            let url = "admin/payitem/";
+            let url = "payments/payitem/";
 
             let data = {
                 transactionid: $(tableId).bootstrapTable('getSelections')[0].transactionid,
@@ -197,7 +191,7 @@ const initTable = (tableId, data, objectName) => {
             .then(data => {
                 authkey = data.authkey;
                 if (data.status === "success") {
-                    initMessageModal(tableId, "Payment for item " + $(tableId).bootstrapTable('getSelections')[0].id + " has been processed successfully.", "Success 🥳")
+                    initAlertModal(tableId, "Payment for item " + $(tableId).bootstrapTable('getSelections')[0].id + " has been processed successfully 🥳", 1200,"alert-success");
                     $(tableId).bootstrapTable('updateByUniqueId', {
                         id: ids[0],
                         row: {
@@ -221,9 +215,11 @@ const initTable = (tableId, data, objectName) => {
         return row.id
         })
 
+        console.log("ids", ids)
+
         const modal = await initConfirmModal(tableId,ids,'balance',objectName, '100')
         if (modal.result == true) {
-            let url = "admin/addbalance/";
+            let url = "payments/addbalance/";
 
             let data = {
                 id: $(tableId).bootstrapTable('getSelections')[0].id,
@@ -242,7 +238,8 @@ const initTable = (tableId, data, objectName) => {
             .then(data => {
                 authkey = data.authkey;
                 if (data.status === "success") {
-                    initMessageModal(tableId, "Balance for " + $(tableId).bootstrapTable('getSelections')[0].username + " has been updated successfully.", "Success 🥳")
+                    initAlertModal(tableId, "Balance for " + $(tableId).bootstrapTable('getSelections')[0].username + " has been updated successfully 🥳", 1200,"alert-success");
+
                     $(tableId).bootstrapTable('updateByUniqueId', {
                         id: ids[0],
                         row: {
@@ -279,7 +276,6 @@ const initTable = (tableId, data, objectName) => {
                         $(tableId).bootstrapTable('filterBy', {checked: [0]}); 
                     }
                     isFilterActive = !isFilterActive; 
-                    setFieldLinks(tableId);
                 },
                 attributes: {
                     title: 'Show only unchecked records',
@@ -322,10 +318,8 @@ function initButton(tableId, buttonSuffix, objectName, modaltext, field, fieldVa
             for (let id of ids) {
                 if (modaltext === 'remove') {
                     authkey = (await modifyRecord(tableId, id, field, fieldValue, 'remove')).authkey
-                    setFieldLinks(tableId);
                 } else {
                     authkey = (await modifyRecord(tableId, id, field, fieldValue, 'modify')).authkey
-                    setFieldLinks(tableId);
                 }
             }
         }
@@ -396,9 +390,9 @@ async function modifyRecord(tableId, id, field, fieldValue, action = 'modify', r
             }
 
             if (action != 'remove' && (tableId === '#nostraddressData' || tableId === '#lightningData')){
-                await initMessageModal(tableId, "Action completed successfully. Changes will not take effect after cache expires.", "Success 🥳")
+                await initAlertModal(tableId, "Action " + action + " completed successfully 🥳 Changes will not take effect after cache expires", 1200,"alert-success");
             }else{
-                await initMessageModal(tableId, "Action completed successfully.", "Success 🥳")
+                await initAlertModal(tableId, "Action " + action + " completed successfully 🥳", 1200,"alert-success");
             }
     
         } else {
@@ -412,50 +406,6 @@ async function modifyRecord(tableId, id, field, fieldValue, action = 'modify', r
         console.error(error);
         initAlertModal(tableId, responseData.message)
     });
-}
-
-function setFieldLinks(tableId, number = 0){
-
-    let rows = $(tableId).bootstrapTable('getData', true);
-
-    for (i = number; i < number + $(tableId).bootstrapTable('getOptions').pageSize +1; i++) {
-        if (rows[i] === undefined) {break}
-        let rowID = rows[i].id;
-        let row = $(tableId).bootstrapTable('getRowByUniqueId', rowID);
-        $(tableId).bootstrapTable('getVisibleColumns').forEach(function(column) {
-            if (column.field === 'pubkey' && !row.pubkey.includes('<')) {
-                $(tableId).bootstrapTable('updateByUniqueId', {
-                    id: rowID,
-                    row: {
-                        pubkey: '<a href="https://nostrcheck.me/u/'  + row.pubkey + '" target="_blank">' + row.pubkey + '</a>'
-                    }
-                });
-            }
-            if (column.field === 'filename' && !row.filename.includes('<')) {
-                let filename = row.filename;
-                $(tableId).bootstrapTable('updateByUniqueId', {
-                    id: rowID,
-                    row: {
-                        filename: '<div id ="' + rowID + '_preview"><span class="cursor-zoom-in text-primary">' + row.filename + '</span></div>'
-                    }
-                });
-
-                $(document).off("click", "#" + rowID + "_preview").on("click", "#" + rowID + "_preview", async function() {
-                    let modal = await initMediaModal(row.pubkey, filename, row.checked, row.visibility);
-                    let modalResult = modal.data;
-                    if(modal.authkey) {authkey = modal.authkey};
-                    for (let field in modalResult) {
-                        if (modalResult[field] != row[field]){
-                            authkey = (await modifyRecord(tableId, row.id, field, modalResult[field], 'modify')).authkey
-                            let pageNumber = $(tableId).bootstrapTable('getOptions').pageNumber;
-                            let pageSize = $(tableId).bootstrapTable('getOptions').pageSize;
-                            setFieldLinks(tableId, (pageSize * pageNumber) - pageSize );
-                        }
-                    }
-                });
-            }
-        });
-    }
 }
 
 function detailFormatter(index, row) {
@@ -509,14 +459,39 @@ const uploadMedia = async () => {
 return ""
 }
 
-function checkbox(value, row, index) {
+
+// Cell formatting functions
+function formatCheckbox(value, row, index) {
     if (value === 1) {
-      return '<div class="text-center"><i class="fas fa-check-circle text-dark"></i></div>';
+      return '<div class="text-center"><i class="fas fa-check-circle purple-text"></i></div>';
     } else {
       return '<div class="text-center"><i class="fas fa-times-circle text-secondary"></i></div>';
     }
   }
 
-  function satoshi(value, row, index) {
+function formatSatoshi(value, row, index) {
     return value + ' <i class="fa-solid fa-bolt text-warning"></i>'
-  }
+}
+
+function formatPubkey(value, row, index) {
+    return '<a href="https://nostrcheck.me/u/' + value + '" target="_blank">' + value + '</a>';
+}
+
+function formatFilename(value, row, index) {
+
+    let modalFileCheck = '<div id="' + index + '_preview"><span class="cursor-zoom-in text-primary">' + value + '</span></div>';
+
+    // Attach the click event handler to the document and delegate it to the clickable element
+    $(document).off('click', '#' + index + '_preview').on('click', '#' + index + '_preview', async function() {
+        let modal = await initMediaModal(row.pubkey, value, row.checked, row.visibility);
+        let modalResult = modal.data;
+        if(modal.authkey) {authkey = modal.authkey};
+        for (let field in modalResult) {
+            if (modalResult[field] != row[field]){
+                authkey = (await modifyRecord('#mediaData', row.id, field, modalResult[field], 'modify')).authkey
+            }
+        }
+    });
+
+    return modalFileCheck;
+}
