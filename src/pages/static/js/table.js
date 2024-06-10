@@ -390,7 +390,7 @@ async function modifyRecord(tableId, id, field, fieldValue, action = 'modify', r
             }
 
             if (action != 'remove' && (tableId === '#nostraddressData' || tableId === '#lightningData')){
-                await initAlertModal(tableId, "Action " + action + " completed successfully 🥳 Changes will not take effect after cache expires", 1200,"alert-success");
+                await initAlertModal(tableId, "Action " + action + " completed successfully 🥳 Changes will not take effect after cache expires", 1600,"alert-success");
             }else{
                 await initAlertModal(tableId, "Action " + action + " completed successfully 🥳", 1200,"alert-success");
             }

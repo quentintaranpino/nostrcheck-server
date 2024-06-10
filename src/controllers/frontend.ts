@@ -31,6 +31,8 @@ const loadDashboardPage = async (req: Request, res: Response, version:string): P
         }
     }
 
+    
+
     req.body.version = app.get("version");
     req.body.serverHost = app.get("config.server")["host"];
     req.session.authkey = await generateCredentials('authkey', false, req.session.identifier);
