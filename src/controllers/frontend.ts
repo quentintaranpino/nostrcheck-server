@@ -9,6 +9,7 @@ import { isModuleEnabled } from "../lib/config.js";
 import { getProfileNostrMetadata, getProfileLocalMetadata } from "../lib/frontend.js";
 import { hextoNpub } from "../lib/nostr/NIP19.js";
 import { logHistory } from "../lib/logger.js";
+import { getBalance } from "../lib/payments/core.js";
 
 const loadDashboardPage = async (req: Request, res: Response, version:string): Promise<Response | void> => {
 
@@ -31,7 +32,8 @@ const loadDashboardPage = async (req: Request, res: Response, version:string): P
         }
     }
 
-    
+    req.body.serverBalance = await getBalance(1000);
+    console.log(req.body.serverBalance);
 
     req.body.version = app.get("version");
     req.body.serverHost = app.get("config.server")["host"];

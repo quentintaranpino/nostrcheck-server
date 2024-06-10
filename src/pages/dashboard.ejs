@@ -35,8 +35,8 @@
           <% if (request.body.domainsData && request.body.domainsData.length > 0) { %>
             <%- include('./components/dashcard', {icon: "satoshi",dashcardName: "Pending sats",data: request.body.domainsData}); %>
           <% } %>
-          <% if (request.body.domainsData && request.body.domainsData.length > 0) { %>
-            <%- include('./components/dashcard', {icon: "satoshi",dashcardName: "Balance",data: request.body.domainsData}); %>
+          <% if (request.body.paymentsData && request.body.paymentsData.length > 0) { %>
+            <%- include('./components/dashcard', {icon: "satoshi",dashcardName: "Balance",data: request.body.serverBalance}); %>
           <% } %>
         </div>
       </div>
