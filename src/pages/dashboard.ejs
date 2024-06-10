@@ -15,28 +15,28 @@
       <div class= "container-fluid mt-5">
         <div class="row">
           <% if (request.body.nostraddressData && request.body.nostraddressData.length > 0) { %>
-            <%- include('./components/dashcard', {dashcardName:"Registered users",data: request.body.nostraddressData}); %>
+            <%- include('./components/dashcard', {icon: "chart", dashcardName: "Registered users",data: request.body.nostraddressData}); %>
           <% } %>
           <% if (request.body.mediaData && request.body.mediaData.length > 0) { %>
-            <%- include('./components/dashcard', {dashcardName:"Media files",data: request.body.mediaData}); %>
+            <%- include('./components/dashcard', {icon: "chart",dashcardName: "Media files",data: request.body.mediaData}); %>
           <% } %>
           <% if (request.body.lightningData && request.body.lightningData.length > 0) { %>
-            <%- include('./components/dashcard', {dashcardName:"Lightning redirects",data: request.body.lightningData}); %>
+            <%- include('./components/dashcard', {icon: "chart",dashcardName: "Lightning redirects",data: request.body.lightningData}); %>
           <% } %>
           <% if (request.body.domainsData && request.body.domainsData.length > 0) { %>
-            <%- include('./components/dashcard', {dashcardName:"Domains",data: request.body.domainsData}); %>
+            <%- include('./components/dashcard', {icon: "chart",dashcardName: "Domains",data: request.body.domainsData}); %>
           <% } %>
           <% if (request.body.domainsData && request.body.domainsData.length > 0) { %>
-            <%- include('./components/dashcard', {dashcardName:"Warning messages",data: request.body.domainsData}); %>
+            <%- include('./components/dashcard', {icon: "warning",dashcardName: "Warning messages",data: request.body.domainsData}); %>
+          <% } %>
+          <% if (request.body.paymentsData && request.body.paymentsData.length > 0) { %>
+            <%- include('./components/dashcard', {icon: "chart",dashcardName: "Transactions",data: request.body.paymentsData}); %>
           <% } %>
           <% if (request.body.domainsData && request.body.domainsData.length > 0) { %>
-            <%- include('./components/dashcard', {dashcardName:"Invoices",data: request.body.domainsData}); %>
+            <%- include('./components/dashcard', {icon: "satoshi",dashcardName: "Pending sats",data: request.body.domainsData}); %>
           <% } %>
           <% if (request.body.domainsData && request.body.domainsData.length > 0) { %>
-            <%- include('./components/dashcard', {dashcardName:"Pending sats",data: request.body.domainsData}); %>
-          <% } %>
-          <% if (request.body.domainsData && request.body.domainsData.length > 0) { %>
-            <%- include('./components/dashcard', {dashcardName:"Balance",data: request.body.domainsData}); %>
+            <%- include('./components/dashcard', {icon: "satoshi",dashcardName: "Balance",data: request.body.domainsData}); %>
           <% } %>
         </div>
       </div>
@@ -68,13 +68,13 @@
                                                 ['balance','show']
                                                 ],
                                         fields:[
-                                                ['checked','enabled','show','checkbox', 'text-center'],
-                                                ['active','enabled','show','checkbox', 'text-center'],
-                                                ['allowed','enabled','show','checkbox', 'text-center'],
+                                                ['checked','enabled','show','formatCheckbox', 'text-center'],
+                                                ['active','enabled','show','formatCheckbox', 'text-center'],
+                                                ['allowed','enabled','show','formatCheckbox', 'text-center'],
                                                 ['username','enabled','show'],
-                                                ['balance', 'disabled', 'show','satoshi', 'text-end'],
-                                                ['pubkey','enabled','show'],
-                                                ['hex','enabled','hide'],
+                                                ['balance', 'disabled', 'show','formatSatoshi', 'text-end'],
+                                                ['pubkey','enabled','show', 'formatPubkey', ''],
+                                                ['hex','enabled','hide', 'formatPubkey', ''],
                                                 ['domain','enabled','show', '', 'text-center'],
                                                 ['comments','enabled','hide'],
                                                 ['date','disabled','show','', 'text-center'],
@@ -98,15 +98,15 @@
                                                 ['balance','hide']
                                                 ],
                                         fields:[
-                                                ['checked','enabled','show','checkbox', 'text-center'],
-                                                ['active','enabled','show','checkbox', 'text-center'],
-                                                ['visibility','enabled','show','checkbox','text-center'],
-                                                ['paid', 'disabled','show','checkbox','text-center'],
-                                                ['satoshi', 'disabled','show','satoshi','text-end'],
+                                                ['checked','enabled','show','formatCheckbox', 'text-center'],
+                                                ['active','enabled','show','formatCheckbox', 'text-center'],
+                                                ['visibility','enabled','show','formatCheckbox','text-center'],
+                                                ['paid', 'disabled','show','formatCheckbox','text-center'],
+                                                ['satoshi', 'disabled','show','formatSatoshi','text-end'],
                                                 ['username','disabled','show', '', 'text-center'],
                                                 ['npub','disabled','hide'],
                                                 ['pubkey','disabled','hide'],
-                                                ['filename','disabled','show'],
+                                                ['filename','disabled','show', 'formatFilename', ''],
                                                 ['original_hash','disabled','hide'],
                                                 ['hash','disabled','hide'],
                                                 ['status','disabled','show','', 'text-center'],
@@ -134,7 +134,7 @@
                                             ['balance','hide']
                                           ],
                                           fields:[
-                                          ['active','enabled','show','checkbox', 'text-center'],
+                                          ['active','enabled','show','formatCheckbox', 'text-center'],
                                           ['pubkey','enabled','show'],
                                           ['lightningaddress','enabled','show'],
                                           ['comments','enabled','show'],
@@ -158,8 +158,35 @@
                                             ['balance','hide']
                                           ],
                                           fields:[
-                                          ['active','enabled','show','checkbox', 'text-center'],
-                                          ['domain','enabled','show'],
+                                          ['active','enabled','show','formatCheckbox', 'text-center'],
+                                          ['domain','enabled','show','','text-center'],
+                                          ['comments','enabled','show']
+                                          ]
+                                          }); %> 
+            <%- include('./components/table', {
+                                          tableName:"Transactions", 
+                                          tableId:"paymentsData", 
+                                          buttons:[
+                                            ['add','hide'],
+                                            ['disable','hide'],
+                                            ['enable','hide'],
+                                            ['visible','hide'],
+                                            ['invisible','hide'],
+                                            ['admin','hide'],
+                                            ['edit','show'],
+                                            ['password','hide'],
+                                            ['remove','hide'],
+                                            ['pay', 'show'],
+                                            ['balance','hide']
+                                          ],
+                                          fields:[
+                                          ['accountid','disabled','show'],
+                                          ['paymenthash','disabled','show'],
+                                          ['paid', 'disabled', 'show', 'formatCheckbox', 'text-center'],
+                                          ['satoshi', 'disabled','show','formatSatoshi','text-end'],
+                                          ['createddate','disabled','show', '', 'text-center'],
+                                          ["expirydate", 'disabled', 'show', '', 'text-center'],
+                                          ['paiddate', 'disabled', 'show', '', 'text-center'],
                                           ['comments','enabled','show']
                                           ]
                                           }); %> 
@@ -185,6 +212,10 @@
     }
     if("<%- request.body.domainsData && request.body.domainsData.length > 0 %>"){
       initTable("#domainsData",'<%- request.body.domainsData %>', 'domain name')
+    }
+    if("<%- request.body.paymentsData && request.body.paymentsData.length > 0 %>"){
+      console.log("paymentsData",'<%- request.body.paymentsData %>')
+      initTable("#paymentsData",'<%- request.body.paymentsData %>', 'transaction')
     }
   </script>
 

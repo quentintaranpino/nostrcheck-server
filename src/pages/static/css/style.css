@@ -75,7 +75,11 @@ main {
   background-clip: text;
   -webkit-text-fill-color: transparent;
   display: inline-block;
-}         
+}    
+
+.purple-text {
+  color: #9262c2;
+}
          
 .btn-grad {
   background-image: linear-gradient(to right, #7b4397 0%, #dc2430  51%, #7b4397  100%);
