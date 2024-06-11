@@ -101,9 +101,20 @@ const initMonthChart = (chartId, title, data) => {
 
 function initDoughnutChart(chartId, title, data, field, showTitle = false, showLegend = false) {
 
-  const itemData = JSON.parse(data).map(item => item[field]).reduce((acc, label) => {
-      acc[label] = (acc[label] || 0) + 1;
-      return acc;
+  const parsedData = JSON.parse(data);
+
+  // Create an object to hold the counts of each label
+  const itemData = parsedData.map(item => {
+    // Check if the field is a boolean (0 or 1)
+    if (field === 'paid' || field === 'checked' || field === 'active' || field === 'visibility' || field === 'allowed') {
+      const label = item[field] === 1 ? field : 'un' + field;
+      return label;
+    } else {
+      return item[field];
+    }
+  }).reduce((acc, label) => {
+    acc[label] = (acc[label] || 0) + 1;
+    return acc;
   }, {});
 
   const values = Object.values(itemData);
@@ -117,19 +128,19 @@ function initDoughnutChart(chartId, title, data, field, showTitle = false, showL
           datasets: [{
               data: values,
               backgroundColor: [
-                  'rgba(255, 99, 132, 0.6)',
-                  'rgba(255, 159, 64, 0.6)',
-                  'rgba(255, 205, 86, 0.6)',
-                  'rgba(75, 192, 192, 0.6)',
-                  'rgba(54, 162, 235, 0.6)'
-              ],
-              borderColor: [
-                  'rgba(255, 99, 132, 1)',
-                  'rgba(255, 159, 64, 1)',
-                  'rgba(255, 205, 86, 1)',
-                  'rgba(75, 192, 192, 1)',
-                  'rgba(54, 162, 235, 1)'
-              ],
+                'rgba(255, 159, 64, 0.6)',  // Naranja
+                'rgba(186, 85, 211, 0.6)',  // Lila
+                'rgba(255, 205, 86, 0.6)',  // Amarillo claro
+                'rgba(75, 192, 192, 0.6)',  // Azul verdoso claro
+                'rgba(0, 0, 255, 0.6)'      // Azul eléctrico
+            ],
+            borderColor: [
+                'rgba(255, 159, 64, 1)',    // Naranja
+                'rgba(186, 85, 211, 1)',    // Lila
+                'rgba(255, 205, 86, 1)',    // Amarillo
+                'rgba(75, 192, 192, 1)',    // Azul verdoso
+                'rgba(0, 0, 255, 1)'        // Azul eléctrico
+            ],
               borderWidth: 1
           }]
       },
@@ -154,7 +165,7 @@ function initDoughnutChart(chartId, title, data, field, showTitle = false, showL
                   display: showLegend,
                   labels: {
                       font: {
-                          size: 14,
+                          size: 12,
                           family: 'Arial'
                       },
                       color: '#333'
