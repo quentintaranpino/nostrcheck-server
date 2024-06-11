@@ -22,8 +22,10 @@ const loadDashboardPage = async (req: Request, res: Response, version:string): P
 	logger.info("GET /api/" + version + "/dashboard", "|", getClientIp(req));
 
 
+    const activeModules = [];
     const availableModules = Object.entries(app.get("config.server")["availableModules"]);
     for (const [key] of availableModules) {
+        activeModules.push(key + "Data");
         if(app.get("config.server")["availableModules"][key]["enabled"] == true){
             let data = await dbSelectModuleData(key);
             if (data != undefined && data != null && data != ""){
@@ -32,9 +34,16 @@ const loadDashboardPage = async (req: Request, res: Response, version:string): P
         }
     }
 
+    // Active modules
+    req.body.activeModules = activeModules; 
+
     // Payments extra data
     req.body.serverBalance = await getBalance(1000);
     req.body.unpaidTransactionsBalance = await getUnpaidTransactionsBalance();
+
+    // Logger history greater or equal to 4 (warn)
+    req.body.logHistory = JSON.stringify(logHistory).replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/'/g, "\\'");
+    activeModules.push("logHistory");
 
     req.body.version = app.get("version");
     req.body.serverHost = app.get("config.server")["host"];
