@@ -18,7 +18,7 @@ import { payInvoiceFromExpenses, addBalance, getBalance, formatAccountNumber } f
  * @param res - The response object.
  * @returns A promise that resolves to the response object.
  */
-const payDBRecord = async (req: Request, res: Response): Promise<Response> => {
+const payTransaction = async (req: Request, res: Response): Promise<Response> => {
 
     // Check if current module is enabled
     if (!isModuleEnabled("admin", app)) {
@@ -97,6 +97,6 @@ const addBalanceUser = async (req: Request, res: Response): Promise<Response> =>
 }
 
 export {
-        payDBRecord,
+        payTransaction,
         addBalanceUser
 }

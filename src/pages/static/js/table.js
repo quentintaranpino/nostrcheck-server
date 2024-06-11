@@ -171,10 +171,10 @@ const initTable = (tableId, data, objectName) => {
         }
         const modal = await initConfirmModal(tableId,ids,'pay',objectName)
         if (modal.result == true) {
-            let url = "payments/payitem/";
+            let url = "payments/paytransaction/";
 
             let data = {
-                transactionid: $(tableId).bootstrapTable('getSelections')[0].transactionid,
+                transactionid: $(tableId).bootstrapTable('getSelections')[0].transactionid || $(tableId).bootstrapTable('getSelections')[0].id,
                 satoshi: $(tableId).bootstrapTable('getSelections')[0].satoshi,
 
             };
