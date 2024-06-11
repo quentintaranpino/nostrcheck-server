@@ -1039,7 +1039,7 @@ https://nostrcheck.me/api/v2/nip96
 
 **Example**
 
-[https://nostrcheck.me/api/v1/nip96](https://nostrcheck.me/api/v2/nip96)
+[https://nostrcheck.me/api/v2/nip96](https://nostrcheck.me/api/v2/nip96)
 
 ```
 {
@@ -1147,6 +1147,78 @@ The server returns:
 	"pubkey": "0f1580f8dc1db5fbfa823cb4db1aa233f1b4ba253027b727ddb1918ebdea2ca9",
 	"result": true,
 	"description": "Valid Event"
+}
+```
+
+# Payments 
+
+### paytransaction [POST]
+Pay a transaction using server's balance. It will debit the amount from the server's expenses account (5000) and credit the amount to the user's account.
+
+This endpoint use the [NIP98](https://github.com/nostr-protocol/nips/blob/master/98.md) HTTP Auth for getting the pubkey. The NIP98's pubkey must be registered on the database.
+
+https://nostrcheck.me/api/v2/payments/paytransaction
+
+
+**Headers**
+
+- `Content-Type`: application/json
+- `Authorization`: Bearer {authkey}
+
+**Parameters**
+
+- `transactionid`: The transaction id to mark as paid. And make journal entries.
+- `amount`: The amount to pay.
+
+**Example**
+
+```json
+{
+    "method": "POST",
+    "url": "https://nostrcheck.me/api/v2/payments/paytransaction",
+    "headers": {
+        "Content-Type": "application/json",      
+	"Authorization": "Bearer Auth37f3352fe10584d7396f010eb501482930dd712f"
+    },
+    "body": {
+        "transactionid": "transactionid",
+        "amount": 1000
+    }
+}
+```
+
+### addbalance [POST]
+
+Add balance to a user's account. It will debit the amount from the server's expenses account (5000) and credit the amount to the user's account.
+
+This endpoint use the [NIP98](https://github.com/nostr-protocol/nips/blob/master/98.md) HTTP Auth for getting the pubkey. The NIP98's pubkey must be registered on the database.
+
+https://nostrcheck.me/api/v2/payments/addbalance
+
+**Headers**
+
+- `Content-Type`: application/json
+- `Authorization`: Bearer {authkey}
+
+**Parameters**
+
+- `amount`: The amount to add to the user's account.
+- `id`: The username id to add the balance.
+
+**Example**
+
+```json
+{
+    "method": "POST",
+    "url": "https://nostrcheck.me/api/v2/payments/addbalance",
+    "headers": {
+        "Content-Type": "application/json",
+    "Authorization": "Bearer Auth37f3352fe10584d7396f010eb501482930dd712f"
+    },
+    "body": {
+        "amount": 1000,
+        "id": "username"
+    }
 }
 ```
 
