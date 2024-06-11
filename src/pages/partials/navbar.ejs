@@ -1,4 +1,4 @@
-<nav class="navbar sticky-top navbar-expand-md navbar-dark bg-dark  ps-3 pe-3">
+<nav class="navbar sticky-top navbar-expand-md navbar-dark bg-dark ps-3 pe-3">
   <a class="navbar-brand" href="/">
       <img id="server-logo" src="/static/resources/navbar-logo.webp"
       alt='Nostrcheck server logo' 
@@ -19,6 +19,13 @@
       </li>
       <li class='nav-item'>
         <a <% if(active === 'documentation'){ %><%- "class='nav-link active'"%><% } else { %><%- "class='nav-link'"%><%}%> href="documentation"><i class="fa-solid fa-book me-2"></i>Documentation <span class="sr-only">(current)</span></a>
+      </li>
+      <li class="nav-item">
+        <select id="theme-selector" class="form-select bi-sun">
+          <option value="system">system</option>
+          <option value="light">Light</option>
+          <option value="dark">Oscuro</option>
+        </select>
       </li>
      
     </ul>

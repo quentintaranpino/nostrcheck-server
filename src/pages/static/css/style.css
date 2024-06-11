@@ -1,11 +1,6 @@
 html,
 body {
   height: 100%;
-  color: #333;
-}
-
-body {
-  background-color: #f5f5f5;
 }
 
 main {
@@ -70,7 +65,7 @@ main {
 }
 
 .gradient-text {
-  background-image: linear-gradient(to right, #376fac, #8b55c2, #e105c0);
+  background: linear-gradient(to right, #007BFF, #FF66B2, #FF9933);
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;

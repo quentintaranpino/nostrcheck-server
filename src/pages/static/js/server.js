@@ -28,3 +28,36 @@ document.querySelectorAll('a[href^="#"]').forEach(anchor => {
         });
     });
 });
+
+
+// Theme switcher
+const themeSelector = document.getElementById('theme-selector');
+const body = document.body;
+const navbar = document.querySelector('.navbar');
+
+function applyTheme(theme) {
+  if (theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+    body.setAttribute('data-bs-theme', 'dark');
+  } else {
+    body.setAttribute('data-bs-theme', 'light');
+  }
+}
+
+function setTheme(theme) {
+  localStorage.setItem('theme', theme);
+  applyTheme(theme);
+}
+
+themeSelector.addEventListener('change', () => {
+  setTheme(themeSelector.value);
+});
+
+const savedTheme = localStorage.getItem('theme') || 'system';
+themeSelector.value = savedTheme;
+applyTheme(savedTheme);
+
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+  if (localStorage.getItem('theme') === 'system') {
+    applyTheme('system');
+  }
+});
