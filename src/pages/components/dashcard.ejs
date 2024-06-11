@@ -6,16 +6,20 @@
             <div class="card-body text-center">
                 <div class="d-flex justify-content-between align-items-center">
                     <h5 class="card-title mb-0"><%- dashcardName %></h5>
-                    <% if (icon == "chart") { %>
-                    <i class="fas fa-chart-simple fa-2x card-icon"></i>
-                    <% } else if (icon == "warning") { %>
-                    <i class="fas fa-exclamation-triangle text-warning  fa-2x card-icon"></i>
-                    <% } else if (icon == "satoshi") { %>
-                    <i class="fas fa-bolt-lightning fa-2x text-warning card-icon"></i>
-                    <% }  %>
+                    <div class="card-icon-container">
+                        <% if (icon == "chart") { %>
+                            <i class="fas fa-chart-simple fa-3x card-icon"></i>
+                        <% } else if (icon == "warning") { %>
+                            <i class="fas fa-exclamation-triangle text-warning fa-3x card-icon"></i>
+                        <% } else if (icon == "satoshi") { %>
+                            <i class="fas fa-bolt-lightning text-warning fa-3x card-icon"></i>
+                        <% } else if (icon == "doughnut") { %>
+                            <% if (link.toString().startsWith("#")) { link = link.replace(/^#/, ''); } %>
+                            <canvas id="<%- link %>-checked-doughnut"> </canvas>
+                        <% }  %>
+                    </div>
                 </div>
-
-                <h1 id="<%- dashcardName %>" class="display-2 font-weight-bold"></h1>
+                <h1 id="<%- dashcardName %>" class="display-2 font-weight-bold"></h1>     
             </div>
         <% if (link) { %>
         </a>
@@ -48,6 +52,11 @@ document.getElementById('<%- dashcardName %>').textContent = JSON.parse("<%- dat
     .card-icon {
         color: #c87bff;
     }   
+
+    .card-icon-container {
+        width: 50px;
+        height: 50px;
+    }
     
     .shadow-sm {
         box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);

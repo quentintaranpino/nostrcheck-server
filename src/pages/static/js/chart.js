@@ -3,7 +3,7 @@ const initMonthChart = (chartId, title, data) => {
   const monthCountsCurrentYear = new Array(12).fill(0);
   const monthCountsLastYear = new Array(12).fill(0);
   rawData.forEach(item => {
-    const date = new Date(item.date.toString().substring(0,10));
+    const date = new Date(item.date? item.date.toString().substring(0,10) : item.createddate.toString().substring(0,10));
     if (date.getUTCFullYear() == new Date().getFullYear()) {
       const month = date.getUTCMonth(); 
       monthCountsCurrentYear[month]++; 
@@ -97,3 +97,70 @@ const initMonthChart = (chartId, title, data) => {
     }
   });
 };
+
+
+function initDoughnutChart(chartId, title, data, field, showTitle = false, showLegend = false) {
+
+  const itemData = JSON.parse(data).map(item => item[field]).reduce((acc, label) => {
+      acc[label] = (acc[label] || 0) + 1;
+      return acc;
+  }, {});
+
+  const values = Object.values(itemData);
+  const labels = Object.keys(itemData);
+
+  const ctx = document.querySelector(chartId).getContext('2d');
+  new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+          labels: labels,
+          datasets: [{
+              data: values,
+              backgroundColor: [
+                  'rgba(255, 99, 132, 0.6)',
+                  'rgba(255, 159, 64, 0.6)',
+                  'rgba(255, 205, 86, 0.6)',
+                  'rgba(75, 192, 192, 0.6)',
+                  'rgba(54, 162, 235, 0.6)'
+              ],
+              borderColor: [
+                  'rgba(255, 99, 132, 1)',
+                  'rgba(255, 159, 64, 1)',
+                  'rgba(255, 205, 86, 1)',
+                  'rgba(75, 192, 192, 1)',
+                  'rgba(54, 162, 235, 1)'
+              ],
+              borderWidth: 1
+          }]
+      },
+      options: {
+          responsive: true,
+          plugins: {
+              title: {
+                  display: showTitle,
+                  text: title,
+                  font: {
+                      size: 22,
+                      family: 'Arial',
+                      weight: 'bold'
+                  },
+                  color: '#333',
+                  padding: {
+                      top: 10,
+                      bottom: 30
+                  }
+              },
+              legend: {
+                  display: showLegend,
+                  labels: {
+                      font: {
+                          size: 14,
+                          family: 'Arial'
+                      },
+                      color: '#333'
+                  }
+              }
+          }
+      }
+  });
+}

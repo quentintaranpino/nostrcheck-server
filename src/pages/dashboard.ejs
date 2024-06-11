@@ -15,10 +15,10 @@
       <div class= "container-fluid mt-5">
         <div class="row">
           <% if (request.body.nostraddressData && request.body.nostraddressData.length > 0) { %>
-            <%- include('./components/dashcard', {icon: "chart", dashcardName: "Registered users",data: request.body.nostraddressData, link : '#nostraddressData'}); %>
+            <%- include('./components/dashcard', {icon: "doughnut", dashcardName: "Registered users",data: request.body.nostraddressData, link : '#nostraddressData'}); %>
           <% } %>
           <% if (request.body.mediaData && request.body.mediaData.length > 0) { %>
-            <%- include('./components/dashcard', {icon: "chart",dashcardName: "Media files",data: request.body.mediaData, link : '#mediaData'}); %>
+            <%- include('./components/dashcard', {icon: "doughnut",dashcardName: "Media files",data: request.body.mediaData, link : '#mediaData'}); %>
           <% } %>
           <% if (request.body.lightningData && request.body.lightningData.length > 0) { %>
             <%- include('./components/dashcard', {icon: "chart",dashcardName: "Lightning redirects",data: request.body.lightningData, link : '#lightningData'}); %>
@@ -27,13 +27,13 @@
             <%- include('./components/dashcard', {icon: "chart",dashcardName: "Domains",data: request.body.domainsData, link : '#domainsData'}); %>
           <% } %>
           <% if (request.body.domainsData && request.body.domainsData.length > 0) { %>
-            <%- include('./components/dashcard', {icon: "warning",dashcardName: "Warning messages",data: request.body.domainsData, link: '#domainsData'}); %>
+            <%- include('./components/dashcard', {icon: "warning",dashcardName: "Warning messages",data: request.body.domainsData, link: 'settings/#settingsLogger'}); %>
           <% } %>
           <% if (request.body.paymentsData && request.body.paymentsData.length > 0) { %>
             <%- include('./components/dashcard', {icon: "chart",dashcardName: "Transactions",data: request.body.paymentsData, link: '#paymentsData'}); %>
           <% } %>
           <% if (request.body.paymentsData && request.body.paymentsData.length > 0) { %>
-            <%- include('./components/dashcard', {icon: "satoshi",dashcardName: "Unpaid transactions balance",data: request.body.unpaidTransactionsBalance, link : ''}); %>
+            <%- include('./components/dashcard', {icon: "satoshi",dashcardName: "Unpaid transactions balance",data: request.body.unpaidTransactionsBalance, link : '#paymentsData'}); %>
           <% } %>
           <% if (request.body.paymentsData && request.body.paymentsData.length > 0) { %>
             <%- include('./components/dashcard', {icon: "satoshi",dashcardName: "Server balance",data: request.body.serverBalance, link : ''}); %>
@@ -48,7 +48,6 @@
           <div class="col-xl-6 col-lg-6 col-md-6 col-sm-12">
             <canvas id="mediaData-chart" class="col-xl-3 col-lg-4 col-md-12 col-sm-12"></canvas>
           </div>
-        </div> 
       </div> 
       <div class="container-fluid mt-4 overflow-auto ">
           <%- include('./components/table', {
@@ -216,7 +215,6 @@
       initTable("#domainsData",'<%- request.body.domainsData %>', 'domain name')
     }
     if("<%- request.body.paymentsData && request.body.paymentsData.length > 0 %>"){
-      console.log("paymentsData",'<%- request.body.paymentsData %>')
       initTable("#paymentsData",'<%- request.body.paymentsData %>', 'transaction')
     }
   </script>
@@ -230,6 +228,15 @@
   }
   if("<%- JSON.stringify(request.body.mediaData && request.body.mediaData.length > 0 ) %>"){
     initMonthChart("#mediaData-chart",'Media files','<%- request.body.mediaData %>')
+  }
+  if("<%- JSON.stringify(request.body.paymentsData && request.body.paymentsData.length > 0 ) %>"){
+    initMonthChart("#paymentsData-chart",'Transactions','<%- request.body.paymentsData %>')
+  }
+  if("<%- JSON.stringify(request.body.nostraddressData && request.body.nostraddressData.length > 0 ) %>"){
+    initDoughnutChart("#nostraddressData-checked-doughnut",'Checked users','<%- request.body.nostraddressData %>', 'checked')
+  }
+  if("<%- JSON.stringify(request.body.mediaData && request.body.mediaData.length > 0 ) %>"){
+    initDoughnutChart("#mediaData-checked-doughnut",'Checked media files','<%- request.body.mediaData %>', 'checked')
   }
 </script>
 </html>
