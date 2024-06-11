@@ -14,30 +14,29 @@
       <p class="text-center mt-2 display-6 ">Welcome <%= request.session.metadata.display_name %>, this is the status of your server today</p>
       <div class= "container-fluid mt-5">
         <div class="row">
-          <% if (request.body.nostraddressData && request.body.nostraddressData.length > 0) { %>
-            <%- include('./components/dashcard', {icon: "doughnut", dashcardName: "Registered users",data: request.body.nostraddressData, link : '#nostraddressData'}); %>
-          <% } %>
-          <% if (request.body.mediaData && request.body.mediaData.length > 0) { %>
-            <%- include('./components/dashcard', {icon: "doughnut",dashcardName: "Media files",data: request.body.mediaData, link : '#mediaData'}); %>
-          <% } %>
-          <% if (request.body.lightningData && request.body.lightningData.length > 0) { %>
-            <%- include('./components/dashcard', {icon: "chart",dashcardName: "Lightning redirects",data: request.body.lightningData, link : '#lightningData'}); %>
-          <% } %>
-          <% if (request.body.domainsData && request.body.domainsData.length > 0) { %>
-            <%- include('./components/dashcard', {icon: "chart",dashcardName: "Domains",data: request.body.domainsData, link : '#domainsData'}); %>
-          <% } %>
-          <% if (request.body.domainsData && request.body.domainsData.length > 0) { %>
-            <%- include('./components/dashcard', {icon: "warning",dashcardName: "Warning messages",data: request.body.domainsData, link: 'settings/#settingsLogger'}); %>
-          <% } %>
-          <% if (request.body.paymentsData && request.body.paymentsData.length > 0) { %>
-            <%- include('./components/dashcard', {icon: "chart",dashcardName: "Transactions",data: request.body.paymentsData, link: '#paymentsData'}); %>
-          <% } %>
-          <% if (request.body.paymentsData && request.body.paymentsData.length > 0) { %>
-            <%- include('./components/dashcard', {icon: "satoshi",dashcardName: "Unpaid transactions balance",data: request.body.unpaidTransactionsBalance, link : '#paymentsData'}); %>
-          <% } %>
-          <% if (request.body.paymentsData && request.body.paymentsData.length > 0) { %>
-            <%- include('./components/dashcard', {icon: "satoshi",dashcardName: "Server balance",data: request.body.serverBalance, link : ''}); %>
-          <% } %>
+          <% 
+            const modules = [
+              { name: 'nostraddressData', icon: 'doughnut', dashcardName: 'Registered users', link: '#nostraddressData', dataKey: 'nostraddressData' },
+              { name: 'mediaData', icon: 'doughnut', dashcardName: 'Media files', link: '#mediaData', dataKey: 'mediaData' },
+              { name: 'lightningData', icon: 'chart', dashcardName: 'Lightning redirects', link: '#lightningData', dataKey: 'lightningData' },
+              { name: 'domainsData', icon: 'chart', dashcardName: 'Domains', link: '#domainsData', dataKey: 'domainsData' },
+              { name: 'logHistory', icon: 'warning', dashcardName: 'Warning messages', link: 'settings/#settingsLogger', dataKey: 'logHistory' },
+              { name: 'paymentsData', icon: 'doughnut', dashcardName: 'Transactions', link: '#paymentsData', dataKey: 'paymentsData' },
+              { name: 'unpaidTransactionsBalance', icon: 'satoshi', dashcardName: 'Unpaid transactions balance', link: '#paymentsData', dataKey: 'paymentsData' },
+              { name: 'serverBalance', icon: 'satoshi', dashcardName: 'Server balance', link: '', dataKey: 'paymentsData' }
+            ];
+        
+            modules.forEach(module => {
+              const dataKey = module.dataKey;
+              const data = request.body[module.name] || [];
+              console.log(data)
+              if (request.body.activeModules.includes(module.dataKey)) {
+                %>
+                  <%- include('./components/dashcard', {icon: module.icon, dashcardName: module.dashcardName, data: data, link: module.link, dataKey : module.dataKey}); %>
+                <%
+              }
+            });
+          %>
         </div>
       </div>
       <div class= "container-fluid mt-4">
@@ -49,7 +48,7 @@
             <canvas id="mediaData-chart" class="col-xl-3 col-lg-4 col-md-12 col-sm-12"></canvas>
           </div>
       </div> 
-      <div class="container-fluid mt-4 overflow-auto ">
+      <div class="container-fluid mt-4 mb-5 overflow-auto ">
           <%- include('./components/table', {
                                         tableName:"Registered users", 
                                         tableId:"nostraddressData", 
@@ -233,10 +232,13 @@
     initMonthChart("#paymentsData-chart",'Transactions','<%- request.body.paymentsData %>')
   }
   if("<%- JSON.stringify(request.body.nostraddressData && request.body.nostraddressData.length > 0 ) %>"){
-    initDoughnutChart("#nostraddressData-checked-doughnut",'Checked users','<%- request.body.nostraddressData %>', 'checked')
+    initDoughnutChart("#nostraddressData-dashcard-doughnut",'Checked users','<%- request.body.nostraddressData %>', 'checked')
   }
   if("<%- JSON.stringify(request.body.mediaData && request.body.mediaData.length > 0 ) %>"){
-    initDoughnutChart("#mediaData-checked-doughnut",'Checked media files','<%- request.body.mediaData %>', 'checked')
+    initDoughnutChart("#mediaData-dashcard-doughnut",'Checked media files','<%- request.body.mediaData %>', 'checked')
+  }
+  if("<%- JSON.stringify(request.body.paymentsData && request.body.paymentsData.length > 0 ) %>"){
+    initDoughnutChart("#paymentsData-dashcard-doughnut",'Paid transactions','<%- request.body.paymentsData %>', 'paid')
   }
 </script>
 </html>

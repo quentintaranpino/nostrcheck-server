@@ -1,5 +1,5 @@
 <div class="col-xl-3 col-lg-4 col-md-6 col-sm-12">
-    <div class="card mb-3 shadow-sm">
+    <div class="card mb-3 shadow-sm" style="min-height: 180px">
         <% if (link) { %>
         <a href = "<%- link %>" class="text-decoration-none text-reset">
         <% } %>
@@ -15,11 +15,15 @@
                             <i class="fas fa-bolt-lightning text-warning fa-3x card-icon"></i>
                         <% } else if (icon == "doughnut") { %>
                             <% if (link.toString().startsWith("#")) { link = link.replace(/^#/, ''); } %>
-                            <canvas id="<%- link %>-checked-doughnut"> </canvas>
+                            <% if (data.length === 0) { %>
+                                <i class="fas fa-chart-simple fa-3x card-icon"></i>
+                            <% } else { %>
+                                <canvas id="<%- link %>-dashcard-doughnut"></canvas>
+                            <% } %>
                         <% }  %>
                     </div>
                 </div>
-                <h1 id="<%- dashcardName %>" class="display-2 font-weight-bold"></h1>     
+                <h1 id="<%- dashcardName %>" class="display-2 font-weight-bold">0</h1>     
             </div>
         <% if (link) { %>
         </a>
@@ -32,10 +36,12 @@ document.getElementById('<%- dashcardName %>').textContent = JSON.parse("<%- dat
 
 <style>
     .card {
-        border: none;
+        border: 1px solid #dedede;
         border-radius: 10px;
         transition: transform 0.3s;
-        background-color: #edebf3;
+        background-color: #edebf1;
+        color: #2c2b2b;
+
 
     }
     
@@ -54,11 +60,8 @@ document.getElementById('<%- dashcardName %>').textContent = JSON.parse("<%- dat
     }   
 
     .card-icon-container {
-        width: 50px;
-        height: 50px;
+        width: 55px;
+        height: 55px;
     }
     
-    .shadow-sm {
-        box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
-    }
 </style>
