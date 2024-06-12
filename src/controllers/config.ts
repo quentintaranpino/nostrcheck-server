@@ -142,10 +142,14 @@ const migrateDBLocalpath = async () : Promise<boolean> => {
 				continue;
 			}
 			const newFilename = await generatefileHashfromfile(path.join(app.get("config.storage")["local"]["mediaPath"],pubkey,filename)) + path.extname(filename);
-				const updFilename = await dbUpdate('mediafiles', 'filename', newFilename, 'filename', filename);
-				if (!updFilename) {
-					console.error(`Failed to update media file ${filename} with new filename`);
-					continue;
+			if (!newFilename) {
+				console.error(`Failed to generate new filename for ${filename}`);
+				continue;
+			}	
+			const updFilename = await dbUpdate('mediafiles', 'filename', newFilename, 'filename', filename);
+			if (!updFilename) {
+				console.error(`Failed to update media file ${filename} with new filename`);
+				continue;
 			}
 			try{
 				await fs.rename(path.join(app.get("config.storage")["local"]["mediaPath"], pubkey, filename),
@@ -156,11 +160,10 @@ const migrateDBLocalpath = async () : Promise<boolean> => {
 						console.log(`Renamed ${newType} file to ${newFilename}`);
 					}
 				});
+				filename = newFilename;
 			}catch (error) {
 				console.error(`Failed to rename ${newType} file to ${newFilename}: ${error}`);
 			}
-
-
 		}else{
 			if (!type){
 				const updtType = await dbUpdate('mediafiles', 'type', "media", 'filename', filename);
