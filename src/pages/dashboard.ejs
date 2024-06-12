@@ -28,8 +28,7 @@
         
             modules.forEach(module => {
               const dataKey = module.dataKey;
-              const data = request.body[module.name] || [];
-              console.log(data)
+              let data = request.body[module.name] || [];
               if (request.body.activeModules.includes(module.dataKey)) {
                 %>
                   <%- include('./components/dashcard', {icon: module.icon, dashcardName: module.dashcardName, data: data, link: module.link, dataKey : module.dataKey}); %>
