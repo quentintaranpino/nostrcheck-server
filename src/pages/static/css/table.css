@@ -17,3 +17,31 @@
 .bootstrap-table .page-link {
     color: #7d7d7d;
 }
+
+.detail-container {
+    font-family: Arial, sans-serif;
+    border: 1px solid #ddd;
+    padding: 15px;
+    border-radius: 5px;
+    background-color: #f9f9f9;
+    margin: 10px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    display: inline-block;
+    max-width: 50%;
+    width: auto;
+    word-wrap: break-word;
+}
+.detail-container p {
+    margin: 5px 0;
+    line-height: 1.5;
+}
+.detail-container b {
+    color: #333;
+}
+.detail-container .key {
+    font-weight: bold;
+    color: #555;
+}
+.detail-container .value {
+    color: #777;
+}
