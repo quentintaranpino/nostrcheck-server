@@ -124,6 +124,7 @@ const migrateDBLocalpath = async () : Promise<boolean> => {
 
 	console.log("Migrating", mediaFiles.length, "files", "to new localpath folder version, it can take a while...");
 	
+	let count = 0;
 	for (const item of mediaFiles) {
 		const [filename, pubkey] = item.split(',');
         const hashpath = await getHashedPath(filename);
@@ -145,6 +146,10 @@ const migrateDBLocalpath = async () : Promise<boolean> => {
 					console.log(`Moved file ${filename} to ${newPath}`);
 				}
 			});
+			count++;
+			if (count % (mediaFiles.length / 5) === 0) {
+				console.log(`${count} files moved... (${Math.round((count / mediaFiles.length) * 100)}%)`);
+			}
 
         } catch (error) {
             console.error(`Failed to move file ${filename} to ${newPath}: ${error}`);
@@ -225,7 +230,7 @@ const prepareApp = async() => {
 	await prepareAPPConfig();
 	await prepareAppFolders();
 	await migrateFolders(app.get("config.storage")["local"]["mediaPath"]);
-	await migrateDBLocalpath();
+	migrateDBLocalpath();
 }
 
 export { checkConfigNecessaryKeys, migrateFolders, prepareApp };
