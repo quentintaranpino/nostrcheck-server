@@ -180,7 +180,7 @@ const defaultConfig = {
 				"mediaMaxSatoshi": 1000,
 				"registerMaxSatoshi": 1000,
 		},
-		"LNAddress": "nostrcheckme@getalby.com",
+		"LNAddress": "",
 		"getalby" : {
 		"authToken": "",
 		},
