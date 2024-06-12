@@ -546,7 +546,7 @@ const getMediabyURL = async (req: Request, res: Response) => {
 		// Check if exist a transaction for this media file and if it is paid.
 		const transaction = await checkTransaction(filedata[2], filedata[0], "mediafiles", Number(filedata[3]), req.params.pubkey) as transaction;
 		let noCache = false;
-		if (transaction.paymentHash != "" && transaction.isPaid == false) {
+		if (transaction.paymentHash != "" && transaction.isPaid == false && isModuleEnabled("payments", app)) {
 
 			// If is not paid, check if the GET request has authorization header (for dashboard admin checking)
 			const EventHeader = await parseAuthHeader(req, "getMediaByURL", true);
