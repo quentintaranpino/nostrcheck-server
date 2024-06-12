@@ -170,12 +170,12 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 	const dbHash = await dbMultiSelect(
 								"SELECT id, hash, magnet, blurhash, filename, filesize, dimensions " +
 								"FROM mediafiles " + 
-								"WHERE original_hash = ? and pubkey = ? and filename not like 'avatar%' and filename not like 'banner%' ",
+								"WHERE original_hash = ? and pubkey = ? ",
 								["id", "hash", "magnet", "blurhash", "filename", "filesize", "dimensions"],
 								[filedata.originalhash, pubkey]
 								) as string[];
 
-	if (dbHash[0].length != 0 && media_type == "media") {
+	if (dbHash && dbHash.length != 0 && dbHash[0] != undefined && dbHash[0] != "") {
 		logger.info(`RES ->  File already in database, returning existing URL:`, filedata.servername + "/media/" + pubkey + "/" + filedata.filename, "|", getClientIp(req));
 
 		if (version == "v1"){filedata.status = JSON.parse(JSON.stringify(UploadStatus[2]));}
@@ -228,8 +228,8 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 		const createdate = new Date(Math.floor(Date.now())).toISOString().slice(0, 19).replace("T", " ");
 		const insertResult = await dbInsert(
 			"mediafiles", 
-			["pubkey", "filename", "original_hash", "hash", "status", "active", "visibility", "date", "ip_address", "magnet", "blurhash", "filesize", "comments"],
-			[filedata.pubkey, filedata.filename, filedata.originalhash, filedata.hash, filedata.status, 1, 1, createdate, getClientIp(req), filedata.magnet, filedata.blurhash, filedata.filesize, ""]);
+			["pubkey", "filename", "original_hash", "hash", "status", "active", "visibility", "date", "ip_address", "magnet", "blurhash", "filesize", "comments", "type"],
+			[filedata.pubkey, filedata.filename, filedata.originalhash, filedata.hash, filedata.status, 1, 1, createdate, getClientIp(req), filedata.magnet, filedata.blurhash, filedata.filesize, "", filedata.media_type]);
 
 		filedata.fileid = insertResult.toString();
 		if (insertResult == 0) {
@@ -520,11 +520,20 @@ const getMediabyURL = async (req: Request, res: Response) => {
 		}
 	}
 
+
 	// Check if file is active on the database and if payment is required
 	const cachedStatus = await redisClient.get(req.params.filename + "-" + req.params.pubkey);
 	if (cachedStatus === null || cachedStatus === undefined) {
 
-		const filedata = await dbMultiSelect("SELECT id, active, transactionid, filesize FROM mediafiles WHERE filename = ? and pubkey = ? ", ["id", "active", "transactionid", "filesize"], [req.params.filename, req.params.pubkey]) as string[];
+		// Avatar and banner short URL compatibility.
+		let whereField = "filename";
+		let whereValue = req.params.filename;
+		if (req.params.filename.startsWith("avatar") || req.params.filename.startsWith("banner")) {
+			whereField = "type";
+			whereValue = req.params.filename.split(".")[0];
+		}
+
+		const filedata = await dbMultiSelect("SELECT id, active, transactionid, filesize, filename FROM mediafiles WHERE " + whereField  + " = ? and pubkey = ? ORDER BY id DESC", ["id", "active", "transactionid", "filesize", "filename"], [whereValue, req.params.pubkey]) as string[];
 		if (filedata[0] == undefined || filedata[0] == "" || filedata[0] == null) {
 			logger.warn(`RES -> 404 Not Found - ${req.url}`, "| Returning not found media file.", getClientIp(req));
 			res.setHeader('Content-Type', 'image/webp');
@@ -534,14 +543,17 @@ const getMediabyURL = async (req: Request, res: Response) => {
 			logger.warn(`RES -> 401 File not active - ${req.url}`, "| Returning not found media file.", getClientIp(req));
 
 			await redisClient.set(req.params.filename + "-" + req.params.pubkey, "0", {
-				EX: app.get("config.redis")["expireTime"],
 				NX: true,
+				EX: app.get("config.redis")["expireTime"],
 			});
 			logger.warn(`RES -> 401 File not active - ${req.url}`, "returning not found media file |", getClientIp(req), "|", "cached:", cachedStatus ? true : false);
 
 			res.setHeader('Content-Type', 'image/webp');
 			return res.status(401).send(await getNotFoundMediaFile());
 		}
+
+		// Allways set the correct filename
+		req.params.filename = filedata[4]
 
 		// Check if exist a transaction for this media file and if it is paid.
 		const transaction = await checkTransaction(filedata[2], filedata[0], "mediafiles", Number(filedata[3]), req.params.pubkey) as transaction;
@@ -550,8 +562,8 @@ const getMediabyURL = async (req: Request, res: Response) => {
 
 			// If is not paid, check if the GET request has authorization header (for dashboard admin checking)
 			const EventHeader = await parseAuthHeader(req, "getMediaByURL", true);
+			
 			if (EventHeader.status != "success") {
-
 				// If the GET request has no authorization, we return a QR code with the payment request.
 				logger.info(`RES -> 200 Paid media file ${req.url}`, "|", getClientIp(req), "|", "cached:", cachedStatus ? true : false);
 				const qrImage = await generateQRCode(transaction.paymentRequest, 
