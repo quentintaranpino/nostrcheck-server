@@ -60,6 +60,15 @@ const checkTransaction = async (transactionid : string, originId: string, origin
 }
 
 const generateLNInvoice = async (accountid: number, satoshi: number, originTable : string, originId : string) : Promise<invoice> => {
+
+    if (app.get("config.payments")["enabled"] == false) {
+        return emptyInvoice;
+    }
+
+    if (app.get("config.payments")["LNAddress"] == "") {
+        logger.error("LNAddress not set in config file. Cannot generate invoice.")
+        return emptyInvoice;
+    }
     
     const albyInvoice = await generateGetalbyInvoice(app.get("config.payments")["LNAddress"], satoshi);
     albyInvoice.description = "Invoice for: " + originTable + ":" + originId;
