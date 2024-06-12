@@ -125,7 +125,7 @@ const migrateDBLocalpath = async () : Promise<boolean> => {
 	
 	let count = 0;
 	for (const item of mediaFiles) {
-		const [filename, pubkey, type] = item.split(',');
+		let [filename, pubkey, type] = item.split(',');
         const hashpath = await getHashedPath(filename);
         const updLocalPath = await dbUpdate('mediafiles', 'localpath', hashpath, 'filename', filename);
 
@@ -134,7 +134,6 @@ const migrateDBLocalpath = async () : Promise<boolean> => {
 			continue;
 		};
 
-		// Update type db field with new value
 		if (filename.includes("avatar") || filename.includes("banner")) {
 			const newType = filename.includes("avatar") ? "avatar" : "banner";
 			const updType = await dbUpdate('mediafiles', 'type', newType, 'filename', filename);
@@ -148,6 +147,20 @@ const migrateDBLocalpath = async () : Promise<boolean> => {
 					console.error(`Failed to update media file ${filename} with new filename`);
 					continue;
 			}
+			try{
+				await fs.rename(path.join(app.get("config.storage")["local"]["mediaPath"], pubkey, filename),
+								path.join(app.get("config.storage")["local"]["mediaPath"], pubkey, newFilename), (err) => {
+					if (err) {
+						console.error(`Failed to rename ${newType} file to ${newFilename}: ${err}`);
+					} else {
+						console.log(`Renamed ${newType} file to ${newFilename}`);
+					}
+				});
+			}catch (error) {
+				console.error(`Failed to rename ${newType} file to ${newFilename}: ${error}`);
+			}
+
+
 		}else{
 			if (!type){
 				const updtType = await dbUpdate('mediafiles', 'type', "media", 'filename', filename);
