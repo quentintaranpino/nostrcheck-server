@@ -91,7 +91,7 @@ const defaultConfig = {
 		},
 		"payments" : {
 			"name": "payments",
-			"enabled": true,
+			"enabled": false,
 			"path": "/payments",
 			"methods": ["POST"],
 			"description": "This module handles payments, balance, invoices, etc."
