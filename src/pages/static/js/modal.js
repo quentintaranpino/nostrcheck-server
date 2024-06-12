@@ -56,11 +56,6 @@ const initEditModal = async (objectId, row, objectName, newRow, columns) => {
             if (row.hasOwnProperty(key)) {
                 if (key == 'state'){continue}
 
-                // Extract the link text if the value is a link
-                if (typeof row[key] === 'string' && row[key].startsWith('<')) {
-                    row[key] = $(row[key]).text();
-                }
-
                 // remove 'null' string from the input field
                 if (row[key] === null) {
                     row[key] = '';
@@ -116,7 +111,7 @@ const initEditModal = async (objectId, row, objectName, newRow, columns) => {
                     var isCheckbox = false;
                     // Search key in columns object 
                     columns.forEach(function(column) {
-                        if (column.field == key && column.class && column.class.includes('checkbox')) {
+                        if (column.field == key && column.class && column.class.includes('formatCheckbox')) {
                             isCheckbox = true;
                         }
                     });
