@@ -94,7 +94,14 @@ By enabling or disabling modules in this configuration, you can control which fe
 		"path": "/",
 		"methods": ["GET","POST"],
 		"description": "This module handles the frontend, login page, register, dashboard, etc."
-	}
+	},
+	"payments" : {
+	"name": "payments",
+	"enabled": false,
+	"path": "/payments",
+	"methods": ["POST"],
+	"description": "This module handles payments, balance, invoices, etc."
+}
 }
 ```
 
@@ -331,7 +338,7 @@ If the configuration file does not exist, the application will automatically gen
 		},
 		"payments" : {
 			"name": "payments",
-			"enabled": true,
+			"enabled": false,
 			"path": "/payments",
 			"methods": ["POST"],
 			"description": "This module handles payments, balance, invoices, etc."
