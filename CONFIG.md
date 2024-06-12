@@ -154,7 +154,7 @@ REDIS_PASSWORD
 }
 ```
 
-The Media files configuration includes settings for maximum file size (in MB), a temporary path for media transformation, the path for media files, an image file path for when a file is not found, a setting for whether public uploads are allowed, a custom return URL, and settings for media file transformations.
+The Media files configuration includes settings for maximum file size (in MB), an image file path for when a file is not found, a setting for whether public uploads are allowed, a custom return URL, and settings for media file transformations.
 
 If the returnURL is not defined in the configuration, the application will default to returning https://<servername>/media. Here, <servername> is the name of the server where the application is hosted. This default URL points to the location where the media files are stored on the server.
 
@@ -199,6 +199,63 @@ The session configuration includes settings for the session secret and the maxim
 The secret is a key used to sign the session ID cookie. If it's not specified in the configuration, the application will automatically generate a session secret. This ensures that even if the secret is not explicitly set, the session ID cookie will still be signed, providing an additional layer of security.
 
 The maxAge setting determines the maximum age (in milliseconds) of a session. After this period, the session will expire. 
+
+## Storage
+
+```json
+"storage" : {
+		"type": "local",
+		"local" : {
+			"mediaPath": "media/",
+			"tempPath": "tmp/"
+		},
+		"remote" : {
+			"endpoint": "https://<your_r2_account_id>.r2.cloudflarestorage.com",
+			"accessKeyId": "<your_r2_access_key_id>",
+			"secretAccessKey": "<your_r2_secret_access_key>",
+			"region": "auto",
+			"s3ForcePathStyle": true,
+			"bucketName": "your-bucket-name"
+		}
+	}
+```
+
+The storage configuration includes settings for the storage type and the storage path.
+
+The storage type determines the method of storage used by the application. This could be local file storage, cloud-based storage, or a database. If it's not specified in the configuration, the application will default to using local file storage. This ensures that even if the storage type is not explicitly set, the application will still have a method to store and retrieve data.
+
+The storage path is the location where the data will be stored. This could be a directory on the local machine for file storage, a URL for cloud-based storage, or a database name for database storage. If it's not specified in the configuration, the application will default to a standard location. This ensures that even if the storage path is not explicitly set, the application will know where to store and retrieve data.
+
+
+## Payments
+
+```json
+
+"payments" : {
+	"paymentProvider": "getalby",
+	"satoshi" : {
+			"mediaMaxSatoshi": 1000,
+			"registerMaxSatoshi": 1000,
+	},
+	"LNAddress": "nostrcheckme@getalby.com",
+	"getalby" : {
+	"authToken": "",
+	},
+},
+
+```
+
+The payments configuration includes settings for the payment provider, maximum payment amounts, and provider-specific settings.
+
+The paymentProvider field specifies the service used to process payments. If it's not specified in the configuration, the application will need to have a default provider or handle the lack of a provider appropriately.
+
+The satoshi field contains settings for maximum payment amounts for different types of transactions. For example, mediaMaxSatoshi could be the maximum amount of satoshis that a user can pay for a media file, and registerMaxSatoshi could be the maximum amount for user registration.
+
+The LNAddress field is the Lightning Network address for receiving payments.
+
+The getalby field contains settings specific to the Getalby payment provider. In this case, it includes an authToken for authenticating with the Getalby service. This token should be kept secret and not shared publicly.
+
+This configuration ensures that the application has the necessary information to process payments, set payment limits, and interact with the chosen payment provider.
 
 
 # Default config 
@@ -271,6 +328,13 @@ If the configuration file does not exist, the application will automatically gen
 			"path": "/",
 			"methods": ["GET","POST"],
 			"description": "This module handles the frontend, login page, register, dashboard, etc."
+		},
+		"payments" : {
+			"name": "payments",
+			"enabled": true,
+			"path": "/payments",
+			"methods": ["POST"],
+			"description": "This module handles payments, balance, invoices, etc."
 		}
 		}
 	},
