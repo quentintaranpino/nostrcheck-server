@@ -70,7 +70,7 @@ const convertFile = async(	inputFile: Express.Multer.File,	options: ProcessingFi
 					await dbUpdate('mediafiles','percentage','100','id', options.fileid);
 					await dbUpdate('mediafiles','visibility','1','id', options.fileid);
 					await dbUpdate('mediafiles','active','1','id', options.fileid);
-					await dbUpdate('mediafiles', 'hash', await generatefileHashfromfile(options.conversionOutputPath, options), 'id', options.fileid);
+					await dbUpdate('mediafiles', 'hash', await generatefileHashfromfile(options.conversionOutputPath), 'id', options.fileid);
 					if (config.get("torrent.enableTorrentSeeding")) {await CreateMagnet(options.conversionOutputPath, options);}
 					await dbUpdate('mediafiles','status','success','id', options.fileid);
 					const filesize = getFileSize(options.conversionOutputPath,options)
@@ -265,14 +265,12 @@ const standardMediaConversion = (filedata : ProcessingFileData , file:Express.Mu
 		if (filedata.media_type.toString() === "avatar"){
 			filedata.width = config.get("media.transform.avatar.width");
 			filedata.height = config.get("media.transform.avatar.height");
-			filedata.filename = "avatar.webp";
 		}
 	
 		//Banner conversion options
 		if (filedata.media_type.toString() === "banner"){
 			filedata.width = config.get("media.transform.banner.width");
 			filedata.height = config.get("media.transform.banner.height");
-			filedata.filename = "banner.webp";
 		}
 
 		return;

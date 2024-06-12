@@ -7,7 +7,7 @@ import { encode } from 'blurhash'
 import { credentialTypes } from '../interfaces/authorization.js';
 import bcrypt from 'bcrypt';
 
-const generatefileHashfromfile = (filepath:string, options: ProcessingFileData): string => {
+const generatefileHashfromfile = (filepath:string): string => {
 
   logger.debug("INIT hash generation for file:", filepath);
 
@@ -23,7 +23,7 @@ const generatefileHashfromfile = (filepath:string, options: ProcessingFileData):
     return "";
   }
   logger.debug("END hash generation for file:", filepath, ":", hash);
-  logger.info("Hash for file:", options.filename, ":", hash);
+  logger.info("Hash for file:", filepath, ":", hash);
 
   return hash;
 
