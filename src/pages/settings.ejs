@@ -153,6 +153,8 @@
                         id="server.availableModules.<%= key %>.enabled" 
                         onclick="handleCheckboxClick('<%= key %>',this.checked)">
                     </div>
+                    <p class="form-check-label mt-4"><%= request.body.availableModules[key]['description'] %></p>
+
                 </div>
                 <% counter++; %>
             <% } %>
