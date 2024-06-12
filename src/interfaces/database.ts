@@ -58,6 +58,7 @@ interface mediafilesTable extends RowDataPacket {
 	checked: string;
 	transactionid: string;
 	localPath: string;
+	type: string;
 }
 
 const mediafilesTableFields: mediafilesTable = {
@@ -80,6 +81,7 @@ const mediafilesTableFields: mediafilesTable = {
 	checked: "boolean NOT NULL DEFAULT 0",
 	transactionid: "int(11)",
 	localPath: "varchar(4)",
+	type: "varchar(15)",
 	constructor: {
 		name: 'RowDataPacket',
 	},
