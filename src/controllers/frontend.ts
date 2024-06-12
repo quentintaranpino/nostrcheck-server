@@ -42,7 +42,7 @@ const loadDashboardPage = async (req: Request, res: Response, version:string): P
     req.body.unpaidTransactionsBalance = await getUnpaidTransactionsBalance();
 
     // Logger history greater or equal to 4 (warn)
-    req.body.logHistory = JSON.stringify(logHistory).replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/'/g, "\\'");
+    req.body.logHistory = logHistory.length != 0 ? JSON.stringify(logHistory).replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/'/g, "\\'") : [0];
     activeModules.push("logHistory");
 
     req.body.version = app.get("version");
