@@ -256,44 +256,34 @@ const initTable = (tableId, data, objectName) => {
             });
         }
     })
-    }
+}
 
-    // Filter buttons
-    function initFilterButton () {
-        return {
-            btnFilterUnchecked: {
-                text: 'Show unchecked records',
-                icon: 'bi bi-bookmark-heart-fill',
-                event: async function () {
-                    // dirty hack to force the filter to work
-                    if (isFilterActive) {
-                        $(tableId).bootstrapTable('filterBy', {}); 
-                        $(tableId).bootstrapTable('filterBy', {checked: [0]}); 
-                        $(tableId).bootstrapTable('filterBy', {}); 
-                    } else {
-                        $(tableId).bootstrapTable('filterBy', {checked: [0]});
-                        $(tableId).bootstrapTable('filterBy', {}); 
-                        $(tableId).bootstrapTable('filterBy', {checked: [0]}); 
-                    }
-                    isFilterActive = !isFilterActive; 
-                },
-                attributes: {
-                    title: 'Show only unchecked records',
-                    id: 'btnFilterUnchecked'
+
+// Filter buttons
+function initFilterButton () {
+    return {
+        btnFilterUnchecked: {
+            text: 'Show unchecked records',
+            icon: 'bi bi-bookmark-heart-fill',
+            event: async function () {
+                // dirty hack to force the filter to work
+                if (isFilterActive) {
+                    $(tableId).bootstrapTable('filterBy', {}); 
+                    $(tableId).bootstrapTable('filterBy', {checked: [0]}); 
+                    $(tableId).bootstrapTable('filterBy', {}); 
+                } else {
+                    $(tableId).bootstrapTable('filterBy', {checked: [0]});
+                    $(tableId).bootstrapTable('filterBy', {}); 
+                    $(tableId).bootstrapTable('filterBy', {checked: [0]}); 
                 }
+                isFilterActive = !isFilterActive; 
+            },
+            attributes: {
+                title: 'Show only unchecked records',
+                id: 'btnFilterUnchecked'
             }
         }
     }
-
-function detailFormatter(row) {
-var html = []
-html.push('<div class="container-fluid ps-4">')
-html.push('<h3><b>Details:</b></h3>')
-$.each(row, function (key, value) {
-    html.push('<p><b>' + key + ':</b> ' + value + '</p>')
-})
-html.push('</div>')
-return html.join('')
 }
 
 function highlihtRow(tableId, row) {
@@ -409,19 +399,17 @@ async function modifyRecord(tableId, id, field, fieldValue, action = 'modify', r
 }
 
 function detailFormatter(index, row) {
-    var html = []
+    var html = [];
     $.each(row, function (key, value) {
-        if(key === 'state') {return}
-        if (key === 'filename') {
-            let parser = new DOMParser();
-            let doc = parser.parseFromString(value, 'text/html');
-            let parsedFilename = doc.querySelector('.cursor-zoom-in.text-primary').textContent;
-            html.push('<p><b>' + key + ':</b> ' + parsedFilename + '</p>')
-            return
-        }
-        html.push('<p><b>' + key + ':</b> ' + value + '</p>')
-    })
-    return html.join('')
+        if (key === 'state') { return; }
+        html.push('<p><span class="key">' + key + ':</span> <span class="value">' + value + '</span></p>');
+    });
+
+    return `
+        <div class="detail-container">
+            ${html.join('')}
+        </div>
+    `;
 }
 
 // uploadMedia 
