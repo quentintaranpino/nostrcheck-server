@@ -25,8 +25,8 @@ const loadDashboardPage = async (req: Request, res: Response, version:string): P
     const activeModules = [];
     const availableModules = Object.entries(app.get("config.server")["availableModules"]);
     for (const [key] of availableModules) {
-        activeModules.push(key + "Data");
-        if(app.get("config.server")["availableModules"][key]["enabled"] == true){
+        if(app.get("config.server")["availableModules"][key]["enabled"] == true || key == "nostraddress"){
+            activeModules.push(key + "Data");
             let data = await dbSelectModuleData(key);
             if (data != undefined && data != null && data != ""){
                 req.body[key + "Data"] = JSON.stringify(data).replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/'/g, "\\'");
@@ -36,6 +36,7 @@ const loadDashboardPage = async (req: Request, res: Response, version:string): P
 
     // Active modules
     req.body.activeModules = activeModules; 
+    logger.debug("Active modules:", activeModules);
 
     // Payments extra data
     req.body.serverBalance = await getBalance(1000);
