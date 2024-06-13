@@ -147,7 +147,7 @@ const updateDBRecord = async (req: Request, res: Response): Promise<Response> =>
     }
 
     // Update table with new value
-    const update = await dbUpdate(table, req.body.field, req.body.value, "id", req.body.id);
+    const update = await dbUpdate(table, req.body.field, req.body.value, ["id"], [req.body.id]);
     if (update) {
         
         const result : authkeyResultMessage = {

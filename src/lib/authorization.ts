@@ -180,7 +180,7 @@ const generateCredentials = async (type: credentialTypes, returnHashed: boolean 
 		let credential = crypto.randomBytes(20).toString('hex');
 		if ( type == 'authkey') credential = 'Auth' + credential;
 		const hashedCredential = await hashString(credential, type);
-		const update = await dbUpdate("registered", type, hashedCredential, "hex", pubkey);
+		const update = await dbUpdate("registered", type, hashedCredential, ["hex"], [pubkey]);
 		if (update){
 			logger.debug("New credential generated and saved to database");
 			if (type == 'password' && pubkey != "" && sendDM){

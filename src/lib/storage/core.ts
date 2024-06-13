@@ -38,7 +38,7 @@ const saveFile = async (filedata: ProcessingFileData, originPath : string) : Pro
         }
 
         // save local path to database
-		const updateLocalPath = await dbUpdate('mediafiles','localpath',hashpath, 'filename', filedata.filename);
+		const updateLocalPath = await dbUpdate('mediafiles','localpath',hashpath, ['filename'], [filedata.filename]);
         if (!updateLocalPath) {
             return false;
         }

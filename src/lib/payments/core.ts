@@ -75,7 +75,7 @@ const generateLNInvoice = async (accountid: number, satoshi: number, originTable
 
     const transId = await addTransacion("invoice", accountid, albyInvoice, satoshi)
     if (transId) {
-        await dbUpdate(originTable, "transactionid", transId.toString() , "id", originId)
+        await dbUpdate(originTable, "transactionid", transId.toString() , ["id"], [originId])
         logger.info("Generated invoice for " + originTable + ":" + originId, " satoshi: ", satoshi, "transactionid: ", transId)
         albyInvoice.transactionid = transId;
     }
@@ -164,7 +164,7 @@ const getBalance = async (accountid: number) : Promise<number> => {
 
 const result = Number(await dbSelect("SELECT SUM(credit) - SUM(debit) as 'balance' FROM ledger WHERE ledger.accountid = ?", "balance", [accountid.toString()]));
     logger.debug("Balance for account", accountid, ":", result)
-    const balance = await dbUpdate("registered", "balance", result.toString(), "id", formatRegisteredId(accountid));
+    const balance = await dbUpdate("registered", "balance", result.toString(), ["id"], [formatRegisteredId(accountid)]);
     if (balance) {
         return result;
     }
@@ -308,10 +308,10 @@ const getTransaction = async (transactionid: string) : Promise<transaction> => {
         transaction.paymentHash = inv.paymentHash;
         transaction.createdDate = inv.createdDate;
         transaction.expiryDate = inv.expiryDate;
-        const updatePayreq = await dbUpdate("transactions", "paymentrequest", inv.paymentRequest, "id", transactionid);
-        const updatePayhash = await dbUpdate("transactions", "paymenthash", inv.paymentHash, "id", transactionid);
-        const updateCreated = await dbUpdate("transactions", "createddate", inv.createdDate, "id", transactionid);
-        const updateExpyry = await dbUpdate("transactions", "expirydate", inv.expiryDate, "id", transactionid);
+        const updatePayreq = await dbUpdate("transactions", "paymentrequest", inv.paymentRequest, ["id"], [transactionid]);
+        const updatePayhash = await dbUpdate("transactions", "paymenthash", inv.paymentHash, ["id"], [transactionid]);
+        const updateCreated = await dbUpdate("transactions", "createddate", inv.createdDate, ["id"], [transactionid]);
+        const updateExpyry = await dbUpdate("transactions", "expirydate", inv.expiryDate, ["id"], [transactionid]);
         if (!updatePayreq || !updatePayhash || !updateCreated || !updateExpyry) {
             logger.error("Error updating transaction with new invoice data", transactionid)
             return emptyTransaction;
@@ -355,8 +355,8 @@ const collectInvoice = async (invoice: invoice, collectFromExpenses = false, col
         return true;
     }
 
-    const paid = await dbUpdate("transactions", "paid", "1", "id", invoice.transactionid.toString());
-    const paiddate = await dbUpdate("transactions", "paiddate", new Date(invoice.paidDate), "id", invoice.transactionid.toString());
+    const paid = await dbUpdate("transactions", "paid", "1", ["id"], [invoice.transactionid.toString()]);
+    const paiddate = await dbUpdate("transactions", "paiddate", new Date(invoice.paidDate), ["id"], [invoice.transactionid.toString()]);
     if (paid && paiddate) {
         logger.info("Invoice paid, transaction updated", invoice.transactionid);
     }else{

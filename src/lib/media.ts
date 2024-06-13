@@ -52,7 +52,7 @@ const convertFile = async(	inputFile: Express.Multer.File,	options: ProcessingFi
 	const result = new Promise(async(resolve, reject) => {
 
 		//Set status processing on the database
-		const processing = await dbUpdate('mediafiles','status','processing', 'id', options.fileid);
+		const processing = await dbUpdate('mediafiles','status','processing', ['id'], [options.fileid]);
 		if (!processing) {
 			logger.error("Could not update table mediafiles, id: " + options.fileid, "status: processing");
 		}
@@ -67,15 +67,15 @@ const convertFile = async(	inputFile: Express.Multer.File,	options: ProcessingFi
 			.on("end", async(end) => {
 			
 				try{
-					await dbUpdate('mediafiles','percentage','100','id', options.fileid);
-					await dbUpdate('mediafiles','visibility','1','id', options.fileid);
-					await dbUpdate('mediafiles','active','1','id', options.fileid);
-					await dbUpdate('mediafiles', 'hash', await generatefileHashfromfile(options.conversionOutputPath), 'id', options.fileid);
+					await dbUpdate('mediafiles','percentage','100',['id'], [options.fileid]);
+					await dbUpdate('mediafiles','visibility','1',['id'], [options.fileid]);
+					await dbUpdate('mediafiles','active','1',['id'], [options.fileid]);
+					await dbUpdate('mediafiles', 'hash', await generatefileHashfromfile(options.conversionOutputPath), ['id'], [options.fileid]);
 					if (config.get("torrent.enableTorrentSeeding")) {await CreateMagnet(options.conversionOutputPath, options);}
-					await dbUpdate('mediafiles','status','success','id', options.fileid);
+					await dbUpdate('mediafiles','status','success',['id'], [options.fileid]);
 					const filesize = getFileSize(options.conversionOutputPath,options)
-					await dbUpdate('mediafiles', 'filesize', filesize ,'id', options.fileid);
-					await dbUpdate('mediafiles','dimensions',newfiledimensions.split("x")[0] + 'x' + newfiledimensions.split("x")[1],'id',  options.fileid);
+					await dbUpdate('mediafiles', 'filesize', filesize ,['id'], [options.fileid]);
+					await dbUpdate('mediafiles','dimensions',newfiledimensions.split("x")[0] + 'x' + newfiledimensions.split("x")[1],['id'], [options.fileid]);
 					logger.info(`File converted successfully: ${options.conversionOutputPath} ${ConversionDuration /2} seconds`);
 
 					await saveFile(options, options.conversionOutputPath);
@@ -104,7 +104,7 @@ const convertFile = async(	inputFile: Express.Multer.File,	options: ProcessingFi
 
 				if (retry > 5){
 					logger.error(`Error converting file after 5 retries: ${inputFile.originalname}`);
-					const errorstate =  await dbUpdate('mediafiles','status','error','id', options.fileid);
+					const errorstate =  await dbUpdate('mediafiles','status','error',['id'], [options.fileid]);
 					if (!errorstate) {
 						logger.error("Could not update table mediafiles, id: " + options.fileid, "status: failed");
 					}
@@ -132,7 +132,7 @@ const convertFile = async(	inputFile: Express.Multer.File,	options: ProcessingFi
 							`${options.filename} - ${Number(percent).toFixed(0)} %`
 					);
 
-				await dbUpdate('mediafiles','percentage',Number(percent).toFixed(0).toString(), 'id', options.fileid);
+				await dbUpdate('mediafiles','percentage',Number(percent).toFixed(0).toString(), ['id'], [options.fileid]);
 				}
 				
 			})
