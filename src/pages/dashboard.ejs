@@ -16,14 +16,14 @@
         <div class="row">
           <% 
             const modules = [
-              { name: 'nostraddressData', icon: 'doughnut', dashcardName: 'Registered users', link: '#nostraddressData', dataKey: 'nostraddressData' },
-              { name: 'mediaData', icon: 'doughnut', dashcardName: 'Media files', link: '#mediaData', dataKey: 'mediaData' },
-              { name: 'lightningData', icon: 'chart', dashcardName: 'Lightning redirects', link: '#lightningData', dataKey: 'lightningData' },
-              { name: 'domainsData', icon: 'chart', dashcardName: 'Domains', link: '#domainsData', dataKey: 'domainsData' },
+              { name: 'nostraddressCount', icon: 'doughnut', dashcardName: 'Registered users', link: '#nostraddressData', dataKey: 'nostraddress' },
+              { name: 'mediaCount', icon: 'doughnut', dashcardName: 'Media files', link: '#mediaData', dataKey: 'media' },
+              { name: 'lightningCount', icon: 'chart', dashcardName: 'Lightning redirects', link: '#lightningData', dataKey: 'lightning' },
+              { name: 'domainsCount', icon: 'chart', dashcardName: 'Domains', link: '#domainsData', dataKey: 'domains' },
               { name: 'logHistory', icon: 'warning', dashcardName: 'Warning messages', link: 'settings/#settingsLogger', dataKey: 'logHistory' },
-              { name: 'paymentsData', icon: 'doughnut', dashcardName: 'Transactions', link: '#paymentsData', dataKey: 'paymentsData' },
-              { name: 'unpaidTransactionsBalance', icon: 'satoshi', dashcardName: 'Unpaid transactions balance', link: '#paymentsData', dataKey: 'paymentsData' },
-              { name: 'serverBalance', icon: 'satoshi', dashcardName: 'Server balance', link: '', dataKey: 'paymentsData' }
+              { name: 'paymentsCount', icon: 'doughnut', dashcardName: 'Transactions', link: '#paymentsData', dataKey: 'payments'},
+              { name: 'unpaidTransactionsBalance', icon: 'satoshi', dashcardName: 'Unpaid transactions balance', link: '#paymentsData', dataKey: 'payments' },
+              { name: 'serverBalance', icon: 'satoshi', dashcardName: 'Server balance', link: '', dataKey: 'payments' }
             ];
         
             modules.forEach(module => {
@@ -79,7 +79,7 @@
             </div>
           </div>
         </div>
-        <% if(request.body.activeModules.includes('mediaData')) { %> 
+        <% if(request.body.activeModules.includes('media')) { %> 
           <%- include('./components/table', {
                                         tableName:"Media files", 
                                         tableId:"mediaData", 
@@ -127,7 +127,7 @@
             </div>
           </div>
         <% } %>
-        <% if(request.body.activeModules.includes('lightningData')) { %> 
+        <% if(request.body.activeModules.includes('lightning')) { %> 
           <%- include('./components/table', {
                                           tableName:"Lightning redirects", 
                                           tableId:"lightningData", 
@@ -153,7 +153,7 @@
                                           ]
           }); %> 
         <% } %>
-        <% if(request.body.activeModules.includes('domainsData')) { %> 
+        <% if(request.body.activeModules.includes('domains')) { %> 
           <%- include('./components/table', {
                                           tableName:"Domains", 
                                           tableId:"domainsData", 
@@ -177,7 +177,7 @@
                                           ]
             }); %> 
           <% } %>
-          <% if(request.body.activeModules.includes('paymentsData')) { %> 
+          <% if(request.body.activeModules.includes('payments')) { %> 
            <%- include('./components/table', {
                                           tableName:"Transactions", 
                                           tableId:"paymentsData", 
@@ -229,41 +229,33 @@
   <script>
     let authkey = "<%= request.session.authkey %>"
     let metadata = <%- JSON.stringify(request.session.metadata) %>
-    if("<%- request.body.nostraddressData && request.body.nostraddressData.length > 0 %>"){
-      initTable("#nostraddressData",'<%- request.body.nostraddressData %>','user')
-    }
-    if("<%- request.body.mediaData && request.body.mediaData.length > 0 %>"){
-      initTable("#mediaData",'<%- request.body.mediaData %>', 'media file')
-    }
-    if("<%- request.body.lightningData && request.body.lightningData.length > 0 %>"){
-      initTable("#lightningData",'<%- request.body.lightningData %>', 'lightning redirection')
-    }
-    if("<%- request.body.domainsData && request.body.domainsData.length > 0 %>"){
-      initTable("#domainsData",'<%- request.body.domainsData %>', 'domain name')
-    }
-    if("<%- request.body.paymentsData && request.body.paymentsData.length > 0 %>"){
-      initTable("#paymentsData",'<%- request.body.paymentsData %>', 'transaction')
-    }
+
+    initTable("#nostraddressData",'admin/moduledata?module=nostraddress','user')
+    initTable("#mediaData",'admin/moduledata?module=media', 'media file')
+    initTable("#lightningData",'admin/moduledata?module=lightning', 'lightning redirection')
+    initTable("#domainsData",'admin/moduledata?module=domains', 'domain name')
+    initTable("#paymentsData",'admin/moduledata?module=payments', 'transaction')
+
   </script>
 
 <!-- Charts data -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="/static/js/chart.js"></script>
 <script>
-  if("<%- JSON.stringify(request.body.activeModules.includes('nostraddressData')) %>"){
-    initMonthChart("#nostraddressData-chart",'Registered users','<%- request.body.nostraddressData %>')
-    initDoughnutChart("#nostraddressData-doughnut",'Checked registered users','<%- request.body.nostraddressData %>', 'checked', true, false)
-    initDoughnutChart("#nostraddressData-dashcard-doughnut",'Checked users','<%- request.body.nostraddressData %>', 'checked')
+  if("<%- JSON.stringify(request.body.activeModules.includes('nostraddress')) %>"){
+    // initMonthChart("#nostraddressData-chart",'Registered users','<%- request.body.nostraddressData %>')
+    initDoughnutChart("#nostraddressData-doughnut",'Checked registered users','<%- request.body.nostraddressCheckedCount %>', 'checked', true, false)
+    initDoughnutChart("#nostraddressData-dashcard-doughnut",'Checked users','<%- request.body.nostraddressCheckedCount %>', 'checked')
   }
-  if("<%- JSON.stringify(request.body.activeModules.includes('mediaData')) %>"){
-    initMonthChart("#mediaData-chart",'Media files','<%- request.body.mediaData %>')
-    initDoughnutChart("#mediaData-doughnut",'Checked media files','<%- request.body.mediaData %>', 'checked', true, false)
-    initDoughnutChart("#mediaData-dashcard-doughnut",'Checked media files','<%- request.body.mediaData %>', 'checked')
+  if("<%- JSON.stringify(request.body.activeModules.includes('media')) %>"){
+    // initMonthChart("#mediaData-chart",'Media files','<%- request.body.mediaData %>')
+    initDoughnutChart("#mediaData-doughnut",'Checked media files','<%- request.body.mediaCheckedCount %>', 'checked', true, false)
+    initDoughnutChart("#mediaData-dashcard-doughnut",'Checked media files','<%- request.body.mediaCheckedCount %>', 'checked')
   }
-  if("<%- JSON.stringify(request.body.activeModules.includes('paymentsData')) %>"){
-    initMonthChart("#paymentsData-chart",'Transactions','<%- request.body.paymentsData %>')
-    initDoughnutChart("#paymentsData-doughnut",'Paid transactions','<%- request.body.paymentsData %>', 'paid', true, false)
-    initDoughnutChart("#paymentsData-dashcard-doughnut",'Paid transactions','<%- request.body.paymentsData %>', 'paid')
+  if("<%- JSON.stringify(request.body.activeModules.includes('payments')) %>"){
+    // initMonthChart("#paymentsData-chart",'Transactions','<%- request.body.paymentsData %>')
+    initDoughnutChart("#paymentsData-doughnut",'Paid transactions','<%- request.body.paymentsPaidCount %>', 'paid', true, false)
+    initDoughnutChart("#paymentsData-dashcard-doughnut",'Paid transactions','<%- request.body.paymentsPaidCount %>', 'paid')
   }
 </script>
 </html>

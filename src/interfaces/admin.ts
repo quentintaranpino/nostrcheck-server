@@ -18,4 +18,27 @@ const allowedFieldNamesAndValues = [
     {field: "paid", values: [0, 1]},
 ];
 
-export { allowedTableNames, allowedFieldNames, allowedFieldNamesAndValues };
+interface moduleDataReturnMessage {
+    total: number;
+    totalNotFiltered: number;
+    rows: any;
+}
+
+
+const ModuleDataTables: { [key: string]: string } = {
+    "nostraddress": "registered",
+    "media": "mediafiles",
+    "lightning": "lightning",
+    "domains": "domains",
+    "payments": "transactions",
+};
+
+const moduleDataWhereFields: { [key: string]: [string] } = {
+    "nostraddress": ["registered.id, registered.username, registered.pubkey, registered.hex, registered.domain, registered.date, registered.comments"],
+    "media": ["mediafiles.id, mediafiles.pubkey, mediafiles.filename, mediafiles.original_hash, mediafiles.hash, mediafiles.status, mediafiles.dimensions, mediafiles.filesize, mediafiles.date, mediafiles.comments"],
+    "lightning": ["lightning.id, lightning.pubkey, lightning.lightningaddress, lightning.comments"],
+    "domains": ["domains.id, domains.domain, domains.comments"],
+    "payments": ["transactions.id, transactions.paymenthash, transactions.paymentrequest, transactions.satoshi, transactions.paid, transactions.createddate, transactions.expirydate, transactions.paiddate, transactions.comments"],
+};
+
+export { allowedTableNames, allowedFieldNames, allowedFieldNamesAndValues, moduleDataReturnMessage, ModuleDataTables, moduleDataWhereFields };

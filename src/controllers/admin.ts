@@ -10,12 +10,14 @@ import { getClientIp, format } from "../lib/utils.js";
 import { ResultMessagev2, ServerStatusMessage, authkeyResultMessage } from "../interfaces/server.js";
 import { generateCredentials } from "../lib/authorization.js";
 import { dbDelete, dbInsert, dbUpdate } from "../lib/database.js";
-import { allowedFieldNames, allowedFieldNamesAndValues, allowedTableNames } from "../interfaces/admin.js";
+import { allowedFieldNames, allowedFieldNamesAndValues, allowedTableNames, moduleDataReturnMessage } from "../interfaces/admin.js";
 import { parseAuthHeader} from "../lib/authorization.js";
 import { isModuleEnabled, updateLocalConfigKey } from "../lib/config.js";
 import { flushRedisCache } from "../lib/redis.js";
 import { ParseFileType } from "../lib/media.js";
 import { npubToHex } from "../lib/nostr/NIP19.js";
+import { dbCountModuleData,dbSelectModuleData } from "../lib/admin.js";
+
 
 let hits = 0;
 /**
@@ -584,6 +586,23 @@ const updateSettings = async (req: Request, res: Response): Promise<Response> =>
     
 }
 
+const getModuleData = async (req: Request, res: Response): Promise<Response> => {
+
+    const module : string = req.query.module as string;
+    const offset = Number(req.query.offset);
+    const limit = Number(req.query.limit);
+    const order = req.query.order as string;
+    const search = req.query.search as string;
+    const sort = req.query.sort as string;
+
+    logger.debug("module, offset, limit, order, search, sort) : ", module, offset, limit, order, search, sort);
+ 
+    let data = await dbSelectModuleData(module,offset,limit,order,sort,search);
+    return res.status(200).send(data);
+
+}
+
+
 export {    serverStatus, 
             StopServer, 
             resetUserPassword, 
@@ -591,5 +610,6 @@ export {    serverStatus,
             deleteDBRecord, 
             insertDBRecord, 
             updateSettings, 
-            updateLogo
+            updateLogo,
+            getModuleData
         };

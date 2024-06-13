@@ -100,25 +100,10 @@ const initMonthChart = (chartId, title, data) => {
 
 
 function initDoughnutChart(chartId, title, data, field, showTitle = false, showLegend = false) {
-
+  
   const parsedData = JSON.parse(data);
-
-  // Create an object to hold the counts of each label
-  const itemData = parsedData.map(item => {
-    // Check if the field is a boolean (0 or 1)
-    if (field === 'paid' || field === 'checked' || field === 'active' || field === 'visibility' || field === 'allowed') {
-      const label = item[field] === 1 ? field : 'un' + field;
-      return label;
-    } else {
-      return item[field];
-    }
-  }).reduce((acc, label) => {
-    acc[label] = (acc[label] || 0) + 1;
-    return acc;
-  }, {});
-
-  const values = Object.values(itemData);
-  const labels = Object.keys(itemData);
+  const values = [parsedData[0], parsedData[1]];
+  const labels = [field, 'un' + field];
 
   const ctx = document.querySelector(chartId).getContext('2d');
   new Chart(ctx, {
@@ -128,18 +113,12 @@ function initDoughnutChart(chartId, title, data, field, showTitle = false, showL
           datasets: [{
               data: values,
               backgroundColor: [
-                'rgba(255, 159, 64, 0.6)',  // Naranja
-                'rgba(186, 85, 211, 0.6)',  // Lila
-                'rgba(255, 205, 86, 0.6)',  // Amarillo claro
-                'rgba(75, 192, 192, 0.6)',  // Azul verdoso claro
-                'rgba(0, 0, 255, 0.6)'      // Azul eléctrico
+                'rgba(255, 159, 64, 0.6)', 
+                'rgba(186, 85, 211, 0.6)'  
             ],
             borderColor: [
-                'rgba(255, 159, 64, 1)',    // Naranja
-                'rgba(186, 85, 211, 1)',    // Lila
-                'rgba(255, 205, 86, 1)',    // Amarillo
-                'rgba(75, 192, 192, 1)',    // Azul verdoso
-                'rgba(0, 0, 255, 1)'        // Azul eléctrico
+                'rgba(255, 159, 64, 1)',  
+                'rgba(186, 85, 211, 1)'  
             ],
               borderWidth: 1
           }]

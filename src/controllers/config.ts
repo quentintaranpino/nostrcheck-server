@@ -270,7 +270,6 @@ const prepareAppFolders = async () => {
 const prepareApp = async() => {
 	await prepareAPPConfig();
 	await prepareAppFolders();
-	// await migrateFolders(app.get("config.storage")["local"]["mediaPath"]);
 }
 
-export { checkConfigNecessaryKeys, migrateFolders, prepareApp, migrateDBLocalpath };
+export { checkConfigNecessaryKeys, prepareApp, migrateDBLocalpath };

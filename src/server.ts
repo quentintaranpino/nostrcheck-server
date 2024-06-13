@@ -16,7 +16,7 @@ const startServer = async () => {
     // Initialise Database
     await initDatabase();
 
-    // Migration from 0.5.0 and before
+    // Migration from 0.5.0.
     migrateDBLocalpath();
 
     // Initialise session cookies

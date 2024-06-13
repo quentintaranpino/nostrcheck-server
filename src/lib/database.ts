@@ -2,12 +2,13 @@ import { createPool, Pool,RowDataPacket } from "mysql2/promise";
 import config from "config";
 import { logger } from "./logger.js";
 import { newFieldcompatibility, databaseTables} from "../interfaces/database.js";
-import { isModuleEnabled, updateLocalConfigKey } from "./config.js";
+import { isModuleEnabled, loadconfigActiveModules, updateLocalConfigKey } from "./config.js";
 import { exit } from "process";
 import { npubEncode } from "nostr-tools/nip19";
 import { generateCredentials } from "./authorization.js";
 import app from "../app.js";
 import { accounts } from "../interfaces/payments.js";
+import { ModuleDataTables } from "../interfaces/admin.js";
 
 let pool: Pool;
 let retry :number = 0;
@@ -335,6 +336,30 @@ const dbMultiSelect = async (queryStatement: string, returnFields : string[], wh
 }
 
 /**
+/* Executes a SELECT SQL query on a database and returns the result.
+/* @param {string} table - The name of the table to select data from.
+/* @param {string} query - The SQL query to be executed.
+/* @returns {Promise<string>} A promise that resolves to the result of the query, or an empty string if an error occurs or if the result is empty.
+ */
+const dbSimpleSelect = async (table:string, query:string): Promise<string> =>{
+	try{
+		const conenction = await connect("dbSimpleSelect " + table);
+		logger.debug("Executing query:", query, "on table:", table);
+		const [dbResult] = await conenction.query(query);
+		const rowstemp = JSON.parse(JSON.stringify(dbResult));
+		conenction.end();
+		if (rowstemp[0] == undefined || rowstemp[0] == "") {
+			return "";
+		}else{
+			return rowstemp;
+		}
+	}catch (error) {
+		logger.error(`Error getting data from ${table}`);
+		return "";
+	}
+}
+
+/**
  * Deletes records from a specified table in the database where the specified conditions are met.
  *
  * @param tableName - The name of the table from which records will be deleted.
@@ -370,119 +395,6 @@ const dbDelete = async (tableName :string, whereFieldNames :string[], whereField
 		conn.end();
 		return false;
 	}
-}
-
-
-const dbSelectAllRecords = async (table:string, query:string): Promise<string> =>{
-	try{
-		const conenction = await connect("dbSelectAllRecords" + table);
-		logger.debug("Getting all data from " + table + " table")
-		const [dbResult] = await conenction.query(query);
-		const rowstemp = JSON.parse(JSON.stringify(dbResult));
-		conenction.end();
-		if (rowstemp[0] == undefined || rowstemp[0] == "") {
-			return "";
-		}else{
-			return rowstemp;
-		}
-	}catch (error) {
-		logger.error("Error getting all data from registered table from database");
-		return "";
-	}
-	
-}
-
-async function dbSelectModuleData(module:string): Promise<string> {
-
-	if (module == "nostraddress" && isModuleEnabled("payments", app) == false){
-		return await dbSelectAllRecords("registered", 
-										"SELECT id," +
-										"checked, " + 
-										"active, " + 
-										"allowed, " + 
-										"username, " + 
-										"pubkey, " + 
-										"hex, " +
-										"domain, " +
-										"DATE_FORMAT(date, '%Y-%m-%d %H:%i') as date," + 
-										"comments " + 
-										"FROM registered ORDER BY id DESC");
-	}
-
-	if (module == "nostraddress" && isModuleEnabled("payments", app) == true){
-		return await dbSelectAllRecords("registered", 
-										"SELECT registered.id," +
-										"registered.checked, " + 
-										"registered.active, " + 
-										"registered.allowed, " + 
-										"registered.username, " + 
-										"registered.pubkey, " + 
-										"registered.hex, " +
-										"registered.domain, " +
-										"DATE_FORMAT(registered.date, '%Y-%m-%d %H:%i') as date," + 
-										"registered.comments, " + 
-										"registered.balance, " + 
-										"registered.transactionid " +
-										"FROM registered LEFT JOIN transactions on registered.transactionid = transactions.id  ORDER BY registered.id DESC");
-	}
-
-	if (module == "media" && isModuleEnabled("payments", app) == false){
-		return await dbSelectAllRecords("mediafiles", 
-		"SELECT mediafiles.id," +
-		"mediafiles.checked, " +
-		"mediafiles.active, " +
-		"mediafiles.visibility, " +
-		"(SELECT registered.username FROM registered WHERE mediafiles.pubkey = registered.hex LIMIT 1) as username, " +
-		"(SELECT registered.pubkey FROM registered WHERE mediafiles.pubkey = registered.hex LIMIT 1) as npub, " +
-		"mediafiles.pubkey as 'pubkey', " +
-		"mediafiles.filename, " +
-		"mediafiles.original_hash, " +
-		"mediafiles.hash, " +
-		"mediafiles.status, " +
-		"mediafiles.dimensions, " +
-		"ROUND(mediafiles.filesize / 1024 / 1024, 2) as 'filesize', " +
-		"DATE_FORMAT(mediafiles.date, '%Y-%m-%d %H:%i') as date, " +
-		"mediafiles.comments " +
-		"FROM mediafiles " +
-		"ORDER BY id DESC;");
-	}
-
-	if (module == "media" && isModuleEnabled("payments", app) == true){
-		return await dbSelectAllRecords("mediafiles", 
-		"SELECT mediafiles.id," +
-		"mediafiles.checked, " +
-		"mediafiles.active, " +
-		"mediafiles.visibility, " +
-		"transactions.id as 'transactionid', " +
-		"transactions.satoshi, " +
-		"transactions.paid, " +
-		"(SELECT registered.username FROM registered WHERE mediafiles.pubkey = registered.hex LIMIT 1) as username, " +
-		"(SELECT registered.pubkey FROM registered WHERE mediafiles.pubkey = registered.hex LIMIT 1) as npub, " +
-		"mediafiles.pubkey as 'pubkey', " +
-		"mediafiles.filename, " +
-		"mediafiles.original_hash, " +
-		"mediafiles.hash, " +
-		"mediafiles.status, " +
-		"mediafiles.dimensions, " +
-		"ROUND(mediafiles.filesize / 1024 / 1024, 2) as 'filesize', " +
-		"DATE_FORMAT(mediafiles.date, '%Y-%m-%d %H:%i') as date, " +
-		"mediafiles.comments " +
-		"FROM mediafiles LEFT JOIN transactions on mediafiles.transactionid = transactions.id " +
-		"ORDER BY id DESC;");
-	}
-
-	if (module == "lightning"){
-		return await dbSelectAllRecords("lightning", "SELECT id, active, pubkey, lightningaddress, comments FROM lightning ORDER BY id DESC");
-	}
-	if (module == "domains"){
-		return await dbSelectAllRecords("domains", "SELECT id, active, domain, comments FROM domains ORDER BY id DESC");
-	}
-
-	if (module == "payments"){
-		return await dbSelectAllRecords("transactions", 
-			"SELECT id, type, accountid, paymentrequest, paymenthash, satoshi, paid, DATE_FORMAT(transactions.createddate, '%Y-%m-%d %H:%i') as createddate, DATE_FORMAT(expirydate, '%Y-%m-%d %H:%i') as expirydate, DATE_FORMAT(transactions.paiddate, '%Y-%m-%d %H:%i') as paiddate, comments FROM transactions ORDER BY id DESC");
-	}
-	return "";
 }
 
 const showDBStats = async(): Promise<string> => {
@@ -697,7 +609,8 @@ export {
 		dbUpdate,
 		dbDelete,
 		dbMultiSelect,
+		dbSimpleSelect,
 		dbInsert,
 		showDBStats,
 		initDatabase,
-		dbSelectModuleData};
+		};

@@ -3,13 +3,14 @@ const initTable = (tableId, data, objectName) => {
     if (data == "") { // dummy data for table creation
         return "";
     }
-    data = JSON.parse(data)
 
     let isFilterActive = false;
     $(tableId).bootstrapTable({
-        data: data,
+        url: data,
+        sidePagination: "server",
         uniqueId: 'id',
         pagination: true,
+        sortable: true,
         search: true,
         searchClearButton: true,
         pageSize: 10,
@@ -20,7 +21,7 @@ const initTable = (tableId, data, objectName) => {
         idField: 'id',
         detailView: true,
         detailFormatter: "detailFormatter",
-        dataSidePagination: "server",
+
         buttons: initFilterButton(),
     })
 
@@ -458,7 +459,7 @@ function formatCheckbox(value, row, index) {
   }
 
 function formatSatoshi(value, row, index) {
-    return value + ' <i class="fa-solid fa-bolt text-warning"></i>'
+    return (value? value : "0") + ' <i class="fa-solid fa-bolt text-warning"></i>'
 }
 
 function formatPubkey(value, row, index) {

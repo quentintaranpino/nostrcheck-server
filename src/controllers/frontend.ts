@@ -3,13 +3,14 @@ import fs from "fs";
 import app from "../app.js";
 import { logger } from "../lib/logger.js";
 import { getClientIp, markdownToHtml } from "../lib/utils.js";
-import { dbSelect, dbSelectModuleData} from "../lib/database.js";
+import { dbSelect} from "../lib/database.js";
 import { generateCredentials, isPubkeyValid, isUserPasswordValid } from "../lib/authorization.js";
-import { isModuleEnabled } from "../lib/config.js";
+import { isModuleEnabled, loadconfigActiveModules } from "../lib/config.js";
 import { getProfileNostrMetadata, getProfileLocalMetadata } from "../lib/frontend.js";
 import { hextoNpub } from "../lib/nostr/NIP19.js";
 import { logHistory } from "../lib/logger.js";
 import { getBalance, getUnpaidTransactionsBalance } from "../lib/payments/core.js";
+import { dbCountModuleData, dbCountModuleField } from "../lib/admin.js";
 
 const loadDashboardPage = async (req: Request, res: Response, version:string): Promise<Response | void> => {
 
@@ -21,22 +22,19 @@ const loadDashboardPage = async (req: Request, res: Response, version:string): P
 
 	logger.info("GET /api/" + version + "/dashboard", "|", getClientIp(req));
 
-
-    const activeModules = [];
-    const availableModules = Object.entries(app.get("config.server")["availableModules"]);
-    for (const [key] of availableModules) {
-        if(app.get("config.server")["availableModules"][key]["enabled"] == true || key == "nostraddress"){
-            activeModules.push(key + "Data");
-            let data = await dbSelectModuleData(key);
-            if (data != undefined && data != null && data != ""){
-                req.body[key + "Data"] = JSON.stringify(data).replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/'/g, "\\'");
-            }
-        }
-    }
-
+    const activeModules = loadconfigActiveModules(app).map((module) => module[0]);
+    // for (const key of activeModules) {
+    //      req.body[key + "Count"] = await dbCountModuleData(key);
+    //     if (key =="nostraddress" || key == "media"){
+    //         req.body[key + "CheckedCount"] = JSON.stringify(await dbCountModuleField(key, "checked")).replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/'/g, "\\'");;
+    //     }
+    //     if (key == "payments"){
+    //         req.body[key + "PaidCount"]  = JSON.stringify(await dbCountModuleField(key, "paid")).replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/'/g, "\\'");
+    //     }
+    // }
+    
     // Active modules
     req.body.activeModules = activeModules; 
-    logger.debug("Active modules:", activeModules);
 
     // Payments extra data
     req.body.serverBalance = await getBalance(1000);
