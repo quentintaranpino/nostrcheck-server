@@ -1,7 +1,7 @@
 // server.ts
 import app from "./app.js";
 import { loadconfigActiveModules} from "./lib/config.js";
-import { prepareApp } from "./controllers/config.js";
+import { migrateDBLocalpath, prepareApp } from "./controllers/config.js";
 import { initDatabase, showDBStats } from "./lib/database.js";
 import { loadConsoleBanner } from "./lib/server.js";
 import { initSession } from "./lib/session.js";
@@ -15,6 +15,9 @@ const startServer = async () => {
 
     // Initialise Database
     await initDatabase();
+
+    // Migration from 0.5.0 and before
+    migrateDBLocalpath();
 
     // Initialise session cookies
     await initSession(app);

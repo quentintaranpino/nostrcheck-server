@@ -116,7 +116,7 @@ const migrateFolders = async(mediaPath:string) => {
 
 const migrateDBLocalpath = async () : Promise<boolean> => {
     
-	const mediaFiles = await dbMultiSelect('SELECT filename, pubkey, type FROM mediafiles WHERE localpath IS NULL',['filename', 'pubkey', 'type'], ['1=1'], false);
+	const mediaFiles = await dbMultiSelect('SELECT filename, pubkey, type FROM mediafiles WHERE localpath IS NULL and pubkey = "89e14be49ed0073da83b678279cd29ba5ad86cf000b6a3d1a4c3dc4aa4fdd02c"',['filename', 'pubkey', 'type'], ['1=1'], false);
 	if (mediaFiles == undefined || mediaFiles == null || mediaFiles.length == 0){
         return false;
     }
@@ -126,27 +126,20 @@ const migrateDBLocalpath = async () : Promise<boolean> => {
 	let count = 0;
 	for (const item of mediaFiles) {
 		let [filename, pubkey, type] = item.split(',');
-        const hashpath = await getHashedPath(filename);
-        const updLocalPath = await dbUpdate('mediafiles', 'localpath', hashpath, 'filename', filename);
-
-		if (!updLocalPath) {
-			console.error(`Failed to update media file ${filename} with hashpath ${hashpath}`);
-			continue;
-		};
-
+ 
 		if (filename.includes("avatar") || filename.includes("banner")) {
 			const newType = filename.includes("avatar") ? "avatar" : "banner";
-			const updType = await dbUpdate('mediafiles', 'type', newType, 'filename', filename);
+			const updType = await dbUpdate('mediafiles', 'type', newType, ['filename', 'pubkey'], [filename, pubkey]);
 			if (!updType) {
 				console.error(`Failed to update media file ${filename} with type ${newType}`);
 				continue;
 			}
 			const newFilename = await generatefileHashfromfile(path.join(app.get("config.storage")["local"]["mediaPath"],pubkey,filename)) + path.extname(filename);
-			if (!newFilename) {
+			if (!newFilename || newFilename === path.extname(filename)) {
 				console.error(`Failed to generate new filename for ${filename}`);
 				continue;
 			}	
-			const updFilename = await dbUpdate('mediafiles', 'filename', newFilename, 'filename', filename);
+			const updFilename = await dbUpdate('mediafiles', 'filename', newFilename, ['filename', 'pubkey'], [filename, pubkey]);
 			if (!updFilename) {
 				console.error(`Failed to update media file ${filename} with new filename`);
 				continue;
@@ -166,13 +159,21 @@ const migrateDBLocalpath = async () : Promise<boolean> => {
 			}
 		}else{
 			if (!type){
-				const updtType = await dbUpdate('mediafiles', 'type', "media", 'filename', filename);
+				const updtType = await dbUpdate('mediafiles', 'type', "media", ['filename', 'pubkey'], [filename, 'pubkey']);
 				if (!updtType) {
 					console.error(`Failed to update media file ${filename} with type media`);
 					continue;
 				}
 			}
 		}
+
+		const hashpath = await getHashedPath(filename);
+        const updLocalPath = await dbUpdate('mediafiles', 'localpath', hashpath, ['filename', 'pubkey'], [filename, pubkey]);
+
+		if (!updLocalPath) {
+			console.error(`Failed to update media file ${filename} with hashpath ${hashpath}`);
+			continue;
+		};
 
 		const oldPath = path.join(app.get("config.storage")["local"]["mediaPath"], pubkey, filename);
 		const newPath = path.join(app.get("config.storage")["local"]["mediaPath"], hashpath, filename);
@@ -186,16 +187,15 @@ const migrateDBLocalpath = async () : Promise<boolean> => {
 				if (err) {
 					console.error(`Failed to move file ${filename} to ${newPath}: ${err}`);
 				} else {
-					console.log(`Moved file ${filename} to ${newPath}`);
+					console.log(`${count} | ${mediaFiles.length} - Moved file ${filename} to ${newPath}`);
 				}
 			});
 			count++;
-			if (count % (mediaFiles.length / 5) === 0) {
-				console.log(`${count} files moved... (${Math.round((count / mediaFiles.length) * 100)}%)`);
-			}
+
 
         } catch (error) {
             console.error(`Failed to move file ${filename} to ${newPath}: ${error}`);
+			continue;
         }
     };
 
@@ -270,8 +270,7 @@ const prepareAppFolders = async () => {
 const prepareApp = async() => {
 	await prepareAPPConfig();
 	await prepareAppFolders();
-	await migrateFolders(app.get("config.storage")["local"]["mediaPath"]);
-	migrateDBLocalpath();
+	// await migrateFolders(app.get("config.storage")["local"]["mediaPath"]);
 }
 
-export { checkConfigNecessaryKeys, migrateFolders, prepareApp };
+export { checkConfigNecessaryKeys, migrateFolders, prepareApp, migrateDBLocalpath };
