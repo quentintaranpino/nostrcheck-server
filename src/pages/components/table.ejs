@@ -113,19 +113,18 @@
 </div>  
 <table 
     id="<%- tableId %>"
-    data-toggle="table"
     data-emptytext="No data available"
     >
     <thead>
         <tr>
             <th data-field="state" data-checkbox="true"></th>
-            <th data-field="id" data-sortable="true">ID</th>
+            <th data-field="id" data-sortable="true" data-width="30">ID</th>
             <% for(var i=0; i<fields.length; i++) { %>
                 <th data-field="<%= fields[i][0] %>" 
                     data-formatter="<%= fields[i][3] %>"
                     data-sortable="true" 
                     class="<%= fields[i][1] %> <%= fields[i][2] %> <%= fields[i][3] %> <%= fields[i][4] %>"
-
+                    data-width="<%= fields[i][5] %>"
                 >
                     <%= fields[i][0] %>
                 </th>

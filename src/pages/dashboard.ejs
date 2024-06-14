@@ -39,35 +39,42 @@
         </div>
       </div>
       <div class="container-fluid mt-4 mb-5 overflow-auto ">
+        <% 
+        let nostraddressFields = [
+          ['checked','enabled','show','formatCheckbox', 'text-center','30'],
+          ['active','enabled','show','formatCheckbox', 'text-center','30'],
+          ['allowed','enabled','show','formatCheckbox', 'text-center','30'],
+          ['username','enabled','show'],
+          ['pubkey','enabled','show', 'formatPubkey', ''],
+          ['hex','enabled','hide', 'formatPubkey', ''],
+          ['domain','enabled','show', '', 'text-center'],
+          ['comments','enabled','hide'],
+          ['date','disabled','show','', 'text-center', '290'],
+
+        ];
+
+        if (request.body.activeModules.includes("payments")) {
+          nostraddressFields.splice(4, 0, ['balance', 'disabled', 'show','formatSatoshi', 'text-end','40'],);
+          nostraddressFields.splice(5, 0, ['transactionid', 'disabled', 'hide']);
+        }
+        %>
         <%- include('./components/table', {
-                                      tableName:"Registered users", 
-                                      tableId:"nostraddressData", 
-                                      buttons:[
-                                              ['add','show'],
-                                              ['disable','show'],
-                                              ['enable','show'],
-                                              ['visible','hide'],
-                                              ['invisible','hide'],
-                                              ['admin','show'],
-                                              ['edit','show'],
-                                              ['password','show'],
-                                              ['remove','show'],
-                                              ['pay','show'],
-                                              ['balance','show']
-                                              ],
-                                      fields:[
-                                              ['checked','enabled','show','formatCheckbox', 'text-center'],
-                                              ['active','enabled','show','formatCheckbox', 'text-center'],
-                                              ['allowed','enabled','show','formatCheckbox', 'text-center'],
-                                              ['username','enabled','show'],
-                                              ['balance', 'disabled', 'show','formatSatoshi', 'text-end'],
-                                              ['pubkey','enabled','show', 'formatPubkey', ''],
-                                              ['hex','enabled','hide', 'formatPubkey', ''],
-                                              ['domain','enabled','show', '', 'text-center'],
-                                              ['comments','enabled','hide'],
-                                              ['date','disabled','show','', 'text-center'],
-                                              ['transactionid', 'disabled', 'hide']
-                                              ]
+          tableName:"Registered users", 
+          tableId:"nostraddressData", 
+          buttons:[
+                  ['add','show'],
+                  ['disable','show'],
+                  ['enable','show'],
+                  ['visible','hide'],
+                  ['invisible','hide'],
+                  ['admin','show'],
+                  ['edit','show'],
+                  ['password','show'],
+                  ['remove','show'],
+                  ['pay','show'],
+                  ['balance','show']
+                  ],
+          fields: nostraddressFields
         }); %>
         <div class= "container-fluid mt-2 justify-content-center align-items-center d-flex">
           <div class="col-xl-6 col-lg-6 col-md-6 col-sm-12">
@@ -79,42 +86,49 @@
             </div>
           </div>
         </div>
+        <% 
+        let mediaFields = [
+          ['checked','enabled','show','formatCheckbox', 'text-center','30'],
+          ['active','enabled','show','formatCheckbox', 'text-center','30'],
+          ['visibility','enabled','show','formatCheckbox','text-center','30'],
+          ['username','disabled','show', '', 'text-center','50'],
+          ['npub','disabled','hide'],
+          ['pubkey','disabled','hide'],
+          ['filename','disabled','show', 'formatFilename', ''],
+          ['original_hash','disabled','hide'],
+          ['hash','disabled','hide'],
+          ['status','disabled','show','', 'text-center','50'],
+          ['dimensions','disabled','show', '', 'text-center','40'],
+          ['filesize','disabled','show', '', 'text-center','40'],
+          ['date','disabled','show', '', 'text-center','290'],
+          ['comments','enabled','hide'],
+        ];
+
+        if (request.body.activeModules.includes("payments")) {
+          mediaFields.splice(3, 0, ['paid', 'disabled','show','formatCheckbox','text-center','30'],);
+          mediaFields.splice(4, 0, ['satoshi', 'disabled','show','formatSatoshi','text-end','30'],);
+          mediaFields.splice(5, 0, ['transactionid', 'disabled', 'hide']);
+        }
+
+        %>
         <% if(request.body.activeModules.includes('media')) { %> 
           <%- include('./components/table', {
-                                        tableName:"Media files", 
-                                        tableId:"mediaData", 
-                                        buttons:[
-                                                ['add','hide'],
-                                                ['disable','show'],
-                                                ['enable','show'],      
-                                                ['visible','show'],
-                                                ['invisible','show'],                                        
-                                                ['admin','hide'],
-                                                ['edit','show'],
-                                                ['password','hide'],
-                                                ['remove','show'],
-                                                ['pay','show'],
-                                                ['balance','hide']
-                                                ],
-                                        fields:[
-                                                ['checked','enabled','show','formatCheckbox', 'text-center'],
-                                                ['active','enabled','show','formatCheckbox', 'text-center'],
-                                                ['visibility','enabled','show','formatCheckbox','text-center'],
-                                                ['paid', 'disabled','show','formatCheckbox','text-center'],
-                                                ['satoshi', 'disabled','show','formatSatoshi','text-end'],
-                                                ['username','disabled','show', '', 'text-center'],
-                                                ['npub','disabled','hide'],
-                                                ['pubkey','disabled','hide'],
-                                                ['filename','disabled','show', 'formatFilename', ''],
-                                                ['original_hash','disabled','hide'],
-                                                ['hash','disabled','hide'],
-                                                ['status','disabled','show','', 'text-center'],
-                                                ['dimensions','disabled','show', '', 'text-center'],
-                                                ['filesize','disabled','show', '', 'text-center'],
-                                                ['date','disabled','show', '', 'text-center'],
-                                                ['comments','enabled','hide'],
-                                                ['transactionid', 'disabled', 'hide']                                                
-                                                ]
+            tableName:"Media files", 
+            tableId:"mediaData", 
+            buttons:[
+                    ['add','hide'],
+                    ['disable','show'],
+                    ['enable','show'],      
+                    ['visible','show'],
+                    ['invisible','show'],                                        
+                    ['admin','hide'],
+                    ['edit','show'],
+                    ['password','hide'],
+                    ['remove','show'],
+                    ['pay','show'],
+                    ['balance','hide']
+                    ],
+            fields: mediaFields
           }); %>
           <div class= "container-fluid mt-2 justify-content-center align-items-center d-flex">
             <div class="col-xl-6 col-lg-6 col-md-6 col-sm-12">
@@ -127,85 +141,97 @@
             </div>
           </div>
         <% } %>
+        <%
+        let lightningFields = [
+          ['active','enabled','show','formatCheckbox', 'text-center','30'],
+          ['pubkey','enabled','show','40'],
+          ['lightningaddress','enabled','show','40'],
+          ['comments','enabled','show'],
+         
+        ];
+        if (request.body.activeModules.includes("payments")) {
+          lightningFields.splice(5, 0,  ['transactionid', 'disabled', 'hide']);
+        }
+        %>
         <% if(request.body.activeModules.includes('lightning')) { %> 
           <%- include('./components/table', {
-                                          tableName:"Lightning redirects", 
-                                          tableId:"lightningData", 
-                                          buttons:[
-                                            ['add','show'],
-                                            ['disable','show'],
-                                            ['enable','show'],
-                                            ['visible','hide'],
-                                            ['invisible','hide'],
-                                            ['admin','hide'],
-                                            ['edit','show'],
-                                            ['password','hide'],
-                                            ['remove','show'],
-                                            ['pay','show'],
-                                            ['balance','hide']
-                                          ],
-                                          fields:[
-                                          ['active','enabled','show','formatCheckbox', 'text-center'],
-                                          ['pubkey','enabled','show'],
-                                          ['lightningaddress','enabled','show'],
-                                          ['comments','enabled','show'],
-                                          ['transactionid', 'disabled', 'hide']
-                                          ]
+            tableName:"Lightning redirects", 
+            tableId:"lightningData", 
+            buttons:[
+              ['add','show'],
+              ['disable','show'],
+              ['enable','show'],
+              ['visible','hide'],
+              ['invisible','hide'],
+              ['admin','hide'],
+              ['edit','show'],
+              ['password','hide'],
+              ['remove','show'],
+              ['pay','show'],
+              ['balance','hide']
+            ],
+            fields: lightningFields
           }); %> 
         <% } %>
+        <%
+        let domainsFields = [
+          ['active','enabled','show','formatCheckbox', 'text-center','30'],
+          ['domain','enabled','show','','text-center','40'],
+          ['comments','enabled','show']
+        ];
+        %>
         <% if(request.body.activeModules.includes('domains')) { %> 
           <%- include('./components/table', {
-                                          tableName:"Domains", 
-                                          tableId:"domainsData", 
-                                          buttons:[
-                                            ['add','show'],
-                                            ['disable','show'],
-                                            ['enable','show'],
-                                            ['visible','hide'],
-                                            ['invisible','hide'],
-                                            ['admin','hide'],
-                                            ['edit','show'],
-                                            ['password','hide'],
-                                            ['remove','show'],
-                                            ['pay', 'hide'],
-                                            ['balance','hide']
-                                          ],
-                                          fields:[
-                                          ['active','enabled','show','formatCheckbox', 'text-center'],
-                                          ['domain','enabled','show','','text-center'],
-                                          ['comments','enabled','show']
-                                          ]
+            tableName:"Domains", 
+            tableId:"domainsData", 
+            buttons:[
+              ['add','show'],
+              ['disable','show'],
+              ['enable','show'],
+              ['visible','hide'],
+              ['invisible','hide'],
+              ['admin','hide'],
+              ['edit','show'],
+              ['password','hide'],
+              ['remove','show'],
+              ['pay', 'hide'],
+              ['balance','hide']
+            ],
+            fields: domainsFields
             }); %> 
           <% } %>
+          <%
+          let paymentsFields = [
+            ['accountid','disabled','show', '', 'text-center','40'],
+            ['type', 'disabled', 'show', '', 'text-center','40'],
+            ['paymentrequest', 'disabled', 'hide'],
+            ['paymenthash','disabled','show'],
+            ['paid', 'disabled', 'show', 'formatCheckbox', 'text-center','30'],
+            ['satoshi', 'disabled','show','formatSatoshi','text-end','30'],
+            ['createddate','disabled','show', '', 'text-center','150'],
+            ["expirydate", 'disabled', 'hide', '', 'text-center','150'],
+            ['paiddate', 'disabled', 'show', '', 'text-center','150'],
+            ['comments','enabled','show']
+          ];
+          %>
           <% if(request.body.activeModules.includes('payments')) { %> 
            <%- include('./components/table', {
-                                          tableName:"Transactions", 
-                                          tableId:"paymentsData", 
-                                          buttons:[
-                                            ['add','hide'],
-                                            ['disable','hide'],
-                                            ['enable','hide'],
-                                            ['visible','hide'],
-                                            ['invisible','hide'],
-                                            ['admin','hide'],
-                                            ['edit','show'],
-                                            ['password','hide'],
-                                            ['remove','hide'],
-                                            ['pay', 'show'],
-                                            ['balance','hide']
-                                          ],
-                                          fields:[
-                                          ['accountid','disabled','show'],
-                                          ['type', 'disabled', 'show'],
-                                          ['paymentrequest', 'disabled', 'hide'],
-                                          ['paymenthash','disabled','show'],
-                                          ['paid', 'disabled', 'show', 'formatCheckbox', 'text-center'],
-                                          ['satoshi', 'disabled','show','formatSatoshi','text-end'],
-                                          ['createddate','disabled','show', '', 'text-center'],
-                                          ["expirydate", 'disabled', 'show', '', 'text-center'],
-                                          ['paiddate', 'disabled', 'show', '', 'text-center'],
-                                          ['comments','enabled','show']
-                                          ]
+              tableName:"Transactions", 
+              tableId:"paymentsData", 
+              buttons:[
+                ['add','hide'],
+                ['disable','hide'],
+                ['enable','hide'],
+                ['visible','hide'],
+                ['invisible','hide'],
+                ['admin','hide'],
+                ['edit','show'],
+                ['password','hide'],
+                ['remove','hide'],
+                ['pay', 'show'],
+                ['balance','hide']
+              ],
+              fields: paymentsFields
               }); %> 
             <% } %>
           <div class= "container-fluid mt-2 justify-content-center align-items-center d-flex">
@@ -230,12 +256,26 @@
     let authkey = "<%= request.session.authkey %>"
     let metadata = <%- JSON.stringify(request.session.metadata) %>
 
-    initTable("#nostraddressData",'admin/moduledata?module=nostraddress','user')
-    initTable("#mediaData",'admin/moduledata?module=media', 'media file')
-    initTable("#lightningData",'admin/moduledata?module=lightning', 'lightning redirection')
-    initTable("#domainsData",'admin/moduledata?module=domains', 'domain name')
-    initTable("#paymentsData",'admin/moduledata?module=payments', 'transaction')
-
+    async function initTablesSequentially() {
+        await initTable("#nostraddressData", 'admin/moduledata?module=nostraddress', 'user');
+        await initTable("#mediaData", 'admin/moduledata?module=media', 'media file');
+        await initTable("#lightningData", 'admin/moduledata?module=lightning', 'lightning redirection');
+        await initTable("#domainsData", 'admin/moduledata?module=domains', 'domain name');
+        await initTable("#paymentsData", 'admin/moduledata?module=payments', 'transaction');
+    }
+    initTablesSequentially();
+    setInterval(() => {
+      refreshTables(["#nostraddressData", 
+                     "#mediaData", 
+                     "#lightningData", 
+                     "#domainsData", 
+                     "#paymentsData"], 
+                     ['admin/moduledata?module=nostraddress', 
+                     'admin/moduledata?module=media', 
+                     'admin/moduledata?module=lightning', 
+                     'admin/moduledata?module=domains', 
+                     'admin/moduledata?module=payments'])
+    },60000);
   </script>
 
 <!-- Charts data -->

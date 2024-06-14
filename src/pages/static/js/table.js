@@ -1,12 +1,30 @@
-const initTable = (tableId, data, objectName) => {
+const initTable = async (tableId, url, objectName) => {
+    return new Promise((resolve, reject) => {
+        console.debug("Initializing table for", tableId, url, objectName);
 
-    if (data == "") { // dummy data for table creation
-        return "";
+    if (url == "") { // dummy data for table creation
+        resolve();
+        return;
     }
-
+    
     let isFilterActive = false;
     $(tableId).bootstrapTable({
-        url: data,
+        url: url,
+        ajaxOptions: {
+            beforeSend:  function (xhr) {
+              xhr.setRequestHeader('authorization', 'Bearer ' + authkey);
+              console.debug("SENT authkey", authkey);
+            },
+            complete:  function (xhr) {
+                var response = xhr.responseJSON;
+                if (response) {
+                    console.debug("RECEIVED authkey", authkey, "response", response)
+                    authkey = response.authkey;
+                    resolve()
+                    // refreshTable(tableId, url);
+                }
+            }
+          },
         sidePagination: "server",
         uniqueId: 'id',
         pagination: true,
@@ -17,11 +35,11 @@ const initTable = (tableId, data, objectName) => {
         toolbar: tableId + '-toolbar',
         resizable: true,
         clickToSelect: true,
+        showRefresh: true,
         showColumns: true,
         idField: 'id',
         detailView: true,
         detailFormatter: "detailFormatter",
-
         buttons: initFilterButton(),
     })
 
@@ -130,7 +148,7 @@ const initTable = (tableId, data, objectName) => {
 
         const modal = await initConfirmModal(tableId,ids,'send new generated password to ',objectName)
         if (modal.result == true) {
-            console.log("modal value", modal.value, "modal result", modal.result)
+            console.debug("modal value", modal.value, "modal result", modal.result)
 
             let url = "admin/resetpassword/";
 
@@ -216,8 +234,6 @@ const initTable = (tableId, data, objectName) => {
         return row.id
         })
 
-        console.log("ids", ids)
-
         const modal = await initConfirmModal(tableId,ids,'balance',objectName, '100')
         if (modal.result == true) {
             let url = "payments/addbalance/";
@@ -257,6 +273,7 @@ const initTable = (tableId, data, objectName) => {
             });
         }
     })
+});
 }
 
 
@@ -319,7 +336,7 @@ function initButton(tableId, buttonSuffix, objectName, modaltext, field, fieldVa
 
 async function modifyRecord(tableId, id, field, fieldValue, action = 'modify', row = null){
 
-    console.log(tableId, id, field, fieldValue, action, row)
+    console.debug("modiyRecord", tableId, id, field, fieldValue, action, row)
 
     if(row === null) {row = $(tableId).bootstrapTable('getRowByUniqueId', id)};
     let url = "";
@@ -483,4 +500,35 @@ function formatFilename(value, row, index) {
     });
 
     return modalFileCheck;
+}
+
+async function refreshTables(tables, urls) {
+    console.debug("Starting to refresh tables", tables, "urls", urls);
+
+    for (let i = 0; i < tables.length; i++) {
+        console.debug(`Refreshing table ${i + 1} / ${tables.length} with URL ${urls[i]}`);
+        try {
+            await refreshTable(tables[i], urls[i]);
+        } catch (error) {
+            console.error(`Error refreshing table ${tables[i]}:`, error);
+        }
+    }
+    console.debug("Finished refreshing all tables");
+}
+
+function refreshTable(table, url) {
+    return new Promise((resolve, reject) => {
+        
+        $(table).one('load-success.bs.table', function (e, data) {
+            console.debug(`Load success for table ${table}`);
+            resolve(); 
+        });
+
+        $(table).one('load-error.bs.table', function (e, status) {
+            console.error(`Load error for table ${table}: ${status}`);
+            reject(`Error loading data for table ${table}: ${status}`); 
+        });
+
+        $(table).bootstrapTable('refresh', { url: url });
+    });
 }

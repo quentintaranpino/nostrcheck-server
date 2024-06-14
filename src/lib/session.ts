@@ -78,7 +78,7 @@ const checkSessionSecret = async(): Promise<string> => {
 const limiter = (limit:number = 1000, message:string = "", windowMS:number = 15 * 60 * 1000) => {
     if (message == "" ){message = "hold your horses! Too many requests cowboy, please try again later"}
     return rateLimit({
-        windowMs: windowMS, // 15 minutes
+        windowMs: windowMS, 
         limit: limit, 
         standardHeaders: 'draft-7',
         message: "hold your horses! Too many requests cowboy, please try again later",
