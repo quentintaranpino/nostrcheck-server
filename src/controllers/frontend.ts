@@ -23,15 +23,15 @@ const loadDashboardPage = async (req: Request, res: Response, version:string): P
 	logger.info("GET /api/" + version + "/dashboard", "|", getClientIp(req));
 
     const activeModules = loadconfigActiveModules(app).map((module) => module[0]);
-    // for (const key of activeModules) {
-    //      req.body[key + "Count"] = await dbCountModuleData(key);
-    //     if (key =="nostraddress" || key == "media"){
-    //         req.body[key + "CheckedCount"] = JSON.stringify(await dbCountModuleField(key, "checked")).replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/'/g, "\\'");;
-    //     }
-    //     if (key == "payments"){
-    //         req.body[key + "PaidCount"]  = JSON.stringify(await dbCountModuleField(key, "paid")).replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/'/g, "\\'");
-    //     }
-    // }
+    for (const key of activeModules) {
+         req.body[key + "Count"] = await dbCountModuleData(key);
+        if (key =="nostraddress" || key == "media"){
+            req.body[key + "CheckedCount"] = JSON.stringify(await dbCountModuleField(key, "checked")).replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/'/g, "\\'");;
+        }
+        if (key == "payments"){
+            req.body[key + "PaidCount"]  = JSON.stringify(await dbCountModuleField(key, "paid")).replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/'/g, "\\'");
+        }
+    }
     
     // Active modules
     req.body.activeModules = activeModules; 
