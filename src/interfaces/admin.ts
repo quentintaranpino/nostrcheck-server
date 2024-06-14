@@ -22,6 +22,7 @@ interface moduleDataReturnMessage {
     total: number;
     totalNotFiltered: number;
     rows: any;
+    authkey: string;
 }
 
 
@@ -34,11 +35,94 @@ const ModuleDataTables: { [key: string]: string } = {
 };
 
 const moduleDataWhereFields: { [key: string]: [string] } = {
-    "nostraddress": ["registered.id, registered.username, registered.pubkey, registered.hex, registered.domain, registered.date, registered.comments"],
-    "media": ["mediafiles.id, mediafiles.pubkey, mediafiles.filename, mediafiles.original_hash, mediafiles.hash, mediafiles.status, mediafiles.dimensions, mediafiles.filesize, mediafiles.date, mediafiles.comments"],
-    "lightning": ["lightning.id, lightning.pubkey, lightning.lightningaddress, lightning.comments"],
-    "domains": ["domains.id, domains.domain, domains.comments"],
-    "payments": ["transactions.id, transactions.paymenthash, transactions.paymentrequest, transactions.satoshi, transactions.paid, transactions.createddate, transactions.expirydate, transactions.paiddate, transactions.comments"],
+    "nostraddress":     ["registered.id, " + 
+                        "registered.username, " + 
+                        "registered.pubkey, " +
+                        "registered.hex, " +
+                        "registered.domain, " +
+                        "registered.date, " +
+                        "registered.comments"],
+    "media":            ["mediafiles.id, " +
+                        "mediafiles.pubkey, " +
+                        "mediafiles.filename, " +
+                        "mediafiles.original_hash, " +
+                        "mediafiles.hash, " +
+                        "mediafiles.status, " +
+                        "mediafiles.dimensions, " +
+                        "mediafiles.filesize, " +
+                        "mediafiles.date, " +
+                        "mediafiles.comments, " +
+                        "username, " +
+                        "satoshi" ],
+    "lightning":        ["lightning.id, " +
+                        "lightning.pubkey, " +
+                        "lightning.lightningaddress, " +
+                        "lightning.comments"],
+    "domains":          ["domains.id, " +
+                        "domains.domain, " +
+                        "domains.comments"],
+    "payments":         ["transactions.id, " +
+                        "transactions.paymenthash, " +
+                        "transactions.paymentrequest, " +
+                        "transactions.satoshi, " +
+                        "transactions.paid, " +
+                        "transactions.createddate, " +
+                        "transactions.expirydate, " +
+                        "transactions.paiddate, " +
+                        "transactions.comments"],
 };
 
-export { allowedTableNames, allowedFieldNames, allowedFieldNamesAndValues, moduleDataReturnMessage, ModuleDataTables, moduleDataWhereFields };
+const moduleDataSelectFields: { [key: string]: string } = {
+    "nostraddress":     "registered.id, " + 
+                        "registered.checked, " + 
+                        "registered.active, " +
+                        "registered.allowed, " +
+                        "registered.username, " +
+                        "registered.balance, " +
+                        "registered.transactionid, " +
+                        "registered.pubkey, " +
+                        "registered.hex, " +
+                        "registered.domain, " +
+                        "DATE_FORMAT(registered.date, '%Y-%m-%d %H:%i') as date," + 
+                        "registered.comments",
+    "media":            "mediafiles.id, " +
+                        "mediafiles.checked, " +
+                        "mediafiles.active, " +
+                        "mediafiles.visibility, " +
+                        "(SELECT transactions.paid FROM transactions WHERE mediafiles.transactionid = transactions.id LIMIT 1) as paid, " +
+                        "(SELECT transactions.satoshi FROM transactions WHERE mediafiles.transactionid = transactions.id LIMIT 1) as satoshi, " +
+                        "mediafiles.transactionid, " +
+                        "(SELECT registered.username FROM registered WHERE mediafiles.pubkey = registered.hex LIMIT 1) as username, " +
+                        "(SELECT registered.pubkey FROM registered WHERE mediafiles.pubkey = registered.hex LIMIT 1) as npub, " +
+                        "mediafiles.pubkey, " +
+                        "mediafiles.filename, " +
+                        "mediafiles.original_hash, " +
+                        "mediafiles.hash, " +
+                        "mediafiles.status, " +
+                        "mediafiles.dimensions, " +
+                        "ROUND(mediafiles.filesize / 1024 / 1024, 2) as 'filesize', " +
+                        "DATE_FORMAT(mediafiles.date, '%Y-%m-%d %H:%i') as date, " +
+                        "mediafiles.comments",
+    "lightning":        "lightning.id, " +
+                        "lightning.active, " +
+                        "lightning.pubkey, " +
+                        "lightning.lightningaddress, " +
+                        "lightning.comments",
+    "domains":          "domains.id, " +
+                        "domains.active, " +
+                        "domains.domain, " +
+                        "domains.comments",
+    "payments":         "transactions.id, " +
+                        "transactions.type, " +
+                        "transactions.accountid, " +
+                        "transactions.paymentrequest, " +
+                        "transactions.paymenthash, " +
+                        "transactions.satoshi, " +
+                        "transactions.paid, " +
+                        "DATE_FORMAT(transactions.createddate, '%Y-%m-%d %H:%i') as createddate, " +
+                        " DATE_FORMAT(expirydate, '%Y-%m-%d %H:%i') as expirydate, " +
+                        "DATE_FORMAT(transactions.paiddate, '%Y-%m-%d %H:%i') as paiddate, " +
+                        "transactions.comments",
+};
+
+export { allowedTableNames, allowedFieldNames, allowedFieldNamesAndValues, moduleDataReturnMessage, ModuleDataTables, moduleDataSelectFields, moduleDataWhereFields };

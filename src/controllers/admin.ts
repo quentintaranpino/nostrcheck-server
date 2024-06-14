@@ -16,7 +16,7 @@ import { isModuleEnabled, updateLocalConfigKey } from "../lib/config.js";
 import { flushRedisCache } from "../lib/redis.js";
 import { ParseFileType } from "../lib/media.js";
 import { npubToHex } from "../lib/nostr/NIP19.js";
-import { dbCountModuleData,dbSelectModuleData } from "../lib/admin.js";
+import { dbSelectModuleData } from "../lib/admin.js";
 
 
 let hits = 0;
@@ -588,6 +588,28 @@ const updateSettings = async (req: Request, res: Response): Promise<Response> =>
 
 const getModuleData = async (req: Request, res: Response): Promise<Response> => {
 
+    // Check if current module is enabled
+    if (!isModuleEnabled("admin", app)) {
+        logger.warn("Attempt to access a non-active module:","admin","|","IP:", getClientIp(req));
+        return res.status(400).send({"status": "error", "message": "Module is not enabled"});
+    }
+
+    logger.info("REQ -> getModuleData", req.hostname, "|", getClientIp(req));
+
+    // Check if authorization header is valid
+	const EventHeader = await parseAuthHeader(req, "updateSettings", true);
+	if (EventHeader.status !== "success") {return res.status(401).send({"status": EventHeader.status, "message" : EventHeader.message});}
+
+    // Check if the request has the required parameters
+    if (!req.query.module) {
+        const result : ResultMessagev2 = {
+            status: "error",
+            message: "Invalid parameters"
+            };
+        logger.error("RES -> Invalid parameters" + " | " + getClientIp(req));
+        return res.status(400).send(result);
+    }
+
     const module : string = req.query.module as string;
     const offset = Number(req.query.offset);
     const limit = Number(req.query.limit);
@@ -598,7 +620,13 @@ const getModuleData = async (req: Request, res: Response): Promise<Response> => 
     logger.debug("module, offset, limit, order, search, sort) : ", module, offset, limit, order, search, sort);
  
     let data = await dbSelectModuleData(module,offset,limit,order,sort,search);
-    return res.status(200).send(data);
+    const returnMessage : moduleDataReturnMessage = {
+        total: data.total,
+        totalNotFiltered: data.totalNotFiltered,
+        rows: data.rows,
+        authkey: EventHeader.authkey
+    }
+    return res.status(200).send(returnMessage);
 
 }
 
