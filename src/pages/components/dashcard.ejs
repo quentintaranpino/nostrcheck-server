@@ -1,38 +1,23 @@
-<div class="col-xl-3 col-lg-4 col-md-6 col-sm-12">
+<div id="<%- dashcardId %>" class="col-xl-3 col-lg-4 col-md-6 col-sm-12">
     <div class="card mb-3 shadow-sm" style="min-height: 180px">
-        <% if (link) { %>
-        <a href = "<%- link %>" class="text-decoration-none text-reset">
-        <% } %>
             <div class="card-body text-center">
+                <% if (link) { %>
+                    <a href = "<%- link %>" class="text-decoration-none text-reset">
+                    <% } %>
                 <div class="d-flex justify-content-between align-items-center">
-                    <h5 class="card-title mb-0"><%- dashcardName %></h5>
-                    <div class="card-icon-container">
-                        <% if (icon == "chart") { %>
-                            <i class="fas fa-chart-simple fa-3x card-icon"></i>
-                        <% } else if (icon == "warning") { %>
-                            <i class="fas fa-exclamation-triangle text-warning fa-3x card-icon"></i>
-                        <% } else if (icon == "satoshi") { %>
-                            <i class="fas fa-bolt-lightning text-warning fa-3x card-icon"></i>
-                        <% } else if (icon == "doughnut") { %>
-                            <% if (link.toString().startsWith("#")) { link = link.replace(/^#/, ''); } %>
-                            <% if (data.length === 0) { %>
-                                <i class="fas fa-chart-simple fa-3x card-icon"></i>
-                            <% } else { %>
-                                <canvas id="<%- link %>-dashcard-doughnut"></canvas>
-                            <% } %>
-                        <% }  %>
+                    <h5 id="<%- dashcardId %>-name" class="card-title mb-0"></h5>
+                    <div id="<%- dashcardId %>-icon-container">
+                        <i id="<%- dashcardId %>-icon" class="fas fa-chart-simple fa-3x card-icon"></i>
                     </div>
                 </div>
-                <h1 id="<%- dashcardName %>" class="display-2 font-weight-bold">0</h1>     
+                <h1 id="<%- dashcardId %>-text" class="display-2 font-weight-bold">0</h1>     
+                <% if (link) { %>
+                </a>
+                <% } %>
             </div>
-        <% if (link) { %>
-        </a>
-        <% } %>
+            <button id="<%- dashcardId %>-reload-button" class="btn btn-reload"><i class="fas fa-sync-alt"></i></button>
     </div>
 </div>
-<script>
-document.getElementById('<%- dashcardName %>').textContent = JSON.parse("<%- data %>").length || JSON.parse("<%- data %>") || 0;
-</script>
 
 <style>
     .card {
@@ -41,8 +26,6 @@ document.getElementById('<%- dashcardName %>').textContent = JSON.parse("<%- dat
         transition: transform 0.3s;
         background-color: #edebf1;
         color: #2c2b2b;
-
-
     }
     
     .card:hover {
@@ -62,6 +45,28 @@ document.getElementById('<%- dashcardName %>').textContent = JSON.parse("<%- dat
     .card-icon-container {
         width: 55px;
         height: 55px;
+    }
+
+
+    .btn-reload {
+        position: absolute;
+        bottom: 10px;
+        right: 10px;
+        background-color: rgba(0, 0, 0, 0.1);
+        border: none;
+        border-radius: 50%;
+        padding: 10px;
+        cursor: pointer;
+        transition: background-color 0.3s;
+    }
+
+    .btn-reload:hover {
+        background-color: rgba(0, 0, 0, 0.2); 
+    }
+
+    .btn-reload i {
+        color: #4d4d4d; 
+        font-size: 14px; 
     }
     
 </style>

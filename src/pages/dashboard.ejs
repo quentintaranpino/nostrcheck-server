@@ -8,34 +8,26 @@
   <body class="d-flex flex-column h-100">
     <%- include('./partials/navbar', {active:'dashboard'}); %>
     <main class="pb-1">
-      <div class="text-center">
-        <h1 class="display-1 mt-2 gradient-text">Dashboard</h1>
-      </div>
+      <div class="text-center"><h1 class="display-1 mt-2 gradient-text">Dashboard</h1></div>
       <p class="text-center mt-2 display-6 ">Welcome <%= request.session.metadata.display_name %>, this is the status of your server today</p>
       <div class= "container-fluid mt-5">
         <div class="row">
-          <% 
-            const modules = [
-              { name: 'nostraddressCount', icon: 'doughnut', dashcardName: 'Registered users', link: '#nostraddressData', dataKey: 'nostraddress' },
-              { name: 'mediaCount', icon: 'doughnut', dashcardName: 'Media files', link: '#mediaData', dataKey: 'media' },
-              { name: 'lightningCount', icon: 'chart', dashcardName: 'Lightning redirects', link: '#lightningData', dataKey: 'lightning' },
-              { name: 'domainsCount', icon: 'chart', dashcardName: 'Domains', link: '#domainsData', dataKey: 'domains' },
-              { name: 'logHistory', icon: 'warning', dashcardName: 'Warning messages', link: 'settings/#settingsLogger', dataKey: 'logHistory' },
-              { name: 'paymentsCount', icon: 'doughnut', dashcardName: 'Transactions', link: '#paymentsData', dataKey: 'payments'},
-              { name: 'unpaidTransactionsBalance', icon: 'satoshi', dashcardName: 'Unpaid transactions balance', link: '#paymentsData', dataKey: 'payments' },
-              { name: 'serverBalance', icon: 'satoshi', dashcardName: 'Server balance', link: '', dataKey: 'payments' }
-            ];
-        
-            modules.forEach(module => {
-              const dataKey = module.dataKey;
-              let data = request.body[module.name] || [];
-              if (request.body.activeModules.includes(module.dataKey)) {
-                %>
-                  <%- include('./components/dashcard', {icon: module.icon, dashcardName: module.dashcardName, data: data, link: module.link, dataKey : module.dataKey}); %>
-                <%
-              }
-            });
-          %>
+          <%- include('./components/dashcard', { dashcardId: 'nostraddressCount', link: '#nostraddressData'}); %>
+          <% if(request.body.activeModules.includes('media')) { %> 
+            <%- include('./components/dashcard', { dashcardId: 'mediaCount', link: '#mediaData' }); %>
+          <% } %>
+          <% if(request.body.activeModules.includes('lightning')) { %>
+            <%- include('./components/dashcard', { dashcardId: 'lightningCount', link: '#lightningData' }); %>
+          <% } %>
+          <% if(request.body.activeModules.includes('domains')) { %>
+            <%- include('./components/dashcard', { dashcardId: 'domainsCount', link: '#domainsData'}); %>
+          <% } %>
+            <%- include('./components/dashcard', { dashcardId: 'logHistory', link: 'settings/#settingsLogger'}); %>
+          <% if(request.body.activeModules.includes('payments')) { %>
+            <%- include('./components/dashcard', { dashcardId: 'paymentsCount', link: '#paymentsData'}); %>
+            <%- include('./components/dashcard', { dashcardId: 'unpaidTransactionsBalance', link: '#paymentsData'}); %>
+            <%- include('./components/dashcard', { dashcardId: 'serverBalance', link: ''}); %>
+          <% } %>
         </div>
       </div>
       <div class="container-fluid mt-4 mb-5 overflow-auto ">
@@ -250,37 +242,16 @@
                            
   </body>
 
-<!-- Tables data -->
-  <script src="/static/js/table.js"></script>
-  <script>
-    let authkey = "<%= request.session.authkey %>"
-    let metadata = <%- JSON.stringify(request.session.metadata) %>
-
-    async function initTablesSequentially() {
-        await initTable("#nostraddressData", 'admin/moduledata?module=nostraddress', 'user');
-        await initTable("#mediaData", 'admin/moduledata?module=media', 'media file');
-        await initTable("#lightningData", 'admin/moduledata?module=lightning', 'lightning redirection');
-        await initTable("#domainsData", 'admin/moduledata?module=domains', 'domain name');
-        await initTable("#paymentsData", 'admin/moduledata?module=payments', 'transaction');
-    }
-    initTablesSequentially();
-    setInterval(() => {
-      refreshTables(["#nostraddressData", 
-                     "#mediaData", 
-                     "#lightningData", 
-                     "#domainsData", 
-                     "#paymentsData"], 
-                     ['admin/moduledata?module=nostraddress', 
-                     'admin/moduledata?module=media', 
-                     'admin/moduledata?module=lightning', 
-                     'admin/moduledata?module=domains', 
-                     'admin/moduledata?module=payments'])
-    },60000);
-  </script>
-
-<!-- Charts data -->
+<script>
+  let authkey = "<%= request.session.authkey %>"
+  let metadata = "<%= JSON.stringify(request.session.metadata) %>"
+  let activeModules = "<%= JSON.stringify(request.body.activeModules) %>"
+</script>
+<script src="/static/js/table.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="/static/js/chart.js"></script>
+<script src="/static/js/dashcard.js"></script>
+
 <script>
   if("<%- JSON.stringify(request.body.activeModules.includes('nostraddress')) %>"){
     // initMonthChart("#nostraddressData-chart",'Registered users','<%- request.body.nostraddressData %>')
@@ -297,5 +268,27 @@
     initDoughnutChart("#paymentsData-doughnut",'Paid transactions','<%- request.body.paymentsPaidCount %>', 'paid', true, false)
     initDoughnutChart("#paymentsData-dashcard-doughnut",'Paid transactions','<%- request.body.paymentsPaidCount %>', 'paid')
   }
+</script>
+<script>
+  const initData = async() => {
+    for (const table of tables) {
+      if (activeModules.includes(table.dataKey)) {
+        await initTable(`#${table.tableId}`, table.url, table.objectName);
+      }
+    }
+    for (const dashcard of dashcards) {
+      if (activeModules.includes(dashcard.dataKey)) {
+          await initDashcard(dashcard.dashcardId,dashcard.dashcardName, dashcard.dataKey, dashcard.icon, dashcard.link, dashcard.action)
+      }
+    }
+  }
+  initData()
+
+  const refreshData  = async() => {
+    await refreshTables()
+    await refreshDashcards()
+  }
+  setInterval(refreshData, 60000)
+
 </script>
 </html>

@@ -502,33 +502,57 @@ function formatFilename(value, row, index) {
     return modalFileCheck;
 }
 
-async function refreshTables(tables, urls) {
-    console.debug("Starting to refresh tables", tables, "urls", urls);
+const refreshTables = async() => {
+    console.debug("Starting to refresh tables", tables);
 
-    for (let i = 0; i < tables.length; i++) {
-        console.debug(`Refreshing table ${i + 1} / ${tables.length} with URL ${urls[i]}`);
+    for (const table of tables) {
         try {
-            await refreshTable(tables[i], urls[i]);
+            await refreshTable(table.tableId);
         } catch (error) {
-            console.error(`Error refreshing table ${tables[i]}:`, error);
+            console.error(`Error refreshing table ${table}:`, error);
         }
     }
     console.debug("Finished refreshing all tables");
 }
 
-function refreshTable(table, url) {
+const refreshTable = async (table) => {
+    console.debug(`Refreshing table ${table}`);
     return new Promise((resolve, reject) => {
-        
-        $(table).one('load-success.bs.table', function (e, data) {
+        const $table = $("#" + table);
+
+        // Obtener las selecciones antes de refrescar
+        const tableSelections = $table.bootstrapTable('getSelections');
+        console.log('Table selections before refresh:', tableSelections);
+
+        // Escuchar el evento de éxito de carga
+        $table.one('load-success.bs.table', function (e, data) {
             console.debug(`Load success for table ${table}`);
+            console.log('Restoring selections:', tableSelections);
+
+            // Restaurar las selecciones después de que la tabla se haya refrescado
+            for (const selection of tableSelections) {
+                $table.bootstrapTable('checkBy', { field: 'id', values: [selection.id] });
+            }
+
             resolve(); 
         });
 
-        $(table).one('load-error.bs.table', function (e, status) {
+        // Escuchar el evento de error de carga
+        $table.one('load-error.bs.table', function (e, status) {
             console.error(`Load error for table ${table}: ${status}`);
             reject(`Error loading data for table ${table}: ${status}`); 
         });
 
-        $(table).bootstrapTable('refresh', { url: url });
+        // Refrescar la tabla
+        $table.bootstrapTable('refresh');
     });
 }
+
+// Initialize tables
+let tables = [
+    { name: 'nostraddress', tableId: 'nostraddressData', dataKey: 'nostraddress', objectName: 'user', url: 'admin/moduledata?module=nostraddress'},
+    { name: 'media', tableId: 'mediaData', dataKey: 'media', objectName: 'media file', url: 'admin/moduledata?module=media'},
+    { name: 'lightning', tableId: 'lightningData', dataKey: 'lightning', objectName: 'lightning redirection', url: 'admin/moduledata?module=lightning'},
+    { name: 'domains', tableId: 'domainsData', dataKey: 'domains', objectName: 'domain name', url: 'admin/moduledata?module=domains'},
+    { name: 'payments', tableId: 'paymentsData', dataKey: 'payments', objectName: 'transaction', url: 'admin/moduledata?module=payments'}
+];

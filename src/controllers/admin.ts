@@ -5,7 +5,7 @@ import sharp from "sharp";
 
 import app from "../app.js";
 
-import { logger } from "../lib/logger.js";
+import { logHistory, logger } from "../lib/logger.js";
 import { getClientIp, format } from "../lib/utils.js";
 import { ResultMessagev2, ServerStatusMessage, authkeyResultMessage } from "../interfaces/server.js";
 import { generateCredentials } from "../lib/authorization.js";
@@ -16,7 +16,8 @@ import { isModuleEnabled, updateLocalConfigKey } from "../lib/config.js";
 import { flushRedisCache } from "../lib/redis.js";
 import { ParseFileType } from "../lib/media.js";
 import { npubToHex } from "../lib/nostr/NIP19.js";
-import { dbSelectModuleData } from "../lib/admin.js";
+import { dbCountModuleData, dbSelectModuleData } from "../lib/admin.js";
+import { getBalance, getUnpaidTransactionsBalance } from "../lib/payments/core.js";
 
 
 let hits = 0;
@@ -630,6 +631,49 @@ const getModuleData = async (req: Request, res: Response): Promise<Response> => 
 
 }
 
+const getModuleCountData = async (req: Request, res: Response): Promise<Response> => {
+
+    
+    // Check if current module is enabled
+    if (!isModuleEnabled("admin", app)) {
+        logger.warn("Attempt to access a non-active module:","admin","|","IP:", getClientIp(req));
+        return res.status(400).send({"status": "error", "message": "Module is not enabled"});
+    }
+
+    logger.info("REQ -> getModuleCountData", req.hostname, "|", getClientIp(req));
+
+    // Check if authorization header is valid
+    const EventHeader = await parseAuthHeader(req, "updateSettings", true);
+    if (EventHeader.status !== "success") {return res.status(401).send({"status": EventHeader.status, "message" : EventHeader.message});}
+
+    // Check if the request has the required parameters
+    if (!req.query.module || !req.query.action) {
+        const result : ResultMessagev2 = {
+            status: "error",
+            message: "Invalid parameters"
+            };
+        logger.error("RES -> Invalid parameters" + " | " + getClientIp(req));
+        return res.status(400).send(result);
+    }
+
+    const module : string = req.query.module as string;
+    const action : string = req.query.action as string;
+
+    const count = await dbCountModuleData(module);
+
+    if (module == "payments" && action == "serverBalance") {
+        return res.status(200).send({total: await getBalance(1000), authkey: EventHeader.authkey});
+    }
+    if (module == "payments" && action == "unpaidTransactions") {
+        return res.status(200).send({total: await getUnpaidTransactionsBalance(), authkey: EventHeader.authkey});
+    }
+    if (module == "logger" && action == "countWarning") {
+        return res.status(200).send({total: logHistory.length, authkey: EventHeader.authkey});
+    }
+
+    return res.status(200).send({total: count, authkey: EventHeader.authkey});
+
+}
 
 export {    serverStatus, 
             StopServer, 
@@ -639,5 +683,6 @@ export {    serverStatus,
             insertDBRecord, 
             updateSettings, 
             updateLogo,
-            getModuleData
+            getModuleData,
+            getModuleCountData
         };

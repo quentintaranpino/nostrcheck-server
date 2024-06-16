@@ -144,6 +144,8 @@ const initAlertModal = async (objectId, message, timeout = 2000, alertClass = "a
     var alert = new bootstrap.Modal($(objectId + '-alert-modal'));
 
     $(objectId + '-alert-modal .alert').addClass(alertClass);
+    console.log($(objectId + '-alert-modal .alert'));
+
 
     $(alert._element).on('show.bs.modal', function () {
         $(objectId + '-alert-modal .alert').empty();
@@ -164,6 +166,7 @@ const initAlertModal = async (objectId, message, timeout = 2000, alertClass = "a
         });
 
     alert.hide();
+    $(objectId + '-alert-modal .alert').removeClass(alertClass);
 }
 
 const initMessageModal = async (objectId, message, title) => {

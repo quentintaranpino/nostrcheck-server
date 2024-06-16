@@ -78,6 +78,9 @@ const updateLocalConfigKey = async (key: string, value: string) : Promise<boolea
 const loadconfigActiveModules = (app: Application) : [string, Module][] => {
 	const availableModules = Object.entries(app.get("config.server")["availableModules"] as Record<string, Module>);
 	const activeModules = availableModules.filter((module) => module[1]["enabled"] == true);
+
+	// Always add logger to active modules, this cant be disabled.
+	activeModules.push(["logger", {enabled: true, path: "/logger", methods: ["GET"], description: "This module returns the logs for the server.", name: "logger"}]);
 	return activeModules;
 }
 
