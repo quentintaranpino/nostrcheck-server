@@ -1,31 +1,29 @@
-import app from "../app.js";
-import { ModuleDataTables, moduleDataReturnMessage, moduleDataSelectFields, moduleDataWhereFields } from "../interfaces/admin.js";
-import { isModuleEnabled } from "./config.js";
+import { ModuleDataTables, moduleDataSelectFields, moduleDataWhereFields } from "../interfaces/admin.js";
 import { dbMultiSelect, dbSelect, dbSimpleSelect } from "./database.js";
 import { logger } from "./logger.js";
 
-
-const dbCountModuleData = async (module: string): Promise<number> => {
+const dbCountModuleData = async (module: string, field = ""): Promise<number> => {
 
 	const table = ModuleDataTables[module];
 	if (!table) {return 0;}
 
-	logger.debug("Counting records in", table, "table");
+	logger.debug("Counting records in", table, "table", field? "with field" + field: "");
 
-    return Number(await dbSelect("SELECT COUNT(*) FROM " + table, "COUNT(*)", [])) || 0;
+	if (field) {return Number(await dbSelect(`SELECT COUNT(${field}) FROM ${table} WHERE ${field} = '1' `, `COUNT(${field})`, [])) || 0;}
+    return Number(await dbSelect(`SELECT COUNT(*) FROM ${table}`, "COUNT(*)", [])) || 0;
 }
 
-const dbCountModuleField = async (module: string, field: string): Promise<string[]> => {
+// const dbCountModuleField = async (module: string, field: string): Promise<string[]> => {
 
-	const table = ModuleDataTables[module];
-	if (!table) {return [];}
+// 	const table = ModuleDataTables[module];
+// 	if (!table) {return [];}
 
-	let select = "SELECT " +
-		"SUM(CASE WHEN " + field + " = TRUE THEN 1 ELSE 0 END) AS " + field + ", " +
-		"SUM(CASE WHEN " + field + " = FALSE THEN 1 ELSE 0 END) AS un" + field + " " +
-		"FROM " + table;
-	return await dbMultiSelect(select, [field, "un" + field], [field]);
-}
+// 	let select = "SELECT " +
+// 		"SUM(CASE WHEN " + field + " = TRUE THEN 1 ELSE 0 END) AS " + field + ", " +
+// 		"SUM(CASE WHEN " + field + " = FALSE THEN 1 ELSE 0 END) AS un" + field + " " +
+// 		"FROM " + table;
+// 	return await dbMultiSelect(select, [field, "un" + field], [field]);
+// }
 
 async function dbSelectModuleData(module:string, offset:number, limit:number, order:string = "DESC", sort:string, search:string): Promise<{ total: number; totalNotFiltered: number; rows: string | never[]; }>{
 
@@ -54,4 +52,4 @@ async function dbSelectModuleData(module:string, offset:number, limit:number, or
 	return result;
 }
 
-export { dbCountModuleData, dbCountModuleField, dbSelectModuleData };
+export { dbCountModuleData, dbSelectModuleData };

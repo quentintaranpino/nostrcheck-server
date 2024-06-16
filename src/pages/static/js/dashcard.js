@@ -1,4 +1,4 @@
-const initDashcard = async (dashcardId, dascardName, dashcardDataKey, icon, link, action) => {
+const initDashcard = async (dashcardId, dascardName, dashcardDataKey, icon, link, action, field) => {
     console.debug("initDashcard", dashcardId, dascardName, dashcardDataKey, icon, link, action)
 
     $(dashcardId + '-name').text(dascardName)
@@ -20,37 +20,42 @@ const initDashcard = async (dashcardId, dascardName, dashcardDataKey, icon, link
 
     $(dashcardId + '-reload-button').on('click', async function() {
         console.debug(`Reload button clicked for dashcard ${dashcardId}`);
-        await refresDashcard(dashcardId, dashcardDataKey, action);
+        semaphore.execute(async() => await refreshDashcard(dashcardId, dashcardDataKey, action, field));
     });
 
-    await refresDashcard(dashcardId, dashcardDataKey, action)
-
+    semaphore.execute(async () => await refreshDashcard(dashcardId, dashcardDataKey, action, field));
 }
 
-const refresDashcard = async(dashcardId, dashcardDataKey, action) => {
+const refreshDashcard = async(dashcardId, dashcardDataKey, action, field) => {
 
-    console.debug("refresDashcard", dashcardId, dashcardDataKey, action)
-    const data = await fetchDashcardData(dashcardDataKey, action)
+    console.debug("refresDashcard", dashcardId, dashcardDataKey, action, field)
+
+    const data = await fetchDashcardData(dashcardDataKey, action, "")
     $(dashcardId + '-text').text(data.total)
-
+    if (field !== "" && field !== undefined) {
+        console.log("FIELD", field)
+        const data = await fetchDashcardData(dashcardDataKey, action, field)
+        $('#' + dashcardDataKey + '-doughnut').text(data.total)
+    }
 }
 
-const fetchDashcardData = async (dashcardDataKey, action) => {
+const fetchDashcardData = async (dashcardDataKey, action, field) => {
     console.debug("fetchDashcardData", dashcardDataKey, action)
+    console.debug("Using authkey", localStorage.getItem('authkey'))
 
     let serverData  = ""
 
-    await fetch(`http://localhost:3000/api/v2/admin/modulecountdata?module=${dashcardDataKey}&action=${action}`
+    await fetch(`http://localhost:3000/api/v2/admin/modulecountdata?module=${dashcardDataKey}&action=${action}&field=${field}`
         , {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${authkey}`,
+                'Authorization': `Bearer ${localStorage.getItem('authkey')}`,
             }}
         )
             .then(response => response.json())
             .then(data => {
-                authkey = data.authkey;
+                storeAuthkey(data.authkey)
                 serverData = data;
             })
             .catch(error => console.error('Error:', error));
@@ -61,12 +66,12 @@ const fetchDashcardData = async (dashcardDataKey, action) => {
 
 // Set the data for the dashcards
 let dashcards =[
-    { dashcardId: '#nostraddressCount',  dataKey: 'nostraddress', icon: 'doughnut', dashcardName: 'Registered users', link: '#nostraddressData', action: 'count' },
-    { dashcardId: '#mediaCount', dataKey: 'media', icon: 'doughnut', dashcardName: 'Media files', link: '#mediaData' , action: 'count' },
-    { dashcardId: '#lightningCount', dataKey: 'lightning', icon: 'chart', dashcardName: 'Lightning redirects', link: '#lightningData', action: 'count' },
-    { dashcardId: '#domainsCount', dataKey: 'domains', icon: 'chart', dashcardName: 'Domains', link: '#domainsData', action: 'count' },
+    { dashcardId: '#nostraddressCount',  dataKey: 'nostraddress', icon: 'doughnut', dashcardName: 'Registered users', link: '#nostraddressData', action: 'count', field: 'checked' },
+    { dashcardId: '#mediaCount', dataKey: 'media', icon: 'doughnut', dashcardName: 'Media files', link: '#mediaData' , action: 'count', field: 'checked'},
+    { dashcardId: '#lightningCount', dataKey: 'lightning', icon: 'chart', dashcardName: 'Lightning redirects', link: '#lightningData', action: 'count'},
+    { dashcardId: '#domainsCount', dataKey: 'domains', icon: 'chart', dashcardName: 'Domains', link: '#domainsData', action: 'count'},
     { dashcardId: '#logHistory', dataKey: 'logger', icon: 'warning', dashcardName: 'Warning messages', link: 'settings/#settingsLogger', action: 'countWarning' },
-    { dashcardId: '#paymentsCount', dataKey: 'payments', icon: 'doughnut', dashcardName: 'Transactions', link: '#paymentsData', action: 'count' },
+    { dashcardId: '#paymentsCount', dataKey: 'payments', icon: 'doughnut', dashcardName: 'Transactions', link: '#paymentsData', action: 'count', field: 'paid'},
     { dashcardId: '#unpaidTransactionsBalance', dataKey: 'payments', icon: 'satoshi', dashcardName: 'Unpaid transactions balance', link: '#paymentsData', action: 'unpaidTransactions' },
     { dashcardId: '#serverBalance', dataKey: 'payments', icon: 'satoshi', dashcardName: 'Server balance', link: '', action: 'serverBalance' },
 ]
@@ -74,6 +79,6 @@ let dashcards =[
 const refreshDashcards = async () => {
     console.debug("refreshDashcards")
     for (const dashcard of dashcards) {
-        await refresDashcard(dashcard.dashcardId, dashcard.dataKey,  dashcard.action)
+        await refresDashcard(dashcard.dashcardId, dashcard.dataKey,  dashcard.action, dashcard.field)
     }
 }

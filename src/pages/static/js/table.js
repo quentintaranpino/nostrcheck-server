@@ -12,16 +12,13 @@ const initTable = async (tableId, url, objectName) => {
         url: url,
         ajaxOptions: {
             beforeSend:  function (xhr) {
-              xhr.setRequestHeader('authorization', 'Bearer ' + authkey);
-              console.debug("SENT authkey", authkey);
+              xhr.setRequestHeader('authorization', 'Bearer ' + localStorage.getItem('authkey'));
             },
             complete:  function (xhr) {
                 var response = xhr.responseJSON;
-                if (response) {
-                    console.debug("RECEIVED authkey", authkey, "response", response)
-                    authkey = response.authkey;
+                if (response.authkey != null) {
+                    storeAuthkey(response.authkey)
                     resolve()
-                    // refreshTable(tableId, url);
                 }
             }
           },
@@ -104,7 +101,7 @@ const initTable = async (tableId, url, objectName) => {
         initEditModal(tableId,row,objectName, true, columns).then(async (editedRow) => {
             if (editedRow) {
                 response = await modifyRecord(tableId, null, null, null, 'insert', editedRow)
-                authkey = response.authkey
+                storeAuthkey(response.authkey)
                 $(tableId).bootstrapTable('uncheckAll')
                 if (response.status != "error"){
                     if (tableId === '#nostraddressData'){
@@ -133,7 +130,7 @@ const initTable = async (tableId, url, objectName) => {
             if (editedRow) {
                 for (let field in editedRow) {
                     if (editedRow[field] != row[field]){
-                        authkey = (await modifyRecord(tableId, row.id, field, editedRow[field], 'modify')).authkey
+                        storeAuthkey((await modifyRecord(tableId, row.id, field, editedRow[field], 'modify')).authkey)
                     }
                 }
             }
@@ -160,14 +157,14 @@ const initTable = async (tableId, url, objectName) => {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
-                    "authorization": "Bearer " + authkey
+                    "authorization": "Bearer " + localStorage.getItem('authkey')
                 },
                 body: JSON.stringify(data)
             })
             .then(response => response.json())
             .then(data => {
                 if (data.status === "success") {
-                    authkey = data.authkey;
+                    storeAuthkey(data.authkey)
                     initAlertModal(tableId, "New password for " + $(tableId).bootstrapTable('getSelections')[0].username + " has been sent via nostr DM successfully 🥳", 1200,"alert-success");
                 }
                 })
@@ -202,13 +199,13 @@ const initTable = async (tableId, url, objectName) => {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
-                    "authorization": "Bearer " + authkey
+                    "authorization": "Bearer " + localStorage.getItem('authkey')
                 },
                 body: JSON.stringify(data)
             })
             .then(response => response.json())
             .then(data => {
-                authkey = data.authkey;
+                storeAuthkey(data.authkey)
                 if (data.status === "success") {
                     initAlertModal(tableId, "Payment for item " + $(tableId).bootstrapTable('getSelections')[0].id + " has been processed successfully 🥳", 1200,"alert-success");
                     $(tableId).bootstrapTable('updateByUniqueId', {
@@ -247,13 +244,13 @@ const initTable = async (tableId, url, objectName) => {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
-                    "authorization": "Bearer " + authkey
+                    "authorization": "Bearer " + localStorage.getItem('authkey')
                 },
                 body: JSON.stringify(data)
             })
             .then(response => response.json())
             .then(data => {
-                authkey = data.authkey;
+                storeAuthkey(data.authkey)
                 if (data.status === "success") {
                     initAlertModal(tableId, "Balance for " + $(tableId).bootstrapTable('getSelections')[0].username + " has been updated successfully 🥳", 1200,"alert-success");
 
@@ -325,9 +322,9 @@ function initButton(tableId, buttonSuffix, objectName, modaltext, field, fieldVa
         if (modal.result == true) {
             for (let id of ids) {
                 if (modaltext === 'remove') {
-                    authkey = (await modifyRecord(tableId, id, field, fieldValue, 'remove')).authkey
+                    storeAuthkey((await modifyRecord(tableId, id, field, fieldValue, 'remove')).authkey)
                 } else {
-                    authkey = (await modifyRecord(tableId, id, field, fieldValue, 'modify')).authkey
+                    storeAuthkey((await modifyRecord(tableId, id, field, fieldValue, 'modify')).authkey)
                 }
             }
         }
@@ -366,7 +363,7 @@ async function modifyRecord(tableId, id, field, fieldValue, action = 'modify', r
         method: "POST",
         headers: {
             "Content-Type": "application/json",
-            "authorization": "Bearer " + authkey
+            "authorization": "Bearer " + localStorage.getItem('authkey')
         },
         body: JSON.stringify(data)
     })
@@ -374,7 +371,7 @@ async function modifyRecord(tableId, id, field, fieldValue, action = 'modify', r
     .then(async responseData => {
         if (responseData.status === "success") {
 
-            authkey = responseData.authkey;
+            storeAuthkey(responseData.authkey)
             
             if (action === 'remove') {
                 $(tableId).bootstrapTable('removeByUniqueId', id);
@@ -446,13 +443,13 @@ const uploadMedia = async () => {
         fetch('media/', {
             method: "POST",
             headers: {
-                "authorization": "Bearer " + authkey
+                "authorization": "Bearer " + localStorage.getItem('authkey')
             },
             body: data
         })
         .then(response => response.json())
         .then(data => {
-            authkey = data.authkey;
+            storeAuthkey(data.authkey)
             location.reload();
             })
         .catch((error) => {
@@ -491,10 +488,10 @@ function formatFilename(value, row, index) {
     $(document).off('click', '#' + index + '_preview').on('click', '#' + index + '_preview', async function() {
         let modal = await initMediaModal(row.pubkey, value, row.checked, row.visibility);
         let modalResult = modal.data;
-        if(modal.authkey) {authkey = modal.authkey};
+        if(modal.authkey) {storeAuthkey(modal.authkey)};
         for (let field in modalResult) {
             if (modalResult[field] != row[field]){
-                authkey = (await modifyRecord('#mediaData', row.id, field, modalResult[field], 'modify')).authkey
+                storeAuthkey((await modifyRecord('#mediaData', row.id, field, modalResult[field], 'modify')).authkey)
             }
         }
     });

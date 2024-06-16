@@ -17,7 +17,7 @@ const tooltipList = [...tooltipTriggerList].map(tooltipTriggerEl => new bootstra
 // Smooth scroll and offset by 200px
 function smoothScroll(target, duration) {
   const targetPosition = target.getBoundingClientRect().top + window.pageYOffset - 200;
-  const startPosition = window.pageYOffset;
+  const startPosition = window.scrollY;
   const distance = targetPosition - startPosition;
   let startTime = null;
 
@@ -77,5 +77,12 @@ applyTheme(savedTheme);
 window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
   if (localStorage.getItem('theme') === 'system') {
     applyTheme('system');
+  }
+});
+
+window.addEventListener('pageshow', (event) => {
+  if (event.persisted || (performance && performance.navigation.type === 2)) {
+      console.log('Page loaded from cache, reloading...');
+      window.location.reload();
   }
 });

@@ -34,7 +34,7 @@ const parseAuthHeader = async (req: Request, endpoint: string = "", checkAdminPr
 
 	// Check if authkey is present on the header authorization and validate it.
 	if (req.headers.authorization.startsWith('Bearer ')) {
-		logger.debug("authkey found on request", "|", req.socket.remoteAddress);
+		logger.debug("authkey found on request: ", req.headers.authorization, "|", req.socket.remoteAddress);
 		return await isAuthkeyValid(req.headers.authorization.split(' ')[1]);
 	} 
 

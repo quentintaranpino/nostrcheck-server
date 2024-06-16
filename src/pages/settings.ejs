@@ -435,16 +435,20 @@
     </main>
     <%- include('./partials/footer'); %>
     <%- include('./components/alert-modal', {"objectId":"settings"}); %>
-    <script>
-      let authkey = "<%= request.session.authkey %>"
-      let logHistory = "<%= request.body.logHistory %>"
-      window.logData = <%- JSON.stringify(request.body.logHistory || []) %>;
+
+<script src="/static/js/form.js"></script>
+<script src="/static/js/settings.js"></script>
+<script src="/static/js/coloris.min.js"></script>
+<script src="/static/js/semaphore.js"></script>
+
+<script>
+  storeAuthkey("<%= request.session.authkey %>")
+  let logHistory = "<%= request.body.logHistory %>"
+  window.logData = <%- JSON.stringify(request.body.logHistory || []) %>;
 </script>
     <script>
   </script>
-    <script src="/static/js/form.js"></script>
-    <script src="/static/js/settings.js"></script>
-    <script src="/static/js/coloris.min.js"></script>
+
 
   </body>
 </html>

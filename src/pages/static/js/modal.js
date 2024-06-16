@@ -196,7 +196,7 @@ const initMediaModal = async (pubkey, filename, checked, visible) => {
 
     var mediaModal = new bootstrap.Modal($('#media-modal'));
 
-    MediaData = await loadMediaWithToken ('media/' + pubkey + '/' + filename, authkey)
+    MediaData = await loadMediaWithToken ('media/' + pubkey + '/' + filename, localStorage.getItem('authkey'))
 
     $('#modalSwitch-checked').prop('checked', checked);
     $('#modalSwitch-checked').change(function() {
@@ -256,10 +256,10 @@ const initMediaModal = async (pubkey, filename, checked, visible) => {
 
 }
 
-async function loadMediaWithToken(url, authkey) {
+async function loadMediaWithToken(url) {
     const response = await fetch(url, {
         headers: {
-            'Authorization': `Bearer ${authkey}`
+            'Authorization': `Bearer ${localStorage.getItem('authkey')}`
         }
     });
     const blob = await response.blob();

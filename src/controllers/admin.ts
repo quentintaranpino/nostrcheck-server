@@ -658,8 +658,17 @@ const getModuleCountData = async (req: Request, res: Response): Promise<Response
 
     const module : string = req.query.module as string;
     const action : string = req.query.action as string;
+    const field : string = req.query.field as string;
 
-    const count = await dbCountModuleData(module);
+    if (action == "count" && !field) {
+        const count = await dbCountModuleData(module);
+        return res.status(200).send({total: count, authkey: EventHeader.authkey});
+    }
+
+    if (action == "count" && field != "" && field != 'undefined') {
+        const count = await dbCountModuleData(module, field);
+        return res.status(200).send({total: count, authkey: EventHeader.authkey});
+    }
 
     if (module == "payments" && action == "serverBalance") {
         return res.status(200).send({total: await getBalance(1000), authkey: EventHeader.authkey});
@@ -671,7 +680,7 @@ const getModuleCountData = async (req: Request, res: Response): Promise<Response
         return res.status(200).send({total: logHistory.length, authkey: EventHeader.authkey});
     }
 
-    return res.status(200).send({total: count, authkey: EventHeader.authkey});
+    return res.status(400).send({total: 0, authkey: EventHeader.authkey});
 
 }
 

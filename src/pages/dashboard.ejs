@@ -242,8 +242,9 @@
                            
   </body>
 
+<script src="/static/js/semaphore.js"></script>
 <script>
-  let authkey = "<%= request.session.authkey %>"
+  storeAuthkey("<%= request.session.authkey %>")
   let metadata = "<%= JSON.stringify(request.session.metadata) %>"
   let activeModules = "<%= JSON.stringify(request.body.activeModules) %>"
 </script>
@@ -278,17 +279,18 @@
     }
     for (const dashcard of dashcards) {
       if (activeModules.includes(dashcard.dataKey)) {
-          await initDashcard(dashcard.dashcardId,dashcard.dashcardName, dashcard.dataKey, dashcard.icon, dashcard.link, dashcard.action)
+          await initDashcard(dashcard.dashcardId,dashcard.dashcardName, dashcard.dataKey, dashcard.icon, dashcard.link, dashcard.action, dashcard.field)
       }
     }
   }
-  initData()
+  semaphore.execute(() => initData())
+
 
   const refreshData  = async() => {
-    await refreshTables()
-    await refreshDashcards()
+    semaphore.execute(() => refreshTables());    
+    semaphore.execute(() => refreshDashcards())
   }
-  setInterval(refreshData, 60000)
+  setInterval(refreshData, 45000)
 
 </script>
 </html>

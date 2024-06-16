@@ -5,7 +5,7 @@ function saveSettings() {
             const value = field.type === 'checkbox' ? field.checked : field.value;
             let url = 'admin/updatesettings';
             let headers = {
-                "authorization": "Bearer " + authkey,
+                "authorization": "Bearer " + localStorage.getItem('authkey'),
                 "Content-Type": "application/json"
             };
             let body = JSON.stringify({
@@ -41,7 +41,8 @@ const updateSettings = (fieldName, fieldValue, url, body, headers) => {
     .then(data => {
         if (data.status === 'success') {
             document.getElementById(fieldName).defaultValue = fieldValue;
-            authkey = data.authkey;
+            storeAuthkey(data.authkey)
+
             initAlertModal("#settings", data.message, 1500,"alert-primary");
             return true;
         } else {
@@ -86,7 +87,7 @@ const updateLogo = (setDefault = false) => {
         fieldName = 'lookandfeel.server.logo.default';
     }
        
-    let headers = {"authorization": "Bearer " + authkey};
+    let headers = {"authorization": "Bearer " + localStorage.getItem('authkey')};
     
     updateSettings(fieldName, '', 'admin/updatelogo', body, headers).then(result => {
         if (result) {
