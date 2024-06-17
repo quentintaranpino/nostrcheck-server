@@ -67,7 +67,7 @@ const getFilePath = async (fileName: string) : Promise<string> => {
     if (app.get("config.storage")["type"] === "local") {
 
         const mediaPath = app.get("config.storage")["local"]["mediaPath"];
-        const localPath = await dbSelect("SELECT localPath FROM mediafiles WHERE filename = ?", "localPath", [fileName]);
+        const localPath = await dbSelect("SELECT localPath FROM mediafiles WHERE filename = ? and localpath is not null", "localPath", [fileName]);
 
         // return await getLocalFile(mediaPath + localPath +  "/" + fileName);
 

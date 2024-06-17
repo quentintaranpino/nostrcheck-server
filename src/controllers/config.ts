@@ -201,8 +201,13 @@ const migrateDBLocalpath = async () : Promise<boolean> => {
 			}
             await fs.rename(oldPath, newPath, async (err) => {
 				if (err) {
-					console.error(`Failed to move file ${filename} to ${newPath}: ${err}`);
-					await dbUpdate('mediafiles', 'localpath', null, ['filename', 'pubkey'], [filename, pubkey]);
+					// Check if file exists in new path
+					if (!fs.existsSync(newPath)) {
+						console.error(`Failed to move file ${filename} to ${newPath}: ${err}`);
+						await dbUpdate('mediafiles', 'localpath', null, ['filename', 'pubkey'], [filename, pubkey]);
+					}
+
+					// If exist all is ok
 
 				} else {
 					console.log(`${count} | ${mediaFiles.length} - Moved file ${filename} to ${newPath}`);
