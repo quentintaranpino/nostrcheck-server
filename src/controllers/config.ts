@@ -135,7 +135,7 @@ const migrateDBLocalpath = async () : Promise<boolean> => {
 				console.error(`Failed to update media file ${filename} with type ${newType}`);
 				continue;
 			}
-			const newPath = path.join(app.get("config.storage")["local"]["mediaPath"], pubkey, newType);
+			const newPath = path.join(app.get("config.storage")["local"]["mediaPath"], pubkey, filename);
 			if (!fs.existsSync(newPath)) {
 				console.error(`File not found: ${newPath}`);
 				await dbUpdate('mediafiles', 'localpath', null, ['filename', 'pubkey'], [filename, pubkey]);
