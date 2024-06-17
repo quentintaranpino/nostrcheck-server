@@ -1,27 +1,45 @@
-const initMonthChart = (chartId, title, data) => {
-  const rawData = JSON.parse(data);
+const initMonthChart = (chartId, title, rawData) => {
+  console.log("initMonthChart", chartId, title, rawData);
+
+  // Verificar que rawData y rawData.data están definidos
+  if (!rawData || !Array.isArray(rawData.data)) {
+    console.error("Invalid rawData format", rawData);
+    return;
+  }
+
+  // Acceder al array dentro de rawData
+  const dataArray = rawData.data;
+
+  // Inicializar contadores para los meses del año actual y del año pasado
   const monthCountsCurrentYear = new Array(12).fill(0);
   const monthCountsLastYear = new Array(12).fill(0);
-  rawData.forEach(item => {
-    const date = new Date(item.date? item.date.toString().substring(0,10) : item.createddate.toString().substring(0,10));
-    if (date.getUTCFullYear() == new Date().getFullYear()) {
-      const month = date.getUTCMonth(); 
-      monthCountsCurrentYear[month]++; 
-    }
-    if (date.getUTCFullYear() == new Date().getFullYear()-1) {
-      const month = date.getUTCMonth(); 
-      monthCountsLastYear[month]++; 
+  
+  // Obtener el año actual
+  const currentYear = new Date().getFullYear();
+  
+  // Procesar cada elemento en dataArray
+  dataArray.forEach(item => {
+    const [count, dateStr] = item.split(',');
+    const year = parseInt(dateStr.substring(0, 4));
+    const month = parseInt(dateStr.substring(5)) - 1; // Los meses en JavaScript van de 0 a 11
+  
+    if (year === currentYear) {
+      monthCountsCurrentYear[month] += parseInt(count);
+    } else if (year === currentYear - 1) {
+      monthCountsLastYear[month] += parseInt(count);
     }
   });
 
+  // Etiquetas para los meses
   const labels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   
+  // Crear el gráfico
   new Chart($(chartId), {
     type: 'bar',
     data: {
       labels: labels,
       datasets: [{
-        label: new Date().getFullYear(), 
+        label: currentYear,
         data: monthCountsCurrentYear,
         borderColor: '#A575FF',
         backgroundColor: 'rgba(165, 117, 255, 0.7)',
@@ -30,7 +48,7 @@ const initMonthChart = (chartId, title, data) => {
         hoverBorderColor: '#8E57E6',
         hoverBorderWidth: 3
       }, {
-        label: new Date().getFullYear() - 1,
+        label: currentYear - 1,
         data: monthCountsLastYear,
         borderColor: '#8E9396',
         backgroundColor: 'rgba(156, 162, 167, 0.7)',

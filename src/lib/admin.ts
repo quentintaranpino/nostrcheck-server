@@ -13,17 +13,19 @@ const dbCountModuleData = async (module: string, field = ""): Promise<number> =>
     return Number(await dbSelect(`SELECT COUNT(*) FROM ${table}`, "COUNT(*)", [])) || 0;
 }
 
-// const dbCountModuleField = async (module: string, field: string): Promise<string[]> => {
 
-// 	const table = ModuleDataTables[module];
-// 	if (!table) {return [];}
+const dbCountMonthModuleData = async (module: string, field = ""): Promise<object> => {
 
-// 	let select = "SELECT " +
-// 		"SUM(CASE WHEN " + field + " = TRUE THEN 1 ELSE 0 END) AS " + field + ", " +
-// 		"SUM(CASE WHEN " + field + " = FALSE THEN 1 ELSE 0 END) AS un" + field + " " +
-// 		"FROM " + table;
-// 	return await dbMultiSelect(select, [field, "un" + field], [field]);
-// }
+	const table = ModuleDataTables[module];
+	if (!table) {return {}}
+
+	// Return a JSON object with the number of records for every month in the last 2 years
+	const query = `SELECT COUNT(*) as count, DATE_FORMAT(${field}, "%Y-%m") as month FROM ${table} GROUP BY month ORDER BY month DESC LIMIT 24`;
+	const data = await dbMultiSelect(query, ["count", "month"], [], false);
+	logger.debug(data);
+	return data;
+
+}
 
 async function dbSelectModuleData(module:string, offset:number, limit:number, order:string = "DESC", sort:string, search:string): Promise<{ total: number; totalNotFiltered: number; rows: string | never[]; }>{
 
@@ -52,4 +54,4 @@ async function dbSelectModuleData(module:string, offset:number, limit:number, or
 	return result;
 }
 
-export { dbCountModuleData, dbSelectModuleData };
+export { dbCountModuleData, dbSelectModuleData, dbCountMonthModuleData };

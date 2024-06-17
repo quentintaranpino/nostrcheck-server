@@ -16,8 +16,9 @@ import { isModuleEnabled, updateLocalConfigKey } from "../lib/config.js";
 import { flushRedisCache } from "../lib/redis.js";
 import { ParseFileType } from "../lib/media.js";
 import { npubToHex } from "../lib/nostr/NIP19.js";
-import { dbCountModuleData, dbSelectModuleData } from "../lib/admin.js";
+import { dbCountModuleData, dbCountMonthModuleData, dbSelectModuleData } from "../lib/admin.js";
 import { getBalance, getUnpaidTransactionsBalance } from "../lib/payments/core.js";
+import { authPlugins } from "mysql2";
 
 
 let hits = 0;
@@ -632,7 +633,6 @@ const getModuleData = async (req: Request, res: Response): Promise<Response> => 
 }
 
 const getModuleCountData = async (req: Request, res: Response): Promise<Response> => {
-
     
     // Check if current module is enabled
     if (!isModuleEnabled("admin", app)) {
@@ -660,16 +660,6 @@ const getModuleCountData = async (req: Request, res: Response): Promise<Response
     const action : string = req.query.action as string;
     const field : string = req.query.field as string;
 
-    if (action == "count" && !field) {
-        const count = await dbCountModuleData(module);
-        return res.status(200).send({total: count, authkey: EventHeader.authkey});
-    }
-
-    if (action == "count" && field != "" && field != 'undefined') {
-        const count = await dbCountModuleData(module, field);
-        return res.status(200).send({total: count, authkey: EventHeader.authkey});
-    }
-
     if (module == "payments" && action == "serverBalance") {
         return res.status(200).send({total: await getBalance(1000), authkey: EventHeader.authkey});
     }
@@ -680,7 +670,13 @@ const getModuleCountData = async (req: Request, res: Response): Promise<Response
         return res.status(200).send({total: logHistory.length, authkey: EventHeader.authkey});
     }
 
-    return res.status(400).send({total: 0, authkey: EventHeader.authkey});
+    if (action == "monthCount") {
+        const count = await dbCountMonthModuleData(module, field);
+        return res.status(200).send({data: count, authkey: EventHeader.authkey});
+    }
+    
+    const count = await dbCountModuleData(module, field);
+    return res.status(200).send({total: count, authkey: EventHeader.authkey});
 
 }
 

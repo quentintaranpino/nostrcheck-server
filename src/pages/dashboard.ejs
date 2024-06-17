@@ -268,6 +268,9 @@
   }
   semaphore.execute(() => initData())
 
+  semaphore.execute(async() => await initMonthChart("#nostraddressData-chart",'Registered users', await fetchTableCountData('nostraddress','monthCount', 'date')))
+  semaphore.execute(async() => await initMonthChart('#mediaData-chart','Media files', await fetchTableCountData('media','monthCount', 'date')))
+  semaphore.execute(async() => await initMonthChart("#paymentsData-chart",'Transactions', await fetchTableCountData('payments','monthCount', 'createddate')))
 
   const refreshData  = async() => {
     semaphore.execute(() => refreshTables());    
