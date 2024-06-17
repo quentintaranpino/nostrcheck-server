@@ -1,27 +1,22 @@
 const initMonthChart = (chartId, title, rawData) => {
   console.log("initMonthChart", chartId, title, rawData);
 
-  // Verificar que rawData y rawData.data están definidos
   if (!rawData || !Array.isArray(rawData.data)) {
     console.error("Invalid rawData format", rawData);
     return;
   }
 
-  // Acceder al array dentro de rawData
   const dataArray = rawData.data;
 
-  // Inicializar contadores para los meses del año actual y del año pasado
   const monthCountsCurrentYear = new Array(12).fill(0);
   const monthCountsLastYear = new Array(12).fill(0);
   
-  // Obtener el año actual
   const currentYear = new Date().getFullYear();
   
-  // Procesar cada elemento en dataArray
   dataArray.forEach(item => {
     const [count, dateStr] = item.split(',');
     const year = parseInt(dateStr.substring(0, 4));
-    const month = parseInt(dateStr.substring(5)) - 1; // Los meses en JavaScript van de 0 a 11
+    const month = parseInt(dateStr.substring(5)) - 1; 
   
     if (year === currentYear) {
       monthCountsCurrentYear[month] += parseInt(count);
@@ -30,10 +25,8 @@ const initMonthChart = (chartId, title, rawData) => {
     }
   });
 
-  // Etiquetas para los meses
   const labels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   
-  // Crear el gráfico
   new Chart($(chartId), {
     type: 'bar',
     data: {
@@ -60,6 +53,7 @@ const initMonthChart = (chartId, title, rawData) => {
     },
     options: {
       responsive: true,
+      maintainAspectRatio: true,
       plugins: {
         title: {
           display: true,
