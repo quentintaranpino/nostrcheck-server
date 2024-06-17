@@ -100,14 +100,15 @@ const initMonthChart = (chartId, title, data) => {
 
 let doughnutCharts = {};
 
-
-
-function initDoughnutChart(dashcardId, title, data, field, showTitle = false, showLegend = false) {
+function initDoughnutChart(dashcardId, title, data, field, showTitle = false, showLegend = false, externalTooltip = false) {
   
   const values = [data.field, data.total - data.field];
   const labels = [field, 'un' + field];
 
-  const chartId = '#' + dashcardId + '-doughnut-chart';
+  if (!dashcardId.toString().startsWith('#')) {
+    dashcardId = '#' + dashcardId;
+  }
+  let chartId = dashcardId + '-doughnut-chart';
 
   if (doughnutCharts[chartId]) {
     doughnutCharts[chartId].data.labels = labels;
@@ -152,11 +153,11 @@ function initDoughnutChart(dashcardId, title, data, field, showTitle = false, sh
                   }
               },
               tooltip: {
-                enabled: false,
-                external: function(context) {
+                enabled: externalTooltip? false : true,
+                external: externalTooltip? function(context) {
                     // Tooltip Element
-                    const tooltipEl = $('#' + dashcardId + '-tooltip-text')[0];
-                    console.log(tooltipEl.classList)
+                    const tooltipEl = $(dashcardId + '-tooltip-text')[0];
+                    console.log(dashcardId + '-tooltip-text')
 
                     // Hide if no tooltip
                     if (context.tooltip.opacity === 0) {
@@ -180,7 +181,7 @@ function initDoughnutChart(dashcardId, title, data, field, showTitle = false, sh
                     tooltipEl.innerHTML = innerHtml;
                     tooltipEl.classList.add('visible');
                 }
-                }
+                }: null,
               },
               legend: {
                   display: showLegend,

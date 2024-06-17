@@ -74,7 +74,7 @@
           </div>
           <div class= "container-fluid mt-2 justify-content-center align-items-center d-flex">
             <div class="col-xl-6 col-lg-6 col-md-6 col-sm-12">
-              <canvas id="nostraddressData-doughnut"></canvas>
+              <canvas id="nostraddressData-doughnut-chart"></canvas>
             </div>
           </div>
         </div>
@@ -128,7 +128,7 @@
             </div>
             <div class= "container-fluid mt-2 justify-content-center align-items-center d-flex">
               <div class="col-xl-6 col-lg-6 col-md-6 col-sm-12">
-                <canvas id="mediaData-doughnut"></canvas>
+                <canvas id="mediaData-doughnut-chart"></canvas>
               </div>
             </div>
           </div>
@@ -232,7 +232,7 @@
             </div>
             <div class= "container-fluid mt-2 justify-content-center align-items-center d-flex">
               <div class="col-xl-6 col-lg-6 col-md-6 col-sm-12">
-                <canvas id="paymentsData-doughnut"></canvas>
+                <canvas id="paymentsData-doughnut-chart"></canvas>
               </div>
             </div>
           </div>
@@ -248,32 +248,16 @@
   let metadata = "<%= JSON.stringify(request.session.metadata) %>"
   let activeModules = "<%= JSON.stringify(request.body.activeModules) %>"
 </script>
-<script src="/static/js/table.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="/static/js/chart.js"></script>
 <script src="/static/js/dashcard.js"></script>
+<script src="/static/js/table.js"></script>
 
-<script>
-  if("<%- JSON.stringify(request.body.activeModules.includes('nostraddress')) %>"){
-    // initMonthChart("#nostraddressData-chart",'Registered users','<%- request.body.nostraddressData %>')
-    initDoughnutChart("#nostraddressData-doughnut",'Checked registered users','<%- request.body.nostraddressCheckedCount %>', 'checked', true, false)
-  }
-  if("<%- JSON.stringify(request.body.activeModules.includes('media')) %>"){
-    // initMonthChart("#mediaData-chart",'Media files','<%- request.body.mediaData %>')
-    initDoughnutChart("#mediaData-doughnut",'Checked media files','<%- request.body.mediaCheckedCount %>', 'checked', true, false)
-    initDoughnutChart("#mediaData-dashcard-doughnut",'Checked media files','<%- request.body.mediaCheckedCount %>', 'checked')
-  }
-  if("<%- JSON.stringify(request.body.activeModules.includes('payments')) %>"){
-    // initMonthChart("#paymentsData-chart",'Transactions','<%- request.body.paymentsData %>')
-    initDoughnutChart("#paymentsData-doughnut",'Paid transactions','<%- request.body.paymentsPaidCount %>', 'paid', true, false)
-    initDoughnutChart("#paymentsData-dashcard-doughnut",'Paid transactions','<%- request.body.paymentsPaidCount %>', 'paid')
-  }
-</script>
 <script>
   const initData = async() => {
     for (const table of tables) {
       if (activeModules.includes(table.dataKey)) {
-        await initTable(`#${table.tableId}`, table.url, table.objectName);
+        await initTable(`#${table.tableId}`, table.url, table.objectName, table.dataKey, table.field);
       }
     }
     for (const dashcard of dashcards) {

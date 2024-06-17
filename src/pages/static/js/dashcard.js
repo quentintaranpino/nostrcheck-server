@@ -37,7 +37,7 @@ const refreshDashcard = async(dashcardId, dashcardDataKey, action, field) => {
     if (field !== "" && field !== undefined) {
         console.log("FIELD", field)
         const fieldCount = await fetchDashcardData(dashcardDataKey, action, field)
-        initDoughnutChart(dashcardId, dashcardDataKey, {field: fieldCount.total, total: totalCount.total}, field, false, false)
+        initDoughnutChart(dashcardId, dashcardDataKey, {field: fieldCount.total, total: totalCount.total}, field, false, false, true)
     }
     setTimeout(() => {
         $('#' + dashcardId + '-tooltip-text').removeClass('visible');
@@ -84,6 +84,6 @@ let dashcards =[
 const refreshDashcards = async () => {
     console.debug("refreshDashcards")
     for (const dashcard of dashcards) {
-        await refresDashcard(dashcard.dashcardId, dashcard.dataKey,  dashcard.action, dashcard.field)
+        await refreshDashcard(dashcard.dashcardId, dashcard.dataKey,  dashcard.action, dashcard.field)
     }
 }

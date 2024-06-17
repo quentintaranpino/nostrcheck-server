@@ -1,4 +1,4 @@
-const initTable = async (tableId, url, objectName) => {
+const initTable = async (tableId, url, objectName, dataKey, countField = "") => {
     return new Promise((resolve, reject) => {
         console.debug("Initializing table for", tableId, url, objectName);
 
@@ -14,10 +14,13 @@ const initTable = async (tableId, url, objectName) => {
             beforeSend:  function (xhr) {
               xhr.setRequestHeader('authorization', 'Bearer ' + localStorage.getItem('authkey'));
             },
-            complete:  function (xhr) {
+            complete:  async function (xhr) {
                 var response = xhr.responseJSON;
                 if (response.authkey != null) {
                     storeAuthkey(response.authkey)
+                    const dataCountTotal = await fetchTableCountData(dataKey, 'count', '')
+                    const dataCountField = await fetchTableCountData(dataKey, 'count', countField)
+                    if(countField){initDoughnutChart(tableId, countField.charAt(0).toUpperCase() + countField.slice(1) + ' ' + objectName + 's',{field: dataCountField.total, total:dataCountTotal.total}, countField, true, false)}
                     resolve()
                 }
             }
@@ -545,11 +548,36 @@ const refreshTable = async (table) => {
     });
 }
 
+const fetchTableCountData = async (tableDataKey, action, field) => {
+    console.debug("fetchTableCountData", tableDataKey, action)
+    console.debug("Using authkey", localStorage.getItem('authkey'))
+
+    let serverData  = ""
+
+    await fetch(`http://localhost:3000/api/v2/admin/modulecountdata?module=${tableDataKey}&action=${action}&field=${field}`
+        , {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('authkey')}`,
+            }}
+        )
+            .then(response => response.json())
+            .then(data => {
+                storeAuthkey(data.authkey)
+                serverData = data;
+            })
+            .catch(error => console.error('Error:', error));
+
+            return serverData || { total: 0 }
+
+}
+
 // Initialize tables
 let tables = [
-    { name: 'nostraddress', tableId: 'nostraddressData', dataKey: 'nostraddress', objectName: 'user', url: 'admin/moduledata?module=nostraddress'},
-    { name: 'media', tableId: 'mediaData', dataKey: 'media', objectName: 'media file', url: 'admin/moduledata?module=media'},
+    { name: 'nostraddress', tableId: 'nostraddressData', dataKey: 'nostraddress', objectName: 'user', url: 'admin/moduledata?module=nostraddress', field: 'checked'},
+    { name: 'media', tableId: 'mediaData', dataKey: 'media', objectName: 'media file', url: 'admin/moduledata?module=media', field: 'checked'},
     { name: 'lightning', tableId: 'lightningData', dataKey: 'lightning', objectName: 'lightning redirection', url: 'admin/moduledata?module=lightning'},
     { name: 'domains', tableId: 'domainsData', dataKey: 'domains', objectName: 'domain name', url: 'admin/moduledata?module=domains'},
-    { name: 'payments', tableId: 'paymentsData', dataKey: 'payments', objectName: 'transaction', url: 'admin/moduledata?module=payments'}
+    { name: 'payments', tableId: 'paymentsData', dataKey: 'payments', objectName: 'transaction', url: 'admin/moduledata?module=payments', field: 'paid'},
 ];
