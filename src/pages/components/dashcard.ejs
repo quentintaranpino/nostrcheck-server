@@ -1,5 +1,5 @@
 <div id="<%- dashcardId %>" class="col-xl-3 col-lg-4 col-md-6 col-sm-12">
-    <div class="card mb-3 shadow-sm" style="min-height: 180px">
+    <div class="card mb-3 shadow-sm" style="min-height: 185px">
             <div class="card-body text-center">
                 <% if (link) { %>
                     <a href = "<%- link %>" class="text-decoration-none text-reset">
@@ -14,6 +14,7 @@
                 <% if (link) { %>
                 </a>
                 <% } %>
+                <div id="<%- dashcardId %>-tooltip-text" class="tooltip-content"></div>
             </div>
             <button id="<%- dashcardId %>-reload-button" class="btn btn-reload"><i class="fas fa-sync-alt"></i></button>
     </div>
@@ -67,6 +68,22 @@
     .btn-reload i {
         color: #4d4d4d; 
         font-size: 14px; 
+    }
+
+    .tooltip-content {
+    font-size: 14px;
+    color: #424242;
+    text-align: left;
+    visibility: hidden; /* Inicialmente oculto */
+    opacity: 0; /* Inicialmente oculto */
+    transition: opacity 0.5s !important;
+    }
+
+    .tooltip-content.visible {
+        visibility: visible;
+        opacity: 1;
+        transition: opacity 0.5s !important;
+
     }
     
 </style>

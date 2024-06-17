@@ -98,15 +98,25 @@ const initMonthChart = (chartId, title, data) => {
   });
 };
 
+let doughnutCharts = {};
 
-function initDoughnutChart(chartId, title, data, field, showTitle = false, showLegend = false) {
+
+
+function initDoughnutChart(dashcardId, title, data, field, showTitle = false, showLegend = false) {
   
-  const parsedData = JSON.parse(data);
-  const values = [parsedData[0], parsedData[1]];
+  const values = [data.field, data.total - data.field];
   const labels = [field, 'un' + field];
 
+  const chartId = '#' + dashcardId + '-doughnut-chart';
+
+  if (doughnutCharts[chartId]) {
+    doughnutCharts[chartId].data.labels = labels;
+    doughnutCharts[chartId].data.datasets[0].data = values;
+    doughnutCharts[chartId].update();
+} else {
+
   const ctx = document.querySelector(chartId).getContext('2d');
-  new Chart(ctx, {
+  doughnutCharts[chartId] = new Chart(ctx, {
       type: 'doughnut',
       data: {
           labels: labels,
@@ -125,6 +135,7 @@ function initDoughnutChart(chartId, title, data, field, showTitle = false, showL
       },
       options: {
           responsive: true,
+          maintainAspectRatio: false,
           plugins: {
               title: {
                   display: showTitle,
@@ -140,6 +151,37 @@ function initDoughnutChart(chartId, title, data, field, showTitle = false, showL
                       bottom: 30
                   }
               },
+              tooltip: {
+                enabled: false,
+                external: function(context) {
+                    // Tooltip Element
+                    const tooltipEl = $('#' + dashcardId + '-tooltip-text')[0];
+                    console.log(tooltipEl.classList)
+
+                    // Hide if no tooltip
+                    if (context.tooltip.opacity === 0) {
+                      tooltipEl.classList.remove('visible');
+                      return;
+                    }
+
+                   // Set Text
+                   if (context.tooltip.body) {
+                    const bodyLines = context.tooltip.body.map(b => b.lines);
+                    const titleLines = context.tooltip.title || [];
+                    let innerHtml = '';
+
+                    titleLines.forEach(function(title) {
+                      innerHtml += '<div>' + '<b>' + title + '</b>  : '
+                      bodyLines.forEach((body, i) => {
+                        innerHtml += body + '</div>';
+                      });
+                    });
+    
+                    tooltipEl.innerHTML = innerHtml;
+                    tooltipEl.classList.add('visible');
+                }
+                }
+              },
               legend: {
                   display: showLegend,
                   labels: {
@@ -153,4 +195,5 @@ function initDoughnutChart(chartId, title, data, field, showTitle = false, showL
           }
       }
   });
+}
 }

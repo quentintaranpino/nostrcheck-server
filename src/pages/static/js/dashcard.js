@@ -1,9 +1,9 @@
 const initDashcard = async (dashcardId, dascardName, dashcardDataKey, icon, link, action, field) => {
     console.debug("initDashcard", dashcardId, dascardName, dashcardDataKey, icon, link, action)
 
-    $(dashcardId + '-name').text(dascardName)
+    $('#' + dashcardId + '-name').text(dascardName)
 
-    const iconElement = $(dashcardId + '-icon');
+    const iconElement = $('#' + dashcardId + '-icon');
     iconElement.removeClass(); 
     iconElement.addClass('fa-3x card-icon');
 
@@ -14,11 +14,11 @@ const initDashcard = async (dashcardId, dascardName, dashcardDataKey, icon, link
     } else if (icon === "satoshi") {
         iconElement.addClass('fas fa-bolt-lightning text-warning');
     } else if (icon === "doughnut") {
-        const iconContainer = $(dashcardId + '-icon-container');
-        iconContainer.append('<div id="' + dashcardDataKey + '-doughnut"></div>');
+        const iconContainer = $('#' + dashcardId + '-icon-container');
+        iconContainer.append('<canvas style="border 1px solid black" id="' + dashcardId + '-doughnut-chart" width="50" height="50"></canvas>');
     }
 
-    $(dashcardId + '-reload-button').on('click', async function() {
+    $('#' + dashcardId + '-reload-button').on('click', async function() {
         console.debug(`Reload button clicked for dashcard ${dashcardId}`);
         semaphore.execute(async() => await refreshDashcard(dashcardId, dashcardDataKey, action, field));
     });
@@ -28,15 +28,20 @@ const initDashcard = async (dashcardId, dascardName, dashcardDataKey, icon, link
 
 const refreshDashcard = async(dashcardId, dashcardDataKey, action, field) => {
 
+    $('#' + dashcardId + '-tooltip-text').addClass('visible');
+    $('#' + dashcardId + '-tooltip-text').text('Retrieving data...');
     console.debug("refresDashcard", dashcardId, dashcardDataKey, action, field)
 
-    const data = await fetchDashcardData(dashcardDataKey, action, "")
-    $(dashcardId + '-text').text(data.total)
+    const totalCount = await fetchDashcardData(dashcardDataKey, action, "")
+    $('#' + dashcardId + '-text').text(totalCount.total)
     if (field !== "" && field !== undefined) {
         console.log("FIELD", field)
-        const data = await fetchDashcardData(dashcardDataKey, action, field)
-        $('#' + dashcardDataKey + '-doughnut').text(data.total)
+        const fieldCount = await fetchDashcardData(dashcardDataKey, action, field)
+        initDoughnutChart(dashcardId, dashcardDataKey, {field: fieldCount.total, total: totalCount.total}, field, false, false)
     }
+    setTimeout(() => {
+        $('#' + dashcardId + '-tooltip-text').removeClass('visible');
+    }, 1000);
 }
 
 const fetchDashcardData = async (dashcardDataKey, action, field) => {
@@ -66,14 +71,14 @@ const fetchDashcardData = async (dashcardDataKey, action, field) => {
 
 // Set the data for the dashcards
 let dashcards =[
-    { dashcardId: '#nostraddressCount',  dataKey: 'nostraddress', icon: 'doughnut', dashcardName: 'Registered users', link: '#nostraddressData', action: 'count', field: 'checked' },
-    { dashcardId: '#mediaCount', dataKey: 'media', icon: 'doughnut', dashcardName: 'Media files', link: '#mediaData' , action: 'count', field: 'checked'},
-    { dashcardId: '#lightningCount', dataKey: 'lightning', icon: 'chart', dashcardName: 'Lightning redirects', link: '#lightningData', action: 'count'},
-    { dashcardId: '#domainsCount', dataKey: 'domains', icon: 'chart', dashcardName: 'Domains', link: '#domainsData', action: 'count'},
-    { dashcardId: '#logHistory', dataKey: 'logger', icon: 'warning', dashcardName: 'Warning messages', link: 'settings/#settingsLogger', action: 'countWarning' },
-    { dashcardId: '#paymentsCount', dataKey: 'payments', icon: 'doughnut', dashcardName: 'Transactions', link: '#paymentsData', action: 'count', field: 'paid'},
-    { dashcardId: '#unpaidTransactionsBalance', dataKey: 'payments', icon: 'satoshi', dashcardName: 'Unpaid transactions balance', link: '#paymentsData', action: 'unpaidTransactions' },
-    { dashcardId: '#serverBalance', dataKey: 'payments', icon: 'satoshi', dashcardName: 'Server balance', link: '', action: 'serverBalance' },
+    { dashcardId: 'nostraddressCount',  dataKey: 'nostraddress', icon: 'doughnut', dashcardName: 'Registered users', link: '#nostraddressData', action: 'count', field: 'checked' },
+    { dashcardId: 'mediaCount', dataKey: 'media', icon: 'doughnut', dashcardName: 'Media files', link: '#mediaData' , action: 'count', field: 'checked'},
+    { dashcardId: 'lightningCount', dataKey: 'lightning', icon: 'chart', dashcardName: 'Lightning redirects', link: '#lightningData', action: 'count'},
+    { dashcardId: 'domainsCount', dataKey: 'domains', icon: 'chart', dashcardName: 'Domains', link: '#domainsData', action: 'count'},
+    { dashcardId: 'logHistory', dataKey: 'logger', icon: 'warning', dashcardName: 'Warning messages', link: 'settings/#settingsLogger', action: 'countWarning' },
+    { dashcardId: 'paymentsCount', dataKey: 'payments', icon: 'doughnut', dashcardName: 'Transactions', link: '#paymentsData', action: 'count', field: 'paid'},
+    { dashcardId: 'unpaidTransactionsBalance', dataKey: 'payments', icon: 'satoshi', dashcardName: 'Unpaid transactions balance', link: '#paymentsData', action: 'unpaidTransactions' },
+    { dashcardId: 'serverBalance', dataKey: 'payments', icon: 'satoshi', dashcardName: 'Server balance', link: '', action: 'serverBalance' },
 ]
 
 const refreshDashcards = async () => {

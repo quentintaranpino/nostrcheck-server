@@ -257,7 +257,6 @@
   if("<%- JSON.stringify(request.body.activeModules.includes('nostraddress')) %>"){
     // initMonthChart("#nostraddressData-chart",'Registered users','<%- request.body.nostraddressData %>')
     initDoughnutChart("#nostraddressData-doughnut",'Checked registered users','<%- request.body.nostraddressCheckedCount %>', 'checked', true, false)
-    initDoughnutChart("#nostraddressData-dashcard-doughnut",'Checked users','<%- request.body.nostraddressCheckedCount %>', 'checked')
   }
   if("<%- JSON.stringify(request.body.activeModules.includes('media')) %>"){
     // initMonthChart("#mediaData-chart",'Media files','<%- request.body.mediaData %>')
