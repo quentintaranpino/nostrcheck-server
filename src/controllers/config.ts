@@ -116,7 +116,7 @@ const migrateFolders = async(mediaPath:string) => {
 
 const migrateDBLocalpath = async () : Promise<boolean> => {
     
-	const mediaFiles = await dbMultiSelect('SELECT filename, pubkey, type FROM mediafiles WHERE localpath IS NULL and pubkey = "89e14be49ed0073da83b678279cd29ba5ad86cf000b6a3d1a4c3dc4aa4fdd02c"',['filename', 'pubkey', 'type'], ['1=1'], false);
+	const mediaFiles = await dbMultiSelect('SELECT filename, pubkey, type FROM mediafiles WHERE (localpath IS NULL or localpath = "") ORDER BY id DESC',['filename', 'pubkey', 'type'], ['1=1'], false);
 	if (mediaFiles == undefined || mediaFiles == null || mediaFiles.length == 0){
         return false;
     }
@@ -126,6 +126,7 @@ const migrateDBLocalpath = async () : Promise<boolean> => {
 	let count = 0;
 	for (const item of mediaFiles) {
 		let [filename, pubkey, type] = item.split(',');
+		console.log(`### - Processing file ${count} of ${mediaFiles.length} - ${filename} - ${pubkey}`);
  
 		if (filename.includes("avatar") || filename.includes("banner")) {
 			const newType = filename.includes("avatar") ? "avatar" : "banner";
@@ -134,21 +135,32 @@ const migrateDBLocalpath = async () : Promise<boolean> => {
 				console.error(`Failed to update media file ${filename} with type ${newType}`);
 				continue;
 			}
-			const newFilename = await generatefileHashfromfile(path.join(app.get("config.storage")["local"]["mediaPath"],pubkey,filename)) + path.extname(filename);
+			const newPath = path.join(app.get("config.storage")["local"]["mediaPath"], pubkey, newType);
+			if (!fs.existsSync(newPath)) {
+				console.error(`File not found: ${newPath}`);
+				await dbUpdate('mediafiles', 'localpath', null, ['filename', 'pubkey'], [filename, pubkey]);
+				continue;
+			}
+			const newFilename = await generatefileHashfromfile(newPath) + path.extname(filename);
 			if (!newFilename || newFilename === path.extname(filename)) {
 				console.error(`Failed to generate new filename for ${filename}`);
+				await dbUpdate('mediafiles', 'localpath', null, ['filename', 'pubkey'], [filename, pubkey]);
+
 				continue;
 			}	
 			const updFilename = await dbUpdate('mediafiles', 'filename', newFilename, ['filename', 'pubkey'], [filename, pubkey]);
 			if (!updFilename) {
 				console.error(`Failed to update media file ${filename} with new filename`);
+				await dbUpdate('mediafiles', 'localpath', null, ['filename', 'pubkey'], [filename, pubkey]);
 				continue;
 			}
 			try{
 				await fs.rename(path.join(app.get("config.storage")["local"]["mediaPath"], pubkey, filename),
-								path.join(app.get("config.storage")["local"]["mediaPath"], pubkey, newFilename), (err) => {
+								path.join(app.get("config.storage")["local"]["mediaPath"], pubkey, newFilename), async (err) => {
 					if (err) {
 						console.error(`Failed to rename ${newType} file to ${newFilename}: ${err}`);
+						await dbUpdate('mediafiles', 'localpath', null, ['filename', 'pubkey'], [filename, pubkey]);
+
 					} else {
 						console.log(`Renamed ${newType} file to ${newFilename}`);
 					}
@@ -156,12 +168,15 @@ const migrateDBLocalpath = async () : Promise<boolean> => {
 				filename = newFilename;
 			}catch (error) {
 				console.error(`Failed to rename ${newType} file to ${newFilename}: ${error}`);
+				await dbUpdate('mediafiles', 'localpath', null, ['filename', 'pubkey'], [filename, pubkey]);
+				continue;
 			}
 		}else{
 			if (!type){
 				const updtType = await dbUpdate('mediafiles', 'type', "media", ['filename', 'pubkey'], [filename, 'pubkey']);
 				if (!updtType) {
 					console.error(`Failed to update media file ${filename} with type media`);
+					await dbUpdate('mediafiles', 'localpath', null, ['filename', 'pubkey'], [filename, pubkey]);
 					continue;
 				}
 			}
@@ -172,6 +187,7 @@ const migrateDBLocalpath = async () : Promise<boolean> => {
 
 		if (!updLocalPath) {
 			console.error(`Failed to update media file ${filename} with hashpath ${hashpath}`);
+			await dbUpdate('mediafiles', 'localpath', null, ['filename', 'pubkey'], [filename, pubkey]);
 			continue;
 		};
 
@@ -183,9 +199,11 @@ const migrateDBLocalpath = async () : Promise<boolean> => {
 			if (!fs.existsSync(path.join(app.get("config.storage")["local"]["mediaPath"], hashpath))) {
 				fs.mkdirSync(path.join(app.get("config.storage")["local"]["mediaPath"], hashpath));
 			}
-            await fs.rename(oldPath, newPath, (err) => {
+            await fs.rename(oldPath, newPath, async (err) => {
 				if (err) {
 					console.error(`Failed to move file ${filename} to ${newPath}: ${err}`);
+					await dbUpdate('mediafiles', 'localpath', null, ['filename', 'pubkey'], [filename, pubkey]);
+
 				} else {
 					console.log(`${count} | ${mediaFiles.length} - Moved file ${filename} to ${newPath}`);
 				}
@@ -195,6 +213,7 @@ const migrateDBLocalpath = async () : Promise<boolean> => {
 
         } catch (error) {
             console.error(`Failed to move file ${filename} to ${newPath}: ${error}`);
+			await dbUpdate('mediafiles', 'localpath', null, ['filename', 'pubkey'], [filename, pubkey]);
 			continue;
         }
     };

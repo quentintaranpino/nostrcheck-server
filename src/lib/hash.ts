@@ -1,7 +1,6 @@
 import { logger } from './logger.js'
 import crypto from 'crypto'
 import fs from 'fs'
-import { ProcessingFileData } from '../interfaces/media.js'
 import sharp from 'sharp'
 import { encode } from 'blurhash'
 import { credentialTypes } from '../interfaces/authorization.js';
