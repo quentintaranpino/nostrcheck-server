@@ -554,7 +554,7 @@ const fetchTableCountData = async (tableDataKey, action, field) => {
 
     let serverData  = ""
 
-    await fetch(`http://localhost:3000/api/v2/admin/modulecountdata?module=${tableDataKey}&action=${action}&field=${field}`
+    await fetch(`admin/modulecountdata?module=${tableDataKey}&action=${action}&field=${field}`
         , {
             method: 'GET',
             headers: {
