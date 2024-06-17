@@ -1,16 +1,14 @@
-import { S } from "vitest/dist/reporters-5f784f42.js";
 import app from "../../app.js";
 import { accounts, emptyInvoice, emptyTransaction, invoice, transaction } from "../../interfaces/payments.js";
+import { isModuleEnabled } from "../config.js";
 import { dbInsert, dbMultiSelect, dbSelect, dbUpdate } from "../database.js"
 import { logger } from "../logger.js";
 import { generateGetalbyInvoice, isInvoicePaid } from "./getalby.js";
 
 
-
-
 const checkTransaction = async (transactionid : string, originId: string, originTable : string, filesize: number, pubkey : string): Promise<transaction> => {
 
-    if (app.get("config.payments")["enabled"] == false) {
+    if (!isModuleEnabled("payments", app)) {
         return emptyTransaction;
     }
 
@@ -61,7 +59,7 @@ const checkTransaction = async (transactionid : string, originId: string, origin
 
 const generateLNInvoice = async (accountid: number, satoshi: number, originTable : string, originId : string) : Promise<invoice> => {
 
-    if (app.get("config.payments")["enabled"] == false) {
+    if (!isModuleEnabled("payments", app)) {
         return emptyInvoice;
     }
 
@@ -95,7 +93,7 @@ const generateLNInvoice = async (accountid: number, satoshi: number, originTable
 
 const addTransacion = async (type: string, accountid: number, invoice: invoice, satoshi: number) : Promise<number> => {
 
-    if (app.get("config.payments")["enabled"] == false) {
+    if (!isModuleEnabled("payments", app)) {
         return 0;
     }
 
@@ -125,7 +123,7 @@ const addTransacion = async (type: string, accountid: number, invoice: invoice, 
 
 const addJournalEntry = async (accountid: number, transactionid: number, debit: number, credit: number, comments: string) : Promise<number> => {
     
-    if (app.get("config.payments")["enabled"] == false) {
+    if (!isModuleEnabled("payments", app)) {
         return 0;
     }
     
@@ -153,7 +151,7 @@ const addJournalEntry = async (accountid: number, transactionid: number, debit: 
 
 const getBalance = async (accountid: number) : Promise<number> => {
 
-    if (app.get("config.payments")["enabled"] == false) {
+    if (!isModuleEnabled("payments", app)) {
         return 0;
     }
 
@@ -173,41 +171,41 @@ const result = Number(await dbSelect("SELECT SUM(credit) - SUM(debit) as 'balanc
 
 const addBalance = async (accountid: number, amount: number) : Promise<boolean> => {
     
-        if (app.get("config.payments")["enabled"] == false) {
-            return false;
-        }
-
-        const transaction = await addTransacion("credit",   
-                                                accountid, 
-                                                {   accountid: accountid,
-                                                    paymentRequest: "", 
-                                                    paymentHash: "", 
-                                                    createdDate: new Date().toISOString().slice(0, 19).replace('T', ' '), 
-                                                    expiryDate: new Date().toISOString().slice(0, 19).replace('T', ' '), 
-                                                    paidDate: new Date().toISOString().slice(0, 19).replace('T', ' '),
-                                                    description: "", 
-                                                    isPaid: true, 
-                                                    transactionid: 0, 
-                                                    satoshi: amount
-                                                },
-                                                amount);
-        if (transaction) {
-            const debit = await addJournalEntry(accounts[4].accountid, transaction, amount, 0, "Expense for adding credit to account: " + accountid);
-            const credit = await addJournalEntry(accountid, transaction, 0, amount, "Credit added to account: " + accountid);
-            if (credit && debit) {
-                logger.debug("Journal entries added for adding balance to account:", accountid, "transaction:", transaction)
-                
-                // Update the balance for the account
-                await getBalance(accountid);
-                return true;
-            }
-        }
+    if (!isModuleEnabled("payments", app)) {
         return false;
+    }
+
+    const transaction = await addTransacion("credit",   
+                                            accountid, 
+                                            {   accountid: accountid,
+                                                paymentRequest: "", 
+                                                paymentHash: "", 
+                                                createdDate: new Date().toISOString().slice(0, 19).replace('T', ' '), 
+                                                expiryDate: new Date().toISOString().slice(0, 19).replace('T', ' '), 
+                                                paidDate: new Date().toISOString().slice(0, 19).replace('T', ' '),
+                                                description: "", 
+                                                isPaid: true, 
+                                                transactionid: 0, 
+                                                satoshi: amount
+                                            },
+                                            amount);
+    if (transaction) {
+        const debit = await addJournalEntry(accounts[4].accountid, transaction, amount, 0, "Expense for adding credit to account: " + accountid);
+        const credit = await addJournalEntry(accountid, transaction, 0, amount, "Credit added to account: " + accountid);
+        if (credit && debit) {
+            logger.debug("Journal entries added for adding balance to account:", accountid, "transaction:", transaction)
+            
+            // Update the balance for the account
+            await getBalance(accountid);
+            return true;
+        }
+    }
+    return false;
 }
 
 const getPendingInvoices = async () : Promise<invoice[]> => {
 
-    if (app.get("config.payments")["enabled"] == false) {
+    if (!isModuleEnabled("payments", app)) {
         return [];
     }
 
@@ -238,7 +236,7 @@ const getPendingInvoices = async () : Promise<invoice[]> => {
 
 const getInvoice = async (transactionid: string) : Promise<invoice> => {
 
-    if (app.get("config.payments")["enabled"] == false) {
+    if (!isModuleEnabled("payments", app)) {
         return emptyInvoice;
     }
 
@@ -274,7 +272,7 @@ const getInvoice = async (transactionid: string) : Promise<invoice> => {
 
 const getTransaction = async (transactionid: string) : Promise<transaction> => {
 
-    if (app.get("config.payments")["enabled"] == false) {
+    if (!isModuleEnabled("payments", app)) {
         return emptyTransaction;
     }
 
@@ -345,8 +343,7 @@ const formatRegisteredId = (accountid: number): number => {
 
 const collectInvoice = async (invoice: invoice, collectFromExpenses = false, collectFromPayment = false) : Promise<boolean> => {
 
-    if (app.get("config.payments")["enabled"] == false) {
-        logger.debug("The payments module is not enabled")
+    if (!isModuleEnabled("payments", app)) {
         return false;
     }
 
@@ -394,7 +391,7 @@ const collectInvoice = async (invoice: invoice, collectFromExpenses = false, col
 
 const calculateSatoshi = async (originTable: string, size: number) : Promise<number> => {
 
-    if (app.get("config.payments")["enabled"] == false) {
+    if (!isModuleEnabled("payments", app)) {
         return 0;
     }
 
@@ -431,7 +428,7 @@ const getUnpaidTransactionsBalance = async () : Promise<string> => {
 
 const payInvoiceFromExpenses = async (transactionid: string) : Promise<boolean> => {
 
-    if (app.get("config.payments")["enabled"] == false) {
+    if (!isModuleEnabled("payments", app)) {
         return false;
     }
 
