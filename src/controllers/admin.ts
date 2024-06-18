@@ -674,8 +674,14 @@ const getModuleCountData = async (req: Request, res: Response): Promise<Response
         const count = await dbCountMonthModuleData(module, field);
         return res.status(200).send({data: count, authkey: EventHeader.authkey});
     }
+
+    if (field != "" && field != undefined && field != 'undefined') {
+        const countField = await dbCountModuleData(module, field);
+        const countTotal = await dbCountModuleData(module);
+        return res.status(200).send({total: countTotal, field: countField, authkey: EventHeader.authkey});
+    }
     
-    const count = await dbCountModuleData(module, field);
+    const count = await dbCountModuleData(module);
     return res.status(200).send({total: count, authkey: EventHeader.authkey});
 
 }

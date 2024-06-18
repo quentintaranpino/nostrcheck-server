@@ -116,7 +116,7 @@ const migrateFolders = async(mediaPath:string) => {
 
 const migrateDBLocalpath = async () : Promise<boolean> => {
     
-	const mediaFiles = await dbMultiSelect('SELECT filename, pubkey, type FROM mediafiles WHERE (localpath IS NULL or localpath = "") ORDER BY id DESC',['filename', 'pubkey', 'type'], ['1=1'], false);
+	const mediaFiles = await dbMultiSelect('SELECT filename, pubkey, type FROM mediafiles WHERE pubkey = "NOLOAD" ORDER BY id DESC',['filename', 'pubkey', 'type'], ['1=1'], false);
 	if (mediaFiles == undefined || mediaFiles == null || mediaFiles.length == 0){
         return false;
     }
