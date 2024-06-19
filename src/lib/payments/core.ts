@@ -353,7 +353,7 @@ const collectInvoice = async (invoice: invoice, collectFromExpenses = false, col
     }
 
     const paid = await dbUpdate("transactions", "paid", "1", ["id"], [invoice.transactionid.toString()]);
-    const paiddate = await dbUpdate("transactions", "paiddate", new Date(invoice.paidDate), ["id"], [invoice.transactionid.toString()]);
+    const paiddate = await dbUpdate("transactions", "paiddate", !isNaN(invoice.paidDate)? invoice.paidDate : new Date(), ["id"], [invoice.transactionid.toString()]);
     if (paid && paiddate) {
         logger.info("Invoice paid, transaction updated", invoice.transactionid);
     }else{
