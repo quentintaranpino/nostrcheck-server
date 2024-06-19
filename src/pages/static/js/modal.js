@@ -1,4 +1,4 @@
-const initConfirmModal = async (objectId, ids, action, objectName, value = "") => {
+const initConfirmModal = async (objectId, ids, action, objectName, value = "", enableEditText = false) => {
     var alert = new bootstrap.Modal($(objectId + '-confirm-modal'));
 
     $(alert._element).on('show.bs.modal', function () {
@@ -6,7 +6,7 @@ const initConfirmModal = async (objectId, ids, action, objectName, value = "") =
         if (action == 'remove')$(objectId + '-confirm-modal .modal-body').append('<br><br><strong>Warning:</strong> This action cannot be undone.');
         if (action == 'disable')$(objectId + '-confirm-modal .modal-body').append('<br><br><strong>Attention:</strong> Disabling a record can take up to 5 minutes to become effective.');
         if (action == 'balance')$(objectId + '-confirm-modal .modal-body').text('Specify the amount to be added to user balance:');
-        if (value != ''){
+        if (value != '' && enableEditText){
             $(objectId + '-confirm-modal .modal-body').append(  '<input type="number" class="form-control mt-4 mb-2" id="data" placeholder="' + 
                                                                 action + 
                                                                 '" value="' + 
@@ -196,7 +196,12 @@ const initMediaModal = async (pubkey, filename, checked, visible) => {
 
     var mediaModal = new bootstrap.Modal($('#media-modal'));
 
-    MediaData = await loadMediaWithToken ('media/' + pubkey + '/' + filename, localStorage.getItem('authkey'))
+    MediaData = await loadMediaWithToken('media/' + pubkey + '/' + filename, localStorage.getItem('authkey')).then (async data => {
+        await storeAuthkey(data.authkey);
+        console.log("NEW AUTHKEY: ", localStorage.getItem('authkey'));
+        return data;
+    });
+   
 
     $('#modalSwitch-checked').prop('checked', checked);
     $('#modalSwitch-checked').change(function() {
@@ -263,5 +268,5 @@ async function loadMediaWithToken(url) {
         }
     });
     const blob = await response.blob();
-    return {authkey: response.headers.get('authkey'), url: URL.createObjectURL(blob)};
+    return {authkey: response.headers.get('Authorization'), url: URL.createObjectURL(blob)};
 }
