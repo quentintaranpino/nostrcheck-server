@@ -1,16 +1,37 @@
 <div id="media-container" class="row row-cols-1 row-cols-md-3 row-cols-xxl-3 g-2">
 </div>
-<div id="no-media" class="visually-hidden text-center py-5"><p>No media files found <i class="fa-regular fa-face-frown-open"></i></p></div>
+<div id="no-media" class="visually-hidden text-center py-5"><p>No more media files found <i class="fa-regular fa-face-frown-open"></i></p></div>
 <div id="sentinel"></div>
 <div class="d-flex justify-content-center">
     <div class="spinner-border text-secondary mt-5" role="status">
         <span class="visually-hidden">Loading...</span>
     </div>
 </div>
+<style>
+.btn-container {
+    opacity: 0;
+    transform: translateY(20px);
+    transition: all 0.3s ease-in-out;
+}
+
+.btn-container .btn{
+    min-width: 30px;
+}
+
+.media-div:hover .btn-container {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+
+</style>
 <script>
 document.addEventListener('DOMContentLoaded', (event) => {
+
     let page = 1;
     let isIntersecting = false;
+    let lastClickedMedia = null;
+
     const observer = new IntersectionObserver(async (entries, observer) => {
         entries.forEach(async entry => {
             const media = entry.target;
@@ -18,6 +39,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
                 isIntersecting = true;
                 while (isIntersecting) {
                     console.debug('Intersecting', media.id)
+                    console.debug(`Root margin is ${observer.rootMargin}`)
                     const response = await fetch(`/api/v2/gallerydata?page=${page}`);
                     page++;
                     const userData = await response.json();
@@ -33,6 +55,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
                     for (const file of userData.mediaFiles) {
 
                         const ext = file.split('.').pop();
+                        let mediaLink = document.createElement('a');
                         let mediaElement;
                         const pubkey = '<%= request.session.metadata.pubkey %>'; 
                         if (ext==='webp' || ext==='gif' || ext==='jpg' || ext==='jpeg' ) {
@@ -68,8 +91,10 @@ document.addEventListener('DOMContentLoaded', (event) => {
                             entries.forEach(entry => {
                                 if (entry.isIntersecting) {
                                     mediaElement.play();
+                                    console.debug('Played', mediaElement.src)
                                 } else {
                                     mediaElement.pause();
+                                    console.debug('Paused', mediaElement.src)
                                 }
                             });
                             });
@@ -91,8 +116,10 @@ document.addEventListener('DOMContentLoaded', (event) => {
                                 entries.forEach(entry => {
                                     if (!entry.isIntersecting) {
                                         mediaElement.pause();
+                                        console.debug('Paused', mediaElement.src)
                                     } else if (hasBeenPlayed) {
                                         mediaElement.play();
+                                        console.debug('Played', mediaElement.src)
                                     }
                                 });
                             });
@@ -101,37 +128,70 @@ document.addEventListener('DOMContentLoaded', (event) => {
 
                         if (mediaElement) {
                             const mediaDiv = document.createElement('div');
-                            mediaDiv.classList.add("col", "mb-0", "fade-in");
+                            mediaDiv.classList.add("col", "mb-0", "fade-in", "media-div");
+                            mediaDiv.style.position = "relative"; // Ensure relative positioning
                             if (ext==='mp3' ) {
                                 mediaDiv.style.height = "220px";
                                 mediaDiv.style.background = "url('/static/resources/loading-music.webp') center center / cover no-repeat";
                                 mediaDiv.classList.add("rounded-3", "d-flex", "flex-column", "align-items-center", "justify-content-end", "pb-2");
                             }
-                            mediaDiv.appendChild(mediaElement);
-                            mediaContainer.appendChild(mediaDiv);
+                            mediaDiv.appendChild(mediaLink);
+                            mediaLink.appendChild(mediaElement);
 
-                            // Create a new IntersectionObserver
-                            const mediaObserver = new IntersectionObserver((entries, observer) => {
-                                entries.forEach(entry => {
-                                    const media = entry.target;
-                                    if (entry.isIntersecting) {
-                                        if (media.dataset.src) {
-                                            media.src = media.dataset.src;
-                                            media.dataset.src = '';
-                                        }
-                                    } else {
-                                        if (media.src) {
-                                            media.dataset.src = media.src;
-                                            media.src = '';
-                                        }
+                            mediaElement.addEventListener('click', (event) => {
+                                event.preventDefault();
+                                const buttonContainer = mediaDiv.querySelector('.btn-container');
+                                if (lastClickedMedia && lastClickedMedia !== mediaElement) {
+                                    const lastButtonContainer = lastClickedMedia.closest('.media-div').querySelector('.btn-container');
+                                    if (lastButtonContainer) {
+                                        lastButtonContainer.style.opacity = 0;
                                     }
-                                });
-                            }, {
-                                rootMargin: '3000px'
+                                }
+                                if (buttonContainer) {
+                                    buttonContainer.classList.style.opacity = 1;
+                                }
+                                lastClickedMedia = mediaElement;
                             });
 
-                            // Add the media element to the observer
-                            mediaObserver.observe(mediaElement);
+                            // Buttons div
+                            const buttonContainer = document.createElement('div');
+                            buttonContainer.classList.add('btn-container', 'position-absolute', 'bottom-0', 'start-0', 'd-flex', 'p-1');
+                            buttonContainer.style.background = 'rgba(0, 0, 0, 0.5)'; 
+                            buttonContainer.style.borderRadius = '5px'; 
+                            buttonContainer.style.zIndex = '10'; 
+
+                            const reorderButton = document.createElement('button');
+                            reorderButton.classList.add('btn', 'btn-primary', 'btn-sm', 'me-1');
+                            reorderButton.innerHTML = '<i class="fas fa-sort"></i>';
+                            buttonContainer.appendChild(reorderButton);
+
+                            const infoButton = document.createElement('button');
+                            infoButton.classList.add('btn', 'btn-primary', 'btn-sm', 'me-1');
+                            infoButton.innerHTML = '<i class="fas fa-info"></i>';
+                            buttonContainer.appendChild(infoButton);
+
+                            const viewButton = document.createElement('button');
+                            viewButton.classList.add('btn', 'btn-primary', 'btn-sm', 'me-1');
+                            viewButton.innerHTML = '<i class="fas fa-eye"></i>';
+                            viewButton.addEventListener('click', (event) => {
+                                event.stopPropagation(); 
+                                window.open(`media/${pubkey}/${file}`, '_blank');
+                            });
+                            buttonContainer.appendChild(viewButton);
+
+                            const payButton = document.createElement('button');
+                            payButton.classList.add('btn', 'btn-warning', 'btn-sm', 'me-1');
+                            payButton.innerHTML = '<i class="fas fa-bolt"></i>';
+                            buttonContainer.appendChild(payButton);
+
+                            const deleteButton = document.createElement('button');
+                            deleteButton.classList.add('btn', 'btn-danger', 'btn-sm', 'me-1');
+                            deleteButton.innerHTML = '<i class="fas fa-trash"></i>';
+                            buttonContainer.appendChild(deleteButton);
+
+                            mediaDiv.appendChild(buttonContainer);
+
+                            mediaContainer.appendChild(mediaDiv);
                         }
                     }
                 }
@@ -140,8 +200,10 @@ document.addEventListener('DOMContentLoaded', (event) => {
             }
         });
     }, {
-        rootMargin: '2000px'  // Adjust this value to your needs
+        rootMargin: '500px' 
     });
     observer.observe(document.getElementById('sentinel'));
+    
 });
+
 </script>
