@@ -47,7 +47,7 @@ const payTransaction = async (req: Request, res: Response): Promise<Response> =>
     if (payTransaction) {
         const result : authkeyResultMessage = {
             status: "success",
-            message: "1",
+            message: 1,
             authkey: EventHeader.authkey
             };
         logger.info("RES -> Item paid" + " | " + getClientIp(req));
