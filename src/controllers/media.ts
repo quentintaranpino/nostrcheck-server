@@ -45,20 +45,21 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 	logger.info("POST /api/" + version + "/media", "|", getClientIp(req));
 
 	// Check if authorization header is valid
-	const EventHeader = await parseAuthHeader(req, "uploadmedia", false);
-	if (EventHeader.status != "success") {
-		if(version != "v2"){return res.status(401).send({"result": false, "description" : EventHeader.message});}
+	const eventHeader = await parseAuthHeader(req, "uploadmedia", false);
+	if (eventHeader.status != "success") {
+		if(version != "v2"){return res.status(401).send({"result": false, "description" : eventHeader.message});}
 
 		const result : ResultMessagev2 = {
 			status: MediaStatus[1],
-			message: EventHeader.message
+			message: eventHeader.message
 		}
 		return res.status(401).send(result);
 
 	}
+	eventHeader.authkey? res.header("Authorization", eventHeader.authkey): null;
 
 	// Check if pubkey is on the database
-	let pubkey : string = EventHeader.pubkey;
+	let pubkey : string = eventHeader.pubkey;
 	if (pubkey != await dbSelect("SELECT hex FROM registered WHERE hex = ?", "hex", [pubkey]) as string) {
 		if (app.get("config.media")["allowPublicUploads"] == false) {
 			logger.warn("pubkey not registered, public uploads not allowed | ", getClientIp(req));
@@ -305,19 +306,20 @@ const getMediaStatusbyID = async (req: Request, res: Response, version:string): 
 	logger.info("GET /api/" + version + "/media", "|", getClientIp(req));
 
 	// Check if authorization header is valid
-	const EventHeader = await parseAuthHeader(req, "getMediaStatusbyID", false);
-	if (EventHeader.status !== "success") {
+	const eventHeader = await parseAuthHeader(req, "getMediaStatusbyID", false);
+	if (eventHeader.status !== "success") {
 		
 		//v0 and v1 compatibility
-		if(version != "v2"){return res.status(401).send({"result": false, "description" : EventHeader.message});}
+		if(version != "v2"){return res.status(401).send({"result": false, "description" : eventHeader.message});}
 
 		const result : ResultMessagev2 = {
 			status: MediaStatus[1],
-			message: EventHeader.message
+			message: eventHeader.message
 		}
 		return res.status(401).send(result);
 
 	}
+	eventHeader.authkey? res.header("Authorization", eventHeader.authkey): null;
 
 	const servername = "https://" + req.hostname;
 
@@ -338,7 +340,7 @@ const getMediaStatusbyID = async (req: Request, res: Response, version:string): 
 	logger.info(`GET /api/${version}/media/id/${id}`, "|", getClientIp(req));
 
 	const db = await connect("GetMediaStatusbyID");
-	const [dbResult] = await db.query("SELECT mediafiles.id, mediafiles.filename, mediafiles.pubkey, mediafiles.status, mediafiles.magnet, mediafiles.original_hash, mediafiles.hash, mediafiles.blurhash, mediafiles.dimensions, mediafiles.filesize FROM mediafiles WHERE (mediafiles.id = ? and mediafiles.pubkey = ?)", [id , EventHeader.pubkey]);
+	const [dbResult] = await db.query("SELECT mediafiles.id, mediafiles.filename, mediafiles.pubkey, mediafiles.status, mediafiles.magnet, mediafiles.original_hash, mediafiles.hash, mediafiles.blurhash, mediafiles.dimensions, mediafiles.filesize FROM mediafiles WHERE (mediafiles.id = ? and mediafiles.pubkey = ?)", [id , eventHeader.pubkey]);
 	let rowstemp = JSON.parse(JSON.stringify(dbResult));
 	if (rowstemp[0] == undefined) {
 		logger.warn(`File not found in database: ${id}, trying public server pubkey`, "|", getClientIp(req));
@@ -561,9 +563,9 @@ const getMediabyURL = async (req: Request, res: Response) => {
 		if (transaction.paymentHash != "" && transaction.isPaid == false && isModuleEnabled("payments", app)) {
 
 			// If is not paid, check if the GET request has authorization header (for dashboard admin checking)
-			const EventHeader = await parseAuthHeader(req, "getMediaByURL", true);
+			const eventHeader = await parseAuthHeader(req, "getMediaByURL", true);
 			
-			if (EventHeader.status != "success") {
+			if (eventHeader.status != "success") {
 				// If the GET request has no authorization, we return a QR code with the payment request.
 				logger.info(`RES -> 200 Paid media file ${req.url}`, "|", getClientIp(req), "|", "cached:", cachedStatus ? true : false);
 				const qrImage = await generateQRCode(transaction.paymentRequest, 
@@ -579,7 +581,7 @@ const getMediabyURL = async (req: Request, res: Response) => {
 			}else{
 				// If the GET request has authorization, we return the media file normally, without payment, cache and a new authkey.
 				noCache = true;
-				res.header("authkey", EventHeader.authkey);
+				res.header("Authorization", eventHeader.authkey);
 			}
 		}
 		
