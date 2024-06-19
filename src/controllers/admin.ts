@@ -18,8 +18,6 @@ import { ParseFileType } from "../lib/media.js";
 import { npubToHex } from "../lib/nostr/NIP19.js";
 import { dbCountModuleData, dbCountMonthModuleData, dbSelectModuleData } from "../lib/admin.js";
 import { getBalance, getUnpaidTransactionsBalance } from "../lib/payments/core.js";
-import { authPlugins } from "mysql2";
-
 
 let hits = 0;
 /**
@@ -618,10 +616,19 @@ const getModuleData = async (req: Request, res: Response): Promise<Response> => 
     const order = req.query.order as string;
     const search = req.query.search as string;
     const sort = req.query.sort as string;
+    const filter = req.query.filter as string;
 
-    logger.debug("module, offset, limit, order, search, sort) : ", module, offset, limit, order, search, sort);
+    let filterObject = {};  
+    if (filter!=undefined && filter!=null && filter!="") {
+        filterObject = Object.entries(JSON.parse(filter)).map(([key, value]) => ({
+            field: key,
+            value: typeof value === 'string' ? value : JSON.stringify(value)
+        }));
+    }
+
+    logger.debug("module, offset, limit, order, search, sort, filter) : ", module, offset, limit, order, search, sort, filterObject);
  
-    let data = await dbSelectModuleData(module,offset,limit,order,sort,search);
+    let data = await dbSelectModuleData(module,offset,limit,order,sort,search,filterObject);
     const returnMessage : moduleDataReturnMessage = {
         total: data.total,
         totalNotFiltered: data.totalNotFiltered,
