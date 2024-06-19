@@ -14,8 +14,6 @@ let counter = 0;
  */
 const getProfileData = async (pubkey : string) : Promise<Event> => {
 
-    logger.debug('CONNECTIONS: ' + counter);
-    
     let resolveEvent : (event : Event) => void;
     let subscribePromise : Promise<Event> = new Promise(resolve => resolveEvent = resolve);
 
@@ -35,7 +33,6 @@ const getProfileData = async (pubkey : string) : Promise<Event> => {
             oneose() {
                 data.close();
                 counter--;
-                logger.debug('CONNECTIONS: ' + counter);
                 return resolveEvent({kind: 0, created_at: 0, tags: [], content: "{}", pubkey: "", id: "", sig: ""});
             },
         },
