@@ -5,7 +5,7 @@ interface ResultMessage {
 
 interface ResultMessagev2 {
 	status: string, 
-	message: string,
+	message: any,
 }
 
 interface ServerStatusMessage extends ResultMessagev2 {
