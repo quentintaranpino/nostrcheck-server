@@ -2,13 +2,12 @@ import { createPool, Pool,RowDataPacket } from "mysql2/promise";
 import config from "config";
 import { logger } from "./logger.js";
 import { newFieldcompatibility, databaseTables} from "../interfaces/database.js";
-import { isModuleEnabled, loadconfigActiveModules, updateLocalConfigKey } from "./config.js";
+import { updateLocalConfigKey } from "./config.js";
 import { exit } from "process";
 import { npubEncode } from "nostr-tools/nip19";
 import { generateCredentials } from "./authorization.js";
 import app from "../app.js";
 import { accounts } from "../interfaces/payments.js";
-import { ModuleDataTables } from "../interfaces/admin.js";
 
 let pool: Pool;
 let retry :number = 0;
