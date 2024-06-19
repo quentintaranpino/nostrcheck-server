@@ -19,7 +19,6 @@ const initDashcard = async (dashcardId, dascardName, dashcardDataKey, icon, link
     }
 
     $('#' + dashcardId + '-reload-button').on('click', async function() {
-        console.debug(`Reload button clicked for dashcard ${dashcardId}`);
         semaphore.execute(async() => await refreshDashcard(dashcardId, dashcardDataKey, action, field));
     });
 
@@ -30,14 +29,11 @@ const refreshDashcard = async(dashcardId, dashcardDataKey, action, field) => {
 
     $('#' + dashcardId + '-tooltip-text').addClass('visible');
     $('#' + dashcardId + '-tooltip-text').text('Retrieving data...');
-    console.debug("refresDashcard", dashcardId, dashcardDataKey, action, field)
 
-    const totalCount = await fetchDashcardData(dashcardDataKey, action, "")
-    $('#' + dashcardId + '-text').text(totalCount.total)
+    const countData = await fetchDashcardData(dashcardDataKey, action, field)
+    $('#' + dashcardId + '-text').text(countData.total)
     if (field !== "" && field !== undefined) {
-        console.log("FIELD", field)
-        const fieldCount = await fetchDashcardData(dashcardDataKey, action, field)
-        initDoughnutChart(dashcardId, dashcardDataKey, {field: fieldCount.total, total: totalCount.total}, field, false, false, true)
+        initDoughnutChart(dashcardId, dashcardDataKey, {field: countData.field, total: countData.total}, field, false, false, true)
     }
     setTimeout(() => {
         $('#' + dashcardId + '-tooltip-text').removeClass('visible');
@@ -45,8 +41,6 @@ const refreshDashcard = async(dashcardId, dashcardDataKey, action, field) => {
 }
 
 const fetchDashcardData = async (dashcardDataKey, action, field) => {
-    console.debug("fetchDashcardData", dashcardDataKey, action)
-    console.debug("Using authkey", localStorage.getItem('authkey'))
 
     let serverData  = ""
 
@@ -82,8 +76,9 @@ let dashcards =[
 ]
 
 const refreshDashcards = async () => {
-    console.debug("refreshDashcards")
     for (const dashcard of dashcards) {
-        await refreshDashcard(dashcard.dashcardId, dashcard.dataKey,  dashcard.action, dashcard.field)
+        if (activeModules.includes(dashcard.dataKey)) {
+            semaphore.execute(async() => await refreshDashcard(dashcard.dashcardId, dashcard.dataKey,  dashcard.action, dashcard.field))
+        }
     }
 }
