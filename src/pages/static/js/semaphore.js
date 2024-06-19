@@ -3,7 +3,6 @@ class Semaphore {
     constructor() {
         this.queue = [];
         this.locked = false;
-        console.log('Semaphore initialized');
     }
   
     async acquire() {
@@ -27,9 +26,10 @@ class Semaphore {
     }
   
     async execute(task) {
+        console.log('Semaphore queue length:', this.getQueueLength());
         await this.acquire();
-        console.log("Semaphore queue length: " + this.queue.length)
         try {
+            console.log('Semaphore executing task', task.toString());
             await task();
         } finally {
             this.release();
@@ -37,21 +37,22 @@ class Semaphore {
     }
 
     clearQueue() {
-        console.log('Clearing semaphore queue');
         this.queue = [];
         this.locked = false;
+    }
+    
+    getQueueLength() {
+        return this.queue.length;
     }
 
   }
   
   const semaphore = new Semaphore();
 
-  function storeAuthkey(authkey) {
+  async function storeAuthkey(authkey) {
     if (authkey) {
-        console.log("old authkey", localStorage.getItem('authkey'))
-        console.log("new authkey", authkey)
-        localStorage.setItem('authkey', authkey);
-        console.debug('Authkey updated in localStorage:', authkey);
+        await localStorage.setItem('authkey', authkey);
+        console.log('Updated localStorage authkey', authkey);
     } else {
         console.warn('Received empty authkey, not updating localStorage');
     }
