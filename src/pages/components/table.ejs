@@ -31,24 +31,24 @@
         </div>
     </div>
     <div class="btn-group" role="group" aria-label="Visible invisible buttons">
-        <div tabindex="0" data-bs-toggle="tooltip" data-bs-title="Make media visible on gallery">
-            <button 
-                id="<%- tableId %>-button-show" 
-                class="btn btn-success <%= buttons[3][1] == 'hide' ? 'd-none' : '' %> " 
-                style="border-top-right-radius: 0; border-bottom-right-radius: 0;"
-                disabled>
-                <i class="fa-solid fa-eye"></i>
-            </button>
-        </div>
         <div tabindex="0" data-bs-toggle="tooltip" data-bs-title="Make media invisible on gallery">
             <button 
                 id="<%- tableId %>-button-hide" 
                 class="btn btn-secondary <%= buttons[4][1] == 'hide' ? 'd-none' : '' %> " 
-                style="border-top-left-radius: 0; border-bottom-left-radius: 0;"
+                style="border-top-right-radius: 0; border-bottom-right-radius: 0;"
                 disabled>
                     <i class="fa-solid fa-eye-slash"></i>
             </button>
         </div>  
+        <div tabindex="0" data-bs-toggle="tooltip" data-bs-title="Make media visible on gallery">
+            <button 
+                id="<%- tableId %>-button-show" 
+                class="btn btn-success <%= buttons[3][1] == 'hide' ? 'd-none' : '' %> " 
+                style="border-top-left-radius: 0; border-bottom-left-radius: 0;"
+                disabled>
+                <i class="fa-solid fa-eye"></i>
+            </button>
+        </div>
     </div>
     <div class="btn-group" role="group" aria-label="Administration buttons">
         <div tabindex="0" data-bs-toggle="tooltip" data-bs-title="Toggle admin privileges">
@@ -114,15 +114,17 @@
 <table 
     id="<%- tableId %>"
     data-emptytext="No data available"
+    data-filter-control="true"
     >
     <thead>
         <tr>
             <th data-field="state" data-checkbox="true"></th>
-            <th data-field="id" data-sortable="true" data-width="30">ID</th>
+            <th data-field="id" data-sortable="true" data-filter-control="input"  data-width="30">ID</th>
             <% for(var i=0; i<fields.length; i++) { %>
                 <th data-field="<%= fields[i][0] %>" 
-                    data-formatter="<%= fields[i][3] %>"
+                    data-formatter="<%= fields[i][3] %>" 
                     data-sortable="true" 
+                    data-filter-control="input" 
                     class="<%= fields[i][1] %> <%= fields[i][2] %> <%= fields[i][3] %> <%= fields[i][4] %>"
                     data-width="<%= fields[i][5] %>"
                 >
