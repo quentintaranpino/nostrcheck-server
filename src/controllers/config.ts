@@ -116,7 +116,7 @@ const migrateFolders = async(mediaPath:string) => {
 
 const migrateDBLocalpath = async () : Promise<boolean> => {
     
-	const mediaFiles = await dbMultiSelect('SELECT filename, pubkey, type FROM mediafiles WHERE pubkey = "NOLOAD" ORDER BY id DESC',['filename', 'pubkey', 'type'], ['1=1'], false);
+	const mediaFiles = await dbMultiSelect('SELECT filename, pubkey, type FROM mediafiles WHERE (localpath IS NULL or localpath = "") ORDER BY id DESC',['filename', 'pubkey', 'type'], ['1=1'], false);
 	if (mediaFiles == undefined || mediaFiles == null || mediaFiles.length == 0){
         return false;
     }
@@ -201,13 +201,8 @@ const migrateDBLocalpath = async () : Promise<boolean> => {
 			}
             await fs.rename(oldPath, newPath, async (err) => {
 				if (err) {
-					// Check if file exists in new path
-					if (!fs.existsSync(newPath)) {
-						console.error(`Failed to move file ${filename} to ${newPath}: ${err}`);
-						await dbUpdate('mediafiles', 'localpath', null, ['filename', 'pubkey'], [filename, pubkey]);
-					}
-
-					// If exist all is ok
+					console.error(`Failed to move file ${filename} to ${newPath}: ${err}`);
+					await dbUpdate('mediafiles', 'localpath', null, ['filename', 'pubkey'], [filename, pubkey]);
 
 				} else {
 					console.log(`${count} | ${mediaFiles.length} - Moved file ${filename} to ${newPath}`);
