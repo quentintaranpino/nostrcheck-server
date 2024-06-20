@@ -6,9 +6,64 @@ table, th, td {
     height: auto !important;
 }
 
+.bootstrap-table .table {
+    border-collapse: separate;
+    border-spacing: 0 13px;
+}
+
 .bootstrap-table .table th, .bootstrap-table .table td {
-    font-size: 0.88rem;
+    padding: 0.85rem;
+    border: none;
+    vertical-align: middle;
   }
+  
+.bootstrap-table .table td{
+    font-size: 0.88rem;
+    background-color: var(--bs-secondary-bg);
+    color: var(--bs-tertiary);     
+}
+
+.bootstrap-table .table th {
+    font-size: 1rem;
+    background-color: var(--bs-secondary-bg);
+    color: var(--bs-tertiary);
+    font-weight: 500;
+    vertical-align: middle;
+    text-align: center;
+}
+
+.bootstrap-table .table th  {
+    padding: 1rem;
+    
+}
+
+.bootstrap-table .table thead th input {
+    padding: 1px;
+    margin: 7px 0;
+    box-sizing: border-box;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    width: 90% !important;
+    height: 90%;
+}
+
+.bootstrap-table thead th:first-child {
+    border-top-left-radius: 10px;
+    border-bottom-left-radius: 10px;
+}
+.bootstrap-table thead th:last-child {
+    border-top-right-radius: 10px;
+    border-bottom-right-radius: 10px;
+}
+
+.bootstrap-table tbody tr td:first-child {
+    border-top-left-radius: 10px;
+    border-bottom-left-radius: 10px;
+}
+.bootstrap-table tbody tr td:last-child {
+    border-top-right-radius: 10px;
+    border-bottom-right-radius: 10px;
+}
 
 .bootstrap-table .active>.page-link, .page-link.active {
     z-index: 3;
@@ -17,6 +72,12 @@ table, th, td {
     border-color: #2a2a2a;
     border-radius: 10%;
 }
+
+.bootstrap-table .fixed-table-container .fixed-table-body .fixed-table-loading{
+    background-color: var(--bs-secondary-bg);
+    color: var(--bs-tertiary);
+}
+
 
 .bootstrap-table .page-link {
     color: #7d7d7d;

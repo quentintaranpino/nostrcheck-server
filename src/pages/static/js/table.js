@@ -13,6 +13,7 @@ const initTable = async (tableId, datakey, objectName, dataKey, field = "") => {
         idField: 'id',
         uniqueId: 'id',
         showFilterControlSwitch: true,
+        filterControlVisible: false,
         sidePagination: "server",
         pagination: true,
         sortable: true,
@@ -25,7 +26,9 @@ const initTable = async (tableId, datakey, objectName, dataKey, field = "") => {
         showRefresh: true,
         showColumns: true,
         detailView: true,
-
+        mobileResponsive: true,
+        checkOnInit: true,
+        showFooter: true,
         detailFormatter: "detailFormatter"
     })
 
