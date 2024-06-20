@@ -7,19 +7,19 @@
         <div class="row d-flex justify-content-center align-items-center">
           <div class="col col-md-12 col-lg-10 col-xl-9 col-xxl-8">
             <div class="card border-light z-1">
-              <div class="rounded-top text-white d-flex flex-row" 
+              <div class="rounded-top d-flex flex-row" 
                     style="background-image:url('<%= request.session.metadata.banner %>');background-size: cover; height:215px;">
                     <div class="ms-4 mt-5 mt-xl-4 mt-xxl-3 d-flex flex-column align-middle z-1 col-4 col-sm-4 col-md-3 col-lg-3 col-xl-3  ">
                       <div class="ratio ratio-1x1">
                           <img src="<%= request.session.metadata.picture %>" 
                               alt="Profile image" class="img-thumbnail mt-5 mb-1 object-fit-cover aspect-ratio-content">
                       </div>
-                      <div class="text-center text-black mt-5 ">
+                      <div class="text-center mt-5 ">
                           <h4><%= request.session.metadata.display_name %></h4>
                       </div>
                   </div>
               </div>
-              <div class="pt-2 pe-3 pb-2 text-black z-1">
+              <div class="pt-2 pe-3 pb-2 z-1">
                 <div class="d-flex justify-content-end text-center py-1">
                   <div>
                     <p class="mb-1 h5"><%= JSON.parse(JSON.stringify(request.session.metadata.mediaFiles || "0")).length %></p>
@@ -40,7 +40,7 @@
                     </p>
                 </div>
               </div>
-              <div class="card-body p-4 text-black mb-2 z-1">
+              <div class="card-body p-4  mb-2 z-1">
                 <div class="d-flex justify-content-between align-items-center mb-3 pb-1">
                   <p class="lead fw-normal mb-0">Media files</p>
                 </div>
