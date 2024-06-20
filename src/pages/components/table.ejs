@@ -1,6 +1,6 @@
-<h3 class="mt-4 mb-2 gradient-text"><%- tableName %></h3>
+<h3 class="mt-4 mb-2 display-5"><%- tableName %></h3>
 <div id="<%- tableId %>-toolbar">
-    <div class="btn-group" role="group" aria-label="Add buttons">
+    <div class="btn-group mt-2" role="group" aria-label="Add buttons">
         <div tabindex="0" data-bs-toggle="tooltip" data-bs-title="Add new item">
             <button 
                 id="<%- tableId %>-button-add"
@@ -10,7 +10,7 @@
             </button>
         </div>
     </div>
-    <div class="btn-group" role="group" aria-label="Enable disable buttons">
+    <div class="btn-group mt-2" role="group" aria-label="Enable disable buttons">
         <div tabindex="0" data-bs-toggle="tooltip" data-bs-title="Disable item">
             <button 
                 id="<%- tableId %>-button-disable" 
@@ -30,7 +30,7 @@
             </button>
         </div>
     </div>
-    <div class="btn-group" role="group" aria-label="Visible invisible buttons">
+    <div class="btn-group mt-2" role="group" aria-label="Visible invisible buttons">
         <div tabindex="0" data-bs-toggle="tooltip" data-bs-title="Make media invisible on gallery">
             <button 
                 id="<%- tableId %>-button-hide" 
@@ -50,7 +50,7 @@
             </button>
         </div>
     </div>
-    <div class="btn-group" role="group" aria-label="Administration buttons">
+    <div class="btn-group mt-2" role="group" aria-label="Administration buttons">
         <div tabindex="0" data-bs-toggle="tooltip" data-bs-title="Toggle admin privileges">
             <button 
                 id="<%- tableId %>-button-admin"   
@@ -70,7 +70,7 @@
             </button>
         </div>
     </div>
-    <div class="btn-group" role="group" aria-label="Edit buttons">
+    <div class="btn-group mt-2" role="group" aria-label="Edit buttons">
         <div tabindex="0" data-bs-toggle="tooltip" data-bs-title="Edit item">
             <button 
                 id="<%- tableId %>-button-edit" 
@@ -80,7 +80,7 @@
             </button>
         </div>
     </div>
-    <div class="btn-group" role="group" aria-label="Remove buttons">
+    <div class="btn-group mt-2" role="group" aria-label="Remove buttons">
         <div tabindex="0" data-bs-toggle="tooltip" data-bs-title="Delete item">
             <button 
                 id="<%- tableId %>-button-remove"  
@@ -90,7 +90,7 @@
             </button>
         </div>
     </div>
-    <div class="btn-group" role="group" aria-label="Pay buttons">
+    <div class="btn-group mt-2" role="group" aria-label="Pay buttons">
         <div tabindex="0" data-bs-toggle="tooltip" data-bs-title="Mark as paid">
             <button 
                 id="<%- tableId %>-button-pay" 
@@ -100,7 +100,7 @@
             </button>
         </div>
     </div>  
-    <div class="btn-group" role="group" aria-label="Balance buttons">
+    <div class="btn-group mt-2" role="group" aria-label="Balance buttons">
         <div tabindex="0" data-bs-toggle="tooltip" data-bs-title="Add balance">
             <button 
                 id="<%- tableId %>-button-balance" 
@@ -118,15 +118,15 @@
     >
     <thead>
         <tr>
-            <th data-field="state" data-checkbox="true"></th>
+            <th data-field="state" data-checkbox="true" class="d-none d-md-table-cell"></th>
             <th data-field="id" data-sortable="true" data-filter-control="input"  data-width="30">ID</th>
             <% for(var i=0; i<fields.length; i++) { %>
                 <th data-field="<%= fields[i][0] %>" 
-                    data-formatter="<%= fields[i][3] %>" 
+                    data-width="<%= fields[i][1] %>"
+                    data-formatter="<%= fields[i][2] %>" 
                     data-sortable="true" 
                     data-filter-control="input" 
-                    class="<%= fields[i][1] %> <%= fields[i][2] %> <%= fields[i][3] %> <%= fields[i][4] %>"
-                    data-width="<%= fields[i][5] %>"
+                    class="<%= fields[i][3] %> <%= fields[i][2] %>"
                 >
                     <%= fields[i][0] %>
                 </th>

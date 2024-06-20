@@ -33,16 +33,15 @@
       <div class="container-fluid mt-4 mb-5 overflow-auto ">
         <% 
         let nostraddressFields = [
-          ['checked','enabled','show','formatCheckbox', 'text-center','30'],
-          ['active','enabled','show','formatCheckbox', 'text-center','30'],
-          ['allowed','enabled','show','formatCheckbox', 'text-center','30'],
-          ['username','enabled','show'],
-          ['pubkey','enabled','show', 'formatPubkey', ''],
-          ['hex','enabled','hide', 'formatPubkey', ''],
-          ['domain','enabled','show', '', 'text-center'],
-          ['comments','enabled','hide'],
-          ['date','disabled','show','', 'text-center', '290'],
-
+          ['checked',       '30' , 'formatCheckbox', 'enabled   show text-center              '],
+          ['active',        '30' , 'formatCheckbox', 'enabled   show text-center mobile-hide  '],
+          ['allowed',       '30' , 'formatCheckbox', 'enabled   show text-center mobile-hide  '],
+          ['username',      ''   , ''              , 'enabled   show text-center              '],
+          ['pubkey',        ''   , 'formatPubkey'  , 'enabled   show                          '],
+          ['hex',           ''   , 'formatPubkey'  , 'enabled   hide                          '],
+          ['domain',        ''   , ''              , 'enabled   show text-center              '],
+          ['comments',      ''   , ''              , 'enabled   hide                          '],
+          ['date',          '290', ''              , 'disabled  show text-center              '],
         ];
 
         if (request.body.activeModules.includes("payments")) {
@@ -68,32 +67,32 @@
                   ],
           fields: nostraddressFields
         }); %>
-        <div class= "container-fluid mt-2 justify-content-center align-items-center d-flex">
-          <div class="col-xl-6 col-lg-6 col-md-6 col-sm-12">
-            <canvas id="nostraddressData-chart"> </canvas>
-          </div>
-          <div class= "container-fluid mt-2 justify-content-center align-items-center d-flex">
-            <div class="col-xl-6 col-lg-6 col-md-6 col-sm-12">
-              <canvas id="nostraddressData-doughnut-chart"></canvas>
+        <div class="container-fluid mt-2 d-flex flex-column align-items-center">
+          <div class="row w-100">
+            <div class="col-xl-6 col-lg-12 col-md-12 col-sm-12 mb-4">
+              <canvas id="nostraddressData-chart" class="w-100 h-100"></canvas>
+            </div>
+            <div class="col-xl-6 col-lg-12 col-md-12 col-sm-12">
+              <canvas id="nostraddressData-doughnut-chart" ></canvas>
             </div>
           </div>
         </div>
         <% 
         let mediaFields = [
-          ['checked','enabled','show','formatCheckbox', 'text-center','30'],
-          ['active','enabled','show','formatCheckbox', 'text-center','30'],
-          ['visibility','enabled','show','formatCheckbox','text-center','30'],
-          ['username','disabled','show', '', 'text-center','50'],
-          ['npub','disabled','hide'],
-          ['pubkey','disabled','hide'],
-          ['filename','disabled','show', 'formatFilename', ''],
-          ['original_hash','disabled','hide'],
-          ['hash','disabled','hide'],
-          ['status','disabled','show','', 'text-center','50'],
-          ['dimensions','disabled','show', '', 'text-center','40'],
-          ['filesize','disabled','show', '', 'text-center','40'],
-          ['date','disabled','show', '', 'text-center','290'],
-          ['comments','enabled','hide'],
+          ['checked',       '30' , 'formatCheckbox', 'enabled   show text-center              '],
+          ['active',        '30' , 'formatCheckbox', 'enabled   show text-center mobile-hide  '],
+          ['visibility',    '30' , 'formatCheckbox', 'enabled   show text-center mobile-hide  '],
+          ['username',      '50' , ''              , 'disabled  show text-center              '],
+          ['npub',          ''   , ''              , 'disabled  hide                          '],
+          ['pubkey',        ''   , 'formatPubkey'  , 'disabled  hide text-center mobile-hide  '],
+          ['filename',      ''   , 'formatFilename', 'disabled  show                          '],
+          ['original_hash', ''   , ''              , 'disabled  hide                          '],
+          ['hash',          ''   , ''              , 'disabled  hide                          '],
+          ['status',        '50' , ''              , 'disabled  show text-center mobile-hide  '],
+          ['dimensions',    '40' , ''              , 'disabled  show text-center mobile-hide  '],
+          ['filesize',      '40' , ''              , 'disabled  show text-center mobile-hide  '],
+          ['date',          '200', ''              , 'disabled  show text-center mobile-hide  '],
+          ['comments',      ''   , ''              , 'enabled   hide                          '],
         ];
 
         if (request.body.activeModules.includes("payments")) {
@@ -122,23 +121,23 @@
                     ],
             fields: mediaFields
           }); %>
-          <div class= "container-fluid mt-2 justify-content-center align-items-center d-flex">
-            <div class="col-xl-6 col-lg-6 col-md-6 col-sm-12">
-              <canvas id="mediaData-chart"></canvas>
-            </div>
-            <div class= "container-fluid mt-2 justify-content-center align-items-center d-flex">
-              <div class="col-xl-6 col-lg-6 col-md-6 col-sm-12">
-                <canvas id="mediaData-doughnut-chart"></canvas>
+          <div class="container-fluid mt-2 d-flex flex-column align-items-center">
+            <div class="row w-100">
+              <div class="col-xl-6 col-lg-12 col-md-12 col-sm-12 mb-4">
+                <canvas id="mediaData-chart" class="w-100 h-100"></canvas>
+              </div>
+              <div class="col-xl-6 col-lg-12 col-md-12 col-sm-12">
+                <canvas id="mediaData-doughnut-chart" ></canvas>
               </div>
             </div>
           </div>
         <% } %>
         <%
         let lightningFields = [
-          ['active','enabled','show','formatCheckbox', 'text-center','30'],
-          ['pubkey','enabled','show','40'],
-          ['lightningaddress','enabled','show','40'],
-          ['comments','enabled','show'],
+          ['active'           , '30' , 'formatCheckbox', 'enabled   show text-center mobile-hide  '],
+          ['pubkey'           , '40' , 'formatPubkey'  , 'enabled   show                          '],
+          ['lightningaddress' , '40' , ''              , 'enabled   show                          '],
+          ['comments'         , ''   , ''              , 'enabled   show mobile-hide              '],
          
         ];
         if (request.body.activeModules.includes("payments")) {
@@ -167,9 +166,9 @@
         <% } %>
         <%
         let domainsFields = [
-          ['active','enabled','show','formatCheckbox', 'text-center','30'],
-          ['domain','enabled','show','','text-center','40'],
-          ['comments','enabled','show']
+          ['active'           , '30' , 'formatCheckbox', 'enabled   show text-center              '],
+          ['domain'           , '40' , ''              , 'enabled   show text-center              '],
+          ['comments'         , ''   , ''              , 'enabled   show mobile-hide              '],
         ];
         %>
         <% if(request.body.activeModules.includes('domains')) { %> 
@@ -194,16 +193,18 @@
           <% } %>
           <%
           let paymentsFields = [
-            ['accountid','disabled','show', '', 'text-center','40'],
-            ['type', 'disabled', 'show', '', 'text-center','40'],
-            ['paymentrequest', 'disabled', 'hide'],
-            ['paymenthash','disabled','show'],
-            ['paid', 'disabled', 'show', 'formatCheckbox', 'text-center','30'],
-            ['satoshi', 'disabled','show','formatSatoshi','text-end','30'],
-            ['createddate','disabled','show', '', 'text-center','150'],
-            ["expirydate", 'disabled', 'hide', '', 'text-center','150'],
-            ['paiddate', 'disabled', 'show', '', 'text-center','150'],
-            ['comments','enabled','show']
+
+            ['accountid'           , '40' , ''              , 'disabled   show text-center mobile-hide  '],
+            ['type'                , '40' , ''              , 'disabled   show text-center mobile-hide  '],
+            ['paymentrequest'      , ''   , ''              , 'disabled   hide                          '],
+            ['paymenthash'         , ''   , ''              , 'disabled   show                          '],
+            ['paid'                , '30' , 'formatCheckbox', 'disabled   show text-center              '],
+            ['satoshi'             , '30' , 'formatSatoshi' , 'disabled   show text-end                 '],
+            ['createddate'         , '150', ''              , 'disabled   show text-center mobile-hide  '],
+            ["expirydate"          , '150', ''              , 'disabled   hide text-center mobile-hide  '],
+            ['paiddate'            , '150', ''              , 'disabled   show text-center mobile-hide  '],
+            ['comments'            , ''   , ''              , 'enabled    show mobile-hide              '],
+
           ];
           %>
           <% if(request.body.activeModules.includes('payments')) { %> 
@@ -226,13 +227,13 @@
               fields: paymentsFields
               }); %> 
             <% } %>
-          <div class= "container-fluid mt-2 justify-content-center align-items-center d-flex">
-            <div class="col-xl-6 col-lg-6 col-md-6 col-sm-12">
-              <canvas id="paymentsData-chart"></canvas>
-            </div>
-            <div class= "container-fluid mt-2 justify-content-center align-items-center d-flex">
-              <div class="col-xl-6 col-lg-6 col-md-6 col-sm-12">
-                <canvas id="paymentsData-doughnut-chart"></canvas>
+          <div class="container-fluid mt-2 d-flex flex-column align-items-center">
+            <div class="row w-100">
+              <div class="col-xl-6 col-lg-12 col-md-12 col-sm-12 mb-4">
+                <canvas id="paymentsData-chart" class="w-100 h-100"></canvas>
+              </div>
+              <div class="col-xl-6 col-lg-12 col-md-12 col-sm-12">
+                <canvas id="paymentsData-doughnut-chart" ></canvas>
               </div>
             </div>
           </div>

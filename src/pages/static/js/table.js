@@ -29,18 +29,38 @@ const initTable = async (tableId, datakey, objectName, dataKey, field = "") => {
         detailFormatter: "detailFormatter"
     })
 
-    // Hide columns if hide is specified
-    var columns = $(tableId).bootstrapTable('getOptions').columns[0];
-    for (let column of columns) {
-        if (column.class) {
-            var classes = column.class.split(' ');
-            classes.forEach(function(className) {
-                if (className == 'hide') {
-                    $(tableId).bootstrapTable('hideColumn', column.field);
-                }
-            });
+
+    // Hide columns function
+    const hideShowColumns = (columns, className, action = "hideColumn") => {
+        for (let column of columns) {
+            if (column.class) {
+                var classes = column.class.split(' ');
+                classes.forEach(function(e) {
+                    if (e == className) {
+                        $(tableId).bootstrapTable(action, column.field);
+                    }
+                });
+            }
         }
     }
+
+    // Default columns to hide
+    var columns = $(tableId).bootstrapTable('getOptions').columns[0];
+    hideShowColumns(columns, 'hide', 'hideColumn');
+
+    // Hide or show columns based on the screen size
+    $(document).ready(function () {
+        if ($(window).width() < 768) {
+            hideShowColumns(columns, 'mobile-hide', 'hideColumn');
+        }
+    });
+    $(window).resize(function () {
+        if ($(window).width() < 768) {
+            hideShowColumns(columns, 'mobile-hide', 'hideColumn');
+        } else {
+            hideShowColumns(columns, 'mobile-hide', 'showColumn');
+        }
+    });
 
     // Prevent refresh button spamming
     $(tableId).on('refresh.bs.table', function (e, data) {
@@ -314,12 +334,12 @@ function formatSatoshi(value, row, index) {
 }
 
 function formatPubkey(value, row, index) {
-    return '<a href="https://nostrcheck.me/u/' + value + '" target="_blank">' + value + '</a>';
+    return '<a href="https://nostrcheck.me/u/' + value + '" target="_blank">' + value.slice(0, (value.length / 2)-7 ) + ':' + value.slice((value.length / 2)+7 ); + '</a>';
 }
 
 function formatFilename(value, row, index) {
 
-    let modalFileCheck = '<div id="' + index + '_preview"><span class="cursor-zoom-in text-primary">' + value + '</span></div>';
+    let modalFileCheck = '<div id="' + index + '_preview"><span class="cursor-zoom-in text-primary">' + value.slice(0, (value.length / 2)-12 ) + ':' + value.slice((value.length / 2)+12 ) + '</span></div>';
 
     // Attach the click event handler to the document and delegate it to the clickable element
     $(document).off('click', '#' + index + '_preview').on('click', '#' + index + '_preview', async function() {

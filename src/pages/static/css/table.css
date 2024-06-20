@@ -10,17 +10,18 @@ table, th, td {
     font-size: 0.88rem;
   }
 
- 
 .bootstrap-table .active>.page-link, .page-link.active {
     z-index: 3;
     color: var(--bs-pagination-active-color);
-    background-color: #626262;
+    background-color: #6c757d;
     border-color: #2a2a2a;
+    border-radius: 10%;
 }
 
 .bootstrap-table .page-link {
     color: #7d7d7d;
 }
+
 
 .detail-container {
     font-family: Arial, sans-serif;
