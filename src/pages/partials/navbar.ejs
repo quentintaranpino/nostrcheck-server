@@ -19,15 +19,7 @@
       </li>
       <li class='nav-item'>
         <a <% if(active === 'documentation'){ %><%- "class='nav-link active'"%><% } else { %><%- "class='nav-link'"%><%}%> href="documentation"><i class="fa-solid fa-book me-2"></i>Documentation <span class="sr-only">(current)</span></a>
-      </li>
-      <li class="nav-item">
-        <select id="theme-selector" class="form-select bi-sun">
-          <option value="system">system</option>
-          <option value="light">Light</option>
-          <option value="dark">Oscuro</option>
-        </select>
-      </li>
-     
+      </li>    
     </ul>
 
     <ul class="navbar-nav ms-auto">
@@ -38,6 +30,11 @@
           <span class="ms-2"><% if (request.session.identifier) { %> <%= request.session.metadata.display_name %> <% }else{"Profile"} %></span>
         </a>
         <div class="dropdown-menu dropdown-menu-end">
+          <div class="form-check form-switch ms-2">
+            <input class="form-check-input" type="checkbox" id="theme-switch">
+            <label class="form-check-label" for="theme-switch"><span id="theme-swith-label-text"></span></label>
+          </div>
+          <div class="dropdown-divider"></div>
           <a href="profile"  <% if(active === 'profile'){ %><%- "class='dropdown-item active'"%><% } else { %><%- "class='dropdown-item'"%><%}%>>Profile</a>
           <a href="dashboard" <% if(active === 'dashboard'){ %><%- "class='dropdown-item active'"%><% } else { %><%- "class='dropdown-item'"%><%}%>>Dashboard</a>
           <a href="settings" <% if(active === 'settings'){ %><%- "class='dropdown-item active'"%><% } else { %><%- "class='dropdown-item'"%><%}%>>Settings</a>

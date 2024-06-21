@@ -19,13 +19,13 @@ table, th, td {
   
 .bootstrap-table .table td{
     font-size: 0.88rem;
-    background-color: var(--bs-secondary-bg);
+    background-color: rgba(0, 0, 0, .075);
     color: var(--bs-tertiary);     
 }
 
 .bootstrap-table .table th {
     font-size: 1rem;
-    background-color: var(--bs-secondary-bg);
+    background-color: rgba(0, 0, 0, .075);
     color: var(--bs-tertiary);
     font-weight: 500;
     vertical-align: middle;
@@ -37,6 +37,14 @@ table, th, td {
     
 }
 
+.bootstrap-table .fixed-table-container .table tbody tr.selected td {
+    background-color: #d6d3da;
+    color:#2f2c2c;
+}
+[data-bs-theme="dark"] .bootstrap-table .fixed-table-container .table tbody tr.selected td {
+    background-color: #443a57; 
+    color: #f0f0f0;
+}
 .bootstrap-table .table thead th input {
     padding: 1px;
     margin: 7px 0;
