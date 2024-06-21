@@ -43,7 +43,7 @@ const updateSettings = (fieldName, fieldValue, url, body, headers) => {
             document.getElementById(fieldName).defaultValue = fieldValue;
             storeAuthkey(data.authkey)
 
-            initAlertModal("#settings", data.message, 1500,"alert-primary");
+            showMessage(`${data.message} field ${fieldName}`, "alert-primary");
             return true;
         } else {
             console.error('Error:', data);

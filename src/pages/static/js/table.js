@@ -27,8 +27,8 @@ const initTable = async (tableId, datakey, objectName, dataKey, field = "") => {
         showColumns: true,
         detailView: true,
         mobileResponsive: true,
+        minWidth: 768,
         checkOnInit: true,
-        showFooter: true,
         detailFormatter: "detailFormatter"
     })
 
@@ -270,11 +270,11 @@ async function modifyRecord(url, tableId, id, field, fieldValue, action = 'modif
             }
 
             if (action === 'password'){
-                initAlertModal(tableId, "New password for " + $(tableId).bootstrapTable('getSelections')[0].username + " has been sent via nostr DM successfully 🥳", 1600,"alert-success");
+                showMessage(`New password for ${$(tableId).bootstrapTable('getSelections')[0].username} has been sent via nostr DM successfully 🥳`, "alert-success");
             }else if (action === 'balance'){
-                initAlertModal(tableId, "Balance for " + $(tableId).bootstrapTable('getSelections')[0].username + " has been updated successfully 🥳", 1200,"alert-success");
+                showMessage(`Balance for ${$(tableId).bootstrapTable('getSelections')[0].username} has been updated successfully 🥳`, "alert-success");
             }else{
-                initAlertModal(tableId, "Action " + action + " completed successfully 🥳 Changes will not take effect after server cache expires", 1200,"alert-success");
+                showMessage(`Action ${action} completed successfully for id ${id}. 🥳`, "alert-success");
             }
 
         } else {
@@ -286,7 +286,7 @@ async function modifyRecord(url, tableId, id, field, fieldValue, action = 'modif
         })
     .catch((error) => {
         console.error(error);
-        awaitinitAlertModal(tableId, error);
+        initAlertModal(tableId, error);
     });
 }
 
@@ -336,13 +336,17 @@ function formatSatoshi(value, row, index) {
     return (value? value : "0") + ' <i class="fa-solid fa-bolt text-warning"></i>'
 }
 
-function formatPubkey(value, row, index) {
-    return '<a href="https://nostrcheck.me/u/' + value + '" target="_blank">' + value.slice(0, (value.length / 2)-7 ) + ':' + value.slice((value.length / 2)+7 ); + '</a>';
+function formatPubkey(value) {
+    
+    if ($(window).width() < 768) {value = value.slice(0, (value.length / 2)-18 ) + ':' + value.slice((value.length / 2)+18 );}
+    return '<a href="https://nostrcheck.me/u/' + value + '" target="_blank" class="link-secondary text-decoration-none">' +  value + '</a>';
 }
 
 function formatFilename(value, row, index) {
 
-    let modalFileCheck = '<div id="' + index + '_preview"><span class="cursor-zoom-in text-primary">' + value.slice(0, (value.length / 2)-12 ) + ':' + value.slice((value.length / 2)+12 ) + '</span></div>';
+    if ($(window).width() < 768) {value = value.slice(0, (value.length / 2)-20 ) + ':' + value.slice((value.length / 2)+20 );}
+
+    let modalFileCheck = '<div id="' + index + '_preview"><span class="cursor-zoom-in text-secondary">' + value + '</span></div>';
 
     // Attach the click event handler to the document and delegate it to the clickable element
     $(document).off('click', '#' + index + '_preview').on('click', '#' + index + '_preview', async function() {
@@ -395,8 +399,9 @@ const refreshTables = async() => {
 
 const refreshTable = async (table) => {
     return new Promise((resolve, reject) => {
-        const $table = table.startsWith('#') ? $(table) : $(`#${table}`);
+        showMessage(`Refreshing table ${table}`, "alert-primary");
 
+        const $table = table.startsWith('#') ? $(table) : $(`#${table}`);
         const tableSelections = $table.bootstrapTable('getSelections');
 
         $table.one('load-success.bs.table', function (e, data) {
