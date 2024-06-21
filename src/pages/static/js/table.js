@@ -29,9 +29,17 @@ const initTable = async (tableId, datakey, objectName, dataKey, field = "") => {
         mobileResponsive: true,
         minWidth: 768,
         checkOnInit: true,
-        detailFormatter: "detailFormatter"
+        detailFormatter: "detailFormatter",
+        queryParams: function (params) {
+            let filters = params.filter ? JSON.parse(params.filter) : {};
+            if (isFilterActive) {
+                filters.checked = "0";
+            }
+            params.filter = JSON.stringify(filters);
+            return params;
+        },
+        buttons: (tableId === '#nostraddressData' || tableId === '#mediaData' ) ? checkedButton(tableId) : null,
     })
-
 
     // Hide columns function
     const hideShowColumns = (columns, className, action = "hideColumn") => {
@@ -464,6 +472,32 @@ const fetchTableCountData = async (tableDataKey, action, field) => {
 
             return serverData || { total: 0 }
 }
+
+ // Checked button
+ const checkedButton = (tableId) => {
+    return {
+        custom: {
+            text: 'checked',
+            icon: 'bi-check-circle-fill',
+            event: () => {
+                if (isFilterActive) {
+                    $(tableId).bootstrapTable('filterBy', {
+                        checked: 1
+                    });
+                    isFilterActive = false;
+                } else {
+                    $(tableId).bootstrapTable('filterBy', {});
+                    isFilterActive = true;
+                }
+            },
+            attributes: {
+                title: 'Show checked',
+                id: 'customShowChecked',
+                'data-toggle': 'tooltip'
+            }
+        }
+    }
+};
 
 // Initialize tables
 let tables = [

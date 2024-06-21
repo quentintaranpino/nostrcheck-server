@@ -620,10 +620,15 @@ const getModuleData = async (req: Request, res: Response): Promise<Response> => 
 
     let filterObject = {};  
     if (filter!=undefined && filter!=null && filter!="") {
-        filterObject = Object.entries(JSON.parse(filter)).map(([key, value]) => ({
-            field: key,
-            value: typeof value === 'string' ? value : JSON.stringify(value)
-        }));
+        try{
+            filterObject = Object.entries(JSON.parse(filter)).map(([key, value]) => ({
+                field: key,
+                value: typeof value === 'string' ? value : JSON.stringify(value)
+            }));
+        }catch(e){
+            logger.error("Error parsing filter: ", e);
+            return res.status(400).send({"status": "error", "message": "Invalid filter"});
+        }
     }
 
     logger.debug("module, offset, limit, order, search, sort, filter) : ", module, offset, limit, order, search, sort, filterObject);
