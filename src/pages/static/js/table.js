@@ -27,8 +27,8 @@ const initTable = async (tableId, datakey, objectName, dataKey, field = "") => {
         showColumns: true,
         detailView: true,
         mobileResponsive: true,
+        minWidth: 768,
         checkOnInit: true,
-        showFooter: true,
         detailFormatter: "detailFormatter"
     })
 
@@ -336,13 +336,17 @@ function formatSatoshi(value, row, index) {
     return (value? value : "0") + ' <i class="fa-solid fa-bolt text-warning"></i>'
 }
 
-function formatPubkey(value, row, index) {
-    return '<a href="https://nostrcheck.me/u/' + value + '" target="_blank">' + value.slice(0, (value.length / 2)-7 ) + ':' + value.slice((value.length / 2)+7 ); + '</a>';
+function formatPubkey(value) {
+    
+    if ($(window).width() < 768) {value = value.slice(0, (value.length / 2)-18 ) + ':' + value.slice((value.length / 2)+18 );}
+    return '<a href="https://nostrcheck.me/u/' + value + '" target="_blank">' +  value + '</a>';
 }
 
 function formatFilename(value, row, index) {
 
-    let modalFileCheck = '<div id="' + index + '_preview"><span class="cursor-zoom-in text-primary">' + value.slice(0, (value.length / 2)-12 ) + ':' + value.slice((value.length / 2)+12 ) + '</span></div>';
+    if ($(window).width() < 768) {value = value.slice(0, (value.length / 2)-20 ) + ':' + value.slice((value.length / 2)+20 );}
+
+    let modalFileCheck = '<div id="' + index + '_preview"><span class="cursor-zoom-in text-primary">' + value + '</span></div>';
 
     // Attach the click event handler to the document and delegate it to the clickable element
     $(document).off('click', '#' + index + '_preview').on('click', '#' + index + '_preview', async function() {

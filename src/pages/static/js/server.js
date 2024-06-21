@@ -49,15 +49,19 @@ document.querySelectorAll('a[href^="#"]').forEach(anchor => {
 });
 
 // Theme switcher
-const themeSelector = document.getElementById('theme-selector');
+const themeSwitch = document.getElementById('theme-switch');
 const body = document.body;
-const navbar = document.querySelector('.navbar');
+const themeSwithLabelText = document.getElementById('theme-swith-label-text');
 
 function applyTheme(theme) {
   if (theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
     body.setAttribute('data-bs-theme', 'dark');
+    themeSwitch.checked = true;
+    themeSwithLabelText.textContent = 'Dark mode';
   } else {
     body.setAttribute('data-bs-theme', 'light');
+    themeSwitch.checked = false;
+    themeSwithLabelText.textContent = 'Light mode';
   }
 }
 
@@ -66,12 +70,15 @@ function setTheme(theme) {
   applyTheme(theme);
 }
 
-themeSelector.addEventListener('change', () => {
-  setTheme(themeSelector.value);
+themeSwitch.addEventListener('change', () => {
+  if (themeSwitch.checked) {
+    setTheme('dark');
+  } else {
+    setTheme('light');
+  }
 });
 
 const savedTheme = localStorage.getItem('theme') || 'system';
-themeSelector.value = savedTheme;
 applyTheme(savedTheme);
 
 window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
@@ -80,6 +87,8 @@ window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () 
   }
 });
 
+
+// Reload page when loaded from cache
 window.addEventListener('pageshow', (event) => {
   if (event.persisted || (performance && performance.navigation.type === 2)) {
       console.log('Page loaded from cache, reloading...');
