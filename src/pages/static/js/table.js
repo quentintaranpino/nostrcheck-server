@@ -337,16 +337,18 @@ function formatSatoshi(value, row, index) {
 }
 
 function formatPubkey(value) {
-    
-    if ($(window).width() < 768) {value = value.slice(0, (value.length / 2)-18 ) + ':' + value.slice((value.length / 2)+18 );}
-    return '<a href="https://nostrcheck.me/u/' + value + '" target="_blank" class="link-secondary text-decoration-none">' +  value + '</a>';
+
+    let textValue = value;
+    if ($(window).width() < 768) {textValue = value.slice(0, (value.length / 2)-18 ) + ':' + value.slice((value.length / 2)+18 );}
+    return '<a href="https://nostrcheck.me/u/' + value + '" target="_blank" class="link-secondary text-decoration-none">' +  textValue + '</a>';
 }
 
 function formatFilename(value, row, index) {
 
-    if ($(window).width() < 768) {value = value.slice(0, (value.length / 2)-20 ) + ':' + value.slice((value.length / 2)+20 );}
+    let textValue = value;
+    if ($(window).width() < 768) {textValue = value.slice(0, (value.length / 2)-20 ) + ':' + value.slice((value.length / 2)+20 );}
 
-    let modalFileCheck = '<div id="' + index + '_preview"><span class="cursor-zoom-in text-secondary">' + value + '</span></div>';
+    let modalFileCheck = '<div id="' + index + '_preview"><span class="cursor-zoom-in text-secondary">' + textValue + '</span></div>';
 
     // Attach the click event handler to the document and delegate it to the clickable element
     $(document).off('click', '#' + index + '_preview').on('click', '#' + index + '_preview', async function() {
@@ -399,8 +401,6 @@ const refreshTables = async() => {
 
 const refreshTable = async (table) => {
     return new Promise((resolve, reject) => {
-        showMessage(`Refreshing table ${table}`, "alert-primary");
-
         const $table = table.startsWith('#') ? $(table) : $(`#${table}`);
         const tableSelections = $table.bootstrapTable('getSelections');
 

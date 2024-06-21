@@ -96,12 +96,18 @@ main {
   position: fixed;
   bottom: 0;
   right: 20;
-  width: auto;
-  max-width: 450px;
-  min-width: 450px;
+  width: 450px;
   z-index: 1050; 
   display: flex;
   flex-direction: column-reverse;
   align-items: flex-end;
+  word-wrap: break-word;
 }
 
+/* message engine -  mobile witdh */
+@media (max-width: 768px) {
+  .message-container {
+    width: 100%;
+    right: 0;
+  }
+}
