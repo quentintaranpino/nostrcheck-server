@@ -89,7 +89,7 @@ const initTable = async (tableId, datakey, objectName, dataKey, field = "") => {
     // Fill doughnut chart with table data
     semaphore.execute(async() => {
         const dataCount = await fetchTableCountData(dataKey, 'count', field);
-        if(field){initDoughnutChart(tableId, field.charAt(0).toUpperCase() + field.slice(1) + ' ' + objectName + 's',{field: dataCount.field, total:dataCount.total}, field, true, false)}
+        if(field){initDoughnutChart(tableId, field.charAt(0).toUpperCase() + field.slice(1) + ' ' + objectName + 's',{field: dataCount.field, total:dataCount.total}, field, true, true)}
     });
 
     // Buttons logic

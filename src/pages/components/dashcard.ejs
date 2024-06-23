@@ -1,5 +1,5 @@
 <div id="<%- dashcardId %>" class="col-xl-3 col-lg-4 col-md-6 col-sm-12">
-    <div class="card mb-3 shadow-sm" style="min-height: 185px">
+    <div class="card mb-3 shadow-sm default-bg" style="min-height: 185px">
             <div class="card-body text-center">
                 <% if (link) { %>
                     <a href = "<%- link %>" class="text-decoration-none text-reset">
@@ -22,10 +22,8 @@
 
 <style>
     .card {
-        border: 1px solid rgba(0, 0, 0, 0.144);
-        border-radius: 10px;
         transition: transform 0.3s;
-        background-color: rgba(0, 0, 0, .075);
+        color: var(--bs-secondary-color);
     }
     
     .card:hover { transform: scale(1.04); }
@@ -36,7 +34,6 @@
         width: 55px;
         height: 55px;
     }
-
 
     .btn-reload {
         position: absolute;
@@ -55,17 +52,15 @@
     }
 
     .btn-reload i {
-        color: #4d4d4d; 
         font-size: 14px; 
     }
 
     .chart-tooltip-content {
-    font-size: 14px;
-    color: #424242;
-    text-align: left;
-    visibility: hidden; /* Inicialmente oculto */
-    opacity: 0; /* Inicialmente oculto */
-    transition: opacity 0.5s !important;
+        font-size: 14px;
+        text-align: left;
+        visibility: hidden; 
+        opacity: 0;
+        transition: opacity 0.5s !important;
     }
 
     .chart-tooltip-content.visible {

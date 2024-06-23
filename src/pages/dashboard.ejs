@@ -67,13 +67,17 @@
                   ],
           fields: nostraddressFields
         }); %>
-        <div class="container-fluid mt-2 d-flex flex-column align-items-center">
-          <div class="row w-100">
-            <div class="col-xl-6 col-lg-12 col-md-12 col-sm-12 mb-4">
-              <canvas id="nostraddressData-chart"></canvas>
+        <div class="mt-2 d-flex flex-column align-items-center">
+          <div class="row d-flex w-100">
+            <div class="col-xl-8 col-lg-12 col-md-12 col-sm-12 mb-4" style="height:450px;">
+              <div class="w-100 h-100 default-bg rounded d-flex me-2 p-3">
+                <canvas id="nostraddressData-chart" class="mx-auto"></canvas>
+                </div>  
             </div>
-            <div class="col-xl-6 col-lg-12 col-md-12 col-sm-12">
-              <canvas id="nostraddressData-doughnut-chart"></canvas>
+            <div class="col-xl-4 col-lg-12 col-md-12 col-sm-12" style="height:450px;">
+              <div class="w-100 h-100 default-bg rounded d-flex me-2 p-3">
+              <canvas id="nostraddressData-doughnut-chart" class="mx-auto"></canvas>
+              </div>  
             </div>
           </div>
         </div>
@@ -121,16 +125,20 @@
                     ],
             fields: mediaFields
           }); %>
-          <div class="container-fluid mt-2 d-flex flex-column align-items-center">
-            <div class="row w-100">
-              <div class="col-xl-6 col-lg-12 col-md-12 col-sm-12 mb-4">
-                <canvas id="mediaData-chart"></canvas>
-              </div>
-              <div class="col-xl-6 col-lg-12 col-md-12 col-sm-12">
-                <canvas id="mediaData-doughnut-chart" ></canvas>
-              </div>
+        <div class="mt-2 d-flex flex-column align-items-center">
+          <div class="row d-flex w-100">
+            <div class="col-xl-8 col-lg-12 col-md-12 col-sm-12 mb-4" style="height:450px;">
+              <div class="w-100 h-100 default-bg rounded d-flex me-2 p-3">
+                <canvas id="mediaData-chart" class="mx-auto"></canvas>
+                </div>  
+            </div>
+            <div class="col-xl-4 col-lg-12 col-md-12 col-sm-12" style="height:450px;">
+              <div class="w-100 h-100 default-bg rounded d-flex me-2 p-3">
+              <canvas id="mediaData-doughnut-chart" class="mx-auto"></canvas>
+              </div>  
             </div>
           </div>
+        </div>
         <% } %>
         <%
         let lightningFields = [
@@ -226,17 +234,22 @@
               ],
               fields: paymentsFields
               }); %> 
-            <% } %>
-          <div class="container-fluid mt-2 d-flex flex-column align-items-center">
-            <div class="row w-100">
-              <div class="col-xl-6 col-lg-12 col-md-12 col-sm-12 mb-4">
-                <canvas id="paymentsData-chart"></canvas>
-              </div>
-              <div class="col-xl-6 col-lg-12 col-md-12 col-sm-12">
-                <canvas id="paymentsData-doughnut-chart" ></canvas>
-              </div>
+        <div class="mt-2 d-flex flex-column align-items-center">
+          <div class="row d-flex w-100">
+            <div class="col-xl-8 col-lg-12 col-md-12 col-sm-12 mb-4" style="height:450px;">
+              <div class="w-100 h-100 default-bg rounded d-flex me-2 p-3">
+                <canvas id="paymentsData-chart" class="mx-auto"></canvas>
+                </div>  
+            </div>
+            <div class="col-xl-4 col-lg-12 col-md-12 col-sm-12" style="height:450px;">
+              <div class="w-100 h-100 default-bg rounded d-flex me-2 p-3">
+              <canvas id="paymentsData-doughnut-chart" class="mx-auto"></canvas>
+              </div>  
             </div>
           </div>
+        </div>
+          <% } %>
+
       </div>
      </main>
     <%- include('./partials/footer'); %>        

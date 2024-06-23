@@ -27,43 +27,39 @@ const initMonthChart = (chartId, title, rawData) => {
 
   const labels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   
-  new Chart($(chartId), {
+  const chart = new Chart($(chartId), {
     type: 'bar',
     data: {
       labels: labels,
       datasets: [{
         label: currentYear,
         data: monthCountsCurrentYear,
-        borderColor: '#A575FF',
         backgroundColor: 'rgba(165, 117, 255, 0.7)',
-        borderWidth: 2,
+        borderRadius: 5,
         hoverBackgroundColor: '#A575FF',
-        hoverBorderColor: '#8E57E6',
-        hoverBorderWidth: 3
       }, {
         label: currentYear - 1,
         data: monthCountsLastYear,
-        borderColor: '#8E9396',
         backgroundColor: 'rgba(156, 162, 167, 0.7)',
-        borderWidth: 2,
+        borderRadius: 5,
         hoverBackgroundColor: '#8E9396',
-        hoverBorderColor: '#767B7F',
-        hoverBorderWidth: 3
       }]
     },
     options: {
       responsive: true,
       maintainAspectRatio: true,
+      resizeDelay: 200,
       plugins: {
         title: {
           display: true,
-          text: `${title} (Last 2 Years)`,
+          text: `${title} (${currentYear} vs ${currentYear - 1})`,
           font: {
-            size: 22,
-            family: 'Arial',
-            weight: 'bold'
+            family: 'system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", "Noto Sans", "Liberation Sans", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"',
+            size: 20,
+            weight: 'bold',
+
           },
-          color: '#333',
+          color: localStorage.getItem('theme') === 'dark' ? '#FFFFFF' : '#4d4c4c',
           padding: {
             top: 10,
             bottom: 30
@@ -72,10 +68,10 @@ const initMonthChart = (chartId, title, rawData) => {
         legend: {
           labels: {
             font: {
-              size: 14,
-              family: 'Arial'
+              family: 'system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", "Noto Sans", "Liberation Sans", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"',
+              size: 12,
             },
-            color: '#333'
+            color: localStorage.getItem('theme') === 'dark' ? '#FFFFFF' : '#4d4c4c'
           }
         }
       },
@@ -84,9 +80,9 @@ const initMonthChart = (chartId, title, rawData) => {
           ticks: {
             font: {
               size: 12,
-              family: 'Arial'
+              family: 'system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", "Noto Sans", "Liberation Sans", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"',
             },
-            color: '#333'
+            color: localStorage.getItem('theme') === 'dark' ? '#FFFFFF' : '#4d4c4c'
           },
           grid: {
             display: false
@@ -97,9 +93,9 @@ const initMonthChart = (chartId, title, rawData) => {
           ticks: {
             font: {
               size: 12,
-              family: 'Arial'
+              family: 'system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", "Noto Sans", "Liberation Sans", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"',
             },
-            color: '#333'
+            color: localStorage.getItem('theme') === 'dark' ? '#FFFFFF' : '#4d4c4c'
           },
           grid: {
             color: 'rgba(0, 0, 0, 0.1)'
@@ -107,6 +103,26 @@ const initMonthChart = (chartId, title, rawData) => {
         }
       }
     }
+  });
+
+  document.querySelector(chartId).style.height = '400px';
+
+
+  document.getElementById('theme-switch').addEventListener('click', () => {
+
+    if ( document.getElementById('theme-switch').checked === true ) {
+      chart.options.plugins.title.color = '#FFFFFF';
+      chart.options.plugins.legend.labels.color = '#FFFFFF';
+      chart.options.scales.x.ticks.color = '#FFFFFF';
+      chart.options.scales.y.ticks.color = '#FFFFFF';
+    } else{
+      chart.options.plugins.title.color = '#4d4c4c';
+      chart.options.plugins.legend.labels.color = '#4d4c4c';
+      chart.options.scales.x.ticks.color = '#4d4c4c';
+      chart.options.scales.y.ticks.color = '#4d4c4c';
+    }
+    chart.update();
+
   });
 };
 
@@ -139,26 +155,23 @@ function initDoughnutChart(dashcardId, title, data, field, showTitle = false, sh
                 'rgba(255, 159, 64, 0.6)', 
                 'rgba(186, 85, 211, 0.6)'  
             ],
-            borderColor: [
-                'rgba(255, 159, 64, 1)',  
-                'rgba(186, 85, 211, 1)'  
-            ],
-              borderWidth: 1
+              borderWidth: 0
           }]
       },
       options: {
-          responsive: true,
-          maintainAspectRatio: false,
+        responsive: true,
+        maintainAspectRatio: true,
+        resizeDelay: 200,
           plugins: {
               title: {
                   display: showTitle,
                   text: title,
                   font: {
-                      size: 22,
-                      family: 'Arial',
+                      size: 20,
+                      family: 'system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", "Noto Sans", "Liberation Sans", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"',
                       weight: 'bold'
                   },
-                  color: '#333',
+                  color: localStorage.getItem('theme') === 'dark' ? '#FFFFFF' : '#4d4c4c',
                   padding: {
                       top: 10,
                       bottom: 30
@@ -200,13 +213,32 @@ function initDoughnutChart(dashcardId, title, data, field, showTitle = false, sh
                   labels: {
                       font: {
                           size: 12,
-                          family: 'Arial'
+
+                          family: 'system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", "Noto Sans", "Liberation Sans", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"',
                       },
-                      color: '#333'
+                      color: localStorage.getItem('theme') === 'dark' ? '#FFFFFF' : '#4d4c4c',
+                      boxHeight: 20,
+                      position: 'bottom'
                   }
               }
           }
       }
   });
+
+  document.getElementById('theme-switch').addEventListener('click', () => {
+
+    Object.values(doughnutCharts).forEach(chart => {
+      if (document.getElementById('theme-switch').checked === true) {
+        chart.options.plugins.title.color = '#FFFFFF';
+        chart.options.plugins.legend.labels.color = '#FFFFFF';
+      } else {
+        chart.options.plugins.title.color = 'var(--bs-secondary)';
+        chart.options.plugins.legend.labels.color = '#4d4c4c';
+      }
+      chart.update();
+    });
+
+  });
 }
 }
+

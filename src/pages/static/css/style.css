@@ -45,3 +45,7 @@ main { padding:10px; }
   background-attachment: fixed;
 }
 
+.default-bg {
+    border: 1px solid rgba(0, 0, 0, 0.096);
+    background-color: rgba(0, 0, 0, .075);
+}
