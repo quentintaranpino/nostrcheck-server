@@ -32,9 +32,7 @@ const initTable = async (tableId, datakey, objectName, dataKey, field = "") => {
         detailFormatter: "detailFormatter",
         queryParams: function (params) {
             let filters = params.filter ? JSON.parse(params.filter) : {};
-            if (isFilterActive) {
-                filters.checked = "0";
-            }
+            if (isFilterActive) {filters.checked = "0";}
             params.filter = JSON.stringify(filters);
             return params;
         },
@@ -482,12 +480,16 @@ const fetchTableCountData = async (tableDataKey, action, field) => {
             event: () => {
                 if (isFilterActive) {
                     $(tableId).bootstrapTable('filterBy', {
-                        checked: 1
                     });
                     isFilterActive = false;
+                    $(tableId).bootstrapTable('refresh');
                 } else {
-                    $(tableId).bootstrapTable('filterBy', {});
+                    $(tableId).bootstrapTable('filterBy', {
+                        checked: 0
+                    });
                     isFilterActive = true;
+                    $(tableId).bootstrapTable('refresh');
+
                 }
             },
             attributes: {
