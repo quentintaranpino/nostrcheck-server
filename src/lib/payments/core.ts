@@ -423,7 +423,7 @@ const calculateSatoshi = async (originTable: string, size: number) : Promise<num
 }
 
 const getUnpaidTransactionsBalance = async () : Promise<string> => {
-    return await dbSelect("SELECT SUM(satoshi) as 'balance' FROM transactions WHERE paid = 0", "balance", []) as string;
+    return await dbSelect("SELECT SUM(satoshi) as 'balance' FROM transactions WHERE paid = 0", "balance", []) as string || "0";
 }
 
 const payInvoiceFromExpenses = async (transactionid: string) : Promise<boolean> => {

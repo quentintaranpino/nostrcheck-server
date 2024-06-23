@@ -9,7 +9,7 @@
       <div class="row">
         <% for(const key in request.body.activeModules) { %>
           <div class="col-xl-3 col-lg-4 col-md-6 col-sm-12">
-            <div class="card mb-3 container-fluid" style="width: 16rem; min-height: 15rem;">
+            <div class="card mb-3 container-fluid shadow-sm default-bg" style="width: 16rem; min-height: 15rem;">
               <div class="card-body pl-1 pr-1">
                 <h4 class="card-title"><%= request.body.activeModules[key]["name"] %></h5>
                 <h6 class="card-subtitle mb-2 text-muted"><%= request.body.activeModules[key]['path'] %></h6>
@@ -30,7 +30,7 @@
                   <span class="badge <%= badgeClass %>"><%= request.body.activeModules[key]["methods"][method]  %></span>
                   <% } %>
                 <p class="card-text mt-2"><%= request.body.activeModules[key]["description"] %></p>
-                <button class="btn btn-primary" type="button">                
+                <button class="btn btn-primary " type="button">                
                   <a class="text-white" href="https://github.com/quentintaranpino/nostrcheck-api-ts/blob/main/DOCS.md#<%= request.body.activeModules[key]["name"] %>" class="card-link"><i class="fa-solid fa-book me-2"></i>Docs</a>
                 </button>
 
