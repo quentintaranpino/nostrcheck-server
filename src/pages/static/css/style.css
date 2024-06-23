@@ -1,11 +1,5 @@
-html,
-body {
-  height: 100%;
-}
-
-main {
-  padding:10px;
-}
+html, body { height: 100%;}
+main { padding:10px; }
 
 .btn-primary {
   background-color: #343a40;
@@ -13,22 +7,20 @@ main {
 }
 
 .btn-primary:hover {
-  background-color: #212529;
+  background-color: #2e2f31;
   border-color: #212529;
 }
 
-.cursor-zoom-in {
-  cursor: zoom-in;
-}
+.purple-text {color: #a575ff; }
+.cursor-zoom-in { cursor: zoom-in; }
 
-.dropdown-item.active {
-  background-color: #71767c;
-  color: #fff;
-}
-
-.dropdown-menu {
---bs-dropdown-link-active-bg: #a575ff;
-}
+.gradient-text {
+  background: linear-gradient(to right, #007BFF, #FF66B2, #FF9933);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  display: inline-block;
+}    
 
 .background-style-1 {
   background-image: -webkit-linear-gradient(to top, rgb(151, 149, 240) 0%, rgb(0 0 0) 100%);
@@ -53,61 +45,3 @@ main {
   background-attachment: fixed;
 }
 
-.fade-in {
-  opacity: 0;
-  animation: fadeIn 1s forwards;
-}
-
-@keyframes fadeIn {
-  to {
-      opacity: 1;
-  }
-}
-
-.gradient-text {
-  background: linear-gradient(to right, #007BFF, #FF66B2, #FF9933);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-  display: inline-block;
-}    
-
-.purple-text {
-  color: #9262c2;
-}
-         
-.btn-grad {
-  background-image: linear-gradient(to right, #7b4397 0%, #dc2430  51%, #7b4397  100%);
-  margin: 10px;
-  padding: 15px 45px;
-  text-align: center;
-  text-transform: uppercase;
-  transition: 0.5s;
-  background-size: 200% auto;
-  color: white;            
-  box-shadow: 0 0 20px #eee;
-  border-radius: 10px;
-  display: block;
-}
-
-
-/* Messages engine */
-.message-container {
-  position: fixed;
-  bottom: 0;
-  right: 20;
-  width: 450px;
-  z-index: 1050; 
-  display: flex;
-  flex-direction: column-reverse;
-  align-items: flex-end;
-  word-wrap: break-word;
-}
-
-/* message engine -  mobile witdh */
-@media (max-width: 768px) {
-  .message-container {
-    width: 100%;
-    right: 0;
-  }
-}

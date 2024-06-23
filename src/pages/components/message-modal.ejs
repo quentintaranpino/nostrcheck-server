@@ -13,3 +13,25 @@
     </div>
   </div>
 </div>
+
+<style>
+.message-container {
+  position: fixed;
+  bottom: 0;
+  right: 20;
+  width: 450px;
+  z-index: 1050; 
+  display: flex;
+  flex-direction: column-reverse;
+  align-items: flex-end;
+  word-wrap: break-word;
+}
+
+@media (max-width: 768px) {
+  .message-container {
+    width: 100%;
+    right: 0;
+  }
+}
+
+</style>
