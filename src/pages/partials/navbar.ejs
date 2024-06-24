@@ -8,7 +8,27 @@
   <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#server-navbar" aria-controls="server-navbar" aria-expanded="false" aria-label="Toggle navigation">
     <span class="navbar-toggler-icon"></span>
   </button>
-
+  <div id="profile-dropdown">
+    <ul class="navbar-nav ms-auto">
+      <li >
+        <%- include('../components/theme-toggle'); %>
+      </li>
+      <a <% if (request.session.identifier) { %>style="display: none;"<% } %> <% if(active === 'login'){ %><%- "class='nav-link active mt-1'"%><% } else { %><%- "class='nav-link'"%><%}%> href="login"><i class="fa-solid fa-user me-2"></i>Log In</a>
+      <li  class="nav-item dropdown"  <% if (!request.session.identifier) { %>style="display: none;"<% } %> >
+        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownMenuLink" role="button" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+          <img <% if (request.session.identifier) { %>src=  <%- JSON.stringify(request.session.metadata.picture)%> <% }%> width="40" height="40" class="rounded-circle">
+          <span class="ms-2 d-none d-lg-inline"><% if (request.session.identifier) { %> <%= request.session.metadata.display_name %> <% }else{"Profile"} %></span>
+        </a>
+        <div class="dropdown-menu dropdown-menu-end">
+          <a href="profile"  <% if(active === 'profile'){ %><%- "class='dropdown-item active'"%><% } else { %><%- "class='dropdown-item'"%><%}%>>Profile</a>
+          <a href="dashboard" <% if(active === 'dashboard'){ %><%- "class='dropdown-item active'"%><% } else { %><%- "class='dropdown-item'"%><%}%>>Dashboard</a>
+          <a href="settings" <% if(active === 'settings'){ %><%- "class='dropdown-item active'"%><% } else { %><%- "class='dropdown-item'"%><%}%>>Settings</a>
+          <div class="dropdown-divider"></div>
+          <a href="logout" class="dropdown-item">Logout</a>
+      </div>
+      </li>  
+    </ul>
+    </div>  
   <div class="collapse navbar-collapse" id="server-navbar">
     <ul class="nav navbar-nav">
       <li >
@@ -21,35 +41,37 @@
         <a <% if(active === 'documentation'){ %><%- "class='nav-link active'"%><% } else { %><%- "class='nav-link'"%><%}%> href="documentation"><i class="fa-solid fa-book me-2"></i>Docs <span class="sr-only">(current)</span></a>
       </li>
       <li >
-        <a <% if(active === 'register'){ %><%- "class='nav-link active'"%><% } else { %><%- "class='nav-link'"%><%}%> href="register"><i class="fa-solid fa-book me-2"></i>Register <span class="sr-only">(current)</span></a>
+        <a <% if(active === 'register'){ %><%- "class='nav-link active'"%><% } else { %><%- "class='nav-link'"%><%}%> href="register"><i class="fa-solid fa-user-plus me-2"></i>Register <span class="sr-only">(current)</span></a>
       </li>
       <li >
-        <a <% if(active === 'gallery'){ %><%- "class='nav-link active'"%><% } else { %><%- "class='nav-link'"%><%}%> href="gallery"><i class="fa-solid fa-book me-2"></i>Public gallery <span class="sr-only">(current)</span></a>
+        <a <% if(active === 'gallery'){ %><%- "class='nav-link active'"%><% } else { %><%- "class='nav-link'"%><%}%> href="gallery"><i class="bi bi-image-fill me-2"></i></i>Public gallery <span class="sr-only">(current)</span></a>
       </li>               
     </ul>
-
-
-    <ul class="navbar-nav ms-auto">
-      <li >
-        <%- include('../components/theme-toggle'); %>
-      </li>
-      <a <% if (request.session.identifier) { %>style="display: none;"<% } %> <% if(active === 'login'){ %><%- "class='nav-link active'"%><% } else { %><%- "class='nav-link'"%><%}%> href="login"><i class="fa-solid fa-user me-2"></i>Log In</a>
-      <li  class="nav-item dropdown"  <% if (!request.session.identifier) { %>style="display: none;"<% } %> >
-        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownMenuLink" role="button" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-          <img <% if (request.session.identifier) { %>src=  <%- JSON.stringify(request.session.metadata.picture)%> <% }%> width="40" height="40" class="rounded-circle">
-          <span class="ms-2"><% if (request.session.identifier) { %> <%= request.session.metadata.display_name %> <% }else{"Profile"} %></span>
-        </a>
-        <div class="dropdown-menu dropdown-menu-end">
-          <a href="profile"  <% if(active === 'profile'){ %><%- "class='dropdown-item active'"%><% } else { %><%- "class='dropdown-item'"%><%}%>>Profile</a>
-          <a href="dashboard" <% if(active === 'dashboard'){ %><%- "class='dropdown-item active'"%><% } else { %><%- "class='dropdown-item'"%><%}%>>Dashboard</a>
-          <a href="settings" <% if(active === 'settings'){ %><%- "class='dropdown-item active'"%><% } else { %><%- "class='dropdown-item'"%><%}%>>Settings</a>
-          <div class="dropdown-divider"></div>
-          <a href="logout" class="dropdown-item">Logout</a>
-      </div>
-      </li>  
-    </ul>
   </div>
+
 </nav>
 <style>
   .dropdown-menu { --bs-dropdown-link-active-bg: #a575ff; }
+
+  #profile-dropdown {
+    position: absolute;
+    right: 10;
+    top: auto;
+  }
+
+@media (max-width: 992px) {
+  #profile-dropdown {
+    position: absolute;
+    right: 85;
+    top: 10;
+  }
+  #profile-dropdown .navbar-nav {
+    display: flex;
+    flex-direction: row;
+  }
+  #profile-dropdown .navbar-nav .dropdown-menu {
+    position: absolute;
+  }
+
+}
 </style>
