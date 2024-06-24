@@ -13,7 +13,8 @@ import {deleteDBRecord,
         updateSettings, 
         updateLogo,
         getModuleData,
-        getModuleCountData, 
+        getModuleCountData,
+        updateTheme, 
 } from "../controllers/admin.js";
 
 const maxMBfilesize :number = config.get('media.maxMBfilesize');
@@ -63,6 +64,9 @@ export const loadAdminEndpoint = async (app: Application, version:string): Promi
                                 updateLogo(req, res);
                         })
                 });
+
+                // Update frontend theme
+                app.post("/api/" + version + app.get("config.server")["availableModules"]["admin"]["path"] + "/updatetheme/", updateTheme);
 
                 // Get module data
                 app.get("/api/" + version + app.get("config.server")["availableModules"]["admin"]["path"] + "/moduledata", getModuleData);

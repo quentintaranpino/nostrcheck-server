@@ -18,6 +18,7 @@ import { ParseFileType } from "../lib/media.js";
 import { npubToHex } from "../lib/nostr/NIP19.js";
 import { dbCountModuleData, dbCountMonthModuleData, dbSelectModuleData } from "../lib/admin.js";
 import { getBalance, getUnpaidTransactionsBalance } from "../lib/payments/core.js";
+import themes from "../interfaces/themes.js";
 
 let hits = 0;
 /**
@@ -227,6 +228,73 @@ const updateLogo = async (req: Request, res: Response): Promise<Response> => {
      });
 
      return res.status(200).send({"status": "success", "message": "Logo updated", "authkey": EventHeader.authkey});
+
+}
+
+const updateTheme = async (req: Request, res: Response): Promise<Response> => {
+
+    // Check if current module is enabled
+    if (!isModuleEnabled("admin", app)) {
+        logger.warn("Attempt to access a non-active module:","admin","|","IP:", getClientIp(req));
+        return res.status(400).send({"status": "error", "message": "Module is not enabled"});
+    }
+
+    logger.debug("POST /api/v2/admin/updatetheme", "|", getClientIp(req));
+
+     // Check if authorization header is valid
+    const EventHeader = await parseAuthHeader(req, "updateDBRecord", true);
+    if (EventHeader.status !== "success") {return res.status(401).send({"status": EventHeader.status, "message" : EventHeader.message});}
+
+    if (!req.body || req.body == undefined || req.body.length == 0) {
+        logger.error("RES -> 400 Bad request - Empty body", "|", getClientIp(req));
+        return res.status(400).send({"status": "error", "message": "Empty body", "authkey": EventHeader.authkey});
+    }
+
+    let primaryColor = req.body.color1 || null;
+    let secondaryColor = req.body.color2 || null;
+    let tertiaryColor = req.body.color3 || null;
+    let orientation = req.body.orientation || "to right";
+    let primaryColorPercent = req.body.color1Percent || "0%";
+    let secondaryColorPercent = req.body.color2Percent || "50%";
+    let tertiaryColorPercent = req.body.color3Percent || "100%";
+
+    if (primaryColor == null || secondaryColor == null || tertiaryColor == null) {
+
+        // Load default theme
+        const theme = themes["essence"];
+        primaryColor = theme.color1;
+        secondaryColor = theme.color2;
+        tertiaryColor = theme.color3;
+        orientation = theme.orientation;
+        primaryColorPercent = theme.color1Percent;
+        secondaryColorPercent = theme.color2Percent;
+        tertiaryColorPercent = theme.color3Percent;
+
+    }
+
+    const theme = `
+        :root {
+            --primary-color: ${primaryColor};
+            --secondary-color: ${secondaryColor};
+            --tertiary-color: ${tertiaryColor};
+            --primary-color-percent: ${primaryColorPercent};
+            --secondary-color-percent: ${secondaryColorPercent};
+            --tertiary-color-percent: ${tertiaryColorPercent};
+            --gradient-orientation: ${orientation};
+        }
+
+        .background-theme {
+            background-image: -webkit-linear-gradient(var(--gradient-orientation), var(--primary-color) var(--primary-color-percent), var(--secondary-color) var(--secondary-color-percent), var(--tertiary-color) var(--tertiary-color-percent));
+            background-image: linear-gradient(var(--gradient-orientation), var(--primary-color) var(--primary-color-percent), var(--secondary-color) var(--secondary-color-percent), var(--tertiary-color) var(--tertiary-color-percent));
+            background-repeat: no-repeat;
+            background-size: cover;
+            background-attachment: fixed;
+        }
+        `;
+
+    await fs.promises.writeFile('./src/pages/static/css/theme.css', theme);
+    logger.info("RES -> Theme updated" + " | " + getClientIp(req));
+    return res.status(200).send({status: "success", message: "Theme updated", authkey: EventHeader.authkey});
 
 }
 
@@ -706,6 +774,7 @@ export {    serverStatus,
             insertDBRecord, 
             updateSettings, 
             updateLogo,
+            updateTheme,
             getModuleData,
             getModuleCountData
         };

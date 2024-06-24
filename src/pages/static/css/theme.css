@@ -1,0 +1,19 @@
+
+        :root {
+            --primary-color: #9c2c2c;
+            --secondary-color: #9e8720;
+            --tertiary-color: #556e31;
+            --primary-color-percent: 0%;
+            --secondary-color-percent: 50%;
+            --tertiary-color-percent: 100%;
+            --gradient-orientation: to top right;
+        }
+
+        .background-theme {
+            background-image: -webkit-linear-gradient(var(--gradient-orientation), var(--primary-color) var(--primary-color-percent), var(--secondary-color) var(--secondary-color-percent), var(--tertiary-color) var(--tertiary-color-percent));
+            background-image: linear-gradient(var(--gradient-orientation), var(--primary-color) var(--primary-color-percent), var(--secondary-color) var(--secondary-color-percent), var(--tertiary-color) var(--tertiary-color-percent));
+            background-repeat: no-repeat;
+            background-size: cover;
+            background-attachment: fixed;
+        }
+        

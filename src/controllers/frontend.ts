@@ -9,6 +9,7 @@ import { isModuleEnabled, loadconfigActiveModules } from "../lib/config.js";
 import { getProfileNostrMetadata, getProfileLocalMetadata } from "../lib/frontend.js";
 import { hextoNpub } from "../lib/nostr/NIP19.js";
 import { logHistory } from "../lib/logger.js";
+import themes from "../interfaces/themes.js";
 
 const loadDashboardPage = async (req: Request, res: Response, version:string): Promise<Response | void> => {
 
@@ -62,6 +63,7 @@ const loadSettingsPage = async (req: Request, res: Response, version:string): Pr
     req.body.settingsPayments = app.get("config.payments");
     req.body.settingsLogger = app.get("config.logger");
     req.body.logHistory = logHistory;
+    req.body.settingsLookAndFeelThemes = themes;
     req.session.authkey = await generateCredentials('authkey', false, req.session.identifier);
 
     // User metadata from nostr

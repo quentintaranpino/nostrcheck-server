@@ -11,6 +11,17 @@ main { padding:10px; }
   border-color: #212529;
 }
 
+.btn-primary:active {
+  background-color: var(--bs-secondary) !important;
+  border: 1px solid rgba(0, 0, 0, 0.096) !important;
+}
+
+.form-control:focus {
+  border: 1px solid transparent !important;
+  box-shadow: 0px 0px 3px 0.1rem rgba(177, 13, 253, 0.25) !important
+
+}
+
 .purple-text {color: #a575ff; }
 .cursor-zoom-in { cursor: zoom-in; }
 
@@ -22,30 +33,11 @@ main { padding:10px; }
   display: inline-block;
 }    
 
-.background-style-1 {
-  background-image: -webkit-linear-gradient(to top, rgb(151, 149, 240) 0%, rgb(0 0 0) 100%);
-  background-image: linear-gradient(to top, rgb(151, 149, 240) 0%, rgb(0 0 0) 100%);
-  background-repeat: no-repeat;
-  background-size: cover;
-  background-attachment: fixed;
-}
-
-.background-style-2 {
-  background: -webkit-linear-gradient(to right, rgb(200 128 179), rgb(130 170 235));
-  background: linear-gradient(to right, rgb(200 128 179), rgb(130 170 235));
-  background-repeat: no-repeat;
-  background-size: cover;
-  background-attachment: fixed;
-}
-.background-style-3 {
-  background: -webkit-linear-gradient(to right, rgb(143 40 154), rgb(0 0 0) 90%);
-  background: linear-gradient(to top, rgb(143 40 154) 0%, rgb(0 0 0) 90%);
-  background-repeat: no-repeat;
-  background-size: cover;
-  background-attachment: fixed;
-}
-
 .default-bg {
     border: 1px solid rgba(0, 0, 0, 0.096);
     background-color: rgba(0, 0, 0, .075);
+}
+
+.display-5{
+  line-height: 1.3;
 }

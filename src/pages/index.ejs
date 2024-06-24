@@ -1,9 +1,10 @@
 <html lang="en">
 <%- include('./partials/head',{title: `${request.body.serverHost} - Home`}); %>
 <link rel="stylesheet" href="/static/css/particles.css">
+<link rel="stylesheet" href="/static/css/theme.css">
 <body class="d-flex flex-column h-100">
   <%- include('./partials/navbar', {active:'home'}); %>
-  <header class="background-style-1 h-100">
+  <div class="background-theme h-100">
     <div class="container px-4 px-lg-5 d-flex h-100 align-items-center justify-content-center">
         <div class="d-flex justify-content-center">
             <div class="text-center z-1">
@@ -15,7 +16,7 @@
             </div>
         </div>
     </div>
-  </header>
+  </div>
   <div id="particles-js"></div> 
   <script src="/static/js/particles.min.js"></script>
   <script>
