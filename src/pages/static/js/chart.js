@@ -122,10 +122,6 @@ const initMonthChart = (chartId, title, rawData) => {
     chart.update();
   });
 
-  // $(window).resize(function() {
-  //   chart.resize(document.querySelector(chartId).parentElement.getBoundingClientRect().width, '400px');
-  //   chart.update();
-  // });
 };
 
 let doughnutCharts = {};
@@ -241,11 +237,6 @@ function initDoughnutChart(dashcardId, title, data, field, showTitle = false, sh
       chart.update();
     });
 
-  });
-
-  $(window).resize(function() {
-    doughnutCharts[chartId].resize(document.querySelector(chartId).parentElement.getBoundingClientRect().width - 10, '400px');
-    doughnutCharts[chartId].update();
   });
 
 }};
