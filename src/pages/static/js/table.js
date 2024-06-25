@@ -349,6 +349,14 @@ function formatPubkey(value) {
     return '<a href="https://nostrcheck.me/u/' + value + '" target="_blank" class="link-secondary text-decoration-none">' +  textValue + '</a>';
 }
 
+function formatPaymentHash(value) {
+
+    let textValue = value;
+    if ($(window).width() < 768) {textValue = value.slice(0, (value.length / 2)-18 ) + ':' + value.slice((value.length / 2)+18 );}
+    return textValue;
+
+}
+
 function formatFilename(value, row, index) {
 
     let textValue = value;
