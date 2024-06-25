@@ -122,10 +122,10 @@ const initMonthChart = (chartId, title, rawData) => {
     chart.update();
   });
 
-  $(window).resize(function() {
-    chart.resize(document.querySelector(chartId).parentElement.getBoundingClientRect().width, '400px');
-    chart.update();
-  });
+  // $(window).resize(function() {
+  //   chart.resize(document.querySelector(chartId).parentElement.getBoundingClientRect().width, '400px');
+  //   chart.update();
+  // });
 };
 
 let doughnutCharts = {};
