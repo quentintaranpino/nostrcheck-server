@@ -47,7 +47,7 @@ const initMonthChart = (chartId, title, rawData) => {
     },
     options: {
       responsive: true,
-      maintainAspectRatio: true,
+      maintainAspectRatio: false,
       resizeDelay: 200,
       plugins: {
         title: {
@@ -106,8 +106,6 @@ const initMonthChart = (chartId, title, rawData) => {
   });
 
   document.querySelector(chartId).style.height = '400px';
-
-
   document.getElementById('theme-switch').addEventListener('click', () => {
 
     if ( document.getElementById('theme-switch').checked === true ) {
@@ -122,7 +120,11 @@ const initMonthChart = (chartId, title, rawData) => {
       chart.options.scales.y.ticks.color = '#4d4c4c';
     }
     chart.update();
+  });
 
+  $(window).resize(function() {
+    chart.resize(document.querySelector(chartId).parentElement.getBoundingClientRect().width, '400px');
+    chart.update();
   });
 };
 
@@ -223,7 +225,8 @@ function initDoughnutChart(dashcardId, title, data, field, showTitle = false, sh
               }
           }
       }
-  });
+  
+    });
 
   document.getElementById('theme-switch').addEventListener('click', () => {
 
@@ -239,6 +242,11 @@ function initDoughnutChart(dashcardId, title, data, field, showTitle = false, sh
     });
 
   });
-}
-}
+
+  $(window).resize(function() {
+    doughnutCharts[chartId].resize(document.querySelector(chartId).parentElement.getBoundingClientRect().width - 10, '400px');
+    doughnutCharts[chartId].update();
+  });
+
+}};
 
