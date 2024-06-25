@@ -9,11 +9,8 @@
     <span class="navbar-toggler-icon"></span>
   </button>
   <div id="profile-dropdown">
-    <ul class="navbar-nav ms-auto">
-      <li >
-        <%- include('../components/theme-toggle'); %>
-      </li>
-      <a <% if (request.session.identifier) { %>style="display: none;"<% } %> <% if(active === 'login'){ %><%- "class='nav-link active mt-1'"%><% } else { %><%- "class='nav-link'"%><%}%> href="login"><i class="fa-solid fa-user me-2"></i>Log In</a>
+    <ul class="navbar-nav ms-auto mt-1">
+      <a <% if (request.session.identifier) { %>style="display: none;"<% } %> <% if(active === 'login'){ %><%- "class='nav-link active mt-1'"%><% } else { %><%- "class='nav-link mt-1'"%><%}%> href="login"><i class="fa-solid fa-user me-2"></i>Log In</a>
       <li  class="nav-item dropdown"  <% if (!request.session.identifier) { %>style="display: none;"<% } %> >
         <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownMenuLink" role="button" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
           <img <% if (request.session.identifier) { %>src=  <%- JSON.stringify(request.session.metadata.picture)%> <% }%> width="40" height="40" class="rounded-circle">
@@ -23,6 +20,7 @@
           <a href="profile"  <% if(active === 'profile'){ %><%- "class='dropdown-item active'"%><% } else { %><%- "class='dropdown-item'"%><%}%>>Profile</a>
           <a href="dashboard" <% if(active === 'dashboard'){ %><%- "class='dropdown-item active'"%><% } else { %><%- "class='dropdown-item'"%><%}%>>Dashboard</a>
           <a href="settings" <% if(active === 'settings'){ %><%- "class='dropdown-item active'"%><% } else { %><%- "class='dropdown-item'"%><%}%>>Settings</a>
+           <span class='dropdown-item'><%- include('../components/theme-toggle'); %></span> 
           <div class="dropdown-divider"></div>
           <a href="logout" class="dropdown-item">Logout</a>
       </div>
