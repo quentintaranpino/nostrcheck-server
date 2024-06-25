@@ -16,6 +16,8 @@ const initDashcard = async (dashcardId, dascardName, dashcardDataKey, icon, link
     } else if (icon === "doughnut") {
         const iconContainer = $('#' + dashcardId + '-icon-container');
         iconContainer.append('<canvas style="border 1px solid black" id="' + dashcardId + '-doughnut-chart" width="50" height="50"></canvas>');
+    } else if (icon === "time") {
+        iconElement.addClass('fas fa-clock text-info');
     }
 
     $('#' + dashcardId + '-reload-button').on('click', async function() {
@@ -31,6 +33,7 @@ const refreshDashcard = async(dashcardId, dashcardDataKey, action, field) => {
     $('#' + dashcardId + '-tooltip-text').text('Retrieving data...');
 
     const countData = await fetchDashcardData(dashcardDataKey, action, field)
+    console.log('countData', countData)
     $('#' + dashcardId + '-text').text(countData.total)
     if (field !== "" && field !== undefined) {
         initDoughnutChart(dashcardId, dashcardDataKey, {field: countData.field, total: countData.total}, field, false, false, true)
@@ -41,6 +44,12 @@ const refreshDashcard = async(dashcardId, dashcardDataKey, action, field) => {
 }
 
 const fetchDashcardData = async (dashcardDataKey, action, field) => {
+
+    if (dashcardDataKey === 'admin' && action === 'uptime') {
+        const uptime = await fetchServerUptime()
+        console.log('uptime', uptime)
+        return { total: uptime, field: uptime}
+    }
 
     let serverData  = ""
 
@@ -73,6 +82,7 @@ let dashcards =[
     { dashcardId: 'paymentsCount', dataKey: 'payments', icon: 'doughnut', dashcardName: 'Transactions', link: '#paymentsData', action: 'count', field: 'paid'},
     { dashcardId: 'unpaidTransactionsBalance', dataKey: 'payments', icon: 'satoshi', dashcardName: 'Unpaid transactions balance', link: '#paymentsData', action: 'unpaidTransactions' },
     { dashcardId: 'serverBalance', dataKey: 'payments', icon: 'satoshi', dashcardName: 'Server balance', link: '', action: 'serverBalance' },
+    { dashcardId: 'serverUptime', dataKey: 'admin', icon: 'time', dashcardName: 'Server uptime', link: '', action: 'uptime' },
 ]
 
 const refreshDashcards = async () => {
@@ -81,4 +91,25 @@ const refreshDashcards = async () => {
             semaphore.execute(async() => await refreshDashcard(dashcard.dashcardId, dashcard.dataKey,  dashcard.action, dashcard.field))
         }
     }
+}
+
+const fetchServerUptime = async ()  =>{
+
+    let uptime = "00:00";
+
+    await fetch('admin/status')
+    .then(res => res.json())
+    .then(out =>
+      {
+        const timeParts = out.uptime.split(':');
+        if (timeParts.length === 3) {
+            uptime = `${timeParts[0]}:${timeParts[1]}`;
+        }
+    })
+    .catch(err => { 
+        console.warn(err)
+        return "00:00";
+    });
+
+    return uptime
 }
