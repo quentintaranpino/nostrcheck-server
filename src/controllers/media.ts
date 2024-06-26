@@ -299,31 +299,51 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 
 const getMedia = async (req: Request, res: Response, version:string) => {
 
-	const params = req.params;
-
-	// Get media by URL (pubkey and filename for galleries)
 	if (req.params.param1 && req.params.param2) {
-		req.params.pubkey = req.params.param1;
-		req.params.filename = req.params.param2;
-		getMediabyURL(req, res);
+		if (req.params.param2 == 'tags'){
+			req.params.fileId = req.params.param1;
+			getMediaTagsbyID(req, res); 
+			return;
+		}else if(req.params.param1 == 'tag'){
+			req.params.tag = req.params.param2;
+			getMediabyTags(req, res);
+			return;
+		}else{
+			req.params.pubkey = req.params.param1;
+			req.params.filename = req.params.param2;
+			getMediabyURL(req, res);
+			return;
+		}
 	}
 
 	// Get media by URL (only filename)
-	if (req.params.param1 && req.params.param1.length > 64) {
+	if (req.params.param1 && req.params.param1.length >= 64) {
 		req.params.filename = req.params.param1;
 		getMediabyURL(req, res);
+		return;
 	}
 
 	// Get media by ID
 	if (req.params.param1 && req.params.param1.length < 64) {
-		req.params.id = req.params.param1;
-		getMediaStatusbyID(req, res, version);
+
+		if(req.params.param1 == "list"){
+			getMediaList(req, res, version); // List media Blossom compatibility
+			return;
+		}else{
+			req.params.id = req.params.param1;
+			getMediaStatusbyID(req, res, version);
+			return;
+		}
 	}
 
 	// List media
 	if (req.query && Object.keys(req.query).length > 0 && req.query.page != undefined && req.query.count != undefined) {
-		getMediaList(req, res, version);
+		getMediaList(req, res, version); // List media NIP96 compatibility
+		return;
 	}
+
+	return res.status(400).send({"status": "error", "message": "Bad request"});
+
 }
 
 const getMediaList = async (req: Request, res: Response, version:string): Promise<Response> => {
@@ -618,42 +638,39 @@ const getMediabyURL = async (req: Request, res: Response) => {
 		req.params.pubkey && !validator.default.matches(req.params.pubkey, /^[a-zA-Z0-9_]+$/) ||
 		!req.params.filename || 
 		req.params.filename.length > 70 ||
-		!validator.default.matches(req.params.filename, /^[a-zA-Z0-9_]+(\.[a-zA-Z0-9_]+)*\.[a-zA-Z0-9_]+$/)) {
+		!validator.default.matches(req.params.filename, /^[a-zA-Z0-9_]+(\.[a-zA-Z0-9_]+)*$/)) {
 		logger.warn(`RES Media URL -> 400 Bad request:`, req.params.filename, "|", getClientIp(req));
 		res.setHeader('Content-Type', 'image/webp');
 		return res.status(400).send(await getNotFoundMediaFile());
 	}
 
 	// Old API compatibility (username instead of pubkey)
-	let username : string = "";
 	if (req.params.pubkey && req.params.pubkey.length < 64) {
 		const hex = await dbSelect("SELECT hex FROM registered WHERE username = ?", "hex", [req.params.pubkey]);
 		if (hex) {
 			logger.debug("Old API compatibility (username instead of pubkey)", req.params.pubkey,"-", hex, "|", getClientIp(req));
-			username = req.params.pubkey;
 			req.params.pubkey = hex as string;
 		}
 	}
-
 
 	// Check if file is active on the database and if payment is required
 	const cachedStatus = await redisClient.get(req.params.filename + "-" + req.params.pubkey);
 	if (cachedStatus === null || cachedStatus === undefined) {
 
-		// Standard gallery compatibility (pubkey/file.ext)
-		let whereFields = "filename = ? and pubkey = ? and visibility = 1";
-		let whereValues = [req.params.filename, req.params.pubkey];
+		// Standard gallery compatibility (pubkey/file.ext or pubkey/file)
+		let whereFields = "(filename = ? OR original_hash = ?) and pubkey = ? and visibility = 1";
+		let whereValues = [req.params.filename, req.params.filename, req.params.pubkey];
 
-		// Avatar and banner short URL compatibility (pubkey/avatar.ext or pubkey/banner.ext)
+		// Avatar and banner short URL compatibility (pubkey/avatar.ext or pubkey/banner.ext) (or pubkey/avatar or pubkey/banner)
 		if (req.params.filename.startsWith("avatar") || req.params.filename.startsWith("banner")) {
 			whereFields = "type = ? and pubkey = ?";
 			whereValues = [req.params.filename.split(".")[0], req.params.pubkey];
 		}
 
-		// Filename URL compatibility. Blossom compatibility (filename.ext)
+		// Filename URL compatibility. Blossom compatibility (filename.ext or filename)
 		if(!req.params.pubkey) {
-			whereFields = "filename = ?";
-			whereValues = [req.params.filename];
+			whereFields = "(filename = ? OR original_hash = ?)";
+			whereValues = [req.params.filename, req.params.filename];
 		}
 
 		const filedata = await dbMultiSelect(
@@ -844,15 +861,21 @@ const getMediaTagsbyID = async (req: Request, res: Response): Promise<Response> 
 	logger.info("REQ -> Media file tag list", "|", getClientIp(req));
 
 	// Check if authorization header is valid
-	const EventHeader = await parseAuthHeader(req, "getMediaTagsbyID", false);
-	if (EventHeader.status !== "success") {return res.status(401).send({"result": EventHeader.status, "description" : EventHeader.message});}
-
-	logger.info("REQ -> Media tag list -> pubkey:", EventHeader.pubkey, "-> id:", req.params.fileId, "|", getClientIp(req));
+	const eventHeader = await parseAuthHeader(req, "getMediaStatusbyID", false);
+	if (eventHeader.status !== "success") {
+		const result : ResultMessagev2 = {
+			status: MediaStatus[1],
+			message: eventHeader.message
+		}
+		return res.status(401).send(result);
+	}
+	eventHeader.authkey? res.header("Authorization", eventHeader.authkey): null;
+	logger.info("REQ -> Media tag list -> pubkey:", eventHeader.pubkey, "-> id:", req.params.fileId, "|", getClientIp(req));
 
 	//Query database for media tags
 	try {
 		const conn = await connect("GetMediaTagsbyID");
-		const [rows] = await conn.execute("SELECT tag FROM mediatags INNER JOIN mediafiles ON mediatags.fileid = mediafiles.id where fileid = ? and pubkey = ? ", [req.params.fileId, EventHeader.pubkey]);
+		const [rows] = await conn.execute("SELECT tag FROM mediatags INNER JOIN mediafiles ON mediatags.fileid = mediafiles.id where fileid = ? and pubkey = ? ", [req.params.fileId, eventHeader.pubkey]);
 		const rowstemp = JSON.parse(JSON.stringify(rows));
 
 		if (rowstemp[0] !== undefined) {
@@ -887,7 +910,7 @@ const getMediabyTags = async (req: Request, res: Response): Promise<Response> =>
 	// Check if current module is enabled
 	if (!isModuleEnabled("media", app)) {
         logger.warn("Attempt to access a non-active module:","media","|","IP:", getClientIp(req));
-		return res.status(400).send({"status": "error", "message": "Module is not enabled"});
+		res.status(400).send({"status": "error", "message": "Module is not enabled"});
 	}
 
 	//Get media files by defined tags

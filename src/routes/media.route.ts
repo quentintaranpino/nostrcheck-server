@@ -42,13 +42,7 @@ export const loadMediaEndpoint = async (app: Application, version:string): Promi
 		getMedia(req, res, version);
 	});
 
-	//Get media tags by id
-	app.get("/api/" + version + app.get("config.server")["availableModules"]["media"]["path"] + "/:fileId/tags/", getMediaTagsbyID);
-
-	//Get media by tags
-	app.get("/api/" + version + app.get("config.server")["availableModules"]["media"]["path"] + "/tag/:tag", getMediabyTags);
-
-	//Update media visibility
+	// PUT
 	app.put("/api/" + version + app.get("config.server")["availableModules"]["media"]["path"] + "/:fileId/visibility/:visibility", updateMediaVisibility);
 
 	if (version == "v2"){
