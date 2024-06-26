@@ -93,8 +93,9 @@ See configuration [here](https://github.com/quentintaranpino/nostrcheck-api-ts/b
 - [x] Frontend UI (homepage)
 - [x] Frontend UI (docs and ToS)
 - [x] Remote Object Storage (s3)
+- [ ] Blossom spec compatible
+- [x] Lightning payments
 - [ ] Multi-server mirroring
-- [ ] Lightning payments
 - [ ] Import / Export data
 - [ ] Custom frontend templates
 - [ ] Frontend UI (profile)
