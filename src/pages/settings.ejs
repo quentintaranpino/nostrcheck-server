@@ -299,7 +299,7 @@
                     placeholder="default: https://servername/media"
                     required
                     >
-            <label for="media.allowPublicUploads" class="mt-2 mb-1 fw-bold">Allow public uploads</label>
+            <label for="media.allowPublicUploads" class="mt-4 mb-1 fw-bold">Allow public uploads</label>
             <p>If disabled, only registered pubkeys can upload files.</p>
             <div class="form-check form-switch">
               <input  class="form-check-input" 
@@ -310,7 +310,19 @@
                       id="media.allowPublicUploads"
                       >
             </div>
-            <label for="media.maxMBfilesize" class="mt-2 mb-1 mt-3 fw-bold">Max file size (MB)</label>
+            <label for="media.transform.enabled" class="mt-4 mb-1 fw-bold">Enable image and video resizing</label>
+            <p>Enable or disable the image and video resizing functionality of the server. 
+              If enabled, the server will resize the images and videos to the specified target size.</p>
+            <div class="form-check form-switch">
+              <input  class="form-check-input" 
+                      type="checkbox" 
+                      value="<%= request.body.settingsMedia['transform']['enabled'] ? true : false %>" 
+                      <%= request.body.settingsMedia['transform']['enabled'] ? 'checked' : '' %> 
+                      name="media.transform.enabled" 
+                      id="media.transform.enabled"
+                      >
+            </div>
+            <label for="media.maxMBfilesize" class="mt-4 mb-1 mt-3 fw-bold">Max file size (MB)</label>
             <p>Specify the maximum file size allowed for uploads in megabytes.</p>
               <div class="col-12">
                 <input  type="text" 
@@ -394,18 +406,32 @@
               </select>
             </div>
             <label for="payments.maxSatoshi" class="mt-4 mb-1 fw-bold">Max Satoshi</label>
-            <p>Specify the maximum amount of sats that can be paid for the biggest accepted file size. 
-              If the file size exceeds a maximum limit, it uses this maxium for calculation.<b> It's always at least 1 sat.</b> 
+            <p>Specify the maximum amount of sats that can be paid for the biggest accepted file size or the shortest register username. 
+              If the request exced the limit, it uses this maxium limit for calculation. It's always at least 1 sat per request.
             </p>
-            <div class="col-12 col-md-4">
-              <input  type="text" 
-                      id="payments.maxSatoshi" 
-                      name="payments.maxSatoshi" 
-                      class="form-control" 
-                      value="<%= request.body.settingsPayments['maxSatoshi'] %>" 
-                      placeholder="ex. 1000" 
-                      required
-                      > 
+            <div class="row">
+              <div class="col-12 col-md-4">
+                <label for="payments.satoshi.mediaMaxSatoshi" class="mt-2 mb-1 fw-bold">Media uploads</label>
+                <input  type="text" 
+                        id="payments.satoshi.mediaMaxSatoshi" 
+                        name="payments.satoshi.mediaMaxSatoshi" 
+                        class="form-control" 
+                        value="<%= request.body.settingsPayments['satoshi']['mediaMaxSatoshi'] %>" 
+                        placeholder="ex. 1000" 
+                        required
+                        > 
+              </div>
+              <div class="col-12 col-md-4">
+                <label for="payments.satoshi.registerMaxSatoshi" class="mt-2 mb-1 fw-bold">Register form</label>
+                <input  type="text" 
+                        id="payments.satoshi.registerMaxSatoshi"
+                        name="payments.satoshi.registerMaxSatoshi"
+                        class="form-control" 
+                        value="<%= request.body.settingsPayments['satoshi']['registerMaxSatoshi'] %>" 
+                        placeholder="ex. 1000" 
+                        required
+                        > 
+              </div>
             </div>
             <label for="payments.getalby.authToken" class="mt-4 mb-1 fw-bold">GetAlby authToken</label>
             <p>Specify the authToken for GetAlby payment provider.</p>
