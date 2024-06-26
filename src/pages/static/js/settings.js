@@ -180,31 +180,46 @@ document.addEventListener('DOMContentLoaded', () => {
         { element: document.createElement('div'), position: 50, id: 'lookandfeel.server.colors.secondaryColor.percent' },
         { element: document.createElement('div'), position: 75, id: 'lookandfeel.server.colors.tertiaryColor.percent' }
     ];
+    
     handles.forEach(handle => {
         handle.element.classList.add('handle');
         handle.element.id = handle.id; 
         gradientBar.appendChild(handle.element);
         handle.element.style.left = `${handle.position}%`;
-
-        handle.element.addEventListener('mousedown', (e) => {
-            e.preventDefault();
-            const onMouseMove = (e) => {
-                let newPosition = ((e.clientX - gradientBar.getBoundingClientRect().left) / gradientBar.offsetWidth) * 100;
+    
+        const startDrag = (startEvent) => {
+            startEvent.preventDefault();
+            let moveEvent = 'mousemove';
+            let endEvent = 'mouseup';
+            let clientX = startEvent.clientX;
+    
+            if (startEvent.type === 'touchstart') {
+                moveEvent = 'touchmove';
+                endEvent = 'touchend';
+                clientX = startEvent.touches[0].clientX;
+            }
+    
+            const onMouseMove = (moveEvt) => {
+                let newPosition = moveEvt.clientX || moveEvt.touches[0].clientX;
+                newPosition = ((newPosition - gradientBar.getBoundingClientRect().left) / gradientBar.offsetWidth) * 100;
                 if (newPosition < 0) newPosition = 0;
                 if (newPosition > 100) newPosition = 100;
                 handle.position = newPosition;
                 handle.element.style.left = `${newPosition}%`;
                 updateGradient();
             };
-
+    
             const onMouseUp = () => {
-                document.removeEventListener('mousemove', onMouseMove);
-                document.removeEventListener('mouseup', onMouseUp);
+                document.removeEventListener(moveEvent, onMouseMove);
+                document.removeEventListener(endEvent, onMouseUp);
             };
-
-            document.addEventListener('mousemove', onMouseMove);
-            document.addEventListener('mouseup', onMouseUp);
-        });
+    
+            document.addEventListener(moveEvent, onMouseMove);
+            document.addEventListener(endEvent, onMouseUp);
+        };
+    
+        handle.element.addEventListener('mousedown', startDrag);
+        handle.element.addEventListener('touchstart', startDrag);
     });
 
     const updateGradient = () => {
