@@ -14,14 +14,14 @@ const initMonthChart = (chartId, title, rawData) => {
   const currentYear = new Date().getFullYear();
   
   dataArray.forEach(item => {
-    const [count, dateStr] = item.split(',');
-    const year = parseInt(dateStr.substring(0, 4));
-    const month = parseInt(dateStr.substring(5)) - 1; 
-  
+    const { count, month } = item;
+    const year = parseInt(month.substring(0, 4));
+    const monthIndex = parseInt(month.substring(5)) - 1;
+
     if (year === currentYear) {
-      monthCountsCurrentYear[month] += parseInt(count);
+      monthCountsCurrentYear[monthIndex] += parseInt(count);
     } else if (year === currentYear - 1) {
-      monthCountsLastYear[month] += parseInt(count);
+      monthCountsLastYear[monthIndex] += parseInt(count);
     }
   });
 
