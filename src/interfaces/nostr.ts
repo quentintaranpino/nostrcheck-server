@@ -44,7 +44,8 @@ interface NIP94_data {
             ["dim",string],
             ["magnet", string],
             ["i", string],
-            ["blurhash", string]
+            ["blurhash", string],
+            ["no_transform", boolean]
     ],
     content: string,
     created_at: number,

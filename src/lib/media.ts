@@ -12,7 +12,6 @@ import app from "../app.js";
 import { generatefileHashfromfile } from "./hash.js";
 import crypto from "crypto";
 import { getClientIp } from "./utils.js";
-import { CreateMagnet } from "./torrent.js";
 import path from "path";
 import sharp from "sharp";
 import { saveFile } from "./storage/core.js";
@@ -26,7 +25,6 @@ const prepareFile = async (t: asyncTask): Promise<void> =>{
 	if (!Array.isArray(t.req.files) || t.req.files.length == 0) {
 		logger.error("ERR -> Preparing file for conversion, empty file");
 		return;
-
 	}
 	if (!t.req.files[0]) {logger.error("ERR -> Preparing file for conversion, empty file");	return;}
 	if (!t.req.files[0].mimetype) {logger.error("ERR -> Preparing file for conversion, empty mimetype");return;}
@@ -34,14 +32,13 @@ const prepareFile = async (t: asyncTask): Promise<void> =>{
 	if (!t.filedata.pubkey) {logger.error("ERR -> Preparing file for conversion, empty pubkey");return;}
 
 	logger.info("Processing file :",t.req.files[0].originalname,"=>",t.filedata.filename);
-
-	await convertFile(t.req.files[0], t.filedata, 0);
+	await processFile(t.req.files[0], t.filedata, 0);
 
 }
 
 const requestQueue: queueAsPromised<asyncTask> = fastq.promise(prepareFile, 1); //number of workers for the queue
 
-const convertFile = async(	inputFile: Express.Multer.File,	options: ProcessingFileData, retry:number = 0): Promise<boolean> =>{
+const processFile = async(	inputFile: Express.Multer.File,	options: ProcessingFileData, retry:number = 0): Promise<boolean> =>{
 
 	if (retry > 5) {return false}
 
@@ -51,48 +48,38 @@ const convertFile = async(	inputFile: Express.Multer.File,	options: ProcessingFi
 
 	const result = new Promise(async(resolve, reject) => {
 
-		//Set status processing on the database
 		const processing = await dbUpdate('mediafiles','status','processing', ['id'], [options.fileid]);
-		if (!processing) {
-			logger.error("Could not update table mediafiles, id: " + options.fileid, "status: processing");
+		if (!processing) {logger.error("Could not update table mediafiles, id: " + options.fileid, "status: processing");}
+
+		if (options.no_transform == true) {
+			logger.info("no_transform flag detected, skipping file conversion");
+			if (await finalizeFileProcessing(options)) {
+				logger.info(`File processed successfully: ${options.filename} ${options.filesize} bytes`);
+				resolve(true);
+				return;
+			}
+			else{
+				reject("Error finalizing file processing");
+				return;
+			}
 		}
 
 		let MediaDuration: number = 0;
 		let ConversionDuration : number = 0;
-		const newfiledimensions = (await setMediaDimensions(options.conversionInputPath, options)).toString()
+		options.newFileDimensions = (await setMediaDimensions(options.conversionInputPath, options)).toString()
 
-		const ConversionEngine = initConversionEngine(options.conversionInputPath, options.conversionOutputPath, newfiledimensions, options);
+		const ConversionEngine = initConversionEngine(options);
 
 		ConversionEngine
 			.on("end", async(end) => {
-			
-				try{
-					await dbUpdate('mediafiles','percentage','100',['id'], [options.fileid]);
-					await dbUpdate('mediafiles','visibility','1',['id'], [options.fileid]);
-					await dbUpdate('mediafiles','active','1',['id'], [options.fileid]);
-					await dbUpdate('mediafiles', 'hash', await generatefileHashfromfile(options.conversionOutputPath), ['id'], [options.fileid]);
-					if (config.get("torrent.enableTorrentSeeding")) {await CreateMagnet(options.conversionOutputPath, options);}
-					await dbUpdate('mediafiles','status','success',['id'], [options.fileid]);
-					const filesize = getFileSize(options.conversionOutputPath,options)
-					await dbUpdate('mediafiles', 'filesize', filesize ,['id'], [options.fileid]);
-					await dbUpdate('mediafiles','dimensions',newfiledimensions.split("x")[0] + 'x' + newfiledimensions.split("x")[1],['id'], [options.fileid]);
-					logger.info(`File converted successfully: ${options.conversionOutputPath} ${ConversionDuration /2} seconds`);
 
-					await saveFile(options, options.conversionOutputPath);
-
-					await deleteLocalFile(options.conversionInputPath);
-					await deleteLocalFile(options.conversionOutputPath);
-
-					// Create paid transaction if needed
-					await checkTransaction("", options.fileid, "mediafiles", filesize, options.pubkey);
-
+				if (await finalizeFileProcessing(options)) {
+					logger.info(`File processed successfully: ${options.filename} ${ConversionDuration /2} seconds`);
 					resolve(end);
 				}
-				catch(err){
-					logger.error("Error while making postprocessing methods after file conversion", err);
-					reject(err);
+				else{
+					reject("Error finalizing file processing");
 				}
-
 			})
 			.on("error", async (err) => {
 
@@ -110,7 +97,7 @@ const convertFile = async(	inputFile: Express.Multer.File,	options: ProcessingFi
 					}
 					resolve(err);
 				}
-				convertFile(inputFile, options, retry);
+				processFile(inputFile, options, retry);
 				resolve(err);
 
 			})
@@ -144,24 +131,23 @@ const convertFile = async(	inputFile: Express.Multer.File,	options: ProcessingFi
 	
 }
 
+const initConversionEngine = (file: ProcessingFileData) => {
 
-const initConversionEngine = (inputPath: string, outputPath: string, newfiledimensions: string, options: ProcessingFileData) => {
-
-    const ffmpegEngine = ffmpeg(inputPath)
+    const ffmpegEngine = ffmpeg(file.conversionInputPath)
         .outputOption(["-loop 0"]) //Always loop. If is an image it will not apply.
-        .setSize(newfiledimensions)
-        .output(outputPath)
-        .toFormat(options.filename.split(".").pop() || "");
+        .setSize(file.newFileDimensions)
+        .output(file.conversionOutputPath)
+        .toFormat(file.filename.split(".").pop() || "");
 
-    if (options.filename.split(".").pop() == "webp" && options.originalmime != "image/gif") {
+    if (file.filename.split(".").pop() == "webp" && file.originalmime != "image/gif") {
         ffmpegEngine.frames(1); //Fix IOS issue when uploading some portrait images.
     }
 
-    if (options.outputoptions != "") {
-        ffmpegEngine.outputOptions(options.outputoptions)
+    if (file.outputoptions != "") {
+        ffmpegEngine.outputOptions(file.outputoptions)
     }
 
-	if (options.filename.split(".").pop() == "mp4") {
+	if (file.filename.split(".").pop() == "mp4") {
 		ffmpegEngine.videoCodec("libx264");
 		ffmpegEngine.fps(30);
 	}
@@ -206,22 +192,22 @@ const ParseMediaType = (req : Request, pubkey : string): string  => {
 
 }
 
-const ParseFileType = async (req: Request, file :Express.Multer.File): Promise<string> => {
+const ParseFileType = async (req: Request, file :Express.Multer.File): Promise<{mime:string, ext:string}> => {
 
 	//Detect file mime type
-	const DetectedFileType = await fileTypeFromBuffer(file.buffer);
-	if (DetectedFileType == undefined) {
+	const result = await fileTypeFromBuffer(file.buffer);
+	if (result == undefined) {
 		logger.warn(`RES -> 400 Bad request - Could not detect file mime type `,  "|", getClientIp(req));
-		return "";
+		return {mime: "", ext: ""};
 	}
 	
 	//Check if filetype is allowed
-	if (!allowedMimeTypes.includes(DetectedFileType.mime)) {
-		logger.warn(`RES -> 400 Bad request - filetype not allowed: `, DetectedFileType.mime,  "|", getClientIp(req));
-		return "";
+	if (!allowedMimeTypes.includes(result.mime)) {
+		logger.warn(`RES -> 400 Bad request - filetype not allowed: `, result.mime,  "|", getClientIp(req));
+		return {mime: "", ext: ""};
 	}
 
-	return DetectedFileType.mime;
+	return result;
 
 }
 
@@ -396,4 +382,30 @@ const readRangeHeader = (range : string | undefined, totalLength : number ): vid
 	return result;
 }
 
-export {convertFile, requestQueue, ParseMediaType, ParseFileType,GetFileTags, standardMediaConversion, getNotFoundMediaFile, readRangeHeader};
+const finalizeFileProcessing = async (filedata: ProcessingFileData): Promise<boolean> => {
+	try{
+		await dbUpdate('mediafiles','percentage','100',['id'], [filedata.fileid]);
+		await dbUpdate('mediafiles','visibility','1',['id'], [filedata.fileid]);
+		await dbUpdate('mediafiles','active','1',['id'], [filedata.fileid]);
+		await dbUpdate('mediafiles', 'hash', filedata.no_transform == true ? filedata.originalhash : await generatefileHashfromfile(filedata.conversionOutputPath), ['id'], [filedata.fileid]);
+		// if (config.get("torrent.enableTorrentSeeding")) {await CreateMagnet(filedata.conversionOutputPath, filedata);}
+		await dbUpdate('mediafiles','status','success',['id'], [filedata.fileid]);
+		const filesize = getFileSize(filedata.no_transform == true ? filedata.conversionInputPath: filedata.conversionOutputPath ,filedata)
+		await dbUpdate('mediafiles', 'filesize', filesize ,['id'], [filedata.fileid]);
+		await dbUpdate('mediafiles','dimensions',filedata.newFileDimensions.split("x")[0] + 'x' + filedata.newFileDimensions.split("x")[1],['id'], [filedata.fileid]);
+		await saveFile(filedata, filedata.no_transform == true ? filedata.conversionInputPath: filedata.conversionOutputPath );
+
+		if (filedata.no_transform == false) { await deleteLocalFile(filedata.conversionOutputPath);}
+		await deleteLocalFile(filedata.conversionInputPath);
+
+		await checkTransaction("", filedata.fileid, "mediafiles", filesize, filedata.pubkey);
+
+		return true;
+
+	}catch(err){
+		logger.error("Error finalizing file processing", err);
+		return false;
+	}
+}
+
+export {processFile, requestQueue, ParseMediaType, ParseFileType,GetFileTags, standardMediaConversion, getNotFoundMediaFile, readRangeHeader};

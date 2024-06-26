@@ -98,6 +98,7 @@ interface FileData{
 	torrent_infohash: string;
 	date: string;
 	servername: string;
+	no_transform: boolean;
 }
 
 interface ProcessingFileData extends FileData{
@@ -110,6 +111,7 @@ interface ProcessingFileData extends FileData{
 	processing_url: string;
 	conversionInputPath: string;
 	conversionOutputPath: string;
+	newFileDimensions: string;
 
 }
 

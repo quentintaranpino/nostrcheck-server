@@ -57,7 +57,8 @@ const PrepareNIP96_listEvent = async (filedata : FileData): Promise<NIP94_data> 
                     ["dim",filedata.width + "x" + filedata.height],
                     ["magnet", filedata.magnet],
                     ["i", filedata.torrent_infohash],
-                    ["blurhash", filedata.blurhash]
+                    ["blurhash", filedata.blurhash],
+                    ["no_transform", filedata.no_transform ]
             ],              
             content: '',
             created_at: Number(new Date(filedata.date).getTime() / 1000),}

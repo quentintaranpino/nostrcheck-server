@@ -367,28 +367,29 @@ If the configuration file does not exist, the application will automatically gen
 		"allowPublicUploads" : true,
 		"returnURL" : "",
 		"transform" : {
-		"media":{
-			"undefined" : {
-				"width" : "640",
-				"height" : "480"
+			"enabled": true
+			"media":{
+				"undefined" : {
+					"width" : "640",
+					"height" : "480"
+				},
+				"image" : {
+					"width" : "1280",
+					"height" : "960"
+				},
+				"video" : {
+					"width" : "720",
+					"height" : "480"
+				}
 			},
-			"image" : {
-				"width" : "1280",
-				"height" : "960"
+			"avatar" : {
+				"width" : "400",
+				"height" : "400"
 			},
-			"video" : {
-				"width" : "720",
-				"height" : "480"
+			"banner" : {
+				"width" : "900",
+				"height" : "300"
 			}
-		},
-		"avatar" : {
-			"width" : "400",
-			"height" : "400"
-		},
-		"banner" : {
-			"width" : "900",
-			"height" : "300"
-		}
 		}
 	},
 	"torrent": {

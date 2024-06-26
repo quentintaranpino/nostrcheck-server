@@ -108,8 +108,8 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 	}
 
 	// Parse file type. If not defined or not allowed, reject upload.
-	file.mimetype = await ParseFileType(req, file);
-	if (file.mimetype === "") {
+	const fileMimeData = await ParseFileType(req, file);
+	if (fileMimeData.mime == "" || fileMimeData.ext == "") {
 		logger.error(`RES -> 400 Bad request - `, file.mimetype, ` filetype not detected`, "|", getClientIp(req));
 		if(version != "v2"){return res.status(400).send({"result": false, "description" : "file type not detected or not allowed"});}
 
@@ -119,7 +119,7 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 		};
 		return res.status(400).send(result);
 	}
-	logger.info("mime ->", file.mimetype, "|", getClientIp(req));
+	logger.info("mime ->", fileMimeData.mime, "|", getClientIp(req));
 
 	// Filedata
 	const filedata: ProcessingFileData = {
@@ -130,7 +130,7 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 		width: app.get("config.media")["transform"]["media"]["undefined"]["width"],
 		height: app.get("config.media")["transform"]["media"]["undefined"]["height"],
 		media_type: media_type,
-		originalmime: file.mimetype,
+		originalmime: fileMimeData.mime,
 		outputoptions: "",
 		originalhash: "",
 		hash: "",
@@ -145,12 +145,15 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 		conversionInputPath: "",
 		conversionOutputPath: "",
 		date: "",
+		no_transform: Boolean(req.body.no_transform) || false,
+		newFileDimensions: "",
 	};
 
 	// Uploaded file SHA256 hash and filename
 	filedata.originalhash = await generatefileHashfrombuffer(file);
-	filedata.filename = filedata.originalhash +  "." + mime_extension[file.mimetype]
+	filedata.no_transform == true? filedata.filename = `${filedata.originalhash}.${fileMimeData.ext}` : filedata.filename = `${filedata.originalhash}.${mime_extension[fileMimeData.mime]}`;
 	logger.info("hash ->", filedata.originalhash, "|", getClientIp(req));
+	logger.info("filename ->", filedata.filename, "|", getClientIp(req));
 
 	// URL
 	const returnURL = app.get("config.media")["returnURL"];
@@ -165,7 +168,7 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 	if (version == "v1"){filedata.status = JSON.parse(JSON.stringify(UploadStatus[0]));}
 	if (version == "v2"){filedata.status = JSON.parse(JSON.stringify(MediaStatus[0]));}
 
-	let convert = true;
+	let processFile = true;
 	let insertfiledb = true;
 	let makeBlurhash = true;
 
@@ -193,18 +196,18 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 			filedata.height = +(dbHash[0].dimensions.split("x")[1]);
 		}
 		filedata.description = "File exist in database, returning existing URL";
-		convert = false; 
+		processFile = false; 
 		insertfiledb = false;
 		makeBlurhash = false;
 
 		if (await getFilePath(filedata.filename) == "") {
 			logger.warn("File already in database but not found on storage server, processing as new file", "|", getClientIp(req));
-			convert = true;
+			processFile = true;
 		}
 	}
 
 	// Write temp file to disk (for ffmpeg and blurhash)
-	if (convert){
+	if (processFile){
 		filedata.conversionInputPath = app.get("config.storage")["local"]["tempPath"] + "in" + crypto.randomBytes(20).toString('hex') + filedata.filename;
 		if (!await writeLocalFile(filedata.conversionInputPath, file.buffer)) {
 			logger.error("Could not write temp file to disk", "|", filedata.conversionInputPath);
@@ -247,7 +250,7 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 	
 	let responseStatus = 201;
 
-	if (convert){
+	if (processFile){
 
 		const procesingURL = app.get("config.media")["returnURL"]
 		filedata.processing_url = procesingURL
@@ -256,7 +259,7 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 
 		responseStatus = 202;
 
-		//Send request to transform queue
+		//Send request to process queue
 		const t: asyncTask = {req,filedata,};
 		logger.info(`${requestQueue.length() +1} items in queue`);
 		filedata.description + "File queued for conversion";
@@ -377,6 +380,7 @@ const getMediaList = async (req: Request, res: Response, version:string): Promis
 			torrent_infohash: "",
 			blurhash: e.blurhash,
 			servername: "https://" + req.hostname,
+			no_transform: e.hash == e.original_hash ? true : false,
 		};
 
 		// URL
@@ -498,6 +502,8 @@ const getMediaStatusbyID = async (req: Request, res: Response, version:string): 
 		conversionInputPath: "",
 		conversionOutputPath: "",
 		date: "",
+		no_transform: rowstemp[0].original_hash == rowstemp[0].hash ? true : false,
+		newFileDimensions: "",
 	};
 
 	// URL

@@ -207,12 +207,10 @@ const updateLogo = async (req: Request, res: Response): Promise<Response> => {
 		return res.status(400).send({"status": "error", "message": "Empty file", "authkey": EventHeader.authkey});
 	}
 
-	file.mimetype = await ParseFileType(req, file);
-	if (file.mimetype === "") {
+	if ((await ParseFileType(req, file)).mime == "") {
 		logger.error(`RES -> 400 Bad request - `, file.mimetype, ` filetype not detected`, "|", getClientIp(req));
 		return res.status(400).send({"status": "error", "message": "file type not detected or not allowed", "authkey": EventHeader.authkey});
 	}
-
 
     await sharp(file.buffer)
     .resize(150, 51, { fit: sharp.fit.cover })
