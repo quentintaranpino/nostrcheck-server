@@ -27,11 +27,14 @@ interface NIP96file {
     }
 }
 
-interface NIP94_event {
+interface NIP94_base {
     id : string,
     pubkey: string,
-    created_at: number,
     kind: NIPKinds.NIP94,
+    sig : string,
+}
+
+interface NIP94_data {
     tags: [
             ["url", string],
             ["m", string],
@@ -44,9 +47,10 @@ interface NIP94_event {
             ["blurhash", string]
     ],
     content: string,
-    sig : string,
+    created_at: number,
 
-  }
+}
+interface NIP94_event extends NIP94_base, NIP94_data {}
 
 interface NIP96_event extends ResultMessagev2{
 
@@ -67,4 +71,4 @@ interface NIP96_processing extends ResultMessagev2{
     percentage : number,
 }
 
-export { NIPKinds, NIP96file, NIP94_event, NIP96_event, NIP96_processing, NIP04_event};
+export { NIPKinds, NIP96file, NIP94_event, NIP94_data, NIP96_event, NIP96_processing, NIP04_event};

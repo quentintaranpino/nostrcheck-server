@@ -1,6 +1,6 @@
 import { Application } from "express";
 import multer from "multer";
-import { uploadMedia, getMediaStatusbyID, getMediabyURL, deleteMedia, updateMediaVisibility, getMediaTagsbyID, getMediabyTags } from "../controllers/media.js";
+import { uploadMedia, getMedia, getMediabyURL, deleteMedia, updateMediaVisibility, getMediaTagsbyID, getMediabyTags } from "../controllers/media.js";
 import { ResultMessage, ResultMessagev2 } from "../interfaces/server.js";
 import { logger } from "../lib/logger.js";
 import { getClientIp } from "../lib/utils.js";
@@ -16,7 +16,7 @@ const upload = multer({
 
 export const loadMediaEndpoint = async (app: Application, version:string): Promise<void> => {
 	
-	//Upload media
+	// POST
 	app.post("/api/" + version + app.get("config.server")["availableModules"]["media"]["path"], function (req, res){
 		logger.debug(Math.round(maxMBfilesize * 1024 * 1024))
 		upload.any()(req, res, function (err) {
@@ -34,12 +34,13 @@ export const loadMediaEndpoint = async (app: Application, version:string): Promi
 		})
 	});
 
-	//Delete media
+	// DELETE
 	app.delete("/api/" + version +  app.get("config.server")["availableModules"]["media"]["path"] + "/:id", function (req, res){deleteMedia(req,res,version)});
 
-	//Get media status by id 
-	app.get("/api/" + version + app.get("config.server")["availableModules"]["media"]["path"], function (req, res){getMediaStatusbyID(req,res,version)});
-	app.get("/api/" + version + app.get("config.server")["availableModules"]["media"]["path"] + "/:id", function (req, res){getMediaStatusbyID(req,res,version)});
+	// GET
+	app.get(`/api/${version}${app.get("config.server")["availableModules"]["media"]["path"]}/:param1?/:param2?`, function (req, res) {
+		getMedia(req, res, version);
+	});
 
 	//Get media tags by id
 	app.get("/api/" + version + app.get("config.server")["availableModules"]["media"]["path"] + "/:fileId/tags/", getMediaTagsbyID);
@@ -47,12 +48,8 @@ export const loadMediaEndpoint = async (app: Application, version:string): Promi
 	//Get media by tags
 	app.get("/api/" + version + app.get("config.server")["availableModules"]["media"]["path"] + "/tag/:tag", getMediabyTags);
 
-	//Get media by url
-	app.get("/api/" + version + app.get("config.server")["availableModules"]["media"]["path"] + "/:pubkey/:filename", getMediabyURL);
-
 	//Update media visibility
 	app.put("/api/" + version + app.get("config.server")["availableModules"]["media"]["path"] + "/:fileId/visibility/:visibility", updateMediaVisibility);
-
 
 	if (version == "v2"){
         //NIP96 json file

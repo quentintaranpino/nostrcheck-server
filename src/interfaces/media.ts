@@ -96,6 +96,8 @@ interface FileData{
 	url: string;
 	magnet: string;
 	torrent_infohash: string;
+	date: string;
+	servername: string;
 }
 
 interface ProcessingFileData extends FileData{
@@ -105,10 +107,9 @@ interface ProcessingFileData extends FileData{
 	outputoptions: string;
 	status: string;
 	description: string;
-	servername: string;
 	processing_url: string;
 	conversionInputPath: string;
-	conversionOutputPath: string;	
+	conversionOutputPath: string;
 
 }
 
@@ -121,7 +122,6 @@ interface videoHeaderRange {
 	Start: number;
 	End: number;
 }
-
 
 export {
 	allowedMimeTypes,

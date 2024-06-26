@@ -1,6 +1,6 @@
 import config from "config";
-import {ProcessingFileData, allowedMimeTypes} from "../../interfaces/media.js";
-import {NIP96_event, NIP96file} from "../../interfaces/nostr.js";
+import {FileData, ProcessingFileData, allowedMimeTypes, mediaTypes} from "../../interfaces/media.js";
+import {NIP94_data, NIP96_event, NIP96file} from "../../interfaces/nostr.js";
 import { PrepareNIP94_event } from "./NIP94.js";
 
 //https://github.com/nostr-protocol/nips/blob/master/96.md
@@ -45,4 +45,25 @@ const PrepareNIP96_event = async (filedata : ProcessingFileData): Promise<NIP96_
     return event;
 }
 
-export {getNIP96file, PrepareNIP96_event}; 
+const PrepareNIP96_listEvent = async (filedata : FileData): Promise<NIP94_data> => {
+
+    const event : NIP94_data = {
+            tags: [
+                    ["url", filedata.url],
+                    ["m", mediaTypes[filedata.filename.split('.').pop() || '']],
+                    ["x", filedata.hash],
+                    ["ox", filedata.originalhash],
+                    ["size", filedata.filesize?.toString()],
+                    ["dim",filedata.width + "x" + filedata.height],
+                    ["magnet", filedata.magnet],
+                    ["i", filedata.torrent_infohash],
+                    ["blurhash", filedata.blurhash]
+            ],              
+            content: '',
+            created_at: Number(new Date(filedata.date).getTime() / 1000),}
+
+    return event;
+
+}
+
+export {getNIP96file, PrepareNIP96_event, PrepareNIP96_listEvent}; 
