@@ -735,7 +735,7 @@ Endpoint: https://nostrcheck.me/api/v2/media
 
 This endpoint uses the [NIP98](https://github.com/nostr-protocol/nips/blob/master/98.md) HTTP Auth and gets the `pubkey` field from the auth note. 
 
-It also uses the [NIP96](https://github.com/nostr-protocol/nips/blob/96.md) HTTP File Storage Integration standard. 
+This endpoint uses the [NIP96](https://github.com/nostr-protocol/nips/blob/96.md) HTTP File Storage Integration standard. 
 
 The upload will be saved in the user's gallery, whether registered or not.
 
@@ -917,6 +917,49 @@ If the mediafile is not found the server return the image defined on config file
 "notFoudFilePath" : "media/file-not-found.webp",
  
 ```
+
+### media [GET] (Listing files)
+Allows to list files linked to the authenticated users pubkey.
+
+https://nostrcheck.me/api/v2/media?page=0&count=100
+
+This endpoint uses the [NIP98](https://github.com/nostr-protocol/nips/blob/master/98.md) HTTP Auth and gets the `pubkey` field from the auth note. 
+
+This endpoint uses the [NIP96](https://github.com/nostr-protocol/nips/blob/96.md) HTTP File Storage Integration standard. 
+
+**Example**
+
+https://nostrcheck.me/api/v2/media?page=0&count=100
+
+
+```
+{
+  "count": 1, // server page size, eg. max(1, min(server_max_page_size, arg_count))
+  "total": 1, // total number of files
+  "page": 0, // the current page number
+  "files": [
+    {
+      "tags": [
+        ["ox": "719171db19525d9d08dd69cb716a18158a249b7b3b3ec4bbdec5698dca104b7b"],
+        ["x": "5d2899290e0e69bcd809949ee516a4a1597205390878f780c098707a7f18e3df"],
+        ["size", "123456"],
+        ["alt", "a meme that makes you laugh"],
+        ["expiration",  "1715691139"],
+        // ...other metadata
+      ]
+      "content": "haha funny meme", // caption
+      "created_at": 1715691130 // upload timestmap
+    },
+    ...
+  ]
+}
+```
+
+#Query args
+
+- `page` page number (`offset=page*count`)
+- `count` number of items per page
+
 
 ### media [GET] (TAGS)
 Allows to get the tags of a file.
