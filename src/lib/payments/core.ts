@@ -467,6 +467,6 @@ setInterval(async () => {
         }
     }
     //   await addBalance("1100000001", 10)
-}, 6000);
+}, 60000);
 
 export { checkTransaction, addBalance, getBalance, payInvoiceFromExpenses, formatAccountNumber, getUnpaidTransactionsBalance}
