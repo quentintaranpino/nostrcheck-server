@@ -14,15 +14,16 @@ const dbCountModuleData = async (module: string, field = ""): Promise<number> =>
 }
 
 
-const dbCountMonthModuleData = async (module: string, field = ""): Promise<object> => {
+const dbCountMonthModuleData = async (module: string, field : string): Promise<object> => {
 
 	const table = ModuleDataTables[module];
 	if (!table) {return {}}
-
-	// Return a JSON object with the number of records for every month in the last 2 years
-	const query = `SELECT COUNT(*) as count, DATE_FORMAT(${field}, "%Y-%m") as month FROM ${table} GROUP BY month ORDER BY month DESC LIMIT 24`;
-	const data = await dbMultiSelect(query, ["count", "month"], [], false);
-	logger.debug(data);
+	const data = await dbMultiSelect(
+									[`COUNT(*) as 'count'`, `DATE_FORMAT(${field}, '%Y-%m') as month`],
+		 							`${table}`,
+									`1= 1 GROUP BY month ORDER BY month DESC LIMIT 24`,
+									[],
+									false);
 	return data;
 
 }

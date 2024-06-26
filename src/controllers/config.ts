@@ -70,53 +70,59 @@ const checkConfigNecessaryKeys = async () : Promise<void> => {
 
 }
 
-const migrateFolders = async(mediaPath:string) => {
+// const migrateFolders = async(mediaPath:string) => {
 
-	let folderMigrationData = await dbMultiSelect("SELECT DISTINCT registered.username, registered.hex FROM registered",['username', 'hex'], ['1=1'], false);
-	if (folderMigrationData == undefined || folderMigrationData == null || folderMigrationData.length == 0){
-		console.debug("No Data to migrate.");
-		return;
-	}
+// 	let folderMigrationData = await dbMultiSelect("SELECT DISTINCT registered.username, registered.hex FROM registered",['username', 'hex'], ['1=1'], false);
+// 	if (folderMigrationData == undefined || folderMigrationData == null || folderMigrationData.length == 0){
+// 		console.debug("No Data to migrate.");
+// 		return;
+// 	}
 
-	const cantRename : string[] = [];
-	try {
-		folderMigrationData.forEach((item) => {
-		const [oldName, newName] = item.split(',');
+// 	const cantRename : string[] = [];
+// 	try {
+// 		folderMigrationData.forEach((item) => {
+// 		const [oldName, newName] = item.split(',');
 
-		const oldPath = path.join(mediaPath, oldName);
-		const newPath = path.join(mediaPath, newName);
+// 		const oldPath = path.join(mediaPath, oldName);
+// 		const newPath = path.join(mediaPath, newName);
 
-		if (fs.existsSync(oldPath)) {
-			console.debug(`Renaming folder: ${oldPath} to ${newPath}`);
-			if (fs.existsSync(newPath)) {
-				console.warn(`Folder with the name ${newName} already exists. Skipping...`);
-				cantRename.push(oldName + " -> " + newName);
-			} else {
-				console.debug(`Renaming folder: ${oldPath} to ${newPath}`);
-				fs.renameSync(oldPath, newPath);
-			}
-		}
-		});
+// 		if (fs.existsSync(oldPath)) {
+// 			console.debug(`Renaming folder: ${oldPath} to ${newPath}`);
+// 			if (fs.existsSync(newPath)) {
+// 				console.warn(`Folder with the name ${newName} already exists. Skipping...`);
+// 				cantRename.push(oldName + " -> " + newName);
+// 			} else {
+// 				console.debug(`Renaming folder: ${oldPath} to ${newPath}`);
+// 				fs.renameSync(oldPath, newPath);
+// 			}
+// 		}
+// 		});
 
-		if (cantRename.length > 0){
-			cantRename.forEach(element => {
-				console.warn("Cant rename folder: ", element);
-			});
-			console.warn("WARNING", cantRename.length,"- Folders not migrated to new version. Server will shut down to prevent data loss.");
-			exit(1);
-		}
+// 		if (cantRename.length > 0){
+// 			cantRename.forEach(element => {
+// 				console.warn("Cant rename folder: ", element);
+// 			});
+// 			console.warn("WARNING", cantRename.length,"- Folders not migrated to new version. Server will shut down to prevent data loss.");
+// 			exit(1);
+// 		}
 
 
-	} catch (err) {
-		console.error("Error renaming folders: ", err);
-		process.exit(1);
-	}
+// 	} catch (err) {
+// 		console.error("Error renaming folders: ", err);
+// 		process.exit(1);
+// 	}
 
-}
+// }
 
 const migrateDBLocalpath = async () : Promise<boolean> => {
-    
-	const mediaFiles = await dbMultiSelect('SELECT filename, pubkey, type FROM mediafiles WHERE (localpath IS NULL or localpath = "") ORDER BY id DESC',['filename', 'pubkey', 'type'], ['1=1'], false);
+
+	const mediaFiles = await dbMultiSelect(
+									["filename", "pubkey", "type"],
+									"mediafiles",
+									"(localpath IS NULL or localpath = '') ORDER BY id DESC",
+									['1=1'], 
+									false);
+
 	if (mediaFiles == undefined || mediaFiles == null || mediaFiles.length == 0){
         return false;
     }
@@ -125,7 +131,7 @@ const migrateDBLocalpath = async () : Promise<boolean> => {
 	
 	let count = 0;
 	for (const item of mediaFiles) {
-		let [filename, pubkey, type] = item.split(',');
+		let { filename, pubkey, type } = item;
 		console.log(`### - Processing file ${count} of ${mediaFiles.length} - ${filename} - ${pubkey}`);
  
 		if (filename.includes("avatar") || filename.includes("banner")) {
@@ -220,7 +226,7 @@ const migrateDBLocalpath = async () : Promise<boolean> => {
 
 	console.log("Cleaning empty folders...")
 	for (const item of mediaFiles) {
-		const [filename, pubkey] = item.split(',');
+		const {filename, pubkey} = item;
 		const oldPath = path.join(app.get("config.storage")["local"]["mediaPath"], pubkey);
 		try {
 			if (fs.existsSync(oldPath) && fs.readdirSync(oldPath).length === 0) {

@@ -261,7 +261,6 @@ const dbInsert = async (tableName: string, fields: string[], values: (string | n
 	}
 }
 
-
 /**
  * Executes a SELECT SQL query on a database and returns the specified field from the first row of the result.
  * @param {string} queryStatement - The SQL query to be executed.
@@ -290,46 +289,37 @@ const dbSelect = async (queryStatement: string, returnField :string, whereFields
 
 /**
 /  * Executes a SELECT SQL query on a database and returns the specified fields from the result.
-/  * @param {string} queryStatement - The SQL query to be executed.
-/  * @param {string[]} returnFields - The fields to be returned from the result.
+/  * @param {string[]} queryFields - The fields to be selected from the table.
+/  * @param {string} fromStatement - The table (or tables) to select data from.
+/  * @param {string} whereStatement - The WHERE and ORDER clause of the SQL query.
 /  * @param {string[]} whereFields - The fields to be used in the WHERE clause of the SQL query.
 /  * @param {boolean} [onlyFirstResult=true] - A boolean indicating whether to return only the first result from the query or all results.
-/  * @returns {Promise<string[]>} A promise that resolves to an array of values of the specified return fields from the result, or an empty array if an error occurs or if the result is empty.
+/  * @returns {Promise<any[]>} A promise that resolves to an array of objects containing the specified fields from the result, or an empty array if an error occurs or if the result is empty.
 */
-const dbMultiSelect = async (queryStatement: string, returnFields : string[], whereFields: string[],  onlyFirstResult = true): Promise<string[]> => {
+const dbMultiSelect = async (queryFields: string[], fromStatement: string, whereStatement: string, whereFields: any[], onlyFirstResult = true): Promise<any[]> => {
 
-	if (returnFields.length == 0){
-		logger.error("Error getting data from database, returnFields are empty");
-		return [];
-	}
+    if (queryFields.length === 0){
+        logger.error("Error getting data from database, queryFields are empty");
+        return [];
+    }
 
     try {
-        const conn = await connect("dbMultiSelect: " + queryStatement + " | Fields: " + whereFields.join(", "));
-        const [rows] = await conn.query<RowDataPacket[]>(queryStatement, whereFields);
+        const conn = await connect("dbMultiSelect: " + queryFields.join(',') + " | Fields: " + whereFields.join(", "));
+        const [rows] = await conn.query<RowDataPacket[]>(`SELECT ${queryFields.join(',')} FROM ${fromStatement} WHERE ${whereStatement}`, whereFields);
         conn.end();
 
-		let returnData :string[] = [];
         if (onlyFirstResult){
-			returnFields.forEach((field) => {
-				returnData.push(rows[0]?.[field] as string || "");
-			}
-			);
-			return returnData;
-		}
-		rows.forEach((row) => {
-			let rowdata :string[] = [];
-			returnFields.forEach((field) => {
-				rowdata.push(row[field] as string);
-			}
-			);
-			returnData.push(rowdata.join(","));
-		}
-		);
-		return returnData;
+            if (rows.length > 0) {
+                return [rows[0]];
+            }
+        } else {
+            return rows;
+        }
+        return [];
 
     } catch (error) {
-        logger.debug(error)
-        logger.error("Error getting " + returnFields.join(',') + " from database");
+        logger.debug(error);
+        logger.error("Error getting " + queryFields.join(',') + " from database");
         return [];
     }
 }

@@ -209,66 +209,62 @@ const getPendingInvoices = async () : Promise<invoice[]> => {
         return [];
     }
 
-    const result = await dbMultiSelect("SELECT id, accountid, paymentrequest, paymenthash, satoshi, createddate, expirydate, paiddate, comments FROM transactions WHERE paid = 0", 
-                                    ["id", "accountid", "paymentrequest", "paymenthash",  "satoshi", "createddate", "expirydate", "paiddate", "comments",], 
-                                    [], false);
+    const result = await dbMultiSelect(["id", "accountid", "paymentrequest", "paymenthash",  "satoshi", "createddate", "expirydate", "paiddate", "comments"],
+                                                            "transactions",
+                                                            "paid = ?", 
+                                                            [0], false);
     const invoices : invoice[] = [];
-    result.forEach(async (invoiceString) => {
-        const invoice = invoiceString.split(',');
+    result.forEach(async invoice => {
+        const {id, accountid, paymentrequest, paymenthash, satoshi, createddate, expirydate, paiddate, comments} = invoice
         invoices.push({
-            transactionid: Number(invoice[0]),
-            accountid: Number(invoice[1]),
-            paymentRequest: invoice[2],
-            paymentHash: invoice[3],
-            satoshi: Number(invoice[4]),
+            transactionid: Number(id),
+            accountid: Number(accountid),
+            paymentRequest: paymentrequest,
+            paymentHash: paymenthash,
+            satoshi: Number(satoshi),
             isPaid: false,
-            createdDate: new Date(invoice[5]),
-            expiryDate: new Date(invoice[6]),
-            paidDate: new Date(invoice[7]),
-            description: invoice[8],
-
-
-
+            createdDate: new Date(createddate),
+            expiryDate: new Date(expirydate),
+            paidDate: new Date(paiddate),
+            description: comments
         });
     })
     return invoices;
 }
 
-const getInvoice = async (transactionid: string) : Promise<invoice> => {
+const getInvoice = async (transactionId: string) : Promise<invoice> => {
 
     if (!isModuleEnabled("payments", app)) {
         return emptyInvoice;
     }
 
-    if (!transactionid || transactionid == "0") {
+    if (!transactionId || transactionId == "0") {
         return emptyInvoice;
     }
 
-    const result = await dbMultiSelect("SELECT id, accountid, paymentrequest, paymenthash, satoshi, paid, createddate, expirydate, paiddate, comments  FROM transactions WHERE id = ?", 
-                                        ["id", "accountid", "paymentrequest", "paymenthash", "satoshi", "paid", "createddate", "expirydate", "paiddate", "comments"], 
-                                        [transactionid], false);
+    const result = await dbMultiSelect(["id", "accountid", "paymentrequest", "paymenthash", "satoshi", "paid", "createddate", "expirydate", "paiddate", "comments"],
+                                                    "transactions",
+                                                    "id = ?", 
+                                                    [transactionId], true);
     if (result.length == 0) {return emptyInvoice};
-    const invoice = result[0].split(',');
-    
+    const {id, accountid, paymentrequest, paymenthash, satoshi, ispaid, createddate, expirydate, paiddate, comments} = result[0];
+
     // Update the balance for the invoice's account
-    await getBalance(Number(invoice[1]));
+    await getBalance(Number(accountid));
 
     return {
-        paymentRequest: invoice[2],
-        paymentHash: invoice[3],
-        satoshi: Number(invoice[4]),
-        isPaid: Boolean(Number(invoice[5])),
-        createdDate: new Date(invoice[6]),
-        expiryDate: new Date(invoice[7]),
-        paidDate: new Date(invoice[8]),
-        description: invoice[9],
-        transactionid: Number(invoice[0]),
-        accountid: Number(invoice[1])
-
+        paymentRequest: paymentrequest,
+        paymentHash: paymenthash,
+        satoshi: Number(satoshi),
+        isPaid: Boolean(ispaid),
+        createdDate: new Date(createddate),
+        expiryDate: new Date(expirydate),
+        paidDate: new Date(paiddate),
+        description: comments,
+        transactionid: Number(id),
+        accountid: Number(accountid)
     }
-    
 }
-
 
 const getTransaction = async (transactionid: string) : Promise<transaction> => {
 
@@ -280,23 +276,25 @@ const getTransaction = async (transactionid: string) : Promise<transaction> => {
         return emptyTransaction;
     }
 
-    const result = await dbMultiSelect("SELECT id, type, accountid, paymentrequest, paymenthash, satoshi, paid, createddate, expirydate, paiddate, comments FROM transactions WHERE id = ?", 
-                                    ["id", "type", "accountid", "paymentrequest", "paymenthash", "satoshi", "paid", "createddate", "expirydate", "paiddate", "comments"], 
-                                    [transactionid], false);
+    const result = await dbMultiSelect(["id", "type", "accountid", "paymentrequest", "paymenthash", "satoshi", "paid", "createddate", "expirydate", "paiddate", "comments"],
+                                                            "transactions",
+                                                            "id = ?",
+                                                            [transactionid], true);
+
     if (result.length == 0) {return emptyTransaction};
-    const strTrans = result[0].split(',');
+    const {id, type, accountid, paymentrequest, paymenthash, satoshi, paid, createddate, expirydate, paiddate, comments} = result[0];
     const transaction: transaction = {
-        transactionid: Number(strTrans[0]),
-        type: strTrans[1],
-        accountid: Number(strTrans[2]),
-        paymentRequest: strTrans[3],
-        paymentHash: strTrans[4],
-        satoshi: Number(strTrans[5]),
-        isPaid: Boolean(Number(strTrans[6])),
-        createdDate: new Date(strTrans[7]),
-        expiryDate: new Date(strTrans[8]),
-        paidDate: new Date(strTrans[9]),
-        comments: strTrans[10]
+        transactionid: Number(id),
+        type: type,
+        accountid: Number(accountid),
+        paymentRequest: paymentrequest,
+        paymentHash: paymenthash,
+        satoshi: Number(satoshi),
+        isPaid: Boolean(paid),
+        createdDate: createddate,
+        expiryDate: expirydate,
+        paidDate: paiddate,
+        comments: comments
     }
 
     // If transaction expirydate is passed we generate a new LN invoice
@@ -317,7 +315,7 @@ const getTransaction = async (transactionid: string) : Promise<transaction> => {
         logger.info("Invoice expired, new invoice generated for transaction:", transactionid)
 
     }
-
+ 
     // Update the balance for the transaction account
     await getBalance(transaction.accountid);
 
@@ -469,6 +467,6 @@ setInterval(async () => {
         }
     }
     //   await addBalance("1100000001", 10)
-}, 60000);
+}, 6000);
 
 export { checkTransaction, addBalance, getBalance, payInvoiceFromExpenses, formatAccountNumber, getUnpaidTransactionsBalance}
