@@ -533,9 +533,6 @@ Loads the settings page. If the user is not logged in or the public key is not v
 
 Loads the profile page. If the user is not logged in or the public key is not valid, it redirects to the login page or the current API version respectively.
 
-### api/v2/gallerydata [GET]
-
-Loads the gallery data for the logged-in user. The page number can be specified as a query parameter. If no page number is specified, the first page is returned. Each page contains 18 media files.
 
 **Parameters**
 
@@ -905,10 +902,29 @@ Allows to download a file
 
 https://nostrcheck.me/api/v2/media/:username/:filename
 
+https://nostrcheck.me/api/v2/media/:pubkey/:filename
+
+https://nostrcheck.me/api/v2/media/:filename
+
+All endpoints can be called with or without the file extension. 
+
+If a URL is published in a nostr note without using the identifier (:username or :pubkey), it can only be deleted if it is the last copy on the server. 
+
 
 **Example**
 
-https://nostrcheck.me/api/v2/media/quentin/nostrcheck.me_02f004aa2b7d1d7e969f7a0523594bffba663e8aeb332ec0.webp
+https://nostrcheck.me/media/quentin/41acecf32679693f563ea4c829f30179d67b40b834d90136836103dca9dc3d84.webp
+
+https://nostrcheck.me/media/quentin/41acecf32679693f563ea4c829f30179d67b40b834d90136836103dca9dc3d84
+
+https://nostrcheck.me/media/89e14be49ed0073da83b678279cd29ba5ad86cf000b6a3d1a4c3dc4aa4fdd02c/41acecf32679693f563ea4c829f30179d67b40b834d90136836103dca9dc3d84.webp
+
+https://nostrcheck.me/media/89e14be49ed0073da83b678279cd29ba5ad86cf000b6a3d1a4c3dc4aa4fdd02c/41acecf32679693f563ea4c829f30179d67b40b834d90136836103dca9dc3d84
+
+https://nostrcheck.me/media/41acecf32679693f563ea4c829f30179d67b40b834d90136836103dca9dc3d84.webp
+
+https://nostrcheck.me/media/41acecf32679693f563ea4c829f30179d67b40b834d90136836103dca9dc3d84
+
 
 If the mediafile is not found the server return the image defined on config file field:
 

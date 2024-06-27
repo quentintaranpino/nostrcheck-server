@@ -95,41 +95,6 @@ const loadProfilePage = async (req: Request, res: Response, version:string): Pro
     res.render("profile.ejs", {request: req});
 };
 
-const loadGalleryData = async (req: Request, res: Response): Promise<Response | void> => {
-
-    // Check if current module is enabled
-	if (!isModuleEnabled("frontend", app)) {
-        logger.warn("Attempt to access a non-active module:","frontend","|","IP:", getClientIp(req));
-		return res.status(400).send({"status": "error", "message": "Module is not enabled"});
-	}
-   
-    let page = Number(req.query.page);
-    if (isNaN(page) || page < 1) {
-        page = 1;
-    }
-
-    const pageSize = 6;
-
-    logger.info("GET /api/v2/gallery", "|", getClientIp(req));
-
-    if (req.session.identifier == undefined || req.session.identifier == null || req.session.identifier == ""){
-        logger.warn("No identifier found in session. Refusing", getClientIp(req));
-        return res.status(401).send("");
-    }
-
-    req.session.authkey = await generateCredentials('authkey', false, req.session.identifier);
-    if (req.session.authkey == ""){
-        logger.error("Failed to generate authkey for", req.session.identifier);
-        return res.status(500).send("");
-    }
-
-    // User metadata from local database
-    req.session.metadata.mediaFiles = await getProfileLocalMetadata(req.session.identifier);
-
-    const mediaFiles = req.session.metadata.mediaFiles.slice((page - 1) * pageSize, page * pageSize);
-    res.json({"username": req.session.metadata.username, "mediaFiles": mediaFiles});
-}
-
 const loadTosPage = async (req: Request, res: Response, version:string): Promise<Response | void> => {
 
     // Check if current module is enabled
@@ -275,5 +240,4 @@ export {loadDashboardPage,
         loadLoginPage, 
         loadIndexPage, 
         frontendLogin,
-        loadProfilePage,
-        loadGalleryData};
+        loadProfilePage};

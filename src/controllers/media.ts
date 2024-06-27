@@ -377,7 +377,7 @@ const getMediaList = async (req: Request, res: Response, version:string): Promis
 	// Get files and total from database
 	const result = await dbMultiSelect(["id", "filename", "original_hash", "hash", "filesize", "dimensions", "date", "blurhash"],
 										"mediafiles",
-										"pubkey = ? and active = ? ORDER BY id DESC LIMIT ? OFFSET ?",
+										"pubkey = ? and active = ? ORDER BY date DESC LIMIT ? OFFSET ?",
 										[eventHeader.pubkey, "1", count, offset], false);
 	
 	const total = await dbSelect("SELECT COUNT(*) AS count FROM mediafiles WHERE pubkey = ? and active = '1'", "count", [eventHeader.pubkey]);
