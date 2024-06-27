@@ -25,7 +25,7 @@ const getProfileNostrMetadata = async (pubkey: string): Promise<userMetadata> =>
         await getProfileFollowing(pubkey);
     }
 
-    metadata = JSON.parse(nostrMetadata.content)
+    metadata = JSON.parse(nostrMetadata.content.replace(/\\n/g, '<br>'))
     metadata.pubkey = pubkey;
 
     // If If the user picture is not set, we will use the default one.
