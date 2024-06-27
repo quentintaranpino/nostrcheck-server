@@ -37,12 +37,15 @@
 
 
 </style>
+<script src="/static/js/semaphore.js"></script>
 <script>
+storeAuthkey("<%= request.session.authkey %>")
 document.addEventListener('DOMContentLoaded', (event) => {
 
     let page = 1;
     let isIntersecting = false;
     let lastClickedMedia = null;
+    let mediaCount = 10;
 
     const observer = new IntersectionObserver(async (entries, observer) => {
         entries.forEach(async entry => {
@@ -51,11 +54,18 @@ document.addEventListener('DOMContentLoaded', (event) => {
                 isIntersecting = true;
                 while (isIntersecting) {
                     console.debug('Intersecting', media.id)
-                    console.debug(`Root margin is ${observer.rootMargin}`)
-                    const response = await fetch(`/api/v2/gallerydata?page=${page}`);
+                    console.debug(`Page is ${page}`, `Media count is ${mediaCount}`)
+                    const response = await fetch(`/api/v2/media?page=${page}&count=${mediaCount}`, {
+                        method: "GET",
+                        headers: {
+                            "authorization": "Bearer " + localStorage.getItem('authkey')
+                        },
+                    }
+                    );
                     page++;
                     const userData = await response.json();
-                    if (userData.mediaFiles.toString() === "") {
+                    await storeAuthkey(response.headers.get("Authorization"))
+                    if (userData.files && userData.files.length === 0) {
                         const spinner = document.querySelector('.spinner-border');
                         spinner.remove();
                         isIntersecting = false;
@@ -64,9 +74,10 @@ document.addEventListener('DOMContentLoaded', (event) => {
                         break;
                     }
                     const mediaContainer = document.getElementById('media-container');
-                    for (const file of userData.mediaFiles) {
-
-                        const ext = file.split('.').pop();
+                    isIntersecting = false;
+                    for (const file of userData.files) {
+                        const url = file.tags.find(tag => tag[0] === 'url')[1];
+                        const ext = url.split('.').pop();
                         let mediaLink = document.createElement('a');
                         let mediaElement;
                         const pubkey = '<%= request.session.metadata.pubkey %>'; 
@@ -75,10 +86,10 @@ document.addEventListener('DOMContentLoaded', (event) => {
                             mediaElement.src = '/static/resources/loading-image.webp';
                             mediaElement.style.height = "220px";
                             mediaElement.classList.add("rounded-3", "w-100", "object-fit-cover");
-                            mediaElement.src = `media/${pubkey}/${file}`;
+                            mediaElement.src = `${url}`;
                         } else if (ext==='mp4' || ext==='mov' ) {
                             mediaElement = document.createElement('video');
-                            mediaElement.src = `media/${pubkey}/${file}`;
+                            mediaElement.src = `${url}`;
                             mediaElement.style.height = "220px";
                             mediaElement.classList.add("rounded-3", "w-100", "object-fit-cover");
                             mediaElement.setAttribute('muted', '');
@@ -102,11 +113,11 @@ document.addEventListener('DOMContentLoaded', (event) => {
                             const videoObserver = new IntersectionObserver((entries) => {
                             entries.forEach(entry => {
                                 if (entry.isIntersecting) {
-                                    mediaElement.play();
-                                    console.debug('Played', mediaElement.src)
+                                    setTimeout(() => {
+                                            mediaElement.play();
+                                        }, 100);
                                 } else {
                                     mediaElement.pause();
-                                    console.debug('Paused', mediaElement.src)
                                 }
                             });
                             });
@@ -114,7 +125,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
 
                         } else if (ext==='mp3' ) {
                             mediaElement = document.createElement('audio');
-                            mediaElement.src = `media/${pubkey}/${file}`;
+                            mediaElement.src = `${url}`;
                             mediaElement.classList.add("ps-5", "pe-5");
                             mediaElement.setAttribute('controls', '');
 
@@ -127,11 +138,13 @@ document.addEventListener('DOMContentLoaded', (event) => {
                             const audioObserver = new IntersectionObserver((entries) => {
                                 entries.forEach(entry => {
                                     if (!entry.isIntersecting) {
-                                        mediaElement.pause();
-                                        console.debug('Paused', mediaElement.src)
+                                        setTimeout(() => {
+                                            mediaElement.pause();
+                                        }, 100);
                                     } else if (hasBeenPlayed) {
-                                        mediaElement.play();
-                                        console.debug('Played', mediaElement.src)
+                                        setTimeout(() => {
+                                            mediaElement.play();
+                                        }, 100);
                                     }
                                 });
                             });
@@ -212,7 +225,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
             }
         });
     }, {
-        rootMargin: '500px' 
+        rootMargin: '200px' 
     });
     observer.observe(document.getElementById('sentinel'));
     

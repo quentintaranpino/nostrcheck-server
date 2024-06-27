@@ -62,32 +62,3 @@
     <%- include('./components/alert-modal', {"objectId":"profile"}); %>
   </body>
 </html>
-
-<!-- <script>
-  document.addEventListener('DOMContentLoaded', (event) => {
-    const observer = new IntersectionObserver((entries, observer) => {
-      entries.forEach(entry => {
-        const media = entry.target;
-        if (entry.isIntersecting) {
-          const src = media.getAttribute('data-src');
-          media.setAttribute('src', src);
-          if (media.tagName === 'VIDEO') {
-            media.play();
-          }
-        } else {
-          if (media.tagName === 'VIDEO') {
-            media.pause();
-            media.currentTime = 0;
-            media.removeAttribute('src'); // remove source
-            media.load(); // load media again
-          }
-        }
-      });
-    });
-  
-    const medias = document.querySelectorAll('img[data-src], video[data-src], audio[data-src]');
-    medias.forEach(media => {
-      observer.observe(media);
-    });
-  });
-    </script> -->
