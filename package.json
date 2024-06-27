@@ -16,7 +16,6 @@
   "author": "https://github.com/quentintaranpino",
   "license": "MIT",
   "devDependencies": {
-    "@types/axios": "^0.14.0",
     "@types/bcrypt": "^5.0.2",
     "@types/config": "^3.3.4",
     "@types/cors": "2.8.17",
