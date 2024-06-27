@@ -12,10 +12,19 @@ const generateGetalbyInvoice = async (LNAddress: string, amount:number) : Promis
     try{
         await ln.fetch();
         const getalbyInvoice = await ln.requestInvoice({ satoshi: amount });
-        return {paymentRequest: getalbyInvoice.paymentRequest, paymentHash: getalbyInvoice.paymentHash, satoshi: getalbyInvoice.satoshi, isPaid: false, createdDate: getalbyInvoice.createdDate, expiryDate: getalbyInvoice.expiryDate, paidDate: "", description: getalbyInvoice.description, transactionid: 0, accountid: 0};
+        return {paymentRequest: getalbyInvoice.paymentRequest, 
+                paymentHash: getalbyInvoice.paymentHash, 
+                satoshi: getalbyInvoice.satoshi, 
+                isPaid: false, 
+                createdDate: getalbyInvoice.createdDate, 
+                expiryDate: getalbyInvoice.expiryDate, 
+                paidDate: "", 
+                description: getalbyInvoice.description, 
+                transactionid: 0, 
+                accountid: 0};
         
     }catch(e){
-        logger.error("Error generating invoice", e);
+        logger.error("Error generating Getalby invoice", e);
         return emptyInvoice;
     }
 
