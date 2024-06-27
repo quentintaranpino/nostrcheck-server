@@ -1,5 +1,7 @@
 // Smooth scroll and offset by 200px
 function smoothScroll(target, duration) {
+
+  target == null? target = document.body : target = target;
   const targetPosition = target.getBoundingClientRect().top + window.pageYOffset - 200;
   const startPosition = window.scrollY;
   const distance = targetPosition - startPosition;
