@@ -3,7 +3,8 @@ import { accounts, emptyInvoice, emptyTransaction, invoice, transaction } from "
 import { isModuleEnabled } from "../config.js";
 import { dbInsert, dbMultiSelect, dbSelect, dbUpdate } from "../database.js"
 import { logger } from "../logger.js";
-import { generateGetalbyInvoice, isInvoicePaid } from "./getalby.js";
+import { generateInvoice } from "./LUD06.js";
+import { isInvoicePaid } from "./getalby.js";
 
 
 const checkTransaction = async (transactionid : string, originId: string, originTable : string, filesize: number, pubkey : string): Promise<transaction> => {
@@ -67,15 +68,17 @@ const generateLNInvoice = async (accountid: number, satoshi: number, originTable
         logger.error("LNAddress not set in config file. Cannot generate invoice.")
         return emptyInvoice;
     }
+    const lnurl = `https://${app.get("config.payments")["LNAddress"].split("@")[1]}/.well-known/lnurlp/${app.get("config.payments")["LNAddress"].split("@")[0]}`
+    const generatedInvoice = await generateInvoice(lnurl, satoshi);
+    if (generatedInvoice.paymentRequest == "") {return emptyInvoice}
     
-    const albyInvoice = await generateGetalbyInvoice(app.get("config.payments")["LNAddress"], satoshi);
-    albyInvoice.description = "Invoice for: " + originTable + ":" + originId;
+    generatedInvoice.description = "Invoice for: " + originTable + ":" + originId;
 
-    const transId = await addTransacion("invoice", accountid, albyInvoice, satoshi)
+    const transId = await addTransacion("invoice", accountid, generatedInvoice, satoshi)
     if (transId) {
         await dbUpdate(originTable, "transactionid", transId.toString() , ["id"], [originId])
         logger.info("Generated invoice for " + originTable + ":" + originId, " satoshi: ", satoshi, "transactionid: ", transId)
-        albyInvoice.transactionid = transId;
+        generatedInvoice.transactionid = transId;
     }
 
     const debit = await addJournalEntry(accountid, transId, satoshi, 0, "invoice for " + originTable + ":" + originId);
@@ -85,7 +88,7 @@ const generateLNInvoice = async (accountid: number, satoshi: number, originTable
     }
 
     if (transId && credit && debit) {
-        return albyInvoice;
+        return generatedInvoice;
     }
 
     return emptyInvoice;
@@ -299,7 +302,8 @@ const getTransaction = async (transactionid: string) : Promise<transaction> => {
 
     // If transaction expirydate is passed we generate a new LN invoice
     if (transaction.type == "invoice" && transaction.expiryDate < new Date()) {
-        const inv = await generateGetalbyInvoice(app.get("config.payments")["LNAddress"], transaction.satoshi);
+        const lnurl = `https://${app.get("config.payments")["LNAddress"].split("@")[1]}/.well-known/lnurlp/${app.get("config.payments")["LNAddress"].split("@")[0]}`
+        const inv = await generateInvoice(lnurl, transaction.satoshi);
         transaction.paymentRequest = inv.paymentRequest;
         transaction.paymentHash = inv.paymentHash;
         transaction.createdDate = inv.createdDate;
