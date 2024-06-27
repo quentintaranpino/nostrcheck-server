@@ -74,7 +74,6 @@ document.addEventListener('DOMContentLoaded', (event) => {
                         break;
                     }
                     const mediaContainer = document.getElementById('media-container');
-                    isIntersecting = false;
                     for (const file of userData.files) {
                         const url = file.tags.find(tag => tag[0] === 'url')[1];
                         const ext = url.split('.').pop();
@@ -225,7 +224,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
             }
         });
     }, {
-        rootMargin: '200px' 
+        rootMargin: '500px' 
     });
     observer.observe(document.getElementById('sentinel'));
     
