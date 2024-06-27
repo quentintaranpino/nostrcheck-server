@@ -199,7 +199,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
                             viewButton.innerHTML = '<i class="fas fa-eye"></i>';
                             viewButton.addEventListener('click', (event) => {
                                 event.stopPropagation(); 
-                                window.open(`media/${pubkey}/${file}`, '_blank');
+                                window.open(`${url}`, '_blank');
                             });
                             buttonContainer.appendChild(viewButton);
 
