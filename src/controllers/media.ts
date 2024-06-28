@@ -323,7 +323,7 @@ const getMedia = async (req: Request, res: Response, version:string) => {
 		return;
 	}
 
-	// Get media by ID
+	// Get media by ID, getmedia listing
 	if (req.params.param1 && req.params.param1.length < 64) {
 
 		if(req.params.param1 == "list"){
