@@ -14,8 +14,6 @@
         <span class='dropdown-item text-secondary me-1 me-lg-0'><%- include('../components/theme-toggle'); %></span>
         <a <% if (request.session.identifier) { %>style="display: none;"<% } %> <% if(active === 'login'){ %><%- "class='nav-link active mt-1'"%><% } else { %><%- "class='nav-link mt-1'"%><%}%> href="login"><i class="fa-solid fa-user fa-lg mt-2 pt-1 me-1"></i></a>
       </li>
-
-     
       <li  class="nav-item dropdown"  <% if (!request.session.identifier) { %>style="display: none;"<% } %> >
         <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownMenuLink" role="button" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
           <img <% if (request.session.identifier) { %>src=  <%- JSON.stringify(request.session.metadata.picture)%> <% }%> width="40" height="40" class="rounded-circle">
