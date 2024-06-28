@@ -20,25 +20,25 @@ import { Event } from "nostr-tools";
  */
 const parseAuthHeader = async (req: Request, endpoint: string = "", checkAdminPrivileges = true): Promise<authHeaderResult> => {
 
-	// Apikey is checked first, if it exists, it will be used to authenticate the request
+	// Apikey.  Will be deprecated on 0.7.0
 	if (req.query.apikey || req.body.apikey) {
 		logger.debug("Apikey found on request", req.query.apikey || req.body.apikey, "|", req.socket.remoteAddress)
 		return await isApikeyValid(req, endpoint, checkAdminPrivileges);
 	}
 
-	//Check if request has authorization header (Nostr NIP98 event or Bearer authkey)
+	//Check if request has authorization header.
 	if (req.headers.authorization === undefined) {
 		logger.warn("RES -> 400 Bad request - Authorization header not found","|",req.socket.remoteAddress);
 		return {status: "error", message: "Authorization header not found", pubkey:"", authkey:""};
 	}
 
-	// Check if authkey is present on the header authorization and validate it.
+	// Authkey. Bearer token.
 	if (req.headers.authorization.startsWith('Bearer ')) {
 		logger.debug("authkey found on request: ", req.headers.authorization, "|", req.socket.remoteAddress);
-		return await isAuthkeyValid(req.headers.authorization.split(' ')[1]);
+		return await isAuthkeyValid(req.headers.authorization.split(' ')[1], checkAdminPrivileges);
 	} 
 
-	//Check if NIP98 is present on the header authorization and validate it.
+	// NIP98. Nostr token.
 	if (req.headers.authorization.startsWith('Nostr ')) {
 		let authevent: Event;
 		logger.debug("NIP 98 found on request", req.headers.authorization, "|", req.socket.remoteAddress);
@@ -50,7 +50,6 @@ const parseAuthHeader = async (req: Request, endpoint: string = "", checkAdminPr
 				).toString("utf8")
 			);
 		} catch (error) {
-
 			logger.warn(`RES -> 400 Bad request - ${error}`, "|", req.socket.remoteAddress);
 			return {status: "error", message: "Malformed authorization header", pubkey:"", authkey : ""};
 		}
@@ -130,10 +129,11 @@ const isUserPasswordValid = async (username:string, password:string, checkAdminP
 /**
  * Verifies the authorization of a request by checking the provided authorization key.
  * If the key is valid, a new authorization key is generated for the session.
- * @param {Request} req - The incoming request.
+ * @param {string} authString - The authorization key to verify.
+ * @param {boolean} [checkAdminPrivileges=true] - A boolean indicating whether to check if the authorization key has admin privileges. Optional, default is true.
  * @returns {Promise<checkAuthkeyResult>} The result of the authorization check, including the status, a message, and the new authkey if the check was successful.
  */
-const isAuthkeyValid = async (authString: string) : Promise<authHeaderResult> =>{
+const isAuthkeyValid = async (authString: string, checkAdminPrivileges: boolean = true) : Promise<authHeaderResult> =>{
 
 	if (authString === undefined || authString === "") {
 		logger.warn("Unauthorized request, no authorization header");
@@ -142,7 +142,7 @@ const isAuthkeyValid = async (authString: string) : Promise<authHeaderResult> =>
 
 	const hashedAuthkey = await hashString(authString, 'authkey');
 	try{
-		const hex =  await dbSelect("SELECT hex FROM registered WHERE authkey = ? and allowed = ?", "hex", [hashedAuthkey,"1"]) as string;
+		const hex =  await dbSelect("SELECT hex FROM registered WHERE authkey = ? and allowed = ?", "hex", [hashedAuthkey, checkAdminPrivileges == true? '1':'0']) as string;
 		if (hex == ""){
 			logger.warn("Unauthorized request, authkey not found")
 			return {status: "error", message: "Unauthorized", authkey: "", pubkey:""};
