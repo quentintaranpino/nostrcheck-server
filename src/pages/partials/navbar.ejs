@@ -1,4 +1,4 @@
-<nav class="navbar shadow-lg sticky-top navbar-expand-lg navbar-dark bg-dark ps-3 pe-3">
+<nav class="navbar sticky-top navbar-expand-lg ps-3 pe-3 shadow-lg">
   <a class="navbar-brand" href="/">
       <img id="server-logo" src="/static/resources/navbar-logo.webp"
       alt='Nostrcheck server logo' 
@@ -11,7 +11,7 @@
   <div id="profile-dropdown">
     <ul class="navbar-nav ms-auto">
       <li class="d-flex">
-        <span class='dropdown-item text-secondary me-1 me-lg-0'><%- include('../components/theme-toggle'); %></span>
+        <span class='dropdown-item  me-1 me-lg-0'><%- include('../components/theme-toggle'); %></span>
         <a <% if (request.session.identifier) { %>style="display: none;"<% } %> <% if(active === 'login'){ %><%- "class='nav-link active mt-1'"%><% } else { %><%- "class='nav-link mt-1'"%><%}%> href="login"><i class="fa-solid fa-user fa-lg mt-2 pt-1 me-1"></i></a>
       </li>
       <li  class="nav-item dropdown"  <% if (!request.session.identifier) { %>style="display: none;"<% } %> >
@@ -52,13 +52,29 @@
 
 </nav>
 <style>
-  .dropdown-menu { --bs-dropdown-link-active-bg: #a575ff; }
 
-  #profile-dropdown {
-    position: absolute;
-    right: 10;
-    top: auto;
-  }
+body[data-bs-theme="light"] {
+    .navbar-brand img {
+      filter: invert(80%);
+    }
+    .navbar {
+      background-color: #e8e8e8f5 !important;
+    } 
+}
+
+body[data-bs-theme="dark"] {
+    .navbar {
+      background-color: rgb(43 48 53 / 96%) !important;
+    } 
+}
+
+.dropdown-menu { --bs-dropdown-link-active-bg: #a575ff; }
+
+#profile-dropdown {
+  position: absolute;
+  right: 10;
+  top: auto;
+}
 
 @media (max-width: 992px) {
   #profile-dropdown {
