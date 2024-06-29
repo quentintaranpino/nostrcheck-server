@@ -141,8 +141,10 @@ const isAuthkeyValid = async (authString: string, checkAdminPrivileges: boolean 
 	}
 
 	const hashedAuthkey = await hashString(authString, 'authkey');
+	let whereStatement = checkAdminPrivileges == true? "authkey = ? and allowed = ?" : "authkey = ?";
+
 	try{
-		const hex =  await dbSelect("SELECT hex FROM registered WHERE authkey = ? and allowed = ?", "hex", [hashedAuthkey, checkAdminPrivileges == true? '1':'0']) as string;
+		const hex =  await dbSelect(`SELECT hex FROM registered WHERE ${whereStatement}`, "hex", [hashedAuthkey, checkAdminPrivileges == true? '1':'0']) as string;
 		if (hex == ""){
 			logger.warn("Unauthorized request, authkey not found")
 			return {status: "error", message: "Unauthorized", authkey: "", pubkey:""};
