@@ -680,9 +680,9 @@ const getMediabyURL = async (req: Request, res: Response) => {
 			 								whereValues,
 											true);
 		if (filedata[0] == undefined || filedata[0] == null) {
-			logger.warn(`RES -> 404 Not Found - ${req.url}`, "| Returning not found media file.", getClientIp(req));
+			logger.warn(`RES -> 200 Not Found - ${req.url}`, "| Returning not found media file.", getClientIp(req));
 			res.setHeader('Content-Type', 'image/webp');
-			return res.status(404).send(await getNotFoundMediaFile());
+			return res.status(200).send(await getNotFoundMediaFile());
 		}
 		if (filedata[0].active != "1")  {
 			logger.warn(`RES -> 401 File not active - ${req.url}`, "| Returning not found media file.", getClientIp(req));
@@ -762,9 +762,9 @@ const getMediabyURL = async (req: Request, res: Response) => {
 		// Check if file exist on storage server
 		const fileName = await getFilePath(req.params.filename);
 		if (fileName == ""){ 
-				logger.warn(`RES Media URL -> 404 Not Found`, "|", getClientIp(req));
+				logger.warn(`RES Media URL -> 200 Not Found`, "|", getClientIp(req));
 				res.setHeader('Content-Type', 'image/webp');
-				return res.status(404).send(await getNotFoundMediaFile());
+				return res.status(200).send(await getNotFoundMediaFile());
 			}
 
 		// Try to prevent directory traversal attacks
@@ -783,9 +783,9 @@ const getMediabyURL = async (req: Request, res: Response) => {
 				videoSize = fs.statSync(fileName).size;
 				range = readRangeHeader(req.headers.range, videoSize);
 			} catch (err) {
-				logger.warn(`RES -> 404 Not Found - ${req.url}`, "| Returning not found media file.", getClientIp(req));
+				logger.warn(`RES -> 200 Not Found - ${req.url}`, "| Returning not found media file.", getClientIp(req));
 				res.setHeader('Content-Type', 'image/webp');
-				return res.status(404).send(await getNotFoundMediaFile());
+				return res.status(200).send(await getNotFoundMediaFile());
 			}
 
 			res.setHeader("Content-Range", `bytes ${range.Start}-${range.End}/${videoSize}`);
@@ -811,9 +811,9 @@ const getMediabyURL = async (req: Request, res: Response) => {
 		// If is an image we return the entire file
 		fs.readFile(fileName, async (err, data) => {
 			if (err) {
-				logger.warn(`RES -> 404 Not Found - ${req.url}`, "| Returning not found media file.", getClientIp(req));
+				logger.warn(`RES -> 200 Not Found - ${req.url}`, "| Returning not found media file.", getClientIp(req));
 				res.setHeader('Content-Type', 'image/webp');
-				return res.status(404).send(await getNotFoundMediaFile());
+				return res.status(200).send(await getNotFoundMediaFile());
 			} 
 			logger.info(`RES -> 200 Media file ${req.url}`, "|", getClientIp(req), "|", "cached:", cachedStatus ? true : false);
 			res.status(200).send(data);
@@ -824,9 +824,9 @@ const getMediabyURL = async (req: Request, res: Response) => {
 
 		const remoteFile = await fetch(await getRemoteFile(req.params.filename));
 		if (!remoteFile.ok || !remoteFile.body ) {
-			logger.error('Failed to fetch from remote file server || ' + req.params.filename, getClientIp(req));
+			logger.error('RES -> 200 - Failed to fetch from remote file server || ' + req.params.filename, getClientIp(req));
 			res.setHeader('Content-Type', 'image/webp');
-			return res.status(404).send(await getNotFoundMediaFile());
+			return res.status(200).send(await getNotFoundMediaFile());
 		}
 
 		const reader = remoteFile.body.getReader();
