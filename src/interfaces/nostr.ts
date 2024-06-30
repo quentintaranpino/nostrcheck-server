@@ -72,4 +72,11 @@ interface NIP96_processing extends ResultMessagev2{
     percentage : number,
 }
 
-export { NIPKinds, NIP96file, NIP94_event, NIP94_data, NIP96_event, NIP96_processing, NIP04_event};
+enum eventVerifyTypes {
+	valid = 0,
+	hashError = -1,
+	signatureError = -2,
+	malformed = -3,
+}
+
+export { NIPKinds, NIP96file, NIP94_event, NIP94_data, NIP96_event, NIP96_processing, NIP04_event, eventVerifyTypes};

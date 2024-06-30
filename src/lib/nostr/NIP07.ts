@@ -1,7 +1,7 @@
 import { Request } from "express";
 import { logger } from "../logger.js";
 import { getClientIp } from "../utils.js";
-import { verifyEvent, verifyEventTimestamp } from "../verify.js";
+import { verifyEvent, verifyEventTimestamp } from "./core.js";
 
 const verifyNIP07login = async (req: Request) : Promise<boolean> => {
 
