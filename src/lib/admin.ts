@@ -37,7 +37,13 @@ async function dbSelectModuleData(module:string, offset:number, limit:number, or
 
 	fieldsLogic = moduleDataSelectFields[module];
 	fromLogic = `FROM ${table}`;
-	search? whereLogic = whereLogic+= `AND CONCAT(${moduleDataWhereFields[module]}) LIKE "%${search}%"`: whereLogic = "WHERE (1=1) ";
+    if (search) {
+        const fieldsArray = moduleDataWhereFields[module];
+        const fields = fieldsArray.map(field => `COALESCE(${field.trim()}, '')`).join(", ");
+        whereLogic += `AND CONCAT(${fields}) LIKE "%${search}%"`;
+    } else {
+        whereLogic = "WHERE (1=1) ";
+    }
 	sort? sortLogic = `ORDER BY ${sort} ${order}`: sortLogic = `ORDER BY ${table}.id ${order}`;
 	search? limitLogic = ` `: limitLogic = `LIMIT ${offset} , ${limit}`;
 
