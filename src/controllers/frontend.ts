@@ -181,6 +181,21 @@ const loadDocsPage = async (req: Request, res: Response, version:string): Promis
     res.render("documentation.ejs", {request: req});
 };
 
+const loadGalleryPage = async (req: Request, res: Response, version:string): Promise<Response | void>  => {
+
+    // Check if current module is enabled
+	if (!isModuleEnabled("frontend", app)) {
+        logger.warn("Attempt to access a non-active module:","frontend","|","IP:", getClientIp(req));
+		return res.status(400).send({"status": "error", "message": "Module is not enabled"});
+	}
+
+	logger.info("GET /api/" + version + "/gallery", "|", getClientIp(req));
+
+    req.body.version = app.get("version");
+    req.body.serverHost = app.get("config.server")["host"];
+    res.render("gallery.ejs", {request: req});
+};
+
 const frontendLogin = async (req: Request, res: Response): Promise<Response> => {
 
     // Check if current module is enabled
@@ -239,6 +254,7 @@ const frontendLogin = async (req: Request, res: Response): Promise<Response> => 
 export {loadDashboardPage, 
         loadSettingsPage, 
         loadTosPage, 
+        loadGalleryPage,
         loadDocsPage, 
         loadLoginPage, 
         loadIndexPage, 

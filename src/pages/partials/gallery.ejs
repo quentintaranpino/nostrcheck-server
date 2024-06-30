@@ -1,4 +1,4 @@
-<div id="media-container" class="row row-cols-1 row-cols-md-3 row-cols-xxl-3 g-2 p-1">
+<div id="media-container" class="row row-cols-1 row-cols-md-<%=colsMd%> row-cols-xxl-<%=colsXxl%> g-2 p-1">
 </div>
 <div id="no-media" class="visually-hidden text-center py-5"><p>No more media files found <i class="fa-regular fa-face-frown-open"></i></p></div>
 <div id="sentinel"></div>
@@ -35,6 +35,8 @@
 }
 
 </style>
+<script src="https://cdn.jsdelivr.net/npm/blurhash@1.1.4/dist/blurhash.min.js"></script>
+
 <script src="/static/js/semaphore.js"></script>
 <script>
 storeAuthkey("<%= request.session.authkey %>")
@@ -52,17 +54,16 @@ document.addEventListener('DOMContentLoaded', (event) => {
                 isIntersecting = true;
                 while (isIntersecting) {
                     console.debug('Intersecting', media.id)
-                    console.debug(`Page is ${page}`, `Media count is ${mediaCount}`)
                     const response = await fetch(`/api/v2/media?page=${page}&count=${mediaCount}`, {
                         method: "GET",
                         headers: {
-                            "authorization": "Bearer " + localStorage.getItem('authkey')
+                            "authorization": "Bearer " + localStorage.getItem('authkey') || '',
                         },
                     }
                     );
                     page++;
                     const userData = await response.json();
-                    await storeAuthkey(response.headers.get("Authorization"))
+                    response.headers.get("Authorization")? await storeAuthkey(response.headers.get("Authorization")) : null;
                     if (userData.files && userData.files.length === 0) {
                         const spinner = document.querySelector('.spinner-border');
                         spinner.remove();
@@ -77,7 +78,6 @@ document.addEventListener('DOMContentLoaded', (event) => {
                         const ext = url.split('.').pop();
                         let mediaLink = document.createElement('a');
                         let mediaElement;
-                        const pubkey = '<%= request.session.metadata.pubkey %>'; 
                         if (ext==='webp' || ext==='gif' || ext==='jpg' || ext==='jpeg' ) {
                             mediaElement = document.createElement('img');
                             mediaElement.src = '/static/resources/loading-image.webp';
@@ -176,42 +176,44 @@ document.addEventListener('DOMContentLoaded', (event) => {
                             });
 
                             // Buttons div
-                            const buttonContainer = document.createElement('div');
-                            buttonContainer.classList.add('btn-container', 'position-absolute', 'bottom-0', 'start-0', 'd-flex', 'p-1');
-                            buttonContainer.style.background = 'rgba(0, 0, 0, 0.5)'; 
-                            buttonContainer.style.borderRadius = '5px'; 
-                            buttonContainer.style.zIndex = '10'; 
+                            if(response.headers.get("Authorization")){
+                                const buttonContainer = document.createElement('div');
+                                buttonContainer.classList.add('btn-container', 'position-absolute', 'bottom-0', 'start-0', 'd-flex', 'p-1');
+                                buttonContainer.style.background = 'rgba(0, 0, 0, 0.5)'; 
+                                buttonContainer.style.borderRadius = '5px'; 
+                                buttonContainer.style.zIndex = '10'; 
 
-                            const reorderButton = document.createElement('button');
-                            reorderButton.classList.add('btn', 'btn-primary', 'btn-sm', 'me-1');
-                            reorderButton.innerHTML = '<i class="fas fa-sort"></i>';
-                            buttonContainer.appendChild(reorderButton);
+                                const reorderButton = document.createElement('button');
+                                reorderButton.classList.add('btn', 'btn-primary', 'btn-sm', 'me-1');
+                                reorderButton.innerHTML = '<i class="fas fa-sort"></i>';
+                                buttonContainer.appendChild(reorderButton);
 
-                            const infoButton = document.createElement('button');
-                            infoButton.classList.add('btn', 'btn-primary', 'btn-sm', 'me-1');
-                            infoButton.innerHTML = '<i class="fas fa-info"></i>';
-                            buttonContainer.appendChild(infoButton);
+                                const infoButton = document.createElement('button');
+                                infoButton.classList.add('btn', 'btn-primary', 'btn-sm', 'me-1');
+                                infoButton.innerHTML = '<i class="fas fa-info"></i>';
+                                buttonContainer.appendChild(infoButton);
 
-                            const viewButton = document.createElement('button');
-                            viewButton.classList.add('btn', 'btn-primary', 'btn-sm', 'me-1');
-                            viewButton.innerHTML = '<i class="fas fa-eye"></i>';
-                            viewButton.addEventListener('click', (event) => {
-                                event.stopPropagation(); 
-                                window.open(`${url}`, '_blank');
-                            });
-                            buttonContainer.appendChild(viewButton);
+                                const viewButton = document.createElement('button');
+                                viewButton.classList.add('btn', 'btn-primary', 'btn-sm', 'me-1');
+                                viewButton.innerHTML = '<i class="fas fa-eye"></i>';
+                                viewButton.addEventListener('click', (event) => {
+                                    event.stopPropagation(); 
+                                    window.open(`${url}`, '_blank');
+                                });
+                                buttonContainer.appendChild(viewButton);
 
-                            const payButton = document.createElement('button');
-                            payButton.classList.add('btn', 'btn-warning', 'btn-sm', 'me-1');
-                            payButton.innerHTML = '<i class="fas fa-bolt"></i>';
-                            buttonContainer.appendChild(payButton);
+                                const payButton = document.createElement('button');
+                                payButton.classList.add('btn', 'btn-warning', 'btn-sm', 'me-1');
+                                payButton.innerHTML = '<i class="fas fa-bolt"></i>';
+                                buttonContainer.appendChild(payButton);
 
-                            const deleteButton = document.createElement('button');
-                            deleteButton.classList.add('btn', 'btn-danger', 'btn-sm', 'me-1');
-                            deleteButton.innerHTML = '<i class="fas fa-trash"></i>';
-                            buttonContainer.appendChild(deleteButton);
+                                const deleteButton = document.createElement('button');
+                                deleteButton.classList.add('btn', 'btn-danger', 'btn-sm', 'me-1');
+                                deleteButton.innerHTML = '<i class="fas fa-trash"></i>';
+                                buttonContainer.appendChild(deleteButton);
 
-                            mediaDiv.appendChild(buttonContainer);
+                                mediaDiv.appendChild(buttonContainer);
+                            }   
 
                             mediaContainer.appendChild(mediaDiv);
                         }
