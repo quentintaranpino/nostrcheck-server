@@ -359,28 +359,27 @@ const getMediaList = async (req: Request, res: Response, version:string): Promis
 	// Check if authorization header is valid
 	const eventHeader = await parseAuthHeader(req, "getMediaList", false);
 	if (eventHeader.status !== "success") {
-		if(version != "v2"){return res.status(401).send({"result": false, "description" : eventHeader.message});}
-
-		const result : ResultMessagev2 = {
-			status: MediaStatus[1],
-			message: eventHeader.message
-		}
-		return res.status(401).send(result);
+		eventHeader.pubkey = "";
 	}
 	eventHeader.authkey? res.header("Authorization", eventHeader.authkey): null;
 
 	// Get query parameters
 	const page = Number(req.query.page) || 0;
-	const count = Number(req.query.count) || 10;
-	const offset = page * count;
+	let count = Number(req.query.count) || 10;
+	count > 30 ? count = 30 : count; // Limit count value to 100
+	const offset = count * page; 
+
+	const whereStatement = eventHeader.pubkey ? "pubkey = ? and active = ?" : "active = ? and visibility = ?";
+	const wherefields = eventHeader.pubkey ? [eventHeader.pubkey, "1", count, offset] : ["1", "1", count, offset];
 
 	// Get files and total from database
-	const result = await dbMultiSelect(["id", "filename", "original_hash", "hash", "filesize", "dimensions", "date", "blurhash"],
+	const result = await dbMultiSelect(["id", "filename", "original_hash", "hash", "filesize", "dimensions", "date", "blurhash", "pubkey"],
 										"mediafiles",
-										"pubkey = ? and active = ? ORDER BY date DESC LIMIT ? OFFSET ?",
-										[eventHeader.pubkey, "1", count, offset], false);
+										`${whereStatement} ORDER BY date DESC LIMIT ? OFFSET ?`,
+										wherefields, false);
 	
-	const total = await dbSelect("SELECT COUNT(*) AS count FROM mediafiles WHERE pubkey = ? and active = '1'", "count", [eventHeader.pubkey]);
+	const selectStatement = eventHeader.pubkey ? "SELECT COUNT(*) AS count FROM mediafiles WHERE pubkey = ? and active = '1'" : "SELECT COUNT(*) AS count FROM mediafiles WHERE active = '1' and visibility = '1'";									
+	const total = await dbSelect(selectStatement, "count", [eventHeader.pubkey]);
 	
 	const files : NIP94_data[] = [];
 	await result.forEach(async e => {
@@ -392,7 +391,7 @@ const getMediaList = async (req: Request, res: Response, version:string): Promis
 			filesize: Number(e.filesize),
 			date: e.date,
 			fileid: e.id,
-			pubkey: eventHeader.pubkey,
+			pubkey: eventHeader.pubkey? eventHeader.pubkey : e.pubkey,
 			width: Number(e.dimensions?.toString().split("x")[0]),
 			height: Number(e.dimensions?.toString().split("x")[1]),
 			url: "",
@@ -406,8 +405,8 @@ const getMediaList = async (req: Request, res: Response, version:string): Promis
 		// URL
 		const returnURL = app.get("config.media")["returnURL"];
 		fileData.url = returnURL 	
-		? `${returnURL}/${eventHeader.pubkey}/${fileData.filename}`
-		: `${fileData.servername}/media/${eventHeader.pubkey}/${fileData.filename}`;
+		? `${returnURL}/${e.pubkey}/${fileData.filename}`
+		: `${fileData.servername}/media/${e.pubkey}/${fileData.filename}`;
 
 		const file  = await PrepareNIP96_listEvent(fileData);
 		files.push(file);
