@@ -56,7 +56,7 @@
   <main class="container-sm py-0 px-0 py-sm-3">
     <div class="row d-flex justify-content-center align-items-center">
       <div class="col col-lg-10 col-xl-9 col-xxl-8">
-        <div class="card border-0 z-1">
+        <div class="card border-0 z-1 shadow-lg">
           <div class="rounded-top d-flex flex-row bg-profile">
             <div class="ms-4 pt-sm-2 pt-lg-1 mt-5 z-1 col-3 col-sm-3 col-md-3 col-lg-3">
               <div class="ratio ratio-1x1">
@@ -91,15 +91,21 @@
             </div>
           </div>
           <div class="p-1 mb-2 z-1">
-            <ul class="nav nav-pills ps-3" id="profileTabs" role="tablist">
+            <ul class="nav nav-tabs ps-3" id="profileTabs" role="tablist">
               <li class="nav-item" >
-                <button class="nav-link active" id="mediaFiles-tab" data-bs-toggle="tab" data-bs-target="#mediaFiles" type="button" role="tab" aria-controls="mediaFiles" aria-selected="true">Media files</button>
+                <button class="nav-link active" id="nostrNotes-tab" data-bs-toggle="tab" data-bs-target="#nostrNotes" type="button" role="tab" aria-controls="nostrNotes" aria-selected="true">Notes</button>
+              </li>
+              <li class="nav-item" >
+                <button class="nav-link" id="mediaFiles-tab" data-bs-toggle="tab" data-bs-target="#mediaFiles" type="button" role="tab" aria-controls="mediaFiles" aria-selected="true">Media files</button>
               </li>
               <li class="nav-item" >
                 <button class="nav-link" id="userSettings-tab" data-bs-toggle="tab" data-bs-target="#userSettings" type="button" role="tab" aria-controls="userSettings" aria-selected="false">Settings</button>
             </ul>
             <div class="tab-content" id="profileTabsContent">
-              <div class="tab-pane fade show active pt-3" id="mediaFiles" role="tabpanel" aria-labelledby="mediaFiles-tab">
+              <div class="tab-pane fade show active" id="nostrNotes" role="tabpanel" aria-labelledby="nostrNotes-tab">
+                <%- include('./partials/nostrNotes'); %>
+              </div>
+              <div class="tab-pane fade show pt-3" id="mediaFiles" role="tabpanel" aria-labelledby="mediaFiles-tab">
                 <%- include('./partials/gallery'); %>
               </div>
               <div class="tab-pane fade p-3" id="userSettings" role="tabpanel" aria-labelledby="userSettings-tab">
