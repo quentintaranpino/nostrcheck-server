@@ -1,6 +1,11 @@
 html, body { height: 100%;}
 main { padding:10px; }
 
+a, .nav-link, .nav-link:hover, .nav-link:active, .nav-link:visited {
+  color: var(--bs-body-color)
+}
+
+
 .btn-primary {
   background-color: #343a40;
   border-color: #343a40;
