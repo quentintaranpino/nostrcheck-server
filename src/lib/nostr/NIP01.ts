@@ -3,48 +3,40 @@ import { relays, relaysPool } from "./core.js";
 import app from "../../app.js";
 import { logger } from "../logger.js";
 
-let counter = 0;
-
-
-
 /**
  * Retrieves the profile data of a user from the Nostr network (Kind 0).
  * @param pubkey - The public key of the user, hex format.
  * @returns A promise that resolves to the content data of the kind 0 note.
  */
-const getProfileData = async (pubkey : string) : Promise<Event> => {
-
-    let resolveEvent : (event : Event) => void;
-    let subscribePromise : Promise<Event> = new Promise(resolve => resolveEvent = resolve);
-
-    counter++;
-
+const getProfileData = async (pubkey: string, kind: number = 0): Promise<Event[]> => {
+    let resolveEvents: (events: Event[]) => void;
+    let subscribePromise: Promise<Event[]> = new Promise(resolve => resolveEvents = resolve);
+    
+    const events: Event[] = [];
     const data = relaysPool.subscribeMany(
         relays,
         [{
             authors: [pubkey],
-            kinds: [0],
+            kinds: [kind],
         }],
         {
             eoseTimeout: 100,
             onevent(e) {
-                resolveEvent(e);
+                events.push(e);
             },
             oneose() {
                 data.close();
-                counter--;
-                return resolveEvent({kind: 0, created_at: 0, tags: [], content: "{}", pubkey: "", id: "", sig: ""});
+                resolveEvents(events.length ? events : [{kind: 0, created_at: 0, tags: [], content: "{}", pubkey: "", id: "", sig: ""}]);
             },
         },
     );
 
-    let event : Event = await subscribePromise;
-    if (event.content === undefined) {
-        return {kind: 0, created_at: 0, tags: [], content: "{}", pubkey: "", id: "", sig: ""};
+    let resultEvents: Event[] = await subscribePromise;
+    if (resultEvents.length === 0) {
+        return [{kind: 0, created_at: 0, tags: [], content: "{}", pubkey: "", id: "", sig: ""}];
     }
 
-    return event;
-    
+    return resultEvents;
 }
 
 /**
@@ -56,7 +48,6 @@ const getProfileFollowers = (pubkey : string) : Boolean => {
 	
 	let followerList : Event[] = []
 
-	counter++;
 
 	try{
 		const data = relaysPool.subscribeMany(
@@ -72,8 +63,6 @@ const getProfileFollowers = (pubkey : string) : Boolean => {
 				},
 				oneose() {
 					data.close();
-					counter--;
-					logger.debug('CONNECTIONS: ' + counter);
 					app.set("#p_" + pubkey, followerList.length);
 				},
 			},
@@ -90,7 +79,6 @@ const getProfileFollowing = (pubkey : string) : Boolean => {
 	
 	let followingList = []
 
-	counter++;
 
 	try{
 		const data = relaysPool.subscribeMany(
@@ -108,8 +96,6 @@ const getProfileFollowing = (pubkey : string) : Boolean => {
 				},
 				oneose() {
 					data.close();
-					counter--;
-					logger.debug('CONNECTIONS: ' + counter);
 					app.set("#f_" + pubkey, followingList.length);
 				},
 			},

@@ -1,3 +1,5 @@
+import { Event } from "nostr-tools";
+
 interface registeredTableResponse {
 	usernames: [JSON];
 }
@@ -16,6 +18,7 @@ interface userMetadata {
 	username : string;
 	website : string;
 	pubkey : string;
+	nostr_notes : Event[];
 }
 
 export { registeredTableResponse, userMetadata };

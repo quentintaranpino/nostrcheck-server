@@ -6,7 +6,7 @@ import { getClientIp, markdownToHtml } from "../lib/utils.js";
 import { dbSelect} from "../lib/database.js";
 import { generateCredentials, isPubkeyValid, isUserPasswordValid } from "../lib/authorization.js";
 import { isModuleEnabled, loadconfigActiveModules } from "../lib/config.js";
-import { getProfileNostrMetadata, getProfileLocalMetadata } from "../lib/frontend.js";
+import { getProfileNostrMetadata, getProfileLocalMetadata, getProfileNostrNotes } from "../lib/frontend.js";
 import { hextoNpub } from "../lib/nostr/NIP19.js";
 import { logHistory } from "../lib/logger.js";
 import themes from "../interfaces/themes.js";
@@ -88,6 +88,9 @@ const loadProfilePage = async (req: Request, res: Response, version:string): Pro
 
     // User metadata from nostr
     req.session.metadata = await getProfileNostrMetadata(req.session.identifier);
+
+    // User nostr notes
+    req.session.metadata.nostr_notes = await getProfileNostrNotes(req.session.identifier);
 
     // User metadata from local database
     req.session.metadata.mediaFiles =  await getProfileLocalMetadata(req.session.identifier);
@@ -201,7 +204,7 @@ const frontendLogin = async (req: Request, res: Response): Promise<Response> => 
     }
 
     // Set session maxAge
-    if (req.body.rememberMe == "true"){req.session.cookie.maxAge = app.get("config.session")["maxAge"];}
+    if (req.body.rememberMe == "true" || req.body.tags[0][1] == "true"){req.session.cookie.maxAge = app.get("config.session")["maxAge"];}
 
     let canLogin = false;
     if (req.body.pubkey != undefined){

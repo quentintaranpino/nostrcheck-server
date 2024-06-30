@@ -1,3 +1,4 @@
+import { Event } from "nostr-tools";
 import app from "../app.js";
 import { userMetadata } from "../interfaces/frontend.js";
 import { generateCredentials } from "./authorization.js";
@@ -8,14 +9,14 @@ import { Request } from "express";
 const getProfileNostrMetadata = async (pubkey: string): Promise<userMetadata> => {
 
     if (!pubkey || pubkey == undefined || pubkey == null){
-        return {"about": "", "banner": "", "display_name": "", "followers": 0, "following": 0, "lud16": "", "mediaFiles": [], "name": "", "nip05": "", "picture": "", "username": "", "website": "", "pubkey": ""};
+        return {"about": "", "banner": "", "display_name": "", "followers": 0, "following": 0, "lud16": "", "mediaFiles": [], "name": "", "nip05": "", "picture": "", "username": "", "website": "", "pubkey": "", "nostr_notes": []};
     }
 
-    let metadata : userMetadata = {"about": "", "banner": "", "display_name": "", "followers": 0, "following": 0, "lud16": "", "mediaFiles": [], "name": "", "nip05": "", "picture": "", "username": "", "website": "", "pubkey": pubkey};
+    let metadata : userMetadata = {"about": "", "banner": "", "display_name": "", "followers": 0, "following": 0, "lud16": "", "mediaFiles": [], "name": "", "nip05": "", "picture": "", "username": "", "website": "", "pubkey": pubkey, "nostr_notes": []};
 
-    const nostrMetadata = await getProfileData(pubkey)
-    if (!nostrMetadata || nostrMetadata == undefined || nostrMetadata == null || nostrMetadata.content == undefined || nostrMetadata.content == null){
-        return {"about": "", "banner": "", "display_name": "", "followers": 0, "following": 0, "lud16": "", "mediaFiles": [], "name": "", "nip05": "", "picture": "", "username": "", "website": "", "pubkey": ""};
+    const nostrMetadata = await getProfileData(pubkey, 0)
+    if (!nostrMetadata || nostrMetadata == undefined || nostrMetadata == null || nostrMetadata[0].content == undefined || nostrMetadata[0].content == null){
+        return {"about": "", "banner": "", "display_name": "", "followers": 0, "following": 0, "lud16": "", "mediaFiles": [], "name": "", "nip05": "", "picture": "", "username": "", "website": "", "pubkey": "", "nostr_notes": []};
     }
 
     if (!app.get("#p_" + pubkey)){
@@ -25,7 +26,7 @@ const getProfileNostrMetadata = async (pubkey: string): Promise<userMetadata> =>
         await getProfileFollowing(pubkey);
     }
 
-    metadata = JSON.parse(nostrMetadata.content.replace(/\\n/g, '<br>'))
+    metadata = JSON.parse(nostrMetadata[0].content.replace(/\\n/g, '<br>'))
     metadata.pubkey = pubkey;
 
     // If If the user picture is not set, we will use the default one.
@@ -39,6 +40,20 @@ const getProfileNostrMetadata = async (pubkey: string): Promise<userMetadata> =>
 
     return metadata;
 
+}
+
+const getProfileNostrNotes = async (pubkey: string): Promise<Event[]> => {
+
+    if (!pubkey || pubkey == undefined || pubkey == null){
+        return [];
+    }
+
+    const nostrNotes = await getProfileData(pubkey, 1)
+    if (!nostrNotes || nostrNotes == undefined || nostrNotes == null || nostrNotes.length == 0){
+        return [];
+    }
+
+    return nostrNotes;
 }
 
 const getProfileLocalMetadata = async (pubkey: string): Promise<string[]> => {
@@ -86,4 +101,4 @@ const isFirstUse = async (req : Request): Promise<boolean> => {
     return false;
 }
 
-export { getProfileNostrMetadata, getProfileLocalMetadata, isFirstUse }
+export { getProfileNostrMetadata, getProfileLocalMetadata, isFirstUse, getProfileNostrNotes }

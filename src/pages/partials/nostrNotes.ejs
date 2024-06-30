@@ -1,0 +1,43 @@
+<div class="container mt-5">
+    <ul id="popular-notes-list" class="list-group">
+        <% request.session.metadata.nostr_notes.forEach(note => { %>
+            <li class="list-group-item">
+
+
+
+                <p class="mb-1"><%- note.content %></p>
+                <small class="text-muted"><%= new Date(note.created_at * 1000).toLocaleString() %></small>
+            </li>
+        <% }); %>
+    </ul>
+</div>
+<script>
+                    const notes = document.querySelectorAll('#popular-notes-list p');
+                    notes.forEach(note => {
+                        const content = note.innerHTML;
+
+                        const imgRegex = /https?:\/\/[^\s"]+\.(png|jpg|jpeg|gif|webp)/g;
+                        const videoRegex = /https?:\/\/[^\s"]+\.(mp4|webm|ogg)/g;
+                        const audioRegex = /https?:\/\/[^\s"]+\.(mp3|wav|ogg)/g;
+
+                        const lineBreakRegex = /(?:\r\n|\r|\n)/g;
+
+                        const imgMatch = content.match(imgRegex);
+                        const videoMatch = content.match(videoRegex);
+                        const audioMatch = content.match(audioRegex);
+
+                        const lineBreakMatch = content.match(lineBreakRegex);
+
+                        if (imgMatch) {
+                            note.innerHTML = content.replace(imgMatch, `<img src="${imgMatch}" class="img-fluid" alt="note image">`);
+                        } else if (videoMatch) {
+                            note.innerHTML = content.replace(videoMatch, `<video src="${videoMatch}" class="img-fluid" controls></video>`);
+                        } else if (audioMatch) {
+                            note.innerHTML = content.replace(audioMatch, `<audio src="${audioMatch}" class="img-fluid" controls></audio>`);
+                        }
+                        if (lineBreakMatch) {
+                            note.innerHTML = content.replace(lineBreakMatch, '<br> <br>');
+                            console.log(note.innerHTML)
+                        }
+                    });
+</script>
