@@ -109,16 +109,41 @@ document.addEventListener('DOMContentLoaded', (event) => {
                             mediaElement = document.createElement('img');
                             mediaElement.src = '/static/resources/loading-image.webp';
                             mediaElement.classList.add("rounded-3", "w-100", "object-fit-contain");
-                            mediaElement.src = `${url}`;
+
+                            let mediaLoader = new Image();
+                            mediaLoader.src = `${url}`;
+
+                            mediaLoader.onload = function() {
+                                mediaElement.src = mediaLoader.src;
+                            };
+
+
                         } else if (ext === 'mp4' || ext === 'mov') {
                             mediaElement = document.createElement('video');
-                            mediaElement.src = `${url}`;
                             mediaElement.classList.add("rounded-3", "w-100", "object-fit-contain");
                             mediaElement.setAttribute('muted', '');
                             mediaElement.setAttribute('playsinline', '');
                             mediaElement.setAttribute('autoplay', '');
                             mediaElement.setAttribute('loop', '');
                             mediaElement.setAttribute('poster', '/static/resources/loading-video.webp');
+
+                            // Ajustar la altura del contenedor cuando se carguen los metadatos del video
+                            mediaElement.addEventListener('loadedmetadata', () => {
+                                const videoHeight = video.videoHeight;
+                                mediaContainer.style.height = `${videoHeight}px`;
+                                console.log('Altura del video:', videoHeight);
+                            });
+
+                            const handleVideoError = function(error) {
+                                console.error('Error loading video:', error);
+                                mediaElement.removeEventListener('error', handleVideoError);
+                                mediaElement.poster = `${url}`;
+                                mediaElement.src =  "";
+                                mediaElement.load(); 
+                            };
+
+                            mediaElement.addEventListener('error', handleVideoError);
+                            mediaElement.src = `${url}`;
                             mediaElement.load();
 
                             // Autoplay video patch
@@ -175,8 +200,8 @@ document.addEventListener('DOMContentLoaded', (event) => {
                         if (mediaElement) {
                             const mediaDiv = document.createElement('div');
                             mediaDiv.classList.add("mb-0", "fade-in", "media-div");
-                            mediaDiv.style.height = mediaElement.getAttribute('height') || 'auto';
-                            mediaDiv.style.position = "relative"; // Ensure relative positioning
+                            mediaDiv.style.height = `${height}`;
+                            mediaDiv.style.position = "relative"; 
                             if (ext === 'mp3') {
                                 mediaDiv.style.height = "220px";
                                 mediaDiv.style.background = "url('/static/resources/loading-music.webp') center center / cover no-repeat";
@@ -242,10 +267,16 @@ document.addEventListener('DOMContentLoaded', (event) => {
 
                             // Add the element to the shortest column
                             const shortestColumnIndex = columnHeights.indexOf(Math.min(...columnHeights));
+                            console.log('Shortest column index:', shortestColumnIndex);
                             const shortestColumn = columnElements[shortestColumnIndex];
+                            console.log('Shortest column:', shortestColumn.id, columnHeights[shortestColumnIndex]);
                             shortestColumn.appendChild(mediaDiv);
+                            console.log('height:', mediaElement.height);
+                            // Update the height of the shortest column
+                            columnHeights[shortestColumnIndex] += height // Add the height of the media element and the gap
+                            console.log('Column heights:', columnHeights);
 
-                            columnHeights[shortestColumnIndex] += height; // Add the height of the media element and the gap
+                            mediaDiv.style.height = 'auto'; // Reset the height to allow the image to load
                         }
                     }
                 }
