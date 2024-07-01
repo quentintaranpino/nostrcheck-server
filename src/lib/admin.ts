@@ -38,14 +38,14 @@ async function dbSelectModuleData(module:string, offset:number, limit:number, or
 	fieldsLogic = moduleDataSelectFields[module];
 	fromLogic = `FROM ${table}`;
     if (search) {
-        const fieldsArray = moduleDataWhereFields[module];
+        const fieldsArray = moduleDataWhereFields[module].join(',').split(',');
         const fields = fieldsArray.map(field => `COALESCE(${field.trim()}, '')`).join(", ");
         whereLogic += `AND CONCAT(${fields}) LIKE "%${search}%"`;
     } else {
         whereLogic = "WHERE (1=1) ";
     }
 	sort? sortLogic = `ORDER BY ${sort} ${order}`: sortLogic = `ORDER BY ${table}.id ${order}`;
-	search? limitLogic = ` `: limitLogic = `LIMIT ${offset} , ${limit}`;
+	limitLogic = `LIMIT ${offset} , ${limit}`;
 
 	if (filter && filter.length > 0){
 	  for (const item of filter) {
@@ -56,10 +56,16 @@ async function dbSelectModuleData(module:string, offset:number, limit:number, or
 	logger.debug(`Where logic: ${whereLogic}`);
 
 	const data = await dbSimpleSelect(table, `SELECT * FROM (SELECT ${fieldsLogic} ${fromLogic}) as ${table} ${whereLogic} ${sortLogic} ${limitLogic}`);
-	const totalLength = await dbCountModuleData(module);
+	const test = await dbSimpleSelect(table, `SELECT COUNT(*) as total FROM (SELECT ${fieldsLogic} ${fromLogic}) as ${table} ${whereLogic}`)
+	logger.debug("Test", test);
+	const totalLength = search? Number(await dbSimpleSelect(table, `SELECT COUNT(*) as total FROM (SELECT ${fieldsLogic} ${fromLogic}) as ${table} ${whereLogic}`)): await dbCountModuleData(module);
+
+	const responseObject = JSON.parse(test[0]);
+	const totalRecords = responseObject.total;
+	logger.debug(total)
 
 	const result = {
-		total: search? data.length : totalLength,
+		total: totalLength,
 		totalNotFiltered: totalLength,
 		rows: data || []
 	}
