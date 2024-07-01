@@ -127,11 +127,6 @@ document.addEventListener('DOMContentLoaded', (event) => {
                             mediaElement.setAttribute('loop', '');
                             mediaElement.setAttribute('poster', '/static/resources/loading-video.webp');
 
-                            mediaElement.addEventListener('loadedmetadata', () => {
-                                const videoHeight = mediaElement.videoHeight;
-                                mediaContainer.style.height = `${videoHeight}px`;
-                            });
-
                             const handleVideoError = function(error) {
                                 console.error('Error loading video:', error);
                                 mediaElement.removeEventListener('error', handleVideoError);
