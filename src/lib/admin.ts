@@ -53,20 +53,13 @@ async function dbSelectModuleData(module:string, offset:number, limit:number, or
 	  }
 	}
 
-	logger.debug(`Where logic: ${whereLogic}`);
-
+	const total = await dbSimpleSelect(table, `SELECT COUNT(*) as total FROM (SELECT ${fieldsLogic} ${fromLogic}) as ${table} ${whereLogic}`);
+	const totalNotFiltered =  await dbCountModuleData(module);
 	const data = await dbSimpleSelect(table, `SELECT * FROM (SELECT ${fieldsLogic} ${fromLogic}) as ${table} ${whereLogic} ${sortLogic} ${limitLogic}`);
-	const test = await dbSimpleSelect(table, `SELECT COUNT(*) as total FROM (SELECT ${fieldsLogic} ${fromLogic}) as ${table} ${whereLogic}`)
-	logger.debug("Test", test);
-	const totalLength = search? Number(await dbSimpleSelect(table, `SELECT COUNT(*) as total FROM (SELECT ${fieldsLogic} ${fromLogic}) as ${table} ${whereLogic}`)): await dbCountModuleData(module);
-
-	const responseObject = JSON.parse(test[0]);
-	const totalRecords = responseObject.total;
-	logger.debug(total)
 
 	const result = {
-		total: totalLength,
-		totalNotFiltered: totalLength,
+		total: JSON.parse(JSON.stringify(total[0])).total,
+		totalNotFiltered: totalNotFiltered,
 		rows: data || []
 	}
 
