@@ -1,4 +1,4 @@
-<div id="media-container" class="row row-cols-1 row-cols-md-<%=colsMd%> row-cols-xxl-<%=colsXxl%> g-2 p-1">
+<div id="media-container" class="g-2 p-1">
 </div>
 <div id="no-media" class="visually-hidden text-center py-5"><p>No more media files found <i class="fa-regular fa-face-frown-open"></i></p></div>
 <div id="sentinel"></div>
@@ -8,6 +8,20 @@
     </div>
 </div>
 <style>
+
+
+#media-container {
+    display: flex;
+    justify-content: center;
+    gap: 10px; /* Ajusta el espacio entre las columnas */
+}
+
+.media-column {
+    display: flex;
+    flex-direction: column;
+    gap: 10px; /* Ajusta el espacio entre los elementos dentro de una columna */
+}
+
 .btn-container {
     opacity: 0;
     transform: translateY(20px);
@@ -41,11 +55,23 @@
 <script>
 storeAuthkey("<%= request.session.authkey %>")
 document.addEventListener('DOMContentLoaded', (event) => {
-
     let page = 0;
     let isIntersecting = false;
     let lastClickedMedia = null;
     let mediaCount = 10;
+    const columns = 5; // Número de columnas en el diseño "masonry"
+    const columnElements = [];
+    const columnHeights = Array(columns).fill(0); // Array to keep track of column heights
+
+    const mediaContainer = document.getElementById('media-container');
+    for (let i = 0; i < columns; i++) {
+        const column = document.createElement('div');
+        column.classList.add('media-column');
+        column.style.flex = '1'; // Asegura que las columnas crezcan uniformemente
+        column.id = `column-${i}`; // Assign an ID for debugging purposes
+        mediaContainer.appendChild(column);
+        columnElements.push(column);
+    }
 
     const observer = new IntersectionObserver(async (entries, observer) => {
         entries.forEach(async entry => {
@@ -53,17 +79,16 @@ document.addEventListener('DOMContentLoaded', (event) => {
             if (entry.isIntersecting) {
                 isIntersecting = true;
                 while (isIntersecting) {
-                    console.debug('Intersecting', media.id)
+                    console.debug('Intersecting', media.id);
                     const response = await fetch(`/api/v2/media?page=${page}&count=${mediaCount}`, {
                         method: "GET",
                         headers: {
                             "authorization": "Bearer " + localStorage.getItem('authkey') || '',
                         },
-                    }
-                    );
+                    });
                     page++;
                     const userData = await response.json();
-                    response.headers.get("Authorization")? await storeAuthkey(response.headers.get("Authorization")) : null;
+                    response.headers.get("Authorization") ? await storeAuthkey(response.headers.get("Authorization")) : null;
                     if (userData.files && userData.files.length === 0) {
                         const spinner = document.querySelector('.spinner-border');
                         spinner.remove();
@@ -72,23 +97,23 @@ document.addEventListener('DOMContentLoaded', (event) => {
                         noMediaElement.classList.remove('visually-hidden');
                         break;
                     }
-                    const mediaContainer = document.getElementById('media-container');
                     for (const file of userData.files) {
                         const url = file.tags.find(tag => tag[0] === 'url')[1];
                         const ext = url.split('.').pop();
+                        const height = parseInt(file.tags.find(tag => tag[0] === 'dim')[1].trim().split('x')[1], 10) || 220;
+                        console.log('url', url);
+                        console.debug('height', height);
                         let mediaLink = document.createElement('a');
                         let mediaElement;
-                        if (ext==='webp' || ext==='gif' || ext==='jpg' || ext==='jpeg' ) {
+                        if (ext === 'webp' || ext === 'gif' || ext === 'jpg' || ext === 'jpeg') {
                             mediaElement = document.createElement('img');
                             mediaElement.src = '/static/resources/loading-image.webp';
-                            mediaElement.style.height = "220px";
-                            mediaElement.classList.add("rounded-3", "w-100", "object-fit-cover");
+                            mediaElement.classList.add("rounded-3", "w-100", "object-fit-contain");
                             mediaElement.src = `${url}`;
-                        } else if (ext==='mp4' || ext==='mov' ) {
+                        } else if (ext === 'mp4' || ext === 'mov') {
                             mediaElement = document.createElement('video');
                             mediaElement.src = `${url}`;
-                            mediaElement.style.height = "220px";
-                            mediaElement.classList.add("rounded-3", "w-100", "object-fit-cover");
+                            mediaElement.classList.add("rounded-3", "w-100", "object-fit-contain");
                             mediaElement.setAttribute('muted', '');
                             mediaElement.setAttribute('playsinline', '');
                             mediaElement.setAttribute('autoplay', '');
@@ -100,27 +125,26 @@ document.addEventListener('DOMContentLoaded', (event) => {
                             mediaElement.muted = true;
                             const playPromise = mediaElement.play();
                             if (playPromise !== undefined) {
-                                playPromise.then(() => {
-                                    }).catch(error => {
-                                        mediaElement.play();
-                                    });
+                                playPromise.then(() => {}).catch(error => {
+                                    mediaElement.play();
+                                });
                             }
 
                             // Pause video when it's not in the viewport
                             const videoObserver = new IntersectionObserver((entries) => {
-                            entries.forEach(entry => {
-                                if (entry.isIntersecting) {
-                                    setTimeout(() => {
+                                entries.forEach(entry => {
+                                    if (entry.isIntersecting) {
+                                        setTimeout(() => {
                                             mediaElement.play();
                                         }, 100);
-                                } else {
-                                    mediaElement.pause();
-                                }
-                            });
+                                    } else {
+                                        mediaElement.pause();
+                                    }
+                                });
                             });
                             videoObserver.observe(mediaElement);
 
-                        } else if (ext==='mp3' ) {
+                        } else if (ext === 'mp3') {
                             mediaElement = document.createElement('audio');
                             mediaElement.src = `${url}`;
                             mediaElement.classList.add("ps-5", "pe-5");
@@ -150,9 +174,10 @@ document.addEventListener('DOMContentLoaded', (event) => {
 
                         if (mediaElement) {
                             const mediaDiv = document.createElement('div');
-                            mediaDiv.classList.add("col", "mb-0", "fade-in", "media-div");
+                            mediaDiv.classList.add("mb-0", "fade-in", "media-div");
+                            mediaDiv.style.height = mediaElement.getAttribute('height') || 'auto';
                             mediaDiv.style.position = "relative"; // Ensure relative positioning
-                            if (ext==='mp3' ) {
+                            if (ext === 'mp3') {
                                 mediaDiv.style.height = "220px";
                                 mediaDiv.style.background = "url('/static/resources/loading-music.webp') center center / cover no-repeat";
                                 mediaDiv.classList.add("rounded-3", "d-flex", "flex-column", "align-items-center", "justify-content-end", "pb-2");
@@ -176,12 +201,12 @@ document.addEventListener('DOMContentLoaded', (event) => {
                             });
 
                             // Buttons div
-                            if(response.headers.get("Authorization")){
+                            if (response.headers.get("Authorization")) {
                                 const buttonContainer = document.createElement('div');
                                 buttonContainer.classList.add('btn-container', 'position-absolute', 'bottom-0', 'start-0', 'd-flex', 'p-1');
-                                buttonContainer.style.background = 'rgba(0, 0, 0, 0.5)'; 
-                                buttonContainer.style.borderRadius = '5px'; 
-                                buttonContainer.style.zIndex = '10'; 
+                                buttonContainer.style.background = 'rgba(0, 0, 0, 0.5)';
+                                buttonContainer.style.borderRadius = '5px';
+                                buttonContainer.style.zIndex = '10';
 
                                 const reorderButton = document.createElement('button');
                                 reorderButton.classList.add('btn', 'btn-primary', 'btn-sm', 'me-1');
@@ -197,7 +222,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
                                 viewButton.classList.add('btn', 'btn-primary', 'btn-sm', 'me-1');
                                 viewButton.innerHTML = '<i class="fas fa-eye"></i>';
                                 viewButton.addEventListener('click', (event) => {
-                                    event.stopPropagation(); 
+                                    event.stopPropagation();
                                     window.open(`${url}`, '_blank');
                                 });
                                 buttonContainer.appendChild(viewButton);
@@ -213,9 +238,14 @@ document.addEventListener('DOMContentLoaded', (event) => {
                                 buttonContainer.appendChild(deleteButton);
 
                                 mediaDiv.appendChild(buttonContainer);
-                            }   
+                            }
 
-                            mediaContainer.appendChild(mediaDiv);
+                            // Add the element to the shortest column
+                            const shortestColumnIndex = columnHeights.indexOf(Math.min(...columnHeights));
+                            const shortestColumn = columnElements[shortestColumnIndex];
+                            shortestColumn.appendChild(mediaDiv);
+
+                            columnHeights[shortestColumnIndex] += height; // Add the height of the media element and the gap
                         }
                     }
                 }
@@ -224,10 +254,8 @@ document.addEventListener('DOMContentLoaded', (event) => {
             }
         });
     }, {
-        rootMargin: '500px' 
+        rootMargin: '500px'
     });
     observer.observe(document.getElementById('sentinel'));
-    
 });
-
 </script>
