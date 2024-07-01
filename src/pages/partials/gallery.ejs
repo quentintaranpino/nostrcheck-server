@@ -73,13 +73,14 @@ document.addEventListener('DOMContentLoaded', (event) => {
         columnElements.push(column);
     }
 
+    const sentinel = document.getElementById('sentinel');
+
     const observer = new IntersectionObserver(async (entries, observer) => {
         entries.forEach(async entry => {
-            const media = entry.target;
             if (entry.isIntersecting) {
                 isIntersecting = true;
                 while (isIntersecting) {
-                    console.debug('Intersecting', media.id);
+                    console.debug('Intersecting sentinel');
                     const response = await fetch(`/api/v2/media?page=${page}&count=${mediaCount}`, {
                         method: "GET",
                         headers: {
@@ -117,7 +118,6 @@ document.addEventListener('DOMContentLoaded', (event) => {
                                 mediaElement.src = mediaLoader.src;
                             };
 
-
                         } else if (ext === 'mp4' || ext === 'mov') {
                             mediaElement = document.createElement('video');
                             mediaElement.classList.add("rounded-3", "w-100", "object-fit-contain");
@@ -128,11 +128,10 @@ document.addEventListener('DOMContentLoaded', (event) => {
                             mediaElement.setAttribute('poster', '/static/resources/loading-video.webp');
 
                             const handleVideoError = function(error) {
-                                console.error('Error loading video:', error);
                                 mediaElement.removeEventListener('error', handleVideoError);
                                 mediaElement.poster = `${url}`;
-                                mediaElement.src =  "";
-                                mediaElement.load(); 
+                                mediaElement.src = "";
+                                mediaElement.load();
                             };
 
                             mediaElement.addEventListener('error', handleVideoError);
@@ -194,7 +193,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
                             const mediaDiv = document.createElement('div');
                             mediaDiv.classList.add("mb-0", "fade-in", "media-div");
                             mediaDiv.style.height = `${height}`;
-                            mediaDiv.style.position = "relative"; 
+                            mediaDiv.style.position = "relative";
                             if (ext === 'mp3') {
                                 mediaDiv.style.height = "220px";
                                 mediaDiv.style.background = "url('/static/resources/loading-music.webp') center center / cover no-repeat";
@@ -260,18 +259,37 @@ document.addEventListener('DOMContentLoaded', (event) => {
 
                             // Add the element to the shortest column
                             const shortestColumnIndex = columnHeights.indexOf(Math.min(...columnHeights));
-                            console.log('Shortest column index:', shortestColumnIndex);
                             const shortestColumn = columnElements[shortestColumnIndex];
-                            console.log('Shortest column:', shortestColumn.id, columnHeights[shortestColumnIndex]);
                             shortestColumn.appendChild(mediaDiv);
-                            console.log('height:', mediaElement.height);
+
                             // Update the height of the shortest column
-                            columnHeights[shortestColumnIndex] += height // Add the height of the media element and the gap
-                            console.log('Column heights:', columnHeights);
+                            columnHeights[shortestColumnIndex] += height;
 
                             mediaDiv.style.height = 'auto'; // Reset the height to allow the image to load
                         }
                     }
+
+                    // Move the sentinel to the shortest column
+                    const shortestColumnIndex = columnHeights.indexOf(Math.min(...columnHeights));
+                    const shortestColumn = columnElements[shortestColumnIndex];
+                    shortestColumn.appendChild(sentinel);
+                    console.log('sentinel moved to column', shortestColumnIndex);
+
+
+                    // Rescan the real height of the columns
+                    console.log('Rescanning column heights');
+                    console.log('old heights', columnHeights);
+                    columnHeights.fill(0);
+                    columnElements.forEach((column, index) => {
+                        column.querySelectorAll('.media-div').forEach(mediaDiv => {
+                            const height = mediaDiv.clientHeight;
+                            columnHeights[index] += height;
+                        });
+                      
+                    });
+
+                    console.log('new heights', columnHeights);
+
                 }
             } else {
                 isIntersecting = false;
@@ -280,6 +298,8 @@ document.addEventListener('DOMContentLoaded', (event) => {
     }, {
         rootMargin: '500px'
     });
-    observer.observe(document.getElementById('sentinel'));
+    observer.observe(sentinel);
 });
+
+
 </script>
