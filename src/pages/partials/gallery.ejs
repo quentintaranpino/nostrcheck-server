@@ -127,11 +127,9 @@ document.addEventListener('DOMContentLoaded', (event) => {
                             mediaElement.setAttribute('loop', '');
                             mediaElement.setAttribute('poster', '/static/resources/loading-video.webp');
 
-                            // Ajustar la altura del contenedor cuando se carguen los metadatos del video
                             mediaElement.addEventListener('loadedmetadata', () => {
-                                const videoHeight = video.videoHeight;
+                                const videoHeight = mediaElement.videoHeight;
                                 mediaContainer.style.height = `${videoHeight}px`;
-                                console.log('Altura del video:', videoHeight);
                             });
 
                             const handleVideoError = function(error) {
