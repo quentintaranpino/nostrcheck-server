@@ -58,7 +58,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
     let isIntersecting = false;
     let lastClickedMedia = null;
     let mediaCount = 20;
-    let columns = Math.floor(window.innerWidth / maxImageWidth);
+    let columns = Math.floor(window.innerWidth / maxImageWidth) < 6 ? Math.floor(window.innerWidth / maxImageWidth) : 6;
     let mediaId = 0;
     const columnElements = [];
     const columnHeights = Array(columns).fill(0); 
@@ -91,7 +91,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
             mediaContainer.removeChild(mediaContainer.firstChild);
         }
 
-        columns = Math.floor(window.innerWidth / maxImageWidth);
+        columns =  Math.floor(window.innerWidth / maxImageWidth) < 6 ? Math.floor(window.innerWidth / maxImageWidth) : 6;
         columnElements.length = 0;
         columnHeights.length = columns;
         columnHeights.fill(0);
