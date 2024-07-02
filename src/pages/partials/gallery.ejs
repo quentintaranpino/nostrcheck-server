@@ -8,72 +8,126 @@
     </div>
 </div>
 <style>
+    #media-container {
+        display: flex;
+        justify-content: center;
+        gap: 10px; 
+    }
 
+    .media-column {
+        display: flex;
+        flex-direction: column;
+        gap: 10px; 
+        flex: 1; 
+    }
 
-#media-container {
-    display: flex;
-    justify-content: center;
-    gap: 10px; /* Ajusta el espacio entre las columnas */
-}
+    .btn-container {
+        opacity: 0;
+        transform: translateY(20px);
+        transition: all 0.3s ease-in-out;
+    }
 
-.media-column {
-    display: flex;
-    flex-direction: column;
-    gap: 10px; /* Ajusta el espacio entre los elementos dentro de una columna */
-}
+    .btn-container .btn{
+        min-width: 30px;
+    }
 
-.btn-container {
+    .media-div:hover .btn-container {
+        opacity: 1;
+        transform: translateY(0);
+    }
+
+    .fade-in {
     opacity: 0;
-    transform: translateY(20px);
-    transition: all 0.3s ease-in-out;
-}
+    animation: fadeIn 0.5s forwards;
+    }
 
-.btn-container .btn{
-    min-width: 30px;
-}
-
-.media-div:hover .btn-container {
-    opacity: 1;
-    transform: translateY(0);
-}
-
-.fade-in {
-  opacity: 0;
-  animation: fadeIn 2s forwards;
-}
-
-@keyframes fadeIn {
-  to {
-      opacity: 1;
-  }
-}
-
+    @keyframes fadeIn {
+    to {
+        opacity: 1;
+    }
+    }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/blurhash@1.1.4/dist/blurhash.min.js"></script>
-
 <script src="/static/js/semaphore.js"></script>
 <script>
 storeAuthkey("<%= request.session.authkey %>")
+const maxImageWidth = <%= maxImageWidth %>;
+
 document.addEventListener('DOMContentLoaded', (event) => {
     let page = 0;
     let isIntersecting = false;
     let lastClickedMedia = null;
-    let mediaCount = 10;
-    const columns = 5; // Número de columnas en el diseño "masonry"
+    let mediaCount = 20;
+    let columns = Math.floor(window.innerWidth / maxImageWidth);
+    let mediaId = 0;
     const columnElements = [];
-    const columnHeights = Array(columns).fill(0); // Array to keep track of column heights
+    const columnHeights = Array(columns).fill(0); 
 
     const mediaContainer = document.getElementById('media-container');
     for (let i = 0; i < columns; i++) {
         const column = document.createElement('div');
         column.classList.add('media-column');
-        column.style.flex = '1'; // Asegura que las columnas crezcan uniformemente
-        column.id = `column-${i}`; // Assign an ID for debugging purposes
+        column.style.flex = '1'; 
+        column.id = `column-${i}`; 
+        column.style.width = `${100 / columns}%`;
         mediaContainer.appendChild(column);
         columnElements.push(column);
     }
 
     const sentinel = document.getElementById('sentinel');
+
+    const redistributeMedia = () => {
+        
+        observer.unobserve(sentinel);
+
+        const allMediaDivs = Array.from(document.querySelectorAll('.media-div')).sort((a, b) => {
+            const idA = parseInt(a.id.split('-')[1], 10);
+            const idB = parseInt(b.id.split('-')[1], 10);
+            return idA - idB;
+        });
+
+        while (mediaContainer.firstChild) {
+            mediaContainer.removeChild(mediaContainer.firstChild);
+        }
+
+        columns = Math.floor(window.innerWidth / maxImageWidth);
+        columnElements.length = 0;
+        columnHeights.length = columns;
+        columnHeights.fill(0);
+
+        for (let i = 0; i < columns; i++) {
+            const column = document.createElement('div');
+            column.classList.add('media-column');
+            column.id = `column-${i}`;
+            column.style.width = `${100 / columns}%`;
+            mediaContainer.appendChild(column);
+            columnElements.push(column);
+        }
+
+        allMediaDivs.forEach(mediaDiv => {
+            const height = mediaDiv.clientHeight;
+            const shortestColumnIndex = columnHeights.indexOf(Math.min(...columnHeights));
+            const shortestColumn = columnElements[shortestColumnIndex];
+            console.log('redistributing media', mediaDiv.id, 'to column', shortestColumn.id);
+            shortestColumn.appendChild(mediaDiv);
+            columnHeights[shortestColumnIndex] += height;
+
+            shortestColumn.appendChild(sentinel);
+
+            columnHeights.fill(0);
+            columnElements.forEach((column, index) => {
+                column.querySelectorAll('.media-div').forEach(mediaDiv => {
+                    const height = mediaDiv.clientHeight;
+                    columnHeights[index] += height;
+                });
+            });
+
+        });
+
+        observer.observe(sentinel);
+    };
+
+    window.addEventListener('resize', redistributeMedia);
 
     const observer = new IntersectionObserver(async (entries, observer) => {
         entries.forEach(async entry => {
@@ -87,6 +141,8 @@ document.addEventListener('DOMContentLoaded', (event) => {
                             "authorization": "Bearer " + localStorage.getItem('authkey') || '',
                         },
                     });
+
+                    console.log('response', response)
                     page++;
                     const userData = await response.json();
                     response.headers.get("Authorization") ? await storeAuthkey(response.headers.get("Authorization")) : null;
@@ -102,6 +158,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
                         const url = file.tags.find(tag => tag[0] === 'url')[1];
                         const ext = url.split('.').pop();
                         const height = parseInt(file.tags.find(tag => tag[0] === 'dim')[1].trim().split('x')[1], 10) || 220;
+
                         console.log('url', url);
                         console.debug('height', height);
                         let mediaLink = document.createElement('a');
@@ -115,6 +172,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
                             mediaLoader.src = `${url}`;
 
                             mediaLoader.onload = function() {
+                                mediaElement.classList.add('fade-in');
                                 mediaElement.src = mediaLoader.src;
                             };
 
@@ -130,8 +188,12 @@ document.addEventListener('DOMContentLoaded', (event) => {
                             const handleVideoError = function(error) {
                                 mediaElement.removeEventListener('error', handleVideoError);
                                 mediaElement.poster = `${url}`;
-                                mediaElement.src = "";
-                                mediaElement.load();
+                                videoObserver.unobserve(mediaElement);
+                                
+                            };
+
+                            mediaElement.onloadedmetadata = function() {
+                                mediaElement.classList.add('fade-in');
                             };
 
                             mediaElement.addEventListener('error', handleVideoError);
@@ -192,7 +254,8 @@ document.addEventListener('DOMContentLoaded', (event) => {
                         if (mediaElement) {
                             const mediaDiv = document.createElement('div');
                             mediaDiv.classList.add("mb-0", "fade-in", "media-div");
-                            mediaDiv.style.height = `${height}`;
+                            mediaDiv.id = `media-${mediaId++}`;
+                            mediaDiv.style.height = ext === 'mp3'? '220px' : `${height}px`;
                             mediaDiv.style.position = "relative";
                             if (ext === 'mp3') {
                                 mediaDiv.style.height = "220px";
@@ -265,7 +328,8 @@ document.addEventListener('DOMContentLoaded', (event) => {
                             // Update the height of the shortest column
                             columnHeights[shortestColumnIndex] += height;
 
-                            mediaDiv.style.height = 'auto'; // Reset the height to allow the image to load
+                            // Rescan the real height of the elements
+                            mediaDiv.style.height = ext === 'mp3'? '220px' : 'auto';
                         }
                     }
 
@@ -300,6 +364,4 @@ document.addEventListener('DOMContentLoaded', (event) => {
     });
     observer.observe(sentinel);
 });
-
-
 </script>
