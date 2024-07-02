@@ -77,7 +77,6 @@ document.addEventListener('DOMContentLoaded', (event) => {
     const sentinel = document.getElementById('sentinel');
 
     const redistributeMedia = () => {
-        
         observer.unobserve(sentinel);
 
         const allMediaDivs = Array.from(document.querySelectorAll('.media-div')).sort((a, b) => {
@@ -85,6 +84,8 @@ document.addEventListener('DOMContentLoaded', (event) => {
             const idB = parseInt(b.id.split('-')[1], 10);
             return idA - idB;
         });
+
+        const fragment = document.createDocumentFragment();
 
         while (mediaContainer.firstChild) {
             mediaContainer.removeChild(mediaContainer.firstChild);
@@ -100,28 +101,30 @@ document.addEventListener('DOMContentLoaded', (event) => {
             column.classList.add('media-column');
             column.id = `column-${i}`;
             column.style.width = `${100 / columns}%`;
-            mediaContainer.appendChild(column);
+            fragment.appendChild(column);
             columnElements.push(column);
         }
 
         allMediaDivs.forEach(mediaDiv => {
-            const height = mediaDiv.clientHeight;
             const shortestColumnIndex = columnHeights.indexOf(Math.min(...columnHeights));
             const shortestColumn = columnElements[shortestColumnIndex];
             shortestColumn.appendChild(mediaDiv);
-            columnHeights[shortestColumnIndex] += height;
-
-            shortestColumn.appendChild(sentinel);
-
-            columnHeights.fill(0);
-            columnElements.forEach((column, index) => {
-                column.querySelectorAll('.media-div').forEach(mediaDiv => {
-                    const height = mediaDiv.clientHeight;
-                    columnHeights[index] += height;
-                });
-            });
-
+            columnHeights[shortestColumnIndex] += parseInt(mediaDiv.dataset.serverHeight, 10);
         });
+
+        columnElements.forEach((column, index) => {
+            column.querySelectorAll('.media-div').forEach(mediaDiv => {
+                const height = mediaDiv.clientHeight;
+                columnHeights[index] += height;
+            });
+        });
+
+        const shortestColumnIndex = columnHeights.indexOf(Math.min(...columnHeights));
+        const shortestColumn = columnElements[shortestColumnIndex];
+        shortestColumn.appendChild(sentinel);
+        console.log('sentinel moved to column', shortestColumnIndex);
+
+        mediaContainer.appendChild(fragment);
 
         observer.observe(sentinel);
     };
@@ -141,7 +144,6 @@ document.addEventListener('DOMContentLoaded', (event) => {
                         },
                     });
 
-                    console.log('response', response)
                     page++;
                     const userData = await response.json();
                     response.headers.get("Authorization") ? await storeAuthkey(response.headers.get("Authorization")) : null;
@@ -158,8 +160,6 @@ document.addEventListener('DOMContentLoaded', (event) => {
                         const ext = url.split('.').pop();
                         const height = parseInt(file.tags.find(tag => tag[0] === 'dim')[1].trim().split('x')[1], 10) || 220;
 
-                        console.log('url', url);
-                        console.debug('height', height);
                         let mediaLink = document.createElement('a');
                         let mediaElement;
                         if (ext === 'webp' || ext === 'gif' || ext === 'jpg' || ext === 'jpeg') {
@@ -329,12 +329,11 @@ document.addEventListener('DOMContentLoaded', (event) => {
 
                             // Rescan the real height of the elements
                             mediaDiv.style.height = ext === 'mp3'? '220px' : 'auto';
+                            mediaDiv.dataset.serverHeight = `${height}`;
                         }
                     }
 
                     // Rescan the real height of the columns
-                    console.log('Rescanning column heights');
-                    console.log('old heights', columnHeights);
                     columnHeights.fill(0);
                     columnElements.forEach((column, index) => {
                         column.querySelectorAll('.media-div').forEach(mediaDiv => {
@@ -343,7 +342,6 @@ document.addEventListener('DOMContentLoaded', (event) => {
                         });
                       
                     });
-                    console.log('new heights', columnHeights);
                     
                     // Move the sentinel to the shortest column
                     const shortestColumnIndex = columnHeights.indexOf(Math.min(...columnHeights));
