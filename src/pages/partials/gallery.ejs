@@ -196,6 +196,12 @@ document.addEventListener('DOMContentLoaded', (event) => {
                         };
 
                         mediaElement.addEventListener('error', handleVideoError);
+
+                        mediaElement.addEventListener('canplaythrough', function() {
+                            mediaElement.classList.add('fade-in');
+                            mediaElement.removeAttribute('poster');
+                        });
+
                         mediaElement.src = `${url}`;
                         mediaElement.load();
 
