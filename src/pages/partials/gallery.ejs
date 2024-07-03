@@ -184,6 +184,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
                         mediaElement.setAttribute('autoplay', '');
                         mediaElement.setAttribute('loop', '');
                         mediaElement.setAttribute('poster', '/static/resources/loading-video.webp');
+                        mediaElement.setAttribute('preload', 'metadata'); // Solo cargar metadatos al principio
 
                         const handleVideoError = function(error) {
                             mediaElement.removeEventListener('error', handleVideoError);
@@ -196,6 +197,24 @@ document.addEventListener('DOMContentLoaded', (event) => {
                         };
 
                         mediaElement.addEventListener('error', handleVideoError);
+
+                        const videoObserver = new IntersectionObserver((entries) => {
+                            entries.forEach(entry => {
+                                if (entry.isIntersecting) {
+                                    mediaElement.setAttribute('preload', 'auto'); 
+                                    setTimeout(() => {
+                                        const playPromise = mediaElement.play();
+                                        if (playPromise !== undefined) {
+                                            playPromise.then(() => {}).catch(error => {
+                                                mediaElement.play();
+                                            });
+                                        }
+                                    }, 100);
+                                } else {
+                                    mediaElement.pause();
+                                }
+                            });
+                        });
 
                         mediaElement.addEventListener('canplaythrough', function() {
                             mediaElement.classList.add('fade-in');
@@ -214,18 +233,6 @@ document.addEventListener('DOMContentLoaded', (event) => {
                             });
                         }
 
-                        // Pause video when it's not in the viewport
-                        const videoObserver = new IntersectionObserver((entries) => {
-                            entries.forEach(entry => {
-                                if (entry.isIntersecting) {
-                                    setTimeout(() => {
-                                        mediaElement.play();
-                                    }, 100);
-                                } else {
-                                    mediaElement.pause();
-                                }
-                            });
-                        });
                         videoObserver.observe(mediaElement);
 
                     } else if (ext === 'mp3') {
