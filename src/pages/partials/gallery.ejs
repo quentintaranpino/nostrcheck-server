@@ -349,14 +349,14 @@ document.addEventListener('DOMContentLoaded', (event) => {
                         column.querySelectorAll('.media-div').forEach(mediaDiv => {
                             const height = mediaDiv.clientHeight;
                             columnHeights[index] += height;
+                            // Move the sentinel to the shortest column
+                            const shortestColumnIndex = columnHeights.indexOf(Math.min(...columnHeights));
+                            const shortestColumn = columnElements[shortestColumnIndex];
+                            shortestColumn.appendChild(sentinel);
                         });
                     })();
                 }
-                
-                // Move the sentinel to the shortest column
-                const shortestColumnIndex = columnHeights.indexOf(Math.min(...columnHeights));
-                const shortestColumn = columnElements[shortestColumnIndex];
-                shortestColumn.appendChild(sentinel);
+
             }
         };
     }, {
