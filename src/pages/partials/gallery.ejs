@@ -52,13 +52,14 @@
 <script>
 storeAuthkey("<%= request.session.authkey %>")
 const maxImageWidth = <%= maxImageWidth %>;
+const maxColumns = <%= maxColumns %>;
 
 document.addEventListener('DOMContentLoaded', (event) => {
     let page = 0;
     let isIntersecting = false;
     let lastClickedMedia = null;
     let mediaCount = 20;
-    let columns = Math.floor(window.innerWidth / maxImageWidth) < 6 ? Math.floor(window.innerWidth / maxImageWidth) : 6;
+    let columns = Math.floor(window.innerWidth / maxImageWidth) < maxColumns ? Math.floor(window.innerWidth / maxImageWidth) : maxColumns;
     let mediaId = 0;
     const columnElements = [];
     const columnHeights = Array(columns).fill(0); 
@@ -91,7 +92,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
             mediaContainer.removeChild(mediaContainer.firstChild);
         }
 
-        columns =  Math.floor(window.innerWidth / maxImageWidth) < 6 ? Math.floor(window.innerWidth / maxImageWidth) : 6;
+        columns =  Math.floor(window.innerWidth / maxImageWidth) < maxColumns ? Math.floor(window.innerWidth / maxImageWidth) : 6;
         columnElements.length = 0;
         columnHeights.length = columns;
         columnHeights.fill(0);
@@ -129,7 +130,16 @@ document.addEventListener('DOMContentLoaded', (event) => {
         observer.observe(sentinel);
     };
 
-    window.addEventListener('resize', redistributeMedia);
+    const debouncedRedistributeMedia = () => {
+        if (resizeTimeout) {
+            clearTimeout(resizeTimeout);
+        }
+        resizeTimeout = setTimeout(() => {
+            redistributeMedia();
+        }, 200); // 200ms es un tiempo típico para debounce, ajusta según sea necesario
+    };
+
+    window.addEventListener('resize', debouncedRedistributeMedia);
 
     const observer = new IntersectionObserver(async (entries, observer) => {
         entries.forEach(async entry => {
