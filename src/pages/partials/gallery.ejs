@@ -139,221 +139,219 @@ document.addEventListener('DOMContentLoaded', (event) => {
 
     const observer = new IntersectionObserver(async (entries, observer) => {
         for (const entry of entries) {
-            await (async () => {
-                if (entry.isIntersecting) {
-                    page++;
-                    console.debug('Fetching media, page:', page, 'count:', mediaCount)
-                    const response = await fetch(`/api/v2/media?page=${page}&count=${mediaCount}`, {
-                        method: "GET",
-                        headers: {
-                            "authorization": "Bearer " + localStorage.getItem('authkey') || '',
-                        },
-                    });
-                    const userData = await response.json();
-                    response.headers.get("Authorization") ? await storeAuthkey(response.headers.get("Authorization")) : null;
+            if (entry.isIntersecting) {
+                page++;
+                console.debug('Fetching media, page:', page, 'count:', mediaCount)
+                const response = await fetch(`/api/v2/media?page=${page}&count=${mediaCount}`, {
+                    method: "GET",
+                    headers: {
+                        "authorization": "Bearer " + localStorage.getItem('authkey') || '',
+                    },
+                });
+                const userData = await response.json();
+                response.headers.get("Authorization") ? await storeAuthkey(response.headers.get("Authorization")) : null;
 
-                    if (userData.files && userData.files.length === 0) {
-                        document.querySelector('.spinner-border').remove();
-                        document.getElementById('no-media').classList.remove('visually-hidden');
-                    }
-
-                    for (const file of userData.files) {
-                        const url = file.tags.find(tag => tag[0] === 'url')[1];
-                        const ext = url.split('.').pop();
-                        const height = parseInt(file.tags.find(tag => tag[0] === 'dim')[1].trim().split('x')[1], 10) || 220;
-
-                        let mediaLink = document.createElement('a');
-                        let mediaElement;
-                        if (ext === 'webp' || ext === 'gif' || ext === 'jpg' || ext === 'jpeg') {
-                            mediaElement = document.createElement('img');
-                            mediaElement.src = '/static/resources/loading-image.webp';
-                            mediaElement.classList.add("rounded-3", "w-100", "object-fit-contain");
-
-                            let mediaLoader = new Image();
-                            mediaLoader.src = `${url}`;
-
-                            mediaLoader.onload = function() {
-                                mediaElement.classList.add('fade-in');
-                                mediaElement.src = mediaLoader.src;
-                            };
-
-                        } else if (ext === 'mp4' || ext === 'mov') {
-                            mediaElement = document.createElement('video');
-                            mediaElement.classList.add("rounded-3", "w-100", "object-fit-contain");
-                            mediaElement.setAttribute('muted', '');
-                            mediaElement.setAttribute('playsinline', '');
-                            mediaElement.setAttribute('autoplay', '');
-                            mediaElement.setAttribute('loop', '');
-                            mediaElement.setAttribute('poster', '/static/resources/loading-video.webp');
-
-                            const handleVideoError = function(error) {
-                                mediaElement.removeEventListener('error', handleVideoError);
-                                mediaElement.poster = `${url}`;
-                                videoObserver.unobserve(mediaElement);
-                            };
-
-                            mediaElement.onloadedmetadata = function() {
-                                mediaElement.classList.add('fade-in');
-                            };
-
-                            mediaElement.addEventListener('error', handleVideoError);
-                            mediaElement.src = `${url}`;
-                            mediaElement.load();
-
-                            // Autoplay video patch
-                            mediaElement.muted = true;
-                            const playPromise = mediaElement.play();
-                            if (playPromise !== undefined) {
-                                playPromise.then(() => {}).catch(error => {
-                                    mediaElement.play();
-                                });
-                            }
-
-                            // Pause video when it's not in the viewport
-                            const videoObserver = new IntersectionObserver((entries) => {
-                                entries.forEach(entry => {
-                                    if (entry.isIntersecting) {
-                                        setTimeout(() => {
-                                            mediaElement.play();
-                                        }, 100);
-                                    } else {
-                                        mediaElement.pause();
-                                    }
-                                });
-                            });
-                            videoObserver.observe(mediaElement);
-
-                        } else if (ext === 'mp3') {
-                            mediaElement = document.createElement('audio');
-                            mediaElement.src = `${url}`;
-                            mediaElement.classList.add("ps-5", "pe-5");
-                            mediaElement.setAttribute('controls', '');
-
-                            let hasBeenPlayed = false;
-                            mediaElement.addEventListener('play', () => {
-                                hasBeenPlayed = true;
-                            });
-
-                            // Pause audio when it's not in the viewport
-                            const audioObserver = new IntersectionObserver((entries) => {
-                                entries.forEach(entry => {
-                                    if (!entry.isIntersecting) {
-                                        setTimeout(() => {
-                                            mediaElement.pause();
-                                        }, 100);
-                                    } else if (hasBeenPlayed) {
-                                        setTimeout(() => {
-                                            mediaElement.play();
-                                        }, 100);
-                                    }
-                                });
-                            });
-                            audioObserver.observe(mediaElement);
-                        }
-
-                        if (mediaElement) {
-                            const mediaDiv = document.createElement('div');
-                            mediaDiv.classList.add("mb-0", "fade-in", "media-div");
-                            mediaDiv.id = `media-${mediaId++}`;
-                            mediaDiv.style.height = ext === 'mp3'? '220px' : `${height}px`;
-                            mediaDiv.style.position = "relative";
-                            if (ext === 'mp3') {
-                                mediaDiv.style.height = "220px";
-                                mediaDiv.style.background = "url('/static/resources/loading-music.webp') center center / cover no-repeat";
-                                mediaDiv.classList.add("rounded-3", "d-flex", "flex-column", "align-items-center", "justify-content-end", "pb-2");
-                            }
-                            mediaDiv.appendChild(mediaLink);
-                            mediaLink.appendChild(mediaElement);
-
-                            mediaElement.addEventListener('click', (event) => {
-                                event.preventDefault();
-                                const buttonContainer = mediaDiv.querySelector('.btn-container');
-                                if (lastClickedMedia && lastClickedMedia !== mediaElement) {
-                                    const lastButtonContainer = lastClickedMedia.closest('.media-div').querySelector('.btn-container');
-                                    if (lastButtonContainer) {
-                                        lastButtonContainer.style.opacity = 0;
-                                    }
-                                }
-                                if (buttonContainer) {
-                                    buttonContainer.classList.style.opacity = 1;
-                                }
-                                lastClickedMedia = mediaElement;
-                            });
-
-                            // Buttons div
-                            if (response.headers.get("Authorization")) {
-                                const buttonContainer = document.createElement('div');
-                                buttonContainer.classList.add('btn-container', 'position-absolute', 'bottom-0', 'start-0', 'd-flex', 'p-1');
-                                buttonContainer.style.background = 'rgba(0, 0, 0, 0.5)';
-                                buttonContainer.style.borderRadius = '5px';
-                                buttonContainer.style.zIndex = '10';
-
-                                const reorderButton = document.createElement('button');
-                                reorderButton.classList.add('btn', 'btn-primary', 'btn-sm', 'me-1');
-                                reorderButton.innerHTML = '<i class="fas fa-sort"></i>';
-                                buttonContainer.appendChild(reorderButton);
-
-                                const infoButton = document.createElement('button');
-                                infoButton.classList.add('btn', 'btn-primary', 'btn-sm', 'me-1');
-                                infoButton.innerHTML = '<i class="fas fa-info"></i>';
-                                buttonContainer.appendChild(infoButton);
-
-                                const viewButton = document.createElement('button');
-                                viewButton.classList.add('btn', 'btn-primary', 'btn-sm', 'me-1');
-                                viewButton.innerHTML = '<i class="fas fa-eye"></i>';
-                                viewButton.addEventListener('click', (event) => {
-                                    event.stopPropagation();
-                                    window.open(`${url}`, '_blank');
-                                });
-                                buttonContainer.appendChild(viewButton);
-
-                                const payButton = document.createElement('button');
-                                payButton.classList.add('btn', 'btn-warning', 'btn-sm', 'me-1');
-                                payButton.innerHTML = '<i class="fas fa-bolt"></i>';
-                                buttonContainer.appendChild(payButton);
-
-                                const deleteButton = document.createElement('button');
-                                deleteButton.classList.add('btn', 'btn-danger', 'btn-sm', 'me-1');
-                                deleteButton.innerHTML = '<i class="fas fa-trash"></i>';
-                                buttonContainer.appendChild(deleteButton);
-
-                                mediaDiv.appendChild(buttonContainer);
-                            }
-
-                            // Add the element to the shortest column
-                            const shortestColumnIndex = columnHeights.indexOf(Math.min(...columnHeights));
-                            const shortestColumn = columnElements[shortestColumnIndex];
-                            shortestColumn.appendChild(mediaDiv);
-
-                            // Update the height of the shortest column
-                            columnHeights[shortestColumnIndex] += height;
-
-                            // Rescan the real height of the elements
-                            mediaDiv.style.height = ext === 'mp3'? '220px' : 'auto';
-
-                            // Save the server height for using it when resizing the window
-                            mediaDiv.dataset.serverHeight = `${height}`;
-                        }
-
-                    }
-
-                    // Rescan the real height of all the columns
-                    columnHeights.fill(0);
-                    for (const [index, column] of columnElements.entries()) {
-                        await (async () => {
-                            column.querySelectorAll('.media-div').forEach(mediaDiv => {
-                                const height = mediaDiv.clientHeight;
-                                columnHeights[index] += height;
-                            });
-                        })();
-                    }
-                    
-                    // Move the sentinel to the shortest column
-                    const shortestColumnIndex = columnHeights.indexOf(Math.min(...columnHeights));
-                    const shortestColumn = columnElements[shortestColumnIndex];
-                    shortestColumn.appendChild(sentinel);
+                if (userData.files && userData.files.length === 0) {
+                    document.querySelector('.spinner-border').remove();
+                    document.getElementById('no-media').classList.remove('visually-hidden');
                 }
-            })();
+
+                for (const file of userData.files) {
+                    const url = file.tags.find(tag => tag[0] === 'url')[1];
+                    const ext = url.split('.').pop();
+                    const height = parseInt(file.tags.find(tag => tag[0] === 'dim')[1].trim().split('x')[1], 10) || 220;
+
+                    let mediaLink = document.createElement('a');
+                    let mediaElement;
+                    if (ext === 'webp' || ext === 'gif' || ext === 'jpg' || ext === 'jpeg') {
+                        mediaElement = document.createElement('img');
+                        mediaElement.src = '/static/resources/loading-image.webp';
+                        mediaElement.classList.add("rounded-3", "w-100", "object-fit-contain");
+
+                        let mediaLoader = new Image();
+                        mediaLoader.src = `${url}`;
+
+                        mediaLoader.onload = function() {
+                            mediaElement.classList.add('fade-in');
+                            mediaElement.src = mediaLoader.src;
+                        };
+
+                    } else if (ext === 'mp4' || ext === 'mov') {
+                        mediaElement = document.createElement('video');
+                        mediaElement.classList.add("rounded-3", "w-100", "object-fit-contain");
+                        mediaElement.setAttribute('muted', '');
+                        mediaElement.setAttribute('playsinline', '');
+                        mediaElement.setAttribute('autoplay', '');
+                        mediaElement.setAttribute('loop', '');
+                        mediaElement.setAttribute('poster', '/static/resources/loading-video.webp');
+
+                        const handleVideoError = function(error) {
+                            mediaElement.removeEventListener('error', handleVideoError);
+                            mediaElement.poster = `${url}`;
+                            videoObserver.unobserve(mediaElement);
+                        };
+
+                        mediaElement.onloadedmetadata = function() {
+                            mediaElement.classList.add('fade-in');
+                        };
+
+                        mediaElement.addEventListener('error', handleVideoError);
+                        mediaElement.src = `${url}`;
+                        mediaElement.load();
+
+                        // Autoplay video patch
+                        mediaElement.muted = true;
+                        const playPromise = mediaElement.play();
+                        if (playPromise !== undefined) {
+                            playPromise.then(() => {}).catch(error => {
+                                mediaElement.play();
+                            });
+                        }
+
+                        // Pause video when it's not in the viewport
+                        const videoObserver = new IntersectionObserver((entries) => {
+                            entries.forEach(entry => {
+                                if (entry.isIntersecting) {
+                                    setTimeout(() => {
+                                        mediaElement.play();
+                                    }, 100);
+                                } else {
+                                    mediaElement.pause();
+                                }
+                            });
+                        });
+                        videoObserver.observe(mediaElement);
+
+                    } else if (ext === 'mp3') {
+                        mediaElement = document.createElement('audio');
+                        mediaElement.src = `${url}`;
+                        mediaElement.classList.add("ps-5", "pe-5");
+                        mediaElement.setAttribute('controls', '');
+
+                        let hasBeenPlayed = false;
+                        mediaElement.addEventListener('play', () => {
+                            hasBeenPlayed = true;
+                        });
+
+                        // Pause audio when it's not in the viewport
+                        const audioObserver = new IntersectionObserver((entries) => {
+                            entries.forEach(entry => {
+                                if (!entry.isIntersecting) {
+                                    setTimeout(() => {
+                                        mediaElement.pause();
+                                    }, 100);
+                                } else if (hasBeenPlayed) {
+                                    setTimeout(() => {
+                                        mediaElement.play();
+                                    }, 100);
+                                }
+                            });
+                        });
+                        audioObserver.observe(mediaElement);
+                    }
+
+                    if (mediaElement) {
+                        const mediaDiv = document.createElement('div');
+                        mediaDiv.classList.add("mb-0", "fade-in", "media-div");
+                        mediaDiv.id = `media-${mediaId++}`;
+                        mediaDiv.style.height = ext === 'mp3'? '220px' : `${height}px`;
+                        mediaDiv.style.position = "relative";
+                        if (ext === 'mp3') {
+                            mediaDiv.style.height = "220px";
+                            mediaDiv.style.background = "url('/static/resources/loading-music.webp') center center / cover no-repeat";
+                            mediaDiv.classList.add("rounded-3", "d-flex", "flex-column", "align-items-center", "justify-content-end", "pb-2");
+                        }
+                        mediaDiv.appendChild(mediaLink);
+                        mediaLink.appendChild(mediaElement);
+
+                        mediaElement.addEventListener('click', (event) => {
+                            event.preventDefault();
+                            const buttonContainer = mediaDiv.querySelector('.btn-container');
+                            if (lastClickedMedia && lastClickedMedia !== mediaElement) {
+                                const lastButtonContainer = lastClickedMedia.closest('.media-div').querySelector('.btn-container');
+                                if (lastButtonContainer) {
+                                    lastButtonContainer.style.opacity = 0;
+                                }
+                            }
+                            if (buttonContainer) {
+                                buttonContainer.classList.style.opacity = 1;
+                            }
+                            lastClickedMedia = mediaElement;
+                        });
+
+                        // Buttons div
+                        if (response.headers.get("Authorization")) {
+                            const buttonContainer = document.createElement('div');
+                            buttonContainer.classList.add('btn-container', 'position-absolute', 'bottom-0', 'start-0', 'd-flex', 'p-1');
+                            buttonContainer.style.background = 'rgba(0, 0, 0, 0.5)';
+                            buttonContainer.style.borderRadius = '5px';
+                            buttonContainer.style.zIndex = '10';
+
+                            const reorderButton = document.createElement('button');
+                            reorderButton.classList.add('btn', 'btn-primary', 'btn-sm', 'me-1');
+                            reorderButton.innerHTML = '<i class="fas fa-sort"></i>';
+                            buttonContainer.appendChild(reorderButton);
+
+                            const infoButton = document.createElement('button');
+                            infoButton.classList.add('btn', 'btn-primary', 'btn-sm', 'me-1');
+                            infoButton.innerHTML = '<i class="fas fa-info"></i>';
+                            buttonContainer.appendChild(infoButton);
+
+                            const viewButton = document.createElement('button');
+                            viewButton.classList.add('btn', 'btn-primary', 'btn-sm', 'me-1');
+                            viewButton.innerHTML = '<i class="fas fa-eye"></i>';
+                            viewButton.addEventListener('click', (event) => {
+                                event.stopPropagation();
+                                window.open(`${url}`, '_blank');
+                            });
+                            buttonContainer.appendChild(viewButton);
+
+                            const payButton = document.createElement('button');
+                            payButton.classList.add('btn', 'btn-warning', 'btn-sm', 'me-1');
+                            payButton.innerHTML = '<i class="fas fa-bolt"></i>';
+                            buttonContainer.appendChild(payButton);
+
+                            const deleteButton = document.createElement('button');
+                            deleteButton.classList.add('btn', 'btn-danger', 'btn-sm', 'me-1');
+                            deleteButton.innerHTML = '<i class="fas fa-trash"></i>';
+                            buttonContainer.appendChild(deleteButton);
+
+                            mediaDiv.appendChild(buttonContainer);
+                        }
+
+                        // Add the element to the shortest column
+                        const shortestColumnIndex = columnHeights.indexOf(Math.min(...columnHeights));
+                        const shortestColumn = columnElements[shortestColumnIndex];
+                        shortestColumn.appendChild(mediaDiv);
+
+                        // Update the height of the shortest column
+                        columnHeights[shortestColumnIndex] += height;
+
+                        // Rescan the real height of the elements
+                        mediaDiv.style.height = ext === 'mp3'? '220px' : 'auto';
+
+                        // Save the server height for using it when resizing the window
+                        mediaDiv.dataset.serverHeight = `${height}`;
+                    }
+
+                }
+
+                // Rescan the real height of all the columns
+                columnHeights.fill(0);
+                for (const [index, column] of columnElements.entries()) {
+                    await (async () => {
+                        column.querySelectorAll('.media-div').forEach(mediaDiv => {
+                            const height = mediaDiv.clientHeight;
+                            columnHeights[index] += height;
+                        });
+                    })();
+                }
+                
+                // Move the sentinel to the shortest column
+                const shortestColumnIndex = columnHeights.indexOf(Math.min(...columnHeights));
+                const shortestColumn = columnElements[shortestColumnIndex];
+                shortestColumn.appendChild(sentinel);
+            }
         };
     }, {
         rootMargin: '0px'
