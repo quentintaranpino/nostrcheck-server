@@ -77,7 +77,13 @@ document.addEventListener('DOMContentLoaded', (event) => {
 
     const sentinel = document.getElementById('sentinel');
 
+    let lastWindowWidth = window.innerWidth;
+    const resizeThreshold = 50;
     const redistributeMedia = () => {
+
+        if (Math.abs(window.innerWidth - lastWindowWidth) < resizeThreshold) return;
+        lastWindowWidth = window.innerWidth;
+
         observer.unobserve(sentinel);
 
         const allMediaDivs = Array.from(document.querySelectorAll('.media-div')).sort((a, b) => {
@@ -130,16 +136,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
         observer.observe(sentinel);
     };
 
-    const debouncedRedistributeMedia = () => {
-        if (resizeTimeout) {
-            clearTimeout(resizeTimeout);
-        }
-        resizeTimeout = setTimeout(() => {
-            redistributeMedia();
-        }, 200); // 200ms es un tiempo típico para debounce, ajusta según sea necesario
-    };
-
-    window.addEventListener('resize', debouncedRedistributeMedia);
+    window.addEventListener('resize', redistributeMedia);
 
     const observer = new IntersectionObserver(async (entries, observer) => {
         entries.forEach(async entry => {
