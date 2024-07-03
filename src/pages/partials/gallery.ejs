@@ -177,56 +177,58 @@ document.addEventListener('DOMContentLoaded', (event) => {
                         };
 
                     } else if (ext === 'mp4' || ext === 'mov') {
-                        mediaElement = document.createElement('video');
-                        mediaElement.classList.add("rounded-3", "w-100", "object-fit-contain");
-                        mediaElement.setAttribute('muted', '');
-                        mediaElement.setAttribute('playsinline', '');
-                        mediaElement.setAttribute('autoplay', '');
-                        mediaElement.setAttribute('loop', '');
-                        mediaElement.setAttribute('poster', '/static/resources/loading-video.webp');
+                        // mediaElement = document.createElement('video');
+                        // mediaElement.classList.add("rounded-3", "w-100", "object-fit-contain");
+                        // mediaElement.setAttribute('muted', '');
+                        // mediaElement.setAttribute('playsinline', '');
+                        // mediaElement.setAttribute('autoplay', '');
+                        // mediaElement.setAttribute('loop', '');
+                        // mediaElement.setAttribute('poster', '/static/resources/loading-video.webp');
 
-                        const handleVideoError = function(error) {
-                            mediaElement.removeEventListener('error', handleVideoError);
-                            mediaElement.poster = `${url}`;
-                            videoObserver.unobserve(mediaElement);
-                        };
+                        // const handleVideoError = function(error) {
+                        //     mediaElement.removeEventListener('error', handleVideoError);
+                        //     mediaElement.poster = `${url}`;
+                        //     videoObserver.unobserve(mediaElement);
+                        // };
 
-                        mediaElement.onloadedmetadata = function() {
-                            mediaElement.classList.add('fade-in');
-                        };
+                        // mediaElement.onloadedmetadata = function() {
+                        //     mediaElement.classList.add('fade-in');
+                        // };
 
-                        mediaElement.addEventListener('error', handleVideoError);
+                        // mediaElement.addEventListener('error', handleVideoError);
 
-                        mediaElement.addEventListener('canplaythrough', function() {
-                            mediaElement.classList.add('fade-in');
-                            mediaElement.removeAttribute('poster');
-                        });
+                        // mediaElement.addEventListener('canplaythrough', function() {
+                        //     mediaElement.classList.add('fade-in');
+                        //     mediaElement.removeAttribute('poster');
+                        // });
 
-                        mediaElement.src = `${url}`;
-                        mediaElement.load();
+                        // mediaElement.src = `${url}`;
+                        // mediaElement.load();
 
-                        // Autoplay video patch
-                        mediaElement.muted = true;
-                        const playPromise = mediaElement.play();
-                        if (playPromise !== undefined) {
-                            playPromise.then(() => {}).catch(error => {
-                                mediaElement.play();
-                            });
-                        }
+                        // // Autoplay video patch
+                        // mediaElement.muted = true;
+                        // const playPromise = mediaElement.play();
+                        // if (playPromise !== undefined) {
+                        //     playPromise.then(() => {}).catch(error => {
+                        //         mediaElement.play();
+                        //     });
+                        // }
 
-                        // Pause video when it's not in the viewport
-                        const videoObserver = new IntersectionObserver((entries) => {
-                            entries.forEach(entry => {
-                                if (entry.isIntersecting) {
-                                    setTimeout(() => {
-                                        mediaElement.play();
-                                    }, 100);
-                                } else {
-                                    mediaElement.pause();
-                                }
-                            });
-                        });
-                        videoObserver.observe(mediaElement);
+                        // // Pause video when it's not in the viewport
+                        // const videoObserver = new IntersectionObserver((entries) => {
+                        //     entries.forEach(entry => {
+                        //         if (entry.isIntersecting) {
+                        //             setTimeout(() => {
+                        //                 mediaElement.play();
+                        //             }, 100);
+                        //         } else {
+                        //             mediaElement.pause();
+                        //         }
+                        //     });
+                        // });
+                        // videoObserver.observe(mediaElement);
+                        console.log('Video files are not supported yet')
+                        mediaElement =document.createElement('p');
 
                     } else if (ext === 'mp3') {
                         mediaElement = document.createElement('audio');
