@@ -218,8 +218,8 @@ const frontendLogin = async (req: Request, res: Response): Promise<Response> => 
         return res.status(401).send(false);
     }
 
-    // Set session maxAge
-    if (req.body.rememberMe == "true" || req.body.tags[0][1] == "true"){req.session.cookie.maxAge = app.get("config.session")["maxAge"];}
+    const rememberMe = req.body.rememberMe || (Array.isArray(req.body.tags) ? req.body.tags.find((tag: string[]) => tag[0] === "cookie")?.[1] : "false");
+    if (rememberMe == "true"){req.session.cookie.maxAge = app.get("config.session")["maxAge"];}
 
     let canLogin = false;
     if (req.body.pubkey != undefined){
