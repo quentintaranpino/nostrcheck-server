@@ -61,7 +61,7 @@
 <body class="d-flex flex-column h-100 background-theme">
   <%- include('./partials/navbar', {active:'profile'}); %>
   <main class="container-sm py-0 px-0 py-sm-3">
-    <div class="row d-flex justify-content-center align-items-center">
+    <div class="row d-flex justify-content-center align-items-center gx-0">
       <div class="col col-lg-10 col-xl-9 col-xxl-8">
         <div class="card border-0 z-1 shadow-lg">
           <div class="rounded-top d-flex flex-row bg-profile">
@@ -122,7 +122,7 @@
                 <%- include('./partials/nostrNotes'); %>
               </div>
               <div class="tab-pane fade show pt-3" id="mediaFiles" role="tabpanel" aria-labelledby="mediaFiles-tab">
-                <%- include('./partials/gallery',{maxImageWidth: 200, maxColumns:3}); %> 
+                <%- include('./partials/gallery',{maxImageWidth: 350, maxColumns:3}); %> 
               </div>
               <div class="tab-pane fade p-3" id="userSettings" role="tabpanel" aria-labelledby="userSettings-tab">
                 <%- include('./partials/userSettings'); %>

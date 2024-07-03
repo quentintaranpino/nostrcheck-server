@@ -55,12 +55,13 @@ const maxImageWidth = <%= maxImageWidth %>;
 const maxColumns = <%= maxColumns %>;
 
 document.addEventListener('DOMContentLoaded', (event) => {
-    let page = 0;
-    let isIntersecting = false;
-    let lastClickedMedia = null;
     let mediaCount = 20;
-    let columns = Math.floor(window.innerWidth / maxImageWidth) < maxColumns ? Math.floor(window.innerWidth / maxImageWidth) : maxColumns;
+    const resizeThreshold = 50;
+
+    let page = -1;
     let mediaId = 0;
+    let lastClickedMedia = null;
+    let columns = Math.floor(window.innerWidth / maxImageWidth) < maxColumns ? Math.floor(window.innerWidth / maxImageWidth) : maxColumns;
     const columnElements = [];
     const columnHeights = Array(columns).fill(0); 
 
@@ -78,7 +79,6 @@ document.addEventListener('DOMContentLoaded', (event) => {
     const sentinel = document.getElementById('sentinel');
 
     let lastWindowWidth = window.innerWidth;
-    const resizeThreshold = 50;
     const redistributeMedia = () => {
 
         if (Math.abs(window.innerWidth - lastWindowWidth) < resizeThreshold) return;
@@ -129,7 +129,6 @@ document.addEventListener('DOMContentLoaded', (event) => {
         const shortestColumnIndex = columnHeights.indexOf(Math.min(...columnHeights));
         const shortestColumn = columnElements[shortestColumnIndex];
         shortestColumn.appendChild(sentinel);
-        console.log('sentinel moved to column', shortestColumnIndex);
 
         mediaContainer.appendChild(fragment);
 
@@ -139,29 +138,25 @@ document.addEventListener('DOMContentLoaded', (event) => {
     window.addEventListener('resize', redistributeMedia);
 
     const observer = new IntersectionObserver(async (entries, observer) => {
-        entries.forEach(async entry => {
-            if (entry.isIntersecting) {
-                isIntersecting = true;
-                while (isIntersecting) {
-                    console.debug('Intersecting sentinel');
+        for (const entry of entries) {
+            await (async () => {
+                if (entry.isIntersecting) {
+                    page++;
+                    console.debug('Fetching media, page:', page, 'count:', mediaCount)
                     const response = await fetch(`/api/v2/media?page=${page}&count=${mediaCount}`, {
                         method: "GET",
                         headers: {
                             "authorization": "Bearer " + localStorage.getItem('authkey') || '',
                         },
                     });
-
-                    page++;
                     const userData = await response.json();
                     response.headers.get("Authorization") ? await storeAuthkey(response.headers.get("Authorization")) : null;
+
                     if (userData.files && userData.files.length === 0) {
-                        const spinner = document.querySelector('.spinner-border');
-                        spinner.remove();
-                        isIntersecting = false;
-                        const noMediaElement = document.getElementById('no-media');
-                        noMediaElement.classList.remove('visually-hidden');
-                        break;
+                        document.querySelector('.spinner-border').remove();
+                        document.getElementById('no-media').classList.remove('visually-hidden');
                     }
+
                     for (const file of userData.files) {
                         const url = file.tags.find(tag => tag[0] === 'url')[1];
                         const ext = url.split('.').pop();
@@ -195,7 +190,6 @@ document.addEventListener('DOMContentLoaded', (event) => {
                                 mediaElement.removeEventListener('error', handleVideoError);
                                 mediaElement.poster = `${url}`;
                                 videoObserver.unobserve(mediaElement);
-                                
                             };
 
                             mediaElement.onloadedmetadata = function() {
@@ -336,31 +330,31 @@ document.addEventListener('DOMContentLoaded', (event) => {
 
                             // Rescan the real height of the elements
                             mediaDiv.style.height = ext === 'mp3'? '220px' : 'auto';
+
+                            // Save the server height for using it when resizing the window
                             mediaDiv.dataset.serverHeight = `${height}`;
                         }
+
                     }
 
-                    // Rescan the real height of the columns
+                    // Rescan the real height of all the columns
                     columnHeights.fill(0);
-                    columnElements.forEach((column, index) => {
-                        column.querySelectorAll('.media-div').forEach(mediaDiv => {
-                            const height = mediaDiv.clientHeight;
-                            columnHeights[index] += height;
-                        });
-                      
-                    });
+                    for (const [index, column] of columnElements.entries()) {
+                        await (async () => {
+                            column.querySelectorAll('.media-div').forEach(mediaDiv => {
+                                const height = mediaDiv.clientHeight;
+                                columnHeights[index] += height;
+                            });
+                        })();
+                    }
                     
                     // Move the sentinel to the shortest column
                     const shortestColumnIndex = columnHeights.indexOf(Math.min(...columnHeights));
                     const shortestColumn = columnElements[shortestColumnIndex];
                     shortestColumn.appendChild(sentinel);
-                    console.log('sentinel moved to column', shortestColumnIndex);
-
                 }
-            } else {
-                isIntersecting = false;
-            }
-        });
+            })();
+        };
     }, {
         rootMargin: '0px'
     });
