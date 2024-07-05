@@ -97,7 +97,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
             mediaContainer.removeChild(mediaContainer.firstChild);
         }
 
-        columns =  Math.floor(window.innerWidth / maxImageWidth) < maxColumns ? Math.floor(window.innerWidth / maxImageWidth) : 6;
+        columns = Math.floor(window.innerWidth / maxImageWidth) < maxColumns ? Math.floor(window.innerWidth / maxImageWidth) : maxColumns;
         columnElements.length = 0;
         columnHeights.length = columns;
         columnHeights.fill(0);
@@ -197,20 +197,30 @@ document.addEventListener('DOMContentLoaded', (event) => {
 
                         mediaElement.addEventListener('error', handleVideoError);
 
+                        interserctingVideo = false;
                         const videoObserver = new IntersectionObserver((entries) => {
                             entries.forEach(entry => {
                                 if (entry.isIntersecting) {
+                                    if (interserctingVideo) return;
+                                    interserctingVideo = true;
                                     mediaElement.setAttribute('preload', 'auto'); 
                                     setTimeout(() => {
-                                        const playPromise = mediaElement.play();
-                                        if (playPromise !== undefined) {
-                                            playPromise.then(() => {}).catch(error => {
-                                                mediaElement.play();
-                                            });
+                                        mediaElement.style.width = '100%';
+                                        mediaElement.style.opacity = 1;
+                                        try {
+                                            mediaElement.play();
+                                        } catch (error) {
+                                            console.log('cant play video', error)
                                         }
                                     }, 100);
+                                    interserctingVideo = false;
                                 } else {
+                                    if (!interserctingVideo) return;
+                                    mediaElement.style.width = '1px';
+                                    mediaElement.style.opacity = 0;
                                     mediaElement.pause();
+                                    console.log(mediaElement.style.width)
+                                    interserctingVideo = false;
                                 }
                             });
                         });
@@ -224,12 +234,11 @@ document.addEventListener('DOMContentLoaded', (event) => {
                         mediaElement.load();
 
                         // Autoplay video patch
+                        try {
                         mediaElement.muted = true;
-                        const playPromise = mediaElement.play();
-                        if (playPromise !== undefined) {
-                            playPromise.then(() => {}).catch(error => {
-                                mediaElement.play();
-                            });
+                            mediaElement.play()
+                        } catch (error) {
+                            console.log('cant play video', error)
                         }
 
                         videoObserver.observe(mediaElement);
@@ -250,11 +259,19 @@ document.addEventListener('DOMContentLoaded', (event) => {
                             entries.forEach(entry => {
                                 if (!entry.isIntersecting) {
                                     setTimeout(() => {
-                                        mediaElement.pause();
+                                        try {
+                                            mediaElement.pause();
+                                        } catch (error) {
+                                            console.log('cant pause video', error)
+                                        }
                                     }, 100);
                                 } else if (hasBeenPlayed) {
                                     setTimeout(() => {
-                                        mediaElement.play();
+                                        try {
+                                            mediaElement.play();
+                                        } catch (error) {
+                                            console.log('cant play video', error)
+                                        }
                                     }, 100);
                                 }
                             });
