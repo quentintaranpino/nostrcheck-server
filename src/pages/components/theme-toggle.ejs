@@ -20,7 +20,7 @@
     transform: rotate(0deg);
 }
 
-body[data-bs-theme="dark"] #theme-switch-icon {
+html[data-bs-theme="dark"] #theme-switch-icon {
     color: #a5a4a4;
 }
 
@@ -35,11 +35,11 @@ function applyTheme(theme) {
   if (theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
     themeSwitchIcon.classList.remove('fa-sun');
     themeSwitchIcon.classList.add('fa-moon');
-    document.body.setAttribute('data-bs-theme', 'dark');
+    document.documentElement.setAttribute('data-bs-theme', 'dark');
   } else {
     themeSwitchIcon.classList.remove('fa-moon');
     themeSwitchIcon.classList.add('fa-sun');
-    document.body.setAttribute('data-bs-theme', 'light');
+    document.documentElement.setAttribute('data-bs-theme', 'light');
   }
 }
 
@@ -50,7 +50,7 @@ function setTheme(theme) {
 
 themeSwitch.addEventListener('click', function() {
   themeSwitchIcon.style.transform == 'rotate(360deg)'? themeSwitchIcon.style.transform = 'rotate(0deg)' : themeSwitchIcon.style.transform = 'rotate(360deg)';
-  document.body.getAttribute('data-bs-theme') == 'dark'? setTheme('light'): setTheme('dark');
+  document.documentElement.getAttribute('data-bs-theme') == 'dark'? setTheme('light'): setTheme('dark');
 });
 
 const savedTheme = localStorage.getItem('theme') || 'system';
