@@ -140,8 +140,6 @@ document.addEventListener('DOMContentLoaded', (event) => {
         for (const entry of entries) {
             if (entry.isIntersecting) {
                 page++;
-                console.debug('Fetching media, page:', page, 'count:', mediaCount)
-                console.debug('init fetch')
                 const response = await fetch(`/api/v2/media?page=${page}&count=${mediaCount}`, {
                     method: "GET",
                     headers: {
@@ -151,7 +149,6 @@ document.addEventListener('DOMContentLoaded', (event) => {
                 const userData = await response.json();
                 response.headers.get("Authorization") ? await storeAuthkey(response.headers.get("Authorization")) : null;
 
-                console.debug('fetch done')
                 if (userData.files && userData.files.length === 0) {
                     document.querySelector('.spinner-border').remove();
                     document.getElementById('no-media').classList.remove('visually-hidden');
@@ -221,7 +218,6 @@ document.addEventListener('DOMContentLoaded', (event) => {
                                     mediaElement.style.width = '1px';
                                     mediaElement.style.opacity = 0;
                                     mediaElement.pause();
-                                    console.log(mediaElement.style.width)
                                     interserctingVideo = false;
                                 }
                             });
