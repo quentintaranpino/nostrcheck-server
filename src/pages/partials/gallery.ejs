@@ -10,13 +10,13 @@
     #media-container {
         display: flex;
         justify-content: center;
-        gap: 10px; 
+        gap: 5px; 
     }
 
     .media-column {
         display: flex;
         flex-direction: column;
-        gap: 10px; 
+        gap: 5px; 
         flex: 1; 
     }
 
@@ -169,7 +169,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
                     if (ext === 'webp' || ext === 'gif' || ext === 'jpg' || ext === 'jpeg') {
                         mediaElement = document.createElement('img');
                         mediaElement.src = '/static/resources/loading-image.webp';
-                        mediaElement.classList.add("rounded-3", "w-100", "object-fit-contain");
+                        mediaElement.classList.add("rounded-1", "w-100", "object-fit-contain");
 
                         let mediaLoader = new Image();
                         mediaLoader.src = `${url}`;
@@ -181,7 +181,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
 
                     } else if (ext === 'mp4' || ext === 'mov') {
                         mediaElement = document.createElement('video');
-                        mediaElement.classList.add("rounded-3", "w-100", "object-fit-contain");
+                        mediaElement.classList.add("rounded-1", "w-100", "object-fit-contain");
                         mediaElement.setAttribute('muted', '');
                         mediaElement.setAttribute('playsinline', '');
                         mediaElement.setAttribute('autoplay', '');
