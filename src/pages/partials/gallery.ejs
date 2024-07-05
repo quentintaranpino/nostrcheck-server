@@ -1,7 +1,6 @@
-<div id="media-container" class="g-2 p-1">
-</div>
+<div id="media-container" class="g-2 p-1"></div>
 <div id="no-media" class="visually-hidden text-center py-5"><p>No more media files found <i class="fa-regular fa-face-frown-open"></i></p></div>
-<div id="sentinel" style="background-color: red; width: 100px; height: 200px;"></div>
+<div id="sentinelEnd" style="background-color: red; width: 100px; height: 200px;"></div>
 <div class="d-flex justify-content-center">
     <div class="spinner-border text-secondary mt-5 mb-5" role="status">
         <span class="visually-hidden">Loading...</span>
@@ -55,7 +54,7 @@ const maxImageWidth = <%= maxImageWidth %>;
 const maxColumns = <%= maxColumns %>;
 
 document.addEventListener('DOMContentLoaded', (event) => {
-    let mediaCount = 20;
+    let mediaCount = 30;
     const resizeThreshold = 50;
 
     let page = -1;
@@ -76,7 +75,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
         columnElements.push(column);
     }
 
-    const sentinel = document.getElementById('sentinel');
+    const sentinelEnd = document.getElementById('sentinelEnd');
 
     let lastWindowWidth = window.innerWidth;
     const redistributeMedia = () => {
@@ -84,7 +83,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
         if (Math.abs(window.innerWidth - lastWindowWidth) < resizeThreshold) return;
         lastWindowWidth = window.innerWidth;
 
-        observer.unobserve(sentinel);
+        observerSentinels.unobserve(sentinelEnd);
 
         const allMediaDivs = Array.from(document.querySelectorAll('.media-div')).sort((a, b) => {
             const idA = parseInt(a.id.split('-')[1], 10);
@@ -128,16 +127,16 @@ document.addEventListener('DOMContentLoaded', (event) => {
 
         const shortestColumnIndex = columnHeights.indexOf(Math.min(...columnHeights));
         const shortestColumn = columnElements[shortestColumnIndex];
-        shortestColumn.appendChild(sentinel);
+        shortestColumn.appendChild(sentinelEnd);
 
         mediaContainer.appendChild(fragment);
 
-        observer.observe(sentinel);
+        observerSentinels.observe(sentinelEnd);
     };
 
     window.addEventListener('resize', redistributeMedia);
 
-    const observer = new IntersectionObserver(async (entries, observer) => {
+    const observerSentinels = new IntersectionObserver(async (entries, observer) => {
         for (const entry of entries) {
             if (entry.isIntersecting) {
                 page++;
@@ -359,7 +358,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
                             // Move the sentinel to the shortest column
                             const shortestColumnIndex = columnHeights.indexOf(Math.min(...columnHeights));
                             const shortestColumn = columnElements[shortestColumnIndex];
-                            shortestColumn.appendChild(sentinel);
+                            shortestColumn.appendChild(sentinelEnd);
                         });
                     })();
                 }
@@ -369,6 +368,6 @@ document.addEventListener('DOMContentLoaded', (event) => {
     }, {
         rootMargin: '1500px'
     });
-    observer.observe(sentinel);
+    observerSentinels.observe(sentinelEnd);
 });
 </script>
