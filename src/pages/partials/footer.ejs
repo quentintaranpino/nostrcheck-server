@@ -8,23 +8,23 @@
         <ul class="nav nav-justified w-100 align-items-center" id="myTab" role="tablist">
             <li <% if (!request.session.metadata || (request.session.metadata && !request.session.metadata.allowed)) { %>style="display: none;"<% } %> class='nav-item' role="presentation">
                 <button class="nav-link" type="button" aria-controls="intro" aria-selected="false" aria-label="Dashboard">
-                    <span class="fs-3"><a href="dashboard" role="button"><i class="bi bi-speedometer" aria-hidden="true"></i><span class="visually-hidden">Dashboard</span></a></span>
+                    <span class="fs-2"><a href="dashboard" role="button"><i class="bi bi-speedometer" aria-hidden="true"></i><span class="visually-hidden">Dashboard</span></a></span>
                 </button>
             </li>
             <li <% if (request.session.identifier && (request.session.identifier && request.session.metadata.allowed == true )) { %>style="display: none;"<% } %> class='nav-item' role="presentation">
                 <button class="nav-link" type="button" aria-controls="intro" aria-selected="false" aria-label="Home">
-                    <span class="fs-3"><a href="/" role="button"><i class="bi bi-house-fill" aria-hidden="true"></i><span class="visually-hidden">Home</span></a></span>
+                    <span class="fs-2"><a href="/" role="button"><i class="bi bi-house-fill" aria-hidden="true"></i><span class="visually-hidden">Home</span></a></span>
                 </button>
             </li>
             <li <% if (!request.session.identifier) { %>style="display: none;"<% } %> class='nav-item' role="presentation">
                 <button class="nav-link" type="button" aria-controls="intro" aria-selected="false" aria-label="Settings">
-                    <span class="fs-3" <% if (!request.session.metadata || (request.session.metadata && !request.session.metadata.allowed)) { %>style="display: none;"<% } %> ><a href="settings" role="button"><i class="bi bi-gear-fill" aria-hidden="true"></i><span class="visually-hidden">Settings</span></a></span>
-                    <span class="fs-3" <% if (request.session.identifier && (request.session.identifier && request.session.metadata.allowed == true )) { %>style="display: none;"<% } %>><a href="profile#userSettings" role="button"><i class="bi bi-gear-fill" aria-hidden="true"></i><span class="visually-hidden">Settings</span></a></span>
+                    <span class="fs-2" <% if (!request.session.metadata || (request.session.metadata && !request.session.metadata.allowed)) { %>style="display: none;"<% } %> ><a href="settings" role="button"><i class="bi bi-gear-fill" aria-hidden="true"></i><span class="visually-hidden">Settings</span></a></span>
+                    <span class="fs-2" <% if (request.session.identifier && (request.session.identifier && request.session.metadata.allowed == true )) { %>style="display: none;"<% } %>><a href="profile#userSettings" role="button"><i class="bi bi-gear-fill" aria-hidden="true"></i><span class="visually-hidden">Settings</span></a></span>
                 </button>
             </li>
             <li <% if (request.session.identifier) { %>style="display: none;"<% } %> class='nav-item' role="presentation">
                 <button class="nav-link" type="button" aria-controls="intro" aria-selected="false" aria-label="Login">
-                    <span class="fs-3">
+                    <span class="fs-2">
                         <a href="login" role="button">
                             <i class="fa-solid fa-user" aria-hidden="true"></i>
                             <span class="visually-hidden">Login</span>
@@ -34,20 +34,20 @@
             </li>
             <li class="nav-item" role="presentation" <% if (!request.session.identifier) { %>style="display: none;"<% } %> >
                 <button class="nav-link" type="button" aria-controls="intro" aria-selected="false" aria-label="Profile">
-                    <span class="fs-3"><a href="profile" role="button">
-                        <img <% if (request.session.identifier) { %>src=  <%- JSON.stringify(request.session.metadata.picture)%> <% }%> width="40" height="40" class="rounded-circle">
+                    <span class="fs-2"><a href="profile" role="button">
+                        <img <% if (request.session.identifier) { %>src=  <%- JSON.stringify(request.session.metadata.picture)%> <% }%> width="50" height="50" class="rounded-circle">
                         <span class="visually-hidden">Profile</span></a>
                     </span>
                 </button>
             </li>
             <li class="nav-item" role="presentation">
                 <button class="nav-link" type="button" aria-controls="intro" aria-selected="false" aria-label="Upload file">
-                    <span class="fs-3"><a href="TODO" role="button"><i class="bi bi-cloud-arrow-up-fill" aria-hidden="true"></i><span class="visually-hidden">Upload file</span></a></span>
+                    <span class="fs-2"><a href="TODO" role="button"><i class="bi bi-cloud-arrow-up-fill" aria-hidden="true"></i><span class="visually-hidden">Upload file</span></a></span>
                 </button>
             </li>
             <li <% if (!request.session.identifier) { %>style="display: none;"<% } %> class='nav-item' role="presentation">
                 <button class="nav-link" type="button" aria-controls="intro" aria-selected="false" aria-label="Logout">
-                    <span class="fs-3"><a href="logout" role="button"><i class="fa-solid fa-right-from-bracket"></i><span class="visually-hidden">Logout</span></a></span>
+                    <span class="fs-2"><a href="logout" role="button"><i class="fa-solid fa-right-from-bracket"></i><span class="visually-hidden">Logout</span></a></span>
                 </button>
             </li>
         </ul>
