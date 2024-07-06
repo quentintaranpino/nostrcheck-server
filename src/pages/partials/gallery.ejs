@@ -50,8 +50,10 @@
 <script src="https://cdn.jsdelivr.net/npm/blurhash@1.1.4/dist/blurhash.min.js"></script>
 <script src="/static/js/semaphore.js"></script>
 <script>
+storeAuthkey("<%= request.session.authkey %>")
 const maxImageWidth = <%= maxImageWidth %>;
 const maxColumns = <%= maxColumns %>;
+const privateGallery = <%= privateGallery %>;
 
 document.addEventListener('DOMContentLoaded', (event) => {
     let mediaCount = 50;
@@ -140,11 +142,11 @@ document.addEventListener('DOMContentLoaded', (event) => {
         for (const entry of entries) {
             if (entry.isIntersecting) {
                 page++;
+                const localHeader = privateGallery?{
+                        "authorization": "Bearer " + localStorage.getItem('authkey') } : {};
                 const response = await fetch(`/api/v2/media?page=${page}&count=${mediaCount}`, {
                     method: "GET",
-                    headers: {
-                        "authorization": "Bearer " + localStorage.getItem('authkey') || '',
-                    },
+                    headers: localHeader
                 });
                 if (!response.ok) {
                     document.querySelector('.spinner-border').remove();
