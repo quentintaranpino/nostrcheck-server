@@ -9,8 +9,8 @@
         </div>
       </div>
     </main>
-    <%- include('./partials/footer'); %>
-    <%- include('./components/message-modal', {"objectId":"fisrtUse"}); %>
+    <%- include('./partials/footer', {active:'tos'}); %>
+    <%- include('./components/message-modal', {"object":"fisrtUse"}); %>
   </body>
   <script>
     if ("<%= request.body.firstUse %>" != undefined && "<%= request.body.firstUse %>" != null && "<%= request.body.firstUse %>" != "") {
