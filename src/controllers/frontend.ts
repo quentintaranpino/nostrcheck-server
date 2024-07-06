@@ -37,6 +37,9 @@ const loadDashboardPage = async (req: Request, res: Response, version:string): P
     // User metadata from nostr
     req.session.metadata = await getProfileNostrMetadata(req.session.identifier);
 
+    // Check admin privileges. Only for information, never used for authorization
+    req.session.metadata.allowed = await isPubkeyValid(req, true);
+
     res.render("dashboard.ejs", {request: req});
 };
 
@@ -68,6 +71,9 @@ const loadSettingsPage = async (req: Request, res: Response, version:string): Pr
 
     // User metadata from nostr
     req.session.metadata = await getProfileNostrMetadata(req.session.identifier);
+
+    // Check admin privileges. Only for information, never used for authorization
+    req.session.metadata.allowed = await isPubkeyValid(req, true);
     
     res.render("settings.ejs", {request: req});
 };
@@ -94,6 +100,9 @@ const loadProfilePage = async (req: Request, res: Response, version:string): Pro
 
     // User metadata from local database
     req.session.metadata.mediaFiles =  await getProfileLocalMetadata(req.session.identifier);
+
+    // Check admin privileges. Only for information, never used for authorization
+    req.session.metadata.allowed = await isPubkeyValid(req, true);
 
     res.render("profile.ejs", {request: req});
 };
@@ -245,6 +254,9 @@ const frontendLogin = async (req: Request, res: Response): Promise<Response> => 
 
     // User metadata from nostr
     req.session.metadata = await getProfileNostrMetadata(req.session.identifier);
+
+    // Check admin privileges. Only for information, never used for authorization
+    req.session.metadata.allowed = await isPubkeyValid(req, true);
 
     logger.info("logged in as", req.session.identifier, " - ", getClientIp(req));
     return res.status(200).send(true);

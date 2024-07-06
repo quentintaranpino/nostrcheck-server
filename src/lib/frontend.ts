@@ -1,7 +1,7 @@
 import { Event } from "nostr-tools";
 import app from "../app.js";
 import { userMetadata } from "../interfaces/frontend.js";
-import { generateCredentials } from "./authorization.js";
+import { generateCredentials, isPubkeyValid } from "./authorization.js";
 import { dbSelect } from "./database.js";
 import { getProfileData, getProfileFollowers, getProfileFollowing } from "./nostr/NIP01.js";
 import { Request } from "express";
@@ -9,14 +9,14 @@ import { Request } from "express";
 const getProfileNostrMetadata = async (pubkey: string): Promise<userMetadata> => {
 
     if (!pubkey || pubkey == undefined || pubkey == null){
-        return {"about": "", "banner": "", "display_name": "", "followers": 0, "following": 0, "lud16": "", "mediaFiles": [], "name": "", "nip05": "", "picture": "", "username": "", "website": "", "pubkey": "", "nostr_notes": []};
+        return {"about": "", "banner": "", "display_name": "", "followers": 0, "following": 0, "lud16": "", "mediaFiles": [], "name": "", "nip05": "", "picture": "", "username": "", "website": "", "pubkey": "", "allowed" : false, "nostr_notes": []};
     }
 
-    let metadata : userMetadata = {"about": "", "banner": "", "display_name": "", "followers": 0, "following": 0, "lud16": "", "mediaFiles": [], "name": "", "nip05": "", "picture": "", "username": "", "website": "", "pubkey": pubkey, "nostr_notes": []};
+    let metadata : userMetadata = {"about": "", "banner": "", "display_name": "", "followers": 0, "following": 0, "lud16": "", "mediaFiles": [], "name": "", "nip05": "", "picture": "", "username": "", "website": "", "pubkey": pubkey, "allowed" : false, "nostr_notes": []};
 
     const nostrMetadata = await getProfileData(pubkey, 0)
     if (!nostrMetadata || nostrMetadata == undefined || nostrMetadata == null || nostrMetadata[0].content == undefined || nostrMetadata[0].content == null){
-        return {"about": "", "banner": "", "display_name": "", "followers": 0, "following": 0, "lud16": "", "mediaFiles": [], "name": "", "nip05": "", "picture": "", "username": "", "website": "", "pubkey": "", "nostr_notes": []};
+        return {"about": "", "banner": "", "display_name": "", "followers": 0, "following": 0, "lud16": "", "mediaFiles": [], "name": "", "nip05": "", "picture": "", "username": "", "website": "", "pubkey": "", "allowed" : false, "nostr_notes": []};
     }
 
     if (!app.get("#p_" + pubkey)){
@@ -32,7 +32,6 @@ const getProfileNostrMetadata = async (pubkey: string): Promise<userMetadata> =>
     // If If the user picture is not set, we will use the default one.
     if (!metadata.picture){metadata.picture = "/static/resources/picture-default.webp";}
     if (!metadata.banner){metadata.banner = "/static/resources/banner-default.webp";}
-
 
     // Add followers and following to the profile metadata.
     metadata["followers"] = app.get("#p_" + pubkey) ? app.get("#p_" + pubkey) : 0
