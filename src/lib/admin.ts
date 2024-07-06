@@ -58,7 +58,7 @@ async function dbSelectModuleData(module:string, offset:number, limit:number, or
 	const data = await dbSimpleSelect(table, `SELECT * FROM (SELECT ${fieldsLogic} ${fromLogic}) as ${table} ${whereLogic} ${sortLogic} ${limitLogic}`);
 
 	const result = {
-		total: JSON.parse(JSON.stringify(total[0])).total,
+		total: total? JSON.parse(JSON.stringify(total[0])).total : 0,
 		totalNotFiltered: totalNotFiltered,
 		rows: data || []
 	}
