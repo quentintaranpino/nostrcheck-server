@@ -150,8 +150,11 @@ function initButton(tableId, buttonSuffix, objectName, modaltext, field, fieldVa
         if (buttonSuffix === '-button-add') {
                     // If tableid is mediaFiles execute the following funciton
         if (tableId === '#mediaData') {
-            semaphore.execute(async () => await uploadMedia());
-            return
+            semaphore.execute(async () => {
+                await uploadMedia();
+                refreshTable('#mediaData');
+            });
+            return;
         }
             $(tableId).bootstrapTable('uncheckAll')
             var row = {}
@@ -298,38 +301,7 @@ async function modifyRecord(url, tableId, id, field, fieldValue, action = 'modif
     });
 }
 
-// uploadMedia
-const uploadMedia = async () => {
-    return new Promise((resolve, reject) => {
-        var input = $(document.createElement("input"));
-        input.attr("type", "file");
-        input.trigger("click");
 
-        input.on("change", async function (e) {
-            var files = e.target.files;
-            var data = new FormData();
-            data.append("file", files[0]);
-
-            await fetch('media/', {
-                method: "POST",
-                headers: {
-                    "authorization": "Bearer " + localStorage.getItem('authkey')
-                },
-                body: data
-                })
-                .then(async response => {
-                    await storeAuthkey(response.headers.get('Authorization'));
-                    refreshTable('#mediaData');
-                    resolve();
-                })
-                .catch((error) => {
-                    initAlertModal(tableId, error);
-                    console.error(error);
-                    reject(error);
-                });
-        });
-    });
-}
 
 // Cell formatting functions
 function formatCheckbox(value, row, index) {
