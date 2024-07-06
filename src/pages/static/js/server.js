@@ -43,7 +43,7 @@ window.addEventListener('pageshow', (event) => {
 });
 
 // Messages engine
-const showMessage = (message, messageClass = "alert-warning", timeout = 100000) => {
+const showMessage = (message, messageClass = "alert-warning", timeout = 2500) => {
   const messagesContainer = 'message-container';
 
   if (!document.getElementById(messagesContainer)) {
