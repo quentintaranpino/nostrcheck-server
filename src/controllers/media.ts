@@ -369,8 +369,8 @@ const getMediaList = async (req: Request, res: Response, version:string): Promis
 	count > 30 ? count = 30 : count; // Limit count value to 100
 	const offset = count * page; 
 
-	const whereStatement = eventHeader.pubkey ? "pubkey = ? and active = ?" : "active = ? and visibility = ?";
-	const wherefields = eventHeader.pubkey ? [eventHeader.pubkey, "1", count, offset] : ["1", "1", count, offset];
+	const whereStatement = eventHeader.pubkey ? "pubkey = ? and active = ?" : "active = ? and visibility = ? and checked = ?";
+	const wherefields = eventHeader.pubkey ? [eventHeader.pubkey, "1", count, offset] : ["1", "1", "1", count, offset];
 
 	// Get files and total from database
 	const result = await dbMultiSelect(["id", "filename", "original_hash", "hash", "filesize", "dimensions", "date", "blurhash", "pubkey"],
