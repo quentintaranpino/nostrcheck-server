@@ -5,6 +5,7 @@ interface domainsTableStructure extends RowDataPacket{
 	id: string;
 	domain: string;
 	active: string;
+	checked: string;
 	comments: string;
 }
 
@@ -12,6 +13,7 @@ const domainsTableFields : domainsTableStructure = {
 	"id" : "int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY",
 	"domain" : "varchar(50) NOT NULL",
 	"active" : "boolean NOT NULL DEFAULT 0",
+	"checked" : "boolean NOT NULL DEFAULT 0",
 	"comments" : "varchar(150)",
 	constructor: {
 		name: 'RowDataPacket',
@@ -21,6 +23,7 @@ const domainsTableFields : domainsTableStructure = {
 interface lightningTable extends RowDataPacket {
 	id: string;
 	active : string;
+	checked: string;
 	pubkey: string;
 	lightningaddress: string;
 	comments: string;
@@ -29,6 +32,7 @@ interface lightningTable extends RowDataPacket {
 const lightningTableFields: lightningTable = {
 	id: "int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY",
 	active: "boolean NOT NULL DEFAULT 1",
+	checked: "boolean NOT NULL DEFAULT 0",
 	pubkey: "varchar(64) NOT NULL",
 	lightningaddress: "varchar(50) NOT NULL",
 	comments: "varchar(150)",
