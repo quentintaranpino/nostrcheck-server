@@ -71,5 +71,26 @@ const showMessage = (message, messageClass = "alert-warning", timeout = 2500) =>
           $(this).remove();
       });
   }, timeout);
+  
 }
 
+// Copy to clipboard
+const copyToClipboard = async (object, text) => {
+    try {
+        await navigator.clipboard.writeText(text);
+        // Make object blin
+        $(object).find('i').removeClass('fa-copy').addClass('fa-check');
+        setTimeout(() => {
+            $(object).find('i').removeClass('fa-check').addClass('fa-copy');
+        }, 2000);
+    } catch (err) {
+        console.error(`Can't copy text ${err}`);
+    }
+}
+
+
+// Logout function
+const logout = async () => {
+  localStorage.removeItem('authkey');
+  window.location.href = 'logout';
+}
