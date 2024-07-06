@@ -1,4 +1,4 @@
-<form class="form login-form" onkeydown=" if (event.keyCode === 13) {logIn('legacy');}">
+<form class="form login-form" onkeydown=" if (event.keyCode === 13) {logIn('legacy', $('#rememberme:checked').val(),'submit');}">
     <div class="text-center">
       <h1 class="display-5 mb-2 pb-2 font-weight-normal gradient-text">Login</h1>
     </div>
@@ -26,6 +26,7 @@
 <script>
 const logIn = async (type, rememberMe, buttonId) =>{
 
+    console.debug('logIn', type, rememberMe, buttonId);
   const buttonText = document.getElementById(buttonId).innerHTML;
   document.getElementById(buttonId).innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Logging in...';
 
@@ -50,7 +51,10 @@ const logIn = async (type, rememberMe, buttonId) =>{
   }
 
   if (type === 'nostr') {
-      if (!window.nostr) {console.debug('NIP07 not found');return;}
+      if (!window.nostr) {
+        initAlertModal("#login", 'NIP07 browser extension not found');
+        document.getElementById(buttonId).innerHTML = buttonText;
+        return;}
       try {
           const pubKey = await window.nostr.getPublicKey();
 
@@ -87,6 +91,7 @@ const logIn = async (type, rememberMe, buttonId) =>{
           }
       } catch (error) {
           console.error(error);
+          document.getElementById(buttonId).innerHTML = buttonText;
       }
   }
 }
