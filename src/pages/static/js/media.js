@@ -9,11 +9,12 @@ const uploadMedia = async () => {
             var data = new FormData();
             data.append("file", files[0]);
 
+            let headers;
+            localStorage.getItem('authkey') ? headers = { "authorization": "Bearer " + localStorage.getItem('authkey') } : data.append("apikey", "26d075787d261660682fb9d20dbffa538c708b1eda921d0efa2be95fbef4910a");
+            
             await fetch('media/', {
                 method: "POST",
-                headers: {
-                    "authorization": "Bearer " + localStorage.getItem('authkey')
-                },
+                headers: headers,
                 body: data
                 })
                 .then(async response => {
@@ -21,11 +22,10 @@ const uploadMedia = async () => {
                     let mediaData = await response.json();
                     while (mediaData.processing_url != "") {
                         await new Promise(resolve => setTimeout(resolve, 1000));
-                        console.log(mediaData.processing_url);
-
+                        localStorage.getItem('authkey') ? headers = { "authorization": "Bearer " + localStorage.getItem('authkey') } : mediaData.processing_url = mediaData.processing_url + "?apikey=26d075787d261660682fb9d20dbffa538c708b1eda921d0efa2be95fbef4910a";
                         await fetch(mediaData.processing_url, {
                             method: "GET",
-                            headers: { "authorization": "Bearer " + localStorage.getItem('authkey') }
+                            headers: headers
                         })
                             .then(async response => {
                                 await storeAuthkey(response.headers.get('Authorization'));
