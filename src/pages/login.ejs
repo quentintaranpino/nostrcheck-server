@@ -4,7 +4,7 @@
   <body class="d-flex flex-column h-100">
     <%- include('./partials/navbar', {active:'login'}); %>
     <%- include('./components/loginform'); %>
-    <%- include('./partials/footer'); %>
+    <%- include('./partials/footer', {active:'login'}); %>
     <%- include('./components/alert-modal', {"objectId":"login"}); %>
   </body>
 </html>

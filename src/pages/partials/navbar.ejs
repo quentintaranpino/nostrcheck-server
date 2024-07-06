@@ -9,12 +9,17 @@
     <span class="navbar-toggler-icon"></span>
   </button>
   <div id="profile-dropdown">
-    <ul class="navbar-nav ms-auto">
-      <li class="d-flex">
-        <span class='dropdown-item  me-1 me-lg-0'><%- include('../components/theme-toggle'); %></span>
-        <a <% if (request.session.identifier) { %>style="display: none;"<% } %> <% if(active === 'login'){ %><%- "class='nav-link active mt-1'"%><% } else { %><%- "class='nav-link mt-1'"%><%}%> href="login"><i class="fa-solid fa-user fa-lg mt-2 pt-2 me-1"></i></a>
+    <ul class="navbar-nav ms-auto align-items-center">
+      <li>
+        <span class='dropdown-item'><%- include('../components/theme-toggle'); %></span>
       </li>
-      <li  class="nav-item dropdown"  <% if (!request.session.identifier) { %>style="display: none;"<% } %> >
+      <li class="d-none d-lg-flex">
+        <span class='nav-link fs-3'><i class="bi bi-cloud-arrow-up-fill"></i></span>
+      </li>
+      <li class="d-none d-lg-flex">
+        <a <% if (request.session.identifier) { %>style="display: none !important;"<% } %> <% if(active === 'login'){ %><%- "class='nav-link active  d-none d-lg-flex'"%><% } else { %><%- "class='nav-link '"%><%}%> href="login"><i class="fa-solid fa-user fa-lg me-1"></i></a>
+      </li>
+      <li class="nav-item dropdown d-none d-lg-flex"  <% if (!request.session.identifier) { %>style="display: none !important;"<% } %> >
         <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownMenuLink" role="button" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
           <img <% if (request.session.identifier) { %>src=  <%- JSON.stringify(request.session.metadata.picture)%> <% }%> width="40" height="40" class="rounded-circle">
           <span class="ms-2 d-none d-lg-inline"><% if (request.session.identifier) { %> <%= request.session.metadata.display_name %> <% }else{"Profile"} %></span>
@@ -28,7 +33,7 @@
       </div>
       </li>  
     </ul>
-    </div>  
+  </div>  
   <div class="collapse navbar-collapse" id="server-navbar">
     <ul class="nav navbar-nav">
       <li >

@@ -1,24 +1,77 @@
-<footer class="text-center mt-auto position-relative z-1 shadow-lg bg-body-tertiary">
-    <div class="text-center p-3">
+<footer class="text-center mt-auto position-relative-md z-1 shadow-lg">
+    <div class="text-center p-3 d-none d-lg-block">
         <span>v<%= request.body.version %> </span>
         <span>| Content released under</span> <a class="text-secondary text-decoration-none" href="https://mit-license.org/">MIT license</a> 
         <span>| <a class="text-secondary text-decoration-none" href="https://github.com/quentintaranpino/nostrcheck-api-ts/"> <i class="fa-brands fa-github ms-1"></i> Source code</a></span>
     </div>
+    <nav class="navbar navbar-light navbar-expand fixed-bottom d-lg-none d-xl-none shadow">
+        <ul class="nav nav-justified w-100 align-items-center" id="myTab" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" type="button" aria-controls="intro" aria-selected="false" aria-label="Dashboard">
+                    <span class="fs-3"><a href="dashboard" role="button"><i class="bi bi-speedometer" aria-hidden="true"></i><span class="visually-hidden">Dashboard</span></a></span>
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" type="button" aria-controls="intro" aria-selected="false" aria-label="Settings">
+                    <span class="fs-3"><a href="settings" role="button"><i class="bi bi-gear-fill" aria-hidden="true"></i><span class="visually-hidden">Settings</span></a></span>
+                </button>
+            </li>
+            <li <% if (request.session.identifier) { %>style="display: none;"<% } %> <% if(active === 'login'){ %><%- "class='nav-item active'"%><% } else { %><%- "class='nav-item '"%><%}%> role="presentation">
+                <button class="nav-link" type="button" aria-controls="intro" aria-selected="false" aria-label="Login">
+                    <span class="fs-3">
+                        <a href="login" role="button">
+                            <i class="fa-solid fa-user" aria-hidden="true"></i>
+                            <span class="visually-hidden">Login</span>
+                        </a>
+                    </span>
+                </button>
+            </li>
+            <li class="nav-item dropup"  <% if (!request.session.identifier) { %>style="display: none;"<% } %> >
+                <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownMenuLink" role="button" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                <img <% if (request.session.identifier) { %>src=  <%- JSON.stringify(request.session.metadata.picture)%> <% }%> width="40" height="40" class="rounded-circle">
+                <span class="ms-2 d-none d-lg-inline"><% if (request.session.identifier) { %> <%= request.session.metadata.display_name %> <% }else{"Profile"} %></span>
+                </a>
+                <div class="dropdown-menu dropdown-menu-end">
+                    <a href="profile"  <% if(active === 'profile'){ %><%- "class='dropdown-item active'"%><% } else { %><%- "class='dropdown-item'"%><%}%>>Profile</a>
+                    <a href="dashboard" <% if(active === 'dashboard'){ %><%- "class='dropdown-item active'"%><% } else { %><%- "class='dropdown-item'"%><%}%>>Dashboard</a>
+                    <a href="settings" <% if(active === 'settings'){ %><%- "class='dropdown-item active'"%><% } else { %><%- "class='dropdown-item'"%><%}%>>Settings</a>
+                    <div class="dropdown-divider"></div>
+                    <a href="logout" class="dropdown-item">Logout</a>
+                </div>
+            </li>  
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" type="button" aria-controls="intro" aria-selected="false" aria-label="Upload file">
+                    <span class="fs-3"><a href="TODO" role="button"><i class="bi bi-cloud-arrow-up-fill" aria-hidden="true"></i><span class="visually-hidden">Upload file</span></a></span>
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" type="button" aria-controls="intro" aria-selected="false" aria-label="Logout">
+                    <span class="fs-3"><a href="logout" role="button"><i class="bi bi-box-arrow-right" aria-hidden="true"></i><span class="visually-hidden">Logout</span></a></span>
+                </button>
+            </li>
+        </ul>
+    </nav>
 </footer>
-
 <style>
-
-html[data-bs-theme="light"] {
-    footer{
-        background-color: #e8e8e8f5 !important;
+    html[data-bs-theme="light"] {
+        footer{
+            background-color: #e8e8e8f5 !important;
+        }
     }
-}
-html[data-bs-theme="dark"] {
-    footer {
-      background-color: rgb(43 48 53 / 96%) !important;
-    } 
-}
+    html[data-bs-theme="dark"] {
+        footer {
+        background-color: rgb(43 48 53 / 96%) !important;
+        } 
+    }
 
+    @media (max-width: 994.98px) {
+        footer {
+            position: fixed !important;
+            bottom: 0;
+            width: 100%;
+            background-color: transparent;
+        }
+    }
 </style>
 
 <script src="https://cdn.jsdelivr.net/npm/jquery/dist/jquery.min.js"></script>
@@ -29,6 +82,5 @@ html[data-bs-theme="dark"] {
 <script src="https://cdn.jsdelivr.net/npm/jquery-resizable-columns@0.2.3/dist/jquery.resizableColumns.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap-table@1.22.2/dist/extensions/resizable/bootstrap-table-resizable.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap-table@1.22.6/dist/extensions/mobile/bootstrap-table-mobile.min.js"></script>
-
 <script src="/static/js/server.js"></script>
 <script src="/static/js/modal.js"></script>
