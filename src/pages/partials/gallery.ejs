@@ -48,12 +48,13 @@
     }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/blurhash@1.1.4/dist/blurhash.min.js"></script>
-<script src="/static/js/semaphore.js"></script>
 <script>
-storeAuthkey("<%= request.session.authkey %>")
 const maxImageWidth = <%= maxImageWidth %>;
 const maxColumns = <%= maxColumns %>;
 const privateGallery = <%= privateGallery %>;
+
+const initAuth = async() => storeAuthkey("<%= request.session.authkey %>")
+initAuth();
 
 document.addEventListener('DOMContentLoaded', (event) => {
     let mediaCount = 50;
