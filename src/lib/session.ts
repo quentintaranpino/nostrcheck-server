@@ -11,6 +11,7 @@ import { userMetadata } from "../interfaces/frontend.js";
 declare module 'express-session' {
 	interface Session {
        identifier: string;
+       authkey: string;
        metadata: userMetadata;
     }
 }
