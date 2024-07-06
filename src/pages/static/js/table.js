@@ -1,4 +1,4 @@
-let isFilterActive = false;
+let isFilterActive = {};
 
 const initTable = async (tableId, datakey, objectName, dataKey, field = "") => {
 
@@ -32,7 +32,9 @@ const initTable = async (tableId, datakey, objectName, dataKey, field = "") => {
         detailFormatter: "detailFormatter",
         queryParams: function (params) {
             let filters = params.filter ? JSON.parse(params.filter) : {};
-            if (isFilterActive) {filters.checked = "0";}
+            if (isFilterActive[tableId]) {
+                filters.checked = "0";
+            }
             params.filter = JSON.stringify(filters);
             return params;
         },
@@ -486,18 +488,16 @@ const fetchTableCountData = async (tableDataKey, action, field) => {
             text: 'checked',
             icon: 'bi-check-circle-fill',
             event: () => {
-                if (isFilterActive) {
-                    $(tableId).bootstrapTable('filterBy', {
-                    });
-                    isFilterActive = false;
+                if (isFilterActive[tableId]) {
+                    $(tableId).bootstrapTable('filterBy', {});
+                    isFilterActive[tableId] = false;
                     $(tableId).bootstrapTable('refresh');
                 } else {
                     $(tableId).bootstrapTable('filterBy', {
                         checked: 0
                     });
-                    isFilterActive = true;
+                    isFilterActive[tableId] = true;
                     $(tableId).bootstrapTable('refresh');
-
                 }
             },
             attributes: {
