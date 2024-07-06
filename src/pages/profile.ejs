@@ -116,6 +116,7 @@
               </li>
               <li class="nav-item" >
                 <button class="nav-link" id="userSettings-tab" data-bs-toggle="tab" data-bs-target="#userSettings" type="button" role="tab" aria-controls="userSettings" aria-selected="false">Settings</button>
+              </li>
             </ul>
             <div class="tab-content" id="profileTabsContent">
               <div class="tab-pane fade show active" id="nostrNotes" role="tabpanel" aria-labelledby="nostrNotes-tab">
@@ -138,5 +139,26 @@
     particlesJS("particles-js", {"particles":{"number":{"value":80,"density":{"enable":true,"value_area":800}},"color":{"value":"#ffffff"},"shape":{"type":"circle","stroke":{"width":0,"color":"#000000"},"polygon":{"nb_sides":5},"image":{"src":"img/github.svg","width":100,"height":100}},"opacity":{"value":0.5,"random":false,"anim":{"enable":false,"speed":1,"opacity_min":0.1,"sync":false}},"size":{"value":3,"random":true,"anim":{"enable":false,"speed":40,"size_min":0.1,"sync":false}},"line_linked":{"enable":true,"distance":150,"color":"#ffffff","opacity":0.4,"width":1},"move":{"enable":true,"speed":6,"direction":"none","random":false,"straight":false,"out_mode":"out","bounce":false,"attract":{"enable":false,"rotateX":600,"rotateY":1200}}},"interactivity":{"detect_on":"canvas","events":{"onhover":{"enable":false,"mode":"grab"},"onclick":{"enable":true,"mode":"push"},"resize":true},"modes":{"grab":{"distance":400,"line_linked":{"opacity":1}},"bubble":{"distance":400,"size":40,"duration":2,"opacity":8,"speed":3},"repulse":{"distance":200,"duration":0.4},"push":{"particles_nb":4},"remove":{"particles_nb":2}}},"retina_detect":true});var count_particles, update; count_particles = document.querySelector('.js-count-particles'); 
   </script>
   <%- include('./partials/footer', {active:'profile'}); %>
+
+<script>
+  function activateTabFromHash() {
+    const hash = window.location.hash;
+    if (hash) {
+      const tabLink = document.querySelector(`button[data-bs-target="${hash}"]`);
+        if (tabLink) {
+            const tab = new bootstrap.Tab(tabLink);
+            tab.show();
+        }
+    }
+  }
+
+  window.addEventListener('load', activateTabFromHash);
+
+  document.querySelectorAll('.nav-link').forEach(link => {
+      link.addEventListener('shown.bs.tab', function (e) {
+          history.pushState(null, null, e.target.getAttribute('href'));
+      });
+  });
+</script>
 </body>
 </html>
