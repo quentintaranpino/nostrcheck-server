@@ -43,7 +43,7 @@ window.addEventListener('pageshow', (event) => {
 });
 
 // Messages engine
-const showMessage = (message, messageClass = "alert-warning", timeout = 2500) => {
+const showMessage = (message, messageClass = "alert-warning", timeout = 100000) => {
   const messagesContainer = 'message-container';
 
   if (!document.getElementById(messagesContainer)) {
@@ -52,7 +52,7 @@ const showMessage = (message, messageClass = "alert-warning", timeout = 2500) =>
 
   const messageBox = 'message-box-' + Date.now();
   const messageBoxHtml = `
-      <div id="${messageBox}" class="alert alert-modal message-box ${messageClass}">
+      <div id="${messageBox}" class="alert alert-modal mb-2 message-box ${messageClass}">
           ${message}
       </div>
   `;

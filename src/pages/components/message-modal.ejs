@@ -17,8 +17,8 @@
 <style>
 .message-container {
   position: fixed;
-  bottom: 0;
-  right: 20;
+  bottom: 10;
+  right: 10;
   width: 450px;
   z-index: 1050; 
   display: flex;
@@ -27,10 +27,18 @@
   word-wrap: break-word;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 994.98px) {
   .message-container {
-    width: 100%;
+    width: 95%;
     right: 0;
+    bottom: 100;
+    margin: 0px 10px;
+  }
+
+  .message-container .alert {
+    width: 100%;
+    margin: 0 auto;
+    text-align: center;
   }
 }
 
