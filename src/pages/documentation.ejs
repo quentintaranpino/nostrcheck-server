@@ -42,7 +42,7 @@
     </div>
     </main>
     <%- include('./partials/footer', {active:'documentation'}); %>
-    <%- include('./components/message-modal', {"objectId":"fisrtUse"}); %>
+    <%- include('./components/message-modal', {"object":"fisrtUse"}); %>
   </body>
 <script>
   if ("<%= request.body.firstUse %>" != undefined && "<%= request.body.firstUse %>" != null && "<%= request.body.firstUse %>" != "") {

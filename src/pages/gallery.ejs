@@ -14,5 +14,11 @@
     </div>
   </main>
   <%- include('./partials/footer', {active:'gallery'}); %>
+  <%- include('./components/message-modal', {"object":"fisrtUse"}); %>
 </body>
+<script>
+  if ("<%= request.body.firstUse %>" != undefined && "<%= request.body.firstUse %>" != null && "<%= request.body.firstUse %>" != "") {
+    initMessageModal("#fisrtUse", "<%- request.body.firstUse %>", "Welcome to your sovereignty");
+  }
+</script>
 </html>
