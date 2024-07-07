@@ -317,7 +317,7 @@ const getMedia = async (req: Request, res: Response, version:string) => {
 	}
 
 	// Get media by URL (only filename)
-	if (req.params.param1 && req.params.param1.length >= 64) {
+	if ((req.params.param1 && req.params.param1.length >= 64) || req.params.param1.startsWith("nostrcheck.me_")) {
 		req.params.filename = req.params.param1;
 		getMediabyURL(req, res);
 		return;
