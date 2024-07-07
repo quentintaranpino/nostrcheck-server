@@ -202,15 +202,22 @@ const dbUpdate = async (
 	try {
 	  let whereClause = whereFieldName.map((field) => `${field} = ?`).join(' AND ');
 	  const params = [selectFieldValue].concat(whereFieldValue);
-	  const [dbFileFieldUpdate] = await conn.execute(
+	  const [dbFileFieldUpdate] : any[] = await conn.execute(
 		`UPDATE ${tableName} SET ${selectFieldName} = ? WHERE ${whereClause}`,
 		params
-	  );
+	);
 	  if (!dbFileFieldUpdate) {
 		logger.error("Error updating " + tableName + " table | " + whereFieldName.join(', ') + " :", whereFieldValue.join(', ') +  " | " + selectFieldName + " :", selectFieldValue);
 		conn.end();
 		return false;
 	  }
+
+	  if (dbFileFieldUpdate.affectedRows === 0) {
+		logger.warn("No rows updated in " + tableName + " table | " + whereFieldName.join(', ') + " :", whereFieldValue.join(', ') +  " | " + selectFieldName + " :", selectFieldValue);
+		conn.end();
+		return false;
+	  }
+
 	  conn.end();
 	  return true;
 	} catch (error) {
