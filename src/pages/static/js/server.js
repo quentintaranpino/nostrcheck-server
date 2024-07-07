@@ -43,7 +43,7 @@ window.addEventListener('pageshow', (event) => {
 });
 
 // Messages engine
-const showMessage = (message, messageClass = "alert-warning", timeout = 2500) => {
+const showMessage = (message, messageClass = "alert-warning", persistent = false, timeout = 2500 ) => {
   const messagesContainer = 'message-container';
 
   if (!document.getElementById(messagesContainer)) {
@@ -66,12 +66,31 @@ const showMessage = (message, messageClass = "alert-warning", timeout = 2500) =>
       currentMessages.last().remove();
   }
 
-  setTimeout(() => {
-      $('#' + messageBox).fadeOut(500, function () {
-          $(this).remove();
-      });
-  }, timeout);
+  if (!persistent) {
+    setTimeout(() => {
+        $('#' + messageBox).fadeOut(500, function () {
+            $(this).remove();
+        });
+    }, timeout);
+    }
+
+    return messageBox;
   
+}
+
+const hideMessage = (messageBox, timeout = 2500) => {
+    setTimeout(() => {
+        $('#' + messageBox).fadeOut(500, function () {
+            $(this).remove();
+        });
+    }, timeout);
+}
+
+const updateMessage = (messageBox, newMessage, messageClass) => {
+    $('#' + messageBox).html(newMessage);
+    if (messageClass) {
+        $('#' + messageBox).removeClass().addClass('alert alert-modal mb-2 message-box ' + messageClass);
+    }
 }
 
 // Copy to clipboard
