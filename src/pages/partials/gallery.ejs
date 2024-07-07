@@ -53,10 +53,9 @@ const maxImageWidth = <%= maxImageWidth %>;
 const maxColumns = <%= maxColumns %>;
 const privateGallery = <%= privateGallery %>;
 
-const initAuth = async() => storeAuthkey("<%= request.session.authkey %>")
-initAuth();
 
 document.addEventListener('DOMContentLoaded', (event) => {
+    storeAuthkey("<%= request.session.authkey %>")
     let mediaCount = 50;
     const resizeThreshold = 50;
 
