@@ -12,12 +12,14 @@ const getProfileData = async (pubkey: string, kind: number = 0): Promise<Event[]
     let resolveEvents: (events: Event[]) => void;
     let subscribePromise: Promise<Event[]> = new Promise(resolve => resolveEvents = resolve);
     
+	console.log(Math.floor(Date.now() / 1000) - (90 * 24 * 60 * 60))
     const events: Event[] = [];
     const data = relaysPool.subscribeMany(
         relays,
         [{
             authors: [pubkey],
             kinds: [kind],
+			since: Math.floor(Date.now() / 1000) - (90 * 24 * 60 * 60)
         }],
         {
             eoseTimeout: 100,
