@@ -2,7 +2,7 @@ const logIn = async (type, rememberMe, buttonId) =>{
 
     console.debug('logIn', type, rememberMe, buttonId);
   const buttonText = document.getElementById(buttonId).innerHTML;
-  document.getElementById(buttonId).innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Logging in...';
+  document.getElementById(buttonId).innerHTML = '<span class="spinner-border spinner-border-sm pe-1" role="status" aria-hidden="true"></span> Logging in...';
 
   if (type === 'legacy') {
       await fetchServer(JSON.stringify({username: document.getElementById('username').value, 
