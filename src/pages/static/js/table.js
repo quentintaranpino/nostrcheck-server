@@ -220,14 +220,19 @@ async function modifyRecord(url, tableId, id, field, fieldValue, action = 'modif
     if (field === "allowed") {fieldValue = $(tableId).bootstrapTable('getSelections')[0].allowed === 0 ? 1 : 0;}
 
     let data = {};
+
     if (action === 'remove' || action === 'modify') {
         data.table = tableId.split('-')[0].split('#')[1],
         data.field = field,
         data.value = fieldValue,
-        data.id = row.id
+        data.id = id
     }
 
     if (action === 'insert') {
+        if (!row) {
+            console.error('No row data to insert', row);
+            return
+        }
         data.table = tableId.split('-')[0].split('#')[1],
         data.row = row
     }
@@ -343,6 +348,7 @@ function formatFilename(value, row, index) {
         semaphore.execute(async () => {await initMediaModal(row.pubkey, value, row.checked, row.visibility).then(async (modal) => {
                 let modalResult = modal.data;
                 for (let field in modalResult) {
+                    console.log(field, modalResult[field], row[field])
                     if (modalResult[field] != row[field]){
                         semaphore.execute(async () => await modifyRecord("admin/updaterecord/",'#mediaData', row.id, field, modalResult[field], 'modify'));
                         refreshTable('#mediaData');
