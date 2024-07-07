@@ -49,11 +49,9 @@ class Semaphore {
   
   const semaphore = new Semaphore();
 
-  async function storeAuthkey(authkey) {
-    if(authkey){
+  async function storeAuthkey(authkey, overwrite = false) {
+    if(authkey || overwrite){
         await localStorage.setItem('authkey', authkey);
         console.log('Updated localStorage authkey', authkey);
-    }else{
-        await localStorage.setItem('authkey', '');
     }
 }

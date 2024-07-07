@@ -26,6 +26,7 @@ const uploadMedia = async () => {
                         updateMessage(uploadMessage,'<i class="bi bi-exclamation-circle-fill pe-1"></i>' + mediaData.message, "alert-danger");
                         hideMessage(uploadMessage, 5000);
                         reject(mediaData.message);
+                        await storeAuthkey('', true);
                         return;
                     }
 
@@ -47,9 +48,10 @@ const uploadMedia = async () => {
                                     mediaData.processing_url = ""; 
                                 }
                             })
-                            .catch((error) => {
+                            .catch(async (error) => {
                                 updateMessage(uploadMessage,'<i class="bi bi-exclamation-circle-fill pe-1"></i>' + error, "alert-danger");
                                 hideMessage(uploadMessage, 5000);
+                                await storeAuthkey('', true);
                                 return;
                             });
                     }
@@ -68,10 +70,11 @@ const uploadMedia = async () => {
                     hideMessage(uploadMessage, 15000);
                     resolve();
                 })
-                .catch((error) => {
+                .catch(async (error) => {
                     updateMessage(uploadMessage,'<i class="bi bi-exclamation-circle-fill pe-1"></i>' + error, "alert-danger");
                     hideMessage(uploadMessage, 5000);
                     reject(error);
+                    await storeAuthkey('', true);
                     return;
                 });
         });
