@@ -50,10 +50,6 @@ class Semaphore {
   const semaphore = new Semaphore();
 
   async function storeAuthkey(authkey) {
-    if (authkey) {
-        await localStorage.setItem('authkey', authkey);
-        console.log('Updated localStorage authkey', authkey);
-    } else {
-        console.warn('Received empty authkey, not updating localStorage');
-    }
+    await localStorage.setItem('authkey', authkey);
+    console.log('Updated localStorage authkey', authkey);
 }
