@@ -317,14 +317,14 @@ const getMedia = async (req: Request, res: Response, version:string) => {
 	}
 
 	// Get media by URL (only filename)
-	if ((req.params.param1 && req.params.param1.length >= 11) || req.params.param1.startsWith("nostrcheck.me_")) {
+	if (req.params.param1 && req.params.param1.length >= 11) {
 		req.params.filename = req.params.param1;
 		getMediabyURL(req, res);
 		return;
 	}
 
 	// Get media by ID, getmedia listing
-	if (req.params.param1 && req.params.param1.length < 64) {
+	if (req.params.param1 && req.params.param1.length < 11) {
 
 		if(req.params.param1 == "list"){
 			getMediaList(req, res, version); // List media Blossom compatibility
