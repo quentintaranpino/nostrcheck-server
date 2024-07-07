@@ -196,7 +196,7 @@ const initMediaModal = async (pubkey, filename, checked, visible) => {
 
     var mediaModal = new bootstrap.Modal($('#media-modal'));
 
-    MediaData = await loadMediaWithToken('media/' + pubkey + '/' + filename, localStorage.getItem('authkey')).then (async data => {
+    MediaData = await loadMediaWithToken('media/' + filename, localStorage.getItem('authkey')).then (async data => {
         await storeAuthkey(data.authkey);
         console.log("NEW AUTHKEY: ", localStorage.getItem('authkey'));
         return data;
