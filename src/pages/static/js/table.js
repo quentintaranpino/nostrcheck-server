@@ -16,6 +16,7 @@ const initTable = async (tableId, datakey, objectName, dataKey, field = "") => {
         filterControlVisible: false,
         sidePagination: "server",
         pagination: true,
+        showJumpTo: true,
         sortable: true,
         search: true,
         searchClearButton: true,
