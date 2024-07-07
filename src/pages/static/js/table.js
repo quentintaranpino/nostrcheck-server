@@ -278,7 +278,6 @@ async function modifyRecord(url, tableId, id, field, fieldValue, action = 'modif
             }else if (action === 'modify' || action === 'pay' || action === 'balance'){
                 let updateData = {};
                 updateData[field] = responseData.message;
-                console.log(updateData[field], "ID:", id, "ROW", updateData)
                 $(tableId).bootstrapTable('updateByUniqueId', {
                     id: id,
                     row: updateData
@@ -348,7 +347,6 @@ function formatFilename(value, row, index) {
         semaphore.execute(async () => {await initMediaModal(row.pubkey, value, row.checked, row.visibility).then(async (modal) => {
                 let modalResult = modal.data;
                 for (let field in modalResult) {
-                    console.log(field, modalResult[field], row[field])
                     if (modalResult[field] != row[field]){
                         semaphore.execute(async () => await modifyRecord("admin/updaterecord/",'#mediaData', row.id, field, modalResult[field], 'modify'));
                         refreshTable('#mediaData');

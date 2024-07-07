@@ -122,7 +122,6 @@ const initEditModal = async (objectId, row, objectName, newRow, columns) => {
                         }
                     } else {
                         if (row[key] != $('#' + key).val()) {
-                            console.log(key, row[key], $('#' + key).val());
                             editedRow[key] = $('#' + key).val();
                         }
                     }
@@ -144,7 +143,6 @@ const initAlertModal = async (objectId, message, timeout = 2000, alertClass = "a
     var alert = new bootstrap.Modal($(objectId + '-alert-modal'));
 
     $(objectId + '-alert-modal .alert').addClass(alertClass);
-    console.log($(objectId + '-alert-modal .alert'));
 
 
     $(alert._element).on('show.bs.modal', function () {
@@ -198,10 +196,8 @@ const initMediaModal = async (pubkey, filename, checked, visible) => {
 
     MediaData = await loadMediaWithToken('media/' + filename, localStorage.getItem('authkey')).then (async data => {
         await storeAuthkey(data.authkey);
-        console.log("NEW AUTHKEY: ", localStorage.getItem('authkey'));
         return data;
     });
-   
 
     $('#modalSwitch-checked').prop('checked', checked);
     $('#modalSwitch-checked').change(function() {
