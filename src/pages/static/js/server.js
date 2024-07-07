@@ -93,6 +93,15 @@ const updateMessage = (messageBox, newMessage, messageClass) => {
     }
 }
 
+$(window).on('scroll', () => {
+    const $messagesContainer = $('#message-container');
+    if ($(window).scrollTop() > 800) {
+      $messagesContainer.css('top', '10px');
+    } else {
+      $messagesContainer.css('top', '87px'); 
+    }
+  });
+
 // Copy to clipboard
 const copyToClipboard = async (object, text) => {
     try {
