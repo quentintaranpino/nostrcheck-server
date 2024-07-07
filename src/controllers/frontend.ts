@@ -128,6 +128,8 @@ const loadTosPage = async (req: Request, res: Response, version:string): Promise
         logger.error("Failed to read tos file", e);
         tosFile = "Failed to read tos file. Please contact the server administrator."
     }
+
+    req.session.authkey = await generateCredentials('authkey', false, req.session.identifier);
     
     res.render("tos.ejs", {request: req, tos: tosFile });
 };
@@ -144,6 +146,9 @@ const loadLoginPage = async (req: Request, res: Response, version:string): Promi
 
     req.body.version = app.get("version");
     req.body.serverHost = app.get("config.server")["host"];
+
+    req.session.authkey = await generateCredentials('authkey', false, req.session.identifier);
+
     res.render("login.ejs", {request: req});
 };
 
@@ -160,6 +165,8 @@ const loadIndexPage = async (req: Request, res: Response, version:string): Promi
     req.body.version = app.get("version");
     req.body.serverHost = app.get("config.server")["host"];
     req.body.serverPubkey = await hextoNpub(app.get("config.server")["pubkey"]);
+
+    req.session.authkey = await generateCredentials('authkey', false, req.session.identifier);
     
     res.render("index.ejs", {request: req});
 };
@@ -187,6 +194,9 @@ const loadDocsPage = async (req: Request, res: Response, version:string): Promis
     req.body.version = app.get("version");
     req.body.serverHost = app.get("config.server")["host"];
     req.body.serverPubkey = await hextoNpub(app.get("config.server")["pubkey"]);
+
+    req.session.authkey = await generateCredentials('authkey', false, req.session.identifier);
+
     res.render("documentation.ejs", {request: req});
 };
 
@@ -202,6 +212,9 @@ const loadGalleryPage = async (req: Request, res: Response, version:string): Pro
 
     req.body.version = app.get("version");
     req.body.serverHost = app.get("config.server")["host"];
+
+    req.session.authkey = await generateCredentials('authkey', false, req.session.identifier);
+
     res.render("gallery.ejs", {request: req});
 };
 
