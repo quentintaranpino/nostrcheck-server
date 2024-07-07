@@ -55,7 +55,6 @@ const privateGallery = <%= privateGallery %>;
 
 
 document.addEventListener('DOMContentLoaded', (event) => {
-    storeAuthkey("<%= request.session.authkey %>")
     let mediaCount = 50;
     const resizeThreshold = 50;
 

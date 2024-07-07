@@ -260,7 +260,6 @@
   </body>
 
 <script>
-  storeAuthkey("<%= request.session.authkey %>")
   let metadata = "<%= JSON.stringify(request.session.metadata) %>"
   let activeModules = "<%= JSON.stringify(request.body.activeModules) %>"
 </script>

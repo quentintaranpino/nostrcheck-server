@@ -486,7 +486,6 @@
 <script src="/static/js/coloris.min.js"></script>
 
 <script>
-  storeAuthkey("<%= request.session.authkey %>")
   let logHistory = "<%= request.body.logHistory %>"
   window.logData = <%- JSON.stringify(request.body.logHistory || []) %>;
 </script>
