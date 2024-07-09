@@ -3,7 +3,9 @@
   <link rel="stylesheet" href="/static/css/form.css">
   <body class="d-flex flex-column h-100">
     <%- include('./partials/navbar', {active:'login'}); %>
-    <%- include('./components/loginform'); %>
+    <main>
+      <%- include('./components/loginform'); %>
+    </main>
     <%- include('./partials/footer', {active:'login'}); %>
     <%- include('./components/alert-modal', {"objectId":"login"}); %>
   </body>

@@ -3,8 +3,8 @@
 <body class="d-flex flex-column h-100">
     <%- include('./partials/navbar', {active:'documentation'}); %>
     <main class="pb-1">
-    <h1 class="col-12 text-center">Documentation</h1>
-    <p class="text-center mt-2">Here you can find the documentation for the active modules.</p>
+    <div class="text-center"><h1 class="display-2 mt-2 gradient-text">Documentation</h1></div>
+    <p class="text-center mt-2 lead">Here you can find the documentation for the active modules.</p>
     <div class="container mt-4">
       <div class="row">
         <% for(const key in request.body.activeModules) { %>

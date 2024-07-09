@@ -8,8 +8,8 @@
   <body class="d-flex flex-column h-100">
     <%- include('./partials/navbar', {active:'dashboard'}); %>
     <main class="pb-1">
-      <div class="text-center"><h1 class="display-1 mt-2 gradient-text">Dashboard</h1></div>
-      <p class="text-center mt-2 display-6 ">Welcome <%= request.session.metadata.display_name %>, this is the status of your server today</p>
+      <div class="text-center"><h1 class="display-2 mt-2 gradient-text">Dashboard</h1></div>
+      <p class="text-center mt-2 display-6">Welcome <%= request.session.metadata.display_name %>, this is the status of your server today</p>
       <div class= "container-fluid mt-5">
         <div class="row">
           <%- include('./components/dashcard', { dashcardId: 'nostraddressCount', link: '#nostraddressData'}); %>
