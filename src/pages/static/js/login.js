@@ -121,3 +121,21 @@ const logInOtc = async () => {
         }});
   }
 }
+
+// Show legacy login form
+document.getElementById('legacy-login-link').addEventListener('click', function(event) {
+    event.preventDefault();
+    document.getElementById('legacy-login').classList.remove('d-none'); 
+    document.getElementById('legacy-login-text').classList.add('d-none'); 
+    document.getElementById('otc-login').classList.add('d-none'); 
+    document.getElementById('extension-login').classList.add('d-none'); 
+});
+
+// Show nostr login form
+document.getElementById('nostr-login-link').addEventListener('click', function(event) {
+    event.preventDefault();
+    document.getElementById('legacy-login').classList.add('d-none'); 
+    document.getElementById('legacy-login-text').classList.remove('d-none'); 
+    document.getElementById('otc-login').classList.remove('d-none'); 
+    document.getElementById('extension-login').classList.remove('d-none'); 
+});
