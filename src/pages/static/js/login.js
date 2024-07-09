@@ -8,7 +8,7 @@ const logIn = async (type, rememberMe, buttonId) =>{
       await fetchServer(JSON.stringify({username: document.getElementById('username').value, 
                                         password:  document.getElementById('password').value, 
                                         rememberMe: rememberMe}
-                                      )).then(response => {
+                                      ), 'login').then(response => {
                                           if (response.status === 200) {
                                               response.json().then(data => {
                                                   if (data == true) {
@@ -47,7 +47,7 @@ const logIn = async (type, rememberMe, buttonId) =>{
           const loginEvent = JSON.stringify(await window.nostr.signEvent(event));
 
           if (loginEvent){
-              await fetchServer(loginEvent).then(response => {
+              await fetchServer(loginEvent,'login').then(response => {
                   if (response.status === 200) {
                       response.json().then(data => {
                           if (data == true) {
@@ -70,11 +70,54 @@ const logIn = async (type, rememberMe, buttonId) =>{
   }
 }
 
-const fetchServer = async (data) => {
+const fetchServer = async (data, url) => {
   try {
-      const response = await fetch('login', {method: 'POST',headers: {'Content-Type': 'application/json'},body: data});
+      const response = await fetch(url, {method: 'POST',headers: {'Content-Type': 'application/json'},body: data});
       return response;
   } catch (error) {
       initAlertModal("#login", error);
+  }
+}
+
+
+const logInOtc = async () => {
+  if($("#input-otc-login").attr("data-otc") === "pubkey"){
+
+    await fetchServer(JSON.stringify({}), `login/${document.getElementById('input-otc-login').value}`).then(response => {
+        if (response.status === 200) {
+            response.json().then(data => {
+                if (data == true) {
+                    document.getElementById('input-otc-login').value = '';
+                    $("#input-otc-login").attr("data-otc", "code").attr("placeholder", "Enter verification code");
+                    $("#otc_submit").text("Verify and login");
+                } else {
+                    initAlertModal("#login", data.message);
+                    document.getElementById(buttonId).innerHTML = buttonText;
+                }
+            });
+        } else {
+            initAlertModal("#login", response.statusText);
+            document.getElementById(buttonId).innerHTML = buttonText;
+        }});
+  } else {
+
+    let data = {
+        OTC: document.getElementById('input-otc-login').value,
+        rememberMe: document.getElementById('rememberme_otc').checked
+    }
+
+    await fetchServer(JSON.stringify(data), `login`).then(response => {
+        if (response.status === 200) {
+            response.json().then(data => {
+                if (data == true) {
+                    window.location.href = "/api";
+                } else {
+                    initAlertModal("#login", data.message);
+                    document.getElementById('input-otc-login').innerHTML = 'One time login-code';
+                }});
+        } else {
+            initAlertModal("#login", response.statusText);
+            document.getElementById(buttonId).innerHTML = buttonText;
+        }});
   }
 }
