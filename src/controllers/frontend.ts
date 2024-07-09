@@ -4,7 +4,7 @@ import app from "../app.js";
 import { logger } from "../lib/logger.js";
 import { getClientIp, markdownToHtml } from "../lib/utils.js";
 import { dbSelect} from "../lib/database.js";
-import { generateCredentials, isPubkeyValid, isUserPasswordValid } from "../lib/authorization.js";
+import { generateCredentials, isAuthkeyValid, isPubkeyValid, isUserPasswordValid } from "../lib/authorization.js";
 import { isModuleEnabled, loadconfigActiveModules } from "../lib/config.js";
 import { getProfileNostrMetadata, getProfileLocalMetadata, getProfileNostrNotes } from "../lib/frontend.js";
 import { hextoNpub } from "../lib/nostr/NIP19.js";
@@ -32,7 +32,7 @@ const loadDashboardPage = async (req: Request, res: Response, version:string): P
 
     req.body.version = app.get("version");
     req.body.serverHost = app.get("config.server")["host"];
-    req.session.authkey = await generateCredentials('authkey', false, req.session.identifier);
+    req.session.authkey = await generateCredentials('authkey', req.session.identifier);
 
     // User metadata from nostr
     req.session.metadata = await getProfileNostrMetadata(req.session.identifier);
@@ -67,7 +67,7 @@ const loadSettingsPage = async (req: Request, res: Response, version:string): Pr
     req.body.settingsLogger = app.get("config.logger");
     req.body.logHistory = logHistory;
     req.body.settingsLookAndFeelThemes = themes;
-    req.session.authkey = await generateCredentials('authkey', false, req.session.identifier);
+    req.session.authkey = await generateCredentials('authkey', req.session.identifier);
 
     // User metadata from nostr
     req.session.metadata = await getProfileNostrMetadata(req.session.identifier);
@@ -90,7 +90,7 @@ const loadProfilePage = async (req: Request, res: Response, version:string): Pro
 
     req.body.version = app.get("version");
     req.body.serverHost = app.get("config.server")["host"];
-    req.session.authkey = await generateCredentials('authkey', false, req.session.identifier);
+    req.session.authkey = await generateCredentials('authkey', req.session.identifier);
 
     // User metadata from nostr
     req.session.metadata = await getProfileNostrMetadata(req.session.identifier);
@@ -129,7 +129,7 @@ const loadTosPage = async (req: Request, res: Response, version:string): Promise
         tosFile = "Failed to read tos file. Please contact the server administrator."
     }
 
-    req.session.authkey = await generateCredentials('authkey', false, req.session.identifier);
+    req.session.authkey = await generateCredentials('authkey', req.session.identifier);
     
     res.render("tos.ejs", {request: req, tos: tosFile });
 };
@@ -147,7 +147,7 @@ const loadLoginPage = async (req: Request, res: Response, version:string): Promi
     req.body.version = app.get("version");
     req.body.serverHost = app.get("config.server")["host"];
 
-    req.session.authkey = await generateCredentials('authkey', false, req.session.identifier);
+    req.session.authkey = await generateCredentials('authkey', req.session.identifier);
 
     res.render("login.ejs", {request: req});
 };
@@ -166,7 +166,7 @@ const loadIndexPage = async (req: Request, res: Response, version:string): Promi
     req.body.serverHost = app.get("config.server")["host"];
     req.body.serverPubkey = await hextoNpub(app.get("config.server")["pubkey"]);
 
-    req.session.authkey = await generateCredentials('authkey', false, req.session.identifier);
+    req.session.authkey = await generateCredentials('authkey', req.session.identifier);
     
     res.render("index.ejs", {request: req});
 };
@@ -195,7 +195,7 @@ const loadDocsPage = async (req: Request, res: Response, version:string): Promis
     req.body.serverHost = app.get("config.server")["host"];
     req.body.serverPubkey = await hextoNpub(app.get("config.server")["pubkey"]);
 
-    req.session.authkey = await generateCredentials('authkey', false, req.session.identifier);
+    req.session.authkey = await generateCredentials('authkey', req.session.identifier);
 
     res.render("documentation.ejs", {request: req});
 };
@@ -213,7 +213,7 @@ const loadGalleryPage = async (req: Request, res: Response, version:string): Pro
     req.body.version = app.get("version");
     req.body.serverHost = app.get("config.server")["host"];
 
-    req.session.authkey = await generateCredentials('authkey', false, req.session.identifier);
+    req.session.authkey = await generateCredentials('authkey', req.session.identifier);
 
     res.render("gallery.ejs", {request: req});
 };
@@ -234,6 +234,18 @@ const frontendLogin = async (req: Request, res: Response): Promise<Response> => 
         return res.status(400).send(false);
     }
 
+    // OTC code request and return.
+    if (req.params.param1 && req.params.param1.length <= 64) {
+        const OTC = await generateCredentials('otc', req.params.param1, true, true)
+        if (OTC) {
+            logger.info("One-time code generated for", req.params.param1, "|", getClientIp(req));
+            return res.status(200).send(true);
+        } else {
+            logger.warn("Failed to generate one-time code for", req.params.param1, "|", getClientIp(req));
+            return res.status(401).send(false);
+        }
+    }
+
     if ((req.body.pubkey === "" || req.body.pubkey == undefined) && (req.body.username === '' || req.body.password === '')){
         logger.warn("RES -> 401 unauthorized  - ", getClientIp(req));
         logger.warn("No credentials used to login. Refusing", getClientIp(req));
@@ -251,6 +263,13 @@ const frontendLogin = async (req: Request, res: Response): Promise<Response> => 
         canLogin = await isUserPasswordValid(req.body.username, req.body.password);
         if (canLogin){req.body.pubkey = await dbSelect("SELECT hex FROM registered WHERE username = ?", "hex", [req.body.username]) as string;}
     }
+    if (req.body.OTC != undefined){
+        const result = await isAuthkeyValid(req.body.OTC);
+        if(result.status = 'success'){
+            req.body.pubkey = result.pubkey;
+            canLogin = true;
+        }
+    }
     if (!canLogin) {
         logger.warn(`RES -> 401 unauthorized  - ${req.body.pubkey}`,"|",getClientIp(req));
         return res.status(401).send(false);
@@ -258,7 +277,7 @@ const frontendLogin = async (req: Request, res: Response): Promise<Response> => 
 
     // Set session identifier and generate authkey
     req.session.identifier = req.body.pubkey;
-    req.session.authkey = await generateCredentials('authkey', false, req.body.pubkey);
+    req.session.authkey = await generateCredentials('authkey', req.body.pubkey, false);
 
     if (req.session.authkey == ""){
         logger.error("Failed to generate authkey for", req.session.identifier);

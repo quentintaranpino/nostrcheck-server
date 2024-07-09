@@ -67,7 +67,7 @@ const isFirstUse = async (req : Request): Promise<boolean> => {
 	
 	if (app.get("firstUse") == true){
         req.session.identifier = app.get("config.server")["pubkey"];
-        req.session.authkey = await generateCredentials('authkey', false, req.session.identifier);
+        req.session.authkey = await generateCredentials('authkey', req.session.identifier);
         req.session.metadata = await getProfileNostrMetadata(req.session.identifier);
         req.body.firstUse =  
         "<h5 class='mt-3 mb-2'>Read this carefully 💜</h5>" + 

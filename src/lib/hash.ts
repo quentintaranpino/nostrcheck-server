@@ -68,6 +68,7 @@ const generateBlurhash = async (path:string): Promise<string> =>
 /**
  * Hashes a given string using bcrypt with a specified number of salt rounds.
  * @param {string} input - The string to be hashed.
+ * @param {credentialTypes} type - The type of credential to be hashed.
  * @param {number} saltRounds - The number of rounds to use when generating the salt (default is 40).
  * @returns {Promise<string>} A promise that resolves to the hashed string, or an empty string if an error occurs or if the input is undefined.
  */
@@ -78,7 +79,7 @@ const hashString = async (input:string, type: credentialTypes, saltRounds:number
     if (type == "password"){
       hashedString = await bcrypt.hash(input, saltRounds).catch(err => {logger.error(err)});
     }
-    else if (type == "authkey"){
+    else if (type == "authkey" || type == "otc"){
       hashedString =  await crypto.createHash('sha256').update(input + saltRounds).digest('hex');
     }
     else{

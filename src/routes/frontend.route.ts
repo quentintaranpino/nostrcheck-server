@@ -54,7 +54,7 @@ export const loadFrontendEndpoint = async (app: Application, version:string): Pr
 	});
 
 	// Login POST
-	app.post("/api/" +  version + "/login", limiter(5), (req, res) => {
+	app.post("/api/" +  version + "/login/:param1?", limiter(5), (req, res) => {
 		frontendLogin(req,res)
 	});
 

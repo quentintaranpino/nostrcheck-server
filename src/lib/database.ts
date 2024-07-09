@@ -481,7 +481,7 @@ const initDatabase = async (): Promise<void> => {
 		const fields: string[] = ["pubkey", "hex", "username", "password", "domain", "active", "date", "allowed", "comments"];
 		const values: string[] = [	npubEncode(app.get("config.server")["pubkey"]), 
 									app.get("config.server")["pubkey"], "public", 
-									await generateCredentials('password',true, app.get("config.server")["pubkey"], true), 
+									await generateCredentials('password', app.get("config.server")["pubkey"], true, true), 
 									config.get('server.host'), 
 									"1", 
 									new Date().toISOString().slice(0, 19).replace('T', ' '),

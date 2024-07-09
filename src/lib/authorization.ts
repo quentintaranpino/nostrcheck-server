@@ -151,7 +151,7 @@ const isAuthkeyValid = async (authString: string, checkAdminPrivileges: boolean 
 		}
 
 		// Generate a new authkey for each request
-		const newAuthkey = await generateCredentials('authkey',false, hex);
+		const newAuthkey = await generateCredentials('authkey', hex);
 		logger.debug("New authkey generated for", hex, ":", newAuthkey)
 		if (newAuthkey == ""){
 			logger.error("Failed to generate authkey for", hex);
@@ -169,26 +169,38 @@ const isAuthkeyValid = async (authString: string, checkAdminPrivileges: boolean 
  * If a public key is provided and direct messaging is indicated, 
  * the new password will be sent to the provided public key.
  *
- * @param {credentialTypes} type - The type of credential to generate.
+ * @param {credentialTypes} type - The type of credential to generate. Can be 'password', 'authkey', or 'otc'.
  * @param {boolean} [returnHashed=false] - Returns the hashed credential instead of the plain text. Optional.
  * @param {string} [pubkey=""] - The public key to which to send the new password. Optional.
  * @param {boolean} [sendDM=false] - Indicates whether to send a direct message with the new password. Optional.
+ * @param {boolean} [onlyGenerate=false] - Indicates whether to only generate the credential without saving it to the database and sending a DM. Optional.
  * @returns {Promise<string>} The newly generated credential, or an empty string if an error occurs or if the database update fails.
  * @throws {Error} If an error occurs during the credential generation or the database update or sending the direct message.
  */
-const generateCredentials = async (type: credentialTypes, returnHashed: boolean = false, pubkey :string = "", sendDM : boolean = false): Promise<string> => {
+const generateCredentials = async (type: credentialTypes, pubkey :string, returnHashed: boolean = false, sendDM : boolean = false, onlyGenerate : boolean = false): Promise<string> => {
     try {
 
-		let credential = crypto.randomBytes(20).toString('hex');
+		if (onlyGenerate) return await hashString(crypto.randomBytes(20).toString('hex'), type);
+
+		if (pubkey === undefined || pubkey === "") {return "";}
+
+		if (pubkey.startsWith("npub")) {
+			pubkey = await dbSelect("SELECT hex FROM registered WHERE pubkey = ?", "hex", [pubkey]) as string;
+		}
+
+		let credential : string = "";
+		type == 'otc'? credential = Math.floor(100000 + Math.random() * 900000).toString() : credential = crypto.randomBytes(20).toString('hex');
 		if ( type == 'authkey') credential = 'Auth' + credential;
 		const hashedCredential = await hashString(credential, type);
-		const update = await dbUpdate("registered", type, hashedCredential, ["hex"], [pubkey]);
+		const whereField : string = type == 'otc' || type === 'authkey'? "authkey" : "password";
+		const update = await dbUpdate("registered", whereField, hashedCredential, ["hex"], [pubkey]);
 		if (update){
 			logger.debug("New credential generated and saved to database");
-			if (type == 'password' && pubkey != "" && sendDM){
-				let message = await sendMessage("Your new password: ",pubkey);
-				message = await sendMessage(credential,pubkey);	
-				if (!message) {
+			if ((type == 'password' || type == 'otc') && pubkey != "" && sendDM){
+				let message = type == 'otc'? 'Your one-time code: ' : 'Your new password: ';
+				let DM = await sendMessage(message ,pubkey);
+				DM = await sendMessage(credential,pubkey);	
+				if (!DM) {
 					return "";
 				}
 			}
