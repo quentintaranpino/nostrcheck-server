@@ -7,6 +7,7 @@ import { 	loadDashboardPage,
 			loadIndexPage, 
 			loadProfilePage,
 			loadGalleryPage,
+			loadRegisterPage,
 		} from "../controllers/frontend.js";
 import { frontendLogin } from "../controllers/frontend.js";
 import { logger } from "../lib/logger.js";
@@ -74,6 +75,12 @@ export const loadFrontendEndpoint = async (app: Application, version:string): Pr
 	app.get("/api/" +  version + "/gallery", async (req, res) => {
 		if (await isFirstUse(req)){logger.info("First use detected. Showing alert on frontend", "|", getClientIp(req))}
 		loadGalleryPage(req,res,version);
+	});
+
+	// Register
+	app.get("/api/" +  version + "/register", async (req, res) => {
+		if (await isFirstUse(req)){logger.info("First use detected. Showing alert on frontend", "|", getClientIp(req))}
+		loadRegisterPage(req,res,version);
 	});
 
 	// Dashboard
