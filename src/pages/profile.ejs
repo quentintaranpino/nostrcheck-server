@@ -120,13 +120,13 @@
             </ul>
             <div class="tab-content" id="profileTabsContent">
               <div class="tab-pane fade show active" id="nostrNotes" role="tabpanel" aria-labelledby="nostrNotes-tab">
-                <%- include('./partials/nostrNotes'); %>
+                <%- include('./components/nostrNotes'); %>
               </div>
               <div class="tab-pane fade show pt-3" id="mediaFiles" role="tabpanel" aria-labelledby="mediaFiles-tab">
-                <%- include('./partials/gallery',{maxImageWidth: 350, maxColumns:3, privateGallery: true}); %> 
+                <%- include('./components/gallery',{maxImageWidth: 350, maxColumns:3, privateGallery: true}); %> 
               </div>
               <div class="tab-pane fade p-3" id="userSettings" role="tabpanel" aria-labelledby="userSettings-tab">
-                <%- include('./partials/userSettings'); %>
+                <%- include('./components/userSettings'); %>
             </div>
           </div>
         </div>
