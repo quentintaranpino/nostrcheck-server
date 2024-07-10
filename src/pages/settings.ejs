@@ -28,16 +28,16 @@
             <p>Choose the colors for the frontend background.</p>
             <div class="row mx-auto mb-1">
               <div class="col-12 col-md-4  mb-2">
-                <input id="lookandfeel.server.colors.primaryColor" type="text" data-coloris class="form-control position-static"><span class="ms-2">Primary</span>
+                <input id="lookandfeel.server.colors.primaryColor" type="color" class="form-control position-static"><span class="ms-2">Primary</span>
               </div>
               <div class="col-12 col-md-4  mb-2">
-               <input id= "lookandfeel.server.colors.secondaryColor" type="text" data-coloris class="form-control position-static "><span class="ms-2">Secondary</span>
+               <input id= "lookandfeel.server.colors.secondaryColor" type="color"  class="form-control position-static "><span class="ms-2">Secondary</span>
               </div>
               <div class="col-12 col-md-4 mb-2">
-                <input id="lookandfeel.server.colors.tertiaryColor" type="text" data-coloris class="form-control position-static "><span class="ms-2">Tertiary</span>
+                <input id="lookandfeel.server.colors.tertiaryColor" type="color"  class="form-control position-static "><span class="ms-2">Tertiary</span>
               </div>
             </div>
-            <div>
+            <div class="mt-5">
               <div class="col-12 col-md-4 mb-2">
                 <label for="lookandfeel.server.colors.orientation" class="mb-2 fw-bold">Orientation</label>
                 <select id="lookandfeel.server.colors.orientation" name="lookandfeel.server.color.orientation" class="form-select">
@@ -483,7 +483,6 @@
 
 <script src="/static/js/form.js"></script>
 <script src="/static/js/settings.js"></script>
-<script src="/static/js/coloris.min.js"></script>
 
 <script>
   let logHistory = "<%= request.body.logHistory %>"
