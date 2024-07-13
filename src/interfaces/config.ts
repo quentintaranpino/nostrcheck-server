@@ -141,7 +141,14 @@ const defaultConfig = {
 				"width" : "900",
 				"height" : "300"
 			}
-		}
+		},
+		"mediainspector" : {
+			"type" : "remote",
+			"remote" : {
+			"endpoint": "",
+			"apikey": ""
+			},
+		},
 	},
 	"torrent": {
 		"enableTorrentSeeding": false,
@@ -185,7 +192,7 @@ const defaultConfig = {
 		"getalby" : {
 		"authToken": "",
 		},
-	},
+	}
 }
 
 const localPath = "./config/local.json";
