@@ -208,7 +208,7 @@ function initButton(tableId, buttonSuffix, objectName, modaltext, field, fieldVa
                     }else if (modaltext === 'moderate') {
                         semaphore.execute(async () => await modifyRecord("admin/moderatefile/", tableId, id, field, fieldValue, 'moderate'));
                     } else {
-                        semaphore.execute(async () => await modifyRecord("admin/updaterecord/", tableId, id, field, fieldValue, 'modify'));
+                        semaphore.execute(async () => await modifyRecord("admin/moderaterecord/", tableId, id, field, fieldValue, 'modify'));
                         
                     }
                 }
