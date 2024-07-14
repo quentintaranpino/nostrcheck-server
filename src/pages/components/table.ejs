@@ -110,6 +110,16 @@
             </button>
         </div>
     </div>
+    <div class="btn-group mt-2" role="group" aria-label="Moderate buttons">
+        <div tabindex="0" data-bs-toggle="tooltip" data-bs-title="Moderate file">
+            <button 
+                id="<%- tableId %>-button-moderate" 
+                class="btn btn-info <%= buttons[11][1] == 'hide' ? 'd-none' : '' %> " 
+                disabled>
+                <i class="fa-solid fa-wand-magic-sparkles"></i>
+            </button>
+        </div>
+    </div>
 </div>  
 <table 
     id="<%- tableId %>"

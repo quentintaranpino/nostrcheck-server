@@ -99,6 +99,7 @@ const initTable = async (tableId, datakey, objectName, dataKey, field = "") => {
         $(tableId + '-button-show').prop('disabled', !$(tableId).bootstrapTable('getSelections').length)
         $(tableId + '-button-hide').prop('disabled', !$(tableId).bootstrapTable('getSelections').length)
         $(tableId + '-button-remove').prop('disabled', !$(tableId).bootstrapTable('getSelections').length)
+        $(tableId + '-button-moderate').prop('disabled', !$(tableId).bootstrapTable('getSelections').length)
 
         if ($(tableId).bootstrapTable('getSelections').length == 1) {
             $(tableId + '-button-admin').prop('disabled', false)
@@ -129,6 +130,7 @@ const initTable = async (tableId, datakey, objectName, dataKey, field = "") => {
     initButton(tableId, '-button-password', objectName, 'reset password', 'password', '')
     initButton(tableId, '-button-pay', objectName, 'pay', 'paid', 1)
     initButton(tableId, '-button-balance', objectName, 'balance', 'balance', 100, true)
+    initButton(tableId, '-button-moderate', objectName, 'moderate', 'checked', 1)
 
 }
 
@@ -188,7 +190,7 @@ function initButton(tableId, buttonSuffix, objectName, modaltext, field, fieldVa
             return
         }
 
-        // Admin, hide and show, password, pay, balance, enable and disable buttons
+        // Admin, hide and show, password, pay, balance, enable, moderate and disable buttons
         var ids = $.map($(tableId).bootstrapTable('getSelections'), function (row) {
             return row.id
         })
@@ -203,6 +205,8 @@ function initButton(tableId, buttonSuffix, objectName, modaltext, field, fieldVa
                         semaphore.execute(async () => await modifyRecord("payments/paytransaction/", tableId, id, field, fieldValue, 'pay'));
                     }else if (modaltext === 'balance') {
                         semaphore.execute(async () => await modifyRecord("payments/addbalance/", tableId, id, field, modal.value, 'balance'),);
+                    }else if (modaltext === 'moderate') {
+                        semaphore.execute(async () => await modifyRecord("admin/moderatefile/", tableId, id, field, fieldValue, 'moderate'));
                     } else {
                         semaphore.execute(async () => await modifyRecord("admin/updaterecord/", tableId, id, field, fieldValue, 'modify'));
                         
@@ -255,6 +259,13 @@ async function modifyRecord(url, tableId, id, field, fieldValue, action = 'modif
         };
     }
 
+    if (action === 'moderate') {
+        data = {
+            id: $(tableId).bootstrapTable('getSelections')[0].id,
+            filename : $(tableId).bootstrapTable('getSelections')[0].filename,
+        };
+    }
+
     return fetch(url, {
         method: "POST",
         headers: {
@@ -278,6 +289,13 @@ async function modifyRecord(url, tableId, id, field, fieldValue, action = 'modif
             }else if (action === 'modify' || action === 'pay' || action === 'balance'){
                 let updateData = {};
                 updateData[field] = responseData.message;
+                $(tableId).bootstrapTable('updateByUniqueId', {
+                    id: id,
+                    row: updateData
+                });
+            }else if (action === 'moderate'){
+                let updateData = {};
+                updateData[field] = responseData.message == "safe" ? 1 : 0;
                 $(tableId).bootstrapTable('updateByUniqueId', {
                     id: id,
                     row: updateData

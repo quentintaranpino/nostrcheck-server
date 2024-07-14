@@ -14,7 +14,8 @@ import {deleteDBRecord,
         updateLogo,
         getModuleData,
         getModuleCountData,
-        updateTheme, 
+        updateTheme,
+        moderateDBRecord
 } from "../controllers/admin.js";
 
 const maxMBfilesize :number = config.get('media.maxMBfilesize');
@@ -49,6 +50,9 @@ export const loadAdminEndpoint = async (app: Application, version:string): Promi
                 // Insert DB record
                 app.post("/api/" + version + app.get("config.server")["availableModules"]["admin"]["path"] + "/insertrecord/", insertDBRecord);
 
+                // Moderate DB record
+                app.post("/api/" + version + app.get("config.server")["availableModules"]["admin"]["path"] + "/moderaterecord", moderateDBRecord);
+
                 // Update settings value
                 app.post("/api/" + version + app.get("config.server")["availableModules"]["admin"]["path"] + "/updatesettings/", updateSettings);
 
@@ -71,6 +75,7 @@ export const loadAdminEndpoint = async (app: Application, version:string): Promi
                 // Get module data
                 app.get("/api/" + version + app.get("config.server")["availableModules"]["admin"]["path"] + "/moduledata", getModuleData);
                 app.get("/api/" + version + app.get("config.server")["availableModules"]["admin"]["path"] + "/moduleCountdata", getModuleCountData);
+
         }
 
 };
