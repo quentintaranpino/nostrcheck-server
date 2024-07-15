@@ -19,6 +19,7 @@ import { npubToHex } from "../lib/nostr/NIP19.js";
 import { dbCountModuleData, dbCountMonthModuleData, dbSelectModuleData } from "../lib/admin.js";
 import { getBalance, getUnpaidTransactionsBalance } from "../lib/payments/core.js";
 import themes from "../interfaces/themes.js";
+import { moderateFile } from "../lib/moderation/core.js";
 
 let hits = 0;
 /**
@@ -763,15 +764,58 @@ const getModuleCountData = async (req: Request, res: Response): Promise<Response
 
 }
 
+const moderateDBRecord = async (req: Request, res: Response): Promise<Response> => {
+  
+    // Check if current module is enabled
+    if (!isModuleEnabled("admin", app)) {
+        logger.warn("Attempt to access a non-active module:","admin","|","IP:", getClientIp(req));
+        return res.status(400).send({"status": "error", "message": "Module is not enabled"});
+    }
+
+    logger.info("REQ -> moderateFile", req.hostname, "|", getClientIp(req));
+
+    // Check if authorization header is valid
+    const EventHeader = await parseAuthHeader(req, "updateSettings", true);
+    if (EventHeader.status !== "success") {return res.status(401).send({"status": EventHeader.status, "message" : EventHeader.message});}
+
+    if (req.body.id === "" || req.body.id === null || req.body.id === undefined || req.body.filename === "" || req.body.filename === null || req.body.filename === undefined) {
+        const result: authkeyResultMessage = {
+            status: "error",
+            message: "Invalid parameters",
+            authkey: ""
+        }
+        return res.status(400).send(result);
+    }
+
+    logger.info(`Moderating file: ${req.body.filename}`);
+
+    let returnURL = app.get("config.media")["returnURL"];
+    returnURL != "" && returnURL != undefined
+    ? returnURL = `${returnURL}/${req.body.filename}`
+    : returnURL = `${"https://" + req.hostname}/media/${req.body.filename}`;
+
+    const result = await moderateFile(returnURL);
+    if (result.predicted_label == "safe"){
+        const update = await dbUpdate('mediafiles','checked','1',['id'], [req.body.id]);
+        if (!update) {
+            return res.status(500).send({status: "error", message: "Failed to update record", authkey: EventHeader.authkey});
+        }
+    } 
+
+    return res.status(200).send({status: "success", message: result.predicted_label, authkey: EventHeader.authkey});
+
+}
+
 export {    serverStatus, 
             StopServer, 
             resetUserPassword, 
             updateDBRecord, 
             deleteDBRecord, 
             insertDBRecord, 
+            moderateDBRecord,
             updateSettings, 
             updateLogo,
             updateTheme,
             getModuleData,
-            getModuleCountData
+            getModuleCountData         
         };

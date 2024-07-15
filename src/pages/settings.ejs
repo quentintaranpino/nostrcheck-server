@@ -380,6 +380,36 @@
                           >
               </div>
             </div>
+            <div class="row">
+              <label class="mt-4 mb-1 fw-bold">Remote AI media inspector</label>
+              <label for="media.mediainspector.type" class="mt-2 mb-1 fw-bold">Media inspector type</label>
+              <div class="col-3 col-md-2">
+                <select id="media.mediainspector.type" 
+                name="media.mediainspector.type" 
+                class="form-select">
+                  <option value="local" <%= request.body.settingsMedia['mediainspector']['type'] == 'local' ? 'selected' : '' %>>local</option>
+                  <option value="remote" <%= request.body.settingsMedia['mediainspector']['type'] == 'remote' ? 'selected' : '' %>>remote</option>
+                </select>
+              </div>
+              <p> Specify the URL of the remote AI media inspector. This URL will be used to scan the media files</p>
+              <label for="media.mediainspector.remote.endpoint" class="mt-2 mb-1 fw-bold">Media inspector URL</label>
+              <input type="text" 
+                      id="media.mediainspector.remote.endpoint" 
+                      name="media.mediainspector.remote.endpoint" 
+                      class="form-control" 
+                      value="<%= request.body.settingsMedia['mediainspector']['remote']['endpoint'] %>" 
+                      placeholder="Media inspector" 
+                      >
+              <label for="media.mediainspector.remote.apikey" class="mt-2 mb-1 fw-bold">Media inspector apikey</label>
+              <input type="text" 
+                      id="media.mediainspector.remote.apikey" 
+                      name="media.mediainspector.remote.apikey" 
+                      class="form-control" 
+                      value="<%= request.body.settingsMedia['mediainspector']['remote']['apikey'] %>" 
+                      placeholder="Media inspector apikey" 
+                      >
+
+            </div>
           </div>
           <div id="settingsPayments">
             <h3 class="mt-5">Payments</h3>

@@ -2,7 +2,7 @@ import fastq, { queueAsPromised } from "fastq";
 import ffmpeg from "fluent-ffmpeg";
 import fs from "fs";
 
-import { allowedMimeTypes, asyncTask, ProcessingFileData, UploadTypes, videoHeaderRange } from "../interfaces/media.js";
+import { allowedMimeTypes, asyncTask, FileData, ProcessingFileData, UploadTypes, videoHeaderRange } from "../interfaces/media.js";
 import { logger } from "./logger.js";
 import config from "config";
 import { connect, dbUpdate } from "./database.js";
@@ -17,6 +17,7 @@ import sharp from "sharp";
 import { saveFile } from "./storage/core.js";
 import { deleteLocalFile } from "./storage/local.js";
 import { checkTransaction } from "./payments/core.js";
+import { moderateFile } from "./moderation/core.js";
 
 const prepareFile = async (t: asyncTask): Promise<void> =>{
 
@@ -399,6 +400,13 @@ const finalizeFileProcessing = async (filedata: ProcessingFileData): Promise<boo
 		await deleteLocalFile(filedata.conversionInputPath);
 
 		await checkTransaction("", filedata.fileid, "mediafiles", filesize, filedata.pubkey);
+
+		moderateFile(filedata.url).then((result) => {
+			logger.info(`File moderation result: ${result.predicted_label}`);
+			result.predicted_label == "safe"? dbUpdate('mediafiles','checked','1',['id'], [filedata.fileid]): null;
+		}).catch((err) => {
+			logger.error("Error moderating file", err);
+		});
 
 		return true;
 
