@@ -261,8 +261,8 @@ async function modifyRecord(url, tableId, id, field, fieldValue, action = 'modif
 
     if (action === 'moderate') {
         data = {
-            id: $(tableId).bootstrapTable('getSelections')[0].id,
-            filename : $(tableId).bootstrapTable('getSelections')[0].filename,
+            id: id,
+            filename : $(tableId).bootstrapTable('getRowByUniqueId', id).filename,
         };
     }
 
@@ -296,7 +296,6 @@ async function modifyRecord(url, tableId, id, field, fieldValue, action = 'modif
             }else if (action === 'moderate'){
                 let updateData = {};
                 updateData[field] = responseData.message == "safe" ? 1 : 0;
-                console.log(updateData[field]);
                 $(tableId).bootstrapTable('updateByUniqueId', {
                     id: id,
                     row: updateData
