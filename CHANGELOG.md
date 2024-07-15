@@ -6,4 +6,8 @@
 - NIP96 new implementations. Listing files and no_transform.
 - User profile page. Complete file administration.
 - New theming module. Custom themes can be created and applied.
+- Blossom compatible. 
+- AI analysis module connection for image moderation.
+- Register form.
+- Public gallery.
 
