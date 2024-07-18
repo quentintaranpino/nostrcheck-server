@@ -1,8 +1,22 @@
-function saveSettings() {
+async function saveSettings() {
     const formFields = document.querySelectorAll('.form.settings-form input, .form.settings-form select, .form.settings-form textarea, .form.settings-form checkbox');
     formFields.forEach(async field => {
-        if (field.value !== field.defaultValue && field.name != "log" && !field.name.toString().startsWith('lookandfeel') || (field.type === 'checkbox' && field.checked !== field.defaultChecked)) {
-            const value = field.type === 'checkbox' ? field.checked : field.value;
+        let value;
+        let defaultValue;
+        if (field.type === 'checkbox') {
+            value = field.checked;
+            defaultValue = field.defaultChecked;
+        } else if (field.tagName.toLowerCase() === 'select') {
+            value = field.value;
+            defaultValue = Array.from(field.options).find(option => option.defaultSelected)?.value || field.value;
+        } else {
+            value = field.value;
+            defaultValue = field.defaultValue;
+        }
+        
+        if (value !== defaultValue && field.name !== "log" && !field.name.toString().startsWith('lookandfeel')) {
+            console.log(value, defaultValue, field.name, field.type, field.checked, field.defaultChecked);
+            
             let url = 'admin/updatesettings';
             let headers = {
                 "authorization": "Bearer " + localStorage.getItem('authkey'),
@@ -14,17 +28,25 @@ function saveSettings() {
             });
             
             await updateSettings(field.name, value, url, body, headers).then(result => {
-                console.log(result)
-                if (result == true) {
+                console.log(result);
+                if (result === true) {
                     if (field.type === 'checkbox') {
                         field.defaultChecked = field.checked;
+                    } else if (field.tagName.toLowerCase() === 'select') {
+                        Array.from(field.options).forEach(option => {
+                            option.defaultSelected = option.selected;
+                        });
+                    } else {
+                        field.defaultValue = field.value;
                     }
-                    field.defaultValue = field.value;
-                }else{
+                } else {
                     if (field.type === 'checkbox') {
                         field.checked = field.defaultChecked;
+                    } else if (field.tagName.toLowerCase() === 'select') {
+                        field.value = Array.from(field.options).find(option => option.defaultSelected).value;
+                    } else {
+                        field.value = field.defaultValue;
                     }
-                    field.value = field.defaultValue;
                 }
             });
         }
@@ -33,7 +55,6 @@ function saveSettings() {
 
 const updateSettings = (fieldName, fieldValue, url, body, headers) => {
 
-    console.log(fieldName, fieldValue, url, body, headers)
     return fetch(url, {
         method: 'POST',
         headers: headers,
@@ -44,7 +65,8 @@ const updateSettings = (fieldName, fieldValue, url, body, headers) => {
         if (data.status === 'success') {
             await storeAuthkey(data.authkey)
 
-            document.getElementById(fieldName).defaultValue = fieldValue;
+            const fieldId = document.getElementById(fieldName);
+            fieldId.defaultValue = fieldValue;
 
             showMessage(`${data.message} field ${fieldName}`, "alert-primary");
             return true;
