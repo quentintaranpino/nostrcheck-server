@@ -1,15 +1,29 @@
 import app from "../../app.js";
+import { remoteEngineClassify } from "./nostrmedia.js";
+import { localEngineClassify } from "./local.js";
+import { getFilePath } from "../storage/core.js";
+import { emptyModerationCategory, moderationCategory } from "../../interfaces/moderation.js";
 import { logger } from "../logger.js";
-import { nostrmediaEngine } from "./nostrmedia.js";
 
-const moderateFile = async (url: string): Promise<{ predicted_label: "safe" | "nude" | "sexy" }> => {
+const moderateFile = async (url: string): Promise<moderationCategory> => {
+
+    let result = emptyModerationCategory;
+    let fileName = url.split("/").pop();
+
+    if (!url || url == "" || !fileName || fileName == "") {return result;}
 
     if(app.get("config.media")["mediainspector"]["type"] == "local") {
-        logger.warn(`Local moderation is not supported yet`);
-        return { predicted_label: "nude" };
+        let filePath = await getFilePath(fileName);
+        result = await localEngineClassify(filePath);
+    }
+
+    if(app.get("config.media")["mediainspector"]["type"] == "remote") {
+        result = await remoteEngineClassify(url, app.get("config.media")["mediainspector"]["remote"]["endpoint"], app.get("config.media")["mediainspector"]["remote"]["apikey"]);
     }
     
-    const result = await nostrmediaEngine(url, app.get("config.media")["mediainspector"]["remote"]["endpoint"], app.get("config.media")["mediainspector"]["remote"]["apikey"]);
+    logger.info(`File moderation result: ${result.description} for file ${fileName}`);
+    // TODO: Save moderation result to database (maybe tags folder)
+
     return result;
 }
 

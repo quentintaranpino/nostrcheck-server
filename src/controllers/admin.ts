@@ -795,14 +795,14 @@ const moderateDBRecord = async (req: Request, res: Response): Promise<Response> 
     : returnURL = `${"https://" + req.hostname}/media/${req.body.filename}`;
 
     const result = await moderateFile(returnURL);
-    if (result.predicted_label == "safe"){
+    if (result.code == "NA"){
         const update = await dbUpdate('mediafiles','checked','1',['id'], [req.body.id]);
         if (!update) {
             return res.status(500).send({status: "error", message: "Failed to update record", authkey: EventHeader.authkey});
         }
     } 
 
-    return res.status(200).send({status: "success", message: result.predicted_label, authkey: EventHeader.authkey});
+    return res.status(200).send({status: "success", message: result.code, authkey: EventHeader.authkey});
 
 }
 

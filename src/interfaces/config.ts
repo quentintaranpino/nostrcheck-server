@@ -143,10 +143,13 @@ const defaultConfig = {
 			}
 		},
 		"mediainspector" : {
-			"type" : "remote",
+			"type" : "local",
+			"local" : {
+				"modelName": "quentintaranpino/vision-transformer-moderator",
+			},
 			"remote" : {
-			"endpoint": "",
-			"apikey": ""
+				"endpoint": "",
+				"apikey": ""
 			},
 		},
 	},

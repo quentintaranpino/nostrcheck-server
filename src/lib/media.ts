@@ -402,8 +402,7 @@ const finalizeFileProcessing = async (filedata: ProcessingFileData): Promise<boo
 		await checkTransaction("", filedata.fileid, "mediafiles", filesize, filedata.pubkey);
 
 		moderateFile(filedata.url).then((result) => {
-			logger.info(`File moderation result: ${result.predicted_label}`);
-			result.predicted_label == "safe"? dbUpdate('mediafiles','checked','1',['id'], [filedata.fileid]): null;
+			result.code == "NA"? dbUpdate('mediafiles','checked','1',['id'], [filedata.fileid]): null;
 		}).catch((err) => {
 			logger.error("Error moderating file", err);
 		});

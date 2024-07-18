@@ -295,7 +295,7 @@ async function modifyRecord(url, tableId, id, field, fieldValue, action = 'modif
                 });
             }else if (action === 'moderate'){
                 let updateData = {};
-                updateData[field] = responseData.message == "safe" ? 1 : 0;
+                updateData[field] = (responseData.message == "NA" || responseData.message =="safe") ? 1 : 0;
                 $(tableId).bootstrapTable('updateByUniqueId', {
                     id: id,
                     row: updateData
