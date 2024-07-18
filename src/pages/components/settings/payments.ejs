@@ -1,0 +1,56 @@
+<div id="settingsPayments">
+    <h3 class="mt-4">Payments</h3>
+    <form class="form mx-auto">
+        <p> In this section, you can configure the LN payment provider of your server. Currently only GetAlby is supported. 
+        </p>
+        <label for="payments.provider" class="mt-2 mb-1 fw-bold">Payment provider</label>
+        <p>Choose the payment provider for your server. Currently only <a href="https://getalby.com/">getalby.com</a> is supported.
+        </p>
+        <div class="col-12 col-md-4">
+        <select id="payments.paymentProvider" name="payments.paymentProvider" class="form-select">
+            <option value="getalby" <% if (request.body.settingsPayments['paymentProvider'] === 'getalby') { %>selected<% } %>>Getalby</option>
+        </select>
+        </div>
+        <label for="payments.maxSatoshi" class="mt-4 mb-1 fw-bold">Max Satoshi</label>
+        <p>Specify the maximum amount of sats that can be paid for the biggest accepted file size or the shortest register username. 
+        If the request exced the limit, it uses this maxium limit for calculation. It's always at least 1 sat per request.
+        </p>
+        <div class="row">
+        <div class="col-12 col-md-4">
+            <label for="payments.satoshi.mediaMaxSatoshi" class="mt-2 mb-1 fw-bold">Media uploads</label>
+            <input  type="text" 
+                    id="payments.satoshi.mediaMaxSatoshi" 
+                    name="payments.satoshi.mediaMaxSatoshi" 
+                    class="form-control" 
+                    value="<%= request.body.settingsPayments['satoshi']['mediaMaxSatoshi'] %>" 
+                    placeholder="ex. 1000" 
+                    required
+                    > 
+        </div>
+        <div class="col-12 col-md-4">
+            <label for="payments.satoshi.registerMaxSatoshi" class="mt-2 mb-1 fw-bold">Register form</label>
+            <input  type="text" 
+                    id="payments.satoshi.registerMaxSatoshi"
+                    name="payments.satoshi.registerMaxSatoshi"
+                    class="form-control" 
+                    value="<%= request.body.settingsPayments['satoshi']['registerMaxSatoshi'] %>" 
+                    placeholder="ex. 1000" 
+                    required
+                    > 
+        </div>
+        </div>
+        <label for="payments.getalby.authToken" class="mt-4 mb-1 fw-bold">GetAlby authToken</label>
+        <p>Specify the authToken for GetAlby payment provider.</p>
+        <input  type="text" 
+                id="payments.getalby.authToken" 
+                name="payments.getalby.authToken" 
+                class="form-control" 
+                value="<%= request.body.settingsPayments['getalby']['authToken'] %>" 
+                placeholder="GetAlby authToken" 
+                required
+                >
+        <div class="col-12 col-md-3 mb-5 mt-4 pb-5 pb-lg-0 mb-lg-2">
+            <button class="btn btn-lg mb-4 btn-primary w-100" name="Submit" type="button" onclick="saveSettings()">Save</button>
+        </div>
+    </form>
+  </div>

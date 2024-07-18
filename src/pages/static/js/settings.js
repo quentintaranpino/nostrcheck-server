@@ -1,6 +1,7 @@
 async function saveSettings() {
-    const formFields = document.querySelectorAll('.form.settings-form input, .form.settings-form select, .form.settings-form textarea, .form.settings-form checkbox');
+    const formFields = document.querySelectorAll('.form input, .form select, .form textarea, .form checkbox');
     formFields.forEach(async field => {
+
         let value;
         let defaultValue;
         if (field.type === 'checkbox') {
@@ -13,9 +14,8 @@ async function saveSettings() {
             value = field.value;
             defaultValue = field.defaultValue;
         }
-        
+
         if (value !== defaultValue && field.name !== "log" && !field.name.toString().startsWith('lookandfeel')) {
-            console.log(value, defaultValue, field.name, field.type, field.checked, field.defaultChecked);
             
             let url = 'admin/updatesettings';
             let headers = {
@@ -129,7 +129,7 @@ const updateLogo = (setDefault = false) => {
 
 const updateTheme = async (primaryColor, secondaryColor, tertiaryColor, orientation, primaryPercent, secondaryPercent, tertiaryPercent, setDefault = false) => {
 
-    let fieldName = 'lookandfeel.server.theme';
+    let fieldName = 'lookandfeel.server.colors.theme';
     let body = {
         color1: primaryColor,
         color2: secondaryColor,
@@ -139,9 +139,6 @@ const updateTheme = async (primaryColor, secondaryColor, tertiaryColor, orientat
         color2Percent: secondaryPercent,
         color3Percent: tertiaryPercent
     };
-
-    console.log(body);
-
 
     if (setDefault === true) {
         body.primaryColor = null;
@@ -162,7 +159,6 @@ const updateTheme = async (primaryColor, secondaryColor, tertiaryColor, orientat
 const handleThemeChange = (selectElement, themes) => {
     themes = JSON.parse(themes);
     const selectedTheme = selectElement.value;
-    console.log(themes, themes[selectedTheme].color1Percent);
 
     if (selectedTheme && themes[selectedTheme]) {
         const primaryColorInput = document.getElementById("lookandfeel.server.colors.primaryColor");
@@ -198,14 +194,18 @@ document.addEventListener('DOMContentLoaded', () => {
     const gradientBar = document.getElementById("lookandfeel.server.colors.gradientbar");
 
     const handles = [
-        { element: document.createElement('div'), position: 25, id: 'lookandfeel.server.colors.primaryColor.percent' },
-        { element: document.createElement('div'), position: 50, id: 'lookandfeel.server.colors.secondaryColor.percent' },
-        { element: document.createElement('div'), position: 75, id: 'lookandfeel.server.colors.tertiaryColor.percent' }
+        { element: document.createElement('div'), position: 25, id: 'lookandfeel.server.colors.primaryColor.percent', defaultPosition: 25 },
+        { element: document.createElement('div'), position: 50, id: 'lookandfeel.server.colors.secondaryColor.percent', defaultPosition: 50 },
+        { element: document.createElement('div'), position: 75, id: 'lookandfeel.server.colors.tertiaryColor.percent', defaultPosition: 75 }
     ];
+
+    console.log(handles);
     
     handles.forEach(handle => {
         handle.element.classList.add('handle');
         handle.element.id = handle.id; 
+        handle.element.dataset.position = handle.position;
+        handle.element.dataset.defaultPosition = handle.defaultPosition;
         gradientBar.appendChild(handle.element);
         handle.element.style.left = `${handle.position}%`;
     
@@ -227,6 +227,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (newPosition < 0) newPosition = 0;
                 if (newPosition > 100) newPosition = 100;
                 handle.position = newPosition;
+                handle.element.dataset.position = newPosition;
                 handle.element.style.left = `${newPosition}%`;
                 updateGradient();
             };
@@ -263,13 +264,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const rootStyles = getComputedStyle(document.documentElement);
     primaryColorInput.value = rootStyles.getPropertyValue('--primary-color').trim();
+    primaryColorInput.defaultValue = primaryColorInput.value;
     secondaryColorInput.value = rootStyles.getPropertyValue('--secondary-color').trim();
+    secondaryColorInput.defaultValue = secondaryColorInput.value;
     tertiaryColorInput.value = rootStyles.getPropertyValue('--tertiary-color').trim();
+    tertiaryColorInput.defaultValue = tertiaryColorInput.value;
     orientationSelect.value = rootStyles.getPropertyValue('--gradient-orientation').trim();
+    orientationSelect.defaultValue = orientationSelect.value;
 
     handles[0].position = parseFloat(rootStyles.getPropertyValue('--primary-color-percent').trim());
+    handles[0].defaultPosition = handles[0].position;
     handles[1].position = parseFloat(rootStyles.getPropertyValue('--secondary-color-percent').trim());
+    handles[1].defaultPosition = handles[1].position;
     handles[2].position = parseFloat(rootStyles.getPropertyValue('--tertiary-color-percent').trim());
+    handles[2].defaultPosition = handles[2].position;
 
     handles.forEach(handle => {
         handle.element.style.left = `${handle.position}%`;
@@ -282,6 +290,18 @@ document.addEventListener('DOMContentLoaded', () => {
 const saveLookAndFeel = async () => {
 
     await updateLogo();
+
+    // Check if the fields have been modified
+    if(document.getElementById('lookandfeel.server.colors.primaryColor').value === document.getElementById('lookandfeel.server.colors.primaryColor').defaultValue && 
+        document.getElementById('lookandfeel.server.colors.secondaryColor').value === document.getElementById('lookandfeel.server.colors.secondaryColor').defaultValue &&
+        document.getElementById('lookandfeel.server.colors.tertiaryColor').value === document.getElementById('lookandfeel.server.colors.tertiaryColor').defaultValue &&
+        document.getElementById('lookandfeel.server.colors.orientation').value === document.getElementById('lookandfeel.server.colors.orientation').defaultValue &&
+        document.getElementById('lookandfeel.server.colors.primaryColor.percent').dataset.position === document.getElementById('lookandfeel.server.colors.primaryColor.percent').dataset.defaultPosition &&
+        document.getElementById('lookandfeel.server.colors.secondaryColor.percent').dataset.position === document.getElementById('lookandfeel.server.colors.secondaryColor.percent').dataset.defaultPosition &&
+        document.getElementById('lookandfeel.server.colors.tertiaryColor.percent').dataset.position === document.getElementById('lookandfeel.server.colors.tertiaryColor.percent').dataset.defaultPosition) {
+        return;
+    }
+
     await updateTheme(
         document.getElementById('lookandfeel.server.colors.primaryColor').value,
         document.getElementById('lookandfeel.server.colors.secondaryColor').value,
