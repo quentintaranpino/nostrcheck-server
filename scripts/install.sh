@@ -5,8 +5,8 @@ BASEDIR=$(dirname "$0")
 echo "$BASEDIR"
 
 readonly E_BADARGS=65
-readonly version="0.2.1"
-readonly date="20240306"
+readonly version="0.2.2"
+readonly date="20240718"
 
 clear
 echo ""
@@ -77,7 +77,7 @@ sudo apt-get install nodejs -y
 clear
 echo "Installing necessary packages..."
 echo ""
-sudo apt install nginx git redis-server mariadb-server mariadb-client ffmpeg jq certbot python3-certbot-nginx -y
+sudo apt install nginx git redis-server mariadb-server mariadb-client ffmpeg jq certbot python3-certbot-nginx python3 python3-pip -y
 
 # Clone the repository
 clear
@@ -88,6 +88,12 @@ git clone https://github.com/quentintaranpino/nostrcheck-api-ts.git
 
 # Prepare installation directory
 cd nostrcheck-api-ts
+
+# Install python necessary packages
+clear
+echo "Installing python necessary packages..."
+echo ""
+pip install -r requirements.txt
 
 # Install dependencies
 clear
