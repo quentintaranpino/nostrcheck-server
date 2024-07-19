@@ -1,12 +1,12 @@
 
         :root {
-            --primary-color: #95C7F0;
-            --secondary-color: #912FBA;
-            --tertiary-color: #000000;
-            --primary-color-percent: 33%;
-            --secondary-color-percent: 58%;
-            --tertiary-color-percent: 95%;
-            --gradient-orientation: to top left;
+            --primary-color: #c880b3;
+            --secondary-color: #aa6cf9;
+            --tertiary-color: #82aaeb;
+            --primary-color-percent: 0%;
+            --secondary-color-percent: 50%;
+            --tertiary-color-percent: 100%;
+            --gradient-orientation: to right;
         }
 
         .background-theme {
