@@ -9,21 +9,21 @@
         <form class="form">
           <div class="input-group mb-3 mt-2">
             <span class="input-group-text" id="addon-wrapping">Select domain name</span>
-            <select class="form-select" aria-label="Domain selection">
-              <option value="1">example.com</option>
-              <option value="2">example2.com</option>
-              <option value="3">example3.com</option>
+            <select class="form-select" aria-label="Domain selection" id="domain-selection">
             </select>
           </div>
             <div class="input-group mb-3 mt-2">
-              <input type="text" data-otc='username' class="form-control " id="input-register-username" placeholder="username" required>
+              <input type="text" data-otc='username' class="form-control " id="input-register-username" placeholder="username" required autocomplete="username">
               <span class="input-group-text" id="input-register-domain">@domain.com</span>
             </div>
             
-            <input type="text" data-otc='pubkey' class="form-control mt-2" id="input-register-pubkey" placeholder="public key (npub or hex)" required>
+            <input type="text" data-otc='pubkey' class="form-control mt-2 mb-3" id="input-register-pubkey" placeholder="public key (npub or hex)" required autocomplete="pubkey">
             <div class="input-group flex-nowrap mt-2">
               <span class="input-group-text" id="addon-wrapping">Optional</span>
-              <input type="text" data-otc='password' class="form-control " id="input-register-pubkey" placeholder="pasword">
+              <input type="password" data-otc='password' id="password" name="password" class="form-control input-password" placeholder="Password" autocomplete="current-password">
+              <button id="toggle-password" type="button" class="d-none"
+              aria-label="Show password as plain text. Warning: this will display your password on the screen.">
+            </button>
             </div>
           </form>
           
@@ -40,3 +40,42 @@
     </div>  
   </div>  
 <script src="/static/js/form.js"></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', async (event) => {
+
+  const domains =  await fetch('/api/v2/domains', {
+    method: 'GET',
+    headers: {
+      'Authorization': 'Bearer ' + localStorage.getItem('authkey')
+    }
+  })
+  .then(response => response.json())
+  .then(async data => {
+    const select = document.getElementById('domain-selection');
+    const domainLabel = document.getElementById('input-register-domain');
+    let counter = 0;
+    data.AvailableDomains.forEach(domain => {
+      counter == 0 ? domainLabel.innerText = '@' + domain : null;
+      const option = document.createElement('option');
+      option.value = domain;
+      option.text = domain;
+      select.appendChild(option);
+      counter++;
+    });
+    await localStorage.setItem('authkey', data.authkey);
+  })
+  .catch((error) => {
+    console.error('Error:', error);
+  });
+
+   // Update domain input when selection changes
+   document.getElementById('domain-selection').addEventListener('change', function() {
+        const selectedDomain = this.value;
+        document.getElementById('input-register-domain').innerText = '@' + selectedDomain;
+    });
+
+  
+});
+
+</script>

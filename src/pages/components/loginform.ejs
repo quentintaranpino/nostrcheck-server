@@ -40,7 +40,7 @@
       <form class="form " onkeydown=" if (event.keyCode === 13) {logIn('legacy', $('#rememberme_legacy:checked').val(),'legacy_submit');}">
         <div class="input-group mb-2">
           <label for="username" class="sr-only">Username</label>
-          <input type="text" id="username" name="username" class="form-control" placeholder="Username" required autofocus>
+          <input type="text" id="username" name="username" class="form-control" placeholder="Username" required autofocus autocomplete="username">
           <div class="input-group-text">
             <div class="form-check form-switch">
               <label for="rememberme" class="ps-1">Stay signed</label>
@@ -50,7 +50,7 @@
         </div>
         <label for="password" class="sr-only">Password</label>
         <div class="input-group">
-          <input type="password" id="password"  name="password" class="form-control" placeholder="Password" >
+          <input type="password" id="password"  name="password" class="form-control" placeholder="Password" autocomplete="current-password">
           <button id="toggle-password" type="button" class="d-none"
             aria-label="Show password as plain text. Warning: this will display your password on the screen.">
           </button>

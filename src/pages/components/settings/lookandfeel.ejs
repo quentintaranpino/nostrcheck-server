@@ -14,8 +14,8 @@
           <button class="form-control btn btn-md btn-primary" type="button" onclick="updateLogo(true)">Restore</button>            
       </div>
       </div>
-      <label for="lookandfeel.server.frontendBackground" class="mt-3 mb-1 fw-bold">Frontend background</label>
-      <p>Choose the colors for the frontend background.</p>
+      <label for="lookandfeel.server.frontendBackground" class="mt-3 mb-1 fw-bold">Dynamic background</label>
+      <p>Choose the colors for the dynamic background.</p>
       <div class="row mx-auto mb-1">
         <div class="col-12 col-md-4 pb-4 mb-4">
           <input id="lookandfeel.server.colors.primaryColor" name="lookandfeel.server.colors.primaryColor" type="color" class="form-control position-static"><span class="ms-2">Primary</span>
@@ -46,7 +46,7 @@
           </div>
       </div>
       <div class="row mx-auto mt-3 ">
-        <label for="lookandfeel.server.colors.theme" class="mt-2 mb-1 fw-bold">Frontend predefined themes</label>
+        <label for="lookandfeel.server.colors.theme" class="mt-2 mb-1 fw-bold">Dynamic background themes</label>
         <div class="col-12 col-md-9">
           <select id="lookandfeel.server.colors.theme" name="lookandfeel.server.colors.theme" class="form-select mt-2" onchange="handleThemeChange(this,'<%= JSON.stringify(request.body.settingsLookAndFeelThemes) %>')">
             <option value=""></option>
