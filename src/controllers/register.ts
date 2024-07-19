@@ -5,7 +5,7 @@ import validator from "validator";
 import { connect } from "../lib/database.js";
 import { logger } from "../lib/logger.js";
 import { RegisterResultMessage } from "../interfaces/register.js";
-import { QueryAvailiableDomains } from "../lib/domains.js";
+import { getAvailableDomains } from "../lib/domains.js";
 import app from "../app.js";
 import { getClientIp } from "../lib/utils.js";
 import { parseAuthHeader } from "../lib/authorization.js";
@@ -126,7 +126,7 @@ const registernewpubkey = async (req: Request, res: Response): Promise<Response>
 	}
 
 	//Check if domain is valid
-	const AcceptedDomains = await QueryAvailiableDomains();
+	const AcceptedDomains = await getAvailableDomains();
 	let IsValidDomain = JSON.stringify(AcceptedDomains).indexOf(req.body.tags[1][1]) > -1;
 	if (app.get('env') === 'development') {
 		logger.warn(

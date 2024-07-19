@@ -329,7 +329,6 @@ Endpoint: https://nostrcheck.me/api/v2/domains
 **Headers**
 
 - `Content-Type`: application/json
-- `Authorization`: Bearer {authkey}
 
 **Example Request**
 
@@ -340,7 +339,6 @@ With authkey
     "url": "https://nostrcheck.me/api/v2/domains/",
     "headers": {
         "Content-Type": "application/json",
-	"Authorization "Bearer Auth37f3352fe10584d7396f010eb501482930dd712f"
     }
 }
 ```
@@ -352,7 +350,6 @@ With NIP98
     "url": "https://nostrcheck.me/api/v2/domains/",
     "headers": {
         "Content-Type": "application/json",
-	"Authorization "Nostr ewogICJpZCI6ICI5MzMxMDUyY2FlYzQzNTE4NDRlMzM4YTgyZDhmMGRhNzEzZmVkNDk1ODViN2ZjNTVkMDg5MWVlOWZiMDYyYTJjIiwKICAicHVia2V5IjogIjgyMDhmYWNkY2FiMjk4NzgyYzllM2I3YjllZmIyMmJjMjQ2ZDE1NzcwZTBiNGY5NmJiZTUxYzQwNjViODJhZjAiLAogICJjcmVhdGVkX2F0IjogMTcwOTExNDEwNywKICAia2luZCI6IDI3MjM1LAogICJ0YWdzIjogWwogICAgWwogICAgICAibWV0aG9kIiwKICAgICAgIkdFVCIKICAgIF0sCiAgICBbCiAgICAgICJ1IiwKICAgICAgImh0dHBzOi8vbm9zdHJjaGVjay5tZS9hcGkvdjIvZG9tYWlucyIKICAgIF0KICBdLAogICJjb250ZW50IjogIiIsCiAgInNpZyI6ICI3ZDYyMzk1OGZhMjY5ZTY2NzhlYmZlOGVhN2JlOTlhMzgxNDlhYTc2NTdmZjJlZTVlYmM0ODYyNWFlODY3M2Y4Yjk0ZDM2YWUxMTAyOGVhOWU0MzNjZWY3ZmZhNWEwZDcxYjIyYzI0OGMyNDA5M2NkNGFmMjBmYjVjM2Y5MGE0MiIKfQ"
     }
 }
 ```
@@ -362,7 +359,6 @@ With NIP98
 ```json
 {
     "AvailableDomains": ["domain1.com", "domain2.com"],
-    "authkey": "auth_key"
 }
 ```
 

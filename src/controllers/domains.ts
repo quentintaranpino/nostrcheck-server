@@ -1,16 +1,15 @@
 import { Request, Response } from "express";
-
 import { logger } from "../lib/logger.js";
 import { parseAuthHeader} from "../lib/authorization.js";
 import { ResultMessagev2 } from "../interfaces/server.js";
 import { redisClient } from "../lib/redis.js";
 import { getClientIp } from "../lib/utils.js";
-import { QueryAvailiableDomains, QueryAvailiableUsers } from "../lib/domains.js";
+import { getAvailableDomains, getAvailiableUsers } from "../lib/domains.js";
 import { dbUpdate, dbSelect } from "../lib/database.js";
 import { isModuleEnabled } from "../lib/config.js";
 import app from "../app.js";
 
-const AvailableDomains = async (req: Request, res: Response): Promise<Response> => {
+const listAvailableDomains = async (req: Request, res: Response): Promise<Response> => {
 
 	// Check if current module is enabled
 	if (!isModuleEnabled("domains", app)) {
@@ -18,28 +17,14 @@ const AvailableDomains = async (req: Request, res: Response): Promise<Response> 
 		return res.status(400).send({"status": "error", "message": "Module is not enabled"});
 	}
 
-	logger.info("REQ -> Domain list ", "|", getClientIp(req));
+	logger.info("REQ -> Available domains ", "|", getClientIp(req));
 
-     // Check if authorization header is valid
-	const EventHeader = await parseAuthHeader(req, "AvailableDomains", true);
-	if (EventHeader.status !== "success") {return res.status(401).send({"status": EventHeader.status, "message" : EventHeader.message});}
-
-	try {
-		const AvailableDomains = await QueryAvailiableDomains();
-		if (AvailableDomains !== undefined) {
-			logger.info("RES -> Domain list ", "|", getClientIp(req));
-
-			return res.status(200).send({AvailableDomains, "authkey" : EventHeader.authkey});
-		}
-		logger.warn("RES -> Domain list ", "|", getClientIp(req));
-		return res.status(404).send({ "available domains": "No domains available" });
-	} catch (error) {
-		logger.error(error);
-		return res.status(500).send({ description: "Internal server error" });
-	}
+	const AvailableDomains = await getAvailableDomains();
+	return res.status(200).send({AvailableDomains});
+	
 };
 
-const AvailableUsers = async (req: Request, res: Response): Promise<Response> => {
+const listAvailableUsers = async (req: Request, res: Response): Promise<Response> => {
 
 	// Check if current module is enabled
 	if (!isModuleEnabled("domains", app)) {
@@ -53,21 +38,10 @@ const AvailableUsers = async (req: Request, res: Response): Promise<Response> =>
 	const EventHeader = await parseAuthHeader(req, "AvailableUsers", true);
 	if (EventHeader.status !== "success") {return res.status(401).send({"status": EventHeader.status, "message" : EventHeader.message});}
 
-	try {
-		const AvailableUsers = await QueryAvailiableUsers(req.params.domain);
-		if (AvailableUsers == undefined) {
-			logger.warn("RES -> Empty user list ", "|", getClientIp(req));
-			return res.status(404).send({ [req.params.domain]: "No users available" });
-		}
-
-		logger.info("RES -> User list ", "|", getClientIp(req));
-		return res.status(200).send({ [req.params.domain]: AvailableUsers, "authkey" : EventHeader.authkey});
+	const AvailableUsers = await getAvailiableUsers(req.params.domain);
+	return res.status(200).send({ [req.params.domain]: AvailableUsers, "authkey" : EventHeader.authkey});
 		
-	} catch (error) {
-		logger.error(error);
-
-		return res.status(500).send({ description: "Internal server error" });
-	}
+	
 };
 
 const UpdateUserDomain = async (req: Request, res: Response): Promise<Response> => {
@@ -120,7 +94,7 @@ const UpdateUserDomain = async (req: Request, res: Response): Promise<Response> 
 	logger.info("REQ Update user domain ->", servername, " | pubkey:",  EventHeader.pubkey, " | domain:",  domain, "|", getClientIp(req));
 
 	//Query if domain exist
-	const CurrentDomains = await QueryAvailiableDomains();
+	const CurrentDomains = await getAvailableDomains();
 	logger.debug("Current domains: ", CurrentDomains.join(", "));
 	if (!CurrentDomains.includes(domain)) {
 		logger.warn("RES Update user domain -> 404  not found, domain not found", "|", getClientIp(req));
@@ -171,4 +145,4 @@ const UpdateUserDomain = async (req: Request, res: Response): Promise<Response> 
 	return res.status(200).send(result);
 };
 
-export { AvailableDomains, AvailableUsers, UpdateUserDomain };
+export { listAvailableDomains, listAvailableUsers, UpdateUserDomain };
