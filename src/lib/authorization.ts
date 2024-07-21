@@ -3,7 +3,7 @@ import { logger } from "./logger.js";
 import { credentialTypes, authHeaderResult } from "../interfaces/authorization.js";
 import { hashString, validateHash } from "./hash.js";
 import { Request } from "express";
-import { verifyNIP07login } from "./nostr/NIP07.js";
+import { verifyNIP07event } from "./nostr/NIP07.js";
 import crypto from "crypto";
 import { sendMessage } from "./nostr/NIP04.js";
 import { isNIP98Valid } from "./nostr/NIP98.js";
@@ -93,7 +93,7 @@ const isPubkeyValid = async (req: Request, checkAdminPrivileges = false): Promis
 		}
 	}
 	if (req.session.identifier) return true;
-	return await verifyNIP07login(req);
+	return await verifyNIP07event(req);
 
 }
 
@@ -146,7 +146,7 @@ const isAuthkeyValid = async (authString: string, checkAdminPrivileges: boolean 
 	try{
 		const hex =  await dbSelect(`SELECT hex FROM registered WHERE ${whereStatement}`, "hex", [hashedAuthkey, checkAdminPrivileges == true? '1':'0']) as string;
 		if (hex == ""){
-			logger.warn("Unauthorized request, authkey not allwed or not found")
+			logger.warn("Unauthorized request, authkey not allowed or not found")
 			return {status: "error", message: "Unauthorized", authkey: "", pubkey:""};
 		}
 
@@ -170,8 +170,8 @@ const isAuthkeyValid = async (authString: string, checkAdminPrivileges: boolean 
  * the new password will be sent to the provided public key.
  *
  * @param {credentialTypes} type - The type of credential to generate. Can be 'password', 'authkey', or 'otc'.
- * @param {boolean} [returnHashed=false] - Returns the hashed credential instead of the plain text. Optional.
  * @param {string} [pubkey=""] - The public key to which to send the new password. Optional.
+ * @param {boolean} [returnHashed=false] - Returns the hashed credential instead of the plain text. Optional.
  * @param {boolean} [sendDM=false] - Indicates whether to send a direct message with the new password. Optional.
  * @param {boolean} [onlyGenerate=false] - Indicates whether to only generate the credential without saving it to the database and sending a DM. Optional.
  * @returns {Promise<string>} The newly generated credential, or an empty string if an error occurs or if the database update fails.
