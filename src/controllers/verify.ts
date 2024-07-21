@@ -15,7 +15,7 @@ const verifyEventController = async (req: Request, res: Response): Promise<Respo
 		return res.status(400).send({"status": "error", "message": "Module is not enabled"});
 	}
 
-	logger.info("POST /api/v1/verify", "|", getClientIp(req));
+	logger.info("POST /api/v2/verify", "|", getClientIp(req));
 
 	//Create event object
 	const event: Event = {
