@@ -123,11 +123,18 @@ const localEngineClassify = async (filePath: string): Promise<moderationCategory
 	
 	const result = await sendRequest(modelName, "classify", filePath);
 
-    const category = moderationCategories.find(category => 
-        category.description.toLowerCase().includes(result.trim().toLowerCase())
-    );
-	
-	return category ? category : emptyModerationCategory;
+    const splitResult = result.split(" ");
+    for (let i = 0; i < splitResult.length; i++) {
+        const word = splitResult[i];
+        for (let j = 0; j < moderationCategories.length; j++) {
+            const category = moderationCategories[j];
+            if (category.description.includes(word)) {
+                return category;
+            }
+        }
+    }
+    
+    return emptyModerationCategory;
 }
 
 export { localEngineClassify, localEngineStart, localEngineStop }
