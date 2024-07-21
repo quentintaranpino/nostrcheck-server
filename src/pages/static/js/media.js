@@ -4,6 +4,10 @@ const uploadMedia = async () => {
         input.attr("type", "file");
         input.trigger("click");
 
+        input.on("cancel", function () {
+            resolve("Media upload cancelled");
+        });
+
         input.on("change", async function (e) {
             var files = e.target.files;
             var data = new FormData();
