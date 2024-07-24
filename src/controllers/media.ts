@@ -346,6 +346,42 @@ const getMedia = async (req: Request, res: Response, version:string) => {
 
 }
 
+const heatMedia = async (req: Request, res: Response): Promise<Response> => {
+
+	// Check if current module is enabled
+	if (!isModuleEnabled("media", app)) {
+		logger.warn("Attempt to access a non-active module:","media","|","IP:", getClientIp(req));
+		return res.status(400).send({"status": "error", "message": "Module is not enabled"});
+	}
+
+	logger.info("HEAD /media", "|", getClientIp(req));
+
+	// Check if authorization header is valid
+	const eventHeader = await parseAuthHeader(req, "heatMedia", false);
+	if (eventHeader.status !== "success") {
+		eventHeader.pubkey = "";
+	}
+	eventHeader.authkey? res.header("Authorization", eventHeader.authkey): null;
+
+	// Get file hash from URL
+	const hash = req.params.param1.toString().split(".")[0];
+	if (!hash) {
+		logger.warn(`RES -> 400 Bad request - missing hash`, "|", getClientIp(req));
+		return res.status(400).send({"status": "error", "message": "missing hash"});
+	}
+
+	// Check if file exist on storage server
+	const filePath = await getFilePath(hash);
+	if (filePath == "") {
+		logger.warn(`RES -> 404 Not found - file not found`, "|", getClientIp(req));
+		return res.status(404).send();
+	}
+
+	logger.info(`RES -> 200 OK - file found`, "|", getClientIp(req));
+	return res.status(200).send();
+
+};
+
 const getMediaList = async (req: Request, res: Response, version:string): Promise<Response> => {
 
 	logger.info("GET /api/" + version + "/media", "|", getClientIp(req));
@@ -1173,6 +1209,7 @@ const deleteMedia = async (req: Request, res: Response, version:string): Promise
 
 export { uploadMedia,
 		getMedia, 
+		heatMedia,
 		getMediabyURL, 
 		deleteMedia, 
 		updateMediaVisibility, 
