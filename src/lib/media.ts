@@ -2,13 +2,12 @@ import fastq, { queueAsPromised } from "fastq";
 import ffmpeg from "fluent-ffmpeg";
 import fs from "fs";
 
-import { allowedMimeTypes, asyncTask, FileData, ProcessingFileData, UploadTypes, videoHeaderRange } from "../interfaces/media.js";
+import { allowedMimeTypes, asyncTask, legacyMediaReturnMessage, mediaTypes, ProcessingFileData, UploadTypes, videoHeaderRange } from "../interfaces/media.js";
 import { logger } from "./logger.js";
 import config from "config";
 import { connect, dbUpdate } from "./database.js";
 import {fileTypeFromBuffer} from 'file-type';
 import { Request } from "express";
-import app from "../app.js";
 import { generatefileHashfromfile } from "./hash.js";
 import crypto from "crypto";
 import { getClientIp } from "./utils.js";
@@ -156,59 +155,32 @@ const initConversionEngine = (file: ProcessingFileData) => {
     return ffmpegEngine;
 }
 
-const ParseMediaType = (req : Request, pubkey : string): string  => {
+const getUploadType = (req : Request): string  => {
 
-	let media_type = "";
+	let uploadtype = "media";
 
-	//v0 compatibility, check if type is present on request body (v0 uses type instead of uploadtype)
-	if (req.body.type != undefined && req.body.type != "") {
-		logger.info("Detected 'type' field (deprecated v0) on request body, setting 'media_type' with 'type' data ", "|", getClientIp(req));
-		media_type = req.body.type;
-	}
+	// v0 compatibility and v1 compatibility
+	if (req.body.type != undefined && req.body.type != "") {uploadtype = req.body.type;}
+	if (req.body.media_type != undefined && req.body.media_type != "") {uploadtype = req.body.media_type;}
 
-	//v1 compatibility, check if uploadtype is present on request body (v1 uses uploadtype instead of media_type)
-	if (req.body.uploadtype != undefined && req.body.uploadtype != "") {
-		logger.info("Detected 'uploadtype' field (deprecated v1) on request body, setting 'media_type' with 'type' data ", "|", getClientIp(req));
-		media_type = req.body.uploadtype;
-	}
+	// v2 compatibility
+	if (req.body.uploadtype != undefined && req.body.uploadtype != "") {uploadtype = req.body.uploadtype;}
 
-	//v2 compatibility, check if media_type is present on request body
-	if (req.body.media_type != undefined && req.body.media_type != "") {
-		media_type = req.body.media_type;
-	}
-	
 	//Check if media_type is valid
-	if (!UploadTypes.includes(media_type)) {
-		logger.info(`Incorrect uploadtype or not present: `, media_type, "assuming uploadtype = media", "|", getClientIp(req));
-		media_type = ("media");
-	}
+	!UploadTypes.includes(uploadtype)? logger.warn(`Incorrect uploadtype or not present: ${uploadtype} setting "media" | ${getClientIp(req)}`) : null;
 
-	//Check if the pubkey is public (the server pubkey) and media_type is different than media
-	if (pubkey == app.get("config.server")["pubkey"] && media_type != "media") {
-		logger.warn(`Public pubkey can only upload media files, setting media_type to "media"`, "|", getClientIp(req));
-		media_type = "media";
-	}
-
-	return media_type;
+	return uploadtype;
 
 }
 
-const ParseFileType = async (req: Request, file :Express.Multer.File): Promise<{mime:string, ext:string}> => {
+const getFileType = async (req: Request, file :Express.Multer.File): Promise<{mime:string, ext:string}> => {
 
-	//Detect file mime type
-	const result = await fileTypeFromBuffer(file.buffer);
-	if (result == undefined) {
-		logger.warn(`RES -> 400 Bad request - Could not detect file mime type `,  "|", getClientIp(req));
-		return {mime: "", ext: ""};
-	}
+	let fileType = await fileTypeFromBuffer(file.buffer) || {mime: "", ext: ""};
+
+	fileType == undefined ? logger.warn(`Could not detect file mime type | ${getClientIp(req)}`) : null;
+	!allowedMimeTypes.includes(fileType.mime) ? logger.warn(`Filetype not allowed: ${file.mimetype} | ${getClientIp(req)}`) : null;
 	
-	//Check if filetype is allowed
-	if (!allowedMimeTypes.includes(result.mime)) {
-		logger.warn(`RES -> 400 Bad request - filetype not allowed: `, result.mime,  "|", getClientIp(req));
-		return {mime: "", ext: ""};
-	}
-
-	return result;
+	return fileType;
 
 }
 
@@ -415,4 +387,32 @@ const finalizeFileProcessing = async (filedata: ProcessingFileData): Promise<boo
 	}
 }
 
-export {processFile, requestQueue, ParseMediaType, ParseFileType,GetFileTags, standardMediaConversion, getNotFoundMediaFile, readRangeHeader};
+const prepareLegacMediaEvent = async (filedata : ProcessingFileData): Promise<legacyMediaReturnMessage> => {
+
+    const event : legacyMediaReturnMessage = {
+
+        result: filedata.status == "success" || filedata.status == "completed" ? true : false,
+		description: filedata.description,
+		status: filedata.status,
+		id: filedata.fileid,
+		pubkey: filedata.pubkey,
+		url: filedata.url,
+		hash: filedata.hash,
+		magnet: filedata.magnet,
+		tags: await GetFileTags(filedata.fileid)
+
+        }
+
+    return event;
+
+}
+
+export {processFile, 
+		requestQueue, 
+		getUploadType, 
+		getFileType, 
+		GetFileTags, 
+		standardMediaConversion, 
+		getNotFoundMediaFile, 
+		readRangeHeader, 
+		prepareLegacMediaEvent};

@@ -3,25 +3,24 @@ import app from "../app.js";
 import { connect, dbDelete, dbInsert, dbMultiSelect, dbSelect } from "../lib/database.js";
 import { logger } from "../lib/logger.js";
 import { parseAuthHeader } from "../lib//authorization.js";
-import { ParseMediaType, ParseFileType, GetFileTags, standardMediaConversion, getNotFoundMediaFile, readRangeHeader } from "../lib/media.js"
+import { getUploadType, getFileType, GetFileTags, standardMediaConversion, getNotFoundMediaFile, readRangeHeader, prepareLegacMediaEvent } from "../lib/media.js"
 import { requestQueue } from "../lib/media.js";
 import {
 	asyncTask,
 	ProcessingFileData,
-	MediaExtraDataResultMessage,
+	legacyMediaReturnMessage,
 	mediaTypes,
 	MediaVisibilityResultMessage,
 	UploadStatus,
 	MediaStatus,
 	videoHeaderRange,
 	mime_extension,
-	FileData,
 } from "../interfaces/media.js";
 import { ResultMessage, ResultMessagev2 } from "../interfaces/server.js";
 import path from "path";
 import validator from "validator";
 import fs from "fs";
-import { NIP94_data, NIP96_event, NIP96_processing, NIPKinds } from "../interfaces/nostr.js";
+import { NIP96_event, NIP96_processing, NIPKinds } from "../interfaces/nostr.js";
 import { PrepareNIP96_event, PrepareNIP96_listEvent } from "../lib/nostr/NIP96.js";
 import { generateQRCode, getClientIp } from "../lib/utils.js";
 import { generateBlurhash, generatefileHashfrombuffer } from "../lib/hash.js";
@@ -78,26 +77,13 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 	}
 	logger.info("pubkey ->", pubkey, "|", getClientIp(req));
 
-	// Parse upload type. If not defined, default is "media"
-	const media_type : string = await ParseMediaType(req, pubkey);
+	// getUploadType. If not defined, default is "media"
+	const media_type : string = pubkey != app.get("config.server")["pubkey"] ? await getUploadType(req) : "media";
+	logger.info("uploadtype ->", media_type, "|", getClientIp(req));
 
-	// Check if file exist on request body
-	if (!req.files || req.files == undefined || req.files.length == 0) {
-		logger.warn(`RES -> 400 Bad request - Empty file`, "|", getClientIp(req));
-		if(version != "v2"){return res.status(400).send({"result": false, "description" : "Empty file"});}
-
-		const result: ResultMessagev2 = {
-			status: MediaStatus[1],
-			message: "Empty file"
-		};
-		return res.status(400).send(result);
-	
-	}
+	// Uploaded file
 	let file: Express.Multer.File | null = null;
-	if (Array.isArray(req.files) && req.files.length > 0) {
-		file = req.files[0];
-	}
-
+	if (Array.isArray(req.files) && req.files.length > 0) {file = req.files[0];}
 	if (!file) {
 		logger.warn(`RES -> 400 Bad request - Empty file`, "|", getClientIp(req));
 		if(version != "v2"){return res.status(400).send({"result": false, "description" : "Empty file"});}
@@ -109,10 +95,10 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 		return res.status(400).send(result);
 	}
 
-	// Parse file type. If not defined or not allowed, reject upload.
-	const fileMimeData = await ParseFileType(req, file);
+	// getFileType. If not defined or not allowed, reject upload.
+	const fileMimeData = await getFileType(req, file);
 	if (fileMimeData.mime == "" || fileMimeData.ext == "") {
-		logger.error(`RES -> 400 Bad request - `, file.mimetype, ` filetype not detected`, "|", getClientIp(req));
+		logger.warn(`RES -> 400 Bad request - filetype not detected or not allowed`, "|", getClientIp(req));
 		if(version != "v2"){return res.status(400).send({"result": false, "description" : "file type not detected or not allowed"});}
 
 		const result: ResultMessagev2 = {
@@ -278,20 +264,11 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 		});
 	}
 
+	logger.info(`RES -> 200 OK - ${filedata.description}`, "|", getClientIp(req));
+
 	//v0 and v1 compatibility
 	if (version != "v2"){
-		const returnmessage: MediaExtraDataResultMessage = {
-			result: true,
-			description: filedata.description,
-			status: filedata.status,
-			id: filedata.fileid,
-			pubkey: filedata.pubkey,
-			url: filedata.url,
-			hash: filedata.hash,
-			magnet: filedata.magnet,
-			tags: await GetFileTags(filedata.fileid)
-		};
-		logger.info(`RES -> 200 OK - ${filedata.description}`, "|", getClientIp(req));
+		const returnmessage : legacyMediaReturnMessage = await prepareLegacMediaEvent(filedata);
 		return res.status(200).send(returnmessage);
 	}
 
@@ -304,6 +281,8 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 	// NIP96 compatibility and fallback
 	const returnmessage : NIP96_event = await PrepareNIP96_event(filedata);
 	return res.status(responseStatus).send(returnmessage);
+
+	
 
 };
 
@@ -571,14 +550,13 @@ const getMediaStatusbyID = async (req: Request, res: Response, version:string): 
 
 	logger.info(`GET /api/${version}/media/id/${id}`, "|", getClientIp(req));
 
-	const db = await connect("GetMediaStatusbyID");
-	const [dbResult] = await db.query("SELECT mediafiles.id, mediafiles.filename, mediafiles.pubkey, mediafiles.status, mediafiles.magnet, mediafiles.original_hash, mediafiles.hash, mediafiles.blurhash, mediafiles.dimensions, mediafiles.filesize FROM mediafiles WHERE (mediafiles.id = ? and mediafiles.pubkey = ?)", [id , eventHeader.pubkey]);
-	let rowstemp = JSON.parse(JSON.stringify(dbResult));
-	if (rowstemp[0] == undefined) {
-		logger.warn(`File not found in database: ${id}, trying public server pubkey`, "|", getClientIp(req));
-		const [dbResult] = await db.query("SELECT mediafiles.id, mediafiles.filename, mediafiles.pubkey, mediafiles.status, mediafiles.magnet, mediafiles.original_hash, mediafiles.hash, mediafiles.blurhash, mediafiles.dimensions, mediafiles.filesize FROM mediafiles WHERE (mediafiles.id = ? and mediafiles.pubkey = ?)", [id , app.get("config.server")["pubkey"]]);
-		rowstemp = JSON.parse(JSON.stringify(dbResult));
-		if (rowstemp[0] == undefined) {
+	const mediaFileData = await dbMultiSelect(["id", "filename", "pubkey", "status", "magnet", "original_hash", "hash", "blurhash", "dimensions", "filesize"],
+												"mediafiles",
+												"id = ? and pubkey = ? or pubkey = ?",
+												[id, eventHeader.pubkey, app.get("config.server")["pubkey"]],
+												true);
+
+	if (!mediaFileData || mediaFileData.length == 0) {
 			logger.error(`File not found in database: ${id}`, "|", getClientIp(req));
 
 			//v0 and v1 compatibility
@@ -588,132 +566,79 @@ const getMediaStatusbyID = async (req: Request, res: Response, version:string): 
 				status: MediaStatus[1],
 				message: "The requested file was not found",
 			};
-		db.end();
 		return res.status(404).send(result);
-		}
 	}
+
+	let { filename, pubkey, status, magnet, original_hash, hash, blurhash, dimensions, filesize } = mediaFileData[0];
 
 	//Fix dimensions for old API requests
-	if (rowstemp[0].dimensions == null) {
-		rowstemp[0].dimensions = 0x0;
-	}
-
-	db.end();
+	dimensions == null? dimensions = 0x0 : dimensions;
 
 	//Generate filedata
 	const filedata : ProcessingFileData = {
-		filename: rowstemp[0].filename,
-		width: rowstemp[0].dimensions?.toString().split("x")[0],
-		height: rowstemp[0].dimensions?.toString().split("x")[1],
-		filesize: rowstemp[0].filesize,
-		fileid: rowstemp[0].id,
-		pubkey: rowstemp[0].pubkey,
-		originalhash: rowstemp[0].original_hash,
-		hash: rowstemp[0].hash,
-		url: servername + "/media/" + rowstemp[0].pubkey + "/" + rowstemp[0].filename,
-		magnet: rowstemp[0].magnet,
+		filename: filename,
+		width: dimensions?.toString().split("x")[0],
+		height: dimensions?.toString().split("x")[1],
+		filesize: filesize,
+		fileid: id.toString(),
+		pubkey: pubkey,
+		originalhash: original_hash,
+		hash: hash,
+		url: servername + "/media/" + pubkey + "/" + filename,
+		magnet: magnet,
 		torrent_infohash: "",
-		blurhash: rowstemp[0].blurhash,
+		blurhash: blurhash,
 		media_type: "", 
 		originalmime: "",
 		outputoptions: "",
-		status: rowstemp[0].status,
-		description: "",
+		status: status,
+		description: "The requested file was found",
 		servername: servername,
 		processing_url: "", 
 		conversionInputPath: "",
 		conversionOutputPath: "",
 		date: 0,
-		no_transform: rowstemp[0].original_hash == rowstemp[0].hash ? true : false,
+		no_transform: original_hash == hash ? true : false,
 		newFileDimensions: "",
 	};
 
 	// URL
 	const returnURL = app.get("config.media")["returnURL"];
 	filedata.url = returnURL 	
-	? `${returnURL}/${rowstemp[0].pubkey}/${filedata.filename}`
-	: `${filedata.servername}/media/${rowstemp[0].pubkey}/${filedata.filename}`;
+	? `${returnURL}/${pubkey}/${filedata.filename}`
+	: `${filedata.servername}/media/${pubkey}/${filedata.filename}`;
 
-	let resultstatus = false;
-	let response = 200;
-
-	if (filedata.status == "completed" || filedata.status == "success") {
-		filedata.description = "The requested file was found";
-		resultstatus = true;
-		response = 201;
-	}else if (filedata.status == "failed") {
+	let response = 201;
+	if (filedata.status == "failed") {
 		filedata.description = "It was a problem processing this file";
-		resultstatus = false;
-		response = 500;
-	}else if (filedata.status == "pending") {
-		filedata.description = "The requested file is still pending";
-		resultstatus = false;
-		response = 200;
-	}else if (filedata.status == "processing") {
+		response = 404;
+	}
+	if (filedata.status == "pending" || filedata.status == "processing") {
 		filedata.description = "The requested file is processing";
-		resultstatus = false;
 		response = 200;
 	}
-	const tags = await GetFileTags(rowstemp[0].id);
 
 	logger.info(`RES -> ${response} - ${filedata.description}`, "|", getClientIp(req));
 
 	//v0 and v1 compatibility
-	if(version != "v2"){
-		const result: MediaExtraDataResultMessage = {
-			result: resultstatus,
-			description: filedata.description,
-			url: filedata.url,
-			status: rowstemp[0].status,
-			id: rowstemp[0].id,
-			pubkey: rowstemp[0].pubkey,
-			hash: filedata.hash,
-			magnet: rowstemp[0].magnet,
-			tags: tags,
+	if(version != "v2"){return res.status(response).send(await prepareLegacMediaEvent(filedata))}; 
 
-		}; 
-		return res.status(response).send(result);
-	}
+	if (filedata.status == "failed") {return res.status(response).send({"result": false, "description" : "The requested file was not found"})};
 
 	if (filedata.status == "processing" || filedata.status == "pending") {
-
-		//Select mediafiles table for percentage
-		const db = await connect("GetMediaStatusbyID");
-		const [dbResult] = await db.query("SELECT percentage FROM mediafiles WHERE id = ?", [id]);
-		const rowstemp = JSON.parse(JSON.stringify(dbResult));
-		if (rowstemp[0] == undefined) {
-			logger.error(`File not found in database: ${id}`, "|", getClientIp(req));
-
-			const result: NIP96_processing = {
-				status: MediaStatus[1],
-				message: "The requested file was not found",
-				percentage: 0,
-			};
-			db.end();
-			return res.status(404).send(result);
-		}
-		db.end();
+		const processingStatus = await dbSelect("SELECT percentage FROM mediafiles WHERE id = ?", "percentage", [id.toString()]);
+		if (processingStatus == undefined) {return res.status(404).send({"result": false, "description" : "The requested file was not found"})};
 
 		const result: NIP96_processing = {
 			status: MediaStatus[2],
 			message: filedata.description,
-			percentage: rowstemp[0].percentage,
+			percentage: +processingStatus,
 		};
 		return res.status(202).send(result);
 	}
 
-	if (filedata.status == "failed") {
-		const result: NIP96_processing = {
-			status: MediaStatus[1],
-			message: filedata.description,
-			percentage: 0,
-		};
-		return res.status(404).send(result);
-	}
-
 	const returnmessage : NIP96_event = await PrepareNIP96_event(filedata);
 	return res.status(response).send(returnmessage);
-
 
 };
 

@@ -1,14 +1,11 @@
 import { ResultMessage } from "./server.js";
 import { Request } from "express";
 
-interface MediaResultMessage extends ResultMessage {
+interface legacyMediaReturnMessage extends ResultMessage {
 	status: string;
 	id: string;
 	pubkey: string;
 	url: string;
-}
-
-interface MediaExtraDataResultMessage extends MediaResultMessage {
 	hash: string;
 	magnet: string;
 	tags: Array<string>;
@@ -130,8 +127,7 @@ export {
 	asyncTask,
 	FileData,
 	ProcessingFileData,
-	MediaResultMessage,
-	MediaExtraDataResultMessage,
+	legacyMediaReturnMessage,
 	MediaVisibilityResultMessage,
 	mime_extension,
 	mime_conversion,
