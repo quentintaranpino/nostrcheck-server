@@ -8,7 +8,7 @@ const prepareBlobDescriptor = async (filedata : ProcessingFileData): Promise<blo
         status: filedata.status,
         message: filedata.description,
         url: filedata.url,
-        sha256: filedata.hash,
+        sha256: filedata.originalhash,
         size: filedata.filesize,
         type: mediaTypes[filedata.filename.split('.').pop() || ''],
         uploaded: filedata.date,
