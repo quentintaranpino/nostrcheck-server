@@ -180,7 +180,10 @@ const isAuthkeyValid = async (authString: string, checkAdminPrivileges: boolean 
 const generateCredentials = async (type: credentialTypes, pubkey :string, returnHashed: boolean = false, sendDM : boolean = false, onlyGenerate : boolean = false): Promise<string> => {
     try {
 
-		if (onlyGenerate) return await hashString(crypto.randomBytes(20).toString('hex'), type);
+		if (onlyGenerate) {
+			if (returnHashed) return await hashString(crypto.randomBytes(20).toString('hex'), type);
+			return crypto.randomBytes(20).toString('hex');
+		}
 
 		if (pubkey === undefined || pubkey === "") {return "";}
 
