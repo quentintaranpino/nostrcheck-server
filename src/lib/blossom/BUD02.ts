@@ -11,8 +11,10 @@ const prepareBlobDescriptor = async (filedata : ProcessingFileData): Promise<blo
         sha256: filedata.hash,
         size: filedata.filesize,
         type: mediaTypes[filedata.filename.split('.').pop() || ''],
-        uploaded: Math.floor(filedata.date / 1000)
-    }
+        uploaded: filedata.date,
+        blurhash: filedata.blurhash,
+        dim: filedata.width + "x" + filedata.height
+        }
 
     return event;
 

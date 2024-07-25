@@ -24,6 +24,8 @@ interface blobDescriptor extends ResultMessagev2{
     size: number;
     type?: string; 
     uploaded: number; 
+    blurhash: string;
+    dim: string;
 }
 
 
