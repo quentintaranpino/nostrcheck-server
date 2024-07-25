@@ -603,7 +603,10 @@ const getMediaStatusbyID = async (req: Request, res: Response, version:string): 
 	};
 
 	logger.debug(filename, pubkey, status, magnet, original_hash, hash, blurhash, dimensions, filesize, "|", getClientIp(req));
-	logger.debug(mediaFileData[0], "|", getClientIp(req));
+	logger.debug(mediaFileData, "|", getClientIp(req));
+	logger.debug("Data retrieved from database:", mediaFileData[0], "|", getClientIp(req));
+logger.debug("Request parameters:", { id, pubkey: eventHeader.pubkey, serverPubkey: app.get("config.server")["pubkey"] });
+logger.debug("Environment:", process.env.NODE_ENV);
 
 	// URL
 	const returnURL = app.get("config.media")["returnURL"];
