@@ -487,11 +487,20 @@ const getMediaList = async (req: Request, res: Response, version:string): Promis
 			newFileDimensions: "",
 		};
 
-		// URL
+		// returnURL
 		const returnURL = app.get("config.media")["returnURL"];
-		fileData.url = returnURL 	
-		? `${returnURL}/${e.pubkey}/${fileData.filename}`
-		: `${fileData.servername}/media/${e.pubkey}/${fileData.filename}`;
+
+		// NIP96 compatibility
+		if (pubkey == "") {
+			fileData.url = returnURL 	
+			? `${returnURL}/${e.pubkey}/${fileData.filename}`
+			: `${fileData.servername}/media/${e.pubkey}/${fileData.filename}`;
+		}
+
+		// Blossom compatibility
+		if (pubkey != "") {
+			fileData.url = `${fileData.servername}/${fileData.originalhash}`
+		}
 
 		const file = req.params.param1 == "list" ? await prepareBlobDescriptor(fileData) : await PrepareNIP96_listEvent(fileData);
 		files.push(file);
