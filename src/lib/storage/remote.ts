@@ -51,7 +51,6 @@ const getRemoteFile = async (filename: string): Promise<string> => {
   };
 
   try {
-    // Verificar si el archivo existe
     await s3Client.send(new HeadObjectCommand(params));
   } catch (error) {
     logger.error(`File does not exist: ${error}`);
