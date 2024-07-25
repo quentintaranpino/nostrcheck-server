@@ -498,12 +498,21 @@ const getMediaList = async (req: Request, res: Response, version:string): Promis
 	}
 	);
 
-	const response = {
-		count: files.length,
-		total: total,
-		page: page,
-		files: files,
-	};
+	let response : any;
+	// NIP96 compatibility
+	if (pubkey == "") {
+		response = {
+			count: files.length,
+			total: total,
+			page: page,
+			files: files,
+		};
+	}
+
+	// Blossom compatibility
+	if (pubkey != "") {
+		response = files
+	}
 
 	return res.status(200).send(response);
 
