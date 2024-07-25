@@ -1,10 +1,9 @@
-import { connect, dbMultiSelect } from "./database.js";
-import { logger } from "./logger.js";
+import { dbMultiSelect } from "./database.js";
 
 
 const getAvailableDomains = async (): Promise<string[]> => {
 
-	const domains = await dbMultiSelect(["domain"], "domains","1=1",[""],false);
+	const domains = await dbMultiSelect(["domain"], "domains","active = ?",["1"],false);
 	if (domains.length == 0) {return [];}
 	return domains.map((row) => row.domain);
 };
