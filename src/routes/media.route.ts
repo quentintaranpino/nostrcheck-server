@@ -1,4 +1,4 @@
-import { Application } from "express";
+import { Request, Response, Application } from "express";
 import multer from "multer";
 import { uploadMedia, getMedia, heatMedia, deleteMedia, updateMediaVisibility } from "../controllers/media.js";
 import { ResultMessage, ResultMessagev2 } from "../interfaces/server.js";
@@ -15,10 +15,8 @@ const upload = multer({
 });
 
 export const loadMediaEndpoint = async (app: Application, version:string): Promise<void> => {
-	
-	// POST
-	app.post("/api/" + version + app.get("config.server")["availableModules"]["media"]["path"], function (req, res){
-		logger.debug(Math.round(maxMBfilesize * 1024 * 1024))
+
+	const uploadMiddleware = function (req: Request, res: Response) {
 		upload.any()(req, res, function (err) {
 			//Return 413 Payload Too Large if file size is larger than maxMBfilesize from config file
 			if (err instanceof multer.MulterError && err.code === "LIMIT_FILE_SIZE") {
@@ -32,8 +30,12 @@ export const loadMediaEndpoint = async (app: Application, version:string): Promi
 			}
 			uploadMedia(req, res, version);
 		})
-	});
-
+	}
+	
+	// POST & PUT (upload)
+	app.post("/api/" + version + app.get("config.server")["availableModules"]["media"]["path"], function (req, res){uploadMiddleware(req,res)});
+	app.put("/api/" + version + app.get("config.server")["availableModules"]["media"]["path"] + "/upload", function (req, res){uploadMiddleware(req,res)});
+		
 	// DELETE
 	app.delete("/api/" + version +  app.get("config.server")["availableModules"]["media"]["path"] + "/:id", function (req, res){deleteMedia(req,res,version)});
 
