@@ -282,8 +282,6 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 	const returnmessage : NIP96_event = await PrepareNIP96_event(filedata);
 	return res.status(responseStatus).send(returnmessage);
 
-	
-
 };
 
 const getMedia = async (req: Request, res: Response, version:string) => {
@@ -535,6 +533,8 @@ const getMediaStatusbyID = async (req: Request, res: Response, version:string): 
 	const servername = "https://" + req.hostname;
 
 	const id = req.params.id || req.query.id || "";
+
+	logger.debug("id:", id, "|", getClientIp(req));
 	if (!id) {
 		logger.warn(`RES -> 400 Bad request - missing id`, "|", getClientIp(req));
 
