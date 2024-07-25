@@ -1,6 +1,6 @@
 import app from "../../app.js";
 import { ProcessingFileData } from "../../interfaces/media.js";
-import { dbSelect, dbUpdate } from "../database.js";
+import { dbMultiSelect, dbSelect, dbUpdate } from "../database.js";
 import { getHashedPath } from "../hash.js";
 import { logger } from "../logger.js";
 import { copyLocalFile, createLocalFolder, getLocalFile, deleteLocalFile } from "./local.js";
@@ -56,31 +56,35 @@ const saveFile = async (filedata: ProcessingFileData, originPath : string) : Pro
 
 /**
  * Get file path
- * @param fileName File name
+ * @param fileName or hash
  * @returns Promise<string>
  */
-const getFilePath = async (fileName: string) : Promise<string> => {
+const getFilePath = async (value: string) : Promise<string> => {
 
-    logger.debug("Checking file exist", "|", fileName);
+    logger.debug("Checking file exist", "|", value);
     logger.debug("storage type", app.get("config.storage")["type"]);
+
+    const result  = await dbMultiSelect(["localpath", "filename"],
+        "mediafiles",
+        "filename = ? or original_hash = ? and localpath is not null",
+        [value, value]);
+
+    if (result.length === 0) {return "";}
+
+    const {localpath, filename} = result[0];
 
     if (app.get("config.storage")["type"] === "local") {
 
         const mediaPath = app.get("config.storage")["local"]["mediaPath"];
-        const localPath = await dbSelect("SELECT localPath FROM mediafiles WHERE filename = ? and localpath is not null", "localPath", [fileName]);
 
-        // return await getLocalFile(mediaPath + localPath +  "/" + fileName);
-
-        if (await getLocalFile(mediaPath + localPath +  "/" + fileName)){
-            return mediaPath + localPath +  "/" + fileName;
+        if (await getLocalFile(mediaPath + localpath +  "/" + filename)){
+            return mediaPath + localpath +  "/" + filename;
         }
 
     }
 
     if (app.get("config.storage")["type"] === "remote") {
-        logger.debug(await getRemoteFile(fileName));
-
-        return await getRemoteFile(fileName);
+        return await getRemoteFile(filename);
     }
 
     return ""; 

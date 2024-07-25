@@ -21,7 +21,7 @@ import { ResultMessage, ResultMessagev2 } from "../interfaces/server.js";
 import path from "path";
 import validator from "validator";
 import fs from "fs";
-import { NIP94_data, NIP96_event, NIP96_processing } from "../interfaces/nostr.js";
+import { NIP94_data, NIP96_event, NIP96_processing, NIPKinds } from "../interfaces/nostr.js";
 import { PrepareNIP96_event, PrepareNIP96_listEvent } from "../lib/nostr/NIP96.js";
 import { generateQRCode, getClientIp } from "../lib/utils.js";
 import { generateBlurhash, generatefileHashfrombuffer } from "../lib/hash.js";
@@ -34,6 +34,8 @@ import { Readable } from "stream";
 import { getRemoteFile } from "../lib/storage/remote.js";
 import { transaction } from "../interfaces/payments.js";
 import { checkTransaction } from "../lib/payments/core.js";
+import { blobDescriptor, BUDKinds } from "../interfaces/blossom.js";
+import { prepareBlobDescriptor } from "../lib/blossom/BUD02.js";
 
 const uploadMedia = async (req: Request, res: Response, version:string): Promise<Response> => {
 
@@ -144,7 +146,7 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 		processing_url:"",
 		conversionInputPath: "",
 		conversionOutputPath: "",
-		date: "",
+		date: Math.floor(Date.now() / 1000),
 		no_transform: Boolean(req.body.no_transform) || false,
 		newFileDimensions: "",
 	};
@@ -174,7 +176,7 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 
 	// Check if the (file SHA256 hash and pubkey) is already on the database, if exist (and the upload is media type) we return the existing file URL
 	const dbHash = await dbMultiSelect(
-										["id", "hash", "magnet", "blurhash", "filename", "filesize", "dimensions"],
+										["id", "hash", "magnet", "blurhash", "filename", "filesize", "dimensions", "date"],
 										"mediafiles ", 
 										"original_hash = ? and pubkey = ? ",
 										[filedata.originalhash, pubkey],
@@ -196,6 +198,7 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 			filedata.height = +(dbHash[0].dimensions.split("x")[1]);
 		}
 		filedata.description = "File exist in database, returning existing URL";
+		filedata.date = dbHash[0].date? Math.floor(dbHash[0].date / 1000) : Math.floor(Date.now() / 1000);
 		processFile = false; 
 		insertfiledb = false;
 		makeBlurhash = false;
@@ -292,6 +295,13 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 		return res.status(200).send(returnmessage);
 	}
 
+	// Blossom compatibility
+	if (eventHeader.kind == BUDKinds.BUD01_auth) {
+		const returnmessage: blobDescriptor = await prepareBlobDescriptor(filedata);
+		return res.status(responseStatus).send(returnmessage);
+	}
+
+	// NIP96 compatibility and fallback
 	const returnmessage : NIP96_event = await PrepareNIP96_event(filedata);
 	return res.status(responseStatus).send(returnmessage);
 
@@ -345,6 +355,42 @@ const getMedia = async (req: Request, res: Response, version:string) => {
 	return res.status(400).send({"status": "error", "message": "Bad request"});
 
 }
+
+const heatMedia = async (req: Request, res: Response): Promise<Response> => {
+
+	// Check if current module is enabled
+	if (!isModuleEnabled("media", app)) {
+		logger.warn("Attempt to access a non-active module:","media","|","IP:", getClientIp(req));
+		return res.status(400).send({"status": "error", "message": "Module is not enabled"});
+	}
+
+	logger.info("HEAD /media", "|", getClientIp(req));
+
+	// Check if authorization header is valid
+	const eventHeader = await parseAuthHeader(req, "heatMedia", false);
+	if (eventHeader.status !== "success") {
+		eventHeader.pubkey = "";
+	}
+	eventHeader.authkey? res.header("Authorization", eventHeader.authkey): null;
+
+	// Get file hash from URL
+	const hash = req.params.param1.toString().split(".")[0];
+	if (!hash) {
+		logger.warn(`RES -> 400 Bad request - missing hash`, "|", getClientIp(req));
+		return res.status(400).send({"status": "error", "message": "missing hash"});
+	}
+
+	// Check if file exist on storage server
+	const filePath = await getFilePath(hash);
+	if (filePath == "") {
+		logger.warn(`RES -> 404 Not found - file not found`, "|", getClientIp(req));
+		return res.status(404).send();
+	}
+
+	logger.info(`RES -> 200 OK - file found`, "|", getClientIp(req));
+	return res.status(200).send();
+
+};
 
 const getMediaList = async (req: Request, res: Response, version:string): Promise<Response> => {
 
@@ -520,7 +566,7 @@ const getMediaStatusbyID = async (req: Request, res: Response, version:string): 
 		processing_url: "", 
 		conversionInputPath: "",
 		conversionOutputPath: "",
-		date: "",
+		date: 0,
 		no_transform: rowstemp[0].original_hash == rowstemp[0].hash ? true : false,
 		newFileDimensions: "",
 	};
@@ -1173,6 +1219,7 @@ const deleteMedia = async (req: Request, res: Response, version:string): Promise
 
 export { uploadMedia,
 		getMedia, 
+		heatMedia,
 		getMediabyURL, 
 		deleteMedia, 
 		updateMediaVisibility, 
