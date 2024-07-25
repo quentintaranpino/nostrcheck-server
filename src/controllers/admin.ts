@@ -20,6 +20,7 @@ import { dbCountModuleData, dbCountMonthModuleData, dbSelectModuleData } from ".
 import { getBalance, getUnpaidTransactionsBalance } from "../lib/payments/core.js";
 import themes from "../interfaces/themes.js";
 import { moderateFile } from "../lib/moderation/core.js";
+import { addNewUsername } from "../lib/register.js";
 
 let hits = 0;
 /**
@@ -517,26 +518,24 @@ const insertDBRecord = async (req: Request, res: Response): Promise<Response> =>
 
     // Specific case for registered table
     if (req.body.table == "nostraddressData"){
-
-    // Check if the provided pubkey is valid
-    let decodedHex = await npubToHex(req.body.row["pubkey"]);
-    if (decodedHex != req.body.row["hex"]){
-        const result : authkeyResultMessage = {
-            status: "error",
-            message: "Invalid npub / hex",
-            authkey: EventHeader.authkey
-            };
-        logger.error("RES -> Invalid pubkey" + " | " + getClientIp(req));
-        return res.status(400).send(result);
-    }
-
-    req.body.row["date"] = new Date().toISOString().slice(0, 19).replace('T', ' ');
-    // Generate a random password only for user creation (can't be empty) the we recreate it in the next step for real.
-    req.body.row["password"] = await generateCredentials('password', "", false, false, true)
+        if (await npubToHex(req.body.row["pubkey"]) != req.body.row["hex"]){
+            const result : authkeyResultMessage = {
+                status: "error",
+                message: "Invalid npub / hex",
+                authkey: EventHeader.authkey
+                };
+            logger.error("RES -> Invalid pubkey" + " | " + getClientIp(req));
+            return res.status(400).send(result);
+        }
     }
 
     // Insert records into the table
-    const insert = await dbInsert(table, Object.keys(req.body.row), Object.values(req.body.row));
+    let insert : number = 0;
+    if (req.body.table == "nostraddressData"){
+        insert = await addNewUsername(req.body.row["username"], req.body.row["hex"], req.body.row["password"], req.body.row["domain"], req.body.row["comments"]);
+    }else{
+        insert = await dbInsert(table, Object.keys(req.body.row), Object.values(req.body.row));
+    }
     if (insert === 0) {
         const result : authkeyResultMessage = {
             status: "error",
@@ -545,20 +544,6 @@ const insertDBRecord = async (req: Request, res: Response): Promise<Response> =>
             };
         logger.error("RES -> Failed to insert records" + " | " + getClientIp(req));
         return res.status(500).send(result);
-    }
-
-    // If table is 'registered', we generate a new password and insert it into new created record. Then we send it to the user via DM
-    if (req.body.table == "nostraddressData"){
-        const newPass = await generateCredentials('password', req.body.row["hex"], false, true)
-        if (newPass == "") {
-            const result : authkeyResultMessage = {
-                status: "error",
-                message: "Failed to generate new password",
-                authkey: EventHeader.authkey
-                };
-            logger.error("RES -> Failed to generate new password" + " | " + getClientIp(req));
-            return res.status(500).send(result);
-        }
     }
 
     const result : authkeyResultMessage = {
