@@ -438,7 +438,7 @@ const getMediaList = async (req: Request, res: Response, version:string): Promis
 			wherefields.push(until);
 		}
 
-		whereStatement += " ORDER BY date";
+		whereStatement += " ORDER BY date DESC";
 	}
 
 	// NIP96 where statement
