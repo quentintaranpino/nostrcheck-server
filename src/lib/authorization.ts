@@ -23,7 +23,7 @@ import { BUDKinds } from "../interfaces/blossom.js";
  */
 const parseAuthHeader = async (req: Request, endpoint: string = "", checkAdminPrivileges = true): Promise<authHeaderResult> => {
 
-	// Apikey.  Will be deprecated on 0.7.0
+	// Apikey. Will be deprecated on 0.7.0
 	if (req.query.apikey || req.body.apikey) {
 		logger.debug("Apikey found on request", req.query.apikey || req.body.apikey, "|", req.socket.remoteAddress)
 		return await isApikeyValid(req, endpoint, checkAdminPrivileges);
@@ -55,7 +55,7 @@ const parseAuthHeader = async (req: Request, endpoint: string = "", checkAdminPr
 
 			// Check NIP98 / BUD01
 			if (authevent.kind == BUDKinds.BUD01_auth) {
-				return await isBUD01AuthValid(authevent, req, checkAdminPrivileges);
+				return await isBUD01AuthValid(authevent, req, endpoint, checkAdminPrivileges);
 			}
 
 			if (authevent.kind == NIPKinds.NIP98){
@@ -246,11 +246,11 @@ const isApikeyValid = async (req: Request, endpoint: string = "", checkAdminPriv
 	// We only allow server apikey for uploadMedia endpoint
 	const serverApikey = await dbSelect("SELECT apikey FROM registered WHERE username = ?", "apikey", ["public"]);
 	const hexApikey = await dbSelect(
-		(endpoint != "uploadmedia" && endpoint != "getMediaStatusbyID")
+		(endpoint != "upload" && endpoint != "getMediaStatusbyID")
 			? "SELECT hex FROM registered WHERE apikey = ? and apikey <> ?"
 			: "SELECT hex FROM registered WHERE apikey = ?",
 		"hex",
-		endpoint != "Uploadmedia" ? [apikey, serverApikey] : [apikey.toString()]
+		endpoint != "upload" ? [apikey, serverApikey] : [apikey.toString()]
 	) as string;
 
 	if (hexApikey === "" || hexApikey === undefined) {

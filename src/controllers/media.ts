@@ -48,7 +48,7 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 	logger.info("POST /api/" + version + "/media", "|", getClientIp(req));
 
 	// Check if authorization header is valid
-	const eventHeader = await parseAuthHeader(req, "uploadmedia", false);
+	const eventHeader = await parseAuthHeader(req, "upload", false);
 	if (eventHeader.status != "success") {
 		if(version != "v2"){return res.status(401).send({"result": false, "description" : eventHeader.message});}
 
@@ -1154,7 +1154,7 @@ const deleteMedia = async (req: Request, res: Response, version:string): Promise
 	}
 
 	// Check if authorization header is valid
-	const EventHeader = await parseAuthHeader(req, "deleteMedia", false);
+	const EventHeader = await parseAuthHeader(req, "delete", false);
 	if (EventHeader.status !== "success") {
 		
 		//v0 and v1 compatibility

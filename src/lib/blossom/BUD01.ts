@@ -10,7 +10,7 @@ import { BUDKinds } from "../../interfaces/blossom.js";
 
 // https://github.com/hzrd149/blossom/blob/master/buds/01.md
 
-const isBUD01AuthValid = async (authevent: Event, req: Request, checkAdminPrivileges = true): Promise<authHeaderResult> => {
+const isBUD01AuthValid = async (authevent: Event, req: Request, endpoint: string, checkAdminPrivileges = true): Promise<authHeaderResult> => {
 
     // Check if event authorization kind is valid (Must be 24242)
 	try {
@@ -62,19 +62,13 @@ const isBUD01AuthValid = async (authevent: Event, req: Request, checkAdminPrivil
 	// Check if event authorization u tag (URL) is valid (Must be the same as the server endpoint)
 	try {
 
-		// Server endpoint can be /media/upload or /media/test/tost/upload and I want only "upload"
-		// So I will split the string by "/" and get the last element
-		// This will also work if the endpoint is /media/upload/ or /media/upload// or /media/upload///
-
-		const serverEndpoint = req.url.split("/").filter(Boolean).pop() as string;
-		// const ServerEndpoint = `${req.url}`;
 		if (app.get('config.environment') == "development") {
 			logger.warn("DEVMODE: Setting 't'(endpoint) tag same as the endpoint URL", "|", req.socket.remoteAddress);
-			eventEndpoint = serverEndpoint;
+			eventEndpoint = endpoint;
 		} 
-		if (eventEndpoint == null || eventEndpoint == undefined || eventEndpoint != serverEndpoint) {
-			logger.warn("RES -> 400 Bad request - Auth header event endpoint is not valid", eventEndpoint, "<>", serverEndpoint,	"|", req.socket.remoteAddress);
-			return {status: "error", message: `Auth header event endpoint is not valid: ${eventEndpoint} <> ${serverEndpoint}`, authkey: "", pubkey: "", kind: 0};
+		if (eventEndpoint == null || eventEndpoint == undefined || eventEndpoint != endpoint) {
+			logger.warn("RES -> 400 Bad request - Auth header event endpoint is not valid", eventEndpoint, "<>", endpoint,	"|", req.socket.remoteAddress);
+			return {status: "error", message: `Auth header event endpoint is not valid: ${eventEndpoint} <> ${endpoint}`, authkey: "", pubkey: "", kind: 0};
 		}
 	} catch (error) {
 		logger.error(`RES -> 400 Bad request - ${error}`, "|", req.socket.remoteAddress);
