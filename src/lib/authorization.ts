@@ -8,6 +8,9 @@ import crypto from "crypto";
 import { sendMessage } from "./nostr/NIP04.js";
 import { isNIP98Valid } from "./nostr/NIP98.js";
 import { Event } from "nostr-tools";
+import { isBUD01AuthValid } from "./blossom/BUD01.js";
+import { NIPKinds } from "../interfaces/nostr.js";
+import { BUDKinds } from "../interfaces/blossom.js";
 
 
 /**
@@ -29,7 +32,7 @@ const parseAuthHeader = async (req: Request, endpoint: string = "", checkAdminPr
 	//Check if request has authorization header.
 	if (req.headers.authorization === undefined) {
 		logger.warn("RES -> 400 Bad request - Authorization header not found","|",req.socket.remoteAddress);
-		return {status: "error", message: "Authorization header not found", pubkey:"", authkey:""};
+		return {status: "error", message: "Authorization header not found", pubkey:"", authkey:"", kind: 0};
 	}
 
 	// Authkey. Bearer token.
@@ -38,10 +41,10 @@ const parseAuthHeader = async (req: Request, endpoint: string = "", checkAdminPr
 		return await isAuthkeyValid(req.headers.authorization.split(' ')[1], checkAdminPrivileges);
 	} 
 
-	// NIP98. Nostr token.
+	// NIP98 or BUD01. Nostr / Blossom token
 	if (req.headers.authorization.startsWith('Nostr ')) {
 		let authevent: Event;
-		logger.debug("NIP 98 found on request", req.headers.authorization, "|", req.socket.remoteAddress);
+		logger.debug("NIP98 / BUD01 found on request", req.headers.authorization, "|", req.socket.remoteAddress);
 		try {
 			authevent = JSON.parse(
 				Buffer.from(
@@ -49,19 +52,26 @@ const parseAuthHeader = async (req: Request, endpoint: string = "", checkAdminPr
 					"base64"
 				).toString("utf8")
 			);
+
+			// Check NIP98 / BUD01
+			if (authevent.kind == BUDKinds.BUD01_auth) {
+				return await isBUD01AuthValid(authevent, req, checkAdminPrivileges);
+			}
+
+			if (authevent.kind == NIPKinds.NIP98){
+				return await isNIP98Valid(authevent, req, checkAdminPrivileges);
+			}
+
 		} catch (error) {
 			logger.warn(`RES -> 400 Bad request - ${error}`, "|", req.socket.remoteAddress);
-			return {status: "error", message: "Malformed authorization header", pubkey:"", authkey : ""};
+			return {status: "error", message: "Malformed authorization header", pubkey:"", authkey : "", kind: 0};
 		}
-
-		// Check if NIP98 event authorization content is valid, 
-		return await isNIP98Valid(authevent, req, checkAdminPrivileges);
 		
 	}
 	
 	// If none of the above, return error
 	logger.warn("RES -> 400 Bad request - Authorization header not found", "|", req.socket.remoteAddress);
-	return {status: "error", message: "Authorization header not found", pubkey:"", authkey:""};
+	return {status: "error", message: "Authorization header not found", pubkey:"", authkey:"", kind: 0};
 
 };
 
@@ -137,7 +147,7 @@ const isAuthkeyValid = async (authString: string, checkAdminPrivileges: boolean 
 
 	if (authString === undefined || authString === "") {
 		logger.warn("Unauthorized request, no authorization header");
-		return {status: "error", message: "Unauthorized", authkey: "", pubkey:""};
+		return {status: "error", message: "Unauthorized", authkey: "", pubkey:"", kind: 0};
 	}
 
 	const hashedAuthkey = await hashString(authString, 'authkey');
@@ -147,7 +157,7 @@ const isAuthkeyValid = async (authString: string, checkAdminPrivileges: boolean 
 		const hex =  await dbSelect(`SELECT hex FROM registered WHERE ${whereStatement}`, "hex", [hashedAuthkey, checkAdminPrivileges == true? '1':'0']) as string;
 		if (hex == ""){
 			logger.warn("Unauthorized request, authkey not allwed or not found")
-			return {status: "error", message: "Unauthorized", authkey: "", pubkey:""};
+			return {status: "error", message: "Unauthorized", authkey: "", pubkey:"", kind: 0};
 		}
 
 		// Generate a new authkey for each request
@@ -155,12 +165,12 @@ const isAuthkeyValid = async (authString: string, checkAdminPrivileges: boolean 
 		logger.debug("New authkey generated for", hex, ":", newAuthkey)
 		if (newAuthkey == ""){
 			logger.error("Failed to generate authkey for", hex);
-			return {status: "error", message: "Internal server error", authkey: "", pubkey: ""};
+			return {status: "error", message: "Internal server error", authkey: "", pubkey: "", kind: 0};
 		}
-		return {status: "success", message: "Authorized", authkey: newAuthkey, pubkey:hex};
+		return {status: "success", message: "Authorized", authkey: newAuthkey, pubkey:hex, kind: 0};
 	}catch (error) {
 		logger.error(error);
-		return {status: "error", message: "Internal server error", authkey: "", pubkey:""};
+		return {status: "error", message: "Internal server error", authkey: "", pubkey:"", kind: 0};
 	}
 }
 
@@ -227,7 +237,7 @@ const isApikeyValid = async (req: Request, endpoint: string = "", checkAdminPriv
 	let apikey = req.query.apikey || req.body.apikey;
 	if (!apikey) {
 		logger.warn("RES -> 400 Bad request - Apikey not found", "|", req.socket.remoteAddress);
-		return {status: "error", message: "Apikey not found", pubkey:"", authkey:""};
+		return {status: "error", message: "Apikey not found", pubkey:"", authkey:"", kind: 0};
 	}
 
 	// We only allow server apikey for uploadMedia endpoint
@@ -243,17 +253,17 @@ const isApikeyValid = async (req: Request, endpoint: string = "", checkAdminPriv
 	if (hexApikey === "" || hexApikey === undefined) {
 		if (serverApikey){
 			logger.warn("RES -> 401 unauthorized - Apikey not authorized for this action", "|", req.socket.remoteAddress);
-			return {status: "error", message: "Apikey not authorized for this action", pubkey:"", authkey:""};
+			return {status: "error", message: "Apikey not authorized for this action", pubkey:"", authkey:"", kind: 0};
 		}
 		logger.warn("RES -> 401 unauthorized - Apikey not found", "|", req.socket.remoteAddress);
-		return {status: "error", message: "Apikey not authorized for this action", pubkey:"", authkey:""};
+		return {status: "error", message: "Apikey not authorized for this action", pubkey:"", authkey:"", kind: 0};
 	}
 
 	if (checkAdminPrivileges) {
 		const admin = await dbSelect("SELECT allowed FROM registered WHERE hex = ?", "allowed", [hexApikey]) as string;
 		if (admin === "0") {
 			logger.warn("RES -> 403 forbidden - Apikey does not have admin privileges", "|", req.socket.remoteAddress);
-			return {status: "error", message: "Apikey not authorized for this action", pubkey:"", authkey:""};
+			return {status: "error", message: "Apikey not authorized for this action", pubkey:"", authkey:"", kind: 0};
 		}
 	}
 
@@ -261,7 +271,8 @@ const isApikeyValid = async (req: Request, endpoint: string = "", checkAdminPriv
 		status: "success",
 		message: "Apikey is valid",
 		pubkey: hexApikey,
-		authkey: ""
+		authkey: "",
+		kind: 0
 	};
 	return result;
 };

@@ -18,15 +18,15 @@ const isNIP98Valid = async (authevent: Event, req: Request, checkAdminPrivileges
 
 	// Check if event authorization kind is valid (Must be 27235)
 	try {
-		const eventkind: number = +authevent.kind;
-		if (eventkind == null || eventkind == undefined || eventkind != NIPKinds.NIP98) {
+		const eventKind: number = +authevent.kind;
+		if (eventKind == null || eventKind == undefined || eventKind != NIPKinds.NIP98) {
 			logger.warn("RES -> 400 Bad request - Auth header event kind is not 27235","|",	req.socket.remoteAddress);
-			return {status: "error", message: "Auth header event kind is not 27235", authkey: "", pubkey: ""};
+			return {status: "error", message: "Auth header event kind is not 27235", authkey: "", pubkey: "", kind: 0};
 		}
 
 	} catch (error) {
 		logger.error(`RES -> 400 Bad request - ${error}`, "|", req.socket.remoteAddress);
-		return {status: "error", message: "Auth header event kind is not 27235", authkey: "", pubkey: ""};
+		return {status: "error", message: "Auth header event kind is not 27235", authkey: "", pubkey: "", kind: 0};
 	}
 
 	// Check if created_at is within a reasonable time window (60 seconds)
@@ -44,11 +44,11 @@ const isNIP98Valid = async (authevent: Event, req: Request, checkAdminPrivileges
 				"|",
 				req.socket.remoteAddress
 			);
-			return {status: "error", message: `Auth header event created_at is not within a reasonable time window ${created_at}<>${now}`, authkey: "", pubkey: ""};
+			return {status: "error", message: `Auth header event created_at is not within a reasonable time window ${created_at}<>${now}`, authkey: "", pubkey: "", kind: 0};
 		}
 	} catch (error) {
 		logger.error(`RES -> 400 Bad request - ${error}`, "|", req.socket.remoteAddress);
-		return {status: "error", message: "Auth header event created_at is not within a reasonable time window", authkey: "", pubkey: ""};
+		return {status: "error", message: "Auth header event created_at is not within a reasonable time window", authkey: "", pubkey: "", kind: 0};
 	}
 
 	// Event endpoint
@@ -64,11 +64,11 @@ const isNIP98Valid = async (authevent: Event, req: Request, checkAdminPrivileges
 		} 
 		if (eventEndpoint == null || eventEndpoint == undefined || eventEndpoint != ServerEndpoint) {
 			logger.warn("RES -> 400 Bad request - Auth header event endpoint is not valid", eventEndpoint, "<>", ServerEndpoint,	"|", req.socket.remoteAddress);
-			return {status: "error", message: `Auth header event endpoint is not valid: ${eventEndpoint} <> ${ServerEndpoint}`, authkey: "", pubkey: ""};
+			return {status: "error", message: `Auth header event endpoint is not valid: ${eventEndpoint} <> ${ServerEndpoint}`, authkey: "", pubkey: "", kind: 0};
 		}
 	} catch (error) {
 		logger.error(`RES -> 400 Bad request - ${error}`, "|", req.socket.remoteAddress);
-		return {status: "error", message: "Auth header event endpoint is not valid", authkey: "", pubkey: ""};
+		return {status: "error", message: "Auth header event endpoint is not valid", authkey: "", pubkey: "", kind: 0};
 	}
 
 	// Method
@@ -80,11 +80,11 @@ const isNIP98Valid = async (authevent: Event, req: Request, checkAdminPrivileges
 
 		if (eventMethod == null || eventMethod == undefined || eventMethod != req.method) {
 			logger.warn("RES -> 400 Bad request - Auth header event method is not valid:",eventMethod,"<>",req.method,"|",req.socket.remoteAddress);
-			return {status: "error", message: `Auth header event method is not valid`, authkey: "", pubkey: ""};
+			return {status: "error", message: `Auth header event method is not valid`, authkey: "", pubkey: "", kind: 0};
 		}
 	} catch (error) {
 		logger.error(`RES -> 400 Bad request - ${error}`, "|", req.socket.remoteAddress);
-		return {status: "error", message: "Auth header event method is not valid", authkey: "", pubkey: ""};
+		return {status: "error", message: "Auth header event method is not valid", authkey: "", pubkey: "", kind: 0};
 	}
 
 	// Payload
@@ -115,7 +115,7 @@ const isNIP98Valid = async (authevent: Event, req: Request, checkAdminPrivileges
 			}
 		} catch (error) {
 			logger.error(`RES -> 400 Bad request - ${error}`, "|", req.socket.remoteAddress);
-			return {status: "error", message: "Auth header event payload is not valid", authkey: "", pubkey: ""};
+			return {status: "error", message: "Auth header event payload is not valid", authkey: "", pubkey: "", kind: 0};
 		}
 	}
 
@@ -126,11 +126,11 @@ const isNIP98Valid = async (authevent: Event, req: Request, checkAdminPrivileges
 		const isPubkeyAdmin = await dbSelect("SELECT allowed FROM registered WHERE hex = ?", "allowed", [authevent.pubkey]) as string;
 		if (isPubkeyAdmin === "0") {
 			logger.warn("RES -> 403 forbidden - Pubkey does not have admin privileges", "|", req.socket.remoteAddress);
-			return {status: "error", message: "This pubkey does not have admin privileges", pubkey: authevent.pubkey, authkey: ""};
+			return {status: "error", message: "This pubkey does not have admin privileges", pubkey: authevent.pubkey, authkey: "", kind: 0};
 		}
 	}
 
-	return { status: "success", message: "Auth header event is valid", authkey: "", pubkey: authevent.pubkey };
+	return { status: "success", message: "Auth header event is valid", authkey: "", pubkey: authevent.pubkey, kind: +authevent.kind};
 };
 
 export { isNIP98Valid };
