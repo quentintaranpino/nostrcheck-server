@@ -96,7 +96,7 @@ interface FileData{
 	url: string;
 	magnet: string;
 	torrent_infohash: string;
-	date: string;
+	date: number;
 	servername: string;
 	no_transform: boolean;
 }

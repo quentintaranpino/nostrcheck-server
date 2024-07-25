@@ -1,6 +1,6 @@
 import { Application } from "express";
 import multer from "multer";
-import { uploadMedia, getMedia, getMediabyURL, deleteMedia, updateMediaVisibility, getMediaTagsbyID, getMediabyTags } from "../controllers/media.js";
+import { uploadMedia, getMedia, heatMedia, deleteMedia, updateMediaVisibility } from "../controllers/media.js";
 import { ResultMessage, ResultMessagev2 } from "../interfaces/server.js";
 import { logger } from "../lib/logger.js";
 import { getClientIp } from "../lib/utils.js";
@@ -37,6 +37,9 @@ export const loadMediaEndpoint = async (app: Application, version:string): Promi
 	// DELETE
 	app.delete("/api/" + version +  app.get("config.server")["availableModules"]["media"]["path"] + "/:id", function (req, res){deleteMedia(req,res,version)});
 
+	// HEAD
+	app.head("/api/" + version + app.get("config.server")["availableModules"]["media"]["path"] + "/:param1", heatMedia);
+
 	// GET
 	app.get(`/api/${version}${app.get("config.server")["availableModules"]["media"]["path"]}/:param1?/:param2?`, function (req, res) {
 		getMedia(req, res, version);
@@ -49,5 +52,7 @@ export const loadMediaEndpoint = async (app: Application, version:string): Promi
         //NIP96 json file
         app.get("/api/v2/nip96", NIP96Data);
 	}
+
+
 
 };

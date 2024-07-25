@@ -1,3 +1,5 @@
+import { ResultMessagev2 } from "./server";
+
 enum BUDKinds {
 	BUD01_auth = 24242,
 }
@@ -14,5 +16,16 @@ interface BUD01_authEvent {
       ["expiration", string]
     ];
     sig: string;
-  }
+}
 
+interface blobDescriptor extends ResultMessagev2{
+    url: string; 
+    sha256: string; 
+    size: number;
+    type?: string; 
+    uploaded: number; 
+}
+
+
+
+export { BUDKinds, BUD01_authEvent, blobDescriptor };
