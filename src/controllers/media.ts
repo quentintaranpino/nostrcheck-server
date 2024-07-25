@@ -603,6 +603,7 @@ const getMediaStatusbyID = async (req: Request, res: Response, version:string): 
 	};
 
 	logger.debug(filename, pubkey, status, magnet, original_hash, hash, blurhash, dimensions, filesize, "|", getClientIp(req));
+	logger.debug(mediaFileData[0], "|", getClientIp(req));
 
 	// URL
 	const returnURL = app.get("config.media")["returnURL"];
