@@ -17,7 +17,7 @@ const PrepareNIP94_event = async (filedata : ProcessingFileData): Promise<NIP94_
                         ["m", mediaTypes[filedata.filename.split('.').pop() || '']],
                         ["x", filedata.hash],
                         ["ox", filedata.originalhash],
-                        ["size", filedata.processing_url == "" ? filedata.filesize.toString() : ""],
+                        ["size", filedata.processing_url == "" ? filedata.filesize? filedata.filesize.toString() : "" : ""],
                         ["dim",filedata.processing_url == "" ? filedata.width + "x" + filedata.height : ""],
                         ["magnet", filedata.magnet],
                         ["i", filedata.torrent_infohash],
