@@ -602,6 +602,8 @@ const getMediaStatusbyID = async (req: Request, res: Response, version:string): 
 		newFileDimensions: "",
 	};
 
+	logger.debug(filename, pubkey, status, magnet, original_hash, hash, blurhash, dimensions, filesize, "|", getClientIp(req));
+
 	// URL
 	const returnURL = app.get("config.media")["returnURL"];
 	filedata.url = returnURL 	
