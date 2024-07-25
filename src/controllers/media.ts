@@ -147,7 +147,7 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 		conversionInputPath: "",
 		conversionOutputPath: "",
 		date: Math.floor(Date.now() / 1000),
-		no_transform: Boolean(req.body.no_transform) || false,
+		no_transform: req.params.param1 == "upload" ? true : Boolean(req.body.no_transform) || false,
 		newFileDimensions: "",
 	};
 
@@ -309,7 +309,7 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 
 const getMedia = async (req: Request, res: Response, version:string) => {
 
-	if (req.params.param1 && req.params.param2) {
+	if ((req.params.param1 && req.params.param2) && req.params.param1 != "list") {
 		if (req.params.param2 == 'tags'){
 			req.params.fileId = req.params.param1;
 			getMediaTagsbyID(req, res); 
@@ -409,33 +409,63 @@ const getMediaList = async (req: Request, res: Response, version:string): Promis
 	}
 	eventHeader.authkey? res.header("Authorization", eventHeader.authkey): null;
 
-	// Get query parameters
+	// Get NIP96 query parameters
 	const page = Number(req.query.page) || 0;
 	let count = Number(req.query.count) || 10;
-	count > 30 ? count = 30 : count; // Limit count value to 100
+	count > 30 ? count = 30 : count; // Limit count value to 30
 	const offset = count * page; 
 
-	const whereStatement = eventHeader.pubkey ? "pubkey = ? and active = ?" : "active = ? and visibility = ? and checked = ?";
-	const wherefields = eventHeader.pubkey ? [eventHeader.pubkey, "1", count, offset] : ["1", "1", "1", count, offset];
+	// Get Blossom query parameters
+	const since = req.query.since || "";
+	const until = req.query.until || "";
+	const pubkey = req.params.param2 || "";
+
+	let whereStatement = "";
+	let wherefields : any[] = [];
+	
+	// Blossom where statement
+	if (pubkey != "") {
+		whereStatement = "pubkey = ? and active = ? and visibility = ?";
+		wherefields = [pubkey, "1", "1"];
+
+		if (since != "") {
+			whereStatement += " and date >= ?";
+			wherefields.push(since);
+		}
+
+		if (until != "") {
+			whereStatement += " and date <= ?";
+			wherefields.push(until);
+		}
+
+		whereStatement += " ORDER BY date";
+	}
+
+	// NIP96 where statement
+	if (pubkey == "") {
+		whereStatement = eventHeader.pubkey ? "pubkey = ? and active = ?" : "active = ? and visibility = ? and checked = ? ORDER BY date DESC LIMIT ? OFFSET ?";
+		wherefields = eventHeader.pubkey ? [eventHeader.pubkey, "1", count, offset] : ["1", "1", "1", count, offset];
+	}
 
 	// Get files and total from database
 	const result = await dbMultiSelect(["id", "filename", "original_hash", "hash", "filesize", "dimensions", "date", "blurhash", "pubkey"],
 										"mediafiles",
-										`${whereStatement} ORDER BY date DESC LIMIT ? OFFSET ?`,
+										`${whereStatement}`,
 										wherefields, false);
 	
-	const selectStatement = eventHeader.pubkey ? "SELECT COUNT(*) AS count FROM mediafiles WHERE pubkey = ? and active = '1'" : "SELECT COUNT(*) AS count FROM mediafiles WHERE active = '1' and visibility = '1'";									
-	const total = await dbSelect(selectStatement, "count", [eventHeader.pubkey]);
+	const selectStatement = eventHeader.pubkey || pubkey ? "SELECT COUNT(*) AS count FROM mediafiles WHERE pubkey = ? and active = '1'" : "SELECT COUNT(*) AS count FROM mediafiles WHERE active = '1' and visibility = '1'";									
+	const total = await dbSelect(selectStatement, "count", [eventHeader.pubkey || pubkey]);
 	
-	const files : NIP94_data[] = [];
+	const files : any[] = [];
 	await result.forEach(async e => {
 
-		const fileData : FileData = {
+		const fileData : ProcessingFileData = {
+
 			filename: e.filename,
 			originalhash: e.original_hash,
 			hash: e.hash,
 			filesize: Number(e.filesize),
-			date: e.date,
+			date: e.date? Math.floor(e.date / 1000) : Math.floor(Date.now() / 1000),
 			fileid: e.id,
 			pubkey: eventHeader.pubkey? eventHeader.pubkey : e.pubkey,
 			width: Number(e.dimensions?.toString().split("x")[0]),
@@ -446,6 +476,15 @@ const getMediaList = async (req: Request, res: Response, version:string): Promis
 			blurhash: e.blurhash,
 			servername: "https://" + req.hostname,
 			no_transform: e.hash == e.original_hash ? true : false,
+			media_type: "",
+			originalmime: "",
+			outputoptions: "",
+			status: "success",
+			description: "",
+			processing_url: "",
+			conversionInputPath: "",
+			conversionOutputPath: "",
+			newFileDimensions: "",
 		};
 
 		// URL
@@ -454,7 +493,7 @@ const getMediaList = async (req: Request, res: Response, version:string): Promis
 		? `${returnURL}/${e.pubkey}/${fileData.filename}`
 		: `${fileData.servername}/media/${e.pubkey}/${fileData.filename}`;
 
-		const file  = await PrepareNIP96_listEvent(fileData);
+		const file = req.params.param1 == "list" ? await prepareBlobDescriptor(fileData) : await PrepareNIP96_listEvent(fileData);
 		files.push(file);
 	}
 	);
