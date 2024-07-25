@@ -552,7 +552,7 @@ const getMediaStatusbyID = async (req: Request, res: Response, version:string): 
 
 	const mediaFileData = await dbMultiSelect(["id", "filename", "pubkey", "status", "magnet", "original_hash", "hash", "blurhash", "dimensions", "filesize"],
 												"mediafiles",
-												"id = ? and pubkey = ? or pubkey = ?",
+												"id = ? and (pubkey = ? or pubkey = ?)",
 												[id, eventHeader.pubkey, app.get("config.server")["pubkey"]],
 												true);
 
