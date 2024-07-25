@@ -499,7 +499,7 @@ const getMediaList = async (req: Request, res: Response, version:string): Promis
 
 		// Blossom compatibility
 		if (pubkey != "") {
-			fileData.url = `${fileData.servername}/${fileData.originalhash}`
+			fileData.url = `${fileData.servername}/${fileData.originalhash? fileData.originalhash : fileData.filename}`;
 		}
 
 		const file = req.params.param1 == "list" ? await prepareBlobDescriptor(fileData) : await PrepareNIP96_listEvent(fileData);
