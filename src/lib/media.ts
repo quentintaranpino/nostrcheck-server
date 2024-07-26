@@ -236,64 +236,80 @@ const standardMediaConversion = (filedata : ProcessingFileData , file:Express.Mu
 
 }
 
-async function setMediaDimensions(file:string, options:ProcessingFileData):Promise<string> {
+const getMediaDimensions = async (file: string, fileData: { originalmime: string }): Promise<{ width: number, height: number }> => {
+
+	if (file == "" || fileData == undefined) {
+		logger.error("Error processing file: file or fileData is empty");
+		return { width: 640, height: 480 };
+	}
+
+    return new Promise<{ width: number, height: number }>(async (resolve) => {
+        try {
+            if (fileData.originalmime.startsWith("image")) {
+                const imageInfo = await sharp(file).metadata();
+                if (imageInfo.orientation && imageInfo.orientation >= 5) {
+                    resolve({ width: imageInfo.height!, height: imageInfo.width! });
+                } else {
+                    resolve({ width: imageInfo.width!, height: imageInfo.height! });
+                }
+            } else {
+                ffmpeg.ffprobe(file, (err, metadata) => {
+                    if (err) {
+                        console.error("Could not get media dimensions of file: " + file + " using default min width (640px)");
+                        resolve({ width: 640, height: 480 });
+                    } else {
+                        const videoStream = metadata.streams.find(stream => stream.codec_type === 'video');
+                        if (videoStream) {
+                            resolve({ width: videoStream.width? videoStream.width: 640, height: videoStream.height? videoStream.height: 480 });
+                        } else {
+                            logger.error("Could not get media dimensions of file: " + file + " using default min width (640px)");
+                            resolve({ width: 640, height: 480 });
+                        }
+                    }
+                });
+            }
+        } catch (error) {
+            logger.error("Error processing file: ", error);
+            resolve({ width: 640, height: 480 });
+        }
+    });
+}
+
+
+const setMediaDimensions = async (file:string, options:ProcessingFileData):Promise<string> => {
 
 	const response:string = await new Promise (async (resolve) => {
 
-		let mediaWidth : number | undefined;
-		let mediaHeight : number | undefined;
-		
-		// If is an image and has orientation, swap width and height. More info: https://github.com/lovell/sharp/commit/4ac65054bcf4d59a90764f908f8921f5e927d364 
-		if (options.originalmime.startsWith("image")) {
-			const imageInfo = await sharp(file).metadata()
-			if (imageInfo.orientation && imageInfo.orientation >= 5) {
-				mediaWidth = imageInfo.height;
-				mediaHeight = imageInfo.width;
-			}
-		}
-	
-		ffmpeg.ffprobe(file, (err, metadata) => {
-		if (err) {
-			logger.error("Could not get media dimensions of file: " + options.filename + " using default min width (640px)");
-			resolve("640x480"); //Default min width
-			return;
-		} else {
-			let videoStream = metadata.streams.find(stream => stream.codec_type === 'video');
-			if (videoStream) {
-				mediaWidth = mediaWidth ? mediaWidth : videoStream.width;
-				mediaHeight = mediaHeight ? mediaHeight : videoStream.height;
-			}
-			let newWidth = options.width;
-			let newHeight = options.height;
+		const mediaDimensions = await getMediaDimensions(file, options);
 
+		let mediaWidth : number = mediaDimensions.width? mediaDimensions.width: 0;
+		let mediaHeight : number = mediaDimensions.height? mediaDimensions.height: 0;
+		let newWidth = options.width;
+		let newHeight = options.height;
 			
-			if (!mediaWidth || !mediaHeight) {
-				logger.warn("Could not get media dimensions of file: " + options.filename + " using default min width (640px)");
-				resolve("640x480"); //Default min width
-				return;
-			}
+		if (mediaWidth == 0 || mediaHeight == 0) {
+			logger.warn("Could not get media dimensions of file: " + options.filename + " using default size (640x480)");
+			resolve("640x480");
+			return;
+		}
 
-			if (mediaWidth > newWidth || mediaHeight > newHeight) {
-				if (mediaWidth > mediaHeight) {
-					newHeight = (mediaHeight / mediaWidth) * newWidth;
-				}else{
-					newWidth = (mediaWidth / mediaHeight) * newHeight;
-				}
+		if (mediaWidth > newWidth || mediaHeight > newHeight) {
+			if (mediaWidth > mediaHeight) {
+				newHeight = (mediaHeight / mediaWidth) * newWidth;
 			}else{
-				newWidth = mediaWidth;
-				newHeight = mediaHeight;
+				newWidth = (mediaWidth / mediaHeight) * newHeight;
 			}
+		}else{
+			newWidth = mediaWidth;
+			newHeight = mediaHeight;
+		}
 
-			//newHeigt truncated to 0 decimals
-			newWidth = Math.trunc(+newWidth);
-			newHeight = Math.trunc(+newHeight);
+		newWidth = Math.trunc(+newWidth);
+		newHeight = Math.trunc(+newHeight);
 
-			logger.debug("Origin dimensions:", +mediaWidth + "px", +mediaHeight + "px",);
-			logger.info("Output dimensions:", +newWidth + "px", +newHeight + "px",);		
+		logger.info(`Original dimensions: ${mediaWidth}x${mediaHeight} | New dimensions: ${newWidth}x${newHeight}`);
 
-			resolve(newWidth + "x" + newHeight);
-		}})
-
+		resolve(newWidth + "x" + newHeight);
 	});
 
 	return response;
@@ -411,7 +427,8 @@ export {processFile,
 		requestQueue, 
 		getUploadType, 
 		getFileType, 
-		GetFileTags, 
+		GetFileTags,
+		getMediaDimensions, 
 		standardMediaConversion, 
 		getNotFoundMediaFile, 
 		readRangeHeader, 

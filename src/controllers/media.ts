@@ -3,7 +3,7 @@ import app from "../app.js";
 import { connect, dbDelete, dbInsert, dbMultiSelect, dbSelect } from "../lib/database.js";
 import { logger } from "../lib/logger.js";
 import { parseAuthHeader } from "../lib//authorization.js";
-import { getUploadType, getFileType, GetFileTags, standardMediaConversion, getNotFoundMediaFile, readRangeHeader, prepareLegacMediaEvent } from "../lib/media.js"
+import { getUploadType, getFileType, GetFileTags, standardMediaConversion, getNotFoundMediaFile, readRangeHeader, prepareLegacMediaEvent, getMediaDimensions } from "../lib/media.js"
 import { requestQueue } from "../lib/media.js";
 import {
 	asyncTask,
@@ -143,11 +143,18 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 	logger.info("hash ->", filedata.originalhash, "|", getClientIp(req));
 	logger.info("filename ->", filedata.filename, "|", getClientIp(req));
 
-	// URL
+	// URL (NIP96 and old API compatibility)
 	const returnURL = app.get("config.media")["returnURL"];
 	filedata.url = returnURL 	
     ? `${returnURL}/${pubkey}/${filedata.filename}`
     : `${filedata.servername}/media/${pubkey}/${filedata.filename}`;
+
+	// Blossom compatibility
+	if (eventHeader.kind == BUDKinds.BUD01_auth) {
+		filedata.url = returnURL 	
+		? `${returnURL}/${filedata.originalhash? filedata.originalhash : filedata.filename}`
+		: `${filedata.servername}/${filedata.originalhash? filedata.originalhash : filedata.filename}`;
+	}
 
 	// Standard media conversions
 	standardMediaConversion(filedata, file);
@@ -179,10 +186,8 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 		filedata.blurhash = dbHash[0].blurhash;
 		filedata.filename = dbHash[0].filename;
 		filedata.filesize = +dbHash[0].filesize;
-		if (dbHash[6] != undefined || dbHash[6] != null || dbHash[6] != "") {
-			filedata.width = +(dbHash[0].dimensions.split("x")[0]);
-			filedata.height = +(dbHash[0].dimensions.split("x")[1]);
-		}
+		filedata.width = +(dbHash[0].dimensions.split("x")[0]);
+		filedata.height = +(dbHash[0].dimensions.split("x")[1]);
 		filedata.description = "File exist in database, returning existing URL";
 		filedata.date = dbHash[0].date? Math.floor(dbHash[0].date / 1000) : Math.floor(Date.now() / 1000);
 		processFile = false; 
@@ -215,15 +220,23 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 				filedata.blurhash = await generateBlurhash(filedata.conversionInputPath);
 			}
 		}
+
+		// Media dimensions
+		const dimensions = await getMediaDimensions(filedata.conversionInputPath, filedata);
+		dimensions? filedata.width = dimensions.width : 640;
+		dimensions? filedata.height = dimensions.height : 480;
+		dimensions? filedata.newFileDimensions = dimensions.width + "x" + dimensions.height : "640x480";
 	}
+
+
 
 	// Add file to mediafiles table
 	if (insertfiledb) {
 		const createdate = new Date(Math.floor(Date.now())).toISOString().slice(0, 19).replace("T", " ");
 		const insertResult = await dbInsert(
 			"mediafiles", 
-			["pubkey", "filename", "original_hash", "hash", "status", "active", "visibility", "date", "ip_address", "magnet", "blurhash", "filesize", "comments", "type"],
-			[filedata.pubkey, filedata.filename, filedata.originalhash, filedata.hash, filedata.status, 1, 1, createdate, getClientIp(req), filedata.magnet, filedata.blurhash, filedata.filesize, "", filedata.media_type]);
+			["pubkey", "filename", "original_hash", "hash", "status", "active", "visibility", "date", "ip_address", "magnet", "blurhash", "filesize", "comments", "type", "dimensions"],
+			[filedata.pubkey, filedata.filename, filedata.originalhash, filedata.hash, filedata.status, 1, 1, createdate, getClientIp(req), filedata.magnet, filedata.blurhash, filedata.filesize, "", filedata.media_type, filedata.width + "x" + filedata.height],);
 
 		filedata.fileid = insertResult.toString();
 		if (insertResult == 0) {
@@ -242,7 +255,7 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 	if (processFile){
 
 		const procesingURL = app.get("config.media")["returnURL"]
-		filedata.processing_url = procesingURL
+		filedata.processing_url = filedata.no_transform == true? "" : procesingURL
 		? `${procesingURL}/${filedata.fileid}`
 		: `${filedata.servername}/api/v2/media/${filedata.fileid}`;
 
