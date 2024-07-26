@@ -28,7 +28,7 @@
   if ("<%= request.body.firstUse %>" != undefined && "<%= request.body.firstUse %>" != null && "<%= request.body.firstUse %>" != "") {
     initMessageModal("#fisrtUse", "<%- request.body.firstUse %>", "Welcome to your sovereignty");
   }
-  document.getElementById('register-link').href = getRootHost() + "/api/v2/register";
+  document.getElementById('register-link').href = getRootHost() + "/register";
   document.getElementById('tos-link').href = getRootHost() + "/api/v2/tos";
 </script>
 </html>
