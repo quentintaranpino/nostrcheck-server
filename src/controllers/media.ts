@@ -3,7 +3,7 @@ import app from "../app.js";
 import { connect, dbDelete, dbInsert, dbMultiSelect, dbSelect } from "../lib/database.js";
 import { logger } from "../lib/logger.js";
 import { parseAuthHeader } from "../lib//authorization.js";
-import { getUploadType, getFileType, GetFileTags, standardMediaConversion, getNotFoundMediaFile, readRangeHeader, prepareLegacMediaEvent, getMediaDimensions } from "../lib/media.js"
+import { getUploadType, getFileType, standardMediaConversion, getNotFoundMediaFile, readRangeHeader, prepareLegacMediaEvent, getMediaDimensions } from "../lib/media.js"
 import { requestQueue } from "../lib/media.js";
 import {
 	asyncTask,
@@ -35,6 +35,7 @@ import { transaction } from "../interfaces/payments.js";
 import { checkTransaction } from "../lib/payments/core.js";
 import { blobDescriptor, BUDKinds } from "../interfaces/blossom.js";
 import { prepareBlobDescriptor } from "../lib/blossom/BUD02.js";
+import { loadMediaPage } from "./frontend.js";
 
 const uploadMedia = async (req: Request, res: Response, version:string): Promise<Response> => {
 
@@ -339,6 +340,12 @@ const getMedia = async (req: Request, res: Response, version:string) => {
 	// List media
 	if (req.query && Object.keys(req.query).length > 0 && req.query.page != undefined && req.query.count != undefined) {
 		getMediaList(req, res, version); // List media NIP96 compatibility
+		return;
+	}
+
+	// CDN home page
+	if (req.params.param1 == undefined && req.params.param2 == undefined) {
+		loadMediaPage(req, res, version) 
 		return;
 	}
 

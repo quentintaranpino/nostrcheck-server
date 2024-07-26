@@ -236,6 +236,24 @@ const loadRegisterPage = async (req: Request, res: Response, version:string): Pr
     res.render("register.ejs", {request: req});
 };
 
+const loadMediaPage = async (req: Request, res: Response, version:string): Promise<Response | void>  => {
+
+    // Check if current module is enabled
+    if (!isModuleEnabled("frontend", app)) {
+        logger.warn("Attempt to access a non-active module:","frontend","|","IP:", getClientIp(req));
+        return res.status(400).send({"status": "error", "message": "Module is not enabled"});
+    }
+
+    logger.info("GET /api/" + version + "/media", "|", getClientIp(req));
+
+    req.body.version = app.get("version");
+    req.body.serverHost = app.get("config.server")["host"];
+
+    req.session.authkey = await generateCredentials('authkey', req.session.identifier);
+
+    res.render("media.ejs", {request: req});
+};
+
 const frontendLogin = async (req: Request, res: Response): Promise<Response> => {
 
     // Check if current module is enabled
@@ -320,6 +338,7 @@ export {loadDashboardPage,
         loadDocsPage, 
         loadRegisterPage,
         loadLoginPage, 
-        loadIndexPage, 
+        loadIndexPage,
+        loadMediaPage,
         frontendLogin,
         loadProfilePage};
