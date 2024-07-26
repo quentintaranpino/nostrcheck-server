@@ -10,7 +10,7 @@
                 <h1 class="text-white mx-auto my-0 text-uppercase gradien display-2"><%= request.body.serverHost %> NOSTR MEDIA HOSTING</h1>
                 <h2 class="text-white-50 mx-auto mt-1 mb-4 display-6">Fast, scalable, nostr (NIP96) and Blossom compatible.</h2>
                 <p  class="text-white mx-auto mt-2 mb-4">By using our services you agree the <a class="text-white link-offset-1 link-underline-opacity-25" href='tos'>Terms of Service</a></p>
-                <a class="btn btn-primary" id="register-link" href="">Try it now</a> <a class="ms-2 btn btn-primary" id="documentation-link" href="">Documentation</a>
+                <a class="btn btn-primary" id="register-link" href="">Try it now</a> <a class="ms-2 btn btn-primary" id="documentation-link" href="https://github.com/quentintaranpino/nostrcheck-api-ts/blob/main/DOCS.md#media">Documentation</a>
             </div>
         </div>
     </div>
@@ -29,6 +29,5 @@
     initMessageModal("#fisrtUse", "<%- request.body.firstUse %>", "Welcome to your sovereignty");
   }
   document.getElementById('register-link').href = getRootHost() + "/register";
-  document.getElementById('documentation-link').href = getRootHost() + "/documentation";
 </script>
 </html>
