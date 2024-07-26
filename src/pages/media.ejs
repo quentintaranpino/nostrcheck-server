@@ -7,9 +7,9 @@
     <div class="container px-4 px-lg-5 d-flex h-100 align-items-center justify-content-center">
         <div class="d-flex justify-content-center">
             <div class="text-center z-1">
-                <h1 class="text-white mx-auto my-0 text-uppercase gradien display-2"><%= request.body.serverHost %> NOSTR MEDIA HOSTING</h1>
+                <h1 class="text-white mx-auto my-0 text-uppercase gradien display-2">NOSTR MEDIA HOSTING</h1>
                 <h2 class="text-white-50 mx-auto mt-1 mb-4 display-6">Fast, scalable, nostr (NIP96) and Blossom compatible.</h2>
-                <p  class="text-white mx-auto mt-2 mb-4">By using our services you agree the <a class="text-white link-offset-1 link-underline-opacity-25" href='tos'>Terms of Service</a></p>
+                <p  class="text-white mx-auto mt-2 mb-4">By using our services you agree the <a id="tos-link" class="text-white link-offset-1 link-underline-opacity-25" href=''>Terms of Service</a></p>
                 <a class="btn btn-primary" id="register-link" href="">Try it now</a> <a class="ms-2 btn btn-primary" id="documentation-link" href="https://github.com/quentintaranpino/nostrcheck-api-ts/blob/main/DOCS.md#media">Documentation</a>
             </div>
         </div>
@@ -28,6 +28,7 @@
   if ("<%= request.body.firstUse %>" != undefined && "<%= request.body.firstUse %>" != null && "<%= request.body.firstUse %>" != "") {
     initMessageModal("#fisrtUse", "<%- request.body.firstUse %>", "Welcome to your sovereignty");
   }
-  document.getElementById('register-link').href = getRootHost() + "/register";
+  document.getElementById('register-link').href = getRootHost() + "/api/v2/register";
+  document.getElementById('tos-link').href = getRootHost() + "/api/v2/tos";
 </script>
 </html>
