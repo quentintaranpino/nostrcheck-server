@@ -122,3 +122,12 @@ const logout = async () => {
   localStorage.removeItem('authkey');
   window.location.href = 'logout';
 }
+
+// Get root host URL
+const getRootHost = () => {
+    const hostname = window.location.hostname;
+    const rootHost = hostname.split('.').slice(-2).join('.');
+    const protocol = window.location.protocol;
+    const port = window.location.port ? `:${window.location.port}` : '';
+    return `${protocol}//${rootHost}${port}`;
+}
