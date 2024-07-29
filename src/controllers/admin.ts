@@ -16,7 +16,7 @@ import { isModuleEnabled, updateLocalConfigKey } from "../lib/config.js";
 import { flushRedisCache } from "../lib/redis.js";
 import { getFileType } from "../lib/media.js";
 import { npubToHex } from "../lib/nostr/NIP19.js";
-import { dbCountModuleData, dbCountMonthModuleData, dbSelectModuleData } from "../lib/admin.js";
+import { banSentinel, dbCountModuleData, dbCountMonthModuleData, dbSelectModuleData } from "../lib/admin.js";
 import { getBalance, getUnpaidTransactionsBalance } from "../lib/payments/core.js";
 import themes from "../interfaces/themes.js";
 import { moderateFile } from "../lib/moderation/core.js";
@@ -124,6 +124,7 @@ const updateDBRecord = async (req: Request, res: Response): Promise<Response> =>
     if (req.body.table == "mediaData") {table = "mediafiles";}
     if (req.body.table == "lightningData") {table = "lightning";}
     if (req.body.table == "domainsData") {table = "domains";}
+    if (req.body.table == "bannedData") {table = "banned";}
 
     logger.debug("table: ", table, " | field: ", req.body.field, " | value: ", req.body.value, " | id: ", req.body.id)
 
@@ -409,11 +410,7 @@ const deleteDBRecord = async (req: Request, res: Response): Promise<Response> =>
     if (req.body.table == "mediaData") {table = "mediafiles";}
     if (req.body.table == "lightningData") {table = "lightning";}
     if (req.body.table == "domainsData") {table = "domains";}
-
-    // Define a list of allowed table names
-    const allowedTableNames = ["registered", "mediafiles", "lightning", "domains"];
-
-    logger.debug("table: ", table, " | id: ", req.body.id)
+    if (req.body.table == "bannedData") {table = "banned";}
 
     // Check if the provided table name is allowed.
     if (!allowedTableNames.includes(table)){
@@ -485,6 +482,7 @@ const insertDBRecord = async (req: Request, res: Response): Promise<Response> =>
     if (req.body.table == "mediaData") {table = "mediafiles";}
     if (req.body.table == "lightningData") {table = "lightning";}
     if (req.body.table == "domainsData") {table = "domains";}
+    if (req.body.table == "bannedData") {table = "banned";}
 
     let errorFound = false;
     await Object.entries(req.body.row).forEach(([field, value]) => {
@@ -791,6 +789,44 @@ const moderateDBRecord = async (req: Request, res: Response): Promise<Response> 
 
 }
 
+const banPubkey = async (req: Request, res: Response): Promise<Response> => {
+
+    // Check if current module is enabled
+    if (!isModuleEnabled("admin", app)) {
+        logger.warn("Attempt to access a non-active module:","admin","|","IP:", getClientIp(req));
+        return res.status(400).send({"status": "error", "message": "Module is not enabled"});
+    }
+
+    logger.info("REQ -> banSource", req.hostname, "|", getClientIp(req));
+
+    // Check if authorization header is valid
+    const EventHeader = await parseAuthHeader(req, "updateSettings", true);
+    if (EventHeader.status !== "success") {return res.status(401).send({"status": EventHeader.status, "message" : EventHeader.message});}
+    
+    if (req.body.pubkey === "" || 
+        req.body.pubkey === null || 
+        req.body.pubkey === undefined || 
+        req.body.reason === "" || 
+        req.body.reason === null ||
+        req.body.reason === undefined) {
+            const result: authkeyResultMessage = {
+                status: "error",
+                message: "Invalid parameters",
+                authkey: ""
+            }
+        return res.status(400).send(result);
+    }
+
+    const banResult = await banSentinel(req.body.pubkey, req.body.reason, req.body.deleteMedia || false, req.body.deleteRegistered || false);
+
+    if (banResult.status == "error") {
+        return res.status(500).send({status: "error", message: banResult.message, authkey: EventHeader.authkey});
+    }
+
+    return res.status(200).send({status: "success", message: banResult.message, authkey: EventHeader.authkey});
+        
+}
+
 export {    serverStatus, 
             StopServer, 
             resetUserPassword, 
@@ -802,5 +838,6 @@ export {    serverStatus,
             updateLogo,
             updateTheme,
             getModuleData,
-            getModuleCountData         
+            getModuleCountData,
+            banPubkey         
         };

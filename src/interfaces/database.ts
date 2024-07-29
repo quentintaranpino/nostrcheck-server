@@ -1,4 +1,3 @@
-import { Invoice } from "@getalby/lightning-tools";
 import { RowDataPacket } from "mysql2";
 
 interface domainsTableStructure extends RowDataPacket{
@@ -221,6 +220,23 @@ interface accountsTable extends RowDataPacket {
 	comments: string;
 }
 
+interface banTableStructure extends RowDataPacket{
+	id: string;
+	active: string;
+	pubkey: string;
+	reason: string;
+}
+
+const banTableFields: banTableStructure = {
+	"id" : "int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY",
+	"active" : "boolean NOT NULL DEFAULT 1",
+	"pubkey" : "varchar(64) NOT NULL",
+	"reason" : "varchar(150)",
+	constructor: {
+		name: 'RowDataPacket',
+	},
+}
+
 //If you add a new field that is substituting an old one, add it here
 const newFieldcompatibility = [
 	{ newfield: 'newFieldname', oldField: 'oldFiedName' },
@@ -235,6 +251,7 @@ const newFieldcompatibility = [
 	{"transactions": transactionsTableFields},
 	{"ledger": ledgerTableFields},
 	{"accounts": accountsTableFields},
+	{"banned": banTableFields},
 ];
 
 

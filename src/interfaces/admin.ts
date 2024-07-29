@@ -1,6 +1,6 @@
 
-const allowedTableNames = ["registered", "mediafiles", "lightning", "domains"];
-const allowedFieldNames = ["allowed", "active", "visibility", "comments", "username", "pubkey", "hex", "domain", "checked", "lightningaddress", "paid"]; 
+const allowedTableNames = ["registered", "mediafiles", "lightning", "domains", "banned"];
+const allowedFieldNames = ["allowed", "active", "visibility", "comments", "username", "pubkey", "hex", "domain", "checked", "lightningaddress", "paid", "reason"]; 
 
 const allowedFieldNamesAndValues = [
     {field: "allowed", values: [0, 1]},
@@ -16,6 +16,7 @@ const allowedFieldNamesAndValues = [
     {field: "date", values: ["string"]},
     {field: "lightningaddress", values: ["string"]},
     {field: "paid", values: [0, 1]},
+    {field: "reason", values: ["string"]},
 ];
 
 interface moduleDataReturnMessage {
@@ -32,6 +33,7 @@ const ModuleDataTables: { [key: string]: string } = {
     "lightning": "lightning",
     "domains": "domains",
     "payments": "transactions",
+    "banned": "banned",
 };
 
 const moduleDataWhereFields: { [key: string]: [string] } = {
@@ -123,6 +125,10 @@ const moduleDataSelectFields: { [key: string]: string } = {
                         " DATE_FORMAT(expirydate, '%Y-%m-%d %H:%i') as expirydate, " +
                         "DATE_FORMAT(transactions.paiddate, '%Y-%m-%d %H:%i') as paiddate, " +
                         "transactions.comments",
+    "banned":           "banned.id, " +
+                        "banned.active, " +
+                        "banned.pubkey, " +
+                        "banned.reason "
 };
 
 export { allowedTableNames, allowedFieldNames, allowedFieldNamesAndValues, moduleDataReturnMessage, ModuleDataTables, moduleDataSelectFields, moduleDataWhereFields };

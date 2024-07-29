@@ -257,6 +257,34 @@
           </div>
         </div>
           <% } %>
+          <%
+          let bannedFields = [
+            ['active'           , '30' , 'formatCheckbox', 'enabled   show text-center              '],
+            ['pubkey'           , '40' , 'formatPubkey'  , 'enabled   show text-center              '],
+            ['reason'           , ''   , ''              , 'enabled   show mobile-hide              '],
+          ];
+          %>
+          <% if(request.body.activeModules.includes('admin')) { %> 
+            <%- include('./components/table', {
+              tableName:"Banned pubkeys", 
+              tableId:"bannedData", 
+              buttons:[
+                ['add','show'],
+                ['disable','show'],
+                ['enable','show'],
+                ['visible','hide'],
+                ['invisible','hide'],
+                ['admin','hide'],
+                ['edit','show'],
+                ['password','hide'],
+                ['remove','show'],
+                ['pay', 'hide'],
+                ['balance','hide'],
+                ['moderate','hide']
+              ],
+              fields: bannedFields
+              }); %> 
+            <% } %>
 
       </div>
      </main>
@@ -281,7 +309,7 @@
       }
     }
     for (const table of tables) {
-      if (activeModules.includes(table.dataKey)) {
+      if (activeModules.includes(table.dataKey) || table.dataKey == 'banned') {
         await initTable(`#${table.tableId}`, table.dataKey, table.objectName, table.dataKey, table.field);
       }
     }

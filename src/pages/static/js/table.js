@@ -510,6 +510,7 @@ let tables = [
     { name: 'lightning', tableId: 'lightningData', dataKey: 'lightning', objectName: 'lightning redirection', url: 'admin/moduledata?module=lightning'},
     { name: 'domains', tableId: 'domainsData', dataKey: 'domains', objectName: 'domain name', url: 'admin/moduledata?module=domains'},
     { name: 'payments', tableId: 'paymentsData', dataKey: 'payments', objectName: 'transaction', url: 'admin/moduledata?module=payments', field: 'paid'},
+    { name: 'banned', tableId: 'bannedData', dataKey: 'banned', objectName: 'banned pubkeys', url: 'admin/moduledata?module=banned'},
 ];
 
 setInterval(async() => {
