@@ -149,7 +149,8 @@ const defaultConfig = {
 			},
 			"remote" : {
 				"endpoint": "",
-				"apikey": ""
+				"apikey": "",
+				"secretkey": ""
 			},
 		},
 	},

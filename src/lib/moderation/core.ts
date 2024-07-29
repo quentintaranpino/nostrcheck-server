@@ -18,7 +18,10 @@ const moderateFile = async (url: string): Promise<moderationCategory> => {
     }
 
     if(app.get("config.media")["mediainspector"]["type"] == "remote") {
-        result = await remoteEngineClassify(url, app.get("config.media")["mediainspector"]["remote"]["endpoint"], app.get("config.media")["mediainspector"]["remote"]["apikey"]);
+        result = await remoteEngineClassify(    url, 
+                                                app.get("config.media")["mediainspector"]["remote"]["endpoint"], 
+                                                app.get("config.media")["mediainspector"]["remote"]["apikey"], 
+                                                app.get("config.media")["mediainspector"]["remote"]["secretkey"]);
     }
     
     logger.info(`File moderation result: ${result.description} for file ${fileName}`);

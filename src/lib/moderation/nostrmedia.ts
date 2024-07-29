@@ -1,19 +1,19 @@
 import { emptyModerationCategory, moderationCategories, moderationCategory } from "../../interfaces/moderation.js";
 import { logger } from "../logger.js";
 
-const remoteEngineClassify = async (url : string, endpoint: string, apikey : string): Promise<moderationCategory> => {
+const remoteEngineClassify = async (url : string, endpoint: string, accessKey : string, secretKey : string): Promise<moderationCategory> => {
 
-	if (!url || url == "" || !apikey || apikey == "" || !endpoint || endpoint == "") {
+	if (!url || url == "" || !accessKey || accessKey == "" || !endpoint || endpoint == "" || !secretKey || secretKey == "") {
 		logger.error("ERR -> Moderating file, empty url, apikey or endpoint");
 		return emptyModerationCategory;
 	}
 
-	let body: { image_url?: string, video_url?: string } = {};
-	url.split(".").pop() == "mp4" ? body.video_url = url : body.image_url = url;
+	let body: { media_url: string} = {media_url: url};
 
 	const headers = {
 	 'Content-Type': 'application/json',
-	 'Authorization': `Bearer ${apikey}`
+	 'NB-Access-Key-ID': `${accessKey}`,
+	 'NB-Secret-Key': `${secretKey}`
 	};
    
 	logger.debug(`Evaluating image/video: ${url}`);
@@ -31,7 +31,10 @@ const remoteEngineClassify = async (url : string, endpoint: string, apikey : str
 	}
     
 	let result = await res.json();
-	result = moderationCategories.find(category => category.description.toLowerCase().includes(result.predicted_label.toLowerCase()))
+
+	const resultLabel = result.predicted_labels.reduce((max : any, label: any) => label.score > max.score ? label : max).label;
+
+	result = moderationCategories.find(category => category.description.toLowerCase().includes(resultLabel.toLowerCase()))
 	return result == undefined ? emptyModerationCategory : result;
 
 }
