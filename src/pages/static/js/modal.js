@@ -132,6 +132,9 @@ const initEditModal = async (objectId, row, objectName, newRow, columns) => {
         $(objectId + '-edit-modal .cancel-button').click(function () {
             resolve(null);
         });
+        $(objectId + '-edit-modal .btn-close').click(function () {
+            resolve(null);
+        });
     });
 
     edit.hide();
