@@ -34,6 +34,9 @@ const allowedMimeTypes = [
 	"audio/mpg",
 	"audio/mpeg3",
 	"audio/mp3",
+	"application/pdf",
+	"text/markdown",
+	"text/plain",
 ];
 
 const mime_extension: { [key: string]: string } = {
@@ -50,6 +53,9 @@ const mime_extension: { [key: string]: string } = {
 	"audio/mpg"			: "mp3",
 	"audio/mpeg3"		: "mp3",
 	"audio/mp3"			: "mp3",
+	"application/pdf"	: "pdf",
+	"text/markdown"		: "md",
+	"text/plain"		: "txt",
 };
 
 const mime_conversion: { [key: string]: string } = {
@@ -66,6 +72,9 @@ const mime_conversion: { [key: string]: string } = {
 	"audio/mpg"			: "audio/mpeg",
 	"audio/mpeg3"		: "audio/mpeg",
 	"audio/mp3"			: "audio/mpeg",
+	"application/pdf"	: "application/pdf",
+	"text/markdown"		: "text/markdown",
+	"text/plain"		: "text/plain",
 };
 
 const mediaTypes: { [key: string]: string } = {
@@ -77,6 +86,9 @@ const mediaTypes: { [key: string]: string } = {
 	'mov': 'video/quicktime',
 	'mp4': "video/mp4",
 	'mp3': "audio/mpeg",
+	'pdf': 'application/pdf',
+	'md': 'text/markdown',
+	'txt': 'text/plain',
   }
 
 
