@@ -97,20 +97,6 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 		return res.status(400).send(result);
 	}
 
-	// getFileType. If not defined or not allowed, reject upload.
-	const fileMimeData = await getFileType(req, file);
-	if (fileMimeData.mime == "" || fileMimeData.ext == "") {
-		logger.warn(`RES -> 400 Bad request - filetype not detected or not allowed`, "|", getClientIp(req));
-		if(version != "v2"){return res.status(400).send({"result": false, "description" : "file type not detected or not allowed"});}
-
-		const result: ResultMessagev2 = {
-			status: MediaStatus[1],
-			message: "file type not detected or not allowed",
-		};
-		return res.status(400).send(result);
-	}
-	logger.info("mime ->", fileMimeData.mime, "|", getClientIp(req));
-
 	// Filedata
 	const filedata: ProcessingFileData = {
 		filename: "",
@@ -120,7 +106,7 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 		width: app.get("config.media")["transform"]["media"]["undefined"]["width"],
 		height: app.get("config.media")["transform"]["media"]["undefined"]["height"],
 		media_type: media_type,
-		originalmime: fileMimeData.mime,
+		originalmime: "",
 		outputoptions: "",
 		originalhash: "",
 		hash: "",
@@ -138,6 +124,26 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 		no_transform: req.params.param1 == "upload" ? true : Boolean(req.body.no_transform) || false,
 		newFileDimensions: "",
 	};
+
+	// getFileType. If not defined or not allowed, reject upload.
+	const fileMimeData = await getFileType(req, file);
+	if (fileMimeData.mime == "" || fileMimeData.ext == "") {
+		logger.warn(`RES -> 400 Bad request - filetype not detected or not allowed`, "|", getClientIp(req));
+		if(version != "v2"){return res.status(400).send({"result": false, "description" : "file type not detected or not allowed"});}
+
+		const result: ResultMessagev2 = {
+			status: MediaStatus[1],
+			message: "file type not detected or not allowed",
+		};
+		return res.status(400).send(result);
+	}
+	logger.info("mime ->", fileMimeData.mime, "|", getClientIp(req));
+	filedata.originalmime = fileMimeData.mime;
+
+	// Only transform media files
+	if (!filedata.originalmime.toString().startsWith("image") && !filedata.originalmime.toString().startsWith("video")) {
+		filedata.no_transform = true;
+	}
 
 	// Uploaded file SHA256 hash and filename
 	filedata.originalhash = await generatefileHashfrombuffer(file);

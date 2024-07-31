@@ -176,10 +176,18 @@ const getUploadType = (req : Request): string  => {
 
 const getFileType = async (req: Request, file :Express.Multer.File): Promise<{mime:string, ext:string}> => {
 
-	let fileType = await fileTypeFromBuffer(file.buffer) || {mime: "", ext: ""};
+	let fileType: {mime: string, ext: string} = await fileTypeFromBuffer(file.buffer) || {mime: "", ext: ""};
+
+	if (fileType.mime == "") {
+		fileType.mime = file.mimetype;
+		fileType.ext = file.originalname.split('.').pop() || "";
+	}
 
 	fileType == undefined ? logger.warn(`Could not detect file mime type | ${getClientIp(req)}`) : null;
-	!allowedMimeTypes.includes(fileType.mime) ? logger.info(`Filetype not allowed: ${file.mimetype} | ${getClientIp(req)}`) : null;
+	if(!allowedMimeTypes.includes(fileType.mime)){
+		logger.info(`Filetype not allowed: ${file.mimetype} | ${getClientIp(req)}`);
+		return {mime: "", ext: ""};
+	}
 	
 	return fileType;
 
