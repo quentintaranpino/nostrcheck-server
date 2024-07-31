@@ -1,6 +1,6 @@
 
 const allowedTableNames = ["registered", "mediafiles", "lightning", "domains", "banned"];
-const allowedFieldNames = ["allowed", "active", "visibility", "comments", "username", "pubkey", "hex", "domain", "checked", "lightningaddress", "paid", "reason"]; 
+const allowedFieldNames = ["allowed", "active", "visibility", "comments", "username", "pubkey", "hex", "domain", "checked", "lightningaddress", "paid", "originid", "origintable", "reason"]; 
 
 const allowedFieldNamesAndValues = [
     {field: "allowed", values: [0, 1]},
@@ -16,6 +16,9 @@ const allowedFieldNamesAndValues = [
     {field: "date", values: ["string"]},
     {field: "lightningaddress", values: ["string"]},
     {field: "paid", values: [0, 1]},
+    {field: "originid", values: ["number"]},
+    {field: "origintable", values: ["string"]},
+    {field: "original_hash", values: ["string"]},
     {field: "reason", values: ["string"]},
 ];
 
@@ -76,6 +79,7 @@ const moduleDataWhereFields: { [key: string]: [string] } = {
 
 const moduleDataSelectFields: { [key: string]: string } = {
     "nostraddress":     "registered.id, " + 
+                        "CASE WHEN EXISTS (SELECT 1 FROM banned WHERE banned.originid = registered.id AND banned.origintable = 'registered') THEN 1 ELSE 0 END as banned, " +
                         "registered.checked, " + 
                         "registered.active, " +
                         "registered.allowed, " +
@@ -88,6 +92,7 @@ const moduleDataSelectFields: { [key: string]: string } = {
                         "DATE_FORMAT(registered.date, '%Y-%m-%d %H:%i') as date," + 
                         "registered.comments",
     "media":            "mediafiles.id, " +
+    "CASE WHEN EXISTS (SELECT 1 FROM banned WHERE banned.originid = mediafiles.id AND banned.origintable = 'mediafiles') THEN 1 ELSE 0 END as banned, " +
                         "mediafiles.checked, " +
                         "mediafiles.active, " +
                         "mediafiles.visibility, " +
@@ -127,7 +132,11 @@ const moduleDataSelectFields: { [key: string]: string } = {
                         "transactions.comments",
     "banned":           "banned.id, " +
                         "banned.active, " +
-                        "banned.pubkey, " +
+                        "banned.originid, " +
+                        "banned.origintable, " +
+                        "COALESCE(  (SELECT mediafiles.filename FROM mediafiles WHERE mediafiles.id = banned.originid and banned.origintable = 'mediafiles' LIMIT 1), " +
+                        "           (SELECT registered.hex FROM registered WHERE registered.id = banned.originid and banned.origintable = 'registered' LIMIT 1)" +
+                        "         ) as originkey, " +
                         "banned.reason "
 };
 
