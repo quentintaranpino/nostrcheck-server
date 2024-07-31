@@ -66,7 +66,7 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 	let pubkey : string = eventHeader.pubkey;
 	if (pubkey != await dbSelect("SELECT hex FROM registered WHERE hex = ?", "hex", [pubkey]) as string) {
 		if (app.get("config.media")["allowPublicUploads"] == false) {
-			logger.warn("pubkey not registered, public uploads not allowed | ", getClientIp(req));
+			logger.info("pubkey not registered, public uploads not allowed | ", getClientIp(req));
 			if(version != "v2"){return res.status(401).send({"result": false, "description" : "public uploads not allowed"});}
 
 			const result: ResultMessagev2 = {
@@ -381,7 +381,7 @@ const heatMedia = async (req: Request, res: Response): Promise<Response> => {
 	// Check if file exist on storage server
 	const filePath = await getFilePath(hash);
 	if (filePath == "") {
-		logger.warn(`RES -> 404 Not found - file not found`, "|", getClientIp(req));
+		logger.info(`RES -> 404 Not found - file not found`, "|", getClientIp(req));
 		return res.status(404).send();
 	}
 
@@ -727,7 +727,7 @@ const getMediabyURL = async (req: Request, res: Response) => {
 			 								whereValues,
 											true);
 		if (filedata[0] == undefined || filedata[0] == null) {
-			logger.warn(`RES -> 200 Not Found - ${req.url}`, "| Returning not found media file.", getClientIp(req));
+			logger.info(`RES -> 200 Not Found - ${req.url}`, "| Returning not found media file.", getClientIp(req));
 			res.setHeader('Content-Type', 'image/webp');
 			return res.status(200).send(await getNotFoundMediaFile());
 		}
@@ -742,13 +742,13 @@ const getMediabyURL = async (req: Request, res: Response) => {
 		}
 
 		if (filedata[0].active != "1")  {
-			logger.warn(`RES -> 401 File not active - ${req.url}`, "| Returning not found media file.", getClientIp(req));
+			logger.info(`RES -> 401 File not active - ${req.url}`, "| Returning not found media file.", getClientIp(req));
 
 			await redisClient.set(req.params.filename + "-" + req.params.pubkey, "0", {
 				NX: true,
 				EX: app.get("config.redis")["expireTime"],
 			});
-			logger.warn(`RES -> 401 File not active - ${req.url}`, "returning not found media file |", getClientIp(req), "|", "cached:", cachedStatus ? true : false);
+			logger.info(`RES -> 401 File not active - ${req.url}`, "returning not found media file |", getClientIp(req), "|", "cached:", cachedStatus ? true : false);
 
 			res.setHeader('Content-Type', 'image/webp');
 			return res.status(401).send(await getNotFoundMediaFile());

@@ -24,7 +24,7 @@ const checkNostrAddress = async (req: Request, res: Response): Promise<Response>
 	//If name is null return 400
 	if (!name) {
 		logger.info("REQ Nostraddress ->", servername, "|  name not specified  |", getClientIp(req));
-		logger.warn(
+		logger.info(
 			"RES Nostraddress -> 400 Bad request - name parameter not specified",
 			"|",
 			getClientIp(req)
@@ -83,7 +83,7 @@ const checkNostrAddress = async (req: Request, res: Response): Promise<Response>
 		conn.end();
 
 		if (rowstemp[0] == undefined) {
-			logger.warn("RES Nostraddress ->", name, "|", "Username not registered", "|", getClientIp(req));
+			logger.info("RES Nostraddress ->", name, "|", "Username not registered", "|", getClientIp(req));
 
 			const result: ResultMessagev2 = {
 				status: "error",

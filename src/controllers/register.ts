@@ -34,7 +34,7 @@ const registerUsername = async (req: Request, res: Response): Promise<Response> 
 		return res.status(401).send({status: "error", message: "Invalid username format"});
 	}
 	if (!await isUsernameAvailable(username)) {
-		logger.warn("RES ->", username, "|", "Username already registered");
+		logger.info("RES ->", username, "|", "Username already registered");
 		return res.status(406).send({status: "error", message: "Username already registered"});
 	}
 

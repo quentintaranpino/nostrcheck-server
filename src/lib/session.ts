@@ -49,7 +49,7 @@ const checkSessionSecret = async(): Promise<string> => {
     if (config.get('session.secret') == ""){
         
         //Insecure secret, generate random secret, save to config and return with new secret
-        logger.warn("Insecure session.secret detected in config file - Generating random secret");
+        logger.info("Insecure session.secret detected in config file - Generating random secret");
         const newSecret = crypto.randomBytes(64).toString('hex');
         logger.debug("New session.secret generated: " + newSecret);
 

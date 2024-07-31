@@ -77,7 +77,7 @@ const StopServer = async (req: Request, res: Response): Promise<Response> => {
 	const EventHeader = await parseAuthHeader(req,"StopServer", true);
 	if (EventHeader.status !== "success") {return res.status(401).send({"status": EventHeader.status, "message" : EventHeader.message});}
 
-    logger.warn("RES -> 200 Stopping server from IP:", getClientIp(req));
+    logger.info("RES -> 200 Stopping server from IP:", getClientIp(req));
     const result : authkeyResultMessage = {
         status: "success",
         message: "Stopping server...",
@@ -207,7 +207,7 @@ const updateLogo = async (req: Request, res: Response): Promise<Response> => {
 	}
 
     if (!file) {
-		logger.warn(`RES -> 400 Bad request - Empty file`, "|", getClientIp(req));
+		logger.info(`RES -> 400 Bad request - Empty file`, "|", getClientIp(req));
 		return res.status(400).send({"status": "error", "message": "Empty file", "authkey": EventHeader.authkey});
 	}
 

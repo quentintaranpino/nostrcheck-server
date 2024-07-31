@@ -63,7 +63,7 @@ const UpdateUserDomain = async (req: Request, res: Response): Promise<Response> 
 	if (!domain || domain.trim() == "") {
 
 		logger.info("REQ Update user domain ->", servername, " | pubkey:",  EventHeader.pubkey, " | domain:",  "domain not specified  |", getClientIp(req));
-		logger.warn(
+		logger.info(
 			"RES Update user domain -> 400 Bad request - domain parameter not specified",
 			"|",
 			getClientIp(req)

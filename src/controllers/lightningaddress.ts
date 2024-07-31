@@ -22,7 +22,7 @@ const redirectlightningddress = async (req: Request, res: Response): Promise<any
 
 	if (typeof name !== "string") {
 		logger.info("REQ GET lightningaddress ->", req.hostname, " | name:",  name , "|", getClientIp(req));
-		logger.warn("RES GET Lightningaddress -> 400 Bad request - name parameter not specified", "|", getClientIp(req));
+		logger.info("RES GET Lightningaddress -> 400 Bad request - name parameter not specified", "|", getClientIp(req));
 
 		const result: ResultMessagev2 = {
 			status: "error",
@@ -38,7 +38,7 @@ const redirectlightningddress = async (req: Request, res: Response): Promise<any
 	//If name is null return 400
 	if (!name || name.trim() == "") {
 		logger.info("REQ GET lightningaddress ->", servername, " | name:",  "name not specified", "|", getClientIp(req));
-		logger.warn(
+		logger.info(
 			"RES GET Lightningaddress -> 400 Bad request - name parameter not specified",
 			"|",
 			getClientIp(req)
@@ -55,7 +55,7 @@ const redirectlightningddress = async (req: Request, res: Response): Promise<any
 	//If name is too long (>50) return 400
 	if (name.length > 50) {
 		logger.info("REQ GET lightningaddress ->", servername, " | name:",  name.substring(0,50) + "..." , "|", getClientIp(req));
-		logger.warn("RES GET Lightningaddress -> 400 Bad request - name too long", "|", getClientIp(req));
+		logger.info("RES GET Lightningaddress -> 400 Bad request - name too long", "|", getClientIp(req));
 
 		const result: ResultMessagev2 = {
 			status: "error",

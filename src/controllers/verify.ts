@@ -45,17 +45,17 @@ const verifyEventController = async (req: Request, res: Response): Promise<Respo
 			status = 200;
 	}
 	if (verifyResult === -1) {
-			logger.warn(`RES -> 400 Bad request - Event hash is not valid`, "|", getClientIp(req));
+			logger.info(`RES -> 400 Bad request - Event hash is not valid`, "|", getClientIp(req));
 				result.pubkey = event.pubkey;
 				result.description= "Event hash is not valid";
 	}
 	if (verifyResult === -2) {
-			logger.warn(`RES -> 400 Bad request - Event signature is not valid`, "|", getClientIp(req));
+			logger.info(`RES -> 400 Bad request - Event signature is not valid`, "|", getClientIp(req));
 			result.pubkey = event.pubkey;
 			result.description=  "Event signature is not valid";
 	}
 	if (verifyResult === -3) {
-			logger.warn(`RES -> 400 Bad request - Malformed event`, "|", getClientIp(req));
+			logger.info(`RES -> 400 Bad request - Malformed event`, "|", getClientIp(req));
 				result.description= "Malformed event";
 	}
 

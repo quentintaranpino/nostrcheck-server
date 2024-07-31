@@ -167,7 +167,7 @@ const getUploadType = (req : Request): string  => {
 	if (req.body.uploadtype != undefined && req.body.uploadtype != "") {uploadtype = req.body.uploadtype;}
 
 	//Check if media_type is valid
-	!UploadTypes.includes(uploadtype)? logger.warn(`Incorrect uploadtype or not present: ${uploadtype} setting "media" | ${getClientIp(req)}`) : null;
+	!UploadTypes.includes(uploadtype)? logger.info(`Incorrect uploadtype or not present: ${uploadtype} setting "media" | ${getClientIp(req)}`) : null;
 
 	return uploadtype;
 
@@ -178,7 +178,7 @@ const getFileType = async (req: Request, file :Express.Multer.File): Promise<{mi
 	let fileType = await fileTypeFromBuffer(file.buffer) || {mime: "", ext: ""};
 
 	fileType == undefined ? logger.warn(`Could not detect file mime type | ${getClientIp(req)}`) : null;
-	!allowedMimeTypes.includes(fileType.mime) ? logger.warn(`Filetype not allowed: ${file.mimetype} | ${getClientIp(req)}`) : null;
+	!allowedMimeTypes.includes(fileType.mime) ? logger.info(`Filetype not allowed: ${file.mimetype} | ${getClientIp(req)}`) : null;
 	
 	return fileType;
 

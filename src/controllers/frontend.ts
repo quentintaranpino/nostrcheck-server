@@ -284,7 +284,7 @@ const frontendLogin = async (req: Request, res: Response): Promise<Response> => 
 
     if ((req.body.pubkey === "" || req.body.pubkey == undefined) && (req.body.username === '' || req.body.password === '')){
         logger.warn("RES -> 401 unauthorized  - ", getClientIp(req));
-        logger.warn("No credentials used to login. Refusing", getClientIp(req));
+        logger.info("No credentials used to login. Refusing", getClientIp(req));
         return res.status(401).send(false);
     }
 
