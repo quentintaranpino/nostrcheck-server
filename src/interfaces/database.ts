@@ -1,5 +1,5 @@
-import { Invoice } from "@getalby/lightning-tools";
 import { RowDataPacket } from "mysql2";
+import { S } from "vitest/dist/reporters-5f784f42.js";
 
 interface domainsTableStructure extends RowDataPacket{
 	id: string;
@@ -62,6 +62,7 @@ interface mediafilesTable extends RowDataPacket {
 	checked: string;
 	transactionid: string;
 	localPath: string;
+	banid: string;
 	type: string;
 }
 
@@ -85,6 +86,7 @@ const mediafilesTableFields: mediafilesTable = {
 	checked: "boolean NOT NULL DEFAULT 0",
 	transactionid: "int(11)",
 	localPath: "varchar(4)",
+	banid: "int(11)",
 	type: "varchar(15)",
 	constructor: {
 		name: 'RowDataPacket',
@@ -122,6 +124,7 @@ interface registeredTable extends RowDataPacket{
 	checked: string;
 	balance: string;
 	transactionid: string;
+	banid: string;
 }
 
 const registeredTableFields: registeredTable = {
@@ -140,6 +143,7 @@ const registeredTableFields: registeredTable = {
 	checked: "boolean NOT NULL DEFAULT 0",
 	balance: "int(11) NOT NULL DEFAULT 0",
 	transactionid: "int(11)",
+	banid: "int(11)",
 	constructor: {
 		name: 'RowDataPacket',
 	},
@@ -221,6 +225,25 @@ interface accountsTable extends RowDataPacket {
 	comments: string;
 }
 
+interface bannedTableStructure extends RowDataPacket{
+	id: string;
+	active: string;
+	originid: string;
+	origintable: string
+	reason: string;
+}
+
+const bannedTableFields: bannedTableStructure = {
+	"id" : "int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY",
+	"active" : "boolean NOT NULL DEFAULT 1",
+	"originid" : "varchar(11) NOT NULL",
+	"origintable" : "varchar(50) NOT NULL",
+	"reason" : "varchar(150)",
+	constructor: {
+		name: 'RowDataPacket',
+	},
+}
+
 //If you add a new field that is substituting an old one, add it here
 const newFieldcompatibility = [
 	{ newfield: 'newFieldname', oldField: 'oldFiedName' },
@@ -235,6 +258,7 @@ const newFieldcompatibility = [
 	{"transactions": transactionsTableFields},
 	{"ledger": ledgerTableFields},
 	{"accounts": accountsTableFields},
+	{"banned": bannedTableFields},
 ];
 
 

@@ -21,6 +21,7 @@ import { getBalance, getUnpaidTransactionsBalance } from "../lib/payments/core.j
 import themes from "../interfaces/themes.js";
 import { moderateFile } from "../lib/moderation/core.js";
 import { addNewUsername } from "../lib/register.js";
+import { banRecord } from "../lib/banned.js";
 
 let hits = 0;
 /**
@@ -124,6 +125,7 @@ const updateDBRecord = async (req: Request, res: Response): Promise<Response> =>
     if (req.body.table == "mediaData") {table = "mediafiles";}
     if (req.body.table == "lightningData") {table = "lightning";}
     if (req.body.table == "domainsData") {table = "domains";}
+    if (req.body.table == "bannedData") {table = "banned";}
 
     logger.debug("table: ", table, " | field: ", req.body.field, " | value: ", req.body.value, " | id: ", req.body.id)
 
@@ -409,11 +411,7 @@ const deleteDBRecord = async (req: Request, res: Response): Promise<Response> =>
     if (req.body.table == "mediaData") {table = "mediafiles";}
     if (req.body.table == "lightningData") {table = "lightning";}
     if (req.body.table == "domainsData") {table = "domains";}
-
-    // Define a list of allowed table names
-    const allowedTableNames = ["registered", "mediafiles", "lightning", "domains"];
-
-    logger.debug("table: ", table, " | id: ", req.body.id)
+    if (req.body.table == "bannedData") {table = "banned";}
 
     // Check if the provided table name is allowed.
     if (!allowedTableNames.includes(table)){
@@ -485,6 +483,7 @@ const insertDBRecord = async (req: Request, res: Response): Promise<Response> =>
     if (req.body.table == "mediaData") {table = "mediafiles";}
     if (req.body.table == "lightningData") {table = "lightning";}
     if (req.body.table == "domainsData") {table = "domains";}
+    if (req.body.table == "bannedData") {table = "banned";}
 
     let errorFound = false;
     await Object.entries(req.body.row).forEach(([field, value]) => {
@@ -791,6 +790,61 @@ const moderateDBRecord = async (req: Request, res: Response): Promise<Response> 
 
 }
 
+const banDBRecord = async (req: Request, res: Response): Promise<Response> => {
+
+    // Check if current module is enabled
+    if (!isModuleEnabled("admin", app)) {
+        logger.warn("Attempt to access a non-active module:","admin","|","IP:", getClientIp(req));
+        return res.status(400).send({"status": "error", "message": "Module is not enabled"});
+    }
+
+    logger.info("REQ -> banSource", req.hostname, "|", getClientIp(req));
+
+    // Check if authorization header is valid
+    const EventHeader = await parseAuthHeader(req, "updateSettings", true);
+    if (EventHeader.status !== "success") {return res.status(401).send({"status": EventHeader.status, "message" : EventHeader.message});}
+    
+    if (req.body.id === "" || 
+        req.body.id === null || 
+        req.body.id === undefined || 
+        req.body.table === "" ||
+        req.body.table === null ||
+        req.body.table === undefined) {
+            const result: authkeyResultMessage = {
+                status: "error",
+                message: "Invalid parameters",
+                authkey: ""
+            }
+        return res.status(400).send(result);
+    }
+
+    if (req.body.reason === "" || req.body.reason === null || req.body.reason === undefined) {
+        const result: authkeyResultMessage = {
+            status: "error",
+            message: "Reason cannot be empty",
+            authkey: EventHeader.authkey
+        }
+        return res.status(400).send(result);
+    }
+
+    // Don't show the user the real table names
+    let table = req.body.table;
+    if (req.body.table == "nostraddressData") {table = "registered";}
+    if (req.body.table == "mediaData") {table = "mediafiles";}
+    if (req.body.table == "lightningData") {table = "lightning";}
+    if (req.body.table == "domainsData") {table = "domains";}
+    if (req.body.table == "bannedData") {table = "banned";}
+
+    const banResult = await banRecord(req.body.id, table, req.body.reason);
+
+    if (banResult.status == "error") {
+        return res.status(500).send({status: "error", message: banResult.message, authkey: EventHeader.authkey});
+    }
+
+    return res.status(200).send({status: "success", message: banResult.message, authkey: EventHeader.authkey});
+        
+}
+
 export {    serverStatus, 
             StopServer, 
             resetUserPassword, 
@@ -802,5 +856,6 @@ export {    serverStatus,
             updateLogo,
             updateTheme,
             getModuleData,
-            getModuleCountData         
+            getModuleCountData,
+            banDBRecord         
         };

@@ -112,3 +112,11 @@
 .detail-container .value {
     color: var(--bs-secondary);
 }
+
+.banned-row, .banned-row i, .banned-row a, .banned-row span {
+    color: white !important;
+}
+
+.banned-row {
+    background-color: #ff747f; 
+}

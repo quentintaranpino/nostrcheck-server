@@ -36,6 +36,7 @@ import { checkTransaction } from "../lib/payments/core.js";
 import { blobDescriptor, BUDKinds } from "../interfaces/blossom.js";
 import { prepareBlobDescriptor } from "../lib/blossom/BUD02.js";
 import { loadMediaPage } from "./frontend.js";
+import { getBannedMediaFile, isContentBanned } from "../lib/banned.js";
 
 const uploadMedia = async (req: Request, res: Response, version:string): Promise<Response> => {
 
@@ -720,7 +721,7 @@ const getMediabyURL = async (req: Request, res: Response) => {
 		}
 
 		const filedata = await dbMultiSelect(
-											["id", "active", "transactionid", "filesize", "filename"],
+											["id", "active", "transactionid", "filesize", "filename", "pubkey"],
 											"mediafiles",
 											whereFields  + " ORDER BY id DESC",
 			 								whereValues,
@@ -730,6 +731,16 @@ const getMediabyURL = async (req: Request, res: Response) => {
 			res.setHeader('Content-Type', 'image/webp');
 			return res.status(200).send(await getNotFoundMediaFile());
 		}
+
+		let isBanned = await isContentBanned(filedata[0].id, "mediafiles");
+		const pubkeyId = await dbMultiSelect(["id"], "registered", "hex = ?", [filedata[0].pubkey], true);
+		if (pubkeyId.length > 0) {isBanned = await isContentBanned(pubkeyId[0].id, "registered");}
+		if (isBanned) {
+			logger.warn(`RES -> 200 Banned content - ${req.url}`, "| Returning not found media file.", getClientIp(req));
+			res.setHeader('Content-Type', 'image/webp');
+			return res.status(200).send(await getBannedMediaFile());
+		}
+
 		if (filedata[0].active != "1")  {
 			logger.warn(`RES -> 401 File not active - ${req.url}`, "| Returning not found media file.", getClientIp(req));
 

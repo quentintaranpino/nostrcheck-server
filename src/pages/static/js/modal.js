@@ -1,4 +1,4 @@
-const initConfirmModal = async (objectId, ids, action, objectName, value = "", enableEditText = false) => {
+const initConfirmModal = async (objectId, ids, action, objectName, value = null, enableEditText = false) => {
     var alert = new bootstrap.Modal($(objectId + '-confirm-modal'));
 
     $(alert._element).on('show.bs.modal', function () {
@@ -6,8 +6,9 @@ const initConfirmModal = async (objectId, ids, action, objectName, value = "", e
         if (action == 'remove')$(objectId + '-confirm-modal .modal-body').append('<br><br><strong>Warning:</strong> This action cannot be undone.');
         if (action == 'disable')$(objectId + '-confirm-modal .modal-body').append('<br><br><strong>Attention:</strong> Disabling a record can take up to 5 minutes to become effective.');
         if (action == 'balance')$(objectId + '-confirm-modal .modal-body').text('Specify the amount to be added to user balance:');
-        if (value != '' && enableEditText){
-            $(objectId + '-confirm-modal .modal-body').append(  '<input type="number" class="form-control mt-4 mb-2" id="data" placeholder="' + 
+        if (action == 'ban')$(objectId + '-confirm-modal .modal-body').append('<br><br>Specify the reason for banning:');
+        if (value != null && enableEditText){
+            $(objectId + '-confirm-modal .modal-body').append(  '<input type="text" class="form-control mt-4 mb-2" id="data" placeholder="' + 
                                                                 action + 
                                                                 '" value="' + 
                                                                 value + 
@@ -132,6 +133,9 @@ const initEditModal = async (objectId, row, objectName, newRow, columns) => {
         $(objectId + '-edit-modal .cancel-button').click(function () {
             resolve(null);
         });
+        $(objectId + '-edit-modal .btn-close').click(function () {
+            resolve(null);
+        });
     });
 
     edit.hide();
@@ -190,7 +194,7 @@ const initMessageModal = async (objectId, message, title) => {
 
 }
 
-const initMediaModal = async (pubkey, filename, checked, visible) => {
+const initMediaModal = async (pubkey, filename, checked, visible , showButtons = true) => {
 
     var mediaModal = new bootstrap.Modal($('#media-modal'));
 
@@ -208,6 +212,10 @@ const initMediaModal = async (pubkey, filename, checked, visible) => {
     $('#modalSwitch-visible').change(function() {
         visible = this.checked ? 1 : 0;
     });
+
+    if (!showButtons) {
+        $('#modalSwitch-footer').addClass('d-none');
+    }
 
     if (['.mp4', '.webm', '.mov'].some(ext => filename.endsWith(ext))) {
         $('#media-modal .mediapreview-video').attr('src', MediaData.url);
