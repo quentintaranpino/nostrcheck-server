@@ -120,6 +120,16 @@
             </button>
         </div>
     </div>
+    <div class="btn-group mt-2" role="group" aria-label="Ban buttons">
+        <div tabindex="0" data-bs-toggle="tooltip" data-bs-title="Ban record">
+            <button 
+                id="<%- tableId %>-button-ban" 
+                class="btn btn-warning <%= buttons[12][1] == 'hide' ? 'd-none' : '' %> " 
+                disabled>
+                <i class="fa-solid fa-triangle-exclamation"></i>
+            </button>
+        </div>
+    </div>
 </div>  
 <table 
     id="<%- tableId %>"

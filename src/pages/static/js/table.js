@@ -30,6 +30,7 @@ const initTable = async (tableId, datakey, objectName, dataKey, field = "") => {
         minWidth: 768,
         checkOnInit: true,
         detailFormatter: "detailFormatter",
+        rowStyle: rowStyle,
         queryParams: function (params) {
             let filters = params.filter ? JSON.parse(params.filter) : {};
             if (isFilterActive[tableId]) {
@@ -100,6 +101,7 @@ const initTable = async (tableId, datakey, objectName, dataKey, field = "") => {
         $(tableId + '-button-hide').prop('disabled', !$(tableId).bootstrapTable('getSelections').length)
         $(tableId + '-button-remove').prop('disabled', !$(tableId).bootstrapTable('getSelections').length)
         $(tableId + '-button-moderate').prop('disabled', !$(tableId).bootstrapTable('getSelections').length)
+        $(tableId + '-button-ban').prop('disabled', !$(tableId).bootstrapTable('getSelections').length)
 
         if ($(tableId).bootstrapTable('getSelections').length == 1) {
             $(tableId + '-button-admin').prop('disabled', false)
@@ -119,18 +121,19 @@ const initTable = async (tableId, datakey, objectName, dataKey, field = "") => {
     })
 
     // Buttons initialization
-    initButton(tableId, '-button-admin', objectName, 'toggle admin permissions', 'allowed', null)
-    initButton(tableId, '-button-hide', objectName, 'hide', 'visibility', 0)
-    initButton(tableId, '-button-show', objectName, 'show', 'visibility', 1)
-    initButton(tableId, '-button-disable', objectName, 'disable', 'active', 0)
-    initButton(tableId, '-button-enable', objectName, 'enable', 'active', 1)
-    initButton(tableId, '-button-remove', objectName, 'remove', '', null)
-    initButton(tableId, '-button-edit', objectName, 'edit', '', null)
-    initButton(tableId, '-button-add', objectName, 'add', '', null)
-    initButton(tableId, '-button-password', objectName, 'reset password', 'password', '')
-    initButton(tableId, '-button-pay', objectName, 'pay', 'paid', 1)
-    initButton(tableId, '-button-balance', objectName, 'balance', 'balance', 100, true)
-    initButton(tableId, '-button-moderate', objectName, 'moderate', 'checked', 1)
+    initButton(tableId, '-button-admin',        objectName, 'toggle admin permissions', 'allowed', null)
+    initButton(tableId, '-button-hide',         objectName, 'hide', 'visibility', 0)
+    initButton(tableId, '-button-show',         objectName, 'show', 'visibility', 1)
+    initButton(tableId, '-button-disable',      objectName, 'disable', 'active', 0)
+    initButton(tableId, '-button-enable',       objectName, 'enable', 'active', 1)
+    initButton(tableId, '-button-remove',       objectName, 'remove', '', null)
+    initButton(tableId, '-button-edit',         objectName, 'edit', '', null)
+    initButton(tableId, '-button-add',          objectName, 'add', '', null)
+    initButton(tableId, '-button-password',     objectName, 'reset password', 'password', '')
+    initButton(tableId, '-button-pay',          objectName, 'pay', 'paid', 1)
+    initButton(tableId, '-button-balance',      objectName, 'balance', 'balance', 100, true)
+    initButton(tableId, '-button-moderate',     objectName, 'moderate', 'checked', 1)
+    initButton(tableId, '-button-ban',          objectName, 'ban', 'reason', '',  true)
 
 }
 
@@ -190,7 +193,7 @@ function initButton(tableId, buttonSuffix, objectName, modaltext, field, fieldVa
             return
         }
 
-        // Admin, hide and show, password, pay, balance, enable, moderate and disable buttons
+        // Admin, hide and show, password, pay, balance, ban, enable, moderate and disable buttons
         var ids = $.map($(tableId).bootstrapTable('getSelections'), function (row) {
             return row.id
         })
@@ -204,7 +207,9 @@ function initButton(tableId, buttonSuffix, objectName, modaltext, field, fieldVa
                     }else if (modaltext === 'pay') {
                         semaphore.execute(async () => await modifyRecord("payments/paytransaction/", tableId, id, field, fieldValue, 'pay'));
                     }else if (modaltext === 'balance') {
-                        semaphore.execute(async () => await modifyRecord("payments/addbalance/", tableId, id, field, modal.value, 'balance'),);
+                        semaphore.execute(async () => await modifyRecord("payments/addbalance/", tableId, id, field, modal.value, 'balance'));
+                    }else if (modaltext === 'ban') {
+                        semaphore.execute(async () => await modifyRecord("admin/ban", tableId, id, field, modal.value, 'ban'));
                     }else if (modaltext === 'moderate') {
                         semaphore.execute(async () => await modifyRecord("admin/moderaterecord/", tableId, id, field, fieldValue, 'moderate'));
                     } else {
@@ -259,6 +264,14 @@ async function modifyRecord(url, tableId, id, field, fieldValue, action = 'modif
         };
     }
 
+    if (action === 'ban') {
+        data = {
+            id: id,
+            table: tableId.split('-')[0].split('#')[1],
+            reason: fieldValue,
+        };
+    }
+
     if (action === 'moderate') {
         data = {
             id: id,
@@ -282,6 +295,7 @@ async function modifyRecord(url, tableId, id, field, fieldValue, action = 'modif
                 $(tableId).bootstrapTable('removeByUniqueId', id);
             }else if (action === 'insert') {
                  row.id = +responseData.message;
+                 console.log(row)
                  $(tableId).bootstrapTable('insertRow', {
                     index: 0,
                     row: data.row
@@ -306,9 +320,13 @@ async function modifyRecord(url, tableId, id, field, fieldValue, action = 'modif
                 showMessage(`New password for ${$(tableId).bootstrapTable('getSelections')[0].username} has been sent via nostr DM successfully 🥳`, "alert-success");
             }else if (action === 'balance'){
                 showMessage(`Balance for ${$(tableId).bootstrapTable('getSelections')[0].username} has been updated successfully 🥳`, "alert-success");
+            }else if (action === 'ban'){
+                showMessage(`Record ${id} from table ${tableId} has been banned successfully 🥳`, "alert-success");
             }else{
                 showMessage(`Action ${action} completed successfully for id ${id}. 🥳`, "alert-success");
             }
+
+            refreshTable(tableId);
 
         } else {
             initAlertModal(tableId, responseData.message);
@@ -353,16 +371,28 @@ function formatPaymentHash(value) {
 
 }
 
-function formatFilename(value, row, index) {
+
+function formatMediaFile(value, row, index) {
+    return formatFilename(value, row, index, true);
+}
+
+function formatBannedFile(value, row, index) {
+    return formatFilename(value, row, index, false);
+}
+
+function formatFilename(value, row, index, showButtons) {
 
     let textValue = value;
     if ($(window).width() < 768) {textValue = value.slice(0, (value.length / 2)-20 ) + ':' + value.slice((value.length / 2)+20 );}
+
+    // If value is not a filename exit the function
+    if (!value || value.indexOf('.') == -1) {return textValue;}
 
     let modalFileCheck = '<div id="' + index + '_preview"><span class="cursor-zoom-in text-secondary">' + textValue + '</span></div>';
 
     // Attach the click event handler to the document and delegate it to the clickable element
     $(document).off('click', '#' + index + '_preview').on('click', '#' + index + '_preview', async function() {
-        semaphore.execute(async () => {await initMediaModal(row.pubkey, value, row.checked, row.visibility).then(async (modal) => {
+        semaphore.execute(async () => {await initMediaModal(row.pubkey, value, row.checked, row.visibility, showButtons).then(async (modal) => {
                 let modalResult = modal.data;
                 for (let field in modalResult) {
                     if (modalResult[field] != row[field]){
@@ -502,6 +532,18 @@ const fetchTableCountData = async (tableDataKey, action, field) => {
         }
     }
 };
+
+// Dynamic row styling
+const rowStyle = (row, index) =>{
+
+    // Banned row
+    if (row.banned === 1) {
+        return {
+            classes: 'banned-row'
+        };
+    }
+    return {};
+}
 
 // Initialize tables
 let tables = [

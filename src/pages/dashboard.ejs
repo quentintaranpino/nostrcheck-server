@@ -46,8 +46,8 @@
         ];
 
         if (request.body.activeModules.includes("payments")) {
-          nostraddressFields.splice(4, 0, ['balance', 'disabled', 'show','formatSatoshi', 'text-end','40'],);
-          nostraddressFields.splice(5, 0, ['transactionid', 'disabled', 'hide']);
+          nostraddressFields.splice(4, 0, ['balance', '', 'formatSatoshi', 'disabled  show text-end'],);
+          nostraddressFields.splice(5, 0, ['transactionid','', '', 'disabled hide']);
         }
         %>
         <%- include('./components/table', {
@@ -65,7 +65,8 @@
                   ['remove','show'],
                   ['pay','show'],
                   ['balance','show'],
-                  ['moderate','hide']
+                  ['moderate','hide'],
+                  ['ban','show']
                   ],
           fields: nostraddressFields
         }); %>
@@ -85,26 +86,27 @@
         </div>
         <% 
         let mediaFields = [
-          ['checked',       '30' , 'formatCheckbox', 'enabled   show text-center              '],
-          ['active',        '30' , 'formatCheckbox', 'enabled   show text-center mobile-hide  '],
-          ['visibility',    '30' , 'formatCheckbox', 'enabled   show text-center mobile-hide  '],
-          ['username',      '50' , ''              , 'disabled  show text-center              '],
-          ['npub',          ''   , 'formatPubkey'  , 'disabled  hide                          '],
-          ['pubkey',        ''   , 'formatPubkey'  , 'disabled  hide text-center              '],
-          ['filename',      ''   , 'formatFilename', 'disabled  show                          '],
-          ['original_hash', ''   , ''              , 'disabled  hide                          '],
-          ['hash',          ''   , ''              , 'disabled  hide                          '],
-          ['status',        '50' , ''              , 'disabled  show text-center mobile-hide  '],
-          ['dimensions',    '40' , ''              , 'disabled  show text-center mobile-hide  '],
-          ['filesize',      '40' , ''              , 'disabled  show text-center mobile-hide  '],
-          ['date',          '200', ''              , 'disabled  show text-center              '],
-          ['comments',      ''   , ''              , 'enabled   hide                          '],
+          ['checked',       '30' , 'formatCheckbox' , 'enabled   show text-center              '],
+          ['active',        '30' , 'formatCheckbox' , 'enabled   show text-center mobile-hide  '],
+          ['banned',        ''   , 'formatCheckbox' , 'disabled  hide                          '],      
+          ['visibility',    '30' , 'formatCheckbox' , 'enabled   show text-center mobile-hide  '],
+          ['username',      '50' , ''               , 'disabled  show text-center              '],
+          ['npub',          ''   , 'formatPubkey'   , 'disabled  hide                          '],
+          ['pubkey',        ''   , 'formatPubkey'   , 'disabled  hide text-center              '],
+          ['filename',      ''   , 'formatMediaFile', 'disabled  show                          '],
+          ['original_hash', ''   , ''               , 'disabled  hide                          '],
+          ['hash',          ''   , ''               , 'disabled  hide                          '],
+          ['status',        '50' , ''               , 'disabled  show text-center mobile-hide  '],
+          ['dimensions',    '40' , ''               , 'disabled  show text-center mobile-hide  '],
+          ['filesize',      '40' , ''               , 'disabled  show text-center mobile-hide  '],
+          ['date',          '200', ''               , 'disabled  show text-center              '],
+          ['comments',      ''   , ''               , 'enabled   hide                          '],
         ];
 
         if (request.body.activeModules.includes("payments")) {
-          mediaFields.splice(3, 0, ['paid', 'disabled','show','formatCheckbox','text-center','30'],);
-          mediaFields.splice(4, 0, ['satoshi', 'disabled','show','formatSatoshi','text-end','30'],);
-          mediaFields.splice(5, 0, ['transactionid', 'disabled', 'hide']);
+          mediaFields.splice(3, 0, ['paid', '30', 'formatCheckbox', 'disabled show text-center'],);
+          mediaFields.splice(4, 0, ['satoshi','30', 'formatSatoshi', 'disabled show text-end'],);
+          mediaFields.splice(5, 0, ['transactionid','', '', 'disabled hide']);
         }
 
         %>
@@ -124,7 +126,8 @@
                     ['remove','show'],
                     ['pay','show'],
                     ['balance','hide'],
-                    ['moderate','show']
+                    ['moderate','show'],
+                    ['ban','show']
                     ],
             fields: mediaFields
           }); %>
@@ -172,7 +175,8 @@
               ['remove','show'],
               ['pay','show'],
               ['balance','hide'],
-              ['moderate','hide']
+              ['moderate','hide'],
+              ['ban','hide']
             ],
             fields: lightningFields
           }); %> 
@@ -201,7 +205,8 @@
               ['remove','show'],
               ['pay', 'hide'],
               ['balance','hide'],
-              ['moderate','hide']
+              ['moderate','hide'],
+              ['ban','hide']
             ],
             fields: domainsFields
             }); %> 
@@ -238,7 +243,8 @@
                 ['remove','hide'],
                 ['pay', 'show'],
                 ['balance','hide'],
-                ['moderate','hide']
+                ['moderate','hide'],
+                ['ban','hide']
               ],
               fields: paymentsFields
               }); %> 
@@ -259,17 +265,19 @@
           <% } %>
           <%
           let bannedFields = [
-            ['active'           , '30' , 'formatCheckbox', 'enabled   show text-center              '],
-            ['pubkey'           , '40' , 'formatPubkey'  , 'enabled   show text-center              '],
-            ['reason'           , ''   , ''              , 'enabled   show mobile-hide              '],
+            ['active'           , '30' , 'formatCheckbox'  , 'enabled   show text-center              '],
+            ['originid'         , '40' , ''                , 'disabled   show text-center              '],
+            ['origintable'      , '40' , ''                , 'disabled   show text-center              '],
+            ['originkey'        , ''   , 'formatBannedFile', 'disabled  show mobile-hide              '],
+            ['reason'           , ''   , ''                , 'enabled   show mobile-hide              '],
           ];
           %>
           <% if(request.body.activeModules.includes('admin')) { %> 
             <%- include('./components/table', {
-              tableName:"Banned pubkeys", 
+              tableName:"Banned objects", 
               tableId:"bannedData", 
               buttons:[
-                ['add','show'],
+                ['add','hide'],
                 ['disable','show'],
                 ['enable','show'],
                 ['visible','hide'],
@@ -280,7 +288,8 @@
                 ['remove','show'],
                 ['pay', 'hide'],
                 ['balance','hide'],
-                ['moderate','hide']
+                ['moderate','hide'],
+                ['ban','hide']
               ],
               fields: bannedFields
               }); %> 
