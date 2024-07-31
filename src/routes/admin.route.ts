@@ -16,7 +16,7 @@ import {deleteDBRecord,
         getModuleCountData,
         updateTheme,
         moderateDBRecord,
-        banPubkey
+        banDBRecord
 } from "../controllers/admin.js";
 
 const maxMBfilesize :number = config.get('media.maxMBfilesize');
@@ -78,7 +78,7 @@ export const loadAdminEndpoint = async (app: Application, version:string): Promi
                 app.get("/api/" + version + app.get("config.server")["availableModules"]["admin"]["path"] + "/moduleCountdata", getModuleCountData);
 
                 // Ban remote source
-                app.post("/api/" + version + app.get("config.server")["availableModules"]["admin"]["path"] + "/ban", banPubkey);
+                app.post("/api/" + version + app.get("config.server")["availableModules"]["admin"]["path"] + "/ban", banDBRecord);
 
         }
 
