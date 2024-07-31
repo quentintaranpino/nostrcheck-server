@@ -10,4 +10,6 @@
 - AI analysis module connection for image moderation.
 - Register form.
 - Public gallery.
+- Banneable pubkeys and files.
+- New file types supported.
 
