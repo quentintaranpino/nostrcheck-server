@@ -3,7 +3,6 @@ import app from "../app.js";
 import { ResultMessagev2 } from "../interfaces/server.js";
 import { dbInsert, dbMultiSelect, dbUpdate } from "./database.js";
 import { logger } from "./logger.js";
-import config from "config";
 import fs from "fs";
 
 const banRecord = async (originId: number, originTable: string, reason: string): Promise<ResultMessagev2> => {
@@ -81,7 +80,7 @@ const isContentBanned = async (id: string, table: string): Promise<boolean> => {
 
 const getBannedMediaFile = (): Promise<Buffer> => {
     return new Promise((resolve) => {
-        const bannedFilePath = path.normalize(path.resolve(config.get("media.bannedFilePath")));
+        const bannedFilePath = path.normalize(path.resolve(app.get("config.media")["bannedFilePath"]));
         fs.readFile(bannedFilePath, (err, data) => {
             if (err) {
                 logger.error(err);

@@ -2,9 +2,8 @@ import fastq, { queueAsPromised } from "fastq";
 import ffmpeg from "fluent-ffmpeg";
 import fs from "fs";
 
-import { allowedMimeTypes, asyncTask, legacyMediaReturnMessage, mediaTypes, ProcessingFileData, UploadTypes, videoHeaderRange } from "../interfaces/media.js";
+import { allowedMimeTypes, asyncTask, legacyMediaReturnMessage, ProcessingFileData, UploadTypes, videoHeaderRange } from "../interfaces/media.js";
 import { logger } from "./logger.js";
-import config from "config";
 import { connect, dbUpdate } from "./database.js";
 import {fileTypeFromBuffer} from 'file-type';
 import { Request } from "express";
@@ -17,6 +16,7 @@ import { saveFile } from "./storage/core.js";
 import { deleteLocalFile } from "./storage/local.js";
 import { checkTransaction } from "./payments/core.js";
 import { moderateFile } from "./moderation/core.js";
+import app from "../app.js";
 
 const prepareFile = async (t: asyncTask): Promise<void> =>{
 
@@ -42,7 +42,8 @@ const processFile = async(	inputFile: Express.Multer.File,	options: ProcessingFi
 
 	if (retry > 5) {return false}
 
-	options.conversionOutputPath = config.get("storage.local.tempPath") + "out" + crypto.randomBytes(20).toString('hex') + options.filename;
+	
+	options.conversionOutputPath = app.get("config.storage")["local"]["tempPath"] + "out" + crypto.randomBytes(20).toString('hex') + options.filename;
 
 	logger.info("Using temporary paths:", options.conversionInputPath, options.conversionOutputPath);
 
@@ -211,25 +212,25 @@ const standardMediaConversion = (filedata : ProcessingFileData , file:Express.Mu
 
 		//Video or image conversion options
 		if (file.mimetype.toString().startsWith("video")) {
-			filedata.width = config.get("media.transform.media.video.width");
-			filedata.height = config.get("media.transform.media.video.height");
+			filedata.width = app.get("config.media")["transform"]["media"]["video"]["width"];
+			filedata.height = app.get("config.media")["transform"]["media"]["video"]["height"];
 			filedata.outputoptions = '-preset veryfast';
 		}
 		if (file.mimetype.toString().startsWith("image")) {
-			filedata.width = config.get("media.transform.media.image.width");
-			filedata.height = config.get("media.transform.media.image.height");
+			filedata.width = app.get("config.media")["transform"]["media"]["image"]["width"];
+			filedata.height = app.get("config.media")["transform"]["media"]["image"]["height"];
 		}
 	
 		//Avatar conversion options
 		if (filedata.media_type.toString() === "avatar"){
-			filedata.width = config.get("media.transform.avatar.width");
-			filedata.height = config.get("media.transform.avatar.height");
+			filedata.width = app.get("config.media")["transform"]["avatar"]["width"];
+			filedata.height = app.get("config.media")["transform"]["avatar"]["height"];
 		}
 	
 		//Banner conversion options
 		if (filedata.media_type.toString() === "banner"){
-			filedata.width = config.get("media.transform.banner.width");
-			filedata.height = config.get("media.transform.banner.height");
+			filedata.width = app.get("config.media")["transform"]["banner"]["width"];
+			filedata.height = app.get("config.media")["transform"]["banner"]["height"];
 		}
 
 		return;
@@ -241,6 +242,10 @@ const getMediaDimensions = async (file: string, fileData: { originalmime: string
 	if (file == "" || fileData == undefined) {
 		logger.error("Error processing file: file or fileData is empty");
 		return { width: 640, height: 480 };
+	}
+
+	if (!fileData.originalmime.startsWith("image") && !fileData.originalmime.startsWith("video")) {
+		return { width: 0, height: 0 };
 	}
 
     return new Promise<{ width: number, height: number }>(async (resolve) => {
@@ -284,8 +289,17 @@ const setMediaDimensions = async (file:string, options:ProcessingFileData):Promi
 
 		let mediaWidth : number = mediaDimensions.width? mediaDimensions.width: 0;
 		let mediaHeight : number = mediaDimensions.height? mediaDimensions.height: 0;
-		let newWidth = options.width;
-		let newHeight = options.height;
+
+		let newWidth = 640;
+		let newHeight = 480;
+		if (options.originalmime.startsWith("video")) {
+			newWidth = app.get("config.media")["transform"]["media"]["video"]["width"];
+			newHeight = app.get("config.media")["transform"]["media"]["video"]["height"];
+		}
+		if (options.originalmime.startsWith("image")) {
+			newWidth = app.get("config.media")["transform"]["media"]["image"]["width"];
+			newHeight = app.get("config.media")["transform"]["media"]["image"]["height"];
+		}
 			
 		if (mediaWidth == 0 || mediaHeight == 0) {
 			logger.warn("Could not get media dimensions of file: " + options.filename + " using default size (640x480)");
@@ -333,7 +347,7 @@ const getFileSize = (path:string,options:ProcessingFileData) :number => {
 
 const getNotFoundMediaFile = (): Promise<Buffer> => {
     return new Promise((resolve) => {
-        const notFoundPath = path.normalize(path.resolve(config.get("media.notFoundFilePath")));
+		const notFoundPath = path.normalize(path.resolve(app.get("config.media")["notFoundFilePath"]));
         fs.readFile(notFoundPath, (err, data) => {
             if (err) {
                 logger.error(err);
@@ -381,7 +395,7 @@ const finalizeFileProcessing = async (filedata: ProcessingFileData): Promise<boo
 		await dbUpdate('mediafiles','status','success',['id'], [filedata.fileid]);
 		const filesize = getFileSize(filedata.no_transform == true ? filedata.conversionInputPath: filedata.conversionOutputPath ,filedata)
 		await dbUpdate('mediafiles', 'filesize', filesize ,['id'], [filedata.fileid]);
-		await dbUpdate('mediafiles','dimensions',filedata.newFileDimensions.split("x")[0] + 'x' + filedata.newFileDimensions.split("x")[1],['id'], [filedata.fileid]);
+		await dbUpdate('mediafiles','dimensions',filedata.newFileDimensions,['id'], [filedata.fileid]);
 		await saveFile(filedata, filedata.no_transform == true ? filedata.conversionInputPath: filedata.conversionOutputPath );
 
 		if (filedata.no_transform == false) { await deleteLocalFile(filedata.conversionOutputPath);}

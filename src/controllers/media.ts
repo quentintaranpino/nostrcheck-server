@@ -238,7 +238,7 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 		const insertResult = await dbInsert(
 			"mediafiles", 
 			["pubkey", "filename", "original_hash", "hash", "status", "active", "visibility", "date", "ip_address", "magnet", "blurhash", "filesize", "comments", "type", "dimensions"],
-			[filedata.pubkey, filedata.filename, filedata.originalhash, filedata.hash, filedata.status, 1, 1, createdate, getClientIp(req), filedata.magnet, filedata.blurhash, filedata.filesize, "", filedata.media_type, filedata.width + "x" + filedata.height],);
+			[filedata.pubkey, filedata.filename, filedata.originalhash, filedata.hash, filedata.status, 1, 1, createdate, getClientIp(req), filedata.magnet, filedata.blurhash, filedata.filesize, "", filedata.media_type, filedata.width != 0? filedata.width + "x" + filedata.height : 0],);
 
 		filedata.fileid = insertResult.toString();
 		if (insertResult == 0) {
