@@ -16,11 +16,12 @@ import { isModuleEnabled, updateLocalConfigKey } from "../lib/config.js";
 import { flushRedisCache } from "../lib/redis.js";
 import { getFileType } from "../lib/media.js";
 import { npubToHex } from "../lib/nostr/NIP19.js";
-import { banSentinel, dbCountModuleData, dbCountMonthModuleData, dbSelectModuleData } from "../lib/admin.js";
+import { dbCountModuleData, dbCountMonthModuleData, dbSelectModuleData } from "../lib/admin.js";
 import { getBalance, getUnpaidTransactionsBalance } from "../lib/payments/core.js";
 import themes from "../interfaces/themes.js";
 import { moderateFile } from "../lib/moderation/core.js";
 import { addNewUsername } from "../lib/register.js";
+import { banRecord } from "../lib/banned.js";
 
 let hits = 0;
 /**
@@ -789,7 +790,7 @@ const moderateDBRecord = async (req: Request, res: Response): Promise<Response> 
 
 }
 
-const banPubkey = async (req: Request, res: Response): Promise<Response> => {
+const banDBRecord = async (req: Request, res: Response): Promise<Response> => {
 
     // Check if current module is enabled
     if (!isModuleEnabled("admin", app)) {
@@ -803,12 +804,12 @@ const banPubkey = async (req: Request, res: Response): Promise<Response> => {
     const EventHeader = await parseAuthHeader(req, "updateSettings", true);
     if (EventHeader.status !== "success") {return res.status(401).send({"status": EventHeader.status, "message" : EventHeader.message});}
     
-    if (req.body.pubkey === "" || 
-        req.body.pubkey === null || 
-        req.body.pubkey === undefined || 
-        req.body.reason === "" || 
-        req.body.reason === null ||
-        req.body.reason === undefined) {
+    if (req.body.id === "" || 
+        req.body.id === null || 
+        req.body.id === undefined || 
+        req.body.table === "" ||
+        req.body.table === null ||
+        req.body.table === undefined) {
             const result: authkeyResultMessage = {
                 status: "error",
                 message: "Invalid parameters",
@@ -817,7 +818,24 @@ const banPubkey = async (req: Request, res: Response): Promise<Response> => {
         return res.status(400).send(result);
     }
 
-    const banResult = await banSentinel(req.body.pubkey, req.body.reason, req.body.deleteMedia || false, req.body.deleteRegistered || false);
+    if (req.body.reason === "" || req.body.reason === null || req.body.reason === undefined) {
+        const result: authkeyResultMessage = {
+            status: "error",
+            message: "Reason cannot be empty",
+            authkey: EventHeader.authkey
+        }
+        return res.status(400).send(result);
+    }
+
+    // Don't show the user the real table names
+    let table = req.body.table;
+    if (req.body.table == "nostraddressData") {table = "registered";}
+    if (req.body.table == "mediaData") {table = "mediafiles";}
+    if (req.body.table == "lightningData") {table = "lightning";}
+    if (req.body.table == "domainsData") {table = "domains";}
+    if (req.body.table == "bannedData") {table = "banned";}
+
+    const banResult = await banRecord(req.body.id, table, req.body.reason);
 
     if (banResult.status == "error") {
         return res.status(500).send({status: "error", message: banResult.message, authkey: EventHeader.authkey});
@@ -839,5 +857,5 @@ export {    serverStatus,
             updateTheme,
             getModuleData,
             getModuleCountData,
-            banPubkey         
+            banDBRecord         
         };
