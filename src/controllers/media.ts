@@ -2,7 +2,7 @@ import { Request, Response } from "express";
 import app from "../app.js";
 import { connect, dbDelete, dbInsert, dbMultiSelect, dbSelect } from "../lib/database.js";
 import { logger } from "../lib/logger.js";
-import { parseAuthHeader } from "../lib//authorization.js";
+import { isPubkeyRegistered, parseAuthHeader } from "../lib//authorization.js";
 import { getUploadType, getFileType, standardMediaConversion, getNotFoundMediaFile, readRangeHeader, prepareLegacMediaEvent, getMediaDimensions } from "../lib/media.js"
 import { requestQueue } from "../lib/media.js";
 import {
@@ -20,7 +20,7 @@ import { ResultMessage, ResultMessagev2 } from "../interfaces/server.js";
 import path from "path";
 import validator from "validator";
 import fs from "fs";
-import { NIP96_event, NIP96_processing, NIPKinds } from "../interfaces/nostr.js";
+import { NIP96_event, NIP96_processing } from "../interfaces/nostr.js";
 import { PrepareNIP96_event, PrepareNIP96_listEvent } from "../lib/nostr/NIP96.js";
 import { generateQRCode, getClientIp } from "../lib/utils.js";
 import { generateBlurhash, generatefileHashfrombuffer } from "../lib/hash.js";
@@ -61,10 +61,11 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 
 	}
 	eventHeader.authkey? res.header("Authorization", eventHeader.authkey): null;
+	const pubkey = eventHeader.pubkey;
+	logger.info("pubkey ->", pubkey, "|", getClientIp(req));
 
-	// Check if pubkey is on the database
-	let pubkey : string = eventHeader.pubkey;
-	if (pubkey != await dbSelect("SELECT hex FROM registered WHERE hex = ?", "hex", [pubkey]) as string) {
+	// Public uploads logic
+	if (await isPubkeyRegistered(pubkey) == false){
 		if (app.get("config.media")["allowPublicUploads"] == false) {
 			logger.info("pubkey not registered, public uploads not allowed | ", getClientIp(req));
 			if(version != "v2"){return res.status(401).send({"result": false, "description" : "public uploads not allowed"});}
@@ -77,7 +78,6 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 		}
 		logger.info("pubkey not registered, uploading as guest | ", getClientIp(req));
 	}
-	logger.info("pubkey ->", pubkey, "|", getClientIp(req));
 
 	// getUploadType. If not defined, default is "media"
 	const media_type : string = pubkey != app.get("config.server")["pubkey"] ? await getUploadType(req) : "media";

@@ -4,12 +4,13 @@ import app from "../app.js";
 import { logger } from "../lib/logger.js";
 import { getClientIp, markdownToHtml } from "../lib/utils.js";
 import { dbSelect} from "../lib/database.js";
-import { generateCredentials, isAuthkeyValid, isPubkeyValid, isUserPasswordValid } from "../lib/authorization.js";
+import { generateCredentials, isAuthkeyValid, isPubkeyAllowed, isPubkeyValid, isUserPasswordValid } from "../lib/authorization.js";
 import { isModuleEnabled, loadconfigActiveModules } from "../lib/config.js";
 import { getProfileNostrMetadata, getProfileLocalMetadata, getProfileNostrNotes } from "../lib/frontend.js";
 import { hextoNpub } from "../lib/nostr/NIP19.js";
 import { logHistory } from "../lib/logger.js";
 import themes from "../interfaces/themes.js";
+import { verifyNIP07event } from "../lib/nostr/NIP07.js";
 
 const loadDashboardPage = async (req: Request, res: Response, version:string): Promise<Response | void> => {
 
@@ -38,7 +39,7 @@ const loadDashboardPage = async (req: Request, res: Response, version:string): P
     req.session.metadata = await getProfileNostrMetadata(req.session.identifier);
 
     // Check admin privileges. Only for information, never used for authorization
-    req.session.metadata.allowed = await isPubkeyValid(req, true);
+    req.session.metadata.allowed = await isPubkeyAllowed(req.body.pubkey || req.session.identifier);
 
     res.render("dashboard.ejs", {request: req});
 };
@@ -73,7 +74,7 @@ const loadSettingsPage = async (req: Request, res: Response, version:string): Pr
     req.session.metadata = await getProfileNostrMetadata(req.session.identifier);
 
     // Check admin privileges. Only for information, never used for authorization
-    req.session.metadata.allowed = await isPubkeyValid(req, true);
+    req.session.metadata.allowed = await isPubkeyAllowed(req.body.pubkey || req.session.identifier);
     
     res.render("settings.ejs", {request: req});
 };
@@ -102,7 +103,7 @@ const loadProfilePage = async (req: Request, res: Response, version:string): Pro
     req.session.metadata.mediaFiles =  await getProfileLocalMetadata(req.session.identifier);
 
     // Check admin privileges. Only for information, never used for authorization
-    req.session.metadata.allowed = await isPubkeyValid(req, true);
+    req.session.metadata.allowed = await isPubkeyAllowed(req.body.pubkey || req.session.identifier);
 
     res.render("profile.ejs", {request: req});
 };
@@ -293,7 +294,7 @@ const frontendLogin = async (req: Request, res: Response): Promise<Response> => 
 
     let canLogin = false;
     if (req.body.pubkey != undefined){
-        canLogin = await isPubkeyValid(req, false);
+        canLogin = await isPubkeyValid(req.session.identifier || req.body.pubkey, false, true);
     }
     if (req.body.username != undefined && req.body.password != undefined){
         canLogin = await isUserPasswordValid(req.body.username, req.body.password);
@@ -305,6 +306,9 @@ const frontendLogin = async (req: Request, res: Response): Promise<Response> => 
             req.body.pubkey = result.pubkey;
             canLogin = true;
         }
+    }
+    if (req.body.pubkey != undefined){
+        canLogin = await verifyNIP07event(req);
     }
     if (!canLogin) {
         logger.warn(`RES -> 401 unauthorized  - ${req.body.pubkey}`,"|",getClientIp(req));
@@ -324,7 +328,7 @@ const frontendLogin = async (req: Request, res: Response): Promise<Response> => 
     req.session.metadata = await getProfileNostrMetadata(req.session.identifier);
 
     // Check admin privileges. Only for information, never used for authorization
-    req.session.metadata.allowed = await isPubkeyValid(req, true);
+    req.session.metadata.allowed = await isPubkeyAllowed(req.body.pubkey || req.session.identifier);
 
     logger.info("logged in as", req.session.identifier, " - ", getClientIp(req));
     return res.status(200).send(true);

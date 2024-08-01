@@ -1,7 +1,7 @@
 import { Event } from "nostr-tools";
 import app from "../app.js";
 import { userMetadata } from "../interfaces/frontend.js";
-import { generateCredentials, isPubkeyValid } from "./authorization.js";
+import { generateCredentials } from "./authorization.js";
 import { dbSelect } from "./database.js";
 import { getProfileData, getProfileFollowers, getProfileFollowing } from "./nostr/NIP01.js";
 import { Request } from "express";

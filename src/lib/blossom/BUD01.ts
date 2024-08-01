@@ -4,8 +4,8 @@ import { Event } from "nostr-tools";
 import { Request } from "express";
 import { logger } from "../logger.js";
 import app from "../../app.js";
-import { dbSelect } from "../database.js";
 import { BUDKinds } from "../../interfaces/blossom.js";
+import { isPubkeyValid } from "../authorization.js";
 
 
 // https://github.com/hzrd149/blossom/blob/master/buds/01.md
@@ -75,13 +75,10 @@ const isBUD01AuthValid = async (authevent: Event, req: Request, endpoint: string
 		return {status: "error", message: "Auth header event endpoint is not valid", authkey: "", pubkey: "", kind: 0};
 	}
 
-    // This is not from BUD01 spec, but some server endpoints require admin privileges
-	if (checkAdminPrivileges) {
-		const isPubkeyAdmin = await dbSelect("SELECT allowed FROM registered WHERE hex = ?", "allowed", [authevent.pubkey]) as string;
-		if (isPubkeyAdmin === "0") {
-			logger.warn("RES -> 403 forbidden - Pubkey does not have admin privileges", "|", req.socket.remoteAddress);
-			return {status: "error", message: "This pubkey does not have admin privileges", pubkey: authevent.pubkey, authkey: "", kind: 0};
-		}
+    // This is not from BUD01 spec, check local pubkey validation
+	if (await isPubkeyValid(authevent.pubkey, checkAdminPrivileges, false) == false) {
+		logger.warn(`RES -> 400 Bad request - Auth header pubkey is not valid | ${req.socket.remoteAddress}`);
+		return {status: "error", message: "Auth header pubkey is not valid", authkey: "", pubkey: "", kind: 0};
 	}
 
     return {status: "success", message: "Auth header is valid", authkey: "", pubkey: authevent.pubkey, kind: +authevent.kind};

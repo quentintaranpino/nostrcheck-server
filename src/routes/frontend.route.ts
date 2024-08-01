@@ -87,7 +87,7 @@ export const loadFrontendEndpoint = async (app: Application, version:string): Pr
 	app.get("/api/" +  version + "/dashboard", limiter(100), async (req, res) => {
 		if (req.session.identifier == null){
 			res.redirect("/api/" +  version + "/login");
-		}else if (await isPubkeyValid(req, true) == false){
+		}else if (await isPubkeyValid(req.session.identifier, true) == false){
 			res.redirect("/api/v2/");
 		}else{
 			loadDashboardPage(req,res,version);
@@ -98,7 +98,7 @@ export const loadFrontendEndpoint = async (app: Application, version:string): Pr
 	app.get("/api/" +  version + "/settings", limiter(100), async (req, res) => {
 		if (req.session.identifier == null){
 			res.redirect("/api/" +  version + "/login");
-		}else if (await isPubkeyValid(req, true) == false){
+		}else if (await isPubkeyValid(req.session.identifier, true) == false){
 			res.redirect("/api/v2/");
 		}else{
 			loadSettingsPage(req,res,version);
@@ -109,7 +109,7 @@ export const loadFrontendEndpoint = async (app: Application, version:string): Pr
 	app.get("/api/" +  version + "/profile", limiter(100), async (req, res) => {
 		if (req.session.identifier == null){
 			res.redirect("/api/" +  version + "/login");
-		}else if (await isPubkeyValid(req, false) == false){
+		}else if (await isPubkeyValid(req.session.identifier, false) == false){
 			res.redirect("/api/v2/");
 		}else{
 			loadProfilePage(req,res,version);

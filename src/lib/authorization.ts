@@ -1,4 +1,4 @@
-import { dbSelect, dbUpdate } from "../lib/database.js";
+import { dbMultiSelect, dbSelect, dbUpdate } from "../lib/database.js";
 import { logger } from "./logger.js";
 import { credentialTypes, authHeaderResult } from "../interfaces/authorization.js";
 import { hashString, validateHash } from "./hash.js";
@@ -11,6 +11,7 @@ import { Event } from "nostr-tools";
 import { isBUD01AuthValid } from "./blossom/BUD01.js";
 import { NIPKinds } from "../interfaces/nostr.js";
 import { BUDKinds } from "../interfaces/blossom.js";
+import { isContentBanned } from "./banned.js";
 
 
 /**
@@ -76,35 +77,78 @@ const parseAuthHeader = async (req: Request, endpoint: string = "", checkAdminPr
 };
 
 /**
- * Validates a public key by checking if it exists in the registered table of the database. 
+ * Validates a public key by checking if it exists in the registered table of the database. If it is active and not banned.
  * Optionally checks if the public key has admin privileges.
- * @param {Request} req - The request object, which should contain the public key in the body or session.
+ * @param {string} pubkey - The public key to validate.
  * @param {boolean} [checkAdminPrivileges=false] - A boolean indicating whether to check if the public key has admin privileges. Optional.
  * @returns {Promise<boolean>} A promise that resolves to a boolean indicating whether the public key is valid and, if checkAdminPrivileges is true, whether it has admin privileges. Returns false if an error occurs, if the public key is not provided, or if it does not exist in the registered table.
  */
-const isPubkeyValid = async (req: Request, checkAdminPrivileges = false): Promise<boolean> => {
+const isPubkeyValid = async (pubkey: string, checkAdminPrivileges = false, checkRegistered = true): Promise<boolean> => {
 
-	if (!req.body.pubkey && !req.session.identifier) {
-		logger.warn("No pubkey provided");
-		return false;
-	}
+	if (pubkey === undefined || pubkey === "") {return false;}
 
-	const pubkey = req.body.pubkey || req.session.identifier;
-	const hex = await dbSelect("SELECT hex FROM registered WHERE hex = ? and active = ?", "hex", [pubkey, '1']) as string;
-	if (hex == "") {
-		return false;
-	}
+	if (await isPubkeyRegistered(pubkey) == false) {return checkRegistered? false : true}
+	if (await isPubkeyBanned(pubkey) == true) {return false;}
+	if (await isPubkeyActive(pubkey) == false) {return false;}
+	if (await isPubkeyAllowed(pubkey) == false) {return checkAdminPrivileges? false : true;}
 
-	if (checkAdminPrivileges) {
-		const admin = await dbSelect("SELECT allowed FROM registered WHERE hex = ?", "allowed", [hex]) as string;
-		if (admin != "1") {
-			logger.warn("RES -> 403 forbidden - Apikey does not have admin privileges", "|", req.socket.remoteAddress);
-			return false;
-		}
-	}
-	if (req.session.identifier) return true;
-	return await verifyNIP07event(req);
+	return true;
+}
 
+
+/**
+ * Validates a public key by checking if it exists in the registered table of the database.
+ * @param {string} pubkey - The public key to validate.
+ * @returns {Promise<boolean>} A promise that resolves to a boolean indicating whether the public key is registered. Returns false if an error occurs.
+ */
+const isPubkeyRegistered = async (pubkey: string): Promise<boolean> => {
+	
+	if (!pubkey) {return false};
+	const pubkeyData = await dbMultiSelect(["id"], "registered", "hex = ?", [pubkey], true) as any;
+	if (pubkeyData.length == 0) {return false;}
+	return true;
+}
+
+/**
+ * Validates a public key by checking if it is active.
+ * @param {string} pubkey - The public key to validate.
+ * @returns {Promise<boolean>} A promise that resolves to a boolean indicating whether the public key is active. Returns false if an error occurs.
+ */
+const isPubkeyActive = async (pubkey: string): Promise<boolean> => {
+	
+	if (!pubkey) {return false};
+	const pubkeyData = await dbMultiSelect(["active"], "registered", "hex = ?", [pubkey], true) as any;
+	if (pubkeyData.length == 0) {return false;}
+	if (pubkeyData[0].active == 0) {return false;}
+	return true;
+}
+
+/**
+ * Validates a public key by checking if it is allowed. (Admin privileges)
+ * @param {string} pubkey - The public key to validate.
+ * @returns {Promise<boolean>} A promise that resolves to a boolean indicating whether the public key is allowed. Returns false if an error occurs.
+ */
+const isPubkeyAllowed = async (pubkey: string): Promise<boolean> => {
+
+	if (!pubkey) {return false};
+	const pubkeyData = await dbMultiSelect(["allowed"], "registered", "hex = ?", [pubkey], true) as any;
+	if (pubkeyData.length == 0) {return false;}
+	if (pubkeyData[0].allowed == 0) {return false;}
+	return true;
+}
+
+/**
+ * Validates a public key by checking if it is banned.
+ * @param {string} pubkey - The public key to validate.
+ * @returns {Promise<boolean>} A promise that resolves to a boolean indicating whether the public key is banned. Returns true if an error occurs.
+ */
+const isPubkeyBanned = async (pubkey: string): Promise<boolean> => {
+
+	if (!pubkey) {return false};
+	const pubkeyData = await dbMultiSelect(["id"], "registered", "hex = ?", [pubkey], true) as any;
+	if (pubkeyData.length == 0) {return false;}
+	if (await isContentBanned(pubkeyData[0].id, "registered")) {return true;}
+	return false;
 }
 
 /**
@@ -115,24 +159,18 @@ const isPubkeyValid = async (req: Request, checkAdminPrivileges = false): Promis
  */
 const isUserPasswordValid = async (username:string, password:string, checkAdminPrivileges = true ): Promise<boolean> => {
 
-	try{
+	const pubkey = await dbSelect("SELECT hex FROM registered WHERE username = ?", "hex", [username]) as string;
+	if (await isPubkeyRegistered(pubkey) == false) {return false;}
+	if (await isPubkeyBanned(pubkey) == true) {return false;}
+	if (await isPubkeyActive(pubkey) == false) {return false;}
+	if (await isPubkeyAllowed(pubkey) == false) {return checkAdminPrivileges? false : true;}
 
-		if (checkAdminPrivileges) {
-			const admin = await dbSelect("SELECT allowed FROM registered WHERE username = ?", "allowed", [username]) as string;
-			if (admin === "0") {
-				logger.warn("RES -> 403 forbidden - Username does not have admin privileges", "|", username);
-				return false;
-			}
-		}
-		const userDBPassword = await dbSelect("SELECT password FROM registered WHERE username = ?", 
-								"password", 
-								[username]) as string;
+	const userDBPassword = await dbSelect("SELECT password FROM registered WHERE username = ?", 
+							"password", 
+							[username]) as string;
 
-		return await validateHash(password, userDBPassword);
-	}catch (error) {
-		logger.error(error);
-		return false;
-	}
+	return (await validateHash(password, userDBPassword));
+	
 };
 
 
@@ -262,12 +300,9 @@ const isApikeyValid = async (req: Request, endpoint: string = "", checkAdminPriv
 		return {status: "error", message: "Apikey not authorized for this action", pubkey:"", authkey:"", kind: 0};
 	}
 
-	if (checkAdminPrivileges) {
-		const admin = await dbSelect("SELECT allowed FROM registered WHERE hex = ?", "allowed", [hexApikey]) as string;
-		if (admin === "0") {
-			logger.warn("RES -> 403 forbidden - Apikey does not have admin privileges", "|", req.socket.remoteAddress);
-			return {status: "error", message: "Apikey not authorized for this action", pubkey:"", authkey:"", kind: 0};
-		}
+	if (await isPubkeyValid(hexApikey, checkAdminPrivileges) == false){
+		logger.warn("RES -> 401 unauthorized - Apikey not authorized for this action", "|", req.socket.remoteAddress);
+		return {status: "error", message: "Apikey not authorized for this action", pubkey:"", authkey:"", kind: 0};
 	}
 
 	const result: authHeaderResult = {
@@ -280,4 +315,11 @@ const isApikeyValid = async (req: Request, endpoint: string = "", checkAdminPriv
 	return result;
 };
 
-export { isPubkeyValid, isUserPasswordValid, isApikeyValid, isAuthkeyValid, generateCredentials, parseAuthHeader };
+export { 	isPubkeyValid, 
+			isPubkeyRegistered, 
+			isPubkeyAllowed,
+			isUserPasswordValid, 
+			isApikeyValid, 
+			isAuthkeyValid, 
+			generateCredentials, 
+			parseAuthHeader };

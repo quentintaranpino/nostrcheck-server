@@ -6,6 +6,7 @@ import { NIPKinds } from "../../interfaces/nostr.js";
 import { authHeaderResult } from "../../interfaces/authorization.js";
 import { dbSelect } from "../database.js";
 import app from "../../app.js";
+import { isPubkeyValid } from "../authorization.js";
 
 /**
  * Parses the authorization Nostr header (NIP98) and checks if it is valid. Visit for more information: https://github.com/nostr-protocol/nips/blob/master/98.md
@@ -121,13 +122,10 @@ const isNIP98Valid = async (authevent: Event, req: Request, checkAdminPrivileges
 
 	logger.debug("NIP 98 data |", "method:", eventMethod, "| u:", eventEndpoint, "| payload", eventPayload)
 
-	// This is not from NIP98 spec, but some server endpoints require admin privileges
-	if (checkAdminPrivileges) {
-		const isPubkeyAdmin = await dbSelect("SELECT allowed FROM registered WHERE hex = ?", "allowed", [authevent.pubkey]) as string;
-		if (isPubkeyAdmin === "0") {
-			logger.warn("RES -> 403 forbidden - Pubkey does not have admin privileges", "|", req.socket.remoteAddress);
-			return {status: "error", message: "This pubkey does not have admin privileges", pubkey: authevent.pubkey, authkey: "", kind: 0};
-		}
+    // This is not from NIP98 spec, check local pubkey validation
+	if (await isPubkeyValid(authevent.pubkey, checkAdminPrivileges, false) == false) {
+		logger.warn(`RES -> 400 Bad request - Auth header pubkey is not valid | ${req.socket.remoteAddress}`);
+		return {status: "error", message: "Auth header pubkey is not valid", authkey: "", pubkey: "", kind: 0};
 	}
 
 	return { status: "success", message: "Auth header event is valid", authkey: "", pubkey: authevent.pubkey, kind: +authevent.kind};
