@@ -79,7 +79,7 @@ const moduleDataWhereFields: { [key: string]: [string] } = {
 
 const moduleDataSelectFields: { [key: string]: string } = {
     "nostraddress":     "registered.id, " + 
-                        "CASE WHEN EXISTS (SELECT 1 FROM banned WHERE banned.originid = registered.id AND banned.origintable = 'registered') THEN 1 ELSE 0 END as banned, " +
+                        "CASE WHEN EXISTS (SELECT 1 FROM banned WHERE banned.originid = registered.id AND banned.origintable = 'registered' and banned.active = '1') THEN 1 ELSE 0 END as banned, " +
                         "registered.checked, " + 
                         "registered.active, " +
                         "registered.allowed, " +
@@ -92,7 +92,7 @@ const moduleDataSelectFields: { [key: string]: string } = {
                         "DATE_FORMAT(registered.date, '%Y-%m-%d %H:%i') as date," + 
                         "registered.comments",
     "media":            "mediafiles.id, " +
-    "CASE WHEN EXISTS (SELECT 1 FROM banned WHERE banned.originid = mediafiles.id AND banned.origintable = 'mediafiles') THEN 1 ELSE 0 END as banned, " +
+    "CASE WHEN EXISTS (SELECT 1 FROM banned WHERE banned.originid = mediafiles.id AND banned.origintable = 'mediafiles' and banned.active = '1') THEN 1 ELSE 0 END as banned, " +
                         "mediafiles.checked, " +
                         "mediafiles.active, " +
                         "mediafiles.visibility, " +

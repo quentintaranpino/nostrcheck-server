@@ -70,7 +70,7 @@ const isContentBanned = async (id: string, table: string): Promise<boolean> => {
     logger.debug("Checking if content is banned", "|", id, "|", table);
 
 	if (id == "" || table == "") {return true;}
-	const result = await dbMultiSelect(["id"], "banned", "originid = ? and origintable = ?", [id, table], false);
+	const result = await dbMultiSelect(["id"], "banned", "originid = ? and origintable = ? and active = '1' ", [id, table], false);
 	if (result.length == 0) {return false};
 
     logger.info("Content is banned", "|", id, "|", table);
