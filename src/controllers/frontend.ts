@@ -296,9 +296,12 @@ const frontendLogin = async (req: Request, res: Response): Promise<Response> => 
     let canLogin = false;
     if (req.body.pubkey != undefined){
         canLogin = await isPubkeyValid(req.session.identifier || req.body.pubkey, false, true);
+        canLogin = await verifyNIP07event(req);
     }
     if (req.body.username != undefined && req.body.password != undefined){
         canLogin = await isUserPasswordValid(req.body.username, req.body.password, false);
+        req.body.pubkey = await dbSelect("SELECT hex FROM registered WHERE username = ?", "hex", [req.body.username]) as string;
+
     }
     if (req.body.OTC != undefined){
         const result = await isAuthkeyValid(req.body.OTC);
@@ -307,16 +310,9 @@ const frontendLogin = async (req: Request, res: Response): Promise<Response> => 
             canLogin = true;
         }
     }
-    if (req.body.pubkey != undefined){
-        canLogin = await verifyNIP07event(req);
-    }
     if (!canLogin) {
         logger.warn(`RES -> 401 unauthorized  - ${req.body.pubkey}`,"|",getClientIp(req));
         return res.status(401).send(false);
-    }
-
-    if (req.body.pubkey == '' || req.body.pubkey == undefined){
-        req.body.pubkey = await dbSelect("SELECT hex FROM registered WHERE username = ?", "hex", [req.body.username]) as string;
     }
 
     // Set session identifier and generate authkey
