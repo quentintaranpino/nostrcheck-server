@@ -1156,8 +1156,8 @@ const deleteMedia = async (req: Request, res: Response, version:string): Promise
 	
 	const selectedFile = await dbMultiSelect(	["id","filename", "hash"],
 												"mediafiles",
-												"pubkey = ? and (filename = ? OR original_hash = ?)",
-												[EventHeader.pubkey, req.params.id, path.parse(req.params.id).name],
+												"pubkey = ? and (filename = ? OR original_hash = ?, or id = ?)",
+												[EventHeader.pubkey, req.params.id, req.params.id, req.params.id],
 												true);
 	if (selectedFile.length == 0) {
 		logger.warn("RES Delete Mediafile -> 404 Not found", EventHeader.pubkey, req.params.id, "|", getClientIp(req));
