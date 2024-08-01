@@ -101,6 +101,9 @@ const logInOtc = async () => {
         }});
   } else {
 
+    const buttonText = document.getElementById('otc_submit').innerHTML;
+    document.getElementById('otc_submit').innerHTML = '<span class="spinner-border spinner-border-sm pe-1" role="status" aria-hidden="true"></span> Logging in...';
+
     let data = {
         OTC: document.getElementById('input-otc-login').value,
         rememberMe: document.getElementById('rememberme_otc').checked
@@ -113,11 +116,11 @@ const logInOtc = async () => {
                     window.location.href = "/api";
                 } else {
                     initAlertModal("#login", data.message);
-                    document.getElementById('input-otc-login').innerHTML = 'One time login-code';
+                    document.getElementById('otc_submit').innerHTML = buttonText;
                 }});
         } else {
             initAlertModal("#login", response.statusText);
-            document.getElementById(buttonId).innerHTML = buttonText;
+            document.getElementById('otc_submit').innerHTML = buttonText;
         }});
   }
 }

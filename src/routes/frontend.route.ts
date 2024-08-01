@@ -41,7 +41,7 @@ export const loadFrontendEndpoint = async (app: Application, version:string): Pr
 
 	// Login page
 	app.get("/api/" +  version + "/login", limiter(10), async (req, res) => {
-		if (req.session.identifier != null){
+		if (req.session.identifier != null && req.session.identifier != undefined && req.session.identifier != ""){
 			res.redirect("/api/v2/");
 		}else{
 			if (await isFirstUse(req)){
