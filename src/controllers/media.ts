@@ -1156,7 +1156,7 @@ const deleteMedia = async (req: Request, res: Response, version:string): Promise
 	
 	const selectedFile = await dbMultiSelect(	["id","filename", "hash"],
 												"mediafiles",
-												"pubkey = ? and (filename = ? OR original_hash = ?, or id = ?)",
+												"pubkey = ? and (filename = ? OR original_hash = ? or id = ?)",
 												[EventHeader.pubkey, req.params.id, req.params.id, req.params.id],
 												true);
 	if (selectedFile.length == 0) {
