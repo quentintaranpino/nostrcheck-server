@@ -26,21 +26,26 @@ const isUsernameAvailable = async (username: string): Promise<boolean> => {
  */
 const addNewUsername = async (username: string, pubkey: string, password:string, domain: string, comments:string = ""): Promise<number> => {
 
+    // If the password is not provided, we will generate a random one ONLY for DB insertion.
+    let regeneratePassword = false;
     if (password == "" || password == undefined) {
-		password = await generateCredentials('password', pubkey, false, false, true); // If the password is not provided, we will generate a random one only for DB insertion.
+        regeneratePassword = true;
+		password = await generateCredentials('password', pubkey, false, false, true); 
 	}
 
     const createUsername = await dbInsert(  "registered", 
                                     ["pubkey", "hex", "username", "password", "domain", "active", "date", "comments"],
                                     [await hextoNpub(pubkey), pubkey, username, await hashString(password, 'password'), domain, 1, new Date().toISOString().slice(0, 19).replace("T", " "), comments]);
 
-    if (createUsername) {
-        const newPassword = await generateCredentials("password", pubkey, true, true, false); // Generate definitive password for the user and send it to the user via nostr DM.
+    if (regeneratePassword) {
+        // Generate definitive password for the user and send it to the user via nostr DM.
+        const newPassword = await generateCredentials("password", pubkey, true, true, false); 
         if (!newPassword) {return 0};
-        return createUsername;
     };
 
-    return 0;
+    if (createUsername == 0) {return 0};
+
+    return 1;
 }
 
 export { isUsernameAvailable, addNewUsername }

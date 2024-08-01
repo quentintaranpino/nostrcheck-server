@@ -11,6 +11,7 @@ app.set("config.logger", await loadConfigOptions("logger"));
 app.set("config.redis", await loadConfigOptions("redis"));
 app.set("config.storage", await loadConfigOptions("storage"));
 app.set("config.payments", await loadConfigOptions("payments"));
+app.set("config.register", await loadConfigOptions("register"));
 app.set("config.session", await loadConfigOptions("session"));
 app.set("config.environment", process.env.NODE_ENV ?? await loadConfigOptions("environment"));
 

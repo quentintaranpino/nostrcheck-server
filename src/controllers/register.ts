@@ -27,7 +27,7 @@ const registerUsername = async (req: Request, res: Response): Promise<Response> 
 	}
 
 	const username = Array.isArray(req.body.tags) ? req.body.tags.find((tag: string[]) => tag[0] === "username")?.[1] : "";
-	let validUsername = validator.default.isLength(username, { min: 3, max: 50 }); 
+	let validUsername = validator.default.isLength(username, { min: app.get("config.register")["minUsernameLength"], max: app.get("config.register")["maxUsernameLength"] }); 
 	validUsername == true? validUsername = validator.default.matches(username, /^[a-zA-Z0-9-_]+$/) : validUsername = false;
 	if (!validUsername) {
 		logger.warn(`RES -> 422 Bad request - Username not valid`, "|", getClientIp(req));
@@ -42,12 +42,16 @@ const registerUsername = async (req: Request, res: Response): Promise<Response> 
 	let validDomain = false;
 	(await getAvailableDomains()).forEach((element: string) => {element === domain ? validDomain = true : null});
 	if (!validDomain) {
-		logger.warn("RES -> 406 Bad request - Domain not allowed", "|", getClientIp(req));
+		logger.info("RES -> 406 Bad request - Domain not allowed", "|", getClientIp(req));
 		return res.status(406).send({status: "error", message: "Invalid domain"});
 	}
 
-	const password = Array.isArray(req.body.tags) ? req.body.tags.find((tag: string[]) => tag[0] === "password")?.[1] : "";
-	
+	let password = Array.isArray(req.body.tags) ? req.body.tags.find((tag: string[]) => tag[0] === "password")?.[1] : "";
+	if (password != null && password != "" && password != undefined && password.length < app.get("config.register")["minPasswordLength"]) {
+		logger.info("RES -> 422 Bad request - Password too short", "|", getClientIp(req));
+		return res.status(422).send({status: "error", message: "Password too short"});
+	}
+
 	const addUsername = await addNewUsername(username, req.body.pubkey, password, domain);
 	if (addUsername == 0) {
 		logger.error("RES -> Failed to add new username" + " | " + getClientIp(req));

@@ -155,6 +155,7 @@ const isPubkeyBanned = async (pubkey: string): Promise<boolean> => {
  * Validates a user's password by comparing it with the hashed password stored in the database.
  * @param {string} username - The username of the user.
  * @param {string} password - The password provided by the user to be validated.
+ * @param {boolean} [checkAdminPrivileges=true] - A boolean indicating whether to check if the user has admin privileges. Optional, default is true.
  * @returns {Promise<boolean>} A promise that resolves to a boolean indicating whether the provided password matches the hashed password stored in the database for the given username. Returns false if an error occurs.
  */
 const isUserPasswordValid = async (username:string, password:string, checkAdminPrivileges = true ): Promise<boolean> => {

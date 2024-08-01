@@ -65,6 +65,7 @@ const loadSettingsPage = async (req: Request, res: Response, version:string): Pr
     req.body.settingsStorage = app.get("config.storage");
     req.body.settingsMedia = app.get("config.media");
     req.body.settingsPayments = app.get("config.payments");
+    req.body.settingsRegister = app.get("config.register");
     req.body.settingsLogger = app.get("config.logger");
     req.body.logHistory = logHistory;
     req.body.settingsLookAndFeelThemes = themes;

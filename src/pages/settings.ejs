@@ -6,7 +6,7 @@
   <body class="d-flex flex-column h-100">
     <%- include('./partials/navbar', {active:'settings'}); %>
     <main class="pb-1">
-      <div class="container-fluid col-12 col-md-11 col-lg-10" style="max-width: 900px;">
+      <div class="container-fluid col-12 col-md-11 col-lg-10" style="max-width: 1050px;">
         <div class="text-center"><h1 class="display-2 mt-2 pb-2 gradient-text">Server settings</h1></div>
         <p class="text-center mt-1 mb-4 lead">Not your server, not your rules. Be sovereing here.        
         </p>
@@ -60,6 +60,18 @@
               </button>
           </li>
           <li class="nav-item" role="presentation">
+            <button class="nav-link" 
+                    id="register-tab" 
+                    data-bs-toggle="tab" 
+                    data-bs-target="#register" 
+                    type="button" 
+                    role="tab" 
+                    aria-controls="register" 
+                    aria-selected="false">
+                    <i class="fa-solid fa-address-card me-2"></i>Register
+            </button>
+          </li>
+          <li class="nav-item" role="presentation">
               <button class="nav-link" 
                       id="media-tab" 
                       data-bs-toggle="tab" 
@@ -108,6 +120,9 @@
           </div>
           <div class="tab-pane fade" id="storage" role="tabpanel" aria-labelledby="storage-tab">
             <%- include('./components/settings/storage'); %>
+          </div>
+          <div class="tab-pane fade" id="register" role="tabpanel" aria-labelledby="register-tab">
+            <%- include('./components/settings/register'); %>
           </div>
           <div class="tab-pane fade" id="media" role="tabpanel" aria-labelledby="media-tab">
             <%- include('./components/settings/media'); %>
