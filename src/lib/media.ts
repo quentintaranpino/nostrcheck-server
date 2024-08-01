@@ -429,7 +429,7 @@ const prepareLegacMediaEvent = async (filedata : ProcessingFileData): Promise<le
 
     const event : legacyMediaReturnMessage = {
 
-        result: filedata.status == "success" || filedata.status == "completed" ? true : false,
+        result: filedata.status == "success" || filedata.status == "completed" || filedata.status == "pending" ? true : false,
 		description: filedata.description,
 		status: filedata.status,
 		id: filedata.fileid,
