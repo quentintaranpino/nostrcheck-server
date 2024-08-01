@@ -90,7 +90,7 @@ const isPubkeyValid = async (pubkey: string, checkAdminPrivileges = false, check
 	if (await isPubkeyRegistered(pubkey) == false) {return checkRegistered? false : true}
 	if (await isPubkeyBanned(pubkey) == true) {return false;}
 	if (await isPubkeyActive(pubkey) == false) {return false;}
-	if (await isPubkeyAllowed(pubkey) == false) {return checkAdminPrivileges? false : true;}
+	if (checkAdminPrivileges && await isPubkeyAllowed(pubkey) == false) {return false;}
 
 	return true;
 }
@@ -163,7 +163,7 @@ const isUserPasswordValid = async (username:string, password:string, checkAdminP
 	if (await isPubkeyRegistered(pubkey) == false) {return false;}
 	if (await isPubkeyBanned(pubkey) == true) {return false;}
 	if (await isPubkeyActive(pubkey) == false) {return false;}
-	if (await isPubkeyAllowed(pubkey) == false) {return checkAdminPrivileges? false : true;}
+	if (checkAdminPrivileges && await isPubkeyAllowed(pubkey) == false) {return false;}
 
 	const userDBPassword = await dbSelect("SELECT password FROM registered WHERE username = ?", 
 							"password", 
