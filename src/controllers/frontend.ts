@@ -309,7 +309,7 @@ const frontendLogin = async (req: Request, res: Response): Promise<Response> => 
             req.body.pubkey = result.pubkey;
             canLogin = true;
         }
-    }
+    } 
     if (!canLogin) {
         logger.warn(`RES -> 401 unauthorized  - ${req.body.pubkey}`,"|",getClientIp(req));
         return res.status(401).send(false);
