@@ -105,7 +105,7 @@ const logInOtc = async () => {
     document.getElementById('otc_submit').innerHTML = '<span class="spinner-border spinner-border-sm pe-1" role="status" aria-hidden="true"></span> Logging in...';
 
     let data = {
-        OTC: document.getElementById('input-otc-login').value,
+        otc: document.getElementById('input-otc-login').value,
         rememberMe: document.getElementById('rememberme_otc').checked
     }
 
