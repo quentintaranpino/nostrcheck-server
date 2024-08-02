@@ -144,7 +144,7 @@ const validateOTC = async () => {
     .then(async data => {
       if (data.status == 'success'){
 
-        initAlertModal("#register", "One time code validated successfully, redirecting in 5 seconds to login page. Welcome and enjoy your new account! 🥳🥳🥳", 2000, "alert-success");
+        initAlertModal("#register", "One time code validated successfully, redirecting in 5 seconds to login page. Welcome and enjoy your new account! 🥳🥳🥳", 5000, "alert-success");
         await new Promise(r => setTimeout(r, 5000));
         window.location.href = "login";
 
