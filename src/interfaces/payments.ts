@@ -1,3 +1,5 @@
+import { ResultMessagev2 } from "./server.js";
+
 interface invoice {
     paymentRequest: string;
     paymentHash: string;
@@ -61,4 +63,9 @@ const accounts = [
     
 ];
 
-export { invoice, emptyInvoice, transaction, emptyTransaction, accounts}
+interface paymentResultMessage extends ResultMessagev2 {
+    payment_request: string;
+}
+
+
+export { invoice, emptyInvoice, transaction, emptyTransaction, accounts, paymentResultMessage}
