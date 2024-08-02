@@ -303,13 +303,13 @@ const frontendLogin = async (req: Request, res: Response): Promise<Response> => 
         req.body.pubkey = await dbSelect("SELECT hex FROM registered WHERE username = ?", "hex", [req.body.username]) as string;
 
     }
-    if (req.body.OTC != undefined){
-        const result = await isAuthkeyValid(req.body.OTC, false);
+    if (req.body.otc != undefined){
+        const result = await isAuthkeyValid(req.body.otc, false);
         if(result.status == 'success'){
             req.body.pubkey = result.pubkey;
             canLogin = true;
         }
-    }
+    } 
     if (!canLogin) {
         logger.warn(`RES -> 401 unauthorized  - ${req.body.pubkey}`,"|",getClientIp(req));
         return res.status(401).send(false);

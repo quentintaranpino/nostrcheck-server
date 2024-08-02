@@ -1146,33 +1146,62 @@ names: {
 # register
 
 ### register [POST]
+
 Allows to register a new username to the database
+
+This endpoint use the [NIP98](https://github.com/nostr-protocol/nips/blob/master/98.md) HTTP Auth for getting the pubkey. The NIP98's pubkey must be compared with the pubkey on the body.
+
+If NIP98 header is not provided, the registration must be activated via OTC code sent to the pubkey via DM. 
+
+If the server don't allow public registration, the body `must` have the `invitation_key` field with the correct value.
 
 https://nostrcheck.me/api/v2/register
 
-Example of a register note for a new username
-```
+Example of a register request;
+
+```json
 {
-  "id": "2bb5408bf39277f6c9bbfa7a35c74169c9003a86a12b989947ddfe36cb19a0d7",
-  "pubkey": "b6f1e9f6fe120a4aa29a89cbf198592df6f11a382bb28705e9b8e7458b926f48",
-  "created_at": 1683729184,
-  "kind": 30078,
-  "tags": [
-    [
-      "username",
-      "quentin"
-    ],
-    [
-      "domain",
-      "yourdomain"
-    ]
-  ],
-  "content": "",
-  "sig": "57b015348d2220f7cd5049fc86de50cf54b2a7f1de6c579912f549ad9abf9e36e47b629e0397edd1afa5ce7d402e282f380c9a68577bce337095326be19bb571"
+"pubkey": "89e14be49ed0073da83b678279cd29ba5ad86cf000b6a3d1a4c3dc4aa4fdd02c",
+"username": "quentin",
+"domain": "nostrcheck.me",
+"password": "ilovenostr",
+"invitation_key" : "super-invite-code"
 }
 ```
 
-This endpoint use the [NIP98](https://github.com/nostr-protocol/nips/blob/master/98.md) HTTP Auth for register new user authorization. The NIP98's pubkey must have the "allowed" field with "1" on registered database.
+The server returns:
+
+```json
+{
+    "status": "success",
+    "message": "User registered successfully, pending OTC verification",
+    "otc": true // Must be 'true' If the authorization header is not provided or the authorization header is not valid or the authorization header pubkey is different from the pubkey in the body
+}
+```
+
+### register [POST]
+
+Allows to validate a registration OTC code.
+
+https://nostrcheck.me/api/v2/register/validate
+
+Example of a register request;
+
+```json
+{
+"otc":"754610",
+"domain": "nostriches.club"
+}
+```
+
+The server returns:
+
+```json
+{
+    "status": "succes", // Can be "success" or "error"
+    "message": "Valid OTC" 
+}
+```
 
 # verify
 
