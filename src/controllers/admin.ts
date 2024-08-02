@@ -10,7 +10,7 @@ import { getClientIp, format } from "../lib/utils.js";
 import { ResultMessagev2, ServerStatusMessage, authkeyResultMessage } from "../interfaces/server.js";
 import { generateCredentials } from "../lib/authorization.js";
 import { dbDelete, dbInsert, dbUpdate } from "../lib/database.js";
-import { allowedFieldNames, allowedFieldNamesAndValues, allowedTableNames, moduleDataReturnMessage } from "../interfaces/admin.js";
+import { allowedFieldNames, allowedFieldNamesAndValues, allowedTableNames, moduleDataReturnMessage, moduleDataKeys } from "../interfaces/admin.js";
 import { parseAuthHeader} from "../lib/authorization.js";
 import { isModuleEnabled, updateLocalConfigKey } from "../lib/config.js";
 import { flushRedisCache } from "../lib/redis.js";
@@ -120,12 +120,15 @@ const updateDBRecord = async (req: Request, res: Response): Promise<Response> =>
     }
 
     // Don't show the user the real table names
-    let table = req.body.table;
-    if (req.body.table == "nostraddressData") {table = "registered";}
-    if (req.body.table == "mediaData") {table = "mediafiles";}
-    if (req.body.table == "lightningData") {table = "lightning";}
-    if (req.body.table == "domainsData") {table = "domains";}
-    if (req.body.table == "bannedData") {table = "banned";}
+    let table = moduleDataKeys[req.body.table];
+	if (!table) {
+        const result : ResultMessagev2 = {
+            status: "error",
+            message: "Invalid table name"
+            };
+        logger.warn("RES -> Invalid table name" + " | " + getClientIp(req));
+        return res.status(400).send(result);
+    }
 
     logger.debug("table: ", table, " | field: ", req.body.field, " | value: ", req.body.value, " | id: ", req.body.id)
 
@@ -406,12 +409,15 @@ const deleteDBRecord = async (req: Request, res: Response): Promise<Response> =>
     }
 
     // Don't show the user the real table names
-    let table = req.body.table;
-    if (req.body.table == "nostraddressData") {table = "registered";}
-    if (req.body.table == "mediaData") {table = "mediafiles";}
-    if (req.body.table == "lightningData") {table = "lightning";}
-    if (req.body.table == "domainsData") {table = "domains";}
-    if (req.body.table == "bannedData") {table = "banned";}
+    let table = moduleDataKeys[req.body.table];
+	if (!table) {
+        const result : ResultMessagev2 = {
+            status: "error",
+            message: "Invalid table name"
+            };
+        logger.warn("RES -> Invalid table name" + " | " + getClientIp(req));
+        return res.status(400).send(result);
+    }
 
     // Check if the provided table name is allowed.
     if (!allowedTableNames.includes(table)){
@@ -478,12 +484,15 @@ const insertDBRecord = async (req: Request, res: Response): Promise<Response> =>
     }
 
     // Don't show the user the real table names
-    let table = req.body.table;
-    if (req.body.table == "nostraddressData") {table = "registered";}
-    if (req.body.table == "mediaData") {table = "mediafiles";}
-    if (req.body.table == "lightningData") {table = "lightning";}
-    if (req.body.table == "domainsData") {table = "domains";}
-    if (req.body.table == "bannedData") {table = "banned";}
+    let table = moduleDataKeys[req.body.table];
+	if (!table) {
+        const result : ResultMessagev2 = {
+            status: "error",
+            message: "Invalid table name"
+            };
+        logger.warn("RES -> Invalid table name" + " | " + getClientIp(req));
+        return res.status(400).send(result);
+    }
 
     let errorFound = false;
     await Object.entries(req.body.row).forEach(([field, value]) => {
@@ -828,12 +837,15 @@ const banDBRecord = async (req: Request, res: Response): Promise<Response> => {
     }
 
     // Don't show the user the real table names
-    let table = req.body.table;
-    if (req.body.table == "nostraddressData") {table = "registered";}
-    if (req.body.table == "mediaData") {table = "mediafiles";}
-    if (req.body.table == "lightningData") {table = "lightning";}
-    if (req.body.table == "domainsData") {table = "domains";}
-    if (req.body.table == "bannedData") {table = "banned";}
+    let table = moduleDataKeys[req.body.table];
+	if (!table) {
+        const result : ResultMessagev2 = {
+            status: "error",
+            message: "Invalid table name"
+            };
+        logger.warn("RES -> Invalid table name" + " | " + getClientIp(req));
+        return res.status(400).send(result);
+    }
 
     const banResult = await banRecord(req.body.id, table, req.body.reason);
 

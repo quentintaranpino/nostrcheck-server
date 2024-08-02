@@ -37,6 +37,17 @@ const ModuleDataTables: { [key: string]: string } = {
     "domains": "domains",
     "payments": "transactions",
     "banned": "banned",
+    "invites": "invitations"
+};
+
+const moduleDataKeys: { [key: string]: string } = {
+    "nostraddressData": "registered",
+    "mediaData": "mediafiles",
+    "lightningData": "lightning",
+    "domainsData": "domains",
+    "paymentsData": "transactions",
+    "bannedData": "banned",
+    "invitesData": "invitations"
 };
 
 const moduleDataWhereFields: { [key: string]: [string] } = {
@@ -75,6 +86,17 @@ const moduleDataWhereFields: { [key: string]: [string] } = {
                         "transactions.expirydate, " +
                         "transactions.paiddate, " +
                         "transactions.comments"],
+    "banned":           ["banned.id, " +
+                        "banned.originid, " +
+                        "banned.origintable, " +
+                        "banned.reason, " +
+                        "banned.comments"],
+    "invites":          ["invitations.id, " +
+                        "invitations.originid, " +
+                        "invitations.inviteeid, " +
+                        "invitations.createdate, " +
+                        "invitations.inviteedate, " +
+                        "invitations.comments"]
 };
 
 const moduleDataSelectFields: { [key: string]: string } = {
@@ -137,7 +159,14 @@ const moduleDataSelectFields: { [key: string]: string } = {
                         "COALESCE(  (SELECT mediafiles.filename FROM mediafiles WHERE mediafiles.id = banned.originid and banned.origintable = 'mediafiles' LIMIT 1), " +
                         "           (SELECT registered.hex FROM registered WHERE registered.id = banned.originid and banned.origintable = 'registered' LIMIT 1)" +
                         "         ) as originkey, " +
-                        "banned.reason "
+                        "banned.reason ",
+    "invites":          "invitations.id, " +
+                        "invitations.active, " +
+                        "invitations.originid, " +
+                        "invitations.inviteeid, " +
+                        "DATE_FORMAT(invitations.createdate, '%Y-%m-%d %H:%i') as createdate, " +
+                        "DATE_FORMAT(invitations.inviteedate, '%Y-%m-%d %H:%i') as inviteedate, " +
+                        "invitations.comments",
 };
 
-export { allowedTableNames, allowedFieldNames, allowedFieldNamesAndValues, moduleDataReturnMessage, ModuleDataTables, moduleDataSelectFields, moduleDataWhereFields };
+export { allowedTableNames, allowedFieldNames, allowedFieldNamesAndValues, moduleDataReturnMessage, ModuleDataTables, moduleDataSelectFields, moduleDataWhereFields, moduleDataKeys };
