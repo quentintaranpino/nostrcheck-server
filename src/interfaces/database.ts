@@ -246,6 +246,7 @@ const bannedTableFields: bannedTable = {
 interface invitationsTable extends RowDataPacket {
 	id: string;
 	active: string;
+	code: string;
 	originid: string;
 	inviteeid: string;
 	createdate: string;
@@ -256,6 +257,7 @@ interface invitationsTable extends RowDataPacket {
 const invitationsTableFields: invitationsTable = {
 	id: "int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY",
 	active: "boolean NOT NULL DEFAULT 1",
+	code: "varchar(32) NOT NULL",
 	originid: "int(11) NOT NULL",
 	inviteeid: "int(11)",
 	createdate: "datetime NOT NULL",

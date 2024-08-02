@@ -22,6 +22,7 @@ import themes from "../interfaces/themes.js";
 import { moderateFile } from "../lib/moderation/core.js";
 import { addNewUsername } from "../lib/register.js";
 import { banRecord } from "../lib/banned.js";
+import { generateInviteCode } from "../lib/invitations.js";
 
 let hits = 0;
 /**
@@ -537,11 +538,18 @@ const insertDBRecord = async (req: Request, res: Response): Promise<Response> =>
         }
     }
 
+    // Specific case for invitations table
+    if (req.body.table == "invitesData"){
+        req.body.row["createdate"] = new Date().toISOString().slice(0, 19).replace('T', ' ');
+        req.body.row["code"] = generateInviteCode();
+    }
+
     // Insert records into the table
     let insert : number = 0;
     if (req.body.table == "nostraddressData"){
         insert = await addNewUsername(req.body.row["username"], req.body.row["hex"], req.body.row["password"], req.body.row["domain"], req.body.row["comments"]);
     }else{
+
         insert = await dbInsert(table, Object.keys(req.body.row), Object.values(req.body.row));
     }
     if (insert === 0) {

@@ -1,6 +1,21 @@
 
-const allowedTableNames = ["registered", "mediafiles", "lightning", "domains", "banned"];
-const allowedFieldNames = ["allowed", "active", "visibility", "comments", "username", "pubkey", "hex", "domain", "checked", "lightningaddress", "paid", "originid", "origintable", "reason"]; 
+const allowedTableNames = ["registered", "mediafiles", "lightning", "domains", "banned", "invitations"];
+const allowedFieldNames = [ "allowed", 
+                            "active", 
+                            "visibility", 
+                            "comments", 
+                            "username", 
+                            "pubkey", 
+                            "hex", 
+                            "domain", 
+                            "checked", 
+                            "lightningaddress", 
+                            "paid", 
+                            "originid", 
+                            "origintable", 
+                            "reason",
+                            "createdate"
+                        ]; 
 
 const allowedFieldNamesAndValues = [
     {field: "allowed", values: [0, 1]},
@@ -20,6 +35,7 @@ const allowedFieldNamesAndValues = [
     {field: "origintable", values: ["string"]},
     {field: "original_hash", values: ["string"]},
     {field: "reason", values: ["string"]},
+    {field: "createdate", values: ["string"]},
 ];
 
 interface moduleDataReturnMessage {
@@ -37,7 +53,7 @@ const ModuleDataTables: { [key: string]: string } = {
     "domains": "domains",
     "payments": "transactions",
     "banned": "banned",
-    "invites": "invitations"
+    "register": "invitations"
 };
 
 const moduleDataKeys: { [key: string]: string } = {
@@ -160,8 +176,9 @@ const moduleDataSelectFields: { [key: string]: string } = {
                         "           (SELECT registered.hex FROM registered WHERE registered.id = banned.originid and banned.origintable = 'registered' LIMIT 1)" +
                         "         ) as originkey, " +
                         "banned.reason ",
-    "invites":          "invitations.id, " +
+    "register":         "invitations.id, " +
                         "invitations.active, " +
+                        "invitations.code, " +
                         "invitations.originid, " +
                         "invitations.inviteeid, " +
                         "DATE_FORMAT(invitations.createdate, '%Y-%m-%d %H:%i') as createdate, " +

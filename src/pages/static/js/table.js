@@ -244,6 +244,7 @@ async function modifyRecord(url, tableId, id, field, fieldValue, action = 'modif
         }
         data.table = tableId.split('-')[0].split('#')[1],
         data.row = row
+        
     }
 
     if (action === 'password') {
@@ -553,6 +554,7 @@ let tables = [
     { name: 'domains', tableId: 'domainsData', dataKey: 'domains', objectName: 'domain name', url: 'admin/moduledata?module=domains'},
     { name: 'payments', tableId: 'paymentsData', dataKey: 'payments', objectName: 'transaction', url: 'admin/moduledata?module=payments', field: 'paid'},
     { name: 'banned', tableId: 'bannedData', dataKey: 'banned', objectName: 'banned pubkeys', url: 'admin/moduledata?module=banned'},
+    { name: 'invites', tableId: 'invitesData', dataKey: 'register', objectName: 'invitation', url: 'admin/moduledata?module=invites'},
 ];
 
 setInterval(async() => {
