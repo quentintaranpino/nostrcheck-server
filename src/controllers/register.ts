@@ -84,11 +84,11 @@ const registerUsername = async (req: Request, res: Response): Promise<Response> 
 		return res.status(422).send({status: "error", message: "Password too short"});
 	}
 
-	// let invitation_key = req.body.invitation_key || "";
-	// if ((invitation_key == null || invitation_key == "" || invitation_key == undefined) && app.get("config.register")["allowPublicRegistration"] == false) {
-	// 	logger.info("RES -> 400 Bad request - Invitation key not provided", "|", getClientIp(req));
-	// 	return res.status(400).send({status: "error", message: "Invitation key not provided"});
-	// }
+	let invitation_key = req.body.invitation_key || "";
+	if ((invitation_key == null || invitation_key == "" || invitation_key == undefined) && app.get("config.register")["allowPublicRegistration"] == false) {
+		logger.info("RES -> 400 Bad request - Invitation key not provided", "|", getClientIp(req));
+		return res.status(400).send({status: "error", message: "Invitation key not provided"});
+	}
 
 	let comments = eventHeader.status == "success" ? "" : "Pending OTC verification";
 

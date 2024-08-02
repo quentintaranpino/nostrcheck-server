@@ -1,5 +1,4 @@
 import { RowDataPacket } from "mysql2";
-import { S } from "vitest/dist/reporters-5f784f42.js";
 
 interface domainsTableStructure extends RowDataPacket{
 	id: string;
@@ -225,7 +224,7 @@ interface accountsTable extends RowDataPacket {
 	comments: string;
 }
 
-interface bannedTableStructure extends RowDataPacket{
+interface bannedTable extends RowDataPacket{
 	id: string;
 	active: string;
 	originid: string;
@@ -233,7 +232,7 @@ interface bannedTableStructure extends RowDataPacket{
 	reason: string;
 }
 
-const bannedTableFields: bannedTableStructure = {
+const bannedTableFields: bannedTable = {
 	"id" : "int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY",
 	"active" : "boolean NOT NULL DEFAULT 1",
 	"originid" : "varchar(11) NOT NULL",
@@ -243,6 +242,31 @@ const bannedTableFields: bannedTableStructure = {
 		name: 'RowDataPacket',
 	},
 }
+
+interface invitationsTable extends RowDataPacket {
+	id: string;
+	active: string;
+	originid: string;
+	inviteeid: string;
+	createdate: string;
+	inviteedate: string;
+	comments: string;
+}
+
+const invitationsTableFields: invitationsTable = {
+	id: "int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY",
+	active: "boolean NOT NULL DEFAULT 1",
+	originid: "int(11) NOT NULL",
+	inviteeid: "int(11)",
+	createdate: "datetime NOT NULL",
+	inviteedate: "datetime",
+	comments: "varchar(150)",
+	constructor: {
+		name: 'RowDataPacket',
+	},
+};
+
+
 
 //If you add a new field that is substituting an old one, add it here
 const newFieldcompatibility = [
@@ -259,6 +283,7 @@ const newFieldcompatibility = [
 	{"ledger": ledgerTableFields},
 	{"accounts": accountsTableFields},
 	{"banned": bannedTableFields},
+	{"invitations": invitationsTableFields},
 ];
 
 
