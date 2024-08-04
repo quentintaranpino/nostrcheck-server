@@ -320,9 +320,9 @@ Endpoint: https://nostrcheck.me/api/v2/admin/updatelogo
 ### Domains
 
 ### domains [GET]
-This method retrieves a list of available domains in the application. The request must include a valid module name and an Authorization header with a valid authkey. On success, it returns a list of available domains and an authkey.
 
-This endpoint also can use the [NIP98](https://github.com/nostr-protocol/nips/blob/master/98.md) HTTP Auth for getting the user's authkey. The NIP98's pubkey must have the "allowed" field with "1" on registered database.
+This method retrieves a list of available domains with their requirements (invite and payment) in the application.
+
 
 Endpoint: https://nostrcheck.me/api/v2/domains
 
@@ -332,25 +332,10 @@ Endpoint: https://nostrcheck.me/api/v2/domains
 
 **Example Request**
 
-With authkey
 ```json
 {
     "method": "GET",
     "url": "https://nostrcheck.me/api/v2/domains/",
-    "headers": {
-        "Content-Type": "application/json",
-    }
-}
-```
-
-With NIP98
-```json
-{
-    "method": "GET",
-    "url": "https://nostrcheck.me/api/v2/domains/",
-    "headers": {
-        "Content-Type": "application/json",
-    }
 }
 ```
 
@@ -358,7 +343,17 @@ With NIP98
 
 ```json
 {
-    "AvailableDomains": ["domain1.com", "domain2.com"],
+    "availableDomains": {
+        "nostrcheck.me": {
+            "requireinvite": false,
+            "requirepayment": true
+        },
+        "nostr-check.me": {
+            "requireinvite": true,
+            "requirepayment": false
+        },
+    },
+    "publicRegistration": true
 }
 ```
 
@@ -1153,7 +1148,7 @@ This endpoint use the [NIP98](https://github.com/nostr-protocol/nips/blob/master
 
 If NIP98 header is not provided, the registration must be activated via OTC code sent to the pubkey via DM. 
 
-If the server don't allow public registration, the body `must` have the `invitation_key` field with the correct value.
+Each domain can have a different registration policy. If the domain needs an invitation code, the body `must` have the `inviteCode` field with the correct value.
 
 https://nostrcheck.me/api/v2/register
 
@@ -1165,7 +1160,7 @@ Example of a register request;
 "username": "quentin",
 "domain": "nostrcheck.me",
 "password": "ilovenostr",
-"invitation_key" : "super-invite-code"
+"inviteCode" : "super-invite-code"
 }
 ```
 
@@ -1176,6 +1171,18 @@ The server returns:
     "status": "success",
     "message": "User registered successfully, pending OTC verification",
     "otc": true // Must be 'true' If the authorization header is not provided or the authorization header is not valid or the authorization header pubkey is different from the pubkey in the body
+}
+```
+
+Each domain can have a different registration policy. If the domain needs a payment, the server will return a payment request with the amount to be paid.
+
+```json
+{
+    "status": "success",
+    "message": "User registered successfully, pending payment",
+    "otc": true, // Must be 'true' If the authorization header is not provided or the authorization header is not valid or the authorization header pubkey is different from the pubkey in the body
+    "payment": true, // Must be 'true' If the domain needs a payment.
+    "amount": 1000
 }
 ```
 

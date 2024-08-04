@@ -19,9 +19,12 @@ const listAvailableDomains = async (req: Request, res: Response): Promise<Respon
 
 	logger.info("REQ -> Available domains ", "|", getClientIp(req));
 
-	const AvailableDomains = await getAvailableDomains();
-	return res.status(200).send({AvailableDomains});
-	
+	const availableDomains = await getAvailableDomains();
+
+	return res.status(200).send({
+		availableDomains: availableDomains,
+		publicRegistration: app.get("config.register")["allowPublicRegistration"]
+	});
 };
 
 const listAvailableUsers = async (req: Request, res: Response): Promise<Response> => {
@@ -38,13 +41,13 @@ const listAvailableUsers = async (req: Request, res: Response): Promise<Response
 	const EventHeader = await parseAuthHeader(req, "AvailableUsers", true);
 	if (EventHeader.status !== "success") {return res.status(401).send({"status": EventHeader.status, "message" : EventHeader.message});}
 
-	const AvailableUsers = await getAvailiableUsers(req.params.domain);
-	return res.status(200).send({ [req.params.domain]: AvailableUsers, "authkey" : EventHeader.authkey});
+	const availableUsers = await getAvailiableUsers(req.params.domain);
+	return res.status(200).send({ [req.params.domain]: availableUsers, "authkey" : EventHeader.authkey});
 		
 	
 };
 
-const UpdateUserDomain = async (req: Request, res: Response): Promise<Response> => {
+const updateUserDomain = async (req: Request, res: Response): Promise<Response> => {
 
 	// Check if current module is enabled
 	if (!isModuleEnabled("domains", app)) {
@@ -94,16 +97,16 @@ const UpdateUserDomain = async (req: Request, res: Response): Promise<Response> 
 	logger.info("REQ Update user domain ->", servername, " | pubkey:",  EventHeader.pubkey, " | domain:",  domain, "|", getClientIp(req));
 
 	//Query if domain exist
-	const CurrentDomains = await getAvailableDomains();
-	logger.debug("Current domains: ", CurrentDomains.join(", "));
-	if (!CurrentDomains.includes(domain)) {
+	const currentDomains = await getAvailableDomains();
+	logger.debug("Current domains: ", Object.keys(currentDomains).join(", "));
+	if (!currentDomains.hasOwnProperty(domain)) {
 		logger.warn("RES Update user domain -> 404  not found, domain not found", "|", getClientIp(req));
-
+	
 		const result: ResultMessagev2 = {
 			status: "error",
 			message: "Domain not found",
 		};
-
+	
 		return res.status(404).send(result);
 	}
 
@@ -145,4 +148,4 @@ const UpdateUserDomain = async (req: Request, res: Response): Promise<Response> 
 	return res.status(200).send(result);
 };
 
-export { listAvailableDomains, listAvailableUsers, UpdateUserDomain };
+export { listAvailableDomains, listAvailableUsers, updateUserDomain };

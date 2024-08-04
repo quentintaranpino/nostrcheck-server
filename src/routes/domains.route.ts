@@ -1,6 +1,6 @@
 import { Application } from "express";
 
-import { listAvailableDomains, listAvailableUsers, UpdateUserDomain } from "../controllers/domains.js";
+import { listAvailableDomains, listAvailableUsers, updateUserDomain } from "../controllers/domains.js";
 
 export const loadDomainsEndpoint = async (app: Application, version:string): Promise<void> => {
 
@@ -10,7 +10,7 @@ export const loadDomainsEndpoint = async (app: Application, version:string): Pro
 
 		app.get("/api/" + version + app.get("config.server")["availableModules"]["domains"]["path"] + "/:domain/users", listAvailableUsers)
 
-		app.put("/api/" + version + app.get("config.server")["availableModules"]["domains"]["path"] + "/:domain", UpdateUserDomain)
+		app.put("/api/" + version + app.get("config.server")["availableModules"]["domains"]["path"] + "/:domain", updateUserDomain)
 	}
 
 };
