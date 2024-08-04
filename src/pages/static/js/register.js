@@ -1,5 +1,7 @@
 const initRegisterForm = async () => {
 
+  let domainsData;
+
     await fetch('/api/v2/domains', {
         method: 'GET',
         headers: {
@@ -10,27 +12,42 @@ const initRegisterForm = async () => {
       .then(async data => {
         const select = document.getElementById('domain-selection');
         const domainLabel = document.getElementById('input-register-domain');
+        const invitationGroup = document.getElementById('register-invitation');
         let counter = 0;
-        data.AvailableDomains.forEach(domain => {
-          counter == 0 ? domainLabel.innerText = '@' + domain : null;
+        domainsData = data;
+        Object.keys(data.availableDomains).forEach(domain => {
+          if (counter === 0) {
+              domainLabel.innerText = '@' + domain;
+          }
           const option = document.createElement('option');
           option.value = domain;
           option.text = domain;
+          option.dataIcon = "glyphicon-home";
           select.appendChild(option);
           counter++;
         });
+
+        select.addEventListener('change', (event) => {
+          const selectedDomain = event.target.value;
+          const domainInfo = data.availableDomains[selectedDomain];
+
+          console.log(invitationGroup)
+          if (domainInfo.requireinvite) {
+              invitationGroup.classList.remove('d-none');
+          } else {
+              invitationGroup.classList.add('d-none');
+          }
+          document.getElementById('input-register-domain').innerText = '@' + selectedDomain;
+
+       });
+
         await localStorage.setItem('authkey', data.authkey);
+
       })
       .catch((error) => {
         console.error('Error:', error);
       });
-    
    
-    // Update domain input when selection changes
-    document.getElementById('domain-selection').addEventListener('change', function() {
-            const selectedDomain = this.value;
-            document.getElementById('input-register-domain').innerText = '@' + selectedDomain;
-    });
 }
 
 const register = async (type) => {
@@ -39,6 +56,7 @@ const register = async (type) => {
   const username = document.getElementById('input-register-username').value
   const pubkey = document.getElementById('input-register-pubkey').value
   const password = document.getElementById('input-register-password').value
+  const inviteCode = document.getElementById('input-register-invitation').value
 
   if (!domain || !username || !pubkey ) {
       initAlertModal("#register", "Username, public key and domain are required.");
@@ -67,7 +85,8 @@ const register = async (type) => {
     pubkey: pubkey,
     username: username,
     domain: domain,
-    password: password
+    password: password,
+    inviteCode: inviteCode
   }
 
   let signedAuthEvent;

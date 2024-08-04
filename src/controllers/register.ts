@@ -10,6 +10,7 @@ import { generateCredentials, isAuthkeyValid, parseAuthHeader } from "../lib/aut
 import { npubToHex, validatePubkey } from "../lib/nostr/NIP19.js";
 import { registerFormResult } from "../interfaces/register.js";
 import { dbUpdate } from "../lib/database.js";
+import { validateInviteCode } from "../lib/invitations.js";
 
 const registerUsername = async (req: Request, res: Response): Promise<Response> => {
 
@@ -61,10 +62,17 @@ const registerUsername = async (req: Request, res: Response): Promise<Response> 
 		return res.status(400).send({status: "error", message: "Domain not provided"});
 	}
 	let validDomain = false;
-	(await getAvailableDomains()).forEach((element: string) => {element === domain ? validDomain = true : null});
+	let requireInvite = false;
+	const availableDomains = await getAvailableDomains();
+	Object.keys(availableDomains).forEach((element: string) => {
+		if (element === domain) {
+			validDomain = true;
+			requireInvite = availableDomains[element].requireinvite
+		}
+	});
 	if (!validDomain) {
 		logger.info("RES -> 406 Bad request - Domain not allowed", "|", getClientIp(req));
-		return res.status(406).send({status: "error", message: "Invalid domain"});
+		return res.status(406).send({ status: "error", message: "Invalid domain" });
 	}
 
 	if (!await isUsernameAvailable(username, domain)) {
@@ -84,15 +92,20 @@ const registerUsername = async (req: Request, res: Response): Promise<Response> 
 		return res.status(422).send({status: "error", message: "Password too short"});
 	}
 
-	let invitation_key = req.body.invitation_key || "";
-	if ((invitation_key == null || invitation_key == "" || invitation_key == undefined) && app.get("config.register")["allowPublicRegistration"] == false) {
+	let inviteCode = req.body.inviteCode || "";
+	if ((inviteCode == null || inviteCode == "" || inviteCode == undefined) && requireInvite) {
 		logger.info("RES -> 400 Bad request - Invitation key not provided", "|", getClientIp(req));
 		return res.status(400).send({status: "error", message: "Invitation key not provided"});
 	}
 
+	if (await validateInviteCode(inviteCode) == false) {
+		logger.info("RES -> 401 Unauthorized - Invalid invitation key", "|", getClientIp(req));
+		return res.status(401).send({status: "error", message: "Invalid invitation key"});
+	}
+
 	let comments = eventHeader.status == "success" ? "" : "Pending OTC verification";
 
-	const addUsername = await addNewUsername(username, req.body.pubkey, password, domain, comments, activateUser);
+	const addUsername = await addNewUsername(username, req.body.pubkey, password, domain, comments, activateUser, inviteCode);
 	if (addUsername == 0) {
 		logger.error("RES -> Failed to add new username" + " | " + getClientIp(req));
 		return res.status(500).send({status: "error", message: "Failed to add new username to the database"});
@@ -130,10 +143,13 @@ const validateRegisterOTC = async (req: Request, res: Response): Promise<Respons
 	}
 
 	let validDomain = false;
-	(await getAvailableDomains()).forEach((element: string) => {element === req.body.domain ? validDomain = true : null});
+	const availableDomains = await getAvailableDomains();
+	if (availableDomains.hasOwnProperty(req.body.domain)) {
+		validDomain = true;
+	}
 	if (!validDomain) {
 		logger.info("RES -> 406 Bad request - Domain not allowed", "|", getClientIp(req));
-		return res.status(406).send({status: "error", message: "Invalid domain"});
+		return res.status(406).send({ status: "error", message: "Invalid domain" });
 	}
 
 	const validOTC = await isAuthkeyValid(req.body.otc, false);

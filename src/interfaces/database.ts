@@ -5,6 +5,8 @@ interface domainsTableStructure extends RowDataPacket{
 	domain: string;
 	active: string;
 	checked: string;
+	requireinvite: string;
+	requirepayment: string;
 	comments: string;
 }
 
@@ -13,6 +15,8 @@ const domainsTableFields : domainsTableStructure = {
 	"domain" : "varchar(50) NOT NULL",
 	"active" : "boolean NOT NULL DEFAULT 0",
 	"checked" : "boolean NOT NULL DEFAULT 0",
+	"requireinvite" : "boolean NOT NULL DEFAULT 0",
+	"requirepayment" : "boolean NOT NULL DEFAULT 0",
 	"comments" : "varchar(150)",
 	constructor: {
 		name: 'RowDataPacket',

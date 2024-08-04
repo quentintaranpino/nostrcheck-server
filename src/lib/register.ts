@@ -1,7 +1,9 @@
-import { dbInsert, dbMultiSelect } from "./database.js";
+import { dbInsert, dbMultiSelect, dbUpdate } from "./database.js";
 import { generateCredentials } from "./authorization.js";
 import { hashString } from "./hash.js";
 import { hextoNpub, npubToHex, validatePubkey } from "./nostr/NIP19.js";
+import { getDomainInfo } from "./domains.js";
+import { validateInviteCode } from "./invitations.js";
 
 /**
  * 
@@ -45,8 +47,8 @@ const isPubkeyOnDomainAvailable = async (pubkey: string, domain: string): Promis
  * @param comments - Comments to be added to the user.
  * @returns {Promise<number>} A promise that resolves to the id of the user, or 0 if an error occurs.
  */
-const addNewUsername = async (username: string, pubkey: string, password:string, domain: string, comments:string = "", active = false): Promise<number> => {
 
+const addNewUsername = async (username: string, pubkey: string, password:string, domain: string, comments:string = "", active = false, inviteCode = ""): Promise<number> => {
     if (username == "" || username == undefined) {return 0};
     if (pubkey == "" || pubkey == undefined) {return 0};
     if (domain == "" || domain == undefined) {return 0};
@@ -64,10 +66,28 @@ const addNewUsername = async (username: string, pubkey: string, password:string,
     if(await isUsernameAvailable(username, domain) == false) {return 0};
     if (await isPubkeyOnDomainAvailable(pubkey, domain) == false) {return 0};
 
+    const domainInfo = await getDomainInfo(domain);
+    if (domainInfo == "") {return 0};
+    if (domainInfo.requireinvite == true && inviteCode == "") {return 0};
+
+    if (domainInfo.requireinvite == true  && await validateInviteCode(inviteCode) == false) {return 0};
+
     const createUsername = await dbInsert(  "registered", 
                                     ["pubkey", "hex", "username", "password", "domain", "active", "date", "comments"],
                                     [await hextoNpub(pubkey), pubkey, username, await hashString(password, 'password'), domain, active == true ? 1 : 0, new Date().toISOString().slice(0, 19).replace("T", " "), comments]);
 
+    
+    if (createUsername == 0) {return 0}
+
+    if (domainInfo.requireinvite == true ) {
+        const updateInviteeid = await dbUpdate("invitations", "inviteeid", createUsername, ["code"], [inviteCode]);
+        if (updateInviteeid == false) {return 0}
+
+        const updateInviteedate = await dbUpdate("invitations", "inviteedate", new Date().toISOString().slice(0, 19).replace("T", " "), ["code"], [inviteCode]);
+        if (updateInviteedate == false) {return 0}
+
+    }
+    
     if (regeneratePassword) {
         // Generate definitive password for the user and send it to the user via nostr DM.
         const newPassword = await generateCredentials("password", pubkey, true, true, false); 
@@ -80,5 +100,3 @@ const addNewUsername = async (username: string, pubkey: string, password:string,
 }
 
 export { isUsernameAvailable, addNewUsername, isPubkeyOnDomainAvailable };
-
-    

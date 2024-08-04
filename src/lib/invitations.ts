@@ -1,4 +1,5 @@
 import crypto from "crypto";
+import { dbMultiSelect } from "./database.js";
 
 /**
  * Generates a random invite code.
@@ -14,4 +15,18 @@ const generateInviteCode = (): string => {
     }
 }
 
-export { generateInviteCode };
+
+/**
+ * 
+ * @param inviteCode - The invite code to be checked.
+ * @returns {Promise<boolean>} A promise that resolves to true if the invite code is available, or false if it is not.
+ * 
+ */
+const validateInviteCode = async (inviteCode: string): Promise<boolean> => {
+    if (inviteCode == "" || inviteCode == undefined) {return false};
+    const result = await dbMultiSelect(["id"],"invitations","code = ? and inviteeid is null",[inviteCode], true);
+    if (result.length > 0) {return true};
+    return false;
+}
+
+export { generateInviteCode, validateInviteCode };

@@ -14,7 +14,9 @@ const allowedFieldNames = [ "allowed",
                             "originid", 
                             "origintable", 
                             "reason",
-                            "createdate"
+                            "createdate",
+                            "requireinvite",
+                            "requirepayment",
                         ]; 
 
 const allowedFieldNamesAndValues = [
@@ -36,6 +38,8 @@ const allowedFieldNamesAndValues = [
     {field: "original_hash", values: ["string"]},
     {field: "reason", values: ["string"]},
     {field: "createdate", values: ["string"]},
+    {field: "requireinvite", values: [0, 1]},
+    {field: "requirepayment", values: [0, 1]},
 ];
 
 interface moduleDataReturnMessage {
@@ -92,6 +96,10 @@ const moduleDataWhereFields: { [key: string]: [string] } = {
                         "lightning.comments"],
     "domains":          ["domains.id, " +
                         "domains.domain, " +
+                        "domains.active, " +
+                        "domains.checked, " +
+                        "domains.requireinvite, " +
+                        "domains.requirepayment, " +
                         "domains.comments"],
     "payments":         ["transactions.id, " +
                         "transactions.paymenthash, " +
@@ -155,6 +163,9 @@ const moduleDataSelectFields: { [key: string]: string } = {
                         "lightning.comments",
     "domains":          "domains.id, " +
                         "domains.active, " +
+                        "domains.checked, " +
+                        "domains.requireinvite, " +
+                        "domains.requirepayment, " +
                         "domains.domain, " +
                         "domains.comments",
     "payments":         "transactions.id, " +
