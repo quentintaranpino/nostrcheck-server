@@ -24,7 +24,7 @@ const generateInviteCode = (): string => {
  */
 const validateInviteCode = async (inviteCode: string): Promise<boolean> => {
     if (inviteCode == "" || inviteCode == undefined) {return false};
-    const result = await dbMultiSelect(["id"],"invitations","code = ? and inviteeid is null",[inviteCode], true);
+    const result = await dbMultiSelect(["id"],"invitations","code = ? and inviteeid is null and active = '1'",[inviteCode], true);
     if (result.length > 0) {return true};
     return false;
 }
