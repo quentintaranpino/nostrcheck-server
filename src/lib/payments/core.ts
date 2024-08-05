@@ -8,7 +8,7 @@ import { generateInvoice } from "./LUD06.js";
 import { isInvoicePaid } from "./getalby.js";
 
 
-const checkTransaction = async (transactionid : string, originId: string, originTable : string, size: number, pubkey : string): Promise<transaction> => {
+const checkTransaction = async (transactionid : string, originId: string, originTable : string, size: number, pubkey : string, maxSatoshi : number = 0): Promise<transaction> => {
 
     if (!isModuleEnabled("payments", app)) {
         return emptyTransaction;
@@ -17,7 +17,7 @@ const checkTransaction = async (transactionid : string, originId: string, origin
     // Get the transaction
     let transaction = await getTransaction(transactionid);
     const balance = await getBalance(transaction.accountid);
-    const satoshi = await calculateSatoshi(originTable, size);
+    const satoshi = await calculateSatoshi(originTable, size, maxSatoshi);
 
     if (transaction.paymentHash != "") {
 
@@ -392,7 +392,7 @@ const collectInvoice = async (invoice: invoice, collectFromExpenses = false, col
 
 }
 
-const calculateSatoshi = async (originTable: string, size: number) : Promise<number> => {
+const calculateSatoshi = async (originTable: string, size: number, maxSatoshi: number = 0) : Promise<number> => {
 
     if (!isModuleEnabled("payments", app)) {
         return 0;
@@ -404,8 +404,9 @@ const calculateSatoshi = async (originTable: string, size: number) : Promise<num
         const maxSize = Number(app.get("config.media")["maxMBfilesize"]);
         let fileSizeMB = size / 1024 / 1024;
         if (fileSizeMB > maxSize) {fileSizeMB = maxSize;}
+        let mediaMaxSatoshi = maxSatoshi == 0 ? app.get("config.payments")["satoshi"]["mediaMaxSatoshi"] : maxSatoshi;
 
-        const satoshi = Math.round((fileSizeMB / maxSize) * app.get("config.payments")["satoshi"]["mediaMaxSatoshi"]);
+        let satoshi = Math.round((fileSizeMB / maxSize) * mediaMaxSatoshi);
         logger.info("Filesize:", fileSizeMB, "Satoshi:", satoshi)
         return satoshi >= 1 ? satoshi : 1;
 
@@ -413,9 +414,14 @@ const calculateSatoshi = async (originTable: string, size: number) : Promise<num
 
     if (originTable == "registered") {
         // For registered the minus size is more expensive
-        if (size <= app.get("config.register")["minUsernameLength"]) {return app.get("config.payments")["satoshi"]["registerMaxSatoshi"]};
+        let domainMaxSatoshi = maxSatoshi == 0 ? app.get("config.payments")["satoshi"]["registerMaxSatoshi"] : maxSatoshi;
+        if (size <= app.get("config.register")["minUsernameLength"]) {return domainMaxSatoshi};
 
-        const satoshi = Math.round(app.get("config.payments")["satoshi"]["registerMaxSatoshi"] / (Math.log(size + 100)))
+        // y=mx+b | Linear equation for calculating satoshi based on username length
+        const slope = (1 - domainMaxSatoshi) / (app.get("config.register")["maxUsernameLength"] - app.get("config.register")["minUsernameLength"]);
+        const intercept = domainMaxSatoshi - slope * app.get("config.register")["minUsernameLength"];
+        const satoshi = Math.round(slope * size + intercept);
+
         logger.debug("Register size:", size, "Satoshi:", satoshi)
         return satoshi >= 1 ? satoshi : 1;
     }
