@@ -4,6 +4,7 @@ import { hashString } from "./hash.js";
 import { hextoNpub, npubToHex, validatePubkey } from "./nostr/NIP19.js";
 import { getDomainInfo } from "./domains.js";
 import { validateInviteCode } from "./invitations.js";
+import { getNewDate } from "./utils.js";
 
 /**
  * 
@@ -74,7 +75,7 @@ const addNewUsername = async (username: string, pubkey: string, password:string,
 
     const createUsername = await dbInsert(  "registered", 
                                     ["pubkey", "hex", "username", "password", "domain", "active", "date", "comments"],
-                                    [await hextoNpub(pubkey), pubkey, username, await hashString(password, 'password'), domain, active == true ? 1 : 0, new Date().toISOString().slice(0, 19).replace("T", " "), comments]);
+                                    [await hextoNpub(pubkey), pubkey, username, await hashString(password, 'password'), domain, active == true ? 1 : 0, getNewDate(), comments]);
 
     
     if (createUsername == 0) {return 0}
@@ -83,7 +84,7 @@ const addNewUsername = async (username: string, pubkey: string, password:string,
         const updateInviteeid = await dbUpdate("invitations", "inviteeid", createUsername, ["code"], [inviteCode]);
         if (updateInviteeid == false) {return 0}
 
-        const updateInviteedate = await dbUpdate("invitations", "inviteedate", new Date().toISOString().slice(0, 19).replace("T", " "), ["code"], [inviteCode]);
+        const updateInviteedate = await dbUpdate("invitations", "inviteedate", getNewDate(), ["code"], [inviteCode]);
         if (updateInviteedate == false) {return 0}
 
     }

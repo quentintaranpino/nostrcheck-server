@@ -9,6 +9,7 @@ import { generateCredentials } from "./authorization.js";
 import app from "../app.js";
 import { accounts } from "../interfaces/payments.js";
 import { addNewUsername } from "./register.js";
+import { getNewDate } from "./utils.js";
 
 let pool: Pool;
 let retry :number = 0;
@@ -527,7 +528,7 @@ const initDatabase = async (): Promise<void> => {
 		if (!checkAccounts.toString().includes(account.accountid.toString())){
 			logger.warn("Standard account not found, creating it:", account.accountname);
 			const fields: string[] = ["accountid", "active", "accountname", "accounttype", "createddate", "comments"];
-			const values: any[] = [account.accountid, "1",  account.accountname, account.accounttype, new Date(), account.comments];
+			const values: any[] = [account.accountid, "1",  account.accountname, account.accounttype, getNewDate(), account.comments];
 			const insert = await dbInsert("accounts", fields, values);
 			if (insert === 0){
 				logger.fatal("Error creating standard account");

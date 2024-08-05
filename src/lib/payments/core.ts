@@ -3,6 +3,7 @@ import { accounts, emptyInvoice, emptyTransaction, invoice, transaction } from "
 import { isModuleEnabled } from "../config.js";
 import { dbInsert, dbMultiSelect, dbSelect, dbUpdate } from "../database.js"
 import { logger } from "../logger.js";
+import { getNewDate } from "../utils.js";
 import { generateInvoice } from "./LUD06.js";
 import { isInvoicePaid } from "./getalby.js";
 
@@ -26,7 +27,7 @@ const checkTransaction = async (transactionid : string, originId: string, origin
         // If the balance is enough we pay the transaction and return the updated transaction
         if (balance >= satoshi) {
             let inv = await getInvoice(transaction.transactionid.toString());
-            inv.paidDate = new Date();
+            inv.paidDate = getNewDate();
             if (await collectInvoice(inv)){
                 logger.info("Paying invoice with user balance:", balance, "satoshi:", satoshi, "transactionid:", inv.transactionid, "Accountid:", inv.accountid)
                 return await getTransaction(inv.transactionid.toString())
@@ -46,7 +47,7 @@ const checkTransaction = async (transactionid : string, originId: string, origin
         // If the balance is enough we pay the new transaction and return the updated transaction
         if (balance >= satoshi) {
             let invoice = await getInvoice(transaction.transactionid.toString());
-            invoice.paidDate = new Date();
+            invoice.paidDate = getNewDate();
             if (await collectInvoice(invoice)){
                 logger.info("Paying invoice with user balance:", balance, "satoshi:", satoshi, "transactionid:", invoice.transactionid, "Accountid:", invoice.accountid)
                 return await getTransaction(invoice.transactionid.toString())
@@ -117,7 +118,7 @@ const addTransacion = async (type: string, accountid: number, invoice: invoice, 
                             invoice.paymentHash? invoice.paymentHash : "", 
                             satoshi, 
                             (invoice.isPaid? 1 : 0).toString(), 
-                            invoice.createdDate ? invoice.createdDate : new Date().toISOString().slice(0, 19).replace('T', ' '), 
+                            invoice.createdDate ? invoice.createdDate : getNewDate(), 
                             invoice.expiryDate? invoice.expiryDate : null,
                             invoice.paidDate? invoice.paidDate : null,
                             invoice.description]
@@ -141,7 +142,7 @@ const addJournalEntry = async (accountid: number, transactionid: number, debit: 
                             transactionid, 
                             debit, 
                             credit, 
-                            new Date().toISOString().slice(0, 19).replace('T', ' '), 
+                            getNewDate(), 
                             comments]
                         );
 
@@ -183,9 +184,9 @@ const addBalance = async (accountid: number, amount: number) : Promise<boolean> 
                                             {   accountid: accountid,
                                                 paymentRequest: "", 
                                                 paymentHash: "", 
-                                                createdDate: new Date().toISOString().slice(0, 19).replace('T', ' '), 
-                                                expiryDate: new Date().toISOString().slice(0, 19).replace('T', ' '), 
-                                                paidDate: new Date().toISOString().slice(0, 19).replace('T', ' '),
+                                                createdDate: getNewDate(),
+                                                expiryDate: getNewDate(),
+                                                paidDate: getNewDate(),
                                                 description: "", 
                                                 isPaid: true, 
                                                 transactionid: 0, 
@@ -301,7 +302,7 @@ const getTransaction = async (transactionid: string) : Promise<transaction> => {
     }
 
     // If transaction expirydate is passed we generate a new LN invoice
-    if (transaction.type == "invoice" && transaction.expiryDate < new Date()) {
+    if (transaction.type == "invoice" && transaction.expiryDate < getNewDate()) {
         const lnurl = `https://${app.get("config.payments")["LNAddress"].split("@")[1]}/.well-known/lnurlp/${app.get("config.payments")["LNAddress"].split("@")[0]}`
         const inv = await generateInvoice(lnurl, transaction.satoshi);
         transaction.paymentRequest = inv.paymentRequest;
@@ -355,7 +356,7 @@ const collectInvoice = async (invoice: invoice, collectFromExpenses = false, col
     }
 
     const paid = await dbUpdate("transactions", "paid", "1", ["id"], [invoice.transactionid.toString()]);
-    const paiddate = await dbUpdate("transactions", "paiddate", !isNaN(invoice.paidDate)? invoice.paidDate : new Date(), ["id"], [invoice.transactionid.toString()]);
+    const paiddate = await dbUpdate("transactions", "paiddate", new Date(invoice.paidDate).toISOString().slice(0, 19).replace('T', ' ') != '1970-01-01 00:00:00' ? invoice.paidDate : getNewDate(), ["id"], [invoice.transactionid.toString()]);
     if (paid && paiddate) {
         logger.info("Invoice paid, transaction updated", invoice.transactionid);
     }else{

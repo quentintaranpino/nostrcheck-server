@@ -22,7 +22,7 @@ import validator from "validator";
 import fs from "fs";
 import { NIP96_event, NIP96_processing } from "../interfaces/nostr.js";
 import { PrepareNIP96_event, PrepareNIP96_listEvent } from "../lib/nostr/NIP96.js";
-import { generateQRCode, getClientIp } from "../lib/utils.js";
+import { generateQRCode, getClientIp, getNewDate } from "../lib/utils.js";
 import { generateBlurhash, generatefileHashfrombuffer } from "../lib/hash.js";
 import { isModuleEnabled } from "../lib/config.js";
 import { redisClient } from "../lib/redis.js";
@@ -240,7 +240,7 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 
 	// Add file to mediafiles table
 	if (insertfiledb) {
-		const createdate = new Date(Math.floor(Date.now())).toISOString().slice(0, 19).replace("T", " ");
+		const createdate = getNewDate();
 		const insertResult = await dbInsert(
 			"mediafiles", 
 			["pubkey", "filename", "original_hash", "hash", "status", "active", "visibility", "date", "ip_address", "magnet", "blurhash", "filesize", "comments", "type", "dimensions"],

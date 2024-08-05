@@ -2,6 +2,7 @@ import axios from 'axios';
 import * as bolt11 from 'bolt11';
 import { emptyInvoice, invoice } from '../../interfaces/payments.js';
 import { logger } from '../logger.js';
+import { getNewDate } from '../utils.js';
 
 async function generateInvoice(lnurl: string, amount: number): Promise<invoice> {
   try {
@@ -23,8 +24,8 @@ async function generateInvoice(lnurl: string, amount: number): Promise<invoice> 
         paymentHash: decoded.tags.find(tag => tag.tagName === 'payment_hash')?.data.toString() || '',
         satoshi: decoded.satoshis? decoded.satoshis : 0,
         isPaid: false,
-        createdDate: decoded.timestampString? new Date(decoded.timestampString) : new Date(),
-        expiryDate: decoded.timeExpireDateString? new Date(decoded.timeExpireDateString) : new Date(),
+        createdDate: decoded.timestampString? new Date(decoded.timestampString) : getNewDate(),
+        expiryDate: decoded.timeExpireDateString? new Date(decoded.timeExpireDateString) : getNewDate(),
         paidDate:  null,
         description: '',
         transactionid: 0,

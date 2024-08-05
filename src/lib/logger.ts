@@ -2,6 +2,7 @@ import { createStream } from "rotating-file-stream";
 import { Logger } from "tslog";
 import { logEvent } from "../interfaces/logger.js";
 import config from "config";
+import { getNewDate } from "./utils.js";
 const logHistory: logEvent[] = [];
 
 const filename = (config.has('logger.filename') ? config.get('logger.filename') : 'server') + '.log';
@@ -51,7 +52,14 @@ const logger = new Logger({
 
 logger.attachTransport((log) => {
 	try{
-		stream.write(`${JSON.stringify(log)}\n`);
+		const formattedLog = {
+			...log,
+			_meta: {
+			  ...log._meta,
+			  date: getNewDate(),
+			}
+		  };
+		  stream.write(`${JSON.stringify(formattedLog)}\n`);
 		// only push to transports if logLevel is greater than or equal to 4 (warn)
 		if (log._meta.logLevelId >= 4) {
 			let logMessage: string = "";

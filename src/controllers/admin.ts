@@ -6,7 +6,7 @@ import sharp from "sharp";
 import app from "../app.js";
 
 import { logHistory, logger } from "../lib/logger.js";
-import { getClientIp, format } from "../lib/utils.js";
+import { getClientIp, format, getNewDate } from "../lib/utils.js";
 import { ResultMessagev2, ServerStatusMessage, authkeyResultMessage } from "../interfaces/server.js";
 import { generateCredentials } from "../lib/authorization.js";
 import { dbDelete, dbInsert, dbUpdate } from "../lib/database.js";
@@ -540,7 +540,7 @@ const insertDBRecord = async (req: Request, res: Response): Promise<Response> =>
 
     // Specific case for invitations table
     if (req.body.table == "invitesData"){
-        req.body.row["createdate"] = new Date().toISOString().slice(0, 19).replace('T', ' ');
+        req.body.row["createdate"] = getNewDate();
         req.body.row["code"] = generateInviteCode();
     }
 
