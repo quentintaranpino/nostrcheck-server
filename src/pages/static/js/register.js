@@ -2,51 +2,49 @@ const initRegisterForm = async () => {
 
   let domainsData;
 
-    await fetch('/api/v2/domains', {
-        method: 'GET',
-        headers: {
-          'Authorization': 'Bearer ' + localStorage.getItem('authkey')
+  await fetch('/api/v2/domains', {
+      method: 'GET',
+      headers: {
+        'Authorization': 'Bearer ' + localStorage.getItem('authkey')
+      }
+    })
+    .then(response => response.json())
+    .then(async data => {
+      const select = document.getElementById('domain-selection');
+      const domainLabel = document.getElementById('input-register-domain');
+      const invitationGroup = document.getElementById('register-invitation');
+      let counter = 0;
+      domainsData = data;
+      Object.keys(data.availableDomains).forEach(domain => {
+        if (counter === 0) {
+            domainLabel.innerText = '@' + domain;
         }
-      })
-      .then(response => response.json())
-      .then(async data => {
-        const select = document.getElementById('domain-selection');
-        const domainLabel = document.getElementById('input-register-domain');
-        const invitationGroup = document.getElementById('register-invitation');
-        let counter = 0;
-        domainsData = data;
-        Object.keys(data.availableDomains).forEach(domain => {
-          if (counter === 0) {
-              domainLabel.innerText = '@' + domain;
-          }
-          const option = document.createElement('option');
-          option.value = domain;
-          option.text = domain;
-          option.dataIcon = "glyphicon-home";
-          select.appendChild(option);
-          counter++;
-        });
-
-        select.addEventListener('change', (event) => {
-          const selectedDomain = event.target.value;
-          const domainInfo = data.availableDomains[selectedDomain];
-
-          console.log(invitationGroup)
-          if (domainInfo.requireinvite) {
-              invitationGroup.classList.remove('d-none');
-          } else {
-              invitationGroup.classList.add('d-none');
-          }
-          document.getElementById('input-register-domain').innerText = '@' + selectedDomain;
-
-       });
-
-        await localStorage.setItem('authkey', data.authkey);
-
-      })
-      .catch((error) => {
-        console.error('Error:', error);
+        const option = document.createElement('option');
+        option.value = domain;
+        option.text = domain;
+        select.appendChild(option);
+        counter++;
       });
+
+      select.addEventListener('change', (event) => {
+        const selectedDomain = event.target.value;
+        const domainInfo = data.availableDomains[selectedDomain];
+
+        if (domainInfo.requireinvite) {
+            invitationGroup.classList.remove('d-none');
+        } else {
+            invitationGroup.classList.add('d-none');
+        }
+        document.getElementById('input-register-domain').innerText = '@' + selectedDomain;
+
+      });
+
+      await localStorage.setItem('authkey', data.authkey);
+
+    })
+    .catch((error) => {
+      console.error('Error:', error);
+    });
    
 }
 
@@ -130,6 +128,23 @@ const register = async (type) => {
         document.getElementById('register-form').classList.add('d-none');
         document.getElementById('register-title').classList.add('d-none');
         document.getElementById('register-success').classList.remove('d-none');
+
+        console.log(data)
+        if (data.otc == true) {
+          document.getElementById('register-otc-request').classList.remove('d-none');
+        }
+
+        if (data.payment_request != "") {
+          document.getElementById('register-payment-request').classList.remove('d-none');
+          console.log("Payment request: " + data.payment_request)
+          document.getElementById("payment-request-satoshi").innerText = data.satoshi;
+          const qrcode = new QRCode(document.getElementById("payment-request-qr"), {
+            text: data.payment_request,
+            width: 300,
+            height: 300
+          });
+        }
+
       }else{
         initAlertModal("#register", data.message);
       }

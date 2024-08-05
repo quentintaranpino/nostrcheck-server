@@ -123,10 +123,12 @@ const registerUsername = async (req: Request, res: Response): Promise<Response> 
 
 	// Check if payments module is active and if true generate paymentRequest
 	let paymentRequest = "";
+	let satoshi = 0;
 	if (requirepayment) {
 		const transaction = await checkTransaction("0", addUsername.toString(), "registered", username.length, req.body.pubkey, maxSatoshi) as transaction;
 		if (transaction.paymentHash != "" && transaction.isPaid == false && isModuleEnabled("payments", app)) {
 			paymentRequest = transaction.paymentRequest;
+			satoshi = transaction.satoshi;
 		}
 	}
 
@@ -143,7 +145,8 @@ const registerUsername = async (req: Request, res: Response): Promise<Response> 
 		status: "success",
 		message: message,
 		otc: activateUser == false ? true : false,
-		payment_request: paymentRequest
+		payment_request: paymentRequest,
+		satoshi: satoshi
 	};
 
 	return res.status(200).send(result);

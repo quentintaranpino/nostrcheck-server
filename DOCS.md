@@ -1176,15 +1176,15 @@ The server returns:
 }
 ```
 
-Each domain can have a different registration policy. If the domain needs a payment, the server will return a payment request with the amount to be paid.
+Each domain can have a different registration policy. If the domain needs a payment, the server will return a payment request with the amount (in sats) to be paid.
 
 ```json
 {
     "status": "success",
     "message": "User registered successfully, pending payment",
     "otc": true, // Must be 'true' If the authorization header is not provided or the authorization header is not valid or the authorization header pubkey is different from the pubkey in the body
-    "payment": true, // Must be 'true' If the domain needs a payment.
-    "amount": 1000
+    "payment_request": "lnbc7650n1pntpnr0pp5ugca56laan4vpn9kp5kwyl7ayu6p3drpffr6mdx0exsj2p83f2eqhp5w48l28v60yvythn6qvnpq0lez54422a042yaw4kq8arvd68a6n7qcqzzsxqyz5vqsp509hhfvyl0zuklxfkwqdzjykkqy39mwmae5r9ykkt0l543sw6yw6q9qxpqysgqwxupqgjf4hrzgwjp595a20jxxs3utmuqhfgu6ns3wd38yac8a68kw6s0jl6u4xhvrngsu7h3ztttp6tsutwfnrt6xt3zl70lgr77y7gq7hq3rx",
+    "satoshi": 765
 }
 ```
 

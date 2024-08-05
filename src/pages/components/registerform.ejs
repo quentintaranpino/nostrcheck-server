@@ -45,25 +45,38 @@
         </div>
       </div>
     </div>  
-    <div class="col-11 col-sm-9 col-md-8 col-lg-7 col-xl-6 col-xxl-5 mx-auto d-none" id="register-success">
+    <div id="register-success" class="col-11 col-sm-9 col-md-8 col-lg-7 col-xl-6 col-xxl-5 mx-auto d-none">
       <div>
         <div class="text-center mb-4">
          <h1 class="display-4 mb-1 mt-2 pb-2 font-weight-normal gradient-text">Registration successful</h1>
         </div>
+      </div>
+      <div id="register-otc-request" class="d-none">
         <h5 class="lead mb-2">One step more before you can start using your account</h5>
         <p>
           We have sent you an nostr direct message with a one time code. Use your favorite <a class="link-offset-2"href="https://nostr.net/" target="_blank">nostr client</a> to retrieve the code and complete the registration process.
         </p>
+        <div class="input-group mb-3 mt-2">
+          <input type="text" class="form-control" id="input-register-otc" placeholder="One time code" required>
+          <button class="btn btn-primary" type="button" id="otc_submit" onclick="validateOTC()">Submit</button>
+        </div>  
       </div>
-      <div class="input-group mb-3 mt-2">
-        <input type="text" class="form-control" id="input-register-otc" placeholder="One time code" required>
-        <button class="btn btn-primary" type="button" id="otc_submit" onclick="validateOTC()">Submit</button>
-      </div>  
+      <div id="register-payment-request" class="mx-auto text-center mb-3 d-none">
+        <h5 class="lead mb-2">One step more before you can start using your account</h5>
+        <p>
+          We have generated a lightning network invoice for you to pay. Once the payment is confirmed, your account will be activated and you will be able to <a href="login">login</a>.
+        </p>
+        <p class="lead mb-1">Invoice amount: <span id="payment-request-satoshi"></span> sats</p>
+        <div id="payment-request-qr" class="mx-auto" style="width: 300px;"></div>
+        <button class="btn btn-primary mt-3" type="button" id="payment-request-copy" onclick="">Copy LN invoice</button>
+      </div>
     </div>
+
 <script src="/static/js/form.js"></script>
 <script src="/static/js/register.js"></script>
-
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script>
+  
 document.addEventListener('DOMContentLoaded', async (event) => {
   initRegisterForm();  
 });
