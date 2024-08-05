@@ -372,16 +372,7 @@ function formatPaymentHash(value) {
 
 }
 
-
 function formatMediaFile(value, row, index) {
-    return formatFilename(value, row, index, true);
-}
-
-function formatBannedFile(value, row, index) {
-    return formatFilename(value, row, index, false);
-}
-
-function formatFilename(value, row, index, showButtons) {
 
     let textValue = value;
     if ($(window).width() < 768) {textValue = value.slice(0, (value.length / 2)-20 ) + ':' + value.slice((value.length / 2)+20 );}
@@ -393,7 +384,7 @@ function formatFilename(value, row, index, showButtons) {
 
     // Attach the click event handler to the document and delegate it to the clickable element
     $(document).off('click', '#' + index + '_preview').on('click', '#' + index + '_preview', async function() {
-        semaphore.execute(async () => {await initMediaModal(row.pubkey, value, row.checked, row.visibility, showButtons).then(async (modal) => {
+        semaphore.execute(async () => {await initMediaModal(row.pubkey, value, row.checked, row.visibility, true).then(async (modal) => {
                 let modalResult = modal.data;
                 for (let field in modalResult) {
                     if (modalResult[field] != row[field]){
@@ -403,6 +394,35 @@ function formatFilename(value, row, index, showButtons) {
                 }
             })
         });
+
+    });
+
+    return modalFileCheck;
+}
+
+function formatBannedFile(value, row, index) {
+
+    let textValue = value;
+    if ($(window).width() < 768) {textValue = value.slice(0, (value.length / 2)-20 ) + ':' + value.slice((value.length / 2)+20 );}
+
+    // If value is not a filename exit the function
+    if (!value || value.indexOf('.') == -1) {return textValue;}
+
+    let modalFileCheck = '<div id="' + index + '_preview"><span class="cursor-zoom-in text-secondary">' + textValue + '</span></div>';
+
+    // Attach the click event handler to the document and delegate it to the clickable element
+    $(document).off('click', '#' + index + '_preview').on('click', '#' + index + '_preview', async function() {
+        semaphore.execute(async () => {await initMediaModal(row.pubkey, value, row.checked, row.visibility, false).then(async (modal) => {
+                let modalResult = modal.data;
+                for (let field in modalResult) {
+                    if (modalResult[field] != row[field]){
+                        semaphore.execute(async () => await modifyRecord("admin/updaterecord/",'#mediaData', row.id, field, modalResult[field], 'modify'));
+                        refreshTable('#mediaData');
+                    }
+                }
+            })
+        });
+
     });
 
     return modalFileCheck;
