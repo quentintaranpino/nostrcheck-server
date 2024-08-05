@@ -50,7 +50,7 @@ const generatefileHashfrombuffer = async (file:Express.Multer.File): Promise<str
 }
 
 const generateBlurhash = async (path: string): Promise<string> =>
-  new Promise((resolve, reject) => {
+  new Promise((resolve) => {
     logger.debug("INIT blurhash generation for file:", path);
     sharp.cache(false);
     sharp(path)
