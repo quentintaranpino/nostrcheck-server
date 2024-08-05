@@ -112,7 +112,7 @@ const isNIP98Valid = async (authevent: Event, req: Request, checkAdminPrivileges
 				.digest("hex"); 
 
 			if (eventPayload != receivedpayload) {
-				logger.info("Auth header event payload is not valid:", eventPayload, " <> ", receivedpayload, "|", req.socket.remoteAddress);
+				logger.debug("Auth header event payload is not valid:", eventPayload, " <> ", receivedpayload, "|", req.socket.remoteAddress);
 			}
 		} catch (error) {
 			logger.error(`RES -> 400 Bad request - ${error}`, "|", req.socket.remoteAddress);
