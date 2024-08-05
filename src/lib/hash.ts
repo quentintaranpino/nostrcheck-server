@@ -60,7 +60,7 @@ const generateBlurhash = async (path: string): Promise<string> =>
       .toBuffer((err, buffer, info) => {
         if (err || !info) {
           logger.error("Error processing image or 'info' is undefined for file:", path, "error:", err);
-          return reject(err || new Error("'info' is undefined"));
+          return resolve("");
         }
 
         const { width, height } = info;
