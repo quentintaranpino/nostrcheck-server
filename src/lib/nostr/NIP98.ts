@@ -112,7 +112,7 @@ const isNIP98Valid = async (authevent: Event, req: Request, checkAdminPrivileges
 				.digest("hex"); 
 
 			if (eventPayload != receivedpayload) {
-				logger.warn("Auth header event payload is not valid:", eventPayload, " <> ", receivedpayload, "|", req.socket.remoteAddress);
+				logger.info("Auth header event payload is not valid:", eventPayload, " <> ", receivedpayload, "|", req.socket.remoteAddress);
 			}
 		} catch (error) {
 			logger.error(`RES -> 400 Bad request - ${error}`, "|", req.socket.remoteAddress);
@@ -124,7 +124,7 @@ const isNIP98Valid = async (authevent: Event, req: Request, checkAdminPrivileges
 
     // This is not from NIP98 spec, check local pubkey validation
 	if (await isPubkeyValid(authevent.pubkey, checkAdminPrivileges, false) == false) {
-		logger.warn(`RES -> 400 Bad request - Auth header pubkey is not valid | ${req.socket.remoteAddress}`);
+		logger.warn(`Auth header pubkey is not valid | ${req.socket.remoteAddress}`);
 		return {status: "error", message: "Auth header pubkey is not valid", authkey: "", pubkey: "", kind: 0};
 	}
 
