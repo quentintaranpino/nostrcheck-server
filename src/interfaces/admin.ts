@@ -17,6 +17,7 @@ const allowedFieldNames = [ "allowed",
                             "createdate",
                             "requireinvite",
                             "requirepayment",
+                            "maxsatoshi",
                         ]; 
 
 const allowedFieldNamesAndValues = [
@@ -40,6 +41,7 @@ const allowedFieldNamesAndValues = [
     {field: "createdate", values: ["string"]},
     {field: "requireinvite", values: [0, 1]},
     {field: "requirepayment", values: [0, 1]},
+    {field: "maxsatoshi", values: ["number"]},
 ];
 
 interface moduleDataReturnMessage {
@@ -131,6 +133,8 @@ const moduleDataSelectFields: { [key: string]: string } = {
                         "registered.allowed, " +
                         "registered.username, " +
                         "registered.balance, " +
+                        "(SELECT transactions.paid FROM transactions WHERE registered.transactionid = transactions.id LIMIT 1) as paid, " +
+                        "(SELECT transactions.satoshi FROM transactions WHERE registered.transactionid = transactions.id LIMIT 1) as satoshi, " +
                         "registered.transactionid, " +
                         "registered.pubkey, " +
                         "registered.hex, " +
@@ -166,6 +170,7 @@ const moduleDataSelectFields: { [key: string]: string } = {
                         "domains.checked, " +
                         "domains.requireinvite, " +
                         "domains.requirepayment, " +
+                        "domains.maxsatoshi, " +
                         "domains.domain, " +
                         "domains.comments",
     "payments":         "transactions.id, " +

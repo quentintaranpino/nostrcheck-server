@@ -321,7 +321,7 @@ Endpoint: https://nostrcheck.me/api/v2/admin/updatelogo
 
 ### domains [GET]
 
-This method retrieves a list of available domains with their requirements (invite and payment) in the application.
+This method retrieves a list of available domains with their requirements (invite, payment and maxsatoshi) in the application.
 
 
 Endpoint: https://nostrcheck.me/api/v2/domains
@@ -346,11 +346,13 @@ Endpoint: https://nostrcheck.me/api/v2/domains
     "availableDomains": {
         "nostrcheck.me": {
             "requireinvite": false,
-            "requirepayment": true
+            "requirepayment": true,
+            "maxsatoshi": 10000
         },
         "nostr-check.me": {
             "requireinvite": true,
-            "requirepayment": false
+            "requirepayment": false,
+            "maxSatoshi": 0
         },
     },
     "publicRegistration": true

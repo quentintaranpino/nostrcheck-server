@@ -36,7 +36,7 @@
         let nostraddressFields = [
           ['checked',       '30' , 'formatCheckbox', 'enabled   show text-center              '],
           ['active',        '30' , 'formatCheckbox', 'enabled   show text-center mobile-hide  '],
-          ['allowed',       '30' , 'formatCheckbox', 'enabled   show text-center mobile-hide  '],
+          ['allowed',       '30' , 'formatCheckbox', 'enabled   hide text-center mobile-hide  '],
           ['username',      ''   , ''              , 'enabled   show text-center              '],
           ['pubkey',        ''   , 'formatPubkey'  , 'enabled   show                          '],
           ['hex',           ''   , 'formatPubkey'  , 'enabled   hide                          '],
@@ -46,8 +46,10 @@
         ];
 
         if (request.body.activeModules.includes("payments")) {
-          nostraddressFields.splice(4, 0, ['balance', '', 'formatSatoshi', 'disabled  show text-end'],);
-          nostraddressFields.splice(5, 0, ['transactionid','', '', 'disabled hide']);
+          nostraddressFields.splice(3, 0, ['paid', '30', 'formatCheckbox', 'disabled show text-center'],);
+          nostraddressFields.splice(4, 0, ['satoshi','30', 'formatSatoshi', 'disabled show text-end'],);
+          nostraddressFields.splice(5, 0, ['balance', '30', 'formatSatoshi', 'disabled  show text-end'],);
+          nostraddressFields.splice(6, 0, ['transactionid','', '', 'disabled hide']);
         }
 
         let nostraddressButtons = [
@@ -190,10 +192,15 @@
           ['active'           , '30' , 'formatCheckbox', 'enabled   show text-center              '],
           ['checked'          , '30' , 'formatCheckbox', 'enabled   show text-center              '],
           ['requireinvite'    , '30' , 'formatCheckbox', 'enabled   show text-center              '],
-          ['requirepayment'   , '30' , 'formatCheckbox', 'enabled   show text-center              '],
           ['domain'           , '40' , ''              , 'enabled   show text-center              '],
           ['comments'         , ''   , ''              , 'enabled   show mobile-hide              '],
         ];
+
+        if (request.body.activeModules.includes("payments")) {
+          domainsFields.splice(3, 0, ['requirepayment', '30', 'formatCheckbox', 'enabled show text-center'],);
+          domainsFields.splice(4, 0, ['maxsatoshi','30', 'formatSatoshi', 'enabled show text-end'],);
+        }
+
         %>
         <% if(request.body.activeModules.includes('domains')) { %> 
           <%- include('./components/table', {

@@ -7,6 +7,7 @@ interface domainsTableStructure extends RowDataPacket{
 	checked: string;
 	requireinvite: string;
 	requirepayment: string;
+	maxsatoshi: string;
 	comments: string;
 }
 
@@ -17,6 +18,7 @@ const domainsTableFields : domainsTableStructure = {
 	"checked" : "boolean NOT NULL DEFAULT 0",
 	"requireinvite" : "boolean NOT NULL DEFAULT 0",
 	"requirepayment" : "boolean NOT NULL DEFAULT 0",
+	"maxsatoshi" : "int(11) NOT NULL DEFAULT 0",
 	"comments" : "varchar(150)",
 	constructor: {
 		name: 'RowDataPacket',
