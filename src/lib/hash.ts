@@ -49,18 +49,24 @@ const generatefileHashfrombuffer = async (file:Express.Multer.File): Promise<str
 
 }
 
-const generateBlurhash = async (path:string): Promise<string> =>
-  new Promise((resolve) => {
+const generateBlurhash = async (path: string): Promise<string> =>
+  new Promise((resolve, reject) => {
     logger.debug("INIT blurhash generation for file:", path);
     sharp.cache(false);
     sharp(path)
       .raw()
       .ensureAlpha()
       .resize(32, 32, { fit: "inside" })
-      .toBuffer((err, buffer, { width, height }) => {
-        if (err) return "";
-        logger.debug("END blurhash generation for file:", path, "blurhash:", encode(new Uint8ClampedArray(buffer), width, height, 4, 4));
-        resolve(encode(new Uint8ClampedArray(buffer), width, height, 4, 4));
+      .toBuffer((err, buffer, info) => {
+        if (err || !info) {
+          logger.error("Error processing image or 'info' is undefined for file:", path, "error:", err);
+          return reject(err || new Error("'info' is undefined"));
+        }
+
+        const { width, height } = info;
+        const blurhash = encode(new Uint8ClampedArray(buffer), width, height, 4, 4);
+        logger.debug("END blurhash generation for file:", path, "blurhash:", blurhash);
+        resolve(blurhash);
       });
   });
 
