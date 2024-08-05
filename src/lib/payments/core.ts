@@ -465,18 +465,19 @@ const payInvoiceFromExpenses = async (transactionid: string) : Promise<boolean> 
     return false
 }
 
-setInterval(async () => {
-    const pendingInvoices = await getPendingInvoices();
-    logger.debug("Pending invoices:", pendingInvoices.length)
-    for (const invoice of pendingInvoices) {
-        const paiddate = await isInvoicePaid(invoice.paymentHash);
-        if (paiddate != "")  {
-            invoice.paidDate = paiddate;
-            // We send the parameter to collect from a payment and credit the user wallet
-            await collectInvoice(invoice, false, true);
+if (isModuleEnabled("payments", app)) {
+    setInterval(async () => {
+        const pendingInvoices = await getPendingInvoices();
+        logger.debug("Pending invoices:", pendingInvoices.length)
+        for (const invoice of pendingInvoices) {
+            const paiddate = await isInvoicePaid(invoice.paymentHash);
+            if (paiddate != "")  {
+                invoice.paidDate = paiddate;
+                // We send the parameter to collect from a payment and credit the user wallet
+                await collectInvoice(invoice, false, true);
+            }
         }
-    }
-    //   await addBalance("1100000001", 10)
-}, 60000);
+    }, 60000);
+}
 
 export { checkTransaction, addBalance, getBalance, payInvoiceFromExpenses, formatAccountNumber, getUnpaidTransactionsBalance}
