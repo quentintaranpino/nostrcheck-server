@@ -8,7 +8,7 @@ import { generateInvoice } from "./LUD06.js";
 import { isInvoicePaid } from "./getalby.js";
 
 
-const checkTransaction = async (transactionid : string, originId: string, originTable : string, filesize: number, pubkey : string): Promise<transaction> => {
+const checkTransaction = async (transactionid : string, originId: string, originTable : string, size: number, pubkey : string): Promise<transaction> => {
 
     if (!isModuleEnabled("payments", app)) {
         return emptyTransaction;
@@ -17,7 +17,7 @@ const checkTransaction = async (transactionid : string, originId: string, origin
     // Get the transaction
     let transaction = await getTransaction(transactionid);
     const balance = await getBalance(transaction.accountid);
-    const satoshi = await calculateSatoshi(originTable, filesize);
+    const satoshi = await calculateSatoshi(originTable, size);
 
     if (transaction.paymentHash != "") {
 
@@ -413,11 +413,10 @@ const calculateSatoshi = async (originTable: string, size: number) : Promise<num
 
     if (originTable == "registered") {
         // For registered the minus size is more expensive
-        let sizeStr = size.toString().length;
-        if (sizeStr = 1) {return app.get("config.payments")["satoshi"]["registerMaxSatoshi"]};
+        if (size <= app.get("config.register")["minUsernameLength"]) {return app.get("config.payments")["satoshi"]["registerMaxSatoshi"]};
 
-        const satoshi = Math.round(app.get("config.payments")["satoshi"]["registerMaxSatoshi"] / (Math.log(sizeStr + 100)))
-        logger.debug("Register size:", sizeStr, "Satoshi:", satoshi)
+        const satoshi = Math.round(app.get("config.payments")["satoshi"]["registerMaxSatoshi"] / (Math.log(size + 100)))
+        logger.debug("Register size:", size, "Satoshi:", satoshi)
         return satoshi >= 1 ? satoshi : 1;
     }
 
