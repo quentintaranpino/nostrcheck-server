@@ -96,7 +96,7 @@ const addNewUsername = async (username: string, pubkey: string, password:string,
 
     if (createUsername == 0) {return 0};
 
-    return 1;
+    return createUsername;
 }
 
 export { isUsernameAvailable, addNewUsername, isPubkeyOnDomainAvailable };
