@@ -226,8 +226,21 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 		if (makeBlurhash) {
 			if (filedata.originalmime.toString().startsWith("image")){
 				filedata.blurhash = await generateBlurhash(filedata.conversionInputPath);
+
+				// If can't generate blurhash, we return an error and delete the file
+				if (filedata.blurhash == "") {
+					if(version != "v2"){return res.status(500).send({"result": false, "description" : "File could not be processed"});}
+
+					const result: ResultMessagev2 = {
+						status: MediaStatus[1],
+						message: "File could not be processed",
+					};
+					await deleteFile(filedata.conversionInputPath);
+					return res.status(500).send(result);
+				}
 			}
 		}
+		
 
 		// Media dimensions
 		const dimensions = await getMediaDimensions(filedata.conversionInputPath, filedata);
