@@ -3,7 +3,6 @@ import { logger } from "./logger.js";
 import { credentialTypes, authHeaderResult } from "../interfaces/authorization.js";
 import { hashString, validateHash } from "./hash.js";
 import { Request } from "express";
-import { verifyNIP07event } from "./nostr/NIP07.js";
 import crypto from "crypto";
 import { sendMessage } from "./nostr/NIP04.js";
 import { isNIP98Valid } from "./nostr/NIP98.js";

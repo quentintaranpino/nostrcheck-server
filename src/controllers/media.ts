@@ -706,7 +706,18 @@ const getMediabyURL = async (req: Request, res: Response) => {
 		}
 	}
 
-	// Check if file is active on the database and if payment is required
+	let noCache = false;
+	let adminRequest = false;
+
+	// Check if the GET request has authorization header (for dashboard admin checking)
+	const eventHeader = await parseAuthHeader(req, "getMediaByURL", true);
+	if (eventHeader.status == "success") {
+		noCache = true;
+		adminRequest = true;
+		res.header("Authorization", eventHeader.authkey);
+	}
+
+	// Check if the file is cached, if not, we check the database for the file.
 	const cachedStatus = await redisClient.get(req.params.filename + "-" + req.params.pubkey);
 	if (cachedStatus === null || cachedStatus === undefined) {
 
@@ -740,24 +751,17 @@ const getMediabyURL = async (req: Request, res: Response) => {
 
 		let isBanned = await isContentBanned(filedata[0].id, "mediafiles");
 		const pubkeyId = await dbMultiSelect(["id"], "registered", "hex = ?", [filedata[0].pubkey], true);
-		if (pubkeyId.length > 0) {isBanned = await isContentBanned(pubkeyId[0].id, "registered");}
-		if (isBanned) {
-			logger.warn(`RES -> 200 Banned content - ${req.url}`, "| Returning not found media file.", getClientIp(req));
+		if (pubkeyId.length > 0 && (await isContentBanned(pubkeyId[0].id, "registered") == true)) {isBanned = true}
+		if (isBanned && adminRequest == false) {
+			logger.warn(`RES -> 200 Banned content - ${req.url}`, "| Returning banned media file.", getClientIp(req));
 			res.setHeader('Content-Type', 'image/webp');
 			return res.status(200).send(await getBannedMediaFile());
 		}
 
-		if (filedata[0].active != "1")  {
-			logger.info(`RES -> 401 File not active - ${req.url}`, "| Returning not found media file.", getClientIp(req));
-
-			await redisClient.set(req.params.filename + "-" + req.params.pubkey, "0", {
-				NX: true,
-				EX: app.get("config.redis")["expireTime"],
-			});
-			logger.info(`RES -> 401 File not active - ${req.url}`, "returning not found media file |", getClientIp(req), "|", "cached:", cachedStatus ? true : false);
-
+		if (filedata[0].active != "1" && adminRequest == false) {
+			logger.info(`RES -> 200 File not active - ${req.url}`, "returning not found media file |", getClientIp(req), "|", "cached:", cachedStatus ? true : false);
 			res.setHeader('Content-Type', 'image/webp');
-			return res.status(401).send(await getNotFoundMediaFile());
+			return res.status(200).send(await getNotFoundMediaFile());
 		}
 
 		// Allways set the correct filename
@@ -765,30 +769,20 @@ const getMediabyURL = async (req: Request, res: Response) => {
 
 		// Check if exist a transaction for this media file and if it is paid.
 		const transaction = await checkTransaction(filedata[0].transactionid, filedata[0].id, "mediafiles", Number(filedata[0].filesize), req.params.pubkey) as transaction;
-		let noCache = false;
-		if (transaction.paymentHash != "" && transaction.isPaid == false && isModuleEnabled("payments", app)) {
+		if (transaction.paymentHash != "" && transaction.isPaid == false && isModuleEnabled("payments", app) && adminRequest == false) {
 
-			// If is not paid, check if the GET request has authorization header (for dashboard admin checking)
-			const eventHeader = await parseAuthHeader(req, "getMediaByURL", true);
-			
-			if (eventHeader.status != "success") {
-				// If the GET request has no authorization, we return a QR code with the payment request.
-				logger.info(`RES -> 200 Paid media file ${req.url}`, "|", getClientIp(req), "|", "cached:", cachedStatus ? true : false);
-				const qrImage = await generateQRCode(transaction.paymentRequest, 
-										"Invoice amount: " + transaction.satoshi + " sats", 
-										"This file will be unlocked when the Lightning invoice " + 
-										"is paid. Then, it will be freely available to everyone");
+			// If the GET request has no authorization, we return a QR code with the payment request.
+			logger.info(`RES -> 200 Paid media file ${req.url}`, "|", getClientIp(req), "|", "cached:", cachedStatus ? true : false);
+			const qrImage = await generateQRCode(transaction.paymentRequest, 
+									"Invoice amount: " + transaction.satoshi + " sats", 
+									"This file will be unlocked when the Lightning invoice " + 
+									"is paid. Then, it will be freely available to everyone");
 
-				res.setHeader('Content-Type', 'image/png');
-				res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
-				res.setHeader('Pragma', 'no-cache');
-				res.setHeader('Expires', '0');
-				return res.status(200).send(qrImage);
-			}else{
-				// If the GET request has authorization, we return the media file normally, without payment, cache and a new authkey.
-				noCache = true;
-				res.header("Authorization", eventHeader.authkey);
-			}
+			res.setHeader('Content-Type', 'image/png');
+			res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+			res.setHeader('Pragma', 'no-cache');
+			res.setHeader('Expires', '0');
+			return res.status(200).send(qrImage);
 		}
 		
 		if (noCache == false) {
