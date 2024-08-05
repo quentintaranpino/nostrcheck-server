@@ -86,10 +86,21 @@ const isPubkeyValid = async (pubkey: string, checkAdminPrivileges = false, check
 
 	if (pubkey === undefined || pubkey === "") {return false;}
 
-	if (await isPubkeyRegistered(pubkey) == false) {return checkRegistered? false : true}
-	if (await isPubkeyBanned(pubkey) == true) {return false;}
-	if (await isPubkeyActive(pubkey) == false) {return false;}
-	if (checkAdminPrivileges && await isPubkeyAllowed(pubkey) == false) {return false;}
+	if (await isPubkeyRegistered(pubkey) == false) {
+		logger.debug("Pubkey not registered", pubkey);
+		return checkRegistered? false : true
+	}
+	if (await isPubkeyBanned(pubkey) == true) {
+		logger.debug("Pubkey is banned", pubkey);
+		return false;
+	}
+	if (await isPubkeyActive(pubkey) == false) {
+		logger.debug("Pubkey is not active", pubkey);
+		return false;
+	}
+	if (checkAdminPrivileges && await isPubkeyAllowed(pubkey) == false) {
+		logger.debug("Pubkey is not allowed", pubkey);
+		return false;}
 
 	return true;
 }
