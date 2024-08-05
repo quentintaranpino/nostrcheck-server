@@ -11,6 +11,8 @@ import { npubToHex, validatePubkey } from "../lib/nostr/NIP19.js";
 import { registerFormResult } from "../interfaces/register.js";
 import { dbUpdate } from "../lib/database.js";
 import { validateInviteCode } from "../lib/invitations.js";
+import { checkTransaction } from "../lib/payments/core.js";
+import { transaction } from "../interfaces/payments.js";
 
 const registerUsername = async (req: Request, res: Response): Promise<Response> => {
 
@@ -61,13 +63,17 @@ const registerUsername = async (req: Request, res: Response): Promise<Response> 
 		logger.info("RES -> 400 Bad request - Domain not provided", "|", getClientIp(req));
 		return res.status(400).send({status: "error", message: "Domain not provided"});
 	}
-	let validDomain = false;
-	let requireInvite = false;
+	let validDomain : boolean = false;
+	let requireInvite : boolean = false;
+	let requirepayment : boolean = false;
+	let maxSatoshi : number = 0;
 	const availableDomains = await getAvailableDomains();
 	Object.keys(availableDomains).forEach((element: string) => {
 		if (element === domain) {
 			validDomain = true;
 			requireInvite = availableDomains[element].requireinvite
+			requirepayment = availableDomains[element].requirepayment
+			maxSatoshi = availableDomains[element].maxsatoshi
 		}
 	});
 	if (!validDomain) {
@@ -85,7 +91,6 @@ const registerUsername = async (req: Request, res: Response): Promise<Response> 
 		return res.status(406).send({status: "error", message: "Pubkey already registered"});
 	}
 	
-
 	let password = req.body.password || "";
 	if (password != null && password != "" && password != undefined && password.length < app.get("config.register")["minPasswordLength"]) {
 		logger.info("RES -> 422 Bad request - Password too short", "|", getClientIp(req));
@@ -93,14 +98,16 @@ const registerUsername = async (req: Request, res: Response): Promise<Response> 
 	}
 
 	let inviteCode = req.body.inviteCode || "";
-	if ((inviteCode == null || inviteCode == "" || inviteCode == undefined) && requireInvite) {
-		logger.info("RES -> 400 Bad request - Invitation key not provided", "|", getClientIp(req));
-		return res.status(400).send({status: "error", message: "Invitation key not provided"});
-	}
+	if (requireInvite) {
+		if ((inviteCode == null || inviteCode == "" || inviteCode == undefined) && requireInvite) {
+			logger.info("RES -> 400 Bad request - Invitation key not provided", "|", getClientIp(req));
+			return res.status(400).send({status: "error", message: "Invitation key not provided"});
+		}
 
-	if (await validateInviteCode(inviteCode) == false) {
-		logger.info("RES -> 401 Unauthorized - Invalid invitation key", "|", getClientIp(req));
-		return res.status(401).send({status: "error", message: "Invalid invitation key"});
+		if (await validateInviteCode(inviteCode) == false) {
+			logger.info("RES -> 401 Unauthorized - Invalid invitation key", "|", getClientIp(req));
+			return res.status(401).send({status: "error", message: "Invalid invitation key"});
+		}
 	}
 
 	let comments = eventHeader.status == "success" ? "" : "Pending OTC verification";
@@ -114,13 +121,29 @@ const registerUsername = async (req: Request, res: Response): Promise<Response> 
 	// If the user is not activated, we will generate the credentials and send the OTC verification via nost DM.
 	if (activateUser == false) {await generateCredentials("otc",pubkey,true,true)};
 
+	// Check if payments module is active and if true generate paymentRequest
+	let paymentRequest = "";
+	if (requirepayment) {
+		const transaction = await checkTransaction("0", addUsername.toString(), "registered", username.length, req.body.pubkey, maxSatoshi) as transaction;
+		if (transaction.paymentHash != "" && transaction.isPaid == false && isModuleEnabled("payments", app)) {
+			paymentRequest = transaction.paymentRequest;
+		}
+	}
 
-	logger.info(`RES -> 200 OK - New user ${username} registered successfully - Active: ${activateUser} | ${getClientIp(req)}`);
+	logger.info(`RES -> 200 OK - New user ${username} registered successfully - Active: ${activateUser} - Require payment : ${requirepayment}`, "|", getClientIp(req));
 
+	let message : string = "User registered successfully";
+	if (activateUser == false) {
+		message = message + ", please verify your account with the OTC sent to your nostr pubkey via DM";
+	}
+	if (paymentRequest != "") {
+		message = message + ", please pay the required amount to activate your account";
+	}
 	const result : registerFormResult = {
 		status: "success",
-		message: activateUser == false ? "User registered successfully, pending OTC verification" : "User registered successfully",
+		message: message,
 		otc: activateUser == false ? true : false,
+		payment_request: paymentRequest
 	};
 
 	return res.status(200).send(result);

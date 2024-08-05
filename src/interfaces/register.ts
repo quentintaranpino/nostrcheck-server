@@ -7,6 +7,7 @@ interface RegisteredUsernameResult {
 
 interface registerFormResult extends ResultMessagev2 {
 	otc: boolean;
+	payment_request: string;
 }
 
 export {RegisteredUsernameResult, registerFormResult};
