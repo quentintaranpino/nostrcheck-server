@@ -45,32 +45,53 @@
         </div>
       </div>
     </div>  
-    <div id="register-success" class="col-11 col-sm-9 col-md-8 col-lg-7 col-xl-6 col-xxl-5 mx-auto d-none">
-      <div>
-        <div class="text-center mb-4">
-         <h1 class="display-4 mb-1 mt-2 pb-2 font-weight-normal gradient-text">Registration successful</h1>
-        </div>
+    <div id="register-second-phase" class="col-11 col-sm-9 col-md-8 col-lg-7 col-xl-6 col-xxl-5 mx-auto d-none">
+      <div class="text-center mb-4 d-none" id="register-need-steps">
+        <h1 class="display-4 mb-1 mt-2 pb-2 font-weight-normal gradient-text">Some steps are required</h1>
+        <p class="lead">
+            Your account has been created. But some steps are required to complete the registration process.
+        </p>
       </div>
-      <div id="register-otc-request" class="d-none">
-        <h5 class="lead mb-2">One step more before you can start using your account</h5>
+      <div class="text-center mb-4 d-none" id="register-success">
+        <h1 class="display-4 mb-1 mt-2 pb-2 font-weight-normal gradient-text">Registration successful</h1>
+        <p class="lead">
+            Your account has been created. You can now <a href="login">login</a> and start using all our services!
+        </p>
+      </div>
+      <div id="register-otc-request" class="mx-auto mb-3 mt-5 d-none ">
+        <h5 class="lead mb-3">
+          <i class="fa-regular fa-paper-plane me-1" style="color:rgb(77, 77, 77)"></i>
+          One time code required        
+        </h5>
         <p>
-          We have sent you an nostr direct message with a one time code. Use your favorite <a class="link-offset-2"href="https://nostr.net/" target="_blank">nostr client</a> to retrieve the code and complete the registration process.
+          We have sent you an nostr direct message with a one time code to ensure that you are the owner of the pubkey. Use your favorite <a class="link-offset-2"href="https://nostr.net/" target="_blank">nostr client</a> to retrieve the code and complete the registration process.
         </p>
         <div class="input-group mb-3 mt-2">
           <input type="text" class="form-control" id="input-register-otc" placeholder="One time code" required>
           <button class="btn btn-primary" type="button" id="otc_submit" onclick="validateOTC()">Submit</button>
         </div>  
       </div>
-      <div id="register-payment-request" class="mx-auto text-center mb-3 d-none">
-        <h5 class="lead mb-2">One step more before you can start using your account</h5>
+      <div id="register-payment-request" class="mx-auto mb-3 mt-5 d-none">
+        <h5 class="lead mb-3">
+          <i class="fa-solid fa-bolt me-1" style="color:rgb(255, 128, 24)"></i>
+
+          Payment required
+        </h5>
         <p>
-          We have generated a lightning network invoice for you to pay. Once the payment is confirmed, your account will be activated and you will be able to <a href="login">login</a>.
+          We have generated a lightning invoice for you to pay. Once confirmed this QR will disappear. Use your favorite lightning wallet to pay the invoice. 
         </p>
-        <p class="lead mb-1">Invoice amount: <span id="payment-request-satoshi"></span> sats</p>
-        <div id="payment-request-qr" class="mx-auto" style="width: 300px;"></div>
-        <button class="btn btn-primary mt-3" type="button" id="payment-request-copy" onclick="">Copy LN invoice</button>
+        <p class="lead mb-1 text-center">Invoice amount: <span id="payment-request-satoshi"></span> sats</p>
+        <div id="payment-request-qr" class="mx-auto" style="width: 250px;"></div>
+        <div class="text-center">
+          <span id="payment-request" class="d-none"></span>
+          <button class="btn btn-primary mt-3" type="button" id="payment-request-copy" onclick="copyToClipboard(this,document.getElementById('payment-request').innerText)">Copy invoice</button>
+        </div>
+        <p class="text-center mt-3">
+          Not sure which wallet to use? Check out the awesome <a class="link-offset-2" href="https://getalby.com/" target="_blank">Alby wallet</a>.
+        </p>
       </div>
     </div>
+  </div>
 
 <script src="/static/js/form.js"></script>
 <script src="/static/js/register.js"></script>

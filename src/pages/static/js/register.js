@@ -127,22 +127,29 @@ const register = async (type) => {
 
         document.getElementById('register-form').classList.add('d-none');
         document.getElementById('register-title').classList.add('d-none');
-        document.getElementById('register-success').classList.remove('d-none');
+        document.getElementById('register-second-phase').classList.remove('d-none');
 
-        console.log(data)
         if (data.otc == true) {
+          document.getElementById('register-need-steps').classList.remove('d-none');
           document.getElementById('register-otc-request').classList.remove('d-none');
         }
 
         if (data.payment_request != "") {
+          document.getElementById('register-need-steps').classList.remove('d-none');
           document.getElementById('register-payment-request').classList.remove('d-none');
-          console.log("Payment request: " + data.payment_request)
           document.getElementById("payment-request-satoshi").innerText = data.satoshi;
           const qrcode = new QRCode(document.getElementById("payment-request-qr"), {
             text: data.payment_request,
-            width: 300,
-            height: 300
+            width: 250,
+            height: 250
           });
+
+          document.getElementById("payment-request").innerText = data.payment_request;
+
+          setInterval(async () => {
+            validateInvoice(data.payment_request);
+          }, 10000);
+
         }
 
       }else{
@@ -178,9 +185,13 @@ const validateOTC = async () => {
     .then(async data => {
       if (data.status == 'success'){
 
-        initAlertModal("#register", "One time code validated successfully, redirecting in 5 seconds to login page. Welcome and enjoy your new account! 🥳🥳🥳", 5000, "alert-success");
-        await new Promise(r => setTimeout(r, 5000));
-        window.location.href = "login";
+        showMessage(`One time code validated successfully.`, "alert-success", true);
+        document.getElementById('register-otc-request').classList.add('d-none');
+
+        if (document.getElementById('register-payment-request').classList.contains('d-none')){
+          document.getElementById('register-need-steps').classList.add('d-none');
+          document.getElementById('register-success').classList.remove('d-none');
+        }
 
       }else{
         initAlertModal("#register", data.message);
@@ -189,3 +200,42 @@ const validateOTC = async () => {
     })
     
 }
+
+let validated = false;
+const validateInvoice = async (payment_request) => {
+
+  if (validated == true){
+    return;
+  }
+
+  if (!payment_request) {
+    return;
+  }
+
+  await fetch(`/api/v2/payments/invoices/${payment_request}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    })
+    .then(response => response.json())
+    .then(async data => {
+      if (data.status == 'success'){
+        if (data.invoice.isPaid == true){
+          validated = true;
+          showMessage(`Payment for registration received.`, "alert-success",false);
+          document.getElementById('register-payment-request').classList.add('d-none');
+
+          if (document.getElementById('register-otc-request').classList.contains('d-none')){
+            document.getElementById('register-need-steps').classList.add('d-none');
+            document.getElementById('register-success').classList.remove('d-none');
+          }
+
+        }
+      }
+    })
+    .catch((error) => {
+      console.error('Error:', error);
+    });
+      
+  }
