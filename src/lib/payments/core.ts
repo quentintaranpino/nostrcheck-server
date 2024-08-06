@@ -251,7 +251,7 @@ const getInvoice = async (transactionId: string) : Promise<invoice> => {
                                                     "id = ?", 
                                                     [transactionId], true);
     if (result.length == 0) {return emptyInvoice};
-    const {id, accountid, paymentrequest, paymenthash, satoshi, ispaid, createddate, expirydate, paiddate, comments} = result[0];
+    const {id, accountid, paymentrequest, paymenthash, satoshi, paid, createddate, expirydate, paiddate, comments} = result[0];
 
     // Update the balance for the invoice's account
     await getBalance(Number(accountid));
@@ -260,7 +260,7 @@ const getInvoice = async (transactionId: string) : Promise<invoice> => {
         paymentRequest: paymentrequest,
         paymentHash: paymenthash,
         satoshi: Number(satoshi),
-        isPaid: Boolean(ispaid),
+        isPaid: Boolean(paid),
         createdDate: new Date(createddate),
         expiryDate: new Date(expirydate),
         paidDate: new Date(paiddate),
@@ -480,4 +480,4 @@ if (isModuleEnabled("payments", app)) {
     }, 60000);
 }
 
-export { checkTransaction, addBalance, getBalance, payInvoiceFromExpenses, formatAccountNumber, getUnpaidTransactionsBalance}
+export { checkTransaction, addBalance, getBalance, payInvoiceFromExpenses, formatAccountNumber, getUnpaidTransactionsBalance, getInvoice}
