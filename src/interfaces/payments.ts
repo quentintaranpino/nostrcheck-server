@@ -67,5 +67,9 @@ interface paymentResultMessage extends ResultMessagev2 {
     payment_request: string;
 }
 
+interface invoiceReturnMessage extends ResultMessagev2 {
+    invoice: invoice;
+}
 
-export { invoice, emptyInvoice, transaction, emptyTransaction, accounts, paymentResultMessage}
+
+export { invoice, emptyInvoice, transaction, emptyTransaction, accounts, paymentResultMessage, invoiceReturnMessage}

@@ -1,5 +1,5 @@
 import { Application } from "express";
-import { addBalanceUser, payTransaction } from "../controllers/payments.js";
+import { addBalanceUser, payTransaction, getInvoiceStatus } from "../controllers/payments.js";
 
 export const loadPaymentsEndpoint = async (app: Application, version:string): Promise<void> => {
 
@@ -10,6 +10,9 @@ export const loadPaymentsEndpoint = async (app: Application, version:string): Pr
 
                 // Add balance to user
                 app.post("/api/" + version + app.get("config.server")["availableModules"]["payments"]["path"] + "/addbalance/", addBalanceUser);
+
+                // Get invoice status
+                 app.get("/api/" + version + app.get("config.server")["availableModules"]["payments"]["path"] + "/invoices/:payreq", getInvoiceStatus);
 
         }
 

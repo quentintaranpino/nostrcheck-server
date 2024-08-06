@@ -1315,6 +1315,37 @@ https://nostrcheck.me/api/v2/payments/addbalance
 }
 ```
 
+## invoices [GET]
+
+Get a information about a invoice.
+
+https://nostrcheck.me/api/v2/payments/invoices/:payment_request
+
+**Example**
+
+[https://nostrcheck.me/api/v2/payments/invoices/lnbc7060n1pntp5lupp5qcufgtefn02q785zh8cyxvz5psjamk7vhhenadjd6nl5r0pp99gshp5w48l28v60yvythn6qvnpq0lez54422a042yaw4kq8arvd68a6n7qcqzzsxqyz5vqsp5pu6ye36cfcwv0g5x662vkqanv3szfgsudclfnmny2dcsxcn9lpqq9qxpqysgqusycld8fwa2ygnpksfypvkdyhent5td940sy38z8gkf3rnuxtezr2lstyp59jzmjm6ut9xvn48lee2t3g70v5g5ehnm58gxph45ceysq6zn572](https://nostrcheck.me/api/v2/payments/invoices/lnbc7060n1pntp5lupp5qcufgtefn02q785zh8cyxvz5psjamk7vhhenadjd6nl5r0pp99gshp5w48l28v60yvythn6qvnpq0lez54422a042yaw4kq8arvd68a6n7qcqzzsxqyz5vqsp5pu6ye36cfcwv0g5x662vkqanv3szfgsudclfnmny2dcsxcn9lpqq9qxpqysgqusycld8fwa2ygnpksfypvkdyhent5td940sy38z8gkf3rnuxtezr2lstyp59jzmjm6ut9xvn48lee2t3g70v5g5ehnm58gxph45ceysq6zn572)
+
+The server returns:
+
+```json
+{
+    "status": "success",
+    "message": "Invoice status",
+    "invoice": {
+        "paymentRequest": "lnbc7060n1pntp5lupp5qcufgtefn02q785zh8cyxvz5psjamk7vhhenadjd6nl5r0pp99gshp5w48l28v60yvythn6qvnpq0lez54422a042yaw4kq8arvd68a6n7qcqzzsxqyz5vqsp5pu6ye36cfcwv0g5x662vkqanv3szfgsudclfnmny2dcsxcn9lpqq9qxpqysgqusycld8fwa2ygnpksfypvkdyhent5td940sy38z8gkf3rnuxtezr2lstyp59jzmjm6ut9xvn48lee2t3g70v5g5ehnm58gxph45ceysq6zn572",
+        "paymentHash": "0638942f299bd40f1e82b9f04330540c25dddbccbdf33eb64dd4ff41bc212951",
+        "satoshi": 706,
+        "isPaid": true,
+        "createdDate": "2024-08-05T13:30:36.000Z",
+        "expiryDate": "2024-08-06T13:30:36.000Z",
+        "paidDate": "2024-08-06T06:24:05.000Z",
+        "description": "Invoice for: registered:2633",
+        "transactionid": 188,
+        "accountid": 1100002633
+    }
+}
+```
+
 # Running, developing and building the app
 
 ```

@@ -4,11 +4,14 @@ import { Request, Response } from "express";
 import app from "../app.js";
 
 import { logger } from "../lib/logger.js";
-import { getClientIp, format } from "../lib/utils.js";
+import { getClientIp } from "../lib/utils.js";
 import { ResultMessagev2, authkeyResultMessage } from "../interfaces/server.js";
 import { parseAuthHeader} from "../lib/authorization.js";
-import { isModuleEnabled, updateLocalConfigKey } from "../lib/config.js";
-import { payInvoiceFromExpenses, addBalance, getBalance, formatAccountNumber } from "../lib/payments/core.js";
+import { isModuleEnabled} from "../lib/config.js";
+import { payInvoiceFromExpenses, addBalance, getBalance, formatAccountNumber, getInvoice } from "../lib/payments/core.js";
+import { dbMultiSelect } from "../lib/database.js";
+import { isInvoicePaid } from "../lib/payments/getalby.js";
+import { invoiceReturnMessage } from "../interfaces/payments.js";
 
 
 /**
@@ -96,7 +99,59 @@ const addBalanceUser = async (req: Request, res: Response): Promise<Response> =>
     return res.status(500).send({"status": "error", "message": "Failed to add balance"});
 }
 
+const getInvoiceStatus = async (req: Request, res: Response): Promise<Response> => {
+
+    // Check if current module is enabled
+    if (!isModuleEnabled("admin", app)) {
+        logger.warn("Attempt to access a non-active module:","admin","|","IP:", getClientIp(req));
+        return res.status(400).send({"status": "error", "message": "Module is not enabled"});
+    }
+
+    logger.info("REQ -> getInvoiceStatus", req.hostname, "|", getClientIp(req));
+    res.setHeader('Content-Type', 'application/json');
+
+    // Check if the request has the required parameters
+    if (req.params.payreq === undefined || req.params.payreq === null) {
+        const result : ResultMessagev2 = {
+            status: "error",
+            message: "Invalid parameters"
+            };
+        logger.error("RES -> Invalid parameters" + " | " + getClientIp(req));
+        return res.status(400).send(result);
+    }
+
+    const invoiceId = await dbMultiSelect(["id"], "transactions", "paymentrequest = ?", [req.params.payreq])
+    if (invoiceId.length == 0) {
+        const result : ResultMessagev2 = {
+            status: "error",
+            message: "Invoice not found"
+            };
+        logger.error("RES -> Invoice not found" + " | " + getClientIp(req));
+        return res.status(404).send(result);
+    }
+
+    const invoice = await getInvoice(invoiceId[0].id)
+    if (invoice.isPaid == false) {
+        const paiddate = await isInvoicePaid(invoice.paymentHash);
+        if (paiddate != "") {
+            invoice.paidDate = paiddate;
+            invoice.isPaid = true;
+        }
+    }
+
+    logger.info("RES -> Invoice status: " + invoice.paymentHash + " | " + getClientIp(req));
+
+    const result : invoiceReturnMessage = {
+        status: "success",
+        message: "Invoice status",
+        invoice: invoice
+        };
+
+    return res.status(200).send(result);
+}
+
 export {
         payTransaction,
-        addBalanceUser
+        addBalanceUser,
+        getInvoiceStatus
 }
