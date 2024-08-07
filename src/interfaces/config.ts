@@ -195,12 +195,10 @@ const defaultConfig = {
 		},
 		"LNAddress": "",
 		"getalby" : {
-		"authToken": "",
+				"authToken": "",
 		},
 	},
 	"register" : {
-		"allowPublicRegistration": true,
-		"enablePayments": false,
 		"minUsernameLength": 3,
 		"maxUsernameLength": 20,
 		"minPasswordLength": 12,

@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import validator from "validator";
 import { logger } from "../lib/logger.js";
-import { getAvailableDomains } from "../lib/domains.js";
+import { getAvailableDomains, getDomainInfo } from "../lib/domains.js";
 import app from "../app.js";
 import { getClientIp } from "../lib/utils.js";
 import { isModuleEnabled } from "../lib/config.js";
@@ -63,23 +63,15 @@ const registerUsername = async (req: Request, res: Response): Promise<Response> 
 		logger.info("RES -> 400 Bad request - Domain not provided", "|", getClientIp(req));
 		return res.status(400).send({status: "error", message: "Domain not provided"});
 	}
-	let validDomain : boolean = false;
-	let requireInvite : boolean = false;
-	let requirepayment : boolean = false;
-	let maxSatoshi : number = 0;
-	const availableDomains = await getAvailableDomains();
-	Object.keys(availableDomains).forEach((element: string) => {
-		if (element === domain) {
-			validDomain = true;
-			requireInvite = availableDomains[element].requireinvite
-			requirepayment = availableDomains[element].requirepayment
-			maxSatoshi = availableDomains[element].maxsatoshi
-		}
-	});
-	if (!validDomain) {
+
+	const domainInfo = await getDomainInfo(domain);
+	if (domainInfo == "") {
 		logger.info("RES -> 406 Bad request - Domain not allowed", "|", getClientIp(req));
 		return res.status(406).send({ status: "error", message: "Invalid domain" });
 	}
+	let requireInvite : boolean = domainInfo.requireinvite;
+	let requirepayment : boolean = domainInfo.requirepayment;
+	let maxSatoshi : number = domainInfo.maxsatoshi;
 
 	if (!await isUsernameAvailable(username, domain)) {
 		logger.info("RES ->", username, "|", "Username already registered");
