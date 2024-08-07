@@ -23,7 +23,8 @@ const listAvailableDomains = async (req: Request, res: Response): Promise<Respon
 
 	return res.status(200).send({
 		availableDomains: availableDomains,
-		publicRegistration: app.get("config.register")["allowPublicRegistration"]
+		minUsernameLength: app.get("config.register")["minUsernameLength"],
+		maxUsernameLength: app.get("config.register")["maxUsernameLength"],
 	});
 };
 
