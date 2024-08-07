@@ -321,7 +321,7 @@ Endpoint: https://nostrcheck.me/api/v2/admin/updatelogo
 
 ### domains [GET]
 
-This method retrieves a list of available domains with their requirements (invite, payment and maxsatoshi) in the application.
+This method retrieves a list of available domains with their requirements (invite, payment and maxsatoshi) in the application. Also returns the minimum and maximum length of the username.
 
 
 Endpoint: https://nostrcheck.me/api/v2/domains
@@ -355,7 +355,8 @@ Endpoint: https://nostrcheck.me/api/v2/domains
             "maxSatoshi": 0
         },
     },
-    "publicRegistration": true
+    "minUsernameLength": 3,
+    "maxUsernameLength": 20
 }
 ```
 
@@ -1343,6 +1344,47 @@ The server returns:
         "transactionid": 188,
         "accountid": 1100002633
     }
+}
+```
+
+## calcualteamount [POST]
+
+Calculate the amount in satoshi for an object. Can be used to calculate the amount for a media upload or a register username.
+
+https://nostrcheck.me/api/v2/payments/calculateamount
+
+**Headers**
+
+- `Content-Type`: application/json
+
+**Parameters**
+
+- `size`: The size of the object in bytes or the number of characters.
+- `domain`: If the object is a register username, the domain must be the target domain for the username. For media must be empty.
+
+**Example**
+
+```json
+{
+    "method": "POST",
+    "url": "https://nostrcheck.me/api/v2/payments/calculateamount",
+    "headers": {
+        "Content-Type": "application/json"
+    },
+    "body": {
+        "size": 12, // An username has 12 characters
+        "domain": "nostrcheck.me"
+    }
+}
+```
+
+The server returns:
+
+```json
+{
+    "status": "success",
+    "message": "Calculated satoshi successfully",
+    "amount": 2100
 }
 ```
 

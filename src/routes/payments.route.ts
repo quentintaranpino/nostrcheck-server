@@ -1,5 +1,5 @@
 import { Application } from "express";
-import { addBalanceUser, payTransaction, getInvoiceStatus } from "../controllers/payments.js";
+import { addBalanceUser, payTransaction, getInvoiceStatus, calculateObjectAmount } from "../controllers/payments.js";
 
 export const loadPaymentsEndpoint = async (app: Application, version:string): Promise<void> => {
 
@@ -12,7 +12,10 @@ export const loadPaymentsEndpoint = async (app: Application, version:string): Pr
                 app.post("/api/" + version + app.get("config.server")["availableModules"]["payments"]["path"] + "/addbalance/", addBalanceUser);
 
                 // Get invoice status
-                 app.get("/api/" + version + app.get("config.server")["availableModules"]["payments"]["path"] + "/invoices/:payreq", getInvoiceStatus);
+                app.get("/api/" + version + app.get("config.server")["availableModules"]["payments"]["path"] + "/invoices/:payreq", getInvoiceStatus);
+
+                 // Calculate username satoshi amount
+                app.post("/api/" + version + app.get("config.server")["availableModules"]["payments"]["path"] + "/calculateamount/", calculateObjectAmount);
 
         }
 

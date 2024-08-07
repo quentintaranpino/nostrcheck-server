@@ -8,10 +8,11 @@ import { getClientIp } from "../lib/utils.js";
 import { ResultMessagev2, authkeyResultMessage } from "../interfaces/server.js";
 import { parseAuthHeader} from "../lib/authorization.js";
 import { isModuleEnabled} from "../lib/config.js";
-import { payInvoiceFromExpenses, addBalance, getBalance, formatAccountNumber, getInvoice } from "../lib/payments/core.js";
+import { payInvoiceFromExpenses, addBalance, getBalance, formatAccountNumber, getInvoice, calculateSatoshi } from "../lib/payments/core.js";
 import { dbMultiSelect } from "../lib/database.js";
 import { isInvoicePaid } from "../lib/payments/getalby.js";
-import { invoiceReturnMessage } from "../interfaces/payments.js";
+import { amountReturnMessage, invoiceReturnMessage } from "../interfaces/payments.js";
+import { getDomainInfo } from "../lib/domains.js";
 
 
 /**
@@ -150,8 +151,46 @@ const getInvoiceStatus = async (req: Request, res: Response): Promise<Response> 
     return res.status(200).send(result);
 }
 
+const calculateObjectAmount = async (req: Request, res: Response): Promise<Response> => {
+
+    // Check if current module is enabled
+    if (!isModuleEnabled("admin", app)) {
+        logger.warn("Attempt to access a non-active module:","admin","|","IP:", getClientIp(req));
+        return res.status(400).send({"status": "error", "message": "Module is not enabled"});
+    }
+
+    logger.info("REQ -> calculatePayment", req.hostname, "|", getClientIp(req));
+    res.setHeader('Content-Type', 'application/json');
+
+    // Check if the request has the required parameters
+    if (req.body.size === undefined || req.body.size === null) {
+        const result : ResultMessagev2 = {
+            status: "error",
+            message: "Invalid parameters"
+            };
+        logger.error("RES -> Invalid parameters" + " | " + getClientIp(req));
+        return res.status(400).send(result);
+    }
+
+    const size = req.body.size;
+    const domain = req.body.domain || "";
+    const domainInfo = await getDomainInfo(domain)
+
+    const satoshi = await calculateSatoshi(domain != "" ? 'registered': 'mediafiles', size, domainInfo != "" ? domainInfo.maxsatoshi : app.get("config.payments")["satoshi"]["mediaMaxSatoshi"]);
+
+    const result : amountReturnMessage = {
+        status: "success",
+        message: "Calculated satoshi successfully",
+        amount: satoshi
+        };
+    logger.info(`RES -> Calculated satoshi: ${satoshi} for object ${domain != "" ? domain : 'media'} | ${getClientIp(req)}`);
+    return res.status(200).send(result);
+    
+}
+
 export {
         payTransaction,
         addBalanceUser,
-        getInvoiceStatus
+        getInvoiceStatus,
+        calculateObjectAmount
 }

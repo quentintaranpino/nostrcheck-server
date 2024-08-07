@@ -71,5 +71,9 @@ interface invoiceReturnMessage extends ResultMessagev2 {
     invoice: invoice;
 }
 
+interface amountReturnMessage extends ResultMessagev2 {
+    amount: number;
+}
 
-export { invoice, emptyInvoice, transaction, emptyTransaction, accounts, paymentResultMessage, invoiceReturnMessage}
+
+export { invoice, emptyInvoice, transaction, emptyTransaction, accounts, paymentResultMessage, invoiceReturnMessage, amountReturnMessage}

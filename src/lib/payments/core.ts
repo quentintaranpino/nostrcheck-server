@@ -480,4 +480,11 @@ if (isModuleEnabled("payments", app)) {
     }, 60000);
 }
 
-export { checkTransaction, addBalance, getBalance, payInvoiceFromExpenses, formatAccountNumber, getUnpaidTransactionsBalance, getInvoice}
+export {    checkTransaction, 
+            addBalance, 
+            getBalance, 
+            payInvoiceFromExpenses, 
+            formatAccountNumber, 
+            getUnpaidTransactionsBalance, 
+            getInvoice,
+            calculateSatoshi}
