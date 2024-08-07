@@ -4,19 +4,6 @@
         <p>
             In this section, you can configure the register settings of your server. It provides you with the flexibility to customize the registration settings according to your specific requirements.
         </p>
-        <label for="register.allowPublicRegistration" class="mt-2 mb-1 fw-bold">Allow public registration</label>
-        <p> 
-        Enable or disable the public registration. If you enable this option, users will be able to register on the server without an invitation code. Otherwise, they will need an invitation code to register.
-        </p>
-        <div class="form-check form-switch">
-            <input  class="form-check-input" 
-                    type="checkbox" 
-                    value="<%= request.body.settingsRegister['allowPublicRegistration'] ? true : false %>" 
-                    <%= request.body.settingsRegister['allowPublicRegistration'] ? 'checked' : '' %> 
-                    name="register.allowPublicRegistration" 
-                    id="register.allowPublicRegistration"
-                    >
-        </div>
         <label for="register.minUsernameLength" class="mt-2 mb-1 fw-bold">Minimum username length</label>
         <p>
         Set the minimum number of characters required for a username. The username must be at least this long to be valid.

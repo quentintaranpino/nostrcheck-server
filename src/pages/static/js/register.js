@@ -1,10 +1,11 @@
+let domainsData;
+const satoshiField = document.getElementById('input-register-payment');
+const usernameField = document.getElementById('input-register-username');
+
 const initRegisterForm = async () => {
 
   const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]')
   const tooltipList = [...tooltipTriggerList].map(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl))
-
-  let domainsData;
-
 
   await fetch('/api/v2/domains', {
       method: 'GET',
@@ -52,19 +53,37 @@ const initRegisterForm = async () => {
         if (domainInfo.requirepayment) { icons = ' <i class="fa-solid fa-bolt ms-2 me-2" style="color:rgb(255, 128, 24)"></i> Paid'; }
         if (domainInfo.requireinvite && !domainInfo.requirepayment) { 
           icons  = ' <i class="fa-regular fa-paper-plane ms-2 me-2" style="color:rgb(77, 77, 77)"></i> Invite'; 
-        }else if (domainInfo.requireinvite && domainInfo.requirepayment) { icons += ' <i class="fa-solid fa-plus ms-2" style="color:rgb(115, 111, 111)"></i> <i class="fa-regular fa-paper-plane ms-2 me-2" style="color:rgb(77, 77, 77)"></i> Invite'; }
-       document.getElementById('domain-selection-icons').innerHTML = icons;
+        }else if (domainInfo.requireinvite && domainInfo.requirepayment) { 
+          icons += ' <i class="fa-solid fa-plus ms-2" style="color:rgb(115, 111, 111)"></i> <i class="fa-regular fa-paper-plane ms-2 me-2" style="color:rgb(77, 77, 77)"></i> Invite'; 
+        }
+
+        document.getElementById('domain-selection-icons').innerHTML = icons;
         document.getElementById('input-register-domain').innerHTML = `@${selectedDomain}`;
 
-      });
+        calculateSatoshi(usernameField.value.length);
 
-      await localStorage.setItem('authkey', data.authkey);
+      });
 
     })
     .catch((error) => {
       console.error('Error:', error);
     });
-   
+
+    usernameField.addEventListener('input', async (event) => {
+      const length = event.target.value.length;
+
+      if (length < domainsData.minUsernameLength || length > domainsData.maxUsernameLength) {
+        satoshiField.classList.add('d-none');
+        event.target.classList.add('text-danger');
+        event.target.classList.add('is-invalid');
+        return;
+      }else{
+        event.target.classList.remove('text-danger');
+        event.target.classList.remove('is-invalid');
+      }
+    
+      calculateSatoshi(length);
+    });
 }
 
 const register = async (type) => {
@@ -96,7 +115,13 @@ const register = async (type) => {
     initAlertModal("#register", "Username format is not valid.");
     document.getElementById('input-register-username').focus();
     return;
-}
+  }
+
+  if (username.length < domainsData.minUsernameLength || username.length > domainsData.maxUsernameLength) {
+    initAlertModal("#register", "Username length is not valid.");
+    document.getElementById('input-register-username').focus();
+    return;
+  }
 
   let body = {
     pubkey: pubkey,
@@ -258,3 +283,28 @@ const validateInvoice = async (payment_request) => {
     });
       
   }
+
+
+const calculateSatoshi = async (length) => {
+
+  if (domainsData.availableDomains[document.getElementById('input-register-domain').innerText.split('@')[1]].requirepayment == false) {
+    satoshiField.classList.add('d-none');
+    return;
+  }
+  
+  await fetch('/api/v2/payments/calculateamount', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({size: length, domain: document.getElementById('input-register-domain').innerText.split('@')[1]})
+  })
+  .then(response => response.json())
+  .then(async data => {
+    satoshiField.classList.remove('d-none');
+    satoshiField.innerHTML = `${data.amount} <i class="fa-solid fa-bolt ms-1" style="color:rgb(255, 128, 24)"></i>`;
+  })
+  .catch((error) => {
+    console.error('Error:', error);
+  });
+}

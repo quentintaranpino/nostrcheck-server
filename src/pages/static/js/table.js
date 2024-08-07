@@ -348,9 +348,10 @@ async function modifyRecord(url, tableId, id, field, fieldValue, action = 'modif
 function formatCheckbox(value, row, index) {
     if (value === 1) {
       return '<div class="text-center"><i class="fas fa-check-circle purple-text"></i></div>';
-    } else {
+    } else if (value === 0) {
       return '<div class="text-center"><i class="fas fa-times-circle text-secondary"></i></div>';
     }
+    return '';
   }
 
 function formatSatoshi(value, row, index) {
