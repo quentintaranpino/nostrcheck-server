@@ -1,6 +1,10 @@
 const initRegisterForm = async () => {
 
+  const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]')
+  const tooltipList = [...tooltipTriggerList].map(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl))
+
   let domainsData;
+
 
   await fetch('/api/v2/domains', {
       method: 'GET',
@@ -11,18 +15,26 @@ const initRegisterForm = async () => {
     .then(response => response.json())
     .then(async data => {
       const select = document.getElementById('domain-selection');
-      const domainLabel = document.getElementById('input-register-domain');
       const invitationGroup = document.getElementById('register-invitation');
       let counter = 0;
       domainsData = data;
       Object.keys(data.availableDomains).forEach(domain => {
         if (counter === 0) {
-            domainLabel.innerText = '@' + domain;
+            document.getElementById('input-register-domain').innerText = `@${domain}`;
         }
         const option = document.createElement('option');
         option.value = domain;
         option.text = domain;
         select.appendChild(option);
+        const domainInfo = data.availableDomains[domain];
+
+        let icons = '<i class="fa-regular fa-star me-2" style="color:#a06bc9"></i> Free';
+        document.getElementById('domain-selection-icons').innerHTML = icons;
+        if (domainInfo.requirepayment) { icons = ' <i class="fa-solid fa-bolt ms-2 me-2" style="color:rgb(255, 128, 24)"></i> Paid'; }
+        if (domainInfo.requireinvite && !domainInfo.requirepayment) { 
+          icons = ' <i class="fa-regular fa-paper-plane ms-2 me-2" style="color:rgb(77, 77, 77)"></i> Invite'; 
+        }else if (domainInfo.requireinvite && domainInfo.requirepayment) { icons += ' <i class="fa-solid fa-plus ms-2" style="color:rgb(115, 111, 111)"></i> <i class="fa-regular fa-paper-plane ms-2 me-2" style="color:rgb(77, 77, 77)"></i> Invite'; }
+        console.log(document.getElementById('domain-selection-icons').innerHTML)
         counter++;
       });
 
@@ -35,7 +47,14 @@ const initRegisterForm = async () => {
         } else {
             invitationGroup.classList.add('d-none');
         }
-        document.getElementById('input-register-domain').innerText = '@' + selectedDomain;
+        let icons = '<i class="fa-regular fa-star me-2" style="color:#a06bc9"></i> Free';
+        if (domainInfo.requirepayment) { icons = ' <i class="fa-solid fa-bolt ms-2 me-2" style="color:rgb(255, 128, 24)"></i> Paid'; }
+        if (domainInfo.requirepayment) { icons = ' <i class="fa-solid fa-bolt ms-2 me-2" style="color:rgb(255, 128, 24)"></i> Paid'; }
+        if (domainInfo.requireinvite && !domainInfo.requirepayment) { 
+          icons  = ' <i class="fa-regular fa-paper-plane ms-2 me-2" style="color:rgb(77, 77, 77)"></i> Invite'; 
+        }else if (domainInfo.requireinvite && domainInfo.requirepayment) { icons += ' <i class="fa-solid fa-plus ms-2" style="color:rgb(115, 111, 111)"></i> <i class="fa-regular fa-paper-plane ms-2 me-2" style="color:rgb(77, 77, 77)"></i> Invite'; }
+       document.getElementById('domain-selection-icons').innerHTML = icons;
+        document.getElementById('input-register-domain').innerHTML = `@${selectedDomain}`;
 
       });
 
