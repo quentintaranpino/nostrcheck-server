@@ -457,6 +457,19 @@ const getExtension = (mimeType: string): string | undefined => {
     return mediaType?.extension;
 }
 
+
+/**
+ * Get the converted file extension from an original mime type
+ * @param mimeType The original mime type
+ * @returns The converted file extension
+ * @example
+ * getConvertedExtension("image/png") // "webp"
+ **/
+const getConvertedExtension = (mimeType: string): string | undefined => {
+	const mediaType = mediaTypes.find(mt => mt.originalMime === mimeType);
+	return mediaType?.convertedExtension;
+}
+
 /**
  * Get the converted mime type from an original mime type
  * @param mimeType The original mime type
@@ -502,4 +515,5 @@ export {processFile,
 		getExtension,
 		getConvertedMimeType,
 		getMimeFromExtension, 
-		getAllowedMimeTypes};
+		getAllowedMimeTypes,
+		getConvertedExtension};

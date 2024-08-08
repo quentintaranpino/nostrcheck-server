@@ -24,27 +24,28 @@ interface MediaTypeInfo {
     originalMime: string;
     extension: string;
     convertedMime: string;
+	convertedExtension?: string;
 }
 
 const mediaTypes: MediaTypeInfo[] = [
 
-    { originalMime: "image/png", extension: "webp", convertedMime: "image/webp" },
-    { originalMime: "image/jpg", extension: "webp", convertedMime: "image/webp" },
-    { originalMime: "image/jpeg", extension: "webp", convertedMime: "image/webp" },
-    { originalMime: "image/gif", extension: "webp", convertedMime: "image/webp" },
-    { originalMime: "image/webp", extension: "webp", convertedMime: "image/webp" },
+    { originalMime: "image/png", extension: "png", convertedMime: "image/webp", convertedExtension: "webp" },
+    { originalMime: "image/jpg", extension: "jpg", convertedMime: "image/webp" , convertedExtension: "webp" },
+    { originalMime: "image/jpeg", extension: "jpeg", convertedMime: "image/webp" , convertedExtension: "webp" },
+    { originalMime: "image/gif", extension: "gif", convertedMime: "image/webp" , convertedExtension: "webp" },
+    { originalMime: "image/webp", extension: "webp", convertedMime: "image/webp" , convertedExtension: "webp" },
     { originalMime: "image/svg+xml", extension: "svg", convertedMime: "image/svg+xml" },
 
 
-    { originalMime: "video/mp4", extension: "mp4", convertedMime: "video/mp4" },
-    { originalMime: "video/quicktime", extension: "mp4", convertedMime: "video/mp4" },
-    { originalMime: "video/mpeg", extension: "mp4", convertedMime: "video/mp4" },
-    { originalMime: "video/webm", extension: "mp4", convertedMime: "video/mp4" },
+    { originalMime: "video/mp4", extension: "mp4", convertedMime: "video/mp4" , convertedExtension: "mp4" },
+    { originalMime: "video/quicktime", extension: "mov", convertedMime: "video/mp4" , convertedExtension: "mp4" },
+    { originalMime: "video/mpeg", extension: "mpeg", convertedMime: "video/mp4" , convertedExtension: "mp4" },
+    { originalMime: "video/webm", extension: "webm", convertedMime: "video/mp4" , convertedExtension: "mp4" },
 
-    { originalMime: "audio/mpeg", extension: "mp3", convertedMime: "audio/mpeg" },
-    { originalMime: "audio/mpg", extension: "mp3", convertedMime: "audio/mpeg" },
-    { originalMime: "audio/mpeg3", extension: "mp3", convertedMime: "audio/mpeg" },
-    { originalMime: "audio/mp3", extension: "mp3", convertedMime: "audio/mpeg" },
+    { originalMime: "audio/mpeg", extension: "mp3", convertedMime: "audio/mpeg" , convertedExtension: "mp3" },
+    { originalMime: "audio/mpg", extension: "mp3", convertedMime: "audio/mpeg" , convertedExtension: "mp3" },
+    { originalMime: "audio/mpeg3", extension: "mp3", convertedMime: "audio/mpeg", convertedExtension: "mp3" },
+    { originalMime: "audio/mp3", extension: "mp3", convertedMime: "audio/mpeg" , convertedExtension: "mp3" },
 
     { originalMime: "application/pdf", extension: "pdf", convertedMime: "application/pdf" },
 	{ originalMime: "application/javascript", extension: "js", convertedMime: "application/javascript" },
