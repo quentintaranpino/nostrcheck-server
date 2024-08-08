@@ -1,5 +1,7 @@
 import fs from "fs";
 import { logger } from "../logger.js";
+import crypto from "crypto";
+import app from "../../app.js";
 
 
 const createLocalFolder = async (mediaPath: string) : Promise<boolean> => {
@@ -72,10 +74,27 @@ const writeLocalFile = async (filePath: string, file: Buffer) : Promise<boolean>
 }
 
 
+const saveTmpFile = async (filename : string, buffer: Express.Multer.File["buffer"]): Promise<string> => {
+
+    if (filename == "" || buffer.length == 0) {
+        return "";
+    }
+
+    const tmpPath = app.get("config.storage")["local"]["tempPath"] + "in" + crypto.randomBytes(20).toString('hex') + filename;
+
+    if (!await writeLocalFile(tmpPath, buffer)) {
+        logger.error("Could not write temp file to disk", "|", tmpPath);
+        return "";
+    }
+    return tmpPath;
+
+}
+
 export { createLocalFolder, 
          copyLocalFileBuffer, 
          copyLocalFile, 
          deleteLocalFile, 
          getLocalFile, 
-         writeLocalFile 
+         writeLocalFile,
+         saveTmpFile 
         };

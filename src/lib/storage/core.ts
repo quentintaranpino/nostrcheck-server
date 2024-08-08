@@ -7,7 +7,7 @@ import { copyLocalFile, createLocalFolder, getLocalFile, deleteLocalFile } from 
 import { deleteRemoteFile, getRemoteFile, saveRemoteFile } from "./remote.js";
 
 /**
- * Save file to storage
+ * Save file to storage (local or remote)
  * @param filedata File data
  * @param originPath Origin path
  * @returns Promise<boolean>

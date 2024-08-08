@@ -27,7 +27,7 @@ import { isModuleEnabled } from "../lib/config.js";
 import { redisClient } from "../lib/redis.js";
 import { deleteFile, getFilePath } from "../lib/storage/core.js";
 import crypto from "crypto";
-import { writeLocalFile } from "../lib/storage/local.js";
+import { saveTmpFile, writeLocalFile } from "../lib/storage/local.js";
 import { Readable } from "stream";
 import { getRemoteFile } from "../lib/storage/remote.js";
 import { transaction } from "../interfaces/payments.js";
@@ -36,6 +36,7 @@ import { blobDescriptor, BUDKinds } from "../interfaces/blossom.js";
 import { prepareBlobDescriptor } from "../lib/blossom/BUD02.js";
 import { loadMediaPage } from "./frontend.js";
 import { getBannedMediaFile, isContentBanned } from "../lib/banned.js";
+import { mirrorFile } from "../lib/blossom/BUD04.js";
 
 const uploadMedia = async (req: Request, res: Response, version:string): Promise<Response> => {
 
@@ -84,6 +85,33 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 
 	// Uploaded file
 	let file: Express.Multer.File | null = null;
+
+	// Mirror file (Blossom BUD04)
+	if (req.params.param1 == "mirror") {
+		if (req.body.url == undefined || req.body.url == "") {
+			logger.warn(`RES -> 400 Bad request - Empty URL`, "|", getClientIp(req));
+			if(version != "v2"){return res.status(400).send({"result": false, "description" : "Empty URL"});}
+
+			const result: ResultMessagev2 = {
+				status: MediaStatus[1],
+				message: "Error mirroring file, empty URL"
+			};
+			return res.status(400).send(result);
+		}
+		file = await mirrorFile(req.body.url)
+		if (!file) {
+			logger.warn(`RES -> 400 Bad request - Empty file`, "|", getClientIp(req));
+			if(version != "v2"){return res.status(400).send({"result": false, "description" : "Empty file"});}
+
+			const result: ResultMessagev2 = {
+				status: MediaStatus[1],
+				message: "Error mirroring file, empty file"
+			};
+			return res.status(400).send(result);
+		}
+		req.files = [file];
+	}
+
 	if (Array.isArray(req.files) && req.files.length > 0) {file = req.files[0];}
 	if (!file) {
 		logger.warn(`RES -> 400 Bad request - Empty file`, "|", getClientIp(req));
@@ -131,7 +159,7 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 		conversionInputPath: "",
 		conversionOutputPath: "",
 		date: Math.floor(Date.now() / 1000),
-		no_transform: req.params.param1 == "upload" ? true : Boolean(req.body.no_transform) || false,
+		no_transform: req.params.param1 == "upload" || req.params.param1 == "mirror" ? true : Boolean(req.body.no_transform) || false,
 		newFileDimensions: "",
 	};
 
@@ -220,11 +248,9 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 
 	// Write temp file to disk (for ffmpeg and blurhash)
 	if (processFile){
-		filedata.conversionInputPath = app.get("config.storage")["local"]["tempPath"] + "in" + crypto.randomBytes(20).toString('hex') + filedata.filename;
-		if (!await writeLocalFile(filedata.conversionInputPath, file.buffer)) {
-			logger.error("Could not write temp file to disk", "|", filedata.conversionInputPath);
+		filedata.conversionInputPath = await saveTmpFile(filedata.filename, file.buffer);
+		if (filedata.conversionInputPath == "") {
 			if(version != "v2"){return res.status(500).send({"result": false, "description" : "Internal server error."});}
-
 			const result: ResultMessagev2 = {
 				status: MediaStatus[1],
 				message: "Internal server error.",
