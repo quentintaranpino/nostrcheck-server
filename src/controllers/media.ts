@@ -452,7 +452,7 @@ const getMediaList = async (req: Request, res: Response, version:string): Promis
 	
 	// Blossom where statement
 	if (pubkey != "") {
-		whereStatement = "pubkey = ? and active = ? and visibility = ?";
+		whereStatement = "pubkey = ? and active = ? and visibility = ? and original_hash is not null";
 		wherefields = [pubkey, "1", "1"];
 
 		if (since != "") {
