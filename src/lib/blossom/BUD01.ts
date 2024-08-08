@@ -32,7 +32,7 @@ const isBUD01AuthValid = async (authevent: Event, req: Request, endpoint: string
 		const now = Math.floor(Date.now() / 1000);
 
         // Check if created_at is in the past
-        if (created_at >= now) {
+        if (created_at > now) {
             logger.warn(`RES -> 400 Bad request - Auth header event created_at is not in the past, header: ${created_at} <> server: ${now} | ${req.socket.remoteAddress}`);
             return {status: "error", message: "Auth header event created_at is not in the past", authkey: "", pubkey: "", kind: 0};
         }
