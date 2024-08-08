@@ -1,7 +1,8 @@
 import config from "config";
-import {FileData, ProcessingFileData, allowedMimeTypes, mediaTypes} from "../../interfaces/media.js";
+import {FileData, ProcessingFileData } from "../../interfaces/media.js";
 import {NIP94_data, NIP96_event, NIP96file} from "../../interfaces/nostr.js";
 import { PrepareNIP94_event } from "./NIP94.js";
+import { getAllowedMimeTypes, getMimeFromExtension } from "../media.js";
 
 //https://github.com/nostr-protocol/nips/blob/master/96.md
 
@@ -13,7 +14,7 @@ const getNIP96file = (hostname : string): NIP96file => {
         "download_url": "https://" + hostname + "/media",
         "supported_nips": [1,4,5,78,94,96,98],
         "tos_url": "https://" + hostname + "/api/v2/tos/",
-        "content_types": allowedMimeTypes,
+        "content_types": getAllowedMimeTypes(),
         "plans": {
             "free": {
               "name": "Free Tier",
@@ -50,7 +51,7 @@ const PrepareNIP96_listEvent = async (filedata : FileData): Promise<NIP94_data> 
     const event : NIP94_data = {
             tags: [
                     ["url", filedata.url],
-                    ["m", mediaTypes[filedata.filename.split('.').pop() || '']],
+                    ["m", getMimeFromExtension(filedata.filename.split('.').pop() || '') || ''],
                     ["x", filedata.hash],
                     ["ox", filedata.originalhash],
                     ["size", filedata.filesize?.toString()],

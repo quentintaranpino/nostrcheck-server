@@ -1,7 +1,8 @@
 
-import { FileData, ProcessingFileData, mediaTypes } from "../../interfaces/media.js";
+import { ProcessingFileData } from "../../interfaces/media.js";
 import { NIPKinds } from "../../interfaces/nostr.js";
 import { NIP94_event } from "../../interfaces/nostr.js";
+import { getMimeFromExtension } from "../media.js";
 
 //https://github.com/nostr-protocol/nips/blob/master/94.md
 
@@ -14,7 +15,7 @@ const PrepareNIP94_event = async (filedata : ProcessingFileData): Promise<NIP94_
                 kind: NIPKinds.NIP94,
                 tags: [
                         ["url", filedata.url],
-                        ["m", mediaTypes[filedata.filename.split('.').pop() || '']],
+                        ["m", getMimeFromExtension(filedata.filename.split('.').pop() || '') || ''],
                         ["x", filedata.no_transform == true ? filedata.originalhash : filedata.hash],
                         ["ox", filedata.originalhash],
                         ["size", filedata.no_transform == true ? filedata.filesize? filedata.filesize.toString() : "" : ""],

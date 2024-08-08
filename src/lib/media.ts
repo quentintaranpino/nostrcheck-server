@@ -2,7 +2,7 @@ import fastq, { queueAsPromised } from "fastq";
 import ffmpeg from "fluent-ffmpeg";
 import fs from "fs";
 
-import { allowedMimeTypes, asyncTask, legacyMediaReturnMessage, ProcessingFileData, UploadTypes, videoHeaderRange } from "../interfaces/media.js";
+import { asyncTask, legacyMediaReturnMessage, mediaTypes, ProcessingFileData, UploadTypes, videoHeaderRange } from "../interfaces/media.js";
 import { logger } from "./logger.js";
 import { connect, dbUpdate } from "./database.js";
 import {fileTypeFromBuffer} from 'file-type';
@@ -184,7 +184,7 @@ const getFileType = async (req: Request, file :Express.Multer.File): Promise<{mi
 	}
 
 	fileType == undefined ? logger.warn(`Could not detect file mime type | ${getClientIp(req)}`) : null;
-	if(!allowedMimeTypes.includes(fileType.mime)){
+	if(!getAllowedMimeTypes().includes(fileType.mime)){
 		logger.info(`Filetype not allowed: ${file.mimetype} | ${getClientIp(req)}`);
 		return {mime: "", ext: ""};
 	}
@@ -445,6 +445,50 @@ const prepareLegacMediaEvent = async (filedata : ProcessingFileData): Promise<le
 
 }
 
+/**
+ * Get the file extension from a mime type
+ * @param mimeType The mime type
+ * @returns The file extension
+ * @example
+ * getExtension("text/markdown") // "md"
+ **/
+const getExtension = (mimeType: string): string | undefined => {
+    const mediaType = mediaTypes.find(mt => mt.originalMime === mimeType);
+    return mediaType?.extension;
+}
+
+/**
+ * Get the converted mime type from an original mime type
+ * @param mimeType The original mime type
+ * @returns The converted mime type
+ * @example
+ * getConvertedMimeType("text/markdown") // "text/markdown"
+ **/
+const getConvertedMimeType = (mimeType: string): string | undefined => {
+    const mediaType = mediaTypes.find(mt => mt.originalMime === mimeType);
+    return mediaType?.convertedMime;
+}
+
+/**
+ * Get the original mime type from a file extension
+ * @param extension The file extension
+ * @returns The original mime type
+ * @example
+ * getMimeFromExtension("md") // "text/markdown"
+ **/
+const getMimeFromExtension = (extension: string): string | undefined => {
+    const mediaType = mediaTypes.find(mt => mt.extension === extension);
+    return mediaType?.originalMime;
+}
+
+/**
+ * Get the allowed mime types
+ * @returns The allowed mime types
+ **/
+const getAllowedMimeTypes = (): string[] => {
+    return Array.from(new Set(mediaTypes.map(mt => mt.originalMime)));
+}
+
 export {processFile, 
 		requestQueue, 
 		getUploadType, 
@@ -454,4 +498,8 @@ export {processFile,
 		standardMediaConversion, 
 		getNotFoundMediaFile, 
 		readRangeHeader, 
-		prepareLegacMediaEvent};
+		prepareLegacMediaEvent,
+		getExtension,
+		getConvertedMimeType,
+		getMimeFromExtension, 
+		getAllowedMimeTypes};

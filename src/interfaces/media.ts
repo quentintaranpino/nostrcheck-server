@@ -20,76 +20,51 @@ const UploadTypes = ["avatar", "banner", "media"];
 const UploadStatus = ["pending", "processing", "completed", "failed"];
 const MediaStatus = ["success", "error", "processing"];
 
-const allowedMimeTypes = [
-	"image/png",
-	"image/jpg",
-	"image/jpeg",
-	"image/gif",
-	"image/webp",
-	"video/mp4",
-	"video/quicktime",
-	"video/mpeg",
-	"video/webm",
-	"audio/mpeg",
-	"audio/mpg",
-	"audio/mpeg3",
-	"audio/mp3",
-	"application/pdf",
-	"text/markdown",
-	"text/plain",
+interface MediaTypeInfo {
+    originalMime: string;
+    extension: string;
+    convertedMime: string;
+}
+
+const mediaTypes: MediaTypeInfo[] = [
+
+    { originalMime: "image/png", extension: "webp", convertedMime: "image/webp" },
+    { originalMime: "image/jpg", extension: "webp", convertedMime: "image/webp" },
+    { originalMime: "image/jpeg", extension: "webp", convertedMime: "image/webp" },
+    { originalMime: "image/gif", extension: "webp", convertedMime: "image/webp" },
+    { originalMime: "image/webp", extension: "webp", convertedMime: "image/webp" },
+    { originalMime: "image/svg+xml", extension: "svg", convertedMime: "image/svg+xml" },
+
+
+    { originalMime: "video/mp4", extension: "mp4", convertedMime: "video/mp4" },
+    { originalMime: "video/quicktime", extension: "mp4", convertedMime: "video/mp4" },
+    { originalMime: "video/mpeg", extension: "mp4", convertedMime: "video/mp4" },
+    { originalMime: "video/webm", extension: "mp4", convertedMime: "video/mp4" },
+
+    { originalMime: "audio/mpeg", extension: "mp3", convertedMime: "audio/mpeg" },
+    { originalMime: "audio/mpg", extension: "mp3", convertedMime: "audio/mpeg" },
+    { originalMime: "audio/mpeg3", extension: "mp3", convertedMime: "audio/mpeg" },
+    { originalMime: "audio/mp3", extension: "mp3", convertedMime: "audio/mpeg" },
+
+    { originalMime: "application/pdf", extension: "pdf", convertedMime: "application/pdf" },
+	{ originalMime: "application/javascript", extension: "js", convertedMime: "application/javascript" },
+    { originalMime: "application/json", extension: "json", convertedMime: "application/json" },
+    { originalMime: "application/vnd.ms-fontobject", extension: "eot", convertedMime: "application/vnd.ms-fontobject" },
+    { originalMime: "application/yaml", extension: "yaml", convertedMime: "application/yaml" },
+	{ originalMime: "application/xml", extension: "xml", convertedMime: "application/xml" },
+
+    { originalMime: "font/otf", extension: "otf", convertedMime: "font/otf" },
+    { originalMime: "font/ttf", extension: "ttf", convertedMime: "font/ttf" },
+    { originalMime: "font/woff", extension: "woff", convertedMime: "font/woff" },
+    { originalMime: "font/woff2", extension: "woff2", convertedMime: "font/woff2" },
+
+	{ originalMime: "text/html", extension: "map", convertedMime: "text/html" },
+    { originalMime: "text/markdown", extension: "md", convertedMime: "text/markdown" },
+    { originalMime: "text/css", extension: "css", convertedMime: "text/css" },
+    { originalMime: "text/x-handlebars-template", extension: "hbs", convertedMime: "text/x-handlebars-template" },
+    { originalMime: "text/plain", extension: "txt", convertedMime: "text/plain" },
+	{ originalMime: "text/yaml", extension: "yaml", convertedMime: "text/yaml" },
 ];
-
-const mime_extension: { [key: string]: string } = {
-	"image/png"			: "webp",
-	"image/jpg"			: "webp",
-	"image/jpeg"		: "webp",
-	"image/gif"			: "webp",
-	"image/webp"		: "webp",
-	"video/mp4"			: "mp4",
-	"video/quicktime"	: "mp4",
-	"video/mpeg"		: "mp4",
-	"video/webm"		: "mp4",
-	"audio/mpeg"		: "mp3",
-	"audio/mpg"			: "mp3",
-	"audio/mpeg3"		: "mp3",
-	"audio/mp3"			: "mp3",
-	"application/pdf"	: "pdf",
-	"text/markdown"		: "md",
-	"text/plain"		: "txt",
-};
-
-const mime_conversion: { [key: string]: string } = {
-	"image/png"			: "image/webp",
-	"image/jpg"			: "image/webp",
-	"image/jpeg"		: "image/webp",
-	"image/gif"			: "image/webp",
-	"image/webp"		: "image/webp",
-	"video/mp4"			: "video/mp4",
-	"video/quicktime"	: "video/mp4",
-	"video/mpeg"		: "video/mp4",
-	"video/webm"		: "video/mp4",
-	"audio/mpeg"		: "audio/mpeg",
-	"audio/mpg"			: "audio/mpeg",
-	"audio/mpeg3"		: "audio/mpeg",
-	"audio/mp3"			: "audio/mpeg",
-	"application/pdf"	: "application/pdf",
-	"text/markdown"		: "text/markdown",
-	"text/plain"		: "text/plain",
-};
-
-const mediaTypes: { [key: string]: string } = {
-	'webp': 'image/webp',
-	'png': 'image/png',
-	'jpg': 'image/jpeg',
-	'jpeg': 'image/jpeg',
-	'gif': 'image/gif',
-	'mov': 'video/quicktime',
-	'mp4': "video/mp4",
-	'mp3': "audio/mpeg",
-	'pdf': 'application/pdf',
-	'md': 'text/markdown',
-	'txt': 'text/plain',
-  }
 
 
 interface FileData{
@@ -135,14 +110,11 @@ interface videoHeaderRange {
 }
 
 export {
-	allowedMimeTypes,
 	asyncTask,
 	FileData,
 	ProcessingFileData,
 	legacyMediaReturnMessage,
 	MediaVisibilityResultMessage,
-	mime_extension,
-	mime_conversion,
 	mediaTypes,
 	ResultMessage,
 	UploadTypes,

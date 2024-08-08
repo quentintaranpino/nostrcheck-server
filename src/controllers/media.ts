@@ -3,7 +3,7 @@ import app from "../app.js";
 import { connect, dbDelete, dbInsert, dbMultiSelect, dbSelect } from "../lib/database.js";
 import { logger } from "../lib/logger.js";
 import { isPubkeyRegistered, parseAuthHeader } from "../lib//authorization.js";
-import { getUploadType, getFileType, standardMediaConversion, getNotFoundMediaFile, readRangeHeader, prepareLegacMediaEvent, getMediaDimensions } from "../lib/media.js"
+import { getUploadType, getFileType, standardMediaConversion, getNotFoundMediaFile, readRangeHeader, prepareLegacMediaEvent, getMediaDimensions, getExtension, getMimeFromExtension } from "../lib/media.js"
 import { requestQueue } from "../lib/media.js";
 import {
 	asyncTask,
@@ -14,8 +14,7 @@ import {
 	UploadStatus,
 	MediaStatus,
 	videoHeaderRange,
-	mime_extension,
-} from "../interfaces/media.js";
+	} from "../interfaces/media.js";
 import { ResultMessage, ResultMessagev2 } from "../interfaces/server.js";
 import path from "path";
 import validator from "validator";
@@ -97,6 +96,17 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 		return res.status(400).send(result);
 	}
 
+	if (file.buffer.length == 0) {
+		logger.warn(`RES -> 400 Bad request - Empty file`, "|", getClientIp(req));
+		if(version != "v2"){return res.status(400).send({"result": false, "description" : "Empty file"});}
+
+		const result: ResultMessagev2 = {
+			status: MediaStatus[1],
+			message: "Empty file"
+		};
+		return res.status(400).send(result);
+	}
+
 	// Filedata
 	const filedata: ProcessingFileData = {
 		filename: "",
@@ -147,7 +157,7 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 
 	// Uploaded file SHA256 hash and filename
 	filedata.originalhash = await generatefileHashfrombuffer(file);
-	filedata.no_transform == true? filedata.filename = `${filedata.originalhash}.${fileMimeData.ext}` : filedata.filename = `${filedata.originalhash}.${mime_extension[fileMimeData.mime]}`;
+	filedata.no_transform == true? filedata.filename = `${filedata.originalhash}.${fileMimeData.ext}` : filedata.filename = `${filedata.originalhash}.${getExtension(filedata.originalmime)}`;
 	logger.info("hash ->", filedata.originalhash, "|", getClientIp(req));
 	logger.info("filename ->", filedata.filename, "|", getClientIp(req));
 
@@ -814,7 +824,7 @@ const getMediabyURL = async (req: Request, res: Response) => {
 
 	// file extension checks and media type
 	const ext = path.extname(req.params.filename).slice(1);
-	const mediaType: string = Object.prototype.hasOwnProperty.call(mediaTypes, ext) ? mediaTypes[ext] : 'text/html';
+	const mediaType: string = getMimeFromExtension(ext) || 'text/html';
 	res.setHeader('Content-Type', mediaType);
 
 	// mediaPath checks
@@ -892,7 +902,13 @@ const getMediabyURL = async (req: Request, res: Response) => {
 
 	} else if (mediaLocation == "remote") {
 
-		const remoteFile = await fetch(await getRemoteFile(req.params.filename));
+		const url = await getRemoteFile(req.params.filename);
+		if (url == "") {
+			logger.error(`RES Media URL -> 500 Internal Server Error - remote URL not found`, "|", getClientIp(req));
+			res.setHeader('Content-Type', 'image/webp');
+			return res.status(500).send(await getNotFoundMediaFile());
+		}
+		const remoteFile = await fetch(url);
 		if (!remoteFile.ok || !remoteFile.body ) {
 			logger.error('RES -> 200 - Failed to fetch from remote file server || ' + req.params.filename, getClientIp(req));
 			res.setHeader('Content-Type', 'image/webp');

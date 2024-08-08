@@ -1,9 +1,10 @@
 import fs from 'fs';
 import { S3Client, S3ClientConfig, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, HeadObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-import { ProcessingFileData, mime_conversion } from '../../interfaces/media.js';
+import { ProcessingFileData } from '../../interfaces/media.js';
 import { logger } from '../logger.js';
 import app from '../../app.js';
+import { getConvertedMimeType } from '../media.js';
 
 const s3Config: S3ClientConfig = {
 
@@ -26,7 +27,7 @@ const saveRemoteFile = async (filePath: string, filedata:ProcessingFileData): Pr
     Bucket: bucketName,
     Key: filedata.filename,
     Body: fs.readFileSync(filePath),
-    ContentType : mime_conversion[filedata.originalmime],
+    ContentType : getConvertedMimeType(filedata.originalmime),
   };
 
   try {
