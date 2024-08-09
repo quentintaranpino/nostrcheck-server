@@ -235,6 +235,10 @@ const validateOTC = async () => {
         if (document.getElementById('register-payment-request').classList.contains('d-none')){
           document.getElementById('register-need-steps').classList.add('d-none');
           document.getElementById('register-success').classList.remove('d-none');
+          startConfetti();
+          setTimeout(() => {
+            stopConfetti();
+          }, 7000);
         }
 
       }else{
@@ -273,6 +277,10 @@ const validateInvoice = async (payment_request) => {
           if (document.getElementById('register-otc-request').classList.contains('d-none')){
             document.getElementById('register-need-steps').classList.add('d-none');
             document.getElementById('register-success').classList.remove('d-none');
+            startConfetti();
+            setTimeout(() => {
+              stopConfetti();
+            }, 7000);
           }
 
         }
