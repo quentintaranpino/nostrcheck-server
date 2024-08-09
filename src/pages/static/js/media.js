@@ -11,7 +11,26 @@ const uploadMedia = async () => {
         input.on("change", async function (e) {
             var files = e.target.files;
             var data = new FormData();
-            data.append("file", files[0]);
+
+            const mimeDB = await fetch('https://cdn.jsdelivr.net/gh/jshttp/mime-db/db.json')
+                .then(res => res.json())
+                .then(json => {
+                    return json;
+                });
+
+            for (const key in mimeDB) {
+                if (mimeDB[key].extensions) {
+                    mimeDB[key].extensions.forEach(extension => {
+                        files[0].name.endsWith(extension) ? data.append("file", new Blob([files[0]], { type: key }), files[0].name) : null;
+                    });
+                }
+            }
+
+            if (!data.has("file")) {
+                showMessage("Invalid file type", "alert-danger", false);
+                resolve("Invalid file type");
+                return;
+            }
 
             let headers;
             localStorage.getItem('authkey') ? headers = { "authorization": "Bearer " + localStorage.getItem('authkey') } : data.append("apikey", "26d075787d261660682fb9d20dbffa538c708b1eda921d0efa2be95fbef4910a");
