@@ -100,4 +100,19 @@ const addNewUsername = async (username: string, pubkey: string, password:string,
     return createUsername;
 }
 
-export { isUsernameAvailable, addNewUsername, isPubkeyOnDomainAvailable };
+
+/**
+ * 
+ * @param pubkey - The pubkey to be checked. (hex or npub)
+ * @returns {Promise<JSON[]>} A promise that resolves to an array of JSON objects containing the usernames and domains associated with the pubkey.
+ */
+const getUsernames = async (pubkey: string): Promise<JSON[]> => {
+
+    if (pubkey == "" || pubkey == undefined) {return []};
+
+    const result = await dbMultiSelect(["username", "domain"],"registered","hex = ?",[pubkey], false);
+    if (result.length == 0) {return []};
+    return result;
+}
+
+export { isUsernameAvailable, addNewUsername, isPubkeyOnDomainAvailable, getUsernames };

@@ -11,6 +11,7 @@ import { hextoNpub } from "../lib/nostr/NIP19.js";
 import { logHistory } from "../lib/logger.js";
 import themes from "../interfaces/themes.js";
 import { verifyNIP07event } from "../lib/nostr/NIP07.js";
+import { getUsernames } from "../lib/register.js";
 
 const loadDashboardPage = async (req: Request, res: Response, version:string): Promise<Response | void> => {
 
@@ -35,8 +36,9 @@ const loadDashboardPage = async (req: Request, res: Response, version:string): P
     req.body.serverHost = app.get("config.server")["host"];
     req.session.authkey = await generateCredentials('authkey', req.session.identifier);
 
-    // User metadata from nostr
+    // User metadata
     req.session.metadata = await getProfileNostrMetadata(req.session.identifier);
+    req.session.metadata.usernames = await getUsernames(req.session.identifier);
 
     // Check admin privileges. Only for information, never used for authorization
     req.session.metadata.allowed = await isPubkeyAllowed(req.body.pubkey || req.session.identifier);
@@ -71,8 +73,9 @@ const loadSettingsPage = async (req: Request, res: Response, version:string): Pr
     req.body.settingsLookAndFeelThemes = themes;
     req.session.authkey = await generateCredentials('authkey', req.session.identifier);
 
-    // User metadata from nostr
+    // User metadata
     req.session.metadata = await getProfileNostrMetadata(req.session.identifier);
+    req.session.metadata.usernames = await getUsernames(req.session.identifier);
 
     // Check admin privileges. Only for information, never used for authorization
     req.session.metadata.allowed = await isPubkeyAllowed(req.body.pubkey || req.session.identifier);
@@ -94,13 +97,14 @@ const loadProfilePage = async (req: Request, res: Response, version:string): Pro
     req.body.serverHost = app.get("config.server")["host"];
     req.session.authkey = await generateCredentials('authkey', req.session.identifier);
 
-    // User metadata from nostr
+    // User metadata
     req.session.metadata = await getProfileNostrMetadata(req.session.identifier);
+    req.session.metadata.usernames = await getUsernames(req.session.identifier);
 
     // User nostr notes
     req.session.metadata.nostr_notes = await getProfileNostrNotes(req.session.identifier);
 
-    // User metadata from local database
+    // User media files
     req.session.metadata.mediaFiles =  await getProfileLocalMetadata(req.session.identifier);
 
     // Check admin privileges. Only for information, never used for authorization
@@ -324,8 +328,9 @@ const frontendLogin = async (req: Request, res: Response): Promise<Response> => 
         return res.status(500).send(false);
     }
 
-    // User metadata from nostr
+    // User metadata
     req.session.metadata = await getProfileNostrMetadata(req.session.identifier);
+    req.session.metadata.usernames = await getUsernames(req.session.identifier);
 
     // Check admin privileges. Only for information, never used for authorization
     req.session.metadata.allowed = await isPubkeyAllowed(req.body.pubkey || req.session.identifier);

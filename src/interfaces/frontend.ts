@@ -15,7 +15,7 @@ interface userMetadata {
 	name : string;
 	nip05 : string;
 	picture : string;
-	username : string;
+	usernames : JSON[];
 	website : string;
 	pubkey : string;
 	allowed: boolean;

@@ -89,7 +89,7 @@
             </div>
             <div class=" p-4">
               <div class="d-flex flex-column align-middle mb-2">
-                <span class="fw-bold fs-3 mb-2"><%= request.session.metadata.display_name %></span>
+                <span class="fw-bold fs-3 mb-2"><%= request.session.metadata.display_name || request.session.metadata.usernames[0].username %></span>
                 <span class="fs-6 profile-icon-link mb-1">
                   <svg viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" clip-rule="evenodd" d="M9 18C13.9706 18 18 13.9706 18 9C18 4.02944 13.9706 0 9 0C4.02944 0 0 4.02944 0 9C0 13.9706 4.02944 18 9 18ZM11.6667 6.66667C11.6667 8.13943 10.4728 9.33333 9.00004 9.33333C7.52728 9.33333 6.33337 8.13943 6.33337 6.66667C6.33337 5.19391 7.52728 4 9.00004 4C10.4728 4 11.6667 5.19391 11.6667 6.66667ZM13.6667 12.3333C13.6667 13.2538 11.5774 14 9.00004 14C6.42271 14 4.33337 13.2538 4.33337 12.3333C4.33337 11.4129 6.42271 10.6667 9.00004 10.6667C11.5774 10.6667 13.6667 11.4129 13.6667 12.3333Z" fill="currentColor"></path></svg>
                   <%= request.session.metadata.nip05 %>
