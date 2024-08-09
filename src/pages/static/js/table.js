@@ -376,26 +376,30 @@ function formatPaymentHash(value) {
 function formatMediaFile(value, row, index) {
 
     let textValue = value;
-    if ($(window).width() < 768) {textValue = value.slice(0, (value.length / 2)-20 ) + ':' + value.slice((value.length / 2)+20 );}
+    if ($(window).width() < 768) {
+        textValue = value.slice(0, (value.length / 2) - 20) + ':' + value.slice((value.length / 2) + 20);
+    }
 
     // If value is not a filename exit the function
-    if (!value || value.indexOf('.') == -1) {return textValue;}
+    if (!value || value.indexOf('.') === -1) {
+        return textValue;
+    }
 
-    let modalFileCheck = '<div id="' + index + '_preview"><span class="cursor-zoom-in text-secondary">' + textValue + '</span></div>';
+    let modalFileCheck = '<div id="media_' + index + '_preview"><span class="cursor-zoom-in text-secondary">' + textValue + '</span></div>';
 
     // Attach the click event handler to the document and delegate it to the clickable element
-    $(document).off('click', '#' + index + '_preview').on('click', '#' + index + '_preview', async function() {
-        semaphore.execute(async () => {await initMediaModal(row.pubkey, value, row.checked, row.visibility, true).then(async (modal) => {
+    $(document).off('click', '#media_' + index + '_preview').on('click', '#media_' + index + '_preview', async function () {
+        semaphore.execute(async () => {
+            await initMediaModal(value, row.checked, row.visibility, true).then(async (modal) => {
                 let modalResult = modal.data;
                 for (let field in modalResult) {
-                    if (modalResult[field] != row[field]){
-                        semaphore.execute(async () => await modifyRecord("admin/updaterecord/",'#mediaData', row.id, field, modalResult[field], 'modify'));
+                    if (modalResult[field] != row[field]) {
+                        semaphore.execute(async () => await modifyRecord("admin/updaterecord/", '#mediaData', row.id, field, modalResult[field], 'modify'));
                         refreshTable('#mediaData');
                     }
                 }
             })
         });
-
     });
 
     return modalFileCheck;
@@ -404,26 +408,30 @@ function formatMediaFile(value, row, index) {
 function formatBannedFile(value, row, index) {
 
     let textValue = value;
-    if ($(window).width() < 768) {textValue = value.slice(0, (value.length / 2)-20 ) + ':' + value.slice((value.length / 2)+20 );}
+    if ($(window).width() < 768) {
+        textValue = value.slice(0, (value.length / 2) - 20) + ':' + value.slice((value.length / 2) + 20);
+    }
 
     // If value is not a filename exit the function
-    if (!value || value.indexOf('.') == -1) {return textValue;}
+    if (!value || value.indexOf('.') === -1) {
+        return textValue;
+    }
 
-    let modalFileCheck = '<div id="' + index + '_preview"><span class="cursor-zoom-in text-secondary">' + textValue + '</span></div>';
+    let modalFileCheck = '<div id="banned_' + index + '_preview"><span class="cursor-zoom-in text-secondary">' + textValue + '</span></div>';
 
     // Attach the click event handler to the document and delegate it to the clickable element
-    $(document).off('click', '#' + index + '_preview').on('click', '#' + index + '_preview', async function() {
-        semaphore.execute(async () => {await initMediaModal(row.pubkey, value, row.checked, row.visibility, false).then(async (modal) => {
+    $(document).off('click', '#banned_' + index + '_preview').on('click', '#banned_' + index + '_preview', async function () {
+        semaphore.execute(async () => {
+            await initMediaModal(value, row.checked, row.visibility, false).then(async (modal) => {
                 let modalResult = modal.data;
                 for (let field in modalResult) {
-                    if (modalResult[field] != row[field]){
-                        semaphore.execute(async () => await modifyRecord("admin/updaterecord/",'#mediaData', row.id, field, modalResult[field], 'modify'));
+                    if (modalResult[field] != row[field]) {
+                        semaphore.execute(async () => await modifyRecord("admin/updaterecord/", '#mediaData', row.id, field, modalResult[field], 'modify'));
                         refreshTable('#mediaData');
                     }
                 }
             })
         });
-
     });
 
     return modalFileCheck;
@@ -574,7 +582,7 @@ let tables = [
     { name: 'lightning', tableId: 'lightningData', dataKey: 'lightning', objectName: 'lightning redirection', url: 'admin/moduledata?module=lightning'},
     { name: 'domains', tableId: 'domainsData', dataKey: 'domains', objectName: 'domain name', url: 'admin/moduledata?module=domains'},
     { name: 'payments', tableId: 'paymentsData', dataKey: 'payments', objectName: 'transaction', url: 'admin/moduledata?module=payments', field: 'paid'},
-    { name: 'banned', tableId: 'bannedData', dataKey: 'banned', objectName: 'banned pubkeys', url: 'admin/moduledata?module=banned'},
+    { name: 'banned', tableId: 'bannedData', dataKey: 'banned', objectName: 'banned object', url: 'admin/moduledata?module=banned'},
     { name: 'invites', tableId: 'invitesData', dataKey: 'register', objectName: 'invitation', url: 'admin/moduledata?module=invites'},
 ];
 
