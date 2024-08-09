@@ -29,7 +29,7 @@ const initRegisterForm = async () => {
         select.appendChild(option);
         const domainInfo = data.availableDomains[domain];
 
-        let icons = '<i class="fa-regular fa-star me-2" style="color:#a06bc9"></i> Free';
+        let icons = '<i class="fa-solid fa-star me-2" style="color:#a06bc9"></i> Free';
         document.getElementById('domain-selection-icons').innerHTML = icons;
         if (domainInfo.requirepayment) { icons = ' <i class="fa-solid fa-bolt ms-2 me-2" style="color:rgb(255, 128, 24)"></i> Paid'; }
         if (domainInfo.requireinvite && !domainInfo.requirepayment) { 
@@ -48,7 +48,7 @@ const initRegisterForm = async () => {
         } else {
             invitationGroup.classList.add('d-none');
         }
-        let icons = '<i class="fa-regular fa-star me-2" style="color:#a06bc9"></i> Free';
+        let icons = '<i class="fa-solid fa-star me-2" style="color:#a06bc9"></i> Free';
         if (domainInfo.requirepayment) { icons = ' <i class="fa-solid fa-bolt ms-2 me-2" style="color:rgb(255, 128, 24)"></i> Paid'; }
         if (domainInfo.requirepayment) { icons = ' <i class="fa-solid fa-bolt ms-2 me-2" style="color:rgb(255, 128, 24)"></i> Paid'; }
         if (domainInfo.requireinvite && !domainInfo.requirepayment) { 
