@@ -496,7 +496,7 @@ const getMediaList = async (req: Request, res: Response, version:string): Promis
 
 	// NIP96 where statement
 	if (pubkey == "") {
-		whereStatement = eventHeader.pubkey ? "pubkey = ? and active = ?" : "active = ? and visibility = ? and checked = ? ORDER BY date DESC LIMIT ? OFFSET ?";
+		whereStatement = eventHeader.pubkey ? "pubkey = ? and active = ? ORDER BY date DESC LIMIT ? OFFSET ?" : "active = ? and visibility = ? and checked = ? ORDER BY date DESC LIMIT ? OFFSET ?";
 		wherefields = eventHeader.pubkey ? [eventHeader.pubkey, "1", count, offset] : ["1", "1", "1", count, offset];
 	}
 
