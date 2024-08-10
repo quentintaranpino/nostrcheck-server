@@ -732,7 +732,10 @@ const getMediabyURL = async (req: Request, res: Response) => {
 	res.set("access-control-allow-methods", "GET");
 	res.set("Cross-Origin-Opener-Policy", "*");
 	res.set("Cross-Origin-Resource-Policy", "*");
-	res.set("X-frame-options", "*")
+
+	// Global security headers
+	res.setHeader("Content-Security-Policy", "script-src 'none'; object-src 'none';");
+
 
 	// Initial security checks
 	if (
