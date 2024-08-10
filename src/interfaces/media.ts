@@ -36,16 +36,15 @@ const mediaTypes: MediaTypeInfo[] = [
     { originalMime: "image/webp", extension: "webp", convertedMime: "image/webp" , convertedExtension: "webp" },
     { originalMime: "image/svg+xml", extension: "svg", convertedMime: "image/svg+xml" },
 
-
     { originalMime: "video/mp4", extension: "mp4", convertedMime: "video/mp4" , convertedExtension: "mp4" },
     { originalMime: "video/quicktime", extension: "mov", convertedMime: "video/mp4" , convertedExtension: "mp4" },
     { originalMime: "video/mpeg", extension: "mpeg", convertedMime: "video/mp4" , convertedExtension: "mp4" },
     { originalMime: "video/webm", extension: "webm", convertedMime: "video/mp4" , convertedExtension: "mp4" },
 
-    { originalMime: "audio/mpeg", extension: "mp3", convertedMime: "audio/mpeg" , convertedExtension: "mp3" },
-    { originalMime: "audio/mpg", extension: "mp3", convertedMime: "audio/mpeg" , convertedExtension: "mp3" },
-    { originalMime: "audio/mpeg3", extension: "mp3", convertedMime: "audio/mpeg", convertedExtension: "mp3" },
-    { originalMime: "audio/mp3", extension: "mp3", convertedMime: "audio/mpeg" , convertedExtension: "mp3" },
+    { originalMime: "audio/mpeg", extension: "mp3", convertedMime: "audio/mpeg"},
+    { originalMime: "audio/mpg", extension: "mp3", convertedMime: "audio/mpeg" },
+    { originalMime: "audio/mpeg3", extension: "mp3", convertedMime: "audio/mpeg"},
+    { originalMime: "audio/mp3", extension: "mp3", convertedMime: "audio/mpeg" },
 
     { originalMime: "application/pdf", extension: "pdf", convertedMime: "application/pdf" },
 	{ originalMime: "application/javascript", extension: "js", convertedMime: "application/javascript" },
@@ -65,6 +64,8 @@ const mediaTypes: MediaTypeInfo[] = [
     { originalMime: "text/x-handlebars-template", extension: "hbs", convertedMime: "text/x-handlebars-template" },
     { originalMime: "text/plain", extension: "txt", convertedMime: "text/plain" },
 	{ originalMime: "text/yaml", extension: "yaml", convertedMime: "text/yaml" },
+
+	{ originalMime: "model/stl", extension: "stl", convertedMime: "model/stl" },
 ];
 
 
