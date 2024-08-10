@@ -194,11 +194,11 @@ const initMessageModal = async (objectId, message, title) => {
 
 }
 
-const initMediaModal = async (pubkey, filename, checked, visible , showButtons = true) => {
+const initMediaModal = async (filename, checked, visible, showButtons = true) => {
 
     var mediaModal = new bootstrap.Modal($('#media-modal'));
 
-    MediaData = await loadMediaWithToken('media/' + filename, localStorage.getItem('authkey')).then (async data => {
+    MediaData = await loadMediaWithToken('media/' + filename, localStorage.getItem('authkey')).then(async data => {
         await storeAuthkey(data.authkey);
         return data;
     });
@@ -215,54 +215,59 @@ const initMediaModal = async (pubkey, filename, checked, visible , showButtons =
 
     if (!showButtons) {
         $('#modalSwitch-footer').addClass('d-none');
+    }else {
+        $('#modalSwitch-footer').removeClass('d-none');
     }
 
-    if (['.mp4', '.webm', '.mov'].some(ext => filename.endsWith(ext))) {
-        $('#media-modal .mediapreview-video').attr('src', MediaData.url);
-        $('#media-modal .mediapreview-video source').attr('src', MediaData.url);
-        $('#media-modal .mediapreview-video').removeClass('d-none');
-        $('#media-modal .mediapreview-video')[0].play();
-    } else if (['.webp', '.png', '.jpg', '.jpeg', '.gif'].some(ext => filename.endsWith(ext))) {
-        $('#media-modal .mediapreview-image').attr('src', MediaData.url);
-        $('#media-modal .mediapreview-image').removeClass('d-none');
-    } else if (filename.endsWith('.mp3')){
-        $('#media-modal .mediapreview-audio').attr('src', MediaData.url);
-        $('#media-modal .mediapreview-audio source').attr('src', MediaData.url);
-        $('#media-modal .mediapreview-audio').removeClass('d-none');
-        $('#media-modal .mediapreview-audio')[0].play();
-    }
+    const mediaPreviewIframe = $('#mediapreview-iframe');
+    const mediapreviewImg = $('#mediapreview-img');
+    const mediaPreview3d = $('#mediapreview-3d');
+
+    mediapreviewImg.addClass('d-none');
+    mediaPreviewIframe.addClass('d-none');
+    mediaPreview3d.addClass('d-none');
 
     $(mediaModal._element).on('hidden.bs.modal', function () {
-
-        var videoElement = $('#media-modal .mediapreview-video')[0];
-        videoElement.pause();
-        videoElement.src = "";
-        videoElement.load();
-
-        $('#media-modal .mediapreview-video source').attr('src', '');
-        $('#media-modal .mediapreview-video').addClass('d-none');
-        $('#media-modal .mediapreview-video')[0].load();
-        $('#media-modal .mediapreview-image').attr('src', '');
-        $('#media-modal .mediapreview-image').addClass('d-none');
-        $('#media-modal .mediapreview-audio source').attr('src', '');
-        $('#media-modal .mediapreview-audio').addClass('d-none');
-        $('#media-modal .mediapreview-audio')[0].load();
+        mediaPreviewIframe.attr('src', '');
+        mediaPreviewIframe.addClass('d-none');
+        mediapreviewImg.attr('src', '');
+        mediapreviewImg.addClass('d-none');
+        mediaPreview3d.addClass('d-none');
+        contentType = '';
     });
+
+    let contentType = MediaData.mimeType || '';
 
     $('#media-modal').on('shown.bs.modal', function () {
         $('#modalSwitch-checked').focus();
+
+        console.log("Content type: " + contentType);
+        if (contentType.includes('image')) {
+            mediapreviewImg.attr('src', MediaData.url);
+            mediapreviewImg.removeClass('d-none');
+        }else if(contentType.includes('model')) {
+            init3dViewer('mediapreview-3d', 'media-modal-body', MediaData.url);
+            mediaPreview3d.removeClass('d-none');
+        } else {
+            if (contentType == '') {
+                return;
+            }
+            mediaPreviewIframe.attr('src', MediaData.url);
+            mediaPreviewIframe.removeClass('d-none');
+        }
+
+
     });
 
     mediaModal.show();
 
     let result = await new Promise((resolve) => {
         $(mediaModal._element).on('hidden.bs.modal', function () {
-            resolve({"checked":checked, "visibility":visible}); 
+            resolve({ "checked": checked, "visibility": visible }); 
         });
     });
 
-    return {authkey: MediaData.authkey, data: result}; 
-
+    return { authkey: MediaData.authkey, data: result };
 }
 
 async function loadMediaWithToken(url) {
@@ -272,5 +277,6 @@ async function loadMediaWithToken(url) {
         }
     });
     const blob = await response.blob();
-    return {authkey: response.headers.get('Authorization'), url: URL.createObjectURL(blob)};
+    console.log(blob)
+    return {authkey: response.headers.get('Authorization'), url: URL.createObjectURL(blob), mimeType: blob.type};
 }
