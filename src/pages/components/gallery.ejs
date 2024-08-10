@@ -168,7 +168,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
 
                     let mediaLink = document.createElement('a');
                     let mediaElement;
-                    if (ext === 'webp' || ext === 'gif' || ext === 'jpg' || ext === 'jpeg') {
+                    if (ext === 'webp' || ext === 'gif' || ext === 'jpg' || ext === 'jpeg' || ext === 'png') {
                         mediaElement = document.createElement('img');
                         mediaElement.src = '/static/resources/loading-image.webp';
                         mediaElement.classList.add("rounded-1", "w-100", "object-fit-contain");
@@ -282,11 +282,36 @@ document.addEventListener('DOMContentLoaded', (event) => {
                             });
                         });
                         audioObserver.observe(mediaElement);
+                    }else if (ext === 'stl') {
+                        mediaElement = document.createElement('canvas');
+                        mediaElement.id = `media-3d-${mediaId++}`;	
+                        mediaElement.classList.add("rounded-2", "w-100", "object-fit-contain");
+                        mediaElement.style.backgroundColor = '#D1CDCD'
+                        mediaElement.style.width = '100%';
+                        mediaElement.style.height = '200';
+                        mediaElement.style.position = "relative";
+
+                        console.log('mediaElement', mediaElement);
+
+                        setTimeout(() => {
+                            init3dViewer(mediaElement.id, 'column-0', `${url}`, 250, 200);
+                            mediaElement.classList.add('fade-in');
+                        }, 100);
+                    }
+                    else{
+                        mediaElement = document.createElement('div');
+                        mediaElement.classList.add("rounded-2", "w-100", "object-fit-contain", "text-center", "d-flex", "align-items-center", "justify-content-center");
+                        mediaElement.style.height = '180px'
+                        mediaElement.style.backgroundColor = '#ffffff';
+                        mediaElement.style.border = '1px solid #D1CDCD';
+                        mediaElement.innerHTML = `<a href="${url}" download><span class="display-4 mb-1 pb-2 font-weight-normal gradient-text">.${ext}</span></a>`;
+                        mediaElement.classList.add('fade-in');
+
                     }
 
                     if (mediaElement) {
                         const mediaDiv = document.createElement('div');
-                        mediaDiv.classList.add("mb-0", "fade-in", "media-div");
+                        mediaDiv.classList.add("mb-0", "fade-in", "media-div", "text-center");
                         mediaDiv.id = `media-${mediaId++}`;
                         mediaDiv.style.height = ext === 'mp3'? '220px' : `${height}px`;
                         mediaDiv.style.position = "relative";
@@ -314,12 +339,14 @@ document.addEventListener('DOMContentLoaded', (event) => {
                         });
 
                         // Buttons div
+                        const buttonContainer = document.createElement('div');
+                        buttonContainer.classList.add('btn-container', 'position-absolute', 'p-1', 'w-100');
+                        buttonContainer.style.background = 'rgba(0, 0, 0, 0.1)';
+                        buttonContainer.style.borderRadius = '5px';
+                        buttonContainer.style.zIndex = '10';
+                        buttonContainer.style.bottom = '1px';
+
                         if (response.headers.get("Authorization")) {
-                            const buttonContainer = document.createElement('div');
-                            buttonContainer.classList.add('btn-container', 'position-absolute', 'bottom-0', 'start-0', 'd-flex', 'p-1');
-                            buttonContainer.style.background = 'rgba(0, 0, 0, 0.5)';
-                            buttonContainer.style.borderRadius = '5px';
-                            buttonContainer.style.zIndex = '10';
 
                             const reorderButton = document.createElement('button');
                             reorderButton.classList.add('btn', 'btn-primary', 'btn-sm', 'me-1');
@@ -331,15 +358,6 @@ document.addEventListener('DOMContentLoaded', (event) => {
                             infoButton.innerHTML = '<i class="fas fa-info"></i>';
                             buttonContainer.appendChild(infoButton);
 
-                            const viewButton = document.createElement('button');
-                            viewButton.classList.add('btn', 'btn-primary', 'btn-sm', 'me-1');
-                            viewButton.innerHTML = '<i class="fas fa-eye"></i>';
-                            viewButton.addEventListener('click', (event) => {
-                                event.stopPropagation();
-                                window.open(`${url}`, '_blank');
-                            });
-                            buttonContainer.appendChild(viewButton);
-
                             const payButton = document.createElement('button');
                             payButton.classList.add('btn', 'btn-warning', 'btn-sm', 'me-1');
                             payButton.innerHTML = '<i class="fas fa-bolt"></i>';
@@ -350,8 +368,17 @@ document.addEventListener('DOMContentLoaded', (event) => {
                             deleteButton.innerHTML = '<i class="fas fa-trash"></i>';
                             buttonContainer.appendChild(deleteButton);
 
-                            mediaDiv.appendChild(buttonContainer);
                         }
+
+                        const viewButton = document.createElement('button');
+                        viewButton.classList.add('btn', 'btn-primary', 'btn-sm', 'me-1');
+                        viewButton.innerHTML = '<i class="fa-solid fa-arrow-up-right-from-square"></i>';
+                        viewButton.addEventListener('click', (event) => {
+                            event.stopPropagation();
+                            window.open(`${url}`, '_blank');
+                        });
+                        buttonContainer.appendChild(viewButton);
+                        mediaDiv.appendChild(buttonContainer);
 
                         // Add the element to the shortest column
                         const shortestColumnIndex = columnHeights.indexOf(Math.min(...columnHeights));
@@ -393,3 +420,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
     observerSentinels.observe(sentinelEnd);
 });
 </script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/STLLoader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script src="/static/js/3dviewer.js"></script>
