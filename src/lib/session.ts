@@ -81,7 +81,7 @@ const limiter = (limit:number = 2000, message:string = "", windowMS:number = 15 
         windowMs: windowMS, 
         limit: limit, 
         standardHeaders: 'draft-7',
-        message: "hold your horses! Too many requests cowboy, please try again later",
+        message: message,
         legacyHeaders: false, 
     })
 }
