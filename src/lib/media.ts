@@ -178,7 +178,14 @@ const getFileType = async (req: Request, file :Express.Multer.File): Promise<{mi
 
 	let fileType: {mime: string, ext: string} = await fileTypeFromBuffer(file.buffer) || {mime: "", ext: ""};
 
-	if (fileType.mime == "") {
+	// For text files without extension and mime type (LICENSE, README, etc)
+	if (fileType.ext == "" && fileType.mime == "") {
+		fileType.mime = 'text/plain';
+		fileType.ext = 'txt';
+	}
+
+	// For files without mime type but with extension.
+	if (fileType.mime == "" && fileType.ext != "") {
 		fileType.mime = file.mimetype;
 		fileType.ext = file.originalname.split('.').pop() || "";
 	}

@@ -777,7 +777,7 @@ const getMediabyURL = async (req: Request, res: Response) => {
 	if (eventHeader.status == "success") {
 		noCache = true;
 		adminRequest = true;
-		res.header("Authorization", eventHeader.authkey);
+		res.setHeader("Authorization", eventHeader.authkey);
 	}
 
 	// Check if the file is cached, if not, we check the database for the file.
