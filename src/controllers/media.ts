@@ -36,7 +36,6 @@ import { prepareBlobDescriptor } from "../lib/blossom/BUD02.js";
 import { loadMediaPage } from "./frontend.js";
 import { getBannedMediaFile, isContentBanned } from "../lib/banned.js";
 import { mirrorFile } from "../lib/blossom/BUD04.js";
-import getRawBody from "raw-body";
 
 const uploadMedia = async (req: Request, res: Response, version:string): Promise<Response> => {
 
@@ -113,29 +112,7 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 	}
 
 	if (Array.isArray(req.files) && req.files.length > 0) {file = req.files[0];}
-	if (!file) {
-
-		//Try to get file from Raw body Blossom (BUD-02)
-		const buffer = await getRawBody(req);
-
-        const bufferFile: Express.Multer.File = {
-            fieldname: 'file', 
-            originalname: "file",
-            encoding: 'binary',
-            mimetype: req.headers["content-type"] || "application/octet-stream",
-            buffer: buffer,
-            size: buffer.length,
-            stream: Readable.from(buffer),
-            destination: '', 
-            filename: 'file',
-            path: '', 
-        };
-
-		file = bufferFile;
-		req.files = [file];
-	}
-
-	if (file.buffer.length == 0) {
+	if (!file || file.buffer.length == 0) {
 		logger.warn(`RES -> 400 Bad request - Empty file`, "|", getClientIp(req));
 		if(version != "v2"){return res.status(400).send({"result": false, "description" : "Empty file"});}
 
