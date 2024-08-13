@@ -37,6 +37,8 @@ const getProfileData = async (pubkey: string, kind: number = 0): Promise<Event[]
         return [{kind: 0, created_at: 0, tags: [], content: "{}", pubkey: "", id: "", sig: ""}];
     }
 
+	resultEvents.sort((a, b) => b.created_at - a.created_at);
+	
     return resultEvents;
 }
 
