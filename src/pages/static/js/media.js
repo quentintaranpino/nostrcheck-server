@@ -18,11 +18,12 @@ const uploadMedia = async () => {
                     return json;
                 });
 
+            const fileExtension = files[0].name.split('.').pop().toLowerCase(); // Extrae la extensión del archivo
+
             for (const key in mimeDB) {
-                if (mimeDB[key].extensions) {
-                    mimeDB[key].extensions.forEach(extension => {
-                        files[0].name.endsWith(extension) ? data.append("file", new Blob([files[0]], { type: key }), files[0].name) : null;
-                    });
+                if (mimeDB[key].extensions && mimeDB[key].extensions.includes(fileExtension)) {
+                    data.append("file", new Blob([files[0]], { type: key }), files[0].name);
+                    break; 
                 }
             }
 
