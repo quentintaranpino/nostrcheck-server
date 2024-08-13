@@ -176,7 +176,6 @@ const initMessageModal = async (objectId, message, title) => {
 
     $(alert._element).on('show.bs.modal', function () {
 
-        // Clear the modal body and append the message
         $(objectId + '-message-modal .modal-body').empty();
         $(objectId + '-message-modal .modal-body').append(message);
         $(objectId + '-message-modal .modal-title').text(title)
@@ -222,6 +221,7 @@ const initMediaModal = async (filename, checked, visible, showButtons = true) =>
     const mediaPreviewIframe = $('#mediapreview-iframe');
     const mediapreviewImg = $('#mediapreview-img');
     const mediaPreview3d = $('#mediapreview-3d');
+    const fontPreview = $('#mediapreview-font');
 
     mediapreviewImg.addClass('d-none');
     mediaPreviewIframe.addClass('d-none');
@@ -233,6 +233,7 @@ const initMediaModal = async (filename, checked, visible, showButtons = true) =>
         mediapreviewImg.attr('src', '');
         mediapreviewImg.addClass('d-none');
         mediaPreview3d.addClass('d-none');
+        fontPreview.addClass('d-none');
         contentType = '';
     });
 
@@ -248,6 +249,9 @@ const initMediaModal = async (filename, checked, visible, showButtons = true) =>
         }else if(contentType.includes('model')) {
             init3dViewer('mediapreview-3d', 'media-modal-body', MediaData.url);
             mediaPreview3d.removeClass('d-none');
+        } else if (contentType.includes('font') || contentType.includes('ttf') || contentType.includes('woff') || contentType.includes('eot')) {
+            initFontViewer('mediapreview-font', MediaData.url);
+            fontPreview.removeClass('d-none');
         } else {
             if (contentType == '') {
                 return;
@@ -255,7 +259,6 @@ const initMediaModal = async (filename, checked, visible, showButtons = true) =>
             mediaPreviewIframe.attr('src', MediaData.url);
             mediaPreviewIframe.removeClass('d-none');
         }
-
 
     });
 

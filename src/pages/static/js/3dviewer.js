@@ -1,4 +1,4 @@
-const init3dViewer = async (canvasId, containerId, url, width = "", height = "") => {
+async function init3dViewer (canvasId, containerId, url, width = "", height = "") {
 
     const container = document.getElementById(containerId);
     const canvas = document.getElementById(canvasId);
@@ -52,12 +52,6 @@ const init3dViewer = async (canvasId, containerId, url, width = "", height = "")
         controls.update();
         renderer.render(scene, camera);
     }
-
-    // window.addEventListener('resize', () => {
-    //     camera.aspect = container.clientWidth / container.clientHeight;
-    //     camera.updateProjectionMatrix();
-    //     renderer.setSize(container.clientWidth, container.clientHeight);
-    // });
 
     animate();
 }
