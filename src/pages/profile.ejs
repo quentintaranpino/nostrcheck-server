@@ -83,7 +83,7 @@
                 <p class="small text-muted mb-0">Followers</p>
               </div>
               <div>
-                <p class="mb-1 h5"><%= request.session.metadata.following %></p>
+                <p class="mb-1 h5"><%= request.session.metadata.following.length %></p>
                 <p class="small text-muted mb-0">Following</p> 
               </div>
             </div>
@@ -141,6 +141,8 @@
   <%- include('./partials/footer', {active:'profile'}); %>
 
 <script>
+  const following = '<%= request.session.metadata.following %>';
+  console.log("FOLLOWING",following);
   function activateTabFromHash() {
     const hash = window.location.hash;
     if (hash) {

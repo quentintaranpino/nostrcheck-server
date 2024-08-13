@@ -80,8 +80,7 @@ const getProfileFollowers = (pubkey : string) : Boolean => {
 
 const getProfileFollowing = (pubkey : string) : Boolean => {
 	
-	let followingList = []
-
+	let followingEvents: Event[] = []
 
 	try{
 		const data = relaysPool.subscribeMany(
@@ -91,15 +90,16 @@ const getProfileFollowing = (pubkey : string) : Boolean => {
 				kinds: [3],
 			}],
 			{
-				eoseTimeout: 100,
+				eoseTimeout: 1000,
 				onevent(e) {
-					for (let tag of e.tags) {
-                        followingList.push(tag);
-                    }
+					followingEvents.push(e);
 				},
 				oneose() {
-					data.close();
-					app.set("#f_" + pubkey, followingList.length);
+					followingEvents.sort((a, b) => b.created_at - a.created_at);
+					const pubkeys = followingEvents[0].tags.map(item => item[1]);
+					app.set("#f_" + pubkey, pubkeys);
+					data.close();		
+					
 				},
 			},
 		);
