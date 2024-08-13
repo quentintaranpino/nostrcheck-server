@@ -222,6 +222,7 @@ const initMediaModal = async (filename, checked, visible, showButtons = true) =>
     const mediapreviewImg = $('#mediapreview-img');
     const mediaPreview3d = $('#mediapreview-3d');
     const fontPreview = $('#mediapreview-font');
+    const yamlPreview = $('#mediapreview-yaml');
 
     mediapreviewImg.addClass('d-none');
     mediaPreviewIframe.addClass('d-none');
@@ -234,6 +235,8 @@ const initMediaModal = async (filename, checked, visible, showButtons = true) =>
         mediapreviewImg.addClass('d-none');
         mediaPreview3d.addClass('d-none');
         fontPreview.addClass('d-none');
+        yamlPreview.addClass('d-none');
+
         contentType = '';
     });
 
@@ -252,7 +255,10 @@ const initMediaModal = async (filename, checked, visible, showButtons = true) =>
         } else if (contentType.includes('font') || contentType.includes('ttf') || contentType.includes('woff') || contentType.includes('eot')) {
             initFontViewer('mediapreview-font', MediaData.url);
             fontPreview.removeClass('d-none');
-        } else {
+        } else if (contentType.includes('yaml') || contentType.includes('yml')) {
+            initYamlViewer('mediapreview-yaml', MediaData.url);
+            yamlPreview.removeClass('d-none');
+        }else {
             if (contentType == '') {
                 return;
             }
