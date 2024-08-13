@@ -13,7 +13,7 @@ const prepareBlobDescriptor = async (filedata : ProcessingFileData): Promise<blo
         url: filedata.url,
         sha256: filedata.originalhash,
         size: filedata.filesize,
-        type: getMimeFromExtension(filedata.filename.split('.').pop() || '') || '',
+        type: filedata.originalmime != '' ? filedata.originalmime : getMimeFromExtension(filedata.filename.split('.').pop() || '') || '',
         uploaded: filedata.date,
         blurhash: filedata.blurhash,
         dim: filedata.width + "x" + filedata.height

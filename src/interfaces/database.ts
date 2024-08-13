@@ -51,6 +51,7 @@ interface mediafilesTable extends RowDataPacket {
 	id: string;
 	pubkey: string;
 	filename: string;
+	mimetype: string;
 	original_hash: string;
 	hash: string;
 	status: string;
@@ -75,6 +76,7 @@ const mediafilesTableFields: mediafilesTable = {
 	id: "int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY",
 	pubkey: "varchar(64) NOT NULL",
 	filename: "varchar(128) NOT NULL",
+	mimetype: "varchar(64) NOT NULL",
 	original_hash: "varchar(64)",
 	hash: "varchar(64)",
 	status: "varchar(10) NOT NULL",

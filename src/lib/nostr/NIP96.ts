@@ -46,12 +46,12 @@ const PrepareNIP96_event = async (filedata : ProcessingFileData): Promise<NIP96_
     return event;
 }
 
-const PrepareNIP96_listEvent = async (filedata : FileData): Promise<NIP94_data> => {
+const PrepareNIP96_listEvent = async (filedata : ProcessingFileData): Promise<NIP94_data> => {
 
     const event : NIP94_data = {
             tags: [
                     ["url", filedata.url],
-                    ["m", getMimeFromExtension(filedata.filename.split('.').pop() || '') || ''],
+                    ["m", filedata.originalmime != '' ? filedata.originalmime : getMimeFromExtension(filedata.filename.split('.').pop() || '') || ''],
                     ["x", filedata.hash],
                     ["ox", filedata.originalhash],
                     ["size", filedata.filesize?.toString()],

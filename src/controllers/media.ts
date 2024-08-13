@@ -3,7 +3,7 @@ import app from "../app.js";
 import { connect, dbDelete, dbInsert, dbMultiSelect, dbSelect } from "../lib/database.js";
 import { logger } from "../lib/logger.js";
 import { isPubkeyRegistered, parseAuthHeader } from "../lib//authorization.js";
-import { getUploadType, getFileType, standardMediaConversion, getNotFoundMediaFile, readRangeHeader, prepareLegacMediaEvent, getMediaDimensions, getExtension, getMimeFromExtension, getConvertedExtension } from "../lib/media.js"
+import { getUploadType, getFileMimeType, standardMediaConversion, getNotFoundMediaFile, readRangeHeader, prepareLegacMediaEvent, getMediaDimensions, getExtension, getMimeFromExtension, getConvertedExtension } from "../lib/media.js"
 import { requestQueue } from "../lib/media.js";
 import {
 	asyncTask,
@@ -79,8 +79,8 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 	}
 
 	// getUploadType. If not defined, default is "media"
-	const media_type : string = pubkey != app.get("config.server")["pubkey"] ? await getUploadType(req) : "media";
-	logger.info("uploadtype ->", media_type, "|", getClientIp(req));
+	const uploadType : string = pubkey != app.get("config.server")["pubkey"] ? await getUploadType(req) : "media";
+	logger.info("uploadtype ->", uploadType, "|", getClientIp(req));
 
 	// Uploaded file
 	let file: Express.Multer.File | null = null;
@@ -131,7 +131,7 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 		pubkey: pubkey,
 		width: app.get("config.media")["transform"]["media"]["undefined"]["width"],
 		height: app.get("config.media")["transform"]["media"]["undefined"]["height"],
-		media_type: media_type,
+		media_type: uploadType,
 		originalmime: "",
 		outputoptions: "",
 		originalhash: "",
@@ -151,9 +151,9 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 		newFileDimensions: "",
 	};
 
-	// getFileType. If not defined or not allowed, reject upload.
-	const fileMimeData = await getFileType(req, file);
-	if (fileMimeData.mime == "" || fileMimeData.ext == "") {
+	// File mime type. If not allowed reject the upload.
+	filedata.originalmime = await getFileMimeType(req, file);
+	if (filedata.originalmime == "") {
 		logger.warn(`RES -> 400 Bad request - filetype not detected or not allowed`, "|", getClientIp(req));
 		if(version != "v2"){return res.status(400).send({"result": false, "description" : "file type not detected or not allowed"});}
 
@@ -163,8 +163,7 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 		};
 		return res.status(400).send(result);
 	}
-	logger.info("mime ->", fileMimeData.mime, "|", getClientIp(req));
-	filedata.originalmime = fileMimeData.mime;
+	logger.info("mime ->", filedata.originalmime, "|", getClientIp(req));
 
 	// Only transform media files
 	if (!filedata.originalmime.toString().startsWith("image") && !filedata.originalmime.toString().startsWith("video")) {
@@ -173,7 +172,7 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 
 	// Uploaded file SHA256 hash and filename
 	filedata.originalhash = await generatefileHashfrombuffer(file);
-	filedata.no_transform == true? filedata.filename = `${filedata.originalhash}.${fileMimeData.ext}` : filedata.filename = `${filedata.originalhash}.${getConvertedExtension(filedata.originalmime)}`;
+	filedata.no_transform == true? filedata.filename = `${filedata.originalhash}.${getExtension(filedata.originalmime)}` : filedata.filename = `${filedata.originalhash}.${getConvertedExtension(filedata.originalmime)}`;
 	logger.info("hash ->", filedata.originalhash, "|", getClientIp(req));
 	logger.info("filename ->", filedata.filename, "|", getClientIp(req));
 
@@ -203,7 +202,7 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 
 	// Check if the (file SHA256 hash and pubkey) is already on the database, if exist (and the upload is media type) we return the existing file URL
 	const dbHash = await dbMultiSelect(
-										["id", "hash", "magnet", "blurhash", "filename", "filesize", "dimensions", "date"],
+										["id", "hash", "magnet", "blurhash", "filename", "mimetype", "filesize", "dimensions", "date"],
 										"mediafiles ", 
 										"original_hash = ? and pubkey = ? ",
 										[filedata.originalhash, pubkey],
@@ -219,6 +218,7 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 		filedata.magnet = dbHash[0].magnet;
 		filedata.blurhash = dbHash[0].blurhash;
 		filedata.filename = dbHash[0].filename;
+		filedata.originalmime = dbHash[0].mimetype ? dbHash[0].mimetype : filedata.originalmime;
 		filedata.filesize = +dbHash[0].filesize;
 		filedata.width = +(dbHash[0].dimensions.split("x")[0]);
 		filedata.height = +(dbHash[0].dimensions.split("x")[1]);
@@ -280,8 +280,8 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 		const createdate = getNewDate();
 		const insertResult = await dbInsert(
 			"mediafiles", 
-			["pubkey", "filename", "original_hash", "hash", "status", "active", "visibility", "date", "ip_address", "magnet", "blurhash", "filesize", "comments", "type", "dimensions"],
-			[filedata.pubkey, filedata.filename, filedata.originalhash, filedata.hash, filedata.status, 1, 1, createdate, getClientIp(req), filedata.magnet, filedata.blurhash, filedata.filesize, "", filedata.media_type, filedata.width != 0? filedata.width + "x" + filedata.height : 0],);
+			["pubkey", "filename", "mimetype", "original_hash", "hash", "status", "active", "visibility", "date", "ip_address", "magnet", "blurhash", "filesize", "comments", "type", "dimensions"],
+			[filedata.pubkey, filedata.filename, filedata.originalmime, filedata.originalhash, filedata.hash, filedata.status, 1, 1, createdate, getClientIp(req), filedata.magnet, filedata.blurhash, filedata.filesize, "", filedata.media_type, filedata.width != 0? filedata.width + "x" + filedata.height : 0],);
 
 		filedata.fileid = insertResult.toString();
 		if (insertResult == 0) {
@@ -489,7 +489,7 @@ const getMediaList = async (req: Request, res: Response, version:string): Promis
 	}
 
 	// Get files and total from database
-	const result = await dbMultiSelect(["id", "filename", "original_hash", "hash", "filesize", "dimensions", "date", "blurhash", "pubkey"],
+	const result = await dbMultiSelect(["id", "filename", "mimetype",  "original_hash", "hash", "filesize", "dimensions", "date", "blurhash", "pubkey"],
 										"mediafiles",
 										`${whereStatement}`,
 										wherefields, false);
@@ -518,7 +518,7 @@ const getMediaList = async (req: Request, res: Response, version:string): Promis
 			servername: "https://" + req.hostname,
 			no_transform: e.hash == e.original_hash ? true : false,
 			media_type: "",
-			originalmime: "",
+			originalmime: e.mimetype != '' ? e.mimetype : getMimeFromExtension(e.filename.split('.').pop() || '') || '',
 			outputoptions: "",
 			status: "success",
 			description: "",

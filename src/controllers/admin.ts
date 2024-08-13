@@ -14,7 +14,7 @@ import { allowedFieldNames, allowedFieldNamesAndValues, allowedTableNames, modul
 import { parseAuthHeader} from "../lib/authorization.js";
 import { isModuleEnabled, updateLocalConfigKey } from "../lib/config.js";
 import { flushRedisCache } from "../lib/redis.js";
-import { getFileType } from "../lib/media.js";
+import { getFileMimeType } from "../lib/media.js";
 import { npubToHex } from "../lib/nostr/NIP19.js";
 import { dbCountModuleData, dbCountMonthModuleData, dbSelectModuleData } from "../lib/admin.js";
 import { getBalance, getUnpaidTransactionsBalance } from "../lib/payments/core.js";
@@ -215,7 +215,7 @@ const updateLogo = async (req: Request, res: Response): Promise<Response> => {
 		return res.status(400).send({"status": "error", "message": "Empty file", "authkey": EventHeader.authkey});
 	}
 
-	if ((await getFileType(req, file)).mime == "") {
+	if (await getFileMimeType(req, file) == "") {
 		logger.error(`RES -> 400 Bad request - `, file.mimetype, ` filetype not detected`, "|", getClientIp(req));
 		return res.status(400).send({"status": "error", "message": "file type not detected or not allowed", "authkey": EventHeader.authkey});
 	}
