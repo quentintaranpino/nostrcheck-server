@@ -42,6 +42,10 @@ a, .nav-link, .nav-link:hover, .nav-link:active, .nav-link:visited {
   margin-bottom: 2;
 }
 
+.nostr-logo-40 {
+  width: 40px;
+  height: 40px;
+}
 
 .purple-text {color: #a575ff; }
 .cursor-zoom-in { cursor: zoom-in; }
