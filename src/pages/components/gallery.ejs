@@ -28,7 +28,7 @@
     }
 
     .btn-container .btn{
-        min-width: 30px;
+        min-width: 45px;
     }
 
     .media-div:hover .btn-container {
@@ -349,29 +349,29 @@ document.addEventListener('DOMContentLoaded', (event) => {
                         if (response.headers.get("Authorization")) {
 
                             const reorderButton = document.createElement('button');
-                            reorderButton.classList.add('btn', 'btn-primary', 'btn-sm', 'me-1');
+                            reorderButton.classList.add('btn', 'btn-primary', 'btn-xl', 'me-1');
                             reorderButton.innerHTML = '<i class="fas fa-sort"></i>';
                             buttonContainer.appendChild(reorderButton);
 
                             const infoButton = document.createElement('button');
-                            infoButton.classList.add('btn', 'btn-primary', 'btn-sm', 'me-1');
+                            infoButton.classList.add('btn', 'btn-primary', 'btn-xl', 'me-1');
                             infoButton.innerHTML = '<i class="fas fa-info"></i>';
                             buttonContainer.appendChild(infoButton);
 
                             const payButton = document.createElement('button');
-                            payButton.classList.add('btn', 'btn-warning', 'btn-sm', 'me-1');
+                            payButton.classList.add('btn', 'btn-warning', 'btn-xl', 'me-1');
                             payButton.innerHTML = '<i class="fas fa-bolt"></i>';
                             buttonContainer.appendChild(payButton);
 
                             const deleteButton = document.createElement('button');
-                            deleteButton.classList.add('btn', 'btn-danger', 'btn-sm', 'me-1');
+                            deleteButton.classList.add('btn', 'btn-danger', 'btn-xl', 'me-1');
                             deleteButton.innerHTML = '<i class="fas fa-trash"></i>';
                             buttonContainer.appendChild(deleteButton);
 
                         }
 
                         const viewButton = document.createElement('button');
-                        viewButton.classList.add('btn', 'btn-primary', 'btn-sm', 'me-1');
+                        viewButton.classList.add('btn', 'btn-primary', 'btn-xl', 'me-1');
                         viewButton.innerHTML = '<i class="fa-solid fa-arrow-up-right-from-square"></i>';
                         viewButton.addEventListener('click', (event) => {
                             event.stopPropagation();
