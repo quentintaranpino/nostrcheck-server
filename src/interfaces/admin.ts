@@ -153,6 +153,7 @@ const moduleDataSelectFields: { [key: string]: string } = {
                         "(SELECT registered.pubkey FROM registered WHERE mediafiles.pubkey = registered.hex LIMIT 1) as npub, " +
                         "mediafiles.pubkey, " +
                         "mediafiles.filename, " +
+                        "mediafiles.mimetype, " +
                         "mediafiles.original_hash, " +
                         "mediafiles.hash, " +
                         "mediafiles.status, " +
