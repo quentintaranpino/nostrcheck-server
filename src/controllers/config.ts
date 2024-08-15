@@ -119,7 +119,7 @@ const migrateDBLocalpath = async () : Promise<boolean> => {
 	const mediaFiles = await dbMultiSelect(
 									["filename", "pubkey", "type"],
 									"mediafiles",
-									"(1=2) ORDER BY id DESC",
+									"(localpath IS NULL or localpath = '') ORDER BY id DESC",
 									['1=1'], 
 									false);
 
