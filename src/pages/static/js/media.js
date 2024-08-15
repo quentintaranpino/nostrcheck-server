@@ -1,4 +1,4 @@
-const uploadMedia = async () => {
+const uploadMedia = async (fileName) => {
     return new Promise((resolve, reject) => {
         var input = $(document.createElement("input"));
         input.attr("type", "file");
@@ -92,7 +92,7 @@ const uploadMedia = async () => {
                                     `
                                     );
                     hideMessage(uploadMessage, 15000);
-                    resolve();
+                    resolve(`${url}`);
                 })
                 .catch(async (error) => {
                     updateMessage(uploadMessage,'<i class="bi bi-exclamation-circle-fill pe-1"></i>' + error, "alert-danger");

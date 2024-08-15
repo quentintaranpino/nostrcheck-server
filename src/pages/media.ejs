@@ -1,34 +1,130 @@
-<html lang="en">
-<%- include('./partials/head',{title: `${request.body.serverHost} - Home`}); %>
 <link rel="stylesheet" href="/static/css/particles.css">
 <link rel="stylesheet" href="/static/css/theme.css">
+<link href="https://cdn.jsdelivr.net/npm/jquery-resizable-columns@0.2.3/dist/jquery.resizableColumns.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-table@1.22.6/dist/bootstrap-table.min.css" rel="stylesheet">
+<link rel="stylesheet" href="/static/css/table.css">
+<html lang="en">
+<%- include('./partials/head',{title: `${request.body.serverHost} - Home`}); %>
 <body class="d-flex flex-column h-100">
+  <%- include('./partials/navbar', {active:'dashboard'}); %>
   <div class="background-theme h-100">
-    <div class="container px-4 px-lg-5 d-flex h-100 align-items-center justify-content-center">
-        <div class="d-flex justify-content-center">
-            <div class="text-center z-1">
-                <h1 class="text-white mx-auto my-0 text-uppercase gradien display-2">NOSTR MEDIA HOSTING</h1>
-                <h2 class="text-white-50 mx-auto mt-1 mb-4 display-6">Fast, scalable, nostr (NIP96) and Blossom compatible.</h2>
-                <p  class="text-white mx-auto mt-2 mb-4">By using our services you agree the <a id="tos-link" class="text-white link-offset-1 link-underline-opacity-25" href=''>Terms of Service</a></p>
-                <a class="btn btn-primary" id="register-link" href="">Try it now</a> <a class="ms-2 btn btn-primary" id="documentation-link" href="https://github.com/quentintaranpino/nostrcheck-api-ts/blob/main/DOCS.md#media">Documentation</a>
+        <div class="container px-4 px-lg-5 d-flex flex-column h-100 align-items-center mt-5 pt-5">
+            <div class="d-flex">
+                <div class="text-center z-1">
+                    <h1 class="text-white my-0 text-uppercase gradien display-2">NOSTR MEDIA HOSTING</h1>
+                    <h2 class="text-white-50 mt-2 mb-4 display-6">Fast, scalable, made for nostr</h2>
+                </div>
             </div>
-        </div>
+        <div class="col-11 col-md-9 col-xl-6 text-center mx-auto z-1">
+          <div id="drop-zone" class="card text-center p-4 default-bg m-2" role="button">Drag and drop files here or click to browse</div>
+          <input type="file" id="file-input" class="d-none" multiple>
+            <div id="file-table" class="bootstrap-table bootstrap5 overflow-auto p-2 d-none" style="max-height: 200px;">
+              <table class="table">
+                  <tbody id="file-list"></tbody>
+              </table>
+            </div>
+            <button id="file-table-btn-upload" class="btn btn-primary d-none mt-3 w-75" onclick="semaphore.execute(async () => {await uploadMedia();})">Upload</button>
+            <p class="text-white mb-4 mt-4">By using our services you agree the <a id="tos-link" class="text-white link-offset-1 link-underline-opacity-25" href=''>Terms of Service</a></p>
+    </div>
     </div>
   </div>
   <div id="particles-js"></div> 
   <script src="/static/js/particles.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/jquery/dist/jquery.min.js"></script>
-  <script src="/static/js/server.js"></script>
   <script>
     particlesJS("particles-js", {"particles":{"number":{"value":80,"density":{"enable":true,"value_area":800}},"color":{"value":"#ffffff"},"shape":{"type":"circle","stroke":{"width":0,"color":"#000000"},"polygon":{"nb_sides":5},"image":{"src":"img/github.svg","width":100,"height":100}},"opacity":{"value":0.5,"random":false,"anim":{"enable":false,"speed":1,"opacity_min":0.1,"sync":false}},"size":{"value":3,"random":true,"anim":{"enable":false,"speed":40,"size_min":0.1,"sync":false}},"line_linked":{"enable":true,"distance":150,"color":"#ffffff","opacity":0.4,"width":1},"move":{"enable":true,"speed":6,"direction":"none","random":false,"straight":false,"out_mode":"out","bounce":false,"attract":{"enable":false,"rotateX":600,"rotateY":1200}}},"interactivity":{"detect_on":"canvas","events":{"onhover":{"enable":false,"mode":"grab"},"onclick":{"enable":true,"mode":"push"},"resize":true},"modes":{"grab":{"distance":400,"line_linked":{"opacity":1}},"bubble":{"distance":400,"size":40,"duration":2,"opacity":8,"speed":3},"repulse":{"distance":200,"duration":0.4},"push":{"particles_nb":4},"remove":{"particles_nb":2}}},"retina_detect":true});var count_particles, update; count_particles = document.querySelector('.js-count-particles'); 
   </script>
   <%- include('./components/message-modal', {"object":"fisrtUse"}); %>
+  <%- include('./partials/footer', {active:'media'}); %>     
 </body>
 <script>
   if ("<%= request.body.firstUse %>" != undefined && "<%= request.body.firstUse %>" != null && "<%= request.body.firstUse %>" != "") {
     initMessageModal("#fisrtUse", "<%- request.body.firstUse %>", "Welcome to your sovereignty");
   }
-  document.getElementById('register-link').href = getRootHost() + "/register";
-  document.getElementById('tos-link').href = getRootHost() + "/api/v2/tos";
+
+  // document.getElementById('register-link').href = getRootHost() + "/register";
+  // document.getElementById('tos-link').href = getRootHost() + "/api/v2/tos";
+</script>
+
+<script>
+  const dropZone = document.getElementById('drop-zone');
+  const fileInput = document.getElementById('file-input');
+  const fileList = document.getElementById('file-list');
+
+  let dropZoneOriginalBackground = dropZone.style.backgroundColor;
+  dropZone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      dropZone.style.backgroundColor = 'rgb(248 249 250 / 30%)';
+  });
+
+dropZone.addEventListener('dragleave', () => {
+    dropZone.style.backgroundColor = dropZoneOriginalBackground
+});
+
+dropZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dropZone.style.backgroundColor = dropZoneOriginalBackground;
+    const files = Array.from(e.dataTransfer.files);
+    handleFiles(files);
+});
+
+dropZone.addEventListener('click', () => {
+    fileInput.click();
+});
+
+fileInput.addEventListener('change', (e) => {
+    const files = Array.from(e.target.files);
+    handleFiles(files);
+});
+
+function handleFiles(files) {
+    if (files.length === 0) {
+        return;
+    }
+    document.getElementById('file-table').classList.remove('d-none');
+    document.getElementById('file-table-btn-upload').classList.remove('d-none');
+    files.forEach(file => {
+        const row = document.createElement('tr');
+
+        const fileNameCell = document.createElement('td');
+        fileNameCell.textContent = file.name.length > 50 ? file.name.substring(0, 40) + '...' : file.name;
+        fileNameCell.classList.add('text-start');
+        fileNameCell.style.minWidth = '200px';
+        fileNameCell.style.maxWidth = '300px';
+        
+        const fileSizeCell = document.createElement('td');
+        fileSizeCell.textContent = (file.size / 1024).toFixed(2) + ' KB';
+        fileSizeCell.classList.add('text-end'); 
+
+        // Crear una celda para el botón de eliminación
+        const deleteCell = document.createElement('td');
+        const deleteButton = document.createElement('button');
+        deleteButton.innerHTML = '<i class="fa-solid fa-xmark"></i>';
+        deleteButton.classList.add('btn', 'btn-sm');
+        deleteCell.classList.add('text-end');
+        deleteButton.onclick = () => row.remove();
+
+        deleteCell.appendChild(deleteButton);
+
+        // Agregar las celdas a la fila
+        row.appendChild(fileNameCell);
+        row.appendChild(fileSizeCell);
+        row.appendChild(deleteCell);
+
+        // Añadir la fila a la tabla
+        fileList.appendChild(row);
+    });
+    $('#file-table').bootstrapTable('load', files);
+}
+
+function uploadFiles (){
+  const files = Array.from(fileList.children);
+  const formData = new FormData();
+  files.forEach(async file => {
+    await uploadMedia(file).then((response) => {
+      console.log(response);
+    });
+  });
+}
+
 </script>
 </html>
