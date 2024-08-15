@@ -153,7 +153,8 @@ const migrateDBLocalpath = async () : Promise<boolean> => {
 				await dbUpdate('mediafiles', 'localpath', null, ['filename', 'pubkey'], [filename, pubkey]);
 
 				continue;
-			}	
+			}
+			console.log('Trying to update database with new filename:', newFilename, 'for', filename, 'and pubkey', pubkey);	
 			const updFilename = await dbUpdate('mediafiles', 'filename', newFilename, ['filename', 'pubkey'], [filename, pubkey]);
 			if (!updFilename) {
 				console.error(`Failed to update media file ${filename} with new filename`);
