@@ -136,18 +136,21 @@ const migrateDBLocalpath = async () : Promise<boolean> => {
  
 		if (filename.includes("avatar") || filename.includes("banner")) {
 			const newType = filename.includes("avatar") ? "avatar" : "banner";
+			console.log('Trying to update database with new type:', newType, 'for', filename, 'and pubkey', pubkey);
 			const updType = await dbUpdate('mediafiles', 'type', newType, ['filename', 'pubkey'], [filename, pubkey]);
 			if (!updType) {
 				console.error(`Failed to update media file ${filename} with type ${newType}`);
 				continue;
 			}
 			const newPath = path.join(app.get("config.storage")["local"]["mediaPath"], pubkey, filename);
+			console.log('Checking if file exists:', newPath);
 			if (!fs.existsSync(newPath)) {
 				console.error(`File not found: ${newPath}`);
 				await dbUpdate('mediafiles', 'localpath', null, ['filename', 'pubkey'], [filename, pubkey]);
 				continue;
 			}
 			const newFilename = await generatefileHashfromfile(newPath) + path.extname(filename);
+			console.log('Generated new filename:', newFilename);
 			if (!newFilename || newFilename === path.extname(filename)) {
 				console.error(`Failed to generate new filename for ${filename}`);
 				await dbUpdate('mediafiles', 'localpath', null, ['filename', 'pubkey'], [filename, pubkey]);
@@ -162,6 +165,7 @@ const migrateDBLocalpath = async () : Promise<boolean> => {
 				continue;
 			}
 			try{
+				console.log('Trying to rename file:', newPath, 'to', path.join(app.get("config.storage")["local"]["mediaPath"], pubkey, newFilename));
 				await fs.rename(path.join(app.get("config.storage")["local"]["mediaPath"], pubkey, filename),
 								path.join(app.get("config.storage")["local"]["mediaPath"], pubkey, newFilename), async (err) => {
 					if (err) {
@@ -180,6 +184,7 @@ const migrateDBLocalpath = async () : Promise<boolean> => {
 			}
 		}else{
 			if (!type){
+				console.log('Trying to update database with type "media" for', filename, 'and pubkey', pubkey);
 				const updtType = await dbUpdate('mediafiles', 'type', "media", ['filename', 'pubkey'], [filename, 'pubkey']);
 				if (!updtType) {
 					console.error(`Failed to update media file ${filename} with type media`);
