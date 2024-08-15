@@ -185,7 +185,7 @@ const migrateDBLocalpath = async () : Promise<boolean> => {
 		}else{
 			if (!type){
 				console.log('Trying to update database with type "media" for', filename, 'and pubkey', pubkey);
-				const updtType = await dbUpdate('mediafiles', 'type', "media", ['filename', 'pubkey'], [filename, 'pubkey']);
+				const updtType = await dbUpdate('mediafiles', 'type', "media", ['filename', 'pubkey'], [filename, pubkey]);
 				if (!updtType) {
 					console.error(`Failed to update media file ${filename} with type media`);
 					await dbUpdate('mediafiles', 'localpath', null, ['filename', 'pubkey'], [filename, pubkey]);
