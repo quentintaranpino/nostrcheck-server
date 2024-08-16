@@ -9,9 +9,36 @@ a, .nav-link, .nav-link:hover, .nav-link:active, .nav-link:visited {
   max-width: 300px;
 }
 
-.btn-primary {
-  background-color: #343a40;
-  border-color: #343a40;
+
+html[data-bs-theme="light"] {
+  .btn-primary {
+    background-color: #e8e8e8f5;
+    border-color: #dfdbdb;
+    color: var(--bs-body-color);
+  }
+  .btn-primary i {
+    filter: invert(80%);
+
+  }
+}
+
+html[data-bs-theme="dark"] {
+  .btn-primary {
+    background-color:#2b3035;
+    border-color: #343a40;
+    color: var(--bs-body-color);
+  } 
+}
+
+.btn-dark {
+  background-color: #343a40 !important;
+  border-color: #343a40 !important;
+  color: var(--bs-body-color) !important;
+}
+
+.btn-dark i {
+  color: #dfdbdb !important;
+  filter: none !important;
 }
 
 .btn-primary:hover {
