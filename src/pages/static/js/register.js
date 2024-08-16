@@ -196,6 +196,15 @@ const register = async (type) => {
 
         }
 
+        if (data.payment_request == "" && data.otc == false){
+          document.getElementById('register-need-steps').classList.add('d-none');
+          document.getElementById('register-success').classList.remove('d-none');
+          startConfetti();
+          setTimeout(() => {
+            stopConfetti();
+          }, 7000);
+        }
+
       }else{
         initAlertModal("#register", data.message);
       }
