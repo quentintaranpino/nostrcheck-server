@@ -95,11 +95,12 @@ const getProfileFollowing = (pubkey : string) : Boolean => {
 					followingEvents.push(e);
 				},
 				oneose() {
-					followingEvents.sort((a, b) => b.created_at - a.created_at);
-					const pubkeys = followingEvents[0].tags.map(item => item[1]);
-					app.set("#f_" + pubkey, pubkeys);
-					data.close();		
-					
+					if (followingEvents.length > 0) {
+						followingEvents.sort((a, b) => b.created_at - a.created_at);
+						const pubkeys = followingEvents[0].tags.map(item => item[1]);
+						app.set("#f_" + pubkey, pubkeys);
+					}		
+					data.close();
 				},
 			},
 		);
