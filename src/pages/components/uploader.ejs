@@ -175,7 +175,7 @@ const nip07Upload = async () => {
             kind: 27235,
             created_at: Math.floor(Date.now() / 1000),
             tags: [
-                ["u", window.location.origin + "/api/v2/media"],
+                ["u", window.location.origin + "/api/v2/media/upload"],
                 ["method", "PUT"]
                 ],
             content: 'Authorization event for file upload',
@@ -185,7 +185,7 @@ const nip07Upload = async () => {
             kind: 27235,
             created_at: Math.floor(Date.now() / 1000),
             tags: [
-                ["u", window.location.origin + "/api/v2/media"],
+                ["u", window.location.origin + "/api/v2/media/upload"],
                 ["method", "GET"]
                 ],
             content: 'Authorization event for file upload status',
