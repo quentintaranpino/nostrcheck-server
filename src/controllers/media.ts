@@ -9,7 +9,6 @@ import {
 	asyncTask,
 	ProcessingFileData,
 	legacyMediaReturnMessage,
-	mediaTypes,
 	MediaVisibilityResultMessage,
 	UploadStatus,
 	MediaStatus,
@@ -60,8 +59,7 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 
 	}
 	eventHeader.authkey? res.header("Authorization", eventHeader.authkey): null;
-	const pubkey = eventHeader.pubkey;
-	logger.info("pubkey ->", pubkey, "|", getClientIp(req));
+	let pubkey = eventHeader.pubkey;
 
 	// Public uploads logic
 	if (await isPubkeyRegistered(pubkey) == false){
@@ -77,6 +75,8 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 		}
 		logger.info("pubkey not registered, uploading as guest | ", getClientIp(req));
 	}
+
+	logger.info("pubkey ->", pubkey, "|", getClientIp(req));
 
 	// getUploadType. If not defined, default is "media"
 	const uploadType : string = pubkey != app.get("config.server")["pubkey"] ? await getUploadType(req) : "media";
@@ -147,7 +147,7 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 		conversionInputPath: "",
 		conversionOutputPath: "",
 		date: Math.floor(Date.now() / 1000),
-		no_transform: req.params.param1 == "upload" || req.params.param1 == "mirror" ? true : Boolean(req.body.no_transform) || false,
+		no_transform: false,
 		newFileDimensions: "",
 	};
 
@@ -165,10 +165,11 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 	}
 	logger.info("mime ->", filedata.originalmime, "|", getClientIp(req));
 
-	// Only transform media files
-	if (!filedata.originalmime.toString().startsWith("image") && !filedata.originalmime.toString().startsWith("video")) {
-		filedata.no_transform = true;
-	}
+
+	// No transform option
+	app.get("config.media")["transform"]["enabled"] == false ? filedata.no_transform = true : filedata.no_transform = Boolean(req.body.no_transform) || false;
+	if (req.params.param1 == "upload" || req.params.param1 == "mirror") filedata.no_transform = true;
+	if (!filedata.originalmime.toString().startsWith("image") && !filedata.originalmime.toString().startsWith("video")) filedata.no_transform = true;
 
 	// Uploaded file SHA256 hash and filename
 	filedata.originalhash = await generatefileHashfrombuffer(file);
@@ -209,29 +210,35 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 										true);
 
 	if (dbHash && dbHash.length != 0 && dbHash[0] != undefined && dbHash[0].id != undefined) {
-		logger.info(`RES ->  File already in database, returning existing URL:`, filedata.servername + "/media/" + pubkey + "/" + filedata.filename, "|", getClientIp(req));
 
-		if (version == "v1"){filedata.status = JSON.parse(JSON.stringify(UploadStatus[2]));}
-		if (version == "v2"){filedata.status = JSON.parse(JSON.stringify(MediaStatus[0]));}
-		filedata.fileid = dbHash[0].id;
-		filedata.hash = dbHash[0].hash;
-		filedata.magnet = dbHash[0].magnet;
-		filedata.blurhash = dbHash[0].blurhash;
-		filedata.filename = dbHash[0].filename;
-		filedata.originalmime = dbHash[0].mimetype ? dbHash[0].mimetype : filedata.originalmime;
-		filedata.filesize = +dbHash[0].filesize;
-		filedata.width = +(dbHash[0].dimensions.split("x")[0]);
-		filedata.height = +(dbHash[0].dimensions.split("x")[1]);
-		filedata.description = "File exist in database, returning existing URL";
-		filedata.date = dbHash[0].date? Math.floor(dbHash[0].date / 1000) : Math.floor(Date.now() / 1000);
-		processFile = false; 
-		insertfiledb = false;
-		makeBlurhash = false;
+		let readDBInfo = true
+		if (filedata.filename != dbHash[0].filename) readDBInfo = false; // Same file hash but different filename (no_transform option used)
 
-		if (await getFilePath(filedata.filename) == "") {
-			logger.warn("File already in database but not found on storage server, processing as new file", "|", getClientIp(req));
-			processFile = true;
+		if (readDBInfo) {
+			logger.info(`RES ->  File already in database, returning existing URL:`, filedata.servername + "/media/" + pubkey + "/" + filedata.filename, "|", getClientIp(req));
+			if (version == "v1"){filedata.status = JSON.parse(JSON.stringify(UploadStatus[2]));}
+			if (version == "v2"){filedata.status = JSON.parse(JSON.stringify(MediaStatus[0]));}
+			filedata.fileid = dbHash[0].id;
+			filedata.hash = dbHash[0].hash;
+			filedata.magnet = dbHash[0].magnet;
+			filedata.blurhash = dbHash[0].blurhash;
+			filedata.originalmime = dbHash[0].mimetype ? dbHash[0].mimetype : filedata.originalmime;
+			filedata.filesize = +dbHash[0].filesize;
+			filedata.width = +(dbHash[0].dimensions.split("x")[0]);
+			filedata.height = +(dbHash[0].dimensions.split("x")[1]);
+			filedata.description = "File exist in database, returning existing URL";
+			filedata.date = dbHash[0].date? Math.floor(dbHash[0].date / 1000) : Math.floor(Date.now() / 1000);
+			processFile = false; 
+			insertfiledb = false;
+			makeBlurhash = false;
+
+
+			if (await getFilePath(filedata.filename) == "") {
+				logger.warn("File already in database but not found on storage server, processing as new file", "|", getClientIp(req));
+				processFile = true;
+			}
 		}
+
 	}
 
 	// Write temp file to disk (for ffmpeg and blurhash)
@@ -773,7 +780,7 @@ const getMediabyURL = async (req: Request, res: Response) => {
 
 		// Filename URL compatibility. Blossom compatibility (filename.ext or filename)
 		if(!req.params.pubkey) {
-			whereFields = "(filename = ? OR original_hash = ?)";
+			whereFields = "(filename = ? OR original_hash = ?) AND original_hash = hash";
 			whereValues = [req.params.filename, req.params.filename];
 		}
 
