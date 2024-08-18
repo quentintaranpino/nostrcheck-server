@@ -41,10 +41,20 @@
                 </button>
             </li>
             <li class="nav-item" role="presentation">
-                <button class="nav-link" type="button" aria-controls="intro" aria-selected="false" aria-label="Upload file" onclick="semaphore.execute(async () => {await uploadMedia();})">
-                    <span class="fs-2"><i class="bi bi-cloud-arrow-up-fill" aria-hidden="true"></i><span class="visually-hidden">Upload file</span></span>
+                <button 
+                  class="nav-link" 
+                  type="button" 
+                  aria-controls="intro" 
+                  aria-selected="false" 
+                  aria-label="Upload file" 
+                  onclick="semaphore.execute(async () => {await initUploaderModal();})" 
+                  <% if (active === 'media') { %> disabled <% } %>>
+                  <span class="fs-2">
+                    <i class="bi bi-cloud-arrow-up-fill" aria-hidden="true"></i>
+                    <span class="visually-hidden">Upload file</span>
+                  </span>
                 </button>
-            </li>
+              </li>
             <li <% if (!request.session.identifier) { %>style="display: none;"<% } %> class='nav-item' role="presentation">
                 <button class="nav-link" type="button" aria-controls="intro" aria-selected="false" aria-label="Logout" onclick="logout()">
                     <span class="fs-2"><i class="fa-solid fa-right-from-bracket"></i><span class="visually-hidden">Logout</span></span>
@@ -86,7 +96,7 @@
 <script src="/static/js/semaphore.js"></script>
 <script src="/static/js/server.js"></script>
 <script src="/static/js/modal.js"></script>
-<script src="/static/js/media.js"></script>
+<script src="/static/js/uploader.js"></script>
 <script>
 storeAuthkey("<%= request.session.authkey %>")
 </script>

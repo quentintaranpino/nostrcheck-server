@@ -1,5 +1,4 @@
 const initDashcard = async (dashcardId, dascardName, dashcardDataKey, icon, link, action, field) => {
-    console.debug("initDashcard", dashcardId, dascardName, dashcardDataKey, icon, link, action)
 
     $('#' + dashcardId + '-name').text(dascardName)
 
@@ -75,7 +74,7 @@ const fetchDashcardData = async (dashcardDataKey, action, field) => {
 // Set the data for the dashcards
 let dashcards =[
     { dashcardId: 'nostraddressCount',  dataKey: 'nostraddress', icon: 'doughnut', dashcardName: 'Registered users', link: '#nostraddressData', action: 'count', field: 'checked' },
-    { dashcardId: 'mediaCount', dataKey: 'media', icon: 'doughnut', dashcardName: 'Media files', link: '#mediaData' , action: 'count', field: 'checked'},
+    { dashcardId: 'mediaCount', dataKey: 'media', icon: 'doughnut', dashcardName: 'Hosted files', link: '#mediaData' , action: 'count', field: 'checked'},
     { dashcardId: 'lightningCount', dataKey: 'lightning', icon: 'chart', dashcardName: 'Lightning redirects', link: '#lightningData', action: 'count'},
     { dashcardId: 'domainsCount', dataKey: 'domains', icon: 'chart', dashcardName: 'Domains', link: '#domainsData', action: 'count'},
     { dashcardId: 'logHistory', dataKey: 'logger', icon: 'warning', dashcardName: 'Warning messages', link: 'settings/#settingsLogger', action: 'countWarning' },

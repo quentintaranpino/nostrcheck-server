@@ -193,6 +193,11 @@ const initMessageModal = async (objectId, message, title) => {
 
 }
 
+const initUploaderModal = async () => {
+    var uploader = new bootstrap.Modal($('#uploader-modal'));
+    uploader.show();
+}
+
 const initMediaModal = async (filename, checked, visible, showButtons = true) => {
 
     var mediaModal = new bootstrap.Modal($('#media-modal'));

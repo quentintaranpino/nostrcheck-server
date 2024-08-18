@@ -69,12 +69,14 @@ export const loadMediaEndpoint = async (app: Application, version:string): Promi
 			if(version != "v2"){return res.status(400).send({"result": false, "description" : "Empty file"});}
 		}
 
-		uploadMedia(req, res, version);
+		uploadMedia(req, res, "v2");
 	}
 	
 	// POST & PUT (upload)
 	app.post("/api/" + version + app.get("config.server")["availableModules"]["media"]["path"], function (req, res){uploadMiddlewarePost(req,res)}); // v0, v1, v2 and NIP96
 	app.put("/api/" + version + app.get("config.server")["availableModules"]["media"]["path"] + "/:param1", async (req, res) => {uploadMiddlewarePut(req,res)}); // Blossom
+	app.put("/upload", async (req, res) => {uploadMiddlewarePut(req,res)}); // Blossom
+
 		
 	// DELETE
 	app.delete("/api/" + version +  app.get("config.server")["availableModules"]["media"]["path"] + "/:id", function (req, res){deleteMedia(req,res,version)});

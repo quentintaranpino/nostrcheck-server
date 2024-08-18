@@ -157,7 +157,7 @@
     <tbody>
     </tbody>
 </table>
-<%- include('edit-modal', {"objectId":tableId, "fields": fields}); %>
-<%- include('confirm-modal', {"objectId":tableId, "rows": fields}); %>
-<%- include('alert-modal', {"objectId":tableId}); %>
-<%- include('media-modal', {"objectId":tableId}); %>
+<%- include('./modals/edit-modal', {"objectId":tableId, "fields": fields}); %>
+<%- include('./modals/confirm-modal', {"objectId":tableId, "rows": fields}); %>
+<%- include('./modals/alert-modal', {"objectId":tableId}); %>
+<%- include('./modals/media-modal', {"objectId":tableId}); %>
