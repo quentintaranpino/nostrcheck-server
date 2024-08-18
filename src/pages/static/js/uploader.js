@@ -57,10 +57,8 @@ const fetchFileServer = async (file, authEventPut = "", authEventGet = "") => {
     headers["Content-Type"] = mimeType;
     const uploadMessage = showMessage(`Uploading file... `, "alert-info", true);
 
-    console.log(headers["authorization"])
-
     try {
-        const response = await fetch('/upload/', {
+        const response = await fetch('cdn' + getDomain(window.location.hostname) + '/upload/', {
             method: "PUT",
             headers: headers,
             body: file

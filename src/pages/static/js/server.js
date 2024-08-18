@@ -131,3 +131,12 @@ const getRootHost = () => {
     const port = window.location.port ? `:${window.location.port}` : '';
     return `${protocol}//${rootHost}${port}`;
 }
+
+
+function getDomain(hostname) {
+    const parts = hostname.split('.');
+    if (parts.length > 2) {
+        return parts.slice(-2).join('.');
+    }
+    return hostname;
+}
