@@ -58,7 +58,7 @@ const fetchFileServer = async (file, authEventPut = "", authEventGet = "") => {
     const uploadMessage = showMessage(`Uploading file... `, "alert-info", true);
 
     try {
-        const response = await fetch('https://cdn' + getDomain(window.location.hostname) + '/upload/', {
+        const response = await fetch('https://cdn.' + getDomain(window.location.hostname) + '/upload/', {
             method: "PUT",
             headers: headers,
             body: file
