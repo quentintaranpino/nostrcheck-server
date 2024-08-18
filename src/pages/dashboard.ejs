@@ -119,7 +119,7 @@
         %>
         <% if(request.body.activeModules.includes('media')) { %> 
           <%- include('./components/table', {
-            tableName:"Media files", 
+            tableName:"Hosted files", 
             tableId:"mediaData", 
             buttons:[
                     ['add','show'],
@@ -385,7 +385,7 @@
   semaphore.execute(async() => await initMonthChart("#nostraddressData-chart",'Registered users', await fetchTableCountData('nostraddress','monthCount', 'date')))
   }
   if (activeModules.includes("media")) {
-  semaphore.execute(async() => await initMonthChart('#mediaData-chart','Media files', await fetchTableCountData('media','monthCount', 'date')))
+  semaphore.execute(async() => await initMonthChart('#mediaData-chart','Hosted files', await fetchTableCountData('media','monthCount', 'date')))
   }
   if (activeModules.includes("payments")) {
   semaphore.execute(async() => await initMonthChart("#paymentsData-chart",'Transactions', await fetchTableCountData('payments','monthCount', 'createddate')))

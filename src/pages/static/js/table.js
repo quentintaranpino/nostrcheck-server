@@ -156,7 +156,7 @@ function initButton(tableId, buttonSuffix, objectName, modaltext, field, fieldVa
                     // If tableid is mediaFiles execute the following funciton
         if (tableId === '#mediaData') {
             semaphore.execute(async () => {
-                await uploadMedia();
+                await uploadButton();
                 refreshTable('#mediaData');
             });
             return;
@@ -390,7 +390,7 @@ function formatMediaFile(value, row, index) {
     // Attach the click event handler to the document and delegate it to the clickable element
     $(document).off('click', '#media_' + index + '_preview').on('click', '#media_' + index + '_preview', async function () {
         semaphore.execute(async () => {
-            await initMediaModal(value, row.checked, row.visibility, true).then(async (modal) => {
+            await initMediaModal(row.pubkey + "/" + value, row.checked, row.visibility, true).then(async (modal) => {
                 let modalResult = modal.data;
                 for (let field in modalResult) {
                     if (modalResult[field] != row[field]) {
@@ -578,7 +578,7 @@ const rowStyle = (row, index) =>{
 // Initialize tables
 let tables = [
     { name: 'nostraddress', tableId: 'nostraddressData', dataKey: 'nostraddress', objectName: 'user', field: 'checked'},
-    { name: 'media', tableId: 'mediaData', dataKey: 'media', objectName: 'media file',field: 'checked'},
+    { name: 'media', tableId: 'mediaData', dataKey: 'media', objectName: 'file',field: 'checked'},
     { name: 'lightning', tableId: 'lightningData', dataKey: 'lightning', objectName: 'lightning redirection', url: 'admin/moduledata?module=lightning'},
     { name: 'domains', tableId: 'domainsData', dataKey: 'domains', objectName: 'domain name', url: 'admin/moduledata?module=domains'},
     { name: 'payments', tableId: 'paymentsData', dataKey: 'payments', objectName: 'transaction', url: 'admin/moduledata?module=payments', field: 'paid'},
