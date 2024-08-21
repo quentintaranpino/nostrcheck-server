@@ -254,6 +254,7 @@ const uploadFiles = async () => {
         }
 
         if (method == "PUT") {result.url = result.url.replace(/:\/\/[^/]+/, '://cdn.' + getDomain(window.location.hostname));}
+        if (method == "PUT") {result.url = result.url.replace(/\/media/g, '');}
 
         $('#file-table').bootstrapTable('updateByUniqueId', {
             id: file.fileData.id,
