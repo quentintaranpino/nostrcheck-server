@@ -251,7 +251,6 @@ const uploadFiles = async () => {
             continue;
         }
 
-        // Change https://servername.com/file to https://cdn.servername.com/file, can be also http://cdn.servername.com/file
         if (method == "PUT") {result.url = result.url.replace(/:\/\/[^/]+/, '://cdn.' + getDomain(window.location.hostname));}
 
         $('#file-table').bootstrapTable('updateByUniqueId', {
