@@ -46,7 +46,7 @@ const fetchFileServer = async (file, authEventPut = "", authEventGet = "", metho
     formData.append('file', file);
 
     try {
-        const response = await fetch(method == "PUT" ? window.location.hostname.includes("cdn") ? '/upload' : '/api/v2/media/upload' : '/api/v2/media', {
+        const response = await fetch(method == "PUT" ? window.location.hostname.includes("cdn") ? '/upload' : '/api/v2/media/upload' :  window.location.hostname.includes("cdn") ? '/': '/api/v2/media/upload', {
             method: method,
             headers: headers,
             body: method == "PUT" ? file : formData
