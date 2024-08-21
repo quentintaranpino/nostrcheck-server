@@ -4,20 +4,33 @@
 <div class="col-12 text-center mx-auto z-1">
     <div id="drop-zone" class="card text-center p-5 default-bg m-2 lead" role="button"><span>Drag and drop files here or click to browse</span></div>
     <input type="file" id="file-input" class="d-none" multiple>
-      <div id="file-table" class="bootstrap-table bootstrap5 overflow-auto p-2 d-none" style="max-height: 30vh;">
-        <table class="table">
-            <tbody id="file-list"></tbody>
-        </table>
-      </div>
+    <table 
+        id="file-table" 
+        data-toggle="table" 
+        class="table d-none">
+        <thead>
+            <tr>
+                <th data-field="fileName">File Name</th>
+                <th data-field="fileType" class="d-none">File Type</th>
+                <th data-field="transform" data-formatter="transformFormatter">Resize</th>
+                <th data-field="fileSize">File Size</th>
+                <th data-field="action">Action</th>
+            </tr>
+        </thead>
+        <tbody id="file-table-body"></tbody>
+    </table>
+    <div id="account-message" class="d-none">
+        <p class="text-center lead">Don't have an account? <a href="/register" class="link-body-emphasis link-offset-3 link-underline-opacity-25 link-underline-opacity-75-hover">Register</a> to manage your recently uploaded files.
+        </p>
+    </div>
+    <div id="guest-message" class="d-none">
+        <p class="text-center lead"><a href="/login" class="link-body-emphasis link-offset-3 link-underline-opacity-25 link-underline-opacity-75-hover">Login</a> or register to upload files. You can also upload files using a <a href="https://nostr.net/#nip-07-browser-extensions" class="link-body-emphasis link-offset-3 link-underline-opacity-25 link-underline-opacity-75-hover" target="_blank">browser extension.</a>
+        </p>
+    </div>
       <div id="file-table-btns" class="text-center">
-        <div class="form-check form-switch">
-            <input type="checkbox" class="form-check-input" id="file-table-checkbox-uploadtype" class="form-check-input" style="float:inherit;" value="true" checked disabled>
-            <label for="file-table-checkbox-uploadtype" class="form-check-label">Resize and transform</label>
-        </div> 
         <div id="guest-buttons" class="mt-3 d-none">
-            <p class="text-center lead"><a href="/login" class="link-body-emphasis link-offset-3 link-underline-opacity-25 link-underline-opacity-75-hover">Login</a> or register to upload files. You can also upload files using a <a href="https://nostr.net/#nip-07-browser-extensions" class="link-body-emphasis link-offset-3 link-underline-opacity-25 link-underline-opacity-75-hover" target="_blank">browser extension.</a></p>
             <div class="d-grid w-300 mx-auto mt-3 mb-3">
-              <button class="btn btn-lg btn-primary" id="file-table-btn-nip07" type="button" onclick="semaphore.execute(async () => {await nip07Upload();})"><i class="nostr-logo me-2"></i>Browser extension upload</button>
+              <button class="btn btn-lg btn-primary" id="file-table-btn-nip07" type="button" onclick="semaphore.execute(async () => {await uploadFiles();})"><i class="nostr-logo me-2"></i>Browser extension upload</button>
             </div>
         </div>
         <div id="logged-buttons" class="d-none">
@@ -26,27 +39,39 @@
             </div>
         </div>
       </div>
-      <p class="mb-4 mt-3">By using our services you agree the <a id="tos-link" class=" link-offset-1 link-underline-opacity-25" href='/tos'>Terms of Service</a></p>
+      <p class="mb-4 mt-3">By using our services you agree the <a id="tos-link" class=" link-offset-2 link-underline-opacity-25" href='/tos'>Terms of Service</a></p>
        
     </div>
 <script>
 
-    document.addEventListener('DOMContentLoaded', async () => {
+const identifier = '<%= JSON.stringify(request.session.identifier) %>';
 
-        // if user is logged in, show upload buttons
-        const identifier = '<%= JSON.stringify(request.session.identifier) %>';
-        if (identifier) {
-            document.getElementById('logged-buttons').classList.remove('d-none');
-        } else {
-            document.getElementById('guest-buttons').classList.remove('d-none');
-        }
-    });
+document.addEventListener('DOMContentLoaded', async () => {
+
+    if (identifier) {
+        document.getElementById('logged-buttons').classList.remove('d-none');
+    } else {
+        document.getElementById('guest-message').classList.remove('d-none');
+        document.getElementById('guest-buttons').classList.remove('d-none');
+    }
+
+    $('#file-table').bootstrapTable({
+        idField: 'id',
+        uniqueId: 'id',
+        pagination: true,
+        pageSize: 4,
+        showHeader: false,
+        paginationParts:  ['pageInfoShort', 'pageList'],
+        sortName: 'id',
+        sortOrder: 'desc',
+    })
+
+});
     
 const filesArray = [];
 
 const dropZone = document.getElementById('drop-zone');
 const fileInput = document.getElementById('file-input');
-const fileList = document.getElementById('file-list');
 
 let dropZoneOriginalBackground = dropZone.style.backgroundColor;
 dropZone.addEventListener('dragover', (e) => {
@@ -74,131 +99,208 @@ fileInput.addEventListener('change', (e) => {
     handleFiles(files);
 });
 
+let fileCounter = 0;
+
 function handleFiles(files) {
     if (files.length === 0) {
         return;
     }
+
     document.getElementById('file-table').classList.remove('d-none');
     document.getElementById('file-table-btn-upload').classList.remove('d-none');
+
     files.forEach(file => {
+        if (!filesArray.some(f => f.fileData.originalName === file.name && f.size === file.size)) {
+            const uniqueId = fileCounter++; 
+            filesArray.push(file); 
 
-        filesArray.push(file); 
+            fileData = {
+                id: uniqueId,
+                originalName: file.name,
+                fileName: file.name.length > 30 ? file.name.substring(0, 30) + '...' : file.name,
+                fileType: file.type,
+                transform: file.type.startsWith('image/') || file.type.startsWith('video/') ? 1 : 0,
+                fileSize: (file.size / 1024).toFixed(2) + ' KB',
+                action: '<button class="btn btn-sm delete-btn" data-file-id="' + uniqueId + '"><i class="fa-solid fa-xmark"></i></button>'
+            };
 
-        const row = document.createElement('tr');
+            file.fileData = fileData;
 
-        const fileNameCell = document.createElement('td');
-        fileNameCell.id = file.name;
-        fileNameCell.textContent = file.name.length > 50 ? file.name.substring(0, 40) + '...' : file.name;
-        fileNameCell.classList.add('text-start');
-        fileNameCell.style.minWidth = '200px';
-        fileNameCell.style.maxWidth = '300px';
-        
-        const fileSizeCell = document.createElement('td');
-        fileSizeCell.id = file.name + '-size';
-        fileSizeCell.textContent = (file.size / 1024).toFixed(2) + ' KB';
-        fileSizeCell.classList.add('text-end'); 
-
-        const deleteCell = document.createElement('td');
-        const deleteButton = document.createElement('button');
-        deleteButton.id = file.name + '-delete';	
-        deleteButton.innerHTML = '<i class="fa-solid fa-xmark"></i>';
-        deleteButton.classList.add('btn', 'btn-sm');
-        deleteCell.classList.add('text-center');
-        deleteButton.onclick = () => {
-            row.remove();
-            filesArray.splice(filesArray.indexOf(file), 1);
-        };
-
-        deleteCell.appendChild(deleteButton);
-
-        row.appendChild(fileNameCell);
-        row.appendChild(fileSizeCell);
-        row.appendChild(deleteCell);
-
-        if (fileList.firstChild) {
-            fileList.insertBefore(row, fileList.firstChild);
-        } else {
-            fileList.appendChild(row);
+            $('#file-table').bootstrapTable('append', fileData);
         }
     });
-    $('#file-table').bootstrapTable('load', files);
+
+    $(document).on('click', '.delete-btn', function() {
+        const fileId = $(this).data('file-id');
+        const fileIndex = filesArray.findIndex(file => file.fileData.id === fileId);
+            if (fileIndex !== -1) {
+                filesArray.splice(fileIndex, 1); 
+                $('#file-table').bootstrapTable('load', filesArray.map(file => file.fileData));
+
+            }
+    });
+
+    $(document).on('change', '.form-check-input', function() {
+        const fileId = $(this).attr('id').split('-')[0];
+        const fileIndex = filesArray.findIndex(file => file.fileData.id == fileId);
+        if (fileIndex !== -1) {
+            filesArray[fileIndex].fileData.transform = this.checked ? 1 : 0;
+            $('#file-table').bootstrapTable('load', filesArray.map(file => file.fileData));
+        }
+    });
 }
   
-const uploadFiles = async (authEventPut = "", authEventGet = "") => {
-    const processedFiles = [];
+const uploadFiles = async () => {
 
-    for (let i = filesArray.length - 1; i >= 0; i--) {
-        const file = filesArray[i];
-        document.getElementById(file.name + '-delete').innerHTML = 
-            '<div class="spinner-border spinner-border-sm" role="status">' +
-            '<span class="visually-hidden">Loading...</span>' +
-            '</div>';
-        document.getElementById(file.name + '-delete').disabled = true;
+    for (const file of filesArray) {
 
-        const result = await fetchFileServer(file, authEventPut, authEventGet);
-        if (!result || !result.url) {
-            console.error(`Failed to upload: ${file.name}`);
-            document.getElementById(file.name).innerHTML = `<span class="text-danger">Failed: ${file.name}</span>`;
-            document.getElementById(file.name + '-delete').innerHTML = '<i class="fa-solid fa-xmark"></i>';
-            document.getElementById(file.name + '-delete').disabled = false;
+        if (file.fileData.processed) {
             continue;
         }
-        document.getElementById(file.name).innerHTML = `<a class="link-offset-2 link-underline-opacity-25" href="${result.url}" target="_blank">${"..." + result.url.slice(-30)}</a>`;
-        document.getElementById(file.name + '-delete').innerHTML = '<i class="fa-solid fa-check"></i>';
-        processedFiles.push(file); 
-    }
 
-    for (const file of processedFiles) {
-        filesArray.splice(filesArray.indexOf(file), 1);
-    }
-}
+        $('#file-table').bootstrapTable('updateByUniqueId', {
+            id: file.fileData.id,
+            row: {
+                action: '<div class="spinner-border spinner-border-sm" role="status">' +
+                        '<span class="visually-hidden">Loading...</span>' +
+                        '</div>'
+            }
+        });
 
-const nip07Upload = async () => {
+    let authEventPut = null;
+    let authEventGet = null;
+    let method = $('#file-table').bootstrapTable('getRowByUniqueId', file.fileData.id).transform == 1 ? 'POST' : 'PUT';
 
-    if (!window.nostr) {
-        initAlertModal("#uploader", 'NIP07 browser extension not found');
-        document.getElementById(buttonId).innerHTML = buttonText;
-        return;
-    }
+    if (!identifier){
 
-    try {
-        const pubKey = await window.nostr.getPublicKey();
-
-        if (!pubKey){console.debug('NIP07 public key not found');
+        if (!window.nostr) {
+            initAlertModal("#uploader", 'NIP07 browser extension not found');
+            document.getElementById(buttonId).innerHTML = buttonText;
             return;
         }
 
-        const serverURL = window.location.origin
-        console.log('Server URL:', serverURL);
+        try {
+            const pubKey = await window.nostr.getPublicKey();
 
-        let eventPut = {
-            kind: 27235,
-            created_at: Math.floor(Date.now() / 1000),
-            tags: [
-                ["u", 'https://cdn.' + getDomain(window.location.hostname) + '/api/v2/media/upload/'],
-                ["method", "PUT"]
-                ],
-            content: 'Authorization event for file upload',
-        };
+            if (!pubKey){console.debug('NIP07 public key not found');
+                return;
+            }
 
-        let eventGet = {
-            kind: 27235,
-            created_at: Math.floor(Date.now() / 1000),
-            tags: [
-                ["u", 'https://cdn.' + getDomain(window.location.hostname) + '/api/v2/media/upload/'],
-                ["method", "GET"]
-                ],
-            content: 'Authorization event for file upload status',
-        };
-        const putEvent = JSON.stringify(await window.nostr.signEvent(eventPut));
-        const getEvent = JSON.stringify(await window.nostr.signEvent(eventGet));
+            const serverURL = window.location.origin
+            console.log('Server URL:', serverURL);
 
-        if (putEvent && getEvent) {
-            await uploadFiles(btoa(putEvent), btoa(getEvent));
+            const hash = await crypto.subtle.digest('SHA-256', await file.arrayBuffer()).then(buffer => {
+                return Array.from(new Uint8Array(buffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+            })
+
+            if (method == 'POST') {
+                authEventPut = {
+                    
+                    kind: 27235,
+                    created_at: Math.floor(Date.now() / 1000),
+                    tags: [
+                        ["u", getDomain(window.location.hostname) + '/api/v2/media/upload/'],
+                        ["method", "POST"],
+                        ],
+                    content: 'Blossom authorization event for file upload',
+                };
+
+            }else{
+
+                authEventPut = {
+
+                    kind: 24242,
+                    created_at: Math.floor(Date.now() / 1000),
+                    tags: [
+                        ["t", 'upload'],
+                        ["x", hash],
+                        ["expiration", Math.floor(Date.now() / 1000) + 3600],
+                        ],
+                    content: 'Blossom authorization event for file upload',
+                };
+            }
+
+            authEventGet = {
+                kind: 27235,
+                created_at: Math.floor(Date.now() / 1000),
+                tags: [
+                    ["u", getDomain(window.location.hostname) + '/api/v2/media/upload/'],
+                    ["method", "GET"]
+                    ],
+                content: 'Authorization event for file upload status',
+            };
+
+            authEventPut = btoa(JSON.stringify(await window.nostr.signEvent(authEventPut)));
+            authEventGet = btoa(JSON.stringify(await window.nostr.signEvent(authEventGet)));
+
+        } catch (error) {
+            console.error(error);
         }
-    } catch (error) {
-        console.error(error);
     }
+
+        const result = await fetchFileServer(file, authEventPut, authEventGet, method);
+        if (!result || !result.url) {
+            console.error(`Failed to upload: ${file.name}`);
+            $('#file-table').bootstrapTable('updateByUniqueId', {
+                id: file.fileData.id,
+                row: {
+                    fileName: '<span class="text-danger">Failed: ' + file.name + '</span>',
+                    action: '<button class="btn btn-sm delete-btn" data-file-id="' + file.fileData.id + '"><i class="fa-solid fa-xmark"></i></button>'
+                }
+            });
+            continue;
+        }
+        $('#file-table').bootstrapTable('updateByUniqueId', {
+            id: file.fileData.id,
+            row: {
+                fileName: '<a class="link-offset-2 link-underline-opacity-25" href="' + result.url + '" target="_blank">' + "..." + result.url.slice(-30) + '</a>',
+                action: '<i class="fa-solid fa-check"></i>'
+            }
+        });
+
+        file.fileData.processed = true;
+    }
+
+    if (!identifier) {
+        document.getElementById('guest-message').classList.add('d-none');
+        document.getElementById('account-message').classList.remove('d-none');
+    }
+
+    $('#file-table').bootstrapTable('load', filesArray.map(file => file.fileData));
+}
+
+function transformFormatter(value, row, index) {
+
+    const fileIndex = filesArray.findIndex(file => file.fileData.id == row.id);
+
+    if (row.fileType.startsWith('image/') === false && row.fileType.startsWith('video/') === false) {
+        return '<div class="form-check form-switch d-flex">' +
+        '<input type="checkbox" class="form-check-input" id="' + row.id + '-transform" disabled>' +
+        '<label class="form-check-label mt-1" for="' + row.id + '-transform">Resize</label>' +
+        '</div>';
+    }
+
+    if (filesArray[fileIndex].fileData.processed) {
+        return row.transform ? 
+            '<div class="form-check form-switch d-flex">' + 
+            '<input type="checkbox" class="form-check-input" id="' + row.id + '-transform" checked disabled>' +
+            '<label class="form-check label mt-1" for="' + row.id + '-transform">Resize</label>' +
+            '</div>' :
+            '<div class="form-check form-switch d-flex">' +
+            '<input type="checkbox" class="form-check-input" id="' + row.id + '-transform" disabled>' +
+            '<label class="form-check label mt-1" for="' + row.id + '-transform">Resize</label>' +
+            '</div>';
+    }
+
+    return row.transform ? 
+        '<div class="form-check form-switch d-flex">' +
+        '<input type="checkbox" class="form-check-input" id="' + row.id + '-transform" checked>' +
+        '<label class="form-check-label mt-1" for="' + row.id + '-transform">Resize</label>' +
+        '</div>' :
+        '<div class="form-check form-switch d-flex">' +
+        '<input type="checkbox" class="form-check-input" id="' + row.id + '-transform">' +
+        '<label class="form-check-label mt-1" for="' + row.id + '-transform">Resize</label>' +
+        '</div>';
 }
 
 </script>
