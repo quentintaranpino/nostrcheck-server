@@ -199,7 +199,7 @@ const uploadFiles = async () => {
                     kind: 27235,
                     created_at: Math.floor(Date.now() / 1000),
                     tags: [
-                        ["u", window.location.hostname.includes("cdn") ? window.location.protocol + "//cdn." + getDomain(window.location.hostname) + '/api/v2/media' : window.location.protocol + "//" + getDomain(window.location.hostname) + '/api/v2/media'],
+                        ["u", window.location.hostname.includes("cdn") ? window.location.protocol + "//cdn." + getDomain(window.location.hostname) + '/api/v2/media/' : window.location.protocol + "//" + getDomain(window.location.hostname) + '/api/v2/media/'],
                         ["x", hash],
                         ["expiration", Math.floor(Date.now() / 1000) + 3600],
                         ["method", "POST"],
