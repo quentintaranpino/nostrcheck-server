@@ -199,7 +199,7 @@ const uploadFiles = async () => {
                     kind: 27235,
                     created_at: Math.floor(Date.now() / 1000),
                     tags: [
-                        ["u", getDomain(window.location.hostname) + '/api/v2/media'],
+                        ["u", window.location.protocol + "//" + getDomain(window.location.hostname) + '/api/v2/media'],
                         ["method", "POST"],
                         ],
                     content: 'Blossom authorization event for file upload',
