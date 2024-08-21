@@ -155,10 +155,7 @@ function initButton(tableId, buttonSuffix, objectName, modaltext, field, fieldVa
         if (buttonSuffix === '-button-add') {
                     // If tableid is mediaFiles execute the following funciton
         if (tableId === '#mediaData') {
-            semaphore.execute(async () => {
-                await uploadButton();
-                refreshTable('#mediaData');
-            });
+            semaphore.execute(async () => {await uploadButton()});
             return;
         }
             $(tableId).bootstrapTable('uncheckAll')
@@ -602,3 +599,25 @@ setInterval(async() => {
         }
     }
 }, 500);
+
+const uploadButton = async () => {
+    return new Promise((resolve) => {
+        var input = $(document.createElement("input"));
+        input.attr("type", "file");
+        input.attr("multiple", true);
+        input.trigger("click"); 
+
+        input.on("cancel", function () {
+            resolve("File upload cancelled");
+        });
+
+        input.on("change", async function (e) {
+
+            for (const file of e.target.files) {
+                const result = await fetchFileServer(file, "","","PUT", true);
+                refreshTable('#mediaData');
+                resolve(result);    
+            }
+        });
+    });
+}
