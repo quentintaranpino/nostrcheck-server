@@ -26,6 +26,7 @@ interface blobDescriptor extends ResultMessagev2{
     uploaded: number; 
     blurhash: string;
     dim: string;
+    payment_request?: string;
 }
 
 
