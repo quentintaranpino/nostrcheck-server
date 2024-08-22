@@ -816,7 +816,7 @@ const getMediabyURL = async (req: Request, res: Response) => {
 
 		// Check if exist a transaction for this media file and if it is paid.
 		const transaction = await checkTransaction(filedata[0].transactionid, filedata[0].id, "mediafiles", Number(filedata[0].filesize), req.params.pubkey) as transaction;
-		if (transaction.paymentHash != "" && transaction.isPaid == false && isModuleEnabled("payments", app) && adminRequest == false) {
+		if (transaction.paymentHash != "" && transaction.isPaid == false && isModuleEnabled("payments", app) && adminRequest == false && app.get("config.payments")["satoshi"]["mediaMaxSatoshi"] > 0) {
 
 			// If the GET request has no authorization, we return a QR code with the payment request.
 			logger.info(`RES -> 200 Paid media file ${req.url}`, "|", getClientIp(req), "|", "cached:", cachedStatus ? true : false);

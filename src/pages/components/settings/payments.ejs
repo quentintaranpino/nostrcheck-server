@@ -14,7 +14,8 @@
         <label for="payments.maxSatoshi" class="mt-4 mb-1 fw-bold">Max Satoshi</label>
         <p>Specify the maximum amount of sats that can be paid for the largest accepted file size and the default amount for the shortest registered username. 
             If the request exceeds this limit, it uses this maximum limit for the calculation. Each request will always cost at least 1 sat. Every domain can be 
-            configured individually on the dashboard domains table, the default value is get from this form if not set.
+            configured individually on the dashboard domains table, the default value is get from this form if not set. If you set 0 to mediaMaxSatoshi payments 
+            module will not be used for media uploads. 
         </p>
         <div class="row">
         <div class="col-12 col-md-4">
