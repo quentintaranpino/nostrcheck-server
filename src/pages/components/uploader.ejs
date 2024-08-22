@@ -14,7 +14,10 @@
                 <th data-field="fileType" class="d-none">File Type</th>
                 <th data-field="transform" data-formatter="transformFormatter">Resize</th>
                 <th data-field="fileSize">File Size</th>
+                <th data-field="satoshi" data-formatter="satoshiFormatter">Satoshi</th>
                 <th data-field="action">Action</th>
+                <th data-field="accepted" class="d-none">Accepted</th>
+
             </tr>
         </thead>
         <tbody id="file-table-body"></tbody>
@@ -109,7 +112,7 @@ function handleFiles(files) {
     document.getElementById('file-table').classList.remove('d-none');
     document.getElementById('file-table-btn-upload').classList.remove('d-none');
 
-    files.forEach(file => {
+    files.forEach(async file => {
         if (!filesArray.some(f => f.fileData.originalName === file.name && f.size === file.size)) {
             const uniqueId = fileCounter++; 
             filesArray.push(file); 
@@ -121,12 +124,29 @@ function handleFiles(files) {
                 fileType: file.type,
                 transform: file.type.startsWith('image/') || file.type.startsWith('video/') ? 1 : 0,
                 fileSize: (file.size / 1024).toFixed(2) + ' KB',
-                action: '<button class="btn btn-sm delete-btn" data-file-id="' + uniqueId + '"><i class="fa-solid fa-xmark"></i></button>'
+                action: '<button class="btn btn-sm delete-btn" data-file-id="' + uniqueId + '"><i class="fa-solid fa-xmark"></i></button>',
+                accepted: false,
+                satoshi: 0
             };
 
             file.fileData = fileData;
 
             $('#file-table').bootstrapTable('append', fileData);
+
+            const serverInfo = await fetchFileServerInfo(file);
+            if (!serverInfo || serverInfo.status == "error"){
+                $('#file-table').bootstrapTable('updateByUniqueId', {
+                    id: uniqueId,
+                    row: {
+                        fileName: '<span class="text-danger">Not allowed: ' + file.name + '</span>',
+                        action: '<button class="btn btn-sm delete-btn" data-file-id="' + uniqueId + '"><i class="fa-solid fa-xmark"></i></button>'
+                    }
+                });
+            }else{
+                fileData.accepted = true;
+                fileData.satoshi = serverInfo.satoshi;
+                $('#file-table').bootstrapTable('load', filesArray.map(file => file.fileData));
+            }
         }
     });
 
@@ -154,7 +174,7 @@ const uploadFiles = async () => {
 
     for (const file of filesArray) {
 
-        if (file.fileData.processed) {
+        if (file.fileData.processed || file.fileData.accepted === false) {
             continue;
         }
 
@@ -307,6 +327,10 @@ function transformFormatter(value, row, index) {
         '<input type="checkbox" class="form-check-input" id="' + row.id + '-transform">' +
         '<label class="form-check-label mt-1" for="' + row.id + '-transform">Resize</label>' +
         '</div>';
+}
+
+function satoshiFormatter(value, row, index) {
+    return (value && value > 0 ? value + ' <i class="fa-solid fa-bolt text-warning"></i>' : 'Free' + '<i class="fa-solid fa-star ms-2" style="color:#a06bc9"></i>'); 
 }
 
 </script>
