@@ -100,7 +100,7 @@ const addTextToImage = async (imageBuffer: Buffer, firstText: string, secondText
 
 	const firstTextImage = await sharp(Buffer.from(svgFirstText)).resize(sideLength + 130).toBuffer();
 	const secondTextImage = await sharp(Buffer.from(svgSecondText)).resize(sideLength + 130).toBuffer();
-	const logoImage = await sharp(fs.readFileSync('./src/pages/static/resources/navbar-logo.webp')).resize(sideLength).toBuffer();
+	const logoImage = await sharp(fs.readFileSync('./src/pages/static/resources/navbar-logo.png')).resize(sideLength).toBuffer();
   
 	return sharp({
 	  create: {
