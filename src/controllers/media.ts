@@ -3,7 +3,7 @@ import app from "../app.js";
 import { connect, dbDelete, dbInsert, dbMultiSelect, dbSelect } from "../lib/database.js";
 import { logger } from "../lib/logger.js";
 import { isPubkeyRegistered, parseAuthHeader } from "../lib//authorization.js";
-import { getUploadType, getFileMimeType, standardMediaConversion, getNotFoundMediaFile, readRangeHeader, prepareLegacMediaEvent, getMediaDimensions, getExtension, getMimeFromExtension, getConvertedExtension } from "../lib/media.js"
+import { getUploadType, getFileMimeType, standardMediaConversion, getNotFoundMediaFile, readRangeHeader, prepareLegacMediaEvent, getMediaDimensions, getExtension, getMimeFromExtension, getConvertedExtension, getAllowedMimeTypes } from "../lib/media.js"
 import { requestQueue } from "../lib/media.js";
 import {
 	asyncTask,
@@ -13,6 +13,7 @@ import {
 	UploadStatus,
 	MediaStatus,
 	videoHeaderRange,
+	mediaInfoReturnMessage,
 	} from "../interfaces/media.js";
 import { ResultMessage, ResultMessagev2 } from "../interfaces/server.js";
 import path from "path";
@@ -29,12 +30,13 @@ import { saveTmpFile } from "../lib/storage/local.js";
 import { Readable } from "stream";
 import { getRemoteFile } from "../lib/storage/remote.js";
 import { transaction } from "../interfaces/payments.js";
-import { checkTransaction } from "../lib/payments/core.js";
+import { calculateSatoshi, checkTransaction } from "../lib/payments/core.js";
 import { blobDescriptor, BUDKinds } from "../interfaces/blossom.js";
 import { prepareBlobDescriptor } from "../lib/blossom/BUD02.js";
 import { loadMediaPage } from "./frontend.js";
 import { getBannedMediaFile, isContentBanned } from "../lib/banned.js";
 import { mirrorFile } from "../lib/blossom/BUD04.js";
+import { calculateObjectAmount } from "./payments.js";
 
 const uploadMedia = async (req: Request, res: Response, version:string): Promise<Response> => {
 
@@ -1284,6 +1286,48 @@ const deleteMedia = async (req: Request, res: Response, version:string): Promise
 
 };
 
+const uploadInfo = async (req: Request, res: Response): Promise<Response> => {
+
+	// Check if current module is enabled
+	if (!isModuleEnabled("media", app)) {
+		logger.warn("Attempt to access a non-active module:","media","|","IP:", getClientIp(req));
+		return res.status(400).send({"status": "error", "message": "Module is not enabled"});
+	}
+
+	logger.info("REQ -> Upload info", "|", getClientIp(req));
+
+	const size = req.body.size || 0;
+	const type = req.body.type || "";
+
+	if (!Number(size) || size == 0 || type == "") {
+		logger.warn("RES -> 400 Bad request - missing size or type", "|", getClientIp(req));
+		const result : mediaInfoReturnMessage = {
+			status: "error",
+			message: "missing size or type",
+			satoshi: 0,
+		}
+		return res.status(400).send(result);
+	}
+
+	if(!getAllowedMimeTypes().includes(type)){
+		logger.info(`Filetype not allowed: ${type} | ${getClientIp(req)}`);
+		const result : mediaInfoReturnMessage = {
+			status: "error",
+			message: "Filetype not allowed",
+			satoshi: 0,
+		}
+		return res.status(400).send(result);
+	}
+
+	const result : mediaInfoReturnMessage = {
+		status: "success",
+		message: "File can be uploaded",
+		satoshi: await calculateSatoshi("mediafiles",size),
+	}
+	return res.status(200).send(result);
+
+}
+
 export { uploadMedia,
 		getMedia, 
 		heatMedia,
@@ -1291,4 +1335,5 @@ export { uploadMedia,
 		deleteMedia, 
 		updateMediaVisibility, 
 		getMediaTagsbyID, 
-		getMediabyTags };
+		getMediabyTags, 
+		uploadInfo };

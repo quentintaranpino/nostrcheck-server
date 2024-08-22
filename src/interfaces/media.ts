@@ -1,4 +1,4 @@
-import { ResultMessage } from "./server.js";
+import { ResultMessage, ResultMessagev2 } from "./server.js";
 import { Request } from "express";
 
 interface legacyMediaReturnMessage extends ResultMessage {
@@ -14,6 +14,10 @@ interface legacyMediaReturnMessage extends ResultMessage {
 interface MediaVisibilityResultMessage extends ResultMessage {
 	id: string;
 	visibility: string;
+}
+
+interface mediaInfoReturnMessage extends ResultMessagev2 {
+	satoshi: number;
 }
 
 const UploadTypes = ["avatar", "banner", "media"];
@@ -117,6 +121,7 @@ export {
 	ProcessingFileData,
 	legacyMediaReturnMessage,
 	MediaVisibilityResultMessage,
+	mediaInfoReturnMessage,
 	mediaTypes,
 	ResultMessage,
 	UploadTypes,

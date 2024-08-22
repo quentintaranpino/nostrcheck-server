@@ -1,6 +1,6 @@
 import { Request, Response, Application } from "express";
 import multer from "multer";
-import { uploadMedia, getMedia, heatMedia, deleteMedia, updateMediaVisibility } from "../controllers/media.js";
+import { uploadMedia, getMedia, heatMedia, deleteMedia, updateMediaVisibility, uploadInfo } from "../controllers/media.js";
 import { ResultMessage, ResultMessagev2 } from "../interfaces/server.js";
 import { logger } from "../lib/logger.js";
 import { getClientIp } from "../lib/utils.js";
@@ -74,10 +74,13 @@ export const loadMediaEndpoint = async (app: Application, version:string): Promi
 	
 	// POST & PUT (upload)
 	app.post("/api/" + version + app.get("config.server")["availableModules"]["media"]["path"], function (req, res){uploadMiddlewarePost(req,res)}); // v0, v1, v2 and NIP96
-	app.put("/api/" + version + app.get("config.server")["availableModules"]["media"]["path"] + "/:param1", async (req, res) => {uploadMiddlewarePut(req,res)}); // Blossom
-	app.put("/upload", async (req, res) => {uploadMiddlewarePut(req,res)}); // Blossom
+	app.put("/api/" + version + app.get("config.server")["availableModules"]["media"]["path"] + "/:param1", async (req, res) => {uploadMiddlewarePut(req,res)}); // Blossom upload
+	app.put("/upload", async (req, res) => {uploadMiddlewarePut(req,res)}); // Blossom cdn url upload
+	
+	// POST (info)
+	app.post("/api/" + version + app.get("config.server")["availableModules"]["media"]["path"] + "/info", async (req, res) => {uploadInfo(req,res)}); // Blossom blob info requirement
+	app.post("/info", async (req, res) => {uploadInfo(req,res)}); // Blossom cdn url info requirement
 
-		
 	// DELETE
 	app.delete("/api/" + version +  app.get("config.server")["availableModules"]["media"]["path"] + "/:id", function (req, res){deleteMedia(req,res,version)});
 
@@ -96,7 +99,4 @@ export const loadMediaEndpoint = async (app: Application, version:string): Promi
         //NIP96 json file
         app.get("/api/v2/nip96", NIP96Data);
 	}
-
-
-
 };
