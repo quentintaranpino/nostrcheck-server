@@ -1,43 +1,67 @@
+const fetchFileServerInfo = async (file) => {
+
+    if (!file) {
+        return { "status": "error", "message": "No file selected", "satoshi": 0 };
+    }
+
+    const mimeDB = await fetch('https://cdn.jsdelivr.net/gh/jshttp/mime-db/db.json')
+    .then(res => res.json())
+    .catch(error => {
+        showMessage("Failed to load MIME types", "alert-danger", false);
+        return null;
+    });
+
+    if (!mimeDB) {
+        return { "status": "error", "message": "Failed to load MIME types", "satoshi": 0 };
+    }
+
+    const fileExtension = file.name.split('.').pop().toLowerCase();
+
+    if (!file.type) {
+        for (const key in mimeDB) {
+            if (mimeDB[key].extensions && mimeDB[key].extensions.includes(fileExtension)) {
+                file.type = key;
+                break;
+            }
+        }
+    }
+
+    if (!file.type) {
+        showMessage("Invalid file type", "alert-danger", false);
+        return { "filename": file.name, "url": "" };
+    }
+
+    try {
+        const response = await fetch('/api/v2/media/info', {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ "size": file.size, "type": file.type })
+        });
+        const data = await response.json();
+        return data;
+        
+    } catch (error) {
+        return { "status": "error", "message": error.message, "satoshi": 0 };
+    }
+
+}
+
 const fetchFileServer = async (file, authEventPut = "", authEventGet = "", method = "", showMessages = false) => {
 
     if (!method) {
         return;
     }
-
-    const mimeDB = await fetch('https://cdn.jsdelivr.net/gh/jshttp/mime-db/db.json')
-        .then(res => res.json())
-        .catch(error => {
-            showMessage("Failed to load MIME types", "alert-danger", false);
-            return null;
-        });
-
+  
     if (!file) {
         showMessage("No file selected", "alert-danger", false);
         return { "filename": "", "url": "" };
     }
 
-    if (!mimeDB) {
-        return { "filename": "", "url": "" }; 
-    }
-
-    const fileExtension = file.name.split('.').pop().toLowerCase();
-    let mimeType = '';
-
-    for (const key in mimeDB) {
-        if (mimeDB[key].extensions && mimeDB[key].extensions.includes(fileExtension)) {
-            mimeType = key;
-            break;
-        }
-    }
-
-    if (!mimeType) {
-        showMessage("Invalid file type", "alert-danger", false);
-        return { "filename": file.name, "url": "" };
-    }
-
     let headers = {};
     headers["authorization"] = localStorage.getItem('authkey') != "" ? "Bearer " + localStorage.getItem('authkey') : "Nostr " + authEventPut;
-    method == "PUT" ? headers["Content-Type"] = mimeType : null;
+    method == "PUT" ? headers["Content-Type"] = file.type : null;
     let uploadMessage = null
     
     if (showMessages) uploadMessage = showMessage(`Uploading file... `, "alert-info", true);
