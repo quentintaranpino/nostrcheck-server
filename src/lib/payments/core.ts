@@ -398,6 +398,14 @@ const calculateSatoshi = async (originTable: string, size: number, maxSatoshi: n
         return 0;
     }
 
+    if (app.get("config.payments")["satoshi"]["mediaMaxSatoshi"] == 0) {
+        return 0;
+    }
+
+    if (app.get("config.payments")["satoshi"]["registerMaxSatoshi"] == 0 && maxSatoshi == 0) {
+        return 0;
+    }
+
     if (originTable == "mediafiles") {
     
         // For mediafiles
@@ -408,7 +416,7 @@ const calculateSatoshi = async (originTable: string, size: number, maxSatoshi: n
 
         let satoshi = Math.round((fileSizeMB / maxSize) * mediaMaxSatoshi);
         logger.info("Filesize:", fileSizeMB, "Satoshi:", satoshi)
-        return satoshi >= 1 ? satoshi : 1;
+        return satoshi;
 
     }
 
@@ -465,11 +473,15 @@ const payInvoiceFromExpenses = async (transactionid: string) : Promise<boolean> 
     return false
 }
 
-if (isModuleEnabled("payments", app)) {
-    setInterval(async () => {
+let isProcessing = false;
+setInterval(async () => {
+    if (isModuleEnabled("payments", app)) {
+        if (isProcessing) return;
+        isProcessing = true;
         const pendingInvoices = await getPendingInvoices();
         logger.debug("Pending invoices:", pendingInvoices.length)
         for (const invoice of pendingInvoices) {
+            await new Promise(resolve => setTimeout(resolve, 300));
             const paiddate = await isInvoicePaid(invoice.paymentHash);
             if (paiddate != "")  {
                 invoice.paidDate = paiddate;
@@ -477,8 +489,9 @@ if (isModuleEnabled("payments", app)) {
                 await collectInvoice(invoice, false, true);
             }
         }
-    }, 60000);
-}
+        isProcessing = false;
+    }
+}, 10000);
 
 export {    checkTransaction, 
             addBalance, 

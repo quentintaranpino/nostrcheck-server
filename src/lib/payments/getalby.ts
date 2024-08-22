@@ -47,7 +47,11 @@ const isInvoicePaid = async (paymentHash: string) : Promise<string> => {
         if (data.preimage && data.preimage != "null") {
             return data.settled_at;
         }
+
+        if (data.error != undefined) logger.error("Error checking invoice status", data.error);
+        
         return "";
+
     }catch(e){
         logger.error("Error checking invoice status", e);
         return "";
