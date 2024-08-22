@@ -260,7 +260,7 @@ const loadRegisterPage = async (req: Request, res: Response, version:string): Pr
     res.render("register.ejs", {request: req});
 };
 
-const loadMediaPage = async (req: Request, res: Response, version:string): Promise<Response | void>  => {
+const loadCdnPage = async (req: Request, res: Response, version:string): Promise<Response | void>  => {
 
     // Check if current module is enabled
     if (!isModuleEnabled("frontend", app)) {
@@ -268,7 +268,7 @@ const loadMediaPage = async (req: Request, res: Response, version:string): Promi
         return res.status(400).send({"status": "error", "message": "Module is not enabled"});
     }
 
-    logger.info("GET /api/" + version + "/media", "|", getClientIp(req));
+    logger.info("GET /api/" + version + "/cdn", "|", getClientIp(req));
 
     req.body.version = app.get("version");
     req.body.serverHost = app.get("config.server")["host"];
@@ -278,7 +278,7 @@ const loadMediaPage = async (req: Request, res: Response, version:string): Promi
     // Check admin privileges. Only for information, never used for authorization
     req.session.allowed = await isPubkeyAllowed(req.body.pubkey || req.session.identifier);
 
-    res.render("media.ejs", {request: req});
+    res.render("cdn.ejs", {request: req});
 };
 
 const frontendLogin = async (req: Request, res: Response): Promise<Response> => {
@@ -369,6 +369,6 @@ export {loadDashboardPage,
         loadRegisterPage,
         loadLoginPage, 
         loadIndexPage,
-        loadMediaPage,
+        loadCdnPage,
         frontendLogin,
         loadProfilePage};

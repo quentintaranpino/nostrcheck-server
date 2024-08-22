@@ -33,7 +33,7 @@ import { transaction } from "../interfaces/payments.js";
 import { calculateSatoshi, checkTransaction } from "../lib/payments/core.js";
 import { blobDescriptor, BUDKinds } from "../interfaces/blossom.js";
 import { prepareBlobDescriptor } from "../lib/blossom/BUD02.js";
-import { loadMediaPage } from "./frontend.js";
+import { loadCdnPage } from "./frontend.js";
 import { getBannedMediaFile, isContentBanned } from "../lib/banned.js";
 import { mirrorFile } from "../lib/blossom/BUD04.js";
 import { calculateObjectAmount } from "./payments.js";
@@ -150,7 +150,7 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 		conversionOutputPath: "",
 		date: Math.floor(Date.now() / 1000),
 		no_transform: false,
-		newFileDimensions: "",
+		newFileDimensions: ""
 	};
 
 	// File mime type. If not allowed reject the upload.
@@ -400,7 +400,7 @@ const getMedia = async (req: Request, res: Response, version:string) => {
 
 	// CDN home page
 	if (req.params.param1 == undefined && req.params.param2 == undefined) {
-		loadMediaPage(req, res, version) 
+		loadCdnPage(req, res, version) 
 		return;
 	}
 
@@ -536,7 +536,7 @@ const getMediaList = async (req: Request, res: Response, version:string): Promis
 			processing_url: "",
 			conversionInputPath: "",
 			conversionOutputPath: "",
-			newFileDimensions: "",
+			newFileDimensions: ""
 		};
 
 		// returnURL
@@ -673,7 +673,7 @@ const getMediaStatusbyID = async (req: Request, res: Response, version:string): 
 		conversionOutputPath: "",
 		date: 0,
 		no_transform: original_hash == hash ? true : false,
-		newFileDimensions: "",
+		newFileDimensions: ""
 	};
 
 	// URL
