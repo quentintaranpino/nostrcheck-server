@@ -18,29 +18,39 @@
             module will not be used for media uploads. 
         </p>
         <div class="row">
-        <div class="col-12 col-md-4">
-            <label for="payments.satoshi.mediaMaxSatoshi" class="mt-2 mb-1 fw-bold">Media uploads</label>
-            <input  type="text" 
-                    id="payments.satoshi.mediaMaxSatoshi" 
-                    name="payments.satoshi.mediaMaxSatoshi" 
-                    class="form-control" 
-                    value="<%= request.body.settingsPayments['satoshi']['mediaMaxSatoshi'] %>" 
-                    placeholder="ex. 1000" 
-                    required
-                    > 
+            <div class="col-12 col-md-4">
+                <label for="payments.satoshi.mediaMaxSatoshi" class="mt-2 mb-1 fw-bold">Media uploads</label>
+                <input  type="text" 
+                        id="payments.satoshi.mediaMaxSatoshi" 
+                        name="payments.satoshi.mediaMaxSatoshi" 
+                        class="form-control" 
+                        value="<%= request.body.settingsPayments['satoshi']['mediaMaxSatoshi'] %>" 
+                        placeholder="ex. 1000" 
+                        required
+                        > 
+            </div>
+            <div class="col-12 col-md-4">
+                <label for="payments.satoshi.registerMaxSatoshi" class="mt-2 mb-1 fw-bold">Register form</label>
+                <input  type="text" 
+                        id="payments.satoshi.registerMaxSatoshi"
+                        name="payments.satoshi.registerMaxSatoshi"
+                        class="form-control" 
+                        value="<%= request.body.settingsPayments['satoshi']['registerMaxSatoshi'] %>" 
+                        placeholder="ex. 1000" 
+                        required
+                        > 
+            </div>
         </div>
-        <div class="col-12 col-md-4">
-            <label for="payments.satoshi.registerMaxSatoshi" class="mt-2 mb-1 fw-bold">Register form</label>
-            <input  type="text" 
-                    id="payments.satoshi.registerMaxSatoshi"
-                    name="payments.satoshi.registerMaxSatoshi"
-                    class="form-control" 
-                    value="<%= request.body.settingsPayments['satoshi']['registerMaxSatoshi'] %>" 
-                    placeholder="ex. 1000" 
-                    required
-                    > 
-        </div>
-        </div>
+        <label for="payments.LNAddress" class="mt-4 mb-1 fw-bold"> LN address</label>
+        <p>Specify the LN address for payment provider.</p>
+        <input  type="text" 
+                id="payments.LNAddress" 
+                name="payments.LNAddress" 
+                class="form-control" 
+                value="<%= request.body.settingsPayments['LNAddress'] %>" 
+                placeholder="LNAddress" 
+                required
+                >
         <label for="payments.getalby.authToken" class="mt-4 mb-1 fw-bold">GetAlby authToken</label>
         <p>Specify the authToken for GetAlby payment provider.</p>
         <input  type="text" 
