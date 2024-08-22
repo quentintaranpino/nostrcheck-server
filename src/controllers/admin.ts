@@ -196,7 +196,7 @@ const updateLogo = async (req: Request, res: Response): Promise<Response> => {
     if (!req.files || req.files == undefined || req.files.length == 0) {
         // Check if is server.logo.default for restoring default logo
         try {
-            await fs.promises.copyFile('./src/pages/static/resources/navbar-logo.default.webp', './src/pages/static/resources/navbar-logo.webp');
+            await fs.promises.copyFile('./src/pages/static/resources/navbar-logo.default.png', './src/pages/static/resources/navbar-logo.png');
             logger.info("RES -> Default logo restored" + " | " + getClientIp(req));
             return res.status(200).send({status: "success", message: "Default logo restored", authkey: EventHeader.authkey});
         } catch (error) {
@@ -221,17 +221,17 @@ const updateLogo = async (req: Request, res: Response): Promise<Response> => {
 	}
 
     await sharp(file.buffer)
-    .resize(150, 51, { fit: sharp.fit.cover })
-    .webp({ quality: 95 })
-    .toBuffer()
-    .then( async data => { 
-        await fs.promises.writeFile('./src/pages/static/resources/navbar-logo.webp', data);
-        logger.info("RES -> Logo updated" + " | " + getClientIp(req));
-    })
-    .catch( err => { 
-        logger.error("RES -> Error updating logo" + " | " + err);
-        return res.status(500).send({"status": "error", "message": "Error updating logo", "authkey": EventHeader.authkey});
-     });
+        .resize(180, 61, { fit: sharp.fit.contain, background: { r: 0, g: 0, b: 0, alpha: 0 } }) 
+        .png({ quality: 95 })
+        .toBuffer()
+        .then(async data => { 
+            await fs.promises.writeFile('./src/pages/static/resources/navbar-logo.png', data);
+            logger.info("RES -> Logo updated" + " | " + getClientIp(req));
+        })
+        .catch(err => { 
+            logger.error("RES -> Error updating logo" + " | " + err);
+            return res.status(500).send({"status": "error", "message": "Error updating logo", "authkey": EventHeader.authkey});
+        });
 
      return res.status(200).send({"status": "success", "message": "Logo updated", "authkey": EventHeader.authkey});
 

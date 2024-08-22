@@ -41,7 +41,7 @@ const loadDashboardPage = async (req: Request, res: Response, version:string): P
     req.session.metadata.usernames = await getUsernames(req.session.identifier);
 
     // Check admin privileges. Only for information, never used for authorization
-    req.session.metadata.allowed = await isPubkeyAllowed(req.body.pubkey || req.session.identifier);
+    req.session.allowed = await isPubkeyAllowed(req.body.pubkey || req.session.identifier);
 
     res.render("dashboard.ejs", {request: req});
 };
@@ -78,7 +78,7 @@ const loadSettingsPage = async (req: Request, res: Response, version:string): Pr
     req.session.metadata.usernames = await getUsernames(req.session.identifier);
 
     // Check admin privileges. Only for information, never used for authorization
-    req.session.metadata.allowed = await isPubkeyAllowed(req.body.pubkey || req.session.identifier);
+    req.session.allowed = await isPubkeyAllowed(req.body.pubkey || req.session.identifier);
     
     res.render("settings.ejs", {request: req});
 };
@@ -108,7 +108,7 @@ const loadProfilePage = async (req: Request, res: Response, version:string): Pro
     req.session.metadata.mediaFiles =  await getProfileLocalMetadata(req.session.identifier);
 
     // Check admin privileges. Only for information, never used for authorization
-    req.session.metadata.allowed = await isPubkeyAllowed(req.body.pubkey || req.session.identifier);
+    req.session.allowed = await isPubkeyAllowed(req.body.pubkey || req.session.identifier);
 
     res.render("profile.ejs", {request: req});
 };
@@ -136,6 +136,9 @@ const loadTosPage = async (req: Request, res: Response, version:string): Promise
     }
 
     req.session.authkey = await generateCredentials('authkey', req.session.identifier);
+
+    // Check admin privileges. Only for information, never used for authorization
+    req.session.allowed = await isPubkeyAllowed(req.body.pubkey || req.session.identifier);
     
     res.render("tos.ejs", {request: req, tos: tosFile });
 };
@@ -155,6 +158,9 @@ const loadLoginPage = async (req: Request, res: Response, version:string): Promi
 
     req.session.authkey = await generateCredentials('authkey', req.session.identifier);
 
+    // Check admin privileges. Only for information, never used for authorization
+    req.session.allowed = await isPubkeyAllowed(req.body.pubkey || req.session.identifier);
+
     res.render("login.ejs", {request: req});
 };
 
@@ -173,6 +179,9 @@ const loadIndexPage = async (req: Request, res: Response, version:string): Promi
     req.body.serverPubkey = await hextoNpub(app.get("config.server")["pubkey"]);
 
     req.session.authkey = await generateCredentials('authkey', req.session.identifier);
+
+    // Check admin privileges. Only for information, never used for authorization
+    req.session.allowed = await isPubkeyAllowed(req.body.pubkey || req.session.identifier);
     
     res.render("index.ejs", {request: req});
 };
@@ -203,6 +212,9 @@ const loadDocsPage = async (req: Request, res: Response, version:string): Promis
 
     req.session.authkey = await generateCredentials('authkey', req.session.identifier);
 
+    // Check admin privileges. Only for information, never used for authorization
+    req.session.allowed = await isPubkeyAllowed(req.body.pubkey || req.session.identifier);
+
     res.render("documentation.ejs", {request: req});
 };
 
@@ -220,6 +232,9 @@ const loadGalleryPage = async (req: Request, res: Response, version:string): Pro
     req.body.serverHost = app.get("config.server")["host"];
 
     req.session.authkey = await generateCredentials('authkey', req.session.identifier);
+
+    // Check admin privileges. Only for information, never used for authorization
+    req.session.allowed = await isPubkeyAllowed(req.body.pubkey || req.session.identifier);
 
     res.render("gallery.ejs", {request: req});
 };
@@ -239,6 +254,9 @@ const loadRegisterPage = async (req: Request, res: Response, version:string): Pr
 
     req.session.authkey = await generateCredentials('authkey', req.session.identifier);
 
+    // Check admin privileges. Only for information, never used for authorization
+    req.session.allowed = await isPubkeyAllowed(req.body.pubkey || req.session.identifier);
+
     res.render("register.ejs", {request: req});
 };
 
@@ -256,6 +274,9 @@ const loadMediaPage = async (req: Request, res: Response, version:string): Promi
     req.body.serverHost = app.get("config.server")["host"];
 
     req.session.authkey = await generateCredentials('authkey', req.session.identifier);
+
+    // Check admin privileges. Only for information, never used for authorization
+    req.session.allowed = await isPubkeyAllowed(req.body.pubkey || req.session.identifier);
 
     res.render("media.ejs", {request: req});
 };
@@ -333,7 +354,7 @@ const frontendLogin = async (req: Request, res: Response): Promise<Response> => 
     req.session.metadata.usernames = await getUsernames(req.session.identifier);
 
     // Check admin privileges. Only for information, never used for authorization
-    req.session.metadata.allowed = await isPubkeyAllowed(req.body.pubkey || req.session.identifier);
+    req.session.allowed = await isPubkeyAllowed(req.body.pubkey || req.session.identifier);
 
     logger.info("logged in as", req.session.identifier, " - ", getClientIp(req));
     return res.status(200).send(true);

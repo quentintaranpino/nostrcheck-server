@@ -9,14 +9,14 @@ import { Request } from "express";
 const getProfileNostrMetadata = async (pubkey: string): Promise<userMetadata> => {
 
     if (!pubkey || pubkey == undefined || pubkey == null){
-        return {"about": "", "banner": "", "display_name": "", "followers": 0, "following": 0, "lud16": "", "mediaFiles": [], "name": "", "nip05": "", "picture": "", "usernames": [], "website": "", "pubkey": "", "allowed" : false, "nostr_notes": []};
+        return {"about": "", "banner": "", "display_name": "", "followers": 0, "following": 0, "lud16": "", "mediaFiles": [], "name": "", "nip05": "", "picture": "", "usernames": [], "website": "", "pubkey": "", "nostr_notes": []};
     }
 
-    let metadata : userMetadata = {"about": "", "banner": "", "display_name": "", "followers": 0, "following": 0, "lud16": "", "mediaFiles": [], "name": "", "nip05": "", "picture": "", "usernames": [], "website": "", "pubkey": pubkey, "allowed" : false, "nostr_notes": []};
+    let metadata : userMetadata = {"about": "", "banner": "", "display_name": "", "followers": 0, "following": 0, "lud16": "", "mediaFiles": [], "name": "", "nip05": "", "picture": "", "usernames": [], "website": "", "pubkey": pubkey, "nostr_notes": []};
 
     const nostrMetadata = await getProfileData(pubkey, 0)
     if (!nostrMetadata || nostrMetadata == undefined || nostrMetadata == null || nostrMetadata[0].content == undefined || nostrMetadata[0].content == null){
-        return {"about": "", "banner": "", "display_name": "", "followers": 0, "following": 0, "lud16": "", "mediaFiles": [], "name": "", "nip05": "", "picture": "", "usernames": [], "website": "", "pubkey": "", "allowed" : false, "nostr_notes": []};
+        return {"about": "", "banner": "", "display_name": "", "followers": 0, "following": 0, "lud16": "", "mediaFiles": [], "name": "", "nip05": "", "picture": "", "usernames": [], "website": "", "pubkey": "", "nostr_notes": []};
     }
 
     if (!app.get("#p_" + pubkey)){

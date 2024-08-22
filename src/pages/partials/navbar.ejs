@@ -1,9 +1,9 @@
 <nav class="navbar sticky-top navbar-expand-lg ps-3 pe-3 shadow-lg">
   <a class="navbar-brand" href="/">
-      <img id="server-logo" src="/static/resources/navbar-logo.webp"
-      alt='Nostrcheck server logo' 
-      width='150' 
-      height='51'>
+      <img id="server-logo" src="/static/resources/navbar-logo.png"
+      alt='Server logo' 
+      width='180' 
+      height='61'>
   </a>
   <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#server-navbar" aria-controls="server-navbar" aria-expanded="false" aria-label="Toggle navigation">
     <span class="navbar-toggler-icon"></span>
@@ -38,8 +38,10 @@
         </a>
         <div class="dropdown-menu dropdown-menu-end">
           <a href="profile"  <% if(active === 'profile'){ %><%- "class='dropdown-item active'"%><% } else { %><%- "class='dropdown-item'"%><%}%>>Profile</a>
-          <a href="dashboard" <% if(active === 'dashboard'){ %><%- "class='dropdown-item active'"%><% } else { %><%- "class='dropdown-item'"%><%}%>>Dashboard</a>
-          <a href="settings" <% if(active === 'settings'){ %><%- "class='dropdown-item active'"%><% } else { %><%- "class='dropdown-item'"%><%}%>>Settings</a>
+          <% if (request.session.allowed == true) { %>
+            <a href="dashboard" <% if(active === 'dashboard'){ %><%- "class='dropdown-item active'"%><% } else { %><%- "class='dropdown-item'"%><%}%>>Dashboard</a>
+            <a href="settings" <% if(active === 'settings'){ %><%- "class='dropdown-item active'"%><% } else { %><%- "class='dropdown-item'"%><%}%>>Settings</a>
+          <%}%>
           <div class="dropdown-divider"></div>
           <button class="nav-link" type="button" aria-controls="intro" aria-selected="false" aria-label="Logout" onclick="logout()">
             <span><i class="fa-solid fa-right-from-bracket ms-1 me-2"></i>Logout</span>

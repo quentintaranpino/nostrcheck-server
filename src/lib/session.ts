@@ -13,6 +13,7 @@ declare module 'express-session' {
        identifier: string;
        authkey: string;
        metadata: userMetadata;
+	   allowed: boolean;
     }
 }
 

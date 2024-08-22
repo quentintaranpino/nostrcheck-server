@@ -18,7 +18,6 @@ interface userMetadata {
 	usernames : JSON[];
 	website : string;
 	pubkey : string;
-	allowed: boolean;
 	nostr_notes : Event[];
 }
 
