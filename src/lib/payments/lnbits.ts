@@ -1,17 +1,58 @@
-import app from "../../app";
-import { logger } from "../logger";
+import app from "../../app.js";
+import { emptyInvoice, invoice } from "../../interfaces/payments.js";
+import { logger } from "../logger.js";
 
+const generateLNBitsInvoice = async (amount: number, memo: string) : Promise<invoice> => {
 
+    if (amount == 0) return emptyInvoice
+    
+    try{
+        const response = await fetch(app.get("config.payments")["paymentProviders"]["lnbits"]["nodeUrl"] + '/api/v1/payments', {
+            method: 'POST',
+            headers: {
+                'X-Api-Key': app.get("config.payments")["paymentProviders"]["lnbits"]["readKey"],
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                out: false,
+                amount: amount,
+                memo: memo
+            })
+        });
 
-const isInvoicePaidLNbits = async (paymentHash: string) : Promise<boolean> => {
+        const data = await response.json();
 
-    const authToken = app.get("config.payments")["lnbits"]["readKey"];
+        if (!data || data.payment_request == "") return emptyInvoice
+
+        return {
+            paymentRequest: data.payment_request,
+            paymentHash: data.payment_hash,
+            satoshi: amount,
+            isPaid: false,
+            createdDate: new Date(),
+            expiryDate: new Date(),
+            paidDate: null,
+            description: memo,
+            transactionid: 0,
+            accountid: 0
+        }
+
+    }catch(e){
+        logger.error("Error generating LNBits invoice", e);
+        return emptyInvoice;
+    }
+
+}
+
+const isInvoicePaidLNbits = async (paymentHash: string) : Promise<string> => {
+
+    if (paymentHash == "") return "";
 
     try{
-        const response = await fetch(`https://lnbits.com/api/v1/payments/${paymentHash}`, {
+        const response = await fetch(app.get("config.payments")["paymentProviders"]["lnbits"]["nodeUrl"] + "/api/v1/payments/" + paymentHash, {
             method: 'GET',
             headers: {
-                'X-Api-Key': `${authToken}`
+                'X-Api-Key': app.get("config.payments")["paymentProviders"]["lnbits"]["readKey"]
             }
         });
 
@@ -20,11 +61,12 @@ const isInvoicePaidLNbits = async (paymentHash: string) : Promise<boolean> => {
         if (data.paid && data.paid != "null") {
             return data.paid;
         }
-        return false;
+        return "";
         
     }catch(e){
-        logger.error("Error checking invoice status", e);
-        return false;
+        logger.error("Error checking LNbits invoice status", e);
+        return "";
     }
 }
 
+export { generateLNBitsInvoice, isInvoicePaidLNbits };
