@@ -47,14 +47,18 @@ const markdownToHtml = (text:string) : string => {
     }
 }
 
-const generateQRCode = async (text: string, firstText:string, secondText:string): Promise<Buffer> => {
+const generateQRCode = async (text: string, firstText: string, secondText: string): Promise<Buffer> => {
 	return new Promise((resolve, reject) => {
-	  QRCode.toBuffer(text, { type: 'png' }, (err, buffer) => {
-		if (err) reject(err);
-		else resolve(addTextToImage(buffer, firstText, secondText));
-	  });
+	  QRCode.toBuffer(
+		text, 
+		{ type: 'png', width: 290, margin: 3 }, 
+		(err, buffer) => {
+		  if (err) reject(err);
+		  else resolve(addTextToImage(buffer, firstText, secondText));
+		}
+	  );
 	});
-};
+  };
 
 const addTextToImage = async (imageBuffer: Buffer, firstText: string, secondText : string): Promise<Buffer> => {
 
