@@ -510,10 +510,16 @@ const getMediaList = async (req: Request, res: Response, version:string): Promis
 	
 	const files : any[] = [];
 	for (const e of result) {
+
+		if (e.original_hash == null || e.hash == null) {
+			logger.debug(`File ${e.filename} has no original_hash or hash, skipping`, "|", getClientIp(req));
+			continue;
+		}
+		
 		const fileData: ProcessingFileData = {
 			filename: e.filename,
-			originalhash: e.original_hash != '' ? e.original_hash : e.hash != '' ? e.hash : e.filename.split(".")[0].toString().lengh == 64 ? e.filename.split(".")[0] : "no-hashed",
-			hash: e.hash != '' ? e.hash : e.filename.split(".")[0].toString().lengh == 64 ? e.filename.split(".")[0] : "no-hashed",
+			originalhash: e.original_hash,
+			hash: e.hash,
 			filesize: Number(e.filesize),
 			date: e.date ? Math.floor(e.date / 1000) : Math.floor(Date.now() / 1000),
 			fileid: e.id,
