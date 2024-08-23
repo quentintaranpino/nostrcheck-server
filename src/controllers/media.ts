@@ -562,8 +562,8 @@ const getMediaList = async (req: Request, res: Response, version:string): Promis
 		// NIP96 compatibility
 		if (pubkey == "") {
 			listedFile.url = returnURL 	
-			? `${returnURL}/${pubkey}/${listedFile.filename}`
-			: `${listedFile.servername}/media/${pubkey}/${listedFile.filename}`;
+			? `${returnURL}/${e.pubkey}/${listedFile.filename}`
+			: `${listedFile.servername}/media/${e.pubkey}/${listedFile.filename}`;
 		}
 	
 		// Blossom compatibility
