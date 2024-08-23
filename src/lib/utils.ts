@@ -92,7 +92,7 @@ const addTextToImage = async (imageBuffer: Buffer, firstText: string, secondText
 	  svgSecondText += `<rect x="0" y="0" width="800" height="${lines.length * 14 + 10}" fill="transparent" />`;
 	  
 	  lines.forEach((line, index) => {
-		svgSecondText += `<text x="50%" y="${14 + (index * 14)}" alignment-baseline="middle" text-anchor="middle" font-size="12" font-family="Arial, sans-serif" fill="white">${line}</text>`;
+		svgSecondText += `<text x="50%" y="${14 + (index * 14)}" alignment-baseline="middle" text-anchor="middle" font-size="11" font-family="Arial, sans-serif" fill="white">${line}</text>`;
 	  });
 	  
 	  svgSecondText += `</svg>`;
