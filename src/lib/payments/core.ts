@@ -20,6 +20,10 @@ const checkTransaction = async (transactionid : string, originId: string, origin
     const balance = await getBalance(transaction.accountid);
     const satoshi = await calculateSatoshi(originTable, size, maxSatoshi);
 
+    if (satoshi == 0) {
+        return emptyTransaction;
+    }
+
     if (transaction.paymentHash != "") {
 
         // If the transaction is already paid or if the balance is not enough we return the transaction
@@ -70,6 +74,11 @@ const generateInvoice = async (accountid: number, satoshi: number, originTable :
         logger.error("LNAddress not set in config file. Cannot generate invoice.")
         return emptyInvoice;
     }
+
+    if (satoshi == 0) {
+        return emptyInvoice;
+    }
+
     const lnurl = `https://${app.get("config.payments")["LNAddress"].split("@")[1]}/.well-known/lnurlp/${app.get("config.payments")["LNAddress"].split("@")[0]}`
 
     const generatedInvoice = app.get("config.payments")["paymentProvider"] == 'lnbits' ? await generateLNBitsInvoice(satoshi, "") : await generateLUD06Invoice(lnurl, satoshi);
