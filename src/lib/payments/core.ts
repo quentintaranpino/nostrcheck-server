@@ -4,8 +4,9 @@ import { isModuleEnabled } from "../config.js";
 import { dbInsert, dbMultiSelect, dbSelect, dbUpdate } from "../database.js"
 import { logger } from "../logger.js";
 import { getNewDate } from "../utils.js";
-import { generateInvoice } from "./LUD06.js";
-import { isInvoicePaid } from "./getalby.js";
+import { generateLUD06Invoice } from "./LUD06.js";
+import { isInvoicePaidGetAlby } from "./getalby.js";
+import { generateLNBitsInvoice, isInvoicePaidLNbits } from "./lnbits.js";
 
 
 const checkTransaction = async (transactionid : string, originId: string, originTable : string, size: number, pubkey : string, maxSatoshi : number = 0): Promise<transaction> => {
@@ -38,7 +39,7 @@ const checkTransaction = async (transactionid : string, originId: string, origin
     // If transaction not exist we generate an invoice and fill the transaction
     if (transaction.paymentHash == ""){
         const accountid = formatAccountNumber(Number(await dbSelect("SELECT id FROM registered WHERE hex = ?", "id", [pubkey])));
-        const invoice = await generateLNInvoice(accountid, satoshi, originTable, originId);
+        const invoice = await generateInvoice(accountid, satoshi, originTable, originId);
         if (invoice.paymentRequest == "") {return emptyTransaction};
 
         // Fill the transaction with the invoice data
@@ -59,7 +60,7 @@ const checkTransaction = async (transactionid : string, originId: string, origin
 
 }
 
-const generateLNInvoice = async (accountid: number, satoshi: number, originTable : string, originId : string) : Promise<invoice> => {
+const generateInvoice = async (accountid: number, satoshi: number, originTable : string, originId : string) : Promise<invoice> => {
 
     if (!isModuleEnabled("payments", app)) {
         return emptyInvoice;
@@ -70,7 +71,8 @@ const generateLNInvoice = async (accountid: number, satoshi: number, originTable
         return emptyInvoice;
     }
     const lnurl = `https://${app.get("config.payments")["LNAddress"].split("@")[1]}/.well-known/lnurlp/${app.get("config.payments")["LNAddress"].split("@")[0]}`
-    const generatedInvoice = await generateInvoice(lnurl, satoshi);
+
+    const generatedInvoice = app.get("config.payments")["paymentProvider"] == 'lnbits' ? await generateLNBitsInvoice(satoshi, "") : await generateLUD06Invoice(lnurl, satoshi);
     if (generatedInvoice.paymentRequest == "") {return emptyInvoice}
     
     generatedInvoice.description = "Invoice for: " + originTable + ":" + originId;
@@ -304,7 +306,7 @@ const getTransaction = async (transactionid: string) : Promise<transaction> => {
     // If transaction expirydate is passed we generate a new LN invoice
     if (transaction.type == "invoice" && transaction.expiryDate < getNewDate()) {
         const lnurl = `https://${app.get("config.payments")["LNAddress"].split("@")[1]}/.well-known/lnurlp/${app.get("config.payments")["LNAddress"].split("@")[0]}`
-        const inv = await generateInvoice(lnurl, transaction.satoshi);
+        const inv = app.get("config.payments")["paymentProvider"] == 'lnbits' ? await generateLNBitsInvoice(transaction.satoshi, "") : await generateLUD06Invoice(lnurl, transaction.satoshi);
         transaction.paymentRequest = inv.paymentRequest;
         transaction.paymentHash = inv.paymentHash;
         transaction.createdDate = inv.createdDate;
@@ -473,13 +475,29 @@ const payInvoiceFromExpenses = async (transactionid: string) : Promise<boolean> 
     return false
 }
 
+const isInvoicePaid = async (paymentHash: string) : Promise<string> => {
+
+    if (!isModuleEnabled("payments", app)) {
+        return "";
+    }
+
+    if (paymentHash == "") {
+        logger.error("No payment hash provided")
+        return "";
+    }
+
+    return app.get("config.payments")["paymentProvider"] == 'lnbits' ? await isInvoicePaidLNbits(paymentHash) : await isInvoicePaidGetAlby(paymentHash);
+
+}
+
+// Check periodically for pending invoices and update the balance
 let isProcessing = false;
-setInterval(async () => {
+const processPendingInvoices = async () => {
     if (isModuleEnabled("payments", app)) {
         if (isProcessing) return;
         isProcessing = true;
         const pendingInvoices = await getPendingInvoices();
-        logger.debug("Pending invoices:", pendingInvoices.length)
+        logger.debug("Pending invoices:", pendingInvoices.length);
         for (const invoice of pendingInvoices) {
             await new Promise(resolve => setTimeout(resolve, 300));
             const paiddate = await isInvoicePaid(invoice.paymentHash);
@@ -491,7 +509,10 @@ setInterval(async () => {
         }
         isProcessing = false;
     }
-}, 10000);
+    setTimeout(processPendingInvoices, app.get("config.payments")["invoicePaidInterval"] * 1000);
+};
+
+processPendingInvoices();
 
 export {    checkTransaction, 
             addBalance, 
@@ -500,4 +521,5 @@ export {    checkTransaction,
             formatAccountNumber, 
             getUnpaidTransactionsBalance, 
             getInvoice,
+            isInvoicePaid,
             calculateSatoshi}
