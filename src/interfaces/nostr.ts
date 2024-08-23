@@ -45,7 +45,7 @@ interface NIP94_data {
             ["magnet", string],
             ["i", string],
             ["blurhash", string],
-            ["no_transform", string]
+            ["no_transform", string],
     ],
     content: string,
     created_at: number,
@@ -56,6 +56,7 @@ interface NIP94_event extends NIP94_base, NIP94_data {}
 interface NIP96_event extends ResultMessagev2{
 
     processing_url: string,
+    payment_request: string,
 	nip94_event : NIP94_event
 
 }
