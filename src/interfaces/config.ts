@@ -188,15 +188,23 @@ const defaultConfig = {
 		}
 	},
 	"payments" : {
-		"paymentProvider": "getalby",
+		"LNAddress": "",
+		"paymentProvider": "lnbits",
+		"invoicePaidInterval": 60,
 		"satoshi" : {
 				"mediaMaxSatoshi": 1000,
 				"registerMaxSatoshi": 1000,
 		},
-		"LNAddress": "",
-		"getalby" : {
+		"paymentProviders": {
+			"getalby": {
 				"authToken": "",
-		},
+			},
+			"lnbits": {
+				"nodeUrl": "",
+				"readKey": "",
+			},
+		}
+
 	},
 	"register" : {
 		"minUsernameLength": 3,
