@@ -2,7 +2,7 @@ import fastq, { queueAsPromised } from "fastq";
 import ffmpeg from "fluent-ffmpeg";
 import fs from "fs";
 
-import { asyncTask, legacyMediaReturnMessage, mediaTypes, ProcessingFileData, UploadTypes, videoHeaderRange } from "../interfaces/media.js";
+import { asyncTask, legacyMediaReturnMessage, mediaTypes, fileData, UploadTypes, videoHeaderRange } from "../interfaces/media.js";
 import { logger } from "./logger.js";
 import { connect, dbUpdate } from "./database.js";
 import {fileTypeFromBuffer} from 'file-type';
@@ -38,7 +38,7 @@ const prepareFile = async (t: asyncTask): Promise<void> =>{
 
 const requestQueue: queueAsPromised<asyncTask> = fastq.promise(prepareFile, 1); //number of workers for the queue
 
-const processFile = async(	inputFile: Express.Multer.File,	options: ProcessingFileData, retry:number = 0): Promise<boolean> =>{
+const processFile = async(	inputFile: Express.Multer.File,	options: fileData, retry:number = 0): Promise<boolean> =>{
 
 	if (retry > 5) {return false}
 
@@ -132,7 +132,7 @@ const processFile = async(	inputFile: Express.Multer.File,	options: ProcessingFi
 	
 }
 
-const initConversionEngine = (file: ProcessingFileData) => {
+const initConversionEngine = (file: fileData) => {
 
     const ffmpegEngine = ffmpeg(file.conversionInputPath)
         .outputOption(["-loop 0"]) //Always loop. If is an image it will not apply.
@@ -219,7 +219,7 @@ const GetFileTags = async (fileid: string): Promise<string[]> => {
 	return tags;
 }
 
-const standardMediaConversion = (filedata : ProcessingFileData , file:Express.Multer.File) :void  => {
+const standardMediaConversion = (filedata : fileData , file:Express.Multer.File) :void  => {
 
 		//Video or image conversion options
 		if (file.mimetype.toString().startsWith("video")) {
@@ -292,7 +292,7 @@ const getMediaDimensions = async (file: string, fileData: { originalmime: string
 }
 
 
-const setMediaDimensions = async (file:string, options:ProcessingFileData):Promise<string> => {
+const setMediaDimensions = async (file:string, options:fileData):Promise<string> => {
 
 	const response:string = await new Promise (async (resolve) => {
 
@@ -341,7 +341,7 @@ const setMediaDimensions = async (file:string, options:ProcessingFileData):Promi
 
 }
 
-const getFileSize = (path:string,options:ProcessingFileData) :number => {
+const getFileSize = (path:string, options:fileData) :number => {
 
 	logger.debug("Old Filesize:", options.filesize);
 	let newfilesize : number = 0;
@@ -396,7 +396,7 @@ const readRangeHeader = (range : string | undefined, totalLength : number ): vid
 	return result;
 }
 
-const finalizeFileProcessing = async (filedata: ProcessingFileData): Promise<boolean> => {
+const finalizeFileProcessing = async (filedata: fileData): Promise<boolean> => {
 	try{
 		await dbUpdate('mediafiles','percentage','100',['id'], [filedata.fileid]);
 		await dbUpdate('mediafiles','visibility','1',['id'], [filedata.fileid]);
@@ -428,7 +428,7 @@ const finalizeFileProcessing = async (filedata: ProcessingFileData): Promise<boo
 	}
 }
 
-const prepareLegacMediaEvent = async (filedata : ProcessingFileData): Promise<legacyMediaReturnMessage> => {
+const prepareLegacMediaEvent = async (filedata : fileData): Promise<legacyMediaReturnMessage> => {
 
     const event : legacyMediaReturnMessage = {
 

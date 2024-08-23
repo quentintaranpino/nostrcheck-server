@@ -1,5 +1,5 @@
 import app from "../../app.js";
-import { ProcessingFileData } from "../../interfaces/media.js";
+import { fileData } from "../../interfaces/media.js";
 import { dbMultiSelect, dbSelect, dbUpdate } from "../database.js";
 import { getHashedPath } from "../hash.js";
 import { logger } from "../logger.js";
@@ -12,7 +12,7 @@ import { deleteRemoteFile, getRemoteFile, saveRemoteFile } from "./remote.js";
  * @param originPath Origin path
  * @returns Promise<boolean>
  */
-const saveFile = async (filedata: ProcessingFileData, originPath : string) : Promise<boolean> => {
+const saveFile = async (filedata: fileData, originPath : string) : Promise<boolean> => {
 
     logger.debug("Saving file", "|", filedata.filename);
     logger.debug("storage type:", app.get("config.storage")["type"]);

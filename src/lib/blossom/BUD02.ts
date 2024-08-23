@@ -1,11 +1,11 @@
 import { blobDescriptor } from "../../interfaces/blossom.js";
-import { ProcessingFileData } from "../../interfaces/media.js";
+import { fileData } from "../../interfaces/media.js";
 import { getMimeFromExtension } from "../media.js";
 import { checkTransaction } from "../payments/core.js";
 
 // https://github.com/hzrd149/blossom/blob/master/buds/02.md
 
-const prepareBlobDescriptor = async (filedata : ProcessingFileData): Promise<blobDescriptor> => {
+const prepareBlobDescriptor = async (filedata : fileData): Promise<blobDescriptor> => {
 
     const event : blobDescriptor = {
 
@@ -18,7 +18,7 @@ const prepareBlobDescriptor = async (filedata : ProcessingFileData): Promise<blo
         uploaded: filedata.date,
         blurhash: filedata.blurhash,
         dim: filedata.width + "x" + filedata.height,
-        payment_request: (await checkTransaction("", filedata.fileid, "mediafiles", filedata.filesize, filedata.pubkey)).paymentRequest
+        payment_request: filedata.payment_request
     }
 
     return event;

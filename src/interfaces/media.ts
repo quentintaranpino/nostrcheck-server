@@ -72,8 +72,7 @@ const mediaTypes: MediaTypeInfo[] = [
 	{ originalMime: "model/stl", extension: "stl", convertedMime: "model/stl" },
 ];
 
-
-interface FileData{
+interface fileData{
 	filename: string;
 	width: number;
 	height: number;
@@ -89,10 +88,6 @@ interface FileData{
 	date: number;
 	servername: string;
 	no_transform: boolean;
-}
-
-interface ProcessingFileData extends FileData{
-
 	media_type: typeof UploadTypes[number];
 	originalmime: string;
 	outputoptions: string;
@@ -102,12 +97,14 @@ interface ProcessingFileData extends FileData{
 	conversionInputPath: string;
 	conversionOutputPath: string;
 	newFileDimensions: string;
+	transaction_id: string;
+	payment_request: string;
 
 }
 
 interface asyncTask {
 	req: Request;
-	filedata: ProcessingFileData;
+	filedata: fileData;
 }
 
 interface videoHeaderRange {
@@ -117,8 +114,7 @@ interface videoHeaderRange {
 
 export {
 	asyncTask,
-	FileData,
-	ProcessingFileData,
+	fileData,
 	legacyMediaReturnMessage,
 	MediaVisibilityResultMessage,
 	mediaInfoReturnMessage,

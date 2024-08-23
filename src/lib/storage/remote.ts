@@ -1,7 +1,7 @@
 import fs from 'fs';
 import { S3Client, S3ClientConfig, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, HeadObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-import { ProcessingFileData } from '../../interfaces/media.js';
+import { fileData } from '../../interfaces/media.js';
 import { logger } from '../logger.js';
 import app from '../../app.js';
 import { getConvertedMimeType } from '../media.js';
@@ -19,7 +19,7 @@ const s3Config: S3ClientConfig = {
 
 const s3Client = new S3Client(s3Config);
 
-const saveRemoteFile = async (filePath: string, filedata:ProcessingFileData): Promise<boolean> => {
+const saveRemoteFile = async (filePath: string, filedata:fileData): Promise<boolean> => {
 
   const bucketName :string = app.get("config.storage")["remote"]["bucketName"];
 
