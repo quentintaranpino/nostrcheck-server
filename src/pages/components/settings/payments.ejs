@@ -88,8 +88,8 @@
             <label for="payments.getalby.paymentProviders.authToken" class="mt-1 mb-1 fw-bold">authToken</label>
             <p>Specify the authToken for GetAlby payment provider.</p>
             <input  type="text" 
-                    id="payments.getalby.authToken" 
-                    name="payments.getalby.authToken" 
+                    id="payments.paymentProviders.getalby.authToken" 
+                    name="payments.paymentProviders.getalby.authToken" 
                     class="form-control" 
                     value="<%= request.body.settingsPayments['paymentProviders']['getalby']['authToken'] %>" 
                     placeholder="GetAlby authToken" 
@@ -99,8 +99,8 @@
             <label for="payments.lnbits.nodeUrl" class="mt-1 mb-1 fw-bold">Node URL</label>
             <p>Specify the url for LNbits payment provider node.</p>
             <input  type="text" 
-                    id="payments.lnbits.nodeUrl" 
-                    name="payments.lnbits.nodeUrl" 
+                    id="payments.paymentProviders.lnbits.nodeUrl" 
+                    name="payments.paymentProviders.lnbits.nodeUrl" 
                     class="form-control" 
                     value="<%= request.body.settingsPayments['paymentProviders']['lnbits']['nodeUrl'] %>" 
                     placeholder="LNbits nodeUrl" 
@@ -109,8 +109,8 @@
             <label for="payments.lnbits.readKey" class="mt-1 mb-1 fw-bold">readKey</label>
             <p>Specify the readKey for LNbits payment provider.</p>
             <input  type="text" 
-                    id="payments.lnbits.readKey" 
-                    name="payments.lnbits.readKey" 
+                    id="payments.paymentProviders.lnbits.readKey" 
+                    name="payments.paymentProviders.lnbits.readKey" 
                     class="form-control" 
                     value="<%= request.body.settingsPayments['paymentProviders']['lnbits']['readKey'] %>" 
                     placeholder="LNbits readKey" 
