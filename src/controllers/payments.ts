@@ -10,7 +10,7 @@ import { parseAuthHeader} from "../lib/authorization.js";
 import { isModuleEnabled} from "../lib/config.js";
 import { payInvoiceFromExpenses, addBalance, getBalance, formatAccountNumber, getInvoice, calculateSatoshi } from "../lib/payments/core.js";
 import { dbMultiSelect } from "../lib/database.js";
-import { isInvoicePaid } from "../lib/payments/getalby.js";
+import { isInvoicePaid } from "../lib/payments/core.js";
 import { amountReturnMessage, invoiceReturnMessage } from "../interfaces/payments.js";
 import { getDomainInfo } from "../lib/domains.js";
 
