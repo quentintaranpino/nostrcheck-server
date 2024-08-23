@@ -513,7 +513,7 @@ const getMediaList = async (req: Request, res: Response, version:string): Promis
 		const fileData: ProcessingFileData = {
 			filename: e.filename,
 			originalhash: e.original_hash != '' ? e.original_hash : e.hash,
-			hash: e.hash,
+			hash: e.hash != '' ? e.hash : e.filename.split(".")[0].toString().lengh == 64 ? e.filename.split(".")[0] : "no-hashed",
 			filesize: Number(e.filesize),
 			date: e.date ? Math.floor(e.date / 1000) : Math.floor(Date.now() / 1000),
 			fileid: e.id,
