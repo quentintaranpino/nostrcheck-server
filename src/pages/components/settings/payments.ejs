@@ -4,41 +4,70 @@
         <p> In this section, you can configure the LN payment provider of your server. Currently only GetAlby is supported. 
         </p>
         <label for="payments.provider" class="mt-2 mb-1 fw-bold">Payment provider</label>
-        <p>Choose the payment provider for your server. Currently only <a href="https://getalby.com/">getalby.com</a> is supported.
+        <p>Choose the payment provider for your server. Currently only <a href="https://lnbits.com/" target="_blank">LNbits</a> and <a href="https://getalby.com/" target="_blank">Alby</a> are supported.
         </p>
         <div class="col-12 col-md-4">
-        <select id="payments.paymentProvider" name="payments.paymentProvider" class="form-select">
-            <option value="getalby" <% if (request.body.settingsPayments['paymentProvider'] === 'getalby') { %>selected<% } %>>Getalby</option>
-        </select>
+            <select id="payments.paymentProvider" name="payments.paymentProvider" class="form-select">
+                <% 
+                    const paymentProviders = Object.keys(request.body.settingsPayments.paymentProviders);
+                    for (let provider of paymentProviders) { 
+                %>
+                    <option value="<%= provider %>" 
+                        <% if (request.body.settingsPayments.paymentProvider === provider) { %> 
+                            selected 
+                        <% } %>
+                    ><%= provider %></option>
+                <% } %>
+            </select>
         </div>
         <label for="payments.maxSatoshi" class="mt-4 mb-1 fw-bold">Max Satoshi</label>
         <p>Specify the maximum amount of sats that can be paid for the largest accepted file size and the default amount for the shortest registered username. 
-            If the request exceeds this limit, it uses this maximum limit for the calculation. Each request will always cost at least 1 sat. Every domain can be 
-            configured individually on the dashboard domains table, the default value is get from this form if not set. If you set 0 to mediaMaxSatoshi payments 
+            If the request exceeds this limit, it uses this maximum limit for the calculation. Every domain can be 
+            configured individually on the dashboard domains table, this value is the default value for new domains of if the domain is not configured. If you set 0 to mediaMaxSatoshi payments 
             module will not be used for media uploads. 
         </p>
         <div class="row">
             <div class="col-12 col-md-4">
                 <label for="payments.satoshi.mediaMaxSatoshi" class="mt-2 mb-1 fw-bold">Media uploads</label>
-                <input  type="text" 
+                <input  type="number" 
                         id="payments.satoshi.mediaMaxSatoshi" 
                         name="payments.satoshi.mediaMaxSatoshi" 
                         class="form-control" 
                         value="<%= request.body.settingsPayments['satoshi']['mediaMaxSatoshi'] %>" 
                         placeholder="ex. 1000" 
+                        step="50"
                         required
                         > 
             </div>
             <div class="col-12 col-md-4">
                 <label for="payments.satoshi.registerMaxSatoshi" class="mt-2 mb-1 fw-bold">Register form</label>
-                <input  type="text" 
+                <input  type="number" 
                         id="payments.satoshi.registerMaxSatoshi"
                         name="payments.satoshi.registerMaxSatoshi"
                         class="form-control" 
                         value="<%= request.body.settingsPayments['satoshi']['registerMaxSatoshi'] %>" 
                         placeholder="ex. 1000" 
+                        step="50"
                         required
                         > 
+            </div>
+        </div>
+        <div class="row">
+            <p>Specify the interval in seconds to check if pending invoices are paid.</p>
+            <div class="col-12 col-md-4">
+            <label for="payments.invoicePaidInterval" class="mt-4 mb-1 fw-bold">Invoice paid interval</label>
+                <div class="input-group mb-3 mt-2"  data-bs-tooltip="test">
+                <input  type="number" 
+                        id="payments.invoicePaidInterval" 
+                        name="payments.invoicePaidInterval" 
+                        class="form-control" 
+                        value="<%= request.body.settingsPayments['invoicePaidInterval'] %>" 
+                        placeholder="Example 60 seconds" 
+                        required
+                        step="10"
+                        >  
+                <span class="input-group-text">seconds</span>
+                </div>
             </div>
         </div>
         <label for="payments.LNAddress" class="mt-4 mb-1 fw-bold"> LN address</label>
@@ -51,16 +80,43 @@
                 placeholder="LNAddress" 
                 required
                 >
-        <label for="payments.getalby.authToken" class="mt-4 mb-1 fw-bold">GetAlby authToken</label>
-        <p>Specify the authToken for GetAlby payment provider.</p>
-        <input  type="text" 
-                id="payments.getalby.authToken" 
-                name="payments.getalby.authToken" 
-                class="form-control" 
-                value="<%= request.body.settingsPayments['getalby']['authToken'] %>" 
-                placeholder="GetAlby authToken" 
-                required
-                >
+        <div>
+            <h4 class="mt-4">Payment providers settings</h2>
+            <p> In this section, you can configure the payment provider settings for your server. Currently only GetAlby and LNbits are supported.
+            </p>
+            <h5> Alby settings</h5>
+            <label for="payments.getalby.paymentProviders.authToken" class="mt-1 mb-1 fw-bold">authToken</label>
+            <p>Specify the authToken for GetAlby payment provider.</p>
+            <input  type="text" 
+                    id="payments.getalby.authToken" 
+                    name="payments.getalby.authToken" 
+                    class="form-control" 
+                    value="<%= request.body.settingsPayments['paymentProviders']['getalby']['authToken'] %>" 
+                    placeholder="GetAlby authToken" 
+                    required
+                    >
+            <h5 class="mt-4"> LNbits settings</h5>
+            <label for="payments.lnbits.nodeUrl" class="mt-1 mb-1 fw-bold">Node URL</label>
+            <p>Specify the url for LNbits payment provider node.</p>
+            <input  type="text" 
+                    id="payments.lnbits.nodeUrl" 
+                    name="payments.lnbits.nodeUrl" 
+                    class="form-control" 
+                    value="<%= request.body.settingsPayments['paymentProviders']['lnbits']['nodeUrl'] %>" 
+                    placeholder="LNbits nodeUrl" 
+                    required
+                    >
+            <label for="payments.lnbits.readKey" class="mt-1 mb-1 fw-bold">readKey</label>
+            <p>Specify the readKey for LNbits payment provider.</p>
+            <input  type="text" 
+                    id="payments.lnbits.readKey" 
+                    name="payments.lnbits.readKey" 
+                    class="form-control" 
+                    value="<%= request.body.settingsPayments['paymentProviders']['lnbits']['readKey'] %>" 
+                    placeholder="LNbits readKey" 
+                    required
+                    >
+        </div>
         <div class="col-12 col-md-3 mb-5 mt-4 pb-5 pb-lg-0 mb-lg-2">
             <button class="btn btn-lg mb-4 btn-primary w-100" name="Submit" type="button" onclick="saveSettings()">Save</button>
         </div>
