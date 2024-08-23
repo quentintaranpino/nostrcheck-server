@@ -62,6 +62,8 @@ const addTextToImage = async (imageBuffer: Buffer, firstText: string, secondText
 	const { width, height } = await image.metadata();
   
 	const sideLength = Math.max(width!, height!);
+
+	logger.debug(`Width: ${width}, Height: ${height}, Side lengh: ${sideLength}`);
     
     let svgFirstText = `
     <svg width="${sideLength}" height="40">
