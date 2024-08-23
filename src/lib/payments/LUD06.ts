@@ -4,7 +4,10 @@ import { emptyInvoice, invoice } from '../../interfaces/payments.js';
 import { logger } from '../logger.js';
 import { getNewDate } from '../utils.js';
 
-async function generateInvoice(lnurl: string, amount: number): Promise<invoice> {
+async function generateLUD06Invoice(lnurl: string, amount: number): Promise<invoice> {
+
+  if (lnurl === '' || amount === 0) {return emptyInvoice;}
+
   try {
 
     const response = await axios.get(lnurl);
@@ -38,4 +41,4 @@ async function generateInvoice(lnurl: string, amount: number): Promise<invoice> 
   }
 }
 
-export { generateInvoice };
+export { generateLUD06Invoice };
