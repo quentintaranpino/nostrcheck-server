@@ -509,17 +509,15 @@ const getMediaList = async (req: Request, res: Response, version:string): Promis
 	const total = await dbSelect(selectStatement, "count", [eventHeader.pubkey || pubkey]);
 	
 	const files : any[] = [];
-	await result.forEach(async e => {
-
-		const fileData : ProcessingFileData = {
-
+	for (const e of result) {
+		const fileData: ProcessingFileData = {
 			filename: e.filename,
 			originalhash: e.original_hash,
 			hash: e.hash,
 			filesize: Number(e.filesize),
-			date: e.date? Math.floor(e.date / 1000) : Math.floor(Date.now() / 1000),
+			date: e.date ? Math.floor(e.date / 1000) : Math.floor(Date.now() / 1000),
 			fileid: e.id,
-			pubkey: eventHeader.pubkey? eventHeader.pubkey : e.pubkey,
+			pubkey: eventHeader.pubkey ? eventHeader.pubkey : e.pubkey,
 			width: Number(e.dimensions?.toString().split("x")[0]),
 			height: Number(e.dimensions?.toString().split("x")[1]),
 			url: "",
@@ -538,26 +536,25 @@ const getMediaList = async (req: Request, res: Response, version:string): Promis
 			conversionOutputPath: "",
 			newFileDimensions: ""
 		};
-
+	
 		// returnURL
 		const returnURL = app.get("config.media")["returnURL"];
-
+	
 		// NIP96 compatibility
 		if (pubkey == "") {
 			fileData.url = returnURL 	
-			? `${returnURL}/${e.pubkey}/${fileData.filename}`
-			: `${fileData.servername}/media/${e.pubkey}/${fileData.filename}`;
+				? `${returnURL}/${e.pubkey}/${fileData.filename}`
+				: `${fileData.servername}/media/${e.pubkey}/${fileData.filename}`;
 		}
-
+	
 		// Blossom compatibility
 		if (pubkey != "") {
-			fileData.url = `${fileData.servername}/${fileData.originalhash? fileData.originalhash : fileData.filename}`;
+			fileData.url = `${fileData.servername}/${fileData.originalhash ? fileData.originalhash : fileData.filename}`;
 		}
-
+	
 		const file = req.params.param1 == "list" ? await prepareBlobDescriptor(fileData) : await PrepareNIP96_listEvent(fileData);
 		files.push(file);
 	}
-	);
 
 	let response : any;
 	// NIP96 compatibility
