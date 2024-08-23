@@ -7,13 +7,13 @@ import { getUploadType, getFileMimeType, standardMediaConversion, getNotFoundMed
 import { requestQueue } from "../lib/media.js";
 import {
 	asyncTask,
-	ProcessingFileData,
 	legacyMediaReturnMessage,
 	MediaVisibilityResultMessage,
 	UploadStatus,
 	MediaStatus,
 	videoHeaderRange,
 	mediaInfoReturnMessage,
+	fileData,
 	} from "../interfaces/media.js";
 import { ResultMessage, ResultMessagev2 } from "../interfaces/server.js";
 import path from "path";
@@ -126,7 +126,7 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 	}
 
 	// Filedata
-	const filedata: ProcessingFileData = {
+	const filedata: fileData = {
 		filename: "",
 		fileid: "",
 		filesize: file.size,
@@ -150,7 +150,9 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 		conversionOutputPath: "",
 		date: Math.floor(Date.now() / 1000),
 		no_transform: false,
-		newFileDimensions: ""
+		newFileDimensions: "",
+		transaction_id: "",
+		payment_request: "",
 	};
 
 	// File mime type. If not allowed reject the upload.
@@ -175,7 +177,9 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 
 	// Uploaded file SHA256 hash and filename
 	filedata.originalhash = await generatefileHashfrombuffer(file);
+	filedata.hash = filedata.originalhash; // At this point, hash is the same as original hash
 	filedata.no_transform == true? filedata.filename = `${filedata.originalhash}.${getExtension(filedata.originalmime)}` : filedata.filename = `${filedata.originalhash}.${getConvertedExtension(filedata.originalmime)}`;
+
 	logger.info("hash ->", filedata.originalhash, "|", getClientIp(req));
 	logger.info("filename ->", filedata.filename, "|", getClientIp(req));
 
@@ -205,7 +209,7 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 
 	// Check if the (file SHA256 hash and pubkey) is already on the database, if exist (and the upload is media type) we return the existing file URL
 	const sameFiles = await dbMultiSelect(
-										["id", "hash", "magnet", "blurhash", "filename", "mimetype", "filesize", "dimensions", "date"],
+										["id", "hash", "magnet", "blurhash", "filename", "mimetype", "filesize", "dimensions", "date", "transactionid"],
 										"mediafiles ", 
 										"original_hash = ? and pubkey = ? ",
 										[filedata.originalhash, pubkey],
@@ -215,8 +219,8 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 	
 		let dbFile = null;
 		for (const f of sameFiles) {		
-			let { filename } = f;				
-			filedata.filename == filename ? dbFile = f : null;
+			let { filename, hash } = f;				
+			filedata.filename == filename && filedata.hash == hash ? dbFile = f : null;
 		}
 
 		if (dbFile) {
@@ -233,6 +237,7 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 			filedata.height = +(dbFile.dimensions.split("x")[1]);
 			filedata.description = "File exist in database, returning existing URL";
 			filedata.date = dbFile.date? Math.floor(dbFile.date / 1000) : Math.floor(Date.now() / 1000);
+			filedata.transaction_id = dbFile.transactionid;
 			processFile = false; 
 			insertfiledb = false;
 			makeBlurhash = false;
@@ -242,7 +247,6 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 				processFile = true;
 			}
 		}
-
 	}
 
 	// Write temp file to disk (for ffmpeg and blurhash)
@@ -275,7 +279,6 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 				}
 			}
 		}
-		
 
 		// Media dimensions
 		const dimensions = await getMediaDimensions(filedata.conversionInputPath, filedata);
@@ -283,8 +286,6 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 		dimensions? filedata.height = dimensions.height : 480;
 		dimensions? filedata.newFileDimensions = dimensions.width + "x" + dimensions.height : "640x480";
 	}
-
-
 
 	// Add file to mediafiles table
 	if (insertfiledb) {
@@ -334,6 +335,11 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 	}
 
 	logger.info(`RES -> 200 OK - ${filedata.description}`, "|", getClientIp(req));
+
+	if (isModuleEnabled("payments", app) && (filedata.no_transform == true || processFile == false)) {
+		const transaction: transaction = await checkTransaction(filedata.transaction_id, filedata.fileid, "mediafiles", filedata.filesize, filedata.pubkey);
+		transaction.isPaid == false ? filedata.payment_request = transaction.paymentRequest : null;
+	}
 
 	//v0 and v1 compatibility
 	if (version != "v2"){
@@ -500,7 +506,7 @@ const getMediaList = async (req: Request, res: Response, version:string): Promis
 	}
 
 	// Get files and total from database
-	const result = await dbMultiSelect(["id", "filename", "mimetype",  "original_hash", "hash", "filesize", "dimensions", "date", "blurhash", "pubkey"],
+	const result = await dbMultiSelect(["id", "filename", "mimetype",  "original_hash", "hash", "filesize", "dimensions", "date", "blurhash", "pubkey", "transactionid"],
 										"mediafiles",
 										`${whereStatement}`,
 										wherefields, false);
@@ -515,8 +521,8 @@ const getMediaList = async (req: Request, res: Response, version:string): Promis
 			logger.debug(`File ${e.filename} has no original_hash or hash, skipping`, "|", getClientIp(req));
 			continue;
 		}
-		
-		const fileData: ProcessingFileData = {
+
+		const listedFile: fileData = {
 			filename: e.filename,
 			originalhash: e.original_hash,
 			hash: e.hash,
@@ -534,31 +540,40 @@ const getMediaList = async (req: Request, res: Response, version:string): Promis
 			no_transform: e.hash == e.original_hash ? true : false,
 			media_type: "",
 			originalmime: e.mimetype != '' ? e.mimetype : getMimeFromExtension(e.filename.split('.').pop() || '') || '',
-			outputoptions: "",
 			status: "success",
 			description: "",
+			outputoptions: "",
 			processing_url: "",
 			conversionInputPath: "",
 			conversionOutputPath: "",
-			newFileDimensions: ""
+			newFileDimensions: "",
+			payment_request: "",
+			transaction_id: e.transactionid,
 		};
-	
+
+		if (isModuleEnabled("payments", app)) {
+			const transaction: transaction = await checkTransaction(listedFile.transaction_id, listedFile.fileid, "mediafiles", listedFile.filesize, listedFile.pubkey);
+			transaction.isPaid == false ? listedFile.payment_request = transaction.paymentRequest : null;
+		}
+
 		// returnURL
 		const returnURL = app.get("config.media")["returnURL"];
 	
 		// NIP96 compatibility
 		if (pubkey == "") {
-			fileData.url = returnURL 	
-				? `${returnURL}/${e.pubkey}/${fileData.filename}`
-				: `${fileData.servername}/media/${e.pubkey}/${fileData.filename}`;
+			listedFile.url = returnURL 	
+			? `${returnURL}/${pubkey}/${listedFile.filename}`
+			: `${listedFile.servername}/media/${pubkey}/${listedFile.filename}`;
 		}
 	
 		// Blossom compatibility
 		if (pubkey != "") {
-			fileData.url = `${fileData.servername}/${fileData.originalhash ? fileData.originalhash : fileData.filename}`;
+			listedFile.url = returnURL 	
+			? `${returnURL}/${listedFile.originalhash? listedFile.originalhash : listedFile.filename}`
+			: `${listedFile.servername}/${listedFile.originalhash? listedFile.originalhash : listedFile.filename}`;
 		}
 	
-		const file = req.params.param1 == "list" ? await prepareBlobDescriptor(fileData) : await PrepareNIP96_listEvent(fileData);
+		const file = req.params.param1 == "list" ? await prepareBlobDescriptor(listedFile) : await PrepareNIP96_listEvent(listedFile);
 		files.push(file);
 	}
 
@@ -627,7 +642,7 @@ const getMediaStatusbyID = async (req: Request, res: Response, version:string): 
 
 	logger.info(`GET /api/${version}/media/id/${id}`, "|", getClientIp(req));
 
-	const mediaFileData = await dbMultiSelect(["id", "filename", "pubkey", "status", "magnet", "original_hash", "hash", "blurhash", "dimensions", "filesize"],
+	const mediaFileData = await dbMultiSelect(["id", "filename", "pubkey", "status", "magnet", "original_hash", "hash", "blurhash", "dimensions", "filesize", "transactionid"],
 												"mediafiles",
 												"id = ? and (pubkey = ? or pubkey = ?)",
 												[id, eventHeader.pubkey, app.get("config.server")["pubkey"]],
@@ -646,13 +661,13 @@ const getMediaStatusbyID = async (req: Request, res: Response, version:string): 
 		return res.status(404).send(result);
 	}
 
-	let { filename, pubkey, status, magnet, original_hash, hash, blurhash, dimensions, filesize } = mediaFileData[0];
+	let { filename, pubkey, status, magnet, original_hash, hash, blurhash, dimensions, filesize, transactionid } = mediaFileData[0];
 
 	//Fix dimensions for old API requests
 	dimensions == null? dimensions = 0x0 : dimensions;
 
 	//Generate filedata
-	const filedata : ProcessingFileData = {
+	const filedata : fileData = {
 		filename: filename,
 		width: dimensions?.toString().split("x")[0],
 		height: dimensions?.toString().split("x")[1],
@@ -676,7 +691,10 @@ const getMediaStatusbyID = async (req: Request, res: Response, version:string): 
 		conversionOutputPath: "",
 		date: 0,
 		no_transform: original_hash == hash ? true : false,
-		newFileDimensions: ""
+		newFileDimensions: "",
+		transaction_id: transactionid,
+		payment_request: "",
+		
 	};
 
 	// URL
@@ -712,6 +730,11 @@ const getMediaStatusbyID = async (req: Request, res: Response, version:string): 
 			percentage: +processingStatus,
 		};
 		return res.status(202).send(result);
+	}
+
+	if (isModuleEnabled("payments", app)) {
+		const transaction: transaction = await checkTransaction(filedata.transaction_id, filedata.fileid, "mediafiles", filedata.filesize, filedata.pubkey);
+		transaction.isPaid == false ? filedata.payment_request = transaction.paymentRequest : null;
 	}
 
 	const returnmessage : NIP96_event = await PrepareNIP96_event(filedata);
