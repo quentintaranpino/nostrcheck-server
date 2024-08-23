@@ -464,7 +464,7 @@ const getMediaList = async (req: Request, res: Response, version:string): Promis
 	// Get NIP96 query parameters
 	const page = Number(req.query.page) || 0;
 	let count = Number(req.query.count) || 10;
-	count > 30 ? count = 30 : count; // Limit count value to 30
+	count > 100 ? count = 100 : count; // Limit count value to 100
 	const offset = count * page; 
 
 	// Get Blossom query parameters
