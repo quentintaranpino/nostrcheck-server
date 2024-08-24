@@ -11,7 +11,7 @@ interface userMetadata {
 	followers : number;
 	following : number;
 	lud16 : string;
-	mediaFiles : string[];
+	hostedFiles : number;
 	name : string;
 	nip05 : string;
 	picture : string;

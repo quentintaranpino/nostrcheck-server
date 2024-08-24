@@ -6,7 +6,7 @@ import { getClientIp, markdownToHtml } from "../lib/utils.js";
 import { dbSelect} from "../lib/database.js";
 import { generateCredentials, isAuthkeyValid, isPubkeyAllowed, isPubkeyValid, isUserPasswordValid } from "../lib/authorization.js";
 import { isModuleEnabled, loadconfigActiveModules } from "../lib/config.js";
-import { getProfileNostrMetadata, getProfileLocalMetadata, getProfileNostrNotes } from "../lib/frontend.js";
+import { countPubkeyFiles, getProfileNostrMetadata, getProfileNostrNotes } from "../lib/frontend.js";
 import { hextoNpub } from "../lib/nostr/NIP19.js";
 import { logHistory } from "../lib/logger.js";
 import themes from "../interfaces/themes.js";
@@ -104,8 +104,8 @@ const loadProfilePage = async (req: Request, res: Response, version:string): Pro
     // User nostr notes
     req.session.metadata.nostr_notes = await getProfileNostrNotes(req.session.identifier);
 
-    // User media files
-    req.session.metadata.mediaFiles =  await getProfileLocalMetadata(req.session.identifier);
+    // User uploaded files
+    req.session.metadata.hostedFiles =  await countPubkeyFiles(req.session.identifier);
 
     // Check admin privileges. Only for information, never used for authorization
     req.session.allowed = await isPubkeyAllowed(req.body.pubkey || req.session.identifier);

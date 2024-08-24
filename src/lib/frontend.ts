@@ -2,21 +2,21 @@ import { Event } from "nostr-tools";
 import app from "../app.js";
 import { userMetadata } from "../interfaces/frontend.js";
 import { generateCredentials } from "./authorization.js";
-import { dbSelect } from "./database.js";
+import { dbMultiSelect } from "./database.js";
 import { getProfileData, getProfileFollowers, getProfileFollowing } from "./nostr/NIP01.js";
 import { Request } from "express";
 
 const getProfileNostrMetadata = async (pubkey: string): Promise<userMetadata> => {
 
     if (!pubkey || pubkey == undefined || pubkey == null){
-        return {"about": "", "banner": "", "display_name": "", "followers": 0, "following": 0, "lud16": "", "mediaFiles": [], "name": "", "nip05": "", "picture": "", "usernames": [], "website": "", "pubkey": "", "nostr_notes": []};
+        return {"about": "", "banner": "", "display_name": "", "followers": 0, "following": 0, "lud16": "", "hostedFiles": 0, "name": "", "nip05": "", "picture": "", "usernames": [], "website": "", "pubkey": "", "nostr_notes": []};
     }
 
-    let metadata : userMetadata = {"about": "", "banner": "", "display_name": "", "followers": 0, "following": 0, "lud16": "", "mediaFiles": [], "name": "", "nip05": "", "picture": "", "usernames": [], "website": "", "pubkey": pubkey, "nostr_notes": []};
+    let metadata : userMetadata = {"about": "", "banner": "", "display_name": "", "followers": 0, "following": 0, "lud16": "", "hostedFiles": 0, "name": "", "nip05": "", "picture": "", "usernames": [], "website": "", "pubkey": pubkey, "nostr_notes": []};
 
     const nostrMetadata = await getProfileData(pubkey, 0)
     if (!nostrMetadata || nostrMetadata == undefined || nostrMetadata == null || nostrMetadata[0].content == undefined || nostrMetadata[0].content == null){
-        return {"about": "", "banner": "", "display_name": "", "followers": 0, "following": 0, "lud16": "", "mediaFiles": [], "name": "", "nip05": "", "picture": "", "usernames": [], "website": "", "pubkey": "", "nostr_notes": []};
+        return {"about": "", "banner": "", "display_name": "", "followers": 0, "following": 0, "lud16": "", "hostedFiles": 0, "name": "", "nip05": "", "picture": "", "usernames": [], "website": "", "pubkey": "", "nostr_notes": []};
     }
 
     if (!app.get("#p_" + pubkey)){
@@ -28,10 +28,6 @@ const getProfileNostrMetadata = async (pubkey: string): Promise<userMetadata> =>
 
     metadata = JSON.parse(nostrMetadata[0].content.replace(/\\n/g, '<br>'))
     metadata.pubkey = pubkey;
-
-    // If If the user picture is not set, we will use the default one.
-    if (!metadata.picture){metadata.picture = "/static/resources/picture-default.webp";}
-    if (!metadata.banner){metadata.banner = "/static/resources/banner-default.webp";}
 
     // Add followers and following to the profile metadata.
     metadata["followers"] = app.get("#p_" + pubkey) ? app.get("#p_" + pubkey) : 0
@@ -55,12 +51,10 @@ const getProfileNostrNotes = async (pubkey: string): Promise<Event[]> => {
     return nostrNotes;
 }
 
-const getProfileLocalMetadata = async (pubkey: string): Promise<string[]> => {
-    const mediaFiles = await dbSelect(  "SELECT filename FROM mediafiles WHERE active = ? and visibility = ? and pubkey = ? ORDER BY date DESC ","filename", 
-                                        ['1', '1', pubkey], 
-                                        false) as string[];
+const countPubkeyFiles = async (pubkey: string): Promise<number> => {
 
-    return  mediaFiles ? mediaFiles : [];
+    const files = await dbMultiSelect(["id"], "mediafiles", "pubkey = ?", [pubkey], false);
+    return files ? files.length : 0;
 }
 
 const isFirstUse = async (req : Request): Promise<boolean> => {
@@ -100,4 +94,4 @@ const isFirstUse = async (req : Request): Promise<boolean> => {
     return false;
 }
 
-export { getProfileNostrMetadata, getProfileLocalMetadata, isFirstUse, getProfileNostrNotes }
+export { getProfileNostrMetadata, isFirstUse, getProfileNostrNotes, countPubkeyFiles };
