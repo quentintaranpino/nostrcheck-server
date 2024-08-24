@@ -1,40 +1,40 @@
 <link rel="stylesheet" href="/static/css/form.css">
 <form class="form">
     <div class="mb-3">
-        <label for="nostrPublicKey" class="mb-1 fw-bold">Nostr public key</label>
+        <label for="nostrPublicKey" class="mb-1">Nostr public key</label>
         <div class="input-group">
-            <input type="text" class="form-control" id="nostrPublicKey" value="" readonly>
+            <input type="text" class="form-control" id="nostrPublicKey" value="<%= request.session.metadata.pubkey %>" readonly>
             <button class="btn btn-outline-secondary" type="button" id="sharePubkeyQR"><i class="fa-solid fa-qrcode"></i></button>
             <button class="btn btn-outline-secondary" type="button" id="copyPubkeyQR"><i class="fa-solid fa-copy"></i></button>
         </div>
         </div>
         <div class="mb-3">
-        <label for="displayName" class="mb-1 fw-bold">Display name</label>
-        <input type="text" class="form-control" id="displayName" value="">
+        <label for="displayName" class="mb-1">Display name</label>
+        <input type="text" class="form-control" id="displayName" value="<%= request.session.metadata.display_name %>">
         </div>
         <div class="mb-3">
-        <label for="profilePic" class="mb-1 fw-bold">Profile picture</label>
+        <label for="profilePic" class="mb-1">Profile picture</label>
         <div class="input-group">
-            <input type="text" class="form-control" id="profilePic" value="">
+            <input type="text" class="form-control" id="profilePic" value="<%= request.session.metadata.picture %>">
             <button class="btn btn-outline-secondary" type="button" id="copyPubkeyQR"><i class="fa-solid fa-copy"></i></button>
             <button class="btn btn-outline-secondary" type="button" id="copyPubkeyQR"><i class="fa-solid fa-upload"></i></button>
         </div>  
         </div>
         <div class="mb-3">
-        <label for="bannerImage" class="mb-1 fw-bold">Banner image</label>
+        <label for="bannerImage" class="mb-1">Banner image</label>
         <div class="input-group">
-            <input type="text" class="form-control" id="bannerImage" value="">
+            <input type="text" class="form-control" id="bannerImage" value="<%= request.session.metadata.banner %>">
             <button class="btn btn-outline-secondary" type="button" id="copyPubkeyQR"><i class="fa-solid fa-copy"></i></button>
             <button class="btn btn-outline-secondary" type="button" id="copyPubkeyQR"><i class="fa-solid fa-upload"></i></button>
         </div> 
         </div>
         <div class="mb-3">
-        <label for="nostrAddress" class="mb-1 fw-bold">Nostr address (NIP-05)</label>
+        <label for="nostrAddress" class="mb-1">Nostr address (NIP-05)</label>
         <div class="input-group">
-            <input type="text" class="form-control" id="nostrAddress" value="">
+            <input type="text" class="form-control" id="nostrAddress" value="<%= request.session.metadata.nip05 %>">
             <div class="input-group-text">
                 <div class="form-check form-switch">
-                    <label for ="userSettings.nostrAddress.enableLightningRedirect" class="ps-2"><i class="fa-solid fa-bolt"></i></button></label>
+                    <label for ="userSettings.nostrAddress.enableLightningRedirect" class=""><i class="fa-solid fa-bolt me-2 text-warning"></i>LN redirect</button></label>
                     <input  class="form-check-input" 
                             type="checkbox" 
                             value="checked"
@@ -43,16 +43,17 @@
                             >
                 </div>  
             </div>  
-
         </div>
         </div>
         <div class="mb-3">
         <label for="lightningAddress" class="form-label">Lightning address</label>
-        <input type="text" class="form-control" id="lightningRedirect" value="">
+        <input type="text" class="form-control" id="lightningRedirect" value="<%= request.session.metadata.lud16 %>">
         </div>
         <div class="mb-3">
         <label for="about" class="form-label">About</label>
-        <textarea class="form-control" id="about" rows="4"></textarea>
+        <textarea class="form-control" id="about" rows="4"><%= request.session.metadata.about %></textarea>
         </div>
-        <button type="submit" class="btn btn-primary">Save</button>
+        <div class="text-center mt-1 mb-5 mb-lg-2">
+        <button type="submit" class="btn btn-primary col-4">Save</button>
+        </div>
 </form>
