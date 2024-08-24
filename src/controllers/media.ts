@@ -810,7 +810,7 @@ const getMediabyURL = async (req: Request, res: Response) => {
 
 		// Filename URL compatibility. Blossom compatibility (filename.ext or filename)
 		if(!req.params.pubkey) {
-			whereFields = "(filename = ? OR original_hash = ?) AND original_hash = hash";
+			whereFields = "(filename = ? OR original_hash = ?)";
 			whereValues = [req.params.filename, req.params.filename];
 		}
 
