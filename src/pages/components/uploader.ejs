@@ -172,6 +172,11 @@ function handleFiles(files) {
   
 const uploadFiles = async () => {
 
+    if (filesArray.length === 0) {
+        showMessage("No files selected to upload 🤔", "alert-warning", false, 500);
+        return;
+    }
+
     for (const file of filesArray) {
 
         if (file.fileData.processed || file.fileData.accepted === false) {
