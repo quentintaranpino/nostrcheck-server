@@ -6,6 +6,9 @@ import { Request } from "express";
 import QRCode from 'qrcode';
 import sharp from "sharp";
 import fs from "fs";
+import ffmpeg from "fluent-ffmpeg";
+import app from "../app.js";
+import { randomBytes } from "crypto";
 
 const getClientIp = (req: Request): string => {
     let ip = req.headers['x-forwarded-for'];
@@ -47,18 +50,23 @@ const markdownToHtml = (text:string) : string => {
     }
 }
 
-const generateQRCode = async (text: string, firstText: string, secondText: string): Promise<Buffer> => {
-	return new Promise((resolve, reject) => {
-	  QRCode.toBuffer(
-		text, 
-		{ type: 'png', width: 290, margin: 3 }, 
-		(err, buffer) => {
-		  if (err) reject(err);
-		  else resolve(addTextToImage(buffer, firstText, secondText));
-		}
-	  );
-	});
-  };
+const generateQRCode = async (text: string, firstText: string, secondText: string, type: 'image' | 'video'): Promise<Buffer> => {
+    return new Promise(async (resolve, reject) => {
+        try {
+            const buffer = await QRCode.toBuffer(text, { type: 'png', width: 290, margin: 3 });
+            const imageBuffer = await addTextToImage(buffer, firstText, secondText);
+            
+            if (type === 'video') {
+                const videoBuffer = await generateVideoFromImage(imageBuffer);
+                resolve(videoBuffer);
+            } else {
+                resolve(imageBuffer);
+            }
+        } catch (err) {
+            reject(err);
+        }
+    });
+};
 
 const addTextToImage = async (imageBuffer: Buffer, firstText: string, secondText : string): Promise<Buffer> => {
 
@@ -87,7 +95,6 @@ const addTextToImage = async (imageBuffer: Buffer, firstText: string, secondText
 		}
 	  });
 	  
-	  // Add the last line if it's not empty
 	  if (currentLine) {
 		lines.push(currentLine);
 	  }
@@ -123,6 +130,31 @@ const addTextToImage = async (imageBuffer: Buffer, firstText: string, secondText
 	  .webp()
 	  .toBuffer();
   };
+
+const generateVideoFromImage = (imageBuffer: Buffer): Promise<Buffer> => {
+    return new Promise((resolve) => {
+        const tempImagePath = app.get("config.storage")["local"]["tempPath"] + `/${randomBytes(32).toString('hex')}.webp`;
+        const tempVideoPath = app.get("config.storage")["local"]["tempPath"] + `/${randomBytes(32).toString('hex')}.mp4`;
+
+        fs.writeFileSync(tempImagePath, imageBuffer);
+
+		ffmpeg(tempImagePath)
+    .loop(60)
+	.outputOptions('-vf', 'scale=trunc(iw/2)*2:trunc(ih/2)*2,format=yuv420p')
+    .output(tempVideoPath)
+    .on('end', () => {
+        const videoBuffer = fs.readFileSync(tempVideoPath);
+        fs.unlinkSync(tempImagePath);
+        fs.unlinkSync(tempVideoPath);
+        resolve(videoBuffer);
+    })
+    .on('error', (err) => {
+		logger.error("Error generating video QR from buffer: ", err);
+		resolve(Buffer.from("")); 
+    })
+    .run();
+    });
+};
 
   const getNewDate = (): string =>{
 	const now = new Date();

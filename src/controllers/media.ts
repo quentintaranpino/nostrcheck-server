@@ -817,7 +817,7 @@ const getMediabyURL = async (req: Request, res: Response) => {
 		logger.debug(whereFields, whereValues)
 
 		const filedata = await dbMultiSelect(
-											["id", "active", "transactionid", "filesize", "filename", "pubkey"],
+											["id", "active", "transactionid", "filesize", "filename", "pubkey", "mimetype"],
 											"mediafiles",
 											whereFields  + " ORDER BY id DESC",
 			 								whereValues,
@@ -852,16 +852,16 @@ const getMediabyURL = async (req: Request, res: Response) => {
 
 			// If the GET request has no authorization, we return a QR code with the payment request.
 			logger.info(`RES -> 200 Paid media file ${req.url}`, "|", getClientIp(req), "|", "cached:", cachedStatus ? true : false);
-			const qrImage = await generateQRCode(transaction.paymentRequest, 
+			const qrCode = await generateQRCode(transaction.paymentRequest, 
 									"Invoice amount: " + transaction.satoshi + " sats", 
 									"This file will be unlocked when the Lightning invoice " + 
-									"is paid. Then, it will be freely available to everyone");
+									"is paid. Then, it will be freely available to everyone", filedata[0].mimetype.toString().startsWith("video") ? "video" : "image");
 
-			res.setHeader('Content-Type', 'image/png');
+			res.setHeader('Content-Type', filedata[0].mimetype.toString().startsWith("video") ? "video/mp4" : "image/webp");
 			res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
 			res.setHeader('Pragma', 'no-cache');
 			res.setHeader('Expires', '0');
-			return res.status(200).send(qrImage);
+			return res.status(200).send(qrCode);
 		}
 		
 		if (noCache == false) {
