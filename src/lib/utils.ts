@@ -139,11 +139,11 @@ const generateVideoFromImage = (imageBuffer: Buffer): Promise<Buffer> => {
         fs.writeFileSync(tempImagePath, imageBuffer);
 
 		ffmpeg(tempImagePath)
-    .loop(2)
+    .loop(1)
 	            .outputOptions([
-                '-vf', 'scale=trunc(iw/2)*2:trunc(ih/2)*2',  // Reduce resolution and ensure divisible by 2
-                '-r', '15',                                    // Lower frame rate to 15 FPS
-                '-b:v', '500k',                                // Lower bitrate for smaller file size
+                '-vf', 'scale=trunc(iw/2)*2:trunc(ih/2)*2', 
+                '-r', '15',                                  
+                '-b:v', '500k',                               
                 '-pix_fmt', 'yuv420p',
             ])
     .output(tempVideoPath)
