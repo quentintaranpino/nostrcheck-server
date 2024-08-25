@@ -863,14 +863,13 @@ const getMediabyURL = async (req: Request, res: Response) => {
 			if (filedata[0].mimetype.toString().startsWith("video")) {
 				res.setHeader('Content-Type', "video/mp4");
 				res.setHeader('Expires', '0');
-				
 				res.setHeader("Content-Length", qrCode.buffer.byteLength);
 				
 				const videoStream = new Readable();
 				videoStream.push(Buffer.from(qrCode.buffer)); 
 				videoStream.push(null);
 			
-				return videoStream.pipe(res);
+				videoStream.pipe(res);
 			}
 			return res.status(200).send(qrCode);
 		}
