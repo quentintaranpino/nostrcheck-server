@@ -858,16 +858,18 @@ const getMediabyURL = async (req: Request, res: Response) => {
 									"is paid. Then, it will be freely available to everyone", filedata[0].mimetype.toString().startsWith("video") ? "video" : "image");
 
 			filedata[0].mimetype.startsWith("video") ? res.setHeader('Content-Type', "video/mp4") : res.setHeader('Content-Type', "image/webp");
-			res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+			// res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
 			res.setHeader('Expires', '0');
 			if (filedata[0].mimetype.toString().startsWith("video")) {
-				res.setHeader("Accept-Ranges", "bytes");
+				res.setHeader('Content-Type', "video/mp4");
+				res.setHeader('Expires', '0');
+				
 				res.setHeader("Content-Length", qrCode.buffer.byteLength);
-				res.setHeader("Content-Range", `bytes ${0}-${qrCode.buffer.byteLength}}`);
+				
 				const videoStream = new Readable();
 				videoStream.push(Buffer.from(qrCode.buffer)); 
 				videoStream.push(null);
-				res.status(206);
+			
 				return videoStream.pipe(res);
 			}
 			return res.status(200).send(qrCode);
