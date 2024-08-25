@@ -861,20 +861,36 @@ const getMediabyURL = async (req: Request, res: Response) => {
 			res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
 			res.setHeader('Expires', '0');
 			if (filedata[0].mimetype.toString().startsWith("video")) {
-				res.setHeader('Content-Type', "video/mp4");
-				res.setHeader('Expires', '0');
-				res.setHeader("Content-Length", qrCode.buffer.byteLength);
-				const range = req.headers.range;
-				if (range) {
-					const parts = range.replace(/bytes=/, '').split('-');
-					const end = parts[1] ? parseInt(parts[1], 10) : qrCode.buffer.byteLength - 1;
-					res.setHeader("Accept-Ranges", "bytes");
-					res.setHeader("Content-Range", `bytes ${0}-${end}/${qrCode.buffer.byteLength}`);
+				let range : videoHeaderRange;
+				let videoSize : number;
+				try {
+					videoSize = qrCode.length;
+					range = readRangeHeader(req.headers.range, videoSize);
+				} catch (err) {
+					logger.warn(`RES -> 200 Not Found - ${req.url}`, "| Returning not found media file.", getClientIp(req));
+					res.setHeader('Content-Type', 'image/webp');
+					return res.status(200).send(await getNotFoundMediaFile());
 				}
+	
+				res.setHeader("Content-Range", `bytes ${range.Start}-${range.End}/${videoSize}`);
+	
+				// If the range can't be fulfilled.
+				if (range.Start >= videoSize || range.End >= videoSize) {
+					res.setHeader("Content-Range", `bytes */ ${videoSize}`)
+					range.Start = 0;
+					range.End = videoSize - 1;
+				}
+	
+				const contentLength = range.Start == range.End ? 0 : (range.End - range.Start + 1);
+				res.setHeader("Accept-Ranges", "bytes");
+				res.setHeader("Content-Length", contentLength);
+				res.setHeader("Cache-Control", "no-cache")
+				res.status(206);
+	
 				const videoStream = new Readable();
-				videoStream.push(Buffer.from(qrCode.buffer)); 
+				videoStream.push(qrCode.slice(range.Start, range.End + 1));
 				videoStream.push(null);
-			
+				logger.info(`RES -> 206 Video partial Content - start: ${range.Start} end: ${range.End} | ${req.url}`, "|", getClientIp(req), "|", cachedStatus ? true : false);
 				return videoStream.pipe(res);
 			}
 			return res.status(200).send(qrCode);
