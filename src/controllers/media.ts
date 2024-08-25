@@ -869,7 +869,7 @@ const getMediabyURL = async (req: Request, res: Response) => {
 				videoStream.push(Buffer.from(qrCode.buffer)); 
 				videoStream.push(null);
 			
-				videoStream.pipe(res);
+				return videoStream.pipe(res);
 			}
 			return res.status(200).send(qrCode);
 		}
