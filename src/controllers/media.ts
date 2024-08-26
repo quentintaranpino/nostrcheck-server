@@ -818,8 +818,6 @@ const getMediabyURL = async (req: Request, res: Response) => {
 			whereValues = [req.params.filename, req.params.filename];
 		}
 
-		logger.debug(whereFields, whereValues)
-
 		const filedata = await dbMultiSelect(
 											["id", "active", "transactionid", "filesize", "filename", "pubkey", "mimetype"],
 											"mediafiles",
