@@ -219,8 +219,12 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 	
 		let dbFile = null;
 		for (const f of sameFiles) {		
-			let { filename, hash } = f;				
-			filedata.filename == filename && filedata.hash == hash ? dbFile = f : null;
+			let { filename, hash } = f;
+			if (filedata.no_transform == true) {
+				filedata.filename == filename && filedata.hash == hash ? dbFile = f : null;
+			}else{
+				filedata.filename == filename ? dbFile = f : null;
+			}				
 		}
 
 		if (dbFile) {
