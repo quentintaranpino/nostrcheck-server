@@ -94,7 +94,6 @@ const fetchFileServer = async (file, authEvent = "", method = "", showMessages =
         await storeAuthkey(response.headers.get('Authorization'));
 
         if (serverData.processing_url != "") {
-            serverData.processing_url.includes("cdn") ? serverData.processing_url = serverData.processing_url.replace("api/v2/media/", "") : null;
             authEvent = {
                 kind: 27235,
                 created_at: Math.floor(Date.now() / 1000),
@@ -105,7 +104,7 @@ const fetchFileServer = async (file, authEvent = "", method = "", showMessages =
                 content: 'Authorization event for file upload status',
             };
             authEvent = btoa(JSON.stringify(await window.nostr.signEvent(authEvent)));
-            console.log("procesing url", serverData.processing_url)
+            serverData.processing_url.includes("cdn") ? serverData.processing_url = serverData.processing_url.replace("api/v2/media/", "") : null;
         }
 
         while (serverData.processing_url) {
