@@ -32,7 +32,7 @@ const fetchFileServerInfo = async (file) => {
     }
 
     try {
-        const response = await fetch(method == "PUT" ? window.location.hostname.includes("cdn") ? '/info' : '/api/v2/media/info' :  window.location.hostname.includes("cdn") ? '/': '/api/v2/info', {
+        const response = await fetch(window.location.hostname.includes("cdn") ? '/info' : '/api/v2/media/info', {
             method: "POST",
             headers: {
                 "Content-Type": "application/json"
