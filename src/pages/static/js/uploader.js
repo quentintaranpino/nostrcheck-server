@@ -93,7 +93,7 @@ const fetchFileServer = async (file, authEvent = "", method = "", showMessages =
 
         await storeAuthkey(response.headers.get('Authorization'));
 
-        if (serverData.processing_url != "") {
+        if (serverData.processing_url && serverData.processing_url != "") {
             authEvent = {
                 kind: 27235,
                 created_at: Math.floor(Date.now() / 1000),
@@ -142,6 +142,7 @@ const fetchFileServer = async (file, authEvent = "", method = "", showMessages =
         return { "filename": file.name, "url": url };
 
     } catch (error) {
+        console.log(error.message);
         if (showMessages) updateMessage(uploadMessage, '<i class="bi bi-exclamation-circle-fill pe-1"></i>' + error, "alert-danger");
         if (showMessages) hideMessage(uploadMessage, 5000);
         await storeAuthkey('', true);
