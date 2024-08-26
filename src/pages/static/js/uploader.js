@@ -94,6 +94,7 @@ const fetchFileServer = async (file, authEvent = "", method = "", showMessages =
         await storeAuthkey(response.headers.get('Authorization'));
 
         if (serverData.processing_url != "") {
+            window.location.hostname.includes("cdn") ? serverData.processing_url = serverData.processing_url.replace("api/v2/media/", "") : null;
             authEvent = {
                 kind: 27235,
                 created_at: Math.floor(Date.now() / 1000),

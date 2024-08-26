@@ -210,9 +210,6 @@ const uploadFiles = async () => {
                     return;
                 }
 
-                const serverURL = window.location.origin
-                console.log('Server URL:', serverURL);
-
                 const hash = await crypto.subtle.digest('SHA-256', await file.arrayBuffer()).then(buffer => {
                     return Array.from(new Uint8Array(buffer)).map(b => b.toString(16).padStart(2, '0')).join('');
                 })
