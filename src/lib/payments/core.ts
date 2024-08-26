@@ -3,6 +3,7 @@ import { accounts, emptyInvoice, emptyTransaction, invoice, transaction } from "
 import { isModuleEnabled } from "../config.js";
 import { dbInsert, dbMultiSelect, dbSelect, dbUpdate } from "../database.js"
 import { logger } from "../logger.js";
+import { sendMessage } from "../nostr/NIP04.js";
 import { getNewDate } from "../utils.js";
 import { generateLUD06Invoice } from "./LUD06.js";
 import { isInvoicePaidGetAlby } from "./getalby.js";
@@ -45,6 +46,9 @@ const checkTransaction = async (transactionid : string, originId: string, origin
         const accountid = formatAccountNumber(Number(await dbSelect("SELECT id FROM registered WHERE hex = ?", "id", [pubkey])));
         const invoice = await generateInvoice(accountid, satoshi, originTable, originId);
         if (invoice.paymentRequest == "") {return emptyTransaction};
+        
+		await sendMessage(`Hi, here’s your invoice from ${app.get("config.server")["host"]} service (${invoice.satoshi} satoshi). We appreciate your payment, thanks!`, pubkey)
+		await sendMessage(invoice.paymentRequest,pubkey)
 
         // Fill the transaction with the invoice data
         transaction = await getTransaction(invoice.transactionid.toString());

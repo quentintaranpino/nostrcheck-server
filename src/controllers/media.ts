@@ -36,7 +36,6 @@ import { prepareBlobDescriptor } from "../lib/blossom/BUD02.js";
 import { loadCdnPage } from "./frontend.js";
 import { getBannedMediaFile, isContentBanned } from "../lib/banned.js";
 import { mirrorFile } from "../lib/blossom/BUD04.js";
-import { calculateObjectAmount } from "./payments.js";
 
 const uploadMedia = async (req: Request, res: Response, version:string): Promise<Response> => {
 
