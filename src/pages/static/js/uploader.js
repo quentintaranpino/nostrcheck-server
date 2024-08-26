@@ -48,7 +48,7 @@ const fetchFileServerInfo = async (file) => {
 
 }
 
-const fetchFileServer = async (file, authEventPut = "", authEventGet = "", method = "", showMessages = false) => {
+const fetchFileServer = async (file, authEvent = "", method = "", showMessages = false) => {
 
     if (!method) {
         return;
@@ -59,13 +59,13 @@ const fetchFileServer = async (file, authEventPut = "", authEventGet = "", metho
         return { "filename": "", "url": "" };
     }
 
-    if (!authEventPut && localStorage.getItem('authkey') == "") {
+    if (!authEvent && localStorage.getItem('authkey') == "") {
         showMessage("No authentication key, please reload page", "alert-danger", false);
         return { "filename": file.name, "url": "" };
     }
 
     let headers = {};
-    headers["authorization"] = localStorage.getItem('authkey') != "" ? "Bearer " + localStorage.getItem('authkey') : "Nostr " + authEventPut;
+    headers["authorization"] = localStorage.getItem('authkey') != "" ? "Bearer " + localStorage.getItem('authkey') : "Nostr " + authEvent;
     method == "PUT" ? headers["Content-Type"] = file.type : null;
     let uploadMessage = null
     
@@ -92,9 +92,23 @@ const fetchFileServer = async (file, authEventPut = "", authEventGet = "", metho
 
         await storeAuthkey(response.headers.get('Authorization'));
 
+        if (serverData.processing_url != "") {
+            authEvent = {
+                kind: 27235,
+                created_at: Math.floor(Date.now() / 1000),
+                tags: [
+                    ["u", serverData.processing_url],
+                    ["method", "GET"]
+                    ],
+                content: 'Authorization event for file upload status',
+            };
+            authEvent = btoa(JSON.stringify(await window.nostr.signEvent(authEvent)));
+        }
+
         while (serverData.processing_url) {
+
             await new Promise(resolve => setTimeout(resolve, 1000));
-            headers["authorization"] = localStorage.getItem('authkey') != "" ? "Bearer " + localStorage.getItem('authkey') : "Nostr " + authEventGet;
+            headers["authorization"] = localStorage.getItem('authkey') != "" ? "Bearer " + localStorage.getItem('authkey') : "Nostr " + authEvent;
 
             const processingResponse = await fetch(serverData.processing_url, {
                 method: "GET",
@@ -123,7 +137,6 @@ const fetchFileServer = async (file, authEventPut = "", authEventGet = "", metho
             `
         );
         if (showMessages) hideMessage(uploadMessage, 15000);
-        console.log(url);
         return { "filename": file.name, "url": url };
 
     } catch (error) {

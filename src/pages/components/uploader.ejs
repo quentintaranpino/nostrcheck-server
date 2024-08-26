@@ -143,8 +143,8 @@ function handleFiles(files) {
                     }
                 });
             }else{
-                fileData.accepted = true;
-                fileData.satoshi = serverInfo.satoshi;
+                file.fileData.accepted = true;
+                file.fileData.satoshi = serverInfo.satoshi;
                 $('#file-table').bootstrapTable('load', filesArray.map(file => file.fileData));
             }
         }
@@ -192,80 +192,67 @@ const uploadFiles = async () => {
             }
         });
 
-    let authEventPut = null;
-    let authEventGet = null;
-    let method = $('#file-table').bootstrapTable('getRowByUniqueId', file.fileData.id).transform == 1 ? 'POST' : 'PUT';
+        let authEvent = null;
+        let method = $('#file-table').bootstrapTable('getRowByUniqueId', file.fileData.id).transform == 1 ? 'POST' : 'PUT';
 
-    if (!identifier){
+        if (!identifier){
 
-        if (!window.nostr) {
-            initAlertModal("#uploader", 'NIP07 browser extension not found');
-            document.getElementById(buttonId).innerHTML = buttonText;
-            return;
-        }
-
-        try {
-            const pubKey = await window.nostr.getPublicKey();
-
-            if (!pubKey){console.debug('NIP07 public key not found');
+            if (!window.nostr) {
+                initAlertModal("#uploader", 'NIP07 browser extension not found');
+                document.getElementById(buttonId).innerHTML = buttonText;
                 return;
             }
 
-            const serverURL = window.location.origin
-            console.log('Server URL:', serverURL);
+            try {
+                const pubKey = await window.nostr.getPublicKey();
 
-            const hash = await crypto.subtle.digest('SHA-256', await file.arrayBuffer()).then(buffer => {
-                return Array.from(new Uint8Array(buffer)).map(b => b.toString(16).padStart(2, '0')).join('');
-            })
+                if (!pubKey){console.debug('NIP07 public key not found');
+                    return;
+                }
 
-            if (method == 'POST') {
-                authEventPut = {
-                    
-                    kind: 27235,
-                    created_at: Math.floor(Date.now() / 1000),
-                    tags: [
-                        ["u", window.location.hostname.includes("cdn") ? window.location.protocol + "//cdn." + getDomain(window.location.hostname) + '/api/v2/media/' : window.location.protocol + "//" + getDomain(window.location.hostname) + '/api/v2/media'],
-                        ["x", hash],
-                        ["expiration", Math.floor(Date.now() / 1000) + 3600],
-                        ["method", "POST"],
-                        ],
-                    content: 'Blossom authorization event for file upload',
-                };
+                const serverURL = window.location.origin
+                console.log('Server URL:', serverURL);
 
-            }else{
+                const hash = await crypto.subtle.digest('SHA-256', await file.arrayBuffer()).then(buffer => {
+                    return Array.from(new Uint8Array(buffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+                })
 
-                authEventPut = {
+                if (method == 'POST') {
+                    authEvent= {
+                        
+                        kind: 27235,
+                        created_at: Math.floor(Date.now() / 1000),
+                        tags: [
+                            ["u", window.location.hostname.includes("cdn") ? window.location.protocol + "//cdn." + getDomain(window.location.hostname) + '/api/v2/media/' : window.location.protocol + "//" + getDomain(window.location.hostname) + '/api/v2/media'],
+                            ["x", hash],
+                            ["expiration", Math.floor(Date.now() / 1000) + 3600],
+                            ["method", "POST"],
+                            ],
+                        content: 'NIP98 authorization event for file upload',
+                    };
 
-                    kind: 24242,
-                    created_at: Math.floor(Date.now() / 1000),
-                    tags: [
-                        ["t", 'upload'],
-                        ["x", hash],
-                        ["expiration", Math.floor(Date.now() / 1000) + 3600],
-                        ],
-                    content: 'Blossom authorization event for file upload',
-                };
+                }else{
+
+                    authEvent = {
+
+                        kind: 24242,
+                        created_at: Math.floor(Date.now() / 1000),
+                        tags: [
+                            ["t", 'upload'],
+                            ["x", hash],
+                            ["expiration", Math.floor(Date.now() / 1000) + 3600],
+                            ],
+                        content: 'Blossom authorization event for file upload',
+                    };
+                }
+
+                authEvent = btoa(JSON.stringify(await window.nostr.signEvent(authEvent)));
+
+            } catch (error) {
+                console.error(error);
             }
-
-            authEventGet = {
-                kind: 27235,
-                created_at: Math.floor(Date.now() / 1000),
-                tags: [
-                    ["u", getDomain(window.location.hostname) + '/api/v2/media/upload/'],
-                    ["method", "GET"]
-                    ],
-                content: 'Authorization event for file upload status',
-            };
-
-            authEventPut = btoa(JSON.stringify(await window.nostr.signEvent(authEventPut)));
-            authEventGet = btoa(JSON.stringify(await window.nostr.signEvent(authEventGet)));
-
-        } catch (error) {
-            console.error(error);
         }
-    }
-
-        const result = await fetchFileServer(file, authEventPut, authEventGet, method);
+        const result = await fetchFileServer(file, authEvent, method);
         if (!result || !result.url) {
             console.error(`Failed to upload: ${file.name}`);
             $('#file-table').bootstrapTable('updateByUniqueId', {
