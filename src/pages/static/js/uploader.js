@@ -43,6 +43,7 @@ const fetchFileServerInfo = async (file) => {
         return data;
         
     } catch (error) {
+        console.log(error.message)
         return { "status": "error", "message": error.message, "satoshi": 0 };
     }
 
