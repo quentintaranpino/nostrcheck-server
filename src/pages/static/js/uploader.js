@@ -104,6 +104,7 @@ const fetchFileServer = async (file, authEvent = "", method = "", showMessages =
                 content: 'Authorization event for file upload status',
             };
             authEvent = btoa(JSON.stringify(await window.nostr.signEvent(authEvent)));
+            console.log("procesing url", serverData.processing_url)
         }
 
         while (serverData.processing_url) {
