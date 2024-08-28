@@ -48,8 +48,8 @@ const emptyTransaction: transaction = {
     paymentHash: "",
     satoshi: 0,
     isPaid: true,
-    createdDate: "",
-    expiryDate: "",
+    createdDate: null,
+    expiryDate: null,
     paidDate: "",
     comments: ""
 }

@@ -8,6 +8,8 @@ import { NIP96Data } from "../controllers/nostr.js";
 import app from "../app.js";
 import getRawBody from "raw-body";
 import { Readable } from "stream";
+import { limiter } from "../lib/session.js"
+const limitMessage = { status: "error", message: "Rate limit exceeded. Try again in a few minutes." };
 
 const maxMBfilesize :number = app.get("config.media")["maxMBfilesize"].toString().replace(',', '.');
 
@@ -73,9 +75,9 @@ export const loadMediaEndpoint = async (app: Application, version:string): Promi
 	}
 	
 	// POST & PUT (upload)
-	app.post("/api/" + version + app.get("config.server")["availableModules"]["media"]["path"], function (req, res){uploadMiddlewarePost(req,res)}); // v0, v1, v2 and NIP96
-	app.put("/api/" + version + app.get("config.server")["availableModules"]["media"]["path"] + "/:param1", async (req, res) => {uploadMiddlewarePut(req,res)}); // Blossom upload
-	app.put("/upload", async (req, res) => {uploadMiddlewarePut(req,res)}); // Blossom cdn url upload
+	app.post("/api/" + version + app.get("config.server")["availableModules"]["media"]["path"], limiter(app.get('config.security')['media']['maxUploadsMinute'], limitMessage), function (req, res){uploadMiddlewarePost(req,res)}); // v0, v1, v2 and NIP96
+	app.put("/api/" + version + app.get("config.server")["availableModules"]["media"]["path"] + "/:param1", limiter(app.get('config.security')['media']['maxUploadsMinute'], limitMessage), async (req, res) => {uploadMiddlewarePut(req,res)}); // Blossom upload
+	app.put("/upload", limiter(app.get('config.security')['media']['maxUploadsMinute'], limitMessage), async (req, res) => {uploadMiddlewarePut(req,res)}); // Blossom cdn url upload
 	
 	// POST (info)
 	app.post("/api/" + version + app.get("config.server")["availableModules"]["media"]["path"] + "/info", async (req, res) => {uploadInfo(req,res)}); // Blossom blob info requirement
