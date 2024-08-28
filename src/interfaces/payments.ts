@@ -75,5 +75,14 @@ interface amountReturnMessage extends ResultMessagev2 {
     amount: number;
 }
 
+interface macaroon {
+    ID: string;
+    version: string;
+    payment_hash: string;
+    token_id: string;
+    location: string;
+    caveats: string[];
+}
 
-export { invoice, emptyInvoice, transaction, emptyTransaction, accounts, paymentResultMessage, invoiceReturnMessage, amountReturnMessage}
+
+export { invoice, emptyInvoice, transaction, emptyTransaction, accounts, paymentResultMessage, invoiceReturnMessage, amountReturnMessage, macaroon}

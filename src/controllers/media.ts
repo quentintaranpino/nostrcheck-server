@@ -36,6 +36,7 @@ import { prepareBlobDescriptor } from "../lib/blossom/BUD02.js";
 import { loadCdnPage } from "./frontend.js";
 import { getBannedMediaFile, isContentBanned } from "../lib/banned.js";
 import { mirrorFile } from "../lib/blossom/BUD04.js";
+import { createMacaroon } from "../lib/payments/macaroons.js";
 
 const uploadMedia = async (req: Request, res: Response, version:string): Promise<Response> => {
 
@@ -861,6 +862,7 @@ const getMediabyURL = async (req: Request, res: Response) => {
 			filedata[0].mimetype.startsWith("video") ? res.setHeader('Content-Type', "video/mp4") : res.setHeader('Content-Type', "image/webp");
 			res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
 			res.setHeader('Expires', '0');
+			res.setHeader('Www-Authenticate', `L402 macaroon="${await createMacaroon(transaction.transactionid,transaction.paymentHash,req.url,[""])}",invoice="${transaction.paymentRequest}"`);
 			if (filedata[0].mimetype.toString().startsWith("video")) {
 				let range : videoHeaderRange;
 				let videoSize : number;
@@ -887,11 +889,9 @@ const getMediabyURL = async (req: Request, res: Response) => {
 				res.setHeader("Content-Length", contentLength);
 				res.setHeader("Cache-Control", "no-cache")
 				res.status(206);
-	
 				const videoStream = new Readable();
 				videoStream.push(qrCode.slice(range.Start, range.End + 1));
 				videoStream.push(null);
-				logger.info(`RES -> 206 Video partial Content - start: ${range.Start} end: ${range.End} | ${req.url}`, "|", getClientIp(req), "|", cachedStatus ? true : false);
 				return videoStream.pipe(res);
 			}
 			return res.status(200).send(qrCode);
