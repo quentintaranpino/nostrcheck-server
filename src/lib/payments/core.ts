@@ -9,7 +9,6 @@ import { generateLUD06Invoice } from "./LUD06.js";
 import { isInvoicePaidGetAlby } from "./getalby.js";
 import { generateLNBitsInvoice, isInvoicePaidLNbits } from "./lnbits.js";
 
-
 const checkTransaction = async (transactionid : string, originId: string, originTable : string, size: number, pubkey : string, maxSatoshi : number = 0): Promise<transaction> => {
 
     if (!isModuleEnabled("payments", app)) {
@@ -25,7 +24,8 @@ const checkTransaction = async (transactionid : string, originId: string, origin
         return emptyTransaction;
     }
 
-    if (transaction.paymentHash != "") {
+    const expiryDate = new Date(transaction.expiryDate).toISOString().slice(0, 19).replace('T', ' ');
+    if (transaction.paymentHash != "" && expiryDate > getNewDate()){
 
         // If the transaction is already paid or if the balance is not enough we return the transaction
         if (transaction.isPaid || balance <= satoshi) {return transaction};
@@ -41,10 +41,11 @@ const checkTransaction = async (transactionid : string, originId: string, origin
         }
     };
 
-    // If transaction not exist we generate an invoice and fill the transaction
-    if (transaction.paymentHash == ""){
+    // If transaction not exist or is expired we generate a new invoice and fill the transaction with the invoice data
+    if (transaction.paymentHash == "" || expiryDate < getNewDate()){
+
         const accountid = formatAccountNumber(Number(await dbSelect("SELECT id FROM registered WHERE hex = ?", "id", [pubkey])));
-        const invoice = await generateInvoice(accountid, satoshi, originTable, originId);
+        const invoice = await generateInvoice(accountid, satoshi, originTable, originId, expiryDate < getNewDate() && transaction.transactionid != 0 ? true : false, transaction.transactionid);
         if (invoice.paymentRequest == "") {return emptyTransaction};
         
 		await sendMessage(`Hi, here’s your invoice from ${app.get("config.server")["host"]} service (${invoice.satoshi} satoshi). We appreciate your payment, thanks!`, pubkey)
@@ -68,43 +69,56 @@ const checkTransaction = async (transactionid : string, originId: string, origin
 
 }
 
-const generateInvoice = async (accountid: number, satoshi: number, originTable : string, originId : string) : Promise<invoice> => {
+const generateInvoice = async (accountid: number, satoshi: number, originTable : string, originId : string, overwrite = false, transactionId = 0) : Promise<invoice> => {
 
-    if (!isModuleEnabled("payments", app)) {
-        return emptyInvoice;
-    }
+    if (!isModuleEnabled("payments", app))return emptyInvoice;
 
     if (app.get("config.payments")["LNAddress"] == "") {
         logger.error("LNAddress not set in config file. Cannot generate invoice.")
         return emptyInvoice;
     }
 
-    if (satoshi == 0) {
-        return emptyInvoice;
-    }
+    if (satoshi == 0) return emptyInvoice;
 
     const lnurl = `https://${app.get("config.payments")["LNAddress"].split("@")[1]}/.well-known/lnurlp/${app.get("config.payments")["LNAddress"].split("@")[0]}`
-
     const generatedInvoice = app.get("config.payments")["paymentProvider"] == 'lnbits' ? await generateLNBitsInvoice(satoshi, "") : await generateLUD06Invoice(lnurl, satoshi);
     if (generatedInvoice.paymentRequest == "") {return emptyInvoice}
     
     generatedInvoice.description = "Invoice for: " + originTable + ":" + originId;
 
-    const transId = await addTransacion("invoice", accountid, generatedInvoice, satoshi)
-    if (transId) {
-        await dbUpdate(originTable, "transactionid", transId.toString() , ["id"], [originId])
-        logger.info("Generated invoice for " + originTable + ":" + originId, " satoshi: ", satoshi, "transactionid: ", transId)
-        generatedInvoice.transactionid = transId;
-    }
-
-    const debit = await addJournalEntry(accountid, transId, satoshi, 0, "invoice for " + originTable + ":" + originId);
-    const credit = await addJournalEntry(accounts[2].accountid, transId, 0, satoshi, "Accounts Receivable for " + originTable + ":" + originId);
-    if (credit && debit) {
-        logger.debug("Journal entry added for debit transaction", transId, originId, originTable)
-    }
-
-    if (transId && credit && debit) {
+    if (overwrite == true) {
+        logger.info("Detected expired invoice, updating invoice for account:", accountid, "transactionid:", transactionId)
+        const updatePayreq = await dbUpdate("transactions", "paymentrequest", generatedInvoice.paymentRequest, ["id"], [transactionId]);
+        const updatePayhash = await dbUpdate("transactions", "paymenthash", generatedInvoice.paymentHash, ["id"], [transactionId]);
+        const updateCreated = await dbUpdate("transactions", "createddate", generatedInvoice.createdDate, ["id"], [transactionId]);
+        const updateExpiry = await dbUpdate("transactions", "expirydate", generatedInvoice.expiryDate, ["id"], [transactionId]);
+        const updateSatoshi = await dbUpdate("transactions", "satoshi", generatedInvoice.satoshi, ["id"], [transactionId]);
+        if (!updatePayreq || !updatePayhash || !updateCreated || !updateExpiry || !updateSatoshi) {
+            logger.error("Error updating transaction with new invoice data", transactionId)
+            return emptyInvoice;
+        }
+        generatedInvoice.transactionid = Number(await dbSelect("SELECT id FROM transactions WHERE accountid = ? AND paymentrequest = ?", "id", [accountid.toString(), generatedInvoice.paymentRequest]));
         return generatedInvoice;
+
+    }else{
+
+        const transId = await addTransacion("invoice", accountid, generatedInvoice, satoshi)
+        if (transId) {
+            await dbUpdate(originTable, "transactionid", transId.toString() , ["id"], [originId])
+            logger.info("Generated invoice for " + originTable + ":" + originId, " satoshi: ", satoshi, "transactionid: ", transId)
+            generatedInvoice.transactionid = transId;
+        }
+
+        const debit = await addJournalEntry(accountid, transId, satoshi, 0, "invoice for " + originTable + ":" + originId);
+        const credit = await addJournalEntry(accounts[2].accountid, transId, 0, satoshi, "Accounts Receivable for " + originTable + ":" + originId);
+        if (credit && debit) {
+            logger.debug("Journal entry added for debit transaction", transId, originId, originTable)
+        }
+
+        if (transId && credit && debit) {
+            return generatedInvoice;
+        }
+            
     }
 
     return emptyInvoice;
