@@ -60,13 +60,8 @@ const fetchFileServer = async (file, authEvent = "", method = "", showMessages =
         return { "filename": "", "url": "" };
     }
 
-    if (!authEvent && localStorage.getItem('authkey') == "") {
-        showMessage("No authentication key, please reload page", "alert-danger", false);
-        return { "filename": file.name, "url": "" };
-    }
-
     let headers = {};
-    headers["authorization"] = localStorage.getItem('authkey') != "" ? "Bearer " + localStorage.getItem('authkey') : "Nostr " + authEvent;
+    headers["authorization"] = localStorage.getItem('authkey') != "" && localStorage.getItem('authkey') != undefined ? "Bearer " + localStorage.getItem('authkey') : "Nostr " + authEvent;
     method == "PUT" ? headers["Content-Type"] = file.type : null;
     let uploadMessage = null
     
