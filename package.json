@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "start": "node --enable-source-maps --experimental-specifier-resolution=node --no-warnings --loader ts-node/esm ./dist/init.js",
-    "dev": "nodemon --ignore media --ignore models --ignore config --ignore tmp --exec node --loader ts-node/esm src/init.ts",
+    "dev": "nodemon --ignore media/* --ignore models/* --ignore config/* --ignore tmp/* --ignore logs/* --exec node --loader ts-node/esm src/init.ts",
     "build": "tsc",
     "package": "node update-version.js && tsc",
     "lint": "eslint --ignore-path .gitignore . --ext .ts",
