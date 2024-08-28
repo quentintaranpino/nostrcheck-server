@@ -69,6 +69,7 @@ const loadSettingsPage = async (req: Request, res: Response, version:string): Pr
     req.body.settingsPayments = app.get("config.payments");
     req.body.settingsRegister = app.get("config.register");
     req.body.settingsLogger = app.get("config.logger");
+    req.body.settingsSecurity = app.get("config.security");
     req.body.logHistory = logHistory;
     req.body.settingsLookAndFeelThemes = themes;
     req.session.authkey = await generateCredentials('authkey', req.session.identifier);
@@ -321,11 +322,11 @@ const frontendLogin = async (req: Request, res: Response): Promise<Response> => 
     let canLogin = false;
     if (req.body.pubkey != undefined){
         canLogin = await isPubkeyValid(req.session.identifier || req.body.pubkey, false, true);
-        canLogin = await verifyNIP07event(req);
+        if (canLogin == true) {canLogin == await verifyNIP07event(req)}
     }
     if (req.body.username != undefined && req.body.password != undefined){
         canLogin = await isUserPasswordValid(req.body.username, req.body.password, false);
-        req.body.pubkey = await dbSelect("SELECT hex FROM registered WHERE username = ?", "hex", [req.body.username]) as string;
+        if (canLogin == true) {req.body.pubkey = await dbSelect("SELECT hex FROM registered WHERE username = ?", "hex", [req.body.username]) as string};
 
     }
     if (req.body.otc != undefined){
