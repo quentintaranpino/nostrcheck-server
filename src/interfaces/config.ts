@@ -210,7 +210,16 @@ const defaultConfig = {
 		"minUsernameLength": 3,
 		"maxUsernameLength": 20,
 		"minPasswordLength": 12,
-	}
+	},
+	"security" : {
+		"maxDefaultRequestMinute": 150,
+		"media" : {
+			"maxUploadsMinute": 10,
+		},
+		"register" : {
+			"maxRegisterDay": 2,
+		}
+	},
 }
 
 const localPath = "./config/local.json";

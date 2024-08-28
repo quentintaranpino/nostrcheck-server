@@ -107,6 +107,18 @@
                       <i class="fas fa-clipboard-list me-2"></i>Logging
               </button>
           </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" 
+                    id="security-tab" 
+                    data-bs-toggle="tab" 
+                    data-bs-target="#security" 
+                    type="button" 
+                    role="tab" 
+                    aria-controls="security" 
+                    aria-selected="false">
+                    <i class="fas fa-shield-alt me-2"></i>Security
+            </button>
+          </li>
         </ul>
         <div class="tab-content" id="settingsTabsContent">
           <div class="tab-pane fade show active" id="lookandfeel" role="tabpanel" aria-labelledby="lookandfeel-tab">
@@ -133,6 +145,8 @@
           <div class="tab-pane fade" id="logging" role="tabpanel" aria-labelledby="logging-tab">
             <%- include('./components/settings/logging'); %>
           </div>
+          <div class="tab-pane fade" id="security" role="tabpanel" aria-labelledby="security-tab">
+            <%- include('./components/settings/security'); %>
       </div>
     </main>
     <%- include('./partials/footer', {active:'setting'}); %>    
