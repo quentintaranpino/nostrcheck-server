@@ -20,6 +20,7 @@ nostrcheck-api.log*
 installation.md
 coverage/*
 models/*
+env/*
 
 # Docker compose volumes
 compose.override.yml
