@@ -773,7 +773,7 @@ const getMediabyURL = async (req: Request, res: Response) => {
 		!req.params.filename || 
 		req.params.filename.length > 70 ||
 		!validator.default.matches(req.params.filename, /^[a-zA-Z0-9_]+(\.[a-zA-Z0-9_]+)*$/)) {
-		logger.warn(`RES Media URL -> 400 Bad request:`, req.params.filename, "|", getClientIp(req));
+		logger.debug(`RES Media URL -> 400 Bad request:`, req.params.filename, "|", getClientIp(req));
 		res.setHeader('Content-Type', 'image/webp');
 		return res.status(400).send(await getNotFoundMediaFile());
 	}
