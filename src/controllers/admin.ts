@@ -595,8 +595,7 @@ const updateSettings = async (req: Request, res: Response): Promise<Response> =>
 	const EventHeader = await parseAuthHeader(req, "updateSettings", true);
 	if (EventHeader.status !== "success") {return res.status(401).send({"status": EventHeader.status, "message" : EventHeader.message});}
 
-    if (req.body.name === "" || req.body.name === null || req.body.name === undefined || req.body.value === "" || req.body.value === null || req.body.value === undefined) {
-        // return error 
+    if (req.body.name === "" || req.body.name === null || req.body.name === undefined) {
         const result: authkeyResultMessage = {
             status: "error",
             message: "Invalid parameters",
