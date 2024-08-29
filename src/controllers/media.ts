@@ -36,7 +36,7 @@ import { prepareBlobDescriptor } from "../lib/blossom/BUD02.js";
 import { loadCdnPage } from "./frontend.js";
 import { getBannedMediaFile, isContentBanned } from "../lib/banned.js";
 import { mirrorFile } from "../lib/blossom/BUD04.js";
-import { createMacaroon } from "../lib/payments/macaroons.js";
+import { createMacaroon, verifyMacaroon } from "../lib/payments/macaroons.js";
 
 const uploadMedia = async (req: Request, res: Response, version:string): Promise<Response> => {
 
@@ -169,6 +169,17 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 	}
 	logger.info("mime ->", filedata.originalmime, "|", getClientIp(req));
 
+	// Check if file is paid
+	const macaroon = req.headers["www-authenticate"]?.match(/macaroon="([^"]+)"/)?.[1];
+	const preimage = req.headers["www-authenticate"]?.match(/preimage="([^"]+)"/)?.[1];
+	if (macaroon){
+		const result = await verifyMacaroon(macaroon);
+		if (result && preimage != undefined){
+			const result = await dbMultiSelect(["id"], "transactions", "preimage = ?", [preimage], true);
+			const { id } = result[0];
+			filedata.transaction_id = id;
+		}
+	}
 
 	// No transform option
 	app.get("config.media")["transform"]["enabled"] == false ? filedata.no_transform = true : filedata.no_transform = Boolean(req.body.no_transform) || false;
@@ -1347,7 +1358,7 @@ const deleteMedia = async (req: Request, res: Response, version:string): Promise
 
 };
 
-const uploadInfo = async (req: Request, res: Response): Promise<Response> => {
+const heatUpload = async (req: Request, res: Response): Promise<Response> => {
 
 	// Check if current module is enabled
 	if (!isModuleEnabled("media", app)) {
@@ -1355,37 +1366,32 @@ const uploadInfo = async (req: Request, res: Response): Promise<Response> => {
 		return res.status(400).send({"status": "error", "message": "Module is not enabled"});
 	}
 
-	logger.info("REQ -> Upload info", "|", getClientIp(req));
+	logger.info("REQ -> Upload head", "|", getClientIp(req));
 
-	const size = req.body.size || 0;
-	const type = req.body.type || "";
+	const size = req.headers['blossom-content-length'] || 0;
+	const type = Array.isArray(req.headers['blossom-content-type']) ? req.headers['blossom-content-type'][0] || "" : req.headers['blossom-content-type'] || "";
 
 	if (!Number(size) || size == 0 || type == "") {
 		logger.warn("RES -> 400 Bad request - missing size or type", "|", getClientIp(req));
-		const result : mediaInfoReturnMessage = {
-			status: "error",
-			message: "missing size or type",
-			satoshi: 0,
-		}
-		return res.status(400).send(result);
+		res.setHeader("Blossom-Upload-Message", "Missing size or mime type");
+		return res.status(400).send();
 	}
 
 	if(!getAllowedMimeTypes().includes(type)){
 		logger.info(`Filetype not allowed: ${type} | ${getClientIp(req)}`);
-		const result : mediaInfoReturnMessage = {
-			status: "error",
-			message: "Filetype not allowed",
-			satoshi: 0,
-		}
-		return res.status(400).send(result);
+		res.setHeader("Blossom-Upload-Message", "Filetype not allowed");
+		return res.status(400).send();
 	}
 
-	const result : mediaInfoReturnMessage = {
-		status: "success",
-		message: "File can be uploaded",
-		satoshi: await calculateSatoshi("mediafiles",size),
+	const transaction = await checkTransaction("","","mediafiles",Number(size),"");
+	if (transaction.transactionid != 0) {
+		res.setHeader('Www-Authenticate', `L402 macaroon="${await createMacaroon(transaction.transactionid,transaction.paymentHash,req.url,[""])}",invoice="${transaction.paymentRequest}"`);
+		res.setHeader("Blossom-Upload-Message", `${transaction.satoshi}`);
+		return res.status(402).send();
 	}
-	return res.status(200).send(result);
+
+	res.setHeader("Blossom-Upload-Message", "File can be uploaded");
+	return res.status(200).send();
 
 }
 
@@ -1397,4 +1403,4 @@ export { uploadMedia,
 		updateMediaVisibility, 
 		getMediaTagsbyID, 
 		getMediabyTags, 
-		uploadInfo };
+		heatUpload };

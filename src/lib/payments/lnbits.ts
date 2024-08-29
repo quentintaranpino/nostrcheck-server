@@ -29,6 +29,7 @@ const generateLNBitsInvoice = async (amount: number, memo: string) : Promise<inv
             paymentHash: data.payment_hash,
             satoshi: amount,
             isPaid: false,
+            preimage: "",
             createdDate: new Date(),
             expiryDate: new Date(),
             paidDate: null,
@@ -44,9 +45,9 @@ const generateLNBitsInvoice = async (amount: number, memo: string) : Promise<inv
 
 }
 
-const isInvoicePaidLNbits = async (paymentHash: string) : Promise<string> => {
+const isInvoicePaidLNbits = async (paymentHash: string) : Promise<{paiddate : string, preimage : string}> => {
 
-    if (paymentHash == "") return "";
+    if (paymentHash == "") return {paiddate: "", preimage: ""};
 
     try{
         const response = await fetch(app.get("config.payments")["paymentProviders"]["lnbits"]["nodeUrl"] + "/api/v1/payments/" + paymentHash, {
@@ -59,13 +60,13 @@ const isInvoicePaidLNbits = async (paymentHash: string) : Promise<string> => {
         const data = await response.json();
 
         if (data.paid && data.paid != "null") {
-            return data.paid;
+            return {paiddate: data.paid_at, preimage: data.preimage};
         }
-        return "";
+        return {paiddate: "", preimage: ""};
         
     }catch(e){
         logger.error("Error checking LNbits invoice status", e);
-        return "";
+        return {paiddate: "", preimage: ""};
     }
 }
 

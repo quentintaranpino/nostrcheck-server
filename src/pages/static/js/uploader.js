@@ -32,15 +32,20 @@ const fetchFileServerInfo = async (file) => {
     }
 
     try {
-        const response = await fetch(window.location.hostname.includes("cdn") ? '/info' : '/api/v2/media/info', {
-            method: "POST",
+        const response = await fetch(window.location.hostname.includes("cdn") ? '/upload' : '/api/v2/media/upload', {
+            method: "HEAD",
             headers: {
-                "Content-Type": "application/json"
+                "Blossom-Content-Length": file.size.toString(),
+                "Blossom-Content-Type": file.type,
             },
-            body: JSON.stringify({ "size": file.size, "type": file.type })
         });
-        const data = await response.json();
+        const data = {
+            status : response.status,
+            message : response.headers.get('Blossom-Upload-Message'),
+            wwwAuthenticate : response.headers.get('Www-Authenticate'),
+        }
         return data;
+
         
     } catch (error) {
         console.log(error.message)
@@ -63,6 +68,9 @@ const fetchFileServer = async (file, authEvent = "", method = "", showMessages =
     let headers = {};
     headers["authorization"] = localStorage.getItem('authkey') != "" && localStorage.getItem('authkey') != undefined ? "Bearer " + localStorage.getItem('authkey') : "Nostr " + authEvent;
     method == "PUT" ? headers["Content-Type"] = file.type : null;
+    if (file.fileData.macaroon != "" && file.fileData.preimage != ""){
+        headers["Www-Authenticate"] = `L402 macaroon="${file.fileData.macaroon}"preimage="${file.fileData.preimage}"`;
+    }
     let uploadMessage = null
     
     if (showMessages) uploadMessage = showMessage(`Uploading file... `, "alert-info", true);

@@ -27,6 +27,7 @@ async function generateLUD06Invoice(lnurl: string, amount: number): Promise<invo
         paymentHash: decoded.tags.find(tag => tag.tagName === 'payment_hash')?.data.toString() || '',
         satoshi: decoded.satoshis? decoded.satoshis : 0,
         isPaid: false,
+        preimage: '',
         createdDate: decoded.timestampString? new Date(decoded.timestampString) : getNewDate(),
         expiryDate: decoded.timeExpireDateString? new Date(decoded.timeExpireDateString) : getNewDate(),
         paidDate:  null,

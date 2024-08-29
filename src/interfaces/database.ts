@@ -177,6 +177,7 @@ const transactionsTableFields: transactionsTable = {
 	paymenthash: "varchar(64)",
 	satoshi: "int(11) NOT NULL",
 	paid: "boolean NOT NULL DEFAULT 0",
+	preimage: "varchar(64)",
 	createddate: "datetime NOT NULL",
 	expirydate: "datetime NOT NULL",
 	paiddate: "datetime",

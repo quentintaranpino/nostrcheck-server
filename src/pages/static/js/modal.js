@@ -193,6 +193,75 @@ const initMessageModal = async (objectId, message, title) => {
 
 }
 
+const initPaymentModal = async (paymentRequest, satoshi) => {
+    var paymentModal = new bootstrap.Modal($('#payment-modal'));
+    $('#payment-modal').insertAfter($('body'));
+    $('#payment-modal .modal-title').text('Lightning invoice');
+
+    $('#payment-waiting').show();
+    $('#payment-success').hide();
+
+    $('#payment-request').empty();
+    $('#payment-request').text(paymentRequest);
+
+    $('#payment-amount').show();
+    $('#payment-amount').empty();
+    $('#payment-amount').text('Invoice amount: ' + satoshi + ' satoshi');
+
+    $('#payment-link').show();
+    $('#payment-link').empty();
+    $('#payment-link').append('<a href="lightning:' + paymentRequest + '" target="_blank" class="btn btn-secondary">Pay with Lightning<i class="bi bi-lightning-charge-fill ms-2 text-warning"></i></a>');
+
+    $('#payment-qr').show();
+    $('#payment-qr').empty();
+    const qrContainer = document.getElementById("payment-qr");
+    if (qrContainer) {
+        new QRCode(qrContainer, {
+            text: fileData.invoice,
+            width: 300,
+            height: 300,
+        });
+    }
+    qrContainer.style.width = '300px';
+    qrContainer.style.margin = '0 auto';
+
+    paymentModal.show();
+
+    let stopProcessing = false;
+    setInterval(() => {
+        if (stopProcessing) return;
+        fetch(`payments/invoices/${$('#payment-request').text()}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.invoice.isPaid == true) {
+                    stopProcessing = true;
+                    $('#payment-preimage').text(data.invoice.preimage);
+                    
+                    $('#payment-link').hide();
+                    $('#payment-qr').hide();
+                    $('#payment-amount').hide();
+                    $('#payment-waiting').hide();
+                    $('#payment-success').show();
+                }
+            });
+    }, 3000); 
+
+    let result = await new Promise((resolve) => {
+        $(paymentModal._element).on('hidden.bs.modal', function () {
+            console.log($('#payment-request').text());
+            if(stopProcessing) {
+                resolve($('#payment-preimage').text());
+            }else{
+                stopProcessing = true;
+                resolve('');
+            }
+        });
+    });
+
+    paymentModal.hide();
+    return result;
+}
+
 const initUploaderModal = async () => {
     var uploader = new bootstrap.Modal($('#uploader-modal'));
     uploader.show();

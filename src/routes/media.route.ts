@@ -1,6 +1,6 @@
 import { Request, Response, Application } from "express";
 import multer from "multer";
-import { uploadMedia, getMedia, heatMedia, deleteMedia, updateMediaVisibility, uploadInfo } from "../controllers/media.js";
+import { uploadMedia, getMedia, heatMedia, deleteMedia, updateMediaVisibility, heatUpload } from "../controllers/media.js";
 import { ResultMessage, ResultMessagev2 } from "../interfaces/server.js";
 import { logger } from "../lib/logger.js";
 import { getClientIp } from "../lib/utils.js";
@@ -79,9 +79,9 @@ export const loadMediaEndpoint = async (app: Application, version:string): Promi
 	app.put("/api/" + version + app.get("config.server")["availableModules"]["media"]["path"] + "/:param1", limiter(app.get('config.security')['media']['maxUploadsMinute'], limitMessage), async (req, res) => {uploadMiddlewarePut(req,res)}); // Blossom upload
 	app.put("/upload", limiter(app.get('config.security')['media']['maxUploadsMinute'], limitMessage), async (req, res) => {uploadMiddlewarePut(req,res)}); // Blossom cdn url upload
 	
-	// POST (info)
-	app.post("/api/" + version + app.get("config.server")["availableModules"]["media"]["path"] + "/info", async (req, res) => {uploadInfo(req,res)}); // Blossom blob info requirement
-	app.post("/info", async (req, res) => {uploadInfo(req,res)}); // Blossom cdn url info requirement
+	// HEAD (upload)
+	app.head("/api/" + version + app.get("config.server")["availableModules"]["media"]["path"] + "/upload", async (req, res) => {heatUpload(req,res)}); // Blossom blob upload head 
+	app.head("/upload", async (req, res) => {heatUpload(req,res)}); // Blossom cdn blob upload head 
 
 	// DELETE
 	app.delete("/api/" + version +  app.get("config.server")["availableModules"]["media"]["path"] + "/:id", function (req, res){deleteMedia(req,res,version)});

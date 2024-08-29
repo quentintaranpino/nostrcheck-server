@@ -8,7 +8,7 @@ import { getClientIp } from "../lib/utils.js";
 import { ResultMessagev2, authkeyResultMessage } from "../interfaces/server.js";
 import { parseAuthHeader} from "../lib/authorization.js";
 import { isModuleEnabled} from "../lib/config.js";
-import { payInvoiceFromExpenses, addBalance, getBalance, formatAccountNumber, getInvoice, calculateSatoshi } from "../lib/payments/core.js";
+import { payInvoiceFromExpenses, addBalance, getBalance, formatAccountNumber, getInvoice, calculateSatoshi, collectInvoice } from "../lib/payments/core.js";
 import { dbMultiSelect } from "../lib/database.js";
 import { isInvoicePaid } from "../lib/payments/core.js";
 import { amountReturnMessage, invoiceReturnMessage } from "../interfaces/payments.js";
@@ -133,10 +133,11 @@ const getInvoiceStatus = async (req: Request, res: Response): Promise<Response> 
 
     const invoice = await getInvoice(invoiceId[0].id)
     if (invoice.isPaid == false) {
-        const paiddate = await isInvoicePaid(invoice.paymentHash);
-        if (paiddate != "") {
-            invoice.paidDate = paiddate;
-            invoice.isPaid = true;
+        const paidInfo = await isInvoicePaid(invoice.paymentHash);
+        if (paidInfo.paiddate != "" && paidInfo.preimage != "") {
+            invoice.paidDate = paidInfo.paiddate;
+            invoice.preimage = paidInfo.preimage;
+            await collectInvoice(invoice, false, true);
         }
     }
 

@@ -137,6 +137,7 @@ const addTransacion = async (type: string, accountid: number, invoice: invoice, 
                             "paymenthash", 
                             "satoshi", 
                             "paid", 
+                            "preimage",
                             "createddate", 
                             "expirydate",
                             "paiddate",
@@ -147,6 +148,7 @@ const addTransacion = async (type: string, accountid: number, invoice: invoice, 
                             invoice.paymentHash? invoice.paymentHash : "", 
                             satoshi, 
                             (invoice.isPaid? 1 : 0).toString(), 
+                            invoice.preimage? invoice.preimage : "",
                             invoice.createdDate ? invoice.createdDate : getNewDate(), 
                             invoice.expiryDate? invoice.expiryDate : null,
                             invoice.paidDate? invoice.paidDate : null,
@@ -218,6 +220,7 @@ const addBalance = async (accountid: number, amount: number) : Promise<boolean> 
                                                 paidDate: getNewDate(),
                                                 description: "", 
                                                 isPaid: true, 
+                                                preimage: "",
                                                 transactionid: 0, 
                                                 satoshi: amount
                                             },
@@ -242,13 +245,13 @@ const getPendingInvoices = async () : Promise<invoice[]> => {
         return [];
     }
 
-    const result = await dbMultiSelect(["id", "accountid", "paymentrequest", "paymenthash",  "satoshi", "createddate", "expirydate", "paiddate", "comments"],
+    const result = await dbMultiSelect(["id", "accountid", "paymentrequest", "paymenthash",  "satoshi", "preimage", "createddate", "expirydate", "paiddate", "comments"],
                                                             "transactions",
                                                             "paid = ?", 
                                                             [0], false);
     const invoices : invoice[] = [];
     result.forEach(async invoice => {
-        const {id, accountid, paymentrequest, paymenthash, satoshi, createddate, expirydate, paiddate, comments} = invoice
+        const {id, accountid, paymentrequest, paymenthash, satoshi, preimage, createddate, expirydate, paiddate, comments} = invoice
         invoices.push({
             transactionid: Number(id),
             accountid: Number(accountid),
@@ -256,6 +259,7 @@ const getPendingInvoices = async () : Promise<invoice[]> => {
             paymentHash: paymenthash,
             satoshi: Number(satoshi),
             isPaid: false,
+            preimage: preimage,
             createdDate: new Date(createddate),
             expiryDate: new Date(expirydate),
             paidDate: new Date(paiddate),
@@ -275,12 +279,12 @@ const getInvoice = async (transactionId: string) : Promise<invoice> => {
         return emptyInvoice;
     }
 
-    const result = await dbMultiSelect(["id", "accountid", "paymentrequest", "paymenthash", "satoshi", "paid", "createddate", "expirydate", "paiddate", "comments"],
+    const result = await dbMultiSelect(["id", "accountid", "paymentrequest", "paymenthash", "satoshi", "paid", "preimage", "createddate", "expirydate", "paiddate", "comments"],
                                                     "transactions",
                                                     "id = ?", 
                                                     [transactionId], true);
     if (result.length == 0) {return emptyInvoice};
-    const {id, accountid, paymentrequest, paymenthash, satoshi, paid, createddate, expirydate, paiddate, comments} = result[0];
+    const {id, accountid, paymentrequest, paymenthash, satoshi, paid, preimage, createddate, expirydate, paiddate, comments} = result[0];
 
     // Update the balance for the invoice's account
     await getBalance(Number(accountid));
@@ -290,6 +294,7 @@ const getInvoice = async (transactionId: string) : Promise<invoice> => {
         paymentHash: paymenthash,
         satoshi: Number(satoshi),
         isPaid: Boolean(paid),
+        preimage: preimage,
         createdDate: new Date(createddate),
         expiryDate: new Date(expirydate),
         paidDate: new Date(paiddate),
@@ -309,13 +314,13 @@ const getTransaction = async (transactionid: string) : Promise<transaction> => {
         return emptyTransaction;
     }
 
-    const result = await dbMultiSelect(["id", "type", "accountid", "paymentrequest", "paymenthash", "satoshi", "paid", "createddate", "expirydate", "paiddate", "comments"],
+    const result = await dbMultiSelect(["id", "type", "accountid", "paymentrequest", "paymenthash", "satoshi", "paid", "preimage", "createddate", "expirydate", "paiddate", "comments"],
                                                             "transactions",
                                                             "id = ?",
                                                             [transactionid], true);
 
     if (result.length == 0) {return emptyTransaction};
-    const {id, type, accountid, paymentrequest, paymenthash, satoshi, paid, createddate, expirydate, paiddate, comments} = result[0];
+    const {id, type, accountid, paymentrequest, paymenthash, satoshi, paid, preimage, createddate, expirydate, paiddate, comments} = result[0];
     const transaction: transaction = {
         transactionid: Number(id),
         type: type,
@@ -324,6 +329,7 @@ const getTransaction = async (transactionid: string) : Promise<transaction> => {
         paymentHash: paymenthash,
         satoshi: Number(satoshi),
         isPaid: Boolean(paid),
+        preimage: preimage,
         createdDate: createddate,
         expiryDate: expirydate,
         paidDate: paiddate,
@@ -386,7 +392,8 @@ const collectInvoice = async (invoice: invoice, collectFromExpenses = false, col
 
     const paid = await dbUpdate("transactions", "paid", "1", ["id"], [invoice.transactionid.toString()]);
     const paiddate = await dbUpdate("transactions", "paiddate", new Date(invoice.paidDate).toISOString().slice(0, 19).replace('T', ' ') != '1970-01-01 00:00:00' ? new Date(invoice.paidDate).toISOString().slice(0, 19).replace('T', ' ') : getNewDate(), ["id"], [invoice.transactionid.toString()]);
-    if (paid && paiddate) {
+    const preimage = await dbUpdate("transactions", "preimage", invoice.preimage, ["id"], [invoice.transactionid.toString()]);
+    if (paid && paiddate && preimage) {
         logger.info("Invoice paid, transaction updated", invoice.transactionid);
     }else{
         logger.error("Error updating transaction", invoice.transactionid);
@@ -502,15 +509,15 @@ const payInvoiceFromExpenses = async (transactionid: string) : Promise<boolean> 
     return false
 }
 
-const isInvoicePaid = async (paymentHash: string) : Promise<string> => {
+const isInvoicePaid = async (paymentHash: string) : Promise<{paiddate : string, preimage : string}> => {
 
     if (!isModuleEnabled("payments", app)) {
-        return "";
+        return {paiddate: "", preimage: ""};
     }
 
     if (paymentHash == "") {
         logger.error("No payment hash provided")
-        return "";
+        return {paiddate: "", preimage: ""};
     }
 
     return app.get("config.payments")["paymentProvider"] == 'lnbits' ? await isInvoicePaidLNbits(paymentHash) : await isInvoicePaidGetAlby(paymentHash);
@@ -527,10 +534,10 @@ const processPendingInvoices = async () => {
         logger.debug("Pending invoices:", pendingInvoices.length);
         for (const invoice of pendingInvoices) {
             await new Promise(resolve => setTimeout(resolve, 300));
-            const paiddate = await isInvoicePaid(invoice.paymentHash);
-            if (paiddate != "")  {
-                invoice.paidDate = paiddate;
-                // We send the parameter to collect from a payment and credit the user wallet
+            const paidInfo = await isInvoicePaid(invoice.paymentHash);
+            if (paidInfo.paiddate != "" && paidInfo.preimage != "") {
+                invoice.paidDate = paidInfo.paiddate;
+                invoice.preimage = paidInfo.preimage;
                 await collectInvoice(invoice, false, true);
             }
         }
@@ -544,9 +551,11 @@ processPendingInvoices();
 export {    checkTransaction, 
             addBalance, 
             getBalance, 
-            payInvoiceFromExpenses, 
+            payInvoiceFromExpenses,
+            collectInvoice,
             formatAccountNumber, 
             getUnpaidTransactionsBalance, 
             getInvoice,
             isInvoicePaid,
-            calculateSatoshi}
+            calculateSatoshi
+        }

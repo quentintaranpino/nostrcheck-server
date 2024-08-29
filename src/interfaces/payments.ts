@@ -11,6 +11,7 @@ interface invoice {
     description: any;
     transactionid: number;
     accountid: number;
+    preimage: string;
 }
 
 const emptyInvoice: invoice = {
@@ -23,7 +24,8 @@ const emptyInvoice: invoice = {
     paidDate: "",
     description: "",
     transactionid: 0,
-    accountid: 0
+    accountid: 0,
+    preimage: ""
 }
 
 interface transaction {
@@ -34,6 +36,7 @@ interface transaction {
     paymentHash: string;
     satoshi: number;
     isPaid: boolean;
+    preimage: string;
     createdDate: any;
     expiryDate: any;
     paidDate: any;
@@ -48,6 +51,7 @@ const emptyTransaction: transaction = {
     paymentHash: "",
     satoshi: 0,
     isPaid: true,
+    preimage: "",
     createdDate: null,
     expiryDate: null,
     paidDate: "",

@@ -21,6 +21,7 @@ const generateGetalbyInvoice = async (LNAddress: string, amount:number) : Promis
                 paymentHash: getalbyInvoice.paymentHash, 
                 satoshi: getalbyInvoice.satoshi, 
                 isPaid: false, 
+                preimage: "",
                 createdDate: getalbyInvoice.createdDate, 
                 expiryDate: getalbyInvoice.expiryDate, 
                 paidDate: "", 
@@ -35,9 +36,9 @@ const generateGetalbyInvoice = async (LNAddress: string, amount:number) : Promis
 
 }
 
-const isInvoicePaidGetAlby = async (paymentHash: string) : Promise<string> => {
+const isInvoicePaidGetAlby = async (paymentHash: string) : Promise<{paiddate : string, preimage : string}> => {
 
-    if (paymentHash == "") return "";
+    if (paymentHash == "") return {paiddate: "", preimage: ""};
 
     try{
         const response = await fetch(`https://api.getalby.com/invoices/${paymentHash}`, {
@@ -50,16 +51,16 @@ const isInvoicePaidGetAlby = async (paymentHash: string) : Promise<string> => {
         const data = await response.json();
 
         if (data.preimage && data.preimage != "null") {
-            return data.settled_at;
+            return {paiddate: data.settled_at, preimage: data.preimage};
         }
 
         if (data.error != undefined) logger.error("Error checking invoice status", data.error);
         
-        return "";
+        return {paiddate: "", preimage: ""};
 
     }catch(e){
         logger.error("Error checking GetAlby invoice status", e);
-        return "";
+        return {paiddate: "", preimage: ""};
     }
 }
 
