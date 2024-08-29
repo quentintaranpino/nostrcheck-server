@@ -632,7 +632,7 @@ const getMediaStatusbyID = async (req: Request, res: Response, version:string): 
 	const id = req.params.id || req.query.id || "";
 
 	if (!id) {
-		logger.warn(`RES -> 400 Bad request - missing id`, "|", getClientIp(req));
+		logger.debug(`RES -> 400 Bad request - missing id`, "|", getClientIp(req));
 
 		//v0 and v1 compatibility
 		if(version != "v2"){return res.status(400).send({"result": false, "description" : "missing id"});}
@@ -906,7 +906,7 @@ const getMediabyURL = async (req: Request, res: Response) => {
 
 	}
 	if (cachedStatus === "0") {
-		logger.warn(`RES -> 401 File not active - ${req.url}`, "returning not found media file |", getClientIp(req), "|", "cached:", cachedStatus ? true : false);
+		logger.info(`RES -> 401 File not active - ${req.url}`, "returning not found media file |", getClientIp(req), "|", "cached:", cachedStatus ? true : false);
 		res.setHeader('Content-Type', 'image/webp');
 		return res.status(401).send(await getNotFoundMediaFile());
 	}
@@ -931,7 +931,7 @@ const getMediabyURL = async (req: Request, res: Response) => {
 		// Check if file exist on storage server
 		const fileName = await getFilePath(req.params.filename);
 		if (fileName == ""){ 
-				logger.warn(`RES Media URL -> 200 Not Found`, "|", getClientIp(req));
+				logger.info(`RES Media URL -> 200 Not Found`, "|", getClientIp(req));
 				res.setHeader('Content-Type', 'image/webp');
 				return res.status(200).send(await getNotFoundMediaFile());
 			}

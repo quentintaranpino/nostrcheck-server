@@ -4,7 +4,7 @@ import { defaultConfig, localPath } from "./interfaces/config.js";
 import { exit } from "process";
 import { syncDefaultConfigValues } from "./lib/config.js";
 
-console.debug("Starting Nostrcheck server", );
+console.log("Starting Nostrcheck server", );
 (async () => {
     if (!fs.existsSync(localPath)){
         console.warn("Local config file not found. Creating new one.");

@@ -3,6 +3,8 @@ import { Logger } from "tslog";
 import { logEvent } from "../interfaces/logger.js";
 import config from "config";
 import { getNewDate } from "./utils.js";
+import { sendMessage } from "./nostr/NIP04.js";
+import app from "../app.js";
 const logHistory: logEvent[] = [];
 
 const filename = (config.has('logger.filename') ? config.get('logger.filename') : 'server') + '.log';
@@ -50,7 +52,7 @@ const logger = new Logger({
 	},
 });
 
-logger.attachTransport((log) => {
+logger.attachTransport(async (log) => {
 	try{
 		const formattedLog = {
 			...log,
@@ -73,6 +75,9 @@ logger.attachTransport((log) => {
 				severity: log._meta.logLevelName,
 				message: logMessage,
 			};
+
+			if (app.get('config.logger')['sendDM'] == true) await sendMessage(`${logEvent.severity} message detected: ${logEvent.message}`, app.get('config.logger')['sendPubkey'] != "" ? app.get('config.logger')['sendPubkey'] : app.get('config.server')['pubkey']);
+
 			logHistory.push(logEvent);
 			// Keep only the last 1000 lines in logHistory
 			if (logHistory.length > 1000) {

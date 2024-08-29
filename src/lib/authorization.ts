@@ -31,7 +31,7 @@ const parseAuthHeader = async (req: Request, endpoint: string = "", checkAdminPr
 
 	//Check if request has authorization header.
 	if (req.headers.authorization === undefined) {
-		if(endpoint != 'getMediaByURL') logger.warn("Authorization header not found", req.url, "|",req.socket.remoteAddress);
+		if(endpoint != 'getMediaByURL' && endpoint != 'getMediaList') logger.warn("Authorization header not found", req.url, "|",req.socket.remoteAddress);
 		return {status: "error", message: "Authorization header not found", pubkey:"", authkey:"", kind: 0};
 	}
 
