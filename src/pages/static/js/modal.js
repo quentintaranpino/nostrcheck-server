@@ -217,7 +217,7 @@ const initPaymentModal = async (paymentRequest, satoshi) => {
     const qrContainer = document.getElementById("payment-qr");
     if (qrContainer) {
         new QRCode(qrContainer, {
-            text: fileData.invoice,
+            text: paymentRequest,
             width: 300,
             height: 300,
         });
