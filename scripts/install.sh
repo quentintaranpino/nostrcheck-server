@@ -668,11 +668,13 @@ EOF"
         sleep 2
     else
         echo "❌ Failed to start Nostrcheck service. Please check the service status for more details."
-        exit 1
+        SYSTEMD_SERVICE_CREATED="no"
+        sleep 2
     fi
     else
         echo "❌ Failed to create systemd service file. Please check permissions and try again."
-        exit 1
+        SYSTEMD_SERVICE_CREATED="no"
+        sleep 2
     fi
 fi
 
