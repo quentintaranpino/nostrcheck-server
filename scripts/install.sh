@@ -162,10 +162,12 @@ echo "════════════════════════�
 echo "                        🗄️  Database Configuration: Name                         "
 echo "═══════════════════════════════════════════════════════════════════════════════"
 echo ""
-echo "Please enter the name of the database that the server will use. This database"
-echo "will store all necessary data for your server's operation, including user data,"
-echo "configuration settings, and other essential information."
-echo "If you are not sure, you can use the default database name by pressing Enter."
+echo "Please enter the name of the database that the server will create and use."
+echo "This database will store all necessary data for your server's operation,"
+echo "including user data, configuration settings, and other essential information."
+echo ""
+echo "💡 The script will automatically create this database if it does not exist."
+echo "   If you are not sure, you can use the default database name by pressing Enter."
 echo ""
 echo "👉 Enter the database name and press [Enter]:"
 echo ""
@@ -180,10 +182,12 @@ echo "════════════════════════�
 echo "                        👤 Database Configuration: User                          "
 echo "═══════════════════════════════════════════════════════════════════════════════"
 echo ""
-echo "Please enter the username that will be used to connect to the database. This"
-echo "user should have sufficient privileges to create, read, update, and delete data"
-echo "in the database. Ensure that this user exists and has the correct permissions."
-echo "If you are not sure, you can use the default database user by pressing Enter."
+echo "Please enter the username that the server will use to connect to the database."
+echo "This user should have sufficient privileges to create, read, update, and delete"
+echo "data in the database."
+echo ""
+echo "💡 The script will automatically create this user with the necessary permissions"
+echo "   if they do not already exist. Ensure that this user has access to the database."
 echo ""
 echo "👉 Enter the database user and press [Enter]:"
 echo ""
@@ -269,25 +273,30 @@ while [ -z "$HOST" ]; do
     echo "⚠️  WARNING: Server hostname is required to continue the installation."
     echo "═══════════════════════════════════════════════════════════════════════════════"
     echo ""
-    echo "🌐 Please enter your server hostname (e.g., nostrcheck.me):"
+    echo "Please enter your server hostname (e.g., nostrcheck.me):"
     echo ""
-    echo "⚠️  This hostname will be used to create the Nginx configuration file."
-    echo "   If you want to use SSL, make sure you have a valid domain name"
-    echo "   and that DNS records correctly point to this server."
+    echo "⚠️  IMPORTANT: This hostname will be used to generate the Nginx configuration."
+    echo "               If you plan to use SSL, ensure you have a valid domain name"
+    echo "               and that DNS records correctly point to this server."
     echo ""
-    echo "🔐 The hostname is required to continue the installation."
+    echo "🔧 Additionally, a 'cdn' subdomain (e.g., cdn.yourdomain.com) will be set up"
+    echo "   to serve blobs using the Blossom protocol."
     echo ""
-    read -r inputHOST
+    echo "💡 Ensure that DNS records for both the main domain and the 'cdn' subdomain"
+    echo "   are properly configured and point to this server."
+    echo ""
+    echo "═══════════════════════════════════════════════════════════════════════════════"
+    echo ""
+
+    # Prompt user to enter the hostname
+    read -p "🌐 Enter the hostname: " inputHOST 
+
+    # Check if the input is not empty
     if [ -n "$inputHOST" ]; then
         HOST=$inputHOST
     fi
-done
 
-# Confirm the hostname to the user
-echo ""
-echo "Hostname set to: $HOST"
-echo "Please ensure this is correct and DNS records are properly configured."
-echo ""
+done
 
 # Set media path
 clear
@@ -314,13 +323,6 @@ read -r inputMEDIAPATH
 if [ -n "$inputMEDIAPATH" ]; then
     MEDIAPATH=$inputMEDIAPATH
 fi
-
-
-# Confirm the media path to the user
-echo ""
-echo "Media path set to: $MEDIAPATH"
-echo "Please ensure this path has the necessary permissions for media storage."
-echo ""
 
 # Prompt user for server pubkey (HEX format)
 clear
@@ -382,13 +384,6 @@ if [ -n "$PUBKEY" ]; then
             break
         fi
     done
-fi
-
-# Confirm the input or lack of it to the user
-if [ -z "$PUBKEY" ]; then
-    echo "A new pubkey/secret keypair will be generated."
-else
-    echo "Pubkey and secret key have been set."
 fi
 
 # Update local.json with generated fields
@@ -561,7 +556,7 @@ fi
 # Ask user if they want to create a systemd service for the server
 clear
 echo "═══════════════════════════════════════════════════════════════════════════════"
-echo "         ⚙️  Do you want to create a systemd service for the server? ⚙️    "
+echo "       ⚙️  Do you want to create a systemd service for the server? ⚙️    "
 echo "═══════════════════════════════════════════════════════════════════════════════"
 echo ""
 echo "This will allow the server to start automatically with your system."
