@@ -25,9 +25,10 @@ echo "███████║███████╗██║  ██║ ╚�
 echo "╚══════╝╚══════╝╚═╝  ╚═╝  ╚═══╝  ╚══════╝╚═╝  ╚═╝"
 echo ""
 echo "══════════════════════════════════════════════════════════════════════════════"
-echo "🟪 Nostrcheck Server Installation Script v$version 🟪"
+echo " Nostrcheck Server Installation Script v$version"
 echo "📅 Last updated: $date"
 echo "🔗 Project repository: https://github.com/quentintaranpino/nostrcheck-server/"
+echo "📝 License: MIT"
 echo "══════════════════════════════════════════════════════════════════════════════"
 echo ""
 echo "📢 This script will install and configure the Nostrcheck server on your system."
@@ -126,6 +127,7 @@ echo "   - $PACKAGES"
 sudo apt-get install -y $PACKAGES || { echo "❌ Failed to install necessary packages"; exit 1; }
 
 echo "✅ Necessary packages installed successfully!"
+echo ""
 
 # Clone the repository
 echo "═══════════════════════════════════════════════════════════════════════════════"
@@ -135,6 +137,7 @@ echo ""
 
 # Clone the repository
 echo "🔄 Cloning the repository from $REPO_URL (branch: $REPO_BRANCH)..."
+echo ""
 git clone -b "$REPO_BRANCH" --single-branch "$REPO_URL" || { echo "❌ Failed to clone the repository"; exit 1; }
 cd "nostrcheck-server" || { echo "❌ Failed to enter the repository directory"; exit 1; }
 echo "✅ Repository cloned and ready for installation!"
@@ -169,6 +172,7 @@ echo ""
 
 # Installing npm dependencies
 echo "🔄 Installing npm dependencies with optional packages..."
+echo ""
 npm install --include=optional sharp || { echo "❌ Failed to install npm dependencies"; exit 1; }
 echo "✅ npm dependencies installed successfully!"
 
@@ -178,11 +182,9 @@ echo "════════════════════════�
 echo "                       🛠️  Building the Project...                             "
 echo "═══════════════════════════════════════════════════════════════════════════════"
 echo ""
-
-# Run the build process
 echo "🔄 Running the build process..."
+echo ""
 npm run build || { echo "❌ Failed to build the project"; exit 1; }
-
 echo "✅ Project built successfully!"
 
 # Start mariadb and redis-server
@@ -194,17 +196,18 @@ echo ""
 
 # Start Redis Server
 echo "🔄 Starting Redis Server..."
+echo ""
 sudo service redis-server start || { echo "❌ Failed to start Redis Server"; exit 1; }
 echo "✅ Redis Server started successfully!"
 
 # Start MariaDB
 echo "🔄 Starting MariaDB..."
+echo ""
 sudo service mariadb start || { echo "❌ Failed to start MariaDB"; exit 1; }
 echo "✅ MariaDB started successfully!"
 
 
 # MYSQL
-clear
 readonly MYSQL=$(which mysql)
 if [ -z "$MYSQL" ]; then
     echo "MySQL is not installed or not found in PATH. Exiting..."
@@ -252,7 +255,6 @@ if [ ! -z "$inputUSER" ]; then
 fi
 
 # Generate a random password for the database user
-clear
 PASS=$(openssl rand -base64 32)
 if [ -z "$PASS" ]; then
     echo "Failed to generate a password for the database user. Exiting..."
@@ -582,7 +584,7 @@ fi
 # Ask user if they want to create a systemd service for the server
 clear
 echo "═══════════════════════════════════════════════════════════════════════════════"
-echo "       ⚙️  Do you want to create a systemd service for the server? ⚙️    "
+echo "       ⚙️  Do you want to create a systemd service? ⚙️    "
 echo "═══════════════════════════════════════════════════════════════════════════════"
 echo ""
 echo "This will allow the server to start automatically with your system."
@@ -610,23 +612,23 @@ if [ "$input" = "y" ]; then
     ABSOLUTE_PATH=$(realpath "$PWD/nostrcheck-server")
 
     sudo bash -c "cat > /etc/systemd/system/nostrcheck.service <<EOF
-    [Unit]
-    Description=Nostrcheck server
-    After=network.target
+[Unit]
+Description=Nostrcheck server
+After=network.target
 
-    [Service]
-    Type=simple
-    User=$SUDO_USER
-    WorkingDirectory=$ABSOLUTE_PATH
-    ExecStart=/usr/bin/npm run start
-    Restart=on-failure
-    RestartPreventExitStatus=3
-    SuccessExitStatus=3
-    RestartSec=5s
+[Service]
+Type=simple
+User=$SUDO_USER
+WorkingDirectory=$ABSOLUTE_PATH
+ExecStart=/usr/bin/npm run start
+Restart=on-failure
+RestartPreventExitStatus=3
+SuccessExitStatus=3
+RestartSec=5s
 
-    [Install]
-    WantedBy=multi-user.target
-    EOF"
+[Install]
+WantedBy=multi-user.target
+EOF"
 
  if [ -f /etc/systemd/system/nostrcheck.service ]; then
     echo "═══════════════════════════════════════════════════════════════════════════════"
