@@ -1,5 +1,4 @@
 // server.ts
-import app from "./app.js";
 import { loadconfigActiveModules} from "./lib/config.js";
 import { migrateDBLocalpath, prepareApp } from "./controllers/config.js";
 import { initDatabase, showDBStats } from "./lib/database.js";
@@ -12,6 +11,7 @@ import config from "config";
 const startServer = async () => {
     // Initialise config and folders
     await prepareApp();
+    const { default: app } = await import("./app.js");
 
     // Initialise Database
     await initDatabase();
