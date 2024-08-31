@@ -156,7 +156,12 @@ if [ -z "$MYSQL" ]; then
     exit 1
 fi
 
-echo "Database name [default: $DB]:"
+# Prompt for database name
+echo "═══════════════════════════════════════════════════════════════════════════════"
+echo "                      🗄️  Database Configuration: Name                         "
+echo "═══════════════════════════════════════════════════════════════════════════════"
+echo ""
+echo "Please enter the database name [default: $DB]:"
 echo ""
 read -r inputDB
 if [ ! -z "$inputDB" ]; then
@@ -164,12 +169,19 @@ if [ ! -z "$inputDB" ]; then
 fi
 
 clear
-echo "Database user [default: $USER]:"
+
+# Prompt for database user
+echo "═══════════════════════════════════════════════════════════════════════════════"
+echo "                      👤 Database Configuration: User                          "
+echo "═══════════════════════════════════════════════════════════════════════════════"
+echo ""
+echo "Please enter the database user [default: $USER]:"
 echo ""
 read -r inputUSER
 if [ ! -z "$inputUSER" ]; then
     USER=$inputUSER
 fi
+
 
 # Generate a random password for the database user
 clear
@@ -244,13 +256,17 @@ fi
 # If HOST is still empty, prompt again
 while [ -z "$HOST" ]; do
     clear
-    echo "WARNING: Server hostname is required to continue the installation."
+    echo "═══════════════════════════════════════════════════════════════════════════════"
+    echo "⚠️  WARNING: Server hostname is required to continue the installation."
+    echo "═══════════════════════════════════════════════════════════════════════════════"
     echo ""
-    echo "Server hostname (e.g., nostrcheck.me):"
+    echo "🌐 Please enter your server hostname (e.g., nostrcheck.me):"
     echo ""
-    echo "WARNING: This hostname will be used to create the nginx configuration file."
-    echo "If you want to use SSL, make sure to have a valid domain name and DNS records pointing to this server."
-    echo "The hostname is required to continue the installation."
+    echo "⚠️  This hostname will be used to create the Nginx configuration file."
+    echo "   If you want to use SSL, make sure you have a valid domain name"
+    echo "   and that DNS records correctly point to this server."
+    echo ""
+    echo "🔐 The hostname is required to continue the installation."
     echo ""
     read -r inputHOST
     if [ -n "$inputHOST" ]; then
@@ -266,19 +282,30 @@ echo ""
 
 # Set media path
 clear
-echo "Media path [default: $MEDIAPATH]:"
+echo "═══════════════════════════════════════════════════════════════════════════════"
+echo "                          📁 Set Media Path                                    "
+echo "═══════════════════════════════════════════════════════════════════════════════"
 echo ""
-echo "WARNING: This path will be used to store media files on the filesystem if local storage is enabled."
-echo "If you want to use a different path, make sure to have the necessary permissions and it exists."
+echo "🗂️  Media path [default: $MEDIAPATH]:"
+echo ""
+echo "⚠️  WARNING: The server is initially configured to store media files locally."
+echo "   If you prefer to use a different path on this system, please specify it here."
+echo ""
+echo "💡 After the installation is complete, you can configure the server to use"
+echo "   a remote S3-compatible storage solution through the 'Settings' section."
+echo "   This allows you to easily switch from local storage to cloud storage."
+echo ""
+echo "   If you want to proceed with the default local storage, simply press Enter."
 echo ""
 
 # Prompt the user to input the media path
 read -r inputMEDIAPATH
 
-# If the user provides a new path, update MEDIAPATH
+# Use the provided input if not empty
 if [ -n "$inputMEDIAPATH" ]; then
     MEDIAPATH=$inputMEDIAPATH
 fi
+
 
 # Confirm the media path to the user
 echo ""
@@ -376,7 +403,7 @@ echo ""
 echo "Creating nginx config file..."
 echo ""
 
-cat > /etc/nginx/sites-available/$HOST.conf <<EOF
+sudo tee /etc/nginx/sites-available/$HOST.conf > /dev/null <<EOF
 server {
     listen 80;
     server_name $HOST;
