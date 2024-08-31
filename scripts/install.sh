@@ -50,6 +50,7 @@ SECRETKEY=""
 REPO_URL="https://github.com/quentintaranpino/nostrcheck-server.git"
 REPO_BRANCH="0.6.0"
 REQUIREMENTS_FILE="requirements.txt"
+PACKAGES="nginx git redis-server mariadb-server mariadb-client ffmpeg jq certbot python3-certbot-nginx python3 python3-pip"
 
 # We ask user if want to continue
 echo "👉 Do you want to proceed with the installation? [y/n]"
@@ -76,14 +77,19 @@ if command -v node > /dev/null 2>&1; then
     # Compare with desired major version
     if [ "$INSTALLED_NODE_MAJOR" -ge "$NODE_MAJOR" ]; then
         echo "✅ Node.js version $INSTALLED_NODE_MAJOR is already installed."
+        sleep 1
     else
         echo "⚠️ Installed Node.js version (v$INSTALLED_NODE_MAJOR) is lower than $NODE_MAJOR."
         echo "🔄 Installing Node.js version $NODE_MAJOR..."
+        echo ""
+        sleep 1
         install_node
     fi
 else
     echo "❌ Node.js is not installed."
     echo "🔄 Installing Node.js version $NODE_MAJOR..."
+    echo ""
+    sleep 1
     install_node
 fi
 
@@ -110,20 +116,31 @@ install_node() {
     sudo apt-get install nodejs -y || { echo "Failed to install Node.js"; exit 1; }
 }
 
+# Update apt package list
+clear
+echo "═══════════════════════════════════════════════════════════════════════════════"
+echo "                       🔄 Updating Package List...                             "
+echo "═══════════════════════════════════════════════════════════════════════════════"
+echo ""
+echo "🔍 Updating package list to ensure you have the latest versions of all packages..."
+echo ""
+
+sudo apt-get update || { echo "❌ Failed to update package list"; exit 1; }
+echo ""
+echo "✅ Package list updated successfully!"
+echo ""
+sleep 1
+
 # Install necessary packages
 clear
 echo "═══════════════════════════════════════════════════════════════════════════════"
 echo "                  📦 Installing Necessary Packages...                         "
 echo "═══════════════════════════════════════════════════════════════════════════════"
 echo ""
-
-# Lista de paquetes a instalar
-PACKAGES="nginx git redis-server mariadb-server mariadb-client ffmpeg jq certbot python3-certbot-nginx python3 python3-pip"
-
-# Instalando los paquetes
-sudo apt-get update || { echo "❌ Failed to update package list"; exit 1; }
 echo "🔄 Installing the following packages:"
 echo "   - $PACKAGES"
+echo ""
+sleep 1
 sudo apt-get install -y $PACKAGES || { echo "❌ Failed to install necessary packages"; exit 1; }
 
 echo "✅ Necessary packages installed successfully!"
@@ -141,6 +158,7 @@ echo ""
 git clone -b "$REPO_BRANCH" --single-branch "$REPO_URL" || { echo "❌ Failed to clone the repository"; exit 1; }
 cd "nostrcheck-server" || { echo "❌ Failed to enter the repository directory"; exit 1; }
 echo "✅ Repository cloned and ready for installation!"
+sleep 1
 
 # Install Python packages from requirements.txt
 clear
@@ -149,9 +167,11 @@ echo "                 🐍 Installing Necessary Python Packages...             
 echo "═══════════════════════════════════════════════════════════════════════════════"
 echo ""
 echo "📄 Installing packages from $REQUIREMENTS_FILE..."
+echo ""
 pip install -r "$REQUIREMENTS_FILE" || { echo "❌ Failed to install Python packages from $REQUIREMENTS_FILE"; exit 1; }
-
+echo ""
 echo "✅ Python packages installed successfully!"
+sleep 1
 
 # Install the latest npm globally
 clear
@@ -162,6 +182,7 @@ echo ""
 echo "🔄 Updating npm to the latest version globally..."
 sudo npm install -g npm@latest || { echo "❌ Failed to install the latest npm package manager"; exit 1; }
 echo "✅ npm has been updated to the latest version successfully!"
+sleep 1
 
 # Install npm dependencies
 clear
@@ -169,12 +190,11 @@ echo "════════════════════════�
 echo "                     📦 Installing npm Dependencies...                         "
 echo "═══════════════════════════════════════════════════════════════════════════════"
 echo ""
-
-# Installing npm dependencies
 echo "🔄 Installing npm dependencies with optional packages..."
 echo ""
 npm install --include=optional sharp || { echo "❌ Failed to install npm dependencies"; exit 1; }
 echo "✅ npm dependencies installed successfully!"
+sleep 1
 
 # Build the project
 clear
@@ -186,6 +206,7 @@ echo "🔄 Running the build process..."
 echo ""
 npm run build || { echo "❌ Failed to build the project"; exit 1; }
 echo "✅ Project built successfully!"
+sleep 1
 
 # Start mariadb and redis-server
 clear
@@ -206,6 +227,7 @@ echo ""
 sudo service mariadb start || { echo "❌ Failed to start MariaDB"; exit 1; }
 echo "✅ MariaDB started successfully!"
 
+sleep 1
 
 # MYSQL
 readonly MYSQL=$(which mysql)
@@ -555,29 +577,29 @@ else
     exit 1
 fi
 
-# Enable the nginx site
-echo "Enabling nginx site..."
+
+# Restart nginx
+echo "═══════════════════════════════════════════════════════════════════════════════"
+echo "                          🔄 Configuring Nginx...                                "
+echo "═══════════════════════════════════════════════════════════════════════════════"
 echo ""
+# Enable the nginx site
+echo "⚙️ Enabling nginx site for $HOST..."
 
 # Create a symbolic link to enable the site
 if sudo ln -s /etc/nginx/sites-available/$HOST.conf /etc/nginx/sites-enabled/$HOST.conf; then
-    echo "Nginx site for $HOST enabled successfully."
+    echo "✅ Nginx site for $HOST enabled successfully."
 else
     echo "Failed to enable nginx site for $HOST. Please check the configuration and try again."
     exit 1
 fi
 
-# Restart nginx
-echo "═══════════════════════════════════════════════════════════════════════════════"
-echo "                          🔄 Restarting Nginx...                                "
-echo "═══════════════════════════════════════════════════════════════════════════════"
-echo ""
-
 # Restart the Nginx service
 if sudo service nginx restart; then
-    echo "✅ Nginx restarted successfully!"
+    echo "✅ Nginx configured successfully!"
+    sleep 1
 else
-    echo "❌ Failed to restart Nginx. Please check the service status for more details."
+    echo "❌ Failed to configure Nginx. Please check the service status for more details."
     exit 1
 fi
 
@@ -642,6 +664,7 @@ EOF"
     # Check if the service started successfully
     if sudo systemctl is-active --quiet nostrcheck; then
         echo "✅ Nostrcheck service started successfully!"
+        sleep 1
     else
         echo "❌ Failed to start Nostrcheck service. Please check the service status for more details."
         exit 1
@@ -685,7 +708,8 @@ if [ "$input" = "y" ]; then
         echo "🔄 Restarting Nginx to apply the new SSL certificate..."
         echo ""
         if sudo service nginx restart; then
-            echo "✅ Nginx restarted successfully!"
+            echo "✅ Certbot configured successfully!"
+            sleep 1
         else
             echo "❌ Failed to restart Nginx. Please check the service status."
             exit 1
@@ -729,7 +753,8 @@ if [ "$input_cdn" = "y" ]; then
         echo "🔄 Restarting Nginx to apply the new SSL certificate..."
         echo ""
         if sudo service nginx restart; then
-            echo "✅ Nginx restarted successfully!"
+            echo "✅ Certbot configured successfully!"
+            sleep 1
         else
             echo "❌ Failed to restart Nginx. Please check the service status."
             exit 1
