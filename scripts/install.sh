@@ -25,7 +25,7 @@ echo "███████║███████╗██║  ██║ ╚�
 echo "╚══════╝╚══════╝╚═╝  ╚═╝  ╚═══╝  ╚══════╝╚═╝  ╚═╝"
 echo ""
 echo "══════════════════════════════════════════════════════════════════════════════"
-echo "🌟 Nostrcheck Server Installation Script v$version 🌟"
+echo "🟪 Nostrcheck Server Installation Script v$version 🟪"
 echo "📅 Last updated: $date"
 echo "🔗 Project repository: https://github.com/quentintaranpino/nostrcheck-server/"
 echo "══════════════════════════════════════════════════════════════════════════════"
@@ -315,37 +315,55 @@ echo ""
 
 # Prompt user for server pubkey (HEX format)
 clear
-echo "Server public key (HEX format):"
+echo "═══════════════════════════════════════════════════════════════════════════════"
+echo "                   🔑 Server Public Key (HEX format)                           "
+echo "═══════════════════════════════════════════════════════════════════════════════"
 echo ""
-echo "You can use https://nostrcheck.me/converter/ to convert your pubkey to HEX format."
-echo "INFO: Leave it empty if you want to generate a new pubkey/secret keypair."
+echo "Please enter your server public key (HEX format):"
+echo ""
+echo "💡 You can use the following tool to convert your pubkey to HEX format:"
+echo "   🌐 https://nostrcheck.me/converter/"
+echo ""
+echo "ℹ️ INFO: Leave this field empty if you want to generate a new pubkey/secret keypair."
 echo ""
 read -r PUBKEY
 
 # If PUBKEY is not empty, prompt user for server SECRET key
 if [ -n "$PUBKEY" ]; then
     clear
-    echo "Server secret key (HEX format):"
+    echo "═══════════════════════════════════════════════════════════════════════════════"
+    echo "                   🔑 Server Secret Key (HEX format)                           "
+    echo "═══════════════════════════════════════════════════════════════════════════════"
     echo ""
-    echo "You can use https://nostrcheck.me/converter/ to convert your nsec to HEX format."
+    echo "Please enter your server secret key (HEX format):"
+    echo ""
+    echo "💡 You can use the following tool to convert your nsec to HEX format:"
+    echo "   🌐 https://nostrcheck.me/converter/"
     echo ""
     read -r SECRETKEY
 
     # If SECRETKEY is empty, prompt again
     while [ -z "$SECRETKEY" ]; do
         clear
-        echo "WARNING: Server secret key is required if you provide a pubkey."
-        echo "If you are not comfortable with this, leave it blank to generate a new public and secret keypair."
+        echo "═══════════════════════════════════════════════════════════════════════════════"
+        echo "                   ⚠️ WARNING: Server Secret Key Required                       "
+        echo "═══════════════════════════════════════════════════════════════════════════════"
         echo ""
-        echo "Server secret key (HEX format):"
+        echo "The server secret key is required if you provide a pubkey."
+        echo "If you are not comfortable with this, leave it blank to generate a new public"
+        echo "and secret keypair."
         echo ""
-        echo "You can use https://nostrcheck.me/converter/ to convert your nsec to HEX format."
+        echo "Please enter your server secret key (HEX format):"
+        echo ""
+        echo "💡 You can use the following tool to convert your nsec to HEX format:"
+        echo "   🌐 https://nostrcheck.me/converter/"
         echo ""
         read -r SECRETKEY
 
         # If SECRETKEY is still empty, reset PUBKEY value
         if [ -z "$SECRETKEY" ]; then
-            echo "No secret key provided. The pubkey will be disregarded."
+            echo ""
+            echo "❌ No secret key provided. The pubkey will be disregarded."
             PUBKEY=""
             break
         fi
@@ -526,18 +544,24 @@ else
     exit 1
 fi
 
-# End of standard installation
-clear
-echo "Installation complete!"
-echo ""
-
 # Ask user if they want to create a systemd service for the server
 clear
-echo "Do you want to create a systemd service for the server? [y/n]"
+echo "═══════════════════════════════════════════════════════════════════════════════"
+echo "         ⚙️  Do you want to create a systemd service for the server? ⚙️    "
+echo "═══════════════════════════════════════════════════════════════════════════════"
+echo ""
+echo "This will allow the server to start automatically with your system."
+echo "It also makes it easier to manage the server as a background service."
+echo ""
+echo "Please enter your choice: [y/n]"
 echo ""
 read -r input
 
+# Initialize the variable
+SYSTEMD_SERVICE_CREATED="no"
+
 if [ "$input" = "y" ]; then
+    SYSTEMD_SERVICE_CREATED="yes"
     echo ""
     echo "Creating systemd service..."
     echo ""
@@ -594,8 +618,19 @@ fi
 
 # Ask user if they want to execute certbot for SSL
 clear
+echo "═══════════════════════════════════════════════════════════════════════════════"
+echo "               🔒 Do you want to secure your server with SSL? 🔒             "
+echo "═══════════════════════════════════════════════════════════════════════════════"
 echo ""
-echo "Do you want to execute certbot for SSL certificate for $HOST? [y/n]"
+echo "Certbot can automatically obtain and install a free SSL certificate for your server."
+echo "This will enable HTTPS, ensuring secure communication between your server and clients."
+echo ""
+echo "🌐 Domain to be secured: $HOST"
+echo ""
+echo "⚠️  IMPORTANT: Make sure your domain's DNS records are correctly configured"
+echo "   to point to this server before proceeding."
+echo ""
+echo "Would you like to proceed with Certbot to obtain an SSL certificate? [y/n]"
 echo ""
 read -r input
 
@@ -625,8 +660,20 @@ if [ "$input" = "y" ]; then
 fi
 
 # Ask user if they want to execute certbot for SSL certificate for cdn.$HOST
+clear
+echo "═══════════════════════════════════════════════════════════════════════════════"
+echo "          🔒 Do you want to secure your CDN subdomain with SSL? 🔒        "
+echo "═══════════════════════════════════════════════════════════════════════════════"
 echo ""
-echo "Do you want to execute certbot for SSL certificate for cdn.$HOST? [y/n]"
+echo "Certbot can automatically obtain and install a free SSL certificate for your CDN subdomain."
+echo "This will enable HTTPS, ensuring secure communication for content delivery from cdn.$HOST."
+echo ""
+echo "🌐 Subdomain to be secured: cdn.$HOST"
+echo ""
+echo "⚠️  IMPORTANT: Make sure the DNS records for 'cdn.$HOST' are correctly configured"
+echo "   to point to this server before proceeding."
+echo ""
+echo "Would you like to proceed with Certbot to obtain an SSL certificate for your CDN? [y/n]"
 echo ""
 read -r input_cdn
 
@@ -661,14 +708,26 @@ echo "╔═══════════════════════�
 echo "║                                                                                         ║"
 echo "║  🎉 Installation Complete! 🎉                                                           ║"
 echo "║                                                                                         ║"
-echo "║  🚀 You can now start the Nostrcheck server by running the following command:           ║"
-echo "║     👉 cd nostrcheck-server && npm run start                                            ║"
+
+if [ "$SYSTEMD_SERVICE_CREATED" = "yes" ]; then
+    echo "║  🚀 The Nostrcheck server has been configured to run as a systemd service.              ║"
+    echo "║                                                                                         ║"
+    echo "║     👉 To start the server:   sudo systemctl start nostrcheck                           ║"
+    echo "║     👉 To stop the server:    sudo systemctl stop nostrcheck                            ║"
+    echo "║     👉 To check status:       sudo systemctl status nostrcheck                          ║"
+    echo "║     👉 To enable on boot:     sudo systemctl enable nostrcheck                          ║"
+    echo "║     👉 To disable on boot:    sudo systemctl disable nostrcheck                         ║"
+else
+    echo "║  🚀 You can now start the Nostrcheck server by running the following command:           ║"
+    echo "║     👉 cd nostrcheck-server && npm run start                                            ║"
+fi
+
 echo "║                                                                                         ║"
 echo "║  📄 Server Documentation:                                                               ║"
 echo "║     📝 https://github.com/quentintaranpino/nostrcheck-server/blob/main/DOCS.md          ║"
 echo "║                                                                                         ║"
 echo "║  💖 If you like this project, please consider supporting its development:               ║"
-echo "║     🌟 https://nostrcheck.me/about/support-us.php                                       ║"
+echo "║     🔗 https://nostrcheck.me/about/support-us.php                                       ║"
 echo "║                                                                                         ║"
 echo "║  ⚠️  Important Notice:                                                                  ║"
 echo "║     The first time you access the server's frontend, it will auto-login with the        ║"
