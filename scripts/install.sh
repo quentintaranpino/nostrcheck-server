@@ -667,8 +667,6 @@ User=$SUDO_USER
 WorkingDirectory=$ABSOLUTE_PATH
 ExecStart=/usr/bin/npm run start
 Restart=on-failure
-RestartPreventExitStatus=3
-SuccessExitStatus=3
 RestartSec=5s
 
 [Install]
