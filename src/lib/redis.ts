@@ -1,6 +1,6 @@
 import { createClient } from "redis";
 import { logger } from "./logger.js";
-import { RegisteredUsernameResult } from "../interfaces/register.js";
+import { nostrAddressResult } from "../interfaces/register.js";
 import { LightningUsernameResult } from "../interfaces/lightning.js";
 import app from "../app.js";
 
@@ -23,25 +23,15 @@ const flushRedisCache = async (): Promise<void> => {
 	return await redisClient.sendCommand(['flushall']);
 }
 
-async function getNostrAddressFromRedis(key: string): Promise<RegisteredUsernameResult> {
+async function getNostrAddressFromRedis(key: string): Promise<nostrAddressResult> {
 	const data = await redisClient.get(key);
-
-	if (!data) {
-		return { username: "", hex: "" };
-	}
-
-
+	if (!data) return {names: {}};
 	return JSON.parse(data.toString());
 }
 
 async function getLightningAddressFromRedis(key: string): Promise<LightningUsernameResult> {
 	const data = await redisClient.get(key);
-
-	if (!data) {
-		return {lightningserver: "", lightninguser: ""};
-	}
-
-
+	if (!data) return {lightningserver: "", lightninguser: ""};
 	return JSON.parse(data.toString());
 }
 

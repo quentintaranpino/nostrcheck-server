@@ -1,8 +1,9 @@
 import { ResultMessagev2 } from "./server";
 
-interface RegisteredUsernameResult {
-	username: string;
-	hex: string;
+interface nostrAddressResult {
+	names : {
+		[username: string]: string;
+	};
 }
 
 interface registerFormResult extends ResultMessagev2 {
@@ -11,4 +12,4 @@ interface registerFormResult extends ResultMessagev2 {
 	satoshi: number;
 }
 
-export {RegisteredUsernameResult, registerFormResult};
+export {nostrAddressResult, registerFormResult};
