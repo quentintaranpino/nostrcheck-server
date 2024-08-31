@@ -45,7 +45,7 @@ const defaultConfig = {
 				"enabled": true,
 				"path": "/media",
 				"methods": ["GET","POST","PUT","DELETE"],
-				"description": "This module handles media uploads, downloads, media tags, etc."
+				"description": "This module handles file uploads, downloads, delete, mirror, file tags, etc."
 			},
 			"lightning" :{
 				"name": "lightning",
@@ -176,7 +176,7 @@ const defaultConfig = {
 	"storage" : {
 		"type": "local",
 		"local" : {
-			"mediaPath": "media/",
+			"mediaPath": "files/",
 			"tempPath": "tmp/"
 		},
 		"remote" : {
