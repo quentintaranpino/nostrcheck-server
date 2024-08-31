@@ -1,13 +1,10 @@
 import path from "path";
 import fs, { promises as fsPromises } from "fs";
-import { defaultConfig, localPath, necessaryKeys } from "../interfaces/config.js";
-import { createkeyPair, getPubkeyFromSecret } from "../lib/nostr/core.js";
-import { updateLocalConfigKey } from "../lib/config.js";
-import app from "../app.js";
 import config from "config";
 import { exit } from "process";
-import { dbMultiSelect, dbUpdate } from "../lib/database.js";
-import { generatefileHashfromfile, getHashedPath } from "../lib/hash.js";
+
+import { defaultConfig, localPath, necessaryKeys } from "../interfaces/config.js";
+import { updateLocalConfigKey } from "../lib/config.js";
 
 const checkConfigNecessaryKeys = async () : Promise<void> => {
 
@@ -26,7 +23,9 @@ const checkConfigNecessaryKeys = async () : Promise<void> => {
 	
 	// Regenerate pubkey if missing and secretkey is present
 	if (missingFields.includes("server.pubkey") && !missingFields.includes("server.secretKey")){
+		const {default: app} = await import("../app.js");
 		console.warn("No pubkey found in config file. Generating new pubkey.")
+		const { getPubkeyFromSecret } = await import("../lib/nostr/core.js");
 		const pubkey = await getPubkeyFromSecret(config.get("server.secretKey"));
 		if (pubkey !== "") {
 			missingFields = missingFields.filter((field) => field !== "server.pubkey");
@@ -40,8 +39,10 @@ const checkConfigNecessaryKeys = async () : Promise<void> => {
 	// Pubkey and secretkey generation if missing
 	if (missingFields.includes("server.pubkey") || missingFields.includes("server.secretKey")){
 		console.warn("No pubkey or secret key found in config file. Generating new keys.")
+		const { createkeyPair } = await import("../lib/nostr/core.js");
 		const keyPair = await createkeyPair();
 		if (keyPair.publicKey && keyPair.secretKey){
+			const {default: app} = await import("../app.js");
 			missingFields = missingFields.filter((field) => field !== "server.pubkey" && field !== "server.secretKey");
 			await updateLocalConfigKey("server.pubkey", keyPair.publicKey) && await updateLocalConfigKey("server.secretKey", keyPair.secretKey);
 			let configServer = Object.assign({}, app.get("config.server"));
@@ -116,6 +117,8 @@ const checkConfigNecessaryKeys = async () : Promise<void> => {
 
 const migrateDBLocalpath = async () : Promise<boolean> => {
 
+	const { dbMultiSelect, dbUpdate} = await import("../lib/database.js");
+	const { default : app } = await import("../app.js");
 	const mediaFiles = await dbMultiSelect(
 									["filename", "pubkey", "type"],
 									"mediafiles",
@@ -149,6 +152,7 @@ const migrateDBLocalpath = async () : Promise<boolean> => {
 				await dbUpdate('mediafiles', 'localpath', null, ['filename', 'pubkey'], [filename, pubkey]);
 				continue;
 			}
+			const { generatefileHashfromfile } = await import("../lib/hash.js");
 			const newFilename = await generatefileHashfromfile(newPath) + path.extname(filename);
 			console.log('Generated new filename:', newFilename);
 			if (!newFilename || newFilename === path.extname(filename)) {
@@ -194,6 +198,7 @@ const migrateDBLocalpath = async () : Promise<boolean> => {
 			}
 		}
 
+		const { getHashedPath } = await import("../lib/hash.js");
 		const hashpath = await getHashedPath(filename);
         const updLocalPath = await dbUpdate('mediafiles', 'localpath', hashpath, ['filename', 'pubkey'], [filename, pubkey]);
 

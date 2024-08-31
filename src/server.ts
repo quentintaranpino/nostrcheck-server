@@ -1,6 +1,5 @@
 // server.ts
 import { prepareApp } from "./controllers/config.js";
-import config from "config";
 
 const startServer = async () => {
     // Initialise config and folders
@@ -25,9 +24,11 @@ const startServer = async () => {
 
     //Start seeding magnets
 
+    const {default: config} = await import( "config");
     if (config.get("torrent.enableTorrentSeeding")) {
         const { SeedMediafilesMagnets } = await import("./lib/torrent.js");
         await SeedMediafilesMagnets();
+    
     }
 
     // Show server startup message
