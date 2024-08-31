@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 import { macaroon } from '../../interfaces/payments.js';
 import app from '../../app.js';
+import { logger } from '../logger.js';
 
 const createMacaroon = (transactionId: number, paymentHash: string, location: string, caveats: string[]): string => {
 
@@ -37,24 +38,55 @@ const createMacaroon = (transactionId: number, paymentHash: string, location: st
 
 const verifyMacaroon = (macaroon: string): boolean => {
 
-    if (!macaroon) return false;
+    if (!macaroon || macaroon == "" || macaroon == null || macaroon == undefined) return false;
 
     const decoded = Buffer.from(macaroon, 'base64').toString('utf-8');
-    const recievedMacaroon : macaroon = JSON.parse(decoded);
+    
+    try{
+        const receivedMacaroon: macaroon = JSON.parse(decoded);
 
-    if (recievedMacaroon.ID.length !== 64) return false;
+        if (receivedMacaroon.ID.length !== 64) return false;
+    
+        const secretKey = app.get('config.server')['secretKey'];
+    
+        const identifier = Buffer.concat([
+            Buffer.from([0x00, 0]),
+            Buffer.from(receivedMacaroon.payment_hash, 'hex'),
+            receivedMacaroon.token_id.length < 32 ? Buffer.concat([Buffer.alloc(32 - receivedMacaroon.token_id.length), Buffer.from(receivedMacaroon.token_id, 'hex')]) : Buffer.from(receivedMacaroon.token_id, 'hex'),
+        ]);
+    
+        const hmac = crypto.createHmac('sha256', secretKey);
+        hmac.update(identifier);
+    
+        receivedMacaroon.caveats.forEach(caveat => {
+            hmac.update(caveat);
+        });
+    
+        const expectedID = hmac.digest('hex');
+        if (expectedID !== receivedMacaroon.ID) return false;
+    
+        return true;
 
-    const hmac = crypto.createHmac('sha256', app.get('config.server')['secretKey']);
-    hmac.update(recievedMacaroon.ID);
-
-    recievedMacaroon.caveats.forEach(caveat => {
-        hmac.update(caveat);
-    });
-
-    const receivedID = hmac.digest('hex');
-    if (receivedID !== recievedMacaroon.ID) return false;
-
-    return true;
+    }catch(e){
+        logger.error(`Error verifying macaroon: ${e}`);
+        return false;
+    }
 };
 
-export { createMacaroon, verifyMacaroon };
+const decodeMacaroon = (macaroon: string): macaroon | null => {
+    
+    if (!macaroon || macaroon == "" || macaroon == null || macaroon == undefined) return null;
+
+    const decoded = Buffer.from(macaroon, 'base64').toString('utf-8');
+    
+    try{
+        const receivedMacaroon: macaroon = JSON.parse(decoded);
+        return receivedMacaroon;
+
+    }catch(e){
+        logger.error(`Error decoding macaroon: ${e}`);
+        return null;
+    }
+}
+
+export { createMacaroon, verifyMacaroon, decodeMacaroon };

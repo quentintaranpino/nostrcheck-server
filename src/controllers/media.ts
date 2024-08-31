@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import app from "../app.js";
-import { connect, dbDelete, dbInsert, dbMultiSelect, dbSelect } from "../lib/database.js";
+import { connect, dbDelete, dbInsert, dbMultiSelect, dbSelect, dbUpdate } from "../lib/database.js";
 import { logger } from "../lib/logger.js";
 import { isPubkeyRegistered, parseAuthHeader } from "../lib//authorization.js";
 import { getUploadType, getFileMimeType, standardMediaConversion, getNotFoundMediaFile, readRangeHeader, prepareLegacMediaEvent, getMediaDimensions, getExtension, getMimeFromExtension, getConvertedExtension, getAllowedMimeTypes } from "../lib/media.js"
@@ -12,7 +12,6 @@ import {
 	UploadStatus,
 	MediaStatus,
 	videoHeaderRange,
-	mediaInfoReturnMessage,
 	fileData,
 	} from "../interfaces/media.js";
 import { ResultMessage, ResultMessagev2 } from "../interfaces/server.js";
@@ -30,13 +29,13 @@ import { saveTmpFile } from "../lib/storage/local.js";
 import { Readable } from "stream";
 import { getRemoteFile } from "../lib/storage/remote.js";
 import { transaction } from "../interfaces/payments.js";
-import { calculateSatoshi, checkTransaction } from "../lib/payments/core.js";
+import { checkTransaction } from "../lib/payments/core.js";
 import { blobDescriptor, BUDKinds } from "../interfaces/blossom.js";
 import { prepareBlobDescriptor } from "../lib/blossom/BUD02.js";
 import { loadCdnPage } from "./frontend.js";
 import { getBannedMediaFile, isContentBanned } from "../lib/banned.js";
 import { mirrorFile } from "../lib/blossom/BUD04.js";
-import { createMacaroon, verifyMacaroon } from "../lib/payments/macaroons.js";
+import { createMacaroon, decodeMacaroon, verifyMacaroon } from "../lib/payments/macaroons.js";
 
 const uploadMedia = async (req: Request, res: Response, version:string): Promise<Response> => {
 
@@ -171,13 +170,11 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 
 	// Check if file is paid
 	const macaroon = req.headers["www-authenticate"]?.match(/macaroon="([^"]+)"/)?.[1];
-	const preimage = req.headers["www-authenticate"]?.match(/preimage="([^"]+)"/)?.[1];
-	if (macaroon){
-		const result = await verifyMacaroon(macaroon);
-		if (result && preimage != undefined){
-			const result = await dbMultiSelect(["id"], "transactions", "preimage = ?", [preimage], true);
-			const { id } = result[0];
-			filedata.transaction_id = id;
+	const preimage = req.headers["www-authenticate"]?.match(/preimage="([^"]+)"/)?.[1].length == 64 ? req.headers["www-authenticate"]?.match(/preimage="([^"]+)"/)?.[1] : undefined;
+	if (macaroon && macaroon != 'null'){
+		if (await verifyMacaroon(macaroon)) {
+			const macaroonData = decodeMacaroon(macaroon);
+			filedata.transaction_id = macaroonData?.token_id || "";
 		}
 	}
 
@@ -252,7 +249,22 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 			filedata.height = +(dbFile.dimensions.split("x")[1]);
 			filedata.description = "File exist in database, returning existing URL";
 			filedata.date = dbFile.date? Math.floor(dbFile.date / 1000) : Math.floor(Date.now() / 1000);
+
+			// If the recieved file has a transaction_id and the DB file doesn't have a transaction_id, we update the DB file with the recieved transaction_id
+			if (filedata.transaction_id != "" && dbFile.transactionid == null) {
+				const updateResult = await dbUpdate("mediafiles", "transactionid", filedata.transaction_id,["id"], [filedata.fileid]);
+				if (!updateResult) {
+					logger.error(`Error updating transactionid for file ${filedata.fileid}`, "|", getClientIp(req));
+					const result: ResultMessagev2 = {
+						status: MediaStatus[1],
+						message: "Error updating transactionid for file " + filedata.fileid,
+					};
+					return res.status(500).send(result);
+				}
+				dbFile.transactionid = filedata.transaction_id;
+			}
 			filedata.transaction_id = dbFile.transactionid;
+			
 			processFile = false; 
 			insertfiledb = false;
 			makeBlurhash = false;
@@ -307,8 +319,24 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 		const createdate = getNewDate();
 		const insertResult = await dbInsert(
 			"mediafiles", 
-			["pubkey", "filename", "mimetype", "original_hash", "hash", "status", "active", "visibility", "date", "ip_address", "magnet", "blurhash", "filesize", "comments", "type", "dimensions"],
-			[filedata.pubkey, filedata.filename, filedata.originalmime, filedata.originalhash, filedata.hash, filedata.status, 1, 1, createdate, getClientIp(req), filedata.magnet, filedata.blurhash, filedata.filesize, "", filedata.media_type, filedata.width != 0? filedata.width + "x" + filedata.height : 0],);
+			["pubkey", "filename", "mimetype", "original_hash", "hash", "status", "active", "visibility", "date", "ip_address", "magnet", "blurhash", "filesize", "comments", "type", "dimensions", "transactionid"],
+			[filedata.pubkey, 
+			 filedata.filename, 
+			 filedata.originalmime, 
+			 filedata.originalhash, 
+			 filedata.hash, 
+			 filedata.status, 
+			 1, 
+			 1, 
+			 createdate, 
+			 getClientIp(req), 
+			 filedata.magnet, 
+			 filedata.blurhash, 
+			 filedata.filesize, 
+			 "", 
+			 filedata.media_type, 
+			 filedata.width != 0? filedata.width + "x" + filedata.height : 0, 
+			 filedata.transaction_id ? filedata.transaction_id : 0]);
 
 		filedata.fileid = insertResult.toString();
 		if (insertResult == 0) {
@@ -352,8 +380,10 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 	logger.info(`RES -> 200 OK - ${filedata.description}`, "|", getClientIp(req));
 
 	if (isModuleEnabled("payments", app) && (filedata.no_transform == true || processFile == false)) {
-		const transaction: transaction = await checkTransaction(filedata.transaction_id, filedata.fileid, "mediafiles", filedata.filesize, filedata.pubkey);
-		transaction.isPaid == false ? filedata.payment_request = transaction.paymentRequest : null;
+		if (preimage == undefined) {
+			const transaction = await checkTransaction(filedata.transaction_id, filedata.fileid, "mediafiles", filedata.filesize, filedata.pubkey);
+			transaction.isPaid == false ? filedata.payment_request = transaction.paymentRequest : null;
+		}
 	}
 
 	//v0 and v1 compatibility
@@ -1370,8 +1400,10 @@ const heatUpload = async (req: Request, res: Response): Promise<Response> => {
 
 	const size = req.headers['blossom-content-length'] || 0;
 	const type = Array.isArray(req.headers['blossom-content-type']) ? req.headers['blossom-content-type'][0] || "" : req.headers['blossom-content-type'] || "";
+	const hash = (Array.isArray(req.headers['digest']) ? req.headers['digest'][0] : req.headers['digest'] || "").split('=')[1] || "";
+	const transform = Array.isArray(req.headers['blossom-content-metadata']) ? req.headers['blossom-content-metadata'][0] || "" : req.headers['blossom-content-metadata'] || "";
 
-	if (!Number(size) || size == 0 || type == "") {
+	if (!Number(size) || size == 0 || type == "" || hash == "") {
 		logger.warn("RES -> 400 Bad request - missing size or type", "|", getClientIp(req));
 		res.setHeader("Blossom-Upload-Message", "Missing size or mime type");
 		return res.status(400).send();
@@ -1383,8 +1415,10 @@ const heatUpload = async (req: Request, res: Response): Promise<Response> => {
 		return res.status(400).send();
 	}
 
-	const transaction = await checkTransaction("","","mediafiles",Number(size),"");
-	if (transaction.transactionid != 0) {
+	let transactionId = (await dbMultiSelect(["transactionid"], "mediafiles", transform == "1" ? "original_hash = ?" : "hash = ?", [hash], true))[0]?.transactionid || "" ;
+
+	const transaction = await checkTransaction(transactionId,"","mediafiles", transform == "1" ? Math.round(Number(size)/3) : Number(size),"");
+	if (transaction.transactionid != 0 && transaction.isPaid == false && app.get("config.payments")["satoshi"]["mediaMaxSatoshi"] > 0) {
 		res.setHeader('Www-Authenticate', `L402 macaroon="${await createMacaroon(transaction.transactionid,transaction.paymentHash,req.url,[""])}",invoice="${transaction.paymentRequest}"`);
 		res.setHeader("Blossom-Upload-Message", `${transaction.satoshi}`);
 		return res.status(402).send();
