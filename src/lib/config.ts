@@ -5,18 +5,19 @@ import { Application } from "express";
 import { Module, Modules } from "../interfaces/config.js";
 import { localPath } from "../interfaces/config.js";
 
-const syncDefaultConfigValues = async (defaultConf : Record<string,any>, localConf: string) : Promise<void> => {
+const syncDefaultConfigValues = async (defaultConf : Record<string,any>, localConf: string) : Promise<boolean> => {
 
 	//Compare default config with local config json files
 	const LocalConfig = JSON.parse(fs.readFileSync(localConf).toString());
 	
 	const configChanged = await mergeConfigkey(defaultConf, LocalConfig);
-	if (!configChanged) return;
+	if (!configChanged) return false;
 	
 	try{
 		console.debug("Updating config file: " + localConf)
 		fs.copyFileSync(localConf, localConf + ".bak");
 		fs.writeFileSync(localConf, JSON.stringify(LocalConfig, null, 4));
+		return true;
 	}catch(err){
 		console.error("Error writing config file: ", err);
 		console.error("Please make sure the file is writable and then restart the server")
