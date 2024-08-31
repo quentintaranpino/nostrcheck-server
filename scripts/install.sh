@@ -601,7 +601,7 @@ Restart=on-failure
 
 [Install]
 WantedBy=multi-user.target
-EOF
+EOF"
 
     # Check if the service file was created successfully
     if [ -f /etc/systemd/system/nostrcheck.service ]; then
