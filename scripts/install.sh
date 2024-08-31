@@ -221,7 +221,6 @@ echo ""
 # Start Redis Server
 echo "🔄 Starting Redis Server..."
 sudo service redis-server start || { echo "❌ Failed to start Redis Server"; exit 1; }
-echo ""
 echo "✅ Redis Server started successfully!"
 echo ""
 sleep 3
@@ -384,7 +383,7 @@ echo "   This allows you to easily switch from local storage to cloud storage."
 echo ""
 echo "❓ If you don't now what to do, just press Enter to use the default local path."
 echo ""
-read -p "🗂️ Media path [default: $MEDIAPATH]:" -r inputMEDIAPATH
+read -p "🗂️ Files path [default: $MEDIAPATH]:" -r inputMEDIAPATH
 
 # Use the provided input if not empty
 if [ -n "$inputMEDIAPATH" ]; then
@@ -655,7 +654,7 @@ if [ "$input" = "y" ]; then
         exit 1
     fi
 
-    ABSOLUTE_PATH=$(realpath "$PWD/nostrcheck-server")
+    ABSOLUTE_PATH=$(realpath "$PWD")
 
     sudo bash -c "cat > /etc/systemd/system/nostrcheck.service <<EOF
 [Unit]
