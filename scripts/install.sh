@@ -48,7 +48,7 @@ PUBKEY=""
 SECRETKEY=""
 
 # We ask user if want to continue
-echo "Do you want to proceed with the installation? [y/n]"
+echo "👉 Do you want to proceed with the installation? [y/n]"
 echo ""
 read -r input
 if [ "$input" != "y" ]; then
