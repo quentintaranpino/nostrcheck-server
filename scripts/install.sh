@@ -25,13 +25,13 @@ echo "███████║███████╗██║  ██║ ╚�
 echo "╚══════╝╚══════╝╚═╝  ╚═╝  ╚═══╝  ╚══════╝╚═╝  ╚═╝"
 echo ""
 echo "══════════════════════════════════════════════════════════════════════════════"
-echo " Nostrcheck Server Installation Script v$version "
-echo " Last updated: $date"
-echo " Project repository: https://github.com/quentintaranpino/nostrcheck-server/"
+echo "🌟 Nostrcheck Server Installation Script v$version 🌟"
+echo "📅 Last updated: $date"
+echo "🔗 Project repository: https://github.com/quentintaranpino/nostrcheck-server/"
 echo "══════════════════════════════════════════════════════════════════════════════"
 echo ""
-echo " This script will install and configure the Nostrcheck server on your system."
-echo " WARNING: This script is still in development and may not work as expected."
+echo "📢 This script will install and configure the Nostrcheck server on your system."
+echo "⚠️  WARNING: This script is still in development and may not work as expected."
 echo ""
 echo "══════════════════════════════════════════════════════════════════════════════"
 
@@ -231,10 +231,10 @@ echo "💡 Ensure that DNS records for both the main domain and the 'cdn' subdom
 echo "   are properly configured and point to this server."
 echo ""
 echo "═══════════════════════════════════════════════════════════════════════════════"
+echo ""
 
-
-# Prompt the user to input the hostname
-read -r inputHOST
+# Prompt user to enter the hostname
+read -p "🌐 Enter the hostname: " inputHOST
 
 # Check if the input is not empty
 if [ -n "$inputHOST" ]; then
@@ -632,25 +632,25 @@ clear
 # End message
 echo "╔═════════════════════════════════════════════════════════════════════════════════════════╗"
 echo "║                                                                                         ║"
-echo "║                                Installation Complete!                                   ║"
+echo "║  🎉 Installation Complete! 🎉                                                           ║"
 echo "║                                                                                         ║"
-echo "║  You can now start the Nostrcheck server by running the following command:              ║"
-echo "║      cd nostrcheck-server && npm run start                                              ║"
+echo "║  🚀 You can now start the Nostrcheck server by running the following command:           ║"
+echo "║     👉 cd nostrcheck-server && npm run start                                            ║"
 echo "║                                                                                         ║"
-echo "║  Server Documentation:                                                                  ║"
-echo "║      https://github.com/quentintaranpino/nostrcheck-server/blob/main/DOCS.md            ║"
+echo "║  📄 Server Documentation:                                                               ║"
+echo "║     📝 https://github.com/quentintaranpino/nostrcheck-server/blob/main/DOCS.md          ║"
 echo "║                                                                                         ║"
-echo "║  If you like this project, please consider supporting its development:                  ║"
-echo "║      https://nostrcheck.me/about/support-us.php                                         ║"
+echo "║  💖 If you like this project, please consider supporting its development:               ║"
+echo "║     🌟 https://nostrcheck.me/about/support-us.php                                       ║"
 echo "║                                                                                         ║"
-echo "║  Important Notice:                                                                      ║"
-echo "║      The first time you access the server's frontend, it will auto-login with the       ║"
-echo "║      admin user (public). A new password will be sent to the associated pubkey via DM.  ║"
-echo "║      Please make sure you can log in with the new password before closing this session. ║"
+echo "║  ⚠️  Important Notice:                                                                  ║"
+echo "║     The first time you access the server's frontend, it will auto-login with the        ║"
+echo "║     admin user (public). A new password will be sent to the associated pubkey via DM.   ║"
+echo "║     Please make sure you can log in with the new password before closing this session.  ║"
 if [ -z "$PUBKEY" ]; then
 echo "║                                                                                         ║"   
-echo "║      Please run the server once to generate the server's pubkey and secret key. The new  ║"
-echo "║      keys will be stored in the config/local.json file.                                  ║"
+echo "║  🔑 Please run the server once to generate the server's pubkey and secret key. The new  ║"
+echo "║     keys will be stored in the config/local.json file.                                  ║"
 fi
 echo "║                                                                                         ║"
 echo "╚═════════════════════════════════════════════════════════════════════════════════════════╝"
