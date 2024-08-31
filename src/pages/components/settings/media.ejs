@@ -86,21 +86,32 @@
                         >
             </div>
             <div class="col-4 col-md-3">
-            <input  type="number" 
-                    id="media.transform.media.video.height" 
-                    name="media.transform.media.video.height" 
-                    class="form-control" 
-                    placeholder="Width" 
-                    value="<%= request.body.settingsMedia['transform']['media']['video']['height'] %>" 
-                    >
+                        <input  type="number" 
+                                id="media.transform.media.video.height" 
+                                name="media.transform.media.video.height" 
+                                class="form-control" 
+                                placeholder="Width" 
+                                value="<%= request.body.settingsMedia['transform']['media']['video']['height'] %>" 
+                                >
+            </div>
         </div>
-        </div>
-        <div class="row">
         <label class="mt-4 mb-1 fw-bold">AI media inspector engine</label>
         <p> In this section, you can configure the AI media inspector engine settings of your server. 
             You can choose between a local or remote AI media inspector engine.
         </p>
-        <label for="media.mediainspector.type" class="mt-2 mb-1 fw-bold">Engine type</label>
+        <label for="media.mediainspector.enabled" class="mt-2 mb-2 fw-bold">Enable AI media inspector</label>
+        <p>Enable or disable the AI media inspector.
+        </p>
+        <div class="form-check form-switch">
+                <input  class="form-check-input" 
+                        type="checkbox" 
+                        value="<%= request.body.settingsMedia['mediainspector']['enabled'] ? true : false %>" 
+                        <%= request.body.settingsMedia['mediainspector']['enabled'] ? 'checked' : '' %> 
+                        name="media.mediainspector.enabled" 
+                        id="media.mediainspector.enabled"
+                        >
+        </div>
+        <label for="media.mediainspector.type" class="mt-3 mb-1 fw-bold">Engine type</label>
         <div class="col-3 col-md-2">
             <select id="media.mediainspector.type" 
             name="media.mediainspector.type" 
@@ -139,7 +150,6 @@
                 value="<%= request.body.settingsMedia['mediainspector']['remote']['apikey'] %>" 
                 placeholder="Media inspector apikey" 
                 >
-        </div>
         <div class="col-12 col-md-3 mb-5 mt-4 pb-5 pb-lg-0 mb-lg-2">
             <button class="btn btn-lg mb-4 btn-primary w-100" name="Submit" type="button" onclick="saveSettings()">Save</button>
         </div>

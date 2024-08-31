@@ -144,6 +144,7 @@ const defaultConfig = {
 			}
 		},
 		"mediainspector" : {
+			"enabled": false,
 			"type" : "local",
 			"local" : {
 				"modelName": "quentintaranpino/vision-transformer-moderator",

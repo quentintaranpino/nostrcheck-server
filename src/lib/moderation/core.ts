@@ -7,6 +7,8 @@ import { logger } from "../logger.js";
 
 const moderateFile = async (url: string): Promise<moderationCategory> => {
 
+    if (app.get("config.media")["mediainspector"]["enabled"] == false) return emptyModerationCategory;
+
     let result = emptyModerationCategory;
     let fileName = url.split("/").pop();
 
