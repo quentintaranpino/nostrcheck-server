@@ -46,6 +46,9 @@ USER="nostrcheck"
 MEDIAPATH="media/"
 PUBKEY=""
 SECRETKEY=""
+REPO_URL="https://github.com/quentintaranpino/nostrcheck-server.git"
+REPO_BRANCH="0.6.0"
+REQUIREMENTS_FILE="requirements.txt"
 
 # We ask user if want to continue
 echo "👉 Do you want to proceed with the installation? [y/n]"
@@ -56,31 +59,36 @@ if [ "$input" != "y" ]; then
     exit $E_BADARGS
 fi
 
+clear
+echo "═══════════════════════════════════════════════════════════════════════════════"
+echo "                        🚀 Installing Node.js...                                "
+echo "═══════════════════════════════════════════════════════════════════════════════"
+echo ""
+echo "🔍 Checking for existing installation and version compatibility..."
+echo ""
+
 # Check if Node.js is installed
 if command -v node > /dev/null 2>&1; then
     # Get the currently installed major version
     INSTALLED_NODE_MAJOR=$(node -v | grep -oP '^v\K[0-9]+')
     
     # Compare with desired major version
-    if [ "$INSTALLED_NODE_MAJOR" -eq "$NODE_MAJOR" ]; then
-        echo "Node.js version $NODE_MAJOR is already installed."
-        echo "Skipping Node.js installation."
+    if [ "$INSTALLED_NODE_MAJOR" -ge "$NODE_MAJOR" ]; then
+        echo "✅ Node.js version $INSTALLED_NODE_MAJOR is already installed."
     else
-        echo "Different major version of Node.js detected (v$INSTALLED_NODE_MAJOR)."
-        echo "Installing Node.js version $NODE_MAJOR..."
+        echo "⚠️ Installed Node.js version (v$INSTALLED_NODE_MAJOR) is lower than $NODE_MAJOR."
+        echo "🔄 Installing Node.js version $NODE_MAJOR..."
         install_node
     fi
 else
-    echo "Node.js is not installed. Installing Node.js version $NODE_MAJOR..."
+    echo "❌ Node.js is not installed."
+    echo "🔄 Installing Node.js version $NODE_MAJOR..."
     install_node
 fi
 
 # Install Node.js
 install_node() {
 
-    clear
-    echo "Installing Node.js..."
-    echo ""
     sudo apt-get update || { echo "Failed to update package list"; exit 1; }
     sudo apt-get install -y ca-certificates curl gnupg || { echo "Failed to install certificates, curl, and gnupg"; exit 1; }
 
@@ -103,55 +111,97 @@ install_node() {
 
 # Install necessary packages
 clear
-echo "Installing necessary packages..."
+echo "═══════════════════════════════════════════════════════════════════════════════"
+echo "                  📦 Installing Necessary Packages...                         "
+echo "═══════════════════════════════════════════════════════════════════════════════"
 echo ""
 
-sudo apt install -y nginx git redis-server mariadb-server mariadb-client ffmpeg jq certbot python3-certbot-nginx python3 python3-pip || { echo "Failed to install necessary packages"; exit 1; }
+# Lista de paquetes a instalar
+PACKAGES="nginx git redis-server mariadb-server mariadb-client ffmpeg jq certbot python3-certbot-nginx python3 python3-pip"
 
+# Instalando los paquetes
+sudo apt-get update || { echo "❌ Failed to update package list"; exit 1; }
+echo "🔄 Installing the following packages:"
+echo "   - $PACKAGES"
+sudo apt-get install -y $PACKAGES || { echo "❌ Failed to install necessary packages"; exit 1; }
 
-# Clear the screen
-clear
-echo "Cloning the repository..."
+echo "✅ Necessary packages installed successfully!"
+
+# Clone the repository
+echo "═══════════════════════════════════════════════════════════════════════════════"
+echo "                     📥 Cloning the Repository...                             "
+echo "═══════════════════════════════════════════════════════════════════════════════"
 echo ""
 
 # Clone the repository
-git clone -b 0.6.0 --single-branch https://github.com/quentintaranpino/nostrcheck-server.git || { echo "Failed to clone the repository"; exit 1; }
-
-# Prepare installation directory
-cd nostrcheck-server || { echo "Failed to enter the repository directory"; exit 1; }
+echo "🔄 Cloning the repository from $REPO_URL (branch: $REPO_BRANCH)..."
+git clone -b "$REPO_BRANCH" --single-branch "$REPO_URL" || { echo "❌ Failed to clone the repository"; exit 1; }
+cd "nostrcheck-server" || { echo "❌ Failed to enter the repository directory"; exit 1; }
+echo "✅ Repository cloned and ready for installation!"
 
 # Install Python packages from requirements.txt
 clear
-echo "Installing necessary Python packages..."
+echo "═══════════════════════════════════════════════════════════════════════════════"
+echo "                 🐍 Installing Necessary Python Packages...                   "
+echo "═══════════════════════════════════════════════════════════════════════════════"
 echo ""
-pip install -r requirements.txt || { echo "Failed to install Python packages from requirements.txt"; exit 1; }
+echo "📄 Installing packages from $REQUIREMENTS_FILE..."
+pip install -r "$REQUIREMENTS_FILE" || { echo "❌ Failed to install Python packages from $REQUIREMENTS_FILE"; exit 1; }
+
+echo "✅ Python packages installed successfully!"
 
 # Install the latest npm globally
 clear
-echo "Installing the latest npm package manager..."
+echo "═══════════════════════════════════════════════════════════════════════════════"
+echo "                  📦 Installing the Latest npm Package Manager...               "
+echo "═══════════════════════════════════════════════════════════════════════════════"
 echo ""
-sudo npm install -g npm@latest || { echo "Failed to install the latest npm package manager"; exit 1; }
+echo "🔄 Updating npm to the latest version globally..."
+sudo npm install -g npm@latest || { echo "❌ Failed to install the latest npm package manager"; exit 1; }
+echo "✅ npm has been updated to the latest version successfully!"
 
 # Install npm dependencies
 clear
-echo "Installing dependencies..."
+echo "═══════════════════════════════════════════════════════════════════════════════"
+echo "                     📦 Installing npm Dependencies...                         "
+echo "═══════════════════════════════════════════════════════════════════════════════"
 echo ""
-npm install --include=optional sharp || { echo "Failed to install npm dependencies"; exit 1; }
+
+# Installing npm dependencies
+echo "🔄 Installing npm dependencies with optional packages..."
+npm install --include=optional sharp || { echo "❌ Failed to install npm dependencies"; exit 1; }
+echo "✅ npm dependencies installed successfully!"
 
 # Build the project
 clear
-echo "Building the project..."
+echo "═══════════════════════════════════════════════════════════════════════════════"
+echo "                       🛠️  Building the Project...                             "
+echo "═══════════════════════════════════════════════════════════════════════════════"
 echo ""
-npm run build || { echo "Failed to build the project"; exit 1; }
 
+# Run the build process
+echo "🔄 Running the build process..."
+npm run build || { echo "❌ Failed to build the project"; exit 1; }
+
+echo "✅ Project built successfully!"
 
 # Start mariadb and redis-server
 clear
-echo "Starting mariadb and redis-server..."
+echo "═══════════════════════════════════════════════════════════════════════════════"
+echo "                   🚀 Starting MariaDB and Redis Server...                      "
+echo "═══════════════════════════════════════════════════════════════════════════════"
 echo ""
 
-sudo service redis-server start || { echo "Failed to start redis-server"; exit 1; }
-sudo service mariadb start || { echo "Failed to start mariadb"; exit 1; }
+# Start Redis Server
+echo "🔄 Starting Redis Server..."
+sudo service redis-server start || { echo "❌ Failed to start Redis Server"; exit 1; }
+echo "✅ Redis Server started successfully!"
+
+# Start MariaDB
+echo "🔄 Starting MariaDB..."
+sudo service mariadb start || { echo "❌ Failed to start MariaDB"; exit 1; }
+echo "✅ MariaDB started successfully!"
+
 
 # MYSQL
 clear
@@ -205,11 +255,9 @@ fi
 clear
 PASS=$(openssl rand -base64 32)
 if [ -z "$PASS" ]; then
-    echo "Failed to generate a password. Exiting..."
+    echo "Failed to generate a password for the database user. Exiting..."
     exit 1
 fi
-echo "Generating password for user $USER..."
-echo "Password generated successfully."
 
 # Generate a random secret for session cookies
 SECRET=$(openssl rand -base64 32)
@@ -217,8 +265,6 @@ if [ -z "$SECRET" ]; then
     echo "Failed to generate a secret for session cookies. Exiting..."
     exit 1
 fi
-echo "Generating secret for session cookies..."
-echo "Secret generated successfully."
 
 # Construct the MySQL query
 readonly Q1="CREATE DATABASE IF NOT EXISTS $DB;"
@@ -227,7 +273,6 @@ readonly Q3="FLUSH PRIVILEGES;"
 readonly SQL="${Q1}${Q2}${Q3}"
 
 # Run the actual command
-echo "Creating database and user in MySQL..."
 if sudo $MYSQL -uroot -e "$SQL"; then
     echo "Database '$DB' and user '$USER' created successfully."
 else
@@ -235,14 +280,7 @@ else
     exit 1
 fi
 
-# Inform the user that the database was created
-echo ""
-echo "Database and user '$USER' were created successfully!"
-echo "Database Name: $DB"
-echo "Database User: $USER"
-echo "This information will be stored in config/local.json file."
-echo ""
-
+# Prompt user to enter the server hostname
 clear
 echo "═══════════════════════════════════════════════════════════════════════════════"
 echo "                      🚀 Server Hostname Configuration 🚀                      "
@@ -262,8 +300,6 @@ echo "   are properly configured and point to this server."
 echo ""
 echo "═══════════════════════════════════════════════════════════════════════════════"
 echo ""
-
-# Prompt user to enter the hostname
 read -p "🌐 Enter the hostname: " inputHOST
 
 # Check if the input is not empty
@@ -292,8 +328,6 @@ while [ -z "$HOST" ]; do
     echo ""
     echo "═══════════════════════════════════════════════════════════════════════════════"
     echo ""
-
-    # Prompt user to enter the hostname
     read -p "🌐 Enter the hostname: " inputHOST 
 
     # Check if the input is not empty
@@ -320,8 +354,6 @@ echo "   This allows you to easily switch from local storage to cloud storage."
 echo ""
 echo "   If you want to proceed with the default local storage, simply press Enter."
 echo ""
-
-# Prompt the user to input the media path
 read -r inputMEDIAPATH
 
 # Use the provided input if not empty
@@ -345,7 +377,6 @@ echo ""
 echo "👉 Enter the public key and press [Enter]:"
 echo ""
 read -p "🔑 Public Key: " -r PUBKEY
-
 
 # If PUBKEY is not empty, prompt user for server SECRET key
 if [ -n "$PUBKEY" ]; then
@@ -392,16 +423,10 @@ if [ -n "$PUBKEY" ]; then
 fi
 
 # Update local.json with generated fields
-clear
-echo ""
-echo "Creating user config file..."
-
-# Ensure the directory for config exists
 if [ ! -d "config" ]; then
     mkdir -p config || { echo "Failed to create config directory."; exit 1; }
 fi
 
-# Create a new JSON object with the specified values
 if jq -n --arg a "$HOST" --arg b "$PUBKEY" --arg c "$SECRETKEY" --arg d "$DB" --arg e "$USER" --arg f "$PASS" --arg g "$MEDIAPATH" --arg h "$SECRET" \
 '{
     "server": {
@@ -431,10 +456,6 @@ else
 fi
 
 # Create nginx config file
-echo ""
-echo "Creating nginx config file..."
-echo ""
-
 sudo tee /etc/nginx/sites-available/$HOST.conf > /dev/null <<EOF
 server {
     listen 80;
@@ -525,7 +546,6 @@ server {
 }
 EOF
 
-# Confirm that the configuration file was created successfully
 if [ -f /etc/nginx/sites-available/$HOST.conf ]; then
     echo "nginx config file for $HOST created successfully."
 else
@@ -533,7 +553,7 @@ else
     exit 1
 fi
 
-# Enable the site
+# Enable the nginx site
 echo "Enabling nginx site..."
 echo ""
 
@@ -546,15 +566,16 @@ else
 fi
 
 # Restart nginx
-echo ""
-echo "Restarting nginx..."
+echo "═══════════════════════════════════════════════════════════════════════════════"
+echo "                          🔄 Restarting Nginx...                                "
+echo "═══════════════════════════════════════════════════════════════════════════════"
 echo ""
 
 # Restart the Nginx service
 if sudo service nginx restart; then
-    echo "Nginx restarted successfully."
+    echo "✅ Nginx restarted successfully!"
 else
-    echo "Failed to restart Nginx. Please check the service status for more details."
+    echo "❌ Failed to restart Nginx. Please check the service status for more details."
     exit 1
 fi
 
@@ -577,10 +598,8 @@ SUDO_USER=$(whoami)
 ABSOLUTE_PATH=$(realpath "$PWD")
 
 if [ "$input" = "y" ]; then
+
     SYSTEMD_SERVICE_CREATED="yes"
-    echo ""
-    echo "Creating systemd service..."
-    echo ""
 
     # Check if required variables are set
     if [ -z "$SUDO_USER" ] || [ -z "$PWD" ]; then
@@ -588,49 +607,45 @@ if [ "$input" = "y" ]; then
         exit 1
     fi
 
-    # Define the absolute path of the working directory
     ABSOLUTE_PATH=$(realpath "$PWD/nostrcheck-server")
 
-    # Create the systemd service file
     sudo bash -c "cat > /etc/systemd/system/nostrcheck.service <<EOF
-[Unit]
-Description=Nostrcheck server
-After=network.target
+    [Unit]
+    Description=Nostrcheck server
+    After=network.target
 
-[Service]
-Type=simple
-User=$SUDO_USER
-WorkingDirectory=$ABSOLUTE_PATH
-ExecStart=/usr/bin/npm run start
-Restart=on-failure
-RestartPreventExitStatus=3
-SuccessExitStatus=3
-RestartSec=5s
+    [Service]
+    Type=simple
+    User=$SUDO_USER
+    WorkingDirectory=$ABSOLUTE_PATH
+    ExecStart=/usr/bin/npm run start
+    Restart=on-failure
+    RestartPreventExitStatus=3
+    SuccessExitStatus=3
+    RestartSec=5s
 
-[Install]
-WantedBy=multi-user.target
-EOF"
+    [Install]
+    WantedBy=multi-user.target
+    EOF"
 
-    # Check if the service file was created successfully
-    if [ -f /etc/systemd/system/nostrcheck.service ]; then
-        echo "Systemd service created successfully."
+ if [ -f /etc/systemd/system/nostrcheck.service ]; then
+    echo "═══════════════════════════════════════════════════════════════════════════════"
+    echo "                   ⚙️  Enabling and Starting Nostrcheck Service...              "
+    echo "═══════════════════════════════════════════════════════════════════════════════"
+    echo ""
 
-        # Enable and start the service
-        clear
-        echo ""
-        echo "Enabling and starting the service..."
-        echo ""
-        sudo systemctl enable nostrcheck
-        sudo systemctl start nostrcheck
+    sudo systemctl enable nostrcheck || { echo "❌ Failed to enable Nostrcheck service"; exit 1; }
+    sudo systemctl start nostrcheck || { echo "❌ Failed to start Nostrcheck service"; exit 1; }
 
-        # Check if the service started successfully
-        if sudo systemctl is-active --quiet nostrcheck; then
-            echo "Nostrcheck service started successfully."
-        else
-            echo "Failed to start Nostrcheck service. Please check the service status for more details."
-        fi
+    # Check if the service started successfully
+    if sudo systemctl is-active --quiet nostrcheck; then
+        echo "✅ Nostrcheck service started successfully!"
     else
-        echo "Failed to create systemd service file. Please check permissions and try again."
+        echo "❌ Failed to start Nostrcheck service. Please check the service status for more details."
+        exit 1
+    fi
+    else
+        echo "❌ Failed to create systemd service file. Please check permissions and try again."
         exit 1
     fi
 fi
@@ -654,26 +669,27 @@ echo ""
 read -r input
 
 if [ "$input" = "y" ]; then
-    echo ""
-    echo "Executing certbot to obtain SSL certificate for $HOST..."
+    echo "═══════════════════════════════════════════════════════════════════════════════"
+    echo "          🔐 Executing Certbot to Obtain SSL Certificate for $HOST              "
+    echo "═══════════════════════════════════════════════════════════════════════════════"
     echo ""
     
     # Run certbot with nginx plugin for the specified domain
     if sudo certbot --nginx -d "$HOST"; then
-        echo "SSL certificate obtained successfully for $HOST."
+        echo "✅ SSL certificate obtained successfully for $HOST."
 
         # Restart nginx to apply the new SSL certificate
         echo ""
-        echo "Restarting nginx..."
+        echo "🔄 Restarting Nginx to apply the new SSL certificate..."
         echo ""
         if sudo service nginx restart; then
-            echo "Nginx restarted successfully."
+            echo "✅ Nginx restarted successfully!"
         else
-            echo "Failed to restart Nginx. Please check the service status."
+            echo "❌ Failed to restart Nginx. Please check the service status."
             exit 1
         fi
     else
-        echo "Failed to obtain SSL certificate for $HOST. Please check the Certbot logs for details."
+        echo "❌ Failed to obtain SSL certificate for $HOST. Please check the Certbot logs for details."
         exit 1
     fi
 fi
@@ -697,32 +713,33 @@ echo ""
 read -r input_cdn
 
 if [ "$input_cdn" = "y" ]; then
-    echo ""
-    echo "Executing certbot to obtain SSL certificate for cdn.$HOST..."
+    echo "═══════════════════════════════════════════════════════════════════════════════"
+    echo "     🔐 Executing Certbot to Obtain SSL Certificate for cdn.$HOST              "
+    echo "═══════════════════════════════════════════════════════════════════════════════"
     echo ""
     
     # Run certbot with nginx plugin for the cdn subdomain
     if sudo certbot --nginx -d "cdn.$HOST"; then
-        echo "SSL certificate obtained successfully for cdn.$HOST."
+        echo "✅ SSL certificate obtained successfully for cdn.$HOST."
 
         # Restart nginx to apply the new SSL certificate
         echo ""
-        echo "Restarting nginx..."
+        echo "🔄 Restarting Nginx to apply the new SSL certificate..."
         echo ""
         if sudo service nginx restart; then
-            echo "Nginx restarted successfully."
+            echo "✅ Nginx restarted successfully!"
         else
-            echo "Failed to restart Nginx. Please check the service status."
+            echo "❌ Failed to restart Nginx. Please check the service status."
             exit 1
         fi
     else
-        echo "Failed to obtain SSL certificate for cdn.$HOST. Please check the Certbot logs for details."
+        echo "❌ Failed to obtain SSL certificate for cdn.$HOST. Please check the Certbot logs for details."
         exit 1
     fi
 fi
 
-clear
 # End message
+clear
 echo "╔═════════════════════════════════════════════════════════════════════════════════════════╗"
 echo "║                                                                                         ║"
 echo "║  🎉 Installation Complete! 🎉                                                           ║"
