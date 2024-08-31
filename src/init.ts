@@ -20,7 +20,7 @@ console.log("Starting Nostrcheck server", );
     }
     if(await syncDefaultConfigValues(defaultConfig, localPath)){
         console.info("Config file updated with new default fields. Please restart the server");
-        exit(0);
+        exit(3);
     }
     
     const startServer = await import('./server.js');
