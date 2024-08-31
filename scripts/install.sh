@@ -77,19 +77,19 @@ if command -v node > /dev/null 2>&1; then
     # Compare with desired major version
     if [ "$INSTALLED_NODE_MAJOR" -ge "$NODE_MAJOR" ]; then
         echo "✅ Node.js version $INSTALLED_NODE_MAJOR is already installed."
-        sleep 1
+        sleep 2
     else
         echo "⚠️ Installed Node.js version (v$INSTALLED_NODE_MAJOR) is lower than $NODE_MAJOR."
         echo "🔄 Installing Node.js version $NODE_MAJOR..."
         echo ""
-        sleep 1
+        sleep 2
         install_node
     fi
 else
     echo "❌ Node.js is not installed."
     echo "🔄 Installing Node.js version $NODE_MAJOR..."
     echo ""
-    sleep 1
+    sleep 2
     install_node
 fi
 
@@ -129,7 +129,7 @@ sudo apt-get update || { echo "❌ Failed to update package list"; exit 1; }
 echo ""
 echo "✅ Package list updated successfully!"
 echo ""
-sleep 1
+sleep 2
 
 # Install necessary packages
 clear
@@ -140,13 +140,14 @@ echo ""
 echo "🔄 Installing the following packages:"
 echo "   - $PACKAGES"
 echo ""
-sleep 1
+sleep 3
 sudo apt-get install -y $PACKAGES || { echo "❌ Failed to install necessary packages"; exit 1; }
 
 echo "✅ Necessary packages installed successfully!"
 echo ""
 
 # Clone the repository
+clear
 echo "═══════════════════════════════════════════════════════════════════════════════"
 echo "                     📥 Cloning the Repository...                             "
 echo "═══════════════════════════════════════════════════════════════════════════════"
@@ -158,7 +159,7 @@ echo ""
 git clone -b "$REPO_BRANCH" --single-branch "$REPO_URL" || { echo "❌ Failed to clone the repository"; exit 1; }
 cd "nostrcheck-server" || { echo "❌ Failed to enter the repository directory"; exit 1; }
 echo "✅ Repository cloned and ready for installation!"
-sleep 1
+sleep 2
 
 # Install Python packages from requirements.txt
 clear
@@ -171,7 +172,7 @@ echo ""
 pip install -r "$REQUIREMENTS_FILE" || { echo "❌ Failed to install Python packages from $REQUIREMENTS_FILE"; exit 1; }
 echo ""
 echo "✅ Python packages installed successfully!"
-sleep 1
+sleep 2
 
 # Install the latest npm globally
 clear
@@ -182,7 +183,7 @@ echo ""
 echo "🔄 Updating npm to the latest version globally..."
 sudo npm install -g npm@latest || { echo "❌ Failed to install the latest npm package manager"; exit 1; }
 echo "✅ npm has been updated to the latest version successfully!"
-sleep 1
+sleep 2
 
 # Install npm dependencies
 clear
@@ -194,7 +195,7 @@ echo "🔄 Installing npm dependencies with optional packages..."
 echo ""
 npm install --include=optional sharp || { echo "❌ Failed to install npm dependencies"; exit 1; }
 echo "✅ npm dependencies installed successfully!"
-sleep 1
+sleep 2
 
 # Build the project
 clear
@@ -206,7 +207,7 @@ echo "🔄 Running the build process..."
 echo ""
 npm run build || { echo "❌ Failed to build the project"; exit 1; }
 echo "✅ Project built successfully!"
-sleep 1
+sleep 2
 
 # Start mariadb and redis-server
 clear
@@ -227,7 +228,7 @@ echo ""
 sudo service mariadb start || { echo "❌ Failed to start MariaDB"; exit 1; }
 echo "✅ MariaDB started successfully!"
 
-sleep 1
+sleep 2
 
 # MYSQL
 readonly MYSQL=$(which mysql)
@@ -597,7 +598,7 @@ fi
 # Restart the Nginx service
 if sudo service nginx restart; then
     echo "✅ Nginx configured successfully!"
-    sleep 1
+    sleep 2
 else
     echo "❌ Failed to configure Nginx. Please check the service status for more details."
     exit 1
@@ -664,7 +665,7 @@ EOF"
     # Check if the service started successfully
     if sudo systemctl is-active --quiet nostrcheck; then
         echo "✅ Nostrcheck service started successfully!"
-        sleep 1
+        sleep 2
     else
         echo "❌ Failed to start Nostrcheck service. Please check the service status for more details."
         exit 1
@@ -709,7 +710,7 @@ if [ "$input" = "y" ]; then
         echo ""
         if sudo service nginx restart; then
             echo "✅ Certbot configured successfully!"
-            sleep 1
+            sleep 2
         else
             echo "❌ Failed to restart Nginx. Please check the service status."
             exit 1
@@ -754,7 +755,7 @@ if [ "$input_cdn" = "y" ]; then
         echo ""
         if sudo service nginx restart; then
             echo "✅ Certbot configured successfully!"
-            sleep 1
+            sleep 2
         else
             echo "❌ Failed to restart Nginx. Please check the service status."
             exit 1
