@@ -253,7 +253,7 @@ jq -n --arg a "$HOST" --arg b "$PUBKEY" --arg c "$SECRETKEY" --arg d "$DB" --arg
         "host": $a,
         "port": 3000,
         "pubkey": $b,
-        "secretKey": $c
+        "secretKey": $c,
         "tosFilePath": "resources/tos.md"
     },
     "database": {
