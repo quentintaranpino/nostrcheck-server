@@ -213,16 +213,25 @@ echo "Database User: $USER"
 echo "This information will be stored in config/local.json file."
 echo ""
 
-# Set hostname
 clear
-echo "Server hostname (e.g., nostrcheck.me):"
+echo "═══════════════════════════════════════════════════════════════════════════════"
+echo "                      🚀 Server Hostname Configuration 🚀                      "
+echo "═══════════════════════════════════════════════════════════════════════════════"
 echo ""
-echo "WARNING: This hostname will be used to create the nginx configuration file."
-echo "If you want to use SSL, make sure to have a valid domain name and DNS records pointing to this server."
+echo "Please enter your server hostname (e.g., nostrcheck.me):"
 echo ""
-echo "Additionally, a subdomain 'cdn' (e.g., cdn.yourdomain.com) will be configured for serving static content and media files."
-echo "Ensure that DNS records for both the main domain and the 'cdn' subdomain are properly configured and point to this server."
+echo "⚠️  IMPORTANT: This hostname will be used to generate the Nginx configuration."
+echo "               If you plan to use SSL, ensure you have a valid domain name"
+echo "               and that DNS records correctly point to this server."
 echo ""
+echo "🔧 Additionally, a 'cdn' subdomain (e.g., cdn.yourdomain.com) will be set up"
+echo "   to serve blobs using the Blossom protocol."
+echo ""
+echo "💡 Ensure that DNS records for both the main domain and the 'cdn' subdomain"
+echo "   are properly configured and point to this server."
+echo ""
+echo "═══════════════════════════════════════════════════════════════════════════════"
+
 
 # Prompt the user to input the hostname
 read -r inputHOST
