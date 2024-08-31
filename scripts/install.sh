@@ -569,7 +569,7 @@ read -r input
 # Initialize service variables
 SYSTEMD_SERVICE_CREATED="no"
 SUDO_USER=$(whoami)
-ABSOLUTE_PATH=$(realpath "$PWD/nostrcheck-server")
+ABSOLUTE_PATH=$(realpath "$PWD")
 
 if [ "$input" = "y" ]; then
     SYSTEMD_SERVICE_CREATED="yes"
