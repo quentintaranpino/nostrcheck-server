@@ -13,7 +13,7 @@ NODE_MAJOR=21
 HOST=""
 DB="nostrcheck"
 USER="nostrcheck"
-MEDIAPATH="media/"
+MEDIAPATH="files/"
 PUBKEY=""
 SECRETKEY=""
 REPO_URL="https://github.com/quentintaranpino/nostrcheck-server.git"
@@ -135,7 +135,8 @@ echo "                  📦 Installing Necessary Packages...                   
 echo "═══════════════════════════════════════════════════════════════════════════════"
 echo ""
 echo "🔄 Installing the following packages:"
-echo "   - $PACKAGES"
+echo ""
+echo "    $PACKAGES"
 echo ""
 sleep 3
 sudo apt-get install -y $PACKAGES || { echo "❌ Failed to install necessary packages"; exit 1; }
@@ -164,7 +165,7 @@ echo "════════════════════════�
 echo "                 🐍 Installing Necessary Python Packages...                   "
 echo "═══════════════════════════════════════════════════════════════════════════════"
 echo ""
-echo "📄 Installing packages from $REQUIREMENTS_FILE..."
+echo "🔄 Installing packages from $REQUIREMENTS_FILE..."
 echo ""
 pip install -r "$REQUIREMENTS_FILE" || { echo "❌ Failed to install Python packages from $REQUIREMENTS_FILE"; exit 1; }
 echo ""
@@ -215,22 +216,22 @@ echo ""
 
 # Start Redis Server
 echo "🔄 Starting Redis Server..."
-echo ""
 sudo service redis-server start || { echo "❌ Failed to start Redis Server"; exit 1; }
 echo "✅ Redis Server started successfully!"
+echo ""
+sleep 3
 
 # Start MariaDB
 echo "🔄 Starting MariaDB..."
 echo ""
 sudo service mariadb start || { echo "❌ Failed to start MariaDB"; exit 1; }
 echo "✅ MariaDB started successfully!"
-
 sleep 3
 
 # MYSQL
 readonly MYSQL=$(which mysql)
 if [ -z "$MYSQL" ]; then
-    echo "MySQL is not installed or not found in PATH. Exiting..."
+    echo "❌ MySQL is not installed or not found in PATH. Exiting..."
     exit 1
 fi
 
@@ -249,7 +250,7 @@ echo "   If you are not sure, you can use the default database name by pressing 
 echo ""
 echo "👉 Enter the database name and press [Enter]:"
 echo ""
-read -p "🗄️  Database Name [default: $DB]: " inputDB
+read -p "🗄️ Database Name [default: $DB]: " inputDB
 if [ ! -z "$inputDB" ]; then
     DB=$inputDB
 fi
@@ -296,7 +297,8 @@ readonly SQL="${Q1}${Q2}${Q3}"
 
 # Run the actual command
 if sudo $MYSQL -uroot -e "$SQL"; then
-    echo "Database '$DB' and user '$USER' created successfully."
+    echo "✅ Database '$DB' and user '$USER' created successfully."
+    sleep 3
 else
     echo "Failed to create database or user. Please check MySQL root privileges and try again."
     exit 1
@@ -362,21 +364,21 @@ done
 # Set media path
 clear
 echo "═══════════════════════════════════════════════════════════════════════════════"
-echo "                          📁 Set Media Path                                    "
+echo "                          📁 Set hosting Path                                    "
 echo "═══════════════════════════════════════════════════════════════════════════════"
 echo ""
-echo "🗂️  Media path [default: $MEDIAPATH]:"
+echo "Please specify the path where the server will store hosting files."
 echo ""
-echo "⚠️  WARNING: The server is initially configured to store media files locally."
-echo "   If you prefer to use a different path on this system, please specify it here."
+echo "⚠️  WARNING: The server is initially configured to store hosting files locally."
+echo "   You can set now the path where files will be stored on the server."
 echo ""
 echo "💡 After the installation is complete, you can configure the server to use"
 echo "   a remote S3-compatible storage solution through the 'Settings' section."
 echo "   This allows you to easily switch from local storage to cloud storage."
 echo ""
-echo "   If you want to proceed with the default local storage, simply press Enter."
+echo "❓ If you don't now what to do, just press Enter to use the default local path."
 echo ""
-read -r inputMEDIAPATH
+read -p "🗂️ Media path [default: $MEDIAPATH]:" -r inputMEDIAPATH
 
 # Use the provided input if not empty
 if [ -n "$inputMEDIAPATH" ]; then
@@ -430,7 +432,8 @@ if [ -n "$PUBKEY" ]; then
         echo "💡 You can use the following tool to convert your nsec to HEX format:"
         echo "   🌐 https://nostrcheck.me/converter/"
         echo ""
-        echo "👉 Enter the secret key and press [Enter]:"
+        echo "👉 Enter the secret key and press [Enter]"
+        echo "❓ Leave this field empty to generate a new pubkey/secret keypair."
         echo ""
         read -p "🔑 Secret Key: " -r SECRETKEY
 
@@ -438,13 +441,21 @@ if [ -n "$PUBKEY" ]; then
         if [ -z "$SECRETKEY" ]; then
             echo ""
             echo "❌ No secret key provided. The pubkey will be disregarded."
+            echo "✅ The server will generate a new pubkey/secret keypair."
             PUBKEY=""
+            sleep 3
             break
         fi
     done
 fi
 
 # Update local.json with generated fields
+clear
+echo "═══════════════════════════════════════════════════════════════════════════════"
+echo "                       📝 Creating config files                                "
+echo "═══════════════════════════════════════════════════════════════════════════════"
+echo ""
+
 if [ ! -d "config" ]; then
     mkdir -p config || { echo "Failed to create config directory."; exit 1; }
 fi
@@ -471,13 +482,23 @@ if jq -n --arg a "$HOST" --arg b "$PUBKEY" --arg c "$SECRETKEY" --arg d "$DB" --
         "secret": $h
     }
 }' > config/local.json; then
-    echo "Config file 'config/local.json' created successfully."
+    echo "✅ Config file 'config/local.json' created successfully."
+    sleep 3
 else
-    echo "Failed to create 'config/local.json'. Please check your jq installation and permissions."
+    echo "❌ Failed to create 'config/local.json'. Please check if jq package is installed, "
+    echo "   the config directory exists, permissions are set correctly, and try again."
+    sleep 3
     exit 1
 fi
 
-# Create nginx config file
+# Configure Nginx
+clear
+echo ""
+echo "═══════════════════════════════════════════════════════════════════════════════"
+echo "                          🔄 Configuring Nginx...                                "
+echo "═══════════════════════════════════════════════════════════════════════════════"
+echo ""
+
 sudo tee /etc/nginx/sites-available/$HOST.conf > /dev/null <<EOF
 server {
     listen 80;
@@ -569,26 +590,25 @@ server {
 EOF
 
 if [ -f /etc/nginx/sites-available/$HOST.conf ]; then
-    echo "nginx config file for $HOST created successfully."
+    echo "✅ nginx config file for $HOST created successfully."
+    sleep 3
 else
-    echo "Failed to create nginx config file for $HOST."
+    echo "❌ Failed to create nginx config file for $HOST."
+    echo " Please check the nginx configuration and try again."
+    sleep 3
     exit 1
 fi
 
-
-# Restart nginx
-echo "═══════════════════════════════════════════════════════════════════════════════"
-echo "                          🔄 Configuring Nginx...                                "
-echo "═══════════════════════════════════════════════════════════════════════════════"
-echo ""
 # Enable the nginx site
 echo "⚙️ Enabling nginx site for $HOST..."
 
 # Create a symbolic link to enable the site
 if sudo ln -s /etc/nginx/sites-available/$HOST.conf /etc/nginx/sites-enabled/$HOST.conf; then
     echo "✅ Nginx site for $HOST enabled successfully."
+    sleep 3
 else
     echo "Failed to enable nginx site for $HOST. Please check the configuration and try again."
+    sleep 3
     exit 1
 fi
 
@@ -757,6 +777,7 @@ if [ "$input_cdn" = "y" ]; then
             sleep 3
         else
             echo "❌ Failed to restart Nginx. Please check the service status."
+            sleep 3
             exit 1
         fi
     else
