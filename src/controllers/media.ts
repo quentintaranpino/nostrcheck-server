@@ -875,7 +875,7 @@ const getMediabyURL = async (req: Request, res: Response) => {
 		const pubkeyId = await dbMultiSelect(["id"], "registered", "hex = ?", [filedata[0].pubkey], true);
 		if (pubkeyId.length > 0 && (await isContentBanned(pubkeyId[0].id, "registered") == true)) {isBanned = true}
 		if (isBanned && adminRequest == false) {
-			logger.warn(`RES -> 200 Banned content - ${req.url}`, "| Returning banned media file.", getClientIp(req));
+			logger.info(`RES -> 200 Banned content - ${req.url}`, "| Returning banned media file.", getClientIp(req));
 			res.setHeader('Content-Type', 'image/webp');
 			return res.status(200).send(await getBannedMediaFile());
 		}
