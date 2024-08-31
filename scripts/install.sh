@@ -566,8 +566,10 @@ echo "Please enter your choice: [y/n]"
 echo ""
 read -r input
 
-# Initialize the variable
+# Initialize service variables
 SYSTEMD_SERVICE_CREATED="no"
+SUDO_USER=$(whoami)
+ABSOLUTE_PATH=$(realpath "$PWD/nostrcheck-server")
 
 if [ "$input" = "y" ]; then
     SYSTEMD_SERVICE_CREATED="yes"
@@ -585,7 +587,7 @@ if [ "$input" = "y" ]; then
     ABSOLUTE_PATH=$(realpath "$PWD/nostrcheck-server")
 
     # Create the systemd service file
-    cat > /etc/systemd/system/nostrcheck.service <<EOF
+    sudo bash -c "cat > /etc/systemd/system/nostrcheck.service <<EOF
 [Unit]
 Description=Nostrcheck server
 After=network.target
