@@ -39,13 +39,13 @@ echo "╚══════╝╚══════╝╚═╝  ╚═╝  ╚�
 echo ""
 echo "══════════════════════════════════════════════════════════════════════════════"
 echo " Nostrcheck-server installation script v$version"
+echo ""
 echo "📅 Last updated: $date"
 echo "🔗 Project repository: https://github.com/quentintaranpino/nostrcheck-server/"
 echo "📝 License: MIT"
-echo "══════════════════════════════════════════════════════════════════════════════"
 echo ""
 echo "📢 This script will install and configure the Nostrcheck server on your system."
-echo "⚠️ WARNING: This script is still in development and may not work as expected."
+echo "⚠️ WARNING: This software is still in development and may not work as expected."
 echo ""
 echo "══════════════════════════════════════════════════════════════════════════════"
 
@@ -675,33 +675,6 @@ RestartSec=5s
 WantedBy=multi-user.target
 EOF"
 
- if [ -f /etc/systemd/system/nostrcheck.service ]; then
-    clear
-    echo ""
-    echo "═══════════════════════════════════════════════════════════════════════════════"
-    echo "               ⚙️  Enabling and Starting Nostrcheck Service...              "
-    echo "═══════════════════════════════════════════════════════════════════════════════"
-    echo ""
-
-    sudo systemctl enable nostrcheck || { echo "❌ Failed to enable Nostrcheck service"; exit 1; }
-    sudo systemctl start nostrcheck || { echo "❌ Failed to start Nostrcheck service"; exit 1; }
-
-    # Check if the service started successfully
-    if sudo systemctl is-active --quiet nostrcheck; then
-        echo "✅ Nostrcheck service started successfully!"
-        sleep 3
-    else
-        echo "❌ Failed to start Nostrcheck service. Please check the service status for more details."
-        SYSTEMD_SERVICE_CREATED="no"
-        sleep 5
-    fi
-    else
-        echo "❌ Failed to create systemd service file. The service will not be enabled."
-        SYSTEMD_SERVICE_CREATED="no"
-        sleep 5
-    fi
-fi
-
 # Ask user if they want to execute certbot for SSL
 clear
 echo "═══════════════════════════════════════════════════════════════════════════════"
@@ -797,6 +770,33 @@ if [ "$input_cdn" = "y" ]; then
         echo "❌ Failed to obtain SSL certificate for cdn.$HOST. Please check the Certbot logs for details."
         sleep 3
         exit 1
+    fi
+fi
+
+if [ -f /etc/systemd/system/nostrcheck.service ]; then
+    clear
+    echo ""
+    echo "═══════════════════════════════════════════════════════════════════════════════"
+    echo "               ⚙️  Enabling and Starting Nostrcheck Service...              "
+    echo "═══════════════════════════════════════════════════════════════════════════════"
+    echo ""
+
+    sudo systemctl enable nostrcheck || { echo "❌ Failed to enable Nostrcheck service"; exit 1; }
+    sudo systemctl start nostrcheck || { echo "❌ Failed to start Nostrcheck service"; exit 1; }
+
+    # Check if the service started successfully
+    if sudo systemctl is-active --quiet nostrcheck; then
+        echo "✅ Nostrcheck service started successfully!"
+        sleep 3
+    else
+        echo "❌ Failed to start Nostrcheck service. Please check the service status for more details."
+        SYSTEMD_SERVICE_CREATED="no"
+        sleep 5
+    fi
+    else
+        echo "❌ Failed to create systemd service file. The service will not be enabled."
+        SYSTEMD_SERVICE_CREATED="no"
+        sleep 5
     fi
 fi
 
