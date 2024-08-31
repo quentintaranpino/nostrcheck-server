@@ -5,8 +5,21 @@ BASEDIR=$(dirname "$0")
 echo "$BASEDIR"
 
 readonly E_BADARGS=65
-readonly version="0.2.3"
+readonly version="0.2.4"
 readonly date="20240831"
+
+# Variables
+NODE_MAJOR=21
+HOST=""
+DB="nostrcheck"
+USER="nostrcheck"
+MEDIAPATH="media/"
+PUBKEY=""
+SECRETKEY=""
+REPO_URL="https://github.com/quentintaranpino/nostrcheck-server.git"
+REPO_BRANCH="0.6.0"
+REQUIREMENTS_FILE="requirements.txt"
+PACKAGES="nginx git redis-server mariadb-server mariadb-client ffmpeg jq certbot python3-certbot-nginx python3 python3-pip"
 
 clear
 echo ""
@@ -25,7 +38,7 @@ echo "███████║███████╗██║  ██║ ╚�
 echo "╚══════╝╚══════╝╚═╝  ╚═╝  ╚═══╝  ╚══════╝╚═╝  ╚═╝"
 echo ""
 echo "══════════════════════════════════════════════════════════════════════════════"
-echo " Nostrcheck Server Installation Script v$version"
+echo " Nostrcheck-server installation script v$version"
 echo "📅 Last updated: $date"
 echo "🔗 Project repository: https://github.com/quentintaranpino/nostrcheck-server/"
 echo "📝 License: MIT"
@@ -35,22 +48,6 @@ echo "📢 This script will install and configure the Nostrcheck server on your 
 echo "⚠️  WARNING: This script is still in development and may not work as expected."
 echo ""
 echo "══════════════════════════════════════════════════════════════════════════════"
-
-
-# Node version
-NODE_MAJOR=21
-
-# Variables
-HOST=""
-DB="nostrcheck"
-USER="nostrcheck"
-MEDIAPATH="media/"
-PUBKEY=""
-SECRETKEY=""
-REPO_URL="https://github.com/quentintaranpino/nostrcheck-server.git"
-REPO_BRANCH="0.6.0"
-REQUIREMENTS_FILE="requirements.txt"
-PACKAGES="nginx git redis-server mariadb-server mariadb-client ffmpeg jq certbot python3-certbot-nginx python3 python3-pip"
 
 # We ask user if want to continue
 echo "👉 Do you want to proceed with the installation? [y/n]"
@@ -63,7 +60,7 @@ fi
 
 clear
 echo "═══════════════════════════════════════════════════════════════════════════════"
-echo "                        🚀 Installing Node.js...                                "
+echo "                        🚀 Installing node.js...                               "
 echo "═══════════════════════════════════════════════════════════════════════════════"
 echo ""
 echo "🔍 Checking for existing installation and version compatibility..."
@@ -77,19 +74,19 @@ if command -v node > /dev/null 2>&1; then
     # Compare with desired major version
     if [ "$INSTALLED_NODE_MAJOR" -ge "$NODE_MAJOR" ]; then
         echo "✅ Node.js version $INSTALLED_NODE_MAJOR is already installed."
-        sleep 2
+        sleep 3
     else
         echo "⚠️ Installed Node.js version (v$INSTALLED_NODE_MAJOR) is lower than $NODE_MAJOR."
         echo "🔄 Installing Node.js version $NODE_MAJOR..."
         echo ""
-        sleep 2
+        sleep 3
         install_node
     fi
 else
     echo "❌ Node.js is not installed."
     echo "🔄 Installing Node.js version $NODE_MAJOR..."
     echo ""
-    sleep 2
+    sleep 3
     install_node
 fi
 
@@ -129,7 +126,7 @@ sudo apt-get update || { echo "❌ Failed to update package list"; exit 1; }
 echo ""
 echo "✅ Package list updated successfully!"
 echo ""
-sleep 2
+sleep 3
 
 # Install necessary packages
 clear
@@ -159,7 +156,7 @@ echo ""
 git clone -b "$REPO_BRANCH" --single-branch "$REPO_URL" || { echo "❌ Failed to clone the repository"; exit 1; }
 cd "nostrcheck-server" || { echo "❌ Failed to enter the repository directory"; exit 1; }
 echo "✅ Repository cloned and ready for installation!"
-sleep 2
+sleep 3
 
 # Install Python packages from requirements.txt
 clear
@@ -172,7 +169,7 @@ echo ""
 pip install -r "$REQUIREMENTS_FILE" || { echo "❌ Failed to install Python packages from $REQUIREMENTS_FILE"; exit 1; }
 echo ""
 echo "✅ Python packages installed successfully!"
-sleep 2
+sleep 3
 
 # Install the latest npm globally
 clear
@@ -183,7 +180,7 @@ echo ""
 echo "🔄 Updating npm to the latest version globally..."
 sudo npm install -g npm@latest || { echo "❌ Failed to install the latest npm package manager"; exit 1; }
 echo "✅ npm has been updated to the latest version successfully!"
-sleep 2
+sleep 3
 
 # Install npm dependencies
 clear
@@ -195,7 +192,7 @@ echo "🔄 Installing npm dependencies with optional packages..."
 echo ""
 npm install --include=optional sharp || { echo "❌ Failed to install npm dependencies"; exit 1; }
 echo "✅ npm dependencies installed successfully!"
-sleep 2
+sleep 3
 
 # Build the project
 clear
@@ -207,7 +204,7 @@ echo "🔄 Running the build process..."
 echo ""
 npm run build || { echo "❌ Failed to build the project"; exit 1; }
 echo "✅ Project built successfully!"
-sleep 2
+sleep 3
 
 # Start mariadb and redis-server
 clear
@@ -228,7 +225,7 @@ echo ""
 sudo service mariadb start || { echo "❌ Failed to start MariaDB"; exit 1; }
 echo "✅ MariaDB started successfully!"
 
-sleep 2
+sleep 3
 
 # MYSQL
 readonly MYSQL=$(which mysql)
@@ -598,7 +595,7 @@ fi
 # Restart the Nginx service
 if sudo service nginx restart; then
     echo "✅ Nginx configured successfully!"
-    sleep 2
+    sleep 3
 else
     echo "❌ Failed to configure Nginx. Please check the service status for more details."
     exit 1
@@ -655,7 +652,7 @@ EOF"
 
  if [ -f /etc/systemd/system/nostrcheck.service ]; then
     echo "═══════════════════════════════════════════════════════════════════════════════"
-    echo "                   ⚙️  Enabling and Starting Nostrcheck Service...              "
+    echo "               ⚙️  Enabling and Starting Nostrcheck Service...              "
     echo "═══════════════════════════════════════════════════════════════════════════════"
     echo ""
 
@@ -665,16 +662,16 @@ EOF"
     # Check if the service started successfully
     if sudo systemctl is-active --quiet nostrcheck; then
         echo "✅ Nostrcheck service started successfully!"
-        sleep 2
+        sleep 3
     else
         echo "❌ Failed to start Nostrcheck service. Please check the service status for more details."
         SYSTEMD_SERVICE_CREATED="no"
-        sleep 2
+        sleep 3
     fi
     else
-        echo "❌ Failed to create systemd service file. Please check permissions and try again."
+        echo "❌ Failed to create systemd service file. The service will not be enabled."
         SYSTEMD_SERVICE_CREATED="no"
-        sleep 2
+        sleep 3
     fi
 fi
 
@@ -712,7 +709,7 @@ if [ "$input" = "y" ]; then
         echo ""
         if sudo service nginx restart; then
             echo "✅ Certbot configured successfully!"
-            sleep 2
+            sleep 3
         else
             echo "❌ Failed to restart Nginx. Please check the service status."
             exit 1
@@ -757,7 +754,7 @@ if [ "$input_cdn" = "y" ]; then
         echo ""
         if sudo service nginx restart; then
             echo "✅ Certbot configured successfully!"
-            sleep 2
+            sleep 3
         else
             echo "❌ Failed to restart Nginx. Please check the service status."
             exit 1
@@ -770,39 +767,41 @@ fi
 
 # End message
 clear
-echo "╔═════════════════════════════════════════════════════════════════════════════════════════╗"
-echo "║                                                                                         ║"
-echo "║  🎉 Installation Complete! 🎉                                                           ║"
-echo "║                                                                                         ║"
+echo ""
+echo " ╔═════════════════════════════════════════════════════════════════════════════════════════╗"
+echo " ║                                                                                         ║"
+echo " ║  🎉 Installation Complete! 🎉                                                           ║"
+echo " ║                                                                                         ║"
 
 if [ "$SYSTEMD_SERVICE_CREATED" = "yes" ]; then
-    echo "║  🚀 The Nostrcheck server has been configured to run as a systemd service.              ║"
-    echo "║                                                                                         ║"
-    echo "║     👉 To start the server:   sudo systemctl start nostrcheck                           ║"
-    echo "║     👉 To stop the server:    sudo systemctl stop nostrcheck                            ║"
-    echo "║     👉 To check status:       sudo systemctl status nostrcheck                          ║"
-    echo "║     👉 To enable on boot:     sudo systemctl enable nostrcheck                          ║"
-    echo "║     👉 To disable on boot:    sudo systemctl disable nostrcheck                         ║"
+    echo " ║  🚀 The Nostrcheck server has been configured to run as a systemd service.              ║"
+    echo " ║                                                                                         ║"
+    echo " ║     👉 To start the server:   sudo systemctl start nostrcheck                           ║"
+    echo " ║     👉 To stop the server:    sudo systemctl stop nostrcheck                            ║"
+    echo " ║     👉 To check status:       sudo systemctl status nostrcheck                          ║"
+    echo " ║     👉 To enable on boot:     sudo systemctl enable nostrcheck                          ║"
+    echo " ║     👉 To disable on boot:    sudo systemctl disable nostrcheck                         ║"
 else
-    echo "║  🚀 You can now start the Nostrcheck server by running the following command:           ║"
-    echo "║     👉 cd nostrcheck-server && npm run start                                            ║"
+    echo " ║  🚀 You can now start the Nostrcheck server by running the following command:           ║"
+    echo " ║     👉 cd nostrcheck-server && npm run start                                            ║"
 fi
 
-echo "║                                                                                         ║"
-echo "║  📄 Server Documentation:                                                               ║"
-echo "║     📝 https://github.com/quentintaranpino/nostrcheck-server/blob/main/DOCS.md          ║"
-echo "║                                                                                         ║"
-echo "║  💖 If you like this project, please consider supporting its development:               ║"
-echo "║     🔗 https://nostrcheck.me/about/support-us.php                                       ║"
-echo "║                                                                                         ║"
-echo "║  ⚠️  Important Notice:                                                                  ║"
-echo "║     The first time you access the server's frontend, it will auto-login with the        ║"
-echo "║     admin user (public). A new password will be sent to the associated pubkey via DM.   ║"
-echo "║     Please make sure you can log in with the new password before closing this session.  ║"
+echo " ║                                                                                         ║"
+echo " ║  📄 Server Documentation:                                                               ║"
+echo " ║     📝 https://github.com/quentintaranpino/nostrcheck-server/blob/main/DOCS.md          ║"
+echo " ║                                                                                         ║"
+echo " ║  💖 If you like this project, please consider supporting its development:               ║"
+echo " ║     🔗 https://nostrcheck.me/about/support-us.php                                       ║"
+echo " ║                                                                                         ║"
+echo " ║  ⚠️  Important Notice:                                                                  ║"
+echo " ║     The first time you access the server's frontend, it will auto-login with the        ║"
+echo " ║     admin user (public). A new password will be sent to the associated pubkey via DM.   ║"
+echo " ║     Please make sure you can log in with the new password before closing this session.  ║"
 if [ -z "$PUBKEY" ]; then
-echo "║                                                                                         ║"   
-echo "║  🔑 Please run the server once to generate the server's pubkey and secret key. The new  ║"
-echo "║     keys will be stored in the config/local.json file.                                  ║"
+echo " ║                                                                                         ║"   
+echo " ║  🔑 Please run the server once to generate the server's pubkey and secret key. The new  ║"
+echo " ║     keys will be stored in the config/local.json file.                                  ║"
 fi
-echo "║                                                                                         ║"
-echo "╚═════════════════════════════════════════════════════════════════════════════════════════╝"
+echo " ║                                                                                         ║"
+echo " ╚═════════════════════════════════════════════════════════════════════════════════════════╝"
+echo ""
