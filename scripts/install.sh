@@ -56,30 +56,52 @@ if [ "$input" != "y" ]; then
     exit $E_BADARGS
 fi
 
+# Check if Node.js is installed
+if command -v node > /dev/null 2>&1; then
+    # Get the currently installed major version
+    INSTALLED_NODE_MAJOR=$(node -v | grep -oP '^v\K[0-9]+')
+    
+    # Compare with desired major version
+    if [ "$INSTALLED_NODE_MAJOR" -eq "$NODE_MAJOR" ]; then
+        echo "Node.js version $NODE_MAJOR is already installed."
+        echo "Skipping Node.js installation."
+    else
+        echo "Different major version of Node.js detected (v$INSTALLED_NODE_MAJOR)."
+        echo "Installing Node.js version $NODE_MAJOR..."
+        install_node
+    fi
+else
+    echo "Node.js is not installed. Installing Node.js version $NODE_MAJOR..."
+    install_node
+fi
+
 # Install Node.js
-clear
-echo "Installing Node.js..."
-echo ""
-sudo apt-get update || { echo "Failed to update package list"; exit 1; }
-sudo apt-get install -y ca-certificates curl gnupg || { echo "Failed to install certificates, curl, and gnupg"; exit 1; }
+install_node() {
 
-# If the directory does not exist, create it
-if [ ! -d "/etc/apt/keyrings" ]; then
-    sudo mkdir -p /etc/apt/keyrings || { echo "Failed to create keyrings directory"; exit 1; }
-fi
+    clear
+    echo "Installing Node.js..."
+    echo ""
+    sudo apt-get update || { echo "Failed to update package list"; exit 1; }
+    sudo apt-get install -y ca-certificates curl gnupg || { echo "Failed to install certificates, curl, and gnupg"; exit 1; }
 
-# If the file exists, remove it
-if [ -f "/etc/apt/keyrings/nodesource.gpg" ]; then
-    sudo rm /etc/apt/keyrings/nodesource.gpg || { echo "Failed to remove existing nodesource.gpg file"; exit 1; }
-fi
+    # If the directory does not exist, create it
+    if [ ! -d "/etc/apt/keyrings" ]; then
+        sudo mkdir -p /etc/apt/keyrings || { echo "Failed to create keyrings directory"; exit 1; }
+    fi
 
-curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | sudo gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg || { echo "Failed to download NodeSource GPG key"; exit 1; }
-echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_$NODE_MAJOR.x nodistro main" | sudo tee /etc/apt/sources.list.d/nodesource.list || { echo "Failed to add NodeSource repository"; exit 1; }
+    # If the file exists, remove it
+    if [ -f "/etc/apt/keyrings/nodesource.gpg" ]; then
+        sudo rm /etc/apt/keyrings/nodesource.gpg || { echo "Failed to remove existing nodesource.gpg file"; exit 1; }
+    fi
 
-sudo apt-get update || { echo "Failed to update package list after adding NodeSource"; exit 1; }
-sudo apt-get install nodejs -y || { echo "Failed to install Node.js"; exit 1; }
+    curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | sudo gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg || { echo "Failed to download NodeSource GPG key"; exit 1; }
+    echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_$NODE_MAJOR.x nodistro main" | sudo tee /etc/apt/sources.list.d/nodesource.list || { echo "Failed to add NodeSource repository"; exit 1; }
 
-# Clear the screen
+    sudo apt-get update || { echo "Failed to update package list after adding NodeSource"; exit 1; }
+    sudo apt-get install nodejs -y || { echo "Failed to install Node.js"; exit 1; }
+}
+
+# Install necessary packages
 clear
 echo "Installing necessary packages..."
 echo ""
@@ -98,57 +120,40 @@ git clone -b 0.6.0 --single-branch https://github.com/quentintaranpino/nostrchec
 # Prepare installation directory
 cd nostrcheck-server || { echo "Failed to enter the repository directory"; exit 1; }
 
-# Clear the screen
+# Install Python packages from requirements.txt
 clear
 echo "Installing necessary Python packages..."
 echo ""
-
-# Install Python packages from requirements.txt
 pip install -r requirements.txt || { echo "Failed to install Python packages from requirements.txt"; exit 1; }
 
-# Clear the screen
+# Install the latest npm globally
 clear
 echo "Installing the latest npm package manager..."
 echo ""
-
-# Install the latest npm globally
 sudo npm install -g npm@latest || { echo "Failed to install the latest npm package manager"; exit 1; }
 
-# Clear the screen
+# Install npm dependencies
 clear
 echo "Installing dependencies..."
 echo ""
-
-# Install npm dependencies
 npm install --include=optional sharp || { echo "Failed to install npm dependencies"; exit 1; }
 
-# Clear the screen
+# Build the project
 clear
 echo "Building the project..."
 echo ""
-
-# Build the project
 npm run build || { echo "Failed to build the project"; exit 1; }
 
 
-# Clear the screen
+# Start mariadb and redis-server
 clear
-echo "Starting services..."
+echo "Starting mariadb and redis-server..."
 echo ""
 
-# Start Redis service
-echo "Starting redis-server..."
 sudo service redis-server start || { echo "Failed to start redis-server"; exit 1; }
-echo "redis-server started successfully."
-
-# Start MariaDB service
-echo "Starting mariadb..."
 sudo service mariadb start || { echo "Failed to start mariadb"; exit 1; }
-echo "mariadb started successfully."
-
 
 # MYSQL
-# Clear the screen
 clear
 readonly MYSQL=$(which mysql)
 if [ -z "$MYSQL" ]; then
@@ -156,8 +161,8 @@ if [ -z "$MYSQL" ]; then
     exit 1
 fi
 
-clear
 # Prompt for database name
+clear
 echo "═══════════════════════════════════════════════════════════════════════════════"
 echo "                        🗄️  Database Configuration: Name                         "
 echo "═══════════════════════════════════════════════════════════════════════════════"
@@ -176,8 +181,8 @@ if [ ! -z "$inputDB" ]; then
     DB=$inputDB
 fi
 
-clear
 # Prompt for database user
+clear
 echo "═══════════════════════════════════════════════════════════════════════════════"
 echo "                        👤 Database Configuration: User                          "
 echo "═══════════════════════════════════════════════════════════════════════════════"
