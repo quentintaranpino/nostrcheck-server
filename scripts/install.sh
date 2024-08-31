@@ -456,6 +456,7 @@ fi
 
 # Update local.json with generated fields
 clear
+echo ""
 echo "═══════════════════════════════════════════════════════════════════════════════"
 echo "                       📝 Creating config files                                "
 echo "═══════════════════════════════════════════════════════════════════════════════"
@@ -628,14 +629,15 @@ fi
 
 # Ask user if they want to create a systemd service for the server
 clear
+echo ""
 echo "═══════════════════════════════════════════════════════════════════════════════"
 echo "       ⚙️  Do you want to create a systemd service? ⚙️    "
 echo "═══════════════════════════════════════════════════════════════════════════════"
 echo ""
-echo "This will allow the server to start automatically with your system."
-echo "It also makes it easier to manage the server as a background service."
+echo " This will allow the server to start automatically with your system."
+echo " It also makes it easier to manage the server as a background service."
 echo ""
-echo "Please enter your choice: [y/n]"
+echo " Please enter your choice: [y/n]"
 echo ""
 read -r input
 
@@ -711,7 +713,7 @@ echo "This will enable HTTPS, ensuring secure communication between your server 
 echo ""
 echo "🌐 Domain to be secured: $HOST"
 echo ""
-echo "⚠️  IMPORTANT: Make sure your domain's DNS records are correctly configured"
+echo "⚠️ IMPORTANT: Make sure your domain's DNS records are correctly configured"
 echo "   to point to this server before proceeding."
 echo ""
 echo "Would you like to proceed with Certbot to obtain an SSL certificate? [y/n]"
@@ -760,7 +762,7 @@ echo "This will enable HTTPS, ensuring secure communication for content delivery
 echo ""
 echo "🌐 Subdomain to be secured: cdn.$HOST"
 echo ""
-echo "⚠️  IMPORTANT: Make sure the DNS records for 'cdn.$HOST' are correctly configured"
+echo "⚠️ IMPORTANT: Make sure the DNS records for 'cdn.$HOST' are correctly configured"
 echo "   to point to this server before proceeding."
 echo ""
 echo "Would you like to proceed with Certbot to obtain an SSL certificate for your CDN? [y/n]"
@@ -771,7 +773,7 @@ if [ "$input_cdn" = "y" ]; then
     clear
     echo ""
     echo "═══════════════════════════════════════════════════════════════════════════════"
-    echo "     🔐 Executing Certbot to Obtain SSL Certificate for cdn.$HOST              "
+    echo "      🔐 Executing Certbot to Obtain SSL Certificate for cdn.$HOST              "
     echo "═══════════════════════════════════════════════════════════════════════════════"
     echo ""
     
