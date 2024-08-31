@@ -82,7 +82,7 @@ const isFirstUse = async (req : Request): Promise<boolean> => {
         "<div class='alert alert-primary ps-2 pe-2 pt-1 pb-0' role='alert'>" +
             "<p>The current 'public' legacy's password <b>is sent via nostr DM to himself</b>. You can check it using the most popular relay's (ex. wss://relay.damus.io).<p>" +
         "</div>" + 
-        "<p>You can reset the password of any user, but you will never see what password you have assigned, " + 
+        "<p>You can reset the password of any user, but not set it manually. " +
         "the password will always be sent via DM to the user's related pubkey.</p>" +
         "<h5 class='mt-3 mb-2'>Don't forget</h5>" +
         "<p><b>The server will not autologin again</b>, please keep this in mind before logging out or closing the browser window. " + 
