@@ -26,7 +26,7 @@ echo "╚══════╝╚══════╝╚═╝  ╚═╝  ╚�
 echo ""
 echo "Nostrcheck server installation script v$version"
 echo "Last updated: $date"
-echo "Project repository: https://github.com/quentintaranpino/nostrcheck-api-ts/"
+echo "Project repository: https://github.com/quentintaranpino/nostrcheck-server/"
 echo "----------------------------------------------------------------------------"
 echo ""
 echo "This script will install and configure the nostrcheck server on your system."
@@ -83,11 +83,11 @@ sudo apt install nginx git redis-server mariadb-server mariadb-client ffmpeg jq 
 clear
 echo "Cloning the repository..."
 echo ""
-#git clone https://github.com/quentintaranpino/nostrcheck-api-ts.git
-git clone https://github.com/quentintaranpino/nostrcheck-api-ts.git
+#git clone https://github.com/quentintaranpino/nostrcheck-server.git
+git clone -b 0.6.0 --single-branch https://github.com/quentintaranpino/nostrcheck-server.git
 
 # Prepare installation directory
-cd nostrcheck-api-ts
+cd nostrcheck-server
 
 # Install python necessary packages
 clear
@@ -202,7 +202,7 @@ fi
 clear
 echo "Media path [default: $MEDIAPATH]:"
 echo ""
-echo "WARNING: This path will be used to store media files on the filesystem."
+echo "WARNING: This path will be used to store media files on the filesystem if local storage is enabled."
 echo "If you want to use a different path, make sure to have the necessary permissions."
 echo ""
 read -r inputMEDIAPATH
@@ -383,7 +383,7 @@ After=network.target
 [Service]
 Type=simple
 User=$SUDO_USER
-WorkingDirectory=$ABSOLUTE_PATH/nostrcheck-api-ts
+WorkingDirectory=$ABSOLUTE_PATH/nostrcheck-server
 ExecStart=/usr/bin/npm run start
 Restart=on-failure
 
@@ -425,10 +425,10 @@ clear
 # End message
 echo "-------------------------------------------------------------------------------------------"
 echo "-                                                                                         -"
-echo "-  You can now start nostrcheck server by running 'cd nostrcheck-api-ts && npm run start' -"
+echo "-  You can now start nostrcheck server by running 'cd nostrcheck-server && npm run start' -"
 echo "-                                                                                         -"
 echo "-  Server documentation:                                                                  -"
-echo "-  https://github.com/quentintaranpino/nostrcheck-api-ts/blob/main/DOCS.md                -" 
+echo "-  https://github.com/quentintaranpino/nostrcheck-server/blob/main/DOCS.md                -" 
 echo "-                                                                                         -"
 echo "-  If you like this project, please consider donating to keep it alive:                   -"
 echo "-  https://nostrcheck.me/about/support-us.php                                             -"
