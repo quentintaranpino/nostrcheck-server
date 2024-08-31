@@ -156,32 +156,41 @@ if [ -z "$MYSQL" ]; then
     exit 1
 fi
 
+clear
 # Prompt for database name
 echo "═══════════════════════════════════════════════════════════════════════════════"
-echo "                      🗄️  Database Configuration: Name                         "
+echo "                        🗄️  Database Configuration: Name                         "
 echo "═══════════════════════════════════════════════════════════════════════════════"
 echo ""
-echo "Please enter the database name [default: $DB]:"
+echo "Please enter the name of the database that the server will use. This database"
+echo "will store all necessary data for your server's operation, including user data,"
+echo "configuration settings, and other essential information."
+echo "If you are not sure, you can use the default database name by pressing Enter."
 echo ""
-read -r inputDB
+echo "👉 Enter the database name and press [Enter]:"
+echo ""
+read -p "🗄️  Database Name [default: $DB]: " inputDB
 if [ ! -z "$inputDB" ]; then
     DB=$inputDB
 fi
 
 clear
-
 # Prompt for database user
 echo "═══════════════════════════════════════════════════════════════════════════════"
-echo "                      👤 Database Configuration: User                          "
+echo "                        👤 Database Configuration: User                          "
 echo "═══════════════════════════════════════════════════════════════════════════════"
 echo ""
-echo "Please enter the database user [default: $USER]:"
+echo "Please enter the username that will be used to connect to the database. This"
+echo "user should have sufficient privileges to create, read, update, and delete data"
+echo "in the database. Ensure that this user exists and has the correct permissions."
+echo "If you are not sure, you can use the default database user by pressing Enter."
 echo ""
-read -r inputUSER
+echo "👉 Enter the database user and press [Enter]:"
+echo ""
+read -p "👤 Database User [default: $USER]: " inputUSER
 if [ ! -z "$inputUSER" ]; then
     USER=$inputUSER
 fi
-
 
 # Generate a random password for the database user
 clear
@@ -326,7 +335,10 @@ echo "   🌐 https://nostrcheck.me/converter/"
 echo ""
 echo "ℹ️ INFO: Leave this field empty if you want to generate a new pubkey/secret keypair."
 echo ""
-read -r PUBKEY
+echo "👉 Enter the public key and press [Enter]:"
+echo ""
+read -p "🔑 Public Key: " -r PUBKEY
+
 
 # If PUBKEY is not empty, prompt user for server SECRET key
 if [ -n "$PUBKEY" ]; then
@@ -358,7 +370,9 @@ if [ -n "$PUBKEY" ]; then
         echo "💡 You can use the following tool to convert your nsec to HEX format:"
         echo "   🌐 https://nostrcheck.me/converter/"
         echo ""
-        read -r SECRETKEY
+        echo "👉 Enter the secret key and press [Enter]:"
+        echo ""
+        read -p "🔑 Secret Key: " -r SECRETKEY
 
         # If SECRETKEY is still empty, reset PUBKEY value
         if [ -z "$SECRETKEY" ]; then
@@ -524,7 +538,7 @@ echo "Enabling nginx site..."
 echo ""
 
 # Create a symbolic link to enable the site
-if ln -s /etc/nginx/sites-available/$HOST.conf /etc/nginx/sites-enabled/$HOST.conf; then
+if sudo ln -s /etc/nginx/sites-available/$HOST.conf /etc/nginx/sites-enabled/$HOST.conf; then
     echo "Nginx site for $HOST enabled successfully."
 else
     echo "Failed to enable nginx site for $HOST. Please check the configuration and try again."
