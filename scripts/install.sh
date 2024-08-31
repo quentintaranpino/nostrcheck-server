@@ -45,7 +45,7 @@ echo "📝 License: MIT"
 echo "══════════════════════════════════════════════════════════════════════════════"
 echo ""
 echo "📢 This script will install and configure the Nostrcheck server on your system."
-echo "⚠️  WARNING: This script is still in development and may not work as expected."
+echo "⚠️ WARNING: This script is still in development and may not work as expected."
 echo ""
 echo "══════════════════════════════════════════════════════════════════════════════"
 
@@ -179,7 +179,9 @@ echo "                  📦 Installing the Latest npm Package Manager...       
 echo "═══════════════════════════════════════════════════════════════════════════════"
 echo ""
 echo "🔄 Updating npm to the latest version globally..."
+echo ""
 sudo npm install -g npm@latest || { echo "❌ Failed to install the latest npm package manager"; exit 1; }
+echo ""
 echo "✅ npm has been updated to the latest version successfully!"
 sleep 3
 
@@ -192,6 +194,7 @@ echo ""
 echo "🔄 Installing npm dependencies with optional packages..."
 echo ""
 npm install --include=optional sharp || { echo "❌ Failed to install npm dependencies"; exit 1; }
+echo ""
 echo "✅ npm dependencies installed successfully!"
 sleep 3
 
@@ -204,6 +207,7 @@ echo ""
 echo "🔄 Running the build process..."
 echo ""
 npm run build || { echo "❌ Failed to build the project"; exit 1; }
+echo ""
 echo "✅ Project built successfully!"
 sleep 3
 
@@ -217,13 +221,13 @@ echo ""
 # Start Redis Server
 echo "🔄 Starting Redis Server..."
 sudo service redis-server start || { echo "❌ Failed to start Redis Server"; exit 1; }
+echo ""
 echo "✅ Redis Server started successfully!"
 echo ""
 sleep 3
 
 # Start MariaDB
 echo "🔄 Starting MariaDB..."
-echo ""
 sudo service mariadb start || { echo "❌ Failed to start MariaDB"; exit 1; }
 echo "✅ MariaDB started successfully!"
 sleep 3
@@ -297,6 +301,8 @@ readonly SQL="${Q1}${Q2}${Q3}"
 
 # Run the actual command
 if sudo $MYSQL -uroot -e "$SQL"; then
+    clear
+    echo ""
     echo "✅ Database '$DB' and user '$USER' created successfully."
     sleep 3
 else
@@ -312,7 +318,7 @@ echo "════════════════════════�
 echo ""
 echo "Please enter your server hostname (e.g., nostrcheck.me):"
 echo ""
-echo "⚠️  IMPORTANT: This hostname will be used to generate the Nginx configuration."
+echo "⚠️ IMPORTANT: This hostname will be used to generate the Nginx configuration."
 echo "               If you plan to use SSL, ensure you have a valid domain name"
 echo "               and that DNS records correctly point to this server."
 echo ""
@@ -340,7 +346,7 @@ while [ -z "$HOST" ]; do
     echo ""
     echo "Please enter your server hostname (e.g., nostrcheck.me):"
     echo ""
-    echo "⚠️  IMPORTANT: This hostname will be used to generate the Nginx configuration."
+    echo "⚠️ IMPORTANT: This hostname will be used to generate the Nginx configuration."
     echo "               If you plan to use SSL, ensure you have a valid domain name"
     echo "               and that DNS records correctly point to this server."
     echo ""
@@ -369,7 +375,7 @@ echo "════════════════════════�
 echo ""
 echo "Please specify the path where the server will store hosting files."
 echo ""
-echo "⚠️  WARNING: The server is initially configured to store hosting files locally."
+echo "⚠️ WARNING: The server is initially configured to store hosting files locally."
 echo "   You can set now the path where files will be stored on the server."
 echo ""
 echo "💡 After the installation is complete, you can configure the server to use"
@@ -394,9 +400,9 @@ echo ""
 echo "Please enter your server public key (HEX format):"
 echo ""
 echo "💡 You can use the following tool to convert your pubkey to HEX format:"
-echo "   🌐 https://nostrcheck.me/converter/"
+echo "🌐 https://nostrcheck.me/converter/"
 echo ""
-echo "ℹ️ INFO: Leave this field empty if you want to generate a new pubkey/secret keypair."
+echo "ℹ️ Leave this field empty if you want to generate a new pubkey/secret keypair."
 echo ""
 echo "👉 Enter the public key and press [Enter]:"
 echo ""
@@ -412,7 +418,7 @@ if [ -n "$PUBKEY" ]; then
     echo "Please enter your server secret key (HEX format):"
     echo ""
     echo "💡 You can use the following tool to convert your nsec to HEX format:"
-    echo "   🌐 https://nostrcheck.me/converter/"
+    echo "🌐 https://nostrcheck.me/converter/"
     echo ""
     read -r SECRETKEY
 
@@ -430,7 +436,7 @@ if [ -n "$PUBKEY" ]; then
         echo "Please enter your server secret key (HEX format):"
         echo ""
         echo "💡 You can use the following tool to convert your nsec to HEX format:"
-        echo "   🌐 https://nostrcheck.me/converter/"
+        echo "🌐 https://nostrcheck.me/converter/"
         echo ""
         echo "👉 Enter the secret key and press [Enter]"
         echo "❓ Leave this field empty to generate a new pubkey/secret keypair."
@@ -671,6 +677,8 @@ WantedBy=multi-user.target
 EOF"
 
  if [ -f /etc/systemd/system/nostrcheck.service ]; then
+    clear
+    echo ""
     echo "═══════════════════════════════════════════════════════════════════════════════"
     echo "               ⚙️  Enabling and Starting Nostrcheck Service...              "
     echo "═══════════════════════════════════════════════════════════════════════════════"
@@ -686,12 +694,12 @@ EOF"
     else
         echo "❌ Failed to start Nostrcheck service. Please check the service status for more details."
         SYSTEMD_SERVICE_CREATED="no"
-        sleep 3
+        sleep 5
     fi
     else
         echo "❌ Failed to create systemd service file. The service will not be enabled."
         SYSTEMD_SERVICE_CREATED="no"
-        sleep 3
+        sleep 5
     fi
 fi
 
@@ -714,6 +722,8 @@ echo ""
 read -r input
 
 if [ "$input" = "y" ]; then
+    clear
+    echo ""
     echo "═══════════════════════════════════════════════════════════════════════════════"
     echo "          🔐 Executing Certbot to Obtain SSL Certificate for $HOST              "
     echo "═══════════════════════════════════════════════════════════════════════════════"
@@ -732,10 +742,12 @@ if [ "$input" = "y" ]; then
             sleep 3
         else
             echo "❌ Failed to restart Nginx. Please check the service status."
+            sleep 3
             exit 1
         fi
     else
         echo "❌ Failed to obtain SSL certificate for $HOST. Please check the Certbot logs for details."
+        sleep 3
         exit 1
     fi
 fi
@@ -759,6 +771,8 @@ echo ""
 read -r input_cdn
 
 if [ "$input_cdn" = "y" ]; then
+    clear
+    echo ""
     echo "═══════════════════════════════════════════════════════════════════════════════"
     echo "     🔐 Executing Certbot to Obtain SSL Certificate for cdn.$HOST              "
     echo "═══════════════════════════════════════════════════════════════════════════════"
@@ -782,6 +796,7 @@ if [ "$input_cdn" = "y" ]; then
         fi
     else
         echo "❌ Failed to obtain SSL certificate for cdn.$HOST. Please check the Certbot logs for details."
+        sleep 3
         exit 1
     fi
 fi
