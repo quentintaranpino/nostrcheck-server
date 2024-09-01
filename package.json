@@ -31,7 +31,7 @@
     "@types/webtorrent": "^0.109.8",
     "@types/ws": "^8.5.10",
     "eslint": "^8.56.0",
-    "typescript": "5.4.5",
+    "typescript": "^5.5.4",
     "vitest": "0.34.6"
   },
   "dependencies": {
