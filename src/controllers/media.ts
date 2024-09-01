@@ -29,7 +29,7 @@ import { saveTmpFile } from "../lib/storage/local.js";
 import { Readable } from "stream";
 import { getRemoteFile } from "../lib/storage/remote.js";
 import { transaction } from "../interfaces/payments.js";
-import { checkTransaction } from "../lib/payments/core.js";
+import { checkTransaction, collectInvoice, getInvoice, validatePreimage } from "../lib/payments/core.js";
 import { blobDescriptor, BUDKinds } from "../interfaces/blossom.js";
 import { prepareBlobDescriptor } from "../lib/blossom/BUD02.js";
 import { loadCdnPage } from "./frontend.js";
@@ -168,16 +168,6 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 	}
 	logger.info("mime ->", filedata.originalmime, "|", getClientIp(req));
 
-	// Check if file is paid
-	const macaroon = req.headers["www-authenticate"]?.match(/macaroon="([^"]+)"/)?.[1];
-	const preimage = req.headers["www-authenticate"]?.match(/preimage="([^"]+)"/)?.[1].length == 64 ? req.headers["www-authenticate"]?.match(/preimage="([^"]+)"/)?.[1] : undefined;
-	if (macaroon && macaroon != 'null'){
-		if (await verifyMacaroon(macaroon)) {
-			const macaroonData = decodeMacaroon(macaroon);
-			filedata.transaction_id = macaroonData?.token_id || "";
-		}
-	}
-
 	// No transform option
 	app.get("config.media")["transform"]["enabled"] == false ? filedata.no_transform = true : filedata.no_transform = Boolean(req.body.no_transform) || false;
 	if (req.params.param1 == "upload" || req.params.param1 == "mirror") filedata.no_transform = true;
@@ -190,6 +180,29 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 
 	logger.info("hash ->", filedata.originalhash, "|", getClientIp(req));
 	logger.info("filename ->", filedata.filename, "|", getClientIp(req));
+
+	// Check if file is paid
+	const macaroon = req.headers["www-authenticate"]?.match(/macaroon="([^"]+)"/)?.[1];
+	const preimage = req.headers["www-authenticate"]?.match(/preimage="([^"]+)"/)?.[1].length == 64 ? req.headers["www-authenticate"]?.match(/preimage="([^"]+)"/)?.[1] : undefined;
+	if (macaroon && macaroon != 'null'){
+		if (await verifyMacaroon(macaroon)) {
+			const macaroonData = decodeMacaroon(macaroon);
+			const caveatHash = macaroonData?.caveats?.find((caveat) => caveat.startsWith("hash="));
+			if (caveatHash != undefined && caveatHash.split("=")[1] == filedata.originalhash) {
+				filedata.transaction_id = macaroonData?.token_id || "";
+				if (preimage && preimage != "") {
+					if (await validatePreimage(filedata.transaction_id, preimage) == true) {
+						const invoice = await getInvoice(filedata.transaction_id);
+						if (invoice) {
+							invoice.preimage = preimage;
+							invoice.paidDate = new Date().toISOString().slice(0, 19).replace('T', ' ');
+							await collectInvoice(invoice,false, true);
+						}
+					}
+				}
+			}
+		}
+	}
 
 	// URL (NIP96 and old API compatibility)
 	const returnURL = app.get("config.media")["returnURL"];
@@ -1419,7 +1432,7 @@ const heatUpload = async (req: Request, res: Response): Promise<Response> => {
 
 	const transaction = await checkTransaction(transactionId,"","mediafiles", transform == "1" ? Math.round(Number(size)/3) : Number(size),"");
 	if (transaction.transactionid != 0 && transaction.isPaid == false && app.get("config.payments")["satoshi"]["mediaMaxSatoshi"] > 0) {
-		res.setHeader('Www-Authenticate', `L402 macaroon="${await createMacaroon(transaction.transactionid,transaction.paymentHash,req.url,[""])}",invoice="${transaction.paymentRequest}"`);
+		res.setHeader('Www-Authenticate', `L402 macaroon="${await createMacaroon(transaction.transactionid,transaction.paymentHash,req.url,[`hash=${hash}`])}",invoice="${transaction.paymentRequest}"`);
 		res.setHeader("Blossom-Upload-Message", `${transaction.satoshi}`);
 		return res.status(402).send();
 	}

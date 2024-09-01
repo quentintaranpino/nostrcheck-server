@@ -1,6 +1,6 @@
 import { ResultMessagev2 } from "./server.js";
 
-type credentialTypes = 'password' | 'authkey' | 'otc';
+type credentialTypes = 'password' | 'authkey' | 'otc' | 'preimage';
 
 interface authHeaderResult extends ResultMessagev2 {
     authkey: string,

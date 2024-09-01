@@ -182,6 +182,7 @@ function extractInvoice(wwwAuthenticate) {
 
 function extractMacaroon(wwwAuthenticate) {
     const match = wwwAuthenticate.match(/macaroon="([^"]+)"/);
+    console.log(match);
     return match ? match[1] : null;
 }
   

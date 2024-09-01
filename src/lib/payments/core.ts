@@ -2,6 +2,7 @@ import app from "../../app.js";
 import { accounts, emptyInvoice, emptyTransaction, invoice, transaction } from "../../interfaces/payments.js";
 import { isModuleEnabled } from "../config.js";
 import { dbInsert, dbMultiSelect, dbSelect, dbUpdate } from "../database.js"
+import { hashString } from "../hash.js";
 import { logger } from "../logger.js";
 import { sendMessage } from "../nostr/NIP04.js";
 import { getNewDate } from "../utils.js";
@@ -548,6 +549,32 @@ const processPendingInvoices = async () => {
 
 processPendingInvoices();
 
+const validatePreimage = async (transactionid: string, preimage: string) : Promise<boolean> => {
+    
+        if (!isModuleEnabled("payments", app)) {
+            return false;
+        }
+    
+        if (!transactionid || transactionid == "0") {
+            return false;
+        }
+    
+        if (preimage == "") {
+            logger.error("Can't validate preimage, no preimage provided", transactionid)
+            return false;
+        }
+
+        logger.debug(await hashString(preimage, "preimage"))
+        const invoice = await getInvoice(transactionid);
+        logger.debug(invoice.paymentHash)
+        if (invoice.preimage == preimage || await hashString(preimage, "preimage") == invoice.paymentHash) {
+            return true;
+        }
+    
+        return false;
+    }
+
+
 export {    checkTransaction, 
             addBalance, 
             getBalance, 
@@ -557,5 +584,6 @@ export {    checkTransaction,
             getUnpaidTransactionsBalance, 
             getInvoice,
             isInvoicePaid,
-            calculateSatoshi
+            calculateSatoshi,
+            validatePreimage
         }

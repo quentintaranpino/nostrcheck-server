@@ -88,6 +88,9 @@ const hashString = async (input:string, type: credentialTypes, saltRounds:number
     else if (type == "authkey" || type == "otc"){
       hashedString =  await crypto.createHash('sha256').update(input + saltRounds).digest('hex');
     }
+    else if (type == "preimage"){
+      hashedString = await crypto.createHash('sha256').update(Buffer.from(input, 'hex')).digest('hex');
+    }
     else{
       logger.error("Invalid credential type");
       return "";
