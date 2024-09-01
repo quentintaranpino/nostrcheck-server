@@ -1,11 +1,13 @@
+
         :root {
-            --primary-color: #c880b3;
-            --secondary-color: #aa6cf9;
-            --tertiary-color: #82aaeb;
-            --primary-color-percent: 0%;
-            --secondary-color-percent: 50%;
-            --tertiary-color-percent: 100%;
-            --gradient-orientation: to right;
+            --primary-color: #ff4e50;
+            --secondary-color: #fc913a;
+            --tertiary-color: #f9d423;
+            --primary-color-percent: 20%;
+            --secondary-color-percent: 55%;
+            --tertiary-color-percent: 92%;
+            --gradient-orientation: to bottom right;
+            --particles: astral;
         }
 
         .background-theme {
@@ -14,4 +16,6 @@
             background-repeat: no-repeat;
             background-size: cover;
             background-attachment: fixed;
+            particles: var(--particles);
         }
+        

@@ -7,6 +7,7 @@ interface Theme {
     color1Percent?: string;
     color2Percent?: string;
     color3Percent?: string;
+    particles?: string;
 }
 
 const themes: { [key: string]: Theme } = {
@@ -19,6 +20,7 @@ const themes: { [key: string]: Theme } = {
         color1Percent: "0%",
         color2Percent: "25%",
         color3Percent: "90%",
+        particles: "quantum"
     },
     serenity: {
         name : "Serenity",
@@ -29,6 +31,7 @@ const themes: { [key: string]: Theme } = {
         color1Percent: "0%",
         color2Percent: "50%",
         color3Percent: "100%",
+        particles: "astral"
     },
     aurora: {
         name : "Aurora",
@@ -39,6 +42,7 @@ const themes: { [key: string]: Theme } = {
         color1Percent: "0%",
         color2Percent: "55%",
         color3Percent: "90%",
+        particles: "astral"
     },
     presence: {
         name : "Presence",
@@ -49,6 +53,7 @@ const themes: { [key: string]: Theme } = {
         color1Percent: "0%",
         color2Percent: "50%",
         color3Percent: "100%",
+        particles: "quantum"
     },
     perac: {
         name : "Perac",
@@ -59,6 +64,7 @@ const themes: { [key: string]: Theme } = {
         color1Percent: "20%",
         color2Percent: "55%",
         color3Percent: "92%",
+        particles: "quantum"
     },
     dawn: {
         name : "Dawn",
@@ -69,7 +75,15 @@ const themes: { [key: string]: Theme } = {
         color1Percent: "33%",
         color2Percent: "58%",
         color3Percent: "95%",
+        particles: "nexus"
     },
 };
 
-export default themes;
+const particles = [
+    "quantum",
+    "astral",
+    "nexus",
+    "none"
+];
+
+export { themes, particles };

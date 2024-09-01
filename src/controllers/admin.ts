@@ -18,7 +18,7 @@ import { getFileMimeType } from "../lib/media.js";
 import { npubToHex } from "../lib/nostr/NIP19.js";
 import { dbCountModuleData, dbCountMonthModuleData, dbSelectModuleData } from "../lib/admin.js";
 import { getBalance, getUnpaidTransactionsBalance } from "../lib/payments/core.js";
-import themes from "../interfaces/themes.js";
+import { themes } from "../interfaces/themes.js";
 import { moderateFile } from "../lib/moderation/core.js";
 import { addNewUsername } from "../lib/register.js";
 import { banRecord } from "../lib/banned.js";
@@ -184,7 +184,7 @@ const updateLogo = async (req: Request, res: Response): Promise<Response> => {
     // Check if current module is enabled
     if (!isModuleEnabled("admin", app)) {
         logger.warn("Attempt to access a non-active module:","admin","|","IP:", getClientIp(req));
-    return res.status(400).send({"status": "error", "message": "Module is not enabled"});
+        return res.status(400).send({"status": "error", "message": "Module is not enabled"});
     }
 
     logger.debug("POST /api/v2/admin/updatelogo", "|", getClientIp(req));
@@ -193,10 +193,16 @@ const updateLogo = async (req: Request, res: Response): Promise<Response> => {
 	const EventHeader = await parseAuthHeader(req, "updateDBRecord", true);
 	if (EventHeader.status !== "success") {return res.status(401).send({"status": EventHeader.status, "message" : EventHeader.message});}
 
-    if (!req.files || req.files == undefined || req.files.length == 0) {
-        // Check if is server.logo.default for restoring default logo
+    const theme = req.body.theme || "light";
+
+    let file: Express.Multer.File | null = null;
+	if (Array.isArray(req.files) && req.files.length > 0) {
+		file = req.files[0];
+	}
+
+    if (!req.files || req.files == undefined || req.files.length == 0 || !file) {
         try {
-            await fs.promises.copyFile('./src/pages/static/resources/navbar-logo.default.png', './src/pages/static/resources/navbar-logo.png');
+            await fs.promises.copyFile(`./src/pages/static/resources/navbar-logo-${theme}.default.png`, `./src/pages/static/resources/navbar-logo-${theme}.png`);
             logger.info("RES -> Default logo restored" + " | " + getClientIp(req));
             return res.status(200).send({status: "success", message: "Default logo restored", authkey: EventHeader.authkey});
         } catch (error) {
@@ -204,16 +210,6 @@ const updateLogo = async (req: Request, res: Response): Promise<Response> => {
             return res.status(500).send({status: "error", message: "Failed to restore default logo", authkey: EventHeader.authkey});
         }
     }
-
-    let file: Express.Multer.File | null = null;
-	if (Array.isArray(req.files) && req.files.length > 0) {
-		file = req.files[0];
-	}
-
-    if (!file) {
-		logger.info(`RES -> 400 Bad request - Empty file`, "|", getClientIp(req));
-		return res.status(400).send({"status": "error", "message": "Empty file", "authkey": EventHeader.authkey});
-	}
 
 	if (await getFileMimeType(req, file) == "") {
 		logger.error(`RES -> 400 Bad request - `, file.mimetype, ` filetype not detected`, "|", getClientIp(req));
@@ -225,7 +221,7 @@ const updateLogo = async (req: Request, res: Response): Promise<Response> => {
         .png({ quality: 95 })
         .toBuffer()
         .then(async data => { 
-            await fs.promises.writeFile('./src/pages/static/resources/navbar-logo.png', data);
+            await fs.promises.writeFile(`./src/pages/static/resources/navbar-logo-${theme}.png`, data);
             logger.info("RES -> Logo updated" + " | " + getClientIp(req));
         })
         .catch(err => { 
@@ -263,6 +259,7 @@ const updateTheme = async (req: Request, res: Response): Promise<Response> => {
     let primaryColorPercent = req.body.color1Percent || "0%";
     let secondaryColorPercent = req.body.color2Percent || "50%";
     let tertiaryColorPercent = req.body.color3Percent || "100%";
+    let particles = req.body.particles || null;
 
     if (primaryColor == null || secondaryColor == null || tertiaryColor == null) {
 
@@ -275,6 +272,7 @@ const updateTheme = async (req: Request, res: Response): Promise<Response> => {
         primaryColorPercent = theme.color1Percent;
         secondaryColorPercent = theme.color2Percent;
         tertiaryColorPercent = theme.color3Percent;
+        particles = null;
 
     }
 
@@ -287,6 +285,7 @@ const updateTheme = async (req: Request, res: Response): Promise<Response> => {
             --secondary-color-percent: ${secondaryColorPercent};
             --tertiary-color-percent: ${tertiaryColorPercent};
             --gradient-orientation: ${orientation};
+            --particles: ${particles};
         }
 
         .background-theme {
@@ -295,6 +294,7 @@ const updateTheme = async (req: Request, res: Response): Promise<Response> => {
             background-repeat: no-repeat;
             background-size: cover;
             background-attachment: fixed;
+            particles: var(--particles);
         }
         `;
 

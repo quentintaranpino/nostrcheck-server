@@ -31,6 +31,7 @@ const themeSwitch = document.getElementById('theme-switch');
 const themeSwitchIcon = document.getElementById('theme-switch-icon');
 
 
+let serverLogoId = 'server-logo';
 function applyTheme(theme) {
   if (theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
     themeSwitchIcon.classList.remove('bi')
@@ -39,6 +40,10 @@ function applyTheme(theme) {
     themeSwitchIcon.classList.add('fa-moon');
     document.documentElement.setAttribute('data-bs-theme', 'dark');
     document.querySelector('meta[name=theme-color]').setAttribute('content', '#2B3035F5');
+    const serverLogo = document.getElementById(serverLogoId);
+    serverLogo.src = `/static/resources/navbar-logo-dark.png?` + new Date().getTime();
+    serverLogo.id = Math.random().toString(36).substring(7);
+    serverLogoId = serverLogo.id;
   } else {
     themeSwitchIcon.classList.remove('fas');
     themeSwitchIcon.classList.remove('fa-moon');
@@ -46,6 +51,10 @@ function applyTheme(theme) {
     themeSwitchIcon.classList.add('bi-brightness-high-fill');
     document.documentElement.setAttribute('data-bs-theme', 'light');
     document.querySelector('meta[name=theme-color]').setAttribute('content', '#e8e8e8f5');
+    const serverLogo = document.getElementById(serverLogoId);
+    serverLogo.src = `/static/resources/navbar-logo-light.png?` + new Date().getTime();
+    serverLogo.id = Math.random().toString(36).substring(7);
+    serverLogoId = serverLogo.id;
   }
 }
 

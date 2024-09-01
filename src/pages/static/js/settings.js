@@ -99,35 +99,59 @@ window.onload = function() {
 }
 
 // Update logo or restore default
-const updateLogo = (setDefault = false) => {
+serverLogoLightId = 'server-logo-light-preview';
+serverLogoDarkId = 'server-logo-dark-preview';
+const updateLogo = (fieldName, setDefault = false) => {
 
-    let fieldName = 'lookandfeel.server.logo';
     let body = new FormData();
-    let field = document.getElementById('lookandfeel.server.logo');
-    body.append('lookandfeel.server.logo', field.files[0]);
+    let field = document.getElementById(fieldName);
+    body.append(fieldName, field.files[0]);
+    body.append('theme', fieldName.split('.')[3]);
 
-    if (field.files.length === 0 && setDefault === false) {
-        return;
-    }
+    if (field.files.length === 0 && setDefault === false) return;
+
+    console.log(body.theme)
 
     if (setDefault === true) {
-        document.getElementById('lookandfeel.server.logo.default').value = setDefault;
-        body['lookandfeel.server.logo'] = null;
-        fieldName = 'lookandfeel.server.logo.default';
+        document.getElementById(`${fieldName}.default`).value = setDefault;
+        body[fieldName] = null;
+        fieldName = `${fieldName}.default`;
     }
        
     let headers = {"authorization": "Bearer " + localStorage.getItem('authkey')};
     
     updateSettings(fieldName, '', 'admin/updatelogo', body, headers).then(result => {
         if (result) {
-            document.getElementById('server-logo').src = document.getElementById('server-logo').src + '?' + new Date().getTime();
+
+            if ((fieldName.includes('light') && document.documentElement.getAttribute('data-bs-theme') === 'light') || 
+                (fieldName.includes('dark') && document.documentElement.getAttribute('data-bs-theme') === 'dark')) {
+                const serverLogo = document.getElementById(serverLogoId);
+                serverLogo.src = serverLogo.src + '?' + new Date().getTime();
+                serverLogo.id = Math.random().toString(36).substring(7);
+                serverLogoId = serverLogo.id;
+            }
             $('input[type=file]').val('');
+
+            if (fieldName.startsWith('lookandfeel.server.logo.light')) {
+                const serverLogoLight = document.getElementById(serverLogoLightId);
+                serverLogoLight.src = serverLogoLight.src + '?' + new Date().getTime();
+                serverLogoLight.id = Math.random().toString(36).substring(7);
+                serverLogoLightId = serverLogoLight.id;
+            }
+
+            if (fieldName.startsWith('lookandfeel.server.logo.dark')) {
+                const serverLogoDark = document.getElementById(serverLogoDarkId);
+                serverLogoDark.src = serverLogoDark.src + '?' + new Date().getTime();
+                serverLogoDark.id = Math.random().toString(36).substring(7);
+                serverLogoDarkId = serverLogoDark.id;
+            }
+
         }
     });
 
 }
 
-const updateTheme = async (primaryColor, secondaryColor, tertiaryColor, orientation, primaryPercent, secondaryPercent, tertiaryPercent, setDefault = false) => {
+const updateTheme = async (primaryColor, secondaryColor, tertiaryColor, orientation, primaryPercent, secondaryPercent, tertiaryPercent, particles, setDefault = false) => {
 
     let fieldName = 'lookandfeel.server.colors.theme';
     let body = {
@@ -137,7 +161,8 @@ const updateTheme = async (primaryColor, secondaryColor, tertiaryColor, orientat
         orientation: orientation,
         color1Percent: primaryPercent,
         color2Percent: secondaryPercent,
-        color3Percent: tertiaryPercent
+        color3Percent: tertiaryPercent,
+        particles: particles
     };
 
     if (setDefault === true) {
@@ -145,6 +170,7 @@ const updateTheme = async (primaryColor, secondaryColor, tertiaryColor, orientat
         body.secondaryColor = null;
         body.tertiaryColor = null;
         body.themeName = '';
+        body.particles = '';
     }
 
     let headers = {
@@ -165,6 +191,7 @@ const handleThemeChange = (selectElement, themes) => {
         const secondaryColorInput = document.getElementById("lookandfeel.server.colors.secondaryColor");
         const tertiaryColorInput = document.getElementById("lookandfeel.server.colors.tertiaryColor");
         const orientationSelect = document.getElementById("lookandfeel.server.colors.orientation");
+        const particlesSelect = document.getElementById("lookandfeel.server.particles");
 
         const primaryColorPercentage = document.getElementById("lookandfeel.server.colors.primaryColor.percent");
         const secondaryColorPercentage = document.getElementById("lookandfeel.server.colors.secondaryColor.percent");
@@ -174,17 +201,23 @@ const handleThemeChange = (selectElement, themes) => {
         secondaryColorInput.value = themes[selectedTheme].color2;
         tertiaryColorInput.value = themes[selectedTheme].color3;
         orientationSelect.value = themes[selectedTheme].orientation;
+        particlesSelect.value = themes[selectedTheme].particles;
 
         primaryColorPercentage.style.left = `${themes[selectedTheme].color1Percent}`;
         secondaryColorPercentage.style.left = `${themes[selectedTheme].color2Percent}`;
         tertiaryColorPercentage.style.left = `${themes[selectedTheme].color3Percent}`;
 
-
         primaryColorInput.dispatchEvent(new Event('input', { bubbles: true }));
         secondaryColorInput.dispatchEvent(new Event('input', { bubbles: true }));
         tertiaryColorInput.dispatchEvent(new Event('input', { bubbles: true }));
+        particlesSelect.dispatchEvent(new Event('change', { bubbles: true }));
+
     }
 };
+
+const handleParticlesChange = (selectElement) => {
+    getParticles(selectElement);
+}
 
 document.addEventListener('DOMContentLoaded', () => {
     const primaryColorInput = document.getElementById("lookandfeel.server.colors.primaryColor");
@@ -192,6 +225,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const tertiaryColorInput = document.getElementById("lookandfeel.server.colors.tertiaryColor");
     const orientationSelect = document.getElementById("lookandfeel.server.colors.orientation");
     const gradientBar = document.getElementById("lookandfeel.server.colors.gradientbar");
+    const particlesSelect = document.getElementById("lookandfeel.server.particles");
 
     const handles = [
         { element: document.createElement('div'), position: 25, id: 'lookandfeel.server.colors.primaryColor.percent', defaultPosition: 25 },
@@ -199,8 +233,6 @@ document.addEventListener('DOMContentLoaded', () => {
         { element: document.createElement('div'), position: 75, id: 'lookandfeel.server.colors.tertiaryColor.percent', defaultPosition: 75 }
     ];
 
-    console.log(handles);
-    
     handles.forEach(handle => {
         handle.element.classList.add('handle');
         handle.element.id = handle.id; 
@@ -250,11 +282,13 @@ document.addEventListener('DOMContentLoaded', () => {
         const secondaryColor = secondaryColorInput.value;
         const tertiaryColor = tertiaryColorInput.value;
         const orientation = orientationSelect.value;
+        const particles = particlesSelect.value;
 
         handles.sort((a, b) => a.position - b.position);
 
         const gradient = `linear-gradient(${orientation}, ${primaryColor} ${handles[0].position}%, ${secondaryColor} ${handles[1].position}%, ${tertiaryColor} ${handles[2].position}%)`;
         gradientBar.style.background = gradient;
+
     };
 
     primaryColorInput.addEventListener('input', updateGradient);
@@ -271,6 +305,8 @@ document.addEventListener('DOMContentLoaded', () => {
     tertiaryColorInput.defaultValue = tertiaryColorInput.value;
     orientationSelect.value = rootStyles.getPropertyValue('--gradient-orientation').trim();
     orientationSelect.defaultValue = orientationSelect.value;
+    particlesSelect.value = rootStyles.getPropertyValue('--particles').trim();
+    particlesSelect.defaultValue = particlesSelect.value;
 
     handles[0].position = parseFloat(rootStyles.getPropertyValue('--primary-color-percent').trim());
     handles[0].defaultPosition = handles[0].position;
@@ -286,10 +322,15 @@ document.addEventListener('DOMContentLoaded', () => {
     updateGradient();
 });
 
-
 const saveLookAndFeel = async () => {
 
-    await updateLogo();
+    if (document.getElementById('lookandfeel.server.logo.light').files.length > 0 || document.getElementById('lookandfeel.server.logo.light').files.length > 0) {
+        await updateLogo('lookandfeel.server.logo.light');
+    }
+
+    if (document.getElementById('lookandfeel.server.logo.dark').files.length > 0 || document.getElementById('lookandfeel.server.logo.dark').files.length > 0) {
+        await updateLogo('lookandfeel.server.logo.dark');
+    }
 
     // Check if the fields have been modified
     if(document.getElementById('lookandfeel.server.colors.primaryColor').value === document.getElementById('lookandfeel.server.colors.primaryColor').defaultValue && 
@@ -298,7 +339,9 @@ const saveLookAndFeel = async () => {
         document.getElementById('lookandfeel.server.colors.orientation').value === document.getElementById('lookandfeel.server.colors.orientation').defaultValue &&
         document.getElementById('lookandfeel.server.colors.primaryColor.percent').dataset.position === document.getElementById('lookandfeel.server.colors.primaryColor.percent').dataset.defaultPosition &&
         document.getElementById('lookandfeel.server.colors.secondaryColor.percent').dataset.position === document.getElementById('lookandfeel.server.colors.secondaryColor.percent').dataset.defaultPosition &&
-        document.getElementById('lookandfeel.server.colors.tertiaryColor.percent').dataset.position === document.getElementById('lookandfeel.server.colors.tertiaryColor.percent').dataset.defaultPosition) {
+        document.getElementById('lookandfeel.server.colors.tertiaryColor.percent').dataset.position === document.getElementById('lookandfeel.server.colors.tertiaryColor.percent').dataset.defaultPosition &&
+        document.getElementById('lookandfeel.server.particles').value === document.getElementById('lookandfeel.server.particles').defaultValue) {
+        console.log('No changes');
         return;
     }
 
@@ -309,14 +352,14 @@ const saveLookAndFeel = async () => {
         document.getElementById('lookandfeel.server.colors.orientation').value,
         document.getElementById('lookandfeel.server.colors.primaryColor.percent').style.left,
         document.getElementById('lookandfeel.server.colors.secondaryColor.percent').style.left,
-        document.getElementById('lookandfeel.server.colors.tertiaryColor.percent').style.left
+        document.getElementById('lookandfeel.server.colors.tertiaryColor.percent').style.left,
+        document.getElementById('lookandfeel.server.particles').value
     );
-
 }
-
 
 function handleCheckboxClick(id, isChecked) {
     if ((id === 'admin' || id === 'frontend') && !isChecked) {
         initAlertModal("#settings", "Attention, if you disable this module, you will need to manage the server only via<b> shell commands.</b>",10000);
     }
 }
+

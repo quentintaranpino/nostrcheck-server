@@ -1,9 +1,9 @@
 <nav class="navbar sticky-top navbar-expand-lg ps-3 pe-3 shadow-lg">
   <a class="navbar-brand" href="/">
-      <img id="server-logo" src="/static/resources/navbar-logo.png"
-      alt='Server logo' 
-      width='180' 
-      height='61'>
+    <img id="server-logo" src="/static/resources/navbar-logo-light.png" 
+    alt='Server logo' 
+    width='180' 
+    height='61'>
   </a>
   <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#server-navbar" aria-controls="server-navbar" aria-expanded="false" aria-label="Toggle navigation">
     <span class="navbar-toggler-icon"></span>
@@ -76,20 +76,13 @@
 
 <style>
 
-html[data-bs-theme="light"] {
-    .navbar-brand img {
-      filter: invert(80%);
-    }
-    .navbar {
-      background-color: #e8e8e8f5 !important;
-    } 
+html[data-bs-theme="light"] .navbar {
+  background-color: #e8e8e8f5 !important;
 }
 
-html[data-bs-theme="dark"] {
-    .navbar {
+html[data-bs-theme="dark"] .navbar {
       background-color:#2b3035 !important;
-    } 
-}
+} 
 
 .dropdown-menu { --bs-dropdown-link-active-bg: #a575ff; }
 

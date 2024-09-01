@@ -9,7 +9,7 @@ import { isModuleEnabled, loadconfigActiveModules } from "../lib/config.js";
 import { countPubkeyFiles, getProfileNostrMetadata, getProfileNostrNotes } from "../lib/frontend.js";
 import { hextoNpub } from "../lib/nostr/NIP19.js";
 import { logHistory } from "../lib/logger.js";
-import themes from "../interfaces/themes.js";
+import { themes, particles} from "../interfaces/themes.js";
 import { verifyNIP07event } from "../lib/nostr/NIP07.js";
 import { getUsernames } from "../lib/register.js";
 
@@ -57,6 +57,7 @@ const loadSettingsPage = async (req: Request, res: Response, version:string): Pr
     logger.info("GET /api/" + version + "/settings", "|", getClientIp(req));
 
     req.body.version = app.get("version");
+
     req.body.serverHost = app.get("config.server")["host"];
     req.body.availableModules = app.get("config.server")["availableModules"];
     req.body.settingsEnvironment = app.get("config.environment");
@@ -64,14 +65,17 @@ const loadSettingsPage = async (req: Request, res: Response, version:string): Pr
     req.body.settingServerPubkey = app.get("config.server")["pubkey"];
     req.body.settingServerSecretkey =  app.get("config.server")["secretKey"];
     req.body.settingsRedisExpireTime = app.get("config.redis")["expireTime"];
+
     req.body.settingsStorage = app.get("config.storage");
     req.body.settingsMedia = app.get("config.media");
     req.body.settingsPayments = app.get("config.payments");
     req.body.settingsRegister = app.get("config.register");
     req.body.settingsLogger = app.get("config.logger");
     req.body.settingsSecurity = app.get("config.security");
+    req.body.settingsDatabase = app.get("config.database");
     req.body.logHistory = logHistory;
     req.body.settingsLookAndFeelThemes = themes;
+    req.body.settingsLookAndFeelParticles = particles;
     req.session.authkey = await generateCredentials('authkey', req.session.identifier);
 
     // User metadata
