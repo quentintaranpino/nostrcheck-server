@@ -23,17 +23,15 @@ const startServer = async () => {
     await loadAPIs(app);
 
     //Start seeding magnets
-
     const {default: config} = await import( "config");
     if (config.get("torrent.enableTorrentSeeding")) {
         const { SeedMediafilesMagnets } = await import("./lib/torrent.js");
         await SeedMediafilesMagnets();
-    
     }
 
     // Show server startup message
-    const { loadConsoleBanner } = await import("./lib/server.js");
-    loadConsoleBanner(app);
+    const { serverBanner } = await import("./lib/server.js");
+    console.log(serverBanner(app));
 
     // Show server startup stactics
     const { showDBStats } = await import("./lib/database.js");

@@ -1,13 +1,12 @@
 import { createPool, Pool,RowDataPacket } from "mysql2/promise";
 import config from "config";
+import { exit } from "process";
+
+import app from "../app.js";
 import { logger } from "./logger.js";
 import { newFieldcompatibility, databaseTables} from "../interfaces/database.js";
-import { updateLocalConfigKey } from "./config.js";
-import { exit } from "process";
-import { npubEncode } from "nostr-tools/nip19";
-import { generateCredentials } from "./authorization.js";
-import app from "../app.js";
 import { accounts } from "../interfaces/payments.js";
+import { isModuleEnabled, updateLocalConfigKey } from "./config.js";
 import { addNewUsername } from "./register.js";
 import { getNewDate } from "./utils.js";
 
@@ -397,73 +396,46 @@ const dbDelete = async (tableName :string, whereFieldNames :string[], whereField
 
 const showDBStats = async(): Promise<string> => {
 
-	const conn = await connect("showDBStats");
 	const result: string[] = [];
 
-	//Show table registered rows
-	const [dbRegisteredTable] = await conn.execute(
-		"SELECT * FROM registered");
-	if (!dbRegisteredTable) {
-		logger.error("Error getting registered table rows");
-	}
-	let dbresult = JSON.parse(JSON.stringify(dbRegisteredTable));
-	result.push(`Registered users: ${dbresult.length}`);
-	dbresult = "";
+	if (isModuleEnabled("register", app)){
 
-	//Show table domains rows
-	const [dbDomainsTable] = await conn.execute(
-		"SELECT * FROM domains");
-	if (!dbDomainsTable) {
-		logger.error("Error getting domains table rows");
-	}
-	dbresult = JSON.parse(JSON.stringify(dbDomainsTable));
-	result.push(`Configured domains: ${dbresult.length}`);
-	dbresult = "";
+		const registered = await dbMultiSelect(["id"],"registered", "active = 1",[],false)?.then((result) => {return result.length});
+		result.push(`Registered users: ${registered}`);
 
-	//Show table mediafiles rows
-	const [dbmediafilesTable] = await conn.execute(
-		"SELECT * FROM mediafiles");
-	if (!dbmediafilesTable) {
-		logger.error("Error getting mediafiles table rows");
-	}
-	dbresult = JSON.parse(JSON.stringify(dbmediafilesTable));
-	result.push(`Uploaded files: ${dbresult.length}`);
-	dbresult = "";
+		const banned = await dbMultiSelect(["id"],"banned", "active = 1",[],false)?.then((result) => {return result.length});
+		result.push(`Banned users: ${banned}`);
 
-	//Show table mediafiles magnet rows
-	if (config.get('torrent.enableTorrentSeeding')) {
-	const [dbmediamagnetfilesTable] = await conn.execute(
-		"SELECT DISTINCT filename, username FROM mediafiles inner join registered on mediafiles.pubkey = registered.hex where magnet is not null");
-	if (!dbmediamagnetfilesTable) {
-		logger.error("Error getting magnet links table rows");
-	}
-	dbresult = JSON.parse(JSON.stringify(dbmediamagnetfilesTable));
-	result.push(`Magnet links: ${dbresult.length}`);
-	dbresult = "";
+		const invitations = await dbMultiSelect(["id"],"invitations", "active = 1",[],false)?.then((result) => {return result.length});
+		result.push(`Invitations: ${invitations}`);
+
+		const domains = await dbMultiSelect(["id"],"domains", "active = 1",[],false)?.then((result) => {return result.length});
+		result.push(`Available domains: ${domains}`);
+
 	}
 
-	//Show table mediatags rows
-	const [dbmediatagsTable] = await conn.execute(
-		"SELECT * FROM mediatags");
-	if (!dbmediatagsTable) {
-		logger.error("Error getting mediatags table rows");
-	}
-	dbresult =  JSON.parse(JSON.stringify(dbmediatagsTable));
-	result.push(`Media tags: ${dbresult.length}`);
-	dbresult = "";
+	if (isModuleEnabled("media", app)){
+		const mediafiles = await dbMultiSelect(["id"],"mediafiles", "active = 1",[],false)?.then((result) => {return result.length});
+		result.push(`Hosted files: ${mediafiles}`);
 
-	//Show table lightning rows
-	const [dbLightningTable] = await conn.execute(
-		"SELECT * FROM lightning");
-	if (!dbLightningTable) {
-		logger.error("Error getting lightning table rows");
-	}
-	dbresult = JSON.parse(JSON.stringify(dbLightningTable));
-	result.push(`Lightning redirections: ${dbresult.length}`);
+		const mediatags = await dbMultiSelect(["id"],"mediatags", "1 = 1",[],false)?.then((result) => {return result.length});
+		result.push(`File tags: ${mediatags}`);
 	
-	conn.end();
-	const resultstring = result.join('\r\n').toString();
-	return resultstring;
+	}
+
+	if (isModuleEnabled("payments", app)){
+		const lightning = await dbMultiSelect(["id"],"lightning", "active = 1",[],false)?.then((result) => {return result.length});
+		result.push(`LN redirections: ${lightning}`);
+
+		const transactions = await dbMultiSelect(["id"],"transactions", "1 = 1",[],false)?.then((result) => {return result.length});
+		result.push(`Transactions: ${transactions}`);
+
+		const ledger = await dbMultiSelect(["id"],"ledger", "1 = 1",[],false)?.then((result) => {return result.length});
+		result.push(`Ledger entries: ${ledger}`);
+	}
+
+	result.push(``);
+	return result.join('\r\n').toString();
 }
 
 const initDatabase = async (): Promise<void> => {
@@ -521,10 +493,6 @@ const initDatabase = async (): Promise<void> => {
 	// Check if standard accounts exist on accounts table and create it if not.
 	let checkAccounts = await dbSelect("SELECT accountid FROM accounts ", "accountid", [], false) as string[]
 	accounts.forEach(async (account) => {
-		// Log the current accountid and checkAccounts array
-		logger.info("Current accountid:", account.accountid.toString());
-		logger.info("checkAccounts:", checkAccounts.toString());
-	
 		if (!checkAccounts.toString().includes(account.accountid.toString())){
 			logger.warn("Standard account not found, creating it:", account.accountname);
 			const fields: string[] = ["accountid", "active", "accountname", "accounttype", "createddate", "comments"];

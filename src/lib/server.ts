@@ -1,50 +1,57 @@
 import { Application } from "express";
 
-const loadConsoleBanner = (app: Application) : void => {
+const serverBanner = (app: Application) : string => {
 
-    console.log("");
-	console.log("");
+	const banner : string[] = [];
 
-	console.log(
+	banner.push("");
+	banner.push("");
+
+	banner.push(
 	"███╗   ██╗ ██████╗ ███████╗████████╗██████╗  ██████╗██╗  ██╗███████╗ ██████╗██╗  ██╗"
 	);
-	console.log(
+	banner.push(
 		"████╗  ██║██╔═══██╗██╔════╝╚══██╔══╝██╔══██╗██╔════╝██║  ██║██╔════╝██╔════╝██║ ██╔╝" 
 	);
-	console.log(
+	banner.push(
 		"██╔██╗ ██║██║   ██║███████╗   ██║   ██████╔╝██║     ███████║█████╗  ██║     █████╔╝" 
 	);
-	console.log(
+	banner.push(
 		"██║╚██╗██║██║   ██║╚════██║   ██║   ██╔══██╗██║     ██╔══██║██╔══╝  ██║     ██╔═██╗"  
 	);
-	console.log(
+	banner.push(
 		"██║ ╚████║╚██████╔╝███████║   ██║   ██║  ██║╚██████╗██║  ██║███████╗╚██████╗██║  ██╗"
 	);
-	console.log(
+	banner.push(
 		"╚═╝  ╚═══╝ ╚═════╝ ╚══════╝   ╚═╝   ╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝╚══════╝ ╚═════╝╚═╝  ╚═╝"
 	);
-	console.log("");
-	console.log(
+	banner.push("");
+	banner.push(
 		"███████╗███████╗██████╗ ██╗   ██╗███████╗██████╗ "
 	);
-	console.log(
+	banner.push(
 		"██╔════╝██╔════╝██╔══██╗██║   ██║██╔════╝██╔══██╗"
 	);
-	console.log(
+	banner.push(
 		"███████╗█████╗  ██████╔╝██║   ██║█████╗  ██████╔╝"
 	);
-	console.log(
+	banner.push(
 		"╚════██║██╔══╝  ██╔══██╗╚██╗ ██╔╝██╔══╝  ██╔══██╗"
 	);
-	console.log(
+	banner.push(
 		"███████║███████╗██║  ██║ ╚████╔╝ ███████╗██║  ██║"
 	);
-	console.log(
+	banner.push(
 		"╚══════╝╚══════╝╚═╝  ╚═╝  ╚═══╝  ╚══════╝╚═╝  ╚═╝"
 	);
-	console.log("Nostrcheck server started, version %s", app.get("version"));
-	console.log("Running at http://" + app.get("config.server")["host"] + " - " + app.get("env"), "mode");
-	console.log("Press CTRL-C to exit\n");
+	banner.push("Nostrcheck server started, version %s", app.get("version"));
+	banner.push(`Running at http://127.0.0.1:${app.get("config.server")["port"]} in ${app.get("config.environment")} mode`);
+	banner.push(`Documentation: https://github.com/quentintaranpino/nostrcheck-server/blob/main/DOCS.md`)
+	banner.push("");
+	banner.push("Press CTRL-C to stop the server");
+	banner.push("");
+
+	return banner.join('\r\n').toString();
 }
 
-export { loadConsoleBanner};
+export { serverBanner};
