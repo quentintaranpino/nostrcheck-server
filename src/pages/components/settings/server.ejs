@@ -28,7 +28,7 @@
         </div>
         <div class="alert alert-warning mt-3" role="alert">
         <i class="fa-solid fa-triangle-exclamation"></i> If you specify "production" mode, <b>the server must be configured under HTTPS.</b> Otherwise, users will not be able to log in because the server will not be able to set the cookies under insecure connections.
-    </div>
+        </div>
 
         <label for="server.pubkey" class="mt-3 mb-1 fw-bold">Server pubkey</label>
         <p>This is the public key of the server. It's used to return the server's pubkey to the "_" NIP05 requests.</p>
@@ -52,7 +52,7 @@
             placeholder="Server secret key (HEX format)" 
             required 
             >
-            <button id="toggle-password" type="button" class="d-none"
+            <button type="button" class="toggle-password d-none"
             aria-label="Show secret key as plain text. Warning: this will display your password on the screen.">
             </button>
         </div>

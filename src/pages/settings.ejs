@@ -1,7 +1,6 @@
 <html lang="en">
   <%- include('./partials/head',{title: `${request.body.serverHost} - Settings`}); %>
   <link rel="stylesheet" href="/static/css/form.css">
-  <link rel="stylesheet" href="/static/css/coloris.min.css">
   <link rel="stylesheet" href="/static/css/theme.css">
   <body class="d-flex flex-column h-100">
     <%- include('./partials/navbar', {active:'settings'}); %>
@@ -36,6 +35,18 @@
               </button>
           </li>
           <li class="nav-item" role="presentation">
+            <button class="nav-link" 
+                    id="database-tab" 
+                    data-bs-toggle="tab" 
+                    data-bs-target="#database" 
+                    type="button" 
+                    role="tab" 
+                    aria-controls="database" 
+                    aria-selected="false">
+                      <i class="fas fa-database me-2"></i>Database
+            </button>
+          </li>
+          <li class="nav-item" role="presentation">
               <button class="nav-link" 
                       id="modules-tab" 
                       data-bs-toggle="tab" 
@@ -56,7 +67,7 @@
                       role="tab" 
                       aria-controls="storage" 
                       aria-selected="false">
-                      <i class="fas fa-database me-2"></i>Storage
+                      <i class="fas fa-hdd me-2"></i>Storage
               </button>
           </li>
           <li class="nav-item" role="presentation">
@@ -127,6 +138,9 @@
           <div class="tab-pane fade" id="server" role="tabpanel" aria-labelledby="server-tab">
             <%- include('./components/settings/server'); %>
           </div>
+          <div class="tab-pane fade" id="database" role="tabpanel" aria-labelledby="database-tab">
+            <%- include('./components/settings/database'); %>
+          </div>
           <div class="tab-pane fade" id="modules" role="tabpanel" aria-labelledby="modules-tab">
             <%- include('./components/settings/modules'); %>
           </div>
@@ -163,7 +177,7 @@
 <style>
 .gradient-bar {
     position: relative;
-    height: 200px; 
+    height: 300px; 
     width: 100%; 
     border-radius: 5px; 
     margin-top: 10px;

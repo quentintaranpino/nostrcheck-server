@@ -14,6 +14,7 @@ app.set("config.payments", await loadConfigOptions("payments"));
 app.set("config.register", await loadConfigOptions("register"));
 app.set("config.session", await loadConfigOptions("session"));
 app.set("config.security", await loadConfigOptions("security"));
+app.set("config.database", await loadConfigOptions("database"));
 app.set("config.environment", process.env.NODE_ENV ?? await loadConfigOptions("environment"));
 
 app.set("version", process.env.npm_package_version ?? "0.0");
