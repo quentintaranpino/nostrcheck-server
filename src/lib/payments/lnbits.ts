@@ -60,7 +60,7 @@ const isInvoicePaidLNbits = async (paymentHash: string) : Promise<{paiddate : st
         const data = await response.json();
 
         if (data.paid && data.paid != "null") {
-            return {paiddate: data.paid_at, preimage: data.preimage};
+            return {paiddate: new Date().toISOString().slice(0, 19).replace('T', ' '), preimage: data.preimage};
         }
         return {paiddate: "", preimage: ""};
         
