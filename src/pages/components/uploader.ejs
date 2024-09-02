@@ -10,6 +10,7 @@
         class="table d-none">
         <thead>
             <tr>
+                <th data-field="id" class="d-none">ID</th>
                 <th data-field="fileName">File Name</th>
                 <th data-field="fileType" class="d-none">File Type</th>
                 <th data-field="transform" data-formatter="transformFormatter">Resize</th>
@@ -155,7 +156,6 @@ async function handleFiles(files) {
             if (fileIndex !== -1) {
                 filesArray.splice(fileIndex, 1); 
                 $('#file-table').bootstrapTable('load', filesArray.map(file => file.fileData));
-
             }
     });
 
@@ -343,22 +343,21 @@ function satoshiFormatter(value, row, index) {
 
 function invoiceFormatter(value, row, index) {
     if (value == null || row.satoshi <= 0) return '';
-    console.log("value", value);
-    console.log("row", row);
-    console.log("index", index);
     if (row.isPaid === true) return '<span>Paid<i class="fa-solid fa-check ms-2"></i></span>';
-    return `<button class="btn btn-sm btn-primary" onclick="handlePayment('${value}', ${row.satoshi}, ${index})">Pay</button>`;
+    return `<button class="btn btn-sm btn-primary" onclick="handlePayment('${value}', ${row.satoshi}, ${row.id})">Pay</button>`;
 }
 
-function handlePayment(value, satoshi, index) {
-    const row = $('#file-table').bootstrapTable('getRowByUniqueId', index);
-    console.log(value, row.satoshi, index);
+function handlePayment(value, satoshi, id) {
+    const row = $('#file-table').bootstrapTable('getRowByUniqueId', id);
+    console.log("value", value);
+    console.log("satoshi", satoshi);
+    console.log("index", id);
     initPaymentModal(value, row.satoshi).then(result => {
         if (result != "") {
             row.isPaid = true;
             row.preimage = result;
             $('#table').bootstrapTable('updateRow', {
-                index: index,
+                index: id,
                 row: row
             });
             $('#file-table').bootstrapTable('load', filesArray.map(file => file.fileData));
