@@ -1432,7 +1432,13 @@ const heatUpload = async (req: Request, res: Response): Promise<Response> => {
 
 	const transaction = await checkTransaction(transactionId,"","mediafiles", transform == "1" ? Math.round(Number(size)/3) : Number(size),"");
 	if (transaction.transactionid != 0 && transaction.isPaid == false && app.get("config.payments")["satoshi"]["mediaMaxSatoshi"] > 0) {
-		res.setHeader('Www-Authenticate', `L402 macaroon="${await createMacaroon(transaction.transactionid,transaction.paymentHash,req.url,[`hash=${hash}`])}",invoice="${transaction.paymentRequest}"`);
+		const macaroon = await createMacaroon(transaction.transactionid,transaction.paymentHash,req.url,["hash="+hash]);
+		if (macaroon == "") {
+			logger.error(`Error creating macaroon for transaction ${transaction.transactionid} | ${getClientIp(req)}`);
+			res.setHeader("Blossom-Upload-Message", "Error creating macaroon for L402 header ");
+			return res.status(500).send();
+		}
+		res.setHeader('Www-Authenticate', `L402 macaroon="${macaroon}",invoice="${transaction.paymentRequest}"`);
 		res.setHeader("Blossom-Upload-Message", `${transaction.satoshi}`);
 		return res.status(402).send();
 	}
