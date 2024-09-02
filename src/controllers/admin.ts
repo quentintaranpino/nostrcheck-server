@@ -298,9 +298,14 @@ const updateTheme = async (req: Request, res: Response): Promise<Response> => {
         }
         `;
 
-    await fs.promises.writeFile('./src/pages/static/css/theme.css', theme);
-    logger.info("RES -> Theme updated" + " | " + getClientIp(req));
-    return res.status(200).send({status: "success", message: "Theme updated", authkey: EventHeader.authkey});
+    try{
+        await fs.promises.writeFile('./src/pages/static/css/theme.css', theme);
+        logger.info("RES -> Theme updated" + " | " + getClientIp(req));
+        return res.status(200).send({status: "success", message: "Theme updated", authkey: EventHeader.authkey});
+    }catch(e){
+        logger.error("RES -> Error updating theme" + " | " + e);
+        return res.status(500).send({status: "error", message: "Error updating theme", authkey: EventHeader.authkey});
+    }
 
 }
 
