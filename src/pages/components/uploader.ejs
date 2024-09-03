@@ -175,17 +175,7 @@ async function handleFiles(files) {
     });
 }
 
-function extractInvoice(wwwAuthenticate) {
-    const match = wwwAuthenticate.match(/invoice="([^"]+)"/);
-    return match ? match[1] : null;
-}
-
-function extractMacaroon(wwwAuthenticate) {
-    const match = wwwAuthenticate.match(/macaroon="([^"]+)"/);
-    console.log(match);
-    return match ? match[1] : null;
-}
-  
+ 
 const uploadFiles = async () => {
 
     if (filesArray.length === 0) {
@@ -195,11 +185,9 @@ const uploadFiles = async () => {
 
     for (const file of filesArray) {
 
-        if (file.fileData.processed || file.fileData.accepted === false) {
-            continue;
-        }
+        if (file.fileData.processed || file.fileData.accepted === false) continue;
 
-        file.fileData.action = 'loading';
+        file.fileData.action = 'processing';
         $('#file-table').bootstrapTable('load', filesArray.map(file => file.fileData));
 
         let authEvent = null;
@@ -259,21 +247,22 @@ const uploadFiles = async () => {
         }
         const result = await fetchFileServer(file, authEvent, method);
         if (!result || !result.url) {
-            console.log (result);
             file.fileData.accepted = false;
             file.fileData.satoshi = -2;
-            file.fileData.action = 'init';
-            console.error(`Failed to upload: ${file.name}`);
+            file.fileData.action = 'error';
             $('#file-table').bootstrapTable('load', filesArray.map(file => file.fileData));
-
             continue;
         }
 
         if (method == "PUT") {result.url = result.url.replace(/:\/\/[^/]+/, '://cdn.' + getDomain(window.location.hostname));}
         if (result.url.includes('cdn.')) {result.url = result.url.replace('/media', '');}
 
-        file.fileData.action = 'init';
+        result.macaroon != null ? file.fileData.macaroon = result.macaroon : null;
+        result.invoice != null ? file.fileData.invoice = result.invoice : null;
+        file.fileData.action = 'success';
         file.fileData.processed = true;
+        file.fileData.fileName = '<a class="link-offset-2 link-underline-opacity-25" href="' + result.url + '" target="_blank">' + "..." + result.url.slice(-30) + '</a>'
+        $('#file-table').bootstrapTable('load', filesArray.map(file => file.fileData));
     }
 
     if (!identifier) {
@@ -281,41 +270,21 @@ const uploadFiles = async () => {
         document.getElementById('account-message').classList.remove('d-none');
     }
 
-    $('#file-table').bootstrapTable('load', filesArray.map(file => file.fileData));
 }
 
 function transformFormatter(value, row, index) {
-
     const fileIndex = filesArray.findIndex(file => file.fileData.id == row.id);
 
-    if (row.fileType.startsWith('image/') === false && row.fileType.startsWith('video/') === false) {
-        return '<div class="form-check form-switch d-flex">' +
-        '<input type="checkbox" class="form-check-input" id="' + row.id + '-transform" disabled>' +
-        '<label class="form-check-label mt-1" for="' + row.id + '-transform">Resize</label>' +
-        '</div>';
-    }
-
-    if (filesArray[fileIndex].fileData.processed) {
-        return row.transform ? 
-            '<div class="form-check form-switch d-flex">' + 
-            '<input type="checkbox" class="form-check-input" id="' + row.id + '-transform" checked disabled>' +
-            '<label class="form-check label mt-1" for="' + row.id + '-transform">Resize</label>' +
-            '</div>' :
-            '<div class="form-check form-switch d-flex">' +
-            '<input type="checkbox" class="form-check-input" id="' + row.id + '-transform" disabled>' +
-            '<label class="form-check label mt-1" for="' + row.id + '-transform">Resize</label>' +
-            '</div>';
-    }
-
-    return row.transform ? 
-        '<div class="form-check form-switch d-flex">' +
-        '<input type="checkbox" class="form-check-input" id="' + row.id + '-transform" checked>' +
-        '<label class="form-check-label mt-1" for="' + row.id + '-transform">Resize</label>' +
-        '</div>' :
-        '<div class="form-check form-switch d-flex">' +
-        '<input type="checkbox" class="form-check-input" id="' + row.id + '-transform">' +
-        '<label class="form-check-label mt-1" for="' + row.id + '-transform">Resize</label>' +
-        '</div>';
+    return `
+        <div class="form-check form-switch d-flex">
+            <input type="checkbox" class="form-check-input" id="${row.id}-transform" 
+                ${filesArray[fileIndex].fileData.status == 'error' ||
+                filesArray[fileIndex].fileData.processed == true ||
+                (row.fileType.startsWith('image/') === false && row.fileType.startsWith('video/') === false) 
+                ? 'disabled' : ''} 
+                ${filesArray[fileIndex].fileData.transform == true ? 'checked' : ''} control-id="ControlID-5">
+            <label class="form-check-label mt-1" for="${row.id}-transform">Resize</label>
+        </div>`;
 }
 
 function satoshiFormatter(value, row, index) {
@@ -324,42 +293,39 @@ function satoshiFormatter(value, row, index) {
     if (value == -1) return '<div class="spinner-border spinner-border-sm" role="status">'
                                 '<span class="visually-hidden">Loading...</span>' +
                             '</div>'
-    if (value == -2) return 'Failed' + '<i class="fa-solid fa-xmark ms-2" style="color:#ff0000"></i>'
+    if (value == -2) return '<span class="text-danger">Failed</span>';
     return value + ' <i class="fa-solid fa-bolt text-warning"></i>'    
 }
 
 function invoiceFormatter(value, row, index) {
-    if (value == null || row.satoshi <= 0) return '';
     if (row.isPaid === true) return '<span>Paid<i class="fa-solid fa-check ms-2"></i></span>';
-    return `<button class="btn btn-sm btn-primary" onclick="handlePayment('${value}', ${row.satoshi}, ${row.id})">Pay</button>`;
+    return `<button class="btn btn-sm btn-primary" ${value == null || row.satoshi <= 0 ? 'disabled' : ''} onclick="handlePayment('${value}', ${row.satoshi}, ${row.id})">Pay</button>`;
 }
 
 function fileNameFormatter(value, row, index) {
     const fileIndex = filesArray.findIndex(file => file.fileData.id == row.id);
 
     if (filesArray[fileIndex].fileData.accepted === false) {
-        return '<span class="text-danger">Failed: ' + value + '</span>';
+        return '<span class="text-danger">' + value + '</span>';
     }
     return value;
 }
 
 function actionFormatter(value, row, index) {
-
-    console.log(value,row,index)
-
-    if (value == 'loading') {
+    if (value == 'processing') {
         return '<div class="spinner-border spinner-border-sm" role="status">' +
                 '<span class="visually-hidden">Loading...</span>' +
                 '</div>';
     }
-    return '<button class="btn btn-sm btn-danger delete-btn" data-file-id="' + row.id + '"><i class="fa-solid fa-trash"></i></button>';
+    if (value == 'success') {
+        return '<button class="btn btn-sm text-white" data-file-id="' + row.id + '"><i class="fa-solid fa-check"></i></button>';
+    }
+
+    return '<button class="btn btn-sm text-danger delete-btn" data-file-id="' + row.id + '"><i class="fa-solid fa-xmark"></i></button>';
 }
 
 function handlePayment(value, satoshi, id) {
     const row = $('#file-table').bootstrapTable('getRowByUniqueId', id);
-    console.log("value", value);
-    console.log("satoshi", satoshi);
-    console.log("index", id);
     initPaymentModal(value, row.satoshi).then(result => {
         if (result != "") {
             row.isPaid = true;
