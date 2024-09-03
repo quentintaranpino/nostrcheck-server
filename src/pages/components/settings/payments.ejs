@@ -21,14 +21,15 @@
             </select>
         </div>
         <label for="payments.maxSatoshi" class="mt-4 mb-1 fw-bold">Max Satoshi</label>
-        <p>Specify the maximum amount of sats that can be paid for the largest accepted file size and the default amount for the shortest registered username. 
-            If the request exceeds this limit, it uses this maximum limit for the calculation. Every domain can be 
-            configured individually on the dashboard domains table, this value is the default value for new domains of if the domain is not configured. If you set 0 to mediaMaxSatoshi payments 
-            module will not be used for media uploads. 
+        <p>
+            The following two fields allow you to configure the payment structure for new user registrations and file uploads. 
+            These settings determine the maximum amount of sats that can be charged, ensuring that shorter usernames and 
+            larger files are priced accordingly. Additionally, setting the value to 0 for either field will disable the payment requirement for the 
+            respective action (user registration or file uploads).
         </p>
         <div class="row">
             <div class="col-12 col-md-4">
-                <label for="payments.satoshi.mediaMaxSatoshi" class="mt-2 mb-1 fw-bold">Media uploads</label>
+                <label for="payments.satoshi.mediaMaxSatoshi" class="mt-2 mb-1 fw-bold">File uploads</label>
                 <input  type="number" 
                         id="payments.satoshi.mediaMaxSatoshi" 
                         name="payments.satoshi.mediaMaxSatoshi" 
@@ -52,10 +53,31 @@
                         > 
             </div>
         </div>
+        <div class="alert alert-warning mt-3" role="alert">
+            <i class="fa-solid fa-triangle-exclamation"></i> In the dashboard's <a href="dashboard#domains">Domains</a> section, you can customize the payment settings for each domain.
+            If a domain isn't configured, the default values set here will be automatically applied.
+        </div>
+        <label for="payments.allowUnpaidFiles" class="mt-4 mb-1 fw-bold">Allow unpaid files</label>
+        <p>
+            Specify whether file uploads are allowed without prior payment. If set to inactive, 
+            file uploads are only permitted if the user has already paid the required amount of sats. If set to active, 
+            file uploads will be allowed, but payment in sats will be required for each request until the invoice is fully paid.
+        </p>
+        <div class="col-12 col-md-4">
+            <div class="form-check form-switch">
+                <input 
+                    class="form-check-input" 
+                    type="checkbox" 
+                    name="payments.allowUnpaidFiles" 
+                    id="payments.allowUnpaidFiles" 
+                    <%= request.body.settingsPayments['allowUnpaidFiles'] ? 'checked' : '' %> 
+                >
+            </div>
+        </div>
         <div class="row">
+            <label for="payments.invoicePaidInterval" class="mt-4 mb-1 fw-bold">Invoice paid interval</label>
             <p>Specify the interval in seconds to check if pending invoices are paid.</p>
             <div class="col-12 col-md-4">
-            <label for="payments.invoicePaidInterval" class="mt-4 mb-1 fw-bold">Invoice paid interval</label>
                 <div class="input-group mb-3 mt-2"  data-bs-tooltip="test">
                 <input  type="number" 
                         id="payments.invoicePaidInterval" 
