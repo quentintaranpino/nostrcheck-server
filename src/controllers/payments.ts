@@ -134,7 +134,7 @@ const getInvoiceStatus = async (req: Request, res: Response): Promise<Response> 
     const invoice = await getInvoice(invoiceId[0].id)
     if (invoice.isPaid == false) {
         const paidInfo = await isInvoicePaid(invoice.paymentHash);
-        if (paidInfo.paiddate != "" && paidInfo.preimage != "") {
+        if (paidInfo.paiddate != "" && paidInfo.paiddate != undefined && paidInfo.preimage != "" && paidInfo.preimage != undefined) {
             invoice.paidDate = paidInfo.paiddate;
             invoice.preimage = paidInfo.preimage;
             await collectInvoice(invoice, false, true);
