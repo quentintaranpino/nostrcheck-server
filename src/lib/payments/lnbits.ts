@@ -65,7 +65,7 @@ const isInvoicePaidLNbits = async (paymentHash: string) : Promise<{paiddate : st
         return {paiddate: "", preimage: ""};
         
     }catch(e){
-        logger.error("Error checking LNbits invoice status", e);
+        logger.error("Error checking LNbits invoice status");
         return {paiddate: "", preimage: ""};
     }
 }
