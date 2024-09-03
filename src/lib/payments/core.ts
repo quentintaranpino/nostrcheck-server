@@ -94,7 +94,8 @@ const generateInvoice = async (accountid: number, satoshi: number, originTable :
         const updateCreated = await dbUpdate("transactions", "createddate", generatedInvoice.createdDate, ["id"], [transactionId]);
         const updateExpiry = await dbUpdate("transactions", "expirydate", generatedInvoice.expiryDate, ["id"], [transactionId]);
         const updateSatoshi = await dbUpdate("transactions", "satoshi", generatedInvoice.satoshi, ["id"], [transactionId]);
-        if (!updatePayreq || !updatePayhash || !updateCreated || !updateExpiry || !updateSatoshi) {
+        const updateAccountid = await dbUpdate("transactions", "accountid", accountid.toString(), ["id"], [transactionId]);
+        if (!updatePayreq || !updatePayhash || !updateCreated || !updateExpiry || !updateSatoshi || !updateAccountid) {
             logger.error("Error updating transaction with new invoice data", transactionId)
             return emptyInvoice;
         }
