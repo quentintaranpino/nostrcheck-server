@@ -11,15 +11,15 @@
         <thead>
             <tr>
                 <th data-field="id" class="d-none">ID</th>
-                <th data-field="fileName">File Name</th>
+                <th data-field="fileName" data-formatter="fileNameFormatter">File Name</th>
                 <th data-field="fileType" class="d-none">File Type</th>
                 <th data-field="transform" data-formatter="transformFormatter">Resize</th>
                 <th data-field="fileSize">File Size</th>
                 <th data-field="invoice" data-formatter="invoiceFormatter">Invoice</th>
-                <th data-field="satoshi" data-formatter="satoshiFormatter">Satoshi</th>
+                <th data-field="satoshi" data-formatter="satoshiFormatter" class="text-end">Satoshi</th>
                 <th data-field="macaroon" class="d-none">Macaroon</th>
                 <th data-field="isPaid" class="d-none">isPaid</th>
-                <th data-field="action">Action</th>
+                <th data-field="action" data-formatter="actionFormatter" class="text-end">Action</th>
                 <th data-field="accepted" class="d-none">Accepted</th>
 
             </tr>
@@ -129,8 +129,8 @@ async function handleFiles(files) {
                 fileType: file.type,
                 transform: file.type.startsWith('image/') || file.type.startsWith('video/') ? 1 : 0,
                 fileSize: (file.size / 1024).toFixed(2) + ' KB',
-                action: '<button class="btn btn-sm delete-btn" data-file-id="' + uniqueId + '"><i class="fa-solid fa-xmark"></i></button>',
-                accepted: false,
+                action: 'init',
+                accepted: true,
                 satoshi: -1,
                 macaroon: null,
                 invoice: null,
@@ -199,14 +199,8 @@ const uploadFiles = async () => {
             continue;
         }
 
-        $('#file-table').bootstrapTable('updateByUniqueId', {
-            id: file.fileData.id,
-            row: {
-                action: '<div class="spinner-border spinner-border-sm" role="status">' +
-                        '<span class="visually-hidden">Loading...</span>' +
-                        '</div>'
-            }
-        });
+        file.fileData.action = 'loading';
+        $('#file-table').bootstrapTable('load', filesArray.map(file => file.fileData));
 
         let authEvent = null;
         let method = $('#file-table').bootstrapTable('getRowByUniqueId', file.fileData.id).transform == 1 ? 'POST' : 'PUT';
@@ -265,28 +259,20 @@ const uploadFiles = async () => {
         }
         const result = await fetchFileServer(file, authEvent, method);
         if (!result || !result.url) {
+            console.log (result);
+            file.fileData.accepted = false;
+            file.fileData.satoshi = -2;
+            file.fileData.action = 'init';
             console.error(`Failed to upload: ${file.name}`);
-            $('#file-table').bootstrapTable('updateByUniqueId', {
-                id: file.fileData.id,
-                row: {
-                    fileName: '<span class="text-danger">Failed: ' + file.name + '</span>',
-                    action: '<button class="btn btn-sm delete-btn" data-file-id="' + file.fileData.id + '"><i class="fa-solid fa-xmark"></i></button>'
-                }
-            });
+            $('#file-table').bootstrapTable('load', filesArray.map(file => file.fileData));
+
             continue;
         }
 
         if (method == "PUT") {result.url = result.url.replace(/:\/\/[^/]+/, '://cdn.' + getDomain(window.location.hostname));}
         if (result.url.includes('cdn.')) {result.url = result.url.replace('/media', '');}
 
-        $('#file-table').bootstrapTable('updateByUniqueId', {
-            id: file.fileData.id,
-            row: {
-                fileName: '<a class="link-offset-2 link-underline-opacity-25" href="' + result.url + '" target="_blank">' + "..." + result.url.slice(-30) + '</a>',
-                action: '<i class="fa-solid fa-check"></i>'
-            }
-        });
-
+        file.fileData.action = 'init';
         file.fileData.processed = true;
     }
 
@@ -338,6 +324,7 @@ function satoshiFormatter(value, row, index) {
     if (value == -1) return '<div class="spinner-border spinner-border-sm" role="status">'
                                 '<span class="visually-hidden">Loading...</span>' +
                             '</div>'
+    if (value == -2) return 'Failed' + '<i class="fa-solid fa-xmark ms-2" style="color:#ff0000"></i>'
     return value + ' <i class="fa-solid fa-bolt text-warning"></i>'    
 }
 
@@ -345,6 +332,27 @@ function invoiceFormatter(value, row, index) {
     if (value == null || row.satoshi <= 0) return '';
     if (row.isPaid === true) return '<span>Paid<i class="fa-solid fa-check ms-2"></i></span>';
     return `<button class="btn btn-sm btn-primary" onclick="handlePayment('${value}', ${row.satoshi}, ${row.id})">Pay</button>`;
+}
+
+function fileNameFormatter(value, row, index) {
+    const fileIndex = filesArray.findIndex(file => file.fileData.id == row.id);
+
+    if (filesArray[fileIndex].fileData.accepted === false) {
+        return '<span class="text-danger">Failed: ' + value + '</span>';
+    }
+    return value;
+}
+
+function actionFormatter(value, row, index) {
+
+    console.log(value,row,index)
+
+    if (value == 'loading') {
+        return '<div class="spinner-border spinner-border-sm" role="status">' +
+                '<span class="visually-hidden">Loading...</span>' +
+                '</div>';
+    }
+    return '<button class="btn btn-sm btn-danger delete-btn" data-file-id="' + row.id + '"><i class="fa-solid fa-trash"></i></button>';
 }
 
 function handlePayment(value, satoshi, id) {
@@ -369,7 +377,7 @@ function handlePayment(value, satoshi, id) {
 const getFileServerInfo = async (file) => {
 
     const serverInfo = await fetchFileServerInfo(file);
-    if (!serverInfo || serverInfo.status.toString().startsWith(4)){
+    if (!serverInfo || !serverInfo?.status?.toString().startsWith(2)){
 
         // 402 Payment Required
         if (serverInfo.status == 402) {
@@ -378,19 +386,13 @@ const getFileServerInfo = async (file) => {
             file.fileData.macaroon = extractMacaroon(serverInfo.wwwAuthenticate)
             file.fileData.satoshi = serverInfo.message;
             $('#file-table').bootstrapTable('load', filesArray.map(file => file.fileData));
+        }else{
+            file.fileData.accepted = false;
+            file.fileData.satoshi = -2;
+            console.error(`Failed to upload: ${file.name}`);
+            $('#file-table').bootstrapTable('load', filesArray.map(file => file.fileData));
         }
 
-        // Other 4xx errors
-        if (serverInfo.status != 402) {
-            $('#file-table').bootstrapTable('updateByUniqueId', {
-                id: uniqueId,
-                row: {
-                    fileName: '<span class="text-danger me-2">'+ serverInfo.message + '</span>' + file.name,
-                    satoshi: serverInfo.wwwAuthenticate,
-                    action: '<button class="btn btn-sm delete-btn" data-file-id="' + uniqueId + '"><i class="fa-solid fa-xmark"></i></button>'
-                }
-            });
-        }
     }else{
         file.fileData.accepted = true;
         file.fileData.satoshi = 0;
