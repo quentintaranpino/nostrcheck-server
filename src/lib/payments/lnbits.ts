@@ -1,6 +1,8 @@
 import app from "../../app.js";
 import { emptyInvoice, invoice } from "../../interfaces/payments.js";
 import { logger } from "../logger.js";
+import bolt11 from 'bolt11';
+import { getNewDate } from "../utils.js";
 
 const generateLNBitsInvoice = async (amount: number, memo: string) : Promise<invoice> => {
 
@@ -21,17 +23,19 @@ const generateLNBitsInvoice = async (amount: number, memo: string) : Promise<inv
         });
 
         const data = await response.json();
-
         if (!data || data.payment_request == "") return emptyInvoice
+
+        const decoded = bolt11.decode(data.payment_request);
+        if (!decoded) return emptyInvoice;
 
         return {
             paymentRequest: data.payment_request,
             paymentHash: data.payment_hash,
-            satoshi: amount,
+            satoshi: decoded.satoshis? decoded.satoshis : 0,
             isPaid: false,
             preimage: "",
-            createdDate: new Date(),
-            expiryDate: new Date(),
+            createdDate: decoded.timestampString? new Date(decoded.timestampString) : getNewDate(),
+            expiryDate: decoded.timeExpireDateString? new Date(decoded.timeExpireDateString) : getNewDate(),
             paidDate: null,
             description: memo,
             transactionid: 0,
