@@ -26,6 +26,16 @@ function smoothScroll(target, duration) {
   requestAnimationFrame(animation);
 }
 
+// Scroll to hash on page load if exists
+window.onload = function() {
+    if (window.location.hash) {
+        var element = document.querySelector(window.location.hash);
+        if (element) {
+            element.scrollIntoView();
+        }
+    }
+};
+
 document.querySelectorAll('a[href^="#"]').forEach(anchor => {
   anchor.addEventListener('click', function (e) {
       e.preventDefault();
