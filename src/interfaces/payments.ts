@@ -88,5 +88,12 @@ interface macaroon {
     caveats: string[];
 }
 
+interface checkMacaroonResult  extends ResultMessagev2 {
+    macaroon?: string;
+    Invoice?: string;
+    satoshi?: number;
+}
 
-export { invoice, emptyInvoice, transaction, emptyTransaction, accounts, paymentResultMessage, invoiceReturnMessage, amountReturnMessage, macaroon}
+
+
+export { invoice, emptyInvoice, transaction, emptyTransaction, accounts, paymentResultMessage, invoiceReturnMessage, amountReturnMessage, macaroon, checkMacaroonResult}

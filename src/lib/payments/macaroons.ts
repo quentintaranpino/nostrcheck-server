@@ -1,7 +1,9 @@
 import crypto from 'crypto';
-import { macaroon } from '../../interfaces/payments.js';
+import { checkMacaroonResult, macaroon } from '../../interfaces/payments.js';
 import app from '../../app.js';
 import { logger } from '../logger.js';
+import { dbMultiSelect } from '../database.js';
+import { checkTransaction } from './core.js';
 
 const createMacaroon = (transactionId: number, paymentHash: string, location: string, caveats: string[]): string => {
 
@@ -87,6 +89,27 @@ const decodeMacaroon = (macaroon: string): macaroon | null => {
         logger.error(`Error decoding macaroon: ${e}`);
         return null;
     }
+};
+
+const checkMacaroon = async (hash : string, size : number, transform: boolean, url : string): Promise<checkMacaroonResult> => {
+
+    if (!hash || !url ) {
+        return { status: "error", message: "Missing parameters" };
+    }
+
+    let transactionId = (await dbMultiSelect(["transactionid"], "mediafiles", transform == true ? "original_hash = ?" : "hash = ?", [hash], true))[0]?.transactionid || "" ;
+	const transaction = await checkTransaction(transactionId,"","mediafiles", transform == true ? size/3 : Number(size),"");
+	if (transaction.transactionid != 0 && transaction.isPaid == false && app.get("config.payments")["satoshi"]["mediaMaxSatoshi"] > 0) {
+		const macaroon = await createMacaroon(transaction.transactionid,transaction.paymentHash,url,["hash="+hash]);
+		if (macaroon == "") {
+			logger.error(`Error creating macaroon for transaction ${transaction.transactionid}`);
+            return { status: "error", message: "Error creating macaroon" };
+		}
+        return { status: "success", message: "Macaroon and invoice created", macaroon: macaroon, Invoice: transaction.paymentRequest, satoshi: transaction.satoshi };
+	}
+    return { status: "success", message: transaction.isPaid ? "Transaction already paid" : "Transaction not found" };
 }
 
-export { createMacaroon, verifyMacaroon, decodeMacaroon };
+
+
+export { createMacaroon, verifyMacaroon, decodeMacaroon, checkMacaroon };

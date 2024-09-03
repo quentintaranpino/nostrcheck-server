@@ -35,7 +35,7 @@ import { prepareBlobDescriptor } from "../lib/blossom/BUD02.js";
 import { loadCdnPage } from "./frontend.js";
 import { getBannedMediaFile, isContentBanned } from "../lib/banned.js";
 import { mirrorFile } from "../lib/blossom/BUD04.js";
-import { createMacaroon, decodeMacaroon, verifyMacaroon } from "../lib/payments/macaroons.js";
+import { checkMacaroon, createMacaroon, decodeMacaroon, verifyMacaroon } from "../lib/payments/macaroons.js";
 
 const uploadMedia = async (req: Request, res: Response, version:string): Promise<Response> => {
 
@@ -181,7 +181,7 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 	logger.info("hash ->", filedata.originalhash, "|", getClientIp(req));
 	logger.info("filename ->", filedata.filename, "|", getClientIp(req));
 
-	// Check if file is paid
+	// Macaroon verification. If macaroon is valid, we check if the file is paid, 
 	const macaroon = req.headers["www-authenticate"]?.match(/macaroon="([^"]+)"/)?.[1];
 	const preimage = req.headers["www-authenticate"]?.match(/preimage="([^"]+)"/)?.[1].length == 64 ? req.headers["www-authenticate"]?.match(/preimage="([^"]+)"/)?.[1] : undefined;
 	if (macaroon && macaroon != 'null'){
@@ -199,7 +199,37 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 							await collectInvoice(invoice,false, true);
 						}
 					}
+				}else{
+					if (app.get("config.payments")["allowUnpaidFiles"] == false) {
+						logger.warn(`RES -> 402 Payment Required - File not paid`, "|", getClientIp(req));
+						const macaroonData = await checkMacaroon(filedata.hash, Number(filedata.filesize),filedata.no_transform == true ? false : true, req.url);
+						if (macaroonData.status == "error"){
+							logger.error(`Error checking macaroon for hash ${filedata.hash} | ${getClientIp(req)}`);
+							res.setHeader("Blossom-Upload-Message", "Error creating macaroon");
+							return res.status(500).send();
+						}
+						if (macaroonData.Invoice != undefined && macaroonData.macaroon != undefined){
+							res.setHeader('Www-Authenticate', `L402 macaroon="${macaroonData.macaroon}",invoice="${macaroonData.Invoice}"`);
+							res.setHeader("Blossom-Upload-Message", `${macaroonData.satoshi}`);
+							return res.status(402).send();
+						}
+					}
 				}
+			}
+		}
+	}else{
+		if (app.get("config.payments")["allowUnpaidFiles"] == false) {
+			const macaroonData = await checkMacaroon(filedata.hash, Number(filedata.filesize),filedata.no_transform == true ? false : true, req.url);
+			if (macaroonData.status == "error"){
+				logger.error(`Error checking macaroon for hash ${filedata.hash} | ${getClientIp(req)}`);
+				res.setHeader("Blossom-Upload-Message", "Error creating macaroon");
+				return res.status(500).send();
+			}
+		
+			if (macaroonData.Invoice != undefined && macaroonData.macaroon != undefined){
+				res.setHeader('Www-Authenticate', `L402 macaroon="${macaroonData.macaroon}",invoice="${macaroonData.Invoice}"`);
+				res.setHeader("Blossom-Upload-Message", `${macaroonData.satoshi}`);
+				return res.status(402).send();
 			}
 		}
 	}
@@ -1428,24 +1458,20 @@ const heatUpload = async (req: Request, res: Response): Promise<Response> => {
 		return res.status(400).send();
 	}
 
-	let transactionId = (await dbMultiSelect(["transactionid"], "mediafiles", transform == "1" ? "original_hash = ?" : "hash = ?", [hash], true))[0]?.transactionid || "" ;
+	const macaroonData = await checkMacaroon(hash,Number(size),transform == '0'? false:true,req.url);
+	if (macaroonData.status == "error"){
+		logger.error(`Error checking macaroon for hash ${hash} | ${getClientIp(req)}`);
+		res.setHeader("Blossom-Upload-Message", "Error creating macaroon");
+		return res.status(500).send();
+	}
 
-	const transaction = await checkTransaction(transactionId,"","mediafiles", transform == "1" ? Math.round(Number(size)/3) : Number(size),"");
-	if (transaction.transactionid != 0 && transaction.isPaid == false && app.get("config.payments")["satoshi"]["mediaMaxSatoshi"] > 0) {
-		const macaroon = await createMacaroon(transaction.transactionid,transaction.paymentHash,req.url,["hash="+hash]);
-		if (macaroon == "") {
-			logger.error(`Error creating macaroon for transaction ${transaction.transactionid} | ${getClientIp(req)}`);
-			res.setHeader("Blossom-Upload-Message", "Error creating macaroon for L402 header ");
-			return res.status(500).send();
-		}
-		res.setHeader('Www-Authenticate', `L402 macaroon="${macaroon}",invoice="${transaction.paymentRequest}"`);
-		res.setHeader("Blossom-Upload-Message", `${transaction.satoshi}`);
+	if (macaroonData.Invoice != undefined && macaroonData.macaroon != undefined){
+		res.setHeader('Www-Authenticate', `L402 macaroon="${macaroonData.macaroon}",invoice="${macaroonData.Invoice}"`);
+		res.setHeader("Blossom-Upload-Message", `${macaroonData.satoshi}`);
 		return res.status(402).send();
 	}
 
-	res.setHeader("Blossom-Upload-Message", "File can be uploaded");
 	return res.status(200).send();
-
 }
 
 export { uploadMedia,

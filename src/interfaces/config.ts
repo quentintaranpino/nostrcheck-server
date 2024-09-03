@@ -196,6 +196,7 @@ const defaultConfig = {
 				"mediaMaxSatoshi": 1000,
 				"registerMaxSatoshi": 1000,
 		},
+		"allowUnpaidFiles": true,
 		"paymentProviders": {
 			"getalby": {
 				"authToken": "",
