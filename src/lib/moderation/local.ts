@@ -81,7 +81,7 @@ const sendRequest = async (modelName: string, endpoint: string,  filePath: strin
 
     try {
 		if (endpoint == "classify"){
-        const response = await axios.post(`http://localhost:5000/${endpoint}?model_name=${modelName}`, form, {
+        const response = await axios.post(`http://localhost:3001/${endpoint}?model_name=${modelName}`, form, {
             headers: {
                 ...form.getHeaders(),
             },
@@ -89,7 +89,7 @@ const sendRequest = async (modelName: string, endpoint: string,  filePath: strin
 		return response.data.label.toString();
 		}
 		if (endpoint == "classes"){
-			const response = await axios.get(`htt p://localhost:5000/${endpoint}?model_name=${modelName}`);
+			const response = await axios.get(`htt p://localhost:3001/${endpoint}?model_name=${modelName}`);
 			response.data != undefined ? response.data : "No classes found";
 			return JSON.stringify(response.data);
 		}
