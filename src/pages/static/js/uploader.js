@@ -88,13 +88,12 @@ const fetchFileServer = async (file, authEvent = "", method = "", showMessages =
         });
 
         let serverData = await response.json();
-        console.log(response.headers.get('Www-Authenticate'))
 
         if (!response.status.toString().startsWith("2") && !response.status.toString().startsWith("402")) {
             if (showMessages) updateMessage(uploadMessage, '<i class="bi bi-exclamation-circle-fill pe-1"></i>' + serverData.message, "alert-danger");
             if (showMessages) hideMessage(uploadMessage, 5000);
             await storeAuthkey('', true);
-            return { "filename": file.name, "url": "", "macaroon": response.headers.get('Www-Authenticate') != "" ? extractMacaroon(response.headers.get('Www-Authenticate')) : "", "invoice": response.headers.get('Www-Authenticate') != "" ? extractInvoice(response.headers.get('Www-Authenticate')) : "" };
+            return { "filename": file.name, "url": "", "macaroon": response.headers.get('Www-Authenticate') ? extractMacaroon(response.headers.get('Www-Authenticate')) : "", "invoice": response.headers.get('Www-Authenticate') != "" ? extractInvoice(response.headers.get('Www-Authenticate')) : "" };
         }
 
 
@@ -146,7 +145,7 @@ const fetchFileServer = async (file, authEvent = "", method = "", showMessages =
             `
         );
         if (showMessages) hideMessage(uploadMessage, 15000);
-        return { "filename": file.name, "url": url, "macaroon": response.headers.get('Www-Authenticate') != "" ? extractMacaroon(response.headers.get('Www-Authenticate')) : "", "invoice": response.headers.get('Www-Authenticate') != "" ? extractInvoice(response.headers.get('Www-Authenticate')) : "" };
+        return { "filename": file.name, "url": url, "macaroon": response.headers.get('Www-Authenticate') ? extractMacaroon(response.headers.get('Www-Authenticate')) : "", "invoice": response.headers.get('Www-Authenticate') ? extractInvoice(response.headers.get('Www-Authenticate')) : "" };
 
     } catch (error) {
         console.log(error.message);
