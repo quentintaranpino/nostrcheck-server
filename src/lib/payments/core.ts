@@ -1,7 +1,7 @@
 import app from "../../app.js";
 import { accounts, emptyInvoice, emptyTransaction, invoice, transaction } from "../../interfaces/payments.js";
 import { isModuleEnabled } from "../config.js";
-import { dbInsert, dbMultiSelect, dbSelect, dbUpdate } from "../database.js"
+import { dbDelete, dbInsert, dbMultiSelect, dbSelect, dbUpdate } from "../database.js"
 import { hashString } from "../hash.js";
 import { logger } from "../logger.js";
 import { sendMessage } from "../nostr/NIP04.js";
@@ -158,6 +158,28 @@ const addTransacion = async (type: string, accountid: number, invoice: invoice, 
                             invoice.paidDate? invoice.paidDate : null,
                             invoice.description]
                         );
+}
+
+const deleteTransaction = async (transactionid: number) : Promise<boolean> => {
+    
+        if (!isModuleEnabled("payments", app)) {
+            return false;
+        }
+    
+        const deleteTransaction = await dbDelete("transactions", ["id"], [transactionid.toString()]);
+        const deleteLedger = await dbDelete("ledger", ["transactionid"], [transactionid.toString()]);
+        const mediafiles = await dbMultiSelect(["id"], "mediafiles", "transactionid = ?", [transactionid.toString()], false);
+        let deleteMedia = true;
+        if (mediafiles.length > 0) {
+            const result = await dbUpdate("mediafiles", "transactionid", null, ["transactionid"], [transactionid.toString()]);
+            deleteMedia = result;
+        }
+        if (deleteTransaction && deleteLedger && deleteMedia) {
+            return true;
+        }
+
+        logger.error("Error deleting transaction", transactionid)
+        return false;
 }
 
 const addJournalEntry = async (accountid: number, transactionid: number, debit: number, credit: number, comments: string) : Promise<number> => {
@@ -551,6 +573,18 @@ const processPendingInvoices = async () => {
 };
 
 processPendingInvoices();
+
+const cleanTransactions = async () => {
+
+    if (!isModuleEnabled("payments", app))return;
+
+    const result = await dbMultiSelect(["id"], "transactions", "accountid = ? and paid = 0", ["1100000000"], false);
+    result.forEach(async transaction => {
+        await deleteTransaction(transaction.id);
+    })
+    setTimeout(cleanTransactions, app.get("config.payments")["invoicePaidInterval"] * 1000);
+}
+cleanTransactions();
 
 const validatePreimage = async (transactionid: string, preimage: string) : Promise<boolean> => {
     
