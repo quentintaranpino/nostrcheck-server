@@ -49,9 +49,11 @@ const checkTransaction = async (transactionid : string, originId: string, origin
         const invoice = await generateInvoice(accountid, satoshi, originTable, originId, expiryDate < getNewDate() && transaction.transactionid != 0 ? true : false, transaction.transactionid);
         if (invoice.paymentRequest == "") {return emptyTransaction};
         
-		await sendMessage(`Hi, here’s your invoice from ${app.get("config.server")["host"]} service (${invoice.satoshi} satoshi). We appreciate your payment, thanks!`, pubkey)
-		await sendMessage(invoice.paymentRequest,pubkey)
-
+        if (app.get("config.payments")["sendMessageToPubkey"] == true){
+            await sendMessage(`Hi, here’s your invoice from ${app.get("config.server")["host"]} service (${invoice.satoshi} satoshi). We appreciate your payment, thanks!`, pubkey)
+            await sendMessage(invoice.paymentRequest,pubkey)
+        }
+	
         // Fill the transaction with the invoice data
         transaction = await getTransaction(invoice.transactionid.toString());
 

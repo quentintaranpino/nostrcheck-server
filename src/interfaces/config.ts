@@ -197,6 +197,7 @@ const defaultConfig = {
 				"registerMaxSatoshi": 1000,
 		},
 		"allowUnpaidFiles": true,
+		"sendMessageToPubkey": false,
 		"paymentProviders": {
 			"getalby": {
 				"authToken": "",
