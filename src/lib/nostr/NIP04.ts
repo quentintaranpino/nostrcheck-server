@@ -20,8 +20,8 @@ const sendMessage = async (message: string, sendToPubkey : string) : Promise<boo
         return false
     }
 
-    if (!sendMessage || !sendToPubkey || sendToPubkey.length != 64 || sendToPubkey.startsWith("npub")) {
-        logger.error("Invalid pubkey");
+    if (!message || !sendToPubkey || sendToPubkey.length != 64 || sendToPubkey.startsWith("npub")) {
+        logger.error("Invalid message or public key provided")
         return false
     }
 
