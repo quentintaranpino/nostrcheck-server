@@ -74,6 +74,21 @@
                 >
             </div>
         </div>
+        <label for="payments.sendMessageToPubkey" class="mt-4 mb-1 fw-bold">Send invoice to pubkey</label>
+        <p>
+            Specify whether the server should send a nostr direct message to the uploader's pubkey with the invoice details.
+        </p>
+        <div class="col-12 col-md-4">
+            <div class="form-check form-switch">
+                <input 
+                    class="form-check-input" 
+                    type="checkbox" 
+                    name="payments.sendMessageToPubkey" 
+                    id="payments.sendMessageToPubkey" 
+                    <%= request.body.settingsPayments['sendMessageToPubkey'] ? 'checked' : '' %> 
+                >
+            </div>
+        </div>
         <div class="row">
             <label for="payments.invoicePaidInterval" class="mt-4 mb-1 fw-bold">Invoice paid interval</label>
             <p>Specify the interval in seconds to check if pending invoices are paid.</p>

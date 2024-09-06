@@ -43,7 +43,7 @@ const generateLNBitsInvoice = async (amount: number, memo: string) : Promise<inv
         }
 
     }catch(e){
-        logger.error("Error generating LNBits invoice", e);
+        logger.error("Error generating LNBits invoice");
         return emptyInvoice;
     }
 
