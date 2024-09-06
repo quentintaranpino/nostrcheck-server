@@ -57,7 +57,7 @@
             <i class="fa-solid fa-triangle-exclamation"></i> In the dashboard's <a href="dashboard#domains">Domains</a> section, you can customize the payment settings for each domain.
             If a domain isn't configured, the default values set here will be automatically applied.
         </div>
-        <label for="payments.allowUnpaidFiles" class="mt-4 mb-1 fw-bold">Allow unpaid files</label>
+        <label for="payments.allowUnpaidUploads" class="mt-4 mb-1 fw-bold">Allow unpaid uploads</label>
         <p>
             Specify whether file uploads are allowed without prior payment. If set to inactive, 
             file uploads are only permitted if the user has already paid the required amount of sats. If set to active, 
@@ -68,9 +68,9 @@
                 <input 
                     class="form-check-input" 
                     type="checkbox" 
-                    name="payments.allowUnpaidFiles" 
-                    id="payments.allowUnpaidFiles" 
-                    <%= request.body.settingsPayments['allowUnpaidFiles'] ? 'checked' : '' %> 
+                    name="payments.allowUnpaidUploads" 
+                    id="payments.allowUnpaidUploads" 
+                    <%= request.body.settingsPayments['allowUnpaidUploads'] ? 'checked' : '' %> 
                 >
             </div>
         </div>

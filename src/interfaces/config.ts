@@ -196,7 +196,7 @@ const defaultConfig = {
 				"mediaMaxSatoshi": 1000,
 				"registerMaxSatoshi": 1000,
 		},
-		"allowUnpaidFiles": true,
+		"allowUnpaidUploads": true,
 		"sendMessageToPubkey": false,
 		"paymentProviders": {
 			"getalby": {

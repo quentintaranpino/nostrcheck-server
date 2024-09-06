@@ -29,13 +29,13 @@ import { saveTmpFile } from "../lib/storage/local.js";
 import { Readable } from "stream";
 import { getRemoteFile } from "../lib/storage/remote.js";
 import { transaction } from "../interfaces/payments.js";
-import { checkTransaction, collectInvoice, getInvoice, validatePreimage } from "../lib/payments/core.js";
+import { calculateSatoshi, checkTransaction, collectInvoice, getInvoice, validatePreimage } from "../lib/payments/core.js";
 import { blobDescriptor, BUDKinds } from "../interfaces/blossom.js";
 import { prepareBlobDescriptor } from "../lib/blossom/BUD02.js";
 import { loadCdnPage } from "./frontend.js";
 import { getBannedMediaFile, isContentBanned } from "../lib/banned.js";
 import { mirrorFile } from "../lib/blossom/BUD04.js";
-import { checkMacaroon, createMacaroon, decodeMacaroon, verifyMacaroon } from "../lib/payments/macaroons.js";
+import { checkMacaroon, decodeMacaroon, verifyMacaroon } from "../lib/payments/macaroons.js";
 
 const uploadMedia = async (req: Request, res: Response, version:string): Promise<Response> => {
 
@@ -200,7 +200,7 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 						}
 					}
 				}else{
-					if (app.get("config.payments")["allowUnpaidFiles"] == false) {
+					if (app.get("config.payments")["allowUnpaidUploads"] == false && await calculateSatoshi("mediafiles", filedata.filesize) > 0 && app.get("config.payments")["satoshi"]["mediaMaxSatoshi"] > 0) {
 						logger.warn(`RES -> 402 Payment Required - File not paid`, "|", getClientIp(req));
 						const macaroonData = await checkMacaroon(filedata.hash, Number(filedata.filesize),filedata.no_transform == true ? false : true, req.url);
 						if (macaroonData.status == "error"){
@@ -218,7 +218,7 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 			}
 		}
 	}else{
-		if (app.get("config.payments")["allowUnpaidFiles"] == false) {
+		if (app.get("config.payments")["allowUnpaidUploads"] == false  && await calculateSatoshi("mediafiles", filedata.filesize) > 0 && app.get("config.payments")["satoshi"]["mediaMaxSatoshi"] > 0) {
 			const macaroonData = await checkMacaroon(filedata.hash, Number(filedata.filesize),filedata.no_transform == true ? false : true, req.url);
 			if (macaroonData.status == "error"){
 				logger.error(`Error checking macaroon for hash ${filedata.hash} | ${getClientIp(req)}`);
