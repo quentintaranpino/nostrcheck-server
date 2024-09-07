@@ -19,6 +19,7 @@ SECRETKEY=""
 REPO_URL="https://github.com/quentintaranpino/nostrcheck-server.git"
 REPO_BRANCH="0.6.0"
 REQUIREMENTS_FILE="requirements.txt"
+VENV_DIR=".venv"
 PACKAGES="nginx git redis-server mariadb-server mariadb-client ffmpeg jq certbot python3-certbot-nginx python3 python3-pip"
 
 clear
@@ -162,12 +163,28 @@ sleep 3
 # Install Python packages from requirements.txt
 clear
 echo "═══════════════════════════════════════════════════════════════════════════════"
-echo "                 🐍 Installing Necessary Python Packages...                   "
+echo "                 🐍 Creating Virtual Environment and Installing Packages       "
 echo "═══════════════════════════════════════════════════════════════════════════════"
 echo ""
-echo "🔄 Installing packages from $REQUIREMENTS_FILE..."
-echo ""
-pip install -r "$REQUIREMENTS_FILE" || { echo "❌ Failed to install Python packages from $REQUIREMENTS_FILE"; exit 1; }
+
+if [ ! -d "$VENV_DIR" ]; then
+    echo "🔄 Creating virtual environment in $VENV_DIR..."
+    python3.12 -m venv "$VENV_DIR" || { echo "❌ Failed to create virtual environment"; exit 1; }
+else
+    echo "🔄 Virtual environment already exists in $VENV_DIR."
+fi
+
+echo "🔄 Activating virtual environment..."
+source "$VENV_DIR/bin/activate" || { echo "❌ Failed to activate virtual environment"; exit 1; }
+
+if [ -f "$REQUIREMENTS_FILE" ]; then
+    echo "🔄 Installing packages from $REQUIREMENTS_FILE..."
+    pip install -r "$REQUIREMENTS_FILE" || { echo "❌ Failed to install Python packages from $REQUIREMENTS_FILE"; exit 1; }
+else
+    echo "❌ $REQUIREMENTS_FILE not found. Please provide a valid requirements.txt file."
+    exit 1
+fi
+
 echo ""
 echo "✅ Python packages installed successfully!"
 sleep 3

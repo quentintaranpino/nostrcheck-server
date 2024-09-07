@@ -9,7 +9,7 @@ import app from '../../app.js';
 let localModel: any = null;
 
 /**
- * Start the local AI moderation server
+ * Start the local AI moderation server using a Python virtual environment
  * @returns {Promise<boolean>}
  */ 
 const localEngineStart = async (): Promise<boolean> => {
@@ -21,10 +21,12 @@ const localEngineStart = async (): Promise<boolean> => {
         }
 
         const localModelPath = './scripts/moderation/localEngine.py';
+        const venvPythonPath = './venv/bin/python'; 
 
         logger.info('Starting Local AI moderation server...');
 
         localModel = await new PythonShell(localModelPath, {
+            pythonPath: venvPythonPath,  
             pythonOptions: ['-u'],
         });
 
@@ -45,7 +47,6 @@ const localEngineStart = async (): Promise<boolean> => {
             localModel = null;
 			resolve(false);
         });
-
     });
 };
 
@@ -54,7 +55,7 @@ const localEngineStart = async (): Promise<boolean> => {
 * Stop the local AI moderation server
 * @returns {void}
 */
-const localEngineStop = () =>{
+const localEngineStop = () => {
     if (!localModel) {
         logger.info('Local AI moderation server is not running.');
         return;
@@ -74,31 +75,30 @@ const localEngineStop = () =>{
  */
 const sendRequest = async (modelName: string, endpoint: string,  filePath: string = ""): Promise<string> => {
 
-	!localModel? await localEngineStart(): null;
+	!localModel ? await localEngineStart() : null;
 
     const form = new FormData();
-    filePath != "" ? form.append('file', fs.createReadStream(filePath)): null;
+    filePath != "" ? form.append('file', fs.createReadStream(filePath)) : null;
 
     try {
-		if (endpoint == "classify"){
-        const response = await axios.post(`http://localhost:3001/${endpoint}?model_name=${modelName}`, form, {
-            headers: {
-                ...form.getHeaders(),
-            },
-        });
-		return response.data.label.toString();
+		if (endpoint === "classify"){
+			const response = await axios.post(`http://localhost:3001/${endpoint}?model_name=${modelName}`, form, {
+				headers: {
+					...form.getHeaders(),
+				},
+			});
+			return response.data.label.toString();
 		}
-		if (endpoint == "classes"){
-			const response = await axios.get(`htt p://localhost:3001/${endpoint}?model_name=${modelName}`);
-			response.data != undefined ? response.data : "No classes found";
-			return JSON.stringify(response.data);
+		if (endpoint === "classes"){
+			const response = await axios.get(`http://localhost:3001/${endpoint}?model_name=${modelName}`);
+			return response.data ? JSON.stringify(response.data) : "No classes found";
 		}
 
 		return "99:Unknown";
 
     } catch (error: any) {
         logger.error(`There was an error running the model script: ${error.code}`);
-		const result = endpoint == "classify" ? "99:Unknown" : "No classes found";
+		const result = endpoint === "classify" ? "99:Unknown" : "No classes found";
 		return result;
     }
 }
@@ -110,14 +110,10 @@ const sendRequest = async (modelName: string, endpoint: string,  filePath: strin
  */
 const localEngineClassify = async (filePath: string): Promise<moderationCategory> => {
 
-	if (!filePath || filePath == "") {
+	if (!filePath || filePath === "") {
 		logger.error("ERR -> Moderating file, empty file path");
 		return emptyModerationCategory;
 	}
-
-	// const classes = await localModel(model, "classes");
-	// logger.info(`Classes for ${model}:}`);
-	// classes.split(',').forEach(cls => logger.info(cls));
 
     const modelName = app.get("config.media")["mediainspector"]["local"]["modelName"];   
 	
