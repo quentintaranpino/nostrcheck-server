@@ -334,6 +334,7 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 		// generate blurhash
 		if (makeBlurhash) {
 			if (filedata.originalmime.toString().startsWith("image")){
+				logger.debug(filedata.originalmime.toString());
 				filedata.blurhash = await generateBlurhash(filedata.conversionInputPath);
 
 				// If can't generate blurhash, we return an error and delete the file
