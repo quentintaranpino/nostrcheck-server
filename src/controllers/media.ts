@@ -344,7 +344,7 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 						status: MediaStatus[1],
 						message: "File could not be processed",
 					};
-					await deleteFile(filedata.conversionInputPath);
+					//await deleteFile(filedata.conversionInputPath);
 					return res.status(500).send(result);
 				}
 			}
