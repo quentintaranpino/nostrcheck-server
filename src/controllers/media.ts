@@ -29,7 +29,7 @@ import { saveTmpFile } from "../lib/storage/local.js";
 import { Readable } from "stream";
 import { getRemoteFile } from "../lib/storage/remote.js";
 import { transaction } from "../interfaces/payments.js";
-import { calculateSatoshi, checkTransaction, collectInvoice, getInvoice, validatePreimage } from "../lib/payments/core.js";
+import { calculateSatoshi, checkTransaction, collectInvoice, getInvoice, updateAccountId, validatePreimage } from "../lib/payments/core.js";
 import { blobDescriptor, BUDKinds } from "../interfaces/blossom.js";
 import { prepareBlobDescriptor } from "../lib/blossom/BUD02.js";
 import { loadCdnPage } from "./frontend.js";
@@ -297,9 +297,8 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 			// If the recieved file has a transaction_id and the DB file doesn't have a transaction_id, we update the DB file with the recieved transaction_id
 			if (filedata.transaction_id != "" && dbFile.transactionid == null) {
 				const updateResult = await dbUpdate("mediafiles", "transactionid", filedata.transaction_id,["id"], [filedata.fileid]);
-				// const registeredId = await dbMultiSelect(["id"], "registered", 
-				// const updateLedger = await dbUpdate("ledger", "accountid",  filedata.transaction_id,["fileid"], [filedata.fileid]);
-				if (!updateResult) {
+				const accountIdResult = await updateAccountId(pubkey, Number(filedata.transaction_id));
+				if (!updateResult || !accountIdResult) {
 					logger.error(`Error updating transactionid for file ${filedata.fileid}`, "|", getClientIp(req));
 					const result: ResultMessagev2 = {
 						status: MediaStatus[1],
@@ -393,6 +392,15 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 				message: "Error inserting file to database",
 			};
 			return res.status(500).send(result);
+		}
+
+		// Update accountid in ledger and transactions tables.
+		if (filedata.transaction_id != "") {
+			const result = await updateAccountId(pubkey, Number(filedata.transaction_id));
+			if (result == false) {
+				logger.error("Error updating transactionid for file", filedata.fileid, "|", getClientIp(req));
+				return res.status(500).send({"status": "error", "message": "Error updating transactionid for file"});
+			}
 		}
 	}
 	
