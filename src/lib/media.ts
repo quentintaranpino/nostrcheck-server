@@ -411,7 +411,10 @@ const finalizeFileProcessing = async (filedata: fileData): Promise<boolean> => {
 
 		if (filedata.no_transform == false) { await deleteLocalFile(filedata.conversionOutputPath);}
 		await deleteLocalFile(filedata.conversionInputPath);
-		moderateFile(filedata.url).then((result) => {
+
+		let url = filedata.url;
+		if (url.lastIndexOf('.') <= url.lastIndexOf('/')) url = url.substring(0, url.lastIndexOf('/') + 1) + filedata.filename;
+		moderateFile(url).then((result) => {
 			result.code == "NA"? dbUpdate('mediafiles','checked','1',['id'], [filedata.fileid]): null;
 		}).catch((err) => {
 			logger.error("Error moderating file", err);
