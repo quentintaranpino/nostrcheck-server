@@ -180,6 +180,7 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 
 	logger.info("hash ->", filedata.originalhash, "|", getClientIp(req));
 	logger.info("filename ->", filedata.filename, "|", getClientIp(req));
+	logger.info("no_transform ->", filedata.no_transform, "|", getClientIp(req));
 
 	// Macaroon verification. If macaroon is valid, we check if the file is paid, 
 	const macaroon = req.headers["www-authenticate"]?.match(/macaroon="([^"]+)"/)?.[1];
@@ -346,7 +347,7 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 						status: MediaStatus[1],
 						message: "File could not be processed",
 					};
-					await deleteFile(filedata.conversionInputPath);
+					//await deleteFile(filedata.conversionInputPath);
 					return res.status(500).send(result);
 				}
 			}
@@ -895,10 +896,10 @@ const getMediabyURL = async (req: Request, res: Response) => {
 	// Initial security checks
 	if (
 		req.params.pubkey && req.params.pubkey.length > 64 || 
-		req.params.pubkey && !validator.default.matches(req.params.pubkey, /^[a-zA-Z0-9_]+$/) ||
+		req.params.pubkey && !validator.matches(req.params.pubkey, /^[a-zA-Z0-9_]+$/) ||
 		!req.params.filename || 
 		req.params.filename.length > 70 ||
-		!validator.default.matches(req.params.filename, /^[a-zA-Z0-9_]+(\.[a-zA-Z0-9_]+)*$/)) {
+		!validator.matches(req.params.filename, /^[a-zA-Z0-9_]+(\.[a-zA-Z0-9_]+)*$/)) {
 		logger.debug(`RES Media URL -> 400 Bad request:`, req.params.filename, "|", getClientIp(req));
 		res.setHeader('Content-Type', 'image/webp');
 		return res.status(400).send(await getNotFoundMediaFile());
