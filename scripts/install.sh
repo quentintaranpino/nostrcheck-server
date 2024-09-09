@@ -71,6 +71,10 @@ echo ""
 if command -v node > /dev/null 2>&1; then
     # Get the currently installed major version
     INSTALLED_NODE_MAJOR=$(node -v | grep -oP '^v\K[0-9]+')
+    if [ "$INSTALLED_NODE_MAJOR" -ge "$NODE_MAJOR" ]; then
+        echo "🔎 Detected Node.js version $INSTALLED_NODE_MAJOR."
+        sleep 3
+    fi
     
     # Compare with desired major version
     if [ "$INSTALLED_NODE_MAJOR" -ge "$NODE_MAJOR" ]; then
