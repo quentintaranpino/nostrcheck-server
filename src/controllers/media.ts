@@ -296,7 +296,7 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 
 			// If the recieved file has a transaction_id and the DB file doesn't have a transaction_id, we update the DB file with the recieved transaction_id
 			if (filedata.transaction_id != "" && dbFile.transactionid == null) {
-				const updateResult = await dbUpdate("mediafiles", "transactionid", filedata.transaction_id,["id"], [filedata.fileid]);ç
+				const updateResult = await dbUpdate("mediafiles", "transactionid", filedata.transaction_id,["id"], [filedata.fileid]);
 				// const registeredId = await dbMultiSelect(["id"], "registered", 
 				// const updateLedger = await dbUpdate("ledger", "accountid",  filedata.transaction_id,["fileid"], [filedata.fileid]);
 				if (!updateResult) {
