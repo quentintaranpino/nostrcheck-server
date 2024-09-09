@@ -584,7 +584,7 @@ const cleanTransactions = async () => {
     })
     setTimeout(cleanTransactions, app.get("config.payments")["invoicePaidInterval"] * 1000);
 }
-cleanTransactions();
+// cleanTransactions();
 
 const validatePreimage = async (transactionid: string, preimage: string) : Promise<boolean> => {
     

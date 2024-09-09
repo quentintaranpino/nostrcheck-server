@@ -168,6 +168,7 @@ async function handleFiles(files) {
             filesArray[fileIndex].fileData.transform = this.checked ? 1 : 0;
             filesArray[fileIndex].fileData.satoshi = -1 // Reset Satoshi value;
             $('#file-table').bootstrapTable('load', filesArray.map(file => file.fileData));
+            console.log("getting file server info", filesArray[fileIndex].fileData);
             await getFileServerInfo(filesArray[fileIndex]).then(() => {
                 $(this).prop('disabled', false);
             });

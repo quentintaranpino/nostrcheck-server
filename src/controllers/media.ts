@@ -191,12 +191,12 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 			if (caveatHash != undefined && caveatHash.split("=")[1] == filedata.originalhash) {
 				filedata.transaction_id = macaroonData?.token_id || "";
 				if (preimage && preimage != "") {
-					if (await validatePreimage(filedata.transaction_id, preimage) == true) {
+					if ((await validatePreimage(filedata.transaction_id, preimage)) == true) {
 						const invoice = await getInvoice(filedata.transaction_id);
 						if (invoice) {
 							invoice.preimage = preimage;
 							invoice.paidDate = new Date().toISOString().slice(0, 19).replace('T', ' ');
-							await collectInvoice(invoice,false, true);
+							await collectInvoice(invoice,false,true);
 						}
 					}
 				}else{
@@ -295,7 +295,9 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 
 			// If the recieved file has a transaction_id and the DB file doesn't have a transaction_id, we update the DB file with the recieved transaction_id
 			if (filedata.transaction_id != "" && dbFile.transactionid == null) {
-				const updateResult = await dbUpdate("mediafiles", "transactionid", filedata.transaction_id,["id"], [filedata.fileid]);
+				const updateResult = await dbUpdate("mediafiles", "transactionid", filedata.transaction_id,["id"], [filedata.fileid]);ç
+				// const registeredId = await dbMultiSelect(["id"], "registered", 
+				// const updateLedger = await dbUpdate("ledger", "accountid",  filedata.transaction_id,["fileid"], [filedata.fileid]);
 				if (!updateResult) {
 					logger.error(`Error updating transactionid for file ${filedata.fileid}`, "|", getClientIp(req));
 					const result: ResultMessagev2 = {
