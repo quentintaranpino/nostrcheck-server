@@ -147,6 +147,7 @@ echo ""
 sleep 3
 
 # Install Rust and configure environment
+clear
 echo "═══════════════════════════════════════════════════════════════════════════════"
 echo "                  🦀 Installing Rust compiler...                              "
 echo "═══════════════════════════════════════════════════════════════════════════════"
@@ -209,6 +210,10 @@ source "$VENV_DIR/bin/activate" || { echo "❌ Failed to activate virtual enviro
 
 if [ -f "$REQUIREMENTS_FILE" ]; then
     echo "🔄 Installing packages from $REQUIREMENTS_FILE..."
+    
+    # Purge pip cache before installing
+    pip cache purge
+
     pip install -r "$REQUIREMENTS_FILE" || { echo "❌ Failed to install Python packages from $REQUIREMENTS_FILE"; exit 1; }
 else
     echo "❌ $REQUIREMENTS_FILE not found. Please provide a valid requirements.txt file."
