@@ -411,9 +411,6 @@ const finalizeFileProcessing = async (filedata: fileData): Promise<boolean> => {
 
 		if (filedata.no_transform == false) { await deleteLocalFile(filedata.conversionOutputPath);}
 		await deleteLocalFile(filedata.conversionInputPath);
-
-		await checkTransaction(filedata.transaction_id, filedata.fileid, "mediafiles", filesize, filedata.pubkey);
-
 		moderateFile(filedata.url).then((result) => {
 			result.code == "NA"? dbUpdate('mediafiles','checked','1',['id'], [filedata.fileid]): null;
 		}).catch((err) => {
