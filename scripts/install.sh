@@ -198,7 +198,7 @@ sleep 3
 # Install Python packages from requirements.txt
 clear
 echo "═══════════════════════════════════════════════════════════════════════════════"
-echo "                 🐍 Creating Virtual Environment and Installing Packages       "
+echo "        🐍 Creating Python virtual environment and installing packages       "
 echo "═══════════════════════════════════════════════════════════════════════════════"
 echo ""
 
