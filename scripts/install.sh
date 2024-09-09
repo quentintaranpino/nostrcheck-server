@@ -5,7 +5,7 @@ BASEDIR=$(dirname "$0")
 echo "$BASEDIR"
 
 readonly E_BADARGS=65
-readonly version="0.2.6.3"
+readonly version="0.2.6.4"
 readonly date="20240909"
 
 # Variables
@@ -212,13 +212,22 @@ fi
 echo "🔄 Activating virtual environment..."
 source "$VENV_DIR/bin/activate" || { echo "❌ Failed to activate virtual environment"; exit 1; }
 
-if [ -f "$REQUIREMENTS_FILE" ]; then
+install_packages() {
     echo "🔄 Installing packages from $REQUIREMENTS_FILE..."
-    
-    # Purge pip cache before installing
-    pip cache purge
+    pip install -r "$REQUIREMENTS_FILE"
+}
 
-    pip install -r "$REQUIREMENTS_FILE" || { echo "❌ Failed to install Python packages from $REQUIREMENTS_FILE"; exit 1; }
+if [ -f "$REQUIREMENTS_FILE" ]; then
+    install_packages
+    
+    # If the installation fails, purge cache and retry once
+    if [ $? -ne 0 ]; then
+        echo "⚠️ Installation failed. Purging pip cache and retrying..."
+        pip cache purge
+        
+        echo "🔄 Retrying package installation..."
+        install_packages || { echo "❌ Second attempt to install Python packages failed."; exit 1; }
+    fi
 else
     echo "❌ $REQUIREMENTS_FILE not found. Please provide a valid requirements.txt file."
     exit 1
