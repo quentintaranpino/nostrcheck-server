@@ -1,4 +1,4 @@
-Flask==2.2.3
-torch==2.2.2
-transformers==4.28.1
-Pillow==9.2.0
+Flask==3.0.3
+torch==2.4.1
+transformers==4.44.2
+Pillow==10.4.0

@@ -5,8 +5,8 @@ BASEDIR=$(dirname "$0")
 echo "$BASEDIR"
 
 readonly E_BADARGS=65
-readonly version="0.2.5"
-readonly date="20240907"
+readonly version="0.2.6"
+readonly date="20240909"
 
 # Variables
 NODE_MAJOR=21
@@ -20,7 +20,7 @@ REPO_URL="https://github.com/quentintaranpino/nostrcheck-server.git"
 REPO_BRANCH="0.6.0"
 REQUIREMENTS_FILE="requirements.txt"
 VENV_DIR=".venv"
-PACKAGES="nginx git redis-server mariadb-server mariadb-client ffmpeg jq certbot python3-certbot-nginx python3 python3-pip"
+PACKAGES="nginx git redis-server mariadb-server mariadb-client ffmpeg jq certbot python3-certbot-nginx python3 python3-pip python3-dev pkg-config libjpeg-dev zlib1g-dev libssl-dev"
 
 clear
 echo ""
@@ -144,6 +144,36 @@ sudo apt-get install -y $PACKAGES || { echo "❌ Failed to install necessary pac
 
 echo "✅ Necessary packages installed successfully!"
 echo ""
+sleep 3
+
+# Install Rust and configure environment
+echo "═══════════════════════════════════════════════════════════════════════════════"
+echo "                  🦀 Installing Rust compiler...                              "
+echo "═══════════════════════════════════════════════════════════════════════════════"
+echo ""
+sleep 3
+
+
+# Install Rust using rustup
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y || { echo "❌ Failed to install Rust"; exit 1; }
+
+# Load Rust environment
+source $HOME/.cargo/env
+
+# Add Rust to PATH for future sessions
+if ! grep -q 'export PATH="$HOME/.cargo/bin:$PATH"' ~/.bashrc; then
+  echo 'export PATH="$HOME/.cargo/bin:$PATH"' >> ~/.bashrc
+fi
+
+# Reload ~/.bashrc to make changes effective
+source ~/.bashrc
+
+# Optional: Verify Rust installation
+rustc --version && cargo --version || { echo "❌ Rust installation verification failed"; exit 1; }
+
+echo "✅ Rust installed successfully!"
+echo ""
+sleep 3
 
 # Clone the repository
 clear
