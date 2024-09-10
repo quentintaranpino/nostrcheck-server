@@ -171,15 +171,27 @@ const initAlertModal = async (objectId, message, timeout = 2000, alertClass = "a
     $(objectId + '-alert-modal .alert').removeClass(alertClass);
 }
 
-const initMessageModal = async (objectId, message, title) => {
+const initMessageModal = async (objectId, message, title, modalSize = '') => {
+
+    const modalDialog = $(objectId + '-message-modal .modal-dialog');
+    
+    if (modalSize) {
+        modalDialog.removeClass('modal-sm modal-lg modal-xl');
+        modalDialog.addClass(modalSize);
+    }
+
+    if (title) {
+        $(objectId + '-message-modal .modal-header').removeClass('d-none');
+    }
+
     var alert = new bootstrap.Modal($(objectId + '-message-modal'));
 
     $(alert._element).on('show.bs.modal', function () {
-
         $(objectId + '-message-modal .modal-body').empty();
         $(objectId + '-message-modal .modal-body').append(message);
-        $(objectId + '-message-modal .modal-title').text(title)
-    })
+        $(objectId + '-message-modal .modal-title').text(title);
+    });
+    
     alert.show();
 
     let result = await new Promise((resolve, reject) => {
@@ -190,8 +202,7 @@ const initMessageModal = async (objectId, message, title) => {
 
     alert.hide();
     return result;
-
-}
+};
 
 const initPaymentModal = async (paymentRequest, satoshi) => {
     var paymentModal = new bootstrap.Modal($('#payment-modal'));
