@@ -1505,12 +1505,12 @@ const heatUpload = async (req: Request, res: Response): Promise<Response> => {
 
 	const size = req.headers['blossom-content-length'] || 0;
 	const type = Array.isArray(req.headers['blossom-content-type']) ? req.headers['blossom-content-type'][0] || "" : req.headers['blossom-content-type'] || "";
-	const hash = (Array.isArray(req.headers['digest']) ? req.headers['digest'][0] : req.headers['digest'] || "").split('=')[1] || "";
+	const hash = (Array.isArray(req.headers['content-digest']) ? req.headers['content-digest'][0] : req.headers['content-digest'] || "").split('=:')[1]?.split(':')[0] || "";
 	const transform = Array.isArray(req.headers['blossom-content-metadata']) ? req.headers['blossom-content-metadata'][0] || "" : req.headers['blossom-content-metadata'] || "";
 
 	if (!Number(size) || size == 0 || type == "" || hash == "") {
-		logger.warn("RES -> 400 Bad request - missing size or type", "|", getClientIp(req));
-		res.setHeader("Blossom-Upload-Message", "Missing size or mime type");
+		logger.warn("RES -> 400 Bad request - missing size, type or digest", "|", getClientIp(req));
+		res.setHeader("Blossom-Upload-Message", "Missing size, MIME type or digest");
 		return res.status(400).send();
 	}
 

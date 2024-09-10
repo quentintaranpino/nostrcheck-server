@@ -14,7 +14,6 @@ import path from "path";
 import sharp from "sharp";
 import { saveFile } from "./storage/core.js";
 import { deleteLocalFile } from "./storage/local.js";
-import { checkTransaction } from "./payments/core.js";
 import { moderateFile } from "./moderation/core.js";
 import app from "../app.js";
 

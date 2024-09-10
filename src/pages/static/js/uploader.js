@@ -37,7 +37,7 @@ const fetchFileServerInfo = async (file) => {
             headers: {
                 "Blossom-Content-Length": file.size.toString(),
                 "Blossom-Content-Type": file.type,
-                "Digest": `SHA-256=${file.fileData.hash}`,
+                "Content-Digest": `SHA-256=:${file.fileData.hash}:`,
                 "Blossom-content-metadata": file.fileData.transform,
             },
         });
