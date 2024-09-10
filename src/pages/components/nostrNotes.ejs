@@ -29,14 +29,14 @@ document.addEventListener('DOMContentLoaded', (event) => {
         // Replace image links with <img> tags
         if (imgMatch) {
             imgMatch.forEach(imgUrl => {
-                content = content.replace(imgUrl, `<div class="text-center"><img src="${imgUrl}" height="450px" alt="note image"></div>`);
+                content = content.replace(imgUrl, `<div class="text-center"><img src="${imgUrl}" style="max-height:450px; max-width:80%" alt="note image"></div>`);
             });
         }
 
         // Replace video links with <video> tags
         if (videoMatch) {
             videoMatch.forEach(videoUrl => {
-                content = content.replace(videoUrl, `<div class="text-center"><video src="${videoUrl}" height="450px" controls></video></div>`);
+                content = content.replace(videoUrl, `<div class="text-center"><video src="${videoUrl}" style="max-height:450px; max-width:80%" controls></video></div>`);
             });
         }
 
