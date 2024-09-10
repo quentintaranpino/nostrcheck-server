@@ -74,13 +74,9 @@
           </div>
           <div class="pt-2 pe-3 pb-2 z-1">
             <div class="d-flex justify-content-end text-center py-1">
-              <div>
-                <p class="mb-1 h5"><%= JSON.parse(JSON.stringify(request.session.metadata.hostedFiles || "0")) %></p>
-                <p class="small text-muted mb-0">Media</p>
-              </div>
               <div class="px-3">
-                <p class="mb-1 h5"><%= request.session.metadata.followers %></p>
-                <p class="small text-muted mb-0">Followers</p>
+                <p class="mb-1 h5"><%= JSON.parse(JSON.stringify(request.session.metadata.hostedFiles || "0")) %></p>
+                <p class="small text-muted mb-0">Hosted Files</p>
               </div>
               <div>
                 <p class="mb-1 h5"><%= request.session.metadata.following.length %></p>
@@ -112,7 +108,7 @@
                 <button class="nav-link active" id="nostrNotes-tab" data-bs-toggle="tab" data-bs-target="#nostrNotes" type="button" role="tab" aria-controls="nostrNotes" aria-selected="true">Notes</button>
               </li>
               <li class="nav-item" >
-                <button class="nav-link" id="mediaFiles-tab" data-bs-toggle="tab" data-bs-target="#mediaFiles" type="button" role="tab" aria-controls="mediaFiles" aria-selected="true">Uploaded files</button>
+                <button class="nav-link" id="hostedFiles-tab" data-bs-toggle="tab" data-bs-target="#hostedFiles" type="button" role="tab" aria-controls="mediaFiles" aria-selected="true">Hosted files</button>
               </li>
               <li class="nav-item" >
                 <button class="nav-link" id="userSettings-tab" data-bs-toggle="tab" data-bs-target="#userSettings" type="button" role="tab" aria-controls="userSettings" aria-selected="false">Settings</button>
@@ -122,7 +118,7 @@
               <div class="tab-pane fade show active" id="nostrNotes" role="tabpanel" aria-labelledby="nostrNotes-tab">
                 <%- include('./components/nostrNotes'); %>
               </div>
-              <div class="tab-pane fade show pt-3" id="mediaFiles" role="tabpanel" aria-labelledby="mediaFiles-tab">
+              <div class="tab-pane fade show pt-3" id="hostedFiles" role="tabpanel" aria-labelledby="hostedFiles-tab">
                 <%- include('./components/gallery',{maxImageWidth: 350, maxColumns:3, privateGallery: true}); %> 
               </div>
               <div class="tab-pane fade p-3" id="userSettings" role="tabpanel" aria-labelledby="userSettings-tab">
@@ -138,7 +134,6 @@
 
 <script>
   const following = '<%= request.session.metadata.following %>';
-  console.log("FOLLOWING",following);
   function activateTabFromHash() {
     const hash = window.location.hash;
     if (hash) {
@@ -159,4 +154,6 @@
   });
 </script>
 </body>
+<%- include('./components/modals/message-modal', {"object":"profile"}); %>
+
 </html>
