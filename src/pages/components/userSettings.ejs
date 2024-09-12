@@ -10,7 +10,7 @@
         </div>
     </div>
     <div id="name" class="mb-3">
-        <label for="name-input" class="mb-1">Name</label>
+        <label for="name-input" class="mb-1">Username</label>
         <input type="text" class="form-control" id="name-input" value="<%= request.session.metadata.name %>">
     </div>
     <div id="display-name" class="mb-3">
@@ -26,7 +26,7 @@
         </div>  
     </div>
     <div id="banner" class="mb-3">
-        <label for="banner-input" class="mb-1">Banner image</label>
+        <label for="banner-input" class="mb-1">Profile banner</label>
         <div class="input-group">
             <input type="text" class="form-control" id="banner-input" value="<%= request.session.metadata.banner %>">
             <button class="btn btn-outline-secondary" type="button" id="banner-upload-btn"><i class="fa-solid fa-upload"></i></button>
@@ -53,6 +53,10 @@
     <div id="lud16" class="mb-3">
         <label for="lud16-input" class="form-label">Lightning address</label>
         <input type="text" class="form-control" id="lud16-input" value="<%= request.session.metadata.lud16 %>">
+    </div>
+    <div id="website" class="mb-3">
+        <label for="website" class="mb-1">Website</label>
+        <input type="text" class="form-control" id="website-input" value="<%= request.session.metadata.website %>">
     </div>
     <div id="about" class="mb-3">
         <label for="about-input" class="form-label">About</label>
@@ -97,6 +101,7 @@
             { id: 'displayName-input', field: 'display_name' },
             { id: 'picture-input', field: 'picture' },
             { id: 'banner-input', field: 'banner' },
+            { id: 'website-input', field: 'website' },
             { id: 'nip05-input', field: 'nip05' },
             { id: 'lud16-input', field: 'lud16' },
             { id: 'about-input', field: 'about' },
@@ -113,11 +118,18 @@
             document.getElementById('saveProfileData-btn').disabled = true;
             document.getElementById('saveProfileData-btn').innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Saving...';
 
-            publishProfileData(data, document.getElementById('pubkey-input').value)
+            let sk = '';
+            if (!window.nostr){
+                sk = prompt('Please enter your Nostr private key to sign the data');
+            } 
+
+            publishProfileData(data, document.getElementById('pubkey-input').value, sk)
                 .then((result) => {
                     console.log(result);
                     if (result) {
-                        window.location.reload();
+                        updateProfileFields(data);
+                        showMessage('✅ Profile data saved successfully', 'alert-success');
+                        document.getElementById('saveProfileData-btn').innerHTML = 'Save';
                     } else {
                         showMessage('⚠️ An error occurred while saving the profile data', 'alert-primary');
                         document.getElementById('saveProfileData-btn').innerHTML = 'Save';
@@ -133,5 +145,46 @@
                 });
         }
     };
+
+
+const updateProfileFields = (data) => {
+
+    const fields = [
+        { id: 'name',     field: 'name',          type: 'text' },
+        { id: 'name',     field: 'display_name',  type: 'text' },
+        { id: 'picture',  field: 'picture',       type: 'picture'},
+        { id: 'banner',   field: 'banner',        type: 'banner' },
+        { id: 'website',  field: 'website',       type: 'link' },
+        { id: 'nip05',    field: 'nip05',         type: 'text' },
+        { id: 'lud16',    field: 'lud16',         type: 'link' },
+        { id: 'about',    field: 'about',         type: 'text' },
+    ];
+
+    fields.forEach(({ id, field, type }) => {
+        const element = document.getElementById(id + '-header');
+        const input = document.getElementById(id + '-input');
+        if (element && data[field] !== undefined) {
+            if (type === 'link') {
+                element.href = data[field];
+                element.innerText = data[field];
+            }
+            if (type === 'text') {
+                element.innerText = data[field];
+            }
+            if (type === 'picture') {
+                loadMedia(data[field] || '/static/resources/picture-default.webp', document.querySelectorAll('.picture-container'), ['img-thumbnail', 'object-fit-cover', 'w-100', 'h-100']);
+            }
+            if (type === 'banner') {
+                loadMedia(data[field] || '/static/resources/banner-default.webp', document.querySelectorAll('.banner-container'), [], { autoplay: true, loop: true, muted: true });
+            }
+            if (data[field] == '' && type !== 'picture' && type !== 'banner') {
+                element.parentElement.classList.add('d-none');
+            } else {
+                element.parentElement.classList.remove('d-none');
+            }
+            input.defaultValue = data[field];
+        }
+    });
+};
 
 </script>

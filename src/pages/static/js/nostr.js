@@ -5,7 +5,7 @@
 
 const pool = new NostrTools.SimplePool()
 
-let relays = [{url:'wss://relay.damus.io', url:'wss://nos.lol', url:'wss://relay.nostrcheck.me'}]
+let relays = [{url:'wss://relay.damus.io', type: 'write'}, {url:'wss://nos.lol', type: 'write'}, {url:'wss://relay.nostrcheck.me', type: 'read'}];
 
 const getRelaysFromUser = async (pk) => {
     let userRelays = [];
@@ -67,13 +67,14 @@ const publishProfileData = async (updatedFields, pk, sk) => {
         return;
     }
 
-    console.log("Original relays:", relays);
-    relays = await getRelaysFromUser(pk);
-    if (!relays || relays.length === 0) {
-        console.error("No relays found for user.");
-        return false;
+    console.log("Default relays:", relays.map(relay => relay.url));
+    let userRelays =  await getRelaysFromUser(pk);
+    if (!userRelays || userRelays.length === 0) {
+        console.warn("No relays found for user, using default relays.");
+    } else {
+        relays = userRelays;
     }
-    console.log("User relay URLs:", relays);
+    console.log("Relays to use:", relays.map(relay => relay.url));
 
     return new Promise((resolve, reject) => {
         let combinedContent = {};
@@ -113,15 +114,16 @@ const publishProfileData = async (updatedFields, pk, sk) => {
                     };
 
                     let newEvent;
-                    if (sk) {
-                        newEvent = await NostrTools.finalizeEvent(event, sk)
-                    }else{
-                        try{
+                    try{
+                        if (sk) {
+                            sk = NostrTools.nip19.decode(sk).data;
+                            newEvent = await NostrTools.finalizeEvent(event, sk)
+                        }else{
                             newEvent = await window.nostr.signEvent(event);
-                        }catch(e){ 
-                            console.error("Error signing event:", e);
-                            reject(false);
                         }
+                    }catch(e){ 
+                        console.error("Error signing event:", e);
+                        reject(false);
                     }
                     console.log("New event:", newEvent);
                     if (!NostrTools.verifyEvent(newEvent)) {

@@ -1,46 +1,67 @@
-<%- include('./partials/head',{title: `${request.body.serverHost} - Profile`}); %>
+<%- include('./partials/head',{title: `${locals.serverHost} - Profile`}); %>
 <link rel="stylesheet" href="/static/css/particles.css">
 <link rel="stylesheet" href="/static/css/theme.css">
 <style>
-  .bg-profile {
-    background-size: cover;
-    background-image:url('<%= request.session.metadata.banner || "/static/resources/banner-default.webp" %>');
+
+  .header-profile{
     height: 280px;
+  }
+  .bg-profile {
+    height: 280px;
+    width: 100%;
+    background-size: cover;
+    background-position: center;
+    position: absolute;
+    overflow: hidden;
+  }
+
+  .bg-profile video {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .bg-profile img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
   }
 
   @media screen and (max-width: 400px){
-    .bg-profile {
+    .header-profile, .bg-profile {
       height: 160px;
     }
   }
 
   @media screen and (min-width: 400px) and (max-width: 500px){
-    .bg-profile {
+    .header-profile, .bg-profile {
       height: 175px;
     }
   }
 
   @media screen and (min-width: 500px) and (max-width: 576px){
-    .bg-profile {
+    .header-profile, .bg-profile {
       height: 195px;
     }
   }
 
-
   @media screen and (min-width: 576px) and (max-width: 768px){
-    .bg-profile {
+    .header-profile, .bg-profile {
       height: 220px;
     }
   }
 
   @media screen and (min-width: 768px) and (max-width: 992px){
-    .bg-profile {
+    .header-profile, .bg-profile {
       height: 245px;
     }
   }
 
   @media screen and (min-width: 992px) and (max-width: 1200px){
-    .bg-profile {
+    .header-profile, .bg-profile {
       height: 260px;
     }
   }
@@ -64,13 +85,13 @@
     <div class="row d-flex justify-content-center align-items-center gx-0">
       <div class="col col-lg-10 col-xl-9 col-xxl-8 mb-5">
         <div class="card border-0 z-1 shadow-lg">
-          <div class="rounded-top d-flex flex-row bg-profile">
+          <div class="rounded-top header-profile">
+            <div id="banner-header" class="banner-container bg-profile"></div>
             <div class="ms-4 mt-4 mt-sm-5 pt-1 pt-md-3 z-1 col-4 col-sm-4 col-md-3 col-lg-3 text-center">
               <div class="ratio ratio-1x1">
-                  <img src="<%= request.session.metadata.picture || '/static/resources/picture-default.webp' %>" 
-                       alt="Profile image" class="img-thumbnail mt-5 mb-1 object-fit-cover aspect-ratio-content">
+                <div id="picture-header" class="picture-container img-thumbnail mt-5 mb-1 overflow-hidden d-flex align-items-center"></div>
               </div>
-              <span class="display-6 mb-2 d-block mt-5"><%= request.session.metadata.display_name || request.session.metadata.name || request.session.metadata.usernames[0].username %></span>
+              <span id="name-header" class="fs-5 lead mb-2 d-block mt-5"><%= request.session.metadata.display_name || request.session.metadata.name || request.session.metadata.usernames[0].username %></span>
           </div>
           </div>
           <div class="pt-2 pe-3 pb-2 z-1">
@@ -86,8 +107,7 @@
             </div>
             <div class="ps-3 pe-4 pt-5 ms-2">
               <div class="d-flex flex-column align-middle mb-2 lead">
-                <% if (request.session.metadata.nip05 && request.session.metadata.nip05 !== "") { %>
-                  <span class="fs-6 profile-icon-link mb-1">
+                  <span class="fs-6 profile-icon-link mb-1 <%= request.session.metadata.nip05 === '' ? 'd-none' : '' %>">
                     <svg viewBox="0 0 18 18" 
                       fill="none" 
                       xmlns="http://www.w3.org/2000/svg">
@@ -97,11 +117,9 @@
                             fill="currentColor">
                       </path>
                     </svg>
-                    <%= request.session.metadata.nip05 %>
+                    <span id="nip05-header"><%= request.session.metadata.nip05 %></span>
                   </span>
-                <% } %>
-                <% if (request.session.metadata.website && request.session.metadata.website !== "") { %>
-                  <span class="fs-6 profile-icon-link mb-1">
+                  <span class="fs-6 profile-icon-link mb-1 <%= request.session.metadata.website === '' ? 'd-none' : '' %>">
                     <svg  viewBox="0 0 18 18" 
                       fill="none" 
                       xmlns="http://www.w3.org/2000/svg">
@@ -111,11 +129,9 @@
                             fill="currentColor">
                       </path>
                     </svg>
-                    <a class="text-decoration-none" href="<%= request.session.metadata.website %>"><%= request.session.metadata.website %></a>
+                    <a id="website-header" class="text-decoration-none" href="<%= request.session.metadata.website %>"><%= request.session.metadata.website %></a>
                   </span>
-                <% } %>
-                <% if (request.session.metadata.lud16 && request.session.metadata.lud16 !== "") { %>
-                <span class="fs-6 profile-icon-link mb-1">
+                <span class="fs-6 profile-icon-link mb-1 <%= request.session.metadata.lud16 === '' ? 'd-none' : '' %>">
                   <svg  viewBox="0 0 18 18" 
                     fill="none" 
                     xmlns="http://www.w3.org/2000/svg">
@@ -131,11 +147,9 @@
                             fill="currentColor">+
                       </path>
                   </svg>
-                  <a class="text-decoration-none" href="lightning:<%= request.session.metadata.lud16 %>"><%= request.session.metadata.lud16 %></a>
+                  <a id="lud16-header" class="text-decoration-none" href="lightning:<%= request.session.metadata.lud16 %>"><%= request.session.metadata.lud16 %></a>
                 </span>
-                <% } %>
-                <% if (request.session.metadata.npub && request.session.metadata.npub !== "") { %>
-                <span class="fs-6 profile-icon-link mt-1">
+                <span class="fs-6 profile-icon-link mt-1 <%= request.session.metadata.npub === '' ? 'd-none' : '' %>">
                   <button id="npub-header-btn" class="btn btn-primary" type="button" id="pubkey-copy-btn" 
                           onclick="copyToClipboard(this,document.getElementById('npub-header-btn').getAttribute('data-value'))"
                           data-value="<%= request.session.metadata.npub %>"
@@ -143,11 +157,10 @@
                           <%= request.session.metadata.npub %><i class="fa-solid fa-copy ms-2"></i>
                   </button>
                 </span>
-                <% } %>
               </div>
             </div>
-            <div class="ps-4 pe-2 pt-1">
-              <p class="lead"><%= request.session.metadata.about %></p>
+            <div class="ps-4 pe-2 pt-1 <%= request.session.metadata.about === '' ? 'd-none' : '' %>">
+              <p id="about-header" class="lead"><%= request.session.metadata.about %></p>
             </div>
           </div>
           <div class="z-1">
@@ -218,6 +231,18 @@
     headerNpub.innerHTML = `${start}:${end} <i class="fa-solid fa-copy ms-2"></i>`;
   });
   window.dispatchEvent(new Event('resize'));
+
+  document.addEventListener('DOMContentLoaded', (event) => {
+
+    // Set picture or video on profile header picture placeholder
+    const mediaUrl = "<%= request.session.metadata.picture || '/static/resources/picture-default.webp' %>";
+    loadMedia(mediaUrl, document.querySelectorAll('.picture-container'), ['img-thumbnail', 'object-fit-cover', 'w-100', 'h-100']);
+
+    // Set banner image or video on profile header banner placeholder
+    const bannerUrl = "<%= request.session.metadata.banner || '/static/resources/banner-default.webp' %>";
+    loadMedia(bannerUrl, document.querySelectorAll('.banner-container'), [], { autoplay: true, loop: true, muted: true });
+
+  });
 
 </script>
 </body>
