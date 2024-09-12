@@ -166,13 +166,16 @@
           <div class="z-1">
             <ul class="nav nav-tabs ps-3 lead" id="profileTabs" role="tablist">
               <li class="nav-item" >
-                <button class="nav-link active" id="nostrNotes-tab" data-bs-toggle="tab" data-bs-target="#nostrNotes" type="button" role="tab" aria-controls="nostrNotes" aria-selected="true">Notes</button>
+                <button class="nav-link active" id="nostrNotes-tab" data-bs-toggle="tab" data-bs-target="#nostrNotes" type="button" role="tab" aria-controls="nostrNotes" aria-selected="true"><i class="nostr-logo me-2"></i>Notes</button>
               </li>
               <li class="nav-item" >
-                <button class="nav-link" id="hostedFiles-tab" data-bs-toggle="tab" data-bs-target="#hostedFiles" type="button" role="tab" aria-controls="mediaFiles" aria-selected="true">Hosted files</button>
+                <button class="nav-link" id="hostedFiles-tab" data-bs-toggle="tab" data-bs-target="#hostedFiles" type="button" role="tab" aria-controls="mediaFiles" aria-selected="true"><i class="fa-regular fa-folder-open me-2"></i>Files</button>
               </li>
               <li class="nav-item" >
-                <button class="nav-link" id="userSettings-tab" data-bs-toggle="tab" data-bs-target="#userSettings" type="button" role="tab" aria-controls="userSettings" aria-selected="false">Settings</button>
+                <button class="nav-link" id="userRelays-tab" data-bs-toggle="tab" data-bs-target="#userRelays" type="button" role="tab" aria-controls="userRelays" aria-selected="true"><i class="fa-solid fa-tower-broadcast me-2"></i> Relays</button>
+              </li>
+              <li class="nav-item" >
+                <button class="nav-link" id="userSettings-tab" data-bs-toggle="tab" data-bs-target="#userSettings" type="button" role="tab" aria-controls="userSettings" aria-selected="false"><i class="fa-solid fa-gear me-2"></i> Settings</button>
               </li>
             </ul>
             <div class="tab-content mb-3" id="profileTabsContent">
@@ -181,6 +184,9 @@
               </div>
               <div class="tab-pane fade show pt-3" id="hostedFiles" role="tabpanel" aria-labelledby="hostedFiles-tab">
                 <%- include('./components/gallery',{maxImageWidth: 350, maxColumns:3, privateGallery: true}); %> 
+              </div>
+              <div class="tab-pane fade" id="userRelays" role="tabpanel" aria-labelledby="userRelays-tab">
+                <%- include('./components/userRelays'); %>
               </div>
               <div class="tab-pane fade p-3" id="userSettings" role="tabpanel" aria-labelledby="userSettings-tab">
                 <%- include('./components/userSettings'); %>

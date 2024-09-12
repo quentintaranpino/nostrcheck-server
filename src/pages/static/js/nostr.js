@@ -27,7 +27,7 @@ const getRelaysFromUser = async (pk) => {
                         event.tags.forEach(tag => {
                             if (tag[0] === 'r') {
                                 console.log(tag[0], tag[1], tag[2]);
-                                userRelays.push({ url: tag[1], type: tag[2] || "write" });
+                                userRelays.push({ url: tag[1], type: tag[2] || "read / write" });
                             }
                         });
                     },

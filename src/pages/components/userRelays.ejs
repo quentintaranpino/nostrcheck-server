@@ -1,0 +1,22 @@
+<div class="container mt-3 mb-4">
+    <ul id="user-relay-list" class="list-group"></ul>
+</div>
+<script>
+
+document.addEventListener('DOMContentLoaded', (event) => {
+  
+    getRelaysFromUser("<%= request.session.metadata.pubkey %>").then((relays) => {
+        relays.forEach((relay) => {
+            let relayItem = document.createElement("li");
+            relayItem.classList.add("list-group-item");
+            relayItem.innerHTML = `
+                <p class="mb-1">${relay.url}</p>
+                <small class="text-muted">${relay.type}</small>
+            `;
+            document.getElementById("user-relay-list").appendChild(relayItem);
+
+        });
+    });
+
+});
+</script>
