@@ -35,15 +35,15 @@ const fetchFileServerInfo = async (file) => {
         const response = await fetch(window.location.hostname.includes("cdn") ? '/upload' : '/api/v2/media/upload', {
             method: "HEAD",
             headers: {
-                "Blossom-Content-Length": file.size.toString(),
-                "Blossom-Content-Type": file.type,
-                "Content-Digest": `SHA-256=:${file.fileData.hash}:`,
-                "Blossom-content-metadata": file.fileData.transform,
+                "X-Content-Length": file.size.toString(),
+                "X-Content-Type": file.type,
+                "X-SHA-256": `SHA-256=:${file.fileData.hash}:`,
+                "Blossom-content-metadata": file.fileData.transform, // NOT FROM BUD-07 SPEC.
             },
         });
         const data = {
             status : response.status,
-            message : response.headers.get('Blossom-Upload-Message'),
+            message : response.headers.get('X-Upload-Message'),
             wwwAuthenticate : response.headers.get('Www-Authenticate'),
         }
         return data;
