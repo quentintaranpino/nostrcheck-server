@@ -4,7 +4,7 @@
 <link rel="stylesheet" href="/static/css/form.css">
 
 <html lang="en">
-  <%- include('./partials/head',{title: `${request.body.serverHost} - Dashboard`}); %>
+  <%- include('./partials/head',{title: `${locals.serverHost} - Dashboard`}); %>
   <body class="d-flex flex-column h-100">
     <%- include('./partials/navbar', {active:'dashboard'}); %>
     <main class="pb-1">
@@ -13,17 +13,17 @@
       <div class= "container-fluid mt-5">
         <div class="row">
           <%- include('./components/dashcard', { dashcardId: 'nostraddressCount', link: '#nostraddressData'}); %>
-          <% if(request.body.activeModules.includes('media')) { %> 
+          <% if(locals.activeModules.includes('media')) { %> 
             <%- include('./components/dashcard', { dashcardId: 'mediaCount', link: '#mediaData' }); %>
           <% } %>
-          <% if(request.body.activeModules.includes('lightning')) { %>
+          <% if(locals.activeModules.includes('lightning')) { %>
             <%- include('./components/dashcard', { dashcardId: 'lightningCount', link: '#lightningData' }); %>
           <% } %>
-          <% if(request.body.activeModules.includes('domains')) { %>
+          <% if(locals.activeModules.includes('domains')) { %>
             <%- include('./components/dashcard', { dashcardId: 'domainsCount', link: '#domainsData'}); %>
           <% } %>
             <%- include('./components/dashcard', { dashcardId: 'logHistory', link: 'settings/#settingsLogger'}); %>
-          <% if(request.body.activeModules.includes('payments')) { %>
+          <% if(locals.activeModules.includes('payments')) { %>
             <%- include('./components/dashcard', { dashcardId: 'paymentsCount', link: '#paymentsData'}); %>
             <%- include('./components/dashcard', { dashcardId: 'unpaidTransactionsBalance', link: '#paymentsData'}); %>
             <%- include('./components/dashcard', { dashcardId: 'serverBalance', link: ''}); %>
@@ -45,7 +45,7 @@
           ['date',          '290', ''              , 'disabled  show text-center              '],
         ];
 
-        if (request.body.activeModules.includes("payments")) {
+        if (locals.activeModules.includes("payments")) {
           nostraddressFields.splice(3, 0, ['paid', '30', 'formatCheckbox', 'disabled show text-center'],);
           nostraddressFields.splice(4, 0, ['satoshi','30', 'formatSatoshi', 'disabled show text-end'],);
           nostraddressFields.splice(5, 0, ['balance', '30', 'formatSatoshi', 'disabled  show text-end'],);
@@ -110,14 +110,14 @@
           ['comments',      ''   , ''               , 'enabled   hide                          '],
         ];
 
-        if (request.body.activeModules.includes("payments")) {
+        if (locals.activeModules.includes("payments")) {
           mediaFields.splice(3, 0, ['paid', '30', 'formatCheckbox', 'disabled show text-center'],);
           mediaFields.splice(4, 0, ['satoshi','30', 'formatSatoshi', 'disabled show text-end'],);
           mediaFields.splice(5, 0, ['transactionid','', '', 'disabled hide']);
         }
 
         %>
-        <% if(request.body.activeModules.includes('media')) { %> 
+        <% if(locals.activeModules.includes('media')) { %> 
           <%- include('./components/table', {
             tableName:"Hosted files", 
             tableId:"mediaData", 
@@ -162,11 +162,11 @@
           ['comments'         , ''   , ''              , 'enabled   show mobile-hide              '],
          
         ];
-        if (request.body.activeModules.includes("payments")) {
+        if (locals.activeModules.includes("payments")) {
           lightningFields.splice(5, 0,  ['transactionid', 'disabled', 'hide']);
         }
         %>
-        <% if(request.body.activeModules.includes('lightning')) { %> 
+        <% if(locals.activeModules.includes('lightning')) { %> 
           <%- include('./components/table', {
             tableName:"Lightning redirects", 
             tableId:"lightningData", 
@@ -197,13 +197,13 @@
           ['comments'         , ''   , ''              , 'enabled   show mobile-hide              '],
         ];
 
-        if (request.body.activeModules.includes("payments")) {
+        if (locals.activeModules.includes("payments")) {
           domainsFields.splice(3, 0, ['requirepayment', '30', 'formatCheckbox', 'enabled show text-center'],);
           domainsFields.splice(4, 0, ['maxsatoshi','30', 'formatSatoshi', 'enabled show text-end'],);
         }
 
         %>
-        <% if(request.body.activeModules.includes('domains')) { %> 
+        <% if(locals.activeModules.includes('domains')) { %> 
           <%- include('./components/table', {
             tableName:"Domains", 
             tableId:"domainsData", 
@@ -241,7 +241,7 @@
 
           ];
           %>
-          <% if(request.body.activeModules.includes('payments')) { %> 
+          <% if(locals.activeModules.includes('payments')) { %> 
            <%- include('./components/table', {
               tableName:"Transactions", 
               tableId:"paymentsData", 
@@ -286,7 +286,7 @@
             ['reason'           , ''   , ''                , 'enabled   show mobile-hide              '],
           ];
           %>
-          <% if(request.body.activeModules.includes('admin')) { %> 
+          <% if(locals.activeModules.includes('admin')) { %> 
             <%- include('./components/table', {
               tableName:"Banned objects", 
               tableId:"bannedData", 
@@ -319,7 +319,7 @@
             ['comments'         , ''   , ''                , 'enabled   show mobile-hide              '],
           ];
           %>
-          <% if(request.body.activeModules.includes('register')) { %> 
+          <% if(locals.activeModules.includes('register')) { %> 
             <%- include('./components/table', {
               tableName:"Invites", 
               tableId:"invitesData", 
@@ -350,7 +350,7 @@
 
 <script>
   let metadata = "<%= JSON.stringify(request.session.metadata) %>"
-  let activeModules = "<%= JSON.stringify(request.body.activeModules) %>"
+  let activeModules = "<%= JSON.stringify(locals.activeModules) %>"
 </script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="/static/js/chart.js"></script>

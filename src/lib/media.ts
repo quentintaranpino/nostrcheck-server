@@ -160,11 +160,11 @@ const getUploadType = (req : Request): string  => {
 	let uploadtype = "media";
 
 	// v0 compatibility and v1 compatibility
-	if (req.body.type != undefined && req.body.type != "") {uploadtype = req.body.type;}
-	if (req.body.media_type != undefined && req.body.media_type != "") {uploadtype = req.body.media_type;}
+	if (req.body?.type != undefined && req.body?.type != "") {uploadtype = req.body.type;}
+	if (req.body?.media_type != undefined && req.body?.media_type != "") {uploadtype = req.body.media_type;}
 
 	// v2 compatibility
-	if (req.body.uploadtype != undefined && req.body.uploadtype != "") {uploadtype = req.body.uploadtype;}
+	if (req.body?.uploadtype != undefined && req.body?.uploadtype != "") {uploadtype = req.body.uploadtype;}
 
 	//Check if media_type is valid
 	!UploadTypes.includes(uploadtype)? logger.info(`Incorrect uploadtype or not present: ${uploadtype} setting "media" | ${getClientIp(req)}`) : null;

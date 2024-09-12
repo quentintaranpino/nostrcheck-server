@@ -14,7 +14,7 @@
                     id="security.maxDefaultRequestMinute" 
                     name="security.maxDefaultRequestMinute" 
                     class="form-control" 
-                    value="<%= request.body.settingsSecurity['maxDefaultRequestMinute'] %>" 
+                    value="<%= locals.settingsSecurity['maxDefaultRequestMinute'] %>" 
                     placeholder="ex. 60" 
                     step="10"
                     required
@@ -28,7 +28,7 @@
                     id="security.media.maxUploadsMinute" 
                     name="security.media.maxUploadsMinute" 
                     class="form-control" 
-                    value="<%= request.body.settingsSecurity['media']['maxUploadsMinute'] %>" 
+                    value="<%= locals.settingsSecurity['media']['maxUploadsMinute'] %>" 
                     placeholder="ex. 10" 
                     step="1"
                     required
@@ -42,7 +42,7 @@
                     id="security.register.maxRegisterDay" 
                     name="security.register.maxRegisterDay" 
                     class="form-control" 
-                    value="<%= request.body.settingsSecurity['register']['maxRegisterDay'] %>"
+                    value="<%= locals.settingsSecurity['register']['maxRegisterDay'] %>"
                     placeholder="ex. 10" 
                     step="1"
                     required

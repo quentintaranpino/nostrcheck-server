@@ -169,7 +169,7 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 	logger.info("mime ->", filedata.originalmime, "|", getClientIp(req));
 
 	// No transform option
-	app.get("config.media")["transform"]["enabled"] == false ? filedata.no_transform = true : filedata.no_transform = Boolean(req.body.no_transform) || false;
+	app.get("config.media")["transform"]["enabled"] == false ? filedata.no_transform = true : filedata.no_transform = Boolean(req.body?.no_transform) || false;
 	if (req.params.param1 == "upload" || req.params.param1 == "mirror") filedata.no_transform = true;
 	if (!filedata.originalmime.toString().startsWith("image") && !filedata.originalmime.toString().startsWith("video")) filedata.no_transform = true;
 

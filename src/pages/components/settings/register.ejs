@@ -12,7 +12,7 @@
                class="form-control" 
                id="register.minUsernameLength" 
                name="register.minUsernameLength" 
-               value="<%= request.body.settingsRegister['minUsernameLength'] %>"
+               value="<%= locals.settingsRegister['minUsernameLength'] %>"
                >
         <label for="register.maxUsernameLength" class="mt-2 mb-1 fw-bold">Maximum username length</label>
         <p>
@@ -22,7 +22,7 @@
                class="form-control" 
                id="register.maxUsernameLength" 
                name="register.maxUsernameLength" 
-               value="<%= request.body.settingsRegister['maxUsernameLength'] %>"
+               value="<%= locals.settingsRegister['maxUsernameLength'] %>"
                >
         <label for="register.minPasswordLength" class="mt-2 mb-1 fw-bold">Minimum password length</label>
         <p>
@@ -32,7 +32,7 @@
                class="form-control" 
                id="register.minPasswordLength" 
                name="register.minPasswordLength" 
-               value="<%= request.body.settingsRegister['minPasswordLength'] %>"
+               value="<%= locals.settingsRegister['minPasswordLength'] %>"
                >
         
         <div class="col-12 col-md-3 mb-5 mt-4 pb-5 pb-lg-0 mb-lg-2">

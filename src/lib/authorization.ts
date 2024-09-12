@@ -24,7 +24,7 @@ import { isContentBanned } from "./banned.js";
 const parseAuthHeader = async (req: Request, endpoint: string = "", checkAdminPrivileges = true): Promise<authHeaderResult> => {
 
 	// Apikey. Will be deprecated on 0.7.0
-	if (req.query.apikey || req.body.apikey) {
+	if (req.query.apikey || req.body?.apikey?.length > 0) {
 		logger.debug("Apikey found on request", req.query.apikey || req.body.apikey, "|", req.socket.remoteAddress)
 		return await isApikeyValid(req, endpoint, checkAdminPrivileges);
 	}

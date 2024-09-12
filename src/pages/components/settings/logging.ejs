@@ -9,11 +9,11 @@
             <select id="logger.minLevel" 
             name="logger.minLevel" 
             class="form-select">
-                <option value="1" <%= request.body.settingsLogger['minLevel'] == 1 ? 'selected' : '' %>>1</option>
-                <option value="2" <%= request.body.settingsLogger['minLevel'] == 2 ? 'selected' : '' %>>2</option>
-                <option value="3" <%= request.body.settingsLogger['minLevel'] == 3 ? 'selected' : '' %>>3</option>
-                <option value="4" <%= request.body.settingsLogger['minLevel'] == 4 ? 'selected' : '' %>>4</option>
-                <option value="5" <%= request.body.settingsLogger['minLevel'] == 5 ? 'selected' : '' %>>5</option>
+                <option value="1" <%= locals.settingsLogger['minLevel'] == 1 ? 'selected' : '' %>>1</option>
+                <option value="2" <%= locals.settingsLogger['minLevel'] == 2 ? 'selected' : '' %>>2</option>
+                <option value="3" <%= locals.settingsLogger['minLevel'] == 3 ? 'selected' : '' %>>3</option>
+                <option value="4" <%= locals.settingsLogger['minLevel'] == 4 ? 'selected' : '' %>>4</option>
+                <option value="5" <%= locals.settingsLogger['minLevel'] == 5 ? 'selected' : '' %>>5</option>
             </select>
         </div>
         <div class="alert alert-warning mt-3" role="alert">
@@ -25,8 +25,8 @@
                 <input 
                 class="form-check-input" 
                 type="checkbox" 
-                value="<%= request.body.settingsLogger['sendDM'] ? true : false %>"
-                <%= request.body.settingsLogger['sendDM'] ? 'checked' : '' %>
+                value="<%= locals.settingsLogger['sendDM'] ? true : false %>"
+                <%= locals.settingsLogger['sendDM'] ? 'checked' : '' %>
                 name="logger.sendDM"
                 id="logger.sendDM"
                 >
@@ -41,7 +41,7 @@
         class="form-control" 
         id="logger.sendPubkey" 
         name="logger.sendPubkey" 
-        value="<%= request.body.settingsLogger['sendPubkey'] %>"
+        value="<%= locals.settingsLogger['sendPubkey'] %>"
         >
         <div>
             <label for="log" class="mt-2 mb-1 fw-bold">Log history</label>

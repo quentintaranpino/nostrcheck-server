@@ -78,9 +78,9 @@
       <div class="row mx-auto mt-3 ">
         <label for="lookandfeel.server.colors.theme" class="mt-2 mb-1 fw-bold">Dynamic background themes</label>
         <div class="col-12 col-md-9">
-          <select id="lookandfeel.server.colors.theme" name="lookandfeel.server.colors.theme" class="form-select mt-2" onchange="handleThemeChange(this,'<%= JSON.stringify(request.body.settingsLookAndFeelThemes) %>')">
+          <select id="lookandfeel.server.colors.theme" name="lookandfeel.server.colors.theme" class="form-select mt-2" onchange="handleThemeChange(this,'<%= JSON.stringify(locals.settingsLookAndFeelThemes) %>')">
             <option value=""></option>
-            <% for(const key in request.body.settingsLookAndFeelThemes) { %>
+            <% for(const key in locals.settingsLookAndFeelThemes) { %>
               <option value="<%= key %>"><%= key %></option>
             <% } %>
           </select>

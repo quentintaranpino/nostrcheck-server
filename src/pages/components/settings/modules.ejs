@@ -7,7 +7,7 @@
         </p>
         <div class="row mx-auto ">
         <% let counter = 0; %>
-        <% for(const key in request.body.availableModules) { %>
+        <% for(const key in locals.availableModules) { %>
             <% if (counter % 6 === 0 && counter !== 0) { %>
                 </div><div class="row mx-auto ">
             <% } %>
@@ -17,13 +17,13 @@
                     <input 
                     class="form-check-input" 
                     type="checkbox" 
-                    value="<%= request.body.availableModules[key]['enabled'] ? true : false %>" 
-                    <%= request.body.availableModules[key]['enabled'] ? 'checked' : '' %> 
+                    value="<%= locals.availableModules[key]['enabled'] ? true : false %>" 
+                    <%= locals.availableModules[key]['enabled'] ? 'checked' : '' %> 
                     name="server.availableModules.<%= key %>.enabled" 
                     id="server.availableModules.<%= key %>.enabled" 
                     onclick="handleCheckboxClick('<%= key %>',this.checked)">
                 </div>
-                <p class="form-check-label mt-4"><%= request.body.availableModules[key]['description'] %></p>
+                <p class="form-check-label mt-4"><%= locals.availableModules[key]['description'] %></p>
 
             </div>
             <% counter++; %>

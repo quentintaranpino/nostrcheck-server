@@ -13,7 +13,7 @@
                 id="server.host"  
                 name="server.host" 
                 class="form-control" 
-                value="<%= request.body.settingsServerHost %>" 
+                value="<%= locals.settingsServerHost %>" 
                 placeholder="Server host" 
                 required
                 >
@@ -22,8 +22,8 @@
         <p>Configure the server's environment. For security reasons, a server exposed to the internet should be set to "production" mode, it enables certain security features that are not necessary in a development environment.</p>
         <div class="col-12 col-md-4 col-lg-5">
         <select id="environment" name="environment" class="form-select">
-            <option value="development" <% if (request.body.settingsEnvironment === 'development') { %>selected<% } %>>development</option>
-            <option value="production" <% if (request.body.settingsEnvironment === 'production') { %>selected<% } %>>production</option>
+            <option value="development" <% if (locals.settingsEnvironment === 'development') { %>selected<% } %>>development</option>
+            <option value="production" <% if (locals.settingsEnvironment === 'production') { %>selected<% } %>>production</option>
         </select>
         </div>
         <div class="alert alert-warning mt-3" role="alert">
@@ -36,7 +36,7 @@
                 id="server.pubkey"  
                 name="server.pubkey" 
                 class="form-control" 
-                value="<%= request.body.settingServerPubkey %>" 
+                value="<%= locals.settingServerPubkey %>" 
                 placeholder="Server pubkey (HEX format)" 
                 required
                 >
@@ -47,8 +47,8 @@
             id="server.secretKey" 
             name="server.secretKey" 
             class="form-control mb-2" 
-            defaultValue="<%= request.body.settingServerSecretkey %>" 
-            value="<%= request.body.settingServerSecretkey %>" 
+            defaultValue="<%= locals.settingServerSecretkey %>" 
+            value="<%= locals.settingServerSecretkey %>" 
             placeholder="Server secret key (HEX format)" 
             required 
             >
@@ -67,7 +67,7 @@
                 id="redis.expireTime"  
                 name="redis.expireTime" 
                 class="form-control" 
-                value="<%= request.body.settingsRedisExpireTime %>" 
+                value="<%= locals.settingsRedisExpireTime %>" 
                 placeholder="Expiration time (seconds)" 
                 required
                 >

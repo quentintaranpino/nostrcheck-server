@@ -23,8 +23,6 @@ app.set('trust proxy', 1);
 app.set("view engine", "ejs")
 app.set('views','./src/pages/'); 
 
-app.use(express.json({ limit: '25MB' }));
-app.use(express.urlencoded({ limit: '25MB', extended: true }));
 app.use(express.static('./src/pages/'));
 app.use('/static/js/modules/nostr-tools/', express.static('./node_modules/nostr-tools'));
 app.use(helmet({ contentSecurityPolicy: false }));

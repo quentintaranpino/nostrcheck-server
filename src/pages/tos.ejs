@@ -1,5 +1,5 @@
 <html lang="en">
-  <%- include('./partials/head',{title: `${request.body.serverHost} - Terms of service`}); %>
+  <%- include('./partials/head',{title: `${locals.serverHost} - Terms of service`}); %>
   <body class="d-flex flex-column h-100">
     <%- include('./partials/navbar', {active:"tos"}); %>
     <main class="pb-1">
@@ -13,8 +13,8 @@
     <%- include('./components/modals/message-modal', {"object":"fisrtUse"}); %>
   </body>
   <script>
-    if ("<%= request.body.firstUse %>" != undefined && "<%= request.body.firstUse %>" != null && "<%= request.body.firstUse %>" != "") {
-      initMessageModal("#fisrtUse", "<%- request.body.firstUse %>", "Welcome to your sovereignty");
+    if ("<%= locals.firstUse %>" != undefined && "<%= locals.firstUse %>" != null && "<%= locals.firstUse %>" != "") {
+      initMessageModal("#fisrtUse", "<%- locals.firstUse %>", "Welcome to your sovereignty");
     }
   </script>
 </html>
