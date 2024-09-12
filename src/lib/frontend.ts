@@ -1,19 +1,19 @@
 import { Event } from "nostr-tools";
 import app from "../app.js";
-import { userMetadata } from "../interfaces/frontend.js";
+import { localUserMetadata } from "../interfaces/frontend.js";
 import { generateCredentials } from "./authorization.js";
 import { dbMultiSelect } from "./database.js";
 import { getProfileData, getProfileFollowers, getProfileFollowing } from "./nostr/NIP01.js";
 import { Request } from "express";
 import { hextoNpub } from "./nostr/NIP19.js";
 
-const getProfileNostrMetadata = async (pubkey: string): Promise<userMetadata> => {
+const getProfileNostrMetadata = async (pubkey: string): Promise<localUserMetadata> => {
 
     if (!pubkey || pubkey == undefined || pubkey == null){
         return {"about": "", "banner": "", "display_name": "", "followers": 0, "following": 0, "lud16": "", "hostedFiles": 0, "name": "", "nip05": "", "picture": "", "usernames": [], "website": "", "pubkey": "", "npub":"", "nostr_notes": []};
     }
 
-    let metadata : userMetadata = {"about": "", "banner": "", "display_name": "", "followers": 0, "following": 0, "lud16": "", "hostedFiles": 0, "name": "", "nip05": "", "picture": "", "usernames": [], "website": "", "pubkey": pubkey, "npub": await hextoNpub(pubkey), "nostr_notes": []};
+    let metadata : localUserMetadata = {"about": "", "banner": "", "display_name": "", "followers": 0, "following": 0, "lud16": "", "hostedFiles": 0, "name": "", "nip05": "", "picture": "", "usernames": [], "website": "", "pubkey": pubkey, "npub": await hextoNpub(pubkey), "nostr_notes": []};
 
     const nostrMetadata = await getProfileData(pubkey, 0)
     if (!nostrMetadata || nostrMetadata == undefined || nostrMetadata == null || nostrMetadata[0].content == undefined || nostrMetadata[0].content == null){

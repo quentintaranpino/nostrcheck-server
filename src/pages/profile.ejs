@@ -62,7 +62,7 @@
   <%- include('./partials/navbar', {active:'profile'}); %>
   <main class="container-sm py-0 px-0 py-sm-3">
     <div class="row d-flex justify-content-center align-items-center gx-0">
-      <div class="col col-lg-10 col-xl-9 col-xxl-8">
+      <div class="col col-lg-10 col-xl-9 col-xxl-8 mb-5">
         <div class="card border-0 z-1 shadow-lg">
           <div class="rounded-top d-flex flex-row bg-profile">
             <div class="ms-4 mt-4 mt-sm-5 pt-1 pt-md-3 z-1 col-4 col-sm-4 col-md-3 col-lg-3 text-center">
@@ -70,7 +70,7 @@
                   <img src="<%= request.session.metadata.picture || '/static/resources/picture-default.webp' %>" 
                        alt="Profile image" class="img-thumbnail mt-5 mb-1 object-fit-cover aspect-ratio-content">
               </div>
-              <span class="display-6 mb-2 d-block mt-5"><%= request.session.metadata.display_name || request.session.metadata.usernames[0].username %></span>
+              <span class="display-6 mb-2 d-block mt-5"><%= request.session.metadata.display_name || request.session.metadata.name || request.session.metadata.usernames[0].username %></span>
           </div>
           </div>
           <div class="pt-2 pe-3 pb-2 z-1">
@@ -80,23 +80,62 @@
                 <p class="small text-muted mb-0">Hosted Files</p>
               </div>
               <div class="lead">
-                <p class="mb-1 h5"><%= request.session.metadata.following.length %></p>
+                <p class="mb-1 h5"><%= request.session.metadata.following.length || "0" %></p>
                 <p class="small text-muted mb-0">Following</p> 
               </div>
             </div>
             <div class="ps-3 pe-4 pt-5 ms-2">
               <div class="d-flex flex-column align-middle mb-2 lead">
+                <% if (request.session.metadata.nip05 && request.session.metadata.nip05 !== "") { %>
+                  <span class="fs-6 profile-icon-link mb-1">
+                    <svg viewBox="0 0 18 18" 
+                      fill="none" 
+                      xmlns="http://www.w3.org/2000/svg">
+                      <path fill-rule="evenodd" 
+                            clip-rule="evenodd" 
+                            d="M9 18C13.9706 18 18 13.9706 18 9C18 4.02944 13.9706 0 9 0C4.02944 0 0 4.02944 0 9C0 13.9706 4.02944 18 9 18ZM11.6667 6.66667C11.6667 8.13943 10.4728 9.33333 9.00004 9.33333C7.52728 9.33333 6.33337 8.13943 6.33337 6.66667C6.33337 5.19391 7.52728 4 9.00004 4C10.4728 4 11.6667 5.19391 11.6667 6.66667ZM13.6667 12.3333C13.6667 13.2538 11.5774 14 9.00004 14C6.42271 14 4.33337 13.2538 4.33337 12.3333C4.33337 11.4129 6.42271 10.6667 9.00004 10.6667C11.5774 10.6667 13.6667 11.4129 13.6667 12.3333Z" 
+                            fill="currentColor">
+                      </path>
+                    </svg>
+                    <%= request.session.metadata.nip05 %>
+                  </span>
+                <% } %>
+                <% if (request.session.metadata.website && request.session.metadata.website !== "") { %>
+                  <span class="fs-6 profile-icon-link mb-1">
+                    <svg  viewBox="0 0 18 18" 
+                      fill="none" 
+                      xmlns="http://www.w3.org/2000/svg">
+                      <path fill-rule="evenodd" 
+                            clip-rule="evenodd" 
+                            d="M9 18C13.9706 18 18 13.9706 18 9C18 4.02944 13.9706 0 9 0C4.02944 0 0 4.02944 0 9C0 13.9706 4.02944 18 9 18ZM10.5074 5.12274C10.7369 4.89317 11.1091 4.89317 11.3387 5.12274L12.8772 6.6612C13.1067 6.89077 13.1067 7.26298 12.8772 7.49256L10.9541 9.41563C10.7588 9.6109 10.7588 9.92748 10.9541 10.1227C11.1494 10.318 11.4659 10.318 11.6612 10.1227L13.5843 8.19966C14.2044 7.57957 14.2044 6.57419 13.5843 5.95409L12.0458 4.41563C11.4257 3.79554 10.4203 3.79554 9.80025 4.41563L7.87718 6.33871C7.68191 6.53397 7.68191 6.85055 7.87718 7.04582C8.07244 7.24108 8.38902 7.24108 8.58428 7.04582L10.5074 5.12274ZM11.0843 7.62274C11.2795 7.42748 11.2795 7.1109 11.0843 6.91563C10.889 6.72037 10.5724 6.72037 10.3772 6.91563L7.10794 10.1849C6.91268 10.3801 6.91268 10.6967 7.10794 10.892C7.30321 11.0872 7.61979 11.0872 7.81505 10.892L11.0843 7.62274ZM7.04582 8.5843C7.24108 8.38904 7.24108 8.07246 7.04582 7.8772C6.85055 7.68194 6.53397 7.68194 6.33871 7.8772L4.41563 9.80027C3.79554 10.4204 3.79554 11.4257 4.41563 12.0458L5.9541 13.5843C6.57419 14.2044 7.57957 14.2044 8.19966 13.5843L10.1227 11.6612C10.318 11.466 10.318 11.1494 10.1227 10.9541C9.92748 10.7589 9.6109 10.7589 9.41563 10.9541L7.49256 12.8772C7.26299 13.1068 6.89077 13.1068 6.6612 12.8772L5.12274 11.3387C4.89317 11.1092 4.89317 10.737 5.12274 10.5074L7.04582 8.5843Z" 
+                            fill="currentColor">
+                      </path>
+                    </svg>
+                    <a class="text-decoration-none" href="<%= request.session.metadata.website %>"><%= request.session.metadata.website %></a>
+                  </span>
+                <% } %>
+                <% if (request.session.metadata.lud16 && request.session.metadata.lud16 !== "") { %>
                 <span class="fs-6 profile-icon-link mb-1">
-                  <svg viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" clip-rule="evenodd" d="M9 18C13.9706 18 18 13.9706 18 9C18 4.02944 13.9706 0 9 0C4.02944 0 0 4.02944 0 9C0 13.9706 4.02944 18 9 18ZM11.6667 6.66667C11.6667 8.13943 10.4728 9.33333 9.00004 9.33333C7.52728 9.33333 6.33337 8.13943 6.33337 6.66667C6.33337 5.19391 7.52728 4 9.00004 4C10.4728 4 11.6667 5.19391 11.6667 6.66667ZM13.6667 12.3333C13.6667 13.2538 11.5774 14 9.00004 14C6.42271 14 4.33337 13.2538 4.33337 12.3333C4.33337 11.4129 6.42271 10.6667 9.00004 10.6667C11.5774 10.6667 13.6667 11.4129 13.6667 12.3333Z" fill="currentColor"></path></svg>
-                  <%= request.session.metadata.nip05 %>
-                </span>
-                <span class="fs-6 profile-icon-link mb-1"><svg viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" clip-rule="evenodd" d="M9 18C13.9706 18 18 13.9706 18 9C18 4.02944 13.9706 0 9 0C4.02944 0 0 4.02944 0 9C0 13.9706 4.02944 18 9 18ZM10.5074 5.12274C10.7369 4.89317 11.1091 4.89317 11.3387 5.12274L12.8772 6.6612C13.1067 6.89077 13.1067 7.26298 12.8772 7.49256L10.9541 9.41563C10.7588 9.6109 10.7588 9.92748 10.9541 10.1227C11.1494 10.318 11.4659 10.318 11.6612 10.1227L13.5843 8.19966C14.2044 7.57957 14.2044 6.57419 13.5843 5.95409L12.0458 4.41563C11.4257 3.79554 10.4203 3.79554 9.80025 4.41563L7.87718 6.33871C7.68191 6.53397 7.68191 6.85055 7.87718 7.04582C8.07244 7.24108 8.38902 7.24108 8.58428 7.04582L10.5074 5.12274ZM11.0843 7.62274C11.2795 7.42748 11.2795 7.1109 11.0843 6.91563C10.889 6.72037 10.5724 6.72037 10.3772 6.91563L7.10794 10.1849C6.91268 10.3801 6.91268 10.6967 7.10794 10.892C7.30321 11.0872 7.61979 11.0872 7.81505 10.892L11.0843 7.62274ZM7.04582 8.5843C7.24108 8.38904 7.24108 8.07246 7.04582 7.8772C6.85055 7.68194 6.53397 7.68194 6.33871 7.8772L4.41563 9.80027C3.79554 10.4204 3.79554 11.4257 4.41563 12.0458L5.9541 13.5843C6.57419 14.2044 7.57957 14.2044 8.19966 13.5843L10.1227 11.6612C10.318 11.466 10.318 11.1494 10.1227 10.9541C9.92748 10.7589 9.6109 10.7589 9.41563 10.9541L7.49256 12.8772C7.26299 13.1068 6.89077 13.1068 6.6612 12.8772L5.12274 11.3387C4.89317 11.1092 4.89317 10.737 5.12274 10.5074L7.04582 8.5843Z" fill="currentColor"></path></svg>
-                 <a class="text-decoration-none" href="<%= request.session.metadata.website %>"><%= request.session.metadata.website %></a>
-                </span>
-                <span class="fs-6 profile-icon-link mb-1"><svg viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M8.28295 7.96658L8.23361 7.95179L8.76146 5.8347C8.81784 5.84928 8.88987 5.86543 8.97324 5.88412C9.67913 6.04237 11.1984 6.38297 10.9233 7.49805C10.6279 8.67114 8.87435 8.14427 8.28295 7.96658Z" fill="currentColor"></path><path d="M7.3698 11.4046L7.4555 11.43C8.18407 11.6467 10.2516 12.2615 10.532 11.0972C10.8209 9.97593 8.96224 9.53925 8.13013 9.34375C8.0389 9.32232 7.96002 9.30378 7.89765 9.28756L7.3698 11.4046Z" fill="currentColor"></path><path fill-rule="evenodd" clip-rule="evenodd" d="M9 18C13.9706 18 18 13.9706 18 9C18 4.02944 13.9706 0 9 0C4.02944 0 0 4.02944 0 9C0 13.9706 4.02944 18 9 18ZM12.8732 7.61593C13.0794 6.31428 12.1803 5.63589 10.9322 5.17799L11.3709 3.40745L10.3814 3.16221L9.95392 4.88751C9.88913 4.87105 9.82482 4.85441 9.76074 4.83784C9.56538 4.78731 9.3721 4.73731 9.17436 4.69431L9.6018 2.96901L8.58479 2.71696L8.15735 4.44226L6.13863 3.94193L5.847 5.12223C5.847 5.12223 6.59551 5.285 6.56824 5.30098C6.96889 5.40897 7.03686 5.69278 7.01489 5.90971L6.50629 7.91664L5.80746 10.7404C5.75255 10.8744 5.61847 11.0659 5.34426 10.9993C5.35573 11.012 4.61643 10.8087 4.61643 10.8087L4.12964 12.0541L6.08834 12.5875L5.65196 14.3489L6.63523 14.5926L7.07161 12.8312C7.22991 12.8767 7.38989 12.9139 7.54471 12.95C7.66051 12.9769 7.77355 13.0032 7.8807 13.0318L7.44432 14.7931L8.42939 15.0373L8.86577 13.2759C10.5611 13.5993 11.841 13.448 12.4129 11.7791C12.8726 10.4484 12.4427 9.68975 11.5496 9.18998C12.2207 9.02654 12.7174 8.56346 12.8732 7.61593Z" fill="currentColor"></path></svg>
+                  <svg  viewBox="0 0 18 18" 
+                    fill="none" 
+                    xmlns="http://www.w3.org/2000/svg">
+                      <path d="M8.28295 7.96658L8.23361 7.95179L8.76146 5.8347C8.81784 5.84928 8.88987 5.86543 8.97324 5.88412C9.67913 6.04237 11.1984 6.38297 10.9233 7.49805C10.6279 8.67114 8.87435 8.14427 8.28295 7.96658Z" 
+                            fill="currentColor">
+                      </path>
+                      <path d="M7.3698 11.4046L7.4555 11.43C8.18407 11.6467 10.2516 12.2615 10.532 11.0972C10.8209 9.97593 8.96224 9.53925 8.13013 9.34375C8.0389 9.32232 7.96002 9.30378 7.89765 9.28756L7.3698 11.4046Z" 
+                            fill="currentColor">
+                      </path>
+                      <path fill-rule="evenodd" 
+                            clip-rule="evenodd" 
+                            d="M9 18C13.9706 18 18 13.9706 18 9C18 4.02944 13.9706 0 9 0C4.02944 0 0 4.02944 0 9C0 13.9706 4.02944 18 9 18ZM12.8732 7.61593C13.0794 6.31428 12.1803 5.63589 10.9322 5.17799L11.3709 3.40745L10.3814 3.16221L9.95392 4.88751C9.88913 4.87105 9.82482 4.85441 9.76074 4.83784C9.56538 4.78731 9.3721 4.73731 9.17436 4.69431L9.6018 2.96901L8.58479 2.71696L8.15735 4.44226L6.13863 3.94193L5.847 5.12223C5.847 5.12223 6.59551 5.285 6.56824 5.30098C6.96889 5.40897 7.03686 5.69278 7.01489 5.90971L6.50629 7.91664L5.80746 10.7404C5.75255 10.8744 5.61847 11.0659 5.34426 10.9993C5.35573 11.012 4.61643 10.8087 4.61643 10.8087L4.12964 12.0541L6.08834 12.5875L5.65196 14.3489L6.63523 14.5926L7.07161 12.8312C7.22991 12.8767 7.38989 12.9139 7.54471 12.95C7.66051 12.9769 7.77355 13.0032 7.8807 13.0318L7.44432 14.7931L8.42939 15.0373L8.86577 13.2759C10.5611 13.5993 11.841 13.448 12.4129 11.7791C12.8726 10.4484 12.4427 9.68975 11.5496 9.18998C12.2207 9.02654 12.7174 8.56346 12.8732 7.61593Z" 
+                            fill="currentColor">+
+                      </path>
+                  </svg>
                   <a class="text-decoration-none" href="lightning:<%= request.session.metadata.lud16 %>"><%= request.session.metadata.lud16 %></a>
                 </span>
-                <span class="fs-6 profile-icon-link mb-1">
+                <% } %>
+                <% if (request.session.metadata.npub && request.session.metadata.npub !== "") { %>
+                <span class="fs-6 profile-icon-link mt-1">
                   <button id="npub-header-btn" class="btn btn-primary" type="button" id="pubkey-copy-btn" 
                           onclick="copyToClipboard(this,document.getElementById('npub-header-btn').getAttribute('data-value'))"
                           data-value="<%= request.session.metadata.npub %>"
@@ -104,13 +143,14 @@
                           <%= request.session.metadata.npub %><i class="fa-solid fa-copy ms-2"></i>
                   </button>
                 </span>
+                <% } %>
               </div>
             </div>
             <div class="ps-4 pe-2 pt-1">
               <p class="lead"><%= request.session.metadata.about %></p>
             </div>
           </div>
-          <div class="p-1 mb-2 z-1">
+          <div class="z-1">
             <ul class="nav nav-tabs ps-3 lead" id="profileTabs" role="tablist">
               <li class="nav-item" >
                 <button class="nav-link active" id="nostrNotes-tab" data-bs-toggle="tab" data-bs-target="#nostrNotes" type="button" role="tab" aria-controls="nostrNotes" aria-selected="true">Notes</button>
@@ -122,7 +162,7 @@
                 <button class="nav-link" id="userSettings-tab" data-bs-toggle="tab" data-bs-target="#userSettings" type="button" role="tab" aria-controls="userSettings" aria-selected="false">Settings</button>
               </li>
             </ul>
-            <div class="tab-content mb-5 mb-xl-3" id="profileTabsContent">
+            <div class="tab-content mb-3" id="profileTabsContent">
               <div class="tab-pane fade show active" id="nostrNotes" role="tabpanel" aria-labelledby="nostrNotes-tab">
                 <%- include('./components/nostrNotes'); %>
               </div>

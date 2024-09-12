@@ -1,12 +1,17 @@
 <link rel="stylesheet" href="/static/css/form.css">
 <form class="form">
-    <div id="pubkey" class="mb-3">
-        <label for="pubkey" class="mb-1">Nostr public key</label>
+    <div id="npub" class="mb-3">
+        <label for="npub" class="mb-1">Nostr public key</label>
         <div class="input-group">
-            <input type="text" class="form-control" id="pubkey-input" value="<%= request.session.metadata.npub %>" readonly>
-            <button class="btn btn-outline-secondary" type="button" id="pubkey-QR-btn"><i class="fa-solid fa-qrcode"></i></button>
-            <button class="btn btn-outline-secondary" type="button" id="pubkey-copy-btn" onclick="copyToClipboard(this,document.getElementById('pubkey-input').value)"><i class="fa-solid fa-copy"></i></button>
+            <input type="text" class="form-control d-none" id="pubkey-input" value="<%= request.session.metadata.pubkey %>" readonly>
+            <input type="text" class="form-control" id="npub-input" value="<%= request.session.metadata.npub %>" readonly>
+            <button class="btn btn-outline-secondary" type="button" id="npub-QR-btn"><i class="fa-solid fa-qrcode"></i></button>
+            <button class="btn btn-outline-secondary" type="button" id="npub-copy-btn" onclick="copyToClipboard(this,document.getElementById('npub-input').value)"><i class="fa-solid fa-copy"></i></button>
         </div>
+    </div>
+    <div id="name" class="mb-3">
+        <label for="name-input" class="mb-1">Name</label>
+        <input type="text" class="form-control" id="name-input" value="<%= request.session.metadata.name %>">
     </div>
     <div id="display-name" class="mb-3">
         <label for="displayName-input" class="mb-1">Display name</label>
@@ -53,32 +58,80 @@
         <label for="about-input" class="form-label">About</label>
         <textarea class="form-control" id="about-input" rows="4"><%= request.session.metadata.about %></textarea>
     </div>
-    <div class="text-center mt-1 mb-5 mb-lg-2">
-        <button type="submit" class="btn btn-primary col-4">Save</button>
-    </div>
 </form>
+<div class="text-center mt-1 mb-5 mb-lg-2">
+    <button id="saveProfileData-btn" type="submit" class="btn btn-primary col-4" onclick="saveProfileData()">Save</button>
+</div>
 <script>
     document.addEventListener('DOMContentLoaded', (event) => {
 
-        const showPubkeyQR = () => {
+        const showNpubQR = () => {
             const QR = document.createElement('div');
-            QR.setAttribute('id', 'pubkey-QR');
+            QR.setAttribute('id', 'npub-QR');
             QR.classList.add('d-none', 'd-flex', 'justify-content-center');
-            document.getElementById('pubkey').appendChild(QR);
+            document.getElementById('npub').appendChild(QR);
 
-            const qrcode = new QRCode(document.getElementById("pubkey-QR"), {
-                text: document.getElementById("pubkey-input").value,
+            const qrcode = new QRCode(document.getElementById("npub-QR"), {
+                text: document.getElementById("npub-input").value,
                 width: 250,
                 height: 250
             });
 
-            initMessageModal('#profile', document.getElementById('pubkey-QR'), '', 'modal-sm').then(() => {
-                document.getElementById('pubkey-QR').classList.add('d-none');
+            initMessageModal('#profile', document.getElementById('npub-QR'), '', 'modal-sm').then(() => {
+                document.getElementById('npub-QR').classList.add('d-none');
             });
-            document.getElementById('pubkey-QR').classList.remove('d-none');
+            document.getElementById('npub-QR').classList.remove('d-none');
 
         }
-        document.getElementById('pubkey-QR-btn').addEventListener('click', showPubkeyQR);
+        document.getElementById('npub-QR-btn').addEventListener('click', showNpubQR);
+
+        
+
     });
+
+    const saveProfileData = async () => {
+        const data = {};
+
+        const fields = [
+            { id: 'name-input', field: 'name' },
+            { id: 'displayName-input', field: 'display_name' },
+            { id: 'picture-input', field: 'picture' },
+            { id: 'banner-input', field: 'banner' },
+            { id: 'nip05-input', field: 'nip05' },
+            { id: 'lud16-input', field: 'lud16' },
+            { id: 'about-input', field: 'about' },
+        ];
+
+        fields.forEach(({ id, field }) => {
+            const element = document.getElementById(id);
+            if (element && element.value !== element.defaultValue) {
+                data[field] = element.value;
+            }
+        });
+
+        if (Object.keys(data).length > 0) {
+            document.getElementById('saveProfileData-btn').disabled = true;
+            document.getElementById('saveProfileData-btn').innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Saving...';
+
+            publishProfileData(data, document.getElementById('pubkey-input').value)
+                .then((result) => {
+                    console.log(result);
+                    if (result) {
+                        window.location.reload();
+                    } else {
+                        showMessage('⚠️ An error occurred while saving the profile data', 'alert-primary');
+                        document.getElementById('saveProfileData-btn').innerHTML = 'Save';
+                    }
+                })
+                .catch((error) => {
+                    console.error("Error in publishProfileData:", error);
+                    showMessage('⚠️ An unexpected error occurred', 'alert-danger');
+                    document.getElementById('saveProfileData-btn').innerHTML = 'Save';
+                })
+                .finally(() => {
+                    document.getElementById('saveProfileData-btn').disabled = false;
+                });
+        }
+    };
 
 </script>
