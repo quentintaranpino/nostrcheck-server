@@ -250,6 +250,8 @@ const generateCredentials = async (type: credentialTypes, pubkey :string, return
 			pubkey = await dbSelect("SELECT hex FROM registered WHERE pubkey = ?", "hex", [pubkey]) as string;
 		}
 
+		if (await isPubkeyValid(pubkey) == false) {return "";}
+
 		let credential : string = "";
 		type == 'otc'? credential = Math.floor(100000 + Math.random() * 900000).toString() : credential = crypto.randomBytes(13).toString('hex');
 		if ( type == 'authkey') credential = 'Auth' + credential;

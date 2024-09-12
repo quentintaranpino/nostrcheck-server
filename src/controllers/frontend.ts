@@ -338,7 +338,7 @@ const frontendLogin = async (req: Request, res: Response): Promise<Response> => 
         const result = await isAuthkeyValid(req.body.otc, false);
         if(result.status == 'success'){
             req.body.pubkey = result.pubkey;
-            canLogin = true;
+            canLogin = await isPubkeyValid(req.session.identifier || req.body.pubkey, false, true);
         }
     } 
     if (!canLogin) {
