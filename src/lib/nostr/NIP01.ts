@@ -112,4 +112,21 @@ const getProfileFollowing = (pubkey : string) : Boolean => {
 	return true;
 }
 
-export {getProfileData, getProfileFollowers, getProfileFollowing}
+/**
+ * Publishes an event to several relays.
+ * @param e - The event to publish.
+ * @returns A promise that resolves to a boolean indicating whether the operation was successful.
+ */
+const publishEvent = async (e : Event) : Promise<Boolean> => {
+
+	try {
+		await Promise.any(relaysPool.publish(relays, e));
+		logger.debug("Event published successfully");
+		return true;
+	  } catch (error) {
+		logger.error('Error publishing event:', error);
+		return false;
+	  }
+};
+
+export {getProfileData, getProfileFollowers, getProfileFollowing, publishEvent}
