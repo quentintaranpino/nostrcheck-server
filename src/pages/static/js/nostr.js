@@ -1,7 +1,7 @@
-let sk = "";
-sk = NostrTools.nip19.decode(sk).data;
-const pk = NostrTools.getPublicKey(sk);
-console.log("PUKBEY:", pk);
+// let sk = "";
+// sk = NostrTools.nip19.decode(sk).data;
+// const pk = NostrTools.getPublicKey(sk);
+// console.log("PUKBEY:", pk);
 
 const pool = new NostrTools.SimplePool()
 
