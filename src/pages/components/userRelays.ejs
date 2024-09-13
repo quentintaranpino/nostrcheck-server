@@ -1,4 +1,9 @@
 <div class="container mt-3 mb-5 mb-lg-3">
+    <div id="user-relay-list-loading" class="d-flex justify-content-center m-5">
+        <div class="spinner-border text-secondary" role="status">
+            <span class="visually-hidden">Loading relays</span>
+        </div>
+    </div>
     <ul id="user-relay-list" class="list-group"></ul>
 </div>
 <script>
@@ -7,6 +12,9 @@ let userRelays = [];
 document.addEventListener('DOMContentLoaded',async  (event) => {
   
     await getRelaysFromUser("<%= request.session.metadata.pubkey %>").then((relays) => {
+
+        document.getElementById("user-relay-list-loading").remove();
+
         relays.forEach((relay) => {
             let relayItem = document.createElement("li");
             relayItem.classList.add("list-group-item", "p-2", "mb-3", "border", "border-1", "rounded-3");
