@@ -21,7 +21,9 @@ html[data-bs-theme="light"] {
   }
   .btn-primary i {
     filter: invert(80%);
-
+  }
+  .nostr-logo {
+    filter: invert(80%);
   }
 }
 

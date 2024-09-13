@@ -1,22 +1,45 @@
-<div class="container mt-3 mb-4">
+<div class="container mt-3 mb-5 mb-lg-3">
     <ul id="user-relay-list" class="list-group"></ul>
 </div>
 <script>
 
-document.addEventListener('DOMContentLoaded', (event) => {
+let userRelays = [];
+document.addEventListener('DOMContentLoaded',async  (event) => {
   
-    getRelaysFromUser("<%= request.session.metadata.pubkey %>").then((relays) => {
+    await getRelaysFromUser("<%= request.session.metadata.pubkey %>").then((relays) => {
         relays.forEach((relay) => {
             let relayItem = document.createElement("li");
-            relayItem.classList.add("list-group-item");
+            relayItem.classList.add("list-group-item", "p-2", "mb-3", "border", "border-1", "rounded-3");
             relayItem.innerHTML = `
-                <p class="mb-1">${relay.url}</p>
-                <small class="text-muted">${relay.type}</small>
+                
+                <p class="ms-1 mb-1 fs-5">
+                        <i id="user-relay-online-${relay.id}" class="fas fa-circle me-2 text-success"></i>
+                        ${relay.name != "" ? relay.name : relay.url.replace('wss://', '').replace('/','')}
+                        <small class="text-muted ms-2">${relay.type == 'write' ? '<i class="fas fa-arrow-up me-2 text-primary"></i><i class="fas fa-arrow-down me-2 text-primary"></i>' : '<i class="fas fa-arrow-up me-2"></i><i class="fas fa-arrow-down me-2 text-primary"></i>'}</small>
+                        <small id="user-relay-ping-${relay.id}" class="text-muted" style="font-size:13px"></small>
+                        </p>
+                <p class="ms-1 text-muted mb-1">${relay.description}</p>
+                ${relay.supported_nips &&  relay.supported_nips != "" ? `<p class="ms-1 mb-1"><small class="text-muted"><b>NIPS:</b> ${relay.supported_nips}</small></p>` : ''}
+                <button class="btn btn-primary p-0 ps-2 pe-2 fs-6 mt-2 mb-2 font-monospace" style="font-size:13px !important" type="button" id="picture-copy-btn" onclick="copyToClipboard(this,document.getElementById('user-relay-url-${relay.id}').innerText)"><span id="user-relay-url-${relay.id}">${relay.url}<i class="fa-solid fa-copy ms-2"></i></span></button>
             `;
             document.getElementById("user-relay-list").appendChild(relayItem);
 
         });
+        
+        setInterval(() => {
+            for (const relay of relays) {
+               isRelayOnline(relay.url, relay.pubkey).then((r) => {
+                    if (r.online) {
+                        document.getElementById(`user-relay-online-${relay.id}`).classList.remove('text-danger');
+                        document.getElementById(`user-relay-online-${relay.id}`).classList.add('text-success');
+                        document.getElementById(`user-relay-ping-${relay.id}`).innerText = `${r.ping}ms`;  
+                    } else {
+                        document.getElementById(`user-relay-online-${relay.id}`).classList.remove('text-success');
+                        document.getElementById(`user-relay-online-${relay.id}`).classList.add('text-danger');
+                    }
+                });
+            }
+        }, 5000);
     });
-
 });
 </script>
