@@ -180,7 +180,7 @@
             </ul>
             <div class="tab-content mb-3" id="profileTabsContent">
               <div class="tab-pane fade show active" id="nostrNotes" role="tabpanel" aria-labelledby="nostrNotes-tab">
-                <%- include('./components/nostrNotes'); %>
+                <%- include('./components/userNotes'); %>
               </div>
               <div class="tab-pane fade show pt-3" id="hostedFiles" role="tabpanel" aria-labelledby="hostedFiles-tab">
                 <%- include('./components/gallery',{maxImageWidth: 350, maxColumns:3, privateGallery: true}); %> 
@@ -242,7 +242,7 @@
 
     // Set picture or video on profile header picture placeholder
     const mediaUrl = "<%= request.session.metadata.picture || '/static/resources/picture-default.webp' %>";
-    loadMedia(mediaUrl, document.querySelectorAll('.picture-container'), ['img-thumbnail', 'object-fit-cover', 'w-100', 'h-100']);
+    loadMedia(mediaUrl, document.querySelectorAll('.picture-container'), ['img-thumbnail','border-0', 'object-fit-cover', 'w-100', 'h-100']);
 
     // Set banner image or video on profile header banner placeholder
     const bannerUrl = "<%= request.session.metadata.banner || '/static/resources/banner-default.webp' %>";
