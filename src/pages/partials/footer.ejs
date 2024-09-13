@@ -102,5 +102,5 @@
 <script src="/static/js/nostr.js"></script>
 <script>
 storeAuthkey("<%= request.session.authkey %>")
-loadMedia("<%= request.session?.metadata?.picture || '/static/resources/picture-default.webp' %>" || '/static/resources/picture-default.webp', document.querySelectorAll('.picture-container'), ['img-thumbnail', 'object-fit-cover', 'w-100', 'h-100']);
+loadMedia("<%= request.session?.metadata?.picture || '/static/resources/picture-default.webp' %>" || '/static/resources/picture-default.webp', document.querySelectorAll('.picture-container'), ['img-thumbnail', 'border-0', 'object-fit-cover', 'w-100', 'h-100']);
 </script>

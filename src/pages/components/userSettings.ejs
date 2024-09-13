@@ -172,7 +172,7 @@ const updateProfileFields = (data) => {
                 element.innerText = data[field];
             }
             if (type === 'picture') {
-                loadMedia(data[field] || '/static/resources/picture-default.webp', document.querySelectorAll('.picture-container'), ['img-thumbnail', 'object-fit-cover', 'w-100', 'h-100']);
+                loadMedia(data[field] || '/static/resources/picture-default.webp', document.querySelectorAll('.picture-container'), ['img-thumbnail', 'border-0', 'object-fit-cover', 'w-100', 'h-100']);
             }
             if (type === 'banner') {
                 loadMedia(data[field] || '/static/resources/banner-default.webp', document.querySelectorAll('.banner-container'), [], { autoplay: true, loop: true, muted: true });

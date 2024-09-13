@@ -193,3 +193,39 @@ const publishProfileData = async (updatedFields, publicKey, secretKey) => {
     }
   });
 };
+
+const getPubkeyNotes = async (publicKey, since, until) => {
+  if (!publicKey) {
+    console.error("No public key provided.");
+    return [];
+  }
+
+  return new Promise((resolve, reject) => {
+    const notes = [];
+
+    try {
+      const subscription = pool.subscribeMany(
+        relays.map(relay => relay.url),
+        [{
+          kinds: [1], 
+          authors: [publicKey],
+          since: since || Math.floor(Date.now() / 1000) - (30 * 24 * 60 * 60), // default to 30 days
+          until: until || Math.floor(Date.now() / 1000) // default to now
+        }],
+        {
+          async onevent(event) {
+            notes.push(event);  // Agregar evento a la lista de notas
+          },
+          oneose() {
+            resolve(notes.sort((a, b) => b.created_at - a.created_at)); // Ordenar por fecha antes de resolver
+            subscription.close();
+          }
+        }
+      );
+    } catch (error) {
+      console.error("Error obtaining pubkey notes:", error);
+      reject(error);
+    }
+  });
+}
+
