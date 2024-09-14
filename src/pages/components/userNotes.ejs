@@ -1,15 +1,21 @@
 <div class="container mt-3 mb-5 mb-lg-3">
-    <ul id="last-notes-list" class="list-group"></ul>
+    <ul id="user-notes-list" class="list-group"></ul>
+    <div id="user-notes-list-observer" style="width: 100%; height: 1px; visibility: hidden;"></div>
 </div>
 
 <script>
+
 document.addEventListener('DOMContentLoaded', async (event) => {
-    await loadNotes(); 
-    window.addEventListener('scroll', async () => {
-        if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 100) {
-            await loadNotes();
-        }
+    await loadNotes();
+    const observerTarget = document.getElementById('user-notes-list-observer');
+    const observer = new IntersectionObserver(async (entries) => {
+        const entry = entries[0];
+        if (entry.isIntersecting)  await loadNotes();
+    }, {
+        root: null, 
+        rootMargin: '1000px',
     });
+    observer.observe(observerTarget);
 });
 
 let currentSince = Math.floor(Date.now() / 1000) - (60 * 24 * 60 * 60);
@@ -30,7 +36,7 @@ async function loadNotes() {
     let loadingContainer = document.createElement('div');
     loadingContainer.id = 'user-notes-list-loading';
     loadingContainer.classList.add('d-flex', 'justify-content-center', 'm-5');
-    document.getElementById("last-notes-list").appendChild(loadingContainer);
+    document.getElementById("user-notes-list").appendChild(loadingContainer);
     let loadingElement = document.createElement('div');
     loadingElement.classList.add('spinner-border', 'text-secondary');
     loadingElement.setAttribute('role', 'status');
@@ -45,7 +51,7 @@ async function loadNotes() {
             const noNotesText = document.createElement('p');
             noNotesText.innerHTML = '<i class="fas fa-sticky-note me-2"></i>No more notes to show';
             noNotesContainer.appendChild(noNotesText);
-            document.getElementById("last-notes-list").appendChild(noNotesContainer);
+            document.getElementById("user-notes-list").appendChild(noNotesContainer);
             document.getElementById("user-notes-list-loading").remove();
             return;
         }
@@ -58,7 +64,7 @@ async function loadNotes() {
             const videoRegex = /https?:\/\/[^\s"]+\.(mp4|webm|ogg)/g;
             const audioRegex = /https?:\/\/[^\s"]+\.(mp3|wav|ogg)/g;
             const lineBreakRegex = /(?:\r\n|\r|\n)/g;
-            const nostrRegex = /nostr:(npub|nprofile)[^\s"]+/g;
+            const nostrRegex = /nostr:(npub|nprofile)[a-zA-Z0-9]+/g;
 
             // Replace image links with <img> tags
             if (content.match(imgRegex)) {
@@ -107,7 +113,7 @@ async function loadNotes() {
                     ${content}
                 </p>
             `;
-            document.getElementById("last-notes-list").appendChild(noteItem);
+            document.getElementById("user-notes-list").appendChild(noteItem);
             notesData.push(note);
         };
 
@@ -120,9 +126,10 @@ async function loadNotes() {
             // Update pubkeysData with the data from relays
             for (const pubkeyData of pubkeysData) {
                 try{
+                if (data.filter((d) => d.pubkey === pubkeyData.pubkey)[0]?.content == undefined) continue;
                 pubkeyData.data.length == 0 ? pubkeyData.data = JSON.parse(data.filter((d) => d.pubkey === pubkeyData.pubkey)[0]?.content) : null;
                 }catch(e){
-                    console.error("Error parsing data:", e);
+                    console.error("Error parsing data:", data.filter((d) => d.pubkey === pubkeyData.pubkey));
                 }
             }
 
