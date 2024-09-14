@@ -156,13 +156,15 @@ async function loadNotes() {
                     link.textContent = linkText;
                 });
             });
-        });
 
         loadMedia("<%= request.session?.metadata?.picture || '/static/resources/picture-default.webp' %>" || '/static/resources/picture-default.webp', document.querySelectorAll(`.note-picture-container-${currentSince}`), ['img-thumbnail', 'border-0', 'object-fit-cover', 'w-100', 'h-100']);
         currentUntil = currentSince; 
         currentSince -= 60 * 24 * 60 * 60; 
         loading = false;
         document.getElementById("user-notes-list-loading").remove();
+        });
+
+       
     });
     }
 </script>
