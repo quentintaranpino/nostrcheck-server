@@ -20,7 +20,7 @@ REPO_URL="https://github.com/quentintaranpino/nostrcheck-server.git"
 REPO_BRANCH="0.6.0"
 REQUIREMENTS_FILE="requirements.txt"
 VENV_DIR=".venv"
-PACKAGES="nginx git redis-server mariadb-server mariadb-client ffmpeg jq certbot python3-certbot-nginx python3 python3-pip python3-dev pkg-config libjpeg-dev zlib1g-dev libssl-dev"
+PACKAGES="nginx git redis-server mariadb-server mariadb-client ffmpeg jq certbot python3-certbot-nginx python3 python3-pip python3-dev python3-venv pkg-config libjpeg-dev zlib1g-dev libssl-dev"
 
 clear
 echo ""
