@@ -64,7 +64,7 @@ async function loadNotes() {
             const videoRegex = /https?:\/\/[^\s"]+\.(mp4|webm|ogg)/g;
             const audioRegex = /https?:\/\/[^\s"]+\.(mp3|wav|ogg)/g;
             const lineBreakRegex = /(?:\r\n|\r|\n)/g;
-            const nostrRegex = /nostr:(npub|nprofile)[a-zA-Z0-9]+/g;
+            const nostrRegex = /nostr:(npub|nprofile|note|naddr1)[a-zA-Z0-9]+/g;
 
             // Replace image links with <img> tags
             if (content.match(imgRegex)) {
@@ -92,14 +92,16 @@ async function loadNotes() {
             // Replace nostr:npub or nostr:nprofile links with <a> tags
             content = content.replace(nostrRegex, (match) => {
                 const data = match.split(':')[1];
-                const decoded = NostrTools.nip19.decode(data);
-                pubkeysData.push({pubkey: decoded.type == 'npub' ? decoded.data : decoded.data.pubkey, data: []});
-                return `<a href="https://njump.me/${data}">${data}</a>`;
+                if (data.startsWith('npub') || data.startsWith('nprofile')) {
+                    const decoded = NostrTools.nip19.decode(data);
+                    pubkeysData.push({pubkey: decoded.type == 'npub' ? decoded.data : decoded.data.pubkey, data: []});
+                }
+                return `<a href="https://njump.me/${data}" target="_blank" class="link-offset-2 link-underline link-underline-opacity-0 fw-semibold">${data}</a> <i class="fa-xs text-muted fas fa-external-link-alt me-1"></i> `;
             });
 
             let noteItem = document.createElement("li");
             noteItem.id = `note-${note.id}`;
-            noteItem.classList.add("list-group-item", "p-3", "m-3", "mt-0", "border", "border-1", "rounded-3", `note-${currentSince}`);
+            noteItem.classList.add("list-group-item", "p-3", "m-3", "mt-0", "border", "border-1", "rounded-3", `note-${currentSince}`, `shadow-sm`);
             noteItem.style.backgroundColor = "rgba(0, 0, 0, .075)";
             noteItem.innerHTML = `
                 <div class="d-flex align-items-center mb-2">
@@ -121,6 +123,7 @@ async function loadNotes() {
         console.error("Error loading notes:", error);
     }).finally(async() => {
 
+        // Load the pubkeys data from the relays
         subscribeRelays(0, pubkeysData.filter(p => p.data.length == 0).map(p => p.pubkey), Math.floor(Date.now() / 1000) - (555 * 24 * 60 * 60),Math.floor(Date.now() / 1000)).then((data) => {
         
             // Update pubkeysData with the data from relays
@@ -153,14 +156,13 @@ async function loadNotes() {
                     link.textContent = linkText;
                 });
             });
-
-            loadMedia("<%= request.session?.metadata?.picture || '/static/resources/picture-default.webp' %>" || '/static/resources/picture-default.webp', document.querySelectorAll(`.note-picture-container-${currentSince}`), ['img-thumbnail', 'border-0', 'object-fit-cover', 'w-100', 'h-100']);
-            currentUntil = currentSince; 
-            currentSince -= 60 * 24 * 60 * 60; 
-            loading = false;
-            document.getElementById("user-notes-list-loading").remove();
-
         });
+
+        loadMedia("<%= request.session?.metadata?.picture || '/static/resources/picture-default.webp' %>" || '/static/resources/picture-default.webp', document.querySelectorAll(`.note-picture-container-${currentSince}`), ['img-thumbnail', 'border-0', 'object-fit-cover', 'w-100', 'h-100']);
+        currentUntil = currentSince; 
+        currentSince -= 60 * 24 * 60 * 60; 
+        loading = false;
+        document.getElementById("user-notes-list-loading").remove();
     });
     }
 </script>
