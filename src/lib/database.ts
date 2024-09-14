@@ -473,6 +473,13 @@ const initDatabase = async (): Promise<void> => {
 			logger.fatal("Error creating public username");
 			process.exit(1);
 		}
+
+		const allowed = await dbUpdate("registered","allowed", "1", ["username"], ["public"]);
+		if (!allowed){
+			logger.fatal("Error creating public username");
+			process.exit(1);
+		}
+
 		app.set("firstUse", true); 
 	}
 
