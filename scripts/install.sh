@@ -186,7 +186,7 @@ echo ""
 
 if [ ! -d "$VENV_DIR" ]; then
     echo "🔄 Creating virtual environment in $VENV_DIR..."
-    python3.12 -m venv "$VENV_DIR" || { echo "❌ Failed to create virtual environment"; exit 1; }
+    python3 -m venv "$VENV_DIR" || { echo "❌ Failed to create virtual environment"; exit 1; }
 else
     echo "🔄 Virtual environment already exists in $VENV_DIR."
 fi
