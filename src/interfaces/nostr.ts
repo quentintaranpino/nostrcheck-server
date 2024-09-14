@@ -80,4 +80,16 @@ enum eventVerifyTypes {
 	malformed = -3,
 }
 
-export { NIPKinds, NIP96file, NIP94_event, NIP94_data, NIP96_event, NIP96_processing, NIP04_event, eventVerifyTypes};
+interface userMetadata {
+    name: string,
+    about: string,
+    picture: string,
+    nip05?: string,
+    lud16?: string,
+    website?: string,
+    display_name?: string,
+    banner?: string,
+}
+
+
+export { NIPKinds, NIP96file, NIP94_event, NIP94_data, NIP96_event, NIP96_processing, NIP04_event, eventVerifyTypes, userMetadata};

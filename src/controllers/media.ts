@@ -29,7 +29,7 @@ import { saveTmpFile } from "../lib/storage/local.js";
 import { Readable } from "stream";
 import { getRemoteFile } from "../lib/storage/remote.js";
 import { transaction } from "../interfaces/payments.js";
-import { calculateSatoshi, checkTransaction, collectInvoice, getInvoice, validatePreimage } from "../lib/payments/core.js";
+import { calculateSatoshi, checkTransaction, collectInvoice, getInvoice, updateAccountId, validatePreimage } from "../lib/payments/core.js";
 import { blobDescriptor, BUDKinds } from "../interfaces/blossom.js";
 import { prepareBlobDescriptor } from "../lib/blossom/BUD02.js";
 import { loadCdnPage } from "./frontend.js";
@@ -169,7 +169,7 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 	logger.info("mime ->", filedata.originalmime, "|", getClientIp(req));
 
 	// No transform option
-	app.get("config.media")["transform"]["enabled"] == false ? filedata.no_transform = true : filedata.no_transform = Boolean(req.body.no_transform) || false;
+	app.get("config.media")["transform"]["enabled"] == false ? filedata.no_transform = true : filedata.no_transform = Boolean(req.body?.no_transform) || false;
 	if (req.params.param1 == "upload" || req.params.param1 == "mirror") filedata.no_transform = true;
 	if (!filedata.originalmime.toString().startsWith("image") && !filedata.originalmime.toString().startsWith("video")) filedata.no_transform = true;
 
@@ -180,6 +180,7 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 
 	logger.info("hash ->", filedata.originalhash, "|", getClientIp(req));
 	logger.info("filename ->", filedata.filename, "|", getClientIp(req));
+	logger.info("no_transform ->", filedata.no_transform, "|", getClientIp(req));
 
 	// Macaroon verification. If macaroon is valid, we check if the file is paid, 
 	const macaroon = req.headers["www-authenticate"]?.match(/macaroon="([^"]+)"/)?.[1];
@@ -191,12 +192,12 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 			if (caveatHash != undefined && caveatHash.split("=")[1] == filedata.originalhash) {
 				filedata.transaction_id = macaroonData?.token_id || "";
 				if (preimage && preimage != "") {
-					if (await validatePreimage(filedata.transaction_id, preimage) == true) {
+					if ((await validatePreimage(filedata.transaction_id, preimage)) == true) {
 						const invoice = await getInvoice(filedata.transaction_id);
 						if (invoice) {
 							invoice.preimage = preimage;
 							invoice.paidDate = new Date().toISOString().slice(0, 19).replace('T', ' ');
-							await collectInvoice(invoice,false, true);
+							await collectInvoice(invoice,false,true);
 						}
 					}
 				}else{
@@ -205,12 +206,12 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 						const macaroonData = await checkMacaroon(filedata.hash, Number(filedata.filesize),filedata.no_transform == true ? false : true, req.url);
 						if (macaroonData.status == "error"){
 							logger.error(`Error checking macaroon for hash ${filedata.hash} | ${getClientIp(req)}`);
-							res.setHeader("Blossom-Upload-Message", "Error creating macaroon");
+							res.setHeader("X-Upload-Message", "Error creating macaroon");
 							return res.status(500).send();
 						}
 						if (macaroonData.Invoice != undefined && macaroonData.macaroon != undefined){
 							res.setHeader('Www-Authenticate', `L402 macaroon="${macaroonData.macaroon}",invoice="${macaroonData.Invoice}"`);
-							res.setHeader("Blossom-Upload-Message", `${macaroonData.satoshi}`);
+							res.setHeader("X-Upload-Message", `${macaroonData.satoshi}`);
 							return res.status(402).send();
 						}
 					}
@@ -222,13 +223,13 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 			const macaroonData = await checkMacaroon(filedata.hash, Number(filedata.filesize),filedata.no_transform == true ? false : true, req.url);
 			if (macaroonData.status == "error"){
 				logger.error(`Error checking macaroon for hash ${filedata.hash} | ${getClientIp(req)}`);
-				res.setHeader("Blossom-Upload-Message", "Error creating macaroon");
+				res.setHeader("X-Upload-Message", "Error creating macaroon");
 				return res.status(500).send();
 			}
 		
 			if (macaroonData.Invoice != undefined && macaroonData.macaroon != undefined){
 				res.setHeader('Www-Authenticate', `L402 macaroon="${macaroonData.macaroon}",invoice="${macaroonData.Invoice}"`);
-				res.setHeader("Blossom-Upload-Message", `${macaroonData.satoshi}`);
+				res.setHeader("X-Upload-Message", `${macaroonData.satoshi}`);
 				return res.status(402).send();
 			}
 		}
@@ -296,7 +297,8 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 			// If the recieved file has a transaction_id and the DB file doesn't have a transaction_id, we update the DB file with the recieved transaction_id
 			if (filedata.transaction_id != "" && dbFile.transactionid == null) {
 				const updateResult = await dbUpdate("mediafiles", "transactionid", filedata.transaction_id,["id"], [filedata.fileid]);
-				if (!updateResult) {
+				const accountIdResult = await updateAccountId(pubkey, Number(filedata.transaction_id));
+				if (!updateResult || !accountIdResult) {
 					logger.error(`Error updating transactionid for file ${filedata.fileid}`, "|", getClientIp(req));
 					const result: ResultMessagev2 = {
 						status: MediaStatus[1],
@@ -345,7 +347,7 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 						status: MediaStatus[1],
 						message: "File could not be processed",
 					};
-					// await deleteFile(filedata.conversionInputPath);
+					//await deleteFile(filedata.conversionInputPath);
 					return res.status(500).send(result);
 				}
 			}
@@ -392,6 +394,15 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 			};
 			return res.status(500).send(result);
 		}
+
+		// Update accountid in ledger and transactions tables.
+		if (filedata.transaction_id != "") {
+			const result = await updateAccountId(pubkey, Number(filedata.transaction_id));
+			if (result == false) {
+				logger.error("Error updating transactionid for file", filedata.fileid, "|", getClientIp(req));
+				return res.status(500).send({"status": "error", "message": "Error updating transactionid for file"});
+			}
+		}
 	}
 	
 	let responseStatus = 201;
@@ -430,12 +441,12 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 			const macaroonData = await checkMacaroon(filedata.hash, Number(filedata.filesize),filedata.no_transform == true ? false : true, req.url);
 			if (macaroonData.status == "error"){
 				logger.error(`Error checking macaroon for hash ${filedata.hash} | ${getClientIp(req)}`);
-				res.setHeader("Blossom-Upload-Message", "Error creating macaroon");
+				res.setHeader("X-Upload-Message", "Error creating macaroon");
 				responseStatus = 500;
 			}
 			if (macaroonData.Invoice != undefined && macaroonData.macaroon != undefined){
 				res.setHeader('Www-Authenticate', `L402 macaroon="${macaroonData.macaroon}",invoice="${macaroonData.Invoice}"`);
-				res.setHeader("Blossom-Upload-Message", `${macaroonData.satoshi}`);
+				res.setHeader("X-Upload-Message", `${macaroonData.satoshi}`);
 				if (processFile == false) responseStatus = 402; 
 			}
 		}
@@ -557,12 +568,12 @@ const heatMedia = async (req: Request, res: Response): Promise<Response> => {
 		const macaroonData = await checkMacaroon(hash, Number(fileData[0].filesize),fileData[0].hash != fileData[0].original_hash ? false : true, req.url);
 		if (macaroonData.status == "error"){
 			logger.error(`Error checking macaroon for hash ${fileData[0].hash} | ${getClientIp(req)}`);
-			res.setHeader("Blossom-Upload-Message", "Error creating macaroon");
+			res.setHeader("X-Upload-Message", "Error creating macaroon");
 			return res.status(500).send(await getNotFoundMediaFile());
 		}
 		if (macaroonData.Invoice != undefined && macaroonData.macaroon != undefined){
 			res.setHeader('Www-Authenticate', `L402 macaroon="${macaroonData.macaroon}",invoice="${macaroonData.Invoice}"`);
-			res.setHeader("Blossom-Upload-Message", `${macaroonData.satoshi}`);
+			res.setHeader("X-Upload-Message", `${macaroonData.satoshi}`);
 			return res.status(402).send(await getNotFoundMediaFile());
 		}
 	}
@@ -894,10 +905,10 @@ const getMediabyURL = async (req: Request, res: Response) => {
 	// Initial security checks
 	if (
 		req.params.pubkey && req.params.pubkey.length > 64 || 
-		req.params.pubkey && !validator.default.matches(req.params.pubkey, /^[a-zA-Z0-9_]+$/) ||
+		req.params.pubkey && !validator.matches(req.params.pubkey, /^[a-zA-Z0-9_]+$/) ||
 		!req.params.filename || 
 		req.params.filename.length > 70 ||
-		!validator.default.matches(req.params.filename, /^[a-zA-Z0-9_]+(\.[a-zA-Z0-9_]+)*$/)) {
+		!validator.matches(req.params.filename, /^[a-zA-Z0-9_]+(\.[a-zA-Z0-9_]+)*$/)) {
 		logger.debug(`RES Media URL -> 400 Bad request:`, req.params.filename, "|", getClientIp(req));
 		res.setHeader('Content-Type', 'image/webp');
 		return res.status(400).send(await getNotFoundMediaFile());
@@ -990,12 +1001,12 @@ const getMediabyURL = async (req: Request, res: Response) => {
 			const macaroonData = await checkMacaroon(filedata[0].hash, Number(filedata[0].filesize),filedata[0].hash != filedata[0].original_hash ? false : true, req.url);
 			if (macaroonData.status == "error"){
 				logger.error(`Error checking macaroon for hash ${filedata[0].hash} | ${getClientIp(req)}`);
-				res.setHeader("Blossom-Upload-Message", "Error creating macaroon");
+				res.setHeader("X-Upload-Message", "Error creating macaroon");
 				res.status(500).send(await getNotFoundMediaFile());
 			}
 			if (macaroonData.Invoice != undefined && macaroonData.macaroon != undefined){
 				res.setHeader('Www-Authenticate', `L402 macaroon="${macaroonData.macaroon}",invoice="${macaroonData.Invoice}"`);
-				res.setHeader("Blossom-Upload-Message", `${macaroonData.satoshi}`);
+				res.setHeader("X-Upload-Message", `${macaroonData.satoshi}`);
 			}
 			
 			if (filedata[0].mimetype.toString().startsWith("video")) {
@@ -1493,33 +1504,33 @@ const heatUpload = async (req: Request, res: Response): Promise<Response> => {
 
 	logger.info("REQ -> Upload head", "|", getClientIp(req));
 
-	const size = req.headers['blossom-content-length'] || 0;
-	const type = Array.isArray(req.headers['blossom-content-type']) ? req.headers['blossom-content-type'][0] || "" : req.headers['blossom-content-type'] || "";
-	const hash = (Array.isArray(req.headers['digest']) ? req.headers['digest'][0] : req.headers['digest'] || "").split('=')[1] || "";
+	const size = req.headers['x-content-length'] || 0;
+	const type = Array.isArray(req.headers['x-content-type']) ? req.headers['x-content-type'][0] || "" : req.headers['x-content-type'] || "";
+	const hash = Array.isArray(req.headers['x-sha-256']) ? req.headers['x-sha-256'][0] : req.headers['x-sha-256'] || "";
 	const transform = Array.isArray(req.headers['blossom-content-metadata']) ? req.headers['blossom-content-metadata'][0] || "" : req.headers['blossom-content-metadata'] || "";
 
 	if (!Number(size) || size == 0 || type == "" || hash == "") {
-		logger.warn("RES -> 400 Bad request - missing size or type", "|", getClientIp(req));
-		res.setHeader("Blossom-Upload-Message", "Missing size or mime type");
+		logger.warn("RES -> 400 Bad request - missing size, type or SHA-256", "|", getClientIp(req));
+		res.setHeader("X-Upload-Message", "Missing size, MIME type or SHA-256");
 		return res.status(400).send();
 	}
 
 	if(!getAllowedMimeTypes().includes(type)){
 		logger.info(`Filetype not allowed: ${type} | ${getClientIp(req)}`);
-		res.setHeader("Blossom-Upload-Message", "Filetype not allowed");
+		res.setHeader("X-Upload-Message", "Filetype not allowed");
 		return res.status(400).send();
 	}
 
 	const macaroonData = await checkMacaroon(hash,Number(size),transform == '0'? false:true,req.url);
 	if (macaroonData.status == "error"){
 		logger.error(`Error checking macaroon for hash ${hash} | ${getClientIp(req)}`);
-		res.setHeader("Blossom-Upload-Message", "Error creating macaroon");
+		res.setHeader("X-Upload-Message", "Error creating macaroon");
 		return res.status(500).send();
 	}
 
 	if (macaroonData.Invoice != undefined && macaroonData.macaroon != undefined){
 		res.setHeader('Www-Authenticate', `L402 macaroon="${macaroonData.macaroon}",invoice="${macaroonData.Invoice}"`);
-		res.setHeader("Blossom-Upload-Message", `${macaroonData.satoshi}`);
+		res.setHeader("X-Upload-Message", `${macaroonData.satoshi}`);
 		return res.status(402).send();
 	}
 

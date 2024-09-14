@@ -6,14 +6,14 @@ import { logger } from "./logger.js";
 import { Application } from "express"
 import { updateLocalConfigKey } from "./config.js";
 import { rateLimit } from 'express-rate-limit'
-import { userMetadata } from "../interfaces/frontend.js";
+import { localUserMetadata } from "../interfaces/frontend.js";
 import app from "../app.js";
 
 declare module 'express-session' {
 	interface Session {
        identifier: string;
        authkey: string;
-       metadata: userMetadata;
+       metadata: localUserMetadata;
 	   allowed: boolean;
     }
 }

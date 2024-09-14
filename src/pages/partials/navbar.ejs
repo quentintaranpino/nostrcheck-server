@@ -32,8 +32,8 @@
         <a <% if (request.session.identifier) { %>style="display: none !important;"<% } %> <% if(active === 'login'){ %><%- "class='nav-link active  d-none d-lg-flex'"%><% } else { %><%- "class='nav-link '"%><%}%> href="login"><i class="fa-solid fa-user fa-lg me-1"></i></a>
       </li>
       <li class="nav-item dropdown d-none d-lg-flex"  <% if (!request.session.identifier) { %>style="display: none !important;"<% } %> >
-        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownMenuLink" role="button" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-          <img <% if (request.session.identifier) { %>src=  <%- JSON.stringify(request.session.metadata.picture) || "/static/resources/picture-default.webp" %> <% }%> width="40" height="40" class="rounded-circle">
+        <a class="nav-link dropdown-toggle d-flex align-items-center" href="#" id="navbarDropdownMenuLink" role="button" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+          <div class="picture-container" style="width:40px; height:40px;"></div>
           <span class="ms-2 d-none d-lg-inline"><% if (request.session.identifier) { %> <%= request.session.metadata.display_name %> <% }else{"Profile"} %></span>
         </a>
         <div class="dropdown-menu dropdown-menu-end">
@@ -73,7 +73,6 @@
 <% if (active != 'media') { %>
   <%- include('../components/modals/uploader-modal') %>
 <% } %>
-
 <style>
 
 html[data-bs-theme="light"] .navbar {

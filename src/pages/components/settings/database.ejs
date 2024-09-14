@@ -13,7 +13,7 @@
                 id="database.host"  
                 name="database.host" 
                 class="form-control" 
-                value="<%= request.body.settingsDatabase["host"] %>" 
+                value="<%= locals.settingsDatabase["host"] %>" 
                 placeholder="Database host" 
                 required
                 >
@@ -23,7 +23,7 @@
                 id="database.database"  
                 name="database.database" 
                 class="form-control" 
-                value="<%= request.body.settingsDatabase["database"] %>" 
+                value="<%= locals.settingsDatabase["database"] %>" 
                 placeholder="Database name" 
                 required
                 >
@@ -33,7 +33,7 @@
                 id="database.user"  
                 name="database.user" 
                 class="form-control" 
-                value="<%= request.body.settingsDatabase["user"] %>" 
+                value="<%= locals.settingsDatabase["user"] %>" 
                 placeholder="Database user" 
                 required
                 >
@@ -44,8 +44,8 @@
                     id="database.password" 
                     name="database.password" 
                     class="form-control mb-2" 
-                    defaultValue="<%= request.body.settingsDatabase["password"] %>" 
-                    value="<%= request.body.settingsDatabase["password"] %>" 
+                    defaultValue="<%= locals.settingsDatabase["password"] %>" 
+                    value="<%= locals.settingsDatabase["password"] %>" 
                     placeholder="Database password" 
                     required 
                     >

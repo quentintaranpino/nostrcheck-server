@@ -10,7 +10,7 @@
                 id="media.returnURL" 
                 name="media.returnURL" 
                 class="form-control" 
-                value="<%= request.body.settingsMedia['returnURL'] %>" 
+                value="<%= locals.settingsMedia['returnURL'] %>" 
                 placeholder="default: https://servername/media"
                 required
                 >
@@ -19,8 +19,8 @@
         <div class="form-check form-switch">
         <input  class="form-check-input" 
                 type="checkbox" 
-                value="<%= request.body.settingsMedia['allowPublicUploads'] ? true : false %>" 
-                <%= request.body.settingsMedia['allowPublicUploads'] ? 'checked' : '' %> 
+                value="<%= locals.settingsMedia['allowPublicUploads'] ? true : false %>" 
+                <%= locals.settingsMedia['allowPublicUploads'] ? 'checked' : '' %> 
                 name="media.allowPublicUploads" 
                 id="media.allowPublicUploads"
                 >
@@ -31,8 +31,8 @@
         <div class="form-check form-switch">
         <input  class="form-check-input" 
                 type="checkbox" 
-                value="<%= request.body.settingsMedia['transform']['enabled'] ? true : false %>" 
-                <%= request.body.settingsMedia['transform']['enabled'] ? 'checked' : '' %> 
+                value="<%= locals.settingsMedia['transform']['enabled'] ? true : false %>" 
+                <%= locals.settingsMedia['transform']['enabled'] ? 'checked' : '' %> 
                 name="media.transform.enabled" 
                 id="media.transform.enabled"
                 >
@@ -44,7 +44,7 @@
                     id="media.maxMBfilesize" 
                     name="media.maxMBfilesize" 
                     class="form-control" 
-                    value="<%= request.body.settingsMedia['maxMBfilesize'] %>" 
+                    value="<%= locals.settingsMedia['maxMBfilesize'] %>" 
                     placeholder="Max file size (in MB)" 
                     required 
                     
@@ -61,7 +61,7 @@
                         name="media.transform.media.image.width" 
                         class="form-control" 
                         placeholder="Width" 
-                        value="<%= request.body.settingsMedia['transform']['media']['image']['width'] %>" 
+                        value="<%= locals.settingsMedia['transform']['media']['image']['width'] %>" 
                         >
             </div>
             <div class="col-4 col-md-3">
@@ -70,7 +70,7 @@
                     name="media.transform.media.image.height" 
                     class="form-control" 
                     placeholder="Width" 
-                    value="<%= request.body.settingsMedia['transform']['media']['image']['height'] %>" 
+                    value="<%= locals.settingsMedia['transform']['media']['image']['height'] %>" 
                     >
         </div>
         </div>
@@ -82,7 +82,7 @@
                         name="media.transform.media.video.width" 
                         class="form-control" 
                         placeholder="Width" 
-                        value="<%= request.body.settingsMedia['transform']['media']['video']['width'] %>" 
+                        value="<%= locals.settingsMedia['transform']['media']['video']['width'] %>" 
                         >
             </div>
             <div class="col-4 col-md-3">
@@ -91,7 +91,7 @@
                                 name="media.transform.media.video.height" 
                                 class="form-control" 
                                 placeholder="Width" 
-                                value="<%= request.body.settingsMedia['transform']['media']['video']['height'] %>" 
+                                value="<%= locals.settingsMedia['transform']['media']['video']['height'] %>" 
                                 >
             </div>
         </div>
@@ -105,8 +105,8 @@
         <div class="form-check form-switch">
                 <input  class="form-check-input" 
                         type="checkbox" 
-                        value="<%= request.body.settingsMedia['mediainspector']['enabled'] ? true : false %>" 
-                        <%= request.body.settingsMedia['mediainspector']['enabled'] ? 'checked' : '' %> 
+                        value="<%= locals.settingsMedia['mediainspector']['enabled'] ? true : false %>" 
+                        <%= locals.settingsMedia['mediainspector']['enabled'] ? 'checked' : '' %> 
                         name="media.mediainspector.enabled" 
                         id="media.mediainspector.enabled"
                         >
@@ -116,8 +116,8 @@
             <select id="media.mediainspector.type" 
             name="media.mediainspector.type" 
             class="form-select">
-            <option value="local" <%= request.body.settingsMedia['mediainspector']['type'] == 'local' ? 'selected' : '' %>>local</option>
-            <option value="remote" <%= request.body.settingsMedia['mediainspector']['type'] == 'remote' ? 'selected' : '' %>>remote</option>
+            <option value="local" <%= locals.settingsMedia['mediainspector']['type'] == 'local' ? 'selected' : '' %>>local</option>
+            <option value="remote" <%= locals.settingsMedia['mediainspector']['type'] == 'remote' ? 'selected' : '' %>>remote</option>
             </select>
         </div>
         <div>
@@ -126,7 +126,7 @@
                     id="media.mediainspector.local.modelName" 
                     name="media.mediainspector.local.modelName" 
                     class="form-control" 
-                    value="<%= request.body.settingsMedia['mediainspector']['local']['modelName'] %>" 
+                    value="<%= locals.settingsMedia['mediainspector']['local']['modelName'] %>" 
                     placeholder="Local model" 
                     >
             <p>You can choose any model from Hugging Face. <a class="link-offset-2" href="https://huggingface.co/models" target="_blank">Check the models here</a>. It will 
@@ -139,7 +139,7 @@
                 id="media.mediainspector.remote.endpoint" 
                 name="media.mediainspector.remote.endpoint" 
                 class="form-control" 
-                value="<%= request.body.settingsMedia['mediainspector']['remote']['endpoint'] %>" 
+                value="<%= locals.settingsMedia['mediainspector']['remote']['endpoint'] %>" 
                 placeholder="Media inspector" 
                 >
         <label for="media.mediainspector.remote.apikey" class="mt-2 mb-1 fw-bold">Media inspector apikey</label>
@@ -147,7 +147,7 @@
                 id="media.mediainspector.remote.apikey" 
                 name="media.mediainspector.remote.apikey" 
                 class="form-control" 
-                value="<%= request.body.settingsMedia['mediainspector']['remote']['apikey'] %>" 
+                value="<%= locals.settingsMedia['mediainspector']['remote']['apikey'] %>" 
                 placeholder="Media inspector apikey" 
                 >
         <div class="col-12 col-md-3 mb-5 mt-4 pb-5 pb-lg-0 mb-lg-2">

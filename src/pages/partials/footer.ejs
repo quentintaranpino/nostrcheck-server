@@ -1,6 +1,6 @@
 <footer class="text-center mt-auto position-relative-md z-3 shadow-lg">
     <div class="text-center p-3 d-none d-lg-block">
-        <span>v<%= request.body.version %> </span>
+        <span>v<%= locals.version %> </span>
         <span>| Content released under</span> <a class="text-secondary text-decoration-none" href="https://mit-license.org/">MIT license</a> 
         <span>| <a class="text-secondary text-decoration-none" href="https://github.com/quentintaranpino/nostrcheck-api-ts/"> <i class="fa-brands fa-github ms-1"></i> Source code</a></span>
     </div>
@@ -98,6 +98,9 @@
 <script src="/static/js/server.js"></script>
 <script src="/static/js/modal.js"></script>
 <script src="/static/js/uploader.js"></script>
+<script src="/static/js/modules/nostr-tools/lib/nostr.bundle.js"></script>
+<script src="/static/js/nostr.js"></script>
 <script>
 storeAuthkey("<%= request.session.authkey %>")
+loadMedia("<%= request.session?.metadata?.picture || '/static/resources/picture-default.webp' %>" || '/static/resources/picture-default.webp', document.querySelectorAll('.picture-container'), ['img-thumbnail', 'border-0', 'object-fit-cover', 'w-100', 'h-100']);
 </script>

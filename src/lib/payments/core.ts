@@ -584,7 +584,7 @@ const cleanTransactions = async () => {
     })
     setTimeout(cleanTransactions, app.get("config.payments")["invoicePaidInterval"] * 1000);
 }
-cleanTransactions();
+// cleanTransactions();
 
 const validatePreimage = async (transactionid: string, preimage: string) : Promise<boolean> => {
     
@@ -611,6 +611,29 @@ const validatePreimage = async (transactionid: string, preimage: string) : Promi
         return false;
     }
 
+const updateAccountId = async (pubkey : string, transaction_id : number) : Promise<boolean> => {
+
+    if (!pubkey || pubkey == "" || !transaction_id || transaction_id == 0) return false;
+
+    if (!isModuleEnabled("payments", app)) return false;
+
+    const registeredId = await dbMultiSelect(["id"], "registered", "hex = ?", [pubkey], true);
+    if (!registeredId || registeredId.length === 0 || !registeredId[0].id) return false;
+
+    const accountId = await formatAccountNumber(registeredId[0].id);
+    if (accountId === 1100000000)  return false;
+
+    const updateTransactions = await dbUpdate("transactions", "accountid", accountId, ["id", "accountid"], [transaction_id, "1100000000"]);
+    if (!updateTransactions) return false;
+
+    const updateLedger = await dbUpdate("ledger", "accountid", accountId, ["transactionid", "accountid"], [transaction_id, "1100000000"]);
+    if (!updateLedger) return false;
+
+    logger.debug("Updated transaction accountid:", transaction_id, "to:", accountId)
+
+    return true;
+}
+
 
 export {    checkTransaction, 
             addBalance, 
@@ -622,5 +645,6 @@ export {    checkTransaction,
             getInvoice,
             isInvoicePaid,
             calculateSatoshi,
-            validatePreimage
+            validatePreimage,
+            updateAccountId
         }

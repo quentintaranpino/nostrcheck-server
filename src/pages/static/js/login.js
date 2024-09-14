@@ -92,12 +92,10 @@ const logInOtc = async () => {
                     $("#otc_submit").text("Verify and login");
                 } else {
                     initAlertModal("#login", data.message);
-                    document.getElementById(buttonId).innerHTML = buttonText;
                 }
             });
         } else {
             initAlertModal("#login", response.statusText);
-            document.getElementById(buttonId).innerHTML = buttonText;
         }});
   } else {
 

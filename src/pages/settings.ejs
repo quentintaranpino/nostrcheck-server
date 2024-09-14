@@ -1,5 +1,5 @@
 <html lang="en">
-  <%- include('./partials/head',{title: `${request.body.serverHost} - Settings`}); %>
+  <%- include('./partials/head',{title: `${locals.serverHost} - Settings`}); %>
   <link rel="stylesheet" href="/static/css/form.css">
   <link rel="stylesheet" href="/static/css/theme.css">
   <body class="d-flex flex-column h-100">
@@ -170,8 +170,8 @@
 <script src="/static/js/settings.js"></script>
 
 <script>
-  let logHistory = "<%= request.body.logHistory %>"
-  window.logData = <%- JSON.stringify(request.body.logHistory || []) %>;
+  let logHistory = "<%= locals.logHistory %>"
+  window.logData = <%- JSON.stringify(locals.logHistory || []) %>;
 </script>
 </body>
 <style>

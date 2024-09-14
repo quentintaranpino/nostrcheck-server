@@ -6,7 +6,7 @@ import { getClientIp, markdownToHtml } from "../lib/utils.js";
 import { dbSelect} from "../lib/database.js";
 import { generateCredentials, isAuthkeyValid, isPubkeyAllowed, isPubkeyValid, isUserPasswordValid } from "../lib/authorization.js";
 import { isModuleEnabled, loadconfigActiveModules } from "../lib/config.js";
-import { countPubkeyFiles, getProfileNostrMetadata, getProfileNostrNotes } from "../lib/frontend.js";
+import { countPubkeyFiles, getProfileNostrMetadata } from "../lib/frontend.js";
 import { hextoNpub } from "../lib/nostr/NIP19.js";
 import { logHistory } from "../lib/logger.js";
 import { themes, particles} from "../interfaces/themes.js";
@@ -26,14 +26,14 @@ const loadDashboardPage = async (req: Request, res: Response, version:string): P
     const activeModules = loadconfigActiveModules(app).map((module) => module[0]);
 
     // Active modules
-    req.body.activeModules = activeModules; 
+    res.locals.activeModules = activeModules; 
 
     // Logger history greater or equal to 4 (warn)
-    req.body.logHistory = logHistory.length != 0 ? JSON.stringify(logHistory).replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/'/g, "\\'") : [0];
+    res.locals.logHistory = logHistory.length != 0 ? JSON.stringify(logHistory).replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/'/g, "\\'") : [0];
     activeModules.push("logHistory");
 
-    req.body.version = app.get("version");
-    req.body.serverHost = app.get("config.server")["host"];
+    res.locals.version = app.get("version");
+    res.locals.serverHost = app.get("config.server")["host"];
     req.session.authkey = await generateCredentials('authkey', req.session.identifier);
 
     // User metadata
@@ -41,7 +41,7 @@ const loadDashboardPage = async (req: Request, res: Response, version:string): P
     req.session.metadata.usernames = await getUsernames(req.session.identifier);
 
     // Check admin privileges. Only for information, never used for authorization
-    req.session.allowed = await isPubkeyAllowed(req.body.pubkey || req.session.identifier);
+    req.session.allowed = await isPubkeyAllowed(req.session.identifier);
 
     res.render("dashboard.ejs", {request: req});
 };
@@ -56,26 +56,26 @@ const loadSettingsPage = async (req: Request, res: Response, version:string): Pr
 
     logger.info("GET /api/" + version + "/settings", "|", getClientIp(req));
 
-    req.body.version = app.get("version");
+    res.locals.version = app.get("version");
 
-    req.body.serverHost = app.get("config.server")["host"];
-    req.body.availableModules = app.get("config.server")["availableModules"];
-    req.body.settingsEnvironment = app.get("config.environment");
-    req.body.settingsServerHost = app.get("config.server")["host"];
-    req.body.settingServerPubkey = app.get("config.server")["pubkey"];
-    req.body.settingServerSecretkey =  app.get("config.server")["secretKey"];
-    req.body.settingsRedisExpireTime = app.get("config.redis")["expireTime"];
+    res.locals.serverHost = app.get("config.server")["host"];
+    res.locals.availableModules = app.get("config.server")["availableModules"];
+    res.locals.settingsEnvironment = app.get("config.environment");
+    res.locals.settingsServerHost = app.get("config.server")["host"];
+    res.locals.settingServerPubkey = app.get("config.server")["pubkey"];
+    res.locals.settingServerSecretkey =  app.get("config.server")["secretKey"];
+    res.locals.settingsRedisExpireTime = app.get("config.redis")["expireTime"];
 
-    req.body.settingsStorage = app.get("config.storage");
-    req.body.settingsMedia = app.get("config.media");
-    req.body.settingsPayments = app.get("config.payments");
-    req.body.settingsRegister = app.get("config.register");
-    req.body.settingsLogger = app.get("config.logger");
-    req.body.settingsSecurity = app.get("config.security");
-    req.body.settingsDatabase = app.get("config.database");
-    req.body.logHistory = logHistory;
-    req.body.settingsLookAndFeelThemes = themes;
-    req.body.settingsLookAndFeelParticles = particles;
+    res.locals.settingsStorage = app.get("config.storage");
+    res.locals.settingsMedia = app.get("config.media");
+    res.locals.settingsPayments = app.get("config.payments");
+    res.locals.settingsRegister = app.get("config.register");
+    res.locals.settingsLogger = app.get("config.logger");
+    res.locals.settingsSecurity = app.get("config.security");
+    res.locals.settingsDatabase = app.get("config.database");
+    res.locals.logHistory = logHistory;
+    res.locals.settingsLookAndFeelThemes = themes;
+    res.locals.settingsLookAndFeelParticles = particles;
     req.session.authkey = await generateCredentials('authkey', req.session.identifier);
 
     // User metadata
@@ -83,7 +83,7 @@ const loadSettingsPage = async (req: Request, res: Response, version:string): Pr
     req.session.metadata.usernames = await getUsernames(req.session.identifier);
 
     // Check admin privileges. Only for information, never used for authorization
-    req.session.allowed = await isPubkeyAllowed(req.body.pubkey || req.session.identifier);
+    req.session.allowed = await isPubkeyAllowed(req.session.identifier);
     
     res.render("settings.ejs", {request: req});
 };
@@ -98,22 +98,19 @@ const loadProfilePage = async (req: Request, res: Response, version:string): Pro
 
 	logger.info("GET /api/" + version + "/profile", "|", getClientIp(req));
 
-    req.body.version = app.get("version");
-    req.body.serverHost = app.get("config.server")["host"];
+    res.locals.version = app.get("version");
+    res.locals.serverHost = app.get("config.server")["host"];
     req.session.authkey = await generateCredentials('authkey', req.session.identifier);
 
     // User metadata
     req.session.metadata = await getProfileNostrMetadata(req.session.identifier);
     req.session.metadata.usernames = await getUsernames(req.session.identifier);
 
-    // User nostr notes
-    req.session.metadata.nostr_notes = await getProfileNostrNotes(req.session.identifier);
-
     // User uploaded files
     req.session.metadata.hostedFiles =  await countPubkeyFiles(req.session.identifier);
 
     // Check admin privileges. Only for information, never used for authorization
-    req.session.allowed = await isPubkeyAllowed(req.body.pubkey || req.session.identifier);
+    req.session.allowed = await isPubkeyAllowed(req.session.identifier);
 
     res.render("profile.ejs", {request: req});
 };
@@ -128,8 +125,8 @@ const loadTosPage = async (req: Request, res: Response, version:string): Promise
 
 	logger.info("GET /api/" + version + "/tos", "|", getClientIp(req));
 
-    req.body.version = app.get("version");
-    req.body.serverHost = app.get("config.server")["host"];
+    res.locals.version = app.get("version");
+    res.locals.serverHost = app.get("config.server")["host"];
     let tosFile : string = "";
     try{
         tosFile = fs.readFileSync(app.get("config.server")["tosFilePath"]).toString();
@@ -143,7 +140,7 @@ const loadTosPage = async (req: Request, res: Response, version:string): Promise
     req.session.authkey = await generateCredentials('authkey', req.session.identifier);
 
     // Check admin privileges. Only for information, never used for authorization
-    req.session.allowed = await isPubkeyAllowed(req.body.pubkey || req.session.identifier);
+    req.session.allowed = await isPubkeyAllowed(req.session.identifier);
     
     res.render("tos.ejs", {request: req, tos: tosFile });
 };
@@ -158,13 +155,13 @@ const loadLoginPage = async (req: Request, res: Response, version:string): Promi
 
 	logger.info("GET /api/" + version + "/login", "|", getClientIp(req));
 
-    req.body.version = app.get("version");
-    req.body.serverHost = app.get("config.server")["host"];
+    res.locals.version = app.get("version");
+    res.locals.serverHost = app.get("config.server")["host"];
 
     req.session.authkey = await generateCredentials('authkey', req.session.identifier);
 
     // Check admin privileges. Only for information, never used for authorization
-    req.session.allowed = await isPubkeyAllowed(req.body.pubkey || req.session.identifier);
+    req.session.allowed = await isPubkeyAllowed(req.session.identifier);
 
     res.render("login.ejs", {request: req});
 };
@@ -179,48 +176,49 @@ const loadIndexPage = async (req: Request, res: Response, version:string): Promi
 
 	logger.info("GET /api/" + version + "/index", "|", getClientIp(req));
 
-    req.body.version = app.get("version");
-    req.body.serverHost = app.get("config.server")["host"];
-    req.body.serverPubkey = await hextoNpub(app.get("config.server")["pubkey"]);
+    res.locals.version = app.get("version");
+    res.locals.serverHost = app.get("config.server")["host"];
+    res.locals.serverPubkey = await hextoNpub(app.get("config.server")["pubkey"]);
 
     req.session.authkey = await generateCredentials('authkey', req.session.identifier);
 
     // Check admin privileges. Only for information, never used for authorization
-    req.session.allowed = await isPubkeyAllowed(req.body.pubkey || req.session.identifier);
+    req.session.allowed = await isPubkeyAllowed(req.session.identifier);
     
     res.render("index.ejs", {request: req});
 };
 
-const loadDocsPage = async (req: Request, res: Response, version:string): Promise<Response | void>  => {
+const loadDocsPage = async (req: Request, res: Response, version: string): Promise<Response | void> => {
 
     // Check if current module is enabled
-	if (!isModuleEnabled("frontend", app)) {
-        logger.warn("Attempt to access a non-active module:","frontend","|","IP:", getClientIp(req));
-		return res.status(400).send({"status": "error", "message": "Module is not enabled"});
-	}
+    if (!isModuleEnabled("frontend", app)) {
+        logger.warn("Attempt to access a non-active module:", "frontend", "|", "IP:", getClientIp(req));
+        return res.status(400).send({ "status": "error", "message": "Module is not enabled" });
+    }
 
-	logger.info("GET /api/" + version + "/documentation", "|", getClientIp(req));
+    logger.info("GET /api/" + version + "/documentation", "|", getClientIp(req));
 
     const availableModules = Object.entries(app.get("config.server")["availableModules"]);
-     req.body.activeModules = [];
+    res.locals.activeModules = [];
     for (const [key] of availableModules) {
-        if(app.get("config.server")["availableModules"][key]["enabled"] == true){
-            req.body.activeModules.push(app.get("config.server")["availableModules"][key]);
+        if (app.get("config.server")["availableModules"][key]["enabled"] == true) {
+            res.locals.activeModules.push(app.get("config.server")["availableModules"][key]);
         }
     }
 
-    logger.debug(req.session.metadata)
-    
-    req.body.version = app.get("version");
-    req.body.serverHost = app.get("config.server")["host"];
-    req.body.serverPubkey = await hextoNpub(app.get("config.server")["pubkey"]);
+    logger.debug(req.session.metadata);
+
+    res.locals.version = app.get("version");
+    res.locals.serverHost = app.get("config.server")["host"];
+    res.locals.serverPubkey = await hextoNpub(app.get("config.server")["pubkey"]);
 
     req.session.authkey = await generateCredentials('authkey', req.session.identifier);
 
     // Check admin privileges. Only for information, never used for authorization
-    req.session.allowed = await isPubkeyAllowed(req.body.pubkey || req.session.identifier);
+    req.session.allowed = await isPubkeyAllowed(req.session.identifier);
 
-    res.render("documentation.ejs", {request: req});
+    // Pass the data to the template using res.locals
+    res.render("documentation.ejs", { request: req });
 };
 
 const loadGalleryPage = async (req: Request, res: Response, version:string): Promise<Response | void>  => {
@@ -233,13 +231,13 @@ const loadGalleryPage = async (req: Request, res: Response, version:string): Pro
 
 	logger.info("GET /api/" + version + "/gallery", "|", getClientIp(req));
 
-    req.body.version = app.get("version");
-    req.body.serverHost = app.get("config.server")["host"];
+    res.locals.version = app.get("version");
+    res.locals.serverHost = app.get("config.server")["host"];
 
     req.session.authkey = await generateCredentials('authkey', req.session.identifier);
 
     // Check admin privileges. Only for information, never used for authorization
-    req.session.allowed = await isPubkeyAllowed(req.body.pubkey || req.session.identifier);
+    req.session.allowed = await isPubkeyAllowed(req.session.identifier);
 
     res.render("gallery.ejs", {request: req});
 };
@@ -254,13 +252,13 @@ const loadRegisterPage = async (req: Request, res: Response, version:string): Pr
 
 	logger.info("GET /api/" + version + "/register", "|", getClientIp(req));
 
-    req.body.version = app.get("version");
-    req.body.serverHost = app.get("config.server")["host"];
+    res.locals.version = app.get("version");
+    res.locals.serverHost = app.get("config.server")["host"];
 
     req.session.authkey = await generateCredentials('authkey', req.session.identifier);
 
     // Check admin privileges. Only for information, never used for authorization
-    req.session.allowed = await isPubkeyAllowed(req.body.pubkey || req.session.identifier);
+    req.session.allowed = await isPubkeyAllowed(req.session.identifier);
 
     res.render("register.ejs", {request: req});
 };
@@ -275,13 +273,13 @@ const loadCdnPage = async (req: Request, res: Response, version:string): Promise
 
     logger.info("GET /api/" + version + "/cdn", "|", getClientIp(req));
 
-    req.body.version = app.get("version");
-    req.body.serverHost = app.get("config.server")["host"];
+    res.locals.version = app.get("version");
+    res.locals.serverHost = app.get("config.server")["host"];
 
     req.session.authkey = await generateCredentials('authkey', req.session.identifier);
 
     // Check admin privileges. Only for information, never used for authorization
-    req.session.allowed = await isPubkeyAllowed(req.body.pubkey || req.session.identifier);
+    req.session.allowed = await isPubkeyAllowed(req.session.identifier);
 
     res.render("cdn.ejs", {request: req});
 };
@@ -337,7 +335,7 @@ const frontendLogin = async (req: Request, res: Response): Promise<Response> => 
         const result = await isAuthkeyValid(req.body.otc, false);
         if(result.status == 'success'){
             req.body.pubkey = result.pubkey;
-            canLogin = true;
+            canLogin = await isPubkeyValid(req.session.identifier || req.body.pubkey, false, true);
         }
     } 
     if (!canLogin) {
@@ -359,7 +357,7 @@ const frontendLogin = async (req: Request, res: Response): Promise<Response> => 
     req.session.metadata.usernames = await getUsernames(req.session.identifier);
 
     // Check admin privileges. Only for information, never used for authorization
-    req.session.allowed = await isPubkeyAllowed(req.body.pubkey || req.session.identifier);
+    req.session.allowed = await isPubkeyAllowed(req.session.identifier);
 
     logger.info("logged in as", req.session.identifier, " - ", getClientIp(req));
     return res.status(200).send(true);

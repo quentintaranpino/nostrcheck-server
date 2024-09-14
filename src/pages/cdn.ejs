@@ -1,7 +1,7 @@
 <link rel="stylesheet" href="/static/css/particles.css">
 <link rel="stylesheet" href="/static/css/theme.css">
 <html lang="en">
-<%- include('./partials/head',{title: `${request.body.serverHost} - Home`}); %>
+<%- include('./partials/head',{title: `${locals.serverHost} - Home`}); %>
 <body class="d-flex flex-column h-100">
   <%- include('./partials/navbar', {active:'media'}); %>
   <div class="background-theme h-100">
@@ -23,8 +23,8 @@
 </body>
 <script>
 
-  if ("<%= request.body.firstUse %>" != undefined && "<%= request.body.firstUse %>" != null && "<%= request.body.firstUse %>" != "") {
-    initMessageModal("#fisrtUse", "<%- request.body.firstUse %>", "Welcome to your sovereignty");
+  if ("<%= locals.firstUse %>" != undefined && "<%= locals.firstUse %>" != null && "<%= locals.firstUse %>" != "") {
+    initMessageModal("#fisrtUse", "<%- locals.firstUse %>", "Welcome to your sovereignty");
   }
 </script>
 </html>

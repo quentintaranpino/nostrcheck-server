@@ -1,22 +1,34 @@
 import { Application } from "express";
+import express from "express";
 import { addBalanceUser, payTransaction, getInvoiceStatus, calculateObjectAmount } from "../controllers/payments.js";
 
-export const loadPaymentsEndpoint = async (app: Application, version:string): Promise<void> => {
+export const loadPaymentsEndpoint = async (app: Application, version: string): Promise<void> => {
 
-        if (version == "v2"){
+    if (version == "v2") {
 
-                // Pay item
-                app.post("/api/" + version + app.get("config.server")["availableModules"]["payments"]["path"] + "/paytransaction/", payTransaction);
+        // Pay item
+        app.post("/api/" + version + app.get("config.server")["availableModules"]["payments"]["path"] + "/paytransaction/",
+            express.json(), 
+            payTransaction
+        );
 
-                // Add balance to user
-                app.post("/api/" + version + app.get("config.server")["availableModules"]["payments"]["path"] + "/addbalance/", addBalanceUser);
+        // Add balance to user
+        app.post("/api/" + version + app.get("config.server")["availableModules"]["payments"]["path"] + "/addbalance/",
+            express.json(), 
+            addBalanceUser
+        );
 
-                // Get invoice status
-                app.get("/api/" + version + app.get("config.server")["availableModules"]["payments"]["path"] + "/invoices/:payreq", getInvoiceStatus);
+        // Get invoice status 
+        app.get("/api/" + version + app.get("config.server")["availableModules"]["payments"]["path"] + "/invoices/:payreq",
+            getInvoiceStatus
+        );
 
-                 // Calculate username satoshi amount
-                app.post("/api/" + version + app.get("config.server")["availableModules"]["payments"]["path"] + "/calculateamount/", calculateObjectAmount);
+        // Calculate username satoshi amount
+        app.post("/api/" + version + app.get("config.server")["availableModules"]["payments"]["path"] + "/calculateamount/",
+            express.json(),
+            calculateObjectAmount
+        );
 
-        }
+    }
 
 };

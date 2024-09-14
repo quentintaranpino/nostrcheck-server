@@ -1,4 +1,5 @@
-import { Request, Response, Application } from "express";
+import { Request, Response, Application, } from "express";
+import express from "express";
 import multer from "multer";
 import { uploadMedia, getMedia, heatMedia, deleteMedia, updateMediaVisibility, heatUpload } from "../controllers/media.js";
 import { ResultMessage, ResultMessagev2 } from "../interfaces/server.js";
@@ -41,9 +42,9 @@ export const loadMediaEndpoint = async (app: Application, version:string): Promi
 		try{
 
 			const file: Express.Multer.File = {
-				fieldname: 'file', 
-				originalname: "file",
-				encoding: 'binary',
+				fieldname: '', 
+				originalname: "",
+				encoding: '',
 				mimetype: req.headers["content-type"] || "application/octet-stream",
 				buffer: Buffer.from(''),
 				size: 0,
@@ -53,16 +54,9 @@ export const loadMediaEndpoint = async (app: Application, version:string): Promi
 				path: '', 
 			};
 
-			if (file.mimetype == 'application/json'){
-				file.buffer = Buffer.from(JSON.stringify(req.body));
-				file.size = file.buffer.length;
-				file.originalname = "file.json";
-				file.filename = "file.json";
-			}else{
-				const buffer = await getRawBody(req, {limit: Math.round(maxMBfilesize * 1024 * 1024)});
-				file.buffer = buffer;
-				file.size = buffer.length;
-			}
+			const buffer = await getRawBody(req, {limit: Math.round(maxMBfilesize * 1024 * 1024)});
+			file.buffer = buffer;
+			file.size = buffer.length;
 			
 			req.files = [file];
 
@@ -76,12 +70,12 @@ export const loadMediaEndpoint = async (app: Application, version:string): Promi
 	
 	// POST & PUT (upload)
 	app.post("/api/" + version + app.get("config.server")["availableModules"]["media"]["path"], limiter(app.get('config.security')['media']['maxUploadsMinute'], limitMessage), function (req, res){uploadMiddlewarePost(req,res)}); // v0, v1, v2 and NIP96
-	app.put("/api/" + version + app.get("config.server")["availableModules"]["media"]["path"] + "/:param1", limiter(app.get('config.security')['media']['maxUploadsMinute'], limitMessage), async (req, res) => {uploadMiddlewarePut(req,res)}); // Blossom upload
-	app.put("/upload", limiter(app.get('config.security')['media']['maxUploadsMinute'], limitMessage), async (req, res) => {uploadMiddlewarePut(req,res)}); // Blossom cdn url upload
-	
+	app.put("/api/" + version + app.get("config.server")["availableModules"]["media"]["path"] + "/:param1",  express.raw({ limit: Math.round(maxMBfilesize * 1024 * 1024)}), limiter(app.get('config.security')['media']['maxUploadsMinute'], limitMessage), async (req, res) => {uploadMiddlewarePut(req,res)}); // Blossom upload
+	app.put("/upload", express.raw({  limit: Math.round(maxMBfilesize * 1024 * 1024)}), limiter(app.get('config.security')['media']['maxUploadsMinute'], limitMessage), async (req, res) => {uploadMiddlewarePut(req,res)}); // Blossom cdn url upload
+
 	// HEAD (upload)
-	app.head("/api/" + version + app.get("config.server")["availableModules"]["media"]["path"] + "/upload", async (req, res) => {heatUpload(req,res)}); // Blossom blob upload head 
-	app.head("/upload", async (req, res) => {heatUpload(req,res)}); // Blossom cdn blob upload head 
+	app.head("/api/" + version + app.get("config.server")["availableModules"]["media"]["path"] + "/upload", heatUpload); // Blossom blob upload head
+	app.head("/upload", heatUpload); // Blossom CDN blob upload head
 
 	// DELETE
 	app.delete("/api/" + version +  app.get("config.server")["availableModules"]["media"]["path"] + "/:id", function (req, res){deleteMedia(req,res,version)});
@@ -89,16 +83,20 @@ export const loadMediaEndpoint = async (app: Application, version:string): Promi
 	// HEAD
 	app.head("/api/" + version + app.get("config.server")["availableModules"]["media"]["path"] + "/:param1", heatMedia);
 
-	// GET
-	app.get(`/api/${version}${app.get("config.server")["availableModules"]["media"]["path"]}/:param1?/:param2?`, function (req, res) {
+	// GET 
+	app.get(`/api/${version}${app.get("config.server")["availableModules"]["media"]["path"]}/:param1?/:param2?`, 
+	(req, res) => {
 		getMedia(req, res, version);
-	});
+	}
+	);
 
-	// PUT
-	app.put("/api/" + version + app.get("config.server")["availableModules"]["media"]["path"] + "/:fileId/visibility/:visibility", updateMediaVisibility);
+	// PUT (visibility)
+	app.put("/api/" + version + app.get("config.server")["availableModules"]["media"]["path"] + "/:fileId/visibility/:visibility", 
+	updateMediaVisibility
+	);
 
-	if (version == "v2"){
-        //NIP96 json file
-        app.get("/api/v2/nip96", NIP96Data);
+	if (version == "v2") {
+	// NIP96 json file
+	app.get("/api/v2/nip96", NIP96Data);
 	}
 };

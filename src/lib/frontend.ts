@@ -1,36 +1,38 @@
 import { Event } from "nostr-tools";
 import app from "../app.js";
-import { userMetadata } from "../interfaces/frontend.js";
+import { localUserMetadata } from "../interfaces/frontend.js";
 import { generateCredentials } from "./authorization.js";
 import { dbMultiSelect } from "./database.js";
-import { getProfileData, getProfileFollowers, getProfileFollowing } from "./nostr/NIP01.js";
-import { Request } from "express";
+import { getProfileData, getProfileFollowing } from "./nostr/NIP01.js";
+import { Request, Response } from "express";
+import { hextoNpub } from "./nostr/NIP19.js";
 
-const getProfileNostrMetadata = async (pubkey: string): Promise<userMetadata> => {
+const getProfileNostrMetadata = async (pubkey: string): Promise<localUserMetadata> => {
 
     if (!pubkey || pubkey == undefined || pubkey == null){
-        return {"about": "", "banner": "", "display_name": "", "followers": 0, "following": 0, "lud16": "", "hostedFiles": 0, "name": "", "nip05": "", "picture": "", "usernames": [], "website": "", "pubkey": "", "nostr_notes": []};
+        return {"about": "", "banner": "", "display_name": "", "followers": 0, "following": 0, "lud16": "", "hostedFiles": 0, "name": "", "nip05": "", "picture": "", "usernames": [], "website": "", "pubkey": "", "npub":"", "nostr_notes": []};
     }
 
-    let metadata : userMetadata = {"about": "", "banner": "", "display_name": "", "followers": 0, "following": 0, "lud16": "", "hostedFiles": 0, "name": "", "nip05": "", "picture": "", "usernames": [], "website": "", "pubkey": pubkey, "nostr_notes": []};
+    let metadata : localUserMetadata = {"about": "", "banner": "", "display_name": "", "followers": 0, "following": 0, "lud16": "", "hostedFiles": 0, "name": "", "nip05": "", "picture": "", "usernames": [], "website": "", "pubkey": pubkey, "npub": await hextoNpub(pubkey), "nostr_notes": []};
 
     const nostrMetadata = await getProfileData(pubkey, 0)
     if (!nostrMetadata || nostrMetadata == undefined || nostrMetadata == null || nostrMetadata[0].content == undefined || nostrMetadata[0].content == null){
-        return {"about": "", "banner": "", "display_name": "", "followers": 0, "following": 0, "lud16": "", "hostedFiles": 0, "name": "", "nip05": "", "picture": "", "usernames": [], "website": "", "pubkey": "", "nostr_notes": []};
+        return {"about": "", "banner": "", "display_name": "", "followers": 0, "following": 0, "lud16": "", "hostedFiles": 0, "name": "", "nip05": "", "picture": "", "usernames": [], "website": "", "pubkey": "", "npub":"", "nostr_notes": []};
     }
 
-    if (!app.get("#p_" + pubkey)){
-        await getProfileFollowers(pubkey);
-    } 
+    // if (!app.get("#p_" + pubkey)){
+    //     await getProfileFollowers(pubkey);
+    // } 
     if (!app.get("#f_" + pubkey)){
         await getProfileFollowing(pubkey);
     }
 
     metadata = JSON.parse(nostrMetadata[0].content.replace(/\\n/g, '<br>'))
     metadata.pubkey = pubkey;
+    metadata.npub = await hextoNpub(pubkey);
 
     // Add followers and following to the profile metadata.
-    metadata["followers"] = app.get("#p_" + pubkey) ? app.get("#p_" + pubkey) : 0
+    // metadata["followers"] = app.get("#p_" + pubkey) ? app.get("#p_" + pubkey) : 0
     metadata["following"] = app.get("#f_" + pubkey) ? app.get("#f_" + pubkey) : 0
 
     return metadata;
@@ -57,13 +59,13 @@ const countPubkeyFiles = async (pubkey: string): Promise<number> => {
     return files ? files.length : 0;
 }
 
-const isFirstUse = async (req : Request): Promise<boolean> => {
+const isFirstUse = async (req : Request, res: Response): Promise<boolean> => {
 	
 	if (app.get("firstUse") == true){
         req.session.identifier = app.get("config.server")["pubkey"];
         req.session.authkey = await generateCredentials('authkey', req.session.identifier);
         req.session.metadata = await getProfileNostrMetadata(req.session.identifier);
-        req.body.firstUse =  
+        res.locals.firstUse =  
         "<h5 class='mt-3 mb-2'>Read this carefully 💜</h5>" + 
         "<p>You are automatically logged in with the user administrator '<b>public</b>'. This user is created automatically. " + 
         "It is essential to keep this user in the database for the proper functioning of the server, <b>Don't delete this user</b>.</p>" +

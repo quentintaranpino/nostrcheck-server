@@ -8,8 +8,8 @@
         <p>Local storage is used to store files on the server's disk. Remote storage (S3) is used to store files on an remote S3 bucket.</p>
         <div class="col-12 col-md-4">
         <select id="storage.type" name="storage.type" class="form-select">
-            <option value="local" <% if (request.body.settingsStorage['type'] === 'local') { %>selected<% } %>>local</option>
-            <option value="remote" <% if (request.body.settingsStorage['type'] === 'remote') { %>selected<% } %>>remote</option>
+            <option value="local" <% if (locals.settingsStorage['type'] === 'local') { %>selected<% } %>>local</option>
+            <option value="remote" <% if (locals.settingsStorage['type'] === 'remote') { %>selected<% } %>>remote</option>
         </select>
         </div>
         <div class="alert alert-danger mt-3" role="alert">
@@ -26,7 +26,7 @@
         id="storage.local.tempPath" 
         name="storage.local.tempPath" 
         class="form-control" 
-        value="<%= request.body.settingsStorage['local']['tempPath'] %>" 
+        value="<%= locals.settingsStorage['local']['tempPath'] %>" 
         placeholder="Local storage temp path" 
         required
         >
@@ -44,7 +44,7 @@
         id="storage.local.mediaPath" 
         name="storage.local.mediaPath" 
         class="form-control" 
-        value="<%= request.body.settingsStorage['local']['mediaPath'] %>" 
+        value="<%= locals.settingsStorage['local']['mediaPath'] %>" 
         placeholder="Local storage media path" 
         required
         >
@@ -59,7 +59,7 @@
         id="storage.remote.bucketName" 
         name="storage.remote.bucketName" 
         class="form-control" 
-        value="<%= request.body.settingsStorage['remote']['bucketName'] %>" 
+        value="<%= locals.settingsStorage['remote']['bucketName'] %>" 
         placeholder="S3 storage bucket name" 
         required
         >
@@ -69,7 +69,7 @@
         id="storage.remote.endpoint" 
         name="storage.remote.endpoint" 
         class="form-control" 
-        value="<%= request.body.settingsStorage['remote']['endpoint'] %>" 
+        value="<%= locals.settingsStorage['remote']['endpoint'] %>" 
         placeholder="S3 storage endpoint" 
         required
         >
@@ -79,7 +79,7 @@
         id="storage.remote.accessKeyId" 
         name="storage.remote.accessKeyId" 
         class="form-control" 
-        value="<%= request.body.settingsStorage['remote']['accessKeyId'] %>" 
+        value="<%= locals.settingsStorage['remote']['accessKeyId'] %>" 
         placeholder="S3 storage access key ID" 
         required
         >
@@ -89,7 +89,7 @@
         id="storage.remote.secretAccessKey" 
         name="storage.remote.secretAccessKey" 
         class="form-control" 
-        value="<%= request.body.settingsStorage['remote']['secretAccessKey'] %>" 
+        value="<%= locals.settingsStorage['remote']['secretAccessKey'] %>" 
         placeholder="S3 storage secret access key" 
         required
         >
@@ -99,7 +99,7 @@
         id="storage.remote.region" 
         name="storage.remote.region" 
         class="form-control" 
-        value="<%= request.body.settingsStorage['remote']['region'] %>" 
+        value="<%= locals.settingsStorage['remote']['region'] %>" 
         placeholder="S3 storage region" 
         required
         >

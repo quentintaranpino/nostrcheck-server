@@ -14,7 +14,6 @@ import path from "path";
 import sharp from "sharp";
 import { saveFile } from "./storage/core.js";
 import { deleteLocalFile } from "./storage/local.js";
-import { checkTransaction } from "./payments/core.js";
 import { moderateFile } from "./moderation/core.js";
 import app from "../app.js";
 
@@ -161,11 +160,11 @@ const getUploadType = (req : Request): string  => {
 	let uploadtype = "media";
 
 	// v0 compatibility and v1 compatibility
-	if (req.body.type != undefined && req.body.type != "") {uploadtype = req.body.type;}
-	if (req.body.media_type != undefined && req.body.media_type != "") {uploadtype = req.body.media_type;}
+	if (req.body?.type != undefined && req.body?.type != "") {uploadtype = req.body.type;}
+	if (req.body?.media_type != undefined && req.body?.media_type != "") {uploadtype = req.body.media_type;}
 
 	// v2 compatibility
-	if (req.body.uploadtype != undefined && req.body.uploadtype != "") {uploadtype = req.body.uploadtype;}
+	if (req.body?.uploadtype != undefined && req.body?.uploadtype != "") {uploadtype = req.body.uploadtype;}
 
 	//Check if media_type is valid
 	!UploadTypes.includes(uploadtype)? logger.info(`Incorrect uploadtype or not present: ${uploadtype} setting "media" | ${getClientIp(req)}`) : null;
@@ -412,9 +411,9 @@ const finalizeFileProcessing = async (filedata: fileData): Promise<boolean> => {
 		if (filedata.no_transform == false) { await deleteLocalFile(filedata.conversionOutputPath);}
 		await deleteLocalFile(filedata.conversionInputPath);
 
-		await checkTransaction(filedata.transaction_id, filedata.fileid, "mediafiles", filesize, filedata.pubkey);
-
-		moderateFile(filedata.url).then((result) => {
+		let url = filedata.url;
+		if (url.lastIndexOf('.') <= url.lastIndexOf('/')) url = url.substring(0, url.lastIndexOf('/') + 1) + filedata.filename;
+		moderateFile(url).then((result) => {
 			result.code == "NA"? dbUpdate('mediafiles','checked','1',['id'], [filedata.fileid]): null;
 		}).catch((err) => {
 			logger.error("Error moderating file", err);

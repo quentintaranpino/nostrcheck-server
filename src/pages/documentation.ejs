@@ -1,5 +1,5 @@
 <html lang="en">
-  <%- include('./partials/head',{title: `${request.body.serverHost} - Documentation`}); %>
+  <%- include('./partials/head',{title: `${locals.serverHost} - Documentation`}); %>
 <body class="d-flex flex-column h-100">
     <%- include('./partials/navbar', {active:'documentation'}); %>
     <main class="pb-1">
@@ -7,31 +7,31 @@
     <p class="text-center mt-2 lead">Here you can find the documentation for the active modules.</p>
     <div class="container mt-4">
       <div class="row">
-        <% for(const key in request.body.activeModules) { %>
+        <% for(const key in locals.activeModules) { %>
           <div class="col-xl-3 col-lg-4 col-md-6 col-sm-12">
             <div class="card mb-3 container-fluid shadow-sm default-bg" style="width: 16rem; min-height: 15rem;">
               <div class="card-body pl-1 pr-1">
-                <h4 class="card-title"><%= request.body.activeModules[key]["name"] %></h5>
-                <h6 class="card-subtitle mb-2 text-muted"><%= request.body.activeModules[key]['path'] %></h6>
-                <% for(const method in request.body.activeModules[key]["methods"]) { %>
+                <h4 class="card-title"><%= locals.activeModules[key]["name"] %></h5>
+                <h6 class="card-subtitle mb-2 text-muted"><%= locals.activeModules[key]['path'] %></h6>
+                <% for(const method in locals.activeModules[key]["methods"]) { %>
                   <% var badgeClass; %>
-                  <% if (request.body.activeModules[key]["methods"][method]  === 'GET') { %>
+                  <% if (locals.activeModules[key]["methods"][method]  === 'GET') { %>
                       <% badgeClass = 'text-bg-success'; %>
                   <% } %>
-                  <% if (request.body.activeModules[key]["methods"][method]  === 'POST') { %>
+                  <% if (locals.activeModules[key]["methods"][method]  === 'POST') { %>
                       <% badgeClass = 'text-bg-warning'; %>
                   <% } %>
-                  <% if (request.body.activeModules[key]["methods"][method]  === 'PUT') { %>
+                  <% if (locals.activeModules[key]["methods"][method]  === 'PUT') { %>
                       <% badgeClass = 'text-bg-primary'; %>
                   <% } %>
-                  <% if (request.body.activeModules[key]["methods"][method]  === 'DELETE') { %>
+                  <% if (locals.activeModules[key]["methods"][method]  === 'DELETE') { %>
                       <% badgeClass = 'text-bg-danger'; %>
                   <% } %>
-                  <span class="badge <%= badgeClass %>"><%= request.body.activeModules[key]["methods"][method]  %></span>
+                  <span class="badge <%= badgeClass %>"><%= locals.activeModules[key]["methods"][method]  %></span>
                   <% } %>
-                <p class="card-text mt-2"><%= request.body.activeModules[key]["description"] %></p>
+                <p class="card-text mt-2"><%= locals.activeModules[key]["description"] %></p>
                 <button class="btn btn-primary" type="button">                
-                  <a href="https://github.com/quentintaranpino/nostrcheck-api-ts/blob/main/DOCS.md#<%= request.body.activeModules[key]["name"] %>" class="card-link link-offset-2 link-underline link-underline-opacity-0"><i class="fa-solid fa-book me-2"></i>Docs</a>
+                  <a href="https://github.com/quentintaranpino/nostrcheck-api-ts/blob/main/DOCS.md#<%= locals.activeModules[key]["name"] %>" class="card-link link-offset-2 link-underline link-underline-opacity-0"><i class="fa-solid fa-book me-2"></i>Docs</a>
                 </button>
 
               </div>
@@ -45,8 +45,8 @@
     <%- include('./components/modals/message-modal', {"object":"fisrtUse"}); %>
   </body>
 <script>
-  if ("<%= request.body.firstUse %>" != undefined && "<%= request.body.firstUse %>" != null && "<%= request.body.firstUse %>" != "") {
-    initMessageModal("#fisrtUse", "<%- request.body.firstUse %>", "Welcome to your sovereignty");
+  if ("<%= locals.firstUse %>" != undefined && "<%= locals.firstUse %>" != null && "<%= locals.firstUse %>" != "") {
+    initMessageModal("#fisrtUse", "<%- locals.firstUse %>", "Welcome to your sovereignty");
   }
 </script>
 </html>

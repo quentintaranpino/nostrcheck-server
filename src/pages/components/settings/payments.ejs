@@ -9,11 +9,11 @@
         <div class="col-12 col-md-4">
             <select id="payments.paymentProvider" name="payments.paymentProvider" class="form-select">
                 <% 
-                    const paymentProviders = Object.keys(request.body.settingsPayments.paymentProviders);
+                    const paymentProviders = Object.keys(locals.settingsPayments.paymentProviders);
                     for (let provider of paymentProviders) { 
                 %>
                     <option value="<%= provider %>" 
-                        <% if (request.body.settingsPayments.paymentProvider === provider) { %> 
+                        <% if (locals.settingsPayments.paymentProvider === provider) { %> 
                             selected 
                         <% } %>
                     ><%= provider %></option>
@@ -34,7 +34,7 @@
                         id="payments.satoshi.mediaMaxSatoshi" 
                         name="payments.satoshi.mediaMaxSatoshi" 
                         class="form-control" 
-                        value="<%= request.body.settingsPayments['satoshi']['mediaMaxSatoshi'] %>" 
+                        value="<%= locals.settingsPayments['satoshi']['mediaMaxSatoshi'] %>" 
                         placeholder="ex. 1000" 
                         step="50"
                         required
@@ -46,7 +46,7 @@
                         id="payments.satoshi.registerMaxSatoshi"
                         name="payments.satoshi.registerMaxSatoshi"
                         class="form-control" 
-                        value="<%= request.body.settingsPayments['satoshi']['registerMaxSatoshi'] %>" 
+                        value="<%= locals.settingsPayments['satoshi']['registerMaxSatoshi'] %>" 
                         placeholder="ex. 1000" 
                         step="50"
                         required
@@ -70,7 +70,7 @@
                     type="checkbox" 
                     name="payments.allowUnpaidUploads" 
                     id="payments.allowUnpaidUploads" 
-                    <%= request.body.settingsPayments['allowUnpaidUploads'] ? 'checked' : '' %> 
+                    <%= locals.settingsPayments['allowUnpaidUploads'] ? 'checked' : '' %> 
                 >
             </div>
         </div>
@@ -85,7 +85,7 @@
                     type="checkbox" 
                     name="payments.sendMessageToPubkey" 
                     id="payments.sendMessageToPubkey" 
-                    <%= request.body.settingsPayments['sendMessageToPubkey'] ? 'checked' : '' %> 
+                    <%= locals.settingsPayments['sendMessageToPubkey'] ? 'checked' : '' %> 
                 >
             </div>
         </div>
@@ -98,7 +98,7 @@
                         id="payments.invoicePaidInterval" 
                         name="payments.invoicePaidInterval" 
                         class="form-control" 
-                        value="<%= request.body.settingsPayments['invoicePaidInterval'] %>" 
+                        value="<%= locals.settingsPayments['invoicePaidInterval'] %>" 
                         placeholder="Example 60 seconds" 
                         required
                         step="10"
@@ -113,7 +113,7 @@
                 id="payments.LNAddress" 
                 name="payments.LNAddress" 
                 class="form-control" 
-                value="<%= request.body.settingsPayments['LNAddress'] %>" 
+                value="<%= locals.settingsPayments['LNAddress'] %>" 
                 placeholder="LNAddress" 
                 required
                 >
@@ -128,7 +128,7 @@
                     id="payments.paymentProviders.getalby.authToken" 
                     name="payments.paymentProviders.getalby.authToken" 
                     class="form-control" 
-                    value="<%= request.body.settingsPayments['paymentProviders']['getalby']['authToken'] %>" 
+                    value="<%= locals.settingsPayments['paymentProviders']['getalby']['authToken'] %>" 
                     placeholder="GetAlby authToken" 
                     required
                     >
@@ -139,7 +139,7 @@
                     id="payments.paymentProviders.lnbits.nodeUrl" 
                     name="payments.paymentProviders.lnbits.nodeUrl" 
                     class="form-control" 
-                    value="<%= request.body.settingsPayments['paymentProviders']['lnbits']['nodeUrl'] %>" 
+                    value="<%= locals.settingsPayments['paymentProviders']['lnbits']['nodeUrl'] %>" 
                     placeholder="LNbits nodeUrl" 
                     required
                     >
@@ -149,7 +149,7 @@
                     id="payments.paymentProviders.lnbits.readKey" 
                     name="payments.paymentProviders.lnbits.readKey" 
                     class="form-control" 
-                    value="<%= request.body.settingsPayments['paymentProviders']['lnbits']['readKey'] %>" 
+                    value="<%= locals.settingsPayments['paymentProviders']['lnbits']['readKey'] %>" 
                     placeholder="LNbits readKey" 
                     required
                     >
