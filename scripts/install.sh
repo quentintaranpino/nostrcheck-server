@@ -18,9 +18,13 @@ PUBKEY=""
 SECRETKEY=""
 REPO_URL="https://github.com/quentintaranpino/nostrcheck-server.git"
 REPO_BRANCH="0.6.0"
-REQUIREMENTS_FILE="requirements.txt"
-VENV_DIR=".venv"
 PACKAGES="nginx git redis-server mariadb-server mariadb-client ffmpeg jq certbot python3-certbot-nginx python3 python3-pip python3-dev python3-venv pkg-config libjpeg-dev zlib1g-dev libssl-dev"
+
+# Python environment variables
+VENV_DIR=".venv"
+TRANSFORMERS_VERSION="4.44.2"
+FLASK_VERSION="3.0.3"
+PILLOW_VERSION="10.4.0"
 
 clear
 echo ""
@@ -67,56 +71,34 @@ echo ""
 echo "🔍 Checking for existing installation and version compatibility..."
 echo ""
 
-# Check if Node.js is installed
+install_node() {
+    echo "🔄 Installing Node.js..."
+    curl -fsSL https://deb.nodesource.com/setup_$NODE_MAJOR.x | sudo -E bash -
+    sudo apt-get install -y nodejs
+}
+
 if command -v node > /dev/null 2>&1; then
-    # Get the currently installed major version
     INSTALLED_NODE_MAJOR=$(node -v | grep -oP '^v\K[0-9]+')
-    if [ "$INSTALLED_NODE_MAJOR" -ge "$NODE_MAJOR" ]; then
-        echo "🔎 Detected Node.js version $INSTALLED_NODE_MAJOR."
-        sleep 3
-    fi
-    
-    # Compare with desired major version
-    if [ "$INSTALLED_NODE_MAJOR" -ge "$NODE_MAJOR" ]; then
-        echo "✅ Node.js version $INSTALLED_NODE_MAJOR is already installed."
-        sleep 3
-    else
-        echo "⚠️ Installed Node.js version (v$INSTALLED_NODE_MAJOR) is lower than $NODE_MAJOR."
-        echo "🔄 Installing Node.js version $NODE_MAJOR..."
-        echo ""
-        sleep 3
-        install_node
-    fi
+    echo "🔎 Node.js version $INSTALLED_NODE_MAJOR detected in PATH."
+elif [ -f "/usr/local/bin/node" ]; then
+    INSTALLED_NODE_MAJOR=$(/usr/local/bin/node -v | grep -oP '^v\K[0-9]+')
+    echo "🔎 Node.js version $INSTALLED_NODE_MAJOR detected in /usr/local/bin."
 else
-    echo "❌ Node.js is not installed."
+    echo "❌ Node.js not found."
     echo "🔄 Installing Node.js version $NODE_MAJOR..."
-    echo ""
+    install_node
+    exit 0
+fi
+
+if [ "$INSTALLED_NODE_MAJOR" -ge "$NODE_MAJOR" ]; then
+    echo "✅ Node.js version $INSTALLED_NODE_MAJOR is already installed."
+    sleep 3
+else
+    echo "⚠️ Installed Node.js version (v$INSTALLED_NODE_MAJOR) is lower than $NODE_MAJOR."
+    echo "🔄 Installing Node.js version $NODE_MAJOR..."
     sleep 3
     install_node
 fi
-
-# Install Node.js
-install_node() {
-
-    sudo apt-get update || { echo "Failed to update package list"; exit 1; }
-    sudo apt-get install -y ca-certificates curl gnupg || { echo "Failed to install certificates, curl, and gnupg"; exit 1; }
-
-    # If the directory does not exist, create it
-    if [ ! -d "/etc/apt/keyrings" ]; then
-        sudo mkdir -p /etc/apt/keyrings || { echo "Failed to create keyrings directory"; exit 1; }
-    fi
-
-    # If the file exists, remove it
-    if [ -f "/etc/apt/keyrings/nodesource.gpg" ]; then
-        sudo rm /etc/apt/keyrings/nodesource.gpg || { echo "Failed to remove existing nodesource.gpg file"; exit 1; }
-    fi
-
-    curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | sudo gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg || { echo "Failed to download NodeSource GPG key"; exit 1; }
-    echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_$NODE_MAJOR.x nodistro main" | sudo tee /etc/apt/sources.list.d/nodesource.list || { echo "Failed to add NodeSource repository"; exit 1; }
-
-    sudo apt-get update || { echo "Failed to update package list after adding NodeSource"; exit 1; }
-    sudo apt-get install nodejs -y || { echo "Failed to install Node.js"; exit 1; }
-}
 
 # Update apt package list
 clear
@@ -153,7 +135,7 @@ sleep 3
 # Install Rust and configure environment
 clear
 echo "═══════════════════════════════════════════════════════════════════════════════"
-echo "                  🦀 Installing Rust compiler...                              "
+echo "                       🦀 Installing Rust compiler...                         "
 echo "═══════════════════════════════════════════════════════════════════════════════"
 echo ""
 sleep 3
@@ -183,7 +165,7 @@ sleep 3
 # Clone the repository
 clear
 echo "═══════════════════════════════════════════════════════════════════════════════"
-echo "                     📥 Cloning the Repository...                             "
+echo "                        📥 Cloning the Repository...                           "
 echo "═══════════════════════════════════════════════════════════════════════════════"
 echo ""
 
@@ -213,25 +195,17 @@ echo "🔄 Activating virtual environment..."
 source "$VENV_DIR/bin/activate" || { echo "❌ Failed to activate virtual environment"; exit 1; }
 
 install_packages() {
-    echo "🔄 Installing packages from $REQUIREMENTS_FILE..."
-    pip install -r "$REQUIREMENTS_FILE"
+    echo "🔄 Installing transformers==$TRANSFORMERS_VERSION..."
+    pip install transformers==$TRANSFORMERS_VERSION || { echo "❌ Failed to install transformers"; exit 1; }
+    
+    echo "🔄 Installing Flask==$FLASK_VERSION..."
+    pip install Flask==$FLASK_VERSION || { echo "❌ Failed to install Flask"; exit 1; }
+
+    echo "🔄 Installing Pillow==$PILLOW_VERSION..."
+    pip install Pillow==$PILLOW_VERSION || { echo "❌ Failed to install Pillow"; exit 1; }
 }
 
-if [ -f "$REQUIREMENTS_FILE" ]; then
-    install_packages
-    
-    # If the installation fails, purge cache and retry once
-    if [ $? -ne 0 ]; then
-        echo "⚠️ Installation failed. Purging pip cache and retrying..."
-        pip cache purge
-        
-        echo "🔄 Retrying package installation..."
-        install_packages || { echo "❌ Second attempt to install Python packages failed."; exit 1; }
-    fi
-else
-    echo "❌ $REQUIREMENTS_FILE not found. Please provide a valid requirements.txt file."
-    exit 1
-fi
+install_packages
 
 echo ""
 echo "✅ Python packages installed successfully!"
@@ -566,7 +540,7 @@ fi
 clear
 echo ""
 echo "═══════════════════════════════════════════════════════════════════════════════"
-echo "                          🔄 Configuring Nginx...                                "
+echo "                           🔄 Configuring Nginx...                            "
 echo "═══════════════════════════════════════════════════════════════════════════════"
 echo ""
 
