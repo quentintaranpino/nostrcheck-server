@@ -194,7 +194,6 @@ const publishProfileData = async (updatedFields, publicKey, secretKey) => {
 };
 
 const subscribeRelays = async (kind, pubkeys, since, until) => {
-
   if (!Array.isArray(pubkeys)) pubkeys = [pubkeys];
 
   if (pubkeys.length === 0 || kind === undefined) {
@@ -204,15 +203,20 @@ const subscribeRelays = async (kind, pubkeys, since, until) => {
 
   const p = [...new Set(pubkeys)].map(pubkey => {
     if (!pubkey.startsWith('npub')) return pubkey;
+    try {
       return NostrTools.nip19.decode(pubkey).data; 
-  })
+    } catch (error) {
+      console.error(`Error decoding pubkey: ${pubkey}`, error);
+      return null; 
+    }
+  }).filter(pubkey => pubkey !== null); 
 
   return new Promise((resolve, reject) => {
     const notes = [];
 
     try {
       const subscription = pool.subscribeMany(
-        relays.map(relay => relay.url),
+        relays.map(relay => relay.url), 
         [{
           kinds: [kind], 
           authors: p,
@@ -230,9 +234,11 @@ const subscribeRelays = async (kind, pubkeys, since, until) => {
         }
       );
     } catch (error) {
+      subscription.close();
       console.error("Error obtaining pubkey notes:", error);
       reject(error);
     }
   });
 }
+
 
