@@ -1,21 +1,25 @@
 <div class="container mt-3 mb-5 mb-lg-3">
-    <ul id="last-notes-list" class="list-group">
-    </ul>
+    <ul id="last-notes-list" class="list-group"></ul>
 </div>
+
 <script>
 document.addEventListener('DOMContentLoaded', async (event) => {
     await loadNotes(); 
-     window.addEventListener('scroll', async () => {
+    window.addEventListener('scroll', async () => {
         if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 100) {
             await loadNotes();
         }
     });
 });
 
-let currentSince = Math.floor(Date.now() / 1000) - (30 * 24 * 60 * 60);
+let currentSince = Math.floor(Date.now() / 1000) - (60 * 24 * 60 * 60);
 let currentUntil = Math.floor(Date.now() / 1000);
 let loading = false; 
 let allNotesLoaded = false; 
+
+let notesData = [];
+let pubkeysData = [];
+
 
 async function loadNotes() {
     if (loading || allNotesLoaded) return; 
@@ -32,14 +36,14 @@ async function loadNotes() {
     loadingElement.setAttribute('role', 'status');
     loadingContainer.appendChild(loadingElement);
 
-    await getPubkeyNotes("<%= request.session.metadata.pubkey %>", currentSince, currentUntil).then((notes) => {
+    await subscribeRelays(1,["<%= request.session.metadata.pubkey %>"], currentSince, currentUntil).then((notes) => {
 
         if (notes.length === 0) {
             allNotesLoaded = true;
             const noNotesContainer = document.createElement('div');
             noNotesContainer.classList.add('text-center', 'mt-2', 'mb-2');
             const noNotesText = document.createElement('p');
-            noNotesText.innerHTML = '<i class="fas fa-sticky-note me-2"></i>No nore notes to show';
+            noNotesText.innerHTML = '<i class="fas fa-sticky-note me-2"></i>No more notes to show';
             noNotesContainer.appendChild(noNotesText);
             document.getElementById("last-notes-list").appendChild(noNotesContainer);
             document.getElementById("user-notes-list-loading").remove();
@@ -54,20 +58,21 @@ async function loadNotes() {
             const videoRegex = /https?:\/\/[^\s"]+\.(mp4|webm|ogg)/g;
             const audioRegex = /https?:\/\/[^\s"]+\.(mp3|wav|ogg)/g;
             const lineBreakRegex = /(?:\r\n|\r|\n)/g;
+            const nostrRegex = /nostr:(npub|nprofile)[^\s"]+/g;
 
             // Replace image links with <img> tags
             if (content.match(imgRegex)) {
-                content = content.replace(imgRegex, `<div class="text-center"><img src="$&" style="max-height:450px; max-width:80%" alt="note image"></div>`);
+                content = content.replace(imgRegex, `<div class="text-center"><img src="$&" class=" rounded m-3" style="max-width:80%; height:auto" alt="note image"></div>`);
             }
 
             // Replace video links with <video> tags
             if (content.match(videoRegex)) {
-                content = content.replace(videoRegex, `<div class="text-center"><video src="$&" style="max-height:450px; max-width:80%" controls></video></div>`);
+                content = content.replace(videoRegex, `<div class="text-center"><video src="$&" class="rounded m-3" style="max-width:80%; height:auto" controls></video></div>`);
             }
 
             // Replace audio links with <audio> tags
             if (content.match(audioRegex)) {
-                content = content.replace(audioRegex, `<div class="text-center"><audio src="$&" height="200px" controls></audio></div>`);
+                content = content.replace(audioRegex, `<div class="text-center"><audio src="$&" class="rounded" height="200px" controls></audio></div>`);
             }
 
             // Replace line breaks with <br> tags
@@ -75,26 +80,80 @@ async function loadNotes() {
                 content = content.replace(lineBreakRegex, '<br>');
             }
 
+            // Remove extra line breaks
+            content = content.replace(/<br><br>/g, '<br>');
+
+            // Replace nostr:npub or nostr:nprofile links with <a> tags
+            content = content.replace(nostrRegex, (match) => {
+                const data = match.split(':')[1];
+                const decoded = NostrTools.nip19.decode(data);
+                pubkeysData.push({pubkey: decoded.type == 'npub' ? decoded.data : decoded.data.pubkey, data: []});
+                return `<a href="https://njump.me/${data}">${data}</a>`;
+            });
+
             let noteItem = document.createElement("li");
-            noteItem.classList.add("list-group-item", "p-2", "mb-3", "border", "border-1", "rounded-3");
+            noteItem.id = `note-${note.id}`;
+            noteItem.classList.add("list-group-item", "p-3", "m-3", "mt-0", "border", "border-1", "rounded-3", `note-${currentSince}`);
+            noteItem.style.backgroundColor = "rgba(0, 0, 0, .075)";
             noteItem.innerHTML = `
-                <div class="note-picture-container-${currentSince} picture-container" style="width:40px; height:40px;"></div>
-                <p class="ms-1 mb-1">
+                <div class="d-flex align-items-center mb-2">
+                    <div class="note-picture-container-${currentSince} picture-container" style="width:40px; height:40px; margin-right:10px;"></div>
+                    <div class="d-flex flex-column">
+                        <span class="lead">${"<%= request.session.metadata.display_name || request.session.metadata.name || request.session.metadata.usernames[0].username %>"}</span>
+                        <small class="text-muted">${new Date(note.created_at * 1000).toLocaleString()}</small>
+                    </div>
+                </div>
+                <p class="m-1">
                     ${content}
                 </p>
-                <small class="text-muted">${new Date(note.created_at * 1000).toLocaleString()}</small>
             `;
             document.getElementById("last-notes-list").appendChild(noteItem);
+            notesData.push(note);
         };
 
     }).catch((error) => {
         console.error("Error loading notes:", error);
-    }).finally(() => {
-        document.getElementById("user-notes-list-loading").remove();
-        loadMedia("<%= request.session?.metadata?.picture || '/static/resources/picture-default.webp' %>" || '/static/resources/picture-default.webp', document.querySelectorAll(`.note-picture-container-${currentSince}`), ['img-thumbnail', 'border-0', 'object-fit-cover', 'w-100', 'h-100']);
-        currentUntil = currentSince; 
-        currentSince -= 30 * 24 * 60 * 60; 
-        loading = false;
+    }).finally(async() => {
+
+        subscribeRelays(0, pubkeysData.filter(p => p.data.length == 0).map(p => p.pubkey), Math.floor(Date.now() / 1000) - (555 * 24 * 60 * 60),Math.floor(Date.now() / 1000)).then((data) => {
+        
+            // Update pubkeysData with the data from relays
+            for (const pubkeyData of pubkeysData) {
+                try{
+                pubkeyData.data.length == 0 ? pubkeyData.data = JSON.parse(data.filter((d) => d.pubkey === pubkeyData.pubkey)[0]?.content) : null;
+                }catch(e){
+                    console.error("Error parsing data:", e);
+                }
+            }
+
+            // Replace npub links or nprofile links with the display name or name of the npub/nprofile
+            const nostrRegex = /(npub|nprofile)[^\s"<>]+/g;
+            document.querySelectorAll(`.note-${currentSince}`).forEach(note => {
+                const links = note.querySelectorAll('a[href*="npub"], a[href*="nprofile"]');
+                
+                links.forEach(link => {
+                    let linkText = link.textContent;
+                    linkText = linkText.replace(nostrRegex, (npub) => {
+                        const pubkey = NostrTools.nip19.decode(npub);
+                        if (pubkey.type === 'npub') {
+                            return  pubkeysData.find(p => p.pubkey === pubkey.data).data.display_name || pubkeysData.find(p => p.pubkey === pubkey.data).data.name || npub;
+                        }else if (pubkey.type === 'nprofile') {
+                            return  pubkeysData.find(p => p.pubkey === pubkey.data.pubkey).data.display_name || pubkeysData.find(p => p.pubkey === pubkey.data.pubkey).data.name || npub;
+                        }else{
+                            return npub;
+                        }
+                    });
+                    link.textContent = linkText;
+                });
+            });
+
+            loadMedia("<%= request.session?.metadata?.picture || '/static/resources/picture-default.webp' %>" || '/static/resources/picture-default.webp', document.querySelectorAll(`.note-picture-container-${currentSince}`), ['img-thumbnail', 'border-0', 'object-fit-cover', 'w-100', 'h-100']);
+            currentUntil = currentSince; 
+            currentSince -= 60 * 24 * 60 * 60; 
+            loading = false;
+            document.getElementById("user-notes-list-loading").remove();
+
+        });
     });
-}
+    }
 </script>

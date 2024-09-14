@@ -21,7 +21,6 @@ const getRelaysFromUser = async (publicKey) => {
         [{ kinds: [10002], authors: [publicKey] }],
         {
           async onevent(event) {
-            console.log("Event received (kind 10002):", event);
             let id = 0;
             event.tags.forEach(tag => {
               if (tag[0] === 'r') {
@@ -194,11 +193,19 @@ const publishProfileData = async (updatedFields, publicKey, secretKey) => {
   });
 };
 
-const getPubkeyNotes = async (publicKey, since, until) => {
-  if (!publicKey) {
-    console.error("No public key provided.");
-    return [];
+const subscribeRelays = async (kind, pubkeys, since, until) => {
+
+  if (!Array.isArray(pubkeys)) pubkeys = [pubkeys];
+
+  if (pubkeys.length === 0 || kind === undefined) {
+    console.error("No pubkeys or kind provided.");
+    return;
   }
+
+  const p = [...new Set(pubkeys)].map(pubkey => {
+    if (!pubkey.startsWith('npub')) return pubkey;
+      return NostrTools.nip19.decode(pubkey).data; 
+  })
 
   return new Promise((resolve, reject) => {
     const notes = [];
@@ -207,17 +214,17 @@ const getPubkeyNotes = async (publicKey, since, until) => {
       const subscription = pool.subscribeMany(
         relays.map(relay => relay.url),
         [{
-          kinds: [1], 
-          authors: [publicKey],
+          kinds: [kind], 
+          authors: p,
           since: since || Math.floor(Date.now() / 1000) - (30 * 24 * 60 * 60), // default to 30 days
           until: until || Math.floor(Date.now() / 1000) // default to now
         }],
         {
           async onevent(event) {
-            notes.push(event);  // Agregar evento a la lista de notas
+            notes.push(event);
           },
           oneose() {
-            resolve(notes.sort((a, b) => b.created_at - a.created_at)); // Ordenar por fecha antes de resolver
+            resolve(notes.sort((a, b) => b.created_at - a.created_at)); 
             subscription.close();
           }
         }
