@@ -3,8 +3,8 @@ import app from "../app.js";
 import { localUserMetadata } from "../interfaces/frontend.js";
 import { generateCredentials } from "./authorization.js";
 import { dbMultiSelect } from "./database.js";
-import { getProfileData, getProfileFollowers, getProfileFollowing } from "./nostr/NIP01.js";
-import { Request } from "express";
+import { getProfileData, getProfileFollowing } from "./nostr/NIP01.js";
+import { Request, Response } from "express";
 import { hextoNpub } from "./nostr/NIP19.js";
 
 const getProfileNostrMetadata = async (pubkey: string): Promise<localUserMetadata> => {
@@ -59,13 +59,13 @@ const countPubkeyFiles = async (pubkey: string): Promise<number> => {
     return files ? files.length : 0;
 }
 
-const isFirstUse = async (req : Request): Promise<boolean> => {
+const isFirstUse = async (req : Request, res: Response): Promise<boolean> => {
 	
 	if (app.get("firstUse") == true){
         req.session.identifier = app.get("config.server")["pubkey"];
         req.session.authkey = await generateCredentials('authkey', req.session.identifier);
         req.session.metadata = await getProfileNostrMetadata(req.session.identifier);
-        req.body.firstUse =  
+        res.locals.firstUse =  
         "<h5 class='mt-3 mb-2'>Read this carefully 💜</h5>" + 
         "<p>You are automatically logged in with the user administrator '<b>public</b>'. This user is created automatically. " + 
         "It is essential to keep this user in the database for the proper functioning of the server, <b>Don't delete this user</b>.</p>" +
