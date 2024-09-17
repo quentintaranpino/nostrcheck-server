@@ -28,7 +28,7 @@ const isBUD01AuthValid = async (authevent: Event, req: Request, endpoint: string
     
 	// Check if created_at is in the past
 	try {
-		let created_at = authevent.created_at;
+		const created_at = authevent.created_at;
 		const now = Math.floor(Date.now() / 1000);
 
         // Check if created_at is in the past

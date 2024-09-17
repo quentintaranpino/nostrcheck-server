@@ -1,7 +1,6 @@
 import { blobDescriptor } from "../../interfaces/blossom.js";
 import { fileData } from "../../interfaces/media.js";
 import { getMimeFromExtension } from "../media.js";
-import { checkTransaction } from "../payments/core.js";
 
 // https://github.com/hzrd149/blossom/blob/master/buds/02.md
 

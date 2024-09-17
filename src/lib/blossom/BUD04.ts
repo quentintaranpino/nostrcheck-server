@@ -1,8 +1,7 @@
+// https://github.com/hzrd149/blossom/blob/master/buds/04.md
+
 import { Readable } from "stream";
 import { logger } from "../logger.js";
-import { saveTmpFile } from "../storage/local.js";
-
-// https://github.com/hzrd149/blossom/blob/master/buds/04.md
 
 const mirrorFile = async (url: string): Promise<Express.Multer.File | null> => {
     if (url === "") {
