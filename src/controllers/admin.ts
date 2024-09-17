@@ -121,7 +121,7 @@ const updateDBRecord = async (req: Request, res: Response): Promise<Response> =>
     }
 
     // Don't show the user the real table names
-    let table = moduleDataKeys[req.body.table];
+    const table = moduleDataKeys[req.body.table];
 	if (!table) {
         const result : ResultMessagev2 = {
             status: "error",
@@ -415,7 +415,7 @@ const deleteDBRecord = async (req: Request, res: Response): Promise<Response> =>
     }
 
     // Don't show the user the real table names
-    let table = moduleDataKeys[req.body.table];
+    const table = moduleDataKeys[req.body.table];
 	if (!table) {
         const result : ResultMessagev2 = {
             status: "error",
@@ -490,7 +490,7 @@ const insertDBRecord = async (req: Request, res: Response): Promise<Response> =>
     }
 
     // Don't show the user the real table names
-    let table = moduleDataKeys[req.body.table];
+    const table = moduleDataKeys[req.body.table];
 	if (!table) {
         const result : ResultMessagev2 = {
             status: "error",
@@ -609,7 +609,7 @@ const updateSettings = async (req: Request, res: Response): Promise<Response> =>
         return res.status(400).send(result);
     }
 
-    let updated = await updateLocalConfigKey(req.body.name, req.body.value);
+    const updated = await updateLocalConfigKey(req.body.name, req.body.value);
     if (!updated) {
         const result : authkeyResultMessage = {
             status: "error",
@@ -620,13 +620,13 @@ const updateSettings = async (req: Request, res: Response): Promise<Response> =>
         return res.status(500).send(result);
     }
 
-    let parts = req.body.name.includes('.') ? req.body.name.split('.') : [req.body.name];
-    let mainConfigName = req.body.name.includes('.') ? `config.${parts.shift()}` : `config.${req.body.name}`;
-    let configField = parts.length > 0 ? parts.pop() : req.body.name;
-    let rootConfig = JSON.parse(JSON.stringify(app.get(mainConfigName))); // Deep copy
+    const parts = req.body.name.includes('.') ? req.body.name.split('.') : [req.body.name];
+    const mainConfigName = req.body.name.includes('.') ? `config.${parts.shift()}` : `config.${req.body.name}`;
+    const configField = parts.length > 0 ? parts.pop() : req.body.name;
+    const rootConfig = JSON.parse(JSON.stringify(app.get(mainConfigName))); // Deep copy
     let currentConfig = rootConfig;
     
-    for (let part of parts) {
+    for (const part of parts) {
         if (currentConfig[part] === undefined) {
             return res.status(500).send({"status":"error", "message":`Config field not found: ${part}`});
         }
@@ -642,8 +642,8 @@ const updateSettings = async (req: Request, res: Response): Promise<Response> =>
 
     // If the setting is expireTime from redis we flush redis cache
     if (req.body.name == "redis.expireTime") {
-        let result = await flushRedisCache();
-        logger.debug("Purging cache", result);
+        await flushRedisCache();
+        logger.debug("Purging cache");
     }
 
     const result : authkeyResultMessage = {
@@ -704,7 +704,7 @@ const getModuleData = async (req: Request, res: Response): Promise<Response> => 
 
     logger.debug("module, offset, limit, order, search, sort, filter) : ", module, offset, limit, order, search, sort, filterObject);
  
-    let data = await dbSelectModuleData(module,offset,limit,order,sort,search,filterObject);
+    const data = await dbSelectModuleData(module,offset,limit,order,sort,search,filterObject);
     const returnMessage : moduleDataReturnMessage = {
         total: data.total,
         totalNotFiltered: data.totalNotFiltered,
@@ -849,7 +849,7 @@ const banDBRecord = async (req: Request, res: Response): Promise<Response> => {
     }
 
     // Don't show the user the real table names
-    let table = moduleDataKeys[req.body.table];
+    const table = moduleDataKeys[req.body.table];
 	if (!table) {
         const result : ResultMessagev2 = {
             status: "error",
