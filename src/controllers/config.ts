@@ -12,7 +12,7 @@ const checkConfigNecessaryKeys = async () : Promise<void> => {
 	for (const key of necessaryKeys){
 		let value = config.get(key);
 		if (value === undefined || value === "") {
-			let envKey = key.toUpperCase().replace(/\./g, '_');
+			const envKey = key.toUpperCase().replace(/\./g, '_');
 			value = process.env[envKey];
 			console.debug(envKey, process.env[envKey])
 			if (value === undefined || value === "") {
@@ -30,7 +30,7 @@ const checkConfigNecessaryKeys = async () : Promise<void> => {
 		if (pubkey !== "") {
 			missingFields = missingFields.filter((field) => field !== "server.pubkey");
 			await updateLocalConfigKey("server.pubkey", pubkey);
-			let configServer = Object.assign({}, app.get("config.server"));
+			const configServer = Object.assign({}, app.get("config.server"));
 			configServer.pubkey = pubkey;
 			app.set("config.server", configServer);
 		}
@@ -45,7 +45,7 @@ const checkConfigNecessaryKeys = async () : Promise<void> => {
 			const {default: app} = await import("../app.js");
 			missingFields = missingFields.filter((field) => field !== "server.pubkey" && field !== "server.secretKey");
 			await updateLocalConfigKey("server.pubkey", keyPair.publicKey) && await updateLocalConfigKey("server.secretKey", keyPair.secretKey);
-			let configServer = Object.assign({}, app.get("config.server"));
+			const configServer = Object.assign({}, app.get("config.server"));
 			configServer.pubkey = keyPair.publicKey;
 			configServer.secretKey = keyPair.secretKey;
 			app.set("config.server", configServer);
@@ -134,7 +134,8 @@ const migrateDBLocalpath = async () : Promise<boolean> => {
 	
 	let count = 0;
 	for (const item of mediaFiles) {
-		let { filename, pubkey, type } = item;
+		const { pubkey } = item;
+		let { filename, type } = item;
 		console.log(`### - Processing file ${count} of ${mediaFiles.length} - ${filename} - ${pubkey}`);
  
 		if (filename.includes("avatar") || filename.includes("banner")) {
@@ -158,7 +159,6 @@ const migrateDBLocalpath = async () : Promise<boolean> => {
 			if (!newFilename || newFilename === path.extname(filename)) {
 				console.error(`Failed to generate new filename for ${filename}`);
 				await dbUpdate('mediafiles', 'localpath', null, ['filename', 'pubkey'], [filename, pubkey]);
-
 				continue;
 			}
 			console.log('Trying to update database with new filename:', newFilename, 'for', filename, 'and pubkey', pubkey);	
@@ -175,7 +175,6 @@ const migrateDBLocalpath = async () : Promise<boolean> => {
 					if (err) {
 						console.error(`Failed to rename ${newType} file to ${newFilename}: ${err}`);
 						await dbUpdate('mediafiles', 'localpath', null, ['filename', 'pubkey'], [filename, pubkey]);
-
 					} else {
 						console.log(`Renamed ${newType} file to ${newFilename}`);
 					}
@@ -206,7 +205,7 @@ const migrateDBLocalpath = async () : Promise<boolean> => {
 			console.error(`Failed to update media file ${filename} with hashpath ${hashpath}`);
 			await dbUpdate('mediafiles', 'localpath', null, ['filename', 'pubkey'], [filename, pubkey]);
 			continue;
-		};
+		}
 
 		const oldPath = path.join(app.get("config.storage")["local"]["mediaPath"], pubkey, filename);
 		const newPath = path.join(app.get("config.storage")["local"]["mediaPath"], hashpath, filename);
@@ -220,20 +219,17 @@ const migrateDBLocalpath = async () : Promise<boolean> => {
 				if (err) {
 					console.error(`Failed to move file ${filename} to ${newPath}: ${err}`);
 					await dbUpdate('mediafiles', 'localpath', null, ['filename', 'pubkey'], [filename, pubkey]);
-
 				} else {
 					console.log(`${count} | ${mediaFiles.length} - Moved file ${filename} to ${newPath}`);
 				}
 			});
 			count++;
-
-
         } catch (error) {
             console.error(`Failed to move file ${filename} to ${newPath}: ${error}`);
 			await dbUpdate('mediafiles', 'localpath', null, ['filename', 'pubkey'], [filename, pubkey]);
 			continue;
         }
-    };
+    }
 
 	console.log("Cleaning empty folders...")
 	for (const item of mediaFiles) {
@@ -246,6 +242,7 @@ const migrateDBLocalpath = async () : Promise<boolean> => {
 		}
 		catch (error) {
 			console.error(`Failed to remove empty folder ${oldPath}: ${error}`);
+			console.error("Filename: ", filename, "Pubkey: ", pubkey);
 		}
 	}
 
