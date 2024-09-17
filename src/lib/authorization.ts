@@ -82,7 +82,7 @@ const parseAuthHeader = async (req: Request, endpoint: string = "", checkAdminPr
  * @param {boolean} [checkAdminPrivileges=false] - A boolean indicating whether to check if the public key has admin privileges. Optional.
  * @returns {Promise<boolean>} A promise that resolves to a boolean indicating whether the public key is valid and, if checkAdminPrivileges is true, whether it has admin privileges. Returns false if an error occurs, if the public key is not provided, or if it does not exist in the registered table.
  */
-const isPubkeyValid = async (pubkey: string, checkAdminPrivileges = false, checkRegistered = true): Promise<boolean> => {
+const isPubkeyValid = async (pubkey: string, checkAdminPrivileges = false, checkRegistered = true, checkActive = true): Promise<boolean> => {
 
 	if (pubkey === undefined || pubkey === "") {return false;}
 
@@ -94,7 +94,7 @@ const isPubkeyValid = async (pubkey: string, checkAdminPrivileges = false, check
 		logger.debug("Pubkey is banned", pubkey);
 		return false;
 	}
-	if (await isPubkeyActive(pubkey) == false) {
+	if (checkActive && await isPubkeyActive(pubkey) == false) {
 		logger.debug("Pubkey is not active", pubkey);
 		return false;
 	}
@@ -113,8 +113,8 @@ const isPubkeyValid = async (pubkey: string, checkAdminPrivileges = false, check
  */
 const isPubkeyRegistered = async (pubkey: string): Promise<boolean> => {
 	
-	if (!pubkey) {return false};
-	const pubkeyData = await dbMultiSelect(["id"], "registered", "hex = ?", [pubkey], true) as any;
+	if (!pubkey) {return false}
+	const pubkeyData = await dbMultiSelect(["id"], "registered", "hex = ?", [pubkey], true);
 	if (pubkeyData.length == 0) {return false;}
 	return true;
 }
@@ -126,8 +126,8 @@ const isPubkeyRegistered = async (pubkey: string): Promise<boolean> => {
  */
 const isPubkeyActive = async (pubkey: string): Promise<boolean> => {
 	
-	if (!pubkey) {return false};
-	const pubkeyData = await dbMultiSelect(["active"], "registered", "hex = ?", [pubkey], true) as any;
+	if (!pubkey) {return false}
+	const pubkeyData = await dbMultiSelect(["active"], "registered", "hex = ?", [pubkey], true);
 	if (pubkeyData.length == 0) {return false;}
 	if (pubkeyData[0].active == 0) {return false;}
 	return true;
@@ -140,8 +140,8 @@ const isPubkeyActive = async (pubkey: string): Promise<boolean> => {
  */
 const isPubkeyAllowed = async (pubkey: string): Promise<boolean> => {
 
-	if (!pubkey) {return false};
-	const pubkeyData = await dbMultiSelect(["allowed"], "registered", "hex = ?", [pubkey], true) as any;
+	if (!pubkey) {return false}
+	const pubkeyData = await dbMultiSelect(["allowed"], "registered", "hex = ?", [pubkey], true);
 	if (pubkeyData.length == 0) {return false;}
 	if (pubkeyData[0].allowed == 0) {return false;}
 	return true;
@@ -154,8 +154,8 @@ const isPubkeyAllowed = async (pubkey: string): Promise<boolean> => {
  */
 const isPubkeyBanned = async (pubkey: string): Promise<boolean> => {
 
-	if (!pubkey) {return false};
-	const pubkeyData = await dbMultiSelect(["id"], "registered", "hex = ?", [pubkey], true) as any;
+	if (!pubkey) {return false}
+	const pubkeyData = await dbMultiSelect(["id"], "registered", "hex = ?", [pubkey], true);
 	if (pubkeyData.length == 0) {return false;}
 	if (await isContentBanned(pubkeyData[0].id, "registered")) {return true;}
 	return false;
@@ -192,7 +192,7 @@ const isUserPasswordValid = async (username:string, password:string, checkAdminP
  * @param {boolean} [checkAdminPrivileges=true] - A boolean indicating whether to check if the authorization key has admin privileges. Optional, default is true.
  * @returns {Promise<checkAuthkeyResult>} The result of the authorization check, including the status, a message, and the new authkey if the check was successful.
  */
-const isAuthkeyValid = async (authString: string, checkAdminPrivileges: boolean = true) : Promise<authHeaderResult> =>{
+const isAuthkeyValid = async (authString: string, checkAdminPrivileges: boolean = true, checkActive : boolean = true) : Promise<authHeaderResult> =>{
 
 	if (authString === undefined || authString === "") {
 		logger.warn("Unauthorized request, no authorization header");
@@ -200,7 +200,7 @@ const isAuthkeyValid = async (authString: string, checkAdminPrivileges: boolean 
 	}
 
 	const hashedAuthkey = await hashString(authString, 'authkey');
-	let whereStatement = checkAdminPrivileges == true? "authkey = ? and allowed = ?" : "authkey = ?";
+	const whereStatement = checkAdminPrivileges == true? "authkey = ? and allowed = ?" : "authkey = ?";
 
 	try{
 		const hex =  await dbSelect(`SELECT hex FROM registered WHERE ${whereStatement}`, "hex", [hashedAuthkey, checkAdminPrivileges == true? '1':'0']) as string;
@@ -210,7 +210,7 @@ const isAuthkeyValid = async (authString: string, checkAdminPrivileges: boolean 
 		}
 
 		// Generate a new authkey for each request
-		const newAuthkey = await generateCredentials('authkey', hex);
+		const newAuthkey = await generateCredentials('authkey', hex, false, false, false, checkActive);
 		logger.debug("New authkey generated for", hex, ":", newAuthkey)
 		if (newAuthkey == ""){
 			logger.error("Failed to generate authkey for", hex);
@@ -236,7 +236,7 @@ const isAuthkeyValid = async (authString: string, checkAdminPrivileges: boolean 
  * @returns {Promise<string>} The newly generated credential, or an empty string if an error occurs or if the database update fails.
  * @throws {Error} If an error occurs during the credential generation or the database update or sending the direct message.
  */
-const generateCredentials = async (type: credentialTypes, pubkey :string, returnHashed: boolean = false, sendDM : boolean = false, onlyGenerate : boolean = false): Promise<string> => {
+const generateCredentials = async (type: credentialTypes, pubkey :string, returnHashed: boolean = false, sendDM : boolean = false, onlyGenerate : boolean = false, checkActive : boolean = true): Promise<string> => {
     try {
 
 		if (onlyGenerate) {
@@ -250,7 +250,7 @@ const generateCredentials = async (type: credentialTypes, pubkey :string, return
 			pubkey = await dbSelect("SELECT hex FROM registered WHERE pubkey = ?", "hex", [pubkey]) as string;
 		}
 
-		if (await isPubkeyValid(pubkey) == false) {return "";}
+		if (await isPubkeyValid(pubkey,false,true,checkActive) == false) {return "";}
 
 		let credential : string = "";
 		type == 'otc'? credential = Math.floor(100000 + Math.random() * 900000).toString() : credential = crypto.randomBytes(13).toString('hex');
@@ -261,13 +261,8 @@ const generateCredentials = async (type: credentialTypes, pubkey :string, return
 		if (update){
 			logger.debug("New credential generated and saved to database");
 			if ((type == 'password' || type == 'otc') && pubkey != "" && sendDM){
-				let message = type == 'otc'? 'Your one-time code: ' : 'Your new password: ';
-				let DM = await sendMessage(message ,pubkey);
-				DM = await sendMessage(credential,pubkey);	
-				if (!DM) {
-					return "";
-				}
-			}
+				const DM = await sendMessage(type == 'otc'? `Your one-time code: ${credential}` : `Your new password: ${credential}`, pubkey);
+				if (!DM) return "";			}
 			if (returnHashed) return hashedCredential;
 			return credential;
 		}
@@ -288,7 +283,7 @@ const generateCredentials = async (type: credentialTypes, pubkey :string, return
  */
 const isApikeyValid = async (req: Request, endpoint: string = "", checkAdminPrivileges = true): Promise<authHeaderResult> => {
 
-	let apikey = req.query.apikey || req.body.apikey;
+	const apikey = req.query.apikey || req.body.apikey;
 	if (!apikey) {
 		logger.warn("RES -> 400 Bad request - Apikey not found", "|", req.socket.remoteAddress);
 		return {status: "error", message: "Apikey not found", pubkey:"", authkey:"", kind: 0};

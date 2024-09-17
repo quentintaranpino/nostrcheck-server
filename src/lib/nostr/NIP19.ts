@@ -8,10 +8,14 @@ import { logger } from "../logger.js";
  */
 const hextoNpub = async (hex : string) : Promise<string> => {
 
+    if (hex != "" && hex.startsWith("npub")) {
+        return hex;
+    }
+
     try {
         return await nip19.npubEncode(hex);
     } catch (error) {
-        logger.error("Error while encoding pubkey to npup: ", error);
+        logger.error("Error while encoding pubkey to npub: ", error);
     }
 
     return "";
@@ -19,11 +23,15 @@ const hextoNpub = async (hex : string) : Promise<string> => {
 }
 
 const npubToHex = async (npub : string) : Promise<string> => {
+
+    if (npub != "" && !npub.startsWith("npub")) {
+        return npub;
+    }
     
         try {
             return await nip19.decode(npub).data.toString();
         } catch (error) {
-            logger.error("Error while encoding pubkey to npup: ", error);
+            logger.error("Error while encoding pubkey to npub: ", error);
         }
     
         return "";
@@ -36,20 +44,20 @@ const npubToHex = async (npub : string) : Promise<string> => {
  */
 const validatePubkey = async (pubkey : string) : Promise<boolean> => {
     
-    if (pubkey == null || pubkey == "" || pubkey == undefined) {return false};
-    if (pubkey.length > 64) {return false};
+    if (pubkey == null || pubkey == "" || pubkey == undefined) {return false}
+    if (pubkey.length > 64) {return false}
 
     if (pubkey.startsWith("npub")) {
         const hex = await npubToHex(pubkey);
-        if (hex == "") {return false};
-        if (hex.length != 64) {return false};
+        if (hex == "") {return false}
+        if (hex.length != 64) {return false}
         return true;
     }
 
     if (!pubkey.startsWith("npub")){
         const npub = await hextoNpub(pubkey);
-        if (npub == "") {return false};
-        if (npub.length < 57) {return false};
+        if (npub == "") {return false}
+        if (npub.length < 57) {return false}
         return true;
     }
 

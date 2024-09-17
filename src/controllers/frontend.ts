@@ -323,7 +323,7 @@ const frontendLogin = async (req: Request, res: Response): Promise<Response> => 
 
     let canLogin = false;
     if (req.body.pubkey != undefined){
-        canLogin = await isPubkeyValid(req.session.identifier || req.body.pubkey, false, true);
+        canLogin = await isPubkeyValid(req.session.identifier || req.body.pubkey, false);
         if (canLogin == true) {canLogin == await verifyNIP07event(req)}
     }
     if (req.body.username != undefined && req.body.password != undefined){
@@ -335,7 +335,7 @@ const frontendLogin = async (req: Request, res: Response): Promise<Response> => 
         const result = await isAuthkeyValid(req.body.otc, false);
         if(result.status == 'success'){
             req.body.pubkey = result.pubkey;
-            canLogin = await isPubkeyValid(req.session.identifier || req.body.pubkey, false, true);
+            canLogin = await isPubkeyValid(req.session.identifier || req.body.pubkey, false);
         }
     } 
     if (!canLogin) {

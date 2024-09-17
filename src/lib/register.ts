@@ -14,11 +14,11 @@ import { getNewDate } from "./utils.js";
  */
 const isUsernameAvailable = async (username: string, domain: string): Promise<boolean> => {
 
-    if (username == "" || username == undefined) {return false};
-    if (domain == "" || domain == undefined) {return false};
+    if (username == "" || username == undefined) {return false}
+    if (domain == "" || domain == undefined) {return false}
 
     const result = await dbMultiSelect(["hex"],"registered","username = ? and domain = ?",[username, domain], true);
-    if (result.length > 0) {return false};
+    if (result.length > 0) {return false}
     return true;
 }
 
@@ -31,11 +31,11 @@ const isUsernameAvailable = async (username: string, domain: string): Promise<bo
  */
 const isPubkeyOnDomainAvailable = async (pubkey: string, domain: string): Promise<boolean> => {
     
-    if (pubkey == "" || pubkey == undefined) {return false};
-    if (domain == "" || domain == undefined) {return false};
+    if (pubkey == "" || pubkey == undefined) {return false}
+    if (domain == "" || domain == undefined) {return false}
 
     const result = await dbMultiSelect(["hex"],"registered","(pubkey = ? or hex = ?) and domain = ?",[pubkey, pubkey, domain], true);
-    if (result.length > 0) {return false};
+    if (result.length > 0) {return false}
     return true;
 }
 
@@ -50,10 +50,10 @@ const isPubkeyOnDomainAvailable = async (pubkey: string, domain: string): Promis
  */
 
 const addNewUsername = async (username: string, pubkey: string, password:string, domain: string, comments:string = "", active = false, inviteCode = ""): Promise<number> => {
-    if (username == "" || username == undefined) {return 0};
-    if (pubkey == "" || pubkey == undefined) {return 0};
-    if (domain == "" || domain == undefined) {return 0};
-    if (await validatePubkey(pubkey) == false) {return 0};
+    if (username == "" || username == undefined) {return 0}
+    if (pubkey == "" || pubkey == undefined) {return 0}
+    if (domain == "" || domain == undefined) {return 0}
+    if (await validatePubkey(pubkey) == false) {return 0}
 
     pubkey = pubkey.startsWith("npub") ? await npubToHex(pubkey) : pubkey;
 
@@ -61,17 +61,17 @@ const addNewUsername = async (username: string, pubkey: string, password:string,
     let regeneratePassword = false;
     if (password == "" || password == undefined) {
         regeneratePassword = true;
-		password = await generateCredentials('password', pubkey, false, false, true); 
+		password = await generateCredentials('password', pubkey, false, false, true, false);
 	}
 
-    if(await isUsernameAvailable(username, domain) == false) {return 0};
-    if (await isPubkeyOnDomainAvailable(pubkey, domain) == false) {return 0};
+    if(await isUsernameAvailable(username, domain) == false) {return 0}
+    if (await isPubkeyOnDomainAvailable(pubkey, domain) == false) {return 0}
 
     const domainInfo = await getDomainInfo(domain);
-    if (domainInfo == "") {return 0};
-    if (domainInfo.requireinvite == true && inviteCode == "") {return 0};
+    if (domainInfo == "") {return 0}
+    if (domainInfo.requireinvite == true && inviteCode == "") {return 0}
 
-    if (domainInfo.requireinvite == true  && await validateInviteCode(inviteCode) == false) {return 0};
+    if (domainInfo.requireinvite == true  && await validateInviteCode(inviteCode) == false) {return 0}
 
     const createUsername = await dbInsert(  "registered", 
                                     ["pubkey", "hex", "username", "password", "domain", "active", "date", "comments"],
@@ -91,11 +91,11 @@ const addNewUsername = async (username: string, pubkey: string, password:string,
     
     if (regeneratePassword) {
         // Generate definitive password for the user and send it to the user via nostr DM.
-        const newPassword = await generateCredentials("password", pubkey, true, true, false); 
-        if (!newPassword) {return 0};
-    };
+        const newPassword = await generateCredentials("password", pubkey, true, true, false, false);
+        if (!newPassword) {return 0}
+    }
 
-    if (createUsername == 0) {return 0};
+    if (createUsername == 0) {return 0}
 
     return createUsername;
 }
@@ -108,10 +108,10 @@ const addNewUsername = async (username: string, pubkey: string, password:string,
  */
 const getUsernames = async (pubkey: string): Promise<JSON[]> => {
 
-    if (pubkey == "" || pubkey == undefined) {return []};
+    if (pubkey == "" || pubkey == undefined) {return []}
 
     const result = await dbMultiSelect(["username", "domain"],"registered","hex = ?",[pubkey], false);
-    if (result.length == 0) {return []};
+    if (result.length == 0) {return []}
     return result;
 }
 

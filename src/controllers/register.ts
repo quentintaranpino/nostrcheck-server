@@ -43,7 +43,7 @@ const registerUsername = async (req: Request, res: Response): Promise<Response> 
 	}
 
 	// Check if the pubkey is the same as the one in the authorization header, if not we will set the otc flag to true
-	if (pubkey != eventHeader.pubkey && await npubToHex(pubkey) != eventHeader.pubkey) {activateUser = false};
+	if (pubkey != eventHeader.pubkey && await npubToHex(pubkey) != eventHeader.pubkey) {activateUser = false}
 	
 	const username = req.body.username || "";
 	if (username == null || username == "" || username == undefined) {
@@ -69,9 +69,9 @@ const registerUsername = async (req: Request, res: Response): Promise<Response> 
 		logger.info("RES -> 406 Bad request - Domain not allowed", "|", getClientIp(req));
 		return res.status(406).send({ status: "error", message: "Invalid domain" });
 	}
-	let requireInvite : boolean = domainInfo.requireinvite;
-	let requirepayment : boolean = domainInfo.requirepayment;
-	let maxSatoshi : number = domainInfo.maxsatoshi;
+	const requireInvite : boolean = domainInfo.requireinvite;
+	const requirepayment : boolean = domainInfo.requirepayment;
+	const maxSatoshi : number = domainInfo.maxsatoshi;
 
 	if (!await isUsernameAvailable(username, domain)) {
 		logger.info("RES ->", username, "|", "Username already registered");
@@ -83,13 +83,13 @@ const registerUsername = async (req: Request, res: Response): Promise<Response> 
 		return res.status(406).send({status: "error", message: "Pubkey already registered"});
 	}
 	
-	let password = req.body.password || "";
+	const password = req.body.password || "";
 	if (password != null && password != "" && password != undefined && password.length < app.get("config.register")["minPasswordLength"]) {
 		logger.info("RES -> 422 Bad request - Password too short", "|", getClientIp(req));
 		return res.status(422).send({status: "error", message: "Password too short"});
 	}
 
-	let inviteCode = req.body.inviteCode || "";
+	const inviteCode = req.body.inviteCode || "";
 	if (requireInvite) {
 		if ((inviteCode == null || inviteCode == "" || inviteCode == undefined) && requireInvite) {
 			logger.info("RES -> 400 Bad request - Invitation key not provided", "|", getClientIp(req));
@@ -102,7 +102,7 @@ const registerUsername = async (req: Request, res: Response): Promise<Response> 
 		}
 	}
 
-	let comments = eventHeader.status == "success" ? "" : "Pending OTC verification";
+	const comments = eventHeader.status == "success" ? "" : "Pending OTC verification";
 
 	const addUsername = await addNewUsername(username, req.body.pubkey, password, domain, comments, activateUser, inviteCode);
 	if (addUsername == 0) {
@@ -111,7 +111,7 @@ const registerUsername = async (req: Request, res: Response): Promise<Response> 
 	}
 
 	// If the user is not activated, we will generate the credentials and send the OTC verification via nost DM.
-	if (activateUser == false) {await generateCredentials("otc",pubkey,true,true)};
+	if (activateUser == false) {await generateCredentials('otc',pubkey,true,true,false,false)}
 
 	// Check if payments module is active and if true generate paymentRequest
 	let paymentRequest = "";
@@ -162,7 +162,7 @@ const validateRegisterOTC = async (req: Request, res: Response): Promise<Respons
 
 	let validDomain = false;
 	const availableDomains = await getAvailableDomains();
-	if (availableDomains.hasOwnProperty(req.body.domain)) {
+	if (Object.prototype.hasOwnProperty.call(availableDomains, req.body.domain)) {
 		validDomain = true;
 	}
 	if (!validDomain) {
@@ -170,7 +170,7 @@ const validateRegisterOTC = async (req: Request, res: Response): Promise<Respons
 		return res.status(406).send({ status: "error", message: "Invalid domain" });
 	}
 
-	const validOTC = await isAuthkeyValid(req.body.otc, false);
+	const validOTC = await isAuthkeyValid(req.body.otc, false, false);
 	if(validOTC.status != 'success'){
 		logger.info("RES -> 401 Unauthorized - Invalid OTC", "|", getClientIp(req));
 		return res.status(401).send({status: "error", message: "Invalid OTC"});
