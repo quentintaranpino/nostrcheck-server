@@ -10,7 +10,7 @@ import { getClientIp } from "../lib/utils.js";
 import { isModuleEnabled } from "../lib/config.js";
 import app from "../app.js";
 
-const redirectlightningddress = async (req: Request, res: Response): Promise<any> => {
+const redirectlightningddress = async (req: Request, res: Response): Promise<Response> => {
 
 	// Check if current module is enabled
 	if (!isModuleEnabled("lightning", app)) {
@@ -79,7 +79,8 @@ const redirectlightningddress = async (req: Request, res: Response): Promise<any
 			logger.info("RES GET Lightningaddress ->", name, "redirect ->", cached.lightninguser + "@" + cached.lightningserver, "|", "cached:", isCached);
 
 			//redirect
-			return res.redirect(url);
+			res.redirect(url);
+			return res;
 		}
 
 		//If not cached, query the database
@@ -124,7 +125,8 @@ const redirectlightningddress = async (req: Request, res: Response): Promise<any
 	logger.info("RES Lightningaddress ->", name, "redirect ->", lightningdata.lightninguser + "@" + lightningdata.lightningserver, "|", "cached:", isCached);
 
 	//redirect
-	return res.redirect(url);
+	res.redirect(url);
+	return res;
 
 };
 
