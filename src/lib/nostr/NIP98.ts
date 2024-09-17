@@ -78,7 +78,6 @@ const isNIP98Valid = async (authevent: Event, req: Request, checkAdminPrivileges
 
 	// Check if authorization event method tag is valid (Must be the same as the request method)
 	try {
-
 		if (eventMethod == null || eventMethod == undefined || eventMethod != req.method) {
 			logger.warn("RES -> 400 Bad request - Auth header event method is not valid:",eventMethod,"<>",req.method,"|",req.socket.remoteAddress);
 			return {status: "error", message: `Auth header event method is not valid`, authkey: "", pubkey: "", kind: 0};
@@ -90,21 +89,10 @@ const isNIP98Valid = async (authevent: Event, req: Request, checkAdminPrivileges
 
 	// Payload
 	const payloadTag = authevent.tags.find(tag => tag[0] === "payload");
-	let eventPayload = payloadTag ? payloadTag[1] : null;
-
-	// Check if the request has a body and authorization event payload tag exist. (!GET)
-	if (req.body.constructor === Object && Object.keys(req.body).length != 0 && req.method != "GET") {
-		try {
-			if (!eventPayload) {
-				logger.warn("Auth header event payload not exist",	"|", req.socket.remoteAddress);
-			}
-		} catch (error) {
-			logger.warn("Auth header event payload not exist",	"|", req.socket.remoteAddress);
-		}
-	}
+	const eventPayload = payloadTag ? payloadTag[1] : null;
 
 	// Check if authorization event payload tag is valid (must be equal than the request body sha256) (!GET)
-	if (req.method != "GET") {
+	if (req.method == "POST" || req.method == "PUT" || req.method == "PATCH") {
 		try {
 			const receivedpayload = crypto
 				.createHash("sha256")
@@ -115,8 +103,7 @@ const isNIP98Valid = async (authevent: Event, req: Request, checkAdminPrivileges
 				logger.debug("Auth header event payload is not valid:", eventPayload, " <> ", receivedpayload, "|", req.socket.remoteAddress);
 			}
 		} catch (error) {
-			logger.error(`RES -> 400 Bad request - ${error}`, "|", req.socket.remoteAddress);
-			return {status: "error", message: "Auth header event payload is not valid", authkey: "", pubkey: "", kind: 0};
+			logger.debug("Auth header event payload is not valid:", eventPayload, "|", req.socket.remoteAddress);
 		}
 	}
 
