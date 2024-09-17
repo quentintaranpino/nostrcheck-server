@@ -134,8 +134,8 @@ const migrateDBLocalpath = async () : Promise<boolean> => {
 	
 	let count = 0;
 	for (const item of mediaFiles) {
-		const { pubkey } = item;
-		let { filename, type } = item;
+		const { pubkey, type } = item;
+		let { filename } = item;
 		console.log(`### - Processing file ${count} of ${mediaFiles.length} - ${filename} - ${pubkey}`);
  
 		if (filename.includes("avatar") || filename.includes("banner")) {
