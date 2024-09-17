@@ -97,7 +97,7 @@ const checkMacaroon = async (hash : string, size : number, transform: boolean, u
         return { status: "error", message: "Missing parameters" };
     }
 
-    let transactionId = (await dbMultiSelect(["transactionid"], "mediafiles", transform == true ? "original_hash = ?" : "hash = ?", [hash], true))[0]?.transactionid || "" ;
+    const transactionId = (await dbMultiSelect(["transactionid"], "mediafiles", transform == true ? "original_hash = ?" : "hash = ?", [hash], true))[0]?.transactionid || "" ;
 	const transaction = await checkTransaction(transactionId,"","mediafiles", transform == true ? size/3 : Number(size),"");
 	if (transaction.transactionid != 0 && transaction.isPaid == false && app.get("config.payments")["satoshi"]["mediaMaxSatoshi"] > 0) {
 		const macaroon = await createMacaroon(transaction.transactionid,transaction.paymentHash,url,["hash="+hash]);
