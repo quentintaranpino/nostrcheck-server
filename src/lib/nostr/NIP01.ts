@@ -10,7 +10,7 @@ import { logger } from "../logger.js";
  */
 const getProfileData = async (pubkey: string, kind: number = 0): Promise<Event[]> => {
     let resolveEvents: (events: Event[]) => void;
-    let subscribePromise: Promise<Event[]> = new Promise(resolve => resolveEvents = resolve);
+    const subscribePromise: Promise<Event[]> = new Promise(resolve => resolveEvents = resolve);
     
     const events: Event[] = [];
     const data = relaysPool.subscribeMany(
@@ -32,7 +32,7 @@ const getProfileData = async (pubkey: string, kind: number = 0): Promise<Event[]
         },
     );
 
-    let resultEvents: Event[] = await subscribePromise;
+    const resultEvents: Event[] = await subscribePromise;
     if (resultEvents.length === 0) {
         return [{kind: 0, created_at: 0, tags: [], content: "{}", pubkey: "", id: "", sig: ""}];
     }
@@ -47,9 +47,9 @@ const getProfileData = async (pubkey: string, kind: number = 0): Promise<Event[]
  * @param pubkey - The public key of the user, hex format.
  * @returns A boolean indicating whether the operation was successful.
  */
-const getProfileFollowers = (pubkey : string) : Boolean => {
+const getProfileFollowers = (pubkey : string) : boolean => {
 	
-	let followerList : Event[] = []
+	const followerList : Event[] = []
 
 
 	try{
@@ -78,9 +78,9 @@ const getProfileFollowers = (pubkey : string) : Boolean => {
 	return true;
 }
 
-const getProfileFollowing = (pubkey : string) : Boolean => {
+const getProfileFollowing = (pubkey : string) : boolean => {
 	
-	let followingEvents: Event[] = []
+	const followingEvents: Event[] = []
 
 	try{
 		const data = relaysPool.subscribeMany(
@@ -117,16 +117,17 @@ const getProfileFollowing = (pubkey : string) : Boolean => {
  * @param e - The event to publish.
  * @returns A promise that resolves to a boolean indicating whether the operation was successful.
  */
-const publishEvent = async (e : Event) : Promise<Boolean> => {
+const publishEvent = async (e : Event) : Promise<boolean> => {
 
 	try {
 		await Promise.any(relaysPool.publish(relays, e));
 		logger.debug("Event published successfully");
 		return true;
-	  } catch (error) {
+	}
+	catch (error) {
 		logger.error('Error publishing event:', error);
 		return false;
-	  }
+	}
 };
 
 export {getProfileData, getProfileFollowers, getProfileFollowing, publishEvent}

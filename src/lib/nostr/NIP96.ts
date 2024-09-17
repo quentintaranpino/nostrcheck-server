@@ -3,7 +3,6 @@ import {fileData } from "../../interfaces/media.js";
 import {NIP94_data, NIP96_event, NIP96file} from "../../interfaces/nostr.js";
 import { PrepareNIP94_event } from "./NIP94.js";
 import { getAllowedMimeTypes, getMimeFromExtension } from "../media.js";
-import { checkTransaction } from "../payments/core.js";
 
 //https://github.com/nostr-protocol/nips/blob/master/96.md
 

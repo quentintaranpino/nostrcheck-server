@@ -4,7 +4,6 @@ import { Event } from "nostr-tools";
 import { logger } from "../../lib/logger.js";
 import { NIPKinds } from "../../interfaces/nostr.js";
 import { authHeaderResult } from "../../interfaces/authorization.js";
-import { dbSelect } from "../database.js";
 import app from "../../app.js";
 import { isPubkeyValid } from "../authorization.js";
 
@@ -74,7 +73,7 @@ const isNIP98Valid = async (authevent: Event, req: Request, checkAdminPrivileges
 
 	// Method
 	const methodTag = authevent.tags.find(tag => tag[0] === "method");
-	let eventMethod = methodTag ? methodTag[1] : null;
+	const eventMethod = methodTag ? methodTag[1] : null;
 
 	// Check if authorization event method tag is valid (Must be the same as the request method)
 	try {
