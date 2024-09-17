@@ -100,7 +100,7 @@ const updateUserDomain = async (req: Request, res: Response): Promise<Response> 
 	//Query if domain exist
 	const currentDomains = await getAvailableDomains();
 	logger.debug("Current domains: ", Object.keys(currentDomains).join(", "));
-	if (!currentDomains.hasOwnProperty(domain)) {
+	if (!Object.prototype.hasOwnProperty.call(currentDomains, domain)) {
 		logger.warn("RES Update user domain -> 404  not found, domain not found", "|", getClientIp(req));
 	
 		const result: ResultMessagev2 = {
