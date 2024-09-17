@@ -18,7 +18,7 @@ import { ResultMessage, ResultMessagev2 } from "../interfaces/server.js";
 import path from "path";
 import validator from "validator";
 import fs from "fs";
-import { NIP96_event, NIP96_processing } from "../interfaces/nostr.js";
+import { NIP94_data, NIP96_event, NIP96_processing } from "../interfaces/nostr.js";
 import { PrepareNIP96_event, PrepareNIP96_listEvent } from "../lib/nostr/NIP96.js";
 import { generateQRCode, getClientIp, getNewDate } from "../lib/utils.js";
 import { generateBlurhash, generatefileHashfrombuffer } from "../lib/hash.js";
@@ -60,7 +60,7 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 
 	}
 	eventHeader.authkey? res.header("Authorization", eventHeader.authkey): null;
-	let pubkey = eventHeader.pubkey;
+	const pubkey = eventHeader.pubkey;
 
 	// Public uploads logic
 	if (await isPubkeyRegistered(pubkey) == false){
@@ -271,7 +271,7 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 	
 		let dbFile = null;
 		for (const f of sameFiles) {		
-			let { filename, hash } = f;
+			const { filename, hash } = f;
 			if (filedata.no_transform == true) {
 				filedata.filename == filename && filedata.hash == hash ? dbFile = f : null;
 			}else{
@@ -367,22 +367,22 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 			"mediafiles", 
 			["pubkey", "filename", "mimetype", "original_hash", "hash", "status", "active", "visibility", "date", "ip_address", "magnet", "blurhash", "filesize", "comments", "type", "dimensions", "transactionid"],
 			[filedata.pubkey, 
-			 filedata.filename, 
-			 filedata.originalmime, 
-			 filedata.originalhash, 
-			 filedata.hash, 
-			 filedata.status, 
-			 1, 
-			 1, 
-			 createdate, 
-			 getClientIp(req), 
-			 filedata.magnet, 
-			 filedata.blurhash, 
-			 filedata.filesize, 
-			 "", 
-			 filedata.media_type, 
-			 filedata.width != 0? filedata.width + "x" + filedata.height : 0, 
-			 filedata.transaction_id ? filedata.transaction_id : 0]);
+			filedata.filename,
+			filedata.originalmime,
+			filedata.originalhash,
+			filedata.hash,
+			filedata.status,
+			1,
+			1,
+			createdate,
+			getClientIp(req),
+			filedata.magnet,
+			filedata.blurhash,
+			filedata.filesize,
+			"",
+			filedata.media_type,
+			filedata.width != 0? filedata.width + "x" + filedata.height : 0,
+			filedata.transaction_id ? filedata.transaction_id : 0]);
 
 		filedata.fileid = insertResult.toString();
 		if (insertResult == 0) {
@@ -614,26 +614,26 @@ const getMediaList = async (req: Request, res: Response, version:string): Promis
 	const offset = count * page; 
 
 	// Get Blossom query parameters
-	const since = req.query.since || "";
-	const until = req.query.until || "";
+	const since = req.query.since?.toString() || "";
+	const until = req.query.until?.toString() || "";
 	const pubkey = req.params.param2 || "";
 
 	let whereStatement = "";
-	let wherefields : any[] = [];
+	let whereFields: (string | number)[] = [];
 	
 	// Blossom where statement
 	if (pubkey != "") {
 		whereStatement = "pubkey = ? and active = ? and visibility = ? and original_hash is not null and original_hash = hash";
-		wherefields = [pubkey, "1", "1"];
+		whereFields = [pubkey, "1", "1"];
 
 		if (since != "") {
 			whereStatement += " and date >= ?";
-			wherefields.push(since);
+			whereFields.push(since);
 		}
 
 		if (until != "") {
 			whereStatement += " and date <= ?";
-			wherefields.push(until);
+			whereFields.push(until);
 		}
 
 		whereStatement += " ORDER BY date DESC";
@@ -642,19 +642,19 @@ const getMediaList = async (req: Request, res: Response, version:string): Promis
 	// NIP96 where statement
 	if (pubkey == "") {
 		whereStatement = eventHeader.pubkey ? "pubkey = ? and active = ? ORDER BY date DESC LIMIT ? OFFSET ?" : "active = ? and visibility = ? and checked = ? ORDER BY date DESC LIMIT ? OFFSET ?";
-		wherefields = eventHeader.pubkey ? [eventHeader.pubkey, "1", count, offset] : ["1", "1", "1", count, offset];
+		whereFields = eventHeader.pubkey ? [eventHeader.pubkey, "1", count, offset] : ["1", "1", "1", count, offset];
 	}
 
 	// Get files and total from database
 	const result = await dbMultiSelect(["id", "filename", "mimetype",  "original_hash", "hash", "filesize", "dimensions", "date", "blurhash", "pubkey", "transactionid"],
 										"mediafiles",
 										`${whereStatement}`,
-										wherefields, false);
+										whereFields, false);
 	
 	const selectStatement = eventHeader.pubkey || pubkey ? "SELECT COUNT(*) AS count FROM mediafiles WHERE pubkey = ? and active = '1'" : "SELECT COUNT(*) AS count FROM mediafiles WHERE active = '1' and visibility = '1'";									
 	const total = await dbSelect(selectStatement, "count", [eventHeader.pubkey || pubkey]);
 	
-	const files : any[] = [];
+	const files : (blobDescriptor | NIP94_data)[] = [];
 	for (const e of result) {
 
 		if (e.original_hash == null || e.hash == null) {
@@ -717,23 +717,19 @@ const getMediaList = async (req: Request, res: Response, version:string): Promis
 		files.push(file);
 	}
 
-	let response : any;
 	// NIP96 compatibility
 	if (pubkey == "") {
-		response = {
+		const response = {
 			count: files.length,
 			total: total,
 			page: page,
 			files: files,
 		};
+		return res.status(200).send(response);
+	}else{
+		// Blossom compatibility
+		return res.status(200).send(files);
 	}
-
-	// Blossom compatibility
-	if (pubkey != "") {
-		response = files
-	}
-
-	return res.status(200).send(response);
 
 };
 
@@ -801,7 +797,8 @@ const getMediaStatusbyID = async (req: Request, res: Response, version:string): 
 		return res.status(404).send(result);
 	}
 
-	let { filename, pubkey, status, magnet, original_hash, hash, blurhash, dimensions, filesize, transactionid } = mediaFileData[0];
+	const { filename, pubkey, status, magnet, original_hash, hash, blurhash, filesize, transactionid  } = mediaFileData[0];
+	let { dimensions } = mediaFileData[0];
 
 	//Fix dimensions for old API requests
 	dimensions == null? dimensions = 0x0 : dimensions;
@@ -856,13 +853,13 @@ const getMediaStatusbyID = async (req: Request, res: Response, version:string): 
 	logger.info(`RES -> ${response} - ${filedata.description}`, "|", getClientIp(req));
 
 	//v0 and v1 compatibility
-	if(version != "v2"){return res.status(response).send(await prepareLegacMediaEvent(filedata))}; 
+	if(version != "v2"){return res.status(response).send(await prepareLegacMediaEvent(filedata))}
 
-	if (filedata.status == "failed") {return res.status(response).send({"result": false, "description" : "The requested file was not found"})};
+	if (filedata.status == "failed") {return res.status(response).send({"result": false, "description" : "The requested file was not found"})}
 
 	if (filedata.status == "processing" || filedata.status == "pending") {
 		const processingStatus = await dbSelect("SELECT percentage FROM mediafiles WHERE id = ?", "percentage", [id.toString()]);
-		if (processingStatus == undefined) {return res.status(404).send({"result": false, "description" : "The requested file was not found"})};
+		if (processingStatus == undefined) {return res.status(404).send({"result": false, "description" : "The requested file was not found"})}
 
 		const result: NIP96_processing = {
 			status: MediaStatus[2],
@@ -958,7 +955,7 @@ const getMediabyURL = async (req: Request, res: Response) => {
 											["id", "active", "transactionid", "filesize", "filename", "pubkey", "mimetype", "hash", "original_hash"],
 											"mediafiles",
 											whereFields  + " ORDER BY id DESC",
-			 								whereValues,
+											whereValues,
 											true);
 		if (filedata[0] == undefined || filedata[0] == null) {
 			logger.info(`RES -> 200 Not Found - ${req.url}`, "| Returning not found media file.", getClientIp(req));
@@ -1408,11 +1405,6 @@ const deleteMedia = async (req: Request, res: Response, version:string): Promise
 	
 	logger.info("REQ Delete mediafile ->", req.hostname, " | pubkey:",  EventHeader.pubkey, " | fileId:",  req.params.id, "|", getClientIp(req));
 
-	//Check if mediafile exist on database
-	let deleteSelect = "SELECT id, filename FROM mediafiles WHERE pubkey = ? and (filename = ? OR original_hash = ?)";
-	if (version != "v2") {deleteSelect = "SELECT id, filename FROM mediafiles WHERE pubkey = ? and id = ?";}
-
-	
 	const selectedFile = await dbMultiSelect(	["id","filename", "hash"],
 												"mediafiles",
 												"pubkey = ? and (filename = ? OR original_hash = ? or id = ?)",
@@ -1455,7 +1447,7 @@ const deleteMedia = async (req: Request, res: Response, version:string): Promise
 		if (!result) {
 			logger.error("Error deleting file from remote server", EventHeader.pubkey, filename, "|", getClientIp(req));
 			//v0 and v1 compatibility
-			if(version != "v2"){return res.status(500).send({"result": false, "description" : "Error deleting file from remote server"})};
+			if(version != "v2"){return res.status(500).send({"result": false, "description" : "Error deleting file from remote server"})}
 
 			const result: ResultMessagev2 = {
 				status: MediaStatus[1],
