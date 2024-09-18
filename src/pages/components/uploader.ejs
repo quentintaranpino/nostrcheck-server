@@ -50,6 +50,7 @@
        
     </div>
 <%- include('./modals/payment-modal')%>
+<%- include('./modals/alert-modal', {"objectId":"uploader"}); %>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script>
 const identifier = '<%= JSON.stringify(request.session.identifier) %>';
@@ -367,7 +368,9 @@ const uploadFiles = async () => {
 
             if (!window.nostr) {
                 initAlertModal("#uploader", 'NIP07 browser extension not found');
-                document.getElementById(buttonId).innerHTML = buttonText;
+                file.fileData.satoshi = -2;
+                file.fileData.action = 'error';
+                $('#file-table').bootstrapTable('load', filesArray.map(file => file.fileData));
                 return;
             }
 
