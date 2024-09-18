@@ -27,7 +27,6 @@ const getRelaysFromUser = async (publicKey) => {
                 tag[1].endsWith('/') == true ? tag[1] = tag[1].slice(0, -1) : null;
                 const existingRelay = userRelays.find(relay => relay.url == tag[1]);
                 if (existingRelay) {
-                  console.log("existing relay found", existingRelay, tag);
                   if (tag[2] == 'read' && tag[0] == 'r'){
                     existingRelay.read = true;
                     existingRelay.write = false;
@@ -41,8 +40,6 @@ const getRelaysFromUser = async (publicKey) => {
                     existingRelay.read = true;
                   }
                   if (tag[0] == 'relay') existingRelay.dms = true;
-                  
-                  console.log("existing relay updated", existingRelay, tag);
                   return;
                 }
                 userRelays.push({ id : userRelays.length, 
@@ -63,22 +60,7 @@ const getRelaysFromUser = async (publicKey) => {
             subscription.close();
             (async () => {
                 for (const relay of userRelays) {
-                    try {
-                        const response = await fetch(relay.url.replace('wss://', 'https://').replace('ws://', 'http://'), {
-                            headers: {
-                                'Accept': 'application/nostr+json'
-                            }
-                        });
-                        const data = await response.json();
-                        relay.name = data.name;
-                        relay.description = data.description;
-                        relay.pubkey = data.pubkey;
-                        relay.contact = data.contact;
-                        relay.supported_nips = data.supported_nips;
-                        relay.pubkey = data.pubkey;
-                    } catch (error) {
-                        console.debug('Error fetching relay data:', error);
-                    }
+                    await getRelayData(relay);
                 }
                 console.log('User relays:', userRelays);
             
@@ -93,6 +75,25 @@ const getRelaysFromUser = async (publicKey) => {
     }
   });
 };
+
+const getRelayData = async (relay) => {
+    try {
+      const response = await fetch(relay.url.replace('wss://', 'https://').replace('ws://', 'http://'), {
+          headers: {
+              'Accept': 'application/nostr+json'
+          }
+      });
+      const data = await response.json();
+      relay.name = data.name;
+      relay.description = data.description;
+      relay.pubkey = data.pubkey;
+      relay.contact = data.contact;
+      relay.supported_nips = data.supported_nips;
+      relay.pubkey = data.pubkey;
+  } catch (error) {
+      console.debug('Error fetching relay data:', error);
+  }
+}
 
 /**
  * Checks if a relay is online.

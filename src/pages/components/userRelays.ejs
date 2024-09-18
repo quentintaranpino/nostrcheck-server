@@ -1,11 +1,19 @@
 <div class="container mt-3 mb-5 mb-lg-3">
+    <div class="text-end mb-3 form">
+        <div id="user-relay-list-add" class="input-group mb-3 mt-2 d-none">
+            <input type="text" data-otc='relay-name' class="form-control" id="input-add-relay"
+            placeholder="wss://relay.server.com" required autocomplete="relay"
+            pattern="(wss://|ws://).*" title="Relay url must start with wss:// or ws://">
+            <button id="addRelay-btn" type="button" class="btn btn-primary"><i class="fas fa-solid fa-plus"></i> Add new relay</button>
+        </div>
+    </div>
     <div id="user-relay-list-loading" class="d-flex justify-content-center m-5">
         <div class="spinner-border text-secondary" role="status">
             <span class="visually-hidden">Loading relays</span>
         </div>
     </div>
-    <ul id="user-relay-list" class="list-group"></ul>´
-    <div id="user-relay-list-save" class="text-center mt-1 mb-5 mb-lg-2 d-none">
+    <ul id="user-relay-list" class="list-group"></ul>
+    <div id="user-relay-list-save" class="text-center mb-5 mb-lg-2 d-none">
         <button id="saveRelayData-btn" type="submit" class="btn btn-primary col-4" onclick="saveRelayData()">Save</button>
     </div>
 </div>
@@ -38,7 +46,65 @@ const updateRelay = (relayId, action) => {
             console.log(relay)
 }
 
-document.addEventListener('DOMContentLoaded',async  (event) => {
+const addRelayToList = (relay) => {
+
+    let relayItem = document.createElement("li");
+    relayItem.setAttribute("id", `user-relay-${relay.id}`);
+    relayItem.classList.add("list-group-item", "p-2", "mb-3", "border", "border-1", "rounded-3", `shadow-sm`);
+    relayItem.style.backgroundColor = "rgba(0, 0, 0, .075)";
+    relayItem.innerHTML = `
+        <p class="ms-1 mb-1 fs-5 d-flex justify-content-between align-items-center">
+            <span>
+                <i id="user-relay-online-${relay.id}" class="fas fa-circle me-2 text-success"></i>
+                <span class="lead">${relay.name != "" ? relay.name : relay.url.replace('wss://', '').replace('/','')}</span>
+                    <button id="read-user-relay-${relay.id}" class="btn btn-sm m-0 p-0 ps-1 " type="button" onclick="updateRelay('${relay.id}', 'read')">
+                        ${relay.read == true ? `<i class="fas fa-arrow-down text-success me-1"></i>Read` : `<i class="fas fa-arrow-down text-success text-muted text-opacity-25 me-1"></i>Read`}
+                    </button> 
+                    <button id="write-user-relay-${relay.id}" class="btn btn-sm m-0 p-0 ps-1" type="button" onclick="updateRelay('${relay.id}', 'write')">
+                        ${relay.write == true ? `<i class="fas fa-arrow-up text-success me-1"></i>Write` : `<i class="fas fa-arrow-up text-success text-muted text-opacity-25 me-1"></i>Write`}
+                    </button>
+                    <button id="dms-user-relay-${relay.id}" class="btn btn-sm m-0 p-0 ps-1" type="button" onclick="updateRelay('${relay.id}', 'dms')">
+                        ${relay.dms == true ? `<i class="fas fa-light fa-inbox text-success me-1"></i>Inbox` : `<i class="fas fa-light fa-inbox text-success text-muted text-opacity-25 me-1"></i>Inbox`}
+                    </button>
+            </span>
+            <span>
+                <button id="btn-enable-${relay.id}" class="btn btn-sm me-2" type="button" onclick="updateRelay('${relay.id}', 'enabled')"><i class="fas fa-times text-danger"></i></button>
+            </span>
+        </p>
+        <p class="ms-1 mb-1">${relay.description}</p>
+        ${relay.supported_nips && relay.supported_nips != "" ? `<p class="ms-1 mb-1"><small><b>NIPS:</b> ${relay.supported_nips}</small></p>` : ''}
+        <button class="btn btn-primary p-0 ps-2 pe-2 fs-6 mt-2 mb-2 font-monospace" style="font-size:13px !important" type="button" id="picture-copy-btn" onclick="copyToClipboard(this,document.getElementById('user-relay-url-${relay.id}').innerText)">
+            <span id="user-relay-url-${relay.id}">${relay.url}<i class="fa-solid fa-copy ms-2"></i></span>
+        </button>        
+        <small id="user-relay-ping-${relay.id}" style="font-size:13px"></small>
+    `;
+
+    document.getElementById("user-relay-list").prepend(relayItem);
+
+}
+
+document.addEventListener('DOMContentLoaded', async (event) => {
+
+    document.getElementById("addRelay-btn").addEventListener("click", async () => {
+        const relayUrl = document.getElementById("input-add-relay").value;
+        if (relayUrl == "") return;
+        if (!relayUrl.startsWith("wss://")) relayUrl = `wss://${relayUrl}`;
+        const newRelay = {  id : userRelays.length, 
+                            url: relayUrl, 
+                            read: true, 
+                            write: true, 
+                            dms: false, 
+                            name: '', 
+                            description: '', 
+                            pubkey: '', 
+                            contact: '', 
+                            supported_nips: [], 
+                            enabled : true };
+        console.log(newRelay)
+        userRelays.push(newRelay);
+        await getRelayData(newRelay)
+        await addRelayToList(newRelay);
+    });        
   
     await getRelaysFromUser("<%= request.session.metadata.pubkey %>").then((relays) => {
 
@@ -46,42 +112,11 @@ document.addEventListener('DOMContentLoaded',async  (event) => {
 
         if (relays.length > 0) {
             document.getElementById("user-relay-list-save").classList.remove("d-none");
+            document.getElementById("user-relay-list-add").classList.remove("d-none");
         }
 
         relays.forEach((relay) => {
-            let relayItem = document.createElement("li");
-            relayItem.setAttribute("id", `user-relay-${relay.id}`);
-            relayItem.classList.add("list-group-item", "p-2", "mb-3", "border", "border-1", "rounded-3", `shadow-sm`);
-            relayItem.style.backgroundColor = "rgba(0, 0, 0, .075)";
-            relayItem.innerHTML = `
-            <p class="ms-1 mb-1 fs-5 d-flex justify-content-between align-items-center">
-                <span>
-                    <i id="user-relay-online-${relay.id}" class="fas fa-circle me-2 text-success"></i>
-                    <span class="lead">${relay.name != "" ? relay.name : relay.url.replace('wss://', '').replace('/','')}</span>
-                        <button id="read-user-relay-${relay.id}" class="btn btn-sm m-0 p-0 ps-1 " type="button" onclick="updateRelay('${relay.id}', 'read')">
-                            ${relay.read == true ? `<i class="fas fa-arrow-down text-success me-1"></i>Read` : `<i class="fas fa-arrow-down text-success text-muted text-opacity-25 me-1"></i>Read`}
-                        </button> 
-                        <button id="write-user-relay-${relay.id}" class="btn btn-sm m-0 p-0 ps-1" type="button" onclick="updateRelay('${relay.id}', 'write')">
-                            ${relay.write == true ? `<i class="fas fa-arrow-up text-success me-1"></i>Write` : `<i class="fas fa-arrow-up text-success text-muted text-opacity-25 me-1"></i>Write`}
-                        </button>
-                        <button id="dms-user-relay-${relay.id}" class="btn btn-sm m-0 p-0 ps-1" type="button" onclick="updateRelay('${relay.id}', 'dms')">
-                            ${relay.dms == true ? `<i class="fas fa-light fa-inbox text-success me-1"></i>Inbox` : `<i class="fas fa-light fa-inbox text-success text-muted text-opacity-25 me-1"></i>Inbox`}
-                        </button>
-                </span>
-                <span>
-                    <button id="btn-enable-${relay.id}" class="btn btn-sm me-2" type="button" onclick="updateRelay('${relay.id}', 'enabled')"><i class="fas fa-times text-danger"></i></button>
-                </span>
-            </p>
-            <p class="ms-1 mb-1">${relay.description}</p>
-            ${relay.supported_nips && relay.supported_nips != "" ? `<p class="ms-1 mb-1"><small><b>NIPS:</b> ${relay.supported_nips}</small></p>` : ''}
-            <button class="btn btn-primary p-0 ps-2 pe-2 fs-6 mt-2 mb-2 font-monospace" style="font-size:13px !important" type="button" id="picture-copy-btn" onclick="copyToClipboard(this,document.getElementById('user-relay-url-${relay.id}').innerText)">
-                <span id="user-relay-url-${relay.id}">${relay.url}<i class="fa-solid fa-copy ms-2"></i></span>
-            </button>        
-                    <small id="user-relay-ping-${relay.id}" style="font-size:13px"></small>
-
-            `;
-            document.getElementById("user-relay-list").appendChild(relayItem);
-
+            addRelayToList(relay);
         });
         
         setInterval(() => {
