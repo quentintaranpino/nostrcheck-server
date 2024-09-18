@@ -1,6 +1,6 @@
 {
   "name": "nostrcheck-api-ts",
-  "version": "0.6.0.1818",
+  "version": "0.6.0.1821",
   "description": "",
   "exports": "./index.js",
   "type": "module",
@@ -8,7 +8,7 @@
     "start": "node --enable-source-maps --experimental-specifier-resolution=node --no-warnings --loader ts-node/esm ./dist/init.js",
     "dev": "nodemon --ignore media/* --ignore models/* --ignore config/* --ignore tmp/* --ignore logs/* --exec node --loader ts-node/esm src/init.ts",
     "build": "tsc",
-    "package": "node update-version.js && tsc",
+    "package": "node package.js && tsc",
     "lint": "eslint --ignore-path .gitignore . --ext .ts",
     "lint:fix": "npm run lint -- --fix",
     "test": "vitest"
