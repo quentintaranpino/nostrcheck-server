@@ -3,8 +3,10 @@ const pool = new NostrTools.SimplePool();
 
 // Default relay configuration
 let relays = [
-  { id: 0, url: 'wss://relay.nostr.band', type: 'write', name:'', description: "", pubkey: "", contact: "", supported_nips: [] },
+  { id: 0, url: 'wss://relay.nostr.band', read:  true, write: true, dms: false, name:'', description: "", pubkey: "", contact: "", supported_nips: [], enabled : true },
 ];
+
+let userRelays = [];
 
 /**
  * Fetches the user's preferred relays from their Nostr profile (kind 10002 events).
@@ -13,19 +15,47 @@ let relays = [
  */
 const getRelaysFromUser = async (publicKey) => {
   return new Promise((resolve, reject) => {
-    const userRelays = [];
 
     try {
       const subscription = pool.subscribeMany(
         relays.map(relay => relay.url),
-        [{ kinds: [10002], authors: [publicKey] }],
+        [{ kinds: [10002, 10050], authors: [publicKey] }],
         {
           async onevent(event) {
-            let id = 0;
             event.tags.forEach(tag => {
-              if (tag[0] === 'r') {
-                userRelays.push({id : id, url: tag[1], type: tag[2] || 'read/write', name: '', description: '', pubkey: '', contact: '', supported_nips: [] });
-                id++;
+              if (tag[0] === 'r' || tag[0] === 'relay') {
+                tag[1].endsWith('/') == true ? tag[1] = tag[1].slice(0, -1) : null;
+                const existingRelay = userRelays.find(relay => relay.url == tag[1]);
+                if (existingRelay) {
+                  console.log("existing relay found", existingRelay, tag);
+                  if (tag[2] == 'read' && tag[0] == 'r'){
+                    existingRelay.read = true;
+                    existingRelay.write = false;
+                  }
+                  if (tag[2] == 'write' && tag[0] == 'r'){
+                    existingRelay.write = true;
+                    existingRelay.read = false;
+                  }
+                  if (tag[2] == undefined && tag[0] == 'r'){
+                    existingRelay.write = true;
+                    existingRelay.read = true;
+                  }
+                  if (tag[0] == 'relay') existingRelay.dms = true;
+                  
+                  console.log("existing relay updated", existingRelay, tag);
+                  return;
+                }
+                userRelays.push({ id : userRelays.length, 
+                                  url: tag[1].endsWith('/') == true ? tag[1].slice(0, -1) : tag[1], 
+                                  read: tag[2] == 'read' || tag[2] == undefined && tag[0] == 'r' ? true : false, 
+                                  write: tag[2] == 'write' || tag[2] == undefined && tag[0] == 'r' ? true : false, 
+                                  dms: tag[0] == 'relay' ? true : false, 
+                                  name: '', 
+                                  description: '', 
+                                  pubkey: '', 
+                                  contact: '', 
+                                  supported_nips: [], 
+                                  enabled : true });
               }
             });
           },
@@ -47,7 +77,7 @@ const getRelaysFromUser = async (publicKey) => {
                         relay.supported_nips = data.supported_nips;
                         relay.pubkey = data.pubkey;
                     } catch (error) {
-                        console.warn('Error fetching relay data:', error);
+                        console.debug('Error fetching relay data:', error);
                     }
                 }
                 console.log('User relays:', userRelays);
@@ -71,9 +101,13 @@ const getRelaysFromUser = async (publicKey) => {
  */
 const isRelayOnline = async (relayUrl) => {
     return new Promise(async (resolve) => {
-        const startTime = Date.now(); // Tiempo de inicio
+        const startTime = Date.now(); 
+        new Promise((resolve) => {setTimeout(() => {
+          resolve({ online: false, ping: null });
+        }), 1000});
+        const url = relayUrl.replace(/^wss?:\/\//, (match) => match === 'wss://' ? 'https://' : 'http://');
         try {
-            await NostrTools.Relay.connect(relayUrl);
+            await fetch(url, { method: 'GET', mode: 'no-cors' });
             const responseTime = Date.now() - startTime; 
             resolve({ online: true, ping: responseTime });
         } catch (error) {
@@ -114,11 +148,11 @@ const publishProfileData = async (updatedFields, publicKey, secretKey) => {
 
   console.log("Default relays:", relays.map(relay => relay.url));
 
-  let userRelays = await getRelaysFromUser(publicKey);
-  if (!userRelays || userRelays.length === 0) {
+  let result = await getRelaysFromUser(publicKey);
+  if (!result || userRelays.length === 0) {
     console.warn("No relays found for user, using default relays.");
   } else {
-    relays = userRelays;
+    relays = result;
   }
 
   console.log("Relays to use:", relays.map(relay => relay.url));

@@ -4,32 +4,81 @@
             <span class="visually-hidden">Loading relays</span>
         </div>
     </div>
-    <ul id="user-relay-list" class="list-group"></ul>
+    <ul id="user-relay-list" class="list-group"></ul>´
+    <div id="user-relay-list-save" class="text-center mt-1 mb-5 mb-lg-2 d-none">
+        <button id="saveRelayData-btn" type="submit" class="btn btn-primary col-4" onclick="saveRelayData()">Save</button>
+    </div>
 </div>
 <script>
 
-let userRelays = [];
+const updateRelay = (relayId, action) => {
+            const relay = userRelays.find((r) => r.id == relayId);
+            if (action == 'enabled'){
+                relay.enabled == true ? relay.enabled = false : relay.enabled = true;
+                const relayItem = document.getElementById(`user-relay-${relay.id}`);
+                const relayItemToggle = document.getElementById(`btn-enable-${relay.id}`);
+                relayItem.style.backgroundColor = relay.enabled ? "rgba(0, 0, 0, .075)" : "#ffe597";
+                relayItem.style.color = relay.enabled ?  null : "black";
+                relay.enabled ? relayItemToggle.innerHTML = `<i class="fas fa-times text-danger"></i>` : relayItemToggle.innerHTML = `<i class="fas fa-undo text-secondary"></i>`;
+            }
+            if (action == "write") {
+                relay.write == true ? document.getElementById(`write-user-relay-${relay.id}`).querySelector('i').classList.add('text-muted', 'text-opacity-25') : document.getElementById(`write-user-relay-${relay.id}`).querySelector('i').classList.remove('text-muted', 'text-opacity-25');
+                relay.write == true ? relay.write = false : relay.write = true;
+                
+            }
+            if (action == "read") {
+                relay.read == true ? document.getElementById(`read-user-relay-${relay.id}`).querySelector('i').classList.add('text-muted', 'text-opacity-25') : document.getElementById(`read-user-relay-${relay.id}`).querySelector('i').classList.remove('text-muted', 'text-opacity-25');
+                relay.read == true ? relay.read = false : relay.read = true;
+            }
+
+            if (action == "dms") {
+                relay.dms == true ? document.getElementById(`dms-user-relay-${relay.id}`).querySelector('i').classList.add('text-muted', 'text-opacity-25') : document.getElementById(`dms-user-relay-${relay.id}`).querySelector('i').classList.remove('text-muted', 'text-opacity-25');
+                relay.dms == true ? relay.dms = false : relay.dms = true;
+            }
+            console.log(relay)
+}
+
 document.addEventListener('DOMContentLoaded',async  (event) => {
   
     await getRelaysFromUser("<%= request.session.metadata.pubkey %>").then((relays) => {
 
         document.getElementById("user-relay-list-loading").remove();
 
+        if (relays.length > 0) {
+            document.getElementById("user-relay-list-save").classList.remove("d-none");
+        }
+
         relays.forEach((relay) => {
             let relayItem = document.createElement("li");
+            relayItem.setAttribute("id", `user-relay-${relay.id}`);
             relayItem.classList.add("list-group-item", "p-2", "mb-3", "border", "border-1", "rounded-3", `shadow-sm`);
             relayItem.style.backgroundColor = "rgba(0, 0, 0, .075)";
             relayItem.innerHTML = `
-                
-                <p class="ms-1 mb-1 fs-5">
-                        <i id="user-relay-online-${relay.id}" class="fas fa-circle me-2 text-success"></i>
-                        <span class="lead">${relay.name != "" ? relay.name : relay.url.replace('wss://', '').replace('/','')}</span>
-                        <small class="ms-2">${relay.type == 'write' || relay.type== 'read/write' ? '<i class="fas fa-arrow-up me-2 text-primary"></i><i class="fas fa-arrow-down me-2 text-primary"></i>' : '<i class="fas fa-arrow-up me-2"></i><i class="fas fa-arrow-down me-2 text-primary"></i>'}</small>
-                        <small id="user-relay-ping-${relay.id}" class="text-muted" style="font-size:13px"></small>
-                        </p>
-                <p class="ms-1 text-muted mb-1">${relay.description}</p>
-                ${relay.supported_nips &&  relay.supported_nips != "" ? `<p class="ms-1 mb-1"><small class="text-muted"><b>NIPS:</b> ${relay.supported_nips}</small></p>` : ''}
-                <button class="btn btn-primary p-0 ps-2 pe-2 fs-6 mt-2 mb-2 font-monospace" style="font-size:13px !important" type="button" id="picture-copy-btn" onclick="copyToClipboard(this,document.getElementById('user-relay-url-${relay.id}').innerText)"><span id="user-relay-url-${relay.id}">${relay.url}<i class="fa-solid fa-copy ms-2"></i></span></button>
+            <p class="ms-1 mb-1 fs-5 d-flex justify-content-between align-items-center">
+                <span>
+                    <i id="user-relay-online-${relay.id}" class="fas fa-circle me-2 text-success"></i>
+                    <span class="lead">${relay.name != "" ? relay.name : relay.url.replace('wss://', '').replace('/','')}</span>
+                        <button id="read-user-relay-${relay.id}" class="btn btn-sm m-0 p-0 ps-1 " type="button" onclick="updateRelay('${relay.id}', 'read')">
+                            ${relay.read == true ? `<i class="fas fa-arrow-down text-success me-1"></i>Read` : `<i class="fas fa-arrow-down text-success text-muted text-opacity-25 me-1"></i>Read`}
+                        </button> 
+                        <button id="write-user-relay-${relay.id}" class="btn btn-sm m-0 p-0 ps-1" type="button" onclick="updateRelay('${relay.id}', 'write')">
+                            ${relay.write == true ? `<i class="fas fa-arrow-up text-success me-1"></i>Write` : `<i class="fas fa-arrow-up text-success text-muted text-opacity-25 me-1"></i>Write`}
+                        </button>
+                        <button id="dms-user-relay-${relay.id}" class="btn btn-sm m-0 p-0 ps-1" type="button" onclick="updateRelay('${relay.id}', 'dms')">
+                            ${relay.dms == true ? `<i class="fas fa-light fa-inbox text-success me-1"></i>Inbox` : `<i class="fas fa-light fa-inbox text-success text-muted text-opacity-25 me-1"></i>Inbox`}
+                        </button>
+                </span>
+                <span>
+                    <button id="btn-enable-${relay.id}" class="btn btn-sm me-2" type="button" onclick="updateRelay('${relay.id}', 'enabled')"><i class="fas fa-times text-danger"></i></button>
+                </span>
+            </p>
+            <p class="ms-1 mb-1">${relay.description}</p>
+            ${relay.supported_nips && relay.supported_nips != "" ? `<p class="ms-1 mb-1"><small><b>NIPS:</b> ${relay.supported_nips}</small></p>` : ''}
+            <button class="btn btn-primary p-0 ps-2 pe-2 fs-6 mt-2 mb-2 font-monospace" style="font-size:13px !important" type="button" id="picture-copy-btn" onclick="copyToClipboard(this,document.getElementById('user-relay-url-${relay.id}').innerText)">
+                <span id="user-relay-url-${relay.id}">${relay.url}<i class="fa-solid fa-copy ms-2"></i></span>
+            </button>        
+                    <small id="user-relay-ping-${relay.id}" style="font-size:13px"></small>
+
             `;
             document.getElementById("user-relay-list").appendChild(relayItem);
 
@@ -48,7 +97,7 @@ document.addEventListener('DOMContentLoaded',async  (event) => {
                     }
                 });
             }
-        }, 5000);
+        }, 1000);
     });
 });
 </script>
