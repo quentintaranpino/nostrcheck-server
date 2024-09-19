@@ -26,8 +26,17 @@ const updateRelay = (relayId, action) => {
                 const relayItem = document.getElementById(`user-relay-${relay.id}`);
                 const relayItemToggle = document.getElementById(`btn-enable-${relay.id}`);
                 relayItem.style.backgroundColor = relay.enabled ? "rgba(0, 0, 0, .075)" : "#ffe597";
-                relayItem.style.color = relay.enabled ?  null : "black";
-                relay.enabled ? relayItemToggle.innerHTML = `<i class="fas fa-times text-danger"></i>` : relayItemToggle.innerHTML = `<i class="fas fa-undo text-secondary"></i>`;
+                relayItem.style.color = relay.enabled ?  null : "gray";
+                const relayButtons = relayItem.querySelector('#user-relay-buttons');
+                relayButtons.querySelectorAll('button').forEach((btn) => {
+                    btn.style.color = relay.enabled ?  null : "gray";
+                });
+                relayItem.querySelectorAll('i').forEach((i) => {
+                    if (i.getAttribute('class').includes('text-muted')){
+                        i.style.setProperty('color', relay.enabled ? null : 'gray', 'important');
+                    }
+                });
+                relay.enabled ? relayItemToggle.innerHTML = `<i class="fas fa-times text-danger"></i>` : relayItemToggle.innerHTML = `<small>undo</small><i class="fas fa-undo text-secondary ms-2"></i>`;
             }
             if (action == "write") {
                 relay.write == true ? document.getElementById(`write-user-relay-${relay.id}`).querySelector('i').classList.add('text-muted', 'text-opacity-25') : document.getElementById(`write-user-relay-${relay.id}`).querySelector('i').classList.remove('text-muted', 'text-opacity-25');
@@ -49,34 +58,41 @@ const updateRelay = (relayId, action) => {
 const addRelayToList = (relay) => {
 
     let relayItem = document.createElement("li");
-    relayItem.setAttribute("id", `user-relay-${relay.id}`);
-    relayItem.classList.add("list-group-item", "p-2", "mb-3", "border", "border-1", "rounded-3", `shadow-sm`);
-    relayItem.style.backgroundColor = "rgba(0, 0, 0, .075)";
     relayItem.innerHTML = `
-        <p class="ms-1 mb-1 fs-5 d-flex justify-content-between align-items-center">
-            <span>
-                <i id="user-relay-online-${relay.id}" class="fas fa-circle me-2 text-success"></i>
-                <span class="lead">${relay.name != "" ? relay.name : relay.url.replace('wss://', '').replace('/','')}</span>
-                    <button id="read-user-relay-${relay.id}" class="btn btn-sm m-0 p-0 ps-1 " type="button" onclick="updateRelay('${relay.id}', 'read')">
+        <div id="user-relay-${relay.id}" class="card mb-3 border border-1 shadow-sm" style="background-color:rgba(0, 0, 0, .075);">
+            <div class="card-body pt-2 pb-2">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <i id="user-relay-online-${relay.id}" class="fas fa-circle me-2 text-success"></i>
+                        <span class="lead">${relay.name != "" ? relay.name : relay.url.replace('wss://', '').replace('/','')}</span>
+                    </div>
+                    <div>
+                        <button id="btn-enable-${relay.id}" class="btn btn-sm" type="button" onclick="updateRelay('${relay.id}', 'enabled')">
+                            <i class="fas fa-times text-danger"></i>
+                        </button>
+                    </div>
+                </div>
+                <div id="user-relay-buttons">
+                    <button id="read-user-relay-${relay.id}" class="btn btn-sm m-0 p-0" type="button" onclick="updateRelay('${relay.id}', 'read')">
                         ${relay.read == true ? `<i class="fas fa-arrow-down text-success me-1"></i>Read` : `<i class="fas fa-arrow-down text-success text-muted text-opacity-25 me-1"></i>Read`}
-                    </button> 
+                    </button>
                     <button id="write-user-relay-${relay.id}" class="btn btn-sm m-0 p-0 ps-1" type="button" onclick="updateRelay('${relay.id}', 'write')">
                         ${relay.write == true ? `<i class="fas fa-arrow-up text-success me-1"></i>Write` : `<i class="fas fa-arrow-up text-success text-muted text-opacity-25 me-1"></i>Write`}
                     </button>
                     <button id="dms-user-relay-${relay.id}" class="btn btn-sm m-0 p-0 ps-1" type="button" onclick="updateRelay('${relay.id}', 'dms')">
                         ${relay.dms == true ? `<i class="fas fa-light fa-inbox text-success me-1"></i>Inbox` : `<i class="fas fa-light fa-inbox text-success text-muted text-opacity-25 me-1"></i>Inbox`}
                     </button>
-            </span>
-            <span>
-                <button id="btn-enable-${relay.id}" class="btn btn-sm me-2" type="button" onclick="updateRelay('${relay.id}', 'enabled')"><i class="fas fa-times text-danger"></i></button>
-            </span>
-        </p>
-        <p class="ms-1 mb-1">${relay.description}</p>
-        ${relay.supported_nips && relay.supported_nips != "" ? `<p class="ms-1 mb-1"><small><b>NIPS:</b> ${relay.supported_nips}</small></p>` : ''}
-        <button class="btn btn-primary p-0 ps-2 pe-2 fs-6 mt-2 mb-2 font-monospace" style="font-size:13px !important" type="button" id="picture-copy-btn" onclick="copyToClipboard(this,document.getElementById('user-relay-url-${relay.id}').innerText)">
-            <span id="user-relay-url-${relay.id}">${relay.url}<i class="fa-solid fa-copy ms-2"></i></span>
-        </button>        
-        <small id="user-relay-ping-${relay.id}" style="font-size:13px"></small>
+                </div>
+                <p class="ms-1 mb-2 mt-2">${relay.description}</p>
+                ${relay.supported_nips && relay.supported_nips != "" ? `
+                <p class="ms-1 mb-0"><small><b>NIPS:</b> ${relay.supported_nips.join(', ')}</small></p>` : ''
+                }
+                <button class="btn btn-primary p-0 ps-2 pe-2 fs-6 mt-1 mb-2 font-monospace" style="font-size:13px !important" type="button" id="picture-copy-btn" onclick="copyToClipboard(this,document.getElementById('user-relay-url-${relay.id}').innerText)">
+                <span id="user-relay-url-${relay.id}">${relay.url}<i class="fa-solid fa-copy ms-2"></i></span>
+                </button>
+                <small id="user-relay-ping-${relay.id}" style="font-size:13px"></small>
+            </div>
+        </div>
     `;
 
     document.getElementById("user-relay-list").prepend(relayItem);
@@ -86,7 +102,12 @@ const addRelayToList = (relay) => {
 document.addEventListener('DOMContentLoaded', async (event) => {
 
     document.getElementById("addRelay-btn").addEventListener("click", async () => {
-        const relayUrl = document.getElementById("input-add-relay").value;
+
+        const relayBtnValue = document.getElementById("addRelay-btn").innerHTML;
+        if (relayBtnValue.includes("spinner-border")) return;
+        document.getElementById("addRelay-btn").innerHTML = `<div class="spinner-border spinner-border-sm me-1" role="status"></div> Adding...`;
+
+        let relayUrl = document.getElementById("input-add-relay").value;
         if (relayUrl == "") return;
         if (!relayUrl.startsWith("wss://")) relayUrl = `wss://${relayUrl}`;
         const newRelay = {  id : userRelays.length, 
@@ -104,6 +125,8 @@ document.addEventListener('DOMContentLoaded', async (event) => {
         userRelays.push(newRelay);
         await getRelayData(newRelay)
         await addRelayToList(newRelay);
+        document.getElementById("input-add-relay").value = "";
+        document.getElementById("addRelay-btn").innerHTML = `<i class="fas fa-solid fa-plus"></i> Add new relay`;
     });        
   
     await getRelaysFromUser("<%= request.session.metadata.pubkey %>").then((relays) => {
