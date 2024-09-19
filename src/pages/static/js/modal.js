@@ -81,17 +81,58 @@ const initEditModal = async (objectId, row, objectName, newRow, columns) => {
 
                 // Special case for editing or creating an user
                 if (objectId == '#nostraddressData') {
+
+                    let updatingFields = false;
+                    
                     if (key == 'pubkey') {
-                    document.querySelector("#pubkey").addEventListener("input", (data) => {
-                        if (data.target.value.length != 63) return 
-                        document.querySelector("#hex").value = NostrTools.nip19.decode(data.target.value).data
-                    });
+                        document.querySelector("#pubkey").addEventListener("input", (data) => {
+                            if (updatingFields) return;
+                            updatingFields = true;
+                        
+                            const pubkeyField = document.querySelector("#pubkey");
+                            const hexField = document.querySelector("#hex");
+                        
+                            let npubValue = pubkeyField.value;
+                        
+                            if (npubValue.length === 63) {
+                                try {
+                                    let decodedHex = NostrTools.nip19.decode(npubValue).data;
+                                    hexField.value = decodedHex;
+                                } catch (e) {
+                                    hexField.value = '';
+                                }
+                            } else {
+                                hexField.value = '';
+                            }
+                        
+                            updatingFields = false;
+                            checkFieldsMatch();
+                        });
                     }
                     if (key == 'hex') {
-                    document.querySelector("#hex").addEventListener("input", (data) => {
-                        if (data.target.value.length != 64) return 
-                        document.querySelector("#pubkey").value = NostrTools.nip19.npubEncode(data.target.value)
-                    });
+                        document.querySelector("#hex").addEventListener("input", (data) => {
+                            if (updatingFields) return;
+                            updatingFields = true;
+                        
+                            const pubkeyField = document.querySelector("#pubkey");
+                            const hexField = document.querySelector("#hex");
+                        
+                            let hexValue = hexField.value;
+                        
+                            if (hexValue.length === 64) {
+                                try {
+                                    let encodedNpub = NostrTools.nip19.npubEncode(hexValue);
+                                    pubkeyField.value = encodedNpub;
+                                } catch (e) {
+                                    pubkeyField.value = '';
+                                }
+                            } else {
+                                pubkeyField.value = '';
+                            }
+                        
+                            updatingFields = false;
+                            checkFieldsMatch();
+                        });
                     }
                 }
 
