@@ -179,10 +179,17 @@ const getFileMimeType = async (req: Request, file :Express.Multer.File): Promise
 
 	// Try to get mime type from file object.
 	if (fileType.mime == "") fileType.mime = file.mimetype ;
+	
 
 	// For text files without extension and mime type (LICENSE, README, etc)
 	if (fileType.ext == "" && fileType.mime == "") {
 		fileType.mime = 'text/plain';
+	}
+
+	// For handlebars templates containing XML
+	if (fileType.mime == "application/xml" && fileType.ext == "xml" && file.mimetype == 'text/x-handlebars-template') {
+		fileType.mime = 'text/x-handlebars-template';
+		fileType.ext = 'hbs';
 	}
 
 	fileType == undefined ? logger.warn(`Could not detect file mime type | ${getClientIp(req)}`) : null;
