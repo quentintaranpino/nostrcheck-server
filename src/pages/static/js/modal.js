@@ -78,6 +78,23 @@ const initEditModal = async (objectId, row, objectName, newRow, columns) => {
                 if (key == 'id') {
                     $('#' + key).prop('disabled', true)
                 }
+
+                // Special case for editing or creating an user
+                if (objectId == '#nostraddressData') {
+                    if (key == 'pubkey') {
+                    document.querySelector("#pubkey").addEventListener("input", (data) => {
+                        if (data.target.value.length != 63) return 
+                        document.querySelector("#hex").value = NostrTools.nip19.decode(data.target.value).data
+                    });
+                    }
+                    if (key == 'hex') {
+                    document.querySelector("#hex").addEventListener("input", (data) => {
+                        if (data.target.value.length != 64) return 
+                        document.querySelector("#pubkey").value = NostrTools.nip19.npubEncode(data.target.value)
+                    });
+                    }
+                }
+
                 columns.forEach(function(column) {
                     if (column.field == key) {
                         if (column.class) {
