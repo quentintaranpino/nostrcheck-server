@@ -22,7 +22,6 @@ const isUsernameAvailable = async (username: string, domain: string): Promise<bo
     return true;
 }
 
-
 /**
  * 
  * @param pubkey - The pubkey to be checked. (hex or npub)
@@ -49,7 +48,8 @@ const isPubkeyOnDomainAvailable = async (pubkey: string, domain: string): Promis
  * @returns {Promise<number>} A promise that resolves to the id of the user, or 0 if an error occurs.
  */
 
-const addNewUsername = async (username: string, pubkey: string, password:string, domain: string, comments:string = "", active = false, inviteCode = ""): Promise<number> => {
+const addNewUsername = async (username: string, pubkey: string, password:string, domain: string, comments:string = "", active = false, inviteCode = "", checkInvite : boolean = true, sendDM : boolean = true): Promise<number> => {
+
     if (username == "" || username == undefined) {return 0}
     if (pubkey == "" || pubkey == undefined) {return 0}
     if (domain == "" || domain == undefined) {return 0}
@@ -64,23 +64,22 @@ const addNewUsername = async (username: string, pubkey: string, password:string,
 		password = await generateCredentials('password', pubkey, false, false, true, false);
 	}
 
-    if(await isUsernameAvailable(username, domain) == false) {return 0}
+    if (await isUsernameAvailable(username, domain) == false) {return 0}
     if (await isPubkeyOnDomainAvailable(pubkey, domain) == false) {return 0}
 
     const domainInfo = await getDomainInfo(domain);
     if (domainInfo == "") {return 0}
-    if (domainInfo.requireinvite == true && inviteCode == "") {return 0}
+    if (domainInfo.requireinvite == true && checkInvite && inviteCode == "") {return 0}
 
-    if (domainInfo.requireinvite == true  && await validateInviteCode(inviteCode) == false) {return 0}
+    if (domainInfo.requireinvite == true && checkInvite &&  await validateInviteCode(inviteCode) == false) {return 0}
 
     const createUsername = await dbInsert(  "registered", 
                                     ["pubkey", "hex", "username", "password", "domain", "active", "date", "comments"],
                                     [await hextoNpub(pubkey), pubkey, username, await hashString(password, 'password'), domain, active == true ? 1 : 0, getNewDate(), comments]);
-
     
     if (createUsername == 0) {return 0}
 
-    if (domainInfo.requireinvite == true ) {
+    if (domainInfo.requireinvite == true && checkInvite ) {
         const updateInviteeid = await dbUpdate("invitations", "inviteeid", createUsername, ["code"], [inviteCode]);
         if (updateInviteeid == false) {return 0}
 
@@ -91,7 +90,7 @@ const addNewUsername = async (username: string, pubkey: string, password:string,
     
     if (regeneratePassword) {
         // Generate definitive password for the user and send it to the user via nostr DM.
-        const newPassword = await generateCredentials("password", pubkey, true, true, false, false);
+        const newPassword = await generateCredentials("password", pubkey, true, sendDM, false, false);
         if (!newPassword) {return 0}
     }
 
