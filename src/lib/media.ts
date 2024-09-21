@@ -413,6 +413,7 @@ const finalizeFileProcessing = async (filedata: fileData): Promise<boolean> => {
 		const filesize = getFileSize(filedata.no_transform == true ? filedata.conversionInputPath: filedata.conversionOutputPath ,filedata)
 		await dbUpdate('mediafiles', 'filesize', filesize ,['id'], [filedata.fileid]);
 		await dbUpdate('mediafiles','dimensions',filedata.newFileDimensions,['id'], [filedata.fileid]);
+		if (filedata.no_transform == false) await dbUpdate('mediafiles','mimetype',await getConvertedMimeType(filedata.originalmime),['id'], [filedata.fileid]);
 		await saveFile(filedata, filedata.no_transform == true ? filedata.conversionInputPath: filedata.conversionOutputPath );
 
 		if (filedata.no_transform == false) { await deleteLocalFile(filedata.conversionOutputPath);}
