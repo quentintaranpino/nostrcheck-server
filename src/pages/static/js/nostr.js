@@ -4,6 +4,8 @@ const pool = new NostrTools.SimplePool();
 // Default relay configuration
 let relays = [
   { id: 0, url: 'wss://relay.nostr.band', read:  true, write: true, dms: false, name:'', description: "", pubkey: "", contact: "", supported_nips: [], enabled : true },
+  { id: 1, url: 'wss://relay.damus.io', read:  true, write: true, dms: false, name:'', description: "", pubkey: "", contact: "", supported_nips: [], enabled : true },
+  { id: 2, url: 'wss://relay.primal.net', read:  true, write: true, dms: false, name:'', description: "", pubkey: "", contact: "", supported_nips: [], enabled : true },
 ];
 
 let userRelays = [];
@@ -196,7 +198,7 @@ const publishProfileData = async (updatedFields, publicKey, secretKey) => {
               } else if (window.nostr && window.nostr.signEvent) {
                 signedEvent = await window.nostr.signEvent(event);
               } else {
-                throw new Error("No secret key provided and window.nostr is not available.");
+                throw new Error("No secret key provided and NIP-07 extension is not available.");
               }
             } catch (error) {
               console.error("Error signing event:", error);
@@ -228,37 +230,39 @@ const publishProfileData = async (updatedFields, publicKey, secretKey) => {
   });
 };
 
-const publishProfileRelays = async (relays, publicKey, secretKey) => {
+const publishProfileRelays = async (relays, publicKey, secretKey, type) => {
 
   if (!relays || relays.length === 0 || !publicKey) {
     console.error("No public key provided.");
     return;
   }
 
-  const enabledRelays = relays.filter(relay => relay.enabled && relay.dms === false);
+  const enabledRelays = relays.filter(relay => relay.enabled && (type === 'app' ? !relay.dms : relay.dms));
   if (enabledRelays.length === 0) {
     console.error("No enabled relays found without DMs.");
     return;
   }
 
-  const relayTags = enabledRelays.map(relay => {
-    const tag = ["r", relay.url];
-    if (relay.read && relay.write) {
+  console.log("enabledRelays:", enabledRelays);
+
+  const appRelayTags = enabledRelays.map(relay => {
+    const tag = [type == 'app' ? "r" : "relay", relay.url];
+    if ((relay.read && relay.write) || type == 'dms') {
       return tag; 
-    } else if (relay.read) {
+    } else if (relay.read && type != 'dms') {
       return [...tag, "read"];
-    } else if (relay.write) {
+    } else if (relay.write && type != 'dms') {
       return [...tag, "write"];
     }
     return tag;
   });
 
-  console.log("Relay tags to publish:", relayTags);
+  console.log("Relay tags to publish:", appRelayTags);
 
-  const event = {
-    kind: 10002,
+  const appRelayEvent = {
+    kind: type == 'app' ? 10002 : 10050,
     created_at: Math.floor(Date.now() / 1000),
-    tags: relayTags,
+    tags: appRelayTags,
     content: "", 
     pubkey: publicKey,
   };
@@ -268,11 +272,11 @@ const publishProfileRelays = async (relays, publicKey, secretKey) => {
   try {
     if (secretKey) {
       const decodedSecretKey = NostrTools.nip19.decode(secretKey).data;
-      signedEvent = await NostrTools.finalizeEvent(event, decodedSecretKey);
+      signedEvent = await NostrTools.finalizeEvent(appRelayEvent, decodedSecretKey);
     } else if (window.nostr && window.nostr.signEvent) {
-      signedEvent = await window.nostr.signEvent(event);
+      signedEvent = await window.nostr.signEvent(appRelayEvent);
     } else {
-      throw new Error("No secret key provided and window.nostr is not available.");
+      throw new Error("No secret key provided and NIP-07 extension is not available.");
     }
 
     if (!NostrTools.verifyEvent(signedEvent)) {

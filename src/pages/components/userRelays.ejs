@@ -68,9 +68,14 @@ const saveRelayData = async () => {
                     return;
         }
     } 
-    await publishProfileRelays(userRelays, "<%= request.session.metadata.pubkey %>", sk).then((result) => {
-        if (result == true) {
-            console.log("Relay data saved")
+
+    // App relays
+    await Promise.all([
+    publishProfileRelays(userRelays, "<%= request.session.metadata.pubkey %>", sk, 'app'),
+    publishProfileRelays(userRelays, "<%= request.session.metadata.pubkey %>", sk, 'dms')
+    ]).then(([appResult, dmsResult]) => {
+        if (appResult == true && dmsResult == true) {
+            console.log("Relay data for app saved");
             userRelays = userRelays.filter((r) => r.enabled == true);
             const relayItems = document.getElementById("user-relay-list").querySelectorAll("li");
             relayItems.forEach((item) => {
@@ -78,8 +83,11 @@ const saveRelayData = async () => {
                     item.remove();
                 }
             });
+        } else {
+            console.error("Error saving relay data");
         }
     });
+
     document.getElementById('saveRelayData-btn').disabled = false;
     document.getElementById('saveRelayData-btn').innerHTML = 'Save';
 }

@@ -120,7 +120,7 @@
 
             let sk = '';
             if (!window.nostr){
-                sk = prompt('Please enter your Nostr private key to sign the data');
+                sk = prompt('Please enter your nostr private key to sign the data');
                 if (!sk) {
                     document.getElementById('saveProfileData-btn').disabled = false;
                     document.getElementById('saveProfileData-btn').innerHTML = 'Save';
