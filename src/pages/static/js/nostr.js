@@ -228,6 +228,74 @@ const publishProfileData = async (updatedFields, publicKey, secretKey) => {
   });
 };
 
+const publishProfileRelays = async (relays, publicKey, secretKey) => {
+
+  if (!relays || relays.length === 0 || !publicKey) {
+    console.error("No public key provided.");
+    return;
+  }
+
+  const enabledRelays = relays.filter(relay => relay.enabled && relay.dms === false);
+  if (enabledRelays.length === 0) {
+    console.error("No enabled relays found without DMs.");
+    return;
+  }
+
+  const relayTags = enabledRelays.map(relay => {
+    const tag = ["r", relay.url];
+    if (relay.read && relay.write) {
+      return tag; 
+    } else if (relay.read) {
+      return [...tag, "read"];
+    } else if (relay.write) {
+      return [...tag, "write"];
+    }
+    return tag;
+  });
+
+  console.log("Relay tags to publish:", relayTags);
+
+  const event = {
+    kind: 10002,
+    created_at: Math.floor(Date.now() / 1000),
+    tags: relayTags,
+    content: "", 
+    pubkey: publicKey,
+  };
+
+  let signedEvent;
+
+  try {
+    if (secretKey) {
+      const decodedSecretKey = NostrTools.nip19.decode(secretKey).data;
+      signedEvent = await NostrTools.finalizeEvent(event, decodedSecretKey);
+    } else if (window.nostr && window.nostr.signEvent) {
+      signedEvent = await window.nostr.signEvent(event);
+    } else {
+      throw new Error("No secret key provided and window.nostr is not available.");
+    }
+
+    if (!NostrTools.verifyEvent(signedEvent)) {
+      console.error("Signed event is not valid.");
+      return;
+    }
+
+    console.log("Signed event generated:", signedEvent);
+
+    try {
+      await Promise.any(pool.publish(enabledRelays.map(relay => relay.url), signedEvent));
+      console.log("Event published successfully.");
+      return true;
+    } catch (error) {
+      console.error("Failed to publish event:", error);
+      return false;
+    }
+  } catch (error) {
+    console.error("Error signing event:", error);
+    return false;
+  }
+};
+
 const subscribeRelays = async (kind, pubkeys, since, until) => {
   if (!Array.isArray(pubkeys)) pubkeys = [pubkeys];
 

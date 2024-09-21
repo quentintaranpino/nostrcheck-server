@@ -14,7 +14,7 @@
     </div>
     <ul id="user-relay-list" class="list-group"></ul>
     <div id="user-relay-list-save" class="text-center mb-5 mb-lg-2 d-none">
-        <button id="saveRelayData-btn" type="submit" class="btn btn-primary col-4" onclick="saveRelayData()">Save</button>
+        <button id="saveRelayData-btn" type="submit" class="btn btn-primary col-4">Save</button>
     </div>
 </div>
 <script>
@@ -52,12 +52,42 @@ const updateRelay = (relayId, action) => {
                 relay.dms == true ? document.getElementById(`dms-user-relay-${relay.id}`).querySelector('i').classList.add('text-muted', 'text-opacity-25') : document.getElementById(`dms-user-relay-${relay.id}`).querySelector('i').classList.remove('text-muted', 'text-opacity-25');
                 relay.dms == true ? relay.dms = false : relay.dms = true;
             }
-            console.log(relay)
+            console.log(userRelays)
+}
+
+const saveRelayData = async () => {
+
+    document.getElementById('saveRelayData-btn').disabled = true;
+    document.getElementById('saveRelayData-btn').innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Saving...';
+    let sk = '';
+    if (!window.nostr){
+        sk = prompt('Please enter your Nostr private key to sign the data');
+        if (!sk) {
+                    document.getElementById('saveRelayData-btn').disabled = false;
+                    document.getElementById('saveRelayData-btn').innerHTML = 'Save';
+                    return;
+        }
+    } 
+    await publishProfileRelays(userRelays, "<%= request.session.metadata.pubkey %>", sk).then((result) => {
+        if (result == true) {
+            console.log("Relay data saved")
+            userRelays = userRelays.filter((r) => r.enabled == true);
+            const relayItems = document.getElementById("user-relay-list").querySelectorAll("li");
+            relayItems.forEach((item) => {
+                if (!userRelays.find((r) => r.id == item.id)) {
+                    item.remove();
+                }
+            });
+        }
+    });
+    document.getElementById('saveRelayData-btn').disabled = false;
+    document.getElementById('saveRelayData-btn').innerHTML = 'Save';
 }
 
 const addRelayToList = (relay) => {
 
     let relayItem = document.createElement("li");
+    relayItem.id = `${relay.id}`;
     relayItem.innerHTML = `
         <div id="user-relay-${relay.id}" class="card mb-3 shadow-sm default-bg">
             <div class="card-body pt-2 pb-2">
@@ -127,7 +157,11 @@ document.addEventListener('DOMContentLoaded', async (event) => {
         await addRelayToList(newRelay);
         document.getElementById("input-add-relay").value = "";
         document.getElementById("addRelay-btn").innerHTML = `<i class="fas fa-solid fa-plus"></i> Add new relay`;
-    });        
+    });   
+    
+    document.getElementById("saveRelayData-btn").addEventListener("click", async () => {
+        saveRelayData();
+    });
   
     await getRelaysFromUser("<%= request.session.metadata.pubkey %>").then((relays) => {
 
@@ -143,7 +177,7 @@ document.addEventListener('DOMContentLoaded', async (event) => {
         });
         
         setInterval(() => {
-            for (const relay of relays) {
+            for (const relay of userRelays) {
                isRelayOnline(relay.url, relay.pubkey).then((r) => {
                     if (r.online) {
                         document.getElementById(`user-relay-online-${relay.id}`).classList.remove('text-danger');
