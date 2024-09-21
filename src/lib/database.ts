@@ -519,6 +519,13 @@ const initDatabase = async (): Promise<void> => {
 	logger.debug("Clearing all authkeys from registered table");
 	await conn.execute("UPDATE registered SET authkey = NULL ");
 	conn.end();
+
+	// Fix old mimetype
+	const fixMimetype =await fixOldMimeType();
+	if (!fixMimetype){
+		logger.fatal("Error fixing old mimetype");
+		process.exit(1);
+	}
 }
 
 const migrateOldFields = async (table:string, oldField:string, newField:string): Promise<boolean> => {
@@ -567,6 +574,47 @@ const deleteOldFields = async (table:string, oldField:string): Promise<boolean> 
 	}
 }
 
+const fixOldMimeType = async (): Promise<boolean> => {
+
+	const conn = await connect("fixOldMimeType");
+	try{
+		const [dbFileStatusUpdate] = await conn.execute(
+			`UPDATE mediafiles
+			SET mimetype = 
+				CASE 
+					WHEN filename LIKE '%.png' THEN 'image/png'
+					WHEN filename LIKE '%.jpg' OR filename LIKE '%.jpeg' THEN 'image/jpeg'
+					WHEN filename LIKE '%.webp' THEN 'image/webp'
+					WHEN filename LIKE '%.mp4' THEN 'video/mp4'
+					WHEN filename LIKE '%.webm' THEN 'video/webm'
+					ELSE mimetype 
+				END
+			WHERE mimetype <> 
+				CASE 
+					WHEN filename LIKE '%.png' THEN 'image/png'
+					WHEN filename LIKE '%.jpg' OR filename LIKE '%.jpeg' THEN 'image/jpeg'
+					WHEN filename LIKE '%.webp' THEN 'image/webp'
+					WHEN filename LIKE '%.mp4' THEN 'video/mp4'
+					WHEN filename LIKE '%.webm' THEN 'video/webm'
+					ELSE mimetype
+				END;
+			`
+		);
+		if (!dbFileStatusUpdate) {
+			logger.error("Error fixing old mimetypes from mediafiles table");
+			conn.end();
+			return false;
+		}
+		const result = dbFileStatusUpdate as any as { affectedRows: number };
+		if (result.affectedRows > 0) logger.warn("Fixed old mimetypes from mediafiles table");
+		conn.end();
+		return true;
+	}catch (error) {
+		logger.error("Error fixing old mimetype");
+		conn.end();
+		return false;
+	}
+}
 
 export {
 		connect, 
