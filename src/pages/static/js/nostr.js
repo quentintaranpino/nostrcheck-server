@@ -103,20 +103,27 @@ const getRelayData = async (relay) => {
  * @returns {Promise<Object>} - A promise that resolves to an object with the online status and response time.
  */
 const isRelayOnline = async (relayUrl) => {
-    return new Promise(async (resolve) => {
-        const startTime = Date.now(); 
-        new Promise((resolve) => {setTimeout(() => {
+  return new Promise(async (resolve) => {
+      const startTime = Date.now(); 
+      const timeout = setTimeout(() => {
           resolve({ online: false, ping: null });
-        }), 1000});
-        const url = relayUrl.replace(/^wss?:\/\//, (match) => match === 'wss://' ? 'https://' : 'http://');
-        try {
-            await fetch(url, { method: 'GET', mode: 'no-cors' });
-            const responseTime = Date.now() - startTime; 
-            resolve({ online: true, ping: responseTime });
-        } catch (error) {
-            resolve({ online: false, ping: null });
-        }
-    });
+      }, 5000);
+
+      const url = relayUrl.replace(/^wss?:\/\//, (match) => match === 'wss://' ? 'https://' : 'http://');
+
+      try {
+          const response = await fetch(url, { method: 'GET', mode: 'no-cors' });
+          clearTimeout(timeout);
+          const responseTime = Date.now() - startTime;
+          if (response.ok || response.type === 'opaque') { 
+              resolve({ online: true, ping: responseTime });
+          } else {
+              resolve({ online: false, ping: null });
+          }
+      } catch (error) {
+          resolve({ online: false, ping: null });
+      }
+  });
 };
 
 /**
@@ -245,7 +252,17 @@ const publishProfileRelays = async (relays, publicKey, secretKey, type) => {
 
   console.log("enabledRelays:", enabledRelays);
 
-  const appRelayTags = enabledRelays.map(relay => {
+  // Check if every relay is online
+  const onlineRelays = (await Promise.all(
+    enabledRelays.map(async (relay) => {
+      const status = await isRelayOnline(relay.url); 
+      return { ...relay, ...status };
+    })
+  )).filter(relay => relay.online);
+
+  console.log("onlineRelays:", onlineRelays);
+
+  const appRelayTags = onlineRelays.map(relay => {
     const tag = [type == 'app' ? "r" : "relay", relay.url];
     if ((relay.read && relay.write) || type == 'dms') {
       return tag; 

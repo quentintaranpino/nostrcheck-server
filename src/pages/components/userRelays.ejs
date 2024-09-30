@@ -69,6 +69,7 @@ const saveRelayData = async () => {
         }
     } 
 
+    console.log("attempting to save relay data");
     // App relays
     await Promise.all([
     publishProfileRelays(userRelays, "<%= request.session.metadata.pubkey %>", sk, 'app'),
@@ -184,20 +185,31 @@ document.addEventListener('DOMContentLoaded', async (event) => {
             addRelayToList(relay);
         });
         
-        setInterval(() => {
+        const checkRelaysOnline = async () => {
             for (const relay of userRelays) {
-               isRelayOnline(relay.url, relay.pubkey).then((r) => {
-                    if (r.online) {
-                        document.getElementById(`user-relay-online-${relay.id}`).classList.remove('text-danger');
+                const r = await isRelayOnline(relay.url);
+                if (r.online) {
+                    document.getElementById(`user-relay-online-${relay.id}`).classList.remove('text-danger');
+                    if (r.ping < 500){
                         document.getElementById(`user-relay-online-${relay.id}`).classList.add('text-success');
-                        document.getElementById(`user-relay-ping-${relay.id}`).innerText = `${r.ping}ms`;  
-                    } else {
+                        document.getElementById(`user-relay-online-${relay.id}`).classList.remove('text-warning');
+                    }else{
+                        document.getElementById(`user-relay-online-${relay.id}`).classList.add('text-warning');
                         document.getElementById(`user-relay-online-${relay.id}`).classList.remove('text-success');
-                        document.getElementById(`user-relay-online-${relay.id}`).classList.add('text-danger');
                     }
-                });
+                    document.getElementById(`user-relay-ping-${relay.id}`).innerText = `${r.ping}ms`;
+                } else {
+                    document.getElementById(`user-relay-online-${relay.id}`).classList.remove('text-success');
+                    document.getElementById(`user-relay-online-${relay.id}`).classList.add('text-warning');
+                    document.getElementById(`user-relay-online-${relay.id}`).classList.add('text-danger');
+                }
             }
-        }, 1000);
+            // Llamar a esta función de nuevo después de un segundo
+            setTimeout(checkRelaysOnline, 1000);
+        };
+
+        // Iniciar el ciclo
+        checkRelaysOnline();
     });
 });
 </script>
