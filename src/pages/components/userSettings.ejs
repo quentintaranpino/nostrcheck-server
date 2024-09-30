@@ -24,6 +24,7 @@
             <button class="btn btn-outline-secondary" type="button" id="picture-upload-btn"><i class="fa-solid fa-upload"></i></button>
             <button class="btn btn-outline-secondary" type="button" id="picture-copy-btn" onclick="copyToClipboard(this,document.getElementById('picture-input').value)"><i class="fa-solid fa-copy"></i></button>
         </div>  
+        <%- include('./uploader', {instance: 'userSettingspicture', hideTos:true, oneFile:true}); %>
     </div>
     <div id="banner" class="mb-3">
         <label for="banner-input" class="mb-1">Profile banner</label>
@@ -32,6 +33,7 @@
             <button class="btn btn-outline-secondary" type="button" id="banner-upload-btn"><i class="fa-solid fa-upload"></i></button>
             <button class="btn btn-outline-secondary" type="button" id="banner-copy-btn" onclick="copyToClipboard(this,document.getElementById('banner-input').value)"><i class="fa-solid fa-copy"></i></button>
         </div> 
+        <%- include('./uploader', {instance: 'userSettingsbanner',hideTos:true, oneFile:true}); %>
     </div>
     <div id="nip05" class="mb-3">
         <label for="nip05-input" class="mb-1">Nostr address (NIP-05)</label>
@@ -69,6 +71,47 @@
 <script>
     document.addEventListener('DOMContentLoaded', (event) => {
 
+        document.querySelectorAll("form").forEach(form => {
+            form.addEventListener("submit", function(event) {
+                event.preventDefault();
+                console.log("Formulario enviado, pero la página no se recargó");
+            });
+        });
+
+        // Hide uploaders
+        document.getElementById('userSettingspicture-uploader').classList.add('d-none');
+        document.getElementById('userSettingsbanner-uploader').classList.add('d-none');
+
+        // Uploaded files event listener
+        document.addEventListener('fileUploaded', function(event) {
+            if (event.detail.instance === 'userSettingspicture-') {
+                const uploadedUrl = event.detail.url;
+                document.getElementById('picture-input').value = uploadedUrl;
+                document.getElementById('userSettingspicture-uploader').classList.add('d-none');
+            }
+            if (event.detail.instance === 'userSettingsbanner-') {
+                const uploadedUrl = event.detail.url;
+                document.getElementById('banner-input').value = uploadedUrl;
+                document.getElementById('userSettingsbanner-uploader').classList.add('d-none');
+            }
+        });
+
+        document.getElementById('picture-upload-btn').addEventListener('click', () => {
+            if (document.getElementById('userSettingspicture-uploader').classList.contains('d-none')) {
+                document.getElementById('userSettingspicture-uploader').classList.remove('d-none');
+            } else {
+                document.getElementById('userSettingspicture-uploader').classList.add('d-none');
+            }
+        });
+
+        document.getElementById('banner-upload-btn').addEventListener('click', () => {
+            if (document.getElementById('userSettingsbanner-uploader').classList.contains('d-none')) {
+                document.getElementById('userSettingsbanner-uploader').classList.remove('d-none');
+            } else {
+                document.getElementById('userSettingsbanner-uploader').classList.add('d-none');
+            }
+        });
+
         const showNpubQR = () => {
             const QR = document.createElement('div');
             QR.setAttribute('id', 'npub-QR');
@@ -88,8 +131,6 @@
 
         }
         document.getElementById('npub-QR-btn').addEventListener('click', showNpubQR);
-
-        
 
     });
 
