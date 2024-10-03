@@ -94,16 +94,16 @@ See configuration [here](https://github.com/quentintaranpino/nostrcheck-api-ts/b
 - [x] Frontend UI (homepage)
 - [x] Frontend UI (docs and ToS)
 - [x] Remote Object Storage (s3)
-- [ ] Blossom spec compatible
+- [x] Blossom spec compatible
 - [x] Lightning payments
 - [ ] Multi-server mirroring
 - [ ] Import / Export data
 - [ ] Custom frontend templates
-- [ ] Frontend UI (profile)
-- [ ] Frontend UI (public gallery)
-- [ ] Frontend UI (public upload)
+- [x] Frontend UI (profile)
+- [x] Frontend UI (public gallery)
+- [x] Frontend UI (public upload)
 - [ ] Frontend UI (directory)
-- [ ] Frontend UI (register)
+- [x] Frontend UI (register)
 - [ ] Umbrel appstore integration
 - [ ] Start9 appstore integration
 - [ ] Integrated micro-relay
