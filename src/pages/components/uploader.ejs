@@ -246,7 +246,7 @@
             uniqueId: 'id',
             pagination: oneFile? false : true,
             pageSize: 4,
-            showHeader: false,
+            showHeader: true,
             paginationParts: ['pageInfoShort', 'pageList'],
             sortName: 'id',
             sortOrder: 'desc',
@@ -410,7 +410,9 @@
                 file.fileData = fileData;
 
                 const fileServerInfo = await getFileServerInfo(file);
-                if (fileServerInfo == true) $('#' + instance + 'file-table').bootstrapTable('append', fileData);
+                if (fileServerInfo == true) {
+                    $('#' + instance + 'file-table').bootstrapTable('load', filesArray.map(file => file.fileData));
+                }
                 if (oneFile && fileServerInfo == true) uploadFiles(filesArray);
 
             }
