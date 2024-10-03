@@ -73,6 +73,7 @@ See configuration [here](https://github.com/quentintaranpino/nostrcheck-api-ts/b
 
 - [x] NIP01
 - [x] NIP04
+- [x] NIP05
 - [x] NIP07
 - [x] NIP19
 - [x] NIP44
