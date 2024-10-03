@@ -218,10 +218,13 @@ const loadDocsPage = async (req: Request, res: Response, version: string): Promi
     logger.info("GET /api/" + version + "/documentation", "|", getClientIp(req));
 
     // Active modules
-    const activeModules = loadconfigActiveModules(app).map((module) => module[0]);
-    res.locals.activeModules = activeModules; 
-
-    logger.debug(req.session.metadata);
+    const availableModules = Object.entries(app.get("config.server")["availableModules"]);
+    res.locals.activeModules = [];
+    for (const [key] of availableModules) {
+        if (app.get("config.server")["availableModules"][key]["enabled"] == true) {
+            res.locals.activeModules.push(app.get("config.server")["availableModules"][key]);
+        }
+    }
 
     res.locals.version = app.get("version");
     res.locals.serverHost = app.get("config.server")["host"];
