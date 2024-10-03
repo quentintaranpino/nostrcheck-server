@@ -32,7 +32,7 @@ const parseAuthHeader = async (req: Request, endpoint: string = "", checkAdminPr
 
 	//Check if request has authorization header.
 	if (req.headers.authorization === undefined) {
-		if(endpoint != 'getMediaByURL' && endpoint != 'getMediaList') logger.warn(`Authorization header not found- Enpoint: ${endpoint} | URL: ${req.url} | ${getClientIp(req)}`);
+		if(endpoint != 'getMediaByURL' && endpoint != 'getMediaList' && endpoint != 'getMediaStatusbyID') logger.warn(`Authorization header not found- Enpoint: ${endpoint} | URL: ${req.url} | ${getClientIp(req)}`);
 		return {status: "error", message: "Authorization header not found", pubkey:"", authkey:"", kind: 0};
 	}
 
@@ -206,7 +206,7 @@ const isAuthkeyValid = async (authString: string, checkAdminPrivileges: boolean 
 	try{
 		const hex =  await dbSelect(`SELECT hex FROM registered WHERE ${whereStatement}`, "hex", [hashedAuthkey, checkAdminPrivileges == true? '1':'0']) as string;
 		if (hex == ""){
-			logger.warn("Unauthorized request, authkey not allowed or not found")
+			logger.warn(`Unauthorized request, authkey not allowed or not found. Authkey: ${authString}, checkAdminPrivileges: ${checkAdminPrivileges}, checkActive: ${checkActive}`);
 			return {status: "error", message: "Unauthorized", authkey: "", pubkey:"", kind: 0};
 		}
 
