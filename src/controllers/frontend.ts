@@ -23,9 +23,8 @@ const loadDashboardPage = async (req: Request, res: Response, version:string): P
 
 	logger.info("GET /api/" + version + "/dashboard", "|", getClientIp(req));
 
-    const activeModules = loadconfigActiveModules(app).map((module) => module[0]);
-
     // Active modules
+    const activeModules = loadconfigActiveModules(app).map((module) => module[0]);
     res.locals.activeModules = activeModules; 
 
     // Logger history greater or equal to 4 (warn)
@@ -55,6 +54,10 @@ const loadSettingsPage = async (req: Request, res: Response, version:string): Pr
 	}
 
     logger.info("GET /api/" + version + "/settings", "|", getClientIp(req));
+
+    // Active modules
+    const activeModules = loadconfigActiveModules(app).map((module) => module[0]);
+    res.locals.activeModules = activeModules; 
 
     res.locals.version = app.get("version");
 
@@ -98,6 +101,10 @@ const loadProfilePage = async (req: Request, res: Response, version:string): Pro
 
 	logger.info("GET /api/" + version + "/profile", "|", getClientIp(req));
 
+    // Active modules
+    const activeModules = loadconfigActiveModules(app).map((module) => module[0]);
+    res.locals.activeModules = activeModules; 
+
     res.locals.version = app.get("version");
     res.locals.serverHost = app.get("config.server")["host"];
     req.session.authkey = await generateCredentials('authkey', req.session.identifier);
@@ -124,6 +131,10 @@ const loadTosPage = async (req: Request, res: Response, version:string): Promise
 	}
 
 	logger.info("GET /api/" + version + "/tos", "|", getClientIp(req));
+
+    // Active modules
+    const activeModules = loadconfigActiveModules(app).map((module) => module[0]);
+    res.locals.activeModules = activeModules; 
 
     res.locals.version = app.get("version");
     res.locals.serverHost = app.get("config.server")["host"];
@@ -155,6 +166,10 @@ const loadLoginPage = async (req: Request, res: Response, version:string): Promi
 
 	logger.info("GET /api/" + version + "/login", "|", getClientIp(req));
 
+    // Active modules
+    const activeModules = loadconfigActiveModules(app).map((module) => module[0]);
+    res.locals.activeModules = activeModules; 
+
     res.locals.version = app.get("version");
     res.locals.serverHost = app.get("config.server")["host"];
 
@@ -175,6 +190,10 @@ const loadIndexPage = async (req: Request, res: Response, version:string): Promi
 	}
 
 	logger.info("GET /api/" + version + "/index", "|", getClientIp(req));
+
+    // Active modules
+    const activeModules = loadconfigActiveModules(app).map((module) => module[0]);
+    res.locals.activeModules = activeModules; 
 
     res.locals.version = app.get("version");
     res.locals.serverHost = app.get("config.server")["host"];
@@ -198,13 +217,9 @@ const loadDocsPage = async (req: Request, res: Response, version: string): Promi
 
     logger.info("GET /api/" + version + "/documentation", "|", getClientIp(req));
 
-    const availableModules = Object.entries(app.get("config.server")["availableModules"]);
-    res.locals.activeModules = [];
-    for (const [key] of availableModules) {
-        if (app.get("config.server")["availableModules"][key]["enabled"] == true) {
-            res.locals.activeModules.push(app.get("config.server")["availableModules"][key]);
-        }
-    }
+    // Active modules
+    const activeModules = loadconfigActiveModules(app).map((module) => module[0]);
+    res.locals.activeModules = activeModules; 
 
     logger.debug(req.session.metadata);
 
@@ -231,6 +246,10 @@ const loadGalleryPage = async (req: Request, res: Response, version:string): Pro
 
 	logger.info("GET /api/" + version + "/gallery", "|", getClientIp(req));
 
+    // Active modules
+    const activeModules = loadconfigActiveModules(app).map((module) => module[0]);
+    res.locals.activeModules = activeModules; 
+
     res.locals.version = app.get("version");
     res.locals.serverHost = app.get("config.server")["host"];
 
@@ -252,6 +271,10 @@ const loadRegisterPage = async (req: Request, res: Response, version:string): Pr
 
 	logger.info("GET /api/" + version + "/register", "|", getClientIp(req));
 
+    // Active modules
+    const activeModules = loadconfigActiveModules(app).map((module) => module[0]);
+    res.locals.activeModules = activeModules; 
+
     res.locals.version = app.get("version");
     res.locals.serverHost = app.get("config.server")["host"];
 
@@ -272,6 +295,10 @@ const loadCdnPage = async (req: Request, res: Response, version:string): Promise
     }
 
     logger.info("GET /api/" + version + "/cdn", "|", getClientIp(req));
+
+    // Active modules
+    const activeModules = loadconfigActiveModules(app).map((module) => module[0]);
+    res.locals.activeModules = activeModules; 
 
     res.locals.version = app.get("version");
     res.locals.serverHost = app.get("config.server")["host"];
