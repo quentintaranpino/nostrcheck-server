@@ -11,6 +11,7 @@ import { isBUD01AuthValid } from "./blossom/BUD01.js";
 import { NIPKinds } from "../interfaces/nostr.js";
 import { BUDKinds } from "../interfaces/blossom.js";
 import { isContentBanned } from "./banned.js";
+import { getClientIp } from "./utils.js";
 
 
 /**
@@ -25,26 +26,26 @@ const parseAuthHeader = async (req: Request, endpoint: string = "", checkAdminPr
 
 	// Apikey. Will be deprecated on 0.7.0
 	if (req.query.apikey || req.body?.apikey?.length > 0) {
-		logger.debug("Apikey found on request", req.query.apikey || req.body.apikey, "|", req.socket.remoteAddress)
+		logger.debug("Apikey found on request", req.query.apikey || req.body.apikey, "|", getClientIp(req))
 		return await isApikeyValid(req, endpoint, checkAdminPrivileges);
 	}
 
 	//Check if request has authorization header.
 	if (req.headers.authorization === undefined) {
-		if(endpoint != 'getMediaByURL' && endpoint != 'getMediaList') logger.warn("Authorization header not found", req.url, "|",req.socket.remoteAddress);
+		if(endpoint != 'getMediaByURL' && endpoint != 'getMediaList') logger.warn(`Authorization header not found- Enpoint: ${endpoint} | URL: ${req.url} | ${getClientIp(req)}`);
 		return {status: "error", message: "Authorization header not found", pubkey:"", authkey:"", kind: 0};
 	}
 
 	// Authkey. Bearer token.
 	if (req.headers.authorization.startsWith('Bearer ')) {
-		logger.debug("authkey found on request: ", req.headers.authorization, "|", req.socket.remoteAddress);
+		logger.debug("authkey found on request: ", req.headers.authorization, "|", getClientIp(req));
 		return await isAuthkeyValid(req.headers.authorization.split(' ')[1], checkAdminPrivileges);
 	} 
 
 	// NIP98 or BUD01. Nostr / Blossom token
 	if (req.headers.authorization.startsWith('Nostr ')) {
 		let authevent: Event;
-		logger.debug("NIP98 / BUD01 found on request", req.headers.authorization, "|", req.socket.remoteAddress);
+		logger.debug("NIP98 / BUD01 found on request", req.headers.authorization, "|", getClientIp(req));
 		try {
 			authevent = JSON.parse(
 				Buffer.from(
@@ -63,14 +64,14 @@ const parseAuthHeader = async (req: Request, endpoint: string = "", checkAdminPr
 			}
 
 		} catch (error) {
-			logger.warn(`RES -> 400 Bad request - ${error}`, "|", req.socket.remoteAddress);
+			logger.warn(`RES -> 400 Bad request - ${error}`, "|", getClientIp(req));
 			return {status: "error", message: "Malformed authorization header", pubkey:"", authkey : "", kind: 0};
 		}
 		
 	}
 	
 	// If none of the above, return error
-	logger.warn("RES -> 400 Bad request - Authorization header not found", "|", req.socket.remoteAddress);
+	logger.warn("RES -> 400 Bad request - Authorization header not found", "|", getClientIp(req));
 	return {status: "error", message: "Authorization header not found", pubkey:"", authkey:"", kind: 0};
 
 };
@@ -285,7 +286,7 @@ const isApikeyValid = async (req: Request, endpoint: string = "", checkAdminPriv
 
 	const apikey = req.query.apikey || req.body.apikey;
 	if (!apikey) {
-		logger.warn("RES -> 400 Bad request - Apikey not found", "|", req.socket.remoteAddress);
+		logger.warn("RES -> 400 Bad request - Apikey not found", "|", getClientIp(req));
 		return {status: "error", message: "Apikey not found", pubkey:"", authkey:"", kind: 0};
 	}
 
@@ -301,15 +302,15 @@ const isApikeyValid = async (req: Request, endpoint: string = "", checkAdminPriv
 
 	if (hexApikey === "" || hexApikey === undefined) {
 		if (serverApikey){
-			logger.warn("RES -> 401 unauthorized - Apikey not authorized for this action", "|", req.socket.remoteAddress);
+			logger.warn("RES -> 401 unauthorized - Apikey not authorized for this action", "|", getClientIp(req));
 			return {status: "error", message: "Apikey not authorized for this action", pubkey:"", authkey:"", kind: 0};
 		}
-		logger.warn("RES -> 401 unauthorized - Apikey not found", "|", req.socket.remoteAddress);
+		logger.warn("RES -> 401 unauthorized - Apikey not found", "|", getClientIp(req));
 		return {status: "error", message: "Apikey not authorized for this action", pubkey:"", authkey:"", kind: 0};
 	}
 
 	if (await isPubkeyValid(hexApikey, checkAdminPrivileges) == false){
-		logger.warn("RES -> 401 unauthorized - Apikey not authorized for this action", "|", req.socket.remoteAddress);
+		logger.warn("RES -> 401 unauthorized - Apikey not authorized for this action", "|", getClientIp(req));
 		return {status: "error", message: "Apikey not authorized for this action", pubkey:"", authkey:"", kind: 0};
 	}
 
