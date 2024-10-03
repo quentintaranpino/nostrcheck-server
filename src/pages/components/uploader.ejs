@@ -132,8 +132,10 @@
             return { "filename": "", "url": "" };
         }
 
+        
+
         let headers = {};
-        headers["authorization"] = localStorage.getItem('authkey') != "" && localStorage.getItem('authkey') != undefined ? "Bearer " + localStorage.getItem('authkey') : "Nostr " + authEvent;
+        headers["authorization"] = localStorage.getItem('authkey') != "" && localStorage.getItem('authkey') != undefined && identifier != "" ? "Bearer " + localStorage.getItem('authkey') : "Nostr " + authEvent;
         method == "PUT" ? headers["Content-Type"] = file.type : null;
         if (file.fileData.macaroon != "" && file.fileData.preimage != ""){
             headers["Www-Authenticate"] = `L402 macaroon="${file.fileData.macaroon}"preimage="${file.fileData.preimage}"`;
