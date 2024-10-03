@@ -113,6 +113,11 @@ html[data-bs-theme="dark"] {
   color: rgba(var(--bs-white-rgb), var(--bs-text-opacity)) !important;
 }
 
+.img-thumbnail {
+  padding: 0;
+  border-width: 2px;
+}
+
 /* Hr with text */
 .hr-text {
   display: flex;

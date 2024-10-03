@@ -6,7 +6,7 @@
     </div>
     <nav class="navbar navbar-light navbar-expand fixed-bottom d-lg-none d-xl-none pb-3 shadow-lg">
         <ul class="nav nav-justified w-100 align-items-center" id="myTab" role="tablist">
-            <li <% if (!request.session.metadata || (request.session.metadata && !request.session.allowed)) { %>style="display: none;"<% } %> class='nav-item' role="presentation">
+            <li <% if (!request.session.identifier || (request.session.identifier && !request.session.allowed)) { %>style="display: none;"<% } %> class='nav-item' role="presentation">
                 <button class="nav-link" type="button" aria-controls="intro" aria-selected="false" aria-label="Dashboard">
                     <span class="fs-2"><a href="dashboard" role="button"><i class="bi bi-speedometer" aria-hidden="true"></i><span class="visually-hidden">Dashboard</span></a></span>
                 </button>
@@ -18,7 +18,7 @@
             </li>
             <li <% if (!request.session.identifier) { %>style="display: none;"<% } %> class='nav-item' role="presentation">
                 <button class="nav-link" type="button" aria-controls="intro" aria-selected="false" aria-label="Settings">
-                    <span class="fs-2" <% if (!request.session.metadata || (request.session.metadata && !request.session.allowed)) { %>style="display: none;"<% } %> ><a href="settings" role="button"><i class="bi bi-gear-fill" aria-hidden="true"></i><span class="visually-hidden">Settings</span></a></span>
+                    <span class="fs-2" <% if (!request.session.identifier || (request.session.identifier && !request.session.allowed)) { %>style="display: none;"<% } %> ><a href="settings" role="button"><i class="bi bi-gear-fill" aria-hidden="true"></i><span class="visually-hidden">Settings</span></a></span>
                     <span class="fs-2" <% if (request.session.identifier && (request.session.identifier && request.session.allowed == true )) { %>style="display: none;"<% } %>><a href="profile#userSettings" role="button"><i class="bi bi-gear-fill" aria-hidden="true"></i><span class="visually-hidden">Settings</span></a></span>
                 </button>
             </li>
@@ -35,7 +35,7 @@
             <li class="nav-item" role="presentation" <% if (!request.session.identifier) { %>style="display: none;"<% } %> >
                 <button class="nav-link" type="button" aria-controls="intro" aria-selected="false" aria-label="Profile">
                     <span class="fs-2"><a href="profile" role="button">
-                        <img <% if (request.session.identifier) { %>src=  <%- JSON.stringify(request.session.metadata.picture)%> <% }%> width="50" height="50" class="rounded-circle">
+                        <div class="picture-container overflow-hidden d-flex align-items-center rounded-circle mx-auto" style="width: 60px; height: 60px;"></div>
                         <span class="visually-hidden">Profile</span></a>
                     </span>
                 </button>

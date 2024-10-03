@@ -68,11 +68,6 @@
     }
   }
 
-  .img-thumbnail {
-    padding: 0;
-    border-width: 2px;
-  }
-
   .profile-icon-link svg {
     margin-right: 0.3rem;
     width: 18px;
@@ -93,7 +88,7 @@
               <div class="ratio ratio-1x1">
                 <div id="picture-header" class="picture-container img-thumbnail mt-5 mb-1 overflow-hidden d-flex align-items-center"></div>
               </div>
-              <span id="name-header" class="fs-5 lead mb-2 d-block mt-5"><%= request.session.metadata.display_name || request.session.metadata.name || request.session.metadata.usernames[0].username %></span>
+              <span id="name-header" class="fs-5 lead mb-2 d-block mt-5"></span>
           </div>
           </div>
           <div class="pt-2 pe-3 pb-2 z-1">
@@ -103,13 +98,17 @@
                 <p class="small text-muted mb-0">Hosted Files</p>
               </div>
               <div class="lead">
-                <p class="mb-1 h5"><%= request.session.metadata.following.length || "0" %></p>
+                <p class="mb-1 h5" id="following-header-count">0</p>
                 <p class="small text-muted mb-0">Following</p> 
+              </div>
+              <div class="lead ms-3 d-none">
+                <p class="mb-1 h5" id="followers-header-count">0</p>
+                <p class="small text-muted mb-0">Followers</p> 
               </div>
             </div>
             <div class="ps-3 pe-4 pt-5 ms-2">
               <div class="d-flex flex-column align-middle mb-2 lead">
-                  <span class="fs-6 profile-icon-link mb-1 <%= request.session.metadata.nip05 === '' ? 'd-none' : '' %>">
+                  <span class="fs-6 profile-icon-link mb-1 d-none" id="nip05-header-row">
                     <svg viewBox="0 0 18 18" 
                       fill="none" 
                       xmlns="http://www.w3.org/2000/svg">
@@ -119,9 +118,9 @@
                             fill="currentColor">
                       </path>
                     </svg>
-                    <span id="nip05-header"><%= request.session.metadata.nip05 %></span>
+                    <span id="nip05-header-text"></span>
                   </span>
-                  <span class="fs-6 profile-icon-link mb-1 <%= request.session.metadata.website === '' ? 'd-none' : '' %>">
+                  <span class="fs-6 profile-icon-link mb-1 d-none" id="website-header-row">
                     <svg  viewBox="0 0 18 18" 
                       fill="none" 
                       xmlns="http://www.w3.org/2000/svg">
@@ -131,9 +130,9 @@
                             fill="currentColor">
                       </path>
                     </svg>
-                    <a id="website-header" class="text-decoration-none" href="<%= request.session.metadata.website %>"><%= request.session.metadata.website %></a>
+                    <a id="website-header" class="text-decoration-none" href=""></a>
                   </span>
-                <span class="fs-6 profile-icon-link mb-1 <%= request.session.metadata.lud16 === '' ? 'd-none' : '' %>">
+                <span class="fs-6 profile-icon-link mb-1 d-none" id="lud16-header-row">
                   <svg  viewBox="0 0 18 18" 
                     fill="none" 
                     xmlns="http://www.w3.org/2000/svg">
@@ -149,7 +148,7 @@
                             fill="currentColor">+
                       </path>
                   </svg>
-                  <a id="lud16-header" class="text-decoration-none" href="lightning:<%= request.session.metadata.lud16 %>"><%= request.session.metadata.lud16 %></a>
+                  <a id="lud16-header" class="text-decoration-none" href=""></a>
                 </span>
                 <span class="fs-6 profile-icon-link mt-1 <%= request.session.metadata.npub === '' ? 'd-none' : '' %>">
                   <button id="npub-header-btn" class="btn btn-primary" type="button" id="pubkey-copy-btn" 
@@ -161,8 +160,8 @@
                 </span>
               </div>
             </div>
-            <div class="ps-4 pe-2 pt-1 <%= request.session.metadata.about === '' ? 'd-none' : '' %>">
-              <p id="about-header" class="lead"><%= request.session.metadata.about %></p>
+            <div class="ps-4 pe-2 pt-1 d-none" id="about-header-row">
+              <p id="about-header" class="lead"></p>
             </div>
           </div>
           <div class="z-1">
@@ -202,7 +201,41 @@
   <%- include('./partials/footer', {active:'profile'}); %>
 
 <script>
-  const following = '<%= request.session.metadata.following %>';
+
+  document.addEventListener('DOMContentLoaded', async () => {
+
+    // Following count
+    const following = await subscribeRelays(3,"<%= request.session.metadata.pubkey %>")
+    document.getElementById('following-header-count').innerHTML = following[0].tags.length;
+
+    if (localStorage.getItem('profileData')){
+      document.getElementById('name-header').innerHTML = JSON.parse(localStorage.getItem('profileData')).display_name || JSON.parse(localStorage.getItem('profileData')).name || "<%= request.session.metadata.usernames[0].username %>";
+      
+      if (localStorage.getItem('profileData').nip05 != ''){
+        document.getElementById('nip05-header-row').classList.remove('d-none');
+        document.getElementById('nip05-header-text').innerHTML = JSON.parse(localStorage.getItem('profileData')).nip05;
+      }
+
+      if (localStorage.getItem('profileData').website != ''){
+        document.getElementById('website-header-row').classList.remove('d-none');
+        document.getElementById('website-header').innerHTML = JSON.parse(localStorage.getItem('profileData')).website;
+        document.getElementById('website-header').href = JSON.parse(localStorage.getItem('profileData')).website;
+      }
+
+      if (localStorage.getItem('profileData').lud16 != ''){
+        document.getElementById('lud16-header-row').classList.remove('d-none');
+        document.getElementById('lud16-header').innerHTML = JSON.parse(localStorage.getItem('profileData')).lud16;
+        document.getElementById('lud16-header').href = `lightning:${JSON.parse(localStorage.getItem('profileData')).lud16}`;
+      }
+
+      if (localStorage.getItem('profileData').about != ''){
+        document.getElementById('about-header-row').classList.remove('d-none');
+        document.getElementById('about-header').innerHTML = JSON.parse(localStorage.getItem('profileData')).about;
+      }
+    }
+    
+  });
+
   function activateTabFromHash() {
     const hash = window.location.hash;
     if (hash) {

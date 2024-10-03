@@ -9,7 +9,7 @@
     <%- include('./partials/navbar', {active:'dashboard'}); %>
     <main class="pb-1">
       <div class="text-center"><h1 class="display-2 mt-2 gradient-text">Dashboard</h1></div>
-      <p class="text-center mt-2 display-6">Welcome <%= request.session.metadata.display_name %>, this is the status of your server today</p>
+      <p class="text-center mt-2 display-6" id="welcome-text"></p>
       <div class= "container-fluid mt-5">
         <div class="row">
           <% if(locals.activeModules.includes('nostraddress')) { %> 
@@ -353,8 +353,6 @@
   </body>
 
 <script>
-  let metadata = "<%= JSON.stringify(request.session.metadata) %>"
-  let activeModules = "<%= JSON.stringify(locals.activeModules) %>"
 </script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="/static/js/chart.js"></script>
@@ -362,6 +360,12 @@
 <script src="/static/js/table.js"></script>
 
 <script>
+  
+  // Welcome text
+  if (localStorage.getItem('profileData')){
+  document.getElementById('welcome-text').innerHTML = `Welcome ${JSON.parse(localStorage.getItem('profileData')).display_name}, this is the status of your server today`;
+  }
+  
   const initData = async() => {
     for (const dashcard of dashcards) {
       if (activeModules.includes(dashcard.dataKey)) {

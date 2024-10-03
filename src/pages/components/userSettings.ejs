@@ -11,16 +11,16 @@
     </div>
     <div id="name" class="mb-3">
         <label for="name-input" class="mb-1">Username</label>
-        <input type="text" class="form-control" id="name-input" value="<%= request.session.metadata.name %>">
+        <input type="text" class="form-control" id="name-input" value="">
     </div>
     <div id="display-name" class="mb-3">
         <label for="displayName-input" class="mb-1">Display name</label>
-        <input type="text" class="form-control" id="displayName-input" value="<%= request.session.metadata.display_name %>">
+        <input type="text" class="form-control" id="displayName-input" value="">
     </div>
     <div id="picture" class="mb-3">
         <label for="picture-input" class="mb-1">Profile picture</label>
         <div class="input-group">
-            <input type="text" class="form-control" id="picture-input" value="<%= request.session.metadata.picture %>">
+            <input type="text" class="form-control" id="picture-input" value="">
             <button class="btn btn-outline-secondary" type="button" id="picture-upload-btn"><i class="fa-solid fa-upload"></i></button>
             <button class="btn btn-outline-secondary" type="button" id="picture-copy-btn" onclick="copyToClipboard(this,document.getElementById('picture-input').value)"><i class="fa-solid fa-copy"></i></button>
         </div>  
@@ -29,7 +29,7 @@
     <div id="banner" class="mb-3">
         <label for="banner-input" class="mb-1">Profile banner</label>
         <div class="input-group">
-            <input type="text" class="form-control" id="banner-input" value="<%= request.session.metadata.banner %>">
+            <input type="text" class="form-control" id="banner-input" value="">
             <button class="btn btn-outline-secondary" type="button" id="banner-upload-btn"><i class="fa-solid fa-upload"></i></button>
             <button class="btn btn-outline-secondary" type="button" id="banner-copy-btn" onclick="copyToClipboard(this,document.getElementById('banner-input').value)"><i class="fa-solid fa-copy"></i></button>
         </div> 
@@ -38,7 +38,7 @@
     <div id="nip05" class="mb-3">
         <label for="nip05-input" class="mb-1">Nostr address (NIP-05)</label>
         <div class="input-group">
-            <input type="text" class="form-control" id="nip05-input" value="<%= request.session.metadata.nip05 %>">
+            <input type="text" class="form-control" id="nip05-input" value="">
             <div class="input-group-text">
                 <div class="form-check form-switch">
                     <label for ="userSettings.nostrAddress.enableLightningRedirect" class=""><i class="fa-solid fa-bolt me-2 text-warning"></i>LN redirect</button></label>
@@ -54,15 +54,15 @@
     </div>
     <div id="lud16" class="mb-3">
         <label for="lud16-input" class="form-label">Lightning address</label>
-        <input type="text" class="form-control" id="lud16-input" value="<%= request.session.metadata.lud16 %>">
+        <input type="text" class="form-control" id="lud16-input" value="">
     </div>
     <div id="website" class="mb-3">
         <label for="website" class="mb-1">Website</label>
-        <input type="text" class="form-control" id="website-input" value="<%= request.session.metadata.website %>">
+        <input type="text" class="form-control" id="website-input" value="">
     </div>
     <div id="about" class="mb-3">
         <label for="about-input" class="form-label">About</label>
-        <textarea class="form-control" id="about-input" rows="4"><%= request.session.metadata.about %></textarea>
+        <textarea class="form-control" id="about-input" rows="4"></textarea>
     </div>
 </form>
 <div class="text-center mt-1 mb-5 mb-lg-2">
@@ -70,6 +70,18 @@
 </div>
 <script>
     document.addEventListener('DOMContentLoaded', (event) => {
+
+        if (localStorage.getItem('profileData')){
+
+            document.getElementById('name-input').value = JSON.parse(localStorage.getItem('profileData')).name;
+            document.getElementById('displayName-input').value = JSON.parse(localStorage.getItem('profileData')).display_name;
+            document.getElementById('picture-input').value = JSON.parse(localStorage.getItem('profileData')).picture;
+            document.getElementById('banner-input').value = JSON.parse(localStorage.getItem('profileData')).banner;
+            document.getElementById('website-input').value = JSON.parse(localStorage.getItem('profileData')).website;
+            document.getElementById('nip05-input').value = JSON.parse(localStorage.getItem('profileData')).nip05;
+            document.getElementById('lud16-input').value = JSON.parse(localStorage.getItem('profileData')).lud16;
+            document.getElementById('about-input').value = JSON.parse(localStorage.getItem('profileData')).about;
+        }
 
         document.querySelectorAll("form").forEach(form => {
             form.addEventListener("submit", function(event) {
@@ -231,6 +243,14 @@ const updateProfileFields = (data) => {
             input.defaultValue = data[field];
         }
     });
+
+    // Update localStorage with the new data
+    if (localStorage.getItem('profileData')){
+        const pData = JSON.parse(localStorage.getItem('profileData'));
+        const updatedData = {...pData, ...data};
+        localStorage.setItem('profileData', JSON.stringify(updatedData));
+    }
+
 };
 
 </script>

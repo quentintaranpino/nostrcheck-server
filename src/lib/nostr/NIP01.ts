@@ -47,69 +47,71 @@ const getProfileData = async (pubkey: string, kind: number = 0): Promise<Event[]
  * @param pubkey - The public key of the user, hex format.
  * @returns A boolean indicating whether the operation was successful.
  */
-const getProfileFollowers = (pubkey : string) : boolean => {
+const getProfileFollowers = (pubkey : string) : Promise<boolean> => {
 	
 	const followerList : Event[] = []
 
-
-	try{
-		const data = relaysPool.subscribeMany(
-			relays,
-			[{
-				kinds: [3],
-				"#p": [pubkey],
-			}],
-			{
-				eoseTimeout: 100,
-				onevent(e) {
-					followerList.push(e);
+	return new Promise((resolve) => {
+		try{
+			const data = relaysPool.subscribeMany(
+				relays,
+				[{
+					kinds: [3],
+					"#p": [pubkey],
+				}],
+				{
+					eoseTimeout: 100,
+					onevent(e) {
+						followerList.push(e);
+					},
+					oneose() {
+						data.close();
+						app.set("#p_" + pubkey, followerList.length);
+						resolve(true)
+					},
 				},
-				oneose() {
-					data.close();
-					app.set("#p_" + pubkey, followerList.length);
-				},
-			},
-		);
-	}catch (error) {
-		logger.error(error)
-		return false
-	}
-	
-	return true;
+			);
+		}catch (error) {
+			logger.error(error)
+			resolve(false)
+		}
+	});
 }
 
-const getProfileFollowing = (pubkey : string) : boolean => {
+const getProfileFollowing = (pubkey : string) : Promise<Boolean> => {
 	
 	const followingEvents: Event[] = []
 
-	try{
-		const data = relaysPool.subscribeMany(
-			relays,
-			[{
-				authors: [pubkey],
-				kinds: [3],
-			}],
-			{
-				eoseTimeout: 1000,
-				onevent(e) {
-					followingEvents.push(e);
+	return new Promise((resolve) => {
+		try{
+			const data = relaysPool.subscribeMany(
+				relays,
+				[{
+					authors: [pubkey],
+					kinds: [3],
+				}],
+				{
+					eoseTimeout: 1000,
+					onevent(e) {
+						followingEvents.push(e);
+					},
+					oneose() {
+						if (followingEvents.length > 0) {
+							followingEvents.sort((a, b) => b.created_at - a.created_at);
+							const pubkeys = followingEvents[0].tags.map(item => item[1]);
+							app.set("#f_" + pubkey, pubkeys);
+						}		
+						data.close();
+						resolve(true);
+
+					},
 				},
-				oneose() {
-					if (followingEvents.length > 0) {
-						followingEvents.sort((a, b) => b.created_at - a.created_at);
-						const pubkeys = followingEvents[0].tags.map(item => item[1]);
-						app.set("#f_" + pubkey, pubkeys);
-					}		
-					data.close();
-				},
-			},
-		);
-	}catch (error) {
-		logger.error(error)
-		return false
-	}
-	
-	return true;
+			);
+		}catch (error) {
+			logger.error(error)
+			resolve(false)
+		}
+	});
 }
 
 /**

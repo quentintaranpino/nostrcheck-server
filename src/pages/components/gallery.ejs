@@ -189,7 +189,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
                         mediaElement.setAttribute('autoplay', '');
                         mediaElement.setAttribute('loop', '');
                         mediaElement.setAttribute('poster', '/static/resources/loading-video.webp');
-                        mediaElement.setAttribute('preload', 'metadata'); // Solo cargar metadatos al principio
+                        mediaElement.setAttribute('preload', 'metadata');
 
                         const handleVideoError = function(error) {
                             mediaElement.removeEventListener('error', handleVideoError);

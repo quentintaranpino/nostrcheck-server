@@ -80,7 +80,7 @@ enum eventVerifyTypes {
 	malformed = -3,
 }
 
-interface userMetadata {
+interface nostrProfileData {
     name: string,
     about: string,
     picture: string,
@@ -91,5 +91,16 @@ interface userMetadata {
     banner?: string,
 }
 
+const emptyNostrProfileData: nostrProfileData = {
+    name: "",
+    about: "",
+    picture: "",
+    nip05: "",
+    lud16: "",
+    website: "",
+    display_name: "",
+    banner: "",
+}
 
-export { NIPKinds, NIP96file, NIP94_event, NIP94_data, NIP96_event, NIP96_processing, NIP04_event, eventVerifyTypes, userMetadata};
+
+export { NIPKinds, NIP96file, NIP94_event, NIP94_data, NIP96_event, NIP96_processing, NIP04_event, eventVerifyTypes, nostrProfileData, emptyNostrProfileData};

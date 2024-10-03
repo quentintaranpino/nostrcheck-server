@@ -363,5 +363,3 @@ const subscribeRelays = async (kind, pubkeys, since, until) => {
     }
   });
 }
-
-

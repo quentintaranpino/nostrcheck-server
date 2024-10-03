@@ -6,7 +6,7 @@ import { getClientIp, markdownToHtml } from "../lib/utils.js";
 import { dbSelect} from "../lib/database.js";
 import { generateCredentials, isAuthkeyValid, isPubkeyAllowed, isPubkeyValid, isUserPasswordValid } from "../lib/authorization.js";
 import { isModuleEnabled, loadconfigActiveModules } from "../lib/config.js";
-import { countPubkeyFiles, getProfileNostrMetadata } from "../lib/frontend.js";
+import { countPubkeyFiles } from "../lib/frontend.js";
 import { hextoNpub } from "../lib/nostr/NIP19.js";
 import { logHistory } from "../lib/logger.js";
 import { themes, particles} from "../interfaces/themes.js";
@@ -34,10 +34,6 @@ const loadDashboardPage = async (req: Request, res: Response, version:string): P
     res.locals.version = app.get("version");
     res.locals.serverHost = app.get("config.server")["host"];
     req.session.authkey = await generateCredentials('authkey', req.session.identifier);
-
-    // User metadata
-    req.session.metadata = await getProfileNostrMetadata(req.session.identifier);
-    req.session.metadata.usernames = await getUsernames(req.session.identifier);
 
     // Check admin privileges. Only for information, never used for authorization
     req.session.allowed = await isPubkeyAllowed(req.session.identifier);
@@ -81,10 +77,6 @@ const loadSettingsPage = async (req: Request, res: Response, version:string): Pr
     res.locals.settingsLookAndFeelParticles = particles;
     req.session.authkey = await generateCredentials('authkey', req.session.identifier);
 
-    // User metadata
-    req.session.metadata = await getProfileNostrMetadata(req.session.identifier);
-    req.session.metadata.usernames = await getUsernames(req.session.identifier);
-
     // Check admin privileges. Only for information, never used for authorization
     req.session.allowed = await isPubkeyAllowed(req.session.identifier);
     
@@ -110,7 +102,12 @@ const loadProfilePage = async (req: Request, res: Response, version:string): Pro
     req.session.authkey = await generateCredentials('authkey', req.session.identifier);
 
     // User metadata
-    req.session.metadata = await getProfileNostrMetadata(req.session.identifier);
+    req.session.metadata = {
+        pubkey: req.session.identifier,
+        npub: await hextoNpub(req.session.identifier),
+        hostedFiles: 0,
+        usernames: []
+    }
     req.session.metadata.usernames = await getUsernames(req.session.identifier);
 
     // User uploaded files
@@ -385,10 +382,6 @@ const frontendLogin = async (req: Request, res: Response): Promise<Response> => 
         logger.error("Failed to generate authkey for", req.session.identifier);
         return res.status(500).send(false);
     }
-
-    // User metadata
-    req.session.metadata = await getProfileNostrMetadata(req.session.identifier);
-    req.session.metadata.usernames = await getUsernames(req.session.identifier);
 
     // Check admin privileges. Only for information, never used for authorization
     req.session.allowed = await isPubkeyAllowed(req.session.identifier);
