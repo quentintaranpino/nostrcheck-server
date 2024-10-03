@@ -12,7 +12,9 @@
       <p class="text-center mt-2 display-6">Welcome <%= request.session.metadata.display_name %>, this is the status of your server today</p>
       <div class= "container-fluid mt-5">
         <div class="row">
+          <% if(locals.activeModules.includes('nostraddress')) { %> 
           <%- include('./components/dashcard', { dashcardId: 'nostraddressCount', link: '#nostraddressData'}); %>
+          <% } %>
           <% if(locals.activeModules.includes('media')) { %> 
             <%- include('./components/dashcard', { dashcardId: 'mediaCount', link: '#mediaData' }); %>
           <% } %>
@@ -69,27 +71,29 @@
         ];
 
         %>
-        <%- include('./components/table', {
-          tableName:"Registered users", 
-          tableId:"nostraddressData", 
-          buttons:nostraddressButtons,
-          fields: nostraddressFields
-        });         
-        %>
-        <div class="mt-2 d-flex flex-column align-items-center">
-          <div class="row d-flex w-100">
-            <div class="col-xl-8 col-lg-12 col-md-12 col-sm-12 mb-4" style="height:450px;">
-              <div class="w-100 h-100 default-bg rounded d-flex me-2 shadow-sm ">
-                <canvas id="nostraddressData-chart" class="mx-auto w-100"></canvas>
+        <% if(locals.activeModules.includes('nostraddress')) { %> 
+          <%- include('./components/table', {
+            tableName:"Registered users", 
+            tableId:"nostraddressData", 
+            buttons:nostraddressButtons,
+            fields: nostraddressFields
+          });         
+          %>
+          <div class="mt-2 d-flex flex-column align-items-center">
+            <div class="row d-flex w-100">
+              <div class="col-xl-8 col-lg-12 col-md-12 col-sm-12 mb-4" style="height:450px;">
+                <div class="w-100 h-100 default-bg rounded d-flex me-2 shadow-sm ">
+                  <canvas id="nostraddressData-chart" class="mx-auto w-100"></canvas>
+                  </div>  
+              </div>
+              <div class="col-xl-4 col-lg-12 col-md-12 col-sm-12" style="height:450px;">
+                <div class="w-100 h-100 default-bg rounded d-flex me-2 p-3 shadow-sm ">
+                <canvas id="nostraddressData-doughnut-chart" class="mx-auto"></canvas>
                 </div>  
-            </div>
-            <div class="col-xl-4 col-lg-12 col-md-12 col-sm-12" style="height:450px;">
-              <div class="w-100 h-100 default-bg rounded d-flex me-2 p-3 shadow-sm ">
-              <canvas id="nostraddressData-doughnut-chart" class="mx-auto"></canvas>
-              </div>  
+              </div>
             </div>
           </div>
-        </div>
+        <% } %>
         <% 
         let mediaFields = [
           ['checked',       '30' , 'formatCheckbox' , 'enabled   show text-center              '],
@@ -286,7 +290,7 @@
             ['reason'           , ''   , ''                , 'enabled   show mobile-hide              '],
           ];
           %>
-          <% if(locals.activeModules.includes('admin')) { %> 
+          <% if((locals.activeModules.includes('media') || locals.activeModules.includes('nostraddress')) && locals.activeModules.includes('admin')  ) { %> 
             <%- include('./components/table', {
               tableName:"Banned objects", 
               tableId:"bannedData", 
