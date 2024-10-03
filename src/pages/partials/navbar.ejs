@@ -55,13 +55,13 @@
       <li>
         <a <% if(active === 'home'){ %><%- "class='nav-link active'"%><% } else { %><%- "class='nav-link'"%><%}%> href="/api/v2/"><i class="fa-solid fa-house me-2"></i>Home <span class="sr-only">(current)</span></a>
       </li>
-      <li>
+      <li id="registerMenu">
         <a <% if(active === 'register'){ %><%- "class='nav-link active'"%><% } else { %><%- "class='nav-link'"%><%}%> href="register"><i class="fa-solid fa-user-plus me-2"></i>Register <span class="sr-only">(current)</span></a>
       </li>
-      <li>
+      <li id="galleryMenu">
         <a <% if(active === 'gallery'){ %><%- "class='nav-link active'"%><% } else { %><%- "class='nav-link'"%><%}%> href="gallery"><i class="bi bi-image-fill me-2"></i></i>Public gallery <span class="sr-only">(current)</span></a>
       </li>
-      <li>
+      <li id="cdnMenu">
         <a  <% if(active === 'cdn'){ %><%- "class='nav-link active'"%><% } else { %><%- "class='nav-link'"%><%}%> href="media"><i class="fa-solid fa-server me-2"></i>File hosting</a>
       </li>   
       <li>
@@ -105,3 +105,14 @@ html[data-bs-theme="dark"] .navbar {
 
 }
 </style>
+<script>
+  const activeModules = [];
+  <% for(const key in locals.activeModules) { %>
+    activeModules.push('<%- locals.activeModules[key] %>');
+  <% } %>
+console.log(activeModules)
+activeModules.find((element) => element === 'register') ? null : document.getElementById('registerMenu').classList.add('d-none');
+activeModules.find((element) => element === 'media') ? null : document.getElementById('galleryMenu').classList.add('d-none');
+activeModules.find((element) => element === 'media') ? null : document.getElementById('cdnMenu').classList.add('d-none');
+
+</script>
