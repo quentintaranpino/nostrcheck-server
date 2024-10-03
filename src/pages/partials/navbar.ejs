@@ -106,13 +106,12 @@ html[data-bs-theme="dark"] .navbar {
 }
 </style>
 <script>
+  // Hide or show navbar items based on active modules
   const activeModules = [];
   <% for(const key in locals.activeModules) { %>
     activeModules.push('<%- locals.activeModules[key] %>');
   <% } %>
-console.log(activeModules)
-activeModules.find((element) => element === 'register') ? null : document.getElementById('registerMenu').classList.add('d-none');
-activeModules.find((element) => element === 'media') ? null : document.getElementById('galleryMenu').classList.add('d-none');
-activeModules.find((element) => element === 'media') ? null : document.getElementById('cdnMenu').classList.add('d-none');
-
+  activeModules.find((element) => element === 'register') ? null : document.getElementById('registerMenu').classList.add('d-none');
+  activeModules.find((element) => element === 'media') ? null : document.getElementById('galleryMenu').classList.add('d-none');
+  activeModules.find((element) => element === 'media') ? null : document.getElementById('cdnMenu').classList.add('d-none');
 </script>

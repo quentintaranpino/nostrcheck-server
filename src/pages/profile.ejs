@@ -240,18 +240,6 @@
   });
   window.dispatchEvent(new Event('resize'));
 
-  document.addEventListener('DOMContentLoaded', (event) => {
-
-    // Set picture or video on profile header picture placeholder
-    const mediaUrl = "<%= request.session.metadata.picture || '/static/resources/picture-default.webp' %>";
-    loadMedia(mediaUrl, document.querySelectorAll('.picture-container'), ['img-thumbnail','border-0', 'object-fit-cover', 'w-100', 'h-100']);
-
-    // Set banner image or video on profile header banner placeholder
-    const bannerUrl = "<%= request.session.metadata.banner || '/static/resources/banner-default.webp' %>";
-    loadMedia(bannerUrl, document.querySelectorAll('.banner-container'), [], { autoplay: true, loop: true, muted: true });
-
-  });
-
 </script>
 </body>
 <%- include('./components/modals/message-modal', {"object":"profile"}); %>

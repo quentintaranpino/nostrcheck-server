@@ -101,5 +101,9 @@
 <script src="/static/js/nostr.js"></script>
 <script>
 storeAuthkey("<%= request.session.authkey %>")
-loadMedia("<%= request.session?.metadata?.picture || '/static/resources/picture-default.webp' %>" || '/static/resources/picture-default.webp', document.querySelectorAll('.picture-container'), ['img-thumbnail', 'border-0', 'object-fit-cover', 'w-100', 'h-100']);
+subscribeRelays(0,["<%= request.session.identifier %>"]).then((data) => {
+    if (!data) return;
+    loadMedia(profileData.picture || '/static/resources/picture-default.webp' || '/static/resources/picture-default.webp', document.querySelectorAll('.picture-container'), ['img-thumbnail', 'border-0', 'object-fit-cover', 'w-100', 'h-100']);
+    loadMedia(profileData.banner || '/static/resources/banner-default.webp', document.querySelectorAll('.banner-container'), [], { autoplay: true, loop: true, muted: true });
+});
 </script>

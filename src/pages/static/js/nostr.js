@@ -10,6 +10,8 @@ let relays = [
 
 let userRelays = [];
 
+let profileData = {};
+
 /**
  * Fetches the user's preferred relays from their Nostr profile (kind 10002 events).
  * @param {string} publicKey - The user's public key.
@@ -320,8 +322,7 @@ const publishProfileRelays = async (relays, publicKey, secretKey, type) => {
 const subscribeRelays = async (kind, pubkeys, since, until) => {
   if (!Array.isArray(pubkeys)) pubkeys = [pubkeys];
 
-  if (pubkeys.length === 0 || kind === undefined) {
-    console.error("No pubkeys or kind provided.");
+  if (pubkeys.length === 0 || kind === undefined || pubkeys[0] == "") {
     return;
   }
 
@@ -349,10 +350,11 @@ const subscribeRelays = async (kind, pubkeys, since, until) => {
         }],
         {
           async onevent(event) {
-            notes.push(event);
+            kind == 1? notes.push(event) : profileData = JSON.parse(event.content);
           },
           oneose() {
-            resolve(notes.sort((a, b) => b.created_at - a.created_at)); 
+            console.log(profileData)
+            kind == 1 ? resolve(notes.sort((a, b) => b.created_at - a.created_at)) : resolve(profileData);
             subscription.close();
           }
         }
