@@ -10,8 +10,6 @@ let relays = [
 
 let userRelays = [];
 
-let profileData = {};
-
 /**
  * Fetches the user's preferred relays from their Nostr profile (kind 10002 events).
  * @param {string} publicKey - The user's public key.
@@ -326,6 +324,7 @@ const subscribeRelays = async (kind, pubkeys, since, until) => {
     return;
   }
 
+
   const p = [...new Set(pubkeys)].map(pubkey => {
     if (!pubkey.startsWith('npub')) return pubkey;
     try {
@@ -338,7 +337,6 @@ const subscribeRelays = async (kind, pubkeys, since, until) => {
 
   return new Promise((resolve, reject) => {
     const notes = [];
-
     try {
       const subscription = pool.subscribeMany(
         relays.map(relay => relay.url), 
@@ -350,11 +348,10 @@ const subscribeRelays = async (kind, pubkeys, since, until) => {
         }],
         {
           async onevent(event) {
-            kind == 1? notes.push(event) : profileData = JSON.parse(event.content);
+            notes.push(event);
           },
           oneose() {
-            console.log(profileData)
-            kind == 1 ? resolve(notes.sort((a, b) => b.created_at - a.created_at)) : resolve(profileData);
+            resolve(notes.sort((a, b) => b.created_at - a.created_at));
             subscription.close();
           }
         }
