@@ -9,18 +9,6 @@
         class="table d-none">
         <thead>
             <tr>
-                <th data-field="id" class="d-none">ID</th>
-                <th data-field="fileName" data-formatter="fileNameFormatter">File Name</th>
-                <th data-field="fileType" class="d-none">File Type</th>
-                <th data-field="transform" data-formatter="transformFormatter">Resize</th>
-                <th data-field="fileSize">File Size</th>
-                <th data-field="invoice" data-formatter="invoiceFormatter">Invoice</th>
-                <th data-field="satoshi" data-formatter="satoshiFormatter" class="text-end">Satoshi</th>
-                <th data-field="macaroon" class="d-none">Macaroon</th>
-                <th data-field="isPaid" class="d-none">isPaid</th>
-                <th data-field="action" data-formatter="actionFormatter" class="text-center">Action</th>
-                <th data-field="accepted" class="d-none">Accepted</th>
-
             </tr>
         </thead>
         <tbody id="<%= instance %>-file-table-body"></tbody>
@@ -50,7 +38,7 @@
       <% } %>
        
     </div>
-<%- include('./modals/payment-modal')%>
+<%- include('./modals/payment-modal', {instance: instance}) %>
 <%- include('./modals/alert-modal', {"objectId":"uploader"}); %>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script>
@@ -102,7 +90,7 @@
                 headers: {
                     "X-Content-Length": file.size.toString(),
                     "X-Content-Type": file.type,
-                    "X-SHA-256": `SHA-256=:${file.fileData.hash}:`,
+                    "X-SHA-256": `${file.fileData.hash}`,
                     "Blossom-content-metadata": file.fileData.transform, // NOT FROM BUD-07 SPEC.
                 },
             });
@@ -256,7 +244,7 @@
                 {
                     field: 'id',
                     title: 'ID',
-                    visible: false
+                    visible: true
                 },
                 {
                     field: 'fileName',
@@ -390,7 +378,7 @@
                 filesArray.push(file); 
 
                 const fileData = {
-                    id: uniqueId,
+                    id: instance + uniqueId,
                     originalName: file.name,
                     fileName: file.name.length > 30 ? file.name.substring(0, 30) + '...' : file.name,
                     fileType: file.type,
@@ -430,8 +418,8 @@
         });
 
         $(document).on('change', '.form-check-input',async function() {
-            const fileId = $(this).attr('id').split('-')[0];
-            const fileIndex = filesArray.findIndex(file => file.fileData.id == fileId);
+            const fileId = $(this).attr('id').split('-').slice(0, -1).join('-')
+            const fileIndex = filesArray.findIndex(file => file.fileData.id === fileId);
             if (fileIndex !== -1) {
 
                 $(this).prop('disabled', true);
@@ -581,7 +569,7 @@
 
     function invoiceFormatter(value, row, index) {
         if (row.isPaid === true) return '<span>Paid<i class="fa-solid fa-check ms-2"></i></span>';
-        return `<button class="btn btn-sm btn-primary" ${value == null || row.satoshi <= 0 ? 'disabled' : ''} onclick="handlePayment('${value}', ${row.satoshi}, ${row.id})">Pay</button>`;
+        return `<button class="btn btn-sm btn-primary" ${value == null || row.satoshi <= 0 ? 'disabled' : ''} onclick="handlePayment('${value}', ${row.satoshi}, '${row.id}','${instance}')">Pay</button>`;
     }
 
     function fileNameFormatter(value, row, index, filesArray) {
@@ -606,17 +594,20 @@
         return '<button class="btn btn-sm text-danger delete-btn" data-file-id="' + row.id + '"><i class="fa-solid fa-xmark"></i></button>';
     }
 
-    function handlePayment(value, satoshi, id) {
-        const row = $('#' + instance + 'file-table').bootstrapTable('getRowByUniqueId', id);
-        initPaymentModal(value, row.satoshi).then(result => {
+    function handlePayment(value, satoshi, id, i) {
+        const row = $('#' + i + 'file-table').bootstrapTable('getRowByUniqueId', id);
+        console.log(i, value, satoshi, id)
+        console.log(row)
+         initPaymentModal(value, row.satoshi, i).then(result => {
             if (result != "") {
                 row.isPaid = true;
                 row.preimage = result;
-                $('#' + instance + 'table').bootstrapTable('updateRow', {
+                $('#' + i + 'table').bootstrapTable('updateRow', {
                     index: id,
                     row: row
                 });
-                $('#' + instance + 'file-table').bootstrapTable('load', filesArray.map(file => file.fileData));
+                $('#' + i + 'file-table').bootstrapTable('load', filesArray.map(file => file.fileData));
+                console.log(row)
             }
         });
     }
