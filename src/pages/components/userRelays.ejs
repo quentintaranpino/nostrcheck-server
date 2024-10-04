@@ -86,6 +86,7 @@ const saveRelayData = async () => {
             });
         } else {
             console.error("Error saving relay data");
+            showMessage("Error saving relay data", "alert-danger");
         }
     });
 
