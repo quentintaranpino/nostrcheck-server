@@ -244,7 +244,7 @@
                 {
                     field: 'id',
                     title: 'ID',
-                    visible: true
+                    visible: false
                 },
                 {
                     field: 'fileName',
@@ -513,7 +513,6 @@
                 $('#' + instance + 'file-table').bootstrapTable('load', f.map(file => file.fileData));
                 continue;
             }
-            if (method == "PUT") {result.url = result.url.replace('/media', '');}
 
             result.macaroon != null ? file.fileData.macaroon = result.macaroon : null;
             result.invoice != null ? file.fileData.invoice = result.invoice : null;
@@ -594,8 +593,6 @@
 
     function handlePayment(value, satoshi, id, i) {
         const row = $('#' + i + 'file-table').bootstrapTable('getRowByUniqueId', id);
-        console.log(i, value, satoshi, id)
-        console.log(row)
          initPaymentModal(value, row.satoshi, i).then(result => {
             if (result != "") {
                 row.isPaid = true;
