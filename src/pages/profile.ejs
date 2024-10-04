@@ -205,7 +205,7 @@
 
     // Following count
     const following = await subscribeRelays(3,"<%= request.session.metadata.pubkey %>")
-    document.getElementById('following-header-count').innerHTML = following[0].tags.length;
+    document.getElementById('following-header-count').innerHTML = following[0]?.tags?.length || 0;
 
     if (localStorage.getItem('profileData')){
       document.getElementById('name-header').innerHTML = JSON.parse(localStorage.getItem('profileData')).display_name || JSON.parse(localStorage.getItem('profileData')).name || "<%= request.session.metadata.usernames[0].username %>";
