@@ -221,7 +221,7 @@ const getBalance = async (accountid: number) : Promise<number> => {
         return 0;
     }
 
-const result = Number(await dbSelect("SELECT SUM(credit) - SUM(debit) as 'balance' FROM ledger WHERE ledger.accountid = ?", "balance", [accountid.toString()]));
+    const result = Number(await dbSelect("SELECT SUM(credit) - SUM(debit) as 'balance' FROM ledger WHERE ledger.accountid = ?", "balance", [accountid.toString()]));
     logger.debug("Balance for account", accountid, ":", result)
     const balance = await dbUpdate("registered", "balance", result.toString(), ["id"], [formatRegisteredId(accountid)]);
     if (balance) {
@@ -584,7 +584,7 @@ const cleanTransactions = async () => {
     })
     setTimeout(cleanTransactions, app.get("config.payments")["invoicePaidInterval"] * 1000);
 }
-// cleanTransactions();
+cleanTransactions();
 
 const validatePreimage = async (transactionid: string, preimage: string) : Promise<boolean> => {
     
