@@ -195,7 +195,7 @@
                 })
                 .catch((error) => {
                     console.error("Error in publishProfileData:", error);
-                    showMessage('⚠️ An unexpected error occurred', 'alert-danger');
+                    showMessage('⚠️ An error occurred while saving the profile data', 'alert-danger');
                     document.getElementById('saveProfileData-btn').innerHTML = 'Save';
                 })
                 .finally(() => {
