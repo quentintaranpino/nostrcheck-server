@@ -1,30 +1,30 @@
-<div class="modal fade" id="payment-modal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="payment-modal" aria-hidden="true">
+<div class="modal fade" id="<%= instance %>-payment-modal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="payment-modal" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-md modal-fullscreen-lg-down" >
-        <div id="payment-info" class="modal-content">
+        <div id="<%= instance %>-payment-info" class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="payment-modal-title"></h5>
+                <h5 class="modal-title" id="<%= instance %>-payment-modal-title"></h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="modal-body text-center" id="payment-modal-body">
-                <div id="payment-qr"></div>
-                <h1 id="payment-amount" class="lead mt-2"></h1>
-                <div id="payment-link" class="mt-1 mb-4 lead"></div>
-                <div id="payment-waiting">
-                    <span id="payment-spinner">
+            <div class="modal-body text-center" id="<%= instance %>-payment-modal-body">
+                <div id="<%= instance %>-payment-qr"></div>
+                <h1 id="<%= instance %>-payment-amount" class="lead mt-2"></h1>
+                <div id="<%= instance %>-payment-link" class="mt-1 mb-4 lead"></div>
+                <div id="<%= instance %>-payment-waiting">
+                    <span id="<%= instance %>-payment-spinner">
                         <div class="spinner-border" role="status">
                             <span class="visually-hidden">Loading...</span>
                         </div>
                     </span>
                     <span class="mt-3 d-block">Waiting for payment...</span>
                 </div>
-                <div id="payment-success" class="p-3">
+                <div id="<%= instance %>-payment-success" class="p-3">
                         <i class="bi bi-check-circle text-success" style="font-size: 3rem;"></i>
                         <p class="lead mt-4">Payment processed successfully! 🥳</p>
                 </div>
-                <span id="payment-request" class="d-none"></span>
-                <span id="payment-preimage" class="d-none"></span>
+                <span id="<%= instance %>-payment-request" class="d-none"></span>
+                <span id="<%= instance %>-payment-preimage" class="d-none"></span>
             </div>
-            <div id="modalSwitch-footer" class="modal-footer">
+            <div id="<%= instance %>-modalSwitch-footer" class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
             </div>
         </div>

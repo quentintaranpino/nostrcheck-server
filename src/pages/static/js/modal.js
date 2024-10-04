@@ -262,28 +262,31 @@ const initMessageModal = async (objectId, message, title, modalSize = '') => {
     return result;
 };
 
-const initPaymentModal = async (paymentRequest, satoshi) => {
-    var paymentModal = new bootstrap.Modal($('#payment-modal'));
-    $('#payment-modal').insertAfter($('body'));
-    $('#payment-modal .modal-title').text('Lightning invoice');
+const initPaymentModal = async (paymentRequest, satoshi, instance) => {
 
-    $('#payment-waiting').show();
-    $('#payment-success').hide();
+    var paymentModal = new bootstrap.Modal($(`#${instance}payment-modal`));
+    
+    $(`#${instance}payment-modal`).insertAfter($('body'));  
+    $(`#${instance}payment-modal .modal-title`).text('Lightning invoice');
 
-    $('#payment-request').empty();
-    $('#payment-request').text(paymentRequest);
+    $(`#${instance}payment-waiting`).show();
+    $(`#${instance}payment-success`).hide();
 
-    $('#payment-amount').show();
-    $('#payment-amount').empty();
-    $('#payment-amount').text('Invoice amount: ' + satoshi + ' satoshi');
+    $(`#${instance}payment-request`).empty();
+    $(`#${instance}payment-request`).text(paymentRequest);
 
-    $('#payment-link').show();
-    $('#payment-link').empty();
-    $('#payment-link').append('<a href="lightning:' + paymentRequest + '" target="_blank" class="btn btn-secondary">Pay with Lightning<i class="bi bi-lightning-charge-fill ms-2 text-warning"></i></a>');
+    $(`#${instance}payment-amount`).show();
+    $(`#${instance}payment-amount`).empty();
+    $(`#${instance}payment-amount`).text('Invoice amount: ' + satoshi + ' satoshi');
 
-    $('#payment-qr').show();
-    $('#payment-qr').empty();
-    const qrContainer = document.getElementById("payment-qr");
+    $(`#${instance}payment-link`).show();
+    $(`#${instance}payment-link`).empty();
+    $(`#${instance}payment-link`).append('<a href="lightning:' + paymentRequest + '" target="_blank" class="btn btn-secondary">Pay with Lightning<i class="bi bi-lightning-charge-fill ms-2 text-warning"></i></a>');
+
+    $(`#${instance}payment-qr`).show();
+    $(`#${instance}payment-qr`).empty();
+
+    const qrContainer = document.getElementById(`${instance}payment-qr`);
     if (qrContainer) {
         new QRCode(qrContainer, {
             text: paymentRequest,
@@ -299,27 +302,30 @@ const initPaymentModal = async (paymentRequest, satoshi) => {
     let stopProcessing = false;
     setInterval(() => {
         if (stopProcessing) return;
-        fetch(`payments/invoices/${$('#payment-request').text()}`)
+        fetch(`payments/invoices/${$(`#${instance}payment-request`).text()}`)
             .then(response => response.json())
             .then(data => {
                 if (data.invoice.isPaid == true) {
+                    console.log('Payment successful');
                     stopProcessing = true;
-                    $('#payment-preimage').text(data.invoice.preimage);
-                    
-                    $('#payment-link').hide();
-                    $('#payment-qr').hide();
-                    $('#payment-amount').hide();
-                    $('#payment-waiting').hide();
-                    $('#payment-success').show();
+                    $(`#${instance}payment-preimage`).text(data.invoice.preimage);
+                    $(`#${instance}payment-link`).hide();
+                    $(`#${instance}payment-qr`).hide();
+                    $(`#${instance}payment-amount`).hide();
+                    $(`#${instance}payment-waiting`).hide();
+                    $(`#${instance}payment-success`).show();
+
+                    console.log($(`#${instance}payment-preimage`).text());
+                    console.log(data)
                 }
             });
     }, 3000); 
 
     let result = await new Promise((resolve) => {
         $(paymentModal._element).on('hidden.bs.modal', function () {
-            console.log($('#payment-request').text());
+            console.log($(`#${instance}payment-request`).text());
             if(stopProcessing) {
-                resolve($('#payment-preimage').text());
+                resolve($(`#${instance}payment-preimage`).text());
             }else{
                 stopProcessing = true;
                 resolve('');
