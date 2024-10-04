@@ -142,15 +142,20 @@
                 body: method == "PUT" ? file : formData
             });
 
+            if (response.status.toString() == "402"){
+                if (showMessages) updateMessage(uploadMessage, '<i class="bi bi-exclamation-circle-fill pe-1"></i>' + response.statusText, "alert-warning");
+                if (showMessages) hideMessage(uploadMessage, 5000);
+                return { "filename": file.name, "url": "", "macaroon": response.headers.get('Www-Authenticate') ? extractMacaroon(response.headers.get('Www-Authenticate')) : "", "invoice": response.headers.get('Www-Authenticate') != "" ? extractInvoice(response.headers.get('Www-Authenticate')) : "", "satoshi": response.statusText };
+            }
+
             let serverData = await response.json();
 
-            if (!response.status.toString().startsWith("2") && !response.status.toString().startsWith("402")) {
+            if (!response.status.toString().startsWith("2")) {
                 if (showMessages) updateMessage(uploadMessage, '<i class="bi bi-exclamation-circle-fill pe-1"></i>' + serverData.message, "alert-danger");
                 if (showMessages) hideMessage(uploadMessage, 5000);
                 await storeAuthkey('', true);
                 return { "filename": file.name, "url": "", "macaroon": response.headers.get('Www-Authenticate') ? extractMacaroon(response.headers.get('Www-Authenticate')) : "", "invoice": response.headers.get('Www-Authenticate') != "" ? extractInvoice(response.headers.get('Www-Authenticate')) : "" };
             }
-
 
             await storeAuthkey(response.headers.get('Authorization'));
 
