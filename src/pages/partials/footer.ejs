@@ -104,8 +104,11 @@ storeAuthkey("<%= request.session.authkey %>")
 
 // Profile picture and banner
 if (localStorage.getItem('profileData')) {
-    loadMedia(JSON.parse(localStorage.getItem('profileData')).picture || '/static/resources/picture-default.webp' || '/static/resources/picture-default.webp', document.querySelectorAll('.picture-container'), ['img-thumbnail', 'border-0', 'object-fit-cover', 'w-100', 'h-100']);
+    loadMedia(JSON.parse(localStorage.getItem('profileData')).picture || '/static/resources/picture-default.webp', document.querySelectorAll('.picture-container'), ['img-thumbnail', 'border-0', 'object-fit-cover', 'w-100', 'h-100']);
     loadMedia(JSON.parse(localStorage.getItem('profileData')).banner || '/static/resources/banner-default.webp', document.querySelectorAll('.banner-container'), [], { autoplay: true, loop: true, muted: true });
+}else{
+    loadMedia('/static/resources/picture-default.webp', document.querySelectorAll('.picture-container'), ['img-thumbnail', 'border-0', 'object-fit-cover', 'w-100', 'h-100']);
+    loadMedia('/static/resources/banner-default.webp', document.querySelectorAll('.banner-container'), [], { autoplay: true, loop: true, muted: true });
 }
 subscribeRelays(0,["<%= request.session.identifier %>"]).then((data) => {
     if (!data) return;
