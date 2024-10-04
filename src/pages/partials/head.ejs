@@ -20,6 +20,6 @@
 <script>
     const link = document.createElement('link');
     link.rel = 'stylesheet';
-    link.href = '/static/css/theme.css?v=' + new Date().getTime();
+    link.href = '/static/css/theme.css?v=' + Math.floor(Math.random() * 10000);
     document.head.appendChild(link);
 </script>
