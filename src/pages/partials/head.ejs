@@ -17,3 +17,9 @@
     
     <script>(function() {document.write(`<style>#server-logo {content: url('${localStorage.getItem('theme') === 'dark' ? '/static/resources/navbar-logo-dark.png' : '/static/resources/navbar-logo-light.png'}');}</style>`);})();</script>
 </head> 
+<script>
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = '/static/css/theme.css?v=' + new Date().getTime();
+    document.head.appendChild(link);
+</script>
