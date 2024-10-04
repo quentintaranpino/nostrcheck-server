@@ -90,6 +90,11 @@ export const loadMediaEndpoint = async (app: Application, version:string): Promi
 	}
 	);
 
+	// GET root (media)
+	app.get("/:param1([a-fA-F0-9]{64})(\.[a-zA-Z0-9._-]{1,15})?(/:param2([a-fA-F0-9]{64})(\.[a-zA-Z0-9._-]{1,15})?)?", (req, res) => {
+		getMedia(req, res, version);
+	});
+
 	// PUT (visibility)
 	app.put("/api/" + version + app.get("config.server")["availableModules"]["media"]["path"] + "/:fileId/visibility/:visibility", 
 	updateMediaVisibility
