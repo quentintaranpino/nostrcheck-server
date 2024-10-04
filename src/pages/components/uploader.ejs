@@ -513,7 +513,6 @@
                 $('#' + instance + 'file-table').bootstrapTable('load', f.map(file => file.fileData));
                 continue;
             }
-            console.log(result.url)
             if (method == "PUT") {result.url = result.url.replace('/media', '');}
 
             result.macaroon != null ? file.fileData.macaroon = result.macaroon : null;
