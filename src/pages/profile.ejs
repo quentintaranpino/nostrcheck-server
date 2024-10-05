@@ -31,9 +31,14 @@
     object-fit: cover;
   }
 
+
+
   @media screen and (max-width: 400px){
     .header-profile, .bg-profile {
-      height: 160px;
+      height: 165px;
+    }
+    #picture-header {
+      width: 120px;
     }
   }
 
@@ -41,11 +46,17 @@
     .header-profile, .bg-profile {
       height: 175px;
     }
+    #picture-header {
+      width: 130px;
+    }
   }
 
   @media screen and (min-width: 500px) and (max-width: 576px){
     .header-profile, .bg-profile {
       height: 195px;
+    }
+    #picture-header {
+      width: 145px;
     }
   }
 
@@ -53,17 +64,32 @@
     .header-profile, .bg-profile {
       height: 220px;
     }
+    #picture-header {
+      width: 160px;
+    }
+  }
+
+  @media screen and (min-width: 768px){
+    #name-header {
+      margin-top: -25px;
+    }
   }
 
   @media screen and (min-width: 768px) and (max-width: 992px){
     .header-profile, .bg-profile {
       height: 245px;
     }
+    #picture-header {
+      width: 180px;
+    }
   }
 
-  @media screen and (min-width: 992px) and (max-width: 1200px){
+  @media screen and (min-width: 992px){
     .header-profile, .bg-profile {
       height: 260px;
+    }
+    #picture-header {
+      width: 200px;
     }
   }
 
@@ -83,29 +109,27 @@
         <div class="card border-0 z-1 shadow-lg">
           <div class="rounded-top header-profile">
             <div id="banner-header" class="banner-container bg-profile"></div>
-            <div class="ms-4 mt-4 mt-sm-5 pt-1 pt-md-3 z-1 col-4 col-sm-4 col-md-3 col-lg-3 text-center">
-              <div class="ratio ratio-1x1">
-                <div id="picture-header" class="picture-container img-thumbnail mt-5 mb-1 overflow-hidden d-flex align-items-center"></div>
-              </div>
-              <span id="name-header" class="fs-5 lead mb-2 d-block mt-5"></span>
+            <div id="picture-header"class="ms-4 ps-2 h-100 d-flex align-items-center">
+              <div class="ratio ratio-1x1 picture-container img-thumbnail overflow-hidden"></div>
+            </div>
           </div>
-          </div>
-          <div class="pt-2 pe-3 pb-2 z-1">
-            <div class="d-flex justify-content-end text-center">
-              <div class="px-3 lead">
-                <p class="mb-1 h5"><%= JSON.parse(JSON.stringify(request.session.metadata.hostedFiles || "0")) %></p>
-                <p class="small text-muted mb-0">Hosted Files</p>
+          <div class="pt-1 pe-3 pb-2 z-1">
+            <div id="header-counters" class="d-flex justify-content-end text-center">
+              <div class="px-2 fs-6 lead">
+                <p class="small text-muted mb-0">Files <span class="mb-1 fw-medium"><%= JSON.parse(JSON.stringify(request.session.metadata.hostedFiles || "0")) %></span></p>
               </div>
-              <div class="lead">
-                <p class="mb-1 h5" id="following-header-count">0</p>
-                <p class="small text-muted mb-0">Following</p> 
+              <div class="px-2 fs-6 lead">
+                <p class="small text-muted mb-0">Following <span class="mb-1 fw-medium" id="following-header-count">0</span></p> 
               </div>
-              <div class="lead ms-3 d-none">
-                <p class="mb-1 h5" id="followers-header-count">0</p>
-                <p class="small text-muted mb-0">Followers</p> 
+              <div class="px-2 fs-6 lead">
+                <p class="small text-muted mb-0">Followers <span class="mb-1 fw-medium" id="followers-header-count">0</span></p> 
+              </div>
+              <div class="px-2 fs-6 lead">
+                <p class="small text-muted mb-0">Relays <span class="mb-1 fw-medium" id="relays-header-count">0</span></p> 
               </div>
             </div>
-            <div class="ps-3 pe-4 pt-5 ms-2">
+            <div class="ps-3 pe-4 ms-2">
+              <h1 id="name-header" class="display-2 pt-0 d-block lead mb-3"></h1>
               <div class="d-flex flex-column align-middle mb-2 lead">
                   <span class="fs-6 profile-icon-link mb-1 d-none" id="nip05-header-row">
                     <svg viewBox="0 0 18 18" 
@@ -204,8 +228,20 @@
   document.addEventListener('DOMContentLoaded', async () => {
 
     // Following count
-    const following = await subscribeRelays(3,"<%= request.session.metadata.pubkey %>")
-    document.getElementById('following-header-count').innerHTML = following[0]?.tags?.length || 0;
+    const following = subscribeRelays(3,"<%= request.session.metadata.pubkey %>", "from").then((following) => {
+      document.getElementById('following-header-count').innerHTML = following[0]?.tags?.length || 0;
+
+      // relays count
+      document.getElementById('relays-header-count').innerHTML = userRelays.length;
+    });
+
+    // Followers count
+    const followers = subscribeRelays(3,"<%= request.session.metadata.pubkey %>", "to").then((followers) => {
+      document.getElementById('followers-header-count').innerHTML = followers[0]?.tags?.length || 0;
+
+      // relays count
+      document.getElementById('relays-header-count').innerHTML = userRelays.length;
+    });
 
     if (localStorage.getItem('profileData')){
       document.getElementById('name-header').innerHTML = JSON.parse(localStorage.getItem('profileData')).display_name || JSON.parse(localStorage.getItem('profileData')).name || "<%= request.session.metadata.usernames[0].username %>";
