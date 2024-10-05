@@ -292,7 +292,7 @@
         response.json().then(async data => {
           await storeAuthkey(data.authkey)
           if (isNaN(Number(data.message))) return;
-          document.getElementById('balance-header-count').classList = ('fw-normal', 'd-block', 'd-sm-inline-flex', 'align-items-center');
+          document.getElementById('balance-header-count').classList.remove('text-warning', 'text-danger');
           data.message >= 0 ? document.getElementById('balance-header-count').classList.add('text-warning') : document.getElementById('balance-header-count').classList.add('text-danger');
           document.getElementById('balance-header-count').innerHTML = data.message + '<i class="fa-solid fa-bolt ms-1"></i>'
 
