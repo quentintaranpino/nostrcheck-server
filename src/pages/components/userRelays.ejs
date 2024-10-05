@@ -78,7 +78,8 @@ const saveRelayData = async () => {
     publishProfileRelays(userRelays, "<%= request.session.metadata.pubkey %>", sk, 'dms')
     ]).then(([appResult, dmsResult]) => {
         if (appResult == true && dmsResult == true) {
-            console.log("Relay data for app saved");
+            console.log("Relay data saved successfully");
+            relaysUnsaved = false;
             userRelays = userRelays.filter((r) => r.enabled == true);
             const relayItems = document.getElementById("user-relay-list").querySelectorAll("li");
             relayItems.forEach((item) => {

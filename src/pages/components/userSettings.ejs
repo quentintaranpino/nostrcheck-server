@@ -204,6 +204,7 @@
                         updateProfileFields(data);
                         showMessage('✅ Profile data saved successfully', 'alert-success');
                         document.getElementById('saveProfileData-btn').innerHTML = 'Save';
+                        settingsUnsaved = false;
                     } else {
                         showMessage('⚠️ An error occurred while saving the profile data', 'alert-primary');
                         document.getElementById('saveProfileData-btn').innerHTML = 'Save';
