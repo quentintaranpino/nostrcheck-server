@@ -314,9 +314,6 @@ const initPaymentModal = async (paymentRequest, satoshi, instance) => {
                     $(`#${instance}payment-amount`).hide();
                     $(`#${instance}payment-waiting`).hide();
                     $(`#${instance}payment-success`).show();
-
-                    console.log($(`#${instance}payment-preimage`).text());
-                    console.log(data)
                 }
             });
     }, 3000); 
