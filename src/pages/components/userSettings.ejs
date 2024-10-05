@@ -33,7 +33,7 @@
             <button class="btn btn-outline-secondary" type="button" id="banner-upload-btn"><i class="fa-solid fa-upload"></i></button>
             <button class="btn btn-outline-secondary" type="button" id="banner-copy-btn" onclick="copyToClipboard(this,document.getElementById('banner-input').value)"><i class="fa-solid fa-copy"></i></button>
         </div> 
-        <%- include('./uploader', {instance: 'userSettingsbanner',hideTos:true, oneFile:true}); %>
+        <%- include('./uploader', {instance: 'userSettingsbanner', hideTos:true, oneFile:true}); %>
     </div>
     <div id="nip05" class="mb-3">
         <label for="nip05-input" class="mb-1">Nostr address (NIP-05)</label>
@@ -69,6 +69,8 @@
     <button id="saveProfileData-btn" type="submit" class="btn btn-primary col-4" onclick="saveProfileData()">Save</button>
 </div>
 <script>
+    
+    var settingsUnsaved = false; 
     document.addEventListener('DOMContentLoaded', (event) => {
 
         if (localStorage.getItem('profileData')){
@@ -144,6 +146,20 @@
         }
         document.getElementById('npub-QR-btn').addEventListener('click', showNpubQR);
 
+        // Event listeners for changes in the form
+        document.querySelectorAll('input, textarea, select').forEach(element => {
+            element.addEventListener('input', () => {
+                settingsUnsaved = true;
+            });
+        });
+
+    });
+
+    window.addEventListener('beforeunload', (event) => {
+        if (settingsUnsaved) {
+            event.preventDefault();
+            event.returnValue = ''; 
+        }
     });
 
     const saveProfileData = async () => {

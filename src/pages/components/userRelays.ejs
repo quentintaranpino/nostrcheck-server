@@ -19,6 +19,8 @@
 </div>
 <script>
 
+let relaysUnsaved = false;
+
 const updateRelay = (relayId, action) => {
             const relay = userRelays.find((r) => r.id == relayId);
             if (action == 'enabled'){
@@ -136,7 +138,6 @@ const addRelayToList = (relay) => {
     `;
 
     document.getElementById("user-relay-list").prepend(relayItem);
-
 }
 
 document.addEventListener('DOMContentLoaded', async (event) => {
@@ -205,12 +206,29 @@ document.addEventListener('DOMContentLoaded', async (event) => {
                     document.getElementById(`user-relay-online-${relay.id}`).classList.add('text-danger');
                 }
             }
-            // Llamar a esta función de nuevo después de un segundo
             setTimeout(checkRelaysOnline, 1000);
         };
 
-        // Iniciar el ciclo
         checkRelaysOnline();
     });
+
+    document.getElementById('addRelay-btn').addEventListener('click', () => {
+        relaysUnsaved = true;
+    });
+
+    const relayButtons = document.querySelectorAll('#user-relay-list button');
+    relayButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            relaysUnsaved = true;
+        });
+    })
+
+});
+
+window.addEventListener('beforeunload', (event) => {
+    if (relaysUnsaved) {
+        event.preventDefault();
+        event.returnValue = ''; 
+    }
 });
 </script>
