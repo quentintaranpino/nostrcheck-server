@@ -317,7 +317,8 @@ const publishProfileRelays = async (relays, publicKey, secretKey, type) => {
   }
 };
 
-const subscribeRelays = async (kind, pubkeys, since, until) => {
+const subscribeRelays = async (kind, pubkeys, type, since, until) => {
+  
   if (!Array.isArray(pubkeys)) pubkeys = [pubkeys];
 
   if (pubkeys.length === 0 || kind === undefined || pubkeys[0] == "") {
@@ -336,16 +337,22 @@ const subscribeRelays = async (kind, pubkeys, since, until) => {
   }).filter(pubkey => pubkey !== null); 
 
   return new Promise((resolve, reject) => {
+
     const notes = [];
+
+    const filter = {
+      kinds: [kind],
+      since: since || Math.floor(Date.now() / 1000) - (30 * 24 * 60 * 60),
+      until: until || Math.floor(Date.now() / 1000)
+    }
+
+    if (type === 'from') filter.authors = p;
+    if (type === 'to') filter["#p"] = p;
+
     try {
       const subscription = pool.subscribeMany(
         relays.map(relay => relay.url), 
-        [{
-          kinds: [kind], 
-          authors: p,
-          since: since || Math.floor(Date.now() / 1000) - (30 * 24 * 60 * 60), // default to 30 days
-          until: until || Math.floor(Date.now() / 1000) // default to now
-        }],
+        [filter],
         {
           async onevent(event) {
             notes.push(event);
