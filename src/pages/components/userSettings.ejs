@@ -147,7 +147,7 @@
         document.getElementById('npub-QR-btn').addEventListener('click', showNpubQR);
 
         // Event listeners for changes in the form
-        document.querySelectorAll('input, textarea, select').forEach(element => {
+        document.querySelectorAll('#userSettings input, #userSettings textarea, #userSettings select').forEach(element => {
             element.addEventListener('input', () => {
                 settingsUnsaved = true;
             });
