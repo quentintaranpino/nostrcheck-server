@@ -1316,6 +1316,32 @@ https://nostrcheck.me/api/v2/payments/addbalance
 }
 ```
 
+### getbalance [GET]
+
+Get the balance of a user's account.
+
+This endpoint use the [NIP98](https://github.com/nostr-protocol/nips/blob/master/98.md) HTTP Auth for getting the pubkey. The NIP98's pubkey must be registered on the database.
+
+https://nostrcheck.me/api/v2/payments/getbalance
+
+**Headers**
+
+- `Authorization`: Bearer {authkey}
+
+**Example**
+
+[https://nostrcheck.me/api/v2/payments/getbalance](https://nostrcheck.me/api/v2/payments/getbalance)
+
+The server returns:
+
+```json
+{
+    "status": "success",
+    "message": 1000,
+}
+```
+
+
 ## invoices [GET]
 
 Get a information about a invoice.

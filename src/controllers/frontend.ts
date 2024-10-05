@@ -105,13 +105,9 @@ const loadProfilePage = async (req: Request, res: Response, version:string): Pro
     req.session.metadata = {
         pubkey: req.session.identifier,
         npub: await hextoNpub(req.session.identifier),
-        hostedFiles: 0,
-        usernames: []
+        hostedFiles: await countPubkeyFiles(req.session.identifier),
+        usernames: await getUsernames(req.session.identifier)
     }
-    req.session.metadata.usernames = await getUsernames(req.session.identifier);
-
-    // User uploaded files
-    req.session.metadata.hostedFiles =  await countPubkeyFiles(req.session.identifier);
 
     // Check admin privileges. Only for information, never used for authorization
     req.session.allowed = await isPubkeyAllowed(req.session.identifier);

@@ -1,6 +1,6 @@
 import { Application } from "express";
 import express from "express";
-import { addBalanceUser, payTransaction, getInvoiceStatus, calculateObjectAmount } from "../controllers/payments.js";
+import { addBalanceUser, payTransaction, getInvoiceStatus, calculateObjectAmount, getBalanceUser } from "../controllers/payments.js";
 
 export const loadPaymentsEndpoint = async (app: Application, version: string): Promise<void> => {
 
@@ -16,6 +16,11 @@ export const loadPaymentsEndpoint = async (app: Application, version: string): P
         app.post("/api/" + version + app.get("config.server")["availableModules"]["payments"]["path"] + "/addbalance/",
             express.json(), 
             addBalanceUser
+        );
+        
+        // Get balance from user
+        app.get("/api/" + version + app.get("config.server")["availableModules"]["payments"]["path"] + "/getbalance/",
+            getBalanceUser
         );
 
         // Get invoice status 

@@ -1,4 +1,3 @@
-
 import { Request, Response } from "express";
 
 import app from "../app.js";
@@ -189,9 +188,52 @@ const calculateObjectAmount = async (req: Request, res: Response): Promise<Respo
     
 }
 
+const getBalanceUser = async (req: Request, res: Response): Promise<Response> => {
+
+    // Check if current module is enabled
+    if (!isModuleEnabled("admin", app)) {
+        logger.warn("Attempt to access a non-active module:","admin","|","IP:", getClientIp(req));
+        return res.status(400).send({"status": "error", "message": "Module is not enabled"});
+    }
+    
+    logger.info("REQ -> getBalance", req.hostname, "|", getClientIp(req));
+    res.setHeader('Content-Type', 'application/json');
+
+    // Check if authorization header is valid
+    const EventHeader = await parseAuthHeader(req, "getBalance", false);
+    if (EventHeader.status !== "success") {return res.status(401).send({"status": EventHeader.status, "message" : EventHeader.message});}
+
+    const id = await dbMultiSelect(["id"], "registered", "hex = ?", [EventHeader.pubkey], false);
+
+    if (id.length == 0) {
+        const result : ResultMessagev2 = {
+            status: "error",
+            message: "User not found"
+            };
+        logger.error("RES -> User not found" + " | " + getClientIp(req));
+        return res.status(404).send(result);
+    }
+
+    let balance = 0;
+
+    for (const e of id) {
+        balance += await getBalance(formatAccountNumber(e.id));
+    }
+
+    const result : authkeyResultMessage = {
+        status: "success",
+        message: balance.toString(),
+        authkey: EventHeader.authkey
+    };
+    logger.info("RES -> Pubkey", EventHeader.pubkey, " balance", balance, " | ", getClientIp(req));
+    return res.status(200).send(result);
+
+}
+
 export {
         payTransaction,
         addBalanceUser,
+        getBalanceUser,
         getInvoiceStatus,
         calculateObjectAmount
 }
