@@ -235,6 +235,8 @@
   document.addEventListener('DOMContentLoaded', async () => {
 
     // Following count
+    document.getElementById('following-header-count').innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+    document.getElementById('relays-header-count').innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
     const following = subscribeRelays(3,"<%= request.session.metadata.pubkey %>", "from").then((following) => {
       document.getElementById('following-header-count').innerHTML = following[0]?.tags?.length || 0;
 
@@ -243,8 +245,15 @@
     });
 
     // Followers count
+    document.getElementById('followers-header-count').innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
     const followers = subscribeRelays(3,"<%= request.session.metadata.pubkey %>", "to").then((followers) => {
-      document.getElementById('followers-header-count').innerHTML = followers[0]?.tags?.length || 0;
+
+      let totalTagsCount = 0;
+      followers.forEach(follower => {
+        totalTagsCount += follower.tags?.filter(tag => tag[0] === "p" && tag[1] === "<%= request.session.metadata.pubkey %>").length || 0;
+      });
+
+      document.getElementById('followers-header-count').innerHTML = totalTagsCount;
 
       // relays count
       document.getElementById('relays-header-count').innerHTML = userRelays.length;

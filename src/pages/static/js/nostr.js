@@ -351,7 +351,7 @@ const subscribeRelays = async (kind, pubkeys, type, since, until) => {
 
     try {
       const subscription = pool.subscribeMany(
-        relays.map(relay => relay.url), 
+        userRelays.length > 0 ? userRelays.map(relay => relay.url) : relays.map(relay => relay.url),
         [filter],
         {
           async onevent(event) {
@@ -364,7 +364,6 @@ const subscribeRelays = async (kind, pubkeys, type, since, until) => {
         }
       );
     } catch (error) {
-      subscription.close();
       console.error("Error obtaining pubkey notes:", error);
       reject(error);
     }
