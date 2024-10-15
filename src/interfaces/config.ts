@@ -96,6 +96,13 @@ const defaultConfig = {
 				"methods": ["POST"],
 				"description": "This module handles payments, balance, invoices, etc."
 			},
+			"plugins" : {
+				"name": "plugins",
+				"enabled": false,
+				"path": "/plugins",
+				"methods": ["GET"],
+				"description": "This module handles plugins, load, unload, etc."
+			},
 		}
 	},
 	"database": {
@@ -223,6 +230,10 @@ const defaultConfig = {
 			"maxRegisterDay": 2,
 		}
 	},
+	"plugins" : {
+		"enabled": false,
+		"path": "plugins"
+	}
 }
 
 const localPath = "./config/local.json";

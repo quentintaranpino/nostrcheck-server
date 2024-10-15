@@ -1,40 +1,7 @@
-import { Event } from "nostr-tools";
 import app from "../app.js";
 import { generateCredentials } from "./authorization.js";
 import { dbMultiSelect } from "./database.js";
-import { getProfileData, getProfileFollowing } from "./nostr/NIP01.js";
 import { Request, Response } from "express";
-import { emptyNostrProfileData, nostrProfileData } from "../interfaces/nostr.js";
-
-const getProfileNostrData = async (pubkey: string): Promise<nostrProfileData> => {
-
-    if (!pubkey || pubkey == undefined || pubkey == null)  return emptyNostrProfileData;
-
-    let metadata = emptyNostrProfileData;
-
-    let nostrMetadata = await getProfileData(pubkey, 0)
-    if (!nostrMetadata || nostrMetadata == undefined || nostrMetadata == null || nostrMetadata[0].content == undefined || nostrMetadata[0].content == null){
-        return emptyNostrProfileData;
-    }
-
-    metadata = JSON.parse(nostrMetadata[0].content.replace(/\\n/g, '<br>'))
-    return metadata;
-
-}
-
-const getProfileNostrNotes = async (pubkey: string): Promise<Event[]> => {
-
-    if (!pubkey || pubkey == undefined || pubkey == null){
-        return [];
-    }
-
-    const nostrNotes = await getProfileData(pubkey, 1)
-    if (!nostrNotes || nostrNotes == undefined || nostrNotes == null || nostrNotes.length == 0){
-        return [];
-    }
-
-    return nostrNotes;
-}
 
 const countPubkeyFiles = async (pubkey: string): Promise<number> => {
 
@@ -84,4 +51,4 @@ const isFirstUse = async (req : Request, res: Response): Promise<boolean> => {
     return false;
 }
 
-export { getProfileNostrData, isFirstUse, getProfileNostrNotes, countPubkeyFiles };
+export {isFirstUse, countPubkeyFiles };

@@ -129,6 +129,17 @@
                     <i class="fas fa-shield-alt me-2"></i>Security
             </button>
           </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" 
+                    id="plugins-tab" 
+                    data-bs-toggle="tab" 
+                    data-bs-target="#plugins" 
+                    type="button" 
+                    role="tab" 
+                    aria-controls="plugins" 
+                    aria-selected="false">
+                    <i class="fas fa-plug me-2"></i>Plugins
+            </button>
         </ul>
         <div class="tab-content" id="settingsTabsContent">
           <div class="tab-pane fade show active" id="lookandfeel" role="tabpanel" aria-labelledby="lookandfeel-tab">
@@ -160,7 +171,11 @@
           </div>
           <div class="tab-pane fade" id="security" role="tabpanel" aria-labelledby="security-tab">
             <%- include('./components/settings/security'); %>
-      </div>
+          </div>
+          <div class="tab-pane fade" id="plugins" role="tabpanel" aria-labelledby="plugins-tab">
+            <%- include('./components/settings/plugins'); %>
+          </div>
+        </div>
     </main>
     <%- include('./partials/footer', {active:'setting'}); %>    
     <%- include('./components/modals/alert-modal', {"objectId":"settings"}); %>

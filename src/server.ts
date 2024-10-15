@@ -22,6 +22,10 @@ const startServer = async () => {
     const { loadAPIs } = await import("./routes/routes.js");
     await loadAPIs(app);
 
+    // Init plugins
+    const { initPlugins } = await import("./lib/plugins/core.js");
+    await initPlugins(app);
+
     //Start seeding magnets
     const {default: config} = await import( "config");
     if (config.get("torrent.enableTorrentSeeding")) {

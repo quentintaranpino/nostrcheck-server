@@ -7,7 +7,6 @@ import WebSocket from 'ws'
 import { eventVerifyTypes } from '../../interfaces/nostr.js';
 useWebSocketImplementation(WebSocket)
 
-
 const relays = [
 	"wss://relay.nostrcheck.me",
 	"wss://relay.damus.io",
@@ -24,12 +23,9 @@ const relaysPool = new SimplePool()
  * @returns A promise that resolves to an object containing the public key and secret key.
  */
 const createkeyPair = async () : Promise<{publicKey : string, secretKey : string}> => {
-	
 	const sk = generateSecretKey();
 	const pk = getPublicKey(sk)
-
 	return {publicKey : pk, secretKey : bytesToHex(sk)}
-
 }
 
 /**
@@ -38,7 +34,6 @@ const createkeyPair = async () : Promise<{publicKey : string, secretKey : string
  * @returns A promise that resolves to the public key.
  */
 const getPubkeyFromSecret = async (secretKey : string) : Promise<string> => {
-	
 	try{
 		const sk = Uint8Array.from(Buffer.from(secretKey, 'hex'));
 		return getPublicKey(sk)
@@ -46,7 +41,6 @@ const getPubkeyFromSecret = async (secretKey : string) : Promise<string> => {
 		logger.error(error)
 		return ""
 	}
-
 }
 
 /**
@@ -55,17 +49,14 @@ const getPubkeyFromSecret = async (secretKey : string) : Promise<string> => {
  * @returns A promise that resolves to a boolean indicating whether the event was published successfully.
  */
 const publishEvent = async (event : NostrEvent): Promise<boolean> => {
-
-        try{
-                await Promise.any(relaysPool.publish(relays, event))
-                return true
-        }catch (error) {
-                logger.error(error)
-                return false
-        }
-        
+	try{
+			await Promise.any(relaysPool.publish(relays, event))
+			return true
+	}catch (error) {
+			logger.error(error)
+			return false
+	}
 }
-
 
 /**
  * Verifies the integrity of an event.

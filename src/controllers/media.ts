@@ -36,6 +36,7 @@ import { loadCdnPage } from "./frontend.js";
 import { getBannedMediaFile, isContentBanned } from "../lib/banned.js";
 import { mirrorFile } from "../lib/blossom/BUD04.js";
 import { checkMacaroon, decodeMacaroon, verifyMacaroon } from "../lib/payments/macaroons.js";
+import { executePlugins } from "../lib/plugins/core.js";
 
 const uploadMedia = async (req: Request, res: Response, version:string): Promise<Response> => {
 
@@ -181,6 +182,12 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 	logger.info("hash ->", filedata.originalhash, "|", getClientIp(req));
 	logger.info("filename ->", filedata.filename, "|", getClientIp(req));
 	logger.info("no_transform ->", filedata.no_transform, "|", getClientIp(req));
+
+
+	// Plugins engine execution
+	if (await executePlugins({pubkey: filedata.pubkey, filename: filedata.filename, ip: getClientIp(req)}, app) == false) {
+		return res.status(401).send({"status": "error", "message": "Not authorized"});
+	}
 
 	// Macaroon verification. If macaroon is valid, we check if the file is paid, 
 	const macaroon = req.headers["www-authenticate"]?.match(/macaroon="([^"]+)"/)?.[1];

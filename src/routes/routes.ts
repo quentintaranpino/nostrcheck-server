@@ -10,6 +10,7 @@ import { loadDomainsEndpoint } from "./domains.route.js";
 import { loadAdminEndpoint } from "./admin.route.js";
 import { loadFrontendEndpoint } from "./frontend.route.js";
 import { loadPaymentsEndpoint } from "./payments.route.js";
+import { loadPluginsEndpoint } from "./plugins.route.js";
 
 // Load API modules
 const loadAPI = async (app: Application, version:string): Promise<boolean> => {
@@ -46,6 +47,9 @@ const loadAPI = async (app: Application, version:string): Promise<boolean> => {
 				break;
 			case "payments":
 				await loadPaymentsEndpoint(app, version);
+				break;
+			case "plugins":
+				await loadPluginsEndpoint(app, version);
 				break;
 			default:
 				logger.warn("Unknown module: " + module);
