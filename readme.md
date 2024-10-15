@@ -110,6 +110,7 @@ See configuration [here](https://github.com/quentintaranpino/nostrcheck-api-ts/b
 - [x] Frontend UI (register)
 - [x] Ban system
 - [x] AI moderation
+- [x] Plugins engine
 - [ ] Private Direct Messages (NIP17)
 - [ ] Multi-server mirroring
 - [ ] Import / Export data
