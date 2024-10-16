@@ -9,6 +9,7 @@ import { Application } from "express";
 import * as NIP01 from "../nostr/NIP01.js";
 import * as NIP19 from "../nostr/NIP19.js";
 import * as registered from "../register.js";
+import { redisPluginsClient } from "../redis.js";
 
 const initPlugins = async (app : Application): Promise<boolean> => {
   
@@ -71,25 +72,28 @@ const executePlugins = async (input : pluginData, app : Application) : Promise<b
   const context : pluginContext = {
     app: app,
     logger: logger,
+    redis: redisPluginsClient,
     nostr: {
         NIP01: NIP01,
         NIP19: NIP19
     },
     registered: registered
   }
-
-  logger.debug(`Executing plugins for ${JSON.stringify(input)}`);
+  if (plugins.length === 0) return Promise.resolve(true);
   for (const plugin of plugins) {
-    if (plugin.enabled != true) continue;
-      try {
-          logger.info(`Executing plugin ${plugin.name}`);
-          result = await plugin.execute(input, context);
-          if (typeof result !== 'boolean') result = false;
-          logger.debug(`Plugin ${plugin.name} returned ${result}`);
-      } catch (err) {
-          logger.error(`Error executing plugin ${plugin.name}`);
-          result = false;
-      }
+    if (plugin.enabled != true) {
+        result = true;
+        continue;
+    }
+    try {
+        logger.info(`Executing plugin ${plugin.name}`);
+        result = await plugin.execute(input, context);
+        if (typeof result !== 'boolean') result = false;
+        logger.debug(`Plugin ${plugin.name} returned ${result}`);
+    } catch (err) {
+        logger.error(`Error executing plugin ${plugin.name}`);
+        result = false;
+    }
   }
 
   return Promise.resolve(result);

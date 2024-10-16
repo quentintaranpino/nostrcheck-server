@@ -1,13 +1,11 @@
-// Example plugin that logs the input and globals to the console
+// Example plugin that does nothing
 
 function plugin() {
     return {
         order: 0,
         enabled: false,
         name: 'ExamplePlugin',
-        execute: async (input, globals) => {
-            globals.logger.debug(`ExamplePlugin input: ${JSON.stringify(input)}`);
-            globals.logger.debug(`ExamplePlugin globals: ${JSON.stringify(globals)}`);
+        execute: async () => {
             return true;
         }
     };
