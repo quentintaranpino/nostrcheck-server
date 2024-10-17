@@ -1,7 +1,7 @@
 function plugin() {
     return {
         order: 1,
-        enabled: true,
+        enabled: false,
         name: 'activeNIP05',
         execute: async (input, globals) => {
             try {
