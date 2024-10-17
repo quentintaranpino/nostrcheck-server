@@ -9,7 +9,8 @@ const redisPort: string = process.env.REDIS_PORT || app.get("config.redis")["por
 const redisUser: string = process.env.REDIS_USER || app.get("config.redis")["user"];
 const redisPassword: string = process.env.REDIS_PASSWORD || app.get("config.redis")["password"];
 
-const redisClient = createClient({ url: `redis://${redisUser}:${redisPassword}@${redisHost}:${redisPort}` });
+const redisClient = createClient({ url: `redis://${redisUser}:${redisPassword}@${redisHost}:${redisPort}`, database: 0 });
+const redisPluginsClient = createClient({ url: `redis://${redisUser}:${redisPassword}@${redisHost}:${redisPort}`, database: 1 });
 
 (async (): Promise<void> => {
 	redisClient.on("error", (error: Error) =>{
@@ -17,6 +18,7 @@ const redisClient = createClient({ url: `redis://${redisUser}:${redisPassword}@$
 		process.exit(1);
 });
 	await redisClient.connect();
+	await redisPluginsClient.connect();
 })();
 
 const flushRedisCache = async (): Promise<void> => {
@@ -35,4 +37,4 @@ async function getLightningAddressFromRedis(key: string): Promise<LightningUsern
 	return JSON.parse(data.toString());
 }
 
-export { redisClient, flushRedisCache, getNostrAddressFromRedis, getLightningAddressFromRedis };
+export { redisClient, redisPluginsClient, flushRedisCache, getNostrAddressFromRedis, getLightningAddressFromRedis };

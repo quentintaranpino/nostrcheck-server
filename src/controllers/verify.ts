@@ -12,7 +12,7 @@ const verifyEventController = async (req: Request, res: Response): Promise<Respo
 	// Check if current module is enabled
 	if (!isModuleEnabled("verify", app)) {
         logger.warn("Attempt to access a non-active module:","verify","|","IP:", getClientIp(req));
-		return res.status(400).send({"status": "error", "message": "Module is not enabled"});
+		return res.status(403).send({"status": "error", "message": "Module is not enabled"});
 	}
 
 	logger.info("POST /api/v2/verify", "|", getClientIp(req));

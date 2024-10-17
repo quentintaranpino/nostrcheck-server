@@ -4,16 +4,24 @@ import crypto from "crypto";
 import app from "../../app.js";
 
 
-const createLocalFolder = async (mediaPath: string) : Promise<boolean> => {
+const createLocalFolder = async (path: string) : Promise<boolean> => {
     try {
-        if (!fs.existsSync(mediaPath)) {
-            fs.mkdirSync(mediaPath);
+        if (!fs.existsSync(path)) {
+            fs.mkdirSync(path);
         }
     } catch {
-        logger.error("Error creating folder", "|", mediaPath);
+        logger.error("Error creating folder", "|", path);
           return false;
     }
     return true;
+}
+
+const getLocalFolder = (path: string) : string => {
+    if (!fs.existsSync(path)) {
+        logger.error("Folder does not exist", "|", path);
+        return "";
+    }
+    return path;
 }
 
 const copyLocalFileBuffer = async (filePath: string, file: Buffer) : Promise<boolean> => {
@@ -91,6 +99,7 @@ const saveTmpFile = async (filename : string, buffer: Express.Multer.File["buffe
 }
 
 export { createLocalFolder, 
+        getLocalFolder,
          copyLocalFileBuffer, 
          copyLocalFile, 
          deleteLocalFile, 

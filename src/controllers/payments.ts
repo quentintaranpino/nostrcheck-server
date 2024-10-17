@@ -26,7 +26,7 @@ const payTransaction = async (req: Request, res: Response): Promise<Response> =>
     // Check if current module is enabled
     if (!isModuleEnabled("admin", app)) {
         logger.warn("Attempt to access a non-active module:","admin","|","IP:", getClientIp(req));
-        return res.status(400).send({"status": "error", "message": "Module is not enabled"});
+        return res.status(403).send({"status": "error", "message": "Module is not enabled"});
     }
 
     logger.info("REQ -> payItem", req.hostname, "|", getClientIp(req));
@@ -64,7 +64,7 @@ const addBalanceUser = async (req: Request, res: Response): Promise<Response> =>
     // Check if current module is enabled
     if (!isModuleEnabled("admin", app)) {
         logger.warn("Attempt to access a non-active module:","admin","|","IP:", getClientIp(req));
-        return res.status(400).send({"status": "error", "message": "Module is not enabled"});
+        return res.status(403).send({"status": "error", "message": "Module is not enabled"});
     }
 
     logger.info("REQ -> addBalance", req.hostname, "|", getClientIp(req));
@@ -104,7 +104,7 @@ const getInvoiceStatus = async (req: Request, res: Response): Promise<Response> 
     // Check if current module is enabled
     if (!isModuleEnabled("admin", app)) {
         logger.warn("Attempt to access a non-active module:","admin","|","IP:", getClientIp(req));
-        return res.status(400).send({"status": "error", "message": "Module is not enabled"});
+        return res.status(403).send({"status": "error", "message": "Module is not enabled"});
     }
 
     logger.info("REQ -> getInvoiceStatus", req.hostname, "|", getClientIp(req));
@@ -156,7 +156,7 @@ const calculateObjectAmount = async (req: Request, res: Response): Promise<Respo
     // Check if current module is enabled
     if (!isModuleEnabled("admin", app)) {
         logger.warn("Attempt to access a non-active module:","admin","|","IP:", getClientIp(req));
-        return res.status(400).send({"status": "error", "message": "Module is not enabled"});
+        return res.status(403).send({"status": "error", "message": "Module is not enabled"});
     }
 
     logger.info("REQ -> calculatePayment", req.hostname, "|", getClientIp(req));
@@ -193,7 +193,7 @@ const getBalanceUser = async (req: Request, res: Response): Promise<Response> =>
     // Check if current module is enabled
     if (!isModuleEnabled("admin", app)) {
         logger.warn("Attempt to access a non-active module:","admin","|","IP:", getClientIp(req));
-        return res.status(400).send({"status": "error", "message": "Module is not enabled"});
+        return res.status(403).send({"status": "error", "message": "Module is not enabled"});
     }
     
     logger.info("REQ -> getBalance", req.hostname, "|", getClientIp(req));
