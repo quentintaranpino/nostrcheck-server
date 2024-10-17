@@ -32,7 +32,6 @@ async function loadNotes() {
     loading = true;
     console.log("loading notes since", currentSince);
 
-    // Añadir el spinner de carga
     let loadingContainer = document.createElement('div');
     loadingContainer.id = 'user-notes-list-loading';
     loadingContainer.classList.add('d-flex', 'justify-content-center', 'm-5');
