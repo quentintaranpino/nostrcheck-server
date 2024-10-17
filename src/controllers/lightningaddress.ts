@@ -3,7 +3,7 @@ import { Request, Response } from "express";
 import { connect, dbSelect } from "../lib/database.js";
 import { logger } from "../lib/logger.js";
 import { redisClient, getLightningAddressFromRedis } from "../lib/redis.js";
-import { ResultMessagev2 } from "../interfaces/server.js";
+import { authkeyResultMessage, ResultMessagev2 } from "../interfaces/server.js";
 import { LightningUsernameResult } from "../interfaces/lightning.js";
 import { parseAuthHeader } from "../lib/authorization.js";
 import { getClientIp } from "../lib/utils.js";
@@ -241,9 +241,11 @@ const updateLightningAddress = async (req: Request, res: Response): Promise<Resp
 
 	logger.info("RES Update lightningaddress ->", servername, " | pubkey:",  EventHeader.pubkey, " | ligntningaddress:",  lightningaddress, "|", "Lightning redirect updated", "|", getClientIp(req));
 
-	const result: ResultMessagev2 = {
+	const result: authkeyResultMessage = {
 		status: "success",
 		message: `Lightning redirect for pubkey ${EventHeader.pubkey} updated`,
+		authkey: EventHeader.authkey,
+
 	};
 
 	return res.status(200).send(result);
@@ -342,9 +344,10 @@ const deleteLightningAddress = async (req: Request, res: Response): Promise<Resp
 
 	logger.info("RES Delete lightningaddress ->", servername, " | pubkey:",  EventHeader.pubkey, " | ligntningaddress:",  lightningaddress, "|", "Lightning redirect deleted", "|", getClientIp(req));
 
-	const result: ResultMessagev2 = {
+	const result: authkeyResultMessage = {
 		status: "success",
 		message: `Lightning redirect for pubkey ${EventHeader.pubkey} deleted`,
+		authkey: EventHeader.authkey,
 	};
 
 	return res.status(200).send(result);

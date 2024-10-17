@@ -51,7 +51,8 @@ const isFirstUse = async (req : Request, res: Response): Promise<boolean> => {
             hostedFiles: 0,
             usernames: [],
             pubkey: app.get("config.server")["pubkey"],
-            npub: app.get("config.server")["npub"]
+            npub: app.get("config.server")["npub"],
+            lud16: ""
         }
         res.locals.firstUse =  
         "<h5 class='mt-3 mb-2'>Read this carefully 💜</h5>" + 

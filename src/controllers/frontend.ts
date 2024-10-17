@@ -12,6 +12,7 @@ import { logHistory } from "../lib/logger.js";
 import { themes, particles} from "../interfaces/themes.js";
 import { verifyNIP07event } from "../lib/nostr/NIP07.js";
 import { getUsernames } from "../lib/register.js";
+import { getLightningAddress } from "../lib/lightning.js";
 
 const loadDashboardPage = async (req: Request, res: Response, version:string): Promise<Response | void> => {
 
@@ -106,7 +107,8 @@ const loadProfilePage = async (req: Request, res: Response, version:string): Pro
         pubkey: req.session.identifier,
         npub: await hextoNpub(req.session.identifier),
         hostedFiles: await countPubkeyFiles(req.session.identifier),
-        usernames: await getUsernames(req.session.identifier)
+        usernames: await getUsernames(req.session.identifier),
+        lud16: await getLightningAddress(req.session.identifier)
     }
 
     // Check admin privileges. Only for information, never used for authorization

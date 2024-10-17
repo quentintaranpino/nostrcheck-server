@@ -7,6 +7,7 @@ interface localUserMetadata {
 	usernames : JSON[];
 	pubkey : string;
 	npub: string;
+	lud16: string;
 }
 
 export { registeredTableResponse, localUserMetadata };

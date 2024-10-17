@@ -41,12 +41,13 @@
             <input type="text" class="form-control" id="nip05-input" value="">
             <div class="input-group-text">
                 <div class="form-check form-switch">
-                    <label for ="userSettings.nostrAddress.enableLightningRedirect" class=""><i class="fa-solid fa-bolt me-2 text-warning"></i>LN redirect</button></label>
+                    <label for="lnRedirect-checkbox" class=""><i class="fa-solid fa-bolt me-2 text-warning"></i>LN redirect</button></label>
                     <input  class="form-check-input" 
                             type="checkbox" 
-                            value="checked"
-                            name="userSettings.nostrAddress.enableLightningRedirect" 
-                            id="userSettings.nostrAddress.enableLightningRedirect"
+                            value="true"
+                            checked
+                            name="lnRedirect-checkbox" 
+                            id="lnRedirect-checkbox"
                             >
                 </div>  
             </div>  
@@ -55,6 +56,7 @@
     <div id="lud16" class="mb-3">
         <label for="lud16-input" class="form-label">Lightning address</label>
         <input type="text" class="form-control" id="lud16-input" value="">
+        <input type="text" class="form-control d-none" id="server-lud16" value="<%= request.session.metadata.lud16 %>" readonly>
     </div>
     <div id="website" class="mb-3">
         <label for="website" class="mb-1">Website</label>
@@ -83,6 +85,10 @@
             document.getElementById('nip05-input').value = JSON.parse(localStorage.getItem('profileData')).nip05;
             document.getElementById('lud16-input').value = JSON.parse(localStorage.getItem('profileData')).lud16;
             document.getElementById('about-input').value = JSON.parse(localStorage.getItem('profileData')).about;
+            document.getElementById('lnRedirect-checkbox').checked = document.getElementById('server-lud16').value != "" ? true : false;
+            document.getElementById('lnRedirect-checkbox').value = document.getElementById('server-lud16').value != "" ? true : false;
+            if(document.getElementById('server-lud16').value != "") document.getElementById('lud16-input').value = document.getElementById('server-lud16').value;
+
         }
 
         document.querySelectorAll("form").forEach(form => {
@@ -197,6 +203,23 @@
                 }
             } 
 
+            // LN Redirect
+            const lnCheckbox = document.getElementById('lnRedirect-checkbox');
+            if ((!data.lud16 || data.lud16 == '') && lnCheckbox.checked) {
+                showMessage('⚠️ You need to set a Lightning address to enable LN redirect', 'alert-warning');
+                document.getElementById('saveProfileData-btn').disabled = false;
+                document.getElementById('saveProfileData-btn').innerHTML = 'Save';
+                return;
+            }
+            updateLnRedirect();
+
+            console.log('Saving profile data:', data);
+
+            // If LN redirect checkbox is checked, set lud16 to nip05 value inside data for nostr relays
+            if (lnCheckbox.checked) data.lud16 = document.getElementById('nip05-input').value;
+
+            console.log('Saving profile data:', data);
+
             publishProfileData(data, document.getElementById('pubkey-input').value, sk)
                 .then((result) => {
                     console.log(result);
@@ -218,6 +241,7 @@
                 .finally(() => {
                     document.getElementById('saveProfileData-btn').disabled = false;
                 });
+
         }
     };
 
@@ -225,14 +249,14 @@
 const updateProfileFields = (data) => {
 
     const fields = [
-        { id: 'name',     field: 'name',          type: 'text' },
-        { id: 'name',     field: 'display_name',  type: 'text' },
-        { id: 'picture',  field: 'picture',       type: 'picture'},
-        { id: 'banner',   field: 'banner',        type: 'banner' },
-        { id: 'website',  field: 'website',       type: 'link' },
-        { id: 'nip05',    field: 'nip05',         type: 'text' },
-        { id: 'lud16',    field: 'lud16',         type: 'link' },
-        { id: 'about',    field: 'about',         type: 'text' },
+        { id: 'name',           field: 'name',          type: 'text' },
+        { id: 'name',           field: 'display_name',  type: 'text' },
+        { id: 'picture',        field: 'picture',       type: 'picture'},
+        { id: 'banner',         field: 'banner',        type: 'banner' },
+        { id: 'website',        field: 'website',       type: 'link' },
+        { id: 'nip05',          field: 'nip05',         type: 'text' },
+        { id: 'lud16',          field: 'lud16',         type: 'link' },
+        { id: 'about',          field: 'about',         type: 'text' },
     ];
 
     fields.forEach(({ id, field, type }) => {
@@ -269,5 +293,35 @@ const updateProfileFields = (data) => {
     }
 
 };
+
+const updateLnRedirect = async () => {
+
+    const lud16 = document.getElementById('lud16-input').value;
+    const enabled = document.getElementById('lnRedirect-checkbox').checked ? true : false;
+
+    if (!lud16 || lud16 == '') return;
+
+    console.log(enabled? 'Enabling' : 'Deleting', 'LN redirect with Lightning address:', lud16);
+
+    fetch(`/api/v2/lightningaddress/${enabled ? lud16 : ""}`, {
+        method: enabled ? 'PUT' : 'DELETE',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + localStorage.getItem('authkey')
+        }})
+        .then(response => response.json())
+        .then(async data => {
+            if (data.status == "success") {
+                showMessage(`Lightning address updated successfully`, "alert-primary");
+                await storeAuthkey(data.authkey);
+            } else {
+                showMessage(`Error updating Lightning address: ${data.message}`, "alert-warning");
+            }
+        })
+        .catch((error) => {
+            console.error('Error:', error);
+        });
+}
+        
 
 </script>
