@@ -10,7 +10,7 @@ const getPlugins = async (req: Request, res: Response): Promise<Response> => {
 
     if (!isModuleEnabled("plugins", app)) {
         logger.warn("Attempt to access a non-active module:","plugins","|","IP:", getClientIp(req));
-        return res.status(400).send({"status": "error", "message": "Module is not enabled"});
+        return res.status(403).send({"status": "error", "message": "Module is not enabled"});
     }
 
 	const eventHeader = await parseAuthHeader(req,"getPlugins", true);
@@ -30,7 +30,7 @@ const reloadPlugins = async (req: Request, res: Response): Promise<Response> => 
 
     if (!isModuleEnabled("plugins", app)) {
         logger.warn("Attempt to access a non-active module:","plugins","|","IP:", getClientIp(req));
-        return res.status(400).send({"status": "error", "message": "Module is not enabled"});
+        return res.status(403).send({"status": "error", "message": "Module is not enabled"});
     }
 
 	const eventHeader = await parseAuthHeader(req,"reloadPlugins", true);
