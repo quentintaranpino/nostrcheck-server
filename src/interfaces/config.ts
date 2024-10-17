@@ -231,7 +231,6 @@ const defaultConfig = {
 		}
 	},
 	"plugins" : {
-		"enabled": false,
 		"path": "plugins"
 	}
 }
