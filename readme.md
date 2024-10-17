@@ -50,6 +50,10 @@ See documentation [here](https://github.com/quentintaranpino/nostrcheck-api-ts/b
 
 See configuration [here](https://github.com/quentintaranpino/nostrcheck-api-ts/blob/main/CONFIG.md)
 
+## Plugins
+
+See plugins [here](https://github.com/quentintaranpino/nostrcheck-api-ts/blob/main/PLUGINS.md)
+
 ## Screenshots
 ### Dashboard
 ![image](https://github.com/quentintaranpino/nostrcheck-api-ts/assets/125748180/f9f4ab55-3560-49c2-b437-c90079b7a66c)
