@@ -90,6 +90,7 @@ const executePlugins = async (input : pluginData, app : Application) : Promise<b
         result = await plugin.execute(input, context);
         if (typeof result !== 'boolean') result = false;
         logger.debug(`Plugin ${plugin.name} returned ${result}`);
+        if (result === false) break;
     } catch (err) {
         logger.error(`Error executing plugin ${plugin.name}`);
         result = false;
