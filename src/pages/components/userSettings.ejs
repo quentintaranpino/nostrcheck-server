@@ -1,7 +1,7 @@
 <link rel="stylesheet" href="/static/css/form.css">
 <form class="form">
     <div id="npub" class="mb-3">
-        <label for="npub" class="mb-1">Nostr public key</label>
+        <label for="npub" class="mb-1">Public key</label>
         <div class="input-group">
             <input type="text" class="form-control d-none" id="pubkey-input" value="<%= request.session.metadata.pubkey %>" readonly>
             <input type="text" class="form-control" id="npub-input" value="<%= request.session.metadata.npub %>" readonly>
@@ -52,6 +52,11 @@
                 </div>  
             </div>  
         </div>
+        <div class="form-text ms-1 me-1 d-none" id="lnRedirect-help-text">
+            When you enable LN redirect, your nostraddress will work as a Lightning address. This setup will automatically apply to all Nostr clients
+
+        </div>
+
     </div>
     <div id="lud16" class="mb-3">
         <label for="lud16-input" class="form-label">Lightning address</label>
@@ -87,6 +92,7 @@
             document.getElementById('about-input').value = JSON.parse(localStorage.getItem('profileData')).about;
             document.getElementById('lnRedirect-checkbox').checked = document.getElementById('server-lud16').value != "" ? true : false;
             document.getElementById('lnRedirect-checkbox').value = document.getElementById('server-lud16').value != "" ? true : false;
+            if(document.getElementById('server-lud16').value != "") document.getElementById('lnRedirect-help-text').classList.remove('d-none');
             if(document.getElementById('server-lud16').value != "") document.getElementById('lud16-input').value = document.getElementById('server-lud16').value;
 
         }
@@ -94,7 +100,6 @@
         document.querySelectorAll("form").forEach(form => {
             form.addEventListener("submit", function(event) {
                 event.preventDefault();
-                console.log("Formulario enviado, pero la página no se recargó");
             });
         });
 
@@ -129,6 +134,15 @@
                 document.getElementById('userSettingsbanner-uploader').classList.remove('d-none');
             } else {
                 document.getElementById('userSettingsbanner-uploader').classList.add('d-none');
+            }
+        });
+
+        document.getElementById('lnRedirect-checkbox').addEventListener('change', () => {
+            settingsUnsaved = true;
+            if (document.getElementById('lnRedirect-checkbox').checked) {
+                document.getElementById('lnRedirect-help-text').classList.remove('d-none');
+            } else {
+                document.getElementById('lnRedirect-help-text').classList.add('d-none');
             }
         });
 
@@ -318,6 +332,5 @@ const updateLnRedirect = async () => {
             console.error('Error:', error);
         });
 }
-        
 
 </script>
