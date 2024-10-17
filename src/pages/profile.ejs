@@ -235,9 +235,10 @@
   document.addEventListener('DOMContentLoaded', async () => {
 
     // Following count
-    document.getElementById('following-header-count').innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
-    document.getElementById('relays-header-count').innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
-    const following = subscribeRelays(3,"<%= request.session.metadata.pubkey %>", "from").then((following) => {
+    document.getElementById('following-header-count').innerHTML = '<div class="spinner-border spinner-border-sm" role="status"></div>';
+    document.getElementById('relays-header-count').innerHTML = '<div class="spinner-border spinner-border-sm" role="status"></div>';
+
+    const following = subscribeRelays(3, "<%= request.session.metadata.pubkey %>", "from").then((following) => {
       document.getElementById('following-header-count').innerHTML = following[0]?.tags?.length || 0;
 
       // relays count
@@ -245,7 +246,7 @@
     });
 
     // Followers count
-    document.getElementById('followers-header-count').innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+    document.getElementById('followers-header-count').innerHTML = '<div class="spinner-border spinner-border-sm" role="status"></div>';
     const followers = subscribeRelays(3,"<%= request.session.metadata.pubkey %>", "to").then((followers) => {
 
       let totalTagsCount = 0;
@@ -290,7 +291,7 @@
   const getProfileBalance = async (pubkey) => {
 
     if (!pubkey) return 0;
-
+ 
     await fetch(
       `/api/v2/payments/getBalance`,
       {headers: {
