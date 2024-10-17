@@ -58,64 +58,16 @@
               </button>
           </li>
           <li class="nav-item" role="presentation">
-              <button class="nav-link" 
-                      id="storage-tab" 
-                      data-bs-toggle="tab" 
-                      data-bs-target="#storage" 
-                      type="button" 
-                      role="tab" 
-                      aria-controls="storage" 
-                      aria-selected="false">
-                      <i class="fas fa-hdd me-2"></i>Storage
-              </button>
-          </li>
-          <li class="nav-item" role="presentation">
             <button class="nav-link" 
-                    id="register-tab" 
+                    id="logging-tab" 
                     data-bs-toggle="tab" 
-                    data-bs-target="#register" 
+                    data-bs-target="#logging" 
                     type="button" 
                     role="tab" 
-                    aria-controls="register" 
+                    aria-controls="logging" 
                     aria-selected="false">
-                    <i class="fa-solid fa-address-card me-2"></i>Register
+                    <i class="fas fa-clipboard-list me-2"></i>Logging
             </button>
-          </li>
-          <li class="nav-item" role="presentation">
-              <button class="nav-link" 
-                      id="media-tab" 
-                      data-bs-toggle="tab" 
-                      data-bs-target="#media" 
-                      type="button" 
-                      role="tab" 
-                      aria-controls="media" 
-                      aria-selected="false">
-                      <i class="fas fa-photo-video me-2"></i>Media
-              </button>
-          </li>
-          <li class="nav-item" role="presentation">
-              <button class="nav-link" 
-                      id="payments-tab" 
-                      data-bs-toggle="tab" 
-                      data-bs-target="#payments" 
-                      type="button" 
-                      role="tab" 
-                      aria-controls="payments" 
-                      aria-selected="false">
-                      <i class="fas fa-bolt me-2"></i>Payments
-              </button>
-          </li>
-          <li class="nav-item" role="presentation">
-              <button class="nav-link" 
-                      id="logging-tab" 
-                      data-bs-toggle="tab" 
-                      data-bs-target="#logging" 
-                      type="button" 
-                      role="tab" 
-                      aria-controls="logging" 
-                      aria-selected="false">
-                      <i class="fas fa-clipboard-list me-2"></i>Logging
-              </button>
           </li>
           <li class="nav-item" role="presentation">
             <button class="nav-link" 
@@ -130,16 +82,70 @@
             </button>
           </li>
           <li class="nav-item" role="presentation">
-            <button class="nav-link" 
+            <button class="nav-link <%= locals.availableModules['media'] && locals.availableModules['media'].enabled ? '' : 'disabled' %>" 
+                    id="storage-tab" 
+                    data-bs-toggle="tab" 
+                    data-bs-target="#storage" 
+                    type="button" 
+                    role="tab" 
+                    aria-controls="storage" 
+                    aria-selected="false" 
+                    <%= locals.availableModules['media'] && locals.availableModules['media'].enabled ? '' : 'disabled' %>>
+                    <i class="fas fa-hdd me-2"></i>Storage
+            </button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link <%= locals.availableModules['register'] && locals.availableModules['register'].enabled ? '' : 'disabled' %>" 
+                    id="register-tab" 
+                    data-bs-toggle="tab" 
+                    data-bs-target="#register" 
+                    type="button" 
+                    role="tab" 
+                    aria-controls="register" 
+                    aria-selected="false" 
+                    <%= locals.availableModules['register'] && locals.availableModules['register'].enabled ? '' : 'disabled' %>>
+                    <i class="fa-solid fa-address-card me-2"></i>Register
+            </button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link <%= locals.availableModules['media'] && locals.availableModules['media'].enabled ? '' : 'disabled' %>" 
+                    id="media-tab" 
+                    data-bs-toggle="tab" 
+                    data-bs-target="#media" 
+                    type="button" 
+                    role="tab" 
+                    aria-controls="media" 
+                    aria-selected="false" 
+                    <%= locals.availableModules['media'] && locals.availableModules['media'].enabled ? '' : 'disabled' %>>
+                    <i class="fas fa-photo-video me-2"></i>Media
+            </button>
+         </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link <%= locals.availableModules['payments'] && locals.availableModules['payments'].enabled ? '' : 'disabled' %>" 
+                    id="payments-tab" 
+                    data-bs-toggle="tab" 
+                    data-bs-target="#payments" 
+                    type="button" 
+                    role="tab" 
+                    aria-controls="payments" 
+                    aria-selected="false" 
+                    <%= locals.availableModules['payments'] && locals.availableModules['payments'].enabled ? '' : 'disabled' %>>
+                    <i class="fas fa-bolt me-2"></i>Payments
+            </button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link <%= locals.availableModules['plugins'] && locals.availableModules['plugins'].enabled ? '' : 'disabled' %>" 
                     id="plugins-tab" 
                     data-bs-toggle="tab" 
                     data-bs-target="#plugins" 
                     type="button" 
                     role="tab" 
                     aria-controls="plugins" 
-                    aria-selected="false">
+                    aria-selected="false" 
+                    <%= locals.availableModules['plugins'] && locals.availableModules['plugins'].enabled ? '' : 'disabled' %>>
                     <i class="fas fa-plug me-2"></i>Plugins
             </button>
+          </li>
         </ul>
         <div class="tab-content" id="settingsTabsContent">
           <div class="tab-pane fade show active" id="lookandfeel" role="tabpanel" aria-labelledby="lookandfeel-tab">
