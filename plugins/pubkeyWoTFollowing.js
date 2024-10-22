@@ -1,7 +1,7 @@
 function plugin() {
     return {
         order: 2,
-        enabled: true,
+        enabled: false,
         name: 'pubkeyWoTFollowing',
         execute: async (input, globals) => {
             try {
