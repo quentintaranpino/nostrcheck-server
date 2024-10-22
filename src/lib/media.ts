@@ -269,6 +269,7 @@ const getMediaDimensions = async (file: string, fileData: { originalmime: string
         try {
             if (fileData.originalmime.startsWith("image")) {
                 const imageInfo = await sharp(file).metadata();
+				logger.debug("Image info: ", imageInfo);
                 if (imageInfo.orientation && imageInfo.orientation >= 5) {
                     resolve({ width: imageInfo.height!, height: imageInfo.width! });
                 } else {
