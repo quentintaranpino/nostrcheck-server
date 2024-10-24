@@ -64,7 +64,7 @@ const listPlugins = (app: Application): string[] => {
 
 const executePlugins = async (input : pluginData, app : Application) : Promise<boolean> => {
 
-  if (!isModuleEnabled("plugins", app)) return Promise.resolve(false)
+  if (!isModuleEnabled("plugins", app)) return Promise.resolve(true)
     const plugins: plugin[] = app.get("plugins").sort((a : plugin, b: plugin) => a.order - b.order);
 
   let result = false;
