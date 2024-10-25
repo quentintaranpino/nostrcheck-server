@@ -20,6 +20,7 @@ import {
     moderateDBRecord,
     banDBRecord
 } from "../controllers/admin.js";
+import { limiter } from "../lib/session.js";
 
 const maxMBfilesize: number = config.get('media.maxMBfilesize');
 
@@ -33,42 +34,50 @@ export const loadAdminEndpoint = async (app: Application, version: string): Prom
     if (version == "v2") {
 
         // Stop the server
-        app.post("/api/" + version + app.get("config.server")["availableModules"]["admin"]["path"] + "/stop", StopServer);
+        app.post("/api/" + version + app.get("config.server")["availableModules"]["admin"]["path"] + "/stop", limiter(), StopServer);
 
         // Legacy status endpoint
-        app.get("/api/" + version + "/status", (_req, res) => {
+        app.get("/api/" + version + "/status", limiter(), (_req, res) => {
             res.redirect("/api/" + version + app.get("config.server")["availableModules"]["admin"]["path"] + "/status");
         });
 
         // Get server status
-        app.get("/api/" + version + app.get("config.server")["availableModules"]["admin"]["path"] + "/status", serverStatus);
+        app.get("/api/" + version + app.get("config.server")["availableModules"]["admin"]["path"] + "/status", limiter(), serverStatus);
 
         // Reset user password
         app.post("/api/" + version + app.get("config.server")["availableModules"]["admin"]["path"] + "/resetpassword/",
+            limiter(),
             express.json(), resetUserPassword);
 
         // Update a database record
         app.post("/api/" + version + app.get("config.server")["availableModules"]["admin"]["path"] + "/updaterecord/",
+            limiter(),
             express.json(), updateDBRecord);
 
         // Delete a database record
         app.post("/api/" + version + app.get("config.server")["availableModules"]["admin"]["path"] + "/deleterecord/",
+            limiter(),
             express.json(), deleteDBRecord);
 
         // Insert a database record
         app.post("/api/" + version + app.get("config.server")["availableModules"]["admin"]["path"] + "/insertrecord/",
+            limiter(),    
             express.json(), insertDBRecord);
 
         // Moderate a database record
         app.post("/api/" + version + app.get("config.server")["availableModules"]["admin"]["path"] + "/moderaterecord",
+            limiter(),
             express.json(), moderateDBRecord);
 
         // Update settings
         app.post("/api/" + version + app.get("config.server")["availableModules"]["admin"]["path"] + "/updatesettings/",
+            limiter(),
             express.json(), updateSettings);
 
         // Upload frontend logo (handles files)
-        app.post("/api/" + version + app.get("config.server")["availableModules"]["admin"]["path"] + "/updatelogo/", function (req, res) {
+        app.post("/api/" + version + app.get("config.server")["availableModules"]["admin"]["path"] + "/updatelogo/", 
+            limiter(),
+            function (req, res) {
             logger.debug("POST /api/" + version + app.get("config.server")["availableModules"]["admin"]["path"] + "/updatelogo", "|", getClientIp(req));
             upload.any()(req, res, function (err) {
                 if (err instanceof multer.MulterError && err.code === "LIMIT_FILE_SIZE") {
@@ -80,14 +89,15 @@ export const loadAdminEndpoint = async (app: Application, version: string): Prom
         });
 
         // Update frontend theme
-        app.post("/api/" + version + app.get("config.server")["availableModules"]["admin"]["path"] + "/updatetheme/", express.json({ limit: "1mb" }), updateTheme);
+        app.post("/api/" + version + app.get("config.server")["availableModules"]["admin"]["path"] + "/updatetheme/", limiter(), express.json({ limit: "1mb" }), updateTheme);
 
         // Get module data
-        app.get("/api/" + version + app.get("config.server")["availableModules"]["admin"]["path"] + "/moduledata", getModuleData);
-        app.get("/api/" + version + app.get("config.server")["availableModules"]["admin"]["path"] + "/moduleCountdata", getModuleCountData);
+        app.get("/api/" + version + app.get("config.server")["availableModules"]["admin"]["path"] + "/moduledata", limiter(), getModuleData);
+        app.get("/api/" + version + app.get("config.server")["availableModules"]["admin"]["path"] + "/moduleCountdata", limiter(), getModuleCountData);
 
         // Ban a remote source
         app.post("/api/" + version + app.get("config.server")["availableModules"]["admin"]["path"] + "/ban",
+            limiter(),
             express.json(), banDBRecord);
     }
 

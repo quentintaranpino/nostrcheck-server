@@ -74,34 +74,42 @@ export const loadMediaEndpoint = async (app: Application, version:string): Promi
 	app.put("/upload", express.raw({  limit: Math.round(maxMBfilesize * 1024 * 1024)}), limiter(app.get('config.security')['media']['maxUploadsMinute'], limitMessage), async (req, res) => {uploadMiddlewarePut(req,res)}); // Blossom cdn url upload
 
 	// HEAD (upload)
-	app.head("/api/" + version + app.get("config.server")["availableModules"]["media"]["path"] + "/upload", heatUpload); // Blossom blob upload head
-	app.head("/upload", heatUpload); // Blossom CDN blob upload head
+	app.head("/api/" + version + app.get("config.server")["availableModules"]["media"]["path"] + "/upload", limiter(), heatUpload); // Blossom blob upload head
+	app.head("/upload", limiter(), heatUpload); // Blossom CDN blob upload head
 
 	// DELETE
-	app.delete("/api/" + version +  app.get("config.server")["availableModules"]["media"]["path"] + "/:id", function (req, res){deleteMedia(req,res,version)});
+	app.delete("/api/" + version +  app.get("config.server")["availableModules"]["media"]["path"] + "/:id", 
+	limiter(),
+	(req, res) => {
+		deleteMedia(req,res,version)
+	});
 
 	// HEAD
-	app.head("/api/" + version + app.get("config.server")["availableModules"]["media"]["path"] + "/:param1", heatMedia);
+	app.head("/api/" + version + app.get("config.server")["availableModules"]["media"]["path"] + "/:param1", limiter(1000, limitMessage), heatMedia);
 
 	// GET 
 	app.get(`/api/${version}${app.get("config.server")["availableModules"]["media"]["path"]}/:param1?/:param2?`, 
+	limiter(1000, limitMessage),
 	(req, res) => {
 		getMedia(req, res, version);
 	}
 	);
 
 	// GET root (media)
-	app.get("/:param1([a-fA-F0-9]{64})(\.[a-zA-Z0-9._-]{1,15})?(/:param2([a-fA-F0-9]{64})(\.[a-zA-Z0-9._-]{1,15})?)?", (req, res) => {
+	app.get("/:param1([a-fA-F0-9]{64})(\.[a-zA-Z0-9._-]{1,15})?(/:param2([a-fA-F0-9]{64})(\.[a-zA-Z0-9._-]{1,15})?)?", 
+	limiter(1000, limitMessage),
+	(req, res) => {
 		getMedia(req, res, version);
 	});
 
 	// PUT (visibility)
 	app.put("/api/" + version + app.get("config.server")["availableModules"]["media"]["path"] + "/:fileId/visibility/:visibility", 
+	limiter(),
 	updateMediaVisibility
 	);
 
 	if (version == "v2") {
 	// NIP96 json file
-	app.get("/api/v2/nip96", NIP96Data);
+	app.get("/api/v2/nip96", limiter(),NIP96Data);
 	}
 };

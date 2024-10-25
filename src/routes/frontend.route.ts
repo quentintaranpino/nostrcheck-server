@@ -31,7 +31,7 @@ export const loadFrontendEndpoint = async (app: Application, version: string): P
 	});
 
 	// Current v2 routes (index)
-	app.get("/api/" + version, limiter(), async (req, res) => {
+	app.get("/api/" + version, async (req, res) => {
 		if(req.originalUrl.slice(-1) !== '/') {
 			return res.redirect(301, req.originalUrl + '/');
 		}
@@ -40,7 +40,7 @@ export const loadFrontendEndpoint = async (app: Application, version: string): P
 	});
 
 	// Login page
-	app.get("/api/" + version + "/login", limiter(), async (req, res) => {
+	app.get("/api/" + version + "/login", limiter(10), async (req, res) => {
 		if (req.session.identifier != null && req.session.identifier != undefined && req.session.identifier != "") {
 			res.redirect("/api/v2/");
 		} else {
@@ -76,7 +76,7 @@ app.get("/api/" +  version + "/documentation", limiter(), async (req, res) => {
 });
 
 // Gallery
-app.get("/api/" +  version + "/gallery", limiter(300),  async (req, res) => {
+app.get("/api/" +  version + "/gallery", limiter(),  async (req, res) => {
 	if (await isFirstUse(req,res)){logger.info("First use detected. Showing alert on frontend", "|", getClientIp(req))}
 	loadGalleryPage(req,res,version);
 });
