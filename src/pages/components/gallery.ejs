@@ -171,7 +171,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
 
                     if (userData.files && userData.files.length === 0) {
                         console.log('No more media files');
-                        document.getElementById('loading-spinner').remove();
+                        document.getElementById('loading-spinner')?.remove();
                         observer.unobserve(sentinelEnd);
                         return;
                     }
@@ -199,10 +199,12 @@ document.addEventListener('DOMContentLoaded', (event) => {
             masonryView.classList.remove('visually-hidden');
             listView.classList.add('visually-hidden');
             masonryView.insertAdjacentElement('afterend', sentinelEnd);
+            observerSentinels.observe(sentinelEnd);
         } else {
             masonryView.classList.add('visually-hidden');
             listView.classList.remove('visually-hidden');
             listView.appendChild(sentinelEnd);
+            observerSentinels.observe(sentinelEnd);
         }
         page = -1;
         mediaCount = 50;
