@@ -1,9 +1,15 @@
-<div class="d-flex justify-content-end mb-3">
-    <select id="viewSelector" class="form-select w-auto">
-        <option value="masonry" selected>Gallery</option>
-        <option value="list">List</option>
-    </select>
+<div class="d-flex justify-content-end align-items-center p-2">
+    <span class="me-2 lead fs-6">Select view</span>
+    <div id="viewSelector" class="btn-group">
+        <button type="button" class="btn btn-secondary active" data-view="masonry" id="galleryView">
+            <i class="fas fa-images"></i>
+        </button>
+        <button type="button" class="btn btn-secondary" data-view="list" id="listView">
+            <i class="fas fa-list"></i> 
+        </button>
+    </div>
 </div>
+
 <div id="list-container" class="visually-hidden g-2 p-2">
     <table id="fileTable"></table>
 </div>
@@ -176,7 +182,9 @@ document.addEventListener('DOMContentLoaded', (event) => {
                         return;
                     }
 
-                    const selectedView = document.getElementById('viewSelector').value;
+                    const selectedViewButton = document.querySelector('#viewSelector .btn.active');
+                    const selectedView = selectedViewButton ? selectedViewButton.getAttribute('data-view') : 'masonry';
+
                     if (selectedView === 'masonry') {
                         populateMasonryData(userData.files, response.headers.get("Authorization")? true : false);
                     }else{
@@ -190,45 +198,70 @@ document.addEventListener('DOMContentLoaded', (event) => {
     });
     observerSentinels.observe(sentinelEnd);
 
-    document.getElementById('viewSelector').addEventListener('change', (event) => {
-        const selectedView = event.target.value;
+    document.getElementById('viewSelector').addEventListener('click', (event) => {
+        const selectedButton = event.target.closest('.btn');
+         if (!selectedButton) return;
+
+        const selectedView = selectedButton.getAttribute('data-view');
         const masonryView = document.getElementById('masonry-container');
         const listView = document.getElementById('list-container');
+
+        document.querySelectorAll('#viewSelector .btn').forEach(btn => btn.classList.remove('active'));
+        selectedButton.classList.add('active');
 
         if (selectedView === 'masonry') {
             masonryView.classList.remove('visually-hidden');
             listView.classList.add('visually-hidden');
             masonryView.insertAdjacentElement('afterend', sentinelEnd);
-            observerSentinels.observe(sentinelEnd);
         } else {
             masonryView.classList.add('visually-hidden');
             listView.classList.remove('visually-hidden');
             listView.appendChild(sentinelEnd);
-            observerSentinels.observe(sentinelEnd);
         }
         page = -1;
         mediaCount = 50;
+        observerSentinels.observe(sentinelEnd);
+
     });
 
     $('#fileTable').bootstrapTable({
         columns: [
             {
-                field: 'url',
-                title: 'URL',
-                formatter: (value, row) => {
-                    return `<a href="${value}" target="_blank">${value.slice(0, 10)}...${value.slice(-10)}</a>`;
-                },
+                field: 'ox',
+                title: 'Filename',
+                formatter: filenameFormatter,
                 class: 'text-center'
             },
             {
-                field: 'ext',
-                title: 'Extension',
+                field: 'm',
+                title: 'Type',
                 class: 'text-center'
             },
+            {
+                field: 'url',
+                title: 'Url',
+                formatter: filenameFormatter,
+                class: 'text-center d-none'
+            }, 
             {
                 field: 'size',
                 title: 'Size',
                 class: 'text-center'
+            },
+            {
+                field: 'dim',
+                title: 'Dimensions',
+                class: 'text-center'
+            },
+            {
+                field: 'date',
+                title: 'Date',
+                class: 'text-center'
+            },
+            {
+                field: 'blurhash',
+                title: 'Blurhash',
+                class: 'text-center d-none'
             },
             {
                 field: 'actions',
@@ -242,7 +275,9 @@ document.addEventListener('DOMContentLoaded', (event) => {
             }
         ],
         data: [], 
-        search: true,
+        search: false,
+        mobileResponsive: true,
+        sortable: true,
         pagination: true
     });
 
@@ -514,14 +549,21 @@ function buttonContainer(type, file, auth){
 
 function populateTableData(files, auth) {
     const rows = files.map(file => {
+        const ox = file.tags.find(tag => tag[0] === 'ox') ? file.tags.find(tag => tag[0] === 'ox')[1] : 'N/A';
         const url = file.tags.find(tag => tag[0] === 'url')[1];
-        const x = file.tags.find(tag => tag[0] === 'x') ? file.tags.find(tag => tag[0] === 'x')[1] : 'N/A';
-        const ext = url.split('.').pop();
+        const ext = file.tags.find(tag => tag[0] === 'm') ? file.tags.find(tag => tag[0] === 'm')[1] : url.split('.').pop();
         const size = file.tags.find(tag => tag[0] === 'size') ? file.tags.find(tag => tag[0] === 'size')[1] : 'N/A';
+        const dim = file.tags.find(tag => tag[0] === 'dim') ? file.tags.find(tag => tag[0] === 'dim')[1] : 'N/A';
+        const blurhash = file.tags.find(tag => tag[0] === 'blurhash') ? file.tags.find(tag => tag[0] === 'blurhash')[1] : 'N/A';
+
         return {
+            ox: ox,
             url: url,
-            ext: ext,
+            m: ext,
             size: size,
+            dim: dim,
+            blurhash: blurhash,
+            date: new Date(file.created_at * 1000).toLocaleString(),
             auth: auth,
             actions: "",
         };
@@ -534,6 +576,20 @@ function populateTableData(files, auth) {
 function actionsFormatter(value, row, index) {
 
     return `<div>${buttonContainer("list", row, row.auth).innerHTML}</div>`;
+}
+
+function filenameFormatter(value, row, index) {
+    const fullText = value;
+    const windowWidth = window.innerWidth;
+    let visibleChars = Math.max(17, Math.floor(windowWidth / 50));
+
+    if (visibleChars * 2 > fullText.length) {
+        visibleChars = Math.floor(fullText.length / 2) - 2;
+    }
+
+    const end = fullText.slice(-visibleChars);
+
+    return `<a class='file-url' href="${row.url}" target="_blank">...${end}</a>`;
 }
 
 </script>
