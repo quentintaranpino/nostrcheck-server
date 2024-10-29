@@ -63,7 +63,7 @@ const PrepareNIP96_listEvent = async (filedata : fileData): Promise<NIP94_data> 
                     ["no_transform", filedata.no_transform.valueOf().toString() ]
             ],              
             content: '',
-            created_at: Number(new Date(filedata.date).getTime() / 1000),}
+            created_at: Number(filedata.date),}
 
     return event;
 
