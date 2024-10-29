@@ -181,15 +181,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
                         observer.unobserve(sentinelEnd);
                         return;
                     }
-
-                    const selectedViewButton = document.querySelector('#viewSelector .btn.active');
-                    const selectedView = selectedViewButton ? selectedViewButton.getAttribute('data-view') : 'masonry';
-
-                    if (selectedView === 'masonry') {
-                        populateMasonryData(userData.files, response.headers.get("Authorization")? true : false);
-                    }else{
-                        populateTableData(userData.files, response.headers.get("Authorization")? true : false);
-                    }
+                    populateMasonryData(userData.files, response.headers.get("Authorization")? true : false);
                 });
             }
         };
@@ -216,7 +208,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
         } else {
             masonryView.classList.add('visually-hidden');
             listView.classList.remove('visually-hidden');
-            listView.appendChild(sentinelEnd);
+            document.getElementById('loading-spinner')?.remove();
         }
         page = -1;
         mediaCount = 50;
@@ -274,13 +266,17 @@ document.addEventListener('DOMContentLoaded', (event) => {
                 visible: false
             }
         ],
+        url: 'media?page=0&count=100',
+        ajax: function (params) {semaphore.execute(() => fetchTabledata(params))},
         data: [], 
         search: false,
         mobileResponsive: true,
         sortable: true,
-        pagination: true
-    });
+        pagination: true,
+        sidePagination: "server",
+        pageSize: 10,
 
+    });
 
 });
 
@@ -579,6 +575,9 @@ function actionsFormatter(value, row, index) {
 }
 
 function filenameFormatter(value, row, index) {
+
+    if (!value) return 'N/A';
+
     const fullText = value;
     const windowWidth = window.innerWidth;
     let visibleChars = Math.max(17, Math.floor(windowWidth / 50));
@@ -591,6 +590,65 @@ function filenameFormatter(value, row, index) {
 
     return `<a class='file-url' href="${row.url}" target="_blank">...${end}</a>`;
 }
+
+let lastUntilDate = Date.now() / 1000; 
+
+function fetchTabledata(params) {
+    return new Promise((resolve, reject) => {
+        const pageSize = params.data.limit || 10;
+        
+        const until = lastUntilDate;
+        const since = until - pageSize * 24 * 60 * 60 * 10; 
+
+        $.ajax({
+            url: params.url,
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('authkey')}`,
+            },
+            data: {
+                since: since,
+                until: until,
+            },
+            dataType: 'json',
+            success: async function(result) {
+                await storeAuthkey(result.authkey);
+
+                const rows = result.files.slice(0, pageSize).map(file => {
+                    const tags = Object.fromEntries(file.tags);
+
+                    return {
+                        ox: tags['ox'] || 'N/A',
+                        m: tags['m'] || 'N/A',
+                        url: tags['url'] || 'N/A',
+                        size: tags['size'] || 'N/A',
+                        dim: tags['dim'] || 'N/A',
+                        date: new Date(file.created_at * 1000).toLocaleString(),
+                        blurhash: tags['blurhash'] || 'N/A',
+                        actions: "", 
+                        auth: !!result.authkey
+                    };
+                });
+
+                lastUntilDate = rows.length > 0 ? rows[rows.length - 1].created_at : since;
+
+                params.success({
+                    total: result.total,
+                    rows: rows
+                });
+                
+                console.log(result);
+                resolve(params);
+            },
+            error: function(err) {
+                params.error(err);
+                reject(err);
+            }
+        });
+    });
+}
+
 
 </script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/STLLoader.js"></script>
