@@ -11,7 +11,7 @@ const prepareBlobDescriptor = async (filedata : fileData): Promise<blobDescripto
         status: filedata.status,
         message: filedata.description,
         url: filedata.url,
-        sha256: filedata.originalhash,
+        sha256: filedata.hash,
         size: filedata.filesize,
         type: filedata.originalmime != '' ? filedata.originalmime : getMimeFromExtension(filedata.filename.split('.').pop() || '') || '',
         uploaded: filedata.date,
