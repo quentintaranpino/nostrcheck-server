@@ -213,7 +213,7 @@
                 <%- include('./components/userNotes'); %>
               </div>
               <div class="tab-pane fade" id="hostedFiles" role="tabpanel" aria-labelledby="hostedFiles-tab">
-                <%- include('./components/gallery',{maxImageWidth: 350, maxColumns:3, privateGallery: true}); %> 
+                <%- include('./components/gallery', { maxImageWidth: 350, maxColumns: 3, privateGallery: true, pubkey: request.session.metadata.pubkey }) %>
               </div>
               <div class="tab-pane fade" id="userRelays" role="tabpanel" aria-labelledby="userRelays-tab">
                 <%- include('./components/userRelays'); %>

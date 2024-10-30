@@ -1,18 +1,21 @@
-<div class="d-flex justify-content-end align-items-center p-2">
-    <span class="me-2 lead fs-6">Select view</span>
-    <div id="viewSelector" class="btn-group">
-        <button type="button" class="btn btn-secondary active" data-view="masonry" id="galleryView">
-            <i class="fas fa-images"></i>
-        </button>
-        <button type="button" class="btn btn-secondary" data-view="list" id="listView">
-            <i class="fas fa-list"></i> 
-        </button>
+<% if (privateGallery) { %>
+    <div class="d-flex justify-content-end align-items-center p-2">
+        <span class="me-2 lead fs-6">Select view</span>
+            <div id="viewSelector" class="btn-group">
+                <button type="button" class="btn btn-secondary active" data-view="masonry" id="galleryView">
+                    <i class="fas fa-images"></i>
+                </button>
+                <button type="button" class="btn btn-secondary" data-view="list" id="listView">
+                    <i class="fas fa-list"></i> 
+                </button>
+            </div>
     </div>
-</div>
 
-<div id="list-container" class="visually-hidden g-2 p-2">
-    <table id="fileTable"></table>
-</div>
+    <div id="list-container" class="visually-hidden g-2 p-2">
+        <table id="fileTable"></table>
+    </div>
+
+<% }%>
 
 <div id="masonry-container" class="g-2 p-1"></div>
 <div id="no-media" class="visually-hidden text-center py-5 fs-4"><p>No media files found</p></div>
@@ -68,6 +71,7 @@
 const maxImageWidth = <%= maxImageWidth %>;
 const maxColumns = <%= maxColumns %>;
 const privateGallery = <%= privateGallery %>;
+const pubkey = "<%= pubkey %>";
 
 let mediaCount = 50;
 const resizeThreshold = 50;
@@ -80,6 +84,69 @@ const columnElements = [];
 const columnHeights = Array(columns).fill(0); 
 
 document.addEventListener('DOMContentLoaded', (event) => {
+
+    
+    $('#fileTable').bootstrapTable({
+        columns: [
+            {
+                field: 'ox',
+                title: 'Filename',
+                formatter: filenameFormatter,
+                class: 'text-center'
+            },
+            {
+                field: 'm',
+                title: 'Type',
+                class: 'text-center'
+            },
+            {
+                field: 'url',
+                title: 'Url',
+                formatter: filenameFormatter,
+                class: 'text-center d-none'
+            }, 
+            {
+                field: 'size',
+                title: 'Size',
+                class: 'text-center'
+            },
+            {
+                field: 'dim',
+                title: 'Dimensions',
+                class: 'text-center'
+            },
+            {
+                field: 'date',
+                title: 'Date',
+                class: 'text-center'
+            },
+            {
+                field: 'blurhash',
+                title: 'Blurhash',
+                class: 'text-center d-none'
+            },
+            {
+                field: 'actions',
+                title: 'Actions',
+                formatter: actionsFormatter,
+                class: 'text-center'
+            }, 
+            {
+                field: 'auth',
+                visible: false
+            }
+        ],
+        url: `media/list/${pubkey}`,
+        ajax: function (params) {semaphore.execute(() => fetchTabledata(params))},
+        data: [], 
+        search: false,
+        mobileResponsive: true,
+        sortable: true,
+        pagination: true,
+        sidePagination: "client",
+        pageSize: 10,
+
+    });
 
     const sentinelEnd = document.getElementById('sentinelEnd');
 
@@ -190,7 +257,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
     });
     observerSentinels.observe(sentinelEnd);
 
-    document.getElementById('viewSelector').addEventListener('click', (event) => {
+    document.getElementById('viewSelector')?.addEventListener('click', (event) => {
         const selectedButton = event.target.closest('.btn');
          if (!selectedButton) return;
 
@@ -213,68 +280,6 @@ document.addEventListener('DOMContentLoaded', (event) => {
         page = -1;
         mediaCount = 50;
         observerSentinels.observe(sentinelEnd);
-
-    });
-
-    $('#fileTable').bootstrapTable({
-        columns: [
-            {
-                field: 'ox',
-                title: 'Filename',
-                formatter: filenameFormatter,
-                class: 'text-center'
-            },
-            {
-                field: 'm',
-                title: 'Type',
-                class: 'text-center'
-            },
-            {
-                field: 'url',
-                title: 'Url',
-                formatter: filenameFormatter,
-                class: 'text-center d-none'
-            }, 
-            {
-                field: 'size',
-                title: 'Size',
-                class: 'text-center'
-            },
-            {
-                field: 'dim',
-                title: 'Dimensions',
-                class: 'text-center'
-            },
-            {
-                field: 'date',
-                title: 'Date',
-                class: 'text-center'
-            },
-            {
-                field: 'blurhash',
-                title: 'Blurhash',
-                class: 'text-center d-none'
-            },
-            {
-                field: 'actions',
-                title: 'Actions',
-                formatter: actionsFormatter,
-                class: 'text-center'
-            }, 
-            {
-                field: 'auth',
-                visible: false
-            }
-        ],
-        url: 'media?page=0&count=100',
-        ajax: function (params) {semaphore.execute(() => fetchTabledata(params))},
-        data: [], 
-        search: false,
-        mobileResponsive: true,
-        sortable: true,
-        pagination: true,
-        sidePagination: "server",
-        pageSize: 10,
 
     });
 
@@ -543,31 +548,31 @@ function buttonContainer(type, file, auth){
             return buttonContainer
 }
 
-function populateTableData(files, auth) {
-    const rows = files.map(file => {
-        const ox = file.tags.find(tag => tag[0] === 'ox') ? file.tags.find(tag => tag[0] === 'ox')[1] : 'N/A';
-        const url = file.tags.find(tag => tag[0] === 'url')[1];
-        const ext = file.tags.find(tag => tag[0] === 'm') ? file.tags.find(tag => tag[0] === 'm')[1] : url.split('.').pop();
-        const size = file.tags.find(tag => tag[0] === 'size') ? file.tags.find(tag => tag[0] === 'size')[1] : 'N/A';
-        const dim = file.tags.find(tag => tag[0] === 'dim') ? file.tags.find(tag => tag[0] === 'dim')[1] : 'N/A';
-        const blurhash = file.tags.find(tag => tag[0] === 'blurhash') ? file.tags.find(tag => tag[0] === 'blurhash')[1] : 'N/A';
+// function populateTableData(files, auth) {
+//     const rows = files.map(file => {
+//         const ox = file.tags.find(tag => tag[0] === 'ox') ? file.tags.find(tag => tag[0] === 'ox')[1] : 'N/A';
+//         const url = file.tags.find(tag => tag[0] === 'url')[1];
+//         const ext = file.tags.find(tag => tag[0] === 'm') ? file.tags.find(tag => tag[0] === 'm')[1] : url.split('.').pop();
+//         const size = file.tags.find(tag => tag[0] === 'size') ? file.tags.find(tag => tag[0] === 'size')[1] : 'N/A';
+//         const dim = file.tags.find(tag => tag[0] === 'dim') ? file.tags.find(tag => tag[0] === 'dim')[1] : 'N/A';
+//         const blurhash = file.tags.find(tag => tag[0] === 'blurhash') ? file.tags.find(tag => tag[0] === 'blurhash')[1] : 'N/A';
 
-        return {
-            ox: ox,
-            url: url,
-            m: ext,
-            size: size,
-            dim: dim,
-            blurhash: blurhash,
-            date: new Date(file.created_at * 1000).toLocaleString(),
-            auth: auth,
-            actions: "",
-        };
-    });
+//         return {
+//             ox: ox,
+//             url: url,
+//             m: ext,
+//             size: size,
+//             dim: dim,
+//             blurhash: blurhash,
+//             date: new Date(file.created_at * 1000).toLocaleString(),
+//             auth: auth,
+//             actions: "",
+//         };
+//     });
 
-    $('#fileTable').bootstrapTable('append', rows);
-    document.getElementById('list-container').appendChild(sentinelEnd);
-}
+//     $('#fileTable').bootstrapTable('append', rows);
+//     document.getElementById('list-container').appendChild(sentinelEnd);
+// }
 
 function actionsFormatter(value, row, index) {
 
@@ -591,14 +596,10 @@ function filenameFormatter(value, row, index) {
     return `<a class='file-url' href="${row.url}" target="_blank">...${end}</a>`;
 }
 
-let lastUntilDate = Date.now() / 1000; 
-
 function fetchTabledata(params) {
     return new Promise((resolve, reject) => {
-        const pageSize = params.data.limit || 10;
-        
-        const until = lastUntilDate;
-        const since = until - pageSize * 24 * 60 * 60 * 10; 
+
+        const pageSize = params.data.pageSize;
 
         $.ajax({
             url: params.url,
@@ -607,38 +608,27 @@ function fetchTabledata(params) {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${localStorage.getItem('authkey')}`,
             },
-            data: {
-                since: since,
-                until: until,
-            },
             dataType: 'json',
             success: async function(result) {
-                await storeAuthkey(result.authkey);
-
-                const rows = result.files.slice(0, pageSize).map(file => {
-                    const tags = Object.fromEntries(file.tags);
-
+                const rows = result.slice(0, pageSize).map(file => {
                     return {
-                        ox: tags['ox'] || 'N/A',
-                        m: tags['m'] || 'N/A',
-                        url: tags['url'] || 'N/A',
-                        size: tags['size'] || 'N/A',
-                        dim: tags['dim'] || 'N/A',
-                        date: new Date(file.created_at * 1000).toLocaleString(),
-                        blurhash: tags['blurhash'] || 'N/A',
+                        ox: file.sha256 || 'N/A',
+                        m: file.type || 'N/A',
+                        url: file.url || 'N/A',
+                        size: file.size || 'N/A',
+                        dim: file.dim || 'N/A',
+                        date: new Date(file.uploaded * 1000).toLocaleString(), 
+                        blurhash: file.blurhash || 'N/A',
                         actions: "", 
-                        auth: !!result.authkey
+                        auth: privateGallery
                     };
                 });
 
-                lastUntilDate = rows.length > 0 ? rows[rows.length - 1].created_at : since;
-
                 params.success({
-                    total: result.total,
-                    rows: rows
+                    total: result.length, 
+                    rows: rows 
                 });
-                
-                console.log(result);
+
                 resolve(params);
             },
             error: function(err) {
@@ -648,7 +638,6 @@ function fetchTabledata(params) {
         });
     });
 }
-
 
 </script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/STLLoader.js"></script>
