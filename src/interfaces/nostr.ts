@@ -46,6 +46,7 @@ interface NIP94_data {
             ["i", string],
             ["blurhash", string],
             ["no_transform", string],
+            ["payment_request", string],
     ],
     content: string,
     created_at: number,

@@ -23,7 +23,8 @@ const PrepareNIP94_event = async (filedata : fileData): Promise<NIP94_event> => 
                         ["magnet", filedata.magnet],
                         ["i", filedata.torrent_infohash],
                         ["blurhash", filedata.blurhash],
-                        ["no_transform", filedata.no_transform.valueOf().toString() ]
+                        ["no_transform", filedata.no_transform.valueOf().toString() ],
+                        ["payment_request", filedata.payment_request],
                 ],              
                 content: '',
                 sig : "",
