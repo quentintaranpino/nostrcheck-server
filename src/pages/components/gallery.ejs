@@ -1,5 +1,5 @@
 <% if (privateGallery) { %>
-    <div class="d-flex justify-content-end align-items-center p-2">
+    <div id="gallery-view" class="d-flex justify-content-start align-items-center p-2">
         <span class="me-2 lead fs-6">Select view</span>
             <div id="viewSelector" class="btn-group">
                 <button type="button" class="btn btn-secondary active" data-view="masonry" id="galleryView">
@@ -11,7 +11,7 @@
             </div>
     </div>
 
-    <div id="list-container" class="visually-hidden g-2 p-2">
+    <div id="list-container" class="visually-hidden g-2 p-2 pt-0">
         <table id="fileTable"></table>
     </div>
 
@@ -25,7 +25,6 @@
         <span class="visually-hidden">Loading...</span>
     </div>
 </div>
-
 <style>
     #masonry-container {
         display: flex;
@@ -89,48 +88,54 @@ document.addEventListener('DOMContentLoaded', (event) => {
     $('#fileTable').bootstrapTable({
         columns: [
             {
-                field: 'ox',
+                field: 'sha256',
                 title: 'Filename',
                 formatter: filenameFormatter,
-                class: 'text-center'
+                class: 'text-center',
+                sortable: true
             },
             {
                 field: 'm',
                 title: 'Type',
-                class: 'text-center'
+                class: 'text-center',
+                sortable: true
             },
             {
                 field: 'url',
                 title: 'Url',
                 formatter: filenameFormatter,
-                class: 'text-center d-none'
+                class: 'text-center d-none',
+                sortable: true
             }, 
             {
                 field: 'size',
                 title: 'Size',
-                class: 'text-center'
+                class: 'text-center',
+                sortable: true
             },
             {
                 field: 'dim',
                 title: 'Dimensions',
-                class: 'text-center'
+                class: 'text-center',
+                sortable: true,
+                visible: false
+
             },
             {
                 field: 'date',
                 title: 'Date',
-                class: 'text-center'
-            },
-            {
-                field: 'blurhash',
-                title: 'Blurhash',
-                class: 'text-center d-none'
+                class: 'text-center',
+                sortable: true,
+                sorter: dateSorter 
+
             },
             {
                 field: 'actions',
                 title: 'Actions',
                 formatter: actionsFormatter,
-                class: 'text-center'
-            }, 
+                class: 'text-center',
+                sortable: false
+            },
             {
                 field: 'auth',
                 visible: false
@@ -139,13 +144,17 @@ document.addEventListener('DOMContentLoaded', (event) => {
         url: `media/list/${pubkey}`,
         ajax: function (params) {semaphore.execute(() => fetchTabledata(params))},
         data: [], 
-        search: false,
+        search: true,
+        searchAlign: 'left', 
         mobileResponsive: true,
+        minWidth: 1024,
         sortable: true,
         pagination: true,
         sidePagination: "client",
         pageSize: 10,
-
+        showColumns: true,
+        detailView: true,
+        detailFormatter: detailFormatter,
     });
 
     const sentinelEnd = document.getElementById('sentinelEnd');
@@ -505,37 +514,38 @@ function buttonContainer(type, file, auth){
 
     const buttonContainer = document.createElement('div');
 
-            if (type == "mansonry"){
-                buttonContainer.classList.add('btn-container', 'position-absolute', 'p-1', 'w-100');
-                buttonContainer.style.background = 'rgba(0, 0, 0, 0.1)';
-                buttonContainer.style.borderRadius = '5px';
-                buttonContainer.style.zIndex = '10';
-                buttonContainer.style.bottom = '1px';
-            }
+    if (type == "mansonry"){
+        buttonContainer.classList.add('btn-container', 'position-absolute', 'p-1', 'w-100');
+        buttonContainer.style.background = 'rgba(0, 0, 0, 0.1)';
+        buttonContainer.style.borderRadius = '5px';
+        buttonContainer.style.zIndex = '10';
+        buttonContainer.style.bottom = '1px';
+    }
 
-            if (auth) {
+    if (auth) {
 
-                const reorderButton = document.createElement('button');
-                reorderButton.classList.add('btn', 'btn-primary', 'btn-xl', 'me-1');
-                reorderButton.innerHTML = '<i class="fas fa-sort"></i>';
-                buttonContainer.appendChild(reorderButton);
+        const visibleButton = document.createElement('button');
+        visibleButton.classList.add('btn','btn-secondary', 'btn-xl', 'me-1');
+        visibleButton.innerHTML = '<i class="bi bi-eye-fill"></i>';
+        buttonContainer.appendChild(visibleButton);
 
-                const infoButton = document.createElement('button');
-                infoButton.classList.add('btn', 'btn-primary', 'btn-xl', 'me-1');
-                infoButton.innerHTML = '<i class="fas fa-info"></i>';
-                buttonContainer.appendChild(infoButton);
+        const payButton = document.createElement('button');
+        payButton.classList.add('btn','btn-warning', 'btn-xl', 'me-1');
+        payButton.innerHTML = '<i class="fas fa-bolt"></i>';
+        buttonContainer.appendChild(payButton);
 
-                const payButton = document.createElement('button');
-                payButton.classList.add('btn', 'btn-warning', 'btn-xl', 'me-1');
-                payButton.innerHTML = '<i class="fas fa-bolt"></i>';
-                buttonContainer.appendChild(payButton);
+        const deleteButton = document.createElement('button');
+        deleteButton.classList.add('btn','btn-danger', 'btn-xl', 'me-1');
+        deleteButton.innerHTML = '<i class="fas fa-trash"></i>';
+        buttonContainer.appendChild(deleteButton);
 
-                const deleteButton = document.createElement('button');
-                deleteButton.classList.add('btn', 'btn-danger', 'btn-xl', 'me-1');
-                deleteButton.innerHTML = '<i class="fas fa-trash"></i>';
-                buttonContainer.appendChild(deleteButton);
+    }
 
-            }
+    if (type == "mansonry"){
+            const infoButton = document.createElement('button');
+            infoButton.classList.add('btn', 'btn-primary', 'btn-xl', 'me-1');
+            infoButton.innerHTML = '<i class="fas fa-info"></i>';
+            buttonContainer.appendChild(infoButton);
 
             const viewButton = document.createElement('button');
             viewButton.classList.add('btn', 'btn-primary', 'btn-xl', 'me-1', 'btn-dark');
@@ -545,7 +555,10 @@ function buttonContainer(type, file, auth){
                 window.open(`${url}`, '_blank');
             });
             buttonContainer.appendChild(viewButton);
-            return buttonContainer
+        }
+
+    return buttonContainer;
+
 }
 
 // function populateTableData(files, auth) {
@@ -576,24 +589,68 @@ function buttonContainer(type, file, auth){
 
 function actionsFormatter(value, row, index) {
 
-    return `<div>${buttonContainer("list", row, row.auth).innerHTML}</div>`;
+    return `<div class="">${buttonContainer("list", row, row.auth).innerHTML}</div>`;
+}
+
+// function filenameFormatter(value, row, index) {
+
+//     if (!value) return 'N/A';
+
+//     const fullText = value;
+//     const windowWidth = window.innerWidth;
+//     let visibleChars = Math.max(20, Math.floor(windowWidth / 25));
+
+//     if (visibleChars * 2 > fullText.length) {
+//         visibleChars = Math.floor(fullText.length / 2) - 2;
+//     }
+
+//     const end = fullText.slice(-visibleChars);
+
+//     return `<a class='file-url link-offset-3 ' href="${row.url}" target="_blank">...${end}</a>`;
+// }
+
+function detailFormatter(index, row) {
+    var html = [];
+    $.each(row, function (key, value) {
+        if (key === 'state') { return; }
+        html.push('<p><span class="key">' + key + ':</span> <span class="value">' + value + '</span></p>');
+    });
+
+    return `
+        <div class="detail-container">
+            ${html.join('')}
+        </div>
+    `;
 }
 
 function filenameFormatter(value, row, index) {
 
-    if (!value) return 'N/A';
+    console.log('filenameFormatter', value, row, index);
 
-    const fullText = value;
-    const windowWidth = window.innerWidth;
-    let visibleChars = Math.max(17, Math.floor(windowWidth / 50));
+    let textValue = value.slice(0, (value.length / 2) - 20) + ':' + value.slice((value.length / 2) + 20);
 
-    if (visibleChars * 2 > fullText.length) {
-        visibleChars = Math.floor(fullText.length / 2) - 2;
-    }
+    let modalFileCheck = '<div id="file_' + index + '_preview"><span class="cursor-zoom-in text-secondary">' + textValue + '</span></div>';
 
-    const end = fullText.slice(-visibleChars);
+    // Attach the click event handler to the document and delegate it to the clickable element
+    $(document).off('click', '#file_' + index + '_preview').on('click', '#file_' + index + '_preview', async function () {
+        console.log('click', value, row.checked, row.visibility);
+        semaphore.execute(async () => {
+            await initMediaModal(`${row.url.substring(row.url.lastIndexOf('/') + 1)}.${row.m}`, row.checked, row.visibility, false)
+        });
+    });
 
-    return `<a class='file-url' href="${row.url}" target="_blank">...${end}</a>`;
+    return modalFileCheck;
+}
+
+function dateSorter(a, b) {
+    const [dayA, monthA, yearA] = a.split('/');
+    const [dayB, monthB, yearB] = b.split('/');
+    
+    const dateA = new Date(`${yearA}-${monthA}-${dayA}`);
+    const dateB = new Date(`${yearB}-${monthB}-${dayB}`);
+
+    console.log(dateA, dateB); 
+    return dateA - dateB;
 }
 
 function fetchTabledata(params) {
@@ -612,13 +669,12 @@ function fetchTabledata(params) {
             success: async function(result) {
                 const rows = result.slice(0, pageSize).map(file => {
                     return {
-                        ox: file.sha256 || 'N/A',
-                        m: file.type || 'N/A',
+                        sha256: file.sha256 || 'N/A',
+                        m: file.type?.split('/')[1] || 'N/A',
                         url: file.url || 'N/A',
-                        size: file.size || 'N/A',
-                        dim: file.dim || 'N/A',
-                        date: new Date(file.uploaded * 1000).toLocaleString(), 
-                        blurhash: file.blurhash || 'N/A',
+                        size: file.size? (file.size / 1024).toFixed(2) + ' KB' : 'N/A',
+                        dim: file.dim && file.dim != "0x0" ? file.dim : '',
+                        date: new Date(file.uploaded * 1000).toLocaleString().split(',')[0],
                         actions: "", 
                         auth: privateGallery
                     };

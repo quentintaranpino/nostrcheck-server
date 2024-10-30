@@ -27,7 +27,7 @@ const initTable = async (tableId, datakey, objectName, dataKey, field = "") => {
         showColumns: true,
         detailView: true,
         mobileResponsive: true,
-        minWidth: 768,
+        minWidth: 1024,
         checkOnInit: true,
         detailFormatter: "detailFormatter",
         rowStyle: rowStyle,
