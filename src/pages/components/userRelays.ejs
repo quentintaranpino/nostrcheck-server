@@ -1,4 +1,4 @@
-<div class="container mt-3 mb-5 mb-lg-3">
+<div class="ms-3 me-3 mt-3 mb-5 mb-lg-3">
     <div class="text-end mb-3 form">
         <div id="user-relay-list-add" class="input-group mb-3 mt-2 d-none">
             <input type="text" data-otc='relay-name' class="form-control" id="input-add-relay"
@@ -100,6 +100,7 @@ const saveRelayData = async () => {
 const addRelayToList = (relay) => {
 
     let relayItem = document.createElement("li");
+    relayItem.classList.add("list-unstyled");
     relayItem.id = `${relay.id}`;
     relayItem.innerHTML = `
         <div id="user-relay-${relay.id}" class="card mb-3 shadow-sm default-bg">
