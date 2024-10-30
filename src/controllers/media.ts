@@ -621,8 +621,8 @@ const getMediaList = async (req: Request, res: Response, version:string): Promis
 	const offset = count * page; 
 
 	// Get Blossom query parameters
-	const since = req.query.since?.toString() || "";
-	const until = req.query.until?.toString() || "";
+	const since = req.query.since?.toString() || 0;
+	const until = req.query.until?.toString() || 0;
 	const pubkey = req.params.param2 || "";
 
 	let whereStatement = "";
@@ -630,17 +630,17 @@ const getMediaList = async (req: Request, res: Response, version:string): Promis
 	
 	// Blossom where statement
 	if (pubkey != "") {
-		whereStatement = "pubkey = ? and active = ? and visibility = ? and original_hash is not null and original_hash = hash";
+		whereStatement = "pubkey = ? and active = ? and visibility = ? and original_hash is not null";
 		whereFields = [pubkey, "1", "1"];
 
-		if (since != "") {
+		if (since != 0) {
 			whereStatement += " and date >= ?";
-			whereFields.push(since);
+			whereFields.push(new Date(Number(since) * 1000).toISOString().slice(0, 19).replace('T', ' '));
 		}
 
-		if (until != "") {
+		if (until != 0) {
 			whereStatement += " and date <= ?";
-			whereFields.push(until);
+			whereFields.push(new Date(Number(until) * 1000).toISOString().slice(0, 19).replace('T', ' '));
 		}
 
 		whereStatement += " ORDER BY date DESC";
@@ -735,7 +735,7 @@ const getMediaList = async (req: Request, res: Response, version:string): Promis
 		return res.status(200).send(response);
 	}else{
 		// Blossom compatibility
-		return res.status(200).send(files);
+		return res.status(200).send(Array.isArray(files) ? files : [files]);
 	}
 
 };
