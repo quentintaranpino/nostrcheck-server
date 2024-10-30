@@ -130,6 +130,13 @@ document.addEventListener('DOMContentLoaded', (event) => {
 
             },
             {
+                field: 'payment_request',
+                title: 'Payment Request',
+                class: 'text-center',
+                sortable: true,
+                visible: false
+            },
+            {
                 field: 'actions',
                 title: 'Actions',
                 formatter: actionsFormatter,
@@ -292,6 +299,13 @@ document.addEventListener('DOMContentLoaded', (event) => {
 
     });
 
+    //View button click event
+    $(document).on('click', '.btn-view', function(event) {
+        event.stopPropagation();
+        const url = $(this).data('url');
+        window.open(url, '_blank');
+    });
+
 });
 
 async function populateMasonryData (files, auth) {
@@ -426,8 +440,6 @@ async function populateMasonryData (files, auth) {
             mediaElement.style.height = '200';
             mediaElement.style.position = "relative";
 
-            console.log('mediaElement', mediaElement);
-
             setTimeout(() => {
                 init3dViewer(mediaElement.id, 'column-0', `${url}`, 250, 200);
                 mediaElement.classList.add('fade-in');
@@ -511,8 +523,10 @@ async function populateMasonryData (files, auth) {
 function buttonContainer(type, file, auth){
 
     const url = file.tags?.find(tag => tag[0] === 'url')[1] || file.url || "no url";
+    const payment_request = file.tags?.find(tag => tag[0] === 'payment_request')[1] || file.payment_request || "";
 
     const buttonContainer = document.createElement('div');
+    buttonContainer.id = type + '-button-container-' + file.sha256;
 
     if (type == "mansonry"){
         buttonContainer.classList.add('btn-container', 'position-absolute', 'p-1', 'w-100');
@@ -522,6 +536,21 @@ function buttonContainer(type, file, auth){
         buttonContainer.style.bottom = '1px';
     }
 
+    if (type == "mansonry"){
+        const infoButton = document.createElement('button');
+        infoButton.classList.add('btn', 'btn-primary', 'btn-xl', 'me-1');
+        infoButton.innerHTML = '<i class="fas fa-info"></i>';
+        buttonContainer.appendChild(infoButton);
+    }
+
+    const viewButton = document.createElement('button');
+    viewButton.id = type + '-view-button-' + file.sha256;
+    viewButton.classList.add('btn', 'btn-primary', 'btn-xl', 'me-1', 'btn-dark', 'btn-view');
+    viewButton.setAttribute('data-url', url);    
+    viewButton.innerHTML = '<i class="fa-solid fa-arrow-up-right-from-square"></i>';
+
+    buttonContainer.appendChild(viewButton);
+
     if (auth) {
 
         const visibleButton = document.createElement('button');
@@ -529,33 +558,19 @@ function buttonContainer(type, file, auth){
         visibleButton.innerHTML = '<i class="bi bi-eye-fill"></i>';
         buttonContainer.appendChild(visibleButton);
 
-        const payButton = document.createElement('button');
-        payButton.classList.add('btn','btn-warning', 'btn-xl', 'me-1');
-        payButton.innerHTML = '<i class="fas fa-bolt"></i>';
-        buttonContainer.appendChild(payButton);
-
         const deleteButton = document.createElement('button');
         deleteButton.classList.add('btn','btn-danger', 'btn-xl', 'me-1');
         deleteButton.innerHTML = '<i class="fas fa-trash"></i>';
         buttonContainer.appendChild(deleteButton);
 
-    }
-
-    if (type == "mansonry"){
-            const infoButton = document.createElement('button');
-            infoButton.classList.add('btn', 'btn-primary', 'btn-xl', 'me-1');
-            infoButton.innerHTML = '<i class="fas fa-info"></i>';
-            buttonContainer.appendChild(infoButton);
-
-            const viewButton = document.createElement('button');
-            viewButton.classList.add('btn', 'btn-primary', 'btn-xl', 'me-1', 'btn-dark');
-            viewButton.innerHTML = '<i class="fa-solid fa-arrow-up-right-from-square"></i>';
-            viewButton.addEventListener('click', (event) => {
-                event.stopPropagation();
-                window.open(`${url}`, '_blank');
-            });
-            buttonContainer.appendChild(viewButton);
+        if (payment_request != ""){
+            const payButton = document.createElement('button');
+            payButton.classList.add('btn','btn-warning', 'btn-xl', 'me-1');
+            payButton.innerHTML = '<i class="fas fa-bolt"></i>';
+            buttonContainer.appendChild(payButton);
         }
+
+    }
 
     return buttonContainer;
 
@@ -589,7 +604,7 @@ function buttonContainer(type, file, auth){
 
 function actionsFormatter(value, row, index) {
 
-    return `<div class="">${buttonContainer("list", row, row.auth).innerHTML}</div>`;
+    return `<div class="text-start">${buttonContainer("list", row, row.auth).innerHTML}</div>`;
 }
 
 // function filenameFormatter(value, row, index) {
@@ -625,15 +640,12 @@ function detailFormatter(index, row) {
 
 function filenameFormatter(value, row, index) {
 
-    console.log('filenameFormatter', value, row, index);
-
     let textValue = value.slice(0, (value.length / 2) - 20) + ':' + value.slice((value.length / 2) + 20);
 
     let modalFileCheck = '<div id="file_' + index + '_preview"><span class="cursor-zoom-in text-secondary">' + textValue + '</span></div>';
 
     // Attach the click event handler to the document and delegate it to the clickable element
     $(document).off('click', '#file_' + index + '_preview').on('click', '#file_' + index + '_preview', async function () {
-        console.log('click', value, row.checked, row.visibility);
         semaphore.execute(async () => {
             await initMediaModal(`${row.url.substring(row.url.lastIndexOf('/') + 1)}.${row.m}`, row.checked, row.visibility, false)
         });
@@ -649,7 +661,6 @@ function dateSorter(a, b) {
     const dateA = new Date(`${yearA}-${monthA}-${dayA}`);
     const dateB = new Date(`${yearB}-${monthB}-${dayB}`);
 
-    console.log(dateA, dateB); 
     return dateA - dateB;
 }
 
@@ -675,6 +686,7 @@ function fetchTabledata(params) {
                         size: file.size? (file.size / 1024).toFixed(2) + ' KB' : 'N/A',
                         dim: file.dim && file.dim != "0x0" ? file.dim : '',
                         date: new Date(file.uploaded * 1000).toLocaleString().split(',')[0],
+                        payment_request: file.payment_request || '',
                         actions: "", 
                         auth: privateGallery
                     };
