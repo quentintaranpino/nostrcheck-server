@@ -19,7 +19,6 @@ async function saveSettings() {
             
             let url = 'admin/updatesettings';
             let headers = {
-                "authorization": "Bearer " + localStorage.getItem('authkey'),
                 "Content-Type": "application/json"
             };
             let body = JSON.stringify({
@@ -63,8 +62,6 @@ const updateSettings = (fieldName, fieldValue, url, body, headers) => {
     .then(response => response.json())
     .then(async data => {
         if (data.status === 'success') {
-            await storeAuthkey(data.authkey)
-
             const fieldId = document.getElementById(fieldName);
             fieldId.defaultValue = fieldValue;
 
@@ -118,7 +115,7 @@ const updateLogo = (fieldName, setDefault = false) => {
         fieldName = `${fieldName}.default`;
     }
        
-    let headers = {"authorization": "Bearer " + localStorage.getItem('authkey')};
+    let headers = {};
     
     updateSettings(fieldName, '', 'admin/updatelogo', body, headers).then(result => {
         if (result) {
@@ -175,7 +172,6 @@ const updateTheme = async (primaryColor, secondaryColor, tertiaryColor, orientat
 
     let headers = {
         "Content-Type": "application/json", 
-        "Authorization": "Bearer " + localStorage.getItem('authkey')
     };
 
     updateSettings(fieldName, '', 'admin/updatetheme', JSON.stringify(body), headers)

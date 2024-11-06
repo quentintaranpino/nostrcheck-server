@@ -4,7 +4,7 @@ import app from "../app.js";
 
 import { logger } from "../lib/logger.js";
 import { getClientIp } from "../lib/utils.js";
-import { ResultMessagev2, authkeyResultMessage } from "../interfaces/server.js";
+import { ResultMessagev2 } from "../interfaces/server.js";
 import { parseAuthHeader} from "../lib/authorization.js";
 import { isModuleEnabled} from "../lib/config.js";
 import { payInvoiceFromExpenses, addBalance, getBalance, formatAccountNumber, getInvoice, calculateSatoshi, collectInvoice } from "../lib/payments/core.js";
@@ -12,7 +12,7 @@ import { dbMultiSelect } from "../lib/database.js";
 import { isInvoicePaid } from "../lib/payments/core.js";
 import { amountReturnMessage, invoiceReturnMessage } from "../interfaces/payments.js";
 import { getDomainInfo } from "../lib/domains.js";
-
+import { setAuthCookie } from "../lib/frontend.js";
 
 /**
  * Pays an item from the expenses account.
@@ -35,6 +35,7 @@ const payTransaction = async (req: Request, res: Response): Promise<Response> =>
      // Check if authorization header is valid
     const EventHeader = await parseAuthHeader(req, "payItem", true);
     if (EventHeader.status !== "success") {return res.status(401).send({"status": EventHeader.status, "message" : EventHeader.message});}
+    setAuthCookie(res, EventHeader.authkey);
 
     // Check if the request has the required parameters
     if (req.body.transactionid === undefined || req.body.transactionid === null) {
@@ -48,15 +49,14 @@ const payTransaction = async (req: Request, res: Response): Promise<Response> =>
 
     const payTransaction = await payInvoiceFromExpenses(req.body.transactionid)
     if (payTransaction) {
-        const result : authkeyResultMessage = {
+        const result : ResultMessagev2 = {
             status: "success",
             message: 1,
-            authkey: EventHeader.authkey
             };
         logger.info("RES -> Item paid" + " | " + getClientIp(req));
         return res.status(200).send(result);
     }
-    return res.status(500).send({"status": "error", "message": "Failed to pay item", "authkey": EventHeader.authkey});
+    return res.status(500).send({"status": "error", "message": "Failed to pay item"});
 }
 
 const addBalanceUser = async (req: Request, res: Response): Promise<Response> => {
@@ -73,6 +73,7 @@ const addBalanceUser = async (req: Request, res: Response): Promise<Response> =>
     // Check if authorization header is valid
     const EventHeader = await parseAuthHeader(req, "addBalance", true);
     if (EventHeader.status !== "success") {return res.status(401).send({"status": EventHeader.status, "message" : EventHeader.message});}
+    setAuthCookie(res, EventHeader.authkey);
 
     // Check if the request has the required parameters
     if (req.body.id === undefined || req.body.id === null || req.body.amount === undefined || req.body.amount === null) {
@@ -88,10 +89,10 @@ const addBalanceUser = async (req: Request, res: Response): Promise<Response> =>
     const balance = await addBalance(accountid, req.body.amount)
     if (balance) {
         const userBalance = await getBalance(accountid);
-        const result : authkeyResultMessage = {
+
+        const result : ResultMessagev2 = {
             status: "success",
             message: userBalance.toString(),
-            authkey: EventHeader.authkey
             };
         logger.info("RES -> Balance added: " + req.body.amount +  " | " + req.body.accountid + " | " + getClientIp(req));
         return res.status(200).send(result);
@@ -202,6 +203,7 @@ const getBalanceUser = async (req: Request, res: Response): Promise<Response> =>
     // Check if authorization header is valid
     const EventHeader = await parseAuthHeader(req, "getBalance", false);
     if (EventHeader.status !== "success") {return res.status(401).send({"status": EventHeader.status, "message" : EventHeader.message});}
+    setAuthCookie(res, EventHeader.authkey);
 
     const id = await dbMultiSelect(["id"], "registered", "hex = ?", [EventHeader.pubkey], false);
 
@@ -220,10 +222,9 @@ const getBalanceUser = async (req: Request, res: Response): Promise<Response> =>
         balance += await getBalance(formatAccountNumber(e.id));
     }
 
-    const result : authkeyResultMessage = {
+    const result : ResultMessagev2 = {
         status: "success",
         message: balance.toString(),
-        authkey: EventHeader.authkey
     };
     logger.info("RES -> Pubkey", EventHeader.pubkey, " balance", balance, " | ", getClientIp(req));
     return res.status(200).send(result);

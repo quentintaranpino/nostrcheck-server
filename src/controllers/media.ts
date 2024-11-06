@@ -37,6 +37,7 @@ import { getBannedMediaFile, isContentBanned } from "../lib/banned.js";
 import { mirrorFile } from "../lib/blossom/BUD04.js";
 import { checkMacaroon, decodeMacaroon, verifyMacaroon } from "../lib/payments/macaroons.js";
 import { executePlugins } from "../lib/plugins/core.js";
+import { setAuthCookie } from "../lib/frontend.js";
 
 const uploadMedia = async (req: Request, res: Response, version:string): Promise<Response> => {
 
@@ -60,7 +61,8 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 		return res.status(401).send(result);
 
 	}
-	eventHeader.authkey? res.header("Authorization", eventHeader.authkey): null;
+	setAuthCookie(res, eventHeader.authkey);
+
 	const pubkey = eventHeader.pubkey;
 
 	// Public uploads logic
@@ -547,7 +549,7 @@ const heatMedia = async (req: Request, res: Response): Promise<Response> => {
 	if (eventHeader.status !== "success") {
 		eventHeader.pubkey = "";
 	}
-	eventHeader.authkey? res.header("Authorization", eventHeader.authkey): null;
+	setAuthCookie(res, eventHeader.authkey);
 
 	// Get file hash from URL
 	const hash = req.params.param1.toString().split(".")[0];
@@ -612,7 +614,7 @@ const getMediaList = async (req: Request, res: Response, version:string): Promis
 	if (eventHeader.status !== "success") {
 		eventHeader.pubkey = "";
 	}
-	eventHeader.authkey? res.header("Authorization", eventHeader.authkey): null;
+	setAuthCookie(res, eventHeader.authkey);
 
 	// Get NIP96 query parameters
 	const page = Number(req.query.page) || 0;
@@ -764,7 +766,7 @@ const getMediaStatusbyID = async (req: Request, res: Response, version:string): 
 		return res.status(401).send(result);
 
 	}
-	eventHeader.authkey? res.header("Authorization", eventHeader.authkey): null;
+	setAuthCookie(res, eventHeader.authkey);
 
 	const servername = "https://" + req.hostname;
 
@@ -930,12 +932,14 @@ const getMediabyURL = async (req: Request, res: Response) => {
 	let noCache = false;
 	let adminRequest = false;
 
-	// Check if the GET request has authorization header (for dashboard admin checking)
-	const eventHeader = await parseAuthHeader(req, "getMediaByURL", true);
-	if (eventHeader.status == "success") {
-		noCache = true;
-		adminRequest = true;
-		res.setHeader("Authorization", eventHeader.authkey);
+	// Check if the GET request has authorization header (for logged users)
+	if (req.cookies?.authkey) {
+		const eventHeader = await parseAuthHeader(req, "getMediaByURL", true);
+		if (eventHeader.status == "success") {
+			noCache = true;
+			adminRequest = true;
+		}
+		setAuthCookie(res, eventHeader.authkey);
 	}
 
 	// Check if the file is cached, if not, we check the database for the file.
@@ -1195,7 +1199,7 @@ const getMediaTagsbyID = async (req: Request, res: Response): Promise<Response> 
 		}
 		return res.status(401).send(result);
 	}
-	eventHeader.authkey? res.header("Authorization", eventHeader.authkey): null;
+	setAuthCookie(res, eventHeader.authkey);
 	logger.info("REQ -> Media tag list -> pubkey:", eventHeader.pubkey, "-> id:", req.params.fileId, "|", getClientIp(req));
 
 	//Query database for media tags
@@ -1243,15 +1247,17 @@ const getMediabyTags = async (req: Request, res: Response): Promise<Response> =>
 	logger.info("REQ -> Media files for specified tag", "|", getClientIp(req));
 
 	// Check if authorization header is valid
-	const EventHeader = await parseAuthHeader(req, "getMediabyTags", false);
-	if (EventHeader.status !== "success") {return res.status(401).send({"result": EventHeader.status, "description" : EventHeader.message});}
+	const eventHeader = await parseAuthHeader(req, "getMediabyTags", false);
+	if (eventHeader.status !== "success") {return res.status(401).send({"result": eventHeader.status, "description" : eventHeader.message});}
+	setAuthCookie(res, eventHeader.authkey);
 
-	logger.info("REQ -> Media files for specified tag -> pubkey:", EventHeader.pubkey, "-> tag:", req.params.tags, "|", getClientIp(req));
+
+	logger.info("REQ -> Media files for specified tag -> pubkey:", eventHeader.pubkey, "-> tag:", req.params.tags, "|", getClientIp(req));
 
 	//Check database for media files by tags
 	try {
 		const conn = await connect("GetMediabyTags");
-		const [rows] = await conn.execute("SELECT mediafiles.id, mediafiles.filename, mediafiles.pubkey, mediafiles.status FROM mediatags INNER JOIN mediafiles ON mediatags.fileid = mediafiles.id WHERE tag = ? and mediafiles.pubkey = ? ", [req.params.tag, EventHeader.pubkey]);
+		const [rows] = await conn.execute("SELECT mediafiles.id, mediafiles.filename, mediafiles.pubkey, mediafiles.status FROM mediatags INNER JOIN mediafiles ON mediatags.fileid = mediafiles.id WHERE tag = ? and mediafiles.pubkey = ? ", [req.params.tag, eventHeader.pubkey]);
 		const rowstemp = JSON.parse(JSON.stringify(rows));
 
 		if (rowstemp[0] !== undefined) {
@@ -1305,10 +1311,11 @@ const updateMediaVisibility = async (req: Request, res: Response): Promise<Respo
 	logger.info("REQ -> Update media visibility", "|", getClientIp(req));
 
 	// Check if authorization header is valid
-	const EventHeader = await parseAuthHeader(req, "updateMediaVisibility", false);
-	if (EventHeader.status !== "success") {return res.status(401).send({"result": EventHeader.status, "description" : EventHeader.message});}
+	const eventHeader = await parseAuthHeader(req, "updateMediaVisibility", false);
+	if (eventHeader.status !== "success") {return res.status(401).send({"result": eventHeader.status, "description" : eventHeader.message});}
+	setAuthCookie(res, eventHeader.authkey);
 
-	logger.info("REQ -> Update media visibility -> pubkey:", EventHeader.pubkey, "-> id:", req.params.fileId, "-> visibility:", req.params.visibility, "|", getClientIp(req));
+	logger.info("REQ -> Update media visibility -> pubkey:", eventHeader.pubkey, "-> id:", req.params.fileId, "-> visibility:", req.params.visibility, "|", getClientIp(req));
 
 	//Check if fileId is not empty
 	if (!req.params.fileId) {
@@ -1333,7 +1340,7 @@ const updateMediaVisibility = async (req: Request, res: Response): Promise<Respo
 	//Update table mediafiles whith new visibility
 	try {
 		const conn = await connect("UpdateMediaVisibility");
-		const [rows] = await conn.execute("UPDATE mediafiles SET visibility = ? WHERE id = ? and pubkey = ?", [req.params.visibility, req.params.fileId, EventHeader.pubkey]);
+		const [rows] = await conn.execute("UPDATE mediafiles SET visibility = ? WHERE id = ? and pubkey = ?", [req.params.visibility, req.params.fileId, eventHeader.pubkey]);
 		const rowstemp = JSON.parse(JSON.stringify(rows));
 		conn.end();
 		if (rowstemp.affectedRows !== 0) {
@@ -1396,29 +1403,31 @@ const deleteMedia = async (req: Request, res: Response, version:string): Promise
 	}
 
 	// Check if authorization header is valid
-	const EventHeader = await parseAuthHeader(req, "delete", false);
-	if (EventHeader.status !== "success") {
+	const eventHeader = await parseAuthHeader(req, "delete", false);
+	if (eventHeader.status !== "success") {
 		
 		//v0 and v1 compatibility
-		if(version != "v2"){return res.status(401).send({"result": false, "description" : EventHeader.message});}
+		if(version != "v2"){return res.status(401).send({"result": false, "description" : eventHeader.message});}
 
 		const result : ResultMessagev2 = {
 			status: MediaStatus[1],
-			message: EventHeader.message
+			message: eventHeader.message
 		}
 		return res.status(401).send(result);
 
 	}
+	setAuthCookie(res, eventHeader.authkey);
+
 	
-	logger.info("REQ Delete mediafile ->", req.hostname, " | pubkey:",  EventHeader.pubkey, " | fileId:",  req.params.id, "|", getClientIp(req));
+	logger.info("REQ Delete mediafile ->", req.hostname, " | pubkey:",  eventHeader.pubkey, " | file:",  req.params.id, "|", getClientIp(req));
 
 	const selectedFile = await dbMultiSelect(	["id","filename", "hash"],
 												"mediafiles",
 												"pubkey = ? and (filename = ? OR original_hash = ? or id = ?)",
-												[EventHeader.pubkey, req.params.id, req.params.id, req.params.id],
+												[eventHeader.pubkey, req.params.id, req.params.id, req.params.id],
 												true);
 	if (selectedFile.length == 0) {
-		logger.warn("RES Delete Mediafile -> 404 Not found", EventHeader.pubkey, req.params.id, "|", getClientIp(req));
+		logger.warn("RES Delete Mediafile -> 404 Not found", eventHeader.pubkey, req.params.id, "|", getClientIp(req));
 		if(version != "v2"){return res.status(404).send({"result": false, "description" : "Mediafile deletion not found"});}
 
 		const result: ResultMessagev2 = {
@@ -1434,7 +1443,7 @@ const deleteMedia = async (req: Request, res: Response, version:string): Promise
 
 
 	if (filename === undefined || filename === null || filename === "") {
-		logger.error("Error getting file data from database", EventHeader.pubkey, fileid, "|", getClientIp(req));
+		logger.error("Error getting file data from database", eventHeader.pubkey, fileid, "|", getClientIp(req));
 		if(version != "v2"){return res.status(500).send({"result": false, "description" : "Error getting file data from database"});}
 		const result: ResultMessagev2 = {
 			status: "error",
@@ -1447,12 +1456,12 @@ const deleteMedia = async (req: Request, res: Response, version:string): Promise
 	// Check if the file is the last one with the same hash, counting the number of files with the same hash
 	const hashCount = await dbSelect("SELECT COUNT(*) as 'count' FROM mediafiles WHERE filename = ?", "count", [filename]);
 	if (hashCount != '1') {
-		logger.info("Detected more files with same hash, skipping deletion from storage server", EventHeader.pubkey, filename, "|", getClientIp(req));
+		logger.info("Detected more files with same hash, skipping deletion from storage server", eventHeader.pubkey, filename, "|", getClientIp(req));
 	}else{
-		logger.info("Detected last file with same hash, deleting from storage server", EventHeader.pubkey, filename, "|", getClientIp(req));
+		logger.info("Detected last file with same hash, deleting from storage server", eventHeader.pubkey, filename, "|", getClientIp(req));
 		const result = deleteFile(filename);
 		if (!result) {
-			logger.error("Error deleting file from remote server", EventHeader.pubkey, filename, "|", getClientIp(req));
+			logger.error("Error deleting file from remote server", eventHeader.pubkey, filename, "|", getClientIp(req));
 			//v0 and v1 compatibility
 			if(version != "v2"){return res.status(500).send({"result": false, "description" : "Error deleting file from remote server"})}
 
@@ -1465,10 +1474,10 @@ const deleteMedia = async (req: Request, res: Response, version:string): Promise
 	}
 
 	//Delete mediafile from database
-	logger.debug("Deleting file from database with id:", fileid, "pubkey:", EventHeader.pubkey, "filename:", filename, "|", getClientIp(req));
-	const deleteResult = await dbDelete("mediafiles", ["id","pubkey"],[fileid, EventHeader.pubkey]);
+	logger.debug("Deleting file from database with id:", fileid, "pubkey:", eventHeader.pubkey, "filename:", filename, "|", getClientIp(req));
+	const deleteResult = await dbDelete("mediafiles", ["id","pubkey"],[fileid, eventHeader.pubkey]);
 	if (deleteResult == false) {
-		logger.warn("RES Delete Mediafile -> 404 Not found on database", EventHeader.pubkey, filename, "|", getClientIp(req));
+		logger.warn("RES Delete Mediafile -> 404 Not found on database", eventHeader.pubkey, filename, "|", getClientIp(req));
 
 		//v0 and v1 compatibility
 		if(version != "v2"){return res.status(404).send({"result": false, "description" : "Mediafile  not found on database"});}
@@ -1482,12 +1491,12 @@ const deleteMedia = async (req: Request, res: Response, version:string): Promise
 
 	//v0 and v1 compatibility
 	if (version != "v2"){
-		return res.status(200).send({result: true, description: `Mediafile deletion for id: ${fileid}, filename: ${filename} and pubkey ${EventHeader.pubkey} successful`});
+		return res.status(200).send({result: true, description: `Mediafile deletion for id: ${fileid}, filename: ${filename} and pubkey ${eventHeader.pubkey} successful`});
 	}
 
-	const result: ResultMessagev2 = {
+	const result = {
 		status: MediaStatus[0],
-		message: `Mediafile deletion with id: ${fileid}, filename: ${filename} and pubkey: ${EventHeader.pubkey} successful`,
+		message: `Mediafile deletion with id: ${fileid}, filename: ${filename} and pubkey: ${eventHeader.pubkey} successful`,
 	};
 	return res.status(200).send(result);
 

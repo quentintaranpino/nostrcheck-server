@@ -8,6 +8,7 @@ import { getAvailableDomains, getAvailiableUsers } from "../lib/domains.js";
 import { dbUpdate, dbSelect } from "../lib/database.js";
 import { isModuleEnabled } from "../lib/config.js";
 import app from "../app.js";
+import { setAuthCookie } from "../lib/frontend.js";
 
 const listAvailableDomains = async (req: Request, res: Response): Promise<Response> => {
 
@@ -41,10 +42,10 @@ const listAvailableUsers = async (req: Request, res: Response): Promise<Response
     // Check if authorization header is valid
 	const EventHeader = await parseAuthHeader(req, "AvailableUsers", true);
 	if (EventHeader.status !== "success") {return res.status(401).send({"status": EventHeader.status, "message" : EventHeader.message});}
+	setAuthCookie(res, EventHeader.authkey);
 
 	const availableUsers = await getAvailiableUsers(req.params.domain);
-	return res.status(200).send({ [req.params.domain]: availableUsers, "authkey" : EventHeader.authkey});
-		
+	return res.status(200).send({ [req.params.domain]: availableUsers});
 	
 };
 

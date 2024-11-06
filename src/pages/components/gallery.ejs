@@ -72,7 +72,7 @@ const maxColumns = <%= maxColumns %>;
 const privateGallery = <%= privateGallery %>;
 const pubkey = "<%= pubkey %>";
 
-let mediaCount = 50;
+let mediaCount = 20;
 const resizeThreshold = 50;
 
 let page = -1;
@@ -82,11 +82,19 @@ let columns = Math.floor(window.innerWidth / maxImageWidth) < maxColumns ? Math.
 const columnElements = [];
 const columnHeights = Array(columns).fill(0); 
 
+let currentId = 1;
+
 document.addEventListener('DOMContentLoaded', (event) => {
 
     
     $('#fileTable').bootstrapTable({
         columns: [
+            {
+                field: 'id',
+                title: 'ID',
+                class: 'text-center',
+                sortable: true
+            },
             {
                 field: 'sha256',
                 title: 'Filename',
@@ -148,6 +156,8 @@ document.addEventListener('DOMContentLoaded', (event) => {
                 visible: false
             }
         ],
+        idField: 'id',
+        uniqueId: 'id',
         url: `media/list/${pubkey}`,
         ajax: function (params) {semaphore.execute(() => fetchTabledata(params))},
         data: [], 
@@ -243,11 +253,10 @@ document.addEventListener('DOMContentLoaded', (event) => {
                 page++;
 
                 await semaphore.execute(async () => {
-                    const localHeader = privateGallery?{
-                            "authorization": "Bearer " + localStorage.getItem('authkey') } : {};
                     const response = await fetch(`/api/v2/media?page=${page}&count=${mediaCount}`, {
                         method: "GET",
-                        headers: localHeader
+                        Credentials: "include", 
+
                     });
                     if (!response.ok) {
                         document.getElementById('loading-spinner').remove();
@@ -256,7 +265,6 @@ document.addEventListener('DOMContentLoaded', (event) => {
                         return;
                     }
                     const userData = await response.json();
-                    response.headers.get("Authorization") ? await storeAuthkey(response.headers.get("Authorization")) : null;
 
                     if (userData.files && userData.files.length === 0) {
                         console.log('No more media files');
@@ -264,7 +272,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
                         observer.unobserve(sentinelEnd);
                         return;
                     }
-                    populateMasonryData(userData.files, response.headers.get("Authorization")? true : false);
+                    semaphore.execute(async () => populateMasonryData(userData.files, privateGallery? true : false));
                 });
             }
         };
@@ -306,6 +314,34 @@ document.addEventListener('DOMContentLoaded', (event) => {
         window.open(url, '_blank');
     });
 
+    // Delete button click event
+    $(document).on('click', '.btn-delete', function(event) {
+
+        event.stopPropagation();
+        const sha256 = $(this).data('sha256');
+        const id = $(this).data('id')
+        const url = `/api/v2/media/${sha256}`;
+
+        semaphore.execute(async () => {await initConfirmModal('#fileTable', [id], "delete", "file", "", false).then(async (modal) => {
+            
+            if (modal.result != true) return;
+                $.ajax({
+                    url: url,
+                    method: 'DELETE',
+                    success: function(result) {
+                        $('#fileTable').bootstrapTable('remove', {
+                            field: 'sha256',
+                            values: [sha256]
+                        });
+                    },
+                    error: function(err) {
+                        console.log('Error deleting media', err);
+                    }
+                });
+        })});
+
+    });
+
 });
 
 async function populateMasonryData (files, auth) {
@@ -316,19 +352,32 @@ async function populateMasonryData (files, auth) {
         const height = parseInt(file.tags.find(tag => tag[0] === 'dim')[1].trim().split('x')[1], 10) || 220;
 
         let mediaLink = document.createElement('a');
+        mediaLink.href = url;
+        mediaLink.target = '_blank';
+
         let mediaElement;
-        if (ext === 'webp' || ext === 'gif' || ext === 'jpg' || ext === 'jpeg' || ext === 'png') {
+
+        const mediaData = await loadMediaWithToken(url); 
+        if (!mediaData) {
+            console.error("Error loading media");
+            continue; 
+        }
+
+        if (['webp', 'gif', 'jpg', 'jpeg', 'png'].includes(ext)) {
             mediaElement = document.createElement('img');
             mediaElement.src = '/static/resources/loading-image.webp';
             mediaElement.classList.add("rounded-1", "w-100", "object-fit-contain");
 
             let mediaLoader = new Image();
-            mediaLoader.src = `${url}`;
+            mediaLoader.src = `${mediaData.url}`;
 
-            mediaLoader.onload = function() {
-                mediaElement.classList.add('fade-in');
-                mediaElement.src = mediaLoader.src;
-            };
+            await new Promise((resolve) => {
+                mediaLoader.onload = function() {
+                    mediaElement.classList.add('fade-in');
+                    mediaElement.src = mediaLoader.src;
+                    resolve();
+                };
+            });
 
         } else if (ext === 'mp4' || ext === 'mov') {
             mediaElement = document.createElement('video');
@@ -342,7 +391,7 @@ async function populateMasonryData (files, auth) {
 
             const handleVideoError = function(error) {
                 mediaElement.removeEventListener('error', handleVideoError);
-                mediaElement.poster = `${url}`;
+                mediaElement.poster = `${mediaData.url}`;
                 videoObserver.unobserve(mediaElement);
             };
 
@@ -384,7 +433,7 @@ async function populateMasonryData (files, auth) {
                 mediaElement.removeAttribute('poster');
             });
 
-            mediaElement.src = `${url}`;
+            mediaElement.src = `${mediaData.url}`;
             mediaElement.load();
 
             // Autoplay video patch
@@ -399,7 +448,7 @@ async function populateMasonryData (files, auth) {
 
         } else if (ext === 'mp3') {
             mediaElement = document.createElement('audio');
-            mediaElement.src = `${url}`;
+            mediaElement.src = `${mediaData.url}`;
             mediaElement.classList.add("ps-5", "pe-5");
             mediaElement.setAttribute('controls', '');
 
@@ -441,7 +490,7 @@ async function populateMasonryData (files, auth) {
             mediaElement.style.position = "relative";
 
             setTimeout(() => {
-                init3dViewer(mediaElement.id, 'column-0', `${url}`, 250, 200);
+                init3dViewer(mediaElement.id, 'column-0', `${mediaData.url}`, 250, 200);
                 mediaElement.classList.add('fade-in');
             }, 100);
         }
@@ -451,9 +500,8 @@ async function populateMasonryData (files, auth) {
             mediaElement.style.height = '180px'
             mediaElement.style.backgroundColor = '#ffffff';
             mediaElement.style.border = '1px solid #D1CDCD';
-            mediaElement.innerHTML = `<a href="${url}" download><span class="display-4 mb-1 pb-2 font-weight-normal gradient-text">.${ext}</span></a>`;
+            mediaElement.innerHTML = `<a href="${mediaData.url}" download><span class="display-4 mb-1 pb-2 font-weight-normal gradient-text">.${ext}</span></a>`;
             mediaElement.classList.add('fade-in');
-
         }
 
         if (mediaElement) {
@@ -485,7 +533,7 @@ async function populateMasonryData (files, auth) {
                 lastClickedMedia = mediaElement;
             });
 
-            mediaDiv.appendChild(buttonContainer("mansonry",file, auth));
+            mediaDiv.appendChild(buttonContainer("masonry",file, auth));
 
             // Add the element to the shortest column
             const shortestColumnIndex = columnHeights.indexOf(Math.min(...columnHeights));
@@ -522,13 +570,15 @@ async function populateMasonryData (files, auth) {
 
 function buttonContainer(type, file, auth){
 
-    const url = file.tags?.find(tag => tag[0] === 'url')[1] || file.url || "no url";
-    const payment_request = file.tags?.find(tag => tag[0] === 'payment_request')[1] || file.payment_request || "";
+    const id = file.tags?.find(tag => tag[0] === 'id')?.[1] || file.id || "";
+    const sha256 = file.tags?.find(tag => tag[0] === 'ox')?.[1] || file.sha256 || "";
+    const url = file.tags?.find(tag => tag[0] === 'url')?.[1] || file.url || "";
+    const payment_request = file.tags?.find(tag => tag[0] === 'payment_request')?.[1] || file.payment_request || "";
 
     const buttonContainer = document.createElement('div');
     buttonContainer.id = type + '-button-container-' + file.sha256;
 
-    if (type == "mansonry"){
+    if (type == "masonry"){
         buttonContainer.classList.add('btn-container', 'position-absolute', 'p-1', 'w-100');
         buttonContainer.style.background = 'rgba(0, 0, 0, 0.1)';
         buttonContainer.style.borderRadius = '5px';
@@ -536,7 +586,7 @@ function buttonContainer(type, file, auth){
         buttonContainer.style.bottom = '1px';
     }
 
-    if (type == "mansonry"){
+    if (type == "masonry"){
         const infoButton = document.createElement('button');
         infoButton.classList.add('btn', 'btn-primary', 'btn-xl', 'me-1');
         infoButton.innerHTML = '<i class="fas fa-info"></i>';
@@ -550,6 +600,7 @@ function buttonContainer(type, file, auth){
     viewButton.innerHTML = '<i class="fa-solid fa-arrow-up-right-from-square"></i>';
 
     buttonContainer.appendChild(viewButton);
+    
 
     if (auth) {
 
@@ -559,7 +610,9 @@ function buttonContainer(type, file, auth){
         buttonContainer.appendChild(visibleButton);
 
         const deleteButton = document.createElement('button');
-        deleteButton.classList.add('btn','btn-danger', 'btn-xl', 'me-1');
+        deleteButton.classList.add('btn','btn-danger', 'btn-xl', 'me-1', 'btn-delete');
+        deleteButton.setAttribute('data-sha256', sha256);
+        deleteButton.setAttribute('data-id', file.id);
         deleteButton.innerHTML = '<i class="fas fa-trash"></i>';
         buttonContainer.appendChild(deleteButton);
 
@@ -576,53 +629,10 @@ function buttonContainer(type, file, auth){
 
 }
 
-// function populateTableData(files, auth) {
-//     const rows = files.map(file => {
-//         const ox = file.tags.find(tag => tag[0] === 'ox') ? file.tags.find(tag => tag[0] === 'ox')[1] : 'N/A';
-//         const url = file.tags.find(tag => tag[0] === 'url')[1];
-//         const ext = file.tags.find(tag => tag[0] === 'm') ? file.tags.find(tag => tag[0] === 'm')[1] : url.split('.').pop();
-//         const size = file.tags.find(tag => tag[0] === 'size') ? file.tags.find(tag => tag[0] === 'size')[1] : 'N/A';
-//         const dim = file.tags.find(tag => tag[0] === 'dim') ? file.tags.find(tag => tag[0] === 'dim')[1] : 'N/A';
-//         const blurhash = file.tags.find(tag => tag[0] === 'blurhash') ? file.tags.find(tag => tag[0] === 'blurhash')[1] : 'N/A';
-
-//         return {
-//             ox: ox,
-//             url: url,
-//             m: ext,
-//             size: size,
-//             dim: dim,
-//             blurhash: blurhash,
-//             date: new Date(file.created_at * 1000).toLocaleString(),
-//             auth: auth,
-//             actions: "",
-//         };
-//     });
-
-//     $('#fileTable').bootstrapTable('append', rows);
-//     document.getElementById('list-container').appendChild(sentinelEnd);
-// }
-
 function actionsFormatter(value, row, index) {
 
     return `<div class="text-start">${buttonContainer("list", row, row.auth).innerHTML}</div>`;
 }
-
-// function filenameFormatter(value, row, index) {
-
-//     if (!value) return 'N/A';
-
-//     const fullText = value;
-//     const windowWidth = window.innerWidth;
-//     let visibleChars = Math.max(20, Math.floor(windowWidth / 25));
-
-//     if (visibleChars * 2 > fullText.length) {
-//         visibleChars = Math.floor(fullText.length / 2) - 2;
-//     }
-
-//     const end = fullText.slice(-visibleChars);
-
-//     return `<a class='file-url link-offset-3 ' href="${row.url}" target="_blank">...${end}</a>`;
-// }
 
 function detailFormatter(index, row) {
     var html = [];
@@ -674,12 +684,13 @@ function fetchTabledata(params) {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${localStorage.getItem('authkey')}`,
+                'Credentials': 'include'
             },
             dataType: 'json',
             success: async function(result) {
                 const rows = result.slice(0, pageSize).map(file => {
                     return {
+                        id: currentId++,
                         sha256: file.sha256 || 'N/A',
                         m: file.type?.split('/')[1] || 'N/A',
                         url: file.url || 'N/A',

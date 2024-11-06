@@ -230,6 +230,7 @@
   <div id="particles-js"></div> 
   <%- include('./partials/footer', {active:'profile'}); %>
   <%- include('./components/modals/media-modal', {"objectId":"#fileTable"}); %>
+  <%- include('./components/modals/confirm-modal', {"objectId":"fileTable"}); %>
 
 <script>
 
@@ -289,35 +290,37 @@
 
   });
 
+  let counter = 0;
+  let balanceController = null;
   const getProfileBalance = async (pubkey) => {
-
+    counter++;
     if (!pubkey) return 0;
- 
-    await fetch(
-      `/api/v2/payments/getBalance`,
-      {headers: {
-            "Content-Type": "application/json",
-            "authorization": "Bearer " + localStorage.getItem('authkey')
-            }
-      }).then(response => {
-        response.json().then(async data => {
-          await storeAuthkey(data.authkey)
-          if (isNaN(Number(data.message))) return;
-          document.getElementById('balance-header-count').classList.remove('text-warning', 'text-danger');
-          data.message >= 0 ? document.getElementById('balance-header-count').classList.add('text-warning') : document.getElementById('balance-header-count').classList.add('text-danger');
-          document.getElementById('balance-header-count').innerHTML = data.message + '<i class="fa-solid fa-bolt ms-1"></i>'
+    semaphore.execute(async () => {
+      fetch(
+        `/api/v2/payments/getBalance`,
+        {headers: {
+              "Content-Type": "application/json",
+              "Credentials": "include",
+              },
+        }).then(response => {
+          response.json().then(async data => {
+            if (isNaN(Number(data.message))) return;
+            document.getElementById('balance-header-count').classList.remove('text-warning', 'text-danger');
+            data.message >= 0 ? document.getElementById('balance-header-count').classList.add('text-warning') : document.getElementById('balance-header-count').classList.add('text-danger');
+            document.getElementById('balance-header-count').innerHTML = data.message + '<i class="fa-solid fa-bolt ms-1"></i>'
 
+          });
+        }).catch(error => {
+          
         });
-      }).catch(error => {
-        
-      });
+    });
   }
 
   // Profile balance
-  semaphore.execute(async () => {await getProfileBalance("<%= request.session.metadata.pubkey %>")});
+  getProfileBalance("<%= request.session.metadata.pubkey %>");
   setInterval(() => {
-    semaphore.execute(async () => {await getProfileBalance("<%= request.session.metadata.pubkey %>")});
-  }, 10000);
+    getProfileBalance("<%= request.session.metadata.pubkey %>");
+  }, 5000);
 
   function activateTabFromHash() {
     const hash = window.location.hash;

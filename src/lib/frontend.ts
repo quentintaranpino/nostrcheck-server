@@ -13,7 +13,7 @@ const isFirstUse = async (req : Request, res: Response): Promise<boolean> => {
 	
 	if (app.get("firstUse") == true){
         req.session.identifier = app.get("config.server")["pubkey"];
-        req.session.authkey = await generateCredentials('authkey', req.session.identifier);
+        setAuthCookie(res, await generateCredentials('authkey', req.session.identifier));
         req.session.metadata = {
             hostedFiles: 0,
             usernames: [],
@@ -52,4 +52,28 @@ const isFirstUse = async (req : Request, res: Response): Promise<boolean> => {
     return false;
 }
 
-export {isFirstUse, countPubkeyFiles };
+/**
+ * Sets the authkey cookie and sends it in the response
+ * 
+ * @param res - The Express response object
+ * @param authkey - The authkey value to store in the cookie
+ * @param maxAge - (Optional) Cookie expiration time in milliseconds, default is 1 hour
+ */
+ const setAuthCookie = (res: Response, authkey: string, maxAge: number = 3600000) => {
+
+    if (authkey == "") {
+        return res.cookie;
+    }
+
+    res.cookie('authkey', authkey, {
+        httpOnly: true,               
+        secure: process.env.NODE_ENV === 'production', 
+        sameSite: 'strict',            
+        maxAge: maxAge,
+    });
+
+    return res.cookie;
+};
+
+
+export {isFirstUse, countPubkeyFiles, setAuthCookie};

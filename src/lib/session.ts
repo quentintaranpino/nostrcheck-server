@@ -8,11 +8,11 @@ import { updateLocalConfigKey } from "./config.js";
 import { rateLimit } from 'express-rate-limit'
 import { localUserMetadata } from "../interfaces/frontend.js";
 import app from "../app.js";
+import cookieParser from 'cookie-parser';
 
 declare module 'express-session' {
 	interface Session {
        identifier: string;
-       authkey: string;
        metadata: localUserMetadata;
 	   allowed: boolean;
     }
@@ -42,6 +42,9 @@ const initSession = async (app:Application): Promise<void> => {
             maxAge: 3600000 // Default 1 hour
         }
     }))
+
+    app.use(cookieParser());
+
     app.locals.limiter = limiter;
 }
 

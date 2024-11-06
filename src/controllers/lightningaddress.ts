@@ -3,12 +3,13 @@ import { Request, Response } from "express";
 import { connect, dbSelect } from "../lib/database.js";
 import { logger } from "../lib/logger.js";
 import { redisClient, getLightningAddressFromRedis } from "../lib/redis.js";
-import { authkeyResultMessage, ResultMessagev2 } from "../interfaces/server.js";
+import { ResultMessagev2 } from "../interfaces/server.js";
 import { LightningUsernameResult } from "../interfaces/lightning.js";
 import { parseAuthHeader } from "../lib/authorization.js";
 import { getClientIp } from "../lib/utils.js";
 import { isModuleEnabled } from "../lib/config.js";
 import app from "../app.js";
+import { setAuthCookie } from "../lib/frontend.js";
 
 const redirectlightningddress = async (req: Request, res: Response): Promise<Response> => {
 
@@ -144,6 +145,7 @@ const updateLightningAddress = async (req: Request, res: Response): Promise<Resp
     // Check if authorization header is valid
 	const EventHeader = await parseAuthHeader(req, "updateLightningAddress", false);
 	if (EventHeader.status !== "success") {return res.status(401).send({"status": EventHeader.status, "message" : EventHeader.message});}
+	setAuthCookie(res, EventHeader.authkey);
 
 	//If lightningaddress is null return 400
 	if (!lightningaddress || lightningaddress.trim() == "") {
@@ -241,11 +243,9 @@ const updateLightningAddress = async (req: Request, res: Response): Promise<Resp
 
 	logger.info("RES Update lightningaddress ->", servername, " | pubkey:",  EventHeader.pubkey, " | ligntningaddress:",  lightningaddress, "|", "Lightning redirect updated", "|", getClientIp(req));
 
-	const result: authkeyResultMessage = {
+	const result: ResultMessagev2 = {
 		status: "success",
 		message: `Lightning redirect for pubkey ${EventHeader.pubkey} updated`,
-		authkey: EventHeader.authkey,
-
 	};
 
 	return res.status(200).send(result);
@@ -266,6 +266,7 @@ const deleteLightningAddress = async (req: Request, res: Response): Promise<Resp
     // Check if authorization header is valid
 	const EventHeader = await parseAuthHeader(req, "deleteLightningAddress", false);
 	if (EventHeader.status !== "success") {return res.status(401).send({"status": EventHeader.status, "message" : EventHeader.message});}
+	setAuthCookie(res, EventHeader.authkey);
 
 	//Check if pubkey's lightningaddress exists on database
 	try{
@@ -344,10 +345,9 @@ const deleteLightningAddress = async (req: Request, res: Response): Promise<Resp
 
 	logger.info("RES Delete lightningaddress ->", servername, " | pubkey:",  EventHeader.pubkey, " | ligntningaddress:",  lightningaddress, "|", "Lightning redirect deleted", "|", getClientIp(req));
 
-	const result: authkeyResultMessage = {
+	const result: ResultMessagev2 = {
 		status: "success",
 		message: `Lightning redirect for pubkey ${EventHeader.pubkey} deleted`,
-		authkey: EventHeader.authkey,
 	};
 
 	return res.status(200).send(result);

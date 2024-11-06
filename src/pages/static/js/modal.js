@@ -1,5 +1,9 @@
 const initConfirmModal = async (objectId, ids, action, objectName, value = null, enableEditText = false) => {
+
     var alert = new bootstrap.Modal($(objectId + '-confirm-modal'));
+
+
+    console.log('Confirming ' + action + ' of ' + ids.length + ' ' + objectName + (ids.length > 1 ? 's' : ''));
 
     $(alert._element).on('show.bs.modal', function () {
         $(objectId + '-confirm-modal .modal-body').text('Are you sure you want to ' + action + ' ' + ids.length + ' ' + objectName + (ids.length > 1 ? 's' : '') + '?');
@@ -343,8 +347,7 @@ const initMediaModal = async (filename, checked, visible, showButtons = true) =>
 
     var mediaModal = new bootstrap.Modal($('#media-modal'));
 
-    MediaData = await loadMediaWithToken('media/' + filename, localStorage.getItem('authkey')).then(async data => {
-        await storeAuthkey(data.authkey);
+    MediaData = await loadMediaWithToken('media/' + filename).then(async data => {
         return data;
     });
 
@@ -422,16 +425,28 @@ const initMediaModal = async (filename, checked, visible, showButtons = true) =>
         });
     });
 
-    return { authkey: MediaData.authkey, data: result };
+    return { data: result };
 }
 
 async function loadMediaWithToken(url) {
-    const response = await fetch(url, {
-        headers: {
-            'Authorization': `Bearer ${localStorage.getItem('authkey')}`
+    try {
+        const response = await fetch(url, {
+            method: "GET",
+            credentials: "include" 
+        });
+
+        if (!response.ok) {
+            throw new Error(`Error fetching media: ${response.status} ${response.statusText}`);
         }
-    });
-    const blob = await response.blob();
-    console.log(blob)
-    return {authkey: response.headers.get('Authorization'), url: URL.createObjectURL(blob), mimeType: blob.type};
+
+        const blob = await response.blob();
+
+        return {
+            url: URL.createObjectURL(blob), 
+            mimeType: blob.type 
+        };
+    } catch (error) {
+        console.error("Failed to load media:", error);
+        return null; 
+    }
 }

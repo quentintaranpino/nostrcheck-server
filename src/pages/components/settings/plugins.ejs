@@ -51,14 +51,12 @@ function reloadPlugins() {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
-            'Authorization': 'Bearer ' + localStorage.getItem('authkey')
         }
     })
     .then(response => response.json())
     .then(data => {
         if (data.status == "success") {
             showMessage(`Plugins reloaded successfully`, "alert-primary");
-            localStorage.setItem('authkey', data.Authkey);
             getPlugins();
         } else {
             showMessage(`Error reloading plugins: ${data.message}`, "alert-warning");
@@ -78,13 +76,11 @@ function getPlugins() {
         method: 'GET',
         headers: {
             'Content-Type': 'application/json',
-            'Authorization': 'Bearer ' + localStorage.getItem('authkey')
         }
     })
     .then(response => response.json())
     .then(data => {
         if (data.status == "success") {
-            localStorage.setItem('authkey', data.Authkey);
             $('#plugins-table').bootstrapTable('load', data.plugins);
         } 
     })

@@ -48,7 +48,6 @@ interface moduleDataReturnMessage {
     total: number;
     totalNotFiltered: number;
     rows: any;
-    authkey: string;
 }
 
 

@@ -57,12 +57,10 @@ const fetchDashcardData = async (dashcardDataKey, action, field) => {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${localStorage.getItem('authkey')}`,
             }}
         )
             .then(response => response.json())
             .then(data => {
-                storeAuthkey(data.authkey)
                 serverData = data;
             })
             .catch(error => console.error('Error:', error));

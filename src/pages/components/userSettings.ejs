@@ -317,13 +317,11 @@ const updateLnRedirect = async () => {
         method: enabled ? 'PUT' : 'DELETE',
         headers: {
             'Content-Type': 'application/json',
-            'Authorization': 'Bearer ' + localStorage.getItem('authkey')
         }})
         .then(response => response.json())
         .then(async data => {
             if (data.status == "success") {
                 showMessage(`Lightning address updated successfully`, "alert-primary");
-                await storeAuthkey(data.authkey);
             } else {
                 showMessage(`Error updating Lightning address: ${data.message}`, "alert-warning");
             }

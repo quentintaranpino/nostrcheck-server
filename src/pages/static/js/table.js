@@ -278,13 +278,11 @@ async function modifyRecord(url, tableId, id, field, fieldValue, action = 'modif
         method: "POST",
         headers: {
             "Content-Type": "application/json",
-            "authorization": "Bearer " + localStorage.getItem('authkey')
         },
         body: JSON.stringify(data)
     })
     .then(response => response.json())
     .then(async responseData => {
-        await storeAuthkey(responseData.authkey)
         if (responseData.status === "success") {
             if (action === 'remove') {
                 $(tableId).bootstrapTable('removeByUniqueId', id);
@@ -492,12 +490,10 @@ function fetchTabledata(params) {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${localStorage.getItem('authkey')}`,
             },
             data: params.data,
             dataType: 'json',
             success: async function(result) {
-                await storeAuthkey(result.authkey);
                 params.success(result);
                 resolve(params);
             },
@@ -516,12 +512,10 @@ const fetchTableCountData = async (tableDataKey, action, field) => {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${localStorage.getItem('authkey')}`,
             }}
         )
             .then(response => response.json())
             .then(data => {
-                storeAuthkey(data.authkey)
                 serverData = data;
             })
             .catch(error => console.error('Error:', error));

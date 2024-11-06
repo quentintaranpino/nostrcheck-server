@@ -123,7 +123,7 @@
         
 
         let headers = {};
-        headers["authorization"] = localStorage.getItem('authkey') != "" && localStorage.getItem('authkey') != undefined && identifier != "" ? "Bearer " + localStorage.getItem('authkey') : "Nostr " + authEvent;
+        headers["authorization"] = "Nostr " + authEvent;
         method == "PUT" ? headers["Content-Type"] = file.type : null;
         if (file.fileData.macaroon != "" && file.fileData.preimage != ""){
             headers["Www-Authenticate"] = `L402 macaroon="${file.fileData.macaroon}"preimage="${file.fileData.preimage}"`;
@@ -153,11 +153,8 @@
             if (!response.status.toString().startsWith("2")) {
                 if (showMessages) updateMessage(uploadMessage, '<i class="bi bi-exclamation-circle-fill pe-1"></i>' + serverData.message, "alert-danger");
                 if (showMessages) hideMessage(uploadMessage, 5000);
-                await storeAuthkey('', true);
                 return { "filename": file.name, "url": "", "macaroon": response.headers.get('Www-Authenticate') ? extractMacaroon(response.headers.get('Www-Authenticate')) : "", "invoice": response.headers.get('Www-Authenticate') != "" ? extractInvoice(response.headers.get('Www-Authenticate')) : "" };
             }
-
-            await storeAuthkey(response.headers.get('Authorization'));
 
             if (serverData.processing_url && serverData.processing_url != "") {
                 authEvent = {
@@ -176,14 +173,13 @@
             while (serverData.processing_url) {
 
                 await new Promise(resolve => setTimeout(resolve, 1000));
-                headers["authorization"] = localStorage.getItem('authkey') != "" ? "Bearer " + localStorage.getItem('authkey') : "Nostr " + authEvent;
+                headers["authorization"] =  "Nostr " + authEvent;
 
                 const processingResponse = await fetch(serverData.processing_url, {
                     method: "GET",
                     headers: headers
                 });
 
-                await storeAuthkey(processingResponse.headers.get('Authorization'));
                 const processingData = await processingResponse.json();
 
                 if (processingData.status === "processing") {
@@ -211,7 +207,6 @@
             console.log(error.message);
             if (showMessages) updateMessage(uploadMessage, '<i class="bi bi-exclamation-circle-fill pe-1"></i>' + error, "alert-danger");
             if (showMessages) hideMessage(uploadMessage, 5000);
-            await storeAuthkey('', true);
             return { "filename": file.name, "url": "", "macaroon": "", "invoice": "" };
         }
     }

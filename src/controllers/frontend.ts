@@ -6,7 +6,7 @@ import { getClientIp, markdownToHtml } from "../lib/utils.js";
 import { dbSelect} from "../lib/database.js";
 import { generateCredentials, isAuthkeyValid, isPubkeyAllowed, isPubkeyValid, isUserPasswordValid } from "../lib/authorization.js";
 import { isModuleEnabled, loadconfigActiveModules } from "../lib/config.js";
-import { countPubkeyFiles } from "../lib/frontend.js";
+import { countPubkeyFiles, setAuthCookie } from "../lib/frontend.js";
 import { hextoNpub } from "../lib/nostr/NIP19.js";
 import { logHistory } from "../lib/logger.js";
 import { themes, particles} from "../interfaces/themes.js";
@@ -34,7 +34,8 @@ const loadDashboardPage = async (req: Request, res: Response, version:string): P
 
     res.locals.version = app.get("version");
     res.locals.serverHost = app.get("config.server")["host"];
-    req.session.authkey = await generateCredentials('authkey', req.session.identifier);
+
+    setAuthCookie(res, await generateCredentials('authkey', req.session.identifier));
 
     // Check admin privileges. Only for information, never used for authorization
     req.session.allowed = await isPubkeyAllowed(req.session.identifier);
@@ -77,7 +78,8 @@ const loadSettingsPage = async (req: Request, res: Response, version:string): Pr
     res.locals.logHistory = logHistory;
     res.locals.settingsLookAndFeelThemes = themes;
     res.locals.settingsLookAndFeelParticles = particles;
-    req.session.authkey = await generateCredentials('authkey', req.session.identifier);
+
+    setAuthCookie(res, await generateCredentials('authkey', req.session.identifier));
 
     // Check admin privileges. Only for information, never used for authorization
     req.session.allowed = await isPubkeyAllowed(req.session.identifier);
@@ -101,7 +103,8 @@ const loadProfilePage = async (req: Request, res: Response, version:string): Pro
 
     res.locals.version = app.get("version");
     res.locals.serverHost = app.get("config.server")["host"];
-    req.session.authkey = await generateCredentials('authkey', req.session.identifier);
+
+    setAuthCookie(res, await generateCredentials('authkey', req.session.identifier));
 
     // User metadata
     req.session.metadata = {
@@ -144,7 +147,7 @@ const loadTosPage = async (req: Request, res: Response, version:string): Promise
         tosFile = "Failed to read tos file. Please contact the server administrator."
     }
 
-    req.session.authkey = await generateCredentials('authkey', req.session.identifier);
+    setAuthCookie(res, await generateCredentials('authkey', req.session.identifier));
 
     // Check admin privileges. Only for information, never used for authorization
     req.session.allowed = await isPubkeyAllowed(req.session.identifier);
@@ -169,7 +172,7 @@ const loadLoginPage = async (req: Request, res: Response, version:string): Promi
     res.locals.version = app.get("version");
     res.locals.serverHost = app.get("config.server")["host"];
 
-    req.session.authkey = await generateCredentials('authkey', req.session.identifier);
+    setAuthCookie(res, await generateCredentials('authkey', req.session.identifier));
 
     // Check admin privileges. Only for information, never used for authorization
     req.session.allowed = await isPubkeyAllowed(req.session.identifier);
@@ -195,7 +198,7 @@ const loadIndexPage = async (req: Request, res: Response, version:string): Promi
     res.locals.serverHost = app.get("config.server")["host"];
     res.locals.serverPubkey = await hextoNpub(app.get("config.server")["pubkey"]);
 
-    req.session.authkey = await generateCredentials('authkey', req.session.identifier);
+    setAuthCookie(res, await generateCredentials('authkey', req.session.identifier));
 
     // Check admin privileges. Only for information, never used for authorization
     req.session.allowed = await isPubkeyAllowed(req.session.identifier);
@@ -230,7 +233,7 @@ const loadDocsPage = async (req: Request, res: Response, version: string): Promi
     res.locals.serverHost = app.get("config.server")["host"];
     res.locals.serverPubkey = await hextoNpub(app.get("config.server")["pubkey"]);
 
-    req.session.authkey = await generateCredentials('authkey', req.session.identifier);
+    setAuthCookie(res, await generateCredentials('authkey', req.session.identifier));
 
     // Check admin privileges. Only for information, never used for authorization
     req.session.allowed = await isPubkeyAllowed(req.session.identifier);
@@ -256,7 +259,7 @@ const loadGalleryPage = async (req: Request, res: Response, version:string): Pro
     res.locals.version = app.get("version");
     res.locals.serverHost = app.get("config.server")["host"];
 
-    req.session.authkey = await generateCredentials('authkey', req.session.identifier);
+    setAuthCookie(res, await generateCredentials('authkey', req.session.identifier));
 
     // Check admin privileges. Only for information, never used for authorization
     req.session.allowed = await isPubkeyAllowed(req.session.identifier);
@@ -281,7 +284,7 @@ const loadRegisterPage = async (req: Request, res: Response, version:string): Pr
     res.locals.version = app.get("version");
     res.locals.serverHost = app.get("config.server")["host"];
 
-    req.session.authkey = await generateCredentials('authkey', req.session.identifier);
+    setAuthCookie(res, await generateCredentials('authkey', req.session.identifier));
 
     // Check admin privileges. Only for information, never used for authorization
     req.session.allowed = await isPubkeyAllowed(req.session.identifier);
@@ -306,7 +309,7 @@ const loadCdnPage = async (req: Request, res: Response, version:string): Promise
     res.locals.version = app.get("version");
     res.locals.serverHost = app.get("config.server")["host"];
 
-    req.session.authkey = await generateCredentials('authkey', req.session.identifier);
+    setAuthCookie(res, await generateCredentials('authkey', req.session.identifier));
 
     // Check admin privileges. Only for information, never used for authorization
     req.session.allowed = await isPubkeyAllowed(req.session.identifier);
@@ -375,12 +378,13 @@ const frontendLogin = async (req: Request, res: Response): Promise<Response> => 
 
     // Set session identifier and generate authkey
     req.session.identifier = req.body.pubkey;
-    req.session.authkey = await generateCredentials('authkey', req.body.pubkey, false);
 
-    if (req.session.authkey == ""){
-        logger.error("Failed to generate authkey for", req.session.identifier);
+    const authkey = await generateCredentials('authkey', req.session.identifier);
+    if (!authkey) {
+        logger.error("Failed to set authkey cookie for", req.session.identifier);
         return res.status(500).send(false);
     }
+    setAuthCookie(res, authkey);
 
     // Check admin privileges. Only for information, never used for authorization
     req.session.allowed = await isPubkeyAllowed(req.session.identifier);

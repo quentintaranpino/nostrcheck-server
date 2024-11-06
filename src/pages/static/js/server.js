@@ -130,7 +130,6 @@ const copyToClipboard = async (object, text) => {
 
 // Logout function
 const logout = async () => {
-  localStorage.removeItem('authkey');
   localStorage.removeItem('profileData')
   window.location.href = 'logout';
 }

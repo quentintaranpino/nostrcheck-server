@@ -119,9 +119,6 @@
 
     await fetch('/api/v2/domains', {
         method: 'GET',
-        headers: {
-          'Authorization': 'Bearer ' + localStorage.getItem('authkey')
-        }
       })
       .then(response => response.json())
       .then(async data => {

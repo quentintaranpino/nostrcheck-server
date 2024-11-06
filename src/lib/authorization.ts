@@ -30,17 +30,17 @@ const parseAuthHeader = async (req: Request, endpoint: string = "", checkAdminPr
 		return await isApikeyValid(req, endpoint, checkAdminPrivileges);
 	}
 
+	// Authkey. Cookie bearer token
+	if (req.cookies && req.cookies.authkey) {
+        logger.debug("authkey found in cookie: ", req.cookies.authkey, "|", getClientIp(req));
+        return await isAuthkeyValid(req.cookies.authkey, checkAdminPrivileges); 
+    }
+
 	//Check if request has authorization header.
 	if (req.headers.authorization === undefined) {
 		if(endpoint != 'getMediaByURL' && endpoint != 'getMediaList' && endpoint != 'getMediaStatusbyID') logger.warn(`Authorization header not found- Enpoint: ${endpoint} | URL: ${req.url} | ${getClientIp(req)}`);
 		return {status: "error", message: "Authorization header not found", pubkey:"", authkey:"", kind: 0};
 	}
-
-	// Authkey. Bearer token.
-	if (req.headers.authorization.startsWith('Bearer ')) {
-		logger.debug("authkey found on request: ", req.headers.authorization, "|", getClientIp(req));
-		return await isAuthkeyValid(req.headers.authorization.split(' ')[1], checkAdminPrivileges);
-	} 
 
 	// NIP98 or BUD01. Nostr / Blossom token
 	if (req.headers.authorization.startsWith('Nostr ')) {

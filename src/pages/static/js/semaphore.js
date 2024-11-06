@@ -26,10 +26,13 @@ class Semaphore {
     }
   
     async execute(task) {
-        console.log('Semaphore queue length:', this.getQueueLength());
+        console.log('Queue length:', this.getQueueLength());
         await this.acquire();
         try {
-            await task();
+            // Actualizar la cookie o verificar que está actualizada antes de ejecutar la tarea
+            await this.updateCookie(); // Método para actualizar la cookie
+
+            await task(); // Ejecutar la tarea con la cookie más reciente
         } finally {
             this.release();
         }
@@ -44,13 +47,19 @@ class Semaphore {
         return this.queue.length;
     }
 
+    async updateCookie() {
+        try {
+            await fetch('/api/v2/', {
+                method: 'GET',
+                credentials: 'include', 
+                headers: {
+                    "Content-Type": "application/json"
+                }
+            });
+        } catch (error) {
+            console.error("Error updating cookie:", error);
+        }
+    }
   }
   
   const semaphore = new Semaphore();
-
-  async function storeAuthkey(authkey, overwrite = false) {
-    if(authkey || overwrite){
-        await localStorage.setItem('authkey', authkey);
-        console.log('Updated localStorage authkey', authkey);
-    }
-}
