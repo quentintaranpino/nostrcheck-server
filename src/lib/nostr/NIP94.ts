@@ -25,6 +25,7 @@ const PrepareNIP94_event = async (filedata : fileData): Promise<NIP94_event> => 
                         ["blurhash", filedata.blurhash],
                         ["no_transform", filedata.no_transform.valueOf().toString() ],
                         ["payment_request", filedata.payment_request],
+                        ["visibility", filedata.visibility.valueOf().toString() ],
                 ],              
                 content: '',
                 sig : "",

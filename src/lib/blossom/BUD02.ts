@@ -17,7 +17,8 @@ const prepareBlobDescriptor = async (filedata : fileData): Promise<blobDescripto
         uploaded: filedata.date,
         blurhash: filedata.blurhash,
         dim: filedata.width + "x" + filedata.height,
-        payment_request: filedata.payment_request
+        payment_request: filedata.payment_request,
+        visibility: filedata.visibility
     }
 
     return event;

@@ -11,11 +11,6 @@ interface legacyMediaReturnMessage extends ResultMessage {
 	tags: Array<string>;
 }
 
-interface MediaVisibilityResultMessage extends ResultMessage {
-	id: string;
-	visibility: string;
-}
-
 interface mediaInfoReturnMessage extends ResultMessagev2 {
 	satoshi: number;
 }
@@ -99,6 +94,7 @@ interface fileData{
 	newFileDimensions: string;
 	transaction_id: string;
 	payment_request: string;
+	visibility: number;
 
 }
 
@@ -116,7 +112,6 @@ export {
 	asyncTask,
 	fileData,
 	legacyMediaReturnMessage,
-	MediaVisibilityResultMessage,
 	mediaInfoReturnMessage,
 	mediaTypes,
 	ResultMessage,

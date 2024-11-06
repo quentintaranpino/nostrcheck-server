@@ -8,7 +8,6 @@ import { requestQueue } from "../lib/media.js";
 import {
 	asyncTask,
 	legacyMediaReturnMessage,
-	MediaVisibilityResultMessage,
 	UploadStatus,
 	MediaStatus,
 	videoHeaderRange,
@@ -155,6 +154,7 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 		newFileDimensions: "",
 		transaction_id: "",
 		payment_request: "",
+		visibility: 1,
 	};
 
 	// File mime type. If not allowed reject the upload.
@@ -632,8 +632,8 @@ const getMediaList = async (req: Request, res: Response, version:string): Promis
 	
 	// Blossom where statement
 	if (pubkey != "") {
-		whereStatement = "pubkey = ? and active = ? and visibility = ? and original_hash is not null";
-		whereFields = [pubkey, "1", "1"];
+		whereStatement = eventHeader.pubkey == pubkey ? "pubkey = ? and active = ? and original_hash is not null" : "active = ? and visibility = ? and checked = ? and original_hash is not null";
+		whereFields = eventHeader.pubkey == pubkey ? [pubkey, "1"] : ["1", "1", "1"];
 
 		if (since != 0) {
 			whereStatement += " and date >= ?";
@@ -655,7 +655,7 @@ const getMediaList = async (req: Request, res: Response, version:string): Promis
 	}
 
 	// Get files and total from database
-	const result = await dbMultiSelect(["id", "filename", "mimetype",  "original_hash", "hash", "filesize", "dimensions", "date", "blurhash", "pubkey", "transactionid"],
+	const result = await dbMultiSelect(["id", "filename", "mimetype",  "original_hash", "hash", "filesize", "dimensions", "date", "blurhash", "pubkey", "transactionid", "visibility"],
 										"mediafiles",
 										`${whereStatement}`,
 										whereFields, false);
@@ -698,6 +698,7 @@ const getMediaList = async (req: Request, res: Response, version:string): Promis
 			newFileDimensions: "",
 			payment_request: "",
 			transaction_id: e.transactionid,
+			visibility: e.visibility,
 		};
 
 		if (isModuleEnabled("payments", app)) {
@@ -787,7 +788,7 @@ const getMediaStatusbyID = async (req: Request, res: Response, version:string): 
 
 	logger.info(`GET /api/${version}/media/id/${id}`, "|", getClientIp(req));
 
-	const mediaFileData = await dbMultiSelect(["id", "filename", "pubkey", "status", "magnet", "original_hash", "hash", "blurhash", "dimensions", "filesize", "transactionid"],
+	const mediaFileData = await dbMultiSelect(["id", "filename", "pubkey", "status", "magnet", "original_hash", "hash", "blurhash", "dimensions", "filesize", "transactionid", "visibility"],
 												"mediafiles",
 												"id = ? and (pubkey = ? or pubkey = ?)",
 												[id, eventHeader.pubkey, app.get("config.server")["pubkey"]],
@@ -806,7 +807,7 @@ const getMediaStatusbyID = async (req: Request, res: Response, version:string): 
 		return res.status(404).send(result);
 	}
 
-	const { filename, pubkey, status, magnet, original_hash, hash, blurhash, filesize, transactionid  } = mediaFileData[0];
+	const { filename, pubkey, status, magnet, original_hash, hash, blurhash, filesize, transactionid, visibility  } = mediaFileData[0];
 	let { dimensions } = mediaFileData[0];
 
 	//Fix dimensions for old API requests
@@ -840,7 +841,7 @@ const getMediaStatusbyID = async (req: Request, res: Response, version:string): 
 		newFileDimensions: "",
 		transaction_id: transactionid,
 		payment_request: "",
-		
+		visibility: visibility,
 	};
 
 	// URL
@@ -929,17 +930,23 @@ const getMediabyURL = async (req: Request, res: Response) => {
 		}
 	}
 
-	let noCache = false;
 	let adminRequest = false;
+	let loggedPubkey = "";
 
-	// Check if the GET request has authorization header (for logged users)
 	if (req.cookies?.authkey) {
-		const eventHeader = await parseAuthHeader(req, "getMediaByURL", true);
-		if (eventHeader.status == "success") {
-			noCache = true;
+
+		// Admin authorization header
+		const adminHeader = await parseAuthHeader(req, "getMediaByURL", true);
+		if (adminHeader.status == "success") {
 			adminRequest = true;
 		}
-		setAuthCookie(res, eventHeader.authkey);
+
+		// Logged user authorization header
+		const loggedHeader = await parseAuthHeader(req, "getMediaByURL", false);
+		if (loggedHeader.status == "success") {
+			loggedPubkey = loggedHeader.pubkey;
+		}
+		setAuthCookie(res, adminHeader.authkey || loggedHeader.authkey);
 	}
 
 	// Check if the file is cached, if not, we check the database for the file.
@@ -947,7 +954,7 @@ const getMediabyURL = async (req: Request, res: Response) => {
 	if (cachedStatus === null || cachedStatus === undefined) {
 
 		// Standard gallery compatibility (pubkey/file.ext or pubkey/file)
-		let whereFields = "(filename = ? OR original_hash = ?) and pubkey = ? and visibility = 1";
+		let whereFields = "(filename = ? OR original_hash = ?) and pubkey = ?";
 		let whereValues = [req.params.filename, req.params.filename, req.params.pubkey];
 
 		// Avatar and banner short URL compatibility (pubkey/avatar.ext or pubkey/banner.ext) (or pubkey/avatar or pubkey/banner)
@@ -963,7 +970,7 @@ const getMediabyURL = async (req: Request, res: Response) => {
 		}
 
 		const filedata = await dbMultiSelect(
-											["id", "active", "transactionid", "filesize", "filename", "pubkey", "mimetype", "hash", "original_hash"],
+											["id", "active", "transactionid", "filesize", "filename", "pubkey", "mimetype", "hash", "original_hash", "visibility"],
 											"mediafiles",
 											whereFields  + " ORDER BY id DESC",
 											whereValues,
@@ -987,6 +994,12 @@ const getMediabyURL = async (req: Request, res: Response) => {
 			logger.info(`RES -> 200 File not active - ${req.url}`, "returning not found media file |", getClientIp(req), "|", "cached:", cachedStatus ? true : false);
 			res.setHeader('Content-Type', 'image/webp');
 			return res.status(200).send(await getNotFoundMediaFile());
+		}
+
+		if (filedata[0].visibility != "1" && adminRequest == false && loggedPubkey != filedata[0].pubkey) {
+			logger.info(`RES -> 401 File not visible - ${req.url}`, "returning not found media file |", getClientIp(req), "|", "cached:", cachedStatus ? true : false);
+			res.setHeader('Content-Type', 'image/webp');
+			return res.status(401).send(await getNotFoundMediaFile());
 		}
 
 		// Allways set the correct filename
@@ -1052,7 +1065,7 @@ const getMediabyURL = async (req: Request, res: Response) => {
 			return res.status(402).send(qrCode);
 		}
 		
-		if (noCache == false) {
+		if (!adminRequest && loggedPubkey == "") {
 			await redisClient.set(req.params.filename + "-" + req.params.pubkey, "1", {
 				EX: app.get("config.redis")["expireTime"],
 				NX: true,
@@ -1299,7 +1312,7 @@ const getMediabyTags = async (req: Request, res: Response): Promise<Response> =>
 
 };
 
-const updateMediaVisibility = async (req: Request, res: Response): Promise<Response> => {
+const updateMediaVisibility = async (req: Request, res: Response, version: string): Promise<Response> => {
 
 	// Check if current module is enabled
 	if (!isModuleEnabled("media", app)) {
@@ -1337,38 +1350,32 @@ const updateMediaVisibility = async (req: Request, res: Response): Promise<Respo
 		return res.status(400).send(result);
 	}
 
-	//Update table mediafiles whith new visibility
-	try {
-		const conn = await connect("UpdateMediaVisibility");
-		const [rows] = await conn.execute("UPDATE mediafiles SET visibility = ? WHERE id = ? and pubkey = ?", [req.params.visibility, req.params.fileId, eventHeader.pubkey]);
-		const rowstemp = JSON.parse(JSON.stringify(rows));
-		conn.end();
-		if (rowstemp.affectedRows !== 0) {
-			logger.info("RES -> Media visibility updated:", req.params.visibility, "|", getClientIp(req));
-			const result: MediaVisibilityResultMessage = {
-				result: true,
-				description: "Media visibility has changed",
-				id: req.params.fileId,
-				visibility: req.params.visibility,
-			};
-			return res.status(200).send(result);
+	const fileData = await dbMultiSelect(["id", "filename"], "mediafiles", "(id = ? or original_hash = ?) and pubkey = ?", [req.params.fileId, req.params.fileId, eventHeader.pubkey], true);
+
+	const update = await dbUpdate("mediafiles", "visibility", req.params.visibility, ["id", "pubkey"], [fileData[0].id, eventHeader.pubkey]);
+	if (!update) {
+		logger.warn("RES -> Media visibility not updated, file not found", "|", getClientIp(req));
+		if (version != "v2") {
+			return res.status(404).send({"result": false, "description" : "Media visibility not updated, media file not found"});
 		}
-
-		logger.warn("RES -> Media visibility not updated, media file not found ", "|", getClientIp(req));
-		const result = {
-			result: false,
-			description: "Media visibility not updated, media file not found",
+		const result: ResultMessagev2 = {
+			status: "error",
+			message: "Media visibility not updated, media file not found",
 		};
-		return res.status(404).send(result);
-
-	} catch (error) {
-		logger.error(error);
-		const result = {
-			result: false,
-			description: "Internal server error",
-		};
-		return res.status(500).send(result);
+		return res.status(404).send(result); 
 	}
+
+	logger.info("RES -> Media visibility updated", "|", getClientIp(req));
+
+	// Clear redis cache
+	await redisClient.del(fileData[0].filename + "-" + eventHeader.pubkey);
+	
+	if (version != "v2") return res.status(200).send({"result": true, "description" : "Media visibility has changed with value " + req.params.visibility});
+	const result: ResultMessagev2 = {
+		status: "success",
+		message: "Media visibility has changed with value " + req.params.visibility,
+	};
+	return res.status(200).send(result);
 
 };
 
