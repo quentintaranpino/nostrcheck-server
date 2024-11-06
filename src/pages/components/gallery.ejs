@@ -76,16 +76,15 @@ let mediaCount = 20;
 const resizeThreshold = 50;
 
 let page = -1;
-let mediaId = 0;
 let lastClickedMedia = null;
 let columns = Math.floor(window.innerWidth / maxImageWidth) < maxColumns ? Math.floor(window.innerWidth / maxImageWidth) : maxColumns;
 const columnElements = [];
 const columnHeights = Array(columns).fill(0); 
 
-let currentId = 1;
+let fileMasonryId = 0;
+let fileTableId = 0;
 
 document.addEventListener('DOMContentLoaded', (event) => {
-
     
     $('#fileTable').bootstrapTable({
         columns: [
@@ -333,9 +332,16 @@ document.addEventListener('DOMContentLoaded', (event) => {
                             field: 'sha256',
                             values: [sha256]
                         });
+
+                        const mediaDiv = document.getElementById(`media-${id}`);
+                        mediaDiv.remove();
+
+                        showMessage(`File with sha256 ${sha256} deleted successfully`, "alert-success");
+
                     },
                     error: function(err) {
                         console.log('Error deleting media', err);
+                        showMessage(`Error deleting file with sha256 ${sha256}`, "alert-danger");
                     }
                 });
         })});
@@ -482,7 +488,6 @@ async function populateMasonryData (files, auth) {
             audioObserver.observe(mediaElement);
         }else if (ext === 'stl') {
             mediaElement = document.createElement('canvas');
-            mediaElement.id = `media-3d-${mediaId++}`;	
             mediaElement.classList.add("rounded-2", "w-100", "object-fit-contain");
             mediaElement.style.backgroundColor = '#D1CDCD'
             mediaElement.style.width = '100%';
@@ -507,7 +512,9 @@ async function populateMasonryData (files, auth) {
         if (mediaElement) {
             const mediaDiv = document.createElement('div');
             mediaDiv.classList.add("mb-0", "fade-in", "media-div", "text-center");
-            mediaDiv.id = `media-${mediaId++}`;
+            file.id = fileMasonryId;
+            mediaDiv.id = `media-${fileMasonryId}`;
+            fileMasonryId++;
             mediaDiv.style.height = ext === 'mp3'? '220px' : `${height}px`;
             mediaDiv.style.position = "relative";
             if (ext === 'mp3') {
@@ -690,7 +697,7 @@ function fetchTabledata(params) {
             success: async function(result) {
                 const rows = result.slice(0, pageSize).map(file => {
                     return {
-                        id: currentId++,
+                        id: fileTableId++,
                         sha256: file.sha256 || 'N/A',
                         m: file.type?.split('/')[1] || 'N/A',
                         url: file.url || 'N/A',
