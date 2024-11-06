@@ -105,7 +105,9 @@ export const loadMediaEndpoint = async (app: Application, version:string): Promi
 	// PUT (visibility)
 	app.put("/api/" + version + app.get("config.server")["availableModules"]["media"]["path"] + "/:fileId/visibility/:visibility", 
 	limiter(),
-	updateMediaVisibility
+	(req, res) => {
+		updateMediaVisibility(req, res, version)
+	}
 	);
 
 	if (version == "v2") {
