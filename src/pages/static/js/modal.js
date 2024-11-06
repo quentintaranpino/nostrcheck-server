@@ -351,6 +351,8 @@ const initMediaModal = async (filename, checked, visible, showButtons = true) =>
         return data;
     });
 
+    let contentType = MediaData.mimeType || '';
+
     $('#modalSwitch-checked').prop('checked', checked);
     $('#modalSwitch-checked').change(function() {
         checked = this.checked ? 1 : 0; 
@@ -388,8 +390,6 @@ const initMediaModal = async (filename, checked, visible, showButtons = true) =>
 
         contentType = '';
     });
-
-    let contentType = MediaData.mimeType || '';
 
     $('#media-modal').on('shown.bs.modal', function () {
         $('#modalSwitch-checked').focus();
@@ -429,24 +429,16 @@ const initMediaModal = async (filename, checked, visible, showButtons = true) =>
 }
 
 async function loadMediaWithToken(url) {
-    try {
+    try{
         const response = await fetch(url, {
-            method: "GET",
-            credentials: "include" 
+            method: 'GET',
+            credentials: 'include'
         });
-
-        if (!response.ok) {
-            throw new Error(`Error fetching media: ${response.status} ${response.statusText}`);
-        }
-
         const blob = await response.blob();
-
-        return {
-            url: URL.createObjectURL(blob), 
-            mimeType: blob.type 
-        };
-    } catch (error) {
-        console.error("Failed to load media:", error);
-        return null; 
+        return {url: URL.createObjectURL(blob), mimeType: blob.type};
+    }
+    catch (error) {
+        console.error('Error:', error);
+        return {url: '', mimeType: ''};
     }
 }

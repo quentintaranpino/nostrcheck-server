@@ -150,6 +150,12 @@ document.addEventListener('DOMContentLoaded', (event) => {
                 class: 'text-center',
                 sortable: false
             },
+            {  
+                field: 'visibility',
+                title: 'Visibility',
+                class: 'text-center',
+                visible: false
+            },
             {
                 field: 'auth',
                 visible: false
@@ -346,6 +352,48 @@ document.addEventListener('DOMContentLoaded', (event) => {
                 });
         })});
 
+    });
+
+    // Visibility button click event
+    $(document).on('click', '.btn-visibility', function(event) {
+        event.stopPropagation();
+        const sha256 = $(this).data('sha256');
+        const visibility = $(this).data('visibility') === 1 ? 0 : 1;
+        const url = `/api/v2/media/${sha256}/visibility/${visibility}`;
+        const id = $(this).data('id');
+
+        semaphore.execute(async () => {
+            await initConfirmModal('#fileTable', [id], visibility === 1 ? "show in gallery" : "hide from gallery", "file", "", false)
+                .then(async (modal) => {
+                    if (modal.result !== true) return;
+
+                    $.ajax({
+                        url: url,
+                        method: 'PUT',
+                        contentType: 'application/json',
+                        success: function(result) {
+                            $('#fileTable').bootstrapTable('updateByUniqueId', {    
+                                id: id,  
+                                row: { visibility: visibility }
+                            });
+                            
+                            // Update the data attribute visibility without modifying the DOM manually
+                            $(`[data-sha256="${sha256}"].btn-visibility`).each(function() {
+                                $(this).attr('data-visibility', visibility);  
+                                $(this).html(visibility === 1 ? '<i class="fas fa-eye"></i>' : '<i class="fas fa-eye-slash"></i>');
+                            });
+
+                            console.log($(`[data-sha256="${sha256}"].btn-visibility`));
+
+                            showMessage(`Visibility of file with sha256 ${sha256} updated successfully`, "alert-success");
+                        },
+                        error: function(err) {
+                            console.log('Error updating visibility', err);
+                            showMessage(`Error updating visibility of file with sha256 ${sha256}`, "alert-danger");
+                        }
+                    });
+                });
+        });
     });
 
 });
@@ -582,6 +630,7 @@ function buttonContainer(type, file, auth){
     const sha256 = file.tags?.find(tag => tag[0] === 'ox')?.[1] || file.sha256 || "";
     const url = file.tags?.find(tag => tag[0] === 'url')?.[1] || file.url || "";
     const payment_request = file.tags?.find(tag => tag[0] === 'payment_request')?.[1] || file.payment_request || "";
+    const visibility = file.tags?.find(tag => tag[0] === 'visibility')?.[1] || file.visibility || "";
 
     const buttonContainer = document.createElement('div');
     buttonContainer.id = type + '-button-container-' + file.sha256;
@@ -613,8 +662,10 @@ function buttonContainer(type, file, auth){
     if (auth) {
 
         const visibleButton = document.createElement('button');
-        visibleButton.classList.add('btn','btn-secondary', 'btn-xl', 'me-1');
-        visibleButton.innerHTML = '<i class="bi bi-eye-fill"></i>';
+        visibleButton.classList.add('btn','btn-secondary', 'btn-xl', 'me-1', 'btn-visibility');
+        visibleButton.setAttribute('data-sha256', sha256);
+        visibleButton.setAttribute('data-visibility', visibility);
+        visibleButton.innerHTML = visibleButton.getAttribute('data-visibility') == 1? '<i class="fas fa-eye"></i>' : '<i class="fas fa-eye-slash"></i>';
         buttonContainer.appendChild(visibleButton);
 
         const deleteButton = document.createElement('button');
@@ -665,7 +716,7 @@ function filenameFormatter(value, row, index) {
     // Attach the click event handler to the document and delegate it to the clickable element
     $(document).off('click', '#file_' + index + '_preview').on('click', '#file_' + index + '_preview', async function () {
         semaphore.execute(async () => {
-            await initMediaModal(`${row.url.substring(row.url.lastIndexOf('/') + 1)}.${row.m}`, row.checked, row.visibility, false)
+            await initMediaModal(`${row.url.substring(row.url.lastIndexOf('/') + 1)}`, row.checked, row.visibility, false)
         });
     });
 
@@ -707,7 +758,8 @@ function fetchTabledata(params) {
                         date: new Date(file.uploaded * 1000).toLocaleString().split(',')[0],
                         payment_request: file.payment_request || '',
                         actions: "", 
-                        auth: privateGallery
+                        auth: privateGallery,
+                        visibility: file.visibility
                     };
                 });
 
