@@ -493,6 +493,7 @@ async function populateMasonryData (files, auth) {
             mediaElement.style.width = '100%';
             mediaElement.style.height = '200';
             mediaElement.style.position = "relative";
+            mediaElement.id = `media-3d-${fileMasonryId}`;
 
             setTimeout(() => {
                 init3dViewer(mediaElement.id, 'column-0', `${mediaData.url}`, 250, 200);
