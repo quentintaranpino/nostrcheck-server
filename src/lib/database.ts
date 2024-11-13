@@ -188,13 +188,8 @@ async function checkDatabaseConsistency(table: string, column_name:string, type:
  * @param whereFieldValue - Array of values of the fields to use in the WHERE clause.
  * @returns A Promise that resolves to a boolean indicating whether the update was successful.
  */
-const dbUpdate = async (
-	tableName: string,
-	selectFieldName: string,
-	selectFieldValue: any,
-	whereFieldName: string[],
-	whereFieldValue: any[]
-  ): Promise<boolean> => {
+const dbUpdate = async (tableName: string, selectFieldName: string, selectFieldValue: any, whereFieldName: string[], whereFieldValue: any[]): Promise<boolean> => {
+
 	if (whereFieldName.length !== whereFieldValue.length) {
 		logger.error('whereFieldName and whereFieldValue must have the same length');
 		return false;
@@ -202,7 +197,13 @@ const dbUpdate = async (
   
 	const conn = await connect("dbUpdate: " + selectFieldName + " | Table: " + tableName);
 	try {
-		let whereClause = whereFieldName.map((field) => `${field} = ?`).join(' AND ');
+		const whereClause = whereFieldName.map((field, index) => {
+			if (whereFieldValue[index] === "IS NOT NULL" || whereFieldValue[index] === "IS NULL") {
+				return `${field} ${whereFieldValue[index]}`;
+			} else {
+				return `${field} = ?`;
+			}
+		}).join(' AND ');
 		const params = [selectFieldValue].concat(whereFieldValue);
 		const [dbFileFieldUpdate] : any[] = await conn.execute(
 			`UPDATE ${tableName} SET ${selectFieldName} = ? WHERE ${whereClause}`,
