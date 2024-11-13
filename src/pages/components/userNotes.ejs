@@ -126,8 +126,6 @@ async function loadNotes() {
         // Load the pubkeys data from the relays
         subscribeRelays(0, pubkeysData.filter(p => p.data.length == 0).map(p => p.pubkey), "from", Math.floor(Date.now() / 1000) - (555 * 24 * 60 * 60),Math.floor(Date.now() / 1000)).then((data) => {
         
-            if (!data) return;
-
             // Update pubkeysData with the data from relays
             for (const pubkeyData of pubkeysData) {
                 try{
