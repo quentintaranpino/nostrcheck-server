@@ -29,9 +29,6 @@ class Semaphore {
         console.log('Queue length:', this.getQueueLength());
         await this.acquire();
         try {
-            // Actualizar la cookie o verificar que está actualizada antes de ejecutar la tarea
-            await this.updateCookie(); // Método para actualizar la cookie
-
             await task(); // Ejecutar la tarea con la cookie más reciente
         } finally {
             this.release();
@@ -47,19 +44,6 @@ class Semaphore {
         return this.queue.length;
     }
 
-    async updateCookie() {
-        try {
-            await fetch('/api/v2/', {
-                method: 'GET',
-                credentials: 'include', 
-                headers: {
-                    "Content-Type": "application/json"
-                }
-            });
-        } catch (error) {
-            console.error("Error updating cookie:", error);
-        }
-    }
   }
   
   const semaphore = new Semaphore();
