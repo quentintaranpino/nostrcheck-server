@@ -63,71 +63,73 @@ export const loadFrontendEndpoint = async (app: Application, version: string): P
 		}
 	);
 
-// Tos
-app.get("/api/" +  version + "/tos", limiter(), async (req, res) => {
-	if (await isFirstUse(req,res)){logger.info("First use detected. Showing alert on frontend", "|", getClientIp(req))}
-	loadTosPage(req,res,version);
-});
-
-// Documentation
-app.get("/api/" +  version + "/documentation", limiter(), async (req, res) => {
-	if (await isFirstUse(req,res)){logger.info("First use detected. Showing alert on frontend", "|", getClientIp(req))}
-	loadDocsPage(req,res,version);
-});
-
-// Gallery
-app.get("/api/" +  version + "/gallery", limiter(),  async (req, res) => {
-	if (await isFirstUse(req,res)){logger.info("First use detected. Showing alert on frontend", "|", getClientIp(req))}
-	loadGalleryPage(req,res,version);
-});
-
-// Register
-app.get("/api/" +  version + "/register", limiter(), async (req, res) => {
-	if (await isFirstUse(req,res)){logger.info("First use detected. Showing alert on frontend", "|", getClientIp(req))}
-	loadRegisterPage(req,res,version);
-});
-
-// Dashboard
-app.get("/api/" +  version + "/dashboard", limiter(), async (req, res) => {
-	if (req.session.identifier == null){
-		res.redirect("/api/" +  version + "/login");
-	}else if (await isPubkeyValid(req.session.identifier, true) == false){
-		res.redirect("/api/v2/");
-	}else{
-		loadDashboardPage(req,res,version);
-	}
-});
-
-// Settings
-app.get("/api/" +  version + "/settings", limiter(), async (req, res) => {
-	if (req.session.identifier == null){
-		res.redirect("/api/" +  version + "/login");
-	}else if (await isPubkeyValid(req.session.identifier, true) == false){
-		res.redirect("/api/v2/");
-	}else{
-		loadSettingsPage(req,res,version);
-	}
-});
-
-// Profile
-app.get("/api/" +  version + "/profile", limiter(), async (req, res) => {
-	if (req.session.identifier == null){
-		res.redirect("/api/" +  version + "/login");
-	}else if (await isPubkeyValid(req.session.identifier, false) == false){
-		res.redirect("/api/v2/");
-	}else{
-		loadProfilePage(req,res,version);
-	}
-});
-
-// Logout
-app.get("/api/" +  version + "/logout", limiter(), (req, res) => {
-	req.session.destroy((err) => {
-		if (err) {
-			logger.error(err)
-			res.redirect("/api/v2/");
-		}
-		res.redirect("/api/" +  version + "/login");
+	// Tos
+	app.get("/api/" +  version + "/tos", limiter(), async (req, res) => {
+		if (await isFirstUse(req,res)){logger.info("First use detected. Showing alert on frontend", "|", getClientIp(req))}
+		loadTosPage(req,res,version);
 	});
-});
+
+	// Documentation
+	app.get("/api/" +  version + "/documentation", limiter(), async (req, res) => {
+		if (await isFirstUse(req,res)){logger.info("First use detected. Showing alert on frontend", "|", getClientIp(req))}
+		loadDocsPage(req,res,version);
+	});
+
+	// Gallery
+	app.get("/api/" +  version + "/gallery", limiter(),  async (req, res) => {
+		if (await isFirstUse(req,res)){logger.info("First use detected. Showing alert on frontend", "|", getClientIp(req))}
+		loadGalleryPage(req,res,version);
+	});
+
+	// Register
+	app.get("/api/" +  version + "/register", limiter(), async (req, res) => {
+		if (await isFirstUse(req,res)){logger.info("First use detected. Showing alert on frontend", "|", getClientIp(req))}
+		loadRegisterPage(req,res,version);
+	});
+
+	// Dashboard
+	app.get("/api/" +  version + "/dashboard", limiter(), async (req, res) => {
+		if (req.session.identifier == null){
+			res.redirect("/api/" +  version + "/login");
+		}else if (await isPubkeyValid(req.session.identifier, true) == false){
+			res.redirect("/api/v2/");
+		}else{
+			loadDashboardPage(req,res,version);
+		}
+	});
+
+	// Settings
+	app.get("/api/" +  version + "/settings", limiter(), async (req, res) => {
+		if (req.session.identifier == null){
+			res.redirect("/api/" +  version + "/login");
+		}else if (await isPubkeyValid(req.session.identifier, true) == false){
+			res.redirect("/api/v2/");
+		}else{
+			loadSettingsPage(req,res,version);
+		}
+	});
+
+	// Profile
+	app.get("/api/" +  version + "/profile", limiter(), async (req, res) => {
+		if (req.session.identifier == null){
+			res.redirect("/api/" +  version + "/login");
+		}else if (await isPubkeyValid(req.session.identifier, false) == false){
+			res.redirect("/api/v2/");
+		}else{
+			loadProfilePage(req,res,version);
+		}
+	});
+
+	// Logout
+	app.get("/api/" +  version + "/logout", limiter(), (req, res) => {
+		req.session.destroy((err) => {
+			if (err) {
+				logger.error(err)
+				res.redirect("/api/v2/");
+			}
+			res.clearCookie("connect.sid");
+			res.clearCookie("authkey");
+			res.redirect("/api/" +  version + "/login");
+		});
+	});
 };
