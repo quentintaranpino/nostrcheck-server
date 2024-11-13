@@ -9,6 +9,7 @@ import { accounts } from "../interfaces/payments.js";
 import { isModuleEnabled, updateLocalConfigKey } from "./config.js";
 import { addNewUsername } from "./register.js";
 import { getNewDate } from "./utils.js";
+import { clearAuthkey } from "./authorization.js";
 
 let pool: Pool;
 let retry :number = 0;
@@ -515,10 +516,7 @@ const initDatabase = async (): Promise<void> => {
 	});
 
 	// Clear all authkeys from registered table
-	const conn = await connect("initDatabase");
-	logger.debug("Clearing all authkeys from registered table");
-	await conn.execute("UPDATE registered SET authkey = NULL ");
-	conn.end();
+	await clearAuthkey("",true)
 
 	// Fix old mimetype
 	const fixMimetype =await fixOldMimeType();

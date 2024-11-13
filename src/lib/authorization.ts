@@ -224,6 +224,26 @@ const isAuthkeyValid = async (authString: string, checkAdminPrivileges: boolean 
 	}
 }
 
+
+/**
+ * Clears the authkey from the database.
+ * @param {string} authkey - The authkey to clear.
+ * @param {boolean} [clearAll=false] - A boolean indicating whether to clear all authkeys. Optional, default is false.
+ * @returns {Promise<boolean>} A promise that resolves to a boolean indicating whether the authkey was cleared successfully. Returns false if an error occurs.
+ */
+const clearAuthkey = async (authkey: string, clearAll: boolean = false): Promise<boolean> => {
+
+	if ((authkey === undefined || authkey === "") && clearAll == false) {return false;}
+
+	const whereStatement = clearAll == false ? await hashString(authkey, 'authkey'): "IS NOT NULL";
+
+	const update = await dbUpdate("registered", "authkey", null, ["authkey"], [whereStatement]);
+	if (!update) return false;
+
+	return true;
+}
+
+
 /**
  * Generates and saves a new credential of the specified type to the database.
  * If a public key is provided and direct messaging is indicated, 
@@ -331,4 +351,5 @@ export { 	isPubkeyValid,
 			isApikeyValid, 
 			isAuthkeyValid, 
 			generateCredentials, 
-			parseAuthHeader };
+			parseAuthHeader, 
+			clearAuthkey };
