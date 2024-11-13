@@ -260,8 +260,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
                 await semaphore.execute(async () => {
                     const response = await fetch(`/api/v2/media?page=${page}&count=${mediaCount}`, {
                         method: "GET",
-                        Credentials: "include", 
-
+                        credentials: privateGallery ? 'include' : 'omit',
                     });
                     if (!response.ok) {
                         document.getElementById('loading-spinner').remove();
