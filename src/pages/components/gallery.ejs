@@ -362,37 +362,34 @@ document.addEventListener('DOMContentLoaded', (event) => {
         const url = `/api/v2/media/${sha256}/visibility/${visibility}`;
         const id = $(this).data('id');
 
-        semaphore.execute(async () => {
-            await initConfirmModal('#fileTable', [id], visibility === 1 ? "show in gallery" : "hide from gallery", "file", "", false)
-                .then(async (modal) => {
-                    if (modal.result !== true) return;
+        semaphore.execute(async () => { await initConfirmModal('#fileTable', [id], visibility === 1 ? "show in gallery" : "hide from gallery", "file", "", false)
+            .then(async (modal) => {
+                if (modal.result !== true) return;
 
-                    $.ajax({
-                        url: url,
-                        method: 'PUT',
-                        contentType: 'application/json',
-                        success: function(result) {
-                            $('#fileTable').bootstrapTable('updateByUniqueId', {    
-                                id: id,  
-                                row: { visibility: visibility }
-                            });
-                            
-                            // Update the data attribute visibility without modifying the DOM manually
-                            $(`[data-sha256="${sha256}"].btn-visibility`).each(function() {
-                                $(this).attr('data-visibility', visibility);  
-                                $(this).html(visibility === 1 ? '<i class="fas fa-eye"></i>' : '<i class="fas fa-eye-slash"></i>');
-                            });
+                $.ajax({
+                    url: url,
+                    method: 'PUT',
+                    contentType: 'application/json',
+                    success: function(result) {
+                        $('#fileTable').bootstrapTable('updateByUniqueId', {    
+                            id: id,  
+                            row: { visibility: visibility }
+                        });
+                        
+                        // Update the data attribute visibility without modifying the DOM manually
+                        $(`[data-sha256="${sha256}"].btn-visibility`).each(function() {
+                            $(this).attr('data-visibility', visibility);  
+                            $(this).html(visibility === 1 ? '<i class="fas fa-eye"></i>' : '<i class="fas fa-eye-slash"></i>');
+                        });
 
-                            console.log($(`[data-sha256="${sha256}"].btn-visibility`));
-
-                            showMessage(`Visibility of file with sha256 ${sha256} updated successfully`, "alert-success");
-                        },
-                        error: function(err) {
-                            console.log('Error updating visibility', err);
-                            showMessage(`Error updating visibility of file with sha256 ${sha256}`, "alert-danger");
-                        }
-                    });
+                        showMessage(`Visibility of file with sha256 ${sha256} updated successfully`, "alert-success");
+                    },
+                    error: function(err) {
+                        console.log('Error updating visibility', err);
+                        showMessage(`Error updating visibility of file with sha256 ${sha256}`, "alert-danger");
+                    }
                 });
+            });
         });
     });
 
@@ -423,15 +420,16 @@ async function populateMasonryData (files, auth) {
             mediaElement.classList.add("rounded-1", "w-100", "object-fit-contain");
 
             let mediaLoader = new Image();
-            mediaLoader.src = `${mediaData.url}`;
+            mediaLoader.src = mediaData.url;
 
-            await new Promise((resolve) => {
-                mediaLoader.onload = function() {
-                    mediaElement.classList.add('fade-in');
-                    mediaElement.src = mediaLoader.src;
-                    resolve();
-                };
-            });
+            mediaLoader.onload = function () {
+                mediaElement.classList.add('fade-in');
+                mediaElement.src = mediaLoader.src;
+            };
+
+            mediaLoader.onerror = function () {
+                console.log('Error loading image', mediaData.url);
+            };
 
         } else if (ext === 'mp4' || ext === 'mov') {
             mediaElement = document.createElement('video');
