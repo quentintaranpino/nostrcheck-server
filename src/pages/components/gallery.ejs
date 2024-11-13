@@ -257,7 +257,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
                 
                 page++;
 
-                await semaphore.execute(async () => {
+                semaphore.execute(async () => {
                     const response = await fetch(`/api/v2/media?page=${page}&count=${mediaCount}`, {
                         method: "GET",
                         credentials: privateGallery ? 'include' : 'omit',
@@ -300,15 +300,15 @@ document.addEventListener('DOMContentLoaded', (event) => {
             masonryView.classList.remove('visually-hidden');
             listView.classList.add('visually-hidden');
             masonryView.insertAdjacentElement('afterend', sentinelEnd);
+            observerSentinels.observe(sentinelEnd);
         } else {
             masonryView.classList.add('visually-hidden');
             listView.classList.remove('visually-hidden');
             document.getElementById('loading-spinner')?.remove();
+            observerSentinels.unobserve(sentinelEnd);
         }
         page = -1;
         mediaCount = 50;
-        observerSentinels.observe(sentinelEnd);
-
     });
 
     //View button click event
@@ -734,6 +734,8 @@ function fetchTabledata(params) {
     return new Promise((resolve, reject) => {
 
         const pageSize = params.data.pageSize;
+
+        console.log('Fetching table data', params);
 
         $.ajax({
             url: params.url,
