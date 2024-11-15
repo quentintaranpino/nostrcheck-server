@@ -85,7 +85,7 @@ const hashString = async (input:string, type: credentialTypes, saltRounds:number
     if (type == "password"){
       hashedString = await bcrypt.hash(input, saltRounds).catch(err => {logger.error(err)});
     }
-    else if (type == "authkey" || type == "otc"){
+    else if (type == "otc"){
       hashedString =  await crypto.createHash('sha256').update(input + saltRounds).digest('hex');
     }
     else if (type == "preimage"){

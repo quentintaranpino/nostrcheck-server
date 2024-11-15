@@ -37,4 +37,10 @@ async function getLightningAddressFromRedis(key: string): Promise<LightningUsern
 	return JSON.parse(data.toString());
 }
 
-export { redisClient, redisPluginsClient, flushRedisCache, getNostrAddressFromRedis, getLightningAddressFromRedis };
+async function getActiveStatusFromRedis(identifier: string): Promise<boolean> {
+    const data = await redisClient.get(`activeStatus:${identifier}`);
+    if (!data) return true; 
+    return JSON.parse(data).isActive;
+}
+
+export { redisClient, redisPluginsClient, flushRedisCache, getNostrAddressFromRedis, getLightningAddressFromRedis, getActiveStatusFromRedis };

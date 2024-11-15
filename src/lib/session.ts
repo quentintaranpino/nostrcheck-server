@@ -12,9 +12,9 @@ import cookieParser from 'cookie-parser';
 
 declare module 'express-session' {
 	interface Session {
-       identifier: string;
-       metadata: localUserMetadata;
-	   allowed: boolean;
+        identifier: string;
+        metadata: localUserMetadata;
+        allowed: boolean;
     }
 }
 
@@ -26,20 +26,16 @@ const initSession = async (app:Application): Promise<void> => {
     logger.debug("Initialising session cookies");
     logger.debug("Session secret:", sessionSecret);
 
-    //Disable secure cookie in development environment
-    let secureCoockie: boolean = true
-    if (app.get('config.environment') != "production"){
-        secureCoockie = false;
-    }
-
     app.use(session({
         secret: sessionSecret,
         proxy: true,
         resave: false,
         saveUninitialized: false,
         cookie: {
-            secure: secureCoockie,
-            maxAge: 3600000 // Default 1 hour
+            secure: app.get('config.environment') != "production" ? false : true,     //Disable secure cookie in development environment
+            sameSite: 'strict',
+            httpOnly: app.get('config.environment') != "production" ? false : true,   //Disable httpOnly cookie in development environment
+            maxAge: app.get("config.session")["maxAge"],
         }
     }))
 

@@ -12,10 +12,11 @@ import { 	loadDashboardPage,
 		} from "../controllers/frontend.js";
 import { frontendLogin } from "../controllers/frontend.js";
 import { logger } from "../lib/logger.js";
-import { clearAuthkey, isPubkeyValid } from "../lib/authorization.js";
+import { isPubkeyValid } from "../lib/authorization.js";
 import { limiter } from "../lib/session.js";
 import { isFirstUse } from "../lib/frontend.js";
 import { getClientIp } from "../lib/utils.js";
+import { redisClient } from "../lib/redis.js";
 
 export const loadFrontendEndpoint = async (app: Application, version: string): Promise<void> => {
 
@@ -122,14 +123,15 @@ export const loadFrontendEndpoint = async (app: Application, version: string): P
 
 	// Logout
 	app.get("/api/" +  version + "/logout", limiter(), (req, res) => {
+		const identifier = req.session.identifier;
 		req.session.destroy(async (err) => {
 			if (err) {
-				logger.error(err)
-				res.redirect("/api/v2/");
+				logger.error("Failed to destroy session:", err);
 			}
-			await clearAuthkey(req.cookies.authkey);
+
 			res.clearCookie("connect.sid");
 			res.clearCookie("authkey");
+			await redisClient.del(`activeStatus:${identifier}`);
 
 			res.redirect("/api/" +  version + "/login");
 		});

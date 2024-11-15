@@ -1,5 +1,5 @@
 import app from "../app.js";
-import { generateCredentials } from "./authorization.js";
+import { generateAuthToken } from "./authorization.js";
 import { dbMultiSelect } from "./database.js";
 import { Request, Response } from "express";
 
@@ -13,7 +13,8 @@ const isFirstUse = async (req : Request, res: Response): Promise<boolean> => {
 	
 	if (app.get("firstUse") == true){
         req.session.identifier = app.get("config.server")["pubkey"];
-        setAuthCookie(res, await generateCredentials('authkey', req.session.identifier));
+        const authToken = generateAuthToken(req.session.identifier, true);
+        setAuthCookie(res, authToken);
         req.session.metadata = {
             hostedFiles: 0,
             usernames: [],
@@ -56,23 +57,20 @@ const isFirstUse = async (req : Request, res: Response): Promise<boolean> => {
  * Sets the authkey cookie and sends it in the response
  * 
  * @param res - The Express response object
- * @param authkey - The authkey value to store in the cookie
- * @param maxAge - (Optional) Cookie expiration time in milliseconds, default is 1 hour
+ * @param token - The JWT token to be set in the cookie
  */
- const setAuthCookie = (res: Response, authkey: string, maxAge: number = 3600000) => {
+const setAuthCookie = (res: Response, token: string) => {
 
-    if (authkey == "") {
-        return res.cookie;
-    }
+    const currentToken = res.getHeader('Set-Cookie')?.toString().includes(`authkey=${token}`) ? token : null;
 
-    res.cookie('authkey', authkey, {
-        httpOnly: true,               
-        secure: process.env.NODE_ENV === 'production', 
-        sameSite: 'strict',            
-        maxAge: maxAge,
+    if (currentToken  == token) return;
+
+    res.cookie('authkey', token, {
+        httpOnly: app.get('config.environment') != "production" ? false : true,
+        secure: app.get('config.environment') != "production" ? false : true,
+        sameSite: 'strict',
+        maxAge: app.get("config.session")["maxAge"],
     });
-
-    return res.cookie;
 };
 
 

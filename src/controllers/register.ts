@@ -6,13 +6,14 @@ import app from "../app.js";
 import { getClientIp } from "../lib/utils.js";
 import { isModuleEnabled } from "../lib/config.js";
 import { addNewUsername, isPubkeyOnDomainAvailable, isUsernameAvailable } from "../lib/register.js";
-import { generateCredentials, isAuthkeyValid, parseAuthHeader } from "../lib/authorization.js";
+import { generateOTC, verifyOTC, parseAuthHeader } from "../lib/authorization.js";
 import { npubToHex, validatePubkey } from "../lib/nostr/NIP19.js";
 import { registerFormResult } from "../interfaces/register.js";
 import { dbUpdate } from "../lib/database.js";
 import { validateInviteCode } from "../lib/invitations.js";
 import { checkTransaction } from "../lib/payments/core.js";
 import { transaction } from "../interfaces/payments.js";
+import { setAuthCookie } from "../lib/frontend.js";
 
 const registerUsername = async (req: Request, res: Response): Promise<Response> => {
 
@@ -27,6 +28,7 @@ const registerUsername = async (req: Request, res: Response): Promise<Response> 
     // Check if authorization header is valid, if not we will set the otc flag to true
 	const eventHeader = await parseAuthHeader(req,"registerUsername", false);
 	if (eventHeader.status != "success") {activateUser = false}
+	setAuthCookie(res, eventHeader.authkey);
 
 	logger.info(`POST /api/v2/register - ${getClientIp(req)}`);
 
@@ -111,7 +113,13 @@ const registerUsername = async (req: Request, res: Response): Promise<Response> 
 	}
 
 	// If the user is not activated, we will generate the credentials and send the OTC verification via nost DM.
-	if (activateUser == false) {await generateCredentials('otc',pubkey,true,true,false,false)}
+	if (activateUser == false) {
+		const OTC = await generateOTC(pubkey)
+		if (OTC == false){
+			logger.error("Failed to generate OTC" + " | " + getClientIp(req));
+			return res.status(500).send({status: "error", message: "Failed to generate OTC"});
+		}
+	} 
 
 	// Check if payments module is active and if true generate paymentRequest
 	let paymentRequest = "";
@@ -170,13 +178,13 @@ const validateRegisterOTC = async (req: Request, res: Response): Promise<Respons
 		return res.status(406).send({ status: "error", message: "Invalid domain" });
 	}
 
-	const validOTC = await isAuthkeyValid(req.body.otc, false, false);
-	if(validOTC.status != 'success'){
+	const validOTC = await verifyOTC(req.body.otc);
+	if(validOTC == "") {
 		logger.info("RES -> 401 Unauthorized - Invalid OTC", "|", getClientIp(req));
 		return res.status(401).send({status: "error", message: "Invalid OTC"});
 	}
 
-	const activateUser = await dbUpdate("registered", "active", 1, ["hex", "domain"], [validOTC.pubkey, req.body.domain]);
+	const activateUser = await dbUpdate("registered", "active", 1, ["hex", "domain"], [validOTC, req.body.domain]);
 	if (activateUser == false) {
 		logger.error("RES -> Failed to activate user" + " | " + getClientIp(req));
 		return res.status(500).send({status: "error", message: "Failed to activate user"});
@@ -187,4 +195,3 @@ const validateRegisterOTC = async (req: Request, res: Response): Promise<Respons
 }
 
 export { registerUsername, validateRegisterOTC };
-

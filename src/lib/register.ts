@@ -1,5 +1,5 @@
 import { dbInsert, dbMultiSelect, dbUpdate } from "./database.js";
-import { generateCredentials } from "./authorization.js";
+import { generatePassword } from "./authorization.js";
 import { hashString } from "./hash.js";
 import { hextoNpub, npubToHex, validatePubkey } from "./nostr/NIP19.js";
 import { getDomainInfo } from "./domains.js";
@@ -61,7 +61,7 @@ const addNewUsername = async (username: string, pubkey: string, password:string,
     let regeneratePassword = false;
     if (password == "" || password == undefined) {
         regeneratePassword = true;
-		password = await generateCredentials('password', pubkey, false, false, true, false);
+		password = await generatePassword(pubkey, false, false, true, false);
 	}
 
     if (await isUsernameAvailable(username, domain) == false) {return 0}
@@ -90,7 +90,7 @@ const addNewUsername = async (username: string, pubkey: string, password:string,
     
     if (regeneratePassword) {
         // Generate definitive password for the user and send it to the user via nostr DM.
-        const newPassword = await generateCredentials("password", pubkey, true, sendDM, false, false);
+        const newPassword = await generatePassword(pubkey, true, sendDM, false, false);
         if (!newPassword) {return 0}
     }
 

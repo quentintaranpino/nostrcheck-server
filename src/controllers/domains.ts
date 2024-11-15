@@ -63,6 +63,7 @@ const updateUserDomain = async (req: Request, res: Response): Promise<Response> 
 	// Check if authorization header is valid
 	const EventHeader = await parseAuthHeader(req, "UpdateUserDomain", false);
 	if (EventHeader.status !== "success") {return res.status(401).send({"status": EventHeader.status, "message" : EventHeader.message});}
+	setAuthCookie(res, EventHeader.authkey);
 
 	//If domain is null return 400
 	if (!domain || domain.trim() == "") {

@@ -9,7 +9,6 @@ import { accounts } from "../interfaces/payments.js";
 import { isModuleEnabled, updateLocalConfigKey } from "./config.js";
 import { addNewUsername } from "./register.js";
 import { getNewDate } from "./utils.js";
-import { clearAuthkey } from "./authorization.js";
 
 let pool: Pool;
 let retry :number = 0;
@@ -515,9 +514,6 @@ const initDatabase = async (): Promise<void> => {
 			logger.info("Standard account created");
 		}
 	});
-
-	// Clear all authkeys from registered table
-	await clearAuthkey("",true)
 
 	// Fix old mimetype
 	const fixMimetype =await fixOldMimeType();

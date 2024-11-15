@@ -8,7 +8,7 @@ import app from "../app.js";
 import { logHistory, logger } from "../lib/logger.js";
 import { getClientIp, format, getNewDate } from "../lib/utils.js";
 import { ResultMessagev2, ServerStatusMessage } from "../interfaces/server.js";
-import { generateCredentials } from "../lib/authorization.js";
+import { generatePassword } from "../lib/authorization.js";
 import { dbDelete, dbInsert, dbUpdate } from "../lib/database.js";
 import { allowedFieldNames, allowedFieldNamesAndValues, allowedTableNames, moduleDataReturnMessage, moduleDataKeys } from "../interfaces/admin.js";
 import { parseAuthHeader} from "../lib/authorization.js";
@@ -208,10 +208,10 @@ const updateLogo = async (req: Request, res: Response): Promise<Response> => {
         try {
             await fs.promises.copyFile(`./src/pages/static/resources/navbar-logo-${theme}.default.png`, `./src/pages/static/resources/navbar-logo-${theme}.png`);
             logger.info("RES -> Default logo restored" + " | " + getClientIp(req));
-            return res.status(200).send({status: "success", message: "Default logo restored", authkey: eventHeader.authkey});
+            return res.status(200).send({status: "success", message: "Default logo restored"});
         } catch (error) {
             logger.error("RES -> Failed to restore default logo" + " | " + getClientIp(req));
-            return res.status(500).send({status: "error", message: "Failed to restore default logo", authkey: eventHeader.authkey});
+            return res.status(500).send({status: "error", message: "Failed to restore default logo"});
         }
     }
 
@@ -250,6 +250,7 @@ const updateTheme = async (req: Request, res: Response): Promise<Response> => {
      // Check if authorization header is valid
     const eventHeader = await parseAuthHeader(req, "updateDBRecord", true);
     if (eventHeader.status !== "success") {return res.status(401).send({"status": eventHeader.status, "message" : eventHeader.message});}
+    setAuthCookie(res, eventHeader.authkey);
 
     if (!req.body || req.body == undefined || req.body.length == 0) {
         logger.error("RES -> 400 Bad request - Empty body", "|", getClientIp(req));
@@ -305,10 +306,10 @@ const updateTheme = async (req: Request, res: Response): Promise<Response> => {
     try{
         await fs.promises.writeFile('./src/pages/static/css/theme.css', theme);
         logger.info("RES -> Theme updated" + " | " + getClientIp(req));
-        return res.status(200).send({status: "success", message: "Theme updated", authkey: eventHeader.authkey});
+        return res.status(200).send({status: "success", message: "Theme updated"});
     }catch(e){
         logger.error("RES -> Error updating theme" + " | " + e);
-        return res.status(500).send({status: "error", message: "Error updating theme", authkey: eventHeader.authkey});
+        return res.status(500).send({status: "error", message: "Error updating theme"});
     }
 
 }
@@ -346,7 +347,7 @@ const resetUserPassword = async (req: Request, res: Response): Promise<Response>
         return res.status(400).send(result);
     }
 
-    const newPass = await generateCredentials('password', req.body.pubkey, false, true)
+    const newPass = await generatePassword(req.body.pubkey, false, true)
     if (newPass == "") {
         const result : ResultMessagev2 = {
             status: "error",
@@ -808,11 +809,11 @@ const moderateDBRecord = async (req: Request, res: Response): Promise<Response> 
     if (result.code == "NA"){
         const update = await dbUpdate('mediafiles','checked','1',['id'], [req.body.id]);
         if (!update) {
-            return res.status(500).send({status: "error", message: "Failed to update record", authkey: eventHeader.authkey});
+            return res.status(500).send({status: "error", message: "Failed to update record"});
         }
     } 
 
-    return res.status(200).send({status: "success", message: result.code, authkey: eventHeader.authkey});
+    return res.status(200).send({status: "success", message: result.code});
 
 }
 
@@ -866,10 +867,10 @@ const banDBRecord = async (req: Request, res: Response): Promise<Response> => {
     const banResult = await banRecord(req.body.id, table, req.body.reason);
 
     if (banResult.status == "error") {
-        return res.status(500).send({status: "error", message: banResult.message, authkey: eventHeader.authkey});
+        return res.status(500).send({status: "error", message: banResult.message});
     }
 
-    return res.status(200).send({status: "success", message: banResult.message, authkey: eventHeader.authkey});
+    return res.status(200).send({status: "success", message: banResult.message});
         
 }
 

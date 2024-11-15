@@ -4,6 +4,7 @@ import { logger } from "../logger.js";
 import { publishEvent } from "./core.js";
 import { NIP04_event } from "../../interfaces/nostr.js";
 import app from "../../app.js";
+import { npubToHex } from "./NIP19.js";
 
 /**
  * Sends a message to a specified public key.
@@ -20,7 +21,11 @@ const sendMessage = async (message: string, sendToPubkey : string) : Promise<boo
         return false
     }
 
-    if (!message || !sendToPubkey || sendToPubkey.length != 64 || sendToPubkey.startsWith("npub")) {
+    if (sendToPubkey && sendToPubkey.startsWith("npub")) {
+        sendToPubkey = await npubToHex(sendToPubkey)
+    }
+
+    if (!message || !sendToPubkey || sendToPubkey.length != 64) {
         logger.error("Invalid message or public key provided")
         return false
     }

@@ -178,7 +178,7 @@ const defaultConfig = {
 	},
 	"session" : {
 		"secret": "",
-		"maxAge": 2592000000
+		"maxAge": 3600000
 	},
 	"storage" : {
 		"type": "local",

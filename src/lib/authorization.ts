@@ -1,6 +1,7 @@
 import { dbMultiSelect, dbSelect, dbUpdate } from "../lib/database.js";
+import jwt from "jsonwebtoken";
 import { logger } from "./logger.js";
-import { credentialTypes, authHeaderResult } from "../interfaces/authorization.js";
+import { authHeaderResult } from "../interfaces/authorization.js";
 import { hashString, validateHash } from "./hash.js";
 import { Request } from "express";
 import crypto from "crypto";
@@ -12,6 +13,9 @@ import { NIPKinds } from "../interfaces/nostr.js";
 import { BUDKinds } from "../interfaces/blossom.js";
 import { isContentBanned } from "./banned.js";
 import { getClientIp } from "./utils.js";
+import app from "../app.js";
+import { getActiveStatusFromRedis, redisClient } from "./redis.js";
+import { npubToHex } from "./nostr/NIP19.js";
 
 
 /**
@@ -188,101 +192,87 @@ const isUserPasswordValid = async (username:string, password:string, checkAdminP
 
 /**
  * Verifies the authorization of a request by checking the provided authorization key.
- * If the key is valid, a new authorization key is generated for the session.
  * @param {string} authString - The authorization key to verify.
  * @param {boolean} [checkAdminPrivileges=true] - A boolean indicating whether to check if the authorization key has admin privileges. Optional, default is true.
  * @returns {Promise<checkAuthkeyResult>} The result of the authorization check, including the status, a message, and the new authkey if the check was successful.
  */
-const isAuthkeyValid = async (authString: string, checkAdminPrivileges: boolean = true, checkActive : boolean = true) : Promise<authHeaderResult> =>{
+const isAuthkeyValid = async (authString: string, checkAdminPrivileges: boolean = true, checkActive: boolean = true): Promise<authHeaderResult> => {
+    if (!authString) {
+        logger.warn("Unauthorized request, no authorization header");
+        return { status: "error", message: "Unauthorized", authkey: "", pubkey: "", kind: 0 };
+    }
 
-	if (authString === undefined || authString === "") {
-		logger.warn("Unauthorized request, no authorization header");
-		return {status: "error", message: "Unauthorized", authkey: "", pubkey:"", kind: 0};
-	}
+    try {
+        const decoded = jwt.verify(authString, app.get("config.session")["secret"]) as { identifier: string, allowed: boolean, exp: number };
+		if ((decoded.exp - Math.floor(Date.now() / 1000)) < 900){
+			authString = generateAuthToken(decoded.identifier, decoded.allowed);
+		} 
 
-	const hashedAuthkey = await hashString(authString, 'authkey');
-	const whereStatement = checkAdminPrivileges == true? "authkey = ? and allowed = ?" : "authkey = ?";
+        if (checkActive) {
+            const isActive = await getActiveStatusFromRedis(decoded.identifier);
+            if (!isActive) {
+                logger.warn(`Unauthorized request, user not active. Authkey: ${authString}`);
+                return { status: "error", message: "User not active", authkey: "", pubkey: "", kind: 0 };
+            }
+        }
 
-	try{
-		const hex =  await dbSelect(`SELECT hex FROM registered WHERE ${whereStatement}`, "hex", [hashedAuthkey, checkAdminPrivileges == true? '1':'0']) as string;
-		if (hex == ""){
-			logger.warn(`Unauthorized request, authkey not allowed or not found. Authkey: ${authString}, checkAdminPrivileges: ${checkAdminPrivileges}, checkActive: ${checkActive}`);
-			return {status: "error", message: "Unauthorized", authkey: "", pubkey:"", kind: 0};
-		}
+        if (checkAdminPrivileges && !decoded.allowed) {
+            logger.warn(`Unauthorized request, insufficient privileges. Authkey: ${authString}`);
+            return { status: "error", message: "Unauthorized", authkey: "", pubkey: "", kind: 0 };
+        }
 
-		// Generate a new authkey for each request
-		const newAuthkey = await generateCredentials('authkey', hex, false, false, false, checkActive);
-		logger.debug("New authkey generated for", hex, ":", newAuthkey)
-		if (newAuthkey == ""){
-			logger.error("Failed to generate authkey for", hex);
-			return {status: "error", message: "Internal server error", authkey: "", pubkey: "", kind: 0};
-		}
-		return {status: "success", message: "Authorized", authkey: newAuthkey, pubkey:hex, kind: 0};
-	}catch (error) {
-		logger.error(error);
-		return {status: "error", message: "Internal server error", authkey: "", pubkey:"", kind: 0};
-	}
-}
+        return {
+            status: "success",
+            message: "Authorized",
+            authkey: authString,
+            pubkey: decoded.identifier,
+            kind: 0
+        };
 
-
-/**
- * Clears the authkey from the database.
- * @param {string} authkey - The authkey to clear.
- * @param {boolean} [clearAll=false] - A boolean indicating whether to clear all authkeys. Optional, default is false.
- * @returns {Promise<boolean>} A promise that resolves to a boolean indicating whether the authkey was cleared successfully. Returns false if an error occurs.
- */
-const clearAuthkey = async (authkey: string, clearAll: boolean = false): Promise<boolean> => {
-
-	if ((authkey === undefined || authkey === "") && clearAll == false) {return false;}
-
-	const whereStatement = clearAll == false ? await hashString(authkey, 'authkey'): "IS NOT NULL";
-
-	const update = await dbUpdate("registered", "authkey", null, ["authkey"], [whereStatement]);
-	if (!update) return false;
-
-	return true;
-}
-
+    } catch (error) {
+		if (error instanceof Error && error.name === 'TokenExpiredError') {
+            logger.warn("Unauthorized request, token expired");
+            return { status: "error", message: "Token expired", authkey: "", pubkey: "", kind: 0 };
+        } else {
+            logger.warn("Unauthorized request, invalid token");
+            return { status: "error", message: "Invalid token", authkey: "", pubkey: "", kind: 0 };
+        }
+    }
+};
 
 /**
- * Generates and saves a new credential of the specified type to the database.
+ * Generates and saves a new password of the specified type to the database.
  * If a public key is provided and direct messaging is indicated, 
  * the new password will be sent to the provided public key.
  *
- * @param {credentialTypes} type - The type of credential to generate. Can be 'password', 'authkey', or 'otc'.
  * @param {string} [pubkey=""] - The public key to which to send the new password. Optional.
- * @param {boolean} [returnHashed=false] - Returns the hashed credential instead of the plain text. Optional.
+ * @param {boolean} [returnHashed=false] - Returns the hashed password instead of the plain text. Optional.
  * @param {boolean} [sendDM=false] - Indicates whether to send a direct message with the new password. Optional.
- * @param {boolean} [onlyGenerate=false] - Indicates whether to only generate the credential without saving it to the database and sending a DM. Optional.
- * @returns {Promise<string>} The newly generated credential, or an empty string if an error occurs or if the database update fails.
- * @throws {Error} If an error occurs during the credential generation or the database update or sending the direct message.
+ * @param {boolean} [onlyGenerate=false] - Indicates whether to only generate the password without saving it to the database and sending a DM. Optional.
+ * @returns {Promise<string>} The newly generated password, or an empty string if an error occurs or if the database update fails.
+ * @throws {Error} If an error occurs during the password generation or the database update or sending the direct message.
  */
-const generateCredentials = async (type: credentialTypes, pubkey :string, returnHashed: boolean = false, sendDM : boolean = false, onlyGenerate : boolean = false, checkActive : boolean = true): Promise<string> => {
+const generatePassword = async (pubkey :string, returnHashed: boolean = false, sendDM : boolean = false, onlyGenerate : boolean = false, checkActive : boolean = true): Promise<string> => {
     try {
 
 		if (onlyGenerate) {
-			if (returnHashed) return await hashString(crypto.randomBytes(20).toString('hex'), type);
+			if (returnHashed) return await hashString(crypto.randomBytes(20).toString('hex'), 'password');
 			return crypto.randomBytes(20).toString('hex');
 		}
 
 		if (pubkey === undefined || pubkey === "") {return "";}
 
-		if (pubkey.startsWith("npub")) {
-			pubkey = await dbSelect("SELECT hex FROM registered WHERE pubkey = ?", "hex", [pubkey]) as string;
-		}
+		if (pubkey.startsWith("npub")) pubkey = await dbSelect("SELECT hex FROM registered WHERE pubkey = ?", "hex", [pubkey]) as string;
 
 		if (await isPubkeyValid(pubkey,false,true,checkActive) == false) {return "";}
 
-		let credential : string = "";
-		type == 'otc'? credential = Math.floor(100000 + Math.random() * 900000).toString() : credential = crypto.randomBytes(13).toString('hex');
-		if ( type == 'authkey') credential = 'Auth' + credential;
-		const hashedCredential = await hashString(credential, type);
-		const whereField : string = type == 'otc' || type === 'authkey'? "authkey" : "password";
-		const update = await dbUpdate("registered", whereField, hashedCredential, ["hex"], [pubkey]);
+		const credential = crypto.randomBytes(13).toString('hex');
+		const hashedCredential = await hashString(credential, 'password');
+		const update = await dbUpdate("registered", "password", hashedCredential, ["hex"], [pubkey]);
 		if (update){
 			logger.debug("New credential generated and saved to database");
-			if ((type == 'password' || type == 'otc') && pubkey != "" && sendDM){
-				const DM = await sendMessage(type == 'otc'? `Your one-time code: ${credential}` : `Your new password: ${credential}`, pubkey);
+			if (pubkey != "" && sendDM){
+				const DM = await sendMessage(`Your new password: ${credential}`, pubkey);
 				if (!DM) return "";			}
 			if (returnHashed) return hashedCredential;
 			return credential;
@@ -292,6 +282,48 @@ const generateCredentials = async (type: credentialTypes, pubkey :string, return
         logger.error(error);
         return "";
     }
+}
+
+
+/**
+* Generates and saves a new OTC code to redis and sends it to the provided public key.
+* @param {string} pubkey - The public key to which to send the OTC code.
+* @returns {Promise<string>} The newly generated OTC code, or an empty string if an error occurs or if the database update fails.
+*/
+const generateOTC = async (pubkey: string) : Promise<boolean> => {
+
+	if (pubkey === undefined || pubkey === "") {return false;}
+
+	if (pubkey.startsWith("npub")) pubkey = await npubToHex(pubkey);
+
+	if (pubkey.length != 64) {return false;}
+
+    const otc = Math.floor(100000 + Math.random() * 900000).toString()
+	const hashedOTC = await hashString(otc, 'otc');
+	
+	await redisClient.set(`otc:${hashedOTC}`, JSON.stringify({ pubkey }), { EX: 300 });
+	const DM = await sendMessage(`Your one-time code: ${otc}`, pubkey);
+	if(!DM) return false;
+
+    return true;
+
+};
+
+/**
+ * Verifies the OTC code of a user.
+ * @param {string} otc - The one-time code to verify.
+ * @returns {Promise<boolean>} A promise that resolves to a boolean indicating whether the OTC code is valid. Returns false if an error occurs.
+ */
+const verifyOTC = async (otc: string): Promise<string> => {
+
+    const hashedOTC = await hashString(otc, 'otc');
+    const storedData = await redisClient.get(`otc:${hashedOTC}`);
+    
+    if (!storedData) return "";
+
+	const { pubkey } = JSON.parse(storedData);
+    await redisClient.del(`otc:${hashedOTC}`);
+    return pubkey;
 }
 
 /**
@@ -344,12 +376,25 @@ const isApikeyValid = async (req: Request, endpoint: string = "", checkAdminPriv
 	return result;
 };
 
+const generateAuthToken = (identifier: string, allowed: boolean): string => {
+    const secretKey = app.get("config.session")["secret"];
+    const expiresIn = app.get("config.session")["maxAge"];
+
+    return jwt.sign(
+        { identifier, allowed }, 
+        secretKey,
+        { expiresIn }
+    );
+};
+
 export { 	isPubkeyValid, 
 			isPubkeyRegistered, 
 			isPubkeyAllowed,
 			isUserPasswordValid, 
 			isApikeyValid, 
 			isAuthkeyValid, 
-			generateCredentials, 
-			parseAuthHeader, 
-			clearAuthkey };
+			generatePassword,
+			generateOTC,
+			verifyOTC, 
+			parseAuthHeader,
+			generateAuthToken };
