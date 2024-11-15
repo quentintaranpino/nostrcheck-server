@@ -4,7 +4,7 @@
       <h1 class="display-4 mb-1 pb-2 font-weight-normal gradient-text">Login</h1>
     </div>
     <div id="otc-login">
-      <form class="form" onkeydown=" if (event.keyCode === 13) {logIn('nostr', $('#rememberme_otc:checked').val(),'otc_submit');}">
+      <form class="form" onkeydown=" if (event.keyCode === 13) {event.preventDefault(); logInOtc()}">
         <div class="text-center">
           <p class="lead">Login from nostr using a one-time password or using a <a href="https://nostr.net/#nip-07-browser-extensions" class="link-body-emphasis link-offset-3 link-underline-opacity-25 link-underline-opacity-75-hover" target="_blank">browser extension.</a>
 
