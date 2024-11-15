@@ -377,8 +377,10 @@ document.addEventListener('DOMContentLoaded', (event) => {
                         
                         // Update the data attribute visibility without modifying the DOM manually
                         $(`[data-sha256="${sha256}"].btn-visibility`).each(function() {
-                            $(this).attr('data-visibility', visibility);  
+                            $(this).attr('data-visibility', visibility);
+                            $(this).data('visibility', visibility);
                             $(this).html(visibility === 1 ? '<i class="fas fa-eye"></i>' : '<i class="fas fa-eye-slash"></i>');
+
                         });
 
                         showMessage(`Visibility of file with sha256 ${sha256} updated successfully`, "alert-success");
@@ -662,6 +664,7 @@ function buttonContainer(type, file, auth){
         visibleButton.classList.add('btn','btn-secondary', 'btn-xl', 'me-1', 'btn-visibility');
         visibleButton.setAttribute('data-sha256', sha256);
         visibleButton.setAttribute('data-visibility', visibility);
+        visibleButton.setAttribute('data-id', file.id);
         visibleButton.innerHTML = visibleButton.getAttribute('data-visibility') == 1? '<i class="fas fa-eye"></i>' : '<i class="fas fa-eye-slash"></i>';
         buttonContainer.appendChild(visibleButton);
 
