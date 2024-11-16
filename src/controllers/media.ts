@@ -610,7 +610,7 @@ const getMediaList = async (req: Request, res: Response, version:string): Promis
 	}
 
 	// Check if authorization header is valid
-	const eventHeader = await parseAuthHeader(req, "getMediaList", false);
+	const eventHeader = await parseAuthHeader(req, "list", false);
 	if (eventHeader.status !== "success") {
 		eventHeader.pubkey = "";
 	}
