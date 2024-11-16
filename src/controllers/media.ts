@@ -635,6 +635,12 @@ const getMediaList = async (req: Request, res: Response, version:string): Promis
 		whereStatement = eventHeader.pubkey == pubkey ? "pubkey = ? and active = ? and original_hash is not null" : "active = ? and visibility = ? and checked = ? and original_hash is not null";
 		whereFields = eventHeader.pubkey == pubkey ? [pubkey, "1"] : ["1", "1", "1"];
 
+		if (eventHeader.pubkey != pubkey) {
+			logger.debug('Pubkey mismatch', "|", getClientIp(req));
+			logger.debug('eventHeader.pubkey:', eventHeader.pubkey, "|", 'pubkey:', pubkey, "|", getClientIp(req));
+			logger.debug('pubkey:', pubkey, "|", getClientIp(req));
+		}
+
 		if (since != 0) {
 			whereStatement += " and date >= ?";
 			whereFields.push(new Date(Number(since) * 1000).toISOString().slice(0, 19).replace('T', ' '));
