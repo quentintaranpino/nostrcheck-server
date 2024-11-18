@@ -409,11 +409,11 @@ async function populateMasonryData (files, auth) {
 
         let mediaElement;
 
-        const mediaData = await loadMediaWithToken(url); 
-        if (!mediaData) {
-            console.error("Error loading media");
-            continue; 
-        }
+        // const mediaData = await loadMediaWithToken(url); 
+        // if (!mediaData) {
+        //     console.error("Error loading media");
+        //     continue; 
+        // }
 
         if (['webp', 'gif', 'jpg', 'jpeg', 'png'].includes(ext)) {
             mediaElement = document.createElement('img');
@@ -421,7 +421,7 @@ async function populateMasonryData (files, auth) {
             mediaElement.classList.add("rounded-1", "w-100", "object-fit-contain");
 
             let mediaLoader = new Image();
-            mediaLoader.src = mediaData.url;
+            mediaLoader.src = url;
 
             mediaLoader.onload = function () {
                 mediaElement.classList.add('fade-in');
@@ -429,7 +429,7 @@ async function populateMasonryData (files, auth) {
             };
 
             mediaLoader.onerror = function () {
-                console.log('Error loading image', mediaData.url);
+                console.log('Error loading image', url);
             };
 
         } else if (ext === 'mp4' || ext === 'mov') {
@@ -444,7 +444,7 @@ async function populateMasonryData (files, auth) {
 
             const handleVideoError = function(error) {
                 mediaElement.removeEventListener('error', handleVideoError);
-                mediaElement.poster = `${mediaData.url}`;
+                mediaElement.poster = `${url}`;
                 videoObserver.unobserve(mediaElement);
             };
 
@@ -486,7 +486,7 @@ async function populateMasonryData (files, auth) {
                 mediaElement.removeAttribute('poster');
             });
 
-            mediaElement.src = `${mediaData.url}`;
+            mediaElement.src = `${url}`;
             mediaElement.load();
 
             // Autoplay video patch
@@ -501,7 +501,7 @@ async function populateMasonryData (files, auth) {
 
         } else if (ext === 'mp3') {
             mediaElement = document.createElement('audio');
-            mediaElement.src = `${mediaData.url}`;
+            mediaElement.src = `${url}`;
             mediaElement.classList.add("ps-5", "pe-5");
             mediaElement.setAttribute('controls', '');
 
@@ -543,7 +543,7 @@ async function populateMasonryData (files, auth) {
             mediaElement.id = `media-3d-${fileMasonryId}`;
 
             setTimeout(() => {
-                init3dViewer(mediaElement.id, 'column-0', `${mediaData.url}`, 250, 200);
+                init3dViewer(mediaElement.id, 'column-0', `${url}`, 250, 200);
                 mediaElement.classList.add('fade-in');
             }, 100);
         }
@@ -553,7 +553,7 @@ async function populateMasonryData (files, auth) {
             mediaElement.style.height = '180px'
             mediaElement.style.backgroundColor = '#ffffff';
             mediaElement.style.border = '1px solid #D1CDCD';
-            mediaElement.innerHTML = `<a href="${mediaData.url}" download><span class="display-4 mb-1 pb-2 font-weight-normal gradient-text">.${ext}</span></a>`;
+            mediaElement.innerHTML = `<a href="${url}" download><span class="display-4 mb-1 pb-2 font-weight-normal gradient-text">.${ext}</span></a>`;
             mediaElement.classList.add('fade-in');
         }
 
