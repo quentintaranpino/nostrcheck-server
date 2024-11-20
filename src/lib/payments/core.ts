@@ -456,20 +456,15 @@ const collectInvoice = async (invoice: invoice, collectFromExpenses = false, col
 
 const calculateSatoshi = async (originTable: string, size: number, maxSatoshi: number = 0) : Promise<number> => {
 
-    if (!isModuleEnabled("payments", app)) {
-        return 0;
-    }
+    if (!isModuleEnabled("payments", app)) return 0;
 
-    if (app.get("config.payments")["satoshi"]["mediaMaxSatoshi"] == 0) {
-        return 0;
-    }
+    if (originTable == "" || size <= 0) return 0;
 
-    if (app.get("config.payments")["satoshi"]["registerMaxSatoshi"] == 0 && maxSatoshi == 0) {
-        return 0;
-    }
+    if (originTable == "mediafiles" && app.get("config.payments")["satoshi"]["mediaMaxSatoshi"] == 0) return 0;
+
+    if (originTable == "registered" && app.get("config.payments")["satoshi"]["registerMaxSatoshi"] == 0 && maxSatoshi == 0) return 0;
 
     if (originTable == "mediafiles") {
-    
         // For mediafiles
         const maxSize = Number(app.get("config.media")["maxMBfilesize"]);
         let fileSizeMB = size / 1024 / 1024;
