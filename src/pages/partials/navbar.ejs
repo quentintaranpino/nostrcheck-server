@@ -58,14 +58,17 @@
         <a <% if(active === 'register'){ %><%- "class='nav-link active'"%><% } else { %><%- "class='nav-link'"%><%}%> href="register"><i class="fa-solid fa-address-book me-2"></i>Register <span class="sr-only">(current)</span></a>
       </li>
       <li id="galleryMenu">
-        <a <% if(active === 'gallery'){ %><%- "class='nav-link active'"%><% } else { %><%- "class='nav-link'"%><%}%> href="gallery"><i class="bi bi-image-fill me-2"></i></i>Public gallery <span class="sr-only">(current)</span></a>
+        <a <% if(active === 'gallery'){ %><%- "class='nav-link active'"%><% } else { %><%- "class='nav-link'"%><%}%> href="gallery"><i class="bi bi-image-fill me-2"></i></i>Gallery <span class="sr-only">(current)</span></a>
       </li>
       <li id="cdnMenu">
-        <a  <% if(active === 'cdn'){ %><%- "class='nav-link active'"%><% } else { %><%- "class='nav-link'"%><%}%> href="media"><i class="fa-solid fa-server me-2"></i>File hosting</a>
+        <a  <% if(active === 'cdn'){ %><%- "class='nav-link active'"%><% } else { %><%- "class='nav-link'"%><%}%> href="media"><i class="fa-solid fa-server me-2"></i>Upload</a>
       </li>   
-      <li>
+      <li id="docsMenu">
         <a <% if(active === 'documentation'){ %><%- "class='nav-link active'"%><% } else { %><%- "class='nav-link'"%><%}%> href="documentation"><i class="fa-solid fa-book me-2"></i>Docs <span class="sr-only">(current)</span></a>
-      </li>            
+      </li>  
+      <li id="directoryMenu">
+        <a <% if(active === 'directory'){ %><%- "class='nav-link active'"%><% } else { %><%- "class='nav-link'"%><%}%> href="directory"><i class="fa-solid fa-address-book me-2"></i>Directory <span class="sr-only">(current)</span></a>
+      </li>          
     </ul>
   </div>
 </nav>
@@ -111,6 +114,7 @@ html[data-bs-theme="dark"] .navbar {
     activeModules.push('<%- locals.activeModules[key] %>');
   <% } %>
   activeModules.find((element) => element === 'register') ? null : document.getElementById('registerMenu').classList.add('d-none');
+  activeModules.find((element) => element === 'register') ? null : document.getElementById('directoryMenu').classList.add('d-none');
   activeModules.find((element) => element === 'media') ? null : document.getElementById('galleryMenu').classList.add('d-none');
   activeModules.find((element) => element === 'media') ? null : document.getElementById('cdnMenu').classList.add('d-none');
 </script>

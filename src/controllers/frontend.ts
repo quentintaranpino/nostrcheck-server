@@ -267,6 +267,31 @@ const loadGalleryPage = async (req: Request, res: Response, version:string): Pro
     res.render("gallery.ejs", {request: req});
 };
 
+const loadDirectoryPage = async (req: Request, res: Response, version:string): Promise<Response | void>  => {
+
+    // Check if current module is enabled
+	if (!isModuleEnabled("frontend", app)) {
+        logger.warn("Attempt to access a non-active module:","frontend","|","IP:", getClientIp(req));
+		return res.status(403).send({"status": "error", "message": "Module is not enabled"});
+	}
+
+	logger.info("GET /api/" + version + "/gallery", "|", getClientIp(req));
+
+    // Active modules
+    const activeModules = loadconfigActiveModules(app).map((module) => module[0]);
+    res.locals.activeModules = activeModules; 
+
+    res.locals.version = app.get("version");
+    res.locals.serverHost = app.get("config.server")["host"];
+
+    setAuthCookie(res, req.cookies.authkey);
+
+    // Check admin privileges. Only for information, never used for authorization
+    req.session.allowed = await isPubkeyAllowed(req.session.identifier);
+
+    res.render("directory.ejs", {request: req});
+};
+
 const loadRegisterPage = async (req: Request, res: Response, version:string): Promise<Response | void>  => {
 
     // Check if current module is enabled
@@ -405,4 +430,5 @@ export {loadDashboardPage,
         loadIndexPage,
         loadCdnPage,
         frontendLogin,
-        loadProfilePage};
+        loadProfilePage,
+        loadDirectoryPage};
