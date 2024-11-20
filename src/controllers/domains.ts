@@ -39,11 +39,6 @@ const listAvailableUsers = async (req: Request, res: Response): Promise<Response
 
 	logger.info("REQ -> User list from domain:", req.params.domain, "|", getClientIp(req));
 
-    // Check if authorization header is valid
-	const EventHeader = await parseAuthHeader(req, "AvailableUsers", true);
-	if (EventHeader.status !== "success") {return res.status(401).send({"status": EventHeader.status, "message" : EventHeader.message});}
-	setAuthCookie(res, EventHeader.authkey);
-
 	const availableUsers = await getAvailiableUsers(req.params.domain);
 	return res.status(200).send({ [req.params.domain]: availableUsers});
 	
