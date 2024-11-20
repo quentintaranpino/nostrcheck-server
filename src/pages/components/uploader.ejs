@@ -96,7 +96,7 @@
             });
             const data = {
                 status : response.status,
-                message : response.headers.get('X-Upload-Message'),
+                message : response.headers.get('X-Reason'),
                 wwwAuthenticate : response.headers.get('Www-Authenticate'),
             }
             return data;
