@@ -6,6 +6,8 @@ let relays = [
   { id: 0, url: 'wss://relay.nostr.band', read:  true, write: true, dms: false, name:'', description: "", pubkey: "", contact: "", supported_nips: [], enabled : true },
   { id: 1, url: 'wss://relay.damus.io', read:  true, write: true, dms: false, name:'', description: "", pubkey: "", contact: "", supported_nips: [], enabled : true },
   { id: 2, url: 'wss://relay.primal.net', read:  true, write: true, dms: false, name:'', description: "", pubkey: "", contact: "", supported_nips: [], enabled : true },
+  { id: 3, url: 'wss://relay.nostrcheck.me', read:  true, write: false, dms: false, name:'', description: "", pubkey: "", contact: "", supported_nips: [], enabled : true },
+  { id: 4, url: 'wss://nostr-pub.wellorder.net', read:  true, write: false, dms: false, name:'', description: "", pubkey: "", contact: "", supported_nips: [], enabled : true },
 ];
 
 let userRelays = [];
@@ -363,9 +365,26 @@ const subscribeRelays = async (kind, pubkeys, type, since, until) => {
           }
         }
       );
+      console.log("Subscribed to relays:", userRelays.length > 0 ? userRelays.map(relay => relay.url) : relays.map(relay => relay.url));
     } catch (error) {
       console.error("Error obtaining pubkey notes:", error);
       reject(error);
     }
   });
+}
+
+const hextoNpub = async (hex) => {
+
+  if (hex != "" && hex.startsWith("npub")) {
+      return hex;
+  }
+
+  try {
+      return await NostrTools.nip19.npubEncode(hex);
+  } catch (error) {
+      logger.error("Error while encoding pubkey to npub: ", error);
+  }
+
+  return "";
+
 }
