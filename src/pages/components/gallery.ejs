@@ -409,12 +409,6 @@ async function populateMasonryData (files, auth) {
 
         let mediaElement;
 
-        // const mediaData = await loadMediaWithToken(url); 
-        // if (!mediaData) {
-        //     console.error("Error loading media");
-        //     continue; 
-        // }
-
         if (['webp', 'gif', 'jpg', 'jpeg', 'png'].includes(ext)) {
             mediaElement = document.createElement('img');
             mediaElement.src = '/static/resources/loading-image.webp';
