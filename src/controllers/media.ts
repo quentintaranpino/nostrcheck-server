@@ -545,7 +545,7 @@ const heatMedia = async (req: Request, res: Response): Promise<Response> => {
 	logger.info("HEAD /media", "|", getClientIp(req));
 
 	// Check if authorization header is valid
-	const eventHeader = await parseAuthHeader(req, "heatMedia", false);
+	const eventHeader = await parseAuthHeader(req, "heat", false);
 	if (eventHeader.status !== "success") {
 		eventHeader.pubkey = "";
 	}
