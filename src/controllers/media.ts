@@ -1144,6 +1144,7 @@ const getMediabyURL = async (req: Request, res: Response) => {
 			res.setHeader("Accept-Ranges", "bytes");
 			res.setHeader("Content-Length", contentLength);
 			res.setHeader("Cache-Control", "no-cache")
+			res.setHeader("Content-Type", mediaType);
 			res.status(206);
 
 			const videoStream = fs.createReadStream(fileName, {start: range.Start, end: range.End});
@@ -1151,7 +1152,7 @@ const getMediabyURL = async (req: Request, res: Response) => {
 			return videoStream.pipe(res);
 		}
 
-		// If is an image we return the entire file
+		// If is not a video or audio file we return the file
 		fs.readFile(fileName, async (err, data) => {
 			if (err) {
 				logger.warn(`RES -> 200 Not Found - ${req.url}`, "| Returning not found media file.", getClientIp(req));
@@ -1159,6 +1160,7 @@ const getMediabyURL = async (req: Request, res: Response) => {
 				return res.status(200).send(await getNotFoundMediaFile());
 			} 
 			logger.info(`RES -> 200 Media file ${req.url}`, "|", getClientIp(req), "|", "cached:", cachedStatus ? true : false);
+			res.setHeader('Content-Type', mediaType);
 			res.status(200).send(data);
 
 		});
