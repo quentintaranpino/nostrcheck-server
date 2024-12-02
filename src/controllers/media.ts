@@ -542,7 +542,7 @@ const heatMedia = async (req: Request, res: Response): Promise<Response> => {
 		return res.status(403).send({"status": "error", "message": "Module is not enabled"});
 	}
 
-	logger.info("HEAD /media", "|", getClientIp(req));
+	logger.info("HEAT /media", "|", getClientIp(req));
 
 	// Check if authorization header is valid
 	const eventHeader = await parseAuthHeader(req, "heat", false);
@@ -566,7 +566,7 @@ const heatMedia = async (req: Request, res: Response): Promise<Response> => {
 	}
 
 	// Check if file exist on database
-	const fileData = await dbMultiSelect(["id", "filesize", "hash", "original_hash"], "mediafiles", "original_hash = ?", [hash], true);
+	const fileData = await dbMultiSelect(["id", "filesize", "hash", "original_hash", "mimetype"], "mediafiles", "original_hash = ?", [hash], true);
 	if (fileData.length == 0) {
 		logger.error('RES -> 404 Not found - file not found in database', "|", getClientIp(req));
 		return res.status(404).send();
@@ -593,8 +593,9 @@ const heatMedia = async (req: Request, res: Response): Promise<Response> => {
 		return res.status(403).send();
 	}
 
-
 	logger.info(`RES -> 200 OK - file found`, "|", getClientIp(req));
+	res.setHeader("Content-Type", fileData[0].mimetype);
+
 	return res.status(200).send();
 
 };
