@@ -534,7 +534,7 @@ const getMedia = async (req: Request, res: Response, version:string) => {
 
 }
 
-const heatMedia = async (req: Request, res: Response): Promise<Response> => {
+const headMedia = async (req: Request, res: Response): Promise<Response> => {
 
 	// Check if current module is enabled
 	if (!isModuleEnabled("media", app)) {
@@ -542,14 +542,7 @@ const heatMedia = async (req: Request, res: Response): Promise<Response> => {
 		return res.status(403).send({"status": "error", "message": "Module is not enabled"});
 	}
 
-	logger.info("HEAT /media", "|", getClientIp(req));
-
-	// Check if authorization header is valid
-	const eventHeader = await parseAuthHeader(req, "heat", false);
-	if (eventHeader.status !== "success") {
-		eventHeader.pubkey = "";
-	}
-	setAuthCookie(res, eventHeader.authkey);
+	logger.info("HEAD /media", "|", getClientIp(req));
 
 	// Get file hash from URL
 	const hash = req.params.param1.toString().split(".")[0];
@@ -1518,7 +1511,7 @@ const deleteMedia = async (req: Request, res: Response, version:string): Promise
 
 };
 
-const heatUpload = async (req: Request, res: Response): Promise<Response> => {
+const headUpload = async (req: Request, res: Response): Promise<Response> => {
 
 	// Check if current module is enabled
 	if (!isModuleEnabled("media", app)) {
@@ -1563,10 +1556,10 @@ const heatUpload = async (req: Request, res: Response): Promise<Response> => {
 
 export { uploadMedia,
 		getMedia, 
-		heatMedia,
+		headMedia,
 		getMediabyURL, 
 		deleteMedia, 
 		updateMediaVisibility, 
 		getMediaTagsbyID, 
 		getMediabyTags, 
-		heatUpload };
+		headUpload };
