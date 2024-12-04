@@ -1,7 +1,7 @@
 import { Request, Response, Application, } from "express";
 import express from "express";
 import multer from "multer";
-import { uploadMedia, getMedia, heatMedia, deleteMedia, updateMediaVisibility, heatUpload } from "../controllers/media.js";
+import { uploadMedia, getMedia, deleteMedia, updateMediaVisibility, headMedia, headUpload } from "../controllers/media.js";
 import { ResultMessage, ResultMessagev2 } from "../interfaces/server.js";
 import { logger } from "../lib/logger.js";
 import { getClientIp } from "../lib/utils.js";
@@ -74,8 +74,8 @@ export const loadMediaEndpoint = async (app: Application, version:string): Promi
 	app.put("/upload", express.raw({  limit: Math.round(maxMBfilesize * 1024 * 1024)}), limiter(app.get('config.security')['media']['maxUploadsMinute'], limitMessage), async (req, res) => {uploadMiddlewarePut(req,res)}); // Blossom cdn url upload
 
 	// HEAD (upload)
-	app.head("/api/" + version + app.get("config.server")["availableModules"]["media"]["path"] + "/upload", limiter(), heatUpload); // Blossom blob upload head
-	app.head("/upload", limiter(), heatUpload); // Blossom CDN blob upload head
+	app.head("/api/" + version + app.get("config.server")["availableModules"]["media"]["path"] + "/upload", limiter(), headUpload); // Blossom blob upload head
+	app.head("/upload", limiter(), headUpload); // Blossom CDN blob upload head
 
 	// DELETE
 	app.delete("/api/" + version +  app.get("config.server")["availableModules"]["media"]["path"] + "/:id", 
@@ -85,7 +85,7 @@ export const loadMediaEndpoint = async (app: Application, version:string): Promi
 	});
 
 	// HEAD
-	app.head("/api/" + version + app.get("config.server")["availableModules"]["media"]["path"] + "/:param1", limiter(1000, limitMessage), heatMedia);
+	app.head("/api/" + version + app.get("config.server")["availableModules"]["media"]["path"] + "/:param1", limiter(1000, limitMessage), headMedia);
 
 	// GET 
 	app.get(`/api/${version}${app.get("config.server")["availableModules"]["media"]["path"]}/:param1?/:param2?`, 

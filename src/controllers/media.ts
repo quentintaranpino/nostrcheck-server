@@ -534,7 +534,7 @@ const getMedia = async (req: Request, res: Response, version:string) => {
 
 }
 
-const heatMedia = async (req: Request, res: Response): Promise<Response> => {
+const headMedia = async (req: Request, res: Response): Promise<Response> => {
 
 	// Check if current module is enabled
 	if (!isModuleEnabled("media", app)) {
@@ -543,13 +543,6 @@ const heatMedia = async (req: Request, res: Response): Promise<Response> => {
 	}
 
 	logger.info("HEAD /media", "|", getClientIp(req));
-
-	// Check if authorization header is valid
-	const eventHeader = await parseAuthHeader(req, "heatMedia", false);
-	if (eventHeader.status !== "success") {
-		eventHeader.pubkey = "";
-	}
-	setAuthCookie(res, eventHeader.authkey);
 
 	// Get file hash from URL
 	const hash = req.params.param1.toString().split(".")[0];
@@ -566,7 +559,7 @@ const heatMedia = async (req: Request, res: Response): Promise<Response> => {
 	}
 
 	// Check if file exist on database
-	const fileData = await dbMultiSelect(["id", "filesize", "hash", "original_hash"], "mediafiles", "original_hash = ?", [hash], true);
+	const fileData = await dbMultiSelect(["id", "filesize", "hash", "original_hash", "mimetype"], "mediafiles", "original_hash = ?", [hash], true);
 	if (fileData.length == 0) {
 		logger.error('RES -> 404 Not found - file not found in database', "|", getClientIp(req));
 		return res.status(404).send();
@@ -593,8 +586,9 @@ const heatMedia = async (req: Request, res: Response): Promise<Response> => {
 		return res.status(403).send();
 	}
 
-
 	logger.info(`RES -> 200 OK - file found`, "|", getClientIp(req));
+	res.setHeader("Content-Type", fileData[0].mimetype);
+
 	return res.status(200).send();
 
 };
@@ -1144,6 +1138,7 @@ const getMediabyURL = async (req: Request, res: Response) => {
 			res.setHeader("Accept-Ranges", "bytes");
 			res.setHeader("Content-Length", contentLength);
 			res.setHeader("Cache-Control", "no-cache")
+			res.setHeader("Content-Type", mediaType);
 			res.status(206);
 
 			const videoStream = fs.createReadStream(fileName, {start: range.Start, end: range.End});
@@ -1151,7 +1146,7 @@ const getMediabyURL = async (req: Request, res: Response) => {
 			return videoStream.pipe(res);
 		}
 
-		// If is an image we return the entire file
+		// If is not a video or audio file we return the file
 		fs.readFile(fileName, async (err, data) => {
 			if (err) {
 				logger.warn(`RES -> 200 Not Found - ${req.url}`, "| Returning not found media file.", getClientIp(req));
@@ -1159,6 +1154,7 @@ const getMediabyURL = async (req: Request, res: Response) => {
 				return res.status(200).send(await getNotFoundMediaFile());
 			} 
 			logger.info(`RES -> 200 Media file ${req.url}`, "|", getClientIp(req), "|", "cached:", cachedStatus ? true : false);
+			res.setHeader('Content-Type', mediaType);
 			res.status(200).send(data);
 
 		});
@@ -1515,7 +1511,7 @@ const deleteMedia = async (req: Request, res: Response, version:string): Promise
 
 };
 
-const heatUpload = async (req: Request, res: Response): Promise<Response> => {
+const headUpload = async (req: Request, res: Response): Promise<Response> => {
 
 	// Check if current module is enabled
 	if (!isModuleEnabled("media", app)) {
@@ -1560,10 +1556,10 @@ const heatUpload = async (req: Request, res: Response): Promise<Response> => {
 
 export { uploadMedia,
 		getMedia, 
-		heatMedia,
+		headMedia,
 		getMediabyURL, 
 		deleteMedia, 
 		updateMediaVisibility, 
 		getMediaTagsbyID, 
 		getMediabyTags, 
-		heatUpload };
+		headUpload };
