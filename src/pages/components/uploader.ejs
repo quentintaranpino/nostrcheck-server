@@ -167,7 +167,7 @@
                     content: 'Authorization event for file upload status',
                 };
                 authEvent = btoa(JSON.stringify(await window.nostr.signEvent(authEvent)));
-                serverData.processing_url.includes("cdn") ? serverData.processing_url = serverData.processing_url.replace("api/v2/media/", "") : null;
+                // serverData.processing_url.includes("cdn") ? serverData.processing_url = serverData.processing_url.replace("api/v2/media/", "") : null;
             }
 
             while (serverData.processing_url) {
