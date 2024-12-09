@@ -21,9 +21,7 @@
     font-weight: 500;
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    margin: 0 0.5rem;
     padding: 0.5rem 0.7rem;
-  
   }
   
   .navbar-nav .nav-link.active {
@@ -79,17 +77,17 @@
         </button>
       </li>
       <li class="d-none d-lg-flex">
-        <a <% if (request.session.identifier) { %>style="display: none !important;"<% } %> <% if(active === 'login'){ %><%- "class='nav-link active  d-none d-lg-flex'"%><% } else { %><%- "class='nav-link '"%><%}%> href="login"><i class="fa-solid fa-user fa-lg me-1"></i></a>
+        <a <% if (request.session.identifier) { %>style="display: none !important;"<% } %> <% if(active === 'login'){ %><%- "class='nav-link d-none d-lg-flex'"%><% } else { %><%- "class='nav-link '"%><%}%> href="login"><i class="fa-solid fa-user fa-lg me-1"></i></a>
       </li>
       <li class="nav-item dropdown d-none d-lg-flex"  <% if (!request.session.identifier) { %>style="display: none !important;"<% } %> >
         <a class="nav-link dropdown-toggle d-flex align-items-center" href="#" id="navbarDropdownMenuLink" role="button" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
           <div class="picture-container" style="width:40px; height:40px;"></div>
         </a>
         <div class="dropdown-menu dropdown-menu-end">
-          <a href="profile"  <% if(active === 'profile'){ %><%- "class='dropdown-item active'"%><% } else { %><%- "class='dropdown-item'"%><%}%>>Profile</a>
+          <a href="profile"  <% if(active === 'profile'){ %><%- "class='dropdown-item nav-link active'"%><% } else { %><%- "class='dropdown-item nav-link'"%><%}%>>Profile</a>
           <% if (request.session.allowed == true) { %>
-            <a href="dashboard" <% if(active === 'dashboard'){ %><%- "class='dropdown-item active'"%><% } else { %><%- "class='dropdown-item'"%><%}%>>Dashboard</a>
-            <a href="settings" <% if(active === 'settings'){ %><%- "class='dropdown-item active'"%><% } else { %><%- "class='dropdown-item'"%><%}%>>Settings</a>
+            <a href="dashboard" <% if(active === 'dashboard'){ %><%- "class='dropdown-item nav-link active'"%><% } else { %><%- "class='dropdown-item nav-link'"%><%}%>>Dashboard</a>
+            <a href="settings" <% if(active === 'settings'){ %><%- "class='dropdown-item nav-link active'"%><% } else { %><%- "class='dropdown-item nav-link'"%><%}%>>Settings</a>
           <%}%>
           <div class="dropdown-divider"></div>
           <button class="nav-link" type="button" aria-controls="intro" aria-selected="false" aria-label="Logout" onclick="logout()">
