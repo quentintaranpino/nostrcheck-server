@@ -254,7 +254,7 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 	if (eventHeader.kind == BUDKinds.BUD01_auth || req.method == "PUT") {
 		filedata.url = returnURL 	
 		? `${returnURL}/${filedata.originalhash? `${filedata.originalhash}.${getExtension(filedata.originalmime)} `  : filedata.filename}`
-		: `${filedata.servername}/${filedata.originalhash? filedata.originalhash : filedata.filename}`;
+		: `${filedata.servername}/${filedata.originalhash? `${filedata.originalhash}.${getExtension(filedata.originalmime)}` : filedata.filename}`;
 	}
 
 	// Standard media conversions
