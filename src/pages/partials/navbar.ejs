@@ -52,22 +52,22 @@
   <div class="collapse navbar-collapse" id="server-navbar">
     <ul class="nav navbar-nav">
       <li>
-        <a <% if(active === 'home'){ %><%- "class='nav-link active'"%><% } else { %><%- "class='nav-link'"%><%}%> href="/api/v2/"><i class="fa-solid fa-house me-2"></i>Home <span class="sr-only">(current)</span></a>
+        <a <% if(active === 'home'){ %><%- "class='nav-link active'"%><% } else { %><%- "class='nav-link'"%><%}%> href="/api/v2/">HOME <span class="sr-only">(current)</span></a>
       </li>
       <li id="registerMenu">
-        <a <% if(active === 'register'){ %><%- "class='nav-link active'"%><% } else { %><%- "class='nav-link'"%><%}%> href="register"><i class="fa-solid fa-address-book me-2"></i>Register <span class="sr-only">(current)</span></a>
+        <a <% if(active === 'register'){ %><%- "class='nav-link active'"%><% } else { %><%- "class='nav-link'"%><%}%> href="register">REGISTER <span class="sr-only">(current)</span></a>
       </li>
       <li id="galleryMenu">
-        <a <% if(active === 'gallery'){ %><%- "class='nav-link active'"%><% } else { %><%- "class='nav-link'"%><%}%> href="gallery"><i class="bi bi-image-fill me-2"></i></i>Gallery <span class="sr-only">(current)</span></a>
+        <a <% if(active === 'gallery'){ %><%- "class='nav-link active'"%><% } else { %><%- "class='nav-link'"%><%}%> href="gallery">GALLERY <span class="sr-only">(current)</span></a>
       </li>
       <li id="cdnMenu">
-        <a  <% if(active === 'cdn'){ %><%- "class='nav-link active'"%><% } else { %><%- "class='nav-link'"%><%}%> href="media"><i class="fa-solid fa-server me-2"></i>Upload</a>
+        <a  <% if(active === 'media'){ %><%- "class='nav-link active'"%><% } else { %><%- "class='nav-link'"%><%}%> href="media">UPLOAD</a>
       </li>   
       <li id="docsMenu">
-        <a <% if(active === 'documentation'){ %><%- "class='nav-link active'"%><% } else { %><%- "class='nav-link'"%><%}%> href="documentation"><i class="fa-solid fa-book me-2"></i>Docs <span class="sr-only">(current)</span></a>
+        <a <% if(active === 'documentation'){ %><%- "class='nav-link active'"%><% } else { %><%- "class='nav-link'"%><%}%> href="documentation">DOCS <span class="sr-only">(current)</span></a>
       </li>  
       <li id="directoryMenu">
-        <a <% if(active === 'directory'){ %><%- "class='nav-link active'"%><% } else { %><%- "class='nav-link'"%><%}%> href="directory"><i class="fa-solid fa-address-book me-2"></i>Directory <span class="sr-only">(current)</span></a>
+        <a <% if(active === 'directory'){ %><%- "class='nav-link active'"%><% } else { %><%- "class='nav-link'"%><%}%> href="directory">DIRECTORY <span class="sr-only">(current)</span></a>
       </li>          
     </ul>
   </div>
@@ -89,6 +89,22 @@ html[data-bs-theme="dark"] .navbar {
   position: absolute;
   right: 10;
   top: auto;
+}
+
+.navbar-nav .nav-link {
+  font-size: 1rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 0 0.5rem;
+  padding: 0.5rem 0.7rem;
+
+}
+
+.navbar-nav .nav-link.active {
+  color: #ffffff;
+  background-color: #a575ffb0;
+  border-radius: 5px;
 }
 
 @media (max-width: 994.98px) {
