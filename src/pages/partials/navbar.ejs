@@ -1,3 +1,53 @@
+<style>
+
+  html[data-bs-theme="light"] .navbar {
+    background-color: #e8e8e8f5 !important;
+  }
+  
+  html[data-bs-theme="dark"] .navbar {
+        background-color:#2b3035 !important;
+  } 
+  
+  .dropdown-menu { --bs-dropdown-link-active-bg: #a575ff; }
+  
+  #profile-dropdown {
+    position: absolute;
+    right: 10;
+    top: auto;
+  }
+  
+  .navbar-nav .nav-link {
+    font-size: 1rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin: 0 0.5rem;
+    padding: 0.5rem 0.7rem;
+  
+  }
+  
+  .navbar-nav .nav-link.active {
+    color: #ffffff;
+    background-color: #a575ffb0;
+    border-radius: 5px;
+  }
+  
+  @media (max-width: 994.98px) {
+    #profile-dropdown {
+      position: absolute;
+      right: 85;
+      top: 10;
+    }
+    #profile-dropdown .navbar-nav {
+      display: flex;
+      flex-direction: row;
+    }
+    #profile-dropdown .navbar-nav .dropdown-menu {
+      position: absolute;
+    }
+  
+  }
+  </style>
 <nav class="navbar sticky-top navbar-expand-lg ps-3 pe-3 shadow-lg">
   <a class="navbar-brand" href="/">
     <img id="server-logo" src="/static/resources/navbar-logo-light.png" 
@@ -73,56 +123,6 @@
   </div>
 </nav>
 <%- include('../components/modals/uploader-modal', {instance: "navbar", hideTos:false}) %>
-<style>
-
-html[data-bs-theme="light"] .navbar {
-  background-color: #e8e8e8f5 !important;
-}
-
-html[data-bs-theme="dark"] .navbar {
-      background-color:#2b3035 !important;
-} 
-
-.dropdown-menu { --bs-dropdown-link-active-bg: #a575ff; }
-
-#profile-dropdown {
-  position: absolute;
-  right: 10;
-  top: auto;
-}
-
-.navbar-nav .nav-link {
-  font-size: 1rem;
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin: 0 0.5rem;
-  padding: 0.5rem 0.7rem;
-
-}
-
-.navbar-nav .nav-link.active {
-  color: #ffffff;
-  background-color: #a575ffb0;
-  border-radius: 5px;
-}
-
-@media (max-width: 994.98px) {
-  #profile-dropdown {
-    position: absolute;
-    right: 85;
-    top: 10;
-  }
-  #profile-dropdown .navbar-nav {
-    display: flex;
-    flex-direction: row;
-  }
-  #profile-dropdown .navbar-nav .dropdown-menu {
-    position: absolute;
-  }
-
-}
-</style>
 <script>
   // Hide or show navbar items based on active modules
   const activeModules = [];
