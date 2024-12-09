@@ -2,7 +2,7 @@
     <input 
         type="search" 
         id="userSearch" 
-        class="form-control w-75" 
+        class="form-control w-75 visually-hidden" 
         placeholder="Search for users..." 
         aria-label="Search for users">
 </div>
@@ -60,7 +60,7 @@ const masonryContainer = document.getElementById('masonry-container');
 const noUsersDiv = document.getElementById('no-users');
 const loadingSpinner = document.getElementById('loading-spinner');
 const searchInput = document.getElementById('userSearch');
-const allUsers = [];
+let allUsers = [];
 
 document.addEventListener('DOMContentLoaded', async () => {
     try {
@@ -77,7 +77,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         await loadAllUsers(availableDomains);
 
-        loadingSpinner.classList.add('visually-hidden'); 
     } catch (error) {
         console.error("Error loading domains:", error);
     }
@@ -85,27 +84,41 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 async function loadAllUsers(domains) {
     try {
-        for (const domain of domains) {
-            await loadUsers(domain);
-        }
+        const promises = domains.map(domain => loadUsers(domain));
+        await Promise.all(promises); 
+
 
         const allHexes = allUsers.map(user => user.hex);
-        subscribeRelays(0, allHexes, "from", Math.floor(Date.now() / 1000) - (3650 * 24 * 60 * 60)).then((data) => {
-            if (!data || data.length === 0) return;
 
-            data.forEach(item => {
-                const hex = item.pubkey;
-                const user = allUsers.find(user => user.hex === hex);
-                if (user) {
-                    user.nostrData = item.content ? JSON.parse(item.content) : null;
-                    updateUserCard(user); 
-                }
-            });
+        const maxBatchSize = 500;
+        const batches = [];
+        for (let i = 0; i < allHexes.length; i += maxBatchSize) {
+            batches.push(allHexes.slice(i, i + maxBatchSize));
+        }
+
+        console.log(`Processing ${batches.length} batch(es) with up to ${maxBatchSize} pubkeys each.`);
+
+        const batchPromises = batches.map(batch =>
+            subscribeRelays(0, batch, "from", Math.floor(Date.now() / 1000) - (720 * 24 * 60 * 60))
+        );
+        const results = await Promise.all(batchPromises);
+
+        loadingSpinner.classList.add('visually-hidden'); 
+        searchInput.classList.remove('visually-hidden');
+
+        results.flat().forEach(item => {
+            const hex = item.pubkey;
+            const user = allUsers.find(user => user.hex === hex);
+            if (user) {
+                user.nostrData = item.content ? JSON.parse(item.content) : null;
+                renderUserCard(user);
+            }
         });
     } catch (error) {
         console.error("Error loading all users or subscribing to relays:", error);
     }
 }
+
 
 const userCardMap = new Map();
 
@@ -124,7 +137,6 @@ async function loadUsers(domain) {
 
         allUsers.push(...users);
 
-        users.forEach(user => createUserCard(user));
     } catch (error) {
         console.error(`Error loading users for domain ${domain}:`, error);
     }
@@ -150,88 +162,142 @@ const userCardObserver = new IntersectionObserver((entries, observer) => {
 }, observerOptions);
 
 
-function createUserCard(user) {
-    const userCard = document.createElement('div');
-    userCard.classList.add('user-card', 'fade-in');
-    userCard.setAttribute('data-pubkey', user.hex);
+async function renderUserCard(user) {
+    let userCard = userCardMap.get(user.hex);
 
-    const imgElement = document.createElement('img');
-    imgElement.classList.add('user-image');
-    imgElement.style.width = '100%';
-    imgElement.style.borderRadius = '5px';
-    imgElement.src = '/static/resources/loading-image.webp';
-    imgElement.alt = 'Loading...';
-    userCard.appendChild(imgElement);
+    if (!userCard) {
+        userCard = document.createElement('div');
+        userCard.classList.add('user-card', 'fade-in');
+        userCard.setAttribute('data-pubkey', user.hex);
 
-    const usernameSpan = document.createElement('span');
-    usernameSpan.textContent = `Username: ${user.username || 'Loading...'}`;
-    usernameSpan.classList.add('username');
-    userCard.appendChild(usernameSpan);
+        const mediaContainer = document.createElement('div');
+        mediaContainer.classList.add('media-container');
+        mediaContainer.style.width = '100%';
+        mediaContainer.style.borderRadius = '5px';
+        mediaContainer.style.height = '115px';
+        mediaContainer.style.overflow = 'hidden';
+        userCard.appendChild(mediaContainer);
 
-    const pubkeySpan = document.createElement('span');
-    pubkeySpan.textContent = `Pubkey: ${user.hex}`;
-    pubkeySpan.classList.add('pubkey');
-    userCard.appendChild(pubkeySpan);
+        const usernameSpan = document.createElement('span');
+        usernameSpan.classList.add('username');
+        userCard.appendChild(usernameSpan);
 
-    const nostrDataSpan = document.createElement('span');
-    nostrDataSpan.textContent = `NostrData: Loading...`;
-    nostrDataSpan.classList.add('nostr-data');
-    userCard.appendChild(nostrDataSpan);
+        const pubkeyDiv = document.createElement('div');
+        pubkeyDiv.classList.add('pubkey');
+        userCard.appendChild(pubkeyDiv);
 
-    masonryContainer.appendChild(userCard);
+        masonryContainer.appendChild(userCard);
+        userCardMap.set(user.hex, userCard);
+    }
 
-    userCardMap.set(user.hex, userCard);
-
-    userCardObserver.observe(userCard);
-}
-
-
-async function updateUserCard(user) {
-    const userCard = userCardMap.get(user.hex); 
-    if (!userCard) return; 
-
-    const imgElement = userCard.querySelector('.user-image');
-    const pubkeySpan = userCard.querySelector('.pubkey');
+    const mediaContainer = userCard.querySelector('.media-container');
     const usernameSpan = userCard.querySelector('.username');
-    const nostrDataSpan = userCard.querySelector('.nostr-data');
+    const pubkeyDiv = userCard.querySelector('.pubkey');
 
-    if (imgElement && user.nostrData?.picture) {
-        imgElement.src = user.nostrData.picture;
-        imgElement.alt = `${user.nostrData.display_name || user.username}'s picture`;
+    mediaContainer.innerHTML = '';
+    if (user.nostrData?.picture) {
+        const pictureUrl = user.nostrData.picture;
+        if (pictureUrl.match(/\.(mp4|webm|ogg)(\?.*)?$/)) {
+            const videoElement = document.createElement('video');
+            videoElement.src = pictureUrl;
+            videoElement.controls = true;
+            videoElement.style.width = '100%';
+            videoElement.style.height = '100%';
+            videoElement.style.objectFit = 'cover';
+            console.log(`loading video ${pictureUrl}`);
+            videoElement.onerror = () => {
+                videoElement.poster = '/static/resources/loading-image.webp';
+            };
+            mediaContainer.appendChild(videoElement);
+        } else if (pictureUrl.match(/\.(jpg|jpeg|png|gif|webp)(\?.*)?$/)) {
+            const imgElement = document.createElement('img');
+            imgElement.src = pictureUrl;
+            imgElement.style.width = '100%';
+            imgElement.style.height = '100%';
+            imgElement.style.objectFit = 'cover';
+            imgElement.onerror = () => {
+                imgElement.src = '/static/resources/loading-image.webp';
+            };
+            mediaContainer.appendChild(imgElement);
+        } else {
+            const fallbackImg = document.createElement('img');
+            fallbackImg.src = '/static/resources/loading-image.webp';
+            fallbackImg.style.width = '100%';
+            fallbackImg.style.height = '100%';
+            fallbackImg.style.objectFit = 'cover';
+            mediaContainer.appendChild(fallbackImg);
+        }
+    } else {
+        const fallbackImg = document.createElement('img');
+        fallbackImg.src = '/static/resources/loading-image.webp';
+        fallbackImg.style.width = '100%';
+        fallbackImg.style.height = '100%';
+        fallbackImg.style.objectFit = 'cover';
+        mediaContainer.appendChild(fallbackImg);
     }
 
-    if (usernameSpan) {
-        usernameSpan.textContent = `Username: ${user.nostrData?.username || user.username}`;
-    }
+    usernameSpan.textContent = `${user.nostrData?.name || user.username || 'Loading...'}`;
 
-    if (pubkeySpan) {
+    if (pubkeyDiv) {
         await hextoNpub(user.hex).then((npub) => {
-            pubkeySpan.innerHTML = `<a target="blank_" href="https://njump.me/${npub}">${npub}</a>`;
+            user.npub = npub;
+            const visibleChars = Math.min(8, Math.floor(window.innerWidth / 50));
+            const truncatedText = `${npub.slice(0, visibleChars)}:${npub.slice(-visibleChars)}`;
+            pubkeyDiv.innerHTML = `
+                <button id="npub-btn" class="btn btn-primary" type="button"
+                    onclick="copyToClipboard(this, '${npub}')"
+                    data-value="${npub}"
+                    style="--bs-btn-padding-y: .1rem; --bs-btn-padding-x: .5rem; --bs-btn-font-size: .8rem;">
+                    ${truncatedText}<i class="fa-solid fa-copy ms-2"></i>
+                </button>`;
         });
     }
-
-    if (nostrDataSpan) {
-        const displayName = user.nostrData?.display_name || "No display name";
-        const about = user.nostrData?.about || "No description available";
-        nostrDataSpan.textContent = `Display Name: ${displayName}\nAbout: ${about}`;
-    }
 }
 
-searchInput.addEventListener('input', (event) => {
-    const searchTerm = event.target.value.toLowerCase();
-    masonryContainer.innerHTML = ""; 
+searchInput.addEventListener('input', () => {
+    const query = searchInput.value.toLowerCase().trim();
 
-    const filteredUsers = allUsers.filter(user => {
-        return Object.values(user).some(value =>
-            value.toString().toLowerCase().includes(searchTerm)
-        );
+    allUsers.forEach(user => {
+        const userCard = userCardMap.get(user.hex);
+        if (userCard) {
+            userCard.classList.add('visually-hidden');
+            userCard.style.display = 'none';
+        }
+    });
+    
+    let anyVisible = false;
+
+    allUsers.forEach(user => {
+        const userCard = userCardMap.get(user.hex);
+
+        if (userCard) {
+            const searchData = [
+                user.username,
+                user.hex,
+                user.npub,
+                user.domain,
+                user.nostrData?.name,
+                user.nostrData?.nip05,
+                user.nostrData?.display_name,
+                user.nostrData?.website,
+                user.nostrData?.lud16,
+                user.nostrData?.about
+            ].filter(Boolean).join(' ').toLowerCase();
+
+            if (searchData.includes(query)) {
+                userCard.classList.remove('visually-hidden');
+                userCard.style.display = 'block';
+                anyVisible = true;
+            }
+        }
     });
 
-    if (filteredUsers.length > 0) {
-        filteredUsers.forEach(user => createUserCard(user));
-    } else {
+    if (!anyVisible) {
         noUsersDiv.classList.remove('visually-hidden');
+    } else {
+        noUsersDiv.classList.add('visually-hidden');
     }
 });
+
 
 </script>
