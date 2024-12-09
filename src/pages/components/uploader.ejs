@@ -491,9 +491,7 @@
             if (!identifier){
 
                 if (!window.nostr) {
-                    showMessage("NIP07 browser extension not found", "alert-danger", false);
-
-
+                    showMessage("⚠️ NIP07 browser extension not found", "alert-danger", false);
                     file.fileData.satoshi = -2;
                     file.fileData.action = 'error';
                     $('#' + instance + 'file-table').bootstrapTable('load', f.map(file => file.fileData));
