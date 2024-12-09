@@ -68,12 +68,12 @@ const isBUD01AuthValid = async (authevent: Event, req: Request, endpoint: string
 			eventEndpoint = endpoint;
 		} 
 		if (eventEndpoint == null || eventEndpoint == undefined || eventEndpoint != endpoint) {
-			logger.warn("RES -> 400 Bad request - Auth header event endpoint is not valid", eventEndpoint, "<>", endpoint,	"|", getClientIp(req));
-			return {status: "error", message: `Auth header event endpoint is not valid: ${eventEndpoint} <> ${endpoint}`, authkey: "", pubkey: "", kind: 0};
+			logger.warn("RES -> 400 Bad request - Auth header (Blossom) event endpoint is not valid", eventEndpoint, "<>", endpoint,	"|", getClientIp(req));
+			return {status: "error", message: `Auth header (Blossom) event endpoint is not valid: ${eventEndpoint} <> ${endpoint}`, authkey: "", pubkey: "", kind: 0};
 		}
 	} catch (error) {
 		logger.error(`RES -> 400 Bad request - ${error}`, "|", getClientIp(req));
-		return {status: "error", message: "Auth header event endpoint is not valid", authkey: "", pubkey: "", kind: 0};
+		return {status: "error", message: "Auth header (Blossom) event endpoint is not valid", authkey: "", pubkey: "", kind: 0};
 	}
 
     // This is not from BUD01 spec, check local pubkey validation

@@ -64,12 +64,12 @@ const isNIP98Valid = async (authevent: Event, req: Request, checkAdminPrivileges
 			eventEndpoint = ServerEndpoint;
 		} 
 		if (eventEndpoint == null || eventEndpoint == undefined || eventEndpoint != ServerEndpoint) {
-			logger.warn("RES -> 400 Bad request - Auth header event endpoint is not valid", eventEndpoint, "<>", ServerEndpoint,	"|", getClientIp(req));
-			return {status: "error", message: `Auth header event endpoint is not valid: ${eventEndpoint} <> ${ServerEndpoint}`, authkey: "", pubkey: "", kind: 0};
+			logger.warn("RES -> 400 Bad request - Auth header (NIP98) event endpoint is not valid", eventEndpoint, "<>", ServerEndpoint,	"|", getClientIp(req));
+			return {status: "error", message: `Auth header (NIP98) event endpoint is not valid: ${eventEndpoint} <> ${ServerEndpoint}`, authkey: "", pubkey: "", kind: 0};
 		}
 	} catch (error) {
 		logger.error(`RES -> 400 Bad request - ${error}`, "|", getClientIp(req));
-		return {status: "error", message: "Auth header event endpoint is not valid", authkey: "", pubkey: "", kind: 0};
+		return {status: "error", message: "Auth header (NIP98) event endpoint is not valid", authkey: "", pubkey: "", kind: 0};
 	}
 
 	// Method
