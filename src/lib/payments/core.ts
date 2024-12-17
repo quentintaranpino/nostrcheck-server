@@ -2,7 +2,6 @@ import app from "../../app.js";
 import { accounts, emptyInvoice, emptyTransaction, invoice, transaction } from "../../interfaces/payments.js";
 import { isModuleEnabled } from "../config.js";
 import { dbDelete, dbInsert, dbMultiSelect, dbSelect, dbUpdate } from "../database.js"
-import { hashString } from "../hash.js";
 import { logger } from "../logger.js";
 import { sendMessage } from "../nostr/NIP04.js";
 import { getNewDate } from "../utils.js";
@@ -33,7 +32,7 @@ const checkTransaction = async (transactionid : string, originId: string, origin
         
         // If the balance is enough we pay the transaction and return the updated transaction
         if (balance >= satoshi) {
-            let inv = await getInvoice(transaction.transactionid.toString());
+            let inv = await getInvoice(transaction.paymentHash);
             inv.paidDate = getNewDate();
             if (await collectInvoice(inv)){
                 logger.info("Paying invoice with user balance:", balance, "satoshi:", satoshi, "transactionid:", inv.transactionid, "Accountid:", inv.accountid)
@@ -59,7 +58,7 @@ const checkTransaction = async (transactionid : string, originId: string, origin
 
         // If the balance is enough we pay the new transaction and return the updated transaction
         if (balance >= satoshi) {
-            let invoice = await getInvoice(transaction.transactionid.toString());
+            let invoice = await getInvoice(transaction.paymentHash);
             invoice.paidDate = getNewDate();
             if (await collectInvoice(invoice)){
                 logger.info("Paying invoice with user balance:", balance, "satoshi:", satoshi, "transactionid:", invoice.transactionid, "Accountid:", invoice.accountid)
@@ -295,20 +294,20 @@ const getPendingInvoices = async () : Promise<invoice[]> => {
     return invoices;
 }
 
-const getInvoice = async (transactionId: string) : Promise<invoice> => {
+const getInvoice = async (payment_hash: string) : Promise<invoice> => {
 
     if (!isModuleEnabled("payments", app)) {
         return emptyInvoice;
     }
 
-    if (!transactionId || transactionId == "0") {
+    if (!payment_hash || payment_hash == "0") {
         return emptyInvoice;
     }
 
     const result = await dbMultiSelect(["id", "accountid", "paymentrequest", "paymenthash", "satoshi", "paid", "preimage", "createddate", "expirydate", "paiddate", "comments"],
                                                     "transactions",
-                                                    "id = ?", 
-                                                    [transactionId], true);
+                                                    "paymenthash = ?", 
+                                                    [payment_hash], true);
     if (result.length == 0) {return emptyInvoice};
     const {id, accountid, paymentrequest, paymenthash, satoshi, paid, preimage, createddate, expirydate, paiddate, comments} = result[0];
 
@@ -509,7 +508,8 @@ const payInvoiceFromExpenses = async (transactionid: string) : Promise<boolean> 
         return false;
     }
 
-    const invoice = await getInvoice(transactionid);
+    const transaction = await getTransaction(transactionid);
+    const invoice = await getInvoice(transaction.paymentHash);
     if (invoice.paymentHash == "") {
         logger.error("No payment hash found for transaction", transactionid)
         return false;
@@ -581,31 +581,6 @@ const cleanTransactions = async () => {
 }
 cleanTransactions();
 
-const validatePreimage = async (transactionid: string, preimage: string) : Promise<boolean> => {
-    
-        if (!isModuleEnabled("payments", app)) {
-            return false;
-        }
-    
-        if (!transactionid || transactionid == "0") {
-            return false;
-        }
-    
-        if (preimage == "") {
-            logger.error("Can't validate preimage, no preimage provided", transactionid)
-            return false;
-        }
-
-        logger.debug(await hashString(preimage, "preimage"))
-        const invoice = await getInvoice(transactionid);
-        logger.debug(invoice.paymentHash)
-        if (invoice.preimage == preimage || await hashString(preimage, "preimage") == invoice.paymentHash) {
-            return true;
-        }
-    
-        return false;
-    }
-
 const updateAccountId = async (pubkey : string, transaction_id : number) : Promise<boolean> => {
 
     if (!pubkey || pubkey == "" || !transaction_id || transaction_id == 0) return false;
@@ -629,7 +604,6 @@ const updateAccountId = async (pubkey : string, transaction_id : number) : Promi
     return true;
 }
 
-
 export {    checkTransaction, 
             addBalance, 
             getBalance, 
@@ -640,6 +614,5 @@ export {    checkTransaction,
             getInvoice,
             isInvoicePaid,
             calculateSatoshi,
-            validatePreimage,
             updateAccountId
         }

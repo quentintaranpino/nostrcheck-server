@@ -90,13 +90,13 @@
                     "X-Content-Length": file.size.toString(),
                     "X-Content-Type": fileType,
                     "X-SHA-256": `${file.fileData.hash}`,
-                    "Blossom-content-metadata": file.fileData.transform, // NOT FROM BUD-07 SPEC.
+                    "X-Content-Transform": file.fileData.transform, // NOT FROM BUD-07 SPEC.
                 },
             });
             const data = {
                 status : response.status,
                 message : response.headers.get('X-Reason'),
-                wwwAuthenticate : response.headers.get('Www-Authenticate'),
+                payment_request : response.headers.get('X-Lightning'),
             }
             return data;
 
@@ -124,8 +124,9 @@
         let headers = {};
         headers["authorization"] = "Nostr " + authEvent;
         method == "PUT" ? headers["Content-Type"] = file.type : null;
-        if (file.fileData.macaroon != "" && file.fileData.preimage != ""){
-            headers["Www-Authenticate"] = `L402 macaroon="${file.fileData.macaroon}"preimage="${file.fileData.preimage}"`;
+        if (file.fileData.invoice != "" && file.fileData.preimage != ""){
+            headers["X-Lightning"] = `${file.fileData.preimage}`;
+            // headers["X-Lightning"] = `8358ad49931cef976f6ac21f43bdf053c5d71a0d01337845ca582ec6058eb80f`;
         }
         let uploadMessage = null
 
@@ -144,7 +145,7 @@
             if (response.status.toString() == "402"){
                 if (showMessages) updateMessage(uploadMessage, '<i class="bi bi-exclamation-circle-fill pe-1"></i>' + response.statusText, "alert-warning");
                 if (showMessages) hideMessage(uploadMessage, 5000);
-                return { "filename": file.name, "url": "", "macaroon": response.headers.get('Www-Authenticate') ? extractMacaroon(response.headers.get('Www-Authenticate')) : "", "invoice": response.headers.get('Www-Authenticate') != "" ? extractInvoice(response.headers.get('Www-Authenticate')) : "", "satoshi": response.statusText };
+                return { "filename": file.name, "url": "", "invoice": response.headers.get('X-Lightning'), "satoshi": response.headers.get('X-Reason') };
             }
 
             let serverData = await response.json();
@@ -152,7 +153,7 @@
             if (!response.status.toString().startsWith("2")) {
                 if (showMessages) updateMessage(uploadMessage, '<i class="bi bi-exclamation-circle-fill pe-1"></i>' + serverData.message, "alert-danger");
                 if (showMessages) hideMessage(uploadMessage, 5000);
-                return { "filename": file.name, "url": "", "macaroon": response.headers.get('Www-Authenticate') ? extractMacaroon(response.headers.get('Www-Authenticate')) : "", "invoice": response.headers.get('Www-Authenticate') != "" ? extractInvoice(response.headers.get('Www-Authenticate')) : "" };
+                return { "filename": file.name, "url": "", "invoice": response.headers.get('X-Lightning')};
             }
 
             if (serverData.processing_url && serverData.processing_url != "") {
@@ -166,7 +167,6 @@
                     content: 'Authorization event for file upload status',
                 };
                 authEvent = btoa(JSON.stringify(await window.nostr.signEvent(authEvent)));
-                // serverData.processing_url.includes("cdn") ? serverData.processing_url = serverData.processing_url.replace("api/v2/media/", "") : null;
             }
 
             while (serverData.processing_url) {
@@ -200,13 +200,13 @@
                 `
             );
             if (showMessages) hideMessage(uploadMessage, 15000);
-            return { "filename": file.name, "url": url, "macaroon": response.headers.get('Www-Authenticate') ? extractMacaroon(response.headers.get('Www-Authenticate')) : "", "invoice": response.headers.get('Www-Authenticate') ? extractInvoice(response.headers.get('Www-Authenticate')) : "" };
+            return { "filename": file.name, "url": url, "invoice": response.headers.get('X-Lightning')};
 
         } catch (error) {
             console.log(error.message);
             if (showMessages) updateMessage(uploadMessage, '<i class="bi bi-exclamation-circle-fill pe-1"></i>' + error, "alert-danger");
             if (showMessages) hideMessage(uploadMessage, 5000);
-            return { "filename": file.name, "url": "", "macaroon": "", "invoice": "" };
+            return { "filename": file.name, "url": "", "invoice": "" };
         }
     }
 
@@ -228,17 +228,6 @@
                 break;
         }
         return preferredMimeType;
-    }
-
-    function extractInvoice(wwwAuthenticate) {
-        const match = wwwAuthenticate.match(/invoice="([^"]+)"/);
-        return match ? match[1] : null;
-    }
-
-    function extractMacaroon(wwwAuthenticate) {
-        const match = wwwAuthenticate.match(/macaroon="([^"]+)"/);
-        console.log(match);
-        return match ? match[1] : null;
     }
 
     document.addEventListener('DOMContentLoaded', async () => {
@@ -302,11 +291,6 @@
                         return satoshiFormatter(value, row, index);
                     },
                     class: 'text-end'
-                },
-                {
-                    field: 'macaroon',
-                    title: 'Macaroon',
-                    visible: false
                 },
                 {
                     field: 'isPaid',
@@ -406,7 +390,6 @@
                     action: 'init',
                     accepted: true,
                     satoshi: -1,
-                    macaroon: null,
                     invoice: null,
                     isPaid: false,
                     hash: null,
@@ -424,6 +407,7 @@
                 }
                 if (oneFile && fileServerInfo == true) {
                     if (file.fileData.satoshi > 0) {
+                        console.log(file.fileData.invoice, file.fileData.satoshi, file.fileData.id, instance)
                         handlePayment(file.fileData.invoice, file.fileData.satoshi, file.fileData.id, instance).then(async (result) => {
                         if (result) {
                             file.fileData.isPaid = true;
@@ -551,7 +535,6 @@
                 continue;
             }
 
-            result.macaroon != null ? file.fileData.macaroon = result.macaroon : null;
             result.invoice != null ? file.fileData.invoice = result.invoice : null;
             file.fileData.action = 'success';
             file.fileData.processed = true;
@@ -633,9 +616,11 @@
             const filesArr = window[`${i}filesArray`];
             const row = $('#' + i + 'file-table').bootstrapTable('getRowByUniqueId', id);
             initPaymentModal(value, row.satoshi, i).then(result => {
+                console.log(result)
                 if (result != "") {
                     row.isPaid = true;
                     row.preimage = result;
+                    console.log(row)
                     $('#' + i + 'table').bootstrapTable('updateRow', {
                         index: id,
                         row: row
@@ -657,8 +642,7 @@
             // 402 Payment Required
             if (serverInfo.status == 402) {
                 file.fileData.accepted = true;
-                file.fileData.invoice = extractInvoice(serverInfo.wwwAuthenticate)
-                file.fileData.macaroon = extractMacaroon(serverInfo.wwwAuthenticate)
+                file.fileData.invoice = serverInfo.payment_request
                 file.fileData.satoshi = serverInfo.message;
                 $('#' + instance + 'file-table').bootstrapTable('load', filesArray.map(file => file.fileData));
                 return true;

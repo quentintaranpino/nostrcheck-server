@@ -20,7 +20,7 @@ import fs from "fs";
 import { NIP94_data, NIP96_event, NIP96_processing } from "../interfaces/nostr.js";
 import { PrepareNIP96_event, PrepareNIP96_listEvent } from "../lib/nostr/NIP96.js";
 import { generateQRCode, getClientIp, getNewDate } from "../lib/utils.js";
-import { generateBlurhash, generatefileHashfrombuffer } from "../lib/hash.js";
+import { generateBlurhash, generatefileHashfrombuffer, hashString } from "../lib/hash.js";
 import { isModuleEnabled } from "../lib/config.js";
 import { redisClient } from "../lib/redis.js";
 import { deleteFile, getFilePath } from "../lib/storage/core.js";
@@ -28,15 +28,15 @@ import { saveTmpFile } from "../lib/storage/local.js";
 import { Readable } from "stream";
 import { getRemoteFile } from "../lib/storage/remote.js";
 import { transaction } from "../interfaces/payments.js";
-import { calculateSatoshi, checkTransaction, collectInvoice, getInvoice, updateAccountId, validatePreimage } from "../lib/payments/core.js";
+import { calculateSatoshi, checkTransaction, collectInvoice, getInvoice, updateAccountId } from "../lib/payments/core.js";
 import { blobDescriptor, BUDKinds } from "../interfaces/blossom.js";
 import { prepareBlobDescriptor } from "../lib/blossom/BUD02.js";
 import { loadCdnPage } from "./frontend.js";
 import { getBannedMediaFile, isContentBanned } from "../lib/banned.js";
 import { mirrorFile } from "../lib/blossom/BUD04.js";
-import { checkMacaroon, decodeMacaroon, verifyMacaroon } from "../lib/payments/macaroons.js";
 import { executePlugins } from "../lib/plugins/core.js";
 import { setAuthCookie } from "../lib/frontend.js";
+import { localEngineStart } from "../lib/moderation/local.js";
 
 const uploadMedia = async (req: Request, res: Response, version:string): Promise<Response> => {
 
@@ -189,59 +189,6 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 	// Plugins engine execution
 	if (await executePlugins({pubkey: filedata.pubkey, filename: filedata.filename, ip: getClientIp(req)}, app) == false) {
 		return res.status(401).send({"status": "error", "message": "Not authorized"});
-	}
-
-	// Macaroon verification. If macaroon is valid, we check if the file is paid, 
-	const macaroon = req.headers["www-authenticate"]?.match(/macaroon="([^"]+)"/)?.[1];
-	const preimage = req.headers["www-authenticate"]?.match(/preimage="([^"]+)"/)?.[1].length == 64 ? req.headers["www-authenticate"]?.match(/preimage="([^"]+)"/)?.[1] : undefined;
-	if (macaroon && macaroon != 'null'){
-		if (await verifyMacaroon(macaroon)) {
-			const macaroonData = decodeMacaroon(macaroon);
-			const caveatHash = macaroonData?.caveats?.find((caveat) => caveat.startsWith("hash="));
-			if (caveatHash != undefined && caveatHash.split("=")[1] == filedata.originalhash) {
-				filedata.transaction_id = macaroonData?.token_id || "";
-				if (preimage && preimage != "") {
-					if ((await validatePreimage(filedata.transaction_id, preimage)) == true) {
-						const invoice = await getInvoice(filedata.transaction_id);
-						if (invoice) {
-							invoice.preimage = preimage;
-							invoice.paidDate = new Date().toISOString().slice(0, 19).replace('T', ' ');
-							await collectInvoice(invoice,false,true);
-						}
-					}
-				}else{
-					if (app.get("config.payments")["allowUnpaidUploads"] == false && await calculateSatoshi("mediafiles", filedata.filesize) > 0 && app.get("config.payments")["satoshi"]["mediaMaxSatoshi"] > 0) {
-						logger.warn(`RES -> 402 Payment Required - File not paid`, "|", getClientIp(req));
-						const macaroonData = await checkMacaroon(filedata.hash, Number(filedata.filesize),filedata.no_transform == true ? false : true, req.url);
-						if (macaroonData.status == "error"){
-							logger.error(`Error checking macaroon for hash ${filedata.hash} | ${getClientIp(req)}`);
-							res.setHeader("X-Reason", "Error creating macaroon");
-							return res.status(500).send();
-						}
-						if (macaroonData.Invoice != undefined && macaroonData.macaroon != undefined){
-							res.setHeader('Www-Authenticate', `L402 macaroon="${macaroonData.macaroon}",invoice="${macaroonData.Invoice}"`);
-							res.setHeader("X-Reason", `${macaroonData.satoshi}`);
-							return res.status(402).send();
-						}
-					}
-				}
-			}
-		}
-	}else{
-		if (app.get("config.payments")["allowUnpaidUploads"] == false  && await calculateSatoshi("mediafiles", filedata.filesize) > 0 && app.get("config.payments")["satoshi"]["mediaMaxSatoshi"] > 0) {
-			const macaroonData = await checkMacaroon(filedata.hash, Number(filedata.filesize),filedata.no_transform == true ? false : true, req.url);
-			if (macaroonData.status == "error"){
-				logger.error(`Error checking macaroon for hash ${filedata.hash} | ${getClientIp(req)}`);
-				res.setHeader("X-Reason", "Error creating macaroon");
-				return res.status(500).send();
-			}
-		
-			if (macaroonData.Invoice != undefined && macaroonData.macaroon != undefined){
-				res.setHeader('Www-Authenticate', `L402 macaroon="${macaroonData.macaroon}",invoice="${macaroonData.Invoice}"`);
-				res.setHeader("X-Reason", `${macaroonData.satoshi}`);
-				return res.status(402).send();
-			}
-		}
 	}
 
 	// URL (NIP96 and old API compatibility)
@@ -443,22 +390,40 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 
 	logger.info(`RES -> 200 OK - ${filedata.description}`, "|", getClientIp(req));
 
+	// Payment engine
 	if (isModuleEnabled("payments", app)) {
-		if (preimage == undefined) {
-			const transaction = await checkTransaction(filedata.transaction_id, filedata.fileid, "mediafiles", filedata.filesize, filedata.pubkey);
-			transaction.isPaid == false ? filedata.payment_request = transaction.paymentRequest : null;
-			const macaroonData = await checkMacaroon(filedata.hash, Number(filedata.filesize),filedata.no_transform == true ? false : true, req.url);
-			if (macaroonData.status == "error"){
-				logger.error(`Error checking macaroon for hash ${filedata.hash} | ${getClientIp(req)}`);
-				res.setHeader("X-Reason", "Error creating macaroon");
-				responseStatus = 500;
-			}
-			if (macaroonData.Invoice != undefined && macaroonData.macaroon != undefined){
-				res.setHeader('Www-Authenticate', `L402 macaroon="${macaroonData.macaroon}",invoice="${macaroonData.Invoice}"`);
-				res.setHeader("X-Reason", `${macaroonData.satoshi}`);
-				if (processFile == false) responseStatus = 402; 
+
+		const preimage = req.headers["x-lightning"]?.toString().length == 64 ? req.headers["x-lightning"]?.toString() : undefined;
+		filedata.transaction_id = (await dbMultiSelect(["transactionid"], "mediafiles", filedata.no_transform ? "hash = ?" : "original_hash = ?", [filedata.hash], true))[0]?.transactionid || "" ;
+		const transaction = await checkTransaction(filedata.transaction_id, filedata.fileid, "mediafiles", filedata.no_transform ?  Number(Number(filedata.filesize)) : Number(filedata.filesize)/3, filedata.pubkey);
+		
+		if (preimage != undefined) {
+			const receivedInvoice = await getInvoice(await hashString(preimage, "preimage"));
+			if (receivedInvoice.paymentHash != "" && receivedInvoice.transactionid.toString() == filedata.transaction_id){
+				await collectInvoice(receivedInvoice, false, true); 
+				transaction.isPaid = true;
 			}
 		}
+
+		if (preimage == undefined  && transaction.isPaid == false){
+			filedata.payment_request = transaction.paymentRequest;
+			processFile == false ? responseStatus = 402 : null;
+			res.setHeader("X-Lightning", transaction.paymentRequest);
+			res.setHeader("X-Reason", transaction.satoshi);
+		}
+
+		if (
+			app.get("config.payments")["allowUnpaidUploads"] === false 	  &&
+			await calculateSatoshi("mediafiles", filedata.filesize) > 0   &&
+			app.get("config.payments")["satoshi"]["mediaMaxSatoshi"] > 0  &&
+			transaction.isPaid == false
+		) {
+			responseStatus = 402;
+			res.setHeader("X-Lightning", transaction.paymentRequest);
+			res.setHeader("X-Reason", transaction.satoshi);
+			return res.status(responseStatus).send({"status": "error", "message": "Payment required"});
+		}
+
 	}
 
 	//v0 and v1 compatibility
@@ -564,19 +529,14 @@ const headMedia = async (req: Request, res: Response): Promise<Response> => {
 		logger.error('RES -> 404 Not found - file not found in database', "|", getClientIp(req));
 		return res.status(404).send();
 	}
-
+ 
 	// Payment required ?
 	if (await isModuleEnabled("payments", app)) {
-		const macaroonData = await checkMacaroon(hash, Number(fileData[0].filesize),fileData[0].hash != fileData[0].original_hash ? false : true, req.url);
-		if (macaroonData.status == "error"){
-			logger.error(`Error checking macaroon for hash ${fileData[0].hash} | ${getClientIp(req)}`);
-			res.setHeader("X-Reason", "Error creating macaroon");
-			return res.status(500).send(await getNotFoundMediaFile());
-		}
-		if (macaroonData.Invoice != undefined && macaroonData.macaroon != undefined){
-			res.setHeader('Www-Authenticate', `L402 macaroon="${macaroonData.macaroon}",invoice="${macaroonData.Invoice}"`);
-			res.setHeader("X-Reason", `${macaroonData.satoshi}`);
-			return res.status(402).send(await getNotFoundMediaFile());
+		const transactionId = (await dbMultiSelect(["transactionid"], "mediafiles", fileData[0].hash != fileData[0].original_hash ? "original_hash = ?" : "hash = ?", [hash], true))[0]?.transactionid || "" ;
+		const transaction = await checkTransaction(transactionId,"","mediafiles", fileData[0].hash != fileData[0].original_hash ? Number(fileData[0].filesize)/3 : Number(Number(fileData[0].filesize)),"");
+		if (transaction.transactionid != 0 && transaction.isPaid == false && app.get("config.payments")["satoshi"]["mediaMaxSatoshi"] > 0) {
+			res.setHeader("X-Lightning", transaction.paymentRequest);
+			res.setHeader("X-Reason", transaction.satoshi);
 		}
 	}
 
@@ -1005,9 +965,19 @@ const getMediabyURL = async (req: Request, res: Response) => {
 		// Allways set the correct filename
 		req.params.filename = filedata[0].filename
 
-		// Check if exist a transaction for this media file and if it is paid.
+
+		// Check if exist a transaction for this media file and if it is paid. Check preimage
 		const transaction = await checkTransaction(filedata[0].transactionid, filedata[0].id, "mediafiles", Number(filedata[0].filesize), req.params.pubkey, app.get("config.payments")["satoshi"]["mediaMaxSatoshi"]) as transaction;
-		if (transaction.paymentHash != "" && transaction.isPaid == false && isModuleEnabled("payments", app) && adminRequest == false) {
+		const preimage = req.headers["x-lightning"]?.toString().length == 64 ? req.headers["x-lightning"]?.toString() : undefined;
+		if (preimage && preimage != "") {
+			const receivedInvoice = await getInvoice(await hashString(preimage, "preimage"));
+			if (receivedInvoice.paymentHash != "" && receivedInvoice.transactionid.toString() == filedata[0].transaction_id){
+				await collectInvoice(receivedInvoice, false, true); 
+				transaction.isPaid = true;
+			} 
+		}
+
+		if (isModuleEnabled("payments", app) && transaction.paymentHash != "" && transaction.isPaid == false &&  adminRequest == false) {
 
 			// If the GET request has no authorization, we return a QR code with the payment request.
 			logger.info(`RES -> 200 Paid media file ${req.url}`, "|", getClientIp(req), "|", "cached:", cachedStatus ? true : false);
@@ -1019,16 +989,9 @@ const getMediabyURL = async (req: Request, res: Response) => {
 			filedata[0].mimetype.startsWith("video") ? res.setHeader('Content-Type', "video/mp4") : res.setHeader('Content-Type', "image/webp");
 			res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
 			res.setHeader('Expires', '0');
-			const macaroonData = await checkMacaroon(filedata[0].hash, Number(filedata[0].filesize),filedata[0].hash != filedata[0].original_hash ? false : true, req.url);
-			if (macaroonData.status == "error"){
-				logger.error(`Error checking macaroon for hash ${filedata[0].hash} | ${getClientIp(req)}`);
-				res.setHeader("X-Reason", "Error creating macaroon");
-				res.status(500).send(await getNotFoundMediaFile());
-			}
-			if (macaroonData.Invoice != undefined && macaroonData.macaroon != undefined){
-				res.setHeader('Www-Authenticate', `L402 macaroon="${macaroonData.macaroon}",invoice="${macaroonData.Invoice}"`);
-				res.setHeader("X-Reason", `${macaroonData.satoshi}`);
-			}
+
+			res.setHeader('X-Lightning', transaction.paymentRequest);
+			res.setHeader('X-Reason', transaction.satoshi);
 			
 			if (filedata[0].mimetype.toString().startsWith("video")) {
 				let range : videoHeaderRange;
@@ -1524,7 +1487,7 @@ const headUpload = async (req: Request, res: Response): Promise<Response> => {
 	const size = req.headers['x-content-length'] || 0;
 	const type = Array.isArray(req.headers['x-content-type']) ? req.headers['x-content-type'][0] || "" : req.headers['x-content-type'] || "";
 	const hash = Array.isArray(req.headers['x-sha-256']) ? req.headers['x-sha-256'][0] : req.headers['x-sha-256'] || "";
-	const transform = Array.isArray(req.headers['blossom-content-metadata']) ? req.headers['blossom-content-metadata'][0] || "" : req.headers['blossom-content-metadata'] || "";
+	const transform = Array.isArray(req.headers['x-Content-Transform']) ? req.headers['x-Content-Transform'][0] || "" : req.headers['x-Content-Transform'] || "";
 
 	if (!Number(size) || size == 0 || type == "" || hash == "") {
 		logger.warn("RES -> 400 Bad request - missing size, type or SHA-256", "|", getClientIp(req));
@@ -1538,16 +1501,11 @@ const headUpload = async (req: Request, res: Response): Promise<Response> => {
 		return res.status(400).send();
 	}
 
-	const macaroonData = await checkMacaroon(hash,Number(size),transform == '0'? false:true,req.url);
-	if (macaroonData.status == "error"){
-		logger.error(`Error checking macaroon for hash ${hash} | ${getClientIp(req)}`);
-		res.setHeader("X-Reason", "Error creating macaroon");
-		return res.status(500).send();
-	}
-
-	if (macaroonData.Invoice != undefined && macaroonData.macaroon != undefined){
-		res.setHeader('Www-Authenticate', `L402 macaroon="${macaroonData.macaroon}",invoice="${macaroonData.Invoice}"`);
-		res.setHeader("X-Reason", `${macaroonData.satoshi}`);
+	const transactionId = (await dbMultiSelect(["transactionid"], "mediafiles", transform != '0' ? "original_hash = ?" : "hash = ?", [hash], true))[0]?.transactionid || "" ;
+	const transaction = await checkTransaction(transactionId,"","mediafiles", transform != '0' ?  Number(size)/3 : Number(Number(size)),"");
+	if (transaction.transactionid != 0 && transaction.isPaid == false && app.get("config.payments")["satoshi"]["mediaMaxSatoshi"] > 0) {
+		res.setHeader("X-Lightning", transaction.paymentRequest);
+		res.setHeader("X-Reason", transaction.satoshi);
 		return res.status(402).send();
 	}
 

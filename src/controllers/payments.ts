@@ -121,8 +121,8 @@ const getInvoiceStatus = async (req: Request, res: Response): Promise<Response> 
         return res.status(400).send(result);
     }
 
-    const invoiceId = await dbMultiSelect(["id"], "transactions", "paymentrequest = ?", [req.params.payreq])
-    if (invoiceId.length == 0) {
+    const payment_hash = await dbMultiSelect(["paymenthash"], "transactions", "paymentrequest = ?", [req.params.payreq])
+    if (payment_hash.length == 0) {
         const result : ResultMessagev2 = {
             status: "error",
             message: "Invoice not found"
@@ -131,7 +131,7 @@ const getInvoiceStatus = async (req: Request, res: Response): Promise<Response> 
         return res.status(404).send(result);
     }
 
-    const invoice = await getInvoice(invoiceId[0].id)
+    const invoice = await getInvoice(payment_hash[0].paymenthash);
     if (invoice.isPaid == false) {
         const paidInfo = await isInvoicePaid(invoice.paymentHash);
         if (paidInfo.paiddate != "" && paidInfo.paiddate != undefined && paidInfo.preimage != "" && paidInfo.preimage != undefined) {
