@@ -19,6 +19,7 @@ const checkTransaction = async (transactionid : string, originId: string, origin
     let transaction = await getTransaction(transactionid);
     const balance = await getBalance(transaction.accountid);
     const satoshi = await calculateSatoshi(originTable, size, maxSatoshi);
+    transaction.satoshi = satoshi;
 
     if (satoshi == 0) {
         return emptyTransaction;
@@ -32,7 +33,7 @@ const checkTransaction = async (transactionid : string, originId: string, origin
         
         // If the balance is enough we pay the transaction and return the updated transaction
         if (balance >= satoshi) {
-            let inv = await getInvoice(transaction.paymentHash);
+            const inv = await getInvoice(transaction.paymentHash);
             inv.paidDate = getNewDate();
             if (await collectInvoice(inv)){
                 logger.info("Paying invoice with user balance:", balance, "satoshi:", satoshi, "transactionid:", inv.transactionid, "Accountid:", inv.accountid)
@@ -573,10 +574,11 @@ const cleanTransactions = async () => {
 
     if (!isModuleEnabled("payments", app))return;
 
-    const result = await dbMultiSelect(["id"], "transactions", "accountid = ? and paid = 0", ["1100000000"], false);
+    const result = await dbMultiSelect(["id"], "transactions", "accountid = ? AND paid = 0 AND createddate < NOW() - INTERVAL 24 HOUR", ["1100000000"], false);
     result.forEach(async transaction => {
         await deleteTransaction(transaction.id);
     })
+    logger.info("Cleaned unpaid transactions for account 1100000000");
     setTimeout(cleanTransactions, app.get("config.payments")["invoicePaidInterval"] * 1000);
 }
 cleanTransactions();

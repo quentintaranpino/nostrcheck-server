@@ -28,7 +28,7 @@ import { saveTmpFile } from "../lib/storage/local.js";
 import { Readable } from "stream";
 import { getRemoteFile } from "../lib/storage/remote.js";
 import { transaction } from "../interfaces/payments.js";
-import { calculateSatoshi, checkTransaction, collectInvoice, getInvoice, updateAccountId } from "../lib/payments/core.js";
+import { checkTransaction, collectInvoice, getInvoice, updateAccountId } from "../lib/payments/core.js";
 import { blobDescriptor, BUDKinds } from "../interfaces/blossom.js";
 import { prepareBlobDescriptor } from "../lib/blossom/BUD02.js";
 import { loadCdnPage } from "./frontend.js";
@@ -36,7 +36,6 @@ import { getBannedMediaFile, isContentBanned } from "../lib/banned.js";
 import { mirrorFile } from "../lib/blossom/BUD04.js";
 import { executePlugins } from "../lib/plugins/core.js";
 import { setAuthCookie } from "../lib/frontend.js";
-import { localEngineStart } from "../lib/moderation/local.js";
 
 const uploadMedia = async (req: Request, res: Response, version:string): Promise<Response> => {
 
@@ -185,6 +184,8 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 	logger.info("filename ->", filedata.filename, "|", getClientIp(req));
 	logger.info("no_transform ->", filedata.no_transform, "|", getClientIp(req));
 
+	// Default return status
+	res.status(201);
 
 	// Plugins engine execution
 	if (await executePlugins({pubkey: filedata.pubkey, filename: filedata.filename, ip: getClientIp(req)}, app) == false) {
@@ -360,8 +361,51 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 			}
 		}
 	}
-	
-	let responseStatus = 201;
+
+	// Payment engine
+	if (isModuleEnabled("payments", app)) {
+
+		// Get preimage from header
+		const preimage = req.headers["x-lightning"]?.toString().length == 64 ? req.headers["x-lightning"]?.toString() : undefined;
+
+		// Find transaction_id from mediafiles table
+		filedata.transaction_id = (await dbMultiSelect(["transactionid"], "mediafiles", filedata.no_transform ? "hash = ?" : "original_hash = ?", [filedata.hash], true))[0]?.transactionid || "";
+
+		// If not exist, find an existing transaction with the same paymenthash and get the transaction_id
+		if (filedata.transaction_id == "" && preimage != undefined) filedata.transaction_id  = (await dbMultiSelect(["id"], "transactions", "paymenthash = ?", [await hashString(preimage, "preimage")], true))[0]?.id || "";
+		
+		// If we have a transaction_id, we update the mediafiles table with the transaction_id and update the transaction table with the mediafiles id
+		if (filedata.transaction_id != "") {
+			await dbUpdate("mediafiles", "transactionid", filedata.transaction_id, ["id"], [filedata.fileid]);
+			await dbUpdate("transactions", "comments", "Invoice for: mediafiles:" + filedata.fileid, ["id"], [filedata.transaction_id]);
+		}
+
+		// Get the transaction object for the file
+		const transaction = await checkTransaction(filedata.transaction_id, filedata.fileid, "mediafiles", filedata.no_transform ?  Number(Number(filedata.filesize)) : Number(filedata.filesize)/3, filedata.pubkey);
+		
+		// If we have a preimage, compare the paymenthash with the transaction paymenthash and update the invoice status
+		if (preimage != undefined) {
+			const receivedInvoice = await getInvoice(await hashString(preimage, "preimage"));
+			if (receivedInvoice.paymentHash != "" && receivedInvoice.transactionid.toString() == filedata.transaction_id){
+				if (receivedInvoice.isPaid != true) await collectInvoice(receivedInvoice, false, true);
+				transaction.isPaid = true; // Update transaction object
+			}
+		}
+
+		// If the file is not paid, we add the payment request to the response headers
+		if (transaction.isPaid == false){
+			filedata.payment_request = transaction.paymentRequest;
+			res.status(402);
+			res.setHeader("X-Lightning", transaction.paymentRequest);
+			res.setHeader("X-Lightning-amount", transaction.satoshi);
+			res.setHeader("X-Reason", `Invoice (${transaction.satoshi}) for hash: ${filedata.originalhash}`);
+		}
+
+		// If the file is not paid, and we don't allow upaid uploads, we return an error message and a 402 status code with the payment request
+		if (app.get("config.payments")["allowUnpaidUploads"] === false && transaction.isPaid == false) {
+			return res.send({"status": "error", "message": "Payment required"});
+		}
+	}
 
 	if (processFile){
 
@@ -370,7 +414,7 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 		? `${procesingURL}/${filedata.fileid}`
 		: `${filedata.servername}/api/v2/media/${filedata.fileid}`;
 
-		responseStatus = 202;
+		res.status(202)
 
 		//Send request to process queue
 		const t: asyncTask = {req,filedata,};
@@ -390,57 +434,21 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 
 	logger.info(`RES -> 200 OK - ${filedata.description}`, "|", getClientIp(req));
 
-	// Payment engine
-	if (isModuleEnabled("payments", app)) {
-
-		const preimage = req.headers["x-lightning"]?.toString().length == 64 ? req.headers["x-lightning"]?.toString() : undefined;
-		filedata.transaction_id = (await dbMultiSelect(["transactionid"], "mediafiles", filedata.no_transform ? "hash = ?" : "original_hash = ?", [filedata.hash], true))[0]?.transactionid || "" ;
-		const transaction = await checkTransaction(filedata.transaction_id, filedata.fileid, "mediafiles", filedata.no_transform ?  Number(Number(filedata.filesize)) : Number(filedata.filesize)/3, filedata.pubkey);
-		
-		if (preimage != undefined) {
-			const receivedInvoice = await getInvoice(await hashString(preimage, "preimage"));
-			if (receivedInvoice.paymentHash != "" && receivedInvoice.transactionid.toString() == filedata.transaction_id){
-				await collectInvoice(receivedInvoice, false, true); 
-				transaction.isPaid = true;
-			}
-		}
-
-		if (preimage == undefined  && transaction.isPaid == false){
-			filedata.payment_request = transaction.paymentRequest;
-			processFile == false ? responseStatus = 402 : null;
-			res.setHeader("X-Lightning", transaction.paymentRequest);
-			res.setHeader("X-Reason", transaction.satoshi);
-		}
-
-		if (
-			app.get("config.payments")["allowUnpaidUploads"] === false 	  &&
-			await calculateSatoshi("mediafiles", filedata.filesize) > 0   &&
-			app.get("config.payments")["satoshi"]["mediaMaxSatoshi"] > 0  &&
-			transaction.isPaid == false
-		) {
-			responseStatus = 402;
-			res.setHeader("X-Lightning", transaction.paymentRequest);
-			res.setHeader("X-Reason", transaction.satoshi);
-			return res.status(responseStatus).send({"status": "error", "message": "Payment required"});
-		}
-
-	}
-
 	//v0 and v1 compatibility
 	if (version != "v2"){
 		const returnmessage : legacyMediaReturnMessage = await prepareLegacMediaEvent(filedata);
-		return res.status(200).send(returnmessage);
+		return res.send(returnmessage);
 	}
 
 	// Blossom compatibility
 	if (eventHeader.kind == BUDKinds.BUD01_auth) {
 		const returnmessage: blobDescriptor = await prepareBlobDescriptor(filedata);
-		return res.status(responseStatus).send(returnmessage);
+		return res.send(returnmessage);
 	}
 
 	// NIP96 compatibility and fallback
 	const returnmessage : NIP96_event = await PrepareNIP96_event(filedata);
-	return res.status(responseStatus).send(returnmessage);
+	return res.send(returnmessage);
 
 };
 
@@ -536,7 +544,8 @@ const headMedia = async (req: Request, res: Response): Promise<Response> => {
 		const transaction = await checkTransaction(transactionId,"","mediafiles", fileData[0].hash != fileData[0].original_hash ? Number(fileData[0].filesize)/3 : Number(Number(fileData[0].filesize)),"");
 		if (transaction.transactionid != 0 && transaction.isPaid == false && app.get("config.payments")["satoshi"]["mediaMaxSatoshi"] > 0) {
 			res.setHeader("X-Lightning", transaction.paymentRequest);
-			res.setHeader("X-Reason", transaction.satoshi);
+			res.setHeader("X-Lightning-amount", transaction.satoshi);
+			res.setHeader("X-Reason", `Invoice (${transaction.satoshi}) for hash: ${fileData[0].original_hash}`);
 		}
 	}
 
@@ -661,9 +670,10 @@ const getMediaList = async (req: Request, res: Response, version:string): Promis
 			visibility: e.visibility,
 		};
 
+		// Return payment_request if the file is not paid
 		if (isModuleEnabled("payments", app)) {
 			const transaction: transaction = await checkTransaction(listedFile.transaction_id, listedFile.fileid, "mediafiles", listedFile.filesize, listedFile.pubkey);
-			transaction.isPaid == false ? listedFile.payment_request = transaction.paymentRequest : null;
+			if (transaction.isPaid == false) listedFile.payment_request = transaction.paymentRequest;
 		}
 
 		// returnURL
@@ -730,7 +740,6 @@ const getMediaStatusbyID = async (req: Request, res: Response, version:string): 
 	setAuthCookie(res, eventHeader.authkey);
 
 	const servername = "https://" + req.hostname;
-
 	const id = req.params.id || req.query.id || "";
 
 	if (!id) {
@@ -840,8 +849,14 @@ const getMediaStatusbyID = async (req: Request, res: Response, version:string): 
 	}
 
 	if (isModuleEnabled("payments", app)) {
-		const transaction: transaction = await checkTransaction(filedata.transaction_id, filedata.fileid, "mediafiles", filedata.filesize, filedata.pubkey);
-		transaction.isPaid == false ? filedata.payment_request = transaction.paymentRequest : null;
+		const transaction: transaction = await checkTransaction(filedata.transaction_id, filedata.fileid, "mediafiles", filedata.hash != filedata.originalhash ? Number(filedata.filesize)/3 : Number(Number(filedata.filesize)), filedata.pubkey);
+		if(transaction.isPaid == false){
+			filedata.payment_request = transaction.paymentRequest;
+			response = 402;
+			res.setHeader("X-Lightning", transaction.paymentRequest);
+			res.setHeader("X-Lightning-amount", transaction.satoshi);
+			res.setHeader("X-Reason", `Invoice (${transaction.satoshi}) for hash: ${filedata.originalhash}`);
+		}
 	}
 
 	const returnmessage : NIP96_event = await PrepareNIP96_event(filedata);
@@ -991,7 +1006,9 @@ const getMediabyURL = async (req: Request, res: Response) => {
 			res.setHeader('Expires', '0');
 
 			res.setHeader('X-Lightning', transaction.paymentRequest);
-			res.setHeader('X-Reason', transaction.satoshi);
+			res.setHeader('X-Lightning-Amount', transaction.satoshi);
+			res.setHeader("X-Reason", `Invoice (${transaction.satoshi}) for hash: ${filedata[0].original_hash}`);
+
 			
 			if (filedata[0].mimetype.toString().startsWith("video")) {
 				let range : videoHeaderRange;
@@ -1484,10 +1501,31 @@ const headUpload = async (req: Request, res: Response): Promise<Response> => {
 
 	logger.info("REQ -> Upload head", "|", getClientIp(req));
 
+	// Check if authorization header is valid
+	const eventHeader = await parseAuthHeader(req, "upload", false);
+	if (eventHeader.status != "success") {
+		const result : ResultMessagev2 = {
+			status: MediaStatus[1],
+			message: eventHeader.message
+		}
+		return res.status(401).send(result);
+
+	}
+	setAuthCookie(res, eventHeader.authkey);
+
+
+	// Check if the pubkey is banned
+	const isBanned = await isContentBanned(eventHeader.pubkey, "registered");
+	if (isBanned) {
+		logger.warn("RES -> 403 Banned pubkey", "|", getClientIp(req));
+		res.header("X-Reason", "Pubkey banned");
+		return res.status(403).send();
+	}
+
 	const size = req.headers['x-content-length'] || 0;
 	const type = Array.isArray(req.headers['x-content-type']) ? req.headers['x-content-type'][0] || "" : req.headers['x-content-type'] || "";
 	const hash = Array.isArray(req.headers['x-sha-256']) ? req.headers['x-sha-256'][0] : req.headers['x-sha-256'] || "";
-	const transform = Array.isArray(req.headers['x-Content-Transform']) ? req.headers['x-Content-Transform'][0] || "" : req.headers['x-Content-Transform'] || "";
+	const transform = Array.isArray(req.headers['x-content-transform']) ? req.headers['x-content-transform'][0] || "" : req.headers['x-content-transform'] || "";
 
 	if (!Number(size) || size == 0 || type == "" || hash == "") {
 		logger.warn("RES -> 400 Bad request - missing size, type or SHA-256", "|", getClientIp(req));
@@ -1495,20 +1533,31 @@ const headUpload = async (req: Request, res: Response): Promise<Response> => {
 		return res.status(400).send();
 	}
 
+	// Check if the MIME type is allowed
 	if(!getAllowedMimeTypes().includes(type)){
 		logger.info(`Filetype not allowed: ${type} | ${getClientIp(req)}`);
 		res.setHeader("X-Reason", "Filetype not allowed");
 		return res.status(400).send();
 	}
 
+	// Check if the file hash is banned
+	const isHashBanned = await isContentBanned(hash, "mediafiles");
+	if (isHashBanned) {
+		logger.warn("RES -> 403 Banned hash", "|", getClientIp(req));
+		res.header("X-Reason", "SHA-256 hash banned");
+		return res.status(403).send();
+	}
+
 	const transactionId = (await dbMultiSelect(["transactionid"], "mediafiles", transform != '0' ? "original_hash = ?" : "hash = ?", [hash], true))[0]?.transactionid || "" ;
 	const transaction = await checkTransaction(transactionId,"","mediafiles", transform != '0' ?  Number(size)/3 : Number(Number(size)),"");
 	if (transaction.transactionid != 0 && transaction.isPaid == false && app.get("config.payments")["satoshi"]["mediaMaxSatoshi"] > 0) {
 		res.setHeader("X-Lightning", transaction.paymentRequest);
-		res.setHeader("X-Reason", transaction.satoshi);
+		res.setHeader("X-Lightning-Amount", transaction.satoshi);
+		res.setHeader("X-Reason", `Invoice (${transaction.satoshi}) for hash: ${hash}`);
 		return res.status(402).send();
 	}
 
+	res.header("X-Reason", "Upload allowed");
 	return res.status(200).send();
 }
 

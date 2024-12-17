@@ -50,7 +50,7 @@
 
     const oneFile = '<%= typeof oneFile !== "undefined" && oneFile ? "true" : "false" %>' === "true";
 
-    const fetchFileServerInfo = async (file) => {
+    const fetchFileServerInfo = async (file, authEvent) => {
 
         if (!file) {
             return { "status": "error", "message": "No file selected", "satoshi": 0 };
@@ -61,6 +61,7 @@
 
         if (!fileType) {
             try {
+
                 const res = await fetch('https://cdn.jsdelivr.net/gh/jshttp/mime-db/db.json');
                 const data = await res.json();
 
@@ -84,9 +85,11 @@
         }
 
         try {
+
             const response = await fetch(window.location.hostname.includes("cdn") ? '/upload' : '/api/v2/media/upload', {
                 method: "HEAD",
                 headers: {
+                    "Authorization": "Nostr " + authEvent,
                     "X-Content-Length": file.size.toString(),
                     "X-Content-Type": fileType,
                     "X-SHA-256": `${file.fileData.hash}`,
@@ -97,6 +100,7 @@
                 status : response.status,
                 message : response.headers.get('X-Reason'),
                 payment_request : response.headers.get('X-Lightning'),
+                satoshi : response.headers.get('X-Lightning-amount'),
             }
             return data;
 
@@ -142,15 +146,9 @@
                 body: method == "PUT" ? file : formData
             });
 
-            if (response.status.toString() == "402"){
-                if (showMessages) updateMessage(uploadMessage, '<i class="bi bi-exclamation-circle-fill pe-1"></i>' + response.statusText, "alert-warning");
-                if (showMessages) hideMessage(uploadMessage, 5000);
-                return { "filename": file.name, "url": "", "invoice": response.headers.get('X-Lightning'), "satoshi": response.headers.get('X-Reason') };
-            }
-
             let serverData = await response.json();
 
-            if (!response.status.toString().startsWith("2")) {
+            if (!response.status.toString().startsWith("2") && !response.status.toString() == "402") {
                 if (showMessages) updateMessage(uploadMessage, '<i class="bi bi-exclamation-circle-fill pe-1"></i>' + serverData.message, "alert-danger");
                 if (showMessages) hideMessage(uploadMessage, 5000);
                 return { "filename": file.name, "url": "", "invoice": response.headers.get('X-Lightning')};
@@ -636,14 +634,40 @@
 
     const getFileServerInfo = async (file) => {
 
-        const serverInfo = await fetchFileServerInfo(file);
+            try {
+                const pubKey = await window.nostr.getPublicKey();
+
+                if (!pubKey){console.debug('NIP07 public key not found');
+                    return;
+                }
+
+                authEvent = {
+
+                    kind: 24242,
+                    created_at: Math.floor(Date.now() / 1000),
+                    tags: [
+                        ["t", 'upload'],
+                        ["x", file.fileData.hash],
+                        ["expiration", Math.floor(Date.now() / 1000) + 3600],
+                        ],
+                    content: 'Blossom authorization event for file upload',
+                };
+
+                authEvent = btoa(JSON.stringify(await window.nostr.signEvent(authEvent)));
+
+            } catch (error) {
+                console.error(error);
+            }
+
+        const serverInfo = await fetchFileServerInfo(file, authEvent);
+        console.log(serverInfo)
         if (!serverInfo || !serverInfo?.status?.toString().startsWith(2)){
 
             // 402 Payment Required
             if (serverInfo.status == 402) {
                 file.fileData.accepted = true;
                 file.fileData.invoice = serverInfo.payment_request
-                file.fileData.satoshi = serverInfo.message;
+                file.fileData.satoshi = serverInfo.satoshi;
                 $('#' + instance + 'file-table').bootstrapTable('load', filesArray.map(file => file.fileData));
                 return true;
             }else{
