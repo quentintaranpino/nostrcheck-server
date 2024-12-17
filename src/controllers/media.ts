@@ -923,7 +923,6 @@ const getMediabyURL = async (req: Request, res: Response) => {
 		}
 		setAuthCookie(res, adminHeader.authkey || loggedHeader.authkey);
 	}
-	
 
 	// Check if the file is cached, if not, we check the database for the file.
 	const cachedStatus = await redisClient.get(req.params.filename + "-" + req.params.pubkey);
@@ -992,6 +991,8 @@ const getMediabyURL = async (req: Request, res: Response) => {
 				transaction.isPaid = true;
 			} 
 		}
+
+		logger.debug(`adminRequest ${adminRequest}, loggedPubkey ${loggedPubkey}, pubkey ${filedata[0].pubkey}, transaction.isPaid ${transaction.isPaid}`, "|", getClientIp(req));
 
 		if (isModuleEnabled("payments", app) && transaction.paymentHash != "" && transaction.isPaid == false &&  adminRequest == false) {
 
@@ -1068,9 +1069,6 @@ const getMediabyURL = async (req: Request, res: Response) => {
 	// mediaPath checks
 	const mediaLocation = app.get("config.storage")["type"];
 	logger.debug("Media location:", mediaLocation, "|", getClientIp(req));
-
-	logger.debug(`adminRequest ${adminRequest}, loggedPubkey ${loggedPubkey}, cachedStatus ${cachedStatus}`, "|", getClientIp(req));
-
 
 	if (mediaLocation == "local") {
 		const mediaPath = path.normalize(path.resolve(app.get("config.storage")["local"]["mediaPath"]));
