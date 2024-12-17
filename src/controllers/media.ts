@@ -992,6 +992,8 @@ const getMediabyURL = async (req: Request, res: Response) => {
 			} 
 		}
 
+		logger.debug(`adminRequest ${adminRequest}, loggedPubkey ${loggedPubkey}, pubkey ${filedata[0].pubkey}, transaction.isPaid ${transaction.isPaid}`, "|", getClientIp(req));
+
 		if (isModuleEnabled("payments", app) && transaction.paymentHash != "" && transaction.isPaid == false &&  adminRequest == false) {
 
 			// If the GET request has no authorization, we return a QR code with the payment request.
