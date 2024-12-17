@@ -923,9 +923,13 @@ const getMediabyURL = async (req: Request, res: Response) => {
 		}
 		setAuthCookie(res, adminHeader.authkey || loggedHeader.authkey);
 	}
+	
 
 	// Check if the file is cached, if not, we check the database for the file.
 	const cachedStatus = await redisClient.get(req.params.filename + "-" + req.params.pubkey);
+
+	logger.debug(`adminRequest ${adminRequest}, loggedPubkey ${loggedPubkey}, cachedStatus ${cachedStatus}`, "|", getClientIp(req));
+
 	if (cachedStatus === null || cachedStatus === undefined) {
 
 		// Standard gallery compatibility (pubkey/file.ext or pubkey/file)
@@ -991,8 +995,6 @@ const getMediabyURL = async (req: Request, res: Response) => {
 				transaction.isPaid = true;
 			} 
 		}
-
-		logger.debug(`adminRequest ${adminRequest}, loggedPubkey ${loggedPubkey}, pubkey ${filedata[0].pubkey}, transaction.isPaid ${transaction.isPaid}`, "|", getClientIp(req));
 
 		if (isModuleEnabled("payments", app) && transaction.paymentHash != "" && transaction.isPaid == false &&  adminRequest == false) {
 
