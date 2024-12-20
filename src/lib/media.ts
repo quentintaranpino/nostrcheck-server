@@ -67,6 +67,7 @@ const processFile = async(	inputFile: Express.Multer.File,	options: fileData, re
 		let MediaDuration: number = 0;
 		let ConversionDuration : number = 0;
 		options.newFileDimensions = (await setMediaDimensions(options.conversionInputPath, options)).toString()
+		logger.debug("EUREKA: ", options.newFileDimensions);
 
 		const ConversionEngine = initConversionEngine(options);
 
@@ -135,7 +136,7 @@ const initConversionEngine = (file: fileData) => {
 
     const ffmpegEngine = ffmpeg(file.conversionInputPath)
         .outputOption(["-loop 0"]) //Always loop. If is an image it will not apply.
-		.outputOptions('-vf', 'transpose=0')
+		.inputOptions('-noautorotate') 
         .setSize(file.newFileDimensions)
         .output(file.conversionOutputPath)
         .toFormat(file.filename.split(".").pop() || "");
@@ -269,13 +270,9 @@ const getMediaDimensions = async (file: string, fileData: { originalmime: string
     return new Promise<{ width: number, height: number }>(async (resolve) => {
         try {
             if (fileData.originalmime.startsWith("image")) {
-                const imageInfo = await sharp(file).metadata();
+				const imageInfo = await sharp(file).rotate().metadata();
 				logger.debug("Image info: ", imageInfo);
-                if (imageInfo.orientation && imageInfo.orientation >= 5) {
-                    resolve({ width: imageInfo.height!, height: imageInfo.width! });
-                } else {
-                    resolve({ width: imageInfo.width!, height: imageInfo.height! });
-                }
+				resolve({ width: imageInfo.width!, height: imageInfo.height! });
             } else {
                 ffmpeg.ffprobe(file, (err, metadata) => {
                     if (err) {
