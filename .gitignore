@@ -22,5 +22,5 @@ coverage/*
 compose.override.yml
 data/
 
-
-
+# Ignore logs
+logs/*
