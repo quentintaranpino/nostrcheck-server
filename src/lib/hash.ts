@@ -28,15 +28,19 @@ const generatefileHashfromfile = (filepath:string): string => {
 
 }
 
-const generatefileHashfrombuffer = async (file:Express.Multer.File): Promise<string> => {
+const generatefileHashfrombuffer = async (file:Express.Multer.File, type:string): Promise<string> => {
 
   logger.debug("INIT hash generation from buffer", file.originalname);
 
   let hash = '';
   try{
+
+    // If the file is an avatar or banner, we prepend the type to the buffer to create a unique hash
+    const buffer = type == "avatar" || type == "banner" ? Buffer.concat([Buffer.from(type), file.buffer]) : file.buffer;
+
     hash = crypto
         .createHash("sha256")
-        .update(file.buffer)
+        .update(buffer)
         .digest("hex");
     }
   catch (error) {

@@ -187,7 +187,7 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 	if (!filedata.originalmime.toString().startsWith("image") && !filedata.originalmime.toString().startsWith("video")) filedata.no_transform = true;
 
 	// Uploaded file SHA256 hash and filename
-	filedata.originalhash = await generatefileHashfrombuffer(file);
+	filedata.originalhash = await generatefileHashfrombuffer(file, filedata.media_type);
 	filedata.hash = filedata.originalhash; // At this point, hash is the same as original hash
 	filedata.no_transform == true? filedata.filename = `${filedata.originalhash}.${getExtension(filedata.originalmime)}` : filedata.filename = `${filedata.originalhash}.${getConvertedExtension(filedata.originalmime)}`;
 
