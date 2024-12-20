@@ -1,0 +1,110 @@
+<div id ="settingsStorage">
+    <h3 class="mt-4">Storage</h3>
+    <form class="form mx-auto">
+        <p> In this section, you can customize and manage how your files are stored. 
+            Adjust the parameters according to your needs to optimize performance and organization of the server files.
+        </p>
+        <label for="storage.type" class="mt-2 mb-1 fw-bold">Storage type</label>
+        <p>Local storage is used to store files on the server's disk. Remote storage (S3) is used to store files on an remote S3 bucket.</p>
+        <div class="col-12 col-md-4">
+        <select id="storage.type" name="storage.type" class="form-select">
+            <option value="local" <% if (locals.settingsStorage['type'] === 'local') { %>selected<% } %>>local</option>
+            <option value="remote" <% if (locals.settingsStorage['type'] === 'remote') { %>selected<% } %>>remote</option>
+        </select>
+        </div>
+        <div class="alert alert-danger mt-3" role="alert">
+        <i class="fa-solid fa-triangle-exclamation"></i> 
+        <b> Change this only if you know what you are doing.</b> After changing the storage type, 
+            you need to migrate the files to the new storage type <b>manually.</b>
+        </div>  
+        <label for="storage.local.tempPath" class="mt-2 mb-1 fw-bold">Temp path</label>
+        <p>Path to store the files before they are processed and moved to the final storage location.
+            The path must finish with a slash. <b>(e.g. tmp/)</b>
+        </p>
+        <div class="col-12 col-sm-5 col-md-4">
+        <input  type="text" 
+        id="storage.local.tempPath" 
+        name="storage.local.tempPath" 
+        class="form-control" 
+        value="<%= locals.settingsStorage['local']['tempPath'] %>" 
+        placeholder="Local storage temp path" 
+        required
+        >
+        </div>
+        <h5 class="mt-3">Local storage</h5>
+        <p> In this section, you can configure the local storage settings of your server. 
+            It provides you with the flexibility to customize the local storage settings according to your specific requirements.
+        </p>
+        <label for="storage.local.mediaPath" class="mt-2 mb-1 fw-bold">Media path</label>
+        <p>Path to store the media files on the server's local disk (when the storage type is set to "local"). 
+            The path must finish with a slash. <b>(e.g. media/)</b>
+        </p>
+        <div class="col-12 col-sm-5 col-md-4">
+        <input  type="text" 
+        id="storage.local.mediaPath" 
+        name="storage.local.mediaPath" 
+        class="form-control" 
+        value="<%= locals.settingsStorage['local']['mediaPath'] %>" 
+        placeholder="Local storage media path" 
+        required
+        >
+        </div>
+        <h5 class="mt-3">S3 storage</h5>
+        <p> In this section, you can configure the remote (S3) storage settings of your server. 
+            It provides you with the flexibility to customize the S3 storage settings according to your specific requirements.
+        </p>
+        <label for="storage.remote.bucketName" class="mt-2 mb-1 fw-bold">Bucket name</label>
+        <p>Specify the bucket name for remote (S3) storage.</p>
+        <input  type="text" 
+        id="storage.remote.bucketName" 
+        name="storage.remote.bucketName" 
+        class="form-control" 
+        value="<%= locals.settingsStorage['remote']['bucketName'] %>" 
+        placeholder="S3 storage bucket name" 
+        required
+        >
+        <label for="storage.remote.endpoint" class="mt-2 mb-1 fw-bold">Endpoint</label>
+        <p>Specify the endpoint for remote (S3) storage.</p>
+        <input  type="text" 
+        id="storage.remote.endpoint" 
+        name="storage.remote.endpoint" 
+        class="form-control" 
+        value="<%= locals.settingsStorage['remote']['endpoint'] %>" 
+        placeholder="S3 storage endpoint" 
+        required
+        >
+        <label for="storage.remote.accessKeyId" class="mt-2 mb-1 fw-bold">Access key ID</label>
+        <p>Specify the access key ID for remote (S3) storage.</p>
+        <input  type="text" 
+        id="storage.remote.accessKeyId" 
+        name="storage.remote.accessKeyId" 
+        class="form-control" 
+        value="<%= locals.settingsStorage['remote']['accessKeyId'] %>" 
+        placeholder="S3 storage access key ID" 
+        required
+        >
+        <label for="storage.remote.secretAccessKey" class="mt-2 mb-1 fw-bold">Secret access key</label>
+        <p>Specify the secret access key for remote (S3) storage. </p>
+        <input  type="text" 
+        id="storage.remote.secretAccessKey" 
+        name="storage.remote.secretAccessKey" 
+        class="form-control" 
+        value="<%= locals.settingsStorage['remote']['secretAccessKey'] %>" 
+        placeholder="S3 storage secret access key" 
+        required
+        >
+        <label for="storage.remote.region" class="mt-2 mb-1 fw-bold">Region</label>
+        <p>Specify the region for remote (S3) storage. For Cloudflare storage always use "auto".</p>
+        <input  type="text" 
+        id="storage.remote.region" 
+        name="storage.remote.region" 
+        class="form-control" 
+        value="<%= locals.settingsStorage['remote']['region'] %>" 
+        placeholder="S3 storage region" 
+        required
+        >
+        <div class="col-12 col-md-3 mb-5 mt-4 pb-5 pb-lg-0 mb-lg-2">
+            <button class="btn btn-lg mb-4 btn-primary w-100" name="Submit" type="button" onclick="saveSettings()">Save</button>
+        </div>
+    </form>
+  </div>

@@ -1,60 +1,28 @@
 import app from "../app.js";
-import { mediafilesTableFields } from "../interfaces/database.js";
-import { userMetadata } from "../interfaces/frontend.js";
-import { generateCredentials } from "./authorization.js";
-import { dbSelect } from "./database.js";
-import { getProfileData, getProfileFollowers, getProfileFollowing } from "./nostr/NIP01.js";
-import { Request } from "express";
+import { generateAuthToken } from "./authorization.js";
+import { dbMultiSelect } from "./database.js";
+import { Request, Response } from "express";
 
-const getProfileNostrMetadata = async (pubkey: string): Promise<userMetadata> => {
+const countPubkeyFiles = async (pubkey: string): Promise<number> => {
 
-    if (!pubkey || pubkey == undefined || pubkey == null){
-        return {"about": "", "banner": "", "display_name": "", "followers": 0, "following": 0, "lud16": "", "mediaFiles": [], "name": "", "nip05": "", "picture": "", "username": "", "website": "", "pubkey": ""};
-    }
-
-    let metadata : userMetadata = {"about": "", "banner": "", "display_name": "", "followers": 0, "following": 0, "lud16": "", "mediaFiles": [], "name": "", "nip05": "", "picture": "", "username": "", "website": "", "pubkey": pubkey};
-
-    const nostrMetadata = await getProfileData(pubkey)
-    if (!nostrMetadata || nostrMetadata == undefined || nostrMetadata == null || nostrMetadata.content == undefined || nostrMetadata.content == null){
-        return {"about": "", "banner": "", "display_name": "", "followers": 0, "following": 0, "lud16": "", "mediaFiles": [], "name": "", "nip05": "", "picture": "", "username": "", "website": "", "pubkey": ""};
-    }
-
-    if (!app.get("#p_" + pubkey)){
-        await getProfileFollowers(pubkey);
-    } 
-    if (!app.get("#f_" + pubkey)){
-        await getProfileFollowing(pubkey);
-    }
-
-    metadata = JSON.parse(nostrMetadata.content)
-    metadata.pubkey = pubkey;
-
-    // If If the user picture is not set, we will use the default one.
-    if (!metadata.picture){metadata.picture = "/static/resources/picture-default.webp";}
-    if (!metadata.banner){metadata.banner = "/static/resources/banner-default.webp";}
-
-
-    // Add followers and following to the profile metadata.
-    metadata["followers"] = app.get("#p_" + pubkey) ? app.get("#p_" + pubkey) : 0
-    metadata["following"] = app.get("#f_" + pubkey) ? app.get("#f_" + pubkey) : 0
-
-    return metadata;
-
+    const files = await dbMultiSelect(["id"], "mediafiles", "pubkey = ?", [pubkey], false);
+    return files ? files.length : 0;
 }
 
-const getProfileLocalMetadata = async (pubkey: string): Promise<string[]> => {
-    const mediaFiles = await dbSelect("SELECT filename FROM mediafiles WHERE active = ? and visibility = ? and pubkey = ? ORDER BY date DESC ","filename", ['1', '1', pubkey], mediafilesTableFields, false) as string[];
-
-    return  mediaFiles ? mediaFiles : [];
-}
-
-const isFirstUse = async (req : Request): Promise<boolean> => {
+const isFirstUse = async (req : Request, res: Response): Promise<boolean> => {
 	
 	if (app.get("firstUse") == true){
         req.session.identifier = app.get("config.server")["pubkey"];
-        req.session.authkey = await generateCredentials('authkey', false, req.session.identifier);
-        req.session.metadata = await getProfileNostrMetadata(req.session.identifier);
-        req.body.firstUse =  
+        const authToken = generateAuthToken(req.session.identifier, true);
+        setAuthCookie(res, authToken);
+        req.session.metadata = {
+            hostedFiles: 0,
+            usernames: [],
+            pubkey: app.get("config.server")["pubkey"],
+            npub: app.get("config.server")["npub"],
+            lud16: ""
+        }
+        res.locals.firstUse =  
         "<h5 class='mt-3 mb-2'>Read this carefully 💜</h5>" + 
         "<p>You are automatically logged in with the user administrator '<b>public</b>'. This user is created automatically. " + 
         "It is essential to keep this user in the database for the proper functioning of the server, <b>Don't delete this user</b>.</p>" +
@@ -73,7 +41,7 @@ const isFirstUse = async (req : Request): Promise<boolean> => {
         "<div class='alert alert-primary ps-2 pe-2 pt-1 pb-0' role='alert'>" +
             "<p>The current 'public' legacy's password <b>is sent via nostr DM to himself</b>. You can check it using the most popular relay's (ex. wss://relay.damus.io).<p>" +
         "</div>" + 
-        "<p>You can reset the password of any user, but you will never see what password you have assigned, " + 
+        "<p>You can reset the password of any user, but not set it manually. " +
         "the password will always be sent via DM to the user's related pubkey.</p>" +
         "<h5 class='mt-3 mb-2'>Don't forget</h5>" +
         "<p><b>The server will not autologin again</b>, please keep this in mind before logging out or closing the browser window. " + 
@@ -85,4 +53,25 @@ const isFirstUse = async (req : Request): Promise<boolean> => {
     return false;
 }
 
-export { getProfileNostrMetadata, getProfileLocalMetadata, isFirstUse }
+/**
+ * Sets the authkey cookie and sends it in the response
+ * 
+ * @param res - The Express response object
+ * @param token - The JWT token to be set in the cookie
+ */
+const setAuthCookie = (res: Response, token: string) => {
+
+    const currentToken = res.getHeader('Set-Cookie')?.toString().includes(`authkey=${token}`) ? token : null;
+
+    if (currentToken  == token) return;
+
+    res.cookie('authkey', token, {
+        httpOnly: app.get('config.environment') != "production" ? false : true,
+        secure: app.get('config.environment') != "production" ? false : true,
+        sameSite: 'strict',
+        maxAge: app.get("config.session")["maxAge"],
+    });
+};
+
+
+export {isFirstUse, countPubkeyFiles, setAuthCookie};

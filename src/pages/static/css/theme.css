@@ -1,0 +1,21 @@
+
+        :root {
+            --primary-color: #ff4e50;
+            --secondary-color: #fc913a;
+            --tertiary-color: #f9d423;
+            --primary-color-percent: 20%;
+            --secondary-color-percent: 55%;
+            --tertiary-color-percent: 92%;
+            --gradient-orientation: to bottom right;
+            --particles: astral;
+        }
+
+        .background-theme {
+            background-image: -webkit-linear-gradient(var(--gradient-orientation), var(--primary-color) var(--primary-color-percent), var(--secondary-color) var(--secondary-color-percent), var(--tertiary-color) var(--tertiary-color-percent));
+            background-image: linear-gradient(var(--gradient-orientation), var(--primary-color) var(--primary-color-percent), var(--secondary-color) var(--secondary-color-percent), var(--tertiary-color) var(--tertiary-color-percent));
+            background-repeat: no-repeat;
+            background-size: cover;
+            background-attachment: fixed;
+            particles: var(--particles);
+        }
+        

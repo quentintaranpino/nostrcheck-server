@@ -1,0 +1,170 @@
+<div class="m-1 mt-3 mb-5 mb-lg-3">
+    <ul id="user-notes-list" class="list-group"></ul>
+    <div id="user-notes-list-observer" style="width: 100%; height: 1px; visibility: hidden;"></div>
+</div>
+
+<script>
+
+document.addEventListener('DOMContentLoaded', async (event) => {
+    await loadNotes();
+    const observerTarget = document.getElementById('user-notes-list-observer');
+    const observer = new IntersectionObserver(async (entries) => {
+        const entry = entries[0];
+        if (entry.isIntersecting)  await loadNotes();
+    }, {
+        root: null, 
+        rootMargin: '1000px',
+    });
+    observer.observe(observerTarget);
+});
+
+let currentSince = Math.floor(Date.now() / 1000) - (60 * 24 * 60 * 60);
+let currentUntil = Math.floor(Date.now() / 1000);
+let loading = false; 
+let allNotesLoaded = false; 
+
+let notesData = [];
+let pubkeysData = [];
+
+
+async function loadNotes() {
+    if (loading || allNotesLoaded) return; 
+    loading = true;
+    console.log("loading notes since", currentSince);
+
+    let loadingContainer = document.createElement('div');
+    loadingContainer.id = 'user-notes-list-loading';
+    loadingContainer.classList.add('d-flex', 'justify-content-center', 'm-5');
+    document.getElementById("user-notes-list").appendChild(loadingContainer);
+    let loadingElement = document.createElement('div');
+    loadingElement.classList.add('spinner-border', 'text-secondary');
+    loadingElement.setAttribute('role', 'status');
+    loadingContainer.appendChild(loadingElement);
+
+    await subscribeRelays(1,["<%= request.session.metadata.pubkey %>"], "from", currentSince, currentUntil).then((notes) => {
+
+        if (notes.length === 0) {
+            allNotesLoaded = true;
+            const noNotesContainer = document.createElement('div');
+            noNotesContainer.classList.add('text-center', 'mt-2', 'mb-2');
+            const noNotesText = document.createElement('p');
+            noNotesText.innerHTML = '<i class="fas fa-sticky-note me-2"></i>No more notes to show';
+            noNotesContainer.appendChild(noNotesText);
+            document.getElementById("user-notes-list").appendChild(noNotesContainer);
+            document.getElementById("user-notes-list-loading").remove();
+            return;
+        }
+
+        for (const note of notes) {
+            let content = note.content;
+
+            // Regular expressions for matching media types and line breaks
+            const imgRegex = /https?:\/\/[^\s"]+\.(png|jpg|jpeg|gif|webp)/g;
+            const videoRegex = /https?:\/\/[^\s"]+\.(mp4|webm|ogg)/g;
+            const audioRegex = /https?:\/\/[^\s"]+\.(mp3|wav|ogg)/g;
+            const lineBreakRegex = /(?:\r\n|\r|\n)/g;
+            const nostrRegex = /nostr:(npub|nprofile|note|naddr1)[a-zA-Z0-9]+/g;
+
+            // Replace image links with <img> tags
+            if (content.match(imgRegex)) {
+                content = content.replace(imgRegex, `<div class="text-center"><img src="$&" class=" rounded m-3" style="max-width:80%; height:auto" alt="note image"></div>`);
+            }
+
+            // Replace video links with <video> tags
+            if (content.match(videoRegex)) {
+                content = content.replace(videoRegex, `<div class="text-center"><video src="$&" class="rounded m-3" style="max-width:80%; height:auto" controls></video></div>`);
+            }
+
+            // Replace audio links with <audio> tags
+            if (content.match(audioRegex)) {
+                content = content.replace(audioRegex, `<div class="text-center"><audio src="$&" class="rounded" height="200px" controls></audio></div>`);
+            }
+
+            // Replace line breaks with <br> tags
+            if (lineBreakRegex.test(content)) {
+                content = content.replace(lineBreakRegex, '<br>');
+            }
+
+            // Remove extra line breaks
+            content = content.replace(/<br><br>/g, '<br>');
+
+            // Replace nostr:npub or nostr:nprofile links with <a> tags
+            content = content.replace(nostrRegex, (match) => {
+                const data = match.split(':')[1];
+                if (data.startsWith('npub') || data.startsWith('nprofile')) {
+                    const decoded = NostrTools.nip19.decode(data);
+                    pubkeysData.push({pubkey: decoded.type == 'npub' ? decoded.data : decoded.data.pubkey, data: []});
+                }
+                return `<a href="https://njump.me/${data}" target="_blank" class="link-offset-2 link-underline link-underline-opacity-0 fw-semibold">${data}</a> <i class="fa-xs text-muted fas fa-external-link-alt me-1"></i> `;
+            });
+
+            let noteItem = document.createElement("li");
+            noteItem.id = `note-${note.id}`;
+            noteItem.classList.add("list-group-item", "p-3", "m-3", "mt-0", "border", "border-1", "rounded-3", `note-${currentSince}`, `shadow-sm`);
+            noteItem.style.backgroundColor = "rgba(0, 0, 0, .075)";
+            const profileName  = localStorage.getItem('profileData')? JSON.parse(localStorage.getItem('profileData')).display_name || JSON.parse(localStorage.getItem('profileData')).name : "<%= request.session.metadata.usernames[0].username %>";
+            noteItem.innerHTML = `
+                <div class="d-flex align-items-center mb-2">
+                    <div class="note-picture-container-${currentSince} picture-container" style="width:40px; height:40px; margin-right:10px;"></div>
+                    <div class="d-flex flex-column">
+                        <span class="lead">${profileName}</span>
+                        <small class="text-muted">${new Date(note.created_at * 1000).toLocaleString()}</small>
+                    </div>
+                </div>
+                <p class="m-1">
+                    ${content}
+                </p>
+            `;
+            document.getElementById("user-notes-list").appendChild(noteItem);
+            notesData.push(note);
+        };
+
+    }).catch((error) => {
+        console.error("Error loading notes:", error);
+    }).finally(async() => {
+
+        // Load the pubkeys data from the relays
+        subscribeRelays(0, pubkeysData.filter(p => p.data.length == 0).map(p => p.pubkey), "from", Math.floor(Date.now() / 1000) - (555 * 24 * 60 * 60),Math.floor(Date.now() / 1000)).then((data) => {
+        
+            // Update pubkeysData with the data from relays
+            for (const pubkeyData of pubkeysData) {
+                try{
+                if (data.filter((d) => d.pubkey === pubkeyData.pubkey)[0]?.content == undefined) continue;
+                pubkeyData.data.length == 0 ? pubkeyData.data = JSON.parse(data.filter((d) => d.pubkey === pubkeyData.pubkey)[0]?.content) : null;
+                }catch(e){
+                    console.error("Error parsing data:", data.filter((d) => d.pubkey === pubkeyData.pubkey));
+                }
+            }
+
+            // Replace npub links or nprofile links with the display name or name of the npub/nprofile
+            const nostrRegex = /(npub|nprofile)[^\s"<>]+/g;
+            document.querySelectorAll(`.note-${currentSince}`).forEach(note => {
+                const links = note.querySelectorAll('a[href*="npub"], a[href*="nprofile"]');
+                
+                links.forEach(link => {
+                    let linkText = link.textContent;
+                    linkText = linkText.replace(nostrRegex, (npub) => {
+                        const pubkey = NostrTools.nip19.decode(npub);
+                        if (pubkey.type === 'npub') {
+                            return  pubkeysData.find(p => p.pubkey === pubkey.data).data.display_name || pubkeysData.find(p => p.pubkey === pubkey.data).data.name || npub;
+                        }else if (pubkey.type === 'nprofile') {
+                            return  pubkeysData.find(p => p.pubkey === pubkey.data.pubkey).data.display_name || pubkeysData.find(p => p.pubkey === pubkey.data.pubkey).data.name || npub;
+                        }else{
+                            return npub;
+                        }
+                    });
+                    link.textContent = linkText;
+                });
+            });
+
+        const profilePicture = localStorage.getItem('profileData')? JSON.parse(localStorage.getItem('profileData')).picture || '/static/resources/picture-default.webp' : "<%= request ? request.session.metadata.picture : '/static/resources/picture-default.webp' %>";
+        loadMedia(profilePicture, document.querySelectorAll(`.note-picture-container-${currentSince}`), ['img-thumbnail', 'border-0', 'object-fit-cover', 'w-100', 'h-100']);
+        currentUntil = currentSince; 
+        currentSince -= 60 * 24 * 60 * 60; 
+        loading = false;
+        document.getElementById("user-notes-list-loading").remove();
+        });
+       
+    });
+    }
+</script>

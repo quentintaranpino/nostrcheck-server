@@ -9,7 +9,7 @@
 ## About
 Nostrcheck server is a set of tools to interact with nostr and be sovereign of your data. 
 
-It allows to validate nostr address (NIP05), multimedia uploads (NIP94, NIP96), nostr notes integrity check and lightning redirects. All under NIP98 authentication 100% nostr compatible.
+It allows to validate nostr address (NIP05), multimedia uploads (NIP94, NIP96, and [Blossom](https://github.com/hzrd149/blossom)🌸), nostr notes integrity check and lightning redirects. All under NIP98 authentication 100% nostr compatible.
 
 The server can be installed anywhere and allows anyone to become a nostr service provider. 
 
@@ -25,7 +25,7 @@ In either case, all parameters can be modified using the settings page in the se
 To make a standalone installation you can use the following script. You can find the code [here](https://github.com/quentintaranpino/nostrcheck-api-ts/blob/main/scripts/install.sh)
 
 ```
-curl https://raw.githubusercontent.com/quentintaranpino/nostrcheck-api-ts/main/scripts/install.sh --output install.sh && chmod +x install.sh && ./install.sh
+curl https://raw.githubusercontent.com/quentintaranpino/nostrcheck-api-ts/0.6.0/scripts/install.sh --output install.sh && chmod +x install.sh && ./install.sh
 ```
 
 ### Installation (docker) 
@@ -50,6 +50,10 @@ See documentation [here](https://github.com/quentintaranpino/nostrcheck-api-ts/b
 
 See configuration [here](https://github.com/quentintaranpino/nostrcheck-api-ts/blob/main/CONFIG.md)
 
+## Plugins
+
+See plugins [here](https://github.com/quentintaranpino/nostrcheck-api-ts/blob/main/PLUGINS.md)
+
 ## Screenshots
 ### Dashboard
 ![image](https://github.com/quentintaranpino/nostrcheck-api-ts/assets/125748180/f9f4ab55-3560-49c2-b437-c90079b7a66c)
@@ -69,7 +73,7 @@ See configuration [here](https://github.com/quentintaranpino/nostrcheck-api-ts/b
 ![image](https://github.com/quentintaranpino/nostrcheck-api-ts/assets/125748180/9de9cfc6-52d1-4056-b781-0c7b6278cbb8)
 ![image](https://github.com/quentintaranpino/nostrcheck-api-ts/assets/125748180/6299137f-e862-4854-bfe0-f793ef0417e6)
 
-## Supported nips
+## Supported Nostr NIP's
 
 - [x] NIP01
 - [x] NIP04
@@ -81,6 +85,14 @@ See configuration [here](https://github.com/quentintaranpino/nostrcheck-api-ts/b
 - [x] NIP96
 - [x] NIP98
 
+## Supported Blossom BUD's
+
+- [x] BUD01
+- [x] BUD02
+- [x] BUD03
+- [x] BUD04
+- [x] BUD06
+
 ## Roadmap
 
 - [x] Nostraddress service
@@ -88,24 +100,30 @@ See configuration [here](https://github.com/quentintaranpino/nostrcheck-api-ts/b
 - [x] Lightning redirects
 - [x] Standalone Installation script
 - [x] Docker installation
-- [x] Nostr DM integration
+- [x] Nostr DM integration (NIP04)
 - [x] Frontend UI (dashboard)
 - [x] Frontend UI (settings)
 - [x] Frontend UI (homepage)
 - [x] Frontend UI (docs and ToS)
-- [ ] Object Storage
+- [x] Remote Object Storage (s3)
+- [x] Blossom spec compatible
+- [x] Lightning payments
+- [x] Frontend UI (profile)
+- [x] Frontend UI (public gallery)
+- [x] Frontend UI (public upload)
+- [x] Frontend UI (register)
+- [x] Ban system
+- [x] AI moderation
+- [x] Plugins engine
+- [ ] Private Direct Messages (NIP17)
 - [ ] Multi-server mirroring
-- [ ] Lightning payments
 - [ ] Import / Export data
 - [ ] Custom frontend templates
-- [ ] Frontend UI (profile)
-- [ ] Frontend UI (public gallery)
-- [ ] Frontend UI (public upload)
 - [ ] Frontend UI (directory)
-- [ ] Frontend UI (register)
 - [ ] Umbrel appstore integration
 - [ ] Start9 appstore integration
 - [ ] Integrated micro-relay
+
 
 ## License
 

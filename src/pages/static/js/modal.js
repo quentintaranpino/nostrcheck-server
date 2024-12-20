@@ -1,20 +1,40 @@
-const initConfirmModal = async (objectId, ids, action, objectName) => {
+const initConfirmModal = async (objectId, ids, action, objectName, value = null, enableEditText = false) => {
+
     var alert = new bootstrap.Modal($(objectId + '-confirm-modal'));
+
+
+    console.log('Confirming ' + action + ' of ' + ids.length + ' ' + objectName + (ids.length > 1 ? 's' : ''));
 
     $(alert._element).on('show.bs.modal', function () {
         $(objectId + '-confirm-modal .modal-body').text('Are you sure you want to ' + action + ' ' + ids.length + ' ' + objectName + (ids.length > 1 ? 's' : '') + '?');
         if (action == 'remove')$(objectId + '-confirm-modal .modal-body').append('<br><br><strong>Warning:</strong> This action cannot be undone.');
         if (action == 'disable')$(objectId + '-confirm-modal .modal-body').append('<br><br><strong>Attention:</strong> Disabling a record can take up to 5 minutes to become effective.');
-        $(objectId + '-confirm-modal .modal-title').text('Confirm')
+        if (action == 'balance')$(objectId + '-confirm-modal .modal-body').text('Specify the amount to be added to user balance:');
+        if (action == 'ban')$(objectId + '-confirm-modal .modal-body').append('<br><br>Specify the reason for banning:');
+        if (value != null && enableEditText){
+            $(objectId + '-confirm-modal .modal-body').append(  '<input type="text" class="form-control mt-4 mb-2" id="data" placeholder="' + 
+                                                                action + 
+                                                                '" value="' + 
+                                                                value + 
+                                                                '">');
+        }
+
+        // Clear the modal title and append the title
+        $(objectId + '-confirm-modal .modal-title').empty();
+        $(objectId + '-confirm-modal .modal-title').append('Confirm <i class="fa-solid fa-circle-question"></i> ');
     })
     alert.show();
 
     let result = await new Promise((resolve) => {
         $(objectId + '-confirm-modal .save-button').click(function () {
-            resolve(true);
+            value = $('#data').val();
+            resolve({result : true, value : value});
         });
         $(objectId + '-confirm-modal .cancel-button').click(function () {
-            resolve(false);
+            resolve({result : false, value : value});
+        });
+        $(alert._element).on('hidden.bs.modal', function () {
+            resolve({result : false, value : value});
         });
     });
 
@@ -29,24 +49,26 @@ const initEditModal = async (objectId, row, objectName, newRow, columns) => {
 
     $(edit._element).on('show.bs.modal', function () {
 
-        $(objectId + '-edit-modal .modal-title').text(newRow ? 'Add new ' + objectName : 'Edit ' + objectName)
+        // Clear the modal body and append the title
+        $(objectId + '-edit-modal .modal-title').empty();
+        $(objectId + '-edit-modal .modal-body').empty();
+
+        $(objectId + '-edit-modal .modal-title').append('<i class="fa-solid fa-pen-to-square"></i>')
+        $(objectId + '-edit-modal .modal-title').append(newRow ? ' Add new ' + objectName : ' Edit ' + objectName)
 
         // Create each input field
         for (var key in row) {
             if (row.hasOwnProperty(key)) {
                 if (key == 'state'){continue}
 
-                // Extract the link text if the value is a link
-                let keyValue = "";
-                if (typeof row[key] === 'string' && row[key].startsWith('<')) {
-                    row[key] = $(row[key]).text();
-                } else {
-                    keyValue = row[key];
+                // remove 'null' string from the input field
+                if (row[key] === null) {
+                    row[key] = '';
                 }
 
                 var isCheckbox = false;
                 columns.forEach(function(column) {
-                    if (column.field == key && column.class && column.class.includes('checkbox')) {
+                    if (column.field == key && column.class && column.class.includes('formatCheckbox')) {
                         isCheckbox = true;
                     }
                 });
@@ -60,6 +82,64 @@ const initEditModal = async (objectId, row, objectName, newRow, columns) => {
                 if (key == 'id') {
                     $('#' + key).prop('disabled', true)
                 }
+
+                // Special case for editing or creating an user
+                if (objectId == '#nostraddressData') {
+
+                    let updatingFields = false;
+                    
+                    if (key == 'pubkey') {
+                        document.querySelector("#pubkey").addEventListener("input", (data) => {
+                            if (updatingFields) return;
+                            updatingFields = true;
+                        
+                            const pubkeyField = document.querySelector("#pubkey");
+                            const hexField = document.querySelector("#hex");
+                        
+                            let npubValue = pubkeyField.value;
+                        
+                            if (npubValue.length === 63) {
+                                try {
+                                    let decodedHex = NostrTools.nip19.decode(npubValue).data;
+                                    hexField.value = decodedHex;
+                                } catch (e) {
+                                    hexField.value = '';
+                                }
+                            } else {
+                                hexField.value = '';
+                            }
+                        
+                            updatingFields = false;
+                            checkFieldsMatch();
+                        });
+                    }
+                    if (key == 'hex') {
+                        document.querySelector("#hex").addEventListener("input", (data) => {
+                            if (updatingFields) return;
+                            updatingFields = true;
+                        
+                            const pubkeyField = document.querySelector("#pubkey");
+                            const hexField = document.querySelector("#hex");
+                        
+                            let hexValue = hexField.value;
+                        
+                            if (hexValue.length === 64) {
+                                try {
+                                    let encodedNpub = NostrTools.nip19.npubEncode(hexValue);
+                                    pubkeyField.value = encodedNpub;
+                                } catch (e) {
+                                    pubkeyField.value = '';
+                                }
+                            } else {
+                                pubkeyField.value = '';
+                            }
+                        
+                            updatingFields = false;
+                            checkFieldsMatch();
+                        });
+                    }
+                }
+
                 columns.forEach(function(column) {
                     if (column.field == key) {
                         if (column.class) {
@@ -94,14 +174,17 @@ const initEditModal = async (objectId, row, objectName, newRow, columns) => {
                     var isCheckbox = false;
                     // Search key in columns object 
                     columns.forEach(function(column) {
-                        if (column.field == key && column.class && column.class.includes('checkbox')) {
+                        if (column.field == key && column.class && column.class.includes('formatCheckbox')) {
                             isCheckbox = true;
                         }
                     });
-                    if (row[key] != $('#' + key).val()) {
-                        if (isCheckbox) {
-                            editedRow[key] = $('#' + key).is(':checked') ? 1 : 0; 
-                        } else {
+                    if (isCheckbox) {
+                        let checkboxValue = $('#' + key).is(':checked') ? 1 : 0;
+                        if (row[key] !== checkboxValue) {
+                            editedRow[key] = checkboxValue;
+                        }
+                    } else {
+                        if (row[key] != $('#' + key).val()) {
                             editedRow[key] = $('#' + key).val();
                         }
                     }
@@ -112,17 +195,21 @@ const initEditModal = async (objectId, row, objectName, newRow, columns) => {
         $(objectId + '-edit-modal .cancel-button').click(function () {
             resolve(null);
         });
+        $(objectId + '-edit-modal .btn-close').click(function () {
+            resolve(null);
+        });
     });
 
     edit.hide();
     return result;
 }
 
-const initAlertModal = async (objectId, message, timeout = 3000, alertClass = "alert-warning") => {
+const initAlertModal = async (objectId, message, timeout = 2000, alertClass = "alert-warning") => {
 
     var alert = new bootstrap.Modal($(objectId + '-alert-modal'));
 
     $(objectId + '-alert-modal .alert').addClass(alertClass);
+
 
     $(alert._element).on('show.bs.modal', function () {
         $(objectId + '-alert-modal .alert').empty();
@@ -143,15 +230,30 @@ const initAlertModal = async (objectId, message, timeout = 3000, alertClass = "a
         });
 
     alert.hide();
+    $(objectId + '-alert-modal .alert').removeClass(alertClass);
 }
 
-const initMessageModal = async (objectId, message, title) => {
+const initMessageModal = async (objectId, message, title, modalSize = '') => {
+
+    const modalDialog = $(objectId + '-message-modal .modal-dialog');
+    
+    if (modalSize) {
+        modalDialog.removeClass('modal-sm modal-lg modal-xl');
+        modalDialog.addClass(modalSize);
+    }
+
+    if (title) {
+        $(objectId + '-message-modal .modal-header').removeClass('d-none');
+    }
+
     var alert = new bootstrap.Modal($(objectId + '-message-modal'));
 
     $(alert._element).on('show.bs.modal', function () {
+        $(objectId + '-message-modal .modal-body').empty();
         $(objectId + '-message-modal .modal-body').append(message);
-        $(objectId + '-message-modal .modal-title').text(title)
-    })
+        $(objectId + '-message-modal .modal-title').text(title);
+    });
+    
     alert.show();
 
     let result = await new Promise((resolve, reject) => {
@@ -162,12 +264,94 @@ const initMessageModal = async (objectId, message, title) => {
 
     alert.hide();
     return result;
+};
 
+const initPaymentModal = async (paymentRequest, satoshi, instance) => {
+
+    var paymentModal = new bootstrap.Modal($(`#${instance}payment-modal`));
+    
+    $(`#${instance}payment-modal`).insertAfter($('body'));  
+    $(`#${instance}payment-modal .modal-title`).text('Lightning invoice');
+
+    $(`#${instance}payment-waiting`).show();
+    $(`#${instance}payment-success`).hide();
+
+    $(`#${instance}payment-request`).empty();
+    $(`#${instance}payment-request`).text(paymentRequest);
+
+    $(`#${instance}payment-amount`).show();
+    $(`#${instance}payment-amount`).empty();
+    $(`#${instance}payment-amount`).text('Invoice amount: ' + satoshi + ' satoshi');
+
+    $(`#${instance}payment-link`).show();
+    $(`#${instance}payment-link`).empty();
+    $(`#${instance}payment-link`).append('<a href="lightning:' + paymentRequest + '" target="_blank" class="btn btn-secondary">Pay with Lightning<i class="bi bi-lightning-charge-fill ms-2 text-warning"></i></a>');
+
+    $(`#${instance}payment-qr`).show();
+    $(`#${instance}payment-qr`).empty();
+
+    const qrContainer = document.getElementById(`${instance}payment-qr`);
+    if (qrContainer) {
+        new QRCode(qrContainer, {
+            text: paymentRequest,
+            width: 300,
+            height: 300,
+        });
+    }
+    qrContainer.style.width = '300px';
+    qrContainer.style.margin = '0 auto';
+
+    paymentModal.show();
+
+    let stopProcessing = false;
+    setInterval(() => {
+        if (stopProcessing) return;
+        fetch(`payments/invoices/${$(`#${instance}payment-request`).text()}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.invoice.isPaid == true) {
+                    console.log('Payment successful');
+                    stopProcessing = true;
+                    $(`#${instance}payment-preimage`).text(data.invoice.preimage);
+                    $(`#${instance}payment-link`).hide();
+                    $(`#${instance}payment-qr`).hide();
+                    $(`#${instance}payment-amount`).hide();
+                    $(`#${instance}payment-waiting`).hide();
+                    $(`#${instance}payment-success`).show();
+                }
+            });
+    }, 3000); 
+
+    let result = await new Promise((resolve) => {
+        $(paymentModal._element).on('hidden.bs.modal', function () {
+            console.log($(`#${instance}payment-request`).text());
+            if(stopProcessing) {
+                resolve($(`#${instance}payment-preimage`).text());
+            }else{
+                stopProcessing = true;
+                resolve('');
+            }
+        });
+    });
+
+    paymentModal.hide();
+    return result;
 }
 
-const initMediaModal = async (pubkey, filename, checked, visible) => {
+const initUploaderModal = async () => {
+    var uploader = new bootstrap.Modal($('#uploader-modal'));
+    uploader.show();
+}
+
+const initMediaModal = async (filename, checked, visible, showButtons = true) => {
 
     var mediaModal = new bootstrap.Modal($('#media-modal'));
+
+    MediaData = await loadMediaWithToken('media/' + filename).then(async data => {
+        return data;
+    });
+
+    let contentType = MediaData.mimeType || '';
 
     $('#modalSwitch-checked').prop('checked', checked);
     $('#modalSwitch-checked').change(function() {
@@ -179,50 +363,82 @@ const initMediaModal = async (pubkey, filename, checked, visible) => {
         visible = this.checked ? 1 : 0;
     });
 
-    if (['.mp4', '.webm', '.mov'].some(ext => filename.endsWith(ext))) {
-        $('#media-modal .mediapreview-video').attr('src', 'media/' + pubkey + '/' + filename);
-        $('#media-modal .mediapreview-video source').attr('src', 'media/' + pubkey + '/' + filename);
-        $('#media-modal .mediapreview-video').removeClass('d-none');
-        $('#media-modal .mediapreview-video')[0].play();
-    } else if (['.webp', '.png', '.jpg', '.jpeg', '.gif'].some(ext => filename.endsWith(ext))) {
-        $('#media-modal .mediapreview-image').attr('src', 'media/' + pubkey + '/' + filename);
-        $('#media-modal .mediapreview-image').removeClass('d-none');
-    } else if (filename.endsWith('.mp3')){
-        $('#media-modal .mediapreview-audio').attr('src', 'media/' + pubkey + '/' + filename);
-        $('#media-modal .mediapreview-audio source').attr('src', 'media/' + pubkey + '/' + filename);
-        $('#media-modal .mediapreview-audio').removeClass('d-none');
-        $('#media-modal .mediapreview-audio')[0].play();
+    if (!showButtons) {
+        $('#modalSwitch-footer').addClass('d-none');
+    }else {
+        $('#modalSwitch-footer').removeClass('d-none');
     }
 
+    const mediaPreviewIframe = $('#mediapreview-iframe');
+    const mediapreviewImg = $('#mediapreview-img');
+    const mediaPreview3d = $('#mediapreview-3d');
+    const fontPreview = $('#mediapreview-font');
+    const yamlPreview = $('#mediapreview-yaml');
+
+    mediapreviewImg.addClass('d-none');
+    mediaPreviewIframe.addClass('d-none');
+    mediaPreview3d.addClass('d-none');
+
     $(mediaModal._element).on('hidden.bs.modal', function () {
+        mediaPreviewIframe.attr('src', '');
+        mediaPreviewIframe.addClass('d-none');
+        mediapreviewImg.attr('src', '');
+        mediapreviewImg.addClass('d-none');
+        mediaPreview3d.addClass('d-none');
+        fontPreview.addClass('d-none');
+        yamlPreview.addClass('d-none');
 
-        var videoElement = $('#media-modal .mediapreview-video')[0];
-        videoElement.pause();
-        videoElement.src = "";
-        videoElement.load();
-
-        $('#media-modal .mediapreview-video source').attr('src', '');
-        $('#media-modal .mediapreview-video').addClass('d-none');
-        $('#media-modal .mediapreview-video')[0].load();
-        $('#media-modal .mediapreview-image').attr('src', '');
-        $('#media-modal .mediapreview-image').addClass('d-none');
-        $('#media-modal .mediapreview-audio source').attr('src', '');
-        $('#media-modal .mediapreview-audio').addClass('d-none');
-        $('#media-modal .mediapreview-audio')[0].load();
+        contentType = '';
     });
 
     $('#media-modal').on('shown.bs.modal', function () {
         $('#modalSwitch-checked').focus();
+
+        console.log("Content type: " + contentType);
+        if (contentType.includes('image')) {
+            mediapreviewImg.attr('src', MediaData.url);
+            mediapreviewImg.removeClass('d-none');
+        }else if(contentType.includes('model')) {
+            init3dViewer('mediapreview-3d', 'media-modal-body', MediaData.url);
+            mediaPreview3d.removeClass('d-none');
+        } else if (contentType.includes('font') || contentType.includes('ttf') || contentType.includes('woff') || contentType.includes('eot')) {
+            initFontViewer('mediapreview-font', MediaData.url);
+            fontPreview.removeClass('d-none');
+        } else if (contentType.includes('yaml') || contentType.includes('yml')) {
+            initYamlViewer('mediapreview-yaml', MediaData.url);
+            yamlPreview.removeClass('d-none');
+        }else {
+            if (contentType == '') {
+                return;
+            }
+            mediaPreviewIframe.attr('src', MediaData.url);
+            mediaPreviewIframe.removeClass('d-none');
+        }
+
     });
 
     mediaModal.show();
 
     let result = await new Promise((resolve) => {
         $(mediaModal._element).on('hidden.bs.modal', function () {
-            resolve({"checked":checked, "visibility":visible}); 
+            resolve({ "checked": checked, "visibility": visible }); 
         });
     });
 
-    return result; 
+    return { data: result };
+}
 
+async function loadMediaWithToken(url) {
+    try{
+        const response = await fetch(url, {
+            method: 'GET',
+            credentials: 'include'
+        });
+        const blob = await response.blob();
+        return {url: URL.createObjectURL(blob), mimeType: blob.type};
+    }
+    catch (error) {
+        console.error('Error:', error);
+        return {url: '', mimeType: ''};
+    }
 }

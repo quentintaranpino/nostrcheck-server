@@ -1,12 +1,73 @@
-<div class="col-xl-3 col-lg-4 col-md-6 col-sm-12">
-    <div class="card mb-3">
-        <div class="card-body">
-        <h5 class="card-title"><%- dashcardName %></h5>
-        <p class="card-text">Total number of <%- dashcardName %></p>
-        <h1 id="kpi_<%- dashcardName %>" class="card-text"></h1>
-        </div>
+<div id="<%- dashcardId %>" class="col-xl-3 col-lg-4 col-md-6 col-sm-12">
+    <div class="card mb-3 shadow-sm default-bg" style="min-height: 185px">
+            <div class="card-body text-center">
+                <% if (link) { %>
+                    <a href = "<%- link %>" class="text-decoration-none text-reset">
+                    <% } %>
+                <div class="d-flex justify-content-between align-items-center">
+                    <h5 id="<%- dashcardId %>-name" class="card-title mb-0"></h5>
+                    <div id="<%- dashcardId %>-icon-container">
+                        <i id="<%- dashcardId %>-icon" class="fas fa-chart-simple fa-3x card-icon"></i>
+                    </div>
+                </div>
+                <h1 id="<%- dashcardId %>-text" class="display-2 font-weight-bold">0</h1>     
+                <% if (link) { %>
+                </a>
+                <% } %>
+                <div id="<%- dashcardId %>-tooltip-text" class="chart-tooltip-content">0</div>
+            </div>
+            <button id="<%- dashcardId %>-reload-button" class="btn btn-reload"><i class="fas fa-sync-alt"></i></button>
     </div>
 </div>
-<script>
-document.getElementById('kpi_<%- dashcardName %>').textContent = JSON.parse("<%- data %>").length;
-</script>
+
+<style>
+    .card {
+        transition: transform 0.3s;
+        color: var(--bs-secondary-color);
+    }
+    
+    .card:hover { transform: scale(1.04); }
+    
+    .card-icon { color: #a575ff; }   
+
+    .card-icon-container {
+        width: 55px;
+        height: 55px;
+    }
+
+    .btn-reload {
+        position: absolute;
+        bottom: 10px;
+        right: 10px;
+        background-color: rgba(0, 0, 0, 0.1);
+        border: none;
+        border-radius: 50%;
+        padding: 10px;
+        cursor: pointer;
+        transition: background-color 0.3s;
+    }
+
+    .btn-reload:hover {
+        background-color: rgba(0, 0, 0, 0.2); 
+    }
+
+    .btn-reload i {
+        font-size: 14px; 
+    }
+
+    .chart-tooltip-content {
+        font-size: 14px;
+        text-align: left;
+        visibility: hidden; 
+        opacity: 0;
+        transition: opacity 0.5s !important;
+    }
+
+    .chart-tooltip-content.visible {
+        visibility: visible;
+        opacity: 1;
+        transition: opacity 0.5s !important;
+
+    }
+    
+</style>

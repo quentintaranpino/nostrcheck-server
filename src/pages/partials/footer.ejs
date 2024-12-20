@@ -1,17 +1,123 @@
-<footer class="text-center bg-dark text-white mt-auto position-relative z-1">
-    <div class="text-center p-3">
-        <span class="me-1">Uptime:</span><span class="server-uptime"></span>
-        <span>| version <%= request.body.version %> </span>
-        <span>| Content released under</span> <a class="text-white text-decoration-none" href="https://mit-license.org/"><b>MIT license</b></a> 
-        <span>| <a class="text-white text-decoration-none" href="https://github.com/quentintaranpino/nostrcheck-api-ts/"> <i class="fa-brands fa-github ms-1"></i> Source code</a></span>
+<footer class="text-center mt-auto position-relative-md z-3 shadow-lg">
+    <div class="text-center p-3 d-none d-lg-block">
+        <span>v<%= locals.version %> </span>
+        <span>| Content released under</span> <a class="text-secondary text-decoration-none" href="https://mit-license.org/">MIT license</a> 
+        <span>| <a class="text-secondary text-decoration-none" href="https://github.com/quentintaranpino/nostrcheck-api-ts/"> <i class="fa-brands fa-github ms-1"></i> Source code</a></span>
     </div>
+    <nav class="navbar navbar-light navbar-expand fixed-bottom d-lg-none d-xl-none pb-3 shadow-lg">
+        <ul class="nav nav-justified w-100 align-items-center" id="myTab" role="tablist">
+            <li <% if (!request.session.identifier || (request.session.identifier && !request.session.allowed)) { %>style="display: none;"<% } %> class='nav-item' role="presentation">
+                <button class="nav-link" type="button" aria-controls="intro" aria-selected="false" aria-label="Dashboard">
+                    <span class="fs-2"><a href="dashboard" role="button"><i class="bi bi-speedometer" aria-hidden="true"></i><span class="visually-hidden">Dashboard</span></a></span>
+                </button>
+            </li>
+            <li <% if (request.session.identifier && (request.session.identifier && request.session.allowed == true )) { %>style="display: none;"<% } %> class='nav-item' role="presentation">
+                <button class="nav-link" type="button" aria-controls="intro" aria-selected="false" aria-label="Home">
+                    <span class="fs-2"><a href="/" role="button"><i class="bi bi-house-fill" aria-hidden="true"></i><span class="visually-hidden">Home</span></a></span>
+                </button>
+            </li>
+            <li <% if (!request.session.identifier) { %>style="display: none;"<% } %> class='nav-item' role="presentation">
+                <button class="nav-link" type="button" aria-controls="intro" aria-selected="false" aria-label="Settings">
+                    <span class="fs-2" <% if (!request.session.identifier || (request.session.identifier && !request.session.allowed)) { %>style="display: none;"<% } %> ><a href="settings" role="button"><i class="bi bi-gear-fill" aria-hidden="true"></i><span class="visually-hidden">Settings</span></a></span>
+                    <span class="fs-2" <% if (request.session.identifier && (request.session.identifier && request.session.allowed == true )) { %>style="display: none;"<% } %>><a href="profile#userSettings" role="button"><i class="bi bi-gear-fill" aria-hidden="true"></i><span class="visually-hidden">Settings</span></a></span>
+                </button>
+            </li>
+            <li <% if (request.session.identifier) { %>style="display: none;"<% } %> class='nav-item' role="presentation">
+                <button class="nav-link" type="button" aria-controls="intro" aria-selected="false" aria-label="Login">
+                    <span class="fs-2">
+                        <a href="login" role="button">
+                            <i class="fa-solid fa-user" aria-hidden="true"></i>
+                            <span class="visually-hidden">Login</span>
+                        </a>
+                    </span>
+                </button>
+            </li>
+            <li class="nav-item" role="presentation" <% if (!request.session.identifier) { %>style="display: none;"<% } %> >
+                <button class="nav-link" type="button" aria-controls="intro" aria-selected="false" aria-label="Profile">
+                    <span class="fs-2"><a href="profile" role="button">
+                        <div class="picture-container overflow-hidden d-flex align-items-center rounded-circle mx-auto" style="width: 60px; height: 60px;"></div>
+                        <span class="visually-hidden">Profile</span></a>
+                    </span>
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button 
+                  class="nav-link" 
+                  type="button" 
+                  aria-controls="intro" 
+                  aria-selected="false" 
+                  aria-label="Upload file" 
+                  onclick="semaphore.execute(async () => {await initUploaderModal();})" 
+                  <% if (active === 'media') { %> disabled <% } %>>
+                  <span class="fs-2">
+                    <i class="bi bi-cloud-arrow-up-fill" aria-hidden="true"></i>
+                    <span class="visually-hidden">Upload file</span>
+                  </span>
+                </button>
+              </li>
+            <li <% if (!request.session.identifier) { %>style="display: none;"<% } %> class='nav-item' role="presentation">
+                <button class="nav-link" type="button" aria-controls="intro" aria-selected="false" aria-label="Logout" onclick="logout()">
+                    <span class="fs-2"><i class="fa-solid fa-right-from-bracket"></i><span class="visually-hidden">Logout</span></span>
+                </button>
+            </li>
+        </ul>
+    </nav>
 </footer>
+<style>
+    html[data-bs-theme="light"] {
+        footer{
+            background-color: #e8e8e8f5 !important;
+        }
+    }
+    html[data-bs-theme="dark"] {
+        footer {
+        background-color: rgb(43 48 53 / 96%) !important;
+        } 
+    }
+
+    @media (max-width: 994.98px) {
+        footer {
+            position: fixed !important;
+            bottom: 0;
+            width: 100%;
+            background-color: transparent;
+        }
+    }
+</style>
 
 <script src="https://cdn.jsdelivr.net/npm/jquery/dist/jquery.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/popper.js@1.12.9/dist/umd/popper.min.js" integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q" crossorigin="anonymous"></script>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script>
-<script src="https://unpkg.com/bootstrap-table@1.22.2/dist/bootstrap-table.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/bootstrap-table@1.22.6/dist/bootstrap-table.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap-table@1.22.6/dist/extensions/filter-control/bootstrap-table-filter-control.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jquery-resizable-columns@0.2.3/dist/jquery.resizableColumns.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap-table@1.22.2/dist/extensions/resizable/bootstrap-table-resizable.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap-table@1.22.6/dist/extensions/mobile/bootstrap-table-mobile.min.js"></script>
+<script src="/static/js/particles.min.js"></script>
+<script src="/static/js/semaphore.js"></script>
 <script src="/static/js/server.js"></script>
 <script src="/static/js/modal.js"></script>
+<script src="/static/js/modules/nostr-tools/lib/nostr.bundle.js"></script>
+<script src="/static/js/nostr.js"></script>
+<script>
+
+// Profile picture and banner
+if (localStorage.getItem('profileData')) {
+    loadMedia(JSON.parse(localStorage.getItem('profileData')).picture || '/static/resources/picture-default.webp', document.querySelectorAll('.picture-container'), ['img-thumbnail', 'border-0', 'object-fit-cover', 'w-100', 'h-100']);
+    loadMedia(JSON.parse(localStorage.getItem('profileData')).banner || '/static/resources/banner-default.webp', document.querySelectorAll('.banner-container'), [], { autoplay: true, loop: true, muted: true });
+}else{
+    loadMedia('/static/resources/picture-default.webp', document.querySelectorAll('.picture-container'), ['img-thumbnail', 'border-0', 'object-fit-cover', 'w-100', 'h-100']);
+    loadMedia('/static/resources/banner-default.webp', document.querySelectorAll('.banner-container'), [], { autoplay: true, loop: true, muted: true });
+}
+subscribeRelays(0,["<%= request.session.identifier %>"], "from", Math.floor(Date.now() / 1000) - (730 * 24 * 60 * 60)).then((data) => {
+    if (!data || data.length == 0) return;
+    data = JSON.parse(data[0].content);
+    if (localStorage.getItem('profileData') == null || (localStorage.getItem('profileData') != null && data.picture != JSON.parse(localStorage.getItem('profileData')).picture)) {
+        loadMedia(data.picture || '/static/resources/picture-default.webp' || '/static/resources/picture-default.webp', document.querySelectorAll('.picture-container'), ['img-thumbnail', 'border-0', 'object-fit-cover', 'w-100', 'h-100']);
+    }
+    if (localStorage.getItem('profileData') == null || (localStorage.getItem('profileData') != null && data.banner != JSON.parse(localStorage.getItem('profileData')).banner)) {
+        loadMedia(data.banner || '/static/resources/banner-default.webp', document.querySelectorAll('.banner-container'), [], { autoplay: true, loop: true, muted: true });
+    }
+    localStorage.setItem('profileData', JSON.stringify(data));
+});
+</script>

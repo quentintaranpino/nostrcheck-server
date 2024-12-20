@@ -1,14 +1,15 @@
-import { ResultMessagev2 } from './server.js';
+import { ResultMessagev2 } from "./server";
 
-interface RegisterResultMessage extends ResultMessagev2 {
-	username: string;
-	pubkey: string;
-	domain: string;
+interface nostrAddressResult {
+	names : {
+		[username: string]: string;
+	};
 }
 
-interface RegisteredUsernameResult {
-	username: string;
-	hex: string;
+interface registerFormResult extends ResultMessagev2 {
+	otc: boolean;
+	payment_request: string;
+	satoshi: number;
 }
 
-export {RegisterResultMessage, RegisteredUsernameResult};
+export {nostrAddressResult, registerFormResult};

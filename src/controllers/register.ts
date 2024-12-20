@@ -1,296 +1,197 @@
 import { Request, Response } from "express";
-import { Event, getEventHash, nip19, validateEvent } from "nostr-tools";
 import validator from "validator";
-
-import { connect } from "../lib/database.js";
 import { logger } from "../lib/logger.js";
-import { RegisterResultMessage } from "../interfaces/register.js";
-import { QueryAvailiableDomains } from "../lib/domains.js";
+import { getAvailableDomains, getDomainInfo } from "../lib/domains.js";
 import app from "../app.js";
 import { getClientIp } from "../lib/utils.js";
-import { parseAuthHeader } from "../lib/authorization.js";
 import { isModuleEnabled } from "../lib/config.js";
+import { addNewUsername, isPubkeyOnDomainAvailable, isUsernameAvailable } from "../lib/register.js";
+import { generateOTC, verifyOTC, parseAuthHeader } from "../lib/authorization.js";
+import { npubToHex, validatePubkey } from "../lib/nostr/NIP19.js";
+import { registerFormResult } from "../interfaces/register.js";
+import { dbUpdate } from "../lib/database.js";
+import { validateInviteCode } from "../lib/invitations.js";
+import { checkTransaction } from "../lib/payments/core.js";
+import { transaction } from "../interfaces/payments.js";
+import { setAuthCookie } from "../lib/frontend.js";
 
-const registernewpubkey = async (req: Request, res: Response): Promise<Response> => {
+const registerUsername = async (req: Request, res: Response): Promise<Response> => {
 
 	// Check if current module is enabled
 	if (!isModuleEnabled("register", app)) {
-        logger.warn("Attempt to access a non-active module:","register","|","IP:", getClientIp(req));
-		return res.status(400).send({"status": "error", "message": "Module is not enabled"});
+		logger.warn(`Attempt to access a non-active module: register | IP: ${getClientIp(req)}`);
+		return res.status(403).send({"status": "error", "message": "Module is not enabled"});
+	}
+	
+	let activateUser = true;
+
+    // Check if authorization header is valid, if not we will set the otc flag to true
+	const eventHeader = await parseAuthHeader(req,"registerUsername", false);
+	if (eventHeader.status != "success") {activateUser = false}
+	setAuthCookie(res, eventHeader.authkey);
+
+	logger.info(`POST /api/v2/register - ${getClientIp(req)}`);
+
+	const pubkey = req.body.pubkey || "";
+	if (pubkey == null || pubkey == "" || pubkey == undefined) {
+		logger.info("RES -> 400 Bad request - Public key not provided", "|", getClientIp(req));
+		return res.status(400).send({status: "error", message: "Public key not provided"});
+	}
+	
+	const validPubkey = await validatePubkey(pubkey);
+	if (!validPubkey) {
+		logger.info("RES -> 422 Bad request - Public key not valid", "|", getClientIp(req));
+		return res.status(422).send({status: "error", message: "Invalid public key format"});
 	}
 
-	logger.info("POST /api/v1/register", "|", getClientIp(req));
-
-    // Check if authorization header is valid
-	const EventHeader = await parseAuthHeader(req, "registernewpubkey", true);
-	if (EventHeader.status !== "success") {return res.status(401).send({"status": EventHeader.status, "message" : EventHeader.message});}
-
-	//Check all necessary fields
-	if (
-		req.body.id == null ||
-		req.body.pubkey == null ||
-		req.body.created_at == null ||
-		req.body.kind == null ||
-		req.body.tags == null ||
-		req.body.content == null ||
-		req.body.sig == null
-	) {
-		logger.warn("RES -> 400 Bad request - malformed JSON");
-		const result: RegisterResultMessage = {
-			username: "",
-			pubkey: "",
-			domain: "",
-			status: "error",
-			message: "Malformed JSON",
-		};
-
-		return res.status(400).send(result);
+	// Check if the pubkey is the same as the one in the authorization header, if not we will set the otc flag to true
+	if (pubkey != eventHeader.pubkey && await npubToHex(pubkey) != eventHeader.pubkey) {activateUser = false}
+	
+	const username = req.body.username || "";
+	if (username == null || username == "" || username == undefined) {
+		logger.info("RES -> 400 Bad request - Username not provided", "|", getClientIp(req));
+		return res.status(400).send({status: "error", message: "Username not provided"});
+	}
+	
+	let validUsername = validator.default.isLength(username, { min: app.get("config.register")["minUsernameLength"], max: app.get("config.register")["maxUsernameLength"] }); 
+	validUsername == true? validUsername = validator.default.matches(username, /^[a-zA-Z0-9-_]+$/) : validUsername = false;
+	if (!validUsername) {
+		logger.warn(`RES -> 422 Bad request - Username not valid`, "|", getClientIp(req));
+		return res.status(401).send({status: "error", message: "Invalid username format"});
 	}
 
-	//Check if username is null (tag or tag value)
-	try {
-		if (
-			req.body.tags[0][0] != "username" ||
-			req.body.tags[0][1] == null ||
-			req.body.tags[0][1] == undefined
-		) {
-			logger.warn(
-				"RES -> 400 Bad request - malformed or non-existent username tag",
-				"|",
-				req.headers["x-forwarded-for"] || getClientIp(req)
-			);
-			const result: RegisterResultMessage = {
-				username: "",
-				pubkey: "",
-				domain: "",
-				status: "error",
-				message: "Malformed or non-existent username tag",
-			};
-
-			return res.status(400).send(result);
-		}
-	} catch (error) {
-		logger.warn(
-			"RES -> 400 Bad request - malformed or non-existent username tag",
-			"|",
-			getClientIp(req)
-		);
-		const result: RegisterResultMessage = {
-			username: "",
-			pubkey: "",
-			domain: "",
-			status: "error",
-			message: "Malformed or non-existent username tag",
-		};
-
-		return res.status(400).send(result);
+	const domain = req.body.domain || "";
+	if (domain == null || domain == "" || domain == undefined) {
+		logger.info("RES -> 400 Bad request - Domain not provided", "|", getClientIp(req));
+		return res.status(400).send({status: "error", message: "Domain not provided"});
 	}
 
-	//Check if domain is null (tag or tag value)
-	try {
-		if (
-			req.body.tags[1][0] != "domain" ||
-			req.body.tags[1][1] == null ||
-			req.body.tags[1][1] == undefined
-		) {
-			logger.warn(
-				"RES -> 400 Bad request - malformed or non-existent domain tag",
-				"|",
-				req.headers["x-forwarded-for"] || getClientIp(req)
-			);
-			const result: RegisterResultMessage = {
-				username: "",
-				pubkey: "",
-				domain: "",
-				status: "error",
-				message: "Malformed or non-existent domain tag",
-			};
+	const domainInfo = await getDomainInfo(domain);
+	if (domainInfo == "") {
+		logger.info("RES -> 406 Bad request - Domain not allowed", "|", getClientIp(req));
+		return res.status(406).send({ status: "error", message: "Invalid domain" });
+	}
+	const requireInvite : boolean = domainInfo.requireinvite;
+	const requirepayment : boolean = domainInfo.requirepayment;
+	const maxSatoshi : number = domainInfo.maxsatoshi;
 
-			return res.status(400).send(result);
-		}
-	} catch (error) {
-		logger.warn(
-			"RES -> 400 Bad request - malformed or non-existent domain tag",
-			"|",
-			getClientIp(req)
-		);
-		const result: RegisterResultMessage = {
-			username: "",
-			pubkey: "",
-			domain: "",
-			status: "error",
-			message: "Malformed or non-existent domain tag",
-		};
-
-		return res.status(400).send(result);
+	if (!await isUsernameAvailable(username, domain)) {
+		logger.info("RES ->", username, "|", "Username already registered");
+		return res.status(406).send({status: "error", message: "Username already registered"});
 	}
 
-	//Check if domain is valid
-	const AcceptedDomains = await QueryAvailiableDomains();
-	let IsValidDomain = JSON.stringify(AcceptedDomains).indexOf(req.body.tags[1][1]) > -1;
-	if (app.get('env') === 'development') {
-		logger.warn(
-			"DEVMODE: Allowing registers to 'localhost' domain", "|", getClientIp(req));
-			IsValidDomain = true;
+	if (!await isPubkeyOnDomainAvailable(pubkey, domain)) {
+		logger.info("RES -> 406 Bad request - Pubkey already registered", "|", getClientIp(req));
+		return res.status(406).send({status: "error", message: "Pubkey already registered"});
+	}
+	
+	const password = req.body.password || "";
+	if (password != null && password != "" && password != undefined && password.length < app.get("config.register")["minPasswordLength"]) {
+		logger.info("RES -> 422 Bad request - Password too short", "|", getClientIp(req));
+		return res.status(422).send({status: "error", message: "Password too short"});
 	}
 
-	if (!IsValidDomain) {
-		logger.warn("RES -> 406 Bad request - domain not accepted", "|", getClientIp(req));
-		const result: RegisterResultMessage = {
-			username: "",
-			pubkey: "",
-			domain: "",
-			status: "error",
-			message: "Domain not accepted",
-		};
-
-		return res.status(406).send(result);
-	}
-
-	//Create event object
-	const event: Event = {
-		kind: req.body.kind,
-		created_at: req.body.created_at,
-		tags: req.body.tags,
-		content: req.body.content,
-		pubkey: req.body.pubkey,
-		id: req.body.id,
-		sig: req.body.sig,
-	};
-
-	// Check if event is valid
-	try {
-		const IsEventHashValid = getEventHash(event);
-		if (IsEventHashValid != event.id) {
-			logger.warn(
-				`RES -> 400 Bad request - Event hash is invalid: ${IsEventHashValid} != ${event.id}`,
-				"|",
-				getClientIp(req)
-			);
-
-			const result: RegisterResultMessage = {
-				username: "",
-				pubkey: "",
-				domain: "",
-				status: "error",
-				message: "Event hash is not valid",
-			};
-
-			return res.status(400).send(result);
+	const inviteCode = req.body.inviteCode || "";
+	if (requireInvite) {
+		if ((inviteCode == null || inviteCode == "" || inviteCode == undefined) && requireInvite) {
+			logger.info("RES -> 400 Bad request - Invitation key not provided", "|", getClientIp(req));
+			return res.status(400).send({status: "error", message: "Invitation key not provided"});
 		}
 
-		const IsEventValid = validateEvent(event);
-		if (!IsEventValid) {
-			logger.warn(
-				`RES -> 400 Bad request - Event signature is invalid: ${IsEventValid}`,
-				"|",
-				getClientIp(req)
-			);
-
-			const result: RegisterResultMessage = {
-				username: "",
-				pubkey: "",
-				domain: "",
-				status: "error",
-				message: "Event signature is not valid",
-			};
-
-			return res.status(400).send(result);
+		if (await validateInviteCode(inviteCode) == false) {
+			logger.info("RES -> 401 Unauthorized - Invalid invitation key", "|", getClientIp(req));
+			return res.status(401).send({status: "error", message: "Invalid invitation key"});
 		}
-	} catch (error) {
-		logger.warn(`RES -> 400 Bad request - ${error}`, "|", getClientIp(req));
-		const result: RegisterResultMessage = {
-			username: "",
-			pubkey: "",
-			domain: "",
-			status: "error",
-			message: "Malformed event",
-		};
-
-		return res.status(400).send(result);
 	}
 
-	//Check if username is valid
-	const IsValidUsernameCharacters = validator.default.matches(req.body.tags[0][1], /^[a-zA-Z0-9]+$/);
-	const IsValidUsernamelenght = validator.default.isLength(req.body.tags[0][1], { min: 3, max: 50 });
+	const comments = eventHeader.status == "success" ? "" : "Pending OTC verification";
 
-	if (!IsValidUsernameCharacters || !IsValidUsernamelenght) {
-		logger.warn("RES -> 422 Bad request - Username not allowed", "|", getClientIp(req));
-		const result: RegisterResultMessage = {
-			username: req.body.tags[0][1],
-			pubkey: "",
-			domain: req.body.tags[1][1],
-			status: "error",
-			message: "Username not allowed",
-		};
-
-		return res.status(422).send(result);
+	const addUsername = await addNewUsername(username, req.body.pubkey, password, domain, comments, activateUser, inviteCode);
+	if (addUsername == 0) {
+		logger.error("RES -> Failed to add new username" + " | " + getClientIp(req));
+		return res.status(500).send({status: "error", message: "Failed to add new username to the database"});
 	}
 
-	const username = req.body.tags[0][1];
-	const hex = event.pubkey;
-	const pubkey = nip19.npubEncode(hex);
-	const domain = req.body.tags[1][1];
-	const createdate = new Date(+req.body.created_at * 1000)
-		.toISOString()
-		.slice(0, 19)
-		.replace("T", " ");
+	// If the user is not activated, we will generate the credentials and send the OTC verification via nost DM.
+	if (activateUser == false) {
+		const OTC = await generateOTC(pubkey)
+		if (OTC == false){
+			logger.error("Failed to generate OTC" + " | " + getClientIp(req));
+			return res.status(500).send({status: "error", message: "Failed to generate OTC"});
+		}
+	} 
 
-	//Check if username alredy exist
-	const conn = await connect("Registernewpubkey");
-	const [dbResult] = await conn.execute(
-		"SELECT * FROM registered where (username = ? and domain = ?) OR (hex = ? and domain = ?)",
-		[username, domain, hex, domain]
-	);
-	const rowstemp = JSON.parse(JSON.stringify(dbResult));
-
-	if (rowstemp[0] != undefined) {
-		logger.warn("RES ->", username, "|", "Username or pubkey alredy registered");
-		conn.end();
-
-		const result: RegisterResultMessage = {
-			username: req.body.tags[0][1],
-			pubkey: "",
-			domain: req.body.tags[1][1],
-			status: "error",
-			message: "Username or pubkey alredy registered",
-		};
-
-		return res.status(406).send(result);
+	// Check if payments module is active and if true generate paymentRequest
+	let paymentRequest = "";
+	let satoshi = 0;
+	if (requirepayment) {
+		const transaction = await checkTransaction("0", addUsername.toString(), "registered", username.length, req.body.pubkey, maxSatoshi) as transaction;
+		if (transaction.paymentHash != "" && transaction.isPaid == false && isModuleEnabled("payments", app)) {
+			paymentRequest = transaction.paymentRequest;
+			satoshi = transaction.satoshi;
+		}
 	}
 
-	//Insert user into database
-	const [dbInsert] = await conn.execute(
-		"INSERT INTO registered (id, pubkey, hex, username, password, domain, active, date, comments) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-		[null, pubkey, hex, username, "", domain, 1, createdate, ""]
-	);
-	if (!dbInsert) {
-		logger.warn("RES ->", username, "|", "Error inserting user into database");
-		conn.end();
-		const result: RegisterResultMessage = {
-			username: req.body.tags[0][1],
-			pubkey: "",
-			domain: req.body.tags[1][1],
-			status: "error",
-			message: "Username alredy registered",
-		};
-		res.status(406).send(result);
+	logger.info(`RES -> 200 OK - New user ${username} registered successfully - Active: ${activateUser} - Require payment : ${requirepayment}`, "|", getClientIp(req));
+
+	let message : string = "User registered successfully";
+	if (activateUser == false) {
+		message = message + ", please verify your account with the OTC sent to your nostr pubkey via DM";
 	}
-
-	//Send response, user registered, close connection
-	conn.end();
-
-	logger.info("RES ->", username, "|", hex, "|", domain, "|", "Registered");
-	const result: RegisterResultMessage = {
-		username: req.body.tags[0][1],
-		pubkey: event.pubkey,
-		domain: req.body.tags[1][1],
+	if (paymentRequest != "") {
+		message = message + ", please pay the required amount to activate your account";
+	}
+	const result : registerFormResult = {
 		status: "success",
-		message: "New user registered successfully",
+		message: message,
+		otc: activateUser == false ? true : false,
+		payment_request: paymentRequest,
+		satoshi: satoshi
 	};
 
-	return res.status(200).send({result, "authkey": EventHeader.authkey});
+	return res.status(200).send(result);
 
 };
 
-export { registernewpubkey };
+const validateRegisterOTC = async (req: Request, res: Response): Promise<Response> => {
+
+	// Check if current module is enabled
+	if (!isModuleEnabled("register", app)) {
+		logger.warn(`Attempt to access a non-active module: register | IP: ${getClientIp(req)}`);
+		return res.status(403).send({"status": "error", "message": "Module is not enabled"});
+	}
+
+	logger.info(`POST /api/v2/register/validate - ${getClientIp(req)}`);
+
+	if (req.body.otc == undefined || req.body.otc == "" || req.body.otc == null ||  req.body.domain == undefined || req.body.domain == "" || req.body.domain == null) {
+		logger.info("RES -> 400 Bad request - OTC or domain not provided", "|", getClientIp(req));
+		return res.status(400).send({status: "error", message: "OTC or domain not provided"});
+	}
+
+	let validDomain = false;
+	const availableDomains = await getAvailableDomains();
+	if (Object.prototype.hasOwnProperty.call(availableDomains, req.body.domain)) {
+		validDomain = true;
+	}
+	if (!validDomain) {
+		logger.info("RES -> 406 Bad request - Domain not allowed", "|", getClientIp(req));
+		return res.status(406).send({ status: "error", message: "Invalid domain" });
+	}
+
+	const validOTC = await verifyOTC(req.body.otc);
+	if(validOTC == "") {
+		logger.info("RES -> 401 Unauthorized - Invalid OTC", "|", getClientIp(req));
+		return res.status(401).send({status: "error", message: "Invalid OTC"});
+	}
+
+	const activateUser = await dbUpdate("registered", "active", 1, ["hex", "domain"], [validOTC, req.body.domain]);
+	if (activateUser == false) {
+		logger.error("RES -> Failed to activate user" + " | " + getClientIp(req));
+		return res.status(500).send({status: "error", message: "Failed to activate user"});
+	}
+
+	return res.status(200).send({status: "success", message: "User activated successfully"});
+
+}
+
+export { registerUsername, validateRegisterOTC };

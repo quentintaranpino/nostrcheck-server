@@ -4,7 +4,7 @@ import config from 'config';
 import fs from "fs";
 import { connect, dbUpdate } from "./database.js";
 import { RowDataPacket } from "mysql2";
-import { ProcessingFileData } from "../interfaces/media.js";
+import { fileData } from "../interfaces/media.js";
 
 const client =  new WebTorrent({
   // @ts-expect-error missing from typedef
@@ -43,7 +43,7 @@ const SeedMediafilesMagnets = async () => {
   result.forEach((element: RowDataPacket) => {
     if (filenames.includes(element.filename)) return;
     filenames.push(element.filename);
-    const MediaPath = config.get("media.mediaPath") + element.username + "/" + element.filename;
+    const MediaPath = config.get("storage.local.mediaPath") + element.username + "/" + element.filename;
     //Before try check if file exists and is readable
     try{
         fs.accessSync(MediaPath, fs.constants.R_OK); //check if file exists and is readable
@@ -61,7 +61,7 @@ const SeedMediafilesMagnets = async () => {
   );
 }
 
-const CreateMagnet = async (filepath:string, filedata: ProcessingFileData) : Promise<ProcessingFileData> => {
+const CreateMagnet = async (filepath:string, filedata: fileData) : Promise<fileData> => {
 
   try {
     fs.accessSync(filepath, fs.constants.R_OK); //check if file exists and is readable
@@ -74,7 +74,7 @@ const CreateMagnet = async (filepath:string, filedata: ProcessingFileData) : Pro
 
     client.on('torrent', async function (torrent: WebTorrent.Torrent) {
       filedata.magnet = torrent.magnetURI;
-      await dbUpdate('mediafiles', 'magnet', filedata.magnet,'id', filedata.fileid);
+      await dbUpdate('mediafiles', 'magnet', filedata.magnet,['id'], [filedata.fileid]);
       logger.debug("Magnet link:", filedata.magnet, "for file:", filepath, "id:", filedata.fileid)
     });
     client.on('error', function () {

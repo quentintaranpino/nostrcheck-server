@@ -1,0 +1,60 @@
+<div id ="settingsDatabase">
+    <h3 class="mt-4">Database</h3>
+    <form class="form mx-auto">
+        <p>
+            You can configure the database related settings in this section.
+        </p>
+        <div class="alert alert-warning mt-3" role="alert">
+            <i class="fa-solid fa-triangle-exclamation"></i> <b>Change this only if you know what you are doing.</b> After changing the database settings, you need to <b>restart the server</b> to apply the changes.
+        </div>
+        <label for="database.host" class="mt-2 mb-1 fw-bold">Host</label>
+        <p>Specify the database host.</p>
+        <input  type="text" 
+                id="database.host"  
+                name="database.host" 
+                class="form-control" 
+                value="<%= locals.settingsDatabase["host"] %>" 
+                placeholder="Database host" 
+                required
+                >
+        <label for="database.database" class="mt-2 mb-1 fw-bold">Name</label>
+        <p>Specify the database name.</p>
+        <input  type="text" 
+                id="database.database"  
+                name="database.database" 
+                class="form-control" 
+                value="<%= locals.settingsDatabase["database"] %>" 
+                placeholder="Database name" 
+                required
+                >
+        <label for="database.user" class="mt-2 mb-1 fw-bold">User</label>
+        <p>Specify the database user.</p>
+        <input  type="text" 
+                id="database.user"  
+                name="database.user" 
+                class="form-control" 
+                value="<%= locals.settingsDatabase["user"] %>" 
+                placeholder="Database user" 
+                required
+                >
+        <label for="database.password" class="mt-2 mb-1 fw-bold">Password</label>
+        <p>Specify the database password.</p>
+        <div class="input-group">
+            <input  type="password" 
+                    id="database.password" 
+                    name="database.password" 
+                    class="form-control mb-2" 
+                    defaultValue="<%= locals.settingsDatabase["password"] %>" 
+                    value="<%= locals.settingsDatabase["password"] %>" 
+                    placeholder="Database password" 
+                    required 
+                    >
+            <button type="button" class="toggle-password d-none"
+            aria-label="Show secret key as plain text. Warning: this will display your password on the screen.">
+            </button>
+        </div> 
+        <div class="col-12 col-md-3 mb-5 mt-4 pb-5 pb-lg-0 mb-lg-2">
+            <button class="btn btn-lg mb-4 btn-primary w-100" name="Submit" type="button" onclick="saveSettings()">Save</button>
+        </div>
+    </form>
+</div>

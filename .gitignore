@@ -10,6 +10,8 @@ dist
 # # ignore vscode settings
 .vscode
 .vs
+
+logs/*
 media/*
 tmp/*
 config/local.json*
@@ -18,6 +20,7 @@ nostrcheck-api.log*
 installation.md
 coverage/*
 models/*
+env/*
 
 # Docker compose volumes
 compose.override.yml

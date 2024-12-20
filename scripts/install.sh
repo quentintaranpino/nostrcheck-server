@@ -5,8 +5,26 @@ BASEDIR=$(dirname "$0")
 echo "$BASEDIR"
 
 readonly E_BADARGS=65
-readonly version="0.2.1"
-readonly date="20240306"
+readonly version="0.2.6.5"
+readonly date="20240914"
+
+# Variables
+NODE_MAJOR=21
+HOST=""
+DB="nostrcheck"
+USER="nostrcheck"
+MEDIAPATH="files/"
+PUBKEY=""
+SECRETKEY=""
+REPO_URL="https://github.com/quentintaranpino/nostrcheck-server.git"
+REPO_BRANCH="0.6.0"
+PACKAGES="nginx git redis-server mariadb-server mariadb-client ffmpeg jq certbot python3-certbot-nginx python3 python3-pip python3-dev python3-venv pkg-config libjpeg-dev zlib1g-dev libssl-dev"
+
+# Python environment variables
+VENV_DIR=".venv"
+TRANSFORMERS_VERSION="4.44.2"
+FLASK_VERSION="3.0.3"
+PILLOW_VERSION="10.4.0"
 
 clear
 echo ""
@@ -24,28 +42,20 @@ echo "╚════██║██╔══╝  ██╔══██╗╚█
 echo "███████║███████╗██║  ██║ ╚████╔╝ ███████╗██║  ██║"
 echo "╚══════╝╚══════╝╚═╝  ╚═╝  ╚═══╝  ╚══════╝╚═╝  ╚═╝"
 echo ""
-echo "Nostrcheck server installation script v$version"
-echo "Last updated: $date"
-echo "Project repository: https://github.com/quentintaranpino/nostrcheck-api-ts/"
-echo "----------------------------------------------------------------------------"
+echo "══════════════════════════════════════════════════════════════════════════════"
+echo " Nostrcheck-server installation script v$version"
 echo ""
-echo "This script will install and configure the nostrcheck server on your system."
-echo "WARNING: This script is still in development and may not work as expected."
+echo "📅 Last updated: $date"
+echo "🔗 Project repository: https://github.com/quentintaranpino/nostrcheck-server/"
+echo "📝 License: MIT"
 echo ""
-
-# Node version
-NODE_MAJOR=21
-
-# Variables
-HOST=""
-DB="nostrcheck"
-USER="nostrcheck"
-MEDIAPATH="media/"
-PUBKEY=""
-SECRETKEY=""
+echo "📢 This script will install and configure the Nostrcheck server on your system."
+echo "⚠️ WARNING: This software is still in development and may not work as expected."
+echo ""
+echo "══════════════════════════════════════════════════════════════════════════════"
 
 # We ask user if want to continue
-echo "Do you want to proceed with the installation? [y/n]"
+echo "👉 Do you want to proceed with the installation? [y/n]"
 echo ""
 read -r input
 if [ "$input" != "y" ]; then
@@ -53,201 +63,449 @@ if [ "$input" != "y" ]; then
     exit $E_BADARGS
 fi
 
-# Install Node.js
 clear
-echo "Installing Node.js..."
+echo "═══════════════════════════════════════════════════════════════════════════════"
+echo "                        🚀 Installing node.js...                               "
+echo "═══════════════════════════════════════════════════════════════════════════════"
 echo ""
-sudo apt-get update
-sudo apt-get install -y ca-certificates curl gnupg
-# if /etc/apt/keyrings does not exist, create it
-if [ ! -d "/etc/apt/keyrings" ]; then
-    sudo mkdir -p /etc/apt/keyrings
-fi
-# if /etc/apt/keyrings/nodesource.gpg exist remove it
-if [ -f "/etc/apt/keyrings/nodesource.gpg" ]; then
-    sudo rm /etc/apt/keyrings/nodesource.gpg
-fi
-curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | sudo gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg
-echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_$NODE_MAJOR.x nodistro main" | sudo tee /etc/apt/sources.list.d/nodesource.list
+echo "🔍 Checking for existing installation and version compatibility..."
+echo ""
 
-sudo apt-get update
-sudo apt-get install nodejs -y
+install_node() {
+    echo "🔄 Installing Node.js..."
+    curl -fsSL https://deb.nodesource.com/setup_$NODE_MAJOR.x | sudo -E bash -
+    sudo apt-get install -y nodejs
+}
+
+if command -v node > /dev/null 2>&1; then
+    INSTALLED_NODE_MAJOR=$(node -v | grep -oP '^v\K[0-9]+')
+    echo "🔎 Node.js version $INSTALLED_NODE_MAJOR detected in PATH."
+elif [ -f "/usr/local/bin/node" ]; then
+    INSTALLED_NODE_MAJOR=$(/usr/local/bin/node -v | grep -oP '^v\K[0-9]+')
+    echo "🔎 Node.js version $INSTALLED_NODE_MAJOR detected in /usr/local/bin."
+else
+    echo "❌ Node.js not found."
+    echo "🔄 Installing Node.js version $NODE_MAJOR..."
+    install_node
+    exit 0
+fi
+
+if [ "$INSTALLED_NODE_MAJOR" -ge "$NODE_MAJOR" ]; then
+    echo "✅ Node.js version $INSTALLED_NODE_MAJOR is already installed."
+    sleep 3
+else
+    echo "⚠️ Installed Node.js version (v$INSTALLED_NODE_MAJOR) is lower than $NODE_MAJOR."
+    echo "🔄 Installing Node.js version $NODE_MAJOR..."
+    sleep 3
+    install_node
+fi
+
+# Update apt package list
+clear
+echo "═══════════════════════════════════════════════════════════════════════════════"
+echo "                       🔄 Updating Package List...                             "
+echo "═══════════════════════════════════════════════════════════════════════════════"
+echo ""
+echo "🔍 Updating package list to ensure you have the latest versions of all packages..."
+echo ""
+
+sudo apt-get update || { echo "❌ Failed to update package list"; exit 1; }
+echo ""
+echo "✅ Package list updated successfully!"
+echo ""
+sleep 3
 
 # Install necessary packages
 clear
-echo "Installing necessary packages..."
+echo "═══════════════════════════════════════════════════════════════════════════════"
+echo "                  📦 Installing Necessary Packages...                         "
+echo "═══════════════════════════════════════════════════════════════════════════════"
 echo ""
-sudo apt install nginx git redis-server mariadb-server mariadb-client ffmpeg jq certbot python3-certbot-nginx -y
+echo "🔄 Installing the following packages:"
+echo ""
+echo "    $PACKAGES"
+echo ""
+sleep 3
+sudo apt-get install -y $PACKAGES || { echo "❌ Failed to install necessary packages"; exit 1; }
+
+echo "✅ Necessary packages installed successfully!"
+echo ""
+sleep 3
+
+# Install Rust and configure environment
+clear
+echo "═══════════════════════════════════════════════════════════════════════════════"
+echo "                       🦀 Installing Rust compiler...                         "
+echo "═══════════════════════════════════════════════════════════════════════════════"
+echo ""
+sleep 3
+
+
+# Install Rust using rustup
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y || { echo "❌ Failed to install Rust"; exit 1; }
+
+# Load Rust environment
+source $HOME/.cargo/env
+
+# Add Rust to PATH for future sessions
+if ! grep -q 'export PATH="$HOME/.cargo/bin:$PATH"' ~/.bashrc; then
+  echo 'export PATH="$HOME/.cargo/bin:$PATH"' >> ~/.bashrc
+fi
+
+# Reload ~/.bashrc to make changes effective
+source ~/.bashrc
+
+# Optional: Verify Rust installation
+rustc --version && cargo --version || { echo "❌ Rust installation verification failed"; exit 1; }
+
+echo "✅ Rust installed successfully!"
+echo ""
+sleep 3
 
 # Clone the repository
 clear
-echo "Cloning the repository..."
+echo "═══════════════════════════════════════════════════════════════════════════════"
+echo "                        📥 Cloning the Repository...                           "
+echo "═══════════════════════════════════════════════════════════════════════════════"
 echo ""
-#git clone https://github.com/quentintaranpino/nostrcheck-api-ts.git
-git clone https://github.com/quentintaranpino/nostrcheck-api-ts.git
 
-# Prepare installation directory
-cd nostrcheck-api-ts
+# Clone the repository
+echo "🔄 Cloning the repository from $REPO_URL (branch: $REPO_BRANCH)..."
+echo ""
+git clone -b "$REPO_BRANCH" --single-branch "$REPO_URL" || { echo "❌ Failed to clone the repository"; exit 1; }
+cd "nostrcheck-server" || { echo "❌ Failed to enter the repository directory"; exit 1; }
+echo "✅ Repository cloned and ready for installation!"
+sleep 3
 
-# Install dependencies
+# Install Python packages from requirements.txt
 clear
-echo "Installing latest npm package manager"
+echo "═══════════════════════════════════════════════════════════════════════════════"
+echo "        🐍 Creating Python virtual environment and installing packages       "
+echo "═══════════════════════════════════════════════════════════════════════════════"
 echo ""
-sudo npm install -g npm@latest
 
-# install dependencies
-clear
-echo "Installing dependencies..."
+if [ ! -d "$VENV_DIR" ]; then
+    echo "🔄 Creating virtual environment in $VENV_DIR..."
+    python3 -m venv "$VENV_DIR" || { echo "❌ Failed to create virtual environment"; exit 1; }
+else
+    echo "🔄 Virtual environment already exists in $VENV_DIR."
+fi
+
+echo "🔄 Activating virtual environment..."
+source "$VENV_DIR/bin/activate" || { echo "❌ Failed to activate virtual environment"; exit 1; }
+
+install_packages() {
+    echo "🔄 Installing transformers==$TRANSFORMERS_VERSION..."
+    pip install transformers==$TRANSFORMERS_VERSION || { echo "❌ Failed to install transformers"; exit 1; }
+    
+    echo "🔄 Installing Flask==$FLASK_VERSION..."
+    pip install Flask==$FLASK_VERSION || { echo "❌ Failed to install Flask"; exit 1; }
+
+    echo "🔄 Installing Pillow==$PILLOW_VERSION..."
+    pip install Pillow==$PILLOW_VERSION || { echo "❌ Failed to install Pillow"; exit 1; }
+}
+
+install_packages
+
 echo ""
-npm install --include=optional sharp
+echo "✅ Python packages installed successfully!"
+sleep 3
+
+# Install the latest npm globally
+clear
+echo "═══════════════════════════════════════════════════════════════════════════════"
+echo "                  📦 Installing the Latest npm Package Manager...               "
+echo "═══════════════════════════════════════════════════════════════════════════════"
+echo ""
+echo "🔄 Updating npm to the latest version globally..."
+echo ""
+sudo npm install -g npm@latest || { echo "❌ Failed to install the latest npm package manager"; exit 1; }
+echo ""
+echo "✅ npm has been updated to the latest version successfully!"
+sleep 3
+
+# Install npm dependencies
+clear
+echo "═══════════════════════════════════════════════════════════════════════════════"
+echo "                     📦 Installing npm Dependencies...                         "
+echo "═══════════════════════════════════════════════════════════════════════════════"
+echo ""
+echo "🔄 Installing npm dependencies with optional packages..."
+echo ""
+npm install --include=optional sharp || { echo "❌ Failed to install npm dependencies"; exit 1; }
+echo ""
+echo "✅ npm dependencies installed successfully!"
+sleep 3
 
 # Build the project
 clear
-echo "Building..."
+echo "═══════════════════════════════════════════════════════════════════════════════"
+echo "                       🛠️  Building the Project...                             "
+echo "═══════════════════════════════════════════════════════════════════════════════"
 echo ""
-npm run build
+echo "🔄 Running the build process..."
+echo ""
+npm run build || { echo "❌ Failed to build the project"; exit 1; }
+echo ""
+echo "✅ Project built successfully!"
+sleep 3
 
-# Starting services
+# Start mariadb and redis-server
 clear
-echo "Starting services..."
+echo "═══════════════════════════════════════════════════════════════════════════════"
+echo "                   🚀 Starting MariaDB and Redis Server...                      "
+echo "═══════════════════════════════════════════════════════════════════════════════"
 echo ""
-sudo service start redis-server
-sudo service start mariadb
+
+# Start Redis Server
+echo "🔄 Starting Redis Server..."
+sudo service redis-server start || { echo "❌ Failed to start Redis Server"; exit 1; }
+echo "✅ Redis Server started successfully!"
+echo ""
+sleep 3
+
+# Start MariaDB
+echo "🔄 Starting MariaDB..."
+sudo service mariadb start || { echo "❌ Failed to start MariaDB"; exit 1; }
+echo "✅ MariaDB started successfully!"
+sleep 3
 
 # MYSQL
+readonly MYSQL=$(which mysql)
+if [ -z "$MYSQL" ]; then
+    echo "❌ MySQL is not installed or not found in PATH. Exiting..."
+    exit 1
+fi
+
+# Prompt for database name
 clear
-readonly MYSQL=`which mysql`
-echo "Database name [default: $DB]:"
+echo "═══════════════════════════════════════════════════════════════════════════════"
+echo "                        🗄️  Database Configuration: Name                         "
+echo "═══════════════════════════════════════════════════════════════════════════════"
 echo ""
-read -r inputDB
+echo "Please enter the name of the database that the server will create and use."
+echo "This database will store all necessary data for your server's operation,"
+echo "including user data, configuration settings, and other essential information."
+echo ""
+echo "💡 The script will automatically create this database if it does not exist."
+echo "   If you are not sure, you can use the default database name by pressing Enter."
+echo ""
+echo "👉 Enter the database name and press [Enter]:"
+echo ""
+read -p "🗄️ Database Name [default: $DB]: " inputDB
 if [ ! -z "$inputDB" ]; then
     DB=$inputDB
 fi
 
+# Prompt for database user
 clear
-echo "Database user [default: $USER]:"
+echo "═══════════════════════════════════════════════════════════════════════════════"
+echo "                        👤 Database Configuration: User                          "
+echo "═══════════════════════════════════════════════════════════════════════════════"
 echo ""
-read -r inputUSER
+echo "Please enter the username that the server will use to connect to the database."
+echo "This user should have sufficient privileges to create, read, update, and delete"
+echo "data in the database."
+echo ""
+echo "💡 The script will automatically create this user with the necessary permissions"
+echo "   if they do not already exist. Ensure that this user has access to the database."
+echo ""
+echo "👉 Enter the database user and press [Enter]:"
+echo ""
+read -p "👤 Database User [default: $USER]: " inputUSER
 if [ ! -z "$inputUSER" ]; then
     USER=$inputUSER
 fi
 
-# Generate a random password for database user
-clear
-PASS=`openssl rand -base64 32`
-echo "Generating password for user $USER..."
-echo ""
+# Generate a random password for the database user
+PASS=$(openssl rand -base64 32)
+if [ -z "$PASS" ]; then
+    echo "Failed to generate a password for the database user. Exiting..."
+    exit 1
+fi
 
-# Generate a random secret for session
-SECRET=`openssl rand -base64 32`
-echo "Generating secret for session cookies..."
-echo ""
+# Generate a random secret for session cookies
+SECRET=$(openssl rand -base64 32)
+if [ -z "$SECRET" ]; then
+    echo "Failed to generate a secret for session cookies. Exiting..."
+    exit 1
+fi
 
 # Construct the MySQL query
-readonly Q1="CREATE DATABASE IF NOT EXISTS $DB ;"
+readonly Q1="CREATE DATABASE IF NOT EXISTS $DB;"
 readonly Q2="GRANT ALL ON $DB.* TO '$USER'@'localhost' IDENTIFIED BY '$PASS';"
 readonly Q3="FLUSH PRIVILEGES;"
 readonly SQL="${Q1}${Q2}${Q3}"
 
 # Run the actual command
-sudo $MYSQL -uroot -e "$SQL"
+if sudo $MYSQL -uroot -e "$SQL"; then
+    clear
+    echo ""
+    echo "✅ Database '$DB' and user '$USER' created successfully."
+    sleep 3
+else
+    echo "Failed to create database or user. Please check MySQL root privileges and try again."
+    exit 1
+fi
 
-# Let the user know the database was created
-echo ""
-echo "Database tables and user created successfully!"
-echo ""
-
-# Set hostname
+# Prompt user to enter the server hostname
 clear
-echo "Server hostname: (ex. nostrcheck.me):"
+echo "═══════════════════════════════════════════════════════════════════════════════"
+echo "                      🚀 Server Hostname Configuration 🚀                      "
+echo "═══════════════════════════════════════════════════════════════════════════════"
 echo ""
-echo "WARNING: This hostname will be used to create the nginx configuration file."
-echo "If you want to use SSL, make sure to have a valid domain name and DNS records pointing to this server."
+echo "Please enter your server hostname (e.g., nostrcheck.me):"
 echo ""
-read -r inputHOST
-if [ ! -z "$inputHOST" ]; then
+echo "⚠️ IMPORTANT: This hostname will be used to generate the Nginx configuration."
+echo "               If you plan to use SSL, ensure you have a valid domain name"
+echo "               and that DNS records correctly point to this server."
+echo ""
+echo "🔧 Additionally, a 'cdn' subdomain (e.g., cdn.yourdomain.com) will be set up"
+echo "   to serve blobs using the Blossom protocol."
+echo ""
+echo "💡 Ensure that DNS records for both the main domain and the 'cdn' subdomain"
+echo "   are properly configured and point to this server."
+echo ""
+echo "═══════════════════════════════════════════════════════════════════════════════"
+echo ""
+read -p "🌐 Enter the hostname: " inputHOST
+
+# Check if the input is not empty
+if [ -n "$inputHOST" ]; then
     HOST=$inputHOST
 fi
 
-# if HOST is empty, prompt another time
-if [ -z "$HOST" ]; then
+# If HOST is still empty, prompt again
+while [ -z "$HOST" ]; do
     clear
-    echo "WARNING: Server hostname is required to continue the installation."
+    echo "═══════════════════════════════════════════════════════════════════════════════"
+    echo "⚠️  WARNING: Server hostname is required to continue the installation."
+    echo "═══════════════════════════════════════════════════════════════════════════════"
     echo ""
-    echo "Server hostname: (ex. nostrcheck.me):"
+    echo "Please enter your server hostname (e.g., nostrcheck.me):"
     echo ""
-    echo "WARNING: This hostname will be used to create the nginx configuration file."
-    echo "If you want to use SSL, make sure to have a valid domain name and DNS records pointing to this server."
-    echo "The hostname is required to continue the installation."
+    echo "⚠️ IMPORTANT: This hostname will be used to generate the Nginx configuration."
+    echo "               If you plan to use SSL, ensure you have a valid domain name"
+    echo "               and that DNS records correctly point to this server."
     echo ""
-    read -r inputHOST
-    if [ ! -z "$inputHOST" ]; then
+    echo "🔧 Additionally, a 'cdn' subdomain (e.g., cdn.yourdomain.com) will be set up"
+    echo "   to serve blobs using the Blossom protocol."
+    echo ""
+    echo "💡 Ensure that DNS records for both the main domain and the 'cdn' subdomain"
+    echo "   are properly configured and point to this server."
+    echo ""
+    echo "═══════════════════════════════════════════════════════════════════════════════"
+    echo ""
+    read -p "🌐 Enter the hostname: " inputHOST 
+
+    # Check if the input is not empty
+    if [ -n "$inputHOST" ]; then
         HOST=$inputHOST
     fi
-fi
 
-# if HOST is still empty, exit
-if [ -z "$HOST" ]; then
-    echo "cant install without server hostname, exiting..."
-    exit $E_BADARGS
-fi
+done
 
 # Set media path
 clear
-echo "Media path [default: $MEDIAPATH]:"
+echo "═══════════════════════════════════════════════════════════════════════════════"
+echo "                          📁 Set hosting Path                                    "
+echo "═══════════════════════════════════════════════════════════════════════════════"
 echo ""
-echo "WARNING: This path will be used to store media files on the filesystem."
-echo "If you want to use a different path, make sure to have the necessary permissions."
+echo "Please specify the path where the server will store hosting files."
 echo ""
-read -r inputMEDIAPATH
-if [ ! -z "$inputMEDIAPATH" ]; then
+echo "⚠️ WARNING: The server is initially configured to store hosting files locally."
+echo "   You can set now the path where files will be stored on the server."
+echo ""
+echo "💡 After the installation is complete, you can configure the server to use"
+echo "   a remote S3-compatible storage solution through the 'Settings' section."
+echo "   This allows you to easily switch from local storage to cloud storage."
+echo ""
+echo "❓ If you don't now what to do, just press Enter to use the default local path."
+echo ""
+read -p "🗂️ Files path [default: $MEDIAPATH]:" -r inputMEDIAPATH
+
+# Use the provided input if not empty
+if [ -n "$inputMEDIAPATH" ]; then
     MEDIAPATH=$inputMEDIAPATH
 fi
 
-# Prompt user for server pubkey (hex)
+# Prompt user for server pubkey (HEX format)
 clear
-echo "Server public key (HEX format):"
+echo "═══════════════════════════════════════════════════════════════════════════════"
+echo "                   🔑 Server Public Key (HEX format)                           "
+echo "═══════════════════════════════════════════════════════════════════════════════"
 echo ""
-echo "You can use https://nostrcheck.me/converter/ for convert your pubkey to HEX format" 
-echo "INFO: Leave it empty if you want to generate a new pubkey/secret"
+echo "Please enter your server public key (HEX format):"
 echo ""
-read -r PUBKEY
+echo "💡 You can use the following tool to convert your pubkey to HEX format:"
+echo "🌐 https://nostrcheck.me/converter/"
+echo ""
+echo "ℹ️ Leave this field empty if you want to generate a new pubkey/secret keypair."
+echo ""
+echo "👉 Enter the public key and press [Enter]:"
+echo ""
+read -p "🔑 Public Key: " -r PUBKEY
 
-# if PUBKEY is not empty, prompt user for server SECRET key.
-if [ ! -z "$PUBKEY" ]; then
+# If PUBKEY is not empty, prompt user for server SECRET key
+if [ -n "$PUBKEY" ]; then
     clear
-    echo "Server secret key (HEX format):"
+    echo "═══════════════════════════════════════════════════════════════════════════════"
+    echo "                   🔑 Server Secret Key (HEX format)                           "
+    echo "═══════════════════════════════════════════════════════════════════════════════"
     echo ""
-    echo "You can use https://nostrcheck.me/converter/ for convert your nsec to HEX format" 
+    echo "Please enter your server secret key (HEX format):"
+    echo ""
+    echo "💡 You can use the following tool to convert your nsec to HEX format:"
+    echo "🌐 https://nostrcheck.me/converter/"
     echo ""
     read -r SECRETKEY
 
-    # if SECRETKEY is empty, prompt another time
-    if [ -z "$SECRETKEY" ]; then
+    # If SECRETKEY is empty, prompt again
+    while [ -z "$SECRETKEY" ]; do
         clear
-        echo "WARNING: Server secret key is required if you provide a pubkey"
-        echo "If you are not confortable with this leave it blank to generate a new public and secret keypair."
+        echo "═══════════════════════════════════════════════════════════════════════════════"
+        echo "                   ⚠️ WARNING: Server Secret Key Required                       "
+        echo "═══════════════════════════════════════════════════════════════════════════════"
         echo ""
-        echo "Server secret key (HEX format):"
+        echo "The server secret key is required if you provide a pubkey."
+        echo "If you are not comfortable with this, leave it blank to generate a new public"
+        echo "and secret keypair."
         echo ""
-        echo "You can use https://nostrcheck.me/converter/ for convert your nsec to HEX format"
+        echo "Please enter your server secret key (HEX format):"
         echo ""
-        read -r SECRETKEY
+        echo "💡 You can use the following tool to convert your nsec to HEX format:"
+        echo "🌐 https://nostrcheck.me/converter/"
+        echo ""
+        echo "👉 Enter the secret key and press [Enter]"
+        echo "❓ Leave this field empty to generate a new pubkey/secret keypair."
+        echo ""
+        read -p "🔑 Secret Key: " -r SECRETKEY
 
-        # if SECRETKEY is still empty, remove PUBKEY value
+        # If SECRETKEY is still empty, reset PUBKEY value
         if [ -z "$SECRETKEY" ]; then
+            echo ""
+            echo "❌ No secret key provided. The pubkey will be disregarded."
+            echo "✅ The server will generate a new pubkey/secret keypair."
             PUBKEY=""
+            sleep 3
+            break
         fi
-    fi
+    done
 fi
 
-# Update local.json with generated fields.
+# Update local.json with generated fields
 clear
 echo ""
-echo "Creating user config file..."
+echo "═══════════════════════════════════════════════════════════════════════════════"
+echo "                       📝 Creating config files                                "
+echo "═══════════════════════════════════════════════════════════════════════════════"
+echo ""
 
-# Create a new JSON object with the specified values.
-jq -n --arg a "$HOST" --arg b "$PUBKEY" --arg c "$SECRETKEY" --arg d "$DB" --arg e "$USER" --arg f "$PASS" --arg g "$MEDIAPATH" --arg h "$SECRET" \
+if [ ! -d "config" ]; then
+    mkdir -p config || { echo "Failed to create config directory."; exit 1; }
+fi
+
+if jq -n --arg a "$HOST" --arg b "$PUBKEY" --arg c "$SECRETKEY" --arg d "$DB" --arg e "$USER" --arg f "$PASS" --arg g "$MEDIAPATH" --arg h "$SECRET" \
 '{
     "server": {
         "host": $a,
@@ -268,14 +526,25 @@ jq -n --arg a "$HOST" --arg b "$PUBKEY" --arg c "$SECRETKEY" --arg d "$DB" --arg
     "session": {
         "secret": $h
     }
-}' > config/local.json
+}' > config/local.json; then
+    echo "✅ Config file 'config/local.json' created successfully."
+    sleep 3
+else
+    echo "❌ Failed to create 'config/local.json'. Please check if jq package is installed, "
+    echo "   the config directory exists, permissions are set correctly, and try again."
+    sleep 3
+    exit 1
+fi
 
-# Create nginx config file
+# Configure Nginx
+clear
 echo ""
-echo "Creating nginx config file..."
+echo "═══════════════════════════════════════════════════════════════════════════════"
+echo "                           🔄 Configuring Nginx...                            "
+echo "═══════════════════════════════════════════════════════════════════════════════"
 echo ""
 
-cat > /etc/nginx/sites-available/$HOST.conf <<EOF
+sudo tee /etc/nginx/sites-available/$HOST.conf > /dev/null <<EOF
 server {
     listen 80;
     server_name $HOST;
@@ -291,9 +560,8 @@ server {
         proxy_set_header Host \$host;
     }
 
-    #API redirect for nostr.json requests
+    # API redirect for nostr.json requests
     location /.well-known/nostr.json {
-
       proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
       proxy_set_header X-Forwarded-Proto \$scheme;
       proxy_set_header Host \$host;
@@ -301,12 +569,10 @@ server {
       proxy_http_version 1.1;
       proxy_set_header Upgrade \$http_upgrade;
       proxy_set_header Connection "upgrade";
-
     }
 
-    #API redirect for nip96.json requests
+    # API redirect for nip96.json requests
     location /.well-known/nostr/nip96.json {
-
       proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
       proxy_set_header X-Forwarded-Proto \$scheme;
       proxy_set_header Host \$host;
@@ -314,12 +580,10 @@ server {
       proxy_http_version 1.1;
       proxy_set_header Upgrade \$http_upgrade;
       proxy_set_header Connection "upgrade";
-
     }
 
-    #API redirect for lightning redirect requests
+    # API redirect for lightning redirect requests
     location /.well-known/lnurlp/ {
-
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto \$scheme;
         proxy_set_header Host \$host;
@@ -327,10 +591,9 @@ server {
         proxy_http_version 1.1;
         proxy_set_header Upgrade \$http_upgrade;
         proxy_set_header Connection "upgrade";
-
     }
 
-    #API redirect for media URL requests
+    # API redirect for media URL requests
     location /media {
        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
        proxy_set_header X-Forwarded-Proto \$scheme;
@@ -339,37 +602,102 @@ server {
        proxy_http_version 1.1;
        proxy_set_header Upgrade \$http_upgrade;
        proxy_set_header Connection "upgrade";
-     }
+    }
+}
+
+# Additional server block for cdn.$HOST
+server {
+    listen 80;
+    server_name cdn.$HOST;
+
+    # Static folder always redirects to the root host folder
+    location /static {
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_set_header Host \$host;
+        proxy_pass http://127.0.0.1:3000/static;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection "upgrade";
+    }
+
+    # API redirect for media URL requests
+    location / {
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_set_header Host \$host;
+        proxy_pass http://127.0.0.1:3000/api/v2/media/;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection "upgrade";
+    }
 }
 EOF
 
-# Enable the site
-echo "Enabling nginx site..."
-echo ""
-ln -s /etc/nginx/sites-available/$HOST.conf /etc/nginx/sites-enabled/$HOST.conf
+if [ -f /etc/nginx/sites-available/$HOST.conf ]; then
+    echo "✅ nginx config file for $HOST created successfully."
+    sleep 3
+else
+    echo "❌ Failed to create nginx config file for $HOST."
+    echo " Please check the nginx configuration and try again."
+    sleep 3
+    exit 1
+fi
 
-# Restart nginx
-echo ""
-echo "Restarting nginx..."
-echo ""
-sudo service nginx restart
+# Enable the nginx site
+echo "⚙️ Enabling nginx site for $HOST..."
 
-# End of standard installation
+# Create a symbolic link to enable the site
+if sudo ln -s /etc/nginx/sites-available/$HOST.conf /etc/nginx/sites-enabled/$HOST.conf; then
+    echo "✅ Nginx site for $HOST enabled successfully."
+    sleep 3
+else
+    echo "Failed to enable nginx site for $HOST. Please check the configuration and try again."
+    sleep 3
+    exit 1
+fi
+
+# Restart the Nginx service
+if sudo service nginx restart; then
+    echo "✅ Nginx configured successfully!"
+    sleep 3
+else
+    echo "❌ Failed to configure Nginx. Please check the service status for more details."
+    exit 1
+fi
+
+# Ask user if they want to create a systemd service for the server
 clear
-echo "Installation complete!"
 echo ""
-
-# Ask user if want to creat a service for the server
-clear
-echo "Do you want to create a systemd service for the server? [y/n]"
+echo "═══════════════════════════════════════════════════════════════════════════════"
+echo "       ⚙️  Do you want to create a systemd service? ⚙️    "
+echo "═══════════════════════════════════════════════════════════════════════════════"
+echo ""
+echo " This will allow the server to start automatically with your system."
+echo " It also makes it easier to manage the server as a background service."
+echo ""
+echo " Please enter your choice: [y/n]"
 echo ""
 read -r input
-if [ "$input" = "y" ]; then
-    echo ""
-    echo "Creating systemd service..."
-    echo ""
 
-    cat > /etc/systemd/system/nostrcheck.service <<EOF
+# Initialize service variables
+SYSTEMD_SERVICE_CREATED="no"
+SUDO_USER=$(whoami)
+ABSOLUTE_PATH=$(realpath "$PWD")
+
+if [ "$input" = "y" ]; then
+
+    SYSTEMD_SERVICE_CREATED="yes"
+
+    # Check if required variables are set
+    if [ -z "$SUDO_USER" ] || [ -z "$PWD" ]; then
+        echo "Error: Required environment variables are not set."
+        exit 1
+    fi
+
+    ABSOLUTE_PATH=$(realpath "$PWD")
+
+    sudo bash -c "cat > /etc/systemd/system/nostrcheck.service <<EOF
 [Unit]
 Description=Nostrcheck server
 After=network.target
@@ -377,65 +705,177 @@ After=network.target
 [Service]
 Type=simple
 User=$SUDO_USER
-WorkingDirectory=$ABSOLUTE_PATH/nostrcheck-api-ts
+WorkingDirectory=$ABSOLUTE_PATH
 ExecStart=/usr/bin/npm run start
 Restart=on-failure
+RestartSec=5s
 
 [Install]
 WantedBy=multi-user.target
-EOF
+EOF"
 
-# Enable and start the service
+# Ask user if they want to execute certbot for SSL
 clear
+echo "═══════════════════════════════════════════════════════════════════════════════"
+echo "               🔒 Do you want to secure your server with SSL? 🔒             "
+echo "═══════════════════════════════════════════════════════════════════════════════"
 echo ""
-echo "Enabling and starting the service..."
+echo "Certbot can automatically obtain and install a free SSL certificate for your server."
+echo "This will enable HTTPS, ensuring secure communication between your server and clients."
 echo ""
-sudo systemctl enable nostrcheck
-sudo systemctl start nostrcheck
-
-fi
-
-# Ask user if want to execute certbot for SSL
-clear
+echo "🌐 Domain to be secured: $HOST"
 echo ""
-echo "Do you want to execute certbot for SSL certificate " $HOST"? [y/n]"
+echo "⚠️ IMPORTANT: Make sure your domain's DNS records are correctly configured"
+echo "   to point to this server before proceeding."
+echo ""
+echo "Would you like to proceed with Certbot to obtain an SSL certificate? [y/n]"
 echo ""
 read -r input
+
 if [ "$input" = "y" ]; then
+    clear
     echo ""
-    echo "Executing certbot SSL certificate for " $HOST"..."
+    echo "═══════════════════════════════════════════════════════════════════════════════"
+    echo "          🔐 Executing Certbot to Obtain SSL Certificate for $HOST              "
+    echo "═══════════════════════════════════════════════════════════════════════════════"
     echo ""
-    sudo certbot --nginx -d $HOST
+    
+    # Run certbot with nginx plugin for the specified domain
+    if sudo certbot --nginx -d "$HOST"; then
+        echo "✅ SSL certificate obtained successfully for $HOST."
 
-    # Restart nginx
-    echo ""
-    echo "Restarting nginx..."
-    echo ""
-    sudo service nginx restart
-
+        # Restart nginx to apply the new SSL certificate
+        echo ""
+        echo "🔄 Restarting Nginx to apply the new SSL certificate..."
+        echo ""
+        if sudo service nginx restart; then
+            echo "✅ Certbot configured successfully!"
+            sleep 3
+        else
+            echo "❌ Failed to restart Nginx. Please check the service status."
+            sleep 3
+            exit 1
+        fi
+    else
+        echo "❌ Failed to obtain SSL certificate for $HOST. Please check the Certbot logs for details."
+        sleep 3
+        exit 1
+    fi
 fi
 
+# Ask user if they want to execute certbot for SSL certificate for cdn.$HOST
 clear
-# End message
-echo "-------------------------------------------------------------------------------------------"
-echo "-                                                                                         -"
-echo "-  You can now start nostrcheck server by running 'cd nostrcheck-api-ts && npm run start' -"
-echo "-                                                                                         -"
-echo "-  Server documentation:                                                                  -"
-echo "-  https://github.com/quentintaranpino/nostrcheck-api-ts/blob/main/DOCS.md                -" 
-echo "-                                                                                         -"
-echo "-  If you like this project, please consider donating to keep it alive:                   -"
-echo "-  https://nostrcheck.me/about/support-us.php                                             -"
-echo "-                                                                                         -"
-echo "-  WARNING:                                                                               -" 
-echo "-  The first time you visit the server's frontend, it will autologin with server admin    -"
-echo "-  user (public) and it will send a new password to its pubkey via DM. Please, make sure  -"
-echo "-  that you are able to login with the new password before closing this session.          -"
-# if PUBKEY was empty show a message
-if [ -z "$PUBKEY" ]; then
-echo "-                                                                                         -"   
-echo "-  Please execute the server once to generate the server pubkey and secret key, the new   -"
-echo "-  generated keys will be stored in config/local.json file.                               -"
+echo "═══════════════════════════════════════════════════════════════════════════════"
+echo "          🔒 Do you want to secure your CDN subdomain with SSL? 🔒        "
+echo "═══════════════════════════════════════════════════════════════════════════════"
+echo ""
+echo "Certbot can automatically obtain and install a free SSL certificate for your CDN subdomain."
+echo "This will enable HTTPS, ensuring secure communication for content delivery from cdn.$HOST."
+echo ""
+echo "🌐 Subdomain to be secured: cdn.$HOST"
+echo ""
+echo "⚠️ IMPORTANT: Make sure the DNS records for 'cdn.$HOST' are correctly configured"
+echo "   to point to this server before proceeding."
+echo ""
+echo "Would you like to proceed with Certbot to obtain an SSL certificate for your CDN? [y/n]"
+echo ""
+read -r input_cdn
+
+if [ "$input_cdn" = "y" ]; then
+    clear
+    echo ""
+    echo "═══════════════════════════════════════════════════════════════════════════════"
+    echo "      🔐 Executing Certbot to Obtain SSL Certificate for cdn.$HOST              "
+    echo "═══════════════════════════════════════════════════════════════════════════════"
+    echo ""
+    
+    # Run certbot with nginx plugin for the cdn subdomain
+    if sudo certbot --nginx -d "cdn.$HOST"; then
+        echo "✅ SSL certificate obtained successfully for cdn.$HOST."
+
+        # Restart nginx to apply the new SSL certificate
+        echo ""
+        echo "🔄 Restarting Nginx to apply the new SSL certificate..."
+        echo ""
+        if sudo service nginx restart; then
+            echo "✅ Certbot configured successfully!"
+            sleep 3
+        else
+            echo "❌ Failed to restart Nginx. Please check the service status."
+            sleep 3
+            exit 1
+        fi
+    else
+        echo "❌ Failed to obtain SSL certificate for cdn.$HOST. Please check the Certbot logs for details."
+        sleep 3
+        exit 1
+    fi
 fi
-echo "-                                                                                         -" 
-echo "-------------------------------------------------------------------------------------------"
+
+if [ -f /etc/systemd/system/nostrcheck.service ]; then
+    clear
+    echo ""
+    echo "═══════════════════════════════════════════════════════════════════════════════"
+    echo "               ⚙️  Enabling and Starting Nostrcheck Service...              "
+    echo "═══════════════════════════════════════════════════════════════════════════════"
+    echo ""
+
+    sudo systemctl enable nostrcheck || { echo "❌ Failed to enable Nostrcheck service"; exit 1; }
+    sudo systemctl start nostrcheck || { echo "❌ Failed to start Nostrcheck service"; exit 1; }
+
+    # Check if the service started successfully
+    if sudo systemctl is-active --quiet nostrcheck; then
+        echo "✅ Nostrcheck service started successfully!"
+        sleep 3
+    else
+        echo "❌ Failed to start Nostrcheck service. Please check the service status for more details."
+        SYSTEMD_SERVICE_CREATED="no"
+        sleep 5
+    fi
+    else
+        echo "❌ Failed to create systemd service file. The service will not be enabled."
+        SYSTEMD_SERVICE_CREATED="no"
+        sleep 5
+    fi
+fi
+
+# End message
+clear
+echo ""
+echo " ╔═════════════════════════════════════════════════════════════════════════════════════════╗"
+echo " ║                                                                                         ║"
+echo " ║  🎉 Installation Complete! 🎉                                                           ║"
+echo " ║                                                                                         ║"
+
+if [ "$SYSTEMD_SERVICE_CREATED" = "yes" ]; then
+    echo " ║  🚀 The Nostrcheck server has been configured to run as a systemd service.              ║"
+    echo " ║                                                                                         ║"
+    echo " ║     👉 To start the server:   sudo systemctl start nostrcheck                           ║"
+    echo " ║     👉 To stop the server:    sudo systemctl stop nostrcheck                            ║"
+    echo " ║     👉 To check status:       sudo systemctl status nostrcheck                          ║"
+    echo " ║     👉 To enable on boot:     sudo systemctl enable nostrcheck                          ║"
+    echo " ║     👉 To disable on boot:    sudo systemctl disable nostrcheck                         ║"
+else
+    echo " ║  🚀 You can now start the Nostrcheck server by running the following command:           ║"
+    echo " ║     👉 cd nostrcheck-server && npm run start                                            ║"
+fi
+
+echo " ║                                                                                         ║"
+echo " ║  📄 Server Documentation:                                                               ║"
+echo " ║     📝 https://github.com/quentintaranpino/nostrcheck-server/blob/main/DOCS.md          ║"
+echo " ║                                                                                         ║"
+echo " ║  💖 If you like this project, please consider supporting its development:               ║"
+echo " ║     🔗 https://nostrcheck.me/about/support-us.php                                       ║"
+echo " ║                                                                                         ║"
+echo " ║  ⚠️  Important Notice:                                                                  ║"
+echo " ║     The first time you access the server's frontend, it will auto-login with the        ║"
+echo " ║     admin user (public). A new password will be sent to the associated pubkey via DM.   ║"
+echo " ║     Please make sure you can log in with the new password before closing this session.  ║"
+if [ -z "$PUBKEY" ]; then
+echo " ║                                                                                         ║"   
+echo " ║  🔑 Please run the server once to generate the server's pubkey and secret key. The new  ║"
+echo " ║     keys will be stored in the config/local.json file.                                  ║"
+fi
+echo " ║                                                                                         ║"
+echo " ╚═════════════════════════════════════════════════════════════════════════════════════════╝"
+echo ""

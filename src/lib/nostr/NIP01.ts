@@ -1,128 +1,133 @@
 import { Event } from "nostr-tools"
 import { relays, relaysPool } from "./core.js";
-import app from "../../app.js";
 import { logger } from "../logger.js";
-
-let counter = 0;
-
-
+import { emptyNostrProfileData, nostrProfileData } from "../../interfaces/nostr.js";
 
 /**
- * Retrieves the profile data of a user from the Nostr network (Kind 0).
+ * Retrieves the pubkey metadata from the Nostr network (Kind 0).
  * @param pubkey - The public key of the user, hex format.
  * @returns A promise that resolves to the content data of the kind 0 note.
  */
-const getProfileData = async (pubkey : string) : Promise<Event> => {
+const getPubkeyMedatada = async (pubkey: string): Promise<nostrProfileData> => {
+	const metadataEvents: Event[] = []
 
-    logger.debug('CONNECTIONS: ' + counter);
-    
-    let resolveEvent : (event : Event) => void;
-    let subscribePromise : Promise<Event> = new Promise(resolve => resolveEvent = resolve);
-
-    counter++;
-
-    const data = relaysPool.subscribeMany(
-        relays,
-        [{
-            authors: [pubkey],
-            kinds: [0],
-        }],
-        {
-            eoseTimeout: 100,
-            onevent(e) {
-                resolveEvent(e);
-            },
-            oneose() {
-                data.close();
-                counter--;
-                logger.debug('CONNECTIONS: ' + counter);
-                return resolveEvent({kind: 0, created_at: 0, tags: [], content: "{}", pubkey: "", id: "", sig: ""});
-            },
-        },
-    );
-
-    let event : Event = await subscribePromise;
-    if (event.content === undefined) {
-        return {kind: 0, created_at: 0, tags: [], content: "{}", pubkey: "", id: "", sig: ""};
-    }
-
-    return event;
-    
+	return new Promise((resolve) => {
+		try{
+			const data = relaysPool.subscribeMany(
+				relays,
+				[{
+					authors: [pubkey],
+					kinds: [0],
+				}],
+				{
+					eoseTimeout: 1000,
+					onevent(e) {
+						metadataEvents.push(e);
+					},
+					oneose() {
+						if (metadataEvents.length > 0) {
+							metadataEvents.sort((a, b) => b.created_at - a.created_at);
+							const data = JSON.parse(metadataEvents[0].content);
+							const profileData: nostrProfileData = {
+								name: data.name,
+								about: data.about,
+								picture: data.picture,
+								nip05: data.nip05,
+								lud16: data.lud16,
+								website: data.website,
+								display_name: data.display_name,
+								banner: data.banner,
+							}
+							resolve(profileData);
+						}		
+						data.close();
+						resolve(emptyNostrProfileData);
+					},
+				},
+			);
+		}catch (error) {
+			logger.error(error)
+			resolve(emptyNostrProfileData)
+		}
+	});
 }
 
+/*
+* Retrieves the pubkey's following list relays (Kind 3).
+* @param pubkey - The public key of the user, hex format.
+* @returns A promise that resolves to the list of public keys the user is following.
+*/
+const getPubkeyFollowing = (pubkey : string) : Promise<string[]> => {
+	
+	const followingEvents: Event[] = []
+
+	return new Promise((resolve) => {
+		try{
+			const data = relaysPool.subscribeMany(
+				relays,
+				[{
+					authors: [pubkey],
+					kinds: [3],
+				}],
+				{
+					eoseTimeout: 1000,
+					onevent(e) {
+						followingEvents.push(e);
+					},
+					oneose() {
+						if (followingEvents.length > 0) {
+							followingEvents.sort((a, b) => b.created_at - a.created_at);
+							const pubkeys = followingEvents[0].tags.map(item => item[1]);
+							resolve(pubkeys);
+						}		
+						data.close();
+						resolve([]);
+					},
+				},
+			);
+		}catch (error) {
+			logger.error(error)
+			resolve([])
+		}
+	});
+}
+
+
 /**
- * Retrieves the followers of a user from relays (Kind 3). Asynchronously updates the app state with the number of followers.
+ * Retrieves the pubkey's followers list relays (Kind 3). 
  * @param pubkey - The public key of the user, hex format.
  * @returns A boolean indicating whether the operation was successful.
  */
-const getProfileFollowers = (pubkey : string) : Boolean => {
+const getPubkeyFollowers = (pubkey : string) : Promise<string[]> => {
 	
-	let followerList : Event[] = []
+	const followerList : string[] = []
 
-	counter++;
-
-	try{
-		const data = relaysPool.subscribeMany(
-			relays,
-			[{
-				kinds: [3],
-				"#p": [pubkey],
-			}],
-			{
-				eoseTimeout: 100,
-				onevent(e) {
-					followerList.push(e);
+	return new Promise((resolve) => {
+		try{
+			const data = relaysPool.subscribeMany(
+				relays,
+				[{
+					kinds: [3],
+					"#p": [pubkey],
+					since: Math.floor(Date.now() / 1000) - (365 * 24 * 60 * 60),
+					until: Math.floor(Date.now() / 1000),
+				}],
+				{
+					eoseTimeout: 1000,
+					onevent(e) {
+						followerList.push(e.pubkey);
+					},
+					oneose() {
+						data.close();
+						resolve(followerList);
+					},
 				},
-				oneose() {
-					data.close();
-					counter--;
-					logger.debug('CONNECTIONS: ' + counter);
-					app.set("#p_" + pubkey, followerList.length);
-				},
-			},
-		);
-	}catch (error) {
-		logger.error(error)
-		return false
-	}
-	
-	return true;
+			);
+		}catch (error) {
+			logger.error(error)
+			resolve([])
+		}
+	});
 }
 
-const getProfileFollowing = (pubkey : string) : Boolean => {
-	
-	let followingList = []
-
-	counter++;
-
-	try{
-		const data = relaysPool.subscribeMany(
-			relays,
-			[{
-				authors: [pubkey],
-				kinds: [3],
-			}],
-			{
-				eoseTimeout: 100,
-				onevent(e) {
-					for (let tag of e.tags) {
-                        followingList.push(tag);
-                    }
-				},
-				oneose() {
-					data.close();
-					counter--;
-					logger.debug('CONNECTIONS: ' + counter);
-					app.set("#f_" + pubkey, followingList.length);
-				},
-			},
-		);
-	}catch (error) {
-		logger.error(error)
-		return false
-	}
-	
-	return true;
-}
-
-export {getProfileData, getProfileFollowers, getProfileFollowing}
+export {getPubkeyMedatada, getPubkeyFollowing, getPubkeyFollowers}

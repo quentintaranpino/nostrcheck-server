@@ -1,0 +1,79 @@
+<div class="theme-switch" id="theme-switch">
+  <i class="bi bi-brightness-high-fill" id="theme-switch-icon" ></i>
+</div>
+
+<style>
+
+
+.theme-switch {
+    width: 40px;
+    height: 58px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+#theme-switch-icon{
+    font-size: 1.4rem;
+    transition: transform 0.5s, color 0.5s;
+    transform: rotate(0deg);
+}
+
+html[data-bs-theme="dark"] #theme-switch-icon {
+    color: rgb(222, 226, 230);
+}
+
+</style>
+
+<script>
+const themeSwitch = document.getElementById('theme-switch');
+const themeSwitchIcon = document.getElementById('theme-switch-icon');
+
+
+let serverLogoId = 'server-logo';
+function applyTheme(theme) {
+  if (theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+    themeSwitchIcon.classList.remove('bi')
+    themeSwitchIcon.classList.remove('bi-brightness-high-fill');
+    themeSwitchIcon.classList.add('fas');
+    themeSwitchIcon.classList.add('fa-moon');
+    document.documentElement.setAttribute('data-bs-theme', 'dark');
+    document.querySelector('meta[name=theme-color]').setAttribute('content', '#2B3035F5');
+    const serverLogo = document.getElementById(serverLogoId);
+    serverLogo.src = `/static/resources/navbar-logo-dark.png?` + new Date().getTime();
+    serverLogo.id = Math.random().toString(36).substring(7);
+    serverLogoId = serverLogo.id;
+  } else {
+    themeSwitchIcon.classList.remove('fas');
+    themeSwitchIcon.classList.remove('fa-moon');
+    themeSwitchIcon.classList.add('bi');
+    themeSwitchIcon.classList.add('bi-brightness-high-fill');
+    document.documentElement.setAttribute('data-bs-theme', 'light');
+    document.querySelector('meta[name=theme-color]').setAttribute('content', '#e8e8e8f5');
+    const serverLogo = document.getElementById(serverLogoId);
+    serverLogo.src = `/static/resources/navbar-logo-light.png?` + new Date().getTime();
+    serverLogo.id = Math.random().toString(36).substring(7);
+    serverLogoId = serverLogo.id;
+  }
+}
+
+function setTheme(theme) {
+  localStorage.setItem('theme', theme);
+  applyTheme(theme);
+}
+
+themeSwitch.addEventListener('click', function() {
+  themeSwitchIcon.style.transform == 'rotate(360deg)'? themeSwitchIcon.style.transform = 'rotate(0deg)' : themeSwitchIcon.style.transform = 'rotate(360deg)';
+  document.documentElement.getAttribute('data-bs-theme') == 'dark'? setTheme('light'): setTheme('dark');
+});
+
+const savedTheme = localStorage.getItem('theme') || 'system';
+applyTheme(savedTheme);
+
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+  if (localStorage.getItem('theme') === 'system') {
+    applyTheme('system');
+  }
+});
+</script>

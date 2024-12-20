@@ -1,45 +1,96 @@
-const initTable = (tableId, data, objectName) => {
+let isFilterActive = {};
 
-    if (data == "") { // dummy data for table creation
-        return "";
+const initTable = async (tableId, datakey, objectName, dataKey, field = "") => {
+
+    if (datakey == "") { // dummy data for table creation
+        resolve();
+        return;
     }
-    data = JSON.parse(data)
 
-    let isFilterActive = false;
     $(tableId).bootstrapTable({
-        data: data,
+        url: 'admin/moduledata?module=' + datakey,
+        ajax: function (params) {semaphore.execute(() => fetchTabledata(params))},
+        idField: 'id',
         uniqueId: 'id',
+        showFilterControlSwitch: true,
+        filterControlVisible: false,
+        sidePagination: "server",
         pagination: true,
+        sortable: true,
         search: true,
         searchClearButton: true,
-        pageSize: 10,
+        pageSize: 5,
         toolbar: tableId + '-toolbar',
         resizable: true,
         clickToSelect: true,
+        showRefresh: true,
         showColumns: true,
-        idField: 'id',
         detailView: true,
+        mobileResponsive: true,
+        minWidth: 1024,
+        checkOnInit: true,
         detailFormatter: "detailFormatter",
-        dataSidePagination: "server",
-        buttons: initFilterButton(),
+        rowStyle: rowStyle,
+        queryParams: function (params) {
+            let filters = params.filter ? JSON.parse(params.filter) : {};
+            if (isFilterActive[tableId]) {
+                filters.checked = "0";
+            }
+            params.filter = JSON.stringify(filters);
+            return params;
+        },
+        buttons: (tableId === '#nostraddressData' || tableId === '#mediaData' ) ? checkedButton(tableId) : null,
     })
 
-    // Hide columns if hide is specified
-    var columns = $(tableId).bootstrapTable('getOptions').columns[0];
-    for (let column of columns) {
-        if (column.class) {
-            var classes = column.class.split(' ');
-            classes.forEach(function(className) {
-                if (className == 'hide') {
-                    $(tableId).bootstrapTable('hideColumn', column.field);
-                }
-            });
+    // Hide columns function
+    const hideShowColumns = (columns, className, action = "hideColumn") => {
+        for (let column of columns) {
+            if (column.class) {
+                var classes = column.class.split(' ');
+                classes.forEach(function(e) {
+                    if (e == className) {
+                        $(tableId).bootstrapTable(action, column.field);
+                    }
+                });
+            }
         }
     }
 
-    setFieldLinks(tableId);
-    $(document).on('page-change.bs.table', tableId, function (e, number, size) {
-        setFieldLinks(tableId, (size * number) - size );
+    // Default columns to hide
+    var columns = $(tableId).bootstrapTable('getOptions').columns[0];
+    hideShowColumns(columns, 'hide', 'hideColumn');
+
+    // Hide or show columns based on the screen size
+    $(document).ready(function () {
+        if ($(window).width() < 768) {
+            hideShowColumns(columns, 'mobile-hide', 'hideColumn');
+        }
+    });
+    $(window).resize(function () {
+        if ($(window).width() < 768) {
+            hideShowColumns(columns, 'mobile-hide', 'hideColumn');
+        } else {
+            hideShowColumns(columns, 'mobile-hide', 'showColumn');
+        }
+    });
+
+    // Prevent refresh button spamming
+    $(tableId).on('refresh.bs.table', function (e, data) {
+        const refreshButton = $(tableId).closest('.bootstrap-table').find('[name="refresh"]');
+        refreshButton.prop('disabled', true);
+    })
+
+    // Prevent sorting spamming
+    $(tableId).on('sort.bs.table', function(e, name, order) {
+        var sortingButtons = $(tableId).find('.sortable');
+        sortingButtons.addClass('disabled');
+        sortingButtons.css('pointer-events', 'none');
+      });
+
+    // Fill doughnut chart with table data
+    semaphore.execute(async() => {
+        const dataCount = await fetchTableCountData(dataKey, 'count', field);
+        if(field){initDoughnutChart(tableId, field.charAt(0).toUpperCase() + field.slice(1) + ' ' + objectName + 's',{field: dataCount.field, total:dataCount.total}, field, true, true)}
     });
 
     // Buttons logic
@@ -49,152 +100,41 @@ const initTable = (tableId, data, objectName) => {
         $(tableId + '-button-show').prop('disabled', !$(tableId).bootstrapTable('getSelections').length)
         $(tableId + '-button-hide').prop('disabled', !$(tableId).bootstrapTable('getSelections').length)
         $(tableId + '-button-remove').prop('disabled', !$(tableId).bootstrapTable('getSelections').length)
+        $(tableId + '-button-moderate').prop('disabled', !$(tableId).bootstrapTable('getSelections').length)
+        $(tableId + '-button-ban').prop('disabled', !$(tableId).bootstrapTable('getSelections').length)
 
         if ($(tableId).bootstrapTable('getSelections').length == 1) {
             $(tableId + '-button-admin').prop('disabled', false)
             $(tableId + '-button-edit').prop('disabled', false)
             $(tableId + '-button-password').prop('disabled', false)
+            $(tableId + '-button-pay').prop('disabled', false)
+            $(tableId + '-button-balance').prop('disabled', false)
         }
         else {
             $(tableId + '-button-add').prop('disabled', false)
             $(tableId + '-button-admin').prop('disabled', true)
             $(tableId + '-button-edit').prop('disabled', true)
             $(tableId + '-button-password').prop('disabled', true)
+            $(tableId + '-button-pay').prop('disabled', true)
+            $(tableId + '-button-balance').prop('disabled', true)
         }
     })
 
-    // Add button
-    $(tableId + '-button-add').click(function () {
+    // Buttons initialization
+    initButton(tableId, '-button-admin',        objectName, 'toggle admin permissions', 'allowed', null)
+    initButton(tableId, '-button-hide',         objectName, 'hide', 'visibility', 0)
+    initButton(tableId, '-button-show',         objectName, 'show', 'visibility', 1)
+    initButton(tableId, '-button-disable',      objectName, 'disable', 'active', 0)
+    initButton(tableId, '-button-enable',       objectName, 'enable', 'active', 1)
+    initButton(tableId, '-button-remove',       objectName, 'remove', '', null)
+    initButton(tableId, '-button-edit',         objectName, 'edit', '', null)
+    initButton(tableId, '-button-add',          objectName, 'add', '', null)
+    initButton(tableId, '-button-password',     objectName, 'reset password', 'password', '')
+    initButton(tableId, '-button-pay',          objectName, 'pay', 'paid', 1)
+    initButton(tableId, '-button-balance',      objectName, 'balance', 'balance', 100, true)
+    initButton(tableId, '-button-moderate',     objectName, 'moderate', 'checked', 1)
+    initButton(tableId, '-button-ban',          objectName, 'ban', 'reason', '',  true)
 
-        // If tableid is mediaFiles execute the following funciton
-        if (tableId === '#mediaData') {
-            uploadMedia()
-            return
-        }
-
-        // Deselect all rows
-        $(tableId).bootstrapTable('uncheckAll')
-
-        // Create an empty row with same columns as table
-        var row = {}
-        $(tableId).bootstrapTable('getOptions').columns[0].forEach(element => {
-            if (element.field != 'state'){
-                row[element.field] = ''
-            }
-        });
-        var columns = $(tableId).bootstrapTable('getOptions').columns[0];
-        initEditModal(tableId,row,objectName, true, columns).then(async (editedRow) => {
-            if (editedRow) {
-                response = await modifyRecord(tableId, null, null, null, 'insert', editedRow)
-                authkey = response.authkey
-                $(tableId).bootstrapTable('uncheckAll')
-                setFieldLinks(tableId);
-                if (response.status != "error"){
-                    if (tableId === '#nostraddressData'){
-                       await initMessageModal(tableId, "username: " + row.username + ". A new password has been sent via DM. ", "User added successfully.")
-                    }
-                await initMessageModal(tableId, "New record added successfully. ", "Success.")
-                }
-            }
-        });
-    }
-    )
-
-    // Admin, hide and show, enable and disable buttons
-    initButton(tableId, '-button-admin', objectName, 'toggle admin permissions', 'allowed', null)
-    initButton(tableId, '-button-hide', objectName, 'hide', 'visibility', 0)
-    initButton(tableId, '-button-show', objectName, 'show', 'visibility', 1)
-    initButton(tableId, '-button-disable', objectName, 'disable', 'active', 0)
-    initButton(tableId, '-button-enable', objectName, 'enable', 'active', 1)
-    initButton(tableId, '-button-remove', objectName, 'remove', '', null)
- 
-     // Edit button
-     $(tableId + '-button-edit').click(function () {
-        var row = $(tableId).bootstrapTable('getSelections')[0]
-        var columns = $(tableId).bootstrapTable('getOptions').columns[0];
-        initEditModal(tableId,row,objectName,false,columns).then(async (editedRow) => {
-            if (editedRow) {
-                for (let field in editedRow) {
-                    if (editedRow[field] != row[field]){
-                        authkey = (await modifyRecord(tableId, row.id, field, editedRow[field], 'modify')).authkey
-                        setFieldLinks(tableId);
-                    }
-                }
-            }
-        });
-    })
-
-    // Pasword button
-    $(tableId + '-button-password').click(async function () {
-        var ids = $.map($(tableId).bootstrapTable('getSelections'), function (row) {
-        return row.id
-        })
-
-        if (await initConfirmModal(tableId,ids,'send new generated password to ',objectName)) {
-
-            let url = "admin/resetpassword/";
-
-            let data = {
-                pubkey: $(tableId).bootstrapTable('getSelections')[0].hex,
-            };
-
-            fetch(url, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "authorization": "Bearer " + authkey
-                },
-                body: JSON.stringify(data)
-            })
-            .then(response => response.json())
-            .then(data => {
-                authkey = data.authkey;
-                })
-            .catch((error) => {
-                initAlertModal(tableId, error)
-                console.error(error);
-            });
-        }
-    })
-
-    // Filter buttons
-    function initFilterButton () {
-        return {
-            btnFilterUnchecked: {
-                text: 'Show unchecked records',
-                icon: 'bi bi-bookmark-heart-fill',
-                event: async function () {
-                    // dirty hack to force the filter to work
-                    if (isFilterActive) {
-                        $(tableId).bootstrapTable('filterBy', {}); 
-                        $(tableId).bootstrapTable('filterBy', {checked: [0]}); 
-                        $(tableId).bootstrapTable('filterBy', {}); 
-                    } else {
-                        $(tableId).bootstrapTable('filterBy', {checked: [0]});
-                        $(tableId).bootstrapTable('filterBy', {}); 
-                        $(tableId).bootstrapTable('filterBy', {checked: [0]}); 
-                    }
-                    isFilterActive = !isFilterActive; 
-                    setFieldLinks(tableId);
-                },
-                attributes: {
-                    title: 'Show only unchecked records',
-                    id: 'btnFilterUnchecked'
-                }
-            }
-        }
-    }
-}
-
-function detailFormatter(row) {
-var html = []
-html.push('<div class="container-fluid ps-4">')
-html.push('<h3><b>Details:</b></h3>')
-$.each(row, function (key, value) {
-    html.push('<p><b>' + key + ':</b> ' + value + '</p>')
-})
-html.push('</div>')
-return html.join('')
 }
 
 function highlihtRow(tableId, row) {
@@ -208,188 +148,445 @@ function highlihtRow(tableId, row) {
     }, 2000);
 }
 
-function initButton(tableId, buttonSuffix, objectName, modaltext, field, fieldValue) {
+function initButton(tableId, buttonSuffix, objectName, modaltext, field, fieldValue, enableEditText = false) {
     $(tableId + buttonSuffix).click(async function () {
+
+        // Add button
+        if (buttonSuffix === '-button-add') {
+                    // If tableid is mediaFiles execute the following funciton
+       
+            $(tableId).bootstrapTable('uncheckAll')
+            var row = {}
+            $(tableId).bootstrapTable('getOptions').columns[0].forEach(element => {
+                if (element.field != 'state'){
+                    row[element.field] = ''
+                }
+            });
+            var columns = $(tableId).bootstrapTable('getOptions').columns[0];
+            semaphore.execute(async () => {
+                await initEditModal(tableId,row,objectName, true, columns).then(async (editedRow) => {
+                    if (editedRow) {semaphore.execute(async () => { await modifyRecord("admin/insertrecord/",tableId, null, null, null, 'insert', editedRow)})};
+                });
+            });
+            return
+        }
+
+        // Edit button
+        if (buttonSuffix === '-button-edit') {
+            var row = $(tableId).bootstrapTable('getSelections')[0]
+            var columns = $(tableId).bootstrapTable('getOptions').columns[0];
+            semaphore.execute(async () => await initEditModal(tableId,row,objectName,false,columns).then(async (editedRow) => {
+                if (editedRow) {
+                    for (let field in editedRow) {
+                        if (editedRow[field] != row[field]){
+                            semaphore.execute(async () => await modifyRecord("admin/updaterecord/", tableId, row.id, field, editedRow[field], 'modify'))                     
+                        }
+                    }
+                }
+            }));
+            return
+        }
+
+        // Admin, hide and show, password, pay, balance, ban, enable, moderate and disable buttons
         var ids = $.map($(tableId).bootstrapTable('getSelections'), function (row) {
             return row.id
         })
-
-        if (await initConfirmModal(tableId, ids, modaltext, objectName)) {
-            for (let id of ids) {
-                if (modaltext === 'remove') {
-                    authkey = (await modifyRecord(tableId, id, field, fieldValue, 'remove')).authkey
-                    setFieldLinks(tableId);
-                } else {
-                    authkey = (await modifyRecord(tableId, id, field, fieldValue, 'modify')).authkey
-                    setFieldLinks(tableId);
+        semaphore.execute(async () => {await initConfirmModal(tableId, ids, modaltext, objectName, fieldValue, enableEditText).then(async (modal) => {
+            if (modal.result == true) {
+                for (let id of ids) {
+                    if (modaltext === 'remove') {
+                        semaphore.execute(async () => await modifyRecord("admin/deleterecord/", tableId, id, field, fieldValue, 'remove'));
+                    } else if (modaltext === 'reset password') {
+                        semaphore.execute(async () => await modifyRecord("admin/resetpassword/", tableId, id, field, fieldValue, 'password'));
+                    }else if (modaltext === 'pay') {
+                        semaphore.execute(async () => await modifyRecord("payments/paytransaction/", tableId, id, field, fieldValue, 'pay'));
+                    }else if (modaltext === 'balance') {
+                        semaphore.execute(async () => await modifyRecord("payments/addbalance/", tableId, id, field, modal.value, 'balance'));
+                    }else if (modaltext === 'ban') {
+                        semaphore.execute(async () => await modifyRecord("admin/ban", tableId, id, field, modal.value, 'ban'));
+                    }else if (modaltext === 'moderate') {
+                        semaphore.execute(async () => await modifyRecord("admin/moderaterecord/", tableId, id, field, fieldValue, 'moderate'));
+                    } else {
+                        semaphore.execute(async () => await modifyRecord("admin/updaterecord/", tableId, id, field, fieldValue, 'modify'));
+                        
+                    }
                 }
             }
-            if (modaltext != 'remove' && (tableId === '#nostraddressData' || tableId === '#lightningData')){
-                initMessageModal(tableId, "Changes will not take effect for 5 minutes due to system cache", "Success.")
-            }          
-        }
+        })});
     })
 }
 
-function modifyRecord(tableId, id, field, fieldValue, action = 'modify', row = null){
+async function modifyRecord(url, tableId, id, field, fieldValue, action = 'modify', row = null){
 
     if(row === null) {row = $(tableId).bootstrapTable('getRowByUniqueId', id)};
-    let url = "";
-    if (action === 'modify') {url = "admin/updaterecord/"}
-    if (action === 'remove') {url = "admin/deleterecord/"}
-    if (action === 'insert') {url = "admin/insertrecord/"}
 
-    if (field === "allowed") {
-        fieldValue = $(tableId).bootstrapTable('getSelections')[0].allowed === 0 ? 1 : 0;
-    }
+    if (field === "allowed") {fieldValue = $(tableId).bootstrapTable('getSelections')[0].allowed === 0 ? 1 : 0;}
 
     let data = {};
+
     if (action === 'remove' || action === 'modify') {
-        
-            data.table = tableId.split('-')[0].split('#')[1],
-            data.field = field,
-            data.value = fieldValue,
-            data.id = row.id
-        }
-    
+        data.table = tableId.split('-')[0].split('#')[1],
+        data.field = field,
+        data.value = fieldValue,
+        data.id = id
+    }
+
     if (action === 'insert') {
-            data.table = tableId.split('-')[0].split('#')[1],
-            data.row = row
+        if (!row) {
+            console.error('No row data to insert', row);
+            return
+        }
+        data.table = tableId.split('-')[0].split('#')[1],
+        data.row = row
+        
+    }
+
+    if (action === 'password') {
+        data = {pubkey: $(tableId).bootstrapTable('getSelections')[0].hex};
+    }
+
+    if (action === 'pay') {
+        data = {
+            transactionid: $(tableId).bootstrapTable('getSelections')[0].transactionid || $(tableId).bootstrapTable('getSelections')[0].id,
+            satoshi: $(tableId).bootstrapTable('getSelections')[0].satoshi,
+        };
+    }
+
+    if (action === 'balance') {
+        data = {
+            id: $(tableId).bootstrapTable('getSelections')[0].id,
+            amount: fieldValue,
+        };
+    }
+
+    if (action === 'ban') {
+        data = {
+            id: id,
+            table: tableId.split('-')[0].split('#')[1],
+            reason: fieldValue,
+        };
+    }
+
+    if (action === 'moderate') {
+        data = {
+            id: id,
+            filename : $(tableId).bootstrapTable('getRowByUniqueId', id).filename,
+        };
     }
 
     return fetch(url, {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
-            "authorization": "Bearer " + authkey
         },
         body: JSON.stringify(data)
     })
     .then(response => response.json())
-    .then(responseData => {
+    .then(async responseData => {
         if (responseData.status === "success") {
             if (action === 'remove') {
                 $(tableId).bootstrapTable('removeByUniqueId', id);
-            } else if (action === 'insert') {
-                 // Add returned id to the row
+            }else if (action === 'insert') {
                  row.id = +responseData.message;
-           
-                 // add a new row with modal form inputs
+                 console.log(row)
                  $(tableId).bootstrapTable('insertRow', {
                     index: 0,
                     row: data.row
                 });
-              
-            }else {
+            }else if (action === 'modify' || action === 'pay' || action === 'balance'){
                 let updateData = {};
                 updateData[field] = responseData.message;
                 $(tableId).bootstrapTable('updateByUniqueId', {
                     id: id,
                     row: updateData
                 });
+            }else if (action === 'moderate'){
+                let updateData = {};
+                updateData[field] = (responseData.message == "NA" || responseData.message =="safe") ? 1 : 0;
+                $(tableId).bootstrapTable('updateByUniqueId', {
+                    id: id,
+                    row: updateData
+                });
             }
+
+            if (action === 'password'){
+                showMessage(`New password for ${$(tableId).bootstrapTable('getSelections')[0].username} has been sent via nostr DM successfully 🥳`, "alert-success");
+            }else if (action === 'balance'){
+                showMessage(`Balance for ${$(tableId).bootstrapTable('getSelections')[0].username} has been updated successfully 🥳`, "alert-success");
+            }else if (action === 'ban'){
+                showMessage(`Record ${id} from table ${tableId} has been banned successfully 🥳`, "alert-success");
+            }else{
+                showMessage(`Action ${action} completed successfully for id ${id}. 🥳`, "alert-success");
+            }
+
+            refreshTable(tableId);
+
         } else {
-            initAlertModal(tableId, responseData.message)
-            highlihtRow(tableId, row)
+            initAlertModal(tableId, responseData.message);
+            await highlihtRow(tableId, row);
             console.error(responseData);
         }
-        return responseData;
+
         })
     .catch((error) => {
         console.error(error);
-        initAlertModal(tableId, responseData.message)
+        initAlertModal(tableId, error);
     });
 }
 
-function setFieldLinks(tableId, number = 0){
 
-    let rows = $(tableId).bootstrapTable('getData', true);
 
-    for (i = number; i < number + $(tableId).bootstrapTable('getOptions').pageSize +1; i++) {
-        if (rows[i] === undefined) {break}
-        let rowID = rows[i].id;
-        let row = $(tableId).bootstrapTable('getRowByUniqueId', rowID);
-        $(tableId).bootstrapTable('getVisibleColumns').forEach(function(column) {
-            if (column.field === 'pubkey' && !row.pubkey.includes('<')) {
-                $(tableId).bootstrapTable('updateByUniqueId', {
-                    id: rowID,
-                    row: {
-                        pubkey: '<a href="https://nostrcheck.me/u/'  + row.pubkey + '" target="_blank">' + row.pubkey + '</a>'
-                    }
-                });
-            }
-            if (column.field === 'filename' && !row.filename.includes('<')) {
-                let filename = row.filename;
-                $(tableId).bootstrapTable('updateByUniqueId', {
-                    id: rowID,
-                    row: {
-                        filename: '<div id ="' + rowID + '_preview"><span class="cursor-zoom-in text-primary">' + row.filename + '</span></div>'
-                    }
-                });
-
-                $(document).off("click", "#" + rowID + "_preview").on("click", "#" + rowID + "_preview", async function() {
-                    let modalResult = await initMediaModal(row.pubkey, filename, row.checked, row.visibility);
-                    for (let field in modalResult) {
-                        if (modalResult[field] != row[field]){
-                            authkey = (await modifyRecord(tableId, row.id, field, modalResult[field], 'modify')).authkey
-                            let pageNumber = $(tableId).bootstrapTable('getOptions').pageNumber;
-                            let pageSize = $(tableId).bootstrapTable('getOptions').pageSize;
-                            setFieldLinks(tableId, (pageSize * pageNumber) - pageSize );
-                        }
-                    }
-                });
-            }
-        });
+// Cell formatting functions
+function formatCheckbox(value, row, index) {
+    if (value === 1) {
+      return '<div class="text-center"><i class="fas fa-check-circle purple-text"></i></div>';
+    } else if (value === 0) {
+      return '<div class="text-center"><i class="fas fa-times-circle text-secondary"></i></div>';
     }
+    return '';
+  }
+
+function formatSatoshi(value, row, index) {
+    return (value? value : "0") + ' <i class="fa-solid fa-bolt text-warning"></i>'
+}
+
+function formatPubkey(value) {
+
+    let textValue = value;
+    if ($(window).width() < 768) {textValue = value.slice(0, (value.length / 2)-18 ) + ':' + value.slice((value.length / 2)+18 );}
+    return '<a href="https://njump.me/' + value + '" target="_blank" class="link-secondary text-decoration-none">' +  textValue + '</a>';
+}
+
+function formatPaymentHash(value) {
+
+    let textValue = value;
+    if ($(window).width() < 768) {textValue = value.slice(0, (value.length / 2)-18 ) + ':' + value.slice((value.length / 2)+18 );}
+    return textValue;
+
+}
+
+function formatMediaFile(value, row, index) {
+
+    let textValue = value;
+    if ($(window).width() < 768) {
+        textValue = value.slice(0, (value.length / 2) - 20) + ':' + value.slice((value.length / 2) + 20);
+    }
+
+    // If value is not a filename exit the function
+    if (!value || value.indexOf('.') === -1) {
+        return textValue;
+    }
+
+    let modalFileCheck = '<div id="media_' + index + '_preview"><span class="cursor-zoom-in text-secondary">' + textValue + '</span></div>';
+
+    // Attach the click event handler to the document and delegate it to the clickable element
+    $(document).off('click', '#media_' + index + '_preview').on('click', '#media_' + index + '_preview', async function () {
+        semaphore.execute(async () => {
+            await initMediaModal(row.pubkey + "/" + value, row.checked, row.visibility, true).then(async (modal) => {
+                let modalResult = modal.data;
+                for (let field in modalResult) {
+                    if (modalResult[field] != row[field]) {
+                        semaphore.execute(async () => await modifyRecord("admin/updaterecord/", '#mediaData', row.id, field, modalResult[field], 'modify'));
+                        refreshTable('#mediaData');
+                    }
+                }
+            })
+        });
+    });
+
+    return modalFileCheck;
+}
+
+function formatBannedFile(value, row, index) {
+
+    let textValue = value;
+    if ($(window).width() < 768) {
+        textValue = value.slice(0, (value.length / 2) - 20) + ':' + value.slice((value.length / 2) + 20);
+    }
+
+    // If value is not a filename exit the function
+    if (!value || value.indexOf('.') === -1) {
+        return textValue;
+    }
+
+    let modalFileCheck = '<div id="banned_' + index + '_preview"><span class="cursor-zoom-in text-secondary">' + textValue + '</span></div>';
+
+    // Attach the click event handler to the document and delegate it to the clickable element
+    $(document).off('click', '#banned_' + index + '_preview').on('click', '#banned_' + index + '_preview', async function () {
+        semaphore.execute(async () => {
+            await initMediaModal(value, row.checked, row.visibility, false).then(async (modal) => {
+                let modalResult = modal.data;
+                for (let field in modalResult) {
+                    if (modalResult[field] != row[field]) {
+                        semaphore.execute(async () => await modifyRecord("admin/updaterecord/", '#mediaData', row.id, field, modalResult[field], 'modify'));
+                        refreshTable('#mediaData');
+                    }
+                }
+            })
+        });
+    });
+
+    return modalFileCheck;
 }
 
 function detailFormatter(index, row) {
-    var html = []
+    var html = [];
     $.each(row, function (key, value) {
-        if(key === 'state') {return}
-        if (key === 'filename') {
-            let parser = new DOMParser();
-            let doc = parser.parseFromString(value, 'text/html');
-            let parsedFilename = doc.querySelector('.cursor-zoom-in.text-primary').textContent;
-            html.push('<p><b>' + key + ':</b> ' + parsedFilename + '</p>')
-            return
+        if (key === 'state') { return; }
+        html.push('<p><span class="key">' + key + ':</span> <span class="value">' + value + '</span></p>');
+    });
+
+    return `
+        <div class="detail-container">
+            ${html.join('')}
+        </div>
+    `;
+}
+
+// Fetch and refresh tables
+const refreshTables = async() => {
+    for (const table of tables) {
+        if (activeModules.includes(table.dataKey)) {
+            try {
+                await refreshTable(table.tableId);
+                semaphore.execute(async() => {
+                    const dataCount = await fetchTableCountData(table.dataKey, 'count', table.field);
+                    if(table.field){initDoughnutChart(table.tableId, table.field.charAt(0).toUpperCase() + table.field.slice(1) + ' ' + table.objectName + 's',{field: dataCount.field, total:dataCount.total}, table.field, true, false)}
+                });
+
+            } catch (error) {
+                console.error(`Error refreshing table ${table}:`, error);
+            }
         }
-        html.push('<p><b>' + key + ':</b> ' + value + '</p>')
-    })
-    return html.join('')
+    }
 }
 
-// uploadMedia 
+const refreshTable = async (table) => {
+    return new Promise((resolve, reject) => {
+        const $table = table.startsWith('#') ? $(table) : $(`#${table}`);
+        const tableSelections = $table.bootstrapTable('getSelections');
 
-const uploadMedia = async () => {
-
-    var input = $(document.createElement("input"));
-    input.attr("type", "file");
-    input.trigger("click");
-
-    input.on("change", function (e) {
-        var files = e.target.files;
-        var data = new FormData();
-        data.append("file", files[0]);
-   
-        fetch('media/', {
-            method: "POST",
-            headers: {
-                "authorization": "Bearer " + authkey
-            },
-            body: data
-        })
-        .then(response => response.json())
-        .then(data => {
-            authkey = data.authkey;
-            location.reload();
-            })
-        .catch((error) => {
-            initAlertModal(tableId, error)
-            console.error(error);
-            return "";
+        $table.one('load-success.bs.table', function (e, data) {
+            for (const selection of tableSelections) {
+                $table.bootstrapTable('checkBy', { field: 'id', values: [selection.id] });
+            }
+            resolve();
         });
-});
 
-return ""
+        $table.one('load-error.bs.table', function (e, status) {
+            console.error(`Load error for table ${table}: ${status}`);
+            reject(`Error loading data for table ${table}: ${status}`);
+        });
+
+        $table.bootstrapTable('refresh');
+
+    });
 }
+
+function fetchTabledata(params) {
+    return new Promise((resolve, reject) => {
+        $.ajax({
+            url: params.url,
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            data: params.data,
+            dataType: 'json',
+            success: async function(result) {
+                params.success(result);
+                resolve(params);
+            },
+            error: function(err) {
+                params.error(err);
+                reject(err);
+            }
+        });
+    });
+}
+
+const fetchTableCountData = async (tableDataKey, action, field) => {
+    let serverData  = ""
+    await fetch(`admin/modulecountdata?module=${tableDataKey}&action=${action}&field=${field}`
+        , {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+            }}
+        )
+            .then(response => response.json())
+            .then(data => {
+                serverData = data;
+            })
+            .catch(error => console.error('Error:', error));
+
+            return serverData || { total: 0 }
+}
+
+ // Checked button
+ const checkedButton = (tableId) => {
+    return {
+        custom: {
+            text: 'checked',
+            icon: 'bi-check-circle-fill',
+            event: () => {
+                if (isFilterActive[tableId]) {
+                    $(tableId).bootstrapTable('filterBy', {});
+                    isFilterActive[tableId] = false;
+                    $(tableId).bootstrapTable('refresh');
+                } else {
+                    $(tableId).bootstrapTable('filterBy', {
+                        checked: 0
+                    });
+                    isFilterActive[tableId] = true;
+                    $(tableId).bootstrapTable('refresh');
+                }
+            },
+            attributes: {
+                title: 'Show checked',
+                id: 'customShowChecked',
+                'data-toggle': 'tooltip'
+            }
+        }
+    }
+};
+
+// Dynamic row styling
+const rowStyle = (row, index) =>{
+
+    // Banned row
+    if (row.banned === 1) {
+        return {
+            classes: 'banned-row'
+        };
+    }
+    return {};
+}
+
+// Initialize tables
+let tables = [
+    { name: 'nostraddress', tableId: 'nostraddressData', dataKey: 'nostraddress', objectName: 'user', field: 'checked'},
+    { name: 'media', tableId: 'mediaData', dataKey: 'media', objectName: 'file',field: 'checked'},
+    { name: 'lightning', tableId: 'lightningData', dataKey: 'lightning', objectName: 'lightning redirection', url: 'admin/moduledata?module=lightning'},
+    { name: 'domains', tableId: 'domainsData', dataKey: 'domains', objectName: 'domain name', url: 'admin/moduledata?module=domains'},
+    { name: 'payments', tableId: 'paymentsData', dataKey: 'payments', objectName: 'transaction', url: 'admin/moduledata?module=payments', field: 'paid'},
+    { name: 'banned', tableId: 'bannedData', dataKey: 'banned', objectName: 'banned object', url: 'admin/moduledata?module=banned'},
+    { name: 'invites', tableId: 'invitesData', dataKey: 'register', objectName: 'invitation', url: 'admin/moduledata?module=invites'},
+];
+
+setInterval(async() => {
+    const value = semaphore.getQueueLength() > 0 ? true : false;
+    for (const table of tables) {
+        const refreshButton = $('#' + table.tableId).closest('.bootstrap-table').find('[name="refresh"]');
+        refreshButton.prop('disabled', value);
+
+        var sortingButtons = $('#' + table.tableId).find('.sortable');
+        if (value) {
+            sortingButtons.addClass('disabled');
+            sortingButtons.css('pointer-events', 'none');
+        } else {
+            sortingButtons.removeClass('disabled');
+            sortingButtons.css('pointer-events', 'auto');
+        }
+    }
+}, 500);

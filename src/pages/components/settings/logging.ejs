@@ -1,0 +1,57 @@
+<div id="settingsLogger">
+    <h3 class="mt-4">Logging</h3>
+    <form class="form mx-auto">
+        <p> In this section, you can configure the log settings of your server. The log level determines the verbosity of the logs:
+            debug (2), info (3), warn (4), error (5)
+        </p>
+        <label for="logger.level" class="mt-2 mb-1 fw-bold">Log level</label>
+        <div class="col-3 col-md-2">
+            <select id="logger.minLevel" 
+            name="logger.minLevel" 
+            class="form-select">
+                <option value="1" <%= locals.settingsLogger['minLevel'] == 1 ? 'selected' : '' %>>1</option>
+                <option value="2" <%= locals.settingsLogger['minLevel'] == 2 ? 'selected' : '' %>>2</option>
+                <option value="3" <%= locals.settingsLogger['minLevel'] == 3 ? 'selected' : '' %>>3</option>
+                <option value="4" <%= locals.settingsLogger['minLevel'] == 4 ? 'selected' : '' %>>4</option>
+                <option value="5" <%= locals.settingsLogger['minLevel'] == 5 ? 'selected' : '' %>>5</option>
+            </select>
+        </div>
+        <div class="alert alert-warning mt-3" role="alert">
+            <i class="fa-solid fa-triangle-exclamation"></i> <b>Change this only if you know what you are doing.</b> After changing the log level, you need to <b>restart the server</b> to apply the changes.
+        </div>
+        <label for="logger.sendDM" class="mt-2 mb-1 fw-bold">Send logs by DM</label>
+        <div class="col-3 col-md-2 mb-1">
+            <div class="form-check form-switch">
+                <input 
+                class="form-check-input" 
+                type="checkbox" 
+                value="<%= locals.settingsLogger['sendDM'] ? true : false %>"
+                <%= locals.settingsLogger['sendDM'] ? 'checked' : '' %>
+                name="logger.sendDM"
+                id="logger.sendDM"
+                >
+            </div>
+        </div>
+        <p>If enabled, the server will send a direct message including logs with a severity greater than 4 (warning).</p>
+        <label for="logger.sendPubkey" class="mt-2 mb-1 fw-bold">Pubkey</label>
+        <p> Specify the public key of the user to send the logs to. If you leave it empty, the logs will be sent to the server pubkey by default.</p>
+        </p>
+        <input 
+        type="text" 
+        class="form-control" 
+        id="logger.sendPubkey" 
+        name="logger.sendPubkey" 
+        value="<%= locals.settingsLogger['sendPubkey'] %>"
+        >
+        <div>
+            <label for="log" class="mt-2 mb-1 fw-bold">Log history</label>
+            <p> Only the last 1000 records with severity greater than 4 (warning) will be displayed here. 
+                If you need to see more details, you can check the server's generated log files.
+            </p>
+            <textarea class="form-control" id="log" name="log" rows="10" disabled></textarea>
+        </div>
+        <div class="col-12 col-md-3 mb-5 mt-4 pb-5 pb-lg-0 mb-lg-2">
+            <button class="btn btn-lg mb-4 btn-primary w-100" name="Submit" type="button" onclick="saveSettings()">Save</button>
+        </div>
+    </form>
+</div>

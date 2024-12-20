@@ -1,11 +1,12 @@
 <html lang="en">
-  <%- include('./partials/head',{title: `${request.body.serverHost} - Login`}); %>
+  <%- include('./partials/head',{title: `${locals.serverHost} - Login`}); %>
   <link rel="stylesheet" href="/static/css/form.css">
-  <body class="d-flex flex-column h-100"">
+  <body class="d-flex flex-column h-100">
     <%- include('./partials/navbar', {active:'login'}); %>
+    <main>
       <%- include('./components/loginform'); %>
-    <%- include('./partials/footer'); %>
-    <%- include('./components/alert-modal', {"objectId":"login"}); %>
-    <script src="/static/js/form.js"></script>
+    </main>
+    <%- include('./partials/footer', {active:'login'}); %>
+    <%- include('./components/modals/alert-modal', {"objectId":"login"}); %>
   </body>
 </html>

@@ -1,12 +1,14 @@
 import { createPool, Pool,RowDataPacket } from "mysql2/promise";
 import config from "config";
-import { logger } from "./logger.js";
-import { newFieldcompatibility, registeredTableFields,databaseTables} from "../interfaces/database.js";
-import { updateLocalConfigKey } from "./config.js";
 import { exit } from "process";
-import { npubEncode } from "nostr-tools/nip19";
-import { generateCredentials } from "./authorization.js";
+
 import app from "../app.js";
+import { logger } from "./logger.js";
+import { newFieldcompatibility, databaseTables} from "../interfaces/database.js";
+import { accounts } from "../interfaces/payments.js";
+import { isModuleEnabled, updateLocalConfigKey } from "./config.js";
+import { addNewUsername } from "./register.js";
+import { getNewDate } from "./utils.js";
 
 let pool: Pool;
 let retry :number = 0;
@@ -181,33 +183,53 @@ async function checkDatabaseConsistency(table: string, column_name:string, type:
  * @param tableName - The name of the table to update.
  * @param selectFieldName - The name of the field to update.
  * @param selectFieldValue - The new value for the field.
- * @param whereFieldName - The name of the field to use in the WHERE clause.
- * @param whereFieldValue - The value of the field to use in the WHERE clause.
+ * @param whereFieldName - Array of names of the fields to use in the WHERE clause.
+ * @param whereFieldValue - Array of values of the fields to use in the WHERE clause.
  * @returns A Promise that resolves to a boolean indicating whether the update was successful.
  */
-const dbUpdate = async (tableName :string, selectFieldName: string, selectFieldValue: string, whereFieldName :string, whereFieldValue: string): Promise<boolean> =>{
+const dbUpdate = async (tableName: string, selectFieldName: string, selectFieldValue: any, whereFieldName: string[], whereFieldValue: any[]): Promise<boolean> => {
 
-	const conn = await connect("dbFileFieldUpdate: " + selectFieldName + " | Table: " + tableName);
-	try{
-		const [dbFileFieldUpdate] = await conn.execute(
-			"UPDATE " + tableName + " set " + selectFieldName + " = ? where " + whereFieldName + " = ?",
-			[selectFieldValue, whereFieldValue]
+	if (whereFieldName.length !== whereFieldValue.length) {
+		logger.error('whereFieldName and whereFieldValue must have the same length');
+		return false;
+	}
+  
+	const conn = await connect("dbUpdate: " + selectFieldName + " | Table: " + tableName);
+	try {
+		const whereClause = whereFieldName.map((field, index) => {
+			if (whereFieldValue[index] === "IS NOT NULL" || whereFieldValue[index] === "IS NULL") {
+				return `${field} ${whereFieldValue[index]}`;
+			} else {
+				return `${field} = ?`;
+			}
+		}).join(' AND ');
+		const params = [selectFieldValue].concat(whereFieldValue);
+		const [dbFileFieldUpdate] : any[] = await conn.execute(
+			`UPDATE ${tableName} SET ${selectFieldName} = ? WHERE ${whereClause}`,
+			params
 		);
 		if (!dbFileFieldUpdate) {
-			logger.error("Error updating " + tableName + " table | " + whereFieldName + " :", whereFieldValue +  " | " + selectFieldName + " :", selectFieldValue);
-			conn.end();
-			return false;
-		}
+		logger.error("Error updating " + tableName + " table | " + whereFieldName.join(', ') + " :", whereFieldValue.join(', ') +  " | " + selectFieldName + " :", selectFieldValue);
 		conn.end();
-		return true
-	}catch (error) {
-		logger.error("Error updating " + tableName + " table | " + whereFieldName + " :", whereFieldValue +  " | " + selectFieldName + " :", selectFieldValue);
+		return false;
+		}
+
+		if (dbFileFieldUpdate.affectedRows === 0) {
+		logger.warn("No rows updated in " + tableName + " table | " + whereFieldName.join(', ') + " :", whereFieldValue.join(', ') +  " | " + selectFieldName + " :", selectFieldValue);
+		conn.end();
+		return false;
+		}
+
+		conn.end();
+		return true;
+	} catch (error) {
+		logger.error("Error updating " + tableName + " table | " + whereFieldName.join(', ') + " :", whereFieldValue.join(', ') +  " | " + selectFieldName + " :", selectFieldValue);
+		logger.error(error);
 		conn.end();
 		return false;
 	}
-}
-
-
+  };
+  
 /**
  * Inserts data into the specified table in the database.
  * 
@@ -218,6 +240,8 @@ const dbUpdate = async (tableName :string, selectFieldName: string, selectFieldV
  */
 const dbInsert = async (tableName: string, fields: string[], values: (string | number | boolean)[]): Promise<number> => {
 	const conn = await connect("dbInsert:" + tableName);
+
+	logger.debug("Inserting data into", tableName, "table with fields:", fields.join(", "), "and values:", values.join(", "));
 
 	// Check if fields are not empty
 	if (fields.length == 0){
@@ -247,20 +271,18 @@ const dbInsert = async (tableName: string, fields: string[], values: (string | n
 	}
 }
 
-
 /**
  * Executes a SELECT SQL query on a database and returns the specified field from the first row of the result.
  * @param {string} queryStatement - The SQL query to be executed.
  * @param {string} returnField - The field to be returned from the first row of the result.
  * @param {string[]} whereFields - The fields to be used in the WHERE clause of the SQL query.
- * @param {RowDataPacket} table - The table object where the SQL query will be executed.
  * @param {boolean} [onlyFirstResult=true] - A boolean indicating whether to return only the first result from the query or all results.
  * @returns {Promise<string>} A promise that resolves to the value of the specified return field from the first row of the result, or an empty string if an error occurs or if the result is empty.
  */
-const dbSelect = async (queryStatement: string, returnField :string, whereFields: string[], table: RowDataPacket, onlyFirstResult = true): Promise<string | string[]> => {
+const dbSelect = async (queryStatement: string, returnField :string, whereFields: string[], onlyFirstResult = true): Promise<string | string[]> => {
     try {
         const conn = await connect("dbSimpleSelect: " + queryStatement + " | Fields: " + whereFields.join(", "));
-        const [rows] = await conn.query<typeof table[]>(queryStatement, whereFields);
+        const [rows] = await conn.query<RowDataPacket[]>(queryStatement, whereFields);
         conn.end();
         if (onlyFirstResult){
             return rows[0]?.[returnField] as string || "";
@@ -277,49 +299,63 @@ const dbSelect = async (queryStatement: string, returnField :string, whereFields
 
 /**
 /  * Executes a SELECT SQL query on a database and returns the specified fields from the result.
-/  * @param {string} queryStatement - The SQL query to be executed.
-/  * @param {string[]} returnFields - The fields to be returned from the result.
+/  * @param {string[]} queryFields - The fields to be selected from the table.
+/  * @param {string} fromStatement - The table (or tables) to select data from.
+/  * @param {string} whereStatement - The WHERE and ORDER clause of the SQL query.
 /  * @param {string[]} whereFields - The fields to be used in the WHERE clause of the SQL query.
-/  * @param {RowDataPacket} table - The table object where the SQL query will be executed.
 /  * @param {boolean} [onlyFirstResult=true] - A boolean indicating whether to return only the first result from the query or all results.
-/  * @returns {Promise<string[]>} A promise that resolves to an array of values of the specified return fields from the result, or an empty array if an error occurs or if the result is empty.
+/  * @returns {Promise<any[]>} A promise that resolves to an array of objects containing the specified fields from the result, or an empty array if an error occurs or if the result is empty.
 */
-const dbMultiSelect = async (queryStatement: string, returnFields : string[], whereFields: string[], table: RowDataPacket, onlyFirstResult = true): Promise<string[]> => {
+const dbMultiSelect = async (queryFields: string[], fromStatement: string, whereStatement: string, whereFields: any[], onlyFirstResult = true): Promise<any[]> => {
 
-	if (returnFields.length == 0){
-		logger.error("Error getting data from database, returnFields are empty");
-		return [];
-	}
-
-    try {
-        const conn = await connect("dbMultiSelect: " + queryStatement + " | Fields: " + whereFields.join(", "));
-        const [rows] = await conn.query<typeof table[]>(queryStatement, whereFields);
-        conn.end();
-
-		let returnData :string[] = [];
-        if (onlyFirstResult){
-			returnFields.forEach((field) => {
-				returnData.push(rows[0]?.[field] as string || "");
-			}
-			);
-			return returnData;
-		}
-		rows.forEach((row) => {
-			let rowdata :string[] = [];
-			returnFields.forEach((field) => {
-				rowdata.push(row[field] as string);
-			}
-			);
-			returnData.push(rowdata.join(","));
-		}
-		);
-		return returnData;
-
-    } catch (error) {
-        logger.debug(error)
-        logger.error("Error getting " + returnFields.join(',') + " from database");
+    if (queryFields.length === 0){
+        logger.error("Error getting data from database, queryFields are empty");
         return [];
     }
+
+    try {
+        const conn = await connect("dbMultiSelect: " + queryFields.join(',') + " | Fields: " + whereFields.join(", "));
+        const [rows] = await conn.query<RowDataPacket[]>(`SELECT ${queryFields.join(',')} FROM ${fromStatement} WHERE ${whereStatement}`, whereFields);
+        conn.end();
+
+        if (onlyFirstResult){
+            if (rows.length > 0) {
+                return [rows[0]];
+            }
+        } else {
+            return rows;
+        }
+        return [];
+
+    } catch (error) {
+        logger.debug(error);
+        logger.error("Error getting " + queryFields.join(',') + " from database");
+        return [];
+    }
+}
+
+/**
+/* Executes a SELECT SQL query on a database and returns the result.
+/* @param {string} table - The name of the table to select data from.
+/* @param {string} query - The SQL query to be executed.
+/* @returns {Promise<string>} A promise that resolves to the result of the query, or an empty string if an error occurs or if the result is empty.
+ */
+const dbSimpleSelect = async (table:string, query:string): Promise<string> =>{
+	try{
+		const conenction = await connect("dbSimpleSelect " + table);
+		logger.debug("Executing query:", query, "on table:", table);
+		const [dbResult] = await conenction.query(query);
+		const rowstemp = JSON.parse(JSON.stringify(dbResult));
+		conenction.end();
+		if (rowstemp[0] == undefined || rowstemp[0] == "") {
+			return "";
+		}else{
+			return rowstemp;
+		}
+	}catch (error) {
+		logger.error(`Error getting data from ${table}`);
+		return "";
+	}
 }
 
 /**
@@ -360,128 +396,48 @@ const dbDelete = async (tableName :string, whereFieldNames :string[], whereField
 	}
 }
 
-
-const dbSelectAllRecords = async (table:string, query:string): Promise<string> =>{
-	try{
-		const conenction = await connect("dbSelectAllRecords" + table);
-		logger.debug("Getting all data from " + table + " table")
-		const [dbResult] = await conenction.query(query);
-		const rowstemp = JSON.parse(JSON.stringify(dbResult));
-		conenction.end();
-		if (rowstemp[0] == undefined || rowstemp[0] == "") {
-			return "";
-		}else{
-			return rowstemp;
-		}
-	}catch (error) {
-		logger.error("Error getting all data from registered table from database");
-		return "";
-	}
-	
-}
-
-async function dbSelectModuleData(module:string): Promise<string> {
-	if (module == "nostraddress"){
-		return await dbSelectAllRecords("registered", "SELECT id, checked, active, allowed, username, pubkey, hex, domain, DATE_FORMAT(date, '%Y-%m-%d %H:%i') as date, comments FROM registered ORDER BY id DESC");
-	}
-	if (module == "media"){
-		return await dbSelectAllRecords("mediafiles", 
-		"SELECT mediafiles.id," +
-		"mediafiles.checked, " +
-		"mediafiles.active, " +
-		"mediafiles.visibility, " +
-		"(SELECT registered.username FROM registered WHERE mediafiles.pubkey = registered.hex LIMIT 1) as username, " +
-		"(SELECT registered.pubkey FROM registered WHERE mediafiles.pubkey = registered.hex LIMIT 1) as npub, " +
-		"mediafiles.pubkey as 'pubkey', " +
-		"mediafiles.filename, " +
-		"mediafiles.original_hash, " +
-		"mediafiles.hash, " +
-		"mediafiles.status, " +
-		"mediafiles.dimensions, " +
-		"ROUND(mediafiles.filesize / 1024 / 1024, 2) as 'filesize', " +
-		"DATE_FORMAT(mediafiles.date, '%Y-%m-%d %H:%i') as date, " +
-		"mediafiles.comments " +
-		"FROM mediafiles " +
-		"ORDER BY id DESC;");
-	}
-	if (module == "lightning"){
-		return await dbSelectAllRecords("lightning", "SELECT id, active, pubkey, lightningaddress, comments FROM lightning ORDER BY id DESC");
-	}
-	if (module == "domains"){
-		return await dbSelectAllRecords("domains", "SELECT id, active, domain, comments FROM domains ORDER BY id DESC");
-	}
-	return "";
-}
-
 const showDBStats = async(): Promise<string> => {
 
-	const conn = await connect("showDBStats");
 	const result: string[] = [];
 
-	//Show table registered rows
-	const [dbRegisteredTable] = await conn.execute(
-		"SELECT * FROM registered");
-	if (!dbRegisteredTable) {
-		logger.error("Error getting registered table rows");
-	}
-	let dbresult = JSON.parse(JSON.stringify(dbRegisteredTable));
-	result.push(`Registered users: ${dbresult.length}`);
-	dbresult = "";
+	if (isModuleEnabled("register", app)){
 
-	//Show table domains rows
-	const [dbDomainsTable] = await conn.execute(
-		"SELECT * FROM domains");
-	if (!dbDomainsTable) {
-		logger.error("Error getting domains table rows");
-	}
-	dbresult = JSON.parse(JSON.stringify(dbDomainsTable));
-	result.push(`Configured domains: ${dbresult.length}`);
-	dbresult = "";
+		const registered = await dbMultiSelect(["id"],"registered", "active = 1",[],false)?.then((result) => {return result.length});
+		result.push(`Registered users: ${registered}`);
 
-	//Show table mediafiles rows
-	const [dbmediafilesTable] = await conn.execute(
-		"SELECT * FROM mediafiles");
-	if (!dbmediafilesTable) {
-		logger.error("Error getting mediafiles table rows");
-	}
-	dbresult = JSON.parse(JSON.stringify(dbmediafilesTable));
-	result.push(`Uploaded files: ${dbresult.length}`);
-	dbresult = "";
+		const banned = await dbMultiSelect(["id"],"banned", "active = 1",[],false)?.then((result) => {return result.length});
+		result.push(`Banned users: ${banned}`);
 
-	//Show table mediafiles magnet rows
-	if (config.get('torrent.enableTorrentSeeding')) {
-	const [dbmediamagnetfilesTable] = await conn.execute(
-		"SELECT DISTINCT filename, username FROM mediafiles inner join registered on mediafiles.pubkey = registered.hex where magnet is not null");
-	if (!dbmediamagnetfilesTable) {
-		logger.error("Error getting magnet links table rows");
-	}
-	dbresult = JSON.parse(JSON.stringify(dbmediamagnetfilesTable));
-	result.push(`Magnet links: ${dbresult.length}`);
-	dbresult = "";
+		const invitations = await dbMultiSelect(["id"],"invitations", "active = 1",[],false)?.then((result) => {return result.length});
+		result.push(`Invitations: ${invitations}`);
+
+		const domains = await dbMultiSelect(["id"],"domains", "active = 1",[],false)?.then((result) => {return result.length});
+		result.push(`Available domains: ${domains}`);
+
 	}
 
-	//Show table mediatags rows
-	const [dbmediatagsTable] = await conn.execute(
-		"SELECT * FROM mediatags");
-	if (!dbmediatagsTable) {
-		logger.error("Error getting mediatags table rows");
-	}
-	dbresult =  JSON.parse(JSON.stringify(dbmediatagsTable));
-	result.push(`Media tags: ${dbresult.length}`);
-	dbresult = "";
+	if (isModuleEnabled("media", app)){
+		const mediafiles = await dbMultiSelect(["id"],"mediafiles", "active = 1",[],false)?.then((result) => {return result.length});
+		result.push(`Hosted files: ${mediafiles}`);
 
-	//Show table lightning rows
-	const [dbLightningTable] = await conn.execute(
-		"SELECT * FROM lightning");
-	if (!dbLightningTable) {
-		logger.error("Error getting lightning table rows");
-	}
-	dbresult = JSON.parse(JSON.stringify(dbLightningTable));
-	result.push(`Lightning redirections: ${dbresult.length}`);
+		const mediatags = await dbMultiSelect(["id"],"mediatags", "1 = 1",[],false)?.then((result) => {return result.length});
+		result.push(`File tags: ${mediatags}`);
 	
-	conn.end();
-	const resultstring = result.join('\r\n').toString();
-	return resultstring;
+	}
+
+	if (isModuleEnabled("payments", app)){
+		const lightning = await dbMultiSelect(["id"],"lightning", "active = 1",[],false)?.then((result) => {return result.length});
+		result.push(`LN redirections: ${lightning}`);
+
+		const transactions = await dbMultiSelect(["id"],"transactions", "1 = 1",[],false)?.then((result) => {return result.length});
+		result.push(`Transactions: ${transactions}`);
+
+		const ledger = await dbMultiSelect(["id"],"ledger", "1 = 1",[],false)?.then((result) => {return result.length});
+		result.push(`Ledger entries: ${ledger}`);
+	}
+
+	result.push(``);
+	return result.join('\r\n').toString();
 }
 
 const initDatabase = async (): Promise<void> => {
@@ -493,31 +449,8 @@ const initDatabase = async (): Promise<void> => {
 	process.exit(1);
 	}
 
-	// Check if public username exist on registered table and create it if not. Also it sends a DM to the pubkey with the credentials
-	const publicUsername = await dbSelect("SELECT username FROM registered WHERE username = ?", "username", ["public"], registeredTableFields) as string;
-	logger.info("Public username:", publicUsername);
-	if (publicUsername == "" || publicUsername == undefined || publicUsername == null){
-		logger.warn("Public username not found, creating it");
-		const fields: string[] = ["pubkey", "hex", "username", "password", "domain", "active", "date", "allowed", "comments"];
-		const values: string[] = [	npubEncode(app.get("config.server")["pubkey"]), 
-									app.get("config.server")["pubkey"], "public", 
-									await generateCredentials('password',true, app.get("config.server")["pubkey"], true), 
-									config.get('server.host'), 
-									"1", 
-									new Date().toISOString().slice(0, 19).replace('T', ' '),
-									"1", 
-									"public username generated by server on first run"];
-		const insert = await dbInsert("registered", fields, values);
-		if (insert === 0){
-			logger.fatal("Error creating public username");
-			process.exit(1);
-		}
-		logger.info("Public username created");
-		app.set("firstUse", true); // Important, if firstUse is true, the server will show public nsec and npub on the frontend
-	}
-
 	// Check if default domain exist on domains table and create it if not.
-	const defaultDomain = await dbSelect("SELECT domain FROM domains WHERE domain = ?", "domain", [app.get("config.server")["host"]], registeredTableFields) as string;
+	const defaultDomain = await dbSelect("SELECT domain FROM domains WHERE domain = ?", "domain", [app.get("config.server")["host"]]) as string;
 	if (defaultDomain == ""){
 		logger.warn("Default domain not found, creating it");
 		const fields: string[] = ["domain", "active", "comments"];
@@ -530,8 +463,30 @@ const initDatabase = async (): Promise<void> => {
 		logger.info("Default domain created");
 	}
 
+	// Check if public username exist on registered table and, if not, create it. Also it sends a DM to the pubkey with the credentials
+	const publicUsername = await dbSelect("SELECT username FROM registered WHERE username = ?", "username", ["public"]) as string;
+
+	if (publicUsername == "" || publicUsername == undefined || publicUsername == null){
+		logger.warn("Public username not found, creating it...");
+
+		const createPublicUser = await addNewUsername("public", app.get("config.server")["pubkey"], "", config.get('server.host'), "public username generated by server on first run", true);
+
+		if (createPublicUser == 0){
+			logger.fatal("Error creating public username");
+			process.exit(1);
+		}
+
+		const allowed = await dbUpdate("registered","allowed", "1", ["username"], ["public"]);
+		if (!allowed){
+			logger.fatal("Error creating public username");
+			process.exit(1);
+		}
+
+		app.set("firstUse", true); 
+	}
+
 	// Check if public lightning address exist on lightning table and create it if not.
-	const publicLightning = await dbSelect("SELECT lightningaddress FROM lightning", "lightningaddress", [], registeredTableFields) as string;
+	const publicLightning = await dbSelect("SELECT lightningaddress FROM lightning", "lightningaddress", []) as string;
 	if (publicLightning == ""){
 		logger.warn("Public lightning address not found, creating it");
 		const fields: string[] = ["pubkey", "lightningaddress", "comments"];
@@ -544,11 +499,28 @@ const initDatabase = async (): Promise<void> => {
 		logger.info("Public lightning address created");
 	}
 
-	// Clear all authkeys from registered table
-	const conn = await connect("initDatabase");
-	logger.debug("Clearing all authkeys from registered table");
-	await conn.execute("UPDATE registered SET authkey = NULL ");
-	conn.end();
+	// Check if standard accounts exist on accounts table and create it if not.
+	let checkAccounts = await dbSelect("SELECT accountid FROM accounts ", "accountid", [], false) as string[]
+	accounts.forEach(async (account) => {
+		if (!checkAccounts.toString().includes(account.accountid.toString())){
+			logger.warn("Standard account not found, creating it:", account.accountname);
+			const fields: string[] = ["accountid", "active", "accountname", "accounttype", "createddate", "comments"];
+			const values: any[] = [account.accountid, "1",  account.accountname, account.accounttype, getNewDate(), account.comments];
+			const insert = await dbInsert("accounts", fields, values);
+			if (insert === 0){
+				logger.fatal("Error creating standard account");
+				process.exit(1);
+			}
+			logger.info("Standard account created");
+		}
+	});
+
+	// Fix old mimetype
+	const fixMimetype =await fixOldMimeType();
+	if (!fixMimetype){
+		logger.fatal("Error fixing old mimetype");
+		process.exit(1);
+	}
 }
 
 const migrateOldFields = async (table:string, oldField:string, newField:string): Promise<boolean> => {
@@ -597,6 +569,47 @@ const deleteOldFields = async (table:string, oldField:string): Promise<boolean> 
 	}
 }
 
+const fixOldMimeType = async (): Promise<boolean> => {
+
+	const conn = await connect("fixOldMimeType");
+	try{
+		const [dbFileStatusUpdate] = await conn.execute(
+			`UPDATE mediafiles
+			SET mimetype = 
+				CASE 
+					WHEN filename LIKE '%.png' THEN 'image/png'
+					WHEN filename LIKE '%.jpg' OR filename LIKE '%.jpeg' THEN 'image/jpeg'
+					WHEN filename LIKE '%.webp' THEN 'image/webp'
+					WHEN filename LIKE '%.mp4' THEN 'video/mp4'
+					WHEN filename LIKE '%.webm' THEN 'video/webm'
+					ELSE mimetype 
+				END
+			WHERE mimetype <> 
+				CASE 
+					WHEN filename LIKE '%.png' THEN 'image/png'
+					WHEN filename LIKE '%.jpg' OR filename LIKE '%.jpeg' THEN 'image/jpeg'
+					WHEN filename LIKE '%.webp' THEN 'image/webp'
+					WHEN filename LIKE '%.mp4' THEN 'video/mp4'
+					WHEN filename LIKE '%.webm' THEN 'video/webm'
+					ELSE mimetype
+				END;
+			`
+		);
+		if (!dbFileStatusUpdate) {
+			logger.error("Error fixing old mimetypes from mediafiles table");
+			conn.end();
+			return false;
+		}
+		const result = dbFileStatusUpdate as any as { affectedRows: number };
+		if (result.affectedRows > 0) logger.warn("Fixed old mimetypes from mediafiles table");
+		conn.end();
+		return true;
+	}catch (error) {
+		logger.error("Error fixing old mimetype");
+		conn.end();
+		return false;
+	}
+}
 
 export {
 		connect, 
@@ -605,7 +618,8 @@ export {
 		dbUpdate,
 		dbDelete,
 		dbMultiSelect,
+		dbSimpleSelect,
 		dbInsert,
 		showDBStats,
 		initDatabase,
-		dbSelectModuleData};
+		};

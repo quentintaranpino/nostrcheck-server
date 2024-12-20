@@ -2,6 +2,9 @@ import { createStream } from "rotating-file-stream";
 import { Logger } from "tslog";
 import { logEvent } from "../interfaces/logger.js";
 import config from "config";
+import { getNewDate } from "./utils.js";
+import { sendMessage } from "./nostr/NIP04.js";
+import app from "../app.js";
 const logHistory: logEvent[] = [];
 
 const filename = (config.has('logger.filename') ? config.get('logger.filename') : 'server') + '.log';
@@ -12,10 +15,11 @@ const minLevel = (config.has('logger.minLevel') ? config.get('logger.minLevel') 
 const logPath = (config.has('logger.logPath') ? config.get('logger.logPath') : 'logs/') as string;
 
 // Create a rotating write stream
-const stream = createStream(logPath + filename, {
+const stream = createStream(filename, {
 	size: fileSize, 
 	interval: fileInterval,
 	compress: fileCompress, 
+	path: logPath,
 });
 
 // Create a logger instance
@@ -48,9 +52,16 @@ const logger = new Logger({
 	},
 });
 
-logger.attachTransport((log) => {
+logger.attachTransport(async (log) => {
 	try{
-		stream.write(`${JSON.stringify(log)}\n`);
+		const formattedLog = {
+			...log,
+			_meta: {
+			  ...log._meta,
+			  date: getNewDate(),
+			}
+		  };
+		  stream.write(`${JSON.stringify(formattedLog)}\n`);
 		// only push to transports if logLevel is greater than or equal to 4 (warn)
 		if (log._meta.logLevelId >= 4) {
 			let logMessage: string = "";
@@ -64,6 +75,9 @@ logger.attachTransport((log) => {
 				severity: log._meta.logLevelName,
 				message: logMessage,
 			};
+
+			if (app.get('config.logger')['sendDM'] == true) await sendMessage(`${logEvent.severity} message detected: ${logEvent.message}`, app.get('config.logger')['sendPubkey'] != "" ? app.get('config.logger')['sendPubkey'] : app.get('config.server')['pubkey']);
+
 			logHistory.push(logEvent);
 			// Keep only the last 1000 lines in logHistory
 			if (logHistory.length > 1000) {

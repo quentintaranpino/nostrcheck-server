@@ -23,8 +23,8 @@ fi
 cd ..
 
 readonly E_BADARGS=65
-readonly version="0.2"
-readonly date="20240130"
+readonly version="0.3"
+readonly date="20240718"
 
 # Node version
 NODE_MAJOR=21
@@ -57,7 +57,7 @@ echo ""
 
 # We ask user if want to continue
 echo "Do you want to proceed with the update? [y/n]"
-echo "The server will be stopped during the update process."
+echo "The server must be stopped during the update process."
 echo ""
 read -r input
 if [ "$input" != "y" ]; then
@@ -68,7 +68,7 @@ fi
 echo $(cd ../ && pwd)
 
 # Update repository data
-echo ""
+clear
 echo "Updating repository data..."
 echo ""
 git stash -u
@@ -76,11 +76,11 @@ git pull
 git stash pop
 
 # Update Node.js
-echo ""
+clear
 echo "Updating Node.js..."
 echo ""
 sudo apt-get update
-sudo apt-get install -y ca-certificates curl gnupg
+sudo apt-get install -y ca-certificates curl gnupg python3 python3-pip
 sudo mkdir -p /etc/apt/keyrings
 curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | sudo gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg
 echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_$NODE_MAJOR.x nodistro main" | sudo tee /etc/apt/sources.list.d/nodesource.list
@@ -89,22 +89,30 @@ sudo apt-get update
 sudo apt-get install nodejs -y
 
 # Update npm
+clear
+echo "Updating npm..."
 npm install -g npm@latest
 
 # Update node modules
-echo ""
+clear
 echo "Updating node modules..."
 echo ""
 npm install
 
-# Build the project
+# Update python dependencies
+clear
+echo "Updating python dependencies..."
 echo ""
+pip install -r requirements.txt
+
+# Build the project
+clear
 echo "Building the project..."
 echo ""
 npm run build
 
 # Finish
-echo ""
+clear
 echo "Update finished."
 echo "You can now start the server again using the command: npm run start"
 echo ""

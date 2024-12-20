@@ -1,0 +1,29 @@
+<link rel="stylesheet" href="/static/css/particles.css">
+<html lang="en">
+<%- include('./partials/head',{title: `${locals.serverHost} - CDN`}); %>
+<body class="d-flex flex-column h-100">
+  <%- include('./partials/navbar', {active:'media'}); %>
+  <div class="background-theme h-100">
+    <div class="container-fluid px-4 px-lg-5 d-flex flex-column h-100 align-items-center justify-content-center">
+      <div class="d-flex">
+          <div class="text-center z-1">
+              <h1 class="text-white my-0 text-uppercase gradien display-2 text-uppercase">Nostr file hosting</h1>
+              <h2 class="text-white-50 mt-2 mb-4 display-6">Incredibly fast, scalable, made for nostr</h2>
+          </div>
+      </div>
+      <div class="col-12 col-md-10 col-lg-9 col-xl-8 col-xxl-7 z-1 text-white mb-3">
+        <%- include('./components/uploader', {instance: "cdn", hideTos:false}); %>
+      </div>
+    </div>
+  </div>
+  <div id="particles-js"></div> 
+  <%- include('./components/modals/message-modal', {"object":"fisrtUse"}); %>
+  <%- include('./partials/footer', {active:'media'}); %>     
+</body>
+<script>
+
+  if ("<%= locals.firstUse %>" != undefined && "<%= locals.firstUse %>" != null && "<%= locals.firstUse %>" != "") {
+    initMessageModal("#fisrtUse", "<%- locals.firstUse %>", "Welcome to your sovereignty");
+  }
+</script>
+</html>

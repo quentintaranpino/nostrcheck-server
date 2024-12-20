@@ -9,21 +9,21 @@ import { parseAuthHeader } from "../lib/authorization.js";
 import { getClientIp } from "../lib/utils.js";
 import { isModuleEnabled } from "../lib/config.js";
 import app from "../app.js";
-import { lightningTableFields } from "../interfaces/database.js";
+import { setAuthCookie } from "../lib/frontend.js";
 
-const redirectlightningddress = async (req: Request, res: Response): Promise<any> => {
+const redirectlightningddress = async (req: Request, res: Response): Promise<Response> => {
 
 	// Check if current module is enabled
 	if (!isModuleEnabled("lightning", app)) {
         logger.warn("Attempt to access a non-active module:","lightning","|","IP:", getClientIp(req));
-		return res.status(400).send({"status": "error", "message": "Module is not enabled"});
+		return res.status(403).send({"status": "error", "message": "Module is not enabled"});
 	}
 
 	const name = req.query.name || req.params.name as string;
 
 	if (typeof name !== "string") {
 		logger.info("REQ GET lightningaddress ->", req.hostname, " | name:",  name , "|", getClientIp(req));
-		logger.warn("RES GET Lightningaddress -> 400 Bad request - name parameter not specified", "|", getClientIp(req));
+		logger.info("RES GET Lightningaddress -> 400 Bad request - name parameter not specified", "|", getClientIp(req));
 
 		const result: ResultMessagev2 = {
 			status: "error",
@@ -39,7 +39,7 @@ const redirectlightningddress = async (req: Request, res: Response): Promise<any
 	//If name is null return 400
 	if (!name || name.trim() == "") {
 		logger.info("REQ GET lightningaddress ->", servername, " | name:",  "name not specified", "|", getClientIp(req));
-		logger.warn(
+		logger.info(
 			"RES GET Lightningaddress -> 400 Bad request - name parameter not specified",
 			"|",
 			getClientIp(req)
@@ -56,7 +56,7 @@ const redirectlightningddress = async (req: Request, res: Response): Promise<any
 	//If name is too long (>50) return 400
 	if (name.length > 50) {
 		logger.info("REQ GET lightningaddress ->", servername, " | name:",  name.substring(0,50) + "..." , "|", getClientIp(req));
-		logger.warn("RES GET Lightningaddress -> 400 Bad request - name too long", "|", getClientIp(req));
+		logger.info("RES GET Lightningaddress -> 400 Bad request - name too long", "|", getClientIp(req));
 
 		const result: ResultMessagev2 = {
 			status: "error",
@@ -80,15 +80,15 @@ const redirectlightningddress = async (req: Request, res: Response): Promise<any
 			logger.info("RES GET Lightningaddress ->", name, "redirect ->", cached.lightninguser + "@" + cached.lightningserver, "|", "cached:", isCached);
 
 			//redirect
-			return res.redirect(url);
+			res.redirect(url);
+			return res;
 		}
 
 		//If not cached, query the database
 		const lightningAddress = 
 			await dbSelect("SELECT lightningaddress FROM lightning INNER JOIN registered ON lightning.pubkey = registered.hex WHERE registered.username = ? and registered.domain = ? and lightning.active = 1", 
 			"lightningaddress", 
-			[name, servername], 
-			lightningTableFields) as string;
+			[name, servername]) as string;
 
 		if  (lightningAddress == "" || lightningAddress == undefined) {
 			logger.warn("RES GET Lightningaddress ->", name, "|", "Lightning redirect not found");
@@ -126,7 +126,8 @@ const redirectlightningddress = async (req: Request, res: Response): Promise<any
 	logger.info("RES Lightningaddress ->", name, "redirect ->", lightningdata.lightninguser + "@" + lightningdata.lightningserver, "|", "cached:", isCached);
 
 	//redirect
-	return res.redirect(url);
+	res.redirect(url);
+	return res;
 
 };
 
@@ -135,7 +136,7 @@ const updateLightningAddress = async (req: Request, res: Response): Promise<Resp
 	// Check if current module is enabled
 	if (!isModuleEnabled("lightning", app)) {
         logger.warn("Attempt to access a non-active module:","lightning","|","IP:", getClientIp(req));
-		return res.status(400).send({"status": "error", "message": "Module is not enabled"});
+		return res.status(403).send({"status": "error", "message": "Module is not enabled"});
 	}
 
 	const servername = req.hostname;
@@ -144,6 +145,7 @@ const updateLightningAddress = async (req: Request, res: Response): Promise<Resp
     // Check if authorization header is valid
 	const EventHeader = await parseAuthHeader(req, "updateLightningAddress", false);
 	if (EventHeader.status !== "success") {return res.status(401).send({"status": EventHeader.status, "message" : EventHeader.message});}
+	setAuthCookie(res, EventHeader.authkey);
 
 	//If lightningaddress is null return 400
 	if (!lightningaddress || lightningaddress.trim() == "") {
@@ -255,7 +257,7 @@ const deleteLightningAddress = async (req: Request, res: Response): Promise<Resp
 	// Check if current module is enabled
 	if (!isModuleEnabled("lightning", app)) {
         logger.warn("Attempt to access a non-active module:","lightning","|","IP:", getClientIp(req));
-		return res.status(400).send({"status": "error", "message": "Module is not enabled"});
+		return res.status(403).send({"status": "error", "message": "Module is not enabled"});
 	}
 
 	const servername = req.hostname;
@@ -264,6 +266,7 @@ const deleteLightningAddress = async (req: Request, res: Response): Promise<Resp
     // Check if authorization header is valid
 	const EventHeader = await parseAuthHeader(req, "deleteLightningAddress", false);
 	if (EventHeader.status !== "success") {return res.status(401).send({"status": EventHeader.status, "message" : EventHeader.message});}
+	setAuthCookie(res, EventHeader.authkey);
 
 	//Check if pubkey's lightningaddress exists on database
 	try{

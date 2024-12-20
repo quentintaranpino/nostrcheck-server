@@ -1,16 +1,3 @@
-.form {
-    width: 100%;
-    padding: 15px;
-    margin: 0 auto;
-  }
-
-.login-form{
-  max-width: 330px;
-}
-
-.settings-form{
-  max-width: 800px;
-}
   .form .checkbox {
     font-weight: 400;
   }
@@ -24,22 +11,12 @@
   .form .form-control:focus {
     z-index: 2;
   }
-  .form input[type="email"] {
-    margin-bottom: -1px;
-    border-bottom-right-radius: 0;
-    border-bottom-left-radius: 0;
-  }
-  .form input[type="password"] {
-    margin-bottom: 10px;
-    border-top-left-radius: 0;
-    border-top-right-radius: 0;
-  }
 
   ::-ms-reveal {
     display: none;
   }
   
-  button#toggle-password {
+  button.toggle-password {
     position: absolute;
     top: 3px;
     right: 4px;
@@ -50,13 +27,13 @@
     border: 0;
   }
   
-  button#toggle-password:active,
-  button#toggle-password:focus,
-  button#toggle-password:hover {
+  button.toggle-password:active,
+  button.toggle-password:focus,
+  button.toggle-password:hover {
     cursor: pointer;
   }
   
-  button#toggle-password:focus {
+  button.toggle-password:focus {
     outline: none !important;
   }
   
@@ -83,9 +60,9 @@
   }
 
 .form-switch .form-check-input {
-    height: 22px;
-    width: 44px !important;
-    margin-right: 1em;
+    height: 20px;
+    width: 40px !important;
+    margin-right: 10;
 }
 .form-switch .form-check-input:focus {
     border-color: rgba(0, 0, 0, 0.25);
@@ -95,7 +72,6 @@
 }
 .form-switch .form-check-input:checked {
     background-color: #a575ff;
-    border-color: #a575ff;
     border: none;
     background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'%3e%3ccircle r='3' fill='rgba(255,255,255,1.0)'/></svg>");
 }

@@ -1,0 +1,23 @@
+<%- include('./partials/head',{title: `${locals.serverHost} - Gallery`}); %>
+<link rel="stylesheet" href="/static/css/particles.css">
+<html lang="en" class="h-100">
+<body class="d-flex flex-column h-100">
+  <%- include('./partials/navbar', {active:'gallery'}); %>
+  <main class="container-fluid-sm py-0 px-0">
+    <div class="row d-flex justify-content-center align-items-center gx-0">
+      <div class="col col-12">
+        <div class="card border-0 z-1">
+           <%- include('./components/gallery',{maxImageWidth: 200, maxColumns: 6, privateGallery: false, pubkey: ""}); %> 
+        </div>
+      </div>
+    </div>
+  </main>
+  <%- include('./partials/footer', {active:'gallery'}); %>
+  <%- include('./components/modals/message-modal', {"object":"fisrtUse"}); %>
+</body>
+<script>
+  if ("<%= locals.firstUse %>" != undefined && "<%= locals.firstUse %>" != null && "<%= locals.firstUse %>" != "") {
+    initMessageModal("#fisrtUse", "<%- locals.firstUse %>", "Welcome to your sovereignty");
+  }
+</script>
+</html>

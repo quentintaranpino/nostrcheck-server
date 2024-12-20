@@ -5,7 +5,7 @@ interface ResultMessage {
 
 interface ResultMessagev2 {
 	status: string, 
-	message: string,
+	message: any,
 }
 
 interface ServerStatusMessage extends ResultMessagev2 {
@@ -13,8 +13,4 @@ interface ServerStatusMessage extends ResultMessagev2 {
 	version: string;
 }
 
-interface authkeyResultMessage extends ResultMessagev2 {
-	authkey: string;
-}
-
-export { ResultMessage, ResultMessagev2, ServerStatusMessage, authkeyResultMessage };
+export { ResultMessage, ResultMessagev2, ServerStatusMessage };

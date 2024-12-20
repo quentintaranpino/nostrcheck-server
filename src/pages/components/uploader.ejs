@@ -1,0 +1,714 @@
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-table@1.22.6/dist/bootstrap-table.min.css" rel="stylesheet">
+<link rel="stylesheet" href="/static/css/table.css">
+<link rel="stylesheet" href="/static/css/form.css">
+<div id="<%= instance %>-uploader" class="col-12 text-center mx-auto z-1">
+    <div id="<%= instance %>-drop-zone" class="card text-center p-5 default-bg m-2 lead" role="button"><span>Drag and drop files here or click to browse</span></div>
+    <input type="file" id="<%= instance %>-file-input" class="d-none" multiple>
+    <table 
+        id="<%= instance %>-file-table" 
+        class="table d-none">
+        <thead>
+            <tr>
+            </tr>
+        </thead>
+        <tbody id="<%= instance %>-file-table-body"></tbody>
+    </table>
+    <div id="<%= instance %>-account-message" class="d-none">
+        <p class="text-center lead">Don't have an account? <a href="/register" class="link-body-emphasis link-offset-3 link-underline-opacity-25 link-underline-opacity-75-hover">Register</a> to manage your recently uploaded files.
+        </p>
+    </div>
+    <div id="<%= instance %>-guest-message" class="d-none">
+        <p class="text-center lead"><a href="/login" class="link-body-emphasis link-offset-3 link-underline-opacity-25 link-underline-opacity-75-hover">Login</a> or register to upload files. You can also upload files using a <a href="https://nostr.net/#nip-07-browser-extensions" class="link-body-emphasis link-offset-3 link-underline-opacity-25 link-underline-opacity-75-hover" target="_blank">browser extension.</a>
+        </p>
+    </div>
+      <div id="<%= instance %>-file-table-btns" class="text-center">
+        <div id="<%= instance %>-guest-buttons" class="mt-3 d-none">
+            <div class="d-grid w-300 mx-auto mt-3 mb-3">
+              <button class="btn btn-lg btn-primary" id="<%= instance %>-file-table-btn-nip07" type="button"><i class="nostr-logo me-2"></i>Browser extension upload</button>
+            </div>
+        </div>
+        <div id="<%= instance %>-logged-buttons" class="d-none">
+            <div class="d-grid w-300 mx-auto mt-3 mb-3">
+                <button id="<%= instance %>-file-table-btn-upload" class="btn btn-lg btn-primary"><i class="fa-solid fa-cloud-arrow-up me-3"></i>Upload</button>
+            </div>
+        </div>
+      </div>
+      <% if (!hideTos) { %>
+      <p class="mb-4 mt-3">By using our services you agree the <a id="<%= instance %>-tos-link" class=" link-offset-2 link-underline-opacity-25" href='/tos'>Terms of Service</a></p>
+      <% } %>
+       
+    </div>
+<%- include('./modals/payment-modal', {instance: instance}) %>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script>
+
+
+(function() {  
+    const instance = '<%= instance %>' + '-';
+    console.log(instance)
+    const identifier = '<%= JSON.stringify(request.session.identifier) %>';
+    const filesArray = [];
+
+    const oneFile = '<%= typeof oneFile !== "undefined" && oneFile ? "true" : "false" %>' === "true";
+
+    const fetchFileServerInfo = async (file, authEvent) => {
+
+        if (!file) {
+            return { "status": "error", "message": "No file selected", "satoshi": 0 };
+        }
+
+        const fileExtension = file.name.split('.').pop().toLowerCase();
+        let fileType = file.type;  // Usar una variable intermedia para almacenar el tipo
+
+        if (!fileType) {
+            try {
+
+                const res = await fetch('https://cdn.jsdelivr.net/gh/jshttp/mime-db/db.json');
+                const data = await res.json();
+
+                if (!data) {
+                    showMessage("Failed to load MIME types", "alert-danger", false);
+                    return { "status": "error", "message": "Failed to load MIME types", "satoshi": 0 };
+                }
+                
+                const possibleTypes = Object.keys(data).filter(key => data[key].extensions && data[key].extensions.includes(fileExtension));
+                fileType = getPreferredMimeType(fileExtension,possibleTypes);
+
+            } catch (error) {
+                showMessage("Failed to load MIME types", "alert-danger", false);
+                return { "status": "error", "message": "Failed to load MIME types", "satoshi": 0 };
+            }
+        }
+
+        if (!fileType) {
+            showMessage("Invalid file type", "alert-danger", false);
+            return { "filename": file.name, "url": "" };
+        }
+
+        try {
+
+            const response = await fetch(window.location.hostname.includes("cdn") ? '/upload' : '/api/v2/media/upload', {
+                method: "HEAD",
+                headers: {
+                    "Authorization": "Nostr " + authEvent,
+                    "X-Content-Length": file.size.toString(),
+                    "X-Content-Type": fileType,
+                    "X-SHA-256": `${file.fileData.hash}`,
+                    "X-Content-Transform": file.fileData.transform, // NOT FROM BUD-07 SPEC.
+                },
+            });
+            const data = {
+                status : response.status,
+                message : response.headers.get('X-Reason'),
+                payment_request : response.headers.get('X-Lightning'),
+                satoshi : response.headers.get('X-Lightning-amount'),
+            }
+            return data;
+
+            
+        } catch (error) {
+            console.log(error.message)
+            return { "status": "error", "message": error.message, "satoshi": 0 };
+        }
+
+    }
+
+    const fetchFileServer = async (file, authEvent = "", method = "", showMessages = false) => {
+
+        if (!method) {
+            return;
+        }
+
+        if (!file) {
+            showMessage("No file selected", "alert-danger", false);
+            return { "filename": "", "url": "" };
+        }
+
+        
+
+        let headers = {};
+        headers["authorization"] = "Nostr " + authEvent;
+        method == "PUT" ? headers["Content-Type"] = file.type : null;
+        if (file.fileData.invoice != "" && file.fileData.preimage != ""){
+            headers["X-Lightning"] = `${file.fileData.preimage}`;
+            // headers["X-Lightning"] = `8358ad49931cef976f6ac21f43bdf053c5d71a0d01337845ca582ec6058eb80f`;
+        }
+        let uploadMessage = null
+
+        if (showMessages) uploadMessage = showMessage(`Uploading file... `, "alert-info", true);
+
+        const formData = new FormData();
+        formData.append('file', file);
+        instance.startsWith('userSettingspicture') ? formData.append('media_type', 'avatar') : null;
+        instance.startsWith('userSettingsbanner') ? formData.append('media_type', 'banner') : null;
+
+        try {
+            const response = await fetch(method == "PUT" ? window.location.hostname.includes("cdn") ? '/upload' : '/api/v2/media/upload' :  window.location.hostname.includes("cdn") ? '/': '/api/v2/media', {
+                method: method,
+                headers: headers,
+                body: method == "PUT" ? file : formData
+            });
+
+            let serverData = await response.json();
+
+            if (!response.status.toString().startsWith("2") && !response.status.toString() == "402") {
+                if (showMessages) updateMessage(uploadMessage, '<i class="bi bi-exclamation-circle-fill pe-1"></i>' + serverData.message, "alert-danger");
+                if (showMessages) hideMessage(uploadMessage, 5000);
+                return { "filename": file.name, "url": "", "invoice": response.headers.get('X-Lightning')};
+            }
+
+            if (serverData.processing_url && serverData.processing_url != "") {
+                authEvent = {
+                    kind: 27235,
+                    created_at: Math.floor(Date.now() / 1000),
+                    tags: [
+                        ["u", serverData.processing_url],
+                        ["method", "GET"]
+                        ],
+                    content: 'Authorization event for file upload status',
+                };
+                authEvent = btoa(JSON.stringify(await window.nostr.signEvent(authEvent)));
+            }
+
+            while (serverData.processing_url) {
+
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                headers["authorization"] =  "Nostr " + authEvent;
+
+                const processingResponse = await fetch(serverData.processing_url, {
+                    method: "GET",
+                    headers: headers
+                });
+
+                const processingData = await processingResponse.json();
+
+                if (processingData.status === "processing") {
+                    if (showMessages) updateMessage(uploadMessage, `Processing file... ${processingData.percentage}`);
+                } else {
+                    serverData.processing_url = "";
+                }
+            }
+
+            const url = serverData.nip94_event ? serverData.nip94_event.tags.find(tag => tag[0] === "url")[1] : serverData.processing_url ? serverData.processing_url : serverData.url;
+            if (showMessages) updateMessage(uploadMessage,
+                `File uploaded successfully!
+                <button class="btn p-0 pb-1" type="button" aria-controls="intro" aria-selected="false" aria-label="View file">
+                    <a href="${url}" target="_blank"><span><i class="fa-solid fa-link ms-2 me-2"></i><span class="visually-hidden">View file</span></span></a>
+                </button>
+                <button class="btn p-0 pb-1" type="button" aria-controls="intro" aria-selected="false" aria-label="Copy to clipboard" onclick="copyToClipboard(this,'${url}')">
+                    <span><i class="fa-solid fa-copy"></i><span class="visually-hidden">Copy to clipboard</span></span>
+                </button>
+                `
+            );
+            if (showMessages) hideMessage(uploadMessage, 15000);
+            return { "filename": file.name, "url": url, "invoice": response.headers.get('X-Lightning')};
+
+        } catch (error) {
+            console.log(error.message);
+            if (showMessages) updateMessage(uploadMessage, '<i class="bi bi-exclamation-circle-fill pe-1"></i>' + error, "alert-danger");
+            if (showMessages) hideMessage(uploadMessage, 5000);
+            return { "filename": file.name, "url": "", "invoice": "" };
+        }
+    }
+
+    function getPreferredMimeType(extension, possibleTypes) {
+        let preferredMimeType = null;
+        switch (extension) {
+            case 'stl':
+                preferredMimeType = possibleTypes.includes('model/stl') ? 'model/stl' : null;
+                break;
+            case 'jpg':
+            case 'jpeg':
+                preferredMimeType = possibleTypes.includes('image/jpeg') ? 'image/jpeg' : null;
+                break;
+            case 'png':
+                preferredMimeType = possibleTypes.includes('image/png') ? 'image/png' : null;
+                break;
+            default:
+                preferredMimeType = possibleTypes[0];
+                break;
+        }
+        return preferredMimeType;
+    }
+
+    document.addEventListener('DOMContentLoaded', async () => {
+
+        if (identifier) {
+            document.getElementById(instance + 'logged-buttons').classList.remove('d-none');
+        } else {
+            document.getElementById(instance + 'guest-message').classList.remove('d-none');
+            document.getElementById(instance + 'guest-buttons').classList.remove('d-none');
+        }
+
+        $('#' + instance + 'file-table').bootstrapTable({
+            idField: 'id',
+            uniqueId: 'id',
+            pagination: oneFile? false : true,
+            pageSize: 4,
+            showHeader: false,
+            paginationParts: ['pageInfoShort', 'pageList'],
+            sortName: 'id',
+            sortOrder: 'desc',
+            columns: [
+                {
+                    field: 'id',
+                    title: 'ID',
+                    visible: false
+                },
+                {
+                    field: 'fileName',
+                    title: 'File Name',
+                    formatter: function(value, row, index) {
+                        return fileNameFormatter(value, row, index, filesArray);
+                    }
+                },
+                {
+                    field: 'fileType',
+                    title: 'File Type',
+                    visible: false
+                },
+                {
+                    field: 'transform',
+                    title: 'Resize',
+                    formatter: function(value, row, index) {
+                        return transformFormatter(value, row, index, filesArray);
+                    }
+                },
+                {
+                    field: 'fileSize',
+                    title: 'File Size'
+                },
+                {
+                    field: 'invoice',
+                    title: 'Invoice',
+                    formatter: function(value, row, index) {
+                        return invoiceFormatter(value, row, index, filesArray);
+                    }
+                },
+                {
+                    field: 'satoshi',
+                    title: 'Satoshi',
+                    formatter: function(value, row, index) {
+                        return satoshiFormatter(value, row, index);
+                    },
+                    class: 'text-end'
+                },
+                {
+                    field: 'isPaid',
+                    title: 'isPaid',
+                    visible: false
+                },
+                {
+                    field: 'action',
+                    title: 'Action',
+                    formatter: function(value, row, index) {
+                        return actionFormatter(value, row, index);
+                    },
+                    class: 'text-center'
+                },
+                {
+                    field: 'accepted',
+                    title: 'Accepted',
+                    visible: false 
+                }
+            ]
+        });
+
+        if (oneFile) {
+            document.getElementById(instance + 'file-table-btn-upload').classList.add('d-none');
+        }
+
+    });
+        
+    const dropZone = document.getElementById(instance + 'drop-zone');
+    const fileInput = document.getElementById(instance + 'file-input');
+
+    let dropZoneOriginalBackground = dropZone.style.backgroundColor;
+    dropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropZone.style.backgroundColor = 'rgb(248 249 250 / 30%)';
+    });
+
+    dropZone.addEventListener('dragleave', () => {
+        dropZone.style.backgroundColor = dropZoneOriginalBackground
+    });
+
+    dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropZone.style.backgroundColor = dropZoneOriginalBackground;
+        const files = Array.from(e.dataTransfer.files);
+        window[`${instance}handleFiles`](files);
+    });
+
+    dropZone.addEventListener('click', () => {
+        fileInput.click();
+    });
+
+    fileInput.addEventListener('change', (e) => {
+        const files = Array.from(e.target.files);
+        window[`${instance}handleFiles`](files);
+    });
+
+    document.getElementById('<%= instance %>-file-table-btn-upload').addEventListener('click', async function() {
+        await semaphore.execute(async () => {await window[`${instance}uploadFiles`](window[`${instance}filesArray`]);});
+    });
+
+    document.getElementById('<%= instance %>-file-table-btn-nip07').addEventListener('click', async function() {
+        await semaphore.execute(async () => {await window[`${instance}uploadFiles`](window[`${instance}filesArray`]);});
+    });
+
+    let fileCounter = 0;
+
+    async function handleFiles(files) {
+
+        if (files.length === 0) {
+            return;
+        }
+
+        document.getElementById(instance + 'file-table').classList.remove('d-none');
+       if(!oneFile) document.getElementById(instance + 'file-table-btn-upload').classList.remove('d-none');
+       if(!oneFile) document.getElementById(instance + 'file-table-btn-nip07').classList.remove('d-none');
+
+        for (const file of files) {
+
+            if (oneFile && filesArray.length > 0) {
+                filesArray.splice(0, filesArray.length);
+                $('#' + instance + 'file-table').bootstrapTable('load', filesArray.map(file => file.fileData));
+            }
+
+            if (!filesArray.some(f => f.fileData.originalName === file.name && f.size === file.size)) {
+                const uniqueId = fileCounter++; 
+                
+                filesArray.push(file); 
+
+                const fileData = {
+                    id: instance + uniqueId,
+                    originalName: file.name,
+                    fileName: file.name.length > 30 ? file.name.substring(0, 30) + '...' : file.name,
+                    fileType: file.type,
+                    transform: file.type.startsWith('image/') || file.type.startsWith('video/') ? 1 : 0,
+                    fileSize: (file.size / 1024).toFixed(2) + ' KB',
+                    action: 'init',
+                    accepted: true,
+                    satoshi: -1,
+                    invoice: null,
+                    isPaid: false,
+                    hash: null,
+                };
+
+                fileData.hash = await crypto.subtle.digest('SHA-256', await file.arrayBuffer()).then(buffer => {
+                    return Array.from(new Uint8Array(buffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+                });
+
+                file.fileData = fileData;
+
+                const fileServerInfo = await getFileServerInfo(file);
+                if (fileServerInfo == true) {
+                    $('#' + instance + 'file-table').bootstrapTable('load', filesArray.map(file => file.fileData));
+                }
+                if (oneFile && fileServerInfo == true) {
+                    if (file.fileData.satoshi > 0) {
+                        console.log(file.fileData.invoice, file.fileData.satoshi, file.fileData.id, instance)
+                        handlePayment(file.fileData.invoice, file.fileData.satoshi, file.fileData.id, instance).then(async (result) => {
+                        if (result) {
+                            file.fileData.isPaid = true;
+                            $('#' + instance + 'file-table').bootstrapTable('load', filesArray.map(file => file.fileData));
+                            await semaphore.execute(async () => {await window[`${instance}uploadFiles`](window[`${instance}filesArray`]);});
+                        }else{
+                            const fileIndex = filesArray.findIndex(f => f.fileData.id === file.fileData.id);
+                            if (fileIndex !== -1) {
+                                filesArray.splice(fileIndex, 1); 
+                                $('#' + instance + 'file-table').bootstrapTable('load', filesArray.map(file => file.fileData));
+                            }
+                        }
+                        });
+                    }else{
+                        await semaphore.execute(async () => {await window[`${instance}uploadFiles`](window[`${instance}filesArray`]);});
+                    }
+                }
+
+            }
+        }
+
+        $(document).on('click', '.delete-btn', function() {
+            const fileId = $(this).data('file-id');
+            const fileIndex = filesArray.findIndex(file => file.fileData.id === fileId);
+                if (fileIndex !== -1) {
+                    filesArray.splice(fileIndex, 1); 
+                    $('#' + instance + 'file-table').bootstrapTable('load', filesArray.map(file => file.fileData));
+                }
+        });
+
+        $(document).on('change', '.form-check-input',async function() {
+            const fileId = $(this).attr('id').split('-').slice(0, -1).join('-')
+            const fileIndex = filesArray.findIndex(file => file.fileData.id === fileId);
+            if (fileIndex !== -1) {
+
+                $(this).prop('disabled', true);
+                filesArray[fileIndex].fileData.transform = this.checked ? 1 : 0;
+                filesArray[fileIndex].fileData.satoshi = -1 // Reset Satoshi value;
+                $('#' + instance + 'file-table').bootstrapTable('load', filesArray.map(file => file.fileData));
+                await getFileServerInfo(filesArray[fileIndex]).then(() => {
+                    $(this).prop('disabled', false);
+                });
+            }
+        });
+    }
+
+    
+    async function uploadFiles(f) {
+
+        if (f.length === 0) {
+            showMessage("No files selected to upload 🤔", "alert-warning", false, 500);
+            return;
+        }
+
+        for (const file of f) {
+
+            if (file.fileData.processed || file.fileData.accepted === false) continue;
+
+            file.fileData.action = 'processing';
+            $('#' + instance + 'file-table').bootstrapTable('load', f.map(file => file.fileData));
+
+            let authEvent = null;
+            let method = $('#' + instance + 'file-table').bootstrapTable('getRowByUniqueId', file.fileData.id).transform == 1 ? 'POST' : 'PUT';
+
+            if (!identifier){
+
+                if (!window.nostr) {
+                    showMessage("⚠️ NIP07 browser extension not found", "alert-danger", false);
+                    file.fileData.satoshi = -2;
+                    file.fileData.action = 'error';
+                    $('#' + instance + 'file-table').bootstrapTable('load', f.map(file => file.fileData));
+                    return;
+                }
+
+                try {
+                    const pubKey = await window.nostr.getPublicKey();
+
+                    if (!pubKey){console.debug('NIP07 public key not found');
+                        return;
+                    }
+
+                    if (method == 'POST') {
+                        authEvent= {
+                            
+                            kind: 27235,
+                            created_at: Math.floor(Date.now() / 1000),
+                            tags: [
+                                ["u", window.location.hostname.includes("cdn") 
+                                ? window.location.protocol + "//" + window.location.hostname + '/api/v2/media/' 
+                                : window.location.protocol + "//" + window.location.hostname + '/api/v2/media'],
+                                ["x", file.fileData.hash],
+                                ["expiration", Math.floor(Date.now() / 1000) + 3600],
+                                ["method", "POST"],
+                                ],
+                            content: 'NIP98 authorization event for file upload',
+                        };
+
+                    }else{
+
+                        authEvent = {
+
+                            kind: 24242,
+                            created_at: Math.floor(Date.now() / 1000),
+                            tags: [
+                                ["t", 'upload'],
+                                ["x", file.fileData.hash],
+                                ["expiration", Math.floor(Date.now() / 1000) + 3600],
+                                ],
+                            content: 'Blossom authorization event for file upload',
+                        };
+                    }
+
+                    authEvent = btoa(JSON.stringify(await window.nostr.signEvent(authEvent)));
+
+                } catch (error) {
+                    console.error(error);
+                }
+            }
+            const result = await fetchFileServer(file, authEvent, method);
+            if (!result || !result.url) {
+                file.fileData.accepted = false;
+                file.fileData.satoshi = -2;
+                file.fileData.action = 'error';
+                $('#' + instance + 'file-table').bootstrapTable('load', f.map(file => file.fileData));
+                continue;
+            }
+
+            result.invoice != null ? file.fileData.invoice = result.invoice : null;
+            file.fileData.action = 'success';
+            file.fileData.processed = true;
+            file.fileData.fileName = '<a class="link-offset-2 link-underline-opacity-25" href="' + result.url + '" target="_blank">' + "..." + result.url.slice(-30) + '</a>'
+            $('#' + instance + 'file-table').bootstrapTable('load', f.map(file => file.fileData));
+
+            const uploadEvent = new CustomEvent('fileUploaded', { 
+                detail: { 
+                    url: result.url,
+                    file: file,
+                    instance: instance
+                } 
+            });
+            document.dispatchEvent(uploadEvent);
+
+        }
+
+        if (!identifier) {
+            document.getElementById(instance + 'guest-message').classList.add('d-none');
+            document.getElementById(instance + 'account-message').classList.remove('d-none');
+        }
+
+    }
+
+    function transformFormatter(value, row, index, filesArray) {
+        const fileIndex = filesArray.findIndex(file => file.fileData.id == row.id);
+
+        return `
+            <div class="form-check form-switch d-flex">
+                <input type="checkbox" class="form-check-input" id="${row.id}-transform" 
+                    ${filesArray[fileIndex].fileData.status == 'error' ||
+                    filesArray[fileIndex].fileData.processed == true ||
+                    (row.fileType.startsWith('image/') === false && row.fileType.startsWith('video/') === false) 
+                    ? 'disabled' : ''} 
+                    ${filesArray[fileIndex].fileData.transform == true ? 'checked' : ''} control-id="ControlID-5">
+                <label class="form-check-label mt-1" for="${row.id}-transform">Resize</label>
+            </div>`;
+    }
+
+    function satoshiFormatter(value, row, index) {
+
+        if (value == 0) return 'Free' + '<i class="fa-solid fa-star ms-2" style="color:#a06bc9"></i>'
+        if (value == -1) return '<div class="spinner-border spinner-border-sm" role="status">'
+                                    '<span class="visually-hidden">Loading...</span>' +
+                                '</div>'
+        if (value == -2) return '<span class="text-danger">Failed</span>';
+        return value + ' <i class="fa-solid fa-bolt text-warning"></i>'    
+    }
+
+    function invoiceFormatter(value, row, index) {
+        if (row.isPaid === true) return '<span>Paid<i class="fa-solid fa-check ms-2"></i></span>';
+        return `<button class="btn btn-sm btn-primary" ${value == null || row.satoshi <= 0 ? 'disabled' : ''} onclick="handlePayment('${value}', ${row.satoshi}, '${row.id}','${instance}')">Pay</button>`;
+    }
+
+    function fileNameFormatter(value, row, index, filesArray) {
+        const fileIndex = filesArray.findIndex(file => file.fileData.id == row.id);
+
+        if (filesArray[fileIndex].fileData.accepted === false) {
+            return '<span class="text-danger">' + value + '</span>';
+        }
+        return value;
+    }
+
+    function actionFormatter(value, row, index) {
+        if (value == 'processing') {
+            return '<div class="spinner-border spinner-border-sm" role="status">' +
+                    '<span class="visually-hidden">Loading...</span>' +
+                    '</div>';
+        }
+        if (value == 'success') {
+            return '<button class="btn btn-sm text-white" data-file-id="' + row.id + '"><i class="fa-solid fa-check"></i></button>';
+        }
+
+        return '<button class="btn btn-sm text-danger delete-btn" data-file-id="' + row.id + '"><i class="fa-solid fa-xmark"></i></button>';
+    }
+
+    function handlePayment(value, satoshi, id, i) {
+        return new Promise((resolve, reject) => {
+            const filesArr = window[`${i}filesArray`];
+            const row = $('#' + i + 'file-table').bootstrapTable('getRowByUniqueId', id);
+            initPaymentModal(value, row.satoshi, i).then(result => {
+                console.log(result)
+                if (result != "") {
+                    row.isPaid = true;
+                    row.preimage = result;
+                    console.log(row)
+                    $('#' + i + 'table').bootstrapTable('updateRow', {
+                        index: id,
+                        row: row
+                    });
+                    $('#' + i + 'file-table').bootstrapTable('load', filesArr.map(file => file.fileData));
+                    resolve(true);
+                }else{
+                    resolve(false);
+                }
+            });
+        });
+    }
+
+    const getFileServerInfo = async (file) => {
+
+            try {
+                const pubKey = await window.nostr.getPublicKey();
+
+                if (!pubKey){console.debug('NIP07 public key not found');
+                    return;
+                }
+
+                authEvent = {
+
+                    kind: 24242,
+                    created_at: Math.floor(Date.now() / 1000),
+                    tags: [
+                        ["t", 'upload'],
+                        ["x", file.fileData.hash],
+                        ["expiration", Math.floor(Date.now() / 1000) + 3600],
+                        ],
+                    content: 'Blossom authorization event for file upload',
+                };
+
+                authEvent = btoa(JSON.stringify(await window.nostr.signEvent(authEvent)));
+
+            } catch (error) {
+                console.error(error);
+            }
+
+        const serverInfo = await fetchFileServerInfo(file, authEvent);
+        console.log(serverInfo)
+        if (!serverInfo || !serverInfo?.status?.toString().startsWith(2)){
+
+            // 402 Payment Required
+            if (serverInfo.status == 402) {
+                file.fileData.accepted = true;
+                file.fileData.invoice = serverInfo.payment_request
+                file.fileData.satoshi = serverInfo.satoshi;
+                $('#' + instance + 'file-table').bootstrapTable('load', filesArray.map(file => file.fileData));
+                return true;
+            }else{
+                file.fileData.accepted = false;
+                file.fileData.satoshi = -2;
+                console.error(`Failed to upload: ${file.name}`);
+                $('#' + instance + 'file-table').bootstrapTable('load', filesArray.map(file => file.fileData));
+                return false;
+            }
+
+        }else{
+            file.fileData.accepted = true;
+            file.fileData.satoshi = 0;
+            $('#' + instance + 'file-table').bootstrapTable('load', filesArray.map(file => file.fileData));
+            return true;
+        }
+
+    }
+
+window.handlePayment = handlePayment;
+window.transformFormatter = transformFormatter;
+window.satoshiFormatter = satoshiFormatter;
+window.invoiceFormatter = invoiceFormatter;
+window.fileNameFormatter = fileNameFormatter;
+window.actionFormatter = actionFormatter;
+window.instance = instance;
+
+window[`${instance}uploadFiles`] = uploadFiles;
+window[`${instance}filesArray`] = filesArray; 
+window[`${instance}handleFiles`] = handleFiles;
+
+})();
+
+</script>
+
+<style>
+#cdn-drop-zone {
+    --bs-text-opacity: 1;
+    color: rgba(255, 255, 255, .5) !important;
+}
+</style>

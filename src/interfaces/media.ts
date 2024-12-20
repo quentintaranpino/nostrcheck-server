@@ -1,73 +1,73 @@
-import { ResultMessage } from "./server.js";
+import { ResultMessage, ResultMessagev2 } from "./server.js";
 import { Request } from "express";
 
-interface MediaResultMessage extends ResultMessage {
+interface legacyMediaReturnMessage extends ResultMessage {
 	status: string;
 	id: string;
 	pubkey: string;
 	url: string;
-}
-
-interface MediaExtraDataResultMessage extends MediaResultMessage {
 	hash: string;
 	magnet: string;
 	tags: Array<string>;
 }
 
-interface MediaVisibilityResultMessage extends ResultMessage {
-	id: string;
-	visibility: string;
+interface mediaInfoReturnMessage extends ResultMessagev2 {
+	satoshi: number;
 }
 
 const UploadTypes = ["avatar", "banner", "media"];
 const UploadStatus = ["pending", "processing", "completed", "failed"];
 const MediaStatus = ["success", "error", "processing"];
 
-const allowedMimeTypes = [
-	"image/png",
-	"image/jpg",
-	"image/jpeg",
-	"image/gif",
-	"image/webp",
-	"video/mp4",
-	"video/quicktime",
-	"video/mpeg",
-	"video/webm",
-	"audio/mpeg",
-	"audio/mpg",
-	"audio/mpeg3",
-	"audio/mp3",
+interface MediaTypeInfo {
+    originalMime: string;
+    extension: string;
+    convertedMime: string;
+	convertedExtension?: string;
+}
+
+const mediaTypes: MediaTypeInfo[] = [
+
+    { originalMime: "image/png", extension: "png", convertedMime: "image/webp", convertedExtension: "webp" },
+    { originalMime: "image/jpg", extension: "jpg", convertedMime: "image/webp" , convertedExtension: "webp" },
+    { originalMime: "image/jpeg", extension: "jpeg", convertedMime: "image/webp" , convertedExtension: "webp" },
+    { originalMime: "image/gif", extension: "gif", convertedMime: "image/webp" , convertedExtension: "webp" },
+    { originalMime: "image/webp", extension: "webp", convertedMime: "image/webp" , convertedExtension: "webp" },
+    { originalMime: "image/svg+xml", extension: "svg", convertedMime: "image/svg+xml" },
+
+    { originalMime: "video/mp4", extension: "mp4", convertedMime: "video/mp4" , convertedExtension: "mp4" },
+    { originalMime: "video/quicktime", extension: "mov", convertedMime: "video/mp4" , convertedExtension: "mp4" },
+    { originalMime: "video/mpeg", extension: "mpeg", convertedMime: "video/mp4" , convertedExtension: "mp4" },
+    { originalMime: "video/webm", extension: "webm", convertedMime: "video/mp4" , convertedExtension: "mp4" },
+
+    { originalMime: "audio/mpeg", extension: "mp3", convertedMime: "audio/mpeg"},
+    { originalMime: "audio/mpg", extension: "mp3", convertedMime: "audio/mpeg" },
+    { originalMime: "audio/mpeg3", extension: "mp3", convertedMime: "audio/mpeg"},
+    { originalMime: "audio/mp3", extension: "mp3", convertedMime: "audio/mpeg" },
+
+    { originalMime: "application/pdf", extension: "pdf", convertedMime: "application/pdf" },
+	{ originalMime: "application/javascript", extension: "js", convertedMime: "application/javascript" },
+    { originalMime: "application/json", extension: "json", convertedMime: "application/json" },
+    { originalMime: "application/vnd.ms-fontobject", extension: "eot", convertedMime: "application/vnd.ms-fontobject" },
+    { originalMime: "application/yaml", extension: "yaml", convertedMime: "application/yaml" },
+	{ originalMime: "application/xml", extension: "xml", convertedMime: "application/xml" },
+
+    { originalMime: "font/otf", extension: "otf", convertedMime: "font/otf" },
+    { originalMime: "font/ttf", extension: "ttf", convertedMime: "font/ttf" },
+    { originalMime: "font/woff", extension: "woff", convertedMime: "font/woff" },
+    { originalMime: "font/woff2", extension: "woff2", convertedMime: "font/woff2" },
+
+	{ originalMime: "text/html", extension: "map", convertedMime: "text/html" },
+    { originalMime: "text/markdown", extension: "md", convertedMime: "text/markdown" },
+    { originalMime: "text/css", extension: "css", convertedMime: "text/css" },
+    { originalMime: "text/x-handlebars-template", extension: "hbs", convertedMime: "text/x-handlebars-template" },
+    { originalMime: "text/plain", extension: "txt", convertedMime: "text/plain" },
+	{ originalMime: "text/yaml", extension: "yaml", convertedMime: "text/yaml" },
+
+	{ originalMime: "model/stl", extension: "stl", convertedMime: "model/stl" },
 ];
 
-const mime_transform: { [key: string]: string } = {
-	"image/png"			: "webp",
-	"image/jpg"			: "webp",
-	"image/jpeg"		: "webp",
-	"image/gif"			: "webp",
-	"image/webp"		: "webp",
-	"video/mp4"			: "mp4",
-	"video/quicktime"	: "mp4",
-	"video/mpeg"		: "mp4",
-	"video/webm"		: "mp4",
-	"audio/mpeg"		: "mp3",
-	"audio/mpg"			: "mp3",
-	"audio/mpeg3"		: "mp3",
-	"audio/mp3"			: "mp3",
-};
-
-const mediaTypes: { [key: string]: string } = {
-	'webp': 'image/webp',
-	'png': 'image/png',
-	'jpg': 'image/jpeg',
-	'jpeg': 'image/jpeg',
-	'gif': 'image/gif',
-	'mov': 'video/quicktime',
-	'mp4': "video/mp4",
-	'mp3': "audio/mpeg",
-  }
-
-
-interface FileData{
+interface fileData{
 	filename: string;
 	width: number;
 	height: number;
@@ -80,23 +80,27 @@ interface FileData{
 	url: string;
 	magnet: string;
 	torrent_infohash: string;
-}
-
-interface ProcessingFileData extends FileData{
-
+	date: number;
+	servername: string;
+	no_transform: boolean;
 	media_type: typeof UploadTypes[number];
 	originalmime: string;
 	outputoptions: string;
 	status: string;
 	description: string;
-	servername: string;
 	processing_url: string;
+	conversionInputPath: string;
+	conversionOutputPath: string;
+	newFileDimensions: string;
+	transaction_id: string;
+	payment_request: string;
+	visibility: number;
 
 }
 
 interface asyncTask {
 	req: Request;
-	filedata: ProcessingFileData;
+	filedata: fileData;
 }
 
 interface videoHeaderRange {
@@ -104,16 +108,11 @@ interface videoHeaderRange {
 	End: number;
 }
 
-
 export {
-	allowedMimeTypes,
 	asyncTask,
-	FileData,
-	ProcessingFileData,
-	MediaResultMessage,
-	MediaExtraDataResultMessage,
-	MediaVisibilityResultMessage,
-	mime_transform,
+	fileData,
+	legacyMediaReturnMessage,
+	mediaInfoReturnMessage,
 	mediaTypes,
 	ResultMessage,
 	UploadTypes,

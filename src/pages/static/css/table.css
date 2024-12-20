@@ -1,3 +1,146 @@
-.fixed-table-body{
-    height: auto !important;
+.fixed-table-body{ height: auto !important; }
+
+.bootstrap-table .table {
+    border-collapse: separate;
+    border-spacing: 0 10px;
+}
+
+.bootstrap-table .table th, .bootstrap-table .table td {
+    padding: 0.85rem;
+    border: none;
+    vertical-align: middle;
+  }
+  
+.bootstrap-table .table td{
+    font-size: 0.88rem;
+    border-top: 1px solid rgba(0, 0, 0, 0.096);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.096);
+    background-color: rgba(0, 0, 0, .075);
+    color: var(--bs-tertiary);     
+}
+
+.bootstrap-table .table th {
+    font-size: 1rem;
+    border-top: 1px solid rgba(0, 0, 0, 0.096);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.096);
+    background-color: rgba(0, 0, 0, .075);
+    color: var(--bs-tertiary);
+    font-weight: 500;
+    vertical-align: middle;
+    text-align: center;
+    margin-bottom: 10px;
+}
+
+.bootstrap-table .table td:first-child,
+.bootstrap-table .table th:first-child {
+    border-left: 1px solid rgba(0, 0, 0, 0.096);
+}
+
+.bootstrap-table .table td:last-child,
+.bootstrap-table .table th:last-child {
+    border-right: 1px solid rgba(0, 0, 0, 0.096);
+}
+
+.bootstrap-table .fixed-table-container .table tbody tr.selected td { background-color: #ad73f834; }
+
+.bootstrap-table .table thead th input {
+    padding: 1px;
+    margin: 7px 0;
+    box-sizing: border-box;
+    border: 1px solid rgba(0, 0, 0, 0.096);
+    border-radius: 5px;
+    width: 90% !important;
+    height: 90%;
+}
+
+.bootstrap-table thead th:first-child {
+    border-top-left-radius: 10px;
+    border-bottom-left-radius: 10px;
+}
+.bootstrap-table thead th:last-child {
+    border-top-right-radius: 10px;
+    border-bottom-right-radius: 10px;
+}
+
+.bootstrap-table tbody tr td:first-child {
+    border-top-left-radius: 10px;
+    border-bottom-left-radius: 10px;
+}
+.bootstrap-table tbody tr td:last-child {
+    border-top-right-radius: 10px;
+    border-bottom-right-radius: 10px;
+}
+
+.bootstrap-table .active>.page-link, .page-link.active, .page-link, .page-link:hover {
+    color: var(--bs-tertiary);
+}
+
+.bootstrap-table .page-link {
+    color: var(--bs-tertiary);
+    background-color: rgba(0, 0, 0, .075);
+    border-color: rgba(0, 0, 0, .075);
+}
+
+.bootstrap-table .fixed-table-container .fixed-table-body .fixed-table-loading{
+    background-color: transparent;
+}
+
+.active>.page-link, .page-link.active, .page-link:hover {
+    background-color: rgba(0, 0, 0, 0.225);
+    border-color: rgba(0, 0, 0, .075);
+}
+
+.detail-container {
+    border: 1px solid rgba(0, 0, 0, 0.096);
+    padding: 15px;
+    border-radius: 5px;
+    background-color: rgba(0, 0, 0, 0.055);
+    margin: 10px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    display: inline-block;
+    max-width: 100%;
+    width: auto;
+    word-wrap: break-word;
+}
+.detail-container p {
+    margin: 5px 0;
+    line-height: 1.5;
+}
+
+.detail-container .key {
+    font-weight: bold;
+}
+.detail-container .value {
+    color: var(--bs-secondary);
+}
+
+.banned-row, .banned-row i, .banned-row a, .banned-row span {
+    color: white !important;
+}
+
+.banned-row {
+    background-color: #ff747f; 
+}
+
+.bootstrap-table .card-view{
+    margin-bottom: 10px;
+
+}
+
+.bootstrap-table .card-view .text-center {
+    text-align: left !important;
+}
+
+.bootstrap-table .card-view-title{
+    font-size: 1rem;
+    font-weight: 400  !important;
+    min-width: 30% !important;
+    overflow: hidden;
+}
+
+.bootstrap-table .card-view-value{
+    font-size: 0.88rem;
+    font-weight: 300  !important;
+    min-width: 70% !important;
+    padding-left: 10px;
 }

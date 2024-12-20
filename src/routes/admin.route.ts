@@ -1,60 +1,104 @@
 import { Application } from "express";
+import express from "express";
 import multer from "multer";
-
-import { deleteDBRecord, serverStatus, StopServer } from "../controllers/admin.js";
-import { resetUserPassword, updateDBRecord, insertDBRecord, updateSettings, updateLogo } from "../controllers/admin.js";
 import config from "config";
 import { logger } from "../lib/logger.js";
 import { getClientIp } from "../lib/utils.js";
 
-const maxMBfilesize :number = config.get('media.maxMBfilesize');
+import {
+    deleteDBRecord,
+    serverStatus,
+    StopServer,
+    resetUserPassword,
+    updateDBRecord,
+    insertDBRecord,
+    updateSettings,
+    updateLogo,
+    getModuleData,
+    getModuleCountData,
+    updateTheme,
+    moderateDBRecord,
+    banDBRecord
+} from "../controllers/admin.js";
+import { limiter } from "../lib/session.js";
+
+const maxMBfilesize: number = config.get('media.maxMBfilesize');
 
 const upload = multer({
-	storage: multer.memoryStorage(),
-	limits: { fileSize: maxMBfilesize * 1024 * 1024 },
+    storage: multer.memoryStorage(),
+    limits: { fileSize: maxMBfilesize * 1024 * 1024 },
 });
 
-export const loadAdminEndpoint = async (app: Application, version:string): Promise<void> => {
+export const loadAdminEndpoint = async (app: Application, version: string): Promise<void> => {
 
-        if (version == "v2"){
+    if (version == "v2") {
 
-                app.post("/api/" + version + app.get("config.server")["availableModules"]["admin"]["path"] + "/stop", StopServer)
+        // Stop the server
+        app.post("/api/" + version + app.get("config.server")["availableModules"]["admin"]["path"] + "/stop", limiter(), StopServer);
 
-                // Legacy status endpoint
-                app.get("/api/" + version + "/status", (_req, res) => {
-                        res.redirect("/api/" + version + app.get("config.server")["availableModules"]["admin"]["path"] + "/status");
-                });
+        // Legacy status endpoint
+        app.get("/api/" + version + "/status", limiter(), (_req, res) => {
+            res.redirect("/api/" + version + app.get("config.server")["availableModules"]["admin"]["path"] + "/status");
+        });
 
-                app.get("/api/" + version + app.get("config.server")["availableModules"]["admin"]["path"] + "/status", serverStatus);
+        // Get server status
+        app.get("/api/" + version + app.get("config.server")["availableModules"]["admin"]["path"] + "/status", limiter(), serverStatus);
 
-                // Reset user password
-                app.post("/api/" + version + app.get("config.server")["availableModules"]["admin"]["path"] + "/resetpassword/", resetUserPassword);
+        // Reset user password
+        app.post("/api/" + version + app.get("config.server")["availableModules"]["admin"]["path"] + "/resetpassword/",
+            limiter(),
+            express.json(), resetUserPassword);
 
-                // Update DB record
-                app.post("/api/" + version +app.get("config.server")["availableModules"]["admin"]["path"] + "/updaterecord/", updateDBRecord);
+        // Update a database record
+        app.post("/api/" + version + app.get("config.server")["availableModules"]["admin"]["path"] + "/updaterecord/",
+            limiter(),
+            express.json(), updateDBRecord);
 
-                // Delete DB record
-                app.post("/api/" + version + app.get("config.server")["availableModules"]["admin"]["path"] + "/deleterecord/", deleteDBRecord);
+        // Delete a database record
+        app.post("/api/" + version + app.get("config.server")["availableModules"]["admin"]["path"] + "/deleterecord/",
+            limiter(),
+            express.json(), deleteDBRecord);
 
-                // Insert DB record
-                app.post("/api/" + version + app.get("config.server")["availableModules"]["admin"]["path"] + "/insertrecord/", insertDBRecord);
+        // Insert a database record
+        app.post("/api/" + version + app.get("config.server")["availableModules"]["admin"]["path"] + "/insertrecord/",
+            limiter(),    
+            express.json(), insertDBRecord);
 
-                // Update settings value
-                app.post("/api/" + version + app.get("config.server")["availableModules"]["admin"]["path"] + "/updatesettings/", updateSettings);
+        // Moderate a database record
+        app.post("/api/" + version + app.get("config.server")["availableModules"]["admin"]["path"] + "/moderaterecord",
+            limiter(),
+            express.json(), moderateDBRecord);
 
-                // Update frontend logo
-                app.post("/api/" + version + app.get("config.server")["availableModules"]["admin"]["path"] +  "/updatelogo/", function (req, res){
-                        logger.debug("POST /api/" + version + app.get("config.server")["availableModules"]["admin"]["path"] + "/updatelogo", "|", getClientIp(req));
-                        upload.any()(req, res, function (err) {
-                                //Return 413 Payload Too Large if file size is larger than maxMBfilesize from config file
-                                if (err instanceof multer.MulterError && err.code === "LIMIT_FILE_SIZE") {
-                                        logger.warn("Upload attempt failed: File too large", "|", getClientIp(req));
-                                        return res.status(413).send({"status": "error", "message": "File too large, max filesize allowed is " + maxMBfilesize + "MB"});
-                                }
-                                updateLogo(req, res);
-                        })
-                });
+        // Update settings
+        app.post("/api/" + version + app.get("config.server")["availableModules"]["admin"]["path"] + "/updatesettings/",
+            limiter(),
+            express.json(), updateSettings);
 
-        }
+        // Upload frontend logo (handles files)
+        app.post("/api/" + version + app.get("config.server")["availableModules"]["admin"]["path"] + "/updatelogo/", 
+            limiter(),
+            function (req, res) {
+            logger.debug("POST /api/" + version + app.get("config.server")["availableModules"]["admin"]["path"] + "/updatelogo", "|", getClientIp(req));
+            upload.any()(req, res, function (err) {
+                if (err instanceof multer.MulterError && err.code === "LIMIT_FILE_SIZE") {
+                    logger.warn("Upload attempt failed: File too large", "|", getClientIp(req));
+                    return res.status(413).send({ "status": "error", "message": "File too large, max filesize allowed is " + maxMBfilesize + "MB" });
+                }
+                updateLogo(req, res);
+            });
+        });
+
+        // Update frontend theme
+        app.post("/api/" + version + app.get("config.server")["availableModules"]["admin"]["path"] + "/updatetheme/", limiter(), express.json({ limit: "1mb" }), updateTheme);
+
+        // Get module data
+        app.get("/api/" + version + app.get("config.server")["availableModules"]["admin"]["path"] + "/moduledata", limiter(), getModuleData);
+        app.get("/api/" + version + app.get("config.server")["availableModules"]["admin"]["path"] + "/moduleCountdata", limiter(), getModuleCountData);
+
+        // Ban a remote source
+        app.post("/api/" + version + app.get("config.server")["availableModules"]["admin"]["path"] + "/ban",
+            limiter(),
+            express.json(), banDBRecord);
+    }
 
 };

@@ -1,0 +1,303 @@
+<div class="d-flex justify-content-center mt-3 mb-3">
+    <input 
+        type="search" 
+        id="userSearch" 
+        class="form-control w-75 visually-hidden" 
+        placeholder="Search for users..." 
+        aria-label="Search for users">
+</div>
+<div id="masonry-container" class="g-2 p-1 mt-1"></div>
+<div id="no-users" class="visually-hidden text-center py-5 fs-4"><p>No users found</p></div>
+<div id="sentinelEnd"></div>
+<div class="d-flex justify-content-center mt-5 mb-5">
+    <div class="spinner-border text-secondary" id="loading-spinner" role="status">
+        <span class="visually-hidden">Loading...</span>
+    </div>
+</div>
+
+<style>
+    #masonry-container {
+        display: flex;
+        justify-content: center;
+        gap: 10px; 
+        flex-wrap: wrap;
+    }
+
+    .user-card {
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        padding: 10px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        width: 200px;
+        text-align: center;
+        transition: transform 0.3s;
+    }
+
+    .user-card:hover {
+        transform: scale(1.05);
+    }
+
+    .user-card span {
+        display: block;
+        margin: 5px 0;
+    }
+
+    .fade-in {
+        opacity: 0;
+        animation: fadeIn 0.5s forwards;
+    }
+
+    @keyframes fadeIn {
+        to {
+            opacity: 1;
+        }
+    }
+</style>
+
+<script>
+const apiBaseUrl = "/api/v2";
+const masonryContainer = document.getElementById('masonry-container');
+const noUsersDiv = document.getElementById('no-users');
+const loadingSpinner = document.getElementById('loading-spinner');
+const searchInput = document.getElementById('userSearch');
+let allUsers = [];
+
+document.addEventListener('DOMContentLoaded', async () => {
+    try {
+        const domainsResponse = await fetch(`${apiBaseUrl}/domains`);
+        if (!domainsResponse.ok) throw new Error("Failed to load domains");
+
+        const data = await domainsResponse.json();
+        const availableDomains = Object.keys(data.availableDomains);
+
+        if (availableDomains.length === 0) {
+            noUsersDiv.classList.remove('visually-hidden');
+            return;
+        }
+
+        await loadAllUsers(availableDomains);
+
+    } catch (error) {
+        console.error("Error loading domains:", error);
+    }
+});
+
+async function loadAllUsers(domains) {
+    try {
+        const promises = domains.map(domain => loadUsers(domain));
+        await Promise.all(promises); 
+
+
+        const allHexes = allUsers.map(user => user.hex);
+
+        const maxBatchSize = 500;
+        const batches = [];
+        for (let i = 0; i < allHexes.length; i += maxBatchSize) {
+            batches.push(allHexes.slice(i, i + maxBatchSize));
+        }
+
+        console.log(`Processing ${batches.length} batch(es) with up to ${maxBatchSize} pubkeys each.`);
+
+        const batchPromises = batches.map(batch =>
+            subscribeRelays(0, batch, "from", Math.floor(Date.now() / 1000) - (720 * 24 * 60 * 60))
+        );
+        const results = await Promise.all(batchPromises);
+
+        loadingSpinner.classList.add('visually-hidden'); 
+        searchInput.classList.remove('visually-hidden');
+
+        results.flat().forEach(item => {
+            const hex = item.pubkey;
+            const user = allUsers.find(user => user.hex === hex);
+            if (user) {
+                user.nostrData = item.content ? JSON.parse(item.content) : null;
+                renderUserCard(user);
+            }
+        });
+    } catch (error) {
+        console.error("Error loading all users or subscribing to relays:", error);
+    }
+}
+
+
+const userCardMap = new Map();
+
+async function loadUsers(domain) {
+    try {
+        const usersResponse = await fetch(`${apiBaseUrl}/domains/${domain}/users`);
+        if (!usersResponse.ok) throw new Error(`Failed to load users for domain ${domain}`);
+        const usersData = await usersResponse.json();
+
+        const users = usersData[domain];
+        if (!Array.isArray(users) || users.length === 0) return;
+
+        users.forEach(user => {
+            user.domain = domain;
+        });
+
+        allUsers.push(...users);
+
+    } catch (error) {
+        console.error(`Error loading users for domain ${domain}:`, error);
+    }
+}
+
+const observerOptions = {
+    root: null, 
+    rootMargin: "100px", 
+    threshold: 0.1 
+};
+
+const userCardObserver = new IntersectionObserver((entries, observer) => {
+    entries.forEach(entry => {
+        if (entry.isIntersecting) {
+            const hex = entry.target.getAttribute('data-pubkey');
+            const user = allUsers.find(u => u.hex === hex);
+            if (user) {
+                updateUserCard(user);
+            }
+            observer.unobserve(entry.target);
+        }
+    });
+}, observerOptions);
+
+
+async function renderUserCard(user) {
+    let userCard = userCardMap.get(user.hex);
+
+    if (!userCard) {
+        userCard = document.createElement('div');
+        userCard.classList.add('user-card', 'fade-in');
+        userCard.setAttribute('data-pubkey', user.hex);
+
+        const mediaContainer = document.createElement('div');
+        mediaContainer.classList.add('media-container');
+        mediaContainer.style.width = '100%';
+        mediaContainer.style.borderRadius = '5px';
+        mediaContainer.style.height = '115px';
+        mediaContainer.style.overflow = 'hidden';
+        userCard.appendChild(mediaContainer);
+
+        const usernameSpan = document.createElement('span');
+        usernameSpan.classList.add('username');
+        userCard.appendChild(usernameSpan);
+
+        const pubkeyDiv = document.createElement('div');
+        pubkeyDiv.classList.add('pubkey');
+        userCard.appendChild(pubkeyDiv);
+
+        masonryContainer.appendChild(userCard);
+        userCardMap.set(user.hex, userCard);
+    }
+
+    const mediaContainer = userCard.querySelector('.media-container');
+    const usernameSpan = userCard.querySelector('.username');
+    const pubkeyDiv = userCard.querySelector('.pubkey');
+
+    mediaContainer.innerHTML = '';
+    if (user.nostrData?.picture) {
+        const pictureUrl = user.nostrData.picture;
+        if (pictureUrl.match(/\.(mp4|webm|ogg)(\?.*)?$/)) {
+            const videoElement = document.createElement('video');
+            videoElement.src = pictureUrl;
+            videoElement.controls = true;
+            videoElement.style.width = '100%';
+            videoElement.style.height = '100%';
+            videoElement.style.objectFit = 'cover';
+            console.log(`loading video ${pictureUrl}`);
+            videoElement.onerror = () => {
+                videoElement.poster = '/static/resources/loading-image.webp';
+            };
+            mediaContainer.appendChild(videoElement);
+        } else if (pictureUrl.match(/\.(jpg|jpeg|png|gif|webp)(\?.*)?$/)) {
+            const imgElement = document.createElement('img');
+            imgElement.src = pictureUrl;
+            imgElement.style.width = '100%';
+            imgElement.style.height = '100%';
+            imgElement.style.objectFit = 'cover';
+            imgElement.onerror = () => {
+                imgElement.src = '/static/resources/loading-image.webp';
+            };
+            mediaContainer.appendChild(imgElement);
+        } else {
+            const fallbackImg = document.createElement('img');
+            fallbackImg.src = '/static/resources/loading-image.webp';
+            fallbackImg.style.width = '100%';
+            fallbackImg.style.height = '100%';
+            fallbackImg.style.objectFit = 'cover';
+            mediaContainer.appendChild(fallbackImg);
+        }
+    } else {
+        const fallbackImg = document.createElement('img');
+        fallbackImg.src = '/static/resources/loading-image.webp';
+        fallbackImg.style.width = '100%';
+        fallbackImg.style.height = '100%';
+        fallbackImg.style.objectFit = 'cover';
+        mediaContainer.appendChild(fallbackImg);
+    }
+
+    usernameSpan.textContent = `${user.nostrData?.name || user.username || 'Loading...'}`;
+
+    if (pubkeyDiv) {
+        await hextoNpub(user.hex).then((npub) => {
+            user.npub = npub;
+            const visibleChars = Math.min(8, Math.floor(window.innerWidth / 50));
+            const truncatedText = `${npub.slice(0, visibleChars)}:${npub.slice(-visibleChars)}`;
+            pubkeyDiv.innerHTML = `
+                <button id="npub-btn" class="btn btn-primary" type="button"
+                    onclick="copyToClipboard(this, '${npub}')"
+                    data-value="${npub}"
+                    style="--bs-btn-padding-y: .1rem; --bs-btn-padding-x: .5rem; --bs-btn-font-size: .8rem;">
+                    ${truncatedText}<i class="fa-solid fa-copy ms-2"></i>
+                </button>`;
+        });
+    }
+}
+
+searchInput.addEventListener('input', () => {
+    const query = searchInput.value.toLowerCase().trim();
+
+    allUsers.forEach(user => {
+        const userCard = userCardMap.get(user.hex);
+        if (userCard) {
+            userCard.classList.add('visually-hidden');
+            userCard.style.display = 'none';
+        }
+    });
+    
+    let anyVisible = false;
+
+    allUsers.forEach(user => {
+        const userCard = userCardMap.get(user.hex);
+
+        if (userCard) {
+            const searchData = [
+                user.username,
+                user.hex,
+                user.npub,
+                user.domain,
+                user.nostrData?.name,
+                user.nostrData?.nip05,
+                user.nostrData?.display_name,
+                user.nostrData?.website,
+                user.nostrData?.lud16,
+                user.nostrData?.about
+            ].filter(Boolean).join(' ').toLowerCase();
+
+            if (searchData.includes(query)) {
+                userCard.classList.remove('visually-hidden');
+                userCard.style.display = 'block';
+                anyVisible = true;
+            }
+        }
+    });
+
+    if (!anyVisible) {
+        noUsersDiv.classList.remove('visually-hidden');
+    } else {
+        noUsersDiv.classList.add('visually-hidden');
+    }
+});
+
+
+</script>

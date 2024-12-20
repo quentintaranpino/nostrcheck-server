@@ -1,0 +1,441 @@
+<div class="row">
+    <div class="text-center col-11 col-sm-9 col-md-8 mx-auto" id="register-title">
+        <h1 class="display-4 mb-1 pb-2 font-weight-normal gradient-text">Be part of our community</h1>
+        <p class="lead">Public nostr profile page, multimedia uploads, lightning redirects and much more. Thank you for giving us the opportunity to serve you.</p>
+    </div>
+</div>
+<div class="row">
+    <div class="col-11 col-sm-9 col-md-8 col-lg-7 col-xl-6 col-xxl-5 mx-auto" id="register-form">
+        <form class="form">
+          <div class="input-group mb-3 mt-2"  data-bs-tooltip="test">
+            <span class="input-group-text">Domain name</span>
+            <select class="form-select" aria-label="Domain selection" id="domain-selection"></select>
+            <span 
+                  class="input-group-text" 
+                  id="domain-selection-icons" 
+                  data-bs-toggle="tooltip" 
+                  data-bs-title="Each domain has different characteristics, 
+                                 the envelope and lightning icons mean that they require an 
+                                 invitation or payment of a lightning invoice."
+                                 >
+            </span>  
+          </div>
+          <div id="register-invitation" class="d-none">
+            <p class="text-center lead">
+              This domain <b>requires an invitation code to register</b>. If you don't have one, you can request one from 
+              other <a class="link-body-emphasis link-offset-3 link-underline-opacity-25 link-underline-opacity-75-hover" href="directory">registered users</a>
+            </p>
+              <input type="input" data-otc='invitation' id="input-register-invitation" name="password" class="form-control" placeholder="Invite code" autocomplete="invite">
+          </div>
+            <div class="input-group mb-3 mt-2">
+              <input type="text" data-otc='username' class="form-control " id="input-register-username" placeholder="username" required autocomplete="username">
+              <span class="input-group-text" id="input-register-domain" data-bs-placement="top">@domain.com</span>
+              <span class="input-group-text d-none" id="input-register-payment" data-bs-placement="top"></span>
+            </div>
+            
+            <input type="text" data-otc='pubkey' class="form-control mt-2 mb-3" id="input-register-pubkey" placeholder="public key (npub or hex)" required autocomplete="pubkey">
+            <div class="input-group flex-nowrap mt-2 mb-3">
+              <span class="input-group-text" id="input-register-password-label">Optional</span>
+              <input type="password" data-otc='password' id="input-register-password" name="password" class="form-control input-password" placeholder="Password" autocomplete="current-password">
+              <button type="button" class="toggle-password d-none"
+              aria-label="Show password as plain text. Warning: this will display your password on the screen.">
+            </button>
+            </div>
+          </form>
+          
+      <div id="register-buttons" class="mt-3">
+        <p class="text-center lead">You can register using a one time code or using a <a href="https://nostr.net/#nip-07-browser-extensions" class="link-body-emphasis link-offset-3 link-underline-opacity-25 link-underline-opacity-75-hover" target="_blank">browser extension.</a></p>
+        <div class="d-grid mb-3 mt-4 w-300 mx-auto">
+          <button class="btn btn-lg btn-primary" name="otc_register" id="otc_register" type="button" onclick="register('otc')"><i class="nostr-logo me-2" ></i>One time register code</button>
+        </div>
+        <div class=" hr-text w-50 mx-auto">or</div> 
+        <div class="d-grid w-300 mx-auto mt-3 mb-3">
+          <button class="btn btn-lg btn-primary" name="NIP07_submit" id="NIP07_submit" type="button" onclick="register('nip07')"><i class="nostr-logo me-2"></i>Browser extension</button>
+        </div>
+      </div>
+    </div>  
+    <div id="register-second-phase" class="col-11 col-sm-9 col-md-8 col-lg-7 col-xl-6 col-xxl-5 mx-auto d-none">
+      <div class="text-center mb-4 d-none" id="register-need-steps">
+        <h1 class="display-4 mb-1 mt-2 pb-2 font-weight-normal gradient-text">Some steps are required</h1>
+        <p class="lead">
+            Your account has been created. But some steps are required to complete the registration process.
+        </p>
+      </div>
+      <div class="text-center mb-4 d-none" id="register-success">
+        <h1 class="display-4 mb-1 mt-3 pb-3 font-weight-normal gradient-text">Registration successful</h1>
+        <p class="lead">
+            Your account has been created. You can now <a href="login" class="link-body-emphasis link-offset-3 link-underline-opacity-25 link-underline-opacity-75-hover">login</a> and start using all our services!
+        </p>
+      </div>
+      <div id="register-otc-request" class="mx-auto mb-3 mt-5 d-none ">
+        <h5 class="lead mb-3">
+          <i class="fa-regular fa-paper-plane me-1" style="color:rgb(77, 77, 77)"></i>
+          One time code required        
+        </h5>
+        <p>
+          We have sent you an nostr direct message with a one time code to ensure that you are the owner of the pubkey. Use your favorite <a class="link-offset-2"href="https://nostr.net/" target="_blank">nostr client</a> to retrieve the code and complete the registration process.
+        </p>
+        <div class="input-group mb-3 mt-2">
+          <input type="text" class="form-control" id="input-register-otc" placeholder="One time code" required>
+          <button class="btn btn-primary" type="button" id="otc_submit" onclick="validateOTC()">Submit</button>
+        </div>  
+      </div>
+      <div id="register-payment-request" class="mx-auto mb-3 mt-5 d-none">
+        <h5 class="lead mb-3">
+          <i class="fa-solid fa-bolt me-1" style="color:rgb(255, 128, 24)"></i>
+
+          Payment required
+        </h5>
+        <p>
+          We have generated a lightning invoice for you to pay. Once confirmed this QR will disappear. Use your favorite lightning wallet to pay the invoice. 
+        </p>
+        <p class="lead mb-1 text-center">Invoice amount: <span id="payment-request-satoshi"></span> sats</p>
+        <div id="payment-request-qr" class="mx-auto" style="width: 250px;"></div>
+        <div class="text-center">
+          <span id="payment-request" class="d-none"></span>
+          <button class="btn btn-primary mt-3" type="button" id="payment-request-copy" onclick="copyToClipboard(this,document.getElementById('payment-request').innerText)">Copy invoice</button>
+        </div>
+        <p class="text-center mt-3">
+          Not sure which wallet to use? Check out the awesome <a class="link-offset-2" href="https://getalby.com/" target="_blank">Alby wallet</a>.
+        </p>
+      </div>
+    </div>
+  </div>
+<canvas id="confetti-canvas"></canvas>
+<script src="/static/js/confetti.js"></script>
+<script src="/static/js/form.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+<script>
+
+  let domainsData;
+  const satoshiField = document.getElementById('input-register-payment');
+  const usernameField = document.getElementById('input-register-username');
+
+  const initRegisterForm = async () => {
+
+    const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]')
+    const tooltipList = [...tooltipTriggerList].map(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl))
+
+    await fetch('/api/v2/domains', {
+        method: 'GET',
+      })
+      .then(response => response.json())
+      .then(async data => {
+        const select = document.getElementById('domain-selection');
+        const invitationGroup = document.getElementById('register-invitation');
+        let counter = 0;
+        domainsData = data;
+        Object.keys(data.availableDomains).forEach(domain => {
+          if (counter === 0) {
+              document.getElementById('input-register-domain').innerText = `@${domain}`;
+          }
+          const option = document.createElement('option');
+          option.value = domain;
+          option.text = domain;
+          select.appendChild(option);
+          const domainInfo = data.availableDomains[domain];
+
+          let icons = '<i class="fa-solid fa-star me-2" style="color:#a06bc9"></i> Free';
+          document.getElementById('domain-selection-icons').innerHTML = icons;
+          if (domainInfo.requirepayment) { icons = ' <i class="fa-solid fa-bolt ms-2 me-2" style="color:rgb(255, 128, 24)"></i> Paid'; }
+          if (domainInfo.requireinvite && !domainInfo.requirepayment) { 
+            icons = ' <i class="fa-regular fa-paper-plane ms-2 me-2" style="color:rgb(77, 77, 77)"></i> Invite'; 
+          }else if (domainInfo.requireinvite && domainInfo.requirepayment) { icons += ' <i class="fa-solid fa-plus ms-2" style="color:rgb(115, 111, 111)"></i> <i class="fa-regular fa-paper-plane ms-2 me-2" style="color:rgb(77, 77, 77)"></i> Invite'; }
+          console.log(document.getElementById('domain-selection-icons').innerHTML)
+          counter++;
+        });
+
+        select.addEventListener('change', (event) => {
+          const selectedDomain = event.target.value;
+          const domainInfo = data.availableDomains[selectedDomain];
+
+          if (domainInfo.requireinvite) {
+              invitationGroup.classList.remove('d-none');
+          } else {
+              invitationGroup.classList.add('d-none');
+          }
+          let icons = '<i class="fa-solid fa-star me-2" style="color:#a06bc9"></i> Free';
+          if (domainInfo.requirepayment) { icons = ' <i class="fa-solid fa-bolt ms-2 me-2" style="color:rgb(255, 128, 24)"></i> Paid'; }
+          if (domainInfo.requirepayment) { icons = ' <i class="fa-solid fa-bolt ms-2 me-2" style="color:rgb(255, 128, 24)"></i> Paid'; }
+          if (domainInfo.requireinvite && !domainInfo.requirepayment) { 
+            icons  = ' <i class="fa-regular fa-paper-plane ms-2 me-2" style="color:rgb(77, 77, 77)"></i> Invite'; 
+          }else if (domainInfo.requireinvite && domainInfo.requirepayment) { 
+            icons += ' <i class="fa-solid fa-plus ms-2" style="color:rgb(115, 111, 111)"></i> <i class="fa-regular fa-paper-plane ms-2 me-2" style="color:rgb(77, 77, 77)"></i> Invite'; 
+          }
+
+          document.getElementById('domain-selection-icons').innerHTML = icons;
+          document.getElementById('input-register-domain').innerHTML = `@${selectedDomain}`;
+
+          calculateSatoshi(usernameField.value.length);
+
+        });
+
+      })
+      .catch((error) => {
+        console.error('Error:', error);
+      });
+
+      usernameField.addEventListener('input', async (event) => {
+        const length = event.target.value.length;
+
+        if (length < domainsData.minUsernameLength || length > domainsData.maxUsernameLength) {
+          satoshiField.classList.add('d-none');
+          event.target.classList.add('text-danger');
+          event.target.classList.add('is-invalid');
+          return;
+        }else{
+          event.target.classList.remove('text-danger');
+          event.target.classList.remove('is-invalid');
+        }
+      
+        calculateSatoshi(length);
+      });
+  }
+
+  const register = async (type) => {
+
+    const domain = document.getElementById('input-register-domain').innerText.split('@')[1]
+    const username = document.getElementById('input-register-username').value
+    const pubkey = document.getElementById('input-register-pubkey').value
+    const password = document.getElementById('input-register-password').value
+    const inviteCode = document.getElementById('input-register-invitation').value
+
+    if (!domain || !username || !pubkey ) {
+        initAlertModal("#register", "Username, public key and domain are required.");
+        return;
+    }
+
+    if (pubkey.length < 64 && pubkey.startsWith('npub') == false) {
+        initAlertModal("#register", "Public key format is not valid.");
+        document.getElementById('input-register-pubkey').focus();
+        return;
+    }
+
+    if (pubkey.length < 57 && pubkey.startsWith('npub') == true) {
+        initAlertModal("#register", "Public key format is not valid.");
+        document.getElementById('input-register-pubkey').focus();
+        return;
+    }
+
+    if (!/^[a-zA-Z0-9-_]+$/.test(username)) {
+      initAlertModal("#register", "Username format is not valid.");
+      document.getElementById('input-register-username').focus();
+      return;
+    }
+
+    if (username.length < domainsData.minUsernameLength || username.length > domainsData.maxUsernameLength) {
+      initAlertModal("#register", "Username length is not valid.");
+      document.getElementById('input-register-username').focus();
+      return;
+    }
+
+    let body = {
+      pubkey: pubkey,
+      username: username,
+      domain: domain,
+      password: password,
+      inviteCode: inviteCode
+    }
+
+    let signedAuthEvent;
+    if (type == 'nip07'){
+      let authEvent = {
+        created_at: Math.floor(Date.now() / 1000),
+        kind: 27235,
+        tags: [
+          [
+            "method",
+            "POST"
+          ],
+          [
+            "u",
+            window.location.href
+          ]
+        ],
+        content: "NIP98 auth event - This event is used to check that you can sign with the pubkey you want to register. Will not be published on nostr.",
+      }
+
+      signedAuthEvent = await window.nostr.signEvent(authEvent);
+      if (!signedAuthEvent) {
+        initAlertModal("#register", "Error signing auth event.");
+        return;
+      }
+    }
+
+    await fetch('/api/v2/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Nostr ' + btoa(JSON.stringify(signedAuthEvent))
+        },
+        body: JSON.stringify(body)
+      })
+      .then(response => response.json())
+      .then(async data => {
+        console.log (data.status)
+        if (data.status == 'success'){
+
+          document.getElementById('register-form').classList.add('d-none');
+          document.getElementById('register-title').classList.add('d-none');
+          document.getElementById('register-second-phase').classList.remove('d-none');
+
+          if (data.otc == true) {
+            document.getElementById('register-need-steps').classList.remove('d-none');
+            document.getElementById('register-otc-request').classList.remove('d-none');
+          }
+
+          if (data.payment_request != "") {
+            document.getElementById('register-need-steps').classList.remove('d-none');
+            document.getElementById('register-payment-request').classList.remove('d-none');
+            document.getElementById("payment-request-satoshi").innerText = data.satoshi;
+            const qrcode = new QRCode(document.getElementById("payment-request-qr"), {
+              text: data.payment_request,
+              width: 250,
+              height: 250
+            });
+
+            document.getElementById("payment-request").innerText = data.payment_request;
+
+            setInterval(async () => {
+              validateInvoice(data.payment_request);
+            }, 10000);
+
+          }
+
+          if (data.payment_request == "" && data.otc == false){
+            document.getElementById('register-need-steps').classList.add('d-none');
+            document.getElementById('register-success').classList.remove('d-none');
+            startConfetti();
+            setTimeout(() => {
+              stopConfetti();
+            }, 7000);
+          }
+
+        }else{
+          initAlertModal("#register", data.message);
+        }
+        
+      })
+      
+  }
+
+  const validateOTC = async () => {
+    const otc = document.getElementById('input-register-otc').value
+    const domain = document.getElementById('input-register-domain').innerText.split('@')[1]
+
+    if (!otc) {
+        initAlertModal("#register", "One time code is required.");
+        return;
+    }
+
+    let body = {
+      otc: otc,
+      domain: domain
+    }
+
+    await fetch('/api/v2/register/validate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(body)
+      })
+      .then(response => response.json())
+      .then(async data => {
+        if (data.status == 'success'){
+
+          showMessage(`One time code validated successfully.`, "alert-success", true);
+          document.getElementById('register-otc-request').classList.add('d-none');
+
+          if (document.getElementById('register-payment-request').classList.contains('d-none')){
+            document.getElementById('register-need-steps').classList.add('d-none');
+            document.getElementById('register-success').classList.remove('d-none');
+            startConfetti();
+            setTimeout(() => {
+              stopConfetti();
+            }, 7000);
+          }
+
+        }else{
+          initAlertModal("#register", data.message);
+        }
+        
+      })
+      
+  }
+
+  let validated = false;
+  const validateInvoice = async (payment_request) => {
+
+    if (validated == true){
+      return;
+    }
+
+    if (!payment_request) {
+      return;
+    }
+
+    await fetch(`/api/v2/payments/invoices/${payment_request}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      })
+      .then(response => response.json())
+      .then(async data => {
+        if (data.status == 'success'){
+          if (data.invoice.isPaid == true){
+            validated = true;
+            showMessage(`Payment for registration received.`, "alert-success",false);
+            document.getElementById('register-payment-request').classList.add('d-none');
+
+            if (document.getElementById('register-otc-request').classList.contains('d-none')){
+              document.getElementById('register-need-steps').classList.add('d-none');
+              document.getElementById('register-success').classList.remove('d-none');
+              startConfetti();
+              setTimeout(() => {
+                stopConfetti();
+              }, 7000);
+            }
+
+          }
+        }
+      })
+      .catch((error) => {
+        console.error('Error:', error);
+      });
+        
+    }
+
+
+  const calculateSatoshi = async (length) => {
+
+    if (domainsData.availableDomains[document.getElementById('input-register-domain').innerText.split('@')[1]].requirepayment == false) {
+      satoshiField.classList.add('d-none');
+      return;
+    }
+    
+    await fetch('/api/v2/payments/calculateamount', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({size: length, domain: document.getElementById('input-register-domain').innerText.split('@')[1]})
+    })
+    .then(response => response.json())
+    .then(async data => {
+      satoshiField.classList.remove('d-none');
+      satoshiField.innerHTML = `${data.amount} <i class="fa-solid fa-bolt ms-1" style="color:rgb(255, 128, 24)"></i>`;
+    })
+    .catch((error) => {
+      console.error('Error:', error);
+    });
+  }
+
+    
+  document.addEventListener('DOMContentLoaded', async (event) => {
+    initRegisterForm();  
+  });
+
+</script>

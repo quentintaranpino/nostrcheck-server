@@ -1,43 +1,134 @@
-<nav class="navbar sticky-top navbar-expand-md navbar-dark bg-dark  ps-3 pe-3">
+<style>
+
+  html[data-bs-theme="light"] .navbar {
+    background-color: #e8e8e8f5 !important;
+  }
+  
+  html[data-bs-theme="dark"] .navbar {
+        background-color:#2b3035 !important;
+  } 
+  
+  .dropdown-menu { --bs-dropdown-link-active-bg: #a575ff; }
+  
+  #profile-dropdown {
+    position: absolute;
+    right: 10;
+    top: auto;
+  }
+  
+  .navbar-nav .nav-link {
+    font-size: 1rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 0.5rem 0.7rem;
+  }
+  
+  .navbar-nav .nav-link.active {
+    color: #ffffff;
+    background-color: #a575ffb0;
+    border-radius: 5px;
+  }
+  
+  @media (max-width: 994.98px) {
+    #profile-dropdown {
+      position: absolute;
+      right: 85;
+      top: 10;
+    }
+    #profile-dropdown .navbar-nav {
+      display: flex;
+      flex-direction: row;
+    }
+    #profile-dropdown .navbar-nav .dropdown-menu {
+      position: absolute;
+    }
+  
+  }
+  </style>
+<nav class="navbar sticky-top navbar-expand-lg ps-3 pe-3 shadow-lg">
   <a class="navbar-brand" href="/">
-      <img id="server-logo" src="/static/resources/navbar-logo.webp"
-      alt='Nostrcheck server logo' 
-      width='150' 
-      height='51'>
+    <img id="server-logo" src="/static/resources/navbar-logo-light.png" 
+    alt='Server logo' 
+    width='180' 
+    height='61'>
   </a>
   <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#server-navbar" aria-controls="server-navbar" aria-expanded="false" aria-label="Toggle navigation">
     <span class="navbar-toggler-icon"></span>
   </button>
-
-  <div class="collapse navbar-collapse" id="server-navbar">
-    <ul class="navbar-nav me-auto">
-      <li class='nav-item'>
-        <a <% if(active === 'home'){ %><%- "class='nav-link active'"%><% } else { %><%- "class='nav-link'"%><%}%> href="/api/v2/"><i class="fa-solid fa-house me-2"></i>Home <span class="sr-only">(current)</span></a>
+  <div id="profile-dropdown">
+    <ul class="navbar-nav ms-auto align-items-center">
+      <li>
+        <span class='dropdown-item'><%- include('../components/theme-toggle'); %></span>
       </li>
-      <li class='nav-item'>
-        <a  <% if(active === 'tos'){ %><%- "class='nav-link active'"%><% } else { %><%- "class='nav-link'"%><%}%> href="tos"><i class="fa-solid fa-file-contract me-2"></i>Terms of Service</a>
+      <li class="d-none d-lg-flex">
+        <button 
+          class="nav-link" 
+          type="button" 
+          aria-controls="intro" 
+          aria-selected="false" 
+          aria-label="Upload file" 
+          onclick="semaphore.execute(async () => {await initUploaderModal();})" 
+          >
+          <span class="fs-2">
+            <i class="bi bi-cloud-arrow-up-fill" aria-hidden="true"></i>
+            <span class="visually-hidden">Upload file</span>
+          </span>
+        </button>
       </li>
-      <li class='nav-item'>
-        <a <% if(active === 'documentation'){ %><%- "class='nav-link active'"%><% } else { %><%- "class='nav-link'"%><%}%> href="documentation"><i class="fa-solid fa-book me-2"></i>Documentation <span class="sr-only">(current)</span></a>
+      <li class="d-none d-lg-flex">
+        <a <% if (request.session.identifier) { %>style="display: none !important;"<% } %> <% if(active === 'login'){ %><%- "class='nav-link d-none d-lg-flex'"%><% } else { %><%- "class='nav-link '"%><%}%> href="login"><i class="fa-solid fa-user fa-lg me-1"></i></a>
       </li>
-     
-    </ul>
-
-    <ul class="navbar-nav ms-auto">
-      <a <% if (request.session.identifier) { %>style="display: none;"<% } %> <% if(active === 'login'){ %><%- "class='nav-link active'"%><% } else { %><%- "class='nav-link'"%><%}%> href="login"><i class="fa-solid fa-user me-2"></i>Log In</a>
-      <li  class="nav-item dropdown"  <% if (!request.session.identifier) { %>style="display: none;"<% } %> >
-        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownMenuLink" role="button" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-          <img <% if (request.session.identifier) { %>src=  <%- JSON.stringify(request.session.metadata.picture)%> <% }%> width="40" height="40" class="rounded-circle">
-          <span class="ms-2"><% if (request.session.identifier) { %> <%= request.session.metadata.display_name %> <% }else{"Profile"} %></span>
+      <li class="nav-item dropdown d-none d-lg-flex"  <% if (!request.session.identifier) { %>style="display: none !important;"<% } %> >
+        <a class="nav-link dropdown-toggle d-flex align-items-center" href="#" id="navbarDropdownMenuLink" role="button" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+          <div class="picture-container" style="width:40px; height:40px;"></div>
         </a>
         <div class="dropdown-menu dropdown-menu-end">
-          <a href="profile"  <% if(active === 'profile'){ %><%- "class='dropdown-item active'"%><% } else { %><%- "class='dropdown-item'"%><%}%>>Profile (preview)</a>
-          <a href="dashboard" <% if(active === 'dashboard'){ %><%- "class='dropdown-item active'"%><% } else { %><%- "class='dropdown-item'"%><%}%>>Dashboard</a>
-          <a href="settings" <% if(active === 'settings'){ %><%- "class='dropdown-item active'"%><% } else { %><%- "class='dropdown-item'"%><%}%>>Settings</a>
+          <a href="profile"  <% if(active === 'profile'){ %><%- "class='dropdown-item nav-link active'"%><% } else { %><%- "class='dropdown-item nav-link'"%><%}%>>Profile</a>
+          <% if (request.session.allowed == true) { %>
+            <a href="dashboard" <% if(active === 'dashboard'){ %><%- "class='dropdown-item nav-link active'"%><% } else { %><%- "class='dropdown-item nav-link'"%><%}%>>Dashboard</a>
+            <a href="settings" <% if(active === 'settings'){ %><%- "class='dropdown-item nav-link active'"%><% } else { %><%- "class='dropdown-item nav-link'"%><%}%>>Settings</a>
+          <%}%>
           <div class="dropdown-divider"></div>
-          <a href="logout" class="dropdown-item">Logout</a>
+          <button class="nav-link" type="button" aria-controls="intro" aria-selected="false" aria-label="Logout" onclick="logout()">
+            <span><i class="fa-solid fa-right-from-bracket ms-1 me-2"></i>Logout</span>
+          </button>
       </div>
       </li>  
     </ul>
+  </div>  
+  <div class="collapse navbar-collapse" id="server-navbar">
+    <ul class="nav navbar-nav">
+      <li>
+        <a <% if(active === 'home'){ %><%- "class='nav-link active'"%><% } else { %><%- "class='nav-link'"%><%}%> href="/api/v2/">HOME <span class="sr-only">(current)</span></a>
+      </li>
+      <li id="registerMenu">
+        <a <% if(active === 'register'){ %><%- "class='nav-link active'"%><% } else { %><%- "class='nav-link'"%><%}%> href="register">REGISTER <span class="sr-only">(current)</span></a>
+      </li>
+      <li id="galleryMenu">
+        <a <% if(active === 'gallery'){ %><%- "class='nav-link active'"%><% } else { %><%- "class='nav-link'"%><%}%> href="gallery">GALLERY <span class="sr-only">(current)</span></a>
+      </li>
+      <li id="cdnMenu">
+        <a  <% if(active === 'media'){ %><%- "class='nav-link active'"%><% } else { %><%- "class='nav-link'"%><%}%> href="media">UPLOAD</a>
+      </li>   
+      <li id="docsMenu">
+        <a <% if(active === 'documentation'){ %><%- "class='nav-link active'"%><% } else { %><%- "class='nav-link'"%><%}%> href="documentation">DOCS <span class="sr-only">(current)</span></a>
+      </li>  
+      <li id="directoryMenu">
+        <a <% if(active === 'directory'){ %><%- "class='nav-link active'"%><% } else { %><%- "class='nav-link'"%><%}%> href="directory">DIRECTORY <span class="sr-only">(current)</span></a>
+      </li>          
+    </ul>
   </div>
 </nav>
+<%- include('../components/modals/uploader-modal', {instance: "navbar", hideTos:false}) %>
+<script>
+  // Hide or show navbar items based on active modules
+  const activeModules = [];
+  <% for(const key in locals.activeModules) { %>
+    activeModules.push('<%- locals.activeModules[key] %>');
+  <% } %>
+  activeModules.find((element) => element === 'register') ? null : document.getElementById('registerMenu').classList.add('d-none');
+  activeModules.find((element) => element === 'register') ? null : document.getElementById('directoryMenu').classList.add('d-none');
+  activeModules.find((element) => element === 'media') ? null : document.getElementById('galleryMenu').classList.add('d-none');
+  activeModules.find((element) => element === 'media') ? null : document.getElementById('cdnMenu').classList.add('d-none');
+</script>

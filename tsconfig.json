@@ -1,12 +1,12 @@
   {
     "compilerOptions": {
-      "module": "NodeNext",
+      "module": "ES2022",
       "types": ["node"],
       "esModuleInterop": true,
       "allowSyntheticDefaultImports": true,
       "target": "ES2022",
       "strict": true,
-      "moduleResolution": "NodeNext",
+      "moduleResolution": "Bundler",
       "outDir": "./dist",
       "resolveJsonModule": true,
       "noUnusedParameters": true,

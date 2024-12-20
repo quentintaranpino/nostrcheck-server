@@ -1,291 +1,217 @@
 <html lang="en">
-  <%- include('./partials/head',{title: `${request.body.serverHost} - Settings`}); %>
+  <%- include('./partials/head',{title: `${locals.serverHost} - Settings`}); %>
   <link rel="stylesheet" href="/static/css/form.css">
-  <link rel="stylesheet" href="/static/css/coloris.min.css">
-  <body class="d-flex flex-column h-100">
+   <body class="d-flex flex-column h-100">
     <%- include('./partials/navbar', {active:'settings'}); %>
     <main class="pb-1">
-      <div class="container">
-        <h1 class="text-center">Server settings</h1>
-        <form class="form settings-form">
-          <div id ="settingsPersonalization">
-            <h3>Personalization</h3>
-            <p> In this section, you can personalize the server color scheme and logo according to your specific requirements. 
-            </p>
-            <label for="lookandfeel.server.logo" class="mt-2 mb-1 fw-bold disabled">Logo</label>
-            <p>Upload a new logo for your server. For better results, use an image with transparent background. </p>
-            <div class="row mx-auto mb-1">
-              <div class="col-12 col-md-8">
-                  <input type="file" id="lookandfeel.server.logo" name="lookandfeel.server.logo" class="form-control" accept="image/*" onchange="updateLogo()">
-              </div>
-              <div class="col-4 col-md-3 mt-2 mt-md-0">
-                  <input type='text' class="d-none" id='lookandfeel.server.logo.default' name='lookandfeel.server.logo.default' value='false'>
-                  <button class="form-control btn btn-md btn-primary" type="button" onclick="updateLogo(true)">Restore</button>            
-              </div>
-            </div>
-            <label for="lookandfeel.server.colorScheme" class="mt-2 mb-1 fw-bold ">Color scheme</label>
-            <p>Choose a color scheme for your server.</p>
-            <div class="row mx-auto mb-1">
-              <div class="col-6">
-                <input type="text" data-coloris class="form-control position-static"><span class="ms-2">Primary</span>
-              </div>
-              <div class="col-6">
-               <input type="text" data-coloris class="form-control position-static disabled"><span class="ms-2">Secondary</span>
-              </div>
-              <div class="col-4 col-md-3 mt-3">
-                <input type='text' class="d-none" id='server.logo.default.btn' name='server.logo.default.btn' value='false'>
-                <button class="form-control btn btn-md btn-primary" type="button" onclick="updateLogo(true)">Restore</button>            
-              </div>
-            </div>  
-            <label for="lookandfeel.server.frontendBackground" class="mt-2 mb-1 fw-bold">Frontend background</label>
-            <p>Choose the colors for the frontend background.</p>
-            <div class="row mx-auto mb-1">
-              <div class="col-6">
-                <input type="text" data-coloris class="form-control position-static"><span class="ms-2">Primary</span>
-              </div>
-              <div class="col-6">
-               <input type="text" data-coloris class="form-control position-static disabled"><span class="ms-2">Secondary</span>
-              </div>
-              <div class="col-4 col-md-3 mt-3">
-                <input type='text' class="d-none" id='server.logo.default' name='server.logo.default' value='false'>
-                <button class="form-control btn btn-md btn-primary" type="button" onclick="updateLogo(true)">Restore</button>            
-              </div>
-            </div>  
-            <div class="alert alert-warning mt-4" role="alert">
-              <i class="fa-solid fa-warning"></i> Personalization settings will be applied inmediately after change. Use restore buttons to revert to default settings.
-            </div>
+      <div class="container-fluid col-12 col-md-11 col-lg-10" style="max-width: 1050px;">
+        <div class="text-center"><h1 class="display-2 mt-2 pb-2 gradient-text">Server settings</h1></div>
+        <p class="text-center mt-1 mb-4 lead">Not your server, not your rules. Be sovereing here.        
+        </p>
+        <ul class="nav nav-tabs" id="settingsTabs" role="tablist">
+          <li class="nav-item" role="presentation">
+              <button class="nav-link active" 
+                      id="lookandfeel-tab" 
+                      data-bs-toggle="tab" 
+                      data-bs-target="#lookandfeel" 
+                      type="button" 
+                      role="tab" 
+                      aria-controls="lookandfeel" 
+                      aria-selected="true">
+                        <i class="fas fa-paint-brush me-2"></i><span>Personalization</span>
+              </button>
+          </li>
+          <li class="nav-item" role="presentation">
+              <button class="nav-link" 
+                      id="server-tab" 
+                      data-bs-toggle="tab" 
+                      data-bs-target="#server" 
+                      type="button" 
+                      role="tab" 
+                      aria-controls="server" 
+                      aria-selected="false">
+                        <i class="fas fa-server me-2"></i>Server
+              </button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" 
+                    id="database-tab" 
+                    data-bs-toggle="tab" 
+                    data-bs-target="#database" 
+                    type="button" 
+                    role="tab" 
+                    aria-controls="database" 
+                    aria-selected="false">
+                      <i class="fas fa-database me-2"></i>Database
+            </button>
+          </li>
+          <li class="nav-item" role="presentation">
+              <button class="nav-link" 
+                      id="modules-tab" 
+                      data-bs-toggle="tab" 
+                      data-bs-target="#modules" 
+                      type="button" 
+                      role="tab" 
+                      aria-controls="modules" 
+                      aria-selected="false">
+                        <i class="fas fa-puzzle-piece me-2"></i>Modules
+              </button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" 
+                    id="logging-tab" 
+                    data-bs-toggle="tab" 
+                    data-bs-target="#logging" 
+                    type="button" 
+                    role="tab" 
+                    aria-controls="logging" 
+                    aria-selected="false">
+                    <i class="fas fa-clipboard-list me-2"></i>Logging
+            </button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" 
+                    id="security-tab" 
+                    data-bs-toggle="tab" 
+                    data-bs-target="#security" 
+                    type="button" 
+                    role="tab" 
+                    aria-controls="security" 
+                    aria-selected="false">
+                    <i class="fas fa-shield-alt me-2"></i>Security
+            </button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link <%= locals.availableModules['media'] && locals.availableModules['media'].enabled ? '' : 'disabled' %>" 
+                    id="storage-tab" 
+                    data-bs-toggle="tab" 
+                    data-bs-target="#storage" 
+                    type="button" 
+                    role="tab" 
+                    aria-controls="storage" 
+                    aria-selected="false" 
+                    <%= locals.availableModules['media'] && locals.availableModules['media'].enabled ? '' : 'disabled' %>>
+                    <i class="fas fa-hdd me-2"></i>Storage
+            </button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link <%= locals.availableModules['register'] && locals.availableModules['register'].enabled ? '' : 'disabled' %>" 
+                    id="register-tab" 
+                    data-bs-toggle="tab" 
+                    data-bs-target="#register" 
+                    type="button" 
+                    role="tab" 
+                    aria-controls="register" 
+                    aria-selected="false" 
+                    <%= locals.availableModules['register'] && locals.availableModules['register'].enabled ? '' : 'disabled' %>>
+                    <i class="fa-solid fa-address-card me-2"></i>Register
+            </button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link <%= locals.availableModules['media'] && locals.availableModules['media'].enabled ? '' : 'disabled' %>" 
+                    id="media-tab" 
+                    data-bs-toggle="tab" 
+                    data-bs-target="#media" 
+                    type="button" 
+                    role="tab" 
+                    aria-controls="media" 
+                    aria-selected="false" 
+                    <%= locals.availableModules['media'] && locals.availableModules['media'].enabled ? '' : 'disabled' %>>
+                    <i class="fas fa-photo-video me-2"></i>Media
+            </button>
+         </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link <%= locals.availableModules['payments'] && locals.availableModules['payments'].enabled ? '' : 'disabled' %>" 
+                    id="payments-tab" 
+                    data-bs-toggle="tab" 
+                    data-bs-target="#payments" 
+                    type="button" 
+                    role="tab" 
+                    aria-controls="payments" 
+                    aria-selected="false" 
+                    <%= locals.availableModules['payments'] && locals.availableModules['payments'].enabled ? '' : 'disabled' %>>
+                    <i class="fas fa-bolt me-2"></i>Payments
+            </button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link <%= locals.availableModules['plugins'] && locals.availableModules['plugins'].enabled ? '' : 'disabled' %>" 
+                    id="plugins-tab" 
+                    data-bs-toggle="tab" 
+                    data-bs-target="#plugins" 
+                    type="button" 
+                    role="tab" 
+                    aria-controls="plugins" 
+                    aria-selected="false" 
+                    <%= locals.availableModules['plugins'] && locals.availableModules['plugins'].enabled ? '' : 'disabled' %>>
+                    <i class="fas fa-plug me-2"></i>Plugins
+            </button>
+          </li>
+        </ul>
+        <div class="tab-content" id="settingsTabsContent">
+          <div class="tab-pane fade show active" id="lookandfeel" role="tabpanel" aria-labelledby="lookandfeel-tab">
+            <%- include('./components/settings/lookandfeel'); %>
           </div>
-          <div id ="settingsServer">
-            <h3 class="mt-5">Server</h3>
-            <p>
-                You can configure the server related settings in this section. 
-              Server is identified using this public/private keypair, it will use the following credentials to interact with nostr. The public key will be used in NIP96 and NIP05. The private key will be used to send DM's and sign notes.
-            </p>
-            <label for="server.name" class="mt-2 mb-1 fw-bold">Hostname</label>
-            <p> 
-              Server hostname is used to identify the server, this will be displayed on home page, page title, etc.
-            </p>
-            <input  type="text" 
-                    id="server.host"  
-                    name="server.host" 
-                    class="form-control" 
-                    value="<%= request.body.settingsServerHost %>" 
-                    placeholder="Server host" 
-                    required
-                    >
-
-            <label for="environment" class="mt-2 mb-1 fw-bold">Environment</label>
-            <p>Configure the server's environment. For security reasons, a server exposed to the internet should be set to "production" mode, it enables certain security features that are not necessary in a development environment.</p>
-            <div class="col-12 col-md-4 col-lg-5">
-              <select id="environment" name="environment" class="form-select">
-                <option value="development" <% if (request.body.settingsEnvironment === 'development') { %>selected<% } %>>development</option>
-                <option value="production" <% if (request.body.settingsEnvironment === 'production') { %>selected<% } %>>production</option>
-              </select>
-            </div>
-            <div class="alert alert-warning mt-3" role="alert">
-              <i class="fa-solid fa-triangle-exclamation"></i> If you specify "production" mode, <b>the server must be configured under HTTPS.</b> Otherwise, users will not be able to log in because the server will not be able to set the cookies under insecure connections.
+          <div class="tab-pane fade" id="server" role="tabpanel" aria-labelledby="server-tab">
+            <%- include('./components/settings/server'); %>
           </div>
-
-            <label for="server.pubkey" class="mt-3 mb-1 fw-bold">Server pubkey</label>
-            <p>This is the public key of the server. It's used to return the server's pubkey to the "_" NIP05 requests.</p>
-            <input  type="text" 
-                    id="server.pubkey"  
-                    name="server.pubkey" 
-                    class="form-control" 
-                    value="<%= request.body.settingServerPubkey %>" 
-                    placeholder="Server pubkey (HEX format)" 
-                    required
-                    >
-            <label for="server.secretKey" class="mt-2 mb-1 fw-bold">Server secret key</label>
-            <p>Used to sign and decrypt the server DM's and notes.</p>
-            <div class="input-group">
-                <input  type="password" 
-                id="server.secretKey" 
-                name="server.secretKey" 
-                class="form-control mb-2" 
-                defaultValue="<%= request.body.settingServerSecretkey %>" 
-                value="<%= request.body.settingServerSecretkey %>" 
-                placeholder="Server secret key (HEX format)" 
-                required 
-                >
-                <button id="toggle-password" type="button" class="d-none"
-                  aria-label="Show secret key as plain text. Warning: this will display your password on the screen.">
-                </button>
-            </div>
-            <div class="alert alert-warning mt-3" role="alert">
-              <i class="fa-solid fa-triangle-exclamation"></i> Be careful, <b>both keys must be modified simultaneously, and be valid with each other.
-              </b> otherwise the server won't function properly.
-            </div>
-            <label for="redis.expireTime" class="mt-3 mb-1 fw-bold">Cache expiration</label>
-            <p>Specify the cache expiration time in seconds. This will be used to cache the server's data. Is recommended to set this value to 300 or higher to increase the server's performance.</p>
-            <div class="col-12 col-sm-5 col-md-4">
-                      <input  type="text" 
-                      id="redis.expireTime"  
-                      name="redis.expireTime" 
-                      class="form-control" 
-                      value="<%= request.body.settingsRedisExpireTime %>" 
-                      placeholder="Expiration time (seconds)" 
-                      required
-                      >
-            </div>  
+          <div class="tab-pane fade" id="database" role="tabpanel" aria-labelledby="database-tab">
+            <%- include('./components/settings/database'); %>
           </div>
-          <div>
-            <h3 class="mt-5">Modules</h3>
-            <p>
-                In this section, you can enable or disable server modules as needed. 
-                It provides you with the flexibility to customize the functionality of your server according to your specific requirements. 
-            </p>
-            <div class="row mx-auto ">
-            <% let counter = 0; %>
-            <% for(const key in request.body.availableModules) { %>
-                <% if (counter % 6 === 0 && counter !== 0) { %>
-                    </div><div class="row mx-auto ">
-                <% } %>
-                <div class="col-6">
-                    <label for="<%= key %>" class="mt-3 mb-1 fw-bold"><%= key %></label>
-                    <div class="form-check form-switch">
-                      <input 
-                        class="form-check-input" 
-                        type="checkbox" 
-                        value="<%= request.body.availableModules[key]['enabled'] ? true : false %>" 
-                        <%= request.body.availableModules[key]['enabled'] ? 'checked' : '' %> 
-                        name="server.availableModules.<%= key %>.enabled" 
-                        id="server.availableModules.<%= key %>.enabled" 
-                        onclick="handleCheckboxClick('<%= key %>',this.checked)">
-                    </div>
-                </div>
-                <% counter++; %>
-            <% } %>
-            </div>
+          <div class="tab-pane fade" id="modules" role="tabpanel" aria-labelledby="modules-tab">
+            <%- include('./components/settings/modules'); %>
           </div>
-          <div id ="settingsMedia">
-            <h3 class="mt-5">Media</h3>
-            <p> In this section, you can configure the media settings of your server. 
-                It provides you with the flexibility to customize the media settings according to your specific requirements. 
-            </p>
-            <label for="media.returnURL" class="mt-2 mb-1 fw-bold">Return URL</label>
-            <p>Specify the return URL for the media uploads. This URL will be used to return the uploaded media to the client.</p>
-            <input  type="text" 
-                    id="media.returnURL" 
-                    name="media.returnURL" 
-                    class="form-control" 
-                    value="<%= request.body.settingsMedia['returnURL'] %>" 
-                    placeholder="default: https://servername/media/"
-                    required
-                    >
-            <label for="media.allowPublicUploads" class="mt-2 mb-1 fw-bold">Allow public uploads</label>
-            <p>If disabled, only registered pubkeys can upload files.</p>
-            <div class="form-check form-switch">
-              <input  class="form-check-input" 
-                      type="checkbox" 
-                      value="<%= request.body.settingsMedia['allowPublicUploads'] ? true : false %>" 
-                      <%= request.body.settingsMedia['allowPublicUploads'] ? 'checked' : '' %> 
-                      name="media.allowPublicUploads" 
-                      id="media.allowPublicUploads"
-                      >
-            </div>
-            <label for="media.maxMBfilesize" class="mt-2 mb-1 mt-3 fw-bold">Max file size (MB)</label>
-            <p>Specify the maximum file size allowed for uploads in megabytes.</p>
-              <div class="col-12">
-                <input  type="text" 
-                        id="media.maxMBfilesize" 
-                        name="media.maxMBfilesize" 
-                        class="form-control" 
-                        value="<%= request.body.settingsMedia['maxMBfilesize'] %>" 
-                        placeholder="Max file size (in MB)" 
-                        required 
-                        
-                        >
-             </div>
-            <label class="mt-2 mb-1 fw-bold">Image and video resizing</label>
-            <p>In this section, you can specify the default target size for image and video uploads in pixels. 
-              By setting the target size, you can optimize the filesize and disk space of your server.</p>
-            <div class="row">
-              <label class="mb-1 mt-1">Images</label>
-                <div class="col-4 col-md-3">
-                    <input  type="number" 
-                            id="media.transform.media.image.width" 
-                            name="media.transform.media.image.width" 
-                            class="form-control" 
-                            placeholder="Width" 
-                            value="<%= request.body.settingsMedia['transform']['media']['image']['width'] %>" 
-                            >
-                </div>
-                <div class="col-4 col-md-3">
-                  <input  type="number" 
-                          id="media.transform.media.image.height" 
-                          name="media.transform.media.image.height" 
-                          class="form-control" 
-                          placeholder="Width" 
-                          value="<%= request.body.settingsMedia['transform']['media']['image']['height'] %>" 
-                          >
-              </div>
-            </div>
-            <div class="row">
-              <label class="mt-3 mb-1">Videos</label>
-              <div class="col-4 col-md-3">
-                    <input  type="number" 
-                            id="media.transform.media.video.width" 
-                            name="media.transform.media.video.width" 
-                            class="form-control" 
-                            placeholder="Width" 
-                            value="<%= request.body.settingsMedia['transform']['media']['video']['width'] %>" 
-                            >
-                </div>
-                <div class="col-4 col-md-3">
-                  <input  type="number" 
-                          id="media.transform.media.video.height" 
-                          name="media.transform.media.video.height" 
-                          class="form-control" 
-                          placeholder="Width" 
-                          value="<%= request.body.settingsMedia['transform']['media']['video']['height'] %>" 
-                          >
-              </div>
-            </div>
+          <div class="tab-pane fade" id="storage" role="tabpanel" aria-labelledby="storage-tab">
+            <%- include('./components/settings/storage'); %>
           </div>
-          <div id="settingsLogger">
-            <h3 class="mt-5">Logging</h3>
-            <p> In this section, you can configure the log settings of your server. The log level determines the verbosity of the logs:
-                debug (2), info (3), warn (4), error (5)
-            </p>
-            <label for="logger.level" class="mt-2 mb-1 fw-bold">Log level</label>
-            <div class="col-3 col-md-2">
-              <input  type="number" 
-                      id="logger.minLevel" 
-                      name="logger.minLevel" 
-                      class="form-control" 
-                      value="<%= request.body.settingsLogger['minLevel'] %>" 
-                      placeholder="Loglevel" 
-                      >
-            </div>
-            <div class="alert alert-warning mt-3" role="alert">
-              <i class="fa-solid fa-triangle-exclamation"></i> <b>Change this only if you know what you are doing.</b> After changing the log level, you need to <b>restart the server</b> to apply the changes.
-            </div>
+          <div class="tab-pane fade" id="register" role="tabpanel" aria-labelledby="register-tab">
+            <%- include('./components/settings/register'); %>
           </div>
-          <div>
-            <label for="log" class="mt-2 mb-1 fw-bold">Log history</label>
-            <p> Only the last 1000 records with severity greater than 4 (warning) will be displayed here. 
-                If you need to see more details, you can check the server's generated log files.
-            </p>
-            <textarea class="form-control" id="log" name="log" rows="10" disabled></textarea>
-              <div class="d-flex justify-content-md-start justify-content-center">
-                <button class="btn btn-lg btn-primary mt-4 col-3 col-md-2" name="Submit" type="button" onclick="saveSettings()">Save</button>
-              </div>
-        </form>
-      </div>
+          <div class="tab-pane fade" id="media" role="tabpanel" aria-labelledby="media-tab">
+            <%- include('./components/settings/media'); %>
+          </div>
+          <div class="tab-pane fade" id="payments" role="tabpanel" aria-labelledby="payments-tab">
+            <%- include('./components/settings/payments'); %>
+          </div>
+          <div class="tab-pane fade" id="logging" role="tabpanel" aria-labelledby="logging-tab">
+            <%- include('./components/settings/logging'); %>
+          </div>
+          <div class="tab-pane fade" id="security" role="tabpanel" aria-labelledby="security-tab">
+            <%- include('./components/settings/security'); %>
+          </div>
+          <div class="tab-pane fade" id="plugins" role="tabpanel" aria-labelledby="plugins-tab">
+            <%- include('./components/settings/plugins'); %>
+          </div>
+        </div>
     </main>
-    <%- include('./partials/footer'); %>
-    <%- include('./components/alert-modal', {"objectId":"settings"}); %>
-    <script>
-      let authkey = "<%= request.session.authkey %>"
-      let logHistory = "<%= request.body.logHistory %>"
-      window.logData = <%- JSON.stringify(request.body.logHistory || []) %>;
-</script>
-    <script>
-  </script>
-    <script src="/static/js/form.js"></script>
-    <script src="/static/js/settings.js"></script>
-    <script src="/static/js/coloris.min.js"></script>
+    <%- include('./partials/footer', {active:'setting'}); %>    
+    <%- include('./components/modals/alert-modal', {"objectId":"settings"}); %>
 
-  </body>
+<script src="/static/js/form.js"></script>
+<script src="/static/js/settings.js"></script>
+
+<script>
+  let logHistory = "<%= locals.logHistory %>"
+  window.logData = <%- JSON.stringify(locals.logHistory || []) %>;
+</script>
+</body>
+<style>
+.gradient-bar {
+    position: relative;
+    height: 300px; 
+    width: 100%; 
+    border-radius: 5px; 
+    margin-top: 10px;
+}
+
+.gradient-bar .handle {
+    position: absolute;
+    bottom: 25%;
+    width: 9px;
+    height: 40%;
+    background: #fff;
+    cursor: ew-resize;
+    border-radius: 3px;
+}
+
+</style>
 </html>

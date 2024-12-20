@@ -7,16 +7,24 @@ const startServer = async () => {
     const { default: app } = await import("./app.js");
 
     // Initialise Database
-    const {initDatabase} = await import("./lib/database.js");
+    const { initDatabase } = await import("./lib/database.js");
     await initDatabase();
 
+    // Migration from 0.5.0.
+    const { migrateDBLocalpath } = await import("./controllers/config.js");
+    migrateDBLocalpath();
+
     // Initialise session cookies
-    const {initSession} = await import("./lib/session.js");
+    const { initSession } = await import("./lib/session.js");
     await initSession(app);
 
     // Initialise API modules
-    const {loadAPIs} = await import("./routes/routes.js");
+    const { loadAPIs } = await import("./routes/routes.js");
     await loadAPIs(app);
+
+    // Init plugins
+    const { initPlugins } = await import("./lib/plugins/core.js");
+    await initPlugins(app);
 
     //Start seeding magnets
     const {default: config} = await import( "config");
@@ -26,8 +34,8 @@ const startServer = async () => {
     }
 
     // Show server startup message
-    const { loadConsoleBanner } = await import("./lib/server.js");
-    loadConsoleBanner(app);
+    const { serverBanner } = await import("./lib/server.js");
+    console.log(serverBanner(app));
 
     // Show server startup stactics
     const { showDBStats } = await import("./lib/database.js");

@@ -1,21 +1,218 @@
-<form class="form login-form" onkeydown=" if (event.keyCode === 13) {logIn('legacy');}">
-    <h1 class="h3 mb-3 font-weight-normal">Login</h1>
-    <label for="username" class="sr-only">Username</label>
-    <input type="text" id="username" name="username" class="form-control mb-2" placeholder="Username" required autofocus>
-    <label for="password" class="sr-only">Password</label>
-    <div class="input-group">
-      <input type="password" id="password"  name="password" class="form-control" placeholder="Password" >
-      <button id="toggle-password" type="button" class="d-none"
-        aria-label="Show password as plain text. Warning: this will display your password on the screen.">
-      </button>
-  </div>
-    <div class="checkbox mb-3">
-      <label>
-        <input type="checkbox" value="true" id="rememberme" name="rememberme"> Remember me
-      </label>
+<div class="row">
+  <div class="col-sm-9 col-md-8 col-lg-6 col-xl-5 col-xxl-4 mx-auto">
+    <div class="text-center">
+      <h1 class="display-4 mb-1 pb-2 font-weight-normal gradient-text">Login</h1>
     </div>
-    <div class="d-grid gap-2">
-      <button class="btn btn-lg btn-primary" name="Submit" type="button" onclick="logIn('legacy', $('#rememberme:checked').val())">Login</button>
-      <button class="btn btn-lg btn-primary" name="NIP07_submit" type="button" onclick="logIn('nostr', $('#rememberme:checked').val())"><i class="fa-solid fa-puzzle-piece me-2"></i>Nostr login</button>
+    <div id="otc-login">
+      <form class="form" onkeydown=" if (event.keyCode === 13) {event.preventDefault(); logInOtc()}">
+        <div class="text-center">
+          <p class="lead">Login from nostr using a one-time password or using a <a href="https://nostr.net/#nip-07-browser-extensions" class="link-body-emphasis link-offset-3 link-underline-opacity-25 link-underline-opacity-75-hover" target="_blank">browser extension.</a>
+
+          </p>
+        </div>
+        <div class="input-group">
+          <input type="text" data-otc='pubkey' class="form-control" id="input-otc-login" placeholder="public key (npub or hex)" required>
+          <div class="input-group-text">
+            <div class="form-check form-switch">
+              <label for="rememberme" class="ps-1">Stay signed</label>
+              <input class="form-check-input" type="checkbox" value="true" id="rememberme_otc" name="rememberme">
+            </div>
+          </div>
+        </div> 
+        <div class="d-grid mb-3 mt-3 w-300 mx-auto">
+          <button class="btn btn-lg btn-primary" name="otc_submit" id="otc_submit" type="button" onclick="logInOtc()"><i class="nostr-logo me-2" ></i>One time login-code</button>
+        </div>
+      </form>
+      <div class=" hr-text w-50 mx-auto">or</div> 
     </div>
-</form>
+    <div id="extension-login" class="mt-3">
+      <form class="form">
+        <div class="d-grid w-300 mx-auto">
+          <button class="btn btn-lg btn-primary" name="NIP07_submit" id="NIP07_submit" type="button" onclick="logIn('nostr', $('#rememberme:checked').val(), 'NIP07_submit')"><i class="nostr-logo me-2"></i>Browser extension</button>
+        </div>
+      </form>
+    </div>
+    <div class="text-center">
+      <p id="legacy-login-text" class="lead">Login with <a id="legacy-login-link" class="link-body-emphasis link-offset-3 link-underline-opacity-25 link-underline-opacity-75-hover" href="#">password</a></p>
+    </div>
+    <div class="d-grid d-none" id="legacy-login">
+      <div class="text-center">
+        <p class="lead">Login with your username and password</p>
+      </div>
+      <form class="form " onkeydown=" if (event.keyCode === 13) {logIn('legacy', $('#rememberme_legacy:checked').val(),'legacy_submit');}">
+        <div class="input-group mb-2">
+          <label for="username" class="sr-only">Username</label>
+          <input type="text" id="username" name="username" class="form-control" placeholder="Username" required autofocus autocomplete="username">
+          <div class="input-group-text">
+            <div class="form-check form-switch">
+              <label for="rememberme" class="ps-1">Stay signed</label>
+              <input class="form-check-input" type="checkbox" value="true" id="rememberme_legacy" name="rememberme">
+            </div>
+          </div>
+        </div>
+        <label for="password" class="sr-only">Password</label>
+        <div class="input-group">
+          <input type="password" id="password"  name="password" class="form-control" placeholder="Password" autocomplete="current-password">
+          <button  type="button" class="toggle-password d-none"
+            aria-label="Show password as plain text. Warning: this will display your password on the screen.">
+          </button>
+        </div>
+        <div class="d-grid mb-1 w-300 mt-3 mx-auto">
+          <button class="btn btn-lg btn-primary" name="legacy_submit" id="legacy_submit" type="button" onclick="logIn('legacy', $('#rememberme:checked').val(),'legacy_submit')"><i class="bi bi-box-arrow-in-right me-3"></i>Login</button>
+        </div>  
+    </form>
+    <div class="text-center">
+      <p id="nostr-login-text" class="lead">Login with <a id="nostr-login-link" class="link-body-emphasis link-offset-3 link-underline-opacity-25 link-underline-opacity-75-hover" href="#">nostr</a></p>
+    </div>
+  </div> 
+</div>  
+<script src="/static/js/form.js"></script>
+<script>
+
+const logIn = async (type, rememberMe, buttonId) =>{
+
+  console.debug('logIn', type, rememberMe, buttonId);
+  const buttonText = document.getElementById(buttonId).innerHTML;
+  document.getElementById(buttonId).innerHTML = '<span class="spinner-border spinner-border-sm pe-1" role="status" aria-hidden="true"></span> Logging in...';
+
+  if (type === 'legacy') {
+      await fetchServer(JSON.stringify({username: document.getElementById('username').value,
+                                          password:  document.getElementById('password').value,
+                                          rememberMe: rememberMe}
+                                      ), 'login').then(response => {
+                                          if (response.status === 200) {
+                                              response.json().then(data => {
+                                                  if (data == true) {
+                                                      window.location.href = "/api";
+                                                  } else {
+                                                      initAlertModal("#login", data.message);
+                                                      document.getElementById(buttonId).innerHTML = buttonText;
+                                                  }
+                                              });
+                                          } else {
+                                              initAlertModal("#login", response.statusText);
+                                              document.getElementById(buttonId).innerHTML = buttonText;
+                                          }});
+  }
+
+  if (type === 'nostr') {
+
+      if (!window.nostr) {
+          initAlertModal("#login", 'NIP07 browser extension not found');
+          document.getElementById(buttonId).innerHTML = buttonText;
+          return;
+      }
+      
+      try {
+          const pubKey = await window.nostr.getPublicKey();
+
+          if (!pubKey){console.debug('NIP07 public key not found');return;}
+
+          let event = {
+              kind: 30078,
+              created_at: Math.floor(Date.now() / 1000),
+              tags: [
+                      ["cookie",
+                      rememberMe? "true": "false"]
+                      ],
+              content: 'This will not be published on nostr. Its purpose is to verify that you have control of your pubkey'
+          };
+          console.log(event);
+          const loginEvent = JSON.stringify(await window.nostr.signEvent(event));
+
+          if (loginEvent){
+              await fetchServer(loginEvent,'login').then(response => {
+                  if (response.status === 200) {
+                      response.json().then(data => {
+                          if (data == true) {
+                              window.location.href = "/api";
+                          } else {
+                              initAlertModal("#login", data.message);
+                              document.getElementById(buttonId).innerHTML = buttonText;
+                          }
+                      });
+                  } else {
+                      initAlertModal("#login", response.statusText);
+                      document.getElementById(buttonId).innerHTML = buttonText;
+                  }
+              });
+          }
+      } catch (error) {
+          console.error(error);
+          document.getElementById(buttonId).innerHTML = buttonText;
+      }
+  }
+  }
+
+  const fetchServer = async (data, url) => {
+  try {
+    const response = await fetch(url, {method: 'POST',headers: {'Content-Type': 'application/json'},body: data});
+    return response;
+  } catch (error) {
+    initAlertModal("#login", error);
+  }
+  }
+
+
+  const logInOtc = async () => {
+  if($("#input-otc-login").attr("data-otc") === "pubkey"){
+
+  await fetchServer(JSON.stringify({}), `login/${document.getElementById('input-otc-login').value}`).then(response => {
+      if (response.status === 200) {
+          response.json().then(data => {
+              if (data == true) {
+                  document.getElementById('input-otc-login').value = '';
+                  $("#input-otc-login").attr("data-otc", "code").attr("placeholder", "Enter verification code");
+                  $("#otc_submit").text("Verify and login");
+              } else {
+                  initAlertModal("#login", data.message);
+              }
+          });
+      } else {
+          initAlertModal("#login", response.statusText);
+      }});
+  } else {
+
+  const buttonText = document.getElementById('otc_submit').innerHTML;
+  document.getElementById('otc_submit').innerHTML = '<span class="spinner-border spinner-border-sm pe-1" role="status" aria-hidden="true"></span> Logging in...';
+
+  let data = {
+      otc: document.getElementById('input-otc-login').value,
+      rememberMe: document.getElementById('rememberme_otc').checked
+  }
+
+  await fetchServer(JSON.stringify(data), `login`).then(response => {
+      if (response.status === 200) {
+          response.json().then(data => {
+              if (data == true) {
+                  window.location.href = "/api";
+              } else {
+                  initAlertModal("#login", data.message);
+                  document.getElementById('otc_submit').innerHTML = buttonText;
+              }});
+      } else {
+          initAlertModal("#login", response.statusText);
+          document.getElementById('otc_submit').innerHTML = buttonText;
+      }});
+  }
+  }
+
+  // Show legacy login form
+  document.getElementById('legacy-login-link').addEventListener('click', function(event) {
+  event.preventDefault();
+  document.getElementById('legacy-login').classList.remove('d-none');
+  document.getElementById('legacy-login-text').classList.add('d-none');
+  document.getElementById('otc-login').classList.add('d-none');
+  document.getElementById('extension-login').classList.add('d-none');
+  });
+
+  // Show nostr login form
+  document.getElementById('nostr-login-link').addEventListener('click', function(event) {
+  event.preventDefault();
+  document.getElementById('legacy-login').classList.add('d-none');
+  document.getElementById('legacy-login-text').classList.remove('d-none');
+  document.getElementById('otc-login').classList.remove('d-none');
+  document.getElementById('extension-login').classList.remove('d-none');
+  });
+
+</script>

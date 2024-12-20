@@ -27,11 +27,14 @@ interface NIP96file {
     }
 }
 
-interface NIP94_event {
+interface NIP94_base {
     id : string,
     pubkey: string,
-    created_at: number,
     kind: NIPKinds.NIP94,
+    sig : string,
+}
+
+interface NIP94_data {
     tags: [
             ["url", string],
             ["m", string],
@@ -41,16 +44,21 @@ interface NIP94_event {
             ["dim",string],
             ["magnet", string],
             ["i", string],
-            ["blurhash", string]
+            ["blurhash", string],
+            ["no_transform", string],
+            ["payment_request", string],
+            ["visibility", string],
     ],
     content: string,
-    sig : string,
+    created_at: number,
 
-  }
+}
+interface NIP94_event extends NIP94_base, NIP94_data {}
 
 interface NIP96_event extends ResultMessagev2{
 
     processing_url: string,
+    payment_request: string,
 	nip94_event : NIP94_event
 
 }
@@ -67,4 +75,34 @@ interface NIP96_processing extends ResultMessagev2{
     percentage : number,
 }
 
-export { NIPKinds, NIP96file, NIP94_event, NIP96_event, NIP96_processing, NIP04_event};
+enum eventVerifyTypes {
+	valid = 0,
+	hashError = -1,
+	signatureError = -2,
+	malformed = -3,
+}
+
+interface nostrProfileData {
+    name: string,
+    about: string,
+    picture: string,
+    nip05?: string,
+    lud16?: string,
+    website?: string,
+    display_name?: string,
+    banner?: string,
+}
+
+const emptyNostrProfileData: nostrProfileData = {
+    name: "",
+    about: "",
+    picture: "",
+    nip05: "",
+    lud16: "",
+    website: "",
+    display_name: "",
+    banner: "",
+}
+
+
+export { NIPKinds, NIP96file, NIP94_event, NIP94_data, NIP96_event, NIP96_processing, NIP04_event, eventVerifyTypes, nostrProfileData, emptyNostrProfileData};

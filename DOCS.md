@@ -320,40 +320,22 @@ Endpoint: https://nostrcheck.me/api/v2/admin/updatelogo
 ### Domains
 
 ### domains [GET]
-This method retrieves a list of available domains in the application. The request must include a valid module name and an Authorization header with a valid authkey. On success, it returns a list of available domains and an authkey.
 
-This endpoint also can use the [NIP98](https://github.com/nostr-protocol/nips/blob/master/98.md) HTTP Auth for getting the user's authkey. The NIP98's pubkey must have the "allowed" field with "1" on registered database.
+This method retrieves a list of available domains with their requirements (invite, payment and maxsatoshi) in the application. Also returns the minimum and maximum length of the username.
+
 
 Endpoint: https://nostrcheck.me/api/v2/domains
 
 **Headers**
 
 - `Content-Type`: application/json
-- `Authorization`: Bearer {authkey}
 
 **Example Request**
 
-With authkey
 ```json
 {
     "method": "GET",
     "url": "https://nostrcheck.me/api/v2/domains/",
-    "headers": {
-        "Content-Type": "application/json",
-	"Authorization "Bearer Auth37f3352fe10584d7396f010eb501482930dd712f"
-    }
-}
-```
-
-With NIP98
-```json
-{
-    "method": "GET",
-    "url": "https://nostrcheck.me/api/v2/domains/",
-    "headers": {
-        "Content-Type": "application/json",
-	"Authorization "Nostr ewogICJpZCI6ICI5MzMxMDUyY2FlYzQzNTE4NDRlMzM4YTgyZDhmMGRhNzEzZmVkNDk1ODViN2ZjNTVkMDg5MWVlOWZiMDYyYTJjIiwKICAicHVia2V5IjogIjgyMDhmYWNkY2FiMjk4NzgyYzllM2I3YjllZmIyMmJjMjQ2ZDE1NzcwZTBiNGY5NmJiZTUxYzQwNjViODJhZjAiLAogICJjcmVhdGVkX2F0IjogMTcwOTExNDEwNywKICAia2luZCI6IDI3MjM1LAogICJ0YWdzIjogWwogICAgWwogICAgICAibWV0aG9kIiwKICAgICAgIkdFVCIKICAgIF0sCiAgICBbCiAgICAgICJ1IiwKICAgICAgImh0dHBzOi8vbm9zdHJjaGVjay5tZS9hcGkvdjIvZG9tYWlucyIKICAgIF0KICBdLAogICJjb250ZW50IjogIiIsCiAgInNpZyI6ICI3ZDYyMzk1OGZhMjY5ZTY2NzhlYmZlOGVhN2JlOTlhMzgxNDlhYTc2NTdmZjJlZTVlYmM0ODYyNWFlODY3M2Y4Yjk0ZDM2YWUxMTAyOGVhOWU0MzNjZWY3ZmZhNWEwZDcxYjIyYzI0OGMyNDA5M2NkNGFmMjBmYjVjM2Y5MGE0MiIKfQ"
-    }
 }
 ```
 
@@ -361,8 +343,20 @@ With NIP98
 
 ```json
 {
-    "AvailableDomains": ["domain1.com", "domain2.com"],
-    "authkey": "auth_key"
+    "availableDomains": {
+        "nostrcheck.me": {
+            "requireinvite": false,
+            "requirepayment": true,
+            "maxsatoshi": 10000
+        },
+        "nostr-check.me": {
+            "requireinvite": true,
+            "requirepayment": false,
+            "maxSatoshi": 0
+        },
+    },
+    "minUsernameLength": 3,
+    "maxUsernameLength": 20
 }
 ```
 
@@ -533,9 +527,6 @@ Loads the settings page. If the user is not logged in or the public key is not v
 
 Loads the profile page. If the user is not logged in or the public key is not valid, it redirects to the login page or the current API version respectively.
 
-### api/v2/gallerydata [GET]
-
-Loads the gallery data for the logged-in user. The page number can be specified as a query parameter. If no page number is specified, the first page is returned. Each page contains 18 media files.
 
 **Parameters**
 
@@ -735,7 +726,7 @@ Endpoint: https://nostrcheck.me/api/v2/media
 
 This endpoint uses the [NIP98](https://github.com/nostr-protocol/nips/blob/master/98.md) HTTP Auth and gets the `pubkey` field from the auth note. 
 
-It also uses the [NIP96](https://github.com/nostr-protocol/nips/blob/96.md) HTTP File Storage Integration standard. 
+This endpoint uses the [NIP96](https://github.com/nostr-protocol/nips/blob/96.md) HTTP File Storage Integration standard. 
 
 The upload will be saved in the user's gallery, whether registered or not.
 
@@ -905,10 +896,29 @@ Allows to download a file
 
 https://nostrcheck.me/api/v2/media/:username/:filename
 
+https://nostrcheck.me/api/v2/media/:pubkey/:filename
+
+https://nostrcheck.me/api/v2/media/:filename
+
+All endpoints can be called with or without the file extension. 
+
+If a URL is published in a nostr note without using the identifier (:username or :pubkey), it can only be deleted if it is the last copy on the server. 
+
 
 **Example**
 
-https://nostrcheck.me/api/v2/media/quentin/nostrcheck.me_02f004aa2b7d1d7e969f7a0523594bffba663e8aeb332ec0.webp
+https://nostrcheck.me/media/quentin/41acecf32679693f563ea4c829f30179d67b40b834d90136836103dca9dc3d84.webp
+
+https://nostrcheck.me/media/quentin/41acecf32679693f563ea4c829f30179d67b40b834d90136836103dca9dc3d84
+
+https://nostrcheck.me/media/89e14be49ed0073da83b678279cd29ba5ad86cf000b6a3d1a4c3dc4aa4fdd02c/41acecf32679693f563ea4c829f30179d67b40b834d90136836103dca9dc3d84.webp
+
+https://nostrcheck.me/media/89e14be49ed0073da83b678279cd29ba5ad86cf000b6a3d1a4c3dc4aa4fdd02c/41acecf32679693f563ea4c829f30179d67b40b834d90136836103dca9dc3d84
+
+https://nostrcheck.me/media/41acecf32679693f563ea4c829f30179d67b40b834d90136836103dca9dc3d84.webp
+
+https://nostrcheck.me/media/41acecf32679693f563ea4c829f30179d67b40b834d90136836103dca9dc3d84
+
 
 If the mediafile is not found the server return the image defined on config file field:
 
@@ -917,6 +927,49 @@ If the mediafile is not found the server return the image defined on config file
 "notFoudFilePath" : "media/file-not-found.webp",
  
 ```
+
+### media [GET] (Listing files)
+Allows to list files linked to the authenticated users pubkey.
+
+https://nostrcheck.me/api/v2/media?page=0&count=100
+
+This endpoint uses the [NIP98](https://github.com/nostr-protocol/nips/blob/master/98.md) HTTP Auth and gets the `pubkey` field from the auth note. 
+
+This endpoint uses the [NIP96](https://github.com/nostr-protocol/nips/blob/96.md) HTTP File Storage Integration standard. 
+
+**Example**
+
+https://nostrcheck.me/api/v2/media?page=0&count=100
+
+
+```
+{
+  "count": 1, // server page size, eg. max(1, min(server_max_page_size, arg_count))
+  "total": 1, // total number of files
+  "page": 0, // the current page number
+  "files": [
+    {
+      "tags": [
+        ["ox": "719171db19525d9d08dd69cb716a18158a249b7b3b3ec4bbdec5698dca104b7b"],
+        ["x": "5d2899290e0e69bcd809949ee516a4a1597205390878f780c098707a7f18e3df"],
+        ["size", "123456"],
+        ["alt", "a meme that makes you laugh"],
+        ["expiration",  "1715691139"],
+        // ...other metadata
+      ]
+      "content": "haha funny meme", // caption
+      "created_at": 1715691130 // upload timestmap
+    },
+    ...
+  ]
+}
+```
+
+#Query args
+
+- `page` page number (`offset=page*count`)
+- `count` number of items per page
+
 
 ### media [GET] (TAGS)
 Allows to get the tags of a file.
@@ -1039,7 +1092,7 @@ https://nostrcheck.me/api/v2/nip96
 
 **Example**
 
-[https://nostrcheck.me/api/v1/nip96](https://nostrcheck.me/api/v2/nip96)
+[https://nostrcheck.me/api/v2/nip96](https://nostrcheck.me/api/v2/nip96)
 
 ```
 {
@@ -1091,33 +1144,74 @@ names: {
 # register
 
 ### register [POST]
+
 Allows to register a new username to the database
+
+This endpoint use the [NIP98](https://github.com/nostr-protocol/nips/blob/master/98.md) HTTP Auth for getting the pubkey. The NIP98's pubkey must be compared with the pubkey on the body.
+
+If NIP98 header is not provided, the registration must be activated via OTC code sent to the pubkey via DM. 
+
+Each domain can have a different registration policy. If the domain needs an invitation code, the body `must` have the `inviteCode` field with the correct value.
 
 https://nostrcheck.me/api/v2/register
 
-Example of a register note for a new username
-```
+Example of a register request;
+
+```json
 {
-  "id": "2bb5408bf39277f6c9bbfa7a35c74169c9003a86a12b989947ddfe36cb19a0d7",
-  "pubkey": "b6f1e9f6fe120a4aa29a89cbf198592df6f11a382bb28705e9b8e7458b926f48",
-  "created_at": 1683729184,
-  "kind": 30078,
-  "tags": [
-    [
-      "username",
-      "quentin"
-    ],
-    [
-      "domain",
-      "yourdomain"
-    ]
-  ],
-  "content": "",
-  "sig": "57b015348d2220f7cd5049fc86de50cf54b2a7f1de6c579912f549ad9abf9e36e47b629e0397edd1afa5ce7d402e282f380c9a68577bce337095326be19bb571"
+"pubkey": "89e14be49ed0073da83b678279cd29ba5ad86cf000b6a3d1a4c3dc4aa4fdd02c",
+"username": "quentin",
+"domain": "nostrcheck.me",
+"password": "ilovenostr",
+"inviteCode" : "super-invite-code"
 }
 ```
 
-This endpoint use the [NIP98](https://github.com/nostr-protocol/nips/blob/master/98.md) HTTP Auth for register new user authorization. The NIP98's pubkey must have the "allowed" field with "1" on registered database.
+The server returns:
+
+```json
+{
+    "status": "success",
+    "message": "User registered successfully, pending OTC verification",
+    "otc": true // Must be 'true' If the authorization header is not provided or the authorization header is not valid or the authorization header pubkey is different from the pubkey in the body
+}
+```
+
+Each domain can have a different registration policy. If the domain needs a payment, the server will return a payment request with the amount (in sats) to be paid.
+
+```json
+{
+    "status": "success",
+    "message": "User registered successfully, pending payment",
+    "otc": true, // Must be 'true' If the authorization header is not provided or the authorization header is not valid or the authorization header pubkey is different from the pubkey in the body
+    "payment_request": "lnbc7650n1pntpnr0pp5ugca56laan4vpn9kp5kwyl7ayu6p3drpffr6mdx0exsj2p83f2eqhp5w48l28v60yvythn6qvnpq0lez54422a042yaw4kq8arvd68a6n7qcqzzsxqyz5vqsp509hhfvyl0zuklxfkwqdzjykkqy39mwmae5r9ykkt0l543sw6yw6q9qxpqysgqwxupqgjf4hrzgwjp595a20jxxs3utmuqhfgu6ns3wd38yac8a68kw6s0jl6u4xhvrngsu7h3ztttp6tsutwfnrt6xt3zl70lgr77y7gq7hq3rx",
+    "satoshi": 765
+}
+```
+
+### register [POST]
+
+Allows to validate a registration OTC code.
+
+https://nostrcheck.me/api/v2/register/validate
+
+Example of a register request;
+
+```json
+{
+"otc":"754610",
+"domain": "nostriches.club"
+}
+```
+
+The server returns:
+
+```json
+{
+    "status": "succes", // Can be "success" or "error"
+    "message": "Valid OTC" 
+}
+```
 
 # verify
 
@@ -1147,6 +1241,176 @@ The server returns:
 	"pubkey": "0f1580f8dc1db5fbfa823cb4db1aa233f1b4ba253027b727ddb1918ebdea2ca9",
 	"result": true,
 	"description": "Valid Event"
+}
+```
+
+# Payments 
+
+### paytransaction [POST]
+Pay a transaction using server's balance. It will debit the amount from the server's expenses account (5000) and credit the amount to the user's account.
+
+This endpoint use the [NIP98](https://github.com/nostr-protocol/nips/blob/master/98.md) HTTP Auth for getting the pubkey. The NIP98's pubkey must be registered on the database.
+
+https://nostrcheck.me/api/v2/payments/paytransaction
+
+
+**Headers**
+
+- `Content-Type`: application/json
+- `Authorization`: Bearer {authkey}
+
+**Parameters**
+
+- `transactionid`: The transaction id to mark as paid. And make journal entries.
+- `amount`: The amount to pay.
+
+**Example**
+
+```json
+{
+    "method": "POST",
+    "url": "https://nostrcheck.me/api/v2/payments/paytransaction",
+    "headers": {
+        "Content-Type": "application/json",      
+	"Authorization": "Bearer Auth37f3352fe10584d7396f010eb501482930dd712f"
+    },
+    "body": {
+        "transactionid": "transactionid",
+        "amount": 1000
+    }
+}
+```
+
+### addbalance [POST]
+
+Add balance to a user's account. It will debit the amount from the server's expenses account (5000) and credit the amount to the user's account.
+
+This endpoint use the [NIP98](https://github.com/nostr-protocol/nips/blob/master/98.md) HTTP Auth for getting the pubkey. The NIP98's pubkey must be registered on the database.
+
+https://nostrcheck.me/api/v2/payments/addbalance
+
+**Headers**
+
+- `Content-Type`: application/json
+- `Authorization`: Bearer {authkey}
+
+**Parameters**
+
+- `amount`: The amount to add to the user's account.
+- `id`: The username id to add the balance.
+
+**Example**
+
+```json
+{
+    "method": "POST",
+    "url": "https://nostrcheck.me/api/v2/payments/addbalance",
+    "headers": {
+        "Content-Type": "application/json",
+    "Authorization": "Bearer Auth37f3352fe10584d7396f010eb501482930dd712f"
+    },
+    "body": {
+        "amount": 1000,
+        "id": "username"
+    }
+}
+```
+
+### getbalance [GET]
+
+Get the balance of a user's account.
+
+This endpoint use the [NIP98](https://github.com/nostr-protocol/nips/blob/master/98.md) HTTP Auth for getting the pubkey. The NIP98's pubkey must be registered on the database.
+
+https://nostrcheck.me/api/v2/payments/getbalance
+
+**Headers**
+
+- `Authorization`: Bearer {authkey}
+
+**Example**
+
+[https://nostrcheck.me/api/v2/payments/getbalance](https://nostrcheck.me/api/v2/payments/getbalance)
+
+The server returns:
+
+```json
+{
+    "status": "success",
+    "message": 1000,
+}
+```
+
+
+## invoices [GET]
+
+Get a information about a invoice.
+
+https://nostrcheck.me/api/v2/payments/invoices/:payment_request
+
+**Example**
+
+[https://nostrcheck.me/api/v2/payments/invoices/lnbc7060n1pntp5lupp5qcufgtefn02q785zh8cyxvz5psjamk7vhhenadjd6nl5r0pp99gshp5w48l28v60yvythn6qvnpq0lez54422a042yaw4kq8arvd68a6n7qcqzzsxqyz5vqsp5pu6ye36cfcwv0g5x662vkqanv3szfgsudclfnmny2dcsxcn9lpqq9qxpqysgqusycld8fwa2ygnpksfypvkdyhent5td940sy38z8gkf3rnuxtezr2lstyp59jzmjm6ut9xvn48lee2t3g70v5g5ehnm58gxph45ceysq6zn572](https://nostrcheck.me/api/v2/payments/invoices/lnbc7060n1pntp5lupp5qcufgtefn02q785zh8cyxvz5psjamk7vhhenadjd6nl5r0pp99gshp5w48l28v60yvythn6qvnpq0lez54422a042yaw4kq8arvd68a6n7qcqzzsxqyz5vqsp5pu6ye36cfcwv0g5x662vkqanv3szfgsudclfnmny2dcsxcn9lpqq9qxpqysgqusycld8fwa2ygnpksfypvkdyhent5td940sy38z8gkf3rnuxtezr2lstyp59jzmjm6ut9xvn48lee2t3g70v5g5ehnm58gxph45ceysq6zn572)
+
+The server returns:
+
+```json
+{
+    "status": "success",
+    "message": "Invoice status",
+    "invoice": {
+        "paymentRequest": "lnbc7060n1pntp5lupp5qcufgtefn02q785zh8cyxvz5psjamk7vhhenadjd6nl5r0pp99gshp5w48l28v60yvythn6qvnpq0lez54422a042yaw4kq8arvd68a6n7qcqzzsxqyz5vqsp5pu6ye36cfcwv0g5x662vkqanv3szfgsudclfnmny2dcsxcn9lpqq9qxpqysgqusycld8fwa2ygnpksfypvkdyhent5td940sy38z8gkf3rnuxtezr2lstyp59jzmjm6ut9xvn48lee2t3g70v5g5ehnm58gxph45ceysq6zn572",
+        "paymentHash": "0638942f299bd40f1e82b9f04330540c25dddbccbdf33eb64dd4ff41bc212951",
+        "satoshi": 706,
+        "isPaid": true,
+        "createdDate": "2024-08-05T13:30:36.000Z",
+        "expiryDate": "2024-08-06T13:30:36.000Z",
+        "paidDate": "2024-08-06T06:24:05.000Z",
+        "description": "Invoice for: registered:2633",
+        "transactionid": 188,
+        "accountid": 1100002633
+    }
+}
+```
+
+## calcualteamount [POST]
+
+Calculate the amount in satoshi for an object. Can be used to calculate the amount for a media upload or a register username.
+
+https://nostrcheck.me/api/v2/payments/calculateamount
+
+**Headers**
+
+- `Content-Type`: application/json
+
+**Parameters**
+
+- `size`: The size of the object in bytes or the number of characters.
+- `domain`: If the object is a register username, the domain must be the target domain for the username. For media must be empty.
+
+**Example**
+
+```json
+{
+    "method": "POST",
+    "url": "https://nostrcheck.me/api/v2/payments/calculateamount",
+    "headers": {
+        "Content-Type": "application/json"
+    },
+    "body": {
+        "size": 12, // An username has 12 characters
+        "domain": "nostrcheck.me"
+    }
+}
+```
+
+The server returns:
+
+```json
+{
+    "status": "success",
+    "message": "Calculated satoshi successfully",
+    "amount": 2100
 }
 ```
 

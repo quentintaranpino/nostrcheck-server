@@ -1,0 +1,236 @@
+<div class="ms-3 me-3 mt-3 mb-5 mb-lg-3">
+    <div class="text-end mb-3 form">
+        <div id="user-relay-list-add" class="input-group mb-3 mt-2 d-none">
+            <input type="text" data-otc='relay-name' class="form-control" id="input-add-relay"
+            placeholder="wss://relay.server.com" required autocomplete="relay"
+            pattern="(wss://|ws://).*" title="Relay url must start with wss:// or ws://">
+            <button id="addRelay-btn" type="button" class="btn btn-primary"><i class="fas fa-solid fa-plus"></i> Add new relay</button>
+        </div>
+    </div>
+    <div id="user-relay-list-loading" class="d-flex justify-content-center m-5">
+        <div class="spinner-border text-secondary" role="status">
+            <span class="visually-hidden">Loading relays</span>
+        </div>
+    </div>
+    <ul id="user-relay-list" class="list-group"></ul>
+    <div id="user-relay-list-save" class="text-center mb-5 mb-lg-2 d-none">
+        <button id="saveRelayData-btn" type="submit" class="btn btn-primary col-4">Save</button>
+    </div>
+</div>
+<script>
+
+let relaysUnsaved = false;
+
+const updateRelay = (relayId, action) => {
+            const relay = userRelays.find((r) => r.id == relayId);
+            if (action == 'enabled'){
+                relay.enabled == true ? relay.enabled = false : relay.enabled = true;
+                const relayItem = document.getElementById(`user-relay-${relay.id}`);
+                const relayItemToggle = document.getElementById(`btn-enable-${relay.id}`);
+                relayItem.style.backgroundColor = relay.enabled ? "rgba(0, 0, 0, .075)" : "#ffe597";
+                relayItem.style.color = relay.enabled ?  null : "gray";
+                const relayButtons = relayItem.querySelector('#user-relay-buttons');
+                relayButtons.querySelectorAll('button').forEach((btn) => {
+                    btn.style.color = relay.enabled ?  null : "gray";
+                });
+                relayItem.querySelectorAll('i').forEach((i) => {
+                    if (i.getAttribute('class').includes('text-muted')){
+                        i.style.setProperty('color', relay.enabled ? null : 'gray', 'important');
+                    }
+                });
+                relay.enabled ? relayItemToggle.innerHTML = `<i class="fas fa-times text-danger"></i>` : relayItemToggle.innerHTML = `<small>undo</small><i class="fas fa-undo text-secondary ms-2"></i>`;
+            }
+            if (action == "write") {
+                relay.write == true ? document.getElementById(`write-user-relay-${relay.id}`).querySelector('i').classList.add('text-muted', 'text-opacity-25') : document.getElementById(`write-user-relay-${relay.id}`).querySelector('i').classList.remove('text-muted', 'text-opacity-25');
+                relay.write == true ? relay.write = false : relay.write = true;
+                
+            }
+            if (action == "read") {
+                relay.read == true ? document.getElementById(`read-user-relay-${relay.id}`).querySelector('i').classList.add('text-muted', 'text-opacity-25') : document.getElementById(`read-user-relay-${relay.id}`).querySelector('i').classList.remove('text-muted', 'text-opacity-25');
+                relay.read == true ? relay.read = false : relay.read = true;
+            }
+
+            if (action == "dms") {
+                relay.dms == true ? document.getElementById(`dms-user-relay-${relay.id}`).querySelector('i').classList.add('text-muted', 'text-opacity-25') : document.getElementById(`dms-user-relay-${relay.id}`).querySelector('i').classList.remove('text-muted', 'text-opacity-25');
+                relay.dms == true ? relay.dms = false : relay.dms = true;
+            }
+            console.log(userRelays)
+}
+
+const saveRelayData = async () => {
+
+    document.getElementById('saveRelayData-btn').disabled = true;
+    document.getElementById('saveRelayData-btn').innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Saving...';
+    let sk = '';
+    if (!window.nostr){
+        sk = prompt('Please enter your Nostr private key to sign the data');
+        if (!sk) {
+                    document.getElementById('saveRelayData-btn').disabled = false;
+                    document.getElementById('saveRelayData-btn').innerHTML = 'Save';
+                    return;
+        }
+    } 
+
+    console.log("attempting to save relay data");
+    // App relays
+    await Promise.all([
+    publishProfileRelays(userRelays, "<%= request.session.metadata.pubkey %>", sk, 'app'),
+    publishProfileRelays(userRelays, "<%= request.session.metadata.pubkey %>", sk, 'dms')
+    ]).then(([appResult, dmsResult]) => {
+        if (appResult == true && dmsResult == true) {
+            console.log("Relay data saved successfully");
+            relaysUnsaved = false;
+            userRelays = userRelays.filter((r) => r.enabled == true);
+            const relayItems = document.getElementById("user-relay-list").querySelectorAll("li");
+            relayItems.forEach((item) => {
+                if (!userRelays.find((r) => r.id == item.id)) {
+                    item.remove();
+                }
+            });
+        } else {
+            console.error("Error saving relay data");
+            showMessage("Error saving relay data", "alert-danger");
+        }
+    });
+
+    document.getElementById('saveRelayData-btn').disabled = false;
+    document.getElementById('saveRelayData-btn').innerHTML = 'Save';
+}
+
+const addRelayToList = (relay) => {
+
+    let relayItem = document.createElement("li");
+    relayItem.classList.add("list-unstyled");
+    relayItem.id = `${relay.id}`;
+    relayItem.innerHTML = `
+        <div id="user-relay-${relay.id}" class="card mb-3 shadow-sm default-bg">
+            <div class="card-body pt-2 pb-2">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <i id="user-relay-online-${relay.id}" class="fas fa-circle me-2 text-success"></i>
+                        <span class="lead">${relay.name != "" ? relay.name : relay.url.replace('wss://', '').replace('/','')}</span>
+                    </div>
+                    <div>
+                        <button id="btn-enable-${relay.id}" class="btn btn-sm" type="button" onclick="updateRelay('${relay.id}', 'enabled')">
+                            <i class="fas fa-times text-danger"></i>
+                        </button>
+                    </div>
+                </div>
+                <div id="user-relay-buttons">
+                    <button id="read-user-relay-${relay.id}" class="btn btn-sm m-0 p-0" type="button" onclick="updateRelay('${relay.id}', 'read')">
+                        ${relay.read == true ? `<i class="fas fa-arrow-down text-success me-1"></i>Read` : `<i class="fas fa-arrow-down text-success text-muted text-opacity-25 me-1"></i>Read`}
+                    </button>
+                    <button id="write-user-relay-${relay.id}" class="btn btn-sm m-0 p-0 ps-1" type="button" onclick="updateRelay('${relay.id}', 'write')">
+                        ${relay.write == true ? `<i class="fas fa-arrow-up text-success me-1"></i>Write` : `<i class="fas fa-arrow-up text-success text-muted text-opacity-25 me-1"></i>Write`}
+                    </button>
+                    <button id="dms-user-relay-${relay.id}" class="btn btn-sm m-0 p-0 ps-1" type="button" onclick="updateRelay('${relay.id}', 'dms')">
+                        ${relay.dms == true ? `<i class="fas fa-light fa-inbox text-success me-1"></i>Inbox` : `<i class="fas fa-light fa-inbox text-success text-muted text-opacity-25 me-1"></i>Inbox`}
+                    </button>
+                </div>
+                <p class="ms-1 mb-2 mt-2">${relay.description}</p>
+                ${relay.supported_nips && relay.supported_nips != "" ? `
+                <p class="ms-1 mb-0"><small><b>NIPS:</b> ${relay.supported_nips.join(', ')}</small></p>` : ''
+                }
+                <button class="btn btn-primary p-0 ps-2 pe-2 fs-6 mt-1 mb-2 font-monospace" style="font-size:13px !important" type="button" id="picture-copy-btn" onclick="copyToClipboard(this,document.getElementById('user-relay-url-${relay.id}').innerText)">
+                <span id="user-relay-url-${relay.id}">${relay.url}<i class="fa-solid fa-copy ms-2"></i></span>
+                </button>
+                <small id="user-relay-ping-${relay.id}" style="font-size:13px"></small>
+            </div>
+        </div>
+    `;
+
+    document.getElementById("user-relay-list").prepend(relayItem);
+}
+
+document.addEventListener('DOMContentLoaded', async (event) => {
+
+    document.getElementById("addRelay-btn").addEventListener("click", async () => {
+
+        const relayBtnValue = document.getElementById("addRelay-btn").innerHTML;
+        if (relayBtnValue.includes("spinner-border")) return;
+        document.getElementById("addRelay-btn").innerHTML = `<div class="spinner-border spinner-border-sm me-1" role="status"></div> Adding...`;
+
+        let relayUrl = document.getElementById("input-add-relay").value;
+        if (relayUrl == "") return;
+        if (!relayUrl.startsWith("wss://")) relayUrl = `wss://${relayUrl}`;
+        const newRelay = {  id : userRelays.length, 
+                            url: relayUrl, 
+                            read: true, 
+                            write: true, 
+                            dms: false, 
+                            name: '', 
+                            description: '', 
+                            pubkey: '', 
+                            contact: '', 
+                            supported_nips: [], 
+                            enabled : true };
+        console.log(newRelay)
+        userRelays.push(newRelay);
+        await getRelayData(newRelay)
+        await addRelayToList(newRelay);
+        document.getElementById("input-add-relay").value = "";
+        document.getElementById("addRelay-btn").innerHTML = `<i class="fas fa-solid fa-plus"></i> Add new relay`;
+    });   
+    
+    document.getElementById("saveRelayData-btn").addEventListener("click", async () => {
+        saveRelayData();
+    });
+  
+    await getRelaysFromUser("<%= request.session.metadata.pubkey %>").then((relays) => {
+
+        document.getElementById("user-relay-list-loading").remove();
+
+        if (relays.length > 0) {
+            document.getElementById("user-relay-list-save").classList.remove("d-none");
+            document.getElementById("user-relay-list-add").classList.remove("d-none");
+        }
+
+        relays.forEach((relay) => {
+            addRelayToList(relay);
+        });
+        
+        const checkRelaysOnline = async () => {
+            for (const relay of userRelays) {
+                const r = await isRelayOnline(relay.url);
+                if (r.online) {
+                    document.getElementById(`user-relay-online-${relay.id}`).classList.remove('text-danger');
+                    if (r.ping < 500){
+                        document.getElementById(`user-relay-online-${relay.id}`).classList.add('text-success');
+                        document.getElementById(`user-relay-online-${relay.id}`).classList.remove('text-warning');
+                    }else{
+                        document.getElementById(`user-relay-online-${relay.id}`).classList.add('text-warning');
+                        document.getElementById(`user-relay-online-${relay.id}`).classList.remove('text-success');
+                    }
+                    document.getElementById(`user-relay-ping-${relay.id}`).innerText = `${r.ping}ms`;
+                } else {
+                    document.getElementById(`user-relay-online-${relay.id}`).classList.remove('text-success');
+                    document.getElementById(`user-relay-online-${relay.id}`).classList.add('text-warning');
+                    document.getElementById(`user-relay-online-${relay.id}`).classList.add('text-danger');
+                }
+            }
+            setTimeout(checkRelaysOnline, 1000);
+        };
+
+        checkRelaysOnline();
+    });
+
+    document.getElementById('addRelay-btn').addEventListener('click', () => {
+        relaysUnsaved = true;
+    });
+
+    const relayButtons = document.querySelectorAll('#user-relay-list button');
+    relayButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            relaysUnsaved = true;
+        });
+    })
+
+});
+
+window.addEventListener('beforeunload', (event) => {
+    if (relaysUnsaved) {
+        event.preventDefault();
+        event.returnValue = ''; 
+    }
+});
+</script>

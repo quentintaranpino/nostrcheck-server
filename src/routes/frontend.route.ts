@@ -1,4 +1,5 @@
 import { Application } from "express";
+import express from "express";
 import { 	loadDashboardPage, 
 			loadSettingsPage, 
 			loadTosPage, 
@@ -6,17 +7,19 @@ import { 	loadDashboardPage,
 			loadLoginPage, 
 			loadIndexPage, 
 			loadProfilePage,
-			loadGalleryData
+			loadGalleryPage,
+			loadRegisterPage,
+			loadDirectoryPage
 		} from "../controllers/frontend.js";
 import { frontendLogin } from "../controllers/frontend.js";
 import { logger } from "../lib/logger.js";
 import { isPubkeyValid } from "../lib/authorization.js";
-
-import { limiter } from "../lib/session.js"
+import { limiter } from "../lib/session.js";
 import { isFirstUse } from "../lib/frontend.js";
 import { getClientIp } from "../lib/utils.js";
+import { redisClient } from "../lib/redis.js";
 
-export const loadFrontendEndpoint = async (app: Application, version:string): Promise<void> => {
+export const loadFrontendEndpoint = async (app: Application, version: string): Promise<void> => {
 
 	// Legacy frontend routes
 	app.get("/", (_req, res) => {
@@ -30,51 +33,73 @@ export const loadFrontendEndpoint = async (app: Application, version:string): Pr
 	});
 
 	// Current v2 routes (index)
-	app.get("/api/" + version, limiter(100), async (req, res) => {
+	app.get("/api/" + version, async (req, res) => {
 		if(req.originalUrl.slice(-1) !== '/') {
 			return res.redirect(301, req.originalUrl + '/');
 		}
-		if (await isFirstUse(req)){logger.info("First use detected. Showing alert on frontend", "|", getClientIp(req))}
-		loadIndexPage(req,res,version);
+		if (await isFirstUse(req,res)){logger.info("First use detected. Showing alert on frontend", "|", getClientIp(req))}
+		loadIndexPage(req, res, version);
 	});
 
 	// Login page
-	app.get("/api/" +  version + "/login", limiter(10), async (req, res) => {
-		if (req.session.identifier != null){
+	app.get("/api/" + version + "/login", limiter(10), async (req, res) => {
+		if (req.session.identifier != null && req.session.identifier != undefined && req.session.identifier != "") {
 			res.redirect("/api/v2/");
-		}else{
-			if (await isFirstUse(req)){
-				// we are going to set the first use to true and redirect to the front page and there we will show the alert
+		} else {
+			if (await isFirstUse(req,res)) {
+				// Set first use and redirect to frontend to show the alert
 				app.set("firstUse", true);
 				res.redirect("/api/v2/");
-			}else{
-				loadLoginPage(req,res,version);
+			} else {
+				loadLoginPage(req, res, version);
 			}
 		}
 	});
 
 	// Login POST
-	app.post("/api/" +  version + "/login", limiter(5), (req, res) => {
-		frontendLogin(req,res)
-	});
+	app.post("/api/" + version + "/login/:param1?", 
+		limiter(4), 
+		express.json({limit: '1mb'}), 
+		(req, res) => {
+			frontendLogin(req, res);
+		}
+	);
 
 	// Tos
-	app.get("/api/" +  version + "/tos", async (req, res) => {
-		if (await isFirstUse(req)){logger.info("First use detected. Showing alert on frontend", "|", getClientIp(req))}
+	app.get("/api/" +  version + "/tos", limiter(), async (req, res) => {
+		if (await isFirstUse(req,res)){logger.info("First use detected. Showing alert on frontend", "|", getClientIp(req))}
 		loadTosPage(req,res,version);
 	});
 
 	// Documentation
-	app.get("/api/" +  version + "/documentation", async (req, res) => {
-		if (await isFirstUse(req)){logger.info("First use detected. Showing alert on frontend", "|", getClientIp(req))}
+	app.get("/api/" +  version + "/documentation", limiter(), async (req, res) => {
+		if (await isFirstUse(req,res)){logger.info("First use detected. Showing alert on frontend", "|", getClientIp(req))}
 		loadDocsPage(req,res,version);
 	});
 
+	// Gallery
+	app.get("/api/" +  version + "/gallery", limiter(),  async (req, res) => {
+		if (await isFirstUse(req,res)){logger.info("First use detected. Showing alert on frontend", "|", getClientIp(req))}
+		loadGalleryPage(req,res,version);
+	});
+
+	// Register
+	app.get("/api/" +  version + "/register", limiter(), async (req, res) => {
+		if (await isFirstUse(req,res)){logger.info("First use detected. Showing alert on frontend", "|", getClientIp(req))}
+		loadRegisterPage(req,res,version);
+	});
+
+	// Directory
+	app.get("/api/" +  version + "/directory", limiter(), async (req, res) => {
+		if (await isFirstUse(req,res)){logger.info("First use detected. Showing alert on frontend", "|", getClientIp(req))}
+		loadDirectoryPage(req,res,version);
+	});
+
 	// Dashboard
-	app.get("/api/" +  version + "/dashboard", limiter(100), async (req, res) => {
+	app.get("/api/" +  version + "/dashboard", limiter(), async (req, res) => {
 		if (req.session.identifier == null){
 			res.redirect("/api/" +  version + "/login");
-		}else if (await isPubkeyValid(req, true) == false){
+		}else if (await isPubkeyValid(req.session.identifier, true) == false){
 			res.redirect("/api/v2/");
 		}else{
 			loadDashboardPage(req,res,version);
@@ -82,10 +107,10 @@ export const loadFrontendEndpoint = async (app: Application, version:string): Pr
 	});
 
 	// Settings
-	app.get("/api/" +  version + "/settings", limiter(100), async (req, res) => {
+	app.get("/api/" +  version + "/settings", limiter(), async (req, res) => {
 		if (req.session.identifier == null){
 			res.redirect("/api/" +  version + "/login");
-		}else if (await isPubkeyValid(req, true) == false){
+		}else if (await isPubkeyValid(req.session.identifier, true) == false){
 			res.redirect("/api/v2/");
 		}else{
 			loadSettingsPage(req,res,version);
@@ -93,30 +118,29 @@ export const loadFrontendEndpoint = async (app: Application, version:string): Pr
 	});
 
 	// Profile
-	app.get("/api/" +  version + "/profile", limiter(100), async (req, res) => {
+	app.get("/api/" +  version + "/profile", limiter(), async (req, res) => {
 		if (req.session.identifier == null){
 			res.redirect("/api/" +  version + "/login");
-		}else if (await isPubkeyValid(req, true) == false){
+		}else if (await isPubkeyValid(req.session.identifier, false) == false){
 			res.redirect("/api/v2/");
 		}else{
 			loadProfilePage(req,res,version);
 		}
 	});
 
-	// Gallery images json
-	app.get("/api/" +  version + "/gallerydata", limiter(100), async (req, res) => {
-		loadGalleryData(req,res);
-	});
-
 	// Logout
-	app.get("/api/" +  version + "/logout", (req, res) => {
-		req.session.destroy((err) => {
+	app.get("/api/" +  version + "/logout", limiter(), (req, res) => {
+		const identifier = req.session.identifier;
+		req.session.destroy(async (err) => {
 			if (err) {
-				logger.error(err)
-				res.redirect("/api/v2/");
+				logger.error("Failed to destroy session:", err);
 			}
+
+			res.clearCookie("connect.sid");
+			res.clearCookie("authkey");
+			await redisClient.del(`activeStatus:${identifier}`);
+
 			res.redirect("/api/" +  version + "/login");
 		});
 	});
-
 };

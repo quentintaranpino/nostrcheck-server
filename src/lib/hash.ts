@@ -1,13 +1,12 @@
 import { logger } from './logger.js'
 import crypto from 'crypto'
 import fs from 'fs'
-import { ProcessingFileData } from '../interfaces/media.js'
 import sharp from 'sharp'
 import { encode } from 'blurhash'
 import { credentialTypes } from '../interfaces/authorization.js';
 import bcrypt from 'bcrypt';
 
-const generatefileHashfromfile = (filepath:string, options: ProcessingFileData): string => {
+const generatefileHashfromfile = (filepath:string): string => {
 
   logger.debug("INIT hash generation for file:", filepath);
 
@@ -23,21 +22,25 @@ const generatefileHashfromfile = (filepath:string, options: ProcessingFileData):
     return "";
   }
   logger.debug("END hash generation for file:", filepath, ":", hash);
-  logger.info("Hash for file:", options.filename, ":", hash);
+  logger.info("Hash for file:", filepath, ":", hash);
 
   return hash;
 
 }
 
-const generatefileHashfrombuffer = async (file:Express.Multer.File): Promise<string> => {
+const generatefileHashfrombuffer = async (file:Express.Multer.File, type:string): Promise<string> => {
 
   logger.debug("INIT hash generation from buffer", file.originalname);
 
   let hash = '';
   try{
+
+    // If the file is an avatar or banner, we prepend the type to the buffer to create a unique hash
+    const buffer = type == "avatar" || type == "banner" ? Buffer.concat([Buffer.from(type), file.buffer]) : file.buffer;
+
     hash = crypto
         .createHash("sha256")
-        .update(file.buffer)
+        .update(buffer)
         .digest("hex");
     }
   catch (error) {
@@ -50,7 +53,7 @@ const generatefileHashfrombuffer = async (file:Express.Multer.File): Promise<str
 
 }
 
-const generateBlurhash = async (path:string): Promise<string> =>
+const generateBlurhash = async (path: string): Promise<string> =>
   new Promise((resolve) => {
     logger.debug("INIT blurhash generation for file:", path);
     sharp.cache(false);
@@ -58,10 +61,16 @@ const generateBlurhash = async (path:string): Promise<string> =>
       .raw()
       .ensureAlpha()
       .resize(32, 32, { fit: "inside" })
-      .toBuffer((err, buffer, { width, height }) => {
-        if (err) return "";
-        logger.debug("END blurhash generation for file:", path, "blurhash:", encode(new Uint8ClampedArray(buffer), width, height, 4, 4));
-        resolve(encode(new Uint8ClampedArray(buffer), width, height, 4, 4));
+      .toBuffer((err, buffer, info) => {
+        if (err || !info) {
+          logger.error("Error processing image or 'info' is undefined for file:", path, "error:", err.cause, err.message);
+          return resolve("");
+        }
+
+        const { width, height } = info;
+        const blurhash = encode(new Uint8ClampedArray(buffer), width, height, 4, 4);
+        logger.debug("END blurhash generation for file:", path, "blurhash:", blurhash);
+        resolve(blurhash);
       });
   });
 
@@ -69,6 +78,7 @@ const generateBlurhash = async (path:string): Promise<string> =>
 /**
  * Hashes a given string using bcrypt with a specified number of salt rounds.
  * @param {string} input - The string to be hashed.
+ * @param {credentialTypes} type - The type of credential to be hashed.
  * @param {number} saltRounds - The number of rounds to use when generating the salt (default is 40).
  * @returns {Promise<string>} A promise that resolves to the hashed string, or an empty string if an error occurs or if the input is undefined.
  */
@@ -79,8 +89,11 @@ const hashString = async (input:string, type: credentialTypes, saltRounds:number
     if (type == "password"){
       hashedString = await bcrypt.hash(input, saltRounds).catch(err => {logger.error(err)});
     }
-    else if (type == "authkey"){
+    else if (type == "otc"){
       hashedString =  await crypto.createHash('sha256').update(input + saltRounds).digest('hex');
+    }
+    else if (type == "preimage"){
+      hashedString = await crypto.createHash('sha256').update(Buffer.from(input, 'hex')).digest('hex');
     }
     else{
       logger.error("Invalid credential type");
@@ -110,4 +123,9 @@ const validateHash = async (input:string, hash:string): Promise<boolean> => {
     }
   }
 
-export { generateBlurhash, generatefileHashfromfile, generatefileHashfrombuffer, hashString, validateHash};
+const getHashedPath = async (filename : string) => {
+    const hash = crypto.createHash('md5').update(filename).digest('hex').slice(0, 4);
+    return hash.slice(0, 4);
+}
+
+export { generateBlurhash, generatefileHashfromfile, generatefileHashfrombuffer, hashString, validateHash, getHashedPath};
