@@ -172,6 +172,17 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 
 	// No transform option
 	app.get("config.media")["transform"]["enabled"] == false ? filedata.no_transform = true : filedata.no_transform = Boolean(req.body?.no_transform) || false;
+
+	// Not accepting "avatar" or "banner" uploads with no_transform option
+	if (filedata.media_type != "media" && filedata.no_transform == true){
+		logger.warn(`RES -> 400 Bad request - no_transform not allowed for this media type`, "|", getClientIp(req));
+		const result: ResultMessagev2 = {
+			status: MediaStatus[1],
+			message: "no_transform not allowed for this media type",
+		};
+		return res.status(400).send(result);
+	}
+
 	if (req.params.param1 == "upload" || req.params.param1 == "mirror") filedata.no_transform = true;
 	if (!filedata.originalmime.toString().startsWith("image") && !filedata.originalmime.toString().startsWith("video")) filedata.no_transform = true;
 
