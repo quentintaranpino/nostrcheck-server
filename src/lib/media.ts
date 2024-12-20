@@ -135,6 +135,7 @@ const initConversionEngine = (file: fileData) => {
 
     const ffmpegEngine = ffmpeg(file.conversionInputPath)
         .outputOption(["-loop 0"]) //Always loop. If is an image it will not apply.
+		.outputOptions('-vf', 'transpose=0')
         .setSize(file.newFileDimensions)
         .output(file.conversionOutputPath)
         .toFormat(file.filename.split(".").pop() || "");
