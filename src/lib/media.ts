@@ -88,59 +88,55 @@ const processFile = async(	inputFile: Express.Multer.File,	options: fileData, re
 			const videConversion = initVideoConversionEngine(options);
 
 			videConversion
-				.on("end", async(end) => {
+			.on("end", async(end) => {
 
-					if (await finalizeFileProcessing(options)) {
-						logger.info(`File processed successfully: ${options.filename} ${ConversionDuration /2} seconds`);
-						resolve(end);
-					}
-					else{
-						reject("Error finalizing file processing");
-					}
-				})
-				.on("error", async (err) => {
+				if (await finalizeFileProcessing(options)) {
+					logger.info(`File processed successfully: ${options.filename} ${ConversionDuration /2} seconds`);
+					resolve(end);
+				}
+				else{
+					reject("Error finalizing file processing");
+				}
+			})
+			.on("error", async (err) => {
 
-					logger.warn(`Error converting file, retrying file conversion: ${options.filename} retry: ${retry}/5`);
-					logger.error(err);
-					retry++
-					await new Promise((resolve) => setTimeout(resolve, 3000));
-					if (!await deleteLocalFile(options.conversionInputPath)){reject(err);}
+				logger.warn(`Error converting file, retrying file conversion: ${options.filename} retry: ${retry}/5`);
+				logger.error(err);
+				retry++
+				await new Promise((resolve) => setTimeout(resolve, 3000));
+				if (!await deleteLocalFile(options.conversionInputPath)){reject(err);}
 
-					if (retry > 5){
-						logger.error(`Error converting file after 5 retries: ${inputFile.originalname}`);
-						const errorstate =  await dbUpdate('mediafiles','status','error',['id'], [options.fileid]);
-						if (!errorstate) {
-							logger.error("Could not update table mediafiles, id: " + options.fileid, "status: failed");
-						}
-						resolve(err);
+				if (retry > 5){
+					logger.error(`Error converting file after 5 retries: ${inputFile.originalname}`);
+					const errorstate =  await dbUpdate('mediafiles','status','error',['id'], [options.fileid]);
+					if (!errorstate) {
+						logger.error("Could not update table mediafiles, id: " + options.fileid, "status: failed");
 					}
-					processFile(inputFile, options, retry);
 					resolve(err);
+				}
+				processFile(inputFile, options, retry);
+				resolve(err);
 
-				})
-				.on("codecData", (data) => {
-					MediaDuration = parseInt(data.duration.replace(/:/g, ""));
-				})
-				.on("progress", async (data) => {
+			})
+			.on("codecData", (data) => {
+				MediaDuration = parseInt(data.duration.replace(/:/g, ""));
+			})
+			.on("progress", async (data) => {
 
-					const time = parseInt(data.timemark.replace(/:/g, ""));
-					let percent: number = (time / MediaDuration) * 100;
-					ConversionDuration = ConversionDuration + 1;
-					if (percent < 0) {
-						percent = 0;
-					}
-			
-					if (percent %4 > 0 && percent %4 < 1){
-						logger.debug(
-							`Processing : ` +
-								`${options.filename} - ${Number(percent).toFixed(0)} %`
-						);
-
+				const time = parseInt(data.timemark.replace(/:/g, ""));
+				let percent: number = (time / MediaDuration) * 100;
+				ConversionDuration = ConversionDuration + 1;
+				if (percent < 0) {
+					percent = 0;
+				}
+		
+				if (percent %4 > 0 && percent %4 < 1){
+					logger.debug(`Processing : ` +	`${options.filename} - ${Number(percent).toFixed(0)} %`	);
 					await dbUpdate('mediafiles','percentage',Number(percent).toFixed(0).toString(), ['id'], [options.fileid]);
-					}
-					
-				})
-				.run();
+				}
+				
+			})
+			.run();
 		}
 	
 	});
@@ -176,17 +172,20 @@ const initVideoConversionEngine = (file: fileData) => {
 
 async function initImageConversionEngine(file: fileData) {
 	try {
-		await sharp(file.conversionInputPath).resize({
+		await sharp(file.conversionInputPath, {"animated":true} ).resize({
 		width: parseInt(file.newFileDimensions.split("x")[0]), 
 		height: parseInt(file.newFileDimensions.split("x")[1]),
 		fit: 'cover', 
 		})
-		.webp({ quality: 80 }) 
+
+		.webp({ quality: 80, loop: 0 }) 
 		.toFile(file.conversionOutputPath);
+
   
 	} catch (error) {
-		logger.debug("Error converting image", error);
+		logger.error("Error converting image", error);
 	}
+
 }
 
 const getUploadType = (req : Request): string  => {
@@ -340,6 +339,22 @@ const setMediaDimensions = async (file:string, options:fileData):Promise<string>
 
 		let newWidth = 640;
 		let newHeight = 480;
+
+		// Avatar and banner dimensions
+		if (options.media_type == "avatar") {
+			newWidth = app.get("config.media")["transform"]["avatar"]["width"];
+			newHeight = app.get("config.media")["transform"]["avatar"]["height"];
+			resolve(newWidth + "x" + newHeight);
+			return;
+		}
+		if (options.media_type == "banner") {
+			newWidth = app.get("config.media")["transform"]["banner"]["width"];
+			newHeight = app.get("config.media")["transform"]["banner"]["height"];
+			resolve(newWidth + "x" + newHeight);
+			return;
+		}
+
+		// Standard media dimensions 
 		if (options.originalmime.startsWith("video")) {
 			newWidth = app.get("config.media")["transform"]["media"]["video"]["width"];
 			newHeight = app.get("config.media")["transform"]["media"]["video"]["height"];
