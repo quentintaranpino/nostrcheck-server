@@ -17,6 +17,7 @@ nostrcheck-api.log*
 .VSCodeCounter/*
 installation.md
 coverage/*
+models/*
 
 # Docker compose volumes
 compose.override.yml

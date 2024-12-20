@@ -1,13 +1,10 @@
 import path from "path";
 import fs, { promises as fsPromises } from "fs";
-import { defaultConfig, localPath, necessaryKeys } from "../interfaces/config.js";
-import { createkeyPair, getPubkeyFromSecret } from "../lib/nostr/core.js";
-import { syncDefaultConfigValues, updateLocalConfigKey } from "../lib/config.js";
-import app from "../app.js";
 import config from "config";
 import { exit } from "process";
-import { dbMultiSelect } from "../lib/database.js";
+import { defaultConfig, localPath, necessaryKeys } from "../interfaces/config.js";
 import { mediafilesTableFields } from "../interfaces/database.js";
+import { syncDefaultConfigValues, updateLocalConfigKey } from "../lib/config.js";
 
 const checkConfigNecessaryKeys = async () : Promise<void> => {
 
@@ -26,7 +23,9 @@ const checkConfigNecessaryKeys = async () : Promise<void> => {
 	
 	// Regenerate pubkey if missing and secretkey is present
 	if (missingFields.includes("server.pubkey") && !missingFields.includes("server.secretKey")){
+		const {default: app} = await import("../app.js");
 		console.warn("No pubkey found in config file. Generating new pubkey.")
+		const { getPubkeyFromSecret } = await import("../lib/nostr/core.js");
 		const pubkey = await getPubkeyFromSecret(config.get("server.secretKey"));
 		if (pubkey !== "") {
 			missingFields = missingFields.filter((field) => field !== "server.pubkey");
@@ -40,8 +39,10 @@ const checkConfigNecessaryKeys = async () : Promise<void> => {
 	// Pubkey and secretkey generation if missing
 	if (missingFields.includes("server.pubkey") || missingFields.includes("server.secretKey")){
 		console.warn("No pubkey or secret key found in config file. Generating new keys.")
+		const { createkeyPair } = await import("../lib/nostr/core.js");
 		const keyPair = await createkeyPair();
 		if (keyPair.publicKey && keyPair.secretKey){
+			const {default: app} = await import("../app.js");
 			missingFields = missingFields.filter((field) => field !== "server.pubkey" && field !== "server.secretKey");
 			await updateLocalConfigKey("server.pubkey", keyPair.publicKey) && await updateLocalConfigKey("server.secretKey", keyPair.secretKey);
 			let configServer = Object.assign({}, app.get("config.server"));
@@ -72,6 +73,7 @@ const checkConfigNecessaryKeys = async () : Promise<void> => {
 
 const migrateFolders = async(mediaPath:string) => {
 
+	const { dbMultiSelect } = await import("../lib/database.js");
 	let folderMigrationData = await dbMultiSelect("SELECT DISTINCT registered.username, registered.hex FROM registered",['username', 'hex'], ['1=1'], mediafilesTableFields, false);
 	if (folderMigrationData == undefined || folderMigrationData == null || folderMigrationData.length == 0){
 		console.debug("No Data to migrate.");

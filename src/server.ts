@@ -1,37 +1,40 @@
 // server.ts
-import app from "./app.js";
-import { loadconfigActiveModules} from "./lib/config.js";
 import { prepareApp } from "./controllers/config.js";
-import { initDatabase, showDBStats } from "./lib/database.js";
-import { loadConsoleBanner } from "./lib/server.js";
-import { initSession } from "./lib/session.js";
-import { loadAPIs } from "./routes/routes.js";
-import { SeedMediafilesMagnets } from "./lib/torrent.js";
-import config from "config";
 
 const startServer = async () => {
     // Initialise config and folders
     await prepareApp();
+    const { default: app } = await import("./app.js");
 
     // Initialise Database
+    const {initDatabase} = await import("./lib/database.js");
     await initDatabase();
 
     // Initialise session cookies
+    const {initSession} = await import("./lib/session.js");
     await initSession(app);
 
     // Initialise API modules
+    const {loadAPIs} = await import("./routes/routes.js");
     await loadAPIs(app);
 
     //Start seeding magnets
-    if (config.get("torrent.enableTorrentSeeding")) {await SeedMediafilesMagnets();}
+    const {default: config} = await import( "config");
+    if (config.get("torrent.enableTorrentSeeding")) {
+        const { SeedMediafilesMagnets } = await import("./lib/torrent.js");
+        await SeedMediafilesMagnets();
+    }
 
     // Show server startup message
+    const { loadConsoleBanner } = await import("./lib/server.js");
     loadConsoleBanner(app);
 
     // Show server startup stactics
+    const { showDBStats } = await import("./lib/database.js");
     console.log(await showDBStats());
 
     // Show server active modules
+    const { loadconfigActiveModules } = await import("./lib/config.js");
     console.log("Active modules: ", loadconfigActiveModules(app).map((module) => module[0]).join(", "));
     
     // Start Express server.
