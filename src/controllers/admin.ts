@@ -9,7 +9,7 @@ import { logHistory, logger } from "../lib/logger.js";
 import { getClientIp, format, getNewDate } from "../lib/utils.js";
 import { ResultMessagev2, ServerStatusMessage } from "../interfaces/server.js";
 import { generatePassword } from "../lib/authorization.js";
-import { dbDelete, dbInsert, dbUpdate } from "../lib/database.js";
+import { dbDelete, dbInsert, dbMultiSelect, dbUpdate } from "../lib/database.js";
 import { allowedFieldNames, allowedFieldNamesAndValues, allowedTableNames, moduleDataReturnMessage, moduleDataKeys } from "../interfaces/admin.js";
 import { parseAuthHeader} from "../lib/authorization.js";
 import { isModuleEnabled, updateLocalConfigKey } from "../lib/config.js";
@@ -24,6 +24,7 @@ import { addNewUsername } from "../lib/register.js";
 import { banRecord } from "../lib/banned.js";
 import { generateInviteCode } from "../lib/invitations.js";
 import { setAuthCookie } from "../lib/frontend.js";
+import { deleteFile } from "../lib/storage/core.js";
 
 let hits = 0;
 /**
@@ -441,9 +442,35 @@ const deleteDBRecord = async (req: Request, res: Response): Promise<Response> =>
         return res.status(400).send(result);
     }
 
+    // Special case for mediafiles table
+    if (table == "mediafiles") {
+        let fileName = await dbMultiSelect(["filename"], "mediafiles", "id = ?", [req.body.id]);
+        fileName = await dbMultiSelect(["filename"], "mediafiles", "filename = ?", [fileName[0].filename], false);
+        if (fileName.length == 0) {
+            const result : ResultMessagev2 = {
+                status: "error",
+                message: "Failed to delete record",
+            };
+            logger.warn("RES -> Record not found" + " | " + getClientIp(req));
+            return res.status(400).send(result);
+        }
+        
+        // Only delete the file if there is only one record with the same filename
+        if (fileName.length == 1) {
+            const delFile = await deleteFile(fileName[0].filename);
+            if (!delFile) {
+                const result : ResultMessagev2 = {
+                    status: "error",
+                    message: "Failed to delete record"
+                };
+                logger.error("RES -> Failed to delete record" + " | " + getClientIp(req));
+                return res.status(500).send(result);
+            }
+        }
+    }
+
     // Delete record from table
     const deletedRecord = await dbDelete(table, ['id'], [req.body.id]);
-
     if(deletedRecord){
         const result : ResultMessagev2 = {
             status: "success",
