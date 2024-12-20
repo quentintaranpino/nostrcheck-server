@@ -67,64 +67,81 @@ const processFile = async(	inputFile: Express.Multer.File,	options: fileData, re
 		let MediaDuration: number = 0;
 		let ConversionDuration : number = 0;
 		options.newFileDimensions = (await setMediaDimensions(options.conversionInputPath, options)).toString()
-		logger.debug("EUREKA: ", options.newFileDimensions);
 
-		const ConversionEngine = initConversionEngine(options);
 
-		ConversionEngine
-			.on("end", async(end) => {
+		if (options.originalmime.startsWith("image")) {
 
-				if (await finalizeFileProcessing(options)) {
-					logger.info(`File processed successfully: ${options.filename} ${ConversionDuration /2} seconds`);
-					resolve(end);
-				}
-				else{
-					reject("Error finalizing file processing");
-				}
-			})
-			.on("error", async (err) => {
+			await initImageConversionEngine(options);
+			if (await finalizeFileProcessing(options)) {
+				logger.info(`File processed successfully: ${options.filename} ${options.filesize} bytes`);
+				resolve(true);
+				return;
+			}
+			else{
+				await deleteLocalFile(options.conversionInputPath);
+				reject("Error finalizing file processing");
+				return;
+			}
+			
+		}else{
 
-				logger.warn(`Error converting file, retrying file conversion: ${options.filename} retry: ${retry}/5`);
-				logger.error(err);
-				retry++
-				await new Promise((resolve) => setTimeout(resolve, 3000));
-				if (!await deleteLocalFile(options.conversionInputPath)){reject(err);}
+			const videConversion = initVideoConversionEngine(options);
 
-				if (retry > 5){
-					logger.error(`Error converting file after 5 retries: ${inputFile.originalname}`);
-					const errorstate =  await dbUpdate('mediafiles','status','error',['id'], [options.fileid]);
-					if (!errorstate) {
-						logger.error("Could not update table mediafiles, id: " + options.fileid, "status: failed");
+			videConversion
+				.on("end", async(end) => {
+
+					if (await finalizeFileProcessing(options)) {
+						logger.info(`File processed successfully: ${options.filename} ${ConversionDuration /2} seconds`);
+						resolve(end);
 					}
+					else{
+						reject("Error finalizing file processing");
+					}
+				})
+				.on("error", async (err) => {
+
+					logger.warn(`Error converting file, retrying file conversion: ${options.filename} retry: ${retry}/5`);
+					logger.error(err);
+					retry++
+					await new Promise((resolve) => setTimeout(resolve, 3000));
+					if (!await deleteLocalFile(options.conversionInputPath)){reject(err);}
+
+					if (retry > 5){
+						logger.error(`Error converting file after 5 retries: ${inputFile.originalname}`);
+						const errorstate =  await dbUpdate('mediafiles','status','error',['id'], [options.fileid]);
+						if (!errorstate) {
+							logger.error("Could not update table mediafiles, id: " + options.fileid, "status: failed");
+						}
+						resolve(err);
+					}
+					processFile(inputFile, options, retry);
 					resolve(err);
-				}
-				processFile(inputFile, options, retry);
-				resolve(err);
 
-			})
-			.on("codecData", (data) => {
-				MediaDuration = parseInt(data.duration.replace(/:/g, ""));
-			})
-			.on("progress", async (data) => {
+				})
+				.on("codecData", (data) => {
+					MediaDuration = parseInt(data.duration.replace(/:/g, ""));
+				})
+				.on("progress", async (data) => {
 
-				const time = parseInt(data.timemark.replace(/:/g, ""));
-				let percent: number = (time / MediaDuration) * 100;
-				ConversionDuration = ConversionDuration + 1;
-				if (percent < 0) {
-					percent = 0;
-				}
-		
-				if (percent %4 > 0 && percent %4 < 1){
-					logger.debug(
-						`Processing : ` +
-							`${options.filename} - ${Number(percent).toFixed(0)} %`
-					);
+					const time = parseInt(data.timemark.replace(/:/g, ""));
+					let percent: number = (time / MediaDuration) * 100;
+					ConversionDuration = ConversionDuration + 1;
+					if (percent < 0) {
+						percent = 0;
+					}
+			
+					if (percent %4 > 0 && percent %4 < 1){
+						logger.debug(
+							`Processing : ` +
+								`${options.filename} - ${Number(percent).toFixed(0)} %`
+						);
 
-				await dbUpdate('mediafiles','percentage',Number(percent).toFixed(0).toString(), ['id'], [options.fileid]);
-				}
-				
-			})
-			.run();
+					await dbUpdate('mediafiles','percentage',Number(percent).toFixed(0).toString(), ['id'], [options.fileid]);
+					}
+					
+				})
+				.run();
+		}
 	
 	});
 
@@ -132,11 +149,10 @@ const processFile = async(	inputFile: Express.Multer.File,	options: fileData, re
 	
 }
 
-const initConversionEngine = (file: fileData) => {
+const initVideoConversionEngine = (file: fileData) => {
 
     const ffmpegEngine = ffmpeg(file.conversionInputPath)
         .outputOption(["-loop 0"]) //Always loop. If is an image it will not apply.
-		.inputOptions('-noautorotate') 
         .setSize(file.newFileDimensions)
         .output(file.conversionOutputPath)
         .toFormat(file.filename.split(".").pop() || "");
@@ -155,6 +171,22 @@ const initConversionEngine = (file: fileData) => {
 	}
 
     return ffmpegEngine;
+}
+
+
+async function initImageConversionEngine(file: fileData) {
+	try {
+		await sharp(file.conversionInputPath).resize({
+		width: parseInt(file.newFileDimensions.split("x")[0]), 
+		height: parseInt(file.newFileDimensions.split("x")[1]),
+		fit: 'cover', 
+		})
+		.webp({ quality: 80 }) 
+		.toFile(file.conversionOutputPath);
+  
+	} catch (error) {
+		logger.debug("Error converting image", error);
+	}
 }
 
 const getUploadType = (req : Request): string  => {
@@ -177,7 +209,7 @@ const getUploadType = (req : Request): string  => {
 
 const getFileMimeType = async (req: Request, file :Express.Multer.File): Promise<string> => {
 
-	let fileType: {mime: string, ext: string} = await fileTypeFromBuffer(file.buffer) || {mime: "", ext: ""};
+	const fileType: {mime: string, ext: string} = await fileTypeFromBuffer(file.buffer) || {mime: "", ext: ""};
 
 	// Try to get mime type from file object.
 	if (fileType.mime == "") fileType.mime = file.mimetype ;
@@ -303,8 +335,8 @@ const setMediaDimensions = async (file:string, options:fileData):Promise<string>
 
 		const mediaDimensions = await getMediaDimensions(file, options);
 
-		let mediaWidth : number = mediaDimensions.width? mediaDimensions.width: 0;
-		let mediaHeight : number = mediaDimensions.height? mediaDimensions.height: 0;
+		const mediaWidth : number = mediaDimensions.width? mediaDimensions.width: 0;
+		const mediaHeight : number = mediaDimensions.height? mediaDimensions.height: 0;
 
 		let newWidth = 640;
 		let newHeight = 480;
