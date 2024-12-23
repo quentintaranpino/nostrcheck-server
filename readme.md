@@ -119,7 +119,7 @@ See plugins [here](https://github.com/quentintaranpino/nostrcheck-api-ts/blob/ma
 - [ ] Multi-server mirroring
 - [ ] Import / Export data
 - [ ] Custom frontend templates
-- [ ] Frontend UI (directory)
+- [x] Frontend UI (directory)
 - [ ] Umbrel appstore integration
 - [ ] Start9 appstore integration
 - [ ] Integrated micro-relay
