@@ -420,10 +420,12 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 
 	if (processFile){
 
-		const procesingURL = app.get("config.media")["returnURL"]
-		filedata.processing_url = filedata.no_transform == true? "" : procesingURL
-		? `${procesingURL}/${filedata.fileid}`
-		: `${filedata.servername}/api/v2/media/${filedata.fileid}`;
+		// Temporary disable returnURL for processing_url
+		// const procesingURL = app.get("config.media")["returnURL"]
+		// filedata.processing_url = filedata.no_transform == true? "" : procesingURL
+		// ? `${procesingURL}/${filedata.fileid}`
+		// : `${filedata.servername}/api/v2/media/${filedata.fileid}`;
+		filedata.processing_url = filedata.no_transform == true? "" : `${filedata.servername}/api/v2/media/${filedata.fileid}`;
 
 		res.status(202)
 
