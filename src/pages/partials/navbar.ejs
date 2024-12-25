@@ -84,10 +84,10 @@
           <div class="picture-container" style="width:40px; height:40px;"></div>
         </a>
         <div class="dropdown-menu dropdown-menu-end">
-          <a href="profile"  <% if(active === 'profile'){ %><%- "class='dropdown-item nav-link active'"%><% } else { %><%- "class='dropdown-item nav-link'"%><%}%>>Profile</a>
+          <a href="/api/v2/profile"  <% if(active === 'profile'){ %><%- "class='dropdown-item nav-link active'"%><% } else { %><%- "class='dropdown-item nav-link'"%><%}%>>Profile</a>
           <% if (request.session.allowed == true) { %>
-            <a href="dashboard" <% if(active === 'dashboard'){ %><%- "class='dropdown-item nav-link active'"%><% } else { %><%- "class='dropdown-item nav-link'"%><%}%>>Dashboard</a>
-            <a href="settings" <% if(active === 'settings'){ %><%- "class='dropdown-item nav-link active'"%><% } else { %><%- "class='dropdown-item nav-link'"%><%}%>>Settings</a>
+            <a href="/api/v2/dashboard" <% if(active === 'dashboard'){ %><%- "class='dropdown-item nav-link active'"%><% } else { %><%- "class='dropdown-item nav-link'"%><%}%>>Dashboard</a>
+            <a href="/api/v2/settings" <% if(active === 'settings'){ %><%- "class='dropdown-item nav-link active'"%><% } else { %><%- "class='dropdown-item nav-link'"%><%}%>>Settings</a>
           <%}%>
           <div class="dropdown-divider"></div>
           <button class="nav-link" type="button" aria-controls="intro" aria-selected="false" aria-label="Logout" onclick="logout()">
@@ -103,19 +103,19 @@
         <a <% if(active === 'home'){ %><%- "class='nav-link active'"%><% } else { %><%- "class='nav-link'"%><%}%> href="/api/v2/">HOME <span class="sr-only">(current)</span></a>
       </li>
       <li id="registerMenu">
-        <a <% if(active === 'register'){ %><%- "class='nav-link active'"%><% } else { %><%- "class='nav-link'"%><%}%> href="register">REGISTER <span class="sr-only">(current)</span></a>
+        <a <% if(active === 'register'){ %><%- "class='nav-link active'"%><% } else { %><%- "class='nav-link'"%><%}%> href="/api/v2/register">REGISTER <span class="sr-only">(current)</span></a>
       </li>
       <li id="galleryMenu">
-        <a <% if(active === 'gallery'){ %><%- "class='nav-link active'"%><% } else { %><%- "class='nav-link'"%><%}%> href="gallery">GALLERY <span class="sr-only">(current)</span></a>
+        <a <% if(active === 'gallery'){ %><%- "class='nav-link active'"%><% } else { %><%- "class='nav-link'"%><%}%> href="/api/v2/gallery">GALLERY <span class="sr-only">(current)</span></a>
       </li>
       <li id="cdnMenu">
-        <a  <% if(active === 'media'){ %><%- "class='nav-link active'"%><% } else { %><%- "class='nav-link'"%><%}%> href="media">UPLOAD</a>
+        <a  <% if(active === 'media'){ %><%- "class='nav-link active'"%><% } else { %><%- "class='nav-link'"%><%}%> href="/api/v2/media">UPLOAD</a>
       </li>   
       <li id="docsMenu">
-        <a <% if(active === 'documentation'){ %><%- "class='nav-link active'"%><% } else { %><%- "class='nav-link'"%><%}%> href="documentation">DOCS <span class="sr-only">(current)</span></a>
+        <a <% if(active === 'documentation'){ %><%- "class='nav-link active'"%><% } else { %><%- "class='nav-link'"%><%}%> href="/api/v2/documentation">DOCS <span class="sr-only">(current)</span></a>
       </li>  
       <li id="directoryMenu">
-        <a <% if(active === 'directory'){ %><%- "class='nav-link active'"%><% } else { %><%- "class='nav-link'"%><%}%> href="directory">DIRECTORY <span class="sr-only">(current)</span></a>
+        <a <% if(active === 'directory'){ %><%- "class='nav-link active'"%><% } else { %><%- "class='nav-link'"%><%}%> href="/api/v2/directory">DIRECTORY <span class="sr-only">(current)</span></a>
       </li>          
     </ul>
   </div>
