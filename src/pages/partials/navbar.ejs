@@ -77,7 +77,7 @@
         </button>
       </li>
       <li class="d-none d-lg-flex">
-        <a <% if (request.session.identifier) { %>style="display: none !important;"<% } %> <% if(active === 'login'){ %><%- "class='nav-link d-none d-lg-flex'"%><% } else { %><%- "class='nav-link '"%><%}%> href="login"><i class="fa-solid fa-user fa-lg me-1"></i></a>
+        <a <% if (request.session.identifier) { %>style="display: none !important;"<% } %> <% if(active === 'login'){ %><%- "class='nav-link d-none d-lg-flex'"%><% } else { %><%- "class='nav-link '"%><%}%> href="/api/v2/login"><i class="fa-solid fa-user fa-lg me-1"></i></a>
       </li>
       <li class="nav-item dropdown d-none d-lg-flex"  <% if (!request.session.identifier) { %>style="display: none !important;"<% } %> >
         <a class="nav-link dropdown-toggle d-flex align-items-center" href="#" id="navbarDropdownMenuLink" role="button" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
