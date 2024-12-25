@@ -82,13 +82,13 @@
 
         if (localStorage.getItem('profileData')){
 
-            document.getElementById('name-input').value = JSON.parse(localStorage.getItem('profileData')).name;
-            document.getElementById('displayName-input').value = JSON.parse(localStorage.getItem('profileData')).display_name;
-            document.getElementById('picture-input').value = JSON.parse(localStorage.getItem('profileData')).picture;
-            document.getElementById('banner-input').value = JSON.parse(localStorage.getItem('profileData')).banner;
-            document.getElementById('website-input').value = JSON.parse(localStorage.getItem('profileData')).website;
-            document.getElementById('nip05-input').value = JSON.parse(localStorage.getItem('profileData')).nip05;
-            document.getElementById('lud16-input').value = JSON.parse(localStorage.getItem('profileData')).lud16;
+            document.getElementById('name-input').value = JSON.parse(localStorage.getItem('profileData')).name != undefined ? JSON.parse(localStorage.getItem('profileData')).name : "";
+            document.getElementById('displayName-input').value = JSON.parse(localStorage.getItem('profileData')).display_name != undefined ? JSON.parse(localStorage.getItem('profileData')).display_name : "";
+            document.getElementById('picture-input').value = JSON.parse(localStorage.getItem('profileData')).picture != undefined ? JSON.parse(localStorage.getItem('profileData')).picture : "";
+            document.getElementById('banner-input').value = JSON.parse(localStorage.getItem('profileData')).banner != undefined ? JSON.parse(localStorage.getItem('profileData')).banner : "";
+            document.getElementById('website-input').value = JSON.parse(localStorage.getItem('profileData')).website != undefined ? JSON.parse(localStorage.getItem('profileData')).website : "";
+            document.getElementById('nip05-input').value = JSON.parse(localStorage.getItem('profileData')).nip05 != undefined ? JSON.parse(localStorage.getItem('profileData')).nip05 : "";
+            document.getElementById('lud16-input').value = JSON.parse(localStorage.getItem('profileData')).lud16 != undefined ? JSON.parse(localStorage.getItem('profileData')).lud16 : "";
             document.getElementById('about-input').value = JSON.parse(localStorage.getItem('profileData')).about != undefined ? JSON.parse(localStorage.getItem('profileData')).about : "";
             document.getElementById('lnRedirect-checkbox').checked = document.getElementById('server-lud16').value != "" ? true : false;
             document.getElementById('lnRedirect-checkbox').value = document.getElementById('server-lud16').value != "" ? true : false;
