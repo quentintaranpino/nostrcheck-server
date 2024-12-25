@@ -347,7 +347,7 @@ const initMediaModal = async (filename, checked, visible, showButtons = true) =>
 
     var mediaModal = new bootstrap.Modal($('#media-modal'));
 
-    MediaData = await loadMediaWithToken('media/' + filename).then(async data => {
+    MediaData = await loadMediaWithToken('/api/v2/media/' + filename).then(async data => {
         return data;
     });
 
