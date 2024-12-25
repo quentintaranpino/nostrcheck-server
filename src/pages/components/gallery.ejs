@@ -163,7 +163,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
         ],
         idField: 'id',
         uniqueId: 'id',
-        url: `media/list/${pubkey}`,
+        url: `/api/v2/media/list/${pubkey}`,
         ajax: function (params) {semaphore.execute(() => fetchTabledata(params))},
         data: [], 
         search: true,
