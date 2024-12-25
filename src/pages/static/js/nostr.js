@@ -140,7 +140,8 @@ const ensureMinimumFields = (content) => {
     picture: null,
     website: "",
     lud16: "",
-    nip05: ""
+    nip05: "",
+    about: "",
   };
   return { ...defaultFields, ...content };
 };
