@@ -267,24 +267,26 @@ const profileNIP05 = <%- JSON.stringify(request.session.metadata.usernames) %>;
     if (localStorage.getItem('profileData')){
       document.getElementById('name-header').innerHTML = JSON.parse(localStorage.getItem('profileData')).display_name || JSON.parse(localStorage.getItem('profileData')).name || "<%= request.session.metadata.usernames[0].username %>";
       
-      if (localStorage.getItem('profileData').nip05 != ''){
+      const profileData = JSON.parse(localStorage.getItem('profileData') || '{}');
+
+      if (profileData.nip05 != ''){
         document.getElementById('nip05-header-row').classList.remove('d-none');
         document.getElementById('nip05-header-text').innerHTML = JSON.parse(localStorage.getItem('profileData')).nip05;
       }
 
-      if (localStorage.getItem('profileData').website != ''){
+      if (profileData.website != ''){
         document.getElementById('website-header-row').classList.remove('d-none');
         document.getElementById('website-header').innerHTML = JSON.parse(localStorage.getItem('profileData')).website;
         document.getElementById('website-header').href = JSON.parse(localStorage.getItem('profileData')).website;
       }
 
-      if (localStorage.getItem('profileData').lud16 != ''){
+      if (profileData.lud16 != ''){
         document.getElementById('lud16-header-row').classList.remove('d-none');
         document.getElementById('lud16-header').innerHTML = JSON.parse(localStorage.getItem('profileData')).lud16;
         document.getElementById('lud16-header').href = `lightning:${JSON.parse(localStorage.getItem('profileData')).lud16}`;
       }
 
-      if (localStorage.getItem('profileData').about != ''){
+      if (profileData.about != ''){
         document.getElementById('about-header-row').classList.remove('d-none');
         document.getElementById('about-header').innerHTML = JSON.parse(localStorage.getItem('profileData')).about;
       }
