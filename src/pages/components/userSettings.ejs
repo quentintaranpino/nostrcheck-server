@@ -243,6 +243,7 @@
             // If LN redirect checkbox is checked, set lud16 to nip05 value inside data for nostr relays
             if (lnCheckbox.checked) data.lud16 = document.getElementById('nip05-input').value;
 
+            console.log('Saving profile data:', data);
             publishProfileData(data, document.getElementById('pubkey-input').value, sk)
                 .then((result) => {
                     console.log(result);
