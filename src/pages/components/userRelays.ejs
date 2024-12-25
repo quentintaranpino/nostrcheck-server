@@ -186,13 +186,17 @@ document.addEventListener('DOMContentLoaded', async (event) => {
                 addRelayToList(relay);
             });
         } else {
-            // Si no hay relays para el usuario, cargar los predeterminados
             console.log("No user relays found. Loading default relays...");
             defaultRelays.forEach((relay) => {
                 addRelayToList(relay);
             });
             document.getElementById("user-relay-list-save").classList.remove("d-none");
             document.getElementById("user-relay-list-add").classList.remove("d-none");
+
+            showMessage(
+                `Default relays loaded. Please save your relays data on relays tab to apply the changes on nostr network.`,
+                'alert-warning', false, 7000
+            );
         }
 
         const checkRelaysOnline = async () => {
@@ -228,6 +232,11 @@ document.addEventListener('DOMContentLoaded', async (event) => {
         });
         document.getElementById("user-relay-list-save").classList.remove("d-none");
         document.getElementById("user-relay-list-add").classList.remove("d-none");
+
+        showMessage(
+                `Default relays loaded. Please save your relays data on relays tab to apply the changes on nostr network.`,
+                'alert-warning', false, 7000
+            );
     });
 
     document.getElementById('addRelay-btn').addEventListener('click', () => {
