@@ -637,6 +637,14 @@
 
     const getFileServerInfo = async (file) => {
 
+             if (!window.nostr) {
+                    showMessage("⚠️ NIP07 browser extension not found", "alert-danger", false);
+                    file.fileData.satoshi = -2;
+                    file.fileData.action = 'error';
+                    $('#' + instance + 'file-table').bootstrapTable('load', f.map(file => file.fileData));
+                    return;
+            }
+
             try {
                 const pubKey = await window.nostr.getPublicKey();
 
