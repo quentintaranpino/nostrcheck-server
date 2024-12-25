@@ -131,7 +131,7 @@ const copyToClipboard = async (object, text) => {
 // Logout function
 const logout = async () => {
   localStorage.removeItem('profileData')
-  window.location.href = 'logout';
+  window.location.href = '/api/v2/logout';
 }
 
 // Get root host URL
