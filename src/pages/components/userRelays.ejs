@@ -143,9 +143,9 @@ const addRelayToList = (relay) => {
 }
 
 document.addEventListener('DOMContentLoaded', async (event) => {
+    const defaultRelays = relays; // Asume que "relays" está cargado desde el otro archivo .js
 
     document.getElementById("addRelay-btn").addEventListener("click", async () => {
-
         const relayBtnValue = document.getElementById("addRelay-btn").innerHTML;
         if (relayBtnValue.includes("spinner-border")) return;
         document.getElementById("addRelay-btn").innerHTML = `<div class="spinner-border spinner-border-sm me-1" role="status"></div> Adding...`;
@@ -153,7 +153,7 @@ document.addEventListener('DOMContentLoaded', async (event) => {
         let relayUrl = document.getElementById("input-add-relay").value;
         if (relayUrl == "") return;
         if (!relayUrl.startsWith("wss://")) relayUrl = `wss://${relayUrl}`;
-        const newRelay = {  id : userRelays.length, 
+        const newRelay = {  id: userRelays.length, 
                             url: relayUrl, 
                             read: true, 
                             write: true, 
@@ -163,10 +163,10 @@ document.addEventListener('DOMContentLoaded', async (event) => {
                             pubkey: '', 
                             contact: '', 
                             supported_nips: [], 
-                            enabled : true };
-        console.log(newRelay)
+                            enabled: true };
+        console.log(newRelay);
         userRelays.push(newRelay);
-        await getRelayData(newRelay)
+        await getRelayData(newRelay);
         await addRelayToList(newRelay);
         document.getElementById("input-add-relay").value = "";
         document.getElementById("addRelay-btn").innerHTML = `<i class="fas fa-solid fa-plus"></i> Add new relay`;
@@ -175,29 +175,35 @@ document.addEventListener('DOMContentLoaded', async (event) => {
     document.getElementById("saveRelayData-btn").addEventListener("click", async () => {
         saveRelayData();
     });
-  
-    await getRelaysFromUser("<%= request.session.metadata.pubkey %>").then((relays) => {
 
+    await getRelaysFromUser("<%= request.session.metadata.pubkey %>").then((relays) => {
         document.getElementById("user-relay-list-loading").remove();
 
         if (relays.length > 0) {
             document.getElementById("user-relay-list-save").classList.remove("d-none");
             document.getElementById("user-relay-list-add").classList.remove("d-none");
+            relays.forEach((relay) => {
+                addRelayToList(relay);
+            });
+        } else {
+            // Si no hay relays para el usuario, cargar los predeterminados
+            console.log("No user relays found. Loading default relays...");
+            defaultRelays.forEach((relay) => {
+                addRelayToList(relay);
+            });
+            document.getElementById("user-relay-list-save").classList.remove("d-none");
+            document.getElementById("user-relay-list-add").classList.remove("d-none");
         }
 
-        relays.forEach((relay) => {
-            addRelayToList(relay);
-        });
-        
         const checkRelaysOnline = async () => {
             for (const relay of userRelays) {
                 const r = await isRelayOnline(relay.url);
                 if (r.online) {
                     document.getElementById(`user-relay-online-${relay.id}`).classList.remove('text-danger');
-                    if (r.ping < 500){
+                    if (r.ping < 500) {
                         document.getElementById(`user-relay-online-${relay.id}`).classList.add('text-success');
                         document.getElementById(`user-relay-online-${relay.id}`).classList.remove('text-warning');
-                    }else{
+                    } else {
                         document.getElementById(`user-relay-online-${relay.id}`).classList.add('text-warning');
                         document.getElementById(`user-relay-online-${relay.id}`).classList.remove('text-success');
                     }
@@ -212,6 +218,16 @@ document.addEventListener('DOMContentLoaded', async (event) => {
         };
 
         checkRelaysOnline();
+    }).catch((error) => {
+        console.error("Error fetching user relays:", error);
+        document.getElementById("user-relay-list-loading").remove();
+
+        console.log("Error fetching relays. Loading default relays...");
+        defaultRelays.forEach((relay) => {
+            addRelayToList(relay);
+        });
+        document.getElementById("user-relay-list-save").classList.remove("d-none");
+        document.getElementById("user-relay-list-add").classList.remove("d-none");
     });
 
     document.getElementById('addRelay-btn').addEventListener('click', () => {
@@ -223,8 +239,7 @@ document.addEventListener('DOMContentLoaded', async (event) => {
         button.addEventListener('click', function() {
             relaysUnsaved = true;
         });
-    })
-
+    });
 });
 
 window.addEventListener('beforeunload', (event) => {
