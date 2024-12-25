@@ -217,7 +217,6 @@ const getBalance = async (accountid: number) : Promise<number> => {
     }
 
     if (!accountid) {
-        logger.warn("No accountid provided for balance check")
         return 0;
     }
 
