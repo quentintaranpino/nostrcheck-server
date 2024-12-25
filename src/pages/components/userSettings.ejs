@@ -173,6 +173,19 @@
             });
         });
 
+        // If no NIP-05 address is set, suggest the first one from the profileNIP05 array
+        const nip05Input = document.getElementById('nip05-input');
+        if (!nip05Input.value && profileNIP05.length > 0) {
+            const defaultSuggestion = `${profileNIP05[0].username}@${profileNIP05[0].domain}`;
+            nip05Input.value = defaultSuggestion;
+            settingsUnsaved = true;
+
+            showMessage(
+                `✅ NIP-05 address has been set for your user: ${defaultSuggestion}. Please save your profile data on settings tab to apply the changes on the nostr network.`,
+                'alert-warning', false, 7000
+            );
+        }
+
     });
 
     window.addEventListener('beforeunload', (event) => {
