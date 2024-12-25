@@ -89,7 +89,7 @@
             document.getElementById('website-input').value = JSON.parse(localStorage.getItem('profileData')).website;
             document.getElementById('nip05-input').value = JSON.parse(localStorage.getItem('profileData')).nip05;
             document.getElementById('lud16-input').value = JSON.parse(localStorage.getItem('profileData')).lud16;
-            document.getElementById('about-input').value = JSON.parse(localStorage.getItem('profileData')).about;
+            document.getElementById('about-input').value = JSON.parse(localStorage.getItem('profileData')).about != undefined ? JSON.parse(localStorage.getItem('profileData')).about : "";
             document.getElementById('lnRedirect-checkbox').checked = document.getElementById('server-lud16').value != "" ? true : false;
             document.getElementById('lnRedirect-checkbox').value = document.getElementById('server-lud16').value != "" ? true : false;
             if(document.getElementById('server-lud16').value != "") document.getElementById('lnRedirect-help-text').classList.remove('d-none');
