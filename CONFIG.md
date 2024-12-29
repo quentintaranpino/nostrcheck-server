@@ -238,17 +238,28 @@ The storage path is the location where the data will be stored. This could be a 
 
 ```json
 
-"payments" : {
-	"paymentProvider": "getalby",
-	"satoshi" : {
-			"mediaMaxSatoshi": 1000,
-			"registerMaxSatoshi": 1000,
-	},
-	"LNAddress": "nostrcheckme@getalby.com",
-	"getalby" : {
-	"authToken": "",
-	},
-},
+ "payments": {
+        "paymentProvider": "nwc",
+        "LNAddress": "quentintaranpino@getalby.com",
+        "satoshi": {
+            "mediaMaxSatoshi": "5001",
+            "registerMaxSatoshi": "9900"
+        },
+        "paymentProviders": {
+            "lnbits": {
+                "nodeUrl": "http://localhost:5000",
+                "readKey": "123345235235"
+            },
+            "nwc": {
+                "url": "nostr+walletconnect://..."
+            }
+        },
+        "checkInterval": 10000,
+        "invoicePaidInterval": "60",
+        "allowUnpaidFiles": true,
+        "allowUnpaidUploads": true,
+        "sendMessageToPubkey": false
+    },
 
 ```
 
@@ -259,8 +270,6 @@ The paymentProvider field specifies the service used to process payments. If it'
 The satoshi field contains settings for maximum payment amounts for different types of transactions. For example, mediaMaxSatoshi could be the maximum amount of satoshis that a user can pay for a media file, and registerMaxSatoshi could be the maximum amount for user registration.
 
 The LNAddress field is the Lightning Network address for receiving payments.
-
-The getalby field contains settings specific to the Getalby payment provider. In this case, it includes an authToken for authenticating with the Getalby service. This token should be kept secret and not shared publicly.
 
 This configuration ensures that the application has the necessary information to process payments, set payment limits, and interact with the chosen payment provider.
 

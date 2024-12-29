@@ -1,10 +1,10 @@
 <div id="settingsPayments">
     <h3 class="mt-4">Payments</h3>
     <form class="form mx-auto">
-        <p> In this section, you can configure the LN payment provider of your server. Currently only GetAlby is supported. 
+        <p> In this section, you can configure the LN payment provider of your server. Currently only Nostr wallet connect and LNBits are supported. 
         </p>
         <label for="payments.provider" class="mt-2 mb-1 fw-bold">Payment provider</label>
-        <p>Choose the payment provider for your server. Currently only <a href="https://lnbits.com/" target="_blank">LNbits</a> and <a href="https://getalby.com/" target="_blank">Alby</a> are supported.
+        <p>Choose the payment provider for your server. Currently only <a href="https://lnbits.com/" target="_blank">LNbits</a> and <a href="https://nwc.dev/" target="_blank">Nostr wallet connect</a> are supported.
         </p>
         <div class="col-12 col-md-4">
             <select id="payments.paymentProvider" name="payments.paymentProvider" class="form-select">
@@ -121,15 +121,15 @@
             <h4 class="mt-4">Payment providers settings</h2>
             <p> In this section, you can configure the payment provider settings for your server. Currently only GetAlby and LNbits are supported.
             </p>
-            <h5> Alby settings</h5>
-            <label for="payments.getalby.paymentProviders.authToken" class="mt-1 mb-1 fw-bold">authToken</label>
-            <p>Specify the authToken for GetAlby payment provider.</p>
+            <h5> Nostr wallet connect settings</h5>
+            <label for="payments.paymentProviders.nwc.url" class="mt-1 mb-1 fw-bold">Url:</label>
+            <p>Specify the nostr wallet connect url</p>
             <input  type="text" 
-                    id="payments.paymentProviders.getalby.authToken" 
-                    name="payments.paymentProviders.getalby.authToken" 
+                    id="payments.paymentProviders.nwc.url" 
+                    name="payments.paymentProviders.nwc.url" 
                     class="form-control" 
-                    value="<%= locals.settingsPayments['paymentProviders']['getalby']['authToken'] %>" 
-                    placeholder="GetAlby authToken" 
+                    value="<%= locals.settingsPayments['paymentProviders']['nwc']['url'] %>" 
+                    placeholder="nwc url" 
                     required
                     >
             <h5 class="mt-4"> LNbits settings</h5>

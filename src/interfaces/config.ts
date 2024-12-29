@@ -206,12 +206,12 @@ const defaultConfig = {
 		"allowUnpaidUploads": true,
 		"sendMessageToPubkey": false,
 		"paymentProviders": {
-			"getalby": {
-				"authToken": "",
-			},
 			"lnbits": {
 				"nodeUrl": "",
 				"readKey": "",
+			},
+			"nwc": {
+				"url": "",
 			},
 		}
 

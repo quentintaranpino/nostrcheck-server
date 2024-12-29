@@ -6,7 +6,7 @@ import { logger } from "../logger.js";
 import { sendMessage } from "../nostr/NIP04.js";
 import { getNewDate } from "../utils.js";
 import { generateLUD06Invoice } from "./LUD06.js";
-import { isInvoicePaidGetAlby } from "./getalby.js";
+import { isInvoicePaidNwc } from "./nwc.js";
 import { generateLNBitsInvoice, isInvoicePaidLNbits } from "./lnbits.js";
 
 const checkTransaction = async (transactionid : string, originId: string, originTable : string, size: number, pubkey : string, maxSatoshi : number = 0): Promise<transaction> => {
@@ -541,7 +541,7 @@ const isInvoicePaid = async (paymentHash: string) : Promise<{paiddate : string, 
         return {paiddate: "", preimage: ""};
     }
 
-    return app.get("config.payments")["paymentProvider"] == 'lnbits' ? await isInvoicePaidLNbits(paymentHash) : await isInvoicePaidGetAlby(paymentHash);
+    return app.get("config.payments")["paymentProvider"] == 'lnbits' ? await isInvoicePaidLNbits(paymentHash) : await isInvoicePaidNwc(paymentHash);
 
 }
 
