@@ -107,7 +107,7 @@
                 </div>
             </div>
         </div>
-        <label for="payments.LNAddress" class="mt-4 mb-1 fw-bold"> LN address</label>
+        <label for="payments.LNAddress" class="mt-3 mb-1 fw-bold"> LN address</label>
         <p>Specify the LN address for payment provider.</p>
         <input  type="text" 
                 id="payments.LNAddress" 
@@ -119,22 +119,29 @@
                 >
         <div>
             <h4 class="mt-4">Payment providers settings</h2>
-            <p> In this section, you can configure the payment provider settings for your server. Currently only GetAlby and LNbits are supported.
+            <p> In this section, you can configure the payment provider settings for your server. You can choose between Nostr wallet connect and LNbits.
             </p>
-            <h5> Nostr wallet connect settings</h5>
-            <label for="payments.paymentProviders.nwc.url" class="mt-1 mb-1 fw-bold">Url:</label>
-            <p>Specify the nostr wallet connect url</p>
-            <input  type="text" 
-                    id="payments.paymentProviders.nwc.url" 
-                    name="payments.paymentProviders.nwc.url" 
-                    class="form-control" 
-                    value="<%= locals.settingsPayments['paymentProviders']['nwc']['url'] %>" 
-                    placeholder="nwc url" 
-                    required
-                    >
+            <h5 class="mt-4"> Nostr wallet connect settings</h5>
+            <label for="payments.paymentProviders.nwc.url" class="mt-1 mb-1 fw-bold">URL</label>
+            <p>Specify the nostr wallet connect url </p>
+            <div class="input-group">
+                <input  type="password" 
+                id="payments.paymentProviders.nwc.url" 
+                name="payments.paymentProviders.nwc.url" 
+                class="form-control mb-2" 
+                defaultValue="<%= locals.settingsPayments['paymentProviders']['nwc']['url'] %>"
+                value="<%= locals.settingsPayments['paymentProviders']['nwc']['url'] %>" 
+                placeholder="Nostr wallet connect url"
+                required 
+                >
+                <button type="button" class="toggle-password d-none"
+                aria-label="Show secret key as plain text. Warning: this will display your password on the screen.">
+                </button>
+            </div>
+        </div>
             <h5 class="mt-4"> LNbits settings</h5>
             <label for="payments.lnbits.nodeUrl" class="mt-1 mb-1 fw-bold">Node URL</label>
-            <p>Specify the url for LNbits payment provider node. See <a href="https://github.com/lnbits/lnbits/blob/main/docs/guide/installation.md" target="_blank">Installation guide</a> for more information.</p>
+            <p>Specify the url for LNbits payment provider node.</p>
             <input  type="text" 
                     id="payments.paymentProviders.lnbits.nodeUrl" 
                     name="payments.paymentProviders.lnbits.nodeUrl" 
@@ -145,14 +152,20 @@
                     >
             <label for="payments.lnbits.readKey" class="mt-1 mb-1 fw-bold">readKey</label>
             <p>Specify the readKey for LNbits payment provider.</p>
-            <input  type="text" 
-                    id="payments.paymentProviders.lnbits.readKey" 
-                    name="payments.paymentProviders.lnbits.readKey" 
-                    class="form-control" 
-                    value="<%= locals.settingsPayments['paymentProviders']['lnbits']['readKey'] %>" 
-                    placeholder="LNbits readKey" 
-                    required
-                    >
+            <div class="input-group">
+                <input  type="password" 
+                id="payments.paymentProviders.lnbits.readKey" 
+                name="payments.paymentProviders.lnbits.readKey" 
+                class="form-control mb-2" 
+                defaultValue="<%= locals.settingsPayments['paymentProviders']['lnbits']['readKey'] %>" 
+                value="<%= locals.settingsPayments['paymentProviders']['lnbits']['readKey'] %>" 
+                placeholder="LNbits readKey" 
+                required 
+                >
+                <button type="button" class="toggle-password d-none"
+                aria-label="Show secret key as plain text. Warning: this will display your password on the screen.">
+                </button>
+            </div>
         </div>
         <div class="col-12 col-md-3 mb-5 mt-4 pb-5 pb-lg-0 mb-lg-2">
             <button class="btn btn-lg mb-4 btn-primary w-100" name="Submit" type="button" onclick="saveSettings()">Save</button>
