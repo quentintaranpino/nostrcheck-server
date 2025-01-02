@@ -19,7 +19,7 @@ const generateNwcInvoice = async (LNAddress: string, amount:number) : Promise<in
         const nwc = new NWC.NWCClient({
             nostrWalletConnectUrl: `${app.get("config.payments")["paymentProviders"]["nwc"]["url"]}`,
         });
-        const response = await nwc.makeInvoice({amount: amount, description: ""});
+        const response = await nwc.makeInvoice({amount: amount * 1000, description: ""});
 
         if (!response || response == undefined || response.invoice == "") {
             logger.error("Error checking invoice status");
