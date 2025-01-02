@@ -5,8 +5,7 @@ import { dbDelete, dbInsert, dbMultiSelect, dbSelect, dbUpdate } from "../databa
 import { logger } from "../logger.js";
 import { sendMessage } from "../nostr/NIP04.js";
 import { getNewDate } from "../utils.js";
-import { generateLUD06Invoice } from "./LUD06.js";
-import { isInvoicePaidNwc } from "./nwc.js";
+import { generateNwcInvoice, isInvoicePaidNwc } from "../nostr/NIP47.js";
 import { generateLNBitsInvoice, isInvoicePaidLNbits } from "./lnbits.js";
 
 const checkTransaction = async (transactionid : string, originId: string, originTable : string, size: number, pubkey : string, maxSatoshi : number = 0): Promise<transaction> => {
@@ -84,7 +83,7 @@ const generateInvoice = async (accountid: number, satoshi: number, originTable :
     if (satoshi == 0) return emptyInvoice;
 
     const lnurl = `https://${app.get("config.payments")["LNAddress"].split("@")[1]}/.well-known/lnurlp/${app.get("config.payments")["LNAddress"].split("@")[0]}`
-    const generatedInvoice = app.get("config.payments")["paymentProvider"] == 'lnbits' ? await generateLNBitsInvoice(satoshi, "") : await generateLUD06Invoice(lnurl, satoshi);
+    const generatedInvoice = app.get("config.payments")["paymentProvider"] == 'lnbits' ? await generateLNBitsInvoice(satoshi, "") : await generateNwcInvoice(lnurl, satoshi);
     if (generatedInvoice.paymentRequest == "") {return emptyInvoice}
     
     generatedInvoice.description = "Invoice for: " + originTable + ":" + originId;
@@ -364,7 +363,7 @@ const getTransaction = async (transactionid: string) : Promise<transaction> => {
     // If transaction expirydate is passed we generate a new LN invoice
     if (transaction.type == "invoice" && transaction.expiryDate < getNewDate()) {
         const lnurl = `https://${app.get("config.payments")["LNAddress"].split("@")[1]}/.well-known/lnurlp/${app.get("config.payments")["LNAddress"].split("@")[0]}`
-        const inv = app.get("config.payments")["paymentProvider"] == 'lnbits' ? await generateLNBitsInvoice(transaction.satoshi, "") : await generateLUD06Invoice(lnurl, transaction.satoshi);
+        const inv = app.get("config.payments")["paymentProvider"] == 'lnbits' ? await generateLNBitsInvoice(transaction.satoshi, "") : await generateNwcInvoice(lnurl, transaction.satoshi);
         transaction.paymentRequest = inv.paymentRequest;
         transaction.paymentHash = inv.paymentHash;
         transaction.createdDate = inv.createdDate;
