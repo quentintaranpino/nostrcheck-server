@@ -17,7 +17,7 @@ MEDIAPATH="files/"
 PUBKEY=""
 SECRETKEY=""
 REPO_URL="https://github.com/quentintaranpino/nostrcheck-server.git"
-REPO_BRANCH="0.6.0"
+REPO_BRANCH="main"
 PACKAGES="nginx git redis-server mariadb-server mariadb-client ffmpeg jq certbot python3-certbot-nginx python3 python3-pip python3-dev python3-venv pkg-config libjpeg-dev zlib1g-dev libssl-dev"
 
 # Python environment variables
