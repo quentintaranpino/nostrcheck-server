@@ -25,7 +25,7 @@ In either case, all parameters can be modified using the settings page in the se
 To make a standalone installation you can use the following script. You can find the code [here](https://github.com/quentintaranpino/nostrcheck-api-ts/blob/main/scripts/install.sh)
 
 ```
-curl https://github.com/quentintaranpino/nostrcheck-server/blob/0376249ccb37b0c158bad6a8bf76d2f0a8c986cd/scripts/install.sh --output install.sh && chmod +x install.sh && ./install.sh
+curl https://raw.githubusercontent.com/quentintaranpino/nostrcheck-server/refs/heads/main/scripts/install.sh --output install.sh && chmod +x install.sh && ./install.sh
 ```
 
 ### Installation (docker) 
