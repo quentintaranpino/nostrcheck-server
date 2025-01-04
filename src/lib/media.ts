@@ -287,18 +287,16 @@ const standardMediaConversion = (filedata : fileData , file:Express.Multer.File)
 
 }
 
-const getMediaDimensions = async (file: string, fileData: { originalmime: string }): Promise<{ width: number, height: number }> => {
+const getMediaDimensions = async (file: string, fileData: { originalmime: string }): Promise<{ width: number; height: number }> => {
+	
+    if (file === "" || fileData === undefined) {
+        logger.error("Error processing file: file or fileData is empty");
+        return { width: 640, height: 480 };
+    }
 
-	if (file == "" || fileData == undefined) {
-		logger.error("Error processing file: file or fileData is empty");
-		return { width: 640, height: 480 };
-	}
+    if (!fileData.originalmime.startsWith("image") && !fileData.originalmime.startsWith("video")) return { width: 0, height: 0 };
 
-	if (!fileData.originalmime.startsWith("image") && !fileData.originalmime.startsWith("video")) {
-		return { width: 0, height: 0 };
-	}
-
-    return new Promise<{ width: number, height: number }>(async (resolve) => {
+    return new Promise<{ width: number; height: number }>(async (resolve) => {
         try {
             if (fileData.originalmime.startsWith("image")) {
 				const imageInfo = await sharp(file).rotate().metadata();
@@ -307,14 +305,22 @@ const getMediaDimensions = async (file: string, fileData: { originalmime: string
             } else {
                 ffmpeg.ffprobe(file, (err, metadata) => {
                     if (err) {
-                        console.error("Could not get media dimensions of file: " + file + " using default min width (640px)");
+                        console.error("Could not get media dimensions of file: " + file + " using defaults (640 x 480)");
                         resolve({ width: 640, height: 480 });
                     } else {
                         const videoStream = metadata.streams.find(stream => stream.codec_type === 'video');
                         if (videoStream) {
-                            resolve({ width: videoStream.width? videoStream.width: 640, height: videoStream.height? videoStream.height: 480 });
+
+							let width = videoStream?.width || 640;
+							let height = videoStream?.height || 480;
+							const rotation = videoStream?.rotation || "0";
+					
+							if (rotation === "-90" || rotation === "90") [width, height] = [height, width];
+						
+                            resolve({ width, height });
+
                         } else {
-                            logger.error("Could not get media dimensions of file: " + file + " using default min width (640px)");
+                            logger.error(`Could not get media dimensions of file: ${file}, using defaults (640 x 480)`);
                             resolve({ width: 640, height: 480 });
                         }
                     }
@@ -325,7 +331,7 @@ const getMediaDimensions = async (file: string, fileData: { originalmime: string
             resolve({ width: 640, height: 480 });
         }
     });
-}
+};
 
 
 const setMediaDimensions = async (file:string, options:fileData):Promise<string> => {
