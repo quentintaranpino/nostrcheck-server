@@ -9,6 +9,7 @@ import { rateLimit } from 'express-rate-limit'
 import { localUserMetadata } from "../interfaces/frontend.js";
 import app from "../app.js";
 import cookieParser from 'cookie-parser';
+import { exit } from "process";
 
 declare module 'express-session' {
 	interface Session {
@@ -55,7 +56,8 @@ const checkSessionSecret = async(): Promise<string> => {
 
         if (await updateLocalConfigKey("session.secret", newSecret)){
             logger.debug("session.secret updated in config file");
-            return newSecret;
+            console.info("Config file updated with new session secret default fields. Please restart the server");
+            exit(3);
         }
 
     }{

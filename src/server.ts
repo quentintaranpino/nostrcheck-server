@@ -6,6 +6,10 @@ const startServer = async () => {
     await prepareApp();
     const { default: app } = await import("./app.js");
 
+    // Initialise session cookies
+    const { initSession } = await import("./lib/session.js");
+    await initSession(app);
+
     // Initialise Database
     const { initDatabase } = await import("./lib/database.js");
     await initDatabase();
@@ -13,10 +17,6 @@ const startServer = async () => {
     // Migration from 0.5.0.
     const { migrateDBLocalpath } = await import("./controllers/config.js");
     migrateDBLocalpath();
-
-    // Initialise session cookies
-    const { initSession } = await import("./lib/session.js");
-    await initSession(app);
 
     // Initialise API modules
     const { loadAPIs } = await import("./routes/routes.js");
