@@ -9,7 +9,7 @@ readonly version="0.2.6.5"
 readonly date="20240914"
 
 # Variables
-NODE_MAJOR=21
+NODE_MAJOR=20
 HOST=""
 DB="nostrcheck"
 USER="nostrcheck"
