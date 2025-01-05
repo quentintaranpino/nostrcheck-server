@@ -100,6 +100,7 @@ export const loadFrontendEndpoint = async (app: Application, version: string): P
 		}else if (await isPubkeyValid(req.session.identifier, true) == false){
 			res.redirect("/api/v2/");
 		}else{
+			if (await isFirstUse(req,res)){logger.info("First use detected. Showing alert on frontend", "|", getClientIp(req))}
 			loadDashboardPage(req,res,version);
 		}
 	});
@@ -111,6 +112,7 @@ export const loadFrontendEndpoint = async (app: Application, version: string): P
 		}else if (await isPubkeyValid(req.session.identifier, true) == false){
 			res.redirect("/api/v2/");
 		}else{
+			if (await isFirstUse(req,res)){logger.info("First use detected. Showing alert on frontend", "|", getClientIp(req))}
 			loadSettingsPage(req,res,version);
 		}
 	});
@@ -122,6 +124,7 @@ export const loadFrontendEndpoint = async (app: Application, version: string): P
 		}else if (await isPubkeyValid(req.session.identifier, false) == false){
 			res.redirect("/api/v2/");
 		}else{
+			if (await isFirstUse(req,res)){logger.info("First use detected. Showing alert on frontend", "|", getClientIp(req))}
 			loadProfilePage(req,res,version);
 		}
 	});
