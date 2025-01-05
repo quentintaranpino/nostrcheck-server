@@ -4,7 +4,7 @@ services:
   app:
     networks:
     - localnet
-    image: nostrcheckme/nostrcheck-server:latest
+    image: nostrcheckme/nostrcheck-server:testing
     build: .
     depends_on:
       - mariadb
