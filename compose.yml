@@ -5,7 +5,6 @@ services:
     networks:
     - localnet
     image: nostrcheckme/nostrcheck-server:testing
-    build: .
     depends_on:
       - mariadb
       - redis
