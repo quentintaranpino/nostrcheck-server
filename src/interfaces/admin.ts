@@ -2,6 +2,7 @@
 const allowedTableNames = ["registered", "mediafiles", "lightning", "domains", "banned", "invitations"];
 const allowedFieldNames = [ "allowed", 
                             "active", 
+                            "banned",
                             "visibility", 
                             "comments", 
                             "username", 
@@ -23,6 +24,7 @@ const allowedFieldNames = [ "allowed",
 const allowedFieldNamesAndValues = [
     {field: "allowed", values: [0, 1]},
     {field: "active", values: [0, 1]},
+    {field: "banned", values: [0, 1]},
     {field: "visibility", values: [0, 1]},
     {field: "checked", values: [0, 1]},
     {field: "comments", values: ["string"]},
