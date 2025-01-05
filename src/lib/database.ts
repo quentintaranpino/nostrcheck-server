@@ -481,8 +481,12 @@ const initDatabase = async (): Promise<void> => {
 			logger.fatal("Error creating public username");
 			process.exit(1);
 		}
+	}
 
-		app.set("firstUse", true); 
+	// Check if the registered table only has the public user and activate firstUse if so.
+	const registeredUsers = await dbMultiSelect(["username"], "registered", "active = 1", [], false);
+	if (registeredUsers.length === 1 && registeredUsers[0]?.username === "public"){
+		app.set("firstUse", true);
 	}
 
 	// Check if public lightning address exist on lightning table and create it if not.

@@ -47,8 +47,6 @@ export const loadFrontendEndpoint = async (app: Application, version: string): P
 			res.redirect("/api/v2/");
 		} else {
 			if (await isFirstUse(req,res)) {
-				// Set first use and redirect to frontend to show the alert
-				app.set("firstUse", true);
 				res.redirect("/api/v2/");
 			} else {
 				loadLoginPage(req, res, version);

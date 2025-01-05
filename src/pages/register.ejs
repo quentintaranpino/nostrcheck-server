@@ -8,5 +8,11 @@
     </main>
     <%- include('./partials/footer', {active:'register'}); %>
     <%- include('./components/modals/alert-modal', {"objectId":"register"}); %>
+    <%- include('./components/modals/message-modal', {"object":"fisrtUse"}); %>
   </body>
+  <script>
+    if ("<%= locals.firstUse %>" != undefined && "<%= locals.firstUse %>" != null && "<%= locals.firstUse %>" != "") {
+      initMessageModal("#fisrtUse", "<%- locals.firstUse %>", "Welcome to your sovereignty");
+    }
+  </script>
 </html>

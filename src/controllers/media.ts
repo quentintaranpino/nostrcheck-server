@@ -35,7 +35,7 @@ import { loadCdnPage } from "./frontend.js";
 import { getBannedMediaFile, isContentBanned } from "../lib/banned.js";
 import { mirrorFile } from "../lib/blossom/BUD04.js";
 import { executePlugins } from "../lib/plugins/core.js";
-import { setAuthCookie } from "../lib/frontend.js";
+import { isFirstUse, setAuthCookie } from "../lib/frontend.js";
 
 const uploadMedia = async (req: Request, res: Response, version:string): Promise<Response> => {
 
@@ -512,6 +512,7 @@ const getMedia = async (req: Request, res: Response, version:string) => {
 
 	// CDN home page
 	if (req.params.param1 == undefined && req.params.param2 == undefined) {
+		if (await isFirstUse(req,res)){logger.info("First use detected. Showing alert on frontend", "|", getClientIp(req))}
 		loadCdnPage(req, res, version) 
 		return;
 	}
