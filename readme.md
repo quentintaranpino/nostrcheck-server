@@ -67,7 +67,7 @@ curl https://raw.githubusercontent.com/quentintaranpino/nostrcheck-server/refs/h
 To install and run the server using docker you can use the following script.
 
 ```bash
-git clone https://github.com/quentintaranpino/nostrcheck-api-ts.git && cd nostrcheck-api-ts && sudo docker-compose up -d
+git clone https://github.com/quentintaranpino/nostrcheck-server.git && cd nostrcheck-server && sudo docker-compose up -d
 
 ```
 
