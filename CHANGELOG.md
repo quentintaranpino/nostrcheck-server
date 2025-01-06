@@ -13,4 +13,6 @@
 - Banneable pubkeys and files.
 - New file types supported.
 - User profile page. Nostr profile update.
+- Plugins engine
+- Invites engine
 
