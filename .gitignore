@@ -13,6 +13,7 @@ dist
 
 logs/*
 media/*
+files/*
 tmp/*
 config/local.json*
 nostrcheck-api.log*
