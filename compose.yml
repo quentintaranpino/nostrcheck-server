@@ -13,6 +13,7 @@ services:
       - ./files:/usr/src/app/files
       - ./resources:/usr/src/app/resources
       - ./config:/usr/src/app/config
+      - ./plugins:/usr/src/app/plugins
     restart: always
     environment:
       DATABASE_HOST: "mariadb"
