@@ -10,7 +10,7 @@ services:
       - mariadb
       - redis
     volumes:
-      - ./media:/usr/src/app/media
+      - ./files:/usr/src/app/files
       - ./resources:/usr/src/app/resources
       - ./config:/usr/src/app/config
     restart: always
