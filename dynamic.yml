@@ -1,0 +1,121 @@
+http:
+  routers:
+    # Route for hash-based paths
+    app-hash:
+      rule: >
+        PathPrefix(`/`) &&
+        Regex(`^/([a-fA-F0-9]{64})(?:\\.(\\w+))?$|^/([a-fA-F0-9]{64})/([a-fA-F0-9]{64})(?:\\.(\\w+))?$`)
+      entryPoints:
+        - web
+      service: app
+      middlewares:
+        - replacepathregex-hash
+
+    # Route for /nostr.json
+    app-nostrjson:
+      rule: Path(`/ .well-known/nostr.json`)
+      entryPoints:
+        - web
+      service: app
+      middlewares:
+        - replacepath-nostrjson
+
+    # Route for /nip96.json
+    app-nip96:
+      rule: Path(`/ .well-known/nostr/nip96.json`)
+      entryPoints:
+        - web
+      service: app
+      middlewares:
+        - replacepath-nip96
+
+    # Route for /media
+    app-media:
+      rule: PathPrefix(`/media`)
+      entryPoints:
+        - web
+      service: app
+      middlewares:
+        - replacepathregex-media
+
+    # Route for /upload
+    app-upload:
+      rule: PathPrefix(`/upload`)
+      entryPoints:
+        - web
+      service: app
+      middlewares:
+        - replacepathregex-upload
+
+    # Route for /list
+    app-list:
+      rule: PathPrefix(`/list`)
+      entryPoints:
+        - web
+      service: app
+      middlewares:
+        - replacepathregex-list
+
+    # Route for /mirror
+    app-mirror:
+      rule: PathPrefix(`/mirror`)
+      entryPoints:
+        - web
+      service: app
+      middlewares:
+        - replacepathregex-mirror
+
+    # Route for /lnurlp
+    app-lightning:
+      rule: Path(`/ .well-known/lnurlp/`)
+      entryPoints:
+        - web
+      service: app
+      middlewares:
+        - replacepath-lightning
+
+  middlewares:
+    # Middleware for hash paths
+    replacepathregex-hash:
+      replacePathRegex:
+        regex: "^/([a-fA-F0-9]{64})(?:\\.(\\w+))?$|^/([a-fA-F0-9]{64})/([a-fA-F0-9]{64})(?:\\.(\\w+))?$"
+        replacement: "/api/v2/media/$$1$$3$$4"
+
+    # Middleware for /nostr.json
+    replacepath-nostrjson:
+      replacePath:
+        path: "/api/v2/nostraddress"
+
+    # Middleware for /nip96.json
+    replacepath-nip96:
+      replacePath:
+        path: "/api/v2/nip96"
+
+    # Middleware for /media
+    replacepathregex-media:
+      replacePathRegex:
+        regex: "^/media/(.*)"
+        replacement: "/api/v2/media/$$1"
+
+    # Middleware for /upload
+    replacepathregex-upload:
+      replacePathRegex:
+        regex: "^/upload/(.*)"
+        replacement: "/api/v2/media/upload/$$1"
+
+    # Middleware for /list
+    replacepathregex-list:
+      replacePathRegex:
+        regex: "^/list/(.*)"
+        replacement: "/api/v2/media/list/$$1"
+
+    # Middleware for /mirror
+    replacepathregex-mirror:
+      replacePathRegex:
+        regex: "^/mirror/(.*)"
+        replacement: "/api/v2/media/mirror/$$1"
+
+    # Middleware for /lnurlp
+    replacepath-lightning:
+      replacePath:
+        path: "/api/v2/lightningaddress"
