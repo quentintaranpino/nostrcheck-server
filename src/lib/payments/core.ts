@@ -211,21 +211,17 @@ const addJournalEntry = async (accountid: number, transactionid: number, debit: 
 
 const getBalance = async (accountid: number) : Promise<number> => {
 
-    if (!isModuleEnabled("payments", app)) {
-        return 0;
-    }
+    if (!isModuleEnabled("payments", app)) return 0;
 
-    if (!accountid) {
-        return 0;
-    }
-
-    const result = Number(await dbSelect("SELECT SUM(credit) - SUM(debit) as 'balance' FROM ledger WHERE ledger.accountid = ?", "balance", [accountid.toString()]));
+    if (!accountid)  return 0;
+    
+    const result = Number(await dbSelect("SELECT SUM(credit) - SUM(debit) as 'balance' FROM ledger WHERE ledger.accountid = ?", "balance", [accountid.toString()])) || 0;
     logger.debug("Balance for account", accountid, ":", result)
-    const balance = await dbUpdate("registered", "balance", result.toString(), ["id"], [formatRegisteredId(accountid)]);
-    if (balance) {
-        return result;
+    if (accountid.toString().length > 4){
+        const updateBalance = await dbUpdate("registered", "balance", result.toString(), ["id"], [formatRegisteredId(accountid)]);
+        if (updateBalance) return result;
     }
-    return 0;
+    return result;
 }
 
 const addBalance = async (accountid: number, amount: number) : Promise<boolean> => {
