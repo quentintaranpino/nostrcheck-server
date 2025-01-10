@@ -64,8 +64,8 @@ const isInvoicePaidNwc = async (paymentHash: string) : Promise<{paiddate : strin
 
         return {paiddate: "", preimage: ""};
         
-    }catch(e){
-        logger.error("Error checking nwc invoice status", e);
+    }catch(e: any){
+        logger.error("Error checking nwc invoice status", e.message);
         return {paiddate: "", preimage: ""};
     }
 }
