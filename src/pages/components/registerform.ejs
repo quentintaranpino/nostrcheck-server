@@ -137,12 +137,12 @@
           const domainInfo = data.availableDomains[domain];
 
           let icons = '<i class="fa-solid fa-star me-2" style="color:#a06bc9"></i> Free';
-          document.getElementById('domain-selection-icons').innerHTML = icons;
+          
           if (domainInfo.requirepayment) { icons = ' <i class="fa-solid fa-bolt ms-2 me-2" style="color:rgb(255, 128, 24)"></i> Paid'; }
           if (domainInfo.requireinvite && !domainInfo.requirepayment) { 
             icons = ' <i class="fa-regular fa-paper-plane ms-2 me-2" style="color:rgb(77, 77, 77)"></i> Invite'; 
           }else if (domainInfo.requireinvite && domainInfo.requirepayment) { icons += ' <i class="fa-solid fa-plus ms-2" style="color:rgb(115, 111, 111)"></i> <i class="fa-regular fa-paper-plane ms-2 me-2" style="color:rgb(77, 77, 77)"></i> Invite'; }
-          console.log(document.getElementById('domain-selection-icons').innerHTML)
+          document.getElementById('domain-selection-icons').innerHTML = icons;
           counter++;
         });
 
