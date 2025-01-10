@@ -1,6 +1,6 @@
 {
   "name": "nostrcheck-api-ts",
-  "version": "0.6.0.2016",
+  "version": "0.6.0.2019",
   "description": "",
   "exports": "./index.js",
   "type": "module",
