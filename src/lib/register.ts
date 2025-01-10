@@ -48,7 +48,7 @@ const isPubkeyOnDomainAvailable = async (pubkey: string, domain: string): Promis
  * @returns {Promise<number>} A promise that resolves to the id of the user, or 0 if an error occurs.
  */
 
-const addNewUsername = async (username: string, pubkey: string, password:string, domain: string, comments:string = "", active = false, inviteCode = "", checkInvite : boolean = true, sendDM : boolean = true): Promise<number> => {
+const addNewUsername = async (username: string, pubkey: string, password:string, domain: string, comments:string = "", active = false, inviteCode = "", checkInvite : boolean = true, sendDM : boolean = true, allowed : boolean = false): Promise<number> => {
 
     if (username == "" || username == undefined) {return 0}
     if (pubkey == "" || pubkey == undefined) {return 0}
@@ -74,8 +74,8 @@ const addNewUsername = async (username: string, pubkey: string, password:string,
     if (domainInfo.requireinvite == true && checkInvite &&  await validateInviteCode(inviteCode) == false) {return 0}
 
     const createUsername = await dbInsert(  "registered", 
-                                    ["pubkey", "hex", "username", "password", "domain", "active", "date", "comments"],
-                                    [await hextoNpub(pubkey), pubkey, username, await hashString(password, 'password'), domain, active == true ? 1 : 0, getNewDate(), comments]);
+                                    ["pubkey", "hex", "username", "password", "domain", "active", "allowed",  "date", "comments"],
+                                    [await hextoNpub(pubkey), pubkey, username, await hashString(password, 'password'), domain, active == true ? 1 : 0, allowed == true ? 1 : 0, getNewDate(), comments]);
     
     if (createUsername == 0) {return 0}
 

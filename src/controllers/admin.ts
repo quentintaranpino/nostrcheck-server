@@ -586,7 +586,7 @@ const insertDBRecord = async (req: Request, res: Response): Promise<Response> =>
     // Insert records into the table
     let insert : number = 0;
     if (req.body.table == "nostraddressData"){
-        insert = await addNewUsername(req.body.row["username"], req.body.row["hex"], req.body.row["password"], req.body.row["domain"], req.body.row["comments"], true, "", false, false);
+        insert = await addNewUsername(req.body.row["username"], req.body.row["hex"], req.body.row["password"], req.body.row["domain"], req.body.row["comments"], true, "", false, false, req.body.row["allowed"]);
     }else{
 
         insert = await dbInsert(table, Object.keys(req.body.row), Object.values(req.body.row));
