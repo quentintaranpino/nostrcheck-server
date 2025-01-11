@@ -985,11 +985,11 @@ const getMediabyURL = async (req: Request, res: Response) => {
 			return res.status(200).send(await getNotFoundMediaFile());
 		}
 
-		if (filedata[0].visibility != "1" && adminRequest == false && loggedPubkey != filedata[0].pubkey) {
-			logger.info(`RES -> 401 File not visible - ${req.url}`, "returning not found media file |", getClientIp(req), "|", "cached:", cachedStatus ? true : false);
-			res.setHeader('Content-Type', 'image/webp');
-			return res.status(401).send(await getNotFoundMediaFile());
-		}
+		// if (filedata[0].visibility != "1" && adminRequest == false && loggedPubkey != filedata[0].pubkey) {
+		// 	logger.info(`RES -> 401 File not visible - ${req.url}`, "returning not found media file |", getClientIp(req), "|", "cached:", cachedStatus ? true : false);
+		// 	res.setHeader('Content-Type', 'image/webp');
+		// 	return res.status(401).send(await getNotFoundMediaFile());
+		// }
 
 		// Allways set the correct filename
 		req.params.filename = filedata[0].filename
