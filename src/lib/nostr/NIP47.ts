@@ -10,15 +10,16 @@ import { nwc as NWC } from "@getalby/sdk";
 import WebSocket from 'ws'
 global.WebSocket = WebSocket as any;
 
+const nwc = new NWC.NWCClient({
+    nostrWalletConnectUrl: `${app.get("config.payments")["paymentProviders"]["nwc"]["url"]}`,
+});
+
 const generateNwcInvoice = async (LNAddress: string, amount:number) : Promise<invoice> => {
 
     if (LNAddress == "" || amount == 0) return emptyInvoice;
 
     try{
 
-        const nwc = new NWC.NWCClient({
-            nostrWalletConnectUrl: `${app.get("config.payments")["paymentProviders"]["nwc"]["url"]}`,
-        });
         const response = await nwc.makeInvoice({amount: amount * 1000, description: ""});
 
         if (!response || response == undefined || response.invoice == "") {
@@ -44,30 +45,38 @@ const generateNwcInvoice = async (LNAddress: string, amount:number) : Promise<in
 
 }
 
-const isInvoicePaidNwc = async (paymentHash: string) : Promise<{paiddate : string, preimage : string}> => {
+const isInvoicePaidNwc = async (paymentHash: string): Promise<{ paiddate: string; preimage: string }> => {
 
-    if (paymentHash == "") return {paiddate: "", preimage: ""};
+    if (paymentHash === "") return { paiddate: "", preimage: "" };
 
-    try{
-        const nwc = new NWC.NWCClient({
-            nostrWalletConnectUrl: `${app.get("config.payments")["paymentProviders"]["nwc"]["url"]}`,
-        });
-        const response = await nwc.lookupInvoice({payment_hash: paymentHash})
+    const maxRetries = 3;
+    const emptyResponse = { paiddate: "", preimage: "" };
+    type LookupInvoiceResponse = Awaited<ReturnType<typeof nwc.lookupInvoice>>;
 
-        if (!response || response == undefined){
-            logger.error("Error checking invoice status");
-        };
-        
-        if (response.preimage && response.preimage != "null") {
-            return {paiddate: response.settled_at.toString(), preimage: response.preimage};
+    const lookupWithRetry = async (retries: number): Promise<{ paiddate: string, preimage: string }> => {
+        while (retries > 0) {
+            try {
+                const invoice = await nwc.lookupInvoice({ payment_hash: paymentHash });
+                if (invoice && invoice.preimage && invoice.preimage !== "null") {
+                    return { paiddate: invoice.settled_at.toString(), preimage: invoice.preimage };
+                }
+                return emptyResponse;
+            } catch (e: any) {
+                if (e.message && e.message.includes("timeout")) {
+                    logger.debug(`Timeout checking nwc invoice status for paymentHash: ${paymentHash}. Retries left: ${retries - 1}`);
+                } else {
+                    logger.error(`Error checking nwc invoice status for paymentHash: ${paymentHash}`, e.message);
+                    break;
+                }
+            }
+            retries--;
         }
+        logger.debug("Max retries reached checking nwc invoice status for paymentHash: ", paymentHash);
+        return emptyResponse;
+    };
 
-        return {paiddate: "", preimage: ""};
-        
-    }catch(e: any){
-        logger.error("Error checking nwc invoice status", e.message);
-        return {paiddate: "", preimage: ""};
-    }
-}
+    return await lookupWithRetry(maxRetries);
+    
+};
 
 export { isInvoicePaidNwc, generateNwcInvoice };
