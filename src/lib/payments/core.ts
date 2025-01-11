@@ -217,7 +217,7 @@ const getBalance = async (accountid: number) : Promise<number> => {
     
     const result = Number(await dbSelect("SELECT SUM(credit) - SUM(debit) as 'balance' FROM ledger WHERE ledger.accountid = ?", "balance", [accountid.toString()])) || 0;
     logger.debug("Balance for account", accountid, ":", result)
-    if (accountid.toString().length > 4){
+    if (accountid.toString().length > 4 && accountid != 1100000000){
         const updateBalance = await dbUpdate("registered", "balance", result.toString(), ["id"], [formatRegisteredId(accountid)]);
         if (updateBalance) return result;
     }
