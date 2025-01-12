@@ -128,21 +128,25 @@
         domainsData = data;
         Object.keys(data.availableDomains).forEach(domain => {
           if (counter === 0) {
-              document.getElementById('input-register-domain').innerText = `@${domain}`;
+            document.getElementById('input-register-domain').innerText = `@${domain}`;
+
+            const domainInfo = data.availableDomains[domain];
+            let icons = '<i class="fa-solid fa-star me-2" style="color:#a06bc9"></i> Free';
+            if (domainInfo.requirepayment) {
+              icons = ' <i class="fa-solid fa-bolt ms-2 me-2" style="color:rgb(255, 128, 24)"></i> Paid';
+            }
+            if (domainInfo.requireinvite && !domainInfo.requirepayment) {
+              icons = ' <i class="fa-regular fa-paper-plane ms-2 me-2" style="color:rgb(77, 77, 77)"></i> Invite';
+            } else if (domainInfo.requireinvite && domainInfo.requirepayment) {
+              icons += ' <i class="fa-solid fa-plus ms-2" style="color:rgb(115, 111, 111)"></i> <i class="fa-regular fa-paper-plane ms-2 me-2" style="color:rgb(77, 77, 77)"></i> Invite';
+            }
+            document.getElementById('domain-selection-icons').innerHTML = icons;
           }
+
           const option = document.createElement('option');
           option.value = domain;
           option.text = domain;
           select.appendChild(option);
-          const domainInfo = data.availableDomains[domain];
-          console.log(domainInfo)
-          let icons = '<i class="fa-solid fa-star me-2" style="color:#a06bc9"></i> Free';
-          
-          if (domainInfo.requirepayment) { icons = ' <i class="fa-solid fa-bolt ms-2 me-2" style="color:rgb(255, 128, 24)"></i> Paid'; }
-          if (domainInfo.requireinvite && !domainInfo.requirepayment) { 
-            icons = ' <i class="fa-regular fa-paper-plane ms-2 me-2" style="color:rgb(77, 77, 77)"></i> Invite'; 
-          }else if (domainInfo.requireinvite && domainInfo.requirepayment) { icons += ' <i class="fa-solid fa-plus ms-2" style="color:rgb(115, 111, 111)"></i> <i class="fa-regular fa-paper-plane ms-2 me-2" style="color:rgb(77, 77, 77)"></i> Invite'; }
-          document.getElementById('domain-selection-icons').innerHTML = icons;
           counter++;
         });
 
@@ -151,29 +155,31 @@
           const domainInfo = data.availableDomains[selectedDomain];
 
           if (domainInfo.requireinvite) {
-              invitationGroup.classList.remove('d-none');
+            invitationGroup.classList.remove('d-none');
           } else {
-              invitationGroup.classList.add('d-none');
+            invitationGroup.classList.add('d-none');
           }
+
           let icons = '<i class="fa-solid fa-star me-2" style="color:#a06bc9"></i> Free';
-          if (domainInfo.requirepayment) { icons = ' <i class="fa-solid fa-bolt ms-2 me-2" style="color:rgb(255, 128, 24)"></i> Paid'; }
-          if (domainInfo.requireinvite && !domainInfo.requirepayment) { 
-            icons  = ' <i class="fa-regular fa-paper-plane ms-2 me-2" style="color:rgb(77, 77, 77)"></i> Invite'; 
-          }else if (domainInfo.requireinvite && domainInfo.requirepayment) { 
-            icons += ' <i class="fa-solid fa-plus ms-2" style="color:rgb(115, 111, 111)"></i> <i class="fa-regular fa-paper-plane ms-2 me-2" style="color:rgb(77, 77, 77)"></i> Invite'; 
+          if (domainInfo.requirepayment) {
+            icons = ' <i class="fa-solid fa-bolt ms-2 me-2" style="color:rgb(255, 128, 24)"></i> Paid';
+          }
+          if (domainInfo.requireinvite && !domainInfo.requirepayment) {
+            icons = ' <i class="fa-regular fa-paper-plane ms-2 me-2" style="color:rgb(77, 77, 77)"></i> Invite';
+          } else if (domainInfo.requireinvite && domainInfo.requirepayment) {
+            icons += ' <i class="fa-solid fa-plus ms-2" style="color:rgb(115, 111, 111)"></i> <i class="fa-regular fa-paper-plane ms-2 me-2" style="color:rgb(77, 77, 77)"></i> Invite';
           }
 
           document.getElementById('domain-selection-icons').innerHTML = icons;
           document.getElementById('input-register-domain').innerHTML = `@${selectedDomain}`;
 
           calculateSatoshi(usernameField.value.length);
-
         });
-
       })
       .catch((error) => {
         console.error('Error:', error);
       });
+
 
       usernameField.addEventListener('input', async (event) => {
         const length = event.target.value.length;
