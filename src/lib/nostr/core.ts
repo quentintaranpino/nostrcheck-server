@@ -64,7 +64,7 @@ const publishEvent = async (event : NostrEvent): Promise<boolean> => {
  * @returns A promise that resolves to a number indicating whether the event is valid. 
  * 0 = valid, -1 = hash error, -2 = signature error, -3 = malformed event.
  */
-const verifyEvent = async (event:Event): Promise<eventVerifyTypes> => {
+const isEventValid = async (event:Event): Promise<eventVerifyTypes> => {
     logger.debug("Verifying event", event);
 	try {
 		const IsEventHashValid = getEventHash(event);
@@ -90,7 +90,7 @@ const verifyEvent = async (event:Event): Promise<eventVerifyTypes> => {
  * @param event - The event to be verified.
  * @returns A promise that resolves to a boolean indicating whether the event timestamp is valid.
  */
-const verifyEventTimestamp = async (event:Event): Promise<boolean> => {
+const isEventTimestampValid = async (event:Event): Promise<boolean> => {
 	logger.debug("Verifying event timestamp", event);
 	const diff =  (Math.floor(Date.now() / 1000) - event.created_at);
 	logger.debug("Event is", diff, "seconds old");
@@ -100,4 +100,4 @@ const verifyEventTimestamp = async (event:Event): Promise<boolean> => {
 	return true;
 }
 
-export {publishEvent, verifyEvent, verifyEventTimestamp, createkeyPair, getPubkeyFromSecret, relays, relaysPool}
+export {publishEvent, isEventValid, isEventTimestampValid, createkeyPair, getPubkeyFromSecret, relays, relaysPool}

@@ -1,20 +1,20 @@
 import { Request } from "express";
 import { logger } from "../logger.js";
 import { getClientIp } from "../utils.js";
-import { verifyEvent, verifyEventTimestamp } from "./core.js";
+import { isEventTimestampValid, isEventValid } from "./core.js";
 import app from "../../app.js";
 
 const verifyNIP07event = async (req: Request) : Promise<boolean> => {
 
   logger.info(`Verifying integrity of NIP07 event -`, getClientIp(req));
 
-    if (await verifyEvent(req.body) !== 0){
+    if (await isEventValid(req.body) !== 0){
         logger.warn(`RES -> 401 unauthorized  - ${getClientIp(req)}`);
         logger.warn(`NIP07: Detected an invalid event. Refusing`, getClientIp(req));
         return false;
     }
 
-    if (await verifyEventTimestamp(req.body) === false){
+    if (await isEventTimestampValid(req.body) === false){
         logger.warn(`RES -> 401 unauthorized  - ${getClientIp(req)}`);
         if (app.get('config.environment')  != "development") {
             logger.warn(`NIP07: Detected an old event. Refusing`, getClientIp(req));

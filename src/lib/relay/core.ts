@@ -1,5 +1,5 @@
 import { matchFilter as nostrMatchFilter } from "nostr-tools";
-import { verifyEventInternal } from "../nostr/core.js";
+import { isEventValid } from "../nostr/core.js";
 import * as z from "zod";
 import WebSocket from "ws";
 
@@ -28,7 +28,7 @@ export const parseRelayMessage = (data: WebSocket.RawData): any | null => {
 };
 
 export const isValidEvent = async (event: any): Promise<boolean> => {
-    const verify = await verifyEventInternal(event);
+    const verify = await isEventValid(event);
   return verify == 0 ? true : false;
 };
 
