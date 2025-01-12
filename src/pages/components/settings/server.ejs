@@ -57,9 +57,20 @@
             </button>
         </div>
         <div class="alert alert-warning mt-3" role="alert">
-        <i class="fa-solid fa-triangle-exclamation"></i> Be careful, <b>both keys must be modified simultaneously, and be valid with each other.
-        </b> otherwise the server won't function properly.
-        </div>
+            <i class="fa-solid fa-triangle-exclamation"></i> Be careful, <b>both keys must be modified simultaneously, and be valid with each other.
+            </b> otherwise the server won't function properly.
+            </div>
+        <label for ="server.updateSource" class="mt-3 mb-1 fw-bold">Update source</label>
+        <p>Specify the update source for the server. This will be used to check for updates show the update notification on the admin pages.</p>
+        <input  type="text" 
+                id="server.updateSource"  
+                name="server.updateSource" 
+                class="form-control" 
+                value="<%= locals.settingsServerUpdateSource %>" 
+                placeholder="Update source" 
+                required
+                >
+       
         <label for="redis.expireTime" class="mt-3 mb-1 fw-bold">Cache expiration</label>
         <p>Specify the cache expiration time in seconds. This will be used to cache the server's data. Is recommended to set this value to 300 or higher to increase the server's performance.</p>
         <div class="col-12 col-sm-5 col-md-4">

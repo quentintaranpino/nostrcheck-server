@@ -65,6 +65,7 @@ const loadSettingsPage = async (req: Request, res: Response, version:string): Pr
     res.locals.settingsServerHost = app.get("config.server")["host"];
     res.locals.settingServerPubkey = app.get("config.server")["pubkey"];
     res.locals.settingServerSecretkey =  app.get("config.server")["secretKey"];
+    res.locals.settingsServerUpdateSource = app.get("config.server")["updateSource"];
     res.locals.settingsRedisExpireTime = app.get("config.redis")["expireTime"];
 
     res.locals.settingsStorage = app.get("config.storage");

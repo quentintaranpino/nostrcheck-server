@@ -18,7 +18,8 @@ import {
     getModuleCountData,
     updateTheme,
     moderateDBRecord,
-    banDBRecord
+    banDBRecord,
+    serverUpdates
 } from "../controllers/admin.js";
 import { limiter } from "../lib/session.js";
 
@@ -43,6 +44,9 @@ export const loadAdminEndpoint = async (app: Application, version: string): Prom
 
         // Get server status
         app.get("/api/" + version + app.get("config.server")["availableModules"]["admin"]["path"] + "/status", limiter(), serverStatus);
+
+        // Get server repo latest version
+        app.get("/api/" + version + app.get("config.server")["availableModules"]["admin"]["path"] + "/updates", limiter(), serverUpdates);
 
         // Reset user password
         app.post("/api/" + version + app.get("config.server")["availableModules"]["admin"]["path"] + "/resetpassword/",

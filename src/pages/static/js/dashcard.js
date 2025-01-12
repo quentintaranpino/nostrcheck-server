@@ -17,6 +17,8 @@ const initDashcard = async (dashcardId, dascardName, dashcardDataKey, icon, link
         iconContainer.append('<canvas style="border 1px solid black" id="' + dashcardId + '-doughnut-chart" width="50" height="50"></canvas>');
     } else if (icon === "time") {
         iconElement.addClass('fas fa-clock text-info');
+    } else if (icon === "update") {
+        iconElement.addClass('fas fa-cloud-download-alt');
     }
 
     $('#' + dashcardId + '-reload-button').on('click', async function() {
@@ -46,8 +48,14 @@ const fetchDashcardData = async (dashcardDataKey, action, field) => {
 
     if (dashcardDataKey === 'admin' && action === 'uptime') {
         const uptime = await fetchServerUptime()
-        console.log('uptime', uptime)
+        console.log('Uptime', uptime)
         return { total: uptime, field: uptime}
+    }
+
+    if (dashcardDataKey === 'admin' && action === 'updates') {
+        const update = await fetchServerUpdate()
+        console.log('Latest repo version', update)
+        return { total: update, field: update}
     }
 
     let serverData  = ""
@@ -80,6 +88,7 @@ let dashcards =[
     { dashcardId: 'unpaidTransactionsBalance', dataKey: 'payments', icon: 'satoshi', dashcardName: 'Unpaid transactions balance', link: '#paymentsData', action: 'unpaidTransactions' },
     { dashcardId: 'serverBalance', dataKey: 'payments', icon: 'satoshi', dashcardName: 'Server balance', link: '', action: 'serverBalance' },
     { dashcardId: 'serverUptime', dataKey: 'admin', icon: 'time', dashcardName: 'Server uptime', link: '', action: 'uptime' },
+    { dashcardId: 'serverUpdates', dataKey: 'admin', icon: 'update', dashcardName: 'Repository version', link: '', action: 'updates' }
 ]
 
 const refreshDashcards = async () => {
@@ -109,4 +118,25 @@ const fetchServerUptime = async ()  =>{
     });
 
     return uptime
+}
+
+const fetchServerUpdate = async ()  =>{
+
+    let update = "0";
+
+    console.log('Fetching server update')
+
+    await fetch('admin/updates')
+    .then(res => res.json())
+    .then(out =>
+      {
+        console.log(out)
+        update = out.latestVersion;
+    })
+    .catch(err => { 
+        console.warn(err)
+        return "0";
+    });
+
+    return update
 }

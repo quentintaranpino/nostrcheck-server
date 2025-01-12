@@ -1,5 +1,5 @@
 <div id="<%- dashcardId %>" class="col-xl-3 col-lg-4 col-md-6 col-sm-12">
-    <div class="card mb-3 shadow-sm default-bg" style="min-height: 185px">
+    <div class="card mb-3 shadow-sm default-bg" style="min-height: 195px">
             <div class="card-body text-center">
                 <% if (link) { %>
                     <a href = "<%- link %>" class="text-decoration-none text-reset">
@@ -10,7 +10,7 @@
                         <i id="<%- dashcardId %>-icon" class="fas fa-chart-simple fa-3x card-icon"></i>
                     </div>
                 </div>
-                <h1 id="<%- dashcardId %>-text" class="display-2 font-weight-bold">0</h1>     
+                <h1 id="<%- dashcardId %>-text" class="font-weight-bold <%- fontSize %>">0</h1>     
                 <% if (link) { %>
                 </a>
                 <% } %>

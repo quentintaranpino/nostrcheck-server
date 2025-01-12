@@ -13,24 +13,25 @@
       <div class= "container-fluid mt-5">
         <div class="row">
           <% if(locals.activeModules.includes('nostraddress')) { %> 
-          <%- include('./components/dashcard', { dashcardId: 'nostraddressCount', link: '#nostraddressData'}); %>
+          <%- include('./components/dashcard', { dashcardId: 'nostraddressCount', link: '#nostraddressData', fontSize: 'display-2'}); %>
           <% } %>
           <% if(locals.activeModules.includes('media')) { %> 
-            <%- include('./components/dashcard', { dashcardId: 'mediaCount', link: '#mediaData' }); %>
+            <%- include('./components/dashcard', { dashcardId: 'mediaCount', link: '#mediaData', fontSize: 'display-2'}); %>
           <% } %>
           <% if(locals.activeModules.includes('lightning')) { %>
-            <%- include('./components/dashcard', { dashcardId: 'lightningCount', link: '#lightningData' }); %>
+            <%- include('./components/dashcard', { dashcardId: 'lightningCount', link: '#lightningData', fontSize: 'display-2'}); %>
           <% } %>
           <% if(locals.activeModules.includes('domains')) { %>
-            <%- include('./components/dashcard', { dashcardId: 'domainsCount', link: '#domainsData'}); %>
+            <%- include('./components/dashcard', { dashcardId: 'domainsCount', link: '#domainsData', fontSize: 'display-2'}); %>
           <% } %>
-            <%- include('./components/dashcard', { dashcardId: 'logHistory', link: 'settings/#settingsLogger'}); %>
+            <%- include('./components/dashcard', { dashcardId: 'logHistory', link: 'settings/#settingsLogger', fontSize: 'display-2'}); %>
           <% if(locals.activeModules.includes('payments')) { %>
-            <%- include('./components/dashcard', { dashcardId: 'paymentsCount', link: '#paymentsData'}); %>
-            <%- include('./components/dashcard', { dashcardId: 'unpaidTransactionsBalance', link: '#paymentsData'}); %>
-            <%- include('./components/dashcard', { dashcardId: 'serverBalance', link: ''}); %>
+            <%- include('./components/dashcard', { dashcardId: 'paymentsCount', link: '#paymentsData', fontSize: 'display-2'}); %>
+            <%- include('./components/dashcard', { dashcardId: 'unpaidTransactionsBalance', link: '#paymentsData', fontSize: 'display-2'}); %>
+            <%- include('./components/dashcard', { dashcardId: 'serverBalance', link: '', fontSize: 'display-2'}); %>
           <% } %>
-          <%- include('./components/dashcard', { dashcardId: 'serverUptime', link: ''}); %>
+          <%- include('./components/dashcard', { dashcardId: 'serverUptime', link: '', fontSize: 'display-4'}); %>
+          <%- include('./components/dashcard', { dashcardId: 'serverUpdates', link: '', fontSize: 'display-4'}); %>
         </div>
       </div>
       <div class="container-fluid mt-4 mb-5 overflow-auto ">

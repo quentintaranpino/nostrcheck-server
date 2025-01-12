@@ -25,6 +25,7 @@ import { banRecord } from "../lib/banned.js";
 import { generateInviteCode } from "../lib/invitations.js";
 import { setAuthCookie } from "../lib/frontend.js";
 import { deleteFile } from "../lib/storage/core.js";
+import { getLatestVersion } from "../lib/updates.js";
 
 let hits = 0;
 /**
@@ -50,13 +51,36 @@ const serverStatus = async (req: Request, res: Response): Promise<Response> => {
 	const result: ServerStatusMessage = {
         status: "success",
         message: "Nostrcheck API server is running.",
-		version: process.env.npm_package_version || "0.0.0",
 		uptime: format(process.uptime()),
+		version: process.env.npm_package_version || "0.0.0",
 	};
 
 	return res.status(200).send(result);
 };
 
+const serverUpdates = async (req: Request, res: Response): Promise<Response> => {
+
+    // Check if current module is enabled
+    if (!isModuleEnabled("admin", app)) {
+        logger.warn("Attempt to access a non-active module:","admin","|","IP:", getClientIp(req));
+        return res.status(403).send({"status": "error", "message": "Module is not enabled"});
+    }
+
+    const repoVersion = await getLatestVersion();
+    if (repoVersion == "") {
+        logger.error("Error getting latest version");
+        return res.status(500).send({"status": "error", "message": "Error getting latest version", "latestVersion": process.env.npm_package_version || ""});
+    }
+
+    const result: ServerStatusMessage = {
+        status: "success",
+        message: "Nostrcheck API server version",
+        latestVersion: repoVersion,
+    };
+
+    return res.status(200).send(result);
+
+}
 
 /**
  * Stops the server.
@@ -913,5 +937,6 @@ export {    serverStatus,
             updateTheme,
             getModuleData,
             getModuleCountData,
-            banDBRecord         
+            banDBRecord,
+            serverUpdates,         
         };

@@ -103,7 +103,8 @@ const defaultConfig = {
 				"methods": ["GET"],
 				"description": "This module handles plugins, load, unload, etc."
 			},
-		}
+		},
+		"updateSource" : "https://raw.githubusercontent.com/quentintaranpino/nostrcheck-server/main/package.json",
 	},
 	"database": {
 		"host": "127.0.0.1",
