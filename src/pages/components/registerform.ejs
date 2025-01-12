@@ -30,7 +30,13 @@
             <div class="input-group mb-3 mt-2">
               <input type="text" data-otc='username' class="form-control " id="input-register-username" placeholder="username" required autocomplete="username">
               <span class="input-group-text" id="input-register-domain" data-bs-placement="top">@domain.com</span>
-              <span class="input-group-text d-none" id="input-register-payment" data-bs-placement="top"></span>
+              <span class="input-group-text d-none" 
+                    id="input-register-payment" 
+                    data-bs-placement="top"
+                    data-bs-toggle="tooltip" 
+                    data-bs-title="Shorter usernames are more expensive, while longer usernames are cheaper. As you add more characters, the cost will decrease.">
+                                 >
+              </span>
             </div>
             
             <input type="text" data-otc='pubkey' class="form-control mt-2 mb-3" id="input-register-pubkey" placeholder="public key (npub or hex)" required autocomplete="pubkey">
