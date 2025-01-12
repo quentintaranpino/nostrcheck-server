@@ -1,7 +1,8 @@
-// server.ts
+import { WebSocketServer } from "ws";
 import { prepareApp } from "./controllers/config.js";
 
 const startServer = async () => {
+
     // Initialise config and folders
     await prepareApp();
     const { default: app } = await import("./app.js");
@@ -18,6 +19,19 @@ const startServer = async () => {
     const { migrateDBLocalpath } = await import("./controllers/config.js");
     migrateDBLocalpath();
 
+    //Start seeding magnets
+    const {default: config} = await import( "config");
+    if (config.get("torrent.enableTorrentSeeding")) {
+        const { SeedMediafilesMagnets } = await import("./lib/torrent.js");
+        await SeedMediafilesMagnets();
+    }
+    
+    // Start server
+    const server = app.listen(app.get("config.server")["port"], () => {
+        console.log(`Server running on http://localhost:${app.get("config.server")["port"]}`);
+    });
+    app.set("server", server);
+
     // Initialise API modules
     const { loadAPIs } = await import("./routes/routes.js");
     await loadAPIs(app);
@@ -25,13 +39,6 @@ const startServer = async () => {
     // Init plugins
     const { initPlugins } = await import("./lib/plugins/core.js");
     await initPlugins(app);
-
-    //Start seeding magnets
-    const {default: config} = await import( "config");
-    if (config.get("torrent.enableTorrentSeeding")) {
-        const { SeedMediafilesMagnets } = await import("./lib/torrent.js");
-        await SeedMediafilesMagnets();
-    }
 
     // Show server startup message
     const { serverBanner } = await import("./lib/server.js");
@@ -44,9 +51,6 @@ const startServer = async () => {
     // Show server active modules
     const { loadconfigActiveModules } = await import("./lib/config.js");
     console.log("Active modules: ", loadconfigActiveModules(app).map((module) => module[0]).join(", "));
-    
-    // Start Express server.
-    app.listen(app.get("config.server")["port"]);
 
 }
 

@@ -103,6 +103,13 @@ const defaultConfig = {
 				"methods": ["GET"],
 				"description": "This module handles plugins, load, unload, etc."
 			},
+			"relay" : {
+				"name": "relay",
+				"enabled": false,
+				"path": "/relay",
+				"methods": ["GET"],
+				"description": "This module handles the server Nostr relay"
+			}
 		}
 	},
 	"database": {

@@ -108,7 +108,7 @@ const addRelayToList = (relay) => {
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
                         <i id="user-relay-online-${relay.id}" class="fas fa-circle me-2 text-success"></i>
-                        <span class="lead">${relay.name != "" ? relay.name : relay.url.replace('wss://', '').replace('/','')}</span>
+                        <span class="lead">${relay.name != "" ? relay.name : relay.url.replace('wss://', '').replace('/','').replace('ws://', '')}</span>
                     </div>
                     <div>
                         <button id="btn-enable-${relay.id}" class="btn btn-sm" type="button" onclick="updateRelay('${relay.id}', 'enabled')">
@@ -152,7 +152,7 @@ document.addEventListener('DOMContentLoaded', async (event) => {
 
         let relayUrl = document.getElementById("input-add-relay").value;
         if (relayUrl == "") return;
-        if (!relayUrl.startsWith("wss://")) relayUrl = `wss://${relayUrl}`;
+        if (!relayUrl.startsWith("wss://") && !relayUrl.startsWith("ws://")) relayUrl = `wss://${relayUrl}`;
         const newRelay = {  id: userRelays.length, 
                             url: relayUrl, 
                             read: true, 
