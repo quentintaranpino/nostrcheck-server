@@ -1,6 +1,6 @@
 import { bytesToHex } from '@noble/hashes/utils'
 import { logger } from "../logger.js"
-import { Event, generateSecretKey, getEventHash, getPublicKey, validateEvent } from "nostr-tools";
+import { Event, generateSecretKey, getEventHash, getPublicKey, verifyEvent } from "nostr-tools";
 import { NostrEvent } from "nostr-tools"
 import {SimplePool, useWebSocketImplementation } from "nostr-tools/pool"
 import WebSocket from 'ws'
@@ -64,7 +64,7 @@ const publishEvent = async (event : NostrEvent): Promise<boolean> => {
  * @returns A promise that resolves to a number indicating whether the event is valid. 
  * 0 = valid, -1 = hash error, -2 = signature error, -3 = malformed event.
  */
-const verifyEvent = async (event:Event): Promise<eventVerifyTypes> => {
+const isEventValid = async (event:Event): Promise<eventVerifyTypes> => {
     logger.debug("Verifying event", event);
 	try {
 		const IsEventHashValid = getEventHash(event);
@@ -72,7 +72,7 @@ const verifyEvent = async (event:Event): Promise<eventVerifyTypes> => {
             logger.debug("Event hash is not valid");
 			return eventVerifyTypes.hashError;
 		}
-		const IsEventValid = validateEvent(event);
+		const IsEventValid = verifyEvent(event);
 		if (!IsEventValid) {
             logger.debug("Event signature is not valid");
 			return eventVerifyTypes.signatureError;
@@ -100,4 +100,4 @@ const verifyEventTimestamp = async (event:Event): Promise<boolean> => {
 	return true;
 }
 
-export {publishEvent, verifyEvent, verifyEventTimestamp, createkeyPair, getPubkeyFromSecret, relays, relaysPool}
+export {publishEvent, isEventValid, verifyEventTimestamp, createkeyPair, getPubkeyFromSecret, relays, relaysPool}

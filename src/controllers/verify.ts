@@ -5,7 +5,7 @@ import { logger } from "../lib/logger.js";
 import { getClientIp } from "../lib/utils.js";
 import { isModuleEnabled } from "../lib/config.js";
 import app from "../app.js";
-import { verifyEvent } from "../lib/nostr/core.js";
+import { isEventValid } from "../lib/nostr/core.js";
 
 const verifyEventController = async (req: Request, res: Response): Promise<Response> => {
 
@@ -28,7 +28,7 @@ const verifyEventController = async (req: Request, res: Response): Promise<Respo
 		sig: req.body.sig,
 	};
 
-	const verifyResult = await verifyEvent(event);
+	const verifyResult = await isEventValid(event);
 
 	const result = {
 		pubkey: "",
