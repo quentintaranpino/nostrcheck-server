@@ -1,14 +1,15 @@
-import { Application } from "express";
+import { Application, Request } from "express";
 import { handleWebSocketMessage } from "../controllers/relay.js";
 import { WebSocketServer } from "ws";
 import { IncomingMessage } from "http"; 
 import { Socket } from "net";
+import { logger } from "../lib/logger.js";
+import { removeSubscription } from "../lib/relay/core.js";
 
 let server: any = null;
 
 export const loadRelayRoutes = (app: Application): void => {
 
-  // Create WebSocket server
   const wss = new WebSocketServer({ noServer: true });
   app.set("wss", wss);
 
@@ -26,23 +27,22 @@ export const loadRelayRoutes = (app: Application): void => {
     });
   }
 
-  // Handle WebSocket connections
-  wss.on("connection", (socket) => {//
+  wss.on("connection", (socket, req : Request) => {
 
     socket.on("message", (data) => {
       try {
-        handleWebSocketMessage(socket, data);
+        handleWebSocketMessage(socket, data, req);
       } catch (error) {
-        console.error("Error handling message:", error);
+        logger.error("Error handling message:", error);
       }
     });
   
     socket.on("close", () => {
-      console.log("WebSocket connection closed");
+      removeSubscription("", socket);
     });
   
-    socket.on("error", (error) => {
-      console.error("WebSocket error:", error.message);
+    socket.on("error", () => {
+      removeSubscription("", socket);
     });
 
   });

@@ -1,12 +1,26 @@
 import WebSocket from "ws";
-import { parseRelayMessage, isValidEvent, matchFilter } from "../lib/relay/core.js";
+import { parseRelayMessage, subscriptions, addSubscription, removeSubscription } from "../lib/relay/core.js";
+import { matchFilter } from "nostr-tools";
+import { isEventValid } from "../lib/nostr/core.js";
+import { isModuleEnabled } from "../lib/config.js";
+import app from "../app.js";
+import { logger } from "../lib/logger.js";
+import { getClientIp } from "../lib/utils.js";
+import { Request } from "express";
 
-const subscriptions: Map<string, (event: any) => void> = new Map();
-const events: any[] = []; // Storing events in memory, temporary solution
+const events: any[] = []; // Temporary in-memory storage for events
 
-export const handleWebSocketMessage = (socket: WebSocket, data: WebSocket.RawData) => {
+export const handleWebSocketMessage = (socket: WebSocket, data: WebSocket.RawData, req: Request) => {
+
+  // Check if current module is enabled
+  if (!isModuleEnabled("relay", app)) {
+    logger.warn("Attempt to access a non-active module:","relay","|","IP:",getClientIp(req));
+    removeSubscription("", socket);
+    return;
+  }
+
   try {
-    const message = parseRelayMessage(data); 
+    const message = parseRelayMessage(data);
 
     if (!message) {
       socket.send(JSON.stringify(["NOTICE", "Invalid message format"]));
@@ -37,29 +51,34 @@ export const handleWebSocketMessage = (socket: WebSocket, data: WebSocket.RawDat
   }
 };
 
-// Maneja eventos tipo "EVENT"
+// Handle EVENT
 const handleEvent = async (socket: WebSocket, event: any) => {
-  if (!await isValidEvent(event)) {
+  if (await isEventValid(event) !== 0) {
     socket.send(JSON.stringify(["NOTICE", "Invalid event structure"]));
     return;
   }
 
-  console.log("Received EVENT:", event.id);
+  logger.info("Received EVENT:", event.id);
 
-  // Almacenar el evento en memoria
+  // Save the event in memory
   events.push(event);
   if (events.length > 10000) {
-    events.shift(); 
+    events.shift(); // Remove oldest events to limit memory usage, temporary solution
   }
 
-  subscriptions.forEach((listener) => listener(event));
+  // Notify subscribers
+  subscriptions.forEach((value) => {
+    value.listener(event);
+  });
 
   socket.send(JSON.stringify(["OK", event.id, true, ""]));
+
 };
 
-// REQ 
+// Handle REQ
 const handleReq = (socket: WebSocket, subId: string, filter: any) => {
-  console.log("Received REQ:", subId);
+
+  logger.info("Received REQ:", socket,subId, filter);
 
   // Find matching events
   const matchingEvents = events.filter((event) => matchFilter(filter, event));
@@ -83,21 +102,21 @@ const handleReq = (socket: WebSocket, subId: string, filter: any) => {
     }
   };
 
-  // Store the listener
-  subscriptions.set(subId, listener);
+  // Register the subscription
+  addSubscription(subId, socket, listener);
+
 };
 
-// Manage CLOSE
-const handleClose = (socket: WebSocket, subId: string) => {
-  console.log("Received CLOSE:", subId);
-
-  // Remove the subscription
-  if (subscriptions.has(subId)) {
-    subscriptions.delete(subId);
-    if (socket.readyState === WebSocket.OPEN) {
-      socket.send(JSON.stringify(["NOTICE", `Subscription ${subId} closed`]));
+// Handle CLOSE
+const handleClose = (socket: WebSocket, subId?: string) => {
+  if (subId) {
+    if (subscriptions.has(subId)) {
+      removeSubscription(subId);
+      if (socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify(["NOTICE", `Subscription ${subId} closed`]));
+      }
     }
   } else {
-    console.log(`Subscription ${subId} not found`);
+    removeSubscription(undefined, socket);
   }
 };
