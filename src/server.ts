@@ -27,9 +27,7 @@ const startServer = async () => {
     }
     
     // Start server
-    const server = app.listen(app.get("config.server")["port"], () => {
-        console.log(`Server running on http://localhost:${app.get("config.server")["port"]}`);
-    });
+    const server = app.listen(app.get("config.server")["port"]);
     app.set("server", server);
 
     // Initialise API modules
