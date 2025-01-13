@@ -107,8 +107,8 @@ const defaultConfig = {
 				"name": "relay",
 				"enabled": false,
 				"path": "/relay",
-				"methods": ["GET"],
-				"description": "This module handles the server Nostr relay"
+				"methods": ["WebSocket", "GET"],
+				"description": "This module handles the Nostr relay"
 			}
 		}
 	},
