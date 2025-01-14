@@ -48,6 +48,7 @@ export const handleWebSocketMessage = (socket: WebSocket, data: WebSocket.RawDat
   } catch (error) {
     console.error("Error handling WebSocket message:", error);
     socket.send(JSON.stringify(["NOTICE", "Internal server error"]));
+    socket.send(JSON.stringify(["CLOSED", "Internal server error"]));
   }
 };
 
@@ -78,7 +79,12 @@ const handleEvent = async (socket: WebSocket, event: any) => {
 // Handle REQ
 const handleReq = (socket: WebSocket, subId: string, filter: any) => {
 
-  logger.info("Received REQ:", socket,subId, filter);
+  logger.info("Received REQ:", subId, filter);
+
+  if (!filter || typeof filter !== "object") {
+    socket.send(JSON.stringify(["NOTICE", "Invalid filter"]));
+    return;
+  }
 
   // Find matching events
   const matchingEvents = events.filter((event) => matchFilter(filter, event));
@@ -89,7 +95,7 @@ const handleReq = (socket: WebSocket, subId: string, filter: any) => {
       socket.send(JSON.stringify(["EVENT", subId, event]));
     }
   });
-
+ 
   // Send end of stream
   if (socket.readyState === WebSocket.OPEN) {
     socket.send(JSON.stringify(["EOSE", subId]));
