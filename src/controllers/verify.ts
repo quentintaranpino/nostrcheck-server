@@ -37,26 +37,16 @@ const verifyEventController = async (req: Request, res: Response): Promise<Respo
 	};
 	let status : number = 400;
 
-	if (verifyResult === 0) {
+	if (verifyResult.status == "success") {
 			logger.info(`RES -> 200 OK - Valid event:`, event.id, "|", getClientIp(req))
 			result.pubkey = event.pubkey;
 			result.result = true;
 			result.description = "Valid Event";
 			status = 200;
-	}
-	if (verifyResult === -1) {
-			logger.info(`RES -> 400 Bad request - Event hash is not valid`, "|", getClientIp(req));
-				result.pubkey = event.pubkey;
-				result.description= "Event hash is not valid";
-	}
-	if (verifyResult === -2) {
-			logger.info(`RES -> 400 Bad request - Event signature is not valid`, "|", getClientIp(req));
-			result.pubkey = event.pubkey;
-			result.description=  "Event signature is not valid";
-	}
-	if (verifyResult === -3) {
-			logger.info(`RES -> 400 Bad request - Malformed event`, "|", getClientIp(req));
-				result.description= "Malformed event";
+	} else {
+			logger.info(`RES -> 400 Bad request - ${verifyResult.message}`, "|", getClientIp(req));
+			result.pubkey = event.pubkey? event.pubkey : "";
+			result.description = verifyResult.message;
 	}
 
 	return res.status(status).send(result);

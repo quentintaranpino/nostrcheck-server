@@ -76,13 +76,6 @@ interface NIP96_processing extends ResultMessagev2{
     percentage : number,
 }
 
-enum eventVerifyTypes {
-	valid = 0,
-	hashError = -1,
-	signatureError = -2,
-	malformed = -3,
-}
-
 interface nostrProfileData {
     name: string,
     about: string,
@@ -121,4 +114,4 @@ const NIP01_event = z.union([
   
 
 
-export { NIPKinds, NIP96file, NIP01_event, NIP94_event, NIP94_data, NIP96_event, NIP96_processing, NIP04_event, eventVerifyTypes, nostrProfileData, emptyNostrProfileData};
+export { NIPKinds, NIP96file, NIP01_event, NIP94_event, NIP94_data, NIP96_event, NIP96_processing, NIP04_event, nostrProfileData, emptyNostrProfileData};

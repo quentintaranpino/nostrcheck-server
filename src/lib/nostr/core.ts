@@ -4,7 +4,7 @@ import { Event, generateSecretKey, getEventHash, getPublicKey, validateEvent, ve
 import { NostrEvent } from "nostr-tools"
 import {SimplePool, useWebSocketImplementation } from "nostr-tools/pool"
 import WebSocket from 'ws'
-import { eventVerifyTypes } from '../../interfaces/nostr.js';
+import { ResultMessagev2 } from '../../interfaces/server.js';
 useWebSocketImplementation(WebSocket)
 
 const relays = [
@@ -61,28 +61,27 @@ const publishEvent = async (event : NostrEvent): Promise<boolean> => {
 /**
  * Verifies the integrity of an event.
  * @param event - The event to be verified.
- * @returns A promise that resolves to a number indicating whether the event is valid. 
- * 0 = valid, -1 = hash error, -2 = signature error, -3 = malformed event.
+ * @returns A promise that resolves to a result message indicating the status of the event verification.
  */
-const isEventValid = async (event:Event): Promise<eventVerifyTypes> => {
+const isEventValid = async (event:Event): Promise<ResultMessagev2> => {
     logger.debug("Verifying event", event);
 	try {
 		const IsEventHashValid = getEventHash(event);
 		if (IsEventHashValid != event.id) {
             logger.debug("Event hash is not valid");
-			return eventVerifyTypes.hashError;
+			return {status: "error", message: "Event hash is not valid"};
 		}
 		const IsEventValid = verifyEvent(event);
 		if (!IsEventValid) {
             logger.debug("Event signature is not valid");
-			return eventVerifyTypes.signatureError;
+			return {status: "error", message: "Event signature is not valid"};
 		}
 	} catch (error) {
         logger.debug("Malformed event");
-        return eventVerifyTypes.malformed;
+        return {status: "error", message: "Malformed event"};
 	}
     logger.debug("Valid event");
-    return eventVerifyTypes.valid;
+    return {status: "success", message: "Valid event"};
 };
 
 /**
