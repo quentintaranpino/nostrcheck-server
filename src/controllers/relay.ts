@@ -14,8 +14,8 @@ export const handleWebSocketMessage = (socket: WebSocket, data: WebSocket.RawDat
 
   // Check if current module is enabled
   if (!isModuleEnabled("relay", app)) {
-    logger.warn("Attempt to access a non-active module:","relay","|","IP:",getClientIp(req));
-    removeSubscription("", socket);
+    logger.warn("Attempt to access a non-active module:", "relay", "|", "IP:", getClientIp(req));
+    removeSubscription(undefined, socket);
     return;
   }
 
@@ -46,16 +46,19 @@ export const handleWebSocketMessage = (socket: WebSocket, data: WebSocket.RawDat
         socket.send(JSON.stringify(["NOTICE", "Unknown command"]));
     }
   } catch (error) {
-    console.error("Error handling WebSocket message:", error);
+    logger.error("Error handling WebSocket message:", error);
     socket.send(JSON.stringify(["NOTICE", "Internal server error"]));
-    socket.send(JSON.stringify(["CLOSED", "Internal server error"]));
+    socket.close(1011, "Internal server error"); 
   }
 };
 
 // Handle EVENT
 const handleEvent = async (socket: WebSocket, event: any) => {
-  if (await isEventValid(event) !== 0) {
-    socket.send(JSON.stringify(["NOTICE", "Invalid event structure"]));
+  const validationResult = await isEventValid(event);
+  
+  if (validationResult.status !== "success") {
+    let errorMessage = `invalid: ${validationResult.message}`;
+    socket.send(JSON.stringify(["OK", event.id, false, errorMessage]));
     return;
   }
 
@@ -73,44 +76,50 @@ const handleEvent = async (socket: WebSocket, event: any) => {
   });
 
   socket.send(JSON.stringify(["OK", event.id, true, ""]));
-
 };
 
 // Handle REQ
 const handleReq = (socket: WebSocket, subId: string, filter: any) => {
-
   logger.info("Received REQ:", subId, filter);
 
   if (!filter || typeof filter !== "object") {
-    socket.send(JSON.stringify(["NOTICE", "Invalid filter"]));
+    socket.send(JSON.stringify(["CLOSED", subId, "error: invalid filter"]));
     return;
   }
 
-  // Find matching events
-  const matchingEvents = events.filter((event) => matchFilter(filter, event));
+  try {
+    // Find matching events
+    const matchingEvents = events
+      .filter((event) => matchFilter(filter, event))
+      .slice(0, filter.limit || 100);
 
-  // Send matching events
-  matchingEvents.forEach((event) => {
+    // Send matching events
+    matchingEvents.forEach((event) => {
+      if (socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify(["EVENT", subId, event]));
+      }
+    });
+
+    // Send end of stream
     if (socket.readyState === WebSocket.OPEN) {
-      socket.send(JSON.stringify(["EVENT", subId, event]));
+      socket.send(JSON.stringify(["EOSE", subId]));
     }
-  });
- 
-  // Send end of stream
-  if (socket.readyState === WebSocket.OPEN) {
-    socket.send(JSON.stringify(["EOSE", subId]));
+
+    // Create a listener for future events
+    const listener = (event: any) => {
+      if (matchFilter(filter, event) && socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify(["EVENT", subId, event]));
+      }
+    };
+
+    // Register the subscription
+    addSubscription(subId, socket, listener);
+  } catch (error) {
+    logger.error("Error processing REQ:", error);
+    if (socket.readyState === WebSocket.OPEN) {
+      socket.send(JSON.stringify(["CLOSED", subId, "error: failed to process subscription"]));
+    }
   }
-
-  // Create a listener for future events
-  const listener = (event: any) => {
-    if (matchFilter(filter, event) && socket.readyState === WebSocket.OPEN) {
-      socket.send(JSON.stringify(["EVENT", subId, event]));
-    }
-  };
-
-  // Register the subscription
-  addSubscription(subId, socket, listener);
-
 };
 
 // Handle CLOSE
@@ -121,7 +130,7 @@ const handleClose = (socket: WebSocket, subId?: string) => {
       if (socket.readyState === WebSocket.OPEN) {
         socket.send(JSON.stringify(["NOTICE", `Subscription ${subId} closed`]));
       }
-    }
+    } 
   } else {
     removeSubscription(undefined, socket);
   }
