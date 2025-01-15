@@ -1,18 +1,17 @@
 import { createStream } from "rotating-file-stream";
 import { Logger } from "tslog";
 import { logEvent } from "../interfaces/logger.js";
-import config from "config";
 import { getNewDate } from "./utils.js";
 import { sendMessage } from "./nostr/NIP04.js";
 import app from "../app.js";
 const logHistory: logEvent[] = [];
 
-const filename = (config.has('logger.filename') ? config.get('logger.filename') : 'server') + '.log';
-const fileSize = (config.has('logger.size') ? config.get('logger.size') : '10M') as string;
-const fileInterval = (config.has('logger.interval') ? config.get('logger.interval') : '1d') as string;
-const fileCompress = (config.has('logger.compression') ? config.get('logger.compression') : 'gzip') as string;
-const minLevel = (config.has('logger.minLevel') ? config.get('logger.minLevel') : 5) as number;
-const logPath = (config.has('logger.logPath') ? config.get('logger.logPath') : 'logs/') as string;
+const filename = (app.get('config.logger')['filename'] || 'server' ) + '.log'
+const fileInterval = app.get('config.logger')['fileInterval'] || '1d';
+const fileSize = app.get('config.logger')['fileSize'] || '10M';
+const fileCompress = app.get('config.logger')['fileCompress'] || 'gzip';
+const logPath = app.get('config.logger')['logPath'] || 'logs/';
+const minLevel = app.get('config.logger')['minLevel'] || 5;
 
 // Create a rotating write stream
 const stream = createStream(filename, {

@@ -1,9 +1,10 @@
 import { Application } from "express";
 import express from "express";
 import multer from "multer";
-import config from "config";
 import { logger } from "../lib/logger.js";
 import { getClientIp } from "../lib/utils.js";
+import app from "../app.js";
+import { limiter } from "../lib/session.js";
 
 import {
     deleteDBRecord,
@@ -20,9 +21,8 @@ import {
     moderateDBRecord,
     banDBRecord
 } from "../controllers/admin.js";
-import { limiter } from "../lib/session.js";
 
-const maxMBfilesize: number = config.get('media.maxMBfilesize');
+const maxMBfilesize: number = app.get("config.media")["maxMBfilesize"];
 
 const upload = multer({
     storage: multer.memoryStorage(),
