@@ -2,13 +2,13 @@ import { Request, Response } from "express";
 import { logger } from "../lib/logger.js";
 import { parseAuthHeader} from "../lib/authorization.js";
 import { ResultMessagev2 } from "../interfaces/server.js";
-import { redisClient } from "../lib/redis.js";
 import { getClientIp } from "../lib/utils.js";
 import { getAvailableDomains, getAvailiableUsers } from "../lib/domains.js";
 import { dbUpdate, dbSelect } from "../lib/database.js";
 import { isModuleEnabled } from "../lib/config.js";
 import app from "../app.js";
 import { setAuthCookie } from "../lib/frontend.js";
+import { redisDel } from "../lib/redis.js";
 
 const listAvailableDomains = async (req: Request, res: Response): Promise<Response> => {
 
@@ -132,8 +132,8 @@ const updateUserDomain = async (req: Request, res: Response): Promise<Response> 
 	const selectUsername = await dbSelect("SELECT username FROM registered WHERE hex = ?", "username", [EventHeader.pubkey]) as string;
 	const selectDomain = await dbSelect("SELECT domain FROM registered WHERE hex = ?", "domain", [EventHeader.pubkey]) as string;
 	if (selectUsername != undefined && selectDomain != undefined) {
-		const deletecache = await redisClient.del(selectUsername + "-" + selectDomain);
-		if (deletecache != 0) {
+		const deletecache = await redisDel(selectUsername + "-" + selectDomain);
+		if (deletecache) {
 			logger.debug("Update user domain ->", EventHeader.pubkey, "|", "Redis cache cleared");
 		}
 	}

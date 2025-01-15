@@ -3,7 +3,7 @@ import { logger } from './logger.js';
 import config from 'config';
 import fs from "fs";
 import { connect, dbUpdate } from "./database.js";
-import { RowDataPacket } from "mysql2";
+import { PoolConnection, RowDataPacket } from "mysql2";
 import { fileData } from "../interfaces/media.js";
 
 const client =  new WebTorrent({
@@ -16,8 +16,12 @@ const SeedMediafilesMagnets = async () => {
 
   //Retrieve magnet links from database
   let result;
+  const pool = await connect("SeedMediafilesMagnets");
+  let conn : PoolConnection | undefined;
+
   try{
-    const conn = await connect("SeedMediafilesMagnets");
+    const conn = await pool.getConnection();
+    
     const [dbFileMagnet] = await conn.execute(
       "SELECT DISTINCT " + 
               "filename, "+ 
@@ -28,14 +32,16 @@ const SeedMediafilesMagnets = async () => {
               "mediafiles.magnet is not null and " + 
               "mediafiles.filename not like ('%avatar%' or '%banner%')");
     if (!dbFileMagnet) {
-      conn.end();
+      conn.release();
       return "";
     }
     result = JSON.parse(JSON.stringify(dbFileMagnet));
-    conn.end();
+    conn.release();
     }catch (error) {
       logger.error("Error getting magnet links from mediafiles table", error);
     return "";
+    } finally {
+      if (conn) conn.release();
     }
 
   //Loop through results and seed each magnet link  

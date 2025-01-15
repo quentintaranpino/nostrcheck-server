@@ -1,9 +1,9 @@
 import { Request, Response } from "express";
 import app from "../app.js";
-import { connect, dbDelete, dbInsert, dbMultiSelect, dbSelect, dbUpdate } from "../lib/database.js";
+import { dbDelete, dbInsert, dbMultiSelect, dbSelect, dbUpdate } from "../lib/database.js";
 import { logger } from "../lib/logger.js";
 import { isPubkeyRegistered, parseAuthHeader } from "../lib//authorization.js";
-import { getUploadType, getFileMimeType, standardMediaConversion, getNotFoundMediaFile, readRangeHeader, prepareLegacMediaEvent, getMediaDimensions, getExtension, getMimeFromExtension, getConvertedExtension, getAllowedMimeTypes } from "../lib/media.js"
+import { getUploadType, getFileMimeType, standardMediaConversion, getNotFoundFileBanner, readRangeHeader, prepareLegacMediaEvent, getMediaDimensions, getExtension, getMimeFromExtension, getConvertedExtension, getAllowedMimeTypes } from "../lib/media.js"
 import { requestQueue } from "../lib/media.js";
 import {
 	asyncTask,
@@ -22,7 +22,7 @@ import { PrepareNIP96_event, PrepareNIP96_listEvent } from "../lib/nostr/NIP96.j
 import { generateQRCode, getClientIp, getNewDate } from "../lib/utils.js";
 import { generateBlurhash, generatefileHashfrombuffer, hashString } from "../lib/hash.js";
 import { isModuleEnabled } from "../lib/config.js";
-import { redisClient } from "../lib/redis.js";
+import { redisDel, redisGet, redisSet } from "../lib/redis.js";
 import { deleteFile, getFilePath } from "../lib/storage/core.js";
 import { saveTmpFile } from "../lib/storage/local.js";
 import { Readable } from "stream";
@@ -32,7 +32,7 @@ import { checkTransaction, collectInvoice, getInvoice, updateAccountId } from ".
 import { blobDescriptor, BUDKinds } from "../interfaces/blossom.js";
 import { prepareBlobDescriptor } from "../lib/blossom/BUD02.js";
 import { loadCdnPage } from "./frontend.js";
-import { getBannedMediaFile, isContentBanned } from "../lib/banned.js";
+import { getBannedFileBanner, isEntityBanned } from "../lib/banned.js";
 import { mirrorFile } from "../lib/blossom/BUD04.js";
 import { executePlugins } from "../lib/plugins/core.js";
 import { isFirstUse, setAuthCookie } from "../lib/frontend.js";
@@ -564,7 +564,7 @@ const headMedia = async (req: Request, res: Response): Promise<Response> => {
 	}
 
 	// Banned ?
-	if (await isContentBanned(fileData[0].id, "mediafiles")) {
+	if (await isEntityBanned(fileData[0].id, "mediafiles")) {
 		logger.warn(`RES -> 403 Forbidden - file is banned`, "|", getClientIp(req));
 		return res.status(403).send();
 	}
@@ -907,7 +907,7 @@ const getMediabyURL = async (req: Request, res: Response) => {
 		!validator.matches(req.params.filename, /^[a-zA-Z0-9_]+(\.[a-zA-Z0-9_]+)*$/)) {
 		logger.debug(`RES Media URL -> 400 Bad request:`, req.params.filename, "|", getClientIp(req));
 		res.setHeader('Content-Type', 'image/webp');
-		return res.status(400).send(await getNotFoundMediaFile());
+		return res.status(400).send(await getNotFoundFileBanner());
 	}
 
 	// Old API compatibility (username instead of pubkey)
@@ -939,7 +939,7 @@ const getMediabyURL = async (req: Request, res: Response) => {
 	}
 
 	// Check if the file is cached, if not, we check the database for the file.
-	const cachedStatus = await redisClient.get(req.params.filename + "-" + req.params.pubkey);
+	const cachedStatus = await redisGet(req.params.filename + "-" + req.params.pubkey);
 	if (cachedStatus === null || cachedStatus === undefined) {
 
 		// Standard gallery compatibility (pubkey/file.ext or pubkey/file)
@@ -967,22 +967,22 @@ const getMediabyURL = async (req: Request, res: Response) => {
 		if (filedata[0] == undefined || filedata[0] == null) {
 			logger.info(`RES -> 200 Not Found - ${req.url}`, "| Returning not found media file.", getClientIp(req));
 			res.setHeader('Content-Type', 'image/webp');
-			return res.status(200).send(await getNotFoundMediaFile());
+			return res.status(200).send(await getNotFoundFileBanner());
 		}
 
-		let isBanned = await isContentBanned(filedata[0].id, "mediafiles");
+		let isBanned = await isEntityBanned(filedata[0].id, "mediafiles");
 		const pubkeyId = await dbMultiSelect(["id"], "registered", "hex = ?", [filedata[0].pubkey], true);
-		if (pubkeyId.length > 0 && (await isContentBanned(pubkeyId[0].id, "registered") == true)) {isBanned = true}
+		if (pubkeyId.length > 0 && (await isEntityBanned(pubkeyId[0].id, "registered") == true)) {isBanned = true}
 		if (isBanned && adminRequest == false) {
 			logger.info(`RES -> 200 Banned content - ${req.url}`, "| Returning banned media file.", getClientIp(req));
 			res.setHeader('Content-Type', 'image/webp');
-			return res.status(200).send(await getBannedMediaFile());
+			return res.status(200).send(await getBannedFileBanner());
 		}
 
 		if (filedata[0].active != "1" && adminRequest == false) {
 			logger.info(`RES -> 200 File not active - ${req.url}`, "returning not found media file |", getClientIp(req), "|", "cached:", cachedStatus ? true : false);
 			res.setHeader('Content-Type', 'image/webp');
-			return res.status(200).send(await getNotFoundMediaFile());
+			return res.status(200).send(await getNotFoundFileBanner());
 		}
 
 		// if (filedata[0].visibility != "1" && adminRequest == false && loggedPubkey != filedata[0].pubkey) {
@@ -1033,7 +1033,7 @@ const getMediabyURL = async (req: Request, res: Response) => {
 				} catch (err) {
 					logger.warn(`RES -> 200 Not Found - ${req.url}`, "| Returning not found media file.", getClientIp(req));
 					res.setHeader('Content-Type', 'image/webp');
-					return res.status(200).send(await getNotFoundMediaFile());
+					return res.status(200).send(await getNotFoundFileBanner());
 				}
 	
 				res.setHeader("Content-Range", `bytes ${range.Start}-${range.End}/${videoSize}`);
@@ -1060,17 +1060,14 @@ const getMediabyURL = async (req: Request, res: Response) => {
 		}
 		
 		if (!adminRequest && loggedPubkey == "") {
-			await redisClient.set(req.params.filename + "-" + req.params.pubkey, "1", {
-				EX: app.get("config.redis")["expireTime"],
-				NX: true,
-			});
+			await redisSet(req.params.filename + "-" + req.params.pubkey, "1", {EX: app.get("config.redis")["expireTime"]});
 		}
 
 	}
 	if (cachedStatus === "0") {
 		logger.info(`RES -> 401 File not active - ${req.url}`, "returning not found media file |", getClientIp(req), "|", "cached:", cachedStatus ? true : false);
 		res.setHeader('Content-Type', 'image/webp');
-		return res.status(401).send(await getNotFoundMediaFile());
+		return res.status(401).send(await getNotFoundFileBanner());
 	}
 
 	// file extension checks and media type
@@ -1087,7 +1084,7 @@ const getMediabyURL = async (req: Request, res: Response) => {
 		if (!mediaPath) {
 			logger.error(`RES Media URL -> 500 Internal Server Error - mediaPath not set`, "|", getClientIp(req));
 			res.setHeader('Content-Type', 'image/webp');
-			return res.status(500).send(await getNotFoundMediaFile());
+			return res.status(500).send(await getNotFoundFileBanner());
 		}
 
 		// Check if file exist on storage server
@@ -1095,14 +1092,14 @@ const getMediabyURL = async (req: Request, res: Response) => {
 		if (fileName == ""){ 
 				logger.info(`RES Media URL -> 200 Not Found`, "|", getClientIp(req));
 				res.setHeader('Content-Type', 'image/webp');
-				return res.status(200).send(await getNotFoundMediaFile());
+				return res.status(200).send(await getNotFoundFileBanner());
 			}
 
 		// Try to prevent directory traversal attacks
 		if (!path.normalize(path.resolve(fileName)).startsWith(mediaPath)) {
 			logger.warn(`RES -> 403 Forbidden - ${req.url}`, "|", getClientIp(req));
 			res.setHeader('Content-Type', 'image/webp');
-			return res.status(403).send(await getNotFoundMediaFile());
+			return res.status(403).send(await getNotFoundFileBanner());
 		}
 
 		// If is a video or audio file we return an stream
@@ -1116,7 +1113,7 @@ const getMediabyURL = async (req: Request, res: Response) => {
 			} catch (err) {
 				logger.warn(`RES -> 200 Not Found - ${req.url}`, "| Returning not found media file.", getClientIp(req));
 				res.setHeader('Content-Type', 'image/webp');
-				return res.status(200).send(await getNotFoundMediaFile());
+				return res.status(200).send(await getNotFoundFileBanner());
 			}
 
 			res.setHeader("Content-Range", `bytes ${range.Start}-${range.End}/${videoSize}`);
@@ -1145,7 +1142,7 @@ const getMediabyURL = async (req: Request, res: Response) => {
 			if (err) {
 				logger.warn(`RES -> 200 Not Found - ${req.url}`, "| Returning not found media file.", getClientIp(req));
 				res.setHeader('Content-Type', 'image/webp');
-				return res.status(200).send(await getNotFoundMediaFile());
+				return res.status(200).send(await getNotFoundFileBanner());
 			} 
 			logger.info(`RES -> 200 Media file ${req.url}`, "|", getClientIp(req), "|", "cached:", cachedStatus ? true : false);
 			res.setHeader('Content-Type', mediaType);
@@ -1159,13 +1156,13 @@ const getMediabyURL = async (req: Request, res: Response) => {
 		if (url == "") {
 			logger.error(`RES Media URL -> 500 Internal Server Error - remote URL not found`, "|", getClientIp(req));
 			res.setHeader('Content-Type', 'image/webp');
-			return res.status(500).send(await getNotFoundMediaFile());
+			return res.status(500).send(await getNotFoundFileBanner());
 		}
 		const remoteFile = await fetch(url);
 		if (!remoteFile.ok || !remoteFile.body ) {
 			logger.error('RES -> 200 - Failed to fetch from remote file server || ' + req.params.filename, getClientIp(req));
 			res.setHeader('Content-Type', 'image/webp');
-			return res.status(200).send(await getNotFoundMediaFile());
+			return res.status(200).send(await getNotFoundFileBanner());
 		}
 
 		const reader = remoteFile.body.getReader();
@@ -1212,35 +1209,41 @@ const getMediaTagsbyID = async (req: Request, res: Response): Promise<Response> 
 	logger.info("REQ -> Media tag list -> pubkey:", eventHeader.pubkey, "-> id:", req.params.fileId, "|", getClientIp(req));
 
 	//Query database for media tags
-	try {
-		const conn = await connect("GetMediaTagsbyID");
-		const [rows] = await conn.execute("SELECT tag FROM mediatags INNER JOIN mediafiles ON mediatags.fileid = mediafiles.id where fileid = ? and pubkey = ? ", [req.params.fileId, eventHeader.pubkey]);
-		const rowstemp = JSON.parse(JSON.stringify(rows));
+    const fileId = req.params.fileId;
+    const userPubkey = eventHeader.pubkey;
+    const serverPubkey = app.get("config.server")["pubkey"];
 
-		if (rowstemp[0] !== undefined) {
-			conn.end();
-			logger.info("RES -> Media tag list ", "|", getClientIp(req));
-			return res.status(200).send( JSON.parse(JSON.stringify(rows)));
-		}else{
-			//If not found, try with public server pubkey
-			logger.info("Media tag list not found, trying with public server pubkey", "|", getClientIp(req));
-			const [Publicrows] = await conn.execute("SELECT tag FROM mediatags INNER JOIN mediafiles ON mediatags.fileid = mediafiles.id where fileid = ? and pubkey = ?", [req.params.fileId, app.get("config.server")["pubkey"]]);
-			const Publicrowstemp = JSON.parse(JSON.stringify(Publicrows));
-			if (Publicrowstemp[0] !== undefined) {
-				conn.end();
-				logger.info("RES -> Media tag list ", "|", getClientIp(req));
-				return res.status(200).send( JSON.parse(JSON.stringify(Publicrows)));
-			}
-		}
+    // Try with user pubkey
+    const rows = await dbMultiSelect(
+        ["tag"],
+        "mediatags INNER JOIN mediafiles ON mediatags.fileid = mediafiles.id",
+        "fileid = ? AND pubkey = ?",
+        [fileId, userPubkey],
+        false
+    );
 
-		conn.end();
-		logger.warn("RES -> Empty media tag list ", "|", getClientIp(req));
-		return res.status(404).send( JSON.parse(JSON.stringify({ "media tags": "No media tags found" })));
-	} catch (error) {
-		logger.error(error);
+    if (rows.length > 0) {
+        logger.info("RES -> Media tag list", "|", getClientIp(req));
+        return res.status(200).send(rows);
+    }
 
-		return res.status(500).send({ description: "Internal server error" });
-	}
+    // If not found, try with public server pubkey
+    logger.info("Media tag list not found, trying with public server pubkey", "|", getClientIp(req));
+    const publicRows = await dbMultiSelect(
+        ["tag"],
+        "mediatags INNER JOIN mediafiles ON mediatags.fileid = mediafiles.id",
+        "fileid = ? AND pubkey = ?",
+        [fileId, serverPubkey],
+        false
+    );
+
+    if (publicRows.length > 0) {
+        logger.info("RES -> Media tag list", "|", getClientIp(req));
+        return res.status(200).send(publicRows);
+    }
+
+    logger.warn("RES -> Empty media tag list", "|", getClientIp(req));
+    return res.status(404).send({ "media tags": "No media tags found" });
 
 };
 
@@ -1264,47 +1267,52 @@ const getMediabyTags = async (req: Request, res: Response): Promise<Response> =>
 	logger.info("REQ -> Media files for specified tag -> pubkey:", eventHeader.pubkey, "-> tag:", req.params.tags, "|", getClientIp(req));
 
 	//Check database for media files by tags
-	try {
-		const conn = await connect("GetMediabyTags");
-		const [rows] = await conn.execute("SELECT mediafiles.id, mediafiles.filename, mediafiles.pubkey, mediafiles.status FROM mediatags INNER JOIN mediafiles ON mediatags.fileid = mediafiles.id WHERE tag = ? and mediafiles.pubkey = ? ", [req.params.tag, eventHeader.pubkey]);
-		const rowstemp = JSON.parse(JSON.stringify(rows));
+	const fileTag = req.params.tag;
+	const userPubkey = eventHeader.pubkey;
+	const serverPubkey = app.get("config.server")["pubkey"];
 
-		if (rowstemp[0] !== undefined) {
-			conn.end();
-			logger.info("RES -> Media files for specified tag ", "|", getClientIp(req));
-			const result = {
-				result: true,
-				description: "Media files found",
-				mediafiles: rows,
-			};
-	
-			return res.status(200).send(result);
-		}else{
-			//If not found, try with public server pubkey
-			logger.info("Media files for specified tag not found, trying with public server pubkey", "|", getClientIp(req));
-			const [Publicrows] = await conn.execute("SELECT mediafiles.id, mediafiles.filename, mediafiles.pubkey, mediafiles.status FROM mediatags INNER JOIN mediafiles ON mediatags.fileid = mediafiles.id WHERE tag = ? and mediafiles.pubkey = ?", [req.params.tag, app.get("config.server")["pubkey"]]);
-			const Publicrowstemp = JSON.parse(JSON.stringify(Publicrows));
-			if (Publicrowstemp[0] !== undefined) {
-				conn.end();
-				logger.info("RES -> Media files for specified tag ", "|", getClientIp(req));
-				const result = {
-					result: true,
-					description: "Media files found",
-					mediafiles: Publicrows,
-				};
+	// Try with user pubkey
+	const rows = await dbMultiSelect(
+		["mediafiles.id", "mediafiles.filename", "mediafiles.pubkey", "mediafiles.status"],
+		"mediatags INNER JOIN mediafiles ON mediatags.fileid = mediafiles.id",
+		"tag = ? AND mediafiles.pubkey = ?",
+		[fileTag, userPubkey],
+		false
+	);
 
-				return res.status(200).send(result);
-			}
-		}
-
-		conn.end();
-		logger.warn("RES -> Empty media files for specified tag ", "|", getClientIp(req));
-		return res.status(404).send( JSON.parse(JSON.stringify({ "media files": "No media files found" })));
-	} catch (error) {
-		logger.error(error);
-		
-		return res.status(500).send({ description: "Internal server error" });
+	if (rows.length > 0) {
+		logger.info("RES -> Media files for specified tag", "|", getClientIp(req));
+		const result = {
+			result: true,
+			description: "Media files found",
+			mediafiles: rows,
+		};
+		return res.status(200).send(result);
 	}
+
+	// If not found, try with public server pubkey
+	logger.info("Media files for specified tag not found, trying with public server pubkey", "|", getClientIp(req));
+	const publicRows = await dbMultiSelect(
+		["mediafiles.id", "mediafiles.filename", "mediafiles.pubkey", "mediafiles.status"],
+		"mediatags INNER JOIN mediafiles ON mediatags.fileid = mediafiles.id",
+		"tag = ? AND mediafiles.pubkey = ?",
+		[fileTag, serverPubkey],
+		false
+	);
+
+	if (publicRows.length > 0) {
+		logger.info("RES -> Media files for specified tag", "|", getClientIp(req));
+		const result = {
+			result: true,
+			description: "Media files found",
+			mediafiles: publicRows,
+		};
+		return res.status(200).send(result);
+	}
+
+	logger.warn("RES -> Empty media files for specified tag", "|", getClientIp(req));
+	return res.status(404).send({ "media files": "No media files found" });
+
 
 };
 
@@ -1364,7 +1372,7 @@ const updateMediaVisibility = async (req: Request, res: Response, version: strin
 	logger.info("RES -> Media visibility updated", "|", getClientIp(req));
 
 	// Clear redis cache
-	await redisClient.del(fileData[0].filename + "-" + eventHeader.pubkey);
+	await redisDel(fileData[0].filename + "-" + eventHeader.pubkey);
 	
 	if (version != "v2") return res.status(200).send({"result": true, "description" : "Media visibility has changed with value " + req.params.visibility});
 	const result: ResultMessagev2 = {
@@ -1529,7 +1537,7 @@ const headUpload = async (req: Request, res: Response): Promise<Response> => {
 
 
 	// Check if the pubkey is banned
-	const isBanned = await isContentBanned(eventHeader.pubkey, "registered");
+	const isBanned = await isEntityBanned(eventHeader.pubkey, "registered");
 	if (isBanned) {
 		logger.warn("RES -> 403 Banned pubkey", "|", getClientIp(req));
 		res.header("X-Reason", "Pubkey banned");
@@ -1555,7 +1563,7 @@ const headUpload = async (req: Request, res: Response): Promise<Response> => {
 	}
 
 	// Check if the file hash is banned
-	const isHashBanned = await isContentBanned(hash, "mediafiles");
+	const isHashBanned = await isEntityBanned(hash, "mediafiles");
 	if (isHashBanned) {
 		logger.warn("RES -> 403 Banned hash", "|", getClientIp(req));
 		res.header("X-Reason", "SHA-256 hash banned");

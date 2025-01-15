@@ -414,7 +414,7 @@ const getFileSize = (path:string, options:fileData) :number => {
 
 }
 
-const getNotFoundMediaFile = (): Promise<Buffer> => {
+const getNotFoundFileBanner = (): Promise<Buffer> => {
     return new Promise((resolve) => {
 		const notFoundPath = path.normalize(path.resolve(app.get("config.media")["notFoundFilePath"]));
         fs.readFile(notFoundPath, (err, data) => {
@@ -570,7 +570,7 @@ export {processFile,
 		GetFileTags,
 		getMediaDimensions, 
 		standardMediaConversion, 
-		getNotFoundMediaFile, 
+		getNotFoundFileBanner, 
 		readRangeHeader, 
 		prepareLegacMediaEvent,
 		getExtension,

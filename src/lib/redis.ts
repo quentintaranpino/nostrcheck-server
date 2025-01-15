@@ -21,26 +21,113 @@ const redisPluginsClient = createClient({ url: `redis://${redisUser}:${redisPass
 	await redisPluginsClient.connect();
 })();
 
-const flushRedisCache = async (): Promise<void> => {
-	return await redisClient.sendCommand(['flushall']);
+const redisFlushAll = async (): Promise<boolean> => {
+	try{
+		await redisClient.sendCommand(['flushall']);
+		return true
+	} catch (error) {
+		logger.error(`Redis FLUSHALL error: ${error}`);
+		return false;
+	}
+	
 }
 
-async function getNostrAddressFromRedis(key: string): Promise<nostrAddressResult> {
-	const data = await redisClient.get(key);
-	if (!data) return {names: {}};
-	return JSON.parse(data.toString());
-}
+/**
+ * Wrapper for Redis `get` method with error handling.
+ */
+const redisGet = async (key: string): Promise<string | null> => {
+    try {
+        const value = await redisClient.get(key);
+        return value;
+    } catch (error) {
+        logger.error(`Redis GET error for key '${key}': ${error}`);
+        return null;
+    }
+};
 
-async function getLightningAddressFromRedis(key: string): Promise<LightningUsernameResult> {
-	const data = await redisClient.get(key);
-	if (!data) return {lightningserver: "", lightninguser: ""};
-	return JSON.parse(data.toString());
-}
+/**
+ * Wrapper for Redis `get` method with JSON parsing and error handling.
+ */
+const redisGetJSON = async <T>(key: string): Promise<T | null> => {
+    try {
+        const data = await redisGet(key);
+        if (!data) return null; 
+        return JSON.parse(data) as T; 
+    } catch (error) {
+        logger.error(`Error parsing JSON from Redis for key '${key}': ${error}`);
+        return null;
+    }
+};
 
-async function getActiveStatusFromRedis(identifier: string): Promise<boolean> {
-    const data = await redisClient.get(`activeStatus:${identifier}`);
-    if (!data) return true; 
-    return JSON.parse(data).isActive;
-}
+/**
+ * Wrapper for Redis `set` method with error handling.
+ */
+const redisSet = async (key: string, value: string, options: { EX?: number } = {}): Promise<boolean> => {
+    try {
+        await redisClient.set(key, value, options);
+        return true;
+    } catch (error) {
+        logger.error(`Redis SET error for key '${key}': ${error}`);
+        return false;
+    }
+};
 
-export { redisClient, redisPluginsClient, flushRedisCache, getNostrAddressFromRedis, getLightningAddressFromRedis, getActiveStatusFromRedis };
+/**
+ * Wrapper for Redis `del` method with error handling.
+ */
+const redisDel = async (key: string): Promise<boolean> => {
+    try {
+        const result = await redisClient.del(key);
+        if (result > 0) {
+            return true;
+        } else {
+            return false; 
+        }
+    } catch (error) {
+        logger.error(`Redis DEL error for key '${key}': ${error}`);
+        return false;
+    }
+};
+
+/**
+ * Wrapper for Redis `hGetAll` method with error handling.
+ */
+const redisHashGetAll = async (key: string): Promise<Record<string, string>> => {
+    try {
+        const data = await redisClient.hGetAll(key);
+        return data;
+    } catch (error) {
+        logger.error(`Error HGETALL for key '${key}': ${error}`);
+        return {}; 
+    }
+};
+
+const redisHashSet = async (key: string, fields: Record<string, any>): Promise<boolean> => {
+    try {
+        await redisClient.hSet(key, fields);
+        return true;
+    } catch (error) {
+        logger.error(`Error HSET for key '${key}': ${error}`);
+        return false;
+    }
+};
+
+const redisHashIncrementBy = async (key: string, field: string, increment: number): Promise<boolean> => {
+    try {
+        await redisClient.hIncrBy(key, field, increment);
+        return true;
+    } catch (error) {
+        logger.error(`Error HINCRBY for key '${key}': ${error}`);
+        return false;
+    }
+};
+
+export { redisPluginsClient, 
+		 redisFlushAll,
+		 redisGet,
+		 redisGetJSON,
+		 redisSet, 
+		 redisDel, 
+		 redisHashGetAll,
+		 redisHashSet,
+		 redisHashIncrementBy };

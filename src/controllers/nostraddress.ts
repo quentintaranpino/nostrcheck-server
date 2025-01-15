@@ -2,12 +2,12 @@ import { Request, Response } from "express";
 
 import { dbMultiSelect } from "../lib/database.js";
 import { logger } from "../lib/logger.js";
-import { redisClient, getNostrAddressFromRedis } from "../lib/redis.js";
 import { nostrAddressResult } from "../interfaces/register.js";
 import { ResultMessagev2 } from "../interfaces/server.js";
 import { getClientIp } from "../lib/utils.js";
 import app from "../app.js";
 import { isModuleEnabled } from "../lib/config.js";
+import { redisGetJSON, redisSet } from "../lib/redis.js";
 
 const getNostraddress = async (req: Request, res: Response): Promise<Response> => {
 
@@ -30,9 +30,9 @@ const getNostraddress = async (req: Request, res: Response): Promise<Response> =
 		return res.status(400).send(result);
 	}
 
-	const cached = await getNostrAddressFromRedis(name + "-" + servername);
-	if (cached.names[name]) {
-		logger.info(`REQ nostraddress | ${name} : ${cached.names[name]} | cached: ${true}`, getClientIp(req));
+	const cached = await redisGetJSON<{ names: Record<string, string> }>(`nostraddress:${name}-${servername}`);
+	if (cached && cached.names[name]) {
+		logger.info(`REQ nostraddress | ${name} : ${cached.names[name]} | cached:`, true, getClientIp(req));
 		return res.status(200).send(cached);
 	}
 
@@ -52,12 +52,11 @@ const getNostraddress = async (req: Request, res: Response): Promise<Response> =
 		}
 	};
 
-	await redisClient.set(name + "-" + servername, JSON.stringify(result), {
+	await redisSet(`nostraddress:${name}-${servername}`, JSON.stringify(result), {
 		EX: app.get("config.redis")["expireTime"],
-		NX: true,
 	});
 
-	logger.info(`REQ nostraddress | ${name} : ${result.names[name]} | cached: ${false}`, getClientIp(req));
+	logger.info(`REQ nostraddress | ${name} : ${result.names[name]} | cached:`, false, getClientIp(req));
 	return res.status(200).send(result);
 
 };

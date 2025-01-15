@@ -2,7 +2,6 @@ import { Request, Response } from "express";
 
 import { connect, dbSelect } from "../lib/database.js";
 import { logger } from "../lib/logger.js";
-import { redisClient, getLightningAddressFromRedis } from "../lib/redis.js";
 import { ResultMessagev2 } from "../interfaces/server.js";
 import { LightningUsernameResult } from "../interfaces/lightning.js";
 import { parseAuthHeader } from "../lib/authorization.js";
@@ -10,6 +9,8 @@ import { getClientIp } from "../lib/utils.js";
 import { isModuleEnabled } from "../lib/config.js";
 import app from "../app.js";
 import { setAuthCookie } from "../lib/frontend.js";
+import { PoolConnection} from "mysql2/promise";
+import { redisDel, redisGetJSON, redisSet } from "../lib/redis.js";
 
 const redirectlightningddress = async (req: Request, res: Response): Promise<Response> => {
 
@@ -72,14 +73,14 @@ const redirectlightningddress = async (req: Request, res: Response): Promise<Res
 	try {
 
 		//Check if the name is cached
-		const cached = await getLightningAddressFromRedis("LNURL" + "-" + name + "-" + servername);
-		if (cached.lightningserver != "" && cached.lightninguser != "") {
-
+		const cached = await redisGetJSON<{ lightningserver: string; lightninguser: string }>(`lightningaddress:${name}-${servername}`);
+		if (cached && cached.lightningserver && cached.lightninguser) {
+		
 			isCached = true;
-			const url = "https://" + cached.lightningserver + "/.well-known/lnurlp/" + cached.lightninguser ;
-			logger.info("RES GET Lightningaddress ->", name, "redirect ->", cached.lightninguser + "@" + cached.lightningserver, "|", "cached:", isCached);
-
-			//redirect
+			const url = `https://${cached.lightningserver}/.well-known/lnurlp/${cached.lightninguser}`;
+			logger.info("RES GET Lightningaddress ->", name, "redirect ->", `${cached.lightninguser}@${cached.lightningserver}`, "|", "cached:", isCached);
+		
+			// Redirect
 			res.redirect(url);
 			return res;
 		}
@@ -116,9 +117,9 @@ const redirectlightningddress = async (req: Request, res: Response): Promise<Res
 		return res.status(404).send(result);
 	}
 
-	await redisClient.set("LNURL" + "-" + name + "-" + servername, JSON.stringify(lightningdata), {
+	// Store in Redis
+	await redisSet(`lightningaddress:${name}-${servername}`, JSON.stringify(lightningdata), {
 		EX: app.get("config.redis")["expireTime"],
-		NX: true, // Only set the key if it does not already exist
 	});
 
 	//redirect to url
@@ -181,20 +182,22 @@ const updateLightningAddress = async (req: Request, res: Response): Promise<Resp
 
 	logger.info("REQ Update lightningaddress ->", servername, " | pubkey:",  EventHeader.pubkey, " | ligntningaddress:",  lightningaddress, "|", getClientIp(req));
 
-
+	const pool = await connect("UpdateLightningAddress");
+	let conn : PoolConnection | undefined;
 	try {
-		const conn = await connect("UpdateLightningAddress");
+
+		conn = await pool.getConnection();
 		const [rows] = await conn.execute(
 			"UPDATE lightning SET lightningaddress = ? WHERE pubkey = ?",
 			[lightningaddress, EventHeader.pubkey]
 		);
 		const rowstemp = JSON.parse(JSON.stringify(rows));
-		conn.end();
+		conn.release();
 		if (rowstemp.affectedRows == 0) {
 			logger.info("Update Lightningaddress ->", EventHeader.pubkey, "|", "Lightning redirect not found, creating...");
 
 			//Insert lightning address into database
-			const conn = await connect("UpdateLightningAddress");
+			conn = await pool.getConnection();
 			const [dbInsert] = await conn.execute(
 			"INSERT INTO lightning (pubkey, lightningaddress) VALUES (?, ?)",
 			[EventHeader.pubkey, lightningaddress]
@@ -207,13 +210,12 @@ const updateLightningAddress = async (req: Request, res: Response): Promise<Resp
 					status: "error",
 					message:  "Error inserting lightning address into database",
 			};
-			conn.end();
+			conn.release();
 			return res.status(406).send(result);
 			}
 		}
 
-	}
-	catch (error) {
+	} catch (error) {
 		logger.error(error);
 
 		const result: ResultMessagev2 = {
@@ -222,21 +224,23 @@ const updateLightningAddress = async (req: Request, res: Response): Promise<Resp
 		};
 
 		return res.status(500).send(result);
+	} finally {
+		if (conn) {conn.release();}
 	}
 
 	//select lightningaddress from database
-	const conn = await connect("UpdateLightningAddress");
+	conn = await pool.getConnection();
 	const [rows] = await conn.execute(
 		"SELECT username, domain FROM registered WHERE hex = ?",
 		[EventHeader.pubkey]
 	);
 	const rowstemp = JSON.parse(JSON.stringify(rows));
-	conn.end();
+	conn.release();
 	if (rowstemp[0] != undefined) {
 
 		//Delete redis cache
-		const deletecache = await redisClient.del("LNURL" + "-" + rowstemp[0].username + "-" + rowstemp[0].domain);
-		if (deletecache != 0) {
+		const deletecache = await redisDel("lightningaddress:" + rowstemp[0].username + "-" + rowstemp[0].domain);
+		if (deletecache) {
 			logger.info("Update Lightningaddress ->", EventHeader.pubkey, "|", "Redis cache cleared");
 		}
 	}
@@ -269,14 +273,17 @@ const deleteLightningAddress = async (req: Request, res: Response): Promise<Resp
 	setAuthCookie(res, EventHeader.authkey);
 
 	//Check if pubkey's lightningaddress exists on database
+	const pool = await connect("DeleteLightningAddress");
+	let conn : PoolConnection | undefined;
+
 	try{
-		const conn = await connect("DeleteLightningAddress");
+		conn = await pool.getConnection();
 		const [rows] = await conn.execute(
 			"SELECT lightningaddress FROM lightning WHERE pubkey = ?",
 			[EventHeader.pubkey]
 		);
 		const rowstemp = JSON.parse(JSON.stringify(rows));
-		conn.end();
+		conn.release();
 		if (rowstemp[0] == undefined) {
 			logger.warn("RES Delete Lightningaddress -> 404 Not found", "|", getClientIp(req));
 			const result: ResultMessagev2 = {
@@ -299,13 +306,13 @@ const deleteLightningAddress = async (req: Request, res: Response): Promise<Resp
 	logger.info("REQ Delete lightningaddress ->", servername, " | pubkey:",  EventHeader.pubkey, " | ligntningaddress:",  lightningaddress, "|", getClientIp(req));
 
 	try {
-		const conn = await connect("DeleteLightningAddress");
+		conn = await pool.getConnection();
 		const [rows] = await conn.execute(
 			"DELETE FROM lightning WHERE pubkey = ?",
 			[EventHeader.pubkey]
 		);
 		const rowstemp = JSON.parse(JSON.stringify(rows));
-		conn.end();
+		conn.release();
 		if (rowstemp.affectedRows == 0) {
 			logger.info("Delete Lightningaddress ->", EventHeader.pubkey, "|", "Lightning redirect not found");
 			const result: ResultMessagev2 = {
@@ -314,30 +321,30 @@ const deleteLightningAddress = async (req: Request, res: Response): Promise<Resp
 			};
 			return res.status(404).send(result);
 		}
-	}
-	catch (error) {
+	} catch (error) {
 		logger.error(error);
 		const result: ResultMessagev2 = {
 			status: "error",
 			message:  "Internal server error",
 		};
 		return res.status(500).send(result);
+	} finally {
+		if (conn) {conn.release();}
 	}
 
 	//select lightningaddress from database
-	const conn = await connect("DeleteLightningAddress");
-
+	conn = await pool.getConnection();
 	const [rows] = await conn.execute(
 		"SELECT username, domain FROM registered WHERE hex = ?",
 		[EventHeader.pubkey]
 	);
 	const rowstemp = JSON.parse(JSON.stringify(rows));
-	conn.end();
+	conn.release();
 	if (rowstemp[0] != undefined) {
 
 		//Delete redis cache
-		const deletecache = await redisClient.del("LNURL" + "-" + rowstemp[0].username + "-" + rowstemp[0].domain);
-		if (deletecache != 0) {
+		const deletecache = await redisDel("lightningaddress:" + rowstemp[0].username + "-" + rowstemp[0].domain);
+		if (deletecache) {
 			logger.info("Delete Lightningaddress ->", EventHeader.pubkey, "|", "Redis cache cleared");
 		}
 
@@ -351,7 +358,6 @@ const deleteLightningAddress = async (req: Request, res: Response): Promise<Resp
 	};
 
 	return res.status(200).send(result);
-
 };
 
 export { redirectlightningddress, updateLightningAddress, deleteLightningAddress };

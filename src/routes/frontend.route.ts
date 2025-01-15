@@ -17,7 +17,7 @@ import { isPubkeyValid } from "../lib/authorization.js";
 import { limiter } from "../lib/session.js";
 import { isFirstUse } from "../lib/frontend.js";
 import { getClientIp } from "../lib/utils.js";
-import { redisClient } from "../lib/redis.js";
+import { redisDel } from "../lib/redis.js";
 
 export const loadFrontendEndpoint = async (app: Application, version: string): Promise<void> => {
 
@@ -139,7 +139,7 @@ export const loadFrontendEndpoint = async (app: Application, version: string): P
 
 			res.clearCookie("connect.sid");
 			res.clearCookie("authkey");
-			await redisClient.del(`activeStatus:${identifier}`);
+			await redisDel(`activeStatus:${identifier}`);
 
 			res.redirect("/api/" +  version + "/login");
 		});

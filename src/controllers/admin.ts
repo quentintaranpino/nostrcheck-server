@@ -13,7 +13,7 @@ import { dbDelete, dbInsert, dbMultiSelect, dbUpdate } from "../lib/database.js"
 import { allowedFieldNames, allowedFieldNamesAndValues, allowedTableNames, moduleDataReturnMessage, moduleDataKeys } from "../interfaces/admin.js";
 import { parseAuthHeader} from "../lib/authorization.js";
 import { isModuleEnabled, updateLocalConfigKey } from "../lib/config.js";
-import { flushRedisCache } from "../lib/redis.js";
+import { redisFlushAll } from "../lib/redis.js";
 import { getFileMimeType } from "../lib/media.js";
 import { npubToHex } from "../lib/nostr/NIP19.js";
 import { dbCountModuleData, dbCountMonthModuleData, dbSelectModuleData } from "../lib/admin.js";
@@ -21,7 +21,7 @@ import { getBalance, getUnpaidTransactionsBalance } from "../lib/payments/core.j
 import { themes } from "../interfaces/themes.js";
 import { moderateFile } from "../lib/moderation/core.js";
 import { addNewUsername } from "../lib/register.js";
-import { banRecord } from "../lib/banned.js";
+import { banEntity } from "../lib/banned.js";
 import { generateInviteCode } from "../lib/invitations.js";
 import { setAuthCookie } from "../lib/frontend.js";
 import { deleteFile } from "../lib/storage/core.js";
@@ -674,8 +674,8 @@ const updateSettings = async (req: Request, res: Response): Promise<Response> =>
 
     // If the setting is expireTime from redis we flush redis cache
     if (req.body.name == "redis.expireTime") {
-        await flushRedisCache();
-        logger.debug("Purging cache");
+        const flushResult = await redisFlushAll();
+        if (flushResult)logger.debug("Redis cache flushed");
     }
 
     const result : ResultMessagev2 = {
@@ -891,7 +891,7 @@ const banDBRecord = async (req: Request, res: Response): Promise<Response> => {
         return res.status(400).send(result);
     }
 
-    const banResult = await banRecord(req.body.id, table, req.body.reason);
+    const banResult = await banEntity(req.body.id, table, req.body.reason);
 
     if (banResult.status == "error") {
         return res.status(500).send({status: "error", message: banResult.message});

@@ -11,11 +11,11 @@ import { Event } from "nostr-tools";
 import { isBUD01AuthValid } from "./blossom/BUD01.js";
 import { NIPKinds } from "../interfaces/nostr.js";
 import { BUDKinds } from "../interfaces/blossom.js";
-import { isContentBanned } from "./banned.js";
+import { isEntityBanned } from "./banned.js";
 import { getClientIp } from "./utils.js";
 import app from "../app.js";
-import { getActiveStatusFromRedis, redisClient } from "./redis.js";
 import { npubToHex } from "./nostr/NIP19.js";
+import { redisDel, redisGet, redisGetJSON, redisSet } from "./redis.js";
 
 
 /**
@@ -162,7 +162,7 @@ const isPubkeyBanned = async (pubkey: string): Promise<boolean> => {
 	if (!pubkey) {return false}
 	const pubkeyData = await dbMultiSelect(["id"], "registered", "hex = ?", [pubkey], true);
 	if (pubkeyData.length == 0) {return false;}
-	if (await isContentBanned(pubkeyData[0].id, "registered")) {return true;}
+	if (await isEntityBanned(pubkeyData[0].id, "registered")) {return true;}
 	return false;
 }
 
@@ -209,7 +209,8 @@ const isAuthkeyValid = async (authString: string, checkAdminPrivileges: boolean 
 		} 
 
         if (checkActive) {
-            const isActive = await getActiveStatusFromRedis(decoded.identifier);
+			const redisData = await redisGetJSON<{ isActive: boolean }> (`activeStatus:${decoded.identifier}`);
+			const isActive = redisData?.isActive ?? true;
             if (!isActive) {
                 logger.warn(`Unauthorized request, user not active. Authkey: ${authString}`);
                 return { status: "error", message: "User not active", authkey: "", pubkey: "", kind: 0 };
@@ -301,7 +302,7 @@ const generateOTC = async (pubkey: string) : Promise<boolean> => {
     const otc = Math.floor(100000 + Math.random() * 900000).toString()
 	const hashedOTC = await hashString(otc, 'otc');
 	
-	await redisClient.set(`otc:${hashedOTC}`, JSON.stringify({ pubkey }), { EX: 300 });
+	await redisSet(`otc:${hashedOTC}`, JSON.stringify({ pubkey }), { EX: 300 });
 	const DM = await sendMessage(`Your one-time code: ${otc}`, pubkey);
 	if(!DM) return false;
 
@@ -317,12 +318,12 @@ const generateOTC = async (pubkey: string) : Promise<boolean> => {
 const verifyOTC = async (otc: string): Promise<string> => {
 
     const hashedOTC = await hashString(otc, 'otc');
-    const storedData = await redisClient.get(`otc:${hashedOTC}`);
+    const storedData = await redisGet(`otc:${hashedOTC}`);
     
     if (!storedData) return "";
 
 	const { pubkey } = JSON.parse(storedData);
-    await redisClient.del(`otc:${hashedOTC}`);
+    await redisDel(`otc:${hashedOTC}`);
     return pubkey;
 }
 
