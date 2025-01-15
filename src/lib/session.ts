@@ -1,6 +1,5 @@
 
 import session from "express-session";
-import config from "config";
 import crypto from 'crypto';
 import { logger } from "./logger.js";
 import { Application } from "express"
@@ -9,7 +8,6 @@ import { rateLimit } from 'express-rate-limit'
 import { localUserMetadata } from "../interfaces/frontend.js";
 import app from "../app.js";
 import cookieParser from 'cookie-parser';
-import { exit } from "process";
 
 declare module 'express-session' {
 	interface Session {
@@ -22,10 +20,9 @@ declare module 'express-session' {
 const initSession = async (app:Application): Promise<void> => {
 
     //Check if session secret is insecure and generate new secret if needed
-    const sessionSecret = await checkSessionSecret();
+    const sessionSecret = await getSessionSecret();
 
     logger.debug("Initialising session cookies");
-    logger.debug("Session secret:", sessionSecret);
 
     app.use(session({
         secret: sessionSecret,
@@ -45,27 +42,30 @@ const initSession = async (app:Application): Promise<void> => {
     app.locals.limiter = limiter;
 }
 
-const checkSessionSecret = async(): Promise<string> => {
+const getSessionSecret = async(): Promise<string> => {
 
-    if (config.get('session.secret') == ""){
+    if (app.get('config.session')['secret'] == undefined || 
+        app.get('config.session')['secret'] == "" ||
+        app.get('config.session')['secret']?.length < 64) {
         
-        //Insecure secret, generate random secret, save to config and return with new secret
         logger.info("Insecure session.secret detected in config file - Generating random secret");
         const newSecret = crypto.randomBytes(64).toString('hex');
-        logger.debug("New session.secret generated: " + newSecret);
+        logger.info("New session.secret generated");
 
         if (await updateLocalConfigKey("session.secret", newSecret)){
             logger.debug("session.secret updated in config file");
-            console.info("Config file updated with new session secret default fields. Please restart the server");
-            exit(3);
+            const configSession = { ...app.get('config.session') }; 
+            configSession.secret = newSecret;
+            app.set('config.session', configSession);
+            return newSecret;
         }
+        return "";
 
     }{
-        return config.get('session.secret') ;
+        return app.get('config.session')['secret'];
     }
 
 }
-
 
 
 /**
