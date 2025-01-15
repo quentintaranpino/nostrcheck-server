@@ -252,6 +252,31 @@ const bannedTableFields: bannedTable = {
 	},
 }
 
+interface ipsTable extends RowDataPacket {
+	id: string;
+	active: string;
+	checked: string;
+	ip: string;
+	firstseen: string;
+	lastseen: string;
+	reqcount: string;
+	comments: string;
+}
+
+const ipsTableFields: ipsTable = {
+	id: "int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY",
+	active: "boolean NOT NULL DEFAULT 1",
+	checked: "boolean NOT NULL DEFAULT 0",
+	ip: "varchar(64) NOT NULL",
+	firstseen: "datetime NOT NULL",
+	lastseen: "datetime NOT NULL",
+	reqcount: "int(11) NOT NULL DEFAULT 0",
+	comments: "varchar(150)",
+	constructor: {
+		name: 'RowDataPacket',
+	},
+};
+
 interface invitationsTable extends RowDataPacket {
 	id: string;
 	active: string;
@@ -295,6 +320,7 @@ const newFieldcompatibility = [
 	{"accounts": accountsTableFields},
 	{"banned": bannedTableFields},
 	{"invitations": invitationsTableFields},
+	{"ips": ipsTableFields}
 ];
 
 
