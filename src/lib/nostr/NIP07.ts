@@ -1,6 +1,6 @@
 import { Request } from "express";
 import { logger } from "../logger.js";
-import { getClientIp } from "../utils.js";
+import { getClientIp } from "../ips.js";
 import { isEventTimestampValid, isEventValid } from "./core.js";
 import app from "../../app.js";
 

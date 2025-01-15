@@ -2,7 +2,7 @@ import { Request, Response } from "express";
 import { logger } from "../lib/logger.js";
 import { parseAuthHeader} from "../lib/authorization.js";
 import { ResultMessagev2 } from "../interfaces/server.js";
-import { getClientIp } from "../lib/utils.js";
+import { isIpAllowed } from "../lib/ips.js";
 import { getAvailableDomains, getAvailiableUsers } from "../lib/domains.js";
 import { dbUpdate, dbSelect } from "../lib/database.js";
 import { isModuleEnabled } from "../lib/config.js";
@@ -12,13 +12,20 @@ import { redisDel } from "../lib/redis.js";
 
 const listAvailableDomains = async (req: Request, res: Response): Promise<Response> => {
 
+	// Check if the request IP is allowed
+	const reqInfo = await isIpAllowed(req);
+	if (reqInfo.banned == true) {
+		logger.warn(`Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
+		return res.status(403).send({"status": "error", "message": "Unauthorized IP"});
+	}
+
 	// Check if current module is enabled
 	if (!isModuleEnabled("domains", app)) {
-        logger.warn("Attempt to access a non-active module:","domains","|","IP:", getClientIp(req));
+        logger.warn("Attempt to access a non-active module:","domains","|","IP:", reqInfo.ip);
 		return res.status(403).send({"status": "error", "message": "Module is not enabled"});
 	}
 
-	logger.info("REQ -> Available domains ", "|", getClientIp(req));
+	logger.info("REQ -> Available domains ", "|", reqInfo.ip);
 
 	const availableDomains = await getAvailableDomains();
 
@@ -31,13 +38,20 @@ const listAvailableDomains = async (req: Request, res: Response): Promise<Respon
 
 const listAvailableUsers = async (req: Request, res: Response): Promise<Response> => {
 
+	// Check if the request IP is allowed
+	const reqInfo = await isIpAllowed(req);
+	if (reqInfo.banned == true) {
+		logger.warn(`Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
+		return res.status(403).send({"status": "error", "message": "Unauthorized IP"});
+	}
+
 	// Check if current module is enabled
 	if (!isModuleEnabled("domains", app)) {
-        logger.warn("Attempt to access a non-active module:","domains","|","IP:", getClientIp(req));
+        logger.warn("Attempt to access a non-active module:","domains","|","IP:", reqInfo.ip);
 		return res.status(403).send({"status": "error", "message": "Module is not enabled"});
 	}
 
-	logger.info("REQ -> User list from domain:", req.params.domain, "|", getClientIp(req));
+	logger.info("REQ -> User list from domain:", req.params.domain, "|", reqInfo.ip);
 
 	const availableUsers = await getAvailiableUsers(req.params.domain);
 	return res.status(200).send({ [req.params.domain]: availableUsers});
@@ -46,9 +60,16 @@ const listAvailableUsers = async (req: Request, res: Response): Promise<Response
 
 const updateUserDomain = async (req: Request, res: Response): Promise<Response> => {
 
+	// Check if the request IP is allowed
+	const reqInfo = await isIpAllowed(req);
+	if (reqInfo.banned == true) {
+		logger.warn(`Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
+		return res.status(403).send({"status": "error", "message": "Unauthorized IP"});
+	}
+
 	// Check if current module is enabled
 	if (!isModuleEnabled("domains", app)) {
-        logger.warn("Attempt to access a non-active module:","domains","|","IP:", getClientIp(req));
+        logger.warn("Attempt to access a non-active module:","domains","|","IP:", reqInfo.ip);
 		return res.status(403).send({"status": "error", "message": "Module is not enabled"});
 	}
 
@@ -63,11 +84,11 @@ const updateUserDomain = async (req: Request, res: Response): Promise<Response> 
 	//If domain is null return 400
 	if (!domain || domain.trim() == "") {
 
-		logger.info("REQ Update user domain ->", servername, " | pubkey:",  EventHeader.pubkey, " | domain:",  "domain not specified  |", getClientIp(req));
+		logger.info("REQ Update user domain ->", servername, " | pubkey:",  EventHeader.pubkey, " | domain:",  "domain not specified  |", reqInfo.ip);
 		logger.info(
 			"RES Update user domain -> 400 Bad request - domain parameter not specified",
 			"|",
-			getClientIp(req)
+			reqInfo.ip
 		);
 
 		const result: ResultMessagev2 = {
@@ -81,8 +102,8 @@ const updateUserDomain = async (req: Request, res: Response): Promise<Response> 
 	//If domain is too long (>50) return 400
 	if (domain.length > 50) {
 
-		logger.info("REQ Update user domain ->", servername, " | pubkey:",  EventHeader.pubkey, " | domain:",  domain.substring(0,50) + "...", "|", getClientIp(req));
-		logger.warn("RES Update user domain -> 400 Bad request - domain too long", "|", getClientIp(req));
+		logger.info("REQ Update user domain ->", servername, " | pubkey:",  EventHeader.pubkey, " | domain:",  domain.substring(0,50) + "...", "|", reqInfo.ip);
+		logger.warn("RES Update user domain -> 400 Bad request - domain too long", "|", reqInfo.ip);
 
 		const result: ResultMessagev2 = {
 			status: "error",
@@ -92,13 +113,13 @@ const updateUserDomain = async (req: Request, res: Response): Promise<Response> 
 		return res.status(400).send(result);
 	}
 
-	logger.info("REQ Update user domain ->", servername, " | pubkey:",  EventHeader.pubkey, " | domain:",  domain, "|", getClientIp(req));
+	logger.info("REQ Update user domain ->", servername, " | pubkey:",  EventHeader.pubkey, " | domain:",  domain, "|", reqInfo.ip);
 
 	//Query if domain exist
 	const currentDomains = await getAvailableDomains();
 	logger.debug("Current domains: ", Object.keys(currentDomains).join(", "));
 	if (!Object.prototype.hasOwnProperty.call(currentDomains, domain)) {
-		logger.warn("RES Update user domain -> 404  not found, domain not found", "|", getClientIp(req));
+		logger.warn("RES Update user domain -> 404  not found, domain not found", "|", reqInfo.ip);
 	
 		const result: ResultMessagev2 = {
 			status: "error",
@@ -111,7 +132,7 @@ const updateUserDomain = async (req: Request, res: Response): Promise<Response> 
 	try {
 		const updateUserDomain = await dbUpdate("registered","domain",domain,["hex"],[EventHeader.pubkey]);
 		if (!updateUserDomain) {
-			logger.warn("RES Update user domain -> 404  not found, can't update user domain", "|", getClientIp(req));
+			logger.warn("RES Update user domain -> 404  not found, can't update user domain", "|", reqInfo.ip);
 			const result: ResultMessagev2 = {
 				status: "error",
 				message: "Can't update user domain, contact administrator",
@@ -138,7 +159,7 @@ const updateUserDomain = async (req: Request, res: Response): Promise<Response> 
 		}
 	}
 
-	logger.info("RES Update user domain ->", servername, " | pubkey:",  EventHeader.pubkey, " | domain:",  domain, "|", "User domain updated", "|", getClientIp(req));
+	logger.info("RES Update user domain ->", servername, " | pubkey:",  EventHeader.pubkey, " | domain:",  domain, "|", "User domain updated", "|", reqInfo.ip);
 	const result: ResultMessagev2 = {
 		status: "success",
 		message: `User domain for pubkey ${EventHeader.pubkey} updated`,

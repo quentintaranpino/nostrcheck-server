@@ -4,12 +4,12 @@ import multer from "multer";
 import { uploadMedia, getMedia, deleteMedia, updateMediaVisibility, headMedia, headUpload } from "../controllers/media.js";
 import { ResultMessage, ResultMessagev2 } from "../interfaces/server.js";
 import { logger } from "../lib/logger.js";
-import { getClientIp } from "../lib/utils.js";
 import { NIP96Data } from "../controllers/nostr.js";
 import app from "../app.js";
 import getRawBody from "raw-body";
 import { Readable } from "stream";
 import { limiter } from "../lib/session.js"
+import { getClientIp } from "../lib/ips.js";
 const limitMessage = { status: "error", message: "Rate limit exceeded. Try again in a few minutes." };
 
 const maxMBfilesize :number = app.get("config.media")["maxMBfilesize"].toString().replace(',', '.');

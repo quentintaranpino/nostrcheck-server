@@ -12,7 +12,7 @@ import { isBUD01AuthValid } from "./blossom/BUD01.js";
 import { NIPKinds } from "../interfaces/nostr.js";
 import { BUDKinds } from "../interfaces/blossom.js";
 import { isEntityBanned } from "./banned.js";
-import { getClientIp } from "./utils.js";
+import { getClientIp } from "./ips.js";
 import app from "../app.js";
 import { npubToHex } from "./nostr/NIP19.js";
 import { redisDel, redisGet, redisGetJSON, redisSet } from "./redis.js";

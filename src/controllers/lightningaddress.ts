@@ -5,26 +5,33 @@ import { logger } from "../lib/logger.js";
 import { ResultMessagev2 } from "../interfaces/server.js";
 import { LightningUsernameResult } from "../interfaces/lightning.js";
 import { parseAuthHeader } from "../lib/authorization.js";
-import { getClientIp } from "../lib/utils.js";
 import { isModuleEnabled } from "../lib/config.js";
 import app from "../app.js";
 import { setAuthCookie } from "../lib/frontend.js";
 import { PoolConnection} from "mysql2/promise";
 import { redisDel, redisGetJSON, redisSet } from "../lib/redis.js";
+import { isIpAllowed } from "../lib/ips.js";
 
 const redirectlightningddress = async (req: Request, res: Response): Promise<Response> => {
 
+	// Check if the request IP is allowed
+	const reqInfo = await isIpAllowed(req);
+	if (reqInfo.banned == true) {
+		logger.warn(`Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
+		return res.status(403).send({"status": "error", "message": "Unauthorized IP"});
+	}
+
 	// Check if current module is enabled
 	if (!isModuleEnabled("lightning", app)) {
-        logger.warn("Attempt to access a non-active module:","lightning","|","IP:", getClientIp(req));
+        logger.warn("Attempt to access a non-active module:","lightning","|","IP:", reqInfo.ip);
 		return res.status(403).send({"status": "error", "message": "Module is not enabled"});
 	}
 
 	const name = req.query.name || req.params.name as string;
 
 	if (typeof name !== "string") {
-		logger.info("REQ GET lightningaddress ->", req.hostname, " | name:",  name , "|", getClientIp(req));
-		logger.info("RES GET Lightningaddress -> 400 Bad request - name parameter not specified", "|", getClientIp(req));
+		logger.info("REQ GET lightningaddress ->", req.hostname, " | name:",  name , "|", reqInfo.ip);
+		logger.info("RES GET Lightningaddress -> 400 Bad request - name parameter not specified", "|", reqInfo.ip);
 
 		const result: ResultMessagev2 = {
 			status: "error",
@@ -39,11 +46,11 @@ const redirectlightningddress = async (req: Request, res: Response): Promise<Res
 
 	//If name is null return 400
 	if (!name || name.trim() == "") {
-		logger.info("REQ GET lightningaddress ->", servername, " | name:",  "name not specified", "|", getClientIp(req));
+		logger.info("REQ GET lightningaddress ->", servername, " | name:",  "name not specified", "|", reqInfo.ip);
 		logger.info(
 			"RES GET Lightningaddress -> 400 Bad request - name parameter not specified",
 			"|",
-			getClientIp(req)
+			reqInfo.ip
 		);
 
 		const result: ResultMessagev2 = {
@@ -56,8 +63,8 @@ const redirectlightningddress = async (req: Request, res: Response): Promise<Res
 
 	//If name is too long (>50) return 400
 	if (name.length > 50) {
-		logger.info("REQ GET lightningaddress ->", servername, " | name:",  name.substring(0,50) + "..." , "|", getClientIp(req));
-		logger.info("RES GET Lightningaddress -> 400 Bad request - name too long", "|", getClientIp(req));
+		logger.info("REQ GET lightningaddress ->", servername, " | name:",  name.substring(0,50) + "..." , "|", reqInfo.ip);
+		logger.info("RES GET Lightningaddress -> 400 Bad request - name too long", "|", reqInfo.ip);
 
 		const result: ResultMessagev2 = {
 			status: "error",
@@ -67,7 +74,7 @@ const redirectlightningddress = async (req: Request, res: Response): Promise<Res
 		return res.status(400).send(result);
 	}
 
-	logger.info("REQ GET lightningaddress ->", servername, " | name:",  name , "|", getClientIp(req));
+	logger.info("REQ GET lightningaddress ->", servername, " | name:",  name , "|", reqInfo.ip);
 
 	const lightningdata: LightningUsernameResult = { lightningserver: "", lightninguser: "" };
 	try {
@@ -134,9 +141,16 @@ const redirectlightningddress = async (req: Request, res: Response): Promise<Res
 
 const updateLightningAddress = async (req: Request, res: Response): Promise<Response> => {
 
+	// Check if the request IP is allowed
+	const reqInfo = await isIpAllowed(req);
+	if (reqInfo.banned == true) {
+		logger.warn(`Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
+		return res.status(403).send({"status": "error", "message": "Unauthorized IP"});
+	}
+
 	// Check if current module is enabled
 	if (!isModuleEnabled("lightning", app)) {
-        logger.warn("Attempt to access a non-active module:","lightning","|","IP:", getClientIp(req));
+        logger.warn("Attempt to access a non-active module:","lightning","|","IP:", reqInfo.ip);
 		return res.status(403).send({"status": "error", "message": "Module is not enabled"});
 	}
 
@@ -150,11 +164,11 @@ const updateLightningAddress = async (req: Request, res: Response): Promise<Resp
 
 	//If lightningaddress is null return 400
 	if (!lightningaddress || lightningaddress.trim() == "") {
-		logger.info("REQ Update lightningaddress ->", servername, " | pubkey:",  EventHeader.pubkey, " | ligntningaddress:",  "ligntningaddress not specified  |", getClientIp(req));
+		logger.info("REQ Update lightningaddress ->", servername, " | pubkey:",  EventHeader.pubkey, " | ligntningaddress:",  "ligntningaddress not specified  |", reqInfo.ip);
 		logger.warn(
 			"RES Update Lightningaddress -> 400 Bad request - lightningaddress parameter not specified",
 			"|",
-			getClientIp(req)
+			reqInfo.ip
 		);
 
 		const result: ResultMessagev2 = {
@@ -167,10 +181,10 @@ const updateLightningAddress = async (req: Request, res: Response): Promise<Resp
 
 	//If lightningaddress is too long (>50) return 400
 	if (lightningaddress.length > 50) {
-		logger.info("REQ Update lightningaddress ->", servername, " | pubkey:",  EventHeader.pubkey, " | ligntningaddress:",  lightningaddress.substring(0,50) + "...", "|", getClientIp(req));
+		logger.info("REQ Update lightningaddress ->", servername, " | pubkey:",  EventHeader.pubkey, " | ligntningaddress:",  lightningaddress.substring(0,50) + "...", "|", reqInfo.ip);
 
-		logger.info("REQ Update lightningaddress-> ", servername, " |" +  lightningaddress.substring(0,50) + "..."  + " |", getClientIp(req));
-		logger.warn("RES Update Lightningaddress -> 400 Bad request - lightningaddress too long", "|", getClientIp(req));
+		logger.info("REQ Update lightningaddress-> ", servername, " |" +  lightningaddress.substring(0,50) + "..."  + " |", reqInfo.ip);
+		logger.warn("RES Update Lightningaddress -> 400 Bad request - lightningaddress too long", "|", reqInfo.ip);
 
 		const result: ResultMessagev2 = {
 			status: "error",
@@ -180,7 +194,7 @@ const updateLightningAddress = async (req: Request, res: Response): Promise<Resp
 		return res.status(400).send(result);
 	}
 
-	logger.info("REQ Update lightningaddress ->", servername, " | pubkey:",  EventHeader.pubkey, " | ligntningaddress:",  lightningaddress, "|", getClientIp(req));
+	logger.info("REQ Update lightningaddress ->", servername, " | pubkey:",  EventHeader.pubkey, " | ligntningaddress:",  lightningaddress, "|", reqInfo.ip);
 
 	const pool = await connect("UpdateLightningAddress");
 	let conn : PoolConnection | undefined;
@@ -245,7 +259,7 @@ const updateLightningAddress = async (req: Request, res: Response): Promise<Resp
 		}
 	}
 
-	logger.info("RES Update lightningaddress ->", servername, " | pubkey:",  EventHeader.pubkey, " | ligntningaddress:",  lightningaddress, "|", "Lightning redirect updated", "|", getClientIp(req));
+	logger.info("RES Update lightningaddress ->", servername, " | pubkey:",  EventHeader.pubkey, " | ligntningaddress:",  lightningaddress, "|", "Lightning redirect updated", "|", reqInfo.ip);
 
 	const result: ResultMessagev2 = {
 		status: "success",
@@ -258,9 +272,16 @@ const updateLightningAddress = async (req: Request, res: Response): Promise<Resp
 
 const deleteLightningAddress = async (req: Request, res: Response): Promise<Response> => {
 
+	// Check if the request IP is allowed
+	const reqInfo = await isIpAllowed(req);
+	if (reqInfo.banned == true) {
+		logger.warn(`Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
+		return res.status(403).send({"status": "error", "message": "Unauthorized IP"});
+	}
+
 	// Check if current module is enabled
 	if (!isModuleEnabled("lightning", app)) {
-        logger.warn("Attempt to access a non-active module:","lightning","|","IP:", getClientIp(req));
+        logger.warn("Attempt to access a non-active module:","lightning","|","IP:", reqInfo.ip);
 		return res.status(403).send({"status": "error", "message": "Module is not enabled"});
 	}
 
@@ -285,7 +306,7 @@ const deleteLightningAddress = async (req: Request, res: Response): Promise<Resp
 		const rowstemp = JSON.parse(JSON.stringify(rows));
 		conn.release();
 		if (rowstemp[0] == undefined) {
-			logger.warn("RES Delete Lightningaddress -> 404 Not found", "|", getClientIp(req));
+			logger.warn("RES Delete Lightningaddress -> 404 Not found", "|", reqInfo.ip);
 			const result: ResultMessagev2 = {
 				status: "error",
 				message:  `Lightning redirect for pubkey ${EventHeader.pubkey} not found`,
@@ -303,7 +324,7 @@ const deleteLightningAddress = async (req: Request, res: Response): Promise<Resp
 		return res.status(500).send(result);
 	}
 
-	logger.info("REQ Delete lightningaddress ->", servername, " | pubkey:",  EventHeader.pubkey, " | ligntningaddress:",  lightningaddress, "|", getClientIp(req));
+	logger.info("REQ Delete lightningaddress ->", servername, " | pubkey:",  EventHeader.pubkey, " | ligntningaddress:",  lightningaddress, "|", reqInfo.ip);
 
 	try {
 		conn = await pool.getConnection();
@@ -350,7 +371,7 @@ const deleteLightningAddress = async (req: Request, res: Response): Promise<Resp
 
 	}
 
-	logger.info("RES Delete lightningaddress ->", servername, " | pubkey:",  EventHeader.pubkey, " | ligntningaddress:",  lightningaddress, "|", "Lightning redirect deleted", "|", getClientIp(req));
+	logger.info("RES Delete lightningaddress ->", servername, " | pubkey:",  EventHeader.pubkey, " | ligntningaddress:",  lightningaddress, "|", "Lightning redirect deleted", "|", reqInfo.ip);
 
 	const result: ResultMessagev2 = {
 		status: "success",

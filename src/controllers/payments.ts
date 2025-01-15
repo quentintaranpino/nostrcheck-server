@@ -3,7 +3,6 @@ import { Request, Response } from "express";
 import app from "../app.js";
 
 import { logger } from "../lib/logger.js";
-import { getClientIp } from "../lib/utils.js";
 import { ResultMessagev2 } from "../interfaces/server.js";
 import { parseAuthHeader} from "../lib/authorization.js";
 import { isModuleEnabled} from "../lib/config.js";
@@ -13,6 +12,7 @@ import { isInvoicePaid } from "../lib/payments/core.js";
 import { amountReturnMessage, invoiceReturnMessage } from "../interfaces/payments.js";
 import { getDomainInfo } from "../lib/domains.js";
 import { setAuthCookie } from "../lib/frontend.js";
+import { isIpAllowed } from "../lib/ips.js";
 
 /**
  * Pays an item from the expenses account.
@@ -23,13 +23,20 @@ import { setAuthCookie } from "../lib/frontend.js";
  */
 const payTransaction = async (req: Request, res: Response): Promise<Response> => {
 
+    // Check if the request IP is allowed
+	const reqInfo = await isIpAllowed(req);
+	if (reqInfo.banned == true) {
+		logger.warn(`Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
+		return res.status(403).send({"status": "error", "message": "Unauthorized IP"});
+	}
+
     // Check if current module is enabled
     if (!isModuleEnabled("admin", app)) {
-        logger.warn("Attempt to access a non-active module:","admin","|","IP:", getClientIp(req));
+        logger.warn("Attempt to access a non-active module:","admin","|","IP:", reqInfo.ip);
         return res.status(403).send({"status": "error", "message": "Module is not enabled"});
     }
 
-    logger.info("REQ -> payItem", req.hostname, "|", getClientIp(req));
+    logger.info("REQ -> payItem", req.hostname, "|", reqInfo.ip);
     res.setHeader('Content-Type', 'application/json');
 
      // Check if authorization header is valid
@@ -43,7 +50,7 @@ const payTransaction = async (req: Request, res: Response): Promise<Response> =>
             status: "error",
             message: "Invalid parameters"
             };
-        logger.error("RES -> Invalid parameters" + " | " + getClientIp(req));
+        logger.error("RES -> Invalid parameters" + " | " + reqInfo.ip);
         return res.status(400).send(result);
     }
 
@@ -53,7 +60,7 @@ const payTransaction = async (req: Request, res: Response): Promise<Response> =>
             status: "success",
             message: 1,
             };
-        logger.info("RES -> Item paid" + " | " + getClientIp(req));
+        logger.info("RES -> Item paid" + " | " + reqInfo.ip);
         return res.status(200).send(result);
     }
     return res.status(500).send({"status": "error", "message": "Failed to pay item"});
@@ -61,13 +68,20 @@ const payTransaction = async (req: Request, res: Response): Promise<Response> =>
 
 const addBalanceUser = async (req: Request, res: Response): Promise<Response> => {
 
+    // Check if the request IP is allowed
+	const reqInfo = await isIpAllowed(req);
+	if (reqInfo.banned == true) {
+		logger.warn(`Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
+		return res.status(403).send({"status": "error", "message": "Unauthorized IP"});
+	}
+
     // Check if current module is enabled
     if (!isModuleEnabled("admin", app)) {
-        logger.warn("Attempt to access a non-active module:","admin","|","IP:", getClientIp(req));
+        logger.warn("Attempt to access a non-active module:","admin","|","IP:", reqInfo.ip);
         return res.status(403).send({"status": "error", "message": "Module is not enabled"});
     }
 
-    logger.info("REQ -> addBalance", req.hostname, "|", getClientIp(req));
+    logger.info("REQ -> addBalance", req.hostname, "|", reqInfo.ip);
     res.setHeader('Content-Type', 'application/json');
 
     // Check if authorization header is valid
@@ -81,7 +95,7 @@ const addBalanceUser = async (req: Request, res: Response): Promise<Response> =>
             status: "error",
             message: "Invalid parameters"
             };
-        logger.error("RES -> Invalid parameters" + " | " + getClientIp(req));
+        logger.error("RES -> Invalid parameters" + " | " + reqInfo.ip);
         return res.status(400).send(result);
     }
 
@@ -94,7 +108,7 @@ const addBalanceUser = async (req: Request, res: Response): Promise<Response> =>
             status: "success",
             message: userBalance.toString(),
             };
-        logger.info("RES -> Balance added: " + req.body.amount +  " | " + req.body.accountid + " | " + getClientIp(req));
+        logger.info("RES -> Balance added: " + req.body.amount +  " | " + req.body.accountid + " | " + reqInfo.ip);
         return res.status(200).send(result);
     }
     return res.status(500).send({"status": "error", "message": "Failed to add balance"});
@@ -102,13 +116,20 @@ const addBalanceUser = async (req: Request, res: Response): Promise<Response> =>
 
 const getInvoiceStatus = async (req: Request, res: Response): Promise<Response> => {
 
+    // Check if the request IP is allowed
+	const reqInfo = await isIpAllowed(req);
+	if (reqInfo.banned == true) {
+		logger.warn(`Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
+		return res.status(403).send({"status": "error", "message": "Unauthorized IP"});
+	}
+
     // Check if current module is enabled
     if (!isModuleEnabled("admin", app)) {
-        logger.warn("Attempt to access a non-active module:","admin","|","IP:", getClientIp(req));
+        logger.warn("Attempt to access a non-active module:","admin","|","IP:", reqInfo.ip);
         return res.status(403).send({"status": "error", "message": "Module is not enabled"});
     }
 
-    logger.info("REQ -> getInvoiceStatus", req.hostname, "|", getClientIp(req));
+    logger.info("REQ -> getInvoiceStatus", req.hostname, "|", reqInfo.ip);
     res.setHeader('Content-Type', 'application/json');
 
     // Check if the request has the required parameters
@@ -117,7 +138,7 @@ const getInvoiceStatus = async (req: Request, res: Response): Promise<Response> 
             status: "error",
             message: "Invalid parameters"
             };
-        logger.error("RES -> Invalid parameters" + " | " + getClientIp(req));
+        logger.error("RES -> Invalid parameters" + " | " + reqInfo.ip);
         return res.status(400).send(result);
     }
 
@@ -127,7 +148,7 @@ const getInvoiceStatus = async (req: Request, res: Response): Promise<Response> 
             status: "error",
             message: "Invoice not found"
             };
-        logger.error("RES -> Invoice not found" + " | " + getClientIp(req));
+        logger.error("RES -> Invoice not found" + " | " + reqInfo.ip);
         return res.status(404).send(result);
     }
 
@@ -141,7 +162,7 @@ const getInvoiceStatus = async (req: Request, res: Response): Promise<Response> 
         }
     }
 
-    logger.info("RES -> Invoice status: " + invoice.paymentHash + " | " + getClientIp(req));
+    logger.info("RES -> Invoice status: " + invoice.paymentHash + " | " + reqInfo.ip);
 
     const result : invoiceReturnMessage = {
         status: "success",
@@ -154,13 +175,20 @@ const getInvoiceStatus = async (req: Request, res: Response): Promise<Response> 
 
 const calculateObjectAmount = async (req: Request, res: Response): Promise<Response> => {
 
+    // Check if the request IP is allowed
+	const reqInfo = await isIpAllowed(req);
+	if (reqInfo.banned == true) {
+		logger.warn(`Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
+		return res.status(403).send({"status": "error", "message": "Unauthorized IP"});
+	}
+
     // Check if current module is enabled
     if (!isModuleEnabled("admin", app)) {
-        logger.warn("Attempt to access a non-active module:","admin","|","IP:", getClientIp(req));
+        logger.warn("Attempt to access a non-active module:","admin","|","IP:", reqInfo.ip);
         return res.status(403).send({"status": "error", "message": "Module is not enabled"});
     }
 
-    logger.info("REQ -> calculatePayment", req.hostname, "|", getClientIp(req));
+    logger.info("REQ -> calculatePayment", req.hostname, "|", reqInfo.ip);
     res.setHeader('Content-Type', 'application/json');
 
     // Check if the request has the required parameters
@@ -169,7 +197,7 @@ const calculateObjectAmount = async (req: Request, res: Response): Promise<Respo
             status: "error",
             message: "Invalid parameters"
             };
-        logger.error("RES -> Invalid parameters" + " | " + getClientIp(req));
+        logger.error("RES -> Invalid parameters" + " | " + reqInfo.ip);
         return res.status(400).send(result);
     }
 
@@ -184,20 +212,27 @@ const calculateObjectAmount = async (req: Request, res: Response): Promise<Respo
         message: "Calculated satoshi successfully",
         amount: satoshi
         };
-    logger.info(`RES -> Calculated satoshi: ${satoshi} for object ${domain != "" ? domain : 'media'} | ${getClientIp(req)}`);
+    logger.info(`RES -> Calculated satoshi: ${satoshi} for object ${domain != "" ? domain : 'media'} | ${reqInfo.ip}`);
     return res.status(200).send(result);
     
 }
 
 const getBalanceUser = async (req: Request, res: Response): Promise<Response> => {
 
+    // Check if the request IP is allowed
+	const reqInfo = await isIpAllowed(req);
+	if (reqInfo.banned == true) {
+		logger.warn(`Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
+		return res.status(403).send({"status": "error", "message": "Unauthorized IP"});
+	}
+
     // Check if current module is enabled
     if (!isModuleEnabled("admin", app)) {
-        logger.warn("Attempt to access a non-active module:","admin","|","IP:", getClientIp(req));
+        logger.warn("Attempt to access a non-active module:","admin","|","IP:", reqInfo.ip);
         return res.status(403).send({"status": "error", "message": "Module is not enabled"});
     }
     
-    logger.info("REQ -> getBalance", req.hostname, "|", getClientIp(req));
+    logger.info("REQ -> getBalance", req.hostname, "|", reqInfo.ip);
     res.setHeader('Content-Type', 'application/json');
 
     // Check if authorization header is valid
@@ -212,7 +247,7 @@ const getBalanceUser = async (req: Request, res: Response): Promise<Response> =>
             status: "error",
             message: "User not found"
             };
-        logger.error("RES -> User not found" + " | " + getClientIp(req));
+        logger.error("RES -> User not found" + " | " + reqInfo.ip);
         return res.status(404).send(result);
     }
 
@@ -226,7 +261,7 @@ const getBalanceUser = async (req: Request, res: Response): Promise<Response> =>
         status: "success",
         message: balance.toString(),
     };
-    logger.info("RES -> Pubkey", EventHeader.pubkey, " balance", balance, " | ", getClientIp(req));
+    logger.info("RES -> Pubkey", EventHeader.pubkey, " balance", balance, " | ", reqInfo.ip);
     return res.status(200).send(result);
 
 }

@@ -2,7 +2,7 @@ import { Application } from "express";
 import express from "express";
 import multer from "multer";
 import { logger } from "../lib/logger.js";
-import { getClientIp } from "../lib/utils.js";
+import { getClientIp } from "../lib/ips.js";
 import app from "../app.js";
 import { limiter } from "../lib/session.js";
 

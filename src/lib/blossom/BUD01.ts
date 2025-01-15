@@ -6,7 +6,7 @@ import { logger } from "../logger.js";
 import app from "../../app.js";
 import { BUDKinds } from "../../interfaces/blossom.js";
 import { isPubkeyValid } from "../authorization.js";
-import { getClientIp } from "../utils.js";
+import { getClientIp } from "../ips.js";
 
 
 // https://github.com/hzrd149/blossom/blob/master/buds/01.md

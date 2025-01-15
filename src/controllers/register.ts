@@ -3,7 +3,6 @@ import validator from "validator";
 import { logger } from "../lib/logger.js";
 import { getAvailableDomains, getDomainInfo } from "../lib/domains.js";
 import app from "../app.js";
-import { getClientIp } from "../lib/utils.js";
 import { isModuleEnabled } from "../lib/config.js";
 import { addNewUsername, isPubkeyOnDomainAvailable, isUsernameAvailable } from "../lib/register.js";
 import { generateOTC, verifyOTC, parseAuthHeader } from "../lib/authorization.js";
@@ -14,12 +13,20 @@ import { validateInviteCode } from "../lib/invitations.js";
 import { checkTransaction } from "../lib/payments/core.js";
 import { transaction } from "../interfaces/payments.js";
 import { setAuthCookie } from "../lib/frontend.js";
+import { isIpAllowed } from "../lib/ips.js";
 
 const registerUsername = async (req: Request, res: Response): Promise<Response> => {
 
+    // Check if the request IP is allowed
+	const reqInfo = await isIpAllowed(req);
+	if (reqInfo.banned == true) {
+		logger.warn(`Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
+		return res.status(403).send({"status": "error", "message": "Unauthorized IP"});
+	}
+
 	// Check if current module is enabled
 	if (!isModuleEnabled("register", app)) {
-		logger.warn(`Attempt to access a non-active module: register | IP: ${getClientIp(req)}`);
+		logger.warn(`Attempt to access a non-active module: register | IP: ${reqInfo.ip}`);
 		return res.status(403).send({"status": "error", "message": "Module is not enabled"});
 	}
 	
@@ -30,17 +37,17 @@ const registerUsername = async (req: Request, res: Response): Promise<Response> 
 	if (eventHeader.status != "success") {activateUser = false}
 	setAuthCookie(res, eventHeader.authkey);
 
-	logger.info(`POST /api/v2/register - ${getClientIp(req)}`);
+	logger.info(`POST /api/v2/register - ${reqInfo.ip}`);
 
 	const pubkey = req.body.pubkey || "";
 	if (pubkey == null || pubkey == "" || pubkey == undefined) {
-		logger.info("RES -> 400 Bad request - Public key not provided", "|", getClientIp(req));
+		logger.info("RES -> 400 Bad request - Public key not provided", "|", reqInfo.ip);
 		return res.status(400).send({status: "error", message: "Public key not provided"});
 	}
 	
 	const validPubkey = await validatePubkey(pubkey);
 	if (!validPubkey) {
-		logger.info("RES -> 422 Bad request - Public key not valid", "|", getClientIp(req));
+		logger.info("RES -> 422 Bad request - Public key not valid", "|", reqInfo.ip);
 		return res.status(422).send({status: "error", message: "Invalid public key format"});
 	}
 
@@ -49,26 +56,26 @@ const registerUsername = async (req: Request, res: Response): Promise<Response> 
 	
 	const username = req.body.username || "";
 	if (username == null || username == "" || username == undefined) {
-		logger.info("RES -> 400 Bad request - Username not provided", "|", getClientIp(req));
+		logger.info("RES -> 400 Bad request - Username not provided", "|", reqInfo.ip);
 		return res.status(400).send({status: "error", message: "Username not provided"});
 	}
 	
 	let validUsername = validator.default.isLength(username, { min: app.get("config.register")["minUsernameLength"], max: app.get("config.register")["maxUsernameLength"] }); 
 	validUsername == true? validUsername = validator.default.matches(username, /^[a-zA-Z0-9-_]+$/) : validUsername = false;
 	if (!validUsername) {
-		logger.warn(`RES -> 422 Bad request - Username not valid`, "|", getClientIp(req));
+		logger.warn(`RES -> 422 Bad request - Username not valid`, "|", reqInfo.ip);
 		return res.status(401).send({status: "error", message: "Invalid username format"});
 	}
 
 	const domain = req.body.domain || "";
 	if (domain == null || domain == "" || domain == undefined) {
-		logger.info("RES -> 400 Bad request - Domain not provided", "|", getClientIp(req));
+		logger.info("RES -> 400 Bad request - Domain not provided", "|", reqInfo.ip);
 		return res.status(400).send({status: "error", message: "Domain not provided"});
 	}
 
 	const domainInfo = await getDomainInfo(domain);
 	if (domainInfo == "") {
-		logger.info("RES -> 406 Bad request - Domain not allowed", "|", getClientIp(req));
+		logger.info("RES -> 406 Bad request - Domain not allowed", "|", reqInfo.ip);
 		return res.status(406).send({ status: "error", message: "Invalid domain" });
 	}
 	const requireInvite : boolean = domainInfo.requireinvite;
@@ -81,25 +88,25 @@ const registerUsername = async (req: Request, res: Response): Promise<Response> 
 	}
 
 	if (!await isPubkeyOnDomainAvailable(pubkey, domain)) {
-		logger.info("RES -> 406 Bad request - Pubkey already registered", "|", getClientIp(req));
+		logger.info("RES -> 406 Bad request - Pubkey already registered", "|", reqInfo.ip);
 		return res.status(406).send({status: "error", message: "Pubkey already registered"});
 	}
 	
 	const password = req.body.password || "";
 	if (password != null && password != "" && password != undefined && password.length < app.get("config.register")["minPasswordLength"]) {
-		logger.info("RES -> 422 Bad request - Password too short", "|", getClientIp(req));
+		logger.info("RES -> 422 Bad request - Password too short", "|", reqInfo.ip);
 		return res.status(422).send({status: "error", message: "Password too short"});
 	}
 
 	const inviteCode = req.body.inviteCode || "";
 	if (requireInvite) {
 		if ((inviteCode == null || inviteCode == "" || inviteCode == undefined) && requireInvite) {
-			logger.info("RES -> 400 Bad request - Invitation key not provided", "|", getClientIp(req));
+			logger.info("RES -> 400 Bad request - Invitation key not provided", "|", reqInfo.ip);
 			return res.status(400).send({status: "error", message: "Invitation key not provided"});
 		}
 
 		if (await validateInviteCode(inviteCode) == false) {
-			logger.info("RES -> 401 Unauthorized - Invalid invitation key", "|", getClientIp(req));
+			logger.info("RES -> 401 Unauthorized - Invalid invitation key", "|", reqInfo.ip);
 			return res.status(401).send({status: "error", message: "Invalid invitation key"});
 		}
 	}
@@ -108,7 +115,7 @@ const registerUsername = async (req: Request, res: Response): Promise<Response> 
 
 	const addUsername = await addNewUsername(username, req.body.pubkey, password, domain, comments, activateUser, inviteCode);
 	if (addUsername == 0) {
-		logger.error("RES -> Failed to add new username" + " | " + getClientIp(req));
+		logger.error("RES -> Failed to add new username" + " | " + reqInfo.ip);
 		return res.status(500).send({status: "error", message: "Failed to add new username to the database"});
 	}
 
@@ -116,7 +123,7 @@ const registerUsername = async (req: Request, res: Response): Promise<Response> 
 	if (activateUser == false) {
 		const OTC = await generateOTC(pubkey)
 		if (OTC == false){
-			logger.error("Failed to generate OTC" + " | " + getClientIp(req));
+			logger.error("Failed to generate OTC" + " | " + reqInfo.ip);
 			return res.status(500).send({status: "error", message: "Failed to generate OTC"});
 		}
 	} 
@@ -132,7 +139,7 @@ const registerUsername = async (req: Request, res: Response): Promise<Response> 
 		}
 	}
 
-	logger.info(`RES -> 200 OK - New user ${username} registered successfully - Active: ${activateUser} - Require payment : ${requirepayment}`, "|", getClientIp(req));
+	logger.info(`RES -> 200 OK - New user ${username} registered successfully - Active: ${activateUser} - Require payment : ${requirepayment}`, "|", reqInfo.ip);
 
 	let message : string = "User registered successfully";
 	if (activateUser == false) {
@@ -155,16 +162,23 @@ const registerUsername = async (req: Request, res: Response): Promise<Response> 
 
 const validateRegisterOTC = async (req: Request, res: Response): Promise<Response> => {
 
+    // Check if the request IP is allowed
+	const reqInfo = await isIpAllowed(req);
+	if (reqInfo.banned == true) {
+		logger.warn(`Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
+		return res.status(403).send({"status": "error", "message": "Unauthorized IP"});
+	}
+
 	// Check if current module is enabled
 	if (!isModuleEnabled("register", app)) {
-		logger.warn(`Attempt to access a non-active module: register | IP: ${getClientIp(req)}`);
+		logger.warn(`Attempt to access a non-active module: register | IP: ${reqInfo.ip}`);
 		return res.status(403).send({"status": "error", "message": "Module is not enabled"});
 	}
 
-	logger.info(`POST /api/v2/register/validate - ${getClientIp(req)}`);
+	logger.info(`POST /api/v2/register/validate - ${reqInfo.ip}`);
 
 	if (req.body.otc == undefined || req.body.otc == "" || req.body.otc == null ||  req.body.domain == undefined || req.body.domain == "" || req.body.domain == null) {
-		logger.info("RES -> 400 Bad request - OTC or domain not provided", "|", getClientIp(req));
+		logger.info("RES -> 400 Bad request - OTC or domain not provided", "|", reqInfo.ip);
 		return res.status(400).send({status: "error", message: "OTC or domain not provided"});
 	}
 
@@ -174,19 +188,19 @@ const validateRegisterOTC = async (req: Request, res: Response): Promise<Respons
 		validDomain = true;
 	}
 	if (!validDomain) {
-		logger.info("RES -> 406 Bad request - Domain not allowed", "|", getClientIp(req));
+		logger.info("RES -> 406 Bad request - Domain not allowed", "|", reqInfo.ip);
 		return res.status(406).send({ status: "error", message: "Invalid domain" });
 	}
 
 	const validOTC = await verifyOTC(req.body.otc);
 	if(validOTC == "") {
-		logger.info("RES -> 401 Unauthorized - Invalid OTC", "|", getClientIp(req));
+		logger.info("RES -> 401 Unauthorized - Invalid OTC", "|", reqInfo.ip);
 		return res.status(401).send({status: "error", message: "Invalid OTC"});
 	}
 
 	const activateUser = await dbUpdate("registered", "active", 1, ["hex", "domain"], [validOTC, req.body.domain]);
 	if (activateUser == false) {
-		logger.error("RES -> Failed to activate user" + " | " + getClientIp(req));
+		logger.error("RES -> Failed to activate user" + " | " + reqInfo.ip);
 		return res.status(500).send({status: "error", message: "Failed to activate user"});
 	}
 

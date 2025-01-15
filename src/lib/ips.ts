@@ -3,6 +3,8 @@ import { dbInsert, dbUpdate, dbMultiSelect } from "./database.js";
 import { logger } from "./logger.js";
 import { getNewDate } from "./utils.js";
 import app from "../app.js";
+import { isEntityBanned } from "./banned.js";
+import { Request } from "express";
 
 /**
  * Logs a new IP in Redis and asynchronously in the database.
@@ -57,4 +59,43 @@ const logNewIp = async (ip: string): Promise<boolean> => {
 
 };
 
-export { logNewIp };
+const getClientIp = (req: Request): string => {
+    let ip = req.headers['x-forwarded-for'];
+    if (Array.isArray(ip)) {
+        ip = ip[0];
+    } else {
+        ip = ip || req.connection.remoteAddress;
+    }
+    if (typeof ip === 'string' && ip.startsWith("::ffff:")) {
+        ip = ip.substring(7);
+    }
+    return ip || "";
+};
+
+
+const isIpAllowed = async (req: Request): Promise<{ ip: string; reqcount: number; banned: boolean; comments: string; }> => {
+
+    const clientIp = getClientIp(req);
+    if (!clientIp) {
+        logger.error("Error getting client IP");
+        return {ip: "", reqcount: 0, banned: true, comments: ""};
+    }
+    const logIp = await logNewIp(clientIp);
+    if (!logIp) {
+        logger.error("Error logging IP:", clientIp);
+        return {ip: clientIp, reqcount: 0, banned: true, comments: ""};
+    }
+
+    const ipData = await dbMultiSelect(["id", "reqcount", "comments"], "ips", "ip = ?", [clientIp], true);
+    if (!ipData) {
+        logger.error("Error getting IP data:", clientIp);
+        return {ip: clientIp, reqcount: 0, banned: true, comments: ""};
+    }
+
+    const banned = await isEntityBanned(ipData[0].id, "ips");
+
+    return {ip: clientIp, reqcount: ipData[0].reqcount, banned, comments: ipData[0].comments};
+
+}
+
+export { getClientIp, isIpAllowed };

@@ -2,26 +2,12 @@ import { logger } from "./logger.js";
 import path from 'path';
 import url from 'url';
 import markdownit from 'markdown-it';
-import { Request } from "express";
 import QRCode from 'qrcode';
 import sharp from "sharp";
 import fs from "fs";
 import ffmpeg from "fluent-ffmpeg";
 import app from "../app.js";
 import { randomBytes } from "crypto";
-
-const getClientIp = (req: Request): string => {
-    let ip = req.headers['x-forwarded-for'];
-    if (Array.isArray(ip)) {
-        ip = ip[0];
-    } else {
-        ip = ip || req.connection.remoteAddress;
-    }
-    if (typeof ip === 'string' && ip.startsWith("::ffff:")) {
-        ip = ip.substring(7);
-    }
-    return ip || "";
-};
 
 const format = (seconds:number):string =>{
 	function pad(s: number){
@@ -172,4 +158,4 @@ const generateVideoFromImage = (imageBuffer: Buffer): Promise<Buffer> => {
 	return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
   }
 
-export { getClientIp, format, currDir, markdownToHtml, generateQRCode, getNewDate};
+export { format, currDir, markdownToHtml, generateQRCode, getNewDate};
