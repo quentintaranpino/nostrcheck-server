@@ -12,7 +12,7 @@ import { dbDelete, dbInsert, dbMultiSelect, dbUpdate } from "../lib/database.js"
 import { allowedFieldNames, allowedFieldNamesAndValues, allowedTableNames, moduleDataReturnMessage, moduleDataKeys } from "../interfaces/admin.js";
 import { parseAuthHeader} from "../lib/authorization.js";
 import { isModuleEnabled, updateLocalConfigKey } from "../lib/config.js";
-import { redisFlushAll } from "../lib/redis.js";
+import { redisDel, redisFlushAll, redisGet } from "../lib/redis.js";
 import { getFileMimeType } from "../lib/media.js";
 import { npubToHex } from "../lib/nostr/NIP19.js";
 import { dbCountModuleData, dbCountMonthModuleData, dbSelectModuleData } from "../lib/admin.js";
@@ -20,7 +20,7 @@ import { getBalance, getUnpaidTransactionsBalance } from "../lib/payments/core.j
 import { themes } from "../interfaces/themes.js";
 import { moderateFile } from "../lib/moderation/core.js";
 import { addNewUsername } from "../lib/register.js";
-import { banEntity } from "../lib/banned.js";
+import { banEntity, unbanEntity } from "../lib/banned.js";
 import { generateInviteCode } from "../lib/invitations.js";
 import { setAuthCookie } from "../lib/frontend.js";
 import { deleteFile } from "../lib/storage/core.js";
@@ -517,6 +517,12 @@ const deleteDBRecord = async (req: Request, res: Response): Promise<Response> =>
             }
         }
     }
+
+    // Check Redis cache for the record.
+    await redisDel(`${table}:${req.body.id}`);
+
+    // Unban the record if it was banned and delete it from banned redis cache.
+    await unbanEntity(req.body.id, table);
 
     // Delete record from table
     const deletedRecord = await dbDelete(table, ['id'], [req.body.id]);
