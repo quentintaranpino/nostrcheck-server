@@ -1,4 +1,3 @@
-import { WebSocketServer } from "ws";
 import { prepareApp } from "./controllers/config.js";
 
 const startServer = async () => {
@@ -20,8 +19,7 @@ const startServer = async () => {
     migrateDBLocalpath();
 
     //Start seeding magnets
-    const {default: config} = await import( "config");
-    if (config.get("torrent.enableTorrentSeeding")) {
+    if (app.get("config.torrent")["enableTorrentSeeding"]) {
         const { SeedMediafilesMagnets } = await import("./lib/torrent.js");
         await SeedMediafilesMagnets();
     }
