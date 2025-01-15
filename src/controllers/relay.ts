@@ -16,7 +16,8 @@ const handleWebSocketMessage = async (socket: WebSocket, data: WebSocket.RawData
   // Check if the request IP is allowed
   const reqInfo = await isIpAllowed(req);
   if (reqInfo.banned == true) {
-    logger.warn("Attempt to access relay with unauthorized IP:", reqInfo.ip);
+    logger.warn(`Attempt to access relay with unauthorized IP: ${reqInfo.ip} | Reason: ${reqInfo.comments}`);
+    socket.send(JSON.stringify(["NOTICE", `unauthorized access: ${reqInfo.comments}`]));
     removeSubscription(undefined, socket);
     return;
   }
@@ -24,6 +25,7 @@ const handleWebSocketMessage = async (socket: WebSocket, data: WebSocket.RawData
   // Check if current module is enabled
   if (!isModuleEnabled("relay", app)) {
     logger.warn("Attempt to access a non-active module:", "relay", "|", "IP:", reqInfo.ip);
+    socket.send(JSON.stringify(["NOTICE", "relay module is not active"]));
     removeSubscription(undefined, socket);
     return;
   }
@@ -33,6 +35,7 @@ const handleWebSocketMessage = async (socket: WebSocket, data: WebSocket.RawData
 
     if (!message) {
       socket.send(JSON.stringify(["NOTICE", "Invalid message format"]));
+      removeSubscription(undefined, socket);
       return;
     }
 
@@ -66,7 +69,8 @@ const handleEvent = async (socket: WebSocket, event: Event) => {
 
   // Check if the event pubkey is banned
   if (await isEntityBanned(event.pubkey, "registered")) {
-    socket.send(JSON.stringify(["NOTICE", "unauthorized access"]));
+    socket.send(JSON.stringify(["NOTICE", "unauthorized access: banned pubkey"]));
+    socket.send(JSON.stringify(["OK", event.id, false, "unauthorized access: banned pubkey"]));
     removeSubscription(undefined, socket);
     return;
   }
@@ -80,6 +84,12 @@ const handleEvent = async (socket: WebSocket, event: Event) => {
   }
 
   logger.info("Received EVENT:", event.id);
+
+  // Check if the event is already in memory
+  if (events.some((e) => e.id === event.id)) {
+    socket.send(JSON.stringify(["OK", event.id, false, "duplicate: already have this event"]));
+    return;
+  }
 
   // Save the event in memory
   events.push(event);
