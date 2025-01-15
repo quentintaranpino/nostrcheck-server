@@ -17,7 +17,7 @@ const logNewIp = async (ip: string): Promise<boolean> => {
   if ((!ip || ip.length < 7) && app.get("config.environment") !== "development") return false;
 
   const now = getNewDate();
-  const redisKey = `ip:${ip}`;
+  const redisKey = `ips:${ip}`;
 
   const redisData = await redisHashGetAll(redisKey);
 
@@ -37,20 +37,14 @@ const logNewIp = async (ip: string): Promise<boolean> => {
   setImmediate(async () => {
       const existingIp = await dbMultiSelect(["id", "reqcount"], "ips", "ip = ?", [ip], true);
 
-      if (!existingIp) {
+      if (!existingIp || existingIp.length === 0) {
           const ipInsert = await dbInsert("ips",["active", "checked", "ip", "firstseen", "lastseen", "reqcount"],[1, 0, ip, now, now, 1]);
           if (ipInsert === 0) logger.error(`Error inserting IP in database: ${ip}`);
       } else {
           const updateLastSeen = await dbUpdate("ips", "lastseen", now, ["id"], [existingIp[0].id]);
           if (!updateLastSeen) logger.error(`Error updating IP lastseen in database: ${ip}`);
 
-          const updateReqCount = await dbUpdate(
-              "ips",
-              "reqcount",
-              existingIp[0].reqcount ? ++existingIp[0].reqcount : 1,
-              ["id"],
-              [existingIp[0].id]
-          );
+          const updateReqCount = await dbUpdate("ips", "reqcount", existingIp[0].reqcount ? ++existingIp[0].reqcount : 1, ["id"], [existingIp[0].id]);
           if (!updateReqCount) logger.error(`Error updating IP reqcount in database: ${ip}`);
       }
   });
@@ -87,12 +81,12 @@ const isIpAllowed = async (req: Request): Promise<{ ip: string; reqcount: number
     }
 
     const ipData = await dbMultiSelect(["id", "reqcount", "comments"], "ips", "ip = ?", [clientIp], true);
-    if (!ipData) {
+    if (!ipData || ipData.length === 0) {
         logger.error("Error getting IP data:", clientIp);
         return {ip: clientIp, reqcount: 0, banned: true, comments: ""};
     }
 
-    const banned = await isEntityBanned(ipData[0].id, "ips");
+    const banned = await isEntityBanned(ipData[0]?.id, "ips");
 
     return {ip: clientIp, reqcount: ipData[0].reqcount, banned, comments: ipData[0].comments};
 
