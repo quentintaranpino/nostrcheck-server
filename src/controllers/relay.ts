@@ -1,16 +1,36 @@
 import WebSocket from "ws";
 import { parseRelayMessage, subscriptions, addSubscription, removeSubscription } from "../lib/relay/core.js";
-import { matchFilter } from "nostr-tools";
+import { Event, Filter, matchFilter } from "nostr-tools";
 import { isEventValid } from "../lib/nostr/core.js";
 import { isModuleEnabled } from "../lib/config.js";
 import app from "../app.js";
 import { logger } from "../lib/logger.js";
 import { getClientIp } from "../lib/utils.js";
 import { Request } from "express";
+import { logNewIp } from "../lib/ips.js";
+import { isEntityBanned } from "../lib/banned.js";
+import { dbMultiSelect } from "../lib/database.js";
+import { npubToHex } from "../lib/nostr/NIP19.js";
 
 const events: any[] = []; // Temporary in-memory storage for events
 
-export const handleWebSocketMessage = (socket: WebSocket, data: WebSocket.RawData, req: Request) => {
+const handleWebSocketMessage = async (socket: WebSocket, data: WebSocket.RawData, req: Request) => {
+
+  // Log the IP address access attempt
+  const logIp = await logNewIp(getClientIp(req));
+  if (!logIp) {
+    socket.send(JSON.stringify(["NOTICE", "unauthorized access"]));
+    removeSubscription(undefined, socket);
+    return;
+  }
+
+  // Check if the IP is banned
+  const id = await dbMultiSelect(["id"], "ips", "ip = ?", [getClientIp(req)], true);
+  if (await isEntityBanned(id[0].id, "ips")) {
+        socket.send(JSON.stringify(["NOTICE", "unauthorized access"]));
+        removeSubscription(undefined, socket);
+        return;
+  }
 
   // Check if current module is enabled
   if (!isModuleEnabled("relay", app)) {
@@ -53,7 +73,15 @@ export const handleWebSocketMessage = (socket: WebSocket, data: WebSocket.RawDat
 };
 
 // Handle EVENT
-const handleEvent = async (socket: WebSocket, event: any) => {
+const handleEvent = async (socket: WebSocket, event: Event) => {
+
+  // Check if the event pubkey is banned
+  if (await isEntityBanned(event.pubkey, "registered")) {
+    socket.send(JSON.stringify(["NOTICE", "unauthorized access"]));
+    removeSubscription(undefined, socket);
+    return;
+  }
+
   const validationResult = await isEventValid(event);
   
   if (validationResult.status !== "success") {
@@ -79,7 +107,7 @@ const handleEvent = async (socket: WebSocket, event: any) => {
 };
 
 // Handle REQ
-const handleReq = (socket: WebSocket, subId: string, filter: any) => {
+const handleReq = (socket: WebSocket, subId: string, filter: Filter) => {
   logger.info("Received REQ:", subId, filter);
 
   if (!filter || typeof filter !== "object") {
@@ -135,3 +163,5 @@ const handleClose = (socket: WebSocket, subId?: string) => {
     removeSubscription(undefined, socket);
   }
 };
+
+export { handleWebSocketMessage };
