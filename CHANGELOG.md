@@ -1,3 +1,10 @@
+### 0.7.0
+
+- Nostr relay.
+- Improved ban engine.
+- Improved database engine.
+- Improved redis engine.
+
 ### 0.6.0
 
 - New module for local and remote blob storage. Compatibility with S3 remote storage.
