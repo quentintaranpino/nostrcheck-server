@@ -80,13 +80,21 @@ const isIpAllowed = async (req: Request): Promise<{ ip: string; reqcount: number
         return {ip: clientIp, reqcount: 0, banned: true, comments: ""};
     }
 
-    const ipData = await dbMultiSelect(["id", "reqcount", "comments"], "ips", "ip = ?", [clientIp], true);
+    const ipData = await dbMultiSelect(["id", "lastseen", "reqcount", "comments"], "ips", "ip = ?", [clientIp], true);
     if (!ipData || ipData.length === 0) {
         logger.error("Error getting IP data:", clientIp);
         return {ip: clientIp, reqcount: 0, banned: true, comments: ""};
     }
 
     const banned = await isEntityBanned(ipData[0]?.id, "ips");
+
+    // Abuse prevention
+    const lastSeen = new Date(ipData[0].lastseen);
+    const diff = new Date().getTime() - lastSeen.getTime();
+    if (diff < 1000) {
+        logger.warn("Possible abuse detected from IP:", clientIp);
+        return {ip: clientIp, reqcount: ipData[0].reqcount, banned: true, comments: "Rate limit exceeded"};
+    }
 
     return {ip: clientIp, reqcount: ipData[0].reqcount, banned, comments: ipData[0].comments};
 
