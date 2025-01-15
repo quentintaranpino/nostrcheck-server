@@ -60,7 +60,8 @@ const ModuleDataTables: { [key: string]: string } = {
     "domains": "domains",
     "payments": "transactions",
     "banned": "banned",
-    "register": "invitations"
+    "register": "invitations",
+    "ips": "ips"
 };
 
 const moduleDataKeys: { [key: string]: string } = {
@@ -70,7 +71,8 @@ const moduleDataKeys: { [key: string]: string } = {
     "domainsData": "domains",
     "paymentsData": "transactions",
     "bannedData": "banned",
-    "invitesData": "invitations"
+    "invitesData": "invitations",
+    "ipsData": "ips"
 };
 
 const moduleDataWhereFields: { [key: string]: [string] } = {
@@ -123,7 +125,15 @@ const moduleDataWhereFields: { [key: string]: [string] } = {
                         "invitations.inviteeid, " +
                         "invitations.createdate, " +
                         "invitations.inviteedate, " +
-                        "invitations.comments"]
+                        "invitations.comments"],
+    "ips":              ["ips.id, " +
+                        "ips.active, " +
+                        "ips.checked, " +
+                        "ips.ip, " +
+                        "ips.firstseen, " +
+                        "ips.lastseen, " +
+                        "ips.reqcount, " +
+                        "ips.comments"]
 };
 
 const moduleDataSelectFields: { [key: string]: string } = {
@@ -143,7 +153,7 @@ const moduleDataSelectFields: { [key: string]: string } = {
                         "DATE_FORMAT(registered.date, '%Y-%m-%d %H:%i') as date," + 
                         "registered.comments",
     "media":            "mediafiles.id, " +
-    "CASE WHEN EXISTS (SELECT 1 FROM banned WHERE banned.originid = mediafiles.id AND banned.origintable = 'mediafiles' and banned.active = '1') THEN 1 ELSE 0 END as banned, " +
+                        "CASE WHEN EXISTS (SELECT 1 FROM banned WHERE banned.originid = mediafiles.id AND banned.origintable = 'mediafiles' and banned.active = '1') THEN 1 ELSE 0 END as banned, " +
                         "mediafiles.checked, " +
                         "mediafiles.active, " +
                         "mediafiles.visibility, " +
@@ -191,7 +201,8 @@ const moduleDataSelectFields: { [key: string]: string } = {
                         "banned.originid, " +
                         "banned.origintable, " +
                         "COALESCE(  (SELECT mediafiles.filename FROM mediafiles WHERE mediafiles.id = banned.originid and banned.origintable = 'mediafiles' LIMIT 1), " +
-                        "           (SELECT registered.hex FROM registered WHERE registered.id = banned.originid and banned.origintable = 'registered' LIMIT 1)" +
+                        "           (SELECT registered.hex FROM registered WHERE registered.id = banned.originid and banned.origintable = 'registered' LIMIT 1)," +
+                        "           (SELECT ips.ip FROM ips WHERE ips.id = banned.originid and banned.origintable = 'ips' LIMIT 1) " +
                         "         ) as originkey, " +
                         "banned.reason ",
     "register":         "invitations.id, " +
@@ -202,6 +213,15 @@ const moduleDataSelectFields: { [key: string]: string } = {
                         "DATE_FORMAT(invitations.createdate, '%Y-%m-%d %H:%i') as createdate, " +
                         "DATE_FORMAT(invitations.inviteedate, '%Y-%m-%d %H:%i') as inviteedate, " +
                         "invitations.comments",
+    "ips":              "ips.id, " +
+                        "CASE WHEN EXISTS (SELECT 1 FROM banned WHERE banned.originid = ips.id AND banned.origintable = 'ips' and banned.active = '1') THEN 1 ELSE 0 END as banned, " +
+                        "ips.active, " +
+                        "ips.checked, " +
+                        "ips.ip, " +
+                        "DATE_FORMAT(ips.firstseen, '%Y-%m-%d %H:%i') as firstseen, " +
+                        "DATE_FORMAT(ips.lastseen, '%Y-%m-%d %H:%i') as lastseen, " +
+                        "ips.reqcount, " +
+                        "ips.comments"
 };
 
 export { allowedTableNames, allowedFieldNames, allowedFieldNamesAndValues, moduleDataReturnMessage, ModuleDataTables, moduleDataSelectFields, moduleDataWhereFields, moduleDataKeys };

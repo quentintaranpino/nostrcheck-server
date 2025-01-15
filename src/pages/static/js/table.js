@@ -572,6 +572,7 @@ let tables = [
     { name: 'payments', tableId: 'paymentsData', dataKey: 'payments', objectName: 'transaction', url: 'admin/moduledata?module=payments', field: 'paid'},
     { name: 'banned', tableId: 'bannedData', dataKey: 'banned', objectName: 'banned object', url: 'admin/moduledata?module=banned'},
     { name: 'invites', tableId: 'invitesData', dataKey: 'register', objectName: 'invitation', url: 'admin/moduledata?module=invites'},
+    { name: 'ips', tableId: 'ipsData', dataKey: 'ips', objectName: 'ip address', url: 'admin/moduledata?module=ips'},
 ];
 
 setInterval(async() => {
