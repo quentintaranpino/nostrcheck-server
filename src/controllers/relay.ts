@@ -17,7 +17,7 @@ const handleWebSocketMessage = async (socket: WebSocket, data: WebSocket.RawData
   const reqInfo = await isIpAllowed(req);
   if (reqInfo.banned == true) {
     logger.warn(`Attempt to access relay with unauthorized IP: ${reqInfo.ip} | Reason: ${reqInfo.comments}`);
-    socket.send(JSON.stringify(["NOTICE", `unauthorized access: ${reqInfo.comments}`]));
+    socket.send(JSON.stringify(["NOTICE", `blocked: ${reqInfo.comments}`]));
     removeSubscription(undefined, socket);
     return;
   }
@@ -25,7 +25,7 @@ const handleWebSocketMessage = async (socket: WebSocket, data: WebSocket.RawData
   // Check if current module is enabled
   if (!isModuleEnabled("relay", app)) {
     logger.warn("Attempt to access a non-active module:", "relay", "|", "IP:", reqInfo.ip);
-    socket.send(JSON.stringify(["NOTICE", "relay module is not active"]));
+    socket.send(JSON.stringify(["NOTICE", "blocked: relay module is not active"]));
     removeSubscription(undefined, socket);
     return;
   }
@@ -34,7 +34,7 @@ const handleWebSocketMessage = async (socket: WebSocket, data: WebSocket.RawData
     const message = parseRelayMessage(data);
 
     if (!message) {
-      socket.send(JSON.stringify(["NOTICE", "Invalid message format"]));
+      socket.send(JSON.stringify(["NOTICE", "invalid: invalid message format"]));
       removeSubscription(undefined, socket);
       return;
     }
@@ -55,12 +55,12 @@ const handleWebSocketMessage = async (socket: WebSocket, data: WebSocket.RawData
         break;
 
       default:
-        socket.send(JSON.stringify(["NOTICE", "Unknown command"]));
+        socket.send(JSON.stringify(["NOTICE", "error: unknown command"]));
     }
   } catch (error) {
     logger.error("Error handling WebSocket message:", error);
-    socket.send(JSON.stringify(["NOTICE", "Internal server error"]));
-    socket.close(1011, "Internal server error"); 
+    socket.send(JSON.stringify(["NOTICE", "error: internal server error"]));
+    socket.close(1011, "error: internal server error"); 
   }
 };
 
@@ -69,8 +69,8 @@ const handleEvent = async (socket: WebSocket, event: Event) => {
 
   // Check if the event pubkey is banned
   if (await isEntityBanned(event.pubkey, "registered")) {
-    socket.send(JSON.stringify(["NOTICE", "unauthorized access: banned pubkey"]));
-    socket.send(JSON.stringify(["OK", event.id, false, "unauthorized access: banned pubkey"]));
+    socket.send(JSON.stringify(["NOTICE", "blocked: banned pubkey"]));
+    socket.send(JSON.stringify(["OK", event.id, false, "blocked: banned pubkey"]));
     removeSubscription(undefined, socket);
     return;
   }
@@ -110,7 +110,7 @@ const handleReq = (socket: WebSocket, subId: string, filter: Filter) => {
   logger.info("Received REQ:", subId, filter);
 
   if (!filter || typeof filter !== "object") {
-    socket.send(JSON.stringify(["CLOSED", subId, "error: invalid filter"]));
+    socket.send(JSON.stringify(["CLOSED", subId, "unsupported: invalid filter"]));
     return;
   }
 
