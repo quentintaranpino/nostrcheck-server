@@ -110,13 +110,13 @@ const redisHashSet = async (key: string, fields: Record<string, string | number>
     }
 };
 
-const redisHashIncrementBy = async (key: string, field: string, increment: number): Promise<boolean> => {
+const redisHashIncrementBy = async (key: string, field: string, increment: number): Promise<number | null> => {
     try {
-        await redisClient.hIncrBy(key, field, increment);
-        return true;
+        const newValue = await redisClient.hIncrBy(key, field, increment); 
+        return newValue;
     } catch (error) {
         logger.error(`Error HINCRBY for key '${key}': ${error}`);
-        return false;
+        return null; 
     }
 };
 

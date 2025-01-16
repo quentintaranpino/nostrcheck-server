@@ -6,7 +6,7 @@ import app from "../app.js";
 import { banEntity, isEntityBanned } from "./banned.js";
 import { Request } from "express";
 
-const abuseHits: Record<string, number> = {};
+const abuseHits = new Map<string, { count: number; lastseen: Date }>();
 
 /**
  * Logs a new IP address in the database and Redis.
@@ -15,25 +15,25 @@ const abuseHits: Record<string, number> = {};
  */
 const logNewIp = async (ip: string): Promise<boolean> => {
   
-  if ((!ip || ip.length < 7) && app.get("config.environment") !== "development") return false;
+    if ((!ip || ip.length < 7) && app.get("config.environment") !== "development") return false;
 
-  const now = getNewDate();
-  const redisKey = `ips:${ip}`;
+    const now = getNewDate();
+    const redisKey = `ips:${ip}`;
 
-  const redisData = await redisHashGetAll(redisKey);
+    const redisData = await redisHashGetAll(redisKey);
 
-  if (Object.keys(redisData).length === 0 || redisData.dbid === undefined) {
+    if (Object.keys(redisData).length === 0 || redisData.dbid === undefined) {
 
-        let dbid = (await dbMultiSelect(["id"], "ips", "ip = ?", [ip], true))[0]?.id || 0;
-        if (!dbid || dbid === 0) {
-            dbid = await dbInsert("ips",["active", "checked", "ip", "firstseen", "lastseen", "reqcount"],[1, 0, ip, now, now, 1]);
-            if (dbid === 0) logger.error(`Error inserting IP in database: ${ip}`);
-            return false;
-        }
+            let dbid = (await dbMultiSelect(["id"], "ips", "ip = ?", [ip], true))[0]?.id || 0;
+            if (!dbid || dbid === 0) {
+                dbid = await dbInsert("ips",["active", "checked", "ip", "firstseen", "lastseen", "reqcount"],[1, 0, ip, now, now, 1]);
+                if (dbid === 0) logger.error(`Error inserting IP in database: ${ip}`);
+                return false;
+            }
 
-        await redisHashSet(redisKey, {dbid: dbid, active: 1, checked: 0, banned: 0, firstseen: now, lastseen: now, reqcount: 1, comments: ""});
+            await redisHashSet(redisKey, {dbid: dbid, active: 1, checked: 0, banned: 0, firstseen: now, lastseen: now, reqcount: 1, comments: ""});
 
-  } else {
+    } else {
 
         await redisHashIncrementBy(redisKey, "reqcount", 1);
         await redisHashSet(redisKey, { lastseen: now });
@@ -41,7 +41,6 @@ const logNewIp = async (ip: string): Promise<boolean> => {
         setImmediate(async () => {
 
             const { dbid, reqcount } = redisData;
-
             const updateLastSeen = await dbUpdate("ips", "lastseen", now, ["id"], [dbid]);
             if (!updateLastSeen)
                 {
@@ -49,20 +48,21 @@ const logNewIp = async (ip: string): Promise<boolean> => {
                     await redisDel(redisKey);
                 } 
 
-            const updateReqCount = await dbUpdate("ips", "reqcount", reqcount ? reqcount + 1 : 1, ["id"], [dbid]);
+            const updateReqCount = await dbUpdate("ips", "reqcount", reqcount ? Number(reqcount) + 1 || 1 : 1, ["id"], [dbid]);
             if (!updateReqCount){
                 logger.error(`Error updating IP reqcount in database: ${ip}`);
                 await redisDel(redisKey);
             } 
 
         });
-  }
+    }   
 
-  return true;
+    return true;
 
 };
 
 const getClientIp = (req: Request): string => {
+
     let ip = req.headers['x-forwarded-for'];
     if (Array.isArray(ip)) {
         ip = ip[0];
@@ -76,7 +76,14 @@ const getClientIp = (req: Request): string => {
 };
 
 
-const isIpAllowed = async (req: Request, timeDiff: number = 100, bypassInfraction : boolean = false): Promise<{ ip: string; reqcount: number; banned: boolean; comments: string; }> => {
+/**
+ * Checks if an IP address is allowed to access the server.
+ * @param req - The request object.
+ * @param timeDiff - The time difference to check for abuse prevention.
+ * @param bypassInfraction - Whether to bypass the infraction check.
+ * @returns An object containing the IP address, request count, whether the IP is banned, and any comments.
+ */
+const isIpAllowed = async (req: Request): Promise<{ ip: string; reqcount: number; banned: boolean; comments: string; }> => {
 
     const clientIp = getClientIp(req);
     if (!clientIp) {
@@ -110,31 +117,57 @@ const isIpAllowed = async (req: Request, timeDiff: number = 100, bypassInfractio
 
     // Abuse prevention
     const lastSeen = new Date(lastseen);
-    const diff = new Date().getTime() - lastSeen.getTime();
-    if (diff < timeDiff && !bypassInfraction) {
-        if (!abuseHits[clientIp]) abuseHits[clientIp] = 0;
-        abuseHits[clientIp]++;
-        logger.warn("Abuse prevention: Too many requests in a short time:", clientIp, "Abuse infractions:", abuseHits[clientIp]);
+    const now = new Date().getTime();
+    const diff = now - lastSeen.getTime();
+    logger.info(`Current time: ${now}, Last seen: ${lastSeen.getTime()}, Diff: ${diff}`);
+    if (diff < 100) {
+        const abuseCount = await logAbuse(clientIp);
+        logger.warn(`Possible abuse detected from IP: ${clientIp} | Abuse count: ${abuseCount} | Delaying ${abuseCount} seconds`);
+        await new Promise((resolve) => setTimeout(resolve, abuseCount * 1000));
 
         setImmediate(async () => {
-            const updateInfractions = await dbUpdate("ips", "infractions", abuseHits[clientIp], ["id"], [dbid]);
+            const updateInfractions = await dbUpdate("ips", "infractions", abuseCount, ["id"], [dbid]);
             if (!updateInfractions) {
                 logger.error("Error updating IP infractions:", clientIp);
-                return { ip: clientIp, reqcount: Number(reqcount), banned: true, comments: "Abuse prevention" };
             }
         });
 
-        if (abuseHits[clientIp] > 5) {
+        if (abuseCount > 50) {
             logger.warn("Banning IP due to repeated abuse:", clientIp);
-            await banEntity(Number(dbid), "ips", "Abuse prevention");
-            delete abuseHits[clientIp]; 
-            return { ip: clientIp, reqcount: Number(reqcount), banned: true, comments: "Abuse prevention" };
+            await banEntity(Number(dbid), "ips", `Abuse prevention`);
+            abuseHits.delete(clientIp);
+            return { ip: clientIp, reqcount: Number(reqcount), banned: true, comments: "blocked: abuse prevention" };
         }
 
-        await new Promise((resolve) => setTimeout(resolve, abuseHits[clientIp] * abuseHits[clientIp] * 1000));
+        return { ip: clientIp, reqcount: Number(reqcount), banned: true, comments: `rate-limited: slow down there chief (${abuseCount} seconds)` };
     }
 
     return {ip: clientIp, reqcount: Number(reqcount), banned, comments: comments || ""};
 }
+
+/**
+ * Logs an abuse hit for a given IP address.
+ * @param ip - The IP address to log an abuse hit for.
+ * @returns The number of abuse hits for the given IP address.
+ */
+const logAbuse = async (ip: string): Promise<number> => {
+    const now = new Date();
+    const key = `abuse:${ip}`;
+    const currentCount = await redisHashIncrementBy(key, "count", 1);
+    await redisHashSet(key, { lastseen: now.toISOString() });
+    return Number(currentCount)
+};
+
+
+// Clear abuse hits every hour
+setInterval(() => {
+    const now = new Date().getTime();
+    for (const ip in abuseHits) {
+      const abuseHit = abuseHits.get(ip);
+      if (abuseHit && now - abuseHit.lastseen.getTime() > 3600000) {
+        abuseHits.delete(ip);
+      }
+    }
+}, 60000);
 
 export { getClientIp, isIpAllowed };

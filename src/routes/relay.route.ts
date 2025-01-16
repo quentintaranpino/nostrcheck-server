@@ -1,37 +1,37 @@
 import { Application, Request } from "express";
 import { handleWebSocketMessage } from "../controllers/relay.js";
-import { WebSocketServer } from "ws";
+import { WebSocketServer, RawData, WebSocket } from "ws";
 import { IncomingMessage } from "http"; 
 import { Socket } from "net";
 import { logger } from "../lib/logger.js";
 import { removeSubscription } from "../lib/relay/core.js";
+import { Server } from "http";
 
-let server: any = null;
+let server: Server | null = null;
 
 export const loadRelayRoutes = (app: Application): void => {
 
   const wss = new WebSocketServer({ noServer: true });
   app.set("wss", wss);
 
-  // Handle WebSocket upgrade requests
   if (server == null){
     server = app.get("server");
-    server.on("upgrade", (req: IncomingMessage, socket:Socket, head:Buffer) => {
+    server?.on("upgrade", (req: IncomingMessage, socket:Socket, head:Buffer) => {
       if (req.url === "/relay") {
         wss.handleUpgrade(req, socket as any, head, (ws) => {
           wss.emit("connection", ws, req);
         });
       } else {
+        socket.write("HTTP/1.1 404 Not Found\r\n\r\n");
         socket.destroy(); 
       }
     });
   }
 
-  wss.on("connection", (socket, req : Request) => {
-
-    socket.on("message", (data) => {
+  wss.on("connection", (socket: WebSocket, req: IncomingMessage) => {
+    socket.on("message", async (data: RawData) => {
       try {
-        handleWebSocketMessage(socket, data, req);
+        await handleWebSocketMessage(socket, data, req as Request);
       } catch (error) {
         logger.error("Error handling message:", error);
       }
@@ -44,7 +44,6 @@ export const loadRelayRoutes = (app: Application): void => {
     socket.on("error", () => {
       removeSubscription("", socket);
     });
-
   });
   
 };

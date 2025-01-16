@@ -17,7 +17,7 @@ const handleWebSocketMessage = async (socket: WebSocket, data: WebSocket.RawData
   const reqInfo = await isIpAllowed(req);
   if (reqInfo.banned == true) {
     logger.warn(`Attempt to access relay with unauthorized IP: ${reqInfo.ip} | Reason: ${reqInfo.comments}`);
-    socket.send(JSON.stringify(["NOTICE", `blocked: ${reqInfo.comments}`]));
+    socket.send(JSON.stringify(["NOTICE", `${reqInfo.comments}`]));
     removeSubscription(undefined, socket);
     return;
   }

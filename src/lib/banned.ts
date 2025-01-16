@@ -95,22 +95,53 @@ const manageEntity = async (originId: number, originTable: string, action: "ban"
     return { status: "error", message: `No records found to ${action}` };
 };
 
+/**
+ * Bans an entity.
+ * @param originId - The ID of the entity to ban.
+ * @param originTable - The table where the entity is stored.
+ * @param reason - The reason for banning the entity.
+ * @returns Promise resolving to a `ResultMessagev2` object.
+ * @async
+ * @example
+ * ```typescript
+ * const banResult = await banEntity(1, "registered", "Spamming the network");
+ * ```
+ **/
 const banEntity = async (originId: number, originTable: string, reason: string): Promise<ResultMessagev2> => {
     return manageEntity(originId, originTable, "ban", reason);
 };
 
+/**
+ * Unbans an entity.
+ * @param originId - The ID of the entity to unban.
+ * @param originTable - The table where the entity is stored.
+ * @returns Promise resolving to a `ResultMessagev2` object.
+ * @async
+ * @example
+ * ```typescript
+ * const unbanResult = await unbanEntity(1, "registered");
+ * ```
+ **/
 const unbanEntity = async (originId: number, originTable: string): Promise<ResultMessagev2> => {
     return manageEntity(originId, originTable, "unban");
 };
 
+/**
+ * Checks if an entity is banned.
+ * @param id - The ID of the entity to check.
+ * @param table - The table where the entity is stored.
+ * @returns Promise resolving to `true` if the entity is banned, otherwise `false`.
+ * @async
+ * @example
+ * ```typescript
+ * const isBanned = await isEntityBanned("1", "registered");
+ * ```
+**/
 const isEntityBanned = async (id: string, table: string): Promise<boolean> => {
-
-    logger.debug("Checking if content is banned", "|", id, "|", table);
 
     if (id === "" || table === "") return true;
 
     const redisKey = `banned:${table}:${id}`;
-
     const cachedStatus = await redisGet(redisKey);
     if (cachedStatus !== null) {
         logger.info("Content is banned", "|", id, "|", table);
@@ -118,7 +149,6 @@ const isEntityBanned = async (id: string, table: string): Promise<boolean> => {
     }     
     
     const banned = await dbMultiSelect(["id"], "banned", "originid = ? and origintable = ? and active = '1'", [id, table], false);
-
     if (banned.length > 0) {
         await redisSet(redisKey, JSON.stringify("1"), { EX: app.get("config.redis")["expireTime"] }); 
         logger.info("Content is banned", "|", id, "|", table);
@@ -128,7 +158,11 @@ const isEntityBanned = async (id: string, table: string): Promise<boolean> => {
     return false;
 };
 
-
+/**
+ * Gets the banned file banner.
+ * @returns Promise resolving to a `Buffer` with the banned file banner.
+ * @async
+**/
 const getBannedFileBanner = (): Promise<Buffer> => {
     return new Promise((resolve) => {
         const bannedFilePath = path.normalize(path.resolve(app.get("config.media")["bannedFilePath"]));

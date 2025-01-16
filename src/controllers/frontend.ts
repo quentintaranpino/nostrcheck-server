@@ -18,7 +18,7 @@ import { isIpAllowed } from "../lib/ips.js";
 const loadDashboardPage = async (req: Request, res: Response, version:string): Promise<Response | void> => {
 
 	// Check if the request IP is allowed
-	const reqInfo = await isIpAllowed(req, 10, true);
+	const reqInfo = await isIpAllowed(req);
 	if (reqInfo.banned == true) {
 		logger.warn(`Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
 		return res.status(403).send({"status": "error", "message": "Unauthorized IP"});
@@ -54,7 +54,7 @@ const loadDashboardPage = async (req: Request, res: Response, version:string): P
 const loadSettingsPage = async (req: Request, res: Response, version:string): Promise<Response | void> => {
 
     // Check if the request IP is allowed
-	const reqInfo = await isIpAllowed(req, 10, true);
+	const reqInfo = await isIpAllowed(req);
 	if (reqInfo.banned == true) {
 		logger.warn(`Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
 		return res.status(403).send({"status": "error", "message": "Unauthorized IP"});
