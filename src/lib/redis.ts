@@ -1,7 +1,5 @@
 import { createClient } from "redis";
 import { logger } from "./logger.js";
-import { nostrAddressResult } from "../interfaces/register.js";
-import { LightningUsernameResult } from "../interfaces/lightning.js";
 import app from "../app.js";
 
 const redisHost: string = process.env.REDIS_HOST || app.get("config.redis")["host"];
@@ -102,7 +100,7 @@ const redisHashGetAll = async (key: string): Promise<Record<string, string>> => 
     }
 };
 
-const redisHashSet = async (key: string, fields: Record<string, any>): Promise<boolean> => {
+const redisHashSet = async (key: string, fields: Record<string, string | number>): Promise<boolean> => {
     try {
         await redisClient.hSet(key, fields);
         return true;
@@ -122,12 +120,13 @@ const redisHashIncrementBy = async (key: string, field: string, increment: numbe
     }
 };
 
-export { redisPluginsClient, 
-		 redisFlushAll,
-		 redisGet,
-		 redisGetJSON,
-		 redisSet, 
-		 redisDel, 
-		 redisHashGetAll,
-		 redisHashSet,
-		 redisHashIncrementBy };
+export { 
+        redisPluginsClient, 
+		redisFlushAll,
+		redisGet,
+		redisGetJSON,
+		redisSet, 
+		redisDel, 
+		redisHashGetAll,
+        redisHashSet,
+		redisHashIncrementBy };
