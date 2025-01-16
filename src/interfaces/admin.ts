@@ -133,6 +133,7 @@ const moduleDataWhereFields: { [key: string]: [string] } = {
                         "ips.firstseen, " +
                         "ips.lastseen, " +
                         "ips.reqcount, " +
+                        "ips.infractions, " +
                         "ips.comments"]
 };
 
@@ -221,6 +222,7 @@ const moduleDataSelectFields: { [key: string]: string } = {
                         "DATE_FORMAT(ips.firstseen, '%Y-%m-%d %H:%i') as firstseen, " +
                         "DATE_FORMAT(ips.lastseen, '%Y-%m-%d %H:%i') as lastseen, " +
                         "ips.reqcount, " +
+                        "ips.infractions, " +
                         "ips.comments"
 };
 
