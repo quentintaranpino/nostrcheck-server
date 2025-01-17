@@ -1,5 +1,5 @@
 import WebSocket from "ws";
-import { parseRelayMessage, subscriptions, addSubscription, removeSubscription } from "../lib/relay/core.js";
+import { parseRelayMessage, subscriptions, addSubscription, removeSubscription, removeAllSubscriptions } from "../lib/relay/core.js";
 import { Event, Filter, matchFilter } from "nostr-tools";
 import { isEventValid } from "../lib/nostr/core.js";
 import { isModuleEnabled } from "../lib/config.js";
@@ -18,7 +18,7 @@ const handleWebSocketMessage = async (socket: WebSocket, data: WebSocket.RawData
   if (reqInfo.banned == true) {
     logger.warn(`Attempt to access relay with unauthorized IP: ${reqInfo.ip} | Reason: ${reqInfo.comments}`);
     socket.send(JSON.stringify(["NOTICE", `${reqInfo.comments}`]));
-    removeSubscription(undefined, socket);
+    removeAllSubscriptions(socket);
     return;
   }
 
@@ -26,7 +26,7 @@ const handleWebSocketMessage = async (socket: WebSocket, data: WebSocket.RawData
   if (!isModuleEnabled("relay", app)) {
     logger.warn("Attempt to access a non-active module:", "relay", "|", "IP:", reqInfo.ip);
     socket.send(JSON.stringify(["NOTICE", "blocked: relay module is not active"]));
-    removeSubscription(undefined, socket);
+    removeAllSubscriptions(socket);
     return;
   }
 
@@ -34,8 +34,7 @@ const handleWebSocketMessage = async (socket: WebSocket, data: WebSocket.RawData
     const message = parseRelayMessage(data);
 
     if (!message) {
-      socket.send(JSON.stringify(["NOTICE", "invalid: invalid message format"]));
-      removeSubscription(undefined, socket);
+      socket.send(JSON.stringify(["NOTICE", "invalid: malformed note"]));
       return;
     }
 
@@ -71,14 +70,14 @@ const handleEvent = async (socket: WebSocket, event: Event) => {
   if (await isEntityBanned(event.pubkey, "registered")) {
     socket.send(JSON.stringify(["NOTICE", "blocked: banned pubkey"]));
     socket.send(JSON.stringify(["OK", event.id, false, "blocked: banned pubkey"]));
-    removeSubscription(undefined, socket);
+    removeAllSubscriptions(socket);
     return;
   }
 
-  const validationResult = await isEventValid(event);
+  const validEvent = await isEventValid(event);
   
-  if (validationResult.status !== "success") {
-    let errorMessage = `invalid: ${validationResult.message}`;
+  if (validEvent.status !== "success") {
+    let errorMessage = `invalid: ${validEvent.message}`;
     socket.send(JSON.stringify(["OK", event.id, false, errorMessage]));
     return;
   }
@@ -98,8 +97,10 @@ const handleEvent = async (socket: WebSocket, event: Event) => {
   }
 
   // Notify subscribers
-  subscriptions.forEach((value) => {
-    value.listener(event);
+  subscriptions.forEach((clientSubscriptions) => {
+    clientSubscriptions.forEach((listener) => {
+      listener(event); 
+    });
   });
 
   socket.send(JSON.stringify(["OK", event.id, true, ""]));
@@ -151,15 +152,31 @@ const handleReq = (socket: WebSocket, subId: string, filter: Filter) => {
 
 // Handle CLOSE
 const handleClose = (socket: WebSocket, subId?: string) => {
+
+  if (!subscriptions.has(socket)) return;
+
+  const clientSubscriptions = subscriptions.get(socket);
+
   if (subId) {
-    if (subscriptions.has(subId)) {
-      removeSubscription(subId);
+    if (clientSubscriptions && clientSubscriptions.has(subId)) {
+      clientSubscriptions.delete(subId);
       if (socket.readyState === WebSocket.OPEN) {
-        socket.send(JSON.stringify(["NOTICE", `Subscription ${subId} closed`]));
+        socket.send(JSON.stringify(["CLOSED", subId, "Subscription closed by server"]));
       }
-    } 
+    }
   } else {
-    removeSubscription(undefined, socket);
+  if (clientSubscriptions) {
+    clientSubscriptions.forEach((_, id) => {
+      if (socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify(["CLOSED", id, "Subscription closed by server"]));
+      }
+    });
+    clientSubscriptions.clear();
+  }
+  subscriptions.delete(socket);
+  if (socket.readyState === WebSocket.OPEN) {
+    socket.send(JSON.stringify(["CLOSED", "", "All subscriptions closed by server"]));
+  }
   }
 };
 
