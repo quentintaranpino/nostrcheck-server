@@ -4,7 +4,7 @@ import { WebSocketServer, RawData, WebSocket } from "ws";
 import { IncomingMessage } from "http"; 
 import { Socket } from "net";
 import { logger } from "../lib/logger.js";
-import { removeSubscription } from "../lib/relay/core.js";
+import { removeAllSubscriptions } from "../lib/relay/core.js";
 import { Server } from "http";
 
 let server: Server | null = null;
@@ -38,11 +38,11 @@ export const loadRelayRoutes = (app: Application): void => {
     });
   
     socket.on("close", () => {
-      removeSubscription("", socket);
+      removeAllSubscriptions(socket);
     });
   
     socket.on("error", () => {
-      removeSubscription("", socket);
+      removeAllSubscriptions(socket);
     });
   });
   
