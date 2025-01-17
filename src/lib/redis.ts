@@ -100,9 +100,12 @@ const redisHashGetAll = async (key: string): Promise<Record<string, string>> => 
     }
 };
 
-const redisHashSet = async (key: string, fields: Record<string, string | number>): Promise<boolean> => {
+const redisHashSet = async (key: string, fields: Record<string, string | number>, timeWindow : number = 0): Promise<boolean> => {
     try {
         await redisClient.hSet(key, fields);
+        if (timeWindow > 0) {
+            await redisClient.expire(key, timeWindow);
+        }
         return true;
     } catch (error) {
         logger.error(`Error HSET for key '${key}': ${error}`);
