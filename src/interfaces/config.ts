@@ -235,7 +235,10 @@ const defaultConfig = {
 		},
 		"register" : {
 			"maxRegisterDay": 2,
-		}
+		},
+		"relay" : {
+			"maxSocketSubscriptions": 10,
+		}	
 	},
 	"plugins" : {
 		"path": "plugins"
