@@ -64,7 +64,7 @@ const publishEvent = async (event : NostrEvent): Promise<boolean> => {
  * @returns A promise that resolves to a result message indicating the status of the event verification.
  */
 const isEventValid = async (event:Event): Promise<ResultMessagev2> => {
-    logger.debug("Verifying event", event);
+    logger.debug("Verifying event", event.id);
 	try {
 		const IsEventHashValid = getEventHash(event);
 		if (IsEventHashValid != event.id) {
@@ -80,7 +80,7 @@ const isEventValid = async (event:Event): Promise<ResultMessagev2> => {
         logger.debug("Malformed event");
         return {status: "error", message: "Malformed event"};
 	}
-    logger.debug("Valid event");
+    logger.debug("Valid event", event.id);
     return {status: "success", message: "Valid event"};
 };
 
