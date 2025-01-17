@@ -1,5 +1,5 @@
 
-const allowedTableNames = ["registered", "mediafiles", "lightning", "domains", "banned", "invitations"];
+const allowedTableNames = ["registered", "mediafiles", "lightning", "domains", "banned", "invitations", "ips"];
 const allowedFieldNames = [ "allowed", 
                             "active", 
                             "banned",
@@ -19,6 +19,7 @@ const allowedFieldNames = [ "allowed",
                             "requireinvite",
                             "requirepayment",
                             "maxsatoshi",
+                            "infractions",
                         ]; 
 
 const allowedFieldNamesAndValues = [
@@ -44,6 +45,7 @@ const allowedFieldNamesAndValues = [
     {field: "requireinvite", values: [0, 1]},
     {field: "requirepayment", values: [0, 1]},
     {field: "maxsatoshi", values: ["number"]},
+    {field: "infractions", values: ["number"]},
 ];
 
 interface moduleDataReturnMessage {
