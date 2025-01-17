@@ -40,7 +40,7 @@ const serverStatus = async (req: Request, res: Response): Promise<Response> => {
     const reqInfo = await isIpAllowed(req);
     if (reqInfo.banned == true) {
         logger.warn(`Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
-        return res.status(403).send({"status": "error", "message": "Unauthorized IP"});
+        return res.status(403).send({"status": "error", "message": reqInfo.comments});
     }
 
     // Check if current module is enabled
@@ -78,7 +78,7 @@ const StopServer = async (req: Request, res: Response): Promise<Response> => {
     const reqInfo = await isIpAllowed(req);
     if (reqInfo.banned == true) {
         logger.warn(`Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
-        return res.status(403).send({"status": "error", "message": "Unauthorized IP"});
+        return res.status(403).send({"status": "error", "message": reqInfo.comments});
     }
 
     // Check if current module is enabled
@@ -118,7 +118,7 @@ const updateDBRecord = async (req: Request, res: Response): Promise<Response> =>
     const reqInfo = await isIpAllowed(req);
     if (reqInfo.banned == true) {
         logger.warn(`Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
-        return res.status(403).send({"status": "error", "message": "Unauthorized IP"});
+        return res.status(403).send({"status": "error", "message": reqInfo.comments});
     }
 
     // Check if current module is enabled
@@ -210,7 +210,7 @@ const updateLogo = async (req: Request, res: Response): Promise<Response> => {
     const reqInfo = await isIpAllowed(req);
     if (reqInfo.banned == true) {
         logger.warn(`Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
-        return res.status(403).send({"status": "error", "message": "Unauthorized IP"});
+        return res.status(403).send({"status": "error", "message": reqInfo.comments});
     }
 
     // Check if current module is enabled
@@ -272,7 +272,7 @@ const updateTheme = async (req: Request, res: Response): Promise<Response> => {
     const reqInfo = await isIpAllowed(req);
     if (reqInfo.banned == true) {
         logger.warn(`Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
-        return res.status(403).send({"status": "error", "message": "Unauthorized IP"});
+        return res.status(403).send({"status": "error", "message": reqInfo.comments});
     }
 
     // Check if current module is enabled
@@ -363,7 +363,7 @@ const resetUserPassword = async (req: Request, res: Response): Promise<Response>
     const reqInfo = await isIpAllowed(req);
     if (reqInfo.banned == true) {
         logger.warn(`Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
-        return res.status(403).send({"status": "error", "message": "Unauthorized IP"});
+        return res.status(403).send({"status": "error", "message": reqInfo.comments});
     }
 
     // Check if current module is enabled
@@ -423,7 +423,7 @@ const deleteDBRecord = async (req: Request, res: Response): Promise<Response> =>
     const reqInfo = await isIpAllowed(req);
     if (reqInfo.banned == true) {
         logger.warn(`Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
-        return res.status(403).send({"status": "error", "message": "Unauthorized IP"});
+        return res.status(403).send({"status": "error", "message": reqInfo.comments});
     }
 
     // Check if current module is enabled
@@ -558,7 +558,7 @@ const insertDBRecord = async (req: Request, res: Response): Promise<Response> =>
     const reqInfo = await isIpAllowed(req);
     if (reqInfo.banned == true) {
         logger.warn(`Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
-        return res.status(403).send({"status": "error", "message": "Unauthorized IP"});
+        return res.status(403).send({"status": "error", "message": reqInfo.comments});
     }
 
     // Check if current module is enabled
@@ -686,7 +686,7 @@ const updateSettings = async (req: Request, res: Response): Promise<Response> =>
     const reqInfo = await isIpAllowed(req);
     if (reqInfo.banned == true) {
         logger.warn(`Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
-        return res.status(403).send({"status": "error", "message": "Unauthorized IP"});
+        return res.status(403).send({"status": "error", "message": reqInfo.comments});
     }
 
     // Check if current module is enabled
@@ -763,7 +763,7 @@ const getModuleData = async (req: Request, res: Response): Promise<Response> => 
     const reqInfo = await isIpAllowed(req);
     if (reqInfo.banned == true) {
         logger.warn(`Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
-        return res.status(403).send({"status": "error", "message": "Unauthorized IP"});
+        return res.status(403).send({"status": "error", "message": reqInfo.comments});
     }
 
     // Check if current module is enabled
@@ -828,7 +828,7 @@ const getModuleCountData = async (req: Request, res: Response): Promise<Response
     const reqInfo = await isIpAllowed(req);
     if (reqInfo.banned == true) {
         logger.warn(`Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
-        return res.status(403).send({"status": "error", "message": "Unauthorized IP"});
+        return res.status(403).send({"status": "error", "message": reqInfo.comments});
     }
     
     // Check if current module is enabled
@@ -891,7 +891,7 @@ const moderateDBRecord = async (req: Request, res: Response): Promise<Response> 
     const reqInfo = await isIpAllowed(req);
     if (reqInfo.banned == true) {
         logger.warn(`Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
-        return res.status(403).send({"status": "error", "message": "Unauthorized IP"});
+        return res.status(403).send({"status": "error", "message": reqInfo.comments});
     }
   
     // Check if current module is enabled
@@ -940,7 +940,7 @@ const banDBRecord = async (req: Request, res: Response): Promise<Response> => {
     const reqInfo = await isIpAllowed(req);
     if (reqInfo.banned == true) {
         logger.warn(`Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
-        return res.status(403).send({"status": "error", "message": "Unauthorized IP"});
+        return res.status(403).send({"status": "error", "message": reqInfo.comments});
     }
 
     // Check if current module is enabled

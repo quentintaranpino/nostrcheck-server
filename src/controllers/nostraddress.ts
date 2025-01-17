@@ -15,7 +15,7 @@ const getNostraddress = async (req: Request, res: Response): Promise<Response> =
 	const reqInfo = await isIpAllowed(req);
 	if (reqInfo.banned == true) {
 		logger.warn(`Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
-		return res.status(403).send({"status": "error", "message": "Unauthorized IP"});
+		return res.status(403).send({"status": "error", "message": reqInfo.comments});
 	}
 
 	// Check if current module is enabled

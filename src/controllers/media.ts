@@ -44,7 +44,7 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 	const reqInfo = await isIpAllowed(req);
 	if (reqInfo.banned == true) {
 		logger.warn(`Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
-		return res.status(403).send({"status": "error", "message": "Unauthorized IP"});
+		return res.status(403).send({"status": "error", "message": reqInfo.comments});
 	}
 
 	// Check if current module is enabled
@@ -534,7 +534,7 @@ const headMedia = async (req: Request, res: Response): Promise<Response> => {
 	const reqInfo = await isIpAllowed(req);
 	if (reqInfo.banned == true) {
 		logger.warn(`Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
-		return res.status(403).send({"status": "error", "message": "Unauthorized IP"});
+		return res.status(403).send({"status": "error", "message": reqInfo.comments});
 	}
 
 	// Check if current module is enabled
@@ -596,7 +596,7 @@ const getMediaList = async (req: Request, res: Response, version:string): Promis
 	const reqInfo = await isIpAllowed(req);
 	if (reqInfo.banned == true) {
 		logger.warn(`Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
-		return res.status(403).send({"status": "error", "message": "Unauthorized IP"});
+		return res.status(403).send({"status": "error", "message": reqInfo.comments});
 	}
 
 	// Check if current module is enabled
@@ -754,7 +754,7 @@ const getMediaStatusbyID = async (req: Request, res: Response, version:string): 
 	const reqInfo = await isIpAllowed(req);
 	if (reqInfo.banned == true) {
 		logger.warn(`Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
-		return res.status(403).send({"status": "error", "message": "Unauthorized IP"});
+		return res.status(403).send({"status": "error", "message": reqInfo.comments});
 	}
 
 	// Check if current module is enabled
@@ -912,7 +912,7 @@ const getMediabyURL = async (req: Request, res: Response) => {
 	const reqInfo = await isIpAllowed(req);
 	if (reqInfo.banned == true) {
 		logger.warn(`Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
-		return res.status(403).send({"status": "error", "message": "Unauthorized IP"});
+		return res.status(403).send({"status": "error", "message": reqInfo.comments});
 	}
 
 	// Check if current module is enabled
@@ -1226,7 +1226,7 @@ const getMediaTagsbyID = async (req: Request, res: Response): Promise<Response> 
 	const reqInfo = await isIpAllowed(req);
 	if (reqInfo.banned == true) {
 		logger.warn(`Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
-		return res.status(403).send({"status": "error", "message": "Unauthorized IP"});
+		return res.status(403).send({"status": "error", "message": reqInfo.comments});
 	}
 
 	// Check if current module is enabled
@@ -1295,7 +1295,7 @@ const getMediabyTags = async (req: Request, res: Response): Promise<Response> =>
 	const reqInfo = await isIpAllowed(req);
 	if (reqInfo.banned == true) {
 		logger.warn(`Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
-		return res.status(403).send({"status": "error", "message": "Unauthorized IP"});
+		return res.status(403).send({"status": "error", "message": reqInfo.comments});
 	}
 
 	// Check if current module is enabled
@@ -1371,7 +1371,7 @@ const updateMediaVisibility = async (req: Request, res: Response, version: strin
 	const reqInfo = await isIpAllowed(req);
 	if (reqInfo.banned == true) {
 		logger.warn(`Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
-		return res.status(403).send({"status": "error", "message": "Unauthorized IP"});
+		return res.status(403).send({"status": "error", "message": reqInfo.comments});
 	}
 
 	// Check if current module is enabled
@@ -1445,7 +1445,7 @@ const deleteMedia = async (req: Request, res: Response, version:string): Promise
 	const reqInfo = await isIpAllowed(req);
 	if (reqInfo.banned == true) {
 		logger.warn(`Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
-		return res.status(403).send({"status": "error", "message": "Unauthorized IP"});
+		return res.status(403).send({"status": "error", "message": reqInfo.comments});
 	}
 
 	// Check if current module is enabled
@@ -1582,7 +1582,7 @@ const headUpload = async (req: Request, res: Response): Promise<Response> => {
 	const reqInfo = await isIpAllowed(req);
 	if (reqInfo.banned == true) {
 		logger.warn(`Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
-		return res.status(403).send({"status": "error", "message": "Unauthorized IP"});
+		return res.status(403).send({"status": "error", "message": reqInfo.comments});
 	}
 
 	// Check if current module is enabled
