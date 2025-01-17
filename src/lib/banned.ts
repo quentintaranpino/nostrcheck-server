@@ -141,20 +141,19 @@ const isEntityBanned = async (id: string, table: string): Promise<boolean> => {
 
     if (id === "" || table === "") return true;
 
+    // If the cache is empty, we need to fill it with the database status
+    if (await redisGet("banned:cache") === null) {
+        await loadBannedEntities();
+        isEntityBanned(id, table);
+    }
+
     const redisKey = `banned:${table}:${id}`;
     const cachedStatus = await redisGet(redisKey);
     if (cachedStatus !== null) {
         logger.info("Content is banned", "|", id, "|", table);
         return true;
-    }     
-    
-    const banned = await dbMultiSelect(["id"], "banned", "originid = ? and origintable = ? and active = '1'", [id, table], false);
-    if (banned.length > 0) {
-        await redisSet(redisKey, JSON.stringify("1"), { EX: app.get("config.redis")["expireTime"] }); 
-        logger.info("Content is banned", "|", id, "|", table);
-        return true;
     }
-
+    
     return false;
 };
 
@@ -176,5 +175,18 @@ const getBannedFileBanner = (): Promise<Buffer> => {
         });
     });
 }
+
+
+/**
+* Loads the banned entities from the database into Redis.
+**/
+const loadBannedEntities = async (): Promise<void> => {
+    const bannedEntities = await dbMultiSelect(["originid", "origintable"], "banned", "active = 1", [], false);
+    for (const entity of bannedEntities) {
+        const redisKey = `banned:${entity.origintable}:${entity.originid}`;
+        await redisSet(redisKey, JSON.stringify("1"), { EX: app.get("config.redis")["expireTime"] });
+    }
+    await redisSet("banned:cache", JSON.stringify("1"), { EX: app.get("config.redis")["expireTime"] });
+};
 
 export { banEntity, unbanEntity, isEntityBanned, getBannedFileBanner };
