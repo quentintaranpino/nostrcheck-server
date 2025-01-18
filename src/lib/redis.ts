@@ -123,6 +123,32 @@ const redisHashIncrementBy = async (key: string, field: string, increment: numbe
     }
 };
 
+/**
+ * Wrapper for Redis `SCAN` command to find keys by pattern.
+ * @param {string} pattern - The pattern to match keys.
+ * @returns {Promise<string[]>} - An array of keys matching the pattern.
+ */
+const redisScanKeys = async (pattern: string): Promise<string[]> => {
+    try {
+        let cursor = 0;
+        const keys: string[] = [];
+
+        do {
+            const result = await redisClient.scan(cursor, {
+                MATCH: pattern,
+                COUNT: 100,
+            });
+            cursor = result.cursor;
+            keys.push(...result.keys);
+        } while (cursor !== 0);
+
+        return keys;
+    } catch (error) {
+        logger.error(`Error scanning keys with pattern '${pattern}': ${error}`);
+        return [];
+    }
+};
+
 export { 
         redisPluginsClient, 
 		redisFlushAll,
@@ -132,4 +158,5 @@ export {
 		redisDel, 
 		redisHashGetAll,
         redisHashSet,
-		redisHashIncrementBy };
+		redisHashIncrementBy,
+        redisScanKeys };
