@@ -1,4 +1,4 @@
-import { redisDel, redisHashGetAll, redisHashIncrementBy, redisHashSet } from "./redis.js";
+import { redisDel, redisHashGetAll, redisHashIncrementBy, redisHashSet, redisScanKeys, redisSet } from "./redis.js";
 import { dbInsert, dbUpdate, dbMultiSelect } from "./database.js";
 import { logger } from "./logger.js";
 import app from "../app.js";
@@ -119,8 +119,6 @@ const getClientIp = (req: Request): string => {
 /**
  * Checks if an IP address is allowed to access the server.
  * @param req - The request object.
- * @param timeDiff - The time difference to check for abuse prevention.
- * @param bypassInfraction - Whether to bypass the infraction check.
  * @returns An object containing the IP address, request count, whether the IP is banned, and any comments.
  */
 const isIpAllowed = async (req: Request | string): Promise<{ ip: string; reqcount: number; banned: boolean; comments: string; }> => {
@@ -135,7 +133,7 @@ const isIpAllowed = async (req: Request | string): Promise<{ ip: string; reqcoun
         logger.error("Error logging IP:", clientIp);
         return {ip: clientIp, reqcount: 0, banned: true, comments: ""};
     }
-    const { dbid, reqcount, firstseen, lastseen, comments } = ipData;
+    const { dbid, reqcount, firstseen, lastseen, infractions, comments } = ipData;
 
     const banned = await isEntityBanned(dbid, "ips");
     if (banned) {
@@ -146,36 +144,63 @@ const isIpAllowed = async (req: Request | string): Promise<{ ip: string; reqcoun
     const diff = Number(lastseen) - Number(firstseen);
     if ((diff < 500 && Number(reqcount) > 200) && (lastseen != firstseen)) {
 
-        // "0" is recorded in the DB because, being asynchronous, it often finds 0. Then 1 is recorded, 
-        // // but the next request arrives and sees 0 because it came in before the previous one was saved to the DB. 
-        // // We should record in Redis first and then use setImmediate to write to the DB. That way, 
-        // everything should work, with the reqcount system having a 60-second expiration and persistent infractions 
-        // that result in banning the IP once they reach 5.
-        const hitCount = await dbMultiSelect(["infractions"], "ips", "id = ?", [dbid], true);
-        logger.warn(`Possible abuse detected from IP: ${clientIp} | Infraction count: ${hitCount}`);
+        logger.warn(`Possible abuse detected from IP: ${clientIp} | Infraction count: ${infractions}`);
 
-        await redisHashSet(`ips:${clientIp}`, { infractions: Number(hitCount)+1 }, 60);
-        await redisHashSet(`ips:${clientIp}`, { banned: 1 }, 60);
+        // Update infractions and ban it for a minute
+        await redisHashSet(`ips:${clientIp}`, { infractions: Number(infractions)+1 }, app.get("config.redis")["expireTime"]);
+        await redisHashSet(`banned:ips:${clientIp}`, { banned: 1 }, 60);
 
-        if (!hitCount) {
+        if (!infractions) {
             logger.error("Error getting IP infractions:", clientIp);
             return { ip: clientIp, reqcount: Number(reqcount), banned: true, comments: "" };
         }
-        const updateInfractions = await dbUpdate("ips", "infractions", Number(hitCount)+1, ["id"], [dbid]);
-        if (!updateInfractions) {
-            logger.error("Error updating IP infractions:", clientIp);
-        }
 
-        if (Number(hitCount) > 5) {
+        if (Number(infractions) > 5) {
             logger.warn(`Banning IP due to repeated abuse: ${clientIp}`);
             await banEntity(Number(dbid), "ips", `Abuse prevention`);
-            return { ip: clientIp, reqcount: Number(reqcount), banned: true, comments: `rate-limited: slow down there chief (${hitCount} infractions)` };
+            return { ip: clientIp, reqcount: Number(reqcount), banned: true, comments: `rate-limited: slow down there chief (${infractions} infractions)` };
         }
 
-        return { ip: clientIp, reqcount: Number(reqcount), banned: true, comments: `rate-limited: slow down there chief (${hitCount} infractions)` };
+        return { ip: clientIp, reqcount: Number(reqcount), banned: true, comments: `rate-limited: slow down there chief (${infractions} infractions)` };
     }
 
     return {ip: clientIp, reqcount: Number(reqcount), banned, comments: comments || ""};
 }
+
+// Save infractions to DB and reset Redis
+setInterval(async () => {
+    try {
+        const ips = await redisScanKeys("ips:*");
+        if (!ips || ips.length === 0) return;
+
+        await Promise.all(
+            ips.map(async (ip) => {
+                try {
+                    const redisData = await redisHashGetAll(ip);
+                    if (!redisData || !redisData.dbid || redisData.infractions === '0') return;
+
+                    const dbData = await dbMultiSelect(["infractions"], "ips", "id = ?", [redisData.dbid], true);
+                    if (!dbData || dbData.length === 0) return;
+
+                    const dbInfractions = dbData[0].infractions || 0;
+                    if (dbInfractions === Number(redisData.infractions)) return;
+
+                    const newInfractions = Number(redisData.infractions) + dbInfractions;
+                    const updateSuccess = await dbUpdate("ips", "infractions", newInfractions, ["id"], [redisData.dbid]);
+
+                    if (!updateSuccess) {
+                        logger.error("Error updating IP infractions:", ip);
+                    } else {
+                        await redisHashSet(ip, { infractions: 0 }, app.get("config.redis")["expireTime"]);
+                    }
+                } catch (error) {
+                    logger.error(`Error processing IP '${ip}': ${error}`);
+                }
+            })
+        );
+    } catch (error) {
+        logger.error("Error in IP processing interval:", error);
+    }
+}, 60);
 
 export { getClientIp, isIpAllowed };
