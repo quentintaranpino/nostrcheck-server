@@ -304,6 +304,63 @@ const invitationsTableFields: invitationsTable = {
 	},
 };
 
+interface EventsTable extends RowDataPacket {
+	id: string;
+	active: string;
+	checked: string;
+	event_id: string;
+	pubkey: string;
+	kind: string;
+	created_at: string;
+	content: string;
+	sig: string;
+	received_at: string;
+}
+
+const eventsTableFields: EventsTable = {
+	id: "int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY",
+	active: "boolean NOT NULL DEFAULT 1",
+	checked: "boolean NOT NULL DEFAULT 0",
+	event_id: "varchar(64) NOT NULL UNIQUE",
+	pubkey: "varchar(64) NOT NULL",
+	kind: "int(11) NOT NULL",
+	created_at: "BIGINT NOT NULL",
+	content: "TEXT",
+	sig: "varchar(128) NOT NULL",
+	received_at: "datetime NOT NULL",
+	_indexes: [
+		"INDEX idx_pubkey (pubkey)",
+		"INDEX idx_kind_created_at (kind, created_at)"
+	],
+	constructor: {
+		name: 'RowDataPacket',
+	},
+};
+
+interface EventTagsTable extends RowDataPacket {
+	id: string;
+	event_id: string;
+	tag_name: string;
+	tag_value: string;
+	position: string;
+	extra_values: string;
+}
+
+const eventTagsTableFields: EventTagsTable = {
+	id: "int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY",
+	event_id: "varchar(64) NOT NULL",
+	tag_name: "varchar(10) NOT NULL",
+	tag_value: "varchar(256) NOT NULL",
+	position: "int(11) NOT NULL DEFAULT 0",
+	extra_values: "TEXT",
+	_indexes: [
+		"INDEX idx_event_id (event_id)",
+		"INDEX idx_tag_name_value (tag_name, tag_value)"
+	],
+	constructor: {
+		name: 'RowDataPacket',
+	},
+};
 
 
 //If you add a new field that is substituting an old one, add it here
@@ -322,7 +379,9 @@ const newFieldcompatibility = [
 	{"accounts": accountsTableFields},
 	{"banned": bannedTableFields},
 	{"invitations": invitationsTableFields},
-	{"ips": ipsTableFields}
+	{"ips": ipsTableFields},
+	{"events": eventsTableFields},
+	{"eventtags": eventTagsTableFields},
 ];
 
 

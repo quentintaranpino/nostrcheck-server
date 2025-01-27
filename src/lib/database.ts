@@ -89,7 +89,18 @@ async function populateTables(resetTables: boolean): Promise<boolean> {
     for (const table of databaseTables) {
         for (const structure of Object.values(table)) {
             for (const [key, value] of Object.entries(structure as object)) {
-                if (key == "constructor") {continue;}
+				if (key == "constructor") {continue;}
+
+				if (key === "_indexes") {
+					const indexes = value as string[];
+					const tableName = Object.keys(table).toString();
+					const result = await checkAndCreateIndexes(tableName, indexes);
+					if (!result) {
+						logger.error("Failed creating indexes on table:", tableName);
+						return false;
+					}
+					continue; 
+				}
 
                 let after_column :string = "";
                 if (Object.keys(structure).indexOf(key,0) != 0){
@@ -190,6 +201,49 @@ async function checkDatabaseConsistency(table: string, column_name:string, type:
 }
 
 /**
+ * Checks if the specified indexes exist on the specified table and creates them if they do not.
+ * @param {string} tableName - The name of the table to check and create indexes for.
+ * @param {string[]} indexes - An array of strings representing the index definitions to create.
+ * @returns {Promise<boolean>} A promise that resolves to a boolean indicating whether the indexes were successfully created.
+ * @async
+ */
+async function checkAndCreateIndexes(tableName: string, indexes: string[]): Promise<boolean> {
+	const pool = await connect(`checkAndCreateIndexes | table: ${tableName}`);
+	let conn: PoolConnection | undefined;
+  
+	try {
+		conn = await pool.getConnection();
+
+		for (const indexDef of indexes) {
+		const match = indexDef.match(/INDEX\s+(\S+)\s*\(/i);
+		if (!match) {
+			logger.warn(`Skipping invalid index definition '${indexDef}' on table '${tableName}'`);
+			continue;
+		}
+
+		const indexName = match[1];  
+
+		const [rows] = await conn.query(`SHOW INDEXES FROM \`${tableName}\` WHERE Key_name = ?`, [indexName]);
+
+		if (Array.isArray(rows) && rows.length === 0) {
+			const statement = `ALTER TABLE \`${tableName}\` ADD ${indexDef};`;
+			logger.info("Creating index on table:", tableName, "=>", statement);
+			await conn.query(statement);
+		} else {
+			logger.debug(`Index ${indexName} already exists on table ${tableName}, skipping.`);
+		}
+		}
+
+		return true;
+	} catch (error) {
+		logger.error("Error creating indexes for table:", tableName, error);
+		return false;
+	} finally {
+		if (conn) conn.release();
+	}
+  }
+
+/**
  * Updates a record in the database table.
  * 
  * @param tableName - The name of the table to update.
@@ -198,6 +252,7 @@ async function checkDatabaseConsistency(table: string, column_name:string, type:
  * @param whereFieldName - Array of names of the fields to use in the WHERE clause.
  * @param whereFieldValue - Array of values of the fields to use in the WHERE clause.
  * @returns A Promise that resolves to a boolean indicating whether the update was successful.
+* @async
  */
 const dbUpdate = async (tableName: string, selectFieldName: string, selectFieldValue: any, whereFieldName: string[], whereFieldValue: any[]): Promise<boolean> => {
 
