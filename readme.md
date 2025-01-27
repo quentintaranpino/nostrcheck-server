@@ -27,6 +27,7 @@ Nostrcheck Server is a comprehensive solution for managing and offering services
 - **Ban Module:** Includes tools to ban users, ensuring data security and enabling the reporting of illegal activities to the authorities.
 - **Integrated AI:** Automatically analyzes uploaded multimedia to detect sensitive or illegal content, reducing the workload for server administrators.
 - **Invitation Module:** Allows administrators to manage invitation codes for controlled access to specific domains.
+- **Nostr relay:** The server can act as a Nostr relay, allowing admins to manage their own Nostr relay.
 
 The server is highly customizable and can be deployed in any environment, allowing anyone to become a Nostr service provider.
 
@@ -206,7 +207,7 @@ See plugins [here](https://github.com/quentintaranpino/nostrcheck-api-ts/blob/ma
 - [x] Frontend UI (directory)
 - [ ] Umbrel appstore integration
 - [ ] Start9 appstore integration
-- [ ] Integrated micro-relay
+- [x] Integrated nostr relay
 - [x] Nostr wallet connect
 
 ## License
