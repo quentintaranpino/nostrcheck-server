@@ -63,7 +63,8 @@ const ModuleDataTables: { [key: string]: string } = {
     "payments": "transactions",
     "banned": "banned",
     "register": "invitations",
-    "ips": "ips"
+    "ips": "ips",
+    "relay": "events"
 };
 
 const moduleDataKeys: { [key: string]: string } = {
@@ -74,7 +75,8 @@ const moduleDataKeys: { [key: string]: string } = {
     "paymentsData": "transactions",
     "bannedData": "banned",
     "invitesData": "invitations",
-    "ipsData": "ips"
+    "ipsData": "ips",
+    "eventsData": "events"
 };
 
 const moduleDataWhereFields: { [key: string]: [string] } = {
@@ -136,7 +138,16 @@ const moduleDataWhereFields: { [key: string]: [string] } = {
                         "ips.lastseen, " +
                         "ips.reqcount, " +
                         "ips.infractions, " +
-                        "ips.comments"]
+                        "ips.comments"],
+    "events":           ["events.id, " +   
+                        "events.active, " +
+                        "events.checked, " +
+                        "events.event_id, " +
+                        "events.pubkey, " +
+                        "events.kind, " +
+                        "events.content, " +
+                        "events.created_at" +
+                        "events.received_at"]
 };
 
 const moduleDataSelectFields: { [key: string]: string } = {
@@ -225,7 +236,16 @@ const moduleDataSelectFields: { [key: string]: string } = {
                         "DATE_FORMAT(ips.lastseen, '%Y-%m-%d %H:%i') as lastseen, " +
                         "ips.reqcount, " +
                         "ips.infractions, " +
-                        "ips.comments"
+                        "ips.comments",
+    "relay":            "events.id, " +
+                        "events.active, " +
+                        "events.checked, " +
+                        "events.event_id, " +
+                        "events.pubkey, " +
+                        "events.kind, " +
+                        "events.content, " +
+                        "events.created_at, " +
+                        "events.received_at"
 };
 
 export { allowedTableNames, allowedFieldNames, allowedFieldNamesAndValues, moduleDataReturnMessage, ModuleDataTables, moduleDataSelectFields, moduleDataWhereFields, moduleDataKeys };

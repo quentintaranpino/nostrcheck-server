@@ -379,8 +379,42 @@
                 ],
                 fields: ipsFields
                 }); %> 
-              <% } %>
+            <% } %>
 
+            <%
+            let eventsFields = [
+              ['active'           , '30' , 'formatCheckbox', 'enabled   show text-center              '],
+              ['checked'          , '30' , 'formatCheckbox', 'enabled   show text-center              '],
+              ['event_id'         , '64' , ''              , 'disabled  show text-center              '],
+              ['kind'             , ''   , ''              , 'disabled  show text-center              '],
+              ['pubkey'           , ''   , ''              , 'disabled  show text-center              '],
+              ['content'          ,'200' , ''              , 'disabled  show text-center              '],
+              ['created_at'       ,''    , ''              , 'enabled   show mobile-hide              '],
+              ['received_at'      ,''    , ''              , 'enabled   show mobile-hide              '],
+            ];
+            %>
+            <% if(locals.activeModules.includes('relay')) { %> 
+              <%- include('./components/table', {
+                tableName:"Events", 
+                tableId:"eventsData", 
+                buttons:[
+                  ['add','hide'],
+                  ['disable','show'],
+                  ['enable','show'],
+                  ['visible','hide'],
+                  ['invisible','hide'],
+                  ['admin','hide'],
+                  ['edit','show'],
+                  ['password','hide'],
+                  ['remove','show'],
+                  ['pay', 'hide'],
+                  ['balance','hide'],
+                  ['moderate','hide'],
+                  ['ban','show']
+                ],
+                fields: eventsFields
+                }); %> 
+            <% } %>
       </div>
      </main>
     <%- include('./partials/footer', {active:'dashboard'}); %>     
