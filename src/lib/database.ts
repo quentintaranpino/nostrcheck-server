@@ -12,8 +12,6 @@ import { getNewDate } from "./utils.js";
 let pool: Pool | undefined;
 let retry: number = 0;
 
-const memoryCache: Map<string, { data: Map<string, any>; indices: Map<string, Map<any, any>> }> = new Map();
-
 const connOptions : ConnectionOptions = {
 	host: process.env.DATABASE_HOST || app.get("config.database")["host"],
 	user: process.env.DATABASE_USER || app.get("config.database")["user"],
@@ -491,6 +489,54 @@ const dbDelete = async (tableName :string, whereFieldNames :string[], whereField
 	}
 }
 
+/**
+ * Inserts or updates a record in the specified table in the database.
+ * @param {string} tableName - The name of the table to insert or update the record in.
+ * @param {Record<string, string | number | boolean | null>} data - An object containing the data to be inserted or updated in the table.
+ * @returns {Promise<number>} A promise that resolves to the ID of the inserted or updated record, or 0 if an error occurred.
+ * @async
+ */
+async function dbUpsert(tableName: string, data: Record<string, string | number | boolean | null>): Promise<number> {
+
+	logger.debug("Upsert into table:", tableName, "data:", data);
+
+	const columns = Object.keys(data);
+	if (columns.length === 0) {
+		logger.error("Error in dbUpsert: no columns provided for table", tableName);
+		return 0;
+	}
+
+	const placeholders = columns.map(() => "?").join(", ");
+	const insertSql = `
+		INSERT INTO ${tableName} (${columns.join(", ")})
+		VALUES (${placeholders})
+	`;
+
+	const updateAssignments = columns.map(col => `${col} = VALUES(${col})`).join(", ");
+	const sql = insertSql + ` ON DUPLICATE KEY UPDATE ${updateAssignments}`;
+
+	const values = columns.map(col => data[col]);
+
+	const pool = await connect("dbUpsert:" + tableName);
+	let conn: PoolConnection | undefined;
+	try {
+		conn = await pool.getConnection();
+		const [result] = await conn.execute(sql, values);
+		conn.release();
+
+		const resObj = JSON.parse(JSON.stringify(result));
+		logger.debug("Upsert result =>", resObj);
+
+		return resObj.insertId || 0;
+
+	} catch (error) {
+		logger.error("Error in dbUpsert for table:", tableName, error);
+		return 0;
+	} finally {
+		if (conn) conn.release();
+	}
+}
+
 const showDBStats = async(): Promise<string> => {
 
 	const result: string[] = [];
@@ -529,6 +575,11 @@ const showDBStats = async(): Promise<string> => {
 
 		const ledger = await dbMultiSelect(["id"],"ledger", "1 = 1",[],false)?.then((result) => {return result.length});
 		result.push(`Ledger entries: ${ledger}`);
+	}
+
+	if (isModuleEnabled("relay", app)){
+		const events = await dbMultiSelect(["id"],"events", "1 = 1",[],false)?.then((result) => {return result.length});
+		result.push(`Events: ${events}`);
 	}
 
 	result.push(``);
@@ -730,4 +781,5 @@ export {
 		dbInsert,
 		showDBStats,
 		initDatabase,
+		dbUpsert
 		};
