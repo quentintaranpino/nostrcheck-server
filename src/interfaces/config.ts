@@ -238,6 +238,7 @@ const defaultConfig = {
 		},
 		"relay" : {
 			"maxSocketSubscriptions": 10,
+			"maxRequestFilterLimit": 1000,
 		}	
 	},
 	"plugins" : {

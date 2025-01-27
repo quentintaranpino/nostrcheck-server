@@ -130,4 +130,12 @@ const getPubkeyFollowers = (pubkey : string) : Promise<string[]> => {
 	});
 }
 
-export {getPubkeyMedatada, getPubkeyFollowing, getPubkeyFollowers}
+const isEphemeral = (kind: number) => {
+	return (kind >= 20000 && kind < 30000);
+}
+
+const isReplaceable = (kind: number) => {
+	return ((kind >= 10000 && kind < 20000) || kind === 0 || kind === 3);
+}
+
+export {getPubkeyMedatada, getPubkeyFollowing, getPubkeyFollowers, isEphemeral, isReplaceable}

@@ -1,5 +1,5 @@
 import WebSocket from "ws";
-import { parseRelayMessage, subscriptions, addSubscription, removeSubscription, removeAllSubscriptions } from "../lib/relay/core.js";
+import { parseRelayMessage, subscriptions, addSubscription, removeAllSubscriptions, removeSubscription } from "../lib/relay/core.js";
 import { Event, Filter, matchFilter } from "nostr-tools";
 import { isEventValid } from "../lib/nostr/core.js";
 import { isModuleEnabled } from "../lib/config.js";
@@ -8,6 +8,7 @@ import { logger } from "../lib/logger.js";
 import { Request } from "express";
 import { isIpAllowed } from "../lib/ips.js";
 import { isEntityBanned } from "../lib/banned.js";
+import { isEphemeral, isReplaceable } from "../lib/nostr/NIP01.js";
 
 const events: any[] = []; // Temporary in-memory storage for events
 
@@ -42,15 +43,25 @@ const handleWebSocketMessage = async (socket: WebSocket, data: WebSocket.RawData
 
     switch (type) {
       case "EVENT":
-        handleEvent(socket, args[0]);
+        if (typeof args[0] !== 'string') {
+          handleEvent(socket, args[0] as Event);
+        } else {
+          socket.send(JSON.stringify(["NOTICE", "invalid: event data is not an object"]));
+        }
         break;
 
-      case "REQ":
-        handleReq(socket, args[0], args[1]);
+      case "REQ": {
+        const filters: Filter[] = args.slice(1) as Filter[];
+        if (typeof args[0] === 'string') {
+          handleReq(socket, args[0], filters);
+        } else {
+          socket.send(JSON.stringify(["NOTICE", "invalid: subscription id is not a string"]));
+        }
         break;
+      }
 
       case "CLOSE":
-        handleClose(socket, args[0]);
+        handleClose(socket, typeof args[0] === 'string' ? args[0] : undefined);
         break;
 
       default:
@@ -77,8 +88,7 @@ const handleEvent = async (socket: WebSocket, event: Event) => {
   const validEvent = await isEventValid(event);
   
   if (validEvent.status !== "success") {
-    let errorMessage = `invalid: ${validEvent.message}`;
-    socket.send(JSON.stringify(["OK", event.id, false, errorMessage]));
+    socket.send(JSON.stringify(["OK", event.id, false, `invalid: ${validEvent.message}`]));
     return;
   }
 
@@ -90,8 +100,34 @@ const handleEvent = async (socket: WebSocket, event: Event) => {
     return;
   }
 
-  // Save the event in memory
-  events.push(event);
+  if (isEphemeral(event.kind)) {
+    subscriptions.forEach((clientSubscriptions) => {
+      clientSubscriptions.forEach((listener) => listener(event));
+    });
+    socket.send(JSON.stringify(["OK", event.id, true, "ephemeral: accepted but not stored"]));
+    // Not saved in memory, but notify subscribers
+    return;
+  }
+  
+  if (isReplaceable(event.kind)) {
+    const index = events.findIndex((e) => e.kind === event.kind && e.pubkey === event.pubkey);
+    if (index !== -1) {
+      const old = events[index];
+      if (
+        event.created_at > old.created_at ||
+        (event.created_at === old.created_at && event.id < old.id)
+      ) {
+        events[index] = event; 
+      } else {
+        socket.send(JSON.stringify(["OK", event.id, false, "duplicate: older or same version"]));
+        return;
+      }
+    } else {
+      events.push(event);
+    }
+  } else {
+    events.push(event);
+  }
   if (events.length > 10000) {
     events.shift(); // Remove oldest events to limit memory usage, temporary solution
   }
@@ -107,41 +143,66 @@ const handleEvent = async (socket: WebSocket, event: Event) => {
 };
 
 // Handle REQ
-const handleReq = (socket: WebSocket, subId: string, filter: Filter) => {
-  logger.info("Received REQ:", subId, filter);
+const handleReq = (socket: WebSocket, subId: string, filters: Filter[]) => {
+  logger.info("Received REQ:", subId, filters);
 
-  if (!filter || typeof filter !== "object") {
-    socket.send(JSON.stringify(["CLOSED", subId, "unsupported: invalid filter"]));
+  if (!filters || !Array.isArray(filters) || filters.length === 0) {
+    socket.send(JSON.stringify(["CLOSED", subId, "unsupported: no filters provided"]));
     return;
   }
 
-  try {
-    // Find matching events
-    const matchingEvents = events
-      .filter((event) => matchFilter(filter, event))
-      .slice(0, filter.limit || 100);
+  for (const f of filters) {
+    if (!f || typeof f !== "object") {
+      socket.send(JSON.stringify(["CLOSED", subId, "unsupported: invalid filter"]));
+      return;
+    }
+  }
 
-    // Send matching events
-    matchingEvents.forEach((event) => {
+  try {
+    const matchedEvents = events.filter((ev) =>
+      filters.some((fil) => matchFilter(fil, ev))
+    );
+
+    matchedEvents.sort((a, b) => {
+      if (b.created_at !== a.created_at) {
+        return b.created_at - a.created_at;
+      }
+      return a.id.localeCompare(b.id);
+    });
+
+    let requestedLimit = 0;
+    for (const f of filters) {
+      if (f.limit && f.limit > requestedLimit) {
+        requestedLimit = f.limit;
+      }
+    }
+    if (requestedLimit === 0) {
+      requestedLimit = app.get("config.security")["relay"]["maxRequestFilterLimit"];
+    }
+    
+    const maxConfigured = app.get("config.security")["relay"]["maxRequestFilterLimit"];
+    const finalLimit = Math.min(requestedLimit, maxConfigured);
+    
+    const limitedEvents = matchedEvents.slice(0, finalLimit);
+
+    limitedEvents.forEach((ev) => {
       if (socket.readyState === WebSocket.OPEN) {
-        socket.send(JSON.stringify(["EVENT", subId, event]));
+        socket.send(JSON.stringify(["EVENT", subId, ev]));
       }
     });
 
-    // Send end of stream
     if (socket.readyState === WebSocket.OPEN) {
       socket.send(JSON.stringify(["EOSE", subId]));
     }
 
-    // Create a listener for future events
-    const listener = (event: any) => {
-      if (matchFilter(filter, event) && socket.readyState === WebSocket.OPEN) {
-        socket.send(JSON.stringify(["EVENT", subId, event]));
+    const listener = (ev: Event): void => {
+      if (filters.some((f) => matchFilter(f, ev)) && socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify(["EVENT", subId, ev]));
       }
     };
 
-    // Register the subscription
     addSubscription(subId, socket, listener);
+
   } catch (error) {
     logger.error("Error processing REQ:", error);
     if (socket.readyState === WebSocket.OPEN) {
@@ -152,32 +213,7 @@ const handleReq = (socket: WebSocket, subId: string, filter: Filter) => {
 
 // Handle CLOSE
 const handleClose = (socket: WebSocket, subId?: string) => {
-
-  if (!subscriptions.has(socket)) return;
-
-  const clientSubscriptions = subscriptions.get(socket);
-
-  if (subId) {
-    if (clientSubscriptions && clientSubscriptions.has(subId)) {
-      clientSubscriptions.delete(subId);
-      if (socket.readyState === WebSocket.OPEN) {
-        socket.send(JSON.stringify(["CLOSED", subId, "Subscription closed by server"]));
-      }
-    }
-  } else {
-  if (clientSubscriptions) {
-    clientSubscriptions.forEach((_, id) => {
-      if (socket.readyState === WebSocket.OPEN) {
-        socket.send(JSON.stringify(["CLOSED", id, "Subscription closed by server"]));
-      }
-    });
-    clientSubscriptions.clear();
-  }
-  subscriptions.delete(socket);
-  if (socket.readyState === WebSocket.OPEN) {
-    socket.send(JSON.stringify(["CLOSED", "", "All subscriptions closed by server"]));
-  }
-  }
+  removeSubscription(subId, socket);
 };
 
 export { handleWebSocketMessage };

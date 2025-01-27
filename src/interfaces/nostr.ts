@@ -99,19 +99,26 @@ const emptyNostrProfileData: nostrProfileData = {
 }
 
 const NIP01_event = z.union([
-    z.tuple([z.literal("EVENT"), z.object({
-      id: z.string(),
-      kind: z.number(),
-      pubkey: z.string(),
-      content: z.string(),
-      tags: z.array(z.array(z.string())),
-      created_at: z.number(),
-      sig: z.string(),
-    })]),
-    z.tuple([z.literal("REQ"), z.string(), z.object({}).passthrough()]),
-    z.tuple([z.literal("CLOSE"), z.string()]),
+    z.tuple([
+      z.literal("EVENT"),
+      z.object({
+        id: z.string(),
+        kind: z.number(),
+        pubkey: z.string(),
+        content: z.string(),
+        tags: z.array(z.array(z.string())),
+        created_at: z.number(),
+        sig: z.string(),
+      }),
+    ]),
+    z.tuple([
+      z.literal("REQ"),
+      z.string(),
+    ]).rest(z.object({}).passthrough()), 
+    z.tuple([
+      z.literal("CLOSE"),
+      z.string(),
+    ]),
   ]);
-  
-
 
 export { NIPKinds, NIP96file, NIP01_event, NIP94_event, NIP94_data, NIP96_event, NIP96_processing, NIP04_event, nostrProfileData, emptyNostrProfileData};
