@@ -9,6 +9,7 @@ const initMonthChart = (chartId, title, rawData) => {
   const dataArray = rawData.data;
 
   const monthCountsCurrentYear = new Array(12).fill(0);
+  const monthCountsLastPrevYear = new Array(12).fill(0);
   const monthCountsLastYear = new Array(12).fill(0);
   
   const currentYear = new Date().getFullYear();
@@ -22,7 +23,10 @@ const initMonthChart = (chartId, title, rawData) => {
       monthCountsCurrentYear[monthIndex] += parseInt(count);
     } else if (year === currentYear - 1) {
       monthCountsLastYear[monthIndex] += parseInt(count);
+    } else if (year === currentYear - 2) {
+      monthCountsLastPrevYear[monthIndex] += parseInt(count);
     }
+
   });
 
   const labels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -43,6 +47,12 @@ const initMonthChart = (chartId, title, rawData) => {
         backgroundColor: 'rgba(156, 162, 167, 0.7)',
         borderRadius: 5,
         hoverBackgroundColor: '#8E9396',
+      }, {
+        label: currentYear - 2,
+        data: monthCountsLastPrevYear,
+        backgroundColor: 'rgba(255, 159, 64, 0.7)',
+        borderRadius: 5,
+        hoverBackgroundColor: '#FF9F40',
       }]
     },
     options: {
