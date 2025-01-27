@@ -66,37 +66,50 @@ const publishEvent = async (event : NostrEvent): Promise<boolean> => {
 const isEventValid = async (event:Event): Promise<ResultMessagev2> => {
     logger.debug("Verifying event", event.id);
 	try {
-		const IsEventHashValid = getEventHash(event);
+		const IsEventHashValid = await getEventHash(event);
 		if (IsEventHashValid != event.id) {
             logger.debug("Event hash is not valid");
 			return {status: "error", message: "Event hash is not valid"};
 		}
-		const IsEventValid = verifyEvent(event);
+		const IsEventValid = await verifyEvent(event);
 		if (!IsEventValid) {
             logger.debug("Event signature is not valid");
 			return {status: "error", message: "Event signature is not valid"};
 		}
+
+		const IsEventTimestampValid = await isEventTimestampValid(event);
+		if (!IsEventTimestampValid) {
+			logger.debug("Event timestamp is not valid");
+			return {status: "error", message: "Event timestamp is not valid"};
+		}
+
+		logger.debug("Valid event", event.id);
+		return {status: "success", message: "Valid event"};
+
 	} catch (error) {
         logger.debug("Malformed event");
         return {status: "error", message: "Malformed event"};
 	}
-    logger.debug("Valid event", event.id);
-    return {status: "success", message: "Valid event"};
+
 };
 
 /**
  * Verifies the timestamp of an event.
  * @param event - The event to be verified.
+ * @param maxPastSeconds - The maximum number of seconds the event timestamp can be in the past. Optional
+ * @param maxFutureSeconds - The maximum number of seconds the event timestamp can be in the future. Optional
  * @returns A promise that resolves to a boolean indicating whether the event timestamp is valid.
  */
-const isEventTimestampValid = async (event:Event): Promise<boolean> => {
-	logger.debug("Verifying event timestamp", event);
-	const diff =  (Math.floor(Date.now() / 1000) - event.created_at);
-	logger.debug("Event is", diff, "seconds old");
-	if (diff > 60){ //60 seconds max event age
-		return false;
-	}
+function isEventTimestampValid(
+	event: Event,
+	maxPastSeconds = 60,
+	maxFutureSeconds = 60
+  ): boolean {
+	const nowSec = Math.floor(Date.now() / 1000);
+	const diff = nowSec - event.created_at;
+	if (diff > maxPastSeconds) 	return false;
+	if (diff < -maxFutureSeconds) return false;
 	return true;
-}
+  }
 
 export {publishEvent, isEventValid, isEventTimestampValid, createkeyPair, getPubkeyFromSecret, relays, relaysPool}

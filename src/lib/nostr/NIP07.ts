@@ -14,14 +14,6 @@ const verifyNIP07event = async (req: Request) : Promise<boolean> => {
         return false;
     }
 
-    if (await isEventTimestampValid(req.body) === false){
-        logger.warn(`RES -> 401 unauthorized  - ${getClientIp(req)}`);
-        if (app.get('config.environment')  != "development") {
-            logger.warn(`NIP07: Detected an old event. Refusing`, getClientIp(req));
-            return false;
-        }
-    }
-
     if (req.body.kind !== 30078){
         logger.warn(`RES -> 401 unauthorized  - ${getClientIp(req)}`);
         logger.warn(`NIP07: Event kind must be 30078. Refusing`, getClientIp(req));
