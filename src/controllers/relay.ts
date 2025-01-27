@@ -9,8 +9,9 @@ import { Request } from "express";
 import { isIpAllowed } from "../lib/ips.js";
 import { isEntityBanned } from "../lib/banned.js";
 import { isEphemeral, isReplaceable } from "../lib/nostr/NIP01.js";
+import { getEventsDB, initEventsDB, storeEvent } from "../lib/relay/database.js";
 
-const events: any[] = []; // Temporary in-memory storage for events
+const events = initEventsDB(app);
 
 const handleWebSocketMessage = async (socket: WebSocket, data: WebSocket.RawData, req: Request) => {
 
@@ -53,7 +54,7 @@ const handleWebSocketMessage = async (socket: WebSocket, data: WebSocket.RawData
       case "REQ": {
         const filters: Filter[] = args.slice(1) as Filter[];
         if (typeof args[0] === 'string') {
-          handleReq(socket, args[0], filters);
+          await handleReq(socket, args[0], filters);
         } else {
           socket.send(JSON.stringify(["NOTICE", "invalid: subscription id is not a string"]));
         }
@@ -86,7 +87,7 @@ const handleEvent = async (socket: WebSocket, event: Event) => {
   }
 
   const validEvent = await isEventValid(event);
-  
+
   if (validEvent.status !== "success") {
     socket.send(JSON.stringify(["OK", event.id, false, `invalid: ${validEvent.message}`]));
     return;
@@ -95,7 +96,7 @@ const handleEvent = async (socket: WebSocket, event: Event) => {
   logger.info("Received EVENT:", event.id);
 
   // Check if the event is already in memory
-  if (events.some((e) => e.id === event.id)) {
+  if (events.has(event.id)) {
     socket.send(JSON.stringify(["OK", event.id, false, "duplicate: already have this event"]));
     return;
   }
@@ -108,42 +109,46 @@ const handleEvent = async (socket: WebSocket, event: Event) => {
     // Not saved in memory, but notify subscribers
     return;
   }
-  
+
   if (isReplaceable(event.kind)) {
-    const index = events.findIndex((e) => e.kind === event.kind && e.pubkey === event.pubkey);
-    if (index !== -1) {
-      const old = events[index];
-      if (
-        event.created_at > old.created_at ||
-        (event.created_at === old.created_at && event.id < old.id)
-      ) {
-        events[index] = event; 
-      } else {
-        socket.send(JSON.stringify(["OK", event.id, false, "duplicate: older or same version"]));
-        return;
-      }
-    } else {
-      events.push(event);
+    for (const [key, memEv] of events.entries()) {
+        if (memEv.event.kind === event.kind && memEv.event.pubkey === event.pubkey) {
+            if (
+                event.created_at > memEv.event.created_at ||
+                (event.created_at === memEv.event.created_at && event.id < memEv.event.id)
+            ) {
+              events.delete(key); 
+              events.set(event.id, { event, processed: false }); 
+                break;
+            } else {
+                socket.send(JSON.stringify(["OK", event.id, false, "duplicate: older or same version"]));
+                return;
+            }
+        }
     }
   } else {
-    events.push(event);
-  }
-  if (events.length > 10000) {
-    events.shift(); // Remove oldest events to limit memory usage, temporary solution
+    events.set(event.id, { event, processed: false });
   }
 
-  // Notify subscribers
+  if (events.size > 100000) {
+    const firstKey = events.keys().next().value;
+    if (firstKey !== undefined) {
+      events.delete(firstKey);
+    }
+  }
+
   subscriptions.forEach((clientSubscriptions) => {
     clientSubscriptions.forEach((listener) => {
-      listener(event); 
+        listener(event);
     });
+
   });
 
   socket.send(JSON.stringify(["OK", event.id, true, ""]));
 };
 
 // Handle REQ
-const handleReq = (socket: WebSocket, subId: string, filters: Filter[]) => {
+const handleReq = async (socket: WebSocket, subId: string, filters: Filter[]) => {
   logger.info("Received REQ:", subId, filters);
 
   if (!filters || !Array.isArray(filters) || filters.length === 0) {
@@ -159,9 +164,9 @@ const handleReq = (socket: WebSocket, subId: string, filters: Filter[]) => {
   }
 
   try {
-    const matchedEvents = events.filter((ev) =>
-      filters.some((fil) => matchFilter(fil, ev))
-    );
+
+    const dbEvents = await getEventsDB(filters, events);
+    const matchedEvents = dbEvents.filter((e) => filters.some((f) => matchFilter(f, e)));
 
     matchedEvents.sort((a, b) => {
       if (b.created_at !== a.created_at) {
@@ -195,9 +200,11 @@ const handleReq = (socket: WebSocket, subId: string, filters: Filter[]) => {
       socket.send(JSON.stringify(["EOSE", subId]));
     }
 
-    const listener = (ev: Event): void => {
-      if (filters.some((f) => matchFilter(f, ev)) && socket.readyState === WebSocket.OPEN) {
-        socket.send(JSON.stringify(["EVENT", subId, ev]));
+    const listener = async (event: Event): Promise<void> => {
+      if (filters.some((f) => matchFilter(f, event)) && socket.readyState === WebSocket.OPEN) {
+        if (await isEventValid(event)){
+          socket.send(JSON.stringify(["EVENT", subId, event]));
+        }
       }
     };
 
@@ -215,5 +222,26 @@ const handleReq = (socket: WebSocket, subId: string, filters: Filter[]) => {
 const handleClose = (socket: WebSocket, subId?: string) => {
   removeSubscription(subId, socket);
 };
+
+setInterval(async () => {
+  const eventsToPersist = [];
+  for (const [, memEv] of events.entries()) {
+      if (!memEv.processed) {
+          eventsToPersist.push(memEv.event);
+      }
+  }
+
+  if (eventsToPersist.length > 0) {
+      const insertResults = await Promise.all(eventsToPersist.map(e => storeEvent(e)));
+      eventsToPersist.forEach((event, index) => {
+          if (insertResults[index] > 0) {
+              const eventEntry = events.get(event.id);
+              if (eventEntry)  eventEntry.processed = true;
+          } else {
+              logger.error(`Failed to store event ${event.id}`);
+          }
+      });
+  }
+}, 1000);
 
 export { handleWebSocketMessage };

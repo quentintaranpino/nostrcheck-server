@@ -327,7 +327,7 @@ const eventsTableFields: EventsTable = {
 	created_at: "BIGINT NOT NULL",
 	content: "TEXT",
 	sig: "varchar(128) NOT NULL",
-	received_at: "datetime NOT NULL",
+	received_at: "BIGINT NOT NULL",
 	_indexes: [
 		"INDEX idx_pubkey (pubkey)",
 		"INDEX idx_kind_created_at (kind, created_at)"
