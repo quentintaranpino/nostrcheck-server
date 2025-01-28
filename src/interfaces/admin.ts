@@ -1,5 +1,5 @@
 
-const allowedTableNames = ["registered", "mediafiles", "lightning", "domains", "banned", "invitations", "ips"];
+const allowedTableNames = ["registered", "mediafiles", "lightning", "domains", "banned", "invitations", "ips", "events"];
 const allowedFieldNames = [ "allowed", 
                             "active", 
                             "banned",
@@ -232,20 +232,21 @@ const moduleDataSelectFields: { [key: string]: string } = {
                         "ips.active, " +
                         "ips.checked, " +
                         "ips.ip, " +
-                        "DATE_FORMAT(ips.firstseen, '%Y-%m-%d %H:%i') as firstseen, " +
-                        "DATE_FORMAT(ips.lastseen, '%Y-%m-%d %H:%i') as lastseen, " +
+                        "DATE_FORMAT(FROM_UNIXTIME(ips.firstseen /1000), '%Y-%m-%d %H:%i') as firstseen, " +
+                        "DATE_FORMAT(FROM_UNIXTIME(ips.lastseen /1000), '%Y-%m-%d %H:%i') as lastseen, " +
                         "ips.reqcount, " +
                         "ips.infractions, " +
                         "ips.comments",
     "relay":            "events.id, " +
                         "events.active, " +
                         "events.checked, " +
+                        "CASE WHEN EXISTS (SELECT 1 FROM banned WHERE banned.originid = events.id AND banned.origintable = 'events' and banned.active = '1') THEN 1 ELSE 0 END as banned, " +
                         "events.event_id, " +
                         "events.pubkey, " +
                         "events.kind, " +
                         "events.content, " +
-                        "events.created_at, " +
-                        "events.received_at"
+                        "DATE_FORMAT(FROM_UNIXTIME(events.created_at), '%Y-%m-%d %H:%i') as created_at, " +
+                        "DATE_FORMAT(FROM_UNIXTIME(events.received_at / 1000), '%Y-%m-%d %H:%i') as received_at"
 };
 
 export { allowedTableNames, allowedFieldNames, allowedFieldNamesAndValues, moduleDataReturnMessage, ModuleDataTables, moduleDataSelectFields, moduleDataWhereFields, moduleDataKeys };
