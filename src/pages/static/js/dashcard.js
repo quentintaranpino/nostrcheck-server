@@ -32,7 +32,6 @@ const refreshDashcard = async(dashcardId, dashcardDataKey, action, field) => {
     $('#' + dashcardId + '-tooltip-text').text('Retrieving data...');
 
     const countData = await fetchDashcardData(dashcardDataKey, action, field)
-    console.log('countData', countData)
     $('#' + dashcardId + '-text').text(countData.total)
     if (field !== "" && field !== undefined) {
         initDoughnutChart(dashcardId, dashcardDataKey, {field: countData.field, total: countData.total}, field, false, false, true)
