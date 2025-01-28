@@ -140,6 +140,17 @@ const initEditModal = async (objectId, row, objectName, newRow, columns) => {
                     }
                 }
 
+                // Special case for editting a nostr event
+                if (objectId == '#eventsData') {
+                    if (key == 'content') {               
+                        $('#' + key).replaceWith(
+                            '<div class="markdown-preview" style="height:250px; overflow-y:auto; border:1px solid #ddd; padding:10px">' + 
+                            markdownToHTML(row[key]) + 
+                            '</div>'
+                        );
+                    }
+                }
+
                 columns.forEach(function(column) {
                     if (column.field == key) {
                         if (column.class) {
