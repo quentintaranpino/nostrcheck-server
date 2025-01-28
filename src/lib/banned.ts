@@ -87,11 +87,55 @@ const manageEntity = async (originId: number, originTable: string, action: "ban"
             }
         }
 
-        const redisKey = `banned:${originTable}:${originId}`;
+        const redisKeyPrimary = `banned:${originTable}:${originId}`;
         if (action === "ban") {
-            await redisSet(redisKey, JSON.stringify("1"), { EX: app.get("config.redis")["expireTime"] });
+            await redisSet(redisKeyPrimary, JSON.stringify("1"), { EX: app.get("config.redis")["expireTime"] });
+
+            switch (originTable) {
+                case "registered":
+                    const redisKeyHex = `banned:${originTable}:${result[0].hex}`;
+                    await redisSet(redisKeyHex, JSON.stringify("1"), { EX: app.get("config.redis")["expireTime"] });
+                    break;
+
+                case "mediafiles":
+                    const redisKeyHash = `banned:${originTable}:${result[0].original_hash}`;
+                    await redisSet(redisKeyHash, JSON.stringify("1"), { EX: app.get("config.redis")["expireTime"] });
+                    break;
+
+                case "ips":
+                    const redisKeyIp = `banned:${originTable}:${result[0].ip}`;
+                    await redisSet(redisKeyIp, JSON.stringify("1"), { EX: app.get("config.redis")["expireTime"] });
+                    break;
+
+                case "events":
+                    const redisKeyEvent = `banned:${originTable}:${result[0].event_id}`;
+                    await redisSet(redisKeyEvent, JSON.stringify("1"), { EX: app.get("config.redis")["expireTime"] });
+                    break;
+            }
         } else if (action === "unban") {
-            await redisDel(redisKey);
+            await redisDel(redisKeyPrimary);
+
+            switch (originTable) {
+                case "registered":
+                    const redisKeyHex = `banned:${originTable}:${result[0].hex}`;
+                    await redisDel(redisKeyHex);
+                    break;
+
+                case "mediafiles":
+                    const redisKeyHash = `banned:${originTable}:${result[0].original_hash}`;
+                    await redisDel(redisKeyHash);
+                    break;
+
+                case "ips":
+                    const redisKeyIp = `banned:${originTable}:${result[0].ip}`;
+                    await redisDel(redisKeyIp);
+                    break;
+
+                case "events":
+                    const redisKeyEvent = `banned:${originTable}:${result[0].event_id}`;
+                    await redisDel(redisKeyEvent);
+                    break;
+            }
         }
 
         return { status: "success", message: `Records with ${keyField} : ${result[0][keyField]} from table ${originTable} ${action}ned successfully` };
@@ -187,11 +231,52 @@ const getBannedFileBanner = (): Promise<Buffer> => {
 **/
 const loadBannedEntities = async (): Promise<void> => {
     const bannedEntities = await dbMultiSelect(["originid", "origintable"], "banned", "active = 1", [], false);
+
     for (const entity of bannedEntities) {
-        const redisKey = `banned:${entity.origintable}:${entity.originid}`;
-        await redisSet(redisKey, JSON.stringify("1"), { EX: app.get("config.redis")["expireTime"] });
+        const redisKeyPrimary = `banned:${entity.origintable}:${entity.originid}`;
+        await redisSet(redisKeyPrimary, JSON.stringify("1"), { EX: app.get("config.redis")["expireTime"] });
+
+        switch (entity.origintable) {
+            case "registered":
+                const regResult = await dbMultiSelect(["hex"], "registered", "id = ?", [entity.originid], true);
+                if (regResult.length > 0) {
+                    const redisKeyHex = `banned:registered:${regResult[0].hex}`;
+                    await redisSet(redisKeyHex, JSON.stringify("1"), { EX: app.get("config.redis")["expireTime"] });
+                }
+                break;
+
+            case "mediafiles":
+                const mediaResult = await dbMultiSelect(["original_hash"], "mediafiles", "id = ?", [entity.originid], true);
+                if (mediaResult.length > 0) {
+                    const redisKeyHash = `banned:mediafiles:${mediaResult[0].original_hash}`;
+                    await redisSet(redisKeyHash, JSON.stringify("1"), { EX: app.get("config.redis")["expireTime"] });
+                }
+                break;
+
+            case "ips":
+                const ipResult = await dbMultiSelect(["ip"], "ips", "id = ?", [entity.originid], true);
+                if (ipResult.length > 0) {
+                    const redisKeyIp = `banned:ips:${ipResult[0].ip}`;
+                    await redisSet(redisKeyIp, JSON.stringify("1"), { EX: app.get("config.redis")["expireTime"] });
+                }
+                break;
+
+            case "events":
+                const eventResult = await dbMultiSelect(["event_id"], "events", "id = ?", [entity.originid], true);
+                if (eventResult.length > 0) {
+                    const redisKeyEvent = `banned:events:${eventResult[0].event_id}`;
+                    await redisSet(redisKeyEvent, JSON.stringify("1"), { EX: app.get("config.redis")["expireTime"] });
+                }
+                break;
+
+            default:
+                logger.warn(`Unsupported table for banned entity: ${entity.origintable}`);
+                break;
+        }
     }
+
     await redisSet("banned:cache", JSON.stringify("1"), { EX: app.get("config.redis")["expireTime"] });
 };
+
 
 export { banEntity, unbanEntity, isEntityBanned, getBannedFileBanner };
