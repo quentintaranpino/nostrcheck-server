@@ -86,8 +86,15 @@ const handleEvent = async (socket: WebSocket, event: Event) => {
     return;
   }
 
-  const validEvent = await isEventValid(event);
+  // Check if the event is banned
+  if (await isEntityBanned(event.id, "events")) {
+    socket.send(JSON.stringify(["NOTICE", "blocked: banned event"]));
+    socket.send(JSON.stringify(["OK", event.id, false, "blocked: banned event"]));
+    removeAllSubscriptions(socket);
+    return;
+  }
 
+  const validEvent = await isEventValid(event);
   if (validEvent.status !== "success") {
     socket.send(JSON.stringify(["OK", event.id, false, `invalid: ${validEvent.message}`]));
     return;
