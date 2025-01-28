@@ -106,8 +106,10 @@ const getClientIp = (req: Request): string => {
     let ip = req.headers['x-forwarded-for'];
     if (Array.isArray(ip)) {
         ip = ip[0];
+    } else if (typeof ip === 'string') {
+        ip = ip.split(',')[0].trim();
     } else {
-        ip = ip || req.connection.remoteAddress;
+        ip = req.connection.remoteAddress || "";
     }
     if (typeof ip === 'string' && ip.startsWith("::ffff:")) {
         ip = ip.substring(7);
