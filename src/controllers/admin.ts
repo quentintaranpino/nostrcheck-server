@@ -12,7 +12,7 @@ import { dbDelete, dbInsert, dbMultiSelect, dbUpdate } from "../lib/database.js"
 import { allowedFieldNames, allowedFieldNamesAndValues, allowedTableNames, moduleDataReturnMessage, moduleDataKeys } from "../interfaces/admin.js";
 import { parseAuthHeader} from "../lib/authorization.js";
 import { isModuleEnabled, updateLocalConfigKey } from "../lib/config.js";
-import { redisDel, redisFlushAll, redisGet } from "../lib/redis.js";
+import { redisDel, redisFlushAll, redisGet, redisHashSet } from "../lib/redis.js";
 import { getFileMimeType } from "../lib/media.js";
 import { npubToHex } from "../lib/nostr/NIP19.js";
 import { dbCountModuleData, dbCountMonthModuleData, dbSelectModuleData } from "../lib/admin.js";
@@ -186,6 +186,17 @@ const updateDBRecord = async (req: Request, res: Response): Promise<Response> =>
     // Update table with new value
     const update = await dbUpdate(table, req.body.field, req.body.value, ["id"], [req.body.id]);
     if (update) {
+
+        // Update redis cache
+        let redisKey = `${table}:${req.body.id}`;
+
+        // Specific case for ips table
+        if (table == "ips") {
+            const ip = await dbMultiSelect(["ip"], table, "id = ?", [req.body.id]);
+            redisKey = `ips:${ip[0].ip}`;
+        }
+        
+        await redisHashSet(redisKey, { [req.body.field]: req.body.value });
         
         const result : ResultMessagev2 = {
             status: "success",
@@ -519,7 +530,13 @@ const deleteDBRecord = async (req: Request, res: Response): Promise<Response> =>
     }
 
     // Check Redis cache for the record.
-    await redisDel(`${table}:${req.body.id}`);
+    let redisKey = `${table}:${req.body.id}`;
+    // Special case for ips table
+    if (table == "ips") {
+        const ip = await dbMultiSelect(["ip"], table, "id = ?", [req.body.id]);
+        redisKey = `ips:${ip[0].ip}`;
+    }
+    await redisDel(redisKey);
 
     // Unban the record if it was banned and delete it from banned redis cache.
     await unbanEntity(req.body.id, table);
@@ -650,7 +667,6 @@ const insertDBRecord = async (req: Request, res: Response): Promise<Response> =>
     if (req.body.table == "nostraddressData"){
         insert = await addNewUsername(req.body.row["username"], req.body.row["hex"], req.body.row["password"], req.body.row["domain"], req.body.row["comments"], true, "", false, false, req.body.row["allowed"]);
     }else{
-
         insert = await dbInsert(table, Object.keys(req.body.row), Object.values(req.body.row));
     }
 
@@ -662,6 +678,10 @@ const insertDBRecord = async (req: Request, res: Response): Promise<Response> =>
         logger.error("RES -> Failed to insert records" + " | " + reqInfo.ip);
         return res.status(500).send(result);
     }
+
+    // Update redis cache
+    let redisKey = `${table}:${insert}`;
+    await redisHashSet(redisKey, req.body.row);
 
     const result : ResultMessagev2 = {
         status: "success",
