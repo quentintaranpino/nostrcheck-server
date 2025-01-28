@@ -350,6 +350,7 @@
             let ipsFields = [
               ['active'           , '30' , 'formatCheckbox', 'enabled   show text-center              '],
               ['checked'          , '30' , 'formatCheckbox', 'enabled   show text-center              '],
+              ['banned'           , ''   , 'formatCheckbox', 'disabled  hide                          '],
               ['ip'               , '30' , ''              , 'enabled   show text-center              '],
               ['firstseen'        ,'200' , ''              , 'disabled  show text-center              '],
               ['lastseen'         ,'200' , ''              , 'disabled  show text-center              '],
@@ -385,12 +386,13 @@
             let eventsFields = [
               ['active'           , '30' , 'formatCheckbox', 'enabled   show text-center              '],
               ['checked'          , '30' , 'formatCheckbox', 'enabled   show text-center              '],
-              ['event_id'         , '64' , ''              , 'disabled  show text-center              '],
+              ['banned'           , ''   , 'formatCheckbox', 'disabled  hide                          '],
               ['kind'             , ''   , ''              , 'disabled  show text-center              '],
-              ['pubkey'           , ''   , ''              , 'disabled  show text-center              '],
-              ['content'          ,'200' , ''              , 'disabled  show text-center              '],
-              ['created_at'       ,''    , ''              , 'enabled   show mobile-hide              '],
-              ['received_at'      ,''    , ''              , 'enabled   show mobile-hide              '],
+              ['event_id'         , '64' , ''              , 'disabled  show text-center              '],
+              ['pubkey'           , ''   , ''              , 'disabled  hide mobile-hide              '],
+              ['content'          , ''   , ''              , 'disabled  hide mobile-hide              '],
+              ['created_at'       , ''   , ''              , 'disabled  show text-center              '],
+              ['received_at'      , ''   , ''              , 'disabled  show text-center              '],
             ];
             %>
             <% if(locals.activeModules.includes('relay')) { %> 

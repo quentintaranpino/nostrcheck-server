@@ -30,6 +30,11 @@ const manageEntity = async (originId: number, originTable: string, action: "ban"
             whereFields.push("ip");
             keyField = "ip";
             break;
+
+        case "events":
+            whereFields.push("event_id");
+            keyField = "event_id";
+            break;
     
         case "banned":
             const result = await dbMultiSelect(["originid", "origintable"], "banned", "id = ?", [originId], true) as any;
