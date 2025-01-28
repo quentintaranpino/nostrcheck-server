@@ -10,6 +10,8 @@ import { isIpAllowed } from "../lib/ips.js";
 import { isEntityBanned } from "../lib/banned.js";
 import { isEphemeral, isReplaceable } from "../lib/nostr/NIP01.js";
 import { getEventsDB, initEventsDB, storeEvent } from "../lib/relay/database.js";
+import { executePlugins } from "../lib/plugins/core.js";
+import { ipInfo } from "../interfaces/ips.js";
 
 const events = initEventsDB(app);
 
@@ -45,7 +47,7 @@ const handleWebSocketMessage = async (socket: WebSocket, data: WebSocket.RawData
     switch (type) {
       case "EVENT":
         if (typeof args[0] !== 'string') {
-          handleEvent(socket, args[0] as Event);
+          handleEvent(socket, args[0] as Event, reqInfo);
         } else {
           socket.send(JSON.stringify(["NOTICE", "invalid: event data is not an object"]));
         }
@@ -76,7 +78,7 @@ const handleWebSocketMessage = async (socket: WebSocket, data: WebSocket.RawData
 };
 
 // Handle EVENT
-const handleEvent = async (socket: WebSocket, event: Event) => {
+const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) => {
 
   // Check if the event pubkey is banned
   if (await isEntityBanned(event.pubkey, "registered")) {
@@ -97,6 +99,13 @@ const handleEvent = async (socket: WebSocket, event: Event) => {
   const validEvent = await isEventValid(event);
   if (validEvent.status !== "success") {
     socket.send(JSON.stringify(["OK", event.id, false, `invalid: ${validEvent.message}`]));
+    return;
+  }
+  
+  // Plugins engine execution
+  if (await executePlugins({pubkey: event.pubkey, filename: "", ip: reqInfo.ip}, app) == false) {
+    socket.send(JSON.stringify(["NOTICE", "blocked: can't accept event"]));
+    socket.send(JSON.stringify(["OK", event.id, false, "blocked: can't accept event"]));
     return;
   }
 

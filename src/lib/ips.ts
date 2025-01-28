@@ -4,6 +4,7 @@ import { logger } from "./logger.js";
 import app from "../app.js";
 import { banEntity, isEntityBanned } from "./banned.js";
 import { Request } from "express";
+import { ipInfo } from "../interfaces/ips.js";
 
 /**
  * Logs a new IP address in the database and Redis.
@@ -123,7 +124,7 @@ const getClientIp = (req: Request): string => {
  * @param req - The request object.
  * @returns An object containing the IP address, request count, whether the IP is banned, and any comments.
  */
-const isIpAllowed = async (req: Request | string): Promise<{ ip: string; reqcount: number; banned: boolean; comments: string; }> => {
+const isIpAllowed = async (req: Request | string): Promise<ipInfo> => {
 
     const clientIp = typeof req === "string" ? req : getClientIp(req);
     if (!clientIp) {
