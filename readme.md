@@ -155,12 +155,16 @@ See plugins [here](https://github.com/quentintaranpino/nostrcheck-api-ts/blob/ma
 ## Supported Nostr NIP's
 
 - [x] NIP01
+- [x] NIP02
 - [x] NIP04
 - [x] NIP05
 - [x] NIP07
+- [x] NIP11
+- [x] NIP13
 - [x] NIP19
 - [x] NIP44
 - [x] NIP47
+- [x] NIP78
 - [x] NIP94
 - [x] NIP96
 - [x] NIP98
