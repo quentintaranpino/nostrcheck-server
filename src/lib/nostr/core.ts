@@ -61,9 +61,11 @@ const publishEvent = async (event : NostrEvent): Promise<boolean> => {
 /**
  * Verifies the integrity of an event.
  * @param event - The event to be verified.
+ * @param created_at_lower_limit - The maximum number of seconds the event timestamp can be in the past. Optional
+ * @param created_at_upper_limit - The maximum number of seconds the event timestamp can be in the future. Optional
  * @returns A promise that resolves to a result message indicating the status of the event verification.
  */
-const isEventValid = async (event:Event): Promise<ResultMessagev2> => {
+const isEventValid = async (event:Event, created_at_lower_limit = 60, created_at_upper_limit = 60): Promise<ResultMessagev2> => {
     logger.debug("Verifying event", event.id);
 	try {
 		const IsEventHashValid = await getEventHash(event);
@@ -77,7 +79,7 @@ const isEventValid = async (event:Event): Promise<ResultMessagev2> => {
 			return {status: "error", message: "Event signature is not valid"};
 		}
 
-		const IsEventTimestampValid = await isEventTimestampValid(event);
+		const IsEventTimestampValid = await isEventTimestampValid(event, created_at_lower_limit, created_at_upper_limit);
 		if (!IsEventTimestampValid) {
 			logger.debug("Event timestamp is not valid");
 			return {status: "error", message: "Event timestamp is not valid"};
@@ -96,19 +98,19 @@ const isEventValid = async (event:Event): Promise<ResultMessagev2> => {
 /**
  * Verifies the timestamp of an event.
  * @param event - The event to be verified.
- * @param maxPastSeconds - The maximum number of seconds the event timestamp can be in the past. Optional
- * @param maxFutureSeconds - The maximum number of seconds the event timestamp can be in the future. Optional
+ * @param created_at_lower_limit - The maximum number of seconds the event timestamp can be in the past. Optional
+ * @param created_at_upper_limit - The maximum number of seconds the event timestamp can be in the future. Optional
  * @returns A promise that resolves to a boolean indicating whether the event timestamp is valid.
  */
 function isEventTimestampValid(
 	event: Event,
-	maxPastSeconds = 60,
-	maxFutureSeconds = 60
+	created_at_lower_limit = 60000,
+	created_at_upper_limit = 60000
   ): boolean {
 	const nowSec = Math.floor(Date.now() / 1000);
 	const diff = nowSec - event.created_at;
-	if (diff > maxPastSeconds) 	return false;
-	if (diff < -maxFutureSeconds) return false;
+	if (diff > created_at_lower_limit) 	return false;
+	if (diff < -created_at_upper_limit) return false;
 	return true;
   }
 
