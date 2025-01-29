@@ -6,7 +6,7 @@ const getNIP11file = (app: Application, hostname: string): NIP11File => {
   const nip11file: NIP11File = {
     name: `${app.get("config.server")["host"]} nostr relay` ,
     description: app.get("config.relay")["description"] || `${app.get("config.server")["host"]} nostr relay` ,
-    icon: `/static/resources/relay-icon.png`,
+    icon: `https://${hostname}/static/resources/relay-icon.png`,
     pubkey: app.get("config.server")["pubkey"],
     contact: app.get("config.relay")["contact"],
     supported_nips: supported_nips,
