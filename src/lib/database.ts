@@ -1,4 +1,4 @@
-import { ConnectionOptions, createPool, Pool, PoolConnection, RowDataPacket } from "mysql2/promise";
+import { ConnectionOptions, createPool, Pool, RowDataPacket } from "mysql2/promise";
 import { exit } from "process";
 
 import app from "../app.js";
@@ -18,69 +18,67 @@ const connOptions : ConnectionOptions = {
 	password: process.env.DATABASE_PASSWORD || app.get("config.database")["password"],
 	database: process.env.DATABASE_DATABASE ||  app.get("config.database")["database"],
 	waitForConnections: true,
-	connectionLimit: 100,
-	connectTimeout: 10000,
+	connectionLimit: 20,
+	connectTimeout: 5000,
 	enableKeepAlive: true,
-	keepAliveInitialDelay: 10000,
+	keepAliveInitialDelay: 60000,
 };
 
 const connect = async (source: string): Promise<Pool> => {
 
-  if (pool) {
-    try {
-      await pool.getConnection();
-      return pool
-    } catch (error) {
-      logger.warn("Pool is not functional, recreating...");
-      pool = undefined;
-    }
-  }
+	if (pool) {
+		try {
+			const conn = await pool.getConnection();
+			conn.release();
+			logger.debug("Reusing existing connection pool from", source);
+			return pool
+		} catch (error) {
+			logger.warn("Pool is not functional, recreating...");
+			pool = undefined;
+		}
+	}
 
-  try {
-    pool = await createPool(connOptions);
+	try {
+		pool = await createPool(connOptions);
 
-    await pool.getConnection();
-    logger.info(`Created a new connection pool from ${source}`);
-    retry = 0;
-    return pool;
-  } catch (error) {
-    logger.error(`Failed to connect to database: ${error}`);
-    retry++;
-    if (retry >= 3) {
-      logger.fatal("Failed to connect after multiple attempts. Exiting.");
-      process.exit(1);
-    }
+		const conn = await pool.getConnection();
+		conn.release();
+		logger.info(`Created a new connection pool from ${source}`);
+		retry = 0;
+		return pool;
+	} catch (error) {
+		logger.error(`Failed to connect to database: ${error}`);
+		retry++;
+		if (retry >= 3) {
+			logger.fatal("Failed to connect after multiple attempts. Exiting.");
+			process.exit(1);
+		}
 
-    logger.warn(`Retrying to connect... Attempt ${retry}/3`);
-    await new Promise((resolve) => setTimeout(resolve, 10000));
-    return await connect(source);
-  }
+		logger.warn(`Retrying to connect... Attempt ${retry}/3`);
+		await new Promise((resolve) => setTimeout(resolve, 10000));
+		return await connect(source);
+	}
+
 };
 
 async function populateTables(resetTables: boolean): Promise<boolean> {
     if (await resetTables) {
-        // Put database.droptables to false for next run
         if (!await updateLocalConfigKey("database.droptables", "false")){
             logger.error("Error updating database.droptables in config file, exiting program to avoid data corruption");
             exit(1);
         }
 
-        const pool = await connect("populateTables");
-		let conn : PoolConnection | undefined;
         try {
-			conn = await pool.getConnection();
+			const pool = await connect("populateTables");
             for (const table of databaseTables) {
                 logger.info("Dropping table:", Object.keys(table).toString());
                 const DropTableStatement = "DROP TABLE IF EXISTS " + Object.keys(table).toString() + ";";
-                await conn.query(DropTableStatement);
+                await pool.execute(DropTableStatement);
             }
-			conn.release();
         } catch (error) {
             logger.error("Error dropping tables", error);
             return false;
-        } finally {
-			if (conn) conn.release();
-		}
+        }
     }
 
     // Check tables consistency
@@ -117,26 +115,23 @@ async function populateTables(resetTables: boolean): Promise<boolean> {
 
 async function checkDatabaseConsistency(table: string, column_name:string, type:string, after_column:string): Promise<boolean> {
 
-	const pool = await connect("checkDatabaseConsistency | Table: " + table + " | Column: " + column_name, );
-	let conn : PoolConnection | undefined;
-
 	//Check if table exist
 	const CheckTableExistStatement: string =
 	"SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES " +
 	"WHERE (table_name = ?) " +
 	"AND (table_schema = DATABASE())";
 
+	const pool = await connect("checkDatabaseConsistency | Table: " + table + " | Column: " + column_name, );
+
 	try{
-		conn = await pool.getConnection();
-		const [CheckTable] = await conn.query(CheckTableExistStatement, [table]);
+		const [CheckTable] = await pool.execute(CheckTableExistStatement, [table]);
 		const rowstempCheckTable = JSON.parse(JSON.stringify(CheckTable));
 		if (rowstempCheckTable[0]['COUNT(*)'] == 0) {
 			logger.warn("Table not found:", table);
 			logger.info("Creating table:", table);
 			const CreateTableStatement: string =
 				"CREATE TABLE IF NOT EXISTS " + table + " (" + column_name + " " + type + ");";
-			await conn.query(CreateTableStatement);
-			conn.release();
+			await pool.execute(CreateTableStatement);
 			if (!CreateTableStatement) {
 				logger.error("Error creating table:", table);
 				return false;
@@ -146,9 +141,7 @@ async function checkDatabaseConsistency(table: string, column_name:string, type:
 	} catch (error) {
 		logger.error("Error checking table consistency", error);
 		return false;
-	} finally {
-		if (conn) conn.release();
-	}
+	} 
 
 	const CheckTableColumnsStatement: string =
 	"SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS " +
@@ -160,16 +153,14 @@ async function checkDatabaseConsistency(table: string, column_name:string, type:
 	if (after_column != "") {after_column = " AFTER " + after_column;}
 
 	try{
-		conn = await pool.getConnection();
-		const [CheckTable] = await conn.query(CheckTableColumnsStatement, [table, column_name]);
+		const [CheckTable] = await pool.execute(CheckTableColumnsStatement, [table, column_name]);
 		const rowstempCheckTable = JSON.parse(JSON.stringify(CheckTable));
 		if (rowstempCheckTable[0]['COUNT(*)'] == 0) {
 			logger.warn("Column not found in table:", table, "column:", column_name);
 			logger.info("Creating column:", column_name, "in table:", table);
 			const AlterTableStatement: string =
 				"ALTER TABLE " + table + " ADD " + column_name + " " + type + after_column + ";";
-			await conn.query(AlterTableStatement);
-			conn.release();
+			await pool.execute(AlterTableStatement);
 
 			// Check if the new column is a migration from an old column, migrate data and delete old column.
 			let result = false;
@@ -188,14 +179,11 @@ async function checkDatabaseConsistency(table: string, column_name:string, type:
 			}
 			return true;
 		}
-		conn.release();
 		return true;
 	} catch (error) {
 		logger.error("Error checking table consistency", error);
 		return false;
-	} finally {
-		if (conn) conn.release();
-	}
+	} 
 }
 
 /**
@@ -206,40 +194,34 @@ async function checkDatabaseConsistency(table: string, column_name:string, type:
  * @async
  */
 async function checkAndCreateIndexes(tableName: string, indexes: string[]): Promise<boolean> {
-	const pool = await connect(`checkAndCreateIndexes | table: ${tableName}`);
-	let conn: PoolConnection | undefined;
   
 	try {
-		conn = await pool.getConnection();
-
+		const pool = await connect(`checkAndCreateIndexes | table: ${tableName}`);
 		for (const indexDef of indexes) {
-		const match = indexDef.match(/INDEX\s+(\S+)\s*\(/i);
-		if (!match) {
-			logger.warn(`Skipping invalid index definition '${indexDef}' on table '${tableName}'`);
-			continue;
+			const match = indexDef.match(/INDEX\s+(\S+)\s*\(/i);
+			if (!match) {
+				logger.warn(`Skipping invalid index definition '${indexDef}' on table '${tableName}'`);
+				continue;
+			}
+
+			const indexName = match[1];  
+
+			const [rows] = await pool.execute(`SHOW INDEXES FROM \`${tableName}\` WHERE Key_name = ?`, [indexName]);
+
+			if (Array.isArray(rows) && rows.length === 0) {
+				const statement = `ALTER TABLE \`${tableName}\` ADD ${indexDef};`;
+				logger.info("Creating index on table:", tableName, "=>", statement);
+				await pool.execute(statement);
+			} else {
+				logger.debug(`Index ${indexName} already exists on table ${tableName}, skipping.`);
+			}
 		}
-
-		const indexName = match[1];  
-
-		const [rows] = await conn.query(`SHOW INDEXES FROM \`${tableName}\` WHERE Key_name = ?`, [indexName]);
-
-		if (Array.isArray(rows) && rows.length === 0) {
-			const statement = `ALTER TABLE \`${tableName}\` ADD ${indexDef};`;
-			logger.info("Creating index on table:", tableName, "=>", statement);
-			await conn.query(statement);
-		} else {
-			logger.debug(`Index ${indexName} already exists on table ${tableName}, skipping.`);
-		}
-		}
-
 		return true;
 	} catch (error) {
 		logger.error("Error creating indexes for table:", tableName, error);
 		return false;
-	} finally {
-		if (conn) conn.release();
-	}
-  }
+	} 
+}
 
 /**
  * Updates a record in the database table.
@@ -260,11 +242,9 @@ const dbUpdate = async (tableName: string, selectFieldName: string, selectFieldV
 	}
   
 	const pool = await connect("dbUpdate: " + selectFieldName + " | Table: " + tableName);
-	let conn : PoolConnection | undefined;
 
 	try {
 
-		conn = await pool.getConnection();
 		const whereClause = whereFieldName.map((field, index) => {
 			if (whereFieldValue[index] === "IS NOT NULL" || whereFieldValue[index] === "IS NULL") {
 				return `${field} ${whereFieldValue[index]}`;
@@ -273,31 +253,26 @@ const dbUpdate = async (tableName: string, selectFieldName: string, selectFieldV
 			}
 		}).join(' AND ');
 		const params = [selectFieldValue].concat(whereFieldValue);
-		const [dbFileFieldUpdate] : any[] = await conn.execute(
+		const [dbFileFieldUpdate] : any[] = await pool.execute(
 			`UPDATE ${tableName} SET ${selectFieldName} = ? WHERE ${whereClause}`,
 			params
 		);
 		if (!dbFileFieldUpdate) {
 		logger.error("Error updating " + tableName + " table | " + whereFieldName.join(', ') + " :", whereFieldValue.join(', ') +  " | " + selectFieldName + " :", selectFieldValue);
-		conn.release();
 		return false;
 		}
 
 		if (dbFileFieldUpdate.affectedRows === 0) {
 		logger.warn("No rows updated in " + tableName + " table | " + whereFieldName.join(', ') + " :", whereFieldValue.join(', ') +  " | " + selectFieldName + " :", selectFieldValue);
-		conn.release();
 		return false;
 		}
 
-		conn.release();
 		return true;
 	} catch (error) {
 		logger.error("Error updating " + tableName + " table | " + whereFieldName.join(', ') + " :", whereFieldValue.join(', ') +  " | " + selectFieldName + " :", selectFieldValue);
 		logger.error(error);
 		return false;
-	} finally {
-		if (conn) conn.release();
-	}
+	} 
 
   };
   
@@ -320,29 +295,21 @@ const dbInsert = async (tableName: string, fields: string[], values: (string | n
 	}
 
 	const pool = await connect("dbInsert:" + tableName);
-	let conn : PoolConnection | undefined;
 	try{
-
-		conn = await pool.getConnection();
-
-		const [dbFileInsert] = await conn.execute(
+		const [dbFileInsert] = await pool.execute(
 			"INSERT INTO " + tableName + " (" + fields.join(", ") + ") VALUES (" + Array(fields.length).fill("?").join(", ") + ")",
 			values
 		);
 		if (!dbFileInsert) {
 			logger.error("Error inserting data into " + tableName + " table");
-			conn.release();
 			return 0;
 		}
 
 		logger.debug("record inserted into", tableName, "table with id:", JSON.parse(JSON.stringify(dbFileInsert)).insertId )
-		conn.release();
 		return JSON.parse(JSON.stringify(dbFileInsert)).insertId;
 	} catch (error) {
 		logger.error("Error inserting data into " + tableName + " table");
 		return 0;
-	} finally {
-		if (conn) conn.release();
 	}
 }
 
@@ -357,12 +324,9 @@ const dbInsert = async (tableName: string, fields: string[], values: (string | n
 const dbSelect = async (queryStatement: string, returnField :string, whereFields: string[], onlyFirstResult = true): Promise<string | string[]> => {
 
 	const pool = await connect("dbSimpleSelect: " + queryStatement + " | Fields: " + whereFields.join(", "));
-	let conn : PoolConnection | undefined;
 
     try {
-		conn = await pool.getConnection();
-        const [rows] = await conn.query<RowDataPacket[]>(queryStatement, whereFields);
-        conn.release();
+        const [rows] = await pool.execute<RowDataPacket[]>(queryStatement, whereFields);
         if (onlyFirstResult){
             return rows[0]?.[returnField] as string || "";
         }
@@ -373,9 +337,7 @@ const dbSelect = async (queryStatement: string, returnField :string, whereFields
         logger.debug(error)
         logger.error("Error getting " + returnField + " from database");
         return "";
-    } finally {
-		if (conn) conn.release();
-	}
+    }
 }
 
 /**
@@ -395,11 +357,8 @@ const dbMultiSelect = async (queryFields: string[], fromStatement: string, where
     }
 
 	const pool = await connect("dbMultiSelect: " + queryFields.join(',') + " | Fields: " + whereFields.join(", "));
-	let conn : PoolConnection | undefined;
     try {
-		conn = await pool.getConnection();
-        const [rows] = await conn.query<RowDataPacket[]>(`SELECT ${queryFields.join(',')} FROM ${fromStatement} WHERE ${whereStatement}`, whereFields);
-        conn.release();
+        const [rows] = await pool.execute<RowDataPacket[]>(`SELECT ${queryFields.join(',')} FROM ${fromStatement} WHERE ${whereStatement}`, whereFields);
 
         if (onlyFirstResult){
             if (rows.length > 0) {
@@ -414,9 +373,7 @@ const dbMultiSelect = async (queryFields: string[], fromStatement: string, where
         logger.debug(error);
         logger.error("Error getting " + queryFields.join(',') + " from database");
         return [];
-    } finally {
-		if (conn) conn.release();
-	}
+    }
 }
 
 /**
@@ -428,14 +385,11 @@ const dbMultiSelect = async (queryFields: string[], fromStatement: string, where
 const dbSimpleSelect = async (table:string, query:string): Promise<string> =>{
 
 	const pool = await connect("dbSimpleSelect " + table);
-	let conn : PoolConnection | undefined;
 
 	try{
-		conn = await pool.getConnection();
 		logger.debug("Executing query:", query, "on table:", table);
-		const [dbResult] = await conn.query(query);
+		const [dbResult] = await pool.execute(query);
 		const rowstemp = JSON.parse(JSON.stringify(dbResult));
-		conn.release();
 		if (rowstemp[0] == undefined || rowstemp[0] == "") {
 			return "";
 		}else{
@@ -444,9 +398,7 @@ const dbSimpleSelect = async (table:string, query:string): Promise<string> =>{
 	} catch (error) {
 		logger.error(`Error getting data from ${table}`);
 		return "";
-	} finally {
-		if (conn) conn.release();
-	}
+	} 
 }
 
 /**
@@ -466,26 +418,20 @@ const dbDelete = async (tableName :string, whereFieldNames :string[], whereField
 	}
 
 	const pool = await connect("dbDelete:" + tableName);
-	let conn : PoolConnection | undefined;
 
 	try{
-		conn = await pool.getConnection();
-		const [dbFileDelete] = await conn.execute(
+		const [dbFileDelete] = await pool.execute(
 			"DELETE FROM " + tableName + " WHERE " + whereFieldNames.join(" = ? and ") + " = ?",
 			[...whereFieldValues]
 		);
 		if (!dbFileDelete) {
 			logger.error("Error deleting data from " + tableName + " table");
-			conn.release();
 			return false;
 		}
-		conn.release();
 		return true;
 	} catch (error) {
 		logger.error("Error deleting data from " + tableName + " table");
 		return false;
-	} finally {
-		if (conn) conn.release();
 	}
 }
 
@@ -514,15 +460,11 @@ async function dbUpsert(tableName: string, data: Record<string, string | number 
 
 	const updateAssignments = columns.map(col => `${col} = VALUES(${col})`).join(", ");
 	const sql = insertSql + ` ON DUPLICATE KEY UPDATE ${updateAssignments}`;
-
 	const values = columns.map(col => data[col]);
-
 	const pool = await connect("dbUpsert:" + tableName);
-	let conn: PoolConnection | undefined;
+
 	try {
-		conn = await pool.getConnection();
-		const [result] = await conn.execute(sql, values);
-		conn.release();
+		const [result] = await pool.execute(sql, values);
 
 		const resObj = JSON.parse(JSON.stringify(result));
 		logger.debug("Upsert result =>", resObj);
@@ -532,9 +474,7 @@ async function dbUpsert(tableName: string, data: Record<string, string | number 
 	} catch (error) {
 		logger.error("Error in dbUpsert for table:", tableName, error);
 		return 0;
-	} finally {
-		if (conn) conn.release();
-	}
+	} 
 }
 
 const showDBStats = async(): Promise<string> => {
@@ -650,12 +590,12 @@ const initDatabase = async (): Promise<void> => {
 	}
 
 	// Check if standard accounts exist on accounts table and create it if not.
-	let checkAccounts = await dbSelect("SELECT accountid FROM accounts ", "accountid", [], false) as string[]
-	accounts.forEach(async (account) => {
-		if (!checkAccounts.toString().includes(account.accountid.toString())){
+	const checkAccounts = await dbSelect("SELECT accountid FROM accounts ", "accountid", [], false) as string[]
+	for (const account of accounts) {
+		if (!checkAccounts.toString().includes(account.accountid.toString())) {
 			logger.warn("Standard account not found, creating it:", account.accountname);
 			const fields: string[] = ["accountid", "active", "accountname", "accounttype", "createddate", "comments"];
-			const values: any[] = [account.accountid, "1",  account.accountname, account.accounttype, getNewDate(), account.comments];
+			const values: any[] = [account.accountid, "1", account.accountname, account.accounttype, getNewDate(), account.comments];
 			const insert = await dbInsert("accounts", fields, values);
 			if (insert === 0){
 				logger.fatal("Error creating standard account");
@@ -663,7 +603,7 @@ const initDatabase = async (): Promise<void> => {
 			}
 			logger.info("Standard account created");
 		}
-	});
+	}
 
 	// Fix old mimetype
 	const fixMimetype =await fixOldMimeType();
@@ -677,25 +617,19 @@ const initDatabase = async (): Promise<void> => {
 const migrateOldFields = async (table:string, oldField:string, newField:string): Promise<boolean> => {
 	
 	const pool = await connect("migrateOldFields");
-	let conn : PoolConnection | undefined;
 	try{
-		conn = await pool.getConnection();
-		const [dbFileStatusUpdate] = await conn.execute(
+		const [dbFileStatusUpdate] = await pool.execute(
 			"UPDATE " + table + " set " + newField + " = " + oldField + " where " + oldField + " is not null"
 		);
 		if (!dbFileStatusUpdate) {
 			logger.error("Error migrating old fields");
-			conn.release();
 			return false;
 		}
 		logger.warn("Migrated all data from old fields, table:", table, "| Old field:", oldField, "-> New field :", newField);
-		conn.release();
 		return true;
 	}catch (error) {
 		logger.error("Error migrating old fields");
 		return false;
-	}finally {
-		if (conn) conn.release();
 	}
 }
 
@@ -703,35 +637,28 @@ const deleteOldFields = async (table:string, oldField:string): Promise<boolean> 
 
 	//Drop oldField from table
 	const pool = await connect("deleteOldFields");
-	const conn = await pool.getConnection();
 	try{
-		const [dbFileStatusUpdate] = await conn.execute(
+		const [dbFileStatusUpdate] = await pool.execute(
 			"ALTER TABLE " + table + " DROP " + oldField
 		);
 		if (!dbFileStatusUpdate) {
 			logger.error("Error deleting old fields");
-			conn.release();
 			return false;
 		}
 		logger.warn("Deleted old fields, table:", table, "| Old field:", oldField);
-		conn.release();
 		return true;
 
 	} catch (error) {
 		logger.error("Error deleting old fields");
 		return false;
-	} finally {
-		if (conn) conn.release();
 	}
 }
 
 const fixOldMimeType = async (): Promise<boolean> => {
 
 	const pool = await connect("fixOldMimeType");
-	let conn : PoolConnection | undefined;
 	try{
-		conn = await pool.getConnection();
-		const [dbFileStatusUpdate] = await conn.execute(
+		const [dbFileStatusUpdate] = await pool.execute(
 			`UPDATE mediafiles
 			SET mimetype = 
 				CASE 
@@ -755,18 +682,14 @@ const fixOldMimeType = async (): Promise<boolean> => {
 		);
 		if (!dbFileStatusUpdate) {
 			logger.error("Error fixing old mimetypes from mediafiles table");
-			conn.release();
 			return false;
 		}
 		const result = dbFileStatusUpdate as any as { affectedRows: number };
 		if (result.affectedRows > 0) logger.warn("Fixed old mimetypes from mediafiles table");
-		conn.release();
 		return true;
 	}catch (error) {
 		logger.error("Error fixing old mimetype");
 		return false;
-	}finally {
-		if (conn) conn.release();
 	}
 }
 
