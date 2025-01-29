@@ -279,7 +279,7 @@ Endpoint: https://nostrcheck.me/api/v2/admin/updatesettings
 }
 ```
 ### updatelogo [POST]
-This method updates the logo of the application. The request must include a valid module name, an Authorization header with a valid authkey, and a file with the new logo. If no file is provided, the default logo is restored. The logo is resized and converted to webp format before being saved. On success, it returns a message indicating that the logo was updated, along with an authkey.
+This method updates the logo of the application. The request must include a valid module name, an Authorization header with a valid authkey, and a file with the new logo. If no file is provided, the default logo is restored. The logo is resized and converted to png format before being saved. On success, it returns a message indicating that the logo was updated, along with an authkey.
 
 Endpoint: https://nostrcheck.me/api/v2/admin/updatelogo
 
@@ -317,6 +317,47 @@ Endpoint: https://nostrcheck.me/api/v2/admin/updatelogo
     "authkey": "auth_key"
 }
 ```
+
+### updaterelayicon [POST]
+This method updates the relay icon of the application. The request must include a valid module name, an Authorization header with a valid authkey, and a file with the new icon. If no file is provided, the default icon is restored. The relay icon is resized and converted to png format before being saved. On success, it returns a message indicating that the logo was updated, along with an authkey.
+
+Endpoint: https://nostrcheck.me/api/v2/admin/updaterelayicon
+
+**Headers**
+
+- `Content-Type`: multipart/form-data
+- `Authorization`: Bearer {authkey}
+
+**Parameters**
+
+- `file`: The new icon file.
+
+**Example Request**
+
+```json
+{
+    "method": "POST",
+    "url": "https://nostrcheck.me/api/v2/admin/updaterelayicon",
+    "headers": {
+        "Content-Type": "multipart/form-data",
+	"Authorization "Bearer Auth37f3352fe10584d7396f010eb501482930dd712f"
+    },
+    "body": {
+        "file": "icon_file"
+    }
+}
+```
+
+**Example Response**
+
+```json
+{
+    "status": "success",
+    "message": "Relay icon updated",
+    "authkey": "auth_key"
+}
+```
+
 ### Domains
 
 ### domains [GET]
