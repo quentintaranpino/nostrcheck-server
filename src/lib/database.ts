@@ -347,9 +347,10 @@ const dbSelect = async (queryStatement: string, returnField :string, whereFields
 /  * @param {string} whereStatement - The WHERE and ORDER clause of the SQL query.
 /  * @param {string[]} whereFields - The fields to be used in the WHERE clause of the SQL query.
 /  * @param {boolean} [onlyFirstResult=true] - A boolean indicating whether to return only the first result from the query or all results.
+/  * @param {string} [limitClause=""] - The LIMIT clause of the SQL query.
 /  * @returns {Promise<any[]>} A promise that resolves to an array of objects containing the specified fields from the result, or an empty array if an error occurs or if the result is empty.
 */
-const dbMultiSelect = async (queryFields: string[], fromStatement: string, whereStatement: string, whereFields: any[], onlyFirstResult = true): Promise<any[]> => {
+const dbMultiSelect = async (queryFields: string[], fromStatement: string, whereStatement: string, whereFields: any[], onlyFirstResult = true, limitClause = ""): Promise<any[]> => {
 
     if (queryFields.length === 0){
         logger.error("Error getting data from database, queryFields are empty");
@@ -358,7 +359,7 @@ const dbMultiSelect = async (queryFields: string[], fromStatement: string, where
 
 	const pool = await connect("dbMultiSelect: " + queryFields.join(',') + " | Fields: " + whereFields.join(", "));
     try {
-        const [rows] = await pool.execute<RowDataPacket[]>(`SELECT ${queryFields.join(',')} FROM ${fromStatement} WHERE ${whereStatement}`, whereFields);
+        const [rows] = await pool.execute<RowDataPacket[]>(`SELECT ${queryFields.join(',')} FROM ${fromStatement} WHERE ${whereStatement} ${limitClause}`, whereFields);
 
         if (onlyFirstResult){
             if (rows.length > 0) {
