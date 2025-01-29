@@ -146,6 +146,19 @@
                     <i class="fas fa-plug me-2"></i>Plugins
             </button>
           </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link <%= locals.availableModules['relay'] && locals.availableModules['relay'].enabled ? '' : 'disabled' %>" 
+                    id="relay-tab" 
+                    data-bs-toggle="tab" 
+                    data-bs-target="#relay" 
+                    type="button" 
+                    role="tab" 
+                    aria-controls="relay" 
+                    aria-selected="false" 
+                    <%= locals.availableModules['relay'] && locals.availableModules['relay'].enabled ? '' : 'disabled' %>>
+                    <i class="fas fa-wifi me-2"></i>Relay
+            </button>
+          </li>
         </ul>
         <div class="tab-content" id="settingsTabsContent">
           <div class="tab-pane fade show active" id="lookandfeel" role="tabpanel" aria-labelledby="lookandfeel-tab">
@@ -180,6 +193,9 @@
           </div>
           <div class="tab-pane fade" id="payments" role="tabpanel" aria-labelledby="payments-tab">
             <%- include('./components/settings/payments'); %>
+          </div>
+          <div class="tab-pane fade" id="relay" role="tabpanel" aria-labelledby="relay-tab">
+            <%- include('./components/settings/relay'); %>
           </div>
         </div>
     </main>

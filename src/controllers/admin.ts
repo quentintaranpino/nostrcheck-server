@@ -277,6 +277,66 @@ const updateLogo = async (req: Request, res: Response): Promise<Response> => {
 
 }
 
+const updateRelayIcon = async (req: Request, res: Response): Promise<Response> => {
+
+    // Check if the request IP is allowed
+    const reqInfo = await isIpAllowed(req);
+    if (reqInfo.banned == true) {
+        logger.warn(`Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
+        return res.status(403).send({"status": "error", "message": reqInfo.comments});
+    }
+
+    // Check if current module is enabled
+    if (!isModuleEnabled("admin", app)) {
+        logger.warn("Attempt to access a non-active module:","admin","|","IP:", reqInfo.ip);
+        return res.status(403).send({"status": "error", "message": "Module is not enabled"});
+    }
+
+    logger.debug("POST /api/v2/admin/updatelogo", "|", reqInfo.ip);
+
+     // Check if authorization header is valid
+	const eventHeader = await parseAuthHeader(req, "updateDBRecord", true);
+	if (eventHeader.status !== "success") {return res.status(401).send({"status": eventHeader.status, "message" : eventHeader.message});}
+    setAuthCookie(res, eventHeader.authkey);
+
+    let file: Express.Multer.File | null = null;
+	if (Array.isArray(req.files) && req.files.length > 0) {
+		file = req.files[0];
+	}
+
+    if (!req.files || req.files == undefined || req.files.length == 0 || !file) {
+        try {
+            await fs.promises.copyFile(`./src/pages/static/resources/relay-icon.default.png`, `./src/pages/static/resources/relay-icon.png`);
+            logger.info("RES -> Default relay icon restored" + " | " + reqInfo.ip);
+            return res.status(200).send({status: "success", message: "Default relay icon restored"});
+        } catch (error) {
+            logger.error("RES -> Failed to restore default relay icon" + " | " + reqInfo.ip);
+            return res.status(500).send({status: "error", message: "Failed to restore default relay icon"});
+        }
+    }
+
+	if (await getFileMimeType(req, file) == "") {
+		logger.error(`RES -> 400 Bad request - `, file.mimetype, ` filetype not detected`, "|", reqInfo.ip);
+		return res.status(400).send({"status": "error", "message": "file type not detected or not allowed"});
+	}
+
+    await sharp(file.buffer)
+        .resize(200, 200, { fit: sharp.fit.contain, background: { r: 0, g: 0, b: 0, alpha: 0 } }) 
+        .png({ quality: 95 })
+        .toBuffer()
+        .then(async data => { 
+            await fs.promises.writeFile(`./src/pages/static/resources/relay-icon.png`, data);
+            logger.info("RES -> Relay icon updated" + " | " + reqInfo.ip);
+        })
+        .catch(err => { 
+            logger.error("RES -> Error updating relay icon" + " | " + err);
+            return res.status(500).send({"status": "error", "message": "Error updating relay icon"});
+        });
+
+     return res.status(200).send({"status": "success", "message": "Relay icon updated"});
+
+}
+
 const updateTheme = async (req: Request, res: Response): Promise<Response> => {
 
     // Check if the request IP is allowed
@@ -1030,5 +1090,6 @@ export {    serverStatus,
             updateTheme,
             getModuleData,
             getModuleCountData,
-            banDBRecord         
+            banDBRecord,
+            updateRelayIcon   
         };

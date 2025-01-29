@@ -19,7 +19,8 @@ import {
     getModuleCountData,
     updateTheme,
     moderateDBRecord,
-    banDBRecord
+    banDBRecord,
+    updateRelayIcon
 } from "../controllers/admin.js";
 
 const maxMBfilesize: number = app.get("config.media")["maxMBfilesize"];
@@ -85,6 +86,20 @@ export const loadAdminEndpoint = async (app: Application, version: string): Prom
                     return res.status(413).send({ "status": "error", "message": "File too large, max filesize allowed is " + maxMBfilesize + "MB" });
                 }
                 updateLogo(req, res);
+            });
+        });
+
+        // Upload frontend relay icon (handles files)
+        app.post("/api/" + version + app.get("config.server")["availableModules"]["admin"]["path"] + "/updaterelayicon/", 
+            limiter(),
+            function (req, res) {
+            logger.debug("POST /api/" + version + app.get("config.server")["availableModules"]["admin"]["path"] + "/updaterelayicon", "|", getClientIp(req));
+            upload.any()(req, res, function (err) {
+                if (err instanceof multer.MulterError && err.code === "LIMIT_FILE_SIZE") {
+                    logger.warn("Upload attempt failed: File too large", "|", getClientIp(req));
+                    return res.status(413).send({ "status": "error", "message": "File too large, max filesize allowed is " + maxMBfilesize + "MB" });
+                }
+                updateRelayIcon(req, res);
             });
         });
 

@@ -235,15 +235,30 @@ const defaultConfig = {
 		},
 		"register" : {
 			"maxRegisterDay": 2,
-		},
-		"relay" : {
-			"maxSocketSubscriptions": 10,
-			"maxRequestFilterLimit": 1000,
-		}	
+		}
 	},
 	"plugins" : {
 		"path": "plugins"
-	}
+	},
+	"relay" : {
+		"description": "",
+		"contact": "",
+		"limitation": {
+			"max_message_length": 16384,
+			"max_subscriptions": 10,
+			"max_filters": 100,
+			"max_limit": 1000,
+			"max_subid_length": 100,
+			"max_event_tags": 100,
+			"max_content_length": 8196,
+			"min_pow_difficulty": 30,
+			"auth_required": false,
+			"created_at_lower_limit": 31536000,
+			"created_at_upper_limit": 3
+		},
+		"language_tags": ["en", "es"],
+		"tags": []
+	},
 }
 
 const localPath = "./config/local.json";

@@ -29,8 +29,8 @@ const addSubscription = (subId: string, socket: WebSocket, listener: (event: Eve
     clientSubscriptions.delete(subId);
   }
 
-  const maxSubs = app.get("config.security")["relay"]["maxSocketSubscriptions"];
-  if (clientSubscriptions.size >= maxSubs) {
+  const max_subscriptions = app.get("config.relay")["limitation"]["max_subscriptions"];
+  if (clientSubscriptions.size >= max_subscriptions) {
     socket.send(JSON.stringify(["NOTICE", "error: subscription limit reached"]));
     return;
   }

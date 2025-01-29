@@ -1,6 +1,6 @@
 async function saveSettings() {
     const formFields = document.querySelectorAll('.form input, .form select, .form textarea, .form checkbox');
-    formFields.forEach(async field => {
+    for (const field of formFields) {
 
         let value;
         let defaultValue;
@@ -25,6 +25,12 @@ async function saveSettings() {
                 name: field.name,
                 value: value
             });
+
+            if (field.name.startsWith('relay.icon')) {
+                console.log(field.name, value);
+                updateLogo(field.name, value);
+                continue;
+            }
             
             await updateSettings(field.name, value, url, body, headers).then(result => {
                 console.log(result);
@@ -49,10 +55,12 @@ async function saveSettings() {
                 }
             });
         }
-    });
+    }
 }
 
 const updateSettings = (fieldName, fieldValue, url, body, headers) => {
+
+    console.log(fieldName, fieldValue, url, body, headers);
 
     return fetch(url, {
         method: 'POST',
@@ -98,6 +106,7 @@ window.onload = function() {
 // Update logo or restore default
 serverLogoLightId = 'server-logo-light-preview';
 serverLogoDarkId = 'server-logo-dark-preview';
+relayIconId = 'relay-icon-preview';
 const updateLogo = (fieldName, setDefault = false) => {
 
     let body = new FormData();
@@ -107,7 +116,7 @@ const updateLogo = (fieldName, setDefault = false) => {
 
     if (field.files.length === 0 && setDefault === false) return;
 
-    console.log(body.theme)
+    console.log(fieldName)
 
     if (setDefault === true) {
         document.getElementById(`${fieldName}.default`).value = setDefault;
@@ -117,7 +126,7 @@ const updateLogo = (fieldName, setDefault = false) => {
        
     let headers = {};
     
-    updateSettings(fieldName, '', 'admin/updatelogo', body, headers).then(result => {
+    updateSettings(fieldName, '', !fieldName.startsWith('relay.icon')? 'admin/updatelogo' : 'admin/updaterelayicon', body, headers).then(result => {
         if (result) {
 
             if ((fieldName.includes('light') && document.documentElement.getAttribute('data-bs-theme') === 'light') || 
@@ -141,6 +150,13 @@ const updateLogo = (fieldName, setDefault = false) => {
                 serverLogoDark.src = serverLogoDark.src + '?' + new Date().getTime();
                 serverLogoDark.id = Math.random().toString(36).substring(7);
                 serverLogoDarkId = serverLogoDark.id;
+            }
+
+            if (fieldName.startsWith('relay.icon')){
+                const relayIcon = document.getElementById(relayIconId);
+                relayIcon.src = relayIcon.src + '?' + new Date().getTime();
+                relayIcon.id = Math.random().toString(36).substring(7);
+                relayIconId = relayIcon.id;
             }
 
         }
@@ -327,7 +343,7 @@ const saveLookAndFeel = async () => {
     if (document.getElementById('lookandfeel.server.logo.dark').files.length > 0 || document.getElementById('lookandfeel.server.logo.dark').files.length > 0) {
         await updateLogo('lookandfeel.server.logo.dark');
     }
-
+    
     // Check if the fields have been modified
     if(document.getElementById('lookandfeel.server.colors.primaryColor').value === document.getElementById('lookandfeel.server.colors.primaryColor').defaultValue && 
         document.getElementById('lookandfeel.server.colors.secondaryColor').value === document.getElementById('lookandfeel.server.colors.secondaryColor').defaultValue &&
@@ -337,7 +353,6 @@ const saveLookAndFeel = async () => {
         document.getElementById('lookandfeel.server.colors.secondaryColor.percent').dataset.position === document.getElementById('lookandfeel.server.colors.secondaryColor.percent').dataset.defaultPosition &&
         document.getElementById('lookandfeel.server.colors.tertiaryColor.percent').dataset.position === document.getElementById('lookandfeel.server.colors.tertiaryColor.percent').dataset.defaultPosition &&
         document.getElementById('lookandfeel.server.particles').value === document.getElementById('lookandfeel.server.particles').defaultValue) {
-        console.log('No changes');
         return;
     }
 
@@ -358,4 +373,3 @@ function handleCheckboxClick(id, isChecked) {
         initAlertModal("#settings", "Attention, if you disable this module, you will need to manage the server only via<b> shell commands.</b>",10000);
     }
 }
-

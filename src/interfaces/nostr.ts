@@ -99,26 +99,98 @@ const emptyNostrProfileData: nostrProfileData = {
 }
 
 const NIP01_event = z.union([
-    z.tuple([
-      z.literal("EVENT"),
-      z.object({
+  z.tuple([
+    z.literal("EVENT"),
+    z.object({
+      id: z.string(),
+      kind: z.number(),
+      pubkey: z.string(),
+      content: z.string(),
+      tags: z.array(z.array(z.string())),
+      created_at: z.number(),
+      sig: z.string(),
+    }),
+  ]),
+  z.tuple([
+    z.literal("REQ"),
+    z.string(),
+  ]).rest(z.object({}).passthrough()), 
+  z.tuple([
+    z.literal("CLOSE"),
+    z.string(),
+  ]),
+  z.tuple([
+    z.literal("AUTH"),
+    z.union([
+      z.string(),
+      z.object({  
         id: z.string(),
-        kind: z.number(),
+        kind: z.literal(22242),
         pubkey: z.string(),
         content: z.string(),
         tags: z.array(z.array(z.string())),
         created_at: z.number(),
         sig: z.string(),
       }),
-    ]),
-    z.tuple([
-      z.literal("REQ"),
-      z.string(),
-    ]).rest(z.object({}).passthrough()), 
-    z.tuple([
-      z.literal("CLOSE"),
-      z.string(),
-    ]),
-  ]);
+    ])
+  ])
+]);
 
-export { NIPKinds, NIP96file, NIP01_event, NIP94_event, NIP94_data, NIP96_event, NIP96_processing, NIP04_event, nostrProfileData, emptyNostrProfileData};
+interface NIP11Limitation {
+  max_message_length?: number;
+  max_subscriptions?: number;
+  max_filters?: number;
+  max_limit?: number;
+  max_subid_length?: number;
+  max_event_tags?: number;
+  max_content_length?: number;
+  min_pow_difficulty?: number;
+  auth_required?: boolean;
+  payment_required?: boolean;
+  restricted_writes?: boolean;
+  created_at_lower_limit?: number;
+  created_at_upper_limit?: number;
+}
+
+interface NIP11RetentionPolicy {
+  kinds?: (number | [number, number])[];
+  time?: number | null;
+  count?: number;
+}
+
+interface NIP11Fee {
+  amount: number;
+  unit: string;
+  period?: number;
+  kinds?: number[];
+}
+
+interface NIP11Fees {
+  admission?: NIP11Fee[];
+  subscription?: NIP11Fee[];
+  publication?: NIP11Fee[];
+}
+
+interface NIP11File {
+  name: string;
+  description: string;
+  banner?: string;
+  icon?: string;
+  pubkey?: string;
+  contact?: string;
+  supported_nips: number[];
+  software?: string;
+  version?: string;
+  limitation?: NIP11Limitation;
+  retention?: NIP11RetentionPolicy[];
+  relay_countries?: string[];
+  language_tags?: string[];
+  tags?: string[];
+  posting_policy?: string;
+  payments_url?: string;
+  fees?: NIP11Fees;
+}
+
+const supported_nips = [1, 2, 4, 5, 7, 11, 13, 19, 44, 47, 78, 94, 96, 98];
+
+export { supported_nips, NIPKinds, NIP96file, NIP11File, NIP01_event, NIP94_event, NIP94_data, NIP96_event, NIP96_processing, NIP04_event, nostrProfileData, emptyNostrProfileData};

@@ -46,12 +46,14 @@ const storeEvent = async (event: Event) : Promise<number> => {
 const getEventsDB = async (filters: Filter[], relayMap: Map<string, MemoryEvent>): Promise<Event[]> => {
     const memEventIds = Array.from(relayMap.keys());
 
-    const { whereClause, params } = translateFiltersToSQL(filters, memEventIds);
+    const { whereClause, params, limit } = translateFiltersToSQL(filters, memEventIds);
 
     if (!whereClause) return [];
 
     const queryFields = ["event_id", "pubkey", "kind", "created_at", "content", "sig"];
-    const dbResults = await dbMultiSelect(queryFields, "events", whereClause, params, false);
+    const limitClause = limit ? `LIMIT ${limit}` : "";
+
+    const dbResults = await dbMultiSelect(queryFields, "events", whereClause, params, false, limitClause);
 
     const eventsFromDB: Event[] = dbResults.map((row) => ({
         id: row.event_id,
@@ -63,6 +65,8 @@ const getEventsDB = async (filters: Filter[], relayMap: Map<string, MemoryEvent>
         sig: row.sig,
     }));
 
+    if (eventsFromDB.length === 0) return relayMap.size === 0 ? [] : Array.from(relayMap.values()).map((memEvent) => memEvent.event);
+
     eventsFromDB.forEach((ev) => {
         if (!relayMap.has(ev.id)) {
             relayMap.set(ev.id, { event: ev, processed: true });
@@ -72,53 +76,60 @@ const getEventsDB = async (filters: Filter[], relayMap: Map<string, MemoryEvent>
     return eventsFromDB;
 };
 
-  const translateFiltersToSQL = (filters: Filter[], memEventIds: string[]): { whereClause: string, params: any[] } => {
+const translateFiltersToSQL = (filters: Filter[], memEventIds: string[]): { whereClause: string, params: any[], limit?: number } => {
+  const sqlParts: string[] = [];
+  const params: any[] = [];
+  let limit: number | undefined;
 
-    const sqlParts: string[] = [];
-    const params: any[] = [];
-  
-    filters.forEach((filter) => {
+  filters.forEach((filter) => {
       const parts: string[] = [];
-  
-      if (filter.ids && Array.isArray(filter.ids) && filter.ids.length > 0) {
-        parts.push(`event_id IN (${filter.ids.map(() => '?').join(', ')})`);
-        params.push(...filter.ids);
+
+      if (filter.ids && filter.ids.length > 0) {
+          parts.push(`event_id IN (${filter.ids.map(() => '?').join(', ')})`);
+          params.push(...filter.ids);
       }
-  
-      if (filter.kinds && Array.isArray(filter.kinds) && filter.kinds.length > 0) {
-        parts.push(`kind IN (${filter.kinds.map(() => '?').join(', ')})`);
-        params.push(...filter.kinds);
+
+      if (filter.kinds && filter.kinds.length > 0) {
+          parts.push(`kind IN (${filter.kinds.map(() => '?').join(', ')})`);
+          params.push(...filter.kinds);
       }
-  
-      if (filter.authors && Array.isArray(filter.authors) && filter.authors.length > 0) {
-        parts.push(`pubkey IN (${filter.authors.map(() => '?').join(', ')})`);
-        params.push(...filter.authors);
+
+      if (filter.authors && filter.authors.length > 0) {
+          parts.push(`pubkey IN (${filter.authors.map(() => '?').join(', ')})`);
+          params.push(...filter.authors);
       }
-  
-      if (filter.since && typeof filter.since === 'number') {
-        parts.push(`created_at >= ?`);
-        params.push(filter.since);
+
+      if (filter.since) {
+          parts.push(`created_at >= ?`);
+          params.push(filter.since);
       }
-  
-      if (filter.until && typeof filter.until === 'number') {
-        parts.push(`created_at <= ?`);
-        params.push(filter.until);
+
+      if (filter.until) {
+          parts.push(`created_at <= ?`);
+          params.push(filter.until);
       }
-  
-  
+
+      if (filter.limit && typeof filter.limit === 'number' && filter.limit > 0) {
+          limit = filter.limit;
+      }
+
       if (parts.length > 0) {
-        sqlParts.push('(' + parts.join(' AND ') + ')');
+          sqlParts.push('(' + parts.join(' AND ') + ')');
       }
-    });
-  
-    if (memEventIds.length > 0) {
+  });
+
+  if (memEventIds.length > 0) {
       sqlParts.push(`event_id NOT IN (${memEventIds.map(() => '?').join(', ')})`);
       params.push(...memEventIds);
-    }
-  
-    const whereClause = sqlParts.join(' OR ');
-  
-    return { whereClause, params };
-  };
+  }
+
+  let whereClause = sqlParts.join(' OR ');
+  if (!whereClause.trim()) {
+      whereClause = "1=1";
+  }
+
+  return { whereClause, params, limit };
+};
+
 
 export { getEventsDB, storeEvent, initEventsDB };

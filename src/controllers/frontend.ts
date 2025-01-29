@@ -76,6 +76,7 @@ const loadSettingsPage = async (req: Request, res: Response, version:string): Pr
     res.locals.settingsSecurity = app.get("config.security");
     res.locals.settingsDatabase = app.get("config.database");
     res.locals.settingsPlugins = app.get("config.plugins");
+    res.locals.settingsRelay = app.get("config.relay");
     res.locals.logHistory = logHistory;
     res.locals.settingsLookAndFeelThemes = themes;
     res.locals.settingsLookAndFeelParticles = particles;

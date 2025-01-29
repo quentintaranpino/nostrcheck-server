@@ -1,0 +1,225 @@
+<div id="settingsSecurity">
+    <h3 class="mt-4">Relay</h3>
+    <form class="form mx-auto">
+        <p> In this section, you can configure the relay settings of your server.
+        </p>
+        <div id="general">
+            <label for="relay.description" class="mt-2 mb-1 fw-bold">Relay description</label>
+            <p>Specify a human readable description for the relay server.
+            </p>
+            <div class="col-12">
+                <input  type="text" 
+                        id="relay.description" 
+                        name="relay.description" 
+                        class="form-control" 
+                        value="<%= locals.settingsRelay['description'] %>" 
+                        placeholder="ex. Relay server" 
+                        required
+                        >
+            </div>
+            <label for="relay.contact" class="mt-3 mb-1 fw-bold">Relay contact</label>
+            <p>This is the second administrative contact for the relay server. The first contact is the server's pubkey.
+            </p>
+            <div class="col-12 col-md-4">
+                <input  type="email" 
+                        id="relay.contact" 
+                        name="relay.contact" 
+                        class="form-control" 
+                        value="<%= locals.settingsRelay['contact'] %>" 
+                        placeholder="ex. contact@nostrcheck.me"
+                        required
+                        >
+            </div>
+          
+            <label for="relay.icon" class="mt-3 mb-2 fw-bold">Relay icon</label>
+            <p>Upload a new icon for your relay server. For better results, use an image with transparent background.
+            </p>
+            <div class="row mx-auto mb-1 align-items-center">
+              <div class="col-12 col-xl-3 mx-auto m-3">
+                <div class="mx-auto p-3 text-center">
+                  <img id='relay-icon-preview' src="/static/resources/relay-icon.png" alt="Relay icon" width="100" height="100">
+                </div>
+              </div> 
+              <div class="col-12 col-md-9 col-xl-6">
+                  <input type="file" id="relay.icon" name="relay.icon" class="form-control" accept="image/*">
+              </div>
+              <div class="col-12 col-md-3 mt-2 mt-md-0">
+                <input type='text' class="d-none" id='relay.icon.default' name='relay.icon' value='false'>
+                <button class="form-control btn btn-md btn-primary" type="button" onclick="updateLogo('relay.icon',true)">Restore</button>            
+              </div>
+            </div>
+            <label for="relay.language_tags" class="mt-3 mb-2 fw-bold">language tags</label>
+            <p>Specify the language tags indicating the major languages spoken on the relay sepparated by commas.
+            </p>
+            <div class="col-12 col-md-4">
+                <input  type="text" 
+                        id="relay.language_tags" 
+                        name="relay.language_tags" 
+                        class="form-control" 
+                        value="<%= locals.settingsRelay['language_tags'] %>" 
+                        placeholder="ex. en"
+                        required
+                        >
+            </div>
+        </div>
+        <div id ="limitation">
+            <h4 class="mt-4">Server limits</h4>
+            <p>Specify the maximum allowed values for the relay server.
+            </p>
+            <label for="relay.limitation.max_message_length" class="mt-2 mb-1 fw-bold">Max message length</label>
+            <p>This value is used for the maximum allowed message length (in bytes) per socket.
+            </p>
+            <div class="col-12 col-md-4">
+                <input  type="number" 
+                        id="relay.limitation.max_message_length" 
+                        name="relay.limitation.max_message_length" 
+                        class="form-control" 
+                        value="<%= locals.settingsRelay['limitation']['max_message_length'] %>" 
+                        placeholder="ex. 1000" 
+                        step="1"
+                        required
+                        >
+            </div>
+            <label for="relay.limitation.max_subscriptions" class="mt-2 mb-1 fw-bold">Max subscriptions</label>
+            <p>This value is used for the maximum allowed subscriptions per socket.
+            </p>
+            <div class="col-12 col-md-4">
+                <input  type="number" 
+                        id="relay.limitation.max_subscriptions" 
+                        name="relay.limitation.max_subscriptions" 
+                        class="form-control" 
+                        value="<%= locals.settingsRelay['limitation']['max_subscriptions'] %>" 
+                        placeholder="ex. 10" 
+                        step="1"
+                        required
+                        >
+            </div>
+            <label for="relay.limitation.max_filters" class="mt-2 mb-1 fw-bold">Max filters</label>
+            <p>This value is used for the maximum allowed filters per socket.
+            </p>
+            <div class="col-12 col-md-4">
+                <input  type="number" 
+                        id="relay.limitation.max_filters" 
+                        name="relay.limitation.max_filters" 
+                        class="form-control" 
+                        value="<%= locals.settingsRelay['limitation']['max_filters'] %>" 
+                        placeholder="ex. 10" 
+                        step="1"
+                        required
+                        >
+            </div>
+            <label for="relay.limitation.max_limit" class="mt-2 mb-1 fw-bold">Max filter limit</label>
+            <p>This value is used for the maximum allowed filtered results. 
+            </p>
+            <div class="col-12 col-md-4">
+                <input  type="number" 
+                        id="relay.limitation.max_limit" 
+                        name="relay.limitation.max_limit" 
+                        class="form-control" 
+                        value="<%= locals.settingsRelay['limitation']['max_limit'] %>" 
+                        placeholder="ex. 10" 
+                        step="1"
+                        required
+                        >
+            </div>
+            <label for="relay.limitation.max_subid_length" class="mt-2 mb-1 fw-bold">Maximum length of subscription id.</label>
+            <p>This value is used for the maximum allowed length of the subscription id.
+            </p>
+            <div class="col-12 col-md-4">
+                <input  type="number" 
+                        id="relay.limitation.max_subid_length" 
+                        name="relay.limitation.max_subid_length" 
+                        class="form-control" 
+                        value="<%= locals.settingsRelay['limitation']['max_subid_length'] %>" 
+                        placeholder="ex. 10" 
+                        step="1"
+                        required
+                        >
+            </div>
+            <label for="relay.limitation.max_content_length" class="mt-2 mb-1 fw-bold">Maximum number of characters in the content field of any event.</label>  
+            <p>This value is used for the maximum allowed number of characters in the content field of any event.
+            </p>
+            <div class="col-12 col-md-4">
+                <input  type="number" 
+                        id="relay.limitation.max_content_length" 
+                        name="relay.limitation.max_content_length" 
+                        class="form-control" 
+                        value="<%= locals.settingsRelay['limitation']['max_content_length'] %>" 
+                        placeholder="ex. 1000" 
+                        step="1"
+                        required
+                        >
+            </div>
+            <label for="relay.limitation.min_pow_difficulty" class="mt-2 mb-1 fw-bold">Min POW difficulty</label>
+            <p>This value is used for require at least this difficulty of PoW, based on NIP-13, or they will be rejected by this server. <b>Set it at 0 to disable PoW.</b>
+            </p>
+            <div class="col-12 col-md-4">
+                <input  type="number" 
+                        id="relay.limitation.min_pow_difficulty" 
+                        name="relay.limitation.min_pow_difficulty" 
+                        class="form-control" 
+                        value="<%= locals.settingsRelay['limitation']['min_pow_difficulty'] %>" 
+                        placeholder="ex. 10" 
+                        step="1"
+                        required
+                        >
+            </div>
+            <label for="relay.limitation.auth_required" class="mt-2 mb-1 fw-bold">Auth required</label>
+            <p>This value is used for require authentication for all requests. If set to true, all requests must be authenticated. See NIP-42.
+            </p>
+            <div class="col-12 col-md-4">
+                <select id="relay.limitation.auth_required" name="relay.limitation.auth_required" class="form-select" required>
+                    <option value="true" <% if(locals.settingsRelay['limitation']['auth_required'] == "true") { %> selected <% } %>>True</option>
+                    <option value="false" <% if(locals.settingsRelay['limitation']['auth_required'] == "false") { %> selected <% } %>>False</option>
+                </select>
+            </div>
+
+
+            <label for="relay.limitation.created_at_lower_limit" class="mt-2 mb-1 fw-bold">Created at lower limit</label>
+            <p>This value is used for the lower limit of the created_at field of any event. In timestamp format.
+            </p>
+            <div class="col-12 col-md-4">
+                <input  type="number" 
+                        id="relay.limitation.created_at_lower_limit" 
+                        name="relay.limitation.created_at_lower_limit" 
+                        class="form-control" 
+                        value="<%= locals.settingsRelay['limitation']['created_at_lower_limit'] %>" 
+                        placeholder="ex. 0" 
+                        step="1"
+                        required
+                        >
+            </div>
+            <label for="relay.limitation.created_at_upper_limit" class="mt-2 mb-1 fw-bold">Created at upper limit</label>
+            <p>This value is used for the upper limit of the created_at field of any event. In timestamp format.
+            </p>
+            <div class="col-12 col-md-4">
+                <input  type="number" 
+                        id="relay.limitation.created_at_upper_limit" 
+                        name="relay.limitation.created_at_upper_limit" 
+                        class="form-control" 
+                        value="<%= locals.settingsRelay['limitation']['created_at_upper_limit'] %>" 
+                        placeholder="ex. 0" 
+                        step="1"
+                        required
+                        >
+            </div>
+            <label for ="relay.tags" class="mt-2 mb-1 fw-bold">Allowed tags</label>
+            <p>Specify the tags that are allowed to be used in the relay server. This is a list of limitations on the topics to be discussed sepparated by commas. For 
+              example sfw-only indicates that only "Safe For Work" content is encouraged on this relay. <b>Leave it empty to allow all tags.</b>
+            </p>
+            <div class="col-12 col-md-4">
+                <input  type="text" 
+                        id="relay.tags" 
+                        name="relay.tags" 
+                        class="form-control" 
+                        value="<%= locals.settingsRelay['tags'] %>" 
+                        placeholder="ex. sfw-only" 
+                        required
+                        >
+            </div>
+        </div>
+        <div class="col-12 col-md-3 mb-5 mt-4 pb-5 pb-lg-0 mb-lg-2">
+            <button class="btn btn-lg mb-4 btn-primary w-100" name="Submit" type="button" onclick="saveSettings()">Save</button>
+        </div>
+    </form>
+  </div>
