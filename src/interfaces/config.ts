@@ -251,7 +251,7 @@ const defaultConfig = {
 			"max_subid_length": 100,
 			"max_event_tags": 100,
 			"max_content_length": 8196,
-			"min_pow_difficulty": 30,
+			"min_pow_difficulty": 0,
 			"auth_required": false,
 			"created_at_lower_limit": 31536000,
 			"created_at_upper_limit": 3
