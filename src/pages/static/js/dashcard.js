@@ -79,6 +79,7 @@ let dashcards =[
     { dashcardId: 'unpaidTransactionsBalance', dataKey: 'payments', icon: 'satoshi', dashcardName: 'Unpaid transactions balance', link: '#paymentsData', action: 'unpaidTransactions' },
     { dashcardId: 'serverBalance', dataKey: 'payments', icon: 'satoshi', dashcardName: 'Server balance', link: '', action: 'serverBalance' },
     { dashcardId: 'serverUptime', dataKey: 'admin', icon: 'time', dashcardName: 'Server uptime', link: '', action: 'uptime' },
+    { dashcardId: 'relayCount', dataKey: 'relay', icon: 'chart', dashcardName: 'Relay events', link: '', action: 'status' }
 ]
 
 const refreshDashcards = async () => {

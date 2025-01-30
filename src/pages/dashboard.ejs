@@ -31,6 +31,9 @@
             <%- include('./components/dashcard', { dashcardId: 'serverBalance', link: ''}); %>
           <% } %>
           <%- include('./components/dashcard', { dashcardId: 'serverUptime', link: ''}); %>
+          <% if(locals.activeModules.includes('relay')) { %>
+            <%- include('./components/dashcard', { dashcardId: 'relayCount', link: '#relayData'}); %>
+          <% } %>
         </div>
       </div>
       <div class="container-fluid mt-4 mb-5 overflow-auto ">

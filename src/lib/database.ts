@@ -519,7 +519,7 @@ const showDBStats = async(): Promise<string> => {
 
 	if (isModuleEnabled("relay", app)){
 		const events = await dbMultiSelect(["id"],"events", "1 = 1",[],false)?.then((result) => {return result.length});
-		result.push(`Events: ${events}`);
+		result.push(`Relay events: ${events}`);
 	}
 
 	result.push(``);
