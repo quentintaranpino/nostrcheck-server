@@ -15,7 +15,7 @@ import { ipInfo } from "../interfaces/ips.js";
 import { validatePow } from "../lib/nostr/NIP13.js";
 import { allowedTags, AuthEvent, ExtendedWebSocket } from "../interfaces/relay.js";
 
-const events = initEventsDB(app);
+const events = await initEventsDB(app);
 const authSessions: Map<WebSocket, string> = new Map(); 
 
 const handleWebSocketMessage = async (socket: ExtendedWebSocket, data: WebSocket.RawData, req: Request) => {
@@ -337,27 +337,6 @@ const handleClose = (socket: WebSocket, subId?: string) => {
   removeSubscription(subId, socket);
 };
 
-setInterval(async () => {
-  const eventsToPersist = [];
-  for (const [, memEv] of events.entries()) {
-      if (!memEv.processed) {
-          eventsToPersist.push(memEv.event);
-      }
-  }
-
-  if (eventsToPersist.length > 0) {
-      const insertResults = await Promise.all(eventsToPersist.map(e => storeEvent(e)));
-      eventsToPersist.forEach((event, index) => {
-          if (insertResults[index] > 0) {
-              const eventEntry = events.get(event.id);
-              if (eventEntry)  eventEntry.processed = true;
-          } else {
-              logger.error(`Failed to store event ${event.id}`);
-          }
-      });
-  }
-}, 1000);
-
 const handleAuthMessage = async (socket: ExtendedWebSocket, message: ["AUTH", string | AuthEvent]): Promise<void> => {
   if (!Array.isArray(message) || message.length !== 2) {
       socket.send(JSON.stringify(["NOTICE", "error: malformed AUTH message"]));
@@ -408,5 +387,26 @@ const handleAuthMessage = async (socket: ExtendedWebSocket, message: ["AUTH", st
       socket.send(JSON.stringify(["OK", authData.id, true, "AUTH successful"]));
   }
 };
+
+setInterval(async () => {
+  const eventsToPersist = [];
+  for (const [, memEv] of events.entries()) {
+      if (!memEv.processed) {
+          eventsToPersist.push(memEv.event);
+      }
+  }
+
+  if (eventsToPersist.length > 0) {
+      const insertResults = await Promise.all(eventsToPersist.map(e => storeEvent(e)));
+      eventsToPersist.forEach((event, index) => {
+          if (insertResults[index] > 0) {
+              const eventEntry = events.get(event.id);
+              if (eventEntry)  eventEntry.processed = true;
+          } else {
+              logger.error(`Failed to store event ${event.id}`);
+          }
+      });
+  }
+}, 1000);
 
 export { handleWebSocketMessage };
