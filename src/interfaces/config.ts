@@ -249,12 +249,12 @@ const defaultConfig = {
 			"max_filters": 100,
 			"max_limit": 2000,
 			"max_subid_length": 100,
-			"max_event_tags": 100,
+			"max_event_tags": 300,
 			"max_content_length": 20000,
 			"min_pow_difficulty": 0,
 			"auth_required": false,
-			"created_at_lower_limit": 31536000,
-			"created_at_upper_limit": 3
+			"created_at_lower_limit": 94608000,
+			"created_at_upper_limit": 59
 		},
 		"language_tags": ["en", "es"],
 		"tags": []

@@ -136,6 +136,20 @@
                         required
                         >
             </div>
+            <label for ="relay.limitation.max_event_tags" class="mt-2 mb-1 fw-bold">Maximum number of tags per event</label>
+            <p>Specify the maximum number of tags that can be used in an event.
+            </p>
+            <div class="col-12 col-md-4">
+                <input  type="number" 
+                        id="relay.limitation.max_event_tags" 
+                        name="relay.limitation.max_event_tags" 
+                        class="form-control" 
+                        value="<%= locals.settingsRelay['limitation']['max_event_tags'] %>" 
+                        placeholder="ex. 10" 
+                        step="1"
+                        required
+                        >
+            </div>
             <label for="relay.limitation.max_content_length" class="mt-2 mb-1 fw-bold">Maximum number of characters in the content field of any event.</label>  
             <p>This value is used for the maximum allowed number of characters in the content field of any event.
             </p>
