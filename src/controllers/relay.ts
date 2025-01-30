@@ -25,7 +25,7 @@ const handleWebSocketMessage = async (socket: ExtendedWebSocket, data: WebSocket
   if (reqInfo.banned == true) {
     logger.warn(`Attempt to access relay with unauthorized IP: ${reqInfo.ip} | Reason: ${reqInfo.comments}`);
     socket.send(JSON.stringify(["NOTICE", `${reqInfo.comments}`]));
-    logger.debug("Closing socket due to unauthorized IP:", reqInfo.ip);
+    logger.warn("Closing socket due to unauthorized IP:", reqInfo.ip);
     removeAllSubscriptions(socket);
     return;
   }
@@ -34,7 +34,7 @@ const handleWebSocketMessage = async (socket: ExtendedWebSocket, data: WebSocket
   if (!isModuleEnabled("relay", app)) {
     logger.warn("Attempt to access a non-active module:", "relay", "|", "IP:", reqInfo.ip);
     socket.send(JSON.stringify(["NOTICE", "blocked: relay module is not active"]));
-    logger.debug("Closing socket due to inactive module:", "relay");
+    logger.warn("Closing socket due to inactive module:", "relay");
     removeAllSubscriptions(socket);
     return;
   }
@@ -44,6 +44,7 @@ const handleWebSocketMessage = async (socket: ExtendedWebSocket, data: WebSocket
     const max_message_length = app.get("config.relay")["limitation"]["max_message_length"];
     if (Buffer.byteLength(data.toString()) > max_message_length) {
       socket.send(JSON.stringify(["NOTICE", "error: message too large"]));
+      logger.debug("Full received message:", data.toString());
       logger.debug("Message too large:", Buffer.byteLength(data.toString()), "bytes");
       socket.close(1009, "message too large");
 
@@ -112,7 +113,7 @@ const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) =>
   if (await isEntityBanned(event.pubkey, "registered")) {
     socket.send(JSON.stringify(["NOTICE", "blocked: banned pubkey"]));
     socket.send(JSON.stringify(["OK", event.id, false, "blocked: banned pubkey"]));
-    logger.debug("Blocked event from banned pubkey:", event.pubkey);
+    logger.warn("Blocked event from banned pubkey:", event.pubkey);
     removeAllSubscriptions(socket);
     return;
   }
@@ -121,7 +122,7 @@ const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) =>
   if (await isEntityBanned(event.id, "events")) {
     socket.send(JSON.stringify(["NOTICE", "blocked: banned event"]));
     socket.send(JSON.stringify(["OK", event.id, false, "blocked: banned event"]));
-    logger.debug("Blocked banned event:", event.id);
+    logger.warn("Blocked banned event:", event.id);
     removeAllSubscriptions(socket);
     return;
   }
