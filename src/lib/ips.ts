@@ -145,7 +145,7 @@ const isIpAllowed = async (req: Request | string): Promise<ipInfo> => {
 
     // Abuse prevention
     const diff = Number(lastseen) - Number(firstseen);
-    if ((diff < 500 && Number(reqcount) > 200) && (lastseen != firstseen)) {
+    if ((diff < 500 && Number(reqcount) > app.get('config.security')["maxDefaultRequestMinute"]) && (lastseen != firstseen)) {
 
         logger.warn(`Possible abuse detected from IP: ${clientIp} | Infraction count: ${infractions}`);
 
