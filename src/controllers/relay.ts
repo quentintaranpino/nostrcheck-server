@@ -14,6 +14,7 @@ import { executePlugins } from "../lib/plugins/core.js";
 import { ipInfo } from "../interfaces/ips.js";
 import { validatePow } from "../lib/nostr/NIP13.js";
 import { allowedTags, AuthEvent, ExtendedWebSocket } from "../interfaces/relay.js";
+import { isBase64 } from "../lib/utils.js";
 
 const events = await initEventsDB(app);
 const authSessions: Map<WebSocket, string> = new Map(); 
@@ -198,9 +199,28 @@ const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) =>
       return;
     }
   }
+
+  // Event kind 1040 (NIP-03) management.
+  if (event.kind === 1040) {
+    logger.debug(`Received OpenTimestamps attestation event: ${event.id}`);
+    const hasEtag = event.tags.some(tag => tag[0] === "e");
+    const hasAltTag = event.tags.some(tag => tag[0] === "alt" && tag[1].toLocaleLowerCase() === "opentimestamps attestation");
+
+    if (!hasEtag || !hasAltTag) {
+      socket.send(JSON.stringify(["NOTICE", "invalid: missing required OpenTimestamps tags"]));
+      logger.warn(`Rejected kind:1040 event ${event.id} due to missing required tags.`);
+      return;
+    }
+
+    if(!isBase64(event.content)) {
+      socket.send(JSON.stringify(["NOTICE", "invalid: OpenTimestamps proof must be Base64 encoded"]));
+      logger.warn(`Rejected kind:1040 event ${event.id} due to invalid encoding.`);
+      return;
+    }
+  }
   
   // Plugins engine execution
-  if (await executePlugins({pubkey: event.pubkey, filename: "", ip: reqInfo.ip}, app) == false) {
+  if (await executePlugins({pubkey: event.pubkey, ip: reqInfo.ip, event: event}, app, "relay") == false) {
     socket.send(JSON.stringify(["NOTICE", "blocked: can't accept event"]));
     socket.send(JSON.stringify(["OK", event.id, false, "blocked: can't accept event"]));
     logger.debug("Blocked event with plugin rejection:", event.id);
@@ -222,7 +242,6 @@ const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) =>
     });
     socket.send(JSON.stringify(["OK", event.id, true, "ephemeral: accepted but not stored"]));
     logger.debug("Ephemeral event:", event.id);
-    // Not saved in memory, but notify subscribers
     return;
   }
 

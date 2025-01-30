@@ -156,6 +156,7 @@ See plugins [here](https://github.com/quentintaranpino/nostrcheck-api-ts/blob/ma
 
 - [x] NIP01
 - [x] NIP02
+- [x] NIP03
 - [x] NIP04
 - [x] NIP05
 - [x] NIP07
