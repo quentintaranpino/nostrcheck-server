@@ -1,5 +1,5 @@
-function formatNostrContent(content) {
-    
+function formatNostrContent(content, pubkeysArray = []) {
+
     if (!content) return '';
 
    // Regular expressions for matching media types and line breaks
@@ -37,7 +37,7 @@ function formatNostrContent(content) {
        const data = match.split(':')[1];
        if (data.startsWith('npub') || data.startsWith('nprofile')) {
            const decoded = NostrTools.nip19.decode(data);
-           pubkeysData.push({pubkey: decoded.type == 'npub' ? decoded.data : decoded.data.pubkey, data: []});
+           pubkeysArray.push({pubkey: decoded.type == 'npub' ? decoded.data : decoded.data.pubkey, data: []});
        }
        return `<a href="https://njump.me/${data}" target="_blank" class="link-offset-2 link-underline link-underline-opacity-0 fw-semibold">${data}</a> <i class="fa-xs text-muted fas fa-external-link-alt me-1"></i> `;
    });

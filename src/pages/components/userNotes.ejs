@@ -26,7 +26,6 @@ let allNotesLoaded = false;
 let notesData = [];
 let pubkeysData = [];
 
-
 async function loadNotes() {
     if (loading || allNotesLoaded) return; 
     loading = true;
@@ -57,7 +56,7 @@ async function loadNotes() {
 
         for (const note of notes) {
             let content = note.content;
-            content = formatNostrContent(note.content);
+            content = formatNostrContent(note.content, pubkeysData);
 
             let noteItem = document.createElement("li");
             noteItem.id = `note-${note.id}`;
