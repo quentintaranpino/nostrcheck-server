@@ -9,6 +9,7 @@ Each plugin is an object with the following properties:
 - **`order`**: Determines the execution priority of the plugin. Plugins with lower `order` values are executed first.
 - **`enabled`**: A boolean flag to enable or disable the plugin.
 - **`name`**: A unique name for the plugin.
+- **`module`**: The server module that affects the plugin. This is used to group plugins based on server functionality.
 - **`execute`**: The core function of the plugin, which contains the logic to be executed. This function is asynchronous and receives two parameters:
   - **`input`**: Contains the input data for the plugin to process.
   - **`globals`**: Contains global variables and utilities accessible by the server, such as Redis, Nostr, logging, and configuration settings.
@@ -23,6 +24,7 @@ function plugin() {
         order: 1,
         enabled: true,
         name: 'examplePlugin',
+        module: 'relay',
         execute: async (input, globals) => {
             try {
                 // Perform some logic using input and globals
@@ -83,6 +85,8 @@ The `input` object passed to each plugin contains important data that the plugin
 - **`input.filename`**: This represents the hashed name of a file that may be involved in the operation, such as an uploaded file. Plugins can use this information to validate, log, or perform actions based on the file's name.
 
 - **`input.ip`**: The IP address of the the request. This can be used for logging purposes, security checks, or other functionalities where identifying the origin of the request is necessary.
+
+- **`input.event`**: This property contains a nostr event object that may be used to extract information about the event, such as the event type, timestamp, or other relevant data.
 
 ## Common globals
 

@@ -1,8 +1,9 @@
 function plugin() {
     return {
         order: 1,
-        enabled: false,
+        enabled: true,
         name: 'activeNIP05',
+        module: '',
         execute: async (input, globals) => {
             try {
                 let pubkeyMetadata = JSON.parse(await globals.redis.get(`pubkeyMetadata-${input.pubkey}`));

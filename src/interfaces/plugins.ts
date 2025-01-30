@@ -4,11 +4,13 @@ import * as NIP01 from "../lib/nostr/NIP01.js";
 import * as NIP19 from "../lib/nostr/NIP19.js";
 import * as registered from "../lib/register.js";
 import { redisPluginsClient } from "../lib/redis.js";
+import { Event } from "nostr-tools";
 
 interface pluginData {
-    pubkey: string;
-    filename: string;
-    ip: string;
+    pubkey?: string;
+    filename?: string;
+    ip?: string;
+    event?: Event;
 }
 
 export interface pluginContext {
@@ -26,6 +28,7 @@ interface plugin {
     order: number;
     enabled: boolean;
     name: string;
+    module: string;
     execute: (input: pluginData, context: pluginContext) => Promise<boolean> | boolean;
 }
 

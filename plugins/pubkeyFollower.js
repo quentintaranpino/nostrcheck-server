@@ -3,6 +3,7 @@ function plugin() {
         order: 4,
         enabled: false,
         name: 'pubkeyFollowers',
+        module: '',
         execute: async (input, globals) => {
             try {
                 const serverPubkey = globals.app.get("config.server")["pubkey"];

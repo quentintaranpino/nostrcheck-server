@@ -207,7 +207,7 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 	res.status(201);
 
 	// Plugins engine execution
-	if (await executePlugins({pubkey: filedata.pubkey, filename: filedata.filename, ip: reqInfo.ip}, app) == false) {
+	if (await executePlugins({pubkey: filedata.pubkey, filename: filedata.filename, ip: reqInfo.ip}, app, "media") == false) {
 		return res.status(401).send({"status": "error", "message": "Not authorized"});
 	}
 

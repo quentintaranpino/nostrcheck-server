@@ -32,11 +32,16 @@
                     <th scope="col">Order</th>
                     <th scope="col">Enabled</th>
                     <th scope="col">Name</th>
+                    <th scope="col">Module</th>
                 </tr>
             </thead>
             <tbody>
             </tbody>
         </table>
+        <div class="alert alert-warning mt-3" role="alert">
+            <i class="fa-solid fa-triangle-exclamation"></i> Every plugin must have a unique name and module. The order is used to determine the order of execution of the plugins. The module 
+            is used to select witch server module will be affected by the plugin. The plugins must be enabled edditing each plugin file and then reloading the plugins engine using the button above.
+            </div>
         <div class="col-12 col-md-3 mb-5 mt-4 pb-5 pb-lg-0 mb-lg-2">
             <button class="btn btn-lg mb-4 btn-primary w-100" name="Submit" type="button" onclick="saveSettings()">Save</button>
         </div>
@@ -104,7 +109,12 @@ document.addEventListener('DOMContentLoaded', () => {
             field: 'name',
             title: 'Name',
             align: 'center'
-        }],
+        }, {
+            field: 'module',
+            title: 'Module',
+            align: 'center'
+        }
+    ],
         sortName: 'order',
         sortOrder: 'asc'
     });
