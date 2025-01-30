@@ -8,6 +8,7 @@ const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf-8'));
 
 const versionParts = packageJson.version.split('.');
 let buildNumber = 0;
+
 if (versionParts.length > 1) {
   buildNumber = parseInt(versionParts[versionParts.length - 1], 10);
   if (isNaN(buildNumber)) {
@@ -17,7 +18,9 @@ if (versionParts.length > 1) {
 
 buildNumber += 1;
 
-versionParts[versionParts.length - 1] = buildNumber.toString();
+const formattedBuildNumber = buildNumber.toString().padStart(4, '0');
+
+versionParts[versionParts.length - 1] = formattedBuildNumber;
 packageJson.version = versionParts.join('.');
 
 fs.writeFileSync(packageJsonPath, JSON.stringify(packageJson, null, 2), 'utf-8');
