@@ -168,10 +168,15 @@
             <p>This value is used for require authentication for all requests. If set to true, all requests must be authenticated. See NIP-42.
             </p>
             <div class="col-12 col-md-4">
-                <select id="relay.limitation.auth_required" name="relay.limitation.auth_required" class="form-select" required>
-                    <option value="true" <% if(locals.settingsRelay['limitation']['auth_required'] == "true") { %> selected <% } %>>True</option>
-                    <option value="false" <% if(locals.settingsRelay['limitation']['auth_required'] == "false") { %> selected <% } %>>False</option>
-                </select>
+                <div class="form-check form-switch">
+                    <input 
+                        class="form-check-input" 
+                        type="checkbox" 
+                        name="relay.limitation.auth_required" 
+                        id="relay.limitation.auth_required" 
+                        <%= locals.settingsRelay['limitation']['auth_required'] ? 'checked' : '' %> 
+                    >
+                </div>
             </div>
 
 

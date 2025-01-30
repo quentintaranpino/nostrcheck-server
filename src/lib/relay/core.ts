@@ -2,6 +2,7 @@ import WebSocket from "ws";
 import { NIP01_event } from "../../interfaces/nostr.js";
 import app from "../../app.js";
 import { Event } from "nostr-tools";
+import { logger } from "../logger.js";
 
 const parseRelayMessage = (data: WebSocket.RawData): ReturnType<typeof NIP01_event.safeParse>["data"] | null => {
   try {
@@ -32,6 +33,7 @@ const addSubscription = (subId: string, socket: WebSocket, listener: (event: Eve
   const max_subscriptions = app.get("config.relay")["limitation"]["max_subscriptions"];
   if (clientSubscriptions.size >= max_subscriptions) {
     socket.send(JSON.stringify(["NOTICE", "error: subscription limit reached"]));
+    logger.debug("Subscription limit reached:", max_subscriptions);
     return;
   }
 
@@ -48,12 +50,14 @@ const removeSubscription = (subId?: string, socket?: WebSocket) => {
     if (subId && clientSubscriptions.has(subId)) {
       clientSubscriptions.delete(subId);
       socket.send(JSON.stringify(["CLOSED", subId, "Subscription forcibly closed"]));
+      logger.debug("Subscription forcibly closed:", subId);
     }
 
     if (!subId || (clientSubscriptions && clientSubscriptions.size === 0)) {
       if (!subId) {
         clientSubscriptions.forEach((_, id) => {
           socket.send(JSON.stringify(["CLOSED", id, "Subscription forcibly closed"]));
+          logger.debug("Subscription forcibly closed:", id);
         });
       }
       subscriptions.delete(socket);
@@ -65,10 +69,12 @@ const removeAllSubscriptions = (socket: WebSocket) => {
   if (clientSubscriptions) {
     clientSubscriptions.forEach((_, subId) => {
       socket.send(JSON.stringify(["CLOSED", subId, "All subscriptions forcibly closed"]));
+      logger.debug("All subscriptions forcibly closed:", subId);
     });
     subscriptions.delete(socket);
   }
   socket.send(JSON.stringify(["NOTICE", "All subscriptions forcibly closed"]));
+  logger.debug("All subscriptions forcibly closed");
 };
 
 export {subscriptions, parseRelayMessage, addSubscription, removeSubscription, removeAllSubscriptions};
