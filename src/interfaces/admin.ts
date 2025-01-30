@@ -139,16 +139,19 @@ const moduleDataWhereFields: { [key: string]: [string] } = {
                         "ips.reqcount, " +
                         "ips.infractions, " +
                         "ips.comments"],
-    "events":           ["events.id, " +   
+    "relay": [
+                        "events.id, " +   
                         "events.active, " +
                         "events.checked, " +
                         "events.event_id, " +
                         "events.pubkey, " +
                         "events.kind, " +
                         "events.content, " +
-                        "events.created_at" +
-                        "events.received_at"]
+                        "events.created_at, " +
+                        "events.received_at"
+                        ]
 };
+
 
 const moduleDataSelectFields: { [key: string]: string } = {
     "nostraddress":     "registered.id, " + 
@@ -244,9 +247,10 @@ const moduleDataSelectFields: { [key: string]: string } = {
                         "events.event_id, " +
                         "events.pubkey, " +
                         "events.kind, " +
+                        "(SELECT COALESCE(GROUP_CONCAT(CONCAT(eventtags.tag_name, ' : ', eventtags.tag_value) SEPARATOR ', '), '') FROM eventtags WHERE eventtags.event_id = events.event_id) as tags, " +
                         "events.content, " +
                         "DATE_FORMAT(FROM_UNIXTIME(events.created_at), '%Y-%m-%d %H:%i') as created_at, " +
-                        "DATE_FORMAT(FROM_UNIXTIME(events.received_at / 1000), '%Y-%m-%d %H:%i') as received_at"
+                        "DATE_FORMAT(FROM_UNIXTIME(events.received_at / 1000), '%Y-%m-%d %H:%i') as received_at "
 };
 
 export { allowedTableNames, allowedFieldNames, allowedFieldNamesAndValues, moduleDataReturnMessage, ModuleDataTables, moduleDataSelectFields, moduleDataWhereFields, moduleDataKeys };

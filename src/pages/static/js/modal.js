@@ -149,6 +149,15 @@ const initEditModal = async (objectId, row, objectName, newRow, columns) => {
                             '</div>'
                         );
                     }
+
+                    if (key == 'tags') {
+                        let tagsArray = row[key] ? row[key].split(', ') : [];
+                        $('#' + key).replaceWith(
+                            `<div class="tags-preview" style="border:1px solid #ddd; border-radius:2px; padding:10px; display: flex; flex-direction: column; align-items: flex-start;">` +
+                            tagsArray.map(tag => `<span class="badge bg-secondary text-wrap mb-1 pt-2 pb-2" style="white-space: normal; max-width: 100%;">${tag}</span>`).join('') +
+                            `</div>`
+                        );
+                    }
                 }
 
                 columns.forEach(function(column) {
