@@ -44,7 +44,6 @@ const handleWebSocketMessage = async (socket: ExtendedWebSocket, data: WebSocket
     const max_message_length = app.get("config.relay")["limitation"]["max_message_length"];
     if (Buffer.byteLength(data.toString()) > max_message_length) {
       socket.send(JSON.stringify(["NOTICE", "error: message too large"]));
-      logger.debug("Full received message:", data.toString());
       logger.debug("Message too large:", Buffer.byteLength(data.toString()), "bytes");
       socket.close(1009, "message too large");
 

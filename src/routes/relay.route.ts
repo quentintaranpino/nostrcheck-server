@@ -47,7 +47,7 @@ export const loadRelayRoutes = (app: Application, version:string): void => {
     });
   
     socket.on("error", (code: number, reason: any) => {
-      logger.debug("Socket error | Code:", code, "| Reason:", reason);
+      logger.warn("Socket error | Code:", code, "| Reason:", reason);
       removeAllSubscriptions(socket);
     });
   });

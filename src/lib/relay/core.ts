@@ -3,6 +3,7 @@ import { NIP01_event } from "../../interfaces/nostr.js";
 import app from "../../app.js";
 import { Event } from "nostr-tools";
 import { logger } from "../logger.js";
+import { stripVTControlCharacters } from "util";
 
 const parseRelayMessage = (data: WebSocket.RawData): ReturnType<typeof NIP01_event.safeParse>["data"] | null => {
   try {
@@ -68,13 +69,19 @@ const removeAllSubscriptions = (socket: WebSocket) => {
   const clientSubscriptions = subscriptions.get(socket);
   if (clientSubscriptions) {
     clientSubscriptions.forEach((_, subId) => {
-      socket.send(JSON.stringify(["CLOSED", subId, "All subscriptions forcibly closed"]));
-      logger.debug("All subscriptions forcibly closed:", subId);
+      socket.send(JSON.stringify(["CLOSED", subId, "Subscription forcibly closed"]));
+      logger.debug("Subscription forcibly closed:", subId);
     });
     subscriptions.delete(socket);
   }
-  socket.send(JSON.stringify(["NOTICE", "All subscriptions forcibly closed"]));
-  logger.debug("All subscriptions forcibly closed");
+
+  try {
+    socket.send(JSON.stringify(["NOTICE", "All subscriptions forcibly closed"]));
+  } catch (error) {
+    logger.error("Failed to send closure notice:", error);
+  }
+
+  logger.debug("All subscriptions forcibly closed", {readyState: socket.readyState, url: socket.url});
 };
 
 export {subscriptions, parseRelayMessage, addSubscription, removeSubscription, removeAllSubscriptions};
