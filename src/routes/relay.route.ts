@@ -42,10 +42,12 @@ export const loadRelayRoutes = (app: Application, version:string): void => {
     });
   
     socket.on("close", () => {
+      logger.debug("Socket closed");
       removeAllSubscriptions(socket);
     });
   
     socket.on("error", () => {
+      logger.debug("Socket error");
       removeAllSubscriptions(socket);
     });
   });
