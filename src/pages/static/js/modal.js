@@ -143,10 +143,9 @@ const initEditModal = async (objectId, row, objectName, newRow, columns) => {
                 // Special case for editting a nostr event
                 if (objectId == '#eventsData') {
                     if (key == 'content') {               
+                        const formattedContent = formatNostrContent(row[key]);
                         $('#' + key).replaceWith(
-                            '<div class="markdown-preview" style="height:250px; overflow-y:auto; border:1px solid #ddd; padding:10px">' + 
-                            markdownToHTML(row[key]) + 
-                            '</div>'
+                            `<div class="markdown-preview" style="height:250px; overflow-y:auto; border:1px solid #ddd; padding:10px">${formattedContent}</div>`
                         );
                     }
 
