@@ -109,14 +109,19 @@ const getEventsDB = async (filters: Filter[], relayMap: Map<string, MemoryEvent>
             false
         );
 
-        tagResults.forEach((tagRow) => {
-            const event = tempEvents.get(tagRow.event_id);
-            if (event) {
-                const tag = [tagRow.tag_name, tagRow.tag_value];
-                if (tagRow.extra_values) tag.push(...JSON.parse(tagRow.extra_values));
-                event.tags.push(tag);
-            }
-        });
+        try{
+            tagResults.forEach((tagRow) => {
+                const event = tempEvents.get(tagRow.event_id);
+                if (event) {
+                    const tag = [tagRow.tag_name, tagRow.tag_value];
+                    if (tagRow.extra_values) tag.push(...JSON.parse(tagRow.extra_values));
+                    event.tags.push(tag);
+                }
+            });
+        }catch(e){
+            logger.error("Error parsing extra_values in eventtags:", e);
+        }
+       
     }
 
     tempEvents.forEach((event, eventId) => {
