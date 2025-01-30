@@ -3,7 +3,6 @@ import { NIP01_event } from "../../interfaces/nostr.js";
 import app from "../../app.js";
 import { Event } from "nostr-tools";
 import { logger } from "../logger.js";
-import { stripVTControlCharacters } from "util";
 
 const parseRelayMessage = (data: WebSocket.RawData): ReturnType<typeof NIP01_event.safeParse>["data"] | null => {
   try {
