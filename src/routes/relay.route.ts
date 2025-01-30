@@ -41,13 +41,13 @@ export const loadRelayRoutes = (app: Application, version:string): void => {
       }
     });
   
-    socket.on("close", () => {
-      logger.debug("Socket closed");
+    socket.on("close", (code, reason) => {
+      logger.debug(`Socket closed | Code: ${code} | Reason: ${reason.toString()}`);
       removeAllSubscriptions(socket);
     });
   
-    socket.on("error", () => {
-      logger.debug("Socket error");
+    socket.on("error", (code: number, reason: any) => {
+      logger.debug("Socket error | Code:", code, "| Reason:", reason);
       removeAllSubscriptions(socket);
     });
   });
