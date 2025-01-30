@@ -30,7 +30,6 @@ const connect = async (source: string): Promise<Pool> => {
 		try {
 			const conn = await pool.getConnection();
 			conn.release();
-			logger.debug("Reusing existing connection pool from", source);
 			return pool
 		} catch (error) {
 			logger.warn("Pool is not functional, recreating...");
