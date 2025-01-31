@@ -1,0 +1,52 @@
+<%
+let paymentsFields = [
+
+  ['accountid'           , '40' , ''                  , 'disabled   show text-center mobile-hide  '],
+  ['type'                , '40' , ''                  , 'disabled   show text-center              '],
+  ['paymentrequest'      , ''   , ''                  , 'disabled   hide                          '],
+  ['paymenthash'         , ''   , 'formatPaymentHash' , 'disabled   show                          '],
+  ['paid'                , '30' , 'formatCheckbox'    , 'disabled   show text-center              '],
+  ['satoshi'             , '30' , 'formatSatoshi'     , 'disabled   show text-end                 '],
+  ['createddate'         , '150', ''                  , 'disabled   show text-center              '],
+  ["expirydate"          , '150', ''                  , 'disabled   hide text-center mobile-hide  '],
+  ['paiddate'            , '150', ''                  , 'disabled   show text-center mobile-hide  '],
+  ['comments'            , ''   , ''                  , 'enabled    show mobile-hide              '],
+
+];
+%>
+<% if(locals.activeModules.includes('payments')) { %> 
+ <%- include('../table', {
+    tableName:"Transactions", 
+    tableId:"paymentsData", 
+    buttons:[
+      ['add','hide'],
+      ['disable','hide'],
+      ['enable','hide'],
+      ['visible','hide'],
+      ['invisible','hide'],
+      ['admin','hide'],
+      ['edit','show'],
+      ['password','hide'],
+      ['remove','hide'],
+      ['pay', 'show'],
+      ['balance','hide'],
+      ['moderate','hide'],
+      ['ban','hide']
+    ],
+    fields: paymentsFields
+    }); %> 
+<div class="mt-2 d-flex flex-column align-items-center">
+<div class="row d-flex w-100">
+  <div class="col-xl-8 col-lg-12 col-md-12 col-sm-12 mb-4" style="height:450px;">
+    <div class="w-100 h-100 default-bg rounded d-flex me-2 p-3 shadow-sm ">
+      <canvas id="paymentsData-chart" class="mx-auto w-100"></canvas>
+      </div>  
+  </div>
+  <div class="col-xl-4 col-lg-12 col-md-12 col-sm-12" style="height:450px;">
+    <div class="w-100 h-100 default-bg rounded d-flex me-2 p-3 shadow-sm ">
+    <canvas id="paymentsData-doughnut-chart" class="mx-auto"></canvas>
+    </div>  
+  </div>
+</div>
+</div>
+<% } %>

@@ -1,0 +1,36 @@
+<%
+let eventsFields = [
+  ['active'           , '30' , 'formatCheckbox', 'enabled   show text-center              '],
+  ['checked'          , '30' , 'formatCheckbox', 'enabled   show text-center              '],
+  ['banned'           , ''   , 'formatCheckbox', 'disabled  hide                          '],
+  ['kind'             , ''   , ''              , 'disabled  show text-center              '],
+  ['tags'             , ''   , ''              , 'disabled  hide mobile-hide              '],
+  ['event_id'         , '64' , ''              , 'disabled  show text-center              '],
+  ['pubkey'           , ''   , ''              , 'disabled  hide mobile-hide              '],
+  ['content'          , ''   , ''              , 'disabled  hide mobile-hide              '],
+  ['created_at'       , ''   , ''              , 'disabled  show text-center              '],
+  ['received_at'      , ''   , ''              , 'disabled  show text-center              '],
+];
+%>
+<% if(locals.activeModules.includes('relay')) { %> 
+  <%- include('../table', {
+    tableName:"Events", 
+    tableId:"eventsData", 
+    buttons:[
+      ['add','hide'],
+      ['disable','show'],
+      ['enable','show'],
+      ['visible','hide'],
+      ['invisible','hide'],
+      ['admin','hide'],
+      ['edit','show'],
+      ['password','hide'],
+      ['remove','show'],
+      ['pay', 'hide'],
+      ['balance','hide'],
+      ['moderate','hide'],
+      ['ban','show']
+    ],
+    fields: eventsFields
+    }); %> 
+<% } %>

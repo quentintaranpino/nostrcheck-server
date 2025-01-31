@@ -1,14 +1,14 @@
 let isFilterActive = {};
 
-const initTable = async (tableId, datakey, objectName, dataKey, field = "") => {
+const initTable = async (tableId, dataKey, objectName) => {
 
-    if (datakey == "") { // dummy data for table creation
+    if (dataKey == "") { // dummy data for table creation
         resolve();
         return;
     }
 
     $(tableId).bootstrapTable({
-        url: 'admin/moduledata?module=' + datakey,
+        url: 'admin/moduledata?module=' + dataKey,
         ajax: function (params) {semaphore.execute(() => fetchTabledata(params))},
         idField: 'id',
         uniqueId: 'id',
@@ -39,7 +39,7 @@ const initTable = async (tableId, datakey, objectName, dataKey, field = "") => {
             params.filter = JSON.stringify(filters);
             return params;
         },
-        buttons: (tableId === '#nostraddressData' || tableId === '#mediaData' ) ? checkedButton(tableId) : null,
+        buttons: (tableId === '#nostraddressData' || tableId === '#filesData' ) ? checkedButton(tableId) : null,
     })
 
     // Hide columns function
@@ -86,12 +86,6 @@ const initTable = async (tableId, datakey, objectName, dataKey, field = "") => {
         sortingButtons.addClass('disabled');
         sortingButtons.css('pointer-events', 'none');
       });
-
-    // Fill doughnut chart with table data
-    semaphore.execute(async() => {
-        const dataCount = await fetchTableCountData(dataKey, 'count', field);
-        if(field){initDoughnutChart(tableId, field.charAt(0).toUpperCase() + field.slice(1) + ' ' + objectName + 's',{field: dataCount.field, total:dataCount.total}, field, true, true)}
-    });
 
     // Buttons logic
     $(tableId).on('check.bs.table uncheck.bs.table check-all.bs.table uncheck-all.bs.table', function () {
@@ -386,8 +380,8 @@ function formatMediaFile(value, row, index) {
                 let modalResult = modal.data;
                 for (let field in modalResult) {
                     if (modalResult[field] != row[field]) {
-                        semaphore.execute(async () => await modifyRecord("admin/updaterecord/", '#mediaData', row.id, field, modalResult[field], 'modify'));
-                        refreshTable('#mediaData');
+                        semaphore.execute(async () => await modifyRecord("admin/updaterecord/", '#filesData', row.id, field, modalResult[field], 'modify'));
+                        refreshTable('#filesData');
                     }
                 }
             })
@@ -418,8 +412,8 @@ function formatBannedFile(value, row, index) {
                 let modalResult = modal.data;
                 for (let field in modalResult) {
                     if (modalResult[field] != row[field]) {
-                        semaphore.execute(async () => await modifyRecord("admin/updaterecord/", '#mediaData', row.id, field, modalResult[field], 'modify'));
-                        refreshTable('#mediaData');
+                        semaphore.execute(async () => await modifyRecord("admin/updaterecord/", '#filesData', row.id, field, modalResult[field], 'modify'));
+                        refreshTable('#filesData');
                     }
                 }
             })
@@ -565,11 +559,11 @@ const rowStyle = (row, index) =>{
 
 // Initialize tables
 let tables = [
-    { name: 'nostraddress', tableId: 'nostraddressData', dataKey: 'nostraddress', objectName: 'user', field: 'checked'},
-    { name: 'media', tableId: 'mediaData', dataKey: 'media', objectName: 'file',field: 'checked'},
+    { name: 'nostraddress', tableId: 'nostraddressData', dataKey: 'nostraddress', objectName: 'user'},
+    { name: 'media', tableId: 'filesData', dataKey: 'media', objectName: 'file',},
     { name: 'lightning', tableId: 'lightningData', dataKey: 'lightning', objectName: 'lightning redirection', url: 'admin/moduledata?module=lightning'},
     { name: 'domains', tableId: 'domainsData', dataKey: 'domains', objectName: 'domain name', url: 'admin/moduledata?module=domains'},
-    { name: 'payments', tableId: 'paymentsData', dataKey: 'payments', objectName: 'transaction', url: 'admin/moduledata?module=payments', field: 'paid'},
+    { name: 'payments', tableId: 'paymentsData', dataKey: 'payments', objectName: 'transaction', url: 'admin/moduledata?module=payments'},
     { name: 'banned', tableId: 'bannedData', dataKey: 'banned', objectName: 'banned object', url: 'admin/moduledata?module=banned'},
     { name: 'invites', tableId: 'invitesData', dataKey: 'register', objectName: 'invitation', url: 'admin/moduledata?module=invites'},
     { name: 'ips', tableId: 'ipsData', dataKey: 'ips', objectName: 'ip address', url: 'admin/moduledata?module=ips'},

@@ -1,0 +1,64 @@
+<% 
+let filesFields = [
+  ['checked',       '30' , 'formatCheckbox' , 'enabled   show text-center              '],
+  ['active',        '30' , 'formatCheckbox' , 'enabled   show text-center mobile-hide  '],
+  ['banned',        ''   , 'formatCheckbox' , 'disabled  hide                          '],      
+  ['visibility',    '30' , 'formatCheckbox' , 'enabled   show text-center mobile-hide  '],
+  ['username',      '50' , ''               , 'disabled  show text-center              '],
+  ['npub',          ''   , 'formatPubkey'   , 'disabled  hide                          '],
+  ['pubkey',        ''   , 'formatPubkey'   , 'disabled  hide text-center              '],
+  ['filename',      ''   , 'formatMediaFile', 'disabled  show                          '],
+  ['mimetype',      '50' , ''               , 'disabled  show text-center              '],
+  ['original_hash', ''   , ''               , 'disabled  hide                          '],
+  ['hash',          ''   , ''               , 'disabled  hide                          '],
+  ['status',        '50' , ''               , 'disabled  show text-center mobile-hide  '],
+  ['dimensions',    '40' , ''               , 'disabled  hide text-center mobile-hide  '],
+  ['filesize',      '40' , ''               , 'disabled  show text-center mobile-hide  '],
+  ['date',          '200', ''               , 'disabled  show text-center              '],
+  ['comments',      ''   , ''               , 'enabled   hide                          '],
+];
+
+if (locals.activeModules.includes("payments")) {
+    filesFields.splice(3, 0, ['paid', '30', 'formatCheckbox', 'disabled show text-center'],);
+    filesFields.splice(4, 0, ['satoshi','30', 'formatSatoshi', 'disabled show text-end'],);
+    filesFields.splice(5, 0, ['transactionid','', '', 'disabled hide']);
+}
+
+%>
+<% if(locals.activeModules.includes('media')) { %> 
+  <%- include('../table', {
+    tableName:"Hosted files", 
+    tableId:"filesData", 
+    buttons:[
+            ['add','hide'],
+            ['disable','show'],
+            ['enable','show'],      
+            ['visible','show'],
+            ['invisible','show'],                                        
+            ['admin','hide'],
+            ['edit','show'],
+            ['password','hide'],
+            ['remove','show'],
+            ['pay','hide'],
+            ['balance','hide'],
+            ['moderate','show'],
+            ['ban','show']
+            ],
+    fields: filesFields
+  }); %>
+<div class="mt-2 d-flex flex-column align-items-center">
+  <div class="row d-flex w-100">
+    <div class="col-xl-8 col-lg-12 col-md-12 col-sm-12 mb-4" style="height:450px;">
+      <div class="w-100 h-100 default-bg rounded d-flex me-2 p-3 shadow-sm ">
+        <canvas id="filesData-chart" class="mx-auto w-100"></canvas>
+        </div>  
+    </div>
+    <div class="col-xl-4 col-lg-12 col-md-12 col-sm-12" style="height:450px;">
+      <div class="w-100 h-100 default-bg rounded d-flex me-2 p-3 shadow-sm ">
+      <canvas id="filesData-doughnut-chart" class="mx-auto"></canvas>
+      </div>  
+    </div>
+  </div>
+</div>
+<% } %>
+<%- include('../modals/media-modal', {"objectId":"#filesData"}); %>

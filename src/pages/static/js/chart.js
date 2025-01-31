@@ -1,6 +1,5 @@
 const initMonthChart = (chartId, title, rawData) => {
-  console.log("initMonthChart", chartId, title, rawData);
-
+  
   if (!rawData || !Array.isArray(rawData.data)) {
     console.error("Invalid rawData format", rawData);
     return;
@@ -137,21 +136,27 @@ const initMonthChart = (chartId, title, rawData) => {
 let doughnutCharts = {};
 
 function initDoughnutChart(dashcardId, title, data, field, showTitle = false, showLegend = false, externalTooltip = false) {
-  
+
   const values = [data.field, data.total - data.field];
   const labels = [field, 'un' + field];
 
   if (!dashcardId.toString().startsWith('#')) {
     dashcardId = '#' + dashcardId;
   }
+  
   let chartId = dashcardId + '-doughnut-chart';
+
+    // delete previous chart if exists
+    if (doughnutCharts[chartId]) {
+      doughnutCharts[chartId].destroy();
+      delete doughnutCharts[chartId];
+    }
 
   if (doughnutCharts[chartId]) {
     doughnutCharts[chartId].data.labels = labels;
     doughnutCharts[chartId].data.datasets[0].data = values;
     doughnutCharts[chartId].update();
 } else {
-
   const ctx = document.querySelector(chartId).getContext('2d');
   doughnutCharts[chartId] = new Chart(ctx, {
       type: 'doughnut',
@@ -231,7 +236,6 @@ function initDoughnutChart(dashcardId, title, data, field, showTitle = false, sh
               }
           }
       }
-  
     });
 
   document.getElementById('theme-switch').addEventListener('click', () => {

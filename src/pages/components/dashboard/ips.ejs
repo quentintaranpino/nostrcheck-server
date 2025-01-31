@@ -1,0 +1,35 @@
+<%
+let ipsFields = [
+  ['active'           , '30' , 'formatCheckbox', 'enabled   show text-center              '],
+  ['checked'          , '30' , 'formatCheckbox', 'enabled   show text-center              '],
+  ['banned'           , ''   , 'formatCheckbox', 'disabled  hide                          '],
+  ['ip'               , '30' , ''              , 'enabled   show text-center              '],
+  ['firstseen'        ,'200' , ''              , 'disabled  show text-center              '],
+  ['lastseen'         ,'200' , ''              , 'disabled  show text-center              '],
+  ['reqcount'         ,''    , ''              , 'disabled  show text-center              '],
+  ['infractions'      ,''    , ''              , 'enabled   show text-center              '],
+  ['comments'         ,''    , ''              , 'enabled   show mobile-hide              '],
+];
+%>
+<% if((locals.activeModules.includes('media') || locals.activeModules.includes('nostraddress') || locals.activeModules.includes('relay')) && locals.activeModules.includes('admin')  ) { %> 
+  <%- include('../table', {
+    tableName:"Ips", 
+    tableId:"ipsData", 
+    buttons:[
+      ['add','hide'],
+      ['disable','show'],
+      ['enable','show'],
+      ['visible','hide'],
+      ['invisible','hide'],
+      ['admin','hide'],
+      ['edit','show'],
+      ['password','hide'],
+      ['remove','show'],
+      ['pay', 'hide'],
+      ['balance','hide'],
+      ['moderate','hide'],
+      ['ban','show']
+    ],
+    fields: ipsFields
+    }); %> 
+<% } %>

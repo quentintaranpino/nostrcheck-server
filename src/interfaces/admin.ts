@@ -69,7 +69,7 @@ const ModuleDataTables: { [key: string]: string } = {
 
 const moduleDataKeys: { [key: string]: string } = {
     "nostraddressData": "registered",
-    "mediaData": "mediafiles",
+    "filesData": "mediafiles",
     "lightningData": "lightning",
     "domainsData": "domains",
     "paymentsData": "transactions",

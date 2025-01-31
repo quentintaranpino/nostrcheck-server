@@ -1,0 +1,61 @@
+<% 
+let nostraddressFields = [
+  ['checked',       '30' , 'formatCheckbox', 'enabled   show text-center              '],
+  ['active',        '30' , 'formatCheckbox', 'enabled   show text-center              '],
+  ['allowed',       '30' , 'formatCheckbox', 'enabled   hide text-center mobile-hide  '],
+  ['banned',        ''   , 'formatCheckbox', 'disabled  hide                          '],
+  ['username',      ''   , ''              , 'enabled   show text-center              '],
+  ['pubkey',        ''   , 'formatPubkey'  , 'enabled   show                          '],
+  ['hex',           ''   , 'formatPubkey'  , 'enabled   hide                          '],
+  ['domain',        ''   , ''              , 'enabled   show text-center              '],
+  ['comments',      ''   , ''              , 'enabled   hide                          '],
+  ['date',          '290', ''              , 'disabled  show text-center              '],
+];
+
+if (locals.activeModules.includes("payments")) {
+  nostraddressFields.splice(3, 0, ['paid', '30', 'formatCheckbox', 'disabled show text-center'],);
+  nostraddressFields.splice(4, 0, ['satoshi','30', 'formatSatoshi', 'disabled show text-end'],);
+  nostraddressFields.splice(5, 0, ['balance', '30', 'formatSatoshi', 'disabled  show text-end'],);
+  nostraddressFields.splice(6, 0, ['transactionid','', '', 'disabled hide']);
+}
+
+let nostraddressButtons = [
+  ['add','show'],
+  ['disable','show'],
+  ['enable','show'],
+  ['visible','hide'],
+  ['invisible','hide'],
+  ['admin','show'],
+  ['edit','show'],
+  ['password','show'],
+  ['remove','show'],
+  ['pay','hide'],
+  ['balance','hide'],
+  ['moderate','hide'],
+  ['ban','show']
+];
+
+%>
+<% if(locals.activeModules.includes('nostraddress')) { %> 
+  <%- include('../table', {
+    tableName:"Registered users", 
+    tableId:"nostraddressData", 
+    buttons:nostraddressButtons,
+    fields: nostraddressFields
+  });         
+  %>
+  <div class="mt-2 d-flex flex-column align-items-center">
+    <div class="row d-flex w-100">
+      <div class="col-xl-8 col-lg-12 col-md-12 col-sm-12 mb-4" style="height:450px;">
+        <div class="w-100 h-100 default-bg rounded d-flex me-2 shadow-sm ">
+          <canvas id="usersData-chart" class="mx-auto w-100"></canvas>
+          </div>  
+      </div>
+      <div class="col-xl-4 col-lg-12 col-md-12 col-sm-12" style="height:450px;">
+        <div class="w-100 h-100 default-bg rounded d-flex me-2 p-3 shadow-sm ">
+        <canvas id="usersData-doughnut-chart" class="mx-auto"></canvas>
+        </div>  
+      </div>
+    </div>
+  </div>
+<% } %>
