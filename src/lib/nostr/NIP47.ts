@@ -24,6 +24,7 @@ const generateNwcInvoice = async (LNAddress: string, amount:number) : Promise<in
 
         if (!response || response == undefined || response.invoice == "") {
             logger.error("Error checking invoice status");
+            return emptyInvoice;
         };
     
         return {paymentRequest: response.invoice, 
@@ -31,12 +32,12 @@ const generateNwcInvoice = async (LNAddress: string, amount:number) : Promise<in
                 satoshi: response.amount, 
                 isPaid: false, 
                 preimage: "",
-                createdDate: new Date(response.created_at).toISOString().slice(0, 19).replace('T', ' '),
-                expiryDate: new Date(response.expires_at).toISOString().slice(0, 19).replace('T', ' '),
+                createdDate: new Date(response.created_at * 1000).toISOString().slice(0, 19).replace('T', ' '),
+                expiryDate: new Date(response.expires_at * 1000).toISOString().slice(0, 19).replace('T', ' '),
                 paidDate: "", 
                 description: response.description, 
                 transactionid: 0, 
-                accountid: 0};
+                accountid: 0};4
         
     }catch(e){
         logger.error("Error generating nwc invoice", e);
@@ -51,7 +52,6 @@ const isInvoicePaidNwc = async (paymentHash: string): Promise<{ paiddate: string
 
     const maxRetries = 3;
     const emptyResponse = { paiddate: "", preimage: "" };
-    type LookupInvoiceResponse = Awaited<ReturnType<typeof nwc.lookupInvoice>>;
 
     const lookupWithRetry = async (retries: number): Promise<{ paiddate: string, preimage: string }> => {
         while (retries > 0) {
