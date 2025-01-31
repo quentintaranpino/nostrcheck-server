@@ -8,7 +8,7 @@ import { addNewUsername, isPubkeyOnDomainAvailable, isUsernameAvailable } from "
 import { generateOTC, verifyOTC, parseAuthHeader } from "../lib/authorization.js";
 import { npubToHex, validatePubkey } from "../lib/nostr/NIP19.js";
 import { registerFormResult } from "../interfaces/register.js";
-import { dbUpdate } from "../lib/database.js";
+import { dbDelete, dbUpdate } from "../lib/database.js";
 import { validateInviteCode } from "../lib/invitations.js";
 import { checkTransaction } from "../lib/payments/core.js";
 import { transaction } from "../interfaces/payments.js";
@@ -136,6 +136,12 @@ const registerUsername = async (req: Request, res: Response): Promise<Response> 
 		if (transaction.paymentHash != "" && transaction.isPaid == false && isModuleEnabled("payments", app)) {
 			paymentRequest = transaction.paymentRequest;
 			satoshi = transaction.satoshi;
+		}else{
+			// If the payment request is not generated, we will delete the user from the database
+			logger.error("Failed to generate payment request" + " | " + reqInfo.ip);
+			const deleteResut = await dbDelete("registered", ["id"], [addUsername.toString()]);
+			if (deleteResut == false) { logger.error("Failed to delete unpaid user" + " | " + reqInfo.ip); }
+			return res.status(500).send({status: "error", message: "Failed to generate payment request"});
 		}
 	}
 
