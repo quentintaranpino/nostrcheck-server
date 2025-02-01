@@ -362,11 +362,30 @@ const eventTagsTableFields: EventTagsTable = {
 	},
 };
 
+interface UserPrefsTable extends RowDataPacket {
+	id: string;
+	registered_id: string;
+	preferences: string;
+	updated_at: string;
+  }
+  
+const userPreferencesTableFields: UserPrefsTable = {
+id: "int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY",
+registered_id: "int(11) NOT NULL UNIQUE",
+preferences: "JSON NOT NULL DEFAULT '{}'",
+updated_at: "timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP",
+_indexes: [
+	"INDEX idx_registered_id (registered_id)"
+],
+constructor: {
+	name: 'RowDataPacket',
+},
+};
 
 //If you add a new field that is substituting an old one, add it here
 const newFieldcompatibility = [
 	{ newfield: 'newFieldname', oldField: 'oldFiedName' },
-  ];
+];
 
   const databaseTables = [
 	{"domains": domainsTableFields},
@@ -382,6 +401,7 @@ const newFieldcompatibility = [
 	{"ips": ipsTableFields},
 	{"events": eventsTableFields},
 	{"eventtags": eventTagsTableFields},
+	{"userprefs": userPreferencesTableFields},
 ];
 
 

@@ -86,4 +86,21 @@ const particles = [
     "none"
 ];
 
-export { themes, particles };
+interface UserdashcardPrefs {
+    id: string;
+    visible: boolean;
+    order: number;
+  }
+  
+  interface UserProfilePrefs {
+    theme?: Theme;
+  }
+    
+  interface userPrefs {
+    id: string;
+    dashcards?: UserdashcardPrefs[];
+    profile?: UserProfilePrefs;
+  }
+  
+
+export { Theme, themes, particles, userPrefs };

@@ -9,7 +9,7 @@ import { isModuleEnabled, loadconfigActiveModules } from "../lib/config.js";
 import { countPubkeyFiles, isFirstUse, setAuthCookie } from "../lib/frontend.js";
 import { hextoNpub } from "../lib/nostr/NIP19.js";
 import { logHistory } from "../lib/logger.js";
-import { themes, particles} from "../interfaces/themes.js";
+import { themes, particles} from "../interfaces/personalization.js";
 import { verifyNIP07event } from "../lib/nostr/NIP07.js";
 import { getUsernames } from "../lib/register.js";
 import { getLightningAddress } from "../lib/lightning.js";

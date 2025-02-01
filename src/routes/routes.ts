@@ -12,6 +12,7 @@ import { loadFrontendEndpoint } from "./frontend.route.js";
 import { loadPaymentsEndpoint } from "./payments.route.js";
 import { loadPluginsEndpoint } from "./plugins.route.js";
 import { loadRelayRoutes } from "./relay.route.js";
+import { loadUserEndpoint } from "./user.route.js";
 
 // Load API modules
 const loadAPI = async (app: Application, version:string): Promise<boolean> => {
@@ -45,6 +46,7 @@ const loadAPI = async (app: Application, version:string): Promise<boolean> => {
 				break;
 			case "frontend":
 				await loadFrontendEndpoint(app, version);
+				await loadUserEndpoint(app, version);
 				break;
 			case "payments":
 				await loadPaymentsEndpoint(app, version);
