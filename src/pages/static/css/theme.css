@@ -1,12 +1,12 @@
 
         :root {
-            --primary-color: #ff4e50;
-            --secondary-color: #fc913a;
-            --tertiary-color: #f9d423;
-            --primary-color-percent: 20%;
+            --primary-color: #007bff;
+            --secondary-color: #ff66b2;
+            --tertiary-color: #ff9933;
+            --primary-color-percent: 0%;
             --secondary-color-percent: 55%;
-            --tertiary-color-percent: 92%;
-            --gradient-orientation: to bottom right;
+            --tertiary-color-percent: 90%;
+            --gradient-orientation: to top left;
             --particles: astral;
         }
 
