@@ -211,9 +211,7 @@ async function checkAndCreateIndexes(tableName: string, indexes: string[]): Prom
 				const statement = `ALTER TABLE \`${tableName}\` ADD ${indexDef};`;
 				logger.info("Creating index on table:", tableName, "=>", statement);
 				await pool.execute(statement);
-			} else {
-				logger.debug(`Index ${indexName} already exists on table ${tableName}, skipping.`);
-			}
+			} 
 		}
 		return true;
 	} catch (error) {

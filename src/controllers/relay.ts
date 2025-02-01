@@ -9,14 +9,14 @@ import { Request } from "express";
 import { isIpAllowed } from "../lib/ips.js";
 import { isEntityBanned } from "../lib/banned.js";
 import { isEphemeral, isReplaceable } from "../lib/nostr/NIP01.js";
-import { getEventsDB, initEventsDB, storeEvent } from "../lib/relay/database.js";
+import { getEvents, initEvents, storeEvent } from "../lib/relay/database.js";
 import { executePlugins } from "../lib/plugins/core.js";
 import { ipInfo } from "../interfaces/ips.js";
 import { validatePow } from "../lib/nostr/NIP13.js";
 import { allowedTags, AuthEvent, ExtendedWebSocket } from "../interfaces/relay.js";
 import { isBase64 } from "../lib/utils.js";
 
-const events = await initEventsDB(app);
+const events = await initEvents(app);
 const authSessions: Map<WebSocket, string> = new Map(); 
 
 const handleWebSocketMessage = async (socket: ExtendedWebSocket, data: WebSocket.RawData, req: Request) => {
@@ -266,12 +266,6 @@ const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) =>
     events.set(event.id, { event, processed: false });
   }
 
-  if (events.size > 100000) {
-    const firstKey = events.keys().next().value;
-    if (firstKey !== undefined) {
-      events.delete(firstKey);
-    }
-  }
 
   subscriptions.forEach((clientSubscriptions) => {
     clientSubscriptions.forEach((listener) => {
@@ -286,7 +280,7 @@ const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) =>
 
 // Handle REQ
 const handleReq = async (socket: WebSocket, subId: string, filters: Filter[]) => {
-
+  
   logger.info("Received REQ:", subId, filters);
 
   if (!filters || !Array.isArray(filters) || filters.length === 0) {
@@ -303,15 +297,6 @@ const handleReq = async (socket: WebSocket, subId: string, filters: Filter[]) =>
     return;
   }
 
-  for (const f of filters) {
-    if (!f || typeof f !== "object") {
-      socket.send(JSON.stringify(["CLOSED", subId, "unsupported: invalid filter"]));
-      socket.close(1003, "unsupported: invalid filter");
-      logger.debug("Invalid filter:", subId);
-      return;
-    }
-  }
-
   if (subId.length > app.get("config.relay")["limitation"]["max_subid_length"]) {
     socket.send(JSON.stringify(["CLOSED", subId, "unsupported: subscription id too long"]));
     socket.close(1003, "unsupported: subscription id too long");
@@ -320,54 +305,26 @@ const handleReq = async (socket: WebSocket, subId: string, filters: Filter[]) =>
   }
 
   try {
+    let count = 0;
+    for await (const event of await getEvents(filters, events)) {
+      if (socket.readyState !== WebSocket.OPEN) break;
 
-    const dbEvents = await getEventsDB(filters, events);
-    const matchedEvents = dbEvents.filter((e) => filters.some((f) => matchFilter(f, e)));
+      socket.send(JSON.stringify(["EVENT", subId, event]));
+      logger.debug("Sent event:", event.id);
 
-    matchedEvents.sort((a, b) => {
-      if (b.created_at !== a.created_at) {
-        return b.created_at - a.created_at;
-      }
-      return a.id.localeCompare(b.id);
-    });
-
-    let received_limit = 0;
-    for (const f of filters) {
-      if (f.limit && f.limit > received_limit) {
-        received_limit = f.limit;
-      }
+      count++;
+      if (count >= app.get("config.relay")["limitation"]["max_limit"]) break; 
     }
-    if (received_limit === 0) {
-      received_limit = app.get("config.relay")["limitation"]["max_limit"];
-    }
-    if (received_limit > app.get("config.relay")["limitation"]["max_limit"]) {
-      socket.send(JSON.stringify(["NOTICE", `warning: limit too high, using max limit of ${app.get("config.relay")["limitation"]["max_limit"]}`]));
-      logger.debug("Limit too high:", received_limit);
-    }
-    
-    const max_limit = app.get("config.relay")["limitation"]["max_limit"];
-    const limitResult = Math.min(received_limit, max_limit);
-    
-    const limitedEvents = matchedEvents.slice(0, limitResult);
-
-    limitedEvents.forEach((ev) => {
-      if (socket.readyState === WebSocket.OPEN) {
-        socket.send(JSON.stringify(["EVENT", subId, ev]));
-        logger.debug("Sent event:", ev.id);
-      }
-    });
 
     if (socket.readyState === WebSocket.OPEN) {
-      socket.send(JSON.stringify(["EOSE", subId]));
+      socket.send(JSON.stringify(["EOSE", subId])); 
       logger.debug("End of subscription events:", subId);
     }
 
     const listener = async (event: Event): Promise<void> => {
       if (filters.some((f) => matchFilter(f, event)) && socket.readyState === WebSocket.OPEN) {
-        if (await isEventValid(event)){
-          socket.send(JSON.stringify(["EVENT", subId, event]));
-          logger.debug("Sent event:", event.id);
-        }
+        socket.send(JSON.stringify(["EVENT", subId, event]));
+        logger.debug("Sent live event:", event.id);
       }
     };
 
