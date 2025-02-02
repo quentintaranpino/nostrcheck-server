@@ -1,13 +1,15 @@
 import { Application, Request } from "express";
 import { handleWebSocketMessage } from "../controllers/relay.js";
 import { WebSocketServer, RawData, WebSocket } from "ws";
-import { IncomingMessage } from "http"; 
+import { IncomingMessage } from "http";
+import crypto from "crypto";
 import { Socket } from "net";
 import { logger } from "../lib/logger.js";
 import { removeAllSubscriptions } from "../lib/relay/core.js";
 import { Server } from "http";
 import { limiter } from "../lib/session.js";
 import { NIP11Data } from "../controllers/nostr.js";
+import { ExtendedWebSocket } from "../interfaces/relay.js";
 
 let server: Server | null = null;
 
@@ -32,7 +34,13 @@ export const loadRelayRoutes = (app: Application, version:string): void => {
     });
   }
 
-  wss.on("connection", (socket: WebSocket, req: IncomingMessage) => {
+  wss.on("connection", (socket: ExtendedWebSocket, req: IncomingMessage) => {
+
+    if (app.get("config.relay")["limitation"]["auth_required"] == true){
+      const challenge = crypto.randomBytes(32).toString('hex');
+      socket.challenge = challenge;
+      socket.send(JSON.stringify(["AUTH", challenge]));
+    }
     socket.on("message", async (data: RawData) => {
       try {
         await handleWebSocketMessage(socket, data, req as Request);

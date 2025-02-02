@@ -191,6 +191,30 @@ interface NIP11File {
   fees?: NIP11Fees;
 }
 
+interface AuthEvent {
+  id: string;
+  kind: 22242;
+  pubkey: string;
+  content: string;
+  tags: string[][];
+  created_at: number;
+  sig: string;
+}
+
 const supported_nips = [1, 2, 3, 4, 5, 7, 11, 13, 19, 44, 47, 78, 94, 96, 98];
 
-export { supported_nips, NIPKinds, NIP96file, NIP11File, NIP01_event, NIP94_event, NIP94_data, NIP96_event, NIP96_processing, NIP04_event, nostrProfileData, emptyNostrProfileData};
+export {
+          supported_nips,
+          NIPKinds,
+          NIP96file,
+          NIP11File,
+          NIP01_event,
+          NIP94_event,
+          NIP94_data,
+          NIP96_event,
+          NIP96_processing,
+          NIP04_event,
+          nostrProfileData,
+          emptyNostrProfileData,
+          AuthEvent,
+}

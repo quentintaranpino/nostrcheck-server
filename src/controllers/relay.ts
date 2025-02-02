@@ -13,8 +13,9 @@ import { getEvents, initEvents, storeEvent } from "../lib/relay/database.js";
 import { executePlugins } from "../lib/plugins/core.js";
 import { ipInfo } from "../interfaces/ips.js";
 import { validatePow } from "../lib/nostr/NIP13.js";
-import { allowedTags, AuthEvent, ExtendedWebSocket } from "../interfaces/relay.js";
+import { allowedTags, ExtendedWebSocket } from "../interfaces/relay.js";
 import { isBase64 } from "../lib/utils.js";
+import { AuthEvent } from "../interfaces/nostr.js";
 
 const events = await initEvents(app);
 const authSessions: Map<WebSocket, string> = new Map(); 
@@ -52,7 +53,6 @@ const handleWebSocketMessage = async (socket: ExtendedWebSocket, data: WebSocket
     }
 
     const message = parseRelayMessage(data);
-
     if (!message) {
       socket.send(JSON.stringify(["NOTICE", "invalid: malformed note"]));
       logger.debug("Invalid message:", data.toString());
@@ -91,7 +91,13 @@ const handleWebSocketMessage = async (socket: ExtendedWebSocket, data: WebSocket
       }
 
       case "AUTH":
-        await handleAuthMessage(socket, message);
+        if (typeof args[0] !== 'string') {
+          await handleAuthMessage(socket, ["AUTH", args[0] as AuthEvent]);
+        } else {
+          socket.send(JSON.stringify(["NOTICE", "invalid: auth data is not an object"]));
+          socket.close(1003, "invalid: auth data is not an object");
+          logger.warn("Invalid auth data:", args[0]);
+        }
         break;
 
       default:
@@ -344,65 +350,65 @@ const handleClose = (socket: WebSocket, subId?: string) => {
   removeSubscription(subId, socket);
 };
 
-const handleAuthMessage = async (socket: ExtendedWebSocket, message: ["AUTH", string | AuthEvent]): Promise<void> => {
+// Handle AUTH
+const handleAuthMessage = async (socket: ExtendedWebSocket, message: ["AUTH", AuthEvent]): Promise<void> => {
+
+  logger.info("Received AUTH message", message);
+
   if (!Array.isArray(message) || message.length !== 2) {
-      socket.send(JSON.stringify(["NOTICE", "error: malformed AUTH message"]));
-      logger.debug("Malformed AUTH message:", message);
-      return;
+    socket.send(JSON.stringify(["NOTICE", "error: malformed AUTH message"]));
+    logger.debug("Malformed AUTH message:", message);
+    return;
   }
 
-  const [_, authData] = message;
+  const [, authData] = message;
 
-  if (typeof authData === "string") {
-      socket.challenge = authData;
-      socket.send(JSON.stringify(["AUTH", authData]));
-      logger.debug("Challenge sent:", authData);
-      return;
+  if (typeof authData !== "object" || authData === null) {
+    socket.send(JSON.stringify(["NOTICE", "error: AUTH payload must be an object"]));
+    logger.debug("Invalid AUTH payload:", authData);
+    return;
   }
 
-  if (typeof authData === "object" && authData !== null) {
-      if (authData.kind !== 22242) {
-          socket.send(JSON.stringify(["NOTICE", "error: invalid AUTH event kind"]));
-          logger.debug("Invalid AUTH event kind:", authData.kind);
-          return;
-      }
-
-      const relayTag = authData.tags.find(tag => tag[0] === "relay");
-      const challengeTag = authData.tags.find(tag => tag[0] === "challenge");
-
-      if (!relayTag || !challengeTag) {
-          socket.send(JSON.stringify(["NOTICE", "error: missing relay or challenge tag"]));
-          logger.debug("Missing relay or challenge tag:", authData.tags);
-          return;
-      }
-
-      const challenge = challengeTag[1];
-
-      if (!socket.challenge || socket.challenge !== challenge) {
-          socket.send(JSON.stringify(["NOTICE", "error: invalid challenge"]));
-          logger.debug("Invalid challenge:", challenge);
-          return;
-      }
-
-      if (!verifyEvent(authData)) {
-          socket.send(JSON.stringify(["NOTICE", "error: invalid signature"]));
-          logger.debug("Invalid signature:", authData.sig);
-          return;
-      }
-
-      const now = Math.floor(Date.now() / 1000);
-      if (Math.abs(now - authData.created_at) > 600) {
-          socket.send(JSON.stringify(["NOTICE", "error: AUTH event expired"]));
-          logger.debug("AUTH event expired:", authData.created_at);
-          return;
-      }
-
-      authSessions.set(socket, authData.pubkey);
-      socket.send(JSON.stringify(["OK", authData.id, true, "AUTH successful"]));
-      logger.debug("AUTH successful:", authData.id);
+  if (authData.kind !== 22242) {
+    socket.send(JSON.stringify(["NOTICE", "error: invalid AUTH event kind"]));
+    logger.debug("Invalid AUTH event kind:", authData.kind);
+    return;
   }
+
+  const relayTag = authData.tags.find(tag => tag[0] === "relay");
+  const challengeTag = authData.tags.find(tag => tag[0] === "challenge");
+
+  if (!relayTag || !challengeTag) {
+    socket.send(JSON.stringify(["NOTICE", "error: missing relay or challenge tag"]));
+    logger.debug("Missing relay or challenge tag:", authData.tags);
+    return;
+  }
+
+  const challenge = challengeTag[1];
+  if (!socket.challenge || socket.challenge !== challenge) {
+    socket.send(JSON.stringify(["NOTICE", "error: invalid challenge"]));
+    logger.warn("Invalid challenge:", challenge);
+    return;
+  }
+
+  const validEvent = await isEventValid(authData, 60, 10);
+  if (validEvent.status !== "success") {
+    socket.send(JSON.stringify(["NOTICE", `error: ${validEvent.message}`]));
+    logger.warn("Invalid AUTH event:", validEvent.message);
+    return;
+  }
+
+  authSessions.set(socket, authData.pubkey);
+  delete socket.challenge;
+
+  socket.send(JSON.stringify(["OK", authData.id, true, "AUTH successful"]));
+  logger.debug("AUTH successful:", authData.id);
 };
 
+
+/*
+* Periodically persist events to the database
+*/
 setInterval(async () => {
   const eventsToPersist = [];
   for (const [, memEv] of events.entries()) {
