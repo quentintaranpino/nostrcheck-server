@@ -362,6 +362,17 @@ const handleReq = async (socket: WebSocket, subId: string, filters: Filter[]) =>
     return;
   }
 
+  if (app.get("config.relay")["limitation"]["auth_required"] == true && !authSessions.has(socket)) {
+    const requestedKinds = filters.flatMap(f => f.kinds || []);
+
+    if (requestedKinds.some(kind => [4, 14, 1059].includes(kind))) {
+      socket.send(JSON.stringify(["CLOSED", subId, "auth-required: must authenticate to request private messages"]));
+      socket.close(1003, "auth-required: must authenticate to request private messages");
+      logger.warn("Blocked REQ for private messages without authentication:", subId);
+      return;
+    }
+  }
+
   if (filters.length > app.get("config.relay")["limitation"]["max_filters"]) {
     socket.send(JSON.stringify(["CLOSED", subId, "unsupported: too many filters"]));
     socket.close(1003, "unsupported: too many filters");
