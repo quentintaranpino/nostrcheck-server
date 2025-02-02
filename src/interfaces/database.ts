@@ -349,8 +349,8 @@ interface EventTagsTable extends RowDataPacket {
 const eventTagsTableFields: EventTagsTable = {
 	id: "int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY",
 	event_id: "varchar(64) NOT NULL",
-	tag_name: "varchar(10) NOT NULL",
-	tag_value: "varchar(256) NOT NULL",
+	tag_name: "varchar(64) NOT NULL",
+	tag_value: "varchar(512) NOT NULL",
 	position: "int(11) NOT NULL DEFAULT 0",
 	extra_values: "TEXT",
 	_indexes: [
