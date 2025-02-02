@@ -20,11 +20,7 @@
 <div id="masonry-container" class="g-2 p-1"></div>
 <div id="no-media" class="visually-hidden text-center py-5 fs-4"><p>No media files found</p></div>
 <div id="sentinelEnd"></div>
-<div class="d-flex justify-content-center mt-5 mb-5">
-    <div class="spinner-border text-secondary" id="loading-spinner" role="status">
-        <span class="visually-hidden">Loading...</span>
-    </div>
-</div>
+<%- include('./loading', {objectId: 'gallery-list', dataName: 'Files'}) %>
 <style>
     #masonry-container {
         display: flex;
@@ -263,7 +259,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
                         credentials: privateGallery ? 'include' : 'omit',
                     });
                     if (!response.ok) {
-                        document.getElementById('loading-spinner').remove();
+                        document.getElementById('gallery-list-loading').remove();
                         document.getElementById('no-media').classList.remove('visually-hidden');
                         console.log('Error fetching media', response);
                         return;
@@ -272,7 +268,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
 
                     if (userData.files && userData.files.length === 0) {
                         console.log('No more media files');
-                        document.getElementById('loading-spinner')?.remove();
+                        document.getElementById('gallery-list-loading')?.remove();
                         observer.unobserve(sentinelEnd);
                         return;
                     }
@@ -304,7 +300,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
         } else {
             masonryView.classList.add('visually-hidden');
             listView.classList.remove('visually-hidden');
-            document.getElementById('loading-spinner')?.remove();
+            document.getElementById('gallery-list-loading')?.remove();
             observerSentinels.unobserve(sentinelEnd);
         }
         page = -1;

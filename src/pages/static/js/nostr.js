@@ -25,6 +25,7 @@ const getRelaysFromUser = async (publicKey) => {
         relays.map(relay => relay.url),
         [{ kinds: [10002, 10050], authors: [publicKey] }],
         {
+          maxWait: 5000,
           async onevent(event) {
             event.tags.forEach(tag => {
               if (tag[0] === 'r' || tag[0] === 'relay') {
@@ -81,21 +82,36 @@ const getRelaysFromUser = async (publicKey) => {
 };
 
 const getRelayData = async (relay) => {
-    try {
-      const response = await fetch(relay.url.replace('wss://', 'https://').replace('ws://', 'http://'), {
-          headers: {
-              'Accept': 'application/nostr+json'
-          }
-      });
-      const data = await response.json();
-      relay.name = data.name;
-      relay.description = data.description;
-      relay.pubkey = data.pubkey;
-      relay.contact = data.contact;
-      relay.supported_nips = data.supported_nips;
-      relay.pubkey = data.pubkey;
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 1000); 
+
+  try {
+    const response = await fetch(relay.url.replace('wss://', 'https://').replace('ws://', 'http://'), {
+      headers: {
+        'Accept': 'application/nostr+json'
+      }, 
+      signal: controller.signal,
+
+    });
+
+    clearTimeout(timeout)
+
+    if (!response.ok) throw new Error('Failed to fetch relay data', relay.url);
+
+    const data = await response.json();
+    relay.name = data.name;
+    relay.description = data.description;
+    relay.pubkey = data.pubkey;
+    relay.contact = data.contact;
+    relay.supported_nips = data.supported_nips;
+    relay.pubkey = data.pubkey;
   } catch (error) {
-      console.debug('Error fetching relay data:', error);
+    if (error.name === "AbortError") {
+      console.debug(`Timeout: ${relay.url} took too long to respond.`);
+    } else {
+      console.debug(`Error fetching relay data: ${error.message}`);
+    }
   }
 }
 
@@ -178,6 +194,7 @@ const publishProfileData = async (updatedFields, publicKey, secretKey) => {
         relays.map(relay => relay.url),
         [{ kinds: [0], authors: [publicKey] }],
         {
+          maxWait: 5000,
           async onevent(event) {
             try {
               const eventContent = JSON.parse(event.content);
@@ -357,6 +374,7 @@ const subscribeRelays = async (kind, pubkeys, type, since, until) => {
         userRelays.length > 0 ? userRelays.map(relay => relay.url) : relays.map(relay => relay.url),
         [filter],
         {
+          maxWait: 5000,
           async onevent(event) {
             notes.push(event);
           },

@@ -1,0 +1,17 @@
+<div id="<%- objectId %>-loading" class="d-flex flex-column align-items-center justify-content-center m-5 text-center animate-fade-in">
+    <p class="lead fs-3 gradient-text mb-3">Loading <%- dataName %>...</p>
+    <div class="spinner-border text-secondary" role="status">
+        <span class="visually-hidden">Loading data</span>
+    </div>
+</div>
+<style>
+.animate-fade-in {
+    opacity: 0;
+    animation: fadeIn 0.6s ease-in-out forwards;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+</style>

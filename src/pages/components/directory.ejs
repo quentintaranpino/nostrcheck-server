@@ -9,11 +9,7 @@
 <div id="masonry-container" class="g-2 p-1 mt-1"></div>
 <div id="no-users" class="visually-hidden text-center py-5 fs-4"><p>No users found</p></div>
 <div id="sentinelEnd"></div>
-<div class="d-flex justify-content-center mt-5 mb-5">
-    <div class="spinner-border text-secondary" id="loading-spinner" role="status">
-        <span class="visually-hidden">Loading...</span>
-    </div>
-</div>
+<%- include('./loading', {objectId: 'directory-list', dataName: ''}) %>
 
 <style>
     #masonry-container {
@@ -58,7 +54,7 @@
 const apiBaseUrl = "/api/v2";
 const masonryContainer = document.getElementById('masonry-container');
 const noUsersDiv = document.getElementById('no-users');
-const loadingSpinner = document.getElementById('loading-spinner');
+const loadingSpinner = document.getElementById('directory-list-loading');
 const searchInput = document.getElementById('userSearch');
 let allUsers = [];
 
