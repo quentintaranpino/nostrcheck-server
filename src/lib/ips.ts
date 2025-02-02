@@ -204,6 +204,6 @@ setInterval(async () => {
     } catch (error) {
         logger.error("Error in IP processing interval:", error);
     }
-}, 60);
+}, 60000);
 
 export { getClientIp, isIpAllowed };
