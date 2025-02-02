@@ -16,7 +16,7 @@ import { validatePow } from "../lib/nostr/NIP13.js";
 import { allowedTags, ExtendedWebSocket } from "../interfaces/relay.js";
 import { isBase64 } from "../lib/utils.js";
 import { AuthEvent } from "../interfaces/nostr.js";
-import { dbMultiSelect } from "../lib/database.js";
+import { dbMultiSelect, dbUpdate } from "../lib/database.js";
 
 const events = await initEvents(app);
 const authSessions: Map<WebSocket, string> = new Map(); 
@@ -167,7 +167,7 @@ const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) =>
     return;
   }
 
-  // Check if the event has a valid proof of work (NIP-13) if required
+  // Valid proof of work (NIP-13) if required
   if (app.get("config.relay")["limitation"]["min_pow_difficulty"] > 0) {
 
     const nonceTag = event.tags.find(tag => tag[0] === 'nonce');
@@ -207,25 +207,6 @@ const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) =>
     }
   }
 
-  // Event kind 1040 (NIP-03) management.
-  if (event.kind === 1040) {
-    logger.debug(`Received OpenTimestamps attestation event: ${event.id}`);
-    const hasEtag = event.tags.some(tag => tag[0] === "e");
-    const hasAltTag = event.tags.some(tag => tag[0] === "alt" && tag[1].toLocaleLowerCase() === "opentimestamps attestation");
-
-    if (!hasEtag || !hasAltTag) {
-      socket.send(JSON.stringify(["NOTICE", "invalid: missing required OpenTimestamps tags"]));
-      logger.warn(`Rejected kind:1040 event ${event.id} due to missing required tags.`);
-      return;
-    }
-
-    if(!isBase64(event.content)) {
-      socket.send(JSON.stringify(["NOTICE", "invalid: OpenTimestamps proof must be Base64 encoded"]));
-      logger.warn(`Rejected kind:1040 event ${event.id} due to invalid encoding.`);
-      return;
-    }
-  }
-  
   // Plugins engine execution
   if (await executePlugins({pubkey: event.pubkey, ip: reqInfo.ip, event: event}, app, "relay") == false) {
     socket.send(JSON.stringify(["NOTICE", "blocked: can't accept event"]));
@@ -236,10 +217,9 @@ const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) =>
 
   logger.info("Received EVENT:", event.id);
 
-  // Check if the event is already in memory
   if (events.has(event.id)) {
+    socket.send(JSON.stringify(["NOTICE", "duplicate: already have this event"]));
     socket.send(JSON.stringify(["OK", event.id, false, "duplicate: already have this event"]));
-    logger.debug("Duplicate event:", event.id);
     return;
   }
 
@@ -247,42 +227,127 @@ const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) =>
     subscriptions.forEach((clientSubscriptions) => {
       clientSubscriptions.forEach((listener) => listener(event));
     });
+    socket.send(JSON.stringify(["NOTICE", "ephemeral: accepted but not stored"]));
     socket.send(JSON.stringify(["OK", event.id, true, "ephemeral: accepted but not stored"]));
-    logger.debug("Ephemeral event:", event.id);
     return;
   }
 
   if (isReplaceable(event.kind)) {
     for (const [key, memEv] of events.entries()) {
-        if (memEv.event.kind === event.kind && memEv.event.pubkey === event.pubkey) {
-            if (
-                event.created_at > memEv.event.created_at ||
-                (event.created_at === memEv.event.created_at && event.id < memEv.event.id)
-            ) {
-              events.delete(key); 
-              events.set(event.id, { event, processed: false }); 
-                break;
-            } else {
-                socket.send(JSON.stringify(["OK", event.id, false, "duplicate: older or same version"]));
-                logger.debug("Duplicate event:", event.id);
-                return;
+      if (memEv.event.kind === event.kind && memEv.event.pubkey === event.pubkey) {
+          if (event.created_at > memEv.event.created_at ||(event.created_at === memEv.event.created_at && event.id < memEv.event.id)) {
+            const deleteResult = await dbUpdate("events", "active", "0", ["event_id"], [memEv.event.id]);
+            if (!deleteResult) {
+              socket.send(JSON.stringify(["NOTICE", "error: failed to delete replaceable event"]));
+              socket.send(JSON.stringify(["OK", event.id, false, "error: failed to delete replaceable event"]));
+              logger.error("Failed to delete replaceable event:", memEv.event.id);
+              return;
             }
-        }
+            events.delete(key); 
+            break;
+          } else {
+              socket.send(JSON.stringify(["NOTICE", "duplicate: older or same version"]));
+              socket.send(JSON.stringify(["OK", event.id, false, "duplicate: older or same version"]));
+              return;
+          }
+      }
     }
-  } else {
-    events.set(event.id, { event, processed: false });
   }
 
+  // Event kind 1040 (NIP-03)
+  if (event.kind === 1040) {
+    const hasEtag = event.tags.some(tag => tag[0] === "e");
+    const hasAltTag = event.tags.some(tag => tag[0] === "alt" && tag[1].toLocaleLowerCase() === "opentimestamps attestation");
 
-  subscriptions.forEach((clientSubscriptions) => {
-    clientSubscriptions.forEach((listener) => {
-        listener(event);
+    if (!hasEtag || !hasAltTag) {
+      socket.send(JSON.stringify(["NOTICE", "invalid: missing required OpenTimestamps tags"]));
+      socket.send(JSON.stringify(["OK", event.id, false, "invalid: missing required OpenTimestamps tags"]));
+      logger.warn(`Rejected kind:1040 event ${event.id} due to missing required tags.`);
+      return;
+    }
+
+    if(!isBase64(event.content)) {
+      socket.send(JSON.stringify(["NOTICE", "invalid: OpenTimestamps proof must be Base64 encoded"]));
+      socket.send(JSON.stringify(["OK", event.id, false, "invalid: OpenTimestamps proof must be Base64 encoded"]));
+      logger.warn(`Rejected kind:1040 event ${event.id} due to invalid encoding.`);
+      return;
+    }
+  }
+
+  // Event kind 5 (NIP-09) Event deletion
+  if (event.kind === 5) {
+
+    logger.info(`Received kind:5 event ${event.id} for deletion`);
+
+    const eventsToDelete = event.tags.filter(tag => tag[0] === "e" || tag[0] === "a").map(tag => tag[1].trim());
+    if (eventsToDelete.length === 0) {
+      socket.send(JSON.stringify(["NOTICE", "invalid: missing required tags"]));
+      socket.send(JSON.stringify(["OK", event.id, false, "invalid: missing required tags"]));
+      return;
+    }
+
+    let storedEvents = eventsToDelete.map(id => events.get(id)).filter(e => e !== undefined).filter(e => e.event.kind !== 5)
+    if (storedEvents.length === 0) {
+      socket.send(JSON.stringify(["NOTICE", "invalid: no events found for deletion"]));
+      socket.send(JSON.stringify(["OK", event.id, false, "invalid: no events found for deletion"]));
+      return;
+    }
+
+    const unauthorizedEvents = storedEvents.filter(e => e.event.pubkey !== event.pubkey);
+    if (unauthorizedEvents.length > 0) {
+      socket.send(JSON.stringify(["NOTICE", "error: unauthorized to delete events"]));
+      socket.send(JSON.stringify(["OK", event.id, false, "error: unauthorized to delete events"]));
+      logger.warn(`Rejected kind:5 event ${event.id} due to unauthorized to delete events. ${reqInfo.ip}`);
+      return;
+    }
+
+    let ownedEvents = storedEvents.filter(e => e.event.pubkey === event.pubkey);
+    if (ownedEvents.length === 0) {
+      socket.send(JSON.stringify(["NOTICE", "error: no events found for deletion"]));
+      socket.send(JSON.stringify(["OK", event.id, false, "error: no events found for deletion"]));
+      return;
+    }
+
+    // Filter out "a" events that are newer than the kind:5 deletion request
+    ownedEvents = ownedEvents.filter(e => {
+      if (e.event.tags.some(tag => tag[0] === "a")) return e.event.created_at < event.created_at; 
+      return true;
     });
+    if (ownedEvents.length === 0) {
+      socket.send(JSON.stringify(["NOTICE", "error: no valid events remain for deletion"]));
+      socket.send(JSON.stringify(["OK", event.id, false, "error: no valid events remain for deletion"]));
+      return;
+    }
 
+    const deleteResults = await Promise.all(ownedEvents.map(e => dbUpdate("events", "active", "0", ["event_id"], [e.event.id])));
+    if (!deleteResults.every(result => result)) {
+      socket.send(JSON.stringify(["NOTICE", "error: failed to delete events"]));
+      socket.send(JSON.stringify(["OK", event.id, false, "error: failed to delete events"]));
+      logger.error(`Failed to delete events: ${ownedEvents.map(e => e.event.id).join(", ")}`);
+      return;
+    } else {
+      // Remove events from memory
+      ownedEvents.forEach(e => events.delete(e.event.id));
+      socket.send(JSON.stringify(["NOTICE", "deleted: events successfully deleted"]));
+      socket.send(JSON.stringify(["OK", event.id, true, "deleted: events successfully deleted"]));
+      logger.info(`Deleted events: ${ownedEvents.map(e => e.event.id).join(", ")}`);
+    }
+
+  }
+
+  // Save the event to memory
+  events.set(event.id, { event, processed: false }); 
+
+  // Notify all clients about the new event
+  subscriptions.forEach((clientSubscriptions) => {
+    clientSubscriptions.forEach((listener) => {listener(event)} );
   });
 
+  // Send confirmation to the client
+  socket.send(JSON.stringify(["NOTICE", "accepted: event stored"]));
   socket.send(JSON.stringify(["OK", event.id, true, ""]));
   logger.debug("Accepted event:", event.id);
+
 };
 
 // Handle REQ
