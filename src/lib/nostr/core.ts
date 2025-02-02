@@ -104,8 +104,8 @@ const isEventValid = async (event:Event, created_at_lower_limit = 60, created_at
  */
 function isEventTimestampValid(
 	event: Event,
-	created_at_lower_limit = 60000,
-	created_at_upper_limit = 60000
+	created_at_lower_limit = 60,
+	created_at_upper_limit = 60
   ): boolean {
 	const nowSec = Math.floor(Date.now() / 1000);
 	const diff = nowSec - event.created_at;
