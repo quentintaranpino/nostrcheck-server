@@ -201,7 +201,7 @@ interface AuthEvent {
   sig: string;
 }
 
-const supported_nips = [1, 2, 3, 4, 5, 7, 11, 13, 19, 44, 47, 78, 94, 96, 98];
+const supported_nips = [1, 2, 3, 4, 5, 7, 9, 11, 13, 19, 44, 47, 78, 94, 96, 98];
 
 export {
           supported_nips,
