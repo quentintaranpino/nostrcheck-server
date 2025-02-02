@@ -357,7 +357,6 @@ const dbMultiSelect = async (queryFields: string[], fromStatement: string, where
 	const pool = await connect("dbMultiSelect: " + queryFields.join(',') + " | Fields: " + whereFields.join(", "));
     try {
         const [rows] = await pool.execute<RowDataPacket[]>(`SELECT ${queryFields.join(',')} FROM ${fromStatement} WHERE ${whereStatement} ${limitClause}`, whereFields);
-
         if (onlyFirstResult){
             if (rows.length > 0) {
                 return [rows[0]];
