@@ -84,7 +84,7 @@ const storeEvent = async (event: Event) : Promise<number> => {
       created_at: event.created_at,
       content: event.content || "",
       sig: event.sig,
-      received_at: Date.now()
+      received_at: Math.floor(Date.now() / 1000)
     };
   
     const insertedId = await dbUpsert("events", eventData);
