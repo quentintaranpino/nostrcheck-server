@@ -61,6 +61,11 @@ const initEditModal = async (objectId, row, objectName, newRow, columns) => {
             if (row.hasOwnProperty(key)) {
                 if (key == 'state'){continue}
 
+                // Specific case for paid fields when payments module is disabled
+                if (!activeModules.includes('payments') && (key == 'paid' || key == 'transactionid' || key == 'satoshi')) {
+                    continue;
+                }
+
                 // remove 'null' string from the input field
                 if (row[key] === null) {
                     row[key] = '';
