@@ -16,6 +16,7 @@ import { validatePow } from "../lib/nostr/NIP13.js";
 import { allowedTags, ExtendedWebSocket } from "../interfaces/relay.js";
 import { isBase64 } from "../lib/utils.js";
 import { AuthEvent } from "../interfaces/nostr.js";
+import { dbMultiSelect } from "../lib/database.js";
 
 const events = await initEvents(app);
 const authSessions: Map<WebSocket, string> = new Map(); 
@@ -401,8 +402,16 @@ const handleAuthMessage = async (socket: ExtendedWebSocket, message: ["AUTH", Au
   authSessions.set(socket, authData.pubkey);
   delete socket.challenge;
 
+  const registeredData = await dbMultiSelect(["id", "username"],"registered","hex = ?", [authData.pubkey], true);
+  if (registeredData.length === 0) {
+    socket.send(JSON.stringify(["NOTICE", "error: pubkey not registered"]));
+    logger.warn("Pubkey not registered:", authData.pubkey);
+    return;
+  }
+
   socket.send(JSON.stringify(["OK", authData.id, true, "AUTH successful"]));
-  logger.debug("AUTH successful:", authData.id);
+  socket.send(JSON.stringify(["NOTICE", `AUTH successful, welcome ${registeredData[0].username}`]));
+  logger.debug("AUTH successful:", authData.id, "|", registeredData[0].username);
 };
 
 
