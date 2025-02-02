@@ -1,11 +1,11 @@
-version: '3.8'
-
 services:
   app:
     networks:
     - localnet
     image: nostrcheckme/nostrcheck-server:latest
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile.build
     depends_on:
       - mariadb
       - redis
