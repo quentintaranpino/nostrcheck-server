@@ -159,11 +159,12 @@
       }
       if (activeModules.includes("media")) {
         semaphore.execute(async() => await initMonthChart('#filesData-chart','Hosted files', await fetchTableCountData('media','monthCount', 'date')))
-
       }
       if (activeModules.includes("payments")) {
         semaphore.execute(async() => await initMonthChart("#paymentsData-chart",'Transactions', await fetchTableCountData('payments','monthCount', 'createddate')))
-
+      }
+      if (activeModules.includes("relay")) {
+        semaphore.execute(async() => await initMonthChart("#relayData-chart",'Relay events', await fetchTableCountData('relay','monthCount', 'created_at')))
       }
     }
     initChars();
@@ -186,6 +187,7 @@
       {id: 'users',  dataKey: 'nostraddress', field: 'checked', title: 'Checked users'},
       {id: 'files',  dataKey: 'media', field: 'checked', title: 'Checked files'},
       {id: 'payments',  dataKey: 'payments', field: 'paid', title: 'Paid transactions'},
+      {id: 'relay', dataKey: 'relay', field: 'active', title: 'Active events'}
     ]
     const targetId = event.target.getAttribute("data-bs-target").replace("#", "");
     const dataKey = doughnuts.find(d => d.id == targetId)?.dataKey;
