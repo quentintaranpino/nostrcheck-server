@@ -14,19 +14,30 @@ const dbCountModuleData = async (module: string, field = ""): Promise<number> =>
 }
 
 
-const dbCountMonthModuleData = async (module: string, field : string): Promise<object> => {
-
+const dbCountMonthModuleData = async (module: string, field: string): Promise<object> => {
+	
 	const table = ModuleDataTables[module];
-	if (!table) {return {}}
+	if (!table) return {};
+  
 	const data = await dbMultiSelect(
-									[`COUNT(*) as 'count'`, `DATE_FORMAT(${field}, '%Y-%m') as month`],
-		 							`${table}`,
-									`1= 1 GROUP BY month ORDER BY month DESC LIMIT 24`,
-									[],
-									false);
+		[
+		`COUNT(*) as 'count'`,
+		`DATE_FORMAT(
+			IF(
+				CAST(${field} AS CHAR) REGEXP '^[0-9]+$',
+				IF(${field} > 9999999999, FROM_UNIXTIME(${field} / 1000), FROM_UNIXTIME(${field})),
+				${field}
+			),
+			'%Y-%m') as month`
+		],
+		`${table}`,
+		`1=1 GROUP BY month ORDER BY month DESC LIMIT 24`,
+		[],
+		false
+	);
+  
 	return data;
-
-}
+  };
 
 async function dbSelectModuleData(module:string, offset:number, limit:number, order:string = "DESC", sort:string, search:string, filter: any): Promise<{ total: number; totalNotFiltered: number; rows: string | never[]; }>{
 
