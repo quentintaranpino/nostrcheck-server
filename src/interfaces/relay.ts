@@ -13,4 +13,4 @@ interface ExtendedWebSocket extends WebSocket {
 // const allowedTags = ["p", "e", "r", "t", "i", "title", "nonce", "alt", "L", "emoji", "subject"];
 
 
-export { MemoryEvent, ExtendedWebSocket, allowedTags };
+export { MemoryEvent, ExtendedWebSocket };
