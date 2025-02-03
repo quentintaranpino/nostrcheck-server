@@ -1,6 +1,6 @@
 import WebSocket from "ws";
 import { parseRelayMessage, subscriptions, addSubscription, removeAllSubscriptions, removeSubscription } from "../lib/relay/core.js";
-import { Event, Filter, matchFilter, verifyEvent } from "nostr-tools";
+import { Event, Filter, matchFilter } from "nostr-tools";
 import { isEventValid } from "../lib/nostr/core.js";
 import { isModuleEnabled } from "../lib/config.js";
 import app from "../app.js";
@@ -13,7 +13,7 @@ import { getEvents, initEvents, storeEvent } from "../lib/relay/database.js";
 import { executePlugins } from "../lib/plugins/core.js";
 import { ipInfo } from "../interfaces/ips.js";
 import { validatePow } from "../lib/nostr/NIP13.js";
-import { allowedTags, ExtendedWebSocket } from "../interfaces/relay.js";
+import { ExtendedWebSocket } from "../interfaces/relay.js";
 import { isBase64 } from "../lib/utils.js";
 import { AuthEvent } from "../interfaces/nostr.js";
 import { dbMultiSelect, dbUpdate } from "../lib/database.js";
@@ -198,7 +198,7 @@ const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) =>
   // Check if the event has invalid tags if required
   if (app.get("config.relay")["tags"].length > 0) {
     const tags = event.tags.map(tag => tag[0]);
-    const invalidTags = tags.filter(tag => !allowedTags.includes(tag) && !app.get("config.relay")["tags"].includes(tag));
+    const invalidTags = tags.filter(tag => !app.get("config.relay")["tags"].includes(tag));
     if (invalidTags.length > 0) {
       socket.send(JSON.stringify(["NOTICE", `blocked: invalid tags: ${invalidTags.join(", ")}`]));
       socket.send(JSON.stringify(["OK", event.id, false, `blocked: invalid tags: ${invalidTags.join(", ")}`]));
@@ -286,7 +286,7 @@ const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) =>
       return;
     }
 
-    let storedEvents = eventsToDelete.map(id => events.get(id)).filter(e => e !== undefined).filter(e => e.event.kind !== 5)
+    const storedEvents = eventsToDelete.map(id => events.get(id)).filter(e => e !== undefined).filter(e => e.event.kind !== 5)
     if (storedEvents.length === 0) {
       socket.send(JSON.stringify(["NOTICE", "invalid: no events found for deletion"]));
       socket.send(JSON.stringify(["OK", event.id, false, "invalid: no events found for deletion"]));
