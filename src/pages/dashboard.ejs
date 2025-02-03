@@ -16,7 +16,9 @@
           <button id="save-btn" class="btn btn-primary d-none"><i class="fa fa-save"></i></button>
           <button id="cancel-btn" class="btn btn-primary d-none"><i class="fa fa-times"></i></button>
         </div>
-        <div class="row" id="dashcards-container" style="min-height: 350px;">
+        <%- include('./components/loading', {objectId: 'admin-dashcards-list', dataName: 'dashcards'}) %>
+        <div class="row d-none" id="dashcards-container" style="min-height: 350px;">
+
           <% if(locals.activeModules.includes('nostraddress')) { %> 
           <%- include('./components/dashcard', { dashcardId: 'nostraddressCount', link: '#usersData'}); %>
           <% } %>
@@ -247,6 +249,8 @@
     function updateDashcardsUI() {
     
       editBtn.removeAttribute('disabled');
+      document.getElementById('dashcards-container').classList.remove('d-none');
+      document.getElementById('admin-dashcards-list-loading').classList.add('d-none');
 
       window.dashcardsData.forEach(data => {
         const card = document.getElementById(data.id);
