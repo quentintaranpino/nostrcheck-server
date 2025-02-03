@@ -19,7 +19,7 @@ const importCSV = async (filePath: string) => {
     });
 
   let processedCount = 0;
-  const BATCH_SIZE = 5000;
+  const BATCH_SIZE = 1000;
   let batch: any[] = [];
 
   const dbEvents = await dbMultiSelect(["event_id"], "events", "active = ?", [1]);
