@@ -4,17 +4,20 @@ import { dbMultiSelect, dbUpsert } from "../database.js";
 import { logger } from "../logger.js";
 import { MemoryEvent } from "../../interfaces/relay.js";
 
-const initEvents = async (app: Application): Promise<Map<string, MemoryEvent>> => {
+const initEvents = async (app: Application): Promise<{ map: Map<string, MemoryEvent>, sortedArray: Event[] }> => {
     if (!app.get("relayEvents")) {
-        const events: Map<string, MemoryEvent> = new Map();
-        app.set("relayEvents", events);
+        const eventsMap: Map<string, MemoryEvent> = new Map();
+        const eventsArray: Event[] = [];
 
         const loadedEvents = await getEventsDB();
         for (const event of loadedEvents) {
-            events.set(event.id, { event, processed: true });
+            eventsMap.set(event.id, { event, processed: true });
+            eventsArray.push(event);
         }
 
-        return events;
+        eventsArray.sort((a, b) => b.created_at - a.created_at);
+        app.set("relayEvents", { map: eventsMap, sortedArray: eventsArray });
+        return { map: eventsMap, sortedArray: eventsArray };
     }
 
     return app.get("relayEvents");
@@ -126,10 +129,28 @@ const storeEventTags = async (eventId: string, tags: string[][]): Promise<void> 
 };
 
 
-const getEvents = async (filters: Filter[], relayMap: Map<string, MemoryEvent>): Promise<Event[]> => {
-    return Array.from(relayMap.values())
-        .map(entry => entry.event)
-        .filter(event => filters.some(f => matchFilter(f, event)))
-        .sort((a, b) => b.created_at - a.created_at); // Ordenar por created_at en orden descendente
+const getEvents = async (filters: Filter[], relayData: { map: Map<string, MemoryEvent>, sortedArray: Event[] }): Promise<Event[]> => {
+    const limitFilter = filters.find(f => f.limit !== undefined);
+    const limit = limitFilter ? limitFilter.limit : undefined;
+
+    const now = Math.floor(Date.now() / 1000); 
+    const untilFilter = filters.find(f => f.until !== undefined);
+    const until = untilFilter ? untilFilter.until ? untilFilter.until : now : now;
+
+    const sinceFilter = filters.find(f => f.since !== undefined);
+    const since = sinceFilter ? sinceFilter.since ? sinceFilter.since : 0 : 0;
+
+    const events: Event[] = [];
+    for (const event of relayData.sortedArray) {
+        if (event.created_at <= until && event.created_at >= since && filters.some(f => matchFilter(f, event))) {
+            events.push(event);
+            if (limit !== undefined && events.length >= limit) {
+                break;
+            }
+        }
+    }
+
+    return events;
 };
+
 export { getEvents, storeEvent, initEvents };

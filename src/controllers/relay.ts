@@ -217,7 +217,7 @@ const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) =>
 
   logger.info("Received EVENT:", event.id);
 
-  if (events.has(event.id)) {
+  if (events.map.has(event.id)) {
     socket.send(JSON.stringify(["NOTICE", "duplicate: already have this event"]));
     socket.send(JSON.stringify(["OK", event.id, false, "duplicate: already have this event"]));
     return;
@@ -233,7 +233,7 @@ const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) =>
   }
 
   if (isReplaceable(event.kind)) {
-    for (const [key, memEv] of events.entries()) {
+    for (const [key, memEv] of events.map.entries()) {
       if (memEv.event.kind === event.kind && memEv.event.pubkey === event.pubkey) {
           if (event.created_at > memEv.event.created_at ||(event.created_at === memEv.event.created_at && event.id < memEv.event.id)) {
             const deleteResult = await dbUpdate("events", "active", "0", ["event_id"], [memEv.event.id]);
@@ -243,7 +243,7 @@ const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) =>
               logger.error("Failed to delete replaceable event:", memEv.event.id);
               return;
             }
-            events.delete(key); 
+            events.map.delete(key); 
             break;
           } else {
               socket.send(JSON.stringify(["NOTICE", "duplicate: older or same version"]));
@@ -286,7 +286,7 @@ const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) =>
       return;
     }
 
-    const storedEvents = eventsToDelete.map(id => events.get(id)).filter(e => e !== undefined).filter(e => e.event.kind !== 5)
+    const storedEvents = eventsToDelete.map(id => events.map.get(id)).filter(e => e !== undefined).filter(e => e.event.kind !== 5)
     if (storedEvents.length === 0) {
       socket.send(JSON.stringify(["NOTICE", "invalid: no events found for deletion"]));
       socket.send(JSON.stringify(["OK", event.id, false, "invalid: no events found for deletion"]));
@@ -327,7 +327,11 @@ const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) =>
       return;
     } else {
       // Remove events from memory
-      ownedEvents.forEach(e => events.delete(e.event.id));
+      ownedEvents.forEach(e => {
+        events.map.delete(e.event.id);
+        const index = events.sortedArray.findIndex(event => event.id === e.event.id);
+        if (index !== -1)  events.sortedArray.splice(index, 1);
+      });
       socket.send(JSON.stringify(["NOTICE", "deleted: events successfully deleted"]));
       socket.send(JSON.stringify(["OK", event.id, true, "deleted: events successfully deleted"]));
       logger.info(`Deleted events: ${ownedEvents.map(e => e.event.id).join(", ")}`);
@@ -336,7 +340,13 @@ const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) =>
   }
 
   // Save the event to memory
-  events.set(event.id, { event, processed: false }); 
+  const index = events.sortedArray.findIndex(e => e.created_at < event.created_at);
+  if (index === -1) {
+      events.sortedArray.push(event);
+  } else {
+      events.sortedArray.splice(index, 0, event);
+  }
+  events.map.set(event.id, { event, processed: false });
 
   // Notify all clients about the new event
   subscriptions.forEach((clientSubscriptions) => {
@@ -344,7 +354,6 @@ const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) =>
   });
 
   // Send confirmation to the client
-  socket.send(JSON.stringify(["NOTICE", "accepted: event stored"]));
   socket.send(JSON.stringify(["OK", event.id, true, ""]));
   logger.debug("Accepted event:", event.id);
 
@@ -496,7 +505,7 @@ const handleAuthMessage = async (socket: ExtendedWebSocket, message: ["AUTH", Au
 */
 setInterval(async () => {
   const eventsToPersist = [];
-  for (const [, memEv] of events.entries()) {
+  for (const [, memEv] of events.map.entries()) {
       if (!memEv.processed) {
           eventsToPersist.push(memEv.event);
       }
@@ -506,7 +515,7 @@ setInterval(async () => {
       const insertResults = await Promise.all(eventsToPersist.map(e => storeEvent(e)));
       eventsToPersist.forEach((event, index) => {
           if (insertResults[index] > 0) {
-              const eventEntry = events.get(event.id);
+              const eventEntry = events.map.get(event.id);
               if (eventEntry)  eventEntry.processed = true;
           } else {
               logger.error(`Failed to store event ${event.id}`);
