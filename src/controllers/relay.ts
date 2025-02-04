@@ -368,7 +368,7 @@ const handleReq = async (socket: WebSocket, subId: string, filters: Filter[]) =>
     if (requestedKinds.some(kind => [4, 14, 1059].includes(kind))) {
       socket.send(JSON.stringify(["CLOSED", subId, "auth-required: must authenticate to request private messages"]));
       socket.close(1003, "auth-required: must authenticate to request private messages");
-      logger.warn("Blocked REQ for private messages without authentication:", subId);
+      logger.debug("Blocked REQ for private messages without authentication:", subId);
       return;
     }
   }
