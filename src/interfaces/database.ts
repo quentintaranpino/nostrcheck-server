@@ -355,7 +355,7 @@ const eventTagsTableFields: EventTagsTable = {
 	extra_values: "TEXT",
 	_indexes: [
 		"INDEX idx_event_id (event_id)",
-		"INDEX idx_tag_name_value (tag_name, tag_value)"
+		"INDEX idx_tag_name_value (tag_name, tag_value(100))"
 	],
 	constructor: {
 		name: 'RowDataPacket',
