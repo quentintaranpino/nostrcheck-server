@@ -404,6 +404,41 @@ const loadCdnPage = async (req: Request, res: Response, version:string): Promise
     res.render("cdn.ejs", {request: req});
 };
 
+const loadRelayPage = async (req: Request, res: Response, version:string): Promise<Response | void>  => {
+
+	// Check if the request IP is allowed
+	const reqInfo = await isIpAllowed(req);
+	if (reqInfo.banned == true) {
+		logger.warn(`Attempt to access ${req.path} with unauthorized IP:`, getClientIp(req));
+		return res.status(403).send({"status": "error", "message": reqInfo.comments});
+	}
+
+    // Check if current module is enabled
+    if (!isModuleEnabled("frontend", app)) {
+        logger.warn("Attempt to access a non-active module:","frontend","|","IP:", getClientIp(req));
+        return res.status(403).send({"status": "error", "message": "Module is not enabled"});
+    }
+
+    logger.info("GET /api/" + version + "/relay", "|", getClientIp(req));
+
+    if (await isFirstUse(req,res)){logger.info("First use detected. Showing alert on frontend", "|", )}
+
+    // Active modules
+    const activeModules = loadconfigActiveModules(app).map((module) => module[0]);
+    res.locals.activeModules = activeModules; 
+
+    res.locals.version = app.get("version");
+    res.locals.serverHost = app.get("config.server")["host"];
+    res.locals.serverPubkey = await hextoNpub(app.get("config.server")["pubkey"]);
+
+    setAuthCookie(res, req.cookies.authkey);
+
+    // Check admin privileges. Only for information, never used for authorization
+    req.session.allowed = await isPubkeyAllowed(req.session.identifier);
+
+    res.render("relay.ejs", {request: req});
+};
+
 const frontendLogin = async (req: Request, res: Response): Promise<Response> => {
 
 	// Check if the request IP is allowed
@@ -500,4 +535,5 @@ export {loadDashboardPage,
         loadCdnPage,
         frontendLogin,
         loadProfilePage,
-        loadDirectoryPage};
+        loadDirectoryPage,
+        loadRelayPage};

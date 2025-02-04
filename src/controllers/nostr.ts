@@ -30,12 +30,6 @@ const NIP96Data = async (req: Request, res: Response): Promise<Response> => {
 
 const NIP11Data = async (req: Request, res: Response): Promise<Response> => {
 
-	// Only return data if the request is made by a Nostr client
-	const acceptHeader = req.headers['accept'] || '';
-	if (!acceptHeader.includes('application/nostr+json')) {
-		return res.status(200).send("Please use a Nostr client to connect")
-	}
-
     // Check if the request IP is allowed
 	const reqInfo = await isIpAllowed(req);
 	if (reqInfo.banned == true) {

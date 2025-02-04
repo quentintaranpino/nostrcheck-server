@@ -1,0 +1,28 @@
+<html lang="en">
+<%- include('./partials/head',{title: `${locals.serverHost} - Relay`}); %>
+<link rel="stylesheet" href="/static/css/particles.css">
+<body class="d-flex flex-column h-100">
+  <%- include('./partials/navbar', {active:'relay'}); %>
+  <div class="background-theme h-100">
+    <div class="container px-4 px-lg-5 d-flex h-100 align-items-center justify-content-center">
+        <div class="d-flex justify-content-center">
+            <div class="text-center z-1">
+                <h1 class="text-white mx-auto my-0 gradien display-4"><%= locals.serverHost %> relay</h1>
+                <h2 class="text-white-50 mx-auto mt-1 mb-4 display-6">Be sovereign of your data</h2>
+                <p class="text-white-50 mx-auto mt-2 mb-1"> Contact: <a class="text-white-50 text-decoration-none" href="https://nostrcheck.me/u/<%- locals.serverPubkey %>"><%- locals.serverPubkey.toString().substring(0, 15) + ":" + locals.serverPubkey.toString().substring(locals.serverPubkey.toString().length - 15) %></a></p>
+                <p  class="text-white mx-auto mt-2 mb-4">By using our services you agree the <a class="text-white link-offset-1 link-underline-opacity-25" href='tos'>Terms of Service</a></p>
+                <a class="btn btn-primary" href="/api/v2/register"><i class="bi bi-person-plus-fill"></i> Claim your username</a>
+            </div>
+        </div>
+    </div>
+  </div>
+  <div id="particles-js"></div> 
+  <%- include('./partials/footer', {active:'relay'}); %>
+  <%- include('./components/modals/message-modal', {"object":"fisrtUse"}); %>
+</body>
+<script>
+  if ("<%= locals.firstUse %>" != undefined && "<%= locals.firstUse %>" != null && "<%= locals.firstUse %>" != "") {
+    initMessageModal("#fisrtUse", "<%- locals.firstUse %>", "Welcome to your sovereignty");
+  }
+</script>
+</html>

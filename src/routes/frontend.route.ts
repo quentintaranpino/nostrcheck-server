@@ -9,7 +9,7 @@ import { 	loadDashboardPage,
 			loadProfilePage,
 			loadGalleryPage,
 			loadRegisterPage,
-			loadDirectoryPage
+			loadDirectoryPage,
 		} from "../controllers/frontend.js";
 import { frontendLogin } from "../controllers/frontend.js";
 import { logger } from "../lib/logger.js";
@@ -144,4 +144,6 @@ export const loadFrontendEndpoint = async (app: Application, version: string): P
 			res.redirect("/api/" +  version + "/login");
 		});
 	});
+
+	// The relay frontend page is managed by the relay.route.ts file
 };

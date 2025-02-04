@@ -10,6 +10,7 @@ import { Server } from "http";
 import { limiter } from "../lib/session.js";
 import { NIP11Data } from "../controllers/nostr.js";
 import { ExtendedWebSocket } from "../interfaces/relay.js";
+import { loadRelayPage } from "../controllers/frontend.js";
 
 let server: Server | null = null;
 
@@ -60,7 +61,11 @@ export const loadRelayRoutes = (app: Application, version:string): void => {
     });
   });
 
-  // NIP 10 relay info
-  app.get("/api/v2/relay", limiter(), (req, res) => NIP11Data(req, res));
-  
+  // Relay & NIP 11 info
+  app.get("/api/v2/relay", limiter(), (req, res) => {
+    const acceptHeader = req.headers['accept'] || '';
+    if (!acceptHeader.includes('application/nostr+json'))  return loadRelayPage(req,res,version);
+    return NIP11Data(req, res);
+  });
+
 };

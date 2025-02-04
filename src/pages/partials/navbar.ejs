@@ -116,7 +116,10 @@
       </li>  
       <li id="directoryMenu">
         <a <% if(active === 'directory'){ %><%- "class='nav-link active'"%><% } else { %><%- "class='nav-link'"%><%}%> href="/api/v2/directory">DIRECTORY <span class="sr-only">(current)</span></a>
-      </li>          
+      </li>         
+      <li id="relayMenu">
+        <a <% if(active === 'relay'){ %><%- "class='nav-link active'"%><% } else { %><%- "class='nav-link'"%><%}%> href="/api/v2/relay">RELAY <span class="sr-only">(current)</span></a>
+      </li>   
     </ul>
   </div>
 </nav>
