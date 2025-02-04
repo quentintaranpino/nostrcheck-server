@@ -194,6 +194,7 @@
     const field = doughnuts.find(d => d.id == targetId)?.field;
     const title = doughnuts.find(d => d.id == targetId)?.title;
 
+    if (!dataKey) return;
     const doughnutData = await fetchTableCountData(dataKey,'count', field);
     semaphore.execute(async() => {initDoughnutChart(`${targetId}Data`, title,{field: doughnutData.field, total:doughnutData.total}, field, true, true)});
   }
