@@ -413,6 +413,9 @@ const loadRelayPage = async (req: Request, res: Response, version:string): Promi
 		return res.status(403).send({"status": "error", "message": reqInfo.comments});
 	}
 
+    // nostrudel workaround
+    res.set("access-control-allow-origin", "*");
+
     // Check if current module is enabled
     if (!isModuleEnabled("frontend", app)) {
         logger.warn("Attempt to access a non-active module:","frontend","|","IP:", getClientIp(req));
