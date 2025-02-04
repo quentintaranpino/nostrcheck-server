@@ -28,7 +28,7 @@ const isFirstUse = async (req : Request, res: Response): Promise<boolean> => {
         "It is essential to keep this user in the database for the proper functioning of the server, <b>Don't delete this user</b>.</p>" +
         "<div class='alert alert-danger ps-2 pe-2 pt-1 pb-0' role='alert'>" +
         "<p><b>The server will autologin until another user besides 'public' is created.</b> Please create another user as soon as possible and carefully note down the private key hosted in the settings page. " + 
-        "Log in on nostr using this private key and note down the password you will have received via DM.</p>" +
+        "Log in on nostr using this private key and note down the password you will have received via DM. Then <b>restart the server</b></p>" +
         "</div>" + 
         "<h5 class='mt-3 mb-2'>Keys</h5>" +
         "<p>The public user has been created using the key pair specified in the <a class='text-decoration-none' href='https://github.com/quentintaranpino/nostrcheck-api-ts/blob/main/CONFIG.md' target='blank'>configuration file</a> to facilitate easy first access to the frontend. " +
