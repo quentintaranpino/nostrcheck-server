@@ -55,7 +55,6 @@ const removeSubscription = (subId?: string, socket?: WebSocket) => {
       if (subId) {
           if (clientSubscriptions.has(subId)) {
               clientSubscriptions.delete(subId);
-              socket.send(JSON.stringify(["CLOSED", subId, "Subscription closed"]));
               logger.debug("Subscription closed:", subId);
           }
 
@@ -63,7 +62,6 @@ const removeSubscription = (subId?: string, socket?: WebSocket) => {
               subscriptions.delete(socket);
           }
       } else {
-          // Cerrar todas las suscripciones del socket
           clientSubscriptions.forEach((_, id) => {
               socket.send(JSON.stringify(["CLOSED", id, "Connection closed"]));
               logger.debug("Subscription closed:", id);
