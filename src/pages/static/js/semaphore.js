@@ -1,49 +1,50 @@
-
 class Semaphore {
-    constructor() {
-        this.queue = [];
-        this.locked = false;
+    constructor(maxConcurrent = 3) {
+      this.queue = [];
+      this.currentCount = 0;
+      this.maxConcurrent = maxConcurrent;
     }
   
     async acquire() {
-        return new Promise(resolve => {
-            if (!this.locked) {
-                this.locked = true;
-                resolve();
-            } else {
-                this.queue.push(resolve);
-            }
-        });
+      return new Promise(resolve => {
+        const tryAcquire = () => {
+          if (this.currentCount < this.maxConcurrent) {
+            this.currentCount++;
+            resolve();
+          } else {
+            this.queue.push(tryAcquire);
+          }
+        };
+        tryAcquire();
+      });
     }
   
     release() {
-        if (this.queue.length > 0) {
-            const nextResolve = this.queue.shift();
-            nextResolve();
-        } else {
-            this.locked = false;
-        }
+      this.currentCount--;
+      if (this.queue.length > 0) {
+        const nextAcquire = this.queue.shift();
+        nextAcquire();
+      }
     }
   
     async execute(task) {
-        console.log('Queue length:', this.getQueueLength());
-        await this.acquire();
-        try {
-            await task(); // Ejecutar la tarea con la cookie más reciente
-        } finally {
-            this.release();
-        }
+      await this.acquire();
+      try {
+        await task(); 
+      } finally {
+        this.release();
+      }
     }
-
+  
     clearQueue() {
-        this.queue = [];
-        this.locked = false;
+      this.queue = [];
+      this.currentCount = 0;
     }
-    
+  
     getQueueLength() {
-        return this.queue.length;
+      return this.queue.length;
     }
-
   }
   
-  const semaphore = new Semaphore();
+  const semaphore = new Semaphore(3);
+  
