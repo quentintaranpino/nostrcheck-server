@@ -129,7 +129,7 @@ const storeEventTags = async (eventId: string, tags: string[][]): Promise<void> 
 const getEvents = async (filters: Filter[], relayMap: Map<string, MemoryEvent>): Promise<Event[]> => {
     return Array.from(relayMap.values())
         .map(entry => entry.event)
-        .filter(event => filters.some(f => matchFilter(f, event)));
+        .filter(event => filters.some(f => matchFilter(f, event)))
+        .sort((a, b) => b.created_at - a.created_at); // Ordenar por created_at en orden descendente
 };
-
 export { getEvents, storeEvent, initEvents };
