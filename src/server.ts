@@ -1,5 +1,4 @@
 import { prepareApp } from "./controllers/config.js";
-import { importCSV } from "./lib/dbimport.js";
 
 const startServer = async () => {
 
@@ -49,10 +48,6 @@ const startServer = async () => {
     const { loadconfigActiveModules } = await import("./lib/config.js");
     console.log("Active modules: ", loadconfigActiveModules(app).map((module) => module[0]).join(", "));
 
-    // // Test import CSV from other relays
-    // importCSV("./eventos.csv").catch((err) => {
-    //     console.error("Error importing CSV:", err);
-    // });
 }
 
 export default startServer;
