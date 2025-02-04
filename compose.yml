@@ -5,7 +5,6 @@ services:
     image: nostrcheckme/nostrcheck-server:latest
     build:
       context: .
-      dockerfile: Dockerfile.build
     depends_on:
       - mariadb
       - redis
