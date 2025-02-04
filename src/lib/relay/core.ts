@@ -42,26 +42,37 @@ const addSubscription = (subId: string, socket: WebSocket, listener: (event: Eve
 };
 
 const removeSubscription = (subId?: string, socket?: WebSocket) => {
-  if (!socket || !subscriptions.has(socket)) return;
+  if (!socket || !subscriptions.has(socket)) {
+      return;
+  }
 
-    const clientSubscriptions = subscriptions.get(socket);
-    if (!clientSubscriptions) return;
+  const clientSubscriptions = subscriptions.get(socket);
+  if (!clientSubscriptions) {
+      return;
+  }
 
-    if (subId && clientSubscriptions.has(subId)) {
-      clientSubscriptions.delete(subId);
-      socket.send(JSON.stringify(["CLOSED", subId, "Subscription forcibly closed"]));
-      logger.debug("Subscription forcibly closed:", subId);
-    }
+  try {
+      if (subId) {
+          if (clientSubscriptions.has(subId)) {
+              clientSubscriptions.delete(subId);
+              socket.send(JSON.stringify(["CLOSED", subId, "Subscription closed"]));
+              logger.debug("Subscription closed:", subId);
+          }
 
-    if (!subId || (clientSubscriptions && clientSubscriptions.size === 0)) {
-      if (!subId) {
-        clientSubscriptions.forEach((_, id) => {
-          socket.send(JSON.stringify(["CLOSED", id, "Subscription forcibly closed"]));
-          logger.debug("Subscription forcibly closed:", id);
-        });
+          if (clientSubscriptions.size === 0) {
+              subscriptions.delete(socket);
+          }
+      } else {
+          // Cerrar todas las suscripciones del socket
+          clientSubscriptions.forEach((_, id) => {
+              socket.send(JSON.stringify(["CLOSED", id, "Connection closed"]));
+              logger.debug("Subscription closed:", id);
+          });
+          subscriptions.delete(socket);
       }
-      subscriptions.delete(socket);
-    }
+  } catch (error) {
+      logger.error("Error closing subscriptions:", error);
+  }
 };
 
 const removeAllSubscriptions = (socket: WebSocket) => {
