@@ -22,7 +22,7 @@ const initEvents = async (app: Application): Promise<Map<string, MemoryEvent>> =
 
 const getEventsDB = async (): Promise<Event[]> => {
     const queryFields = ["event_id", "pubkey", "kind", "created_at", "content", "sig"];
-    const whereClause = "active = ?";
+    const whereClause = "active = ? ORDER BY id DESC";
     const dbResults = await dbMultiSelect(queryFields, "events", whereClause, ["1"], false);
     if (dbResults.length === 0) return [];
 
