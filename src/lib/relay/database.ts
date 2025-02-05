@@ -1,77 +1,116 @@
 import { Application } from "express";
 import { Event, Filter, matchFilter } from "nostr-tools";
-import { dbMultiSelect, dbUpsert } from "../database.js";
+import { dbSimpleSelect, dbUpsert } from "../database.js";
 import { logger } from "../logger.js";
 import { MemoryEvent } from "../../interfaces/relay.js";
 
-const initEvents = async (app: Application): Promise<{ map: Map<string, MemoryEvent>, sortedArray: Event[] }> => {
+const initEvents = async (app: Application): Promise<boolean> => {
     if (!app.get("relayEvents")) {
         const eventsMap: Map<string, MemoryEvent> = new Map();
         const eventsArray: Event[] = [];
-
-        const loadedEvents = await getEventsDB();
-        for (const event of loadedEvents) {
-            eventsMap.set(event.id, { event, processed: true });
-            eventsArray.push(event);
-        }
-
-        eventsArray.sort((a, b) => b.created_at - a.created_at);
         app.set("relayEvents", { map: eventsMap, sortedArray: eventsArray });
-        return { map: eventsMap, sortedArray: eventsArray };
+
+        const loadEvents = async () => {
+            try {
+                const limit = 100000;
+                let offset = 0;
+                let hasMore = true;
+
+                while (hasMore) {
+                    logger.info(`Loaded ${eventsMap.size} events from DB`);
+                    const loadedEvents = await getEventsDB(offset, limit);
+                    if (loadedEvents.length === 0) {
+                        hasMore = false;
+                    } else {
+                        for (const event of loadedEvents) {
+                            eventsMap.set(event.id, { event, processed: true });
+                            eventsArray.push(event);
+                        }
+                        offset += limit;
+                    }
+                }
+
+                eventsArray.sort((a, b) => b.created_at - a.created_at);
+                logger.info("Loaded", eventsMap.size, "events from DB");
+            } catch (error) {
+                logger.error("Error loading events:", error);
+            }
+        };
+
+        loadEvents();
+
+        return true;
     }
 
-    return app.get("relayEvents");
+    return false;
 };
 
-const getEventsDB = async (): Promise<Event[]> => {
-    const queryFields = ["event_id", "pubkey", "kind", "created_at", "content", "sig"];
-    const whereClause = "active = ? ORDER BY id DESC";
-    const dbResults = await dbMultiSelect(queryFields, "events", whereClause, ["1"], false);
-    if (dbResults.length === 0) return [];
+
+const getEventsDB = async (offset: number, limit: number): Promise<Event[]> => {
+    const query = `
+        SELECT
+            e.event_id, 
+            e.pubkey, 
+            e.kind, 
+            e.created_at, 
+            e.content, 
+            e.sig,
+            t.tag_name, 
+            t.tag_value, 
+            t.extra_values
+        FROM events e
+        LEFT JOIN eventtags t ON e.event_id = t.event_id
+        ORDER BY e.id DESC
+        LIMIT ${limit} OFFSET ${offset}
+    `;
+
+    const dbResult = await dbSimpleSelect("events", query);
+    if (!dbResult) return [];
+
+    interface EventRow {
+        event_id: string;
+        pubkey: string;
+        kind: number;
+        created_at: number;
+        content: string;
+        sig: string;
+        tag_name?: string;
+        tag_value?: string;
+        extra_values?: string;
+    }
 
     const eventsMap = new Map<string, Event>();
-    
-    dbResults.forEach((row) => {
-        eventsMap.set(row.event_id, {
-            id: row.event_id,
-            pubkey: row.pubkey,
-            kind: row.kind,
-            created_at: row.created_at,
-            content: row.content,
-            tags: [], 
-            sig: row.sig
-        });
-    });
+    const events: EventRow[] = JSON.parse(JSON.stringify(dbResult));
 
-    const eventIds = Array.from(eventsMap.keys());
-    if (eventIds.length > 0) {
-        const tagResults = await dbMultiSelect(
-            ["event_id", "tag_name", "tag_value", "extra_values"],
-            "eventtags",
-            `event_id IN (${eventIds.map(() => "?").join(", ")})`,
-            eventIds,
-            false
-        );
-
-        try {
-            tagResults.forEach((tagRow) => {
-                const event = eventsMap.get(tagRow.event_id);
-                if (event) {
-                    const tag = [tagRow.tag_name, tagRow.tag_value];
-                    if (tagRow.extra_values) {
-                        tag.push(...JSON.parse(tagRow.extra_values));
-                    }
-                    event.tags.push(tag);
-                }
+    events.forEach((row: EventRow) => {
+        if (!eventsMap.has(row.event_id)) {
+            eventsMap.set(row.event_id, {
+                id: row.event_id,
+                pubkey: row.pubkey,
+                kind: row.kind,
+                created_at: row.created_at,
+                content: row.content,
+                tags: [],
+                sig: row.sig
             });
-        } catch (e) {
-            logger.error("Error parsing extra_values in eventtags:", e);
         }
-    }
+
+        const event = eventsMap.get(row.event_id);
+        if (event && row.tag_name) {
+            const tag = [row.tag_name, row.tag_value];
+            if (row.extra_values) {
+                try {
+                    tag.push(...JSON.parse(row.extra_values));
+                } catch (e) {
+                    logger.error("Error parsing extra_values in eventtags:", e);
+                }
+            }
+            event.tags.push(tag.filter(t => t !== undefined));
+        }
+    });
 
     return Array.from(eventsMap.values());
 };
-
 
 const storeEvent = async (event: Event) : Promise<number> => {
 

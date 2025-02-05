@@ -18,7 +18,8 @@ import { isBase64 } from "../lib/utils.js";
 import { AuthEvent } from "../interfaces/nostr.js";
 import { dbMultiSelect, dbUpdate } from "../lib/database.js";
 
-const events = await initEvents(app);
+await initEvents(app);
+const events = app.get("relayEvents");
 const authSessions: Map<WebSocket, string> = new Map(); 
 
 const handleWebSocketMessage = async (socket: ExtendedWebSocket, data: WebSocket.RawData, req: Request) => {
@@ -310,7 +311,7 @@ const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) =>
 
     // Filter out "a" events that are newer than the kind:5 deletion request
     ownedEvents = ownedEvents.filter(e => {
-      if (e.event.tags.some(tag => tag[0] === "a")) return e.event.created_at < event.created_at; 
+      if (e.event.tags.some((tag: [string, string]) => tag[0] === "a")) return e.event.created_at < event.created_at; 
       return true;
     });
     if (ownedEvents.length === 0) {
@@ -329,7 +330,7 @@ const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) =>
       // Remove events from memory
       ownedEvents.forEach(e => {
         events.map.delete(e.event.id);
-        const index = events.sortedArray.findIndex(event => event.id === e.event.id);
+        const index = events.sortedArray.findIndex((event: Event) => event.id === e.event.id);
         if (index !== -1)  events.sortedArray.splice(index, 1);
       });
       socket.send(JSON.stringify(["NOTICE", "deleted: events successfully deleted"]));
@@ -340,7 +341,7 @@ const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) =>
   }
 
   // Save the event to memory
-  const index = events.sortedArray.findIndex(e => e.created_at < event.created_at);
+  const index: number = events.sortedArray.findIndex((e: Event) => e.created_at < event.created_at);
   if (index === -1) {
       events.sortedArray.push(event);
   } else {
