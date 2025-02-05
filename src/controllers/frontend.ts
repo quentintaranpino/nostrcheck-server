@@ -3,7 +3,7 @@ import fs from "fs";
 import app from "../app.js";
 import { logger } from "../lib/logger.js";
 import { markdownToHtml } from "../lib/utils.js";
-import { dbSelect} from "../lib/database.js";
+import { dbMultiSelect, dbSelect} from "../lib/database.js";
 import { generateAuthToken, generateOTC, isPubkeyAllowed, isPubkeyValid, isUserPasswordValid, verifyOTC } from "../lib/authorization.js";
 import { isModuleEnabled, loadconfigActiveModules } from "../lib/config.js";
 import { countPubkeyFiles, isFirstUse, setAuthCookie } from "../lib/frontend.js";
@@ -431,6 +431,8 @@ const loadRelayPage = async (req: Request, res: Response, version:string): Promi
     res.locals.serverHost = app.get("config.server")["host"];
     res.locals.serverPubkey = await hextoNpub(app.get("config.server")["pubkey"]);
 
+    res.locals.lastRelayNotes = await dbMultiSelect(["pubkey","created_at","content"], "events", "created_at > ? AND kind = ? AND active = ?", [(Date.now() / 1000) - 86400000, "0", "1"], false,"LIMIT 15");
+    logger.debug("Last relay notes", res.locals.lastRelayNotes);
     setAuthCookie(res, req.cookies.authkey);
 
     // Check admin privileges. Only for information, never used for authorization
