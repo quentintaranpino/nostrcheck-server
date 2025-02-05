@@ -12,6 +12,24 @@
                 <p class="text-white-50 mx-auto mt-2 mb-1"> Contact: <a class="text-white-50 text-decoration-none" href="https://nostrcheck.me/u/<%- locals.serverPubkey %>"><%- locals.serverPubkey.toString().substring(0, 15) + ":" + locals.serverPubkey.toString().substring(locals.serverPubkey.toString().length - 15) %></a></p>
                 <p  class="text-white mx-auto mt-2 mb-4">By using our services you agree the <a class="text-white link-offset-1 link-underline-opacity-25" href='tos'>Terms of Service</a></p>
                 <a class="btn btn-primary" href="/api/v2/register"><i class="bi bi-person-plus-fill"></i> Claim your username</a>
+                <div class="container mt-4">
+                  <div class="row">
+                    <% locals.lastRelayNotes.forEach(note => { %>
+                        <div class="col-md-4">
+                            <div class="card mb-4">
+                                <div class="card-body">
+                                    <h5 class="card-title"><%= note.pubkey %></h5>
+                                    <p class="card-text"><%= note.content.toString() %></p>
+                                </div>
+                                <div class="card-footer text-muted">
+                                    Publicado el <%= new Date(note.created_at * 1000).toLocaleDateString() %>
+                                </div>
+                            </div>
+                        </div>
+                    <% }); %>
+                </div>
+                </div>
+                
             </div>
         </div>
     </div>
