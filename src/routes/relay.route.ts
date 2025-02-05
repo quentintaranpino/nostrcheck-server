@@ -27,10 +27,7 @@ export const loadRelayRoutes = (app: Application, version:string): void => {
       zlibInflateOptions: {
         chunkSize: 1024 * 8 
       },
-      clientMaxWindowBits: 12,
-      serverMaxWindowBits: 15,
       clientNoContextTakeover: true,
-      serverNoContextTakeover: true  
     }
   });
   
