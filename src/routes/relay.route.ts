@@ -22,14 +22,15 @@ export const loadRelayRoutes = (app: Application, version:string): void => {
     noServer: true,
     perMessageDeflate: {
       zlibDeflateOptions: {
-        level: 6 
+        level: 7 
       },
       zlibInflateOptions: {
-        chunkSize: 1024 * 8
+        chunkSize: 1024 * 8 
       },
-      clientNoContextTakeover: true, 
-      serverNoContextTakeover: true, 
-      threshold: 1024 
+      clientMaxWindowBits: 12,
+      serverMaxWindowBits: 15,
+      clientNoContextTakeover: true,
+      serverNoContextTakeover: true  
     }
   });
   
