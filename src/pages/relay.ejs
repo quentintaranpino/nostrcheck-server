@@ -18,11 +18,10 @@
                         <div class="col-md-4">
                             <div class="card mb-4">
                                 <div class="card-body">
-                                    <h5 class="card-title"><%= note.pubkey %></h5>
-                                    <p class="card-text"><%= note.content.toString() %></p>
+                                    <p class="card-text"><%= note.content.toString().trim().substring(0, 100) %></p>
                                 </div>
                                 <div class="card-footer text-muted">
-                                    Publicado el <%= new Date(note.created_at * 1000).toLocaleDateString() %>
+                                    Published <%= new Date(note.created_at * 1000).toLocaleDateString() %>
                                 </div>
                             </div>
                         </div>
