@@ -18,7 +18,21 @@ export const loadRelayRoutes = (app: Application, version:string): void => {
 
   if (version != "v2")  return;
 
-  const wss = new WebSocketServer({ noServer: true });
+  const wss = new WebSocketServer({
+    noServer: true,
+    perMessageDeflate: {
+      zlibDeflateOptions: {
+        level: 6 
+      },
+      zlibInflateOptions: {
+        chunkSize: 1024 * 8
+      },
+      clientNoContextTakeover: true, 
+      serverNoContextTakeover: true, 
+      threshold: 1024 
+    }
+  });
+  
   app.set("wss", wss);
 
   if (server == null){
