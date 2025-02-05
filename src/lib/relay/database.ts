@@ -169,27 +169,31 @@ const storeEventTags = async (eventId: string, tags: string[][]): Promise<void> 
 
 
 const getEvents = async (filters: Filter[], relayData: { map: Map<string, MemoryEvent>, sortedArray: Event[] }): Promise<Event[]> => {
-    const limitFilter = filters.find(f => f.limit !== undefined);
-    const limit = limitFilter ? limitFilter.limit : undefined;
+    const now = Math.floor(Date.now() / 1000);
+    const allEvents: Event[] = [];
 
-    const now = Math.floor(Date.now() / 1000); 
-    const untilFilter = filters.find(f => f.until !== undefined);
-    const until = untilFilter ? untilFilter.until ? untilFilter.until : now : now;
+    for (const filter of filters) {
+        const until = filter.until !== undefined ? filter.until : now;
+        const since = filter.since !== undefined ? filter.since : 0;
+        const limit = filter.limit;
 
-    const sinceFilter = filters.find(f => f.since !== undefined);
-    const since = sinceFilter ? sinceFilter.since ? sinceFilter.since : 0 : 0;
-
-    const events: Event[] = [];
-    for (const event of relayData.sortedArray) {
-        if (event.created_at <= until && event.created_at >= since && filters.some(f => matchFilter(f, event))) {
-            events.push(event);
-            if (limit !== undefined && events.length >= limit) {
-                break;
+        const filteredEvents: Event[] = [];
+        for (const event of relayData.sortedArray) {
+            if (event.created_at <= until && 
+                event.created_at >= since && 
+                matchFilter(filter, event)) {
+                
+                filteredEvents.push(event);
+                if (limit !== undefined && filteredEvents.length >= limit) {
+                    break;
+                }
             }
         }
+        
+        allEvents.push(...filteredEvents);
     }
 
-    return events;
+    return Array.from(new Set(allEvents));
 };
 
 export { getEvents, storeEvent, initEvents };
