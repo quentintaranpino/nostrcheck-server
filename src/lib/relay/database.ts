@@ -98,13 +98,13 @@ const getEventsDB = async (offset: number, limit: number): Promise<Event[]> => {
         const event = eventsMap.get(row.event_id);
         if (event && row.tag_name) {
             const tag = [row.tag_name, row.tag_value];
-            if (row.extra_values) {
-                try {
-                    tag.push(...JSON.parse(row.extra_values));
-                } catch (e) {
-                    logger.error("Error parsing extra_values in eventtags:", e);
-                }
-            }
+            // if (row.extra_values) {
+            //     try {
+            //         tag.push(...JSON.parse(row.extra_values));
+            //     } catch (e) {
+            //         logger.error("Error parsing extra_values in eventtags:", e);
+            //     }
+            // }
             event.tags.push(tag.filter(t => t !== undefined));
         }
     });
