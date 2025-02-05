@@ -673,6 +673,33 @@ server {
         proxy_set_header Connection "upgrade";
     }
 }
+
+# Additional server block for relay.$HOST
+server {
+    listen 80;
+    server_name relay.$HOST;
+
+    location / {
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_set_header Host \$host;
+        proxy_pass http://127.0.0.1:3000/api/v2/relay;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection "upgrade";
+    }
+
+    location /static {
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_set_header Host \$host;
+        proxy_pass http://127.0.0.1:3000/static;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection "upgrade";
+    }
+}
+
 EOF
 
 if [ -f /etc/nginx/sites-available/$HOST.conf ]; then
