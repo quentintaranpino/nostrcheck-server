@@ -36,7 +36,7 @@ const setUserPrefs = async (req: Request, res: Response): Promise<Response> => {
     const prefs = req.body as userPrefs;
     if (typeof prefs !== "object")  return res.status(400).json({ status: "error", message: "Invalid preferences data" });
     
-    const registered_ids = await dbMultiSelect(["id"], "registered", "hex", [eventHeader.pubkey], false);
+    const registered_ids = await dbMultiSelect(["id"], "registered", "hex = ?", [eventHeader.pubkey], false);
     for (const  i of registered_ids) {
         const upsert = await dbUpsert("userprefs", {registered_id: i.id, preferences: JSON.stringify(prefs), updated_at: getNewDate()});
         if (upsert == 0) return res.status(500).json({ status: "error", message: "Failed to update user preferences" });    
