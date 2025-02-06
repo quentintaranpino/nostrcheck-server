@@ -72,17 +72,17 @@ const fetchDashcardData = async (dashcardDataKey, action, field) => {
 
 // Set the data for the dashcards
 let dashcards =[
-    { dashcardId: 'nostraddressCount',  dataKey: 'nostraddress', icon: 'doughnut', dashcardName: 'Registered users', link: '#nostraddressData', action: 'count', field: 'checked' },
-    { dashcardId: 'mediaCount', dataKey: 'media', icon: 'doughnut', dashcardName: 'Hosted files', link: '#mediaData' , action: 'count', field: 'checked'},
-    { dashcardId: 'lightningCount', dataKey: 'lightning', icon: 'chart', dashcardName: 'Lightning redirects', link: '#lightningData', action: 'count'},
-    { dashcardId: 'domainsCount', dataKey: 'domains', icon: 'chart', dashcardName: 'Domains', link: '#domainsData', action: 'count'},
-    { dashcardId: 'logHistory', dataKey: 'logger', icon: 'warning', dashcardName: 'Warning messages', link: 'settings/#settingsLogger', action: 'countWarning' },
-    { dashcardId: 'paymentsCount', dataKey: 'payments', icon: 'doughnut', dashcardName: 'Transactions', link: '#paymentsData', action: 'count', field: 'paid'},
-    { dashcardId: 'unpaidTransactionsBalance', dataKey: 'payments', icon: 'satoshi', dashcardName: 'Unpaid transactions balance', link: '#paymentsData', action: 'unpaidTransactions' },
-    { dashcardId: 'serverBalance', dataKey: 'payments', icon: 'satoshi', dashcardName: 'Server balance', link: '', action: 'serverBalance' },
-    { dashcardId: 'serverUptime', dataKey: 'admin', icon: 'time', dashcardName: 'Server uptime', link: '', action: 'uptime' },
-    { dashcardId: 'relayEventsDB', dataKey: 'relay', icon: 'relay', dashcardName: 'Database events', link: '', action: 'count' },
-    { dashcardId: 'relayEventsMemory', dataKey: 'relay', icon: 'relay', dashcardName: 'Memory events', link: '', action: 'countMemory' }
+    { dashcardId: 'nostraddressCount',  dataKey: 'nostraddress', icon: 'doughnut', dashcardName: 'Registered users', action: 'count', field: 'checked' },
+    { dashcardId: 'mediaCount', dataKey: 'media', icon: 'doughnut', dashcardName: 'Hosted files', action: 'count', field: 'checked'},
+    { dashcardId: 'lightningCount', dataKey: 'lightning', icon: 'chart', dashcardName: 'Lightning redirects', action: 'count'},
+    { dashcardId: 'domainsCount', dataKey: 'domains', icon: 'chart', dashcardName: 'Domains', action: 'count'},
+    { dashcardId: 'logHistory', dataKey: 'logger', icon: 'warning', dashcardName: 'Warning messages', action: 'countWarning' },
+    { dashcardId: 'paymentsCount', dataKey: 'payments', icon: 'doughnut', dashcardName: 'Transactions', action: 'count', field: 'paid'},
+    { dashcardId: 'unpaidTransactionsBalance', dataKey: 'payments', icon: 'satoshi', dashcardName: 'Unpaid transactions balance', action: 'unpaidTransactions' },
+    { dashcardId: 'serverBalance', dataKey: 'payments', icon: 'satoshi', dashcardName: 'Server balance', action: 'serverBalance' },
+    { dashcardId: 'serverUptime', dataKey: 'admin', icon: 'time', dashcardName: 'Server uptime', action: 'uptime' },
+    { dashcardId: 'relayEventsDB', dataKey: 'relay', icon: 'relay', dashcardName: 'Database events', action: 'count' },
+    { dashcardId: 'relayEventsMemory', dataKey: 'relay', icon: 'relay', dashcardName: 'Memory events', action: 'countMemory' }
 ]
 
 const refreshDashcards = async () => {

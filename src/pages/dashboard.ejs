@@ -20,27 +20,27 @@
         <div class="row d-none" id="dashcards-container" style="min-height: 350px;">
 
           <% if(locals.activeModules.includes('nostraddress')) { %> 
-          <%- include('./components/dashcard', { dashcardId: 'nostraddressCount', link: '#usersData'}); %>
+          <%- include('./components/dashcard', { dashcardId: 'nostraddressCount', link: ''}); %>
           <% } %>
           <% if(locals.activeModules.includes('media')) { %> 
-            <%- include('./components/dashcard', { dashcardId: 'mediaCount', link: '#filesData' }); %>
+            <%- include('./components/dashcard', { dashcardId: 'mediaCount', link: '' }); %>
           <% } %>
           <% if(locals.activeModules.includes('lightning')) { %>
-            <%- include('./components/dashcard', { dashcardId: 'lightningCount', link: '#lightningData' }); %>
+            <%- include('./components/dashcard', { dashcardId: 'lightningCount', link: '' }); %>
           <% } %>
           <% if(locals.activeModules.includes('domains')) { %>
-            <%- include('./components/dashcard', { dashcardId: 'domainsCount', link: '#domainsData'}); %>
+            <%- include('./components/dashcard', { dashcardId: 'domainsCount', link: ''}); %>
           <% } %>
-            <%- include('./components/dashcard', { dashcardId: 'logHistory', link: 'settings/#settingsLogger'}); %>
+            <%- include('./components/dashcard', { dashcardId: 'logHistory', link: ''}); %>
           <% if(locals.activeModules.includes('payments')) { %>
-            <%- include('./components/dashcard', { dashcardId: 'paymentsCount', link: '#paymentsData'}); %>
-            <%- include('./components/dashcard', { dashcardId: 'unpaidTransactionsBalance', link: '#paymentsData'}); %>
+            <%- include('./components/dashcard', { dashcardId: 'paymentsCount', link: ''}); %>
+            <%- include('./components/dashcard', { dashcardId: 'unpaidTransactionsBalance', link: ''}); %>
             <%- include('./components/dashcard', { dashcardId: 'serverBalance', link: ''}); %>
           <% } %>
           <%- include('./components/dashcard', { dashcardId: 'serverUptime', link: ''}); %>
           <% if(locals.activeModules.includes('relay')) { %>
-            <%- include('./components/dashcard', { dashcardId: 'relayEventsDB', link: '#eventsData'}); %>
-            <%- include('./components/dashcard', { dashcardId: 'relayEventsMemory', link: '#eventsData'}); %>
+            <%- include('./components/dashcard', { dashcardId: 'relayEventsDB', link: ''}); %>
+            <%- include('./components/dashcard', { dashcardId: 'relayEventsMemory', link: ''}); %>
           <% } %>
         </div>
         <ul class="nav nav-tabs mt-3 lead " id="dashboardTabs" role="tablist">
@@ -370,7 +370,6 @@
       updateButtonVisibility(false);
     });
 
-    // Inicializa la UI de las dashcards
     updateDashcardsUI();
   });
 

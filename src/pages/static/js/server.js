@@ -246,3 +246,38 @@ const markdownToHTML = (text) => {
         .replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2">$1</a>')
         .replace(/\n/g, '<br>');
 };
+
+
+// tab touch scropp
+document.addEventListener("DOMContentLoaded", function () {
+    document.querySelectorAll(".nav-tabs").forEach((tabsContainer) => {
+      let isDown = false;
+      let startX;
+      let scrollLeft;
+  
+      tabsContainer.addEventListener("mousedown", (e) => {
+        isDown = true;
+        tabsContainer.classList.add("active");
+        startX = e.pageX - tabsContainer.offsetLeft;
+        scrollLeft = tabsContainer.scrollLeft;
+      });
+  
+      tabsContainer.addEventListener("mouseleave", () => {
+        isDown = false;
+        tabsContainer.classList.remove("active");
+      });
+  
+      tabsContainer.addEventListener("mouseup", () => {
+        isDown = false;
+        tabsContainer.classList.remove("active");
+      });
+  
+      tabsContainer.addEventListener("mousemove", (e) => {
+        if (!isDown) return;
+        e.preventDefault();
+        const x = e.pageX - tabsContainer.offsetLeft;
+        const walk = (x - startX) * 2; 
+        tabsContainer.scrollLeft = scrollLeft - walk;
+      });
+    });
+  });
