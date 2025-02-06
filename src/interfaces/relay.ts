@@ -30,6 +30,7 @@ const allowedTags = [
   "proxy",
   "group",
   "relay",
+  "relays",
   "word",
   "pin",
   "mute",
@@ -44,7 +45,17 @@ const allowedTags = [
   "summary",
   "image",
   "status",
-  "fb"
+  "fb",
+  "streaming",
+  "recording",
+  "current_participants",
+  "total_participants",
+  "fork",
+  "defer",
+  "description",
+  "thumb"
 ];
+
+
 
 export { MemoryEvent, ExtendedWebSocket, allowedTags };
