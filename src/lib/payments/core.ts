@@ -566,6 +566,7 @@ processPendingInvoices();
 
 const cleanTransactions = async () => {
 
+    setTimeout(cleanTransactions, app.get("config.payments")["invoicePaidInterval"] * 1000);
     if (!isModuleEnabled("payments", app))return;
 
     const result = await dbMultiSelect(["id"], "transactions", "accountid = ? AND paid = 0 AND createddate < NOW() - INTERVAL 24 HOUR", ["1100000000"], false);
@@ -573,7 +574,6 @@ const cleanTransactions = async () => {
         await deleteTransaction(transaction.id);
     })
     logger.info("Cleaned unpaid transactions for account 1100000000");
-    setTimeout(cleanTransactions, app.get("config.payments")["invoicePaidInterval"] * 1000);
 }
 cleanTransactions();
 
