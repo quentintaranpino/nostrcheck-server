@@ -526,7 +526,7 @@ const handleAuthMessage = async (socket: ExtendedWebSocket, message: ["AUTH", Au
   const registeredData = await dbMultiSelect(["id", "username"],"registered","hex = ?", [authData.pubkey], true);
   if (registeredData.length === 0) {
     socket.send(JSON.stringify(["NOTICE", "error: pubkey not registered"]));
-    logger.warn("Pubkey not registered:", authData.pubkey);
+    logger.debug("Pubkey not registered:", authData.pubkey);
     return;
   }
 
