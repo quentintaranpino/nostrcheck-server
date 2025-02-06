@@ -146,22 +146,6 @@ const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) =>
     return;
   }
 
-  // NIP-40 Event expiration
-  const expirationTag = event.tags.find(tag => tag[0] === "expiration");
-  if (expirationTag && expirationTag.length >= 2) {
-    const expirationTimestamp = parseInt(expirationTag[1], 10);
-    if (isNaN(expirationTimestamp)) {
-      socket.send(JSON.stringify(["NOTICE", "error: invalid expiration timestamp"]));
-      socket.send(JSON.stringify(["OK", event.id, false, "invalid expiration value"]));
-      return;
-    }
-    if ( Math.floor(Date.now() / 1000) > expirationTimestamp) {
-      socket.send(JSON.stringify(["NOTICE", "error: event expired"]));
-      socket.send(JSON.stringify(["OK", event.id, false, "expired event"]));
-      return;
-    }
-  }
-
   // Check if the event has a valid AUTH session
   if (app.get("config.relay")["limitation"]["auth_required"] == true && !authSessions.has(socket)) {
     socket.send(JSON.stringify(["NOTICE", "auth-required: you must authenticate first"]));
@@ -184,6 +168,22 @@ const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) =>
     socket.send(JSON.stringify(["OK", event.id, false, "blocked: event content too large"]));
     logger.debug("Blocked event with too large content:", event.id);
     return;
+  }
+
+  // NIP-40 Event expiration
+  const expirationTag = event.tags.find(tag => tag[0] === "expiration");
+  if (expirationTag && expirationTag.length >= 2) {
+    const expirationTimestamp = parseInt(expirationTag[1], 10);
+    if (isNaN(expirationTimestamp)) {
+      socket.send(JSON.stringify(["NOTICE", "error: invalid expiration timestamp"]));
+      socket.send(JSON.stringify(["OK", event.id, false, "invalid expiration value"]));
+      return;
+    }
+    if ( Math.floor(Date.now() / 1000) > expirationTimestamp) {
+      socket.send(JSON.stringify(["NOTICE", "error: event expired"]));
+      socket.send(JSON.stringify(["OK", event.id, false, "expired event"]));
+      return;
+    }
   }
 
   // Valid proof of work (NIP-13) if required
@@ -214,7 +214,7 @@ const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) =>
     }
   }
 
-  // Check if the event has invalid tags if required
+  // Check if the event has invalid tags that are not whitelisted (if whitelist is enabled)
   if (app.get("config.relay")["tags"].length > 0) {
     const tags = event.tags.map(tag => tag[0]);
     const invalidTags = tags.filter(tag => !app.get("config.relay")["tags"].includes(tag) && allowedTags.includes(tag) == false);
@@ -225,6 +225,15 @@ const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) =>
       return;
     }
   }
+
+  // NIP-70 Check if the event has a ["-"] tag and "auth_required" is enabled
+  if (app.get("config.relay")["limitation"]["auth_required"] == true && event.tags.some(tag => tag[0] === "-") && authSessions.get(socket) !== event.pubkey) {
+      socket.send(JSON.stringify(["NOTICE", "error: unauthorized to post private messages"]));
+      socket.send(JSON.stringify(["OK", event.id, false, "error: unauthorized to post private messages"]));
+      logger.debug("Blocked event with private message tag:", event.id);
+      return;
+  }
+
 
   // Plugins engine execution
   if (await executePlugins({pubkey: event.pubkey, ip: reqInfo.ip, event: event}, app, "relay") == false) {
