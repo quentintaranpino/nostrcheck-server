@@ -47,7 +47,7 @@ const initEditModal = async (objectId, row, objectName, newRow, columns) => {
 
     var edit = new bootstrap.Modal($(objectId + '-edit-modal'));
 
-    $(edit._element).on('show.bs.modal', function () {
+    $(edit._element).on('show.bs.modal', async function () {
 
         // Clear the modal body and append the title
         $(objectId + '-edit-modal .modal-title').empty();
@@ -142,6 +142,24 @@ const initEditModal = async (objectId, row, objectName, newRow, columns) => {
                             updatingFields = false;
                             checkFieldsMatch();
                         });
+                    }
+                    if (key == 'domain') {
+                        const response = await fetch('/api/v2/domains');
+
+                        if (!response.ok)  return;
+                        const data = await response.json();
+                        if (!data.availableDomains || typeof data.availableDomains !== 'object')   return;
+                        const domains = Object.keys(data.availableDomains);
+                        const domainSelect = document.createElement('select');
+                        domainSelect.classList.add('form-select');
+                        domainSelect.id = 'domain';
+                        domainSelect.name = 'domain';
+                        domainSelect.required = true;
+                        domainSelect.innerHTML = domains.map(domain => 
+                            `<option value="${domain}">${domain}</option>`
+                        ).join('');
+                        
+                        document.querySelector("#domain").replaceWith(domainSelect);
                     }
                 }
 
