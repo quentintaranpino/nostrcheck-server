@@ -13,7 +13,7 @@ import { getEvents, initEvents, storeEvent } from "../lib/relay/database.js";
 import { executePlugins } from "../lib/plugins/core.js";
 import { ipInfo } from "../interfaces/ips.js";
 import { validatePow } from "../lib/nostr/NIP13.js";
-import { ExtendedWebSocket } from "../interfaces/relay.js";
+import { allowedTags, ExtendedWebSocket } from "../interfaces/relay.js";
 import { isBase64 } from "../lib/utils.js";
 import { AuthEvent } from "../interfaces/nostr.js";
 import { dbMultiSelect, dbUpdate } from "../lib/database.js";
@@ -65,7 +65,7 @@ const handleWebSocketMessage = async (socket: ExtendedWebSocket, data: WebSocket
     const [type, ...args] = message;
 
     switch (type) {
-      case "EVENT":
+      case "EVENT" : {
         if (typeof args[0] !== 'string') {
           handleEvent(socket, args[0] as Event, reqInfo);
         } else {
@@ -74,11 +74,13 @@ const handleWebSocketMessage = async (socket: ExtendedWebSocket, data: WebSocket
           logger.debug("Invalid event data:", args[0]);
         }
         break;
+      }
 
-      case "REQ": {
+      case "REQ":
+      case "COUNT": {
         const filters: Filter[] = args.slice(1) as Filter[];
         if (typeof args[0] === 'string') {
-          await handleReq(socket, args[0], filters);
+          await handleReqOrCount(socket, args[0], filters, type);
         } else {
           socket.send(JSON.stringify(["NOTICE", "invalid: subscription id is not a string"]));
           socket.close(1003, "invalid: subscription id is not a string");
@@ -92,7 +94,7 @@ const handleWebSocketMessage = async (socket: ExtendedWebSocket, data: WebSocket
         break;
       }
 
-      case "AUTH":
+      case "AUTH" : {
         if (typeof args[0] !== 'string') {
           await handleAuthMessage(socket, ["AUTH", args[0] as AuthEvent]);
         } else {
@@ -101,7 +103,7 @@ const handleWebSocketMessage = async (socket: ExtendedWebSocket, data: WebSocket
           logger.warn("Invalid auth data:", args[0]);
         }
         break;
-
+      }   
       default:
         socket.send(JSON.stringify(["NOTICE", "error: unknown command"]));
         socket.close(1003, "error: unknown command");
@@ -142,6 +144,22 @@ const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) =>
     socket.send(JSON.stringify(["OK", event.id, false, `invalid: ${validEvent.message}`]));
     logger.debug("Invalid event:", event.id, "|", validEvent.message);
     return;
+  }
+
+  // NIP-40 Event expiration
+  const expirationTag = event.tags.find(tag => tag[0] === "expiration");
+  if (expirationTag && expirationTag.length >= 2) {
+    const expirationTimestamp = parseInt(expirationTag[1], 10);
+    if (isNaN(expirationTimestamp)) {
+      socket.send(JSON.stringify(["NOTICE", "error: invalid expiration timestamp"]));
+      socket.send(JSON.stringify(["OK", event.id, false, "invalid expiration value"]));
+      return;
+    }
+    if ( Math.floor(Date.now() / 1000) > expirationTimestamp) {
+      socket.send(JSON.stringify(["NOTICE", "error: event expired"]));
+      socket.send(JSON.stringify(["OK", event.id, false, "expired event"]));
+      return;
+    }
   }
 
   // Check if the event has a valid AUTH session
@@ -199,7 +217,7 @@ const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) =>
   // Check if the event has invalid tags if required
   if (app.get("config.relay")["tags"].length > 0) {
     const tags = event.tags.map(tag => tag[0]);
-    const invalidTags = tags.filter(tag => !app.get("config.relay")["tags"].includes(tag));
+    const invalidTags = tags.filter(tag => !app.get("config.relay")["tags"].includes(tag) && allowedTags.includes(tag) == false);
     if (invalidTags.length > 0) {
       socket.send(JSON.stringify(["NOTICE", `blocked: invalid tags: ${invalidTags.join(", ")}`]));
       socket.send(JSON.stringify(["OK", event.id, false, `blocked: invalid tags: ${invalidTags.join(", ")}`]));
@@ -360,10 +378,10 @@ const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) =>
 
 };
 
-// Handle REQ
-const handleReq = async (socket: WebSocket, subId: string, filters: Filter[]) => {
+// Handle REQ or COUNT
+const handleReqOrCount = async (socket: WebSocket, subId: string, filters: Filter[], type: string) => {
   
-  logger.info("Received REQ:", subId);
+  logger.info(`Received ${type} message:`, subId);
   logger.debug("Filters:", filters);
 
   if (!filters || !Array.isArray(filters) || filters.length === 0) {
@@ -402,30 +420,37 @@ const handleReq = async (socket: WebSocket, subId: string, filters: Filter[]) =>
     let count = 0;
     for await (const event of await getEvents(filters, events)) {
       if (socket.readyState !== WebSocket.OPEN) break;
-
-      socket.send(JSON.stringify(["EVENT", subId, event]));
-      logger.debug("Sent event:", event.id);
-
       count++;
-      if (count >= app.get("config.relay")["limitation"]["max_limit"]) break; 
-    }
-
-    if (socket.readyState === WebSocket.OPEN) {
-      socket.send(JSON.stringify(["EOSE", subId])); 
-      logger.debug("End of subscription events:", subId);
-    }
-
-    const listener = async (event: Event): Promise<void> => {
-      if (filters.some((f) => matchFilter(f, event)) && socket.readyState === WebSocket.OPEN) {
+      if (type === "REQ") {
         socket.send(JSON.stringify(["EVENT", subId, event]));
-        logger.debug("Sent live event:", event.id);
+        logger.debug("Sent event:", event.id);
+        if (count >= app.get("config.relay")["limitation"]["max_limit"]) break; 
       }
-    };
+    }
 
-    addSubscription(subId, socket, listener);
+    if (type === "REQ"){
+      
+      if (socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify(["EOSE", subId])); 
+        logger.debug("End of subscription events:", subId);
+      }
+
+      const listener = async (event: Event): Promise<void> => {
+        if (filters.some((f) => matchFilter(f, event)) && socket.readyState === WebSocket.OPEN) {
+          socket.send(JSON.stringify(["EVENT", subId, event]));
+          logger.debug("Sent live event:", event.id);
+        }
+      };
+      addSubscription(subId, socket, listener);
+    }
+
+    if (type === "COUNT") {
+      socket.send(JSON.stringify(["COUNT", subId, { count }]));
+      logger.debug("Sent count:", count);
+    }
 
   } catch (error) {
-    logger.error("Error processing REQ:", error);
+    logger.error(`Error processing ${type} message:`, error);
     if (socket.readyState === WebSocket.OPEN) {
       socket.send(JSON.stringify(["CLOSED", subId, "error: failed to process subscription"]));
       socket.close(1003, "error: failed to process subscription");
@@ -524,6 +549,30 @@ setInterval(async () => {
           }
       });
   }
-}, 1000);
+}, 1000 * 30 * 1); // 30 seconds
+
+/*
+* Periodically set active = '0' for events with expiration tag in the past (NIP-40)
+*/
+setInterval(async () => {
+  const tags = await dbMultiSelect(["event_id", "tag_name", "tag_value"],"eventtags","tag_name = ? AND tag_value < ?", ["expiration", Math.floor(Date.now() / 1000)], false);
+  const expiredEvents = await dbMultiSelect(["event_id", "kind"],"events","active = 1 AND event_id IN ('" + tags.map(tag => tag.event_id).join("','") + "')", [], false);
+  if (expiredEvents.length > 0){
+    for (const expiredEvent of expiredEvents) {
+      let eventUpdate = await dbUpdate("events", "active", "0", ["event_id"], [expiredEvent.event_id]);
+      eventUpdate = await dbUpdate("events", "comments", "event expired", ["event_id"], [expiredEvent.event_id]);
+      if (!eventUpdate) {
+        logger.error(`Failed to set event ${expiredEvent.event_id} as inactive`);
+        continue;
+      }
+      events.map.delete(expiredEvent.event_id);
+      const index: number = events.sortedArray.findIndex((e: Event) => e.id === expiredEvent.event_id);
+      if (index !== -1)   events.sortedArray.splice(index, 1);
+      logger.info(`Set event ${expiredEvent.event_id} as inactive`);
+    }
+  }
+}, 1000 * 30 * 1); // 1 minutes
+
+
 
 export { handleWebSocketMessage };

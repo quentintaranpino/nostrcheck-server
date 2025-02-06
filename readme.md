@@ -165,7 +165,9 @@ See plugins [here](https://github.com/quentintaranpino/nostrcheck-api-ts/blob/ma
 - [x] NIP13
 - [x] NIP14
 - [x] NIP19
-- [x] NIP44
+- [x] NIP40
+- [x] NIP42
+- [x] NIP45
 - [x] NIP47
 - [x] NIP78
 - [x] NIP94

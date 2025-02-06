@@ -133,7 +133,11 @@ const NIP01_event = z.union([
         sig: z.string(),
       }),
     ])
-  ])
+  ]),
+  z.tuple([
+    z.literal("COUNT"),
+    z.string(),
+  ]).rest(z.object({}).passthrough())
 ]);
 
 interface NIP11Limitation {
@@ -201,7 +205,7 @@ interface AuthEvent {
   sig: string;
 }
 
-const supported_nips = [1, 2, 3, 4, 5, 7, 9, 11, 13, 14, 19, 44, 47, 78, 94, 96, 98];
+const supported_nips = [1, 2, 3, 4, 5, 7, 9, 11, 13, 14, 19, 40, 44, 47, 78, 94, 96, 98];
 
 export {
           supported_nips,

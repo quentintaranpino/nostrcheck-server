@@ -10,7 +10,6 @@ interface ExtendedWebSocket extends WebSocket {
   challenge?: string;
 }
 
-// const allowedTags = ["p", "e", "r", "t", "i", "title", "nonce", "alt", "L", "emoji", "subject"];
+const allowedTags = ["p", "e", "r", "t", "i", "d", "l", "L", "title", "nonce", "alt", "L", "emoji", "subject", "expiration", "delegation"];
 
-
-export { MemoryEvent, ExtendedWebSocket };
+export { MemoryEvent, ExtendedWebSocket, allowedTags };
