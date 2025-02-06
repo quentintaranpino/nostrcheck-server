@@ -204,8 +204,7 @@ const getEvents = async (filters: Filter[], relayData: { map: Map<string, Memory
   
       allEvents.push(...eventsForFilter);
     }
-  
-    return Array.from(uniqueEventsMap.values());
+    return allEvents;
   };
   
 
