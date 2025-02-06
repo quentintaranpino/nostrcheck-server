@@ -5,8 +5,8 @@
   "exports": "./index.js",
   "type": "module",
   "scripts": {
-    "start": "node --enable-source-maps --experimental-specifier-resolution=node --no-warnings --loader ts-node/esm ./dist/init.js",
-    "dev": "nodemon --ignore media/* --ignore files/* --ignore models/* --ignore config/* --ignore tmp/* --ignore logs/* --exec node --loader ts-node/esm src/init.ts",
+    "start": "node --max-old-space-size=4096 --enable-source-maps --experimental-specifier-resolution=node --no-warnings --loader ts-node/esm ./dist/init.js",
+    "dev": "nodemon --ignore media/* --ignore files/* --ignore models/* --ignore config/* --ignore tmp/* --ignore logs/* --exec \"node --max-old-space-size=4096 --loader ts-node/esm\" src/init.ts",
     "build": "tsc",
     "package": "node package.js && tsc",
     "lint": "eslint --ignore-path .gitignore . --ext .ts",
