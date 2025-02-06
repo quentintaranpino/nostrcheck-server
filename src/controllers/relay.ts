@@ -363,7 +363,8 @@ const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) =>
 // Handle REQ
 const handleReq = async (socket: WebSocket, subId: string, filters: Filter[]) => {
   
-  logger.info("Received REQ:", subId, filters);
+  logger.info("Received REQ:", subId);
+  logger.debug("Filters:", filters);
 
   if (!filters || !Array.isArray(filters) || filters.length === 0) {
     socket.send(JSON.stringify(["CLOSED", subId, "unsupported: no filters provided"]));
