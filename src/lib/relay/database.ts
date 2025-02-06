@@ -169,47 +169,32 @@ const storeEventTags = async (eventId: string, tags: string[][]): Promise<void> 
 
 
 const getEvents = async (filters: Filter[], relayData: { map: Map<string, MemoryEvent>, sortedArray: Event[] }): Promise<Event[]> => {
-
     const now = Math.floor(Date.now() / 1000);
     const allEvents: Event[] = [];
-  
+
     for (const filter of filters) {
+        const until = filter.until !== undefined ? filter.until : now;
+        const since = filter.since !== undefined ? filter.since : 0;
+        const limit = filter.limit;
 
-      const until = filter.until !== undefined ? filter.until : now;
-      const since = filter.since !== undefined ? filter.since : 0;
-      const limit = filter.limit;
-      const searchQuery = filter.search ? filter.search.toLowerCase() : null;
-
-      const filteredEvents: { event: Event, score: number }[] = [];
-      for (const event of relayData.sortedArray) {
-        if (event.created_at <= until && event.created_at >= since && matchFilter(filter, event)) {
-          if (!searchQuery) {
-            filteredEvents.push({ event, score: 0 });
-            if (limit !== undefined && filteredEvents.length >= limit) break;
-          } else {
-            const content = event.content.toLowerCase();
-            const index = content.indexOf(searchQuery);
-            if (index !== -1) {
-              filteredEvents.push({ event, score: index });
+        const filteredEvents: Event[] = [];
+        for (const event of relayData.sortedArray) {
+            if (event.created_at <= until && 
+                event.created_at >= since && 
+                matchFilter(filter, event)) {
+                
+                filteredEvents.push(event);
+                if (limit !== undefined && filteredEvents.length >= limit) {
+                    break;
+                }
             }
-          }
         }
-      }
-  
-      if (searchQuery)  filteredEvents.sort((a, b) => a.score - b.score);
-
-      const eventsForFilter = limit !== undefined
-        ? filteredEvents.slice(0, limit).map(item => item.event)
-        : filteredEvents.map(item => item.event);
-  
-      allEvents.push(...eventsForFilter);
+        
+        allEvents.push(...filteredEvents);
     }
-  
-    const uniqueEventsMap = new Map<string, Event>();
-    allEvents.forEach(event => uniqueEventsMap.set(event.id, event));
-  
-    return Array.from(uniqueEventsMap.values());
-  };
+
+    return Array.from(new Set(allEvents));
+};
   
 
 export { getEvents, storeEvent, initEvents };
