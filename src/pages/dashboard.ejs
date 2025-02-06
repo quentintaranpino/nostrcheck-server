@@ -39,7 +39,8 @@
           <% } %>
           <%- include('./components/dashcard', { dashcardId: 'serverUptime', link: ''}); %>
           <% if(locals.activeModules.includes('relay')) { %>
-            <%- include('./components/dashcard', { dashcardId: 'relayEventsCount', link: '#eventsData'}); %>
+            <%- include('./components/dashcard', { dashcardId: 'relayEventsDB', link: '#eventsData'}); %>
+            <%- include('./components/dashcard', { dashcardId: 'relayEventsMemory', link: '#eventsData'}); %>
           <% } %>
         </div>
         <ul class="nav nav-tabs mt-3 lead " id="dashboardTabs" role="tablist">

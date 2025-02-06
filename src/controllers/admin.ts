@@ -12,7 +12,7 @@ import { dbDelete, dbInsert, dbMultiSelect, dbUpdate } from "../lib/database.js"
 import { allowedFieldNames, allowedFieldNamesAndValues, allowedTableNames, moduleDataReturnMessage, moduleDataKeys } from "../interfaces/admin.js";
 import { parseAuthHeader} from "../lib/authorization.js";
 import { isModuleEnabled, updateLocalConfigKey } from "../lib/config.js";
-import { redisDel, redisFlushAll, redisGet, redisHashSet } from "../lib/redis.js";
+import { redisDel, redisFlushAll, redisHashSet } from "../lib/redis.js";
 import { getFileMimeType } from "../lib/media.js";
 import { npubToHex } from "../lib/nostr/NIP19.js";
 import { dbCountModuleData, dbCountMonthModuleData, dbSelectModuleData } from "../lib/admin.js";
@@ -58,7 +58,7 @@ const serverStatus = async (req: Request, res: Response): Promise<Response> => {
         status: "success",
         message: "Nostrcheck API server is running.",
 		version: process.env.npm_package_version || "0.0.0",
-		uptime: format(process.uptime()),
+		uptime: format(process.uptime())
 	};
 
 	return res.status(200).send(result);
@@ -947,11 +947,15 @@ const getModuleCountData = async (req: Request, res: Response): Promise<Response
     if (module == "logger" && action == "countWarning") {
         return res.status(200).send({total: logHistory.length});
     }
+    if (module == "relay" && action == "countMemory") {
+        return res.status(200).send({total: app.get("relayEvents").map.size});
+    }
 
     if (action == "monthCount") {
         const count = await dbCountMonthModuleData(module, field);
         return res.status(200).send({data: count});
     }
+
 
     if (field != "" && field != undefined && field != 'undefined') {
         const countField = await dbCountModuleData(module, field);

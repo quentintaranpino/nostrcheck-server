@@ -17,6 +17,8 @@ const initDashcard = async (dashcardId, dascardName, dashcardDataKey, icon, link
         iconContainer.append('<canvas style="border 1px solid black" id="' + dashcardId + '-doughnut-chart" width="50" height="50"></canvas>');
     } else if (icon === "time") {
         iconElement.addClass('fas fa-clock text-info');
+    } else if (icon === "relay") {
+        iconElement.addClass('fas fa-solid fa-tower-broadcast text-secondary');
     }
 
     $('#' + dashcardId + '-reload-button').on('click', async function() {
@@ -43,10 +45,10 @@ const refreshDashcard = async(dashcardId, dashcardDataKey, action, field) => {
 
 const fetchDashcardData = async (dashcardDataKey, action, field) => {
 
-    if (dashcardDataKey === 'admin' && action === 'uptime') {
-        const uptime = await fetchServerUptime()
-        console.log('uptime', uptime)
-        return { total: uptime, field: uptime}
+    if (dashcardDataKey === 'admin' && (action === 'uptime' || action === 'eventsLoaded')) {
+        const serverData = await fetchServerInfo()
+        return { field: serverData.uptime,
+                 total: serverData.uptime}
     }
 
     let serverData  = ""
@@ -79,7 +81,8 @@ let dashcards =[
     { dashcardId: 'unpaidTransactionsBalance', dataKey: 'payments', icon: 'satoshi', dashcardName: 'Unpaid transactions balance', link: '#paymentsData', action: 'unpaidTransactions' },
     { dashcardId: 'serverBalance', dataKey: 'payments', icon: 'satoshi', dashcardName: 'Server balance', link: '', action: 'serverBalance' },
     { dashcardId: 'serverUptime', dataKey: 'admin', icon: 'time', dashcardName: 'Server uptime', link: '', action: 'uptime' },
-    { dashcardId: 'relayEventsCount', dataKey: 'relay', icon: 'chart', dashcardName: 'Relay events', link: '', action: 'status' }
+    { dashcardId: 'relayEventsDB', dataKey: 'relay', icon: 'relay', dashcardName: 'Database events', link: '', action: 'count' },
+    { dashcardId: 'relayEventsMemory', dataKey: 'relay', icon: 'relay', dashcardName: 'Memory events', link: '', action: 'countMemory' }
 ]
 
 const refreshDashcards = async () => {
@@ -90,23 +93,16 @@ const refreshDashcards = async () => {
     }
 }
 
-const fetchServerUptime = async ()  =>{
+const fetchServerInfo = async () => {
+    try {
+        const res = await fetch('admin/status');
+        const serverInfo = await res.json();
 
-    let uptime = "00:00";
-
-    await fetch('admin/status')
-    .then(res => res.json())
-    .then(out =>
-      {
-        const timeParts = out.uptime.split(':');
-        if (timeParts.length === 3) {
-            uptime = `${timeParts[0]}:${timeParts[1]}`;
-        }
-    })
-    .catch(err => { 
-        console.warn(err)
-        return "00:00";
-    });
-
-    return uptime
-}
+        const timeParts = serverInfo.uptime.split(':');
+        if (timeParts.length === 3)  serverInfo.uptime = `${timeParts[0]}:${timeParts[1]}`;
+        return serverInfo;
+    } catch (err) {
+        console.warn(err);
+        return { uptime: '0:00' };
+    }
+};
