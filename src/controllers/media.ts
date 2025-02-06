@@ -1139,38 +1139,41 @@ const getMediabyURL = async (req: Request, res: Response) => {
 
 		// If is a video or audio file we return an stream
 		if (mediaType.startsWith("video") || mediaType.startsWith("audio")) {
-			
-			let range : videoHeaderRange;
-			let videoSize : number;
+			let range: videoHeaderRange;
+			let videoSize: number;
+		
 			try {
 				videoSize = fs.statSync(fileName).size;
-				range = readRangeHeader(req.headers.range, videoSize);
+		
+				if (req.headers.range) {
+					range = readRangeHeader(req.headers.range, videoSize);
+		
+					if (range.Start >= videoSize || range.End >= videoSize) {
+						res.setHeader("Content-Range", `bytes */${videoSize}`);
+						return res.sendStatus(416);
+					}
+		
+					res.setHeader("Content-Range", `bytes ${range.Start}-${range.End}/${videoSize}`);
+					res.setHeader("Accept-Ranges", "bytes");
+					res.setHeader("Content-Length", range.End - range.Start + 1);
+					res.setHeader("Cache-Control", "no-cache");
+					res.setHeader("Content-Type", mediaType);
+					res.status(206);
+		
+					return fs.createReadStream(fileName, { start: range.Start, end: range.End }).pipe(res);
+				}
 			} catch (err) {
 				logger.warn(`RES -> 200 Not Found - ${req.url}`, "| Returning not found media file.", reqInfo.ip);
-				res.setHeader('Content-Type', 'image/webp');
+				res.setHeader("Content-Type", "image/webp");
 				return res.status(200).send(await getNotFoundFileBanner());
 			}
-
-			res.setHeader("Content-Range", `bytes ${range.Start}-${range.End}/${videoSize}`);
-
-			// If the range can't be fulfilled.
-			if (range.Start >= videoSize || range.End >= videoSize) {
-				res.setHeader("Content-Range", `bytes */ ${videoSize}`)
-				range.Start = 0;
-				range.End = videoSize - 1;
-			}
-
-			const contentLength = range.Start == range.End ? 0 : (range.End - range.Start + 1);
-			res.setHeader("Accept-Ranges", "bytes");
-			res.setHeader("Content-Length", contentLength);
-			res.setHeader("Cache-Control", "no-cache")
+		
 			res.setHeader("Content-Type", mediaType);
-			res.status(206);
-
-			const videoStream = fs.createReadStream(fileName, {start: range.Start, end: range.End});
-			logger.info(`RES -> 206 Video partial Content - start: ${range.Start} end: ${range.End} | ${req.url}`, "|", reqInfo.ip, "|", cachedStatus ? true : false);
-			return videoStream.pipe(res);
+			res.setHeader("Content-Length", videoSize);
+			res.setHeader("Cache-Control", "no-cache");
+			return fs.createReadStream(fileName).pipe(res);
 		}
+		
 
 		// If is not a video or audio file we return the file
 		fs.readFile(fileName, async (err, data) => {
