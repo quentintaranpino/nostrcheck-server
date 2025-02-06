@@ -1,11 +1,11 @@
   
 <%
   let bannedFields = [
-  ['active'           , '30' , 'formatCheckbox'  , 'enabled   show text-center              '],
+  ['active'           , '30' , 'formatCheckbox'  , 'enabled   show text-center               '],
   ['originid'         , '40' , ''                , 'disabled   show text-center              '],
   ['origintable'      , '40' , ''                , 'disabled   show text-center              '],
-  ['originkey'        , ''   , 'formatBannedFile', 'disabled  show mobile-hide              '],
-  ['reason'           , ''   , ''                , 'enabled   show mobile-hide              '],
+  ['originkey'        , ''   , 'formatBannedFile', 'disabled  show text-center               '],
+  ['reason'           , ''   , ''                , 'enabled   show mobile-hide               '],
   ];
 %>
 <% if((locals.activeModules.includes('media') || locals.activeModules.includes('nostraddress') || locals.activeModules.includes('relay')) && locals.activeModules.includes('admin')  ) { %> 
