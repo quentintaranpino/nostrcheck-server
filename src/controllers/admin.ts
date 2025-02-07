@@ -59,7 +59,7 @@ const serverStatus = async (req: Request, res: Response): Promise<Response> => {
         message: "Nostrcheck API server is running.",
 		version: process.env.npm_package_version || "0.0.0",
 		uptime: format(process.uptime()),
-        ramUsage: Math.floor(process.memoryUsage().heapUsed / 1024 / 1024),
+        ramUsage: Math.floor(process.memoryUsage().rss / 1024 / 1024),
         cpuUsage: await getCPUUsage()
 	};
 
