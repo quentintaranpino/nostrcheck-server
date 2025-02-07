@@ -153,8 +153,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       $('#' + dashcardId + '-tooltip-text').text('Retrieving data...');
 
       const countData = await fetchDashcardData(dashcardDataKey, action, field)
-      $('#' + dashcardId + '-text-total').text(countData.total);
-      $('#' + dashcardId + '-text-field').text(`of ${countData.field}`);
+      $('#' + dashcardId + '-text-total').text(countData.field);
+      $('#' + dashcardId + '-text-field').text(`of ${countData.total}`);
       if (field !== "" && field !== undefined && icon == 'doughnut') {
         setTimeout(() => {
           $('#' + dashcardId + '-tooltip-text').text('Updating chart...');
