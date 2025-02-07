@@ -29,8 +29,8 @@ let nostraddressButtons = [
   ['edit','show'],
   ['password','show'],
   ['remove','show'],
-  ['pay','hide'],
-  ['balance','hide'],
+  ['pay', activeModules.includes("payments") ? 'show' : 'hide'],
+  ['balance', activeModules.includes("payments") ? 'show' : 'hide'],
   ['moderate','hide'],
   ['ban','show']
 ];
@@ -39,9 +39,11 @@ let nostraddressButtons = [
 <% if(locals.activeModules.includes('nostraddress')) { %> 
   <%- include('../table', {
     tableName:"Registered users", 
-    tableId:"nostraddressData", 
+    tableId:"registeredData", 
     buttons:nostraddressButtons,
-    fields: nostraddressFields
+    fields: nostraddressFields, 
+    datakey: 'nostraddress',
+    objectName: 'user',
   });         
   %>
   <div class="mt-2 d-flex flex-column align-items-center">

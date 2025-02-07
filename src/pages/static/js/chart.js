@@ -135,16 +135,16 @@ const initMonthChart = (chartId, title, rawData) => {
 
 let doughnutCharts = {};
 
-function initDoughnutChart(dashcardId, title, data, field, showTitle = false, showLegend = false, externalTooltip = false) {
+function initDoughnutChart(chartId, title, data, field, showTitle = false, showLegend = false, externalTooltip = false) {
 
   const values = [data.field, data.total - data.field];
   const labels = [field, 'un' + field];
 
-  if (!dashcardId.toString().startsWith('#')) {
-    dashcardId = '#' + dashcardId;
+  if (!chartId.toString().startsWith('#')) {
+    chartId = '#' + chartId;
   }
   
-  let chartId = dashcardId + '-doughnut-chart';
+  chartId = chartId + '-doughnut-chart';
 
     // delete previous chart if exists
     if (doughnutCharts[chartId]) {

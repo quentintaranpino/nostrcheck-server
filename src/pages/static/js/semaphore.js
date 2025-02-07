@@ -46,5 +46,5 @@ class Semaphore {
     }
   }
   
-  const semaphore = new Semaphore(3);
+  const semaphore = new Semaphore(10);
   

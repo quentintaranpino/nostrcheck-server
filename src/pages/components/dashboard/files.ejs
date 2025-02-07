@@ -39,12 +39,14 @@ if (locals.activeModules.includes("payments")) {
             ['edit','show'],
             ['password','hide'],
             ['remove','show'],
-            ['pay','hide'],
+            ['pay', activeModules.includes("payments") ? 'show' : 'hide'],
             ['balance','hide'],
             ['moderate','show'],
             ['ban','show']
             ],
-    fields: filesFields
+    fields: filesFields,
+    datakey: 'media',
+    objectName: 'file'
   }); %>
 <div class="mt-2 d-flex flex-column align-items-center">
   <div class="row d-flex w-100">

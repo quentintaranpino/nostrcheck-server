@@ -68,7 +68,7 @@ const ModuleDataTables: { [key: string]: string } = {
 };
 
 const moduleDataKeys: { [key: string]: string } = {
-    "nostraddressData": "registered",
+    "registeredData": "registered",
     "filesData": "mediafiles",
     "lightningData": "lightning",
     "domainsData": "domains",
@@ -191,6 +191,7 @@ const moduleDataSelectFields: { [key: string]: string } = {
                         "mediafiles.comments",
     "lightning":        "lightning.id, " +
                         "lightning.active, " +
+                        "lightning.checked, " +
                         "lightning.pubkey, " +
                         "lightning.lightningaddress, " +
                         "lightning.comments",

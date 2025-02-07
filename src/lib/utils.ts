@@ -160,6 +160,23 @@ return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
 
 function isBase64(str: string): boolean {
 	return /^[A-Za-z0-9+/=]+$/.test(str);
-  }
+}
 
-export { format, currDir, markdownToHtml, generateQRCode, getNewDate, isBase64};
+function getCPUUsage(): Promise<number> {
+	return new Promise((resolve) => {
+		const startUsage = process.cpuUsage();
+		const startTime = process.hrtime();
+
+		setTimeout(() => {
+			const endUsage = process.cpuUsage(startUsage);
+			const elapsedTime = process.hrtime(startTime);
+
+			const elapsedMs = (elapsedTime[0] * 1000) + (elapsedTime[1] / 1e6);
+			const totalCPU = (endUsage.user + endUsage.system) / 1000;
+			const cpuPercentage = (totalCPU / elapsedMs) * 100;
+			resolve(Math.floor(cpuPercentage));	
+		}, 1000);
+	});
+}
+
+export { format, currDir, markdownToHtml, generateQRCode, getNewDate, isBase64, getCPUUsage};

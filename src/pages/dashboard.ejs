@@ -11,38 +11,7 @@
       <div class="text-center"><h1 class="display-2 mt-2 gradient-text">Dashboard</h1></div>
       <p class="text-center mt-2 display-6" id="welcome-text"></p>
       <div class= "container-fluid mt-5">
-        <div id="dashcards-controls" class="mb-3">
-          <button id="edit-btn" class="btn btn-primary" disabled><i class="fa fa-edit"></i></button>
-          <button id="save-btn" class="btn btn-primary d-none"><i class="fa fa-save"></i></button>
-          <button id="cancel-btn" class="btn btn-primary d-none"><i class="fa fa-times"></i></button>
-        </div>
-        <%- include('./components/loading', {objectId: 'admin-dashcards-list', dataName: 'dashcards'}) %>
-        <div class="row d-none" id="dashcards-container" style="min-height: 350px;">
-
-          <% if(locals.activeModules.includes('nostraddress')) { %> 
-          <%- include('./components/dashcard', { dashcardId: 'nostraddressCount', link: ''}); %>
-          <% } %>
-          <% if(locals.activeModules.includes('media')) { %> 
-            <%- include('./components/dashcard', { dashcardId: 'mediaCount', link: '' }); %>
-          <% } %>
-          <% if(locals.activeModules.includes('lightning')) { %>
-            <%- include('./components/dashcard', { dashcardId: 'lightningCount', link: '' }); %>
-          <% } %>
-          <% if(locals.activeModules.includes('domains')) { %>
-            <%- include('./components/dashcard', { dashcardId: 'domainsCount', link: ''}); %>
-          <% } %>
-            <%- include('./components/dashcard', { dashcardId: 'logHistory', link: ''}); %>
-          <% if(locals.activeModules.includes('payments')) { %>
-            <%- include('./components/dashcard', { dashcardId: 'paymentsCount', link: ''}); %>
-            <%- include('./components/dashcard', { dashcardId: 'unpaidTransactionsBalance', link: ''}); %>
-            <%- include('./components/dashcard', { dashcardId: 'serverBalance', link: ''}); %>
-          <% } %>
-          <%- include('./components/dashcard', { dashcardId: 'serverUptime', link: ''}); %>
-          <% if(locals.activeModules.includes('relay')) { %>
-            <%- include('./components/dashcard', { dashcardId: 'relayEventsDB', link: ''}); %>
-            <%- include('./components/dashcard', { dashcardId: 'relayEventsMemory', link: ''}); %>
-          <% } %>
-        </div>
+        <%- include('./components/dashboard/dashcards'); %>
         <ul class="nav nav-tabs mt-3 lead " id="dashboardTabs" role="tablist">
           <% if(locals.activeModules.includes('nostraddress')) { %>
             <li class="nav-item" role="presentation">
@@ -121,8 +90,6 @@
 </script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="/static/js/chart.js"></script>
-<script src="/static/js/dashcard.js"></script>
-<script src="/static/js/table.js"></script>
 
 <script>
   
@@ -130,42 +97,35 @@
   if (localStorage.getItem('profileData')){
   document.getElementById('welcome-text').innerHTML = `Welcome ${JSON.parse(localStorage.getItem('profileData')).display_name}, this is the status of your server today`;
   }
+
+  const fetchCountData = async (datakey, action, field) => {
+    let serverData  = ""
+    await fetch(`admin/modulecountdata?module=${datakey}&action=${action}&field=${field}`, {
+      method: 'GET', headers: {'Content-Type': 'application/json'}})
+      .then(response => response.json())
+      .then(data => {
+          serverData = data;
+      })
+      .catch(error => console.error('Error:', error));
+
+      return serverData || { total: 0 }
+  }
   
   document.addEventListener("DOMContentLoaded", async function () {
-    // Dashcards data initialization
-    const initData = async() => {
-      for (const dashcard of dashcards) {
-        if (activeModules.includes(dashcard.dataKey)) {
-          semaphore.execute(async() => await initDashcard(dashcard.dashcardId,dashcard.dashcardName, dashcard.dataKey, dashcard.icon, dashcard.link, dashcard.action, dashcard.field));
-        }
-      }
-      for (const table of tables) {
-        if (activeModules.includes(table.dataKey) || table.dataKey == 'banned' || table.dataKey == 'ips') {
-          await initTable(`#${table.tableId}`, table.dataKey, table.objectName);
-        }
-      }
-    }
-    const refreshData  = async() => {
-      refreshTables();
-      refreshDashcards();
-    }
-
-    initData();
-    setInterval(refreshData, 60000);
 
     // Charts initialization
     const initChars = async() => {
       if (activeModules.includes("nostraddress")) {
-        semaphore.execute(async() => await initMonthChart("#usersData-chart",'Registered users', await fetchTableCountData('nostraddress','monthCount', 'date')))
+        semaphore.execute(async() => await initMonthChart("#usersData-chart",'Registered users', await fetchCountData('nostraddress','monthCount', 'date')))
       }
       if (activeModules.includes("media")) {
-        semaphore.execute(async() => await initMonthChart('#filesData-chart','Hosted files', await fetchTableCountData('media','monthCount', 'date')))
+        semaphore.execute(async() => await initMonthChart('#filesData-chart','Hosted files', await fetchCountData('media','monthCount', 'date')))
       }
       if (activeModules.includes("payments")) {
-        semaphore.execute(async() => await initMonthChart("#paymentsData-chart",'Transactions', await fetchTableCountData('payments','monthCount', 'createddate')))
+        semaphore.execute(async() => await initMonthChart("#paymentsData-chart",'Transactions', await fetchCountData('payments','monthCount', 'createddate')))
       }
       if (activeModules.includes("relay")) {
-        semaphore.execute(async() => await initMonthChart("#relayData-chart",'Relay events', await fetchTableCountData('relay','monthCount', 'created_at')))
+        semaphore.execute(async() => await initMonthChart("#relayData-chart",'Relay events', await fetchCountData('relay','monthCount', 'created_at')))
       }
     }
     initChars();
@@ -196,182 +156,9 @@
     const title = doughnuts.find(d => d.id == targetId)?.title;
 
     if (!dataKey) return;
-    const doughnutData = await fetchTableCountData(dataKey,'count', field);
+    const doughnutData = await fetchCountData(dataKey,'count', field);
     semaphore.execute(async() => {initDoughnutChart(`${targetId}Data`, title,{field: doughnutData.field, total:doughnutData.total}, field, true, true)});
   }
-
-  if (activeModules.includes("payments")) {
-    $('#usersData-button-pay').removeClass('d-none');
-    $('#usersData-button-balance').removeClass('d-none');
-    $('#filesDatata-button-pay').removeClass('d-none');
-    $('#lightningData-button-pay').removeClass('d-none');
-  }
-
-</script>
-
-<script>
-
-  // Dashcards UI reordering and visibility
-  document.addEventListener('DOMContentLoaded', async () => {
-    let isEditing = false;
-    window.dashcardsData = [];
-    let userPrefsJSON = {}; 
-    const container = document.getElementById('dashcards-container');
-    const cards = Array.from(container.querySelectorAll('.dashcard'));
-    const editBtn   = document.getElementById('edit-btn');
-    const saveBtn   = document.getElementById('save-btn');
-    const cancelBtn = document.getElementById('cancel-btn');
-    let originalOrder = [];
-
-    async function loadUserPrefs() {
-      try {
-        const response = await fetch("/api/v2/user/getprefs", { 
-          method: "GET", 
-          headers: { "Content-Type": "application/json" },
-          credentials: "include" 
-        });
-        if (!response.ok) throw new Error("Failed to fetch user preferences");
-        userPrefsJSON = await response.json();
-        console.log("User preferences loaded:", userPrefsJSON);
-      } catch (error) {
-        console.error(error);
-        userPrefsJSON = { dashcards: [] };
-      }
-    }
-
-    await loadUserPrefs();
-    cards.forEach((card, index) => {
-      const userPref = userPrefsJSON.dashcards?.find(d => d.id === card.id);
-      window.dashcardsData.push({
-        id: card.id,
-        visible: userPref ? userPref.visible : true,
-        order:   userPref ? userPref.order   : index
-      });
-    });
-    updateDashcardsUI();
-
-    function updateDashcardsUI() {
-    
-      editBtn.removeAttribute('disabled');
-      document.getElementById('dashcards-container').classList.remove('d-none');
-      document.getElementById('admin-dashcards-list-loading').classList.add('d-none');
-
-      window.dashcardsData.forEach(data => {
-        const card = document.getElementById(data.id);
-        const btn  = document.getElementById(`${data.id}-visibility-button`);
-        if (card) {
-          if (!isEditing && !data.visible) {
-            card.classList.add('d-none');
-          } else {
-            card.classList.remove('d-none');
-          }
-        }
-        if (btn) {
-          const icon = btn.querySelector('i');
-          if (icon) {
-            icon.classList.toggle('fa-eye', data.visible);
-            icon.classList.toggle('fa-eye-slash', !data.visible);
-          }
-        }
-
-        window.dashcardsData.sort((a, b) => a.order - b.order);
-        window.dashcardsData.forEach((data, index) => {
-          const card = document.getElementById(data.id);
-          if (card) {
-            container.appendChild(card);
-          }
-        });
-
-      });
-    }
-
-    function updateButtonVisibility(editing) {
-      isEditing = editing;
-      sortable.option('disabled', !editing);
-      editBtn.classList.toggle('d-none', editing);
-      saveBtn.classList.toggle('d-none', !editing);
-      cancelBtn.classList.toggle('d-none', !editing);
-      document.querySelectorAll('.handle').forEach(handle =>
-        handle.classList.toggle('d-none', !editing)
-      );
-      document.querySelectorAll('.dash-text').forEach(text =>
-        text.classList.toggle('d-none', editing)
-      );
-      document.querySelectorAll('.chart-tooltip-content').forEach(tooltip =>
-        tooltip.classList.toggle('d-none', editing)
-      );
-      document.querySelectorAll('.btn-dash-reload').forEach(reload =>
-        reload.classList.toggle('d-none', editing)
-      );
-      updateDashcardsUI();
-    }
-
-    const sortable = Sortable.create(container, {
-      animation: 150,
-      handle: '.handle',        
-      swapThreshold: 0.85,
-      disabled: true, 
-      onEnd: function() {
-        Array.from(container.children).forEach((card, index) => {
-          const cardData = window.dashcardsData.find(item => item.id === card.id);
-          if (cardData) {
-            cardData.order = index;
-          }
-        });
-      }
-    });
-
-    document.querySelectorAll('.btn-dash-visibility').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const dashcardId = btn.id.replace('-visibility-button', '');
-        const cardData = window.dashcardsData.find(item => item.id === dashcardId);
-        if (cardData) {
-          cardData.visible = !cardData.visible;
-          updateDashcardsUI();
-        }
-      });
-    });
-
-    editBtn.addEventListener('click', () => {
-      originalOrder = Array.from(container.children).map(child => child.id);
-      updateButtonVisibility(true);
-    });
-
-    saveBtn.addEventListener('click', async () => {
-      userPrefsJSON.dashcards = window.dashcardsData;
-      try {
-        const response = await fetch('/api/v2/user/setprefs', {
-          method: 'POST', 
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify(userPrefsJSON)
-        });
-        if (!response.ok) throw new Error("Failed to save user preferences");
-      } catch (error) {
-        showMessage("Failed to save user preferences", "alert-danger", true, 5000);
-        console.error(error);
-      }
-      updateButtonVisibility(false);
-    });
-
-    cancelBtn.addEventListener('click', () => {
-      originalOrder.forEach(id => {
-        const element = document.getElementById(id);
-        if (element) {
-          container.appendChild(element);
-        }
-      });
-      Array.from(container.children).forEach((card, index) => {
-        const cardData = window.dashcardsData.find(item => item.id === card.id);
-        if (cardData) {
-          cardData.order = index;
-        }
-      });
-      updateButtonVisibility(false);
-    });
-
-    updateDashcardsUI();
-  });
 
 </script>
 </html>

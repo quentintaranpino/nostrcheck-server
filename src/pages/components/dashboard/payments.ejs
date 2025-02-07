@@ -28,12 +28,14 @@ let paymentsFields = [
       ['edit','show'],
       ['password','hide'],
       ['remove','hide'],
-      ['pay', 'show'],
+      ['pay', activeModules.includes("payments") ? 'show' : 'hide'],
       ['balance','hide'],
       ['moderate','hide'],
       ['ban','hide']
     ],
-    fields: paymentsFields
+    fields: paymentsFields,
+    datakey: 'payments',
+    objectName: 'transaction',
     }); %> 
 <div class="mt-2 d-flex flex-column align-items-center">
 <div class="row d-flex w-100">

@@ -5,7 +5,7 @@ import sharp from "sharp";
 
 import app from "../app.js";
 import { logHistory, logger } from "../lib/logger.js";
-import { format, getNewDate } from "../lib/utils.js";
+import { format, getCPUUsage, getNewDate } from "../lib/utils.js";
 import { ResultMessagev2, ServerStatusMessage } from "../interfaces/server.js";
 import { generatePassword } from "../lib/authorization.js";
 import { dbDelete, dbInsert, dbMultiSelect, dbUpdate } from "../lib/database.js";
@@ -58,7 +58,9 @@ const serverStatus = async (req: Request, res: Response): Promise<Response> => {
         status: "success",
         message: "Nostrcheck API server is running.",
 		version: process.env.npm_package_version || "0.0.0",
-		uptime: format(process.uptime())
+		uptime: format(process.uptime()),
+        ramUsage: Math.floor(process.memoryUsage().heapUsed / 1024 / 1024),
+        cpuUsage: await getCPUUsage()
 	};
 
 	return res.status(200).send(result);
@@ -704,7 +706,7 @@ const insertDBRecord = async (req: Request, res: Response): Promise<Response> =>
     delete req.body.row["id"];
 
     // Specific case for registered table
-    if (req.body.table == "nostraddressData"){
+    if (req.body.table == "registeredData"){
         if (await npubToHex(req.body.row["pubkey"]) != req.body.row["hex"]){
 
             const result : ResultMessagev2 = {
@@ -724,7 +726,7 @@ const insertDBRecord = async (req: Request, res: Response): Promise<Response> =>
 
     // Insert records into the table
     let insert : number = 0;
-    if (req.body.table == "nostraddressData"){
+    if (req.body.table == "registeredData"){
         insert = await addNewUsername(req.body.row["username"], req.body.row["hex"], req.body.row["password"], req.body.row["domain"], req.body.row["comments"], true, "", false, false, req.body.row["allowed"]);
     }else{
         insert = await dbInsert(table, Object.keys(req.body.row), Object.values(req.body.row));
@@ -917,7 +919,7 @@ const getModuleCountData = async (req: Request, res: Response): Promise<Response
         return res.status(403).send({"status": "error", "message": "Module is not enabled"});
     }
 
-    logger.info("REQ -> getModuleCountData", req.hostname, "|", reqInfo.ip);
+    logger.debug("REQ -> getModuleCountData", req.hostname, "|", reqInfo.ip);
 
     // Check if authorization header is valid
     const eventHeader = await parseAuthHeader(req, "updateSettings", true);
@@ -939,16 +941,18 @@ const getModuleCountData = async (req: Request, res: Response): Promise<Response
     const field : string = req.query.field as string;
 
     if (module == "payments" && action == "serverBalance") {
-        return res.status(200).send({total: await getBalance(1000)});
+        const data =  await getBalance(1000);
+        return res.status(200).send({total: data, field: data});
     }
     if (module == "payments" && action == "unpaidTransactions") {
-        return res.status(200).send({total: await getUnpaidTransactionsBalance()});
+        const data = await getUnpaidTransactionsBalance();
+        return res.status(200).send({total: data, field: data});
     }
     if (module == "logger" && action == "countWarning") {
-        return res.status(200).send({total: logHistory.length});
+        return res.status(200).send({total: logHistory.length, field: logHistory.length});
     }
-    if (module == "relay" && action == "countMemory") {
-        return res.status(200).send({total: app.get("relayEvents").map.size});
+    if (module == "relay" && action == "count") {
+        return res.status(200).send({total: await dbCountModuleData(module), field: app.get("relayEvents").map.size});
     }
 
     if (action == "monthCount") {
@@ -956,17 +960,13 @@ const getModuleCountData = async (req: Request, res: Response): Promise<Response
         return res.status(200).send({data: count});
     }
 
-
     if (field != "" && field != undefined && field != 'undefined') {
         const countField = await dbCountModuleData(module, field);
         const countTotal = await dbCountModuleData(module);
         return res.status(200).send({total: countTotal, field: countField});
     }
     
-    const count = await dbCountModuleData(module);
-
-    return res.status(200).send({total: count});
-
+    return res.status(200).send({total: 0, field: 0});
 }
 
 const moderateDBRecord = async (req: Request, res: Response): Promise<Response> => {

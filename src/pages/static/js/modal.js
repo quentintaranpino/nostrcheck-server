@@ -89,7 +89,7 @@ const initEditModal = async (objectId, row, objectName, newRow, columns) => {
                 }
 
                 // Special case for editing or creating an user
-                if (objectId == '#nostraddressData') {
+                if (objectId == '#registeredData') {
 
                     let updatingFields = false;
                     

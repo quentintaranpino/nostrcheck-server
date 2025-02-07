@@ -1,0 +1,303 @@
+<div id="dashcards-controls" class="mb-3">
+    <button id="edit-btn" class="btn btn-primary" disabled><i class="fa fa-edit"></i></button>
+    <button id="save-btn" class="btn btn-primary d-none"><i class="fa fa-save"></i></button>
+    <button id="cancel-btn" class="btn btn-primary d-none"><i class="fa fa-times"></i></button>
+</div>
+<%- include('../loading', {objectId: 'admin-dashcards-list', dataName: 'dashcards'}) %>
+<div class="row d-none" id="dashcards-container" style="min-height: 350px;">
+    <% if(locals.activeModules.includes('nostraddress')) { %> 
+        <%- include('../dashcard', { 
+        dashcardId: 'registeredCount', 
+        dashcardName: 'Registered users', 
+        dashcardDataKey: 'nostraddress', 
+        icon: 'doughnut', 
+        link: '', 
+        action: 'count', 
+        field: 'checked',
+        showField: false, 
+        }); %>
+    <% } %>
+
+    <% if(locals.activeModules.includes('media')) { %> 
+        <%- include('../dashcard', { 
+        dashcardId: 'mediaCount', 
+        dashcardName: 'Hosted files', 
+        dashcardDataKey: 'media', 
+        icon: 'doughnut', 
+        link: '', 
+        action: 'count', 
+        field: 'checked', 
+        showField: false, 
+        }); %>
+    <% } %>
+
+    <% if(locals.activeModules.includes('lightning')) { %>
+        <%- include('../dashcard', { 
+        dashcardId: 'lightningCount', 
+        dashcardName: 'Lightning redirects', 
+        dashcardDataKey: 'lightning', 
+        icon: 'chart', 
+        link: '', 
+        action: 'count', 
+        field: 'id', 
+        showField: false, 
+        }); %>
+    <% } %>
+
+    <% if(locals.activeModules.includes('domains')) { %>
+        <%- include('../dashcard', { 
+        dashcardId: 'domainsCount', 
+        dashcardName: 'Domains', 
+        dashcardDataKey: 'domains', 
+        icon: 'chart', 
+        link: '', 
+        action: 'count', 
+        field: 'id', 
+        showField: false, 
+        }); %>
+    <% } %>
+
+    <% if(locals.activeModules.includes('payments')) { %>
+        <%- include('../dashcard', { 
+        dashcardId: 'paymentsCount', 
+        dashcardName: 'Transactions', 
+        dashcardDataKey: 'payments', 
+        icon: 'doughnut', 
+        link: '', 
+        action: 'count', 
+        field: 'paid',
+        showField: false, 
+        }); %>
+
+        <%- include('../dashcard', { 
+        dashcardId: 'unpaidTransactionsBalance', 
+        dashcardName: 'Unpaid transactions balance', 
+        dashcardDataKey: 'payments', 
+        icon: 'satoshi', 
+        link: '', 
+        action: 'unpaidTransactions', 
+        field: '', 
+        showField: false, 
+        }); %>
+
+        <%- include('../dashcard', { 
+        dashcardId: 'serverBalance', 
+        dashcardName: 'Server balance', 
+        dashcardDataKey: 'payments', 
+        icon: 'satoshi', 
+        link: '', 
+        action: 'serverBalance', 
+        field: '', 
+        showField: false, 
+        }); %>
+    <% } %>
+
+    <% if(locals.activeModules.includes('relay')) { %>
+        <%- include('../dashcard', { 
+        dashcardId: 'relayEventsDB', 
+        dashcardName: 'Synced events',
+        dashcardDataKey: 'relay', 
+        icon: 'relay', 
+        link: '', 
+        action: 'count', 
+        field: '', 
+        showField: true, 
+        }); %>
+    <% } %>
+
+    <%- include('../dashcard', { 
+        dashcardId: 'logHistory', 
+        dashcardName: 'Warning messages', 
+        dashcardDataKey: 'logger', 
+        icon: 'warning', 
+        link: '', 
+        action: 'countWarning', 
+        field: '', 
+        showField: false, 
+        timeout: 2000,
+    }); %>
+
+    <%- include('../dashcard', { 
+        dashcardId: 'serverUptime', 
+        dashcardName: 'Server uptime', 
+        dashcardDataKey: 'admin', 
+        icon: 'time', 
+        link: '', 
+        action: 'status', 
+        field: 'uptime', 
+        showField: false, 
+    }); %>
+    
+    <%- include('../dashcard', { 
+        dashcardId: 'serverRam', 
+        dashcardName: 'RAM (MB)', 
+        dashcardDataKey: 'admin', 
+        icon: 'activity', 
+        link: '', 
+        action: 'status', 
+        field: 'ramUsage', 
+        showField: false, 
+        timeout: 2000,
+    }); %>
+
+    <%- include('../dashcard', { 
+        dashcardId: 'serverCPU', 
+        dashcardName: 'CPU (%)', 
+        dashcardDataKey: 'admin', 
+        icon: 'activity', 
+        link: '', 
+        action: 'status', 
+        field: 'cpuUsage', 
+        showField: false, 
+        timeout: 2000,
+    }); %>
+
+
+</div>
+<script>
+    // Dashcards UI reordering and visibility
+    document.addEventListener('DOMContentLoaded', async () => {
+        let isEditing = false;
+        window.dashcardsData = [];
+        let userPrefsJSON = {}; 
+        const container = document.getElementById('dashcards-container');
+        const cards = Array.from(container.querySelectorAll('.dashcard'));
+        const editBtn   = document.getElementById('edit-btn');
+        const saveBtn   = document.getElementById('save-btn');
+        const cancelBtn = document.getElementById('cancel-btn');
+        let originalOrder = [];
+
+        async function loadUserPrefs() {
+        try {
+            const response = await fetch("/api/v2/user/getprefs", { 
+            method: "GET", 
+            headers: { "Content-Type": "application/json" },
+            credentials: "include" 
+            });
+            if (!response.ok) throw new Error("Failed to fetch user preferences");
+            userPrefsJSON = await response.json();
+            console.log("User preferences loaded:", userPrefsJSON);
+        } catch (error) {
+            console.error(error);
+            userPrefsJSON = { dashcards: [] };
+        }
+        }
+
+        await loadUserPrefs();
+        cards.forEach((card, index) => {
+        const userPref = userPrefsJSON.dashcards?.find(d => d.id === card.id);
+        window.dashcardsData.push({
+            id: card.id,
+            visible: userPref ? userPref.visible : true,
+            order:   userPref ? userPref.order   : index
+        });
+        });
+        updateDashcardsUI();
+
+        function updateDashcardsUI() {
+        
+        editBtn.removeAttribute('disabled');
+        document.getElementById('dashcards-container').classList.remove('d-none');
+        document.getElementById('admin-dashcards-list-loading').classList.add('d-none');
+
+        window.dashcardsData.forEach(data => {
+            const card = document.getElementById(data.id);
+            const btn  = document.getElementById(`${data.id}-visibility-button`);
+            if (card) (!isEditing && !data.visible) ? card.classList.add('d-none') : card.classList.remove('d-none');
+            if (btn && btn.querySelector('i')) {
+                btn.querySelector('i').classList.toggle('fa-eye', data.visible);
+                btn.querySelector('i').classList.toggle('fa-eye-slash', !data.visible);
+            }
+            window.dashcardsData.sort((a, b) => a.order - b.order);
+            window.dashcardsData.forEach((data, index) => {if (card) container.appendChild(card)});
+        });
+        }
+
+        function updateButtonVisibility(editing) {
+            isEditing = editing;
+            sortable.option('disabled', !editing);
+            editBtn.classList.toggle('d-none', editing);
+            saveBtn.classList.toggle('d-none', !editing);
+            cancelBtn.classList.toggle('d-none', !editing);
+            document.querySelectorAll('.handle').forEach(handle =>
+                handle.classList.toggle('d-none', !editing)
+            );
+            document.querySelectorAll('.dash-text').forEach(text =>
+                text.classList.toggle('d-none', editing)
+            );
+            document.querySelectorAll('.chart-tooltip-content').forEach(tooltip =>
+                tooltip.classList.toggle('d-none', editing)
+            );
+            document.querySelectorAll('.btn-dash-reload').forEach(reload =>
+                reload.classList.toggle('d-none', editing)
+            );
+            updateDashcardsUI();
+        }
+
+        const sortable = Sortable.create(container, {
+        animation: 150,
+        handle: '.handle',        
+        swapThreshold: 0.85,
+        disabled: true, 
+        onEnd: function() {
+            Array.from(container.children).forEach((card, index) => {
+                const cardData = window.dashcardsData.find(item => item.id === card.id);
+                if (cardData)  cardData.order = index;
+            });
+        }
+        });
+
+        document.querySelectorAll('.btn-dash-visibility').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const dashcardId = btn.id.replace('-visibility-button', '');
+            const cardData = window.dashcardsData.find(item => item.id === dashcardId);
+            if (cardData) {
+            cardData.visible = !cardData.visible;
+            updateDashcardsUI();
+            }
+        });
+        });
+
+        editBtn.addEventListener('click', () => {
+        originalOrder = Array.from(container.children).map(child => child.id);
+        updateButtonVisibility(true);
+        });
+
+        saveBtn.addEventListener('click', async () => {
+        userPrefsJSON.dashcards = window.dashcardsData;
+        console.log("Saving user preferences:", userPrefsJSON);
+        try {
+            const response = await fetch('/api/v2/user/setprefs', {
+            method: 'POST', 
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify(userPrefsJSON)
+            });
+            if (!response.ok) throw new Error("Failed to save user preferences");
+        } catch (error) {
+            showMessage("Failed to save user preferences", "alert-danger", true, 5000);
+            console.error(error);
+        }
+        updateButtonVisibility(false);
+        });
+
+        cancelBtn.addEventListener('click', () => {
+        originalOrder.forEach(id => {
+            const element = document.getElementById(id);
+            if (element) {
+            container.appendChild(element);
+            }
+        });
+        Array.from(container.children).forEach((card, index) => {
+            const cardData = window.dashcardsData.find(item => item.id === card.id);
+            if (cardData) {
+            cardData.order = index;
+            }
+        });
+        updateButtonVisibility(false);
+        });
+
+        updateDashcardsUI();
+    });
+
+</script>
