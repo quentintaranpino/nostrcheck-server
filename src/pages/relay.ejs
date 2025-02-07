@@ -19,7 +19,7 @@
                   <div class="row">
                     <% locals.lastRelayNotes.forEach(note => { %>
                         <div class="col-12 col-md-6 col-xl-3">
-                            <div class="card mb-4">
+                            <div class="card mb-4" style="min-height: 180px;">
                                 <div class="card-body">
                                     <p class="card-text"><%= note.content.toString().trim().substring(0, 100) %></p>
                                 </div>
