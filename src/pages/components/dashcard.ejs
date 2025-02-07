@@ -10,8 +10,8 @@
             <i id="<%- dashcardId %>-icon" class="fas fa-chart-simple fa-3x card-icon"></i>
           </div>
         </div>
-        <h1 id="<%- dashcardId %>-text-total" class="display-2 m-0 font-weight-bold dash-text">0</h1>     
-        <% if(showField){ %><h1 id="<%- dashcardId %>-text-field" class="lead fs-6 font-weight-bold dash-text">0</h1> <% } %>    
+        <h1 id="<%- dashcardId %>-text-field" class="display-2 m-0 font-weight-bold dash-text">0</h1>     
+        <% if(showField){ %><h1 id="<%- dashcardId %>-text-total" class="lead fs-6 font-weight-bold dash-text">0</h1> <% } %>    
         <% if (link) { %>
           </a>
         <% } %>
@@ -113,6 +113,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const action = "<%- action %>";
   const field = "<%- field %>";
   const timeout = Number("<%= typeof timeout !== 'undefined' ? timeout : 60000 %>");
+  const showField = "<%- showField %>";
 
     $('#' + dashcardId + '-name').text(dashcardName)
     const iconElement = $('#' + dashcardId + '-icon');
@@ -153,8 +154,14 @@ document.addEventListener('DOMContentLoaded', async () => {
       $('#' + dashcardId + '-tooltip-text').text('Retrieving data...');
 
       const countData = await fetchDashcardData(dashcardDataKey, action, field)
-      $('#' + dashcardId + '-text-total').text(countData.field);
-      $('#' + dashcardId + '-text-field').text(`of ${countData.total}`);
+      if (showField == "true"){
+        $('#' + dashcardId + '-text-field').text(countData.field);
+        $('#' + dashcardId + '-text-total').text(`of ${countData.total}`);
+      }else{
+        console.log("not showField");
+        $('#' + dashcardId + '-text-field').text(countData.total);
+      }
+
       if (field !== "" && field !== undefined && icon == 'doughnut') {
         setTimeout(() => {
           $('#' + dashcardId + '-tooltip-text').text('Updating chart...');
