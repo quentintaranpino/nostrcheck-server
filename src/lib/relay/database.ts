@@ -3,8 +3,11 @@ import { Event, Filter, matchFilter } from "nostr-tools";
 import { dbSimpleSelect, dbUpsert } from "../database.js";
 import { logger } from "../logger.js";
 import { MemoryEvent } from "../../interfaces/relay.js";
+import { isModuleEnabled } from "../config.js";
 
 const initEvents = async (app: Application): Promise<boolean> => {
+
+    if (!isModuleEnabled("relay", app)) return false;
     if (!app.get("relayEvents")) {
         const eventsMap: Map<string, MemoryEvent> = new Map();
         const eventsArray: Event[] = [];
