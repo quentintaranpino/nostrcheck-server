@@ -169,7 +169,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (dashcardDataKey === 'admin' && action == 'status') {
             const res = await fetch('admin/status');
             const serverInfo = await res.json();
-
+            if (field === 'uptime') {
+                const timeParts = serverInfo.uptime.split(':');
+                if (timeParts.length === 3) serverInfo.uptime = `${timeParts[0]}:${timeParts[1]}`;
+            }
             const timeParts = serverInfo.uptime.split(':');
             if (timeParts.length === 3) serverInfo.uptime = `${timeParts[0]}:${timeParts[1]}`;
 
