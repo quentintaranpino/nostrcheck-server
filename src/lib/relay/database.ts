@@ -50,6 +50,7 @@ const initEvents = async (app: Application): Promise<boolean> => {
 
 
 const getEventsDB = async (offset: number, limit: number): Promise<Event[]> => {
+
     const query = `
         SELECT
             e.event_id, 

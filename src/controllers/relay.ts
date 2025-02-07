@@ -24,6 +24,14 @@ const authSessions: Map<WebSocket, string> = new Map();
 
 const handleWebSocketMessage = async (socket: ExtendedWebSocket, data: WebSocket.RawData, req: Request) => {
 
+  if (!isModuleEnabled("relay", app)) {
+    logger.warn("Attempt to access a non-active module:", "relay", "|", "IP:", req.ip);
+    socket.send(JSON.stringify(["NOTICE", "blocked: relay module is not active"]));
+    logger.warn("Closing socket due to inactive module:", "relay");
+    removeAllSubscriptions(socket);
+    return;
+  }
+
   // Check if the request IP is allowed
   const reqInfo = await isIpAllowed(req);
   if (reqInfo.banned == true) {
@@ -540,6 +548,9 @@ const handleAuthMessage = async (socket: ExtendedWebSocket, message: ["AUTH", Au
 * Periodically persist events to the database
 */
 setInterval(async () => {
+
+  if (!isModuleEnabled("relay", app)) return;
+
   const eventsToPersist = [];
   for (const [, memEv] of events.map.entries()) {
       if (!memEv.processed) {
@@ -564,6 +575,9 @@ setInterval(async () => {
 * Periodically set active = '0' for events with expiration tag in the past (NIP-40)
 */
 setInterval(async () => {
+
+  if (!isModuleEnabled("relay", app)) return;
+
   const tags = await dbMultiSelect(["event_id", "tag_name", "tag_value"],"eventtags","tag_name = ? AND tag_value < ?", ["expiration", Math.floor(Date.now() / 1000)], false);
   const expiredEvents = await dbMultiSelect(["event_id", "kind"],"events","active = 1 AND event_id IN ('" + tags.map(tag => tag.event_id).join("','") + "')", [], false);
   if (expiredEvents.length > 0){
