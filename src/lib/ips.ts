@@ -50,9 +50,6 @@ const logNewIp = async      (ip: string):
         const infractions = ipDbData[0].infractions ? ipDbData[0].infractions.toString() : "0";
         const comments = ipDbData[0].comments ? ipDbData[0].comments.toString() : "";
     
-        if(ipDbData[0].id == '4' || ipDbData[0].id == '14') {
-            logger.warn(`(REDIS) Inserting data for new IP: ${ip}, active = ${ipDbData[0].active}, checked = ${ipDbData[0].checked}, firstseen = ${now}, lastseen = ${now}, reqcount = 1, infractions = ${infractions}, comments = ${comments}`);
-        }
         await redisHashSet(redisKey, {
             dbid: ipDbData[0].id,
             active: ipDbData[0].active ? "1" : "0",
@@ -78,6 +75,9 @@ const logNewIp = async      (ip: string):
         };
     
     } else {
+        if(redisData.dbid == '4' || redisData.dbid== '14') {
+            logger.warn(`(REDIS) Updating data for existing IP: ${ip}, active = ${redisData.active}, checked = ${redisData.checked}, firstseen = ${redisData.firstseen}, lastseen = ${now}, reqcount = ${redisData.reqcount}, infractions = ${redisData.infractions}, comments = ${redisData.comments}`);
+        }
         await redisHashIncrementBy(redisKey, "reqcount", 1);
         await redisHashSet(redisKey, { firstseen: redisData.lastseen, lastseen: now });
 
