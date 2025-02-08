@@ -102,6 +102,9 @@ const redisHashGetAll = async (key: string): Promise<Record<string, string>> => 
 
 const redisHashSet = async (key: string, fields: Record<string, string | number>, timeWindow : number = 0): Promise<boolean> => {
     try {
+        if(key == "4"|| key == "14"){
+            logger.warn(`Redis HSET for key '${key}' with fields: ${JSON.stringify(fields)}`);
+        }
         await redisClient.hSet(key, fields);
         if (timeWindow > 0) {
             await redisClient.expire(key, timeWindow);
