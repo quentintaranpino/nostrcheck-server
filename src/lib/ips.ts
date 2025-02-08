@@ -38,8 +38,12 @@ const logNewIp = async      (ip: string):
         let ipDbData = await dbMultiSelect(["id", "active", "checked", "infractions", "comments"], "ips", "ip = ?", [ip], true);
         if (!ipDbData || ipDbData.length === 0) {
             logger.debug(`Inserting data for new IP: ${ip}, active = 1, checked = 0 firstseen = ${now}, lastseen = ${now}, reqcount = 1`);
-            const dbid = await dbUpsert("ips", { active: 1, checked: 0, ip, firstseen: now, lastseen: now, reqcount: 1 });
-            if (dbid === 0) logger.error(`Error inserting IP in database: ${ip}`);
+            let dbid = await dbUpsert("ips", { active: 1, checked: 0, ip, firstseen: now, lastseen: now, reqcount: 1 });
+            if (dbid === 0) dbid = await dbUpsert("ips", { active: 1, checked: 0, ip, firstseen: now, lastseen: now, reqcount: 1 });
+            if (dbid === 0) {
+                logger.error("Error inserting new IP:", ip);
+            }
+
             return { dbid: dbid.toString(), active: "1", checked: "0", banned: "1", firstseen: now.toString(), lastseen: now.toString(), reqcount: "1", infractions: "0", comments: "" };
         }
     
