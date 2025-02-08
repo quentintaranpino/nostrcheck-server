@@ -54,6 +54,12 @@ const logNewIp = async      (ip: string):
     
         const infractions = ipDbData[0].infractions ? ipDbData[0].infractions.toString() : "0";
         const comments = ipDbData[0].comments ? ipDbData[0].comments.toString() : "";
+
+        if (ipDbData[0].id == 4 || ipDbData[0].id == 14) {
+            logger.warn(`(REDIS) INSERTING * data for new IP to REDIS: ${ip}, active = 1, checked = 0, firstseen = ${now}, lastseen = ${now}, reqcount = 1`);
+            logger.warn(ipDbData);
+        }
+
     
         await redisHashSet(redisKey, {
             dbid: ipDbData[0].id,
