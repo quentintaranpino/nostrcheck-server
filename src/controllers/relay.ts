@@ -480,8 +480,6 @@ const handleClose = (socket: WebSocket, subId?: string) => {
 // Handle AUTH
 const handleAuthMessage = async (socket: ExtendedWebSocket, message: ["AUTH", AuthEvent]): Promise<void> => {
 
-  logger.info("Received AUTH message", message);
-
   if (!Array.isArray(message) || message.length !== 2) {
     socket.send(JSON.stringify(["NOTICE", "error: malformed AUTH message"]));
     logger.debug("Malformed AUTH message:", message);
@@ -524,6 +522,8 @@ const handleAuthMessage = async (socket: ExtendedWebSocket, message: ["AUTH", Au
     logger.warn("Invalid AUTH event:", validEvent.message);
     return;
   }
+
+  logger.info("Received AUTH event", message[1].id);
 
   authSessions.set(socket, authData.pubkey);
   delete socket.challenge;
