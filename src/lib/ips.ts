@@ -1,5 +1,5 @@
-import { redisDel, redisHashGetAll, redisHashIncrementBy, redisHashSet, redisScanKeys, redisSet } from "./redis.js";
-import { dbInsert, dbUpdate, dbMultiSelect, dbUpsert } from "./database.js";
+import { redisHashGetAll, redisHashIncrementBy, redisHashSet, redisScanKeys } from "./redis.js";
+import { dbUpdate, dbMultiSelect, dbUpsert } from "./database.js";
 import { logger } from "./logger.js";
 import app from "../app.js";
 import { banEntity, isEntityBanned } from "./banned.js";
@@ -37,16 +37,10 @@ const logNewIp = async      (ip: string):
     if (Object.keys(redisData).length === 0 || redisData.dbid === undefined) {
         let ipDbData = await dbMultiSelect(["id", "active", "checked", "infractions", "comments"], "ips", "ip = ?", [ip], true);
         if (!ipDbData || ipDbData.length === 0) {
-            logger.debug(`Inserting data for new IP: ${ip}, active = 1, checked = 0 firstseen = ${now}, lastseen = ${now}, reqcount = 1`);
             let dbid = await dbUpsert("ips", { active: 1, checked: 0, ip, firstseen: now, lastseen: now, reqcount: 1 });
             if (dbid === 0) dbid = await dbUpsert("ips", { active: 1, checked: 0, ip, firstseen: now, lastseen: now, reqcount: 1 });
             if (dbid === 0) {
                 logger.error("Error inserting new IP:", ip);
-            }
-
-            if (dbid == 4 || dbid == 14) {
-                logger.warn(`(REDIS) INSERTING data for new IP to REDIS: ${ip}, active = 1, checked = 0, firstseen = ${now}, lastseen = ${now}, reqcount = 1`);
-                logger.warn(ipDbData);
             }
 
             return { dbid: dbid.toString(), active: "1", checked: "0", banned: "1", firstseen: now.toString(), lastseen: now.toString(), reqcount: "1", infractions: "0", comments: "" };
@@ -55,12 +49,6 @@ const logNewIp = async      (ip: string):
         const infractions = ipDbData[0].infractions ? ipDbData[0].infractions.toString() : "0";
         const comments = ipDbData[0].comments ? ipDbData[0].comments.toString() : "";
 
-        if (ipDbData[0].id == 4 || ipDbData[0].id == 14) {
-            logger.warn(`(REDIS) INSERTING * data for new IP to REDIS: ${ip}, active = 1, checked = 0, firstseen = ${now}, lastseen = ${now}, reqcount = 1`);
-            logger.warn(ipDbData);
-        }
-
-    
         await redisHashSet(redisKey, {
             dbid: ipDbData[0].id,
             active: ipDbData[0].active ? "1" : "0",
@@ -86,13 +74,10 @@ const logNewIp = async      (ip: string):
         };
     
     } else {
-        if(redisData.dbid == '4' || redisData.dbid== '14') {
-            logger.warn(`(REDIS) UPDATING data for existing IP in REDIS: ${ip}, active = ${redisData.active}, checked = ${redisData.checked}, firstseen = ${redisData.firstseen}, lastseen = ${now}, reqcount = ${redisData.reqcount}, infractions = ${redisData.infractions}, comments = ${redisData.comments}`);
-        }
+
         await redisHashIncrementBy(redisKey, "reqcount", 1);
         await redisHashSet(redisKey, { firstseen: redisData.lastseen, lastseen: now });
 
-        logger.debug(`Updating IP: ${ip}, with redisData: ${JSON.stringify(redisData)}`);
         queueIpUpdate(redisData.dbid, Number(redisData.lastseen), now, 1, redisData, redisKey);
 
         return {dbid: redisData.dbid, active: redisData.active, checked: redisData.checked, banned: redisData.banned, firstseen: redisData.firstseen, lastseen: now.toString(), reqcount: redisData.reqcount, infractions: redisData.infractions, comments: redisData.comments};
@@ -237,9 +222,6 @@ const queueIpUpdate = (dbid: string, oldLastseen: number, now: number, increment
         entry.reqcountIncrement += increment;
         entry.lastseen = now; 
     } else {
-        if(dbid == "4" || dbid == "14") {
-            logger.warn(`adding to batch: ${dbid} | ${oldLastseen} | ${now} | ${increment}, redisData: ${JSON.stringify(redisData)}, redisKey: ${redisKey}`);
-        }
         ipUpdateBatch.set(dbid, { dbid, firstseen: oldLastseen, lastseen: now, reqcountIncrement: increment });
     }
 };
