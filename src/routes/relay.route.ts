@@ -11,12 +11,14 @@ import { limiter } from "../lib/session.js";
 import { NIP11Data } from "../controllers/nostr.js";
 import { ExtendedWebSocket } from "../interfaces/relay.js";
 import { loadRelayPage } from "../controllers/frontend.js";
+import { isModuleEnabled } from "../lib/config.js";
 
 let server: Server | null = null;
 
 export const loadRelayRoutes = (app: Application, version:string): void => {
 
   if (version != "v2")  return;
+  if (!isModuleEnabled("relay", app)) return;
 
   const wss = new WebSocketServer({
     noServer: true,

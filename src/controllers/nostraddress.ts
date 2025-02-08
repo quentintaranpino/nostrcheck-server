@@ -20,7 +20,7 @@ const getNostraddress = async (req: Request, res: Response): Promise<Response> =
 
 	// Check if current module is enabled
 	if (!isModuleEnabled("nostraddress", app)) {
-        logger.warn("Attempt to access a non-active module:","nostraddress","|","IP:", reqInfo.ip);
+        logger.info("Attempt to access a non-active module:","nostraddress","|","IP:", reqInfo.ip);
 		return res.status(403).send({"status": "error", "message": "Module is not enabled"});
 	}
 

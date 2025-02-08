@@ -25,9 +25,8 @@ const authSessions: Map<WebSocket, string> = new Map();
 const handleWebSocketMessage = async (socket: ExtendedWebSocket, data: WebSocket.RawData, req: Request) => {
 
   if (!isModuleEnabled("relay", app)) {
-    logger.warn("Attempt to access a non-active module:", "relay", "|", "IP:", req.ip);
+    logger.info("Attempt to access a non-active module:", "relay", "|", "IP:", req.ip);
     socket.send(JSON.stringify(["NOTICE", "blocked: relay module is not active"]));
-    logger.warn("Closing socket due to inactive module:", "relay");
     removeAllSubscriptions(socket);
     return;
   }
@@ -35,18 +34,16 @@ const handleWebSocketMessage = async (socket: ExtendedWebSocket, data: WebSocket
   // Check if the request IP is allowed
   const reqInfo = await isIpAllowed(req);
   if (reqInfo.banned == true) {
-    logger.warn(`Attempt to access relay with unauthorized IP: ${reqInfo.ip} | Reason: ${reqInfo.comments}`);
+    logger.info(`Attempt to access relay with unauthorized IP: ${reqInfo.ip} | Reason: ${reqInfo.comments}`);
     socket.send(JSON.stringify(["NOTICE", `${reqInfo.comments}`]));
-    logger.warn("Closing socket due to unauthorized IP:", reqInfo.ip);
     removeAllSubscriptions(socket);
     return;
   }
 
   // Check if current module is enabled
   if (!isModuleEnabled("relay", app)) {
-    logger.warn("Attempt to access a non-active module:", "relay", "|", "IP:", reqInfo.ip);
+    logger.info("Attempt to access a non-active module:", "relay", "|", "IP:", reqInfo.ip);
     socket.send(JSON.stringify(["NOTICE", "blocked: relay module is not active"]));
-    logger.warn("Closing socket due to inactive module:", "relay");
     removeAllSubscriptions(socket);
     return;
   }

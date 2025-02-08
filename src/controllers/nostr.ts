@@ -17,7 +17,7 @@ const NIP96Data = async (req: Request, res: Response): Promise<Response> => {
 
     // Check if current module is enabled
 	if (!isModuleEnabled("media", app)) {
-        logger.warn("Attempt to access a non-active module:","media","|","IP:", reqInfo.ip);
+        logger.info("Attempt to access a non-active module:","media","|","IP:", reqInfo.ip);
 		return res.status(403).send({"status": "error", "message": "Module is not enabled"});
 	}
 
@@ -39,7 +39,7 @@ const NIP11Data = async (req: Request, res: Response): Promise<Response> => {
 
     // Check if current module is enabled
 	if (!isModuleEnabled("relay", app)) {
-        logger.warn("Attempt to access a non-active module:","relay","|","IP:", reqInfo.ip);
+        logger.info("Attempt to access a non-active module:","relay","|","IP:", reqInfo.ip);
 		return res.status(403).send({"status": "error", "message": "Module is not enabled"});
 	}
 

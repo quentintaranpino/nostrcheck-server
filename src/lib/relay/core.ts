@@ -82,13 +82,6 @@ const removeAllSubscriptions = (socket: WebSocket) => {
     });
     subscriptions.delete(socket);
   }
-
-  try {
-    socket.send(JSON.stringify(["NOTICE", "All subscriptions forcibly closed"]));
-  } catch (error) {
-    logger.error("Failed to send closure notice:", error);
-  }
-
   logger.debug("All subscriptions forcibly closed", {readyState: socket.readyState, url: socket.url});
 };
 

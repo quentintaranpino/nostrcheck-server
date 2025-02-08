@@ -23,7 +23,7 @@ const redirectlightningddress = async (req: Request, res: Response): Promise<Res
 
 	// Check if current module is enabled
 	if (!isModuleEnabled("lightning", app)) {
-        logger.warn("Attempt to access a non-active module:","lightning","|","IP:", reqInfo.ip);
+        logger.info("Attempt to access a non-active module:","lightning","|","IP:", reqInfo.ip);
 		return res.status(403).send({"status": "error", "message": "Module is not enabled"});
 	}
 
@@ -150,7 +150,7 @@ const updateLightningAddress = async (req: Request, res: Response): Promise<Resp
 
 	// Check if current module is enabled
 	if (!isModuleEnabled("lightning", app)) {
-        logger.warn("Attempt to access a non-active module:","lightning","|","IP:", reqInfo.ip);
+        logger.info("Attempt to access a non-active module:","lightning","|","IP:", reqInfo.ip);
 		return res.status(403).send({"status": "error", "message": "Module is not enabled"});
 	}
 
@@ -281,7 +281,7 @@ const deleteLightningAddress = async (req: Request, res: Response): Promise<Resp
 
 	// Check if current module is enabled
 	if (!isModuleEnabled("lightning", app)) {
-        logger.warn("Attempt to access a non-active module:","lightning","|","IP:", reqInfo.ip);
+        logger.info("Attempt to access a non-active module:","lightning","|","IP:", reqInfo.ip);
 		return res.status(403).send({"status": "error", "message": "Module is not enabled"});
 	}
 

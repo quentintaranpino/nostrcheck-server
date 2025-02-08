@@ -21,7 +21,7 @@ const listAvailableDomains = async (req: Request, res: Response): Promise<Respon
 
 	// Check if current module is enabled
 	if (!isModuleEnabled("domains", app)) {
-        logger.warn("Attempt to access a non-active module:","domains","|","IP:", reqInfo.ip);
+        logger.info("Attempt to access a non-active module:","domains","|","IP:", reqInfo.ip);
 		return res.status(403).send({"status": "error", "message": "Module is not enabled"});
 	}
 
@@ -47,7 +47,7 @@ const listAvailableUsers = async (req: Request, res: Response): Promise<Response
 
 	// Check if current module is enabled
 	if (!isModuleEnabled("domains", app)) {
-        logger.warn("Attempt to access a non-active module:","domains","|","IP:", reqInfo.ip);
+        logger.info("Attempt to access a non-active module:","domains","|","IP:", reqInfo.ip);
 		return res.status(403).send({"status": "error", "message": "Module is not enabled"});
 	}
 
@@ -69,7 +69,7 @@ const updateUserDomain = async (req: Request, res: Response): Promise<Response> 
 
 	// Check if current module is enabled
 	if (!isModuleEnabled("domains", app)) {
-        logger.warn("Attempt to access a non-active module:","domains","|","IP:", reqInfo.ip);
+        logger.info("Attempt to access a non-active module:","domains","|","IP:", reqInfo.ip);
 		return res.status(403).send({"status": "error", "message": "Module is not enabled"});
 	}
 

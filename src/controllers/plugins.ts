@@ -17,7 +17,7 @@ const getPlugins = async (req: Request, res: Response): Promise<Response> => {
 	}
 
     if (!isModuleEnabled("plugins", app)) {
-        logger.warn("Attempt to access a non-active module:","plugins","|","IP:", reqInfo.ip);
+        logger.info("Attempt to access a non-active module:","plugins","|","IP:", reqInfo.ip);
         return res.status(403).send({"status": "error", "message": "Module is not enabled"});
     }
 
@@ -44,7 +44,7 @@ const reloadPlugins = async (req: Request, res: Response): Promise<Response> => 
 	}
 
     if (!isModuleEnabled("plugins", app)) {
-        logger.warn("Attempt to access a non-active module:","plugins","|","IP:", reqInfo.ip);
+        logger.info("Attempt to access a non-active module:","plugins","|","IP:", reqInfo.ip);
         return res.status(403).send({"status": "error", "message": "Module is not enabled"});
     }
 

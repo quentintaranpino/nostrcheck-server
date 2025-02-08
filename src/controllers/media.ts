@@ -49,7 +49,7 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 
 	// Check if current module is enabled
 	if (!isModuleEnabled("media", app)) {
-        logger.warn("Attempt to access a non-active module:","media","|","IP:", reqInfo.ip);
+        logger.info("Attempt to access a non-active module:","media","|","IP:", reqInfo.ip);
 		return res.status(403).send({"status": "error", "message": "Module is not enabled"});
 	}
 
@@ -539,7 +539,7 @@ const headMedia = async (req: Request, res: Response): Promise<Response> => {
 
 	// Check if current module is enabled
 	if (!isModuleEnabled("media", app)) {
-		logger.warn("Attempt to access a non-active module:","media","|","IP:", reqInfo.ip);
+		logger.info("Attempt to access a non-active module:","media","|","IP:", reqInfo.ip);
 		return res.status(403).send({"status": "error", "message": "Module is not enabled"});
 	}
 
@@ -601,7 +601,7 @@ const getMediaList = async (req: Request, res: Response, version:string): Promis
 
 	// Check if current module is enabled
 	if (!isModuleEnabled("media", app)) {
-		logger.warn("Attempt to access a non-active module:","media","|","IP:", reqInfo.ip);
+		logger.info("Attempt to access a non-active module:","media","|","IP:", reqInfo.ip);
 		return res.status(403).send({"status": "error", "message": "Module is not enabled"});
 	}
 
@@ -759,7 +759,7 @@ const getMediaStatusbyID = async (req: Request, res: Response, version:string): 
 
 	// Check if current module is enabled
 	if (!isModuleEnabled("media", app)) {
-        logger.warn("Attempt to access a non-active module:","media","|","IP:", reqInfo.ip);
+        logger.info("Attempt to access a non-active module:","media","|","IP:", reqInfo.ip);
 		return res.status(403).send({"status": "error", "message": "Module is not enabled"});
 	}
 
@@ -917,7 +917,7 @@ const getMediabyURL = async (req: Request, res: Response) => {
 
 	// Check if current module is enabled
 	if (!isModuleEnabled("media", app)) {
-        logger.warn("Attempt to access a non-active module:","media","|","IP:", reqInfo.ip);
+        logger.info("Attempt to access a non-active module:","media","|","IP:", reqInfo.ip);
 		return res.status(403).send({"status": "error", "message": "Module is not enabled"});
 	}
 
@@ -1234,7 +1234,7 @@ const getMediaTagsbyID = async (req: Request, res: Response): Promise<Response> 
 
 	// Check if current module is enabled
 	if (!isModuleEnabled("media", app)) {
-        logger.warn("Attempt to access a non-active module:","media","|","IP:", reqInfo.ip);
+        logger.info("Attempt to access a non-active module:","media","|","IP:", reqInfo.ip);
 		return res.status(403).send({"status": "error", "message": "Module is not enabled"});
 	}
 
@@ -1303,7 +1303,7 @@ const getMediabyTags = async (req: Request, res: Response): Promise<Response> =>
 
 	// Check if current module is enabled
 	if (!isModuleEnabled("media", app)) {
-        logger.warn("Attempt to access a non-active module:","media","|","IP:", reqInfo.ip);
+        logger.info("Attempt to access a non-active module:","media","|","IP:", reqInfo.ip);
 		res.status(403).send({"status": "error", "message": "Module is not enabled"});
 	}
 
@@ -1379,7 +1379,7 @@ const updateMediaVisibility = async (req: Request, res: Response, version: strin
 
 	// Check if current module is enabled
 	if (!isModuleEnabled("media", app)) {
-        logger.warn("Attempt to access a non-active module:","media","|","IP:", reqInfo.ip);
+        logger.info("Attempt to access a non-active module:","media","|","IP:", reqInfo.ip);
 		return res.status(403).send({"status": "error", "message": "Module is not enabled"});
 	}
 
@@ -1453,7 +1453,7 @@ const deleteMedia = async (req: Request, res: Response, version:string): Promise
 
 	// Check if current module is enabled
 	if (!isModuleEnabled("media", app)) {
-        logger.warn("Attempt to access a non-active module:","media","|","IP:", reqInfo.ip);
+        logger.info("Attempt to access a non-active module:","media","|","IP:", reqInfo.ip);
 		return res.status(403).send({"status": "error", "message": "Module is not enabled"});
 	}
 
@@ -1590,7 +1590,7 @@ const headUpload = async (req: Request, res: Response): Promise<Response> => {
 
 	// Check if current module is enabled
 	if (!isModuleEnabled("media", app)) {
-		logger.warn("Attempt to access a non-active module:","media","|","IP:", reqInfo.ip);
+		logger.info("Attempt to access a non-active module:","media","|","IP:", reqInfo.ip);
 		return res.status(403).send({"status": "error", "message": "Module is not enabled"});
 	}
 

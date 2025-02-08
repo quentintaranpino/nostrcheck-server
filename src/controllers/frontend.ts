@@ -19,7 +19,7 @@ const loadDashboardPage = async (req: Request, res: Response, version:string): P
 
     // Check if current module is enabled
 	if (!isModuleEnabled("frontend", app)) {
-        logger.warn("Attempt to access a non-active module:","frontend","|","IP:", getClientIp(req));
+        logger.info("Attempt to access a non-active module:","frontend","|","IP:", getClientIp(req));
 		return res.status(403).send({"status": "error", "message": "Module is not enabled"});
 	}
 
@@ -48,7 +48,7 @@ const loadSettingsPage = async (req: Request, res: Response, version:string): Pr
 
     // Check if current module is enabled
 	if (!isModuleEnabled("frontend", app)) {
-        logger.warn("Attempt to access a non-active module:","frontend","|","IP:", getClientIp(req));
+        logger.info("Attempt to access a non-active module:","frontend","|","IP:", getClientIp(req));
 		return res.status(403).send({"status": "error", "message": "Module is not enabled"});
 	}
 
@@ -95,7 +95,7 @@ const loadProfilePage = async (req: Request, res: Response, version:string): Pro
 
     // Check if current module is enabled
 	if (!isModuleEnabled("frontend", app)) {
-        logger.warn("Attempt to access a non-active module:","frontend","|","IP:", getClientIp(req));
+        logger.info("Attempt to access a non-active module:","frontend","|","IP:", getClientIp(req));
 		return res.status(403).send({"status": "error", "message": "Module is not enabled"});
 	}
 
@@ -136,7 +136,7 @@ const loadTosPage = async (req: Request, res: Response, version:string): Promise
 
     // Check if current module is enabled
 	if (!isModuleEnabled("frontend", app)) {
-        logger.warn("Attempt to access a non-active module:","frontend","|","IP:", getClientIp(req));
+        logger.info("Attempt to access a non-active module:","frontend","|","IP:", getClientIp(req));
 		return res.status(403).send({"status": "error", "message": "Module is not enabled"});
 	}
 
@@ -177,7 +177,7 @@ const loadLoginPage = async (req: Request, res: Response, version:string): Promi
 
     // Check if current module is enabled
 	if (!isModuleEnabled("frontend", app)) {
-        logger.warn("Attempt to access a non-active module:","frontend","|","IP:", getClientIp(req));
+        logger.info("Attempt to access a non-active module:","frontend","|","IP:", getClientIp(req));
 		return res.status(403).send({"status": "error", "message": "Module is not enabled"});
 	}
 
@@ -209,7 +209,7 @@ const loadIndexPage = async (req: Request, res: Response, version:string): Promi
 
     // Check if current module is enabled
 	if (!isModuleEnabled("frontend", app)) {
-        logger.warn("Attempt to access a non-active module:","frontend","|","IP:", getClientIp(req));
+        logger.info("Attempt to access a non-active module:","frontend","|","IP:", getClientIp(req));
 		return res.status(403).send({"status": "error", "message": "Module is not enabled"});
 	}
 
@@ -242,7 +242,7 @@ const loadDocsPage = async (req: Request, res: Response, version: string): Promi
 
     // Check if current module is enabled
     if (!isModuleEnabled("frontend", app)) {
-        logger.warn("Attempt to access a non-active module:", "frontend", "|", "IP:", getClientIp(req));
+        logger.info("Attempt to access a non-active module:", "frontend", "|", "IP:", getClientIp(req));
         return res.status(403).send({ "status": "error", "message": "Module is not enabled" });
     }
 
@@ -285,7 +285,7 @@ const loadGalleryPage = async (req: Request, res: Response, version:string): Pro
 
     // Check if current module is enabled
 	if (!isModuleEnabled("frontend", app)) {
-        logger.warn("Attempt to access a non-active module:","frontend","|","IP:", getClientIp(req));
+        logger.info("Attempt to access a non-active module:","frontend","|","IP:", getClientIp(req));
 		return res.status(403).send({"status": "error", "message": "Module is not enabled"});
 	}
 
@@ -317,7 +317,7 @@ const loadDirectoryPage = async (req: Request, res: Response, version:string): P
 
     // Check if current module is enabled
 	if (!isModuleEnabled("frontend", app)) {
-        logger.warn("Attempt to access a non-active module:","frontend","|","IP:", getClientIp(req));
+        logger.info("Attempt to access a non-active module:","frontend","|","IP:", getClientIp(req));
 		return res.status(403).send({"status": "error", "message": "Module is not enabled"});
 	}
 
@@ -349,7 +349,7 @@ const loadRegisterPage = async (req: Request, res: Response, version:string): Pr
 
     // Check if current module is enabled
 	if (!isModuleEnabled("frontend", app)) {
-        logger.warn("Attempt to access a non-active module:","frontend","|","IP:", getClientIp(req));
+        logger.info("Attempt to access a non-active module:","frontend","|","IP:", getClientIp(req));
 		return res.status(403).send({"status": "error", "message": "Module is not enabled"});
 	}
 
@@ -381,7 +381,7 @@ const loadCdnPage = async (req: Request, res: Response, version:string): Promise
 
     // Check if current module is enabled
     if (!isModuleEnabled("frontend", app)) {
-        logger.warn("Attempt to access a non-active module:","frontend","|","IP:", getClientIp(req));
+        logger.info("Attempt to access a non-active module:","frontend","|","IP:", getClientIp(req));
         return res.status(403).send({"status": "error", "message": "Module is not enabled"});
     }
 
@@ -415,7 +415,7 @@ const loadRelayPage = async (req: Request, res: Response, version:string): Promi
 
     // Check if current module is enabled
     if (!isModuleEnabled("frontend", app)) {
-        logger.warn("Attempt to access a non-active module:","frontend","|","IP:", getClientIp(req));
+        logger.info("Attempt to access a non-active module:","frontend","|","IP:", getClientIp(req));
         return res.status(403).send({"status": "error", "message": "Module is not enabled"});
     }
 
@@ -452,7 +452,7 @@ const frontendLogin = async (req: Request, res: Response): Promise<Response> => 
 
     // Check if current module is enabled
 	if (!isModuleEnabled("frontend", app)) {
-        logger.warn("Attempt to access a non-active module:","frontend","|","IP:", getClientIp(req));
+        logger.info("Attempt to access a non-active module:","frontend","|","IP:", getClientIp(req));
 		return res.status(403).send({"status": "error", "message": "Module is not enabled"});
 	}
 
