@@ -1,5 +1,5 @@
 import { redisDel, redisHashGetAll, redisHashIncrementBy, redisHashSet, redisScanKeys, redisSet } from "./redis.js";
-import { dbInsert, dbUpdate, dbMultiSelect } from "./database.js";
+import { dbInsert, dbUpdate, dbMultiSelect, dbUpsert } from "./database.js";
 import { logger } from "./logger.js";
 import app from "../app.js";
 import { banEntity, isEntityBanned } from "./banned.js";
@@ -37,7 +37,8 @@ const logNewIp = async      (ip: string):
     if (Object.keys(redisData).length === 0 || redisData.dbid === undefined) {
         let ipDbData = await dbMultiSelect(["id", "active", "checked", "infractions", "comments"], "ips", "ip = ?", [ip], true);
         if (!ipDbData || ipDbData.length === 0) {
-            const dbid = await dbInsert("ips", ["active", "checked", "ip", "firstseen", "lastseen", "reqcount"], [1, 0, ip, now, now, 1]);
+            logger.debug(`Inserting data for new IP: ${ip}, active = 1, checked = 0 firstseen = ${now}, lastseen = ${now}, reqcount = 1`);
+            const dbid = await dbUpsert("ips", { active: 1, checked: 0, ip, firstseen: now, lastseen: now, reqcount: 1 });
             if (dbid === 0) logger.error(`Error inserting IP in database: ${ip}`);
             return { dbid: dbid.toString(), active: "1", checked: "0", banned: "1", firstseen: now.toString(), lastseen: now.toString(), reqcount: "1", infractions: "0", comments: "" };
         }
@@ -191,13 +192,7 @@ setInterval(async () => {
   
     for (const [dbid, update] of ipUpdateBatch.entries()) {
       try {
-        // Update the database: set firstseen, lastseen and add the accumulated request count increment.
-        const success = await dbUpdate(
-          "ips",
-          { firstseen: update.firstseen, lastseen: update.lastseen, reqcount: update.reqcountIncrement },
-          ["id"],
-          [dbid]
-        );
+        const success = await dbUpdate("ips",{ firstseen: update.firstseen, lastseen: update.lastseen, reqcount: update.reqcountIncrement }, ["id"], [dbid]);
         if (success) {
           // Remove the entry from the batch if the update was successful.
           ipUpdateBatch.delete(dbid);
