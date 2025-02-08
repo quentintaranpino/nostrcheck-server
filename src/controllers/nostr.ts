@@ -43,7 +43,7 @@ const NIP11Data = async (req: Request, res: Response): Promise<Response> => {
 		return res.status(403).send({"status": "error", "message": "Module is not enabled"});
 	}
 
-	logger.info("REQ nip10.json ->", req.hostname, "|", reqInfo.ip);
+	logger.info("REQ nip11.json ->", req.hostname, "|", reqInfo.ip);
 
 	res.setHeader('Content-Type', 'application/json');
 	return res.status(200).send(JSON.stringify(getNIP11file(app, req.hostname)));
