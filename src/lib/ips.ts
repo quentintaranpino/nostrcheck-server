@@ -78,7 +78,7 @@ const logNewIp = async      (ip: string):
         await redisHashIncrementBy(redisKey, "reqcount", 1);
         await redisHashSet(redisKey, { firstseen: redisData.lastseen, lastseen: now });
 
-        queueIpUpdate(redisData.dbid, Number(redisData.lastseen), now, 1, redisData, redisKey);
+        queueIpUpdate(redisData.dbid, Number(redisData.lastseen), now, 1);
 
         return {dbid: redisData.dbid, active: redisData.active, checked: redisData.checked, banned: redisData.banned, firstseen: redisData.firstseen, lastseen: now.toString(), reqcount: redisData.reqcount, infractions: redisData.infractions, comments: redisData.comments};
 
@@ -216,7 +216,7 @@ setInterval(async () => {
  * @param now - The new lastseen value.
  * @param increment - The number to increment the request count (default is 1).
  */
-const queueIpUpdate = (dbid: string, oldLastseen: number, now: number, increment: number = 1, redisData : Record<string, string>, redisKey: string) => {
+const queueIpUpdate = (dbid: string, oldLastseen: number, now: number, increment: number = 1) => {
     if (ipUpdateBatch.has(dbid)) {
         const entry = ipUpdateBatch.get(dbid)!;
         entry.reqcountIncrement += increment;
