@@ -79,7 +79,7 @@ const logNewIp = async      (ip: string):
         await redisHashSet(redisKey, { firstseen: redisData.lastseen, lastseen: now });
 
         logger.debug(`Updating IP: ${ip}, with redisData: ${JSON.stringify(redisData)}`);
-        queueIpUpdate(redisData.dbid, Number(redisData.lastseen), now, 1);
+        queueIpUpdate(redisData.dbid, Number(redisData.lastseen), now, 1, redisData);
 
         return {dbid: redisData.dbid, active: redisData.active, checked: redisData.checked, banned: redisData.banned, firstseen: redisData.firstseen, lastseen: now.toString(), reqcount: redisData.reqcount, infractions: redisData.infractions, comments: redisData.comments};
 
@@ -217,12 +217,15 @@ setInterval(async () => {
  * @param now - The new lastseen value.
  * @param increment - The number to increment the request count (default is 1).
  */
-const queueIpUpdate = (dbid: string, oldLastseen: number, now: number, increment: number = 1) => {
+const queueIpUpdate = (dbid: string, oldLastseen: number, now: number, increment: number = 1, redisData : Record<string, string>) => {
     if (ipUpdateBatch.has(dbid)) {
       const entry = ipUpdateBatch.get(dbid)!;
       entry.reqcountIncrement += increment;
       entry.lastseen = now; 
     } else {
+      if(dbid == "4" || dbid == "14") {
+        logger.warn(`adding to batch: ${dbid} | ${oldLastseen} | ${now} | ${increment}, redisData: ${JSON.stringify(redisData)}`);
+      }
       ipUpdateBatch.set(dbid, { dbid, firstseen: oldLastseen, lastseen: now, reqcountIncrement: increment });
     }
   };
