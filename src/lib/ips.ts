@@ -74,6 +74,7 @@ const logNewIp = async      (ip: string):
         await redisHashIncrementBy(redisKey, "reqcount", 1);
         await redisHashSet(redisKey, { firstseen: redisData.lastseen, lastseen: now });
 
+        logger.info(`Updating IP: ${ip}, with redisData: ${JSON.stringify(redisData)}`);
         queueIpUpdate(redisData.dbid, Number(redisData.lastseen), now, 1);
 
         return {dbid: redisData.dbid, active: redisData.active, checked: redisData.checked, banned: redisData.banned, firstseen: redisData.firstseen, lastseen: now.toString(), reqcount: redisData.reqcount, infractions: redisData.infractions, comments: redisData.comments};
