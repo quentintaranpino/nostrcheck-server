@@ -272,7 +272,7 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 
 			// If the recieved file has a transaction_id and the DB file doesn't have a transaction_id, we update the DB file with the recieved transaction_id
 			if (filedata.transaction_id != "" && dbFile.transactionid == null) {
-				const updateResult = await dbUpdate("mediafiles", "transactionid", filedata.transaction_id,["id"], [filedata.fileid]);
+				const updateResult = await dbUpdate("mediafiles", {"transactionid": filedata.transaction_id},["id"], [filedata.fileid]);
 				const accountIdResult = await updateAccountId(pubkey, Number(filedata.transaction_id));
 				if (!updateResult || !accountIdResult) {
 					logger.error(`Error updating transactionid for file ${filedata.fileid}`, "|", reqInfo.ip);
@@ -395,8 +395,8 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 		
 		// If we have a transaction_id, we update the mediafiles table with the transaction_id and update the transaction table with the mediafiles id
 		if (filedata.transaction_id != "") {
-			await dbUpdate("mediafiles", "transactionid", filedata.transaction_id, ["id"], [filedata.fileid]);
-			await dbUpdate("transactions", "comments", "Invoice for: mediafiles:" + filedata.fileid, ["id"], [filedata.transaction_id]);
+			await dbUpdate("mediafiles", {"transactionid" : filedata.transaction_id}, ["id"], [filedata.fileid]);
+			await dbUpdate("transactions", {"comments": "Invoice for: mediafiles:" + filedata.fileid}, ["id"], [filedata.transaction_id]);
 		}
 
 		// Get the transaction object for the file
@@ -1415,7 +1415,7 @@ const updateMediaVisibility = async (req: Request, res: Response, version: strin
 
 	const fileData = await dbMultiSelect(["id", "filename"], "mediafiles", "(id = ? or original_hash = ?) and pubkey = ?", [req.params.fileId, req.params.fileId, eventHeader.pubkey], true);
 
-	const update = await dbUpdate("mediafiles", "visibility", req.params.visibility, ["id", "pubkey"], [fileData[0].id, eventHeader.pubkey]);
+	const update = await dbUpdate("mediafiles", {"visibility": req.params.visibility}, ["id", "pubkey"], [fileData[0].id, eventHeader.pubkey]);
 	if (!update) {
 		logger.warn("RES -> Media visibility not updated, file not found", "|", reqInfo.ip);
 		if (version != "v2") {

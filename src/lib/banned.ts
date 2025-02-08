@@ -66,7 +66,7 @@ const manageEntity = async (originId: number, originTable: string, action: "ban"
             if (action === "ban") {
                 if (resultBanTable.length > 0 && resultBanTable[0].active == 1) { continue; }
                 if (resultBanTable.length > 0 && resultBanTable[0].active == 0) {
-                    const updateResult = await dbUpdate("banned", "active", "1", ["originid", "origintable"], [record.id, originTable]);
+                    const updateResult = await dbUpdate("banned", {"active": "1"}, ["originid", "origintable"], [record.id, originTable]);
                     if (!updateResult) {
                         return { status: "error", message: "Error setting active ban to record" };
                     }
@@ -80,7 +80,7 @@ const manageEntity = async (originId: number, originTable: string, action: "ban"
             } else if (action === "unban") {
                 if (resultBanTable.length == 0 || (resultBanTable.length > 0 && resultBanTable[0].active == 0)) { continue; }
 
-                const updateResult = await dbUpdate("banned", "active", "0", ["originid", "origintable"], [record.id, originTable]);
+                const updateResult = await dbUpdate("banned", {"active": "0"}, ["originid", "origintable"], [record.id, originTable]);
                 if (!updateResult) {
                     return { status: "error", message: "Error setting inactive ban to record" };
                 }

@@ -90,12 +90,12 @@ const generateInvoice = async (accountid: number, satoshi: number, originTable :
 
     if (overwrite == true) {
         logger.info("Detected expired invoice, updating invoice for account:", accountid, "transactionid:", transactionId)
-        const updatePayreq = await dbUpdate("transactions", "paymentrequest", generatedInvoice.paymentRequest, ["id"], [transactionId]);
-        const updatePayhash = await dbUpdate("transactions", "paymenthash", generatedInvoice.paymentHash, ["id"], [transactionId]);
-        const updateCreated = await dbUpdate("transactions", "createddate", generatedInvoice.createdDate, ["id"], [transactionId]);
-        const updateExpiry = await dbUpdate("transactions", "expirydate", generatedInvoice.expiryDate, ["id"], [transactionId]);
-        const updateSatoshi = await dbUpdate("transactions", "satoshi", generatedInvoice.satoshi, ["id"], [transactionId]);
-        const updateAccountid = await dbUpdate("transactions", "accountid", accountid.toString(), ["id"], [transactionId]);
+        const updatePayreq = await dbUpdate("transactions", {"paymentrequest" : generatedInvoice.paymentRequest}, ["id"], [transactionId]);
+        const updatePayhash = await dbUpdate("transactions", {"paymenthash" : generatedInvoice.paymentHash}, ["id"], [transactionId]);
+        const updateCreated = await dbUpdate("transactions", {"createddate" : generatedInvoice.createdDate}, ["id"], [transactionId]);
+        const updateExpiry = await dbUpdate("transactions", {"expirydate" : generatedInvoice.expiryDate}, ["id"], [transactionId]);
+        const updateSatoshi = await dbUpdate("transactions", {"satoshi" : generatedInvoice.satoshi}, ["id"], [transactionId]);
+        const updateAccountid = await dbUpdate("transactions", {"accountid" : accountid.toString()}, ["id"], [transactionId]);
         if (!updatePayreq || !updatePayhash || !updateCreated || !updateExpiry || !updateSatoshi || !updateAccountid) {
             logger.error("Error updating transaction with new invoice data", transactionId)
             return emptyInvoice;
@@ -107,7 +107,7 @@ const generateInvoice = async (accountid: number, satoshi: number, originTable :
 
         const transId = await addTransacion("invoice", accountid, generatedInvoice, satoshi)
         if (transId) {
-            await dbUpdate(originTable, "transactionid", transId.toString() , ["id"], [originId])
+            await dbUpdate(originTable, {"transactionid" : transId.toString()} , ["id"], [originId])
             logger.info("Generated invoice for " + originTable + ":" + originId, " satoshi: ", satoshi, "transactionid: ", transId)
             generatedInvoice.transactionid = transId;
         }
@@ -170,7 +170,7 @@ const deleteTransaction = async (transactionid: number) : Promise<boolean> => {
         const mediafiles = await dbMultiSelect(["id"], "mediafiles", "transactionid = ?", [transactionid.toString()], false);
         let deleteMedia = true;
         if (mediafiles.length > 0) {
-            const result = await dbUpdate("mediafiles", "transactionid", null, ["transactionid"], [transactionid.toString()]);
+            const result = await dbUpdate("mediafiles", {"transactionid" : null}, ["transactionid"], [transactionid.toString()]);
             deleteMedia = result;
         }
         if (deleteTransaction && deleteLedger && deleteMedia) {
@@ -218,7 +218,7 @@ const getBalance = async (accountid: number) : Promise<number> => {
     const result = Number(await dbSelect("SELECT SUM(credit) - SUM(debit) as 'balance' FROM ledger WHERE ledger.accountid = ?", "balance", [accountid.toString()])) || 0;
     logger.debug("Balance for account", accountid, ":", result)
     if (accountid.toString().length > 4 && accountid != 1100000000){
-        const updateBalance = await dbUpdate("registered", "balance", result.toString(), ["id"], [formatRegisteredId(accountid)]);
+        const updateBalance = await dbUpdate("registered", {"balance" : result.toString()}, ["id"], [formatRegisteredId(accountid)]);
         if (updateBalance) return result;
     }
     return result;
@@ -364,10 +364,10 @@ const getTransaction = async (transactionid: string) : Promise<transaction> => {
         transaction.paymentHash = inv.paymentHash;
         transaction.createdDate = inv.createdDate;
         transaction.expiryDate = inv.expiryDate;
-        const updatePayreq = await dbUpdate("transactions", "paymentrequest", inv.paymentRequest, ["id"], [transactionid]);
-        const updatePayhash = await dbUpdate("transactions", "paymenthash", inv.paymentHash, ["id"], [transactionid]);
-        const updateCreated = await dbUpdate("transactions", "createddate", inv.createdDate, ["id"], [transactionid]);
-        const updateExpyry = await dbUpdate("transactions", "expirydate", inv.expiryDate, ["id"], [transactionid]);
+        const updatePayreq = await dbUpdate("transactions", {"paymentrequest" : inv.paymentRequest}, ["id"], [transactionid]);
+        const updatePayhash = await dbUpdate("transactions", {"paymenthash" : inv.paymentHash}, ["id"], [transactionid]);
+        const updateCreated = await dbUpdate("transactions", {"createddate" : inv.createdDate}, ["id"], [transactionid]);
+        const updateExpyry = await dbUpdate("transactions", {"expirydate" : inv.expiryDate}, ["id"], [transactionid]);
         if (!updatePayreq || !updatePayhash || !updateCreated || !updateExpyry) {
             logger.error("Error updating transaction with new invoice data", transactionid)
             return emptyTransaction;
@@ -410,9 +410,9 @@ const collectInvoice = async (invoice: invoice, collectFromExpenses = false, col
         return true;
     }
 
-    const paid = await dbUpdate("transactions", "paid", "1", ["id"], [invoice.transactionid.toString()]);
-    const paiddate = await dbUpdate("transactions", "paiddate", new Date(invoice.paidDate).toISOString().slice(0, 19).replace('T', ' ') != '1970-01-01 00:00:00' ? new Date(invoice.paidDate).toISOString().slice(0, 19).replace('T', ' ') : getNewDate(), ["id"], [invoice.transactionid.toString()]);
-    const preimage = await dbUpdate("transactions", "preimage", invoice.preimage, ["id"], [invoice.transactionid.toString()]);
+    const paid = await dbUpdate("transactions", {"paid":"1"}, ["id"], [invoice.transactionid.toString()]);
+    const paiddate = await dbUpdate("transactions", {"paiddate" : new Date(invoice.paidDate).toISOString().slice(0, 19).replace('T', ' ') != '1970-01-01 00:00:00' ? new Date(invoice.paidDate).toISOString().slice(0, 19).replace('T', ' ') : getNewDate()}, ["id"], [invoice.transactionid.toString()]);
+    const preimage = await dbUpdate("transactions", {"preimage" : invoice.preimage}, ["id"], [invoice.transactionid.toString()]);
     if (paid && paiddate && preimage) {
         logger.info("Invoice paid, transaction updated", invoice.transactionid);
     }else{
@@ -589,10 +589,10 @@ const updateAccountId = async (pubkey : string, transaction_id : number) : Promi
     const accountId = await formatAccountNumber(registeredId[0].id);
     if (accountId === 1100000000)  return false;
 
-    const updateTransactions = await dbUpdate("transactions", "accountid", accountId, ["id", "accountid"], [transaction_id, "1100000000"]);
+    const updateTransactions = await dbUpdate("transactions", {"accountid" : accountId}, ["id", "accountid"], [transaction_id, "1100000000"]);
     if (!updateTransactions) return false;
 
-    const updateLedger = await dbUpdate("ledger", "accountid", accountId, ["transactionid", "accountid"], [transaction_id, "1100000000"]);
+    const updateLedger = await dbUpdate("ledger", {"accountid" : accountId}, ["transactionid", "accountid"], [transaction_id, "1100000000"]);
     if (!updateLedger) return false;
 
     logger.debug("Updated transaction accountid:", transaction_id, "to:", accountId)

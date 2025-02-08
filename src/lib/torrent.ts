@@ -80,7 +80,7 @@ const CreateMagnet = async (filepath:string, filedata: fileData) : Promise<fileD
 
     client.on('torrent', async function (torrent: WebTorrent.Torrent) {
       filedata.magnet = torrent.magnetURI;
-      await dbUpdate('mediafiles', 'magnet', filedata.magnet,['id'], [filedata.fileid]);
+      await dbUpdate('mediafiles', {'magnet':filedata.magnet},['id'], [filedata.fileid]);
       logger.debug("Magnet link:", filedata.magnet, "for file:", filepath, "id:", filedata.fileid)
     });
     client.on('error', function () {

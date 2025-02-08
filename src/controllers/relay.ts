@@ -269,7 +269,7 @@ const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) =>
     for (const [key, memEv] of events.map.entries()) {
       if (memEv.event.kind === event.kind && memEv.event.pubkey === event.pubkey) {
           if (event.created_at > memEv.event.created_at ||(event.created_at === memEv.event.created_at && event.id < memEv.event.id)) {
-            const deleteResult = await dbUpdate("events", "active", "0", ["event_id"], [memEv.event.id]);
+            const deleteResult = await dbUpdate("events", {"active": "0"}, ["event_id"], [memEv.event.id]);
             if (!deleteResult) {
               socket.send(JSON.stringify(["NOTICE", "error: failed to delete replaceable event"]));
               socket.send(JSON.stringify(["OK", event.id, false, "error: failed to delete replaceable event"]));
@@ -352,7 +352,7 @@ const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) =>
       return;
     }
 
-    const deleteResults = await Promise.all(ownedEvents.map(e => dbUpdate("events", "active", "0", ["event_id"], [e.event.id])));
+    const deleteResults = await Promise.all(ownedEvents.map(e => dbUpdate("events", {"active": "0"}, ["event_id"], [e.event.id])));
     if (!deleteResults.every(result => result)) {
       socket.send(JSON.stringify(["NOTICE", "error: failed to delete events"]));
       socket.send(JSON.stringify(["OK", event.id, false, "error: failed to delete events"]));
@@ -579,8 +579,8 @@ setInterval(async () => {
   const expiredEvents = await dbMultiSelect(["event_id", "kind"],"events","active = 1 AND event_id IN ('" + tags.map(tag => tag.event_id).join("','") + "')", [], false);
   if (expiredEvents.length > 0){
     for (const expiredEvent of expiredEvents) {
-      let eventUpdate = await dbUpdate("events", "active", "0", ["event_id"], [expiredEvent.event_id]);
-      eventUpdate = await dbUpdate("events", "comments", "event expired", ["event_id"], [expiredEvent.event_id]);
+      let eventUpdate = await dbUpdate("events", {"active": "0"}, ["event_id"], [expiredEvent.event_id]);
+      eventUpdate = await dbUpdate("events", {"comments" : "event expired"}, ["event_id"], [expiredEvent.event_id]);
       if (!eventUpdate) {
         logger.error(`Failed to set event ${expiredEvent.event_id} as inactive`);
         continue;

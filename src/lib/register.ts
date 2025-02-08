@@ -80,10 +80,10 @@ const addNewUsername = async (username: string, pubkey: string, password:string,
     if (createUsername == 0) {return 0}
 
     if (domainInfo.requireinvite == true && checkInvite ) {
-        const updateInviteeid = await dbUpdate("invitations", "inviteeid", createUsername, ["code"], [inviteCode]);
+        const updateInviteeid = await dbUpdate("invitations", {"inviteeid":createUsername}, ["code"], [inviteCode]);
         if (updateInviteeid == false) {return 0}
 
-        const updateInviteedate = await dbUpdate("invitations", "inviteedate", getNewDate(), ["code"], [inviteCode]);
+        const updateInviteedate = await dbUpdate("invitations", {"inviteedate":getNewDate()}, ["code"], [inviteCode]);
         if (updateInviteedate == false) {return 0}
 
     }

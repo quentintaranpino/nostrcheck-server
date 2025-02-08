@@ -224,53 +224,64 @@ async function checkAndCreateIndexes(tableName: string, indexes: string[]): Prom
  * Updates a record in the database table.
  * 
  * @param tableName - The name of the table to update.
- * @param selectFieldName - The name of the field to update.
- * @param selectFieldValue - The new value for the field.
+ * @param fields - An object containing the fields to update and their new values (e.g. { field1: value1, field2: value2 }).
  * @param whereFieldName - Array of names of the fields to use in the WHERE clause.
  * @param whereFieldValue - Array of values of the fields to use in the WHERE clause.
  * @returns A Promise that resolves to a boolean indicating whether the update was successful.
-* @async
+ * @async
  */
-const dbUpdate = async (tableName: string, selectFieldName: string, selectFieldValue: any, whereFieldName: string[], whereFieldValue: any[]): Promise<boolean> => {
-
+const dbUpdate = async (
+	tableName: string,
+	fields: Record<string, any>,
+	whereFieldName: string[],
+	whereFieldValue: any[]
+  ): Promise<boolean> => {
+  
 	if (whereFieldName.length !== whereFieldValue.length) {
-		logger.error('whereFieldName and whereFieldValue must have the same length');
-		return false;
+	  logger.error('whereFieldName and whereFieldValue must have the same length');
+	  return false;
 	}
   
-	const pool = await connect("dbUpdate: " + selectFieldName + " | Table: " + tableName);
-
+	const pool = await connect("dbUpdate: " + JSON.stringify(fields) + " | Table: " + tableName);
+  
 	try {
-
-		const whereClause = whereFieldName.map((field, index) => {
-			if (whereFieldValue[index] === "IS NOT NULL" || whereFieldValue[index] === "IS NULL") {
-				return `${field} ${whereFieldValue[index]}`;
-			} else {
-				return `${field} = ?`;
-			}
-		}).join(' AND ');
-		const params = [selectFieldValue].concat(whereFieldValue);
-		const [dbFileFieldUpdate] : any[] = await pool.execute(
-			`UPDATE ${tableName} SET ${selectFieldName} = ? WHERE ${whereClause}`,
-			params
-		);
-		if (!dbFileFieldUpdate) {
-		logger.error("Error updating " + tableName + " table | " + whereFieldName.join(', ') + " :", whereFieldValue.join(', ') +  " | " + selectFieldName + " :", selectFieldValue);
-		return false;
+	  // Construir la cláusula SET a partir del objeto fields
+	  const fieldKeys = Object.keys(fields);
+	  const setClause = fieldKeys.map(key => `${key} = ?`).join(', ');
+  
+	  // Construir la cláusula WHERE
+	  const whereClause = whereFieldName.map((field, index) => {
+		if (whereFieldValue[index] === "IS NOT NULL" || whereFieldValue[index] === "IS NULL") {
+		  return `${field} ${whereFieldValue[index]}`;
+		} else {
+		  return `${field} = ?`;
 		}
-
-		if (dbFileFieldUpdate.affectedRows === 0) {
-		logger.warn("No rows updated in " + tableName + " table | " + whereFieldName.join(', ') + " :", whereFieldValue.join(', ') +  " | " + selectFieldName + " :", selectFieldValue);
+	  }).join(' AND ');
+  
+	  // Concatenar los parámetros: primero los valores de fields y luego los de WHERE
+	  const params = fieldKeys.map(key => fields[key]).concat(whereFieldValue);
+  
+	  const [result]: any[] = await pool.execute(
+		`UPDATE ${tableName} SET ${setClause} WHERE ${whereClause}`,
+		params
+	  );
+  
+	  if (!result) {
+		logger.error(`Error updating ${tableName} table | ${whereFieldName.join(', ')} : ${whereFieldValue.join(', ')} | Fields: ${JSON.stringify(fields)}`);
 		return false;
-		}
-
-		return true;
+	  }
+  
+	  if (result.affectedRows === 0) {
+		logger.warn(`No rows updated in ${tableName} table | ${whereFieldName.join(', ')} : ${whereFieldValue.join(', ')} | Fields: ${JSON.stringify(fields)}`);
+		return false;
+	  }
+  
+	  return true;
 	} catch (error) {
-		logger.error("Error updating " + tableName + " table | " + whereFieldName.join(', ') + " :", whereFieldValue.join(', ') +  " | " + selectFieldName + " :", selectFieldValue);
-		logger.error(error);
-		return false;
-	} 
-
+	  logger.error(`Error updating ${tableName} table | ${whereFieldName.join(', ')} : ${whereFieldValue.join(', ')} | Fields: ${JSON.stringify(fields)}`);
+	  logger.error(error);
+	  return false;
+	}
   };
   
 /**
@@ -559,7 +570,7 @@ const initDatabase = async (): Promise<void> => {
 			process.exit(1);
 		}
 
-		const allowed = await dbUpdate("registered","allowed", "1", ["username"], ["public"]);
+		const allowed = await dbUpdate("registered",{"allowed" : "1" }, ["username"], ["public"]);
 		if (!allowed){
 			logger.fatal("Error creating public username");
 			process.exit(1);

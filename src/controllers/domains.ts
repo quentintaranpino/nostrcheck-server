@@ -130,7 +130,7 @@ const updateUserDomain = async (req: Request, res: Response): Promise<Response> 
 	}
 
 	try {
-		const updateUserDomain = await dbUpdate("registered","domain",domain,["hex"],[EventHeader.pubkey]);
+		const updateUserDomain = await dbUpdate("registered",{"domain":domain},["hex"],[EventHeader.pubkey]);
 		if (!updateUserDomain) {
 			logger.warn("RES Update user domain -> 404  not found, can't update user domain", "|", reqInfo.ip);
 			const result: ResultMessagev2 = {

@@ -48,7 +48,7 @@ const processFile = async(	inputFile: Express.Multer.File,	options: fileData, re
 
 	const result = new Promise(async(resolve, reject) => {
 
-		const processing = await dbUpdate('mediafiles','status','processing', ['id'], [options.fileid]);
+		const processing = await dbUpdate('mediafiles',{'status':'processing'}, ['id'], [options.fileid]);
 		if (!processing) {logger.error("Could not update table mediafiles, id: " + options.fileid, "status: processing");}
 
 		if (options.no_transform == true) {
@@ -108,7 +108,7 @@ const processFile = async(	inputFile: Express.Multer.File,	options: fileData, re
 
 				if (retry > 5){
 					logger.error(`Error converting file after 5 retries: ${inputFile.originalname}`);
-					const errorstate =  await dbUpdate('mediafiles','status','error',['id'], [options.fileid]);
+					const errorstate =  await dbUpdate('mediafiles',{'status':'error'},['id'], [options.fileid]);
 					if (!errorstate) {
 						logger.error("Could not update table mediafiles, id: " + options.fileid, "status: failed");
 					}
@@ -132,7 +132,7 @@ const processFile = async(	inputFile: Express.Multer.File,	options: fileData, re
 		
 				if (percent %4 > 0 && percent %4 < 1){
 					logger.debug(`Processing : ` +	`${options.filename} - ${Number(percent).toFixed(0)} %`	);
-					await dbUpdate('mediafiles','percentage',Number(percent).toFixed(0).toString(), ['id'], [options.fileid]);
+					await dbUpdate('mediafiles',{'percentage' : Number(percent).toFixed(0).toString()}, ['id'], [options.fileid]);
 				}
 				
 			})
@@ -456,16 +456,16 @@ const readRangeHeader = (range : string | undefined, totalLength : number ): vid
 
 const finalizeFileProcessing = async (filedata: fileData): Promise<boolean> => {
 	try{
-		await dbUpdate('mediafiles','percentage','100',['id'], [filedata.fileid]);
-		await dbUpdate('mediafiles','visibility','1',['id'], [filedata.fileid]);
-		await dbUpdate('mediafiles','active','1',['id'], [filedata.fileid]);
-		await dbUpdate('mediafiles', 'hash', filedata.no_transform == true ? filedata.originalhash : await generatefileHashfromfile(filedata.conversionOutputPath), ['id'], [filedata.fileid]);
+		await dbUpdate('mediafiles',{'percentage':'100'},['id'], [filedata.fileid]);
+		await dbUpdate('mediafiles',{'visibility':'1'},['id'], [filedata.fileid]);
+		await dbUpdate('mediafiles',{'active':'1'},['id'], [filedata.fileid]);
+		await dbUpdate('mediafiles', {'hash': filedata.no_transform == true ? filedata.originalhash : await generatefileHashfromfile(filedata.conversionOutputPath)}, ['id'], [filedata.fileid]);
 		// if (config.get("torrent.enableTorrentSeeding")) {await CreateMagnet(filedata.conversionOutputPath, filedata);}
-		await dbUpdate('mediafiles','status','success',['id'], [filedata.fileid]);
+		await dbUpdate('mediafiles',{'status':'success'},['id'], [filedata.fileid]);
 		const filesize = getFileSize(filedata.no_transform == true ? filedata.conversionInputPath: filedata.conversionOutputPath ,filedata)
-		await dbUpdate('mediafiles', 'filesize', filesize ,['id'], [filedata.fileid]);
-		await dbUpdate('mediafiles','dimensions',filedata.newFileDimensions,['id'], [filedata.fileid]);
-		if (filedata.no_transform == false) await dbUpdate('mediafiles','mimetype',await getConvertedMimeType(filedata.originalmime),['id'], [filedata.fileid]);
+		await dbUpdate('mediafiles', {'filesize':filesize},['id'], [filedata.fileid]);
+		await dbUpdate('mediafiles',{'dimensions':filedata.newFileDimensions},['id'], [filedata.fileid]);
+		if (filedata.no_transform == false) await dbUpdate('mediafiles',{'mimetype':await getConvertedMimeType(filedata.originalmime)},['id'], [filedata.fileid]);
 		await saveFile(filedata, filedata.no_transform == true ? filedata.conversionInputPath: filedata.conversionOutputPath );
 
 		if (filedata.no_transform == false) { await deleteLocalFile(filedata.conversionOutputPath);}
@@ -474,7 +474,7 @@ const finalizeFileProcessing = async (filedata: fileData): Promise<boolean> => {
 		let url = filedata.url;
 		if (url.lastIndexOf('.') <= url.lastIndexOf('/')) url = url.substring(0, url.lastIndexOf('/') + 1) + filedata.filename;
 		moderateFile(url).then((result) => {
-			result.code == "NA"? dbUpdate('mediafiles','checked','1',['id'], [filedata.fileid]): null;
+			result.code == "NA"? dbUpdate('mediafiles',{'checked':'1'},['id'], [filedata.fileid]): null;
 		}).catch((err) => {
 			logger.error("Error moderating file", err);
 		});

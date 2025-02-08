@@ -186,7 +186,7 @@ const updateDBRecord = async (req: Request, res: Response): Promise<Response> =>
     }
 
     // Update table with new value
-    const update = await dbUpdate(table, req.body.field, req.body.value, ["id"], [req.body.id]);
+    const update = await dbUpdate(table, { [req.body.field]: req.body.value }, ["id"], [req.body.id]);
     if (update) {
 
         // Update redis cache
@@ -1008,7 +1008,7 @@ const moderateDBRecord = async (req: Request, res: Response): Promise<Response> 
 
     const result = await moderateFile(returnURL);
     if (result.code == "NA"){
-        const update = await dbUpdate('mediafiles','checked','1',['id'], [req.body.id]);
+        const update = await dbUpdate('mediafiles',{'checked':'1'},['id'], [req.body.id]);
         if (!update) {
             return res.status(500).send({status: "error", message: "Failed to update record"});
         }

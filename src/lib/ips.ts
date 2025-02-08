@@ -69,31 +69,16 @@ const logNewIp = async      (ip: string):
     
     } else {
         await redisHashIncrementBy(redisKey, "reqcount", 1);
-        await redisHashSet(redisKey, { firstseen: redisData.lastseen });
-        await redisHashSet(redisKey, { lastseen: now });
+        await redisHashSet(redisKey, { firstseen: redisData.lastseen, lastseen: now });
         setImmediate(async () => {
 
             const { dbid, reqcount } = redisData;
 
-            const updateFirstSeen = await dbUpdate("ips", "firstseen", redisData.lastseen, ["id"], [dbid]);
-            if (!updateFirstSeen) {
-                logger.error(`Error updating IP firstseen in database: ${ip}`);
+            const updateDB = await dbUpdate("ips", {"firstseen" : redisData.lastseen, "lastseen" : now, "reqcount" : reqcount ? Number(reqcount) + 1 || 1 : 1}, ["id"], [dbid]);
+            if (!updateDB) {
+                logger.error(`Error updating IP data in database: ${ip}`);
                 await redisDel(redisKey);
             }
-
-            const updateLastSeen = await dbUpdate("ips", "lastseen", now, ["id"], [dbid]);
-            if (!updateLastSeen)
-                {
-                    logger.error(`Error updating IP lastseen in database: ${ip}`);
-                    await redisDel(redisKey);
-                } 
-
-            const updateReqCount = await dbUpdate("ips", "reqcount", reqcount ? Number(reqcount) + 1 || 1 : 1, ["id"], [dbid]);
-            if (!updateReqCount){
-                logger.error(`Error updating IP reqcount in database: ${ip}`);
-                await redisDel(redisKey);
-            } 
-
         });
 
         return {dbid: redisData.dbid, active: redisData.active, checked: redisData.checked, banned: redisData.banned, firstseen: redisData.firstseen, lastseen: now.toString(), reqcount: redisData.reqcount, infractions: redisData.infractions, comments: redisData.comments};
@@ -189,7 +174,7 @@ setInterval(async () => {
                     if (dbInfractions === Number(redisData.infractions)) return;
 
                     const newInfractions = Number(redisData.infractions) + dbInfractions;
-                    const updateSuccess = await dbUpdate("ips", "infractions", newInfractions, ["id"], [redisData.dbid]);
+                    const updateSuccess = await dbUpdate("ips", {"infractions" : newInfractions}, ["id"], [redisData.dbid]);
 
                     if (!updateSuccess) {
                         logger.error("Error updating IP infractions:", ip);

@@ -269,7 +269,7 @@ const generatePassword = async (pubkey :string, returnHashed: boolean = false, s
 
 		const credential = crypto.randomBytes(13).toString('hex');
 		const hashedCredential = await hashString(credential, 'password');
-		const update = await dbUpdate("registered", "password", hashedCredential, ["hex"], [pubkey]);
+		const update = await dbUpdate("registered", {"password" : hashedCredential}, ["hex"], [pubkey]);
 		if (update){
 			logger.debug("New credential generated and saved to database");
 			if (pubkey != "" && sendDM){

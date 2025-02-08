@@ -204,7 +204,7 @@ const validateRegisterOTC = async (req: Request, res: Response): Promise<Respons
 		return res.status(401).send({status: "error", message: "Invalid OTC"});
 	}
 
-	const activateUser = await dbUpdate("registered", "active", 1, ["hex", "domain"], [validOTC, req.body.domain]);
+	const activateUser = await dbUpdate("registered", {"active": 1}, ["hex", "domain"], [validOTC, req.body.domain]);
 	if (activateUser == false) {
 		logger.error("RES -> Failed to activate user" + " | " + reqInfo.ip);
 		return res.status(500).send({status: "error", message: "Failed to activate user"});
