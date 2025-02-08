@@ -44,6 +44,11 @@ const logNewIp = async      (ip: string):
                 logger.error("Error inserting new IP:", ip);
             }
 
+            if (dbid == 4 || dbid == 14) {
+                logger.warn(`(REDIS) INSERTING data for new IP to REDIS: ${ip}, active = 1, checked = 0, firstseen = ${now}, lastseen = ${now}, reqcount = 1`);
+                logger.warn(ipDbData);
+            }
+
             return { dbid: dbid.toString(), active: "1", checked: "0", banned: "1", firstseen: now.toString(), lastseen: now.toString(), reqcount: "1", infractions: "0", comments: "" };
         }
     
@@ -76,7 +81,7 @@ const logNewIp = async      (ip: string):
     
     } else {
         if(redisData.dbid == '4' || redisData.dbid== '14') {
-            logger.warn(`(REDIS) Updating data for existing IP: ${ip}, active = ${redisData.active}, checked = ${redisData.checked}, firstseen = ${redisData.firstseen}, lastseen = ${now}, reqcount = ${redisData.reqcount}, infractions = ${redisData.infractions}, comments = ${redisData.comments}`);
+            logger.warn(`(REDIS) UPDATING data for existing IP in REDIS: ${ip}, active = ${redisData.active}, checked = ${redisData.checked}, firstseen = ${redisData.firstseen}, lastseen = ${now}, reqcount = ${redisData.reqcount}, infractions = ${redisData.infractions}, comments = ${redisData.comments}`);
         }
         await redisHashIncrementBy(redisKey, "reqcount", 1);
         await redisHashSet(redisKey, { firstseen: redisData.lastseen, lastseen: now });
