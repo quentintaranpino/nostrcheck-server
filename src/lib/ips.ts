@@ -6,6 +6,8 @@ import { banEntity, isEntityBanned } from "./banned.js";
 import { Request } from "express";
 import { ipInfo } from "../interfaces/ips.js";
 
+const ipUpdateBatch = new Map<string, { dbid: string; firstseen: number; lastseen: number; reqcountIncrement: number }>();
+
 /**
  * Logs a new IP address in the database and Redis.
  * @param ip - The IP address to log.
@@ -70,16 +72,8 @@ const logNewIp = async      (ip: string):
     } else {
         await redisHashIncrementBy(redisKey, "reqcount", 1);
         await redisHashSet(redisKey, { firstseen: redisData.lastseen, lastseen: now });
-        setImmediate(async () => {
 
-            const { dbid, reqcount } = redisData;
-
-            const updateDB = await dbUpdate("ips", {"firstseen" : redisData.lastseen, "lastseen" : now, "reqcount" : reqcount ? Number(reqcount) + 1 || 1 : 1}, ["id"], [dbid]);
-            if (!updateDB) {
-                logger.error(`Error updating IP data in database: ${ip}`);
-                await redisDel(redisKey);
-            }
-        });
+        queueIpUpdate(redisData.dbid, Number(redisData.lastseen), now, 1);
 
         return {dbid: redisData.dbid, active: redisData.active, checked: redisData.checked, banned: redisData.banned, firstseen: redisData.firstseen, lastseen: now.toString(), reqcount: redisData.reqcount, infractions: redisData.infractions, comments: redisData.comments};
 
@@ -190,5 +184,47 @@ setInterval(async () => {
         logger.error("Error in IP processing interval:", error);
     }
 }, 60000);
+
+// Periodically persist the accumulated IP updates (batch) to the database.
+setInterval(async () => {
+    if (ipUpdateBatch.size === 0) return;
+  
+    for (const [dbid, update] of ipUpdateBatch.entries()) {
+      try {
+        // Update the database: set firstseen, lastseen and add the accumulated request count increment.
+        const success = await dbUpdate(
+          "ips",
+          { firstseen: update.firstseen, lastseen: update.lastseen, reqcount: update.reqcountIncrement },
+          ["id"],
+          [dbid]
+        );
+        if (success) {
+          // Remove the entry from the batch if the update was successful.
+          ipUpdateBatch.delete(dbid);
+        } else {
+          logger.error(`Error updating batch for IP with dbid: ${dbid}`);
+        }
+      } catch (error) {
+        logger.error(`Exception updating batch for IP with dbid: ${dbid}: ${error}`);
+      }
+    }
+  }, 10000); 
+
+/**
+ * Adds or updates an entry in the batch for the given IP.
+ * @param dbid - The IP's database ID.
+ * @param oldLastseen - The previous lastseen value (used here for firstseen).
+ * @param now - The new lastseen value.
+ * @param increment - The number to increment the request count (default is 1).
+ */
+const queueIpUpdate = (dbid: string, oldLastseen: number, now: number, increment: number = 1) => {
+    if (ipUpdateBatch.has(dbid)) {
+      const entry = ipUpdateBatch.get(dbid)!;
+      entry.reqcountIncrement += increment;
+      entry.lastseen = now; 
+    } else {
+      ipUpdateBatch.set(dbid, { dbid, firstseen: oldLastseen, lastseen: now, reqcountIncrement: increment });
+    }
+  };
 
 export { getClientIp, isIpAllowed };
