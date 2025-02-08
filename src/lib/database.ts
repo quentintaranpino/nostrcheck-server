@@ -310,6 +310,7 @@ const dbInsert = async (tableName: string, fields: string[], values: (string | n
 		);
 		if (!dbFileInsert) {
 			logger.error("Error inserting data into " + tableName + " table");
+			logger.debug("Fields:", fields.join(", "), "Values:", values.join(", "));
 			return 0;
 		}
 
@@ -317,6 +318,7 @@ const dbInsert = async (tableName: string, fields: string[], values: (string | n
 		return JSON.parse(JSON.stringify(dbFileInsert)).insertId;
 	} catch (error) {
 		logger.error("Error inserting data into " + tableName + " table");
+		logger.debug(error, "Fields:", fields.join(", "), "Values:", values.join(", "));
 		return 0;
 	}
 }
