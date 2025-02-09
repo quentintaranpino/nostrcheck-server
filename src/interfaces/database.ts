@@ -333,8 +333,10 @@ const eventsTableFields: EventsTable = {
 		"INDEX idx_kind_created_at (kind, created_at)",
 		"INDEX idx_active_id (active, id)",
 		"INDEX idx_created_at (created_at)",
-		"INDEX idx_active (active)"
-		
+		"INDEX idx_active (active)",
+		"INDEX idx_active_created_at ON events(active, id DESC)",
+		"INDEX idx_eventtags_event_id ON eventtags(event_id)",
+		"INDEX idx_active_id ON events(active, id DESC)"
 	],
 	constructor: {
 		name: 'RowDataPacket',
