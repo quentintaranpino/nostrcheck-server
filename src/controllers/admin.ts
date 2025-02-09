@@ -56,11 +56,11 @@ const serverStatus = async (req: Request, res: Response): Promise<Response> => {
 
 	const result: ServerStatusMessage = {
         status: "success",
-        message: "Nostrcheck API server is running.",
+        message: "Nostrcheck-server is running.",
 		version: process.env.npm_package_version || "0.0.0",
 		uptime: format(process.uptime()),
         ramUsage: Math.floor(process.memoryUsage().rss / 1024 / 1024),
-        cpuUsage: await getCPUUsage()
+        cpuUsage: await getCPUUsage(),
 	};
 
 	return res.status(200).send(result);
@@ -952,7 +952,7 @@ const getModuleCountData = async (req: Request, res: Response): Promise<Response
         return res.status(200).send({total: logHistory.length, field: logHistory.length});
     }
     if (module == "relay" && action == "count") {
-        return res.status(200).send({total: await dbCountModuleData(module), field: app.get("relayEvents")?.map?.size | 0});
+        return res.status(200).send({total: await dbCountModuleData(module), field: app.get("relayEvents")?.memoryDB?.size | 0});
     }
 
     if (action == "monthCount") {
