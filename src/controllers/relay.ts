@@ -85,7 +85,7 @@ const handleWebSocketMessage = async (socket: ExtendedWebSocket, data: WebSocket
       case "COUNT": {
         const filters: Filter[] = args.slice(1) as Filter[];
         if (typeof args[0] === 'string') {
-          await handleReqOrCount(socket, args[0], filters, type);
+          await handleReqOrCount(socket, args[0], filters, type, reqInfo);
         } else {
           socket.send(JSON.stringify(["NOTICE", "invalid: subscription id is not a string"]));
           socket.close(1003, "invalid: subscription id is not a string");
@@ -235,8 +235,8 @@ const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) =>
   if (app.get("config.relay")["limitation"]["auth_required"] == true && event.tags.some(tag => tag[0] === "-") && authSessions.get(socket) !== event.pubkey) {
       socket.send(JSON.stringify(["NOTICE", "error: unauthorized to post private messages"]));
       socket.send(JSON.stringify(["OK", event.id, false, "error: unauthorized to post private messages"]));
-      logger.debug("Blocked event with private message tag:", event.id, reqInfo.ip);
-
+      logger.debug("Blocked event with private message tag:", event.id);
+      
       return;
   }
 
@@ -394,7 +394,7 @@ const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) =>
 };
 
 // Handle REQ or COUNT
-const handleReqOrCount = async (socket: WebSocket, subId: string, filters: Filter[], type: string) => {
+const handleReqOrCount = async (socket: WebSocket, subId: string, filters: Filter[], type: string, reqInfo: ipInfo) => {
   
   logger.info(`Received ${type} message:`, subId);
   logger.debug("Filters:", filters);
@@ -412,7 +412,7 @@ const handleReqOrCount = async (socket: WebSocket, subId: string, filters: Filte
     if (requestedKinds.some(kind => [4, 14, 1059].includes(kind))) {
       socket.send(JSON.stringify(["CLOSED", subId, "auth-required: must authenticate to request private messages"]));
       socket.close(1003, "auth-required: must authenticate to request private messages");
-      logger.debug("Blocked REQ for private messages without authentication:", subId);
+      logger.warn("Blocked REQ for private messages without authentication:", subId, reqInfo.ip);
       return;
     }
   }
