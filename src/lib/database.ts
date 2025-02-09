@@ -487,6 +487,36 @@ async function dbUpsert(tableName: string, data: Record<string, string | number 
 	} 
 }
 
+/**
+ * Inserts multiple records into the specified table in the database.
+ * @param {string} table - The name of the table to insert the records into.
+ * @param {string[]} columns - An array of column names in the table.
+ * @param {any[][]} valuesArray - An array of arrays containing the values to insert into the table.
+ * @returns {Promise<number>} A promise that resolves to the number of records inserted, or 0 if an error occurred.
+ */
+const dbBulkInsert = async (table: string, columns: string[], valuesArray: any[][]): Promise<number> => {
+
+	logger.debug("Bulk insert into table:", table, "columns:", columns, "values:", valuesArray);
+
+	if (valuesArray.length === 0) return 0;
+	const pool = await connect("bulkInsert:" + table);
+  
+	const placeholders = valuesArray
+	  .map(() => "(" + Array(columns.length).fill("?").join(", ") + ")")
+	  .join(", ");
+  
+	const sql = `INSERT INTO ${table} (${columns.join(", ")}) VALUES ${placeholders}`;
+	const values = valuesArray.flat();
+  
+	try {
+	  const [result]: any = await pool.execute(sql, values);
+	  return result.affectedRows;
+	} catch (error) {
+	  logger.error("Error in bulkInsert for table:", table, error);
+	  return 0;
+	}
+  }
+
 const showDBStats = async(): Promise<string> => {
 
 	const result: string[] = [];
@@ -714,5 +744,6 @@ export {
 		dbInsert,
 		showDBStats,
 		initDatabase,
-		dbUpsert
+		dbUpsert,
+		dbBulkInsert
 		};
