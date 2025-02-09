@@ -1,4 +1,8 @@
+<div class="mx-auto">
+    <%- include('../loading', {objectId: `${chartId}-doughnut-chart`, dataName: 'chart'}) %>
+</div>
 <canvas id="<%- chartId %>-doughnut-chart" class="mx-auto"></canvas>
+
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
     document.addEventListener('DOMContentLoaded', async () => {
@@ -21,7 +25,7 @@
         document.getElementById(chartId).style.height = height;
 
         let doughnutCharts = {};
-        function initDoughnutChart(type, chartId, title, data, field, showTitle = false, showLegend = false, showTooltip = false,  externalTooltip = "") {
+        async function initDoughnutChart(type, chartId, title, data, field, showTitle = false, showLegend = false, showTooltip = false,  externalTooltip = "") {
 
             const values = [data.field, data.total - data.field];
             const labels = [field, 'un' + field];
@@ -143,7 +147,7 @@
 
         const updateDoughnutChart = async () => {
             const doughnutCount = await fetchCountData(datakey, 'count', doughnutField);
-            initDoughnutChart(
+            await initDoughnutChart(
                 type,
                 chartId,
                 doughnutField.charAt(0).toUpperCase() + doughnutField.slice(1) + ' ' + doughnutName + 's',
@@ -154,6 +158,8 @@
                 showTooltip === 'true',
                 externalTooltip
             );
+            document.getElementById(`${chartId}-loading`).classList.add('d-none');
+
         };
 
         setInterval(() => {updateDoughnutChart()}, timeout);
