@@ -16,7 +16,7 @@ const initEvents = async (app: Application): Promise<boolean> => {
 
         const loadEvents = async () => {
             try {
-                const limit = 50000;
+                const limit = 100000;
                 let offset = 0;
                 let hasMore = true;
 
