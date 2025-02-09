@@ -1,7 +1,5 @@
-<div class="mx-auto w-100">
-    <%- include('../loading', {objectId: `${chartId}-doughnut-chart`, dataName: 'chart'}) %>
-    <canvas id="<%- chartId %>-doughnut-chart" class="mx-auto"></canvas>
-</div>
+<canvas id="<%- chartId %>-doughnut-chart" class="mx-auto"></canvas>
+
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
@@ -158,7 +156,6 @@
                 showTooltip === 'true',
                 externalTooltip
             );
-            document.getElementById(`${chartId}-loading`).classList.add('d-none');
 
         };
 
