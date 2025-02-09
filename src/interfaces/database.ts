@@ -331,7 +331,10 @@ const eventsTableFields: EventsTable = {
 	_indexes: [
 		"INDEX idx_pubkey (pubkey)",
 		"INDEX idx_kind_created_at (kind, created_at)",
-		"INDEX idx_active_id (active, id)"
+		"INDEX idx_active_id (active, id)",
+		"INDEX idx_created_at (created_at)",
+		"INDEX idx_active (active)"
+		
 	],
 	constructor: {
 		name: 'RowDataPacket',
