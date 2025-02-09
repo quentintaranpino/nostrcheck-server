@@ -64,6 +64,7 @@ const getEventsDB = async (offset: number, limit: number): Promise<Event[]> => {
             t.extra_values
         FROM events e
         LEFT JOIN eventtags t ON e.event_id = t.event_id
+        WHERE ACTIVE = '1'
         ORDER BY e.id DESC
         LIMIT ${limit} OFFSET ${offset}
     `;

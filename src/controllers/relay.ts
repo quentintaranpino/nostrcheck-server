@@ -235,7 +235,8 @@ const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) =>
   if (app.get("config.relay")["limitation"]["auth_required"] == true && event.tags.some(tag => tag[0] === "-") && authSessions.get(socket) !== event.pubkey) {
       socket.send(JSON.stringify(["NOTICE", "error: unauthorized to post private messages"]));
       socket.send(JSON.stringify(["OK", event.id, false, "error: unauthorized to post private messages"]));
-      logger.debug("Blocked event with private message tag:", event.id);
+      logger.debug("Blocked event with private message tag:", event.id, reqInfo.ip);
+
       return;
   }
 
