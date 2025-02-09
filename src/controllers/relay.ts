@@ -9,7 +9,7 @@ import { Request } from "express";
 import { isIpAllowed } from "../lib/ips.js";
 import { isEntityBanned } from "../lib/banned.js";
 import { isEphemeral, isReplaceable } from "../lib/nostr/NIP01.js";
-import { getEvents, initEvents, storeEvent } from "../lib/relay/database.js";
+import { getEvents, initEvents, storeEvents } from "../lib/relay/database.js";
 import { executePlugins } from "../lib/plugins/core.js";
 import { ipInfo } from "../interfaces/ips.js";
 import { validatePow } from "../lib/nostr/NIP13.js";
@@ -251,7 +251,7 @@ const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) =>
 
   logger.info("Received EVENT:", event.id);
 
-  if (events.map.has(event.id)) {
+  if (events.memoryDB.has(event.id)) {
     socket.send(JSON.stringify(["NOTICE", "duplicate: already have this event"]));
     socket.send(JSON.stringify(["OK", event.id, false, "duplicate: already have this event"]));
     return;
@@ -267,7 +267,7 @@ const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) =>
   }
 
   if (isReplaceable(event.kind)) {
-    for (const [key, memEv] of events.map.entries()) {
+    for (const [key, memEv] of events.memoryDB.entries()) {
       if (memEv.event.kind === event.kind && memEv.event.pubkey === event.pubkey) {
           if (event.created_at > memEv.event.created_at ||(event.created_at === memEv.event.created_at && event.id < memEv.event.id)) {
             const deleteResult = await dbUpdate("events", {"active": "0"}, ["event_id"], [memEv.event.id]);
@@ -277,7 +277,7 @@ const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) =>
               logger.error("Failed to delete replaceable event:", memEv.event.id);
               return;
             }
-            events.map.delete(key); 
+            events.memoryDB.delete(key); 
             break;
           } else {
               socket.send(JSON.stringify(["NOTICE", "duplicate: older or same version"]));
@@ -320,7 +320,7 @@ const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) =>
       return;
     }
 
-    const storedEvents = eventsToDelete.map(id => events.map.get(id)).filter(e => e !== undefined).filter(e => e.event.kind !== 5)
+    const storedEvents = eventsToDelete.map(id => events.memoryDB.get(id)).filter(e => e !== undefined).filter(e => e.event.kind !== 5)
     if (storedEvents.length === 0) {
       socket.send(JSON.stringify(["NOTICE", "invalid: no events found for deletion"]));
       socket.send(JSON.stringify(["OK", event.id, false, "invalid: no events found for deletion"]));
@@ -362,7 +362,7 @@ const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) =>
     } else {
       // Remove events from memory
       ownedEvents.forEach(e => {
-        events.map.delete(e.event.id);
+        events.memoryDB.delete(e.event.id);
         const index = events.sortedArray.findIndex((event: Event) => event.id === e.event.id);
         if (index !== -1)  events.sortedArray.splice(index, 1);
       });
@@ -380,7 +380,8 @@ const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) =>
   } else {
       events.sortedArray.splice(index, 0, event);
   }
-  events.map.set(event.id, { event, processed: false });
+  events.memoryDB.set(event.id, { event, processed: false });
+  events.pending.set(event.id, event);
 
   // Notify all clients about the new event
   subscriptions.forEach((clientSubscriptions) => {
@@ -550,25 +551,28 @@ setInterval(async () => {
 
   if (!isModuleEnabled("relay", app)) return;
 
-  const eventsToPersist = [];
-  for (const [, memEv] of events.map.entries()) {
-      if (!memEv.processed) {
-          eventsToPersist.push(memEv.event);
-      }
-  }
+  const relayEvents = app.get("relayEvents");
+  if (!relayEvents || !relayEvents.pending) return;
+  if (relayEvents.pending.length === 0) return;
+  const eventsToPersist = Array.from(relayEvents.pending.values()) as Event[];
 
   if (eventsToPersist.length > 0) {
-      const insertResults = await Promise.all(eventsToPersist.map(e => storeEvent(e)));
-      eventsToPersist.forEach((event, index) => {
-          if (insertResults[index] > 0) {
-              const eventEntry = events.map.get(event.id);
-              if (eventEntry)  eventEntry.processed = true;
-          } else {
-              logger.error(`Failed to store event ${event.id}`);
-          }
+
+    const insertedCount: number = await storeEvents(eventsToPersist);
+
+    if (insertedCount == eventsToPersist.length) {
+      eventsToPersist.forEach((event: Event) => {
+        const eventEntry = relayEvents.memoryDB.get(event.id);
+        if (eventEntry) eventEntry.processed = true;
+        relayEvents.pending.delete(event.id);
       });
+    } else {
+      eventsToPersist.forEach((event: Event) => {
+        logger.error(`Failed to store event ${event.id}`);
+      });
+    }
   }
-}, 1000 * 30 * 1); // 30 seconds
+}, 30 * 1000);
 
 /*
 * Periodically set active = '0' for events with expiration tag in the past (NIP-40)
@@ -587,7 +591,7 @@ setInterval(async () => {
         logger.error(`Failed to set event ${expiredEvent.event_id} as inactive`);
         continue;
       }
-      events.map.delete(expiredEvent.event_id);
+      events.memoryDB.delete(expiredEvent.event_id);
       const index: number = events.sortedArray.findIndex((e: Event) => e.id === expiredEvent.event_id);
       if (index !== -1)   events.sortedArray.splice(index, 1);
       logger.info(`Set event ${expiredEvent.event_id} as inactive`);

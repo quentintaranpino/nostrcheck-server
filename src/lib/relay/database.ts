@@ -1,6 +1,6 @@
 import { Application } from "express";
 import { Event, Filter, matchFilter } from "nostr-tools";
-import { dbSimpleSelect, dbUpsert } from "../database.js";
+import { dbBulkInsert, dbSimpleSelect, dbUpsert } from "../database.js";
 import { logger } from "../logger.js";
 import { MemoryEvent } from "../../interfaces/relay.js";
 import { isModuleEnabled } from "../config.js";
@@ -10,8 +10,9 @@ const initEvents = async (app: Application): Promise<boolean> => {
     if (!isModuleEnabled("relay", app)) return false;
     if (!app.get("relayEvents")) {
         const eventsMap: Map<string, MemoryEvent> = new Map();
+        const pendingEvents: Map<string, Event> = new Map();
         const eventsArray: Event[] = [];
-        app.set("relayEvents", { map: eventsMap, sortedArray: eventsArray });
+        app.set("relayEvents", { memoryDB: eventsMap, sortedArray: eventsArray, pending: pendingEvents });
 
         const loadEvents = async () => {
             try {
@@ -117,61 +118,72 @@ const getEventsDB = async (offset: number, limit: number): Promise<Event[]> => {
     return Array.from(eventsMap.values());
 };
 
-const storeEvent = async (event: Event) : Promise<number> => {
+/**
+ * Inserts one or more events (and their tags) into the database using bulk insert.
+ * @param {Event | Event[]} eventsInput - Un evento o un array de eventos a insertar.
+ * @returns {Promise<number>}
+ */
+const storeEvents = async (eventsInput: Event | Event[]): Promise<number> => {
 
-    if (!event) return 0;
-    if (event.kind >= 20000 && event.kind < 30000) return 0;
+    const events: Event[] = Array.isArray(eventsInput) ? eventsInput : [eventsInput];
+    const eventsToStore = events.filter(e => e && !(e.kind >= 20000 && e.kind < 30000));
+    if (eventsToStore.length === 0) return 0;
   
-    const eventData = {
-      active: true,
-      checked: false,
-      event_id: event.id,
-      pubkey: event.pubkey,
-      kind: event.kind,
-      created_at: event.created_at,
-      content: event.content || "",
-      sig: event.sig,
-      received_at: Math.floor(Date.now() / 1000)
-    };
+
+    const now = Math.floor(Date.now() / 1000);
+    const eventValues = eventsToStore.map(e => [
+      true,              // active
+      false,             // checked
+      e.id,              // event_id
+      e.pubkey,
+      e.kind,
+      e.created_at,
+      e.content || "",
+      e.sig,
+      now
+    ]);
   
-    const insertedId = await dbUpsert("events", eventData);
-    if (insertedId === 0) {
-        logger.error("Error inserting or updating event in DB:", event.id);
-        return 0;
-    } 
-    
-    if (event.tags && event.tags.length > 0) {
-        await storeEventTags(event.id, event.tags);
+    const eventColumns = [
+      "active",
+      "checked",
+      "event_id",
+      "pubkey",
+      "kind",
+      "created_at",
+      "content",
+      "sig",
+      "received_at"
+    ];
+  
+    const insertedRows = await dbBulkInsert("events", eventColumns, eventValues);
+    if (insertedRows !== eventsToStore.length) {
+      logger.error("Bulk insert: Failed to insert all events. Expected:", eventsToStore.length, "Inserted:", insertedRows);
+      return 0;
     }
-
-    logger.debug("Event inserted in DB:", event.id, "insertId:", insertedId);
-    return insertedId;
-
-}
-
-const storeEventTags = async (eventId: string, tags: string[][]): Promise<void> => {
-    if (!tags || tags.length === 0) return;
-
-    await Promise.all(tags.map(async (tag, index) => {
-        if (!tag || tag.length === 0) return;
-
-        const tagName = tag[0]; 
-        const tagValue = tag[1] || ""; 
-        const extraValues = tag.slice(2).join(",") || null;
-
-        await dbUpsert("eventtags", {
-            event_id: eventId,
-            tag_name: tagName,
-            tag_value: tagValue,
-            position: index,
-            extra_values: extraValues
+  
+    const allTagValues: any[][] = [];
+    eventsToStore.forEach(e => {
+      if (e.tags && e.tags.length > 0) {
+        e.tags.forEach((tag: string[], index: number) => {
+          const tagName = tag[0];
+          const tagValue = tag[1] || "";
+          const extraValues = tag.slice(2).join(",") || null;
+          allTagValues.push([e.id, tagName, tagValue, index, extraValues]);
         });
-    }));
-
-    logger.debug(`Stored ${tags.length} tags for event ${eventId}`);
-
-};
-
+      }
+    });
+  
+    if (allTagValues.length > 0) {
+      const tagColumns = ["event_id", "tag_name", "tag_value", "position", "extra_values"];
+      const insertedTagRows = await dbBulkInsert("eventtags", tagColumns, allTagValues);
+      if (insertedTagRows !== allTagValues.length) {
+        logger.error("Bulk insert: Failed to insert all event tags. Expected:", allTagValues.length, "Inserted:", insertedTagRows);
+      }
+    }
+  
+    logger.debug("Bulk inserted events:", insertedRows);
+    return insertedRows;
+  };
 
 const getEvents = async (filters: Filter[], relayData: { map: Map<string, MemoryEvent>; sortedArray: Event[] }): Promise<Event[]> => {
     const now = Math.floor(Date.now() / 1000);
@@ -227,4 +239,4 @@ function binarySearchFirst(arr: Event[], target: number, compare: (event: Event,
     return result;
 }
 
-export { getEvents, storeEvent, initEvents };
+export { getEvents, storeEvents, initEvents };
