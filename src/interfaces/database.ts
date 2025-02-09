@@ -95,6 +95,9 @@ const mediafilesTableFields: mediafilesTable = {
 	localPath: "varchar(4)",
 	banid: "int(11)",
 	type: "varchar(15)",
+	_indexes: [
+		"INDEX idx_filename_hash_pubkey (filename, original_hash, pubkey)",
+	],
 	constructor: {
 		name: 'RowDataPacket',
 	},

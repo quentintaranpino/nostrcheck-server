@@ -28,6 +28,7 @@ class Semaphore {
     }
   
     async execute(task) {
+      console.log(`Queue length: ${this.getQueueLength()}`);
       await this.acquire();
       try {
         await task(); 
