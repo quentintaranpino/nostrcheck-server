@@ -432,14 +432,15 @@ const handleReqOrCount = async (socket: WebSocket, subId: string, filters: Filte
   }
 
   try {
+    const eventsList = await getEvents(filters, events);
     let count = 0;
-    for await (const event of await getEvents(filters, events)) {
+    for (const event of eventsList) {
       if (socket.readyState !== WebSocket.OPEN) break;
       count++;
       if (type === "REQ") {
         socket.send(JSON.stringify(["EVENT", subId, event]));
         logger.debug("Sent event:", event.id);
-        if (count >= app.get("config.relay")["limitation"]["max_limit"]) break; 
+        if (count >= app.get("config.relay")["limitation"]["max_limit"]) break;
       }
     }
 

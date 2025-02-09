@@ -173,44 +173,58 @@ const storeEventTags = async (eventId: string, tags: string[][]): Promise<void> 
 };
 
 
-const getEvents = async (filters: Filter[], relayData: { map: Map<string, MemoryEvent>, sortedArray: Event[] }): Promise<Event[]> => {
-
+const getEvents = async (filters: Filter[], relayData: { map: Map<string, MemoryEvent>; sortedArray: Event[] }): Promise<Event[]> => {
     const now = Math.floor(Date.now() / 1000);
     const allEvents: Event[] = [];
-  
     for (const filter of filters) {
+        const until = filter.until !== undefined ? filter.until : now;
+        const since = filter.since !== undefined ? filter.since : 0;
+        const limit = filter.limit;
 
-      const until = filter.until !== undefined ? filter.until : now;
-      const since = filter.since !== undefined ? filter.since : 0;
-      const limit = filter.limit;
-      const searchQuery = filter.search ? filter.search.toLowerCase() : null;
+        const rawSearch = filter.search ? filter.search.trim() : "";
+        const searchQuery = rawSearch.length >= 3 ? rawSearch.toLowerCase() : null;
 
-      const filteredEvents: { event: Event, score: number }[] = [];
-      for (const event of relayData.sortedArray) {
-        if (event.created_at <= until && event.created_at >= since && matchFilter(filter, event)) {
-          if (!searchQuery) {
-            filteredEvents.push({ event, score: 0 });
-            if (limit !== undefined && filteredEvents.length >= limit) break;
-          } else {
-            const content = event.content.toLowerCase();
-            const index = content.indexOf(searchQuery);
-            if (index !== -1) {
-              filteredEvents.push({ event, score: index });
+        const startIndex = binarySearchFirst(relayData.sortedArray, until, (event, target) => event.created_at <= target);
+        const endIndex = binarySearchFirst(relayData.sortedArray, since, (event, target) => event.created_at < target);
+        const candidates = relayData.sortedArray.slice(startIndex, endIndex);
+        const { search, ...basicFilter } = filter;
+
+        let filtered: { event: Event; score: number }[] = [];
+        for (const event of candidates) {
+            if (!matchFilter(basicFilter, event)) continue;
+            if (!searchQuery) {
+                filtered.push({ event, score: 0 });
+            } else {
+                const content = event.content.toLowerCase();
+                const index = content.indexOf(searchQuery);
+                if (index !== -1) filtered.push({ event, score: index });
             }
-          }
+            if (!searchQuery && limit !== undefined && filtered.length >= limit) break;
         }
-      }
-  
-      if (searchQuery)  filteredEvents.sort((a, b) => a.score - b.score);
 
-      const eventsForFilter = limit !== undefined
-        ? filteredEvents.slice(0, limit).map(item => item.event)
-        : filteredEvents.map(item => item.event);
-  
-      allEvents.push(...eventsForFilter);
+        if (searchQuery) filtered.sort((a, b) => a.score - b.score);
+
+        const eventsForFilter = limit !== undefined? filtered.slice(0, limit).map((item) => item.event) : filtered.map((item) => item.event);
+        allEvents.push(...eventsForFilter);
     }
+    
     return allEvents;
-  };
-  
+};
+
+function binarySearchFirst(arr: Event[], target: number, compare: (event: Event, target: number) => boolean): number {
+    let low = 0;
+    let high = arr.length;
+    let result = arr.length;
+    while (low < high) {
+        const mid = Math.floor((low + high) / 2);
+        if (compare(arr[mid], target)) {
+        result = mid;
+        high = mid;
+        } else {
+        low = mid + 1;
+        }
+    }
+    return result;
+}
 
 export { getEvents, storeEvent, initEvents };
