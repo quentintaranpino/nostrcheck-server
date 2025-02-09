@@ -334,9 +334,6 @@ const eventsTableFields: EventsTable = {
 		"INDEX idx_active_id (active, id)",
 		"INDEX idx_created_at (created_at)",
 		"INDEX idx_active (active)",
-		"INDEX idx_active_created_at ON events(active, id DESC)",
-		"INDEX idx_eventtags_event_id ON eventtags(event_id)",
-		"INDEX idx_active_id ON events(active, id DESC)"
 	],
 	constructor: {
 		name: 'RowDataPacket',
@@ -361,7 +358,9 @@ const eventTagsTableFields: EventTagsTable = {
 	extra_values: "TEXT",
 	_indexes: [
 		"INDEX idx_event_id (event_id)",
-		"INDEX idx_tag_name_value (tag_name, tag_value(100))"
+		"INDEX idx_tag_name_value (tag_name, tag_value(100))",
+		"INDEX idx_eventtags_event_id (event_id)"
+
 	],
 	constructor: {
 		name: 'RowDataPacket',
