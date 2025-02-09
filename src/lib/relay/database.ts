@@ -23,7 +23,7 @@ const initEvents = async (app: Application): Promise<boolean> => {
                 while (hasMore) {
                     logger.info(`Loaded ${eventsMap.size} events from DB`);
                     const loadedEvents = await getEventsDB(offset, limit);
-                    if (loadedEvents.length === 0 || limit > 500000) {
+                    if (loadedEvents.length === 0 || offset > 300000) {
                         hasMore = false;
                     } else {
                         for (const event of loadedEvents) {
