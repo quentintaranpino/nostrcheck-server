@@ -87,78 +87,9 @@
     <%- include('./components/modals/media-modal'); %>
   </body>
 <script>
-</script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="/static/js/chart.js"></script>
-
-<script>
-  
-  // Welcome text
+    // Welcome text
   if (localStorage.getItem('profileData')){
   document.getElementById('welcome-text').innerHTML = `Welcome ${JSON.parse(localStorage.getItem('profileData')).display_name}, this is the status of your server today`;
   }
-
-  const fetchCountData = async (datakey, action, field) => {
-    let serverData  = ""
-    await fetch(`admin/modulecountdata?module=${datakey}&action=${action}&field=${field}`, {
-      method: 'GET', headers: {'Content-Type': 'application/json'}})
-      .then(response => response.json())
-      .then(data => {
-          serverData = data;
-      })
-      .catch(error => console.error('Error:', error));
-
-      return serverData || { total: 0 }
-  }
-  
-  document.addEventListener("DOMContentLoaded", async function () {
-
-    // Charts initialization
-    const initChars = async() => {
-      if (activeModules.includes("nostraddress")) {
-        semaphore.execute(async() => await initMonthChart("#usersData-chart",'Registered users', await fetchCountData('nostraddress','monthCount', 'date')))
-      }
-      if (activeModules.includes("media")) {
-        semaphore.execute(async() => await initMonthChart('#filesData-chart','Hosted files', await fetchCountData('media','monthCount', 'date')))
-      }
-      if (activeModules.includes("payments")) {
-        semaphore.execute(async() => await initMonthChart("#paymentsData-chart",'Transactions', await fetchCountData('payments','monthCount', 'createddate')))
-      }
-      if (activeModules.includes("relay")) {
-        semaphore.execute(async() => await initMonthChart("#relayData-chart",'Relay events', await fetchCountData('relay','monthCount', 'created_at')))
-      }
-    }
-    initChars();
-  });
-
-  // Tab change and doughnut chart initialization
-  document.addEventListener("DOMContentLoaded", async function () {
-    const activeTab = document.querySelector('#dashboardTabs button.nav-link.active');
-    if (activeTab) handleTabChange({ target: activeTab }); 
-  });
-
-  document.querySelectorAll('#dashboardTabs button[data-bs-toggle="tab"]').forEach(tab => {
-      tab.addEventListener("shown.bs.tab", async function (event) {
-          handleTabChange(event);
-      });
-  });
-
-  async function handleTabChange(event) {
-    const doughnuts = [
-      {id: 'users',  dataKey: 'nostraddress', field: 'checked', title: 'Checked users'},
-      {id: 'files',  dataKey: 'media', field: 'checked', title: 'Checked files'},
-      {id: 'payments',  dataKey: 'payments', field: 'paid', title: 'Paid transactions'},
-      {id: 'relay', dataKey: 'relay', field: 'active', title: 'Active events'}
-    ]
-    const targetId = event.target.getAttribute("data-bs-target").replace("#", "");
-    const dataKey = doughnuts.find(d => d.id == targetId)?.dataKey;
-    const field = doughnuts.find(d => d.id == targetId)?.field;
-    const title = doughnuts.find(d => d.id == targetId)?.title;
-
-    if (!dataKey) return;
-    const doughnutData = await fetchCountData(dataKey,'count', field);
-    semaphore.execute(async() => {initDoughnutChart(`${targetId}Data`, title,{field: doughnutData.field, total:doughnutData.total}, field, true, true)});
-  }
-
 </script>
 </html>

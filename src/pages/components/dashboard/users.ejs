@@ -46,18 +46,12 @@ let nostraddressButtons = [
     objectName: 'user',
   });         
   %>
-  <div class="mt-2 d-flex flex-column align-items-center">
-    <div class="row d-flex w-100">
-      <div class="col-xl-8 col-lg-12 col-md-12 col-sm-12 mb-4" style="height:450px;">
-        <div class="w-100 h-100 default-bg rounded d-flex me-2 shadow-sm ">
-          <canvas id="usersData-chart" class="mx-auto w-100"></canvas>
-          </div>  
-      </div>
-      <div class="col-xl-4 col-lg-12 col-md-12 col-sm-12" style="height:450px;">
-        <div class="w-100 h-100 default-bg rounded d-flex me-2 p-3 shadow-sm ">
-        <canvas id="usersData-doughnut-chart" class="mx-auto"></canvas>
-        </div>  
-      </div>
-    </div>
-  </div>
+  <%- include('../charts/combined', {
+    chartId: 'registeredData',
+    datakey: 'nostraddress',
+    doughnutField: 'checked',
+    doughnutName: 'pubkey',
+    monthField: 'date',
+    monthName: 'Registered pubkeys',
+  }); %>
 <% } %>

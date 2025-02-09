@@ -695,26 +695,8 @@
 
         await initTable(`#${tableId}`, datakey, objectName);
 
-        const fetchCountData = async (datakey, action, field) => {
-            let serverData  = ""
-            await fetch(`admin/modulecountdata?module=${datakey}&action=${action}&field=${field}`, {
-            method: 'GET', headers: {'Content-Type': 'application/json'}})
-            .then(response => response.json())
-            .then(data => {
-                serverData = data;
-            })
-            .catch(error => console.error('Error:', error));
-
-            return serverData || { total: 0 }
-        }
-
-        setInterval(async () => {
-            semaphore.execute(async() => await refreshTable(`#${tableId}`));
-            semaphore.execute(async() => {
-                const dataCount = await fetchCountData(datakey, 'count', field);
-                if(table.field){initDoughnutChart(table.tableId, table.field.charAt(0).toUpperCase() + table.field.slice(1) + ' ' + table.objectName + 's',{field: dataCount.field, total:dataCount.total}, table.field, true, false)}
-            });
-        }, timeout);
+        // Refresh table every timeout
+        setInterval(async () => {semaphore.execute(async() => await refreshTable(`#${tableId}`))}, timeout);
 
         // Disable sorting and refresh buttons while table is loading
         setInterval(async() => {

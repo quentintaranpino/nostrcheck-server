@@ -6,8 +6,24 @@
         <% } %>
         <div class="d-flex justify-content-between align-items-center">
           <h5 id="<%- dashcardId %>-name" class="card-title mb-0"></h5>
-          <div id="<%- dashcardId %>-icon-container">
-            <i id="<%- dashcardId %>-icon" class="fas fa-chart-simple fa-3x card-icon"></i>
+          <div>
+            <i id="<%- dashcardId %>-icon" class="fas fa-chart-simple fa-3x card-icon" ></i>
+            <% if (icon=='doughnut') { %>
+                <%- include('./charts/doughnutchart', { 
+                                                        type: 'doughnut',
+                                                        chartId: dashcardId, 
+                                                        datakey: dashcardDataKey, 
+                                                        doughnutField: field, 
+                                                        doughnutName: "", 
+                                                        timeout: typeof timeout !== 'undefined' ? timeout : 60000,
+                                                        width:"50", 
+                                                        height:"50", 
+                                                        showTitle:false, 
+                                                        showLegend:false, 
+                                                        showTooltip:false,
+                                                        externalTooltip:`${dashcardId}-tooltip-text`,
+                                                      }) %>
+            <% } %>
           </div>
         </div>
         <h1 id="<%- dashcardId %>-text-field" class="display-2 m-0 font-weight-bold dash-text">0</h1>     
@@ -30,7 +46,6 @@
       </div>
     </div>
   </div>
-  
 <style>
 .card {
     position: relative;
@@ -44,11 +59,6 @@
 
 .card-icon {
     color: #a575ff;
-}
-
-.card-icon-container {
-    width: 55px;
-    height: 55px;
 }
 
 .btn-dashcard:hover {
@@ -101,7 +111,6 @@
 }
 
 </style>
-
 <script>
 document.addEventListener('DOMContentLoaded', async () => {
 
@@ -127,8 +136,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     } else if (icon === "satoshi") {
         iconElement.addClass('fas fa-bolt-lightning text-warning');
     } else if (icon === "doughnut") {
-        const iconContainer = $('#' + dashcardId + '-icon-container');
-        iconContainer.append('<canvas style="border 1px solid black" id="' + dashcardId + '-doughnut-chart" width="50" height="50"></canvas>');
+        iconElement.addClass('d-none');
+       
     } else if (icon === "time") {
         iconElement.addClass('fas fa-clock text-info');
     } else if (icon === "relay") {
@@ -160,13 +169,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       }else{
         $('#' + dashcardId + '-text-field').text(countData.total);
       }
-
-      if (field !== "" && field !== undefined && icon == 'doughnut') {
-        setTimeout(() => {
-          $('#' + dashcardId + '-tooltip-text').text('Updating chart...');
-          initDoughnutChart(dashcardId, dashcardDataKey, {field: countData.field, total: countData.total}, field, false, false, true)
-        }, 500);
-      }
+    
       setTimeout(() => {$('#' + dashcardId + '-tooltip-text').removeClass('visible')}, 1000);
     }
 
