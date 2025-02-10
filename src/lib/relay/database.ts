@@ -23,7 +23,7 @@ const initEvents = async (app: Application): Promise<boolean> => {
                 while (hasMore) {
                     logger.info(`Loaded ${eventsMap.size} events from DB`);
                     const loadedEvents = await getEventsDB(offset, limit);
-                    if (loadedEvents.length === 0 ) {
+                    if (loadedEvents.length === 0  || offset > 200000) {
                         hasMore = false;
                     } else {
                         for (const event of loadedEvents) {
@@ -160,8 +160,7 @@ const storeEvents = async (eventsInput: Event | Event[]): Promise<number> => {
   
     const insertedRows = await dbBulkInsert("events", eventColumns, eventValues);
     if (insertedRows !== eventsToStore.length) {
-      logger.error("Bulk insert: Failed to insert all events. Expected:", eventsToStore.length, "Inserted:", insertedRows);
-      return 0;
+      logger.error("Bulk insert: Failed to insert events. Expected:", eventsToStore.length, "Inserted:", insertedRows);
     }
   
     const allTagValues: any[][] = [];
