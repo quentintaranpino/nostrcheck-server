@@ -4,6 +4,7 @@ import { dbBulkInsert, dbSimpleSelect, dbUpsert } from "../database.js";
 import { logger } from "../logger.js";
 import { MemoryEvent } from "../../interfaces/relay.js";
 import { isModuleEnabled } from "../config.js";
+import { off } from "process";
 
 const initEvents = async (app: Application): Promise<boolean> => {
 
@@ -24,7 +25,7 @@ const initEvents = async (app: Application): Promise<boolean> => {
                 while (hasMore) {
                     logger.info(`Loaded ${eventsMap.size} events from DB`);
                     const loadedEvents = await getEventsDB(offset, limit);
-                    if (loadedEvents.length === 0) {
+                    if (loadedEvents.length === 0 || offset > 300000) {
                         hasMore = false;
                     } else {
                         for (const event of loadedEvents) {
