@@ -585,11 +585,11 @@
 
             // Attach the click event handler to the document and delegate it to the clickable element
             $(document).off('click', '#media_' + index + '_preview').on('click', '#media_' + index + '_preview', async function () {
-                    await initMediaModal(row.pubkey + "/" + value, row.checked, row.visibility, true).then(async (modal) => {
+                    initMediaModal(row.pubkey + "/" + value, row.checked, row.visibility, true).then(async (modal) => {
                         let modalResult = modal.data;
                         for (let field in modalResult) {
                             if (modalResult[field] != row[field]) {
-                                semaphore.execute(async () => await modifyRecord("admin/updaterecord/", '#filesData', row.id, field, modalResult[field], 'modify'));
+                                await modifyRecord("admin/updaterecord/", '#filesData', row.id, field, modalResult[field], 'modify');
                                 refreshTable('#filesData');
                             }
                         }
