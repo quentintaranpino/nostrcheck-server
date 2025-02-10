@@ -13,6 +13,7 @@ const initEvents = async (app: Application): Promise<boolean> => {
         const pendingEvents: Map<string, Event> = new Map();
         const eventsArray: Event[] = [];
         app.set("relayEvents", { memoryDB: eventsMap, sortedArray: eventsArray, pending: pendingEvents });
+        app.set("relayEventsLoaded", false);
 
         const loadEvents = async () => {
             try {
@@ -23,7 +24,7 @@ const initEvents = async (app: Application): Promise<boolean> => {
                 while (hasMore) {
                     logger.info(`Loaded ${eventsMap.size} events from DB`);
                     const loadedEvents = await getEventsDB(offset, limit);
-                    if (loadedEvents.length === 0  || offset > 200000) {
+                    if (loadedEvents.length === 0) {
                         hasMore = false;
                     } else {
                         for (const event of loadedEvents) {
@@ -38,6 +39,8 @@ const initEvents = async (app: Application): Promise<boolean> => {
                 logger.info("Loaded", eventsMap.size, "events from DB");
             } catch (error) {
                 logger.error("Error loading events:", error);
+            } finally {
+                app.set("relayEventsLoaded", true);
             }
         };
 

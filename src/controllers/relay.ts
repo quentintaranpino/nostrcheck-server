@@ -546,17 +546,16 @@ const handleAuthMessage = async (socket: ExtendedWebSocket, message: ["AUTH", Au
 setInterval(async () => {
 
   if (!isModuleEnabled("relay", app)) return;
+  if (!app.get("relayEventsLoaded")) return;
 
   const relayEvents = app.get("relayEvents");
   if (!relayEvents || !relayEvents.pending) return;
-  if (relayEvents.pending.length === 0) return;
+  if (relayEvents.pending.size === 0) return;
+
   const eventsToPersist = Array.from(relayEvents.pending.values()) as Event[];
-
   if (eventsToPersist.length > 0) {
-
     const insertedCount: number = await storeEvents(eventsToPersist);
-
-    if (insertedCount == eventsToPersist.length) {
+    if (insertedCount > 0) {
       eventsToPersist.forEach((event: Event) => {
         const eventEntry = relayEvents.memoryDB.get(event.id);
         if (eventEntry) eventEntry.processed = true;
@@ -564,12 +563,7 @@ setInterval(async () => {
       });
     } else {
       eventsToPersist.forEach((event: Event) => {
-        try{
-
-        logger.error(`Failed to store event ${JSON.stringify(event)}`);
-        } catch (error) {
-          logger.error(`Failed to store event ${event.id}`);
-        }
+        logger.error(`Failed to store event ${event.id}`);
       });
     }
   }
