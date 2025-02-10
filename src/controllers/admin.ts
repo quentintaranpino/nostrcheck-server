@@ -61,6 +61,7 @@ const serverStatus = async (req: Request, res: Response): Promise<Response> => {
 		uptime: format(process.uptime()),
         ramUsage: Math.floor(process.memoryUsage().rss / 1024 / 1024),
         cpuUsage: await getCPUUsage(),
+        websockets: isModuleEnabled("relay", app) ? app.get("wss").clients.size : 0,
 	};
 
 	return res.status(200).send(result);

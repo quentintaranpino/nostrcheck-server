@@ -104,6 +104,17 @@
         showField: true, 
         timeout: 15000,
         }); %>
+
+        <%- include('../dashcard', { 
+        dashcardId: 'websocketConnections', 
+        dashcardName: 'WS connections', 
+        dashcardDataKey: 'admin', 
+        icon: 'activity', 
+        link: '', 
+        action: 'status', 
+        field: 'websockets', 
+        showField: false, 
+        }); %>
     <% } %>
 
     <%- include('../dashcard', { 
