@@ -585,7 +585,6 @@
 
             // Attach the click event handler to the document and delegate it to the clickable element
             $(document).off('click', '#media_' + index + '_preview').on('click', '#media_' + index + '_preview', async function () {
-                semaphore.execute(async () => {
                     await initMediaModal(row.pubkey + "/" + value, row.checked, row.visibility, true).then(async (modal) => {
                         let modalResult = modal.data;
                         for (let field in modalResult) {
@@ -595,7 +594,6 @@
                             }
                         }
                     })
-                });
             });
 
             return modalFileCheck;
