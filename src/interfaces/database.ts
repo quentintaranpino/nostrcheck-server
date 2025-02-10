@@ -322,6 +322,7 @@ interface EventsTable extends RowDataPacket {
 	content: string;
 	sig: string;
 	received_at: string;
+	comments: string;
 }
 
 const eventsTableFields: EventsTable = {
@@ -335,6 +336,7 @@ const eventsTableFields: EventsTable = {
 	content: "TEXT",
 	sig: "varchar(128) NOT NULL",
 	received_at: "BIGINT NOT NULL",
+	comments: "varchar(150)",
 	_indexes: [
 		"INDEX idx_pubkey (pubkey)",
 		"INDEX idx_kind_created_at (kind, created_at)",
