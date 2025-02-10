@@ -23,7 +23,7 @@ const initEvents = async (app: Application): Promise<boolean> => {
                 while (hasMore) {
                     logger.info(`Loaded ${eventsMap.size} events from DB`);
                     const loadedEvents = await getEventsDB(offset, limit);
-                    if (loadedEvents.length === 0 || offset > 300000) {
+                    if (loadedEvents.length === 0) {
                         hasMore = false;
                     } else {
                         for (const event of loadedEvents) {
@@ -54,20 +54,23 @@ const getEventsDB = async (offset: number, limit: number): Promise<Event[]> => {
 
     const query = `
         SELECT
-            e.event_id, 
-            e.pubkey, 
-            e.kind, 
-            e.created_at, 
-            e.content, 
+            e.event_id,
+            e.pubkey,
+            e.kind,
+            e.created_at,
+            e.content,
             e.sig,
-            t.tag_name, 
-            t.tag_value, 
+            t.tag_name,
+            t.tag_value,
             t.extra_values
-        FROM events e
-        LEFT JOIN eventtags t ON e.event_id = t.event_id
-        WHERE ACTIVE = '1'
-        ORDER BY e.id DESC
-        LIMIT ${limit} OFFSET ${offset}
+        FROM (
+            SELECT *
+            FROM events
+            WHERE active = '1'
+            ORDER BY id DESC
+            LIMIT ${limit} OFFSET ${offset}
+        ) AS e
+        LEFT JOIN eventtags t ON e.event_id = t.event_id;
     `;
 
     const dbResult = await dbSimpleSelect("events", query);
