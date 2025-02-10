@@ -505,7 +505,7 @@ const dbBulkInsert = async (table: string, columns: string[], valuesArray: any[]
 	  .map(() => "(" + Array(columns.length).fill("?").join(", ") + ")")
 	  .join(", ");
   
-	const sql = `INSERT INTO ${table} (${columns.join(", ")}) VALUES ${placeholders}`;
+	const sql = `INSERT IGNORE INTO ${table} (${columns.join(", ")}) VALUES ${placeholders}`;
 	const values = valuesArray.flat();
   
 	try {
