@@ -23,11 +23,11 @@ const initEvents = async (app: Application): Promise<boolean> => {
                 while (hasMore) {
                     logger.info(`Loaded ${eventsMap.size} events from DB`);
                     const loadedEvents = await getEventsDB(offset, limit);
-                    if (loadedEvents.length === 0 || offset > 300000) {
+                    if (loadedEvents.length === 0 ) {
                         hasMore = false;
                     } else {
                         for (const event of loadedEvents) {
-                            eventsMap.set(event.id, { event, processed: true });
+                            eventsMap.set(event.id, { event: event, content_lower: event.content.toLowerCase(), processed: true });
                             eventsArray.push(event);
                         }
                         offset += limit;
@@ -210,8 +210,9 @@ const getEvents = async (filters: Filter[], relayData: { map: Map<string, Memory
             if (!searchQuery) {
                 filtered.push({ event, score: 0 });
             } else {
-                const content = event.content.toLowerCase();
-                const index = content.indexOf(searchQuery);
+                const memEvent = relayData.map.get(event.id);
+                const contentLower = memEvent ? memEvent.content_lower : event.content.toLowerCase();
+                const index = contentLower.indexOf(searchQuery);
                 if (index !== -1) filtered.push({ event, score: index });
             }
             if (!searchQuery && limit !== undefined && filtered.length >= limit) break;
@@ -226,6 +227,19 @@ const getEvents = async (filters: Filter[], relayData: { map: Map<string, Memory
     return allEvents;
 };
 
+
+/**
+ * Returns the first index in the sorted array for which the comparison function returns true.
+ *
+ * This function performs a binary search on a sorted array of events and returns the first index
+ * at which the provided comparison function (which compares an event with the target value) is true.
+ * If no element satisfies the condition, the function returns the length of the array.
+ *
+ * @param {Event[]} arr - The sorted array of events.
+ * @param {number} target - The value to compare against (for example, a timestamp).
+ * @param {(event: Event, target: number) => boolean} compare - The comparison function that determines if an event meets the condition with respect to the target.
+ * @returns {number} The index where the condition is first met, or arr.length if no element meets it.
+ */
 function binarySearchFirst(arr: Event[], target: number, compare: (event: Event, target: number) => boolean): number {
     let low = 0;
     let high = arr.length;
@@ -242,4 +256,29 @@ function binarySearchFirst(arr: Event[], target: number, compare: (event: Event,
     return result;
 }
 
-export { getEvents, storeEvents, initEvents };
+/**
+ * Returns the index where an event should be inserted in a sorted array.
+ * 
+ * This function performs a binary search on a sorted array of events and returns the index
+ * at which a new event should be inserted to maintain the order of the array.
+ * using the `created_at` timestamp as the sorting criterion.
+ * 
+ * @param {Event[]} arr - The sorted array of events.
+ * @param {number} target - The timestamp to compare against.
+ * @returns {number}
+*/
+const binarySearchCreatedAt = (arr: Event[], target: number): number => {
+    let low = 0;
+    let high = arr.length;
+    while (low < high) {
+      const mid = Math.floor((low + high) / 2);
+      if (arr[mid].created_at < target) {
+        high = mid;
+      } else {
+        low = mid + 1;
+      }
+    }
+    return low;
+  }
+
+export { getEvents, storeEvents, initEvents, binarySearchCreatedAt };

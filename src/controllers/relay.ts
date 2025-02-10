@@ -9,7 +9,7 @@ import { Request } from "express";
 import { isIpAllowed } from "../lib/ips.js";
 import { isEntityBanned } from "../lib/banned.js";
 import { isEphemeral, isReplaceable } from "../lib/nostr/NIP01.js";
-import { getEvents, initEvents, storeEvents } from "../lib/relay/database.js";
+import { binarySearchCreatedAt, getEvents, initEvents, storeEvents } from "../lib/relay/database.js";
 import { executePlugins } from "../lib/plugins/core.js";
 import { ipInfo } from "../interfaces/ips.js";
 import { validatePow } from "../lib/nostr/NIP13.js";
@@ -25,7 +25,7 @@ const authSessions: Map<WebSocket, string> = new Map();
 const handleWebSocketMessage = async (socket: ExtendedWebSocket, data: WebSocket.RawData, req: Request) => {
 
   if (!isModuleEnabled("relay", app)) {
-    logger.info("Attempt to access a non-active module:", "relay", "|", "IP:", req.ip);
+    logger.debug("Attempt to access a non-active module:", "relay", "|", "IP:", req.ip);
     socket.send(JSON.stringify(["NOTICE", "blocked: relay module is not active"]));
     removeAllSubscriptions(socket);
     return;
@@ -33,16 +33,16 @@ const handleWebSocketMessage = async (socket: ExtendedWebSocket, data: WebSocket
 
   // Check if the request IP is allowed
   const reqInfo = await isIpAllowed(req);
-  if (reqInfo.banned == true) {
-    logger.info(`Attempt to access relay with unauthorized IP: ${reqInfo.ip} | Reason: ${reqInfo.comments}`);
-    socket.send(JSON.stringify(["NOTICE", `${reqInfo.comments}`]));
-    removeAllSubscriptions(socket);
-    return;
-  }
+  // if (reqInfo.banned == true) {
+  //   logger.debug(`Attempt to access relay with unauthorized IP: ${reqInfo.ip} | Reason: ${reqInfo.comments}`);
+  //   socket.send(JSON.stringify(["NOTICE", `${reqInfo.comments}`]));
+  //   removeAllSubscriptions(socket);
+  //   return;
+  // }
 
   // Check if current module is enabled
   if (!isModuleEnabled("relay", app)) {
-    logger.info("Attempt to access a non-active module:", "relay", "|", "IP:", reqInfo.ip);
+    logger.debug("Attempt to access a non-active module:", "relay", "|", "IP:", reqInfo.ip);
     socket.send(JSON.stringify(["NOTICE", "blocked: relay module is not active"]));
     removeAllSubscriptions(socket);
     return;
@@ -105,7 +105,7 @@ const handleWebSocketMessage = async (socket: ExtendedWebSocket, data: WebSocket
         } else {
           socket.send(JSON.stringify(["NOTICE", "invalid: auth data is not an object"]));
           socket.close(1003, "invalid: auth data is not an object");
-          logger.warn("Invalid auth data:", args[0]);
+          logger.debug("Invalid auth data:", args[0]);
         }
         break;
       }   
@@ -128,7 +128,7 @@ const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) =>
   if (await isEntityBanned(event.pubkey, "registered")) {
     socket.send(JSON.stringify(["NOTICE", "blocked: banned pubkey"]));
     socket.send(JSON.stringify(["OK", event.id, false, "blocked: banned pubkey"]));
-    logger.warn("Blocked event from banned pubkey:", event.pubkey);
+    logger.debug("Blocked event from banned pubkey:", event.pubkey);
     removeAllSubscriptions(socket);
     return;
   }
@@ -137,7 +137,7 @@ const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) =>
   if (await isEntityBanned(event.id, "events")) {
     socket.send(JSON.stringify(["NOTICE", "blocked: banned event"]));
     socket.send(JSON.stringify(["OK", event.id, false, "blocked: banned event"]));
-    logger.warn("Blocked banned event:", event.id);
+    logger.debug("Blocked banned event:", event.id);
     removeAllSubscriptions(socket);
     return;
   }
@@ -249,7 +249,7 @@ const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) =>
     return;
   }
 
-  logger.info("Received EVENT:", event.id);
+  logger.debug("Received EVENT:", event.id);
 
   if (events.memoryDB.has(event.id)) {
     socket.send(JSON.stringify(["NOTICE", "duplicate: already have this event"]));
@@ -296,14 +296,14 @@ const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) =>
     if (!hasEtag || !hasAltTag) {
       socket.send(JSON.stringify(["NOTICE", "invalid: missing required OpenTimestamps tags"]));
       socket.send(JSON.stringify(["OK", event.id, false, "invalid: missing required OpenTimestamps tags"]));
-      logger.warn(`Rejected kind:1040 event ${event.id} due to missing required tags.`);
+      logger.debug(`Rejected kind:1040 event ${event.id} due to missing required tags.`);
       return;
     }
 
     if(!isBase64(event.content)) {
       socket.send(JSON.stringify(["NOTICE", "invalid: OpenTimestamps proof must be Base64 encoded"]));
       socket.send(JSON.stringify(["OK", event.id, false, "invalid: OpenTimestamps proof must be Base64 encoded"]));
-      logger.warn(`Rejected kind:1040 event ${event.id} due to invalid encoding.`);
+      logger.debug(`Rejected kind:1040 event ${event.id} due to invalid encoding.`);
       return;
     }
   }
@@ -311,7 +311,7 @@ const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) =>
   // Event kind 5 (NIP-09) Event deletion
   if (event.kind === 5) {
 
-    logger.info(`Received kind:5 event ${event.id} for deletion`);
+    logger.debug(`Received kind:5 event ${event.id} for deletion`);
 
     const eventsToDelete = event.tags.filter(tag => tag[0] === "e" || tag[0] === "a").map(tag => tag[1].trim());
     if (eventsToDelete.length === 0) {
@@ -331,7 +331,7 @@ const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) =>
     if (unauthorizedEvents.length > 0) {
       socket.send(JSON.stringify(["NOTICE", "error: unauthorized to delete events"]));
       socket.send(JSON.stringify(["OK", event.id, false, "error: unauthorized to delete events"]));
-      logger.warn(`Rejected kind:5 event ${event.id} due to unauthorized to delete events. ${reqInfo.ip}`);
+      logger.debug(`Rejected kind:5 event ${event.id} due to unauthorized to delete events. ${reqInfo.ip}`);
       return;
     }
 
@@ -368,19 +368,15 @@ const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) =>
       });
       socket.send(JSON.stringify(["NOTICE", "deleted: events successfully deleted"]));
       socket.send(JSON.stringify(["OK", event.id, true, "deleted: events successfully deleted"]));
-      logger.info(`Deleted events: ${ownedEvents.map(e => e.event.id).join(", ")}`);
+      logger.debug(`Deleted events: ${ownedEvents.map(e => e.event.id).join(", ")}`);
     }
 
   }
 
   // Save the event to memory
-  const index: number = events.sortedArray.findIndex((e: Event) => e.created_at < event.created_at);
-  if (index === -1) {
-      events.sortedArray.push(event);
-  } else {
-      events.sortedArray.splice(index, 0, event);
-  }
-  events.memoryDB.set(event.id, { event, processed: false });
+  const insertionIndex = binarySearchCreatedAt(events.sortedArray, event.created_at);
+  events.sortedArray.splice(insertionIndex, 0, event);
+  events.memoryDB.set(event.id, { event: event, content_lower: event.content.toLocaleLowerCase(), processed: false });
   events.pending.set(event.id, event);
 
   // Notify all clients about the new event
@@ -397,7 +393,7 @@ const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) =>
 // Handle REQ or COUNT
 const handleReqOrCount = async (socket: WebSocket, subId: string, filters: Filter[], type: string, reqInfo: ipInfo) => {
   
-  logger.info(`Received ${type} message:`, subId);
+  logger.debug(`Received ${type} message:`, subId);
   logger.debug("Filters:", filters);
 
   if (!filters || !Array.isArray(filters) || filters.length === 0) {
@@ -413,7 +409,7 @@ const handleReqOrCount = async (socket: WebSocket, subId: string, filters: Filte
     if (requestedKinds.some(kind => [4, 14, 1059].includes(kind))) {
       socket.send(JSON.stringify(["CLOSED", subId, "auth-required: must authenticate to request private messages"]));
       socket.close(1003, "auth-required: must authenticate to request private messages");
-      logger.warn("Blocked REQ for private messages without authentication:", subId, reqInfo.ip);
+      logger.debug("Blocked REQ for private messages without authentication:", subId, reqInfo.ip);
       return;
     }
   }
@@ -515,18 +511,18 @@ const handleAuthMessage = async (socket: ExtendedWebSocket, message: ["AUTH", Au
   const challenge = challengeTag[1];
   if (!socket.challenge || socket.challenge !== challenge) {
     socket.send(JSON.stringify(["NOTICE", "error: invalid challenge"]));
-    logger.warn("Invalid challenge:", challenge);
+    logger.debug("Invalid challenge:", challenge);
     return;
   }
 
   const validEvent = await isEventValid(authData, 60, 10);
   if (validEvent.status !== "success") {
     socket.send(JSON.stringify(["NOTICE", `error: ${validEvent.message}`]));
-    logger.warn("Invalid AUTH event:", validEvent.message);
+    logger.debug("Invalid AUTH event:", validEvent.message);
     return;
   }
 
-  logger.info("Received AUTH event", message[1].id);
+  logger.debug("Received AUTH event", message[1].id);
 
   authSessions.set(socket, authData.pubkey);
   delete socket.challenge;
@@ -594,7 +590,7 @@ setInterval(async () => {
       events.memoryDB.delete(expiredEvent.event_id);
       const index: number = events.sortedArray.findIndex((e: Event) => e.id === expiredEvent.event_id);
       if (index !== -1)   events.sortedArray.splice(index, 1);
-      logger.info(`Set event ${expiredEvent.event_id} as inactive`);
+      logger.debug(`Set event ${expiredEvent.event_id} as inactive`);
     }
   }
 }, 1000 * 30 * 1); // 1 minutes
