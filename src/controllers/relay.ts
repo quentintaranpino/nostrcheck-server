@@ -564,7 +564,12 @@ setInterval(async () => {
       });
     } else {
       eventsToPersist.forEach((event: Event) => {
-        logger.error(`Failed to store event ${event}`);
+        try{
+
+        logger.error(`Failed to store event ${JSON.stringify(event)}`);
+        } catch (error) {
+          logger.error(`Failed to store event ${event.id}`);
+        }
       });
     }
   }
