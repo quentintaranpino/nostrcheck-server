@@ -1,6 +1,6 @@
 import { Application, Request } from "express";
 import { handleWebSocketMessage } from "../controllers/relay.js";
-import { WebSocketServer, RawData, WebSocket } from "ws";
+import { WebSocketServer, RawData } from "ws";
 import { IncomingMessage } from "http";
 import crypto from "crypto";
 import { Socket } from "net";
@@ -11,14 +11,16 @@ import { limiter } from "../lib/session.js";
 import { NIP11Data } from "../controllers/nostr.js";
 import { ExtendedWebSocket } from "../interfaces/relay.js";
 import { loadRelayPage } from "../controllers/frontend.js";
-import { isModuleEnabled } from "../lib/config.js";
 
 let server: Server | null = null;
 
 export const loadRelayRoutes = (app: Application, version:string): void => {
 
   if (version != "v2")  return;
-  if (!isModuleEnabled("relay", app)) return;
+
+  function heartbeat(this: ExtendedWebSocket) {
+    this.isAlive = true;
+  }
 
   const wss = new WebSocketServer({
     noServer: true,
@@ -39,7 +41,7 @@ export const loadRelayRoutes = (app: Application, version:string): void => {
     server = app.get("server");
     server?.on("upgrade", (req: IncomingMessage, socket:Socket, head:Buffer) => {
       if (req.url === "/api/v2/relay") {
-        wss.handleUpgrade(req, socket as any, head, (ws) => {
+        wss.handleUpgrade(req, socket as Socket, head, (ws) => {
           wss.emit("connection", ws, req);
         });
       } else {
@@ -50,6 +52,9 @@ export const loadRelayRoutes = (app: Application, version:string): void => {
   }
 
   wss.on("connection", (socket: ExtendedWebSocket, req: IncomingMessage) => {
+
+    socket.isAlive = true;
+    socket.on("pong", heartbeat);
 
     if (app.get("config.relay")["limitation"]["auth_required"] == true){
       const challenge = crypto.randomBytes(32).toString('hex');
@@ -69,10 +74,12 @@ export const loadRelayRoutes = (app: Application, version:string): void => {
       removeAllSubscriptions(socket);
     });
   
-    socket.on("error", (code: number, reason: any) => {
+    socket.on("error", (code: number, reason: Error) => {
       logger.warn("Socket error | Code:", code, "| Reason:", reason);
       removeAllSubscriptions(socket);
     });
+
+    
   });
 
   // Relay & NIP 11 info
@@ -82,4 +89,18 @@ export const loadRelayRoutes = (app: Application, version:string): void => {
     return NIP11Data(req, res);
   });
 
+  // Close dead connections
+  setInterval(() => {
+    wss.clients.forEach((ws: ExtendedWebSocket) => {
+      if (!ws.isAlive) {
+        removeAllSubscriptions(ws);
+        ws.terminate();
+      } else {
+        ws.isAlive = false;
+        ws.ping();
+      }
+    });
+  }, 60 * 1000); // 1 minute
+
 };
+

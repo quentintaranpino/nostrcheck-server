@@ -8,6 +8,7 @@ interface MemoryEvent {
 import { WebSocket } from "ws";
 interface ExtendedWebSocket extends WebSocket {
   challenge?: string;
+  isAlive?: boolean;
 }
 
 const allowedTags = [
