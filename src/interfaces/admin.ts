@@ -120,9 +120,11 @@ const moduleDataWhereFields: { [key: string]: [string] } = {
                         "transactions.paiddate, " +
                         "transactions.comments"],
     "banned":           ["banned.id, " +
+                        "banned.active, " +
                         "banned.originid, " +
                         "banned.origintable, " +
                         "banned.reason, " +
+                        "banned.createddate, " +
                         "banned.comments"],
     "invites":          ["invitations.id, " +
                         "invitations.originid, " +
@@ -222,6 +224,7 @@ const moduleDataSelectFields: { [key: string]: string } = {
                         "           (SELECT registered.hex FROM registered WHERE registered.id = banned.originid and banned.origintable = 'registered' LIMIT 1)," +
                         "           (SELECT ips.ip FROM ips WHERE ips.id = banned.originid and banned.origintable = 'ips' LIMIT 1) " +
                         "         ) as originkey, " +
+                        "banned.createddate, " +
                         "banned.reason ",
     "register":         "invitations.id, " +
                         "invitations.active, " +
@@ -250,8 +253,8 @@ const moduleDataSelectFields: { [key: string]: string } = {
                         "events.kind, " +
                         "(SELECT COALESCE(GROUP_CONCAT(CONCAT(eventtags.tag_name, ' : ', eventtags.tag_value) SEPARATOR ', '), '') FROM eventtags WHERE eventtags.event_id = events.event_id) as tags, " +
                         "events.content, " +
-                        "DATE_FORMAT(FROM_UNIXTIME(events.created_at), '%Y-%m-%d %H:%i') as created_at, " +
-                        "DATE_FORMAT(FROM_UNIXTIME(events.received_at), '%Y-%m-%d %H:%i') as received_at "
+                        "events.created_at, " +
+                        "events.received_at "
 };
 
 export { allowedTableNames, allowedFieldNames, allowedFieldNamesAndValues, moduleDataReturnMessage, ModuleDataTables, moduleDataSelectFields, moduleDataWhereFields, moduleDataKeys };

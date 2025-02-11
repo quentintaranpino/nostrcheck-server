@@ -245,6 +245,7 @@ interface bannedTable extends RowDataPacket{
 	active: string;
 	originid: string;
 	origintable: string
+	createddate: string;
 	reason: string;
 }
 
@@ -253,7 +254,11 @@ const bannedTableFields: bannedTable = {
 	"active" : "boolean NOT NULL DEFAULT 1",
 	"originid" : "varchar(11) NOT NULL",
 	"origintable" : "varchar(50) NOT NULL",
+	"createddate" : "bigint NOT NULL",
 	"reason" : "varchar(150)",
+	_indexes: [
+		"INDEX idx_origin (originid, origintable, active)"
+	],
 	constructor: {
 		name: 'RowDataPacket',
 	},

@@ -76,7 +76,7 @@ const manageEntity = async (originId: number, originTable: string, action: "ban"
                     continue;
                 }
 
-                const insertResult = await dbInsert("banned", ["originid", "origintable", "reason"], [record.id, originTable, reason]);
+                const insertResult = await dbInsert("banned", ["originid", "origintable", "createddate", "reason"], [record.id, originTable, Math.floor(Date.now() / 1000), reason]);
                 if (insertResult == 0) {
                     return { status: "error", message: "Error inserting record ban" };
                 }
