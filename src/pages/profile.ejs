@@ -299,7 +299,6 @@ const profileNIP05 = <%- JSON.stringify(request.session.metadata.usernames) %>;
   const getProfileBalance = async (pubkey) => {
     counter++;
     if (!pubkey) return 0;
-    semaphore.execute(async () => {
       fetch(
         `/api/v2/payments/getBalance`,
         {headers: {
@@ -317,7 +316,6 @@ const profileNIP05 = <%- JSON.stringify(request.session.metadata.usernames) %>;
         }).catch(error => {
           
         });
-    });
   }
 
   // Profile balance

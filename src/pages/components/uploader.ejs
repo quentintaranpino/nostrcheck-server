@@ -349,11 +349,11 @@
     });
 
     document.getElementById('<%= instance %>-file-table-btn-upload').addEventListener('click', async function() {
-        await semaphore.execute(async () => {await window[`${instance}uploadFiles`](window[`${instance}filesArray`]);});
+        await window[`${instance}uploadFiles`](window[`${instance}filesArray`]);
     });
 
     document.getElementById('<%= instance %>-file-table-btn-nip07').addEventListener('click', async function() {
-        await semaphore.execute(async () => {await window[`${instance}uploadFiles`](window[`${instance}filesArray`]);});
+        await window[`${instance}uploadFiles`](window[`${instance}filesArray`]);
     });
 
     let fileCounter = 0;
@@ -412,7 +412,7 @@
                         if (result) {
                             file.fileData.isPaid = true;
                             $('#' + instance + 'file-table').bootstrapTable('load', filesArray.map(file => file.fileData));
-                            await semaphore.execute(async () => {await window[`${instance}uploadFiles`](window[`${instance}filesArray`]);});
+                            await window[`${instance}uploadFiles`](window[`${instance}filesArray`]);
                         }else{
                             const fileIndex = filesArray.findIndex(f => f.fileData.id === file.fileData.id);
                             if (fileIndex !== -1) {
@@ -422,7 +422,7 @@
                         }
                         });
                     }else{
-                        await semaphore.execute(async () => {await window[`${instance}uploadFiles`](window[`${instance}filesArray`]);});
+                        await window[`${instance}uploadFiles`](window[`${instance}filesArray`]);
                     }
                 }
 

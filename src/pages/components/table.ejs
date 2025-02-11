@@ -220,7 +220,7 @@
 
             $(tableId).bootstrapTable({
                 url: 'admin/moduledata?module=' + dataKey,
-                ajax: function (params) {semaphore.execute(() => fetchTabledata(params))},
+                ajax: function (params) {fetchTabledata(params)},
                 idField: 'id',
                 uniqueId: 'id',
                 showFilterControlSwitch: true,
@@ -289,6 +289,7 @@
             $(tableId).on('refresh.bs.table', function (e, data) {
                 const refreshButton = $(tableId).closest('.bootstrap-table').find('[name="refresh"]');
                 refreshButton.prop('disabled', true);
+                setTimeout(() => { refreshButton.prop('disabled', false)}, 1000);
             })
 
             // Prevent sorting spamming
@@ -296,6 +297,10 @@
                 var sortingButtons = $(tableId).find('.sortable');
                 sortingButtons.addClass('disabled');
                 sortingButtons.css('pointer-events', 'none');
+                setTimeout(() => {
+                    sortingButtons.removeClass('disabled');
+                    sortingButtons.css('pointer-events', 'auto');
+                }, 1000);
             });
 
             // Buttons logic
@@ -341,7 +346,7 @@
             initButton(tableId, '-button-ban',          objectName, 'ban', 'reason', '',  true)
         }
 
-        function initButton(tableId, buttonSuffix, objectName, modaltext, field, fieldValue, enableEditText = false) {
+        async function initButton(tableId, buttonSuffix, objectName, modaltext, field, fieldValue, enableEditText = false) {
             $(tableId + buttonSuffix).click(async function () {
 
                 // Add button
@@ -354,10 +359,8 @@
                         }
                     });
                     var columns = $(tableId).bootstrapTable('getOptions').columns[0];
-                    semaphore.execute(async () => {
-                        await initEditModal(tableId,row,objectName, true, columns).then(async (editedRow) => {
-                            if (editedRow) {semaphore.execute(async () => { await modifyRecord("admin/insertrecord/",tableId, null, null, null, 'insert', editedRow)})};
-                        });
+                    await initEditModal(tableId,row,objectName, true, columns).then(async (editedRow) => {
+                        if (editedRow) {await modifyRecord("admin/insertrecord/",tableId, null, null, null, 'insert', editedRow)};
                     });
                     return
                 }
@@ -366,15 +369,15 @@
                 if (buttonSuffix === '-button-edit') {
                     var row = $(tableId).bootstrapTable('getSelections')[0]
                     var columns = $(tableId).bootstrapTable('getOptions').columns[0];
-                    semaphore.execute(async () => await initEditModal(tableId,row,objectName,false,columns).then(async (editedRow) => {
+                    await initEditModal(tableId,row,objectName,false,columns).then(async (editedRow) => {
                         if (editedRow) {
                             for (let field in editedRow) {
                                 if (editedRow[field] != row[field]){
-                                    semaphore.execute(async () => await modifyRecord("admin/updaterecord/", tableId, row.id, field, editedRow[field], 'modify'))                     
+                                    await modifyRecord("admin/updaterecord/", tableId, row.id, field, editedRow[field], 'modify')                     
                                 }
                             }
                         }
-                    }));
+                    });
                     return
                 }
 
@@ -382,30 +385,29 @@
                 var ids = $.map($(tableId).bootstrapTable('getSelections'), function (row) {
                     return row.id
                 })
-                semaphore.execute(async () => {await initConfirmModal(tableId, ids, modaltext, objectName, fieldValue, enableEditText).then(async (modal) => {
+                await initConfirmModal(tableId, ids, modaltext, objectName, fieldValue, enableEditText).then(async (modal) => {
                     if (modal.result == true) {
                         for (let id of ids) {
                             if (modaltext === 'remove') {
-                                semaphore.execute(async () => await modifyRecord("admin/deleterecord/", tableId, id, field, fieldValue, 'remove'));
+                                await modifyRecord("admin/deleterecord/", tableId, id, field, fieldValue, 'remove');
                             } else if (modaltext === 'reset password') {
-                                semaphore.execute(async () => await modifyRecord("admin/resetpassword/", tableId, id, field, fieldValue, 'password'));
+                                await modifyRecord("admin/resetpassword/", tableId, id, field, fieldValue, 'password');
                             }else if (modaltext === 'pay') {
-                                semaphore.execute(async () => await modifyRecord("payments/paytransaction/", tableId, id, field, fieldValue, 'pay'));
+                                await modifyRecord("payments/paytransaction/", tableId, id, field, fieldValue, 'pay');
                             }else if (modaltext === 'balance') {
-                                semaphore.execute(async () => await modifyRecord("payments/addbalance/", tableId, id, field, modal.value, 'balance'));
+                                await modifyRecord("payments/addbalance/", tableId, id, field, modal.value, 'balance');
                             }else if (modaltext === 'ban') {
-                                semaphore.execute(async () => await modifyRecord("admin/ban", tableId, id, field, modal.value, 'ban'));
+                                await modifyRecord("admin/ban", tableId, id, field, modal.value, 'ban');
                             }else if (modaltext === 'moderate') {
-                                semaphore.execute(async () => await modifyRecord("admin/moderaterecord/", tableId, id, field, fieldValue, 'moderate'));
+                                await modifyRecord("admin/moderaterecord/", tableId, id, field, fieldValue, 'moderate');
                             } else {
-                                semaphore.execute(async () => await modifyRecord("admin/updaterecord/", tableId, id, field, fieldValue, 'modify'));
-                                
+                                await modifyRecord("admin/updaterecord/", tableId, id, field, fieldValue, 'modify');
                             }
                         }
                     }
                 })});
-            })
-        }
+            };
+        
         
         function highlihtRow(tableId, row) {
             var index = $(tableId).bootstrapTable('getData').indexOf(row);
@@ -570,6 +572,12 @@
         }
         window.formatPaymentHash = formatPaymentHash;
 
+
+        function formatTimestamp(value) {
+            return new Date(value * 1000).toISOString().slice(0, 16).replace('T', ' ');
+        }
+        window.formatTimestamp = formatTimestamp;
+
         function formatMediaFile(value, row, index) {
 
             let textValue = value;
@@ -610,16 +618,14 @@
 
             let modalFileCheck = '<div id="banned_' + index + '_preview"><span class="cursor-zoom-in text-secondary">' + textValue + '</span></div>';
             $(document).off('click', '#banned_' + index + '_preview').on('click', '#banned_' + index + '_preview', async function () {
-                semaphore.execute(async () => {
                 await initMediaModal(value, row.checked, row.visibility, false).then(async (modal) => {
                     let modalResult = modal.data;
                     for (let field in modalResult) {
-                    if (modalResult[field] != row[field]) {
-                        semaphore.execute(async () => await modifyRecord("admin/updaterecord/", '#filesData', row.id, field, modalResult[field], 'modify'));
-                        refreshTable('#filesData');
+                        if (modalResult[field] != row[field]) {
+                            await modifyRecord("admin/updaterecord/", '#filesData', row.id, field, modalResult[field], 'modify');
+                            refreshTable('#filesData');
+                        }
                     }
-                    }
-                });
                 });
             });
 
@@ -671,6 +677,7 @@
         }
 
         function fetchTabledata(params) {
+            console.time(`fetchTabledata-${params.url}`);
             return new Promise((resolve, reject) => {
                 $.ajax({
                     url: params.url,
@@ -681,10 +688,13 @@
                     data: params.data,
                     dataType: 'json',
                     success: async function(result) {
+                        console.timeEnd(`fetchTabledata-${params.url}`);
+                        console.log(result)
                         params.success(result);
                         resolve(params);
                     },
                     error: function(err) {
+                        console.timeEnd(`fetchTabledata-${params.url}`);
                         params.error(err);
                         reject(err);
                     }
@@ -695,23 +705,7 @@
         await initTable(`#${tableId}`, datakey, objectName);
 
         // Refresh table every timeout
-        setInterval(async () => {semaphore.execute(async() => await refreshTable(`#${tableId}`))}, timeout);
-
-        // Disable sorting and refresh buttons while table is loading
-        setInterval(async() => {
-            const value = semaphore.getQueueLength() > 0 ? true : false;
-            const refreshButton = $('#' + tableId).closest('.bootstrap-table').find('[name="refresh"]');
-            refreshButton.prop('disabled', value);
-
-            var sortingButtons = $('#' + tableId).find('.sortable');
-            if (value) {
-                sortingButtons.addClass('disabled');
-                sortingButtons.css('pointer-events', 'none');
-            } else {
-                sortingButtons.removeClass('disabled');
-                sortingButtons.css('pointer-events', 'auto');
-            }
-        }, 500);
+        setInterval(async () => {await refreshTable(`#${tableId}`)}, timeout);
 
     });
 </script>

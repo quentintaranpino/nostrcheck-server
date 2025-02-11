@@ -160,7 +160,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
         idField: 'id',
         uniqueId: 'id',
         url: `/api/v2/media/list/${pubkey}`,
-        ajax: function (params) {semaphore.execute(() => fetchTabledata(params))},
+        ajax: function (params) {fetchTabledata(params)},
         data: [], 
         search: true,
         searchAlign: 'left', 
@@ -250,32 +250,28 @@ document.addEventListener('DOMContentLoaded', (event) => {
     const observerSentinels = new IntersectionObserver(async (entries, observer) => {
         for (const entry of entries) {
             if (entry.isIntersecting) {
-                
                 page++;
-
-                semaphore.execute(async () => {
-                    const response = await fetch(`/api/v2/media?page=${page}&count=${mediaCount}`, {
-                        method: "GET",
-                        credentials: privateGallery ? 'include' : 'omit',
-                    });
-                    if (!response.ok) {
-                        document.getElementById('gallery-list-loading').remove();
-                        document.getElementById('no-media').classList.remove('visually-hidden');
-                        console.log('Error fetching media', response);
-                        return;
-                    }
-                    const userData = await response.json();
-
-                    if (userData.files && userData.files.length === 0) {
-                        console.log('No more media files');
-                        document.getElementById('gallery-list-loading')?.remove();
-                        observer.unobserve(sentinelEnd);
-                        return;
-                    }
-                    semaphore.execute(async () => populateMasonryData(userData.files, privateGallery? true : false));
+                const response = await fetch(`/api/v2/media?page=${page}&count=${mediaCount}`, {
+                    method: "GET",
+                    credentials: privateGallery ? 'include' : 'omit',
                 });
-            }
-        };
+                if (!response.ok) {
+                    document.getElementById('gallery-list-loading').remove();
+                    document.getElementById('no-media').classList.remove('visually-hidden');
+                    console.log('Error fetching media', response);
+                    return;
+                }
+                const userData = await response.json();
+
+                if (userData.files && userData.files.length === 0) {
+                    console.log('No more media files');
+                    document.getElementById('gallery-list-loading')?.remove();
+                    observer.unobserve(sentinelEnd);
+                    return;
+                }
+                populateMasonryData(userData.files, privateGallery? true : false);
+            };
+        }
     }, {
         rootMargin: '1500px'
     });
@@ -315,52 +311,50 @@ document.addEventListener('DOMContentLoaded', (event) => {
     });
 
     // Delete button click event
-    $(document).on('click', '.btn-delete', function(event) {
+    $(document).on('click', '.btn-delete', async function(event) {
 
         event.stopPropagation();
         const sha256 = $(this).data('sha256');
         const id = $(this).data('id')
         const url = `/api/v2/media/${sha256}`;
 
-        semaphore.execute(async () => {await initConfirmModal('#fileTable', [id], "delete", "file", "", false).then(async (modal) => {
-            
+        await initConfirmModal('#fileTable', [id], "delete", "file", "", false).then(async (modal) => {
             if (modal.result != true) return;
-                $.ajax({
-                    url: url,
-                    method: 'DELETE',
-                    success: function(result) {
-                        $('#fileTable').bootstrapTable('remove', {
-                            field: 'sha256',
-                            values: [sha256]
-                        });
+            $.ajax({
+                url: url,
+                method: 'DELETE',
+                success: function(result) {
+                    $('#fileTable').bootstrapTable('remove', {
+                        field: 'sha256',
+                        values: [sha256]
+                    });
 
-                        const mediaDiv = document.getElementById(`media-${id}`);
-                        mediaDiv.remove();
+                    const mediaDiv = document.getElementById(`media-${id}`);
+                    mediaDiv.remove();
 
-                        showMessage(`File with sha256 ${sha256} deleted successfully`, "alert-success");
+                    showMessage(`File with sha256 ${sha256} deleted successfully`, "alert-success");
 
-                    },
-                    error: function(err) {
-                        console.log('Error deleting media', err);
-                        showMessage(`Error deleting file with sha256 ${sha256}`, "alert-danger");
-                    }
-                });
-        })});
+                },
+                error: function(err) {
+                    console.log('Error deleting media', err);
+                    showMessage(`Error deleting file with sha256 ${sha256}`, "alert-danger");
+                }
+            });
+        });
 
     });
 
     // Visibility button click event
-    $(document).on('click', '.btn-visibility', function(event) {
+    $(document).on('click', '.btn-visibility', async function(event) {
         event.stopPropagation();
         const sha256 = $(this).data('sha256');
         const visibility = $(this).data('visibility') === 1 ? 0 : 1;
         const url = `/api/v2/media/${sha256}/visibility/${visibility}`;
         const id = $(this).data('id');
 
-        semaphore.execute(async () => { await initConfirmModal('#fileTable', [id], visibility === 1 ? "show in gallery" : "hide from gallery", "file", "", false)
+        await initConfirmModal('#fileTable', [id], visibility === 1 ? "show in gallery" : "hide from gallery", "file", "", false)
             .then(async (modal) => {
                 if (modal.result !== true) return;
-
                 $.ajax({
                     url: url,
                     method: 'PUT',
@@ -387,7 +381,6 @@ document.addEventListener('DOMContentLoaded', (event) => {
                     }
                 });
             });
-        });
     });
 
 });
@@ -705,9 +698,7 @@ function filenameFormatter(value, row, index) {
 
     // Attach the click event handler to the document and delegate it to the clickable element
     $(document).off('click', '#file_' + index + '_preview').on('click', '#file_' + index + '_preview', async function () {
-        semaphore.execute(async () => {
-            await initMediaModal(`${row.url.substring(row.url.lastIndexOf('/') + 1)}`, row.checked, row.visibility, false)
-        });
+        await initMediaModal(`${row.url.substring(row.url.lastIndexOf('/') + 1)}`, row.checked, row.visibility, false)
     });
 
     return modalFileCheck;
