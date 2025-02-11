@@ -4,7 +4,6 @@ import { dbBulkInsert, dbSimpleSelect, dbUpsert } from "../database.js";
 import { logger } from "../logger.js";
 import { MemoryEvent } from "../../interfaces/relay.js";
 import { isModuleEnabled } from "../config.js";
-import { off } from "process";
 
 const initEvents = async (app: Application): Promise<boolean> => {
 
