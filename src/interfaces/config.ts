@@ -109,7 +109,14 @@ const defaultConfig = {
 				"path": "/relay",
 				"methods": ["WebSocket", "GET"],
 				"description": "This module handles the Nostr relay"
-			}
+			},
+			"security" : {
+				"name": "security",
+				"enabled": true,
+				"path": "",
+				"methods": [],
+				"description": "This module handles security, ip logs, automatic ban, etc."
+			},
 		}
 	},
 	"database": {
@@ -235,7 +242,10 @@ const defaultConfig = {
 		},
 		"register" : {
 			"maxRegisterDay": 2,
-		}
+		},
+		"relay" : {
+			"maxMessageMinute": 300,
+		},
 	},
 	"plugins" : {
 		"path": "plugins"

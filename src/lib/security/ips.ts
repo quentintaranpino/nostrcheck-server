@@ -1,10 +1,11 @@
-import { redisHashGetAll, redisHashIncrementBy, redisHashSet, redisScanKeys } from "./redis.js";
-import { dbUpdate, dbMultiSelect, dbUpsert } from "./database.js";
-import { logger } from "./logger.js";
-import app from "../app.js";
+import { redisHashGetAll, redisHashIncrementBy, redisHashSet, redisScanKeys } from "../redis.js";
+import { dbUpdate, dbMultiSelect, dbUpsert } from "../database.js";
+import { logger } from "../logger.js";
+import app from "../../app.js";
 import { banEntity, isEntityBanned } from "./banned.js";
 import { Request } from "express";
-import { ipInfo } from "../interfaces/ips.js";
+import { ipInfo } from "../../interfaces/security.js";
+import { isModuleEnabled } from "../config.js";
 
 const ipUpdateBatch = new Map<string, { dbid: string; firstseen: number; lastseen: number; reqcountIncrement: number }>();
 
@@ -23,6 +24,10 @@ const logNewIp = async      (ip: string):
                             reqcount: string; 
                             infractions: string; 
                             comments: string;}> => {
+
+    if (!isModuleEnabled("security", app)) {
+        return {dbid: "0", active: "1", checked: "1", banned: "0", firstseen: "0", lastseen: "0", reqcount: "0", infractions: "0", comments: ""};
+    }
   
     if ((!ip || ip.length < 7) && app.get("config.environment") !== "development") {
         logger.error("Invalid IP address:", ip);
@@ -35,7 +40,7 @@ const logNewIp = async      (ip: string):
     const redisData = await redisHashGetAll(redisKey);
 
     if (Object.keys(redisData).length === 0 || redisData.dbid === undefined) {
-        let ipDbData = await dbMultiSelect(["id", "active", "checked", "infractions", "comments"], "ips", "ip = ?", [ip], true);
+        const ipDbData = await dbMultiSelect(["id", "active", "checked", "infractions", "comments"], "ips", "ip = ?", [ip], true);
         if (!ipDbData || ipDbData.length === 0) {
             let dbid = await dbUpsert("ips", { active: 1, checked: 0, ip, firstseen: now, lastseen: now, reqcount: 1 });
             if (dbid === 0) dbid = await dbUpsert("ips", { active: 1, checked: 0, ip, firstseen: now, lastseen: now, reqcount: 1 });
@@ -76,7 +81,7 @@ const logNewIp = async      (ip: string):
     } else {
 
         await redisHashIncrementBy(redisKey, "reqcount", 1);
-        await redisHashSet(redisKey, { firstseen: redisData.lastseen, lastseen: now });
+        await redisHashSet(redisKey, { firstseen: redisData.lastseen, lastseen: now }, 60);
 
         queueIpUpdate(redisData.dbid, Number(redisData.lastseen), now, 1);
 
@@ -87,6 +92,10 @@ const logNewIp = async      (ip: string):
 };
 
 const getClientIp = (req: Request): string => {
+
+    if (!isModuleEnabled("security", app)) {
+        return "";
+    }
 
     let ip = req.headers['x-forwarded-for'];
     if (Array.isArray(ip)) {
@@ -104,17 +113,22 @@ const getClientIp = (req: Request): string => {
 
 
 /**
- * Checks if an IP address is allowed to access the server.
+ * Checks if an IP address is allowed to access the server. 
+ * 
+ * If the IP is not in the database, it will be added. If the IP is in the database, the request count will be incremented.
+ * If the IP has made too many requests in a short period of time, it will be rate-limited and possibly banned.
+ * 
  * @param req - The request object.
+ * @param maxRequestMinute - The maximum number of requests allowed per minute. Default is 300. Optional.
  * @returns An object containing the IP address, request count, whether the IP is banned, and any comments.
  */
-const isIpAllowed = async (req: Request | string): Promise<ipInfo> => {
+const isIpAllowed = async (req: Request | string, maxRequestMinute : number = app.get('config.security')["maxDefaultRequestMinute"]): Promise<ipInfo> => {
+
+    if (!isModuleEnabled("security", app)) return {ip: "", reqcount: 0, banned: false, comments: ""};
 
     const clientIp = typeof req === "string" ? req : getClientIp(req);
-    if (!clientIp) {
-        logger.error("Error getting client IP");
-        return {ip: "", reqcount: 0, banned: true, comments: ""};
-    }
+    if (!clientIp)  return {ip: "", reqcount: 0, banned: true, comments: ""};
+
     const ipData = await logNewIp(clientIp);
     if (!ipData || ipData.dbid === "0") {
         logger.error("Error logging IP:", clientIp);
@@ -123,15 +137,13 @@ const isIpAllowed = async (req: Request | string): Promise<ipInfo> => {
     const { dbid, reqcount, firstseen, lastseen, infractions, comments } = ipData;
 
     const banned = await isEntityBanned(dbid, "ips");
-    if (banned) {
-        return { ip: clientIp, reqcount: Number(reqcount), banned: true, comments: "banned ip" };
-    }
+    if (banned) return { ip: clientIp, reqcount: Number(reqcount), banned: true, comments: "banned ip" };
 
-    // Abuse prevention
+    // Abuse prevention. If the IP has made too many requests in a short period of time, it will be rate-limited and possibly banned.
     const diff = Number(lastseen) - Number(firstseen);
-    if ((diff < 500 && Number(reqcount) > app.get('config.security')["maxDefaultRequestMinute"]) && (lastseen != firstseen)) {
+    if ((diff < 15 && (lastseen != firstseen)) || Number(reqcount) > maxRequestMinute) {
 
-        logger.warn(`Possible abuse detected from IP: ${clientIp} | Infraction count: ${infractions}`);
+        logger.debug(`Possible abuse detected from IP: ${clientIp} | Infraction count: ${infractions}`);
 
         // Update infractions and ban it for a minute
         await redisHashSet(`ips:${clientIp}`, { infractions: Number(infractions)+1 }, app.get("config.redis")["expireTime"]);
@@ -142,7 +154,7 @@ const isIpAllowed = async (req: Request | string): Promise<ipInfo> => {
             return { ip: clientIp, reqcount: Number(reqcount), banned: true, comments: "" };
         }
 
-        if (Number(infractions) > 5) {
+        if (Number(infractions) > 50) {
             logger.warn(`Banning IP due to repeated abuse: ${clientIp}`);
             await banEntity(Number(dbid), "ips", `Abuse prevention`);
             return { ip: clientIp, reqcount: Number(reqcount), banned: true, comments: `rate-limited: slow down there chief (${infractions} infractions)` };
@@ -156,6 +168,9 @@ const isIpAllowed = async (req: Request | string): Promise<ipInfo> => {
 
 // Save infractions to DB and reset Redis
 setInterval(async () => {
+
+    if (!isModuleEnabled("security", app)) return;
+
     try {
         const ips = await redisScanKeys("ips:*");
         if (!ips || ips.length === 0) return;
@@ -192,6 +207,9 @@ setInterval(async () => {
 
 // Periodically persist the accumulated IP updates (batch) to the database.
 setInterval(async () => {
+
+    if (!isModuleEnabled("security", app)) return;
+
     if (ipUpdateBatch.size === 0) return;
   
     for (const [dbid, update] of ipUpdateBatch.entries()) {
@@ -217,6 +235,9 @@ setInterval(async () => {
  * @param increment - The number to increment the request count (default is 1).
  */
 const queueIpUpdate = (dbid: string, oldLastseen: number, now: number, increment: number = 1) => {
+
+    if (!isModuleEnabled("security", app)) return;
+
     if (ipUpdateBatch.has(dbid)) {
         const entry = ipUpdateBatch.get(dbid)!;
         entry.reqcountIncrement += increment;

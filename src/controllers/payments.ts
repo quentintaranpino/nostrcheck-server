@@ -12,7 +12,7 @@ import { isInvoicePaid } from "../lib/payments/core.js";
 import { amountReturnMessage, invoiceReturnMessage } from "../interfaces/payments.js";
 import { getDomainInfo } from "../lib/domains.js";
 import { setAuthCookie } from "../lib/frontend.js";
-import { isIpAllowed } from "../lib/ips.js";
+import { isIpAllowed } from "../lib/security/ips.js";
 
 /**
  * Pays an item from the expenses account.

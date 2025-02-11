@@ -20,11 +20,11 @@ import { getBalance, getUnpaidTransactionsBalance } from "../lib/payments/core.j
 import { themes } from "../interfaces/personalization.js";
 import { moderateFile } from "../lib/moderation/core.js";
 import { addNewUsername } from "../lib/register.js";
-import { banEntity, unbanEntity } from "../lib/banned.js";
+import { banEntity, unbanEntity } from "../lib/security/banned.js";
 import { generateInviteCode } from "../lib/invitations.js";
 import { setAuthCookie } from "../lib/frontend.js";
 import { deleteFile } from "../lib/storage/core.js";
-import { isIpAllowed } from "../lib/ips.js";
+import { isIpAllowed } from "../lib/security/ips.js";
 
 let hits = 0;
 /**

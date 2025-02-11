@@ -1,7 +1,7 @@
 import { Application } from "express";
 import { verifyEventController } from "../controllers/verify.js";
 import express from "express";
-import { limiter } from "../lib/session.js";
+import { limiter } from "../lib/security/core.js";
 
 export const loadVerifyEndpoint = async (app: Application, version: string): Promise<void> => {
 

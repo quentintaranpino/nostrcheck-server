@@ -1,7 +1,7 @@
 import { Application } from "express";
 import express from "express";
 import { validateRegisterOTC, registerUsername } from "../controllers/register.js";
-import { limiter } from "../lib/session.js";
+import { limiter } from "../lib/security/core.js";
 
 export const loadRegisterEndpoint = async (app: Application, version: string): Promise<void> => {
 

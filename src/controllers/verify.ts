@@ -4,7 +4,7 @@ import { logger } from "../lib/logger.js";
 import { isModuleEnabled } from "../lib/config.js";
 import app from "../app.js";
 import { isEventValid } from "../lib/nostr/core.js";
-import { isIpAllowed } from "../lib/ips.js";
+import { isIpAllowed } from "../lib/security/ips.js";
 
 const verifyEventController = async (req: Request, res: Response): Promise<Response> => {
 

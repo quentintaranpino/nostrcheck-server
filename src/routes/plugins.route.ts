@@ -1,7 +1,7 @@
 import { Application } from "express";
 import { getPlugins } from "../controllers/plugins.js";
 import { reloadPlugins } from "../controllers/plugins.js";
-import { limiter } from "../lib/session.js";
+import { limiter } from "../lib/security/core.js";
 
 export const loadPluginsEndpoint = async (app: Application, version:string): Promise<void> => {
 

@@ -5,7 +5,7 @@ import { isModuleEnabled } from "../lib/config.js";
 import { initPlugins, listPlugins } from "../lib/plugins/core.js";
 import { parseAuthHeader } from "../lib/authorization.js";
 import { setAuthCookie } from "../lib/frontend.js";
-import { isIpAllowed } from "../lib/ips.js";
+import { isIpAllowed } from "../lib/security/ips.js";
 
 const getPlugins = async (req: Request, res: Response): Promise<Response> => {
 

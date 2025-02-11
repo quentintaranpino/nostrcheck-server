@@ -10,7 +10,7 @@ import app from "../app.js";
 import { setAuthCookie } from "../lib/frontend.js";
 import { PoolConnection} from "mysql2/promise";
 import { redisDel, redisGetJSON, redisSet } from "../lib/redis.js";
-import { isIpAllowed } from "../lib/ips.js";
+import { isIpAllowed } from "../lib/security/ips.js";
 
 const redirectlightningddress = async (req: Request, res: Response): Promise<Response> => {
 

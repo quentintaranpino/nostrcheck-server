@@ -6,7 +6,7 @@ import { NIPKinds } from "../../interfaces/nostr.js";
 import { authHeaderResult } from "../../interfaces/authorization.js";
 import app from "../../app.js";
 import { isPubkeyValid } from "../authorization.js";
-import { getClientIp } from "../ips.js";
+import { getClientIp } from "../security/ips.js";
 
 /**
  * Parses the authorization Nostr header (NIP98) and checks if it is valid. Visit for more information: https://github.com/nostr-protocol/nips/blob/master/98.md

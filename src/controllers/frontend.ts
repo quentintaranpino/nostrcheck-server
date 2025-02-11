@@ -13,7 +13,7 @@ import { themes, particles} from "../interfaces/personalization.js";
 import { verifyNIP07event } from "../lib/nostr/NIP07.js";
 import { getUsernames } from "../lib/register.js";
 import { getLightningAddress } from "../lib/lightning.js";
-import { getClientIp, isIpAllowed } from "../lib/ips.js";
+import { getClientIp, isIpAllowed } from "../lib/security/ips.js";
 
 const loadDashboardPage = async (req: Request, res: Response, version:string): Promise<Response | void> => {
 

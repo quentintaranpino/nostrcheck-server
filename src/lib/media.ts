@@ -9,7 +9,7 @@ import {fileTypeFromBuffer} from 'file-type';
 import { Request } from "express";
 import { generatefileHashfromfile } from "./hash.js";
 import crypto from "crypto";
-import { getClientIp } from "./ips.js";
+import { getClientIp } from "./security/ips.js";
 import path from "path";
 import sharp from "sharp";
 import { saveFile } from "./storage/core.js";

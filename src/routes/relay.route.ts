@@ -7,7 +7,7 @@ import { Socket } from "net";
 import { logger } from "../lib/logger.js";
 import { removeAllSubscriptions } from "../lib/relay/core.js";
 import { Server } from "http";
-import { limiter } from "../lib/session.js";
+import { limiter } from "../lib/security/core.js";
 import { NIP11Data } from "../controllers/nostr.js";
 import { ExtendedWebSocket } from "../interfaces/relay.js";
 import { loadRelayPage } from "../controllers/frontend.js";

@@ -14,9 +14,9 @@ import { 	loadDashboardPage,
 import { frontendLogin } from "../controllers/frontend.js";
 import { logger } from "../lib/logger.js";
 import { isPubkeyValid } from "../lib/authorization.js";
-import { limiter } from "../lib/session.js";
+import { limiter } from "../lib/security/core.js";
 import { isFirstUse } from "../lib/frontend.js";
-import { getClientIp } from "../lib/ips.js";
+import { getClientIp } from "../lib/security/ips.js";
 import { redisDel } from "../lib/redis.js";
 
 export const loadFrontendEndpoint = async (app: Application, version: string): Promise<void> => {

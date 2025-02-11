@@ -8,9 +8,8 @@ import { NIP96Data } from "../controllers/nostr.js";
 import app from "../app.js";
 import getRawBody from "raw-body";
 import { Readable } from "stream";
-import { limiter } from "../lib/session.js"
-import { getClientIp } from "../lib/ips.js";
-const limitMessage = { status: "error", message: "Rate limit exceeded. Try again in a few minutes." };
+import { limiter } from "../lib/security/core.js";
+import { getClientIp } from "../lib/security/ips.js";
 
 const maxMBfilesize :number = app.get("config.media")["maxMBfilesize"].toString().replace(',', '.');
 
@@ -69,9 +68,9 @@ export const loadMediaEndpoint = async (app: Application, version:string): Promi
 	}
 	
 	// POST & PUT (upload)
-	app.post("/api/" + version + app.get("config.server")["availableModules"]["media"]["path"], limiter(app.get('config.security')['media']['maxUploadsMinute'], limitMessage), function (req, res){uploadMiddlewarePost(req,res)}); // v0, v1, v2 and NIP96
-	app.put("/api/" + version + app.get("config.server")["availableModules"]["media"]["path"] + "/:param1",  express.raw({ limit: Math.round(maxMBfilesize * 1024 * 1024)}), limiter(app.get('config.security')['media']['maxUploadsMinute'], limitMessage), async (req, res) => {uploadMiddlewarePut(req,res)}); // Blossom upload
-	app.put("/upload", express.raw({  limit: Math.round(maxMBfilesize * 1024 * 1024)}), limiter(app.get('config.security')['media']['maxUploadsMinute'], limitMessage), async (req, res) => {uploadMiddlewarePut(req,res)}); // Blossom cdn url upload
+	app.post("/api/" + version + app.get("config.server")["availableModules"]["media"]["path"], limiter(app.get('config.security')['media']['maxUploadsMinute']), function (req, res){uploadMiddlewarePost(req,res)}); // v0, v1, v2 and NIP96
+	app.put("/api/" + version + app.get("config.server")["availableModules"]["media"]["path"] + "/:param1",  express.raw({ limit: Math.round(maxMBfilesize * 1024 * 1024)}), limiter(app.get('config.security')['media']['maxUploadsMinute']), async (req, res) => {uploadMiddlewarePut(req,res)}); // Blossom upload
+	app.put("/upload", express.raw({  limit: Math.round(maxMBfilesize * 1024 * 1024)}), limiter(app.get('config.security')['media']['maxUploadsMinute']), async (req, res) => {uploadMiddlewarePut(req,res)}); // Blossom cdn url upload
 
 	// HEAD (upload)
 	app.head("/api/" + version + app.get("config.server")["availableModules"]["media"]["path"] + "/upload", limiter(), headUpload); // Blossom blob upload head
@@ -85,11 +84,11 @@ export const loadMediaEndpoint = async (app: Application, version:string): Promi
 	});
 
 	// HEAD
-	app.head("/api/" + version + app.get("config.server")["availableModules"]["media"]["path"] + "/:param1", limiter(1000, limitMessage), headMedia);
+	app.head("/api/" + version + app.get("config.server")["availableModules"]["media"]["path"] + "/:param1", limiter(1000), headMedia);
 
 	// GET 
 	app.get(`/api/${version}${app.get("config.server")["availableModules"]["media"]["path"]}/:param1?/:param2?`, 
-	limiter(1000, limitMessage),
+	limiter(1000),
 	(req, res) => {
 		getMedia(req, res, version);
 	}
@@ -97,7 +96,7 @@ export const loadMediaEndpoint = async (app: Application, version:string): Promi
 
 	// GET root (media)
 	app.get("/:param1([a-fA-F0-9]{64})(\.[a-zA-Z0-9._-]{1,15})?(/:param2([a-fA-F0-9]{64})(\.[a-zA-Z0-9._-]{1,15})?)?", 
-	limiter(1000, limitMessage),
+	limiter(1000),
 	(req, res) => {
 		getMedia(req, res, version);
 	});

@@ -7,7 +7,7 @@ import { ResultMessagev2 } from "../interfaces/server.js";
 import app from "../app.js";
 import { isModuleEnabled } from "../lib/config.js";
 import { redisGetJSON, redisSet } from "../lib/redis.js";
-import { isIpAllowed } from "../lib/ips.js";
+import { isIpAllowed } from "../lib/security/ips.js";
 
 const getNostraddress = async (req: Request, res: Response): Promise<Response> => {
 

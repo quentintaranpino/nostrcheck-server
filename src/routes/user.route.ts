@@ -1,5 +1,5 @@
 import express, { Application } from "express";
-import { limiter } from "../lib/session.js";
+import { limiter } from "../lib/security/core.js";
 import { getUserPrefs, setUserPrefs } from "../controllers/user.js";
 
 export const loadUserEndpoint = async (app: Application, version: string): Promise<void> => {

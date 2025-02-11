@@ -3,7 +3,7 @@ import { logger } from "../lib/logger.js";
 import { getNIP96file } from "../lib/nostr/NIP96.js";
 import { isModuleEnabled } from "../lib/config.js";
 import app from "../app.js";
-import { isIpAllowed } from "../lib/ips.js";
+import { isIpAllowed } from "../lib/security/ips.js";
 import { getNIP11file } from "../lib/nostr/NIP11.js";
 
 const NIP96Data = async (req: Request, res: Response): Promise<Response> => {

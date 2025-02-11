@@ -70,14 +70,16 @@
             </button>
           </li>
           <li class="nav-item" role="presentation">
-            <button class="nav-link" 
+            <button class="nav-link <%= locals.availableModules['security'] && locals.availableModules['security'].enabled ? '' : 'disabled' %>" 
+
                     id="security-tab" 
                     data-bs-toggle="tab" 
                     data-bs-target="#security" 
                     type="button" 
                     role="tab" 
                     aria-controls="security" 
-                    aria-selected="false">
+                    aria-selected="false"
+                    <%= locals.availableModules['security'] && locals.availableModules['security'].enabled ? '' : 'disabled' %>>
                     <i class="fas fa-shield-alt me-2"></i>Security
             </button>
           </li>

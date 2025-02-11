@@ -1,4 +1,4 @@
-import { isIpAllowed } from "../lib/ips.js";
+import { isIpAllowed } from "../lib/security/ips.js";
 import { Request, Response } from 'express';
 import { logger } from "../lib/logger.js";
 import { isModuleEnabled } from "../lib/config.js";

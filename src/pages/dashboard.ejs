@@ -43,7 +43,7 @@
               <button class="nav-link" id="payments-tab" data-bs-toggle="tab" data-bs-target="#payments" type="button" role="tab"><i class="fa fa-bolt-lightning text-warning  me-2"></i>Payments</button>
             </li>
           <% } %>
-          <% if((locals.activeModules.includes('media') || locals.activeModules.includes('nostraddress') || locals.activeModules.includes('relay')) && locals.activeModules.includes('admin')  ) { %> 
+          <% if(locals.activeModules.includes('security')) { %> 
             <li class="nav-item" role="presentation">
               <button class="nav-link" id="security-tab" data-bs-toggle="tab" data-bs-target="#security" type="button" role="tab"><i class="fa fa-shield-halved me-2"></i>Security</button>
             </li>
@@ -75,8 +75,7 @@
           <%- include('./components/dashboard/payments'); %>
         </div>
         <div class="tab-pane fade " id="security" role="tabpanel" aria-labelledby="security-tab">
-          <%- include('./components/dashboard/banned'); %>
-          <%- include('./components/dashboard/ips'); %>  
+          <%- include('./components/dashboard/security'); %>
         </div>
         <div class="tab-pane fade " id="relay" role="tabpanel" aria-labelledby="relay-tab">
           <%- include('./components/dashboard/relay'); %>

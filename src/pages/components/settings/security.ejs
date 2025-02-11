@@ -6,9 +6,9 @@
         <div class="alert alert-warning mt-3" role="alert">
             <i class="fa-solid fa-triangle-exclamation"></i> <b>Change this only if you know what you are doing.</b> After changing security settings, you need to <b>restart the server</b> to apply the changes.
         </div>
-        <div id="general">
+        <div id="settingsSecurityGeneral">
             <label for="security.maxDefaultRequestMinute" class="mt-2 mb-1 fw-bold">Default request minute</label>
-            <p>This value is used for the default allowed request minute on all endpoints.
+            <p>This value is used for the default allowed request per minute on all endpoints.
             </p>
             <div class="col-12 col-md-4">
                 <input  type="number" 
@@ -22,7 +22,7 @@
                         >
             </div>
         </div>
-        <div id ="fileserver">
+        <div id ="settingsSecurityFileserver">
             <h4 class="mt-4">Fileserver</h4>
             <label for="security.media.maxUploadsMinute" class="mt-2 mb-1 fw-bold">Max uploads per minute</label>
             <p>This value is used for the maximum allowed uploads per minute on all file server endpoints.
@@ -39,7 +39,7 @@
                         >
             </div> 
         </div>
-        <div id="register">
+        <div id="settingsSecurityRegister">
             <h4 class="mt-4">Register</h4>
             <label for="security.register.maxRegisterDay" class="mt-2 mb-1 fw-bold">Max register per day</label>
             <p>This value is used for the maximum allowed register per day.
@@ -51,6 +51,23 @@
                         class="form-control" 
                         value="<%= locals.settingsSecurity['register']['maxRegisterDay'] %>"
                         placeholder="ex. 10" 
+                        step="1"
+                        required
+                        >
+            </div>
+        </div>
+        <div id="settingsSecurityRelay">
+            <h4 class="mt-4">Relay</h4>
+            <label for="security.relay.maxMessageMinute" class="mt-2 mb-1 fw-bold">Max relay messages per minute</label>
+            <p>This value is used for the maximum allowed relay messages per minute.
+            </p>
+            <div class="col-12 col-md-4">
+                <input  type="number" 
+                        id="security.relay.maxMessageMinute" 
+                        name="security.relay.maxMessageMinute" 
+                        class="form-control" 
+                        value="<%= locals.settingsSecurity['relay']['maxMessageMinute'] %>" 
+                        placeholder="ex. 300" 
                         step="1"
                         required
                         >

@@ -6,12 +6,12 @@ import { isModuleEnabled } from "../lib/config.js";
 import app from "../app.js";
 import { logger } from "../lib/logger.js";
 import { Request } from "express";
-import { isIpAllowed } from "../lib/ips.js";
-import { isEntityBanned } from "../lib/banned.js";
+import { isIpAllowed } from "../lib/security/ips.js";
+import { isEntityBanned } from "../lib/security/banned.js";
 import { isEphemeral, isReplaceable } from "../lib/nostr/NIP01.js";
 import { binarySearchCreatedAt, getEvents, initEvents, storeEvents } from "../lib/relay/database.js";
 import { executePlugins } from "../lib/plugins/core.js";
-import { ipInfo } from "../interfaces/ips.js";
+import { ipInfo } from "../interfaces/security.js";
 import { validatePow } from "../lib/nostr/NIP13.js";
 import { allowedTags, ExtendedWebSocket } from "../interfaces/relay.js";
 import { isBase64 } from "../lib/utils.js";
@@ -32,13 +32,13 @@ const handleWebSocketMessage = async (socket: ExtendedWebSocket, data: WebSocket
   }
 
   // Check if the request IP is allowed
-  const reqInfo = await isIpAllowed(req);
-  // if (reqInfo.banned == true) {
-  //   logger.debug(`Attempt to access relay with unauthorized IP: ${reqInfo.ip} | Reason: ${reqInfo.comments}`);
-  //   socket.send(JSON.stringify(["NOTICE", `${reqInfo.comments}`]));
-  //   removeAllSubscriptions(socket);
-  //   return;
-  // }
+  const reqInfo = await isIpAllowed(req, app.get("config.security")["maxMessageMinute"]);
+  if (reqInfo.banned == true) {
+    logger.debug(`Attempt to access relay with unauthorized IP: ${reqInfo.ip} | Reason: ${reqInfo.comments}`);
+    socket.send(JSON.stringify(["NOTICE", `${reqInfo.comments}`]));
+    removeAllSubscriptions(socket);
+    return;
+  }
 
   // Check if current module is enabled
   if (!isModuleEnabled("relay", app)) {

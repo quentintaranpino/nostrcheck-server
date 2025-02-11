@@ -13,7 +13,7 @@ import { validateInviteCode } from "../lib/invitations.js";
 import { checkTransaction } from "../lib/payments/core.js";
 import { transaction } from "../interfaces/payments.js";
 import { setAuthCookie } from "../lib/frontend.js";
-import { isIpAllowed } from "../lib/ips.js";
+import { isIpAllowed } from "../lib/security/ips.js";
 
 const registerUsername = async (req: Request, res: Response): Promise<Response> => {
 

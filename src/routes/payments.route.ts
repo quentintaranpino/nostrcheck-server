@@ -1,7 +1,7 @@
 import { Application } from "express";
 import express from "express";
 import { addBalanceUser, payTransaction, getInvoiceStatus, calculateObjectAmount, getBalanceUser } from "../controllers/payments.js";
-import { limiter } from "../lib/session.js";
+import { limiter } from "../lib/security/core.js";
 
 export const loadPaymentsEndpoint = async (app: Application, version: string): Promise<void> => {
 

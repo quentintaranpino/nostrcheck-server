@@ -32,11 +32,11 @@ import { checkTransaction, collectInvoice, getInvoice, updateAccountId } from ".
 import { blobDescriptor, BUDKinds } from "../interfaces/blossom.js";
 import { prepareBlobDescriptor } from "../lib/blossom/BUD02.js";
 import { loadCdnPage } from "./frontend.js";
-import { getBannedFileBanner, isEntityBanned } from "../lib/banned.js";
+import { getBannedFileBanner, isEntityBanned } from "../lib/security/banned.js";
 import { mirrorFile } from "../lib/blossom/BUD04.js";
 import { executePlugins } from "../lib/plugins/core.js";
 import { setAuthCookie } from "../lib/frontend.js";
-import { isIpAllowed } from "../lib/ips.js";
+import { isIpAllowed } from "../lib/security/ips.js";
 
 const uploadMedia = async (req: Request, res: Response, version:string): Promise<Response> => {
 

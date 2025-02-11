@@ -2,9 +2,9 @@ import { Application } from "express";
 import express from "express";
 import multer from "multer";
 import { logger } from "../lib/logger.js";
-import { getClientIp } from "../lib/ips.js";
+import { getClientIp } from "../lib/security/ips.js";
 import app from "../app.js";
-import { limiter } from "../lib/session.js";
+import { limiter } from "../lib/security/core.js";
 
 import {
     deleteDBRecord,

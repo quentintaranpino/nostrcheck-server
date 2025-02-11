@@ -1,7 +1,7 @@
 import { Application } from "express";
 import express from "express";
 import { listAvailableDomains, listAvailableUsers, updateUserDomain } from "../controllers/domains.js";
-import { limiter } from "../lib/session.js";
+import { limiter } from "../lib/security/core.js";
 
 export const loadDomainsEndpoint = async (app: Application, version: string): Promise<void> => {
 

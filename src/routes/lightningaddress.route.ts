@@ -1,7 +1,7 @@
 import { Application } from "express";
 import express from "express";
 import { redirectlightningddress, updateLightningAddress, deleteLightningAddress } from "../controllers/lightningaddress.js";
-import { limiter } from "../lib/session.js";
+import { limiter } from "../lib/security/core.js";
 
 export const loadLightningaddressEndpoint = async (app: Application, version: string): Promise<void> => {
 

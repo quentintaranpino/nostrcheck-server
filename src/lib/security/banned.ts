@@ -1,12 +1,15 @@
 import path from "path";
 import fs from "fs";
-import app from "../app.js";
-import { ResultMessagev2 } from "../interfaces/server.js";
-import { dbInsert, dbMultiSelect, dbUpdate } from "./database.js";
-import { logger } from "./logger.js";
-import { redisDel, redisGet, redisSet } from "./redis.js";
+import app from "../../app.js";
+import { ResultMessagev2 } from "../../interfaces/server.js";
+import { dbInsert, dbMultiSelect, dbUpdate } from "../database.js";
+import { logger } from "../logger.js";
+import { redisDel, redisGet, redisSet } from "../redis.js";
+import { isModuleEnabled } from "../config.js";
 
 const manageEntity = async (originId: number, originTable: string, action: "ban" | "unban", reason?: string): Promise<ResultMessagev2> => {
+
+    if (!isModuleEnabled("security", app))  return { status: "error", message: "Banned module not enabled" };
 
     if (originId == 0 || originId == null || originTable == "" || originTable == null || (action === "ban" && (!reason || reason === ""))) {
         return { status: "error", message: "Invalid parameters" };
@@ -188,6 +191,8 @@ const unbanEntity = async (originId: number, originTable: string): Promise<Resul
 **/
 const isEntityBanned = async (id: string, table: string): Promise<boolean> => {
 
+    if (!isModuleEnabled("security", app))  return false;
+
     if (id === "" || table === "") return true;
 
     // If the cache is empty, we need to fill it with the database status
@@ -230,6 +235,9 @@ const getBannedFileBanner = (): Promise<Buffer> => {
 * Loads the banned entities from the database into Redis.
 **/
 const loadBannedEntities = async (): Promise<void> => {
+
+    if (!isModuleEnabled("security", app)) return;
+
     const bannedEntities = await dbMultiSelect(["originid", "origintable"], "banned", "active = 1", [], false);
 
     for (const entity of bannedEntities) {
