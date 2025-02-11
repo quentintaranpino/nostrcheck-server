@@ -99,8 +99,8 @@ const mediafilesTableFields: mediafilesTable = {
 		"INDEX idx_filename_hash_pubkey (filename, original_hash, pubkey)",
 		"INDEX idx_filename (filename)",
 		"INDEX idx_original_hash (original_hash)",
-		"idx_filename_original_hash (filename, original_hash)",
-		"idx_localpath (localpath)"
+		"INDEX idx_filename_original_hash (filename, original_hash)",
+		"INDEX idx_localpath (localpath)"
 	],
 	constructor: {
 		name: 'RowDataPacket',
