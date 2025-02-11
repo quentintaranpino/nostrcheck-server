@@ -221,6 +221,9 @@ See plugins [here](https://github.com/quentintaranpino/nostrcheck-api-ts/blob/ma
 - [ ] Start9 appstore integration
 - [x] Integrated nostr relay
 - [x] Nostr wallet connect
+- [x] Security Engine.
+- [x] Frontend UI (relay)
+- [x] Alby Hub appstore integration
 
 ## License
 
