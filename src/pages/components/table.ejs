@@ -277,7 +277,8 @@
                 }
             });
             $(window).resize(function () {
-                if ($(window).width() < 768) {
+                let windowWidth = $(window).width();
+                if (windowWidth && windowWidth < 768) {
                     hideShowColumns(columns, 'mobile-hide', 'hideColumn');
                 } else {
                     hideShowColumns(columns, 'mobile-hide', 'showColumn');
