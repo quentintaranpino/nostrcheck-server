@@ -17,6 +17,7 @@
         const showTooltip = "<%= showTooltip %>";
         const externalTooltip = "<%= externalTooltip  %>";
         const type = "<%= type %>";
+        const action ="<%= action %>";
 
         // Set the width and height of the chart
         document.getElementById(chartId).style.width = width;
@@ -144,7 +145,7 @@
         }
 
         const updateDoughnutChart = async () => {
-            const doughnutCount = await fetchCountData(datakey, 'count', doughnutField);
+            const doughnutCount = await fetchCountData(datakey, action, doughnutField);
             await initDoughnutChart(
                 type,
                 chartId,

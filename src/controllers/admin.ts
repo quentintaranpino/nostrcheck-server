@@ -952,7 +952,7 @@ const getModuleCountData = async (req: Request, res: Response): Promise<Response
     if (module == "logger" && action == "countWarning") {
         return res.status(200).send({total: logHistory.length, field: logHistory.length});
     }
-    if (module == "relay" && action == "count") {
+    if (module == "relay" && action == "countSynced") {
         return res.status(200).send({total: await dbCountModuleData(module), field: app.get("relayEvents")?.memoryDB?.size | 0});
     }
 
