@@ -1,4 +1,4 @@
-import { redisHashGetAll, redisHashIncrementBy, redisHashSet, redisScanKeys } from "../redis.js";
+import { redisHashGetAll, redisHashIncrementBy, redisHashSet, redisScanKeys, redisSlidingWindowIncrement, redisSlidingWindowOldest } from "../redis.js";
 import { dbUpdate, dbMultiSelect, dbUpsert } from "../database.js";
 import { logger } from "../logger.js";
 import app from "../../app.js";
@@ -36,32 +36,48 @@ const logNewIp = async      (ip: string):
 
     const now = Date.now();
     const redisKey = `ips:${ip}`;
+    const redisWindowKey = `ips:window:${ip}`;
+    const reqcount = await redisSlidingWindowIncrement(redisWindowKey, now, 60000, 70);
+    const oldestTimestamp = await redisSlidingWindowOldest(redisWindowKey);
+    const firstseenValue = oldestTimestamp ? oldestTimestamp.toString() : now.toString();
 
+    logger.debug(`(logNewIp) IP ${ip}: reqcount=${reqcount}, oldestTimestamp=${oldestTimestamp}, firstseen=${firstseenValue}`);
+    
     const redisData = await redisHashGetAll(redisKey);
 
     if (Object.keys(redisData).length === 0 || redisData.dbid === undefined) {
         const ipDbData = await dbMultiSelect(["id", "active", "checked", "infractions", "comments"], "ips", "ip = ?", [ip], true);
         if (!ipDbData || ipDbData.length === 0) {
-            let dbid = await dbUpsert("ips", { active: 1, checked: 0, ip, firstseen: now, lastseen: now, reqcount: 1 });
-            if (dbid === 0) dbid = await dbUpsert("ips", { active: 1, checked: 0, ip, firstseen: now, lastseen: now, reqcount: 1 });
+            let dbid = await dbUpsert("ips", { active: 1, checked: 0, ip, firstseen: now, lastseen: now, reqcount: reqcount });
+            if (dbid === 0) dbid = await dbUpsert("ips", { active: 1, checked: 0, ip, firstseen: now, lastseen: now, reqcount: reqcount });
             if (dbid === 0) {
                 logger.error("Error inserting new IP:", ip);
             }
-
-            return { dbid: dbid.toString(), active: "1", checked: "0", banned: "1", firstseen: now.toString(), lastseen: now.toString(), reqcount: "1", infractions: "0", comments: "" };
+  
+            return { 
+                dbid: dbid.toString(), 
+                active: "1", 
+                checked: "0", 
+                banned: "1", 
+                firstseen: now.toString(), 
+                lastseen: now.toString(), 
+                reqcount: reqcount.toString(), 
+                infractions: "0", 
+                comments: "" 
+            };
         }
     
         const infractions = ipDbData[0].infractions ? ipDbData[0].infractions.toString() : "0";
         const comments = ipDbData[0].comments ? ipDbData[0].comments.toString() : "";
-
+  
         await redisHashSet(redisKey, {
             dbid: ipDbData[0].id,
             active: ipDbData[0].active ? "1" : "0",
             checked: ipDbData[0].checked ? "1" : "0",
             banned: "0",
-            firstseen: now,
-            lastseen: now,
-            reqcount: 1,
+            firstseen: firstseenValue,
+            lastseen: now.toString(),
+            reqcount: reqcount.toString(),
             infractions: infractions,
             comments: comments
         }, 60);
@@ -71,24 +87,33 @@ const logNewIp = async      (ip: string):
             active: ipDbData[0].active ? "1" : "0",
             checked: ipDbData[0].checked ? "1" : "0",
             banned: "0",
-            firstseen: now.toString(),
+            firstseen: firstseenValue,
             lastseen: now.toString(),
-            reqcount: "1",
+            reqcount: reqcount.toString(),
             infractions: infractions,
             comments: comments
         };
     
     } else {
-
-        await redisHashIncrementBy(redisKey, "reqcount", 1);
-        await redisHashSet(redisKey, { firstseen: redisData.lastseen, lastseen: now }, 60);
-
+        await redisHashSet(redisKey, { 
+            firstseen: firstseenValue, 
+            lastseen: now.toString(), 
+            reqcount: reqcount.toString() 
+        }, 60);
         queueIpUpdate(redisData.dbid, Number(redisData.lastseen), now, 1);
-
-        return {dbid: redisData.dbid, active: redisData.active, checked: redisData.checked, banned: redisData.banned, firstseen: redisData.firstseen, lastseen: now.toString(), reqcount: redisData.reqcount, infractions: redisData.infractions, comments: redisData.comments};
-
+  
+        return {
+            dbid: redisData.dbid, 
+            active: redisData.active, 
+            checked: redisData.checked, 
+            banned: redisData.banned, 
+            firstseen: firstseenValue, 
+            lastseen: now.toString(), 
+            reqcount: reqcount.toString(), 
+            infractions: redisData.infractions, 
+            comments: redisData.comments
+        };
     }   
-
 };
 
 const getClientIp = (req: Request): string => {
