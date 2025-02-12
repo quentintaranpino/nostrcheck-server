@@ -491,7 +491,6 @@
                         $(tableId).bootstrapTable('removeByUniqueId', id);
                     }else if (action === 'insert') {
                         row.id = +responseData.message;
-                        console.log(row)
                         $(tableId).bootstrapTable('insertRow', {
                             index: 0,
                             row: data.row
@@ -577,6 +576,25 @@
             return new Date(value * 1000).toISOString().slice(0, 16).replace('T', ' ');
         }
         window.formatTimestamp = formatTimestamp;
+
+        function formatLogDate(value) {
+            return new Date(value).toISOString().slice(0, 23).replace('T', ' ');
+        }
+        window.formatLogDate = formatLogDate;
+
+        function formatLogSeverity(value) {
+            if (value === 'ERROR') {
+                return '<div class="text-center"><i class="fas fa-exclamation-triangle text-danger"></i></div>';
+            } else if (value === 'WARN') {
+                return '<div class="text-center"><i class="fas fa-exclamation-circle text-warning"></i></div>';
+            } else if (value === 'INFO') {
+                return '<div class="text-center"><i class="fas fa-info-circle text-info"></i></div>';
+            } else if (value === 'DEBUG') {
+                return '<div class="text-center"><i class="fas fa-bug text-secondary"></i></div>';
+            }
+            return '';
+        }
+        window.formatLogSeverity = formatLogSeverity;
 
         function formatMediaFile(value, row, index) {
 
@@ -689,7 +707,6 @@
                     dataType: 'json',
                     success: async function(result) {
                         console.timeEnd(`fetchTabledata-${params.url}`);
-                        console.log(result)
                         params.success(result);
                         resolve(params);
                     },

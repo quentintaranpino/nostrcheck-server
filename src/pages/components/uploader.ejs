@@ -106,7 +106,7 @@
 
             
         } catch (error) {
-            console.log(error.message)
+            console.error(error.message)
             return { "status": "error", "message": error.message, "satoshi": 0 };
         }
 
@@ -203,7 +203,7 @@
             return { "filename": file.name, "url": url, "invoice": response.headers.get('X-Lightning')};
 
         } catch (error) {
-            console.log(error.message);
+            console.error(error.message);
             if (showMessages) updateMessage(uploadMessage, '<i class="bi bi-exclamation-circle-fill pe-1"></i>' + error, "alert-danger");
             if (showMessages) hideMessage(uploadMessage, 5000);
             return { "filename": file.name, "url": "", "invoice": "" };
@@ -407,7 +407,6 @@
                 }
                 if (oneFile && fileServerInfo == true) {
                     if (file.fileData.satoshi > 0) {
-                        console.log(file.fileData.invoice, file.fileData.satoshi, file.fileData.id, instance)
                         handlePayment(file.fileData.invoice, file.fileData.satoshi, file.fileData.id, instance).then(async (result) => {
                         if (result) {
                             file.fileData.isPaid = true;
@@ -616,11 +615,9 @@
             const filesArr = window[`${i}filesArray`];
             const row = $('#' + i + 'file-table').bootstrapTable('getRowByUniqueId', id);
             initPaymentModal(value, row.satoshi, i).then(result => {
-                console.log(result)
                 if (result != "") {
                     row.isPaid = true;
                     row.preimage = result;
-                    console.log(row)
                     $('#' + i + 'table').bootstrapTable('updateRow', {
                         index: id,
                         row: row
@@ -670,7 +667,7 @@
             }
 
         const serverInfo = await fetchFileServerInfo(file, authEvent);
-        console.log(serverInfo)
+        console.debug(serverInfo)
         if (!serverInfo || !serverInfo?.status?.toString().startsWith(2)){
 
             // 402 Payment Required

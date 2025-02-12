@@ -15,7 +15,7 @@ let localModel: any = null;
 const localEngineStart = async (): Promise<boolean> => {
     return new Promise(async (resolve, reject) => {
         if (localModel) {
-            logger.info('Local AI moderation server is already running.');
+            logger.info(`localEngineStart - Local AI moderation server is already running.`);
             resolve(true);
             return;
         }
@@ -23,7 +23,7 @@ const localEngineStart = async (): Promise<boolean> => {
         const localModelPath = './scripts/moderation/localEngine.py';
         const venvPythonPath = './venv/bin/python'; 
 
-        logger.info('Starting Local AI moderation server...');
+        logger.info(`localEngineStart - Starting local AI moderation server using Python virtual environment: ${venvPythonPath}`);
 
         localModel = await new PythonShell(localModelPath, {
             pythonPath: venvPythonPath,  
@@ -31,19 +31,19 @@ const localEngineStart = async (): Promise<boolean> => {
         });
 
         localModel.on('message', (message: any) => {
-            logger.info(message);
-            logger.info('Local AI moderation server started.');
+            logger.info(`localEngineStart - ${message}`);
+            logger.info(`localEngineStart - Local AI moderation server started successfully.`);
             resolve(true); 
         });
 
         localModel.on('error', (err: any) => {
-            logger.error('Failed to start Local AI moderation server:', err);
+            logger.error(`localEngineStart - Local AI moderation server failed to start with error: ${err}`);
             localModel = null;
             reject(false); 
         });
 
         localModel.on('close', () => {
-            logger.info('Local AI moderation server stopped.');
+            logger.info('localEngineStart - Local AI moderation server stopped.');
             localModel = null;
 			resolve(false);
         });
@@ -57,13 +57,13 @@ const localEngineStart = async (): Promise<boolean> => {
 */
 const localEngineStop = () => {
     if (!localModel) {
-        logger.info('Local AI moderation server is not running.');
+        logger.info(`localEngineStop - Local AI moderation server stopped.`);
         return;
     }
 
     localModel.terminate();
     localModel = null;
-    logger.info('Local AI moderation server stopped.');
+    logger.info(`localEngineStop - Local AI moderation server stopped.`);
 }
 
 /**
@@ -79,6 +79,8 @@ const sendRequest = async (modelName: string, endpoint: string,  filePath: strin
 
     const form = new FormData();
     filePath != "" ? form.append('file', fs.createReadStream(filePath)) : null;
+
+    logger.info(`sendRequest - Sending request to local AI moderation server: ${endpoint}`);
 
     try {
 		if (endpoint === "classify"){
@@ -97,7 +99,7 @@ const sendRequest = async (modelName: string, endpoint: string,  filePath: strin
 		return "99:Unknown";
 
     } catch (error: any) {
-        logger.error(`There was an error running the model script: ${error.code}`);
+        logger.error(`sendRequest - There was an error running the model script: ${error.code}`);
 		const result = endpoint === "classify" ? "99:Unknown" : "No classes found";
 		return result;
     }
@@ -111,13 +113,15 @@ const sendRequest = async (modelName: string, endpoint: string,  filePath: strin
 const localEngineClassify = async (filePath: string): Promise<moderationCategory> => {
 
 	if (!filePath || filePath === "") {
-		logger.error("ERR -> Moderating file, empty file path");
+		logger.error(`localEngineClassify - File path is empty`);
 		return emptyModerationCategory;
 	}
 
     const modelName = app.get("config.media")["mediainspector"]["local"]["modelName"];   
 	
 	const result = await sendRequest(modelName, "classify", filePath);
+
+    logger.info(`localEngineClassify - File moderation result: ${result}`);
 
     const splitResult = result.split(" ");
     for (let i = 0; i < splitResult.length; i++) {

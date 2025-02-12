@@ -21,7 +21,7 @@ const initSession = async (app:Application): Promise<void> => {
     //Check if session secret is insecure and generate new secret if needed
     const sessionSecret = await getSessionSecret();
 
-    logger.debug("Initialising session cookies");
+    logger.debug(`initSession - Initialising session cookies`);
 
     app.use(session({
         secret: sessionSecret,
@@ -45,12 +45,10 @@ const getSessionSecret = async(): Promise<string> => {
         app.get('config.session')['secret'] == "" ||
         app.get('config.session')['secret']?.length < 64) {
         
-        logger.info("Insecure session.secret detected in config file - Generating random secret");
+        logger.info(`getSessionSecret - Insecure session.secret detected in config file - Generating random secret`);
         const newSecret = crypto.randomBytes(64).toString('hex');
-        logger.info("New session.secret generated");
 
         if (await updateLocalConfigKey("session.secret", newSecret)){
-            logger.debug("session.secret updated in config file");
             const configSession = { ...app.get('config.session') }; 
             configSession.secret = newSecret;
             app.set('config.session', configSession);

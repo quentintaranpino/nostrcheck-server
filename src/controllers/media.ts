@@ -43,27 +43,27 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 	// Check if the request IP is allowed
 	const reqInfo = await isIpAllowed(req);
 	if (reqInfo.banned == true) {
-		logger.warn(`Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
+		logger.warn(`uploadMedia - Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
 		return res.status(403).send({"status": "error", "message": reqInfo.comments});
 	}
 
 	// Check if current module is enabled
 	if (!isModuleEnabled("media", app)) {
-        logger.info("Attempt to access a non-active module:","media","|","IP:", reqInfo.ip);
+        logger.info(`uploadMedia - Attempt to access a non-active module: media | IP:`, reqInfo.ip);
 		return res.status(403).send({"status": "error", "message": "Module is not enabled"});
 	}
 
-	logger.info("POST /api/" + version + "/media", "|", reqInfo.ip);
+	logger.info(`uploadMedia - Request from:`, reqInfo.ip);
 
 	// Check if authorization header is valid
 	const eventHeader = await parseAuthHeader(req, "upload", false);
 	if (eventHeader.status != "success") {
 		if(version != "v2"){return res.status(401).send({"result": false, "description" : eventHeader.message});}
-
 		const result : ResultMessagev2 = {
 			status: MediaStatus[1],
 			message: eventHeader.message
 		}
+		logger.debug(`uploadMedia - Invalid authorization header:`, eventHeader.message, "|", reqInfo.ip);
 		return res.status(401).send(result);
 
 	}
@@ -74,7 +74,7 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 	// Public uploads logic
 	if (await isPubkeyRegistered(pubkey) == false){
 		if (app.get("config.media")["allowPublicUploads"] == false) {
-			logger.info("pubkey not registered, public uploads not allowed | ", reqInfo.ip);
+			logger.info(`uploadMedia - public uploads not allowed | `, reqInfo.ip);
 			if(version != "v2"){return res.status(401).send({"result": false, "description" : "public uploads not allowed"});}
 
 			const result: ResultMessagev2 = {
@@ -83,14 +83,14 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 			};
 			return res.status(401).send(result);
 		}
-		logger.info("pubkey not registered, uploading as guest | ", reqInfo.ip);
+		logger.info(`uploadMedia - pubkey not registered, uploading as guest | `, reqInfo.ip);
 	}
 
-	logger.info("pubkey ->", pubkey, "|", reqInfo.ip);
+	logger.debug(`uploadMedia - pubkey: ${pubkey} | `, reqInfo.ip);
 
 	// getUploadType. If not defined, default is "media"
 	const uploadType : string = pubkey != app.get("config.server")["pubkey"] ? await getUploadType(req) : "media";
-	logger.info("uploadtype ->", uploadType, "|", reqInfo.ip);
+	logger.debug(`uploadMedia - uploadtype: ${uploadType} | `, reqInfo.ip);
 
 	// Uploaded file
 	let file: Express.Multer.File | null = null;
@@ -98,7 +98,7 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 	// Mirror file (Blossom BUD04)
 	if (req.params.param1 == "mirror") {
 		if (req.body.url == undefined || req.body.url == "") {
-			logger.warn(`RES -> 400 Bad request - Empty URL`, "|", reqInfo.ip);
+			logger.warn(`uploadMedia - 400 Bad request - Empty URL`, "|", reqInfo.ip);
 			if(version != "v2"){return res.status(400).send({"result": false, "description" : "Empty URL"});}
 
 			const result: ResultMessagev2 = {
@@ -109,7 +109,7 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 		}
 		file = await mirrorFile(req.body.url)
 		if (!file) {
-			logger.warn(`RES -> 400 Bad request - Empty file`, "|", reqInfo.ip);
+			logger.warn(`uploadMedia - 400 Bad request - Empty file`, "|", reqInfo.ip);
 			if(version != "v2"){return res.status(400).send({"result": false, "description" : "Empty file"});}
 
 			const result: ResultMessagev2 = {
@@ -123,7 +123,7 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 
 	if (Array.isArray(req.files) && req.files.length > 0) {file = req.files[0];}
 	if (!file || file.buffer.length == 0) {
-		logger.warn(`RES -> 400 Bad request - Empty file`, "|", reqInfo.ip);
+		logger.warn(`uploadMedia - 400 Bad request - Empty file`, "|", reqInfo.ip);
 		if(version != "v2"){return res.status(400).send({"result": false, "description" : "Empty file"});}
 
 		const result: ResultMessagev2 = {
@@ -167,7 +167,7 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 	// File mime type. If not allowed reject the upload.
 	filedata.originalmime = await getFileMimeType(req, file);
 	if (filedata.originalmime == "") {
-		logger.warn(`RES -> 400 Bad request - filetype not detected or not allowed`, "|", reqInfo.ip);
+		logger.warn(`uploadMedia - 400 Bad request - file type not detected or not allowed`, "|", reqInfo.ip);
 		if(version != "v2"){return res.status(400).send({"result": false, "description" : "file type not detected or not allowed"});}
 
 		const result: ResultMessagev2 = {
@@ -176,14 +176,14 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 		};
 		return res.status(400).send(result);
 	}
-	logger.info("mime ->", filedata.originalmime, "|", reqInfo.ip);
+	logger.debug(`uploadMedia - mime: ${filedata.originalmime} | `, reqInfo.ip);
 
 	// No transform option
 	app.get("config.media")["transform"]["enabled"] == false ? filedata.no_transform = true : filedata.no_transform = Boolean(req.body?.no_transform) || false;
 
 	// Not accepting "avatar" or "banner" uploads with no_transform option
 	if (filedata.media_type != "media" && filedata.no_transform == true){
-		logger.warn(`RES -> 400 Bad request - no_transform not allowed for this media type`, "|", reqInfo.ip);
+		logger.warn(`uploadMedia - 400 Bad request - no_transform not allowed for this media type`, "|", reqInfo.ip);
 		const result: ResultMessagev2 = {
 			status: MediaStatus[1],
 			message: "no_transform not allowed for this media type",
@@ -199,15 +199,16 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 	filedata.hash = filedata.originalhash; // At this point, hash is the same as original hash
 	filedata.no_transform == true? filedata.filename = `${filedata.originalhash}.${getExtension(filedata.originalmime)}` : filedata.filename = `${filedata.originalhash}.${getConvertedExtension(filedata.originalmime)}`;
 
-	logger.info("hash ->", filedata.originalhash, "|", reqInfo.ip);
-	logger.info("filename ->", filedata.filename, "|", reqInfo.ip);
-	logger.info("no_transform ->", filedata.no_transform, "|", reqInfo.ip);
+	logger.debug(`uploadMedia - hash: ${filedata.originalhash} | `, reqInfo.ip);
+	logger.debug(`uploadMedia - filename: ${filedata.filename} | `, reqInfo.ip);
+	logger.debug(`uploadMedia - no_transform: ${filedata.no_transform} | `, reqInfo.ip);
 
 	// Default return status
 	res.status(201);
 
 	// Plugins engine execution
 	if (await executePlugins({pubkey: filedata.pubkey, filename: filedata.filename, ip: reqInfo.ip}, app, "media") == false) {
+		logger.info(`uploadMedia - 401 Unauthorized - Not authorized`, "|", reqInfo.ip);
 		return res.status(401).send({"status": "error", "message": "Not authorized"});
 	}
 
@@ -256,7 +257,7 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 		}
 
 		if (dbFile) {
-			logger.info(`RES ->  File already in database, returning existing URL:`, filedata.servername + "/media/" + pubkey + "/" + filedata.filename, "|", reqInfo.ip);
+			logger.debug(`uploadMedia - File already in database, returning existing URL:`, filedata.servername + "/media/" + pubkey + "/" + filedata.filename, "|", reqInfo.ip);
 			if (version == "v1"){filedata.status = JSON.parse(JSON.stringify(UploadStatus[2]));}
 			if (version == "v2"){filedata.status = JSON.parse(JSON.stringify(MediaStatus[0]));}
 			filedata.fileid = dbFile.id;
@@ -275,7 +276,7 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 				const updateResult = await dbUpdate("mediafiles", {"transactionid": filedata.transaction_id},["id"], [filedata.fileid]);
 				const accountIdResult = await updateAccountId(pubkey, Number(filedata.transaction_id));
 				if (!updateResult || !accountIdResult) {
-					logger.error(`Error updating transactionid for file ${filedata.fileid}`, "|", reqInfo.ip);
+					logger.error(`uploadMedia - Error updating transactionid for file ${filedata.fileid}`, "|", reqInfo.ip);
 					const result: ResultMessagev2 = {
 						status: MediaStatus[1],
 						message: "Error updating transactionid for file " + filedata.fileid,
@@ -291,7 +292,7 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 			makeBlurhash = false;
 
 			if (await getFilePath(filedata.filename) == "") {
-				logger.warn("File already in database but not found on storage server, processing as new file", "|", reqInfo.ip);
+				logger.warn(`uploadMedia - File already in database but not found on storage server, processing as new file`, "|", reqInfo.ip);
 				processFile = true;
 			}
 		}
@@ -312,10 +313,9 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 		// generate blurhash
 		if (makeBlurhash) {
 			if (filedata.originalmime.toString().startsWith("image")){
-				logger.debug(filedata.originalmime.toString());
+				logger.debug(`uploadMedia - originalmime: ${filedata.originalmime.toString()} | `, reqInfo.ip);
 				filedata.blurhash = await generateBlurhash(filedata.conversionInputPath);
 
-				// If can't generate blurhash, we return an error and delete the file
 				if (filedata.blurhash == "") {
 					if(version != "v2"){return res.status(500).send({"result": false, "description" : "File could not be processed"});}
 
@@ -323,7 +323,7 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 						status: MediaStatus[1],
 						message: "File could not be processed",
 					};
-					//await deleteFile(filedata.conversionInputPath);
+					logger.error(`uploadMedia - File blurhash could not be generated`, "|", reqInfo.ip);
 					return res.status(500).send(result);
 				}
 			}
@@ -362,7 +362,7 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 
 		filedata.fileid = insertResult.toString();
 		if (insertResult == 0) {
-			logger.error("Error inserting file to database", "|", reqInfo.ip);
+			logger.error(`uploadMedia - Error inserting file to database`, "|", reqInfo.ip);
 			if(version != "v2"){return res.status(500).send({"result": false, "description" : "Error inserting file to database"});}
 			const result: ResultMessagev2 = {
 				status: MediaStatus[1],
@@ -375,7 +375,7 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 		if (filedata.transaction_id != "") {
 			const result = await updateAccountId(pubkey, Number(filedata.transaction_id));
 			if (result == false) {
-				logger.error("Error updating transactionid for file", filedata.fileid, "|", reqInfo.ip);
+				logger.error(`uploadMedia - Error updating transactionid for file`, filedata.fileid, "|", reqInfo.ip);
 				return res.status(500).send({"status": "error", "message": "Error updating transactionid for file"});
 			}
 		}
@@ -422,6 +422,7 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 
 		// If the file is not paid, and we don't allow upaid uploads, we return an error message and a 402 status code with the payment request
 		if (app.get("config.payments")["allowUnpaidUploads"] === false && transaction.isPaid == false) {
+			logger.info(`uploadMedia - 402 Payment required - Payment required`, "|", reqInfo.ip);
 			return res.send({"status": "error", "message": "Payment required"});
 		}
 	}
@@ -439,10 +440,10 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 
 		//Send request to process queue
 		const t: asyncTask = {req,filedata,};
-		logger.info(`${requestQueue.length() +1} items in queue`);
+		logger.info(`uploadMedia - ${requestQueue.length() +1} items in queue`);
 		filedata.description + "File queued for conversion";
 		requestQueue.push(t).catch((err) => {
-			logger.error("Error pushing file to queue", err);
+			logger.error(`uploadMedia - Error pushing file to queue`, err);
 			if(version != "v2"){return res.status(500).send({"result": false, "description" : "Error queueing file"});}
 
 			const result: ResultMessagev2 = {
@@ -453,7 +454,7 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 		});
 	}
 
-	logger.info(`RES -> 200 OK - ${filedata.description}`, "|", reqInfo.ip);
+	logger.info(`uploadMedia - File uploaded successfully:`, filedata.servername + "/media/" + pubkey + "/" + filedata.filename, "|", reqInfo.ip);
 
 	//v0 and v1 compatibility
 	if (version != "v2"){
@@ -503,7 +504,7 @@ const getMedia = async (req: Request, res: Response, version:string) => {
 	if (req.params.param1 && req.params.param1.length < 11) {
 
 		if(req.params.param1 == "list"){
-			getMediaList(req, res, version); // List media Blossom compatibility
+			getMediaList(req, res); // List media Blossom compatibility
 			return;
 		}else{
 			req.params.id = req.params.param1;
@@ -514,7 +515,7 @@ const getMedia = async (req: Request, res: Response, version:string) => {
 
 	// List media
 	if (req.query && Object.keys(req.query).length > 0 && req.query.page != undefined && req.query.count != undefined) {
-		getMediaList(req, res, version); // List media NIP96 compatibility
+		getMediaList(req, res); // List media NIP96 compatibility
 		return;
 	}
 
@@ -533,36 +534,36 @@ const headMedia = async (req: Request, res: Response): Promise<Response> => {
 	// Check if the request IP is allowed
 	const reqInfo = await isIpAllowed(req);
 	if (reqInfo.banned == true) {
-		logger.info(`Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
+		logger.info(`headMedia - Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
 		return res.status(403).send({"status": "error", "message": reqInfo.comments});
 	}
 
 	// Check if current module is enabled
 	if (!isModuleEnabled("media", app)) {
-		logger.info("Attempt to access a non-active module:","media","|","IP:", reqInfo.ip);
+		logger.info(`headMedia - Attempt to access a non-active module: media | IP:`, reqInfo.ip);
 		return res.status(403).send({"status": "error", "message": "Module is not enabled"});
 	}
 
-	logger.info("HEAD /media", "|", reqInfo.ip);
+	logger.info(`headMedia - Request from:`, reqInfo.ip);
 
 	// Get file hash from URL
 	const hash = req.params.param1.toString().split(".")[0];
 	if (!hash) {
-		logger.warn(`RES -> 400 Bad request - missing hash`, "|", reqInfo.ip);
+		logger.warn(`headMedia - 400 Bad request - missing hash`, "|", reqInfo.ip);
 		return res.status(400).send({"status": "error", "message": "missing hash"});
 	}
 
 	// Check if file exist on storage server
 	const filePath = await getFilePath(hash);
 	if (filePath == "") {
-		logger.info(`RES -> 404 Not found - file not found in storage server`, "|", reqInfo.ip);
+		logger.info(`headMedia - 404 Not found - file not found on storage server: ${hash}`, "|", reqInfo.ip);
 		return res.status(404).send();
 	}
 
 	// Check if file exist on database
 	const fileData = await dbMultiSelect(["id", "filesize", "hash", "original_hash", "mimetype"], "mediafiles", "original_hash = ?", [hash], true);
 	if (fileData.length == 0) {
-		logger.error('RES -> 404 Not found - file not found in database', "|", reqInfo.ip);
+		logger.error(`headMedia - 404 Not found - file not found in database: ${fileData[0].original_hash}`, "|", reqInfo.ip);
 		return res.status(404).send();
 	}
  
@@ -573,39 +574,39 @@ const headMedia = async (req: Request, res: Response): Promise<Response> => {
 		if (transaction.transactionid != 0 && transaction.isPaid == false && app.get("config.payments")["satoshi"]["mediaMaxSatoshi"] > 0) {
 			res.setHeader("X-Lightning", transaction.paymentRequest);
 			res.setHeader("X-Lightning-amount", transaction.satoshi);
-			res.setHeader("X-Reason", `Invoice (${transaction.satoshi}) for hash: ${fileData[0].original_hash}`);
+			res.setHeader("X-Reason", `Invoice (${transaction.satoshi}) for hash: ${hash}`);
 		}
 	}
 
 	// Banned ?
 	if (await isEntityBanned(fileData[0].id, "mediafiles")) {
-		logger.warn(`RES -> 403 Forbidden - file is banned`, "|", reqInfo.ip);
+		logger.warn(`headMedia - 403 Forbidden - file is banned: ${hash}`, "|", reqInfo.ip);
 		return res.status(403).send();
 	}
 
-	logger.info(`RES -> 200 OK - file found`, "|", reqInfo.ip);
+	logger.info(`headMedia - File found successfully: ${hash}`, "|", reqInfo.ip);
 	res.setHeader("Content-Type", fileData[0].mimetype);
 
 	return res.status(200).send();
 
 };
 
-const getMediaList = async (req: Request, res: Response, version:string): Promise<Response> => {
+const getMediaList = async (req: Request, res: Response): Promise<Response> => {
 
 	// Check if the request IP is allowed
 	const reqInfo = await isIpAllowed(req);
 	if (reqInfo.banned == true) {
-		logger.info(`Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
+		logger.info(`getMediaList - Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
 		return res.status(403).send({"status": "error", "message": reqInfo.comments});
 	}
 
 	// Check if current module is enabled
 	if (!isModuleEnabled("media", app)) {
-		logger.info("Attempt to access a non-active module:","media","|","IP:", reqInfo.ip);
+		logger.info(`getMediaList - Attempt to access a non-active module: media | IP:`, reqInfo.ip);
 		return res.status(403).send({"status": "error", "message": "Module is not enabled"});
 	}
 
-	logger.info("GET /api/" + version + "/media", "|", reqInfo.ip);
+	logger.info(`getMediaList - Request from:`, reqInfo.ip);
 
 	// Check if authorization header is valid
 	const eventHeader = await parseAuthHeader(req, "list", false);
@@ -632,12 +633,6 @@ const getMediaList = async (req: Request, res: Response, version:string): Promis
 	if (pubkey != "") {
 		whereStatement = eventHeader.pubkey == pubkey ? "pubkey = ? and active = ? and original_hash is not null" : "active = ? and visibility = ? and checked = ? and original_hash is not null";
 		whereFields = eventHeader.pubkey == pubkey ? [pubkey, "1"] : ["1", "1", "1"];
-
-		if (eventHeader.pubkey != pubkey) {
-			logger.debug('Pubkey mismatch', "|", reqInfo.ip);
-			logger.debug('eventHeader.pubkey:', eventHeader.pubkey, "|", 'pubkey:', pubkey, "|", reqInfo.ip);
-			logger.debug('pubkey:', pubkey, "|", reqInfo.ip);
-		}
 
 		if (since != 0) {
 			whereStatement += " and date >= ?";
@@ -671,7 +666,7 @@ const getMediaList = async (req: Request, res: Response, version:string): Promis
 	for (const e of result) {
 
 		if (e.original_hash == null || e.hash == null) {
-			logger.debug(`File ${e.filename} has no original_hash or hash, skipping`, "|", reqInfo.ip);
+			logger.debug(`getMediaList - File ${e.filename} has no original_hash or hash, skipping`, "|", reqInfo.ip);
 			continue;
 		}
 
@@ -732,6 +727,8 @@ const getMediaList = async (req: Request, res: Response, version:string): Promis
 		files.push(file);
 	}
 
+	logger.info(`getMediaList - Successfully listed ${files.length} files`, "|", reqInfo.ip);
+
 	// NIP96 compatibility
 	if (pubkey == "") {
 		const response = {
@@ -742,7 +739,7 @@ const getMediaList = async (req: Request, res: Response, version:string): Promis
 		};
 		return res.status(200).send(response);
 	}else{
-		// Blossom compatibility
+	// Blossom compatibility
 		return res.status(200).send(Array.isArray(files) ? files : [files]);
 	}
 
@@ -753,17 +750,17 @@ const getMediaStatusbyID = async (req: Request, res: Response, version:string): 
 	// Check if the request IP is allowed
 	const reqInfo = await isIpAllowed(req);
 	if (reqInfo.banned == true) {
-		logger.info(`Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
+		logger.info(`getMediaStatusbyID - Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
 		return res.status(403).send({"status": "error", "message": reqInfo.comments});
 	}
 
 	// Check if current module is enabled
 	if (!isModuleEnabled("media", app)) {
-        logger.info("Attempt to access a non-active module:","media","|","IP:", reqInfo.ip);
+        logger.info(`getMediaStatusbyID - Attempt to access a non-active module: media | IP:`, reqInfo.ip);
 		return res.status(403).send({"status": "error", "message": "Module is not enabled"});
 	}
 
-	logger.info("GET /api/" + version + "/media", "|", reqInfo.ip);
+	logger.info(`getMediaStatusbyID - Request from:`, reqInfo.ip);
 
 	// Check if authorization header is valid
 	const eventHeader = await parseAuthHeader(req, "getMediaStatusbyID", false);
@@ -785,7 +782,7 @@ const getMediaStatusbyID = async (req: Request, res: Response, version:string): 
 	const id = req.params.id || req.query.id || "";
 
 	if (!id) {
-		logger.debug(`RES -> 400 Bad request - missing id`, "|", reqInfo.ip);
+		logger.warn(`getMediaStatusbyID - 400 Bad request - missing id`, "|", reqInfo.ip);
 
 		//v0 and v1 compatibility
 		if(version != "v2"){return res.status(400).send({"result": false, "description" : "missing id"});}
@@ -797,7 +794,7 @@ const getMediaStatusbyID = async (req: Request, res: Response, version:string): 
 		return res.status(400).send(result);
 	}
 
-	logger.info(`GET /api/${version}/media/id/${id}`, "|", reqInfo.ip);
+	logger.info(`getMediaStatusbyID - Requested file ID: ${id}`, "|", reqInfo.ip);
 
 	const mediaFileData = await dbMultiSelect(["id", "filename", "pubkey", "status", "magnet", "original_hash", "hash", "blurhash", "dimensions", "filesize", "transactionid", "visibility"],
 												"mediafiles",
@@ -806,7 +803,7 @@ const getMediaStatusbyID = async (req: Request, res: Response, version:string): 
 												true);
 
 	if (!mediaFileData || mediaFileData.length == 0) {
-			logger.error(`File not found in database: ${id}`, "|", reqInfo.ip);
+			logger.error(`getMediaStatusbyID - File not found in database: ${id}`, "|", reqInfo.ip);
 
 			//v0 and v1 compatibility
 			if(version != "v2"){return res.status(404).send({"result": false, "description" : "The requested file was not found"});}
@@ -871,7 +868,7 @@ const getMediaStatusbyID = async (req: Request, res: Response, version:string): 
 		response = 200;
 	}
 
-	logger.info(`RES -> ${response} - ${filedata.description}`, "|", reqInfo.ip);
+	logger.info(`getMediaStatusbyID - File found successfully: ${id}`, "|", reqInfo.ip);
 
 	//v0 and v1 compatibility
 	if(version != "v2"){return res.status(response).send(await prepareLegacMediaEvent(filedata))}
@@ -911,17 +908,17 @@ const getMediabyURL = async (req: Request, res: Response) => {
 	// Check if the request IP is allowed
 	const reqInfo = await isIpAllowed(req);
 	if (reqInfo.banned == true) {
-		logger.info(`Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
+		logger.info(`getMediabyURL - Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
 		return res.status(403).send({"status": "error", "message": reqInfo.comments});
 	}
 
 	// Check if current module is enabled
 	if (!isModuleEnabled("media", app)) {
-        logger.info("Attempt to access a non-active module:","media","|","IP:", reqInfo.ip);
+        logger.info(`getMediabyURL - Attempt to access a non-active module: media | IP:`, reqInfo.ip);
 		return res.status(403).send({"status": "error", "message": "Module is not enabled"});
 	}
 
-	logger.debug("getMediabyURL", "|", reqInfo.ip);
+	logger.debug(`getMediabyURL - Request from:`, reqInfo.ip);
 
 	//Allow CORS
 	res.set("access-control-allow-origin", "*");
@@ -940,7 +937,7 @@ const getMediabyURL = async (req: Request, res: Response) => {
 		!req.params.filename || 
 		req.params.filename.length > 70 ||
 		!validator.matches(req.params.filename, /^[a-zA-Z0-9_]+(\.[a-zA-Z0-9_]+)*$/)) {
-		logger.debug(`RES Media URL -> 400 Bad request:`, req.params.filename, "|", reqInfo.ip);
+		logger.debug(`getMediabyURL - Bad request - ${req.url}`, "|", reqInfo.ip);
 		res.setHeader('Content-Type', 'image/webp');
 		return res.status(400).send(await getNotFoundFileBanner());
 	}
@@ -949,7 +946,7 @@ const getMediabyURL = async (req: Request, res: Response) => {
 	if (req.params.pubkey && req.params.pubkey.length < 64) {
 		const hex = await dbSelect("SELECT hex FROM registered WHERE username = ?", "hex", [req.params.pubkey]);
 		if (hex) {
-			logger.debug("Old API compatibility (username instead of pubkey)", req.params.pubkey,"-", hex, "|", reqInfo.ip);
+			logger.debug(`getMediabyURL - Old API compatibility (username instead of pubkey): ${req.params.pubkey} -> ${hex}`, "|", reqInfo.ip);
 			req.params.pubkey = hex as string;
 		}
 	}
@@ -1000,7 +997,7 @@ const getMediabyURL = async (req: Request, res: Response) => {
 											whereValues,
 											true);
 		if (filedata[0] == undefined || filedata[0] == null) {
-			logger.info(`RES -> 200 Not Found - ${req.url}`, "| Returning not found media file.", reqInfo.ip);
+			logger.info(`getMediabyURL - 404 Not found - ${req.url}`, "| Returning not found media file.", reqInfo.ip);
 			res.setHeader('Content-Type', 'image/webp');
 			return res.status(200).send(await getNotFoundFileBanner());
 		}
@@ -1009,13 +1006,13 @@ const getMediabyURL = async (req: Request, res: Response) => {
 		const pubkeyId = await dbMultiSelect(["id"], "registered", "hex = ?", [filedata[0].pubkey], true);
 		if (pubkeyId.length > 0 && (await isEntityBanned(pubkeyId[0].id, "registered") == true)) {isBanned = true}
 		if (isBanned && adminRequest == false) {
-			logger.info(`RES -> 200 Banned content - ${req.url}`, "| Returning banned media file.", reqInfo.ip);
+			logger.info(`getMediabyURL - 403 Forbidden - ${req.url} | File is banned: ${filedata[0].original_hash}`, reqInfo.ip);
 			res.setHeader('Content-Type', 'image/webp');
 			return res.status(200).send(await getBannedFileBanner());
 		}
 
 		if (filedata[0].active != "1" && adminRequest == false) {
-			logger.info(`RES -> 200 File not active - ${req.url}`, "returning not found media file |", reqInfo.ip, "|", "cached:", cachedStatus ? true : false);
+			logger.info(`getMediabyURL - 401 File not active - ${req.url}`, "returning not found media file |", reqInfo.ip, "|", "cached:", cachedStatus ? true : false);
 			res.setHeader('Content-Type', 'image/webp');
 			return res.status(200).send(await getNotFoundFileBanner());
 		}
@@ -1037,7 +1034,7 @@ const getMediabyURL = async (req: Request, res: Response) => {
 		if (isModuleEnabled("payments", app) && transaction.paymentHash != "" && transaction.isPaid == false &&  adminRequest == false) {
 
 			// If the GET request has no authorization, we return a QR code with the payment request.
-			logger.info(`RES -> 200 Paid media file ${req.url}`, "|", reqInfo.ip, "|", "cached:", cachedStatus ? true : false);
+			logger.info(`getMediabyURL - 200 Paid media file ${req.url}`, "|", reqInfo.ip, "|", "cached:", cachedStatus ? true : false);
 			const qrCode = await generateQRCode(transaction.paymentRequest, 
 									"Invoice amount: " + transaction.satoshi + " sats", 
 									"This file will be unlocked when the Lightning invoice " + 
@@ -1059,7 +1056,7 @@ const getMediabyURL = async (req: Request, res: Response) => {
 					videoSize = qrCode.length;
 					range = readRangeHeader(req.headers.range, videoSize);
 				} catch (err) {
-					logger.warn(`RES -> 200 Not Found - ${req.url}`, "| Returning not found media file.", reqInfo.ip);
+					logger.warn(`getMediabyURL - 200 Not Found - ${req.url}`, "| Returning not found media file.", reqInfo.ip);
 					res.setHeader('Content-Type', 'image/webp');
 					return res.status(200).send(await getNotFoundFileBanner());
 				}
@@ -1093,7 +1090,7 @@ const getMediabyURL = async (req: Request, res: Response) => {
 
 	}
 	if (cachedStatus === "0") {
-		logger.info(`RES -> 401 File not active - ${req.url}`, "returning not found media file |", reqInfo.ip, "|", "cached:", cachedStatus ? true : false);
+		logger.info(`getMediabyURL -  401 File not active - ${req.url}`, "returning not found media file |", reqInfo.ip, "|", "cached:", cachedStatus ? true : false);
 		res.setHeader('Content-Type', 'image/webp');
 		return res.status(401).send(await getNotFoundFileBanner());
 	}
@@ -1105,12 +1102,12 @@ const getMediabyURL = async (req: Request, res: Response) => {
 
 	// mediaPath checks
 	const mediaLocation = app.get("config.storage")["type"];
-	logger.debug("Media location:", mediaLocation, "|", reqInfo.ip);
+	logger.debug(`getMediabyURL - Media location: ${mediaLocation}`, "|", reqInfo.ip);
 
 	if (mediaLocation == "local") {
 		const mediaPath = path.normalize(path.resolve(app.get("config.storage")["local"]["mediaPath"]));
 		if (!mediaPath) {
-			logger.error(`RES Media URL -> 500 Internal Server Error - mediaPath not set`, "|", reqInfo.ip);
+			logger.error(`getMediabyURL - 500 Internal Server Error - mediaPath not set`, "|", reqInfo.ip);
 			res.setHeader('Content-Type', 'image/webp');
 			return res.status(500).send(await getNotFoundFileBanner());
 		}
@@ -1118,14 +1115,14 @@ const getMediabyURL = async (req: Request, res: Response) => {
 		// Check if file exist on storage server
 		const fileName = await getFilePath(req.params.filename);
 		if (fileName == ""){ 
-				logger.info(`RES Media URL -> 200 Not Found`, "|", reqInfo.ip);
+				logger.info(`getMediabyURL - 404 Not found - ${req.url}`, "| Returning not found media file.", reqInfo.ip);
 				res.setHeader('Content-Type', 'image/webp');
 				return res.status(200).send(await getNotFoundFileBanner());
 			}
 
 		// Try to prevent directory traversal attacks
 		if (!path.normalize(path.resolve(fileName)).startsWith(mediaPath)) {
-			logger.warn(`RES -> 403 Forbidden - ${req.url}`, "|", reqInfo.ip);
+			logger.warn(`getMediabyURL - 403 Forbidden - ${req.url}`, "| Returning not found media file.", reqInfo.ip);
 			res.setHeader('Content-Type', 'image/webp');
 			return res.status(403).send(await getNotFoundFileBanner());
 		}
@@ -1156,7 +1153,7 @@ const getMediabyURL = async (req: Request, res: Response) => {
 					return fs.createReadStream(fileName, { start: range.Start, end: range.End }).pipe(res);
 				}
 			} catch (err) {
-				logger.warn(`RES -> 200 Not Found - ${req.url}`, "| Returning not found media file.", reqInfo.ip);
+				logger.warn(`getMediabyURL - 200 Not Found - ${req.url}`, "| Returning not found media file.", reqInfo.ip);
 				res.setHeader("Content-Type", "image/webp");
 				return res.status(200).send(await getNotFoundFileBanner());
 			}
@@ -1171,11 +1168,11 @@ const getMediabyURL = async (req: Request, res: Response) => {
 		// If is not a video or audio file we return the file
 		fs.readFile(fileName, async (err, data) => {
 			if (err) {
-				logger.warn(`RES -> 200 Not Found - ${req.url}`, "| Returning not found media file.", reqInfo.ip);
+				logger.warn(`getMediabyURL - 200 Not Found - ${req.url}`, "| Returning not found media file.", reqInfo.ip);
 				res.setHeader('Content-Type', 'image/webp');
 				return res.status(200).send(await getNotFoundFileBanner());
 			} 
-			logger.info(`RES -> 200 Media file ${req.url}`, "|", reqInfo.ip, "|", "cached:", cachedStatus ? true : false);
+			logger.info(`getMediabyURL - Media file found successfully: ${req.url}`, "|", reqInfo.ip, "|", "cached:", cachedStatus ? true : false);
 			res.setHeader('Content-Type', mediaType);
 			res.status(200).send(data);
 
@@ -1185,13 +1182,13 @@ const getMediabyURL = async (req: Request, res: Response) => {
 
 		const url = await getRemoteFile(req.params.filename);
 		if (url == "") {
-			logger.error(`RES Media URL -> 500 Internal Server Error - remote URL not found`, "|", reqInfo.ip);
+			logger.error(`getMediabyURL - 500 Internal Server Error - remote URL not found`, "|", reqInfo.ip);
 			res.setHeader('Content-Type', 'image/webp');
 			return res.status(500).send(await getNotFoundFileBanner());
 		}
 		const remoteFile = await fetch(url);
 		if (!remoteFile.ok || !remoteFile.body ) {
-			logger.error('RES -> 200 - Failed to fetch from remote file server || ' + req.params.filename, reqInfo.ip);
+			logger.error('`getMediabyURL - Failed to fetch from remote file server || ' + req.params.filename, reqInfo.ip);
 			res.setHeader('Content-Type', 'image/webp');
 			return res.status(200).send(await getNotFoundFileBanner());
 		}
@@ -1209,7 +1206,7 @@ const getMediabyURL = async (req: Request, res: Response) => {
 		}
 		});
 
-		logger.info(`RES -> 200 Media file (pipe from remote server) ${req.params.filename}`, "|", reqInfo.ip, "|", "cached:", cachedStatus ? true : false);
+		logger.info(`getMediabyURL - Media file found successfully (pipe from remote server): ${req.url}`, "|", reqInfo.ip, "|", "cached:", cachedStatus ? true : false);
 		stream.pipe(res);
 
 	}
@@ -1221,18 +1218,18 @@ const getMediaTagsbyID = async (req: Request, res: Response): Promise<Response> 
 	// Check if the request IP is allowed
 	const reqInfo = await isIpAllowed(req);
 	if (reqInfo.banned == true) {
-		logger.info(`Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
+		logger.info(`getMediaTagsbyID - Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
 		return res.status(403).send({"status": "error", "message": reqInfo.comments});
 	}
 
 	// Check if current module is enabled
 	if (!isModuleEnabled("media", app)) {
-        logger.info("Attempt to access a non-active module:","media","|","IP:", reqInfo.ip);
+        logger.info(`getMediaTagsbyID - Attempt to access a non-active module: media | IP:`, reqInfo.ip);
 		return res.status(403).send({"status": "error", "message": "Module is not enabled"});
 	}
 
 	// Get available tags for a specific media file
-	logger.info("REQ -> Media file tag list", "|", reqInfo.ip);
+	logger.info(`getMediaTagsbyID - Request from:`, reqInfo.ip);
 
 	// Check if authorization header is valid
 	const eventHeader = await parseAuthHeader(req, "getMediaStatusbyID", false);
@@ -1244,7 +1241,6 @@ const getMediaTagsbyID = async (req: Request, res: Response): Promise<Response> 
 		return res.status(401).send(result);
 	}
 	setAuthCookie(res, eventHeader.authkey);
-	logger.info("REQ -> Media tag list -> pubkey:", eventHeader.pubkey, "-> id:", req.params.fileId, "|", reqInfo.ip);
 
 	//Query database for media tags
     const fileId = req.params.fileId;
@@ -1266,7 +1262,7 @@ const getMediaTagsbyID = async (req: Request, res: Response): Promise<Response> 
     }
 
     // If not found, try with public server pubkey
-    logger.info("Media tag list not found, trying with public server pubkey", "|", reqInfo.ip);
+    logger.debug(`getMediaTagsbyID - Media tag list not found, trying with public server pubkey`, "|", reqInfo.ip);
     const publicRows = await dbMultiSelect(
         ["tag"],
         "mediatags INNER JOIN mediafiles ON mediatags.fileid = mediafiles.id",
@@ -1276,11 +1272,11 @@ const getMediaTagsbyID = async (req: Request, res: Response): Promise<Response> 
     );
 
     if (publicRows.length > 0) {
-        logger.info("RES -> Media tag list", "|", reqInfo.ip);
+        logger.info(`getMediaTagsbyID - Media tag list found successfully, lenght: ${publicRows.length}`, "|", reqInfo.ip);
         return res.status(200).send(publicRows);
     }
 
-    logger.warn("RES -> Empty media tag list", "|", reqInfo.ip);
+    logger.warn(`getMediaTagsbyID - Empty media tag list`, "|", reqInfo.ip);
     return res.status(404).send({ "media tags": "No media tags found" });
 
 };
@@ -1290,26 +1286,25 @@ const getMediabyTags = async (req: Request, res: Response): Promise<Response> =>
 	// Check if the request IP is allowed
 	const reqInfo = await isIpAllowed(req);
 	if (reqInfo.banned == true) {
-		logger.info(`Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
+		logger.info(`getMediabyTags - Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
 		return res.status(403).send({"status": "error", "message": reqInfo.comments});
 	}
 
 	// Check if current module is enabled
 	if (!isModuleEnabled("media", app)) {
-        logger.info("Attempt to access a non-active module:","media","|","IP:", reqInfo.ip);
+        logger.info(`getMediabyTags - Attempt to access a non-active module: media | IP:`, reqInfo.ip);
 		res.status(403).send({"status": "error", "message": "Module is not enabled"});
 	}
 
 	//Get media files by defined tags
-	logger.info("REQ -> Media files for specified tag", "|", reqInfo.ip);
+	logger.info(`getMediabyTags - Request from:`, reqInfo.ip);
 
 	// Check if authorization header is valid
 	const eventHeader = await parseAuthHeader(req, "getMediabyTags", false);
 	if (eventHeader.status !== "success") {return res.status(401).send({"result": eventHeader.status, "description" : eventHeader.message});}
 	setAuthCookie(res, eventHeader.authkey);
 
-
-	logger.info("REQ -> Media files for specified tag -> pubkey:", eventHeader.pubkey, "-> tag:", req.params.tags, "|", reqInfo.ip);
+	logger.debug(`getMediabyTags - Tags requested: ${req.params.tag}`, "|", reqInfo.ip);
 
 	//Check database for media files by tags
 	const fileTag = req.params.tag;
@@ -1326,7 +1321,7 @@ const getMediabyTags = async (req: Request, res: Response): Promise<Response> =>
 	);
 
 	if (rows.length > 0) {
-		logger.info("RES -> Media files for specified tag", "|", reqInfo.ip);
+		logger.info(`getMediabyTags - Media files for specified tag found, lenght: ${rows.length}`, "|", reqInfo.ip);
 		const result = {
 			result: true,
 			description: "Media files found",
@@ -1336,7 +1331,7 @@ const getMediabyTags = async (req: Request, res: Response): Promise<Response> =>
 	}
 
 	// If not found, try with public server pubkey
-	logger.info("Media files for specified tag not found, trying with public server pubkey", "|", reqInfo.ip);
+	logger.debug(`getMediabyTags - Media files for specified tag not found, trying with public server pubkey`, "|", reqInfo.ip);
 	const publicRows = await dbMultiSelect(
 		["mediafiles.id", "mediafiles.filename", "mediafiles.pubkey", "mediafiles.status"],
 		"mediatags INNER JOIN mediafiles ON mediatags.fileid = mediafiles.id",
@@ -1346,7 +1341,7 @@ const getMediabyTags = async (req: Request, res: Response): Promise<Response> =>
 	);
 
 	if (publicRows.length > 0) {
-		logger.info("RES -> Media files for specified tag", "|", reqInfo.ip);
+		logger.info(`getMediabyTags - Media files for specified tag found successfully, lenght: ${publicRows.length}`, "|", reqInfo.ip);
 		const result = {
 			result: true,
 			description: "Media files found",
@@ -1355,7 +1350,7 @@ const getMediabyTags = async (req: Request, res: Response): Promise<Response> =>
 		return res.status(200).send(result);
 	}
 
-	logger.warn("RES -> Empty media files for specified tag", "|", reqInfo.ip);
+	logger.warn(`getMediabyTags - No media files found for specified tag`, "|", reqInfo.ip);
 	return res.status(404).send({ "media files": "No media files found" });
 
 
@@ -1366,25 +1361,25 @@ const updateMediaVisibility = async (req: Request, res: Response, version: strin
 	// Check if the request IP is allowed
 	const reqInfo = await isIpAllowed(req);
 	if (reqInfo.banned == true) {
-		logger.warn(`Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
+		logger.warn(`updateMediaVisibility - Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
 		return res.status(403).send({"status": "error", "message": reqInfo.comments});
 	}
 
 	// Check if current module is enabled
 	if (!isModuleEnabled("media", app)) {
-        logger.info("Attempt to access a non-active module:","media","|","IP:", reqInfo.ip);
+        logger.info(`updateMediaVisibility - Attempt to access a non-active module: media | IP:`, reqInfo.ip);
 		return res.status(403).send({"status": "error", "message": "Module is not enabled"});
 	}
 
 	//Update media visibility
-	logger.info("REQ -> Update media visibility", "|", reqInfo.ip);
+	logger.info(`updateMediaVisibility - Request from:`, reqInfo.ip);
 
 	// Check if authorization header is valid
 	const eventHeader = await parseAuthHeader(req, "updateMediaVisibility", false);
 	if (eventHeader.status !== "success") {return res.status(401).send({"result": eventHeader.status, "description" : eventHeader.message});}
 	setAuthCookie(res, eventHeader.authkey);
 
-	logger.info("REQ -> Update media visibility -> pubkey:", eventHeader.pubkey, "-> id:", req.params.fileId, "-> visibility:", req.params.visibility, "|", reqInfo.ip);
+	logger.debug(`updateMediaVisibility - pubkey: ${eventHeader.pubkey} | fileId: ${req.params.fileId} | visibility: ${req.params.visibility}`, "|", reqInfo.ip);
 
 	//Check if fileId is not empty
 	if (!req.params.fileId) {
@@ -1410,7 +1405,7 @@ const updateMediaVisibility = async (req: Request, res: Response, version: strin
 
 	const update = await dbUpdate("mediafiles", {"visibility": req.params.visibility}, ["id", "pubkey"], [fileData[0].id, eventHeader.pubkey]);
 	if (!update) {
-		logger.warn("RES -> Media visibility not updated, file not found", "|", reqInfo.ip);
+		logger.warn(`updateMediaVisibility - 404 Not found - Media visibility not updated, media file not found`, "|", reqInfo.ip);
 		if (version != "v2") {
 			return res.status(404).send({"result": false, "description" : "Media visibility not updated, media file not found"});
 		}
@@ -1421,7 +1416,7 @@ const updateMediaVisibility = async (req: Request, res: Response, version: strin
 		return res.status(404).send(result); 
 	}
 
-	logger.info("RES -> Media visibility updated", "|", reqInfo.ip);
+	logger.info(`updateMediaVisibility - Media visibility updated successfully`, "|", reqInfo.ip);
 
 	// Clear redis cache
 	await redisDel(fileData[0].filename + "-" + eventHeader.pubkey);
@@ -1440,19 +1435,19 @@ const deleteMedia = async (req: Request, res: Response, version:string): Promise
 	// Check if the request IP is allowed
 	const reqInfo = await isIpAllowed(req);
 	if (reqInfo.banned == true) {
-		logger.warn(`Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
+		logger.warn(`deleteMedia - Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
 		return res.status(403).send({"status": "error", "message": reqInfo.comments});
 	}
 
 	// Check if current module is enabled
 	if (!isModuleEnabled("media", app)) {
-        logger.info("Attempt to access a non-active module:","media","|","IP:", reqInfo.ip);
+        logger.info(`deleteMedia - Attempt to access a non-active module: media | IP:`, reqInfo.ip);
 		return res.status(403).send({"status": "error", "message": "Module is not enabled"});
 	}
 
 	//Check if fileId is not empty
 	if (!req.params.id || req.params.id === "" || req.params.id === undefined || req.params.id === null) {
-		logger.warn("RES -> 400 Bad request - missing fileId", "|", reqInfo.ip);
+		logger.warn(`deleteMedia - 400 Bad request - missing fileId`, "|", reqInfo.ip);
 		if(version != "v2"){return res.status(400).send({"result": false, "description" : "missing fileId"});}
 		const result: ResultMessagev2 = {
 			status: "error",
@@ -1463,7 +1458,7 @@ const deleteMedia = async (req: Request, res: Response, version:string): Promise
 
 	//Check if fileId length is > 70
 	if (req.params.id.length > 70) {
-		logger.warn("RES -> 400 Bad request - fileId too long", "|", reqInfo.ip);
+		logger.warn(`deleteMedia - 400 Bad request - fileId too long`, "|", reqInfo.ip);
 		if(version != "v2"){return res.status(400).send({"result": false, "description" : "fileId too long"});}
 		const result: ResultMessagev2 = {
 			status: "error",
@@ -1489,7 +1484,7 @@ const deleteMedia = async (req: Request, res: Response, version:string): Promise
 	setAuthCookie(res, eventHeader.authkey);
 
 	
-	logger.info("REQ Delete mediafile ->", req.hostname, " | pubkey:",  eventHeader.pubkey, " | file:",  req.params.id, "|", reqInfo.ip);
+	logger.info(`deleteMedia - Request from:`, reqInfo.ip);
 
 	const selectedFile = await dbMultiSelect(	["id","filename", "hash"],
 												"mediafiles",
@@ -1511,6 +1506,7 @@ const deleteMedia = async (req: Request, res: Response, version:string): Promise
 	const fileid = selectedFile[0].id
 	const filename = selectedFile[0].filename;
 
+	logger.debug(`deleteMedia - Deleting file with id: ${fileid} and filename: ${filename}`, "|", reqInfo.ip);
 
 	if (filename === undefined || filename === null || filename === "") {
 		logger.error("Error getting file data from database", eventHeader.pubkey, fileid, "|", reqInfo.ip);
@@ -1526,12 +1522,12 @@ const deleteMedia = async (req: Request, res: Response, version:string): Promise
 	// Check if the file is the last one with the same hash, counting the number of files with the same hash
 	const hashCount = await dbSelect("SELECT COUNT(*) as 'count' FROM mediafiles WHERE filename = ?", "count", [filename]);
 	if (hashCount != '1') {
-		logger.info("Detected more files with same hash, skipping deletion from storage server", eventHeader.pubkey, filename, "|", reqInfo.ip);
+		logger.debug(`deleteMedia - Detected more files with same hash, skipping deletion from storage server`, eventHeader.pubkey, filename, "|", reqInfo.ip);
 	}else{
-		logger.info("Detected last file with same hash, deleting from storage server", eventHeader.pubkey, filename, "|", reqInfo.ip);
+		logger.info(`deleteMedia - Detected last file with same hash, deleting from storage server`, eventHeader.pubkey, filename, "|", reqInfo.ip);
 		const result = deleteFile(filename);
 		if (!result) {
-			logger.error("Error deleting file from remote server", eventHeader.pubkey, filename, "|", reqInfo.ip);
+			logger.error(`deleteMedia - 500 Internal Server Error - Error deleting file from remote server`, eventHeader.pubkey, filename, "|", reqInfo.ip);
 			//v0 and v1 compatibility
 			if(version != "v2"){return res.status(500).send({"result": false, "description" : "Error deleting file from remote server"})}
 
@@ -1544,10 +1540,10 @@ const deleteMedia = async (req: Request, res: Response, version:string): Promise
 	}
 
 	//Delete mediafile from database
-	logger.debug("Deleting file from database with id:", fileid, "pubkey:", eventHeader.pubkey, "filename:", filename, "|", reqInfo.ip);
+	logger.debug(`deleteMedia - Deleting file from database with id:`, fileid, "pubkey:", eventHeader.pubkey, "filename:", filename, "|", reqInfo.ip);
 	const deleteResult = await dbDelete("mediafiles", ["id","pubkey"],[fileid, eventHeader.pubkey]);
 	if (deleteResult == false) {
-		logger.warn("RES Delete Mediafile -> 404 Not found on database", eventHeader.pubkey, filename, "|", reqInfo.ip);
+		logger.warn(`deleteMedia - 404 Not found - file deletion not found on database`, "|", reqInfo.ip);
 
 		//v0 and v1 compatibility
 		if(version != "v2"){return res.status(404).send({"result": false, "description" : "Mediafile  not found on database"});}
@@ -1568,6 +1564,7 @@ const deleteMedia = async (req: Request, res: Response, version:string): Promise
 		status: MediaStatus[0],
 		message: `Mediafile deletion with id: ${fileid}, filename: ${filename} and pubkey: ${eventHeader.pubkey} successful`,
 	};
+	logger.info(`deleteMedia - File deletion successfully: ${fileid} | ${filename} | ${eventHeader.pubkey}`, "|", reqInfo.ip);
 	return res.status(200).send(result);
 
 };
@@ -1577,17 +1574,17 @@ const headUpload = async (req: Request, res: Response): Promise<Response> => {
 	// Check if the request IP is allowed
 	const reqInfo = await isIpAllowed(req);
 	if (reqInfo.banned == true) {
-		logger.info(`Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
+		logger.info(`headUpload - Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
 		return res.status(403).send({"status": "error", "message": reqInfo.comments});
 	}
 
 	// Check if current module is enabled
 	if (!isModuleEnabled("media", app)) {
-		logger.info("Attempt to access a non-active module:","media","|","IP:", reqInfo.ip);
+		logger.info(`headUpload - Attempt to access a non-active module: media | IP:`, reqInfo.ip);
 		return res.status(403).send({"status": "error", "message": "Module is not enabled"});
 	}
 
-	logger.info("REQ -> Upload head", "|", reqInfo.ip);
+	logger.info(`headUpload - Request from:`, reqInfo.ip);
 
 	// Check if authorization header is valid
 	const eventHeader = await parseAuthHeader(req, "upload", false);
@@ -1601,11 +1598,10 @@ const headUpload = async (req: Request, res: Response): Promise<Response> => {
 	}
 	setAuthCookie(res, eventHeader.authkey);
 
-
 	// Check if the pubkey is banned
 	const isBanned = await isEntityBanned(eventHeader.pubkey, "registered");
 	if (isBanned) {
-		logger.warn("RES -> 403 Banned pubkey", "|", reqInfo.ip);
+		logger.warn(`headUpload - 403 Forbidden - Pubkey banned: ${eventHeader.pubkey}`, "|", reqInfo.ip);
 		res.header("X-Reason", "Pubkey banned");
 		return res.status(403).send();
 	}
@@ -1616,14 +1612,14 @@ const headUpload = async (req: Request, res: Response): Promise<Response> => {
 	const transform = Array.isArray(req.headers['x-content-transform']) ? req.headers['x-content-transform'][0] || "" : req.headers['x-content-transform'] || "";
 
 	if (!Number(size) || size == 0 || type == "" || hash == "") {
-		logger.warn("RES -> 400 Bad request - missing size, type or SHA-256", "|", reqInfo.ip);
+		logger.info(`headUpload - 400 Bad request - Missing size, MIME type or SHA-256`, "|", reqInfo.ip);
 		res.setHeader("X-Reason", "Missing size, MIME type or SHA-256");
 		return res.status(400).send();
 	}
 
 	// Check if the MIME type is allowed
 	if(!getAllowedMimeTypes().includes(type)){
-		logger.info(`Filetype not allowed: ${type} | ${reqInfo.ip}`);
+		logger.info(`headUpload - 400 Bad request - Filetype not allowed`, "|", reqInfo.ip);
 		res.setHeader("X-Reason", "Filetype not allowed");
 		return res.status(400).send();
 	}
@@ -1631,7 +1627,7 @@ const headUpload = async (req: Request, res: Response): Promise<Response> => {
 	// Check if the file hash is banned
 	const isHashBanned = await isEntityBanned(hash, "mediafiles");
 	if (isHashBanned) {
-		logger.warn("RES -> 403 Banned hash", "|", reqInfo.ip);
+		logger.warn(`headUpload - 403 Forbidden - SHA-256 hash banned: ${hash}`, "|", reqInfo.ip);
 		res.header("X-Reason", "SHA-256 hash banned");
 		return res.status(403).send();
 	}
@@ -1645,6 +1641,7 @@ const headUpload = async (req: Request, res: Response): Promise<Response> => {
 		return res.status(402).send();
 	}
 
+	logger.info(`headUpload - 200 OK - Upload allowed successfully`, "|", reqInfo.ip);
 	res.header("X-Reason", "Upload allowed");
 	return res.status(200).send();
 }

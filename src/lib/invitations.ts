@@ -1,5 +1,6 @@
 import crypto from "crypto";
 import { dbMultiSelect } from "./database.js";
+import { logger } from "./logger.js";
 
 /**
  * Generates a random invite code.
@@ -10,11 +11,10 @@ const generateInviteCode = (): string => {
         const inviteCode = crypto.randomBytes(16).toString('hex');
         return inviteCode;
     }catch(err){
-        console.error(err);
+        logger.error(`generateInviteCode - Error generating invite code: ${err}`);
         return "";
     }
 }
-
 
 /**
  * 

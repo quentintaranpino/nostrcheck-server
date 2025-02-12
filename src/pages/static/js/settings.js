@@ -27,13 +27,11 @@ async function saveSettings() {
             });
 
             if (field.name.startsWith('relay.icon')) {
-                console.log(field.name, value);
                 updateLogo(field.name, value);
                 continue;
             }
             
             await updateSettings(field.name, value, url, body, headers).then(result => {
-                console.log(result);
                 if (result === true) {
                     if (field.type === 'checkbox') {
                         field.defaultChecked = field.checked;
@@ -60,8 +58,6 @@ async function saveSettings() {
 
 const updateSettings = (fieldName, fieldValue, url, body, headers) => {
 
-    console.log(fieldName, fieldValue, url, body, headers);
-
     return fetch(url, {
         method: 'POST',
         headers: headers,
@@ -87,22 +83,6 @@ const updateSettings = (fieldName, fieldValue, url, body, headers) => {
     });
 }
 
-// Log data
-window.onload = function() {
-    let logHistory = document.getElementById('log');
-    window.logData.slice().reverse().forEach(function(log, index) {
-        var date = new Date(log.date);
-        var formattedDate = date.getFullYear() + '-' + 
-            ('0' + (date.getMonth()+1)).slice(-2) + '-' + 
-            ('0' + date.getDate()).slice(-2) + ' ' + 
-            ('0' + date.getHours()).slice(-2) + ':' + 
-            ('0' + date.getMinutes()).slice(-2) + ':' + 
-            ('0' + date.getSeconds()).slice(-2) + '.' + 
-            ('00' + date.getMilliseconds()).slice(-3);
-        logHistory.value += `${index + 1}-  ${log.severity} - ${formattedDate} - ${log.message}\n`;
-    });
-}
-
 // Update logo or restore default
 serverLogoLightId = 'server-logo-light-preview';
 serverLogoDarkId = 'server-logo-dark-preview';
@@ -115,8 +95,6 @@ const updateLogo = (fieldName, setDefault = false) => {
     body.append('theme', fieldName.split('.')[3]);
 
     if (field.files.length === 0 && setDefault === false) return;
-
-    console.log(fieldName)
 
     if (setDefault === true) {
         document.getElementById(`${fieldName}.default`).value = setDefault;

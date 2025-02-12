@@ -12,10 +12,10 @@ const importCSV = async (filePath: string) => {
   const csvParser = csv
     .parse({ headers: true, trim: true, escape: '"' })
     .on("data-invalid", (_, error) => {
-      logger.error("Invalid CSV row:", error);
+      logger.error(`inportCSV: Invalid CSV row: ${error}`);
     })
     .on("error", (error) => {
-      logger.error("Error parsing CSV:", error);
+      logger.error(`inportCSV: Error parsing CSV: ${error}`);
     });
 
   let processedCount = 0;
@@ -37,13 +37,13 @@ const importCSV = async (filePath: string) => {
         await processBatch(batch, dbEventsMap);
         processedCount += batch.length;
         if (processedCount % 1000 === 0) {
-          logger.info(`${processedCount} processed events...`);
+          logger.info(`importCSV: ${processedCount} processed events...`);
         }
         batch = [];
       }
     }
   } catch (error) {
-    logger.error("Stream CSV error:", error);
+    logger.error(`importCSV - Stream CSV error: ${error}`);
   }
 
   if (batch.length > 0) {
@@ -51,7 +51,7 @@ const importCSV = async (filePath: string) => {
     processedCount += batch.length;
   }
 
-  logger.info(`Total processed events: ${processedCount}`);
+  logger.info(`importCSV - Total processed events: ${processedCount}`);
 };
 
 async function processBatch(batch: any[], dbEventsMap: Map<string, boolean>) {
@@ -85,7 +85,7 @@ async function processBatch(batch: any[], dbEventsMap: Map<string, boolean>) {
 
         const eventUpsert = await dbUpsert("events", eventData);
         if (eventUpsert === 0) {
-          logger.error(`Error upserting event ${eventId}`);
+          logger.error(`prcessBatch - Error upserting event ${eventId}`);
           return;
         }
 
@@ -112,11 +112,11 @@ async function processBatch(batch: any[], dbEventsMap: Map<string, boolean>) {
               position++;
             }
           } catch (error) {
-            logger.error(`Error processing tags for event ${eventId}:`, error);
+            logger.error(`processBatch - Error processing tags for event ${eventId}:`, error);
           }
         }
       } catch (error) {
-        logger.error("Error processing event:", error);
+        logger.error(`processBatch - Error processing event:`, error);
       }
     })
   );

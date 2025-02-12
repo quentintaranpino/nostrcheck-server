@@ -12,7 +12,7 @@ let nostraddressFields = [
   ['date',          '290', ''              , 'disabled  show text-center              '],
 ];
 
-if (locals.activeModules.includes("payments")) {
+if(locals.activeModules.some(mod => mod.name === 'payments')) {
   nostraddressFields.splice(3, 0, ['paid', '30', 'formatCheckbox', 'disabled show text-center'],);
   nostraddressFields.splice(4, 0, ['satoshi','30', 'formatSatoshi', 'disabled show text-end'],);
   nostraddressFields.splice(5, 0, ['balance', '30', 'formatSatoshi', 'disabled  show text-end'],);
@@ -29,14 +29,14 @@ let nostraddressButtons = [
   ['edit','show'],
   ['password','show'],
   ['remove','show'],
-  ['pay', activeModules.includes("payments") ? 'show' : 'hide'],
-  ['balance', activeModules.includes("payments") ? 'show' : 'hide'],
+  ['pay', activeModules.some(mod => mod.name === 'payments') ? 'show' : 'hide'],
+  ['balance', activeModules.some(mod => mod.name === 'payments') ? 'show' : 'hide'],
   ['moderate','hide'],
   ['ban','show']
 ];
 
 %>
-<% if(locals.activeModules.includes('nostraddress')) { %> 
+<% if(locals.activeModules.some(mod => mod.name === 'nostraddress')) { %>
   <%- include('../table', {
     tableName:"Registered users", 
     tableId:"registeredData", 

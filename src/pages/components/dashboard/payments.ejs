@@ -14,7 +14,7 @@ let paymentsFields = [
 
 ];
 %>
-<% if(locals.activeModules.includes('payments')) { %> 
+<% if(locals.activeModules.some(mod => mod.name === 'payments')) { %>
  <%- include('../table', {
     tableName:"Transactions", 
     tableId:"paymentsData", 
@@ -28,7 +28,7 @@ let paymentsFields = [
       ['edit','show'],
       ['password','hide'],
       ['remove','hide'],
-      ['pay', activeModules.includes("payments") ? 'show' : 'hide'],
+      ['pay', activeModules.some(mod => mod.name === 'payments') ? 'show' : 'hide'],
       ['balance','hide'],
       ['moderate','hide'],
       ['ban','hide']

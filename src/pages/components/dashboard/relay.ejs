@@ -12,7 +12,7 @@ let eventsFields = [
   ['received_at'      , ''   , 'formatTimestamp', 'disabled  show text-center              '],
 ];
 %>
-<% if(locals.activeModules.includes('relay')) { %> 
+<% if(locals.activeModules.some(mod => mod.name === 'relay')) { %>
   <%- include('../table', {
     tableName:"Events", 
     tableId:"eventsData", 

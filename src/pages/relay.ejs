@@ -9,12 +9,15 @@
             <div class="text-center z-1 mt-4">
                 <h1 class="text-white mx-auto my-0 gradien display-4"><%= locals.serverHost %> relay</h1>
                 <h2 class="text-white-50 mx-auto mt-1 mb-4 display-6">Last notes from our community</h2>
-                <button id="npub-header-btn" class="btn btn-primary mt-3" type="button" id="pubkey-copy-btn" 
-                  onclick="copyToClipboard(this,document.getElementById('npub-header-btn').getAttribute('data-value'))"
-                  data-value="wss://relay.<%= locals.serverHost %>"
-                  style="--bs-btn-padding-y: .1rem; --bs-btn-padding-x: .5rem; --bs-btn-font-size: .8rem;">
-                  wss://relay.<%= locals.serverHost %><i class="fa-solid fa-copy ms-2"></i>
-                 </button>
+                <div class="d-flex align-items-center justify-content-center">
+                  <button id="relay-url-btn" class="btn btn-primary ms-2" type="button" 
+                    onclick="copyToClipboard(this,document.getElementById('relay-url-btn').getAttribute('data-value'))"
+                    data-value="wss://relay.<%= locals.serverHost %>"
+                    style="--bs-btn-padding-y: .1rem; --bs-btn-padding-x: .5rem; --bs-btn-font-size: 1.2rem;">
+                    wss://relay.<%= locals.serverHost %><i class="fa-solid fa-copy ms-2"></i>
+                  </button>
+                </div>
+               
                 <div class="container mt-4">
                   <div class="row">
                     <% locals.lastRelayNotes.forEach(note => { %>

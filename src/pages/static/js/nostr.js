@@ -67,8 +67,6 @@ const getRelaysFromUser = async (publicKey) => {
                 for (const relay of userRelays) {
                     await getRelayData(relay);
                 }
-                console.log('User relays:', userRelays);
-            
                 resolve(userRelays);
             })();
           }
@@ -175,7 +173,7 @@ const publishProfileData = async (updatedFields, publicKey, secretKey) => {
     return;
   }
 
-  console.log("Default relays:", relays.map(relay => relay.url));
+  console.debug("Default relays:", relays.map(relay => relay.url));
 
   let result = await getRelaysFromUser(publicKey);
   if (!result || userRelays.length === 0) {
@@ -184,7 +182,7 @@ const publishProfileData = async (updatedFields, publicKey, secretKey) => {
     relays = result;
   }
 
-  console.log("Relays to use:", relays.map(relay => relay.url));
+  console.debug("Relays to use:", relays.map(relay => relay.url));
 
   return new Promise((resolve, reject) => {
     let combinedContent = {};
@@ -198,7 +196,7 @@ const publishProfileData = async (updatedFields, publicKey, secretKey) => {
           async onevent(event) {
             try {
               const eventContent = JSON.parse(event.content);
-              console.log("Received event:", eventContent);
+              console.debug("Received event:", eventContent);
               combinedContent = { ...combinedContent, ...eventContent };
             } catch (error) {
               console.error("Error parsing event content:", error);
@@ -237,7 +235,7 @@ const publishProfileData = async (updatedFields, publicKey, secretKey) => {
               reject("Signed event is not valid.");
             }
 
-            console.log("Signed event generated:", signedEvent);
+            console.debug("Signed event generated:", signedEvent);
 
             try {
               await Promise.any(pool.publish(relays.map(relay => relay.url), signedEvent));
@@ -270,7 +268,7 @@ const publishProfileRelays = async (relays, publicKey, secretKey, type) => {
     return;
   }
 
-  console.log("enabledRelays:", enabledRelays);
+  console.debug("enabledRelays:", enabledRelays);
 
   // Check if every relay is online
   const onlineRelays = (await Promise.all(
@@ -280,7 +278,7 @@ const publishProfileRelays = async (relays, publicKey, secretKey, type) => {
     })
   )).filter(relay => relay.online);
 
-  console.log("onlineRelays:", onlineRelays);
+  console.debug("onlineRelays:", onlineRelays);
 
   const appRelayTags = onlineRelays.map(relay => {
     const tag = [type == 'app' ? "r" : "relay", relay.url];
@@ -294,7 +292,7 @@ const publishProfileRelays = async (relays, publicKey, secretKey, type) => {
     return tag;
   });
 
-  console.log("Relay tags to publish:", appRelayTags);
+  console.debug("Relay tags to publish:", appRelayTags);
 
   const appRelayEvent = {
     kind: type == 'app' ? 10002 : 10050,
@@ -321,7 +319,7 @@ const publishProfileRelays = async (relays, publicKey, secretKey, type) => {
       return;
     }
 
-    console.log("Signed event generated:", signedEvent);
+    console.debug("Signed event generated:", signedEvent);
 
     try {
       await Promise.any(pool.publish(enabledRelays.map(relay => relay.url), signedEvent));

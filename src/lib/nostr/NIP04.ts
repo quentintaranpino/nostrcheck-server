@@ -17,7 +17,7 @@ const sendMessage = async (message: string, sendToPubkey : string) : Promise<boo
 
     const sk : string = app.get("config.server")["secretKey"];
     if (sk == "" || sk == undefined) {
-        logger.error("No secret key found in config file, if you want to send nostr DM's edit config/local.json file and add the secret key (HEX) on server.secretKey field. The restart the server.");
+        logger.error(`sendMessage - Error: No secret key found in config file`)
         return false
     }
 
@@ -26,7 +26,7 @@ const sendMessage = async (message: string, sendToPubkey : string) : Promise<boo
     }
 
     if (!message || !sendToPubkey || sendToPubkey.length != 64) {
-        logger.error("Invalid message or public key provided")
+        logger.error(`sendMessage - Error: Invalid message or public key`)
         return false
     }
 
@@ -45,7 +45,7 @@ const sendMessage = async (message: string, sendToPubkey : string) : Promise<boo
         return await publishEvent(signedEvent)
 
     } catch (error) {
-        logger.fatal("Cannot send DM")
+        logger.fatal(`sendMessage - Error sending message: ${error}`)
         return false
     }
 

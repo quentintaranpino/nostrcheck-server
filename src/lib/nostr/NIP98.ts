@@ -21,12 +21,12 @@ const isNIP98Valid = async (authevent: Event, req: Request, checkAdminPrivileges
 	try {
 		const eventKind: number = +authevent.kind;
 		if (eventKind == null || eventKind == undefined || eventKind != NIPKinds.NIP98) {
-			logger.warn("RES -> 400 Bad request - Auth header event kind is not 27235","|",	getClientIp(req));
+			logger.warn(`isNIP98Valid - Auth header event kind is not 27235: ${eventKind}`, "|", getClientIp(req));
 			return {status: "error", message: "Auth header event kind is not 27235", authkey: "", pubkey: "", kind: 0};
 		}
 
 	} catch (error) {
-		logger.error(`RES -> 400 Bad request - ${error}`, "|", getClientIp(req));
+		logger.error(`isNIP98Valid - Inetrnal server error: ${error}`, "|", getClientIp(req));
 		return {status: "error", message: "Auth header event kind is not 27235", authkey: "", pubkey: "", kind: 0};
 	}
 
@@ -35,20 +35,16 @@ const isNIP98Valid = async (authevent: Event, req: Request, checkAdminPrivileges
 		let created_at = authevent.created_at;
 		const now = Math.floor(Date.now() / 1000);
 		if (app.get('config.environment')  == "development") {
-			logger.warn("DEVMODE: Setting created_at to now", "|", getClientIp(req)); //If devmode is true, set created_at to now for testing purposes
+			logger.warn(`isNIP98Valid - DEVMODE: Setting created_at to now`, "|", getClientIp(req)); // If devmode is true, set created_at to now for testing purposes
 			created_at = now - 30;
 		} 
 		const diff = now - created_at;
 		if (diff > 60) {
-			logger.warn(
-				"RES -> 400 Bad request - Auth header event created_at is not within a reasonable time window",
-				"|",
-				getClientIp(req)
-			);
+			logger.warn(`isNIP98Valid - Auth header event created_at is not within a reasonable time window ${created_at}<>${now}`, "|", getClientIp(req));
 			return {status: "error", message: `Auth header event created_at is not within a reasonable time window ${created_at}<>${now}`, authkey: "", pubkey: "", kind: 0};
 		}
 	} catch (error) {
-		logger.error(`RES -> 400 Bad request - ${error}`, "|", getClientIp(req));
+		logger.error(`isNIP98Valid - internal server error: ${error}`, "|", getClientIp(req));
 		return {status: "error", message: "Auth header event created_at is not within a reasonable time window", authkey: "", pubkey: "", kind: 0};
 	}
 
@@ -61,15 +57,15 @@ const isNIP98Valid = async (authevent: Event, req: Request, checkAdminPrivileges
 		const ServerEndpoint = `${req.protocol}://${req.get('host')}${req.originalUrl}`;
 
 		if (app.get('config.environment') == "development") {
-			logger.warn("DEVMODE: Setting 'u'(url) tag same as the endpoint URL", "|", getClientIp(req)); // If devmode is true, set created_at to now for testing purposes
+			logger.warn(`isNIP98Valid - DEVMODE: Setting 'u'(url) tag same as the endpoint URL`, "|", getClientIp(req)); // If devmode is true, set created_at to now for testing purposes
 			eventEndpoint = ServerEndpoint;
 		} 
 		if (eventEndpoint == null || eventEndpoint == undefined || eventEndpoint != ServerEndpoint) {
-			logger.warn("RES -> 400 Bad request - Auth header (NIP98) event endpoint is not valid", eventEndpoint, "<>", ServerEndpoint,	"|", getClientIp(req));
+			logger.warn(`isNIP98Valid - Auth header event endpoint is not valid: ${eventEndpoint} <> ${ServerEndpoint}`, "|", getClientIp(req));
 			return {status: "error", message: `Auth header (NIP98) event endpoint is not valid: ${eventEndpoint} <> ${ServerEndpoint}`, authkey: "", pubkey: "", kind: 0};
 		}
 	} catch (error) {
-		logger.error(`RES -> 400 Bad request - ${error}`, "|", getClientIp(req));
+		logger.error(`isNIP98Valid - Internal server error: ${error}`, "|", getClientIp(req));
 		return {status: "error", message: "Auth header (NIP98) event endpoint is not valid", authkey: "", pubkey: "", kind: 0};
 	}
 
@@ -80,11 +76,11 @@ const isNIP98Valid = async (authevent: Event, req: Request, checkAdminPrivileges
 	// Check if authorization event method tag is valid (Must be the same as the request method)
 	try {
 		if (eventMethod == null || eventMethod == undefined || eventMethod != req.method) {
-			logger.warn("RES -> 400 Bad request - Auth header event method is not valid:",eventMethod,"<>",req.method,"|",getClientIp(req));
+			logger.warn(`isNIP98Valid - Auth header event method is not valid: ${eventMethod} <> ${req.method}`, "|", getClientIp(req));
 			return {status: "error", message: `Auth header event method is not valid`, authkey: "", pubkey: "", kind: 0};
 		}
 	} catch (error) {
-		logger.error(`RES -> 400 Bad request - ${error}`, "|", getClientIp(req));
+		logger.error(`isNIP98Valid - Internal server error: ${error}`, "|", getClientIp(req));
 		return {status: "error", message: "Auth header event method is not valid", authkey: "", pubkey: "", kind: 0};
 	}
 
@@ -100,11 +96,10 @@ const isNIP98Valid = async (authevent: Event, req: Request, checkAdminPrivileges
 				.update(JSON.stringify(req.body), "binary")
 				.digest("hex"); 
 
-			if (eventPayload != receivedpayload) {
-				logger.debug("Auth header event payload is not valid:", eventPayload, " <> ", receivedpayload, "|", getClientIp(req));
-			}
+			if (eventPayload != receivedpayload) logger.debug(`isNIP98Valid - Auth header event payload is not valid: ${eventPayload} <> ${receivedpayload}`, "|", getClientIp(req));
+
 		} catch (error) {
-			logger.debug("Auth header event payload is not valid:", eventPayload, "|", getClientIp(req));
+			logger.error(`isNIP98Valid - Internal server error: ${error}`, "|", getClientIp(req));
 		}
 	}
 
@@ -112,10 +107,11 @@ const isNIP98Valid = async (authevent: Event, req: Request, checkAdminPrivileges
 
     // This is not from NIP98 spec, check local pubkey validation
 	if (await isPubkeyValid(authevent.pubkey, checkAdminPrivileges, false) == false) {
-		logger.warn(`Auth header pubkey is not valid | ${getClientIp(req)}`);
+		logger.warn(`isNIP98Valid - Auth header pubkey is not valid: ${authevent.pubkey}`, "|", getClientIp(req));
 		return {status: "error", message: "Auth header pubkey is not valid", authkey: "", pubkey: "", kind: 0};
 	}
 
+	logger.info(`isNIP98Valid - Auth header event is valid`, "|", getClientIp(req));
 	return { status: "success", message: "Auth header event is valid", authkey: "", pubkey: authevent.pubkey, kind: +authevent.kind};
 };
 

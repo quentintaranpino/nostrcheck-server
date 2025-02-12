@@ -11,17 +11,17 @@ const verifyEventController = async (req: Request, res: Response): Promise<Respo
     // Check if the request IP is allowed
 	const reqInfo = await isIpAllowed(req);
 	if (reqInfo.banned == true) {
-		logger.warn(`Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
+		logger.warn(`verifyEventController - Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
 		return res.status(403).send({"status": "error", "message": reqInfo.comments});
 	}
 
 	// Check if current module is enabled
 	if (!isModuleEnabled("verify", app)) {
-        logger.info("Attempt to access a non-active module:","verify","|","IP:", reqInfo.ip);
+        logger.info("verifyEventController - Attempt to access a non-active module:","verify","|","IP:", reqInfo.ip);
 		return res.status(403).send({"status": "error", "message": "Module is not enabled"});
 	}
 
-	logger.info("POST /api/v2/verify", "|", reqInfo.ip);
+	logger.info(`verifyEventController - Request from:`, reqInfo.ip);
 
 	//Create event object
 	const event: Event = {
@@ -44,13 +44,13 @@ const verifyEventController = async (req: Request, res: Response): Promise<Respo
 	let status : number = 400;
 
 	if (verifyResult.status == "success") {
-			logger.info(`RES -> 200 OK - Valid event:`, event.id, "|", reqInfo.ip)
+			logger.info(`verifyEventController - Valid event: ${event.id}`, "|", reqInfo.ip);
 			result.pubkey = event.pubkey;
 			result.result = true;
 			result.description = "Valid Event";
 			status = 200;
 	} else {
-			logger.info(`RES -> 400 Bad request - ${verifyResult.message}`, "|", reqInfo.ip);
+			logger.info(`verifyEventController - Invalid event: ${event.id}`, "|", reqInfo.ip);
 			result.pubkey = event.pubkey? event.pubkey : "";
 			result.description = verifyResult.message;
 	}

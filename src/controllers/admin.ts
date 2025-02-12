@@ -4,7 +4,7 @@ import fs from "fs";
 import sharp from "sharp";
 
 import app from "../app.js";
-import { logHistory, logger } from "../lib/logger.js";
+import { getLogHistory, logger } from "../lib/logger.js";
 import { format, getCPUUsage, getNewDate } from "../lib/utils.js";
 import { ResultMessagev2, ServerStatusMessage } from "../interfaces/server.js";
 import { generatePassword } from "../lib/authorization.js";
@@ -39,19 +39,14 @@ const serverStatus = async (req: Request, res: Response): Promise<Response> => {
     // Check if the request IP is allowed
     const reqInfo = await isIpAllowed(req);
     if (reqInfo.banned == true) {
-        logger.warn(`Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
+        logger.warn(`ServerStatus - Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
         return res.status(403).send({"status": "error", "message": reqInfo.comments});
     }
 
     // Check if current module is enabled
     if (!isModuleEnabled("admin", app)) {
-        logger.warn("Attempt to access a non-active module:","admin","|","IP:", reqInfo.ip);
+        logger.warn("ServerStatus - Attempt to access a non-active module:","admin","|","IP:", reqInfo.ip);
         return res.status(403).send({"status": "error", "message": "Module is not enabled"});
-    }
-	
-    hits++;
-    if (hits % 100 == 0) {
-        logger.info("RES -> ServerStatus calls: ", hits, " | ", reqInfo.ip);
     }
 
 	const result: ServerStatusMessage = {
@@ -63,6 +58,9 @@ const serverStatus = async (req: Request, res: Response): Promise<Response> => {
         cpuUsage: await getCPUUsage(),
         websockets: isModuleEnabled("relay", app) ? app.get("wss").clients.size : 0,
 	};
+
+    hits++;
+    if (hits % 100 == 0) logger.debug(`ServerStatus - ${hits} hits`);
 
 	return res.status(200).send(result);
 };
@@ -80,17 +78,17 @@ const StopServer = async (req: Request, res: Response): Promise<Response> => {
     // Check if the request IP is allowed
     const reqInfo = await isIpAllowed(req);
     if (reqInfo.banned == true) {
-        logger.warn(`Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
+        logger.warn(`StopServer - Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
         return res.status(403).send({"status": "error", "message": reqInfo.comments});
     }
 
     // Check if current module is enabled
     if (!isModuleEnabled("admin", app)) {
-        logger.warn("Attempt to access a non-active module:","admin","|","IP:", reqInfo.ip);
+        logger.warn("StopServer - Attempt to access a non-active module:","admin","|","IP:", reqInfo.ip);
         return res.status(403).send({"status": "error", "message": "Module is not enabled"});
     }
 
-    logger.info("REQ -> StopServer", req.hostname, "|", reqInfo.ip);
+    logger.warn("StopServer - Stop server request from IP:", reqInfo.ip);
     res.setHeader('Content-Type', 'application/json');
     
     // Check if authorization header is valid
@@ -98,7 +96,7 @@ const StopServer = async (req: Request, res: Response): Promise<Response> => {
 	if (eventHeader.status !== "success") {return res.status(401).send({"status": eventHeader.status, "message" : eventHeader.message});}
     setAuthCookie(res, eventHeader.authkey);
 
-    logger.info("RES -> 200 Stopping server from IP:", reqInfo.ip);
+    logger.warn("StopServer - Stopping server...");
 
     const result : ResultMessagev2 = {
         status: "success",
@@ -120,17 +118,17 @@ const updateDBRecord = async (req: Request, res: Response): Promise<Response> =>
     // Check if the request IP is allowed
     const reqInfo = await isIpAllowed(req);
     if (reqInfo.banned == true) {
-        logger.warn(`Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
+        logger.warn(`updateDBRecord - Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
         return res.status(403).send({"status": "error", "message": reqInfo.comments});
     }
 
     // Check if current module is enabled
     if (!isModuleEnabled("admin", app)) {
-        logger.warn("Attempt to access a non-active module:","admin","|","IP:", reqInfo.ip);
+        logger.warn("updateDBRecord - Attempt to access a non-active module:","admin","|","IP:", reqInfo.ip);
         return res.status(403).send({"status": "error", "message": "Module is not enabled"});
     }
 
-    logger.info("REQ -> updateDBRecord", req.hostname, "|", reqInfo.ip);
+    logger.debug(`updateDBRecord - ${req.method} ${req.path}`, "|", reqInfo.ip);
     res.setHeader('Content-Type', 'application/json');
 
      // Check if authorization header is valid
@@ -145,7 +143,7 @@ const updateDBRecord = async (req: Request, res: Response): Promise<Response> =>
             status: "error",
             message: "Invalid parameters"
             };
-        logger.error("RES -> Invalid parameters" + " | " + reqInfo.ip);
+        logger.error(`updateDBRecord - Invalid parameters`, "|", reqInfo.ip);
         return res.status(400).send(result);
     }
 
@@ -156,11 +154,11 @@ const updateDBRecord = async (req: Request, res: Response): Promise<Response> =>
             status: "error",
             message: "Invalid table name"
             };
-        logger.warn("RES -> Invalid table name" + " | " + reqInfo.ip);
+        logger.warn(`updateDBRecord - Invalid table name`, "|", reqInfo.ip);
         return res.status(400).send(result);
     }
 
-    logger.debug("table: ", table, " | field: ", req.body.field, " | value: ", req.body.value, " | id: ", req.body.id)
+    logger.info(`updateDBRecord - Updating ${req.body.table} record with id ${req.body.id} and field ${req.body.field} to ${req.body.value}`);
 
     // Check if the provided table name and field name are allowed.
     if (!allowedTableNames.includes(table) || 
@@ -171,7 +169,7 @@ const updateDBRecord = async (req: Request, res: Response): Promise<Response> =>
                 status: "error",
                 message: "Invalid table name or field name"
             };
-            logger.warn("RES -> Invalid table name or field name" + " | " + reqInfo.ip);
+            logger.warn(`updateDBRecord - Invalid table name or field name`, "|", reqInfo.ip);
             return res.status(400).send(result);
     }
 
@@ -182,7 +180,7 @@ const updateDBRecord = async (req: Request, res: Response): Promise<Response> =>
             status: "error",
             message: req.body.field + " cannot be empty.",
             };
-        logger.warn("RES -> Value is empty: " + req.body.field +  " | " + reqInfo.ip);
+        logger.warn(`updateDBRecord - ${req.body.field} cannot be empty`, "|", reqInfo.ip);
         return res.status(400).send(result);
     }
 
@@ -205,7 +203,7 @@ const updateDBRecord = async (req: Request, res: Response): Promise<Response> =>
             status: "success",
             message: req.body.value,
             };
-        logger.info("RES -> Record updated" + " | " + reqInfo.ip);
+        logger.info(`updateDBRecord - Record updated successfully: ${req.body.field} set to ${req.body.value}`, "|", reqInfo.ip);
         return res.status(200).send(result);
     } else {
         
@@ -213,7 +211,7 @@ const updateDBRecord = async (req: Request, res: Response): Promise<Response> =>
             status: "error",
             message: "Failed to update record"
             };
-        logger.error("RES -> Failed to update record" + " | " + reqInfo.ip);
+        logger.error(`updateDBRecord - Failed to update record`, "|", reqInfo.ip);
         return res.status(500).send(result);
     }
 }
@@ -223,17 +221,17 @@ const updateLogo = async (req: Request, res: Response): Promise<Response> => {
     // Check if the request IP is allowed
     const reqInfo = await isIpAllowed(req);
     if (reqInfo.banned == true) {
-        logger.warn(`Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
+        logger.warn(`updateLogo - Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
         return res.status(403).send({"status": "error", "message": reqInfo.comments});
     }
 
     // Check if current module is enabled
     if (!isModuleEnabled("admin", app)) {
-        logger.warn("Attempt to access a non-active module:","admin","|","IP:", reqInfo.ip);
+        logger.warn(`updateLogo - Attempt to access a non-active module: admin | IP:`, reqInfo.ip);
         return res.status(403).send({"status": "error", "message": "Module is not enabled"});
     }
 
-    logger.debug("POST /api/v2/admin/updatelogo", "|", reqInfo.ip);
+    logger.info(`updateLogo - ${req.method} ${req.path}`, "|", reqInfo.ip);
 
      // Check if authorization header is valid
 	const eventHeader = await parseAuthHeader(req, "updateDBRecord", true);
@@ -250,16 +248,16 @@ const updateLogo = async (req: Request, res: Response): Promise<Response> => {
     if (!req.files || req.files == undefined || req.files.length == 0 || !file) {
         try {
             await fs.promises.copyFile(`./src/pages/static/resources/navbar-logo-${theme}.default.png`, `./src/pages/static/resources/navbar-logo-${theme}.png`);
-            logger.info("RES -> Default logo restored" + " | " + reqInfo.ip);
+            logger.info(`updateLogo - Default logo restored successfully`, "|", reqInfo.ip);
             return res.status(200).send({status: "success", message: "Default logo restored"});
         } catch (error) {
-            logger.error("RES -> Failed to restore default logo" + " | " + reqInfo.ip);
+            logger.error(`updateLogo - Failed to restore default logo`, "|", reqInfo.ip);
             return res.status(500).send({status: "error", message: "Failed to restore default logo"});
         }
     }
 
 	if (await getFileMimeType(req, file) == "") {
-		logger.error(`RES -> 400 Bad request - `, file.mimetype, ` filetype not detected`, "|", reqInfo.ip);
+		logger.error(`updateLogo - 400 Bad request - `, file.mimetype, ` filetype not detected`, "|", reqInfo.ip);
 		return res.status(400).send({"status": "error", "message": "file type not detected or not allowed"});
 	}
 
@@ -269,10 +267,10 @@ const updateLogo = async (req: Request, res: Response): Promise<Response> => {
         .toBuffer()
         .then(async data => { 
             await fs.promises.writeFile(`./src/pages/static/resources/navbar-logo-${theme}.png`, data);
-            logger.info("RES -> Logo updated" + " | " + reqInfo.ip);
+            logger.info(`updateLogo - Logo updated successfully`, "|", reqInfo.ip);
         })
         .catch(err => { 
-            logger.error("RES -> Error updating logo" + " | " + err);
+            logger.error(`updateLogo - Error updating logo`, "|", err);
             return res.status(500).send({"status": "error", "message": "Error updating logo"});
         });
 
@@ -285,17 +283,17 @@ const updateRelayIcon = async (req: Request, res: Response): Promise<Response> =
     // Check if the request IP is allowed
     const reqInfo = await isIpAllowed(req);
     if (reqInfo.banned == true) {
-        logger.warn(`Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
+        logger.warn(`updateRelayIcon - Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
         return res.status(403).send({"status": "error", "message": reqInfo.comments});
     }
 
     // Check if current module is enabled
     if (!isModuleEnabled("admin", app)) {
-        logger.warn("Attempt to access a non-active module:","admin","|","IP:", reqInfo.ip);
+        logger.warn(`updateRelayIcon - Attempt to access a non-active module: admin | IP:`, reqInfo.ip);
         return res.status(403).send({"status": "error", "message": "Module is not enabled"});
     }
 
-    logger.debug("POST /api/v2/admin/updatelogo", "|", reqInfo.ip);
+    logger.info(`updateRelayIcon - ${req.method} ${req.path}`, "|", reqInfo.ip);
 
      // Check if authorization header is valid
 	const eventHeader = await parseAuthHeader(req, "updateDBRecord", true);
@@ -310,16 +308,16 @@ const updateRelayIcon = async (req: Request, res: Response): Promise<Response> =
     if (!req.files || req.files == undefined || req.files.length == 0 || !file) {
         try {
             await fs.promises.copyFile(`./src/pages/static/resources/relay-icon.default.png`, `./src/pages/static/resources/relay-icon.png`);
-            logger.info("RES -> Default relay icon restored" + " | " + reqInfo.ip);
+            logger.info(`updateRelayIcon - Default relay icon restored successfully`, "|", reqInfo.ip);
             return res.status(200).send({status: "success", message: "Default relay icon restored"});
         } catch (error) {
-            logger.error("RES -> Failed to restore default relay icon" + " | " + reqInfo.ip);
+            logger.error(`updateRelayIcon - Failed to restore default relay icon`, "|", reqInfo.ip);
             return res.status(500).send({status: "error", message: "Failed to restore default relay icon"});
         }
     }
 
 	if (await getFileMimeType(req, file) == "") {
-		logger.error(`RES -> 400 Bad request - `, file.mimetype, ` filetype not detected`, "|", reqInfo.ip);
+		logger.error(`updateRelayIcon - 400 Bad request - `, file.mimetype, ` filetype not detected`, "|", reqInfo.ip);
 		return res.status(400).send({"status": "error", "message": "file type not detected or not allowed"});
 	}
 
@@ -329,10 +327,10 @@ const updateRelayIcon = async (req: Request, res: Response): Promise<Response> =
         .toBuffer()
         .then(async data => { 
             await fs.promises.writeFile(`./src/pages/static/resources/relay-icon.png`, data);
-            logger.info("RES -> Relay icon updated" + " | " + reqInfo.ip);
+            logger.info(`updateRelayIcon - Relay icon updated successfully`, "|", reqInfo.ip);
         })
         .catch(err => { 
-            logger.error("RES -> Error updating relay icon" + " | " + err);
+            logger.error(`updateRelayIcon - Error updating relay icon`, "|", err);
             return res.status(500).send({"status": "error", "message": "Error updating relay icon"});
         });
 
@@ -345,17 +343,17 @@ const updateTheme = async (req: Request, res: Response): Promise<Response> => {
     // Check if the request IP is allowed
     const reqInfo = await isIpAllowed(req);
     if (reqInfo.banned == true) {
-        logger.warn(`Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
+        logger.warn(`updateTheme - Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
         return res.status(403).send({"status": "error", "message": reqInfo.comments});
     }
 
     // Check if current module is enabled
     if (!isModuleEnabled("admin", app)) {
-        logger.warn("Attempt to access a non-active module:","admin","|","IP:", reqInfo.ip);
+        logger.warn(`updateTheme - Attempt to access a non-active module: admin | IP:`, reqInfo.ip);
         return res.status(403).send({"status": "error", "message": "Module is not enabled"});
     }
 
-    logger.debug("POST /api/v2/admin/updatetheme", "|", reqInfo.ip);
+    logger.info(`updateTheme - ${req.method} ${req.path}`, "|", reqInfo.ip);
 
      // Check if authorization header is valid
     const eventHeader = await parseAuthHeader(req, "updateDBRecord", true);
@@ -363,7 +361,7 @@ const updateTheme = async (req: Request, res: Response): Promise<Response> => {
     setAuthCookie(res, eventHeader.authkey);
 
     if (!req.body || req.body == undefined || req.body.length == 0) {
-        logger.error("RES -> 400 Bad request - Empty body", "|", reqInfo.ip);
+        logger.error(`updateTheme - Empty body`, "|", reqInfo.ip);
         return res.status(400).send({"status": "error", "message": "Empty body"});
     }
 
@@ -415,10 +413,10 @@ const updateTheme = async (req: Request, res: Response): Promise<Response> => {
 
     try{
         await fs.promises.writeFile('./src/pages/static/css/theme.css', theme);
-        logger.info("RES -> Theme updated" + " | " + reqInfo.ip);
+        logger.info(`updateTheme - Theme updated successfully`, "|", reqInfo.ip);
         return res.status(200).send({status: "success", message: "Theme updated"});
     }catch(e){
-        logger.error("RES -> Error updating theme" + " | " + e);
+        logger.error(`updateTheme - Error updating theme`, "|", reqInfo.ip);
         return res.status(500).send({status: "error", message: "Error updating theme"});
     }
 
@@ -436,17 +434,17 @@ const resetUserPassword = async (req: Request, res: Response): Promise<Response>
     // Check if the request IP is allowed
     const reqInfo = await isIpAllowed(req);
     if (reqInfo.banned == true) {
-        logger.warn(`Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
+        logger.warn(`resetUserPassword - Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
         return res.status(403).send({"status": "error", "message": reqInfo.comments});
     }
 
     // Check if current module is enabled
     if (!isModuleEnabled("admin", app)) {
-        logger.warn("Attempt to access a non-active module:","admin","|","IP:", reqInfo.ip);
+        logger.warn(`resetUserPassword - Attempt to access a non-active module: admin | IP:`, reqInfo.ip);
         return res.status(403).send({"status": "error", "message": "Module is not enabled"});
     }
    
-    logger.info("REQ -> reset user password", req.hostname, "|", reqInfo.ip);
+    logger.info(`resetUserPassword - ${req.method} ${req.path}`, "|", reqInfo.ip);
     res.setHeader('Content-Type', 'application/json');
     
      // Check if authorization header is valid
@@ -460,7 +458,7 @@ const resetUserPassword = async (req: Request, res: Response): Promise<Response>
             status: "error",
             message: "Invalid parameters"
             };
-        logger.error("RES -> Invalid parameters" + " | " + reqInfo.ip);
+        logger.error(`resetUserPassword - Invalid parameters`, "|", reqInfo.ip);
         return res.status(400).send(result);
     }
 
@@ -470,7 +468,7 @@ const resetUserPassword = async (req: Request, res: Response): Promise<Response>
             status: "error",
             message: "Failed to generate new password"
             };
-        logger.error("RES -> Failed to generate new password" + " | " + reqInfo.ip);
+        logger.error(`resetUserPassword - Failed to generate new password`, "|", reqInfo.ip);
         return res.status(500).send(result);
     }
 
@@ -478,9 +476,8 @@ const resetUserPassword = async (req: Request, res: Response): Promise<Response>
         status: "success",
         message: "New password generated for " + req.body.pubkey,
         };
-    logger.info("RES -> New password sent to " + req.body.pubkey);
+    logger.info(`resetUserPassword - New password generated for ${req.body.pubkey} successfully`, "|", reqInfo.ip);
     return res.status(200).send(result);
-
    
 };
 
@@ -496,17 +493,17 @@ const deleteDBRecord = async (req: Request, res: Response): Promise<Response> =>
     // Check if the request IP is allowed
     const reqInfo = await isIpAllowed(req);
     if (reqInfo.banned == true) {
-        logger.warn(`Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
+        logger.warn(`deleteDBRecord - Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
         return res.status(403).send({"status": "error", "message": reqInfo.comments});
     }
 
     // Check if current module is enabled
     if (!isModuleEnabled("admin", app)) {
-        logger.warn("Attempt to access a non-active module:","admin","|","IP:", reqInfo.ip);
+        logger.warn(`deleteDBRecord - Attempt to access a non-active module: admin | IP:`, reqInfo.ip);
         return res.status(403).send({"status": "error", "message": "Module is not enabled"});
     }
 
-    logger.info("REQ -> deleteDBRecord", req.hostname, "|", reqInfo.ip);
+    logger.info(`deleteDBRecord - ${req.method} ${req.path}`, "|", reqInfo.ip);
     res.setHeader('Content-Type', 'application/json');
 
      // Check if authorization header is valid
@@ -520,7 +517,7 @@ const deleteDBRecord = async (req: Request, res: Response): Promise<Response> =>
             status: "error",
             message: "Invalid parameters"
             };
-        logger.error("RES -> Invalid parameters" + " | " + reqInfo.ip);
+        logger.error(`deleteDBRecord - Invalid parameters`, "|", reqInfo.ip);
         return res.status(400).send(result);
     }
 
@@ -530,7 +527,7 @@ const deleteDBRecord = async (req: Request, res: Response): Promise<Response> =>
             status: "error",
             message: "Invalid table parameter"
         };
-        logger.error("RES -> Invalid table parameter" + " | " + reqInfo.ip);
+        logger.error(`deleteDBRecord - Invalid table parameter`, "|", reqInfo.ip);
         return res.status(400).send(result);
     }
 
@@ -540,7 +537,7 @@ const deleteDBRecord = async (req: Request, res: Response): Promise<Response> =>
             status: "error",
             message: "Invalid id parameter"
         };
-        logger.error("RES -> Invalid id parameter" + " | " + reqInfo.ip);
+        logger.error(`deleteDBRecord - Invalid id parameter`, "|", reqInfo.ip);
         return res.status(400).send(result);
     }
 
@@ -551,7 +548,7 @@ const deleteDBRecord = async (req: Request, res: Response): Promise<Response> =>
             status: "error",
             message: "Invalid table name"
             };
-        logger.warn("RES -> Invalid table name" + " | " + reqInfo.ip);
+        logger.warn(`deleteDBRecord - Invalid table name`, "|", reqInfo.ip);
         return res.status(400).send(result);
     }
 
@@ -561,7 +558,7 @@ const deleteDBRecord = async (req: Request, res: Response): Promise<Response> =>
             status: "error",
             message: "Invalid table name"
         };
-        logger.warn("RES -> Invalid table name" + " | " + reqInfo.ip);
+        logger.warn(`deleteDBRecord - Invalid table name`, "|", reqInfo.ip);
         return res.status(400).send(result);
     }
 
@@ -574,7 +571,7 @@ const deleteDBRecord = async (req: Request, res: Response): Promise<Response> =>
                 status: "error",
                 message: "Failed to delete record",
             };
-            logger.warn("RES -> Record not found" + " | " + reqInfo.ip);
+            logger.warn(`deleteDBRecord - Failed to delete record`, "|", reqInfo.ip);
             return res.status(400).send(result);
         }
         
@@ -586,7 +583,7 @@ const deleteDBRecord = async (req: Request, res: Response): Promise<Response> =>
                     status: "error",
                     message: "Failed to delete record"
                 };
-                logger.error("RES -> Failed to delete record" + " | " + reqInfo.ip);
+                logger.error(`deleteDBRecord - Failed to delete record`, "|", reqInfo.ip);
                 return res.status(500).send(result);
             }
         }
@@ -611,7 +608,7 @@ const deleteDBRecord = async (req: Request, res: Response): Promise<Response> =>
             status: "success",
             message: "Record deleted succesfully",
             };
-        logger.info("RES -> Record deleted - id: " + req.body.id + " from table: " + table + " | " + reqInfo.ip);
+        logger.info(`deleteDBRecord -  Record deleted succesfully: ${req.body.table} | ${req.body.id} | ${reqInfo.ip}`);
         return res.status(200).send(result);
     } else {
         
@@ -619,7 +616,7 @@ const deleteDBRecord = async (req: Request, res: Response): Promise<Response> =>
             status: "error",
             message: "Failed to delete record",
             };
-        logger.error("RES -> Failed to delete record" + " | " + reqInfo.ip);
+        logger.error(`deleteDBRecord - Failed to delete record: ${req.body.table} | ${req.body.id} | ${reqInfo.ip}`);
         return res.status(500).send(result);
     }
 }
@@ -637,17 +634,17 @@ const insertDBRecord = async (req: Request, res: Response): Promise<Response> =>
     // Check if the request IP is allowed
     const reqInfo = await isIpAllowed(req);
     if (reqInfo.banned == true) {
-        logger.warn(`Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
+        logger.warn(`insertDBRecord - Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
         return res.status(403).send({"status": "error", "message": reqInfo.comments});
     }
 
     // Check if current module is enabled
     if (!isModuleEnabled("admin", app)) {
-        logger.warn("Attempt to access a non-active module:","admin","|","IP:", reqInfo.ip);
+        logger.warn(`insertDBRecord - Attempt to access a non-active module: admin | IP:`, reqInfo.ip);
         return res.status(403).send({"status": "error", "message": "Module is not enabled"});
     }
 
-    logger.info("REQ -> insertDBRecord", req.hostname, "|", reqInfo.ip);
+    logger.info(`insertDBRecord - ${req.method} ${req.path}`, "|", reqInfo.ip);
     res.setHeader('Content-Type', 'application/json');
 
      // Check if authorization header is valid
@@ -661,7 +658,7 @@ const insertDBRecord = async (req: Request, res: Response): Promise<Response> =>
             status: "error",
             message: "Invalid parameters"
             };
-        logger.error("RES -> Invalid parameters" + " | " + reqInfo.ip);
+        logger.error(`insertDBRecord - Invalid parameters`, "|", reqInfo.ip);
         return res.status(400).send(result);
     }
 
@@ -672,7 +669,7 @@ const insertDBRecord = async (req: Request, res: Response): Promise<Response> =>
             status: "error",
             message: "Invalid table name"
             };
-        logger.warn("RES -> Invalid table name" + " | " + reqInfo.ip);
+        logger.warn(`insertDBRecord - Invalid table name`, "|", reqInfo.ip);
         return res.status(400).send(result);
     }
 
@@ -683,13 +680,13 @@ const insertDBRecord = async (req: Request, res: Response): Promise<Response> =>
             !allowedFieldNamesAndValues.some(e => e.field === field) ||
             !allowedFieldNames.includes(field)     
             ){
-                logger.warn("RES -> Invalid table name or field name: " + " table: " + table + " field: " +  field + " | " + reqInfo.ip);
+                logger.warn(`insertDBRecord - Invalid table name: ${table} or field name: ${field} | ${reqInfo.ip}`);
                 errorFound = true;
         }
 
         // Check if the provided value is empty
         if (value === ""){
-            logger.warn("RES -> Value is empty: " + field +  " | " + reqInfo.ip);
+            logger.warn(`insertDBRecord - ${field} cannot be empty | ${reqInfo.ip}`);
             errorFound = true;
         }
         
@@ -714,7 +711,7 @@ const insertDBRecord = async (req: Request, res: Response): Promise<Response> =>
                 status: "error",
                 message: "Invalid npub / hex",
                 };
-            logger.error("RES -> Invalid pubkey" + " | " + reqInfo.ip);
+            logger.error(`insertDBRecord - Invalid npub / hex : ${req.body.row["pubkey"]} / ${req.body.row["hex"]} | ${reqInfo.ip}`);
             return res.status(400).send(result);
         }
     }
@@ -738,7 +735,7 @@ const insertDBRecord = async (req: Request, res: Response): Promise<Response> =>
             status: "error",
             message: "Failed to insert records",
             };
-        logger.error("RES -> Failed to insert records" + " | " + reqInfo.ip);
+        logger.error(`insertDBRecord - Failed to insert records | ${reqInfo.ip}`);
         return res.status(500).send(result);
     }
 
@@ -751,7 +748,7 @@ const insertDBRecord = async (req: Request, res: Response): Promise<Response> =>
         message: insert.toString(),
         };
 
-    logger.info("RES -> Records inserted" + " | " + reqInfo.ip);
+    logger.info(`insertDBRecord - Record inserted succesfully: ${req.body.table} | ${insert} | ${reqInfo.ip}`);
     return res.status(200).send(result);
 }
 
@@ -768,17 +765,17 @@ const updateSettings = async (req: Request, res: Response): Promise<Response> =>
     // Check if the request IP is allowed
     const reqInfo = await isIpAllowed(req);
     if (reqInfo.banned == true) {
-        logger.warn(`Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
+        logger.warn(`updateSettings - Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
         return res.status(403).send({"status": "error", "message": reqInfo.comments});
     }
 
     // Check if current module is enabled
     if (!isModuleEnabled("admin", app)) {
-        logger.warn("Attempt to access a non-active module:","admin","|","IP:", reqInfo.ip);
+        logger.warn(`updateSettings - Attempt to access a non-active module: admin | IP:`, reqInfo.ip);
         return res.status(403).send({"status": "error", "message": "Module is not enabled"});
     }
 
-    logger.info("REQ -> updateSettings", req.hostname, "|", reqInfo.ip);
+    logger.info(`updateSettings - ${req.method} ${req.path}`, "|", reqInfo.ip);
     res.setHeader('Content-Type', 'application/json');
 
      // Check if authorization header is valid
@@ -791,6 +788,7 @@ const updateSettings = async (req: Request, res: Response): Promise<Response> =>
             status: "error",
             message: "Invalid parameters",
         }
+        logger.error(`updateSettings - Invalid parameters`, "|", reqInfo.ip);
         return res.status(400).send(result);
     }
 
@@ -800,7 +798,7 @@ const updateSettings = async (req: Request, res: Response): Promise<Response> =>
             status: "error",
             message: "Failed to update settings.",
             };
-        logger.error("RES -> Failed to update settings" + " | " + reqInfo.ip);
+        logger.error(`updateSettings - Failed to update settings`, "|", reqInfo.ip);
         return res.status(500).send(result);
     }
 
@@ -812,6 +810,7 @@ const updateSettings = async (req: Request, res: Response): Promise<Response> =>
     
     for (const part of parts) {
         if (currentConfig[part] === undefined) {
+            logger.error(`updateSettings - Config field not found: ${part} | ${reqInfo.ip}`);
             return res.status(500).send({"status":"error", "message":`Config field not found: ${part}`});
         }
         currentConfig = currentConfig[part];
@@ -827,7 +826,7 @@ const updateSettings = async (req: Request, res: Response): Promise<Response> =>
     // If the setting is expireTime from redis we flush redis cache
     if (req.body.name == "redis.expireTime") {
         const flushResult = await redisFlushAll();
-        if (flushResult)logger.debug("Redis cache flushed");
+        if (flushResult)logger.info(`updateSettings - Redis cache flushed`, "|", reqInfo.ip);
     }
 
     const result : ResultMessagev2 = {
@@ -835,7 +834,7 @@ const updateSettings = async (req: Request, res: Response): Promise<Response> =>
         message: "Succesfully updated settings.",
         };
 
-    logger.info("RES -> Settings updated" + " | " + reqInfo.ip);
+    logger.info(`updateSettings - Updated settings succesfully`, "|", reqInfo.ip);
     return res.status(200).send(result);
     
 }
@@ -845,17 +844,17 @@ const getModuleData = async (req: Request, res: Response): Promise<Response> => 
     // Check if the request IP is allowed
     const reqInfo = await isIpAllowed(req);
     if (reqInfo.banned == true) {
-        logger.warn(`Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
+        logger.warn(`getModuleData - Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
         return res.status(403).send({"status": "error", "message": reqInfo.comments});
     }
 
     // Check if current module is enabled
     if (!isModuleEnabled("admin", app)) {
-        logger.warn("Attempt to access a non-active module:","admin","|","IP:", reqInfo.ip);
+        logger.warn(`getModuleData - Attempt to access a non-active module: admin | IP:`, reqInfo.ip);
         return res.status(403).send({"status": "error", "message": "Module is not enabled"});
     }
 
-    logger.info("REQ -> getModuleData", req.hostname, "|", reqInfo.ip);
+    logger.info(`getModuleData - ${req.method} ${req.path}`, "|", reqInfo.ip);
 
     // Check if authorization header is valid
 	const eventHeader = await parseAuthHeader(req, "updateSettings", true);
@@ -868,7 +867,7 @@ const getModuleData = async (req: Request, res: Response): Promise<Response> => 
             status: "error",
             message: "Invalid parameters"
             };
-        logger.error("RES -> Invalid parameters" + " | " + reqInfo.ip);
+        logger.error(`getModuleData - Invalid parameters`, "|", reqInfo.ip);
         return res.status(400).send(result);
     }
 
@@ -888,19 +887,21 @@ const getModuleData = async (req: Request, res: Response): Promise<Response> => 
                 value: typeof value === 'string' ? value : JSON.stringify(value)
             }));
         }catch(e){
-            logger.error("Error parsing filter: ", e);
+            logger.error(`getModuleData - Invalid filter`, "|", reqInfo.ip);
             return res.status(400).send({"status": "error", "message": "Invalid filter"});
         }
     }
 
     logger.debug("module, offset, limit, order, search, sort, filter) : ", module, offset, limit, order, search, sort, filterObject);
  
-    const data = await dbSelectModuleData(module,offset,limit,order,sort,search,filterObject);
+    const data = module === "logs" ? await getLogHistory(offset, limit, order, sort, search, filterObject) : await dbSelectModuleData(module,offset,limit,order,sort,search,filterObject);
+                                                                                                         
     const returnMessage : moduleDataReturnMessage = {
         total: data.total,
         totalNotFiltered: data.totalNotFiltered,
-        rows: data.rows    }
+        rows: data.rows }
 
+    logger.info(`getModuleData - Data retrieved succesfully`, "|", reqInfo.ip);
     return res.status(200).send(returnMessage);
 
 }
@@ -910,17 +911,17 @@ const getModuleCountData = async (req: Request, res: Response): Promise<Response
     // Check if the request IP is allowed
     const reqInfo = await isIpAllowed(req);
     if (reqInfo.banned == true) {
-        logger.warn(`Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
+        logger.warn(`getModuleCountData - Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
         return res.status(403).send({"status": "error", "message": reqInfo.comments});
     }
     
     // Check if current module is enabled
     if (!isModuleEnabled("admin", app)) {
-        logger.warn("Attempt to access a non-active module:","admin","|","IP:", reqInfo.ip);
+        logger.warn(`getModuleCountData - Attempt to access a non-active module: admin | IP:`, reqInfo.ip);
         return res.status(403).send({"status": "error", "message": "Module is not enabled"});
     }
 
-    logger.debug("REQ -> getModuleCountData", req.hostname, "|", reqInfo.ip);
+    logger.info(`getModuleCountData - ${req.method} ${req.path}`, "|", reqInfo.ip);
 
     // Check if authorization header is valid
     const eventHeader = await parseAuthHeader(req, "updateSettings", true);
@@ -933,7 +934,7 @@ const getModuleCountData = async (req: Request, res: Response): Promise<Response
             status: "error",
             message: "Invalid parameters"
             };
-        logger.error("RES -> Invalid parameters" + " | " + reqInfo.ip);
+        logger.error(`getModuleCountData - Invalid parameters`, "|", reqInfo.ip);
         return res.status(400).send(result);
     }
 
@@ -950,7 +951,8 @@ const getModuleCountData = async (req: Request, res: Response): Promise<Response
         return res.status(200).send({total: data, field: data});
     }
     if (module == "logger" && action == "countWarning") {
-        return res.status(200).send({total: logHistory.length, field: logHistory.length});
+        const logHistory = await getLogHistory(0, 0, "DESC", "date", "", [{ field: "severity", value: ["warn", "error"] }]);
+        return res.status(200).send({total: logHistory.total, field: logHistory.total});
     }
     if (module == "relay" && action == "countSynced") {
         return res.status(200).send({total: await dbCountModuleData(module), field: app.get("relayEvents")?.memoryDB?.size | 0});
@@ -967,6 +969,7 @@ const getModuleCountData = async (req: Request, res: Response): Promise<Response
         return res.status(200).send({total: countTotal, field: countField});
     }
     
+    logger.info(`getModuleCountData - Data retrieved succesfully`, "|", reqInfo.ip);
     return res.status(200).send({total: 0, field: 0});
 }
 
@@ -975,17 +978,16 @@ const moderateDBRecord = async (req: Request, res: Response): Promise<Response> 
     // Check if the request IP is allowed
     const reqInfo = await isIpAllowed(req);
     if (reqInfo.banned == true) {
-        logger.warn(`Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
+        logger.warn(`moderateDBRecord - Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
         return res.status(403).send({"status": "error", "message": reqInfo.comments});
     }
   
     // Check if current module is enabled
     if (!isModuleEnabled("admin", app)) {
-        logger.warn("Attempt to access a non-active module:","admin","|","IP:", reqInfo.ip);
+        logger.warn(`moderateDBRecord - Attempt to access a non-active module: admin | IP:`, reqInfo.ip);
         return res.status(403).send({"status": "error", "message": "Module is not enabled"});
     }
 
-    logger.info("REQ -> moderateFile", req.hostname, "|", reqInfo.ip);
 
     // Check if authorization header is valid
     const eventHeader = await parseAuthHeader(req, "updateSettings", true);
@@ -999,8 +1001,7 @@ const moderateDBRecord = async (req: Request, res: Response): Promise<Response> 
         }
         return res.status(400).send(result);
     }
-
-    logger.info(`Moderating file: ${req.body.filename}`);
+    logger.info(`moderateDBRecord - ${req.method} ${req.path}`, "|", reqInfo.ip, "|", req.body.id, "|", req.body.filename);
 
     let returnURL = app.get("config.media")["returnURL"];
     returnURL != "" && returnURL != undefined
@@ -1011,10 +1012,12 @@ const moderateDBRecord = async (req: Request, res: Response): Promise<Response> 
     if (result.code == "NA"){
         const update = await dbUpdate('mediafiles',{'checked':'1'},['id'], [req.body.id]);
         if (!update) {
+            logger.error(`moderateDBRecord - Failed to update record`, "|", reqInfo.ip);
             return res.status(500).send({status: "error", message: "Failed to update record"});
         }
     } 
 
+    logger.info(`moderateDBRecord - Record updated succesfully`, "|", reqInfo.ip);
     return res.status(200).send({status: "success", message: result.code});
 
 }
@@ -1024,17 +1027,15 @@ const banDBRecord = async (req: Request, res: Response): Promise<Response> => {
     // Check if the request IP is allowed
     const reqInfo = await isIpAllowed(req);
     if (reqInfo.banned == true) {
-        logger.warn(`Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
+        logger.warn(`banDBRecord - Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
         return res.status(403).send({"status": "error", "message": reqInfo.comments});
     }
 
     // Check if current module is enabled
     if (!isModuleEnabled("admin", app)) {
-        logger.warn("Attempt to access a non-active module:","admin","|","IP:", reqInfo.ip);
+        logger.warn(`banDBRecord - Attempt to access a non-active module: admin | IP:`, reqInfo.ip);
         return res.status(403).send({"status": "error", "message": "Module is not enabled"});
     }
-
-    logger.info("REQ -> banSource", req.hostname, "|", reqInfo.ip);
 
     // Check if authorization header is valid
     const eventHeader = await parseAuthHeader(req, "updateSettings", true);
@@ -1054,6 +1055,8 @@ const banDBRecord = async (req: Request, res: Response): Promise<Response> => {
         return res.status(400).send(result);
     }
 
+    logger.info(`banDBRecord - ${req.method} ${req.path}`, "|", reqInfo.ip, "|", req.body.id, "|", req.body.table);
+
     if (req.body.reason === "" || req.body.reason === null || req.body.reason === undefined) {
         const result: ResultMessagev2 = {
             status: "error",
@@ -1069,16 +1072,18 @@ const banDBRecord = async (req: Request, res: Response): Promise<Response> => {
             status: "error",
             message: "Invalid table name"
             };
-        logger.warn("RES -> Invalid table name" + " | " + reqInfo.ip);
+        logger.error(`banDBRecord - Invalid table name`, "|", reqInfo.ip);
         return res.status(400).send(result);
     }
 
     const banResult = await banEntity(req.body.id, table, req.body.reason);
 
     if (banResult.status == "error") {
+        logger.error(`banDBRecord - Failed to ban record`, "|", reqInfo.ip);
         return res.status(500).send({status: "error", message: banResult.message});
     }
 
+    logger.info(`banDBRecord - Record banned succesfully`, "|", reqInfo.ip);
     return res.status(200).send({status: "success", message: banResult.message});
         
 }

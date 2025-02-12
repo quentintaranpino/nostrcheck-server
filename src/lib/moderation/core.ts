@@ -1,5 +1,5 @@
 import app from "../../app.js";
-import { remoteEngineClassify } from "./nostrmedia.js";
+import { remoteEngineClassify } from "./remote.js";
 import { localEngineClassify } from "./local.js";
 import { getFilePath } from "../storage/core.js";
 import { emptyModerationCategory, moderationCategory } from "../../interfaces/moderation.js";
@@ -26,7 +26,7 @@ const moderateFile = async (url: string): Promise<moderationCategory> => {
                                                 app.get("config.media")["mediainspector"]["remote"]["secretkey"]);
     }
     
-    logger.info(`File moderation result: ${result.description} for file ${fileName}`);
+    logger.info(`moderateFile - File moderation result: ${result.description} for file ${fileName}`);
     // TODO: Save moderation result to database (maybe tags folder)
 
     return result;

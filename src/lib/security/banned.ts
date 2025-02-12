@@ -204,7 +204,7 @@ const isEntityBanned = async (id: string, table: string): Promise<boolean> => {
     const redisKey = `banned:${table}:${id}`;
     const cachedStatus = await redisGet(redisKey);
     if (cachedStatus !== null) {
-        logger.info("Content is banned", "|", id, "|", table);
+        logger.info(`isEntityBanned - Content is banned: ${id} | ${table}`);
         return true;
     }
     
@@ -221,7 +221,7 @@ const getBannedFileBanner = (): Promise<Buffer> => {
         const bannedFilePath = path.normalize(path.resolve(app.get("config.media")["bannedFilePath"]));
         fs.readFile(bannedFilePath, (err, data) => {
             if (err) {
-                logger.error(err);
+                logger.error(`getBannedFileBanner - Error reading banned file banner: ${err}`);
                 resolve(Buffer.from(""));
             } else {
                 resolve(data);
@@ -278,7 +278,7 @@ const loadBannedEntities = async (): Promise<void> => {
                 break;
 
             default:
-                logger.warn(`Unsupported table for banned entity: ${entity.origintable}`);
+                logger.warn(`loadBanEntities - Unsupported table for banned entity: ${entity.origintable}`);
                 break;
         }
     }

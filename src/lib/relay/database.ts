@@ -8,49 +8,50 @@ import app from "../../app.js";
 
 const initEvents = async (app: Application): Promise<boolean> => {
 
-    if (!isModuleEnabled("relay", app)) return false;
-    if (!app.get("relayEvents")) {
-        const eventsMap: Map<string, MemoryEvent> = new Map();
-        const pendingEvents: Map<string, Event> = new Map();
-        const eventsArray: Event[] = [];
-        app.set("relayEvents", { memoryDB: eventsMap, sortedArray: eventsArray, pending: pendingEvents });
-        app.set("relayEventsLoaded", false);
+  if (!isModuleEnabled("relay", app)) return false;
+  if (!app.get("relayEvents")) {
+    const eventsMap: Map<string, MemoryEvent> = new Map();
+    const pendingEvents: Map<string, Event> = new Map();
+    const eventsArray: Event[] = [];
+    app.set("relayEvents", { memoryDB: eventsMap, sortedArray: eventsArray, pending: pendingEvents });
+    app.set("relayEventsLoaded", false);
 
-        const loadEvents = async () => {
-            try {
-                const limit = 100000;
-                let offset = 0;
-                let hasMore = true;
+    const loadEvents = async () => {
+      try {
+        const limit = 100000;
+        let offset = 0;
+        let hasMore = true;
 
-                while (hasMore) {
-                    logger.info(`Loaded ${eventsMap.size} events from DB`);
-                    const loadedEvents = await getEventsDB(offset, limit);
-                    if (loadedEvents.length === 0 || offset > 300000) {
-                        hasMore = false;
-                    } else {
-                        for (const event of loadedEvents) {
-                            eventsMap.set(event.id, { event: event, content_lower: event.content.toLowerCase(), processed: true });
-                            eventsArray.push(event);
-                        }
-                        offset += limit;
-                    }
+        while (hasMore) {
+            logger.info(`initEvents - Loaded ${eventsMap.size} events from DB`);
+            const loadedEvents = await getEventsDB(offset, limit);
+            if (loadedEvents.length === 0 || offset > 300000) {
+                hasMore = false;
+            } else {
+                for (const event of loadedEvents) {
+                    eventsMap.set(event.id, { event: event, content_lower: event.content.toLowerCase(), processed: true });
+                    eventsArray.push(event);
                 }
-
-                eventsArray.sort((a, b) => b.created_at - a.created_at);
-                logger.info("Loaded", eventsMap.size, "events from DB");
-            } catch (error) {
-                logger.error("Error loading events:", error);
-            } finally {
-                app.set("relayEventsLoaded", true);
+                offset += limit;
             }
-        };
+        }
 
-        loadEvents();
+        eventsArray.sort((a, b) => b.created_at - a.created_at);
+        logger.info(`initEvents - Loaded ${eventsMap.size} events from DB`);
+        
+      } catch (error) {
+        logger.info(`initEvents - Error loading events: ${error}`);
+      } finally {
+        app.set("relayEventsLoaded", true);
+      }
+    };
 
-        return true;
-    }
+    loadEvents();
 
-    return false;
+    return true;
+  }
+
+  return false;
 };
 
 
@@ -164,7 +165,7 @@ const storeEvents = async (eventsInput: Event | Event[]): Promise<number> => {
   
     const insertedRows = await dbBulkInsert("events", eventColumns, eventValues);
     if (insertedRows !== eventsToStore.length) {
-      logger.error("Bulk insert: Failed to insert events. Expected:", eventsToStore.length, "Inserted:", insertedRows);
+      logger.error(`storeEvents - Failed to insert events. Expected: ${eventsToStore.length}, Inserted: ${insertedRows}`);
     }
   
     const allTagValues: any[][] = [];
@@ -183,11 +184,11 @@ const storeEvents = async (eventsInput: Event | Event[]): Promise<number> => {
       const tagColumns = ["event_id", "tag_name", "tag_value", "position", "extra_values"];
       const insertedTagRows = await dbBulkInsert("eventtags", tagColumns, allTagValues);
       if (insertedTagRows !== allTagValues.length) {
-        logger.error("Bulk insert: Failed to insert all event tags. Expected:", allTagValues.length, "Inserted:", insertedTagRows);
+        logger.error(`storeEvents - Failed to insert all event tags. Expected: ${allTagValues.length}, Inserted: ${insertedTagRows}`);
       }
     }
   
-    logger.debug("Bulk inserted events:", insertedRows);
+    logger.debug(`storeEvents - Bulk inserted events: ${insertedRows}`);
     return insertedRows;
   };
 

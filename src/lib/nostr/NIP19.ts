@@ -15,7 +15,7 @@ const hextoNpub = async (hex : string) : Promise<string> => {
     try {
         return await nip19.npubEncode(hex);
     } catch (error) {
-        logger.error("Error while encoding pubkey to npub: ", error);
+        logger.error(`hextoNpub - Error while encoding pubkey to npub: ${error}`);
     }
 
     return "";
@@ -31,7 +31,7 @@ const npubToHex = async (npub : string) : Promise<string> => {
         try {
             return await nip19.decode(npub).data.toString();
         } catch (error) {
-            logger.error("Error while encoding pubkey to npub: ", error);
+            logger.error(`npubToHex - Error while decoding npub to hex: ${error}`);
         }
     
         return "";

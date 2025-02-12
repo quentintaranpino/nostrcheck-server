@@ -113,8 +113,8 @@ const defaultConfig = {
 			"security" : {
 				"name": "security",
 				"enabled": true,
-				"path": "",
-				"methods": [],
+				"path": "/",
+				"methods": ["Library"],
 				"description": "This module handles security, ip logs, automatic ban, etc."
 			},
 		}

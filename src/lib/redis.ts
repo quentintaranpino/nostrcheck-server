@@ -21,7 +21,7 @@ const withPrefix = (key: string): string => `${instancePrefix}:${key}`;
 
 (async (): Promise<void> => {
     redisClient.on("error", (error: Error) => {
-        logger.error(`There is a problem connecting to redis server, is redis-server package installed on your system? : ${error}`);
+        logger.error(`initRedis - There is a problem connecting to redis server : ${error}`);
         process.exit(1);
     });
     await redisClient.connect();
@@ -33,7 +33,7 @@ const redisFlushAll = async (): Promise<boolean> => {
         await redisClient.sendCommand(['flushall']);
         return true;
     } catch (error) {
-        logger.error(`Redis FLUSHALL error: ${error}`);
+        logger.error(`redisFlushAll - Redis FLUSHALL error: ${error}`);
         return false;
     }
 };
@@ -46,7 +46,7 @@ const redisGet = async (key: string): Promise<string | null> => {
         const value = await redisClient.get(withPrefix(key));
         return value;
     } catch (error) {
-        logger.error(`Redis GET error for key '${withPrefix(key)}': ${error}`);
+        logger.error(`redisGet - Redis GET error for key '${withPrefix(key)}': ${error}`);
         return null;
     }
 };
@@ -60,7 +60,7 @@ const redisGetJSON = async <T>(key: string): Promise<T | null> => {
         if (!data) return null;
         return JSON.parse(data) as T;
     } catch (error) {
-        logger.error(`Error parsing JSON from Redis for key '${withPrefix(key)}': ${error}`);
+        logger.error(`redisGetJSON - Error parsing JSON from Redis for key '${withPrefix(key)}': ${error}`);
         return null;
     }
 };
@@ -73,7 +73,7 @@ const redisSet = async (key: string, value: string, options: { EX?: number } = {
         await redisClient.set(withPrefix(key), value, options);
         return true;
     } catch (error) {
-        logger.error(`Redis SET error for key '${withPrefix(key)}': ${error}`);
+        logger.error(`redisSet - Redis SET error for key '${withPrefix(key)}': ${error}`);
         return false;
     }
 };
@@ -86,7 +86,7 @@ const redisDel = async (key: string): Promise<boolean> => {
         const result = await redisClient.del(withPrefix(key));
         return result > 0;
     } catch (error) {
-        logger.error(`Redis DEL error for key '${withPrefix(key)}': ${error}`);
+        logger.error(`redisDel - Redis DEL error for key '${withPrefix(key)}': ${error}`);
         return false;
     }
 };
@@ -99,7 +99,7 @@ const redisHashGetAll = async (key: string): Promise<Record<string, string>> => 
         const data = await redisClient.hGetAll(withPrefix(key));
         return data;
     } catch (error) {
-        logger.error(`Error HGETALL for key '${withPrefix(key)}': ${error}`);
+        logger.error(`redisHashGetAll - Error HGETALL for key '${withPrefix(key)}': ${error}`);
         return {};
     }
 };
@@ -112,7 +112,7 @@ const redisHashSet = async (key: string, fields: Record<string, string | number>
         }
         return true;
     } catch (error) {
-        logger.error(`Error HSET for key '${withPrefix(key)}': ${error}`);
+        logger.error(`redisHashSet - Error HSET for key '${withPrefix(key)}': ${error}`);
         return false;
     }
 };
@@ -122,7 +122,7 @@ const redisHashIncrementBy = async (key: string, field: string, increment: numbe
         const newValue = await redisClient.hIncrBy(withPrefix(key), field, increment);
         return newValue;
     } catch (error) {
-        logger.error(`Error HINCRBY for key '${withPrefix(key)}': ${error}`);
+        logger.error(`redisHashIncrementBy - Error HINCRBY for key '${withPrefix(key)}': ${error}`);
         return null;
     }
 };
@@ -147,7 +147,7 @@ const redisScanKeys = async (pattern: string): Promise<string[]> => {
 
         return keys;
     } catch (error) {
-        logger.error(`Error scanning keys with pattern '${pattern}': ${error}`);
+        logger.error(`redisScanKeys - Error scanning keys with pattern '${pattern}': ${error}`);
         return [];
     }
 };
@@ -171,7 +171,7 @@ const redisSlidingWindowIncrement = async (key: string, now: number, windowMs: n
         await redisClient.expire(prefixedKey, expireSeconds);
         return count;
     } catch (error) {
-        logger.error(`Error in sliding window increment for key '${withPrefix(key)}': ${error}`);
+        logger.error(`redisSlidingWindowIncrement - Error in sliding window increment for key '${withPrefix(key)}': ${error}`);
         return 0;
     }
 };
@@ -189,7 +189,7 @@ const redisSlidingWindowOldest = async (key: string): Promise<number> => {
         if (res.length > 0)  return Number(res[0]);
         return 0;
     } catch (error) {
-        logger.error(`Error getting oldest timestamp for sliding window key '${withPrefix(key)}': ${error}`);
+        logger.error(`redisSlidingWindowOldest - Error getting oldest timestamp for sliding window key '${withPrefix(key)}': ${error}`);
         return 0;
     }
 };

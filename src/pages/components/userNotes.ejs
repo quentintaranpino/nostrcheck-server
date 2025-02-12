@@ -30,7 +30,7 @@ let pubkeysData = [];
 async function loadNotes() {
     if (loading || allNotesLoaded) return; 
     loading = true;
-    console.log("loading notes since", currentSince);
+    console.debug("loading notes since", currentSince);
 
     await subscribeRelays(1,["<%= request.session.metadata.pubkey %>"], "from", currentSince, currentUntil).then((notes) => {
 

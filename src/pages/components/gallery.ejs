@@ -258,13 +258,12 @@ document.addEventListener('DOMContentLoaded', (event) => {
                 if (!response.ok) {
                     document.getElementById('gallery-list-loading').remove();
                     document.getElementById('no-media').classList.remove('visually-hidden');
-                    console.log('Error fetching media', response);
+                    console.error('Error fetching media', response);
                     return;
                 }
                 const userData = await response.json();
 
                 if (userData.files && userData.files.length === 0) {
-                    console.log('No more media files');
                     document.getElementById('gallery-list-loading')?.remove();
                     observer.unobserve(sentinelEnd);
                     return;
@@ -336,7 +335,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
 
                 },
                 error: function(err) {
-                    console.log('Error deleting media', err);
+                    console.error('Error deleting media', err);
                     showMessage(`Error deleting file with sha256 ${sha256}`, "alert-danger");
                 }
             });
@@ -376,7 +375,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
                         showMessage(`Visibility of file with sha256 ${sha256} updated successfully`, "alert-success");
                     },
                     error: function(err) {
-                        console.log('Error updating visibility', err);
+                        console.error('Error updating visibility', err);
                         showMessage(`Error updating visibility of file with sha256 ${sha256}`, "alert-danger");
                     }
                 });
@@ -412,7 +411,7 @@ async function populateMasonryData (files, auth) {
             };
 
             mediaLoader.onerror = function () {
-                console.log('Error loading image', url);
+                console.error('Error loading image', url);
             };
 
         } else if (ext === 'mp4' || ext === 'mov') {
@@ -450,7 +449,7 @@ async function populateMasonryData (files, auth) {
                             try {
                                 mediaElement.play();
                             } catch (error) {
-                                console.log('cant play video', error)
+                                console.debug('cant play video', error)
                             }
                         }, 100);
                         interserctingVideo = false;
@@ -477,7 +476,7 @@ async function populateMasonryData (files, auth) {
             mediaElement.muted = true;
                 mediaElement.play()
             } catch (error) {
-                console.log('cant play video', error)
+                console.debug('cant play video', error)
             }
 
             videoObserver.observe(mediaElement);
@@ -501,7 +500,7 @@ async function populateMasonryData (files, auth) {
                             try {
                                 mediaElement.pause();
                             } catch (error) {
-                                console.log('cant pause video', error)
+                                console.debug('cant pause video', error)
                             }
                         }, 100);
                     } else if (hasBeenPlayed) {
@@ -509,7 +508,7 @@ async function populateMasonryData (files, auth) {
                             try {
                                 mediaElement.play();
                             } catch (error) {
-                                console.log('cant play video', error)
+                                console.debug('cant play video', error)
                             }
                         }, 100);
                     }
@@ -718,8 +717,6 @@ function fetchTabledata(params) {
     return new Promise((resolve, reject) => {
 
         const pageSize = params.data.pageSize;
-
-        console.log('Fetching table data', params);
 
         $.ajax({
             url: params.url,

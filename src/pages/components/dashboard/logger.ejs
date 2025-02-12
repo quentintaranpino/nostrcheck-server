@@ -1,0 +1,31 @@
+<%
+let logsFields = [
+  ['date'           , '200' , 'formatLogDate'                  , 'disabled   show text-center             '],
+  ['severity'       , '30' , 'formatLogSeverity' , 'disabled   show text-center             '],
+  ['message'        , ''   , ''                  , 'disabled   show                         '],
+];
+%>
+<% if(locals.activeModules.some(mod => mod.name === 'logger')) { %> 
+  <%- include('../table', {
+    tableName:"Logs", 
+    tableId:"logsData", 
+    buttons:[
+      ['add','hide'],
+      ['disable','hide'],
+      ['enable','hide'],
+      ['visible','hide'],
+      ['invisible','hide'],
+      ['admin','hide'],
+      ['edit','show'],
+      ['password','hide'],
+      ['remove','hide'],
+      ['pay', 'hide'],
+      ['balance','hide'],
+      ['moderate','hide'],
+      ['ban','hide']
+    ],
+    fields: logsFields,
+    datakey: 'logs',
+    objectName: 'log',
+    }); %> 
+<% } %>

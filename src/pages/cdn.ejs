@@ -21,7 +21,6 @@
   <%- include('./components/modals/message-modal', {"object":"fisrtUse"}); %>
 </body>
 <script>
-  console.log("locals.firstUse:", "<%- locals.firstUse %>");
   if ("<%= locals.firstUse %>" != undefined && "<%= locals.firstUse %>" != null && "<%= locals.firstUse %>" != "") {
     initMessageModal("#fisrtUse", "<%- locals.firstUse %>", "Welcome to your sovereignty");
   }

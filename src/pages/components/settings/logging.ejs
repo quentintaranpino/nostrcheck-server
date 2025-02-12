@@ -1,19 +1,18 @@
 <div id="settingsLogger">
     <h3 class="mt-4">Logging</h3>
     <form class="form mx-auto">
-        <p> In this section, you can configure the log settings of your server. The log level determines the verbosity of the logs:
-            debug (2), info (3), warn (4), error (5)
+        <p> In this section, you can configure the log settings of your server. The log level determines the verbosity of the logs. The recommended
+            log level is <b>Warning</b>. If you want to see more detailed logs, you can change it to <b>Info</b>.
         </p>
         <label for="logger.level" class="mt-2 mb-1 fw-bold">Log level</label>
         <div class="col-3 col-md-2">
             <select id="logger.minLevel" 
             name="logger.minLevel" 
             class="form-select">
-                <option value="1" <%= locals.settingsLogger['minLevel'] == 1 ? 'selected' : '' %>>1</option>
-                <option value="2" <%= locals.settingsLogger['minLevel'] == 2 ? 'selected' : '' %>>2</option>
-                <option value="3" <%= locals.settingsLogger['minLevel'] == 3 ? 'selected' : '' %>>3</option>
-                <option value="4" <%= locals.settingsLogger['minLevel'] == 4 ? 'selected' : '' %>>4</option>
-                <option value="5" <%= locals.settingsLogger['minLevel'] == 5 ? 'selected' : '' %>>5</option>
+                <option value="2" <%= locals.settingsLogger['minLevel'] == 2 ? 'selected' : '' %>>Debug</option>
+                <option value="3" <%= locals.settingsLogger['minLevel'] == 3 ? 'selected' : '' %>>Info</option>
+                <option value="4" <%= locals.settingsLogger['minLevel'] == 4 ? 'selected' : '' %>>Warning</option>
+                <option value="5" <%= locals.settingsLogger['minLevel'] == 5 ? 'selected' : '' %>>Error</option>
             </select>
         </div>
         <div class="alert alert-warning mt-3" role="alert">
@@ -32,7 +31,7 @@
                 >
             </div>
         </div>
-        <p>If enabled, the server will send a direct message including logs with a severity greater than 4 (warning).</p>
+        <p>If enabled, the server will send a direct message including logs with a severity greater than 4 (warning or error).</p>
         <label for="logger.sendPubkey" class="mt-2 mb-1 fw-bold">Pubkey</label>
         <p> Specify the public key of the user to send the logs to. If you leave it empty, the logs will be sent to the server pubkey by default.</p>
         </p>
@@ -43,13 +42,6 @@
         name="logger.sendPubkey" 
         value="<%= locals.settingsLogger['sendPubkey'] %>"
         >
-        <div>
-            <label for="log" class="mt-2 mb-1 fw-bold">Log history</label>
-            <p> Only the last 1000 records with severity greater than 4 (warning) will be displayed here. 
-                If you need to see more details, you can check the server's generated log files.
-            </p>
-            <textarea class="form-control" id="log" name="log" rows="10" disabled></textarea>
-        </div>
         <div class="col-12 col-md-3 mb-5 mt-4 pb-5 pb-lg-0 mb-lg-2">
             <button class="btn btn-lg mb-4 btn-primary w-100" name="Submit" type="button" onclick="saveSettings()">Save</button>
         </div>

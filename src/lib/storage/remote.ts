@@ -33,10 +33,10 @@ const saveRemoteFile = async (filePath: string, filedata:fileData): Promise<bool
   try {
     await s3Client.send(new PutObjectCommand(params));
     const fileUrl = `${app.get("config.storage")["remote"]["endpoint"]}/${params.Bucket}/${params.Key}`;
-    logger.info(`Successfully uploaded file to ${fileUrl}`);
+    logger.info(`saveRemoteFile - Successfully uploaded file to ${fileUrl}`);
     return true;
   } catch (error) {
-      logger.error(`Error uploading file: ${error}`);
+    logger.error(`saveRemoteFile - Error uploading file: ${filedata.filename} to remote server: ${app.get("config.storage")["remote"]["endpoint"]}/${bucketName} with error: ${error}`);
   }
 
   return false;
@@ -54,7 +54,7 @@ const getRemoteFile = async (filename: string): Promise<string> => {
   try {
     await s3Client.send(new HeadObjectCommand(params));
   } catch (error) {
-    logger.error(`File does not exist: ${error}`);
+    logger.error(`getRemoteFile - File does not exist: ${error}`);
     return "";
   }
 
@@ -62,7 +62,7 @@ const getRemoteFile = async (filename: string): Promise<string> => {
     const url = await getSignedUrl(s3Client, new GetObjectCommand(params), { expiresIn: 60 });
     return url;
   } catch (error) {
-    logger.error(`Error generating signed URL: ${error}`);
+    logger.error(`getRemoteFile - Error generating signed URL: ${error}`);
   }
 
   return "";
@@ -79,10 +79,10 @@ const deleteRemoteFile = async (filename: string): Promise<boolean> => {
     
       try {
         await s3Client.send(new DeleteObjectCommand(params));
-        logger.debug(`Successfully deleted file from remote storage server: ${filename}`);
+        logger.debug(`deleteRemoteFile - Successfully deleted file from remote storage server: ${filename}`);
         return true;
       } catch (error) {
-        logger.error(`Error deleting file from remote server: ${error}`);
+        logger.error(`deleteRemoteFile - Error deleting file from remote server: ${error}`);
       }
     
       return false;

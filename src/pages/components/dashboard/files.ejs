@@ -17,15 +17,14 @@ let filesFields = [
   ['date',          '200', ''               , 'disabled  show text-center              '],
   ['comments',      ''   , ''               , 'enabled   hide                          '],
 ];
-
-if (locals.activeModules.includes("payments")) {
+if(locals.activeModules.some(mod => mod.name === 'payments'))  {
     filesFields.splice(3, 0, ['paid', '30', 'formatCheckbox', 'disabled show text-center'],);
     filesFields.splice(4, 0, ['satoshi','30', 'formatSatoshi', 'disabled show text-end'],);
     filesFields.splice(5, 0, ['transactionid','', '', 'disabled hide']);
 }
 
 %>
-<% if(locals.activeModules.includes('media')) { %> 
+<% if(locals.activeModules.some(mod => mod.name === 'media')) { %> 
   <%- include('../table', {
     tableName:"Hosted files", 
     tableId:"filesData", 
@@ -39,7 +38,7 @@ if (locals.activeModules.includes("payments")) {
             ['edit','show'],
             ['password','hide'],
             ['remove','show'],
-            ['pay', activeModules.includes("payments") ? 'show' : 'hide'],
+            ['pay', activeModules.some(mod => mod.name === 'payments') ? 'show' : 'hide'],
             ['balance','hide'],
             ['moderate','show'],
             ['ban','show']

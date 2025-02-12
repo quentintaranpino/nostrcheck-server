@@ -30,26 +30,28 @@ const parseAuthHeader = async (req: Request, endpoint: string = "", checkAdminPr
 
 	// Apikey. Will be deprecated on 0.7.0
 	if (req.query.apikey || req.body?.apikey?.length > 0) {
-		logger.debug("Apikey found on request", req.query.apikey || req.body.apikey, "|", getClientIp(req))
+		logger.debug(`parseAuthHeader - Apikey found on request: ${req.query.apikey || req.body.apikey}`, "|", getClientIp(req));
 		return await isApikeyValid(req, endpoint, checkAdminPrivileges);
 	}
 
 	// Authkey. Cookie bearer token
 	if (req.cookies && req.cookies.authkey) {
-        logger.debug("authkey found in cookie: ", req.cookies.authkey, "|", getClientIp(req));
+		logger.debug(`parseAuthHeader - authkey found in cookie: ${req.cookies.authkey}`, "|", getClientIp(req));
         return await isAuthkeyValid(req.cookies.authkey, checkAdminPrivileges); 
     }
 
 	//Check if request has authorization header.
 	if (req.headers.authorization === undefined) {
-		if(endpoint != 'getMediaByURL' && endpoint != 'list' && endpoint != 'getMediaStatusbyID') logger.warn(`Authorization header not found- Enpoint: ${endpoint} | URL: ${req.url} | ${getClientIp(req)}`);
+		if(endpoint != 'getMediaByURL' && endpoint != 'list' && endpoint != 'getMediaStatusbyID'){
+			logger.warn(`parseAuthHeader - Authorization header not found, endpoint: ${endpoint}, URL: ${req.url}`, "|", getClientIp(req));
+		} 
 		return {status: "error", message: "Authorization header not found", pubkey:"", authkey:"", kind: 0};
 	}
 
 	// NIP98 or BUD01. Nostr / Blossom token
 	if (req.headers.authorization.startsWith('Nostr ')) {
 		let authevent: Event;
-		logger.debug("NIP98 / BUD01 found on request", req.headers.authorization, "|", getClientIp(req));
+		logger.debug(`parseAuthHeader - NIP98 / BUD01 found on request: ${req.headers.authorization}`, "|", getClientIp(req));
 		try {
 			authevent = JSON.parse(
 				Buffer.from(
@@ -68,14 +70,14 @@ const parseAuthHeader = async (req: Request, endpoint: string = "", checkAdminPr
 			}
 
 		} catch (error) {
-			logger.warn(`RES -> 400 Bad request - ${error}`, "|", getClientIp(req));
+			logger.warn(`parseAuthHeader - 400 Bad request - ${error}`, "|", getClientIp(req));
 			return {status: "error", message: "Malformed authorization header", pubkey:"", authkey : "", kind: 0};
 		}
 		
 	}
 	
 	// If none of the above, return error
-	logger.warn("RES -> 400 Bad request - Authorization header not found", "|", getClientIp(req));
+	logger.warn(`parseAuthHeader - Authorization header not found`, "|", getClientIp(req));
 	return {status: "error", message: "Authorization header not found", pubkey:"", authkey:"", kind: 0};
 
 };
@@ -92,19 +94,19 @@ const isPubkeyValid = async (pubkey: string, checkAdminPrivileges = false, check
 	if (pubkey === undefined || pubkey === "") {return false;}
 
 	if (await isPubkeyRegistered(pubkey) == false) {
-		logger.debug("Pubkey not registered", pubkey);
+		logger.debug(`isPubkeyValid - Pubkey not registered: ${pubkey}`);
 		return checkRegistered? false : true
 	}
 	if (await isPubkeyBanned(pubkey) == true) {
-		logger.debug("Pubkey is banned", pubkey);
+		logger.debug(`isPubkeyValid - Pubkey is banned: ${pubkey}`);
 		return false;
 	}
 	if (checkActive && await isPubkeyActive(pubkey) == false) {
-		logger.debug("Pubkey is not active", pubkey);
+		logger.debug(`isPubkeyValid - Pubkey is not active: ${pubkey}`);
 		return false;
 	}
 	if (checkAdminPrivileges && await isPubkeyAllowed(pubkey) == false) {
-		logger.debug("Pubkey is not allowed", pubkey);
+		logger.debug(`isPubkeyValid - Pubkey is not allowed: ${pubkey}`);
 		return false;}
 
 	return true;
@@ -117,7 +119,6 @@ const isPubkeyValid = async (pubkey: string, checkAdminPrivileges = false, check
  * @returns {Promise<boolean>} A promise that resolves to a boolean indicating whether the public key is registered. Returns false if an error occurs.
  */
 const isPubkeyRegistered = async (pubkey: string): Promise<boolean> => {
-	
 	if (!pubkey) {return false}
 	const pubkeyData = await dbMultiSelect(["id"], "registered", "hex = ?", [pubkey], true);
 	if (pubkeyData.length == 0) {return false;}
@@ -130,7 +131,6 @@ const isPubkeyRegistered = async (pubkey: string): Promise<boolean> => {
  * @returns {Promise<boolean>} A promise that resolves to a boolean indicating whether the public key is active. Returns false if an error occurs.
  */
 const isPubkeyActive = async (pubkey: string): Promise<boolean> => {
-	
 	if (!pubkey) {return false}
 	const pubkeyData = await dbMultiSelect(["active"], "registered", "hex = ?", [pubkey], true);
 	if (pubkeyData.length == 0) {return false;}
@@ -144,7 +144,6 @@ const isPubkeyActive = async (pubkey: string): Promise<boolean> => {
  * @returns {Promise<boolean>} A promise that resolves to a boolean indicating whether the public key is allowed. Returns false if an error occurs.
  */
 const isPubkeyAllowed = async (pubkey: string): Promise<boolean> => {
-
 	if (!pubkey) {return false}
 	const pubkeyData = await dbMultiSelect(["allowed"], "registered", "hex = ?", [pubkey], true);
 	if (pubkeyData.length == 0) {return false;}
@@ -158,7 +157,6 @@ const isPubkeyAllowed = async (pubkey: string): Promise<boolean> => {
  * @returns {Promise<boolean>} A promise that resolves to a boolean indicating whether the public key is banned. Returns true if an error occurs.
  */
 const isPubkeyBanned = async (pubkey: string): Promise<boolean> => {
-
 	if (!pubkey) {return false}
 	const pubkeyData = await dbMultiSelect(["id"], "registered", "hex = ?", [pubkey], true);
 	if (pubkeyData.length == 0) {return false;}
@@ -198,7 +196,7 @@ const isUserPasswordValid = async (username:string, password:string, checkAdminP
  */
 const isAuthkeyValid = async (authString: string, checkAdminPrivileges: boolean = true, checkActive: boolean = true): Promise<authHeaderResult> => {
     if (!authString) {
-        logger.warn("Unauthorized request, no authorization header");
+		logger.warn(`isAuthkeyValid - Unauthorized request, no authorization header`);
         return { status: "error", message: "Unauthorized", authkey: "", pubkey: "", kind: 0 };
     }
 
@@ -212,13 +210,13 @@ const isAuthkeyValid = async (authString: string, checkAdminPrivileges: boolean 
 			const redisData = await redisGetJSON<{ isActive: boolean }> (`activeStatus:${decoded.identifier}`);
 			const isActive = redisData?.isActive ?? true;
             if (!isActive) {
-                logger.warn(`Unauthorized request, user not active. Authkey: ${authString}`);
+				logger.warn(`isAuthkeyValid - Unauthorized request, user not active. Authkey: ${authString}`);
                 return { status: "error", message: "User not active", authkey: "", pubkey: "", kind: 0 };
             }
         }
 
         if (checkAdminPrivileges && !decoded.allowed) {
-            logger.warn(`Unauthorized request, insufficient privileges. Authkey: ${authString}`);
+			logger.warn(`isAuthkeyValid - Unauthorized request, insufficient privileges. Authkey: ${authString}`);
             return { status: "error", message: "Unauthorized", authkey: "", pubkey: "", kind: 0 };
         }
 
@@ -232,10 +230,10 @@ const isAuthkeyValid = async (authString: string, checkAdminPrivileges: boolean 
 
     } catch (error) {
 		if (error instanceof Error && error.name === 'TokenExpiredError') {
-            logger.warn("Unauthorized request, token expired");
+			logger.warn(`isAuthkeyValid - Unauthorized request, token expired. Authkey: ${authString}`);
             return { status: "error", message: "Token expired", authkey: "", pubkey: "", kind: 0 };
         } else {
-            logger.warn("Unauthorized request, invalid token");
+			logger.warn(`isAuthkeyValid - Unauthorized request, invalid token. Authkey: ${authString}`);
             return { status: "error", message: "Invalid token", authkey: "", pubkey: "", kind: 0 };
         }
     }
@@ -271,7 +269,7 @@ const generatePassword = async (pubkey :string, returnHashed: boolean = false, s
 		const hashedCredential = await hashString(credential, 'password');
 		const update = await dbUpdate("registered", {"password" : hashedCredential}, ["hex"], [pubkey]);
 		if (update){
-			logger.debug("New credential generated and saved to database");
+			logger.debug(`generatePassword - New password generated and saved to database`);
 			if (pubkey != "" && sendDM){
 				const DM = await sendMessage(`Your new password: ${credential}`, pubkey);
 				if (!DM) return "";			}
@@ -280,7 +278,7 @@ const generatePassword = async (pubkey :string, returnHashed: boolean = false, s
 		}
 		return "";
     } catch (error) {
-        logger.error(error);
+		logger.error(`generatePassword - Internal server error: ${error}`);
         return "";
     }
 }
@@ -294,9 +292,7 @@ const generatePassword = async (pubkey :string, returnHashed: boolean = false, s
 const generateOTC = async (pubkey: string) : Promise<boolean> => {
 
 	if (pubkey === undefined || pubkey === "") {return false;}
-
 	if (pubkey.startsWith("npub")) pubkey = await npubToHex(pubkey);
-
 	if (pubkey.length != 64) {return false;}
 
     const otc = Math.floor(100000 + Math.random() * 900000).toString()
@@ -339,7 +335,7 @@ const isApikeyValid = async (req: Request, endpoint: string = "", checkAdminPriv
 
 	const apikey = req.query.apikey || req.body.apikey;
 	if (!apikey) {
-		logger.warn("RES -> 400 Bad request - Apikey not found", "|", getClientIp(req));
+		logger.warn(`isApikeyValid - Apikey not found`, "|", getClientIp(req));
 		return {status: "error", message: "Apikey not found", pubkey:"", authkey:"", kind: 0};
 	}
 
@@ -355,15 +351,15 @@ const isApikeyValid = async (req: Request, endpoint: string = "", checkAdminPriv
 
 	if (hexApikey === "" || hexApikey === undefined) {
 		if (serverApikey){
-			logger.warn("RES -> 401 unauthorized - Apikey not authorized for this action", "|", getClientIp(req));
+			logger.warn(`isApikeyValid - Apikey not authorized for this action`, "|", getClientIp(req));
 			return {status: "error", message: "Apikey not authorized for this action", pubkey:"", authkey:"", kind: 0};
 		}
-		logger.warn("RES -> 401 unauthorized - Apikey not found", "|", getClientIp(req));
+		logger.warn(`isApikeyValid - Apikey not found`, "|", getClientIp(req));
 		return {status: "error", message: "Apikey not authorized for this action", pubkey:"", authkey:"", kind: 0};
 	}
 
 	if (await isPubkeyValid(hexApikey, checkAdminPrivileges) == false){
-		logger.warn("RES -> 401 unauthorized - Apikey not authorized for this action", "|", getClientIp(req));
+		logger.warn("isApikeyValid - Apikey not authorized for this action", "|", getClientIp(req));
 		return {status: "error", message: "Apikey not authorized for this action", pubkey:"", authkey:"", kind: 0};
 	}
 
@@ -398,4 +394,5 @@ export { 	isPubkeyValid,
 			generateOTC,
 			verifyOTC, 
 			parseAuthHeader,
-			generateAuthToken };
+			generateAuthToken 
+};

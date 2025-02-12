@@ -43,7 +43,7 @@ const generateLNBitsInvoice = async (amount: number, memo: string) : Promise<inv
         }
 
     }catch(e){
-        logger.error("Error generating LNBits invoice");
+        logger.error(`generateLNBitsInvoice - Error generating LNBits invoice with error ${e}`);
         return emptyInvoice;
     }
 
@@ -69,7 +69,7 @@ const isInvoicePaidLNbits = async (paymentHash: string) : Promise<{paiddate : st
         return {paiddate: "", preimage: ""};
         
     }catch(e){
-        logger.error("Error checking LNbits invoice status");
+        logger.error(`isInvoicePaidLNbits - Error checking LNbits invoice status with error ${e}`);
         return {paiddate: "", preimage: ""};
     }
 }

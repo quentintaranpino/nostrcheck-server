@@ -48,7 +48,7 @@ document.querySelectorAll('a[href^="#"]').forEach(anchor => {
 // Reload page when loaded from cache
 window.addEventListener('pageshow', (event) => {
   if (event.persisted || (performance && performance.navigation.type === 2)) {
-      console.log('Page loaded from cache, reloading...');
+      console.debug('Page loaded from cache, reloading...');
       window.location.reload();
   }
 });

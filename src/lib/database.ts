@@ -238,18 +238,16 @@ const dbUpdate = async (
   ): Promise<boolean> => {
   
 	if (whereFieldName.length !== whereFieldValue.length) {
-	  logger.error('whereFieldName and whereFieldValue must have the same length');
-	  return false;
+		logger.error(`dbUpdate - whereFieldName and whereFieldValue must have the same length`);
+		return false;
 	}
   
 	const pool = await connect("dbUpdate: " + JSON.stringify(fields) + " | Table: " + tableName);
   
 	try {
-	  // Construir la cláusula SET a partir del objeto fields
 	  const fieldKeys = Object.keys(fields);
 	  const setClause = fieldKeys.map(key => `${key} = ?`).join(', ');
   
-	  // Construir la cláusula WHERE
 	  const whereClause = whereFieldName.map((field, index) => {
 		if (whereFieldValue[index] === "IS NOT NULL" || whereFieldValue[index] === "IS NULL") {
 		  return `${field} ${whereFieldValue[index]}`;
@@ -258,7 +256,6 @@ const dbUpdate = async (
 		}
 	  }).join(' AND ');
   
-	  // Concatenar los parámetros: primero los valores de fields y luego los de WHERE
 	  const params = fieldKeys.map(key => fields[key]).concat(whereFieldValue);
   
 	  const [result]: any[] = await pool.execute(
@@ -267,19 +264,19 @@ const dbUpdate = async (
 	  );
   
 	  if (!result) {
-		logger.error(`Error updating ${tableName} table | ${whereFieldName.join(', ')} : ${whereFieldValue.join(', ')} | Fields: ${JSON.stringify(fields)}`);
+		logger.error(`dbUpdate - Error updating ${tableName} table | ${whereFieldName.join(', ')} : ${whereFieldValue.join(', ')} | Fields: ${JSON.stringify(fields)}`);
 		return false;
 	  }
   
 	  if (result.affectedRows === 0) {
-		logger.warn(`No rows updated in ${tableName} table | ${whereFieldName.join(', ')} : ${whereFieldValue.join(', ')} | Fields: ${JSON.stringify(fields)}`);
+		logger.warn(`dbUpdate - No rows updated in ${tableName} table | ${whereFieldName.join(', ')} : ${whereFieldValue.join(', ')} | Fields: ${JSON.stringify(fields)}`);
 		return false;
 	  }
   
+	  logger.debug(`dbUpdate - Updated ${result.affectedRows} rows in ${tableName} table | ${whereFieldName.join(', ')} : ${whereFieldValue.join(', ')} | Fields: ${JSON.stringify(fields)}`);
 	  return true;
 	} catch (error) {
-	  logger.error(`Error updating ${tableName} table | ${whereFieldName.join(', ')} : ${whereFieldValue.join(', ')} | Fields: ${JSON.stringify(fields)}`);
-	  logger.error(error);
+	  logger.error(`Error updating ${tableName} table | ${whereFieldName.join(', ')} : ${whereFieldValue.join(', ')} | Fields: ${JSON.stringify(fields)} with error: ${error}`);
 	  return false;
 	}
   };
@@ -294,11 +291,9 @@ const dbUpdate = async (
  */
 const dbInsert = async (tableName: string, fields: string[], values: (string | number | boolean)[]): Promise<number> => {
 
-	logger.debug("Inserting data into", tableName, "table with fields:", fields.join(", "), "and values:", values.join(", "));
-
 	// Check if fields are not empty
 	if (fields.length == 0){
-		logger.error("Error inserting data into " + tableName + " table, fields are empty");
+		logger.error(`dbInsert - Error inserting data into ${tableName} table, fields are empty`);
 		return 0;
 	}
 
@@ -309,12 +304,11 @@ const dbInsert = async (tableName: string, fields: string[], values: (string | n
 			values
 		);
 		if (!dbFileInsert) {
-			logger.error("Error inserting data into " + tableName + " table");
-			logger.debug("Fields:", fields.join(", "), "Values:", values.join(", "));
+			logger.error(`dbInsert - Error inserting data into ${tableName} table | Fields: ${fields.join(", ")} | Values: ${values.join(", ")}`);
 			return 0;
 		}
 
-		logger.debug("record inserted into", tableName, "table with id:", JSON.parse(JSON.stringify(dbFileInsert)).insertId )
+		logger.debug(`dbInsert - Inserted record into ${tableName}`,"with id:", JSON.parse(JSON.stringify(dbFileInsert)).insertId )
 		return JSON.parse(JSON.stringify(dbFileInsert)).insertId;
 	} catch (error) {
 		logger.error("Error inserting data into " + tableName + " table");
@@ -341,11 +335,11 @@ const dbSelect = async (queryStatement: string, returnField :string, whereFields
             return rows[0]?.[returnField] as string || "";
         }
         const result = rows.map(row => row[returnField] as string);
+		logger.debug(`dbSelect - Retrieved ${returnField} from database`);
         return result;
         
     } catch (error) {
-        logger.debug(error)
-        logger.error("Error getting " + returnField + " from database");
+		logger.error(`dbSelect - Error getting ${returnField} from database with error: ${error}`);
         return "";
     }
 }
@@ -363,7 +357,7 @@ const dbSelect = async (queryStatement: string, returnField :string, whereFields
 const dbMultiSelect = async (queryFields: string[], fromStatement: string, whereStatement: string, whereFields: any[], onlyFirstResult = true, limitClause = ""): Promise<any[]> => {
 
     if (queryFields.length === 0){
-        logger.error("Error getting data from database, queryFields are empty");
+		logger.error(`dbMultiSelect - Error getting data from database, queryFields are empty`);
         return [];
     }
 
@@ -375,13 +369,13 @@ const dbMultiSelect = async (queryFields: string[], fromStatement: string, where
                 return [rows[0]];
             }
         } else {
+			logger.debug(`dbMultiSelect - Retrieved ${queryFields.join(',')} from database`);
             return rows;
         }
         return [];
 
     } catch (error) {
-        logger.debug(error);
-        logger.error("Error getting " + queryFields.join(',') + " from database");
+		logger.error(`dbMultiSelect - Error getting ${queryFields.join(',')} from database with error: ${error}`);
         return [];
     }
 }
@@ -397,16 +391,16 @@ const dbSimpleSelect = async (table:string, query:string): Promise<string> =>{
 	const pool = await connect("dbSimpleSelect " + table);
 
 	try{
-		logger.debug("Executing query:", query, "on table:", table);
 		const [dbResult] = await pool.execute(query);
 		const rowstemp = JSON.parse(JSON.stringify(dbResult));
 		if (rowstemp[0] == undefined || rowstemp[0] == "") {
 			return "";
 		}else{
+			logger.debug(`dbSimpleSelect - Retrieved data from ${table}`);
 			return rowstemp;
 		}
 	} catch (error) {
-		logger.error(`Error getting data from ${table}`);
+		logger.error(`dbSimpleSelect - Error getting data from ${table} with error: ${error}`);
 		return "";
 	} 
 }
@@ -423,7 +417,7 @@ const dbDelete = async (tableName :string, whereFieldNames :string[], whereField
 	
 	// Check if wherefieldValue is not empty
 	if (whereFieldValues.length == 0){
-		logger.error("Error deleting data from " + tableName + " table, whereFieldValue is empty");
+		logger.error(`dbDelete - Error deleting data from ${tableName} table, whereFieldValue is empty`);
 		return false;
 	}
 
@@ -435,12 +429,12 @@ const dbDelete = async (tableName :string, whereFieldNames :string[], whereField
 			[...whereFieldValues]
 		);
 		if (!dbFileDelete) {
-			logger.error("Error deleting data from " + tableName + " table");
+			logger.error(`dbDelete - Error deleting data from ${tableName} table | Fields: ${whereFieldNames.join(", ")} | Values: ${whereFieldValues.join(", ")}`);
 			return false;
 		}
 		return true;
 	} catch (error) {
-		logger.error("Error deleting data from " + tableName + " table");
+		logger.error(`dbDelete - Error deleting data from ${tableName} table with error: ${error}`);
 		return false;
 	}
 }
@@ -453,8 +447,6 @@ const dbDelete = async (tableName :string, whereFieldNames :string[], whereField
  * @async
  */
 async function dbUpsert(tableName: string, data: Record<string, string | number | boolean | null>): Promise<number> {
-
-	logger.debug("Upsert into table:", tableName, "data:", data);
 
 	const columns = Object.keys(data);
 	if (columns.length === 0) {
@@ -477,12 +469,12 @@ async function dbUpsert(tableName: string, data: Record<string, string | number 
 		const [result] = await pool.execute(sql, values);
 
 		const resObj = JSON.parse(JSON.stringify(result));
-		logger.debug("Upsert result =>", resObj);
+		logger.debug(`dbUpsert - Upserted record into ${tableName} with id:`, resObj.insertId);
 
 		return resObj.insertId || 0;
 
 	} catch (error) {
-		logger.error("Error in dbUpsert for table:", tableName, error);
+		logger.error(`dbUpsert - Error upserting record into ${tableName} with error:`, error);
 		return 0;
 	} 
 }
@@ -496,24 +488,23 @@ async function dbUpsert(tableName: string, data: Record<string, string | number 
  */
 const dbBulkInsert = async (table: string, columns: string[], valuesArray: any[][]): Promise<number> => {
 
-	logger.debug("Bulk insert into table:", table, "columns:", columns, "values:", valuesArray);
-
 	if (valuesArray.length === 0) return 0;
 	const pool = await connect("bulkInsert:" + table);
   
 	const placeholders = valuesArray
-	  .map(() => "(" + Array(columns.length).fill("?").join(", ") + ")")
-	  .join(", ");
+		.map(() => "(" + Array(columns.length).fill("?").join(", ") + ")")
+		.join(", ");
   
 	const sql = `INSERT IGNORE INTO ${table} (${columns.join(", ")}) VALUES ${placeholders}`;
 	const values = valuesArray.flat();
   
 	try {
-	  const [result]: any = await pool.execute(sql, values);
-	  return result.affectedRows;
+		const [result]: any = await pool.execute(sql, values);
+		logger.debug(`bulkInsert - Inserted ${result.affectedRows} records into ${table}`);
+		return result.affectedRows;
 	} catch (error) {
-	  logger.error("Error in bulkInsert for table:", table, error);
-	  return 0;
+		logger.error(`dbBulkInsert - Error inserting records into ${table} with error: ${error}`);
+		return 0;
 	}
   }
 
@@ -571,40 +562,40 @@ const initDatabase = async (): Promise<void> => {
 	//Check database integrity
 	const dbtables = await populateTables(app.get("config.database")["droptables"]); // true = reset tables
 	if (!dbtables) {
-	logger.fatal("Error checking database integrity");
-	process.exit(1);
+		logger.fatal(`initDatabase - Error checking database integrity. Exiting.`);
+		process.exit(1);
 	}
 
 	// Check if default domain exist on domains table and create it if not.
 	const defaultDomain = await dbSelect("SELECT domain FROM domains WHERE domain = ?", "domain", [app.get("config.server")["host"]]) as string;
 	if (defaultDomain == ""){
-		logger.warn("Default domain not found, creating it");
+		logger.warn(`intiDatabase - Default domain not found, creating it (${app.get("config.server")["host"]})`);
 		const fields: string[] = ["domain", "active", "comments"];
 		const values: string[] = [app.get("config.server")["host"], "1", "Default domain generated by server on first run"];
 		const insert = await dbInsert("domains", fields, values);
 		if (insert === 0){
-			logger.fatal("Error creating default domain");
+			logger.fatal(`initDatabase - Error creating default domain (${app.get("config.server")["host"]}). Exiting.`);
 			process.exit(1);
 		}
-		logger.info("Default domain created");
+		logger.info(`initDatabase - Default domain created (${app.get("config.server")["host"]})`);
 	}
 
 	// Check if public username exist on registered table and, if not, create it. Also it sends a DM to the pubkey with the credentials
 	const publicUsername = await dbSelect("SELECT username FROM registered WHERE username = ?", "username", ["public"]) as string;
 
 	if (publicUsername == "" || publicUsername == undefined || publicUsername == null){
-		logger.warn("Public username not found, creating it...");
+		logger.warn(`initDatabase - Public username not found, creating it (${app.get("config.server")["pubkey"]})`);
 
 		const createPublicUser = await addNewUsername("public", app.get("config.server")["pubkey"], "", app.get("config.server")["host"], "public username generated by server on first run", true);
 
 		if (createPublicUser == 0){
-			logger.fatal("Error creating public username");
+			logger.fatal(`initDatabase - Error creating public username (${app.get("config.server")["pubkey"]}). Exiting.`);
 			process.exit(1);
 		}
 
 		const allowed = await dbUpdate("registered",{"allowed" : "1" }, ["username"], ["public"]);
-		if (!allowed){
-			logger.fatal("Error creating public username");
+		if (!allowed) {
+			logger.fatal(`initDatabase - Error updating (allowed -> 1) public username (${app.get("config.server")["pubkey"]}). Exiting.`);
 			process.exit(1);
 		}
 	}
@@ -618,37 +609,37 @@ const initDatabase = async (): Promise<void> => {
 	// Check if public lightning address exist on lightning table and create it if not.
 	const publicLightning = await dbSelect("SELECT lightningaddress FROM lightning", "lightningaddress", []) as string;
 	if (publicLightning == ""){
-		logger.warn("Public lightning address not found, creating it");
+		logger.warn(`initDatabase - Public lightning address not found, creating it (${app.get("config.server")["pubkey"]})`);
 		const fields: string[] = ["pubkey", "lightningaddress", "comments"];
 		const values: string[] = [app.get("config.server")["pubkey"], "YourRealLightningAddress", "Public lightning redirect generated by server on first run, edit this to recieve SATS on your wallet"];
 		const insert = await dbInsert("lightning", fields, values);
 		if (insert === 0){
-			logger.fatal("Error creating public lightning address");
+			logger.fatal(`initDatabase - Error creating public lightning address (${app.get("config.server")["pubkey"]}). Exiting.`);
 			process.exit(1);
 		}
-		logger.info("Public lightning address created");
+		logger.info(`initDatabase - Public lightning address created (${app.get("config.server")["pubkey"]})`);
 	}
 
 	// Check if standard accounts exist on accounts table and create it if not.
 	const checkAccounts = await dbSelect("SELECT accountid FROM accounts ", "accountid", [], false) as string[]
 	for (const account of accounts) {
 		if (!checkAccounts.toString().includes(account.accountid.toString())) {
-			logger.warn("Standard account not found, creating it:", account.accountname);
+			logger.warn(`initDatabase - Standard account not found, creating it: ${account.accountname}`);
 			const fields: string[] = ["accountid", "active", "accountname", "accounttype", "createddate", "comments"];
 			const values: any[] = [account.accountid, "1", account.accountname, account.accounttype, getNewDate(), account.comments];
 			const insert = await dbInsert("accounts", fields, values);
 			if (insert === 0){
-				logger.fatal("Error creating standard account");
+				logger.fatal(`initDatabase - Error creating standard account: ${account.accountname}`);
 				process.exit(1);
 			}
-			logger.info("Standard account created");
+			logger.info(`initDatabase - Standard account created: ${account.accountname}`);
 		}
 	}
 
 	// Fix old mimetype
 	const fixMimetype =await fixOldMimeType();
 	if (!fixMimetype){
-		logger.fatal("Error fixing old mimetype");
+		logger.fatal(`initDatabase - Error fixing old mimetype for mediafiles table. Exiting.`);
 		process.exit(1);
 	}
 	
@@ -662,13 +653,13 @@ const migrateOldFields = async (table:string, oldField:string, newField:string):
 			"UPDATE " + table + " set " + newField + " = " + oldField + " where " + oldField + " is not null"
 		);
 		if (!dbFileStatusUpdate) {
-			logger.error("Error migrating old fields");
+			logger.error(`migrationOldFields - Error migrating data from old fields, table: ${table} | Old field: ${oldField} -> New field : ${newField}`);
 			return false;
 		}
-		logger.warn("Migrated all data from old fields, table:", table, "| Old field:", oldField, "-> New field :", newField);
+		logger.warn(`migrationOldFields - Migrated all data from old fields, table: ${table} | Old field: ${oldField} -> New field : ${newField}`);
 		return true;
 	}catch (error) {
-		logger.error("Error migrating old fields");
+		logger.error(`migrationOldFields - Error migrating data from old fields, table: ${table} | Old field: ${oldField} -> New field : ${newField} with error: ${error}`);
 		return false;
 	}
 }
@@ -682,14 +673,14 @@ const deleteOldFields = async (table:string, oldField:string): Promise<boolean> 
 			"ALTER TABLE " + table + " DROP " + oldField
 		);
 		if (!dbFileStatusUpdate) {
-			logger.error("Error deleting old fields");
+			logger.error(`deleteOldFields - Error deleting old fields, table: ${table} | Old field: ${oldField}`);
 			return false;
 		}
-		logger.warn("Deleted old fields, table:", table, "| Old field:", oldField);
+		logger.warn(`deleteOldFields - Deleted old fields, table: ${table} | Old field: ${oldField}`);
 		return true;
 
 	} catch (error) {
-		logger.error("Error deleting old fields");
+		logger.error(`deleteOldFields - Error deleting old fields, table: ${table} | Old field: ${oldField} with error: ${error}`);
 		return false;
 	}
 }
@@ -721,29 +712,29 @@ const fixOldMimeType = async (): Promise<boolean> => {
 			`
 		);
 		if (!dbFileStatusUpdate) {
-			logger.error("Error fixing old mimetypes from mediafiles table");
+			logger.error(`fixOldMimeType - Error fixing old mimetypes from mediafiles table`);
 			return false;
 		}
 		const result = dbFileStatusUpdate as any as { affectedRows: number };
-		if (result.affectedRows > 0) logger.warn("Fixed old mimetypes from mediafiles table");
+		if (result.affectedRows > 0) logger.info(`fixOldMimeType - Fixed old mimetypes from mediafiles table`);
 		return true;
 	}catch (error) {
-		logger.error("Error fixing old mimetype");
+		logger.error(`fixOldMimeType - Error fixing old mimetypes from mediafiles table with error: ${error}`);
 		return false;
 	}
 }
 
 export {
-		connect, 
-		populateTables,
-		dbSelect,
-		dbUpdate,
-		dbDelete,
-		dbMultiSelect,
-		dbSimpleSelect,
-		dbInsert,
-		showDBStats,
-		initDatabase,
-		dbUpsert,
-		dbBulkInsert
-		};
+	connect, 
+	populateTables,
+	dbSelect,
+	dbUpdate,
+	dbDelete,
+	dbMultiSelect,
+	dbSimpleSelect,
+	dbInsert,
+	showDBStats,
+	initDatabase,
+	dbUpsert,
+	dbBulkInsert
+};

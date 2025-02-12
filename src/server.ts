@@ -46,7 +46,7 @@ const startServer = async () => {
 
     // Show server active modules
     const { loadconfigActiveModules } = await import("./lib/config.js");
-    console.log("Active modules: ", loadconfigActiveModules(app).map((module) => module[0]).join(", "));
+    console.log("Active modules: ", loadconfigActiveModules(app).map(module => module.name).join(", "));
 
 }
 

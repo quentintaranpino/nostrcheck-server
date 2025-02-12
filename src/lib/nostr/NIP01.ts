@@ -46,7 +46,7 @@ const getPubkeyMedatada = async (pubkey: string): Promise<nostrProfileData> => {
 				},
 			);
 		}catch (error) {
-			logger.error(error)
+			logger.error(`getPubkeyMedatada - Error retrieving pubkey metadata: ${error}`)
 			resolve(emptyNostrProfileData)
 		}
 	});
@@ -86,7 +86,7 @@ const getPubkeyFollowing = (pubkey : string) : Promise<string[]> => {
 				},
 			);
 		}catch (error) {
-			logger.error(error)
+			logger.error(`getPubkeyFollowing - Error retrieving pubkey following: ${error}`)
 			resolve([])
 		}
 	});
@@ -124,7 +124,7 @@ const getPubkeyFollowers = (pubkey : string) : Promise<string[]> => {
 				},
 			);
 		}catch (error) {
-			logger.error(error)
+			logger.error(`getPubkeyFollowers - Error retrieving pubkey followers: ${error}`)
 			resolve([])
 		}
 	});

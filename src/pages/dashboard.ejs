@@ -13,44 +13,49 @@
       <div class= "container-fluid mt-5">
         <%- include('./components/dashboard/dashcards'); %>
         <ul class="nav nav-tabs mt-3 lead " id="dashboardTabs" role="tablist">
-          <% if(locals.activeModules.includes('nostraddress')) { %>
+          <% if(locals.activeModules.some(mod => mod.name === 'nostraddress')) { %>
             <li class="nav-item" role="presentation">
               <button class="nav-link active" id="users-tab" data-bs-toggle="tab" data-bs-target="#users" type="button" role="tab"><i class="fa fa-user me-2"></i>Registered users</button>
             </li>
           <% } %>
-          <% if(locals.activeModules.includes('nostraddress')) { %>
+          <% if(locals.activeModules.some(mod => mod.name === 'nostraddress')) { %>
             <li class="nav-item" role="presentation">
               <button class="nav-link" id="invites-tab" data-bs-toggle="tab" data-bs-target="#invites" type="button" role="tab"><i class="fa fa-envelope-open-text me-2"></i>Invites</button>
             </li>
           <% } %>
-          <% if(locals.activeModules.includes('media')) { %>
+          <% if(locals.activeModules.some(mod => mod.name === 'media')) { %>
             <li class="nav-item" role="presentation">
               <button class="nav-link" id="files-tab" data-bs-toggle="tab" data-bs-target="#files" type="button" role="tab"><i class="fa fa-folder-open me-2"></i>Hosted files</button>
             </li>
           <% } %>
-          <% if(locals.activeModules.includes('lightning')) { %>
+          <% if(locals.activeModules.some(mod => mod.name === 'lightning')) { %>
             <li class="nav-item" role="presentation">
               <button class="nav-link" id="lightning-tab" data-bs-toggle="tab" data-bs-target="#lightning" type="button" role="tab"><i class="fa fa-diamond-turn-right me-2"></i></i>Lightning redirects</button>
             </li>
           <% } %>
-          <% if(locals.activeModules.includes('domains')) { %>
+          <% if(locals.activeModules.some(mod => mod.name === 'domains')) { %>
             <li class="nav-item" role="presentation">
               <button class="nav-link" id="domains-tab" data-bs-toggle="tab" data-bs-target="#domains" type="button" role="tab"><i class="fa fa-list  me-2"></i>Domains</button>
             </li>
           <% } %>
-          <% if(locals.activeModules.includes('payments')) { %>
+          <% if(locals.activeModules.some(mod => mod.name === 'payments')) { %>
             <li class="nav-item" role="presentation">
               <button class="nav-link" id="payments-tab" data-bs-toggle="tab" data-bs-target="#payments" type="button" role="tab"><i class="fa fa-bolt-lightning text-warning  me-2"></i>Payments</button>
             </li>
           <% } %>
-          <% if(locals.activeModules.includes('security')) { %> 
+          <% if(locals.activeModules.some(mod => mod.name === 'security')) { %>
             <li class="nav-item" role="presentation">
               <button class="nav-link" id="security-tab" data-bs-toggle="tab" data-bs-target="#security" type="button" role="tab"><i class="fa fa-shield-halved me-2"></i>Security</button>
             </li>
           <% } %>
-          <% if(locals.activeModules.includes('relay')) { %>
+          <% if(locals.activeModules.some(mod => mod.name === 'relay')) { %>
             <li class="nav-item" role="presentation">
               <button class="nav-link" id="relay-tab" data-bs-toggle="tab" data-bs-target="#relay" type="button" role="tab"><i class="fa fa-wifi  me-2"></i> Relay</button>
+            </li>
+          <% } %>
+          <% if(locals.activeModules.some(mod => mod.name === 'logger')) { %>
+            <li class="nav-item" role="presentation">
+              <button class="nav-link" id="logger-tab" data-bs-toggle="tab" data-bs-target="#logger" type="button" role="tab"><i class="fa fa-file me-2"></i>Logs</button>
             </li>
           <% } %>
         </ul>
@@ -79,6 +84,9 @@
         </div>
         <div class="tab-pane fade " id="relay" role="tabpanel" aria-labelledby="relay-tab">
           <%- include('./components/dashboard/relay'); %>
+        </div>
+        <div class="tab-pane fade " id="logger" role="tabpanel" aria-labelledby="logger-tab">
+          <%- include('./components/dashboard/logger'); %>
         </div>
       </div>
      </main>

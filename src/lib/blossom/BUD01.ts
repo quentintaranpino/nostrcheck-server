@@ -17,12 +17,12 @@ const isBUD01AuthValid = async (authevent: Event, req: Request, endpoint: string
 	try {
 		const eventkind: number = +authevent.kind;
 		if (eventkind == null || eventkind == undefined || eventkind != BUDKinds.BUD01_auth) {
-			logger.warn(`RES -> 400 Bad request - Auth header event kind is not ${BUDKinds.BUD01_auth} | ${getClientIp(req)}`);
+			logger.warn(`isBUD01AuthValid - Auth header event kind is not 27235, event: ${authevent.id}, kind: ${eventkind} | ${getClientIp(req)}`);
 			return {status: "error", message: "Auth header event kind is not 27235", authkey: "", pubkey: "", kind: 0};
 		}
 
 	} catch (error) {
-		logger.error(`RES -> 400 Bad request - ${error}`, "|", getClientIp(req));
+		logger.error(`isBUD01AuthValid - Internal server error: ${error}`, "|", getClientIp(req));
 		return {status: "error", message: "Auth header event kind is not 27235", authkey: "", pubkey: "", kind: 0};
 	}
     
@@ -34,25 +34,25 @@ const isBUD01AuthValid = async (authevent: Event, req: Request, endpoint: string
 
         // Check if created_at is in the past
         if ((created_at -30) > now) {
-            logger.warn(`RES -> 400 Bad request - Auth header event created_at is not in the past, header: ${created_at} <> server: ${now} | ${getClientIp(req)}`);
+			logger.warn(`isBUD01AuthValid - Auth header event created_at is not in the past, header: ${created_at} <> server: ${now} | ${getClientIp(req)}`);
             return {status: "error", message: "Auth header event created_at is not in the past", authkey: "", pubkey: "", kind: 0};
         }
 	} catch (error) {
-		logger.error(`RES -> 400 Bad request - ${error}`, "|", getClientIp(req));
+		logger.error(`isBUD01AuthValid - Internal server error: ${error}`, "|", getClientIp(req));
 		return {status: "error", message: "Auth header event created_at is not in the past", authkey: "", pubkey: "", kind: 0};
 	}
 
     // Check if the expiration tag is set
     const expirationTag = authevent.tags.find(tag => tag[0] === "expiration");
     if (!expirationTag) {
-        logger.warn(`RES -> 400 Bad request - Auth header event expiration tag is not set | ${getClientIp(req)}`);
+		logger.warn(`isBUD01AuthValid - Auth header event expiration tag is not set | ${getClientIp(req)}`);
         return {status: "error", message: "Auth header event expiration tag is not set", authkey: "", pubkey: "", kind: 0};
     }
 
     // Check if expiration tag is a unix timestamp
     const expiration = +expirationTag[1];
     if (isNaN(expiration)) {
-        logger.warn(`RES -> 400 Bad request - Auth header event expiration tag is not a unix timestamp | ${getClientIp(req)}`);
+		logger.warn(`isBUD01AuthValid - Auth header event expiration tag is not a unix timestamp | ${getClientIp(req)}`);
         return {status: "error", message: "Auth header event expiration tag is not a unix timestamp", authkey: "", pubkey: "", kind: 0};
     }
 
@@ -64,24 +64,25 @@ const isBUD01AuthValid = async (authevent: Event, req: Request, endpoint: string
 	try {
 
 		if (app.get('config.environment') == "development") {
-			logger.warn("DEVMODE: Setting 't'(endpoint) tag same as the endpoint URL", "|", getClientIp(req));
+			logger.warn(`isBUD01AuthValid - DEVMODE: Setting 't'(endpoint) tag same as the endpoint URL: ${eventEndpoint} <> ${endpoint}`, "|", getClientIp(req));
 			eventEndpoint = endpoint;
 		} 
 		if (eventEndpoint == null || eventEndpoint == undefined || eventEndpoint != endpoint) {
-			logger.warn("RES -> 400 Bad request - Auth header (Blossom) event endpoint is not valid", eventEndpoint, "<>", endpoint,	"|", getClientIp(req));
+			logger.warn(`isBUD01AuthValid - Auth header (Blossom) event endpoint is not valid: ${eventEndpoint} <> ${endpoint} | ${getClientIp(req)}`);
 			return {status: "error", message: `Auth header (Blossom) event endpoint is not valid: ${eventEndpoint} <> ${endpoint}`, authkey: "", pubkey: "", kind: 0};
 		}
 	} catch (error) {
-		logger.error(`RES -> 400 Bad request - ${error}`, "|", getClientIp(req));
+		logger.error(`isBUD01AuthValid - Internal server error: ${error}`, "|", getClientIp(req));
 		return {status: "error", message: "Auth header (Blossom) event endpoint is not valid", authkey: "", pubkey: "", kind: 0};
 	}
 
     // This is not from BUD01 spec, check local pubkey validation
 	if (await isPubkeyValid(authevent.pubkey, checkAdminPrivileges, false) == false) {
-		logger.warn(`RES -> 400 Bad request - Auth header pubkey is not valid | ${getClientIp(req)}`);
+		logger.warn(`isBUD01AuthValid - Auth header pubkey is not valid: ${authevent.pubkey} | ${getClientIp(req)}`);
 		return {status: "error", message: "Auth header pubkey is not valid", authkey: "", pubkey: "", kind: 0};
 	}
 
+	logger.info(`isBUD01AuthValid - Auth header is valid: ${authevent.id} | ${getClientIp(req)}`);
     return {status: "success", message: "Auth header is valid", authkey: "", pubkey: authevent.pubkey, kind: +authevent.kind};
 }
 

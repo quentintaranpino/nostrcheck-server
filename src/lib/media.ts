@@ -19,18 +19,18 @@ import app from "../app.js";
 
 const prepareFile = async (t: asyncTask): Promise<void> =>{
 
-	logger.info(`Processing item, queue size = ${requestQueue.length() +1}`);
+	logger.info(`prepareFile - Processing file, queue size = ${requestQueue.length() +1}`);
 
 	if (!Array.isArray(t.req.files) || t.req.files.length == 0) {
-		logger.error("ERR -> Preparing file for conversion, empty file");
+		logger.error(`prepareFile - Error, file is empty | ${getClientIp(t.req)}`);
 		return;
 	}
-	if (!t.req.files[0]) {logger.error("ERR -> Preparing file for conversion, empty file");	return;}
-	if (!t.req.files[0].mimetype) {logger.error("ERR -> Preparing file for conversion, empty mimetype");return;}
-	if (!t.filedata.media_type) {logger.error("ERR -> Preparing file for conversion, empty type");return;}
-	if (!t.filedata.pubkey) {logger.error("ERR -> Preparing file for conversion, empty pubkey");return;}
+	if (!t.req.files[0]) {logger.error(`prepareFile - Error, file is empty | ${getClientIp(t.req)}`);return;}
+	if (!t.req.files[0].mimetype) {logger.error(`prepareFile - Error, file mimetype is empty | ${getClientIp(t.req)}`);return;}
+	if (!t.filedata.media_type) {logger.error(`prepareFile - Error, file type is empty | ${getClientIp(t.req)}`);return;}
+	if (!t.filedata.pubkey) {logger.error(`prepareFile - Error, file pubkey is empty | ${getClientIp(t.req)}`);return;}
 
-	logger.info("Processing file :",t.req.files[0].originalname,"=>",t.filedata.filename);
+	logger.info(`prepareFile - Processing file ${t.req.files[0].originalname} | ${getClientIp(t.req)}`);
 	await processFile(t.req.files[0], t.filedata, 0);
 
 }
@@ -40,21 +40,20 @@ const requestQueue: queueAsPromised<asyncTask> = fastq.promise(prepareFile, 1); 
 const processFile = async(	inputFile: Express.Multer.File,	options: fileData, retry:number = 0): Promise<boolean> =>{
 
 	if (retry > 5) {return false}
-
 	
 	options.conversionOutputPath = app.get("config.storage")["local"]["tempPath"] + "out" + crypto.randomBytes(20).toString('hex') + options.filename;
 
-	logger.info("Using temporary paths:", options.conversionInputPath, options.conversionOutputPath);
+	logger.debug(`processFile - Processing file: ${inputFile.originalname}, using temporary paths: ${options.conversionInputPath}, ${options.conversionOutputPath}`);
 
 	const result = new Promise(async(resolve, reject) => {
 
 		const processing = await dbUpdate('mediafiles',{'status':'processing'}, ['id'], [options.fileid]);
-		if (!processing) {logger.error("Could not update table mediafiles, id: " + options.fileid, "status: processing");}
+		if (!processing) logger.error(`processFile - Could not update table mediafiles, id: ${options.fileid}, status: processing`);
 
 		if (options.no_transform == true) {
-			logger.info("no_transform flag detected, skipping file conversion");
+			logger.debug(`processFile - no_transform flag detected, skipping file conversion`);
 			if (await finalizeFileProcessing(options)) {
-				logger.info(`File processed successfully: ${options.filename} ${options.filesize} bytes`);
+				logger.info(`processFile - File processed successfully: ${options.filename} ${options.filesize} bytes`);
 				resolve(true);
 				return;
 			}
@@ -73,7 +72,7 @@ const processFile = async(	inputFile: Express.Multer.File,	options: fileData, re
 
 			await initImageConversionEngine(options);
 			if (await finalizeFileProcessing(options)) {
-				logger.info(`File processed successfully: ${options.filename} ${options.filesize} bytes`);
+				logger.info(`processFile - File processed successfully: ${options.filename} ${options.filesize} bytes`);
 				resolve(true);
 				return;
 			}
@@ -91,7 +90,7 @@ const processFile = async(	inputFile: Express.Multer.File,	options: fileData, re
 			.on("end", async(end) => {
 
 				if (await finalizeFileProcessing(options)) {
-					logger.info(`File processed successfully: ${options.filename} ${ConversionDuration /2} seconds`);
+					logger.info(`processFile - File processed successfully: ${options.filename} ${ConversionDuration /2} seconds`);	
 					resolve(end);
 				}
 				else{
@@ -99,18 +98,16 @@ const processFile = async(	inputFile: Express.Multer.File,	options: fileData, re
 				}
 			})
 			.on("error", async (err) => {
-
-				logger.warn(`Error converting file, retrying file conversion: ${options.filename} retry: ${retry}/5`);
-				logger.error(err);
+				logger.warn(`processFile - Error converting file: ${options.filename}, retry: ${retry}/5, with error ${err}`);
 				retry++
 				await new Promise((resolve) => setTimeout(resolve, 3000));
 				if (!await deleteLocalFile(options.conversionInputPath)){reject(err);}
 
 				if (retry > 5){
-					logger.error(`Error converting file after 5 retries: ${inputFile.originalname}`);
+					logger.error(`processFile - Error converting file after 5 retries: ${inputFile.originalname}`);
 					const errorstate =  await dbUpdate('mediafiles',{'status':'error'},['id'], [options.fileid]);
 					if (!errorstate) {
-						logger.error("Could not update table mediafiles, id: " + options.fileid, "status: failed");
+						logger.error(`processFile - Could not update table mediafiles, id: ${options.fileid}, status: error`);
 					}
 					resolve(err);
 				}
@@ -183,7 +180,7 @@ async function initImageConversionEngine(file: fileData) {
 
   
 	} catch (error) {
-		logger.error("Error converting image", error);
+		logger.error(`initImageConversionEngine - Error converting image: ${file.filename}`, error);
 	}
 
 }
@@ -200,8 +197,7 @@ const getUploadType = (req : Request): string  => {
 	if (req.body?.uploadtype != undefined && req.body?.uploadtype != "") {uploadtype = req.body.uploadtype;}
 
 	//Check if media_type is valid
-	!UploadTypes.includes(uploadtype)? logger.info(`Incorrect uploadtype or not present: ${uploadtype} setting "media" | ${getClientIp(req)}`) : null;
-
+	!UploadTypes.includes(uploadtype)? logger.debug(`getUploadType - Incorrect uploadtype or not present: ${uploadtype} setting "media" | ${getClientIp(req)}`) : null;
 	return uploadtype;
 
 }
@@ -225,9 +221,9 @@ const getFileMimeType = async (req: Request, file :Express.Multer.File): Promise
 		fileType.ext = 'hbs';
 	}
 
-	fileType == undefined ? logger.warn(`Could not detect file mime type | ${getClientIp(req)}`) : null;
+	fileType == undefined ? logger.warn(`getFileMimeType - Could not detect file mime type | ${getClientIp(req)}`) : null;
 	if(!getAllowedMimeTypes().includes(fileType.mime)){
-		logger.info(`Filetype not allowed: ${file.mimetype} | ${getClientIp(req)}`);
+		logger.info(`getFileMimeType - Filetype not allowed: ${file.mimetype} | ${getClientIp(req)}`);
 		return "";
 	}
 	
@@ -251,7 +247,7 @@ const GetFileTags = async (fileid: string): Promise<string[]> => {
 		dbTags.end();
 	}
 	catch (error) {
-		logger.error("Error getting file tags from database", error);
+		logger.error(`GetFileTags - Error getting file tags from database with error: ${error}`);
 		dbTags.end();
 	}
 	
@@ -290,7 +286,7 @@ const standardMediaConversion = (filedata : fileData , file:Express.Multer.File)
 const getMediaDimensions = async (file: string, fileData: { originalmime: string }): Promise<{ width: number; height: number }> => {
 	
     if (file === "" || fileData === undefined) {
-        logger.error("Error processing file: file or fileData is empty");
+		logger.error(`getMediaDimensions - Error processing file: file or fileData is empty`);
         return { width: 640, height: 480 };
     }
 
@@ -300,12 +296,12 @@ const getMediaDimensions = async (file: string, fileData: { originalmime: string
         try {
             if (fileData.originalmime.startsWith("image")) {
 				const imageInfo = await sharp(file).rotate().metadata();
-				logger.debug("Image info: ", imageInfo);
+				logger.debug(`getMediaDimensions - Image info: ${imageInfo}`);
 				resolve({ width: imageInfo.width!, height: imageInfo.height! });
             } else {
                 ffmpeg.ffprobe(file, (err, metadata) => {
                     if (err) {
-                        console.error("Could not get media dimensions of file: " + file + " using defaults (640 x 480)");
+						logger.debug(`getMediaDimensions - Error getting media dimensions of file: ${file}, using defaults (640 x 480)`);
                         resolve({ width: 640, height: 480 });
                     } else {
                         const videoStream = metadata.streams.find(stream => stream.codec_type === 'video');
@@ -320,14 +316,14 @@ const getMediaDimensions = async (file: string, fileData: { originalmime: string
                             resolve({ width, height });
 
                         } else {
-                            logger.error(`Could not get media dimensions of file: ${file}, using defaults (640 x 480)`);
+							logger.debug(`getMediaDimensions - Could not get media dimensions of file: ${file}, using defaults (640 x 480)`);
                             resolve({ width: 640, height: 480 });
                         }
                     }
                 });
             }
         } catch (error) {
-            logger.error("Error processing file: ", error);
+			logger.error(`getMediaDimensions - Error processing file: ${error}`);
             resolve({ width: 640, height: 480 });
         }
     });
@@ -371,7 +367,7 @@ const setMediaDimensions = async (file:string, options:fileData):Promise<string>
 		}
 			
 		if (mediaWidth == 0 || mediaHeight == 0) {
-			logger.warn("Could not get media dimensions of file: " + options.filename + " using default size (640x480)");
+			logger.debug(`setMediaDimensions - Could not get media dimensions of file: ${options.filename} using default size (640x480)`);
 			resolve("640x480");
 			return;
 		}
@@ -390,7 +386,7 @@ const setMediaDimensions = async (file:string, options:fileData):Promise<string>
 		newWidth = Math.trunc(+newWidth);
 		newHeight = Math.trunc(+newHeight);
 
-		logger.info(`Original dimensions: ${mediaWidth}x${mediaHeight} | New dimensions: ${newWidth}x${newHeight}`);
+		logger.debug(`setMediaDimensions - Original dimensions: ${mediaWidth}x${mediaHeight} | New dimensions: ${newWidth}x${newHeight}`);
 
 		resolve(newWidth + "x" + newHeight);
 	});
@@ -401,11 +397,10 @@ const setMediaDimensions = async (file:string, options:fileData):Promise<string>
 
 const getFileSize = (path:string, options:fileData) :number => {
 
-	logger.debug("Old Filesize:", options.filesize);
 	let newfilesize : number = 0;
 	try{
 		newfilesize = +fs.statSync(path).size;
-		logger.debug("New Filesize:", newfilesize);
+		logger.debug(`getFileSize - New file size: ${newfilesize} bytes old size: ${options.filesize} bytes`);
 		return newfilesize;
 	}catch(err){
 		logger.error(err);
@@ -419,7 +414,7 @@ const getNotFoundFileBanner = (): Promise<Buffer> => {
 		const notFoundPath = path.normalize(path.resolve(app.get("config.media")["notFoundFilePath"]));
         fs.readFile(notFoundPath, (err, data) => {
             if (err) {
-                logger.error(err);
+                logger.error(`getNotFoundFileBanner - Error reading file: ${notFoundPath} with error: ${err}`);
                 resolve(Buffer.from(""));
             } else {
                 resolve(data);
@@ -476,13 +471,13 @@ const finalizeFileProcessing = async (filedata: fileData): Promise<boolean> => {
 		moderateFile(url).then((result) => {
 			result.code == "NA"? dbUpdate('mediafiles',{'checked':'1'},['id'], [filedata.fileid]): null;
 		}).catch((err) => {
-			logger.error("Error moderating file", err);
+			logger.debug(`finalizeFileProcessing - Error moderating file: ${err}`);
 		});
 
 		return true;
 
 	}catch(err){
-		logger.error("Error finalizing file processing", err);
+		logger.error(`finalizeFileProcessing - Error finalizing file processing: ${err}`);
 		return false;
 	}
 }

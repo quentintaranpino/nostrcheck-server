@@ -30,7 +30,7 @@ const logNewIp = async      (ip: string):
     }
   
     if ((!ip || ip.length < 7) && app.get("config.environment") !== "development") {
-        logger.error("Invalid IP address:", ip);
+        logger.error(`logNewIp - Invalid IP address: ${ip}`);
         return {dbid: "0", active: "0", checked: "0", banned: "1", firstseen: "0", lastseen: "0", reqcount: "0", infractions: "0", comments: ""};
     }
 
@@ -41,7 +41,7 @@ const logNewIp = async      (ip: string):
     const oldestTimestamp = await redisSlidingWindowOldest(redisWindowKey);
     const firstseenValue = oldestTimestamp ? oldestTimestamp.toString() : now.toString();
 
-    logger.debug(`(logNewIp) IP ${ip}: reqcount=${reqcount}, oldestTimestamp=${oldestTimestamp}, firstseen=${firstseenValue}`);
+    logger.debug(`logNewIp - IP: ${ip} | reqcount: ${reqcount}, oldestTimestamp: ${oldestTimestamp}, firstseen: ${firstseenValue}`);
     
     const redisData = await redisHashGetAll(redisKey);
 
@@ -51,7 +51,7 @@ const logNewIp = async      (ip: string):
             let dbid = await dbUpsert("ips", { active: 1, checked: 0, ip, firstseen: now, lastseen: now, reqcount: reqcount });
             if (dbid === 0) dbid = await dbUpsert("ips", { active: 1, checked: 0, ip, firstseen: now, lastseen: now, reqcount: reqcount });
             if (dbid === 0) {
-                logger.error("Error inserting new IP:", ip);
+                logger.error(`logNewIp - Error inserting new IP: ${ip}`);
             }
   
             return { 
@@ -156,7 +156,7 @@ const isIpAllowed = async (req: Request | string, maxRequestMinute : number = ap
 
     const ipData = await logNewIp(clientIp);
     if (!ipData || ipData.dbid === "0") {
-        logger.error("Error logging IP:", clientIp);
+        logger.error(`isIpAllowed - Error logging IP: ${clientIp}`);
         return {ip: clientIp, reqcount: 0, banned: true, comments: ""};
     }
     const { dbid, reqcount, firstseen, lastseen, infractions, comments } = ipData;
@@ -168,20 +168,20 @@ const isIpAllowed = async (req: Request | string, maxRequestMinute : number = ap
     const diff = Number(lastseen) - Number(firstseen);
     if ((diff < 15 && (lastseen != firstseen)) || Number(reqcount) > maxRequestMinute) {
 
-        logger.debug(`Possible abuse detected from IP: ${clientIp} | Infraction count: ${infractions}`);
+        logger.debug(`isIpAllowed - Possible abuse detected from IP: ${clientIp} | Infraction count: ${infractions}, reqcount: ${reqcount}`);
 
         // Update infractions and ban it for a minute
         await redisHashSet(`ips:${clientIp}`, { infractions: Number(infractions)+1 }, app.get("config.redis")["expireTime"]);
         await redisHashSet(`banned:ips:${clientIp}`, { banned: 1 }, 60);
 
         if (!infractions) {
-            logger.error("Error getting IP infractions:", clientIp);
+            logger.info(`isIpAllowed - Banning IP due to repeated abuse: ${clientIp}`);
             return { ip: clientIp, reqcount: Number(reqcount), banned: true, comments: "" };
         }
 
         if (Number(infractions) > 50) {
-            logger.warn(`Banning IP due to repeated abuse: ${clientIp}`);
-            await banEntity(Number(dbid), "ips", `Abuse prevention`);
+            logger.info(`isIpAllowed - Banning IP due to repeated abuse: ${clientIp}`);
+            await banEntity(Number(dbid), "ips", `Abuse prevention, reqcount: ${reqcount}, infractions: ${infractions}`);
             return { ip: clientIp, reqcount: Number(reqcount), banned: true, comments: `rate-limited: slow down there chief (${infractions} infractions)` };
         }
 
@@ -216,17 +216,17 @@ setInterval(async () => {
                     const updateSuccess = await dbUpdate("ips", {"infractions" : newInfractions}, ["id"], [redisData.dbid]);
 
                     if (!updateSuccess) {
-                        logger.error("Error updating IP infractions:", ip);
+                        logger.error(`ipsLib - Interval - Error processing IP '${ip}': Error updating IP infractions`);
                     } else {
                         await redisHashSet(ip, { infractions: 0 }, app.get("config.redis")["expireTime"]);
                     }
                 } catch (error) {
-                    logger.error(`Error processing IP '${ip}': ${error}`);
+                    logger.error(`ipsLib - Interval - Error processing IP '${ip}': ${error}`);
                 }
             })
         );
     } catch (error) {
-        logger.error("Error in IP processing interval:", error);
+        logger.error(`ipsLib - Interval - Error processing IPs: ${error}`);
     }
 }, 60000);
 
@@ -236,21 +236,21 @@ setInterval(async () => {
     if (!isModuleEnabled("security", app)) return;
 
     if (ipUpdateBatch.size === 0) return;
-  
+
     for (const [dbid, update] of ipUpdateBatch.entries()) {
-      try {
+        try {
         const success = await dbUpdate("ips",{ firstseen: update.firstseen, lastseen: update.lastseen, reqcount: update.reqcountIncrement }, ["id"], [dbid]);
         if (success) {
-          // Remove the entry from the batch if the update was successful.
-          ipUpdateBatch.delete(dbid);
+            // Remove the entry from the batch if the update was successful.
+            ipUpdateBatch.delete(dbid);
         } else {
-          logger.error(`Error updating batch for IP with dbid: ${dbid}`);
+            logger.error(`ipslib - Interval - Error updating batch for IP with dbid: ${dbid}`);
         }
-      } catch (error) {
-        logger.error(`Exception updating batch for IP with dbid: ${dbid}: ${error}`);
-      }
+        } catch (error) {
+            logger.error(`ipslib - Interval - Exception updating batch for IP with dbid: ${dbid}: ${error}`);
+        }
     }
-  }, 10000); 
+}, 10000); // 10 seconds
 
 /**
  * Adds or updates an entry in the batch for the given IP.

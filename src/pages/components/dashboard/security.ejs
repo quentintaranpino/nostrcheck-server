@@ -11,7 +11,7 @@ let ipsFields = [
   ['comments'         ,''    , ''              , 'enabled   show mobile-hide              '],
 ];
 %>
-<% if(locals.activeModules.includes('security')) { %> 
+<% if(locals.activeModules.some(mod => mod.name === 'security')) { %>
   <%- include('../table', {
     tableName:"Ips", 
     tableId:"ipsData", 

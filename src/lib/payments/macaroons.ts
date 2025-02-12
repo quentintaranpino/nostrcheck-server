@@ -70,7 +70,7 @@ const verifyMacaroon = (macaroon: string): boolean => {
         return true;
 
     }catch(e){
-        logger.error(`Error verifying macaroon: ${e}`);
+        logger.error(`verifyMacaroon - Error verifying macaroon with error: ${e}`);
         return false;
     }
 };
@@ -86,7 +86,7 @@ const decodeMacaroon = (macaroon: string): macaroon | null => {
         return receivedMacaroon;
 
     }catch(e){
-        logger.error(`Error decoding macaroon: ${e}`);
+        logger.error(`decodeMacaroon - Error decoding macaroon with error: ${e}`);
         return null;
     }
 };
@@ -102,14 +102,12 @@ const checkMacaroon = async (hash : string, size : number, transform: boolean, u
 	if (transaction.transactionid != 0 && transaction.isPaid == false && app.get("config.payments")["satoshi"]["mediaMaxSatoshi"] > 0) {
 		const macaroon = await createMacaroon(transaction.transactionid,transaction.paymentHash,url,["hash="+hash]);
 		if (macaroon == "") {
-			logger.error(`Error creating macaroon for transaction ${transaction.transactionid}`);
+            logger.error(`checkMacaroon - Error creating macaroon for transaction ${transaction.transactionid}`);
             return { status: "error", message: "Error creating macaroon" };
 		}
         return { status: "success", message: "Macaroon and invoice created", macaroon: macaroon, Invoice: transaction.paymentRequest, satoshi: transaction.satoshi };
 	}
     return { status: "success", message: transaction.isPaid ? "Transaction already paid" : "Transaction not found" };
 }
-
-
 
 export { createMacaroon, verifyMacaroon, decodeMacaroon, checkMacaroon };

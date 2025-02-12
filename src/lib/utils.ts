@@ -31,7 +31,7 @@ const markdownToHtml = (text:string) : string => {
     try{
         return md.render(text).toString();
     }catch(err){
-        logger.error("Error parsing markdown to html: ", err);
+		logger.error(`markdownToHtml - Error parsing markdown to html: ${err}`);
         return "";
     }
 }
@@ -140,7 +140,7 @@ const generateVideoFromImage = (imageBuffer: Buffer): Promise<Buffer> => {
         resolve(videoBuffer);
     })
     .on('error', (err) => {
-		logger.error("Error generating video QR from buffer: ", err);
+		logger.error(`generateVideoFromImage - Error generating video from image: ${err}`);
 		resolve(Buffer.from("")); 
     })
     .run();

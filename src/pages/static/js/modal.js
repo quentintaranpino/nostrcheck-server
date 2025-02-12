@@ -2,9 +2,6 @@ const initConfirmModal = async (objectId, ids, action, objectName, value = null,
 
     var alert = new bootstrap.Modal($(objectId + '-confirm-modal'));
 
-
-    console.log('Confirming ' + action + ' of ' + ids.length + ' ' + objectName + (ids.length > 1 ? 's' : ''));
-
     $(alert._element).on('show.bs.modal', function () {
         $(objectId + '-confirm-modal .modal-body').text('Are you sure you want to ' + action + ' ' + ids.length + ' ' + objectName + (ids.length > 1 ? 's' : '') + '?');
         if (action == 'remove')$(objectId + '-confirm-modal .modal-body').append('<br><br><strong>Warning:</strong> This action cannot be undone.');
@@ -62,7 +59,7 @@ const initEditModal = async (objectId, row, objectName, newRow, columns) => {
                 if (key == 'state'){continue}
 
                 // Specific case for paid fields when payments module is disabled
-                if (!activeModules.includes('payments') && (key == 'paid' || key == 'transactionid' || key == 'satoshi')) {
+                if (!activeModules.some(mod => mod.name === 'payments') && (key == 'paid' || key == 'transactionid' || key == 'satoshi')) {
                     continue;
                 }
 
@@ -436,7 +433,6 @@ const initMediaModal = async (filename, checked, visible, showButtons = true) =>
     $('#media-modal').on('shown.bs.modal', function () {
         $('#modalSwitch-checked').focus();
 
-        console.log("Content type: " + contentType);
         if (contentType.includes('image')) {
             mediapreviewImg.attr('src', MediaData.url);
             mediapreviewImg.removeClass('d-none');

@@ -92,8 +92,6 @@ async function loadAllUsers(domains) {
             batches.push(allHexes.slice(i, i + maxBatchSize));
         }
 
-        console.log(`Processing ${batches.length} batch(es) with up to ${maxBatchSize} pubkeys each.`);
-
         const batchPromises = batches.map(batch =>
             subscribeRelays(0, batch, "from", Math.floor(Date.now() / 1000) - (720 * 24 * 60 * 60))
         );
@@ -200,7 +198,6 @@ async function renderUserCard(user) {
             videoElement.style.width = '100%';
             videoElement.style.height = '100%';
             videoElement.style.objectFit = 'cover';
-            console.log(`loading video ${pictureUrl}`);
             videoElement.onerror = () => {
                 videoElement.poster = '/static/resources/loading-image.webp';
             };

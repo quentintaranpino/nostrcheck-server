@@ -50,7 +50,6 @@ const updateRelay = (relayId, action) => {
                 relay.dms == true ? document.getElementById(`dms-user-relay-${relay.id}`).querySelector('i').classList.add('text-muted', 'text-opacity-25') : document.getElementById(`dms-user-relay-${relay.id}`).querySelector('i').classList.remove('text-muted', 'text-opacity-25');
                 relay.dms == true ? relay.dms = false : relay.dms = true;
             }
-            console.log(userRelays)
 }
 
 const saveRelayData = async () => {
@@ -67,14 +66,13 @@ const saveRelayData = async () => {
         }
     } 
 
-    console.log("attempting to save relay data");
     // App relays
     await Promise.all([
     publishProfileRelays(userRelays, "<%= request.session.metadata.pubkey %>", sk, 'app'),
     publishProfileRelays(userRelays, "<%= request.session.metadata.pubkey %>", sk, 'dms')
     ]).then(([appResult, dmsResult]) => {
         if (appResult == true && dmsResult == true) {
-            console.log("Relay data saved successfully");
+            console.debug("Relay data saved successfully");
             relaysUnsaved = false;
             userRelays = userRelays.filter((r) => r.enabled == true);
             const relayItems = document.getElementById("user-relay-list").querySelectorAll("li");
@@ -160,7 +158,6 @@ document.addEventListener('DOMContentLoaded', async (event) => {
                             contact: '', 
                             supported_nips: [], 
                             enabled: true };
-        console.log(newRelay);
         userRelays.push(newRelay);
         await getRelayData(newRelay);
         await addRelayToList(newRelay);
@@ -222,7 +219,7 @@ document.addEventListener('DOMContentLoaded', async (event) => {
         console.error("Error fetching user relays:", error);
         document.getElementById("user-relay-list-loading").remove();
 
-        console.log("Error fetching relays. Loading default relays...");
+        console.error("Error fetching relays. Loading default relays...");
         defaultRelays.forEach((relay) => {
             addRelayToList(relay);
         });

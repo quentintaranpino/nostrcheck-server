@@ -19,7 +19,7 @@ const initPlugins = async (app: Application): Promise<boolean> => {
     }
 
     if (app.get("config.plugins")["path"] === undefined) {
-        logger.error("No plugins path defined in config");
+        logger.error(`initPlugins - No plugins path defined in config`);
         return Promise.resolve(false);
     }
 
@@ -30,7 +30,7 @@ const initPlugins = async (app: Application): Promise<boolean> => {
 
     for (const p of fs.readdirSync(pluginsPath)) {
         if (p.split('.').pop() !== "js") continue;
-        logger.debug(`Loading plugin: ${p}`);
+        logger.info(`initPlugins - Found plugin: ${p}`);
         const fullPath = path.join(pluginsPath, p);
         const modulePath = pathToFileURL(fullPath).href;
 
@@ -42,15 +42,15 @@ const initPlugins = async (app: Application): Promise<boolean> => {
 
                 if (pluginInstance && typeof pluginInstance.execute === 'function' && typeof pluginInstance.module === 'string') {
                     app.get("plugins").push(pluginInstance);
-                    logger.info(`Plugin ${p} loaded successfully in module '${pluginInstance.module}'`);
+                    logger.info(`initPlugins - Plugin ${p} loaded successfully in module '${pluginInstance.module}'`);
                 } else {
-                    logger.warn(`Plugin ${p} does not provide a valid structure (missing 'execute' function or 'module' field)`);
+                    logger.warn(`initPlugins - Plugin ${p} does not provide a valid structure (missing 'execute' function or 'module' field)`);
                 }
             } else {
-                logger.warn(`Plugin ${p} does not export a default function`);
+                logger.warn(`initPlugins - Plugin ${p} does not export a default function`);
             }
         } catch (err) {
-            logger.error(`Error loading plugin ${p}: ${err}`);
+            logger.error(`initPlugins - Error loading plugin ${p}: ${err}`);
         }
     }
 
@@ -85,19 +85,21 @@ const executePlugins = async (input: pluginData, app: Application, moduleFilter:
 
     if (plugins.length === 0) return Promise.resolve(true);
 
+    logger.info(`executePlugins - Executing plugins for module '${moduleFilter}'`);
+
     for (const plugin of plugins) {
         if (plugin.enabled !== true) {
             result = true;
             continue;
         }
         try {
-            logger.info(`Executing plugin ${plugin.name} for module '${plugin.module}'`);
+            logger.info(`executePlugins - Executing plugin ${plugin.name} for module '${plugin.module}'`);
             result = await plugin.execute(input, context);
             if (typeof result !== 'boolean') result = false;
-            logger.debug(`Plugin ${plugin.name} returned ${result}`);
+            logger.debug(`executePlugins - Plugin ${plugin.name} returned ${result}`);
             if (result === false) break;
         } catch (err) {
-            logger.error(`Error executing plugin ${plugin.name}: ${err}`);
+            logger.error(`executePlugins - Error executing plugin ${plugin.name}: ${err}`);
             result = false;
         }
     }

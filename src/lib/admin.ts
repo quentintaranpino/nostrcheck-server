@@ -1,14 +1,9 @@
 import { ModuleDataTables, moduleDataSelectFields, moduleDataWhereFields } from "../interfaces/admin.js";
 import { dbMultiSelect, dbSelect, dbSimpleSelect } from "./database.js";
-import { logger } from "./logger.js";
 
 const dbCountModuleData = async (module: string, field = ""): Promise<number> => {
-
 	const table = ModuleDataTables[module];
 	if (!table) {return 0;}
-
-	logger.debug("Counting records in", table, "table", field? "with field" + field: "");
-
 	if (field) {return Number(await dbSelect(`SELECT COUNT(${field}) FROM ${table} WHERE ${field} = '1' `, `COUNT(${field})`, [])) || 0;}
     return Number(await dbSelect(`SELECT COUNT(*) FROM ${table}`, "COUNT(*)", [])) || 0;
 }
@@ -73,8 +68,6 @@ async function dbSelectModuleData(module:string, offset:number, limit:number, or
 		totalNotFiltered: totalNotFiltered,
 		rows: data || []
 	}
-
-	logger.debug("Selected", data.length, "records from", "totalnotfiltered", result.totalNotFiltered, "from", table, "table");
 
 	return result;
 }

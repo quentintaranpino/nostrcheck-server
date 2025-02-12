@@ -37,7 +37,7 @@ async function generateLUD06Invoice(lnurl: string, amount: number): Promise<invo
     }
 
   } catch (e: any) {
-    logger.error('Error generating LNURL invoice', e.message);
+    logger.error(`generateLUD06Invoice - Error generating LUD06 invoice with error ${e}`);
     return  emptyInvoice;
   }
 }

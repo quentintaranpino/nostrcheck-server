@@ -32,8 +32,8 @@ const addSubscription = (subId: string, socket: WebSocket, listener: (event: Eve
 
   const max_subscriptions = app.get("config.relay")["limitation"]["max_subscriptions"];
   if (clientSubscriptions.size >= max_subscriptions) {
+    logger.debug(`addSubscription - Subscription limit reached: ${max_subscriptions} | IP:`, socket.url);
     socket.send(JSON.stringify(["NOTICE", "error: subscription limit reached"]));
-    logger.debug("Subscription limit reached:", max_subscriptions);
     return;
   }
 
@@ -53,23 +53,23 @@ const removeSubscription = (subId?: string, socket?: WebSocket) => {
 
   try {
       if (subId) {
-          if (clientSubscriptions.has(subId)) {
-              clientSubscriptions.delete(subId);
-              logger.debug("Subscription closed:", subId);
-          }
+        if (clientSubscriptions.has(subId)) {
+          clientSubscriptions.delete(subId);
+          logger.debug(`removeSubscription - Subscription closed: ${subId}`);
+        }
 
-          if (clientSubscriptions.size === 0) {
-              subscriptions.delete(socket);
-          }
-      } else {
-          clientSubscriptions.forEach((_, id) => {
-              socket.send(JSON.stringify(["CLOSED", id, "Connection closed"]));
-              logger.debug("Subscription closed:", id);
-          });
+        if (clientSubscriptions.size === 0) {
           subscriptions.delete(socket);
+        }
+      } else {
+        clientSubscriptions.forEach((_, id) => {
+          logger.debug(`removeSubscription - Subscription closed: ${id}`);
+          socket.send(JSON.stringify(["CLOSED", id, "Connection closed"]));
+        });
+        subscriptions.delete(socket);
       }
   } catch (error) {
-      logger.error("Error closing subscriptions:", error);
+      logger.error(`removeSubscription - Error closing subscriptions: ${subId} with error: ${error}`);
   }
 };
 
@@ -79,10 +79,11 @@ const removeAllSubscriptions = (socket: WebSocket) => {
     clientSubscriptions.forEach((_, subId) => {
       socket.send(JSON.stringify(["CLOSED", subId, "Subscription forcibly closed"]));
       logger.debug("Subscription forcibly closed:", subId);
+      logger.debug(`removeAllSubscriptions - Subscription forcibly closed: ${subId}, IP:`, socket.url);
     });
     subscriptions.delete(socket);
   }
-  logger.debug("All subscriptions forcibly closed", {readyState: socket.readyState, url: socket.url});
+  logger.debug(`removeAllSubscriptions - All subscriptions forcibly closed`, {readyState: socket.readyState, url: socket.url});
 };
 
 export {subscriptions, parseRelayMessage, addSubscription, removeSubscription, removeAllSubscriptions};

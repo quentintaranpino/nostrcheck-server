@@ -23,7 +23,7 @@ const generateNwcInvoice = async (LNAddress: string, amount:number) : Promise<in
         const response = await nwc.makeInvoice({amount: amount * 1000, description: ""});
 
         if (!response || response == undefined || response.invoice == "") {
-            logger.error("Error checking invoice status");
+            logger.error(`generateNwcInvoice - Error generating nwc invoice for LNAddress: ${LNAddress} and amount: ${amount}`);
             return emptyInvoice;
         };
     
@@ -40,7 +40,7 @@ const generateNwcInvoice = async (LNAddress: string, amount:number) : Promise<in
                 accountid: 0};4
         
     }catch(e){
-        logger.error("Error generating nwc invoice", e);
+        logger.error(`generateNwcInvoice - Error generating nwc invoice for LNAddress: ${LNAddress} and amount: ${amount} with error ${e}`);
         return emptyInvoice;
     }
 
@@ -63,15 +63,15 @@ const isInvoicePaidNwc = async (paymentHash: string): Promise<{ paiddate: string
                 return emptyResponse;
             } catch (e: any) {
                 if (e.message && e.message.includes("timeout")) {
-                    logger.debug(`Timeout checking nwc invoice status for paymentHash: ${paymentHash}. Retries left: ${retries - 1}`);
+                    logger.debug(`isInvoicePaidNwc - Error checking nwc invoice status for paymentHash: ${paymentHash}, retries left: ${retries - 1}`, e.message);
                 } else {
-                    logger.error(`Error checking nwc invoice status for paymentHash: ${paymentHash}`, e.message);
+                    logger.error(`isInvoicePaidNwc - Error checking nwc invoice status for paymentHash: ${paymentHash}`, e.message);
                     break;
                 }
             }
             retries--;
         }
-        logger.debug("Max retries reached checking nwc invoice status for paymentHash: ", paymentHash);
+        logger.debug(`isInvoicePaidNwc - Failed to check nwc invoice status for paymentHash: ${paymentHash}`);
         return emptyResponse;
     };
 

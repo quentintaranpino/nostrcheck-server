@@ -6,21 +6,19 @@ import app from "../../app.js";
 
 const verifyNIP07event = async (req: Request) : Promise<boolean> => {
 
-  logger.info(`Verifying integrity of NIP07 event -`, getClientIp(req));
+    logger.info(`verifyNIP07event - Request from:`, req.hostname, "|", getClientIp(req));
 
     if ((await isEventValid(req.body)).status !== "success"){
-        logger.warn(`RES -> 401 unauthorized  - ${getClientIp(req)}`);
-        logger.warn(`NIP07: Detected an invalid event. Refusing`, getClientIp(req));
+        logger.warn(`verifyNIP07event - Invalid event`, getClientIp(req));
         return false;
     }
 
     if (req.body.kind !== 30078){
-        logger.warn(`RES -> 401 unauthorized  - ${getClientIp(req)}`);
-        logger.warn(`NIP07: Event kind must be 30078. Refusing`, getClientIp(req));
+        logger.warn(`verifyNIP07event - Event kind must be 30078. Refusing`, getClientIp(req));
         return false;
     }
 
-    logger.info(`NIPO7 event integrity successfully verified -`, getClientIp(req));
+    logger.info(`verifyNIP07event - Valid event`, getClientIp(req));
     return true;
 }
 

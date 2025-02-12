@@ -9,7 +9,7 @@ let invitesFields = [
   ['comments'         , ''   , ''                , 'enabled   show mobile-hide              '],
 ];
 %>
-<% if(locals.activeModules.includes('register')) { %> 
+<% if(locals.activeModules.some(mod => mod.name === 'register')) { %>
   <%- include('../table', {
     tableName:"Invites", 
     tableId:"invitesData", 

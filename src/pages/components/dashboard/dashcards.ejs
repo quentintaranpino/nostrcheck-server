@@ -5,7 +5,7 @@
 </div>
 <%- include('../loading', {objectId: 'admin-dashcards-list', dataName: 'dashcards'}) %>
 <div class="row d-none" id="dashcards-container" style="min-height: 350px;">
-    <% if(locals.activeModules.includes('nostraddress')) { %> 
+    <% if(locals.activeModules.some(mod => mod.name === 'nostraddress')) { %>
         <%- include('../dashcard', { 
         dashcardId: 'registeredCount', 
         dashcardName: 'Registered users', 
@@ -18,7 +18,7 @@
         }); %>
     <% } %>
 
-    <% if(locals.activeModules.includes('media')) { %> 
+    <% if(locals.activeModules.some(mod => mod.name === 'media')) { %>
         <%- include('../dashcard', { 
         dashcardId: 'mediaCount', 
         dashcardName: 'Hosted files', 
@@ -31,7 +31,7 @@
         }); %>
     <% } %>
 
-    <% if(locals.activeModules.includes('lightning')) { %>
+    <% if(locals.activeModules.some(mod => mod.name === 'lightning')) { %>
         <%- include('../dashcard', { 
         dashcardId: 'lightningCount', 
         dashcardName: 'Lightning redirects', 
@@ -44,7 +44,7 @@
         }); %>
     <% } %>
 
-    <% if(locals.activeModules.includes('domains')) { %>
+    <% if(locals.activeModules.some(mod => mod.name === 'domains')) { %>
         <%- include('../dashcard', { 
         dashcardId: 'domainsCount', 
         dashcardName: 'Domains', 
@@ -57,7 +57,7 @@
         }); %>
     <% } %>
 
-    <% if(locals.activeModules.includes('payments')) { %>
+    <% if(locals.activeModules.some(mod => mod.name === 'payments')) { %>
         <%- include('../dashcard', { 
         dashcardId: 'paymentsCount', 
         dashcardName: 'Transactions', 
@@ -92,7 +92,7 @@
         }); %>
     <% } %>
 
-    <% if(locals.activeModules.includes('relay')) { %>
+    <% if(locals.activeModules.some(mod => mod.name === 'relay')) { %>
         <%- include('../dashcard', { 
         dashcardId: 'relayEventsDB', 
         dashcardName: 'Synced events',
@@ -189,7 +189,7 @@
             });
             if (!response.ok) throw new Error("Failed to fetch user preferences");
             userPrefsJSON = await response.json();
-            console.log("User preferences loaded:", userPrefsJSON);
+            console.debug("User preferences loaded:", userPrefsJSON);
         } catch (error) {
             console.error(error);
             userPrefsJSON = { dashcards: [] };
@@ -278,7 +278,7 @@
 
         saveBtn.addEventListener('click', async () => {
         userPrefsJSON.dashcards = window.dashcardsData;
-        console.log("Saving user preferences:", userPrefsJSON);
+        console.debug("Saving user preferences:", userPrefsJSON);
         try {
             const response = await fetch('/api/v2/user/setprefs', {
             method: 'POST', 

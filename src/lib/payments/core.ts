@@ -35,7 +35,7 @@ const checkTransaction = async (transactionid : string, originId: string, origin
             const inv = await getInvoice(transaction.paymentHash);
             inv.paidDate = getNewDate();
             if (await collectInvoice(inv)){
-                logger.info("Paying invoice with user balance:", balance, "satoshi:", satoshi, "transactionid:", inv.transactionid, "Accountid:", inv.accountid)
+                logger.info(`checkTransaction - Paid invoice with user balance: ${balance} satoshi: ${satoshi} transactionid: ${inv.transactionid} Accountid: ${inv.accountid}`);
                 return await getTransaction(inv.transactionid.toString())
             };
         }
@@ -61,12 +61,13 @@ const checkTransaction = async (transactionid : string, originId: string, origin
             let invoice = await getInvoice(transaction.paymentHash);
             invoice.paidDate = getNewDate();
             if (await collectInvoice(invoice)){
-                logger.info("Paying invoice with user balance:", balance, "satoshi:", satoshi, "transactionid:", invoice.transactionid, "Accountid:", invoice.accountid)
+                logger.info(`checkTransaction - Paid invoice with user balance: ${balance} satoshi: ${satoshi} transactionid: ${invoice.transactionid} Accountid: ${invoice.accountid}`);
                 return await getTransaction(invoice.transactionid.toString())
             };
         }
     }
     
+    logger.debug(`checkTransaction - New invoice generated for account: ${transaction.accountid} satoshi: ${satoshi} transactionid: ${transaction.transactionid}`);
     return transaction;
 
 }
@@ -76,7 +77,7 @@ const generateInvoice = async (accountid: number, satoshi: number, originTable :
     if (!isModuleEnabled("payments", app))return emptyInvoice;
 
     if (app.get("config.payments")["LNAddress"] == "") {
-        logger.error("LNAddress not set in config file. Cannot generate invoice.")
+        logger.error(`generateInvoice - LNAddress not set in config file. Cannot generate invoice.`);
         return emptyInvoice;
     }
 
@@ -89,7 +90,7 @@ const generateInvoice = async (accountid: number, satoshi: number, originTable :
     generatedInvoice.description = "Invoice for: " + originTable + ":" + originId;
 
     if (overwrite == true) {
-        logger.info("Detected expired invoice, updating invoice for account:", accountid, "transactionid:", transactionId)
+        logger.info(`generateInvoice - Updating invoice for account: ${accountid} transactionid: ${transactionId}`);
         const updatePayreq = await dbUpdate("transactions", {"paymentrequest" : generatedInvoice.paymentRequest}, ["id"], [transactionId]);
         const updatePayhash = await dbUpdate("transactions", {"paymenthash" : generatedInvoice.paymentHash}, ["id"], [transactionId]);
         const updateCreated = await dbUpdate("transactions", {"createddate" : generatedInvoice.createdDate}, ["id"], [transactionId]);
@@ -97,7 +98,7 @@ const generateInvoice = async (accountid: number, satoshi: number, originTable :
         const updateSatoshi = await dbUpdate("transactions", {"satoshi" : generatedInvoice.satoshi}, ["id"], [transactionId]);
         const updateAccountid = await dbUpdate("transactions", {"accountid" : accountid.toString()}, ["id"], [transactionId]);
         if (!updatePayreq || !updatePayhash || !updateCreated || !updateExpiry || !updateSatoshi || !updateAccountid) {
-            logger.error("Error updating transaction with new invoice data", transactionId)
+            logger.error(`generateInvoice - Error updating transaction with new invoice data for account: ${accountid} transactionid: ${transactionId}`);
             return emptyInvoice;
         }
         generatedInvoice.transactionid = Number(await dbSelect("SELECT id FROM transactions WHERE accountid = ? AND paymentrequest = ?", "id", [accountid.toString(), generatedInvoice.paymentRequest]));
@@ -108,14 +109,14 @@ const generateInvoice = async (accountid: number, satoshi: number, originTable :
         const transId = await addTransacion("invoice", accountid, generatedInvoice, satoshi)
         if (transId) {
             await dbUpdate(originTable, {"transactionid" : transId.toString()} , ["id"], [originId])
-            logger.info("Generated invoice for " + originTable + ":" + originId, " satoshi: ", satoshi, "transactionid: ", transId)
+            logger.info(`generateInvoice - New invoice generated for account: ${accountid} satoshi: ${satoshi} transactionid: ${transId}, origin: ${originTable}:${originId}`);
             generatedInvoice.transactionid = transId;
         }
 
         const debit = await addJournalEntry(accountid, transId, satoshi, 0, "invoice for " + originTable + ":" + originId);
         const credit = await addJournalEntry(accounts[2].accountid, transId, 0, satoshi, "Accounts Receivable for " + originTable + ":" + originId);
         if (credit && debit) {
-            logger.debug("Journal entry added for debit transaction", transId, originId, originTable)
+            logger.debug(`generateInvoice - Journal entries added for invoice transaction: ${transId}, account: ${accountid} and origin: ${originTable}:${originId}`);
         }
 
         if (transId && credit && debit) {
@@ -161,9 +162,7 @@ const addTransacion = async (type: string, accountid: number, invoice: invoice, 
 
 const deleteTransaction = async (transactionid: number) : Promise<boolean> => {
     
-        if (!isModuleEnabled("payments", app)) {
-            return false;
-        }
+        if (!isModuleEnabled("payments", app))  return false;
     
         const deleteTransaction = await dbDelete("transactions", ["id"], [transactionid.toString()]);
         const deleteLedger = await dbDelete("ledger", ["transactionid"], [transactionid.toString()]);
@@ -174,18 +173,17 @@ const deleteTransaction = async (transactionid: number) : Promise<boolean> => {
             deleteMedia = result;
         }
         if (deleteTransaction && deleteLedger && deleteMedia) {
+            logger.debug(`deleteTransaction - Transaction deleted: ${transactionid}`);
             return true;
         }
 
-        logger.error("Error deleting transaction", transactionid)
+        logger.error(`deleteTransaction - Error deleting transaction: ${transactionid}`);
         return false;
 }
 
 const addJournalEntry = async (accountid: number, transactionid: number, debit: number, credit: number, comments: string) : Promise<number> => {
     
-    if (!isModuleEnabled("payments", app)) {
-        return 0;
-    }
+    if (!isModuleEnabled("payments", app))     return 0;
     
     const insert = await dbInsert(  "ledger", 
                             ["accountid", 
@@ -204,7 +202,7 @@ const addJournalEntry = async (accountid: number, transactionid: number, debit: 
 
     if (insert != 0) {return insert;}
 
-    logger.error("Error adding journal entry for account:", accountid, "transaction:", transactionid)
+    logger.error(`addJournalEntry - Error adding journal entry for account: ${accountid} transaction: ${transactionid}, debit: ${debit}, credit: ${credit}, comments: ${comments}`);
     return 0;
 
 }
@@ -216,19 +214,18 @@ const getBalance = async (accountid: number) : Promise<number> => {
     if (!accountid)  return 0;
     
     const result = Number(await dbSelect("SELECT SUM(credit) - SUM(debit) as 'balance' FROM ledger WHERE ledger.accountid = ?", "balance", [accountid.toString()])) || 0;
-    logger.debug("Balance for account", accountid, ":", result)
+    logger.debug(`getBalance - Balance for account: ${accountid} : ${result}`);
     if (accountid.toString().length > 4 && accountid != 1100000000){
         const updateBalance = await dbUpdate("registered", {"balance" : result.toString()}, ["id"], [formatRegisteredId(accountid)]);
         if (updateBalance) return result;
+        logger.error(`getBalance - Error updating balance for account: ${accountid}`);
     }
     return result;
 }
 
 const addBalance = async (accountid: number, amount: number) : Promise<boolean> => {
     
-    if (!isModuleEnabled("payments", app)) {
-        return false;
-    }
+    if (!isModuleEnabled("payments", app))  return false;
 
     const transaction = await addTransacion("credit",   
                                             accountid, 
@@ -249,7 +246,7 @@ const addBalance = async (accountid: number, amount: number) : Promise<boolean> 
         const debit = await addJournalEntry(accounts[4].accountid, transaction, amount, 0, "Expense for adding credit to account: " + accountid);
         const credit = await addJournalEntry(accountid, transaction, 0, amount, "Credit added to account: " + accountid);
         if (credit && debit) {
-            logger.debug("Journal entries added for adding balance to account:", accountid, "transaction:", transaction)
+            logger.debug(`addBalance - Balance added to account: ${accountid} amount: ${amount}, transaction: ${transaction}`);
             
             // Update the balance for the account
             await getBalance(accountid);
@@ -261,9 +258,7 @@ const addBalance = async (accountid: number, amount: number) : Promise<boolean> 
 
 const getPendingInvoices = async () : Promise<invoice[]> => {
 
-    if (!isModuleEnabled("payments", app)) {
-        return [];
-    }
+    if (!isModuleEnabled("payments", app))   return [];
 
     const result = await dbMultiSelect(["id", "accountid", "paymentrequest", "paymenthash",  "satoshi", "preimage", "createddate", "expirydate", "paiddate", "comments"],
                                                             "transactions",
@@ -291,13 +286,9 @@ const getPendingInvoices = async () : Promise<invoice[]> => {
 
 const getInvoice = async (payment_hash: string) : Promise<invoice> => {
 
-    if (!isModuleEnabled("payments", app)) {
-        return emptyInvoice;
-    }
+    if (!isModuleEnabled("payments", app))  return emptyInvoice;
 
-    if (!payment_hash || payment_hash == "0") {
-        return emptyInvoice;
-    }
+    if (!payment_hash || payment_hash == "0")  return emptyInvoice;
 
     const result = await dbMultiSelect(["id", "accountid", "paymentrequest", "paymenthash", "satoshi", "paid", "preimage", "createddate", "expirydate", "paiddate", "comments"],
                                                     "transactions",
@@ -326,13 +317,9 @@ const getInvoice = async (payment_hash: string) : Promise<invoice> => {
 
 const getTransaction = async (transactionid: string) : Promise<transaction> => {
 
-    if (!isModuleEnabled("payments", app)) {
-        return emptyTransaction;
-    }
+    if (!isModuleEnabled("payments", app))  return emptyTransaction;
 
-    if (!transactionid || transactionid == "0") {
-        return emptyTransaction;
-    }
+    if (!transactionid || transactionid == "0")   return emptyTransaction;
 
     const result = await dbMultiSelect(["id", "type", "accountid", "paymentrequest", "paymenthash", "satoshi", "paid", "preimage", "createddate", "expirydate", "paiddate", "comments"],
                                                             "transactions",
@@ -369,10 +356,10 @@ const getTransaction = async (transactionid: string) : Promise<transaction> => {
         const updateCreated = await dbUpdate("transactions", {"createddate" : inv.createdDate}, ["id"], [transactionid]);
         const updateExpyry = await dbUpdate("transactions", {"expirydate" : inv.expiryDate}, ["id"], [transactionid]);
         if (!updatePayreq || !updatePayhash || !updateCreated || !updateExpyry) {
-            logger.error("Error updating transaction with new invoice data", transactionid)
+            logger.error(`generateInvoice - Error updating transaction with new invoice data for account: ${accountid} transactionid: ${transactionid}`);
             return emptyTransaction;
         }
-        logger.info("Invoice expired, new invoice generated for transaction:", transactionid)
+        logger.info(`getTransaction - New invoice generated for account: ${accountid} satoshi: ${transaction.satoshi} transactionid: ${transactionid}`);
 
     }
  
@@ -406,7 +393,7 @@ const collectInvoice = async (invoice: invoice, collectFromExpenses = false, col
     }
 
     if (invoice.isPaid) {
-        logger.debug("Invoice already paid", invoice.transactionid)
+        logger.debug(`collectInvoice - Invoice already paid: ${invoice.transactionid}`);
         return true;
     }
 
@@ -414,9 +401,9 @@ const collectInvoice = async (invoice: invoice, collectFromExpenses = false, col
     const paiddate = await dbUpdate("transactions", {"paiddate" : new Date(invoice.paidDate).toISOString().slice(0, 19).replace('T', ' ') != '1970-01-01 00:00:00' ? new Date(invoice.paidDate).toISOString().slice(0, 19).replace('T', ' ') : getNewDate()}, ["id"], [invoice.transactionid.toString()]);
     const preimage = await dbUpdate("transactions", {"preimage" : invoice.preimage}, ["id"], [invoice.transactionid.toString()]);
     if (paid && paiddate && preimage) {
-        logger.info("Invoice paid, transaction updated", invoice.transactionid);
+        logger.info(`collectInvoice - Invoice paid: ${invoice.transactionid}`);
     }else{
-        logger.error("Error updating transaction", invoice.transactionid);
+        logger.error(`collectInvoice - Error updating transaction: ${invoice.transactionid}, paid: ${paid}, paiddate: ${paiddate}, preimage: ${preimage}`);
         return false;
     }
 
@@ -440,7 +427,7 @@ const collectInvoice = async (invoice: invoice, collectFromExpenses = false, col
     // Credit Revenue
     await addJournalEntry(accounts[3].accountid, invoice.transactionid, 0, invoice.satoshi, "Revenue from invoice payment " + invoice.transactionid);
 
-    logger.debug("Journal entries added for invoice payment", invoice.transactionid)
+    logger.debug(`collectInvoice - Invoice collected: ${invoice.transactionid}, account: ${invoice.accountid}, satoshi: ${invoice.satoshi}`);
         
     // Update the balance for the invoice's account
     await getBalance(invoice.accountid);
@@ -466,7 +453,7 @@ const calculateSatoshi = async (originTable: string, size: number, maxSatoshi: n
         let mediaMaxSatoshi = maxSatoshi == 0 ? app.get("config.payments")["satoshi"]["mediaMaxSatoshi"] : maxSatoshi;
 
         let satoshi = Math.round((fileSizeMB / maxSize) * mediaMaxSatoshi);
-        logger.info("Filesize:", fileSizeMB, "Satoshi:", satoshi)
+        logger.info(`calculateSatoshi - Filesize: ${fileSizeMB}, Satoshi: ${satoshi}`);
         return satoshi;
 
     }
@@ -481,7 +468,7 @@ const calculateSatoshi = async (originTable: string, size: number, maxSatoshi: n
         const intercept = domainMaxSatoshi - slope * app.get("config.register")["minUsernameLength"];
         const satoshi = Math.round(slope * size + intercept);
 
-        logger.debug("Register size:", size, "Satoshi:", satoshi)
+        logger.info(`calculateSatoshi - Username lenght: ${size}, Satoshi: ${satoshi}`);
         return satoshi >= 1 ? satoshi : 1;
     }
 
@@ -495,30 +482,26 @@ const getUnpaidTransactionsBalance = async () : Promise<string> => {
 
 const payInvoiceFromExpenses = async (transactionid: string) : Promise<boolean> => {
 
-    if (!isModuleEnabled("payments", app)) {
-        return false;
-    }
+    if (!isModuleEnabled("payments", app))      return false;
 
-    if (!transactionid || transactionid == "0") {
-        return false;
-    }
+    if (!transactionid || transactionid == "0")  return false;
 
     const transaction = await getTransaction(transactionid);
     const invoice = await getInvoice(transaction.paymentHash);
     if (invoice.paymentHash == "") {
-        logger.error("No payment hash found for transaction", transactionid)
+        logger.error(`payInvoiceFromExpenses - No payment hash found for transaction: ${transactionid}`);
         return false;
     }
 
     if (invoice.isPaid) {
-        logger.debug("Invoice already paid", transactionid)
+        logger.info(`payInvoiceFromExpenses - Invoice already paid: ${transactionid}`);
         return true;
     }
 
     // We send the parameter to debit the expenses account instead of the main wallet.
     const collect = await collectInvoice(invoice, true, true);
     if (collect) {
-        logger.info("Invoice paid", transactionid)
+        logger.info(`payInvoiceFromExpenses - Invoice paid from expenses: ${transactionid}`);
         return true;
     }
 
@@ -527,12 +510,10 @@ const payInvoiceFromExpenses = async (transactionid: string) : Promise<boolean> 
 
 const isInvoicePaid = async (paymentHash: string) : Promise<{paiddate : string, preimage : string}> => {
 
-    if (!isModuleEnabled("payments", app)) {
-        return {paiddate: "", preimage: ""};
-    }
+    if (!isModuleEnabled("payments", app))   return {paiddate: "", preimage: ""};
 
     if (paymentHash == "") {
-        logger.error("No payment hash provided")
+        logger.error(`isInvoicePaid - No payment hash provided`);
         return {paiddate: "", preimage: ""};
     }
 
@@ -547,7 +528,7 @@ const processPendingInvoices = async () => {
         if (isProcessing) return;
         isProcessing = true;
         const pendingInvoices = await getPendingInvoices();
-        logger.debug("Pending invoices:", pendingInvoices.length);
+        logger.debug(`processPendingInvoices - Processing pending invoices: ${pendingInvoices.length}`);
         for (const invoice of pendingInvoices) {
             await new Promise(resolve => setTimeout(resolve, 300));
             const paidInfo = await isInvoicePaid(invoice.paymentHash);
@@ -573,7 +554,9 @@ const cleanTransactions = async () => {
     result.forEach(async transaction => {
         await deleteTransaction(transaction.id);
     })
-    logger.info("Cleaned unpaid transactions for account 1100000000");
+    if (result.length > 0){
+        logger.info(`cleanTransactions - Cleaned ${result.length} unpaid transactions for account 110000000 (24 hours)`);
+    }
 }
 cleanTransactions();
 
@@ -595,7 +578,7 @@ const updateAccountId = async (pubkey : string, transaction_id : number) : Promi
     const updateLedger = await dbUpdate("ledger", {"accountid" : accountId}, ["transactionid", "accountid"], [transaction_id, "1100000000"]);
     if (!updateLedger) return false;
 
-    logger.debug("Updated transaction accountid:", transaction_id, "to:", accountId)
+    logger.debug(`updateAccountId - Updated transaction accountid: ${transaction_id} to: ${accountId}`);
 
     return true;
 }

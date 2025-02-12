@@ -8,7 +8,7 @@ import bcrypt from 'bcrypt';
 
 const generatefileHashfromfile = (filepath:string): string => {
 
-  logger.debug("INIT hash generation for file:", filepath);
+  logger.debug(`generatefileHashfromfile - INIT hash generation for file: ${filepath}`);
 
   let hash = '';
   try{
@@ -21,8 +21,7 @@ const generatefileHashfromfile = (filepath:string): string => {
     logger.error("Error getting file hash", error);
     return "";
   }
-  logger.debug("END hash generation for file:", filepath, ":", hash);
-  logger.info("Hash for file:", filepath, ":", hash);
+  logger.debug(`generatefileHashfromfile - END hash generation for file: ${filepath} => ${hash}`);
 
   return hash;
 
@@ -30,7 +29,7 @@ const generatefileHashfromfile = (filepath:string): string => {
 
 const generatefileHashfrombuffer = async (file:Express.Multer.File, type:string): Promise<string> => {
 
-  logger.debug("INIT hash generation from buffer", file.originalname);
+  logger.debug(`generatefileHashfrombuffer - INIT hash generation for file: ${file.originalname}`);
 
   let hash = '';
   try{
@@ -44,10 +43,10 @@ const generatefileHashfrombuffer = async (file:Express.Multer.File, type:string)
         .digest("hex");
     }
   catch (error) {
-    logger.error("Error getting file hash", error);
+    logger.error(`generatefileHashfrombuffer - Error getting file hash with error: ${error}`);
     return "";
   }
-  logger.debug("END hash generation from buffer,", file.originalname, "=>", hash);
+  logger.debug(`generatefileHashfrombuffer - END hash generation for file: ${file.originalname} => ${hash}`);
 
   return hash;
 
@@ -55,7 +54,7 @@ const generatefileHashfrombuffer = async (file:Express.Multer.File, type:string)
 
 const generateBlurhash = async (path: string): Promise<string> =>
   new Promise((resolve) => {
-    logger.debug("INIT blurhash generation for file:", path);
+    logger.debug(`generateBlurhash - INIT blurhash generation for file: ${path}`);
     sharp.cache(false);
     sharp(path)
       .raw()
@@ -63,13 +62,13 @@ const generateBlurhash = async (path: string): Promise<string> =>
       .resize(32, 32, { fit: "inside" })
       .toBuffer((err, buffer, info) => {
         if (err || !info) {
-          logger.error("Error processing image or 'info' is undefined for file:", path, "error:", err.cause, err.message);
+          logger.error(`generateBlurhash - Error processing image or 'info' is undefined for file: ${path} with error: ${err.cause} ${err.message}`);
           return resolve("");
         }
 
         const { width, height } = info;
         const blurhash = encode(new Uint8ClampedArray(buffer), width, height, 4, 4);
-        logger.debug("END blurhash generation for file:", path, "blurhash:", blurhash);
+        logger.debug(`generateBlurhash - END blurhash generation for file: ${path} => ${blurhash}`);
         resolve(blurhash);
       });
   });
@@ -96,7 +95,7 @@ const hashString = async (input:string, type: credentialTypes, saltRounds:number
       hashedString = await crypto.createHash('sha256').update(Buffer.from(input, 'hex')).digest('hex');
     }
     else{
-      logger.error("Invalid credential type");
+      logger.error(`hashString - Invalid credential type: ${type}`);
       return "";
     }
 		if (hashedString == undefined) {
@@ -104,7 +103,7 @@ const hashString = async (input:string, type: credentialTypes, saltRounds:number
 		}
     return hashedString;
   }catch (error) {
-    logger.error(error);
+    logger.error(`hashString - Error hashing string with error: ${error}`);
     return "";
   }
 }
@@ -115,10 +114,10 @@ const validateHash = async (input:string, hash:string): Promise<boolean> => {
 
     try{
       const result = await bcrypt.compare(input, hash);
-      logger.debug("Hash validation result", result);
+      logger.debug(`validateHash - Hash validation result: ${result}`);
       return result;
     }catch (error) {
-      logger.error(error);
+      logger.debug(`validateHash - Error validating hash with error: ${error}`);
       return false;
     }
   }

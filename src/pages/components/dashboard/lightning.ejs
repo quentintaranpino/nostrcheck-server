@@ -7,11 +7,11 @@ let lightningFields = [
   ['comments'         , ''   , ''              , 'enabled   show mobile-hide              '],
  
 ];
-if (locals.activeModules.includes("payments")) {
+if(locals.activeModules.some(mod => mod.name === 'payments')) {
   lightningFields.splice(5, 0,  ['transactionid', 'disabled', 'hide']);
 }
 %>
-<% if(locals.activeModules.includes('lightning')) { %> 
+<% if(locals.activeModules.some(mod => mod.name === 'lightning')) { %>
   <%- include('../table', {
     tableName:"Lightning redirects", 
     tableId:"lightningData", 

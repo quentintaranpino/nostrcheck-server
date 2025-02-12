@@ -1,7 +1,8 @@
-interface logEvent {
+interface LogEvent {
+    id : number;
     date: Date;
     severity: string;
     message: string;
 }
 
-export {logEvent}
+export {LogEvent}

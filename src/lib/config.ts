@@ -75,23 +75,28 @@ const updateLocalConfigKey = async (key: string, value: string) : Promise<boolea
 }
 
 
-const loadconfigActiveModules = (app: Application) : [string, Module][] => {
+const loadconfigActiveModules = (app: Application): Module[] => {
 	const availableModules = Object.entries(app.get("config.server")["availableModules"] as Record<string, Module>);
-	const activeModules = availableModules.filter((module) => module[1]["enabled"] == true);
+	const activeModules = availableModules
+		.filter(([_, module]) => module.enabled === true)
+		.map(([_, module]) => module);
 
-	// Always add logger to active modules, this cant be disabled.
-	activeModules.push(["logger", {enabled: true, path: "/logger", methods: ["GET"], description: "This module returns the logs for the server.", name: "logger"}]);
+	// Always add the logger module to the active modules. It can't
+	activeModules.push({
+		name: "logger",
+		enabled: true,
+		path: "/",
+		methods: ["Library"],
+		description: "This module manages the server logs engine."
+	});
+
 	return activeModules;
 }
 
-const isModuleEnabled = (moduleName: string, app: Application) : boolean => {
-	const availableModules = loadconfigActiveModules(app)
-	const module = availableModules.find((module) => module[0] === moduleName);
-	if (module){
-		return module[1]["enabled"];
-	}else{
-		return false;
-	}
+const isModuleEnabled = (moduleName: string, app: Application): boolean => {
+	const availableModules = loadconfigActiveModules(app);
+	const mod = availableModules.find((module) => module.name === moduleName);
+	return mod ? mod.enabled : false;
 }
 
 const loadConfigOptions = async (section:string) : Promise<Modules> => {
@@ -104,9 +109,9 @@ const loadConfigOptions = async (section:string) : Promise<Modules> => {
 }
 
 export { 
-			updateLocalConfigKey, 
-			syncDefaultConfigValues,
-			loadconfigActiveModules,
-			isModuleEnabled,
-			loadConfigOptions,
-			};
+	updateLocalConfigKey, 
+	syncDefaultConfigValues,
+	loadconfigActiveModules,
+	isModuleEnabled,
+	loadConfigOptions,
+};

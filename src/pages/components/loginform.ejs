@@ -117,7 +117,7 @@ const logIn = async (type, rememberMe, buttonId) =>{
                       ],
               content: 'This will not be published on nostr. Its purpose is to verify that you have control of your pubkey'
           };
-          console.log(event);
+          console.debug(event);
           const loginEvent = JSON.stringify(await window.nostr.signEvent(event));
 
           if (loginEvent){
