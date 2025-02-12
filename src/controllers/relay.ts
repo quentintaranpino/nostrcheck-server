@@ -320,7 +320,24 @@ const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) =>
       return;
     }
 
-    const storedEvents = eventsToDelete.map(id => events.memoryDB.get(id)).filter(e => e !== undefined).filter(e => e.event.kind !== 5)
+    const pendingEvents = eventsToDelete.map(id => events.pending.get(id)).filter(e => e !== undefined).filter(e => e.kind !== 5);
+    if (pendingEvents.length > 0) {
+
+      pendingEvents.forEach(e => {
+        events.pending.delete(e.id);
+        events.memoryDB.delete(e.id);
+        const index = events.sortedArray.findIndex((event: Event) => event.id === e.id);
+        if (index !== -1)  events.sortedArray.splice(index, 1);
+      });
+
+      socket.send(JSON.stringify(["NOTICE", "deleted: events successfully deleted"]));
+      socket.send(JSON.stringify(["OK", event.id, true, "deleted: events successfully deleted"]));
+      logger.debug(`Deleted pending events: ${pendingEvents.map(e => e.id).join(", ")}`);
+      return;
+
+    }
+
+    const storedEvents = eventsToDelete.map(id => events.memoryDB.get(id)).filter(e => e !== undefined).filter(e => e.event.kind !== 5);
     if (storedEvents.length === 0) {
       socket.send(JSON.stringify(["NOTICE", "invalid: no events found for deletion"]));
       socket.send(JSON.stringify(["OK", event.id, false, "invalid: no events found for deletion"]));
