@@ -4,6 +4,7 @@ import { dbBulkInsert, dbSimpleSelect, dbUpsert } from "../database.js";
 import { logger } from "../logger.js";
 import { MemoryEvent } from "../../interfaces/relay.js";
 import { isModuleEnabled } from "../config.js";
+import app from "../../app.js";
 
 const initEvents = async (app: Application): Promise<boolean> => {
 
@@ -190,46 +191,70 @@ const storeEvents = async (eventsInput: Event | Event[]): Promise<number> => {
     return insertedRows;
   };
 
-const getEvents = async (filters: Filter[], relayData: { memoryDB: Map<string, MemoryEvent>; sortedArray: Event[] }): Promise<Event[]> => {
+  const getEvents = async (filters: Filter[], relayData: { memoryDB: Map<string, MemoryEvent>; sortedArray: Event[] }): Promise<Event[]> => {
+
     const now = Math.floor(Date.now() / 1000);
     const allEvents: Event[] = [];
+
+    const maxLimit = app.get("config.relay")["limitation"]["max_limit"];
+  
     for (const filter of filters) {
-        const until = filter.until !== undefined ? filter.until : now;
-        const since = filter.since !== undefined ? filter.since : 0;
-        const limit = filter.limit;
-
-        const rawSearch = filter.search ? filter.search.trim() : "";
-        const searchQuery = rawSearch.length >= 3 ? rawSearch.toLowerCase() : null;
-
-        const startIndex = binarySearchFirstDescending(relayData.sortedArray, until);
-        const endIndex   = binarySearchFirstStrictDescending(relayData.sortedArray, since);
-        const candidates = relayData.sortedArray.slice(startIndex, endIndex);
-        const { search, ...basicFilter } = filter;
-
-        let filtered: { event: Event; score: number }[] = [];
-        for (const event of candidates) {
-            if (!matchFilter(basicFilter, event)) continue;
-            if (!searchQuery) {
-                filtered.push({ event, score: 0 });
-            } else {
-                const memEvent = relayData.memoryDB.get(event.id);
-                const contentLower = memEvent ? memEvent.content_lower : event.content.toLowerCase();
-                const index = contentLower.indexOf(searchQuery);
-                if (index !== -1) filtered.push({ event, score: index });
-            }
-            if (!searchQuery && limit !== undefined && filtered.length >= limit) break;
+      const until = filter.until !== undefined ? filter.until : now;
+      const since = filter.since !== undefined ? filter.since : 0;
+      
+      // If is a search query, we don't apply the limit
+      let effectiveLimit = filter.limit;
+      const isSearch = filter.search && filter.search.trim().length >= 3;
+      if (!isSearch) {
+        if (effectiveLimit === undefined) {
+          effectiveLimit = maxLimit;
+        } else if (effectiveLimit > maxLimit) {
+          effectiveLimit = maxLimit;
         }
-
-        if (searchQuery) filtered.sort((a, b) => a.score - b.score);
-
-        const eventsForFilter = limit !== undefined? filtered.slice(0, limit).map((item) => item.event) : filtered.map((item) => item.event);
-        for (const event of eventsForFilter) {
-            allEvents.push(event);
-          }
+      }
+      
+      const rawSearch = filter.search ? filter.search.trim() : "";
+      const searchQuery = rawSearch.length >= 3 ? rawSearch.toLowerCase() : null;
+      const startIndex = binarySearchFirstDescending(relayData.sortedArray, until);
+      const endIndex = binarySearchFirstStrictDescending(relayData.sortedArray, since);
+      const candidates = relayData.sortedArray.slice(startIndex, endIndex);
+      
+      const { search, ...basicFilter } = filter;
+      let filtered: { event: Event; score: number }[] = [];
+      
+      for (const event of candidates) {
+        if (!matchFilter(basicFilter, event)) continue;
+        
+        if (!searchQuery) {
+          filtered.push({ event, score: 0 });
+        } else {
+          const memEvent = relayData.memoryDB.get(event.id);
+          const contentLower = memEvent ? memEvent.content_lower : event.content.toLowerCase();
+          const index = contentLower.indexOf(searchQuery);
+          if (index !== -1) filtered.push({ event, score: index });
+        }
+        
+        // If we have reached the limit, we stop (if it's not a search query)
+        if (!searchQuery && effectiveLimit !== undefined && filtered.length >= effectiveLimit) break;
+      }
+      
+      if (searchQuery) filtered.sort((a, b) => a.score - b.score);
+      
+      // Obtain the events from the filtered list
+      const eventsForFilter =
+        effectiveLimit !== undefined
+          ? filtered.slice(0, effectiveLimit).map((item) => item.event)
+          : filtered.map((item) => item.event);
+      
+      for (const event of eventsForFilter) {
+        allEvents.push(event);
+      }
+      
     }
     
     return allEvents;
-};
+  };
+  
 
 
 function binarySearchFirstDescending(arr: Event[], target: number): number {
