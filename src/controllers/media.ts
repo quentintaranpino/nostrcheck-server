@@ -1020,15 +1020,8 @@ const getMediabyURL = async (req: Request, res: Response) => {
 			return res.status(200).send(await getNotFoundFileBanner());
 		}
 
-		// if (filedata[0].visibility != "1" && adminRequest == false && loggedPubkey != filedata[0].pubkey) {
-		// 	logger.info(`RES -> 401 File not visible - ${req.url}`, "returning not found media file |", reqInfo.ip, "|", "cached:", cachedStatus ? true : false);
-		// 	res.setHeader('Content-Type', 'image/webp');
-		// 	return res.status(401).send(await getNotFoundMediaFile());
-		// }
-
 		// Allways set the correct filename
 		req.params.filename = filedata[0].filename
-
 
 		// Check if exist a transaction for this media file and if it is paid. Check preimage
 		const transaction = await checkTransaction(filedata[0].transactionid, filedata[0].id, "mediafiles", Number(filedata[0].filesize), req.params.pubkey, app.get("config.payments")["satoshi"]["mediaMaxSatoshi"]) as transaction;
