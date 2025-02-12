@@ -4,7 +4,6 @@ import { dbBulkInsert, dbSimpleSelect, dbUpsert } from "../database.js";
 import { logger } from "../logger.js";
 import { MemoryEvent } from "../../interfaces/relay.js";
 import { isModuleEnabled } from "../config.js";
-import app from "../../app.js";
 
 const initEvents = async (app: Application): Promise<boolean> => {
 
@@ -191,49 +190,39 @@ const storeEvents = async (eventsInput: Event | Event[]): Promise<number> => {
     return insertedRows;
   };
 
-  const getEvents = async (filters: Filter[], relayData: { map: Map<string, MemoryEvent>; sortedArray: Event[] }): Promise<Event[]> => {
+const getEvents = async (filters: Filter[], relayData: { map: Map<string, MemoryEvent>; sortedArray: Event[] }): Promise<Event[]> => {
     const now = Math.floor(Date.now() / 1000);
     const allEvents: Event[] = [];
-
     for (const filter of filters) {
-        const until = filter.until ?? now;
-        const since = filter.since ?? 0;
-        const maxLimit = app.get("config.relay")["limitation"]["max_limit"];
-        const limit = Math.min(filter.limit ?? maxLimit, maxLimit); 
+        const until = filter.until !== undefined ? filter.until : now;
+        const since = filter.since !== undefined ? filter.since : 0;
+        const limit = filter.limit;
 
-        const rawSearch = filter.search?.trim() ?? "";
+        const rawSearch = filter.search ? filter.search.trim() : "";
         const searchQuery = rawSearch.length >= 3 ? rawSearch.toLowerCase() : null;
 
-        const startIndex = binarySearchFirst(relayData.sortedArray, until, (event, target) => event.created_at <= target);
-        const endIndex = binarySearchFirst(relayData.sortedArray, since, (event, target) => event.created_at < target);
-
-        const candidateLimit = searchQuery ? maxLimit * 5 : maxLimit;
-        const candidates = relayData.sortedArray.slice(startIndex, Math.max(startIndex, endIndex)).slice(0, candidateLimit);
-
+        const startIndex = binarySearchFirstDescending(relayData.sortedArray, until);
+        const endIndex   = binarySearchFirstStrictDescending(relayData.sortedArray, since);
+        const candidates = relayData.sortedArray.slice(startIndex, endIndex);
         const { search, ...basicFilter } = filter;
-        let filtered: { event: Event; score: number }[] = [];
 
+        let filtered: { event: Event; score: number }[] = [];
         for (const event of candidates) {
             if (!matchFilter(basicFilter, event)) continue;
-
-            let score = 0;
-            if (searchQuery) {
-                if (!event) continue;
-                const memEvent = relayData.map?.get(event.id) ?? null; 
-                const contentLower = memEvent?.content_lower ?? event.content?.toLowerCase() ?? "";
+            if (!searchQuery) {
+                filtered.push({ event, score: 0 });
+            } else {
+                const memEvent = relayData.map.get(event.id);
+                const contentLower = memEvent ? memEvent.content_lower : event.content.toLowerCase();
                 const index = contentLower.indexOf(searchQuery);
-                if (index !== -1) score = index;
-                else continue;
+                if (index !== -1) filtered.push({ event, score: index });
             }
-
-            filtered.push({ event, score });
-
-            if (!searchQuery && filtered.length >= limit) break; 
+            if (!searchQuery && limit !== undefined && filtered.length >= limit) break;
         }
 
         if (searchQuery) filtered.sort((a, b) => a.score - b.score);
 
-        const eventsForFilter = filtered.slice(0, limit).map((item) => item.event);
+        const eventsForFilter = limit !== undefined? filtered.slice(0, limit).map((item) => item.event) : filtered.map((item) => item.event);
         allEvents.push(...eventsForFilter);
     }
     
@@ -241,33 +230,32 @@ const storeEvents = async (eventsInput: Event | Event[]): Promise<number> => {
 };
 
 
-
-/**
- * Returns the first index in the sorted array for which the comparison function returns true.
- *
- * This function performs a binary search on a sorted array of events and returns the first index
- * at which the provided comparison function (which compares an event with the target value) is true.
- * If no element satisfies the condition, the function returns the length of the array.
- *
- * @param {Event[]} arr - The sorted array of events.
- * @param {number} target - The value to compare against (for example, a timestamp).
- * @param {(event: Event, target: number) => boolean} compare - The comparison function that determines if an event meets the condition with respect to the target.
- * @returns {number} The index where the condition is first met, or arr.length if no element meets it.
- */
-function binarySearchFirst(arr: Event[], target: number, compare: (event: Event, target: number) => boolean): number {
+function binarySearchFirstDescending(arr: Event[], target: number): number {
     let low = 0;
     let high = arr.length;
-    let result = arr.length;
     while (low < high) {
         const mid = Math.floor((low + high) / 2);
-        if (compare(arr[mid], target)) {
-        result = mid;
-        high = mid;
+        if (arr[mid].created_at > target) {
+            low = mid + 1;
         } else {
-        low = mid + 1;
+            high = mid;
         }
     }
-    return result;
+    return low;
+}
+
+function binarySearchFirstStrictDescending(arr: Event[], target: number): number {
+    let low = 0;
+    let high = arr.length;
+    while (low < high) {
+        const mid = Math.floor((low + high) / 2);
+        if (arr[mid].created_at >= target) {
+            low = mid + 1;
+        } else {
+            high = mid;
+        }
+    }
+    return low;
 }
 
 /**

@@ -437,6 +437,7 @@ const handleReqOrCount = async (socket: WebSocket, subId: string, filters: Filte
       if (type === "REQ") {
         socket.send(JSON.stringify(["EVENT", subId, event]));
         logger.debug("Sent event:", event.id);
+        if (count >= app.get("config.relay")["limitation"]["max_limit"]) break;
       }
     }
 
