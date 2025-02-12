@@ -533,7 +533,7 @@ const headMedia = async (req: Request, res: Response): Promise<Response> => {
 	// Check if the request IP is allowed
 	const reqInfo = await isIpAllowed(req);
 	if (reqInfo.banned == true) {
-		logger.warn(`Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
+		logger.info(`Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
 		return res.status(403).send({"status": "error", "message": reqInfo.comments});
 	}
 
@@ -595,7 +595,7 @@ const getMediaList = async (req: Request, res: Response, version:string): Promis
 	// Check if the request IP is allowed
 	const reqInfo = await isIpAllowed(req);
 	if (reqInfo.banned == true) {
-		logger.warn(`Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
+		logger.info(`Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
 		return res.status(403).send({"status": "error", "message": reqInfo.comments});
 	}
 
@@ -753,7 +753,7 @@ const getMediaStatusbyID = async (req: Request, res: Response, version:string): 
 	// Check if the request IP is allowed
 	const reqInfo = await isIpAllowed(req);
 	if (reqInfo.banned == true) {
-		logger.warn(`Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
+		logger.info(`Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
 		return res.status(403).send({"status": "error", "message": reqInfo.comments});
 	}
 
@@ -911,7 +911,7 @@ const getMediabyURL = async (req: Request, res: Response) => {
 	// Check if the request IP is allowed
 	const reqInfo = await isIpAllowed(req);
 	if (reqInfo.banned == true) {
-		logger.warn(`Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
+		logger.info(`Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
 		return res.status(403).send({"status": "error", "message": reqInfo.comments});
 	}
 
@@ -1221,7 +1221,7 @@ const getMediaTagsbyID = async (req: Request, res: Response): Promise<Response> 
 	// Check if the request IP is allowed
 	const reqInfo = await isIpAllowed(req);
 	if (reqInfo.banned == true) {
-		logger.warn(`Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
+		logger.info(`Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
 		return res.status(403).send({"status": "error", "message": reqInfo.comments});
 	}
 
@@ -1290,7 +1290,7 @@ const getMediabyTags = async (req: Request, res: Response): Promise<Response> =>
 	// Check if the request IP is allowed
 	const reqInfo = await isIpAllowed(req);
 	if (reqInfo.banned == true) {
-		logger.warn(`Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
+		logger.info(`Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
 		return res.status(403).send({"status": "error", "message": reqInfo.comments});
 	}
 
@@ -1577,7 +1577,7 @@ const headUpload = async (req: Request, res: Response): Promise<Response> => {
 	// Check if the request IP is allowed
 	const reqInfo = await isIpAllowed(req);
 	if (reqInfo.banned == true) {
-		logger.warn(`Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
+		logger.info(`Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
 		return res.status(403).send({"status": "error", "message": reqInfo.comments});
 	}
 

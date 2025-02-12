@@ -130,7 +130,7 @@ const loadTosPage = async (req: Request, res: Response, version:string): Promise
 	// Check if the request IP is allowed
 	const reqInfo = await isIpAllowed(req);
 	if (reqInfo.banned == true) {
-		logger.warn(`Attempt to access ${req.path} with unauthorized IP:`, getClientIp(req));
+		logger.info(`Attempt to access ${req.path} with unauthorized IP:`, getClientIp(req));
 		return res.status(403).send({"status": "error", "message": reqInfo.comments});
 	}
 
@@ -171,7 +171,7 @@ const loadLoginPage = async (req: Request, res: Response, version:string): Promi
 	// Check if the request IP is allowed
 	const reqInfo = await isIpAllowed(req);
 	if (reqInfo.banned == true) {
-		logger.warn(`Attempt to access ${req.path} with unauthorized IP:`, getClientIp(req));
+		logger.info(`Attempt to access ${req.path} with unauthorized IP:`, getClientIp(req));
 		return res.status(403).send({"status": "error", "message": reqInfo.comments});
 	}
 
@@ -203,7 +203,7 @@ const loadIndexPage = async (req: Request, res: Response, version:string): Promi
 	// Check if the request IP is allowed
 	const reqInfo = await isIpAllowed(req);
 	if (reqInfo.banned == true) {
-		logger.warn(`Attempt to access ${req.path} with unauthorized IP:`, getClientIp(req));
+		logger.info(`Attempt to access ${req.path} with unauthorized IP:`, getClientIp(req));
 		return res.status(403).send({"status": "error", "message": reqInfo.comments});
 	}
 
@@ -236,7 +236,7 @@ const loadDocsPage = async (req: Request, res: Response, version: string): Promi
 	// Check if the request IP is allowed
 	const reqInfo = await isIpAllowed(req);
 	if (reqInfo.banned == true) {
-		logger.warn(`Attempt to access ${req.path} with unauthorized IP:`, getClientIp(req));
+		logger.info(`Attempt to access ${req.path} with unauthorized IP:`, getClientIp(req));
 		return res.status(403).send({"status": "error", "message": reqInfo.comments});
 	}
 
@@ -279,7 +279,7 @@ const loadGalleryPage = async (req: Request, res: Response, version:string): Pro
 	// Check if the request IP is allowed
 	const reqInfo = await isIpAllowed(req);
 	if (reqInfo.banned == true) {
-		logger.warn(`Attempt to access ${req.path} with unauthorized IP:`, getClientIp(req));
+		logger.info(`Attempt to access ${req.path} with unauthorized IP:`, getClientIp(req));
 		return res.status(403).send({"status": "error", "message": reqInfo.comments});
 	}
 
@@ -311,7 +311,7 @@ const loadDirectoryPage = async (req: Request, res: Response, version:string): P
 	// Check if the request IP is allowed
 	const reqInfo = await isIpAllowed(req);
 	if (reqInfo.banned == true) {
-		logger.warn(`Attempt to access ${req.path} with unauthorized IP:`, getClientIp(req));
+		logger.info(`Attempt to access ${req.path} with unauthorized IP:`, getClientIp(req));
 		return res.status(403).send({"status": "error", "message": reqInfo.comments});
 	}
 
@@ -343,7 +343,7 @@ const loadRegisterPage = async (req: Request, res: Response, version:string): Pr
 	// Check if the request IP is allowed
 	const reqInfo = await isIpAllowed(req);
 	if (reqInfo.banned == true) {
-		logger.warn(`Attempt to access ${req.path} with unauthorized IP:`, getClientIp(req));
+		logger.info(`Attempt to access ${req.path} with unauthorized IP:`, getClientIp(req));
 		return res.status(403).send({"status": "error", "message": reqInfo.comments});
 	}
 
@@ -375,7 +375,7 @@ const loadCdnPage = async (req: Request, res: Response, version:string): Promise
 	// Check if the request IP is allowed
 	const reqInfo = await isIpAllowed(req);
 	if (reqInfo.banned == true) {
-		logger.warn(`Attempt to access ${req.path} with unauthorized IP:`, getClientIp(req));
+		logger.info(`Attempt to access ${req.path} with unauthorized IP:`, getClientIp(req));
 		return res.status(403).send({"status": "error", "message": reqInfo.comments});
 	}
 
@@ -409,7 +409,7 @@ const loadRelayPage = async (req: Request, res: Response, version:string): Promi
 	// Check if the request IP is allowed
 	const reqInfo = await isIpAllowed(req);
 	if (reqInfo.banned == true) {
-		logger.warn(`Attempt to access ${req.path} with unauthorized IP:`, getClientIp(req));
+		logger.info(`Attempt to access ${req.path} with unauthorized IP:`, getClientIp(req));
 		return res.status(403).send({"status": "error", "message": reqInfo.comments});
 	}
 
