@@ -190,7 +190,7 @@ const storeEvents = async (eventsInput: Event | Event[]): Promise<number> => {
     return insertedRows;
   };
 
-const getEvents = async (filters: Filter[], relayData: { map: Map<string, MemoryEvent>; sortedArray: Event[] }): Promise<Event[]> => {
+const getEvents = async (filters: Filter[], relayData: { memoryDB: Map<string, MemoryEvent>; sortedArray: Event[] }): Promise<Event[]> => {
     const now = Math.floor(Date.now() / 1000);
     const allEvents: Event[] = [];
     for (const filter of filters) {
@@ -212,7 +212,7 @@ const getEvents = async (filters: Filter[], relayData: { map: Map<string, Memory
             if (!searchQuery) {
                 filtered.push({ event, score: 0 });
             } else {
-                const memEvent = relayData.map.get(event.id);
+                const memEvent = relayData.memoryDB.get(event.id);
                 const contentLower = memEvent ? memEvent.content_lower : event.content.toLowerCase();
                 const index = contentLower.indexOf(searchQuery);
                 if (index !== -1) filtered.push({ event, score: index });
