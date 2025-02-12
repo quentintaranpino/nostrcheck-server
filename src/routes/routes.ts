@@ -58,7 +58,6 @@ const loadAPI = async (app: Application, version:string): Promise<boolean> => {
 				await loadRelayRoutes(app, version);
 				break;
 			default:
-				logger.warn("Unknown module: " + module);
 				break;
 		}
 	}
