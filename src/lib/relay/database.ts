@@ -218,8 +218,9 @@ const storeEvents = async (eventsInput: Event | Event[]): Promise<number> => {
 
             let score = 0;
             if (searchQuery) {
-                const memEvent = relayData.map.get(event.id);
-                const contentLower = memEvent ? memEvent.content_lower : event.content.toLowerCase();
+                if (!event) continue;
+                const memEvent = relayData.map?.get(event.id) ?? null; 
+                const contentLower = memEvent?.content_lower ?? event.content?.toLowerCase() ?? "";
                 const index = contentLower.indexOf(searchQuery);
                 if (index !== -1) score = index;
                 else continue;
