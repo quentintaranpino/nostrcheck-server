@@ -4,6 +4,7 @@ import { dbBulkInsert, dbSimpleSelect, dbUpsert } from "../database.js";
 import { logger } from "../logger.js";
 import { MemoryEvent } from "../../interfaces/relay.js";
 import { isModuleEnabled } from "../config.js";
+import app from "../../app.js";
 
 const initEvents = async (app: Application): Promise<boolean> => {
 
@@ -190,44 +191,54 @@ const storeEvents = async (eventsInput: Event | Event[]): Promise<number> => {
     return insertedRows;
   };
 
-const getEvents = async (filters: Filter[], relayData: { map: Map<string, MemoryEvent>; sortedArray: Event[] }): Promise<Event[]> => {
+  const getEvents = async (filters: Filter[], relayData: { map: Map<string, MemoryEvent>; sortedArray: Event[] }): Promise<Event[]> => {
     const now = Math.floor(Date.now() / 1000);
     const allEvents: Event[] = [];
-    for (const filter of filters) {
-        const until = filter.until !== undefined ? filter.until : now;
-        const since = filter.since !== undefined ? filter.since : 0;
-        const limit = filter.limit;
 
-        const rawSearch = filter.search ? filter.search.trim() : "";
+    for (const filter of filters) {
+        const until = filter.until ?? now;
+        const since = filter.since ?? 0;
+        const maxLimit = app.get("config.relay")["limitation"]["max_limit"];
+        const limit = Math.min(filter.limit ?? maxLimit, maxLimit); 
+
+        const rawSearch = filter.search?.trim() ?? "";
         const searchQuery = rawSearch.length >= 3 ? rawSearch.toLowerCase() : null;
 
         const startIndex = binarySearchFirst(relayData.sortedArray, until, (event, target) => event.created_at <= target);
         const endIndex = binarySearchFirst(relayData.sortedArray, since, (event, target) => event.created_at < target);
-        const candidates = relayData.sortedArray.slice(startIndex, endIndex);
-        const { search, ...basicFilter } = filter;
 
+        const candidateLimit = searchQuery ? maxLimit * 5 : maxLimit;
+        const candidates = relayData.sortedArray.slice(startIndex, Math.max(startIndex, endIndex)).slice(0, candidateLimit);
+
+        const { search, ...basicFilter } = filter;
         let filtered: { event: Event; score: number }[] = [];
+
         for (const event of candidates) {
             if (!matchFilter(basicFilter, event)) continue;
-            if (!searchQuery) {
-                filtered.push({ event, score: 0 });
-            } else {
+
+            let score = 0;
+            if (searchQuery) {
                 const memEvent = relayData.map.get(event.id);
                 const contentLower = memEvent ? memEvent.content_lower : event.content.toLowerCase();
                 const index = contentLower.indexOf(searchQuery);
-                if (index !== -1) filtered.push({ event, score: index });
+                if (index !== -1) score = index;
+                else continue;
             }
-            if (!searchQuery && limit !== undefined && filtered.length >= limit) break;
+
+            filtered.push({ event, score });
+
+            if (!searchQuery && filtered.length >= limit) break; 
         }
 
         if (searchQuery) filtered.sort((a, b) => a.score - b.score);
 
-        const eventsForFilter = limit !== undefined? filtered.slice(0, limit).map((item) => item.event) : filtered.map((item) => item.event);
+        const eventsForFilter = filtered.slice(0, limit).map((item) => item.event);
         allEvents.push(...eventsForFilter);
     }
     
     return allEvents;
 };
+
 
 
 /**
