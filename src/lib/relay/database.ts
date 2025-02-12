@@ -223,7 +223,9 @@ const getEvents = async (filters: Filter[], relayData: { map: Map<string, Memory
         if (searchQuery) filtered.sort((a, b) => a.score - b.score);
 
         const eventsForFilter = limit !== undefined? filtered.slice(0, limit).map((item) => item.event) : filtered.map((item) => item.event);
-        allEvents.push(...eventsForFilter);
+        for (const event of eventsForFilter) {
+            allEvents.push(event);
+          }
     }
     
     return allEvents;
