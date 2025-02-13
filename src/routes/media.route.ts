@@ -85,6 +85,7 @@ export const loadMediaEndpoint = async (app: Application, version:string): Promi
 
 	// HEAD
 	app.head("/api/" + version + app.get("config.server")["availableModules"]["media"]["path"] + "/:param1", limiter(1000), headMedia);
+	app.head("/:param1", limiter(1000), headMedia) // Blossom cdn url head
 
 	// GET 
 	app.get(`/api/${version}${app.get("config.server")["availableModules"]["media"]["path"]}/:param1?/:param2?`, 
