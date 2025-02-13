@@ -48,6 +48,9 @@ const NIP11Data = async (req: Request, res: Response): Promise<Response> => {
 
 	res.setHeader('Content-Type', 'application/json');
 
+	res.set("access-control-allow-origin", "*");
+	res.set("access-control-allow-methods", "GET");
+
 	logger.info(`NIP11Data - Successfully sent NIP11 data to:`, req.hostname, "|", reqInfo.ip);
 	return res.status(200).send(JSON.stringify(getNIP11file(app, req.hostname)));
 	
