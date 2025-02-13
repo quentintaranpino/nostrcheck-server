@@ -125,14 +125,20 @@
 </nav>
 <%- include('../components/modals/uploader-modal', {instance: "navbar", hideTos:false}) %>
 <script>
-  const activeModules = <%- JSON.stringify(locals.activeModules.map(mod => mod.name)) %>;
 
-  if (!activeModules.includes('register')) {
+
+const activeModules = <%- JSON.stringify(locals.activeModules) %>;
+
+
+  if (!activeModules.some(mod => mod.name === 'register')) {
     document.getElementById('registerMenu').classList.add('d-none');
     document.getElementById('directoryMenu').classList.add('d-none');
   }
-  if (!activeModules.includes('media')) {
+  if (!activeModules.some(mod => mod.name === 'media')) {
     document.getElementById('galleryMenu').classList.add('d-none');
     document.getElementById('cdnMenu').classList.add('d-none');
+  }
+  if (!activeModules.some(mod => mod.name === 'relay')) {
+    document.getElementById('relayMenu').classList.add('d-none');
   }
 </script>

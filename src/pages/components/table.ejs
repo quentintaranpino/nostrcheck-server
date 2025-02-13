@@ -360,6 +360,7 @@
                     });
                     var columns = $(tableId).bootstrapTable('getOptions').columns[0];
                     await initEditModal(tableId,row,objectName, true, columns).then(async (editedRow) => {
+                        console.debug(editedRow)
                         if (editedRow) {await modifyRecord("admin/insertrecord/",tableId, null, null, null, 'insert', editedRow)};
                     });
                     return
@@ -372,6 +373,8 @@
                     await initEditModal(tableId,row,objectName,false,columns).then(async (editedRow) => {
                         if (editedRow) {
                             for (let field in editedRow) {
+                                console.debug(editedRow)
+                                console.debug(row)
                                 if (editedRow[field] != row[field]){
                                     await modifyRecord("admin/updaterecord/", tableId, row.id, field, editedRow[field], 'modify')                     
                                 }

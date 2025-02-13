@@ -1,6 +1,6 @@
 import { Application } from "express";
 import { Event, Filter, matchFilter } from "nostr-tools";
-import { dbBulkInsert, dbSimpleSelect, dbUpsert } from "../database.js";
+import { dbBulkInsert, dbSimpleSelect} from "../database.js";
 import { logger } from "../logger.js";
 import { MemoryEvent } from "../../interfaces/relay.js";
 import { isModuleEnabled } from "../config.js";

@@ -1,5 +1,6 @@
 import { ModuleDataTables, moduleDataSelectFields, moduleDataWhereFields } from "../interfaces/admin.js";
 import { dbMultiSelect, dbSelect, dbSimpleSelect } from "./database.js";
+import { logger } from "./logger.js";
 
 const dbCountModuleData = async (module: string, field = ""): Promise<number> => {
 	const table = ModuleDataTables[module];
@@ -58,6 +59,9 @@ async function dbSelectModuleData(module:string, offset:number, limit:number, or
 		if (item.field && item.value) {whereLogic += ` AND ${item.field} = '${item.value}'`;}
 	  }
 	}
+
+	logger.debug(`dbSelectModuleData - executing query: SELECT ${fieldsLogic} ${fromLogic} ${whereLogic} ${sortLogic} ${limitLogic}`);
+	logger.debug(`dbSelectModuleData - executing query: SELECT COUNT(*) as total FROM (SELECT ${fieldsLogic} ${fromLogic}) as ${table} ${whereLogic}`);
 
 	const total = await dbSimpleSelect(table, `SELECT COUNT(*) as total FROM (SELECT ${fieldsLogic} ${fromLogic}) as ${table} ${whereLogic}`);
 	const totalNotFiltered =  await dbCountModuleData(module);

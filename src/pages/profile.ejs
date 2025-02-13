@@ -129,7 +129,7 @@
             <div class="px-2 fs-6 lead">
               <p class="small text-muted mb-0">Relays: <span class="fw-medium d-block d-sm-inline-flex align-items-center" id="relays-header-count">0</span></p> 
             </div>
-            <div class="px-2 fs-6 lead">
+            <div class="px-2 fs-6 lead d-none" id="balance-header">
               <p class="small text-muted mb-0">Balance: <span class="fw-normal d-block d-sm-inline-flex align-items-center" id="balance-header-count">0</span></p> 
             </div>
           </div>
@@ -295,7 +295,6 @@ const profileNIP05 = <%- JSON.stringify(request.session.metadata.usernames) %>;
   });
 
   let counter = 0;
-  let balanceController = null;
   const getProfileBalance = async (pubkey) => {
     counter++;
     if (!pubkey) return 0;
@@ -319,10 +318,11 @@ const profileNIP05 = <%- JSON.stringify(request.session.metadata.usernames) %>;
   }
 
   // Profile balance
-  getProfileBalance("<%= request.session.metadata.pubkey %>");
-  setInterval(() => {
+  if(activeModules.some(mod => mod.name === 'payments')){
     getProfileBalance("<%= request.session.metadata.pubkey %>");
-  }, 5000);
+    setInterval(() => {getProfileBalance("<%= request.session.metadata.pubkey %>")}, 5000);
+    document.getElementById('balance-header').classList.remove('d-none');
+  }
 
   function activateTabFromHash() {
     const hash = window.location.hash;

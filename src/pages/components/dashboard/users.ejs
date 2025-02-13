@@ -3,6 +3,7 @@ let nostraddressFields = [
   ['checked',       '30' , 'formatCheckbox', 'enabled   show text-center              '],
   ['active',        '30' , 'formatCheckbox', 'enabled   show text-center              '],
   ['allowed',       '30' , 'formatCheckbox', 'enabled   hide text-center mobile-hide  '],
+  ['pendingotc',    '30' , 'formatCheckbox', 'disabled  hide text-center              '],
   ['banned',        ''   , 'formatCheckbox', 'disabled  hide                          '],
   ['username',      ''   , ''              , 'enabled   show text-center              '],
   ['pubkey',        ''   , 'formatPubkey'  , 'enabled   show                          '],
@@ -13,10 +14,10 @@ let nostraddressFields = [
 ];
 
 if(locals.activeModules.some(mod => mod.name === 'payments')) {
-  nostraddressFields.splice(3, 0, ['paid', '30', 'formatCheckbox', 'disabled show text-center'],);
-  nostraddressFields.splice(4, 0, ['satoshi','30', 'formatSatoshi', 'disabled show text-end'],);
-  nostraddressFields.splice(5, 0, ['balance', '30', 'formatSatoshi', 'disabled  show text-end'],);
-  nostraddressFields.splice(6, 0, ['transactionid','', '', 'disabled hide']);
+  nostraddressFields.splice(5, 0, ['paid', '30', 'formatCheckbox', 'disabled show text-center'],);
+  nostraddressFields.splice(6, 0, ['satoshi','30', 'formatSatoshi', 'disabled show text-end'],);
+  nostraddressFields.splice(7, 0, ['balance', '30', 'formatSatoshi', 'disabled  show text-end'],);
+  nostraddressFields.splice(8, 0, ['transactionid','', '', 'disabled hide']);
 }
 
 let nostraddressButtons = [

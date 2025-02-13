@@ -59,7 +59,7 @@ const initEditModal = async (objectId, row, objectName, newRow, columns) => {
                 if (key == 'state'){continue}
 
                 // Specific case for paid fields when payments module is disabled
-                if (!activeModules.some(mod => mod.name === 'payments') && (key == 'paid' || key == 'transactionid' || key == 'satoshi')) {
+                if (!activeModules.some(mod => mod.name === 'payments') && (key == 'paid' || key == 'transactionid' || key == 'satoshi' || key == 'balance')) {
                     continue;
                 }
 
