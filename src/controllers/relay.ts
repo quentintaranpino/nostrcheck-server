@@ -388,7 +388,7 @@ const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) =>
   // Save the event to memory
   const insertionIndex = binarySearchCreatedAt(events.sortedArray, event.created_at);
   events.sortedArray.splice(insertionIndex, 0, event);
-  events.memoryDB.set(event.id, { event: event, content_lower: event.content.toLocaleLowerCase(), processed: false });
+  events.memoryDB.set(event.id, { event: event, processed: false });
   events.pending.set(event.id, event);
 
   // Notify all clients about the new event

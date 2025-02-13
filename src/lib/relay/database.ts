@@ -5,6 +5,8 @@ import { logger } from "../logger.js";
 import { MemoryEvent } from "../../interfaces/relay.js";
 import { isModuleEnabled } from "../config.js";
 import app from "../../app.js";
+import { compressEvent2, generateDict } from "./utils.js";
+
 
 const initEvents = async (app: Application): Promise<boolean> => {
 
@@ -15,12 +17,15 @@ const initEvents = async (app: Application): Promise<boolean> => {
     const eventsArray: Event[] = [];
     app.set("relayEvents", { memoryDB: eventsMap, sortedArray: eventsArray, pending: pendingEvents });
     app.set("relayEventsLoaded", false);
-
+    let totalOriginalLength = 0;
+    let totalCompressedLength = 0;
     const loadEvents = async () => {
       try {
         const limit = 100000;
         let offset = 0;
         let hasMore = true;
+
+
 
         while (hasMore) {
             logger.info(`initEvents - Loaded ${eventsMap.size} events from DB`);
@@ -28,8 +33,14 @@ const initEvents = async (app: Application): Promise<boolean> => {
             if (loadedEvents.length === 0 || offset > 400000) {
                 hasMore = false;
             } else {
-                for (const event of loadedEvents) {
-                    eventsMap.set(event.id, { event: event, content_lower: event.content.toLowerCase(), processed: true });
+                for (let event of loadedEvents) {
+                    if (event.content.length > 15) {
+                        totalOriginalLength += event.content.length;
+                        const compressedEvent = await compressEvent2(event);
+                        totalCompressedLength += compressedEvent.content.length;
+                        event = compressedEvent;
+                    }
+                    eventsMap.set(event.id, { event: event, processed: true });
                     eventsArray.push(event);
                 }
                 offset += limit;
@@ -43,6 +54,7 @@ const initEvents = async (app: Application): Promise<boolean> => {
         logger.info(`initEvents - Error loading events: ${error}`);
       } finally {
         app.set("relayEventsLoaded", true);
+        app.set("relayDict", generateDict(eventsMap));
       }
     };
 
@@ -230,7 +242,7 @@ const storeEvents = async (eventsInput: Event | Event[]): Promise<number> => {
           filtered.push({ event, score: 0 });
         } else {
           const memEvent = relayData.memoryDB.get(event.id);
-          const contentLower = memEvent ? memEvent.content_lower : event.content.toLowerCase();
+          const contentLower = event.content.toLowerCase();
           const index = contentLower.indexOf(searchQuery);
           if (index !== -1) filtered.push({ event, score: index });
         }
