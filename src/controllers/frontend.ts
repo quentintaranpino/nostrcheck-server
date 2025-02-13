@@ -449,7 +449,7 @@ const frontendLogin = async (req: Request, res: Response): Promise<Response> => 
     // Check if secureCookie is true and if the request is not secure
     if (req.session.cookie.secure && !req.secure) {
         logger.warn("Attempt to access a secure session over HTTP:","|","IP:", getClientIp(req));
-        return res.status(400).send(false);
+        return res.status(400).send({"status": "error", "message": "Insecure connection"});
     }
 
     // OTC code request and return.
@@ -457,41 +457,44 @@ const frontendLogin = async (req: Request, res: Response): Promise<Response> => 
         const OTC = await generateOTC(req.params.param1);
         if (OTC == true) {
             logger.info(`frontendLogin - One-time code generated for ${req.params.param1}`, "|", getClientIp(req));
-            return res.status(200).send(true);
+            return res.status(200).send({"status": "success", "message": "One-time code generated"});
         } else {
             logger.warn(`frontendLogin - Failed to generate one-time code for ${req.params.param1}`, "|", getClientIp(req));
-            return res.status(401).send(false);
+            return res.status(401).send({"status": "error", "message": "Failed to generate one-time code"});
         }
     }
 
     if ((req.body.pubkey === "" || req.body.pubkey == undefined) && (req.body.username === '' || req.body.password === '')){
         logger.warn(`frontendLogin - No credentials used to login. Refusing`, getClientIp(req));
-        return res.status(401).send(false);
+        return res.status(401).send({"status": "error", "message": "No credentials used to login"});
     }
 
     const rememberMe = req.body.rememberMe || (Array.isArray(req.body.tags) ? req.body.tags.find((tag: string[]) => tag[0] === "cookie")?.[1] : "false");
     if (rememberMe == "true"){req.session.cookie.maxAge = app.get("config.session")["maxAge"];}
 
     let canLogin = false;
+    let loginMessage = "Invalid credentials";
     if (req.body.pubkey != undefined){
         canLogin = await isPubkeyValid(req.session.identifier || req.body.pubkey, false);
         if (canLogin == true) {canLogin == await verifyNIP07event(req)}
+        if (!canLogin) {loginMessage = "Pubkey not registered"};
     }
     if (req.body.username != undefined && req.body.password != undefined){
         canLogin = await isUserPasswordValid(req.body.username, req.body.password, false);
+        if (!canLogin) {loginMessage = "Invalid username or password"}
         if (canLogin == true) {req.body.pubkey = await dbSelect("SELECT hex FROM registered WHERE username = ?", "hex", [req.body.username]) as string}
-
     }
     if (req.body.otc != undefined){
         const result = await verifyOTC(req.body.otc);
         if(result != ""){
             req.body.pubkey = result;
             canLogin = await isPubkeyValid(req.session.identifier || req.body.pubkey, false);
+            if (!canLogin) {loginMessage = "Invalid one-time code"}
         }
     } 
     if (!canLogin) {
         logger.warn(`frontendLogin - Failed login attempt for ${req.body.pubkey || req.body.username}`, "|", getClientIp(req));
-        return res.status(401).send(false);
+        return res.status(401).send({"status": "error", "message": loginMessage});
     }
 
     // Set session identifier and generate authkey
@@ -501,7 +504,7 @@ const frontendLogin = async (req: Request, res: Response): Promise<Response> => 
     
     if (!authToken) {
         logger.error("Failed to set authToken for", req.session.identifier);
-        return res.status(500).send(false);
+        return res.status(500).send({"status": "error", "message": "Internal server error"});
     }
     setAuthCookie(res, authToken);
 
@@ -509,7 +512,7 @@ const frontendLogin = async (req: Request, res: Response): Promise<Response> => 
     req.session.allowed = await isPubkeyAllowed(req.session.identifier);
 
     logger.info(`frontendLogin - logged in as ${req.session.identifier} successfully`, "|", getClientIp(req));
-    return res.status(200).send(true);
+    return res.status(200).send({"status": "success", "message": "Logged in successfully"});
     
 };
 

@@ -80,19 +80,15 @@ const logIn = async (type, rememberMe, buttonId) =>{
                                           password:  document.getElementById('password').value,
                                           rememberMe: rememberMe}
                                       ), 'login').then(response => {
-                                          if (response.status === 200) {
-                                              response.json().then(data => {
-                                                  if (data == true) {
-                                                      window.location.href = "/api";
-                                                  } else {
-                                                      initAlertModal("#login", data.message);
-                                                      document.getElementById(buttonId).innerHTML = buttonText;
-                                                  }
-                                              });
-                                          } else {
-                                              initAlertModal("#login", response.statusText);
-                                              document.getElementById(buttonId).innerHTML = buttonText;
-                                          }});
+                                        response.json().then(data => {
+                                            if (data.status === "success") {
+                                                window.location.href = "/api";
+                                            } else {
+                                                initAlertModal("#login", data.message);
+                                                document.getElementById(buttonId).innerHTML = buttonText;
+                                            }
+                                        });
+                                      });
   }
 
   if (type === 'nostr') {
@@ -122,19 +118,14 @@ const logIn = async (type, rememberMe, buttonId) =>{
 
           if (loginEvent){
               await fetchServer(loginEvent,'login').then(response => {
-                  if (response.status === 200) {
-                      response.json().then(data => {
-                          if (data == true) {
-                              window.location.href = "/api";
-                          } else {
-                              initAlertModal("#login", data.message);
-                              document.getElementById(buttonId).innerHTML = buttonText;
-                          }
-                      });
-                  } else {
-                      initAlertModal("#login", response.statusText);
-                      document.getElementById(buttonId).innerHTML = buttonText;
-                  }
+                  response.json().then(data => {
+                      if (data.status === "success") {
+                          window.location.href = "/api";
+                      } else {
+                          initAlertModal("#login", data.message);
+                          document.getElementById(buttonId).innerHTML = buttonText;
+                      }
+                  });
               });
           }
       } catch (error) {
@@ -156,44 +147,36 @@ const logIn = async (type, rememberMe, buttonId) =>{
 
   const logInOtc = async () => {
   if($("#input-otc-login").attr("data-otc") === "pubkey"){
-
-  await fetchServer(JSON.stringify({}), `login/${document.getElementById('input-otc-login').value}`).then(response => {
-      if (response.status === 200) {
-          response.json().then(data => {
-              if (data == true) {
-                  document.getElementById('input-otc-login').value = '';
-                  $("#input-otc-login").attr("data-otc", "code").attr("placeholder", "Enter verification code");
-                  $("#otc_submit").text("Verify and login");
-              } else {
-                  initAlertModal("#login", data.message);
-              }
-          });
-      } else {
-          initAlertModal("#login", response.statusText);
-      }});
+    await fetchServer(JSON.stringify({}), `login/${document.getElementById('input-otc-login').value}`).then(response => {
+      response.json().then(data => {
+        if (data.status === 'success') {
+            document.getElementById('input-otc-login').value = '';
+            $("#input-otc-login").attr("data-otc", "code").attr("placeholder", "Enter verification code");
+            $("#otc_submit").text("Verify and login");
+        } else {
+            initAlertModal("#login", data.message);
+        }
+      });
+    });
   } else {
 
-  const buttonText = document.getElementById('otc_submit').innerHTML;
-  document.getElementById('otc_submit').innerHTML = '<span class="spinner-border spinner-border-sm pe-1" role="status" aria-hidden="true"></span> Logging in...';
+    const buttonText = document.getElementById('otc_submit').innerHTML;
+    document.getElementById('otc_submit').innerHTML = '<span class="spinner-border spinner-border-sm pe-1" role="status" aria-hidden="true"></span> Logging in...';
 
-  let data = {
-      otc: document.getElementById('input-otc-login').value,
-      rememberMe: document.getElementById('rememberme_otc').checked
-  }
+    let data = {
+        otc: document.getElementById('input-otc-login').value,
+        rememberMe: document.getElementById('rememberme_otc').checked
+    }
 
-  await fetchServer(JSON.stringify(data), `login`).then(response => {
-      if (response.status === 200) {
-          response.json().then(data => {
-              if (data == true) {
-                  window.location.href = "/api";
-              } else {
-                  initAlertModal("#login", data.message);
-                  document.getElementById('otc_submit').innerHTML = buttonText;
-              }});
-      } else {
-          initAlertModal("#login", response.statusText);
-          document.getElementById('otc_submit').innerHTML = buttonText;
+    await fetchServer(JSON.stringify(data), `login`).then(response => {
+      response.json().then(data => {
+          if (data.status === 'success') {
+              window.location.href = "/api";
+          } else {
+              initAlertModal("#login", data.message);
+              document.getElementById('otc_submit').innerHTML = buttonText;
       }});
+    });
   }
   }
 
