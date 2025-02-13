@@ -15,17 +15,17 @@
         <ul class="nav nav-tabs mt-3 lead " id="dashboardTabs" role="tablist">
           <% if(locals.activeModules.some(mod => mod.name === 'nostraddress')) { %>
             <li class="nav-item" role="presentation">
-              <button class="nav-link active" id="users-tab" data-bs-toggle="tab" data-bs-target="#users" type="button" role="tab"><i class="fa fa-user me-2"></i>Registered users</button>
+              <button class="nav-link active" id="users-tab" data-bs-toggle="tab" data-bs-target="#users" type="button" role="tab"><i class="fa fa-user-group me-2"></i>Registered users</button>
             </li>
           <% } %>
           <% if(locals.activeModules.some(mod => mod.name === 'nostraddress')) { %>
             <li class="nav-item" role="presentation">
-              <button class="nav-link" id="invites-tab" data-bs-toggle="tab" data-bs-target="#invites" type="button" role="tab"><i class="fa fa-envelope-open-text me-2"></i>Invites</button>
+              <button class="nav-link" id="invites-tab" data-bs-toggle="tab" data-bs-target="#invites" type="button" role="tab"><i class="fa fa-handshake me-2"></i>Invites</button>
             </li>
           <% } %>
           <% if(locals.activeModules.some(mod => mod.name === 'media')) { %>
             <li class="nav-item" role="presentation">
-              <button class="nav-link" id="files-tab" data-bs-toggle="tab" data-bs-target="#files" type="button" role="tab"><i class="fa fa-folder-open me-2"></i>Hosted files</button>
+              <button class="nav-link" id="files-tab" data-bs-toggle="tab" data-bs-target="#files" type="button" role="tab"><i class="fa fa-server me-2"></i>Hosted files</button>
             </li>
           <% } %>
           <% if(locals.activeModules.some(mod => mod.name === 'lightning')) { %>
@@ -35,7 +35,7 @@
           <% } %>
           <% if(locals.activeModules.some(mod => mod.name === 'domains')) { %>
             <li class="nav-item" role="presentation">
-              <button class="nav-link" id="domains-tab" data-bs-toggle="tab" data-bs-target="#domains" type="button" role="tab"><i class="fa fa-list  me-2"></i>Domains</button>
+              <button class="nav-link" id="domains-tab" data-bs-toggle="tab" data-bs-target="#domains" type="button" role="tab"><i class="fa fa-earth-americas me-2"></i>Domains</button>
             </li>
           <% } %>
           <% if(locals.activeModules.some(mod => mod.name === 'payments')) { %>
@@ -55,7 +55,7 @@
           <% } %>
           <% if(locals.activeModules.some(mod => mod.name === 'logger')) { %>
             <li class="nav-item" role="presentation">
-              <button class="nav-link" id="logger-tab" data-bs-toggle="tab" data-bs-target="#logger" type="button" role="tab"><i class="fa fa-file me-2"></i>Logs</button>
+              <button class="nav-link" id="logger-tab" data-bs-toggle="tab" data-bs-target="#logger" type="button" role="tab"><i class="fa fa-file-lines me-2"></i>Logs</button>
             </li>
           <% } %>
         </ul>

@@ -177,23 +177,35 @@
                 return;
             }
 
+            // General filters (registered, files, ips)
             let checkedFilter = false;
             let bannedFilter = false;
+
+            // Logger filters
+            let debugFilter = false;
+            let infoFilter = false;
+            let warnFilter = false;
+            let errorFilter = false;
+
             const toolbarButtons = () => {
                 return {
                     checkedButton: {
                         text: 'checked',
                         icon: 'bi-check-circle-fill',
                         event: () => {
+                            const checkedButton = $(tableId).closest('.bootstrap-table').find('[name="checkedButton"]');
+                            const icon = checkedButton.find('i')
                             if (checkedFilter) {
                                 checkedFilter = false;
+                                icon.removeClass('text-primary');
                             } else {
                                 checkedFilter = true;
+                                icon.addClass('text-primary');
                             }
                             $(tableId).bootstrapTable('refresh');
                         },
                         attributes: {
-                            title: 'Show checked',
+                            title: 'Filter unchecked items',
                             id: tableId + '-customShowChecked',
                             'data-toggle': 'tooltip'
                         }
@@ -202,19 +214,113 @@
                         text: 'banned',
                         icon: 'bi-exclamation-triangle-fill',
                         event: () => {
+                            const bannedButton = $(tableId).closest('.bootstrap-table').find('[name="bannedButton"]');
+                            const icon = bannedButton.find('i')
                             if (bannedFilter) {
                                 bannedFilter = false;
+                                icon.removeClass('text-warning'); 
+
                             } else {
                                 bannedFilter = true;
+                                icon.addClass('text-warning'); 
                             }
                             $(tableId).bootstrapTable('refresh');
                         },
                         attributes: {
-                            title: 'Show banned',
+                            title: 'Filter banned items',
                             id: tableId + '-customShowBanned',
                             'data-toggle': 'tooltip'
                         }
-                    }
+                    },
+                };
+            };
+            
+            const loggerButtons = () => {
+                return {
+                    debugButton: {
+                        text: 'debug',
+                        icon: 'bi-bug-fill',
+                        event: () => {
+                            const debugButton = $(tableId).closest('.bootstrap-table').find('[name="debugButton"]');
+                            const icon = debugButton.find('i')
+                            if (debugFilter) {
+                                debugFilter = false;
+                                icon.removeClass('text-primary');
+                            } else {
+                                debugFilter = true;
+                                icon.addClass('text-primary');
+                            }
+                            $(tableId).bootstrapTable('refresh');
+                        },
+                        attributes: {
+                            title: 'Filter debug log messages',
+                            id: tableId + '-customShowDebug',
+                            'data-toggle': 'tooltip'
+                        }
+                    },
+                    infoButton: {
+                        text: 'info',
+                        icon: 'bi-info-circle-fill',
+                        event: () => {
+                            const infoButton = $(tableId).closest('.bootstrap-table').find('[name="infoButton"]');
+                            const icon = infoButton.find('i')
+                            if (infoFilter) {
+                                infoFilter = false;
+                                icon.removeClass('text-info');
+                            } else {
+                                infoFilter = true;
+                                icon.addClass('text-info');
+                            }
+                            $(tableId).bootstrapTable('refresh');
+                        },
+                        attributes: {
+                            title: 'Filter info log messages',
+                            id: tableId + '-customShowInfo',
+                            'data-toggle': 'tooltip'
+                        }
+                    },
+                    warnButton: {
+                        text: 'warn',
+                        icon: 'bi-exclamation-triangle-fill',
+                        event: () => {
+                            const warnButton = $(tableId).closest('.bootstrap-table').find('[name="warnButton"]');
+                            const icon = warnButton.find('i')
+                            if (warnFilter) {
+                                warnFilter = false;
+                                icon.removeClass('text-warning');
+                            } else {
+                                warnFilter = true;
+                                icon.addClass('text-warning');
+                            }
+                            $(tableId).bootstrapTable('refresh');
+                        },
+                        attributes: {
+                            title: 'Filter warn log messages',
+                            id: tableId + '-customShowWarn',
+                            'data-toggle': 'tooltip'
+                        }
+                    },
+                    errorButton: {
+                        text: 'error',
+                        icon: 'bi-x-circle-fill',
+                        event: () => {
+                            const errorButton = $(tableId).closest('.bootstrap-table').find('[name="errorButton"]');
+                            const icon = errorButton.find('i')
+                            if (errorFilter) {
+                                errorFilter = false;
+                                icon.removeClass('text-danger');
+                            } else {
+                                errorFilter = true;
+                                icon.addClass('text-danger');
+                            }
+                            $(tableId).bootstrapTable('refresh');
+                        },
+                        attributes: {
+                            title: 'Filter error log messages',
+                            id: tableId + '-customShowError',
+                            'data-toggle': 'tooltip'
+                        }
+                    },
                 };
             };
 
@@ -242,11 +348,15 @@
                 checkOnInit: true,
                 detailFormatter: "detailFormatter",
                 rowStyle: rowStyle,
-                buttons: (tableId === '#registeredData' || tableId === '#filesData' || tableId === '#ipsData' ) ? toolbarButtons() : null,
+                buttons: (tableId === '#registeredData' || tableId === '#filesData' || tableId === '#ipsData' ) ? toolbarButtons() : tableId === '#loggerData' ? loggerButtons() : null,
                 queryParams: function (params) {
                     let filters = params.filter ? JSON.parse(params.filter) : {};
                     if (checkedFilter)  filters.checked = "0";
                     if (bannedFilter)  filters.banned = "1";
+                    if (debugFilter) filters.severity = "DEBUG";
+                    if (infoFilter) filters.severity = "INFO";
+                    if (warnFilter) filters.severity = "WARN";
+                    if (errorFilter) filters.severity = "ERROR";
                     params.filter = JSON.stringify(filters);
                     return params;
                 },
