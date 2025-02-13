@@ -93,7 +93,6 @@ export const loadRelayRoutes = (app: Application, version:string): void => {
   setInterval(() => {
     wss.clients.forEach((ws: ExtendedWebSocket) => {
       if (!ws.isAlive) {
-        removeAllSubscriptions(ws, 1006);
         ws.terminate();
       } else {
         ws.isAlive = false;
