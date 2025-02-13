@@ -550,20 +550,22 @@ const headMedia = async (req: Request, res: Response): Promise<Response> => {
 	const hash = req.params.param1.toString().split(".")[0];
 	if (!hash) {
 		logger.warn(`headMedia - 400 Bad request - missing hash`, "|", reqInfo.ip);
-		return res.status(400).send({"status": "error", "message": "missing hash"});
+		return res.status(400).send();
 	}
 
 	// Check if file exist on storage server
 	const filePath = await getFilePath(hash);
 	if (filePath == "") {
 		logger.info(`headMedia - 404 Not found - file not found on storage server: ${hash}`, "|", reqInfo.ip);
+		res.setHeader("X-Reason", "File not found on storage server");	
 		return res.status(404).send();
 	}
 
 	// Check if file exist on database
 	const fileData = await dbMultiSelect(["id", "filesize", "hash", "original_hash", "mimetype"], "mediafiles", "original_hash = ?", [hash], true);
 	if (fileData.length == 0) {
-		logger.error(`headMedia - 404 Not found - file not found in database: ${fileData[0].original_hash}`, "|", reqInfo.ip);
+		logger.error(`headMedia - 404 Not found - file not found in database: ${hash}`, "|", reqInfo.ip);
+		res.setHeader("X-Reason", "File not found on storage server");	
 		return res.status(404).send();
 	}
  

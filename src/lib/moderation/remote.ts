@@ -26,7 +26,6 @@ const remoteEngineClassify = async (url : string, endpoint: string, accessKey : 
 
 	if (!res.ok) {
 	 logger.error(`remoteEngineClassify - Error evaluating image/video: ${url}`);
-	 logger.debug(`remoteEngineClassify - ${await res.json()}`);
 	 return emptyModerationCategory;
 	}
     
