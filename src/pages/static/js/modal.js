@@ -212,7 +212,8 @@ const initEditModal = async (objectId, row, objectName, newRow, columns) => {
                     selectHtml += `</select>`;
                     
                     $(objectId + '-edit-modal .modal-body').append(selectHtml);
-                    // $('#' + key).selectpicker();
+                    
+                    $('#' + key).selectpicker();
                     } catch (error) {
                     console.error('Error fetching users for originid:', error);
                     $(objectId + '-edit-modal .modal-body')
