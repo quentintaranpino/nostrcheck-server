@@ -32,6 +32,7 @@ const logger = new Logger({
 	prettyErrorLoggerNameDelimiter: "\t",
 	stylePrettyLogs: true,
 	prettyLogTimeZone: "UTC",
+	hideLogPositionForProduction: app.get('config.environment') === 'production' ? true : false,
 	prettyLogStyles: {
 		logLevelName: {
 			"*": ["bold", "black", "bgWhiteBright", "dim"],
@@ -62,8 +63,6 @@ logger.attachTransport(async (log) => {
 			}
 		  };
 		  stream.write(`${JSON.stringify(formattedLog)}\n`);
-		// only push to transports if logLevel is greater than or equal to 4 (warn)
-		// if (log._meta.logLevelId >= 4) {
 			let logMessage: string = "";
 			for (let key in log) {
 				if (!isNaN(Number(key))) {
@@ -81,7 +80,6 @@ logger.attachTransport(async (log) => {
 
 			logHistory.push(logEvent);
 			if (logHistory.length > 10000) logHistory.shift();
-		// }
 	}catch(e){
 		logger.fatal(`Logger - Error writing to log file: ${e}`);
 	}
