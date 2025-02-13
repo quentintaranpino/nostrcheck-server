@@ -58,16 +58,12 @@ const initEditModal = async (objectId, row, objectName, newRow, columns) => {
             if (row.hasOwnProperty(key)) {
                 if (key == 'state'){continue}
 
-                // Specific case for paid fields when payments module is disabled
-                if (!activeModules.some(mod => mod.name === 'payments') && (key == 'paid' || key == 'transactionid' || key == 'satoshi' || key == 'balance')) {
-                    continue;
-                }
-
                 // remove 'null' string from the input field
                 if (row[key] === null) {
                     row[key] = '';
                 }
 
+                // Check if the field is a checkbox
                 var isCheckbox = false;
                 columns.forEach(function(column) {
                     if (column.field == key && column.class && column.class.includes('formatCheckbox')) {
@@ -83,6 +79,20 @@ const initEditModal = async (objectId, row, objectName, newRow, columns) => {
                 }
                 if (key == 'id') {
                     $('#' + key).prop('disabled', true)
+                }
+
+                // Comments field
+                if (key == 'comments') {               
+                    const formattedContent = formatNostrContent(row[key]);
+                    $('#' + key).replaceWith(
+                        `
+                         <textarea class="form-control" id="${key}" placeholder="${key}" style="height:150px;">${row[key] || ''}</textarea>`
+                    );
+                }
+
+                 // Specific case for paid fields when payments module is disabled
+                if (!activeModules.some(mod => mod.name === 'payments') && (key == 'paid' || key == 'transactionid' || key == 'satoshi' || key == 'balance')) {
+                    $('#' + key).prop('disabled', true).addClass('d-none');
                 }
 
                 // Special case for editing or creating an user
@@ -228,6 +238,7 @@ const initEditModal = async (objectId, row, objectName, newRow, columns) => {
                         }
                     }
                 });
+
             }
         }
 
@@ -261,6 +272,7 @@ const initEditModal = async (objectId, row, objectName, newRow, columns) => {
                         }
                     } else {
                         if (row[key] != $('#' + key).val()) {
+                            console.log('Key modified: ' + key + ' - Old value: ' + row[key] + ' - New value: ' + $('#' + key).val());
                             editedRow[key] = $('#' + key).val();
                         }
                     }
