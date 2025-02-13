@@ -21,7 +21,7 @@ const getAvailableDomains = async (): Promise<{ [key: string]: domainInfo }> => 
 
 const getAvailiableUsers = async (domain:string): Promise<JSON[]> => {
 
-	const users = await dbMultiSelect(["username", "hex"], "registered","domain = ?",[domain],false);
+	const users = await dbMultiSelect(["id","username", "hex"], "registered","domain = ?",[domain],false);
 	if (users.length == 0) {return [];}
 
 	return users;

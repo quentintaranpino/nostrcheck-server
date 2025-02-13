@@ -129,10 +129,20 @@ const cleanPendingOTCUsers = async (): Promise<void> => {
     if (users.length > 0) {
         for (const user of users) {
             if (user.active == 0) {
+                // Delete user from registered table
                 const deleted = await dbDelete("registered", ["id"], [user.id]);
                 if (!deleted)logger.error(`cleanPendingOTCUsers - Error trying to delete not active user with id: ${user.id}`);
+
+                // Find invites for this user and clean it.
+                const invite  = await dbMultiSelect(["id"], "invitations", "inviteeid = ?", [user.id], true);
+                if (invite.length > 0) {
+                    const clearInvite = await dbUpdate("invitations", {"inviteeid": null, "inviteedate": null}, ["id"], [invite[0].id]);
+                    if (!clearInvite) logger.error(`cleanPendingOTCUsers - Error trying to clear invite for user with id: ${user.id}`);
+                }
+
             }
             if (user.active == 1) {
+                // Remove pendingotc to users activated by an admin.
                 const updated = await dbUpdate("registered", {"pendingotc": "0"}, ["id"], [user.id]);
                 if (!updated) logger.error(`cleanPendingOTCUsers - Error trying to update active user with id: ${user.id}`);
             }

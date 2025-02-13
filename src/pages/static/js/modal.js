@@ -182,7 +182,6 @@ const initEditModal = async (objectId, row, objectName, newRow, columns) => {
                 // Special case for editting or creating invites
                 if (objectId === '#invitesData' && key === 'originid') {
 
-                    try {
                     const domainsResponse = await fetch('/api/v2/domains');
                     if (!domainsResponse.ok)  throw new Error('Error fetching domains');
                     const domainsData = await domainsResponse.json();
@@ -203,25 +202,18 @@ const initEditModal = async (objectId, row, objectName, newRow, columns) => {
                         }));
                         }
                     }
-                    
-                    let selectHtml = `<select class="form-select" id="${key}" name="${key}" data-live-search="true" required>`;
-                    selectHtml += `<option value="">Select user</option>`;
-                    allUsers.forEach(user => {
-                        selectHtml += `<option value="${user.id}">${user.username} (${user.domain})</option>`;
-                    });
-                    selectHtml += `</select>`;
-                    
-                    $(objectId + '-edit-modal .modal-body').append(selectHtml);
-                    
-                    $('#' + key).selectpicker();
-                    } catch (error) {
-                    console.error('Error fetching users for originid:', error);
-                    $(objectId + '-edit-modal .modal-body')
-                        .append('<label for="' + key + '" class="col-form-label strong">' + key + '</label>' +
-                                '<input type="text" class="form-control" id="' + key + '" placeholder="' + key + '" value="' + row[key] + '">');
-                    }
 
-                    document.querySelector("#originid").replaceWith(selectHtml);
+                    const usersSelect = document.createElement('select');
+                    usersSelect.classList.add('form-select');
+                    usersSelect.id = 'originid';
+                    usersSelect.name = 'originid';
+                    usersSelect.required = true;
+                    usersSelect.innerHTML = allUsers.map(user =>
+                        `<option value="${user.id}">${user.username} (${user.domain})</option>`
+                    ).join('');
+
+                    document.querySelector("#originid").replaceWith(usersSelect);
+                
                 }
 
                 columns.forEach(function(column) {
