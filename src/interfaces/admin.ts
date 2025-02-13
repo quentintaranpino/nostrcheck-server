@@ -20,6 +20,7 @@ const allowedFieldNames = [ "allowed",
                             "requirepayment",
                             "maxsatoshi",
                             "infractions",
+                            "pendingotc", 
                         ]; 
 
 const allowedFieldNamesAndValues = [
@@ -46,6 +47,7 @@ const allowedFieldNamesAndValues = [
     {field: "requirepayment", values: [0, 1]},
     {field: "maxsatoshi", values: ["number"]},
     {field: "infractions", values: ["number"]},
+    {field: "pendingotc", values: [0, 1]},
 ];
 
 interface moduleDataReturnMessage {
@@ -86,7 +88,8 @@ const moduleDataWhereFields: { [key: string]: [string] } = {
                         "registered.hex, " +
                         "registered.domain, " +
                         "registered.date, " +
-                        "registered.comments"],
+                        "registered.comments, " +
+                        "registered.pendingotc"],
     "media":            ["mediafiles.id, " +
                         "mediafiles.pubkey, " +
                         "mediafiles.filename, " +
@@ -161,9 +164,10 @@ const moduleDataSelectFields: { [key: string]: string } = {
                         "registered.checked, " + 
                         "registered.active, " +
                         "registered.allowed, " +
+                        "registered.pendingotc, " +
                         "registered.username, " +
                         "registered.balance, " +
-                        "(SELECT transactions.paid FROM transactions WHERE registered.transactionid = transactions.id LIMIT 1) as paid, " +
+                        "CASE WHEN EXISTS (SELECT transactions.paid FROM transactions WHERE registered.transactionid = transactions.id LIMIT 1) THEN 1 ELSE 0 END as paid, " +
                         "(SELECT transactions.satoshi FROM transactions WHERE registered.transactionid = transactions.id LIMIT 1) as satoshi, " +
                         "registered.transactionid, " +
                         "registered.pubkey, " +

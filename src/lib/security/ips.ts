@@ -48,8 +48,8 @@ const logNewIp = async      (ip: string):
     if (Object.keys(redisData).length === 0 || redisData.dbid === undefined) {
         const ipDbData = await dbMultiSelect(["id", "active", "checked", "infractions", "comments"], "ips", "ip = ?", [ip], true);
         if (!ipDbData || ipDbData.length === 0) {
-            let dbid = await dbUpsert("ips", { active: 1, checked: 0, ip, firstseen: now, lastseen: now, reqcount: reqcount });
-            if (dbid === 0) dbid = await dbUpsert("ips", { active: 1, checked: 0, ip, firstseen: now, lastseen: now, reqcount: reqcount });
+            let dbid = await dbUpsert("ips", { active: 1, checked: 0, ip, firstseen: now, lastseen: now, reqcount: reqcount }, ["ip"]);
+            if (dbid === 0) dbid = await dbUpsert("ips", { active: 1, checked: 0, ip, firstseen: now, lastseen: now, reqcount: reqcount }, ["ip"]);
             if (dbid === 0) {
                 logger.error(`logNewIp - Error inserting new IP: ${ip}`);
             }
@@ -191,7 +191,9 @@ const isIpAllowed = async (req: Request | string, maxRequestMinute : number = ap
     return {ip: clientIp, reqcount: Number(reqcount), banned, comments: comments || ""};
 }
 
-// Save infractions to DB and reset Redis
+/*
+* Save infractions to DB and reset Redis
+*/
 setInterval(async () => {
 
     if (!isModuleEnabled("security", app)) return;
@@ -230,7 +232,10 @@ setInterval(async () => {
     }
 }, 60000);
 
-// Periodically persist the accumulated IP updates (batch) to the database.
+
+/*
+* Periodically persist the accumulated IP updates (batch) to the database.
+*/
 setInterval(async () => {
 
     if (!isModuleEnabled("security", app)) return;

@@ -83,7 +83,7 @@ async function processBatch(batch: any[], dbEventsMap: Map<string, boolean>) {
           received_at: receivedAt,
         };
 
-        const eventUpsert = await dbUpsert("events", eventData);
+        const eventUpsert = await dbUpsert("events", eventData, ["event_id"]);
         if (eventUpsert === 0) {
           logger.error(`prcessBatch - Error upserting event ${eventId}`);
           return;

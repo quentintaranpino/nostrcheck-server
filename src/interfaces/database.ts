@@ -139,6 +139,7 @@ interface registeredTable extends RowDataPacket{
 	balance: string;
 	transactionid: string;
 	banid: string;
+	pendingotc: string;
 }
 
 const registeredTableFields: registeredTable = {
@@ -158,6 +159,10 @@ const registeredTableFields: registeredTable = {
 	balance: "int(11) NOT NULL DEFAULT 0",
 	transactionid: "int(11)",
 	banid: "int(11)",
+	pendingotc: "boolean NOT NULL DEFAULT 0",
+	_indexes: [
+		"UNIQUE INDEX idx_pubkey_domain (pubkey, hex, domain)" 
+	],
 	constructor: {
 		name: 'RowDataPacket',
 	},

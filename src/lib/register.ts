@@ -1,10 +1,11 @@
-import { dbInsert, dbMultiSelect, dbUpdate } from "./database.js";
+import { dbDelete, dbInsert, dbMultiSelect, dbUpdate, dbUpsert } from "./database.js";
 import { generatePassword } from "./authorization.js";
 import { hashString } from "./hash.js";
 import { hextoNpub, npubToHex, validatePubkey } from "./nostr/NIP19.js";
 import { getDomainInfo } from "./domains.js";
 import { validateInviteCode } from "./invitations.js";
 import { getNewDate } from "./utils.js";
+import { logger } from "./logger.js";
 
 /**
  * 
@@ -17,7 +18,7 @@ const isUsernameAvailable = async (username: string, domain: string): Promise<bo
     if (username == "" || username == undefined) {return false}
     if (domain == "" || domain == undefined) {return false}
 
-    const result = await dbMultiSelect(["hex"],"registered","username = ? and domain = ?",[username, domain], true);
+    const result = await dbMultiSelect(["hex"],"registered","username = ? and domain = ? and pendingotc = ?",[username, domain, "0"], true);
     if (result.length > 0) {return false}
     return true;
 }
@@ -33,7 +34,7 @@ const isPubkeyOnDomainAvailable = async (pubkey: string, domain: string): Promis
     if (pubkey == "" || pubkey == undefined) {return false}
     if (domain == "" || domain == undefined) {return false}
 
-    const result = await dbMultiSelect(["hex"],"registered","(pubkey = ? or hex = ?) and domain = ?",[pubkey, pubkey, domain], true);
+    const result = await dbMultiSelect(["hex"],"registered","(pubkey = ? or hex = ?) and domain = ? and pendingotc = ?",[pubkey, pubkey, domain, "0"], true);
     if (result.length > 0) {return false}
     return true;
 }
@@ -73,10 +74,19 @@ const addNewUsername = async (username: string, pubkey: string, password:string,
 
     if (domainInfo.requireinvite == true && checkInvite &&  await validateInviteCode(inviteCode) == false) {return 0}
 
-    const createUsername = await dbInsert(  "registered", 
-                                    ["pubkey", "hex", "username", "password", "domain", "active", "allowed",  "date", "comments"],
-                                    [await hextoNpub(pubkey), pubkey, username, await hashString(password, 'password'), domain, active == true ? 1 : 0, allowed == true ? 1 : 0, getNewDate(), comments]);
-    
+    const createUsername = await dbUpsert("registered", {
+        pubkey: await hextoNpub(pubkey),
+        hex: pubkey,
+        username: username,
+        password: await hashString(password, 'password'),
+        domain: domain,
+        active: active ? 1 : 0,
+        pendingotc: active ? 0 : 1,
+        allowed: allowed ? 1 : 0,
+        date: getNewDate(),
+        comments: comments
+    }, ["pubkey", "hex", "domain"]);
+                                    
     if (createUsername == 0) {return 0}
 
     if (domainInfo.requireinvite == true && checkInvite ) {
@@ -113,5 +123,27 @@ const getUsernames = async (pubkey: string): Promise<JSON[]> => {
     if (result.length == 0) {return []}
     return result;
 }
+
+const cleanPendingOTCUsers = async (): Promise<void> => {
+    const users = await dbMultiSelect(["id", "active"], "registered", "pendingotc = ?", ["1"], false);
+    if (users.length > 0) {
+        for (const user of users) {
+            if (user.active == 0) {
+                const deleted = await dbDelete("registered", ["id"], [user.id]);
+                if (!deleted)logger.error(`cleanPendingOTCUsers - Error trying to delete not active user with id: ${user.id}`);
+            }
+            if (user.active == 1) {
+                const updated = await dbUpdate("registered", {"pendingotc": "0"}, ["id"], [user.id]);
+                if (!updated) logger.error(`cleanPendingOTCUsers - Error trying to update active user with id: ${user.id}`);
+            }
+        }
+        logger.info(`cleanPendingOTCUsers - Cleaned ${users.length} pending OTC users`);
+    }
+};
+
+/*
+* Periodically clean pending OTC users
+*/
+setInterval(cleanPendingOTCUsers, 60 * 1000) // 1 minute
 
 export { isUsernameAvailable, addNewUsername, isPubkeyOnDomainAvailable, getUsernames };
