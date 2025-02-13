@@ -56,7 +56,7 @@ const listAvailableUsers = async (req: Request, res: Response): Promise<Response
 
 	logger.info(`listAvailableUsers - Request from:`, reqInfo.ip);
 	const availableUsers = await getAvailiableUsers(req.params.domain);
-	logger.info(`listAvailableUsers - Response:`, req.params.domain, ":", availableUsers.join(", "), "|", reqInfo.ip);
+	logger.info(`listAvailableUsers - Response:`, req.params.domain, ":", availableUsers.length, "|", reqInfo.ip);
 	return res.status(200).send({ [req.params.domain]: availableUsers});
 	
 };
