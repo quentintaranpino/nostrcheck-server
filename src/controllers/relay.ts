@@ -29,7 +29,7 @@ const handleWebSocketMessage = async (socket: ExtendedWebSocket, data: WebSocket
   if (reqInfo.banned == true) {
     logger.debug(`handleWebSocketMessage - Attempt to access relay with unauthorized IP: ${reqInfo.ip} | Reason: ${reqInfo.comments}`);
     socket.send(JSON.stringify(["NOTICE", `${reqInfo.comments}`]));
-    removeAllSubscriptions(socket);
+    removeAllSubscriptions(socket, 1008);
     return;
   }
 
@@ -37,7 +37,7 @@ const handleWebSocketMessage = async (socket: ExtendedWebSocket, data: WebSocket
   if (!isModuleEnabled("relay", app)) {
     logger.debug(`handleWebSocketMessage - Attempt to access a non-active module: relay | IP: ${reqInfo.ip}`);
     socket.send(JSON.stringify(["NOTICE", "blocked: relay module is not active"]));
-    removeAllSubscriptions(socket);
+    removeAllSubscriptions(socket, 1003);
     return;
   }
 
@@ -122,7 +122,7 @@ const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) =>
     logger.debug(`handleEvent - Blocked banned pubkey: ${event.pubkey}`);
     socket.send(JSON.stringify(["NOTICE", "blocked: banned pubkey"]));
     socket.send(JSON.stringify(["OK", event.id, false, "blocked: banned pubkey"]));
-    removeAllSubscriptions(socket);
+    removeAllSubscriptions(socket, 1008);
     return;
   }
 
@@ -131,7 +131,7 @@ const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) =>
     logger.debug(`handleEvent - Blocked banned event: ${event.id}`);
     socket.send(JSON.stringify(["NOTICE", "blocked: banned event"]));
     socket.send(JSON.stringify(["OK", event.id, false, "blocked: banned event"]));
-    removeAllSubscriptions(socket);
+    removeAllSubscriptions(socket, 1008);
     return;
   }
 
@@ -234,7 +234,6 @@ const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) =>
       return;
   }
 
-
   // Plugins engine execution
   if (await executePlugins({pubkey: event.pubkey, ip: reqInfo.ip, event: event}, app, "relay") == false) {
     logger.debug(`handleEvent - Blocked event by plugins engine: ${event.id}`);
@@ -245,7 +244,6 @@ const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) =>
 
   if (events.memoryDB.has(event.id)) {
     logger.debug(`handleEvent - Duplicate event: ${event.id}`);
-    socket.send(JSON.stringify(["NOTICE", "duplicate: already have this event"]));
     socket.send(JSON.stringify(["OK", event.id, false, "duplicate: already have this event"]));
     return;
   }
@@ -257,7 +255,6 @@ const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) =>
       clientSubscriptions.forEach((listener) => listener(event));
     });
     logger.debug(`handleEvent - Accepted ephemeral event successfully: ${event.id}`);
-    socket.send(JSON.stringify(["NOTICE", "ephemeral: accepted but not stored"]));
     socket.send(JSON.stringify(["OK", event.id, true, "ephemeral: accepted but not stored"]));
     return;
   }
@@ -278,7 +275,6 @@ const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) =>
             break;
           } else {
               logger.debug(`handleEvent - Duplicate event: ${event.id}`);
-              socket.send(JSON.stringify(["NOTICE", "duplicate: older or same version"]));
               socket.send(JSON.stringify(["OK", event.id, false, "duplicate: older or same version"]));
               return;
           }
@@ -384,7 +380,6 @@ const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) =>
         if (index !== -1)  events.sortedArray.splice(index, 1);
       });
       logger.debug(`handleEvent - Accepted kind:5 event ${event.id} and deleted events: ${ownedEvents.map(e => e.event.id).join(", ")}`);
-      socket.send(JSON.stringify(["NOTICE", "deleted: events successfully deleted"]));
       socket.send(JSON.stringify(["OK", event.id, true, "deleted: events successfully deleted"]));
     }
 
@@ -554,7 +549,6 @@ const handleAuthMessage = async (socket: ExtendedWebSocket, message: ["AUTH", Au
 
   logger.debug(`handleAuthMessage - AUTH successful: ${authData.id}, ${registeredData[0].username}`);
   socket.send(JSON.stringify(["OK", authData.id, true, "AUTH successful"]));
-  socket.send(JSON.stringify(["NOTICE", `AUTH successful, welcome ${registeredData[0].username}`]));
 };
 
 

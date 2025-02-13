@@ -73,7 +73,7 @@ const removeSubscription = (subId?: string, socket?: WebSocket) => {
   }
 };
 
-const removeAllSubscriptions = (socket: WebSocket) => {
+const removeAllSubscriptions = (socket: WebSocket, closeCode = 1000) => {
   const clientSubscriptions = subscriptions.get(socket);
   if (clientSubscriptions) {
     clientSubscriptions.forEach((_, subId) => {
@@ -84,6 +84,7 @@ const removeAllSubscriptions = (socket: WebSocket) => {
     subscriptions.delete(socket);
   }
   logger.debug(`removeAllSubscriptions - All subscriptions forcibly closed`, {readyState: socket.readyState, url: socket.url});
+  socket.close(closeCode, "All subscriptions removed");
 };
 
 export {subscriptions, parseRelayMessage, addSubscription, removeSubscription, removeAllSubscriptions};

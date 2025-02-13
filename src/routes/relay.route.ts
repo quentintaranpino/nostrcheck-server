@@ -71,12 +71,12 @@ export const loadRelayRoutes = (app: Application, version:string): void => {
   
     socket.on("close", (code, reason) => {
       logger.debug(`Socket closed | Code: ${code} | Reason: ${reason.toString()}`);
-      removeAllSubscriptions(socket);
+      removeAllSubscriptions(socket, 1000);
     });
   
     socket.on("error", (code: number, reason: Error) => {
       logger.warn("Socket error | Code:", code, "| Reason:", reason);
-      removeAllSubscriptions(socket);
+      removeAllSubscriptions(socket, 1011);
     });
 
     
@@ -93,7 +93,7 @@ export const loadRelayRoutes = (app: Application, version:string): void => {
   setInterval(() => {
     wss.clients.forEach((ws: ExtendedWebSocket) => {
       if (!ws.isAlive) {
-        removeAllSubscriptions(ws);
+        removeAllSubscriptions(ws, 1006);
         ws.terminate();
       } else {
         ws.isAlive = false;
