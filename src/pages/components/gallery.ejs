@@ -718,44 +718,39 @@ function fetchTabledata(params) {
 
         const pageSize = params.data.pageSize;
 
-        $.ajax({
-            url: params.url,
-            method: 'GET',
-            headers: {
-                'Content-Type': 'application/json',
-                'Credentials': 'include'
-            },
-            dataType: 'json',
-            success: async function(result) {
-                const rows = result.slice(0, pageSize).map(file => {
-                    return {
-                        id: fileTableId++,
-                        sha256: file.sha256 || 'N/A',
-                        m: file.type?.split('/')[1] || 'N/A',
-                        url: file.url || 'N/A',
-                        size: file.size? (file.size / 1024).toFixed(2) + ' KB' : 'N/A',
-                        dim: file.dim && file.dim != "0x0" ? file.dim : '',
-                        date: new Date(file.uploaded * 1000).toLocaleString().split(',')[0],
-                        payment_request: file.payment_request || '',
-                        actions: "", 
-                        auth: privateGallery,
-                        visibility: file.visibility
-                    };
-                });
+        fetch(params.url, {
+        method: 'GET',
+        credentials: 'include', 
+        headers: {
+            'Content-Type': 'application/json'
+        }
+        })
+        .then(response => response.json())
+        .then(result => {
+            const rows = result.slice(0, pageSize).map(file => ({
+            id: fileTableId++,
+            sha256: file.sha256 || 'N/A',
+            m: file.type?.split('/')[1] || 'N/A',
+            url: file.url || 'N/A',
+            size: file.size ? (file.size / 1024).toFixed(2) + ' KB' : 'N/A',
+            dim: file.dim && file.dim !== "0x0" ? file.dim : '',
+            date: new Date(file.uploaded * 1000).toLocaleString().split(',')[0],
+            payment_request: file.payment_request || '',
+            actions: "",
+            auth: privateGallery,
+            visibility: file.visibility
+            }));
 
-                params.success({
-                    total: result.length, 
-                    rows: rows 
-                });
-
-                resolve(params);
-            },
-            error: function(err) {
-                params.error(err);
-                reject(err);
-            }
+            params.success({
+            total: result.length,
+            rows: rows
+            });
+        })
+        .catch(err => {
+            params.error(err);
         });
-    });
+
+            });
 }
 
 </script>

@@ -611,7 +611,7 @@ const getMediaList = async (req: Request, res: Response): Promise<Response> => {
 	logger.info(`getMediaList - Request from:`, reqInfo.ip);
 
 	// Check if authorization header is valid
-	const eventHeader = await parseAuthHeader(req, "list", false, false, false);
+	const eventHeader = await parseAuthHeader(req, "list", false, true, true);
 	setAuthCookie(res, eventHeader.authkey);
 
 	// Get NIP96 query parameters
