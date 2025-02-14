@@ -18,11 +18,11 @@
   </div>
   <div id="particles-js"></div> 
   <%- include('./partials/footer', {active:'media'}); %>     
-  <%- include('./components/modals/message-modal', {"object":"fisrtUse"}); %>
+  <%- include('./components/modals/message-modal', {"object":"firstUse"}); %>
 </body>
 <script>
   if ("<%= locals.firstUse %>" != undefined && "<%= locals.firstUse %>" != null && "<%= locals.firstUse %>" != "") {
-    initMessageModal("#fisrtUse", "<%- locals.firstUse %>", "Welcome to your sovereignty");
+    initMessageModal("#firstUse", "<%- locals.firstUse %>", "Welcome to your sovereignty");
   }
 </script>
 </html>
