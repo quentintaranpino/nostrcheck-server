@@ -154,6 +154,6 @@ const cleanPendingOTCUsers = async (): Promise<void> => {
 /*
 * Periodically clean pending OTC users
 */
-setInterval(cleanPendingOTCUsers, 60 * 1000) // 1 minute
+setInterval(cleanPendingOTCUsers, 60 * 60 * 1000) // 1 hour
 
 export { isUsernameAvailable, addNewUsername, isPubkeyOnDomainAvailable, getUsernames };
