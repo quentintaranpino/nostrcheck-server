@@ -782,6 +782,7 @@
         // Dynamic row styling
         const rowStyle = (row, index) =>{
             if (row.banned === 1)  return {classes: 'banned-row'};
+            if (row.pendingotc === 1) return {classes: 'pending-otc-row'};
             return {};
         }
 

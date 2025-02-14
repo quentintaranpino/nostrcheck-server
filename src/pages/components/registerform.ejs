@@ -212,9 +212,9 @@
 
     const domain = document.getElementById('input-register-domain').innerText.split('@')[1]
     const username = document.getElementById('input-register-username').value
-    const pubkey = document.getElementById('input-register-pubkey').value
     const password = document.getElementById('input-register-password').value
     const inviteCode = document.getElementById('input-register-invitation').value
+    const pubkey = type === 'nip07' && document.getElementById('input-register-invitation').value == '' ? await window.nostr.getPublicKey() : document.getElementById('input-register-pubkey').value
 
     if (!domain || !username || !pubkey ) {
         initAlertModal("#register", "Username, public key and domain are required.");
@@ -262,6 +262,8 @@
 
 
     let signedAuthEvent;
+    let content = "NIP98 auth event - This event is used to check that you can sign with the pubkey you want to register. Will not be published on nostr.";
+    let payload = await computeSHA256(JSON.stringify(body));
     if (type == 'nip07'){
       let authEvent = {
         created_at: Math.floor(Date.now() / 1000),
@@ -274,9 +276,13 @@
           [
             "u",
             window.location.href
+          ],
+          [
+            "payload",
+            payload
           ]
         ],
-        content: "NIP98 auth event - This event is used to check that you can sign with the pubkey you want to register. Will not be published on nostr.",
+        content: content,
       }
 
       signedAuthEvent = await window.nostr.signEvent(authEvent);
