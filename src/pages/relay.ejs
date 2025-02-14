@@ -22,7 +22,7 @@
                   <div class="row">
                     <% locals.lastRelayNotes.forEach(note => { %>
                         <div class="col-12 col-md-6 col-xl-3">
-                            <div class="card mb-4" style="min-height: 180px;">
+                            <div class="card shadow-lg mb-4" style="min-height: 180px;">
                                 <div class="card-body">
                                     <p class="card-text"><%= note.content.toString().trim().substring(0, 100) %></p>
                                 </div>
@@ -48,4 +48,11 @@
     initMessageModal("#firstUse", "<%- locals.firstUse %>", "Welcome to your sovereignty");
   }
 </script>
+<style>
+  .card:hover {
+  transform: scale(1.02);
+  transition: transform 0.2s;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+</style>
 </html>
