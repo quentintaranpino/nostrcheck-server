@@ -92,7 +92,7 @@ const StopServer = async (req: Request, res: Response): Promise<Response> => {
     res.setHeader('Content-Type', 'application/json');
     
     // Check if authorization header is valid
-	const eventHeader = await parseAuthHeader(req,"StopServer", true);
+	const eventHeader = await parseAuthHeader(req,"StopServer", true, true, true);
 	if (eventHeader.status !== "success") {return res.status(401).send({"status": eventHeader.status, "message" : eventHeader.message});}
     setAuthCookie(res, eventHeader.authkey);
 
@@ -132,7 +132,7 @@ const updateDBRecord = async (req: Request, res: Response): Promise<Response> =>
     res.setHeader('Content-Type', 'application/json');
 
      // Check if authorization header is valid
-	const eventHeader = await parseAuthHeader(req, "updateDBRecord", true);
+	const eventHeader = await parseAuthHeader(req, "updateDBRecord", true, true, true);
 	if (eventHeader.status !== "success") {return res.status(401).send({"status": eventHeader.status, "message" : eventHeader.message});}
     setAuthCookie(res, eventHeader.authkey);
 
@@ -234,7 +234,7 @@ const updateLogo = async (req: Request, res: Response): Promise<Response> => {
     logger.info(`updateLogo - ${req.method} ${req.path}`, "|", reqInfo.ip);
 
      // Check if authorization header is valid
-	const eventHeader = await parseAuthHeader(req, "updateDBRecord", true);
+	const eventHeader = await parseAuthHeader(req, "updateDBRecord", true, true, true);
 	if (eventHeader.status !== "success") {return res.status(401).send({"status": eventHeader.status, "message" : eventHeader.message});}
     setAuthCookie(res, eventHeader.authkey);
 
@@ -296,7 +296,7 @@ const updateRelayIcon = async (req: Request, res: Response): Promise<Response> =
     logger.info(`updateRelayIcon - ${req.method} ${req.path}`, "|", reqInfo.ip);
 
      // Check if authorization header is valid
-	const eventHeader = await parseAuthHeader(req, "updateDBRecord", true);
+	const eventHeader = await parseAuthHeader(req, "updateDBRecord", true, true, true);
 	if (eventHeader.status !== "success") {return res.status(401).send({"status": eventHeader.status, "message" : eventHeader.message});}
     setAuthCookie(res, eventHeader.authkey);
 
@@ -356,7 +356,7 @@ const updateTheme = async (req: Request, res: Response): Promise<Response> => {
     logger.info(`updateTheme - ${req.method} ${req.path}`, "|", reqInfo.ip);
 
      // Check if authorization header is valid
-    const eventHeader = await parseAuthHeader(req, "updateDBRecord", true);
+    const eventHeader = await parseAuthHeader(req, "updateDBRecord", true, true, true);
     if (eventHeader.status !== "success") {return res.status(401).send({"status": eventHeader.status, "message" : eventHeader.message});}
     setAuthCookie(res, eventHeader.authkey);
 
@@ -448,7 +448,7 @@ const resetUserPassword = async (req: Request, res: Response): Promise<Response>
     res.setHeader('Content-Type', 'application/json');
     
      // Check if authorization header is valid
-	const eventHeader = await parseAuthHeader(req, "resetUserPassword", true);
+	const eventHeader = await parseAuthHeader(req, "resetUserPassword", true, true, true);
 	if (eventHeader.status !== "success") {return res.status(401).send({"status": eventHeader.status, "message" : eventHeader.message});}
     setAuthCookie(res, eventHeader.authkey);
 
@@ -507,7 +507,7 @@ const deleteDBRecord = async (req: Request, res: Response): Promise<Response> =>
     res.setHeader('Content-Type', 'application/json');
 
      // Check if authorization header is valid
-	const eventHeader = await parseAuthHeader(req, "deleteDBRecord", true);
+	const eventHeader = await parseAuthHeader(req, "deleteDBRecord", true, true, true);
 	if (eventHeader.status !== "success") {return res.status(401).send({"status": eventHeader.status, "message" : eventHeader.message});}
     setAuthCookie(res, eventHeader.authkey);
 
@@ -648,7 +648,7 @@ const insertDBRecord = async (req: Request, res: Response): Promise<Response> =>
     res.setHeader('Content-Type', 'application/json');
 
      // Check if authorization header is valid
-	const eventHeader = await parseAuthHeader(req, "insertDBRecord", true);
+	const eventHeader = await parseAuthHeader(req, "insertDBRecord", true, true, true);
 	if (eventHeader.status !== "success") {return res.status(401).send({"status": eventHeader.status, "message" : eventHeader.message});}
     setAuthCookie(res, eventHeader.authkey);
 
@@ -740,7 +740,7 @@ const insertDBRecord = async (req: Request, res: Response): Promise<Response> =>
     }
 
     // Update redis cache
-    let redisKey = `${table}:${insert}`;
+    const redisKey = `${table}:${insert}`;
     await redisHashSet(redisKey, req.body.row);
 
     const result : ResultMessagev2 = {
@@ -779,7 +779,7 @@ const updateSettings = async (req: Request, res: Response): Promise<Response> =>
     res.setHeader('Content-Type', 'application/json');
 
      // Check if authorization header is valid
-	const eventHeader = await parseAuthHeader(req, "updateSettings", true);
+	const eventHeader = await parseAuthHeader(req, "updateSettings", true, true, true);
 	if (eventHeader.status !== "success") {return res.status(401).send({"status": eventHeader.status, "message" : eventHeader.message});}
     setAuthCookie(res, eventHeader.authkey);
 
@@ -857,7 +857,7 @@ const getModuleData = async (req: Request, res: Response): Promise<Response> => 
     logger.info(`getModuleData - ${req.method} ${req.path}`, "|", reqInfo.ip);
 
     // Check if authorization header is valid
-	const eventHeader = await parseAuthHeader(req, "updateSettings", true);
+	const eventHeader = await parseAuthHeader(req, "updateSettings", true, true, true);
 	if (eventHeader.status !== "success") {return res.status(401).send({"status": eventHeader.status, "message" : eventHeader.message});}
     setAuthCookie(res, eventHeader.authkey);  
 
@@ -924,7 +924,7 @@ const getModuleCountData = async (req: Request, res: Response): Promise<Response
     logger.info(`getModuleCountData - ${req.method} ${req.path}`, "|", reqInfo.ip);
 
     // Check if authorization header is valid
-    const eventHeader = await parseAuthHeader(req, "updateSettings", true);
+    const eventHeader = await parseAuthHeader(req, "updateSettings", true, true, true);
     if (eventHeader.status !== "success") {return res.status(401).send({"status": eventHeader.status, "message" : eventHeader.message});}
     setAuthCookie(res, eventHeader.authkey);  
 
@@ -990,7 +990,7 @@ const moderateDBRecord = async (req: Request, res: Response): Promise<Response> 
 
 
     // Check if authorization header is valid
-    const eventHeader = await parseAuthHeader(req, "updateSettings", true);
+    const eventHeader = await parseAuthHeader(req, "updateSettings", true, true, true);
     if (eventHeader.status !== "success") {return res.status(401).send({"status": eventHeader.status, "message" : eventHeader.message});}
     setAuthCookie(res, eventHeader.authkey);
 
@@ -1038,7 +1038,7 @@ const banDBRecord = async (req: Request, res: Response): Promise<Response> => {
     }
 
     // Check if authorization header is valid
-    const eventHeader = await parseAuthHeader(req, "updateSettings", true);
+    const eventHeader = await parseAuthHeader(req, "updateSettings", true, true, true);
     if (eventHeader.status !== "success") {return res.status(401).send({"status": eventHeader.status, "message" : eventHeader.message});}
     setAuthCookie(res, eventHeader.authkey);
     

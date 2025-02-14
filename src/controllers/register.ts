@@ -32,8 +32,8 @@ const registerUsername = async (req: Request, res: Response): Promise<Response> 
 	
 	let activateUser = true;
 
-    // Check if authorization header is valid, if not we will set the otc flag to true
-	const eventHeader = await parseAuthHeader(req,"registerUsername", false);
+    // Check if authorization header is valid, if not we will set the otc flag to true, we don't want to check jwt cookie here.
+	const eventHeader = await parseAuthHeader(req,"registerUsername", false, false, false);
 	if (eventHeader.status != "success") {activateUser = false}
 	setAuthCookie(res, eventHeader.authkey);
 

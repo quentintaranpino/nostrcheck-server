@@ -29,7 +29,7 @@ const setUserPrefs = async (req: Request, res: Response): Promise<Response> => {
     res.setHeader('Content-Type', 'application/json');
 
      // Check if authorization header is valid
-	const eventHeader = await parseAuthHeader(req, "setUserPrefs", false);
+	const eventHeader = await parseAuthHeader(req, "setUserPrefs", false, true, true);
 	if (eventHeader.status !== "success") {return res.status(401).send({"status": eventHeader.status, "message" : eventHeader.message});}
     setAuthCookie(res, eventHeader.authkey);
 
@@ -65,7 +65,7 @@ const getUserPrefs = async (req: Request, res: Response): Promise<Response> => {
     res.setHeader('Content-Type', 'application/json');
 
     // Check if authorization header is valid
-    const eventHeader = await parseAuthHeader(req, "getUserPrefs", false);
+    const eventHeader = await parseAuthHeader(req, "getUserPrefs", false, true, true);
     if (eventHeader.status !== "success") {return res.status(401).send({"status": eventHeader.status, "message" : eventHeader.message});}
     setAuthCookie(res, eventHeader.authkey);
 

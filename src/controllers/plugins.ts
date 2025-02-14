@@ -21,7 +21,7 @@ const getPlugins = async (req: Request, res: Response): Promise<Response> => {
         return res.status(403).send({"status": "error", "message": "Module is not enabled"});
     }
 
-	const eventHeader = await parseAuthHeader(req,"getPlugins", true);
+	const eventHeader = await parseAuthHeader(req,"getPlugins", true, true, true);
 	if (eventHeader.status !== "success") {return res.status(401).send({"status": eventHeader.status, "message" : eventHeader.message});}
     setAuthCookie(res, eventHeader.authkey);
 
@@ -51,7 +51,7 @@ const reloadPlugins = async (req: Request, res: Response): Promise<Response> => 
         return res.status(403).send({"status": "error", "message": "Module is not enabled"});
     }
 
-	const eventHeader = await parseAuthHeader(req,"reloadPlugins", true);
+	const eventHeader = await parseAuthHeader(req,"reloadPlugins", true, true, true);
 	if (eventHeader.status !== "success") {return res.status(401).send({"status": eventHeader.status, "message" : eventHeader.message});}
     setAuthCookie(res, eventHeader.authkey);
 

@@ -150,7 +150,7 @@ const updateLightningAddress = async (req: Request, res: Response): Promise<Resp
 	const lightningaddress = req.params.lightningaddress;
 
     // Check if authorization header is valid
-	const EventHeader = await parseAuthHeader(req, "updateLightningAddress", false);
+	const EventHeader = await parseAuthHeader(req, "updateLightningAddress", false, true, true);
 	if (EventHeader.status !== "success") {return res.status(401).send({"status": EventHeader.status, "message" : EventHeader.message});}
 	setAuthCookie(res, EventHeader.authkey);
 
@@ -270,7 +270,7 @@ const deleteLightningAddress = async (req: Request, res: Response): Promise<Resp
 	let lightningaddress = "";
 
     // Check if authorization header is valid
-	const EventHeader = await parseAuthHeader(req, "deleteLightningAddress", false);
+	const EventHeader = await parseAuthHeader(req, "deleteLightningAddress", false, true, true);
 	if (EventHeader.status !== "success") {return res.status(401).send({"status": EventHeader.status, "message" : EventHeader.message});}
 	setAuthCookie(res, EventHeader.authkey);
 

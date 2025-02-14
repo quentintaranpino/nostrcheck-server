@@ -9,7 +9,6 @@ import { isModuleEnabled } from "../lib/config.js";
 import app from "../app.js";
 import { setAuthCookie } from "../lib/frontend.js";
 import { redisDel } from "../lib/redis.js";
-import { loadLightningaddressEndpoint } from "../routes/lightningaddress.route.js";
 
 const listAvailableDomains = async (req: Request, res: Response): Promise<Response> => {
 
@@ -80,7 +79,7 @@ const updateUserDomain = async (req: Request, res: Response): Promise<Response> 
 	const domain = req.params.domain;
 
 	// Check if authorization header is valid
-	const EventHeader = await parseAuthHeader(req, "UpdateUserDomain", false);
+	const EventHeader = await parseAuthHeader(req, "UpdateUserDomain", false, true, true);
 	if (EventHeader.status !== "success") {return res.status(401).send({"status": EventHeader.status, "message" : EventHeader.message});}
 	setAuthCookie(res, EventHeader.authkey);
 

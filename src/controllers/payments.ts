@@ -40,7 +40,7 @@ const payTransaction = async (req: Request, res: Response): Promise<Response> =>
     res.setHeader('Content-Type', 'application/json');
 
      // Check if authorization header is valid
-    const EventHeader = await parseAuthHeader(req, "payItem", true);
+    const EventHeader = await parseAuthHeader(req, "payItem", true, true, true);
     if (EventHeader.status !== "success") {return res.status(401).send({"status": EventHeader.status, "message" : EventHeader.message});}
     setAuthCookie(res, EventHeader.authkey);
 
@@ -86,7 +86,7 @@ const addBalanceUser = async (req: Request, res: Response): Promise<Response> =>
     res.setHeader('Content-Type', 'application/json');
 
     // Check if authorization header is valid
-    const EventHeader = await parseAuthHeader(req, "addBalance", true);
+    const EventHeader = await parseAuthHeader(req, "addBalance", true, true, true);
     if (EventHeader.status !== "success") {return res.status(401).send({"status": EventHeader.status, "message" : EventHeader.message});}
     setAuthCookie(res, EventHeader.authkey);
 
@@ -238,7 +238,7 @@ const getBalanceUser = async (req: Request, res: Response): Promise<Response> =>
     res.setHeader('Content-Type', 'application/json');
 
     // Check if authorization header is valid
-    const EventHeader = await parseAuthHeader(req, "getBalance", false);
+    const EventHeader = await parseAuthHeader(req, "getBalance", false, true, true);
     if (EventHeader.status !== "success") {return res.status(401).send({"status": EventHeader.status, "message" : EventHeader.message});}
     setAuthCookie(res, EventHeader.authkey);
 

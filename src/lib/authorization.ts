@@ -19,23 +19,26 @@ import { redisDel, redisGet, redisGetJSON, redisSet } from "./redis.js";
 
 
 /**
- * Parses the authorization header and checks if it is valid. (apikey, authkey, or NIP98 event)
+ * Parses the authorization header and checks if it is valid. (apikey, authkey, NIP98 or BUD01)
+ * Always check if the header's pubkey is banned.
  * 
  * @param req - The request object.
  * @param endpoint - The endpoint of the request.
- * @param checkAdminPrivileges - A boolean indicating whether to check if the apikey has admin privileges. Optional.
+ * @param checkAdminPrivileges - A boolean indicating whether to check if the header's pubkey has admin privileges.
+ * @param checkRegistered - A boolean indicating whether to check if the header's pubkey is registered.
+ * @param checkActive - A boolean indicating whether to check if the header's pubkey is active.
  * @returns A promise that resolves to a VerifyResultMessage object.
  */
-const parseAuthHeader = async (req: Request, endpoint: string = "", checkAdminPrivileges = true): Promise<authHeaderResult> => {
+const parseAuthHeader = async (req: Request, endpoint: string = "", checkAdminPrivileges : boolean, checkRegistered : boolean, checkActive : boolean): Promise<authHeaderResult> => {
 
 	// Apikey. Will be deprecated on 0.7.0
-	if (req.query.apikey || req.body?.apikey?.length > 0) {
+	if ((req.query.apikey || req.body?.apikey?.length > 0) && checkRegistered) {
 		logger.debug(`parseAuthHeader - Apikey found on request: ${req.query.apikey || req.body.apikey}`, "|", getClientIp(req));
 		return await isApikeyValid(req, endpoint, checkAdminPrivileges);
 	}
 
 	// Authkey. Cookie bearer token
-	if (req.cookies && req.cookies.authkey) {
+	if (req.cookies && req.cookies.authkey && checkRegistered) {
 		logger.debug(`parseAuthHeader - authkey found in cookie: ${req.cookies.authkey}`, "|", getClientIp(req));
         return await isAuthkeyValid(req.cookies.authkey, checkAdminPrivileges); 
     }
@@ -62,11 +65,11 @@ const parseAuthHeader = async (req: Request, endpoint: string = "", checkAdminPr
 
 			// Check NIP98 / BUD01
 			if (authevent.kind == BUDKinds.BUD01_auth) {
-				return await isBUD01AuthValid(authevent, req, endpoint, checkAdminPrivileges);
+				return await isBUD01AuthValid(authevent, req, endpoint, checkAdminPrivileges, checkRegistered, checkActive);
 			}
 
 			if (authevent.kind == NIPKinds.NIP98){
-				return await isNIP98Valid(authevent, req, checkAdminPrivileges);
+				return await isNIP98Valid(authevent, req, checkAdminPrivileges, checkRegistered, checkActive);
 			}
 
 		} catch (error) {
@@ -375,7 +378,7 @@ const isApikeyValid = async (req: Request, endpoint: string = "", checkAdminPriv
 
 const generateAuthToken = (identifier: string, allowed: boolean): string => {
     const secretKey = app.get("config.session")["secret"];
-    const expiresIn = app.get("config.session")["maxAge"];
+    const expiresIn = app.get("config.session")["maxAge"] /1000;
 
     return jwt.sign(
         { identifier, allowed }, 

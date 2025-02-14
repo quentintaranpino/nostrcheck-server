@@ -56,7 +56,7 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 	logger.info(`uploadMedia - Request from:`, reqInfo.ip);
 
 	// Check if authorization header is valid
-	const eventHeader = await parseAuthHeader(req, "upload", false);
+	const eventHeader = await parseAuthHeader(req, "upload", false, false, false);
 	if (eventHeader.status != "success") {
 		if(version != "v2"){return res.status(401).send({"result": false, "description" : eventHeader.message});}
 		const result : ResultMessagev2 = {
@@ -611,10 +611,7 @@ const getMediaList = async (req: Request, res: Response): Promise<Response> => {
 	logger.info(`getMediaList - Request from:`, reqInfo.ip);
 
 	// Check if authorization header is valid
-	const eventHeader = await parseAuthHeader(req, "list", false);
-	if (eventHeader.status !== "success") {
-		eventHeader.pubkey = "";
-	}
+	const eventHeader = await parseAuthHeader(req, "list", false, false, false);
 	setAuthCookie(res, eventHeader.authkey);
 
 	// Get NIP96 query parameters
@@ -765,18 +762,14 @@ const getMediaStatusbyID = async (req: Request, res: Response, version:string): 
 	logger.info(`getMediaStatusbyID - Request from:`, reqInfo.ip);
 
 	// Check if authorization header is valid
-	const eventHeader = await parseAuthHeader(req, "getMediaStatusbyID", false);
+	const eventHeader = await parseAuthHeader(req, "getMediaStatusbyID", false, false, false);
 	if (eventHeader.status !== "success") {
-		
-		//v0 and v1 compatibility
 		if(version != "v2"){return res.status(401).send({"result": false, "description" : eventHeader.message});}
-
 		const result : ResultMessagev2 = {
 			status: MediaStatus[1],
 			message: eventHeader.message
 		}
 		return res.status(401).send(result);
-
 	}
 	setAuthCookie(res, eventHeader.authkey);
 
@@ -958,13 +951,13 @@ const getMediabyURL = async (req: Request, res: Response) => {
 	if (req.cookies?.authkey) {
 
 		// Admin authorization header
-		const adminHeader = await parseAuthHeader(req, "getMediaByURL", true);
+		const adminHeader = await parseAuthHeader(req, "getMediaByURL", true, true, true);
 		if (adminHeader.status == "success") {
 			adminRequest = true;
 		}
 
 		// Logged user authorization header
-		const loggedHeader = await parseAuthHeader(req, "getMediaByURL", false);
+		const loggedHeader = await parseAuthHeader(req, "getMediaByURL", false, true, true);
 		if (loggedHeader.status == "success") {
 			loggedPubkey = loggedHeader.pubkey;
 		}
@@ -1233,7 +1226,7 @@ const getMediaTagsbyID = async (req: Request, res: Response): Promise<Response> 
 	logger.info(`getMediaTagsbyID - Request from:`, reqInfo.ip);
 
 	// Check if authorization header is valid
-	const eventHeader = await parseAuthHeader(req, "getMediaStatusbyID", false);
+	const eventHeader = await parseAuthHeader(req, "getMediaStatusbyID", false, false, false);
 	if (eventHeader.status !== "success") {
 		const result : ResultMessagev2 = {
 			status: MediaStatus[1],
@@ -1301,7 +1294,7 @@ const getMediabyTags = async (req: Request, res: Response): Promise<Response> =>
 	logger.info(`getMediabyTags - Request from:`, reqInfo.ip);
 
 	// Check if authorization header is valid
-	const eventHeader = await parseAuthHeader(req, "getMediabyTags", false);
+	const eventHeader = await parseAuthHeader(req, "getMediabyTags", false, false, false);
 	if (eventHeader.status !== "success") {return res.status(401).send({"result": eventHeader.status, "description" : eventHeader.message});}
 	setAuthCookie(res, eventHeader.authkey);
 
@@ -1376,7 +1369,7 @@ const updateMediaVisibility = async (req: Request, res: Response, version: strin
 	logger.info(`updateMediaVisibility - Request from:`, reqInfo.ip);
 
 	// Check if authorization header is valid
-	const eventHeader = await parseAuthHeader(req, "updateMediaVisibility", false);
+	const eventHeader = await parseAuthHeader(req, "updateMediaVisibility", false, true, true);
 	if (eventHeader.status !== "success") {return res.status(401).send({"result": eventHeader.status, "description" : eventHeader.message});}
 	setAuthCookie(res, eventHeader.authkey);
 
@@ -1469,7 +1462,7 @@ const deleteMedia = async (req: Request, res: Response, version:string): Promise
 	}
 
 	// Check if authorization header is valid
-	const eventHeader = await parseAuthHeader(req, "delete", false);
+	const eventHeader = await parseAuthHeader(req, "delete", false, true, true);
 	if (eventHeader.status !== "success") {
 		
 		//v0 and v1 compatibility
@@ -1588,7 +1581,7 @@ const headUpload = async (req: Request, res: Response): Promise<Response> => {
 	logger.info(`headUpload - Request from:`, reqInfo.ip);
 
 	// Check if authorization header is valid
-	const eventHeader = await parseAuthHeader(req, "upload", false);
+	const eventHeader = await parseAuthHeader(req, "upload", false, false, true);
 	if (eventHeader.status != "success") {
 		const result : ResultMessagev2 = {
 			status: MediaStatus[1],

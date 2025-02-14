@@ -9,13 +9,20 @@ import { isPubkeyValid } from "../authorization.js";
 import { getClientIp } from "../security/ips.js";
 
 /**
- * Parses the authorization Nostr header (NIP98) and checks if it is valid. Visit for more information: https://github.com/nostr-protocol/nips/blob/master/98.md
+ * Parses the authorization Nostr header (NIP98) and checks if it is valid. Visit for more information:
+ * https://github.com/nostr-protocol/nips/blob/master/98.md
  * 
+ * This method always check if the event pubkey is banned.
+ * 
+ * @param authevent - The NIP-98 event object.
  * @param req - The request object.
- * @param endpoint - The endpoint of the request.
+ * @param checkAdminPrivileges - Check if the event pubkey has admin privileges.
+ * @param checkRegistered - Check if the event pubkey is registered.
+ * @param checkActive - Check if the event pubkey is active.
  * @returns A promise that resolves to a VerifyResultMessage object.
+ * 
  */
-const isNIP98Valid = async (authevent: Event, req: Request, checkAdminPrivileges = true): Promise<authHeaderResult> => {
+const isNIP98Valid = async (authevent: Event, req: Request, checkAdminPrivileges = true, checkRegistered = true, checkActive = true): Promise<authHeaderResult> => {
 
 	// Check if event authorization kind is valid (Must be 27235)
 	try {
@@ -106,7 +113,7 @@ const isNIP98Valid = async (authevent: Event, req: Request, checkAdminPrivileges
 	logger.debug("NIP 98 data |", "method:", eventMethod, "| u:", eventEndpoint, "| payload", eventPayload)
 
     // This is not from NIP98 spec, check local pubkey validation
-	if (await isPubkeyValid(authevent.pubkey, checkAdminPrivileges, false) == false) {
+	if (await isPubkeyValid(authevent.pubkey, checkAdminPrivileges, checkRegistered, checkActive) == false) {
 		logger.warn(`isNIP98Valid - Auth header pubkey is not valid: ${authevent.pubkey}`, "|", getClientIp(req));
 		return {status: "error", message: "Auth header pubkey is not valid", authkey: "", pubkey: "", kind: 0};
 	}
