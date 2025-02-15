@@ -5,7 +5,7 @@ BASEDIR=$(dirname "$0")
 echo "$BASEDIR"
 
 readonly E_BADARGS=65
-readonly version="0.2.6.5"
+readonly version="0.2.6.6"
 readonly date="20240914"
 
 # Variables
@@ -25,6 +25,7 @@ VENV_DIR=".venv"
 TRANSFORMERS_VERSION="4.44.2"
 FLASK_VERSION="3.0.3"
 PILLOW_VERSION="10.4.0"
+TORCH_VERSION="2.6.0"
 
 clear
 echo ""
@@ -203,6 +204,9 @@ install_packages() {
 
     echo "🔄 Installing Pillow==$PILLOW_VERSION..."
     pip install Pillow==$PILLOW_VERSION || { echo "❌ Failed to install Pillow"; exit 1; }
+
+    echo "🔄 Installing torch==$TORCH_VERSION..."
+    pip install torch==$TORCH_VERSION  || { echo "❌ Failed to install torch"; exit 1; }
 }
 
 install_packages
