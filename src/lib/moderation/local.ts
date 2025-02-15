@@ -21,7 +21,7 @@ const localEngineStart = async (): Promise<boolean> => {
         }
 
         const localModelPath = './scripts/moderation/localEngine.py';
-        const venvPythonPath = './venv/bin/python'; 
+        const venvPythonPath = './.venv/bin/python'; 
 
         logger.info(`localEngineStart - Starting local AI moderation server using Python virtual environment: ${venvPythonPath}`);
 
