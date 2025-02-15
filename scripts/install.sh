@@ -88,7 +88,6 @@ else
     echo "❌ Node.js not found."
     echo "🔄 Installing Node.js version $NODE_MAJOR..."
     install_node
-    exit 0
 fi
 
 if [ "$INSTALLED_NODE_MAJOR" -ge "$NODE_MAJOR" ]; then
