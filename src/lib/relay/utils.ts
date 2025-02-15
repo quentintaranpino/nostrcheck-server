@@ -1,75 +1,55 @@
-// import app from "../../app.js"; 
-import { MemoryEvent } from "../../interfaces/relay.js";
-import { deflate, inflate } from 'zlib';
-import { promisify } from 'util';
+import LZString from "lz-string";
+import WebSocket from "ws";
 import { Event } from "nostr-tools";
-import LZString from 'lz-string';
-
-const deflateAsync = promisify(deflate);
-const inflateAsync = promisify(inflate);
+import { logger } from "../logger.js";
+import { NIP01_event } from "../../interfaces/nostr.js";
 
 /**
- * Generate a dictionary from the content of the provided events
- * @param events Events to generate the dictionary from
- * @returns Dictionary
- */
-const generateDict = (events: Map<string, MemoryEvent>): Buffer => {
-    const eventsArray = Array.from(events.values());
-    const dict = eventsArray
-        .slice(0, Math.min(10000, eventsArray.length))
-        .map(e => e.event.content)
-        .join('');
-    return Buffer.from(dict, 'utf8');
-}
-
-/**
- * Compress an event content using the provided dictionary
+ * Compress an event using LZString
  * @param e Event to compress
- * @param dictionary Dictionary to use for compression
- * @returns Compressed event
+ * @returns Compressed event or original if compression is not beneficial
  */
-const compressEvent = async (e: Event, dictionary: Buffer): Promise<Event> => {
+const compressEvent = async (e: Event): Promise<Event> => {
     try {
-        const compressed = await deflateAsync(e.content, { dictionary });
-        return { ...e, content: compressed.toString('base64') };
+        if (!e.content) return e;
+        const compressed = LZString.compress(e.content);
+        if (!compressed || e.content.length <= compressed.length) return e;
+        return { ...e, content: `lz:${compressed}` };
     } catch (error: any) {
-        throw new Error(`compressEvent - Error compressing event: ${error.message}`);
+        logger.warn(`compressEvent2 - Error compressing event: ${error.message}`);
+        return e;
     }
 };
 
 /**
- * Decompress an event content using the provided dictionary
+ * Decompress an event using LZString
  * @param e Event to decompress
- * @param dictionary Dictionary to use for decompression
  * @returns Decompressed event
  */
-const decompressEvent = async (e: Event, dictionary: Buffer): Promise<Event> => {
+const decompressEvent = async (e: Event): Promise<Event> => {
     try {
-        const compressedBuffer = Buffer.from(e.content, 'base64');
-        const decompressedBuffer = await inflateAsync(compressedBuffer, { dictionary });
-        const content = decompressedBuffer.toString('utf8');
-        return { ...e, content };
+        if (!e.content || !e.content.startsWith('lz:')) return e;
+        const decompressed = LZString.decompress(e.content.substring(3)) ?? e.content;
+        return { ...e, content: decompressed };
     } catch (error: any) {
-        throw new Error(`decompressEvent - Error decompressing event: ${error.message}`);
+        logger.warn(`decompressEvent2 - Error decompressing event: ${error.message}`);
+        return e;
     }
 };
 
-const compressEvent2 = async (e: Event): Promise<Event> => {
-    try {
-        const compressed = await LZString.compress(e.content);
-        return { ...e, content: compressed };
-    } catch (error: any) {
-        throw new Error(`compressEvent - Error compressing event: ${error.message}`);
-    }
-}
+/**
+ * Parse a relay message using NIP01_event schema
+ * @param data Raw data to parse
+ * @returns Parsed data or null if parsing fails
+ */
+const parseRelayMessage = (data: WebSocket.RawData): ReturnType<typeof NIP01_event.safeParse>["data"] | null => {
+  try {
+    const message = JSON.parse(data.toString());
+    const result = NIP01_event.safeParse(message);
+    return result.success ? result.data : null;
+  } catch {
+    return null; 
+  }
+};
 
-const decompressEvent2 = async (e: Event): Promise<Event> => {
-    try {
-        const decompressed = LZString.decompress(e.content);
-        return { ...e, content: decompressed };
-    } catch (error: any) {
-        throw new Error(`decompressEvent - Error decompressing event: ${error.message}`);
-    }
-}
-
-export {generateDict, compressEvent, decompressEvent, compressEvent2, decompressEvent2};
+export { compressEvent, decompressEvent, parseRelayMessage};
