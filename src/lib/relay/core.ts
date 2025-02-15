@@ -1,5 +1,4 @@
 import WebSocket from "ws";
-import { NIP01_event } from "../../interfaces/nostr.js";
 import app from "../../app.js";
 import { Event } from "nostr-tools";
 import { logger } from "../logger.js";
@@ -7,18 +6,14 @@ import { isModuleEnabled } from "../config.js";
 import { dbMultiSelect, dbUpdate } from "../database.js";
 import { storeEvents } from "./database.js";
 
-const parseRelayMessage = (data: WebSocket.RawData): ReturnType<typeof NIP01_event.safeParse>["data"] | null => {
-  try {
-    const message = JSON.parse(data.toString());
-    const result = NIP01_event.safeParse(message);
-    return result.success ? result.data : null;
-  } catch {
-    return null; 
-  }
-};
-
 const subscriptions: Map<WebSocket, Map<string, (event: Event) => void>> = new Map();
 
+/**
+ * Add a subscription to a client socket
+ * @param subId Subscription ID
+ * @param socket Client socket
+ * @param listener Event listener
+ */
 const addSubscription = (subId: string, socket: WebSocket, listener: (event: Event) => void) => {
   if (!subscriptions.has(socket)) {
     subscriptions.set(socket, new Map());
@@ -44,15 +39,16 @@ const addSubscription = (subId: string, socket: WebSocket, listener: (event: Eve
 
 };
 
+/**
+ * Remove a subscription from a client socket
+ * @param subId Subscription ID
+ * @param socket Client socket
+ */
 const removeSubscription = (subId?: string, socket?: WebSocket) => {
-  if (!socket || !subscriptions.has(socket)) {
-      return;
-  }
-
+  
+  if (!socket || !subscriptions.has(socket))    return;
   const clientSubscriptions = subscriptions.get(socket);
-  if (!clientSubscriptions) {
-      return;
-  }
+  if (!clientSubscriptions)   return;
 
   try {
       if (subId) {
@@ -76,12 +72,16 @@ const removeSubscription = (subId?: string, socket?: WebSocket) => {
   }
 };
 
+/**
+ * Remove all subscriptions from a client socket
+ * @param socket Client socket
+ * @param closeCode Close code for the socket
+ */
 const removeAllSubscriptions = (socket: WebSocket, closeCode = 1000) => {
   const clientSubscriptions = subscriptions.get(socket);
   if (clientSubscriptions) {
     clientSubscriptions.forEach((_, subId) => {
       socket.send(JSON.stringify(["CLOSED", subId, "Subscription forcibly closed"]));
-      logger.debug("Subscription forcibly closed:", subId);
       logger.debug(`removeAllSubscriptions - Subscription forcibly closed: ${subId}, IP:`, socket.url);
     });
     subscriptions.delete(socket);
@@ -145,4 +145,4 @@ setInterval(async () => {
   }
 }, 1000 * 30 * 1); // 1 minutes
 
-export {subscriptions, parseRelayMessage, addSubscription, removeSubscription, removeAllSubscriptions};
+export {subscriptions, addSubscription, removeSubscription, removeAllSubscriptions};

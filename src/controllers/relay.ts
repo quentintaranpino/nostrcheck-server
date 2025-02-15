@@ -1,5 +1,6 @@
 import WebSocket from "ws";
-import { parseRelayMessage, subscriptions, addSubscription, removeAllSubscriptions, removeSubscription } from "../lib/relay/core.js";
+import { subscriptions, addSubscription, removeAllSubscriptions, removeSubscription } from "../lib/relay/core.js";
+import { compressEvent, parseRelayMessage } from "../lib/relay/utils.js";
 import { Event, Filter, matchFilter } from "nostr-tools";
 import { isEventValid } from "../lib/nostr/core.js";
 import { isModuleEnabled } from "../lib/config.js";
@@ -388,7 +389,8 @@ const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) =>
   // Save the event to memory
   const insertionIndex = binarySearchCreatedAt(events.sortedArray, event.created_at);
   events.sortedArray.splice(insertionIndex, 0, event);
-  events.memoryDB.set(event.id, { event: event, content_lower: event.content.toLocaleLowerCase(), processed: false });
+  event = await compressEvent(event);
+  events.memoryDB.set(event.id, { event: event, processed: false });
   events.pending.set(event.id, event);
 
   // Notify all clients about the new event

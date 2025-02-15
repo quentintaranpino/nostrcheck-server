@@ -5,53 +5,58 @@ import { logger } from "../logger.js";
 import { MemoryEvent } from "../../interfaces/relay.js";
 import { isModuleEnabled } from "../config.js";
 import app from "../../app.js";
+import { compressEvent, decompressEvent } from "./utils.js";
 
 const initEvents = async (app: Application): Promise<boolean> => {
 
   if (!isModuleEnabled("relay", app)) return false;
-  if (!app.get("relayEvents")) {
-    const eventsMap: Map<string, MemoryEvent> = new Map();
-    const pendingEvents: Map<string, Event> = new Map();
-    const eventsArray: Event[] = [];
-    app.set("relayEvents", { memoryDB: eventsMap, sortedArray: eventsArray, pending: pendingEvents });
-    app.set("relayEventsLoaded", false);
+  if (app.get("relayEvents")) return false;
 
-    const loadEvents = async () => {
-      try {
-        const limit = 100000;
-        let offset = 0;
-        let hasMore = true;
+  const eventsMap: Map<string, MemoryEvent> = new Map();
+  const pendingEvents: Map<string, Event> = new Map();
+  const eventsArray: Event[] = [];
+  app.set("relayEvents", { memoryDB: eventsMap, sortedArray: eventsArray, pending: pendingEvents });
+  app.set("relayEventsLoaded", false);
+  let totalOriginalLength = 0;
+  let totalCompressedLength = 0;
 
-        while (hasMore) {
-            logger.info(`initEvents - Loaded ${eventsMap.size} events from DB`);
-            const loadedEvents = await getEventsDB(offset, limit);
-            if (loadedEvents.length === 0 || offset > 400000) {
-                hasMore = false;
-            } else {
-                for (const event of loadedEvents) {
-                    eventsMap.set(event.id, { event: event, content_lower: event.content.toLowerCase(), processed: true });
-                    eventsArray.push(event);
-                }
-                offset += limit;
-            }
-        }
+  const loadEvents = async () => {
+    try {
+      const limit = 10000;
+      let offset = 0;
+      let hasMore = true;
 
-        eventsArray.sort((a, b) => b.created_at - a.created_at);
+      while (hasMore) {
         logger.info(`initEvents - Loaded ${eventsMap.size} events from DB`);
-        
-      } catch (error) {
-        logger.info(`initEvents - Error loading events: ${error}`);
-      } finally {
-        app.set("relayEventsLoaded", true);
+        const loadedEvents = await getEventsDB(offset, limit);
+        if (loadedEvents.length === 0) {
+          hasMore = false;
+        } else {
+          for (let event of loadedEvents) {
+            if (event.content.length > 15) {
+              totalOriginalLength += event.content.length;
+              event = await compressEvent(event)
+              totalCompressedLength += event.content.length;
+            }
+            eventsMap.set(event.id, { event: event, processed: true });
+            eventsArray.push(event);
+          }
+          offset += limit;
+        }
       }
-    };
+      eventsArray.sort((a, b) => b.created_at - a.created_at);
+      logger.info(`initEvents - Finished loading ${eventsMap.size} events from DB`);
 
-    loadEvents();
+    } catch (error) {
+      logger.info(`initEvents - Error loading events: ${error}`);
+    } finally {
+      app.set("relayEventsLoaded", true);
+    }
+  };
+  
+  loadEvents();
+  return true;
 
-    return true;
-  }
-
-  return false;
 };
 
 
@@ -128,13 +133,15 @@ const getEventsDB = async (offset: number, limit: number): Promise<Event[]> => {
 
 /**
  * Inserts one or more events (and their tags) into the database using bulk insert.
- * @param {Event | Event[]} eventsInput - Un evento o un array de eventos a insertar.
+ * @param {Event | Event[]} eventsInput - Event or array of events to store.
  * @returns {Promise<number>}
  */
 const storeEvents = async (eventsInput: Event | Event[]): Promise<number> => {
 
     const events: Event[] = Array.isArray(eventsInput) ? eventsInput : [eventsInput];
-    const eventsToStore = events.filter(e => e && !(e.kind >= 20000 && e.kind < 30000));
+    const filteredEvents  = events.filter(e => e && !(e.kind >= 20000 && e.kind < 30000));
+    const eventsToStore = await Promise.all(filteredEvents.map(decompressEvent));
+
     if (eventsToStore.length === 0) return 0;
   
 
@@ -216,23 +223,24 @@ const storeEvents = async (eventsInput: Event | Event[]): Promise<number> => {
       
       const rawSearch = filter.search ? filter.search.trim() : "";
       const searchQuery = rawSearch.length >= 3 ? rawSearch.toLowerCase() : null;
-      const startIndex = binarySearchFirstDescending(relayData.sortedArray, until);
-      const endIndex = binarySearchFirstStrictDescending(relayData.sortedArray, since);
+      const startIndex = binarySearchDescending(relayData.sortedArray, until);
+      const endIndex = binarySearchDescending(relayData.sortedArray, since, true);
       const candidates = relayData.sortedArray.slice(startIndex, endIndex);
       
       const { search, ...basicFilter } = filter;
       let filtered: { event: Event; score: number }[] = [];
       
-      for (const event of candidates) {
-        if (!matchFilter(basicFilter, event)) continue;
+      for (let e of candidates) {
+        if (!matchFilter(basicFilter, e)) continue;
+
+        if (e.content.startsWith("lz:")) { e = await decompressEvent(e); }
         
         if (!searchQuery) {
-          filtered.push({ event, score: 0 });
+          filtered.push({ event: e, score: 0 });
         } else {
-          const memEvent = relayData.memoryDB.get(event.id);
-          const contentLower = memEvent ? memEvent.content_lower : event.content.toLowerCase();
+          const contentLower = e.content.toLowerCase();
           const index = contentLower.indexOf(searchQuery);
-          if (index !== -1) filtered.push({ event, score: index });
+          if (index !== -1) filtered.push({ event: e, score: index });
         }
         
         // If we have reached the limit, we stop (if it's not a search query)
@@ -256,34 +264,32 @@ const storeEvents = async (eventsInput: Event | Event[]): Promise<number> => {
     return allEvents;
   };
   
-
-
-function binarySearchFirstDescending(arr: Event[], target: number): number {
-    let low = 0;
-    let high = arr.length;
-    while (low < high) {
-        const mid = Math.floor((low + high) / 2);
-        if (arr[mid].created_at > target) {
-            low = mid + 1;
-        } else {
-            high = mid;
-        }
-    }
-    return low;
-}
-
-function binarySearchFirstStrictDescending(arr: Event[], target: number): number {
-    let low = 0;
-    let high = arr.length;
-    while (low < high) {
-        const mid = Math.floor((low + high) / 2);
-        if (arr[mid].created_at >= target) {
-            low = mid + 1;
-        } else {
-            high = mid;
-        }
-    }
-    return low;
+/**
+ * Performs a binary search on a descendingly sorted array of events (sorted by `created_at`)
+ * and returns the index of the first element that meets the comparison condition with the target timestamp.
+ *
+ * In non-strict mode (default), it returns the index of the first event whose `created_at` is less than or equal
+ * to the target value. In strict mode, it returns the index of the first event whose `created_at` is strictly
+ * less than the target value.
+ *
+ * @param {Event[]} arr - Array of events sorted in descending order by `created_at`.
+ * @param {number} target - The target timestamp for comparison.
+ * @param {boolean} [strict=false] - If `true`, the search is strict (looking for the first element with `created_at` < target).
+ *                                   If `false`, it looks for the first element with `created_at` <= target.
+ * @returns {number} The index of the first event that meets the comparison condition.
+ */
+function binarySearchDescending(arr: Event[], target: number, strict: boolean = false): number {
+  let low = 0;
+  let high = arr.length;
+  while (low < high) {
+      const mid = Math.floor((low + high) / 2);
+      if (strict ? arr[mid].created_at >= target : arr[mid].created_at > target) {
+          low = mid + 1;
+      } else {
+          high = mid;
+      }
+  }
+  return low;
 }
 
 /**

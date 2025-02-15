@@ -2,7 +2,6 @@ import { Event } from "nostr-tools";
 
 interface MemoryEvent {
     event: Event;
-    content_lower: string;
     processed: boolean;
 }
 
