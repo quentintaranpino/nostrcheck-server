@@ -1,18 +1,37 @@
 FROM node:20
 
 ENV DEBIAN_FRONTEND=noninteractive
+
+# Environment variables
+ENV VENV_DIR=/usr/src/app/.venv
+ENV PATH="$VENV_DIR/bin:$PATH"
+
+# Install ffmpeg
 RUN apt-get update && \
     apt-get install -y ffmpeg nano && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
+# App packages
 WORKDIR /usr/src/app
 COPY package*.json tsconfig.json ./
-COPY /resources ./resources
 RUN npm install -g npm@latest
 RUN npm install --include=optional sharp
 
+# Copy the rest of the app
+COPY /resources ./resources
 COPY ./src ./src
+
+# Install Python dependencies
+RUN python3 -m venv $VENV_DIR && \
+    source $VENV_DIR/bin/activate && \
+    pip install --upgrade pip && \
+    pip install transformers==4.37.2 Flask==3.1.0 Pillow==10.4.0 torch==2.6.0 
+
+# Install Rust
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y && \
+source $HOME/.cargo/env && \
+rustc --version && cargo --version
 
 RUN npm run build
 
