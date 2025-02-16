@@ -123,8 +123,6 @@
             return { "filename": "", "url": "" };
         }
 
-        
-
         let headers = {};
         headers["authorization"] = "Nostr " + authEvent;
         method == "PUT" ? headers["Content-Type"] = file.type : null;
@@ -471,60 +469,62 @@
             let authEvent = null;
             let method = $('#' + instance + 'file-table').bootstrapTable('getRowByUniqueId', file.fileData.id).transform == 1 ? 'POST' : 'PUT';
 
-            if (!identifier){
+            if (!window.nostr) {
+                showMessage("⚠️ NIP07 browser extension not found", "alert-danger", false);
+                file.fileData.satoshi = -2;
+                file.fileData.action = 'error';
+                $('#' + instance + 'file-table').bootstrapTable('load', f.map(file => file.fileData));
+                return;
+            }
 
-                if (!window.nostr) {
+            try {
+                const pubKey = await window.nostr.getPublicKey();
+
+                if (!pubKey){
                     showMessage("⚠️ NIP07 browser extension not found", "alert-danger", false);
-                    file.fileData.satoshi = -2;
-                    file.fileData.action = 'error';
-                    $('#' + instance + 'file-table').bootstrapTable('load', f.map(file => file.fileData));
+                    console.debug('NIP07 public key not found');
                     return;
                 }
 
-                try {
-                    const pubKey = await window.nostr.getPublicKey();
 
-                    if (!pubKey){console.debug('NIP07 public key not found');
-                        return;
-                    }
+                if (method == 'POST') {
+                    authEvent= {
+                        
+                        kind: 27235,
+                        created_at: Math.floor(Date.now() / 1000),
+                        tags: [
+                            ["u", window.location.hostname.includes("cdn") 
+                            ? window.location.protocol + "//" + window.location.hostname + '/api/v2/media/' 
+                            : window.location.protocol + "//" + window.location.hostname + '/api/v2/media'],
+                            ["x", file.fileData.hash],
+                            ["expiration", Math.floor(Date.now() / 1000) + 3600],
+                            ["method", "POST"],
+                            ],
+                        content: 'NIP98 authorization event for file upload',
+                    };
 
-                    if (method == 'POST') {
-                        authEvent= {
-                            
-                            kind: 27235,
-                            created_at: Math.floor(Date.now() / 1000),
-                            tags: [
-                                ["u", window.location.hostname.includes("cdn") 
-                                ? window.location.protocol + "//" + window.location.hostname + '/api/v2/media/' 
-                                : window.location.protocol + "//" + window.location.hostname + '/api/v2/media'],
-                                ["x", file.fileData.hash],
-                                ["expiration", Math.floor(Date.now() / 1000) + 3600],
-                                ["method", "POST"],
-                                ],
-                            content: 'NIP98 authorization event for file upload',
-                        };
+                }else{
 
-                    }else{
+                    authEvent = {
 
-                        authEvent = {
-
-                            kind: 24242,
-                            created_at: Math.floor(Date.now() / 1000),
-                            tags: [
-                                ["t", 'upload'],
-                                ["x", file.fileData.hash],
-                                ["expiration", Math.floor(Date.now() / 1000) + 3600],
-                                ],
-                            content: 'Blossom authorization event for file upload',
-                        };
-                    }
-
-                    authEvent = btoa(JSON.stringify(await window.nostr.signEvent(authEvent)));
-
-                } catch (error) {
-                    console.error(error);
+                        kind: 24242,
+                        created_at: Math.floor(Date.now() / 1000),
+                        tags: [
+                            ["t", 'upload'],
+                            ["x", file.fileData.hash],
+                            ["expiration", Math.floor(Date.now() / 1000) + 3600],
+                            ],
+                        content: 'Blossom authorization event for file upload',
+                    };
+                    console.log("AUTH EVENT", authEvent)
                 }
+
+                authEvent = btoa(JSON.stringify(await window.nostr.signEvent(authEvent)));
+
+            } catch (error) {
+                console.error(error);
             }
+
             const result = await fetchFileServer(file, authEvent, method);
             if (!result || !result.url) {
                 file.fileData.accepted = false;
