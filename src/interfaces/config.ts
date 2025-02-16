@@ -168,7 +168,7 @@ const defaultConfig = {
 			"enabled": false,
 			"type" : "local",
 			"local" : {
-				"modelName": "quentintaranpino/vision-transformer-moderator",
+				"modelName": "quentintaranpino/nsfw-image-classifier",
 			},
 			"remote" : {
 				"endpoint": "",
