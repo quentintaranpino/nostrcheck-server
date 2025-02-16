@@ -32,3 +32,7 @@ logs/*
 
 # Ignore csv files
 *.csv
+
+
+# Ignore Python virtual environment
+.venv/
