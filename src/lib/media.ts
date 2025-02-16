@@ -569,14 +569,17 @@ const getAllowedMimeTypes = (): string[] => {
 const extractVideoFrames = async (videoPath: string, outputDir: string, frameRate: number = 1): Promise<string[]> => {
     return new Promise((resolve) => {
 
-        if (!fs.existsSync(outputDir)) resolve([]);
+        if (!fs.existsSync(outputDir)) {
+			logger.warn(`extractVideoFrames - Output directory does not exist: ${outputDir}`);
+			return [];
+		}
 
         ffmpeg(videoPath)
             .output(path.join(outputDir, "frame-%03d.jpg")) 
             .fps(frameRate)
             .on("end", () => {
                 const extractedFrames = fs.readdirSync(outputDir).map(file => path.join(outputDir, file));
-                logger.debug(`✅ Extracted ${extractedFrames.length} frames from ${videoPath}`);
+                logger.debug(`extractVideoFrames - Extracted frames from ${videoPath}: ${extractedFrames.length}`);
                 resolve(extractedFrames);
             })
             .on("error", (err) => {
