@@ -5,6 +5,7 @@ import fs from 'fs';
 import { logger } from '../logger.js';
 import { emptyModerationCategory, moderationCategories, moderationCategory } from '../../interfaces/moderation.js';
 import app from '../../app.js';
+import { extractVideoFrames } from '../media.js';
 
 let localModel: any = null;
 
@@ -111,7 +112,7 @@ const sendRequest = async (modelName: string, endpoint: string,  filePath: strin
 
         filePath != "" ? form.append('file', fs.createReadStream(filePath)) : null;
 
-        logger.info(`sendRequest - Sending request to local AI moderation server: ${endpoint}`);
+        logger.debug(`sendRequest - Sending request to local AI moderation server: ${endpoint}`);
 
 		if (endpoint === "classify"){
 			const response = await axios.post(`http://localhost:3001/${endpoint}?model_name=${modelName}`, form, {
@@ -135,6 +136,20 @@ const sendRequest = async (modelName: string, endpoint: string,  filePath: strin
     }
 }
 
+const parseResult = (result: string): moderationCategory => {
+    const splitResult = result.split(" ");
+    for (let i = 0; i < splitResult.length; i++) {
+        const word = splitResult[i];
+        for (let j = 0; j < moderationCategories.length; j++) {
+            const category = moderationCategories[j];
+            if (category.description.toLowerCase().includes(word.toString().toLowerCase())) {
+                return category;
+            }
+        }
+    }
+    return emptyModerationCategory;
+}
+
 /**
  * Classify a file using the local AI moderation server
  * @param {string} filePath - The path to the file to be moderated
@@ -148,23 +163,36 @@ const localEngineClassify = async (filePath: string): Promise<moderationCategory
 	}
 
     const modelName = app.get("config.media")["mediainspector"]["local"]["modelName"];   
-	
-	const result = await sendRequest(modelName, "classify", filePath);
+    let moderationResult : string = "";
 
-    logger.info(`localEngineClassify - File moderation result: ${result}`);
+    const fileExtension = filePath.split('.').pop();
 
-    const splitResult = result.split(" ");
-    for (let i = 0; i < splitResult.length; i++) {
-        const word = splitResult[i];
-        for (let j = 0; j < moderationCategories.length; j++) {
-            const category = moderationCategories[j];
-            if (category.description.toLowerCase().includes(word.toString().toLowerCase())) {
-                return category;
-            }
+    // Video files need to be split into frames and each frame needs to be moderated
+    if (fileExtension == 'mp4' || fileExtension == 'webm' || fileExtension == 'mov') {
+        const frames = await extractVideoFrames(filePath, app.get("config.storage")["local"]["tempPath"], 1);
+        if (frames.length == 0) return emptyModerationCategory;
+        let unsafeFrames = 0;
+        for (const f of frames) {
+            const reqResult = await sendRequest(modelName, "classify", f);
+            const frameResult = parseResult(reqResult);
+            if (frameResult.code != '0') unsafeFrames++;
+        }
+        if (unsafeFrames > 0) {
+            return { code: '2', description: 'UNSAFE' };
+        } else {
+            return { code: '0', description: 'SAFE' };
         }
     }
     
-    return emptyModerationCategory;
+    // Image files can be moderated directly
+    moderationResult = await sendRequest(modelName, "classify", filePath);
+
+    logger.info(`localEngineClassify - File moderation result: ${moderationResult}`);
+
+    return parseResult(moderationResult);
 }
+
+
+
 
 export { localEngineClassify, localEngineStart, localEngineStop }
