@@ -67,7 +67,6 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 		return res.status(401).send(result);
 
 	}
-	setAuthCookie(res, eventHeader.authkey);
 
 	const pubkey = eventHeader.pubkey;
 
@@ -612,7 +611,6 @@ const getMediaList = async (req: Request, res: Response): Promise<Response> => {
 
 	// Check if authorization header is valid
 	const eventHeader = await parseAuthHeader(req, "list", false, true, true);
-	setAuthCookie(res, eventHeader.authkey);
 
 	// Get NIP96 query parameters
 	const page = Number(req.query.page) || 0;
@@ -771,7 +769,6 @@ const getMediaStatusbyID = async (req: Request, res: Response, version:string): 
 		}
 		return res.status(401).send(result);
 	}
-	setAuthCookie(res, eventHeader.authkey);
 
 	const servername = "https://" + req.hostname;
 	const id = req.params.id || req.query.id || "";
@@ -1234,7 +1231,6 @@ const getMediaTagsbyID = async (req: Request, res: Response): Promise<Response> 
 		}
 		return res.status(401).send(result);
 	}
-	setAuthCookie(res, eventHeader.authkey);
 
 	//Query database for media tags
     const fileId = req.params.fileId;
@@ -1296,7 +1292,6 @@ const getMediabyTags = async (req: Request, res: Response): Promise<Response> =>
 	// Check if authorization header is valid
 	const eventHeader = await parseAuthHeader(req, "getMediabyTags", false, false, false);
 	if (eventHeader.status !== "success") {return res.status(401).send({"result": eventHeader.status, "description" : eventHeader.message});}
-	setAuthCookie(res, eventHeader.authkey);
 
 	logger.debug(`getMediabyTags - Tags requested: ${req.params.tag}`, "|", reqInfo.ip);
 
@@ -1371,7 +1366,6 @@ const updateMediaVisibility = async (req: Request, res: Response, version: strin
 	// Check if authorization header is valid
 	const eventHeader = await parseAuthHeader(req, "updateMediaVisibility", false, true, true);
 	if (eventHeader.status !== "success") {return res.status(401).send({"result": eventHeader.status, "description" : eventHeader.message});}
-	setAuthCookie(res, eventHeader.authkey);
 
 	logger.debug(`updateMediaVisibility - pubkey: ${eventHeader.pubkey} | fileId: ${req.params.fileId} | visibility: ${req.params.visibility}`, "|", reqInfo.ip);
 
@@ -1475,7 +1469,6 @@ const deleteMedia = async (req: Request, res: Response, version:string): Promise
 		return res.status(401).send(result);
 
 	}
-	setAuthCookie(res, eventHeader.authkey);
 
 	
 	logger.info(`deleteMedia - Request from:`, reqInfo.ip);
@@ -1590,7 +1583,6 @@ const headUpload = async (req: Request, res: Response): Promise<Response> => {
 		return res.status(401).send(result);
 
 	}
-	setAuthCookie(res, eventHeader.authkey);
 
 	// Check if the pubkey is banned
 	const isBanned = await isEntityBanned(eventHeader.pubkey, "registered");
