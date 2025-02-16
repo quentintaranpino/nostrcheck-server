@@ -469,7 +469,7 @@ const finalizeFileProcessing = async (filedata: fileData): Promise<boolean> => {
 		let url = filedata.url;
 		if (url.lastIndexOf('.') <= url.lastIndexOf('/')) url = url.substring(0, url.lastIndexOf('/') + 1) + filedata.filename;
 		moderateFile(url).then((result) => {
-			result.code == "NA"? dbUpdate('mediafiles',{'checked':'1'},['id'], [filedata.fileid]): null;
+			result.code == "0"? dbUpdate('mediafiles',{'checked':'1'},['id'], [filedata.fileid]): null;
 		}).catch((err) => {
 			logger.debug(`finalizeFileProcessing - Error moderating file: ${err}`);
 		});
