@@ -24,12 +24,12 @@ const loadDashboardPage = async (req: Request, res: Response, version:string): P
 
 	logger.info("GET /api/" + version + "/dashboard", "|", getClientIp(req));
 
-    // Active modules
+
     const activeModules = loadconfigActiveModules(app);
     res.locals.activeModules = activeModules; 
-
     res.locals.version = app.get("version");
     res.locals.serverHost = app.get("config.server")["host"];
+    res.locals.settingsMedia = app.get("config.media");
 
     setAuthCookie(res, req.cookies.authkey);
 

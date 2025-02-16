@@ -38,9 +38,9 @@ if(locals.activeModules.some(mod => mod.name === 'payments'))  {
             ['edit','show'],
             ['password','hide'],
             ['remove','show'],
-            ['pay', activeModules.some(mod => mod.name === 'payments') ? 'show' : 'hide'],
+            ['pay', locals.activeModules.some(mod => mod.name === 'payments') ? 'show' : 'hide'],
             ['balance','hide'],
-            ['moderate','show'],
+            ['moderate', locals.settingsMedia['mediainspector']['enabled'] ? 'show' : 'hide'],
             ['ban','show']
             ],
     fields: filesFields,

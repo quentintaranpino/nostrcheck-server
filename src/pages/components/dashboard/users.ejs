@@ -30,8 +30,8 @@ let nostraddressButtons = [
   ['edit','show'],
   ['password','show'],
   ['remove','show'],
-  ['pay', activeModules.some(mod => mod.name === 'payments') ? 'show' : 'hide'],
-  ['balance', activeModules.some(mod => mod.name === 'payments') ? 'show' : 'hide'],
+  ['pay', locals.activeModules.some(mod => mod.name === 'payments') ? 'show' : 'hide'],
+  ['balance', locals.activeModules.some(mod => mod.name === 'payments') ? 'show' : 'hide'],
   ['moderate','hide'],
   ['ban','show']
 ];
