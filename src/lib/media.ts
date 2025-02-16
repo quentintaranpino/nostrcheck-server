@@ -558,6 +558,36 @@ const getAllowedMimeTypes = (): string[] => {
     return Array.from(new Set(mediaTypes.map(mt => mt.originalMime)));
 }
 
+
+/**
+ * Extract frames from a video file
+ * @param videoPath The path to the video file
+ * @param outputDir The path to the output directory
+ * @param frameRate The frame rate
+ * @returns The extracted frames
+ **/
+const extractVideoFrames = async (videoPath: string, outputDir: string, frameRate: number = 1): Promise<string[]> => {
+    return new Promise((resolve) => {
+
+        if (!fs.existsSync(outputDir)) resolve([]);
+
+        ffmpeg(videoPath)
+            .output(path.join(outputDir, "frame-%03d.jpg")) 
+            .fps(frameRate)
+            .on("end", () => {
+                const extractedFrames = fs.readdirSync(outputDir).map(file => path.join(outputDir, file));
+                logger.debug(`✅ Extracted ${extractedFrames.length} frames from ${videoPath}`);
+                resolve(extractedFrames);
+            })
+            .on("error", (err) => {
+                logger.error(`extractVideoFrames - Error extracting frames from ${videoPath}: ${err}`);
+				resolve([]);
+            })
+            .run();
+    });
+};
+
+
 export {processFile, 
 		requestQueue, 
 		getUploadType, 
@@ -572,4 +602,5 @@ export {processFile,
 		getConvertedMimeType,
 		getMimeFromExtension, 
 		getAllowedMimeTypes,
-		getConvertedExtension};
+		getConvertedExtension, 
+		extractVideoFrames};
