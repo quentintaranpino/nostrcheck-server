@@ -1009,7 +1009,7 @@ const moderateDBRecord = async (req: Request, res: Response): Promise<Response> 
     : returnURL = `${"https://" + req.hostname}/media/${req.body.filename}`;
 
     const result = await moderateFile(returnURL);
-    if (result.code == "NA"){
+    if (result.code == "0"){
         const update = await dbUpdate('mediafiles',{'checked':'1'},['id'], [req.body.id]);
         if (!update) {
             logger.error(`moderateDBRecord - Failed to update record`, "|", reqInfo.ip);

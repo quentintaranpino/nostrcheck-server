@@ -14,38 +14,60 @@ let localModel: any = null;
  */ 
 const localEngineStart = async (): Promise<boolean> => {
     return new Promise(async (resolve, reject) => {
+
+        const localModelPath = './scripts/moderation/localEngine.py';
+        const venvPythonPath = process.platform === "win32" ? ".\\.venv\\Scripts\\python.exe" : "./.venv/bin/python";
+
         if (localModel) {
             logger.info(`localEngineStart - Local AI moderation server is already running.`);
             resolve(true);
             return;
         }
 
-        const localModelPath = './scripts/moderation/localEngine.py';
-        const venvPythonPath = './.venv/bin/python'; 
+        if (!fs.existsSync(localModelPath)) {
+            logger.error(`localEngineStart - Local AI moderation server script not found: ${localModelPath}`);
+            reject(false);
+            return;
+        }
+        if (!fs.existsSync(venvPythonPath)) {
+            logger.error(`localEngineStart - Python virtual environment not found: ${venvPythonPath}`);
+            reject(false);
+            return;
+        }
 
         logger.info(`localEngineStart - Starting local AI moderation server using Python virtual environment: ${venvPythonPath}`);
 
-        localModel = await new PythonShell(localModelPath, {
-            pythonPath: venvPythonPath,  
-            pythonOptions: ['-u'],
-        });
+        try{
+            localModel = await new PythonShell(localModelPath, {
+                pythonPath: venvPythonPath,  
+                pythonOptions: ['-u'],
+            });
+        } catch (error: any) {
+            logger.error(`localEngineStart - Failed to start local AI moderation server: ${error.code}`);
+            reject(false);
+            return;
+        }
+
 
         localModel.on('message', (message: any) => {
             logger.info(`localEngineStart - ${message}`);
             logger.info(`localEngineStart - Local AI moderation server started successfully.`);
             resolve(true); 
+            return;
         });
 
         localModel.on('error', (err: any) => {
             logger.error(`localEngineStart - Local AI moderation server failed to start with error: ${err}`);
             localModel = null;
             reject(false); 
+            return;
         });
 
         localModel.on('close', () => {
             logger.info('localEngineStart - Local AI moderation server stopped.');
             localModel = null;
 			resolve(false);
+            return;
         });
     });
 };
@@ -75,14 +97,22 @@ const localEngineStop = () => {
  */
 const sendRequest = async (modelName: string, endpoint: string,  filePath: string = ""): Promise<string> => {
 
-	!localModel ? await localEngineStart() : null;
+    try{
+        
+        if (!localModel) {
+            const initLocalModel = await localEngineStart();
+            if (!initLocalModel) {
+                logger.error(`sendRequest - Local AI moderation server is not running.`);
+                return "99:Unknown";
+            }
+        }
 
-    const form = new FormData();
-    filePath != "" ? form.append('file', fs.createReadStream(filePath)) : null;
+        const form = new FormData();
 
-    logger.info(`sendRequest - Sending request to local AI moderation server: ${endpoint}`);
+        filePath != "" ? form.append('file', fs.createReadStream(filePath)) : null;
 
-    try {
+        logger.info(`sendRequest - Sending request to local AI moderation server: ${endpoint}`);
+
 		if (endpoint === "classify"){
 			const response = await axios.post(`http://localhost:3001/${endpoint}?model_name=${modelName}`, form, {
 				headers: {
@@ -128,7 +158,7 @@ const localEngineClassify = async (filePath: string): Promise<moderationCategory
         const word = splitResult[i];
         for (let j = 0; j < moderationCategories.length; j++) {
             const category = moderationCategories[j];
-            if (category.description.includes(word)) {
+            if (category.description.toLowerCase().includes(word.toString().toLowerCase())) {
                 return category;
             }
         }
