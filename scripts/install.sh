@@ -177,7 +177,7 @@ cd "nostrcheck-server" || { echo "❌ Failed to enter the repository directory";
 echo "✅ Repository cloned and ready for installation!"
 sleep 3
 
-# Install Python packages from requirements.txt
+# Install Python packages
 clear
 echo "═══════════════════════════════════════════════════════════════════════════════"
 echo "        🐍 Creating Python virtual environment and installing packages       "
