@@ -558,6 +558,18 @@ const getAllowedMimeTypes = (): string[] => {
     return Array.from(new Set(mediaTypes.map(mt => mt.originalMime)));
 }
 
+const getVideoDuration = async (videoPath: string): Promise<number> => {
+	return new Promise((resolve, reject) => {
+		ffmpeg.ffprobe(videoPath, (err, metadata) => {
+			if (err) {
+				reject(err);
+			} else {
+				resolve(metadata.format.duration ?? 0 );
+			}
+		});
+	});
+};
+
 
 /**
  * Extract frames from a video file
@@ -566,29 +578,43 @@ const getAllowedMimeTypes = (): string[] => {
  * @param frameRate The frame rate
  * @returns The extracted frames
  **/
-const extractVideoFrames = async (videoPath: string, outputDir: string, frameRate: number = 1): Promise<string[]> => {
+const extractVideoFrames = async (videoPath: string, outputDir: string): Promise<string[]> => {
+
+	if (!fs.existsSync(outputDir)) {
+		fs.mkdirSync(outputDir, { recursive: true });
+	}
+
+	const mediaDuration = await getVideoDuration(videoPath);
+	let fps: number = 1;
+	if (mediaDuration < 1800) {
+		fps = Math.max(0.5, Math.min(500 / mediaDuration, 10));
+	} else {
+		fps = 600 / mediaDuration;
+	}
+
+	logger.debug(`extractVideoFrames - Extracting frames from ${videoPath} with FPS: ${fps}`);
+
     return new Promise((resolve) => {
 
-        if (!fs.existsSync(outputDir)) {
-			logger.warn(`extractVideoFrames - Output directory does not exist: ${outputDir}`);
-			return [];
-		}
-
         ffmpeg(videoPath)
-            .output(path.join(outputDir, "frame-%03d.jpg")) 
-            .fps(frameRate)
+            .output(path.join(outputDir, `${Math.random().toString(36).substring(7)}-frame-%04d.jpg`))
+			.size("240x240")
+            .videoFilter(`fps=${fps}`)	
+			.outputOptions("-threads 2")
             .on("end", () => {
                 const extractedFrames = fs.readdirSync(outputDir).map(file => path.join(outputDir, file));
-                logger.debug(`extractVideoFrames - Extracted frames from ${videoPath}: ${extractedFrames.length}`);
+                logger.debug(`✅ Extracted ${extractedFrames.length} frames from ${videoPath}`);
                 resolve(extractedFrames);
             })
             .on("error", (err) => {
                 logger.error(`extractVideoFrames - Error extracting frames from ${videoPath}: ${err}`);
-				resolve([]);
+                resolve([]);
             })
-            .run();
+			.run();
     });
 };
+
+
 
 
 export {processFile, 
