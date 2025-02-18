@@ -601,6 +601,7 @@
             .then(response => response.json())
             .then(refreshTable(tableId))
             .then(async responseData => {
+                console.log(responseData)
                 if (responseData.status === "success") {
                     if (action === 'remove') {
                         $(tableId).bootstrapTable('removeByUniqueId', id);
