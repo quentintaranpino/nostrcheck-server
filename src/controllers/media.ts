@@ -97,7 +97,7 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 	// Mirror file (Blossom BUD04)
 	if (req.params.param1 == "mirror") {
 		if (req.body.url == undefined || req.body.url == "") {
-			logger.warn(`uploadMedia - 400 Bad request - Empty URL`, "|", reqInfo.ip);
+			logger.debug(`uploadMedia - 400 Bad request - Empty URL`, "|", reqInfo.ip);
 			if(version != "v2"){return res.status(400).send({"result": false, "description" : "Empty URL"});}
 
 			const result: ResultMessagev2 = {
@@ -108,7 +108,7 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 		}
 		file = await mirrorFile(req.body.url)
 		if (!file) {
-			logger.warn(`uploadMedia - 400 Bad request - Empty file`, "|", reqInfo.ip);
+			logger.debug(`uploadMedia - 400 Bad request - Empty file`, "|", reqInfo.ip);
 			if(version != "v2"){return res.status(400).send({"result": false, "description" : "Empty file"});}
 
 			const result: ResultMessagev2 = {
@@ -122,7 +122,7 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 
 	if (Array.isArray(req.files) && req.files.length > 0) {file = req.files[0];}
 	if (!file || file.buffer.length == 0) {
-		logger.warn(`uploadMedia - 400 Bad request - Empty file`, "|", reqInfo.ip);
+		logger.debug(`uploadMedia - 400 Bad request - Empty file`, "|", reqInfo.ip);
 		if(version != "v2"){return res.status(400).send({"result": false, "description" : "Empty file"});}
 
 		const result: ResultMessagev2 = {
