@@ -169,7 +169,6 @@
         const datakey = "<%= datakey %>";
         const objectName = "<%= objectName %>";
         const timeout = Number("<%= typeof timeout !== 'undefined' ? timeout : 60000 %>");
-        const moderateArray = [];
 
         const initTable = async (tableId, dataKey, objectName) => {
 
@@ -585,15 +584,10 @@
             }
 
             if (action === 'moderate') {
-                console.log("pushing to array",id)
-                moderateArray.push(id);
-                $(tableId).bootstrapTable('updateByUniqueId', {
-                    id: id,
-                    row: {checked: 2}
-                });
                 data = {
                     id: id,
                     filename : $(tableId).bootstrapTable('getRowByUniqueId', id).filename,
+                    table: tableId.split('-')[0].split('#')[1],
                 };
             }
 
@@ -605,6 +599,7 @@
                 body: JSON.stringify(data)
             })
             .then(response => response.json())
+            .then(refreshTable(tableId))
             .then(async responseData => {
                 if (responseData.status === "success") {
                     if (action === 'remove') {
@@ -629,8 +624,6 @@
                             id: id,
                             row: updateData
                         });
-                        moderateArray.splice(moderateArray.indexOf(id), 1);
-
                     }
 
                     if (action === 'password'){
@@ -834,13 +827,6 @@
                     success: async function(result) {
                         console.timeEnd(`fetchTabledata-${params.url}`);
                         params.success(result);
-                        // If a row is moderating set it to checked == 2
-                        for (const id in moderateArray){
-                            $(tableId).bootstrapTable('updateByUniqueId', {
-                                id: moderateArray[id],
-                                row: {checked: 2}
-                            });
-                        }
                         resolve(params);
                     },
                     error: function(err) {

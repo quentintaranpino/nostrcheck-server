@@ -988,19 +988,32 @@ const moderateDBRecord = async (req: Request, res: Response): Promise<Response> 
         return res.status(403).send({"status": "error", "message": "Module is not enabled"});
     }
 
-
     // Check if authorization header is valid
     const eventHeader = await parseAuthHeader(req, "updateSettings", true, true, true);
     if (eventHeader.status !== "success") {return res.status(401).send({"status": eventHeader.status, "message" : eventHeader.message});}
     setAuthCookie(res, eventHeader.authkey);
 
-    if (req.body.id === "" || req.body.id === null || req.body.id === undefined || req.body.filename === "" || req.body.filename === null || req.body.filename === undefined) {
+    if (req.body.id === "" || req.body.id === null ||  req.body.id === undefined || 
+        req.body.filename === "" || req.body.filename === null || req.body.filename === undefined ||
+        req.body.table === "" || req.body.table === null || req.body.table === undefined) {
         const result: ResultMessagev2 = {
             status: "error",
             message: "Invalid parameters",
         }
         return res.status(400).send(result);
     }
+
+    // Don't show the user the real table names
+    const table = moduleDataKeys[req.body.table];
+    if (!table) {
+        const result : ResultMessagev2 = {
+            status: "error",
+            message: "Invalid table name"
+            };
+        logger.warn(`updateDBRecord - Invalid table name`, "|", reqInfo.ip);
+        return res.status(400).send(result);
+    }
+
     logger.info(`moderateDBRecord - ${req.method} ${req.path}`, "|", reqInfo.ip, "|", req.body.id, "|", req.body.filename);
 
     let returnURL = app.get("config.media")["returnURL"];
@@ -1008,14 +1021,7 @@ const moderateDBRecord = async (req: Request, res: Response): Promise<Response> 
     ? returnURL = `${returnURL}/${req.body.filename}`
     : returnURL = `${"https://" + req.hostname}/media/${req.body.filename}`;
 
-    const result = await moderateFile(returnURL);
-    if (result.code == "0"){
-        const update = await dbUpdate('mediafiles',{'checked':'1'},['id'], [req.body.id]);
-        if (!update) {
-            logger.error(`moderateDBRecord - Failed to update record`, "|", reqInfo.ip);
-            return res.status(500).send({status: "error", message: "Failed to update record"});
-        }
-    } 
+    const result = await moderateFile(returnURL, table, req.body.id);
 
     logger.info(`moderateDBRecord - Record updated succesfully`, "|", reqInfo.ip);
     return res.status(200).send({status: "success", message: result.code});
