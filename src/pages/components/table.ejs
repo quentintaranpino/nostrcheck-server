@@ -351,7 +351,7 @@
                 buttons: (tableId === '#registeredData' || tableId === '#filesData' || tableId === '#ipsData' ) ? toolbarButtons() : tableId === '#loggerData' ? loggerButtons() : null,
                 queryParams: function (params) {
                     let filters = params.filter ? JSON.parse(params.filter) : {};
-                    if (checkedFilter)  filters.checked = ["0", "2"];
+                    if (checkedFilter)  {filters.checked = "!1"};
                     if (bannedFilter)  filters.banned = "1";
                     if (debugFilter) filters.severity = "DEBUG";
                     if (infoFilter) filters.severity = "INFO";
