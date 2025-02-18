@@ -3,7 +3,7 @@ import axios from 'axios';
 import FormData from 'form-data';
 import fs from 'fs';
 import { logger } from '../logger.js';
-import { emptyModerationCategory, moderationCategories, moderationCategory } from '../../interfaces/moderation.js';
+import { emptyModerationCategory, moderationCategories, ModerationCategory } from '../../interfaces/moderation.js';
 import app from '../../app.js';
 import { extractVideoFrames } from '../media.js';
 import { deleteLocalFile } from '../storage/local.js';
@@ -137,7 +137,7 @@ const sendRequest = async (modelName: string, endpoint: string,  filePath: strin
     }
 }
 
-const parseResult = (result: string): moderationCategory => {
+const parseResult = (result: string): ModerationCategory => {
     const splitResult = result.split(" ");
     for (let i = 0; i < splitResult.length; i++) {
         const word = splitResult[i];
@@ -156,7 +156,7 @@ const parseResult = (result: string): moderationCategory => {
  * @param {string} filePath - The path to the file to be moderated
  * @returns {Promise<moderationCategory>} The category of the file
  */
-const localEngineClassify = async (filePath: string): Promise<moderationCategory> => {
+const localEngineClassify = async (filePath: string): Promise<ModerationCategory> => {
 
 	if (!filePath || filePath === "") {
 		logger.error(`localEngineClassify - File path is empty`);

@@ -130,22 +130,23 @@ document.addEventListener('DOMContentLoaded', async () => {
     iconElement.addClass('fa-3x card-icon');
 
     if (icon === "chart") {
-        iconElement.addClass('fas fa-chart-simple');
+      iconElement.addClass('fas fa-chart-simple');
     } else if (icon === "warning") {
-        iconElement.addClass('fas fa-exclamation-triangle text-warning');
+      iconElement.addClass('fas fa-exclamation-triangle text-warning');
     } else if (icon === "satoshi") {
-        iconElement.addClass('fas fa-bolt-lightning text-warning');
+      iconElement.addClass('fas fa-bolt-lightning text-warning');
     } else if (icon === "doughnut") {
-        iconElement.addClass('d-none');
-       
+      iconElement.addClass('d-none');
     } else if (icon === "time") {
-        iconElement.addClass('fas fa-clock text-info');
+      iconElement.addClass('fas fa-clock text-info');
     } else if (icon === "relay") {
-        iconElement.addClass('bi bi-broadcast-pin text-secondary');
+      iconElement.addClass('bi bi-broadcast-pin text-secondary');
     } else if (icon == "activity") {
-        iconElement.addClass('fas fa-chart-line text-secondary');
+      iconElement.addClass('fas fa-chart-line text-secondary');
+    } else if (icon == "list") {
+      iconElement.addClass('fas fa-solid fa-list-check text-info');
     } else {
-        iconElement.addClass('fas fa-chart-simple');
+      iconElement.addClass('fas fa-chart-simple');
     }
 
     const fetchDashcardData = async (dashcardDataKey, action, field) => {

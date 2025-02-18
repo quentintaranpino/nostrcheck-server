@@ -18,7 +18,7 @@ import { npubToHex } from "../lib/nostr/NIP19.js";
 import { dbCountModuleData, dbCountMonthModuleData, dbSelectModuleData } from "../lib/admin.js";
 import { getBalance, getUnpaidTransactionsBalance } from "../lib/payments/core.js";
 import { themes } from "../interfaces/personalization.js";
-import { moderateFile } from "../lib/moderation/core.js";
+import { getModerationQueueLength, moderateFile } from "../lib/moderation/core.js";
 import { addNewUsername } from "../lib/register.js";
 import { banEntity, unbanEntity } from "../lib/security/banned.js";
 import { generateInviteCode } from "../lib/invitations.js";
@@ -57,6 +57,7 @@ const serverStatus = async (req: Request, res: Response): Promise<Response> => {
         ramUsage: Math.floor(process.memoryUsage().rss / 1024 / 1024),
         cpuUsage: await getCPUUsage(),
         websockets: isModuleEnabled("relay", app) ? app.get("wss").clients.size : 0,
+        moderationQueue: getModerationQueueLength(),
 	};
 
     hits++;
@@ -1023,7 +1024,6 @@ const moderateDBRecord = async (req: Request, res: Response): Promise<Response> 
 
     await moderateFile(returnURL, table, req.body.id);
 
-    logger.info(`moderateDBRecord - Record updated succesfully`, "|", reqInfo.ip);
     return res.status(200).send({status: "success", message: "Moderation request sent"});
 
 }

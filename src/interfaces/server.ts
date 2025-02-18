@@ -14,6 +14,7 @@ interface ServerStatusMessage extends ResultMessagev2 {
 	ramUsage: number;
 	cpuUsage: number;
 	websockets?: number;
+	moderationQueue? : number;
 }
 
 export { ResultMessage, ResultMessagev2, ServerStatusMessage };

@@ -1,7 +1,7 @@
-import { emptyModerationCategory, moderationCategories, moderationCategory } from "../../interfaces/moderation.js";
+import { emptyModerationCategory, moderationCategories, ModerationCategory } from "../../interfaces/moderation.js";
 import { logger } from "../logger.js";
 
-const remoteEngineClassify = async (url : string, endpoint: string, accessKey : string, secretKey : string): Promise<moderationCategory> => {
+const remoteEngineClassify = async (url : string, endpoint: string, accessKey : string, secretKey : string): Promise<ModerationCategory> => {
 
 	if (!url || url == "" || !accessKey || accessKey == "" || !endpoint || endpoint == "" || !secretKey || secretKey == "") {
 		logger.error(`remoteEngineClassify - Missing parameters`);

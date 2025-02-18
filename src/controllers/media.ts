@@ -6,7 +6,7 @@ import { isPubkeyRegistered, parseAuthHeader } from "../lib//authorization.js";
 import { getUploadType, getFileMimeType, standardMediaConversion, getNotFoundFileBanner, readRangeHeader, prepareLegacMediaEvent, getMediaDimensions, getExtension, getMimeFromExtension, getConvertedExtension, getAllowedMimeTypes } from "../lib/media.js"
 import { requestQueue } from "../lib/media.js";
 import {
-	asyncTask,
+	MediaJob,
 	legacyMediaReturnMessage,
 	UploadStatus,
 	MediaStatus,
@@ -438,8 +438,8 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 		res.status(202)
 
 		//Send request to process queue
-		const t: asyncTask = {req,filedata,};
-		logger.info(`uploadMedia - ${requestQueue.length() +1} items in queue`);
+		const t: MediaJob = {req,filedata,};
+		logger.info(`uploadMedia - ${requestQueue.length() +1} items in media processing queue`);
 		filedata.description + "File queued for conversion";
 		requestQueue.push(t).catch((err) => {
 			logger.error(`uploadMedia - Error pushing file to queue`, err);

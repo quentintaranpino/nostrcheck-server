@@ -1,50 +1,85 @@
+import fastq, { queueAsPromised } from "fastq";
 import app from "../../app.js";
 import { remoteEngineClassify } from "./remote.js";
 import { localEngineClassify } from "./local.js";
 import { getFilePath } from "../storage/core.js";
-import { emptyModerationCategory, moderationCategory } from "../../interfaces/moderation.js";
+import { emptyModerationCategory, ModerationCategory, ModerationJob } from "../../interfaces/moderation.js";
 import { logger } from "../logger.js";
 import { dbUpdate } from "../database.js";
 
-const moderateFile = async (url: string, originTable: string, originId: string): Promise<moderationCategory> => {
+// Create the fastq queue for moderation tasks
+const moderationQueue: queueAsPromised<ModerationJob> = fastq.promise(moderationWorker, 1);
 
-    if (app.get("config.media")["mediainspector"]["enabled"] == false) return emptyModerationCategory;
+/**
+ * Worker function that processes the moderation task.
+ * @param task - An object containing the task details.
+ * @returns A Promise resolving to a moderationCategory result.
+ */
+async function moderationWorker(task: ModerationJob): Promise<ModerationCategory> {
+  let result: ModerationCategory = emptyModerationCategory;
 
-    let result = emptyModerationCategory;
-    let fileName = url.split("/").pop();
-
-    if (!url || url == "" || !fileName || fileName == "") {return result;}
-
-    // Set checked == 2 (Moderating status)
-    const updateModerating = await dbUpdate(originTable,{'checked':'2'},['id'], [originId]);
-    if(!updateModerating) {
-        logger.error(`moderateFile - Failed to update record`, "|", originId);
-        return emptyModerationCategory;
-    }
-
-    if(app.get("config.media")["mediainspector"]["type"] == "local") {
-        let filePath = await getFilePath(fileName);
+    if (app.get("config.media")["mediainspector"]["type"] === "local") {
+        const filePath: string = await getFilePath(task.fileName);
         result = await localEngineClassify(filePath);
+    } else if (app.get("config.media")["mediainspector"]["type"] === "remote") {
+        result = await remoteEngineClassify(
+            task.url,
+            app.get("config.media")["mediainspector"]["remote"]["endpoint"],
+            app.get("config.media")["mediainspector"]["remote"]["apikey"],
+            app.get("config.media")["mediainspector"]["remote"]["secretkey"]
+        );
     }
 
-    if(app.get("config.media")["mediainspector"]["type"] == "remote") {
-        result = await remoteEngineClassify(    url, 
-                                                app.get("config.media")["mediainspector"]["remote"]["endpoint"], 
-                                                app.get("config.media")["mediainspector"]["remote"]["apikey"], 
-                                                app.get("config.media")["mediainspector"]["remote"]["secretkey"]);
-    }
-    
-    logger.info(`moderateFile - File moderation result: ${result.description} for file ${fileName}`);
-    // TODO: Save moderation result to database (maybe tags folder)
+  logger.info(`moderateFile - File moderation result: ${result.description} for file ${task.fileName}`);
 
-    // Update checked status in database
-    const updateChecked = await dbUpdate(originTable,{'checked':result.code == '0' ? '1' : '0'},['id'], [originId]);
-    if (!updateChecked) {
-        logger.error(`moderateFile - Failed to update record`, "|", originId);
-        return emptyModerationCategory;
-    }
+  // Update the final status in the database:
+  // If result.code === '0', set status to '1' (approved); otherwise, set to '0' (rejected).
+  const updateChecked: boolean = await dbUpdate(task.originTable, { checked: result.code === "0" ? "1" : "0" }, ["id"], [task.originId]);
+  if (!updateChecked) {logger.error(`moderateFile - Failed to update record | ${task.originId}`)};
 
-    return result;
+  return result;
 }
 
-export { moderateFile }
+/**
+ * Enqueues a moderation task.
+ * Immediately updates the record status to '2' (processing) and enqueues the job.
+ *
+ * @param url - URL of the file.
+ * @param originTable - The database table where the record is stored.
+ * @param originId - The ID of the record in the database.
+ * @returns A Promise resolving to a boolean indicating the moderation task was successfully enqueued.
+ */
+const moderateFile = async (url: string, originTable: string, originId: string): Promise<Boolean> => {
+
+    if (app.get("config.media")["mediainspector"]["enabled"] === false) return false;
+
+    const fileName: string | undefined = url.split("/").pop();
+    if (!url || url === "" || !fileName || fileName === "")  return false;
+
+    // Update the record status to "2" to indicate moderation is in progress
+    const updateModerating: boolean = await dbUpdate(originTable, { checked: "2" }, ["id"], [originId]);
+    if (!updateModerating) {
+        logger.error(`moderateFile - Failed to update record | ${originId}`);
+        return false;
+    }
+
+    try {
+         moderationQueue.push({
+            url,
+            originTable,
+            originId,
+            fileName,
+        });
+        logger.info(`moderateFile - ${getModerationQueueLength() + 1} items in moderation queue`);
+        return true;
+    } catch (error) {
+        logger.error("moderateFile - Error processing task in moderation queue", error);
+        return false;
+    }
+};
+
+const getModerationQueueLength = (): number => {
+    return moderationQueue.length();
+}
+
+export { moderateFile, getModerationQueueLength };

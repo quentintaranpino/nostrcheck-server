@@ -98,7 +98,7 @@ interface fileData{
 
 }
 
-interface asyncTask {
+interface MediaJob {
 	req: Request;
 	filedata: fileData;
 }
@@ -109,7 +109,7 @@ interface videoHeaderRange {
 }
 
 export {
-	asyncTask,
+	MediaJob,
 	fileData,
 	legacyMediaReturnMessage,
 	mediaInfoReturnMessage,

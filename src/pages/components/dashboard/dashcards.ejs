@@ -165,6 +165,18 @@
         timeout: 2000,
     }); %>
 
+    <%- include('../dashcard', { 
+        dashcardId: 'moderationQueue', 
+        dashcardName: 'Moderation Queue', 
+        dashcardDataKey: 'admin', 
+        icon: 'list', 
+        link: '', 
+        action: 'status', 
+        field: 'moderationQueue', 
+        showField: false, 
+        timeout: 2000,
+    }); %>
+
 
 </div>
 <script>

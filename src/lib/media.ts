@@ -2,7 +2,7 @@ import fastq, { queueAsPromised } from "fastq";
 import ffmpeg from "fluent-ffmpeg";
 import fs from "fs";
 
-import { asyncTask, legacyMediaReturnMessage, mediaTypes, fileData, UploadTypes, videoHeaderRange } from "../interfaces/media.js";
+import { MediaJob, legacyMediaReturnMessage, mediaTypes, fileData, UploadTypes, videoHeaderRange } from "../interfaces/media.js";
 import { logger } from "./logger.js";
 import { connect, dbUpdate } from "./database.js";
 import {fileTypeFromBuffer} from 'file-type';
@@ -17,7 +17,7 @@ import { deleteLocalFile } from "./storage/local.js";
 import { moderateFile } from "./moderation/core.js";
 import app from "../app.js";
 
-const prepareFile = async (t: asyncTask): Promise<void> =>{
+const prepareFile = async (t: MediaJob): Promise<void> =>{
 
 	logger.info(`prepareFile - Processing file, queue size = ${requestQueue.length() +1}`);
 
@@ -34,8 +34,8 @@ const prepareFile = async (t: asyncTask): Promise<void> =>{
 	await processFile(t.req.files[0], t.filedata, 0);
 
 }
-
-const requestQueue: queueAsPromised<asyncTask> = fastq.promise(prepareFile, 1); //number of workers for the queue
+// Create the fastq queue for media tasks
+const requestQueue: queueAsPromised<MediaJob> = fastq.promise(prepareFile, 1);
 
 const processFile = async(	inputFile: Express.Multer.File,	options: fileData, retry:number = 0): Promise<boolean> =>{
 
@@ -599,7 +599,7 @@ const extractVideoFrames = async (videoPath: string, outputDir: string): Promise
 			.outputOptions("-threads 2")
             .on("end", () => {
                 const extractedFrames = fs.readdirSync(outputDir).map(file => path.join(outputDir, file));
-                logger.debug(`✅ Extracted ${extractedFrames.length} frames from ${videoPath}`);
+                logger.debug(`extractVideoFrames - Extracted frames from ${videoPath}: ${extractedFrames.length}`);
                 resolve(extractedFrames);
             })
             .on("error", (err) => {
