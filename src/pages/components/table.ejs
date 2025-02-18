@@ -169,6 +169,7 @@
         const datakey = "<%= datakey %>";
         const objectName = "<%= objectName %>";
         const timeout = Number("<%= typeof timeout !== 'undefined' ? timeout : 60000 %>");
+        const moderateArray = [];
 
         const initTable = async (tableId, dataKey, objectName) => {
 
@@ -326,7 +327,7 @@
 
             $(tableId).bootstrapTable({
                 url: 'admin/moduledata?module=' + dataKey,
-                ajax: function (params) {fetchTabledata(params)},
+                ajax: function (params) {fetchTabledata(params, tableId)},
                 idField: 'id',
                 uniqueId: 'id',
                 showFilterControlSwitch: true,
@@ -502,19 +503,19 @@
                     if (modal.result == true) {
                         for (let id of ids) {
                             if (modaltext === 'remove') {
-                                await modifyRecord("admin/deleterecord/", tableId, id, field, fieldValue, 'remove');
+                                modifyRecord("admin/deleterecord/", tableId, id, field, fieldValue, 'remove');
                             } else if (modaltext === 'reset password') {
-                                await modifyRecord("admin/resetpassword/", tableId, id, field, fieldValue, 'password');
+                                modifyRecord("admin/resetpassword/", tableId, id, field, fieldValue, 'password');
                             }else if (modaltext === 'pay') {
-                                await modifyRecord("payments/paytransaction/", tableId, id, field, fieldValue, 'pay');
+                                modifyRecord("payments/paytransaction/", tableId, id, field, fieldValue, 'pay');
                             }else if (modaltext === 'balance') {
-                                await modifyRecord("payments/addbalance/", tableId, id, field, modal.value, 'balance');
+                                modifyRecord("payments/addbalance/", tableId, id, field, modal.value, 'balance');
                             }else if (modaltext === 'ban') {
-                                await modifyRecord("admin/ban", tableId, id, field, modal.value, 'ban');
+                                modifyRecord("admin/ban", tableId, id, field, modal.value, 'ban');
                             }else if (modaltext === 'moderate') {
-                                await modifyRecord("admin/moderaterecord/", tableId, id, field, fieldValue, 'moderate');
+                                modifyRecord("admin/moderaterecord/", tableId, id, field, fieldValue, 'moderate');
                             } else {
-                                await modifyRecord("admin/updaterecord/", tableId, id, field, fieldValue, 'modify');
+                                modifyRecord("admin/updaterecord/", tableId, id, field, fieldValue, 'modify');
                             }
                         }
                     }
@@ -584,6 +585,12 @@
             }
 
             if (action === 'moderate') {
+                console.log("pushing to array",id)
+                moderateArray.push(id);
+                $(tableId).bootstrapTable('updateByUniqueId', {
+                    id: id,
+                    row: {checked: 2}
+                });
                 data = {
                     id: id,
                     filename : $(tableId).bootstrapTable('getRowByUniqueId', id).filename,
@@ -622,6 +629,8 @@
                             id: id,
                             row: updateData
                         });
+                        moderateArray.splice(moderateArray.indexOf(id), 1);
+
                     }
 
                     if (action === 'password'){
@@ -657,6 +666,9 @@
             return '<div class="text-center"><i class="fas fa-check-circle purple-text"></i></div>';
             } else if (value === 0) {
             return '<div class="text-center"><i class="fas fa-times-circle text-secondary"></i></div>';
+            } else if (value === 2) {
+                // show a spinner
+            return '<div class="spinner-border spinner-border-sm text-info" role="status"><span class="visually-hidden">Loading...</span></div>';
             }
             return '';
         }
@@ -808,7 +820,7 @@
             });
         }
 
-        function fetchTabledata(params) {
+        function fetchTabledata(params, tableId) {
             console.time(`fetchTabledata-${params.url}`);
             return new Promise((resolve, reject) => {
                 $.ajax({
@@ -822,6 +834,13 @@
                     success: async function(result) {
                         console.timeEnd(`fetchTabledata-${params.url}`);
                         params.success(result);
+                        // If a row is moderating set it to checked == 2
+                        for (const id in moderateArray){
+                            $(tableId).bootstrapTable('updateByUniqueId', {
+                                id: moderateArray[id],
+                                row: {checked: 2}
+                            });
+                        }
                         resolve(params);
                     },
                     error: function(err) {
