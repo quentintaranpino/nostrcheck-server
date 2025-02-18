@@ -6,8 +6,9 @@ import { logger } from '../logger.js';
 import { emptyModerationCategory, moderationCategories, moderationCategory } from '../../interfaces/moderation.js';
 import app from '../../app.js';
 import { extractVideoFrames } from '../media.js';
+import { deleteLocalFile } from '../storage/local.js';
 
-let localModel: any = null;
+let localModel: PythonShell | null = null;
 
 /**
  * Start the local AI moderation server using a Python virtual environment
@@ -169,14 +170,17 @@ const localEngineClassify = async (filePath: string): Promise<moderationCategory
 
     // Video files need to be split into frames and each frame needs to be moderated
     if (fileExtension == 'mp4' || fileExtension == 'webm' || fileExtension == 'mov') {
-        const frames = await extractVideoFrames(filePath, app.get("config.storage")["local"]["tempPath"], 1);
+        const frames = await extractVideoFrames(filePath, app.get("config.storage")["local"]["tempPath"]);
         if (frames.length == 0) return emptyModerationCategory;
         let unsafeFrames = 0;
         for (const f of frames) {
             const reqResult = await sendRequest(modelName, "classify", f);
             const frameResult = parseResult(reqResult);
             if (frameResult.code != '0') unsafeFrames++;
+            const deleteFrame = await deleteLocalFile(f);
+            if (!deleteFrame) logger.error(`localEngineClassify - Failed to delete video frame: ${f}`);
         }
+
         if (unsafeFrames > 0) {
             return { code: '2', description: 'UNSAFE' };
         } else {
