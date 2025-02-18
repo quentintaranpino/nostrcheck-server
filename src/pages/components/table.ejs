@@ -601,7 +601,6 @@
             .then(response => response.json())
             .then(refreshTable(tableId))
             .then(async responseData => {
-                console.log(responseData)
                 if (responseData.status === "success") {
                     if (action === 'remove') {
                         $(tableId).bootstrapTable('removeByUniqueId', id);
@@ -614,13 +613,6 @@
                     }else if (action === 'modify' || action === 'pay' || action === 'balance'){
                         let updateData = {};
                         updateData[field] = responseData.message;
-                        $(tableId).bootstrapTable('updateByUniqueId', {
-                            id: id,
-                            row: updateData
-                        });
-                    }else if (action === 'moderate'){
-                        let updateData = {};
-                        updateData[field] = (responseData.message == "NA" || responseData.message =="safe") ? 1 : 0;
                         $(tableId).bootstrapTable('updateByUniqueId', {
                             id: id,
                             row: updateData

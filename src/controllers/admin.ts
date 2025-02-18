@@ -1021,10 +1021,10 @@ const moderateDBRecord = async (req: Request, res: Response): Promise<Response> 
     ? returnURL = `${returnURL}/${req.body.filename}`
     : returnURL = `${"https://" + req.hostname}/media/${req.body.filename}`;
 
-    const result = await moderateFile(returnURL, table, req.body.id);
+    await moderateFile(returnURL, table, req.body.id);
 
     logger.info(`moderateDBRecord - Record updated succesfully`, "|", reqInfo.ip);
-    return res.status(200).send({status: "success", message: result.code});
+    return res.status(200).send({status: "success", message: "Moderation request sent"});
 
 }
 
