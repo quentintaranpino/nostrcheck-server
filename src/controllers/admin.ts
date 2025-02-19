@@ -49,6 +49,11 @@ const serverStatus = async (req: Request, res: Response): Promise<Response> => {
         return res.status(403).send({"status": "error", "message": "Module is not enabled"});
     }
 
+    // Check if authorization header is valid
+	const eventHeader = await parseAuthHeader(req,"StopServer", true, true, true);
+	if (eventHeader.status !== "success") {return res.status(401).send({"status": eventHeader.status, "message" : eventHeader.message});}
+    setAuthCookie(res, eventHeader.authkey);
+
 	const result: ServerStatusMessage = {
         status: "success",
         message: "Nostrcheck-server is running.",
@@ -56,7 +61,6 @@ const serverStatus = async (req: Request, res: Response): Promise<Response> => {
 		uptime: format(process.uptime()),
         ramUsage: Math.floor(process.memoryUsage().rss / 1024 / 1024),
         cpuUsage: await getCPUUsage(),
-        websockets: isModuleEnabled("relay", app) ? app.get("wss").clients.size : 0,
         moderationQueue: getModerationQueueLength(),
 	};
 
