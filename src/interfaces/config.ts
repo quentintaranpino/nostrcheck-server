@@ -267,7 +267,9 @@ const defaultConfig = {
 			"created_at_upper_limit": 300
 		},
 		"language_tags": ["en", "es"],
-		"tags": []
+		"tags": [],
+		"workers": 2,
+		"maxQueueLength": 1000,
 	},
 }
 

@@ -1,5 +1,5 @@
 import { Application, Request } from "express";
-import { handleWebSocketMessage } from "../controllers/relay.js";
+import { getRelayStatus, handleWebSocketMessage } from "../controllers/relay.js";
 import { WebSocketServer, RawData } from "ws";
 import { IncomingMessage } from "http";
 import crypto from "crypto";
@@ -88,6 +88,10 @@ export const loadRelayRoutes = (app: Application, version:string): void => {
     if (!acceptHeader.includes('application/nostr+json'))  return loadRelayPage(req,res,version);
     return NIP11Data(req, res);
   });
+
+
+  // Get Relay status
+  app.get("/api/v2/relay/status", limiter(), getRelayStatus);
 
   // Close dead connections
   setInterval(() => {

@@ -13,7 +13,6 @@ interface ServerStatusMessage extends ResultMessagev2 {
 	version: string;
 	ramUsage: number;
 	cpuUsage: number;
-	websockets?: number;
 	moderationQueue? : number;
 }
 

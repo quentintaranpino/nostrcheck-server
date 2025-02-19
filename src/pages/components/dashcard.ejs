@@ -164,6 +164,13 @@ document.addEventListener('DOMContentLoaded', async () => {
               return { field: serverInfo[field], total: serverInfo[field] };
           }
 
+          if (dashcardDataKey === 'relay' && action == 'status') {
+              const res = await fetch('relay/status');
+              const serverInfo = await res.json();
+              return { field: serverInfo[field], total: serverInfo[field] };
+          }
+          
+
           const res = await fetch(`admin/modulecountdata?module=${dashcardDataKey}&action=${action}&field=${field}`, {
               method: 'GET',
               headers: { 'Content-Type': 'application/json' },

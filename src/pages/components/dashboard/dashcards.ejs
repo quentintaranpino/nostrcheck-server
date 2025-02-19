@@ -106,16 +106,29 @@
         }); %>
 
         <%- include('../dashcard', { 
-        dashcardId: 'websocketConnections', 
+        dashcardId: 'relayWebsocketConnections', 
         dashcardName: 'Relay connections', 
-        dashcardDataKey: 'admin', 
+        dashcardDataKey: 'relay', 
         icon: 'activity', 
         link: '', 
         action: 'status', 
-        field: 'websockets', 
+        field: 'websocketConnections', 
         showField: false, 
         timeout: 5000,
         }); %>
+
+        <%- include('../dashcard', { 
+            dashcardId: 'relayQueueLength', 
+            dashcardName: 'Relay queue', 
+            dashcardDataKey: 'relay', 
+            icon: 'list', 
+            link: '', 
+            action: 'status', 
+            field: 'queueLength', 
+            showField: false, 
+            timeout: 5000,
+        }); %>
+
     <% } %>
 
     <%- include('../dashcard', { 

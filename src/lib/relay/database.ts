@@ -17,8 +17,6 @@ const initEvents = async (app: Application): Promise<boolean> => {
   const eventsArray: Event[] = [];
   app.set("relayEvents", { memoryDB: eventsMap, sortedArray: eventsArray, pending: pendingEvents });
   app.set("relayEventsLoaded", false);
-  let totalOriginalLength = 0;
-  let totalCompressedLength = 0;
 
   const loadEvents = async () => {
     try {
@@ -33,11 +31,7 @@ const initEvents = async (app: Application): Promise<boolean> => {
           hasMore = false;
         } else {
           for (let event of loadedEvents) {
-            if (event.content.length > 15) {
-              totalOriginalLength += event.content.length;
-              event = await compressEvent(event)
-              totalCompressedLength += event.content.length;
-            }
+            if (event.content.length > 15) event = await compressEvent(event)
             eventsMap.set(event.id, { event: event, processed: true });
             eventsArray.push(event);
           }
@@ -175,7 +169,7 @@ const storeEvents = async (eventsInput: Event | Event[]): Promise<number> => {
       logger.error(`storeEvents - Failed to insert events. Expected: ${eventsToStore.length}, Inserted: ${insertedRows}`);
     }
   
-    const allTagValues: any[][] = [];
+    const allTagValues: [string, string, string, number, string | null][] = [];
     eventsToStore.forEach(e => {
       if (e.tags && e.tags.length > 0) {
         e.tags.forEach((tag: string[], index: number) => {
@@ -228,7 +222,9 @@ const storeEvents = async (eventsInput: Event | Event[]): Promise<number> => {
       const candidates = relayData.sortedArray.slice(startIndex, endIndex);
       
       const { search, ...basicFilter } = filter;
-      let filtered: { event: Event; score: number }[] = [];
+      const filtered: { event: Event; score: number }[] = [];
+
+      logger.debug(`getEvents - searchQuery: ${searchQuery}, effectiveLimit: ${effectiveLimit}, candidates: ${candidates.length}, search: ${search}`);
       
       for (let e of candidates) {
         if (!matchFilter(basicFilter, e)) continue;

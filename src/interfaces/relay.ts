@@ -6,6 +6,8 @@ interface MemoryEvent {
 }
 
 import { WebSocket } from "ws";
+import { ResultMessagev2 } from "./server";
+
 interface ExtendedWebSocket extends WebSocket {
   challenge?: string;
   isAlive?: boolean;
@@ -103,14 +105,14 @@ const allowedTags = [
 
 
 interface RelayJob {
-  events: Event[];  
-  action: RelayJobAction;
+  fn: (...args: any[]) => Promise<any> | any;
+  args?: any[];
 }
 
-enum RelayJobAction {
-  STORE = "store",
-  UPDATE = "update",
-  DELETE = "delete"
+interface RelayStatusMessage extends ResultMessagev2 {
+  websocketConnections: number;
+  queueLength: number;
+  workerCount: number;
 }
 
-export { MemoryEvent, ExtendedWebSocket, allowedTags, RelayJob, RelayJobAction };
+export { MemoryEvent, ExtendedWebSocket, allowedTags, RelayJob, RelayStatusMessage };

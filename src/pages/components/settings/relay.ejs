@@ -61,6 +61,38 @@
                         required
                         >
             </div>
+            <label for="relay.workers" class="mt-3 mb-2 fw-bold">Workers</label>
+            <p>Specify the number of workers to be used by the relay server. This value is used for the number of concurrent workers to be used by the relay server.
+            </p>
+            <div class="alert alert-warning mt-3" role="alert">
+                <i class="fa-solid fa-triangle-exclamation"></i> The number of workers <b></b>should be less than the number of CPU cores available</b> on the server. If 
+                you make changes to this value, you must restart the relay server for the changes to take effect.
+                </div>
+            <div class="col-12 col-md-4">
+                <input  type="number" 
+                        id="relay.workers" 
+                        name="relay.workers" 
+                        class="form-control" 
+                        value="<%= locals.settingsRelay['workers'] %>" 
+                        placeholder="ex. 10" 
+                        step="1"
+                        required
+                        >
+            </div>
+            <label for="relay.maxQueueLength" class="mt-3 mb-2 fw-bold">Max queue length</label>
+            <p>Specify the maximum queue length for the relay server. This value is used for the maximum queue length for the relay server. If this value is reached, the server will start dropping messages.
+            </p>
+            <div class="col-12 col-md-4">
+                <input  type="number" 
+                        id="relay.maxQueueLength" 
+                        name="relay.maxQueueLength" 
+                        class="form-control" 
+                        value="<%= locals.settingsRelay['maxQueueLength'] %>" 
+                        placeholder="ex. 1000" 
+                        step="1"
+                        required
+                        >
+            </div>
         </div>
         <div id ="limitation">
             <h4 class="mt-4">Server limits</h4>

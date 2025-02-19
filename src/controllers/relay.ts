@@ -1,23 +1,27 @@
 import WebSocket from "ws";
+import { Event, Filter, matchFilter } from "nostr-tools";
+import { Request, Response } from "express";
+
 import { subscriptions, addSubscription, removeAllSubscriptions, removeSubscription } from "../lib/relay/core.js";
 import { compressEvent, parseRelayMessage } from "../lib/relay/utils.js";
-import { Event, Filter, matchFilter } from "nostr-tools";
+import { binarySearchCreatedAt, getEvents, initEvents } from "../lib/relay/database.js";
+
+import app from "../app.js";
 import { isEventValid } from "../lib/nostr/core.js";
 import { isModuleEnabled } from "../lib/config.js";
-import app from "../app.js";
 import { logger } from "../lib/logger.js";
-import { Request } from "express";
 import { isIpAllowed } from "../lib/security/ips.js";
 import { isEntityBanned } from "../lib/security/banned.js";
 import { isEphemeral, isReplaceable } from "../lib/nostr/NIP01.js";
-import { binarySearchCreatedAt, getEvents, initEvents } from "../lib/relay/database.js";
 import { executePlugins } from "../lib/plugins/core.js";
 import { ipInfo } from "../interfaces/security.js";
 import { validatePow } from "../lib/nostr/NIP13.js";
-import { allowedTags, ExtendedWebSocket } from "../interfaces/relay.js";
+import { allowedTags, ExtendedWebSocket, RelayStatusMessage } from "../interfaces/relay.js";
 import { isBase64 } from "../lib/utils.js";
 import { AuthEvent } from "../interfaces/nostr.js";
 import { dbMultiSelect, dbUpdate } from "../lib/database.js";
+import { enqueueRelayTask, getRelayQueueLength, relayWorkers } from "../lib/relay/worker.js";
+import { parseAuthHeader } from "../lib/authorization.js";
 
 await initEvents(app);
 const events = app.get("relayEvents");
@@ -66,7 +70,13 @@ const handleWebSocketMessage = async (socket: ExtendedWebSocket, data: WebSocket
     switch (type) {
       case "EVENT" : {
         if (typeof args[0] !== 'string') {
-          handleEvent(socket, args[0] as Event, reqInfo);
+          // handleEvent(socket, args[0] as Event, reqInfo);
+          const task = enqueueRelayTask({fn: handleEvent, args: [socket, args[0] as Event, reqInfo]});
+          if (!task) {
+            logger.debug(`handleWebSocketMessage - Relay queue limit reached: ${getRelayQueueLength()}`);
+            socket.send(JSON.stringify(["NOTICE", "error: relay queue limit reached"]));
+            socket.close(1009, "error: relay queue limit reached");
+          }
         } else {
           logger.debug(`handleWebSocketMessage - Invalid event data: ${args[0]}`);
           socket.send(JSON.stringify(["NOTICE", "invalid: event data is not an object"]));
@@ -79,7 +89,13 @@ const handleWebSocketMessage = async (socket: ExtendedWebSocket, data: WebSocket
       case "COUNT": {
         const filters: Filter[] = args.slice(1) as Filter[];
         if (typeof args[0] === 'string') {
-          await handleReqOrCount(socket, args[0], filters, type, reqInfo);
+          // await handleReqOrCount(socket, args[0], filters, type, reqInfo);
+          const task = enqueueRelayTask({fn: handleReqOrCount, args: [socket, args[0], filters, type, reqInfo]});
+          if (!task) {
+            logger.debug(`handleWebSocketMessage - Relay queue limit reached: ${getRelayQueueLength()}`);
+            socket.send(JSON.stringify(["NOTICE", "error: relay queue limit reached"]));
+            socket.close(1009, "error: relay queue limit reached");
+          }
         } else {
           logger.debug(`handleWebSocketMessage - Invalid subscription id: ${args[0]}`);
           socket.send(JSON.stringify(["NOTICE", "invalid: subscription id is not a string"]));
@@ -89,13 +105,25 @@ const handleWebSocketMessage = async (socket: ExtendedWebSocket, data: WebSocket
       }
 
       case "CLOSE": {
-        handleClose(socket, typeof args[0] === 'string' ? args[0] : undefined);
+        const task = enqueueRelayTask({fn: handleClose, args: [socket, typeof args[0] === 'string' ? args[0] : undefined]});
+        if (!task) {
+          logger.debug(`handleWebSocketMessage - Relay queue limit reached: ${getRelayQueueLength()}`);
+          socket.send(JSON.stringify(["NOTICE", "error: relay queue limit reached"]));
+          socket.close(1009, "error: relay queue limit reached");
+        }
+        // handleClose(socket, typeof args[0] === 'string' ? args[0] : undefined);
         break;
       }
 
       case "AUTH" : {
         if (typeof args[0] !== 'string') {
-          await handleAuthMessage(socket, ["AUTH", args[0] as AuthEvent]);
+          const task = enqueueRelayTask({fn: handleAuthMessage, args: [socket, ["AUTH", args[0] as AuthEvent]]});
+          if (!task) {
+            logger.debug(`handleWebSocketMessage - Relay queue limit reached: ${getRelayQueueLength()}`);
+            socket.send(JSON.stringify(["NOTICE", "error: relay queue limit reached"]));
+            socket.close(1009, "error: relay queue limit reached");
+          }
+          // await handleAuthMessage(socket, ["AUTH", args[0] as AuthEvent]);
         } else {
           logger.debug(`handleWebSocketMessage - Invalid auth data: ${args[0]}`);
           socket.send(JSON.stringify(["NOTICE", "invalid: auth data is not an object"]));
@@ -114,9 +142,14 @@ const handleWebSocketMessage = async (socket: ExtendedWebSocket, data: WebSocket
     socket.close(1011, "error: internal server error"); 
   }
 };
+export const delay = (ms: number): Promise<void> => {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
 
 // Handle EVENT
 const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) => {
+
+  await delay(300);
 
   // Check if the event pubkey is banned
   if (await isEntityBanned(event.pubkey, "registered")) {
@@ -553,4 +586,34 @@ const handleAuthMessage = async (socket: ExtendedWebSocket, message: ["AUTH", Au
   socket.send(JSON.stringify(["OK", authData.id, true, "AUTH successful"]));
 };
 
-export { handleWebSocketMessage };
+const getRelayStatus = async (req: Request, res: Response): Promise<Response> => {
+
+  // Check if the request IP is allowed
+  const reqInfo = await isIpAllowed(req);
+  if (reqInfo.banned == true) {
+      logger.warn(`ServerStatus - Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
+      return res.status(403).send({"status": "error", "message": reqInfo.comments});
+  }
+
+  // Check if current module is enabled
+  if (!isModuleEnabled("relay", app)) {
+      logger.warn("ServerStatus - Attempt to access a non-active module:","relay","|","IP:", reqInfo.ip);
+      return res.status(403).send({"status": "error", "message": "Module is not enabled"});
+  }
+
+  // Check if authorization header is valid
+	const eventHeader = await parseAuthHeader(req,"getRelayQueue", true, true, true);
+	if (eventHeader.status !== "success") {return res.status(401).send({"status": eventHeader.status, "message" : eventHeader.message});}
+
+  const result : RelayStatusMessage = {
+    status: "success",
+    message: "Relay status retrieved successfully",
+    websocketConnections: app.get("wss").clients.size || 0,
+    queueLength: getRelayQueueLength() || 0,
+    workerCount: relayWorkers,
+  }
+
+  return res.status(200).send(result);
+};
+
+export { handleWebSocketMessage, getRelayStatus };
