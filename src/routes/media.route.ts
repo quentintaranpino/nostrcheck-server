@@ -60,7 +60,7 @@ export const loadMediaEndpoint = async (app: Application, version:string): Promi
 			req.files = [file];
 
 		}catch(err){
-			logger.warn(`RES -> 400 Bad request - Empty file`, "|", getClientIp(req));
+			logger.warn(`uploadMiddlewarePut - Error processing request: ${err}`);
 			if(version != "v2"){return res.status(400).send({"result": false, "description" : "Empty file"});}
 		}
 

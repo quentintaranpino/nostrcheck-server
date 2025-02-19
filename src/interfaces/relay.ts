@@ -102,5 +102,15 @@ const allowedTags = [
 ];
 
 
+interface RelayJob {
+  events: Event[];  
+  action: RelayJobAction;
+}
 
-export { MemoryEvent, ExtendedWebSocket, allowedTags };
+enum RelayJobAction {
+  STORE = "store",
+  UPDATE = "update",
+  DELETE = "delete"
+}
+
+export { MemoryEvent, ExtendedWebSocket, allowedTags, RelayJob, RelayJobAction };
