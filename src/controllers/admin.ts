@@ -25,6 +25,7 @@ import { generateInviteCode } from "../lib/invitations.js";
 import { setAuthCookie } from "../lib/frontend.js";
 import { deleteFile } from "../lib/storage/core.js";
 import { isIpAllowed } from "../lib/security/ips.js";
+import { RelayEvents } from "../interfaces/relay.js";
 
 let hits = 0;
 /**
@@ -592,6 +593,22 @@ const deleteDBRecord = async (req: Request, res: Response): Promise<Response> =>
                 return res.status(500).send(result);
             }
         }
+    }
+
+    // Special case for relay events, must be deleted from the relay memoryDB
+    if (table == "events") {
+        const eventData = await dbMultiSelect(["event_id"], "events", "id = ?", [req.body.id]);
+        if (eventData.length == 0) {
+            const result : ResultMessagev2 = {
+                status: "error",
+                message: "Failed to delete record"
+            };
+            logger.warn(`deleteDBRecord - Failed to delete record`, "|", reqInfo.ip);
+            return res.status(400).send(result);
+        }
+        const relayEvents = app.get("relayEvents") as RelayEvents
+        const event = relayEvents.memoryDB.get(eventData[0].event_id);
+        if (event) relayEvents.memoryDB.delete(eventData[0].event_id);
     }
 
     // Check Redis cache for the record.

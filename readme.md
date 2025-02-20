@@ -154,41 +154,42 @@ See plugins [here](https://github.com/quentintaranpino/nostrcheck-api-ts/blob/ma
 
 ## Supported Nostr NIP's
 
-- [x] NIP01
-- [x] NIP02
-- [x] NIP03
-- [x] NIP04
-- [x] NIP05
-- [x] NIP07
-- [x] NIP09
-- [x] NIP11
-- [x] NIP13
-- [x] NIP14
-- [x] NIP19
-- [x] NIP40
-- [x] NIP42
-- [x] NIP45
-- [x] NIP47
-- [x] NIP48
-- [x] NIP50
-- [x] NIP70
-- [x] NIP78
-- [x] NIP94
-- [x] NIP96
-- [x] NIP98
+- [x] NIP01 - Basic protocol flow description
+- [x] NIP02 - Follow List
+- [x] NIP03 - OpenTimestamps Attestations for Events
+- [x] NIP04 - Encrypted Direct Message
+- [x] NIP05 - Mapping Nostr keys to DNS-based internet identifiers
+- [x] NIP07 - window.nostr capability for web browsers
+- [x] NIP09 - Event Deletion Request
+- [x] NIP11 - Relay Information Document
+- [x] NIP13 - Proof of Work
+- [x] NIP14 - Subject tag in Text events
+- [x] NIP19 - bech32-encoded entities
+- [x] NIP40 - Expiration Timestamp
+- [x] NIP42 - Authentication of clients to relays
+- [x] NIP45 - Event Counts
+- [x] NIP47 - Nostr Wallet Connect (NWC)
+- [x] NIP48 - Proxy Tags
+- [x] NIP50 - Search Capability
+- [x] NIP62 - Request to Vanish
+- [x] NIP70 - Protected Events
+- [x] NIP78 - Arbitrary custom app data
+- [x] NIP94 - File Metadata
+- [x] NIP96 - HTTP File Storage Integration
+- [x] NIP98 - HTTP Auth
 
 ## Supported Blossom BUD's
 
-- [x] BUD01
-- [x] BUD02
-- [x] BUD03
-- [x] BUD04
-- [x] BUD06
-- [x] BUD07
+- [x] BUD01 - Server requirements and blob retrieval
+- [x] BUD02 - Blob upload and management
+- [x] BUD03 - User Server List
+- [x] BUD04 - Mirroring blobs
+- [x] BUD06 - Upload requirements
+- [x] BUD07 - Paid upload and download
 
 ## Supported Lightning LUD's
 
-- [x] LUD06
+- [x] LUD06 - payRequest base spec
 
 ## Roadmap
 
@@ -210,7 +211,7 @@ See plugins [here](https://github.com/quentintaranpino/nostrcheck-api-ts/blob/ma
 - [x] Frontend UI (public upload)
 - [x] Frontend UI (register)
 - [x] Ban system
-- [x] AI moderation
+- [x] AI media moderation
 - [x] Plugins engine
 - [ ] Private Direct Messages (NIP17)
 - [ ] Multi-server mirroring
@@ -220,6 +221,7 @@ See plugins [here](https://github.com/quentintaranpino/nostrcheck-api-ts/blob/ma
 - [ ] Umbrel appstore integration
 - [ ] Start9 appstore integration
 - [x] Integrated nostr relay
+- [X] AI event relay moderation
 - [x] Nostr wallet connect
 - [x] Security Engine.
 - [x] Frontend UI (relay)

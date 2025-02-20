@@ -1,8 +1,8 @@
 import { Application } from "express";
 import { Event, Filter, matchFilter } from "nostr-tools";
-import { dbBulkInsert, dbSimpleSelect} from "../database.js";
+import { dbBulkInsert, dbDelete, dbSimpleSelect, dbUpdate} from "../database.js";
 import { logger } from "../logger.js";
-import { MemoryEvent } from "../../interfaces/relay.js";
+import { MemoryEvent, RelayEvents } from "../../interfaces/relay.js";
 import { isModuleEnabled } from "../config.js";
 import app from "../../app.js";
 import { compressEvent, decompressEvent } from "./utils.js";
@@ -13,9 +13,18 @@ const initEvents = async (app: Application): Promise<boolean> => {
   if (app.get("relayEvents")) return false;
 
   const eventsMap: Map<string, MemoryEvent> = new Map();
-  const pendingEvents: Map<string, Event> = new Map();
   const eventsArray: Event[] = [];
-  app.set("relayEvents", { memoryDB: eventsMap, sortedArray: eventsArray, pending: pendingEvents });
+  const pending: Map<string, Event> = new Map();
+  const pendingDelete: Map<string, Event> = new Map();
+
+  const relayEvents: RelayEvents = {
+    memoryDB: eventsMap,
+    sortedArray: eventsArray,
+    pending: pending,
+    pendingDelete: pendingDelete,
+  };
+
+  app.set("relayEvents", relayEvents);
   app.set("relayEventsLoaded", false);
 
   const loadEvents = async () => {
@@ -27,7 +36,7 @@ const initEvents = async (app: Application): Promise<boolean> => {
       while (hasMore) {
         logger.info(`initEvents - Loaded ${eventsMap.size} events from DB`);
         const loadedEvents = await getEventsDB(offset, limit);
-        if (loadedEvents.length === 0 || offset > 500000) {
+        if (loadedEvents.length === 0 || offset > 100000) {
           hasMore = false;
         } else {
           for (let event of loadedEvents) {
@@ -258,7 +267,54 @@ const storeEvents = async (eventsInput: Event | Event[]): Promise<number> => {
     }
     
     return allEvents;
-  };
+};
+
+
+/**
+ * Deletes one or more events from the database and memory.
+ * 
+ * If `deleteFromDB` is `true`, the events are deleted from the database.
+ * If `deleteFromDB` is `false`, the events are marked as inactive in the database.
+ * 
+ * @param {Event | Event[]} eventsInput - Event or array of events to delete.
+ * @param {boolean} [deleteFromDB=false] - If `true`, the events are deleted from the database.
+ * @param {string} [comments=""] - Comments to add to the events.
+ * @returns {Promise<number>} The number of events deleted.
+ */
+const deleteEvents = async (eventsInput: Event | Event[], deleteFromDB: boolean = false, comments : string = ""): Promise<number> => {
+
+  const eventsToProcess: Event[] = Array.isArray(eventsInput) ? eventsInput : [eventsInput];
+  let affectedCount = 0;
+
+  for (const event of eventsToProcess) {
+    let dbResult: boolean | number = false;
+
+    if (deleteFromDB) {
+      dbResult = await dbDelete("events", ["event_id"], [event.id]);
+    } else {
+      dbResult = await dbUpdate("events", { active: "0" }, ["event_id"], [event.id]);
+      await dbUpdate("events", { comments: comments }, ["event_id"], [event.id]);
+    }
+
+    if (dbResult) {
+
+      affectedCount++;
+
+      const relayEvents = app.get("relayEvents");
+      relayEvents.memoryDB.delete(event.id);
+      const index = relayEvents.sortedArray.findIndex((e: Event) => e.id === event.id);
+      if (index !== -1)  relayEvents.sortedArray.splice(index, 1);
+      if (relayEvents.pending) relayEvents.pending.delete(event.id);
+      if (relayEvents.pendingDelete) relayEvents.pendingDelete.delete(event.id);
+
+    } else {
+      logger.error(`deleteEvents - Failed to delete process event ${event.id}`);
+    }
+  }
+
+  return affectedCount;
+};
+
   
 /**
  * Performs a binary search on a descendingly sorted array of events (sorted by `created_at`)
@@ -313,4 +369,4 @@ const binarySearchCreatedAt = (arr: Event[], target: number): number => {
     return low;
   }
 
-export { getEvents, storeEvents, initEvents, binarySearchCreatedAt };
+export { getEvents, storeEvents, initEvents, binarySearchCreatedAt, deleteEvents };
