@@ -2,7 +2,7 @@ import { Application } from "express";
 import { Event, Filter, matchFilter } from "nostr-tools";
 import { dbBulkInsert, dbDelete, dbSimpleSelect, dbUpdate} from "../database.js";
 import { logger } from "../logger.js";
-import { MemoryEvent } from "../../interfaces/relay.js";
+import { MemoryEvent, RelayEvents } from "../../interfaces/relay.js";
 import { isModuleEnabled } from "../config.js";
 import app from "../../app.js";
 import { compressEvent, decompressEvent } from "./utils.js";
@@ -13,11 +13,18 @@ const initEvents = async (app: Application): Promise<boolean> => {
   if (app.get("relayEvents")) return false;
 
   const eventsMap: Map<string, MemoryEvent> = new Map();
-  const pending: Map<string, Event> = new Map();
-  const pendingInactive: Map<string, Event> = new Map();
-  const pendingDelete: Map<string, Event> = new Map();
   const eventsArray: Event[] = [];
-  app.set("relayEvents", { memoryDB: eventsMap, sortedArray: eventsArray, pending: pending, pendingInactive: pendingInactive, pendingDelete: pendingDelete});
+  const pending: Map<string, Event> = new Map();
+  const pendingDelete: Map<string, Event> = new Map();
+
+  const relayEvents: RelayEvents = {
+    memoryDB: eventsMap,
+    sortedArray: eventsArray,
+    pending: pending,
+    pendingDelete: pendingDelete,
+  };
+
+  app.set("relayEvents", relayEvents);
   app.set("relayEventsLoaded", false);
 
   const loadEvents = async () => {
@@ -299,7 +306,6 @@ const deleteEvents = async (eventsInput: Event | Event[], deleteFromDB: boolean 
       if (index !== -1)  relayEvents.sortedArray.splice(index, 1);
       if (relayEvents.pending) relayEvents.pending.delete(event.id);
       if (relayEvents.pendingDelete) relayEvents.pendingDelete.delete(event.id);
-      if (relayEvents.pendingInactive) relayEvents.pendingInactive.delete(event.id);
 
     } else {
       logger.error(`deleteEvents - Failed to delete process event ${event.id}`);

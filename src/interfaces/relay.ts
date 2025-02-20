@@ -115,4 +115,11 @@ interface RelayStatusMessage extends ResultMessagev2 {
   workerCount: number;
 }
 
-export { MemoryEvent, ExtendedWebSocket, allowedTags, RelayJob, RelayStatusMessage };
+interface RelayEvents {
+  pending: Map<string, Event>;
+  pendingDelete: Map<string, Event>;
+  memoryDB: Map<string, MemoryEvent>;
+  sortedArray: Event[];
+}
+
+export { MemoryEvent, ExtendedWebSocket, allowedTags, RelayJob, RelayStatusMessage, RelayEvents };

@@ -16,7 +16,7 @@ import { isEphemeral, isReplaceable } from "../lib/nostr/NIP01.js";
 import { executePlugins } from "../lib/plugins/core.js";
 import { ipInfo } from "../interfaces/security.js";
 import { validatePow } from "../lib/nostr/NIP13.js";
-import { allowedTags, ExtendedWebSocket, RelayStatusMessage } from "../interfaces/relay.js";
+import { allowedTags, ExtendedWebSocket, RelayEvents, RelayStatusMessage } from "../interfaces/relay.js";
 import { isBase64 } from "../lib/utils.js";
 import { AuthEvent } from "../interfaces/nostr.js";
 import { dbMultiSelect, dbUpdate } from "../lib/database.js";
@@ -24,7 +24,7 @@ import { enqueueRelayTask, getRelayQueueLength, relayWorkers } from "../lib/rela
 import { parseAuthHeader } from "../lib/authorization.js";
 
 await initEvents(app);
-const events = app.get("relayEvents");
+const events = app.get("relayEvents") as RelayEvents;
 const authSessions: Map<WebSocket, string> = new Map(); 
 
 const handleWebSocketMessage = async (socket: ExtendedWebSocket, data: WebSocket.RawData, req: Request) => {
@@ -341,66 +341,35 @@ const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) =>
   // Event kind 5 (NIP-09) Event deletion
   if (event.kind === 5) {
 
-    const eventsToDelete = event.tags.filter(tag => tag[0] === "e" || tag[0] === "a").map(tag => tag[1].trim());
-    if (eventsToDelete.length === 0) {
+    const receivedEventsToDelete = event.tags.filter(tag => tag[0] === "e" || tag[0] === "a").map(tag => tag[1].trim());
+    if (receivedEventsToDelete.length === 0) {
       logger.error(`handleEvent - Rejected kind:5 event ${event.id} due to missing required tags.`);
       socket.send(JSON.stringify(["NOTICE", "invalid: missing required tags"]));
       socket.send(JSON.stringify(["OK", event.id, false, "invalid: missing required tags"]));
       return;
     }
 
-    const pendingEvents = eventsToDelete.map(id => events.pending.get(id)).filter(e => e !== undefined).filter(e => e.kind !== 5);
-    if (pendingEvents.length > 0) {
-
-      pendingEvents.forEach(e => {
-        events.pending.delete(e.id);
-        events.memoryDB.delete(e.id);
-        const index = events.sortedArray.findIndex((event: Event) => event.id === e.id);
-        if (index !== -1)  events.sortedArray.splice(index, 1);
-      });
-
-      logger.debug(`handleEvent - Accepted kind:5 event ${event.id} and deleted events: ${pendingEvents.map(e => e.id).join(", ")}`);
-      socket.send(JSON.stringify(["OK", event.id, true, "deleted: events successfully deleted"]));
-      return;
-
-    }
-
-    const storedEvents = eventsToDelete.map(id => events.memoryDB.get(id)).filter(e => e !== undefined).filter(e => e.event.kind !== 5);
-    if (storedEvents.length === 0) {
-      logger.debug(`handleEvent - Rejected kind:5 event ${event.id} due to no events found for deletion.`);
-      socket.send(JSON.stringify(["OK", event.id, false, "invalid: no events found for deletion"]));
-      return;
-    }
-
-    const unauthorizedEvents = storedEvents.filter(e => e.event.pubkey !== event.pubkey);
-    if (unauthorizedEvents.length > 0) {
-      logger.debug(`handleEvent - Rejected kind:5 event ${event.id} due to unauthorized to delete events. |`, reqInfo.ip);
-      socket.send(JSON.stringify(["NOTICE", "error: unauthorized to delete events"]));
-      socket.send(JSON.stringify(["OK", event.id, false, "error: unauthorized to delete events"]));
-      return;
-    }
-
-    let ownedEvents = storedEvents.filter(e => e.event.pubkey === event.pubkey);
-    ownedEvents = ownedEvents.filter(e => {
-      if (e.event.tags.some((tag: [string, string]) => tag[0] === "a")) {
-        return e.event.created_at < event.created_at;
-      }
-      return true;
-    });
-
-    if (ownedEvents.length === 0) {
+    const eventsToDelete = receivedEventsToDelete
+      .map(id => {
+        const memEvent = events.memoryDB.get(id);
+        return memEvent ? memEvent.event : events.pending.get(id);
+      })
+      .filter((e): e is Event => e !== undefined && e.kind !== 5 && e.pubkey === event.pubkey)
+      .filter(e => !e.tags.some((tag: string[]) => tag[0] === "a") || e.created_at < event.created_at);
+  
+    if (eventsToDelete.length === 0) {
       logger.debug(`handleEvent - Rejected kind:5 event ${event.id} due to no events found for deletion.`);
       socket.send(JSON.stringify(["NOTICE", "invalid: no events found for deletion"]));
       socket.send(JSON.stringify(["OK", event.id, false, "invalid: no events found for deletion"]));
       return;
     }
 
-    logger.debug(`handleEvent - Accepted kind:5 event ${event.id} and inactivated events: ${ownedEvents.map(e => e.id).join(", ")}`);
+    logger.debug(`handleEvent - Accepted kind:5 event ${event.id} and deleted events: ${eventsToDelete.map(e => e.id).join(", ")}`);
     returnMessage = "deleted: events successfully deleted (kind 5)";
 
-    // Add events to pendingInactive
-    ownedEvents.forEach(e => {
-      events.pendingInactive.set(e.id, e);
+    // Add events to pendingDelete
+    eventsToDelete.forEach(e => {
+      events.pendingDelete.set(e.id, e);
     });
 
   }
@@ -419,22 +388,24 @@ const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) =>
     const relayUrl = app.get("config.server")["host"] + "/api/v2/relay";
     const eventUrl = relayTags.some(tag => tag[1].toUpperCase() === "ALL_RELAYS" || tag[1] === relayUrl);
     if (!eventUrl) {
+      logger.debug(`handleEvent - Rejected kind:62 event ${event.id} due to invalid relay tag.`);
+      socket.send(JSON.stringify(["NOTICE", "invalid: invalid relay tag"]));
+      socket.send(JSON.stringify(["OK", event.id, false, "invalid: invalid relay tag"]));
       return;
     }
 
-    const eventsToDelete: Event[] = [];
-    for (const pendigEvent of events.pending.values()) {
-      if ( pendigEvent.event.created_at < event.created_at && (pendigEvent.event.pubkey === event.pubkey || pendigEvent.event.tags.some((tag: [string, string]) => tag[0] === "p" && tag[1] === event.pubkey))) {
-        eventsToDelete.push(pendigEvent.event);
-      }
-    }
-    for (const memEv of events.memoryDB.values()) {
-      if ( memEv.event.created_at < event.created_at && (memEv.event.pubkey === event.pubkey || memEv.event.tags.some((tag: [string, string]) => tag[0] === "p" && tag[1] === event.pubkey))) {
-        eventsToDelete.push(memEv.event);
-      }
-    }
+    const eventsToDelete: Event[] = [
+      ...Array.from(events.pending.values()),
+      ...Array.from(events.memoryDB.values()).map(memoryEvent => memoryEvent.event)
+    ].filter(e =>
+      e.created_at < event.created_at &&
+      (e.pubkey === event.pubkey ||
+        e.tags.some(tag => tag[0] === "p" && tag[1] === event.pubkey)) &&
+      e.kind !== 5 &&
+      e.kind !== 62
+    );
 
-    logger.debug(`handleEvent - Accepted kind:62 event ${event.id} and deleted events ${eventsToDelete.map(e => e.id).join(", ")}`);
+    logger.debug(`handleEvent - Accepted kind:62 event ${event.id} and deleted events ${eventsToDelete.length}`);
     returnMessage = "deleted: events successfully deleted (kind 62)";
 
     // Add events to pendingDelete

@@ -258,7 +258,8 @@ const moduleDataSelectFields: { [key: string]: string } = {
                         "(SELECT COALESCE(GROUP_CONCAT(CONCAT(eventtags.tag_name, ' : ', eventtags.tag_value) SEPARATOR ', '), '') FROM eventtags WHERE eventtags.event_id = events.event_id) as tags, " +
                         "events.content, " +
                         "events.created_at, " +
-                        "events.received_at "
+                        "events.received_at, " + 
+                        "events.comments"
 };
 
 export { allowedTableNames, allowedFieldNames, allowedFieldNamesAndValues, moduleDataReturnMessage, ModuleDataTables, moduleDataSelectFields, moduleDataWhereFields, moduleDataKeys };
