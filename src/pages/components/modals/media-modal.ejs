@@ -8,7 +8,7 @@
             <div class="modal-body text-center d-flex flex-column align-items-center justify-content-center" id="media-modal-body" style="min-height: 450px;">
                 <%- include('../loading', {objectId: 'media', dataName: 'media'}) %>
                 <img src="" id="mediapreview-img" class="img-fluid d-none rounded mx-auto">
-                <video id="mediapreview-video" class="d-none rounded mx-auto" style="width: 100%; min-height: 400px; object-fit: contain; max-height: 400px;" controls></video>
+                <video id="mediapreview-video" class="d-none rounded mx-auto" style="width: 100%; min-height: 400px; object-fit: contain; max-height: 400px;" autoplay muted playsinline controls></video>
                 <canvas id="mediapreview-3d" class="d-none rounded mx-auto"></canvas>
                 <iframe id="mediapreview-iframe" class="img-fluid d-none rounded mx-auto" style="width: 100%; min-height: 450px;" frameborder="0"></iframe>
                 <div id="mediapreview-font" class="d-none rounded mx-auto" style="min-height: 450px; align-items: center; justify-content: center;"></div>
@@ -33,3 +33,8 @@
 <script src="/static/js/viewers/3dviewer.js"></script>
 <script src="/static/js/viewers/fontviewer.js"></script>
 <script src="/static/js/viewers/yamlviewer.js"></script>
+<script>
+    document.getElementById('mediapreview-video').addEventListener('loadedmetadata', function() {
+    this.playbackRate = 4; 
+});
+</script>
