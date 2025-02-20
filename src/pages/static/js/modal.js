@@ -435,12 +435,6 @@ const initMediaModal = async (filename, checked, visible, showButtons = true) =>
 
     var mediaModal = new bootstrap.Modal($('#media-modal'));
 
-    MediaData = await loadMediaWithToken('/api/v2/media/' + filename).then(async data => {
-        return data;
-    });
-
-    let contentType = MediaData.mimeType || '';
-
     $('#modalSwitch-checked').prop('checked', checked);
     $('#modalSwitch-checked').change(function() {
         checked = this.checked ? 1 : 0; 
@@ -479,7 +473,18 @@ const initMediaModal = async (filename, checked, visible, showButtons = true) =>
         contentType = '';
     });
 
-    $('#media-modal').on('shown.bs.modal', function () {
+    $('#media-modal').one('shown.bs.modal', async function () {
+
+        $('#media-loading').removeClass('d-none');
+
+        MediaData = await loadMediaWithToken('/api/v2/media/' + filename).then(async data => {
+            return data;
+        });
+    
+        $('#media-loading').addClass('d-none');
+    
+        let contentType = MediaData.mimeType || '';
+
         $('#modalSwitch-checked').focus();
 
         if (contentType.includes('image')) {
@@ -516,6 +521,7 @@ const initMediaModal = async (filename, checked, visible, showButtons = true) =>
 }
 
 async function loadMediaWithToken(url) {
+
     try{
         const response = await fetch(url, {
             method: 'GET',

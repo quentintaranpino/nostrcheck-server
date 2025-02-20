@@ -6,6 +6,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body text-center" id="media-modal-body" style="min-height: 450px;">
+                <%- include('../loading', {objectId: 'media', dataName: 'media'}) %>
                 <img src="" id="mediapreview-img" class="img-fluid d-none rounded mx-auto">
                 <canvas id="mediapreview-3d" class= "d-none rounded mx-auto"></canvas>
                 <iframe  id="mediapreview-iframe" class="img-fluid d-none rounded mx-auto" style="width: 100%; min-height: 450px;" frameborder="0"></iframe>
