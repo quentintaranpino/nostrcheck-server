@@ -453,6 +453,7 @@ const initMediaModal = async (filename, checked, visible, showButtons = true) =>
 
     const mediaPreviewIframe = $('#mediapreview-iframe');
     const mediapreviewImg = $('#mediapreview-img');
+    const mediaPreviewVideo = $('#mediapreview-video');
     const mediaPreview3d = $('#mediapreview-3d');
     const fontPreview = $('#mediapreview-font');
     const yamlPreview = $('#mediapreview-yaml');
@@ -466,6 +467,8 @@ const initMediaModal = async (filename, checked, visible, showButtons = true) =>
         mediaPreviewIframe.addClass('d-none');
         mediapreviewImg.attr('src', '');
         mediapreviewImg.addClass('d-none');
+        mediaPreviewVideo.attr('src', '');
+        mediaPreviewVideo.addClass('d-none');
         mediaPreview3d.addClass('d-none');
         fontPreview.addClass('d-none');
         yamlPreview.addClass('d-none');
@@ -499,6 +502,9 @@ const initMediaModal = async (filename, checked, visible, showButtons = true) =>
         } else if (contentType.includes('yaml') || contentType.includes('yml')) {
             initYamlViewer('mediapreview-yaml', MediaData.url);
             yamlPreview.removeClass('d-none');
+        } else if (contentType.includes('video')) {
+            mediaPreviewVideo.attr('src', MediaData.url);
+            mediaPreviewVideo.removeClass('d-none');
         }else {
             if (contentType == '') {
                 return;
