@@ -149,8 +149,6 @@ export const delay = (ms: number): Promise<void> => {
 // Handle EVENT
 const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) => {
 
-  await delay(300);
-
   // Check if the event pubkey is banned
   if (await isEntityBanned(event.pubkey, "registered")) {
     logger.debug(`handleEvent - Blocked banned pubkey: ${event.pubkey}`);
@@ -284,6 +282,7 @@ const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) =>
 
   logger.debug(`handleEvent - Received event: ${event.id}, kind: ${event.kind} |`, reqInfo.ip);
 
+  // Ephemeral events
   if (isEphemeral(event.kind)) {
     subscriptions.forEach((clientSubscriptions) => {
       clientSubscriptions.forEach((listener) => listener(event));
@@ -293,6 +292,7 @@ const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) =>
     return;
   }
 
+  // Replaceable events
   if (isReplaceable(event.kind)) {
     for (const [key, memEv] of events.memoryDB.entries()) {
       if (memEv.event.kind === event.kind && memEv.event.pubkey === event.pubkey) {
@@ -336,6 +336,8 @@ const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) =>
     }
   }
 
+  let returnMessage = "";
+
   // Event kind 5 (NIP-09) Event deletion
   if (event.kind === 5) {
 
@@ -358,7 +360,6 @@ const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) =>
       });
 
       logger.debug(`handleEvent - Accepted kind:5 event ${event.id} and deleted events: ${pendingEvents.map(e => e.id).join(", ")}`);
-      socket.send(JSON.stringify(["NOTICE", "deleted: events successfully deleted"]));
       socket.send(JSON.stringify(["OK", event.id, true, "deleted: events successfully deleted"]));
       return;
 
@@ -367,7 +368,6 @@ const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) =>
     const storedEvents = eventsToDelete.map(id => events.memoryDB.get(id)).filter(e => e !== undefined).filter(e => e.event.kind !== 5);
     if (storedEvents.length === 0) {
       logger.debug(`handleEvent - Rejected kind:5 event ${event.id} due to no events found for deletion.`);
-      socket.send(JSON.stringify(["NOTICE", "invalid: no events found for deletion"]));
       socket.send(JSON.stringify(["OK", event.id, false, "invalid: no events found for deletion"]));
       return;
     }
@@ -381,6 +381,13 @@ const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) =>
     }
 
     let ownedEvents = storedEvents.filter(e => e.event.pubkey === event.pubkey);
+    ownedEvents = ownedEvents.filter(e => {
+      if (e.event.tags.some((tag: [string, string]) => tag[0] === "a")) {
+        return e.event.created_at < event.created_at;
+      }
+      return true;
+    });
+
     if (ownedEvents.length === 0) {
       logger.debug(`handleEvent - Rejected kind:5 event ${event.id} due to no events found for deletion.`);
       socket.send(JSON.stringify(["NOTICE", "invalid: no events found for deletion"]));
@@ -388,34 +395,53 @@ const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) =>
       return;
     }
 
-    // Filter out "a" events that are newer than the kind:5 deletion request
-    ownedEvents = ownedEvents.filter(e => {
-      if (e.event.tags.some((tag: [string, string]) => tag[0] === "a")) return e.event.created_at < event.created_at; 
-      return true;
+    logger.debug(`handleEvent - Accepted kind:5 event ${event.id} and inactivated events: ${ownedEvents.map(e => e.id).join(", ")}`);
+    returnMessage = "deleted: events successfully deleted (kind 5)";
+
+    // Add events to pendingInactive
+    ownedEvents.forEach(e => {
+      events.pendingInactive.set(e.id, e);
     });
-    if (ownedEvents.length === 0) {
-      logger.debug(`handleEvent - Rejected kind:5 event ${event.id} due due to no events found for deletion.`);
-      socket.send(JSON.stringify(["NOTICE", "invalid: no valid events remain for deletion"]));
-      socket.send(JSON.stringify(["OK", event.id, false, "invalid: no events found for deletion"]));
+
+  }
+
+  // Event kind 62 (NIP-62) Request to Vanish
+  if (event.kind === 62) {
+    
+    const relayTags = event.tags.filter(tag => tag[0] === "relay");
+    if (relayTags.length === 0) {
+      logger.debug(`handleEvent - Rejected kind:62 event ${event.id} due to missing required tags.`);
+      socket.send(JSON.stringify(["NOTICE", "invalid: missing required tags"]));
+      socket.send(JSON.stringify(["OK", event.id, false, "invalid: missing required tags"]));
       return;
     }
 
-    const deleteResults = await Promise.all(ownedEvents.map(e => dbUpdate("events", {"active": "0"}, ["event_id"], [e.event.id])));
-    if (!deleteResults.every(result => result)) {
-      logger.error(`handleEvent - Failed to delete events: ${ownedEvents.map(e => e.event.id).join(", ")}`);
-      socket.send(JSON.stringify(["NOTICE", "error: failed to delete events"]));
-      socket.send(JSON.stringify(["OK", event.id, false, "error: failed to delete events"]));
+    const relayUrl = app.get("config.server")["host"] + "/api/v2/relay";
+    const eventUrl = relayTags.some(tag => tag[1].toUpperCase() === "ALL_RELAYS" || tag[1] === relayUrl);
+    if (!eventUrl) {
       return;
-    } else {
-      // Remove events from memory
-      ownedEvents.forEach(e => {
-        events.memoryDB.delete(e.event.id);
-        const index = events.sortedArray.findIndex((event: Event) => event.id === e.event.id);
-        if (index !== -1)  events.sortedArray.splice(index, 1);
-      });
-      logger.debug(`handleEvent - Accepted kind:5 event ${event.id} and deleted events: ${ownedEvents.map(e => e.event.id).join(", ")}`);
-      socket.send(JSON.stringify(["OK", event.id, true, "deleted: events successfully deleted"]));
     }
+
+    const eventsToDelete: Event[] = [];
+    for (const pendigEvent of events.pending.values()) {
+      if ( pendigEvent.event.created_at < event.created_at && (pendigEvent.event.pubkey === event.pubkey || pendigEvent.event.tags.some((tag: [string, string]) => tag[0] === "p" && tag[1] === event.pubkey))) {
+        eventsToDelete.push(pendigEvent.event);
+      }
+    }
+    for (const memEv of events.memoryDB.values()) {
+      if ( memEv.event.created_at < event.created_at && (memEv.event.pubkey === event.pubkey || memEv.event.tags.some((tag: [string, string]) => tag[0] === "p" && tag[1] === event.pubkey))) {
+        eventsToDelete.push(memEv.event);
+      }
+    }
+
+    logger.debug(`handleEvent - Accepted kind:62 event ${event.id} and deleted events ${eventsToDelete.map(e => e.id).join(", ")}`);
+    returnMessage = "deleted: events successfully deleted (kind 62)";
+
+    // Add events to pendingDelete
+    eventsToDelete.forEach(e => {
+      events.pendingDelete.set(e.id, e);
+    });
+
 
   }
 
@@ -433,7 +459,7 @@ const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) =>
 
   // Send confirmation to the client
   logger.debug(`handleEvent - Accepted event: ${event.id}`);
-  socket.send(JSON.stringify(["OK", event.id, true, ""]));
+  socket.send(JSON.stringify(["OK", event.id, true, returnMessage]));
   return;
 };
 

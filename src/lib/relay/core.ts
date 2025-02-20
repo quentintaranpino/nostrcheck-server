@@ -4,7 +4,7 @@ import { Event } from "nostr-tools";
 import { logger } from "../logger.js";
 import { isModuleEnabled } from "../config.js";
 import { dbMultiSelect, dbUpdate } from "../database.js";
-import { storeEvents } from "./database.js";
+import { deleteEvents, storeEvents } from "./database.js";
 
 const subscriptions: Map<WebSocket, Map<string, (event: Event) => void>> = new Map();
 
@@ -120,6 +120,42 @@ setInterval(async () => {
 }, 30 * 1000);
 
 /*
+* Periodically inactive events from the database (kind 5, NIP-09), delete events from database (kind 62, NIP-62)
+*/
+setInterval(async () => {
+
+  if (!isModuleEnabled("relay", app)) return;
+  if (!app.get("relayEventsLoaded")) return;
+
+  const relayEvents = app.get("relayEvents");
+
+  // NIP-09 inactivation
+  if (!relayEvents || !relayEvents.pendingInactive) return;
+  if (relayEvents.pendingInactive.size === 0) return;
+
+  const eventsToInactive = Array.from(relayEvents.pendingInactive.values()) as Event[];
+  if (eventsToInactive.length > 0) {
+    const inactivedCount: number = await deleteEvents(eventsToInactive, false, "NIP-09 inactivation");
+    if (inactivedCount != eventsToInactive.length){
+        logger.error(`relayController - Interval - Failed to inactive events: ${eventsToInactive.length - inactivedCount}`);
+    }
+  }
+
+  // NIP-62 deletion
+  if (!relayEvents.pendingDelete) return;
+  if (relayEvents.pendingDelete.size === 0) return;
+
+  const eventsToDelete = Array.from(relayEvents.pendingDelete.values()) as Event[];
+  if (eventsToDelete.length > 0) {
+    const deletedCount: number = await deleteEvents(eventsToDelete, true, "NIP-62 deletion");
+    if (deletedCount != eventsToDelete.length){
+        logger.error(`relayController - Interval - Failed to delete events: ${eventsToDelete.length - deletedCount}`);
+    }
+  }
+
+}, 30 * 1000);
+
+/*
 * Periodically set active = '0' for events with expiration tag in the past (NIP-40)
 */
 setInterval(async () => {
@@ -143,6 +179,6 @@ setInterval(async () => {
       logger.debug(`relayController - Interval - Set event ${expiredEvent.event_id} as inactive successfully`);
     }
   }
-}, 1000 * 30 * 1); // 1 minutes
+}, 30 * 1000); // 1 minutes
 
 export {subscriptions, addSubscription, removeSubscription, removeAllSubscriptions};
