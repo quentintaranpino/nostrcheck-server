@@ -435,7 +435,7 @@ const initMediaModal = async (filename, checked, visible, showButtons = true) =>
 
     var mediaModal = new bootstrap.Modal($('#media-modal'));
 
-    $('#modalSwitch-checked').prop('checked', checked);
+    $('#modalSwitch-checked').prop('checked', checked == '1'? true : false);
     $('#modalSwitch-checked').change(function() {
         checked = this.checked ? 1 : 0; 
     });
