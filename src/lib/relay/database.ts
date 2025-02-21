@@ -202,10 +202,8 @@ const storeEvents = async (eventsInput: Event | Event[]): Promise<number> => {
     return insertedRows;
   };
 
-  const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
   const getEvents = async (filters: Filter[], relayData: { memoryDB: Map<string, MemoryEvent>; sortedArray: Event[] }): Promise<Event[]> => {
 
-    await delay(10000);
     const now = Math.floor(Date.now() / 1000);
     const allEvents: Event[] = [];
 
