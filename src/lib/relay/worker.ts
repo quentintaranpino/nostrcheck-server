@@ -118,13 +118,18 @@ const unpersistEvents = async () => {
 }
 
 // interval to persist and unpersist events
-setInterval(async () => {
+const workerInterval = async () => {
+  if (getRelayQueueLength() > 0) {
+      logger.warn(`workerInterval - Relay queue not empty: ${getRelayQueueLength()}, skipping`);
+  } else {
+      await enqueueRelayTask({ fn: async () => {
+          await persistEvents();
+          await unpersistEvents();
+      }});
+  }
+  setTimeout(workerInterval, 60 * 1000);
+};
 
-    enqueueRelayTask({fn: async () => {
-        await persistEvents();
-        await unpersistEvents();
-    }});
-
-}, 1 * 60 * 1000);
+workerInterval();
   
 export { getRelayQueueLength, enqueueRelayTask, relayWorkers };
