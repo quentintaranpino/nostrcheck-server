@@ -254,6 +254,20 @@
                         required
                         >
             </div>
+            <label for ="relay.limitation.max_time_range" class="mt-2 mb-1 fw-bold"> Max timerange for REQ</label>
+            <p>Specify the maximum time range for the REQ command. This value is used for the maximum time range for the REQ command.
+            </p>
+            <div class="col-12 col-md-4">
+                <input  type="number" 
+                        id="relay.limitation.max_time_range" 
+                        name="relay.limitation.max_time_range" 
+                        class="form-control" 
+                        value="<%= locals.settingsRelay['limitation']['max_time_range'] %>" 
+                        placeholder="ex. 5184000 (2 month)" 
+                        step="1000"
+                        required
+                        >
+            </div>
             <label for ="relay.tags" class="mt-2 mb-1 fw-bold">Allowed tags</label>
             <p>Specify the tags that are allowed to be used in the relay server. This is a list of limitations on the topics to be discussed sepparated by commas. For 
               example sfw-only indicates that only "Safe For Work" content is encouraged on this relay. <b>Leave it empty to allow all tags.</b>

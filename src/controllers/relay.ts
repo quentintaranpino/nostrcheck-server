@@ -142,9 +142,6 @@ const handleWebSocketMessage = async (socket: ExtendedWebSocket, data: WebSocket
     socket.close(1011, "error: internal server error"); 
   }
 };
-export const delay = (ms: number): Promise<void> => {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
 
 // Handle EVENT
 const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) => {
@@ -471,6 +468,20 @@ const handleReqOrCount = async (socket: WebSocket, subId: string, filters: Filte
     socket.send(JSON.stringify(["CLOSED", subId, "unsupported: subscription id too long"]));
     socket.close(1003, "unsupported: subscription id too long");
     return;
+  }
+
+  // Check if the requested time range is too large or the limit is too high
+  let since = filters.find(f => f.since)?.since ?? 0;
+  const until = filters.find(f => f.until)?.until ?? Math.floor(Date.now() / 1000);
+  const maxLimit = app.get("config.relay")["limitation"]["max_limit"];
+  const maxTimeRange = app.get("config.relay")["limitation"]["max_time_range"];
+  let limit = filters.find(f => f.limit)?.limit ?? maxLimit;
+
+  if (limit > maxLimit || until - since > maxTimeRange) {
+    socket.send(JSON.stringify(["NOTICE", `warning: ${limit > maxLimit ? "limit" : "time range"} too high, adjusted to ${limit > maxLimit ? maxLimit : maxTimeRange}`]));
+    if (limit > maxLimit) limit = maxLimit;
+    if (until - since) since = until - maxTimeRange;
+    filters = filters.map(f => ({ ...f, since, until, limit }));
   }
 
   try {

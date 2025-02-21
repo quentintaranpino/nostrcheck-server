@@ -264,7 +264,8 @@ const defaultConfig = {
 			"min_pow_difficulty": 0,
 			"auth_required": false,
 			"created_at_lower_limit": 94608000,
-			"created_at_upper_limit": 300
+			"created_at_upper_limit": 300,
+			"max_time_range": 5184000,
 		},
 		"language_tags": ["en", "es"],
 		"tags": [],
