@@ -8,25 +8,25 @@ const remoteEngineClassify = async (url : string, endpoint: string, accessKey : 
 		return emptyModerationCategory;
 	}
 
-	let body: { media_url: string} = {media_url: url};
+	const body: { media_url: string} = {media_url: url};
 
 	const headers = {
-	 'Content-Type': 'application/json',
-	 'NB-Access-Key-ID': `${accessKey}`,
-	 'NB-Secret-Key': `${secretKey}`
+		'Content-Type': 'application/json',
+		'NB-Access-Key-ID': `${accessKey}`,
+		'NB-Secret-Key': `${secretKey}`
 	};
    
 	logger.debug(`remoteEngineClassify - Evaluating image/video: ${url}`);
 
 	const res = await fetch(endpoint, {
-	 method: 'POST',
-	 headers: headers,
-	 body: JSON.stringify(body)
+		method: 'POST',
+		headers: headers,
+		body: JSON.stringify(body)
 	});
 
 	if (!res.ok) {
-	 logger.error(`remoteEngineClassify - Error evaluating image/video: ${url}`);
-	 return emptyModerationCategory;
+		logger.error(`remoteEngineClassify - Error evaluating image/video: ${url}`);
+		return emptyModerationCategory;
 	}
     
 	let result = await res.json();

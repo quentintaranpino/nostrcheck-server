@@ -1,5 +1,6 @@
 import os
-os.nice(10)
+if hasattr(os, 'nice'):
+    os.nice(10)
 from flask import Flask, request, jsonify
 import torch
 from transformers import AutoModelForImageClassification, AutoFeatureExtractor, AutoProcessor

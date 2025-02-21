@@ -466,9 +466,7 @@ const finalizeFileProcessing = async (filedata: fileData): Promise<boolean> => {
 		if (filedata.no_transform == false) { await deleteLocalFile(filedata.conversionOutputPath);}
 		await deleteLocalFile(filedata.conversionInputPath);
 
-		let url = filedata.url;
-		if (url.lastIndexOf('.') <= url.lastIndexOf('/')) url = url.substring(0, url.lastIndexOf('/') + 1) + filedata.filename;
-		await moderateFile(url, "mediafiles", filedata.fileid);
+		await moderateFile("mediafiles", filedata.fileid);
 
 		return true;
 
@@ -611,7 +609,25 @@ const extractVideoFrames = async (videoPath: string, outputDir: string): Promise
 };
 
 
-
+/**
+ * Get the URL of a file
+ * @param filename The filename
+ * @returns The URL of the file using the configured hostname and port
+ * @example
+ * getFileUrl("original_hash.jpg") DEVELOPEMENT ENVIROMENT = "http://localhost:3000/media/hash.jpg" 
+ * getFileUrl("original_hash.jpg") RETURN URL =  "https://customUrl.com/customfolder/hash.jpg"
+ * getFileUrl("original_hash.jpg") STANDARD =  "https://cdn.configuredHostname.com/hash.jpg"
+ */
+const getFileUrl = (filename: string): string => {
+	const environment = app.get("config.environment");
+	const port = app.get("config.server")["port"];
+	const hostname = app.get("config.server")["host"];
+	const returnURL = app.get("config.media")["returnURL"];
+  
+	if (environment === "development")return `http://localhost:${port}/api/v2/media/${filename}`;
+	if (returnURL)	return `${returnURL}/${filename}`;
+	return `https://cdn.${hostname}/${filename}`;
+};
 
 export {processFile, 
 		requestQueue, 
@@ -628,4 +644,5 @@ export {processFile,
 		getMimeFromExtension, 
 		getAllowedMimeTypes,
 		getConvertedExtension, 
-		extractVideoFrames};
+		extractVideoFrames, 
+		getFileUrl};

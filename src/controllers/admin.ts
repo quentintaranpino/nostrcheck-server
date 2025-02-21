@@ -1038,12 +1038,7 @@ const moderateDBRecord = async (req: Request, res: Response): Promise<Response> 
 
     logger.info(`moderateDBRecord - ${req.method} ${req.path}`, "|", reqInfo.ip, "|", req.body.id, "|", req.body.filename);
 
-    let returnURL = app.get("config.media")["returnURL"];
-    returnURL != "" && returnURL != undefined
-    ? returnURL = `${returnURL}/${req.body.filename}`
-    : returnURL = `${"https://" + req.hostname}/media/${req.body.filename}`;
-
-    await moderateFile(returnURL, table, req.body.id);
+    await moderateFile(table, req.body.id);
 
     return res.status(200).send({status: "success", message: "Moderation request sent"});
 

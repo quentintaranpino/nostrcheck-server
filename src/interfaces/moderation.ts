@@ -17,10 +17,8 @@ interface ModerationCategory {
 }
 
 interface ModerationJob {
-    url: string;
     originTable: string;
     originId: string;
-    fileName: string;
-  }
+}
 
 export { moderationCategories, ModerationCategory, emptyModerationCategory, ModerationJob };

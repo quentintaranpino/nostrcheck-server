@@ -15,7 +15,7 @@ let localModel: PythonShell | null = null;
  * @returns {Promise<boolean>}
  */ 
 const localEngineStart = async (): Promise<boolean> => {
-    return new Promise(async (resolve, reject) => {
+    return new Promise( (resolve, reject) => {
 
         const localModelPath = './scripts/moderation/localEngine.py';
         const venvPythonPath = process.platform === "win32" ? ".\\.venv\\Scripts\\python.exe" : "./.venv/bin/python";
@@ -40,25 +40,25 @@ const localEngineStart = async (): Promise<boolean> => {
         logger.info(`localEngineStart - Starting local AI moderation server using Python virtual environment: ${venvPythonPath}`);
 
         try{
-            localModel = await new PythonShell(localModelPath, {
+            localModel =  new PythonShell(localModelPath, {
                 pythonPath: venvPythonPath,  
                 pythonOptions: ['-u'],
             });
-        } catch (error: any) {
-            logger.error(`localEngineStart - Failed to start local AI moderation server: ${error.code}`);
+        } catch (error) {
+            logger.error(`localEngineStart - Failed to start local AI moderation server: ${error}`);
             reject(false);
             return;
         }
 
 
-        localModel.on('message', (message: any) => {
+        localModel.on('message', (message) => {
             logger.info(`localEngineStart - ${message}`);
             logger.info(`localEngineStart - Local AI moderation server started successfully.`);
             resolve(true); 
             return;
         });
 
-        localModel.on('error', (err: any) => {
+        localModel.on('error', (err) => {
             logger.error(`localEngineStart - Local AI moderation server failed to start with error: ${err}`);
             localModel = null;
             reject(false); 
@@ -130,8 +130,8 @@ const sendRequest = async (modelName: string, endpoint: string,  filePath: strin
 
 		return "99:Unknown";
 
-    } catch (error: any) {
-        logger.error(`sendRequest - There was an error running the model script: ${error.code}`);
+    } catch (error) {
+        logger.error(`sendRequest - There was an error running the model script: ${error}`);
 		const result = endpoint === "classify" ? "99:Unknown" : "No classes found";
 		return result;
     }
