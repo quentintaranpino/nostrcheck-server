@@ -204,7 +204,7 @@ const isEntityBanned = async (id: string, table: string): Promise<boolean> => {
     const redisKey = `banned:${table}:${id}`;
     const cachedStatus = await redisGet(redisKey);
     if (cachedStatus !== null) {
-        logger.info(`isEntityBanned - Content is banned: ${id} | ${table}`);
+        logger.debug(`isEntityBanned - Content is banned: ${id} | ${table}`);
         return true;
     }
     
