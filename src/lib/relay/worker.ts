@@ -119,9 +119,7 @@ const unpersistEvents = async () => {
 
 // interval to persist and unpersist events
 const workerInterval = async () => {
-  if (getRelayQueueLength() > 0) {
-      logger.warn(`workerInterval - Relay queue not empty: ${getRelayQueueLength()}, skipping`);
-  } else {
+  if (getRelayQueueLength() == 0) {
       await enqueueRelayTask({ fn: async () => {
           await persistEvents();
           await unpersistEvents();
