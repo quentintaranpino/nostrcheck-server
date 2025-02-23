@@ -202,7 +202,7 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 	logger.debug(`uploadMedia - no_transform: ${filedata.no_transform} | `, reqInfo.ip);
 
 	// Default return status
-	res.status(201);
+	res.status(200);
 
 	// Plugins engine execution
 	if (await executePlugins({pubkey: filedata.pubkey, filename: filedata.filename, ip: reqInfo.ip}, app, "media") == false) {

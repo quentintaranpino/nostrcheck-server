@@ -297,7 +297,7 @@ const getMediaDimensions = async (file: string, fileData: { originalmime: string
         try {
             if (fileData.originalmime.startsWith("image")) {
 				const imageInfo = await sharp(file).rotate().metadata();
-				logger.debug(`getMediaDimensions - Image info: ${imageInfo}`);
+				logger.debug(`getMediaDimensions - Image info: ${imageInfo.width}x${imageInfo.height}`);
 				resolve({ width: imageInfo.width!, height: imageInfo.height! });
             } else {
                 ffmpeg.ffprobe(file, (err, metadata) => {
