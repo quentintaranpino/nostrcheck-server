@@ -623,7 +623,7 @@ const getMediaUrl = (type: "NIP96" | "BLOSSOM"): string => {
 	const hostInfo = getHostInfo();
 	if (environment === "development")return `${hostInfo.url}/api/v2/media`;
 	if (returnURL)	return returnURL;
-	return `https://${useCDNPrefix ? "cdn." : ""}${hostInfo.hostname}${type == "NIP96" ? "/media" : ""}`;
+	return `https://${useCDNPrefix ? `cdn.${hostInfo.hostname}` : type === "NIP96" ? `${hostInfo.hostname}/media` : hostInfo.hostname}`;
 }
 
 /**
