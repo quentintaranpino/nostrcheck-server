@@ -25,7 +25,7 @@ const NIP96Data = async (req: Request, res: Response): Promise<Response> => {
 
     res.setHeader('Content-Type', 'application/json');
 	logger.info(`NIP96Data - Successfully sent NIP96 data to:`, req.hostname, "|", reqInfo.ip);
-	return res.status(200).send(JSON.stringify(getNIP96file(req.hostname)));
+	return res.status(200).send(JSON.stringify(getNIP96file()));
 
 };
 

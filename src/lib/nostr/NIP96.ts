@@ -1,19 +1,19 @@
-import {fileData } from "../../interfaces/media.js";
+import {FileData } from "../../interfaces/media.js";
 import {NIP94_data, NIP96_event, NIP96file, supported_nips} from "../../interfaces/nostr.js";
 import { PrepareNIP94_event } from "./NIP94.js";
-import { getAllowedMimeTypes, getMimeFromExtension } from "../media.js";
+import { getAllowedMimeTypes, getfileHostUrl, getMimeFromExtension } from "../media.js";
 import app from "../../app.js";
+import { getHostname } from "../utils.js";
 
 //https://github.com/nostr-protocol/nips/blob/master/96.md
 
-const getNIP96file = (hostname : string): NIP96file => {
+const getNIP96file = (): NIP96file => {
 
     const nip96file : NIP96file= {
     
-        "api_url": "https://" + hostname + "/api/v2/media",
-        "download_url": "https://" + hostname + "/media",
+        "api_url": getfileHostUrl(),
         "supported_nips": supported_nips,
-        "tos_url": "https://" + hostname + "/api/v2/tos/",
+        "tos_url": `${getHostname()}/api/v2/tos/`,
         "content_types": getAllowedMimeTypes(),
         "plans": {
             "free": {
@@ -34,7 +34,7 @@ const getNIP96file = (hostname : string): NIP96file => {
 
 }
 
-const PrepareNIP96_event = async (filedata : fileData): Promise<NIP96_event> => {
+const PrepareNIP96_event = async (filedata : FileData): Promise<NIP96_event> => {
 
     const event: NIP96_event = {
         status: filedata.status,
@@ -47,7 +47,7 @@ const PrepareNIP96_event = async (filedata : fileData): Promise<NIP96_event> => 
     return event;
 }
 
-const PrepareNIP96_listEvent = async (filedata : fileData): Promise<NIP94_data> => {
+const PrepareNIP96_listEvent = async (filedata : FileData): Promise<NIP94_data> => {
 
     const event : NIP94_data = {
             tags: [

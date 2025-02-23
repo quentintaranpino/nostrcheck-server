@@ -3,15 +3,15 @@ import app from "../app.js";
 import { dbDelete, dbInsert, dbMultiSelect, dbSelect, dbUpdate } from "../lib/database.js";
 import { logger } from "../lib/logger.js";
 import { isPubkeyRegistered, parseAuthHeader } from "../lib//authorization.js";
-import { getUploadType, getFileMimeType, standardMediaConversion, getNotFoundFileBanner, readRangeHeader, prepareLegacMediaEvent, getMediaDimensions, getExtension, getMimeFromExtension, getConvertedExtension, getAllowedMimeTypes } from "../lib/media.js"
+import { getUploadType, getFileMimeType, standardMediaConversion, getNotFoundFileBanner, readRangeHeader, prepareLegacMediaEvent, getMediaDimensions, getExtension, getMimeFromExtension, getConvertedExtension, getAllowedMimeTypes, getFileUrl, getFileProcessingUrl } from "../lib/media.js"
 import { requestQueue } from "../lib/media.js";
 import {
 	MediaJob,
-	legacyMediaReturnMessage,
+	LegacyMediaReturnMessage,
 	UploadStatus,
 	MediaStatus,
-	videoHeaderRange,
-	fileData,
+	VideoHeaderRange,
+	FileData,
 	} from "../interfaces/media.js";
 import { ResultMessage, ResultMessagev2 } from "../interfaces/server.js";
 import path from "path";
@@ -29,7 +29,7 @@ import { Readable } from "stream";
 import { getRemoteFile } from "../lib/storage/remote.js";
 import { transaction } from "../interfaces/payments.js";
 import { checkTransaction, collectInvoice, getInvoice, updateAccountId } from "../lib/payments/core.js";
-import { blobDescriptor, BUDKinds } from "../interfaces/blossom.js";
+import { BlobDescriptor, BUDKinds } from "../interfaces/blossom.js";
 import { prepareBlobDescriptor } from "../lib/blossom/BUD02.js";
 import { loadCdnPage } from "./frontend.js";
 import { getBannedFileBanner, isEntityBanned } from "../lib/security/banned.js";
@@ -133,7 +133,7 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 	}
 
 	// Filedata
-	const filedata: fileData = {
+	const filedata: FileData = {
 		filename: "",
 		fileid: "",
 		filesize: file.size,
@@ -151,7 +151,6 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 		blurhash: "",
 		status: "",
 		description: "",
-		servername: "https://" + req.hostname,
 		processing_url:"",
 		conversionInputPath: "",
 		conversionOutputPath: "",
@@ -196,7 +195,7 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 	// Uploaded file SHA256 hash and filename
 	filedata.originalhash = await generatefileHashfrombuffer(file, filedata.media_type);
 	filedata.hash = filedata.originalhash; // At this point, hash is the same as original hash
-	filedata.no_transform == true? filedata.filename = `${filedata.originalhash}.${getExtension(filedata.originalmime)}` : filedata.filename = `${filedata.originalhash}.${getConvertedExtension(filedata.originalmime)}`;
+	filedata.filename = `${filedata.originalhash}.${filedata.no_transform ? getExtension(filedata.originalmime) : getConvertedExtension(filedata.originalmime)}`;
 
 	logger.debug(`uploadMedia - hash: ${filedata.originalhash} | `, reqInfo.ip);
 	logger.debug(`uploadMedia - filename: ${filedata.filename} | `, reqInfo.ip);
@@ -211,18 +210,7 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 		return res.status(401).send({"status": "error", "message": "Not authorized"});
 	}
 
-	// URL (NIP96 and old API compatibility)
-	const returnURL = app.get("config.media")["returnURL"];
-	filedata.url = returnURL 	
-    ? `${returnURL}/${pubkey}/${filedata.filename}`
-    : `${filedata.servername}/media/${pubkey}/${filedata.filename}`;
-
-	// Blossom compatibility
-	if (eventHeader.kind == BUDKinds.BUD01_auth || req.method == "PUT") {
-		filedata.url = returnURL 	
-		? `${returnURL}/${filedata.originalhash? `${filedata.originalhash}.${getExtension(filedata.originalmime)}`  : filedata.filename}`
-		: `${filedata.servername}/${filedata.originalhash? `${filedata.originalhash}.${getExtension(filedata.originalmime)}` : filedata.filename}`;
-	}
+	filedata.url = (eventHeader.kind == BUDKinds.BUD01_auth || req.method == "PUT") ? getFileUrl(filedata.filename) : getFileUrl(filedata.filename, pubkey);
 
 	// Standard media conversions
 	standardMediaConversion(filedata, file);
@@ -256,7 +244,7 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 		}
 
 		if (dbFile) {
-			logger.debug(`uploadMedia - File already in database, returning existing URL:`, filedata.servername + "/media/" + pubkey + "/" + filedata.filename, "|", reqInfo.ip);
+			logger.debug(`uploadMedia - File already in database, returning existing URL`);
 			if (version == "v1"){filedata.status = JSON.parse(JSON.stringify(UploadStatus[2]));}
 			if (version == "v2"){filedata.status = JSON.parse(JSON.stringify(MediaStatus[0]));}
 			filedata.fileid = dbFile.id;
@@ -428,12 +416,7 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 
 	if (processFile){
 
-		// Temporary disable returnURL for processing_url
-		// const procesingURL = app.get("config.media")["returnURL"]
-		// filedata.processing_url = filedata.no_transform == true? "" : procesingURL
-		// ? `${procesingURL}/${filedata.fileid}`
-		// : `${filedata.servername}/api/v2/media/${filedata.fileid}`;
-		filedata.processing_url = filedata.no_transform == true? "" : `${filedata.servername}/api/v2/media/${filedata.fileid}`;
+		filedata.processing_url = filedata.no_transform == true? "" : getFileProcessingUrl(filedata.fileid);
 
 		res.status(202)
 
@@ -453,17 +436,17 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 		});
 	}
 
-	logger.info(`uploadMedia - File uploaded successfully:`, filedata.servername + "/media/" + pubkey + "/" + filedata.filename, "|", reqInfo.ip);
+	logger.info(`uploadMedia - File uploaded successfully: ${filedata.filename}`, "|", reqInfo.ip);
 
 	//v0 and v1 compatibility
 	if (version != "v2"){
-		const returnmessage : legacyMediaReturnMessage = await prepareLegacMediaEvent(filedata);
+		const returnmessage : LegacyMediaReturnMessage = await prepareLegacMediaEvent(filedata);
 		return res.send(returnmessage);
 	}
 
 	// Blossom compatibility
 	if (eventHeader.kind == BUDKinds.BUD01_auth) {
-		const returnmessage: blobDescriptor = await prepareBlobDescriptor(filedata);
+		const returnmessage: BlobDescriptor = await prepareBlobDescriptor(filedata);
 		return res.send(returnmessage);
 	}
 
@@ -659,7 +642,7 @@ const getMediaList = async (req: Request, res: Response): Promise<Response> => {
 	const selectStatement = eventHeader.pubkey || pubkey ? "SELECT COUNT(*) AS count FROM mediafiles WHERE pubkey = ? and active = '1'" : "SELECT COUNT(*) AS count FROM mediafiles WHERE active = '1' and visibility = '1'";									
 	const total = await dbSelect(selectStatement, "count", [eventHeader.pubkey || pubkey]);
 	
-	const files : (blobDescriptor | NIP94_data)[] = [];
+	const files : (BlobDescriptor | NIP94_data)[] = [];
 	for (const e of result) {
 
 		if (e.original_hash == null || e.hash == null) {
@@ -667,7 +650,7 @@ const getMediaList = async (req: Request, res: Response): Promise<Response> => {
 			continue;
 		}
 
-		const listedFile: fileData = {
+		const listedFile: FileData = {
 			filename: e.filename,
 			originalhash: e.original_hash,
 			hash: e.hash,
@@ -681,7 +664,6 @@ const getMediaList = async (req: Request, res: Response): Promise<Response> => {
 			magnet: "",
 			torrent_infohash: "",
 			blurhash: e.blurhash,
-			servername: "https://" + req.hostname,
 			no_transform: e.hash == e.original_hash ? true : false,
 			media_type: "",
 			originalmime: e.mimetype != '' ? e.mimetype : getMimeFromExtension(e.filename.split('.').pop() || '') || '',
@@ -703,22 +685,7 @@ const getMediaList = async (req: Request, res: Response): Promise<Response> => {
 			if (transaction.isPaid == false) listedFile.payment_request = transaction.paymentRequest;
 		}
 
-		// returnURL
-		const returnURL = app.get("config.media")["returnURL"];
-	
-		// NIP96 compatibility
-		if (pubkey == "") {
-			listedFile.url = returnURL 	
-			? `${returnURL}/${e.pubkey}/${listedFile.filename}`
-			: `${listedFile.servername}/media/${e.pubkey}/${listedFile.filename}`;
-		}
-	
-		// Blossom compatibility
-		if (pubkey != "") {
-			listedFile.url = returnURL 	
-			? `${returnURL}/${listedFile.originalhash? listedFile.originalhash : listedFile.filename}`
-			: `${listedFile.servername}/${listedFile.originalhash? listedFile.originalhash : listedFile.filename}`;
-		}
+		listedFile.url = pubkey != "" ? getFileUrl(listedFile.filename) : getFileUrl(listedFile.filename, listedFile.pubkey);
 	
 		const file = req.params.param1 == "list" ? await prepareBlobDescriptor(listedFile) : await PrepareNIP96_listEvent(listedFile);
 		files.push(file);
@@ -770,7 +737,6 @@ const getMediaStatusbyID = async (req: Request, res: Response, version:string): 
 		return res.status(401).send(result);
 	}
 
-	const servername = "https://" + req.hostname;
 	const id = req.params.id || req.query.id || "";
 
 	if (!id) {
@@ -814,7 +780,7 @@ const getMediaStatusbyID = async (req: Request, res: Response, version:string): 
 	dimensions == null? dimensions = 0x0 : dimensions;
 
 	//Generate filedata
-	const filedata : fileData = {
+	const filedata : FileData = {
 		filename: filename,
 		width: dimensions?.toString().split("x")[0],
 		height: dimensions?.toString().split("x")[1],
@@ -823,7 +789,7 @@ const getMediaStatusbyID = async (req: Request, res: Response, version:string): 
 		pubkey: pubkey,
 		originalhash: original_hash,
 		hash: hash,
-		url: servername + "/media/" + pubkey + "/" + filename,
+		url: getFileUrl(filename, pubkey),
 		magnet: magnet,
 		torrent_infohash: "",
 		blurhash: blurhash,
@@ -832,7 +798,6 @@ const getMediaStatusbyID = async (req: Request, res: Response, version:string): 
 		outputoptions: "",
 		status: status,
 		description: "The requested file was found",
-		servername: servername,
 		processing_url: "", 
 		conversionInputPath: "",
 		conversionOutputPath: "",
@@ -843,12 +808,6 @@ const getMediaStatusbyID = async (req: Request, res: Response, version:string): 
 		payment_request: "",
 		visibility: visibility,
 	};
-
-	// URL
-	const returnURL = app.get("config.media")["returnURL"];
-	filedata.url = returnURL 	
-	? `${returnURL}/${pubkey}/${filedata.filename}`
-	: `${filedata.servername}/media/${pubkey}/${filedata.filename}`;
 
 	let response = 201;
 	if (filedata.status == "failed") {
@@ -1041,7 +1000,7 @@ const getMediabyURL = async (req: Request, res: Response) => {
 
 			
 			if (filedata[0].mimetype.toString().startsWith("video")) {
-				let range : videoHeaderRange;
+				let range : VideoHeaderRange;
 				let videoSize : number;
 				try {
 					videoSize = qrCode.length;
@@ -1120,7 +1079,7 @@ const getMediabyURL = async (req: Request, res: Response) => {
 
 		// If is a video or audio file we return an stream
 		if (mediaType.startsWith("video") || mediaType.startsWith("audio")) {
-			let range: videoHeaderRange;
+			let range: VideoHeaderRange;
 			let videoSize: number;
 		
 			try {

@@ -1,12 +1,12 @@
 
-import { fileData } from "../../interfaces/media.js";
+import { FileData } from "../../interfaces/media.js";
 import { NIPKinds } from "../../interfaces/nostr.js";
 import { NIP94_event } from "../../interfaces/nostr.js";
 import { getMimeFromExtension } from "../media.js";
 
 //https://github.com/nostr-protocol/nips/blob/master/94.md
 
-const PrepareNIP94_event = async (filedata : fileData): Promise<NIP94_event> => {
+const PrepareNIP94_event = async (filedata : FileData): Promise<NIP94_event> => {
 
         const event : NIP94_event = {
                 id : "",

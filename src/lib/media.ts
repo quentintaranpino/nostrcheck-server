@@ -2,7 +2,7 @@ import fastq, { queueAsPromised } from "fastq";
 import ffmpeg from "fluent-ffmpeg";
 import fs from "fs";
 
-import { MediaJob, legacyMediaReturnMessage, mediaTypes, fileData, UploadTypes, videoHeaderRange } from "../interfaces/media.js";
+import { MediaJob, LegacyMediaReturnMessage, mediaTypes, FileData, UploadTypes, VideoHeaderRange } from "../interfaces/media.js";
 import { logger } from "./logger.js";
 import { connect, dbUpdate } from "./database.js";
 import {fileTypeFromBuffer} from 'file-type';
@@ -16,6 +16,7 @@ import { saveFile } from "./storage/core.js";
 import { deleteLocalFile } from "./storage/local.js";
 import { moderateFile } from "./moderation/core.js";
 import app from "../app.js";
+import { getHostname } from "./utils.js";
 
 const prepareFile = async (t: MediaJob): Promise<void> =>{
 
@@ -37,7 +38,7 @@ const prepareFile = async (t: MediaJob): Promise<void> =>{
 // Create the fastq queue for media tasks
 const requestQueue: queueAsPromised<MediaJob> = fastq.promise(prepareFile, 1);
 
-const processFile = async(	inputFile: Express.Multer.File,	options: fileData, retry:number = 0): Promise<boolean> =>{
+const processFile = async(	inputFile: Express.Multer.File,	options: FileData, retry:number = 0): Promise<boolean> =>{
 
 	if (retry > 5) {return false}
 	
@@ -142,7 +143,7 @@ const processFile = async(	inputFile: Express.Multer.File,	options: fileData, re
 	
 }
 
-const initVideoConversionEngine = (file: fileData) => {
+const initVideoConversionEngine = (file: FileData) => {
 
     const ffmpegEngine = ffmpeg(file.conversionInputPath)
         .outputOption(["-loop 0"]) //Always loop. If is an image it will not apply.
@@ -167,7 +168,7 @@ const initVideoConversionEngine = (file: fileData) => {
 }
 
 
-async function initImageConversionEngine(file: fileData) {
+async function initImageConversionEngine(file: FileData) {
 	try {
 		await sharp(file.conversionInputPath, {"animated":true} ).resize({
 		width: parseInt(file.newFileDimensions.split("x")[0]), 
@@ -254,7 +255,7 @@ const GetFileTags = async (fileid: string): Promise<string[]> => {
 	return tags;
 }
 
-const standardMediaConversion = (filedata : fileData , file:Express.Multer.File) :void  => {
+const standardMediaConversion = (filedata : FileData , file:Express.Multer.File) :void  => {
 
 		//Video or image conversion options
 		if (file.mimetype.toString().startsWith("video")) {
@@ -330,7 +331,7 @@ const getMediaDimensions = async (file: string, fileData: { originalmime: string
 };
 
 
-const setMediaDimensions = async (file:string, options:fileData):Promise<string> => {
+const setMediaDimensions = async (file:string, options:FileData):Promise<string> => {
 
 	const response:string = await new Promise (async (resolve) => {
 
@@ -395,7 +396,7 @@ const setMediaDimensions = async (file:string, options:fileData):Promise<string>
 
 }
 
-const getFileSize = (path:string, options:fileData) :number => {
+const getFileSize = (path:string, options:FileData) :number => {
 
 	let newfilesize : number = 0;
 	try{
@@ -423,7 +424,7 @@ const getNotFoundFileBanner = (): Promise<Buffer> => {
     });
 }
 
-const readRangeHeader = (range : string | undefined, totalLength : number ): videoHeaderRange => {
+const readRangeHeader = (range : string | undefined, totalLength : number ): VideoHeaderRange => {
 
 	if (range == null || range.length == 0 || range == undefined)
 		return { Start: 0, End: totalLength - 1};
@@ -449,7 +450,7 @@ const readRangeHeader = (range : string | undefined, totalLength : number ): vid
 	return result;
 }
 
-const finalizeFileProcessing = async (filedata: fileData): Promise<boolean> => {
+const finalizeFileProcessing = async (filedata: FileData): Promise<boolean> => {
 	try{
 		await dbUpdate('mediafiles',{'percentage':'100'},['id'], [filedata.fileid]);
 		await dbUpdate('mediafiles',{'visibility':'1'},['id'], [filedata.fileid]);
@@ -476,9 +477,9 @@ const finalizeFileProcessing = async (filedata: fileData): Promise<boolean> => {
 	}
 }
 
-const prepareLegacMediaEvent = async (filedata : fileData): Promise<legacyMediaReturnMessage> => {
+const prepareLegacMediaEvent = async (filedata : FileData): Promise<LegacyMediaReturnMessage> => {
 
-    const event : legacyMediaReturnMessage = {
+    const event : LegacyMediaReturnMessage = {
 
         result: filedata.status == "success" || filedata.status == "completed" || filedata.status == "pending" ? true : false,
 		description: filedata.description,
@@ -610,23 +611,38 @@ const extractVideoFrames = async (videoPath: string, outputDir: string): Promise
 
 
 /**
- * Get the URL of a file
- * @param filename The filename
- * @returns The URL of the file using the configured hostname and port
- * @example
- * getFileUrl("original_hash.jpg") DEVELOPEMENT ENVIROMENT = "http://localhost:3000/media/hash.jpg" 
- * getFileUrl("original_hash.jpg") RETURN URL =  "https://customUrl.com/customfolder/hash.jpg"
- * getFileUrl("original_hash.jpg") STANDARD =  "https://cdn.configuredHostname.com/hash.jpg"
- */
-const getFileUrl = (filename: string): string => {
+ * Get the server ULR for file hosting
+ * @returns The server URL for file hosting
+ **/
+const getfileHostUrl = (): string => {
+
 	const environment = app.get("config.environment");
-	const port = app.get("config.server")["port"];
-	const hostname = app.get("config.server")["host"];
 	const returnURL = app.get("config.media")["returnURL"];
+	const hostname = getHostname();
   
-	if (environment === "development")return `http://localhost:${port}/api/v2/media/${filename}`;
-	if (returnURL)	return `${returnURL}/${filename}`;
-	return `https://cdn.${hostname}/${filename}`;
+	if (environment === "development") return `http://${hostname}/api/v2/media`;
+	if (returnURL)	return `${returnURL}`;
+	return `https://cdn.${hostname}`;
+};
+
+
+/**
+ * Get the URL of a file
+ * @param filename The file name
+ * @param pubkey The public key
+ * @returns The URL of the file
+ **/
+const getFileUrl = (filename: string, pubkey : string = ""): string => {
+	return `${getfileHostUrl()}/${pubkey !== "" ? pubkey + "/" : ""}${filename}`;
+};
+
+/**
+ * Get the processing URL of a file
+ * @param fileId The file ID
+ * @returns The processing URL of the file
+ **/
+const getFileProcessingUrl = (fileId : string): string => {
+	return `${getfileHostUrl()}/${fileId}`;
 };
 
 export {processFile, 
@@ -645,4 +661,6 @@ export {processFile,
 		getAllowedMimeTypes,
 		getConvertedExtension, 
 		extractVideoFrames, 
-		getFileUrl};
+		getFileUrl, 
+		getFileProcessingUrl,
+		getfileHostUrl};

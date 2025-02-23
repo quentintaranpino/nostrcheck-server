@@ -9,7 +9,6 @@ enum NIPKinds {
 
 interface NIP96file {
     api_url: string,
-    download_url: string,
     supported_nips: number[],
     tos_url: string,
     content_types: string[],
@@ -54,14 +53,13 @@ interface NIP94_data {
     created_at: number,
 
 }
+
 interface NIP94_event extends NIP94_base, NIP94_data {}
 
 interface NIP96_event extends ResultMessagev2{
-
-    processing_url: string,
-    payment_request: string,
+  processing_url: string,
+  payment_request: string,
 	nip94_event : NIP94_event
-
 }
 
 

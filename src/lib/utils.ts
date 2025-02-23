@@ -179,4 +179,14 @@ function getCPUUsage(): Promise<number> {
 	});
 }
 
-export { format, currDir, markdownToHtml, generateQRCode, getNewDate, isBase64, getCPUUsage};
+const getHostname = (): string => {
+
+	const environment = app.get("config.environment");
+	const port = app.get("config.server")["port"];
+	const hostname = app.get("config.server")["host"];
+  
+	if (environment === "development")return `localhost:${port}`;
+	return `${hostname}`;
+};
+
+export { format, currDir, markdownToHtml, generateQRCode, getNewDate, isBase64, getCPUUsage, getHostname};

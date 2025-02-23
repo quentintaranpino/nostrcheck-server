@@ -4,7 +4,7 @@ import config from 'config';
 import fs from "fs";
 import { connect, dbUpdate } from "./database.js";
 import { PoolConnection, RowDataPacket } from "mysql2";
-import { fileData } from "../interfaces/media.js";
+import { FileData } from "../interfaces/media.js";
 
 const client =  new WebTorrent({
   // @ts-expect-error missing from typedef
@@ -67,7 +67,7 @@ const SeedMediafilesMagnets = async () => {
   );
 }
 
-const CreateMagnet = async (filepath:string, filedata: fileData) : Promise<fileData> => {
+const CreateMagnet = async (filepath:string, filedata: FileData) : Promise<FileData> => {
 
   try {
     fs.accessSync(filepath, fs.constants.R_OK); //check if file exists and is readable

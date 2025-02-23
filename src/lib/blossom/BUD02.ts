@@ -1,12 +1,12 @@
-import { blobDescriptor } from "../../interfaces/blossom.js";
-import { fileData } from "../../interfaces/media.js";
+import { BlobDescriptor } from "../../interfaces/blossom.js";
+import { FileData } from "../../interfaces/media.js";
 import { getMimeFromExtension } from "../media.js";
 
 // https://github.com/hzrd149/blossom/blob/master/buds/02.md
 
-const prepareBlobDescriptor = async (filedata : fileData): Promise<blobDescriptor> => {
+const prepareBlobDescriptor = async (filedata : FileData): Promise<BlobDescriptor> => {
 
-    const event : blobDescriptor = {
+    const event : BlobDescriptor = {
 
         status: filedata.status,
         message: filedata.description,

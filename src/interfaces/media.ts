@@ -1,7 +1,7 @@
 import { ResultMessage, ResultMessagev2 } from "./server.js";
 import { Request } from "express";
 
-interface legacyMediaReturnMessage extends ResultMessage {
+interface LegacyMediaReturnMessage extends ResultMessage {
 	status: string;
 	id: string;
 	pubkey: string;
@@ -11,7 +11,7 @@ interface legacyMediaReturnMessage extends ResultMessage {
 	tags: Array<string>;
 }
 
-interface mediaInfoReturnMessage extends ResultMessagev2 {
+interface MediaInfoReturnMessage extends ResultMessagev2 {
 	satoshi: number;
 }
 
@@ -67,7 +67,7 @@ const mediaTypes: MediaTypeInfo[] = [
 	{ originalMime: "model/stl", extension: "stl", convertedMime: "model/stl" },
 ];
 
-interface fileData{
+interface FileData{
 	filename: string;
 	width: number;
 	height: number;
@@ -81,7 +81,6 @@ interface fileData{
 	magnet: string;
 	torrent_infohash: string;
 	date: number;
-	servername: string;
 	no_transform: boolean;
 	media_type: typeof UploadTypes[number];
 	originalmime: string;
@@ -95,28 +94,27 @@ interface fileData{
 	transaction_id: string;
 	payment_request: string;
 	visibility: number;
-
 }
 
 interface MediaJob {
 	req: Request;
-	filedata: fileData;
+	filedata: FileData;
 }
 
-interface videoHeaderRange {
+interface VideoHeaderRange {
 	Start: number;
 	End: number;
 }
 
 export {
 	MediaJob,
-	fileData,
-	legacyMediaReturnMessage,
-	mediaInfoReturnMessage,
+	FileData,
+	LegacyMediaReturnMessage,
+	MediaInfoReturnMessage,
 	mediaTypes,
 	ResultMessage,
 	UploadTypes,
 	UploadStatus,
 	MediaStatus,
-	videoHeaderRange
+	VideoHeaderRange
 };
