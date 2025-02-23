@@ -16,7 +16,7 @@ import { saveFile } from "./storage/core.js";
 import { deleteLocalFile } from "./storage/local.js";
 import { moderateFile } from "./moderation/core.js";
 import app from "../app.js";
-import { getHostname } from "./utils.js";
+import { getHostInfo } from "./utils.js";
 
 const prepareFile = async (t: MediaJob): Promise<void> =>{
 
@@ -609,24 +609,6 @@ const extractVideoFrames = async (videoPath: string, outputDir: string): Promise
     });
 };
 
-
-/**
- * Get the server ULR for file hosting
- * @returns The server URL for file hosting
- **/
-const getfileHostUrl = (): string => {
-
-	const environment = app.get("config.environment");
-	const returnURL = app.get("config.media")["returnURL"];
-	const hostname = getHostname();
-	const useCDNPrefix = app.get("config.media")["useCDNPrefix"];
-  
-	if (environment === "development") return `http://${hostname}/api/v2/media`;
-	if (returnURL)	return `${returnURL}`;
-	return `https://${useCDNPrefix ? "cdn." : ""}${hostname}`;
-};
-
-
 /**
  * Get the URL of a file
  * @param filename The file name
@@ -634,7 +616,7 @@ const getfileHostUrl = (): string => {
  * @returns The URL of the file
  **/
 const getFileUrl = (filename: string, pubkey : string = ""): string => {
-	return `${getfileHostUrl()}/${pubkey !== "" ? pubkey + "/" : ""}${filename}`;
+	return `${getHostInfo().mediaURL}/${pubkey !== "" ? pubkey + "/" : ""}${filename}`;
 };
 
 /**
@@ -643,7 +625,7 @@ const getFileUrl = (filename: string, pubkey : string = ""): string => {
  * @returns The processing URL of the file
  **/
 const getFileProcessingUrl = (fileId : string): string => {
-	return `${getfileHostUrl()}/api/v2/media/${fileId}`;
+	return `${getHostInfo().mediaURL}/${fileId}`;
 };
 
 export {processFile, 
@@ -663,5 +645,4 @@ export {processFile,
 		getConvertedExtension, 
 		extractVideoFrames, 
 		getFileUrl, 
-		getFileProcessingUrl,
-		getfileHostUrl};
+		getFileProcessingUrl};

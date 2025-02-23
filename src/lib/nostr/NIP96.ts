@@ -1,9 +1,9 @@
 import {FileData } from "../../interfaces/media.js";
 import {NIP94_data, NIP96_event, NIP96file, supported_nips} from "../../interfaces/nostr.js";
 import { PrepareNIP94_event } from "./NIP94.js";
-import { getAllowedMimeTypes, getfileHostUrl, getMimeFromExtension } from "../media.js";
+import { getAllowedMimeTypes, getMimeFromExtension } from "../media.js";
 import app from "../../app.js";
-import { getHostname } from "../utils.js";
+import { getHostInfo } from "../utils.js";
 
 //https://github.com/nostr-protocol/nips/blob/master/96.md
 
@@ -11,9 +11,9 @@ const getNIP96file = (): NIP96file => {
 
     const nip96file : NIP96file= {
     
-        "api_url": `${getfileHostUrl()}/api/v2/media/`,
+        "api_url": `${getHostInfo().mediaURL}`,
         "supported_nips": supported_nips,
-        "tos_url": `${getHostname()}/api/v2/tos/`,
+        "tos_url": `${getHostInfo().url}/api/v2/tos/`,
         "content_types": getAllowedMimeTypes(),
         "plans": {
             "free": {

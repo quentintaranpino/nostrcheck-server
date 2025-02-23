@@ -179,14 +179,19 @@ function getCPUUsage(): Promise<number> {
 	});
 }
 
-const getHostname = (): string => {
-
+/**
+ * Get host information
+ * @returns { hostname: string, port: string, url: string, mediaURL: string }
+ */
+const getHostInfo = (): { hostname: string, port: string, url: string, mediaURL: string } => {
 	const environment = app.get("config.environment");
 	const port = app.get("config.server")["port"];
 	const hostname = app.get("config.server")["host"];
-  
-	if (environment === "development")return `localhost:${port}`;
-	return `${hostname}`;
+	const useCDNPrefix = app.get("config.media")["useCDNPrefix"];
+	const returnURL = app.get("config.media")["returnURL"];
+	const url = environment === "development" ? `http://localhost:${port}` : `https://${hostname}`;
+	const mediaURL = environment === "development"  ? `http://localhost:${port}/api/v2/media` : returnURL ? returnURL : `https://${useCDNPrefix ? "cdn." : ""}${hostname}/api/v2/media`;
+	return {hostname, port, url, mediaURL};
 };
 
-export { format, currDir, markdownToHtml, generateQRCode, getNewDate, isBase64, getCPUUsage, getHostname};
+export { format, currDir, markdownToHtml, generateQRCode, getNewDate, isBase64, getCPUUsage, getHostInfo};
