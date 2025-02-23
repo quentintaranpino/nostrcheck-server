@@ -58,7 +58,7 @@ const isNIP98Valid = async (authevent: Event, req: Request, checkAdminPrivileges
 
 	// Event endpoint
 	const uTag = authevent.tags.find(tag => tag[0] === "u");
-	let eventEndpoint = uTag ? uTag[1].replace(/\/+$/, '') : null;
+	let eventEndpoint = uTag ? uTag[1].replace(/\/api\/v\d+/i, '').replace(/\/+$/, '') : null;
 
 	// Check if event authorization u tag (URL) is valid (Must be the same as the server endpoint)
 	try {
