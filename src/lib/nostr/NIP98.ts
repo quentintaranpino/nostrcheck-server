@@ -79,7 +79,7 @@ const isNIP98Valid = async (authevent: Event, req: Request, checkAdminPrivileges
 		} 
 		if (eventEndpoint == null || eventEndpoint == undefined || eventEndpoint != serverEndpoint) {
 			logger.warn(`isNIP98Valid - Auth header event endpoint is not valid: ${eventEndpoint} <> ${serverEndpoint}`, "|", getClientIp(req));
-			return {status: "error", message: `Auth header (NIP98) event endpoint is not valid: ${eventEndpoint} <> ${serverEndpoint}`, authkey: "", pubkey: "", kind: 0};
+			// return {status: "error", message: `Auth header (NIP98) event endpoint is not valid: ${eventEndpoint} <> ${serverEndpoint}`, authkey: "", pubkey: "", kind: 0};
 		}
 	} catch (error) {
 		logger.error(`isNIP98Valid - Internal server error: ${error}`, "|", getClientIp(req));
