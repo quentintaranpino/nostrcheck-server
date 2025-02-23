@@ -66,6 +66,14 @@ export const loadMediaEndpoint = async (app: Application, version:string): Promi
 
 		uploadMedia(req, res, "v2");
 	}
+
+	// PUT (mirror)
+	app.put(
+		"/api/" + version + app.get("config.server")["availableModules"]["media"]["path"] + "/mirror",
+		express.json({ limit: Math.round(maxMBfilesize * 1024 * 1024) }),
+		limiter(app.get('config.security')['media']['maxUploadsMinute']),
+		async (req, res) => { uploadMedia(req,res, version) }
+	  );
 	
 	// POST & PUT (upload)
 	app.post("/api/" + version + app.get("config.server")["availableModules"]["media"]["path"], limiter(app.get('config.security')['media']['maxUploadsMinute']), function (req, res){uploadMiddlewarePost(req,res)}); // v0, v1, v2 and NIP96

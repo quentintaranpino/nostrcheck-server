@@ -96,24 +96,26 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 
 	// Mirror file (Blossom BUD04)
 	if (req.params.param1 == "mirror") {
-		let body;
-		console.log(req.body)
-		try {
-		  // Convierte el buffer a cadena y luego parsea a JSON
-		  body = JSON.parse(req.body);
-		} catch (error) {
-		  logger.debug(`uploadMedia - 400 Bad request - Invalid JSON, error: ${error}`, "|", reqInfo.ip);
-		  return res.status(400).send({ status: "error", message: "Invalid JSON" });
+		if (req.body.url == undefined || req.body.url == "") {
+			logger.debug(`uploadMedia - 400 Bad request - Empty URL`, "|", reqInfo.ip);
+			if(version != "v2"){return res.status(400).send({"result": false, "description" : "Empty URL"});}
+
+			const result: ResultMessagev2 = {
+				status: MediaStatus[1],
+				message: "Error mirroring file, empty URL"
+			};
+			return res.status(400).send(result);
 		}
-	  
-		if (!body.url) {
-		  logger.debug(`uploadMedia - 400 Bad request - Empty URL`, "|", reqInfo.ip);
-		  return res.status(400).send({ status: "error", message: "Error mirroring file, empty URL" });
-		}
-		file = await mirrorFile(body.url);
+		file = await mirrorFile(req.body.url)
 		if (!file) {
-		  logger.debug(`uploadMedia - 400 Bad request - Empty file`, "|", reqInfo.ip);
-		  return res.status(400).send({ status: "error", message: "Error mirroring file, empty file" });
+			logger.debug(`uploadMedia - 400 Bad request - Empty file`, "|", reqInfo.ip);
+			if(version != "v2"){return res.status(400).send({"result": false, "description" : "Empty file"});}
+
+			const result: ResultMessagev2 = {
+				status: MediaStatus[1],
+				message: "Error mirroring file, empty file"
+			};
+			return res.status(400).send(result);
 		}
 		req.files = [file];
 	}
