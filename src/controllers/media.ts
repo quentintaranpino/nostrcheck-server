@@ -462,6 +462,7 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 	// Blossom compatibility
 	if (eventHeader.kind == BUDKinds.BUD01_auth) {
 		const returnmessage: BlobDescriptor = await prepareBlobDescriptor(filedata);
+		res.status(200);
 		return res.send(returnmessage);
 	}
 
