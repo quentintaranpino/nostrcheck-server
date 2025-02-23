@@ -30,7 +30,7 @@ app.use('/static/js/modules/nostr-tools/', express.static('./node_modules/nostr-
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(cors({
     origin: "*",
-    methods: "GET,PUT,DELETE,OPTIONS",
+    methods: "GET,PUT,POST,DELETE,OPTIONS",
     allowedHeaders: "Authorization,Content-Type,X-Cashu,X-Lightning, *",
     exposedHeaders: "Authorization,Content-Type,X-Cashu,X-Lightning, WWW-Authenticate, X-Reason",
     maxAge: 86400,
