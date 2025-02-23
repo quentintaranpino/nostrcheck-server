@@ -31,7 +31,7 @@ app.use(helmet({ contentSecurityPolicy: false }));
 app.use(cors({
     origin: "*",
     methods: "GET,PUT,DELETE,OPTIONS",
-    allowedHeaders: "Authorization,Content-Type,X-Cashu,X-Lightning",
+    allowedHeaders: "Authorization,Content-Type,X-Cashu,X-Lightning, *",
     maxAge: 86400,
   }));
 export default app;
