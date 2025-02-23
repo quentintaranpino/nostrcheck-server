@@ -95,7 +95,7 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 	let file: Express.Multer.File | null = null;
 
 	// Mirror file (Blossom BUD04)
-	if (req.params.param1 == "mirror") {
+	if (req.originalUrl.endsWith('/mirror')) {
 		if (req.body.url == undefined || req.body.url == "") {
 			logger.debug(`uploadMedia - 400 Bad request - Empty URL`, "|", reqInfo.ip);
 			if(version != "v2"){return res.status(400).send({"result": false, "description" : "Empty URL"});}
