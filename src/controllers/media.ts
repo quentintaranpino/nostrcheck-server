@@ -902,8 +902,6 @@ const getMediabyURL = async (req: Request, res: Response) => {
 	logger.debug(`getMediabyURL - Request from:`, reqInfo.ip);
 
 	//Allow CORS
-	res.set("access-control-allow-origin", "*");
-	res.set("access-control-allow-methods", "GET");
 	res.set("Cross-Origin-Resource-Policy", "cross-origin");
 
 	// Global security headers
