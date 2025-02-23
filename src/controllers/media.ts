@@ -633,7 +633,7 @@ const getMediaList = async (req: Request, res: Response): Promise<Response> => {
 	
 	// Blossom where statement
 	if (pubkey != "") {
-		whereStatement = eventHeader.pubkey == pubkey ? "pubkey = ? and active = ? and original_hash is not null" : "active = ? and visibility = ? and checked = ? and original_hash is not null";
+		whereStatement = eventHeader.pubkey == pubkey ? "pubkey = ? and active = ? and original_hash is not null ORDER BY date DESC" : "active = ? and visibility = ? and checked = ? and original_hash is not null ORDER BY date DESC";
 		whereFields = eventHeader.pubkey == pubkey ? [pubkey, "1"] : ["1", "1", "1"];
 
 		if (since != 0) {
