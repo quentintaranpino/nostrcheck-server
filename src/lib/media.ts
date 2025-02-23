@@ -619,10 +619,11 @@ const getfileHostUrl = (): string => {
 	const environment = app.get("config.environment");
 	const returnURL = app.get("config.media")["returnURL"];
 	const hostname = getHostname();
+	const useCDNPrefix = app.get("config.media")["useCDNPrefix"];
   
 	if (environment === "development") return `http://${hostname}/api/v2/media`;
 	if (returnURL)	return `${returnURL}`;
-	return `https://cdn.${hostname}`;
+	return `https://${useCDNPrefix ? "cdn." : ""}${hostname}`;
 };
 
 

@@ -139,6 +139,7 @@ const defaultConfig = {
 		"bannedFilePath" : "resources/content-banned.webp",
 		"allowPublicUploads" : true,
 		"returnURL" : "",
+		"useCDNPrefix" : false,
 		"transform" : {
 			"enabled" : true,
 			"media":{
