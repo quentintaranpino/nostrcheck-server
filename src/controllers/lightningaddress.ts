@@ -92,7 +92,7 @@ const redirectlightningddress = async (req: Request, res: Response): Promise<Res
 			[name, servername]) as string;
 
 		if  (lightningAddress == "" || lightningAddress == undefined) {
-			logger.warn(`redirectlightningddress - Lightning redirect not found for username:`, name, "|", reqInfo.ip);
+			logger.debug(`redirectlightningddress - Lightning redirect not found for username:`, name, "|", reqInfo.ip);
 
 			const result: ResultMessagev2 = {
 				status: "error",
@@ -287,7 +287,7 @@ const deleteLightningAddress = async (req: Request, res: Response): Promise<Resp
 		const rowstemp = JSON.parse(JSON.stringify(rows));
 		conn.release();
 		if (rowstemp[0] == undefined) {
-			logger.warn(`deleteLightningAddress - Lightning redirect not found for pubkey:`, EventHeader.pubkey, "|", reqInfo.ip);
+			logger.debug(`deleteLightningAddress - Lightning redirect not found for pubkey:`, EventHeader.pubkey, "|", reqInfo.ip);
 			const result: ResultMessagev2 = {
 				status: "error",
 				message:  `Lightning redirect for pubkey ${EventHeader.pubkey} not found`,
@@ -316,7 +316,7 @@ const deleteLightningAddress = async (req: Request, res: Response): Promise<Resp
 		const rowstemp = JSON.parse(JSON.stringify(rows));
 		conn.release();
 		if (rowstemp.affectedRows == 0) {
-			logger.info(`deleteLightningAddress - Lightning redirect not found for pubkey:`, EventHeader.pubkey, "|", reqInfo.ip);
+			logger.debug(`deleteLightningAddress - Lightning redirect not found for pubkey:`, EventHeader.pubkey, "|", reqInfo.ip);
 			const result: ResultMessagev2 = {
 				status: "error",
 				message:  `Lightning redirect for pubkey ${EventHeader.pubkey} not found`,
