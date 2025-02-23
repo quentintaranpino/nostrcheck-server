@@ -32,7 +32,7 @@ app.use(cors({
     origin: "*",
     methods: "GET,PUT,POST,DELETE,OPTIONS",
     allowedHeaders: "Authorization,Content-Type,X-Cashu,X-Lightning, *",
-    exposedHeaders: "Authorization,Content-Type,X-Cashu,X-Lightning, WWW-Authenticate, X-Reason",
+    exposedHeaders: "Authorization,Content-Type,X-Cashu,X-Lightning, WWW-Authenticate, X-Reason, *",
     maxAge: 86400,
   }));
 export default app;
