@@ -643,7 +643,7 @@ const getFileUrl = (filename: string, pubkey : string = ""): string => {
  * @returns The processing URL of the file
  **/
 const getFileProcessingUrl = (fileId : string): string => {
-	return `${getfileHostUrl()}/api/v2/${fileId}`;
+	return `${getfileHostUrl()}/api/v2/media/${fileId}`;
 };
 
 export {processFile, 
