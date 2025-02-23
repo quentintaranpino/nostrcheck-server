@@ -609,6 +609,23 @@ const extractVideoFrames = async (videoPath: string, outputDir: string): Promise
     });
 };
 
+
+/**
+ * Get the URL of a media file
+ * @param type The media type (NIP96 or BLOSSOM)
+ * @returns The URL of the media file
+ **/
+const getMediaUrl = (type: "NIP96" | "BLOSSOM"): string => {
+	const environment = app.get("config.environment");
+	const useCDNPrefix = app.get("config.media")["useCDNPrefix"];
+	const returnURL = app.get("config.media")["returnURL"];
+
+	const hostInfo = getHostInfo();
+	if (environment === "development")return `${hostInfo.url}/api/v2/media`;
+	if (returnURL)	return returnURL;
+	return `https://${useCDNPrefix ? "cdn." : ""}${hostInfo.hostname}${type == "NIP96" ? "/media" : ""}`;
+}
+
 /**
  * Get the URL of a file
  * @param filename The file name
@@ -616,17 +633,9 @@ const extractVideoFrames = async (videoPath: string, outputDir: string): Promise
  * @returns The URL of the file
  **/
 const getFileUrl = (filename: string, pubkey : string = ""): string => {
-	return `${getHostInfo().mediaURL}/${pubkey !== "" ? pubkey + "/" : ""}${filename}`;
+	return `${getMediaUrl(pubkey != "" ? "NIP96" : "BLOSSOM")}/${pubkey !== "" ? pubkey + "/" : ""}${filename}`;
 };
 
-/**
- * Get the processing URL of a file
- * @param fileId The file ID
- * @returns The processing URL of the file
- **/
-const getFileProcessingUrl = (fileId : string): string => {
-	return `${getHostInfo().mediaURL}/${fileId}`;
-};
 
 export {processFile, 
 		requestQueue, 
@@ -644,5 +653,5 @@ export {processFile,
 		getAllowedMimeTypes,
 		getConvertedExtension, 
 		extractVideoFrames, 
-		getFileUrl, 
-		getFileProcessingUrl};
+		getFileUrl,
+		getMediaUrl};

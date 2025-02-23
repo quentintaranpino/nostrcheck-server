@@ -183,15 +183,12 @@ function getCPUUsage(): Promise<number> {
  * Get host information
  * @returns { hostname: string, port: string, url: string, mediaURL: string }
  */
-const getHostInfo = (): { hostname: string, port: string, url: string, mediaURL: string } => {
+const getHostInfo = (): { hostname: string, port: string, url: string} => {
 	const environment = app.get("config.environment");
 	const port = app.get("config.server")["port"];
 	const hostname = app.get("config.server")["host"];
-	const useCDNPrefix = app.get("config.media")["useCDNPrefix"];
-	const returnURL = app.get("config.media")["returnURL"];
 	const url = environment === "development" ? `http://localhost:${port}` : `https://${hostname}`;
-	const mediaURL = environment === "development"  ? `http://localhost:${port}/api/v2/media` : returnURL ? returnURL : `https://${useCDNPrefix ? "cdn." : ""}${hostname}/api/v2/media`;
-	return {hostname, port, url, mediaURL};
+	return {hostname, port, url};
 };
 
 export { format, currDir, markdownToHtml, generateQRCode, getNewDate, isBase64, getCPUUsage, getHostInfo};

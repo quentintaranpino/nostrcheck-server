@@ -3,7 +3,7 @@ import app from "../app.js";
 import { dbDelete, dbInsert, dbMultiSelect, dbSelect, dbUpdate } from "../lib/database.js";
 import { logger } from "../lib/logger.js";
 import { isPubkeyRegistered, parseAuthHeader } from "../lib//authorization.js";
-import { getUploadType, getFileMimeType, standardMediaConversion, getNotFoundFileBanner, readRangeHeader, prepareLegacMediaEvent, getMediaDimensions, getExtension, getMimeFromExtension, getConvertedExtension, getAllowedMimeTypes, getFileUrl, getFileProcessingUrl } from "../lib/media.js"
+import { getUploadType, getFileMimeType, standardMediaConversion, getNotFoundFileBanner, readRangeHeader, prepareLegacMediaEvent, getMediaDimensions, getExtension, getMimeFromExtension, getConvertedExtension, getAllowedMimeTypes, getFileUrl, getMediaUrl } from "../lib/media.js"
 import { requestQueue } from "../lib/media.js";
 import {
 	MediaJob,
@@ -430,8 +430,8 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 
 	if (processFile){
 
-		filedata.processing_url = filedata.no_transform == true? "" : getFileProcessingUrl(filedata.fileid);
-
+		
+		filedata.processing_url = filedata.no_transform == true? "" : `${getMediaUrl("NIP96")}/${filedata.fileid}`;
 		res.status(202)
 
 		//Send request to process queue
