@@ -97,9 +97,10 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 	// Mirror file (Blossom BUD04)
 	if (req.params.param1 == "mirror") {
 		let body;
+		console.log(req.body)
 		try {
 		  // Convierte el buffer a cadena y luego parsea a JSON
-		  body = JSON.parse(req.body.toString());
+		  body = JSON.parse(req.body);
 		} catch (error) {
 		  logger.debug(`uploadMedia - 400 Bad request - Invalid JSON, error: ${error}`, "|", reqInfo.ip);
 		  return res.status(400).send({ status: "error", message: "Invalid JSON" });
