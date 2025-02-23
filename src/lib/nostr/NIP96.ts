@@ -11,7 +11,7 @@ const getNIP96file = (): NIP96file => {
 
     const nip96file : NIP96file= {
     
-        "api_url": getfileHostUrl(),
+        "api_url": `${getfileHostUrl()}/api/v2/media/`,
         "supported_nips": supported_nips,
         "tos_url": `${getHostname()}/api/v2/tos/`,
         "content_types": getAllowedMimeTypes(),
