@@ -446,7 +446,7 @@ const dbDelete = async (tableName :string, whereFieldNames :string[], whereField
  * @returns {Promise<number>} A promise that resolves to the ID of the inserted or updated record, or 0 if an error occurred.
  * @async
  */
-async function dbUpsert(tableName: string, data: Record<string, string | number | boolean | null>, uniqueKeys: string[]): Promise<number> {
+const dbUpsert = async (tableName: string, data: Record<string, string | number | boolean | null>, uniqueKeys: string[]): Promise<number> => {
 
 	const columns = Object.keys(data);
 	if (columns.length === 0) {
@@ -456,16 +456,13 @@ async function dbUpsert(tableName: string, data: Record<string, string | number 
 
 	const placeholders = columns.map(() => "?").join(", ");
 
-	const updateAssignments = columns
-	.filter(col => !uniqueKeys.includes(col))
-	.filter(col => col !== "id") 
-	.map(col => `${col} = VALUES(${col})`)
-	.join(", ");
+	const updateAssignmentsBase = columns
+		.filter(col => !uniqueKeys.includes(col))
+		.filter(col => col !== "id")
+		.map(col => `${col} = VALUES(${col})`)
+		.join(", ");
 
-	if (updateAssignments.length === 0) {
-		logger.error("Error in dbUpsert: No columns available to update.");
-		return 0;
-	}
+	const updateAssignments = `id = LAST_INSERT_ID(id)` + (updateAssignmentsBase ? `, ${updateAssignmentsBase}` : "");
 
     const sql = `
         INSERT INTO ${tableName} (${columns.join(", ")})

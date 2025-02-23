@@ -49,12 +49,8 @@ const logNewIp = async      (ip: string):
         const ipDbData = await dbMultiSelect(["id", "active", "checked", "infractions", "comments"], "ips", "ip = ?", [ip], true);
         if (!ipDbData || ipDbData.length === 0) {
             let dbid = await dbUpsert("ips", { active: 1, checked: 0, ip, firstseen: now, lastseen: now, reqcount: reqcount }, ["ip"]);
-            if (dbid === 0) dbid = await dbUpsert("ips", { active: 1, checked: 0, ip, firstseen: now, lastseen: now, reqcount: reqcount }, ["ip"]);
-            if (dbid === 0) dbid = await dbUpsert("ips", { active: 1, checked: 0, ip, firstseen: now, lastseen: now, reqcount: reqcount }, ["ip"]);
-            if (dbid === 0) {
-                logger.error(`logNewIp - Error upserting new IP: ${ip}`);
-            }
-  
+            if (dbid === 0)   logger.error(`logNewIp - Error upserting new IP: ${ip}`);
+              
             return { 
                 dbid: dbid.toString(), 
                 active: "1", 
