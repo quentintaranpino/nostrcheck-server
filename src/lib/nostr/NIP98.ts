@@ -58,19 +58,19 @@ const isNIP98Valid = async (authevent: Event, req: Request, checkAdminPrivileges
 
 	// Event endpoint
 	const uTag = authevent.tags.find(tag => tag[0] === "u");
-	let eventEndpoint = uTag ? uTag[1].replace(/\/api\/v\d+/i, '') : null;
+	let eventEndpoint = uTag ? uTag[1].replace(/\/+$/, '') : null;
 
 	// Check if event authorization u tag (URL) is valid (Must be the same as the server endpoint)
 	try {
-		const ServerEndpoint = getMediaUrl("NIP96");
+		const serverEndpoint = getMediaUrl("NIP96").replace(/\/+$/, '');
 
 		if (app.get('config.environment') == "development") {
 			logger.warn(`isNIP98Valid - DEVMODE: Setting 'u'(url) tag same as the endpoint URL`, "|", getClientIp(req)); // If devmode is true, set created_at to now for testing purposes
-			eventEndpoint = ServerEndpoint;
+			eventEndpoint = serverEndpoint;
 		} 
-		if (eventEndpoint == null || eventEndpoint == undefined || eventEndpoint != ServerEndpoint) {
-			logger.warn(`isNIP98Valid - Auth header event endpoint is not valid: ${eventEndpoint} <> ${ServerEndpoint}`, "|", getClientIp(req));
-			return {status: "error", message: `Auth header (NIP98) event endpoint is not valid: ${eventEndpoint} <> ${ServerEndpoint}`, authkey: "", pubkey: "", kind: 0};
+		if (eventEndpoint == null || eventEndpoint == undefined || eventEndpoint != serverEndpoint) {
+			logger.warn(`isNIP98Valid - Auth header event endpoint is not valid: ${eventEndpoint} <> ${serverEndpoint}`, "|", getClientIp(req));
+			return {status: "error", message: `Auth header (NIP98) event endpoint is not valid: ${eventEndpoint} <> ${serverEndpoint}`, authkey: "", pubkey: "", kind: 0};
 		}
 	} catch (error) {
 		logger.error(`isNIP98Valid - Internal server error: ${error}`, "|", getClientIp(req));
