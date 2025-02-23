@@ -28,6 +28,11 @@ app.set('views','./src/pages/');
 app.use(express.static('./src/pages/'));
 app.use('/static/js/modules/nostr-tools/', express.static('./node_modules/nostr-tools'));
 app.use(helmet({ contentSecurityPolicy: false }));
-app.use(cors());
+app.use(cors({
+    origin: "*",
+    methods: "GET,PUT,DELETE,OPTIONS",
+    allowedHeaders: "Authorization,Content-Type,*",
+    maxAge: 86400,
+  }));
 
 export default app;
