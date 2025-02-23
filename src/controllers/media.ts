@@ -432,7 +432,7 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 
 		
 		filedata.processing_url = filedata.no_transform == true? "" : `${getMediaUrl("NIP96")}/${filedata.fileid}`;
-		res.status(202)
+		res.status(200)
 
 		//Send request to process queue
 		const t: MediaJob = {req,filedata,};
