@@ -7,6 +7,7 @@ import { authHeaderResult } from "../../interfaces/authorization.js";
 import app from "../../app.js";
 import { isPubkeyValid } from "../authorization.js";
 import { getClientIp } from "../security/ips.js";
+import { getMediaUrl } from "../media.js";
 
 /**
  * Parses the authorization Nostr header (NIP98) and checks if it is valid. Visit for more information:
@@ -61,7 +62,7 @@ const isNIP98Valid = async (authevent: Event, req: Request, checkAdminPrivileges
 
 	// Check if event authorization u tag (URL) is valid (Must be the same as the server endpoint)
 	try {
-		const ServerEndpoint = (`${req.protocol}://${req.get('host')}${req.originalUrl}`).replace(/\/api\/v\d+/i, '')
+		const ServerEndpoint = getMediaUrl("NIP96");
 
 		if (app.get('config.environment') == "development") {
 			logger.warn(`isNIP98Valid - DEVMODE: Setting 'u'(url) tag same as the endpoint URL`, "|", getClientIp(req)); // If devmode is true, set created_at to now for testing purposes
