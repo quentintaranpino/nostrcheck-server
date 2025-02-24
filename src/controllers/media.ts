@@ -157,7 +157,7 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 		torrent_infohash: "",
 		blurhash: "",
 		status: "",
-		description: "",
+		description: "File uploaded successfully",
 		processing_url:"",
 		conversionInputPath: "",
 		conversionOutputPath: "",
@@ -430,7 +430,7 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 
 	if (processFile){
 
-		
+		filedata.description = "File enqueued for processing";
 		filedata.processing_url = filedata.no_transform == true? "" : `${getMediaUrl("NIP96")}/${filedata.fileid}`;
 		res.status(202)
 
