@@ -456,19 +456,19 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 	//v0 and v1 compatibility
 	if (version != "v2"){
 		const returnmessage : LegacyMediaReturnMessage = await prepareLegacMediaEvent(filedata);
-		return res.send(returnmessage);
+		return res.json(returnmessage);
 	}
 
 	// Blossom compatibility
 	if (eventHeader.kind == BUDKinds.BUD01_auth) {
 		const returnmessage: BlobDescriptor = await prepareBlobDescriptor(filedata);
 		res.status(200);
-		return res.send(returnmessage);
+		return res.json(returnmessage);
 	}
 
 	// NIP96 compatibility and fallback
 	const returnmessage : NIP96_event = await PrepareNIP96_event(filedata);
-	return res.send(returnmessage);
+	return res.json(returnmessage);
 
 };
 
