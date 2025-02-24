@@ -7,7 +7,6 @@ import { authHeaderResult } from "../../interfaces/authorization.js";
 import app from "../../app.js";
 import { isPubkeyValid } from "../authorization.js";
 import { getClientIp } from "../security/ips.js";
-import { getMediaUrl } from "../media.js";
 import { getHostInfo } from "../utils.js";
 
 /**
@@ -109,7 +108,7 @@ const isNIP98Valid = async (authevent: Event, req: Request, checkAdminPrivileges
 		}
 	}
 
-	logger.debug("NIP 98 data |", "method:", eventMethod, "| u:", eventEndpoint, "| payload", eventPayload)
+	logger.debug("NIP 98 data |", "method:", eventMethod, "| u:", eventUrl, "| payload", eventPayload)
 
     // This is not from NIP98 spec, check local pubkey validation
 	if (await isPubkeyValid(authevent.pubkey, checkAdminPrivileges, checkRegistered, checkActive) == false) {
