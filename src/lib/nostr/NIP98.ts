@@ -108,7 +108,7 @@ const isNIP98Valid = async (authevent: Event, req: Request, checkAdminPrivileges
 		}
 	}
 
-	logger.debug("NIP 98 data |", "method:", eventMethod, "| u:", eventUrl, "| payload", eventPayload)
+	logger.debug("NIP 98 data |", "method:", eventMethod, "| u:", u, "| payload", eventPayload)
 
     // This is not from NIP98 spec, check local pubkey validation
 	if (await isPubkeyValid(authevent.pubkey, checkAdminPrivileges, checkRegistered, checkActive) == false) {
