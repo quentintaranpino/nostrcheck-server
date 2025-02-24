@@ -47,8 +47,7 @@
               aria-label="Show password as plain text. Warning: this will display your password on the screen.">
             </button>
             </div>
-          </form>
-          
+          </form>          
       <div id="register-spinner" class="d-flex flex-column align-items-center mt-4 d-none">
         <div class="spinner-border" style="width: 3rem; height: 3rem;" role="status" aria-hidden="true"></div>
         <p class="mt-3 lead"><i class="fa-regular fa-heart me-2 gradient-text"></i> Registering, be patient can take a while...</p>
@@ -62,6 +61,8 @@
         <div class="d-grid w-300 mx-auto mt-3 mb-3">
           <button class="btn btn-lg btn-primary" name="NIP07_submit" id="NIP07_submit" type="button" onclick="register('nip07')"><i class="nostr-logo me-2"></i>Browser extension</button>
         </div>
+        <p class="text-center lead fs-6">By using our services you agree the <a id="register-tos-link" class="link-body-emphasis link-offset-3 link-underline-opacity-25 link-underline-opacity-75-hover" href='/api/v2/tos' target="_blank">Terms of Service</a></p>
+      
       </div>
     </div>  
     <div id="register-second-phase" class="col-11 col-sm-9 col-md-8 col-lg-7 col-xl-6 col-xxl-5 mx-auto d-none">
