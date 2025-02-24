@@ -17,6 +17,7 @@ const necessaryKeys = [
 	"server.pubkey", 
 	"server.secretKey", 
 	"server.tosFilePath", 
+	"server.privacyFilePath", 
 	"database.host",
 	"database.user",
 	"database.password",
@@ -32,6 +33,7 @@ const defaultConfig = {
 		"pubkey": "",
 		"secretKey": "",
 		"tosFilePath" : "resources/tos.md",
+		"privacyFilePath" : "resources/privacy.md",
 		"availableModules": {
 			"nostraddress" :{
 				"name": "nostraddress",

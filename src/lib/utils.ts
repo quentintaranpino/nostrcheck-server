@@ -1,13 +1,13 @@
 import { logger } from "./logger.js";
 import path from 'path';
 import url from 'url';
-import markdownit from 'markdown-it';
 import QRCode from 'qrcode';
 import sharp from "sharp";
 import fs from "fs";
 import ffmpeg from "fluent-ffmpeg";
 import app from "../app.js";
 import { randomBytes } from "crypto";
+import MarkdownIt from "markdown-it";
 
 const format = (seconds:number):string =>{
 	function pad(s: number){
@@ -27,7 +27,13 @@ const currDir = (fileUrl:string) : string =>{
 
 const markdownToHtml = (text:string) : string => {
 
-    const md = markdownit();
+	const md = new MarkdownIt({
+		html: true,
+		breaks: true,
+		linkify: true,
+		typographer: true
+	});
+	
     try{
         return md.render(text).toString();
     }catch(err){
@@ -61,7 +67,7 @@ const addTextToImage = async (imageBuffer: Buffer, firstText: string, secondText
   
 	const sideLength = Math.max(width!, height!);
   
-    let svgFirstText = `
+    const svgFirstText = `
     <svg width="${sideLength}" height="40">
       <rect x="0" y="0" width="800" height="40" fill="transparent" />
       <text x="50%" y="50%" alignment-baseline="middle" text-anchor="middle" font-size="12" font-family="Arial, sans-serif" fill="white">${firstText}</text>
@@ -71,28 +77,28 @@ const addTextToImage = async (imageBuffer: Buffer, firstText: string, secondText
 	const words = secondText.split(' ');
 	const lines = [];
 	let currentLine = '';
-	  
-	  words.forEach(word => {
-		if ((currentLine + word).length <= 55) {
-		  currentLine += ` ${word}`;
-		} else {
-		  lines.push(currentLine);
-		  currentLine = word;
-		}
-	  });
-	  
-	  if (currentLine) {
+	
+	words.forEach(word => {
+	if ((currentLine + word).length <= 55) {
+		currentLine += ` ${word}`;
+	} else {
 		lines.push(currentLine);
-	  }
-	  
-	  let svgSecondText = `<svg width="${sideLength}" height="${lines.length * 14 + 10}">`;
-	  svgSecondText += `<rect x="0" y="0" width="800" height="${lines.length * 14 + 10}" fill="transparent" />`;
-	  
-	  lines.forEach((line, index) => {
-		svgSecondText += `<text x="50%" y="${14 + (index * 14)}" alignment-baseline="middle" text-anchor="middle" font-size="10" font-family="Arial, sans-serif" fill="white">${line}</text>`;
-	  });
-	  
-	  svgSecondText += `</svg>`;
+		currentLine = word;
+	}
+	});
+	
+	if (currentLine) {
+	lines.push(currentLine);
+	}
+	
+	let svgSecondText = `<svg width="${sideLength}" height="${lines.length * 14 + 10}">`;
+	svgSecondText += `<rect x="0" y="0" width="800" height="${lines.length * 14 + 10}" fill="transparent" />`;
+	
+	lines.forEach((line, index) => {
+	svgSecondText += `<text x="50%" y="${14 + (index * 14)}" alignment-baseline="middle" text-anchor="middle" font-size="10" font-family="Arial, sans-serif" fill="white">${line}</text>`;
+	});
+	
+	svgSecondText += `</svg>`;
 
 
 	const firstTextImage = await sharp(Buffer.from(svgFirstText)).resize(sideLength + 130).toBuffer();
@@ -100,22 +106,22 @@ const addTextToImage = async (imageBuffer: Buffer, firstText: string, secondText
 	const logoImage = await sharp(fs.readFileSync('./src/pages/static/resources/navbar-logo-dark.png')).resize(sideLength).toBuffer();
   
 	return sharp({
-	  create: {
+		create: {
 		width: sideLength + 130,
 		height: sideLength + 255,
 		channels: 4,
 		background: '#212529',
-	  },
+		},
 	})
-	  .composite([
+		.composite([
 		{ input: logoImage, top: 20, left: 65 },
 		{ input: imageBuffer, top: 140, left: 65 },
 		{ input: firstTextImage, top: sideLength + 140, left: 0 },
 		{ input: secondTextImage, top: sideLength + 190, left: 0 },
-	  ])
-	  .webp()
-	  .toBuffer();
-  };
+		])
+		.webp()
+		.toBuffer();
+};
 
 const generateVideoFromImage = (imageBuffer: Buffer): Promise<Buffer> => {
     return new Promise((resolve) => {
@@ -126,7 +132,7 @@ const generateVideoFromImage = (imageBuffer: Buffer): Promise<Buffer> => {
 
 		ffmpeg(tempImagePath)
     .loop(1)
-	            .outputOptions([
+			.outputOptions([
                 '-vf', 'scale=trunc(iw/2)*2:trunc(ih/2)*2', 
                 '-r', '15',                                  
                 '-b:v', '500k',                               

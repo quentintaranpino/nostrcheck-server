@@ -124,7 +124,7 @@ const loadProfilePage = async (req: Request, res: Response, version:string): Pro
     res.render("profile.ejs", {request: req});
 };
 
-const loadTosPage = async (req: Request, res: Response, version:string): Promise<Response | void> => {
+const loadMdPage = async (req: Request, res: Response, mdFileName : string, version:string): Promise<Response | void> => {
 
 	// Check if the request IP is allowed
 	const reqInfo = await isIpAllowed(req);
@@ -139,22 +139,23 @@ const loadTosPage = async (req: Request, res: Response, version:string): Promise
 		return res.status(403).send({"status": "error", "message": "Module is not enabled"});
 	}
 
-	logger.info(`loadTosPage - GET /api/${version}/tos`, "|", getClientIp(req));
+	logger.info(`loadTosPage - GET /api/${version}/${mdFileName}`, "|", getClientIp(req));
 
     // Active modules
     const activeModules = loadconfigActiveModules(app);
-    res.locals.activeModules = activeModules; 
+    res.locals.activeModules = activeModules;
 
     res.locals.version = app.get("version");
     res.locals.serverHost = app.get("config.server")["host"];
-    let tosFile : string = "";
+    let mdFile : string = "";
     try{
-        tosFile = fs.readFileSync(app.get("config.server")["tosFilePath"]).toString();
-        tosFile = markdownToHtml(fs.readFileSync(app.get("config.server")["tosFilePath"]).toString());
-        tosFile = tosFile.replace(/\[SERVERADDRESS\]/g, app.get("config.server")["host"]);
+        mdFile = fs.readFileSync(app.get("config.server")[mdFileName]).toString();
+        mdFile = markdownToHtml(fs.readFileSync(app.get("config.server")[mdFileName]).toString());
+        mdFile = mdFile.replace(/SERVERADDRESS/g, app.get("config.server")["host"]);
+        mdFile = mdFile.replace(/SERVERCONTACT/g, app.get("config.server")["pubkey"]);
     }catch(e){
-        logger.error(`loadTosPage - Failed to read tos file:`, e);
-        tosFile = "Failed to read tos file. Please contact the server administrator."
+        logger.error(`load - Failed to read markdown file: ${mdFileName}`, "|", getClientIp(req));
+        mdFile = `Failed to read markdown file ${mdFileName}`;
     }
 
     setAuthCookie(res, req.cookies.authkey);
@@ -162,7 +163,7 @@ const loadTosPage = async (req: Request, res: Response, version:string): Promise
     // Check admin privileges. Only for information, never used for authorization
     req.session.allowed = await isPubkeyAllowed(req.session.identifier);
     
-    res.render("tos.ejs", {request: req, tos: tosFile });
+    res.render(mdFileName.split("FilePath")[0], {request: req, md: mdFile });
 };
 
 const loadLoginPage = async (req: Request, res: Response, version:string): Promise<Response | void>  => {
@@ -477,7 +478,7 @@ const frontendLogin = async (req: Request, res: Response): Promise<Response> => 
     if (req.body.pubkey != undefined){
         canLogin = await isPubkeyValid(req.session.identifier || req.body.pubkey, false);
         if (canLogin == true) {canLogin == await verifyNIP07event(req)}
-        if (!canLogin) {loginMessage = "Pubkey not registered"};
+        if (!canLogin) loginMessage = "Pubkey not registered";
     }
     if (req.body.username != undefined && req.body.password != undefined){
         canLogin = await isUserPasswordValid(req.body.username, req.body.password, false);
@@ -518,7 +519,7 @@ const frontendLogin = async (req: Request, res: Response): Promise<Response> => 
 
 export {loadDashboardPage, 
         loadSettingsPage, 
-        loadTosPage, 
+        loadMdPage, 
         loadGalleryPage,
         loadDocsPage, 
         loadRegisterPage,

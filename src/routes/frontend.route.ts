@@ -2,7 +2,7 @@ import { Application } from "express";
 import express from "express";
 import { 	loadDashboardPage, 
 			loadSettingsPage, 
-			loadTosPage, 
+			loadMdPage, 
 			loadDocsPage, 
 			loadLoginPage, 
 			loadIndexPage, 
@@ -66,7 +66,13 @@ export const loadFrontendEndpoint = async (app: Application, version: string): P
 	// Tos
 	app.get("/api/" +  version + "/tos", limiter(), async (req, res) => {
 		if (await isFirstUse(req,res)){logger.info("First use detected. Showing alert on frontend", "|", getClientIp(req))}
-		loadTosPage(req,res,version);
+		loadMdPage(req,res,"tosFilePath",version);
+	});
+
+	// Privacy
+	app.get("/api/" +  version + "/privacy", limiter(), async (req, res) => {
+		if (await isFirstUse(req,res)){logger.info("First use detected. Showing alert on frontend", "|", getClientIp(req))}
+		loadMdPage(req,res,"privacyFilePath",version);
 	});
 
 	// Documentation

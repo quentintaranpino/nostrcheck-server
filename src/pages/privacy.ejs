@@ -1,7 +1,7 @@
 <html lang="en">
-  <%- include('./partials/head',{title: `${locals.serverHost} - Terms of service`}); %>
+  <%- include('./partials/head',{title: `${locals.serverHost} - Privacy Policy`}); %>
   <body class="d-flex flex-column h-100">
-    <%- include('./partials/navbar', {active:"tos"}); %>
+    <%- include('./partials/navbar', {active:"privacy"}); %>
     <main class="pb-1">
       <div class="container mt-4 mb-5">
         <div class="col-xl-10 col-lg-11 col-md-12 col-sm-12 mx-auto">
@@ -11,7 +11,7 @@
         </div>
       </div>
     </main>
-    <%- include('./partials/footer', {active:'tos'}); %>
+    <%- include('./partials/footer', {active:'privacy'}); %>
     <%- include('./components/modals/message-modal', {"object":"firstUse"}); %>
   </body>
   <script>
