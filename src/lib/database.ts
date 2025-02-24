@@ -245,41 +245,43 @@ const dbUpdate = async (
 	const pool = await connect("dbUpdate: " + JSON.stringify(fields) + " | Table: " + tableName);
   
 	try {
-	  const fieldKeys = Object.keys(fields);
-	  const setClause = fieldKeys.map(key => `${key} = ?`).join(', ');
-  
-	  const whereClause = whereFieldName.map((field, index) => {
-		if (whereFieldValue[index] === "IS NOT NULL" || whereFieldValue[index] === "IS NULL") {
-		  return `${field} ${whereFieldValue[index]}`;
-		} else {
-		  return `${field} = ?`;
-		}
-	  }).join(' AND ');
-  
-	  const params = fieldKeys.map(key => fields[key]).concat(whereFieldValue);
-  
-	  const [result]: any[] = await pool.execute(
+
+		const fieldKeys = Object.keys(fields);
+		const setClause = fieldKeys.map(key => `${key} = ?`).join(', ');
+
+		const whereClause = whereFieldName.map((field, index) => {
+			if (whereFieldValue[index] === "IS NOT NULL" || whereFieldValue[index] === "IS NULL") {
+				return `${field} ${whereFieldValue[index]}`;
+			} else {
+				return `${field} = ?`;
+			}
+		}).join(' AND ');
+
+		const params = fieldKeys.map(key => fields[key]).concat(whereFieldValue);
+
+		const [result]: any[] = await pool.execute(
 		`UPDATE ${tableName} SET ${setClause} WHERE ${whereClause}`,
 		params
-	  );
-  
-	  if (!result) {
-		logger.error(`dbUpdate - Error updating ${tableName} table | ${whereFieldName.join(', ')} : ${whereFieldValue.join(', ')} | Fields: ${JSON.stringify(fields)}`);
-		return false;
-	  }
-  
-	  if (result.affectedRows === 0) {
-		logger.warn(`dbUpdate - No rows updated in ${tableName} table | ${whereFieldName.join(', ')} : ${whereFieldValue.join(', ')} | Fields: ${JSON.stringify(fields)}`);
-		return false;
-	  }
-  
-	  logger.debug(`dbUpdate - Updated ${result.affectedRows} rows in ${tableName} table | ${whereFieldName.join(', ')} : ${whereFieldValue.join(', ')} | Fields: ${JSON.stringify(fields)}`);
-	  return true;
+		);
+
+		if (!result) {
+			logger.error(`dbUpdate - Error updating ${tableName} table | ${whereFieldName.join(', ')} : ${whereFieldValue.join(', ')} | Fields: ${JSON.stringify(fields)}`);
+			return false;
+		}
+
+		if (result.affectedRows === 0) {
+			logger.warn(`dbUpdate - No rows updated in ${tableName} table | ${whereFieldName.join(', ')} : ${whereFieldValue.join(', ')} | Fields: ${JSON.stringify(fields)}`);
+			return false;
+		}
+
+		logger.debug(`dbUpdate - Updated ${result.affectedRows} rows in ${tableName} table | ${whereFieldName.join(', ')} : ${whereFieldValue.join(', ')} | Fields: ${JSON.stringify(fields)}`);
+		return true;
+
 	} catch (error) {
-	  logger.error(`Error updating ${tableName} table | ${whereFieldName.join(', ')} : ${whereFieldValue.join(', ')} | Fields: ${JSON.stringify(fields)} with error: ${error}`);
-	  return false;
+		logger.error(`Error updating ${tableName} table | ${whereFieldName.join(', ')} : ${whereFieldValue.join(', ')} | Fields: ${JSON.stringify(fields)} with error: ${error}`);
+		return false;
 	}
-  };
+};
   
 /**
  * Inserts data into the specified table in the database.
