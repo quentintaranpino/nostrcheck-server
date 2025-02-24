@@ -59,14 +59,14 @@ const isNIP98Valid = async (authevent: Event, req: Request, checkAdminPrivileges
 	// Event endpoint
 	const u = authevent.tags.find((t) => t.length === 2 && t[0] === "u")?.[1]
 	if (!u) return {status: "error", message: "Auth header event endpoint is not valid", authkey: "", pubkey: "", kind: 0};
-	const eventUrl = new URL(u).origin.replace(/^cdn\./, '').replace(/\/+$/, '');
+	const eventHost = new URL(u).hostname.toLowerCase().replace(/\/+$/, '');
 
 	// Check if event authorization u tag (URL) is valid (Must be the same as the server endpoint)
 	try {
-		const requestUrl = getHostInfo().url.toLowerCase().replace(/\/+$/, '');
+		const serverHost = getHostInfo().hostname.toLowerCase().replace(/\/+$/, '');
 
-		if ((eventUrl == null || eventUrl == undefined || eventUrl != requestUrl) && app.get('config.environment') != "development") {
-			logger.warn(`isNIP98Valid - Auth header event endpoint is not valid: ${eventUrl} <> ${requestUrl}, event u tag: ${u}, hostUrl:${getHostInfo()} `, "|", getClientIp(req));
+		if ((eventHost == null || eventHost == undefined || eventHost != serverHost) && app.get('config.environment') != "development") {
+			logger.warn(`isNIP98Valid - Auth header event endpoint is not valid: ${eventHost} <> ${serverHost}`, "|", getClientIp(req));
 			// return {status: "error", message: `Auth header (NIP98) event endpoint is not valid: ${eventEndpoint} <> ${serverEndpoint}`, authkey: "", pubkey: "", kind: 0};
 		}
 	} catch (error) {
