@@ -8,6 +8,7 @@ import app from "../../app.js";
 import { isPubkeyValid } from "../authorization.js";
 import { getClientIp } from "../security/ips.js";
 import { getMediaUrl } from "../media.js";
+import { getHostInfo } from "../utils.js";
 
 /**
  * Parses the authorization Nostr header (NIP98) and checks if it is valid. Visit for more information:
@@ -57,19 +58,16 @@ const isNIP98Valid = async (authevent: Event, req: Request, checkAdminPrivileges
 	}
 
 	// Event endpoint
-	const uTag = authevent.tags.find(tag => tag[0] === "u")
-	let eventEndpoint = uTag ? uTag[1].toLowerCase().replace(/\/+$/, '') : null;
+	const u = authevent.tags.find((t) => t.length === 2 && t[0] === "u")?.[1]
+	if (!u) return {status: "error", message: "Auth header event endpoint is not valid", authkey: "", pubkey: "", kind: 0};
+	const eventUrl = new URL(u).origin.replace(/^cdn\./, '').replace(/\/+$/, '');
 
 	// Check if event authorization u tag (URL) is valid (Must be the same as the server endpoint)
 	try {
-		const requestUrl = (`${req.protocol}://${req.get("host")}${req.url}`).toLowerCase().replace(/\/+$/, '');
+		const requestUrl = getHostInfo().url.toLowerCase().replace(/\/+$/, '');
 
-		if (app.get('config.environment') == "development") {
-			logger.warn(`isNIP98Valid - DEVMODE: Setting 'u'(url) tag same as the endpoint URL`, "|", getClientIp(req)); // If devmode is true, set created_at to now for testing purposes
-			eventEndpoint = requestUrl;
-		} 
-		if (eventEndpoint == null || eventEndpoint == undefined || eventEndpoint != requestUrl) {
-			logger.warn(`isNIP98Valid - Auth header event endpoint is not valid: ${eventEndpoint} <> ${requestUrl}`, "|", getClientIp(req));
+		if ((eventUrl == null || eventUrl == undefined || eventUrl != requestUrl) && app.get('config.environment') != "development") {
+			logger.warn(`isNIP98Valid - Auth header event endpoint is not valid: ${eventUrl} <> ${requestUrl}`, "|", getClientIp(req));
 			// return {status: "error", message: `Auth header (NIP98) event endpoint is not valid: ${eventEndpoint} <> ${serverEndpoint}`, authkey: "", pubkey: "", kind: 0};
 		}
 	} catch (error) {
