@@ -56,29 +56,20 @@ const isNIP98Valid = async (authevent: Event, req: Request, checkAdminPrivileges
 		return {status: "error", message: "Auth header event created_at is not within a reasonable time window", authkey: "", pubkey: "", kind: 0};
 	}
 
-	const normalizeEndpoint = (urlStr: string): string => {
-		const urlObj = new URL(urlStr);
-		urlObj.hostname = urlObj.hostname.replace(/^cdn\./, '');
-		urlObj.pathname = urlObj.pathname.replace(/\/api\/v\d+/i, '');
-		urlObj.pathname = urlObj.pathname.replace(/\/media/i, '');
-		urlObj.pathname = urlObj.pathname.replace(/\/+$/, '');
-		return `${urlObj.protocol}//${urlObj.hostname}${urlObj.pathname}`;
-	  };
-
 	// Event endpoint
-	const uTag = authevent.tags.find(tag => tag[0] === "u");
-	let eventEndpoint = uTag ? normalizeEndpoint(uTag[1]) : null;
+	const uTag = authevent.tags.find(tag => tag[0] === "u")
+	let eventEndpoint = uTag ? uTag[1].toLowerCase().replace(/\/+$/, '') : null;
 
 	// Check if event authorization u tag (URL) is valid (Must be the same as the server endpoint)
 	try {
-		const serverEndpoint = normalizeEndpoint(getMediaUrl("NIP96"));
+		const requestUrl = (`https://${req.get("host")}${req.originalUrl}`).toLowerCase().replace(/\/+$/, '');
 
 		if (app.get('config.environment') == "development") {
 			logger.warn(`isNIP98Valid - DEVMODE: Setting 'u'(url) tag same as the endpoint URL`, "|", getClientIp(req)); // If devmode is true, set created_at to now for testing purposes
-			eventEndpoint = serverEndpoint;
+			eventEndpoint = requestUrl;
 		} 
-		if (eventEndpoint == null || eventEndpoint == undefined || eventEndpoint != serverEndpoint) {
-			logger.warn(`isNIP98Valid - Auth header event endpoint is not valid: ${eventEndpoint} <> ${serverEndpoint}`, "|", getClientIp(req));
+		if (eventEndpoint == null || eventEndpoint == undefined || eventEndpoint != requestUrl) {
+			logger.warn(`isNIP98Valid - Auth header event endpoint is not valid: ${eventEndpoint} <> ${requestUrl}`, "|", getClientIp(req));
 			// return {status: "error", message: `Auth header (NIP98) event endpoint is not valid: ${eventEndpoint} <> ${serverEndpoint}`, authkey: "", pubkey: "", kind: 0};
 		}
 	} catch (error) {
