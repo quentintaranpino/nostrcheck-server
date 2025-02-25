@@ -692,6 +692,10 @@
             return `${year}-${month}-${day} ${hours}:${minutes}`;
         }
         window.formatTimestamp = formatTimestamp;
+        function formatLogDate(value) {
+            return new Date(value).toISOString().slice(0, 23).replace('T', ' ');
+        }
+        window.formatLogDate = formatLogDate;
 
         function formatLogSeverity(value) {
             if (value === 'ERROR') {
