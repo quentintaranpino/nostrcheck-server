@@ -13,25 +13,25 @@ const relayWorker = async (task: RelayJob): Promise<unknown> => {
     const result = await task.fn(...(task.args || []));
     return result;
   } catch (error) {
-    logger.error("genericWorker - Error processing task", error);
+    logger.error("relayWorker - Error processing task", error);
     return error;}
 }
 
-const enqueueRelayTask = async (task: RelayJob): Promise<boolean> => {
-    try {
-        const queueLength = getRelayQueueLength();
-        if (queueLength > app.get("config.relay")["maxQueueLength"]) {
-            logger.debug(`enqueueRelayTask - Relay queue limit reached: ${queueLength}`);
-            return false;
-        }
-        relayQueue.push(task);
-        logger.debug(`enqueueRelayTask - Task added to relay queue: ${task.fn.name}, queue length: ${queueLength}`);
-        return true;
-    }catch (error) {
-        logger.error("enqueueRelayTask - Error processing task in relay queue", error);
-        return false;
-    }
-}
+const enqueueRelayTask = async <T>(task: RelayJob): Promise<{enqueued: boolean; result: T | null;}> => {
+  try {
+      const queueLength = getRelayQueueLength();
+      if (queueLength > app.get("config.relay")["maxQueueLength"]) {
+          logger.debug(`enqueueRelayTask - Relay queue limit reached: ${queueLength}`);
+          return { enqueued: false, result: null };
+      }
+      const result = await relayQueue.push(task);
+      logger.debug(`enqueueRelayTask - Task added to relay queue: ${task.fn.name}, queue length: ${queueLength}`);
+      return { enqueued: true, result };
+  } catch (error) {
+      logger.error("enqueueRelayTask - Error processing task in relay queue", error);
+      return { enqueued: false, result: null };
+  }
+};
 
 const getRelayQueueLength = () : number => {
     return relayQueue.length();

@@ -26,6 +26,8 @@ import { parseAuthHeader } from "../lib/authorization.js";
 await initEvents(app);
 const events = app.get("relayEvents") as RelayEvents;
 const authSessions: Map<WebSocket, string> = new Map(); 
+const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
 
 const handleWebSocketMessage = async (socket: ExtendedWebSocket, data: WebSocket.RawData, req: Request) => {
 
@@ -69,72 +71,53 @@ const handleWebSocketMessage = async (socket: ExtendedWebSocket, data: WebSocket
 
     switch (type) {
       case "EVENT" : {
-        if (typeof args[0] !== 'string') {
-          // handleEvent(socket, args[0] as Event, reqInfo);
-          const task = enqueueRelayTask({fn: handleEvent, args: [socket, args[0] as Event, reqInfo]});
-          if (!task) {
+          const task = await enqueueRelayTask({fn: handleEvent, args: [socket, args[0] as Event, reqInfo]});
+          if (!task.enqueued) {
             logger.debug(`handleWebSocketMessage - Relay queue limit reached: ${getRelayQueueLength()}`);
             socket.send(JSON.stringify(["NOTICE", "error: relay queue limit reached"]));
             socket.close(1009, "error: relay queue limit reached");
           }
-        } else {
-          logger.debug(`handleWebSocketMessage - Invalid event data: ${args[0]}`);
-          socket.send(JSON.stringify(["NOTICE", "invalid: event data is not an object"]));
-          socket.close(1003, "invalid: event data is not an object");
-        }
         break;
       }
 
       case "REQ":
       case "COUNT": {
         const filters: Filter[] = args.slice(1) as Filter[];
-        if (typeof args[0] === 'string') {
-          // await handleReqOrCount(socket, args[0], filters, type, reqInfo);
-          const task = enqueueRelayTask({fn: handleReqOrCount, args: [socket, args[0], filters, type, reqInfo]});
-          if (!task) {
+        const task = await enqueueRelayTask({fn: handleReqOrCount, args: [socket, args[0], filters, type, reqInfo]});
+        if (!task.enqueued) {
             logger.debug(`handleWebSocketMessage - Relay queue limit reached: ${getRelayQueueLength()}`);
             socket.send(JSON.stringify(["NOTICE", "error: relay queue limit reached"]));
             socket.close(1009, "error: relay queue limit reached");
           }
-        } else {
-          logger.debug(`handleWebSocketMessage - Invalid subscription id: ${args[0]}`);
-          socket.send(JSON.stringify(["NOTICE", "invalid: subscription id is not a string"]));
-          socket.close(1003, "invalid: subscription id is not a string");
-        }
         break;
       }
 
       case "CLOSE": {
-        const task = enqueueRelayTask({fn: handleClose, args: [socket, typeof args[0] === 'string' ? args[0] : undefined]});
-        if (!task) {
+        const task = await enqueueRelayTask({fn: handleClose, args: [socket, typeof args[0] === 'string' ? args[0] : undefined]});
+        if (!task.enqueued) {
           logger.debug(`handleWebSocketMessage - Relay queue limit reached: ${getRelayQueueLength()}`);
           socket.send(JSON.stringify(["NOTICE", "error: relay queue limit reached"]));
           socket.close(1009, "error: relay queue limit reached");
         }
-        // handleClose(socket, typeof args[0] === 'string' ? args[0] : undefined);
         break;
       }
 
       case "AUTH" : {
-        if (typeof args[0] !== 'string') {
-          const task = enqueueRelayTask({fn: handleAuthMessage, args: [socket, ["AUTH", args[0] as AuthEvent]]});
-          if (!task) {
+          const task = await enqueueRelayTask({fn: handleAuthMessage, args: [socket, ["AUTH", args[0] as AuthEvent]]});
+          if (!task.enqueued) {
             logger.debug(`handleWebSocketMessage - Relay queue limit reached: ${getRelayQueueLength()}`);
             socket.send(JSON.stringify(["NOTICE", "error: relay queue limit reached"]));
             socket.close(1009, "error: relay queue limit reached");
           }
-          // await handleAuthMessage(socket, ["AUTH", args[0] as AuthEvent]);
-        } else {
-          logger.debug(`handleWebSocketMessage - Invalid auth data: ${args[0]}`);
-          socket.send(JSON.stringify(["NOTICE", "invalid: auth data is not an object"]));
-          socket.close(1003, "invalid: auth data is not an object");
-        }
         break;
       }   
-      default:
+
+      default: {
         logger.debug(`handleWebSocketMessage - Unknown command: ${type}`);
         socket.send(JSON.stringify(["NOTICE", "error: unknown command"]));
         socket.close(1003, "error: unknown command");
+        break;
+      }
     }
   } catch (error) {
     logger.error(`handleWebSocketMessage - Internal server error: ${error}`);
@@ -145,6 +128,8 @@ const handleWebSocketMessage = async (socket: ExtendedWebSocket, data: WebSocket
 
 // Handle EVENT
 const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) => {
+
+  await delay(10);
 
   // Check if the event pubkey is banned
   if (await isEntityBanned(event.pubkey, "registered")) {
@@ -433,6 +418,8 @@ const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) =>
 
 // Handle REQ or COUNT
 const handleReqOrCount = async (socket: WebSocket, subId: string, filters: Filter[], type: string, reqInfo: ipInfo) => {
+
+  await delay(100);
   
   logger.debug(`handleReqOrCount - Received ${type} message:`, subId);
   logger.debug(`handleReqOrCount - Filters:`, filters);
