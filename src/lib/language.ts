@@ -1,0 +1,10 @@
+import lande from 'lande';
+import { ISO_639_3_TO_1 } from '../interfaces/language.js';
+
+const getTextLanguage = (text: string): string => {
+    const languages = lande(text);
+    if (!languages.length) return 'en';
+    return ISO_639_3_TO_1[languages[0][0]] || languages[0][0];
+}
+
+export { getTextLanguage }

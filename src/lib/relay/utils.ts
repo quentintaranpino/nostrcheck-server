@@ -3,6 +3,7 @@ import WebSocket from "ws";
 import { Event } from "nostr-tools";
 import { logger } from "../logger.js";
 import { NIP01_event } from "../../interfaces/nostr.js";
+import { getTextLanguage } from "../language.js";
 
 /**
  * Compress an event using LZString
@@ -52,4 +53,18 @@ const parseRelayMessage = (data: WebSocket.RawData): ReturnType<typeof NIP01_eve
   }
 };
 
-export { compressEvent, decompressEvent, parseRelayMessage};
+const parseEventMetadata = (event: Event): [string, string, string, number, (string | null), string][] => {
+  const metadata: [string, string, string, number, (string | null), string][] = [];
+  let position = 0;
+  const now = Math.floor(Date.now() / 1000);
+
+  // Extract language
+  const eventLanguange = getTextLanguage(event.content || "");
+  if (eventLanguange) {
+    metadata.push([event.id, "language", eventLanguange, position++, null, now.toString()]);
+  }
+
+  return metadata;
+};
+
+export { compressEvent, decompressEvent, parseRelayMessage, parseEventMetadata};

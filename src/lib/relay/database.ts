@@ -5,7 +5,7 @@ import { logger } from "../logger.js";
 import { MemoryEvent, RelayEvents } from "../../interfaces/relay.js";
 import { isModuleEnabled } from "../config.js";
 import app from "../../app.js";
-import { compressEvent, decompressEvent } from "./utils.js";
+import { compressEvent, decompressEvent, parseEventMetadata } from "./utils.js";
 
 const initEvents = async (app: Application): Promise<boolean> => {
 
@@ -178,6 +178,7 @@ const storeEvents = async (eventsInput: Event | Event[]): Promise<number> => {
       logger.error(`storeEvents - Failed to insert events. Expected: ${eventsToStore.length}, Inserted: ${insertedRows}`);
     }
   
+    // Store tags
     const allTagValues: [string, string, string, number, string | null][] = [];
     eventsToStore.forEach(e => {
       if (e.tags && e.tags.length > 0) {
@@ -196,6 +197,23 @@ const storeEvents = async (eventsInput: Event | Event[]): Promise<number> => {
       if (insertedTagRows !== allTagValues.length) {
         logger.error(`storeEvents - Failed to insert all event tags. Expected: ${allTagValues.length}, Inserted: ${insertedTagRows}`);
       }
+    }
+
+    // Store metadata
+    const allMetadataValues: [string, string, string, number, string | null, string][] = [];
+    eventsToStore.forEach(e => {
+        const metadata = parseEventMetadata(e);
+        allMetadataValues.push(...metadata);
+    });
+
+    const metadataColumns = ["event_id", "metadata_type", "metadata_value", "position", "extra_data", "created_at"];
+
+    if (allMetadataValues.length > 0) {
+        await dbBulkInsert(
+            "eventmetadata",
+            metadataColumns,
+            allMetadataValues
+        );
     }
   
     logger.debug(`storeEvents - Bulk inserted events: ${insertedRows}`);
