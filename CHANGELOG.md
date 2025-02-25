@@ -1,9 +1,15 @@
+# Changelog 
+
 ### 0.7.0
 
 - Nostr relay.
 - Improved ban engine.
 - Improved database engine.
 - Improved redis engine.
+- New log engine.
+- Legal, privacy and tos pages.
+- Improved AI moderation engine.
+- Improved Dashboard and settings page.
 
 ### 0.6.0
 
@@ -13,7 +19,7 @@
 - NIP96 new implementations. Listing files and no_transform.
 - User profile page. Complete file administration.
 - New theming module. Custom themes can be created and applied.
-- Blossom compatible. 
+- Blossom compatible.
 - AI analysis module connection for image moderation.
 - Register form.
 - Public gallery.
