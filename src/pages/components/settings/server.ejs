@@ -5,9 +5,9 @@
             You can configure the server related settings in this section. 
         Server is identified using this public/private keypair, it will use the following credentials to interact with nostr. The public key will be used in NIP96 and NIP05. The private key will be used to send DM's and sign notes.
         </p>
-        <label for="server.name" class="mt-2 mb-1 fw-bold">Hostname</label>
+        <label for="server.host" class="mt-2 mb-1 fw-bold">Hostname</label>
         <p> 
-        Server hostname is used to identify the server, this will be displayed on home page, page title, etc.
+        Server hostname is used to identify the server, this <b>must</b> be the same as the server's domain name.
         </p>
         <input  type="text" 
                 id="server.host"  
@@ -18,6 +18,18 @@
                 required
                 >
 
+        <label for="server.name" class="mt-2 mb-1 fw-bold">Server name</label>
+        <p>
+        Server name is used to identify the server, this can be any name you want to give to the server. It will be displayed in the server's home page, etc.
+        </p>
+        <input  type="text" 
+                id="server.name"  
+                name="server.name" 
+                class="form-control" 
+                value="<%= locals.settingsServerName %>" 
+                placeholder="Server name" 
+                required
+                >
         <label for="environment" class="mt-2 mb-1 fw-bold">Environment</label>
         <p>Configure the server's environment. For security reasons, a server exposed to the internet should be set to "production" mode, it enables certain security features that are not necessary in a development environment.</p>
         <div class="col-12 col-md-4 col-lg-5">

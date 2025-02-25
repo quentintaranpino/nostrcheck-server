@@ -32,8 +32,20 @@ const defaultConfig = {
 		"port": 3000,
 		"pubkey": "",
 		"secretKey": "",
+		"name": "",
 		"tosFilePath" : "resources/tos.md",
 		"privacyFilePath" : "resources/privacy.md",
+		"legalFilePath" : "resources/legal.md",
+		"legal" : {
+			"entityType": "individual",
+			"email": "",
+			"country": "",
+			"jurisdiction": "",
+			"company": "",
+			"address": "",
+			"vat": "",
+			"phone": ""
+		},
 		"availableModules": {
 			"nostraddress" :{
 				"name": "nostraddress",

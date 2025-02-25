@@ -75,6 +75,12 @@ export const loadFrontendEndpoint = async (app: Application, version: string): P
 		loadMdPage(req,res,"privacyFilePath",version);
 	});
 
+	// Legal
+	app.get("/api/" +  version + "/legal", limiter(), async (req, res) => {
+		if (await isFirstUse(req,res)){logger.info("First use detected. Showing alert on frontend", "|", getClientIp(req))}
+		loadMdPage(req,res,"legalFilePath",version);
+	});
+
 	// Documentation
 	app.get("/api/" +  version + "/documentation", limiter(), async (req, res) => {
 		if (await isFirstUse(req,res)){logger.info("First use detected. Showing alert on frontend", "|", getClientIp(req))}

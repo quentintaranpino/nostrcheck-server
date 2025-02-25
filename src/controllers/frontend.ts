@@ -6,7 +6,7 @@ import { markdownToHtml } from "../lib/utils.js";
 import { dbMultiSelect, dbSelect} from "../lib/database.js";
 import { generateAuthToken, generateOTC, isPubkeyAllowed, isPubkeyValid, isUserPasswordValid, verifyOTC } from "../lib/authorization.js";
 import { isModuleEnabled, loadconfigActiveModules } from "../lib/config.js";
-import { countPubkeyFiles, isFirstUse, setAuthCookie } from "../lib/frontend.js";
+import { countPubkeyFiles, getLegalText, isFirstUse, setAuthCookie } from "../lib/frontend.js";
 import { hextoNpub } from "../lib/nostr/NIP19.js";
 import { themes, particles} from "../interfaces/personalization.js";
 import { verifyNIP07event } from "../lib/nostr/NIP07.js";
@@ -59,6 +59,7 @@ const loadSettingsPage = async (req: Request, res: Response, version:string): Pr
     res.locals.availableModules = app.get("config.server")["availableModules"];
     res.locals.settingsEnvironment = app.get("config.environment");
     res.locals.settingsServerHost = app.get("config.server")["host"];
+    res.locals.settingsServerName = app.get("config.server")["name"];
     res.locals.settingServerPubkey = app.get("config.server")["pubkey"];
     res.locals.settingServerSecretkey =  app.get("config.server")["secretKey"];
     res.locals.settingsRedisExpireTime = app.get("config.redis")["expireTime"];
@@ -72,6 +73,7 @@ const loadSettingsPage = async (req: Request, res: Response, version:string): Pr
     res.locals.settingsDatabase = app.get("config.database");
     res.locals.settingsPlugins = app.get("config.plugins");
     res.locals.settingsRelay = app.get("config.relay");
+    res.locals.settingsLegal = app.get("config.server")["legal"];
     res.locals.settingsLookAndFeelThemes = themes;
     res.locals.settingsLookAndFeelParticles = particles;
 
@@ -150,9 +152,19 @@ const loadMdPage = async (req: Request, res: Response, mdFileName : string, vers
     let mdFile : string = "";
     try{
         mdFile = fs.readFileSync(app.get("config.server")[mdFileName]).toString();
-        mdFile = markdownToHtml(fs.readFileSync(app.get("config.server")[mdFileName]).toString());
-        mdFile = mdFile.replace(/SERVERADDRESS/g, app.get("config.server")["host"]);
+
+        // Standard replacements
+        mdFile = mdFile.replace(/SERVERHOST/g, app.get("config.server")["host"]);
         mdFile = mdFile.replace(/SERVERCONTACT/g, app.get("config.server")["pubkey"]);
+
+        // Legal replacements
+        mdFile = mdFile.replace(/LEGALINFO/g, getLegalText());
+        mdFile = mdFile.replace(/SERVERCOUNTRY/g, app.get("config.server")["legal"]["country"]);
+        mdFile = mdFile.replace(/SERVERJURISDICTION/g, app.get("config.server")["legal"]["jurisdiction"]);
+        mdFile = mdFile.replace(/SERVEREMAIL/g, app.get("config.server")["legal"]["email"]);
+
+        mdFile = markdownToHtml(mdFile);
+        
     }catch(e){
         logger.error(`load - Failed to read markdown file: ${mdFileName}`, "|", getClientIp(req));
         mdFile = `Failed to read markdown file ${mdFileName}`;
@@ -221,6 +233,7 @@ const loadIndexPage = async (req: Request, res: Response, version:string): Promi
 
     res.locals.version = app.get("version");
     res.locals.serverHost = app.get("config.server")["host"];
+    res.locals.serverName = app.get("config.server")["name"];
     res.locals.serverPubkey = await hextoNpub(app.get("config.server")["pubkey"]);
 
     setAuthCookie(res, req.cookies.authkey);

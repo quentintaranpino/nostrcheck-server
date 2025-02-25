@@ -161,6 +161,18 @@
                     <i class="fas fa-wifi me-2"></i>Relay
             </button>
           </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" 
+                    id="legal-tab" 
+                    data-bs-toggle="tab" 
+                    data-bs-target="#legal" 
+                    type="button" 
+                    role="tab" 
+                    aria-controls="legal" 
+                    aria-selected="false">
+                    <i class="fas fa-gavel me-2"></i>Legal
+            </button>
+          </li>
         </ul>
         <div class="tab-content" id="settingsTabsContent">
           <div class="tab-pane fade show active" id="lookandfeel" role="tabpanel" aria-labelledby="lookandfeel-tab">
@@ -198,6 +210,9 @@
           </div>
           <div class="tab-pane fade" id="relay" role="tabpanel" aria-labelledby="relay-tab">
             <%- include('./components/settings/relay'); %>
+          </div>
+          <div class="tab-pane fade" id="legal" role="tabpanel" aria-labelledby="legal-tab">
+            <%- include('./components/settings/legal'); %>
           </div>
         </div>
     </main>

@@ -79,5 +79,29 @@ const setAuthCookie = (res: Response, token: string) => {
     });
 };
 
+const getLegalText = (): string => {
 
-export {isFirstUse, countPubkeyFiles, setAuthCookie};
+    if (app.get("config.server")["legal"]["entityType"] === "company") {
+        return `
+* This service is operated by **${app.get("config.server")["legal"]["company"]}**.
+* Contact email: **${app.get("config.server")["legal"]["email"]}**
+* Registered address: **${app.get("config.server")["legal"]["address"]}**
+* Country of operation: **${app.get("config.server")["legal"]["country"]}**
+* Jurisdiction: **${app.get("config.server")["legal"]["jurisdiction"]}**
+* VAT Number: **${app.get("config.server")["legal"]["vat"] ? app.get("config.server")["legal"]["vat"] : "Not applicable"}**
+* PHONE: **${app.get("config.server")["legal"]["phone"] ? app.get("config.server")["legal"]["phone"] : "Not applicable"}**
+        `.trim();
+    } else {
+        return `
+* This service is operated by an **individual operator**.
+* Contact email: **${app.get("config.server")["legal"]["email"]}**
+* Registered address: **Confidential**
+* Country of operation: **${app.get("config.server")["legal"]["country"]}**
+* Jurisdiction: **${app.get("config.server")["legal"]["jurisdiction"]}**
+* VAT Number: **Not applicable**
+* PHONE: **Not applicable**
+        `.trim();
+    }
+}
+
+export {isFirstUse, countPubkeyFiles, setAuthCookie, getLegalText};

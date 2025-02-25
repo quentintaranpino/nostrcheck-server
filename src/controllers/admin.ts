@@ -826,6 +826,10 @@ const updateSettings = async (req: Request, res: Response): Promise<Response> =>
 
     const parts = req.body.name.includes('.') ? req.body.name.split('.') : [req.body.name];
     const mainConfigName = req.body.name.includes('.') ? `config.${parts.shift()}` : `config.${req.body.name}`;
+    if (app.get(mainConfigName) === undefined) {
+        logger.error(`updateSettings - Config field not found: ${mainConfigName} | ${reqInfo.ip}`);
+        return res.status(500).send({"status":"error", "message":`Config field not found: ${mainConfigName}`});
+    }
     const configField = parts.length > 0 ? parts.pop() : req.body.name;
     const rootConfig = JSON.parse(JSON.stringify(app.get(mainConfigName))); // Deep copy
     let currentConfig = rootConfig;
@@ -1011,7 +1015,7 @@ const moderateDBRecord = async (req: Request, res: Response): Promise<Response> 
     }
 
     // Check if authorization header is valid
-    const eventHeader = await parseAuthHeader(req, "updateSettings", true, true, true);
+    const eventHeader = await parseAuthHeader(req, "moderateDBRecord", true, true, true);
     if (eventHeader.status !== "success") {return res.status(401).send({"status": eventHeader.status, "message" : eventHeader.message});}
     setAuthCookie(res, eventHeader.authkey);
 
@@ -1060,7 +1064,7 @@ const banDBRecord = async (req: Request, res: Response): Promise<Response> => {
     }
 
     // Check if authorization header is valid
-    const eventHeader = await parseAuthHeader(req, "updateSettings", true, true, true);
+    const eventHeader = await parseAuthHeader(req, "banDBRecord", true, true, true);
     if (eventHeader.status !== "success") {return res.status(401).send({"status": eventHeader.status, "message" : eventHeader.message});}
     setAuthCookie(res, eventHeader.authkey);
     
