@@ -1,11 +1,18 @@
 import fastq, { queueAsPromised } from "fastq";
+import { Event } from "nostr-tools";
+import workerpool from "workerpool";
+import path from "path";
+
 import { logger } from "../logger.js";
 import { RelayEvents, RelayJob } from "../../interfaces/relay.js";
 import app from "../../app.js";
 import { isModuleEnabled } from "../config.js";
 import { deleteEvents, storeEvents } from "./database.js";
-import { Event } from "nostr-tools";
 
+// Workers
+const relayWorkers = Number(app.get("config.relay")["workers"]);
+const workersDir = path.resolve('./dist/lib/relay/workers');
+import { _getEvents } from "./workers/getEvents.js";
 
 const relayWorker = async (task: RelayJob): Promise<unknown> => {
   try {
@@ -33,13 +40,9 @@ const enqueueRelayTask = async <T>(task: RelayJob): Promise<{enqueued: boolean; 
   }
 };
 
-const getRelayQueueLength = () : number => {
-    return relayQueue.length();
-}
+const getRelayQueueLength = () : number => {return relayQueue.length()};
 
-const relayWorkers = app.get("config.relay")["workers"]
 const relayQueue: queueAsPromised<RelayJob> = fastq.promise(relayWorker, relayWorkers);
-
 
 /**
  * Persist events to the database
@@ -69,7 +72,6 @@ const persistEvents = async () => {
       }
     }
 }   
-
 
 /**
  * Unpersist events from the memoryDB
@@ -129,5 +131,21 @@ const workerInterval = async () => {
 };
 
 workerInterval();
+
+// GetEvents worker
+const getEventsWorker = workerpool.pool(path.join(workersDir,  'getEvents.js'), { maxWorkers: relayWorkers });
+async function getEvents(filters: any, sortedArray: any, maxLimit: number): Promise<any> {
+  try {
+    const result = await getEventsWorker.exec("_getEvents", [
+      JSON.parse(JSON.stringify(filters)),
+      JSON.parse(JSON.stringify(sortedArray)), 
+      maxLimit
+    ]);
+    return result;
+  } catch (error) {
+    console.error("Error en getEvents:", error); // Mejor logging
+    return [];
+  }
+}
   
-export { getRelayQueueLength, enqueueRelayTask, relayWorkers };
+export { getRelayQueueLength, enqueueRelayTask, relayWorkers, getEvents };

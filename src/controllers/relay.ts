@@ -4,7 +4,9 @@ import { Request, Response } from "express";
 
 import { subscriptions, addSubscription, removeAllSubscriptions, removeSubscription } from "../lib/relay/core.js";
 import { compressEvent, parseRelayMessage } from "../lib/relay/utils.js";
-import { binarySearchCreatedAt, getEvents, initEvents } from "../lib/relay/database.js";
+import { binarySearchCreatedAt, initEvents } from "../lib/relay/database.js";
+import { getEvents } from "../lib/relay/workers.js";
+import { _getEvents } from "../lib/relay/workers/getEvents.js";
 
 import app from "../app.js";
 import { isEventValid } from "../lib/nostr/core.js";
@@ -20,7 +22,7 @@ import { allowedTags, ExtendedWebSocket, RelayEvents, RelayStatusMessage } from 
 import { isBase64 } from "../lib/utils.js";
 import { AuthEvent } from "../interfaces/nostr.js";
 import { dbMultiSelect, dbUpdate } from "../lib/database.js";
-import { enqueueRelayTask, getRelayQueueLength, relayWorkers } from "../lib/relay/worker.js";
+import { enqueueRelayTask, getRelayQueueLength, relayWorkers } from "../lib/relay/workers.js";
 import { parseAuthHeader } from "../lib/authorization.js";
 
 await initEvents(app);
@@ -472,7 +474,7 @@ const handleReqOrCount = async (socket: WebSocket, subId: string, filters: Filte
   }
 
   try {
-    const eventsList = await getEvents(filters, events);
+    const eventsList = await getEvents(filters, events.sortedArray, maxLimit);
     let count = 0;
     for (const event of eventsList) {
       if (socket.readyState !== WebSocket.OPEN) break;
