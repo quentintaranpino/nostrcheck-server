@@ -5,6 +5,8 @@ import app from "../../app.js";
 import { isModuleEnabled } from "../config.js";
 import { deleteEvents, storeEvents } from "./database.js";
 import { Event } from "nostr-tools";
+import { dbMultiSelect, dbUpsert } from "../database.js";
+import { parseEventMetadata } from "./utils.js";
 
 
 const relayWorker = async (task: RelayJob): Promise<unknown> => {
@@ -117,12 +119,65 @@ const unpersistEvents = async () => {
 
 }
 
+const updateEventsMetadata = async () => {
+  if (!isModuleEnabled("relay", app)) return;
+  if (!app.get("relayEventsLoaded")) return;
+
+  const relayEvents = app.get("relayEvents") as RelayEvents;
+  if (!relayEvents) return;
+
+  const dbEvents = await dbMultiSelect(
+    ["id", "event_id"],
+    "events",
+    "event_id is not null",
+    [""],
+    false
+  );
+  const dbEventsIds = dbEvents.map((e: { event_id: string }) => e.event_id);
+
+  logger.debug(dbEventsIds);
+
+  const metadataPromises = dbEventsIds.map(async (e) => {
+    const memEvent = relayEvents.memoryDB.get(e);
+    if (!memEvent) return [];
+    const metadata = await parseEventMetadata(memEvent.event);
+    return metadata;
+  });
+
+  const metadataResults = await Promise.all(metadataPromises);
+  const allMetadataValues: Array<[string, string, string, number, string | null, string]> = [];
+  metadataResults.forEach((metadata) => {
+    metadata.forEach((tuple) => {
+      allMetadataValues.push(tuple);
+    });
+  });
+
+  if (allMetadataValues.length > 0) {
+    for (const value of allMetadataValues) {
+      await dbUpsert(
+        "eventmetadata",
+        {
+          event_id: value[0],
+          metadata_type: value[1],
+          metadata_value: value[2],
+          position: value[3],
+          extra_data: value[4],
+          created_at: value[5],
+        },
+        ["event_id", "metadata_type", "position"]
+      );
+    }
+  }
+  
+};
+
 // interval to persist and unpersist events
 const workerInterval = async () => {
   if (getRelayQueueLength() == 0) {
       await enqueueRelayTask({ fn: async () => {
           await persistEvents();
           await unpersistEvents();
+          // await updateEventsMetadata();
       }});
   }
   setTimeout(workerInterval, 60 * 1000);

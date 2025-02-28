@@ -1,7 +1,12 @@
 import { Event } from "nostr-tools";
 
+interface MetadataEvent extends Event {
+  metadata?: { [key: string]: string | string[] };
+}
+
+
 interface MemoryEvent {
-    event: Event;
+    event: MetadataEvent;
     processed: boolean;
 }
 
@@ -122,4 +127,4 @@ interface RelayEvents {
   sortedArray: Event[];
 }
 
-export { MemoryEvent, ExtendedWebSocket, allowedTags, RelayJob, RelayStatusMessage, RelayEvents };
+export { MemoryEvent, ExtendedWebSocket, allowedTags, RelayJob, RelayStatusMessage, RelayEvents, MetadataEvent };

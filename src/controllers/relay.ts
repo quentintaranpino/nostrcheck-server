@@ -3,7 +3,7 @@ import { Event, Filter, matchFilter } from "nostr-tools";
 import { Request, Response } from "express";
 
 import { subscriptions, addSubscription, removeAllSubscriptions, removeSubscription } from "../lib/relay/core.js";
-import { compressEvent, parseRelayMessage } from "../lib/relay/utils.js";
+import { compressEvent, fillEventMetadata, parseRelayMessage } from "../lib/relay/utils.js";
 import { binarySearchCreatedAt, getEvents, initEvents } from "../lib/relay/database.js";
 
 import app from "../app.js";
@@ -404,6 +404,7 @@ const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) =>
   });
 
   // Save the event to memory
+  event = await fillEventMetadata(event);
   const insertionIndex = binarySearchCreatedAt(events.sortedArray, event.created_at);
   events.sortedArray.splice(insertionIndex, 0, event);
   event = await compressEvent(event);
