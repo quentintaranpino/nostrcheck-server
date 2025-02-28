@@ -124,7 +124,17 @@ interface RelayEvents {
   pending: Map<string, Event>;
   pendingDelete: Map<string, Event>;
   memoryDB: Map<string, MemoryEvent>;
-  sortedArray: Event[];
+  sharedDB: SharedArrayBuffer | null;
+  sharedDBIndexMap: Uint32Array | null;
 }
 
-export { MemoryEvent, ExtendedWebSocket, allowedTags, RelayJob, RelayStatusMessage, RelayEvents, MetadataEvent };
+const eventStore = {
+  pending: new Map<string, Event>(),
+  pendingDelete: new Map<string, Event>(),
+  memoryDB: new Map<string, MemoryEvent>(),
+  sharedDB: null as SharedArrayBuffer | null,
+  sharedDBIndexMap: null as Uint32Array | null,
+  relayEventsLoaded: false
+};
+
+export { MemoryEvent, ExtendedWebSocket, allowedTags, RelayJob, RelayStatusMessage, RelayEvents, MetadataEvent, eventStore };

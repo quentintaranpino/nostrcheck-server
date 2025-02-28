@@ -1,33 +1,121 @@
 import { Application } from "express";
-import { Event, Filter, matchFilter } from "nostr-tools";
+import { Event } from "nostr-tools";
 import { dbBulkInsert, dbDelete, dbSimpleSelect, dbUpdate} from "../database.js";
 import { logger } from "../logger.js";
-import { MemoryEvent, MetadataEvent, RelayEvents } from "../../interfaces/relay.js";
+import { MemoryEvent, MetadataEvent, eventStore } from "../../interfaces/relay.js";
 import { isModuleEnabled } from "../config.js";
-import app from "../../app.js";
 import { compressEvent, decompressEvent, parseSearchTokens } from "./utils.js";
 import { safeJSONParse } from "../utils.js";
+
+const expandBuffer = (oldBuffer: SharedArrayBuffer, newSize: number): SharedArrayBuffer => {
+  console.warn(`Expanding buffer from ${oldBuffer.byteLength} to ${newSize} bytes`);
+  const newBuffer = new SharedArrayBuffer(newSize);
+  new Uint8Array(newBuffer).set(new Uint8Array(oldBuffer));
+  return newBuffer;
+};
+
+const initializeSharedEvents = (events: Event[]): { buffer: SharedArrayBuffer; indexMap: Uint32Array } => {
+  let bufferSize = 50 * 1024 * 1024; // 50MB iniciales
+  let buffer = new SharedArrayBuffer(bufferSize);
+  let view = new DataView(buffer);
+  const indexMap = new Uint32Array(events.length);
+
+  let offset = 0;
+  // Layout de cada evento:
+  // 1. created_at   : 4 bytes
+  // 2. índice       : 4 bytes
+  // 3. contentSize  : 2 bytes
+  // 4. kind         : 4 bytes
+  // 5. pubkey       : 32 bytes
+  // 6. sig          : 64 bytes
+  // 7. id           : 32 bytes
+  // 8. tagsSize     : 2 bytes
+  // 9. tags         : tagsSize bytes (variable)
+  // 10. content     : contentSize bytes (variable)
+  // Header fijo = 4+4+2+4+32+64+32+2 = 144 bytes
+
+  for (let i = 0; i < events.length; i++) {
+    const event = events[i];
+
+    const encodedContent = new TextEncoder().encode(event.content);
+    const contentSize = encodedContent.length;
+
+    const encodedTags = new TextEncoder().encode(JSON.stringify(event.tags));
+    const tagsSize = encodedTags.length;
+
+    const requiredSize = offset + 144 + tagsSize + contentSize;
+    if (requiredSize > buffer.byteLength) {
+      bufferSize *= 2;
+      buffer = expandBuffer(buffer, bufferSize);
+      view = new DataView(buffer);
+    }
+
+    // Guarda el offset en el indexMap
+    indexMap[i] = offset;
+
+    // 1. created_at (4 bytes)
+    view.setInt32(offset, event.created_at, true);
+    offset += 4;
+
+    // 2. índice (4 bytes)
+    view.setUint32(offset, i, true);
+    offset += 4;
+
+    // 3. contentSize (2 bytes)
+    view.setUint16(offset, contentSize, true);
+    offset += 2;
+
+    // 4. kind (4 bytes)
+    view.setInt32(offset, event.kind, true);
+    offset += 4;
+
+    // 5. pubkey (32 bytes)
+    const pubkeyBytes = Buffer.from(event.pubkey, "hex");
+    // 6. sig (64 bytes)
+    const sigBytes = Buffer.from(event.sig, "hex");
+    // 7. id (32 bytes)
+    const idBytes = Buffer.from(event.id, "hex");
+
+    if (pubkeyBytes.length !== 32 || sigBytes.length !== 64 || idBytes.length !== 32) {
+      console.error(`initializeSharedEvents - Invalid pubkey, sig or id length for event ${event.id}`);
+      continue;
+    }
+
+    new Uint8Array(buffer, offset, 32).set(pubkeyBytes);
+    offset += 32;
+    new Uint8Array(buffer, offset, 64).set(sigBytes);
+    offset += 64;
+    new Uint8Array(buffer, offset, 32).set(idBytes);
+    offset += 32;
+
+    // 8. tagsSize (2 bytes)
+    view.setUint16(offset, tagsSize, true);
+    offset += 2;
+
+    // 9. tags (variable)
+    new Uint8Array(buffer, offset, tagsSize).set(encodedTags);
+    offset += tagsSize;
+
+    // 10. content (variable)
+    new Uint8Array(buffer, offset, contentSize).set(encodedContent);
+    offset += contentSize;
+  }
+
+  return { buffer, indexMap };
+};
+
 
 const initEvents = async (app: Application): Promise<boolean> => {
 
   if (!isModuleEnabled("relay", app)) return false;
-  if (app.get("relayEvents")) return false;
+  if (eventStore.sharedDB) return false;
 
   const eventsMap: Map<string, MemoryEvent> = new Map();
   const eventsArray: MetadataEvent[] = [];
   const pending: Map<string, Event> = new Map();
   const pendingDelete: Map<string, Event> = new Map();
 
-  const relayEvents: RelayEvents = {
-    memoryDB: eventsMap,
-    sortedArray: eventsArray,
-    pending: pending,
-    pendingDelete: pendingDelete,
-  };
-
-  app.set("relayEvents", relayEvents);
-  app.set("relayEventsLoaded", false);
-
+  const eventsArray: Event[] = [];
   const loadEvents = async () => {
     try {
       const limit = 10000;
@@ -54,11 +142,20 @@ const initEvents = async (app: Application): Promise<boolean> => {
     } catch (error) {
       logger.info(`initEvents - Error loading events: ${error}`);
     } finally {
-      app.set("relayEventsLoaded", true);
+      eventStore.relayEventsLoaded = true;
     }
   };
   
-  loadEvents();
+  await loadEvents();
+
+  const { buffer, indexMap } = initializeSharedEvents(eventsArray);
+
+  eventStore.memoryDB = eventsMap;
+  eventStore.sharedDB = buffer;
+  eventStore.sharedDBIndexMap = indexMap;
+  eventStore.pending = pending;
+  eventStore.pendingDelete = pendingDelete;
+
   return true;
 
 };
@@ -424,12 +521,11 @@ const deleteEvents = async (eventsInput: Event | Event[], deleteFromDB: boolean 
 
       affectedCount++;
 
-      const relayEvents = app.get("relayEvents");
-      relayEvents.memoryDB.delete(event.id);
-      const index = relayEvents.sortedArray.findIndex((e: Event) => e.id === event.id);
-      if (index !== -1)  relayEvents.sortedArray.splice(index, 1);
-      if (relayEvents.pending) relayEvents.pending.delete(event.id);
-      if (relayEvents.pendingDelete) relayEvents.pendingDelete.delete(event.id);
+      eventStore.memoryDB.delete(event.id);
+      // const index = eventStore.sortedArray.findIndex((e: Event) => e.id === event.id);
+      // if (index !== -1)  eventStore.sortedArray.splice(index, 1);
+      if (eventStore.pending) eventStore.pending.delete(event.id);
+      if (eventStore.pendingDelete) eventStore.pendingDelete.delete(event.id);
 
     } else {
       logger.error(`deleteEvents - Failed to delete process event ${event.id}`);
@@ -438,35 +534,6 @@ const deleteEvents = async (eventsInput: Event | Event[], deleteFromDB: boolean 
 
   return affectedCount;
 };
-
-  
-/**
- * Performs a binary search on a descendingly sorted array of events (sorted by `created_at`)
- * and returns the index of the first element that meets the comparison condition with the target timestamp.
- *
- * In non-strict mode (default), it returns the index of the first event whose `created_at` is less than or equal
- * to the target value. In strict mode, it returns the index of the first event whose `created_at` is strictly
- * less than the target value.
- *
- * @param {Event[]} arr - Array of events sorted in descending order by `created_at`.
- * @param {number} target - The target timestamp for comparison.
- * @param {boolean} [strict=false] - If `true`, the search is strict (looking for the first element with `created_at` < target).
- *                                   If `false`, it looks for the first element with `created_at` <= target.
- * @returns {number} The index of the first event that meets the comparison condition.
- */
-function binarySearchDescending(arr: Event[], target: number, strict: boolean = false): number {
-  let low = 0;
-  let high = arr.length;
-  while (low < high) {
-      const mid = Math.floor((low + high) / 2);
-      if (strict ? arr[mid].created_at >= target : arr[mid].created_at > target) {
-          low = mid + 1;
-      } else {
-          high = mid;
-      }
-  }
-  return low;
-}
 
 /**
  * Returns the index where an event should be inserted in a sorted array.
@@ -493,4 +560,4 @@ const binarySearchCreatedAt = (arr: Event[], target: number): number => {
     return low;
   }
 
-export { getEvents, storeEvents, initEvents, binarySearchCreatedAt, deleteEvents };
+export { storeEvents, initEvents, binarySearchCreatedAt, deleteEvents };

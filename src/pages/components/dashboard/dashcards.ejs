@@ -129,6 +129,18 @@
             timeout: 5000,
         }); %>
 
+        <%- include('../dashcard', { 
+            dashcardId: 'relayworkerCount', 
+            dashcardName: 'Relay workers', 
+            dashcardDataKey: 'relay', 
+            icon: 'worker', 
+            link: '', 
+            action: 'status', 
+            field: 'workerCount', 
+            showField: false, 
+            timeout: 5000,
+        }); %>
+
     <% } %>
 
     <%- include('../dashcard', { 
