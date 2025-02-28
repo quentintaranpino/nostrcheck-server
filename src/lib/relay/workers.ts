@@ -4,7 +4,7 @@ import workerpool from "workerpool";
 import path from "path";
 
 import { logger } from "../logger.js";
-import { RelayEvents, RelayJob } from "../../interfaces/relay.js";
+import { eventStore, RelayEvents, RelayJob } from "../../interfaces/relay.js";
 import app from "../../app.js";
 import { isModuleEnabled } from "../config.js";
 import { deleteEvents, storeEvents } from "./database.js";
@@ -50,20 +50,19 @@ const relayQueue: queueAsPromised<RelayJob> = fastq.promise(relayWorker, relayWo
 const persistEvents = async () => {
 
     if (!isModuleEnabled("relay", app)) return;
-    if (!app.get("relayEventsLoaded")) return;
+    if (!eventStore.relayEventsLoaded) return;
   
-    const relayEvents = app.get("relayEvents") as RelayEvents;
-    if (!relayEvents || !relayEvents.pending) return;
-    if (relayEvents.pending.size === 0) return;
+    if (!eventStore || !eventStore.pending) return;
+    if (eventStore.pending.size === 0) return;
   
-    const eventsToPersist = Array.from(relayEvents.pending.values()) as Event[];
+    const eventsToPersist = Array.from(eventStore.pending.values()) as Event[];
     if (eventsToPersist.length > 0) {
       const insertedCount: number = await storeEvents(eventsToPersist);
       if (insertedCount > 0) {
         eventsToPersist.forEach((event: Event) => {
-          const eventEntry = relayEvents.memoryDB.get(event.id);
+          const eventEntry = eventStore.memoryDB.get(event.id);
           if (eventEntry) eventEntry.processed = true;
-          relayEvents.pending.delete(event.id);
+          eventStore.pending.delete(event.id);
         });
       } else {
         eventsToPersist.forEach((event: Event) => {
@@ -81,15 +80,14 @@ const persistEvents = async () => {
 const unpersistEvents = async () => {
 
     if (!isModuleEnabled("relay", app)) return;
-    if (!app.get("relayEventsLoaded")) return;
+    if (!eventStore.relayEventsLoaded) return;
   
-    const relayEvents = app.get("relayEvents") as RelayEvents;
-  
-    if (!relayEvents || !relayEvents.pendingDelete) return;
+ 
+    if (!eventStore || !eventStore.pendingDelete) return;
   
     // NIP-09 or NIP-62 deletion
-    if (relayEvents.pendingDelete.size > 0) {
-      const eventsToDelete: Event[] = Array.from((relayEvents as RelayEvents).pendingDelete.values())
+    if (eventStore.pendingDelete.size > 0) {
+      const eventsToDelete: Event[] = Array.from((eventStore as RelayEvents).pendingDelete.values())
         .map((e: Event) => e);
   
       if (eventsToDelete.length > 0) {
@@ -101,7 +99,7 @@ const unpersistEvents = async () => {
     // NIP-40 inactivation
     const now = Math.floor(Date.now() / 1000);
     const expiredEvents = [];
-    for (const [eventId, memoryEvent] of relayEvents.memoryDB.entries()) {
+    for (const [eventId, memoryEvent] of eventStore.memoryDB.entries()) {
       const expirationTag = memoryEvent.event.tags.find(tag => tag[0] === "expiration");
       if (expirationTag && Number(expirationTag[1]) < now) {
         expiredEvents.push(memoryEvent.event);
@@ -134,12 +132,13 @@ workerInterval();
 
 // GetEvents worker
 const getEventsWorker = workerpool.pool(path.join(workersDir,  'getEvents.js'), { maxWorkers: relayWorkers });
-async function getEvents(filters: any, sortedArray: any, maxLimit: number): Promise<any> {
+async function getEvents(filters: any, maxLimit: number, sharedDB : SharedArrayBuffer, indexMap : Uint32Array): Promise<any> {
   try {
     const result = await getEventsWorker.exec("_getEvents", [
       JSON.parse(JSON.stringify(filters)),
-      JSON.parse(JSON.stringify(sortedArray)), 
-      maxLimit
+      maxLimit,
+      sharedDB,
+      indexMap
     ]);
     return result;
   } catch (error) {

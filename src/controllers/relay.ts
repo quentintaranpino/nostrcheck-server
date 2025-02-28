@@ -18,7 +18,7 @@ import { isEphemeral, isReplaceable } from "../lib/nostr/NIP01.js";
 import { executePlugins } from "../lib/plugins/core.js";
 import { ipInfo } from "../interfaces/security.js";
 import { validatePow } from "../lib/nostr/NIP13.js";
-import { allowedTags, ExtendedWebSocket, RelayEvents, RelayStatusMessage } from "../interfaces/relay.js";
+import { allowedTags, eventStore, ExtendedWebSocket, RelayEvents, RelayStatusMessage } from "../interfaces/relay.js";
 import { isBase64 } from "../lib/utils.js";
 import { AuthEvent } from "../interfaces/nostr.js";
 import { dbMultiSelect, dbUpdate } from "../lib/database.js";
@@ -26,7 +26,6 @@ import { enqueueRelayTask, getRelayQueueLength, relayWorkers } from "../lib/rela
 import { parseAuthHeader } from "../lib/authorization.js";
 
 await initEvents(app);
-const events = app.get("relayEvents") as RelayEvents;
 const authSessions: Map<WebSocket, string> = new Map(); 
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -258,7 +257,7 @@ const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) =>
     return;
   }
 
-  if (events.memoryDB.has(event.id)) {
+  if (eventStore.memoryDB.has(event.id)) {
     logger.debug(`handleEvent - Duplicate event: ${event.id}`);
     socket.send(JSON.stringify(["OK", event.id, false, "duplicate: already have this event"]));
     return;
@@ -278,7 +277,7 @@ const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) =>
 
   // Replaceable events
   if (isReplaceable(event.kind)) {
-    for (const [key, memEv] of events.memoryDB.entries()) {
+    for (const [key, memEv] of eventStore.memoryDB.entries()) {
       if (memEv.event.kind === event.kind && memEv.event.pubkey === event.pubkey) {
           if (event.created_at > memEv.event.created_at ||(event.created_at === memEv.event.created_at && event.id < memEv.event.id)) {
             const deleteResult = await dbUpdate("events", {"active": "0"}, ["event_id"], [memEv.event.id]);
@@ -289,7 +288,7 @@ const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) =>
               return;
             }
             logger.debug(`handleEvent - Deleted replaceable event successfully: ${memEv.event.id}`);
-            events.memoryDB.delete(key); 
+            eventStore.memoryDB.delete(key); 
             break;
           } else {
               logger.debug(`handleEvent - Duplicate event: ${event.id}`);
@@ -335,8 +334,8 @@ const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) =>
 
     const eventsToDelete = receivedEventsToDelete
       .map(id => {
-        const memEvent = events.memoryDB.get(id);
-        return memEvent ? memEvent.event : events.pending.get(id);
+        const memEvent = eventStore.memoryDB.get(id);
+        return memEvent ? memEvent.event : eventStore.pending.get(id);
       })
       .filter((e): e is Event => e !== undefined && e.kind !== 5 && e.pubkey === event.pubkey)
       .filter(e => !e.tags.some((tag: string[]) => tag[0] === "a") || e.created_at < event.created_at);
@@ -353,7 +352,7 @@ const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) =>
 
     // Add events to pendingDelete
     eventsToDelete.forEach(e => {
-      events.pendingDelete.set(e.id, e);
+      eventStore.pendingDelete.set(e.id, e);
     });
 
   }
@@ -379,8 +378,8 @@ const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) =>
     }
 
     const eventsToDelete: Event[] = [
-      ...Array.from(events.pending.values()),
-      ...Array.from(events.memoryDB.values()).map(memoryEvent => memoryEvent.event)
+      ...Array.from(eventStore.pending.values()),
+      ...Array.from(eventStore.memoryDB.values()).map(memoryEvent => memoryEvent.event)
     ].filter(e =>
       e.created_at < event.created_at &&
       (e.pubkey === event.pubkey ||
@@ -394,7 +393,7 @@ const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) =>
 
     // Add events to pendingDelete
     eventsToDelete.forEach(e => {
-      events.pendingDelete.set(e.id, e);
+      eventStore.pendingDelete.set(e.id, e);
     });
 
 
@@ -406,11 +405,11 @@ const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) =>
   });
 
   // Save the event to memory
-  const insertionIndex = binarySearchCreatedAt(events.sortedArray, event.created_at);
-  events.sortedArray.splice(insertionIndex, 0, event);
+  // const insertionIndex = binarySearchCreatedAt(eventStore.sortedArray, event.created_at);
+  // eventStore.sortedArray.splice(insertionIndex, 0, event);
   event = await compressEvent(event);
-  events.memoryDB.set(event.id, { event: event, processed: false });
-  events.pending.set(event.id, event);
+  eventStore.memoryDB.set(event.id, { event: event, processed: false });
+  eventStore.pending.set(event.id, event);
 
   // Send confirmation to the client
   logger.debug(`handleEvent - Accepted event: ${event.id}`);
@@ -473,13 +472,23 @@ const handleReqOrCount = async (socket: WebSocket, subId: string, filters: Filte
     filters = filters.map(f => ({ ...f, since, until, limit }));
   }
 
+  if (!eventStore.sharedDB || !eventStore.sharedDBIndexMap) {
+    logger.debug(`handleReqOrCount - SharedDB or IndexMap not initialized: ${subId}`);
+    socket.send(JSON.stringify(["EOSE", subId])); 
+    return;
+  }
+
   try {
-    const eventsList = await getEvents(filters, events.sortedArray, maxLimit);
+    const eventsList = await getEvents(filters, maxLimit, eventStore.sharedDB, eventStore.sharedDBIndexMap);
     let count = 0;
     for (const event of eventsList) {
       if (socket.readyState !== WebSocket.OPEN) break;
       count++;
       if (type === "REQ") {
+
+        
+
+
         logger.debug(`handleReqOrCount - Sent event: ${event.id}`);
         socket.send(JSON.stringify(["EVENT", subId, event]));
         if (count >= app.get("config.relay")["limitation"]["max_limit"]) break;
