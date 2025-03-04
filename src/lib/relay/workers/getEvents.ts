@@ -96,7 +96,7 @@ const _getEvents = async (filters: Filter[], maxLimit: number, chunks: SharedChu
             count++;
             pos = content.indexOf(searchQuery, pos + searchQuery.length);
           }
-          score = count; // You can adjust the scoring algorithm as needed.
+          score = count;
         }
         // For events without a search query, score remains 0.
         filterResults.push({ event, score });
@@ -117,7 +117,7 @@ const _getEvents = async (filters: Filter[], maxLimit: number, chunks: SharedChu
     finalResults.push(...filteredEvents);
   }
 
-  return finalResults;
+  return Array.from(new Map(finalResults.map(event => [event.id, event])).values());;
 };
 
 export { _getEvents };
