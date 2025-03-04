@@ -257,7 +257,7 @@ const workerInterval = async () => {
           // await updateEventsMetadata();
       }});
   }
-  setTimeout(workerInterval, 10 * 1000);
+  setTimeout(workerInterval, 1 * 30 * 1000); // 30 seconds
 };
 
 workerInterval();
