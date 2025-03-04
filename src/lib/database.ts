@@ -126,7 +126,7 @@ async function checkDatabaseConsistency(table: string, column_name:string, type:
 		const [CheckTable] = await pool.execute(CheckTableExistStatement, [table]);
 		const rowstempCheckTable = JSON.parse(JSON.stringify(CheckTable));
 		if (rowstempCheckTable[0]['COUNT(*)'] == 0) {
-			logger.warn("Table not found:", table);
+			logger.debug("Table not found:", table);
 			logger.info("Creating table:", table);
 			const CreateTableStatement: string =
 				"CREATE TABLE IF NOT EXISTS " + table + " (" + column_name + " " + type + ");";
@@ -155,7 +155,7 @@ async function checkDatabaseConsistency(table: string, column_name:string, type:
 		const [CheckTable] = await pool.execute(CheckTableColumnsStatement, [table, column_name]);
 		const rowstempCheckTable = JSON.parse(JSON.stringify(CheckTable));
 		if (rowstempCheckTable[0]['COUNT(*)'] == 0) {
-			logger.warn("Column not found in table:", table, "column:", column_name);
+			logger.debug("Column not found in table:", table, "column:", column_name);
 			logger.info("Creating column:", column_name, "in table:", table);
 			const AlterTableStatement: string =
 				"ALTER TABLE " + table + " ADD " + column_name + " " + type + after_column + ";";
