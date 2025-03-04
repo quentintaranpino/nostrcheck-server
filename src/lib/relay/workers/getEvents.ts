@@ -1,142 +1,123 @@
-import { Event, Filter, matchFilter } from "nostr-tools";
-import { decompressEvent } from "../utils.js";
-import workerpool from 'workerpool';
+import { Filter, matchFilter, Event } from "nostr-tools";
+import { binarySearchDescendingIndexMap, decodeEvent, parseSearchTokens } from "../utils.js";
+import { MetadataEvent, SharedChunk } from "../../../interfaces/relay.js";
 
-const _getEvents = async (filters: Filter[], maxLimit: number, sharedDB : SharedArrayBuffer, indexMap: Uint32Array): Promise<Event[]> => {
-
-  if (!sharedDB || !indexMap) {
-    console.warn("_getEvents - sharedDB or indexMap is not initialized");
-    return [];
-  }
-
-  const view = new DataView(sharedDB);
-  const allEvents: Event[] = [];
+/**
+ * Retrieves events from an array of shared memory chunks, applying NIP-50 search with extensions.
+ * For filters with a search query, events are scored and sorted by matching quality,
+ * and the limit is applied after sorting.
+ *
+ * @param filters - Array of filter objects to apply.
+ * @param maxLimit - Maximum number of events to return.
+ * @param chunks - Array of SharedChunk objects, each containing a shared buffer, indexMap, and time range.
+ * @returns A promise that resolves to an array of events.
+ */
+const _getEvents = async (filters: Filter[], maxLimit: number, chunks: SharedChunk[]): Promise<Event[]> => {
+  const finalResults: Event[] = [];
   const now = Math.floor(Date.now() / 1000);
 
+  // Process each filter provided
   for (const filter of filters) {
     const until = filter.until !== undefined ? filter.until : now;
     const since = filter.since !== undefined ? filter.since : 0;
-  
-    let effectiveLimit = filter.limit;
-    const isSearch = filter.search && filter.search.trim().length >= 3;
-    if (!isSearch) {
-      effectiveLimit = effectiveLimit !== undefined ? Math.min(effectiveLimit, maxLimit) : maxLimit;
-    }
-  
+    // Use the limit from the filter, but cap it to maxLimit
+    const effectiveLimit = filter.limit !== undefined ? Math.min(filter.limit, maxLimit) : maxLimit;
+    
     const rawSearch = filter.search ? filter.search.trim() : "";
     const searchQuery = rawSearch.length >= 3 ? rawSearch.toLowerCase() : null;
-  
-    const startIndex = binarySearchDescendingIndexMap(indexMap, until, view);
-    const endIndex = binarySearchDescendingIndexMap(indexMap, since, view, true);
-  
-    for (let i = startIndex; i < endIndex; i++) {
-      const offset = indexMap[i];
-    
-      // 1. created_at (4 bytes)
-      const created_at = view.getInt32(offset, true);
-    
-      // 2. índice (4 bytes, no se usa)
-      // const indexVal = view.getUint32(offset + 4, true);
-    
-      // 3. contentSize (2 bytes)
-      const contentSize = view.getUint16(offset + 8, true);
-    
-      // 4. kind (4 bytes)
-      const kind = view.getInt32(offset + 10, true);
-    
-      // 5. pubkey: 32 bytes → convertir a hexadecimal
-      const pubkeyBytes = new Uint8Array(sharedDB, offset + 14, 32);
-      const pubkey = Array.from(pubkeyBytes)
-        .map(b => b.toString(16).padStart(2, "0"))
-        .join("");
-    
-      // 6. sig: 64 bytes → convertir a hexadecimal
-      const sigBytes = new Uint8Array(sharedDB, offset + 46, 64);
-      const sig = Array.from(sigBytes)
-        .map(b => b.toString(16).padStart(2, "0"))
-        .join("");
-    
-      // 7. id: 32 bytes → convertir a hexadecimal
-      const idBytes = new Uint8Array(sharedDB, offset + 110, 32);
-      const id = Array.from(idBytes)
-        .map(b => b.toString(16).padStart(2, "0"))
-        .join("");
-    
-      // 8. tagsSize: 2 bytes
-      const tagsSize = view.getUint16(offset + 142, true);
-    
-      // 9. tags: leer tagsSize bytes y parsear el JSON
-      const tagsBytes = new Uint8Array(sharedDB, offset + 144, tagsSize);
-      let tags: any;
-      try {
-        tags = JSON.parse(new TextDecoder().decode(tagsBytes));
-      } catch (err) {
-        console.error("Error al parsear tags:", err);
-        tags = [];
-      }
-    
-      // 10. content: leer contentSize bytes
-      const contentBytes = new Uint8Array(sharedDB, offset + 144 + tagsSize, contentSize);
-      const content = new TextDecoder().decode(contentBytes);
-    
-      // Reconstruir el objeto evento
-      let event: Event = { created_at, id, kind, pubkey, sig, tags, content };
 
-      event = await decompressEvent(event);
-    
-      if (!matchFilter(filter, event)) continue;
-    
-      if (event.content.startsWith("lz:")) {
-        event = await decompressEvent(event);
+    // Local array to store results for this filter, with their matching score.
+    const filterResults: { event: MetadataEvent, score: number }[] = [];
+
+    // Iterate over each chunk that overlaps with the filter's time range.
+    for (const chunk of chunks) {
+      // Skip the chunk if its time range doesn't overlap with [since, until]
+      if (chunk.timeRange.max < since || chunk.timeRange.min > until) {
+        continue;
       }
-    
-      if (!searchQuery) {
-        allEvents.push(event);
-      } else {
-        const contentLower = event.content.toLowerCase();
-        const idx = contentLower.indexOf(searchQuery);
-        if (idx !== -1) allEvents.push(event);
+      const view = new DataView(chunk.buffer);
+      // Find the starting index: first event with created_at <= until.
+      const startIndex = binarySearchDescendingIndexMap(chunk.indexMap, until, view);
+      // Find the ending index: first event with created_at < since.
+      const endIndex = binarySearchDescendingIndexMap(chunk.indexMap, since, view, true);
+
+      for (let i = startIndex; i < endIndex; i++) {
+        // Decode the event from the chunk.
+        const { event } = await decodeEvent(chunk.buffer, view, chunk.indexMap[i]);
+
+        // Skip event if it doesn't match the filter.
+        if (!matchFilter(filter, event)) continue;
+
+        // Apply special filtering based on metadata tokens if a search is specified.
+        let specialOk = true;
+        if (filter.search) {
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          const { plainSearch: _, specialTokens } = parseSearchTokens(filter.search);
+          for (const key in specialTokens) {
+            if (!event.metadata || !(key in event.metadata)) {
+              specialOk = false;
+              break;
+            }
+            const metaVal = event.metadata[key];
+            if (typeof metaVal === "string") {
+              if (!specialTokens[key].includes(metaVal.toLowerCase())) {
+                specialOk = false;
+                break;
+              }
+            } else if (Array.isArray(metaVal)) {
+              const uniqueValues = [...new Set(metaVal.map(v => v.toLowerCase()))];
+              if (!specialTokens[key].some(val => uniqueValues.includes(val))) {
+                specialOk = false;
+                break;
+              }
+            } else {
+              specialOk = false;
+              break;
+            }
+          }
+        }
+        if (!specialOk) continue;
+
+        // Determine if the event passes the search query:
+        // If searchQuery is provided, check if event.content includes it (or if a structured filter is used).
+        const isStructuredFilter = filter.search && /^[a-zA-Z0-9_-]+:[^ ]/.test(filter.search);
+        const passesSearch =
+          !searchQuery || isStructuredFilter || event.content.toLowerCase().includes(searchQuery);
+        if (!passesSearch) continue;
+
+        // Compute a matching score if searchQuery is present.
+        let score = 0;
+        if (searchQuery) {
+          // Naive scoring: count occurrences of the searchQuery in event.content.
+          const content = event.content.toLowerCase();
+          let count = 0;
+          let pos = content.indexOf(searchQuery);
+          while (pos !== -1) {
+            count++;
+            pos = content.indexOf(searchQuery, pos + searchQuery.length);
+          }
+          score = count; // You can adjust the scoring algorithm as needed.
+        }
+        // For events without a search query, score remains 0.
+        filterResults.push({ event, score });
       }
-    
-      if (!searchQuery && effectiveLimit !== undefined && allEvents.length >= effectiveLimit) break;
     }
-    
+
+    // If a search query was provided, sort by matching score in descending order.
+    if (searchQuery) {
+      filterResults.sort((a, b) => b.score - a.score);
+    }
+    // Apply the effective limit after sorting.
+    const filteredEvents = filterResults.slice(0, effectiveLimit).map(obj => {
+      // Remove metadata property before returning the event.
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { metadata, ...eventWithoutMetadata } = obj.event;
+      return eventWithoutMetadata;
+    });
+    finalResults.push(...filteredEvents);
   }
 
-  return allEvents;
+  return finalResults;
 };
-  
-/**
- * Binary search for the index of the first element in the indexMap that is less than target
- * @param indexMap
- * @param target
- * @param view
- * @param strict
- * @returns
- */
-const binarySearchDescendingIndexMap = (
-  indexMap: Uint32Array,
-  target: number,
-  view: DataView,
-  strict = false
-): number => {
-  let low = 0;
-  let high = indexMap.length;
-
-  while (low < high) {
-    const mid = Math.floor((low + high) / 2);
-    const offset = indexMap[mid];
-    const created_at = view.getInt32(offset, true);
-
-    if (strict ? created_at >= target : created_at > target) {
-      low = mid + 1;
-    } else {
-      high = mid;
-    }
-  }
-  return low;
-};
-
-workerpool.worker({_getEvents: _getEvents});
 
 export { _getEvents };
