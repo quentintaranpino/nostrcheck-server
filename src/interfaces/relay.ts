@@ -120,21 +120,28 @@ interface RelayStatusMessage extends ResultMessagev2 {
   workerCount: number;
 }
 
-interface RelayEvents {
+export interface SharedChunk {
+  buffer: SharedArrayBuffer;
+  indexMap: Uint32Array;
+  timeRange: { min: number; max: number }; 
+}
+
+const CHUNK_SIZE = 10000; 
+
+export interface RelayEvents {
   pending: Map<string, Event>;
   pendingDelete: Map<string, Event>;
   memoryDB: Map<string, MemoryEvent>;
-  sharedDB: SharedArrayBuffer | null;
-  sharedDBIndexMap: Uint32Array | null;
+  sharedDBChunks: SharedChunk[]; 
+  relayEventsLoaded: boolean;
 }
 
-const eventStore = {
+const eventStore: RelayEvents = {
   pending: new Map<string, Event>(),
   pendingDelete: new Map<string, Event>(),
   memoryDB: new Map<string, MemoryEvent>(),
-  sharedDB: null as SharedArrayBuffer | null,
-  sharedDBIndexMap: null as Uint32Array | null,
-  relayEventsLoaded: false
+  sharedDBChunks: [], 
+  relayEventsLoaded: false,
 };
 
-export { MemoryEvent, ExtendedWebSocket, allowedTags, RelayJob, RelayStatusMessage, RelayEvents, MetadataEvent, eventStore };
+export { MemoryEvent, ExtendedWebSocket, allowedTags, RelayJob, RelayStatusMessage, MetadataEvent, eventStore, CHUNK_SIZE };

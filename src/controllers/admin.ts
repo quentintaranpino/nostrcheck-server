@@ -25,7 +25,7 @@ import { generateInviteCode } from "../lib/invitations.js";
 import { setAuthCookie } from "../lib/frontend.js";
 import { deleteFile } from "../lib/storage/core.js";
 import { isIpAllowed } from "../lib/security/ips.js";
-import { RelayEvents } from "../interfaces/relay.js";
+import { eventStore, RelayEvents } from "../interfaces/relay.js";
 
 let hits = 0;
 /**
@@ -981,7 +981,7 @@ const getModuleCountData = async (req: Request, res: Response): Promise<Response
         return res.status(200).send({total: logHistory.total, field: logHistory.total});
     }
     if (module == "relay" && action == "countSynced") {
-        return res.status(200).send({total: await dbCountModuleData(module), field: app.get("relayEvents")?.memoryDB?.size | 0});
+        return res.status(200).send({total: await dbCountModuleData(module), field: eventStore?.memoryDB?.size | 0});
     }
 
     if (action == "monthCount") {

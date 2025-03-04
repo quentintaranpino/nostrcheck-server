@@ -123,4 +123,309 @@ const parseSearchTokens = (search: string): { plainSearch: string, specialTokens
   return { plainSearch: plainSearch.trim(), specialTokens };
 };
 
-export { compressEvent, decompressEvent, parseRelayMessage, parseEventMetadata, parseSearchTokens, fillEventMetadata};
+/**
+ * Decodes an event from the SharedArrayBuffer starting at a given offset.
+ * Returns the decoded event along with the new offset after reading.
+ *
+ * Event layout:
+ * 1. created_at    : 4 bytes
+ * 2. index         : 4 bytes (not used)
+ * 3. contentSize   : 4 bytes
+ * 4. kind          : 4 bytes
+ * 5. pubkey        : 32 bytes
+ * 6. sig           : 64 bytes
+ * 7. id            : 32 bytes
+ * 8. tagsSize      : 4 bytes
+ * 9. tags          : tagsSize bytes (variable, JSON)
+ * 10. content      : contentSize bytes (variable, UTF-8)
+ * 11. metadataSize : 4 bytes
+ * 12. metadata     : metadataSize bytes (variable, JSON)
+ *
+ * If the content starts with "lz:", it will be decompressed.
+ */
+const decodeEvent = async (sharedDB: SharedArrayBuffer, view: DataView, offset: number): Promise<{ event: MetadataEvent; newOffset: number }> => {
+  // 1. created_at (4 bytes)
+  const created_at = view.getInt32(offset, true);
+  offset += 4;
+
+  // 2. index (4 bytes, not used)
+  offset += 4;
+
+  // 3. contentSize (4 bytes)
+  const contentSize = view.getUint32(offset, true);
+  offset += 4;
+
+  // 4. kind (4 bytes)
+  const kind = view.getInt32(offset, true);
+  offset += 4;
+
+  // 5. pubkey (32 bytes)
+  const pubkeyBytes = new Uint8Array(sharedDB, offset, 32);
+  const pubkey = Array.from(pubkeyBytes)
+    .map(b => b.toString(16).padStart(2, "0"))
+    .join("");
+  offset += 32;
+
+  // 6. sig (64 bytes)
+  const sigBytes = new Uint8Array(sharedDB, offset, 64);
+  const sig = Array.from(sigBytes)
+    .map(b => b.toString(16).padStart(2, "0"))
+    .join("");
+  offset += 64;
+
+  // 7. id (32 bytes)
+  const idBytes = new Uint8Array(sharedDB, offset, 32);
+  const id = Array.from(idBytes)
+    .map(b => b.toString(16).padStart(2, "0"))
+    .join("");
+  offset += 32;
+
+  // 8. tagsSize (4 bytes)
+  const tagsSize = view.getUint32(offset, true);
+  offset += 4;
+
+  // 9. tags (variable)
+  const tagsBytes = new Uint8Array(sharedDB, offset, tagsSize);
+  let tags: any;
+  try {
+    tags = JSON.parse(new TextDecoder().decode(tagsBytes));
+  } catch (err) {
+    console.error("Error parsing tags:", err);
+    tags = [];
+  }
+  offset += tagsSize;
+
+  // 10. content (variable)
+  const contentBytes = new Uint8Array(sharedDB, offset, contentSize);
+  const content = new TextDecoder().decode(contentBytes);
+  offset += contentSize;
+
+  // 11. metadataSize (4 bytes)
+  const metadataSize = view.getUint32(offset, true);
+  offset += 4;
+
+  // 12. metadata (variable)
+  let metadata: any = {};
+  if (metadataSize > 0) {
+    const metadataBytes = new Uint8Array(sharedDB, offset, metadataSize);
+    try {
+      metadata = JSON.parse(new TextDecoder().decode(metadataBytes));
+    } catch (err) {
+      console.error("Error parsing metadata:", err);
+      metadata = {};
+    }
+    offset += metadataSize;
+  }
+
+  let event: MetadataEvent = { created_at, id, kind, pubkey, sig, tags, content, metadata };
+  if (event.content.startsWith("lz:")) {
+    event = await decompressEvent(event);
+  }
+
+  return { event, newOffset: offset };
+};
+
+/**
+ * Encodes a single event into the SharedArrayBuffer starting at the given offset.
+ * Returns the new offset after writing the event.
+ *
+ * Event layout:
+ * 1. created_at    : 4 bytes
+ * 2. index         : 4 bytes (provided as a parameter)
+ * 3. contentSize   : 4 bytes
+ * 4. kind          : 4 bytes
+ * 5. pubkey        : 32 bytes
+ * 6. sig           : 64 bytes
+ * 7. id            : 32 bytes
+ * 8. tagsSize      : 4 bytes
+ * 9. tags          : tagsSize bytes (variable, JSON)
+ * 10. content      : contentSize bytes (variable, UTF-8)
+ * 11. metadataSize : 4 bytes
+ * 12. metadata     : metadataSize bytes (variable, JSON)
+ *
+ * Note: It is assumed that the buffer has enough space.
+ */
+const encodeEvent = (event: MetadataEvent, view: DataView, buffer: SharedArrayBuffer, offset: number, index: number): number => {
+  // Encode content and tags as UTF-8/JSON.
+  const encodedContent = new TextEncoder().encode(event.content);
+  const contentSize = encodedContent.length;
+
+  const encodedTags = new TextEncoder().encode(JSON.stringify(event.tags));
+  const tagsSize = encodedTags.length;
+
+  const encodedMetadata = event.metadata
+    ? new TextEncoder().encode(JSON.stringify(event.metadata))
+    : new Uint8Array(0);
+  const metadataSize = encodedMetadata.length;
+
+  // 1. Write created_at (4 bytes)
+  view.setInt32(offset, event.created_at, true);
+  offset += 4;
+
+  // 2. Write index (4 bytes)
+  view.setUint32(offset, index, true);
+  offset += 4;
+
+  // 3. Write contentSize (4 bytes)
+  view.setUint32(offset, contentSize, true);
+  offset += 4;
+
+  // 4. Write kind (4 bytes)
+  view.setInt32(offset, event.kind, true);
+  offset += 4;
+
+  // 5. Write pubkey (32 bytes)
+  const pubkeyBytes = Buffer.from(event.pubkey, "hex");
+  // 6. Write sig (64 bytes)
+  const sigBytes = Buffer.from(event.sig, "hex");
+  // 7. Write id (32 bytes)
+  const idBytes = Buffer.from(event.id, "hex");
+
+  if (pubkeyBytes.length !== 32 || sigBytes.length !== 64 || idBytes.length !== 32) {
+    console.error(`encodeEvent - Invalid pubkey, sig or id length for event ${event.id}`);
+    return offset;
+  }
+
+  new Uint8Array(buffer, offset, 32).set(pubkeyBytes);
+  offset += 32;
+  new Uint8Array(buffer, offset, 64).set(sigBytes);
+  offset += 64;
+  new Uint8Array(buffer, offset, 32).set(idBytes);
+  offset += 32;
+
+  // 8. Write tagsSize (4 bytes)
+  view.setUint32(offset, tagsSize, true);
+  offset += 4;
+
+  // 9. Write tags (variable)
+  new Uint8Array(buffer, offset, tagsSize).set(encodedTags);
+  offset += tagsSize;
+
+  // 10. Write content (variable)
+  new Uint8Array(buffer, offset, contentSize).set(encodedContent);
+  offset += contentSize;
+
+  // 11. Write metadataSize (4 bytes)
+  view.setUint32(offset, metadataSize, true);
+  offset += 4;
+
+  // 12. Write metadata (variable)
+  new Uint8Array(buffer, offset, metadataSize).set(encodedMetadata);
+  offset += metadataSize;
+
+  return offset;
+};
+
+/**
+ * Binary search for the index of the first element in indexMap that is less than the target.
+ * @param indexMap - The index map containing offsets.
+ * @param target - The target timestamp.
+ * @param view - DataView of the shared buffer.
+ * @param strict - If true, uses a strict comparison.
+ * @returns The index in the indexMap.
+ */
+const binarySearchDescendingIndexMap = (
+  indexMap: Uint32Array,
+  target: number,
+  view: DataView,
+  strict = false
+): number => {
+  let low = 0;
+  let high = indexMap.length;
+
+  while (low < high) {
+    const mid = Math.floor((low + high) / 2);
+    const offset = indexMap[mid];
+    const created_at = view.getInt32(offset, true);
+
+    if (strict ? created_at >= target : created_at > target) {
+      low = mid + 1;
+    } else {
+      high = mid;
+    }
+  }
+  return low;
+};
+
+/**
+ * Returns the index where an event should be inserted in a sorted array.
+ * 
+ * This function performs a binary search on a sorted array of events and returns the index
+ * at which a new event should be inserted to maintain the order of the array.
+ * using the `created_at` timestamp as the sorting criterion.
+ * 
+ * @param {Event[]} arr - The sorted array of events.
+ * @param {number} target - The timestamp to compare against.
+ * @returns {number}
+*/
+const binarySearchCreatedAt = (arr: Event[], target: number): number => {
+  let low = 0;
+  let high = arr.length;
+  while (low < high) {
+    const mid = Math.floor((low + high) / 2);
+    if (arr[mid].created_at < target) {
+      high = mid;
+    } else {
+      low = mid + 1;
+    }
+  }
+  return low;
+}
+
+
+
+const expandBuffer = (oldBuffer: SharedArrayBuffer, newSize: number): SharedArrayBuffer => {
+  const newBuffer = new SharedArrayBuffer(newSize);
+  new Uint8Array(newBuffer).set(new Uint8Array(oldBuffer));
+  return newBuffer;
+};
+
+const initializeSharedEvents = (events: MetadataEvent[]): { buffer: SharedArrayBuffer; indexMap: Uint32Array } => {
+  let bufferSize = 50 * 1024 * 1024; // initial 50MB
+  let buffer = new SharedArrayBuffer(bufferSize);
+  let view = new DataView(buffer);
+  const indexMap = new Uint32Array(events.length);
+  let offset = 0;
+
+  // Fixed header size is 152 bytes (for the fixed-length fields)
+  for (let i = 0; i < events.length; i++) {
+    const event = events[i];
+
+    // Encode sizes and calculate requiredSize
+    const encodedContent = new TextEncoder().encode(event.content);
+    const contentSize = encodedContent.length;
+
+    const encodedTags = new TextEncoder().encode(JSON.stringify(event.tags));
+    const tagsSize = encodedTags.length;
+
+    const encodedMetadata = event.metadata
+      ? new TextEncoder().encode(JSON.stringify(event.metadata))
+      : new Uint8Array(0);
+    const metadataSize = encodedMetadata.length;
+
+    const requiredSize = offset + 152 + tagsSize + contentSize + metadataSize;
+    if (requiredSize > buffer.byteLength) {
+      bufferSize *= 2;
+      buffer = expandBuffer(buffer, bufferSize);
+      view = new DataView(buffer);
+    }
+
+    indexMap[i] = offset;
+    offset = encodeEvent(event, view, buffer, offset, i);
+  }
+
+  return { buffer, indexMap };
+};
+
+export {  compressEvent, 
+          decompressEvent, 
+          parseRelayMessage, 
+          parseEventMetadata, 
+          parseSearchTokens, 
+          fillEventMetadata, 
+          decodeEvent, 
+          encodeEvent,
+          binarySearchDescendingIndexMap,
+          binarySearchCreatedAt, 
+          initializeSharedEvents
+        };

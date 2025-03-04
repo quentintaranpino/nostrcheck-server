@@ -3,11 +3,8 @@ import { Event, Filter, matchFilter } from "nostr-tools";
 import { Request, Response } from "express";
 
 import { subscriptions, addSubscription, removeAllSubscriptions, removeSubscription } from "../lib/relay/core.js";
-import { compressEvent, parseRelayMessage } from "../lib/relay/utils.js";
-import { binarySearchCreatedAt, initEvents } from "../lib/relay/database.js";
-import { _getEvents } from "../lib/relay/workers/getEvents.js";
 import { compressEvent, fillEventMetadata, parseRelayMessage } from "../lib/relay/utils.js";
-import { binarySearchCreatedAt, getEvents, initEvents } from "../lib/relay/database.js";
+import { initEvents } from "../lib/relay/database.js";
 
 import app from "../app.js";
 import { isEventValid } from "../lib/nostr/core.js";
@@ -19,12 +16,13 @@ import { isEphemeral, isReplaceable } from "../lib/nostr/NIP01.js";
 import { executePlugins } from "../lib/plugins/core.js";
 import { ipInfo } from "../interfaces/security.js";
 import { validatePow } from "../lib/nostr/NIP13.js";
-import { allowedTags, eventStore, ExtendedWebSocket, RelayEvents, RelayStatusMessage } from "../interfaces/relay.js";
+import { allowedTags, eventStore, ExtendedWebSocket, RelayStatusMessage } from "../interfaces/relay.js";
 import { isBase64 } from "../lib/utils.js";
 import { AuthEvent } from "../interfaces/nostr.js";
 import { dbMultiSelect, dbUpdate } from "../lib/database.js";
 import { enqueueRelayTask, getRelayQueueLength, relayWorkers } from "../lib/relay/workers.js";
 import { parseAuthHeader } from "../lib/authorization.js";
+import { _getEvents } from "../lib/relay/workers/getEvents.js";
 
 await initEvents(app);
 const authSessions: Map<WebSocket, string> = new Map(); 
@@ -406,11 +404,7 @@ const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) =>
   });
 
   // Save the event to memory
-  // const insertionIndex = binarySearchCreatedAt(eventStore.sortedArray, event.created_at);
-  // eventStore.sortedArray.splice(insertionIndex, 0, event);
   event = await fillEventMetadata(event);
-  const insertionIndex = binarySearchCreatedAt(events.sortedArray, event.created_at);
-  events.sortedArray.splice(insertionIndex, 0, event);
   event = await compressEvent(event);
   eventStore.memoryDB.set(event.id, { event: event, processed: false });
   eventStore.pending.set(event.id, event);
@@ -419,6 +413,7 @@ const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) =>
   logger.debug(`handleEvent - Accepted event: ${event.id}`);
   socket.send(JSON.stringify(["OK", event.id, true, returnMessage]));
   return;
+  
 };
 
 // Handle REQ or COUNT
@@ -476,23 +471,19 @@ const handleReqOrCount = async (socket: WebSocket, subId: string, filters: Filte
     filters = filters.map(f => ({ ...f, since, until, limit }));
   }
 
-  if (!eventStore.sharedDB || !eventStore.sharedDBIndexMap) {
-    logger.debug(`handleReqOrCount - SharedDB or IndexMap not initialized: ${subId}`);
+  if (!eventStore.sharedDBChunks) {
+    logger.debug(`handleReqOrCount - SharedDB not initialized: ${subId}`);
     socket.send(JSON.stringify(["EOSE", subId])); 
     return;
   }
 
   try {
-    const eventsList = await getEvents(filters, maxLimit, eventStore.sharedDB, eventStore.sharedDBIndexMap);
+    const eventsList = await _getEvents(filters, maxLimit, eventStore.sharedDBChunks);
     let count = 0;
     for (const event of eventsList) {
       if (socket.readyState !== WebSocket.OPEN) break;
       count++;
       if (type === "REQ") {
-
-        
-
-
         logger.debug(`handleReqOrCount - Sent event: ${event.id}`);
         socket.send(JSON.stringify(["EVENT", subId, event]));
         if (count >= app.get("config.relay")["limitation"]["max_limit"]) break;
