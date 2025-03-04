@@ -128,7 +128,7 @@ export interface SharedChunk {
 
 const CHUNK_SIZE = 10000; 
 
-export interface RelayEvents {
+interface RelayEvents {
   pending: Map<string, Event>;
   pendingDelete: Map<string, Event>;
   memoryDB: Map<string, MemoryEvent>;

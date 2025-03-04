@@ -3,7 +3,7 @@ import WebSocket from "ws";
 import { Event } from "nostr-tools";
 import { NIP01_event } from "../../interfaces/nostr.js";
 import { getTextLanguage } from "../language.js";
-import { MetadataEvent } from "../../interfaces/relay.js";
+import { MetadataEvent, SharedChunk } from "../../interfaces/relay.js";
 
 /**
  * Compress an event using LZString
@@ -13,7 +13,7 @@ import { MetadataEvent } from "../../interfaces/relay.js";
 const compressEvent = async (e: Event): Promise<Event> => {
     try {
         if (!e.content) return e;
-        const compressed = LZString.compress(e.content);
+        const compressed = LZString.compressToBase64(e.content);
         if (!compressed || e.content.length <= compressed.length) return e;
         return { ...e, content: `lz:${compressed}` };
     } catch (error: any) {
@@ -29,7 +29,7 @@ const compressEvent = async (e: Event): Promise<Event> => {
 const decompressEvent = async (e: Event): Promise<Event> => {
     try {
         if (!e.content || !e.content.startsWith('lz:')) return e;
-        const decompressed = LZString.decompress(e.content.substring(3)) ?? e.content;
+        const decompressed = LZString.decompressFromBase64(e.content.substring(3)) ?? e.content;
         return { ...e, content: decompressed };
     } catch (error: any) {
         return e;
@@ -245,7 +245,8 @@ const decodeEvent = async (sharedDB: SharedArrayBuffer, view: DataView, offset: 
  *
  * Note: It is assumed that the buffer has enough space.
  */
-const encodeEvent = (event: MetadataEvent, view: DataView, buffer: SharedArrayBuffer, offset: number, index: number): number => {
+const encodeEvent = async (event: MetadataEvent, view: DataView, buffer: SharedArrayBuffer, offset: number, index: number): Promise<number> => {
+
   // Encode content and tags as UTF-8/JSON.
   const encodedContent = new TextEncoder().encode(event.content);
   const contentSize = encodedContent.length;
@@ -276,8 +277,10 @@ const encodeEvent = (event: MetadataEvent, view: DataView, buffer: SharedArrayBu
 
   // 5. Write pubkey (32 bytes)
   const pubkeyBytes = Buffer.from(event.pubkey, "hex");
+  
   // 6. Write sig (64 bytes)
   const sigBytes = Buffer.from(event.sig, "hex");
+
   // 7. Write id (32 bytes)
   const idBytes = Buffer.from(event.id, "hex");
 
@@ -380,7 +383,7 @@ const expandBuffer = (oldBuffer: SharedArrayBuffer, newSize: number): SharedArra
   return newBuffer;
 };
 
-const initializeSharedEvents = (events: MetadataEvent[]): { buffer: SharedArrayBuffer; indexMap: Uint32Array } => {
+const encodeEvents = async (events: MetadataEvent[]): Promise<{ buffer: SharedArrayBuffer; indexMap: Uint32Array; }> => {
   let bufferSize = 50 * 1024 * 1024; // initial 50MB
   let buffer = new SharedArrayBuffer(bufferSize);
   let view = new DataView(buffer);
@@ -389,7 +392,11 @@ const initializeSharedEvents = (events: MetadataEvent[]): { buffer: SharedArrayB
 
   // Fixed header size is 152 bytes (for the fixed-length fields)
   for (let i = 0; i < events.length; i++) {
-    const event = events[i];
+    let event = events[i];
+
+    if (event.content.length > 15) {
+      event = await compressEvent(event);
+    }
 
     // Encode sizes and calculate requiredSize
     const encodedContent = new TextEncoder().encode(event.content);
@@ -411,10 +418,51 @@ const initializeSharedEvents = (events: MetadataEvent[]): { buffer: SharedArrayB
     }
 
     indexMap[i] = offset;
-    offset = encodeEvent(event, view, buffer, offset, i);
+    offset = await encodeEvent(event, view, buffer, offset, i);
   }
 
   return { buffer, indexMap };
+};
+
+
+/**
+ * Encode an array of MetadataEvent objects into a shared memory chunk.
+ * This function sorts the events by created_at timestamp in descending order,
+ * encodes the events into a shared memory buffer, and generates an index map
+ * to quickly locate each event in the buffer.
+ *
+ * @param events - The array of MetadataEvent objects to encode.
+ * @returns A SharedChunk object containing the encoded events and index map.
+ */
+const encodeChunk = async (events: MetadataEvent[]): Promise<SharedChunk> => {
+  if (events.length === 0) {
+    return { buffer: new SharedArrayBuffer(0), indexMap: new Uint32Array(0), timeRange: { min: 0, max: 0 } };
+  }
+  events.sort((a, b) => b.created_at - a.created_at);
+  const { buffer, indexMap } = await encodeEvents(events);
+  const newTimeRange = {
+    max: events[0].created_at,
+    min: events[events.length - 1].created_at,
+  };
+  return { buffer, indexMap, timeRange: newTimeRange };
+}
+
+/**
+ * Decode all events from a shared memory chunk.
+ * This function reverses the process of encodeChunk/encodeEvents,
+ * returning an array of MetadataEvent from the given chunk.
+ *
+ * @param chunk - The shared memory chunk to decode.
+ * @returns A Promise that resolves to an array of decoded MetadataEvent objects.
+ */
+const decodeChunk = async (chunk: SharedChunk): Promise<MetadataEvent[]> => {
+  const events: MetadataEvent[] = [];
+  const view = new DataView(chunk.buffer);
+  for (let i = 0; i < chunk.indexMap.length; i++) {
+    const { event } = await decodeEvent(chunk.buffer, view, chunk.indexMap[i]);
+    events.push(event);
+  }
+  return events;
 };
 
 export {  compressEvent, 
@@ -423,9 +471,8 @@ export {  compressEvent,
           parseEventMetadata, 
           parseSearchTokens, 
           fillEventMetadata, 
-          decodeEvent, 
-          encodeEvent,
           binarySearchDescendingIndexMap,
           binarySearchCreatedAt, 
-          initializeSharedEvents
+          encodeChunk,
+          decodeChunk
         };

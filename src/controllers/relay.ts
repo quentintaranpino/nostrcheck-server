@@ -20,9 +20,8 @@ import { allowedTags, eventStore, ExtendedWebSocket, RelayStatusMessage } from "
 import { isBase64 } from "../lib/utils.js";
 import { AuthEvent } from "../interfaces/nostr.js";
 import { dbMultiSelect, dbUpdate } from "../lib/database.js";
-import { enqueueRelayTask, getRelayQueueLength, relayWorkers } from "../lib/relay/workers.js";
+import { enqueueRelayTask, getEvents, getRelayQueueLength, relayWorkers } from "../lib/relay/workers.js";
 import { parseAuthHeader } from "../lib/authorization.js";
-import { _getEvents } from "../lib/relay/workers/getEvents.js";
 
 await initEvents(app);
 const authSessions: Map<WebSocket, string> = new Map(); 
@@ -478,7 +477,7 @@ const handleReqOrCount = async (socket: WebSocket, subId: string, filters: Filte
   }
 
   try {
-    const eventsList = await _getEvents(filters, maxLimit, eventStore.sharedDBChunks);
+    const eventsList = await getEvents(filters, maxLimit, eventStore.sharedDBChunks);
     let count = 0;
     for (const event of eventsList) {
       if (socket.readyState !== WebSocket.OPEN) break;

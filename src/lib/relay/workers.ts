@@ -8,16 +8,17 @@ import { CHUNK_SIZE, eventStore, MetadataEvent, RelayJob, SharedChunk } from "..
 import app from "../../app.js";
 import { isModuleEnabled } from "../config.js";
 import { deleteEvents, storeEvents } from "./database.js";
-import { initializeSharedEvents } from "./utils.js";
+import { encodeChunk } from "./utils.js";
 
 // Workers
 const relayWorkers = Number(app.get("config.relay")["workers"]);
 const workersDir = path.resolve('./dist/lib/relay/workers');
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { _getEvents } from "./workers/getEvents.js";
-
+  
 const relayWorker = async (task: RelayJob): Promise<unknown> => {
   try {
-    logger.info(`RelayWorker - Processing task: ${task.fn.name}`);
+    logger.debug(`RelayWorker - Processing task: ${task.fn.name}`);
     const result = await task.fn(...(task.args || []));
     return result;
   } catch (error) {
@@ -48,12 +49,6 @@ const relayQueue: queueAsPromised<RelayJob> = fastq.promise(relayWorker, relayWo
 /**
  * Persist events to the database and update shared memory chunks.
  * New events are assigned to an existing chunk based on their created_at.
- * If no matching chunk is found for a new event, a new chunk is created.
- * This new chunk covers from the minimum created_at of the new events up to "now".
- */
-/**
- * Persist events to the database and update shared memory chunks.
- * New events are assigned to an existing chunk based on their created_at.
  * For the newest chunk (index 0), events with a timestamp greater than the current max
  * are also assigned there, causing the chunk's max range to update.
  * Events that don't match any chunk are used to create new chunk(s) of size CHUNK_SIZE.
@@ -68,108 +63,79 @@ const persistEvents = async () => {
   ) {
     return;
   }
-  // Convert pending events to an array (MetadataEvent)
-  const eventsToPersist = Array.from(eventStore.pending.values()) as MetadataEvent[];
 
+  const affectedChunks: SharedChunk[] = [];
+  const unassignedEvents : MetadataEvent[] = [];
+
+  const eventsToPersist = Array.from(eventStore.pending.values()) as MetadataEvent[];
   if (eventsToPersist.length > 0) {
     const insertedCount: number = await storeEvents(eventsToPersist);
-    if (insertedCount > 0) {
-      // Mark persisted events as processed and remove them from pending
+    if (insertedCount === eventsToPersist.length) {
+      
+      eventStore.sharedDBChunks.sort((a, b) => b.timeRange.max - a.timeRange.max);
+      const newestChunk = eventStore.sharedDBChunks[0]
+
+      // Process each event to assign to a shared memory chunk
       eventsToPersist.forEach((event: Event) => {
+
+        // Remove event from pending and set as processed on memoryDB
         const eventEntry = eventStore.memoryDB.get(event.id);
         if (eventEntry) eventEntry.processed = true;
         eventStore.pending.delete(event.id);
-      });
 
-      // Mapping from chunk index to new events that belong to that chunk.
-      const chunkUpdates: Map<number, MetadataEvent[]> = new Map();
-      // Array for new events that do not fit in any existing chunk.
-      const unassigned: MetadataEvent[] = [];
-
-      // For each new event, try to assign it to an existing chunk based on its created_at.
-      eventsToPersist.forEach((event: Event) => {
+        // Try to assign event to a regular shared memory chunk
         let assigned = false;
-        eventStore.sharedDBChunks.forEach((chunk, idx) => {
-          if (idx === 0) {
-            // For the newest chunk, allow events even if they are newer than its current max.
-            if (event.created_at >= chunk.timeRange.min) {
-              // Asignar el evento al chunk 0.
-              const arr = chunkUpdates.get(idx) || [];
-              arr.push(event);
-              chunkUpdates.set(idx, arr);
-              assigned = true;
-            }
-          } else {
-            // For other chunks, normal assignment: event.created_at must fall within the chunk range.
-            if (event.created_at >= chunk.timeRange.min && event.created_at <= chunk.timeRange.max) {
-              const arr = chunkUpdates.get(idx) || [];
-              arr.push(event);
-              chunkUpdates.set(idx, arr);
-              assigned = true;
-            }
+        for (let i = 0; i < eventStore.sharedDBChunks.length; i++) {
+          if (event.created_at >= eventStore.sharedDBChunks[i].timeRange.min && event.created_at <= eventStore.sharedDBChunks[i].timeRange.max) {
+            affectedChunks.push(eventStore.sharedDBChunks[i]);
+            assigned = true;
+            break;
           }
-        });
+        }
+
+        // Try to assign event to the last chunk if it's not full
+        if (!assigned && event.created_at >= newestChunk.timeRange.min && newestChunk.indexMap.length < CHUNK_SIZE) {
+          newestChunk.timeRange.max = event.created_at;
+          affectedChunks.push(newestChunk);
+          assigned = true;
+        }
+
+        // If event was not assigned, add it to the unassigned list
         if (!assigned) {
-          unassigned.push(event);
+          unassignedEvents.push(event);
         }
+
       });
 
-      // For each chunk that has new events, update that chunk.
-      chunkUpdates.forEach((_newEvents, chunkIdx) => {
-        // Rebuild the chunk from all events in memoryDB that fall in its (possibly extended) range.
+      // Update affected chunks with new events
+      affectedChunks.forEach(async (chunk) => {
         const newChunkEvents = Array.from(eventStore.memoryDB.values())
-          .map(me => me.event)
-          .filter(e => {
-            // For chunk 0, extend the range to include events newer than the current max.
-            if (chunkIdx === 0) {
-              return e.created_at >= eventStore.sharedDBChunks[0].timeRange.min;
-            } else {
-              return e.created_at >= eventStore.sharedDBChunks[chunkIdx].timeRange.min &&
-                     e.created_at <= eventStore.sharedDBChunks[chunkIdx].timeRange.max;
-            }
-          });
+          .map((me) => me.event)
+          .filter((e) => e.created_at >= chunk.timeRange.min && e.created_at <= chunk.timeRange.max);
         if (newChunkEvents.length > 0) {
-          // Sort events in descending order by created_at.
-          newChunkEvents.sort((a, b) => b.created_at - a.created_at);
-          // Rebuild shared memory for this chunk.
-          const { buffer, indexMap } = initializeSharedEvents(newChunkEvents);
-          const newTimeRange = {
-            max: newChunkEvents[0].created_at,
-            min: newChunkEvents[newChunkEvents.length - 1].created_at,
-          };
-          eventStore.sharedDBChunks[chunkIdx] = { buffer, indexMap, timeRange: newTimeRange };
+          const affectedChunk = await encodeChunk(newChunkEvents);
+          const idx = eventStore.sharedDBChunks.findIndex((c) => c === chunk);
+          if (idx !== -1) {
+            eventStore.sharedDBChunks[idx] = affectedChunk;
+          }
         }
       });
 
-      // Process unassigned events: create new chunk(s) using only unassigned events.
-      if (unassigned.length > 0) {
-        // Sort unassigned events in descending order by created_at.
-        unassigned.sort((a, b) => b.created_at - a.created_at);
-        for (let i = 0; i < unassigned.length; i += CHUNK_SIZE) {
-          const chunkBatch = unassigned.slice(i, i + CHUNK_SIZE);
-          // Ensure the batch is sorted descending.
-          chunkBatch.sort((a, b) => b.created_at - a.created_at);
-          const { buffer, indexMap } = initializeSharedEvents(chunkBatch);
-          const newTimeRange = {
-            max: chunkBatch[0].created_at,
-            min: chunkBatch[chunkBatch.length - 1].created_at,
-          };
-          const newChunk = { buffer, indexMap, timeRange: newTimeRange };
-          eventStore.sharedDBChunks.push(newChunk);
-        }
-        // Optionally, sort the chunks by timeRange.max descending.
+      // Create new chunk(s) for unassigned events
+      if (unassignedEvents.length > 0) {
+        unassignedEvents.sort((a, b) => b.created_at - a.created_at);
+        const newChunk = await encodeChunk(unassignedEvents);
+        eventStore.sharedDBChunks.push(newChunk);
         eventStore.sharedDBChunks.sort((a, b) => b.timeRange.max - a.timeRange.max);
       }
+
     } else {
-      // If storing failed, log an error for each event.
       eventsToPersist.forEach((event: Event) => {
         logger.error(`relayController - Interval - StoreEvents failed for event: ${event.id}`);
       });
     }
   }
 };
-
-
 
 /**
  * Unpersist events from the memoryDB
@@ -181,20 +147,19 @@ const unpersistEvents = async () => {
     if (!isModuleEnabled("relay", app)) return;
     if (!eventStore || !eventStore.pendingDelete || !eventStore.relayEventsLoaded) return;
   
+    const eventsToDelete: MetadataEvent[] = Array.from(eventStore.pendingDelete.values())
+    .map((e: MetadataEvent) => e);
+
+    const expiredEvents: MetadataEvent[] = [];
+
     // NIP-09 or NIP-62 deletion
-    if (eventStore.pendingDelete.size > 0) {
-      const eventsToDelete: Event[] = Array.from(eventStore.pendingDelete.values())
-        .map((e: MetadataEvent) => e);
-  
-      if (eventsToDelete.length > 0) {
-        const deletedCount: number = await deleteEvents(eventsToDelete, true);
-        if (deletedCount !== eventsToDelete.length) logger.error(`relayController - Interval - Failed to delete events: ${eventsToDelete.length - deletedCount}`);
-      }
+    if (eventsToDelete.length > 0) {
+      const deletedCount: number = await deleteEvents(eventsToDelete, true);
+      if (deletedCount !== eventsToDelete.length) logger.error(`relayController - Interval - Failed to delete events: ${eventsToDelete.length - deletedCount}`);
     }
-  
+    
     // NIP-40 inactivation
     const now = Math.floor(Date.now() / 1000);
-    const expiredEvents = [];
     for (const [eventId, memoryEvent] of eventStore.memoryDB.entries()) {
       const expirationTag = memoryEvent.event.tags.find(tag => tag[0] === "expiration");
       if (expirationTag && Number(expirationTag[1]) < now) {
@@ -202,17 +167,34 @@ const unpersistEvents = async () => {
       }
     }
   
-    expiredEvents.forEach(async (expiredEvent) => {
+    for (const expiredEvent of expiredEvents) {
       const success = await deleteEvents([expiredEvent], false, "event expired (NIP-40)");
       if (!success) {
         logger.error(`relayController - Interval - Failed to set event ${expiredEvent.id} as inactive`);
-        return;
+        continue;
       }
       logger.debug(`relayController - Interval - Set event ${expiredEvent.id} as inactive successfully`);
-    });
+    }
 
+    // Join eventsToDelete and expiredEvents
+    eventsToDelete.push(...expiredEvents);
+
+    if (eventsToDelete.length === 0) return;
+
+    // Recreate expired and deleted events chunks
+    for (const chunk of eventStore.sharedDBChunks) {
+      if (chunk.timeRange.max < Math.min(...eventsToDelete.map(e => e.created_at)) || chunk.timeRange.min > Math.max(...eventsToDelete.map(e => e.created_at))) continue;
+      const chunkEvents = Array.from(eventStore.memoryDB.values())
+      .map((me) => me.event)
+      .filter((e) => e.created_at >= chunk.timeRange.min && e.created_at <= chunk.timeRange.max);
+      const newEvents = chunkEvents.filter((e) => !eventsToDelete.find((d) => d.id === e.id));
+      const newChunk = await encodeChunk(newEvents);
+      const idx = eventStore.sharedDBChunks.findIndex((c) => c === chunk);
+      if (idx !== -1) {
+        eventStore.sharedDBChunks[idx] = newChunk;
+      }
+    }
 }
-
 
 // const updateEventsMetadata = async () => {
 //   if (!isModuleEnabled("relay", app)) return;
@@ -295,5 +277,5 @@ async function getEvents(filters: any, maxLimit: number, chunks: SharedChunk[]):
     return [];
   }
 }
-  
+
 export { getRelayQueueLength, enqueueRelayTask, relayWorkers, getEvents };

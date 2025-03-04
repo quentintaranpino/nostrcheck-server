@@ -25,7 +25,7 @@ import { generateInviteCode } from "../lib/invitations.js";
 import { setAuthCookie } from "../lib/frontend.js";
 import { deleteFile } from "../lib/storage/core.js";
 import { isIpAllowed } from "../lib/security/ips.js";
-import { eventStore, RelayEvents } from "../interfaces/relay.js";
+import { eventStore } from "../interfaces/relay.js";
 
 let hits = 0;
 /**
@@ -606,9 +606,8 @@ const deleteDBRecord = async (req: Request, res: Response): Promise<Response> =>
             logger.warn(`deleteDBRecord - Failed to delete record`, "|", reqInfo.ip);
             return res.status(400).send(result);
         }
-        const relayEvents = app.get("relayEvents") as RelayEvents
-        const event = relayEvents.memoryDB.get(eventData[0].event_id);
-        if (event) relayEvents.memoryDB.delete(eventData[0].event_id);
+        const event = eventStore.memoryDB.get(eventData[0].event_id);
+        if (event) eventStore.memoryDB.delete(eventData[0].event_id);
     }
 
     // Check Redis cache for the record.

@@ -4,7 +4,7 @@ import { dbBulkInsert, dbDelete, dbSimpleSelect, dbUpdate} from "../database.js"
 import { logger } from "../logger.js";
 import { CHUNK_SIZE, MemoryEvent, MetadataEvent, eventStore } from "../../interfaces/relay.js";
 import { isModuleEnabled } from "../config.js";
-import { compressEvent, decompressEvent, initializeSharedEvents } from "./utils.js";
+import { decompressEvent, encodeChunk } from "./utils.js";
 import { safeJSONParse } from "../utils.js";
 
 const initEvents = async (app: Application): Promise<boolean> => {
@@ -18,7 +18,6 @@ const initEvents = async (app: Application): Promise<boolean> => {
   eventStore.pendingDelete = pendingDelete;
   eventStore.sharedDBChunks = [];
 
-  const limit = CHUNK_SIZE;
   let offset = 0;
 
   // Fire-and-forget: start loading batches asynchronously without awaiting.
@@ -26,33 +25,24 @@ const initEvents = async (app: Application): Promise<boolean> => {
     try {
       while (true) {
         logger.info(`initEvents - Loaded ${eventsMap.size} events from DB (offset: ${offset})`);
-        const loadedEvents = await getEventsDB(offset, limit);
-        if (loadedEvents.length === 0 || offset > 10000) {
+        const loadedEvents = await getEventsDB(offset, CHUNK_SIZE);
+        if (loadedEvents.length === 0) {
           eventStore.relayEventsLoaded = true;
           logger.info(`initEvents - Finished loading ${eventsMap.size} events in ${eventStore.sharedDBChunks.length} chunks from DB`);
           break;
         } else {
           const batchEvents: MetadataEvent[] = [];
           for (let event of loadedEvents) {
-            if (event.content.length > 15) {
-              event = await compressEvent(event);
-            }
             eventsMap.set(event.id, { event: event, processed: true });
             batchEvents.push(event);
           }
           
-          // Create a chunk for this batch.
-          const { buffer, indexMap } = initializeSharedEvents(batchEvents);
-          const timeRange = {
-            max: batchEvents[0].created_at, // most recent event in the batch
-            min: batchEvents[batchEvents.length - 1].created_at, // oldest event in the batch
-          };
-
-          // Update memoryDB and add the new chunk.
+          // Generate a new chunk and add it to the sharedDBChunks array and memoryDB map.
+          const newChunk = await encodeChunk(batchEvents);
           eventStore.memoryDB = eventsMap;
-          eventStore.sharedDBChunks.push({ buffer, indexMap, timeRange });
+          eventStore.sharedDBChunks.push(newChunk);
           
-          offset += limit;
+          offset += CHUNK_SIZE;
           // Yield control to the event loop to avoid blocking.
           await new Promise(resolve => setImmediate(resolve));
         }
@@ -73,7 +63,7 @@ const getEventsDB = async (offset: number, limit: number): Promise<MetadataEvent
           SELECT *
           FROM events
           WHERE active = '1'
-          ORDER BY id DESC
+          ORDER BY created_at DESC, id DESC
           LIMIT ${limit} OFFSET ${offset}
         ),
         tagAgg AS (
