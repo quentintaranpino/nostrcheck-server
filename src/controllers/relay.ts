@@ -418,7 +418,7 @@ const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) =>
 // Handle REQ or COUNT
 const handleReqOrCount = async (socket: WebSocket, subId: string, filters: Filter[], type: string, reqInfo: ipInfo) => {
 
-  await delay(100);
+  // await delay(100);
   
   logger.debug(`handleReqOrCount - Received ${type} message:`, subId);
   logger.debug(`handleReqOrCount - Filters:`, filters);
