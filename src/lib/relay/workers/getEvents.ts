@@ -104,9 +104,7 @@ const _getEvents = async (filters: Filter[], maxLimit: number, chunks: SharedChu
 
     // Array to store events that match this filter along with their matching score.
     const filterResults: { event: MetadataEvent; score: number }[] = [];
-    console.time("getDecodedChunk");
     const decodedChunks = await Promise.all(chunks.map(getDecodedChunk));
-    console.timeEnd("getDecodedChunk");
 
     // Iterate over each chunk that overlaps with the filter's time range.
     for (const decodedEvents of decodedChunks) {
