@@ -473,14 +473,20 @@ const handleReqOrCount = async (socket: WebSocket, subId: string, filters: Filte
   try {
     const eventsList = await getEvents(filters, maxLimit, eventStore.sharedDBChunks);
     let count = 0;
-    for (const event of eventsList) {
-      if (socket.readyState !== WebSocket.OPEN) break;
-      count++;
-      if (type === "REQ") {
-        logger.debug(`handleReqOrCount - Sent event: ${event.id}`);
-        socket.send(JSON.stringify(["EVENT", subId, event]));
-        if (count >= app.get("config.relay")["limitation"]["max_limit"]) break;
+    const batchSize = 100;
+    for (let i = 0; i < eventsList.length; i += batchSize) {
+      const batch = eventsList.slice(i, i + batchSize);
+      for (const event of batch) {
+        if (socket.readyState !== WebSocket.OPEN) break;
+        count++;
+        if (type === "REQ") {
+          logger.debug(`handleReqOrCount - Sent event: ${event.id}`);
+          socket.send(JSON.stringify(["EVENT", subId, event]));
+          if (count >= app.get("config.relay")["limitation"]["max_limit"]) break;
+        }
       }
+      if (count >= app.get("config.relay")["limitation"]["max_limit"]) break;
+      await new Promise(resolve => setImmediate(resolve));
     }
 
     if (type === "REQ"){
