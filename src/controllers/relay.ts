@@ -473,7 +473,7 @@ const handleReqOrCount = async (socket: WebSocket, subId: string, filters: Filte
   try {
     const eventsList = await getEvents(filters, maxLimit, eventStore.sharedDBChunks);
     let count = 0;
-    const batchSize = 100;
+    const batchSize = 200;
     for (let i = 0; i < eventsList.length; i += batchSize) {
       const batch = eventsList.slice(i, i + batchSize);
       for (const event of batch) {
