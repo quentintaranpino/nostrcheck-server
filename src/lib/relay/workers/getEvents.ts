@@ -3,6 +3,82 @@ import workerpool from "workerpool";
 import { decodeChunk, parseSearchTokens } from "../utils.js";
 import { MetadataEvent, SharedChunk } from "../../../interfaces/relay.js";
 
+interface DecodedChunkCache {
+  data: MetadataEvent[];
+  timestamp: number;
+  hits: number;
+}
+
+const decodedChunksCache = new Map<string, DecodedChunkCache>();
+const CACHE_TTL = 60000; 
+const MAX_CACHE_SIZE = 100; 
+
+/**
+ * Generates a cache key for a shared memory chunk.
+ *
+ * @param chunk - SharedChunk object.
+ * @returns A string cache key.
+ */
+const getChunkCacheKey = (chunk: SharedChunk): string => {
+  return `${chunk.timeRange.min}-${chunk.timeRange.max}-${chunk.indexMap.length}`;
+};
+
+
+/**
+ * Retrieves the decoded events from a shared memory chunk.
+ * The decoded events are cached for a period of time to reduce the decoding overhead.
+ *
+ * @param chunk - SharedChunk object to decode.
+ * @returns A promise that resolves to an array of decoded events.
+ */
+const getDecodedChunk = async (chunk: SharedChunk): Promise<MetadataEvent[]> => {
+  const cacheKey = getChunkCacheKey(chunk);
+  const now = Date.now();
+  
+  if (decodedChunksCache.has(cacheKey)) {
+    const cached = decodedChunksCache.get(cacheKey)!;
+    
+    if (now - cached.timestamp < CACHE_TTL) {
+      cached.hits++;
+      decodedChunksCache.set(cacheKey, cached);
+      return cached.data;
+    }
+  }
+  
+  const startTime = Date.now();
+  const decodedChunk = await decodeChunk(chunk);
+  
+  decodedChunksCache.set(cacheKey, {
+    data: decodedChunk,
+    timestamp: now,
+    hits: 1
+  });
+  
+  if (decodedChunksCache.size > MAX_CACHE_SIZE) {
+    const entries = [...decodedChunksCache.entries()]
+      .sort((a, b) => a[1].hits - b[1].hits);
+    
+    const toRemove = Math.floor(MAX_CACHE_SIZE * 0.2);
+    for (let i = 0; i < toRemove; i++) {
+      if (entries[i]) decodedChunksCache.delete(entries[i][0]);
+    }
+  }
+  
+  return decodedChunk;
+};
+
+/**
+ * Periodically clean up the decoded chunks cache.
+ */
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, value] of decodedChunksCache.entries()) {
+    if (now - value.timestamp > CACHE_TTL) {
+      decodedChunksCache.delete(key);
+    }
+  }
+}, CACHE_TTL / 2); 
+
 /**
  * Retrieves events from an array of shared memory chunks, applying NIP-50 search with extensions.
  * For filters with a search query, events are scored and sorted by matching quality,
@@ -28,23 +104,15 @@ const _getEvents = async (filters: Filter[], maxLimit: number, chunks: SharedChu
 
     // Array to store events that match this filter along with their matching score.
     const filterResults: { event: MetadataEvent; score: number }[] = [];
+    console.time("getDecodedChunk");
+    const decodedChunks = await Promise.all(chunks.map(getDecodedChunk));
+    console.timeEnd("getDecodedChunk");
 
     // Iterate over each chunk that overlaps with the filter's time range.
-    for (const chunk of chunks) {
-      // Skip chunk if its time range does not overlap with [since, until].
-      if (chunk.timeRange.max < since || chunk.timeRange.min > until) continue;
-
-      // Decode the entire chunk.
-      const decodedEvents = await decodeChunk(chunk);
-      // Filter events by time range.
-      const relevantEvents = decodedEvents.filter(e => e.created_at <= until && e.created_at >= since);
-
-      // Process each event in the chunk.
-      for (let event of relevantEvents) {
-        // Skip event if it doesn't match the filter.
+    for (const decodedEvents of decodedChunks) {
+      for (let event of decodedEvents) {
         if (!matchFilter(filter, event)) continue;
 
-        // Apply special filtering based on metadata tokens if a search is specified.
         let specialOk = true;
         if (filter.search) {
           const { plainSearch: _, specialTokens } = parseSearchTokens(filter.search);
@@ -73,24 +141,19 @@ const _getEvents = async (filters: Filter[], maxLimit: number, chunks: SharedChu
         }
         if (!specialOk) continue;
 
-        // Check if the event passes the search query.
         const isStructuredFilter = filter.search && /^[a-zA-Z0-9_-]+:[^ ]/.test(filter.search);
         const passesSearch =
           !searchQuery || isStructuredFilter || event.content.toLowerCase().includes(searchQuery);
-        if (!passesSearch) continue;
+        if (!passesSearch) {
+          continue;
+        }
 
-        // Compute a matching score if searchQuery is present.
         let score = 0;
         if (searchQuery) {
           const content = event.content.toLowerCase();
-          let count = 0;
-          let pos = content.indexOf(searchQuery);
-          while (pos !== -1) {
-            count++;
-            pos = content.indexOf(searchQuery, pos + searchQuery.length);
-          }
-          score = count;
+          score = (content.match(new RegExp(`\\b${searchQuery}\\b`, "gi")) || []).length;
         }
+    
 
         filterResults.push({ event, score });
       }
@@ -100,6 +163,7 @@ const _getEvents = async (filters: Filter[], maxLimit: number, chunks: SharedChu
     if (searchQuery) {
       filterResults.sort((a, b) => b.score - a.score);
     }
+
     // Apply the effective limit after sorting.
     const filteredEvents = filterResults.slice(0, effectiveLimit).map(obj => {
       // Remove metadata before returning the event.
@@ -110,11 +174,11 @@ const _getEvents = async (filters: Filter[], maxLimit: number, chunks: SharedChu
   }
 
   // Deduplicate events based on their id.
-  return Array.from(new Map(finalResults.map(event => [event.id, event])).values());
+  const uniqueEvents = Array.from(new Map(finalResults.map(event => [event.id, event])).values());
+
+  return uniqueEvents;
 };
 
-
 workerpool.worker({_getEvents: _getEvents});
-
 
 export { _getEvents };
