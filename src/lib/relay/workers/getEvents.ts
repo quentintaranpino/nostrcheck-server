@@ -11,7 +11,8 @@ interface DecodedChunkCache {
 
 const decodedChunksCache = new Map<string, DecodedChunkCache>();
 const CACHE_TTL = 60000; 
-const MAX_CACHE_SIZE = 100; 
+const MAX_CACHE_SIZE = 50; 
+const MAX_HITS_BEFORE_REFRESH = 50;
 
 /**
  * Generates a cache key for a shared memory chunk.
@@ -38,13 +39,15 @@ const getDecodedChunk = async (chunk: SharedChunk): Promise<MetadataEvent[]> => 
   if (decodedChunksCache.has(cacheKey)) {
     const cached = decodedChunksCache.get(cacheKey)!;
     
-    if (now - cached.timestamp < CACHE_TTL) {
+    if (cached.hits >= MAX_HITS_BEFORE_REFRESH && 
+        now - cached.timestamp >= CACHE_TTL) {
+      decodedChunksCache.delete(cacheKey);
+    } else if (now - cached.timestamp < CACHE_TTL) {
       cached.hits++;
       decodedChunksCache.set(cacheKey, cached);
       return cached.data;
     }
   }
-  
   const decodedChunk = await decodeChunk(chunk);
   
   decodedChunksCache.set(cacheKey, {
