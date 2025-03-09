@@ -119,9 +119,15 @@ setInterval(() => {
     }
   } else {
     for (const [key, value] of decodedChunksCache.entries()) {
-      if (now - value.timestamp > BASE_CACHE_TTL) {
-        decodedChunksCache.delete(key);
-        removedCount++;
+      const keyParts = key.split('-');
+      if (keyParts.length >= 2) {
+        const maxTime = parseInt(keyParts[1], 10);
+        const chunk = { timeRange: { min: 0, max: maxTime } } as SharedChunk;
+        const dynamicTTL = getChunkTTL(chunk);
+        if (now - value.created_at > dynamicTTL) {
+          decodedChunksCache.delete(key);
+          removedCount++;
+        }
       }
     }
   }
