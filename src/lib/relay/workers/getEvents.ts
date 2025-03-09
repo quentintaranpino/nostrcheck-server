@@ -14,7 +14,7 @@ const decodedChunksCache = new Map<string, DecodedChunkCache>();
 const lastUpdatedChunks = new Map<string, number>(); 
 
 const BASE_CACHE_TTL = 60000; 
-const MAX_CACHE_SIZE = 50; 
+const MAX_CACHE_SIZE = 20; 
 const CLEANUP_PERCENTAGE = 0.4;
 
 /**
