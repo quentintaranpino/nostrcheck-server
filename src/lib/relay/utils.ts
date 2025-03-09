@@ -3,7 +3,7 @@ import WebSocket from "ws";
 import { Event } from "nostr-tools";
 import { NIP01_event } from "../../interfaces/nostr.js";
 import { getTextLanguage } from "../language.js";
-import { MetadataEvent, SharedChunk } from "../../interfaces/relay.js";
+import { EventIndex, MetadataEvent, RelayEvents, SharedChunk } from "../../interfaces/relay.js";
 
 /**
  * Compress an event using LZString
@@ -465,6 +465,93 @@ const decodeChunk = async (chunk: SharedChunk): Promise<MetadataEvent[]> => {
   return events;
 };
 
+
+/**
+ * Retrieves an event by its ID from the event index.
+ * This function looks up an event by its ID in the event index,
+ * returning the event if found, or null if not found.
+ *
+ * @param id - The ID of the event to retrieve.
+ * @returns A Promise that resolves to the Event object, or null if not found.
+ */
+const getEventById = async (id: string, eventStore : RelayEvents): Promise<Event | null> => {
+  const indexEntry = eventStore.eventIndex.get(id);
+  if (!indexEntry) return null;
+  
+  const chunk = eventStore.sharedDBChunks[indexEntry.chunkIndex];
+  if (!chunk) return null;
+
+  const position = indexEntry.position;
+  if (position >= chunk.indexMap.length) return null;
+  
+  const view = new DataView(chunk.buffer);
+  const offset = chunk.indexMap[position];
+  const { event } = await decodeEvent(chunk.buffer, view, offset);
+  
+  if (event.id !== id) {
+    return null;
+  }
+  
+  return event;
+};
+
+/**
+ * Retrieves events from the event store by a time range.
+ * This function retrieves all events from the event store that fall within
+ * the specified time range, optionally filtering by a custom filter function.
+ *
+ * @param startTime - The start of the time range.
+ * @param endTime - The end of the time range.
+ * @param eventStore - The event store containing the events.
+ * @param filter - An optional filter function to apply to each event.
+ * @returns A Promise that resolves to an array of Event objects.
+ */
+const getEventsByTimerange = async (startTime: number, endTime: number, eventStore: RelayEvents, filter?: (entry: EventIndex) => boolean): Promise<Event[]> => {
+  const matchingEntries: [string, EventIndex][] = Array.from(eventStore.eventIndex.entries())
+    .filter(([_, entry]) => 
+      entry.created_at >= startTime && 
+      entry.created_at <= endTime && 
+      (!filter || filter(entry))
+    );
+  
+  if (matchingEntries.length === 0) return [];
+  
+  const entriesByChunk = new Map<number, {position: number, id: string}[]>();
+  
+  for (const [id, entry] of matchingEntries) {
+    if (!entriesByChunk.has(entry.chunkIndex)) {
+      entriesByChunk.set(entry.chunkIndex, []);
+    }
+    entriesByChunk.get(entry.chunkIndex)!.push({
+      position: entry.position,
+      id
+    });
+  }
+  
+  const results: Event[] = [];
+  
+  await Promise.all(Array.from(entriesByChunk.entries()).map(async ([chunkIndex, entries]) => {
+    const chunk = eventStore.sharedDBChunks[chunkIndex];
+    if (!chunk) return;
+    
+    const view = new DataView(chunk.buffer);
+    
+    for (const entry of entries) {
+      if (entry.position >= chunk.indexMap.length) continue;
+      
+      try {
+        const { event } = await decodeEvent(chunk.buffer, view, chunk.indexMap[entry.position]);
+        const { metadata, ...eventWithoutMetadata } = event;
+        results.push(eventWithoutMetadata);
+      } catch (error) {
+        console.error(`Error decodificando evento en chunk ${chunkIndex}, posición ${entry.position}:`, error);
+      }
+    }
+  }));
+  
+  return results;
+};
+
 export {  compressEvent, 
           decompressEvent, 
           parseRelayMessage, 
@@ -474,5 +561,7 @@ export {  compressEvent,
           binarySearchDescendingIndexMap,
           binarySearchCreatedAt, 
           encodeChunk,
-          decodeChunk
+          decodeChunk, 
+          getEventById, 
+          getEventsByTimerange
         };

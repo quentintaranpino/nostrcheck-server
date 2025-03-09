@@ -2,7 +2,7 @@ import { Application } from "express";
 import { Event } from "nostr-tools";
 import { dbBulkInsert, dbDelete, dbSimpleSelect, dbUpdate} from "../database.js";
 import { logger } from "../logger.js";
-import { CHUNK_SIZE, MemoryEvent, MetadataEvent, eventStore } from "../../interfaces/relay.js";
+import { CHUNK_SIZE, EventIndex, MetadataEvent, eventStore } from "../../interfaces/relay.js";
 import { isModuleEnabled } from "../config.js";
 import { decompressEvent, encodeChunk } from "./utils.js";
 import { safeJSONParse } from "../utils.js";
@@ -11,38 +11,51 @@ const initEvents = async (app: Application): Promise<boolean> => {
   if (!isModuleEnabled("relay", app)) return false;
   if (eventStore.sharedDBChunks && eventStore.sharedDBChunks.length > 0) return false;
 
-  const eventsMap: Map<string, MemoryEvent> = new Map();
+  const eventIndex: Map<string, EventIndex> = new Map();
   const pending: Map<string, Event> = new Map();
   const pendingDelete: Map<string, Event> = new Map();
   eventStore.pending = pending;
   eventStore.pendingDelete = pendingDelete;
   eventStore.sharedDBChunks = [];
+  eventStore.eventIndex = eventIndex;
 
   let offset = 0;
 
-  // Fire-and-forget: start loading batches asynchronously without awaiting.
   (async function loadBatch() {
     try {
       while (true) {
-        logger.info(`initEvents - Loaded ${eventsMap.size} events from DB (offset: ${offset})`);
+        logger.info(`initEvents - Loaded ${eventIndex.size} events from DB (offset: ${offset})`);
         const loadedEvents = await getEventsDB(offset, CHUNK_SIZE);
         if (loadedEvents.length === 0 || offset > 100000) {
           eventStore.relayEventsLoaded = true;
-          logger.info(`initEvents - Finished loading ${eventsMap.size} events in ${eventStore.sharedDBChunks.length} chunks from DB`);
+          logger.info(`initEvents - Finished loading ${eventIndex.size} events in ${eventStore.sharedDBChunks.length} chunks from DB`);
           break;
         } else {
           const batchEvents: MetadataEvent[] = [];
           for (let event of loadedEvents) {
-            eventsMap.set(event.id, { event: event, processed: true });
             batchEvents.push(event);
           }
           
           // Generate a new chunk and add it to the sharedDBChunks array and memoryDB map.
           const newChunk = await encodeChunk(batchEvents);
-          eventStore.memoryDB = eventsMap;
+          const chunkIndex = eventStore.sharedDBChunks.length;
           eventStore.sharedDBChunks.push(newChunk);
+
+          // Add the events to the eventIndex map.
+          for (let i = 0; i < batchEvents.length; i++) {
+            const event = batchEvents[i];
+            eventIndex.set(event.id, {
+              chunkIndex, 
+              position: i,
+              processed: true,
+              created_at: event.created_at,
+              kind: event.kind,
+              pubkey: event.pubkey
+            });
+          }
           
           offset += CHUNK_SIZE;
+
           // Yield control to the event loop to avoid blocking.
           await new Promise(resolve => setImmediate(resolve));
         }
@@ -260,7 +273,7 @@ const deleteEvents = async (eventsInput: MetadataEvent | MetadataEvent[], delete
 
       affectedCount++;
 
-      eventStore.memoryDB.delete(event.id);
+      eventStore.eventIndex.delete(event.id);
       if (eventStore.pending) eventStore.pending.delete(event.id);
       if (eventStore.pendingDelete) eventStore.pendingDelete.delete(event.id);
 

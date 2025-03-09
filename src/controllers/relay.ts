@@ -3,7 +3,7 @@ import { Event, Filter, matchFilter } from "nostr-tools";
 import { Request, Response } from "express";
 
 import { subscriptions, addSubscription, removeAllSubscriptions, removeSubscription } from "../lib/relay/core.js";
-import { compressEvent, fillEventMetadata, parseRelayMessage } from "../lib/relay/utils.js";
+import { compressEvent, fillEventMetadata, getEventById, getEventsByTimerange, parseRelayMessage } from "../lib/relay/utils.js";
 import { initEvents } from "../lib/relay/database.js";
 
 import app from "../app.js";
@@ -251,7 +251,7 @@ const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) =>
     return;
   }
 
-  if (eventStore.memoryDB.has(event.id)) {
+  if (eventStore.eventIndex.has(event.id)) {
     logger.debug(`handleEvent - Duplicate event: ${event.id}`);
     socket.send(JSON.stringify(["OK", event.id, false, "duplicate: already have this event"]));
     return;
@@ -271,24 +271,37 @@ const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) =>
 
   // Replaceable events
   if (isReplaceable(event.kind)) {
-    for (const [key, memEv] of eventStore.memoryDB.entries()) {
-      if (memEv.event.kind === event.kind && memEv.event.pubkey === event.pubkey) {
-          if (event.created_at > memEv.event.created_at ||(event.created_at === memEv.event.created_at && event.id < memEv.event.id)) {
-            const deleteResult = await dbUpdate("events", {"active": "0"}, ["event_id"], [memEv.event.id]);
-            if (!deleteResult) {
-              logger.error(`handleEvent - Failed to delete replaceable event: ${memEv.event.id}`);
-              socket.send(JSON.stringify(["NOTICE", "error: failed to delete replaceable event"]));
-              socket.send(JSON.stringify(["OK", event.id, false, "error: failed to delete replaceable event"]));
-              return;
-            }
-            logger.debug(`handleEvent - Deleted replaceable event successfully: ${memEv.event.id}`);
-            eventStore.memoryDB.delete(key); 
-            break;
-          } else {
-              logger.debug(`handleEvent - Duplicate event: ${event.id}`);
-              socket.send(JSON.stringify(["OK", event.id, false, "duplicate: older or same version"]));
-              return;
+    const replacementCandidates = Array.from(eventStore.eventIndex.entries())
+    .filter(([_, entry]) => entry.kind === event.kind && entry.pubkey === event.pubkey);
+
+    if (replacementCandidates.length > 0) {
+      const oldEventEntry = replacementCandidates[0];
+      const oldEvent = await getEventById(oldEventEntry[0], eventStore);
+
+      // If the event is not processed yet, we delete it and accept the new one
+      if (!oldEvent && !oldEventEntry[1].processed) {
+        eventStore.eventIndex.delete(oldEventEntry[0]);
+        eventStore.pending.delete(oldEventEntry[0]);
+        logger.debug(`handleEvent - Replaced pending event: ${oldEventEntry[0]}`);
+      } 
+      else if (oldEvent) {
+        if (event.created_at > oldEvent.created_at || 
+            (event.created_at === oldEvent.created_at && event.id < oldEvent.id)) {
+          const deleteResult = await dbUpdate("events", {"active": "0"}, ["event_id"], [oldEvent.id]);
+          if (!deleteResult) {
+            logger.debug(`handleEvent - Failed to delete replaceable event: ${oldEvent.id}`);
+            socket.send(JSON.stringify(["NOTICE", "error: failed to delete replaceable event"]));
+            socket.send(JSON.stringify(["OK", event.id, false, "error: failed to delete replaceable event"]));
+            return;
           }
+          eventStore.pendingDelete.set(oldEvent.id, oldEvent);
+          eventStore.eventIndex.delete(oldEvent.id);
+          logger.debug(`handleEvent - Replaced processed event: ${oldEvent.id}`);
+        } else {
+          logger.debug(`handleEvent - Rejected replaceable event: ${event.id}`);
+          socket.send(JSON.stringify(["OK", event.id, false, "rejected: replaceable event is older or equal to existing event"]));
+          return;
+        }
       }
     }
   }
@@ -326,13 +339,12 @@ const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) =>
       return;
     }
 
-    const eventsToDelete = receivedEventsToDelete
-      .map(id => {
-        const memEvent = eventStore.memoryDB.get(id);
-        return memEvent ? memEvent.event : eventStore.pending.get(id);
+    const eventsToDelete = (await Promise.all(
+      receivedEventsToDelete.map(async id => {
+        return eventStore.pending.get(id) || 
+               (eventStore.eventIndex.has(id) ? await getEventById(id, eventStore) : null);
       })
-      .filter((e): e is Event => e !== undefined && e.kind !== 5 && e.pubkey === event.pubkey)
-      .filter(e => !e.tags.some((tag: string[]) => tag[0] === "a") || e.created_at < event.created_at);
+    )).filter((e): e is Event => e !== null && e.kind !== 5 && e.pubkey === event.pubkey)
   
     if (eventsToDelete.length === 0) {
       logger.debug(`handleEvent - Rejected kind:5 event ${event.id} due to no events found for deletion.`);
@@ -371,13 +383,20 @@ const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) =>
       return;
     }
 
+    const pendingEvents = Array.from(eventStore.pending.values());
+    const storedEvents = await getEventsByTimerange(
+      0,                    
+      event.created_at - 1, 
+      eventStore,
+      entry => entry.pubkey === event.pubkey 
+    );
+
     const eventsToDelete: Event[] = [
-      ...Array.from(eventStore.pending.values()),
-      ...Array.from(eventStore.memoryDB.values()).map(memoryEvent => memoryEvent.event)
+      ...pendingEvents,
+      ...storedEvents
     ].filter(e =>
-      e.created_at < event.created_at &&
       (e.pubkey === event.pubkey ||
-        e.tags.some(tag => tag[0] === "p" && tag[1] === event.pubkey)) &&
+       e.tags.some(tag => tag[0] === "p" && tag[1] === event.pubkey)) &&
       e.kind !== 5 &&
       e.kind !== 62
     );
@@ -401,7 +420,14 @@ const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) =>
   // Save the event to memory
   event = await fillEventMetadata(event);
   event = await compressEvent(event);
-  eventStore.memoryDB.set(event.id, { event: event, processed: false });
+  eventStore.eventIndex.set(event.id, {
+    chunkIndex: -1, 
+    position: -1, 
+    processed: false,
+    created_at: event.created_at,
+    kind: event.kind,
+    pubkey: event.pubkey
+  });
   eventStore.pending.set(event.id, event);
 
   // Send confirmation to the client
@@ -457,7 +483,10 @@ const handleReqOrCount = async (socket: WebSocket, subId: string, filters: Filte
   const maxTimeRange = app.get("config.relay")["limitation"]["max_time_range"];
   let limit = filters.find(f => f.limit)?.limit ?? maxLimit;
 
-  if (limit > maxLimit || until - since > maxTimeRange) {
+  // Check if the query is specific to certain event IDs.
+  const isIdSpecificQuery = filters.every(f => f.ids && f.ids.length > 0);
+
+  if (!isIdSpecificQuery && (limit > maxLimit || until - since > maxTimeRange)) {
     socket.send(JSON.stringify(["NOTICE", `warning: ${limit > maxLimit ? "limit" : "time range"} too high, adjusted to ${limit > maxLimit ? maxLimit : maxTimeRange}`]));
     if (limit > maxLimit) limit = maxLimit;
     if (until - since) since = until - maxTimeRange;

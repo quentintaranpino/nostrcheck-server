@@ -26,6 +26,7 @@ import { setAuthCookie } from "../lib/frontend.js";
 import { deleteFile } from "../lib/storage/core.js";
 import { isIpAllowed } from "../lib/security/ips.js";
 import { eventStore } from "../interfaces/relay.js";
+import { getEventById } from "../lib/relay/utils.js";
 
 let hits = 0;
 /**
@@ -606,8 +607,19 @@ const deleteDBRecord = async (req: Request, res: Response): Promise<Response> =>
             logger.warn(`deleteDBRecord - Failed to delete record`, "|", reqInfo.ip);
             return res.status(400).send(result);
         }
-        const event = eventStore.memoryDB.get(eventData[0].event_id);
-        if (event) eventStore.memoryDB.delete(eventData[0].event_id);
+        const eventId = eventData[0].event_id;
+        const indexEntry = eventStore.eventIndex.get(eventId);
+        if (indexEntry) {
+            if (indexEntry) {
+                const event = await getEventById(eventId, eventStore);
+                if (event) {
+                    eventStore.pendingDelete.set(eventId, event);
+                    logger.info(`Added event ${eventId} to pendingDelete for cleanup`);
+                }
+                
+                eventStore.eventIndex.delete(eventId);
+            }
+        }
     }
 
     // Check Redis cache for the record.
@@ -980,7 +992,7 @@ const getModuleCountData = async (req: Request, res: Response): Promise<Response
         return res.status(200).send({total: logHistory.total, field: logHistory.total});
     }
     if (module == "relay" && action == "countSynced") {
-        return res.status(200).send({total: await dbCountModuleData(module), field: eventStore?.memoryDB?.size | 0});
+        return res.status(200).send({total: await dbCountModuleData(module), field: eventStore?.eventIndex?.size | 0});
     }
 
     if (action == "monthCount") {

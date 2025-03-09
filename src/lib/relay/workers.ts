@@ -8,7 +8,7 @@ import { CHUNK_SIZE, eventStore, MetadataEvent, RelayJob, SharedChunk } from "..
 import app from "../../app.js";
 import { isModuleEnabled } from "../config.js";
 import { deleteEvents, storeEvents } from "./database.js";
-import { encodeChunk } from "./utils.js";
+import { encodeChunk, getEventsByTimerange } from "./utils.js";
 
 // Workers
 const relayWorkers = Number(app.get("config.relay")["workers"]);
@@ -79,8 +79,8 @@ const persistEvents = async () => {
       eventsToPersist.forEach((event: Event) => {
 
         // Remove event from pending and set as processed on memoryDB
-        const eventEntry = eventStore.memoryDB.get(event.id);
-        if (eventEntry) eventEntry.processed = true;
+        const indexEntry = eventStore.eventIndex.get(event.id);
+        if (indexEntry) indexEntry.processed = true;
         eventStore.pending.delete(event.id);
 
         // Try to assign event to a regular shared memory chunk
@@ -108,24 +108,50 @@ const persistEvents = async () => {
       });
 
       // Update affected chunks with new events
-      affectedChunks.forEach(async (chunk) => {
-        const newChunkEvents = Array.from(eventStore.memoryDB.values())
-          .map((me) => me.event)
-          .filter((e) => e.created_at >= chunk.timeRange.min && e.created_at <= chunk.timeRange.max);
+      await Promise.all(affectedChunks.map(async (chunk) => {
+        const newChunkEvents = await getEventsByTimerange(
+          chunk.timeRange.min, 
+          chunk.timeRange.max, 
+          eventStore, 
+          entry => entry.processed === true
+        );
         if (newChunkEvents.length > 0) {
           const affectedChunk = await encodeChunk(newChunkEvents);
           const idx = eventStore.sharedDBChunks.findIndex((c) => c === chunk);
           if (idx !== -1) {
+            
             eventStore.sharedDBChunks[idx] = affectedChunk;
+
+            // Update event index with new chunk and position
+            for (let position = 0; position < newChunkEvents.length; position++) {
+              const event = newChunkEvents[position];
+              const entry = eventStore.eventIndex.get(event.id);
+              if (entry) {
+                entry.chunkIndex = idx;
+                entry.position = position;
+                entry.processed = true;
+              }
+            }
           }
         }
-      });
+      }));
 
       // Create new chunk(s) for unassigned events
       if (unassignedEvents.length > 0) {
         unassignedEvents.sort((a, b) => b.created_at - a.created_at);
         const newChunk = await encodeChunk(unassignedEvents);
+        const newChunkIndex = eventStore.sharedDBChunks.length;
         eventStore.sharedDBChunks.push(newChunk);
+        for (let position = 0; position < unassignedEvents.length; position++) {
+          const event = unassignedEvents[position];
+          const entry = eventStore.eventIndex.get(event.id);
+          if (entry) {
+            entry.chunkIndex = newChunkIndex;
+            entry.position = position;
+            entry.processed = true; 
+
+          }
+        }
         eventStore.sharedDBChunks.sort((a, b) => b.timeRange.max - a.timeRange.max);
       }
 
@@ -160,10 +186,11 @@ const unpersistEvents = async () => {
     
     // NIP-40 inactivation
     const now = Math.floor(Date.now() / 1000);
-    for (const [eventId, memoryEvent] of eventStore.memoryDB.entries()) {
-      const expirationTag = memoryEvent.event.tags.find(tag => tag[0] === "expiration");
+    const allEvents = await getEventsByTimerange(0, now, eventStore);
+    for (const event of allEvents) {
+      const expirationTag = event.tags.find(tag => tag[0] === "expiration");
       if (expirationTag && Number(expirationTag[1]) < now) {
-        expiredEvents.push(memoryEvent.event);
+        expiredEvents.push(event);
       }
     }
   
@@ -184,9 +211,7 @@ const unpersistEvents = async () => {
     // Recreate expired and deleted events chunks
     for (const chunk of eventStore.sharedDBChunks) {
       if (chunk.timeRange.max < Math.min(...eventsToDelete.map(e => e.created_at)) || chunk.timeRange.min > Math.max(...eventsToDelete.map(e => e.created_at))) continue;
-      const chunkEvents = Array.from(eventStore.memoryDB.values())
-      .map((me) => me.event)
-      .filter((e) => e.created_at >= chunk.timeRange.min && e.created_at <= chunk.timeRange.max);
+      const chunkEvents = await getEventsByTimerange(chunk.timeRange.min, chunk.timeRange.max, eventStore);
       const newEvents = chunkEvents.filter((e) => !eventsToDelete.find((d) => d.id === e.id));
       const newChunk = await encodeChunk(newEvents);
       const idx = eventStore.sharedDBChunks.findIndex((c) => c === chunk);

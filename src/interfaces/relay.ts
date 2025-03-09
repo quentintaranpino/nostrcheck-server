@@ -1,15 +1,4 @@
 import { Event } from "nostr-tools";
-
-interface MetadataEvent extends Event {
-  metadata?: { [key: string]: string | string[] };
-}
-
-
-interface MemoryEvent {
-    event: MetadataEvent;
-    processed: boolean;
-}
-
 import { WebSocket } from "ws";
 import { ResultMessagev2 } from "./server";
 
@@ -108,6 +97,9 @@ const allowedTags = [
   "-"
 ];
 
+interface MetadataEvent extends Event {
+  metadata?: { [key: string]: string | string[] };
+}
 
 interface RelayJob {
   fn: (...args: any[]) => Promise<any> | any;
@@ -131,17 +123,26 @@ const CHUNK_SIZE = 2000;
 interface RelayEvents {
   pending: Map<string, Event>;
   pendingDelete: Map<string, Event>;
-  memoryDB: Map<string, MemoryEvent>;
+  eventIndex: Map<string, EventIndex>;
   sharedDBChunks: SharedChunk[]; 
   relayEventsLoaded: boolean;
+}
+
+interface EventIndex {
+  chunkIndex: number;  
+  position: number;    
+  processed: boolean;   
+  created_at: number;   
+  kind?: number;       
+  pubkey?: string;     
 }
 
 const eventStore: RelayEvents = {
   pending: new Map<string, Event>(),
   pendingDelete: new Map<string, Event>(),
-  memoryDB: new Map<string, MemoryEvent>(),
+  eventIndex: new Map<string, EventIndex>(),
   sharedDBChunks: [], 
   relayEventsLoaded: false,
 };
 
-export { MemoryEvent, ExtendedWebSocket, allowedTags, RelayJob, RelayStatusMessage, MetadataEvent, eventStore, CHUNK_SIZE };
+export { ExtendedWebSocket, allowedTags, RelayJob, RelayStatusMessage, MetadataEvent, EventIndex, RelayEvents, eventStore, CHUNK_SIZE };
