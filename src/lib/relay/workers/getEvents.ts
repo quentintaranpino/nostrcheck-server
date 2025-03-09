@@ -192,7 +192,6 @@ const _getEvents = async (filters: Filter[], maxLimit: number, chunks: SharedChu
     const cachedEntry = recentFiltersCache.get(filterHash);
     
     if (cachedEntry && cachedEntry.results) {
-      console.log(`getEvents - Cache hit for filter: ${filterHash}`);
       return cachedEntry.results;
     }
     
