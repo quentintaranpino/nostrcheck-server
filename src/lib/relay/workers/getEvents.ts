@@ -16,6 +16,9 @@ const recentFiltersCache = new Map<string, FilterCacheEntry>();
 const FILTER_CACHE_TTL = 30000;
 const FILTER_CACHE_MAX_SIZE = 500;
 
+/**
+ * Periodically clean up the recent filters cache.
+ */
 setInterval(() => {
   const now = Date.now();
   for (const [key, entry] of recentFiltersCache.entries()) {
@@ -186,6 +189,15 @@ setInterval(() => {
 const _getEvents = async (filters: Filter[], maxLimit: number, chunks: SharedChunk[]): Promise<Event[]> => {
   const finalResults: Event[] = [];
   const now = Math.floor(Date.now() / 1000);
+  const startTimeMs = Date.now();
+  const TIMEOUT_MS = 4500;
+
+  const checkTimeout = (): boolean => {
+    if (Date.now() - startTimeMs > TIMEOUT_MS) {
+      return true;
+    }
+    return false;
+  };
 
   if (filters.length === 1) {
     const filterHash = createFilterHash(filters[0]);
@@ -196,10 +208,10 @@ const _getEvents = async (filters: Filter[], maxLimit: number, chunks: SharedChu
     }
     
     if (cachedEntry) {
-      cachedEntry.timestamp = Date.now();
+      cachedEntry.timestamp = startTimeMs;
       recentFiltersCache.set(filterHash, cachedEntry);
     } else {
-      const startTime = Date.now();
+      const startTime = startTimeMs;
       recentFiltersCache.set(filterHash, { 
         timestamp: startTime,
         processingTime: 0
@@ -210,6 +222,11 @@ const _getEvents = async (filters: Filter[], maxLimit: number, chunks: SharedChu
 
   // Process each filter provided.
   for (const filter of filters) {
+
+    if (checkTimeout()) {
+      break; 
+    }
+
     const until = filter.until !== undefined ? filter.until : now;
     const since = filter.since !== undefined ? filter.since : 0;
     const effectiveLimit = filter.limit !== undefined ? Math.min(filter.limit, maxLimit) : maxLimit;
@@ -218,13 +235,20 @@ const _getEvents = async (filters: Filter[], maxLimit: number, chunks: SharedChu
     const searchQuery = rawSearch.length >= 3 ? rawSearch.toLowerCase() : null;
 
     const relevantChunks = filterRelevantChunks(chunks, filter, since, until);
-    const decodedChunks = await Promise.all(relevantChunks.map(getDecodedChunk));
+    const decodedChunks = [];
+    for (const chunk of relevantChunks) {
+      if (checkTimeout()) break;
+      const decoded = await getDecodedChunk(chunk);
+      decodedChunks.push(decoded);
+    }
+
+    if (checkTimeout()) continue;
 
     const filterResults: { event: MetadataEvent; score: number }[] = [];
 
     // Iterate over each chunk that overlaps with the filter's time range.
     for (const decodedEvents of decodedChunks) {
-      if (!searchQuery && filterResults.length >= effectiveLimit) {
+      if (checkTimeout() || (!searchQuery && filterResults.length >= effectiveLimit)) {
         break;  
       }
       for (let event of decodedEvents) {

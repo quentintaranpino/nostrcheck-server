@@ -289,22 +289,17 @@ workerInterval();
 
 // GetEvents worker
 const getEventsWorker = workerpool.pool(path.join(workersDir,  'getEvents.js'), { maxWorkers: relayWorkers });
-async function getEvents(filters: any, maxLimit: number, chunks: SharedChunk[]): Promise<any> {
+const getEvents = async (filters: any, maxLimit: number, chunks: SharedChunk[]): Promise<any> => {
   try {
-    const workerPromise = getEventsWorker.exec("_getEvents", [
+    return await getEventsWorker.exec("_getEvents", [
       JSON.parse(JSON.stringify(filters)),
       maxLimit,
       chunks
     ]);
-    const timeoutPromise = new Promise<any>((_, reject) =>
-      setTimeout(() => reject(new Error("getEvents timed out")), 5000)
-    );
-    const result = await Promise.race([workerPromise, timeoutPromise]);
-    return result;
   } catch (error) {
-    console.error(`getEventsWorker - Error: ${error}`);
+    logger.error(`getEventsWorker - Error: ${error instanceof Error ? error.message : String(error)}`);
     return [];
   }
-}
+};
 
 export { getRelayQueueLength, enqueueRelayTask, relayWorkers, getEvents };
