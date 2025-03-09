@@ -120,7 +120,7 @@ const getEventsDB = async (offset: number, limit: number): Promise<MetadataEvent
         LEFT JOIN metaAgg ON ev.event_id = metaAgg.event_id;
     `;
 
-  const dbResult = await dbSimpleSelect("events", query, "SET SESSION group_concat_max_len = 4194304;");
+  const dbResult = await dbSimpleSelect("events", query, "SET SESSION group_concat_max_len = 8388608;");
   if (!dbResult) return [];
 
   interface EventRow {
