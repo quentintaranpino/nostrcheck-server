@@ -3,6 +3,8 @@ import workerpool from "workerpool";
 import { decodeChunk, parseSearchTokens } from "../utils.js";
 import { MetadataEvent, SharedChunk } from "../../../interfaces/relay.js";
 
+const pubkeyCache = new Map<string, Set<string>>(); 
+
 interface DecodedChunkCache {
   data: MetadataEvent[];
   timestamp: number;
@@ -24,6 +26,39 @@ const getChunkCacheKey = (chunk: SharedChunk): string => {
   return `${chunk.timeRange.min}-${chunk.timeRange.max}-${chunk.indexMap.length}`;
 };
 
+
+
+/**
+ * Filters chunks based on time range and available pubkey cache information.
+ * Optimizes by skipping chunks that don't contain any of the requested authors.
+ */
+const filterRelevantChunks = (chunks: SharedChunk[], filter: Filter, since: number, until: number): SharedChunk[] => {
+  const timeFilteredChunks = chunks.filter(chunk => {
+    if (chunk.timeRange.max < since) return false; 
+    if (chunk.timeRange.min > until) return false;
+    return true;
+  });
+  
+  // Si hay filtro de autores y tenemos caché, refinar más
+  if (filter.authors && filter.authors.length > 0) {
+    const authorsSet = new Set(filter.authors);
+    
+    return timeFilteredChunks.filter(chunk => {
+      const cacheKey = getChunkCacheKey(chunk);
+      const pubkeys = pubkeyCache.get(cacheKey);
+      
+      if (!pubkeys) return true;
+      
+      for (const pubkey of pubkeys) {
+        if (authorsSet.has(pubkey)) return true;
+      }
+      
+      return false;
+    });
+  }
+  
+  return timeFilteredChunks;
+};
 
 /**
  * Retrieves the decoded events from a shared memory chunk.
@@ -65,6 +100,9 @@ const getDecodedChunk = async (chunk: SharedChunk): Promise<MetadataEvent[]> => 
       if (entries[i]) decodedChunksCache.delete(entries[i][0]);
     }
   }
+
+  const pubkeys = new Set(decodedChunk.map(e => e.pubkey));
+  pubkeyCache.set(cacheKey, pubkeys);
   
   return decodedChunk;
 };
@@ -95,47 +133,6 @@ const _getEvents = async (filters: Filter[], maxLimit: number, chunks: SharedChu
   const finalResults: Event[] = [];
   const now = Math.floor(Date.now() / 1000);
 
-  // Optimized version of matchFilter for filters with many conditions
-  const optimizedMatchFilter = (filter: Filter, event: MetadataEvent): boolean => {
-    if (filter.kinds && !filter.kinds.includes(event.kind)) return false;
-    if (filter.since && event.created_at < filter.since) return false;
-    if (filter.until && event.created_at > filter.until) return false;
-    
-    if (filter.authors && filter.authors.length > 20) {
-      const authorsSet = new Set(filter.authors);
-      if (!authorsSet.has(event.pubkey)) return false;
-      
-      const simplifiedFilter = { ...filter };
-      delete simplifiedFilter.authors;
-      filter = simplifiedFilter; 
-    }
-    
-    let hasOptimizedAnyTag = false;
-    const simplifiedFilter = { ...filter };
-    
-    for (const key in filter) {
-      if (key.startsWith('#') && Array.isArray(filter[key as keyof Filter]) && (filter[key as keyof Filter] as any[]).length > 10) {
-        hasOptimizedAnyTag = true;
-        const tagChar = key.slice(1);
-        const tagValues = new Set(filter[key as keyof Filter] as string[]);
-        
-        const hasMatchingTag = event.tags.some(tag => 
-          tag[0] === tagChar && tagValues.has(tag[1])
-        );
-        
-        if (!hasMatchingTag) return false;
-        
-        delete simplifiedFilter[key as keyof Filter];
-      }
-    }
-    
-    if (hasOptimizedAnyTag) {
-      return matchFilter(simplifiedFilter, event);
-    }
-    
-    return matchFilter(filter, event);
-  };
-
   // Process each filter provided.
   for (const filter of filters) {
     const until = filter.until !== undefined ? filter.until : now;
@@ -145,11 +142,7 @@ const _getEvents = async (filters: Filter[], maxLimit: number, chunks: SharedChu
     const rawSearch = filter.search ? filter.search.trim() : "";
     const searchQuery = rawSearch.length >= 3 ? rawSearch.toLowerCase() : null;
 
-    const relevantChunks = chunks.filter(chunk => {
-      if (chunk.timeRange.max < since) return false; 
-      if (chunk.timeRange.min > until) return false;
-      return true;
-    });
+    const relevantChunks = filterRelevantChunks(chunks, filter, since, until);
     const decodedChunks = await Promise.all(relevantChunks.map(getDecodedChunk));
 
     const filterResults: { event: MetadataEvent; score: number }[] = [];
@@ -162,8 +155,7 @@ const _getEvents = async (filters: Filter[], maxLimit: number, chunks: SharedChu
       for (let event of decodedEvents) {
         if (event.created_at < since || event.created_at > until) continue;
         if (filter.kinds && !filter.kinds.includes(event.kind)) continue;
-
-        if (!optimizedMatchFilter(filter, event)) continue;
+        if (!matchFilter(filter, event)) continue;
 
         let specialOk = true;
         if (filter.search) {
@@ -230,7 +222,7 @@ const _getEvents = async (filters: Filter[], maxLimit: number, chunks: SharedChu
         finalResults.push(eventWithoutMetadata);
       }
     }
-
+    
   }
 
   // Deduplicate events based on their id.
