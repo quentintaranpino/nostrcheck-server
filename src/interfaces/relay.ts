@@ -118,7 +118,7 @@ export interface SharedChunk {
   timeRange: { min: number; max: number }; 
 }
 
-const CHUNK_SIZE = 2000; 
+const CHUNK_SIZE = 3000; 
 
 interface RelayEvents {
   pending: Map<string, Event>;
