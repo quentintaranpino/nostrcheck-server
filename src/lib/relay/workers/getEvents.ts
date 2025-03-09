@@ -3,6 +3,62 @@ import workerpool from "workerpool";
 import { decodeChunk, parseSearchTokens } from "../utils.js";
 import { MetadataEvent, SharedChunk } from "../../../interfaces/relay.js";
 
+/**
+ * Cache for tracking recent filter requests to prevent processing duplicates
+ */
+interface FilterCacheEntry {
+  timestamp: number;
+  results?: Event[];
+  processingTime: number;
+}
+
+const recentFiltersCache = new Map<string, FilterCacheEntry>();
+const FILTER_CACHE_TTL = 30000;
+const FILTER_CACHE_MAX_SIZE = 500;
+
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, entry] of recentFiltersCache.entries()) {
+    if (now - entry.timestamp > FILTER_CACHE_TTL) {
+      recentFiltersCache.delete(key);
+    }
+  }
+  if (recentFiltersCache.size > FILTER_CACHE_MAX_SIZE) {
+    const entries = [...recentFiltersCache.entries()]
+      .sort((a, b) => a[1].timestamp - b[1].timestamp);
+    
+    const toRemove = Math.floor(FILTER_CACHE_MAX_SIZE * 0.2);
+    for (let i = 0; i < toRemove; i++) {
+      if (entries[i]) recentFiltersCache.delete(entries[i][0]);
+    }
+  }
+}, FILTER_CACHE_TTL / 2);
+
+/**
+ * Creates a stable hash for a filter to detect duplicates
+ */
+const createFilterHash = (filter: Filter): string => {
+  const normalized: any = {};
+  
+  // Normalize the most important filter properties
+  if (filter.kinds) normalized.kinds = [...filter.kinds].sort().join(',');
+  if (filter.authors) normalized.authors = [...filter.authors].sort().join(',');
+  if (filter.ids) normalized.ids = [...filter.ids].sort().join(',');
+  if (filter.since) normalized.since = filter.since;
+  if (filter.until) normalized.until = filter.until;
+  
+  // Handle tag filters
+  for (const key in filter) {
+    if (key.startsWith('#') && Array.isArray(filter[key as keyof Filter])) {
+      normalized[key] = [...(filter[key as keyof Filter] as string[])].sort().join(',');
+    }
+  }
+  
+  return JSON.stringify(normalized);
+};
+
+
+// Cache for pubkey information per shared memory chunk.
 const pubkeyCache = new Map<string, Set<string>>(); 
 
 interface DecodedChunkCache {
@@ -25,8 +81,6 @@ const MAX_HITS_BEFORE_REFRESH = 50;
 const getChunkCacheKey = (chunk: SharedChunk): string => {
   return `${chunk.timeRange.min}-${chunk.timeRange.max}-${chunk.indexMap.length}`;
 };
-
-
 
 /**
  * Filters chunks based on time range and available pubkey cache information.
@@ -133,6 +187,27 @@ const _getEvents = async (filters: Filter[], maxLimit: number, chunks: SharedChu
   const finalResults: Event[] = [];
   const now = Math.floor(Date.now() / 1000);
 
+  if (filters.length === 1) {
+    const filterHash = createFilterHash(filters[0]);
+    const cachedEntry = recentFiltersCache.get(filterHash);
+    
+    if (cachedEntry && cachedEntry.results) {
+      return cachedEntry.results;
+    }
+    
+    if (cachedEntry) {
+      cachedEntry.timestamp = Date.now();
+      recentFiltersCache.set(filterHash, cachedEntry);
+    } else {
+      const startTime = Date.now();
+      recentFiltersCache.set(filterHash, { 
+        timestamp: startTime,
+        processingTime: 0
+      });
+      
+    }
+  }
+
   // Process each filter provided.
   for (const filter of filters) {
     const until = filter.until !== undefined ? filter.until : now;
@@ -227,6 +302,17 @@ const _getEvents = async (filters: Filter[], maxLimit: number, chunks: SharedChu
 
   // Deduplicate events based on their id.
   const uniqueEvents = Array.from(new Map(finalResults.map(event => [event.id, event])).values());
+
+  if (filters.length === 1 && finalResults.length > 0) {
+    const filterHash = createFilterHash(filters[0]);
+    const cachedEntry = recentFiltersCache.get(filterHash);
+    
+    if (cachedEntry) {
+      cachedEntry.results = finalResults.map(event => ({...event}));
+      cachedEntry.processingTime = Date.now() - cachedEntry.timestamp;
+      recentFiltersCache.set(filterHash, cachedEntry);
+    }
+  }
 
   return uniqueEvents;
 };
