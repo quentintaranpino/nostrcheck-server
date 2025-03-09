@@ -95,6 +95,24 @@ const _getEvents = async (filters: Filter[], maxLimit: number, chunks: SharedChu
   const finalResults: Event[] = [];
   const now = Math.floor(Date.now() / 1000);
 
+  // Optimized version of matchFilter that skips the authors check if the filter has more than 20 authors.
+  const optimizedMatchFilter = (filter: Filter, event: MetadataEvent): boolean => {
+    if (filter.authors && filter.authors.length > 20) {
+      const authorsSet = new Set(filter.authors);
+      
+      if (!authorsSet.has(event.pubkey)) return false;
+      
+      const simplifiedFilter = { ...filter };
+      delete simplifiedFilter.authors;
+      
+      return matchFilter(simplifiedFilter, event);
+    } else {
+      return matchFilter(filter, event);
+    }
+  };
+
+
+
   // Process each filter provided.
   for (const filter of filters) {
     const until = filter.until !== undefined ? filter.until : now;
@@ -121,7 +139,8 @@ const _getEvents = async (filters: Filter[], maxLimit: number, chunks: SharedChu
       for (let event of decodedEvents) {
         if (event.created_at < since || event.created_at > until) continue;
         if (filter.kinds && !filter.kinds.includes(event.kind)) continue;
-        if (!matchFilter(filter, event)) continue;
+
+        if (!optimizedMatchFilter(filter, event)) continue;
 
         let specialOk = true;
         if (filter.search) {
@@ -188,7 +207,7 @@ const _getEvents = async (filters: Filter[], maxLimit: number, chunks: SharedChu
         finalResults.push(eventWithoutMetadata);
       }
     }
-    
+
   }
 
   // Deduplicate events based on their id.
