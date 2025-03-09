@@ -441,7 +441,7 @@ const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) =>
 const handleReqOrCount = async (socket: WebSocket, subId: string, filters: Filter[], type: string, reqInfo: ipInfo) => {
 
   logger.debug(`handleReqOrCount - Received ${type} message:`, subId);
-  logger.debug(`handleReqOrCount - Filters: ${JSON.stringify(filters, null, 2)}`);
+  logger.warn(`handleReqOrCount - Filters: ${JSON.stringify(filters, null, 2)}`);
 
   if (!filters || !Array.isArray(filters) || filters.length === 0) {
     logger.debug(`handleReqOrCount - No filters provided: ${subId}`);
