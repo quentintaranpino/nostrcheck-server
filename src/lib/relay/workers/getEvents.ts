@@ -45,7 +45,6 @@ const getDecodedChunk = async (chunk: SharedChunk): Promise<MetadataEvent[]> => 
     }
   }
   
-  const startTime = Date.now();
   const decodedChunk = await decodeChunk(chunk);
   
   decodedChunksCache.set(cacheKey, {
@@ -102,9 +101,14 @@ const _getEvents = async (filters: Filter[], maxLimit: number, chunks: SharedChu
     const rawSearch = filter.search ? filter.search.trim() : "";
     const searchQuery = rawSearch.length >= 3 ? rawSearch.toLowerCase() : null;
 
-    // Array to store events that match this filter along with their matching score.
+    const relevantChunks = chunks.filter(chunk => {
+      if (chunk.timeRange.max < since) return false; 
+      if (chunk.timeRange.min > until) return false;
+      return true;
+    });
+    const decodedChunks = await Promise.all(relevantChunks.map(getDecodedChunk));
+
     const filterResults: { event: MetadataEvent; score: number }[] = [];
-    const decodedChunks = await Promise.all(chunks.map(getDecodedChunk));
 
     // Iterate over each chunk that overlaps with the filter's time range.
     for (const decodedEvents of decodedChunks) {
@@ -154,6 +158,11 @@ const _getEvents = async (filters: Filter[], maxLimit: number, chunks: SharedChu
     
 
         filterResults.push({ event, score });
+
+        // If no search query is provided and the effective limit is reached, stop processing
+        if (!searchQuery && filterResults.length >= effectiveLimit) {
+          break;
+        }
       }
     }
 
@@ -168,7 +177,11 @@ const _getEvents = async (filters: Filter[], maxLimit: number, chunks: SharedChu
       const { metadata, ...eventWithoutMetadata } = obj.event;
       return eventWithoutMetadata;
     });
-    finalResults.push(...filteredEvents);
+
+    // Append the filtered events to the final results if the effective limit has not been reached.
+    for (let i = 0; i < Math.min(filteredEvents.length, effectiveLimit - finalResults.length); i++) {
+      finalResults.push(filteredEvents[i]);
+    }
   }
 
   // Deduplicate events based on their id.
