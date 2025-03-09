@@ -7,12 +7,29 @@ interface DecodedChunkCache {
   data: MetadataEvent[];
   timestamp: number;
   hits: number;
+  created_at: number;
 }
 
 const decodedChunksCache = new Map<string, DecodedChunkCache>();
 const CACHE_TTL = 30000; 
 const MAX_CACHE_SIZE = 50; 
 const CLEANUP_PERCENTAGE = 0.4;
+
+/**
+ * Returns the time-to-live (TTL) for a shared memory chunk based on its age.
+ *
+ * @param chunk - SharedChunk object.
+ * @returns TTL in milliseconds.
+ */
+const getChunkTTL = (chunk: SharedChunk): number => {
+  const now = Math.floor(Date.now() / 1000);
+  const ageInHours = (now - chunk.timeRange.max) / 3600;
+  
+  if (ageInHours < 1) return 45000;     
+  if (ageInHours < 24) return 120000;  
+  if (ageInHours < 168) return 300000;  
+  return 600000;   
+};
 
 /**
  * Generates a cache key for a shared memory chunk.
@@ -38,11 +55,17 @@ const getDecodedChunk = async (chunk: SharedChunk): Promise<MetadataEvent[]> => 
   
   if (decodedChunksCache.has(cacheKey)) {
     const cached = decodedChunksCache.get(cacheKey)!;
+
+    const dynamicTTL = getChunkTTL(chunk);
+    const hasExceededDynamicTTL = (now - cached.created_at) > dynamicTTL;
     
-    cached.hits++;
-    cached.timestamp = now; 
-    decodedChunksCache.set(cacheKey, cached);
-    return cached.data;
+    if (hasExceededDynamicTTL) {
+      decodedChunksCache.delete(cacheKey);
+    } else {
+      cached.hits++;
+      cached.timestamp = now;
+      return cached.data;
+    }
   }
   
   const decodedChunk = await decodeChunk(chunk);
@@ -50,7 +73,8 @@ const getDecodedChunk = async (chunk: SharedChunk): Promise<MetadataEvent[]> => 
   decodedChunksCache.set(cacheKey, {
     data: decodedChunk,
     timestamp: now,
-    hits: 1
+    hits: 1,
+    created_at: now
   });
   
   if (decodedChunksCache.size > MAX_CACHE_SIZE) {
