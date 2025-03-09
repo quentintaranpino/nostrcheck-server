@@ -115,7 +115,12 @@ const _getEvents = async (filters: Filter[], maxLimit: number, chunks: SharedChu
 
     // Iterate over each chunk that overlaps with the filter's time range.
     for (const decodedEvents of decodedChunks) {
+      if (!searchQuery && filterResults.length >= effectiveLimit) {
+        break;  
+      }
       for (let event of decodedEvents) {
+        if (event.created_at < since || event.created_at > until) continue;
+        if (filter.kinds && !filter.kinds.includes(event.kind)) continue;
         if (!matchFilter(filter, event)) continue;
 
         let specialOk = true;
@@ -175,16 +180,15 @@ const _getEvents = async (filters: Filter[], maxLimit: number, chunks: SharedChu
     }
 
     // Apply the effective limit after sorting.
-    const filteredEvents = filterResults.slice(0, effectiveLimit).map(obj => {
-      // Remove metadata before returning the event.
-      const { metadata, ...eventWithoutMetadata } = obj.event;
-      return eventWithoutMetadata;
-    });
-
-    // Append the filtered events to the final results if the effective limit has not been reached.
-    for (let i = 0; i < Math.min(filteredEvents.length, effectiveLimit - finalResults.length); i++) {
-      finalResults.push(filteredEvents[i]);
+    const filteredEventsLimit = Math.min(filterResults.length, effectiveLimit);
+    for (let i = 0; i < filteredEventsLimit; i++) {
+      const { metadata, ...eventWithoutMetadata } = filterResults[i].event;
+      
+      if (finalResults.length < effectiveLimit) {
+        finalResults.push(eventWithoutMetadata);
+      }
     }
+    
   }
 
   // Deduplicate events based on their id.
