@@ -1,5 +1,5 @@
 import fastq, { queueAsPromised } from "fastq";
-import { Event } from "nostr-tools";
+import { Event, Filter } from "nostr-tools";
 import workerpool from "workerpool";
 import path from "path";
 
@@ -26,14 +26,40 @@ const relayWorker = async (task: RelayJob): Promise<unknown> => {
     return error;}
 }
 
+const isHeavyTask = (task: RelayJob): boolean => {
+  if (task.fn.name === 'handleReqOrCount') {
+    const filters = task.args?.[2] as Filter[];
+    if (!filters || !Array.isArray(filters)) return false;
+    return filters.some(filter => {
+      if (filter.authors && filter.authors.length > 20) return true;
+      if (filter.search && filter.search.includes(':')) return true;
+      if (filter.search && filter.limit && filter.limit > 500) return true;
+      if (filter.search && (!filter.authors || filter.authors.length === 0) && filter.limit && filter.limit > 100) return true;
+      
+      const hasSpecificFilters = (filter.authors && filter.authors.length > 0) || (filter.ids && filter.ids.length > 0);
+      if (!hasSpecificFilters && (!filter.kinds || filter.kinds.length > 5)) return true;
+      
+      if (!hasSpecificFilters) {
+        const timeRange = (filter.until || Math.floor(Date.now() / 1000)) - (filter.since || 0);
+        if (timeRange > 2592000) return true; 
+      }
+      
+      return false;
+    });
+  }
+  return false;
+};
+
 const enqueueRelayTask = async <T>(task: RelayJob): Promise<{enqueued: boolean; result: T | null;}> => {
   try {
+      const heavyTask = isHeavyTask(task);
       const queueLength = getRelayQueueLength();
-      if (queueLength > app.get("config.relay")["maxQueueLength"]) {
+      if (queueLength > app.get("config.relay")["maxQueueLength"] && heavyTask) {
           logger.debug(`enqueueRelayTask - Relay queue limit reached: ${queueLength}`);
           return { enqueued: false, result: null };
       }
-      const result = await relayQueue.push(task);
+
+      const result = await (heavyTask ? relayQueueHeavyTask : relayQueue).push(task);
       logger.debug(`enqueueRelayTask - Task added to relay queue: ${task.fn.name}, queue length: ${queueLength}`);
       return { enqueued: true, result };
   } catch (error) {
@@ -42,9 +68,13 @@ const enqueueRelayTask = async <T>(task: RelayJob): Promise<{enqueued: boolean; 
   }
 };
 
-const getRelayQueueLength = () : number => {return relayQueue.length()};
+const getRelayQueueLength = (): number => {
+  return relayQueue.length() + relayQueueHeavyTask.length();
+};
 
-const relayQueue: queueAsPromised<RelayJob> = fastq.promise(relayWorker, relayWorkers);
+
+const relayQueue: queueAsPromised<RelayJob> = fastq.promise(relayWorker, Math.ceil(relayWorkers * 0.7));
+const relayQueueHeavyTask: queueAsPromised<RelayJob> = fastq.promise(relayWorker, Math.ceil(relayWorkers * 0.3));
 
 /**
  * Persist events to the database and update shared memory chunks.
