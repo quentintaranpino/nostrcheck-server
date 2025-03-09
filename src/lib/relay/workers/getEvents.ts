@@ -95,23 +95,46 @@ const _getEvents = async (filters: Filter[], maxLimit: number, chunks: SharedChu
   const finalResults: Event[] = [];
   const now = Math.floor(Date.now() / 1000);
 
-  // Optimized version of matchFilter that skips the authors check if the filter has more than 20 authors.
+  // Optimized version of matchFilter for filters with many conditions
   const optimizedMatchFilter = (filter: Filter, event: MetadataEvent): boolean => {
+    if (filter.kinds && !filter.kinds.includes(event.kind)) return false;
+    if (filter.since && event.created_at < filter.since) return false;
+    if (filter.until && event.created_at > filter.until) return false;
+    
     if (filter.authors && filter.authors.length > 20) {
       const authorsSet = new Set(filter.authors);
-      
       if (!authorsSet.has(event.pubkey)) return false;
       
       const simplifiedFilter = { ...filter };
       delete simplifiedFilter.authors;
-      
-      return matchFilter(simplifiedFilter, event);
-    } else {
-      return matchFilter(filter, event);
+      filter = simplifiedFilter; 
     }
+    
+    let hasOptimizedAnyTag = false;
+    const simplifiedFilter = { ...filter };
+    
+    for (const key in filter) {
+      if (key.startsWith('#') && Array.isArray(filter[key as keyof Filter]) && (filter[key as keyof Filter] as any[]).length > 10) {
+        hasOptimizedAnyTag = true;
+        const tagChar = key.slice(1);
+        const tagValues = new Set(filter[key as keyof Filter] as string[]);
+        
+        const hasMatchingTag = event.tags.some(tag => 
+          tag[0] === tagChar && tagValues.has(tag[1])
+        );
+        
+        if (!hasMatchingTag) return false;
+        
+        delete simplifiedFilter[key as keyof Filter];
+      }
+    }
+    
+    if (hasOptimizedAnyTag) {
+      return matchFilter(simplifiedFilter, event);
+    }
+    
+    return matchFilter(filter, event);
   };
-
-
 
   // Process each filter provided.
   for (const filter of filters) {
