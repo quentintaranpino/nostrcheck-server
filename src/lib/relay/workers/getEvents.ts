@@ -194,7 +194,6 @@ const _getEvents = async (filters: Filter[], maxLimit: number, chunks: SharedChu
 
   const checkTimeout = (): boolean => {
     if (Date.now() - startTimeMs > TIMEOUT_MS) {
-      console.log("Timeout reached!!!!!!!!!!!!!!!!!!!");
       return true;
     }
     return false;
