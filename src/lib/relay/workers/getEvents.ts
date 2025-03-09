@@ -11,7 +11,9 @@ interface DecodedChunkCache {
 }
 
 const decodedChunksCache = new Map<string, DecodedChunkCache>();
-const CACHE_TTL = 30000; 
+const lastUpdatedChunks = new Map<string, number>(); 
+
+const BASE_CACHE_TTL = 60000; 
 const MAX_CACHE_SIZE = 50; 
 const CLEANUP_PERCENTAGE = 0.4;
 
@@ -80,8 +82,8 @@ const getDecodedChunk = async (chunk: SharedChunk): Promise<MetadataEvent[]> => 
   if (decodedChunksCache.size > MAX_CACHE_SIZE) {
     const entries = [...decodedChunksCache.entries()]
       .sort((a, b) => {
-        const ageFactorA = (now - a[1].timestamp) / CACHE_TTL;
-        const ageFactorB = (now - b[1].timestamp) / CACHE_TTL;
+        const ageFactorA = (now - a[1].timestamp) / BASE_CACHE_TTL;
+        const ageFactorB = (now - b[1].timestamp) / BASE_CACHE_TTL;
         return (a[1].hits / (1 + ageFactorA)) - (b[1].hits / (1 + ageFactorB));
       });
     
@@ -104,8 +106,8 @@ setInterval(() => {
   
   const entries = [...decodedChunksCache.entries()]
     .sort((a, b) => {
-      const ageFactorA = (now - a[1].timestamp) / CACHE_TTL;
-      const ageFactorB = (now - b[1].timestamp) / CACHE_TTL;
+      const ageFactorA = (now - a[1].timestamp) / BASE_CACHE_TTL;
+      const ageFactorB = (now - b[1].timestamp) / BASE_CACHE_TTL;
       return (a[1].hits / (1 + ageFactorA)) - (b[1].hits / (1 + ageFactorB));
     });
   
@@ -117,18 +119,44 @@ setInterval(() => {
     }
   } else {
     for (const [key, value] of decodedChunksCache.entries()) {
-      if (now - value.timestamp > CACHE_TTL) {
+      if (now - value.timestamp > BASE_CACHE_TTL) {
         decodedChunksCache.delete(key);
         removedCount++;
       }
     }
   }
   
-  // Log opcional para monitoreo
-  if (removedCount > 0 && process.env.NODE_ENV !== 'production') {
-    console.debug(`Cache cleanup: removed ${removedCount} chunks, current size: ${decodedChunksCache.size}`);
+}, BASE_CACHE_TTL / 2);
+
+
+/**
+ * Periodically refresh the decoded chunks cache for recent chunks.
+ */
+setInterval(() => {
+  const now = Date.now();
+  const recentChunksToRefresh: string[] = [];
+  
+  for (const [key, value] of decodedChunksCache.entries()) {
+    const maxTimeFromKey = parseInt(key.split('-')[1]);
+    const ageInHours = (Math.floor(now/1000) - maxTimeFromKey) / 3600;
+    
+    if (ageInHours < 1) {
+      recentChunksToRefresh.push(key);
+    }
   }
-}, CACHE_TTL / 2);
+  
+  recentChunksToRefresh
+    .sort((a, b) => {
+      const lastUpdatedA = lastUpdatedChunks.get(a) || 0;
+      const lastUpdatedB = lastUpdatedChunks.get(b) || 0;
+      return lastUpdatedA - lastUpdatedB;
+    })
+    .slice(0, 3) 
+    .forEach(key => {
+      lastUpdatedChunks.set(key, now);
+      decodedChunksCache.delete(key);
+    });
+}, BASE_CACHE_TTL);
 
 /**
  * Retrieves events from an array of shared memory chunks, applying NIP-50 search with extensions.
