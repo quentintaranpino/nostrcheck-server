@@ -3,7 +3,7 @@ import { Event, Filter, matchFilter } from "nostr-tools";
 import { Request, Response } from "express";
 
 import { subscriptions, addSubscription, removeAllSubscriptions, removeSubscription } from "../lib/relay/core.js";
-import { compressEvent, fillEventMetadata, getEventById, getEventsByTimerange, parseRelayMessage } from "../lib/relay/utils.js";
+import { compressEvent, fillEventMetadata, getEventById, getEventsByTimerange, validateFilter, parseRelayMessage } from "../lib/relay/utils.js";
 import { initEvents } from "../lib/relay/database.js";
 
 import app from "../app.js";
@@ -462,6 +462,14 @@ const handleReqOrCount = async (socket: WebSocket, subId: string, filters: Filte
     }
   }
 
+  const validFilters = filters.every(filter => validateFilter(filter));
+  if (!validFilters) {
+    logger.debug(`handleReqOrCount - Invalid filters: ${subId}`);
+    socket.send(JSON.stringify(["CLOSED", subId, "unsupported: invalid filters"]));
+    socket.close(1003, "unsupported: invalid filters");
+    return;
+  }
+
   if (filters.length > app.get("config.relay")["limitation"]["max_filters"]) {
     logger.debug(`handleReqOrCount - Too many filters: ${subId}`);
     socket.send(JSON.stringify(["CLOSED", subId, "unsupported: too many filters"]));
@@ -498,6 +506,9 @@ const handleReqOrCount = async (socket: WebSocket, subId: string, filters: Filte
     socket.send(JSON.stringify(["EOSE", subId])); 
     return;
   }
+
+  //Chech if filter is valid
+
 
   try {
     const eventsList = await getEvents(filters, maxLimit, eventStore.sharedDBChunks);

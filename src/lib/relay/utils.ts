@@ -1,7 +1,7 @@
 import LZString from "lz-string";
 import WebSocket from "ws";
 import { Event } from "nostr-tools";
-import { NIP01_event } from "../../interfaces/nostr.js";
+import { NIP01_event, NIP01_Filter } from "../../interfaces/nostr.js";
 import { getTextLanguage } from "../language.js";
 import { EventIndex, MetadataEvent, RelayEvents, SharedChunk } from "../../interfaces/relay.js";
 
@@ -48,6 +48,39 @@ const parseRelayMessage = (data: WebSocket.RawData): ReturnType<typeof NIP01_eve
     return result.success ? result.data : null;
   } catch {
     return null; 
+  }
+};
+
+
+/**
+ * Validate a filter object against the NIP01_Filter schema
+ * @param filter Filter object to validate
+ * @returns True if valid, false otherwise
+ */
+const validateFilter = (filter: unknown): boolean => {
+  try {
+    if (!filter || typeof filter !== 'object') return false;
+    const result = NIP01_Filter.safeParse(filter);
+    if (!result.success) return false;
+    if (result.data.since && result.data.until && result.data.since > result.data.until) {
+      return false;
+    }
+
+    for (const key in result.data) {
+      if (key.startsWith('#') && key.length === 2) {
+        const tagValues = result.data[key];
+        if (Array.isArray(tagValues)) {
+          if ((key === '#e' || key === '#p') && 
+              !tagValues.every(v => /^[a-f0-9]{64}$/.test(v))) {
+            return false;
+          }
+        }
+      }
+    }
+
+    return true;
+  } catch {
+    return false;
   }
 };
 
@@ -563,5 +596,6 @@ export {  compressEvent,
           encodeChunk,
           decodeChunk, 
           getEventById, 
-          getEventsByTimerange
+          getEventsByTimerange,
+          validateFilter
         };

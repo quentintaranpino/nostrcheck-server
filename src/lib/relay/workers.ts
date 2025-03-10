@@ -39,7 +39,11 @@ const isHeavyTask = (task: RelayJob): boolean => {
     if (filter.search && filter.limit && filter.limit > 500) return true;
     if (filter.search && (!filter.authors || filter.authors.length === 0) && filter.limit && filter.limit > 100) return true;
     
-    const hasSpecificFilters = (filter.authors && filter.authors.length > 0) || (filter.ids && filter.ids.length > 0);
+    const hasSpecificFilters = 
+        (filter.authors && filter.authors.length > 0) || 
+        (filter.ids && filter.ids.length > 0) ||
+        (filter.limit && filter.limit < 5);
+    
     if (!hasSpecificFilters && (!filter.kinds || filter.kinds.length > 5)) return true;
     
     if (!hasSpecificFilters) {
@@ -49,7 +53,6 @@ const isHeavyTask = (task: RelayJob): boolean => {
     
     return false;
   });
-  return false;
 };
 
 const enqueueRelayTask = async <T>(task: RelayJob): Promise<{enqueued: boolean; result: T | null;}> => {
