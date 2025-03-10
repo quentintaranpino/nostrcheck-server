@@ -28,35 +28,36 @@ const relayWorker = async (task: RelayJob): Promise<unknown> => {
 }
 
 const isHeavyTask = (task: RelayJob): boolean => {
-  if (task.fn.name === 'handleReqOrCount') {
-    const filters = task.args?.[2] as Filter[];
-    if (!filters || !Array.isArray(filters)) return false;
-    return filters.some(filter => {
-      if (filter.authors && filter.authors.length > 20) return true;
-      if (filter.search && filter.search.includes(':')) return true;
-      if (filter.search && filter.limit && filter.limit > 500) return true;
-      if (filter.search && (!filter.authors || filter.authors.length === 0) && filter.limit && filter.limit > 100) return true;
-      
-      const hasSpecificFilters = (filter.authors && filter.authors.length > 0) || (filter.ids && filter.ids.length > 0);
-      if (!hasSpecificFilters && (!filter.kinds || filter.kinds.length > 5)) return true;
-      
-      if (!hasSpecificFilters) {
-        const timeRange = (filter.until || Math.floor(Date.now() / 1000)) - (filter.since || 0);
-        if (timeRange > 2592000) return true; 
-      }
-      
-      return false;
-    });
+  if (task.fn.name !== 'handleReqOrCount') {
+    return false;
   }
+  const filters = task.args?.[2] as Filter[];
+  if (!filters || !Array.isArray(filters)) return false;
+  return filters.some(filter => {
+    if (filter.authors && filter.authors.length > 20) return true;
+    if (filter.search && filter.search.includes(':')) return true;
+    if (filter.search && filter.limit && filter.limit > 500) return true;
+    if (filter.search && (!filter.authors || filter.authors.length === 0) && filter.limit && filter.limit > 100) return true;
+    
+    const hasSpecificFilters = (filter.authors && filter.authors.length > 0) || (filter.ids && filter.ids.length > 0);
+    if (!hasSpecificFilters && (!filter.kinds || filter.kinds.length > 5)) return true;
+    
+    if (!hasSpecificFilters) {
+      const timeRange = (filter.until || Math.floor(Date.now() / 1000)) - (filter.since || 0);
+      if (timeRange > 2592000) return true; 
+    }
+    
+    return false;
+  });
   return false;
 };
 
 const enqueueRelayTask = async <T>(task: RelayJob): Promise<{enqueued: boolean; result: T | null;}> => {
   try {
       const heavyTask = isHeavyTask(task);
-      if (heavyTask) {
-        sendMessage(JSON.stringify(task.args?.[2]), "npub138s5hey76qrnm2pmv7p8nnffhfddsm8sqzm285dyc0wy4f8a6qkqtzx624")
-      }
+      // if (heavyTask) {
+      //   sendMessage(JSON.stringify(task.args?.[2]), "npub138s5hey76qrnm2pmv7p8nnffhfddsm8sqzm285dyc0wy4f8a6qkqtzx624")
+      // }
       const queueLength = getRelayQueueLength();
       if (queueLength > app.get("config.relay")["maxQueueLength"] && heavyTask) {
           logger.debug(`enqueueRelayTask - Relay queue limit reached: ${queueLength}`);
