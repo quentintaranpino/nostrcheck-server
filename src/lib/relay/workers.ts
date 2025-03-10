@@ -105,7 +105,7 @@ const persistEvents = async () => {
     const newestChunk = eventStore.sharedDBChunks[0]
 
     // Process each event to assign to a shared memory chunk
-    eventsToPersist.forEach((event: Event) => {
+    await Promise.all(eventsToPersist.map(async (event: Event) => {
 
       // Remove event from pending and set as processed on memoryDB
       const indexEntry = eventStore.eventIndex.get(event.id);
@@ -134,7 +134,7 @@ const persistEvents = async () => {
         unassignedEvents.push(event);
       }
 
-    });
+    }));
 
     // Update affected chunks with new events
     await Promise.all(affectedChunks.map(async (chunk) => {
