@@ -27,47 +27,46 @@ const relayWorker = async (task: RelayJob): Promise<unknown> => {
     return error;}
 }
 
-const isHeavyTask = (task: RelayJob): boolean => {
-  if (task.fn.name !== 'handleReqOrCount') {
-    return false;
-  }
-  const filters = task.args?.[2] as Filter[];
+function isHeavyFilter(filters: Filter[]): boolean {
   if (!filters || !Array.isArray(filters)) return false;
+
   return filters.some(filter => {
     if (filter.authors && filter.authors.length > 20) return true;
     if (filter.search && filter.search.includes(':')) return true;
     if (filter.search && filter.limit && filter.limit > 500) return true;
-    if (filter.search && (!filter.authors || filter.authors.length === 0) && filter.limit && filter.limit > 100) return true;
-    
-    const hasSpecificFilters = 
-        (filter.authors && filter.authors.length > 0) || 
-        (filter.ids && filter.ids.length > 0) ||
-        (filter.limit && filter.limit < 5);
-    
+    if (
+      filter.search &&
+      (!filter.authors || filter.authors.length === 0) &&
+      filter.limit &&
+      filter.limit > 100
+    )
+      return true;
+
+    const hasSpecificFilters =
+      (filter.authors && filter.authors.length > 0) ||
+      (filter.ids && filter.ids.length > 0) ||
+      (filter.limit && filter.limit < 5);
+
     if (!hasSpecificFilters && (!filter.kinds || filter.kinds.length > 5)) return true;
-    
+
     if (!hasSpecificFilters) {
-      const timeRange = (filter.until || Math.floor(Date.now() / 1000)) - (filter.since || 0);
-      if (timeRange > 2592000) return true; 
+      const timeRange =
+        (filter.until || Math.floor(Date.now() / 1000)) - (filter.since || 0);
+      if (timeRange > 2592000) return true;
     }
-    
+
     return false;
   });
-};
+}
 
 const enqueueRelayTask = async <T>(task: RelayJob): Promise<{enqueued: boolean; result: T | null;}> => {
   try {
-      const heavyTask = isHeavyTask(task);
-      // if (heavyTask) {
-      //   sendMessage(JSON.stringify(task.args?.[2]), "npub138s5hey76qrnm2pmv7p8nnffhfddsm8sqzm285dyc0wy4f8a6qkqtzx624")
-      // }
       const queueLength = getRelayQueueLength();
-      if (queueLength > app.get("config.relay")["maxQueueLength"] && heavyTask) {
+      if (queueLength > app.get("config.relay")["maxQueueLength"]) {
           logger.debug(`enqueueRelayTask - Relay queue limit reached: ${queueLength}`);
           return { enqueued: false, result: null };
       }
-
-      const result = await (heavyTask ? relayQueueHeavyTask : relayQueueLightTask).push(task);
+      const result = await relayQueue.push(task);
       logger.debug(`enqueueRelayTask - Task added to relay queue: ${task.fn.name}, queue length: ${queueLength}`);
       return { enqueued: true, result };
   } catch (error) {
@@ -77,27 +76,18 @@ const enqueueRelayTask = async <T>(task: RelayJob): Promise<{enqueued: boolean; 
 };
 
 const getRelayQueueLength = (): number => {
-  return relayQueueLightTask.length() + relayQueueHeavyTask.length();
+  return relayQueue.length();
 };
 
-const getRelayQueueLightLength = (): number => {
-  return relayQueueLightTask.length();
-};
+const getRelayLightWorkerLength = (): number => {
+  return lightGetEventsPool.stats().pendingTasks;
+}
 
-const getRelayQueueHeavyLength = (): number => {
-  return relayQueueHeavyTask.length();
-};
+const getRelayHeavyWorkerLength = (): number => {
+  return heavyGetEventsPool.stats().pendingTasks;
+}
 
-const relayQueueLightTask: queueAsPromised<RelayJob> = fastq.promise(relayWorker, Math.ceil(relayWorkers * 0.6));
-const relayQueueHeavyTask: queueAsPromised<RelayJob> = fastq.promise(relayWorker, Math.ceil(relayWorkers * 0.4));
-
-const getRelayQueueLight = (): queueAsPromised<RelayJob> => {
-  return relayQueueLightTask;
-};
-
-const getRelayQueueHeavy = (): queueAsPromised<RelayJob> => {
-  return relayQueueHeavyTask;
-};
+const relayQueue: queueAsPromised<RelayJob> = fastq.promise(relayWorker, Math.ceil(relayWorkers));
 
 /**
  * Persist events to the database and update shared memory chunks.
@@ -342,10 +332,20 @@ const workerInterval = async () => {
 
 workerInterval();
 
-// GetEvents worker
-const getEventsWorker = workerpool.pool(path.join(workersDir,  'getEvents.js'), { maxWorkers: relayWorkers });
+const lightGetEventsPool = workerpool.pool(
+  path.join(workersDir, 'getEvents.js'),
+  { maxWorkers: Math.ceil(relayWorkers * 0.4) }
+);
+
+const heavyGetEventsPool = workerpool.pool(
+  path.join(workersDir, 'getEvents.js'),
+  { maxWorkers: Math.ceil(relayWorkers * 0.6) }
+);
+
 const getEvents = async (filters: any, maxLimit: number, chunks: SharedChunk[]): Promise<any> => {
   try {
+    const isHeavy = isHeavyFilter(filters);
+    const getEventsWorker = isHeavy ? heavyGetEventsPool : lightGetEventsPool
     return await getEventsWorker.exec("_getEvents", [
       JSON.parse(JSON.stringify(filters)),
       maxLimit,
@@ -357,4 +357,4 @@ const getEvents = async (filters: any, maxLimit: number, chunks: SharedChunk[]):
   }
 };
 
-export { getRelayQueueLength, getRelayQueueLightLength, getRelayQueueHeavyLength, getRelayQueueLight, getRelayQueueHeavy, enqueueRelayTask, relayWorkers, getEvents };
+export { getRelayQueueLength, enqueueRelayTask, relayWorkers, getEvents, getRelayLightWorkerLength, getRelayHeavyWorkerLength };

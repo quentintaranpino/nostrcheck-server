@@ -20,7 +20,7 @@ import { allowedTags, eventStore, ExtendedWebSocket, RelayStatusMessage } from "
 import { isBase64 } from "../lib/utils.js";
 import { AuthEvent } from "../interfaces/nostr.js";
 import { dbMultiSelect, dbUpdate } from "../lib/database.js";
-import { enqueueRelayTask, getEvents, getRelayQueueHeavy, getRelayQueueHeavyLength, getRelayQueueLength, getRelayQueueLight, getRelayQueueLightLength, relayWorkers } from "../lib/relay/workers.js";
+import { enqueueRelayTask, getEvents, getRelayHeavyWorkerLength, getRelayLightWorkerLength, getRelayQueueLength, relayWorkers } from "../lib/relay/workers.js";
 import { parseAuthHeader } from "../lib/authorization.js";
 
 await initEvents(app);
@@ -78,16 +78,24 @@ const handleWebSocketMessage = async (socket: ExtendedWebSocket, data: WebSocket
       }
 
       case "REQ":
-      case "COUNT": {
-        const filters: Filter[] = args.slice(1) as Filter[];
-        const task = await enqueueRelayTask({fn: handleReqOrCount, args: [socket, args[0], filters, type, reqInfo]});
-        if (!task.enqueued) {
-            logger.debug(`handleWebSocketMessage - Relay queue limit reached: ${getRelayQueueLength()}`);
-            socket.send(JSON.stringify(["NOTICE", "error: relay queue limit reached"]));
-            socket.close(1009, "error: relay queue limit reached");
+        case "COUNT": {
+          const filters: Filter[] = args.slice(1) as Filter[];
+          try {
+            if (typeof args[0] === "string") {
+                await handleReqOrCount(socket, args[0], filters, type, reqInfo);
+            } else {
+                logger.debug(`handleWebSocketMessage - Invalid subscription ID: ${args[0]}`);
+                socket.send(JSON.stringify(["NOTICE", "error: invalid subscription ID"]));
+                socket.close(1003, "error: invalid subscription ID");
+            }
+          } catch (error) {
+            logger.error(`handleWebSocketMessage - Failed to handle REQ/COUNT: ${error}`);
+            socket.send(JSON.stringify(["NOTICE", "error: internal server error"]));
+            socket.close(1011, "error: internal server error");
           }
-        break;
-      }
+        
+          break;
+        }
 
       case "CLOSE": {
         const task = await enqueueRelayTask({fn: handleClose, args: [socket, typeof args[0] === 'string' ? args[0] : undefined]});
@@ -651,10 +659,8 @@ const getRelayStatus = async (req: Request, res: Response): Promise<Response> =>
     websocketConnections: app.get("wss").clients.size || 0,
     queueLength: getRelayQueueLength() || 0,
     workerCount: relayWorkers,
-    relayLightQueue: getRelayQueueLight(),
-    queueLightLength: getRelayQueueLightLength() || 0,
-    relayHeavyQueue: getRelayQueueHeavy(),
-    queueHeavyLength: getRelayQueueHeavyLength() || 0,
+    heavyTasksLength: getRelayHeavyWorkerLength() || 0,
+    lightTasksLength: getRelayLightWorkerLength() || 0
   }
 
   return res.status(200).send(result);

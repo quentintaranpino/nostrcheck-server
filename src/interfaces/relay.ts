@@ -110,11 +110,9 @@ interface RelayJob {
 interface RelayStatusMessage extends ResultMessagev2 {
   websocketConnections: number;
   queueLength: number;
-  queueHeavyLength: number;
-  queueLightLength: number;
   workerCount: number;
-  relayLightQueue : queueAsPromised<RelayJob>;
-  relayHeavyQueue : queueAsPromised<RelayJob>;
+  heavyTasksLength: number;
+  lightTasksLength: number;
 }
 
 export interface SharedChunk {
