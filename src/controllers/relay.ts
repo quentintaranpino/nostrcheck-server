@@ -20,7 +20,7 @@ import { allowedTags, eventStore, ExtendedWebSocket, RelayStatusMessage } from "
 import { isBase64 } from "../lib/utils.js";
 import { AuthEvent } from "../interfaces/nostr.js";
 import { dbMultiSelect, dbUpdate } from "../lib/database.js";
-import { enqueueRelayTask, getEvents, getRelayQueueLight, getRelayQueueHeavy, getRelayQueueHeavyLength, getRelayQueueLength, getRelayQueueLightLength, relayWorkers } from "../lib/relay/workers.js";
+import { enqueueRelayTask, getEvents, getRelayQueueHeavy, getRelayQueueHeavyLength, getRelayQueueLength, getRelayQueueLight, getRelayQueueLightLength, relayWorkers } from "../lib/relay/workers.js";
 import { parseAuthHeader } from "../lib/authorization.js";
 
 await initEvents(app);

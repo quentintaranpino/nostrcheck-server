@@ -17,8 +17,15 @@ const workersDir = path.resolve('./dist/lib/relay/workers');
 import { _getEvents } from "./workers/getEvents.js";
 import { sendMessage } from "../nostr/NIP04.js";
   
-const lightWorkerPool = workerpool.pool(path.join(workersDir, "lightWorker.js"), { maxWorkers: Math.ceil(relayWorkers * 0.6) });
-const heavyWorkerPool = workerpool.pool(path.join(workersDir, "heavyWorker.js"), { maxWorkers: Math.ceil(relayWorkers * 0.4) });
+const relayWorker = async (task: RelayJob): Promise<unknown> => {
+  try {
+    logger.debug(`RelayWorker - Processing task: ${task.fn.name}`);
+    const result = await task.fn(...(task.args || []));
+    return result;
+  } catch (error) {
+    logger.error("relayWorker - Error processing task", error);
+    return error;}
+}
 
 const isHeavyTask = (task: RelayJob): boolean => {
   if (task.fn.name !== 'handleReqOrCount') {
@@ -81,13 +88,9 @@ const getRelayQueueHeavyLength = (): number => {
   return relayQueueHeavyTask.length();
 };
 
-const relayQueueLightTask: queueAsPromised<RelayJob> = fastq.promise(async (task) => {
-  return await lightWorkerPool.exec("lightWorker", [task]);
-}, Math.ceil(relayWorkers * 0.6));
+const relayQueueLightTask: queueAsPromised<RelayJob> = fastq.promise(relayWorker, Math.ceil(relayWorkers * 0.6));
+const relayQueueHeavyTask: queueAsPromised<RelayJob> = fastq.promise(relayWorker, Math.ceil(relayWorkers * 0.4));
 
-const relayQueueHeavyTask: queueAsPromised<RelayJob> = fastq.promise(async (task) => {
-  return await heavyWorkerPool.exec("heavyWorker", [task]);
-}, Math.ceil(relayWorkers * 0.4));
 const getRelayQueueLight = (): queueAsPromised<RelayJob> => {
   return relayQueueLightTask;
 };
