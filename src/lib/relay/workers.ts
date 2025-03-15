@@ -20,26 +20,6 @@ import { sendMessage } from "../nostr/NIP04.js";
 const lightWorkerPool = workerpool.pool(path.join(workersDir, "lightWorker.js"), { maxWorkers: Math.ceil(relayWorkers * 0.6) });
 const heavyWorkerPool = workerpool.pool(path.join(workersDir, "heavyWorker.js"), { maxWorkers: Math.ceil(relayWorkers * 0.4) });
 
-const lightWorker = async (task: RelayJob): Promise<unknown> => {
-  try {
-    logger.debug(`LightWorker - Processing task: ${task.fn.name}`);
-    return await task.fn(...(task.args || []));
-  } catch (error) {
-    logger.error("LightWorker - Error processing task", error);
-    return error;
-  }
-};
-
-const heavyWorker = async (task: RelayJob): Promise<unknown> => {
-  try {
-    logger.debug(`HeavyWorker - Processing task: ${task.fn.name}`);
-    return await task.fn(...(task.args || []));
-  } catch (error) {
-    logger.error("HeavyWorker - Error processing task", error);
-    return error;
-  }
-};
-
 const isHeavyTask = (task: RelayJob): boolean => {
   if (task.fn.name !== 'handleReqOrCount') {
     return false;
