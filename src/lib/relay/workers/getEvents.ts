@@ -72,7 +72,7 @@ interface DecodedChunkCache {
 
 const decodedChunksCache = new Map<string, DecodedChunkCache>();
 const CACHE_TTL = 60000; 
-const MAX_CACHE_SIZE = 50; 
+const MAX_CACHE_SIZE = 30; 
 const MAX_HITS_BEFORE_REFRESH = 50;
 
 /**
