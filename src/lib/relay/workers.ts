@@ -4,7 +4,7 @@ import workerpool from "workerpool";
 import path from "path";
 
 import { logger } from "../logger.js";
-import { CHUNK_SIZE, eventStore, MetadataEvent, RelayJob, SharedChunk } from "../../interfaces/relay.js";
+import { CHUNK_SIZE, eventStore, MetadataEvent, PendingGetEventsTask, RelayJob, SharedChunk } from "../../interfaces/relay.js";
 import app from "../../app.js";
 import { isModuleEnabled } from "../config.js";
 import { deleteEvents, storeEvents } from "./database.js";
@@ -342,19 +342,43 @@ const heavyGetEventsPool = workerpool.pool(
   { maxWorkers: Math.ceil(relayWorkers * 0.6) }
 );
 
+const pendingLightTasks: Map<string, PendingGetEventsTask> = new Map();
+const pendingHeavyTasks: Map<string, PendingGetEventsTask> = new Map();
+
+const getPendingLightTasks = (): PendingGetEventsTask[] => {
+  return Array.from(pendingLightTasks.values());
+}
+
+const getPendingHeavyTasks = (): PendingGetEventsTask[] => {
+  return Array.from(pendingHeavyTasks.values());
+}
+
 const getEvents = async (filters: any, maxLimit: number, chunks: SharedChunk[]): Promise<any> => {
   try {
     const isHeavy = isHeavyFilter(filters);
+
+    const taskId = Math.random().toString(36).substring(7);
+    const taskData: PendingGetEventsTask = {
+      id: taskId,
+      filters,
+      enqueuedAt: Date.now()
+    };
+
+    isHeavy ? pendingHeavyTasks.set(taskId, taskData) : pendingLightTasks.set(taskId, taskData);
+
     const getEventsWorker = isHeavy ? heavyGetEventsPool : lightGetEventsPool
-    return await getEventsWorker.exec("_getEvents", [
+    const result =  await getEventsWorker.exec("_getEvents", [
       JSON.parse(JSON.stringify(filters)),
       maxLimit,
       chunks
     ]);
+    isHeavy ? pendingHeavyTasks.delete(taskId) : pendingLightTasks.delete(taskId);
+    return result;
+    
   } catch (error) {
     logger.error(`getEventsWorker - Error: ${error instanceof Error ? error.message : String(error)}`);
     return [];
   }
 };
 
-export { getRelayQueueLength, enqueueRelayTask, relayWorkers, getEvents, getRelayLightWorkerLength, getRelayHeavyWorkerLength };
+export { getRelayQueueLength, enqueueRelayTask, relayWorkers, getEvents, getRelayLightWorkerLength, getRelayHeavyWorkerLength, getPendingLightTasks, getPendingHeavyTasks };  

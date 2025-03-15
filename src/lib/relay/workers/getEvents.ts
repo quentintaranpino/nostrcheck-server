@@ -14,7 +14,7 @@ interface FilterCacheEntry {
 
 const recentFiltersCache = new Map<string, FilterCacheEntry>();
 const FILTER_CACHE_TTL = 30000;
-const FILTER_CACHE_MAX_SIZE = 500;
+const FILTER_CACHE_MAX_SIZE = 300;
 
 /**
  * Periodically clean up the recent filters cache.

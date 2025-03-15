@@ -1,4 +1,4 @@
-import { Event } from "nostr-tools";
+import { Event, Filter } from "nostr-tools";
 import { WebSocket } from "ws";
 import { ResultMessagev2 } from "./server";
 import { queueAsPromised } from "fastq";
@@ -113,9 +113,17 @@ interface RelayStatusMessage extends ResultMessagev2 {
   workerCount: number;
   heavyTasksLength: number;
   lightTasksLength: number;
+  heavyTasks: PendingGetEventsTask[];
+  lightTasks: PendingGetEventsTask[];
 }
 
-export interface SharedChunk {
+interface PendingGetEventsTask {
+  id: string; 
+  filters: Filter[];
+  enqueuedAt: number;
+}
+
+ interface SharedChunk {
   buffer: SharedArrayBuffer;
   indexMap: Uint32Array;
   timeRange: { min: number; max: number }; 
@@ -148,4 +156,4 @@ const eventStore: RelayEvents = {
   relayEventsLoaded: false,
 };
 
-export { ExtendedWebSocket, allowedTags, RelayJob, RelayStatusMessage, MetadataEvent, EventIndex, RelayEvents, eventStore, CHUNK_SIZE };
+export { ExtendedWebSocket, allowedTags, SharedChunk, PendingGetEventsTask, RelayJob, RelayStatusMessage, MetadataEvent, EventIndex, RelayEvents, eventStore, CHUNK_SIZE };

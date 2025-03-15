@@ -20,7 +20,7 @@ import { allowedTags, eventStore, ExtendedWebSocket, RelayStatusMessage } from "
 import { isBase64 } from "../lib/utils.js";
 import { AuthEvent } from "../interfaces/nostr.js";
 import { dbMultiSelect, dbUpdate } from "../lib/database.js";
-import { enqueueRelayTask, getEvents, getRelayHeavyWorkerLength, getRelayLightWorkerLength, getRelayQueueLength, relayWorkers } from "../lib/relay/workers.js";
+import { enqueueRelayTask, getEvents, getPendingHeavyTasks, getPendingLightTasks, getRelayHeavyWorkerLength, getRelayLightWorkerLength, getRelayQueueLength, relayWorkers } from "../lib/relay/workers.js";
 import { parseAuthHeader } from "../lib/authorization.js";
 
 await initEvents(app);
@@ -660,7 +660,10 @@ const getRelayStatus = async (req: Request, res: Response): Promise<Response> =>
     queueLength: getRelayQueueLength() || 0,
     workerCount: relayWorkers,
     heavyTasksLength: getRelayHeavyWorkerLength() || 0,
-    lightTasksLength: getRelayLightWorkerLength() || 0
+    lightTasksLength: getRelayLightWorkerLength() || 0,
+    heavyTasks: getPendingHeavyTasks() || [],
+    lightTasks: getPendingLightTasks() || []
+
   }
 
   return res.status(200).send(result);
