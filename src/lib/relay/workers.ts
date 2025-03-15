@@ -80,9 +80,16 @@ const getRelayQueueLength = (): number => {
   return relayQueue.length() + relayQueueHeavyTask.length();
 };
 
+const getRelayQueueLightLength = (): number => {
+  return relayQueue.length();
+};
 
-const relayQueue: queueAsPromised<RelayJob> = fastq.promise(relayWorker, Math.ceil(relayWorkers * 0.7));
-const relayQueueHeavyTask: queueAsPromised<RelayJob> = fastq.promise(relayWorker, Math.ceil(relayWorkers * 0.3));
+const getRelayQueueHeavyLength = (): number => {
+  return relayQueueHeavyTask.length();
+};
+
+const relayQueue: queueAsPromised<RelayJob> = fastq.promise(relayWorker, Math.ceil(relayWorkers * 0.5));
+const relayQueueHeavyTask: queueAsPromised<RelayJob> = fastq.promise(relayWorker, Math.ceil(relayWorkers * 0.5));
 
 /**
  * Persist events to the database and update shared memory chunks.
@@ -310,6 +317,11 @@ const unpersistEvents = async () => {
 
 // interval to persist and unpersist events
 const workerInterval = async () => {
+
+  if (!eventStore || !isModuleEnabled("relay", app)) {
+    return;
+  }
+
   if (getRelayQueueLength() == 0) {
       await enqueueRelayTask({ fn: async () => {
           await persistEvents();
@@ -337,4 +349,4 @@ const getEvents = async (filters: any, maxLimit: number, chunks: SharedChunk[]):
   }
 };
 
-export { getRelayQueueLength, enqueueRelayTask, relayWorkers, getEvents };
+export { getRelayQueueLength, getRelayQueueLightLength, getRelayQueueHeavyLength, enqueueRelayTask, relayWorkers, getEvents };

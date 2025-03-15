@@ -109,6 +109,8 @@ interface RelayJob {
 interface RelayStatusMessage extends ResultMessagev2 {
   websocketConnections: number;
   queueLength: number;
+  queueHeavyLength: number;
+  queueLightLength: number;
   workerCount: number;
 }
 

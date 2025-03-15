@@ -130,6 +130,30 @@
         }); %>
 
         <%- include('../dashcard', { 
+            dashcardId: 'relayQueueHeavyLength', 
+            dashcardName: 'Relay queue (heavy tasks)', 
+            dashcardDataKey: 'relay', 
+            icon: 'list', 
+            link: '', 
+            action: 'status', 
+            field: 'queueHeavyLength', 
+            showField: false, 
+            timeout: 5000,
+        }); %>
+
+        <%- include('../dashcard', { 
+            dashcardId: 'relayQueueLightLength', 
+            dashcardName: 'Relay queue (light tasks)', 
+            dashcardDataKey: 'relay', 
+            icon: 'list', 
+            link: '', 
+            action: 'status', 
+            field: 'queueLightLength', 
+            showField: false, 
+            timeout: 5000,
+        }); %>
+
+        <%- include('../dashcard', { 
             dashcardId: 'relayworkerCount', 
             dashcardName: 'Relay workers', 
             dashcardDataKey: 'relay', 
