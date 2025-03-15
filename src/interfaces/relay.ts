@@ -1,6 +1,7 @@
 import { Event } from "nostr-tools";
 import { WebSocket } from "ws";
 import { ResultMessagev2 } from "./server";
+import { queueAsPromised } from "fastq";
 
 interface ExtendedWebSocket extends WebSocket {
   challenge?: string;
@@ -112,6 +113,8 @@ interface RelayStatusMessage extends ResultMessagev2 {
   queueHeavyLength: number;
   queueLightLength: number;
   workerCount: number;
+  relayLightQueue : queueAsPromised<RelayJob>;
+  relayHeavyQueue : queueAsPromised<RelayJob>;
 }
 
 export interface SharedChunk {

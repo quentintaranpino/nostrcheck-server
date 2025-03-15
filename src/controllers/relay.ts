@@ -20,7 +20,7 @@ import { allowedTags, eventStore, ExtendedWebSocket, RelayStatusMessage } from "
 import { isBase64 } from "../lib/utils.js";
 import { AuthEvent } from "../interfaces/nostr.js";
 import { dbMultiSelect, dbUpdate } from "../lib/database.js";
-import { enqueueRelayTask, getEvents, getRelayQueueHeavyLength, getRelayQueueLength, getRelayQueueLightLength, relayWorkers } from "../lib/relay/workers.js";
+import { enqueueRelayTask, getEvents, getRelayQueueLight, getRelayQueueHeavy, getRelayQueueHeavyLength, getRelayQueueLength, getRelayQueueLightLength, relayWorkers } from "../lib/relay/workers.js";
 import { parseAuthHeader } from "../lib/authorization.js";
 
 await initEvents(app);
@@ -650,9 +650,11 @@ const getRelayStatus = async (req: Request, res: Response): Promise<Response> =>
     message: "Relay status retrieved successfully",
     websocketConnections: app.get("wss").clients.size || 0,
     queueLength: getRelayQueueLength() || 0,
-    queueHeavyLength: getRelayQueueHeavyLength() || 0,
-    queueLightLength: getRelayQueueLightLength() || 0,
     workerCount: relayWorkers,
+    relayLightQueue: getRelayQueueLight(),
+    queueLightLength: getRelayQueueLightLength() || 0,
+    relayHeavyQueue: getRelayQueueHeavy(),
+    queueHeavyLength: getRelayQueueHeavyLength() || 0,
   }
 
   return res.status(200).send(result);

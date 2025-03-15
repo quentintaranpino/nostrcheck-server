@@ -17,15 +17,28 @@ const workersDir = path.resolve('./dist/lib/relay/workers');
 import { _getEvents } from "./workers/getEvents.js";
 import { sendMessage } from "../nostr/NIP04.js";
   
-const relayWorker = async (task: RelayJob): Promise<unknown> => {
+const lightWorkerPool = workerpool.pool(path.join(workersDir, "lightWorker.js"), { maxWorkers: Math.ceil(relayWorkers * 0.6) });
+const heavyWorkerPool = workerpool.pool(path.join(workersDir, "heavyWorker.js"), { maxWorkers: Math.ceil(relayWorkers * 0.4) });
+
+const lightWorker = async (task: RelayJob): Promise<unknown> => {
   try {
-    logger.debug(`RelayWorker - Processing task: ${task.fn.name}`);
-    const result = await task.fn(...(task.args || []));
-    return result;
+    logger.debug(`LightWorker - Processing task: ${task.fn.name}`);
+    return await task.fn(...(task.args || []));
   } catch (error) {
-    logger.error("relayWorker - Error processing task", error);
-    return error;}
-}
+    logger.error("LightWorker - Error processing task", error);
+    return error;
+  }
+};
+
+const heavyWorker = async (task: RelayJob): Promise<unknown> => {
+  try {
+    logger.debug(`HeavyWorker - Processing task: ${task.fn.name}`);
+    return await task.fn(...(task.args || []));
+  } catch (error) {
+    logger.error("HeavyWorker - Error processing task", error);
+    return error;
+  }
+};
 
 const isHeavyTask = (task: RelayJob): boolean => {
   if (task.fn.name !== 'handleReqOrCount') {
@@ -67,7 +80,7 @@ const enqueueRelayTask = async <T>(task: RelayJob): Promise<{enqueued: boolean; 
           return { enqueued: false, result: null };
       }
 
-      const result = await (heavyTask ? relayQueueHeavyTask : relayQueue).push(task);
+      const result = await (heavyTask ? relayQueueHeavyTask : relayQueueLightTask).push(task);
       logger.debug(`enqueueRelayTask - Task added to relay queue: ${task.fn.name}, queue length: ${queueLength}`);
       return { enqueued: true, result };
   } catch (error) {
@@ -77,19 +90,31 @@ const enqueueRelayTask = async <T>(task: RelayJob): Promise<{enqueued: boolean; 
 };
 
 const getRelayQueueLength = (): number => {
-  return relayQueue.length() + relayQueueHeavyTask.length();
+  return relayQueueLightTask.length() + relayQueueHeavyTask.length();
 };
 
 const getRelayQueueLightLength = (): number => {
-  return relayQueue.length();
+  return relayQueueLightTask.length();
 };
 
 const getRelayQueueHeavyLength = (): number => {
   return relayQueueHeavyTask.length();
 };
 
-const relayQueue: queueAsPromised<RelayJob> = fastq.promise(relayWorker, Math.ceil(relayWorkers * 0.6));
-const relayQueueHeavyTask: queueAsPromised<RelayJob> = fastq.promise(relayWorker, Math.ceil(relayWorkers * 0.4));
+const relayQueueLightTask: queueAsPromised<RelayJob> = fastq.promise(async (task) => {
+  return await lightWorkerPool.exec("lightWorker", [task]);
+}, Math.ceil(relayWorkers * 0.6));
+
+const relayQueueHeavyTask: queueAsPromised<RelayJob> = fastq.promise(async (task) => {
+  return await heavyWorkerPool.exec("heavyWorker", [task]);
+}, Math.ceil(relayWorkers * 0.4));
+const getRelayQueueLight = (): queueAsPromised<RelayJob> => {
+  return relayQueueLightTask;
+};
+
+const getRelayQueueHeavy = (): queueAsPromised<RelayJob> => {
+  return relayQueueHeavyTask;
+};
 
 /**
  * Persist events to the database and update shared memory chunks.
@@ -349,4 +374,4 @@ const getEvents = async (filters: any, maxLimit: number, chunks: SharedChunk[]):
   }
 };
 
-export { getRelayQueueLength, getRelayQueueLightLength, getRelayQueueHeavyLength, enqueueRelayTask, relayWorkers, getEvents };
+export { getRelayQueueLength, getRelayQueueLightLength, getRelayQueueHeavyLength, getRelayQueueLight, getRelayQueueHeavy, enqueueRelayTask, relayWorkers, getEvents };
