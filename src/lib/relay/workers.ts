@@ -88,8 +88,8 @@ const getRelayQueueHeavyLength = (): number => {
   return relayQueueHeavyTask.length();
 };
 
-const relayQueue: queueAsPromised<RelayJob> = fastq.promise(relayWorker, Math.ceil(relayWorkers * 0.3));
-const relayQueueHeavyTask: queueAsPromised<RelayJob> = fastq.promise(relayWorker, Math.ceil(relayWorkers * 0.7));
+const relayQueue: queueAsPromised<RelayJob> = fastq.promise(relayWorker, Math.ceil(relayWorkers * 0.6));
+const relayQueueHeavyTask: queueAsPromised<RelayJob> = fastq.promise(relayWorker, Math.ceil(relayWorkers * 0.4));
 
 /**
  * Persist events to the database and update shared memory chunks.
