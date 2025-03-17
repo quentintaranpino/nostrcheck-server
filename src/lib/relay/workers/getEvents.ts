@@ -4,6 +4,9 @@ import { decodeChunk, parseSearchTokens } from "../utils.js";
 import { MetadataEvent, SharedChunk } from "../../../interfaces/relay.js";
 import { createClient } from "redis";
 
+const FILTER_CACHE_TTL = 60000; // in milliseconds
+const CACHE_TTL = 120000; // in milliseconds
+
 /**
  * Creates a stable hash for a filter to detect duplicates.
  */
@@ -31,10 +34,6 @@ const createFilterHash = (filter: Filter): string => {
   
   return JSON.stringify(normalized);
 };
-
-
-const FILTER_CACHE_TTL = 30000; // in milliseconds
-const CACHE_TTL = 60000; // in milliseconds
 
 /**
  * Generates a cache key for a shared memory chunk.
