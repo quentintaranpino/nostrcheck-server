@@ -186,11 +186,11 @@ setInterval(() => {
  * @param chunks - Array of SharedChunk objects.
  * @returns A promise that resolves to an array of events.
  */
-const _getEvents = async (filters: Filter[], maxLimit: number, chunks: SharedChunk[]): Promise<Event[]> => {
+const _getEvents = async (filters: Filter[], maxLimit: number, chunks: SharedChunk[], isHeavy : boolean): Promise<Event[]> => {
   const finalResults: Event[] = [];
   const now = Math.floor(Date.now() / 1000);
   const startTimeMs = Date.now();
-  const TIMEOUT_MS = 4500;
+  const TIMEOUT_MS = isHeavy ? 30000 : 15000; // 60 seconds for heavy, 30 seconds for light
 
   const checkTimeout = (): boolean => {
     if (Date.now() - startTimeMs > TIMEOUT_MS) {

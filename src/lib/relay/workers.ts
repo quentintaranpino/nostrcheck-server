@@ -370,7 +370,8 @@ const getEvents = async (filters: any, maxLimit: number, chunks: SharedChunk[]):
     const result =  await getEventsWorker.exec("_getEvents", [
       JSON.parse(JSON.stringify(filters)),
       maxLimit,
-      chunks
+      chunks,
+      isHeavy
     ]);
     isHeavy ? pendingHeavyTasks.delete(taskId) : pendingLightTasks.delete(taskId);
     return result;
