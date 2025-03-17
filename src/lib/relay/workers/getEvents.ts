@@ -2,55 +2,27 @@ import { Filter, matchFilter, Event } from "nostr-tools";
 import workerpool from "workerpool";
 import { decodeChunk, parseSearchTokens } from "../utils.js";
 import { MetadataEvent, SharedChunk } from "../../../interfaces/relay.js";
+import { createClient } from "redis";
 
 /**
- * Cache for tracking recent filter requests to prevent processing duplicates
- */
-interface FilterCacheEntry {
-  timestamp: number;
-  results?: Event[];
-  processingTime: number;
-}
-
-const recentFiltersCache = new Map<string, FilterCacheEntry>();
-const FILTER_CACHE_TTL = 30000;
-const FILTER_CACHE_MAX_SIZE = 300;
-
-/**
- * Periodically clean up the recent filters cache.
- */
-setInterval(() => {
-  const now = Date.now();
-  for (const [key, entry] of recentFiltersCache.entries()) {
-    if (now - entry.timestamp > FILTER_CACHE_TTL) {
-      recentFiltersCache.delete(key);
-    }
-  }
-  if (recentFiltersCache.size > FILTER_CACHE_MAX_SIZE) {
-    const entries = [...recentFiltersCache.entries()]
-      .sort((a, b) => a[1].timestamp - b[1].timestamp);
-    
-    const toRemove = Math.floor(FILTER_CACHE_MAX_SIZE * 0.2);
-    for (let i = 0; i < toRemove; i++) {
-      if (entries[i]) recentFiltersCache.delete(entries[i][0]);
-    }
-  }
-}, FILTER_CACHE_TTL / 2);
-
-/**
- * Creates a stable hash for a filter to detect duplicates
+ * Creates a stable hash for a filter to detect duplicates.
  */
 const createFilterHash = (filter: Filter): string => {
   const normalized: any = {};
   
-  // Normalize the most important filter properties
+  // Normalize the most important filter properties.
   if (filter.kinds) normalized.kinds = [...filter.kinds].sort().join(',');
   if (filter.authors) normalized.authors = [...filter.authors].sort().join(',');
   if (filter.ids) normalized.ids = [...filter.ids].sort().join(',');
   if (filter.since) normalized.since = filter.since;
-  if (filter.until) normalized.until = filter.until;
+  if (filter.until) {
+    // Use a bucket for "until" based on FILTER_CACHE_TTL.
+    // Convert FILTER_CACHE_TTL from ms to seconds (30 seconds en este ejemplo)
+    const bucket = FILTER_CACHE_TTL / 1000;
+    normalized.until = Math.floor(filter.until / bucket) * bucket;
+  }
   
-  // Handle tag filters
+  // Handle tag filters.
   for (const key in filter) {
     if (key.startsWith('#') && Array.isArray(filter[key as keyof Filter])) {
       normalized[key] = [...(filter[key as keyof Filter] as string[])].sort().join(',');
@@ -61,57 +33,53 @@ const createFilterHash = (filter: Filter): string => {
 };
 
 
-// Cache for pubkey information per shared memory chunk.
-const pubkeyCache = new Map<string, Set<string>>(); 
-
-interface DecodedChunkCache {
-  data: MetadataEvent[];
-  timestamp: number;
-  hits: number;
-}
-
-const decodedChunksCache = new Map<string, DecodedChunkCache>();
-const CACHE_TTL = 60000; 
-const MAX_CACHE_SIZE = 30; 
-const MAX_HITS_BEFORE_REFRESH = 50;
+const FILTER_CACHE_TTL = 30000; // in milliseconds
+const CACHE_TTL = 60000; // in milliseconds
 
 /**
  * Generates a cache key for a shared memory chunk.
  *
  * @param chunk - SharedChunk object.
- * @returns A string cache key.
+ * @returns A string representing the cache key.
  */
 const getChunkCacheKey = (chunk: SharedChunk): string => {
   return `${chunk.timeRange.min}-${chunk.timeRange.max}-${chunk.indexMap.length}`;
 };
 
 /**
- * Filters chunks based on time range and available pubkey cache information.
- * Optimizes by skipping chunks that don't contain any of the requested authors.
+ * Filters chunks based on the time range and pubkey cache information using Redis.
+ * If the cache is found, the filtering is refined.
  */
-const filterRelevantChunks = (chunks: SharedChunk[], filter: Filter, since: number, until: number): SharedChunk[] => {
+const filterRelevantChunks = async (
+  chunks: SharedChunk[], 
+  filter: Filter, 
+  since: number, 
+  until: number,
+  redisClient?: any
+): Promise<SharedChunk[]> => {
   const timeFilteredChunks = chunks.filter(chunk => {
     if (chunk.timeRange.max < since) return false; 
     if (chunk.timeRange.min > until) return false;
     return true;
   });
   
-  // Si hay filtro de autores y tenemos caché, refinar más
-  if (filter.authors && filter.authors.length > 0) {
+  if (filter.authors && filter.authors.length > 0 && redisClient) {
     const authorsSet = new Set(filter.authors);
-    
-    return timeFilteredChunks.filter(chunk => {
+    const relevant: SharedChunk[] = [];
+    for (const chunk of timeFilteredChunks) {
       const cacheKey = getChunkCacheKey(chunk);
-      const pubkeys = pubkeyCache.get(cacheKey);
-      
-      if (!pubkeys) return true;
-      
-      for (const pubkey of pubkeys) {
-        if (authorsSet.has(pubkey)) return true;
+      const cachedPubkeys = await redisClient.get("pubkeys:" + cacheKey);
+      if (cachedPubkeys) {
+        const pubkeys: string[] = JSON.parse(cachedPubkeys);
+        if (pubkeys.some(pubkey => authorsSet.has(pubkey))) {
+          relevant.push(chunk);
+        }
+      } else {
+        // If no cache exists, include the chunk for further processing.
+        relevant.push(chunk);
       }
-      
-      return false;
-    });
+    }
+    return relevant;
   }
   
   return timeFilteredChunks;
@@ -119,62 +87,31 @@ const filterRelevantChunks = (chunks: SharedChunk[], filter: Filter, since: numb
 
 /**
  * Retrieves the decoded events from a shared memory chunk.
- * The decoded events are cached for a period of time to reduce the decoding overhead.
+ * The decoded events are cached in Redis for a period of time to reduce decoding overhead.
  *
  * @param chunk - SharedChunk object to decode.
  * @returns A promise that resolves to an array of decoded events.
  */
-const getDecodedChunk = async (chunk: SharedChunk): Promise<MetadataEvent[]> => {
+const getDecodedChunk = async (chunk: SharedChunk, redisClient?: any): Promise<MetadataEvent[]> => {
   const cacheKey = getChunkCacheKey(chunk);
-  const now = Date.now();
   
-  if (decodedChunksCache.has(cacheKey)) {
-    const cached = decodedChunksCache.get(cacheKey)!;
-    
-    if (cached.hits >= MAX_HITS_BEFORE_REFRESH && 
-        now - cached.timestamp >= CACHE_TTL) {
-      decodedChunksCache.delete(cacheKey);
-    } else if (now - cached.timestamp < CACHE_TTL) {
-      cached.hits++;
-      decodedChunksCache.set(cacheKey, cached);
-      return cached.data;
+  if (redisClient) {
+    const cached = await redisClient.get("decodedChunk:" + cacheKey);
+    if (cached) {
+      return JSON.parse(cached);
     }
   }
+  
   const decodedChunk = await decodeChunk(chunk);
   
-  decodedChunksCache.set(cacheKey, {
-    data: decodedChunk,
-    timestamp: now,
-    hits: 1
-  });
-  
-  if (decodedChunksCache.size > MAX_CACHE_SIZE) {
-    const entries = [...decodedChunksCache.entries()]
-      .sort((a, b) => a[1].hits - b[1].hits);
-    
-    const toRemove = Math.floor(MAX_CACHE_SIZE * 0.2);
-    for (let i = 0; i < toRemove; i++) {
-      if (entries[i]) decodedChunksCache.delete(entries[i][0]);
-    }
+  if (redisClient) {
+    await redisClient.set("decodedChunk:" + cacheKey, JSON.stringify(decodedChunk), { EX: CACHE_TTL / 1000 });
+    const pubkeys = Array.from(new Set(decodedChunk.map(e => e.pubkey)));
+    await redisClient.set("pubkeys:" + cacheKey, JSON.stringify(pubkeys), { EX: CACHE_TTL / 1000 });
   }
-
-  const pubkeys = new Set(decodedChunk.map(e => e.pubkey));
-  pubkeyCache.set(cacheKey, pubkeys);
   
   return decodedChunk;
 };
-
-/**
- * Periodically clean up the decoded chunks cache.
- */
-setInterval(() => {
-  const now = Date.now();
-  for (const [key, value] of decodedChunksCache.entries()) {
-    if (now - value.timestamp > CACHE_TTL) {
-      decodedChunksCache.delete(key);
-    }
-  }
-}, CACHE_TTL / 2); 
 
 /**
  * Retrieves events from an array of shared memory chunks, applying NIP-50 search with extensions.
@@ -184,43 +121,50 @@ setInterval(() => {
  * @param filters - Array of filter objects to apply.
  * @param maxLimit - Maximum number of events to return.
  * @param chunks - Array of SharedChunk objects.
+ * @param isHeavy - Indicates whether the operation is heavy or not.
+ * @param redisConfig - Configuration to connect to Redis.
  * @returns A promise that resolves to an array of events.
  */
-const _getEvents = async (filters: Filter[], maxLimit: number, chunks: SharedChunk[], isHeavy : boolean): Promise<Event[]> => {
+const _getEvents = async (
+  filters: Filter[], 
+  maxLimit: number,
+  chunks: SharedChunk[], 
+  isHeavy : boolean,
+  redisConfig?: { host: string; port: string; user: string; password: string; database: number }
+): Promise<Event[]> => {
+
+  let redisClient;
+  if (redisConfig) {
+    redisClient = createClient({
+      url: `redis://${redisConfig.user}:${redisConfig.password}@${redisConfig.host}:${redisConfig.port}`,
+      database: redisConfig.database
+    });
+
+    await redisClient.connect().catch(() => {
+      redisClient = null;
+    });
+  }
+
   const finalResults: Event[] = [];
   const now = Math.floor(Date.now() / 1000);
   const startTimeMs = Date.now();
-  const TIMEOUT_MS = isHeavy ? 30000 : 15000; // 60 seconds for heavy, 30 seconds for light
+  const TIMEOUT_MS = isHeavy ? 30000 : 15000;
 
   const checkTimeout = (): boolean => {
-    if (Date.now() - startTimeMs > TIMEOUT_MS) {
-      return true;
-    }
-    return false;
+    return (Date.now() - startTimeMs) > TIMEOUT_MS;
   };
 
-  if (filters.length === 1) {
+  // If a single filter is provided, attempt to retrieve the result from Redis.
+  if (filters.length === 1 && redisClient) {
     const filterHash = createFilterHash(filters[0]);
-    const cachedEntry = recentFiltersCache.get(filterHash);
-    
-    if (cachedEntry && cachedEntry.results) {
-      return cachedEntry.results;
-    }
-    
+    const cachedEntry = await redisClient.get("filter:" + filterHash);
     if (cachedEntry) {
-      cachedEntry.timestamp = startTimeMs;
-      recentFiltersCache.set(filterHash, cachedEntry);
-    } else {
-      const startTime = startTimeMs;
-      recentFiltersCache.set(filterHash, { 
-        timestamp: startTime,
-        processingTime: 0
-      });
-      
+      if (redisClient) await redisClient.disconnect();
+      return JSON.parse(cachedEntry);
     }
   }
 
-  // Process each filter provided.
+  // Process each provided filter.
   for (const filter of filters) {
 
     if (checkTimeout()) {
@@ -234,11 +178,11 @@ const _getEvents = async (filters: Filter[], maxLimit: number, chunks: SharedChu
     const rawSearch = filter.search ? filter.search.trim() : "";
     const searchQuery = rawSearch.length >= 3 ? rawSearch.toLowerCase() : null;
 
-    const relevantChunks = filterRelevantChunks(chunks, filter, since, until);
+    const relevantChunks = await filterRelevantChunks(chunks, filter, since, until, redisClient);
     const decodedChunks = [];
     for (const chunk of relevantChunks) {
       if (checkTimeout()) break;
-      const decoded = await getDecodedChunk(chunk);
+      const decoded = await getDecodedChunk(chunk, redisClient);
       decodedChunks.push(decoded);
     }
 
@@ -297,10 +241,9 @@ const _getEvents = async (filters: Filter[], maxLimit: number, chunks: SharedChu
           score = (content.match(new RegExp(`\\b${searchQuery}\\b`, "gi")) || []).length;
         }
     
-
         filterResults.push({ event, score });
 
-        // If no search query is provided and the effective limit is reached, stop processing
+        // If no search query is provided and the effective limit is reached, stop processing.
         if (!searchQuery && filterResults.length >= effectiveLimit) {
           break;
         }
@@ -312,11 +255,10 @@ const _getEvents = async (filters: Filter[], maxLimit: number, chunks: SharedChu
       filterResults.sort((a, b) => b.score - a.score);
     }
 
-    // Apply the effective limit after sorting.
+    // Apply the effective limit.
     const filteredEventsLimit = Math.min(filterResults.length, effectiveLimit);
     for (let i = 0; i < filteredEventsLimit; i++) {
       const { metadata, ...eventWithoutMetadata } = filterResults[i].event;
-      
       if (finalResults.length < effectiveLimit) {
         finalResults.push(eventWithoutMetadata);
       }
@@ -327,16 +269,12 @@ const _getEvents = async (filters: Filter[], maxLimit: number, chunks: SharedChu
   // Deduplicate events based on their id.
   const uniqueEvents = Array.from(new Map(finalResults.map(event => [event.id, event])).values());
 
-  if (filters.length === 1 && finalResults.length > 0) {
+  if (filters.length === 1 && finalResults.length > 0 && redisClient) {
     const filterHash = createFilterHash(filters[0]);
-    const cachedEntry = recentFiltersCache.get(filterHash);
-    
-    if (cachedEntry) {
-      cachedEntry.results = finalResults.map(event => ({...event}));
-      cachedEntry.processingTime = Date.now() - cachedEntry.timestamp;
-      recentFiltersCache.set(filterHash, cachedEntry);
-    }
+    await redisClient.set("filter:" + filterHash, JSON.stringify(uniqueEvents), { EX: FILTER_CACHE_TTL / 1000 });
   }
+  
+  if (redisClient) await redisClient.disconnect();
 
   return uniqueEvents;
 };

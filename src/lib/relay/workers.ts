@@ -366,12 +366,21 @@ const getEvents = async (filters: any, maxLimit: number, chunks: SharedChunk[]):
 
     isHeavy ? pendingHeavyTasks.set(taskId, taskData) : pendingLightTasks.set(taskId, taskData);
 
+    const redisConfig = {
+      host: app.get("config.redis")["host"],
+      port: app.get("config.redis")["port"],
+      user: app.get("config.redis")["user"],
+      password: app.get("config.redis")["password"],
+      database: 2 // database "2" for events cache
+    };
+
     const getEventsWorker = isHeavy ? heavyGetEventsPool : lightGetEventsPool
     const result =  await getEventsWorker.exec("_getEvents", [
       JSON.parse(JSON.stringify(filters)),
       maxLimit,
       chunks,
-      isHeavy
+      isHeavy,
+      redisConfig,
     ]);
     isHeavy ? pendingHeavyTasks.delete(taskId) : pendingLightTasks.delete(taskId);
     return result;
