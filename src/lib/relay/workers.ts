@@ -333,12 +333,12 @@ workerInterval();
 
 const lightGetEventsPool = workerpool.pool(
   path.join(workersDir, 'getEvents.js'),
-  { maxWorkers: Math.ceil(relayWorkers * 0.3) }
+  { maxWorkers: Math.ceil(relayWorkers * 0.25) }
 );
 
 const heavyGetEventsPool = workerpool.pool(
   path.join(workersDir, 'getEvents.js'),
-  { maxWorkers: Math.ceil(relayWorkers * 0.7) }
+  { maxWorkers: Math.ceil(relayWorkers * 0.75) }
 );
 
 const pendingLightTasks: Map<string, PendingGetEventsTask> = new Map();
