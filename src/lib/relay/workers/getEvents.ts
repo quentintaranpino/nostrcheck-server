@@ -172,7 +172,7 @@ const _getEvents = async (
     if (!cacheUsed) {
       const relevantChunks = await filterRelevantChunks(chunks, filter, since, until, redisClient);
       const filterResults = [];
-      const BATCH_SIZE = 50;
+      const BATCH_SIZE = 25;
 
       for (const chunk of relevantChunks) {
         if (checkTimeout()) break;
@@ -221,7 +221,7 @@ const _getEvents = async (
 
       finalResults.push(...eventsToAdd);
 
-      if (redisClient && eventsToAdd.length >= Math.max(effectiveLimit, 100)) {
+      if (redisClient) {
         const filterHash = createFilterHash(filter);
         const cachedEntry = await redisClient.get("filter:" + filterHash);
         if (!cachedEntry || JSON.parse(cachedEntry).length < eventsToAdd.length) {
