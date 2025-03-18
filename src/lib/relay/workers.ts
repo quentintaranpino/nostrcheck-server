@@ -15,7 +15,6 @@ const relayWorkers = Number(app.get("config.relay")["workers"]);
 const workersDir = path.resolve('./dist/lib/relay/workers');
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { _getEvents } from "./workers/getEvents.js";
-import { sendMessage } from "../nostr/NIP04.js";
   
 const relayWorker = async (task: RelayJob): Promise<unknown> => {
   try {
@@ -334,12 +333,12 @@ workerInterval();
 
 const lightGetEventsPool = workerpool.pool(
   path.join(workersDir, 'getEvents.js'),
-  { maxWorkers: Math.ceil(relayWorkers * 0.4) }
+  { maxWorkers: Math.ceil(relayWorkers * 0.3) }
 );
 
 const heavyGetEventsPool = workerpool.pool(
   path.join(workersDir, 'getEvents.js'),
-  { maxWorkers: Math.ceil(relayWorkers * 0.6) }
+  { maxWorkers: Math.ceil(relayWorkers * 0.7) }
 );
 
 const pendingLightTasks: Map<string, PendingGetEventsTask> = new Map();
