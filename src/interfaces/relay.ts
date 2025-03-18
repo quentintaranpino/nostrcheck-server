@@ -161,4 +161,4 @@ const eventStore: RelayEvents = {
   relayEventsLoaded: false,
 };
 
-export { ExtendedWebSocket, allowedTags, SharedChunk, PendingGetEventsTask, RelayJob, RelayStatusMessage, MetadataEvent, EventIndex, RelayEvents, EventHeader, eventStore, CHUNK_SIZE };
+export { ExtendedWebSocket, allowedTags, SharedChunk, PendingGetEventsTask, RelayJob, RelayStatusMessage, MetadataEvent, EventIndex, RelayEvents, eventStore, CHUNK_SIZE };
