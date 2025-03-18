@@ -4,22 +4,17 @@ import { decodeEvent } from "../utils.js";
 import { SharedChunk } from "../../../interfaces/relay.js";
 import { createClient } from "redis";
 
-const FILTER_CACHE_TTL = 30000; 
-
-/**
- * Creates a stable hash for an array of filters to detect duplicates.
- */
-const createFiltersHash = (filters: Filter[]): string => {
-  const hashes = filters.map(createFilterHash).sort();
-  return JSON.stringify(hashes);
-};
+const FILTER_CACHE_TTL = 120000; 
 
 /**
  * Creates a stable hash for a filter to detect duplicates.
  */
 const createFilterHash = (filter: Filter): string => {
   const normalized: any = {};
-  const timeBucket = 60;
+  const timeBucket =
+    filter.since !== undefined && filter.until !== undefined && (filter.until - filter.since) > (86400 * 30)
+      ? 3600
+      : 60;
   if (filter.since) normalized.since = Math.floor(filter.since / timeBucket) * timeBucket;
   if (filter.until) normalized.until = Math.floor(filter.until / timeBucket) * timeBucket;
 
@@ -51,37 +46,45 @@ const getChunkCacheKey = (chunk: SharedChunk): string => {
  * If the cache is found, the filtering is refined.
  */
 const filterRelevantChunks = async (
-  chunks: SharedChunk[], 
-  filter: Filter, 
-  since: number, 
+  chunks: SharedChunk[],
+  filter: Filter,
+  since: number,
   until: number,
-  redisClient?: any
+  redisClient?: ReturnType<typeof createClient>
 ): Promise<SharedChunk[]> => {
   const timeFilteredChunks = chunks.filter(chunk => {
-    if (chunk.timeRange.max < since) return false; 
+    if (chunk.timeRange.max < since) return false;
     if (chunk.timeRange.min > until) return false;
     return true;
   });
-  
+
   if (filter.authors && filter.authors.length > 0 && redisClient) {
     const authorsSet = new Set(filter.authors);
     const relevant: SharedChunk[] = [];
+
     for (const chunk of timeFilteredChunks) {
       const cacheKey = getChunkCacheKey(chunk);
       const cachedPubkeys = await redisClient.get("pubkeys:" + cacheKey);
+
+      if (await isChunkExcluded(chunk, filter.authors, redisClient)) {
+        continue; 
+      }
+
       if (cachedPubkeys) {
         const pubkeys: string[] = JSON.parse(cachedPubkeys);
         if (pubkeys.some(pubkey => authorsSet.has(pubkey))) {
           relevant.push(chunk);
+        } else {
+         
+          await cacheChunkExclusion(chunk, filter.authors, redisClient);
         }
       } else {
-        // If no cache exists, include the chunk for further processing.
         relevant.push(chunk);
       }
     }
     return relevant;
   }
-  
+
   return timeFilteredChunks;
 };
 
@@ -108,6 +111,80 @@ const getEventHeaders = (chunk: SharedChunk): { offset: number, header: { create
     headers.push({ offset: baseOffset, header: { created_at, kind, pubkey, id } });
   }
   return headers;
+};
+
+
+/**
+ * Retrieves event headers from a shared memory chunk.
+ * If the headers are cached, they are retrieved from the cache.
+ * 
+ * @param chunk - SharedChunk object.
+ * @param redisClient - Redis client object.
+ * @returns A promise that resolves to an array of event headers.
+ */
+const getCachedEventHeaders = async (
+  chunk: SharedChunk, 
+  redisClient?: ReturnType<typeof createClient>
+): Promise<{
+  offset: number;
+  header: {
+    created_at: number;
+    kind: number;
+    pubkey: string;
+    id: string;
+  };
+}[]> => {
+  const cacheKey = `chunkheaders:${getChunkCacheKey(chunk)}`;
+  if (redisClient) {
+    const cachedHeaders = await redisClient.get(cacheKey);
+    if (cachedHeaders) {
+      return JSON.parse(cachedHeaders) as {
+        offset: number;
+        header: {
+          created_at: number;
+          kind: number;
+          pubkey: string;
+          id: string;
+        };
+      }[];
+    }
+  }
+
+  const headers = getEventHeaders(chunk);
+
+  if (redisClient) {
+    await redisClient.set(cacheKey, JSON.stringify(headers), { EX: FILTER_CACHE_TTL / 1000 });
+  }
+
+  return headers;
+
+};
+
+
+const chunkExclusionCacheKey = (chunk: SharedChunk, authors: string[]): string => {
+  const authorsHash = authors.sort().join(',');
+  return `chunkexclusion:${getChunkCacheKey(chunk)}:${authorsHash}`;
+};
+
+const isChunkExcluded = async (
+  chunk: SharedChunk,
+  authors: string[],
+  redisClient: ReturnType<typeof createClient>
+): Promise<boolean> => {
+  if (!redisClient) return false;
+  const exclusionKey = chunkExclusionCacheKey(chunk, authors);
+  const excluded = await redisClient.get(exclusionKey);
+  return excluded === '1';
+};
+
+const cacheChunkExclusion = async (
+  chunk: SharedChunk,
+  authors: string[],
+  redisClient: ReturnType<typeof createClient>
+): Promise<void> => {
+  if (!redisClient) return;
+  const exclusionKey = chunkExclusionCacheKey(chunk, authors);
+  await redisClient.set(exclusionKey, '1', { EX: 600 }); 
 };
 
 /**
@@ -142,7 +219,7 @@ const _getEvents = async (
   const finalResults = [];
   const now = Math.floor(Date.now() / 1000);
   const startTimeMs = Date.now();
-  const TIMEOUT_MS = isHeavy ? 10000 : 5000;
+  const TIMEOUT_MS = isHeavy ? 5000 : 3000;
   const checkTimeout = () => Date.now() - startTimeMs > TIMEOUT_MS;
 
   for (const filter of filters) {
@@ -176,7 +253,7 @@ const _getEvents = async (
 
       for (const chunk of relevantChunks) {
         if (checkTimeout()) break;
-        const headers = getEventHeaders(chunk);
+        const headers = await getCachedEventHeaders(chunk);
         const view = new DataView(chunk.buffer);
         let batchTasks = [];
 
