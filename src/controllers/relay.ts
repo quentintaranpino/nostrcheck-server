@@ -515,13 +515,11 @@ const handleReqOrCount = async (socket: WebSocket, subId: string, filters: Filte
     return;
   }
 
-  //Chech if filter is valid
-
 
   try {
     const eventsList = await getEvents(filters, maxLimit, eventStore.sharedDBChunks);
     let count = 0;
-    const batchSize = 500;
+    const batchSize = 250;
     for (let i = 0; i < eventsList.length; i += batchSize) {
       const batch = eventsList.slice(i, i + batchSize);
       for (const event of batch) {
