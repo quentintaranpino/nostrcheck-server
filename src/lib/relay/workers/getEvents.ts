@@ -28,6 +28,11 @@ const createFilterHash = (filter: Filter): string => {
       normalized[key] = [...(filter[key as keyof Filter] as string[])].sort().join(',');
     }
   }
+
+  if (filter.search) {
+    normalized.search = filter.search.toLowerCase().trim();
+  }
+  
   return JSON.stringify(normalized);
 };
 
@@ -248,43 +253,66 @@ const _getEvents = async (
 
     if (!cacheUsed) {
       const relevantChunks = await filterRelevantChunks(chunks, filter, since, until, redisClient);
-      const filterResults = [];
-      const BATCH_SIZE = isHeavy ? 100 : 25;
+      const filterResults: { event: Event; score?: number }[] = [];
+      const BATCH_SIZE = isHeavy ? 25 : 10;
 
       for (const chunk of relevantChunks) {
         if (checkTimeout()) break;
         const headers = await getCachedEventHeaders(chunk);
         const view = new DataView(chunk.buffer);
-        let batchTasks = [];
+        
+        // Pre-filter all headers first
+        const filteredHeaders = headers.filter(({ header }) => {
+          if (header.created_at < since || header.created_at > until) return false;
+          if (filter.kinds && !filter.kinds.includes(header.kind)) return false;
+          if (filter.authors && filter.authors.length > 0 && !filter.authors.includes(header.pubkey)) return false;
+          if (filter.ids && filter.ids.length > 0 && !filter.ids.includes(header.id)) return false;
+          return true;
+        });
 
-        for (const { offset, header } of headers) {
+        // Dynamic batch sizing based on filter complexity and data volume
+        const dynamicBatchSize = () => {
+          // If this is a heavy task and we have many headers
+          if (isHeavy && filteredHeaders.length > 500) {
+            // Reduce batch size for very large datasets
+            return Math.max(5, Math.min(BATCH_SIZE, Math.ceil(250 / Math.sqrt(filteredHeaders.length))));
+          }
+          return BATCH_SIZE;
+        };
+        
+        const effectiveBatchSize = dynamicBatchSize();
+
+        // Process filtered headers in batches using slices
+        for (let i = 0; i < filteredHeaders.length; i += effectiveBatchSize) {
           if (checkTimeout()) break;
-          if (header.created_at < since || header.created_at > until) continue;
-          if (filter.kinds && !filter.kinds.includes(header.kind)) continue;
-          if (filter.authors && filter.authors.length > 0 && !filter.authors.includes(header.pubkey)) continue;
-          if (filter.ids && filter.ids.length > 0 && !filter.ids.includes(header.id)) continue;
-
-          batchTasks.push({ chunk, offset, view });
-          if (batchTasks.length >= BATCH_SIZE) {
-            const batchResults = await Promise.all(batchTasks.map(task => decodeEvent(task.chunk.buffer, task.view, task.offset)));
-
-            for (const { event } of batchResults) {
-              if (!matchFilter(filter, event)) continue;
-              filterResults.push({ event, score: 0 });
-              if (!searchQuery && filterResults.length >= effectiveLimit) break;
-            }
-
-            batchTasks = [];
+          
+          const batchHeaders = filteredHeaders.slice(i, i + effectiveBatchSize);
+          const batchTasks = batchHeaders.map(({ offset }) => ({ chunk, offset, view }));
+          
+          const batchResults = await Promise.all(
+            batchTasks.map(task => decodeEvent(task.chunk.buffer, task.view, task.offset))
+          );
+          
+          // Process each result in the batch
+          for (const result of batchResults) {
+            const { event } = result;
+            
+            // Skip events that don't match the filter criteria
+            if (!matchFilter(filter, event)) continue;
+            
+            // Add matching events to results
+            filterResults.push({ event, score: 0 });
+            
+            // Early exit if we've already found enough events and there's no search query
             if (!searchQuery && filterResults.length >= effectiveLimit) break;
           }
-        }
-
-        if (batchTasks.length > 0 && filterResults.length < effectiveLimit) {
-          const batchResults = await Promise.all(batchTasks.map(task => decodeEvent(task.chunk.buffer, task.view, task.offset)));
-          for (const { event } of batchResults) {
-            if (!matchFilter(filter, event)) continue;
-            filterResults.push({ event, score: 0 });
-            if (!searchQuery && filterResults.length >= effectiveLimit) break;
+          
+          // Early exit from batch processing if we have enough results
+          if (!searchQuery && filterResults.length >= effectiveLimit) break;
+          
+          // Allow event loop to breathe on heavy tasks
+          if (isHeavy && i > 0 && i % (effectiveBatchSize * 4) === 0) {
+            await new Promise(resolve => setTimeout(resolve, 0));
           }
         }
 
@@ -292,7 +320,7 @@ const _getEvents = async (
       }
 
       const eventsToAdd = filterResults.slice(0, effectiveLimit).map(({ event }) => {
-        const { metadata, ...eventWithoutMetadata } = event;
+        const eventWithoutMetadata = { ...event };
         return eventWithoutMetadata;
       });
 
