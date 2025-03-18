@@ -172,7 +172,7 @@ const _getEvents = async (
     if (!cacheUsed) {
       const relevantChunks = await filterRelevantChunks(chunks, filter, since, until, redisClient);
       const filterResults = [];
-      const BATCH_SIZE = 25;
+      const BATCH_SIZE = isHeavy ? 100 : 25;
 
       for (const chunk of relevantChunks) {
         if (checkTimeout()) break;
