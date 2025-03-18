@@ -31,14 +31,14 @@ function isHeavyFilter(filters: Filter[]): boolean {
   if (!filters || !Array.isArray(filters)) return false;
 
   return filters.some(filter => {
-    if (filter.authors && filter.authors.length > 20) return true;
+    if (filter.authors && filter.authors.length > 30) return true;
     if (filter.search && filter.search.includes(':')) return true;
     if (filter.search && filter.limit && filter.limit > 500) return true;
     if (
       filter.search &&
       (!filter.authors || filter.authors.length === 0) &&
       filter.limit &&
-      filter.limit > 100
+      filter.limit > 150
     )
       return true;
 
@@ -47,7 +47,7 @@ function isHeavyFilter(filters: Filter[]): boolean {
       (filter.ids && filter.ids.length > 0) ||
       (filter.limit && filter.limit < 5);
 
-    if (!hasSpecificFilters && (!filter.kinds || filter.kinds.length > 5)) return true;
+    if (!hasSpecificFilters && (!filter.kinds || filter.kinds.length > 10)) return true;
 
     if (!hasSpecificFilters) {
       const timeRange =

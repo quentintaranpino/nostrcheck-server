@@ -171,7 +171,7 @@ const _getEvents = async (
   const finalResults: Event[] = [];
   const now = Math.floor(Date.now() / 1000);
   const startTimeMs = Date.now();
-  const TIMEOUT_MS = isHeavy ? 30000 : 15000;
+  const TIMEOUT_MS = isHeavy ? 10000 : 5000;
   const checkTimeout = (): boolean => (Date.now() - startTimeMs) > TIMEOUT_MS;
   
   if (filters.length === 1 && redisClient) {
@@ -249,7 +249,7 @@ const _getEvents = async (
         filterResults.push({ event, score });
         if (!searchQuery && filterResults.length >= effectiveLimit) break;
       }
-      
+
       if (!searchQuery && filterResults.length >= effectiveLimit) break;
     }
     
