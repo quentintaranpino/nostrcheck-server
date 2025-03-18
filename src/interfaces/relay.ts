@@ -1,7 +1,6 @@
 import { Event, Filter } from "nostr-tools";
 import { WebSocket } from "ws";
 import { ResultMessagev2 } from "./server";
-import { queueAsPromised } from "fastq";
 
 interface ExtendedWebSocket extends WebSocket {
   challenge?: string;
