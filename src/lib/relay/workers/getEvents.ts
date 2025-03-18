@@ -153,7 +153,7 @@ const _getEvents = async (
   filters: Filter[], 
   maxLimit: number,
   chunks: SharedChunk[], 
-  isHeavy : boolean,
+  isHeavy: boolean,
   redisConfig?: { host: string; port: string; user: string; password: string; database: number }
 ): Promise<Event[]> => {
 
@@ -173,7 +173,7 @@ const _getEvents = async (
   const startTimeMs = Date.now();
   const TIMEOUT_MS = isHeavy ? 10000 : 5000;
   const checkTimeout = (): boolean => (Date.now() - startTimeMs) > TIMEOUT_MS;
-  
+
   if (filters.length === 1 && redisClient) {
     const filterHash = createFilterHash(filters[0]);
     const cachedEntry = await redisClient.get("filter:" + filterHash);
@@ -187,17 +187,19 @@ const _getEvents = async (
     if (checkTimeout()) break;
     const until = filter.until !== undefined ? filter.until : now;
     const since = filter.since !== undefined ? filter.since : 0;
-    const effectiveLimit = filter.limit !== undefined ? Math.min(filter.limit, maxLimit) : maxLimit;
+    const effectiveLimit = filter.limit !== undefined ? Math.min(Number(filter.limit), maxLimit) : maxLimit;
     const rawSearch = filter.search ? filter.search.trim() : "";
     const searchQuery = rawSearch.length >= 3 ? rawSearch.toLowerCase() : null;
-    
+
     const relevantChunks = await filterRelevantChunks(chunks, filter, since, until, redisClient);
     const filterResults: { event: MetadataEvent; score: number }[] = [];
 
+    const BATCH_SIZE = 50;
     for (const chunk of relevantChunks) {
       if (checkTimeout()) break;
       const headers = getEventHeaders(chunk);
       const view = new DataView(chunk.buffer);
+      let batchTasks: { chunk: SharedChunk; offset: number; view: DataView }[] = [];
       for (const { offset, header } of headers) {
         if (checkTimeout()) break;
         if (header.created_at < since || header.created_at > until) continue;
@@ -205,51 +207,101 @@ const _getEvents = async (
         if (filter.authors && filter.authors.length > 0 && !filter.authors.includes(header.pubkey)) continue;
         if (filter.ids && filter.ids.length > 0 && !filter.ids.includes(header.id)) continue;
 
-        const { event } = await decodeEvent(chunk.buffer, view, offset);
-        if (!matchFilter(filter, event)) continue;
-
-        let specialOk = true;
-        if (filter.search) {
-          const { plainSearch: _, specialTokens } = parseSearchTokens(filter.search);
-          for (const key in specialTokens) {
-            if (!event.metadata || !(key in event.metadata)) {
-              specialOk = false;
-              break;
+        batchTasks.push({ chunk, offset, view });
+        if (batchTasks.length >= BATCH_SIZE) {
+          const batchResults = await Promise.all(
+            batchTasks.map(task => decodeEvent(task.chunk.buffer, task.view, task.offset))
+          );
+          for (const { event } of batchResults) {
+            if (!matchFilter(filter, event)) continue;
+            let specialOk = true;
+            if (filter.search) {
+              const { plainSearch: _, specialTokens } = parseSearchTokens(filter.search);
+              for (const key in specialTokens) {
+                if (!event.metadata || !(key in event.metadata)) {
+                  specialOk = false;
+                  break;
+                }
+                const metaVal = event.metadata[key];
+                if (typeof metaVal === "string") {
+                  if (!specialTokens[key].includes(metaVal.toLowerCase())) {
+                    specialOk = false;
+                    break;
+                  }
+                } else if (Array.isArray(metaVal)) {
+                  const uniqueValues = [...new Set(metaVal.map(v => v.toLowerCase()))];
+                  if (!specialTokens[key].some(val => uniqueValues.includes(val))) {
+                    specialOk = false;
+                    break;
+                  }
+                } else {
+                  specialOk = false;
+                  break;
+                }
+              }
             }
-            const metaVal = event.metadata[key];
-            if (typeof metaVal === "string") {
-              if (!specialTokens[key].includes(metaVal.toLowerCase())) {
+            if (!specialOk) continue;
+            const isStructuredFilter = filter.search && /^[a-zA-Z0-9_-]+:[^ ]/.test(filter.search);
+            const passesSearch = !searchQuery || isStructuredFilter || event.content.toLowerCase().includes(searchQuery);
+            if (!passesSearch) continue;
+            let score = 0;
+            if (searchQuery) {
+              const content = event.content.toLowerCase();
+              score = (content.match(new RegExp(`\\b${searchQuery}\\b`, "gi")) || []).length;
+            }
+            filterResults.push({ event, score });
+            if (!searchQuery && filterResults.length >= effectiveLimit) break;
+          }
+          batchTasks = [];
+          if (!searchQuery && filterResults.length >= effectiveLimit) break;
+        }
+      }
+      if (batchTasks.length > 0) {
+        const batchResults = await Promise.all(
+          batchTasks.map(task => decodeEvent(task.chunk.buffer, task.view, task.offset))
+        );
+        for (const { event } of batchResults) {
+          if (!matchFilter(filter, event)) continue;
+          let specialOk = true;
+          if (filter.search) {
+            const { plainSearch: _, specialTokens } = parseSearchTokens(filter.search);
+            for (const key in specialTokens) {
+              if (!event.metadata || !(key in event.metadata)) {
                 specialOk = false;
                 break;
               }
-            } else if (Array.isArray(metaVal)) {
-              const uniqueValues = [...new Set(metaVal.map(v => v.toLowerCase()))];
-              if (!specialTokens[key].some(val => uniqueValues.includes(val))) {
+              const metaVal = event.metadata[key];
+              if (typeof metaVal === "string") {
+                if (!specialTokens[key].includes(metaVal.toLowerCase())) {
+                  specialOk = false;
+                  break;
+                }
+              } else if (Array.isArray(metaVal)) {
+                const uniqueValues = [...new Set(metaVal.map(v => v.toLowerCase()))];
+                if (!specialTokens[key].some(val => uniqueValues.includes(val))) {
+                  specialOk = false;
+                  break;
+                }
+              } else {
                 specialOk = false;
                 break;
               }
-            } else {
-              specialOk = false;
-              break;
             }
           }
+          if (!specialOk) continue;
+          const isStructuredFilter = filter.search && /^[a-zA-Z0-9_-]+:[^ ]/.test(filter.search);
+          const passesSearch = !searchQuery || isStructuredFilter || event.content.toLowerCase().includes(searchQuery);
+          if (!passesSearch) continue;
+          let score = 0;
+          if (searchQuery) {
+            const content = event.content.toLowerCase();
+            score = (content.match(new RegExp(`\\b${searchQuery}\\b`, "gi")) || []).length;
+          }
+          filterResults.push({ event, score });
+          if (!searchQuery && filterResults.length >= effectiveLimit) break;
         }
-        if (!specialOk) continue;
-
-        const isStructuredFilter = filter.search && /^[a-zA-Z0-9_-]+:[^ ]/.test(filter.search);
-        const passesSearch = !searchQuery || isStructuredFilter || event.content.toLowerCase().includes(searchQuery);
-        if (!passesSearch) continue;
-
-        let score = 0;
-        if (searchQuery) {
-          const content = event.content.toLowerCase();
-          score = (content.match(new RegExp(`\\b${searchQuery}\\b`, "gi")) || []).length;
-        }
-    
-        filterResults.push({ event, score });
-        if (!searchQuery && filterResults.length >= effectiveLimit) break;
+        batchTasks = [];
       }
-
       if (!searchQuery && filterResults.length >= effectiveLimit) break;
     }
     
@@ -274,7 +326,6 @@ const _getEvents = async (
   if (redisClient) await redisClient.disconnect();
   return Array.from(new Map(finalResults.map(event => [event.id, event])).values());
 };
-
 workerpool.worker({_getEvents: _getEvents});
 
 export { _getEvents };
