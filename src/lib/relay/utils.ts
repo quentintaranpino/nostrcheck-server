@@ -416,8 +416,9 @@ const expandBuffer = (oldBuffer: SharedArrayBuffer, newSize: number): SharedArra
   return newBuffer;
 };
 
-const encodeEvents = async (events: MetadataEvent[]): Promise<{ buffer: SharedArrayBuffer; indexMap: Uint32Array; }> => {
-  let bufferSize = 50 * 1024 * 1024; // initial 50MB
+const encodeEvents = async (events: MetadataEvent[]): Promise<{ buffer: SharedArrayBuffer; indexMap: Uint32Array; usedBytes: number }> => {
+  const estimatedSize = Math.max(1 * 1024 * 1024, events.length * 1024);
+  let bufferSize = estimatedSize; 
   let buffer = new SharedArrayBuffer(bufferSize);
   let view = new DataView(buffer);
   const indexMap = new Uint32Array(events.length);
@@ -445,7 +446,7 @@ const encodeEvents = async (events: MetadataEvent[]): Promise<{ buffer: SharedAr
 
     const requiredSize = offset + 152 + tagsSize + contentSize + metadataSize;
     if (requiredSize > buffer.byteLength) {
-      bufferSize *= 2;
+      bufferSize = Math.ceil(requiredSize * 1.5);
       buffer = expandBuffer(buffer, bufferSize);
       view = new DataView(buffer);
     }
@@ -454,9 +455,9 @@ const encodeEvents = async (events: MetadataEvent[]): Promise<{ buffer: SharedAr
     offset = await encodeEvent(event, view, buffer, offset, i);
   }
 
-  return { buffer, indexMap };
-};
+  return { buffer, indexMap, usedBytes: offset }; 
 
+};
 
 /**
  * Encode an array of MetadataEvent objects into a shared memory chunk.
@@ -469,15 +470,15 @@ const encodeEvents = async (events: MetadataEvent[]): Promise<{ buffer: SharedAr
  */
 const encodeChunk = async (events: MetadataEvent[]): Promise<SharedChunk> => {
   if (events.length === 0) {
-    return { buffer: new SharedArrayBuffer(0), indexMap: new Uint32Array(0), timeRange: { min: 0, max: 0 } };
+    return { buffer: new SharedArrayBuffer(0), indexMap: new Uint32Array(0), timeRange: { min: 0, max: 0 }, usedBytes: 0 };
   }
   events.sort((a, b) => b.created_at - a.created_at);
-  const { buffer, indexMap } = await encodeEvents(events);
+  const { buffer, indexMap, usedBytes } = await encodeEvents(events);
   const newTimeRange = {
     max: events[0].created_at,
     min: events[events.length - 1].created_at,
   };
-  return { buffer, indexMap, timeRange: newTimeRange };
+  return { buffer, indexMap, timeRange: newTimeRange, usedBytes };
 }
 
 /**
@@ -585,6 +586,32 @@ const getEventsByTimerange = async (startTime: number, endTime: number, eventSto
   return results;
 };
 
+/**
+ * Get the size of a shared memory chunk.
+ * This function calculates the size of a shared memory chunk in bytes,
+ * including the size of the buffer, index map, and overhead.
+ * 
+ * @param chunk - The shared memory chunk to measure.
+ * @returns An object containing the size of the chunk in bytes, KB, and MB.
+ */
+function getChunkSize(chunk: SharedChunk) {
+  const bufferSize = chunk.usedBytes || chunk.buffer.byteLength;
+  const indexMapSize = chunk.indexMap.length * 4;
+  const overheadSize = 100; 
+  
+  return {
+    bufferBytes: bufferSize,
+    indexMapBytes: indexMapSize,
+    totalBytes: bufferSize + indexMapSize + overheadSize,
+    totalKB: Math.round((bufferSize + indexMapSize + overheadSize) / 1024),
+    totalMB: Math.round((bufferSize + indexMapSize + overheadSize) / 1024 / 1024),
+    eventsCount: chunk.indexMap.length,
+    bufferUtilization: chunk.usedBytes ? 
+      `${(chunk.usedBytes / chunk.buffer.byteLength * 100).toFixed(1)}%` : 
+      'Unknown'
+  };
+}
+
 export {  compressEvent, 
           decompressEvent, 
           parseRelayMessage, 
@@ -597,5 +624,6 @@ export {  compressEvent,
           decodeChunk, 
           getEventById, 
           getEventsByTimerange,
-          validateFilter
+          validateFilter,
+          getChunkSize
         };

@@ -109,6 +109,7 @@ interface RelayJob {
 
 interface RelayStatusMessage extends ResultMessagev2 {
   websocketConnections: number;
+  usedMemory: number;
   queueLength: number;
   workerCount: number;
   heavyTasksLength: number;
@@ -123,10 +124,14 @@ interface PendingGetEventsTask {
   enqueuedAt: number;
 }
 
- interface SharedChunk {
+interface SharedChunk {
   buffer: SharedArrayBuffer;
   indexMap: Uint32Array;
-  timeRange: { min: number; max: number }; 
+  timeRange: {
+    min: number;
+    max: number;
+  };
+  usedBytes?: number; 
 }
 
 const CHUNK_SIZE = 3000; 

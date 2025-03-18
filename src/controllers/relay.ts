@@ -3,7 +3,7 @@ import { Event, Filter, matchFilter } from "nostr-tools";
 import { Request, Response } from "express";
 
 import { subscriptions, addSubscription, removeAllSubscriptions, removeSubscription } from "../lib/relay/core.js";
-import { compressEvent, fillEventMetadata, getEventById, getEventsByTimerange, validateFilter, parseRelayMessage } from "../lib/relay/utils.js";
+import { compressEvent, fillEventMetadata, getEventById, getEventsByTimerange, validateFilter, parseRelayMessage, getChunkSize } from "../lib/relay/utils.js";
 import { initEvents } from "../lib/relay/database.js";
 
 import app from "../app.js";
@@ -657,6 +657,7 @@ const getRelayStatus = async (req: Request, res: Response): Promise<Response> =>
     status: "success",
     message: "Relay status retrieved successfully",
     websocketConnections: app.get("wss").clients.size || 0,
+    usedMemory: eventStore.sharedDBChunks.reduce((sum, chunk) => sum + getChunkSize(chunk).totalMB, 0),
     queueLength: getRelayQueueLength() || 0,
     workerCount: relayWorkers,
     heavyTasksLength: getRelayHeavyWorkerLength() || 0,

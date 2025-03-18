@@ -165,6 +165,20 @@
             timeout: 5000,
         }); %>
 
+        <%- include('../dashcard', { 
+            dashcardId: 'relayMemoryUsage', 
+            dashcardName: 'Relay memory usage', 
+            dashcardDataKey: 'relay', 
+            icon: 'worker', 
+            link: '', 
+            action: 'status', 
+            field: 'usedMemory', 
+            showField: false, 
+            timeout: 5000,
+        }); %>
+
+
+
     <% } %>
 
     <%- include('../dashcard', { 
