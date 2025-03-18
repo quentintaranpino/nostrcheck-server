@@ -1,12 +1,10 @@
 import { Filter, matchFilter, Event } from "nostr-tools";
 import workerpool from "workerpool";
-import {  parseSearchTokens, decodeEvent } from "../utils.js";
-import { MetadataEvent, SharedChunk } from "../../../interfaces/relay.js";
+import { decodeEvent } from "../utils.js";
+import { SharedChunk } from "../../../interfaces/relay.js";
 import { createClient } from "redis";
 
-const FILTER_CACHE_TTL = 30000; // in milliseconds
-const CACHE_TTL = 60000; // in milliseconds
-
+const FILTER_CACHE_TTL = 30000; 
 
 /**
  * Creates a stable hash for an array of filters to detect duplicates.
@@ -87,34 +85,6 @@ const filterRelevantChunks = async (
   return timeFilteredChunks;
 };
 
-// /**
-//  * Retrieves the decoded events from a shared memory chunk.
-//  * The decoded events are cached in Redis for a period of time to reduce decoding overhead.
-//  *
-//  * @param chunk - SharedChunk object to decode.
-//  * @returns A promise that resolves to an array of decoded events.
-//  */
-// const getDecodedChunk = async (chunk: SharedChunk, redisClient?: any): Promise<MetadataEvent[]> => {
-//   const cacheKey = getChunkCacheKey(chunk);
-  
-//   if (redisClient) {
-//     const cached = await redisClient.get("decodedChunk:" + cacheKey);
-//     if (cached) {
-//       return JSON.parse(cached);
-//     }
-//   }
-  
-//   const decodedChunk = await decodeChunk(chunk);
-  
-//   if (redisClient) {
-//     await redisClient.set("decodedChunk:" + cacheKey, JSON.stringify(decodedChunk), { EX: CACHE_TTL / 1000 });
-//     const pubkeys = Array.from(new Set(decodedChunk.map(e => e.pubkey)));
-//     await redisClient.set("pubkeys:" + cacheKey, JSON.stringify(pubkeys), { EX: CACHE_TTL / 1000 });
-//   }
-  
-//   return decodedChunk;
-// };
-
 /**
  * Decodes an event from a shared memory chunk.
  * The event is decoded based on the header information.
@@ -164,177 +134,115 @@ const _getEvents = async (
   if (redisConfig) {
     redisClient = createClient({
       url: `redis://${redisConfig.user}:${redisConfig.password}@${redisConfig.host}:${redisConfig.port}`,
-      database: redisConfig.database
+      database: redisConfig.database,
     });
-    await redisClient.connect().catch(() => {
-      redisClient = null;
-    });
+    await redisClient.connect().catch(() => (redisClient = null));
   }
 
-  const finalResults: Event[] = [];
+  const finalResults = [];
   const now = Math.floor(Date.now() / 1000);
   const startTimeMs = Date.now();
   const TIMEOUT_MS = isHeavy ? 10000 : 5000;
-  const checkTimeout = (): boolean => (Date.now() - startTimeMs) > TIMEOUT_MS;
-
-  if (redisClient) {
-    const filtersHash = createFiltersHash(filters);
-    const cachedEntry = await redisClient.get("filter:" + filtersHash);
-    if (cachedEntry) {
-      const cachedResults: Event[] = JSON.parse(cachedEntry);
-      if (cachedResults.length >= maxLimit) {
-        await redisClient.disconnect();
-        return cachedResults.slice(0, maxLimit);
-      }
-    }
-  }
+  const checkTimeout = () => Date.now() - startTimeMs > TIMEOUT_MS;
 
   for (const filter of filters) {
     if (checkTimeout()) break;
+
     const until = filter.until !== undefined ? filter.until : now;
     const since = filter.since !== undefined ? filter.since : 0;
     const effectiveLimit = filter.limit !== undefined ? Math.min(Number(filter.limit), maxLimit) : maxLimit;
     const rawSearch = filter.search ? filter.search.trim() : "";
     const searchQuery = rawSearch.length >= 3 ? rawSearch.toLowerCase() : null;
 
-    const relevantChunks = await filterRelevantChunks(chunks, filter, since, until, redisClient);
-    const filterResults: { event: MetadataEvent; score: number }[] = [];
+    let cacheUsed = false;
 
-    const BATCH_SIZE = 50;
-    for (const chunk of relevantChunks) {
-      if (checkTimeout()) break;
-      const headers = getEventHeaders(chunk);
-      const view = new DataView(chunk.buffer);
-      let batchTasks: { chunk: SharedChunk; offset: number; view: DataView }[] = [];
-      for (const { offset, header } of headers) {
+    if (redisClient) {
+      const filterHash = createFilterHash(filter);
+      const cachedEntry = await redisClient.get("filter:" + filterHash);
+      if (cachedEntry) {
+        const cachedResults = JSON.parse(cachedEntry);
+        if (cachedResults.length >= effectiveLimit) {
+          finalResults.push(...cachedResults.slice(0, effectiveLimit));
+          cacheUsed = true;
+          continue;
+        }
+      }
+    }
+
+    if (!cacheUsed) {
+      const relevantChunks = await filterRelevantChunks(chunks, filter, since, until, redisClient);
+      const filterResults = [];
+      const BATCH_SIZE = 50;
+
+      for (const chunk of relevantChunks) {
         if (checkTimeout()) break;
-        if (header.created_at < since || header.created_at > until) continue;
-        if (filter.kinds && !filter.kinds.includes(header.kind)) continue;
-        if (filter.authors && filter.authors.length > 0 && !filter.authors.includes(header.pubkey)) continue;
-        if (filter.ids && filter.ids.length > 0 && !filter.ids.includes(header.id)) continue;
+        const headers = getEventHeaders(chunk);
+        const view = new DataView(chunk.buffer);
+        let batchTasks = [];
 
-        batchTasks.push({ chunk, offset, view });
-        if (batchTasks.length >= BATCH_SIZE) {
-          const batchResults = await Promise.all(
-            batchTasks.map(task => decodeEvent(task.chunk.buffer, task.view, task.offset))
-          );
-          for (const { event } of batchResults) {
-            if (!matchFilter(filter, event)) continue;
-            let specialOk = true;
-            if (filter.search) {
-              const { plainSearch: _, specialTokens } = parseSearchTokens(filter.search);
-              for (const key in specialTokens) {
-                if (!event.metadata || !(key in event.metadata)) {
-                  specialOk = false;
-                  break;
-                }
-                const metaVal = event.metadata[key];
-                if (typeof metaVal === "string") {
-                  if (!specialTokens[key].includes(metaVal.toLowerCase())) {
-                    specialOk = false;
-                    break;
-                  }
-                } else if (Array.isArray(metaVal)) {
-                  const uniqueValues = [...new Set(metaVal.map(v => v.toLowerCase()))];
-                  if (!specialTokens[key].some(val => uniqueValues.includes(val))) {
-                    specialOk = false;
-                    break;
-                  }
-                } else {
-                  specialOk = false;
-                  break;
-                }
-              }
+        for (const { offset, header } of headers) {
+          if (checkTimeout()) break;
+          if (header.created_at < since || header.created_at > until) continue;
+          if (filter.kinds && !filter.kinds.includes(header.kind)) continue;
+          if (filter.authors && filter.authors.length > 0 && !filter.authors.includes(header.pubkey)) continue;
+          if (filter.ids && filter.ids.length > 0 && !filter.ids.includes(header.id)) continue;
+
+          batchTasks.push({ chunk, offset, view });
+          if (batchTasks.length >= BATCH_SIZE) {
+            const batchResults = await Promise.all(batchTasks.map(task => decodeEvent(task.chunk.buffer, task.view, task.offset)));
+
+            for (const { event } of batchResults) {
+              if (!matchFilter(filter, event)) continue;
+              filterResults.push({ event, score: 0 });
+              if (!searchQuery && filterResults.length >= effectiveLimit) break;
             }
-            if (!specialOk) continue;
-            const isStructuredFilter = filter.search && /^[a-zA-Z0-9_-]+:[^ ]/.test(filter.search);
-            const passesSearch = !searchQuery || isStructuredFilter || event.content.toLowerCase().includes(searchQuery);
-            if (!passesSearch) continue;
-            let score = 0;
-            if (searchQuery) {
-              const content = event.content.toLowerCase();
-              score = (content.match(new RegExp(`\\b${searchQuery}\\b`, "gi")) || []).length;
-            }
-            filterResults.push({ event, score });
+
+            batchTasks = [];
             if (!searchQuery && filterResults.length >= effectiveLimit) break;
           }
-          batchTasks = [];
-          if (!searchQuery && filterResults.length >= effectiveLimit) break;
+        }
+
+        if (batchTasks.length > 0 && filterResults.length < effectiveLimit) {
+          const batchResults = await Promise.all(batchTasks.map(task => decodeEvent(task.chunk.buffer, task.view, task.offset)));
+          for (const { event } of batchResults) {
+            if (!matchFilter(filter, event)) continue;
+            filterResults.push({ event, score: 0 });
+            if (!searchQuery && filterResults.length >= effectiveLimit) break;
+          }
+        }
+
+        if (!searchQuery && filterResults.length >= effectiveLimit) break;
+      }
+
+      const eventsToAdd = filterResults.slice(0, effectiveLimit).map(({ event }) => {
+        const { metadata, ...eventWithoutMetadata } = event;
+        return eventWithoutMetadata;
+      });
+
+      finalResults.push(...eventsToAdd);
+
+      if (redisClient && eventsToAdd.length >= Math.max(effectiveLimit, 100)) {
+        const filterHash = createFilterHash(filter);
+        const cachedEntry = await redisClient.get("filter:" + filterHash);
+        if (!cachedEntry || JSON.parse(cachedEntry).length < eventsToAdd.length) {
+          await redisClient.set("filter:" + filterHash, JSON.stringify(eventsToAdd), { EX: FILTER_CACHE_TTL / 1000 });
         }
       }
-      if (batchTasks.length > 0) {
-        const batchResults = await Promise.all(
-          batchTasks.map(task => decodeEvent(task.chunk.buffer, task.view, task.offset))
-        );
-        for (const { event } of batchResults) {
-          if (!matchFilter(filter, event)) continue;
-          let specialOk = true;
-          if (filter.search) {
-            const { plainSearch: _, specialTokens } = parseSearchTokens(filter.search);
-            for (const key in specialTokens) {
-              if (!event.metadata || !(key in event.metadata)) {
-                specialOk = false;
-                break;
-              }
-              const metaVal = event.metadata[key];
-              if (typeof metaVal === "string") {
-                if (!specialTokens[key].includes(metaVal.toLowerCase())) {
-                  specialOk = false;
-                  break;
-                }
-              } else if (Array.isArray(metaVal)) {
-                const uniqueValues = [...new Set(metaVal.map(v => v.toLowerCase()))];
-                if (!specialTokens[key].some(val => uniqueValues.includes(val))) {
-                  specialOk = false;
-                  break;
-                }
-              } else {
-                specialOk = false;
-                break;
-              }
-            }
-          }
-          if (!specialOk) continue;
-          const isStructuredFilter = filter.search && /^[a-zA-Z0-9_-]+:[^ ]/.test(filter.search);
-          const passesSearch = !searchQuery || isStructuredFilter || event.content.toLowerCase().includes(searchQuery);
-          if (!passesSearch) continue;
-          let score = 0;
-          if (searchQuery) {
-            const content = event.content.toLowerCase();
-            score = (content.match(new RegExp(`\\b${searchQuery}\\b`, "gi")) || []).length;
-          }
-          filterResults.push({ event, score });
-          if (!searchQuery && filterResults.length >= effectiveLimit) break;
-        }
-        batchTasks = [];
+
+      if (filterResults.length > (maxLimit / 2)) {
+        filterResults.length = 0;
+        if (global.gc) global.gc();
       }
-      if (!searchQuery && filterResults.length >= effectiveLimit) break;
-    }
-    
-    if (searchQuery) {
-      filterResults.sort((a, b) => b.score - a.score);
-    }
-    
-    const filteredEventsLimit = Math.min(filterResults.length, effectiveLimit);
-    for (let i = 0; i < filteredEventsLimit; i++) {
-      const { metadata, ...eventWithoutMetadata } = filterResults[i].event;
-      if (finalResults.length < effectiveLimit) {
-        finalResults.push(eventWithoutMetadata);
-      }
+
     }
   }
-  
-  if (finalResults.length > 0 && redisClient) {
-    const filtersHash = createFiltersHash(filters);
-    const cachedEntry = await redisClient.get("filter:" + filtersHash);
-    if (!cachedEntry || JSON.parse(cachedEntry).length < finalResults.length) {
-      await redisClient.set("filter:" + filtersHash, JSON.stringify(finalResults), { EX: FILTER_CACHE_TTL / 1000 });
-    }
-  }
-  
+
   if (redisClient) await redisClient.disconnect();
+
   return Array.from(new Map(finalResults.map(event => [event.id, event])).values());
 };
+
+
 workerpool.worker({_getEvents: _getEvents});
 
 export { _getEvents };
