@@ -1,6 +1,6 @@
 import { Filter, matchFilter, Event } from "nostr-tools";
 import workerpool from "workerpool";
-import { decodeChunk, parseSearchTokens } from "../utils.js";
+import {  parseSearchTokens, decodeEvent } from "../utils.js";
 import { MetadataEvent, SharedChunk } from "../../../interfaces/relay.js";
 import { createClient } from "redis";
 
@@ -84,32 +84,57 @@ const filterRelevantChunks = async (
   return timeFilteredChunks;
 };
 
+// /**
+//  * Retrieves the decoded events from a shared memory chunk.
+//  * The decoded events are cached in Redis for a period of time to reduce decoding overhead.
+//  *
+//  * @param chunk - SharedChunk object to decode.
+//  * @returns A promise that resolves to an array of decoded events.
+//  */
+// const getDecodedChunk = async (chunk: SharedChunk, redisClient?: any): Promise<MetadataEvent[]> => {
+//   const cacheKey = getChunkCacheKey(chunk);
+  
+//   if (redisClient) {
+//     const cached = await redisClient.get("decodedChunk:" + cacheKey);
+//     if (cached) {
+//       return JSON.parse(cached);
+//     }
+//   }
+  
+//   const decodedChunk = await decodeChunk(chunk);
+  
+//   if (redisClient) {
+//     await redisClient.set("decodedChunk:" + cacheKey, JSON.stringify(decodedChunk), { EX: CACHE_TTL / 1000 });
+//     const pubkeys = Array.from(new Set(decodedChunk.map(e => e.pubkey)));
+//     await redisClient.set("pubkeys:" + cacheKey, JSON.stringify(pubkeys), { EX: CACHE_TTL / 1000 });
+//   }
+  
+//   return decodedChunk;
+// };
+
 /**
- * Retrieves the decoded events from a shared memory chunk.
- * The decoded events are cached in Redis for a period of time to reduce decoding overhead.
- *
- * @param chunk - SharedChunk object to decode.
- * @returns A promise that resolves to an array of decoded events.
+ * Decodes an event from a shared memory chunk.
+ * The event is decoded based on the header information.
+ * 
+ * @param buffer - SharedArrayBuffer containing the chunk data.
+ * @param view - DataView object for the buffer.
+ * @param offset - Offset of the event in the buffer.
+ * @returns A promise that resolves to the decoded event.
  */
-const getDecodedChunk = async (chunk: SharedChunk, redisClient?: any): Promise<MetadataEvent[]> => {
-  const cacheKey = getChunkCacheKey(chunk);
-  
-  if (redisClient) {
-    const cached = await redisClient.get("decodedChunk:" + cacheKey);
-    if (cached) {
-      return JSON.parse(cached);
-    }
+const getEventHeaders = (chunk: SharedChunk): { offset: number, header: { created_at: number, kind: number, pubkey: string, id: string } }[] => {
+  const headers = [];
+  const view = new DataView(chunk.buffer);
+  for (let i = 0; i < chunk.indexMap.length; i++) {
+    const baseOffset = chunk.indexMap[i];
+    const created_at = view.getInt32(baseOffset, true);
+    const kind = view.getInt32(baseOffset + 12, true);
+    const pubkeyBytes = new Uint8Array(chunk.buffer, baseOffset + 16, 32);
+    const pubkey = Array.from(pubkeyBytes).map(b => b.toString(16).padStart(2, "0")).join("");
+    const idBytes = new Uint8Array(chunk.buffer, baseOffset + 112, 32);
+    const id = Array.from(idBytes).map(b => b.toString(16).padStart(2, "0")).join("");
+    headers.push({ offset: baseOffset, header: { created_at, kind, pubkey, id } });
   }
-  
-  const decodedChunk = await decodeChunk(chunk);
-  
-  if (redisClient) {
-    await redisClient.set("decodedChunk:" + cacheKey, JSON.stringify(decodedChunk), { EX: CACHE_TTL / 1000 });
-    const pubkeys = Array.from(new Set(decodedChunk.map(e => e.pubkey)));
-    await redisClient.set("pubkeys:" + cacheKey, JSON.stringify(pubkeys), { EX: CACHE_TTL / 1000 });
-  }
-  
-  return decodedChunk;
+  return headers;
 };
 
 /**
@@ -138,7 +163,6 @@ const _getEvents = async (
       url: `redis://${redisConfig.user}:${redisConfig.password}@${redisConfig.host}:${redisConfig.port}`,
       database: redisConfig.database
     });
-
     await redisClient.connect().catch(() => {
       redisClient = null;
     });
@@ -148,12 +172,8 @@ const _getEvents = async (
   const now = Math.floor(Date.now() / 1000);
   const startTimeMs = Date.now();
   const TIMEOUT_MS = isHeavy ? 30000 : 15000;
-
-  const checkTimeout = (): boolean => {
-    return (Date.now() - startTimeMs) > TIMEOUT_MS;
-  };
-
-  // If a single filter is provided, attempt to retrieve the result from Redis.
+  const checkTimeout = (): boolean => (Date.now() - startTimeMs) > TIMEOUT_MS;
+  
   if (filters.length === 1 && redisClient) {
     const filterHash = createFilterHash(filters[0]);
     const cachedEntry = await redisClient.get("filter:" + filterHash);
@@ -163,40 +183,29 @@ const _getEvents = async (
     }
   }
 
-  // Process each provided filter.
   for (const filter of filters) {
-
-    if (checkTimeout()) {
-      break; 
-    }
-
+    if (checkTimeout()) break;
     const until = filter.until !== undefined ? filter.until : now;
     const since = filter.since !== undefined ? filter.since : 0;
     const effectiveLimit = filter.limit !== undefined ? Math.min(filter.limit, maxLimit) : maxLimit;
-    
     const rawSearch = filter.search ? filter.search.trim() : "";
     const searchQuery = rawSearch.length >= 3 ? rawSearch.toLowerCase() : null;
-
+    
     const relevantChunks = await filterRelevantChunks(chunks, filter, since, until, redisClient);
-    const decodedChunks = [];
-    for (const chunk of relevantChunks) {
-      if (checkTimeout()) break;
-      const decoded = await getDecodedChunk(chunk, redisClient);
-      decodedChunks.push(decoded);
-    }
-
-    if (checkTimeout()) continue;
-
     const filterResults: { event: MetadataEvent; score: number }[] = [];
 
-    // Iterate over each chunk that overlaps with the filter's time range.
-    for (const decodedEvents of decodedChunks) {
-      if (checkTimeout() || (!searchQuery && filterResults.length >= effectiveLimit)) {
-        break;  
-      }
-      for (let event of decodedEvents) {
-        if (event.created_at < since || event.created_at > until) continue;
-        if (filter.kinds && !filter.kinds.includes(event.kind)) continue;
+    for (const chunk of relevantChunks) {
+      if (checkTimeout()) break;
+      const headers = getEventHeaders(chunk);
+      const view = new DataView(chunk.buffer);
+      for (const { offset, header } of headers) {
+        if (checkTimeout()) break;
+        if (header.created_at < since || header.created_at > until) continue;
+        if (filter.kinds && !filter.kinds.includes(header.kind)) continue;
+        if (filter.authors && filter.authors.length > 0 && !filter.authors.includes(header.pubkey)) continue;
+        if (filter.ids && filter.ids.length > 0 && !filter.ids.includes(header.id)) continue;
+
+        const { event } = await decodeEvent(chunk.buffer, view, offset);
         if (!matchFilter(filter, event)) continue;
 
         let specialOk = true;
@@ -228,11 +237,8 @@ const _getEvents = async (
         if (!specialOk) continue;
 
         const isStructuredFilter = filter.search && /^[a-zA-Z0-9_-]+:[^ ]/.test(filter.search);
-        const passesSearch =
-          !searchQuery || isStructuredFilter || event.content.toLowerCase().includes(searchQuery);
-        if (!passesSearch) {
-          continue;
-        }
+        const passesSearch = !searchQuery || isStructuredFilter || event.content.toLowerCase().includes(searchQuery);
+        if (!passesSearch) continue;
 
         let score = 0;
         if (searchQuery) {
@@ -241,20 +247,14 @@ const _getEvents = async (
         }
     
         filterResults.push({ event, score });
-
-        // If no search query is provided and the effective limit is reached, stop processing.
-        if (!searchQuery && filterResults.length >= effectiveLimit) {
-          break;
-        }
+        if (!searchQuery && filterResults.length >= effectiveLimit) break;
       }
     }
-
-    // If a search query was provided, sort by matching score in descending order.
+    
     if (searchQuery) {
       filterResults.sort((a, b) => b.score - a.score);
     }
-
-    // Apply the effective limit.
+    
     const filteredEventsLimit = Math.min(filterResults.length, effectiveLimit);
     for (let i = 0; i < filteredEventsLimit; i++) {
       const { metadata, ...eventWithoutMetadata } = filterResults[i].event;
@@ -262,20 +262,15 @@ const _getEvents = async (
         finalResults.push(eventWithoutMetadata);
       }
     }
-    
   }
-
-  // Deduplicate events based on their id.
-  const uniqueEvents = Array.from(new Map(finalResults.map(event => [event.id, event])).values());
-
+  
   if (filters.length === 1 && finalResults.length > 0 && redisClient) {
     const filterHash = createFilterHash(filters[0]);
-    await redisClient.set("filter:" + filterHash, JSON.stringify(uniqueEvents), { EX: FILTER_CACHE_TTL / 1000 });
+    await redisClient.set("filter:" + filterHash, JSON.stringify(finalResults), { EX: FILTER_CACHE_TTL / 1000 });
   }
   
   if (redisClient) await redisClient.disconnect();
-
-  return uniqueEvents;
+  return Array.from(new Map(finalResults.map(event => [event.id, event])).values());
 };
 
 workerpool.worker({_getEvents: _getEvents});

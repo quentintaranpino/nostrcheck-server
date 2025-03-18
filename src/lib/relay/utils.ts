@@ -631,5 +631,6 @@ export {  compressEvent,
           getEventById, 
           getEventsByTimerange,
           validateFilter,
-          getChunkSize
+          getChunkSize,
+          decodeEvent
         };
