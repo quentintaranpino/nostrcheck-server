@@ -7,31 +7,34 @@ import { createClient } from "redis";
 const FILTER_CACHE_TTL = 30000; // in milliseconds
 const CACHE_TTL = 60000; // in milliseconds
 
+
+/**
+ * Creates a stable hash for an array of filters to detect duplicates.
+ */
+const createFiltersHash = (filters: Filter[]): string => {
+  const hashes = filters.map(createFilterHash).sort();
+  return JSON.stringify(hashes);
+};
+
 /**
  * Creates a stable hash for a filter to detect duplicates.
  */
 const createFilterHash = (filter: Filter): string => {
   const normalized: any = {};
-  
-  // Normalize the most important filter properties.
+  const timeBucket = 60;
+  if (filter.since) normalized.since = Math.floor(filter.since / timeBucket) * timeBucket;
+  if (filter.until) normalized.until = Math.floor(filter.until / timeBucket) * timeBucket;
+
+    // Normalize the most important filter properties.
   if (filter.kinds) normalized.kinds = [...filter.kinds].sort().join(',');
   if (filter.authors) normalized.authors = [...filter.authors].sort().join(',');
   if (filter.ids) normalized.ids = [...filter.ids].sort().join(',');
-  if (filter.since) normalized.since = filter.since;
-  if (filter.until) {
-    // Use a bucket for "until" based on FILTER_CACHE_TTL.
-    // Convert FILTER_CACHE_TTL from ms to seconds (30 seconds en este ejemplo)
-    const bucket = FILTER_CACHE_TTL / 1000;
-    normalized.until = Math.floor(filter.until / bucket) * bucket;
-  }
-  
-  // Handle tag filters.
+
   for (const key in filter) {
     if (key.startsWith('#') && Array.isArray(filter[key as keyof Filter])) {
       normalized[key] = [...(filter[key as keyof Filter] as string[])].sort().join(',');
     }
   }
-  
   return JSON.stringify(normalized);
 };
 
@@ -174,12 +177,15 @@ const _getEvents = async (
   const TIMEOUT_MS = isHeavy ? 10000 : 5000;
   const checkTimeout = (): boolean => (Date.now() - startTimeMs) > TIMEOUT_MS;
 
-  if (filters.length === 1 && redisClient) {
-    const filterHash = createFilterHash(filters[0]);
-    const cachedEntry = await redisClient.get("filter:" + filterHash);
+  if (redisClient) {
+    const filtersHash = createFiltersHash(filters);
+    const cachedEntry = await redisClient.get("filter:" + filtersHash);
     if (cachedEntry) {
-      if (redisClient) await redisClient.disconnect();
-      return JSON.parse(cachedEntry);
+      const cachedResults: Event[] = JSON.parse(cachedEntry);
+      if (cachedResults.length >= maxLimit) {
+        await redisClient.disconnect();
+        return cachedResults.slice(0, maxLimit);
+      }
     }
   }
 
@@ -318,9 +324,12 @@ const _getEvents = async (
     }
   }
   
-  if (filters.length === 1 && finalResults.length > 0 && redisClient) {
-    const filterHash = createFilterHash(filters[0]);
-    await redisClient.set("filter:" + filterHash, JSON.stringify(finalResults), { EX: FILTER_CACHE_TTL / 1000 });
+  if (finalResults.length > 0 && redisClient) {
+    const filtersHash = createFiltersHash(filters);
+    const cachedEntry = await redisClient.get("filter:" + filtersHash);
+    if (!cachedEntry || JSON.parse(cachedEntry).length < finalResults.length) {
+      await redisClient.set("filter:" + filtersHash, JSON.stringify(finalResults), { EX: FILTER_CACHE_TTL / 1000 });
+    }
   }
   
   if (redisClient) await redisClient.disconnect();
