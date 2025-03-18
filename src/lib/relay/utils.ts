@@ -176,31 +176,12 @@ const parseSearchTokens = (search: string): { plainSearch: string, specialTokens
  *
  * If the content starts with "lz:", it will be decompressed.
  */
-const textDecoder = new TextDecoder();
-const hexLookup = new Array(256);
-for (let i = 0; i < 256; i++) {
-  hexLookup[i] = i.toString(16).padStart(2, "0");
-}
-const bytesToHex = (bytes: Uint8Array): string => {
-  let hex = "";
-  for (let i = 0; i < bytes.length; i++) {
-    hex += bytes[i].toString(16).padStart(2, "0");
-  }
-  return hex;
-};
-let globalUint8: Uint8Array | null = null;
-
 const decodeEvent = async (sharedDB: SharedArrayBuffer, view: DataView, offset: number): Promise<{ event: MetadataEvent; newOffset: number }> => {
-  // Si aún no se ha creado la vista global, lo hacemos ahora.
-  if (!globalUint8) {
-    globalUint8 = new Uint8Array(sharedDB);
-  }
-
   // 1. created_at (4 bytes)
   const created_at = view.getInt32(offset, true);
   offset += 4;
 
-  // 2. index (4 bytes, no usado)
+  // 2. index (4 bytes, not used)
   offset += 4;
 
   // 3. contentSize (4 bytes)
@@ -212,15 +193,24 @@ const decodeEvent = async (sharedDB: SharedArrayBuffer, view: DataView, offset: 
   offset += 4;
 
   // 5. pubkey (32 bytes)
-  const pubkey = bytesToHex(globalUint8.subarray(offset, offset + 32));
+  const pubkeyBytes = new Uint8Array(sharedDB, offset, 32);
+  const pubkey = Array.from(pubkeyBytes)
+    .map(b => b.toString(16).padStart(2, "0"))
+    .join("");
   offset += 32;
 
   // 6. sig (64 bytes)
-  const sig = bytesToHex(globalUint8.subarray(offset, offset + 64));
+  const sigBytes = new Uint8Array(sharedDB, offset, 64);
+  const sig = Array.from(sigBytes)
+    .map(b => b.toString(16).padStart(2, "0"))
+    .join("");
   offset += 64;
 
   // 7. id (32 bytes)
-  const id = bytesToHex(globalUint8.subarray(offset, offset + 32));
+  const idBytes = new Uint8Array(sharedDB, offset, 32);
+  const id = Array.from(idBytes)
+    .map(b => b.toString(16).padStart(2, "0"))
+    .join("");
   offset += 32;
 
   // 8. tagsSize (4 bytes)
@@ -228,9 +218,10 @@ const decodeEvent = async (sharedDB: SharedArrayBuffer, view: DataView, offset: 
   offset += 4;
 
   // 9. tags (variable)
-  let tags;
+  const tagsBytes = new Uint8Array(sharedDB, offset, tagsSize);
+  let tags: any;
   try {
-    tags = JSON.parse(textDecoder.decode(globalUint8.subarray(offset, offset + tagsSize)));
+    tags = JSON.parse(new TextDecoder().decode(tagsBytes));
   } catch (err) {
     console.error("Error parsing tags:", err);
     tags = [];
@@ -238,7 +229,8 @@ const decodeEvent = async (sharedDB: SharedArrayBuffer, view: DataView, offset: 
   offset += tagsSize;
 
   // 10. content (variable)
-  const content = textDecoder.decode(globalUint8.subarray(offset, offset + contentSize));
+  const contentBytes = new Uint8Array(sharedDB, offset, contentSize);
+  const content = new TextDecoder().decode(contentBytes);
   offset += contentSize;
 
   // 11. metadataSize (4 bytes)
@@ -246,10 +238,11 @@ const decodeEvent = async (sharedDB: SharedArrayBuffer, view: DataView, offset: 
   offset += 4;
 
   // 12. metadata (variable)
-  let metadata = {};
+  let metadata: any = {};
   if (metadataSize > 0) {
+    const metadataBytes = new Uint8Array(sharedDB, offset, metadataSize);
     try {
-      metadata = JSON.parse(textDecoder.decode(globalUint8.subarray(offset, offset + metadataSize)));
+      metadata = JSON.parse(new TextDecoder().decode(metadataBytes));
     } catch (err) {
       console.error("Error parsing metadata:", err);
       metadata = {};
@@ -257,13 +250,13 @@ const decodeEvent = async (sharedDB: SharedArrayBuffer, view: DataView, offset: 
     offset += metadataSize;
   }
 
-  let event : MetadataEvent = { created_at, id, kind, pubkey, sig, tags, content, metadata };
+  let event: MetadataEvent = { created_at, id, kind, pubkey, sig, tags, content, metadata };
   if (event.content.startsWith("lz:")) {
     event = await decompressEvent(event);
   }
 
   return { event, newOffset: offset };
-}
+};
 
 /**
  * Encodes a single event into the SharedArrayBuffer starting at the given offset.
