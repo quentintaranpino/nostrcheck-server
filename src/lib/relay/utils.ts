@@ -446,13 +446,19 @@ const encodeEvents = async (events: MetadataEvent[]): Promise<{ buffer: SharedAr
 
     const requiredSize = offset + 152 + tagsSize + contentSize + metadataSize;
     if (requiredSize > buffer.byteLength) {
-      bufferSize = Math.ceil(requiredSize * 1.5);
+      bufferSize = Math.ceil(requiredSize * 1.2);
       buffer = expandBuffer(buffer, bufferSize);
       view = new DataView(buffer);
     }
 
     indexMap[i] = offset;
     offset = await encodeEvent(event, view, buffer, offset, i);
+  }
+
+  if (offset < buffer.byteLength * 0.8) { 
+    const compactBuffer = new SharedArrayBuffer(offset);
+    new Uint8Array(compactBuffer).set(new Uint8Array(buffer, 0, offset));
+    buffer = compactBuffer;
   }
 
   return { buffer, indexMap, usedBytes: offset }; 
