@@ -1,6 +1,6 @@
 import { Filter, matchFilter, Event } from "nostr-tools";
 import workerpool from "workerpool";
-import { decodeEvent, decodePartialEventc } from "../utils.js";
+import { decodeEvent, decodePartialEvent } from "../utils.js";
 import { SharedChunk } from "../../../interfaces/relay.js";
 import { createClient } from "redis";
 
@@ -156,7 +156,7 @@ const getCachedEventHeaders = async (
     }
   }
 
-  const headers = getEventHeaders(chunk);
+  const headers = decodePartialEventc(chunk);
 
   if (redisClient) {
     await redisClient.set(cacheKey, JSON.stringify(headers), { EX: FILTER_CACHE_TTL / 1000 });
