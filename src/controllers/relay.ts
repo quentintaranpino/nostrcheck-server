@@ -3,7 +3,7 @@ import { Event, Filter, matchFilter } from "nostr-tools";
 import { Request, Response } from "express";
 
 import { subscriptions, addSubscription, removeAllSubscriptions, removeSubscription } from "../lib/relay/core.js";
-import { compressEvent, fillEventMetadata, getEventById, getEventsByTimerange, validateFilter, parseRelayMessage, getChunkSize } from "../lib/relay/utils.js";
+import { compressEvent, fillEventMetadata, getEventById, getEventsByTimerange, validateFilter, parseRelayMessage, getChunkSize, filterEarlyDiscard } from "../lib/relay/utils.js";
 import { initEvents } from "../lib/relay/database.js";
 
 import app from "../app.js";
@@ -429,6 +429,7 @@ const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) =>
   event = await fillEventMetadata(event);
   event = await compressEvent(event);
   eventStore.eventIndex.set(event.id, {
+    id: event.id,
     chunkIndex: -1, 
     position: -1, 
     processed: false,
@@ -437,6 +438,10 @@ const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) =>
     pubkey: event.pubkey
   });
   eventStore.pending.set(event.id, event);
+  eventStore.globalIds.add(event.id);
+  if (event.pubkey) {
+    eventStore.globalPubkeys.add(event.pubkey);
+  }
 
   // Send confirmation to the client
   logger.debug(`handleEvent - Accepted event: ${event.id}`);
@@ -515,6 +520,11 @@ const handleReqOrCount = async (socket: WebSocket, subId: string, filters: Filte
     return;
   }
 
+  if (filterEarlyDiscard(filters, eventStore)) {
+    logger.debug(`handleReqOrCount - Filter early discard: ${subId}`);
+    socket.send(JSON.stringify(["EOSE", subId])); 
+    return;
+  }
 
   try {
     const eventsList = await getEvents(filters, maxLimit, eventStore.sharedDBChunks);

@@ -45,14 +45,23 @@ const initEvents = async (app: Application): Promise<boolean> => {
           for (let i = 0; i < batchEvents.length; i++) {
             const event = batchEvents[i];
             eventIndex.set(event.id, {
+              id: event.id,
               chunkIndex, 
               position: i,
               processed: true,
               created_at: event.created_at,
               kind: event.kind,
-              pubkey: event.pubkey
+              pubkey: event.pubkey,
             });
+
+            eventStore.globalIds.add(event.id);
+            if (event.pubkey) {
+              eventStore.globalPubkeys.add(event.pubkey);
+            }
+
           }
+
+          
           
           offset += CHUNK_SIZE;
 
@@ -276,6 +285,10 @@ const deleteEvents = async (eventsInput: MetadataEvent | MetadataEvent[], delete
       eventStore.eventIndex.delete(event.id);
       if (eventStore.pending) eventStore.pending.delete(event.id);
       if (eventStore.pendingDelete) eventStore.pendingDelete.delete(event.id);
+      eventStore.globalIds.delete(event.id);
+      if (event.pubkey) {
+        eventStore.globalPubkeys.delete(event.pubkey);
+      }
 
     } else {
       logger.error(`deleteEvents - Failed to delete process event ${event.id}`);

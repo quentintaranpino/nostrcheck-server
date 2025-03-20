@@ -139,25 +139,30 @@ interface RelayEvents {
   pending: Map<string, Event>;
   pendingDelete: Map<string, Event>;
   eventIndex: Map<string, EventIndex>;
-  sharedDBChunks: SharedChunk[]; 
+  sharedDBChunks: SharedChunk[];
   relayEventsLoaded: boolean;
+  globalIds: Set<string>;
+  globalPubkeys: Set<string>;
 }
 
 interface EventIndex {
+  id: string;     
   chunkIndex: number;  
   position: number;    
   processed: boolean;   
   created_at: number;   
   kind?: number;       
-  pubkey?: string;     
+  pubkey?: string;
 }
 
 const eventStore: RelayEvents = {
   pending: new Map<string, Event>(),
   pendingDelete: new Map<string, Event>(),
   eventIndex: new Map<string, EventIndex>(),
-  sharedDBChunks: [], 
+  sharedDBChunks: [],
   relayEventsLoaded: false,
+  globalIds: new Set<string>(),
+  globalPubkeys: new Set<string>(),
 };
 
 export { ExtendedWebSocket, allowedTags, SharedChunk, PendingGetEventsTask, RelayJob, RelayStatusMessage, MetadataEvent, EventIndex, RelayEvents, eventStore, CHUNK_SIZE };

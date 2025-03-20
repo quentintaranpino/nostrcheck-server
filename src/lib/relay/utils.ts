@@ -1,6 +1,6 @@
 import LZString from "lz-string";
 import WebSocket from "ws";
-import { Event } from "nostr-tools";
+import { Event, Filter } from "nostr-tools";
 import { NIP01_event, NIP01_Filter } from "../../interfaces/nostr.js";
 import { getTextLanguage } from "../language.js";
 import { EventIndex, MetadataEvent, RelayEvents, SharedChunk } from "../../interfaces/relay.js";
@@ -618,6 +618,34 @@ const getEventsByTimerange = async (startTime: number, endTime: number, eventSto
 };
 
 /**
+ * Discard events based on the provided filters.
+ * This function discards events early based on the provided filters,
+ * returning true if the event should be discarded, or false if it should be included.
+ *
+ * @param filters - The filters to apply.
+ * @param eventStore - The event store containing the events.
+ * @returns True if the event should be discarded, false if it should be included.
+ */
+const filterEarlyDiscard = (filters: Filter[], eventStore: RelayEvents): boolean => {
+  let discard = false;
+  for (const filter of filters) {
+    if (filter.ids?.length) {
+      discard = true;
+      if (filter.ids.some(id => eventStore.globalIds.has(id))) {
+        return false; 
+      }
+    }
+    if (filter.authors?.length) {
+      discard = true;
+      if (filter.authors.some(author => eventStore.globalPubkeys.has(author))) {
+        return false; 
+      }
+    }
+  }
+  return discard;
+};
+
+/**
  * Get the size of a shared memory chunk.
  * This function calculates the size of a shared memory chunk in bytes,
  * including the size of the buffer, index map, and overhead.
@@ -658,5 +686,6 @@ export {  compressEvent,
           validateFilter,
           getChunkSize,
           decodeEvent, 
-          decodePartialEvent
+          decodePartialEvent,
+          filterEarlyDiscard
         };
