@@ -365,12 +365,14 @@ const getEvents = async (filters: any, maxLimit: number, chunks: SharedChunk[]):
     };
 
     const getEventsWorker = isHeavy ? heavyGetEventsPool : lightGetEventsPool
+
+    await getEventsWorker.exec("initRedis", [redisConfig]);
+
     const result =  await getEventsWorker.exec("_getEvents", [
       JSON.parse(JSON.stringify(filters)),
       maxLimit,
       chunks,
       isHeavy,
-      redisConfig,
     ]);
     isHeavy ? pendingHeavyTasks.delete(taskId) : pendingLightTasks.delete(taskId);
     return result;

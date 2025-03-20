@@ -2,9 +2,35 @@ import { Filter, matchFilter, Event } from "nostr-tools";
 import workerpool from "workerpool";
 import { decodeEvent, decodePartialEvent } from "../utils.js";
 import { SharedChunk } from "../../../interfaces/relay.js";
-import { createClient } from "redis";
+import { createClient, RedisClientType } from "redis";
 
 const FILTER_CACHE_TTL = 120000; 
+
+let redisClient: RedisClientType | null = null;
+
+interface RedisConfig {
+  host: string;
+  port: string;
+  user: string;
+  password: string;
+  database: number;
+}
+
+/**
+ * Initializes the Redis client for the worker.
+ *
+ * @param redisConfig - Configuration to connect to Redis.
+ * @returns A promise that resolves when the Redis client is initialized.
+ */
+const initRedis = async (redisConfig: RedisConfig): Promise<void> => {
+  if (!redisClient) {
+    redisClient = createClient({
+      url: `redis://${redisConfig.user}:${redisConfig.password}@${redisConfig.host}:${redisConfig.port}`,
+      database: redisConfig.database,
+    });
+    await redisClient.connect();
+  }
+};
 
 /**
  * Creates a stable hash for a filter to detect duplicates.
@@ -80,8 +106,7 @@ const filterRelevantChunks = async (
   chunks: SharedChunk[],
   filter: Filter,
   since: number,
-  until: number,
-  redisClient?: ReturnType<typeof createClient>
+  until: number
 ): Promise<SharedChunk[]> => {
   const timeFilteredChunks = chunks.filter(chunk => {
     if (chunk.timeRange.max < since) return false;
@@ -89,7 +114,11 @@ const filterRelevantChunks = async (
     return true;
   });
 
-  if (filter.authors && filter.authors.length > 0 && redisClient) {
+  if (!redisClient) {
+    return [];
+  }
+
+  if (filter.authors && filter.authors.length > 0) {
     const authorsSet = new Set(filter.authors);
     const relevant: SharedChunk[] = [];
 
@@ -97,7 +126,7 @@ const filterRelevantChunks = async (
       const cacheKey = getChunkCacheKey(chunk);
       const cachedPubkeys = await redisClient.get("pubkeys:" + cacheKey);
 
-      if (await isChunkExcluded(chunk, filter.authors, redisClient)) {
+      if (await isChunkExcluded(chunk, filter.authors)) {
         continue; 
       }
 
@@ -107,7 +136,7 @@ const filterRelevantChunks = async (
           relevant.push(chunk);
         } else {
          
-          await cacheChunkExclusion(chunk, filter.authors, redisClient);
+          await cacheChunkExclusion(chunk, filter.authors);
         }
       } else {
         relevant.push(chunk);
@@ -129,8 +158,7 @@ const filterRelevantChunks = async (
  * @returns A promise that resolves to an array of event headers.
  */
 const getCachedEventHeaders = async (
-  chunk: SharedChunk, 
-  redisClient?: ReturnType<typeof createClient>
+  chunk: SharedChunk
 ): Promise<{
   offset: number;
   header: {
@@ -140,8 +168,10 @@ const getCachedEventHeaders = async (
     id: string;
   };
 }[]> => {
+  if (!redisClient) {
+    return [];
+  }
   const cacheKey = `chunkheaders:${getChunkCacheKey(chunk)}`;
-  if (redisClient) {
     const cachedHeaders = await redisClient.get(cacheKey);
     if (cachedHeaders) {
       return JSON.parse(cachedHeaders) as {
@@ -154,16 +184,10 @@ const getCachedEventHeaders = async (
         };
       }[];
     }
-  }
 
   const headers = decodePartialEvent(chunk);
-
-  if (redisClient) {
-    await redisClient.set(cacheKey, JSON.stringify(headers), { EX: FILTER_CACHE_TTL / 1000 });
-  }
-
+  await redisClient.set(cacheKey, JSON.stringify(headers), { EX: FILTER_CACHE_TTL / 1000 });
   return headers;
-
 };
 
 
@@ -175,7 +199,6 @@ const chunkExclusionCacheKey = (chunk: SharedChunk, authors: string[]): string =
 const isChunkExcluded = async (
   chunk: SharedChunk,
   authors: string[],
-  redisClient: ReturnType<typeof createClient>
 ): Promise<boolean> => {
   if (!redisClient) return false;
   const exclusionKey = chunkExclusionCacheKey(chunk, authors);
@@ -186,7 +209,6 @@ const isChunkExcluded = async (
 const cacheChunkExclusion = async (
   chunk: SharedChunk,
   authors: string[],
-  redisClient: ReturnType<typeof createClient>
 ): Promise<void> => {
   if (!redisClient) return;
   const exclusionKey = chunkExclusionCacheKey(chunk, authors);
@@ -209,17 +231,11 @@ const _getEvents = async (
   filters: Filter[], 
   maxLimit: number,
   chunks: SharedChunk[], 
-  isHeavy: boolean,
-  redisConfig?: { host: string; port: string; user: string; password: string; database: number }
+  isHeavy: boolean
 ): Promise<Event[]> => {
 
-  let redisClient;
-  if (redisConfig) {
-    redisClient = createClient({
-      url: `redis://${redisConfig.user}:${redisConfig.password}@${redisConfig.host}:${redisConfig.port}`,
-      database: redisConfig.database,
-    });
-    await redisClient.connect().catch(() => (redisClient = null));
+  if (!redisClient) {
+    return [];
   }
 
   const finalResults = [];
@@ -239,21 +255,19 @@ const _getEvents = async (
 
     let cacheUsed = false;
 
-    if (redisClient) {
-      const filterHash = createFilterHash(filter);
-      const cachedEntry = await redisClient.get("filter:" + filterHash);
-      if (cachedEntry) {
-        const cachedResults = JSON.parse(cachedEntry);
-        if (cachedResults.length >= effectiveLimit) {
-          finalResults.push(...cachedResults.slice(0, effectiveLimit));
-          cacheUsed = true;
-          continue;
-        }
+    const filterHash = createFilterHash(filter);
+    const cachedEntry = await redisClient.get("filter:" + filterHash);
+    if (cachedEntry) {
+      const cachedResults = JSON.parse(cachedEntry);
+      if (cachedResults.length >= effectiveLimit) {
+        finalResults.push(...cachedResults.slice(0, effectiveLimit));
+        cacheUsed = true;
+        continue;
       }
     }
 
     if (!cacheUsed) {
-      const relevantChunks = await filterRelevantChunks(chunks, filter, since, until, redisClient);
+      const relevantChunks = await filterRelevantChunks(chunks, filter, since, until);
       const filterResults: { event: Event; score?: number }[] = [];
       const BATCH_SIZE = isHeavy ? 25 : 10;
 
@@ -327,12 +341,10 @@ const _getEvents = async (
 
       finalResults.push(...eventsToAdd);
 
-      if (redisClient) {
-        const filterHash = createFilterHash(filter);
-        const cachedEntry = await redisClient.get("filter:" + filterHash);
-        if (!cachedEntry || JSON.parse(cachedEntry).length < eventsToAdd.length) {
-          await redisClient.set("filter:" + filterHash, JSON.stringify(eventsToAdd), { EX: FILTER_CACHE_TTL / 1000 });
-        }
+      const filterHash = createFilterHash(filter);
+      const cachedEntry = await redisClient.get("filter:" + filterHash);
+      if (!cachedEntry || JSON.parse(cachedEntry).length < eventsToAdd.length) {
+        await redisClient.set("filter:" + filterHash, JSON.stringify(eventsToAdd), { EX: FILTER_CACHE_TTL / 1000 });
       }
 
       if (filterResults.length > (maxLimit / 2)) {
@@ -343,12 +355,10 @@ const _getEvents = async (
     }
   }
 
-  if (redisClient) await redisClient.disconnect();
-
   return Array.from(new Map(finalResults.map(event => [event.id, event])).values());
 };
 
 
-workerpool.worker({_getEvents: _getEvents});
+workerpool.worker({_getEvents: _getEvents, initRedis: initRedis});
 
 export { _getEvents };
