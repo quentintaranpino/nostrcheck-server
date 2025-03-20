@@ -156,7 +156,7 @@ const getCachedEventHeaders = async (
     }
   }
 
-  const headers = decodePartialEventc(chunk);
+  const headers = decodePartialEvent(chunk);
 
   if (redisClient) {
     await redisClient.set(cacheKey, JSON.stringify(headers), { EX: FILTER_CACHE_TTL / 1000 });
