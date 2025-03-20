@@ -192,7 +192,7 @@ const decodeEvent = async (sharedDB: SharedArrayBuffer, view: DataView, offset: 
   const created_at = view.getInt32(offset, true);
   offset += 4;
 
-  // 2. index (4 bytes, omitido)
+  // 2. index (4 bytes, not used)
   offset += 4;
 
   // 3. contentSize (4 bytes)
@@ -254,6 +254,32 @@ const decodeEvent = async (sharedDB: SharedArrayBuffer, view: DataView, offset: 
 
   return { event, newOffset: offset };
 };
+
+/**
+ * Decodes an event from a shared memory chunk.
+ * The event is decoded based on the header information.
+ * 
+ * @param buffer - SharedArrayBuffer containing the chunk data.
+ * @param view - DataView object for the buffer.
+ * @param offset - Offset of the event in the buffer.
+ * @returns A promise that resolves to the decoded event.
+ */
+const decodePartialEvent = (chunk: SharedChunk): { offset: number, header: { created_at: number, kind: number, pubkey: string, id: string } }[] => {
+  const headers = [];
+  const view = new DataView(chunk.buffer);
+  for (let i = 0; i < chunk.indexMap.length; i++) {
+    const baseOffset = chunk.indexMap[i];
+    const created_at = view.getInt32(baseOffset, true);
+    const kind = view.getInt32(baseOffset + 12, true);
+    const pubkeyBytes = new Uint8Array(chunk.buffer, baseOffset + 16, 32);
+    const pubkey = Array.from(pubkeyBytes).map(b => b.toString(16).padStart(2, "0")).join("");
+    const idBytes = new Uint8Array(chunk.buffer, baseOffset + 112, 32);
+    const id = Array.from(idBytes).map(b => b.toString(16).padStart(2, "0")).join("");
+    headers.push({ offset: baseOffset, header: { created_at, kind, pubkey, id } });
+  }
+  return headers;
+};
+
 
 /**
  * Encodes a single event into the SharedArrayBuffer starting at the given offset.
@@ -493,12 +519,14 @@ const encodeChunk = async (events: MetadataEvent[]): Promise<SharedChunk> => {
  * @returns A Promise that resolves to an array of decoded MetadataEvent objects.
  */
 const decodeChunk = async (chunk: SharedChunk): Promise<MetadataEvent[]> => {
+  console.time('decodeChunk');
   const events: MetadataEvent[] = [];
   const view = new DataView(chunk.buffer);
   for (let i = 0; i < chunk.indexMap.length; i++) {
     const { event } = await decodeEvent(chunk.buffer, view, chunk.indexMap[i]);
     events.push(event);
   }
+  console.timeEnd('decodeChunk');
   return events;
 };
 
@@ -629,5 +657,6 @@ export {  compressEvent,
           getEventsByTimerange,
           validateFilter,
           getChunkSize,
-          decodeEvent
+          decodeEvent, 
+          decodePartialEvent
         };

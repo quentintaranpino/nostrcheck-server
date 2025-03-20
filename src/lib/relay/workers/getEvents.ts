@@ -1,6 +1,6 @@
 import { Filter, matchFilter, Event } from "nostr-tools";
 import workerpool from "workerpool";
-import { decodeEvent } from "../utils.js";
+import { decodeEvent, decodePartialEventc } from "../utils.js";
 import { SharedChunk } from "../../../interfaces/relay.js";
 import { createClient } from "redis";
 
@@ -11,17 +11,43 @@ const FILTER_CACHE_TTL = 120000;
  */
 const createFilterHash = (filter: Filter): string => {
   const normalized: any = {};
-  const timeBucket =
-    filter.since !== undefined && filter.until !== undefined && (filter.until - filter.since) > (86400 * 30)
-      ? 3600
-      : 60;
-  if (filter.since) normalized.since = Math.floor(filter.since / timeBucket) * timeBucket;
-  if (filter.until) normalized.until = Math.floor(filter.until / timeBucket) * timeBucket;
+  let timeBucket = 60; 
 
-    // Normalize the most important filter properties.
-  if (filter.kinds) normalized.kinds = [...filter.kinds].sort().join(',');
-  if (filter.authors) normalized.authors = [...filter.authors].sort().join(',');
-  if (filter.ids) normalized.ids = [...filter.ids].sort().join(',');
+  if (filter.since !== undefined && filter.until !== undefined) {
+    const range = filter.until - filter.since;
+    if (range > 30 * 86400) {
+      timeBucket = 86400;  // 1 day
+    } else if (range > 7 * 86400) {
+      timeBucket = 21600; // 6 hours
+    } else if (range > 2 * 86400) {
+      timeBucket = 10800; // 3 hours
+    } else if (range > 12 * 3600) {
+      timeBucket = 3600; // 1 hour
+    } else if (range > 2 * 3600) {
+      timeBucket = 1800; // 30 minutes
+    } else if (range > 3600) {
+      timeBucket = 600; // 10 minutes
+    } else {
+      timeBucket = 60; // 1 minute
+    }
+  }
+
+  if (filter.since !== undefined) {
+    normalized.since = Math.floor(filter.since / timeBucket) * timeBucket;
+  }
+  if (filter.until !== undefined) {
+    normalized.until = Math.floor(filter.until / timeBucket) * timeBucket;
+  }
+
+  if (filter.kinds) {
+    normalized.kinds = [...filter.kinds].sort().join(',');
+  }
+  if (filter.authors) {
+    normalized.authors = [...filter.authors].sort().join(',');
+  }
+  if (filter.ids) {
+    normalized.ids = [...filter.ids].sort().join(',');
+  }
 
   for (const key in filter) {
     if (key.startsWith('#') && Array.isArray(filter[key as keyof Filter])) {
@@ -32,7 +58,7 @@ const createFilterHash = (filter: Filter): string => {
   if (filter.search) {
     normalized.search = filter.search.toLowerCase().trim();
   }
-  
+
   return JSON.stringify(normalized);
 };
 
@@ -91,31 +117,6 @@ const filterRelevantChunks = async (
   }
 
   return timeFilteredChunks;
-};
-
-/**
- * Decodes an event from a shared memory chunk.
- * The event is decoded based on the header information.
- * 
- * @param buffer - SharedArrayBuffer containing the chunk data.
- * @param view - DataView object for the buffer.
- * @param offset - Offset of the event in the buffer.
- * @returns A promise that resolves to the decoded event.
- */
-const getEventHeaders = (chunk: SharedChunk): { offset: number, header: { created_at: number, kind: number, pubkey: string, id: string } }[] => {
-  const headers = [];
-  const view = new DataView(chunk.buffer);
-  for (let i = 0; i < chunk.indexMap.length; i++) {
-    const baseOffset = chunk.indexMap[i];
-    const created_at = view.getInt32(baseOffset, true);
-    const kind = view.getInt32(baseOffset + 12, true);
-    const pubkeyBytes = new Uint8Array(chunk.buffer, baseOffset + 16, 32);
-    const pubkey = Array.from(pubkeyBytes).map(b => b.toString(16).padStart(2, "0")).join("");
-    const idBytes = new Uint8Array(chunk.buffer, baseOffset + 112, 32);
-    const id = Array.from(idBytes).map(b => b.toString(16).padStart(2, "0")).join("");
-    headers.push({ offset: baseOffset, header: { created_at, kind, pubkey, id } });
-  }
-  return headers;
 };
 
 
