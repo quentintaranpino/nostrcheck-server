@@ -52,7 +52,6 @@ const handleWebSocketMessage = async (socket: ExtendedWebSocket, data: WebSocket
       socket.send(JSON.stringify(["NOTICE", "error: message too large"]));
       logger.debug(`handleWebSocketMessage - Message too large: ${Buffer.byteLength(data.toString())} bytes`);
       socket.close(1009, "message too large");
-
       return;
     }
 
@@ -506,7 +505,6 @@ const handleReqOrCount = async (socket: WebSocket, subId: string, filters: Filte
 
   // Check if the query is specific to certain event IDs.
   const isIdSpecificQuery = filters.every(f => f.ids && f.ids.length > 0);
-
   if (!isIdSpecificQuery && (limit > maxLimit || until - since > maxTimeRange)) {
     socket.send(JSON.stringify(["NOTICE", `warning: ${limit > maxLimit ? "limit" : "time range"} too high, adjusted to ${limit > maxLimit ? maxLimit : maxTimeRange}`]));
     if (limit > maxLimit) limit = maxLimit;
@@ -514,12 +512,14 @@ const handleReqOrCount = async (socket: WebSocket, subId: string, filters: Filte
     filters = filters.map(f => ({ ...f, since, until, limit }));
   }
 
+  // If sharedDBChunks is not initialized, send EOSE and return
   if (!eventStore.sharedDBChunks) {
     logger.debug(`handleReqOrCount - SharedDB not initialized: ${subId}`);
     socket.send(JSON.stringify(["EOSE", subId])); 
     return;
   }
 
+  // Early discard filters that not match the event store (pubkey or id)
   if (filterEarlyDiscard(filters, eventStore)) {
     logger.debug(`handleReqOrCount - Filter early discard: ${subId}`);
     socket.send(JSON.stringify(["EOSE", subId])); 

@@ -1,6 +1,6 @@
 import { Filter, matchFilter, Event } from "nostr-tools";
 import workerpool from "workerpool";
-import { decodeEvent, decodePartialEvent } from "../utils.js";
+import { createFilterHash, decodeEvent, decodePartialEvent } from "../utils.js";
 import { SharedChunk } from "../../../interfaces/relay.js";
 import { createClient, RedisClientType } from "redis";
 
@@ -32,61 +32,6 @@ const initRedis = async (redisConfig: RedisConfig): Promise<void> => {
   }
 };
 
-/**
- * Creates a stable hash for a filter to detect duplicates.
- */
-const createFilterHash = (filter: Filter): string => {
-  const normalized: any = {};
-  let timeBucket = 60; 
-
-  if (filter.since !== undefined && filter.until !== undefined) {
-    const range = filter.until - filter.since;
-    if (range > 30 * 86400) {
-      timeBucket = 86400;  // 1 day
-    } else if (range > 7 * 86400) {
-      timeBucket = 21600; // 6 hours
-    } else if (range > 2 * 86400) {
-      timeBucket = 10800; // 3 hours
-    } else if (range > 12 * 3600) {
-      timeBucket = 3600; // 1 hour
-    } else if (range > 2 * 3600) {
-      timeBucket = 1800; // 30 minutes
-    } else if (range > 3600) {
-      timeBucket = 600; // 10 minutes
-    } else {
-      timeBucket = 60; // 1 minute
-    }
-  }
-
-  if (filter.since !== undefined) {
-    normalized.since = Math.floor(filter.since / timeBucket) * timeBucket;
-  }
-  if (filter.until !== undefined) {
-    normalized.until = Math.floor(filter.until / timeBucket) * timeBucket;
-  }
-
-  if (filter.kinds) {
-    normalized.kinds = [...filter.kinds].sort().join(',');
-  }
-  if (filter.authors) {
-    normalized.authors = [...filter.authors].sort().join(',');
-  }
-  if (filter.ids) {
-    normalized.ids = [...filter.ids].sort().join(',');
-  }
-
-  for (const key in filter) {
-    if (key.startsWith('#') && Array.isArray(filter[key as keyof Filter])) {
-      normalized[key] = [...(filter[key as keyof Filter] as string[])].sort().join(',');
-    }
-  }
-
-  if (filter.search) {
-    normalized.search = filter.search.toLowerCase().trim();
-  }
-
-  return JSON.stringify(normalized);
-};
 
 /**
  * Generates a cache key for a shared memory chunk.

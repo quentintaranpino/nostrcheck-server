@@ -4,7 +4,7 @@ import { Event, Filter } from "nostr-tools";
 import { NIP01_event, NIP01_Filter } from "../../interfaces/nostr.js";
 import { getTextLanguage } from "../language.js";
 import { EventIndex, MetadataEvent, RelayEvents, SharedChunk } from "../../interfaces/relay.js";
-
+import crypto from "crypto";
 /**
  * Compress an event using LZString
  * @param e Event to compress
@@ -671,6 +671,69 @@ function getChunkSize(chunk: SharedChunk) {
   };
 }
 
+/**
+ * Creates a stable hash for a filter to detect duplicates.
+ */
+const createFilterHash = (filter: Filter): string => {
+  const normalized: any = {};
+  let timeBucket = 60; 
+
+  if (filter.since !== undefined && filter.until !== undefined) {
+    const range = filter.until - filter.since;
+    if (range > 30 * 86400) {
+      timeBucket = 86400;  // 1 day
+    } else if (range > 7 * 86400) {
+      timeBucket = 21600; // 6 hours
+    } else if (range > 2 * 86400) {
+      timeBucket = 10800; // 3 hours
+    } else if (range > 12 * 3600) {
+      timeBucket = 3600; // 1 hour
+    } else if (range > 2 * 3600) {
+      timeBucket = 1800; // 30 minutes
+    } else if (range > 3600) {
+      timeBucket = 600; // 10 minutes
+    } else {
+      timeBucket = 60; // 1 minute
+    }
+  }
+
+  if (filter.since !== undefined) {
+    normalized.since = Math.floor(filter.since / timeBucket) * timeBucket;
+  }
+  if (filter.until !== undefined) {
+    normalized.until = Math.floor(filter.until / timeBucket) * timeBucket;
+  }
+
+  if (filter.kinds) {
+    normalized.kinds = [...filter.kinds].sort().join(',');
+  }
+  
+  if (filter.authors) {
+    const authorsString = filter.authors.sort().join(',');
+    normalized.authors = crypto.createHash('sha256').update(authorsString).digest('hex');
+  }
+  
+  if (filter.ids) {
+    const idsString = [...filter.ids].sort().join(',');
+    normalized.ids = crypto.createHash('sha256').update(idsString).digest('hex');
+  }
+
+  for (const key in filter) {
+    if (key.startsWith('#') && Array.isArray(filter[key as keyof Filter])) {
+      const values = [...(filter[key as keyof Filter] as string[])].sort().join(',');
+      normalized[key] = crypto.createHash('sha256').update(values).digest('hex');
+    }
+  }
+
+  if (filter.search) {
+    normalized.search = filter.search.toLowerCase().trim();
+  }
+
+  // Generate final hash
+  const normalizedString = JSON.stringify(normalized);
+  return crypto.createHash('sha256').update(normalizedString).digest('hex');
+};
+
 export {  compressEvent, 
           decompressEvent, 
           parseRelayMessage, 
@@ -687,5 +750,6 @@ export {  compressEvent,
           getChunkSize,
           decodeEvent, 
           decodePartialEvent,
-          filterEarlyDiscard
+          filterEarlyDiscard,
+          createFilterHash
         };
