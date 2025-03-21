@@ -1,7 +1,7 @@
 import { Filter, matchFilter, Event } from "nostr-tools";
 import workerpool from "workerpool";
 import { createFilterHash, decodeEvent, decodePartialEvent } from "../utils.js";
-import { SharedChunk } from "../../../interfaces/relay.js";
+import { MetadataEvent, SharedChunk } from "../../../interfaces/relay.js";
 import { createClient, RedisClientType } from "redis";
 
 const FILTER_CACHE_TTL = 120000; 
@@ -213,7 +213,7 @@ const _getEvents = async (
 
     if (!cacheUsed) {
       const relevantChunks = await filterRelevantChunks(chunks, filter, since, until);
-      const filterResults: { event: Event; score?: number }[] = [];
+      const filterResults: { event: MetadataEvent; score?: number }[] = [];
       const BATCH_SIZE = isHeavy ? 25 : 10;
 
       for (const chunk of relevantChunks) {
@@ -280,7 +280,7 @@ const _getEvents = async (
       }
 
       const eventsToAdd = filterResults.slice(0, effectiveLimit).map(({ event }) => {
-        const eventWithoutMetadata = { ...event };
+        const { metadata, ...eventWithoutMetadata } = event;
         return eventWithoutMetadata;
       });
 
