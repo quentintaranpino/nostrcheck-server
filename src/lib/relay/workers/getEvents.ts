@@ -161,6 +161,56 @@ const cacheChunkExclusion = async (
 };
 
 /**
+ * Scans recent chunks for events that match the filter criteria.
+ * 
+ * @param chunks - Array of SharedChunk objects.
+ * @param filter - Filter object.
+ * @param maxAgeSeconds - Maximum age of the chunks to scan.
+ * @returns A promise that resolves to an array of events.
+ */
+const scanRecentChunks = async (
+  chunks: SharedChunk[],
+  filter: Filter,
+  maxAgeSeconds: number
+): Promise<Event[]> => {
+  if (!redisClient) return [];
+
+  const now = Math.floor(Date.now() / 1000);
+  const since = now - maxAgeSeconds;
+
+  const recentChunks = chunks.filter(chunk => chunk.timeRange.max >= since);
+
+  const eventsArrays = await Promise.all(
+    recentChunks.map(async (chunk) => {
+      const headers = await getCachedEventHeaders(chunk);
+      const view = new DataView(chunk.buffer);
+
+      const filteredHeaders = headers.filter(({ header }) => {
+        if (header.created_at < since) return false;
+        if (filter.kinds && !filter.kinds.includes(header.kind)) return false;
+        if (filter.authors && filter.authors.length > 0 && !filter.authors.includes(header.pubkey)) return false;
+        if (filter.ids && filter.ids.length > 0 && !filter.ids.includes(header.id)) return false;
+        return true;
+      });
+
+      const decodedEvents = await Promise.all(
+        filteredHeaders.map(async ({ offset }) => {
+          const { event } = await decodeEvent(chunk.buffer, view, offset);
+          return event;
+        })
+      );
+
+      return decodedEvents.filter(event => matchFilter(filter, event));
+    })
+  );
+
+  const events = eventsArrays.flat();
+  events.sort((a, b) => b.created_at - a.created_at);
+  return events;
+};
+
+
+/**
  * Retrieves events from an array of shared memory chunks, applying NIP-50 search with extensions.
  * For filters with a search query, events are scored and sorted by matching quality,
  * and the limit is applied after sorting.
@@ -198,129 +248,127 @@ const _getEvents = async (
     const rawSearch = filter.search ? filter.search.trim() : "";
     const searchQuery = rawSearch.length >= 3 ? rawSearch.toLowerCase() : null;
 
-    let cacheUsed = false;
-
     const filterHash = createFilterHash(filter);
     const cachedEntry = await redisClient.get("filter:" + filterHash);
+
     if (cachedEntry) {
       const cachedResults = JSON.parse(cachedEntry);
-      if (cachedResults.length >= effectiveLimit) {
-        finalResults.push(...cachedResults.slice(0, effectiveLimit));
-        cacheUsed = true;
-        continue;
+      const freshEvents = await scanRecentChunks(chunks, filter, (FILTER_CACHE_TTL * 2) / 1000);
+      let cachedFiltered: MetadataEvent[];
+      if (freshEvents.length > 0) {
+        const freshestTime = freshEvents[0].created_at;
+        cachedFiltered = cachedResults.filter((e: MetadataEvent) => 
+          e.created_at <= freshestTime && !freshEvents.some((f: MetadataEvent) => f.id === e.id)
+        );
+      } else {
+        cachedFiltered = cachedResults;
       }
+
+      const combined = [...freshEvents, ...cachedFiltered].slice(0, effectiveLimit);
+      finalResults.push(...combined);
+      continue;
     }
 
-    if (!cacheUsed) {
-      const relevantChunks = await filterRelevantChunks(chunks, filter, since, until);
-      const filterResults: { event: MetadataEvent; score?: number }[] = [];
-      const BATCH_SIZE = isHeavy ? 25 : 10;
+    const relevantChunks = await filterRelevantChunks(chunks, filter, since, until);
+    const filterResults: { event: MetadataEvent; score?: number }[] = [];
+    const BATCH_SIZE = isHeavy ? 25 : 10;
 
-      for (const chunk of relevantChunks) {
-        if (checkTimeout()) break;
-        const headers = await getCachedEventHeaders(chunk);
-        const view = new DataView(chunk.buffer);
-        
-        // Pre-filter all headers first
-        const filteredHeaders = headers.filter(({ header }) => {
-          if (header.created_at < since || header.created_at > until) return false;
-          if (filter.kinds && !filter.kinds.includes(header.kind)) return false;
-          if (filter.authors && filter.authors.length > 0 && !filter.authors.includes(header.pubkey)) return false;
-          if (filter.ids && filter.ids.length > 0 && !filter.ids.includes(header.id)) return false;
-          return true;
-        });
-
-        const dynamicBatchSize = () => {
-          if (isHeavy && filteredHeaders.length > 500) {
-            return Math.max(5, Math.min(BATCH_SIZE, Math.ceil(250 / Math.sqrt(filteredHeaders.length))));
-          }
-          return BATCH_SIZE;
-        };
-        
-        const effectiveBatchSize = dynamicBatchSize();
-
-        for (let i = 0; i < filteredHeaders.length; i += effectiveBatchSize) {
-          if (checkTimeout()) break;
-          
-          const batchHeaders = filteredHeaders.slice(i, i + effectiveBatchSize);
-          const batchTasks = batchHeaders.map(({ offset }) => ({ chunk, offset, view }));
-          
-          const batchResults = await Promise.all(
-            batchTasks.map(task => decodeEvent(task.chunk.buffer, task.view, task.offset))
-          );
-          
-          for (const result of batchResults) {
-            const { event } = result;
-            
-            // Skip events that don't match the filter criteria
-            if (!matchFilter(filter, event)) continue;
-
-            if (searchQuery) {
-              const parts = searchQuery.split(':');
-              if (parts.length === 2) {
-                const key = parts[0].trim();
-                const value = parts[1].trim();
-                if (event.metadata && event.metadata[key]) {
-                  const metaValue = event.metadata[key];
-                  let match = false;
-                  if (Array.isArray(metaValue)) {
-                    match = metaValue.some(val => val.toLowerCase() === value);
-                  } else if (typeof metaValue === 'string') {
-                    match = metaValue.toLowerCase() === value;
-                  }
-                  if (!match) continue;
-                  filterResults.push({ event, score: 0 });
-                } else {
-                  continue;
-                }
-              } else {
-                const contentLower = event.content.toLowerCase();
-                const idx = contentLower.indexOf(searchQuery);
-                if (idx === -1) continue;
-                filterResults.push({ event, score: idx });
-              }
-            } else {
-              filterResults.push({ event, score: 0 });
-            }
-            
-            // Early exit if we've already found enough events and there's no search query
-            if (!searchQuery && filterResults.length >= effectiveLimit) break;
-          }
-          
-          // Early exit from batch processing if we have enough results
-          if (!searchQuery && filterResults.length >= effectiveLimit) break;
-          
-          // Allow event loop to breathe on heavy tasks
-          if (isHeavy && i > 0 && i % (effectiveBatchSize * 4) === 0) {
-            await new Promise(resolve => setTimeout(resolve, 0));
-          }
-        }
-
-        if (!searchQuery && filterResults.length >= effectiveLimit) break;
-      }
-
-      if (searchQuery) {
-        filterResults.sort((a, b) => (a.score ?? 0) - (b.score ?? 0));
-      }
-
-      const eventsToAdd = filterResults.slice(0, effectiveLimit).map(({ event }) => {
-        const { metadata, ...eventWithoutMetadata } = event;
-        return eventWithoutMetadata;
+    for (const chunk of relevantChunks) {
+      if (checkTimeout()) break;
+      const headers = await getCachedEventHeaders(chunk);
+      const view = new DataView(chunk.buffer);
+      
+      // Pre-filter all headers first
+      const filteredHeaders = headers.filter(({ header }) => {
+        if (header.created_at < since || header.created_at > until) return false;
+        if (filter.kinds && !filter.kinds.includes(header.kind)) return false;
+        if (filter.authors && filter.authors.length > 0 && !filter.authors.includes(header.pubkey)) return false;
+        if (filter.ids && filter.ids.length > 0 && !filter.ids.includes(header.id)) return false;
+        return true;
       });
 
-      finalResults.push(...eventsToAdd);
+      const dynamicBatchSize = () => {
+        if (isHeavy && filteredHeaders.length > 500) {
+          return Math.max(5, Math.min(BATCH_SIZE, Math.ceil(250 / Math.sqrt(filteredHeaders.length))));
+        }
+        return BATCH_SIZE;
+      };
+      
+      const effectiveBatchSize = dynamicBatchSize();
 
-      const filterHash = createFilterHash(filter);
-      const cachedEntry = await redisClient.get("filter:" + filterHash);
-      if (!cachedEntry || JSON.parse(cachedEntry).length < eventsToAdd.length) {
-        await redisClient.set("filter:" + filterHash, JSON.stringify(eventsToAdd), { EX: FILTER_CACHE_TTL / 1000 });
+      for (let i = 0; i < filteredHeaders.length; i += effectiveBatchSize) {
+        if (checkTimeout()) break;
+        
+        const batchHeaders = filteredHeaders.slice(i, i + effectiveBatchSize);
+        const batchTasks = batchHeaders.map(({ offset }) => ({ chunk, offset, view }));
+        
+        const batchResults = await Promise.all(
+          batchTasks.map(task => decodeEvent(task.chunk.buffer, task.view, task.offset))
+        );
+        
+        for (const result of batchResults) {
+          const { event } = result;
+          
+          // Skip events that don't match the filter criteria
+          if (!matchFilter(filter, event)) continue;
+
+          if (searchQuery) {
+            const parts = searchQuery.split(':');
+            if (parts.length === 2) {
+              const key = parts[0].trim();
+              const value = parts[1].trim();
+              if (event.metadata && event.metadata[key]) {
+                const metaValue = event.metadata[key];
+                let match = false;
+                if (Array.isArray(metaValue)) {
+                  match = metaValue.some(val => val.toLowerCase() === value);
+                } else if (typeof metaValue === 'string') {
+                  match = metaValue.toLowerCase() === value;
+                }
+                if (!match) continue;
+                filterResults.push({ event, score: 0 });
+              } else {
+                continue;
+              }
+            } else {
+              const contentLower = event.content.toLowerCase();
+              const idx = contentLower.indexOf(searchQuery);
+              if (idx === -1) continue;
+              filterResults.push({ event, score: idx });
+            }
+          } else {
+            filterResults.push({ event, score: 0 });
+          }
+          
+          // Early exit if we've already found enough events and there's no search query
+          if (!searchQuery && filterResults.length >= effectiveLimit) break;
+        }
+        
+        // Early exit from batch processing if we have enough results
+        if (!searchQuery && filterResults.length >= effectiveLimit) break;
+        
+        // Allow event loop to breathe on heavy tasks
+        if (isHeavy && i > 0 && i % (effectiveBatchSize * 4) === 0) {
+          await new Promise(resolve => setTimeout(resolve, 0));
+        }
       }
 
-      if (filterResults.length > (maxLimit / 2)) {
-        filterResults.length = 0;
-        if (global.gc) global.gc();
-      }
+      if (!searchQuery && filterResults.length >= effectiveLimit) break;
+    }
 
+    if (searchQuery) {
+      filterResults.sort((a, b) => (a.score ?? 0) - (b.score ?? 0));
+    }
+
+    const eventsToAdd = filterResults.slice(0, effectiveLimit).map(({ event }) => {
+      const { metadata, ...eventWithoutMetadata } = event;
+      return eventWithoutMetadata;
+    });
+
+    finalResults.push(...eventsToAdd);
+
+    if (!cachedEntry || JSON.parse(cachedEntry).length < eventsToAdd.length) {
+      await redisClient.set("filter:" + filterHash, JSON.stringify(eventsToAdd), { EX: FILTER_CACHE_TTL / 1000 });
     }
   }
 
