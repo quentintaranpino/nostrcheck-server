@@ -186,7 +186,7 @@ const _getEvents = async (
   const finalResults = [];
   const now = Math.floor(Date.now() / 1000);
   const startTimeMs = Date.now();
-  const TIMEOUT_MS = isHeavy ? 5000 : 3000;
+  const TIMEOUT_MS = isHeavy ? 500 : 100;
   const checkTimeout = () => Date.now() - startTimeMs > TIMEOUT_MS;
 
   for (const filter of filters) {
@@ -230,11 +230,8 @@ const _getEvents = async (
           return true;
         });
 
-        // Dynamic batch sizing based on filter complexity and data volume
         const dynamicBatchSize = () => {
-          // If this is a heavy task and we have many headers
           if (isHeavy && filteredHeaders.length > 500) {
-            // Reduce batch size for very large datasets
             return Math.max(5, Math.min(BATCH_SIZE, Math.ceil(250 / Math.sqrt(filteredHeaders.length))));
           }
           return BATCH_SIZE;
@@ -242,7 +239,6 @@ const _getEvents = async (
         
         const effectiveBatchSize = dynamicBatchSize();
 
-        // Process filtered headers in batches using slices
         for (let i = 0; i < filteredHeaders.length; i += effectiveBatchSize) {
           if (checkTimeout()) break;
           
@@ -253,15 +249,39 @@ const _getEvents = async (
             batchTasks.map(task => decodeEvent(task.chunk.buffer, task.view, task.offset))
           );
           
-          // Process each result in the batch
           for (const result of batchResults) {
             const { event } = result;
             
             // Skip events that don't match the filter criteria
             if (!matchFilter(filter, event)) continue;
-            
-            // Add matching events to results
-            filterResults.push({ event, score: 0 });
+
+            if (searchQuery) {
+              const parts = searchQuery.split(':');
+              if (parts.length === 2) {
+                const key = parts[0].trim();
+                const value = parts[1].trim();
+                if (event.metadata && event.metadata[key]) {
+                  const metaValue = event.metadata[key];
+                  let match = false;
+                  if (Array.isArray(metaValue)) {
+                    match = metaValue.some(val => val.toLowerCase() === value);
+                  } else if (typeof metaValue === 'string') {
+                    match = metaValue.toLowerCase() === value;
+                  }
+                  if (!match) continue;
+                  filterResults.push({ event, score: 0 });
+                } else {
+                  continue;
+                }
+              } else {
+                const contentLower = event.content.toLowerCase();
+                const idx = contentLower.indexOf(searchQuery);
+                if (idx === -1) continue;
+                filterResults.push({ event, score: idx });
+              }
+            } else {
+              filterResults.push({ event, score: 0 });
+            }
             
             // Early exit if we've already found enough events and there's no search query
             if (!searchQuery && filterResults.length >= effectiveLimit) break;
@@ -277,6 +297,10 @@ const _getEvents = async (
         }
 
         if (!searchQuery && filterResults.length >= effectiveLimit) break;
+      }
+
+      if (searchQuery) {
+        filterResults.sort((a, b) => a.score - b.score);
       }
 
       const eventsToAdd = filterResults.slice(0, effectiveLimit).map(({ event }) => {
