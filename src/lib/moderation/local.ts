@@ -131,9 +131,12 @@ const sendRequest = async (modelName: string, endpoint: string,  filePath: strin
 		return "99:Unknown";
 
     } catch (error) {
-        logger.error(`sendRequest - There was an error running the model script: ${error}`);
-		const result = endpoint === "classify" ? "99:Unknown" : "No classes found";
-		return result;
+        if (error instanceof AggregateError) {
+            error.errors.forEach(err => logger.error(`sendRequest - Error individual: ${err}`));
+        } else {
+            logger.error(`sendRequest - There was an error running the model script: ${error}`);
+        }
+        return endpoint === "classify" ? "99:Unknown" : "No classes found";
     }
 }
 

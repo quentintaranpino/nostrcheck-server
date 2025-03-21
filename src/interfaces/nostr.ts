@@ -138,6 +138,20 @@ const NIP01_event = z.union([
   ]).rest(z.object({}).passthrough())
 ]);
 
+const NIP01_Filter = z.object({
+  ids: z.array(z.string().length(64).regex(/^[a-f0-9]+$/)).optional(),
+  authors: z.array(z.string().length(64).regex(/^[a-f0-9]+$/)).optional(),
+  kinds: z.array(z.number().int().min(0).max(65535)).optional(),
+  since: z.number().int().nonnegative().optional(),
+  until: z.number().int().nonnegative().optional(),
+  limit: z.number().int().positive().optional(),
+  ...Object.fromEntries(
+    'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'
+      .split('')
+      .map(letter => [`#${letter}`, z.array(z.string()).optional()])
+  )
+}).passthrough();
+
 interface NIP11Limitation {
   max_message_length?: number;
   max_subscriptions?: number;
@@ -211,6 +225,7 @@ export {
           NIP96file,
           NIP11File,
           NIP01_event,
+          NIP01_Filter,
           NIP94_event,
           NIP94_data,
           NIP96_event,

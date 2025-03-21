@@ -1,147 +1,174 @@
 import { Application } from "express";
-import { Event, Filter, matchFilter } from "nostr-tools";
+import { Event } from "nostr-tools";
 import { dbBulkInsert, dbDelete, dbSimpleSelect, dbUpdate} from "../database.js";
 import { logger } from "../logger.js";
-import { MemoryEvent, RelayEvents } from "../../interfaces/relay.js";
+import { CHUNK_SIZE, EventIndex, MetadataEvent, eventStore } from "../../interfaces/relay.js";
 import { isModuleEnabled } from "../config.js";
-import app from "../../app.js";
-import { compressEvent, decompressEvent } from "./utils.js";
+import { decompressEvent, encodeChunk } from "./utils.js";
+import { safeJSONParse } from "../utils.js";
 
 const initEvents = async (app: Application): Promise<boolean> => {
-
   if (!isModuleEnabled("relay", app)) return false;
-  if (app.get("relayEvents")) return false;
+  if (eventStore.sharedDBChunks && eventStore.sharedDBChunks.length > 0) return false;
 
-  const eventsMap: Map<string, MemoryEvent> = new Map();
-  const eventsArray: Event[] = [];
+  const eventIndex: Map<string, EventIndex> = new Map();
   const pending: Map<string, Event> = new Map();
   const pendingDelete: Map<string, Event> = new Map();
+  eventStore.pending = pending;
+  eventStore.pendingDelete = pendingDelete;
+  eventStore.sharedDBChunks = [];
+  eventStore.eventIndex = eventIndex;
 
-  const relayEvents: RelayEvents = {
-    memoryDB: eventsMap,
-    sortedArray: eventsArray,
-    pending: pending,
-    pendingDelete: pendingDelete,
-  };
+  let offset = 0;
 
-  app.set("relayEvents", relayEvents);
-  app.set("relayEventsLoaded", false);
-
-  const loadEvents = async () => {
+  (async function loadBatch() {
     try {
-      const limit = 10000;
-      let offset = 0;
-      let hasMore = true;
-
-      while (hasMore) {
-        logger.info(`initEvents - Loaded ${eventsMap.size} events from DB`);
-        const loadedEvents = await getEventsDB(offset, limit);
-        if (loadedEvents.length === 0) {
-          hasMore = false;
+      while (true) {
+        logger.info(`initEvents - Loaded ${eventIndex.size} events from DB (offset: ${offset})`);
+        const loadedEvents = await getEventsDB(offset, CHUNK_SIZE);
+        if (loadedEvents.length === 0 || offset > 400000) {
+          eventStore.relayEventsLoaded = true;
+          logger.info(`initEvents - Finished loading ${eventIndex.size} events in ${eventStore.sharedDBChunks.length} chunks from DB`);
+          break;
         } else {
+          const batchEvents: MetadataEvent[] = [];
           for (let event of loadedEvents) {
-            if (event.content.length > 15) event = await compressEvent(event)
-            eventsMap.set(event.id, { event: event, processed: true });
-            eventsArray.push(event);
+            batchEvents.push(event);
           }
-          offset += limit;
+          
+          // Generate a new chunk and add it to the sharedDBChunks array and memoryDB map.
+          const newChunk = await encodeChunk(batchEvents);
+          const chunkIndex = eventStore.sharedDBChunks.length;
+          eventStore.sharedDBChunks.push(newChunk);
+
+          // Add the events to the eventIndex map.
+          for (let i = 0; i < batchEvents.length; i++) {
+            const event = batchEvents[i];
+            eventIndex.set(event.id, {
+              id: event.id,
+              chunkIndex, 
+              position: i,
+              processed: true,
+              created_at: event.created_at,
+              kind: event.kind,
+              pubkey: event.pubkey,
+            });
+
+            eventStore.globalIds.add(event.id);
+            if (event.pubkey) {
+              eventStore.globalPubkeys.add(event.pubkey);
+            }
+
+          }
+
+          
+          
+          offset += CHUNK_SIZE;
+
+          // Yield control to the event loop to avoid blocking.
+          await new Promise(resolve => setImmediate(resolve));
         }
       }
-      eventsArray.sort((a, b) => b.created_at - a.created_at);
-      logger.info(`initEvents - Finished loading ${eventsMap.size} events from DB`);
-
     } catch (error) {
-      logger.info(`initEvents - Error loading events: ${error}`);
-    } finally {
-      app.set("relayEventsLoaded", true);
+      logger.error(`initEvents - Error loading events: ${error}`);
     }
-  };
-  
-  loadEvents();
-  return true;
+  })().catch(err => logger.error("initEvents background load error:", err));
 
+  // Return immediately while the loadBatch runs in the background.
+  return true;
 };
 
+const getEventsDB = async (offset: number, limit: number): Promise<MetadataEvent[]> => {
 
-const getEventsDB = async (offset: number, limit: number): Promise<Event[]> => {
-
-    const query = `
+  const query = `
+        WITH ev AS (
+          SELECT *
+          FROM events
+          WHERE active = '1'
+          ORDER BY created_at DESC, id DESC
+          LIMIT ${limit} OFFSET ${offset}
+        ),
+        tagAgg AS (
+          SELECT 
+            event_id,
+            JSON_ARRAYAGG(
+              JSON_ARRAY(
+                tag_name,
+                tag_value,
+                REPLACE(IFNULL(extra_values, ''), '"', '\\\\"')
+              ) ORDER BY position ASC
+            ) AS tags
+          FROM eventtags
+          GROUP BY event_id
+        ),
+        metaAgg AS (
+          SELECT 
+            event_id,
+            JSON_OBJECTAGG(metadata_type, metadata_values) AS metadata
+          FROM (
+            SELECT 
+              event_id,
+              metadata_type,
+              JSON_ARRAYAGG(metadata_value ORDER BY position ASC) AS metadata_values
+            FROM eventmetadata
+            GROUP BY event_id, metadata_type
+          ) sub
+          GROUP BY event_id
+        )
         SELECT
-            e.event_id,
-            e.pubkey,
-            e.kind,
-            e.created_at,
-            e.content,
-            e.sig,
-            t.tag_name,
-            t.tag_value,
-            t.extra_values
-        FROM (
-            SELECT *
-            FROM events
-            WHERE active = '1'
-            ORDER BY id DESC
-            LIMIT ${limit} OFFSET ${offset}
-        ) AS e
-        LEFT JOIN eventtags t ON e.event_id = t.event_id;
+          ev.event_id,
+          ev.pubkey,
+          ev.kind,
+          ev.created_at,
+          ev.content,
+          ev.sig,
+          COALESCE(tagAgg.tags, JSON_ARRAY()) AS tags,
+          COALESCE(metaAgg.metadata, JSON_OBJECT()) AS metadata
+        FROM ev
+        LEFT JOIN tagAgg ON ev.event_id = tagAgg.event_id
+        LEFT JOIN metaAgg ON ev.event_id = metaAgg.event_id;
     `;
 
-    const dbResult = await dbSimpleSelect("events", query);
-    if (!dbResult) return [];
+  const dbResult = await dbSimpleSelect("events", query, "SET SESSION group_concat_max_len = 8388608;");
+  if (!dbResult) return [];
 
-    interface EventRow {
-        event_id: string;
-        pubkey: string;
-        kind: number;
-        created_at: number;
-        content: string;
-        sig: string;
-        tag_name?: string;
-        tag_value?: string;
-        extra_values?: string;
-    }
+  interface EventRow {
+    event_id: string;
+    pubkey: string;
+    kind: number;
+    created_at: number;
+    content: string;
+    sig: string;
+    tags?: string;     
+    metadata?: string;
+  }
 
-    const eventsMap = new Map<string, Event>();
-    const events: EventRow[] = JSON.parse(JSON.stringify(dbResult));
+  const rows: EventRow[] = JSON.parse(JSON.stringify(dbResult));
 
-    events.forEach((row: EventRow) => {
-        if (!eventsMap.has(row.event_id)) {
-            eventsMap.set(row.event_id, {
-                id: row.event_id,
-                pubkey: row.pubkey,
-                kind: row.kind,
-                created_at: row.created_at,
-                content: row.content,
-                tags: [],
-                sig: row.sig
-            });
-        }
+  const events: MetadataEvent[] = rows.map((row: EventRow) => ({
+    id: row.event_id,
+    pubkey: row.pubkey,
+    kind: row.kind,
+    created_at: row.created_at,
+    content: row.content,
+    sig: row.sig,
+    tags: row.tags ? safeJSONParse(row.tags, []) : [],
+    metadata: row.metadata ? safeJSONParse(row.metadata, undefined) : undefined,
+  }));
 
-        const event = eventsMap.get(row.event_id);
-        if (event && row.tag_name) {
-            const tag = [row.tag_name, row.tag_value];
-            // if (row.extra_values) {
-            //     try {
-            //         tag.push(...JSON.parse(row.extra_values));
-            //     } catch (e) {
-            //         logger.error("Error parsing extra_values in eventtags:", e);
-            //     }
-            // }
-            event.tags.push(tag.filter(t => t !== undefined));
-        }
-    });
+  return events;
 
-    return Array.from(eventsMap.values());
 };
+
 
 /**
  * Inserts one or more events (and their tags) into the database using bulk insert.
  * @param {Event | Event[]} eventsInput - Event or array of events to store.
  * @returns {Promise<number>}
  */
-const storeEvents = async (eventsInput: Event | Event[]): Promise<number> => {
+const storeEvents = async (eventsInput: MetadataEvent | MetadataEvent[]): Promise<number> => {
 
-    const events: Event[] = Array.isArray(eventsInput) ? eventsInput : [eventsInput];
+    const events: MetadataEvent[] = Array.isArray(eventsInput) ? eventsInput : [eventsInput];
     const filteredEvents  = events.filter(e => e && !(e.kind >= 20000 && e.kind < 30000));
     const eventsToStore = await Promise.all(filteredEvents.map(decompressEvent));
 
@@ -178,6 +205,7 @@ const storeEvents = async (eventsInput: Event | Event[]): Promise<number> => {
       logger.error(`storeEvents - Failed to insert events. Expected: ${eventsToStore.length}, Inserted: ${insertedRows}`);
     }
   
+    // Store tags
     const allTagValues: [string, string, string, number, string | null][] = [];
     eventsToStore.forEach(e => {
       if (e.tags && e.tags.length > 0) {
@@ -197,77 +225,31 @@ const storeEvents = async (eventsInput: Event | Event[]): Promise<number> => {
         logger.error(`storeEvents - Failed to insert all event tags. Expected: ${allTagValues.length}, Inserted: ${insertedTagRows}`);
       }
     }
+
+    // Store metadata
+    const allMetadataValues: [string, string, string, number, string | null, string][] = [];
+    eventsToStore.forEach((e : MetadataEvent) => {
+      if (e.metadata) {
+        Object.entries(e.metadata).forEach(([key, value]) => {
+          if (Array.isArray(value)) {
+            value.forEach((val, index) => {
+              allMetadataValues.push([e.id, key, val, index, null, e.created_at.toString()]);
+            });
+          } else if (typeof value === "string") {
+            allMetadataValues.push([e.id, key, value, 0, null, e.created_at.toString()]);
+          }
+        });
+      }
+    });
+
+    const metadataColumns = ["event_id", "metadata_type", "metadata_value", "position", "extra_data", "created_at"];
+    if (allMetadataValues.length > 0) {
+        await dbBulkInsert("eventmetadata", metadataColumns, allMetadataValues);
+    }
   
     logger.debug(`storeEvents - Bulk inserted events: ${insertedRows}`);
     return insertedRows;
   };
-
-  const getEvents = async (filters: Filter[], relayData: { memoryDB: Map<string, MemoryEvent>; sortedArray: Event[] }): Promise<Event[]> => {
-
-    const now = Math.floor(Date.now() / 1000);
-    const allEvents: Event[] = [];
-
-    const maxLimit = app.get("config.relay")["limitation"]["max_limit"];
-  
-    for (const filter of filters) {
-      const until = filter.until !== undefined ? filter.until : now;
-      const since = filter.since !== undefined ? filter.since : 0;
-      
-      // If is a search query, we don't apply the limit
-      let effectiveLimit = filter.limit;
-      const isSearch = filter.search && filter.search.trim().length >= 3;
-      if (!isSearch) {
-        if (effectiveLimit === undefined) {
-          effectiveLimit = maxLimit;
-        } else if (effectiveLimit > maxLimit) {
-          effectiveLimit = maxLimit;
-        }
-      }
-      
-      const rawSearch = filter.search ? filter.search.trim() : "";
-      const searchQuery = rawSearch.length >= 3 ? rawSearch.toLowerCase() : null;
-      const startIndex = binarySearchDescending(relayData.sortedArray, until);
-      const endIndex = binarySearchDescending(relayData.sortedArray, since, true);
-      const candidates = relayData.sortedArray.slice(startIndex, endIndex);
-      
-      const { search, ...basicFilter } = filter;
-      const filtered: { event: Event; score: number }[] = [];
-
-      logger.debug(`getEvents - searchQuery: ${searchQuery}, effectiveLimit: ${effectiveLimit}, candidates: ${candidates.length}, search: ${search}`);
-      
-      for (let e of candidates) {
-        if (!matchFilter(basicFilter, e)) continue;
-
-        if (e.content.startsWith("lz:")) { e = await decompressEvent(e); }
-        
-        if (!searchQuery) {
-          filtered.push({ event: e, score: 0 });
-        } else {
-          const contentLower = e.content.toLowerCase();
-          const index = contentLower.indexOf(searchQuery);
-          if (index !== -1) filtered.push({ event: e, score: index });
-        }
-        
-        // If we have reached the limit, we stop (if it's not a search query)
-        if (!searchQuery && effectiveLimit !== undefined && filtered.length >= effectiveLimit) break;
-      }
-      
-      if (searchQuery) filtered.sort((a, b) => a.score - b.score);
-      
-      // Obtain the events from the filtered list
-      const eventsForFilter =
-        effectiveLimit !== undefined
-          ? filtered.slice(0, effectiveLimit).map((item) => item.event)
-          : filtered.map((item) => item.event);
-      
-      for (const event of eventsForFilter) {
-        allEvents.push(event);
-      }
-      
-    }
-    
-    return allEvents;
-};
 
 
 /**
@@ -281,7 +263,7 @@ const storeEvents = async (eventsInput: Event | Event[]): Promise<number> => {
  * @param {string} [comments=""] - Comments to add to the events.
  * @returns {Promise<number>} The number of events deleted.
  */
-const deleteEvents = async (eventsInput: Event | Event[], deleteFromDB: boolean = false, comments : string = ""): Promise<number> => {
+const deleteEvents = async (eventsInput: MetadataEvent | MetadataEvent[], deleteFromDB: boolean = false, comments : string = ""): Promise<number> => {
 
   const eventsToProcess: Event[] = Array.isArray(eventsInput) ? eventsInput : [eventsInput];
   let affectedCount = 0;
@@ -300,12 +282,13 @@ const deleteEvents = async (eventsInput: Event | Event[], deleteFromDB: boolean 
 
       affectedCount++;
 
-      const relayEvents = app.get("relayEvents");
-      relayEvents.memoryDB.delete(event.id);
-      const index = relayEvents.sortedArray.findIndex((e: Event) => e.id === event.id);
-      if (index !== -1)  relayEvents.sortedArray.splice(index, 1);
-      if (relayEvents.pending) relayEvents.pending.delete(event.id);
-      if (relayEvents.pendingDelete) relayEvents.pendingDelete.delete(event.id);
+      eventStore.eventIndex.delete(event.id);
+      if (eventStore.pending) eventStore.pending.delete(event.id);
+      if (eventStore.pendingDelete) eventStore.pendingDelete.delete(event.id);
+      eventStore.globalIds.delete(event.id);
+      if (event.pubkey) {
+        eventStore.globalPubkeys.delete(event.pubkey);
+      }
 
     } else {
       logger.error(`deleteEvents - Failed to delete process event ${event.id}`);
@@ -315,58 +298,4 @@ const deleteEvents = async (eventsInput: Event | Event[], deleteFromDB: boolean 
   return affectedCount;
 };
 
-  
-/**
- * Performs a binary search on a descendingly sorted array of events (sorted by `created_at`)
- * and returns the index of the first element that meets the comparison condition with the target timestamp.
- *
- * In non-strict mode (default), it returns the index of the first event whose `created_at` is less than or equal
- * to the target value. In strict mode, it returns the index of the first event whose `created_at` is strictly
- * less than the target value.
- *
- * @param {Event[]} arr - Array of events sorted in descending order by `created_at`.
- * @param {number} target - The target timestamp for comparison.
- * @param {boolean} [strict=false] - If `true`, the search is strict (looking for the first element with `created_at` < target).
- *                                   If `false`, it looks for the first element with `created_at` <= target.
- * @returns {number} The index of the first event that meets the comparison condition.
- */
-function binarySearchDescending(arr: Event[], target: number, strict: boolean = false): number {
-  let low = 0;
-  let high = arr.length;
-  while (low < high) {
-      const mid = Math.floor((low + high) / 2);
-      if (strict ? arr[mid].created_at >= target : arr[mid].created_at > target) {
-          low = mid + 1;
-      } else {
-          high = mid;
-      }
-  }
-  return low;
-}
-
-/**
- * Returns the index where an event should be inserted in a sorted array.
- * 
- * This function performs a binary search on a sorted array of events and returns the index
- * at which a new event should be inserted to maintain the order of the array.
- * using the `created_at` timestamp as the sorting criterion.
- * 
- * @param {Event[]} arr - The sorted array of events.
- * @param {number} target - The timestamp to compare against.
- * @returns {number}
-*/
-const binarySearchCreatedAt = (arr: Event[], target: number): number => {
-    let low = 0;
-    let high = arr.length;
-    while (low < high) {
-      const mid = Math.floor((low + high) / 2);
-      if (arr[mid].created_at < target) {
-        high = mid;
-      } else {
-        low = mid + 1;
-      }
-    }
-    return low;
-  }
-
-export { getEvents, storeEvents, initEvents, binarySearchCreatedAt, deleteEvents };
+export { storeEvents, initEvents, deleteEvents };

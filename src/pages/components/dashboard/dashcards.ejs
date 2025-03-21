@@ -129,6 +129,56 @@
             timeout: 5000,
         }); %>
 
+        <%- include('../dashcard', { 
+            dashcardId: 'relayQueueHeavyLength', 
+            dashcardName: 'Relay queue (heavy tasks)', 
+            dashcardDataKey: 'relay', 
+            icon: 'list', 
+            link: '', 
+            action: 'status', 
+            field: 'heavyTasksLength', 
+            showField: false, 
+            timeout: 5000,
+        }); %>
+
+        <%- include('../dashcard', { 
+            dashcardId: 'relayQueueLightLength', 
+            dashcardName: 'Relay queue (light tasks)', 
+            dashcardDataKey: 'relay', 
+            icon: 'list', 
+            link: '', 
+            action: 'status', 
+            field: 'lightTasksLength', 
+            showField: false, 
+            timeout: 5000,
+        }); %>
+
+        <%- include('../dashcard', { 
+            dashcardId: 'relayworkerCount', 
+            dashcardName: 'Relay workers', 
+            dashcardDataKey: 'relay', 
+            icon: 'worker', 
+            link: '', 
+            action: 'status', 
+            field: 'workerCount', 
+            showField: false, 
+            timeout: 5000,
+        }); %>
+
+        <%- include('../dashcard', { 
+            dashcardId: 'relayMemoryUsage', 
+            dashcardName: 'Relay memory usage', 
+            dashcardDataKey: 'relay', 
+            icon: 'worker', 
+            link: '', 
+            action: 'status', 
+            field: 'usedMemory', 
+            showField: false, 
+            timeout: 5000,
+        }); %>
+
+
+
     <% } %>
 
     <%- include('../dashcard', { 

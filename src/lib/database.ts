@@ -126,7 +126,7 @@ async function checkDatabaseConsistency(table: string, column_name:string, type:
 		const [CheckTable] = await pool.execute(CheckTableExistStatement, [table]);
 		const rowstempCheckTable = JSON.parse(JSON.stringify(CheckTable));
 		if (rowstempCheckTable[0]['COUNT(*)'] == 0) {
-			logger.warn("Table not found:", table);
+			logger.debug("Table not found:", table);
 			logger.info("Creating table:", table);
 			const CreateTableStatement: string =
 				"CREATE TABLE IF NOT EXISTS " + table + " (" + column_name + " " + type + ");";
@@ -155,7 +155,7 @@ async function checkDatabaseConsistency(table: string, column_name:string, type:
 		const [CheckTable] = await pool.execute(CheckTableColumnsStatement, [table, column_name]);
 		const rowstempCheckTable = JSON.parse(JSON.stringify(CheckTable));
 		if (rowstempCheckTable[0]['COUNT(*)'] == 0) {
-			logger.warn("Column not found in table:", table, "column:", column_name);
+			logger.debug("Column not found in table:", table, "column:", column_name);
 			logger.info("Creating column:", column_name, "in table:", table);
 			const AlterTableStatement: string =
 				"ALTER TABLE " + table + " ADD " + column_name + " " + type + after_column + ";";
@@ -386,13 +386,17 @@ const dbMultiSelect = async (queryFields: string[], fromStatement: string, where
 /* Executes a SELECT SQL query on a database and returns the result.
 /* @param {string} table - The name of the table to select data from.
 /* @param {string} query - The SQL query to be executed.
+/* @param {string} extraCommand - Additional command to be sent to the database (e.g. "SET SESSION group_concat_max_len = 4194304;").
 /* @returns {Promise<string>} A promise that resolves to the result of the query, or an empty string if an error occurs or if the result is empty.
  */
-const dbSimpleSelect = async (table:string, query:string): Promise<string> =>{
+const dbSimpleSelect = async (table:string, query:string, extraCommand : string = ""): Promise<string> =>{
 
 	const pool = await connect("dbSimpleSelect " + table);
 
 	try{
+		if (extraCommand != "") {
+			await pool.execute(extraCommand);
+		}
 		const [dbResult] = await pool.execute(query);
 		const rowstemp = JSON.parse(JSON.stringify(dbResult));
 		if (rowstemp[0] == undefined || rowstemp[0] == "") {

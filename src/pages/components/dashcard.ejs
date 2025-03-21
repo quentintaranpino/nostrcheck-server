@@ -145,6 +145,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       iconElement.addClass('fas fa-chart-line text-secondary');
     } else if (icon == "list") {
       iconElement.addClass('fas fa-solid fa-list-check text-info');
+    } else if (icon == "worker") {
+      iconElement.addClass('fas fa-solid fa-truck-fast text-info');
     } else {
       iconElement.addClass('fas fa-chart-simple');
     }
@@ -167,6 +169,13 @@ document.addEventListener('DOMContentLoaded', async () => {
           if (dashcardDataKey === 'relay' && action == 'status') {
               const res = await fetch('relay/status');
               const serverInfo = await res.json();
+              if (serverInfo.heavyTasks.length > 0) {
+                  console.log('Heavy tasks:', serverInfo.heavyTasks);
+              }
+              if (serverInfo.lightTasks.length > 0) {
+                  console.log('Light tasks:', serverInfo.lightTasks);
+              }
+              
               return { field: serverInfo[field], total: serverInfo[field] };
           }
           

@@ -1,10 +1,4 @@
-import { Event } from "nostr-tools";
-
-interface MemoryEvent {
-    event: Event;
-    processed: boolean;
-}
-
+import { Event, Filter } from "nostr-tools";
 import { WebSocket } from "ws";
 import { ResultMessagev2 } from "./server";
 
@@ -103,6 +97,9 @@ const allowedTags = [
   "-"
 ];
 
+interface MetadataEvent extends Event {
+  metadata?: { [key: string]: string | string[] };
+}
 
 interface RelayJob {
   fn: (...args: any[]) => Promise<any> | any;
@@ -111,15 +108,61 @@ interface RelayJob {
 
 interface RelayStatusMessage extends ResultMessagev2 {
   websocketConnections: number;
+  usedMemory: number;
   queueLength: number;
   workerCount: number;
+  heavyTasksLength: number;
+  lightTasksLength: number;
+  heavyTasks: PendingGetEventsTask[];
+  lightTasks: PendingGetEventsTask[];
 }
+
+interface PendingGetEventsTask {
+  id: string; 
+  filters: Filter[];
+  enqueuedAt: number;
+}
+
+interface SharedChunk {
+  buffer: SharedArrayBuffer;
+  indexMap: Uint32Array;
+  timeRange: {
+    min: number;
+    max: number;
+  };
+  usedBytes?: number; 
+}
+
+const CHUNK_SIZE = 3000; 
 
 interface RelayEvents {
   pending: Map<string, Event>;
   pendingDelete: Map<string, Event>;
-  memoryDB: Map<string, MemoryEvent>;
-  sortedArray: Event[];
+  eventIndex: Map<string, EventIndex>;
+  sharedDBChunks: SharedChunk[];
+  relayEventsLoaded: boolean;
+  globalIds: Set<string>;
+  globalPubkeys: Set<string>;
 }
 
-export { MemoryEvent, ExtendedWebSocket, allowedTags, RelayJob, RelayStatusMessage, RelayEvents };
+interface EventIndex {
+  id: string;     
+  chunkIndex: number;  
+  position: number;    
+  processed: boolean;   
+  created_at: number;   
+  kind?: number;       
+  pubkey?: string;
+}
+
+const eventStore: RelayEvents = {
+  pending: new Map<string, Event>(),
+  pendingDelete: new Map<string, Event>(),
+  eventIndex: new Map<string, EventIndex>(),
+  sharedDBChunks: [],
+  relayEventsLoaded: false,
+  globalIds: new Set<string>(),
+  globalPubkeys: new Set<string>(),
+};
+
+export { ExtendedWebSocket, allowedTags, SharedChunk, PendingGetEventsTask, RelayJob, RelayStatusMessage, MetadataEvent, EventIndex, RelayEvents, eventStore, CHUNK_SIZE };

@@ -29,6 +29,7 @@ data/
 
 # Ignore logs
 logs/*
+debug.log
 
 # Ignore csv files
 *.csv

@@ -270,8 +270,8 @@ const defaultConfig = {
 		"contact": "",
 		"limitation": {
 			"max_message_length": 524288,
-			"max_subscriptions": 20,
-			"max_filters": 100,
+			"max_subscriptions": 10,
+			"max_filters": 5,
 			"max_limit": 1000,
 			"max_subid_length": 100,
 			"max_event_tags": 4000,

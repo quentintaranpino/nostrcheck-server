@@ -386,6 +386,35 @@ const eventTagsTableFields: EventTagsTable = {
 	},
 };
 
+interface EventMetadataTable extends RowDataPacket {
+    id: string;
+    event_id: string;
+    metadata_type: string;  
+    metadata_value: string;
+    position: string;
+    extra_data: string; 
+    created_at: string;
+}
+
+const eventMetadataTableFields: EventMetadataTable = {
+    id: "int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY",
+    event_id: "varchar(64) NOT NULL",
+    metadata_type: "varchar(32) NOT NULL",
+    metadata_value: "varchar(512) NOT NULL",
+    position: "int(11) NOT NULL DEFAULT 0",
+    extra_data: "JSON",
+    created_at: "BIGINT NOT NULL",
+    _indexes: [
+        "INDEX idx_event_id (event_id)",
+        "INDEX idx_metadata_type_value (metadata_type, metadata_value(100))",
+        "INDEX idx_metadata_created (created_at)",
+        "INDEX idx_compound (event_id, metadata_type, metadata_value(100))"
+    ],
+    constructor: {
+        name: 'RowDataPacket',
+    },
+};
+
 interface UserPrefsTable extends RowDataPacket {
 	id: string;
 	registered_id: string;
@@ -426,6 +455,7 @@ const newFieldcompatibility = [
 	{"events": eventsTableFields},
 	{"eventtags": eventTagsTableFields},
 	{"userprefs": userPreferencesTableFields},
+	{"eventmetadata": eventMetadataTableFields},
 ];
 
 

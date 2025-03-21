@@ -197,4 +197,19 @@ const getHostInfo = (): { hostname: string, port: string, url: string} => {
 	return {hostname, port, url};
 };
 
-export { format, currDir, markdownToHtml, generateQRCode, getNewDate, isBase64, getCPUUsage, getHostInfo};
+/**
+ * Safely parse JSON strings
+ * @param {string} str - The JSON string to parse
+ * @param {T} defaultVal - The default value to return in case of an error
+ * @returns {T} - The parsed object or the default value
+ */
+const safeJSONParse = <T>(str: string, defaultVal: T): T => {
+    try {
+      return JSON.parse(str);
+    } catch (e) {
+      logger.error("getEventsDB - Error parsing JSON", e);
+      return defaultVal;
+    }
+  };
+
+export { format, currDir, markdownToHtml, generateQRCode, getNewDate, isBase64, getCPUUsage, getHostInfo, safeJSONParse};
