@@ -300,7 +300,7 @@ const _getEvents = async (
       }
 
       if (searchQuery) {
-        filterResults.sort((a, b) => a.score - b.score);
+        filterResults.sort((a, b) => (a.score ?? 0) - (b.score ?? 0));
       }
 
       const eventsToAdd = filterResults.slice(0, effectiveLimit).map(({ event }) => {
