@@ -236,7 +236,7 @@ const _getEvents = async (
   const finalResults = [];
   const now = Math.floor(Date.now() / 1000);
   const startTimeMs = Date.now();
-  const TIMEOUT_MS = isHeavy ? 500 : 100;
+  const TIMEOUT_MS = isHeavy ? 750 : 250;
   const checkTimeout = () => Date.now() - startTimeMs > TIMEOUT_MS;
 
   for (const filter of filters) {
@@ -251,7 +251,7 @@ const _getEvents = async (
     const filterHash = createFilterHash(filter);
     const cachedEntry = await redisClient.get("filter:" + filterHash);
 
-    if (cachedEntry) {
+    if (cachedEntry && cachedEntry !== '[]') {
       const cachedResults = JSON.parse(cachedEntry);
       const freshEvents = await scanRecentChunks(chunks, filter, (FILTER_CACHE_TTL * 2) / 1000);
       let cachedFiltered: MetadataEvent[];
@@ -367,7 +367,7 @@ const _getEvents = async (
 
     finalResults.push(...eventsToAdd);
 
-    if (!cachedEntry || JSON.parse(cachedEntry).length < eventsToAdd.length) {
+    if (eventsToAdd.length > 0 && (!cachedEntry || JSON.parse(cachedEntry).length < eventsToAdd.length)) {
       await redisClient.set("filter:" + filterHash, JSON.stringify(eventsToAdd), { EX: FILTER_CACHE_TTL / 1000 });
     }
   }
