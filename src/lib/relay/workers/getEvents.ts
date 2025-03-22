@@ -226,7 +226,8 @@ const _getEvents = async (
   filters: Filter[], 
   maxLimit: number,
   chunks: SharedChunk[], 
-  isHeavy: boolean
+  isHeavy: boolean,
+  timeout: number 
 ): Promise<Event[]> => {
 
   if (!redisClient) {
@@ -236,8 +237,7 @@ const _getEvents = async (
   const finalResults = [];
   const now = Math.floor(Date.now() / 1000);
   const startTimeMs = Date.now();
-  const TIMEOUT_MS = isHeavy ? 750 : 250;
-  const checkTimeout = () => Date.now() - startTimeMs > TIMEOUT_MS;
+  const checkTimeout = () => Date.now() - startTimeMs > timeout;
 
   for (const filter of filters) {
     if (checkTimeout()) break;

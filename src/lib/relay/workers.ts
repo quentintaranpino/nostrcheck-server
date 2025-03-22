@@ -346,6 +346,29 @@ const getPendingHeavyTasks = (): PendingGetEventsTask[] => {
 const getEvents = async (filters: any, maxLimit: number, chunks: SharedChunk[]): Promise<any> => {
   try {
     const isHeavy = isHeavyFilter(filters);
+    
+    const lightQueueLength = getRelayLightWorkerLength();
+    const heavyQueueLength = getRelayHeavyWorkerLength();
+    
+    let dynamicTimeout = isHeavy ? 450 : 250;
+    
+    // Reduce timeout if queue is long
+    if (isHeavy && heavyQueueLength > 10) {
+      dynamicTimeout = Math.max(50, dynamicTimeout - (heavyQueueLength * 25));
+    } else if (!isHeavy && lightQueueLength > 20) {
+      dynamicTimeout = Math.max(25, dynamicTimeout - (lightQueueLength * 5));
+    }
+    
+    const hasSpecificIds: boolean = filters.some((f: Filter) => f.ids && f.ids.length > 0);
+    const hasSpecificAuthors: boolean = filters.some((f: Filter) => f.authors && f.authors.length > 0 && f.authors.length < 5);
+    
+    if (hasSpecificIds) {
+      dynamicTimeout *= 1.5; 
+    } else if (hasSpecificAuthors) {
+      dynamicTimeout *= 1.3; 
+    }
+    
+    dynamicTimeout = Math.min(dynamicTimeout, isHeavy ? 1500 : 500);
 
     const taskId = Math.random().toString(36).substring(7);
     const taskData: PendingGetEventsTask = {
@@ -373,6 +396,7 @@ const getEvents = async (filters: any, maxLimit: number, chunks: SharedChunk[]):
       maxLimit,
       chunks,
       isHeavy,
+      dynamicTimeout,
     ]);
     isHeavy ? pendingHeavyTasks.delete(taskId) : pendingLightTasks.delete(taskId);
     return result;
