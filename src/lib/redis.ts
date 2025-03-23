@@ -194,6 +194,9 @@ const redisSlidingWindowOldest = async (key: string): Promise<number> => {
     }
 };
 
+// Flush all redis data every time the server starts
+await redisFlushAll();
+
 export {
     redisPluginsClient,
     redisFlushAll,
