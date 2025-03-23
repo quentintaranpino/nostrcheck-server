@@ -341,11 +341,11 @@ const _getEvents = async (
           }
           
           // Early exit if we've already found enough events and there's no search query
-          if (!searchQuery && filterResults.length >= effectiveLimit) break;
+          if (!searchQuery && filterResults.length >= maxLimit) break;
         }
         
         // Early exit from batch processing if we have enough results
-        if (!searchQuery && filterResults.length >= effectiveLimit) break;
+        if (!searchQuery && filterResults.length >= maxLimit) break;
         
         // Allow event loop to breathe on heavy tasks
         if (isHeavy && i > 0 && i % (effectiveBatchSize * 4) === 0) {
@@ -353,19 +353,19 @@ const _getEvents = async (
         }
       }
 
-      if (!searchQuery && filterResults.length >= effectiveLimit) break;
+      if (!searchQuery && filterResults.length >= maxLimit) break;
     }
 
     if (searchQuery) {
       filterResults.sort((a, b) => (a.score ?? 0) - (b.score ?? 0));
     }
 
-    const eventsToAdd = filterResults.slice(0, effectiveLimit).map(({ event }) => {
+    const eventsToAdd = filterResults.slice(0, maxLimit).map(({ event }) => {
       const { metadata, ...eventWithoutMetadata } = event;
       return eventWithoutMetadata;
     });
 
-    finalResults.push(...eventsToAdd);
+    finalResults.push(...eventsToAdd.slice(0, effectiveLimit));
 
     if (eventsToAdd.length > 0 && (!cachedEntry || JSON.parse(cachedEntry).length < eventsToAdd.length)) {
       await redisClient.set("filter:" + filterHash, JSON.stringify(eventsToAdd), { EX: FILTER_CACHE_TTL / 1000 });
