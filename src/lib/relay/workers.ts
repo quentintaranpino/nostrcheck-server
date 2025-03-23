@@ -1,6 +1,6 @@
 import fastq, { queueAsPromised } from "fastq";
 import { Event, Filter } from "nostr-tools";
-import workerpool from "workerpool";
+import workerpool, { worker } from "workerpool";
 import path from "path";
 
 import { logger } from "../logger.js";
@@ -15,6 +15,7 @@ const relayWorkers = Number(app.get("config.relay")["workers"]);
 const workersDir = path.resolve('./dist/lib/relay/workers');
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { _getEvents } from "./workers/getEvents.js";
+import { get } from "config";
   
 const relayWorker = async (task: RelayJob): Promise<unknown> => {
   try {
@@ -322,12 +323,12 @@ const workerInterval = async () => {
 
 workerInterval();
 
-const lightGetEventsPool = workerpool.pool(
+let lightGetEventsPool = workerpool.pool(
   path.join(workersDir, 'getEvents.js'),
   { maxWorkers: Math.ceil(relayWorkers * 0.25) }
 );
 
-const heavyGetEventsPool = workerpool.pool(
+let heavyGetEventsPool = workerpool.pool(
   path.join(workersDir, 'getEvents.js'),
   { maxWorkers: Math.ceil(relayWorkers * 0.75) }
 );
@@ -343,8 +344,15 @@ const getPendingHeavyTasks = (): PendingGetEventsTask[] => {
   return Array.from(pendingHeavyTasks.values());
 }
 
+let workersRecycling = false;
 const getEvents = async (filters: any, maxLimit: number, chunks: SharedChunk[]): Promise<any> => {
   try {
+
+    if (workersRecycling) {
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      return getEvents(filters, maxLimit, chunks);
+    }
+
     const isHeavy = isHeavyFilter(filters);
     
     const lightQueueLength = getRelayLightWorkerLength();
@@ -406,5 +414,43 @@ const getEvents = async (filters: any, maxLimit: number, chunks: SharedChunk[]):
     return [];
   }
 };
+
+const recicleWorkers = async () => {
+
+  if (getRelayHeavyWorkerLength() > 0 || getRelayLightWorkerLength() > 0) {
+    return;
+  }
+
+  try{
+
+    workersRecycling = true;
+
+    await Promise.all([
+      lightGetEventsPool.terminate(false),
+      heavyGetEventsPool.terminate(false)
+    ]);
+
+    lightGetEventsPool = workerpool.pool(
+      path.join(workersDir, 'getEvents.js'),
+      { maxWorkers: Math.ceil(relayWorkers * 0.25) }
+    );
+
+    heavyGetEventsPool = workerpool.pool(
+      path.join(workersDir, 'getEvents.js'),
+      { maxWorkers: Math.ceil(relayWorkers * 0.75) }
+    );
+
+    workersRecycling = false;
+
+  }catch(error){
+    logger.error(`recicleWorkers - Error: ${error instanceof Error ? error.message : String(error)}`);
+    workersRecycling = false;
+  }
+}
+
+// Recicle workers every 10 minutes
+setInterval(async () => {
+  recicleWorkers();
+}, 10 * 30 * 1000); 
 
 export { getRelayQueueLength, enqueueRelayTask, relayWorkers, getEvents, getRelayLightWorkerLength, getRelayHeavyWorkerLength, getPendingLightTasks, getPendingHeavyTasks };  
