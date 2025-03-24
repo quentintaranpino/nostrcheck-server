@@ -680,21 +680,26 @@ const createFilterHash = (filter: Filter): string => {
 
   if (filter.since !== undefined && filter.until !== undefined) {
     const range = filter.until - filter.since;
-    if (range > 30 * 86400) {
-      timeBucket = 86400;  // 1 day
-    } else if (range > 7 * 86400) {
-      timeBucket = 21600; // 6 hours
-    } else if (range > 2 * 86400) {
-      timeBucket = 10800; // 3 hours
-    } else if (range > 12 * 3600) {
-      timeBucket = 3600; // 1 hour
-    } else if (range > 2 * 3600) {
-      timeBucket = 1800; // 30 minutes
-    } else if (range > 3600) {
-      timeBucket = 600; // 10 minutes
+    if (range > 30 * 86400) { // 30 days
+      timeBucket = 172800;  // 2 day
+    } else if (range > 7 * 86400) { // 7 days
+      timeBucket = 40320 ; // 11.2 hours
+    } else if (range > 2 * 86400) { // 2 days
+      timeBucket = 11520; // 3.2 hours
+    } else if (range > 12 * 3600) { // 12 hours
+      timeBucket = 2880 ; // 48 minutes
+    } else if (range > 2 * 3600) { // 2 hours
+      timeBucket = 480 ; // 8 minutes
+    } else if (range > 3600) { // 1 hour
+      timeBucket = 240 ; // 4 minutes
     } else {
       timeBucket = 60; // 1 minute
     }
+  }
+
+  // Adjust time bucket for search queries 50% more.
+  if (filter.search) {
+    timeBucket = Math.floor(timeBucket * 1.5);
   }
 
   if (filter.since !== undefined) {
