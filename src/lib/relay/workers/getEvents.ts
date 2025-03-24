@@ -236,7 +236,7 @@ const _getEvents = async (
     const rawSearch = filter.search ? filter.search.trim() : "";
     const searchQuery = rawSearch.length >= 3 ? rawSearch.toLowerCase() : null;
     const until = filter.until !== undefined ? filter.until : now;
-    const since = filter.since !== undefined ? filter.since : 0;
+    const since = filter.since !== undefined ? filter.since : now - 86400 * 90; // 90 days
     const effectiveLimit = searchQuery ? Math.ceil(maxLimit * 1.5) : maxLimit;
 
     const filterHash = createFilterHash(filter);

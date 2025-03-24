@@ -5,6 +5,7 @@ import { NIP01_event, NIP01_Filter } from "../../interfaces/nostr.js";
 import { getTextLanguage } from "../language.js";
 import { EventIndex, MetadataEvent, RelayEvents, SharedChunk } from "../../interfaces/relay.js";
 import crypto from "crypto";
+
 /**
  * Compress an event using LZString
  * @param e Event to compress
@@ -739,6 +740,28 @@ const createFilterHash = (filter: Filter): string => {
   return crypto.createHash('sha256').update(normalizedString).digest('hex');
 };
 
+
+const dynamicTimeout = (filters: Filter[], isHeavy: boolean, lightQueueLength: number, heavyQueueLength: number) : number => {
+   
+    let timeout = isHeavy ? 1500 : 500;
+    
+    if (isHeavy && heavyQueueLength > 10) {
+      timeout = Math.max(50, timeout - (heavyQueueLength * 25));
+    } else if (!isHeavy && lightQueueLength > 20) {
+      timeout = Math.max(25, timeout - (lightQueueLength * 5));
+    }
+    
+    const hasSpecificIds: boolean = filters.some((f: Filter) => f.ids && f.ids.length > 0);
+    const hasSpecificAuthors: boolean = filters.some((f: Filter) => f.authors && f.authors.length > 0 && f.authors.length < 5);
+    
+    if (hasSpecificIds || hasSpecificAuthors) {
+      timeout *= 1.3; 
+    }
+    
+    timeout = Math.min(timeout, isHeavy ? 1500 : 500);
+    return timeout;
+}
+
 export {  compressEvent, 
           decompressEvent, 
           parseRelayMessage, 
@@ -756,5 +779,6 @@ export {  compressEvent,
           decodeEvent, 
           decodePartialEvent,
           filterEarlyDiscard,
-          createFilterHash
+          createFilterHash,
+          dynamicTimeout
         };
