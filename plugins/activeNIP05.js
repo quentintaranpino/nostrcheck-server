@@ -9,7 +9,7 @@ function plugin() {
                 let pubkeyMetadata = JSON.parse(await globals.redis.get(`pubkeyMetadata-${input.pubkey}`));
 
                 if (!pubkeyMetadata) {
-                    pubkeyMetadata = await globals.nostr.NIP01.getPubkeyMedatada(input.pubkey);
+                    pubkeyMetadata = await globals.nostr.NIP01.getPubkeyMetadata(input.pubkey);
                     await globals.redis.set(`pubkeyMetadata-${input.pubkey}`, JSON.stringify(pubkeyMetadata), { EX: 3600 });
                 }
 
