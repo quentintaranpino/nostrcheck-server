@@ -229,9 +229,12 @@ const _getEvents = async (
   const now = Math.floor(Date.now() / 1000);
   const startTimeMs = Date.now();
   const checkTimeout = () => Date.now() - startTimeMs > timeout;
-
+  let incompleteResults = false;
   for (const filter of filters) {
-    if (checkTimeout()) break;
+    if (checkTimeout()) {
+      incompleteResults = true;
+      break;
+    }
 
     const rawSearch = filter.search ? filter.search.trim() : "";
     const searchQuery = rawSearch.length >= 3 ? rawSearch.toLowerCase() : null;
@@ -272,10 +275,11 @@ const _getEvents = async (
     }
 
     let accumulatedResults: { event: MetadataEvent; score: number }[] = [];
-    let counter = 0
     for (const seg of segments) {
-      counter++;
-      if (checkTimeout()) break;
+      if (checkTimeout()) {
+        incompleteResults = true;
+        break;
+      }
       const segResults = await processSegment(filter, chunks, seg.segmentSince, seg.segmentUntil, searchQuery);
       accumulatedResults = accumulatedResults.concat(segResults);
       if (accumulatedResults.length >= effectiveLimit) break;
@@ -293,7 +297,7 @@ const _getEvents = async (
 
     finalResults.push(...finalSegmentEvents);
 
-    if (!cachedEntryRaw) {
+    if (!cachedEntryRaw && !incompleteResults) {
       const cacheEntry = {
         timestamp: Math.floor(Date.now() / 1000),
         data: finalSegmentEvents,
