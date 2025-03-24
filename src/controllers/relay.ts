@@ -497,20 +497,20 @@ const handleReqOrCount = async (socket: WebSocket, subId: string, filters: Filte
   }
 
   // Check if the requested time range is too large or the limit is too high
-  let since = filters.find(f => f.since)?.since ?? 0;
-  const until = filters.find(f => f.until)?.until ?? Math.floor(Date.now() / 1000);
+  // let since = filters.find(f => f.since)?.since ?? 0;
+  // const until = filters.find(f => f.until)?.until ?? Math.floor(Date.now() / 1000);
   const maxLimit = app.get("config.relay")["limitation"]["max_limit"];
-  const maxTimeRange = app.get("config.relay")["limitation"]["max_time_range"];
-  let limit = filters.find(f => f.limit)?.limit ?? maxLimit;
+  // const maxTimeRange = app.get("config.relay")["limitation"]["max_time_range"];
+  // let limit = filters.find(f => f.limit)?.limit ?? maxLimit;
 
-  // Check if the query is specific to certain event IDs.
-  const isIdSpecificQuery = filters.every(f => f.ids && f.ids.length > 0);
-  if (!isIdSpecificQuery && (limit > maxLimit || until - since > maxTimeRange)) {
-    socket.send(JSON.stringify(["NOTICE", `warning: ${limit > maxLimit ? "limit" : "time range"} too high, adjusted to ${limit > maxLimit ? maxLimit : maxTimeRange}`]));
-    if (limit > maxLimit) limit = maxLimit;
-    if (until - since) since = until - maxTimeRange;
-    filters = filters.map(f => ({ ...f, since, until, limit }));
-  }
+  // // Check if the query is specific to certain event IDs.
+  // const isIdSpecificQuery = filters.every(f => f.ids && f.ids.length > 0);
+  // if (!isIdSpecificQuery && (limit > maxLimit || until - since > maxTimeRange)) {
+  //   socket.send(JSON.stringify(["NOTICE", `warning: ${limit > maxLimit ? "limit" : "time range"} too high, adjusted to ${limit > maxLimit ? maxLimit : maxTimeRange}`]));
+  //   if (limit > maxLimit) limit = maxLimit;
+  //   if (until - since) since = until - maxTimeRange;
+  //   filters = filters.map(f => ({ ...f, since, until, limit }));
+  // }
 
   // If sharedDBChunks is not initialized, send EOSE and return
   if (!eventStore.sharedDBChunks) {

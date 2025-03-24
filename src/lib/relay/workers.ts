@@ -403,7 +403,6 @@ const getEvents = async (filters: any, maxLimit: number, chunks: SharedChunk[]):
       JSON.parse(JSON.stringify(filters)),
       maxLimit,
       chunks,
-      isHeavy,
       dynamicTimeout,
     ]);
     isHeavy ? pendingHeavyTasks.delete(taskId) : pendingLightTasks.delete(taskId);
