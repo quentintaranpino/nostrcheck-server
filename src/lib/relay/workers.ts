@@ -117,13 +117,14 @@ const persistEvents = async () => {
     const newestChunk = eventStore.sharedDBChunks[0];
 
     for (const event of eventsToPersist) {
-
+      await new Promise(resolve => setImmediate(resolve));
       const indexEntry = eventStore.eventIndex.get(event.id);
       if (indexEntry) indexEntry.processed = true;
       eventStore.pending.delete(event.id);
 
       let assigned = false;
       for (const chunk of eventStore.sharedDBChunks) {
+        await new Promise(resolve => setImmediate(resolve));
         if (
           event.created_at >= chunk.timeRange.min &&
           event.created_at <= chunk.timeRange.max
@@ -132,6 +133,7 @@ const persistEvents = async () => {
           assigned = true;
           break;
         }
+        
       }
 
       if (!assigned && event.created_at >= newestChunk.timeRange.min && newestChunk.indexMap.length < CHUNK_SIZE) {
@@ -146,6 +148,7 @@ const persistEvents = async () => {
     }
 
     for (const chunk of affectedChunks) {
+      await new Promise(resolve => setImmediate(resolve));
       const newChunkEvents = await getEventsByTimerange(
         chunk.timeRange.min,
         chunk.timeRange.max,
@@ -159,6 +162,7 @@ const persistEvents = async () => {
           eventStore.sharedDBChunks[idx] = affectedChunk;
 
           for (let position = 0; position < newChunkEvents.length; position++) {
+            await new Promise(resolve => setImmediate(resolve));
             const event = newChunkEvents[position];
             const entry = eventStore.eventIndex.get(event.id);
             if (entry) {
@@ -172,10 +176,12 @@ const persistEvents = async () => {
     }
 
     if (unassignedEvents.length > 0) {
+      await new Promise(resolve => setImmediate(resolve));
       unassignedEvents.sort((a, b) => b.created_at - a.created_at);
       const newChunk = await encodeChunk(unassignedEvents);
       const newChunkIndex = eventStore.sharedDBChunks.length;
       for (let position = 0; position < unassignedEvents.length; position++) {
+        await new Promise(resolve => setImmediate(resolve));
         const event = unassignedEvents[position];
         const entry = eventStore.eventIndex.get(event.id);
         if (entry) {
@@ -219,6 +225,7 @@ const unpersistEvents = async () => {
     const now = Math.floor(Date.now() / 1000);
     const allEvents = await getEventsByTimerange(0, now, eventStore);
     for (const event of allEvents) {
+      await new Promise(resolve => setImmediate(resolve));
       const expirationTag = event.tags.find(tag => tag[0] === "expiration");
       if (expirationTag && Number(expirationTag[1]) < now) {
         expiredEvents.push(event);
@@ -226,6 +233,7 @@ const unpersistEvents = async () => {
     }
   
     for (const expiredEvent of expiredEvents) {
+      await new Promise(resolve => setImmediate(resolve));
       const success = await deleteEvents([expiredEvent], false, "event expired (NIP-40)");
       if (!success) {
         logger.error(`relayController - Interval - Failed to set event ${expiredEvent.id} as inactive`);
@@ -241,6 +249,7 @@ const unpersistEvents = async () => {
 
     // Recreate expired and deleted events chunks
     for (const chunk of eventStore.sharedDBChunks) {
+      await new Promise(resolve => setImmediate(resolve));
       if (chunk.timeRange.max < Math.min(...eventsToDelete.map(e => e.created_at)) || chunk.timeRange.min > Math.max(...eventsToDelete.map(e => e.created_at))) continue;
       const chunkEvents = await getEventsByTimerange(chunk.timeRange.min, chunk.timeRange.max, eventStore);
       const newEvents = chunkEvents.filter((e) => !eventsToDelete.find((d) => d.id === e.id));
