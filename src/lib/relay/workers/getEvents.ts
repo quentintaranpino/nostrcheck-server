@@ -5,7 +5,7 @@ import { MetadataEvent, SharedChunk } from "../../../interfaces/relay.js";
 import { RedisConfig } from "../../../interfaces/redis.js";
 import { RedisService } from "../../redis.js";
 
-const FILTER_CACHE_TTL = 120000; 
+const FILTER_CACHE_TTL = 120; 
 
 let redisWorker: RedisService | null = null;
 
@@ -128,7 +128,7 @@ const getCachedEventHeaders = async (
     }
 
   const headers = decodePartialEvent(chunk);
-  await redisWorker.set(cacheKey, JSON.stringify(headers), { EX: FILTER_CACHE_TTL / 1000 });
+  await redisWorker.set(cacheKey, JSON.stringify(headers), { EX: FILTER_CACHE_TTL});
   return headers;
 };
 
@@ -154,7 +154,7 @@ const cacheChunkExclusion = async (
 ): Promise<void> => {
   if (!redisWorker) return;
   const exclusionKey = chunkExclusionCacheKey(chunk, authors);
-  await redisWorker.set(exclusionKey, '1', { EX: 600 }); 
+  await redisWorker.set(exclusionKey, '1', { EX: FILTER_CACHE_TTL }); 
 };
 
 /**
@@ -208,168 +208,174 @@ const scanRecentChunks = async (
 
 
 /**
- * Retrieves events from an array of shared memory chunks, applying NIP-50 search with extensions.
- * For filters with a search query, events are scored and sorted by matching quality,
- * and the limit is applied after sorting.
- *
- * @param filters - Array of filter objects to apply.
- * @param maxLimit - Maximum number of events to return.
- * @param chunks - Array of SharedChunk objects.
- * @param isHeavy - Indicates whether the operation is heavy or not.
- * @param redisConfig - Configuration to connect to Redis.
- * @returns A promise that resolves to an array of events.
- */
+* Retrieves events from an array of shared memory chunks, applying NIP-50 search with extensions.
+* For filters with a search query, events are scored and sorted by matching quality,
+* and the limit is applied after sorting.
+*
+* @param filters - Array of filter objects to apply.
+* @param maxLimit - Maximum number of events to return.
+* @param chunks - Array of SharedChunk objects.
+* @param isHeavy - Indicates whether the operation is heavy or not.
+* @param redisConfig - Configuration to connect to Redis.
+* @returns A promise that resolves to an array of events.
+*/
 const _getEvents = async (
-  filters: Filter[], 
-  maxLimit: number,
-  chunks: SharedChunk[], 
-  isHeavy: boolean,
-  timeout: number 
+ filters: Filter[], 
+ maxLimit: number,
+ chunks: SharedChunk[], 
+ isHeavy: boolean,
+ timeout: number 
 ): Promise<Event[]> => {
 
-  if (!redisWorker) {
-    return [];
+ if (!redisWorker) {
+   return [];
+ }
+
+ const finalResults = [];
+ const now = Math.floor(Date.now() / 1000);
+ const startTimeMs = Date.now();
+ const checkTimeout = () => Date.now() - startTimeMs > timeout;
+
+ for (const filter of filters) {
+   if (checkTimeout()) break;
+
+   const until = filter.until !== undefined ? filter.until : now;
+   const since = filter.since !== undefined ? filter.since : 0;
+   const effectiveLimit = filter.limit !== undefined ? Math.min(Number(filter.limit), maxLimit) : maxLimit;
+   const rawSearch = filter.search ? filter.search.trim() : "";
+   const searchQuery = rawSearch.length >= 3 ? rawSearch.toLowerCase() : null;
+
+   const filterHash = createFilterHash(filter);
+   const cacheKey = "filter:" + filterHash;
+   const cachedEntryRaw = await redisWorker.get(cacheKey);
+
+   if (cachedEntryRaw && cachedEntryRaw !== '[]') {
+     const cachedEntry = JSON.parse(cachedEntryRaw);
+     const cachedResults = cachedEntry.data;
+     const elapsed = Math.floor(Date.now() / 1000) - cachedEntry.timestamp;
+     const freshEvents = await scanRecentChunks(chunks, filter, elapsed);
+     let cachedFiltered: MetadataEvent[];
+     if (freshEvents.length > 0) {
+       const freshestTime = freshEvents[0].created_at;
+       cachedFiltered = cachedResults.filter((e: MetadataEvent) => 
+         e.created_at <= freshestTime && !freshEvents.some((f: MetadataEvent) => f.id === e.id)
+       );
+     } else {
+       cachedFiltered = cachedResults;
+     }
+     const combined = [...freshEvents, ...cachedFiltered].slice(0, effectiveLimit);
+     finalResults.push(...combined);
+     continue;
+   }
+
+   const relevantChunks = await filterRelevantChunks(chunks, filter, since, until);
+   const filterResults: { event: MetadataEvent; score?: number }[] = [];
+   const BATCH_SIZE = isHeavy ? 25 : 10;
+
+   for (const chunk of relevantChunks) {
+     if (checkTimeout()) break;
+     const headers = await getCachedEventHeaders(chunk);
+     const view = new DataView(chunk.buffer);
+     
+     // Pre-filter all headers first
+     const filteredHeaders = headers.filter(({ header }) => {
+       if (header.created_at < since || header.created_at > until) return false;
+       if (filter.kinds && !filter.kinds.includes(header.kind)) return false;
+       if (filter.authors && filter.authors.length > 0 && !filter.authors.includes(header.pubkey)) return false;
+       if (filter.ids && filter.ids.length > 0 && !filter.ids.includes(header.id)) return false;
+       return true;
+     });
+
+     const dynamicBatchSize = () => {
+       if (isHeavy && filteredHeaders.length > 500) {
+         return Math.max(5, Math.min(BATCH_SIZE, Math.ceil(250 / Math.sqrt(filteredHeaders.length))));
+       }
+       return BATCH_SIZE;
+     };
+     
+     const effectiveBatchSize = dynamicBatchSize();
+
+     for (let i = 0; i < filteredHeaders.length; i += effectiveBatchSize) {
+       if (checkTimeout()) break;
+       
+       const batchHeaders = filteredHeaders.slice(i, i + effectiveBatchSize);
+       const batchTasks = batchHeaders.map(({ offset }) => ({ chunk, offset, view }));
+       
+       const batchResults = await Promise.all(
+         batchTasks.map(task => decodeEvent(task.chunk.buffer, task.view, task.offset))
+       );
+       
+       for (const result of batchResults) {
+         const { event } = result;
+         
+         // Skip events that don't match the filter criteria
+         if (!matchFilter(filter, event)) continue;
+
+         if (searchQuery) {
+           const parts = searchQuery.split(':');
+           if (parts.length === 2) {
+             const key = parts[0].trim();
+             const value = parts[1].trim();
+             if (event.metadata && event.metadata[key]) {
+               const metaValue = event.metadata[key];
+               let match = false;
+               if (Array.isArray(metaValue)) {
+                 match = metaValue.some(val => val.toLowerCase() === value);
+               } else if (typeof metaValue === 'string') {
+                 match = metaValue.toLowerCase() === value;
+               }
+               if (!match) continue;
+               filterResults.push({ event, score: 0 });
+             } else {
+               continue;
+             }
+           } else {
+             const contentLower = event.content.toLowerCase();
+             const idx = contentLower.indexOf(searchQuery);
+             if (idx === -1) continue;
+             filterResults.push({ event, score: idx });
+           }
+         } else {
+           filterResults.push({ event, score: 0 });
+         }
+         
+         // Early exit if we've already found enough events and there's no search query
+         if (!searchQuery && filterResults.length >= maxLimit) break;
+       }
+       
+       // Early exit from batch processing if we have enough results
+       if (!searchQuery && filterResults.length >= maxLimit) break;
+       
+       // Allow event loop to breathe on heavy tasks
+       if (isHeavy && i > 0 && i % (effectiveBatchSize * 4) === 0) {
+         await new Promise(resolve => setTimeout(resolve, 0));
+       }
+     }
+
+     if (!searchQuery && filterResults.length >= maxLimit) break;
+   }
+
+   if (searchQuery) {
+     filterResults.sort((a, b) => (a.score ?? 0) - (b.score ?? 0));
+   }
+
+   const eventsToAdd = filterResults.slice(0, maxLimit).map(({ event }) => {
+     const { metadata, ...eventWithoutMetadata } = event;
+     return eventWithoutMetadata;
+   });
+
+   finalResults.push(...eventsToAdd.slice(0, effectiveLimit));
+
+   if (eventsToAdd.length > 0 && !cachedEntryRaw) {
+    const cacheEntry = {
+      timestamp: Math.floor(Date.now() / 1000),
+      data: eventsToAdd,
+    };
+    await redisWorker.set(cacheKey, JSON.stringify(cacheEntry), { EX: FILTER_CACHE_TTL });
+    }
   }
 
-  const finalResults = [];
-  const now = Math.floor(Date.now() / 1000);
-  const startTimeMs = Date.now();
-  const checkTimeout = () => Date.now() - startTimeMs > timeout;
-
-  for (const filter of filters) {
-    if (checkTimeout()) break;
-
-    const until = filter.until !== undefined ? filter.until : now;
-    const since = filter.since !== undefined ? filter.since : 0;
-    const effectiveLimit = filter.limit !== undefined ? Math.min(Number(filter.limit), maxLimit) : maxLimit;
-    const rawSearch = filter.search ? filter.search.trim() : "";
-    const searchQuery = rawSearch.length >= 3 ? rawSearch.toLowerCase() : null;
-
-    const filterHash = createFilterHash(filter);
-    const cachedEntry = await redisWorker.get("filter:" + filterHash);
-
-    if (cachedEntry && cachedEntry !== '[]') {
-      const cachedResults = JSON.parse(cachedEntry);
-      const freshEvents = await scanRecentChunks(chunks, filter, (FILTER_CACHE_TTL * 2) / 1000);
-      let cachedFiltered: MetadataEvent[];
-      if (freshEvents.length > 0) {
-        const freshestTime = freshEvents[0].created_at;
-        cachedFiltered = cachedResults.filter((e: MetadataEvent) => 
-          e.created_at <= freshestTime && !freshEvents.some((f: MetadataEvent) => f.id === e.id)
-        );
-      } else {
-        cachedFiltered = cachedResults;
-      }
-
-      const combined = [...freshEvents, ...cachedFiltered].slice(0, effectiveLimit);
-      finalResults.push(...combined);
-      continue;
-    }
-
-    const relevantChunks = await filterRelevantChunks(chunks, filter, since, until);
-    const filterResults: { event: MetadataEvent; score?: number }[] = [];
-    const BATCH_SIZE = isHeavy ? 25 : 10;
-
-    for (const chunk of relevantChunks) {
-      if (checkTimeout()) break;
-      const headers = await getCachedEventHeaders(chunk);
-      const view = new DataView(chunk.buffer);
-      
-      // Pre-filter all headers first
-      const filteredHeaders = headers.filter(({ header }) => {
-        if (header.created_at < since || header.created_at > until) return false;
-        if (filter.kinds && !filter.kinds.includes(header.kind)) return false;
-        if (filter.authors && filter.authors.length > 0 && !filter.authors.includes(header.pubkey)) return false;
-        if (filter.ids && filter.ids.length > 0 && !filter.ids.includes(header.id)) return false;
-        return true;
-      });
-
-      const dynamicBatchSize = () => {
-        if (isHeavy && filteredHeaders.length > 500) {
-          return Math.max(5, Math.min(BATCH_SIZE, Math.ceil(250 / Math.sqrt(filteredHeaders.length))));
-        }
-        return BATCH_SIZE;
-      };
-      
-      const effectiveBatchSize = dynamicBatchSize();
-
-      for (let i = 0; i < filteredHeaders.length; i += effectiveBatchSize) {
-        if (checkTimeout()) break;
-        
-        const batchHeaders = filteredHeaders.slice(i, i + effectiveBatchSize);
-        const batchTasks = batchHeaders.map(({ offset }) => ({ chunk, offset, view }));
-        
-        const batchResults = await Promise.all(
-          batchTasks.map(task => decodeEvent(task.chunk.buffer, task.view, task.offset))
-        );
-        
-        for (const result of batchResults) {
-          const { event } = result;
-          
-          // Skip events that don't match the filter criteria
-          if (!matchFilter(filter, event)) continue;
-
-          if (searchQuery) {
-            const parts = searchQuery.split(':');
-            if (parts.length === 2) {
-              const key = parts[0].trim();
-              const value = parts[1].trim();
-              if (event.metadata && event.metadata[key]) {
-                const metaValue = event.metadata[key];
-                let match = false;
-                if (Array.isArray(metaValue)) {
-                  match = metaValue.some(val => val.toLowerCase() === value);
-                } else if (typeof metaValue === 'string') {
-                  match = metaValue.toLowerCase() === value;
-                }
-                if (!match) continue;
-                filterResults.push({ event, score: 0 });
-              } else {
-                continue;
-              }
-            } else {
-              const contentLower = event.content.toLowerCase();
-              const idx = contentLower.indexOf(searchQuery);
-              if (idx === -1) continue;
-              filterResults.push({ event, score: idx });
-            }
-          } else {
-            filterResults.push({ event, score: 0 });
-          }
-          
-          // Early exit if we've already found enough events and there's no search query
-          if (!searchQuery && filterResults.length >= maxLimit) break;
-        }
-        
-        // Early exit from batch processing if we have enough results
-        if (!searchQuery && filterResults.length >= maxLimit) break;
-        
-        // Allow event loop to breathe on heavy tasks
-        if (isHeavy && i > 0 && i % (effectiveBatchSize * 4) === 0) {
-          await new Promise(resolve => setTimeout(resolve, 0));
-        }
-      }
-
-      if (!searchQuery && filterResults.length >= maxLimit) break;
-    }
-
-    if (searchQuery) {
-      filterResults.sort((a, b) => (a.score ?? 0) - (b.score ?? 0));
-    }
-
-    const eventsToAdd = filterResults.slice(0, maxLimit).map(({ event }) => {
-      const { metadata, ...eventWithoutMetadata } = event;
-      return eventWithoutMetadata;
-    });
-
-    finalResults.push(...eventsToAdd.slice(0, effectiveLimit));
-
-    if (eventsToAdd.length > 0 && (!cachedEntry || JSON.parse(cachedEntry).length < eventsToAdd.length)) {
-      await redisWorker.set("filter:" + filterHash, JSON.stringify(eventsToAdd), { EX: FILTER_CACHE_TTL / 1000 });
-    }
-  }
-
-  return Array.from(new Map(finalResults.map(event => [event.id, event])).values());
+ return Array.from(new Map(finalResults.map(event => [event.id, event])).values());
 };
 
 workerpool.worker({initWorker: initWorker, _getEvents: _getEvents});
