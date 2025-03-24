@@ -4,8 +4,10 @@ import app from "../../app.js";
 import { ResultMessagev2 } from "../../interfaces/server.js";
 import { dbInsert, dbMultiSelect, dbUpdate } from "../database.js";
 import { logger } from "../logger.js";
-import { redisDel, redisGet, redisSet } from "../redis.js";
 import { isModuleEnabled } from "../config.js";
+import { RedisService } from "../redis.js";
+
+const redisCore = app.get("redisCore") as RedisService
 
 const manageEntity = async (originId: number, originTable: string, action: "ban" | "unban", reason?: string): Promise<ResultMessagev2> => {
 
@@ -92,51 +94,51 @@ const manageEntity = async (originId: number, originTable: string, action: "ban"
 
         const redisKeyPrimary = `banned:${originTable}:${originId}`;
         if (action === "ban") {
-            await redisSet(redisKeyPrimary, JSON.stringify("1"), { EX: app.get("config.redis")["expireTime"] });
+            await redisCore.set(redisKeyPrimary, JSON.stringify("1"), { EX: app.get("config.redis")["expireTime"] });
 
             switch (originTable) {
                 case "registered":
                     const redisKeyHex = `banned:${originTable}:${result[0].hex}`;
-                    await redisSet(redisKeyHex, JSON.stringify("1"), { EX: app.get("config.redis")["expireTime"] });
+                    await redisCore.set(redisKeyHex, JSON.stringify("1"), { EX: app.get("config.redis")["expireTime"] });
                     break;
 
                 case "mediafiles":
                     const redisKeyHash = `banned:${originTable}:${result[0].original_hash}`;
-                    await redisSet(redisKeyHash, JSON.stringify("1"), { EX: app.get("config.redis")["expireTime"] });
+                    await redisCore.set(redisKeyHash, JSON.stringify("1"), { EX: app.get("config.redis")["expireTime"] });
                     break;
 
                 case "ips":
                     const redisKeyIp = `banned:${originTable}:${result[0].ip}`;
-                    await redisSet(redisKeyIp, JSON.stringify("1"), { EX: app.get("config.redis")["expireTime"] });
+                    await redisCore.set(redisKeyIp, JSON.stringify("1"), { EX: app.get("config.redis")["expireTime"] });
                     break;
 
                 case "events":
                     const redisKeyEvent = `banned:${originTable}:${result[0].event_id}`;
-                    await redisSet(redisKeyEvent, JSON.stringify("1"), { EX: app.get("config.redis")["expireTime"] });
+                    await redisCore.set(redisKeyEvent, JSON.stringify("1"), { EX: app.get("config.redis")["expireTime"] });
                     break;
             }
         } else if (action === "unban") {
-            await redisDel(redisKeyPrimary);
+            await redisCore.del(redisKeyPrimary);
 
             switch (originTable) {
                 case "registered":
                     const redisKeyHex = `banned:${originTable}:${result[0].hex}`;
-                    await redisDel(redisKeyHex);
+                    await redisCore.del(redisKeyHex);
                     break;
 
                 case "mediafiles":
                     const redisKeyHash = `banned:${originTable}:${result[0].original_hash}`;
-                    await redisDel(redisKeyHash);
+                    await redisCore.del(redisKeyHash);
                     break;
 
                 case "ips":
                     const redisKeyIp = `banned:${originTable}:${result[0].ip}`;
-                    await redisDel(redisKeyIp);
+                    await redisCore.del(redisKeyIp);
                     break;
 
                 case "events":
                     const redisKeyEvent = `banned:${originTable}:${result[0].event_id}`;
-                    await redisDel(redisKeyEvent);
+                    await redisCore.del(redisKeyEvent);
                     break;
             }
         }
@@ -196,13 +198,13 @@ const isEntityBanned = async (id: string, table: string): Promise<boolean> => {
     if (id === "" || table === "") return true;
 
     // If the cache is empty, we need to fill it with the database status
-    if (await redisGet("banned:cache") === null) {
+    if (await redisCore.get("banned:cache") === null) {
         await loadBannedEntities();
         isEntityBanned(id, table);
     }
 
     const redisKey = `banned:${table}:${id}`;
-    const cachedStatus = await redisGet(redisKey);
+    const cachedStatus = await redisCore.get(redisKey);
     if (cachedStatus !== null) {
         logger.debug(`isEntityBanned - Content is banned: ${id} | ${table}`);
         return true;
@@ -242,14 +244,14 @@ const loadBannedEntities = async (): Promise<void> => {
 
     for (const entity of bannedEntities) {
         const redisKeyPrimary = `banned:${entity.origintable}:${entity.originid}`;
-        await redisSet(redisKeyPrimary, JSON.stringify("1"), { EX: app.get("config.redis")["expireTime"] });
+        await redisCore.set(redisKeyPrimary, JSON.stringify("1"), { EX: app.get("config.redis")["expireTime"] });
 
         switch (entity.origintable) {
             case "registered":
                 const regResult = await dbMultiSelect(["hex"], "registered", "id = ?", [entity.originid], true);
                 if (regResult.length > 0) {
                     const redisKeyHex = `banned:registered:${regResult[0].hex}`;
-                    await redisSet(redisKeyHex, JSON.stringify("1"), { EX: app.get("config.redis")["expireTime"] });
+                    await redisCore.set(redisKeyHex, JSON.stringify("1"), { EX: app.get("config.redis")["expireTime"] });
                 }
                 break;
 
@@ -257,7 +259,7 @@ const loadBannedEntities = async (): Promise<void> => {
                 const mediaResult = await dbMultiSelect(["original_hash"], "mediafiles", "id = ?", [entity.originid], true);
                 if (mediaResult.length > 0) {
                     const redisKeyHash = `banned:mediafiles:${mediaResult[0].original_hash}`;
-                    await redisSet(redisKeyHash, JSON.stringify("1"), { EX: app.get("config.redis")["expireTime"] });
+                    await redisCore.set(redisKeyHash, JSON.stringify("1"), { EX: app.get("config.redis")["expireTime"] });
                 }
                 break;
 
@@ -265,7 +267,7 @@ const loadBannedEntities = async (): Promise<void> => {
                 const ipResult = await dbMultiSelect(["ip"], "ips", "id = ?", [entity.originid], true);
                 if (ipResult.length > 0) {
                     const redisKeyIp = `banned:ips:${ipResult[0].ip}`;
-                    await redisSet(redisKeyIp, JSON.stringify("1"), { EX: app.get("config.redis")["expireTime"] });
+                    await redisCore.set(redisKeyIp, JSON.stringify("1"), { EX: app.get("config.redis")["expireTime"] });
                 }
                 break;
 
@@ -273,7 +275,7 @@ const loadBannedEntities = async (): Promise<void> => {
                 const eventResult = await dbMultiSelect(["event_id"], "events", "id = ?", [entity.originid], true);
                 if (eventResult.length > 0) {
                     const redisKeyEvent = `banned:events:${eventResult[0].event_id}`;
-                    await redisSet(redisKeyEvent, JSON.stringify("1"), { EX: app.get("config.redis")["expireTime"] });
+                    await redisCore.set(redisKeyEvent, JSON.stringify("1"), { EX: app.get("config.redis")["expireTime"] });
                 }
                 break;
 
@@ -283,7 +285,7 @@ const loadBannedEntities = async (): Promise<void> => {
         }
     }
 
-    await redisSet("banned:cache", JSON.stringify("1"), { EX: app.get("config.redis")["expireTime"] });
+    await redisCore.set("banned:cache", JSON.stringify("1"), { EX: app.get("config.redis")["expireTime"] });
 };
 
 

@@ -3,7 +3,7 @@ import { logger } from "../lib/logger";
 import * as NIP01 from "../lib/nostr/NIP01.js";
 import * as NIP19 from "../lib/nostr/NIP19.js";
 import * as registered from "../lib/register.js";
-import { redisPluginsClient } from "../lib/redis.js";
+import { RedisService } from "../lib/redis.js";
 import { Event } from "nostr-tools";
 
 interface pluginData {
@@ -13,10 +13,10 @@ interface pluginData {
     event?: Event;
 }
 
-export interface pluginContext {
+interface pluginContext {
     app: Application
     logger: typeof logger;
-    redis: typeof redisPluginsClient;
+    redis: RedisService;
     nostr: {
         NIP01: typeof NIP01;
         NIP19: typeof NIP19;
@@ -32,4 +32,4 @@ interface plugin {
     execute: (input: pluginData, context: pluginContext) => Promise<boolean> | boolean;
 }
 
-export { pluginData, plugin };
+export { pluginData, plugin, pluginContext };

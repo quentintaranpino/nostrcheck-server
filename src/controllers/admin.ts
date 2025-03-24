@@ -12,7 +12,6 @@ import { dbDelete, dbInsert, dbMultiSelect, dbUpdate } from "../lib/database.js"
 import { allowedFieldNames, allowedFieldNamesAndValues, allowedTableNames, moduleDataReturnMessage, moduleDataKeys } from "../interfaces/admin.js";
 import { parseAuthHeader} from "../lib/authorization.js";
 import { isModuleEnabled, updateLocalConfigKey } from "../lib/config.js";
-import { redisDel, redisFlushAll, redisHashSet } from "../lib/redis.js";
 import { getFileMimeType } from "../lib/media.js";
 import { npubToHex } from "../lib/nostr/NIP19.js";
 import { dbCountModuleData, dbCountMonthModuleData, dbSelectModuleData } from "../lib/admin.js";
@@ -27,6 +26,9 @@ import { deleteFile } from "../lib/storage/core.js";
 import { isIpAllowed } from "../lib/security/ips.js";
 import { eventStore } from "../interfaces/relay.js";
 import { getEventById } from "../lib/relay/utils.js";
+import { RedisService } from "../lib/redis.js";
+
+const redisCore = app.get("redisCore") as RedisService
 
 let hits = 0;
 /**
@@ -204,7 +206,7 @@ const updateDBRecord = async (req: Request, res: Response): Promise<Response> =>
             redisKey = `ips:${ip[0].ip}`;
         }
         
-        await redisHashSet(redisKey, { [req.body.field]: req.body.value });
+        await redisCore.hashSet(redisKey, { [req.body.field]: req.body.value });
         
         const result : ResultMessagev2 = {
             status: "success",
@@ -596,7 +598,7 @@ const deleteDBRecord = async (req: Request, res: Response): Promise<Response> =>
         }
     }
 
-    // Special case for relay events, must be deleted from the relay memoryDB
+    // Special case for relay events, must be deleted from the relay sharedDB
     if (table == "events") {
         const eventData = await dbMultiSelect(["event_id"], "events", "id = ?", [req.body.id]);
         if (eventData.length == 0) {
@@ -629,7 +631,7 @@ const deleteDBRecord = async (req: Request, res: Response): Promise<Response> =>
         const ip = await dbMultiSelect(["ip"], table, "id = ?", [req.body.id]);
         redisKey = `ips:${ip[0].ip}`;
     }
-    await redisDel(redisKey);
+    await redisCore.del(redisKey);
 
     // Unban the record if it was banned and delete it from banned redis cache.
     await unbanEntity(req.body.id, table);
@@ -774,7 +776,7 @@ const insertDBRecord = async (req: Request, res: Response): Promise<Response> =>
 
     // Update redis cache
     const redisKey = `${table}:${insert}`;
-    await redisHashSet(redisKey, req.body.row);
+    await redisCore.hashSet(redisKey, req.body.row);
 
     const result : ResultMessagev2 = {
         status: "success",
@@ -862,7 +864,7 @@ const updateSettings = async (req: Request, res: Response): Promise<Response> =>
 
     // If the setting is expireTime from redis we flush redis cache
     if (req.body.name == "redis.expireTime") {
-        const flushResult = await redisFlushAll();
+        const flushResult = await redisCore.flushAll();
         if (flushResult)logger.info(`updateSettings - Redis cache flushed`, "|", reqInfo.ip);
     }
 

@@ -6,8 +6,10 @@ import { nostrAddressResult } from "../interfaces/register.js";
 import { ResultMessagev2 } from "../interfaces/server.js";
 import app from "../app.js";
 import { isModuleEnabled } from "../lib/config.js";
-import { redisGetJSON, redisSet } from "../lib/redis.js";
 import { isIpAllowed } from "../lib/security/ips.js";
+import { RedisService } from "../lib/redis.js";
+
+const redisCore = app.get("redisCore") as RedisService
 
 const getNostraddress = async (req: Request, res: Response): Promise<Response> => {
 
@@ -37,7 +39,7 @@ const getNostraddress = async (req: Request, res: Response): Promise<Response> =
 		return res.status(400).send(result);
 	}
 
-	const cached = await redisGetJSON<{ names: Record<string, string> }>(`nostraddress:${name}-${servername}`);
+	const cached = await redisCore.getJSON(`nostraddress:${name}-${servername}`) as { names: Record<string, string> } | null;
 	if (cached && cached.names[name]) {
 		logger.info(`getNostraddress - ${name} : ${cached.names[name]} | cached:`, true, reqInfo.ip);
 		return res.status(200).send(cached);
@@ -59,7 +61,7 @@ const getNostraddress = async (req: Request, res: Response): Promise<Response> =
 		}
 	};
 
-	await redisSet(`nostraddress:${name}-${servername}`, JSON.stringify(result), {
+	await redisCore.set(`nostraddress:${name}-${servername}`, JSON.stringify(result), {
 		EX: app.get("config.redis")["expireTime"],
 	});
 	logger.debug(`getNostraddress - Setting cache for ${name} : ${result.names[name]}`, reqInfo.ip);

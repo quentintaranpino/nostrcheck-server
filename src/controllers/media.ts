@@ -22,7 +22,6 @@ import { PrepareNIP96_event, PrepareNIP96_listEvent } from "../lib/nostr/NIP96.j
 import { generateQRCode, getNewDate } from "../lib/utils.js";
 import { generateBlurhash, generatefileHashfrombuffer, hashString } from "../lib/hash.js";
 import { isModuleEnabled } from "../lib/config.js";
-import { redisDel, redisGet, redisSet } from "../lib/redis.js";
 import { deleteFile, getFilePath } from "../lib/storage/core.js";
 import { saveTmpFile } from "../lib/storage/local.js";
 import { Readable } from "stream";
@@ -37,6 +36,9 @@ import { mirrorFile } from "../lib/blossom/BUD04.js";
 import { executePlugins } from "../lib/plugins/core.js";
 import { setAuthCookie } from "../lib/frontend.js";
 import { isIpAllowed } from "../lib/security/ips.js";
+import { RedisService } from "../lib/redis.js";
+
+const redisCore = app.get("redisCore") as RedisService
 
 const uploadMedia = async (req: Request, res: Response, version:string): Promise<Response> => {
 
@@ -951,7 +953,7 @@ const getMediabyURL = async (req: Request, res: Response) => {
 	}
 
 	// Check if the file is cached, if not, we check the database for the file.
-	const cachedStatus = await redisGet(req.params.filename + "-" + req.params.pubkey);
+	const cachedStatus = await redisCore.get(req.params.filename + "-" + req.params.pubkey);
 	if (cachedStatus === null || cachedStatus === undefined) {
 
 		// Standard gallery compatibility (pubkey/file.ext or pubkey/file)
@@ -1069,7 +1071,7 @@ const getMediabyURL = async (req: Request, res: Response) => {
 		}
 		
 		if (!adminRequest && loggedPubkey == "") {
-			await redisSet(req.params.filename + "-" + req.params.pubkey, "1", {EX: app.get("config.redis")["expireTime"]});
+			await redisCore.set(req.params.filename + "-" + req.params.pubkey, "1", {EX: app.get("config.redis")["expireTime"]});
 		}
 
 	}
@@ -1421,7 +1423,7 @@ const updateMediaVisibility = async (req: Request, res: Response, version: strin
 	logger.info(`updateMediaVisibility - Media visibility updated successfully`, "|", reqInfo.ip);
 
 	// Clear redis cache
-	await redisDel(fileData[0].filename + "-" + eventHeader.pubkey);
+	await redisCore.del(fileData[0].filename + "-" + eventHeader.pubkey);
 	
 	if (version != "v2") return res.status(200).send({"result": true, "description" : "Media visibility has changed with value " + req.params.visibility});
 	const result: ResultMessagev2 = {

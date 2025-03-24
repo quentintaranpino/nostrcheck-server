@@ -15,8 +15,9 @@ import { isEntityBanned } from "./security/banned.js";
 import { getClientIp } from "./security/ips.js";
 import app from "../app.js";
 import { npubToHex } from "./nostr/NIP19.js";
-import { redisDel, redisGet, redisGetJSON, redisSet } from "./redis.js";
+import { RedisService } from "./redis.js";
 
+const redisCore = app.get("redisCore") as RedisService
 
 /**
  * Parses the authorization header and checks if it is valid. (apikey, authkey, NIP98 or BUD01)
@@ -210,7 +211,7 @@ const isAuthkeyValid = async (authString: string, checkAdminPrivileges: boolean 
 		} 
 
         if (checkActive) {
-			const redisData = await redisGetJSON<{ isActive: boolean }> (`activeStatus:${decoded.identifier}`);
+			const redisData = await redisCore.getJSON<{ isActive: boolean }> (`activeStatus:${decoded.identifier}`);
 			const isActive = redisData?.isActive ?? true;
             if (!isActive) {
 				logger.warn(`isAuthkeyValid - Unauthorized request, user not active. Authkey: ${authString}`);
@@ -301,7 +302,7 @@ const generateOTC = async (pubkey: string) : Promise<boolean> => {
     const otc = Math.floor(100000 + Math.random() * 900000).toString()
 	const hashedOTC = await hashString(otc, 'otc');
 	
-	await redisSet(`otc:${hashedOTC}`, JSON.stringify({ pubkey }), { EX: 300 });
+	await redisCore.set(`otc:${hashedOTC}`, JSON.stringify({ pubkey }), { EX: 300 });
 	const DM = await sendMessage(`Your one-time code: ${otc}`, pubkey);
 	if(!DM) return false;
 
@@ -317,12 +318,12 @@ const generateOTC = async (pubkey: string) : Promise<boolean> => {
 const verifyOTC = async (otc: string): Promise<string> => {
 
     const hashedOTC = await hashString(otc, 'otc');
-    const storedData = await redisGet(`otc:${hashedOTC}`);
+    const storedData = await redisCore.get(`otc:${hashedOTC}`);
     
     if (!storedData) return "";
 
 	const { pubkey } = JSON.parse(storedData);
-    await redisDel(`otc:${hashedOTC}`);
+    await redisCore.del(`otc:${hashedOTC}`);
     return pubkey;
 }
 

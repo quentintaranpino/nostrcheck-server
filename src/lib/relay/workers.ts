@@ -9,13 +9,13 @@ import app from "../../app.js";
 import { isModuleEnabled } from "../config.js";
 import { deleteEvents, storeEvents } from "./database.js";
 import { encodeChunk, getEventsByTimerange } from "./utils.js";
+import { RedisConfig } from "../../interfaces/redis.js";
 
 // Workers
 const relayWorkers = Number(app.get("config.relay")["workers"]);
 const workersDir = path.resolve('./dist/lib/relay/workers');
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { _getEvents } from "./workers/getEvents.js";
-import { get } from "config";
   
 const relayWorker = async (task: RelayJob): Promise<unknown> => {
   try {
@@ -387,17 +387,17 @@ const getEvents = async (filters: any, maxLimit: number, chunks: SharedChunk[]):
 
     isHeavy ? pendingHeavyTasks.set(taskId, taskData) : pendingLightTasks.set(taskId, taskData);
 
-    const redisConfig = {
+    const redisConfig : RedisConfig= {
       host: app.get("config.redis")["host"],
       port: app.get("config.redis")["port"],
       user: app.get("config.redis")["user"],
       password: app.get("config.redis")["password"],
-      database: 2 // database "2" for events cache
+      defaultDB: 2 // database "2" for relay DB
     };
 
     const getEventsWorker = isHeavy ? heavyGetEventsPool : lightGetEventsPool
 
-    await getEventsWorker.exec("initRedis", [redisConfig]);
+    await getEventsWorker.exec("initWorker", [redisConfig]);
 
     const result =  await getEventsWorker.exec("_getEvents", [
       JSON.parse(JSON.stringify(filters)),

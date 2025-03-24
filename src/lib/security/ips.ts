@@ -1,4 +1,3 @@
-import { redisHashGetAll, redisHashIncrementBy, redisHashSet, redisScanKeys, redisSlidingWindowIncrement, redisSlidingWindowOldest } from "../redis.js";
 import { dbUpdate, dbMultiSelect, dbUpsert } from "../database.js";
 import { logger } from "../logger.js";
 import app from "../../app.js";
@@ -6,8 +5,11 @@ import { banEntity, isEntityBanned } from "./banned.js";
 import { Request } from "express";
 import { ipInfo } from "../../interfaces/security.js";
 import { isModuleEnabled } from "../config.js";
+import { RedisService } from "../redis.js";
 
 const ipUpdateBatch = new Map<string, { dbid: string; firstseen: number; lastseen: number; reqcountIncrement: number }>();
+const redisCore = app.get("redisCore") as RedisService
+
 
 /**
  * Logs a new IP address in the database and Redis.
@@ -37,13 +39,13 @@ const logNewIp = async      (ip: string):
     const now = Date.now();
     const redisKey = `ips:${ip}`;
     const redisWindowKey = `ips:window:${ip}`;
-    const reqcount = await redisSlidingWindowIncrement(redisWindowKey, now, 60000, 70);
-    const oldestTimestamp = await redisSlidingWindowOldest(redisWindowKey);
+    const reqcount = await redisCore.slidingWindowIncrement(redisWindowKey, now, 60000, 70);
+    const oldestTimestamp = await redisCore.slidingWindowOldest(redisWindowKey);
     const firstseenValue = oldestTimestamp ? oldestTimestamp.toString() : now.toString();
 
     logger.debug(`logNewIp - IP: ${ip} | reqcount: ${reqcount}, oldestTimestamp: ${oldestTimestamp}, firstseen: ${firstseenValue}`);
     
-    const redisData = await redisHashGetAll(redisKey);
+    const redisData = await redisCore.hashGetAll(redisKey);
 
     if (Object.keys(redisData).length === 0 || redisData.dbid === undefined) {
         const ipDbData = await dbMultiSelect(["id", "active", "checked", "infractions", "comments"], "ips", "ip = ?", [ip], true);
@@ -67,7 +69,7 @@ const logNewIp = async      (ip: string):
         const infractions = ipDbData[0].infractions ? ipDbData[0].infractions.toString() : "0";
         const comments = ipDbData[0].comments ? ipDbData[0].comments.toString() : "";
   
-        await redisHashSet(redisKey, {
+        await redisCore.hashSet(redisKey, {
             dbid: ipDbData[0].id,
             active: ipDbData[0].active ? "1" : "0",
             checked: ipDbData[0].checked ? "1" : "0",
@@ -92,7 +94,7 @@ const logNewIp = async      (ip: string):
         };
     
     } else {
-        await redisHashSet(redisKey, { 
+        await redisCore.hashSet(redisKey, { 
             firstseen: firstseenValue, 
             lastseen: now.toString(), 
             reqcount: reqcount.toString() 
@@ -168,8 +170,8 @@ const isIpAllowed = async (req: Request | string, maxRequestMinute : number = ap
         logger.debug(`isIpAllowed - Possible abuse detected from IP: ${clientIp} | Infraction count: ${infractions}, reqcount: ${reqcount}`);
 
         // Update infractions and ban it for a minute
-        await redisHashSet(`ips:${clientIp}`, { infractions: Number(infractions)+1 }, app.get("config.redis")["expireTime"]);
-        await redisHashSet(`banned:ips:${clientIp}`, { banned: 1 }, 60);
+        await redisCore.hashSet(`ips:${clientIp}`, { infractions: Number(infractions)+1 }, app.get("config.redis")["expireTime"]);
+        await redisCore.hashSet(`banned:ips:${clientIp}`, { banned: 1 }, 60);
 
         if (!infractions) {
             logger.info(`isIpAllowed - Banning IP due to repeated abuse: ${clientIp}`);
@@ -196,13 +198,13 @@ setInterval(async () => {
     if (!isModuleEnabled("security", app)) return;
 
     try {
-        const ips = await redisScanKeys("ips:*");
+        const ips = await redisCore.scanKeys("ips:*");
         if (!ips || ips.length === 0) return;
 
         await Promise.all(
             ips.map(async (ip) => {
                 try {
-                    const redisData = await redisHashGetAll(ip);
+                    const redisData = await redisCore.hashGetAll(ip);
                     if (!redisData || !redisData.dbid || redisData.infractions === '0') return;
 
                     const dbData = await dbMultiSelect(["infractions"], "ips", "id = ?", [redisData.dbid], true);
@@ -217,7 +219,7 @@ setInterval(async () => {
                     if (!updateSuccess) {
                         logger.error(`ipsLib - Interval - Error processing IP '${ip}': Error updating IP infractions`);
                     } else {
-                        await redisHashSet(ip, { infractions: 0 }, app.get("config.redis")["expireTime"]);
+                        await redisCore.hashSet(ip, { infractions: 0 }, app.get("config.redis")["expireTime"]);
                     }
                 } catch (error) {
                     logger.error(`ipsLib - Interval - Error processing IP '${ip}': ${error}`);

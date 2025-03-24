@@ -2,36 +2,33 @@ import { Filter, matchFilter, Event } from "nostr-tools";
 import workerpool from "workerpool";
 import { createFilterHash, decodeEvent, decodePartialEvent } from "../utils.js";
 import { MetadataEvent, SharedChunk } from "../../../interfaces/relay.js";
-import { createClient, RedisClientType } from "redis";
+import { RedisConfig } from "../../../interfaces/redis.js";
+import { RedisService } from "../../redis.js";
 
 const FILTER_CACHE_TTL = 120000; 
 
-let redisClient: RedisClientType | null = null;
-
-interface RedisConfig {
-  host: string;
-  port: string;
-  user: string;
-  password: string;
-  database: number;
-}
+let redisWorker: RedisService | null = null;
 
 /**
- * Initializes the Redis client for the worker.
- *
- * @param redisConfig - Configuration to connect to Redis.
- * @returns A promise that resolves when the Redis client is initialized.
- */
-const initRedis = async (redisConfig: RedisConfig): Promise<void> => {
-  if (!redisClient) {
-    redisClient = createClient({
-      url: `redis://${redisConfig.user}:${redisConfig.password}@${redisConfig.host}:${redisConfig.port}`,
-      database: redisConfig.database,
-    });
-    await redisClient.connect();
-  }
-};
+ * Initializes the worker with a Redis connection.
+ * 
+**/
+const initWorker = async (redisConfig: RedisConfig): Promise<void> => {
 
+  if (redisWorker !== null) {
+    return;
+  }
+
+  redisWorker = new RedisService({
+    host : process.env.REDIS_HOST || redisConfig.host,
+    port : process.env.REDIS_PORT || redisConfig.port,
+    user : process.env.REDIS_USER || redisConfig.user,
+    password : process.env.REDIS_PASSWORD || redisConfig.password,
+    defaultDB : redisConfig.defaultDB
+    });
+  await redisWorker.init();
+
+};
 
 /**
  * Generates a cache key for a shared memory chunk.
@@ -59,7 +56,7 @@ const filterRelevantChunks = async (
     return true;
   });
 
-  if (!redisClient) {
+  if (!redisWorker) {
     return [];
   }
 
@@ -69,7 +66,7 @@ const filterRelevantChunks = async (
 
     for (const chunk of timeFilteredChunks) {
       const cacheKey = getChunkCacheKey(chunk);
-      const cachedPubkeys = await redisClient.get("pubkeys:" + cacheKey);
+      const cachedPubkeys = await redisWorker.get("pubkeys:" + cacheKey);
 
       if (await isChunkExcluded(chunk, filter.authors)) {
         continue; 
@@ -113,11 +110,11 @@ const getCachedEventHeaders = async (
     id: string;
   };
 }[]> => {
-  if (!redisClient) {
+  if (!redisWorker) {
     return [];
   }
   const cacheKey = `chunkheaders:${getChunkCacheKey(chunk)}`;
-    const cachedHeaders = await redisClient.get(cacheKey);
+    const cachedHeaders = await redisWorker.get(cacheKey);
     if (cachedHeaders) {
       return JSON.parse(cachedHeaders) as {
         offset: number;
@@ -131,7 +128,7 @@ const getCachedEventHeaders = async (
     }
 
   const headers = decodePartialEvent(chunk);
-  await redisClient.set(cacheKey, JSON.stringify(headers), { EX: FILTER_CACHE_TTL / 1000 });
+  await redisWorker.set(cacheKey, JSON.stringify(headers), { EX: FILTER_CACHE_TTL / 1000 });
   return headers;
 };
 
@@ -145,9 +142,9 @@ const isChunkExcluded = async (
   chunk: SharedChunk,
   authors: string[],
 ): Promise<boolean> => {
-  if (!redisClient) return false;
+  if (!redisWorker) return false;
   const exclusionKey = chunkExclusionCacheKey(chunk, authors);
-  const excluded = await redisClient.get(exclusionKey);
+  const excluded = await redisWorker.get(exclusionKey);
   return excluded === '1';
 };
 
@@ -155,9 +152,9 @@ const cacheChunkExclusion = async (
   chunk: SharedChunk,
   authors: string[],
 ): Promise<void> => {
-  if (!redisClient) return;
+  if (!redisWorker) return;
   const exclusionKey = chunkExclusionCacheKey(chunk, authors);
-  await redisClient.set(exclusionKey, '1', { EX: 600 }); 
+  await redisWorker.set(exclusionKey, '1', { EX: 600 }); 
 };
 
 /**
@@ -173,7 +170,7 @@ const scanRecentChunks = async (
   filter: Filter,
   maxAgeSeconds: number
 ): Promise<Event[]> => {
-  if (!redisClient) return [];
+  if (!redisWorker) return [];
 
   const now = Math.floor(Date.now() / 1000);
   const since = now - maxAgeSeconds;
@@ -230,7 +227,7 @@ const _getEvents = async (
   timeout: number 
 ): Promise<Event[]> => {
 
-  if (!redisClient) {
+  if (!redisWorker) {
     return [];
   }
 
@@ -249,7 +246,7 @@ const _getEvents = async (
     const searchQuery = rawSearch.length >= 3 ? rawSearch.toLowerCase() : null;
 
     const filterHash = createFilterHash(filter);
-    const cachedEntry = await redisClient.get("filter:" + filterHash);
+    const cachedEntry = await redisWorker.get("filter:" + filterHash);
 
     if (cachedEntry && cachedEntry !== '[]') {
       const cachedResults = JSON.parse(cachedEntry);
@@ -368,14 +365,13 @@ const _getEvents = async (
     finalResults.push(...eventsToAdd.slice(0, effectiveLimit));
 
     if (eventsToAdd.length > 0 && (!cachedEntry || JSON.parse(cachedEntry).length < eventsToAdd.length)) {
-      await redisClient.set("filter:" + filterHash, JSON.stringify(eventsToAdd), { EX: FILTER_CACHE_TTL / 1000 });
+      await redisWorker.set("filter:" + filterHash, JSON.stringify(eventsToAdd), { EX: FILTER_CACHE_TTL / 1000 });
     }
   }
 
   return Array.from(new Map(finalResults.map(event => [event.id, event])).values());
 };
 
-
-workerpool.worker({_getEvents: _getEvents, initRedis: initRedis});
+workerpool.worker({initWorker: initWorker, _getEvents: _getEvents});
 
 export { _getEvents };

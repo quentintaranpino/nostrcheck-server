@@ -1,17 +1,30 @@
-import { getLocalFolder } from "../storage/local.js";
-import { isModuleEnabled } from "../config.js";
+
 import * as fs from 'fs';
-import { logger } from "../logger.js";
+import { Application } from "express";
 import path from 'path';
 import { pathToFileURL } from 'url';
+import { logger } from "../logger.js";
 import { plugin, pluginContext, pluginData } from "../../interfaces/plugins.js";
-import { Application } from "express";
 import * as NIP01 from "../nostr/NIP01.js";
 import * as NIP19 from "../nostr/NIP19.js";
 import * as registered from "../register.js";
-import { redisPluginsClient } from "../redis.js";
+import { RedisService } from "../redis.js";
+import { getLocalFolder } from "../storage/local.js";
+import { isModuleEnabled } from "../config.js";
+
+let redisPlugins: RedisService;
 
 const initPlugins = async (app: Application): Promise<boolean> => {
+
+    redisPlugins = new RedisService({
+        host: process.env.REDIS_HOST || app.get("config.redis")["host"],
+        port: process.env.REDIS_PORT || app.get("config.redis")["port"],
+        user: process.env.REDIS_USER || app.get("config.redis")["user"],
+        password: process.env.REDIS_PASSWORD || app.get("config.redis")["password"],
+        defaultDB: 1 
+    });
+    await redisPlugins.init();
+
     app.set("plugins", []);
 
     if (!isModuleEnabled("plugins", app)) {
@@ -75,7 +88,7 @@ const executePlugins = async (input: pluginData, app: Application, moduleFilter:
     const context: pluginContext = {
         app: app,
         logger: logger,
-        redis: redisPluginsClient,
+        redis: redisPlugins,
         nostr: {
             NIP01: NIP01,
             NIP19: NIP19

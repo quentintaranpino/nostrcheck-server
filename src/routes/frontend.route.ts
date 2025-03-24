@@ -17,7 +17,7 @@ import { isPubkeyValid } from "../lib/authorization.js";
 import { limiter } from "../lib/security/core.js";
 import { isFirstUse } from "../lib/frontend.js";
 import { getClientIp } from "../lib/security/ips.js";
-import { redisDel } from "../lib/redis.js";
+import { RedisService } from "../lib/redis.js";
 
 export const loadFrontendEndpoint = async (app: Application, version: string): Promise<void> => {
 
@@ -141,6 +141,7 @@ export const loadFrontendEndpoint = async (app: Application, version: string): P
 		}
 	});
 
+
 	// Logout
 	app.get("/api/" +  version + "/logout", limiter(), (req, res) => {
 		const identifier = req.session.identifier;
@@ -148,10 +149,10 @@ export const loadFrontendEndpoint = async (app: Application, version: string): P
 			if (err) {
 				logger.error("Failed to destroy session:", err);
 			}
-
+			const redisCore = app.get("redisCore") as RedisService
 			res.clearCookie("connect.sid");
 			res.clearCookie("authkey");
-			await redisDel(`activeStatus:${identifier}`);
+			await redisCore.del(`activeStatus:${identifier}`);
 
 			res.redirect("/api/" +  version + "/login");
 		});

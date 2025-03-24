@@ -9,8 +9,11 @@ import { isModuleEnabled } from "../lib/config.js";
 import app from "../app.js";
 import { setAuthCookie } from "../lib/frontend.js";
 import { PoolConnection} from "mysql2/promise";
-import { redisDel, redisGetJSON, redisSet } from "../lib/redis.js";
 import { isIpAllowed } from "../lib/security/ips.js";
+import { RedisService } from "../lib/redis.js";
+
+const redisCore = app.get("redisCore") as RedisService
+
 
 const redirectlightningddress = async (req: Request, res: Response): Promise<Response> => {
 
@@ -73,7 +76,7 @@ const redirectlightningddress = async (req: Request, res: Response): Promise<Res
 	try {
 
 		//Check if the name is cached
-		const cached = await redisGetJSON<{ lightningserver: string; lightninguser: string }>(`lightningaddress:${name}-${servername}`);
+		const cached = await redisCore.getJSON(`lightningaddress:${name}-${servername}`) as { lightningserver: string; lightninguser: string };
 		if (cached && cached.lightningserver && cached.lightninguser) {
 		
 			isCached = true;
@@ -116,7 +119,7 @@ const redirectlightningddress = async (req: Request, res: Response): Promise<Res
 	}
 
 	// Store in Redis
-	await redisSet(`lightningaddress:${name}-${servername}`, JSON.stringify(lightningdata), {
+	await redisCore.set(`lightningaddress:${name}-${servername}`, JSON.stringify(lightningdata), {
 		EX: app.get("config.redis")["expireTime"],
 	});
 	logger.debug(`redirectlightningddress - Lightning redirect cached:`, name, "->", `${lightningdata.lightninguser}@${lightningdata.lightningserver}`);
@@ -235,7 +238,7 @@ const updateLightningAddress = async (req: Request, res: Response): Promise<Resp
 	if (rowstemp[0] != undefined) {
 
 		//Delete redis cache
-		const deletecache = await redisDel("lightningaddress:" + rowstemp[0].username + "-" + rowstemp[0].domain);
+		const deletecache = await redisCore.del("lightningaddress:" + rowstemp[0].username + "-" + rowstemp[0].domain);
 		if (deletecache) {
 			logger.debug(`updateLightningAddress - Redis cache cleared`, "|", reqInfo.ip);
 		}
@@ -345,7 +348,7 @@ const deleteLightningAddress = async (req: Request, res: Response): Promise<Resp
 	if (rowstemp[0] != undefined) {
 
 		//Delete redis cache
-		const deletecache = await redisDel("lightningaddress:" + rowstemp[0].username + "-" + rowstemp[0].domain);
+		const deletecache = await redisCore.del("lightningaddress:" + rowstemp[0].username + "-" + rowstemp[0].domain);
 		if (deletecache) {
 			logger.debug(`deleteLightningAddress - Redis cache cleared`, "|", reqInfo.ip);
 		}
