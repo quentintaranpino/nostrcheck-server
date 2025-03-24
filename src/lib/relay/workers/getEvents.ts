@@ -366,7 +366,7 @@ const _getEvents = async (
 
    finalResults.push(...eventsToAdd.slice(0, effectiveLimit));
 
-   if (eventsToAdd.length > 0 && !cachedEntryRaw) {
+   if (!cachedEntryRaw) {
     const cacheEntry = {
       timestamp: Math.floor(Date.now() / 1000),
       data: eventsToAdd,
