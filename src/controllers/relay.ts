@@ -671,7 +671,9 @@ const getRelayStatus = async (req: Request, res: Response): Promise<Response> =>
     heavyTasksLength: getRelayHeavyWorkerLength() || 0,
     lightTasksLength: getRelayLightWorkerLength() || 0,
     heavyTasks: getPendingHeavyTasks() || [],
-    lightTasks: getPendingLightTasks() || []
+    lightTasks: getPendingLightTasks() || [],
+    pendingEvents: eventStore.pending.size || 0,
+    pendingDeleteEvents: eventStore.pendingDelete.size || 0
 
   }
 

@@ -115,6 +115,8 @@ interface RelayStatusMessage extends ResultMessagev2 {
   lightTasksLength: number;
   heavyTasks: PendingGetEventsTask[];
   lightTasks: PendingGetEventsTask[];
+  pendingEvents: number;
+  pendingDeleteEvents: number;
 }
 
 interface PendingGetEventsTask {

@@ -177,6 +177,30 @@
             timeout: 5000,
         }); %>
 
+        <%- include('../dashcard', { 
+            dashcardId: 'relayPendingEvents', 
+            dashcardName: 'Pending events', 
+            dashcardDataKey: 'relay', 
+            icon: 'hourglass', 
+            link: '', 
+            action: 'status', 
+            field: 'pendingEvents', 
+            showField: false, 
+            timeout: 5000,
+        }); %>
+
+        <%- include('../dashcard', { 
+            dashcardId: 'relayPendingDeleteEvents', 
+            dashcardName: 'Pending delete events', 
+            dashcardDataKey: 'relay', 
+            icon: 'hourglass', 
+            link: '', 
+            action: 'status', 
+            field: 'pendingDeleteEvents', 
+            showField: false, 
+            timeout: 5000,
+        }); %>
+
 
 
     <% } %>
