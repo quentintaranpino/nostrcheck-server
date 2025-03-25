@@ -1,6 +1,6 @@
 import fastq, { queueAsPromised } from "fastq";
-import { Event, Filter } from "nostr-tools";
-import workerpool, { worker } from "workerpool";
+import { Filter } from "nostr-tools";
+import workerpool from "workerpool";
 import path from "path";
 
 import { logger } from "../logger.js";
@@ -8,7 +8,7 @@ import { CHUNK_SIZE, eventStore, MetadataEvent, PendingGetEventsTask, RelayJob, 
 import app from "../../app.js";
 import { isModuleEnabled } from "../config.js";
 import { deleteEvents, storeEvents } from "./database.js";
-import { dynamicTimeout, encodeChunk, getEventsByTimerange } from "./utils.js";
+import { decodeChunk, dynamicTimeout, encodeChunk, getEventsByTimerange, updateChunk } from "./utils.js";
 import { RedisConfig } from "../../interfaces/redis.js";
 
 // Workers
@@ -149,21 +149,19 @@ const persistEvents = async () => {
 
     for (const chunk of affectedChunks) {
       await new Promise(resolve => setImmediate(resolve));
-      const newChunkEvents = await getEventsByTimerange(
-        chunk.timeRange.min,
-        chunk.timeRange.max,
-        eventStore,
-        entry => entry.processed === true
+      const newChunkEvents = eventsToPersist.filter(
+        event => event.created_at >= chunk.timeRange.min && event.created_at <= chunk.timeRange.max
       );
+    
       if (newChunkEvents.length > 0) {
-        const affectedChunk = await encodeChunk(newChunkEvents);
+        const updatedChunk = await updateChunk(chunk, newChunkEvents);
         const idx = eventStore.sharedDBChunks.findIndex(c => c === chunk);
         if (idx !== -1) {
-          eventStore.sharedDBChunks[idx] = affectedChunk;
-
-          for (let position = 0; position < newChunkEvents.length; position++) {
-            await new Promise(resolve => setImmediate(resolve));
-            const event = newChunkEvents[position];
+          eventStore.sharedDBChunks[idx] = updatedChunk;
+    
+          const updatedEvents = await decodeChunk(updatedChunk);
+          for (let position = 0; position < updatedEvents.length; position++) {
+            const event = updatedEvents[position];
             const entry = eventStore.eventIndex.get(event.id);
             if (entry) {
               entry.chunkIndex = idx;
@@ -316,18 +314,17 @@ const unpersistEvents = async () => {
 // interval to persist and unpersist events
 const workerInterval = async () => {
 
-  if (!eventStore || !isModuleEnabled("relay", app)) {
+  if (!eventStore || !isModuleEnabled("relay", app) || !eventStore.relayEventsLoaded || getRelayHeavyWorkerLength() > 0 || getRelayLightWorkerLength() > 0) {
+    setTimeout(workerInterval, 1 * 60 * 1000); 
     return;
   }
 
-  if (getRelayQueueLength() == 0) {
-      await enqueueRelayTask({ fn: async () => {
-          await persistEvents();
-          await unpersistEvents();
-          // await updateEventsMetadata();
-      }});
-  }
-  setTimeout(workerInterval, 1 * 30 * 1000); // 30 seconds
+  await enqueueRelayTask({ fn: async () => {
+      await persistEvents();
+      await unpersistEvents();
+      // await updateEventsMetadata();
+  }});
+  setTimeout(workerInterval, 1 * 60 * 1000); // 1 minute
 };
 
 workerInterval();
@@ -432,9 +429,9 @@ const recicleWorkers = async () => {
   }
 }
 
-// Recicle workers every 10 minutes
+// Recicle workers
 setInterval(async () => {
   recicleWorkers();
-}, 10 * 30 * 1000); 
+}, 10 * 30 * 1000); // 10 minutes
 
 export { getRelayQueueLength, enqueueRelayTask, relayWorkers, getEvents, getRelayLightWorkerLength, getRelayHeavyWorkerLength, getPendingLightTasks, getPendingHeavyTasks };  
