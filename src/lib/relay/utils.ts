@@ -520,16 +520,41 @@ const encodeChunk = async (events: MetadataEvent[]): Promise<SharedChunk> => {
  * @returns A Promise that resolves to an array of decoded MetadataEvent objects.
  */
 const decodeChunk = async (chunk: SharedChunk): Promise<MetadataEvent[]> => {
-  console.time('decodeChunk');
   const events: MetadataEvent[] = [];
   const view = new DataView(chunk.buffer);
   for (let i = 0; i < chunk.indexMap.length; i++) {
     const { event } = await decodeEvent(chunk.buffer, view, chunk.indexMap[i]);
     events.push(event);
   }
-  console.timeEnd('decodeChunk');
   return events;
 };
+
+/**
+ * Update a chunk with new events.
+ * This function decodes the existing events in the chunk, combines them with new events,
+ * removes duplicates, and re-encodes the chunk.
+ *
+ * @param chunk - The shared memory chunk to update.
+ * @param newEvents - The new events to add to the chunk.
+ * @returns A Promise that resolves to the updated SharedChunk object.
+ */
+const updateChunk = async (
+  chunk: SharedChunk,
+  newEvents: MetadataEvent[]
+): Promise<SharedChunk> => {
+  const existingEvents = await decodeChunk(chunk);
+  const combinedEvents = [...existingEvents, ...newEvents];
+
+  const uniqueEvents = Array.from(
+    new Map(combinedEvents.map(e => [e.id, e])).values()
+  );
+
+  uniqueEvents.sort((a, b) => b.created_at - a.created_at);
+
+  const updatedChunk = await encodeChunk(uniqueEvents);
+
+  return updatedChunk;
+}
 
 
 /**
@@ -772,6 +797,7 @@ export {  compressEvent,
           binarySearchCreatedAt, 
           encodeChunk,
           decodeChunk, 
+          updateChunk,
           getEventById, 
           getEventsByTimerange,
           validateFilter,
