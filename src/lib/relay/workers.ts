@@ -11,6 +11,14 @@ import { deleteEvents, storeEvents } from "./database.js";
 import { decodeChunk, dynamicTimeout, encodeChunk, getEventsByTimerange, updateChunk } from "./utils.js";
 import { RedisConfig } from "../../interfaces/redis.js";
 
+const redisConfig : RedisConfig= {
+  host: app.get("config.redis")["host"],
+  port: app.get("config.redis")["port"],
+  user: app.get("config.redis")["user"],
+  password: app.get("config.redis")["password"],
+  defaultDB: 2 // database "2" for relay DB
+};
+
 // Workers
 const relayWorkers = Number(app.get("config.relay")["workers"]);
 const workersDir = path.resolve('./dist/lib/relay/workers');
@@ -329,6 +337,7 @@ const manageEvents = async () => {
 
 manageEvents();
 
+// Workers
 let lightGetEventsPool = workerpool.pool(
   path.join(workersDir, 'getEvents.js'),
   { maxWorkers: Math.ceil(relayWorkers * 0.25) }
@@ -338,6 +347,10 @@ let heavyGetEventsPool = workerpool.pool(
   path.join(workersDir, 'getEvents.js'),
   { maxWorkers: Math.ceil(relayWorkers * 0.75) }
 );
+(async () => {
+  await lightGetEventsPool.exec("initWorker", [redisConfig]);
+  await heavyGetEventsPool.exec("initWorker", [redisConfig]);
+})();
 
 const pendingLightTasks: Map<string, PendingGetEventsTask> = new Map();
 const pendingHeavyTasks: Map<string, PendingGetEventsTask> = new Map();
@@ -369,14 +382,6 @@ const getEvents = async (filters: any, maxLimit: number, chunks: SharedChunk[]):
     };
 
     isHeavy ? pendingHeavyTasks.set(taskId, taskData) : pendingLightTasks.set(taskId, taskData);
-
-    const redisConfig : RedisConfig= {
-      host: app.get("config.redis")["host"],
-      port: app.get("config.redis")["port"],
-      user: app.get("config.redis")["user"],
-      password: app.get("config.redis")["password"],
-      defaultDB: 2 // database "2" for relay DB
-    };
 
     const getEventsWorker = isHeavy ? heavyGetEventsPool : lightGetEventsPool
 
@@ -443,6 +448,6 @@ const recicleWorkers = async () => {
 // Recicle workers
 setInterval(async () => {
   recicleWorkers();
-}, 10 * 60 * 1000); // 10 minutes
+}, 5 * 60 * 1000); // 5 minutes
 
 export { getRelayQueueLength, enqueueRelayTask, relayWorkers, getEvents, getRelayLightWorkerLength, getRelayHeavyWorkerLength, getPendingLightTasks, getPendingHeavyTasks };  
