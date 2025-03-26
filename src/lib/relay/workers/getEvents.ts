@@ -1,6 +1,6 @@
 import { Filter, matchFilter, Event } from "nostr-tools";
 import workerpool from "workerpool";
-import { createFilterHash, decodeEvent, decodePartialEvent } from "../utils.js";
+import { createFilterHash, decodeChunkHeaders, decodeEvent } from "../utils.js";
 import { MetadataEvent, SharedChunk } from "../../../interfaces/relay.js";
 import { RedisConfig } from "../../../interfaces/redis.js";
 import { RedisService } from "../../redis.js";
@@ -76,7 +76,8 @@ const getCachedEventHeaders = async (
       }[];
     }
 
-  const headers = decodePartialEvent(chunk);
+  const headers = decodeChunkHeaders(chunk);
+
   await redisWorker.set(cacheKey, JSON.stringify(headers), { EX: FILTER_CACHE_TTL});
   return headers;
 };
@@ -141,13 +142,13 @@ const scanRecentChunks = async (
  * 
  * @returns A promise that resolves to an array of events.
  */
-async function processSegment(
+const processSegment = async (
   filter: Filter, 
   chunks: SharedChunk[], 
   segmentSince: number, 
   segmentUntil: number,
   searchQuery: string | null
-): Promise<{ event: MetadataEvent; score: number }[]> {
+): Promise<{ event: MetadataEvent; score: number }[]> => {
   const segmentResults: { event: MetadataEvent; score: number }[] = [];
 
   const segmentChunks = chunks.filter(chunk => {

@@ -181,37 +181,14 @@ const hexTable = Array.from({ length: 256 }, (_, i) => i.toString(16).padStart(2
 const textDecoder = new TextDecoder();
 
 const decodeEvent = async (sharedDB: SharedArrayBuffer, view: DataView, offset: number): Promise<{ event: MetadataEvent; newOffset: number }> => {
-  const readHexString = (byteLength: number) => {
-    const bytes = new Uint8Array(sharedDB, offset, byteLength);
-    let hex = '';
-    for (let i = 0; i < byteLength; i++) hex += hexTable[bytes[i]];
-    offset += byteLength;
-    return hex;
-  };
 
-  // 1. created_at (4 bytes)
-  const created_at = view.getInt32(offset, true);
-  offset += 4;
-
-  // 2. index (4 bytes, not used)
-  offset += 4;
-
-  // 3. contentSize (4 bytes)
-  const contentSize = view.getUint32(offset, true);
-  offset += 4;
-
-  // 4. kind (4 bytes)
-  const kind = view.getInt32(offset, true);
-  offset += 4;
-
-  // 5. pubkey (32 bytes)
-  const pubkey = readHexString(32);
-
-  // 6. sig (64 bytes)
-  const sig = readHexString(64);
-
-  // 7. id (32 bytes)
-  const id = readHexString(32);
+  const { header, offset: offsetAfterHeader } = decodeEventHeaders(sharedDB, view, offset);
+  offset = offsetAfterHeader;
+  const created_at = header.created_at;
+  const id = header.id;
+  const kind = header.kind;
+  const pubkey = header.pubkey;
+  const sig = header.sig;
 
   // 8. tagsSize (4 bytes)
   const tagsSize = view.getUint32(offset, true);
@@ -228,9 +205,9 @@ const decodeEvent = async (sharedDB: SharedArrayBuffer, view: DataView, offset: 
   offset += tagsSize;
 
   // 10. content (variable)
-  const contentBytes = new Uint8Array(sharedDB, offset, contentSize);
+  const contentBytes = new Uint8Array(sharedDB, offset, header.contentSize);
   let content = textDecoder.decode(contentBytes);
-  offset += contentSize;
+  offset += header.contentSize;
 
   // 11. metadataSize (4 bytes)
   const metadataSize = view.getUint32(offset, true);
@@ -265,20 +242,40 @@ const decodeEvent = async (sharedDB: SharedArrayBuffer, view: DataView, offset: 
  * @param offset - Offset of the event in the buffer.
  * @returns A promise that resolves to the decoded event.
  */
-const decodePartialEvent = (chunk: SharedChunk): { offset: number, header: { created_at: number, kind: number, pubkey: string, id: string } }[] => {
-  const headers = [];
-  const view = new DataView(chunk.buffer);
-  for (let i = 0; i < chunk.indexMap.length; i++) {
-    const baseOffset = chunk.indexMap[i];
-    const created_at = view.getInt32(baseOffset, true);
-    const kind = view.getInt32(baseOffset + 12, true);
-    const pubkeyBytes = new Uint8Array(chunk.buffer, baseOffset + 16, 32);
-    const pubkey = Array.from(pubkeyBytes).map(b => b.toString(16).padStart(2, "0")).join("");
-    const idBytes = new Uint8Array(chunk.buffer, baseOffset + 112, 32);
-    const id = Array.from(idBytes).map(b => b.toString(16).padStart(2, "0")).join("");
-    headers.push({ offset: baseOffset, header: { created_at, kind, pubkey, id } });
-  }
-  return headers;
+const decodeEventHeaders = (sharedDB: SharedArrayBuffer, view: DataView, offset: number) => {
+  const readHexString = (byteLength: number) => {
+    const bytes = new Uint8Array(sharedDB, offset, byteLength);
+    let hex = '';
+    for (let i = 0; i < byteLength; i++) hex += hexTable[bytes[i]];
+    offset += byteLength;
+    return hex;
+  };
+
+  // 1. created_at (4 bytes)
+  const created_at = view.getInt32(offset, true);
+  offset += 4;
+
+  // 2. index (4 bytes, not used)
+  offset += 4;
+
+  // 3. contentSize (4 bytes)
+  const contentSize = view.getUint32(offset, true);
+  offset += 4;
+
+  // 4. kind (4 bytes)
+  const kind = view.getInt32(offset, true);
+  offset += 4;
+
+  // 5. pubkey (32 bytes)
+  const pubkey = readHexString(32);
+
+  // 6. sig (64 bytes)
+  const sig = readHexString(64);
+
+  // 7. id (32 bytes)
+  const id = readHexString(32);
+  
+  return { header: { created_at, kind, pubkey, id, sig, contentSize }, offset };
 };
 
 
@@ -529,6 +526,26 @@ const decodeChunk = async (chunk: SharedChunk): Promise<MetadataEvent[]> => {
   return events;
 };
 
+
+/**
+ * Decode all event headers from a shared memory chunk.
+ * This function decodes the headers of all events in the chunk,
+ * returning an array of event headers with their offsets.
+ * 
+ * @param chunk - The shared memory chunk to decode.
+ * @returns An array of event headers with their offsets.
+ */
+const decodeChunkHeaders = (chunk: SharedChunk): { offset: number, header: { created_at: number, kind: number, pubkey: string, id: string, sig: string, contentSize: number } }[] => {
+  const headers = [];
+  const view = new DataView(chunk.buffer);
+  for (let i = 0; i < chunk.indexMap.length; i++) {
+    const baseOffset = chunk.indexMap[i];
+    const { header } = decodeEventHeaders(chunk.buffer, view, baseOffset);
+    headers.push({ offset: baseOffset, header });
+  }
+  return headers;
+};
+
 /**
  * Update a chunk with new events.
  * This function decodes the existing events in the chunk, combines them with new events,
@@ -771,7 +788,7 @@ const dynamicTimeout = (filters: Filter[], isHeavy: boolean, lightQueueLength: n
     let timeout = isHeavy ? 1500 : 500;
     
     if (isHeavy && heavyQueueLength > 10) {
-      timeout = Math.max(50, timeout - (heavyQueueLength * 25));
+      timeout = Math.max(25, timeout - (heavyQueueLength * 25));
     } else if (!isHeavy && lightQueueLength > 20) {
       timeout = Math.max(25, timeout - (lightQueueLength * 5));
     }
@@ -798,12 +815,12 @@ export {  compressEvent,
           encodeChunk,
           decodeChunk, 
           updateChunk,
+          decodeChunkHeaders,
           getEventById, 
           getEventsByTimerange,
           validateFilter,
           getChunkSize,
           decodeEvent, 
-          decodePartialEvent,
           filterEarlyDiscard,
           createFilterHash,
           dynamicTimeout
