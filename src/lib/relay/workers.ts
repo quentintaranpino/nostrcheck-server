@@ -312,10 +312,10 @@ const unpersistEvents = async () => {
 // };
 
 // interval to persist and unpersist events
-const workerInterval = async () => {
+const manageEvents = async () => {
 
   if (!eventStore || !isModuleEnabled("relay", app) || !eventStore.relayEventsLoaded || getRelayHeavyWorkerLength() > 0 || getRelayLightWorkerLength() > 0) {
-    setTimeout(workerInterval, 1 * 60 * 1000); 
+    setTimeout(manageEvents, 1 * 60 * 1000); 
     return;
   }
 
@@ -324,10 +324,10 @@ const workerInterval = async () => {
       await unpersistEvents();
       // await updateEventsMetadata();
   }});
-  setTimeout(workerInterval, 1 * 60 * 1000); // 1 minute
+  setTimeout(manageEvents, 1 * 60 * 1000); // 1 minute
 };
 
-workerInterval();
+manageEvents();
 
 let lightGetEventsPool = workerpool.pool(
   path.join(workersDir, 'getEvents.js'),
@@ -398,6 +398,11 @@ const getEvents = async (filters: any, maxLimit: number, chunks: SharedChunk[]):
   }
 };
 
+/**
+ * Recicle workers
+ * This function is called every 10 minutes to recicle workers
+ * It stops all workers and creates new ones flushing old cache.
+ */
 const recicleWorkers = async () => {
 
   if (getRelayHeavyWorkerLength() > 0 || getRelayLightWorkerLength() > 0) {
@@ -405,8 +410,12 @@ const recicleWorkers = async () => {
   }
 
   try{
-
     workersRecycling = true;
+
+    await Promise.all([
+      lightGetEventsPool.exec("cleanRedis", []),
+      heavyGetEventsPool.exec("cleanRedis", [])
+    ]);
 
     await Promise.all([
       lightGetEventsPool.terminate(false),
@@ -423,17 +432,17 @@ const recicleWorkers = async () => {
       { maxWorkers: Math.ceil(relayWorkers * 0.75) }
     );
 
-    workersRecycling = false;
-
   }catch(error){
     logger.error(`recicleWorkers - Error: ${error instanceof Error ? error.message : String(error)}`);
+  } finally {
     workersRecycling = false;
   }
-}
+
+};
 
 // Recicle workers
 setInterval(async () => {
   recicleWorkers();
-}, 10 * 30 * 1000); // 10 minutes
+}, 10 * 60 * 1000); // 10 minutes
 
 export { getRelayQueueLength, enqueueRelayTask, relayWorkers, getEvents, getRelayLightWorkerLength, getRelayHeavyWorkerLength, getPendingLightTasks, getPendingHeavyTasks };  

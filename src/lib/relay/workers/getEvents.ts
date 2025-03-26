@@ -309,6 +309,13 @@ const _getEvents = async (
   return Array.from(new Map(finalResults.map(event => [event.id, event])).values());
 };
 
-workerpool.worker({initWorker: initWorker, _getEvents: _getEvents});
+const cleanRedis = async (): Promise<boolean> => {
+  if (redisWorker !== null) {
+    return await redisWorker.flushAll()
+  }
+   return false;
+};
+
+workerpool.worker({initWorker: initWorker, _getEvents: _getEvents, cleanRedis: cleanRedis});
 
 export { _getEvents };

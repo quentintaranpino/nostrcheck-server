@@ -62,7 +62,7 @@ const isInvoicePaidNwc = async (paymentHash: string): Promise<{ paiddate: string
                 }
                 return emptyResponse;
             } catch (e: any) {
-                if (e.message && e.message.includes("timeout")) {
+                if (e.message && (e.message.includes("timeout") || e.message.includes("relay connection closed"))) {
                     logger.debug(`isInvoicePaidNwc - Error checking nwc invoice status for paymentHash: ${paymentHash}, retries left: ${retries - 1}`, e.message);
                 } else {
                     logger.error(`isInvoicePaidNwc - Error checking nwc invoice status for paymentHash: ${paymentHash}`, e.message);
