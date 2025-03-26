@@ -352,6 +352,9 @@ const getPendingHeavyTasks = (): PendingGetEventsTask[] => {
 
 let workersRecycling = false;
 const getEvents = async (filters: any, maxLimit: number, chunks: SharedChunk[]): Promise<any> => {
+  const isHeavy = isHeavyFilter(filters);
+  const taskId = Math.random().toString(36).substring(7);
+
   try {
 
     if (workersRecycling) {
@@ -359,8 +362,6 @@ const getEvents = async (filters: any, maxLimit: number, chunks: SharedChunk[]):
       return getEvents(filters, maxLimit, chunks);
     }
 
-    const isHeavy = isHeavyFilter(filters);
-    const taskId = Math.random().toString(36).substring(7);
     const taskData: PendingGetEventsTask = {
       id: taskId,
       filters,
@@ -387,12 +388,13 @@ const getEvents = async (filters: any, maxLimit: number, chunks: SharedChunk[]):
       chunks,
       dynamicTimeout(filters, isHeavy, getRelayLightWorkerLength(), getRelayHeavyWorkerLength())
     ]);
-    isHeavy ? pendingHeavyTasks.delete(taskId) : pendingLightTasks.delete(taskId);
     return result;
     
   } catch (error) {
     logger.error(`getEventsWorker - Error: ${error instanceof Error ? error.message : String(error)}`);
     return [];
+  } finally {
+    isHeavy ? pendingHeavyTasks.delete(taskId) : pendingLightTasks.delete(taskId);
   }
 };
 
