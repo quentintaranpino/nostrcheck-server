@@ -317,6 +317,7 @@ const unpersistEvents = async () => {
 // };
 
 // interval to persist and unpersist events
+let manageEventsRunning = false;
 const manageEvents = async () => {
 
   if (!eventStore || !isModuleEnabled("relay", app) || !eventStore.relayEventsLoaded || getRelayHeavyWorkerLength() > 0 || getRelayLightWorkerLength() > 0) {
@@ -324,11 +325,18 @@ const manageEvents = async () => {
     return;
   }
 
+  if (manageEventsRunning) {
+    setTimeout(manageEvents, 1 * 60 * 1000); 
+    return;
+  }
+
+  manageEventsRunning = true;
   await enqueueRelayTask({ fn: async () => {
       await persistEvents();
       await unpersistEvents();
       // await updateEventsMetadata();
   }});
+  manageEventsRunning = false;
   setTimeout(manageEvents, 1 * 60 * 1000); // 1 minute
 };
 
