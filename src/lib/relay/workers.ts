@@ -8,7 +8,7 @@ import { CHUNK_SIZE, eventStore, MetadataEvent, PendingGetEventsTask, RelayJob, 
 import app from "../../app.js";
 import { isModuleEnabled } from "../config.js";
 import { deleteEvents, storeEvents } from "./database.js";
-import { decodeChunk, dynamicTimeout, encodeChunk, getEventsByTimerange, updateChunk } from "./utils.js";
+import { decodeChunk, dynamicTimeout, encodeChunk, getEventById, updateChunk } from "./utils.js";
 import { RedisConfig } from "../../interfaces/redis.js";
 
 const redisConfig : RedisConfig= {
@@ -162,7 +162,7 @@ const persistEvents = async () => {
       );
     
       if (newChunkEvents.length > 0) {
-        const updatedChunk = await updateChunk(chunk, newChunkEvents);
+        const updatedChunk = await updateChunk(chunk, newChunkEvents, "add");
         const idx = eventStore.sharedDBChunks.findIndex(c => c === chunk);
         if (idx !== -1) {
           eventStore.sharedDBChunks[idx] = updatedChunk;
@@ -213,59 +213,56 @@ const persistEvents = async () => {
  */
 const unpersistEvents = async () => {
 
-    if (!isModuleEnabled("relay", app)) return;
-    if (!eventStore || !eventStore.pendingDelete || !eventStore.relayEventsLoaded) return;
-  
-    const eventsToDelete: MetadataEvent[] = Array.from(eventStore.pendingDelete.values())
-    .map((e: MetadataEvent) => e);
+  if (!isModuleEnabled("relay", app)) return;
+  if (!eventStore || !eventStore.pendingDelete || !eventStore.relayEventsLoaded) return;
 
-    const expiredEvents: MetadataEvent[] = [];
+  const now = Math.floor(Date.now() / 1000);
+  const eventsToProcess: { event: MetadataEvent, isExpirable: boolean }[] = [];
 
-    // NIP-09 or NIP-62 deletion
-    if (eventsToDelete.length > 0) {
-      const deletedCount: number = await deleteEvents(eventsToDelete, true);
-      if (deletedCount !== eventsToDelete.length) logger.error(`relayController - Interval - Failed to delete events: ${eventsToDelete.length - deletedCount}`);
-    }
-    
-    // NIP-40 inactivation
-    const now = Math.floor(Date.now() / 1000);
-    const allEvents = await getEventsByTimerange(0, now, eventStore);
-    for (const event of allEvents) {
-      await new Promise(resolve => setImmediate(resolve));
-      const expirationTag = event.tags.find(tag => tag[0] === "expiration");
-      if (expirationTag && Number(expirationTag[1]) < now) {
-        expiredEvents.push(event);
+  // NIP-09 or NIP-62 events
+  for (const event of eventStore.pendingDelete.values()) {
+    eventsToProcess.push({ event, isExpirable: false });
+  }
+
+  // NIP-40 inactivation events
+  for (const id of eventStore.globalExpirable) {
+    const indexEntry = eventStore.eventIndex.get(id);
+    if (indexEntry?.expiration !== undefined && indexEntry.expiration < now) {
+      const event = await getEventById(id, eventStore);
+      if (event) {
+        eventsToProcess.push({ event, isExpirable: true });
       }
     }
-  
-    for (const expiredEvent of expiredEvents) {
-      await new Promise(resolve => setImmediate(resolve));
-      const success = await deleteEvents([expiredEvent], false, "event expired (NIP-40)");
-      if (!success) {
-        logger.error(`relayController - Interval - Failed to set event ${expiredEvent.id} as inactive`);
-        continue;
-      }
-      logger.debug(`relayController - Interval - Set event ${expiredEvent.id} as inactive successfully`);
+  }
+
+  // Delete events from the database and eventStore
+  for (const { event, isExpirable } of eventsToProcess) {
+    const success = await deleteEvents(event, !isExpirable, isExpirable ? "event expired (NIP-40)" : "");
+    if (!success) {
+      logger.error(`relayController - Interval - Failed to delete event: ${event.id}`);
     }
+  }
 
-    // Join eventsToDelete and expiredEvents
-    eventsToDelete.push(...expiredEvents);
+  if (eventsToProcess.length === 0) return;
 
-    if (eventsToDelete.length === 0) return;
+  const createdAtTimes = eventsToProcess.map(({ event }) => event.created_at);
+  const minCreatedAt = Math.min(...createdAtTimes);
+  const maxCreatedAt = Math.max(...createdAtTimes);
 
-    // Recreate expired and deleted events chunks
-    for (const chunk of eventStore.sharedDBChunks) {
-      await new Promise(resolve => setImmediate(resolve));
-      if (chunk.timeRange.max < Math.min(...eventsToDelete.map(e => e.created_at)) || chunk.timeRange.min > Math.max(...eventsToDelete.map(e => e.created_at))) continue;
-      const chunkEvents = await getEventsByTimerange(chunk.timeRange.min, chunk.timeRange.max, eventStore);
-      const newEvents = chunkEvents.filter((e) => !eventsToDelete.find((d) => d.id === e.id));
-      const newChunk = await encodeChunk(newEvents);
-      const idx = eventStore.sharedDBChunks.findIndex((c) => c === chunk);
-      if (idx !== -1) {
-        eventStore.sharedDBChunks[idx] = newChunk;
-      }
+  // Delete events from the shared memory chunks
+  for (const [idx, chunk] of eventStore.sharedDBChunks.entries()) {
+    await new Promise(resolve => setImmediate(resolve));
+    if (chunk.timeRange.max < minCreatedAt || chunk.timeRange.min > maxCreatedAt) continue;
+    const eventsInChunk = await decodeChunk(chunk);
+    const eventsToRemove = eventsInChunk.filter(e =>
+      eventsToProcess.some(proc => proc.event.id === e.id)
+    );
+    if (eventsToRemove.length > 0) {
+      const updatedChunk = await updateChunk(chunk, eventsToRemove, "remove");
+      eventStore.sharedDBChunks[idx] = updatedChunk;
     }
-}
+  }
+};
 
 // const updateEventsMetadata = async () => {
 //   if (!isModuleEnabled("relay", app)) return;

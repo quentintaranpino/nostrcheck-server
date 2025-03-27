@@ -297,6 +297,7 @@ const _getEvents = async (
     });
 
     finalResults.push(...finalSegmentEvents);
+    accumulatedResults = [];
 
     if (!cachedEntryRaw && !incompleteResults) {
       const cacheEntry = {

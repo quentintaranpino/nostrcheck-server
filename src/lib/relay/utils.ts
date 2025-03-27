@@ -547,31 +547,34 @@ const decodeChunkHeaders = (chunk: SharedChunk): { offset: number, header: { cre
 };
 
 /**
- * Update a chunk with new events.
- * This function decodes the existing events in the chunk, combines them with new events,
- * removes duplicates, and re-encodes the chunk.
+ * Update a chunk by adding or removing events.
  *
  * @param chunk - The shared memory chunk to update.
- * @param newEvents - The new events to add to the chunk.
- * @returns A Promise that resolves to the updated SharedChunk object.
+ * @param events - Events to add or remove.
+ * @param mode - 'add' to include new events, 'remove' to exclude them.
+ * @returns The updated SharedChunk.
  */
 const updateChunk = async (
   chunk: SharedChunk,
-  newEvents: MetadataEvent[]
+  events: MetadataEvent[],
+  mode: "add" | "remove" = "add"
 ): Promise<SharedChunk> => {
   const existingEvents = await decodeChunk(chunk);
-  const combinedEvents = [...existingEvents, ...newEvents];
 
-  const uniqueEvents = Array.from(
-    new Map(combinedEvents.map(e => [e.id, e])).values()
-  );
+  let updatedEvents: MetadataEvent[];
 
-  uniqueEvents.sort((a, b) => b.created_at - a.created_at);
+  if (mode === "add") {
+    const combined = [...existingEvents, ...events];
+    updatedEvents = Array.from(new Map(combined.map(e => [e.id, e])).values());
+  } else {
+    const idsToRemove = new Set(events.map(e => e.id));
+    updatedEvents = existingEvents.filter(e => !idsToRemove.has(e.id));
+  }
 
-  const updatedChunk = await encodeChunk(uniqueEvents);
+  updatedEvents.sort((a, b) => b.created_at - a.created_at);
 
-  return updatedChunk;
-}
+  return await encodeChunk(updatedEvents);
+};
 
 
 /**

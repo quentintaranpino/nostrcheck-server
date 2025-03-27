@@ -145,6 +145,7 @@ interface RelayEvents {
   relayEventsLoaded: boolean;
   globalIds: Set<string>;
   globalPubkeys: Set<string>;
+  globalExpirable: Set<string>;
 }
 
 interface EventIndex {
@@ -155,6 +156,7 @@ interface EventIndex {
   created_at: number;   
   kind?: number;       
   pubkey?: string;
+  expiration?: number;
 }
 
 const eventStore: RelayEvents = {
@@ -165,6 +167,7 @@ const eventStore: RelayEvents = {
   relayEventsLoaded: false,
   globalIds: new Set<string>(),
   globalPubkeys: new Set<string>(),
+  globalExpirable: new Set<string>(),
 };
 
 export { ExtendedWebSocket, allowedTags, SharedChunk, PendingGetEventsTask, RelayJob, RelayStatusMessage, MetadataEvent, EventIndex, RelayEvents, eventStore, CHUNK_SIZE };

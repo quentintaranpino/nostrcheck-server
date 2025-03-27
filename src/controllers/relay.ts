@@ -427,6 +427,7 @@ const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) =>
   // Save the event to memory
   event = await fillEventMetadata(event);
   event = await compressEvent(event);
+  const expiration = expirationTag ? Number(expirationTag[1]) : undefined;
   eventStore.eventIndex.set(event.id, {
     id: event.id,
     chunkIndex: -1, 
@@ -434,12 +435,17 @@ const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) =>
     processed: false,
     created_at: event.created_at,
     kind: event.kind,
-    pubkey: event.pubkey
+    pubkey: event.pubkey,
+    expiration: expiration,
   });
   eventStore.pending.set(event.id, event);
   eventStore.globalIds.add(event.id);
   if (event.pubkey) {
     eventStore.globalPubkeys.add(event.pubkey);
+  }
+
+  if (expiration !== undefined) {
+    eventStore.globalExpirable.add(event.id);
   }
 
   // Send confirmation to the client

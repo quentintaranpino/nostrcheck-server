@@ -44,6 +44,8 @@ const initEvents = async (app: Application): Promise<boolean> => {
           // Add the events to the eventIndex map.
           for (let i = 0; i < batchEvents.length; i++) {
             const event = batchEvents[i];
+            const expirationTag = event.tags.find(tag => tag[0] === "expiration");
+            const expiration = expirationTag ? Number(expirationTag[1]) : undefined;
             eventIndex.set(event.id, {
               id: event.id,
               chunkIndex, 
@@ -52,17 +54,18 @@ const initEvents = async (app: Application): Promise<boolean> => {
               created_at: event.created_at,
               kind: event.kind,
               pubkey: event.pubkey,
+              expiration: expiration,
             });
 
             eventStore.globalIds.add(event.id);
             if (event.pubkey) {
               eventStore.globalPubkeys.add(event.pubkey);
             }
-
+            if (expiration !== undefined) {
+              eventStore.globalExpirable.add(event.id);
+            }
           }
 
-          
-          
           offset += CHUNK_SIZE;
 
           // Yield control to the event loop to avoid blocking.
@@ -283,12 +286,11 @@ const deleteEvents = async (eventsInput: MetadataEvent | MetadataEvent[], delete
       affectedCount++;
 
       eventStore.eventIndex.delete(event.id);
-      if (eventStore.pending) eventStore.pending.delete(event.id);
-      if (eventStore.pendingDelete) eventStore.pendingDelete.delete(event.id);
+      eventStore.pending.delete(event.id);
+      eventStore.pendingDelete.delete(event.id);
       eventStore.globalIds.delete(event.id);
-      if (event.pubkey) {
-        eventStore.globalPubkeys.delete(event.pubkey);
-      }
+      eventStore.globalPubkeys.delete(event.pubkey);
+      eventStore.globalExpirable.delete(event.id);
 
     } else {
       logger.error(`deleteEvents - Failed to delete process event ${event.id}`);
