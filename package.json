@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "start": "node --max-old-space-size=5120 --enable-source-maps --experimental-specifier-resolution=node --no-warnings --loader ts-node/esm ./dist/init.js",
-    "dev": "nodemon --watch src --ext ts --exec \"node --max-old-space-size=1096 --loader ts-node/esm\" src/init.ts",
+    "dev": "nodemon --inspect=9229 --watch src --ext ts --exec \"node --expose-gc --loader ts-node/esm\" src/init.ts",
     "build": "tsc",
     "package": "node package.js && tsc",
     "lint": "eslint --ignore-path .gitignore . --ext .ts",
