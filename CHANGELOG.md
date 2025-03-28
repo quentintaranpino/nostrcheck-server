@@ -2,7 +2,7 @@
 
 ### 0.7.0
 
-- Nostr relay.
+- The Nostr relay.
 - Improved ban engine.
 - Improved database engine.
 - Improved redis engine.
@@ -10,6 +10,7 @@
 - Legal, privacy and tos pages.
 - Improved AI moderation engine.
 - Improved Dashboard and settings page.
+- Custom file types and extensions.
 
 ### 0.6.0
 

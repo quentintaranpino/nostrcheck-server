@@ -27,6 +27,7 @@ if(locals.activeModules.some(mod => mod.name === 'payments'))  {
 <% if(locals.activeModules.some(mod => mod.name === 'media')) { %> 
   <%- include('../table', {
     tableName:"Hosted files", 
+    tableDesc:"",
     tableId:"filesData", 
     buttons:[
             ['add','hide'],

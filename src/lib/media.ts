@@ -2,9 +2,9 @@ import fastq, { queueAsPromised } from "fastq";
 import ffmpeg from "fluent-ffmpeg";
 import fs from "fs";
 
-import { MediaJob, LegacyMediaReturnMessage, mediaTypes, FileData, UploadTypes, VideoHeaderRange } from "../interfaces/media.js";
+import { MediaJob, LegacyMediaReturnMessage, FileData, UploadTypes, VideoHeaderRange } from "../interfaces/media.js";
 import { logger } from "./logger.js";
-import { connect, dbUpdate } from "./database.js";
+import { connect, dbMultiSelect, dbUpdate } from "./database.js";
 import {fileTypeFromBuffer} from 'file-type';
 import { Request } from "express";
 import { generatefileHashfromfile } from "./hash.js";
@@ -208,8 +208,12 @@ const getFileMimeType = async (req: Request, file :Express.Multer.File): Promise
 	const fileType: {mime: string, ext: string} = await fileTypeFromBuffer(file.buffer) || {mime: "", ext: ""};
 
 	// Try to get mime type from file object.
-	if (fileType.mime == "") fileType.mime = file.mimetype ;
-	
+	if (fileType.mime == "") fileType.mime = file.mimetype 
+
+	// Normalize the mime type for application/x- types
+	if (fileType.mime.startsWith("application/x-")) {
+		fileType.mime = fileType.mime.replace("application/x-", "application/");
+	}
 
 	// For text files without extension and mime type (LICENSE, README, etc)
 	if (fileType.ext == "" && fileType.mime == "") {
@@ -222,8 +226,7 @@ const getFileMimeType = async (req: Request, file :Express.Multer.File): Promise
 		fileType.ext = 'hbs';
 	}
 
-	fileType == undefined ? logger.warn(`getFileMimeType - Could not detect file mime type | ${getClientIp(req)}`) : null;
-	if(!getAllowedMimeTypes().includes(fileType.mime)){
+	if(!(await getAllowedMimeTypes()).includes(fileType.mime)){
 		logger.info(`getFileMimeType - Filetype not allowed: ${file.mimetype} | ${getClientIp(req)}`);
 		return "";
 	}
@@ -461,7 +464,7 @@ const finalizeFileProcessing = async (filedata: FileData): Promise<boolean> => {
 		const filesize = getFileSize(filedata.no_transform == true ? filedata.conversionInputPath: filedata.conversionOutputPath ,filedata)
 		await dbUpdate('mediafiles', {'filesize':filesize},['id'], [filedata.fileid]);
 		await dbUpdate('mediafiles',{'dimensions':filedata.newFileDimensions},['id'], [filedata.fileid]);
-		if (filedata.no_transform == false) await dbUpdate('mediafiles',{'mimetype':await getConvertedMimeType(filedata.originalmime)},['id'], [filedata.fileid]);
+		if (filedata.no_transform == false) await dbUpdate('mediafiles',{'mimetype': await getMimeType(filedata.originalmime,true)},['id'], [filedata.fileid]);
 		await saveFile(filedata, filedata.no_transform == true ? filedata.conversionInputPath: filedata.conversionOutputPath );
 
 		if (filedata.no_transform == false) { await deleteLocalFile(filedata.conversionOutputPath);}
@@ -498,60 +501,68 @@ const prepareLegacMediaEvent = async (filedata : FileData): Promise<LegacyMediaR
 }
 
 /**
- * Get the file extension from a mime type
- * @param mimeType The mime type
- * @returns The file extension
+ * Get the file extension from a mime type.
+ * Optionally returns the converted extension if specified.
+ *
+ * @param mimeType - The MIME type to look up.
+ * @param converted - If true, returns the converted extension instead of the original one. Default is false.
+ * @returns The corresponding file extension, or undefined if not found or inactive.
+ *
  * @example
  * getExtension("text/markdown") // "md"
- **/
-const getExtension = (mimeType: string): string | undefined => {
-    const mediaType = mediaTypes.find(mt => mt.originalMime === mimeType);
-    return mediaType?.extension;
+ * getExtension("image/png", true) // "webp"
+ */
+const getExtension = async (mimeType: string, converted: boolean = false): Promise<string | undefined> => {
+	const [fileType] = await dbMultiSelect(
+		['original_extension', 'converted_extension'],
+		'filetypes',
+		'original_mime = ? AND active = 1',
+		[mimeType]
+	);
+	return fileType ? (converted ? fileType.converted_extension : fileType.original_extension) : undefined;
 }
 
+
 /**
- * Get the converted file extension from an original mime type
- * @param mimeType The original mime type
- * @returns The converted file extension
+ * Get the MIME type from a file extension or original MIME.
+ * Optionally returns the converted MIME type.
+ *
+ * @param input - File extension (e.g. "md") or MIME type (e.g. "text/markdown").
+ * @param converted - If true, returns the converted MIME type instead of the original.
+ * @returns The matching MIME type, or undefined if not found or inactive.
+ *
  * @example
- * getConvertedExtension("image/png") // "webp"
- **/
-const getConvertedExtension = (mimeType: string): string | undefined => {
-	const mediaType = mediaTypes.find(mt => mt.originalMime === mimeType);
-	return mediaType?.convertedExtension;
-}
+ * getMimeType("md") // "text/markdown"
+ * getMimeType("image/png", true) // "image/webp"
+ */
+const getMimeType = async (input: string, converted: boolean = false): Promise<string | undefined> => {
+	const [fileType] = await dbMultiSelect(
+		['original_mime', 'converted_mime'],
+		'filetypes',
+		'(original_extension = ? OR original_mime = ?) AND active = 1',
+		[input, input]
+	);
+	return fileType ? (converted ? fileType.converted_mime : fileType.original_mime) : undefined;
+};
 
 /**
- * Get the converted mime type from an original mime type
- * @param mimeType The original mime type
- * @returns The converted mime type
+ * Get the allowed MIME types from the database (active only).
+ * 
+ * @returns An array of allowed MIME types.
+ * 
  * @example
- * getConvertedMimeType("text/markdown") // "text/markdown"
- **/
-const getConvertedMimeType = (mimeType: string): string | undefined => {
-    const mediaType = mediaTypes.find(mt => mt.originalMime === mimeType);
-    return mediaType?.convertedMime;
-}
-
-/**
- * Get the original mime type from a file extension
- * @param extension The file extension
- * @returns The original mime type
- * @example
- * getMimeFromExtension("md") // "text/markdown"
- **/
-const getMimeFromExtension = (extension: string): string | undefined => {
-    const mediaType = mediaTypes.find(mt => mt.extension === extension);
-    return mediaType?.originalMime;
-}
-
-/**
- * Get the allowed mime types
- * @returns The allowed mime types
- **/
-const getAllowedMimeTypes = (): string[] => {
-    return Array.from(new Set(mediaTypes.map(mt => mt.originalMime)));
-}
+ * const mimes = await getAllowedMimeTypes(); // ["image/png", "text/markdown", ...]
+ */
+const getAllowedMimeTypes = async (): Promise<string[]> => {
+	const rows = await dbMultiSelect(
+		["original_mime"],
+		"filetypes",
+		"active = 1",
+		[],
+		false
+	);
+	return [...new Set(rows.map(row => row.original_mime))];
+};
 
 const getVideoDuration = async (videoPath: string): Promise<number> => {
 	return new Promise((resolve, reject) => {
@@ -648,10 +659,8 @@ export {processFile,
 		readRangeHeader, 
 		prepareLegacMediaEvent,
 		getExtension,
-		getConvertedMimeType,
-		getMimeFromExtension, 
+		getMimeType,
 		getAllowedMimeTypes,
-		getConvertedExtension, 
 		extractVideoFrames, 
 		getFileUrl,
 		getMediaUrl};

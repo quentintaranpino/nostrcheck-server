@@ -40,6 +40,7 @@ let nostraddressButtons = [
 <% if(locals.activeModules.some(mod => mod.name === 'nostraddress')) { %>
   <%- include('../table', {
     tableName:"Registered users", 
+    tableDesc:"",
     tableId:"registeredData", 
     buttons:nostraddressButtons,
     fields: nostraddressFields, 

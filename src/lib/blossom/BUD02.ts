@@ -1,6 +1,6 @@
 import { BlobDescriptor } from "../../interfaces/blossom.js";
 import { FileData } from "../../interfaces/media.js";
-import { getMimeFromExtension } from "../media.js";
+import { getMimeType } from "../media.js";
 
 // https://github.com/hzrd149/blossom/blob/master/buds/02.md
 
@@ -13,7 +13,7 @@ const prepareBlobDescriptor = async (filedata : FileData): Promise<BlobDescripto
         url: filedata.url,
         sha256: filedata.originalhash,
         size: filedata.filesize,
-        type: filedata.originalmime != '' ? filedata.originalmime : getMimeFromExtension(filedata.filename.split('.').pop() || '') || '',
+        type: filedata.originalmime != '' ? filedata.originalmime : await getMimeType(filedata.filename.split('.').pop() || '') || '',
         uploaded: filedata.date,
         blurhash: filedata.blurhash,
         dim: filedata.width + "x" + filedata.height,

@@ -11,7 +11,7 @@
       <div class="text-center"><h1 class="display-2 mt-2 gradient-text">Dashboard</h1></div>
       <p class="text-center mt-2 display-6" id="welcome-text"></p>
       <div class= "container-fluid mt-5">
-        <%- include('./components/dashboard/dashcards'); %>
+        <%- include('./components/dashcards'); %>
         <ul class="nav nav-tabs mt-3 lead " id="dashboardTabs" role="tablist">
           <% if(locals.activeModules.some(mod => mod.name === 'nostraddress')) { %>
             <li class="nav-item" role="presentation">
@@ -62,31 +62,32 @@
       </div>
       <div class="tab-content w-100 p-3 overflow-auto mb-5" id="dashboardTabsContent">
         <div class="tab-pane fade show active" id="users" role="tabpanel" aria-labelledby="users-tab">
-          <%- include('./components/dashboard/users'); %>
+          <%- include('./components/tables/users'); %>
         </div>
         <div class="tab-pane fade " id="invites" role="tabpanel" aria-labelledby="invites-tab">
-          <%- include('./components/dashboard/invites'); %>
+          <%- include('./components/tables/invites'); %>
         </div>
         <div class="tab-pane fade " id="files" role="tabpanel" aria-labelledby="files-tab">
-          <%- include('./components/dashboard/files'); %>
+          <%- include('./components/tables/files'); %>
+          <%- include('./components/tables/filetypes'); %>
         </div>
         <div class="tab-pane fade " id="lightning" role="tabpanel" aria-labelledby="lightning-tab">
-          <%- include('./components/dashboard/lightning'); %>
+          <%- include('./components/tables/lightning'); %>
         </div>
         <div class="tab-pane fade " id="domains" role="tabpanel" aria-labelledby="domains-tab">
-          <%- include('./components/dashboard/domains'); %>
+          <%- include('./components/tables/domains'); %>
         </div>
         <div class="tab-pane fade " id="payments" role="tabpanel" aria-labelledby="payments-tab">
-          <%- include('./components/dashboard/payments'); %>
+          <%- include('./components/tables/payments'); %>
         </div>
         <div class="tab-pane fade " id="security" role="tabpanel" aria-labelledby="security-tab">
-          <%- include('./components/dashboard/security'); %>
+          <%- include('./components/tables/security'); %>
         </div>
         <div class="tab-pane fade " id="relay" role="tabpanel" aria-labelledby="relay-tab">
-          <%- include('./components/dashboard/relay'); %>
+          <%- include('./components/tables/relay'); %>
         </div>
         <div class="tab-pane fade " id="logger" role="tabpanel" aria-labelledby="logger-tab">
-          <%- include('./components/dashboard/logger'); %>
+          <%- include('./components/tables/logger'); %>
         </div>
       </div>
      </main>

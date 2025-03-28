@@ -17,6 +17,7 @@ let paymentsFields = [
 <% if(locals.activeModules.some(mod => mod.name === 'payments')) { %>
  <%- include('../table', {
     tableName:"Transactions", 
+    tableDesc:"",
     tableId:"paymentsData", 
     buttons:[
       ['add','hide'],

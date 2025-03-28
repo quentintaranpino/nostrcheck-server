@@ -1,5 +1,5 @@
 
-const allowedTableNames = ["registered", "mediafiles", "lightning", "domains", "banned", "invitations", "ips", "events"];
+const allowedTableNames = ["registered", "mediafiles", "lightning", "domains", "banned", "invitations", "ips", "events", "filetypes"];
 const allowedFieldNames = [ "allowed", 
                             "active", 
                             "banned",
@@ -21,6 +21,10 @@ const allowedFieldNames = [ "allowed",
                             "maxsatoshi",
                             "infractions",
                             "pendingotc", 
+                            "original_mime",
+                            "original_extension",
+                            "converted_mime",
+                            "converted_extension",
                         ]; 
 
 const allowedFieldNamesAndValues = [
@@ -48,6 +52,10 @@ const allowedFieldNamesAndValues = [
     {field: "maxsatoshi", values: ["number"]},
     {field: "infractions", values: ["number"]},
     {field: "pendingotc", values: [0, 1]},
+    {field: "original_mime", values: ["string"]},
+    {field: "original_extension", values: ["string"]},
+    {field: "converted_mime", values: ["string"]},
+    {field: "converted_extension", values: ["string"]},
 ];
 
 interface moduleDataReturnMessage {
@@ -55,7 +63,6 @@ interface moduleDataReturnMessage {
     totalNotFiltered: number;
     rows: any;
 }
-
 
 const ModuleDataTables: { [key: string]: string } = {
     "nostraddress": "registered",
@@ -66,7 +73,8 @@ const ModuleDataTables: { [key: string]: string } = {
     "banned": "banned",
     "register": "invitations",
     "ips": "ips",
-    "relay": "events"
+    "relay": "events", 
+    "filetypes": "filetypes",
 };
 
 const moduleDataKeys: { [key: string]: string } = {
@@ -78,7 +86,8 @@ const moduleDataKeys: { [key: string]: string } = {
     "bannedData": "banned",
     "invitesData": "invitations",
     "ipsData": "ips",
-    "eventsData": "events"
+    "eventsData": "events",
+    "filetypesData": "filetypes",
 };
 
 const moduleDataWhereFields: { [key: string]: [string] } = {
@@ -154,9 +163,17 @@ const moduleDataWhereFields: { [key: string]: [string] } = {
                         "events.content, " +
                         "events.created_at, " +
                         "events.received_at"
+                        ],
+    "filetypes": [
+                        "filetypes.id, " +
+                        "filetypes.active, " +
+                        "filetypes.original_mime, " +
+                        "filetypes.original_extension, " +
+                        "filetypes.converted_mime, " +
+                        "filetypes.converted_extension, " +
+                        "filetypes.comments "
                         ]
 };
-
 
 const moduleDataSelectFields: { [key: string]: string } = {
     "nostraddress":     "registered.id, " + 
@@ -259,7 +276,14 @@ const moduleDataSelectFields: { [key: string]: string } = {
                         "events.content, " +
                         "events.created_at, " +
                         "events.received_at, " + 
-                        "events.comments"
+                        "events.comments",
+    "filetypes":        "filetypes.id, " +
+                        "filetypes.active, " +
+                        "filetypes.original_mime, " +
+                        "filetypes.original_extension, " +
+                        "filetypes.converted_mime, " +
+                        "filetypes.converted_extension, " +
+                        "filetypes.comments"
 };
 
 export { allowedTableNames, allowedFieldNames, allowedFieldNamesAndValues, moduleDataReturnMessage, ModuleDataTables, moduleDataSelectFields, moduleDataWhereFields, moduleDataKeys };

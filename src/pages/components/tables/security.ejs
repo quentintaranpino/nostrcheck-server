@@ -14,6 +14,7 @@ let ipsFields = [
 <% if(locals.activeModules.some(mod => mod.name === 'security')) { %>
   <%- include('../table', {
     tableName:"Ips", 
+    tableDesc:"",
     tableId:"ipsData", 
     buttons:[
       ['add','hide'],
@@ -48,6 +49,7 @@ let ipsFields = [
 
 <%- include('../table', {
   tableName:"Banned objects", 
+  tableDesc:"",
   tableId:"bannedData", 
   buttons:[
     ['add','hide'],

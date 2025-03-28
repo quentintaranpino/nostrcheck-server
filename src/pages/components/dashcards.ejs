@@ -3,10 +3,10 @@
     <button id="save-btn" class="btn btn-primary d-none"><i class="fa fa-save"></i></button>
     <button id="cancel-btn" class="btn btn-primary d-none"><i class="fa fa-times"></i></button>
 </div>
-<%- include('../loading', {objectId: 'admin-dashcards-list', dataName: 'dashcards'}) %>
+<%- include('./loading', {objectId: 'admin-dashcards-list', dataName: 'dashcards'}) %>
 <div class="row d-none" id="dashcards-container" style="min-height: 350px;">
     <% if(locals.activeModules.some(mod => mod.name === 'nostraddress')) { %>
-        <%- include('../dashcard', { 
+        <%- include('./dashcard', { 
         dashcardId: 'registeredCount', 
         dashcardName: 'Registered users', 
         dashcardDataKey: 'nostraddress', 
@@ -19,7 +19,7 @@
     <% } %>
 
     <% if(locals.activeModules.some(mod => mod.name === 'media')) { %>
-        <%- include('../dashcard', { 
+        <%- include('./dashcard', { 
         dashcardId: 'mediaCount', 
         dashcardName: 'Hosted files', 
         dashcardDataKey: 'media', 
@@ -32,7 +32,7 @@
     <% } %>
 
     <% if(locals.activeModules.some(mod => mod.name === 'lightning')) { %>
-        <%- include('../dashcard', { 
+        <%- include('./dashcard', { 
         dashcardId: 'lightningCount', 
         dashcardName: 'Lightning redirects', 
         dashcardDataKey: 'lightning', 
@@ -45,7 +45,7 @@
     <% } %>
 
     <% if(locals.activeModules.some(mod => mod.name === 'domains')) { %>
-        <%- include('../dashcard', { 
+        <%- include('./dashcard', { 
         dashcardId: 'domainsCount', 
         dashcardName: 'Domains', 
         dashcardDataKey: 'domains', 
@@ -58,7 +58,7 @@
     <% } %>
 
     <% if(locals.activeModules.some(mod => mod.name === 'payments')) { %>
-        <%- include('../dashcard', { 
+        <%- include('./dashcard', { 
         dashcardId: 'paymentsCount', 
         dashcardName: 'Transactions', 
         dashcardDataKey: 'payments', 
@@ -69,7 +69,7 @@
         showField: false, 
         }); %>
 
-        <%- include('../dashcard', { 
+        <%- include('./dashcard', { 
         dashcardId: 'unpaidTransactionsBalance', 
         dashcardName: 'Unpaid balance', 
         dashcardDataKey: 'payments', 
@@ -80,7 +80,7 @@
         showField: false, 
         }); %>
 
-        <%- include('../dashcard', { 
+        <%- include('./dashcard', { 
         dashcardId: 'serverBalance', 
         dashcardName: 'Server balance', 
         dashcardDataKey: 'payments', 
@@ -93,7 +93,7 @@
     <% } %>
 
     <% if(locals.activeModules.some(mod => mod.name === 'relay')) { %>
-        <%- include('../dashcard', { 
+        <%- include('./dashcard', { 
         dashcardId: 'relayEventsDB', 
         dashcardName: 'Synced events',
         dashcardDataKey: 'relay', 
@@ -105,7 +105,7 @@
         timeout: 15000,
         }); %>
 
-        <%- include('../dashcard', { 
+        <%- include('./dashcard', { 
         dashcardId: 'relayWebsocketConnections', 
         dashcardName: 'Connections', 
         dashcardDataKey: 'relay', 
@@ -117,7 +117,7 @@
         timeout: 5000,
         }); %>
 
-        <%- include('../dashcard', { 
+        <%- include('./dashcard', { 
             dashcardId: 'relayQueueLength', 
             dashcardName: 'Queue (events)', 
             dashcardDataKey: 'relay', 
@@ -129,7 +129,7 @@
             timeout: 5000,
         }); %>
 
-        <%- include('../dashcard', { 
+        <%- include('./dashcard', { 
             dashcardId: 'relayQueueHeavyLength', 
             dashcardName: 'Queue (heavy requests)', 
             dashcardDataKey: 'relay', 
@@ -141,7 +141,7 @@
             timeout: 5000,
         }); %>
 
-        <%- include('../dashcard', { 
+        <%- include('./dashcard', { 
             dashcardId: 'relayQueueLightLength', 
             dashcardName: 'Queue (light requests)', 
             dashcardDataKey: 'relay', 
@@ -153,7 +153,7 @@
             timeout: 5000,
         }); %>
 
-        <%- include('../dashcard', { 
+        <%- include('./dashcard', { 
             dashcardId: 'relayworkerCount', 
             dashcardName: 'Workers', 
             dashcardDataKey: 'relay', 
@@ -165,7 +165,7 @@
             timeout: 5000,
         }); %>
 
-        <%- include('../dashcard', { 
+        <%- include('./dashcard', { 
             dashcardId: 'relayMemoryUsage', 
             dashcardName: 'Memory DB (MB)', 
             dashcardDataKey: 'relay', 
@@ -177,7 +177,7 @@
             timeout: 5000,
         }); %>
 
-        <%- include('../dashcard', { 
+        <%- include('./dashcard', { 
             dashcardId: 'relayPendingEvents', 
             dashcardName: 'Pending events', 
             dashcardDataKey: 'relay', 
@@ -189,7 +189,7 @@
             timeout: 5000,
         }); %>
 
-        <%- include('../dashcard', { 
+        <%- include('./dashcard', { 
             dashcardId: 'relayPendingDeleteEvents', 
             dashcardName: 'Pending delete events', 
             dashcardDataKey: 'relay', 
@@ -205,7 +205,7 @@
 
     <% } %>
 
-    <%- include('../dashcard', { 
+    <%- include('./dashcard', { 
         dashcardId: 'logHistory', 
         dashcardName: 'Warning messages', 
         dashcardDataKey: 'logger', 
@@ -217,7 +217,7 @@
         timeout: 2000,
     }); %>
 
-    <%- include('../dashcard', { 
+    <%- include('./dashcard', { 
         dashcardId: 'serverUptime', 
         dashcardName: 'Server uptime', 
         dashcardDataKey: 'admin', 
@@ -228,7 +228,7 @@
         showField: false, 
     }); %>
     
-    <%- include('../dashcard', { 
+    <%- include('./dashcard', { 
         dashcardId: 'serverRam', 
         dashcardName: 'RAM (MB)', 
         dashcardDataKey: 'admin', 
@@ -240,7 +240,7 @@
         timeout: 2000,
     }); %>
 
-    <%- include('../dashcard', { 
+    <%- include('./dashcard', { 
         dashcardId: 'serverCPU', 
         dashcardName: 'CPU (%)', 
         dashcardDataKey: 'admin', 
@@ -252,7 +252,7 @@
         timeout: 2000,
     }); %>
 
-    <%- include('../dashcard', { 
+    <%- include('./dashcard', { 
         dashcardId: 'moderationQueue', 
         dashcardName: 'Moderation Queue', 
         dashcardDataKey: 'admin', 

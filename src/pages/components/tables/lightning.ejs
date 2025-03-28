@@ -14,6 +14,7 @@ if(locals.activeModules.some(mod => mod.name === 'payments')) {
 <% if(locals.activeModules.some(mod => mod.name === 'lightning')) { %>
   <%- include('../table', {
     tableName:"Lightning redirects", 
+    tableDesc:"Manage user's lightning redirects",
     tableId:"lightningData", 
     buttons:[
       ['add','show'],

@@ -303,6 +303,30 @@ const ipsTableFields: IpsTableStructure = {
 	},
 };
 
+interface FileTypesTableStructure extends RowDataPacket {
+	id: string;
+	active: string;
+	original_mime : string;
+	original_extension : string;
+	converted_mime : string;
+	converted_extension : string;
+	comments: string;
+}
+
+const fileTypesTableFields: FileTypesTableStructure = {
+	id: "int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY",
+	active: "boolean NOT NULL DEFAULT 1",
+	original_mime: "varchar(64) NOT NULL",
+	original_extension: "varchar(10) NOT NULL",
+	converted_mime: "varchar(64) NOT NULL",
+	converted_extension: "varchar(10) NOT NULL",
+	comments: "varchar(150)",
+	constructor: {
+		name: 'RowDataPacket',
+	},
+};
+
+
 interface InvitationsTableStructure extends RowDataPacket {
 	id: string;
 	active: string;
@@ -465,6 +489,7 @@ const newFieldcompatibility = [
 	{"eventtags": eventTagsTableFields},
 	{"userprefs": userPreferencesTableFields},
 	{"eventmetadata": eventMetadataTableFields},
+	{"filetypes": fileTypesTableFields},
 ];
 
 interface DatabaseView {

@@ -457,6 +457,7 @@ const initMediaModal = async (filename, checked, visible, showButtons = true) =>
     const mediaPreview3d = $('#mediapreview-3d');
     const fontPreview = $('#mediapreview-font');
     const yamlPreview = $('#mediapreview-yaml');
+    const downloadWrapper = $('#mediapreview-download');
 
     mediapreviewImg.addClass('d-none');
     mediaPreviewIframe.addClass('d-none');
@@ -472,6 +473,7 @@ const initMediaModal = async (filename, checked, visible, showButtons = true) =>
         mediaPreview3d.addClass('d-none');
         fontPreview.addClass('d-none');
         yamlPreview.addClass('d-none');
+        downloadWrapper.addClass('d-none');
 
         contentType = '';
     });
@@ -505,12 +507,17 @@ const initMediaModal = async (filename, checked, visible, showButtons = true) =>
         } else if (contentType.includes('video')) {
             mediaPreviewVideo.attr('src', MediaData.url);
             mediaPreviewVideo.removeClass('d-none');
-        }else {
-            if (contentType == '') {
-                return;
+        } else {
+            if (contentType === '') return;
+        
+            if (contentType.includes('text') || contentType.includes('application/json') || contentType.includes('xml')) {
+                mediaPreviewIframe.attr('src', MediaData.url);
+                mediaPreviewIframe.removeClass('d-none');
+            } else {
+                const downloadBtn = $('#mediapreview-download-btn');
+                downloadBtn.attr('href', MediaData.url);
+                downloadWrapper.removeClass('d-none');
             }
-            mediaPreviewIframe.attr('src', MediaData.url);
-            mediaPreviewIframe.removeClass('d-none');
         }
 
     });

@@ -3,7 +3,7 @@ import app from "../app.js";
 import { dbDelete, dbInsert, dbMultiSelect, dbSelect, dbUpdate } from "../lib/database.js";
 import { logger } from "../lib/logger.js";
 import { isPubkeyRegistered, parseAuthHeader } from "../lib//authorization.js";
-import { getUploadType, getFileMimeType, standardMediaConversion, getNotFoundFileBanner, readRangeHeader, prepareLegacMediaEvent, getMediaDimensions, getExtension, getMimeFromExtension, getConvertedExtension, getAllowedMimeTypes, getFileUrl, getMediaUrl } from "../lib/media.js"
+import { getUploadType, getFileMimeType, standardMediaConversion, getNotFoundFileBanner, readRangeHeader, prepareLegacMediaEvent, getMediaDimensions, getExtension, getMimeType, getAllowedMimeTypes, getFileUrl, getMediaUrl } from "../lib/media.js"
 import { requestQueue } from "../lib/media.js";
 import {
 	MediaJob,
@@ -19,7 +19,7 @@ import validator from "validator";
 import fs from "fs";
 import { NIP94_data, NIP96_event, NIP96_processing } from "../interfaces/nostr.js";
 import { PrepareNIP96_event, PrepareNIP96_listEvent } from "../lib/nostr/NIP96.js";
-import { generateQRCode, getNewDate } from "../lib/utils.js";
+import { generateQRCode, getNewDate, parseBoolean } from "../lib/utils.js";
 import { generateBlurhash, generatefileHashfrombuffer, hashString } from "../lib/hash.js";
 import { isModuleEnabled } from "../lib/config.js";
 import { deleteFile, getFilePath } from "../lib/storage/core.js";
@@ -174,21 +174,23 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 	// File mime type. If not allowed reject the upload.
 	filedata.originalmime = await getFileMimeType(req, file);
 	if (filedata.originalmime == "") {
-		logger.warn(`uploadMedia - 400 Bad request - file type not detected or not allowed`, "|", reqInfo.ip);
+		logger.warn(`uploadMedia - 400 Bad request - file type not detected or not allowed: ${file.mimetype}`, "|", reqInfo.ip);
 		if(version != "v2"){return res.status(400).send({"result": false, "description" : "file type not detected or not allowed"});}
 
 		const result: ResultMessagev2 = {
 			status: MediaStatus[1],
-			message: "file type not detected or not allowed",
+			message: `file type not detected or not allowed, mime: ${file.mimetype}`,
 		};
-		res.setHeader("X-Reason", "file type not detected or not allowed");
+		res.setHeader("X-Reason", `file type not detected or not allowed, mime: ${file.mimetype}`);
 		return res.status(400).send(result);
 	}
 	logger.debug(`uploadMedia - mime: ${filedata.originalmime} | `, reqInfo.ip);
 
 	// No transform option
-	app.get("config.media")["transform"]["enabled"] == false ? filedata.no_transform = true : filedata.no_transform = Boolean(req.body?.no_transform) || false;
-
+	filedata.no_transform = app.get("config.media")["transform"]["enabled"] == false
+	? true
+	: parseBoolean(req.body?.no_transform);
+	
 	// Not accepting "avatar" or "banner" uploads with no_transform option
 	if (filedata.media_type != "media" && filedata.no_transform == true){
 		logger.warn(`uploadMedia - 400 Bad request - no_transform not allowed for this media type`, "|", reqInfo.ip);
@@ -206,7 +208,7 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 	// Uploaded file SHA256 hash and filename
 	filedata.originalhash = await generatefileHashfrombuffer(file, filedata.media_type);
 	filedata.hash = filedata.originalhash; // At this point, hash is the same as original hash
-	filedata.filename = `${filedata.originalhash}.${filedata.no_transform ? getExtension(filedata.originalmime) : getConvertedExtension(filedata.originalmime)}`;
+	filedata.filename = `${filedata.originalhash}.${filedata.no_transform ? await getExtension(filedata.originalmime) : await getExtension(filedata.originalmime,true)}`;
 
 	logger.debug(`uploadMedia - hash: ${filedata.originalhash} | `, reqInfo.ip);
 	logger.debug(`uploadMedia - filename: ${filedata.filename} | `, reqInfo.ip);
@@ -691,7 +693,7 @@ const getMediaList = async (req: Request, res: Response): Promise<Response> => {
 			blurhash: e.blurhash,
 			no_transform: e.hash == e.original_hash ? true : false,
 			media_type: "",
-			originalmime: e.mimetype != '' ? e.mimetype : getMimeFromExtension(e.filename.split('.').pop() || '') || '',
+			originalmime: e.mimetype != '' ? e.mimetype : await getMimeType(e.filename.split('.').pop() || '') || '',
 			status: "success",
 			description: "",
 			outputoptions: "",
@@ -1084,7 +1086,7 @@ const getMediabyURL = async (req: Request, res: Response) => {
 
 	// file extension checks and media type
 	const ext = path.extname(req.params.filename).slice(1);
-	const mediaType: string = getMimeFromExtension(ext) || 'text/html';
+	const mediaType: string = await getMimeType(ext) || 'text/html';
 	res.setHeader('Content-Type', mediaType);
 
 	// mediaPath checks
@@ -1632,7 +1634,7 @@ const headUpload = async (req: Request, res: Response): Promise<Response> => {
 	}
 
 	// Check if the MIME type is allowed
-	if(!getAllowedMimeTypes().includes(type)){
+	if(!(await getAllowedMimeTypes()).includes(type)){
 		logger.info(`headUpload - 400 Bad request - Filetype not allowed`, "|", reqInfo.ip);
 		res.setHeader("X-Reason", "Filetype not allowed");
 		return res.status(400).send();

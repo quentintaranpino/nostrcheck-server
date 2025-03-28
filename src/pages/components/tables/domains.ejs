@@ -16,6 +16,7 @@ if(locals.activeModules.some(mod => mod.name === 'payments')) {
 <% if(locals.activeModules.some(mod => mod.name === 'nostraddress')) { %>
   <%- include('../table', {
     tableName:"Domains", 
+    tableDesc:"",
     tableId:"domainsData", 
     buttons:[
       ['add','show'],

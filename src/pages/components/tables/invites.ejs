@@ -12,6 +12,7 @@ let invitesFields = [
 <% if(locals.activeModules.some(mod => mod.name === 'register')) { %>
   <%- include('../table', {
     tableName:"Invites", 
+    tableDesc:"",
     tableId:"invitesData", 
     buttons:[
       ['add','show'],

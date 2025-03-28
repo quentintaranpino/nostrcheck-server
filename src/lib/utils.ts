@@ -204,12 +204,45 @@ const getHostInfo = (): { hostname: string, port: string, url: string} => {
  * @returns {T} - The parsed object or the default value
  */
 const safeJSONParse = <T>(str: string, defaultVal: T): T => {
-    try {
-      return JSON.parse(str);
-    } catch (e) {
-      logger.error("getEventsDB - Error parsing JSON", e);
-      return defaultVal;
-    }
-  };
+	try {
+		return JSON.parse(str);
+	} catch (e) {
+		logger.error("getEventsDB - Error parsing JSON", e);
+		return defaultVal;
+	}
+};
 
-export { format, currDir, markdownToHtml, generateQRCode, getNewDate, isBase64, getCPUUsage, getHostInfo, safeJSONParse};
+
+/**
+ * Converts a string or value to a real boolean.
+ * 
+ * @param value - The input value (string, number, or boolean).
+ * @returns A boolean value based on typical truthy/falsey string representations.
+ *
+ * @example
+ * parseBoolean("true")   // true
+ * parseBoolean("false")  // false
+ * parseBoolean("1")      // true
+ * parseBoolean("0")      // false
+ * parseBoolean(true)     // true
+ */
+const parseBoolean = (value: any): boolean => {
+	if (typeof value === "boolean") return value;
+	if (typeof value === "string") {
+		const val = value.trim().toLowerCase();
+		return val === "true" || val === "1" || val === "yes" || val === "on";
+	}
+	if (typeof value === "number") return value === 1;
+	return false;
+};
+
+export { format, 
+	    currDir, 
+		markdownToHtml, 
+		generateQRCode, 
+		getNewDate, 
+		isBase64, 
+		getCPUUsage, 
+		getHostInfo, 
+		safeJSONParse,
+		parseBoolean};

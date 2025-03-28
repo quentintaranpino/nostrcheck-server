@@ -8,6 +8,7 @@ import { accounts } from "../interfaces/payments.js";
 import { isModuleEnabled, updateLocalConfigKey } from "./config.js";
 import { addNewUsername } from "./register.js";
 import { getNewDate } from "./utils.js";
+import { fileTypes } from "../interfaces/media.js";
 
 let pool: Pool | undefined;
 let retry: number = 0;
@@ -676,6 +677,31 @@ const initDatabase = async (): Promise<void> => {
 	if (!fixMimetype){
 		logger.fatal(`initDatabase - Error fixing old mimetype for mediafiles table. Exiting.`);
 		process.exit(1);
+	}
+
+	// Insert default media types if table is empty
+	const existingFileTypes = await dbMultiSelect(["id"], "filetypes", "1 = 1", [], false);
+	if (existingFileTypes.length === 0) {
+		const filetypeRecords = fileTypes.map(type => [
+			1,
+			type.originalMime,
+			type.extension,
+			type.convertedMime,
+			type.convertedExtension || "",
+			"" 
+		]);
+		const inserted = await dbBulkInsert(
+			"filetypes",
+			["active", "original_mime", "original_extension", "converted_mime", "converted_extension", "comments"],
+			filetypeRecords
+		);
+	
+		if (inserted === 0) {
+			logger.error("initDatabase - Failed to insert default filetypes");
+			process.exit(1);
+		}
+	
+		logger.info(`initDatabase - Inserted ${inserted} default filetypes`);
 	}
 	
 }

@@ -1,20 +1,20 @@
 import {FileData } from "../../interfaces/media.js";
 import {NIP94_data, NIP96_event, NIP96file, supported_nips} from "../../interfaces/nostr.js";
 import { PrepareNIP94_event } from "./NIP94.js";
-import { getAllowedMimeTypes, getMediaUrl, getMimeFromExtension } from "../media.js";
+import { getAllowedMimeTypes, getMediaUrl, getMimeType } from "../media.js";
 import app from "../../app.js";
 import { getHostInfo } from "../utils.js";
 
 //https://github.com/nostr-protocol/nips/blob/master/96.md
 
-const getNIP96file = (): NIP96file => {
+const getNIP96file = async (): Promise<NIP96file> => {
 
     const nip96file : NIP96file= {
     
         "api_url": `${getMediaUrl("NIP96")}`,
         "supported_nips": supported_nips,
         "tos_url": `${getHostInfo().url}/api/v2/tos/`,
-        "content_types": getAllowedMimeTypes(),
+        "content_types": await getAllowedMimeTypes(),
         "plans": {
             "free": {
               "name": "Free Tier",
@@ -52,7 +52,7 @@ const PrepareNIP96_listEvent = async (filedata : FileData): Promise<NIP94_data> 
     const event : NIP94_data = {
             tags: [
                     ["url", filedata.url],
-                    ["m", filedata.originalmime != '' ? filedata.originalmime : getMimeFromExtension(filedata.filename.split('.').pop() || '') || ''],
+                    ["m", filedata.originalmime != '' ? filedata.originalmime : await getMimeType(filedata.filename.split('.').pop() || '') || ''],
                     ["x", filedata.hash],
                     ["ox", filedata.originalhash],
                     ["size", filedata.filesize?.toString()],

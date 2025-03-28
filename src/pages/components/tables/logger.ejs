@@ -8,6 +8,7 @@ let logsFields = [
 <% if(locals.activeModules.some(mod => mod.name === 'logger')) { %> 
   <%- include('../table', {
     tableName:"Logs", 
+    tableDesc:"Show the logs greater than `WARN` level.",
     tableId:"loggerData", 
     buttons:[
       ['add','hide'],

@@ -4,7 +4,7 @@ import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { FileData } from '../../interfaces/media.js';
 import { logger } from '../logger.js';
 import app from '../../app.js';
-import { getConvertedMimeType } from '../media.js';
+import { getMimeType } from '../media.js';
 
 const s3Config: S3ClientConfig = {
 
@@ -27,7 +27,7 @@ const saveRemoteFile = async (filePath: string, filedata:FileData): Promise<bool
     Bucket: bucketName,
     Key: filedata.filename,
     Body: fs.readFileSync(filePath),
-    ContentType : getConvertedMimeType(filedata.originalmime),
+    ContentType : await getMimeType(filedata.originalmime,true),
   };
 
   try {

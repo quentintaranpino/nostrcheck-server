@@ -15,6 +15,7 @@ let eventsFields = [
 <% if(locals.activeModules.some(mod => mod.name === 'relay')) { %>
   <%- include('../table', {
     tableName:"Events", 
+    tableDesc:"",
     tableId:"eventsData", 
     buttons:[
       ['add','hide'],
