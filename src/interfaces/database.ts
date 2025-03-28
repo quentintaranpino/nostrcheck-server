@@ -100,7 +100,8 @@ const mediafilesTableFields: MediafilesTableStructure = {
 		"INDEX idx_filename (filename)",
 		"INDEX idx_original_hash (original_hash)",
 		"INDEX idx_filename_original_hash (filename, original_hash)",
-		"INDEX idx_localpath (localpath)"
+		"INDEX idx_localpath (localpath)",
+		"INDEX idx_checked (checked)"
 	],
 	constructor: {
 		name: 'RowDataPacket',
@@ -161,7 +162,8 @@ const registeredTableFields: RegisteredTableStructure = {
 	banid: "int(11)",
 	pendingotc: "boolean NOT NULL DEFAULT 0",
 	_indexes: [
-		"UNIQUE INDEX idx_pubkey_domain (pubkey, hex, domain)" 
+		"UNIQUE INDEX idx_pubkey_domain (pubkey, hex, domain)",
+		"INDEX idx_hex (hex)"
 	],
 	constructor: {
 		name: 'RowDataPacket',
@@ -263,7 +265,7 @@ const bannedTableFields: BannedTableStructure = {
 	"createddate" : "bigint NOT NULL",
 	"reason" : "varchar(150)",
 	_indexes: [
-		"INDEX idx_origin (originid, origintable, active)"
+		"INDEX idx_origin (originid, origintable, active)",
 	],
 	constructor: {
 		name: 'RowDataPacket',
@@ -354,6 +356,8 @@ const eventsTableFields: EventsTableStructure = {
 		"INDEX idx_active_id (active, id)",
 		"INDEX idx_created_at (created_at)",
 		"INDEX idx_active (active)",
+		"INDEX idx_active_checked (active, checked)",
+		"INDEX idx_received_at (received_at)"
 	],
 	constructor: {
 		name: 'RowDataPacket',
@@ -379,7 +383,8 @@ const eventTagsTableFields: EventTagsTableStructure = {
 	_indexes: [
 		"INDEX idx_event_id (event_id)",
 		"INDEX idx_tag_name_value (tag_name, tag_value(100))",
-		"INDEX idx_eventtags_event_id (event_id)"
+		"INDEX idx_eventtags_event_id (event_id)",
+		"INDEX idx_event_group (event_id, tag_name, tag_value(100))"
 
 	],
 	constructor: {
@@ -429,8 +434,7 @@ registered_id: "int(11) NOT NULL UNIQUE",
 preferences: "JSON NOT NULL DEFAULT '{}'",
 updated_at: "timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP",
 _indexes: [
-	"INDEX idx_registered_id (registered_id)"
-],
+	"INDEX idx_registered_id (registered_id)",],
 constructor: {
 	name: 'RowDataPacket',
 },
