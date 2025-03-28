@@ -56,16 +56,17 @@ interface moduleDataReturnMessage {
     rows: any;
 }
 
+
 const ModuleDataTables: { [key: string]: string } = {
-    "nostraddress": "vregistered",
-    "media": "vfiles",
+    "nostraddress": "registered",
+    "media": "mediafiles",
     "lightning": "lightning",
     "domains": "domains",
     "payments": "transactions",
-    "banned": "vbanned",
+    "banned": "banned",
     "register": "invitations",
-    "ips": "vips",
-    "relay": "vevents"
+    "ips": "ips",
+    "relay": "events"
 };
 
 const moduleDataKeys: { [key: string]: string } = {
@@ -81,26 +82,26 @@ const moduleDataKeys: { [key: string]: string } = {
 };
 
 const moduleDataWhereFields: { [key: string]: [string] } = {
-    "nostraddress":     ["vregistered.id, " + 
-                        "vregistered.username, " + 
-                        "vregistered.pubkey, " +
-                        "vregistered.hex, " +
-                        "vregistered.domain, " +
-                        "vregistered.date, " +
-                        "vregistered.comments, " +
-                        "vregistered.pendingotc"],
-    "media":            ["vfiles.id, " +
-                        "vfiles.pubkey, " +
-                        "vfiles.filename, " +
-                        "vfiles.original_hash, " +
-                        "vfiles.hash, " +
-                        "vfiles.status, " +
-                        "vfiles.dimensions, " +
-                        "vfiles.filesize, " +
-                        "vfiles.date, " +
-                        "vfiles.comments, " +
-                        "vfiles.username, " +
-                        "vfiles.satoshi" ],
+    "nostraddress":     ["registered.id, " + 
+                        "registered.username, " + 
+                        "registered.pubkey, " +
+                        "registered.hex, " +
+                        "registered.domain, " +
+                        "registered.date, " +
+                        "registered.comments, " +
+                        "registered.pendingotc"],
+    "media":            ["mediafiles.id, " +
+                        "mediafiles.pubkey, " +
+                        "mediafiles.filename, " +
+                        "mediafiles.original_hash, " +
+                        "mediafiles.hash, " +
+                        "mediafiles.status, " +
+                        "mediafiles.dimensions, " +
+                        "mediafiles.filesize, " +
+                        "mediafiles.date, " +
+                        "mediafiles.comments, " +
+                        "username, " +
+                        "satoshi" ],
     "lightning":        ["lightning.id, " +
                         "lightning.pubkey, " +
                         "lightning.lightningaddress, " +
@@ -121,80 +122,79 @@ const moduleDataWhereFields: { [key: string]: [string] } = {
                         "transactions.expirydate, " +
                         "transactions.paiddate, " +
                         "transactions.comments"],
-    "banned":           ["vbanned.id, " +
-                        "vbanned.active, " +
-                        "vbanned.originid, " +
-                        "vbanned.origintable, " +
-                        "vbanned.originkey, " +
-                        "vbanned.reason, " +
-                        "vbanned.createddate, " +
-                        "vbanned.reason"],
+    "banned":           ["banned.id, " +
+                        "banned.active, " +
+                        "banned.originid, " +
+                        "banned.origintable, " +
+                        "banned.reason, " +
+                        "banned.createddate, " +
+                        "banned.comments"],
     "invites":          ["invitations.id, " +
                         "invitations.originid, " +
                         "invitations.inviteeid, " +
                         "invitations.createdate, " +
                         "invitations.inviteedate, " +
                         "invitations.comments"],
-    "ips":              ["vips.id, " +
-                        "vips.active, " +
-                        "vips.checked, " +
-                        "vips.ip, " +
-                        "vips.firstseen, " +
-                        "vips.lastseen, " +
-                        "vips.reqcount, " +
-                        "vips.infractions, " +
-                        "vips.comments"],
+    "ips":              ["ips.id, " +
+                        "ips.active, " +
+                        "ips.checked, " +
+                        "ips.ip, " +
+                        "ips.firstseen, " +
+                        "ips.lastseen, " +
+                        "ips.reqcount, " +
+                        "ips.infractions, " +
+                        "ips.comments"],
     "relay": [
-                        "vevents.id, " +   
-                        "vevents.active, " +
-                        "vevents.checked, " +
-                        "vevents.event_id, " +
-                        "vevents.pubkey, " +
-                        "vevents.kind, " +
-                        "vevents.tags, " +
-                        "vevents.content, " +
-                        "vevents.created_at, " +
-                        "vevents.received_at"
+                        "events.id, " +   
+                        "events.active, " +
+                        "events.checked, " +
+                        "events.event_id, " +
+                        "events.pubkey, " +
+                        "events.kind, " +
+                        "events.content, " +
+                        "events.created_at, " +
+                        "events.received_at"
                         ]
 };
 
+
 const moduleDataSelectFields: { [key: string]: string } = {
-    "nostraddress":     "vregistered.id, " + 
-                        "vregistered.banned, " +
-                        "vregistered.checked, " + 
-                        "vregistered.active, " +
-                        "vregistered.allowed, " +
-                        "vregistered.pendingotc, " +
-                        "vregistered.username, " +
-                        "vregistered.balance, " +
-                        "vregistered.paid, " +
-                        "vregistered.satoshi, " +
-                        "vregistered.transactionid, " +
-                        "vregistered.pubkey, " +
-                        "vregistered.hex, " +
-                        "vregistered.domain, " +
-                        "vregistered.date," + 
-                        "vregistered.comments",
-    "media":            "vfiles.id, " +
-                        "vfiles.banned, " +
-                        "vfiles.checked, " +
-                        "vfiles.active, " +
-                        "vfiles.visibility, " +
-                        "vfiles.paid, " +
-                        "vfiles.satoshi, " +
-                        "vfiles.transactionid, " +
-                        "vfiles.username, " +
-                        "vfiles.npub, " +
-                        "vfiles.pubkey, " +
-                        "vfiles.filename, " +
-                        "vfiles.mimetype, " +
-                        "vfiles.original_hash, " +
-                        "vfiles.hash, " +
-                        "vfiles.status, " +
-                        "vfiles.dimensions, " +
-                        "vfiles.filesize, " +
-                        "vfiles.date, " +
-                        "vfiles.comments",
+    "nostraddress":     "registered.id, " + 
+                        "CASE WHEN EXISTS (SELECT 1 FROM banned WHERE banned.originid = registered.id AND banned.origintable = 'registered' and banned.active = '1') THEN 1 ELSE 0 END as banned, " +
+                        "registered.checked, " + 
+                        "registered.active, " +
+                        "registered.allowed, " +
+                        "registered.pendingotc, " +
+                        "registered.username, " +
+                        "registered.balance, " +
+                        "CASE WHEN EXISTS (SELECT transactions.paid FROM transactions WHERE registered.transactionid = transactions.id LIMIT 1) THEN 1 ELSE 0 END as paid, " +
+                        "(SELECT transactions.satoshi FROM transactions WHERE registered.transactionid = transactions.id LIMIT 1) as satoshi, " +
+                        "registered.transactionid, " +
+                        "registered.pubkey, " +
+                        "registered.hex, " +
+                        "registered.domain, " +
+                        "DATE_FORMAT(registered.date, '%Y-%m-%d %H:%i') as date," + 
+                        "registered.comments",
+    "media":            "mediafiles.id, " +
+                        "CASE WHEN EXISTS (SELECT 1 FROM banned WHERE banned.originid = mediafiles.id AND banned.origintable = 'mediafiles' and banned.active = '1') THEN 1 ELSE 0 END as banned, " +
+                        "mediafiles.checked, " +
+                        "mediafiles.active, " +
+                        "mediafiles.visibility, " +
+                        "(SELECT transactions.paid FROM transactions WHERE mediafiles.transactionid = transactions.id LIMIT 1) as paid, " +
+                        "(SELECT transactions.satoshi FROM transactions WHERE mediafiles.transactionid = transactions.id LIMIT 1) as satoshi, " +
+                        "mediafiles.transactionid, " +
+                        "(SELECT registered.username FROM registered WHERE mediafiles.pubkey = registered.hex LIMIT 1) as username, " +
+                        "(SELECT registered.pubkey FROM registered WHERE mediafiles.pubkey = registered.hex LIMIT 1) as npub, " +
+                        "mediafiles.pubkey, " +
+                        "mediafiles.filename, " +
+                        "mediafiles.mimetype, " +
+                        "mediafiles.original_hash, " +
+                        "mediafiles.hash, " +
+                        "mediafiles.status, " +
+                        "mediafiles.dimensions, " +
+                        "ROUND(mediafiles.filesize / 1024 / 1024, 2) as 'filesize', " +
+                        "DATE_FORMAT(mediafiles.date, '%Y-%m-%d %H:%i') as date, " +
+                        "mediafiles.comments",
     "lightning":        "lightning.id, " +
                         "lightning.active, " +
                         "lightning.checked, " +
@@ -220,13 +220,16 @@ const moduleDataSelectFields: { [key: string]: string } = {
                         " DATE_FORMAT(expirydate, '%Y-%m-%d %H:%i') as expirydate, " +
                         "DATE_FORMAT(transactions.paiddate, '%Y-%m-%d %H:%i') as paiddate, " +
                         "transactions.comments",
-    "banned":           "vbanned.id, " +
-                        "vbanned.active, " +
-                        "vbanned.originid, " +
-                        "vbanned.origintable, " +
-                        "vbanned.originkey, " +
-                        "vbanned.createddate, " +
-                        "vbanned.reason ",
+    "banned":           "banned.id, " +
+                        "banned.active, " +
+                        "banned.originid, " +
+                        "banned.origintable, " +
+                        "COALESCE(  (SELECT mediafiles.filename FROM mediafiles WHERE mediafiles.id = banned.originid and banned.origintable = 'mediafiles' LIMIT 1), " +
+                        "           (SELECT registered.hex FROM registered WHERE registered.id = banned.originid and banned.origintable = 'registered' LIMIT 1)," +
+                        "           (SELECT ips.ip FROM ips WHERE ips.id = banned.originid and banned.origintable = 'ips' LIMIT 1) " +
+                        "         ) as originkey, " +
+                        "banned.createddate, " +
+                        "banned.reason ",
     "register":         "invitations.id, " +
                         "invitations.active, " +
                         "invitations.code, " +
@@ -235,28 +238,28 @@ const moduleDataSelectFields: { [key: string]: string } = {
                         "DATE_FORMAT(invitations.createdate, '%Y-%m-%d %H:%i') as createdate, " +
                         "DATE_FORMAT(invitations.inviteedate, '%Y-%m-%d %H:%i') as inviteedate, " +
                         "invitations.comments",
-    "ips":              "vips.id, " +
-                        "vips.banned, " +
-                        "vips.active, " +
-                        "vips.checked, " +
-                        "vips.ip, " +
-                        "vips.firstseen, " +
-                        "vips.lastseen, " +
-                        "vips.reqcount, " +
-                        "vips.infractions, " +
-                        "vips.comments",
-    "relay":            "vevents.id, " +
-                        "vevents.active, " +
-                        "vevents.checked, " +
-                        "vevents.banned, " +
-                        "vevents.event_id, " +
-                        "vevents.pubkey, " +
-                        "vevents.kind, " +
-                        "vevents.tags, " +
-                        "vevents.content, " +
-                        "vevents.created_at, " +
-                        "vevents.received_at, " + 
-                        "vevents.comments"
+    "ips":              "ips.id, " +
+                        "CASE WHEN EXISTS (SELECT 1 FROM banned WHERE banned.originid = ips.id AND banned.origintable = 'ips' and banned.active = '1') THEN 1 ELSE 0 END as banned, " +
+                        "ips.active, " +
+                        "ips.checked, " +
+                        "ips.ip, " +
+                        "DATE_FORMAT(FROM_UNIXTIME(ips.firstseen /1000), '%Y-%m-%d %H:%i') as firstseen, " +
+                        "DATE_FORMAT(FROM_UNIXTIME(ips.lastseen /1000), '%Y-%m-%d %H:%i') as lastseen, " +
+                        "ips.reqcount, " +
+                        "ips.infractions, " +
+                        "ips.comments",
+    "relay":            "events.id, " +
+                        "events.active, " +
+                        "events.checked, " +
+                        "CASE WHEN EXISTS (SELECT 1 FROM banned WHERE banned.originid = events.id AND banned.origintable = 'events' and banned.active = '1') THEN 1 ELSE 0 END as banned, " +
+                        "events.event_id, " +
+                        "events.pubkey, " +
+                        "events.kind, " +
+                        "(SELECT COALESCE(GROUP_CONCAT(CONCAT(eventtags.tag_name, ' : ', eventtags.tag_value) SEPARATOR ', '), '') FROM eventtags WHERE eventtags.event_id = events.event_id) as tags, " +
+                        "events.content, " +
+                        "events.created_at, " +
+                        "events.received_at, " + 
+                        "events.comments"
 };
 
 export { allowedTableNames, allowedFieldNames, allowedFieldNamesAndValues, moduleDataReturnMessage, ModuleDataTables, moduleDataSelectFields, moduleDataWhereFields, moduleDataKeys };
