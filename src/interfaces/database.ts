@@ -101,7 +101,8 @@ const mediafilesTableFields: MediafilesTableStructure = {
 		"INDEX idx_original_hash (original_hash)",
 		"INDEX idx_filename_original_hash (filename, original_hash)",
 		"INDEX idx_localpath (localpath)",
-		"INDEX idx_checked (checked)"
+		"INDEX idx_checked (checked)",
+		"INDEX idx_checked_active (checked, active)"
 	],
 	constructor: {
 		name: 'RowDataPacket',
@@ -196,6 +197,9 @@ const transactionsTableFields: TransactionsTableStructure = {
 	expirydate: "datetime NOT NULL",
 	paiddate: "datetime",
 	comments: "varchar(150)",
+	_indexes: [
+		"INDEX idx_transactions_id (id)",
+	],
 	constructor: {
 		name: 'RowDataPacket',
 	},
