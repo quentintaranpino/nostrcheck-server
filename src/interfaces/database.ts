@@ -1,6 +1,6 @@
 import { RowDataPacket } from "mysql2";
 
-interface domainsTableStructure extends RowDataPacket{
+interface DomainsTableStructure extends RowDataPacket{
 	id: string;
 	domain: string;
 	active: string;
@@ -11,7 +11,7 @@ interface domainsTableStructure extends RowDataPacket{
 	comments: string;
 }
 
-const domainsTableFields : domainsTableStructure = {
+const domainsTableFields : DomainsTableStructure = {
 	"id" : "int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY",
 	"domain" : "varchar(50) NOT NULL",
 	"active" : "boolean NOT NULL DEFAULT 0",
@@ -25,7 +25,7 @@ const domainsTableFields : domainsTableStructure = {
 	},
 } 
 
-interface lightningTable extends RowDataPacket {
+interface LightningTableStructure extends RowDataPacket {
 	id: string;
 	active : string;
 	checked: string;
@@ -34,7 +34,7 @@ interface lightningTable extends RowDataPacket {
 	comments: string;
 }
 
-const lightningTableFields: lightningTable = {
+const lightningTableFields: LightningTableStructure = {
 	id: "int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY",
 	active: "boolean NOT NULL DEFAULT 1",
 	checked: "boolean NOT NULL DEFAULT 0",
@@ -47,7 +47,7 @@ const lightningTableFields: lightningTable = {
 
 };
 
-interface mediafilesTable extends RowDataPacket {
+interface MediafilesTableStructure extends RowDataPacket {
 	id: string;
 	pubkey: string;
 	filename: string;
@@ -72,7 +72,7 @@ interface mediafilesTable extends RowDataPacket {
 	type: string;
 }
 
-const mediafilesTableFields: mediafilesTable = {
+const mediafilesTableFields: MediafilesTableStructure = {
 	id: "int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY",
 	pubkey: "varchar(64) NOT NULL",
 	filename: "varchar(128) NOT NULL",
@@ -107,13 +107,13 @@ const mediafilesTableFields: mediafilesTable = {
 	},
 };
 
-interface mediatagsTable extends RowDataPacket {
+interface MediatagsTableStructure extends RowDataPacket {
 	id: string;
 	fileid: string;
 	tag: string;
 }
 
-const mediatagsTableFields: mediatagsTable = {
+const mediatagsTableFields: MediatagsTableStructure = {
 	id: "int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY",
 	fileid: "int(11) NOT NULL",
 	tag: "varchar(64) NOT NULL",
@@ -122,7 +122,7 @@ const mediatagsTableFields: mediatagsTable = {
 	},
 };
 
-interface registeredTable extends RowDataPacket{
+interface RegisteredTableStructure extends RowDataPacket{
 	id: string;
 	pubkey: string;
 	hex: string;
@@ -142,7 +142,7 @@ interface registeredTable extends RowDataPacket{
 	pendingotc: string;
 }
 
-const registeredTableFields: registeredTable = {
+const registeredTableFields: RegisteredTableStructure = {
 	id: "int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY",
 	pubkey: "varchar(64) NOT NULL",
 	hex: "varchar(64) NOT NULL",
@@ -168,7 +168,7 @@ const registeredTableFields: registeredTable = {
 	},
 };
 
-interface transactionsTable extends RowDataPacket {
+interface TransactionsTableStructure extends RowDataPacket {
 	id: string;
 	type: string;
 	accountid: string;
@@ -181,7 +181,7 @@ interface transactionsTable extends RowDataPacket {
 	comments: string;
 }
 
-const transactionsTableFields: transactionsTable = {
+const transactionsTableFields: TransactionsTableStructure = {
 	id: "int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY",
 	type: "varchar(10) NOT NULL",
 	accountid: "varchar(12) NOT NULL",
@@ -199,7 +199,17 @@ const transactionsTableFields: transactionsTable = {
 	},
 };
 
-const ledgerTableFields: ledgerTable = {
+interface LedgerTableStructure extends RowDataPacket {
+	id: string;
+	accountid: string;
+	transactionid : string;
+	debit: string;
+	credit: string;
+	createddate: string;
+	comments: string;
+}
+
+const ledgerTableFields: LedgerTableStructure = {
 	id: "int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY",
 	accountid: "int(12) NOT NULL",
 	transactionid: "int(11) NOT NULL",
@@ -212,17 +222,17 @@ const ledgerTableFields: ledgerTable = {
 	},
 };
 
-interface ledgerTable extends RowDataPacket {
+interface AccountsTableStructure extends RowDataPacket {
 	id: string;
 	accountid: string;
-	transactionid : string;
-	debit: string;
-	credit: string;
+	active: string;
+	accountname: string;
+	accounttype: string;
 	createddate: string;
 	comments: string;
 }
 
-const accountsTableFields: accountsTable = {
+const accountsTableFields: AccountsTableStructure = {
 	id: "int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY",
 	accountid: "int(12) NOT NULL",
 	active: "boolean NOT NULL DEFAULT 0",
@@ -235,17 +245,8 @@ const accountsTableFields: accountsTable = {
 	},
 };
 
-interface accountsTable extends RowDataPacket {
-	id: string;
-	accountid: string;
-	active: string;
-	accountname: string;
-	accounttype: string;
-	createddate: string;
-	comments: string;
-}
 
-interface bannedTable extends RowDataPacket{
+interface BannedTableStructure extends RowDataPacket{
 	id: string;
 	active: string;
 	originid: string;
@@ -254,7 +255,7 @@ interface bannedTable extends RowDataPacket{
 	reason: string;
 }
 
-const bannedTableFields: bannedTable = {
+const bannedTableFields: BannedTableStructure = {
 	"id" : "int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY",
 	"active" : "boolean NOT NULL DEFAULT 1",
 	"originid" : "varchar(11) NOT NULL",
@@ -269,7 +270,7 @@ const bannedTableFields: bannedTable = {
 	},
 }
 
-interface ipsTable extends RowDataPacket {
+interface IpsTableStructure extends RowDataPacket {
 	id: string;
 	active: string;
 	checked: string;
@@ -281,7 +282,7 @@ interface ipsTable extends RowDataPacket {
 	comments: string;
 }
 
-const ipsTableFields: ipsTable = {
+const ipsTableFields: IpsTableStructure = {
 	id: "int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY",
 	active: "boolean NOT NULL DEFAULT 1",
 	checked: "boolean NOT NULL DEFAULT 0",
@@ -296,7 +297,7 @@ const ipsTableFields: ipsTable = {
 	},
 };
 
-interface invitationsTable extends RowDataPacket {
+interface InvitationsTableStructure extends RowDataPacket {
 	id: string;
 	active: string;
 	code: string;
@@ -307,7 +308,7 @@ interface invitationsTable extends RowDataPacket {
 	comments: string;
 }
 
-const invitationsTableFields: invitationsTable = {
+const invitationsTableFields: InvitationsTableStructure = {
 	id: "int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY",
 	active: "boolean NOT NULL DEFAULT 1",
 	code: "varchar(32) NOT NULL",
@@ -321,7 +322,7 @@ const invitationsTableFields: invitationsTable = {
 	},
 };
 
-interface EventsTable extends RowDataPacket {
+interface EventsTableStructure extends RowDataPacket {
 	id: string;
 	active: string;
 	checked: string;
@@ -335,7 +336,7 @@ interface EventsTable extends RowDataPacket {
 	comments: string;
 }
 
-const eventsTableFields: EventsTable = {
+const eventsTableFields: EventsTableStructure = {
 	id: "int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY",
 	active: "boolean NOT NULL DEFAULT 1",
 	checked: "boolean NOT NULL DEFAULT 0",
@@ -359,7 +360,7 @@ const eventsTableFields: EventsTable = {
 	},
 };
 
-interface EventTagsTable extends RowDataPacket {
+interface EventTagsTableStructure extends RowDataPacket {
 	id: string;
 	event_id: string;
 	tag_name: string;
@@ -368,7 +369,7 @@ interface EventTagsTable extends RowDataPacket {
 	extra_values: string;
 }
 
-const eventTagsTableFields: EventTagsTable = {
+const eventTagsTableFields: EventTagsTableStructure = {
 	id: "int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY",
 	event_id: "varchar(64) NOT NULL",
 	tag_name: "varchar(64) NOT NULL",
@@ -386,7 +387,7 @@ const eventTagsTableFields: EventTagsTable = {
 	},
 };
 
-interface EventMetadataTable extends RowDataPacket {
+interface EventMetadataTableStructure extends RowDataPacket {
     id: string;
     event_id: string;
     metadata_type: string;  
@@ -396,7 +397,7 @@ interface EventMetadataTable extends RowDataPacket {
     created_at: string;
 }
 
-const eventMetadataTableFields: EventMetadataTable = {
+const eventMetadataTableFields: EventMetadataTableStructure = {
     id: "int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY",
     event_id: "varchar(64) NOT NULL",
     metadata_type: "varchar(32) NOT NULL",
@@ -415,14 +416,14 @@ const eventMetadataTableFields: EventMetadataTable = {
     },
 };
 
-interface UserPrefsTable extends RowDataPacket {
+interface UserPrefsTableStructure extends RowDataPacket {
 	id: string;
 	registered_id: string;
 	preferences: string;
 	updated_at: string;
   }
   
-const userPreferencesTableFields: UserPrefsTable = {
+const userPreferencesTableFields: UserPrefsTableStructure = {
 id: "int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY",
 registered_id: "int(11) NOT NULL UNIQUE",
 preferences: "JSON NOT NULL DEFAULT '{}'",
@@ -458,9 +459,167 @@ const newFieldcompatibility = [
 	{"eventmetadata": eventMetadataTableFields},
 ];
 
+interface DatabaseView {
+	viewName: string;
+	createStatement: string;
+}
+
+const vRegisteredView: DatabaseView =  {
+    viewName: "vregistered",
+    createStatement: `
+		CREATE OR REPLACE VIEW vregistered AS
+		SELECT 
+		r.id,
+		IF(b.id IS NOT NULL, 1, 0) AS banned,
+		r.checked,
+		r.active,
+		r.allowed,
+		r.pendingotc,
+		r.username,
+		r.balance,
+		IF(t.paid IS NOT NULL, 1, 0) AS paid,
+		t.satoshi,
+		r.transactionid,
+		r.pubkey,
+		r.hex,
+		r.domain,
+		DATE_FORMAT(r.date, '%Y-%m-%d %H:%i') AS date,
+		r.comments
+		FROM registered r
+		LEFT JOIN banned b ON b.originid = r.id 
+							AND b.origintable = 'registered'
+							AND b.active = 1
+		LEFT JOIN transactions t ON r.transactionid = t.id;
+    `
+};
+
+const vFilesView: DatabaseView =  {
+	viewName: "vfiles",
+	createStatement: `
+		CREATE OR REPLACE VIEW vfiles AS
+		SELECT 
+			mf.id,
+			IF(b.id IS NOT NULL, 1, 0) AS banned,
+			mf.checked,
+			mf.active,
+			mf.visibility,
+			t.paid,
+			t.satoshi,
+			mf.transactionid,
+			r.username,
+			r.pubkey AS npub,
+			mf.pubkey,
+			mf.filename,
+			mf.mimetype,
+			mf.original_hash,
+			mf.hash,
+			mf.status,
+			mf.dimensions,
+			ROUND(mf.filesize / 1024 / 1024, 2) AS filesize,
+			DATE_FORMAT(mf.date, '%Y-%m-%d %H:%i') AS date,
+			mf.comments
+		FROM mediafiles mf
+		LEFT JOIN banned b 
+			ON b.originid = mf.id 
+			AND b.origintable = 'mediafiles'
+			AND b.active = 1
+		LEFT JOIN transactions t 
+			ON mf.transactionid = t.id
+		LEFT JOIN registered r 
+			ON mf.pubkey = r.hex;
+	`
+};
+
+const vBannedView: DatabaseView =  {
+	viewName: "vbanned",
+	createStatement: `
+		CREATE OR REPLACE VIEW vbanned AS
+		SELECT 
+			b.id,
+			b.active,
+			b.originid,
+			b.origintable,
+			COALESCE(mf.filename, r.hex, i.ip) AS originkey,
+			b.createddate,
+			b.reason
+		FROM banned b
+		LEFT JOIN mediafiles mf 
+			ON b.originid = mf.id 
+			AND b.origintable = 'mediafiles'
+		LEFT JOIN registered r 
+			ON b.originid = r.id 
+			AND b.origintable = 'registered'
+		LEFT JOIN ips i 
+			ON b.originid = i.id 
+			AND b.origintable = 'ips'`
+};
+
+
+const vIpsView: DatabaseView =  {
+	viewName: "vips",
+	createStatement: `
+		CREATE OR REPLACE VIEW vips AS
+		SELECT 
+			i.id,
+			IF(b.id IS NOT NULL, 1, 0) AS banned,
+			i.active,
+			i.checked,
+			i.ip,
+			DATE_FORMAT(FROM_UNIXTIME(i.firstseen / 1000), '%Y-%m-%d %H:%i') AS firstseen,
+			DATE_FORMAT(FROM_UNIXTIME(i.lastseen / 1000), '%Y-%m-%d %H:%i') AS lastseen,
+			i.reqcount,
+			i.infractions,
+			i.comments
+		FROM ips i
+		LEFT JOIN banned b 
+			ON b.originid = i.id 
+			AND b.origintable = 'ips'
+			AND b.active = 1;`
+};
+
+const vEventsView: DatabaseView = {
+	viewName: "vevents",
+	createStatement: `
+		CREATE OR REPLACE VIEW vevents AS
+		SELECT 
+			e.id,
+			e.active,
+			e.checked,
+			IF(b.id IS NOT NULL, 1, 0) AS banned,
+			e.event_id,
+			e.pubkey,
+			e.kind,
+			COALESCE(et.tags, '') AS tags,
+			e.content,
+			e.created_at,
+			e.received_at,
+			e.comments
+		FROM events e
+		LEFT JOIN banned b 
+			ON b.originid = e.id 
+			AND b.origintable = 'events'
+			AND b.active = 1
+		LEFT JOIN (
+			SELECT 
+				event_id, 
+				GROUP_CONCAT(CONCAT(tag_name, ' : ', tag_value) SEPARATOR ', ') AS tags
+			FROM eventtags
+			GROUP BY event_id
+		) et 
+			ON e.event_id = et.event_id;`
+};
+
+const databaseViews: DatabaseView[] = [
+	vRegisteredView,
+	vFilesView,
+	vBannedView,
+	vIpsView,
+	vEventsView
+];
 
 export {
 	newFieldcompatibility,
-	databaseTables
+	databaseTables,
+	databaseViews
 };	
 	

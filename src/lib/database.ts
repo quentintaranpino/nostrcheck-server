@@ -3,7 +3,7 @@ import { exit } from "process";
 
 import app from "../app.js";
 import { logger } from "./logger.js";
-import { newFieldcompatibility, databaseTables} from "../interfaces/database.js";
+import { newFieldcompatibility, databaseTables, databaseViews} from "../interfaces/database.js";
 import { accounts } from "../interfaces/payments.js";
 import { isModuleEnabled, updateLocalConfigKey } from "./config.js";
 import { addNewUsername } from "./register.js";
@@ -111,6 +111,21 @@ async function populateTables(resetTables: boolean): Promise<boolean> {
     }
     return true;
 }
+
+async function populateViews() : Promise<boolean> {
+	try {
+		const pool = await connect("initDatabase-views");
+		for (const view of databaseViews) {
+			logger.debug(`populateViews - Creating or updating database view: ${view.viewName}`);
+			await pool.execute(view.createStatement);
+		}
+		return true;
+	} catch (error) {
+		logger.error(`initDatabase - Error creating views: ${error}`);
+		process.exit(1);
+	}
+}
+
 
 async function checkDatabaseConsistency(table: string, column_name:string, type:string, after_column:string): Promise<boolean> {
 
@@ -577,6 +592,12 @@ const initDatabase = async (): Promise<void> => {
 	const dbtables = await populateTables(app.get("config.database")["droptables"]); // true = reset tables
 	if (!dbtables) {
 		logger.fatal(`initDatabase - Error checking database integrity. Exiting.`);
+		process.exit(1);
+	}
+
+	const dbViews = await populateViews();
+	if (!dbViews) {
+		logger.fatal(`initDatabase - Error creating database views. Exiting.`);
 		process.exit(1);
 	}
 

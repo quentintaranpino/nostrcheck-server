@@ -55,11 +55,11 @@ async function dbSelectModuleData(module:string, offset:number, limit:number, or
 	limitLogic = `LIMIT ${offset} , ${limit}`;
 
 	if (filter && filter.length > 0){
-	  for (const item of filter) {
-		if (item.field && item.value) {
-			item.value.startsWith("!") ? whereLogic += ` AND ${item.field} != '${item.value.split("!")[1]}'` : whereLogic += ` AND ${item.field} = '${item.value}'`;
+		for (const item of filter) {
+			if (item.field && item.value) {
+				item.value.startsWith("!") ? whereLogic += ` AND ${item.field} != '${item.value.split("!")[1]}'` : whereLogic += ` AND ${item.field} = '${item.value}'`;
+			}
 		}
-	  }
 	}
 
 	logger.debug(`dbSelectModuleData - executing query: SELECT ${fieldsLogic} ${fromLogic} ${whereLogic} ${sortLogic} ${limitLogic}`);
