@@ -71,7 +71,7 @@
 
         <%- include('../dashcard', { 
         dashcardId: 'unpaidTransactionsBalance', 
-        dashcardName: 'Unpaid transactions balance', 
+        dashcardName: 'Unpaid balance', 
         dashcardDataKey: 'payments', 
         icon: 'satoshi', 
         link: '', 
@@ -107,7 +107,7 @@
 
         <%- include('../dashcard', { 
         dashcardId: 'relayWebsocketConnections', 
-        dashcardName: 'Relay connections', 
+        dashcardName: 'Connections', 
         dashcardDataKey: 'relay', 
         icon: 'activity', 
         link: '', 
@@ -119,7 +119,7 @@
 
         <%- include('../dashcard', { 
             dashcardId: 'relayQueueLength', 
-            dashcardName: 'Relay queue', 
+            dashcardName: 'Queue (events)', 
             dashcardDataKey: 'relay', 
             icon: 'list', 
             link: '', 
@@ -131,7 +131,7 @@
 
         <%- include('../dashcard', { 
             dashcardId: 'relayQueueHeavyLength', 
-            dashcardName: 'Relay queue (heavy tasks)', 
+            dashcardName: 'Queue (heavy requests)', 
             dashcardDataKey: 'relay', 
             icon: 'list', 
             link: '', 
@@ -143,7 +143,7 @@
 
         <%- include('../dashcard', { 
             dashcardId: 'relayQueueLightLength', 
-            dashcardName: 'Relay queue (light tasks)', 
+            dashcardName: 'Queue (light requests)', 
             dashcardDataKey: 'relay', 
             icon: 'list', 
             link: '', 
@@ -167,9 +167,9 @@
 
         <%- include('../dashcard', { 
             dashcardId: 'relayMemoryUsage', 
-            dashcardName: 'Relay memory usage', 
+            dashcardName: 'Memory DB (MB)', 
             dashcardDataKey: 'relay', 
-            icon: 'activity', 
+            icon: 'memory', 
             link: '', 
             action: 'status', 
             field: 'usedMemory', 
@@ -232,7 +232,7 @@
         dashcardId: 'serverRam', 
         dashcardName: 'RAM (MB)', 
         dashcardDataKey: 'admin', 
-        icon: 'activity', 
+        icon: 'memory', 
         link: '', 
         action: 'status', 
         field: 'ramUsage', 
@@ -244,7 +244,7 @@
         dashcardId: 'serverCPU', 
         dashcardName: 'CPU (%)', 
         dashcardDataKey: 'admin', 
-        icon: 'activity', 
+        icon: 'cpu', 
         link: '', 
         action: 'status', 
         field: 'cpuUsage', 

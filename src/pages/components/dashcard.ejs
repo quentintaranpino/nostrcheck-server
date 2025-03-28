@@ -1,5 +1,6 @@
-<div id="<%- dashcardId %>" class="col-xl-3 col-lg-4 col-md-6 col-sm-12 dashcard d-none">
-    <div class="card mb-3 shadow-sm default-bg" style="min-height: 220px">
+<div id="<%- dashcardId %>" class="col-xxl-2 col-lg-3 col-md-4 col-sm-6 dashcard d-none">
+    <div id="<%- dashcardId %>-card" class="card mb-3 shadow-sm default-bg" style="min-height: 220px">
+      <div id="<%- dashcardId %>-module-indicator" class="module-indicator"></div>
       <div class="card-body text-center">
         <% if (link) { %>
           <a href="<%- link %>" class="text-decoration-none text-reset">
@@ -7,7 +8,7 @@
         <div class="d-flex justify-content-between align-items-center">
           <h5 id="<%- dashcardId %>-name" class="card-title mb-0"></h5>
           <div>
-            <i id="<%- dashcardId %>-icon" class="fas fa-chart-simple fa-3x card-icon" ></i>
+            <i id="<%- dashcardId %>-icon" class="fas fa-chart-simple card-icon" ></i>
             <% if (icon=='doughnut') { %>
                 <%- include('./charts/doughnutchart', { 
                                                         type: 'doughnut',
@@ -16,8 +17,8 @@
                                                         doughnutField: field, 
                                                         doughnutName: "", 
                                                         timeout: typeof timeout !== 'undefined' ? timeout : 60000,
-                                                        width:"50", 
-                                                        height:"50", 
+                                                        width:"40", 
+                                                        height:"40", 
                                                         showTitle:false, 
                                                         showLegend:false, 
                                                         showTooltip:false,
@@ -26,7 +27,7 @@
             <% } %>
           </div>
         </div>
-        <h1 id="<%- dashcardId %>-text-field" class="display-2 m-0 font-weight-bold dash-text">0</h1>     
+        <h1 id="<%- dashcardId %>-text-field" class="display-3 mt-3 m-0 font-weight-bold dash-text">0</h1>     
         <% if(showField){ %><h1 id="<%- dashcardId %>-text-total" class="lead fs-6 font-weight-bold dash-text">0</h1> <% } %>    
         <% if (link) { %>
           </a>
@@ -54,11 +55,7 @@
 }
 
 .card:hover { 
-    transform: scale(1.04);
-}
-
-.card-icon {
-    color: #a575ff;
+    transform: scale(1.03);
 }
 
 .btn-dashcard:hover {
@@ -110,6 +107,15 @@
     transition: opacity 0.5s !important;
 }
 
+.module-indicator {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 4px;
+  height: 100%;
+  border-radius: 8px 0 0 8px;
+}
+
 </style>
 <script>
 document.addEventListener('DOMContentLoaded', async () => {
@@ -127,7 +133,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     $('#' + dashcardId + '-name').text(dashcardName)
     const iconElement = $('#' + dashcardId + '-icon');
     iconElement.removeClass(); 
-    iconElement.addClass('fa-3x card-icon');
+    iconElement.addClass('fa-2x card-icon');
 
     if (icon === "chart") {
       iconElement.addClass('fas fa-chart-simple');
@@ -138,20 +144,37 @@ document.addEventListener('DOMContentLoaded', async () => {
     } else if (icon === "doughnut") {
       iconElement.addClass('d-none');
     } else if (icon === "time") {
-      iconElement.addClass('fas fa-clock text-info');
+      iconElement.addClass('fas fa-clock');
     } else if (icon === "hourglass") {
-      iconElement.addClass('fas fa-hourglass-half text-secondary');
+      iconElement.addClass('fas fa-hourglass-half');
     } else if (icon === "relay") {
-      iconElement.addClass('bi bi-broadcast-pin text-secondary');
+      iconElement.addClass('bi bi-broadcast-pin');
     } else if (icon == "activity") {
-      iconElement.addClass('fas fa-chart-line text-secondary');
+      iconElement.addClass('fas fa-chart-line');
     } else if (icon == "list") {
-      iconElement.addClass('fas fa-solid fa-list-check text-info');
+      iconElement.addClass('fas fa-solid fa-list-ul');
     } else if (icon == "worker") {
-      iconElement.addClass('fas fa-solid fa-truck-fast text-info');
+      iconElement.addClass('fas fa-solid fa-robot');
+    } else if (icon == "cpu") {
+      iconElement.addClass('fas fa-solid fa-microchip');
+    } else if (icon == "memory") {
+      iconElement.addClass('fas fa-solid fa-database');
     } else {
       iconElement.addClass('fas fa-chart-simple');
     }
+
+    const moduleIndicator = document.getElementById(`${dashcardId}-module-indicator`);
+    if (dashcardDataKey == "nostraddress" || dashcardDataKey == "domains" ){
+      moduleIndicator.style.backgroundColor = "#c154fd59";
+    } else if (dashcardDataKey == "media"){
+      moduleIndicator.style.backgroundColor = "#5ea3f57d";
+    } else if (dashcardDataKey == "relay"){
+      moduleIndicator.style.backgroundColor = "#4ef0857d";
+    } else if (dashcardDataKey == "admin" || dashcardDataKey == "logger"){
+      moduleIndicator.style.backgroundColor = "#ff7a7a7d";
+    } else if (dashcardDataKey == "payments" || dashcardDataKey == "lightning"){
+      moduleIndicator.style.backgroundColor = "#ffc7677d";
+    } 
 
     const fetchDashcardData = async (dashcardDataKey, action, field) => {
       try {
