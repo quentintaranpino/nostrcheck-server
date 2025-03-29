@@ -1,7 +1,9 @@
 import { createClient, RedisClientType } from "redis";
 import { RedisConfig } from "../interfaces/redis.js";
+import { Application } from "express";
+import { updateLocalConfigKey } from "./config.js";
 
-export class RedisService {
+class RedisService {
   private client: RedisClientType;
   private instancePrefix: string;
   private defaultDB: 0 | 1 | 2;
@@ -14,16 +16,25 @@ export class RedisService {
       database: this.defaultDB
     });
 
-    this.instancePrefix = Math.random().toString(36).substring(2, 10);
+    this.instancePrefix = '';
   }
 
   private withPrefix(key: string): string {
     return `${this.instancePrefix}:${key}`;
   }
 
-  public async init(): Promise<boolean> {
+  public async init(app?: Application): Promise<boolean> {
     this.client.on("error", () => false);
+    if (app) {
+      this.instancePrefix = `ns:${await getInstancePrefix(app)}`;
+    } else {
+      this.instancePrefix = `ns:${Math.random().toString(36).substring(2, 10)}`;
+    }
+  
+    if (!this.instancePrefix) return false;
+  
     await this.client.connect();
+    await this.flushInstanceKeys();
     return true;
   }
 
@@ -140,4 +151,47 @@ export class RedisService {
       return 0;
     }
   }
+
+  private async flushInstanceKeys(): Promise<boolean> {
+    try {
+      let cursor = 0;
+      const matchPattern = `${this.instancePrefix}:*`; 
+  
+      do {
+        const result = await this.client.scan(cursor, { MATCH: matchPattern, COUNT: 100 });
+        cursor = result.cursor;
+  
+        if (result.keys.length > 0) {
+          await this.client.del(result.keys);
+        }
+      } while (cursor !== 0);
+  
+      return true;
+  
+    } catch (error) {
+      return false;
+    }
+  }
+
 }
+
+const getInstancePrefix = async (app: Application): Promise<string> => {
+  const configPrefix = app.get('config.redis')['instancePrefix'];
+
+  if (!configPrefix || configPrefix.length < 8) {
+    const newPrefix = Math.random().toString(36).substring(2, 10);
+
+    if (await updateLocalConfigKey("redis.instancePrefix", newPrefix)) {
+      const configRedis = { ...app.get('config.redis') }; 
+      configRedis.instancePrefix = newPrefix;
+      app.set('config.redis', configRedis);
+      return newPrefix;
+    }
+
+    return "";
+  }
+
+  return configPrefix;
+}
+
+export { RedisService };

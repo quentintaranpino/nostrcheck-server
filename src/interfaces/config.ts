@@ -145,7 +145,8 @@ const defaultConfig = {
 		"port": "6379",
 		"user": "default",
 		"password": "",
-		"expireTime": 300
+		"expireTime": 300,
+		"instancePrefix": "",
 	},
 	"media" : {
 		"maxMBfilesize": 100,

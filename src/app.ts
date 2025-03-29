@@ -37,13 +37,13 @@ app.use(cors({
     maxAge: 86400,
   }));
 
-  const redisCore = new RedisService({
-    host: process.env.REDIS_HOST || app.get("config.redis")["host"],
-    port: process.env.REDIS_PORT || app.get("config.redis")["port"],
-    user: process.env.REDIS_USER || app.get("config.redis")["user"],
-    password: process.env.REDIS_PASSWORD || app.get("config.redis")["password"]
+const redisCore = new RedisService({
+  host: process.env.REDIS_HOST || app.get("config.redis")["host"],
+  port: process.env.REDIS_PORT || app.get("config.redis")["port"],
+  user: process.env.REDIS_USER || app.get("config.redis")["user"],
+  password: process.env.REDIS_PASSWORD || app.get("config.redis")["password"]
 });
-redisCore.init();
-await app.set("redisCore", redisCore);
+await redisCore.init(app)
+app.set("redisCore", redisCore);
 
 export default app;
