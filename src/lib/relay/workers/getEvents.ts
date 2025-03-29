@@ -242,6 +242,7 @@ const _getEvents = async (
     const until = filter.until !== undefined ? filter.until : now;
     const since = filter.since !== undefined ? filter.since : now - 86400 * 90; // 90 days
     const effectiveLimit = searchQuery ? Math.ceil(maxLimit * 1.5) : maxLimit;
+    const filterLimit = Math.min(filter.limit? filter.limit: maxLimit, maxLimit);
 
     const filterHash = createFilterHash(filter);
     const cacheKey = "filter:" + filterHash;
@@ -262,7 +263,7 @@ const _getEvents = async (
         cachedFiltered = cachedResults;
       }
       const combined = [...freshEvents, ...cachedFiltered].slice(0, effectiveLimit);
-      finalResults.push(...combined);
+      finalResults.push(...combined.slice(0, filterLimit));
       continue;
     }
 
@@ -296,7 +297,7 @@ const _getEvents = async (
       return eventWithoutMetadata;
     });
 
-    finalResults.push(...finalSegmentEvents);
+    finalResults.push(...finalSegmentEvents.slice(0, filterLimit));
     accumulatedResults = [];
 
     if (!cachedEntryRaw && !incompleteResults) {
@@ -308,7 +309,7 @@ const _getEvents = async (
     }
   }
 
-  return Array.from(new Map(finalResults.map(event => [event.id, event])).values());
+  return Array.from(new Map(finalResults.map(event => [event.id, event])).values()).slice(0, maxLimit);
 };
 
 const cleanRedis = async (): Promise<boolean> => {
