@@ -157,23 +157,19 @@ const isIpAllowed = async (req: Request | string, maxRequestMinute : number = ap
         return {ip: "", reqcount: 0, banned: true, domain: "", comments: ""};
     }
 
-    console.time(`getDomainId`);
     const host = typeof req !== "string" ? req.headers.host || req.hostname : "";
     let clientDomain = typeof req === "string" ? req : await getDomainId(host);
     if (!clientDomain) {
         logger.warn(`isIpAllowed - Domain (${host}) not found for IP: ${clientIp}`);
         clientDomain = "1"; // Default domain ID for unknown domains
     }
-    console.timeEnd(`getDomainId`);
 
-    console.time(`logNewIp`);
     const ipData = await logNewIp(clientIp);
     if (!ipData || ipData.dbid === "0") {
         logger.error(`isIpAllowed - Error logging IP: ${clientIp}`);
         return {ip: clientIp, reqcount: 0, banned: true, domain: clientDomain, comments: ""};
     }
     const { dbid, reqcount, firstseen, lastseen, infractions, comments } = ipData;
-    console.timeEnd(`logNewIp`);
 
     const banned = await isEntityBanned(dbid, "ips");
     if (banned) return { ip: clientIp, reqcount: Number(reqcount), banned: true, domain: clientDomain, comments: "banned ip" };
