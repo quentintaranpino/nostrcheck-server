@@ -90,6 +90,15 @@ const moduleDataKeys: { [key: string]: string } = {
     "filetypesData": "filetypes",
 };
 
+const moduleDataIndex: { [key: string]: string } = {
+    "registeredData": "hex",
+    "filesData": "filename",
+    "lightningData": "lightningaddress",
+    "domainsData": "domain",
+    "paymentsData": "paymenthash",
+    "invitesData": "inviteeid",
+};
+
 const moduleDataWhereFields: { [key: string]: [string] } = {
     "nostraddress":     ["registered.id, " + 
                         "registered.username, " + 
@@ -286,4 +295,12 @@ const moduleDataSelectFields: { [key: string]: string } = {
                         "filetypes.comments"
 };
 
-export { allowedTableNames, allowedFieldNames, allowedFieldNamesAndValues, moduleDataReturnMessage, ModuleDataTables, moduleDataSelectFields, moduleDataWhereFields, moduleDataKeys };
+export { allowedTableNames, 
+         allowedFieldNames, 
+         allowedFieldNamesAndValues, 
+         moduleDataReturnMessage, 
+         ModuleDataTables, 
+         moduleDataSelectFields, 
+         moduleDataWhereFields, 
+         moduleDataKeys,
+         moduleDataIndex };

@@ -9,7 +9,7 @@ import { format, getCPUUsage, getNewDate } from "../lib/utils.js";
 import { ResultMessagev2, ServerStatusMessage } from "../interfaces/server.js";
 import { generatePassword } from "../lib/authorization.js";
 import { dbDelete, dbInsert, dbMultiSelect, dbUpdate } from "../lib/database.js";
-import { allowedFieldNames, allowedFieldNamesAndValues, allowedTableNames, moduleDataReturnMessage, moduleDataKeys } from "../interfaces/admin.js";
+import { allowedFieldNames, allowedFieldNamesAndValues, allowedTableNames, moduleDataReturnMessage, moduleDataKeys, moduleDataIndex } from "../interfaces/admin.js";
 import { parseAuthHeader} from "../lib/authorization.js";
 import { isModuleEnabled, updateLocalConfigKey } from "../lib/config.js";
 import { getFileMimeType } from "../lib/media.js";
@@ -193,21 +193,27 @@ const updateDBRecord = async (req: Request, res: Response): Promise<Response> =>
         return res.status(400).send(result);
     }
 
+    // Check if we're updating a Redis index field
+    const redisTableIndex = moduleDataIndex[req.body.table];
+    if (redisTableIndex && req.body.field === redisTableIndex) {
+        const currentFieldResult = await dbMultiSelect([redisTableIndex], table, "id = ?", [req.body.id]);
+        if (currentFieldResult.length > 0) {
+            const currentFieldValue = currentFieldResult[0][redisTableIndex];
+            if (currentFieldValue) {
+                await redisCore.del(`${table}:${currentFieldValue}`);
+            }
+        }
+    }
+
     // Update table with new value
     const update = await dbUpdate(table, { [req.body.field]: req.body.value }, ["id"], [req.body.id]);
     if (update) {
 
-        // Update redis cache
-        let redisKey = `${table}:${req.body.id}`;
-
-        // Specific case for ips table
-        if (table == "ips") {
-            const ip = await dbMultiSelect(["ip"], table, "id = ?", [req.body.id]);
-            redisKey = `ips:${ip[0].ip}`;
+        // Create redis key if necessary
+        if (redisTableIndex && req.body.field === redisTableIndex) {
+            await redisCore.set(`${table}:${req.body.value}`, req.body.id.toString());
         }
-        
-        await redisCore.hashSet(redisKey, { [req.body.field]: req.body.value });
-        
+
         const result : ResultMessagev2 = {
             status: "success",
             message: req.body.value,
@@ -215,7 +221,6 @@ const updateDBRecord = async (req: Request, res: Response): Promise<Response> =>
         logger.info(`updateDBRecord - Record updated successfully: ${req.body.field} set to ${req.body.value}`, "|", reqInfo.ip);
         return res.status(200).send(result);
     } else {
-        
         const result : ResultMessagev2 = {
             status: "error",
             message: "Failed to update record"
@@ -625,13 +630,23 @@ const deleteDBRecord = async (req: Request, res: Response): Promise<Response> =>
     }
 
     // Check Redis cache for the record.
-    let redisKey = `${table}:${req.body.id}`;
+    const redisTableIndex = moduleDataIndex[req.body.table]
+    if (redisTableIndex) {
+        const result = await dbMultiSelect([redisTableIndex], table, "id = ?", [req.body.id]);
+        const indexValue = result[0]?.[redisTableIndex];
+        if (indexValue) {
+            await redisCore.del(`${table}:${indexValue}`);
+        }
+    }
+
     // Special case for ips table
     if (table == "ips") {
         const ip = await dbMultiSelect(["ip"], table, "id = ?", [req.body.id]);
-        redisKey = `ips:${ip[0].ip}`;
+        const redisKeyIp = `ips:${ip[0].ip}`;
+        const redisKeyIpWindow = `ips:window:${ip[0].ip}`;
+        await redisCore.del(redisKeyIp);
+        await redisCore.del(redisKeyIpWindow);
     }
-    await redisCore.del(redisKey);
 
     // Unban the record if it was banned and delete it from banned redis cache.
     await unbanEntity(req.body.id, table);
@@ -775,8 +790,11 @@ const insertDBRecord = async (req: Request, res: Response): Promise<Response> =>
     }
 
     // Update redis cache
-    const redisKey = `${table}:${insert}`;
-    await redisCore.hashSet(redisKey, req.body.row);
+    const redisTableIndex = moduleDataIndex[req.body.table];
+    if (redisTableIndex && req.body.row[redisTableIndex]) {
+        const indexValue = req.body.row[redisTableIndex];
+        await redisCore.set(`${table}:${indexValue}`, insert.toString());
+    }
 
     const result : ResultMessagev2 = {
         status: "success",
