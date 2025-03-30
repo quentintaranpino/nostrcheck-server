@@ -91,6 +91,15 @@ class RedisService {
     }
   }
 
+  public async hashGet(key: string, field: string): Promise<string | null> {
+    try {
+      const result = await this.client.hGet(this.withPrefix(key), field);
+      return result === undefined ? null : result;
+    } catch (error) {
+      return null;
+    }
+  }
+
   public async hashSet(key: string, fields: Record<string, string | number>, timeWindow: number = 0): Promise<boolean> {
     try {
       await this.client.hSet(this.withPrefix(key), fields);
