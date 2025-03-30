@@ -30,7 +30,12 @@ const getDomainId = async (domain: string): Promise<string | null> => {
     return await getDomainId(domain);
   }
 
-  const cachedId = await redisCore.get(`domains:${domain.split(':')[0]}`);
+  const parts = domain.split('.');
+  const mainDomain = parts.length >= 2 
+    ? `${parts[parts.length - 2]}.${parts[parts.length - 1]}` 
+    : domain;
+
+  const cachedId = await redisCore.get(`domains:${mainDomain}`);
   return cachedId ? cachedId : null;
   
 };
