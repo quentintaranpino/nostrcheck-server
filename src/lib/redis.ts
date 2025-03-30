@@ -141,10 +141,18 @@ class RedisService {
   public async slidingWindowIncrement(key: string, now: number, windowMs: number, expireSeconds: number): Promise<number> {
     try {
       const prefixedKey = this.withPrefix(key);
-      await this.client.zRemRangeByScore(prefixedKey, 0, now - windowMs);
-      await this.client.zAdd(prefixedKey, { score: now, value: now.toString() });
-      const count = await this.client.zCard(prefixedKey);
-      await this.client.expire(prefixedKey, expireSeconds);
+      const pipeline = this.client.multi();
+  
+      pipeline.zRemRangeByScore(prefixedKey, 0, now - windowMs);
+      pipeline.zAdd(prefixedKey, { score: now, value: now.toString() });
+      pipeline.zCard(prefixedKey);
+      pipeline.expire(prefixedKey, expireSeconds);
+  
+      const results = await pipeline.exec();
+      // El resultado de zCard es el tercer comando, por lo que está en results[2]
+      // Cada elemento de results es [error, respuestaDelComando]
+      const count = (results && typeof results[2] === "number") ? results[2] : 0;
+  
       return count;
     } catch (error) {
       return 0;
