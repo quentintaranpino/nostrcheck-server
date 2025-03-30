@@ -6,6 +6,7 @@ import { Request } from "express";
 import { ipInfo } from "../../interfaces/security.js";
 import { isModuleEnabled } from "../config.js";
 import { RedisService } from "../redis.js";
+import { getDomainId } from "./domain.js";
 
 const ipUpdateBatch = new Map<string, { dbid: string; firstseen: number; lastseen: number; reqcountIncrement: number }>();
 const redisCore = app.get("redisCore") as RedisService
@@ -148,20 +149,34 @@ const getClientIp = (req: Request): string => {
  */
 const isIpAllowed = async (req: Request | string, maxRequestMinute : number = app.get('config.security')["maxDefaultRequestMinute"]): Promise<ipInfo> => {
 
-    if (!isModuleEnabled("security", app)) return {ip: "", reqcount: 0, banned: false, comments: ""};
+    if (!isModuleEnabled("security", app)) return {ip: "", reqcount: 0, banned: false, domain: "", comments: ""};
 
     const clientIp = typeof req === "string" ? req : getClientIp(req);
-    if (!clientIp)  return {ip: "", reqcount: 0, banned: true, comments: ""};
+    if (!clientIp) {
+        logger.warn(`isIpAllowed - Invalid IP address: ${clientIp}`);
+        return {ip: "", reqcount: 0, banned: true, domain: "", comments: ""};
+    }
 
+    console.time(`getDomainId`);
+    const host = typeof req !== "string" ? req.headers.host || req.hostname : "";
+    let clientDomain = typeof req === "string" ? req : await getDomainId(host);
+    if (!clientDomain) {
+        logger.warn(`isIpAllowed - Domain (${host}) not found for IP: ${clientIp}`);
+        clientDomain = "1"; // Default domain ID for unknown domains
+    }
+    console.timeEnd(`getDomainId`);
+
+    console.time(`logNewIp`);
     const ipData = await logNewIp(clientIp);
     if (!ipData || ipData.dbid === "0") {
         logger.error(`isIpAllowed - Error logging IP: ${clientIp}`);
-        return {ip: clientIp, reqcount: 0, banned: true, comments: ""};
+        return {ip: clientIp, reqcount: 0, banned: true, domain: clientDomain, comments: ""};
     }
     const { dbid, reqcount, firstseen, lastseen, infractions, comments } = ipData;
+    console.timeEnd(`logNewIp`);
 
     const banned = await isEntityBanned(dbid, "ips");
-    if (banned) return { ip: clientIp, reqcount: Number(reqcount), banned: true, comments: "banned ip" };
+    if (banned) return { ip: clientIp, reqcount: Number(reqcount), banned: true, domain: clientDomain, comments: "banned ip" };
 
     // Abuse prevention. If the IP has made too many requests in a short period of time, it will be rate-limited and possibly banned.
     const diff = Number(lastseen) - Number(firstseen);
@@ -175,19 +190,19 @@ const isIpAllowed = async (req: Request | string, maxRequestMinute : number = ap
 
         if (!infractions) {
             logger.info(`isIpAllowed - Banning IP due to repeated abuse: ${clientIp}`);
-            return { ip: clientIp, reqcount: Number(reqcount), banned: true, comments: "" };
+            return { ip: clientIp, reqcount: Number(reqcount), banned: true, domain: clientDomain, comments: "" };
         }
 
         if (Number(infractions) > 50) {
             logger.info(`isIpAllowed - Banning IP due to repeated abuse: ${clientIp}`);
             await banEntity(Number(dbid), "ips", `Abuse prevention, reqcount: ${reqcount}, infractions: ${infractions}`);
-            return { ip: clientIp, reqcount: Number(reqcount), banned: true, comments: `rate-limited: slow down there chief (${infractions} infractions)` };
+            return { ip: clientIp, reqcount: Number(reqcount), banned: true, domain: clientDomain, comments: `rate-limited: slow down there chief (${infractions} infractions)` };
         }
 
-        return { ip: clientIp, reqcount: Number(reqcount), banned: true, comments: `rate-limited: slow down there chief (${infractions} infractions)` };
+        return { ip: clientIp, reqcount: Number(reqcount), banned: true, domain: clientDomain, comments: `rate-limited: slow down there chief (${infractions} infractions)` };
     }
 
-    return {ip: clientIp, reqcount: Number(reqcount), banned, comments: comments || ""};
+    return {ip: clientIp, reqcount: Number(reqcount), banned, domain: clientDomain, comments: comments || ""};
 }
 
 /*
