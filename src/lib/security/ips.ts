@@ -165,13 +165,13 @@ const isIpAllowed = async (req: Request | string, maxRequestMinute : number = ap
 
     // Abuse prevention. If the IP has made too many requests in a short period of time, it will be rate-limited and possibly banned.
     const diff = Number(lastseen) - Number(firstseen);
-    if ((diff < 15 && (lastseen != firstseen)) || Number(reqcount) > maxRequestMinute) {
+    if (((diff < 15 && lastseen !== firstseen) && Number(reqcount) > (maxRequestMinute / 3)) || Number(reqcount) > maxRequestMinute) {
 
         logger.debug(`isIpAllowed - Possible abuse detected from IP: ${clientIp} | Infraction count: ${infractions}, reqcount: ${reqcount}`);
 
-        // Update infractions and ban it for a minute
+        // Update infractions and ban it for 30 seconds
         await redisCore.hashSet(`ips:${clientIp}`, { infractions: Number(infractions)+1 }, app.get("config.redis")["expireTime"]);
-        await redisCore.hashSet(`banned:ips:${clientIp}`, { banned: 1 }, 60);
+        await redisCore.set(`banned:ips:${dbid}`, JSON.stringify("1"), { EX: 30 });
 
         if (!infractions) {
             logger.info(`isIpAllowed - Banning IP due to repeated abuse: ${clientIp}`);
