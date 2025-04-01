@@ -186,13 +186,13 @@ const isIpAllowed = async (req: Request | string, maxRequestMinute : number = ap
 
         if (!infractions) {
             logger.info(`isIpAllowed - Banning IP due to repeated abuse: ${clientIp}`);
-            return { ip: clientIp, reqcount: Number(reqcount), banned: true, domain: clientDomain, comments: "" };
+            return { ip: clientIp, reqcount: Number(reqcount), banned: true, domain: clientDomain, comments: `rate-limited: slow down there chief (${infractions} infractions)` };
         }
 
         if (Number(infractions) > 50) {
             logger.info(`isIpAllowed - Banning IP due to repeated abuse: ${clientIp}`);
             await banEntity(Number(dbid), "ips", `Abuse prevention, reqcount: ${reqcount}, infractions: ${infractions}`);
-            return { ip: clientIp, reqcount: Number(reqcount), banned: true, domain: clientDomain, comments: `rate-limited: slow down there chief (${infractions} infractions)` };
+            return { ip: clientIp, reqcount: Number(reqcount), banned: true, domain: clientDomain, comments: `banned due to repeated abuse (${infractions} infractions)` };
         }
 
         return { ip: clientIp, reqcount: Number(reqcount), banned: true, domain: clientDomain, comments: `rate-limited: slow down there chief (${infractions} infractions)` };
