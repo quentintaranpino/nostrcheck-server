@@ -29,7 +29,7 @@ const authSessions: Map<WebSocket, string> = new Map();
 const handleWebSocketMessage = async (socket: ExtendedWebSocket, data: WebSocket.RawData, req: Request) => {
 
   // Check if the request IP is allowed
-  const reqInfo = await isIpAllowed(req, app.get("config.security")["maxMessageMinute"]);
+  const reqInfo = await isIpAllowed(req, app.get("config.security")["relay"]["maxMessageMinute"]);
   if (reqInfo.banned == true) {
     logger.debug(`handleWebSocketMessage - Attempt to access relay with unauthorized IP: ${reqInfo.ip} | Reason: ${reqInfo.comments}`);
     socket.send(JSON.stringify(["NOTICE", `${reqInfo.comments}`]));
