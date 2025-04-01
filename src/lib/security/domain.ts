@@ -24,16 +24,17 @@ const loadAllDomains = async (): Promise<void> => {
 
 const getDomainId = async (domain: string): Promise<string | null> => {
   if (!domain) return null;
+  const hostname = domain.split(':')[0];
 
   if (await redisCore.get("domains:cache") === null) {
     await loadAllDomains();
-    return await getDomainId(domain);
+    return await getDomainId(hostname);
   }
 
-  const parts = domain.split('.');
+  const parts = hostname.split('.');
   const mainDomain = parts.length >= 2 
     ? `${parts[parts.length - 2]}.${parts[parts.length - 1]}` 
-    : domain;
+    : hostname;
 
   const cachedId = await redisCore.get(`domains:${mainDomain}`);
   return cachedId ? cachedId : null;
