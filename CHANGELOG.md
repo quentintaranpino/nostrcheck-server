@@ -11,6 +11,7 @@
 - Improved AI moderation engine.
 - Improved Dashboard and settings page.
 - Custom file types and extensions.
+- Full multi-tenancy support.
 
 ### 0.6.0
 

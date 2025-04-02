@@ -26,7 +26,7 @@ import { deleteFile, getFilePath } from "../lib/storage/core.js";
 import { saveTmpFile } from "../lib/storage/local.js";
 import { Readable } from "stream";
 import { getRemoteFile } from "../lib/storage/remote.js";
-import { transaction } from "../interfaces/payments.js";
+import { Transaction } from "../interfaces/payments.js";
 import { checkTransaction, collectInvoice, getInvoice, updateAccountId } from "../lib/payments/core.js";
 import { BlobDescriptor, BUDKinds } from "../interfaces/blossom.js";
 import { prepareBlobDescriptor } from "../lib/blossom/BUD02.js";
@@ -404,9 +404,17 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 			await dbUpdate("transactions", {"comments": "Invoice for: mediafiles:" + filedata.fileid}, ["id"], [filedata.transaction_id]);
 		}
 
-		// Get the transaction object for the file
-		const transaction = await checkTransaction(filedata.transaction_id, filedata.fileid, "mediafiles", filedata.no_transform ?  Number(Number(filedata.filesize)) : Number(filedata.filesize)/3, filedata.pubkey);
-		
+		const transaction = await checkTransaction(
+									filedata.transaction_id,
+									filedata.fileid,
+									"mediafiles",
+									filedata.no_transform ? (Number(Number(filedata.filesize)) * 1024 * 1024) : (Number(filedata.filesize)/3) * 1024 * 1024,
+									0,
+									app.get("config.media")["maxMBfilesize"] * 1024 * 1024,
+									app.get("config.payments")["satoshi"]["mediaMaxSatoshi"],
+									filedata.pubkey
+									);
+
 		// If we have a preimage, compare the paymenthash with the transaction paymenthash and update the invoice status
 		if (preimage != undefined) {
 			const receivedInvoice = await getInvoice(await hashString(preimage, "preimage"));
@@ -578,7 +586,18 @@ const headMedia = async (req: Request, res: Response): Promise<Response> => {
 	// Payment required ?
 	if (await isModuleEnabled("payments", app)) {
 		const transactionId = (await dbMultiSelect(["transactionid"], "mediafiles", fileData[0].hash != fileData[0].original_hash ? "original_hash = ?" : "hash = ?", [hash], true))[0]?.transactionid || "" ;
-		const transaction = await checkTransaction(transactionId,"","mediafiles", fileData[0].hash != fileData[0].original_hash ? Number(fileData[0].filesize)/3 : Number(Number(fileData[0].filesize)),"");
+		// const transaction = await checkTransaction(transactionId,"","mediafiles", fileData[0].hash != fileData[0].original_hash ? Number(fileData[0].filesize)/3 : Number(Number(fileData[0].filesize)),"");
+		
+		const transaction = await checkTransaction(
+			transactionId,
+			"",
+			"mediafiles",
+			fileData[0].hash != fileData[0].original_hash ? (Number(fileData[0].filesize)/3) * 1024 * 1024 : (Number(fileData[0].filesize) * 1024 * 1024),
+			0,
+			app.get("config.media")["maxMBfilesize"] * 1024 * 1024,
+			app.get("config.payments")["satoshi"]["mediaMaxSatoshi"],
+			"");		
+		
 		if (transaction.transactionid != 0 && transaction.isPaid == false && app.get("config.payments")["satoshi"]["mediaMaxSatoshi"] > 0) {
 			res.setHeader("X-Lightning", transaction.paymentRequest);
 			res.setHeader("X-Lightning-amount", transaction.satoshi);
@@ -708,7 +727,18 @@ const getMediaList = async (req: Request, res: Response): Promise<Response> => {
 
 		// Return payment_request if the file is not paid
 		if (isModuleEnabled("payments", app)) {
-			const transaction: transaction = await checkTransaction(listedFile.transaction_id, listedFile.fileid, "mediafiles", listedFile.filesize, listedFile.pubkey);
+			
+			const transaction : Transaction = await checkTransaction(
+				listedFile.transaction_id,
+				listedFile.fileid,
+				"mediafiles",
+				listedFile.filesize * 1024 * 1024,
+				0,
+				app.get("config.media")["maxMBfilesize"] * 1024 * 1024,
+				app.get("config.payments")["satoshi"]["mediaMaxSatoshi"],
+				listedFile.pubkey
+			);
+			
 			if (transaction.isPaid == false) listedFile.payment_request = transaction.paymentRequest;
 		}
 
@@ -872,7 +902,18 @@ const getMediaStatusbyID = async (req: Request, res: Response, version:string): 
 	}
 
 	if (isModuleEnabled("payments", app)) {
-		const transaction: transaction = await checkTransaction(filedata.transaction_id, filedata.fileid, "mediafiles", filedata.hash != filedata.originalhash ? Number(filedata.filesize)/3 : Number(Number(filedata.filesize)), filedata.pubkey);
+		
+		const transaction : Transaction = await checkTransaction(
+			filedata.transaction_id,
+			filedata.fileid,
+			"mediafiles",
+			filedata.hash != filedata.originalhash ? (Number(filedata.filesize)/3) * 1024 * 1024 : (Number(filedata.filesize) * 1024 * 1024),
+			0,
+			app.get("config.media")["maxMBfilesize"] * 1024 * 1024,
+			app.get("config.payments")["satoshi"]["mediaMaxSatoshi"],
+			filedata.pubkey
+		);
+		
 		if(transaction.isPaid == false){
 			filedata.payment_request = transaction.paymentRequest;
 			response = 402;
@@ -1008,7 +1049,18 @@ const getMediabyURL = async (req: Request, res: Response) => {
 		req.params.filename = filedata[0].filename
 
 		// Check if exist a transaction for this media file and if it is paid. Check preimage
-		const transaction = await checkTransaction(filedata[0].transactionid, filedata[0].id, "mediafiles", Number(filedata[0].filesize), req.params.pubkey, app.get("config.payments")["satoshi"]["mediaMaxSatoshi"]) as transaction;
+		
+		const transaction : Transaction = await checkTransaction(
+			filedata[0].transactionid,
+			filedata[0].id,
+			"mediafiles",
+			filedata[0].hash != filedata[0].original_hash ? (Number(filedata[0].filesize)/3) * 1024 * 1024 : (Number(filedata[0].filesize) * 1024 * 1024),
+			0,
+			app.get("config.media")["maxMBfilesize"] * 1024 * 1024,
+			app.get("config.payments")["satoshi"]["mediaMaxSatoshi"],
+			req.params.pubkey
+		);
+		
 		const preimage = req.headers["x-lightning"]?.toString().length == 64 ? req.headers["x-lightning"]?.toString() : undefined;
 		if (preimage && preimage != "") {
 			const receivedInvoice = await getInvoice(await hashString(preimage, "preimage"));
@@ -1649,7 +1701,18 @@ const headUpload = async (req: Request, res: Response): Promise<Response> => {
 	}
 
 	const transactionId = (await dbMultiSelect(["transactionid"], "mediafiles", transform != '0' ? "original_hash = ?" : "hash = ?", [hash], true))[0]?.transactionid || "" ;
-	const transaction = await checkTransaction(transactionId,"","mediafiles", transform != '0' ?  Number(size)/3 : Number(Number(size)),"");
+	
+	const transaction : Transaction = await checkTransaction(
+		transactionId,
+		"",
+		"mediafiles",
+		transform != '0' ? (Number(size)/3) * 1024 * 1024 : (Number(size) * 1024 * 1024),
+		0,
+		app.get("config.media")["maxMBfilesize"] * 1024 * 1024,
+		app.get("config.payments")["satoshi"]["mediaMaxSatoshi"],
+		eventHeader.pubkey
+	);
+	
 	if (transaction.transactionid != 0 && transaction.isPaid == false && app.get("config.payments")["satoshi"]["mediaMaxSatoshi"] > 0) {
 		res.setHeader("X-Lightning", transaction.paymentRequest);
 		res.setHeader("X-Lightning-Amount", transaction.satoshi);

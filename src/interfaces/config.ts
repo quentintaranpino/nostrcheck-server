@@ -30,6 +30,7 @@ const defaultConfig = {
 	"server": {
 		"host": "localhost",
 		"port": 3000,
+		"multiTenancy": false,
 		"pubkey": "",
 		"secretKey": "",
 		"name": "",
@@ -250,6 +251,8 @@ const defaultConfig = {
 		"minUsernameLength": 3,
 		"maxUsernameLength": 20,
 		"minPasswordLength": 12,
+		"requireinvite": false,
+		"requirepayment": false,
 	},
 	"security" : {
 		"maxDefaultRequestMinute": 150,

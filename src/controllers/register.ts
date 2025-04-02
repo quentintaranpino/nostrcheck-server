@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import validator from "validator";
 import { logger } from "../lib/logger.js";
-import { getAvailableDomains, getDomainInfo } from "../lib/domains.js";
+import { getAvailableDomains } from "../lib/domains.js";
 import app from "../app.js";
 import { isModuleEnabled } from "../lib/config.js";
 import { addNewUsername, isPubkeyOnDomainAvailable, isUsernameAvailable } from "../lib/register.js";
@@ -10,10 +10,12 @@ import { npubToHex, validatePubkey } from "../lib/nostr/NIP19.js";
 import { registerFormResult } from "../interfaces/register.js";
 import { dbDelete, dbUpdate } from "../lib/database.js";
 import { validateInviteCode } from "../lib/invitations.js";
-import { checkTransaction } from "../lib/payments/core.js";
-import { transaction } from "../interfaces/payments.js";
+import { calculateSatoshi, checkTransaction } from "../lib/payments/core.js";
+import { amountReturnMessage, Transaction } from "../interfaces/payments.js";
 import { setAuthCookie } from "../lib/frontend.js";
 import { isIpAllowed } from "../lib/security/ips.js";
+import { getTenantConfig } from "../lib/tenants.js";
+import { ResultMessagev2 } from "../interfaces/server.js";
 
 const registerUsername = async (req: Request, res: Response): Promise<Response> => {
 
@@ -73,14 +75,11 @@ const registerUsername = async (req: Request, res: Response): Promise<Response> 
 		return res.status(400).send({status: "error", message: "Domain not provided"});
 	}
 
-	const domainInfo = await getDomainInfo(domain);
-	if (domainInfo == "") {
+	const tenantConfig = await getTenantConfig(domain);
+	if (!tenantConfig) {
 		logger.info(`registerUsername - 406 Not Acceptable - Invalid domain`, "|", reqInfo.ip);
 		return res.status(406).send({ status: "error", message: "Invalid domain" });
 	}
-	const requireInvite : boolean = domainInfo.requireinvite;
-	const requirepayment : boolean = domainInfo.requirepayment;
-	const maxSatoshi : number = domainInfo.maxsatoshi;
 
 	if (!await isUsernameAvailable(username, domain)) {
 		logger.info(`registerUsername - 406 Not Acceptable - Username already registered`, "|", reqInfo.ip);
@@ -99,8 +98,8 @@ const registerUsername = async (req: Request, res: Response): Promise<Response> 
 	}
 
 	const inviteCode = req.body.inviteCode || "";
-	if (requireInvite) {
-		if ((inviteCode == null || inviteCode == "" || inviteCode == undefined) && requireInvite) {
+	if (tenantConfig.requireinvite == true) {
+		if ((inviteCode == null || inviteCode == "" || inviteCode == undefined)) {
 			logger.info(`registerUsername - 400 Bad request - Invitation key not provided`, "|", reqInfo.ip);
 			return res.status(400).send({status: "error", message: "Invitation key not provided"});
 		}
@@ -131,8 +130,20 @@ const registerUsername = async (req: Request, res: Response): Promise<Response> 
 	// Check if payments module is active and if true generate paymentRequest
 	let paymentRequest = "";
 	let satoshi = 0;
-	if (requirepayment) {
-		const transaction = await checkTransaction("0", addUsername.toString(), "registered", username.length, req.body.pubkey, maxSatoshi) as transaction;
+	if (tenantConfig.requirepayment) {
+		
+		const transaction : Transaction = await checkTransaction(
+			"0",
+			addUsername.toString(),
+			"reversed",
+			username.length,
+			tenantConfig.minUsernameLength,
+			tenantConfig.maxUsernameLength,
+			tenantConfig.maxsatoshi,
+			req.body.pubkey
+		);
+
+		
 		if (transaction.paymentHash != "" && transaction.isPaid == false && isModuleEnabled("payments", app)) {
 			paymentRequest = transaction.paymentRequest;
 			satoshi = transaction.satoshi;
@@ -160,7 +171,7 @@ const registerUsername = async (req: Request, res: Response): Promise<Response> 
 		satoshi: satoshi
 	};
 
-	logger.info(`registerUsername - New user ${username} registered successfully - Active: ${activateUser} - Require payment : ${requirepayment}`, "|", reqInfo.ip);
+	logger.info(`registerUsername - New user ${username} registered successfully - Active: ${activateUser} - Require payment : ${tenantConfig.requirepayment}`, "|", reqInfo.ip);
 	return res.status(200).send(result);
 
 };
@@ -215,4 +226,76 @@ const validateRegisterOTC = async (req: Request, res: Response): Promise<Respons
 
 }
 
-export { registerUsername, validateRegisterOTC };
+
+const calculateRegisterCost = async (req: Request, res: Response): Promise<Response> => {
+
+    // Check if the request IP is allowed
+	const reqInfo = await isIpAllowed(req);
+	if (reqInfo.banned == true) {
+		logger.info(`calculateRegisterCost - Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
+		return res.status(403).send({"status": "error", "message": reqInfo.comments});
+	}
+
+    // Check if current module is enabled
+    if (!isModuleEnabled("payments", app)) {
+        logger.info(`calculateRegisterCost - Attempt to access a non-active module: payments | IP:`, reqInfo.ip);
+        return res.status(403).send({"status": "error", "message": "Module is not enabled"});
+    }
+	if (!isModuleEnabled("register", app)) {
+        logger.info(`calculateRegisterCost - Attempt to access a non-active module: register | IP:`, reqInfo.ip);
+        return res.status(403).send({"status": "error", "message": "Module is not enabled"});
+    }
+
+    logger.info(`calculateRegisterCost - Request from:`, req.hostname, "|", reqInfo.ip);
+    res.setHeader('Content-Type', 'application/json');
+
+    // Check if the request has the required parameters
+    if (req.body.size === undefined || req.body.size === null) {
+        const result : ResultMessagev2 = {
+            status: "error",
+            message: "Invalid parameters"
+            };
+        logger.error(`calculateRegisterCost - Invalid parameters | ${reqInfo.ip}`);
+        return res.status(400).send(result);
+    }
+
+    const size = req.body.size;
+    const domain = req.body.domain || "";
+
+	if (size == null || size == "" || size == undefined || size < 1) {
+		logger.info(`calculateRegisterCost - 400 Bad request - Size not provided`, "|", reqInfo.ip);
+		return res.status(400).send({status: "error", message: "Size not provided"});
+	}
+
+	if (domain == null || domain == "" || domain == undefined) {
+		logger.info(`calculateRegisterCost - 400 Bad request - Domain not provided`, "|", reqInfo.ip);
+		return res.status(400).send({status: "error", message: "Domain not provided"});
+	}
+
+    const tenanConfig = await getTenantConfig(domain);
+	if(!tenanConfig) {
+		logger.info(`calculateRegisterCost - Invalid domain`, "|", reqInfo.ip);
+		return res.status(406).send({ status: "error", message: "Invalid domain" });
+	}
+
+	const satoshi = await calculateSatoshi(
+		"reversed",
+		size,
+		tenanConfig.minUsernameLength,
+		tenanConfig.maxUsernameLength,
+		tenanConfig.maxsatoshi
+	)
+
+    const result : amountReturnMessage = {
+        status: "success",
+        message: "Calculated satoshi successfully",
+        amount: satoshi
+        };
+
+    logger.info(`calculateRegisterCost - Calculated satoshi successfully: ${satoshi}, size: ${size}, domain: ${domain} | ${reqInfo.ip}`);
+    return res.status(200).send(result);
+    
+}
+
+
+export { registerUsername, validateRegisterOTC, calculateRegisterCost };

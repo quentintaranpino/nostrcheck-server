@@ -1,10 +1,10 @@
 import app from "../../app.js";
-import { emptyInvoice, invoice } from "../../interfaces/payments.js";
+import { emptyInvoice, Invoice } from "../../interfaces/payments.js";
 import { logger } from "../logger.js";
 import bolt11 from 'bolt11';
 import { getNewDate } from "../utils.js";
 
-const generateLNBitsInvoice = async (amount: number, memo: string) : Promise<invoice> => {
+const generateLNBitsInvoice = async (amount: number, memo: string) : Promise<Invoice> => {
 
     if (amount == 0) return emptyInvoice
     

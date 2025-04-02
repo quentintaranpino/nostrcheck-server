@@ -1,6 +1,6 @@
 import { Application } from "express";
 import express from "express";
-import { validateRegisterOTC, registerUsername } from "../controllers/register.js";
+import { validateRegisterOTC, registerUsername, calculateRegisterCost } from "../controllers/register.js";
 import { limiter } from "../lib/security/core.js";
 
 export const loadRegisterEndpoint = async (app: Application, version: string): Promise<void> => {
@@ -22,5 +22,13 @@ export const loadRegisterEndpoint = async (app: Application, version: string): P
             validateRegisterOTC
         );
     }
+
+    // Calculate username satoshi cost
+    app.post("/api/" + version + app.get("config.server")["availableModules"]["register"]["path"] + "/calculateamount",
+    limiter(),
+    express.json(),
+    calculateRegisterCost
+
+);
 
 };

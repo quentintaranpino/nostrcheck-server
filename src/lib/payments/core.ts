@@ -1,5 +1,5 @@
 import app from "../../app.js";
-import { accounts, emptyInvoice, emptyTransaction, invoice, transaction } from "../../interfaces/payments.js";
+import { accounts, emptyInvoice, emptyTransaction, Invoice, tableCalculateMode, Transaction } from "../../interfaces/payments.js";
 import { isModuleEnabled } from "../config.js";
 import { dbDelete, dbInsert, dbMultiSelect, dbSelect, dbUpdate } from "../database.js"
 import { logger } from "../logger.js";
@@ -8,16 +8,18 @@ import { getNewDate } from "../utils.js";
 import { generateNwcInvoice, isInvoicePaidNwc } from "../nostr/NIP47.js";
 import { generateLNBitsInvoice, isInvoicePaidLNbits } from "./lnbits.js";
 
-const checkTransaction = async (transactionid : string, originId: string, originTable : string, size: number, pubkey : string, maxSatoshi : number = 0): Promise<transaction> => {
+const checkTransaction = async (transactionid : string, originId: string, originTable : string, size: number, minSize: number, maxSize: number, maxSatoshi: number,  pubkey : string): Promise<Transaction> => {
 
     if (!isModuleEnabled("payments", app)) {
         return emptyTransaction;
     }
 
+    const calculateMode = tableCalculateMode[originTable];
+
     // Get the transaction
     let transaction = await getTransaction(transactionid);
     const balance = await getBalance(transaction.accountid);
-    const satoshi = await calculateSatoshi(originTable, size, maxSatoshi);
+    const satoshi = calculateSatoshi(calculateMode, size,minSize, maxSize, maxSatoshi);
     transaction.satoshi = satoshi;
 
     if (satoshi == 0) {
@@ -72,7 +74,7 @@ const checkTransaction = async (transactionid : string, originId: string, origin
 
 }
 
-const generateInvoice = async (accountid: number, satoshi: number, originTable : string, originId : string, overwrite = false, transactionId = 0) : Promise<invoice> => {
+const generateInvoice = async (accountid: number, satoshi: number, originTable : string, originId : string, overwrite = false, transactionId = 0) : Promise<Invoice> => {
 
     if (!isModuleEnabled("payments", app))return emptyInvoice;
 
@@ -128,7 +130,7 @@ const generateInvoice = async (accountid: number, satoshi: number, originTable :
     return emptyInvoice;
 }
 
-const addTransacion = async (type: string, accountid: number, invoice: invoice, satoshi: number) : Promise<number> => {
+const addTransacion = async (type: string, accountid: number, invoice: Invoice, satoshi: number) : Promise<number> => {
 
     if (!isModuleEnabled("payments", app)) {
         return 0;
@@ -256,7 +258,7 @@ const addBalance = async (accountid: number, amount: number) : Promise<boolean> 
     return false;
 }
 
-const getPendingInvoices = async () : Promise<invoice[]> => {
+const getPendingInvoices = async () : Promise<Invoice[]> => {
 
     if (!isModuleEnabled("payments", app))   return [];
 
@@ -264,7 +266,7 @@ const getPendingInvoices = async () : Promise<invoice[]> => {
                                                             "transactions",
                                                             "paid = ?", 
                                                             [0], false);
-    const invoices : invoice[] = [];
+    const invoices : Invoice[] = [];
     result.forEach(async invoice => {
         const {id, accountid, paymentrequest, paymenthash, satoshi, preimage, createddate, expirydate, paiddate, comments} = invoice
         invoices.push({
@@ -284,7 +286,7 @@ const getPendingInvoices = async () : Promise<invoice[]> => {
     return invoices;
 }
 
-const getInvoice = async (payment_hash: string) : Promise<invoice> => {
+const getInvoice = async (payment_hash: string) : Promise<Invoice> => {
 
     if (!isModuleEnabled("payments", app))  return emptyInvoice;
 
@@ -315,7 +317,7 @@ const getInvoice = async (payment_hash: string) : Promise<invoice> => {
     }
 }
 
-const getTransaction = async (transactionid: string) : Promise<transaction> => {
+const getTransaction = async (transactionid: string) : Promise<Transaction> => {
 
     if (!isModuleEnabled("payments", app))  return emptyTransaction;
 
@@ -328,7 +330,7 @@ const getTransaction = async (transactionid: string) : Promise<transaction> => {
 
     if (result.length == 0) {return emptyTransaction};
     const {id, type, accountid, paymentrequest, paymenthash, satoshi, paid, preimage, createddate, expirydate, paiddate, comments} = result[0];
-    const transaction: transaction = {
+    const transaction: Transaction = {
         transactionid: Number(id),
         type: type,
         accountid: Number(accountid),
@@ -386,7 +388,7 @@ const formatRegisteredId = (accountid: number): number => {
     return Number(originalIdStr);
 }
 
-const collectInvoice = async (invoice: invoice, collectFromExpenses = false, collectFromPayment = false) : Promise<boolean> => {
+const collectInvoice = async (invoice: Invoice, collectFromExpenses = false, collectFromPayment = false) : Promise<boolean> => {
 
     if (!isModuleEnabled("payments", app)) {
         return false;
@@ -435,46 +437,30 @@ const collectInvoice = async (invoice: invoice, collectFromExpenses = false, col
 
 }
 
-const calculateSatoshi = async (originTable: string, size: number, maxSatoshi: number = 0) : Promise<number> => {
+const calculateSatoshi = (mode: "normal" | "reversed", size: number, minSize : number, maxSize : number, maxSatoshi: number): number => {
+    
+    if (size <= 0) return 0;
 
     if (!isModuleEnabled("payments", app)) return 0;
-
-    if (originTable == "" || size <= 0) return 0;
-
-    if (originTable == "mediafiles" && app.get("config.payments")["satoshi"]["mediaMaxSatoshi"] == 0) return 0;
-
-    if (originTable == "registered" && app.get("config.payments")["satoshi"]["registerMaxSatoshi"] == 0 && maxSatoshi == 0) return 0;
-
-    if (originTable == "mediafiles") {
-        // For mediafiles
-        const maxSize = Number(app.get("config.media")["maxMBfilesize"]);
-        let fileSizeMB = size / 1024 / 1024;
-        if (fileSizeMB > maxSize) {fileSizeMB = maxSize;}
-        let mediaMaxSatoshi = maxSatoshi == 0 ? app.get("config.payments")["satoshi"]["mediaMaxSatoshi"] : maxSatoshi;
-
-        let satoshi = Math.round((fileSizeMB / maxSize) * mediaMaxSatoshi);
-        logger.info(`calculateSatoshi - Filesize: ${fileSizeMB}, Satoshi: ${satoshi}`);
-        return satoshi;
-
+  
+    if (mode === "normal") {
+      if (size <= minSize) return 0;
+      if (size >= maxSize) return maxSatoshi;
+      const m = maxSatoshi / (maxSize - minSize);
+      const b = -m * minSize;
+      return Math.round(m * size + b);
+    } 
+    else if (mode === "reversed") {
+      if (size <= minSize) return maxSatoshi;
+      if (size >= maxSize) return 1;
+      const m = (1 - maxSatoshi) / (maxSize - minSize);
+      const b = maxSatoshi - m * minSize;
+      const satoshi = Math.round(m * size + b);
+      return satoshi < 1 ? 1 : satoshi;
     }
-
-    if (originTable == "registered") {
-        // For registered the minus size is more expensive
-        let domainMaxSatoshi = maxSatoshi == 0 ? app.get("config.payments")["satoshi"]["registerMaxSatoshi"] : maxSatoshi;
-        if (size <= app.get("config.register")["minUsernameLength"]) {return domainMaxSatoshi};
-
-        // y=mx+b | Linear equation for calculating satoshi based on username length
-        const slope = (1 - domainMaxSatoshi) / (app.get("config.register")["maxUsernameLength"] - app.get("config.register")["minUsernameLength"]);
-        const intercept = domainMaxSatoshi - slope * app.get("config.register")["minUsernameLength"];
-        const satoshi = Math.round(slope * size + intercept);
-
-        logger.info(`calculateSatoshi - Username lenght: ${size}, Satoshi: ${satoshi}`);
-        return satoshi >= 1 ? satoshi : 1;
-    }
-
+  
     return 0;
-    
-}
+};
 
 const getUnpaidTransactionsBalance = async () : Promise<string> => {
     return await dbSelect("SELECT SUM(satoshi) as 'balance' FROM transactions WHERE paid = 0", "balance", []) as string || "0";

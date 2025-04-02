@@ -2,10 +2,10 @@ import { dbDelete, dbInsert, dbMultiSelect, dbUpdate, dbUpsert } from "./databas
 import { generatePassword } from "./authorization.js";
 import { hashString } from "./hash.js";
 import { hextoNpub, npubToHex, validatePubkey } from "./nostr/NIP19.js";
-import { getDomainInfo } from "./domains.js";
 import { validateInviteCode } from "./invitations.js";
 import { getNewDate } from "./utils.js";
 import { logger } from "./logger.js";
+import { getTenantConfig } from "./tenants.js";
 
 /**
  * 
@@ -68,11 +68,11 @@ const addNewUsername = async (username: string, pubkey: string, password:string,
     if (await isUsernameAvailable(username, domain) == false) {return 0}
     if (await isPubkeyOnDomainAvailable(pubkey, domain) == false) {return 0}
 
-    const domainInfo = await getDomainInfo(domain);
-    if (domainInfo == "") {return 0}
-    if (domainInfo.requireinvite == true && checkInvite && inviteCode == "") {return 0}
+    const tenantConfig = await getTenantConfig(domain);
+    if (!tenantConfig) {return 0}
+    if (tenantConfig.requireinvite == true && checkInvite && inviteCode == "") {return 0}
 
-    if (domainInfo.requireinvite == true && checkInvite &&  await validateInviteCode(inviteCode) == false) {return 0}
+    if (tenantConfig.requireinvite == true && checkInvite &&  await validateInviteCode(inviteCode) == false) {return 0}
 
     const createUsername = await dbUpsert("registered", {
         pubkey: await hextoNpub(pubkey),
@@ -89,7 +89,7 @@ const addNewUsername = async (username: string, pubkey: string, password:string,
                                     
     if (createUsername == 0) {return 0}
 
-    if (domainInfo.requireinvite == true && checkInvite ) {
+    if (tenantConfig.requireinvite == true && checkInvite ) {
         const updateInviteeid = await dbUpdate("invitations", {"inviteeid":createUsername}, ["code"], [inviteCode]);
         if (updateInviteeid == false) {return 0}
 

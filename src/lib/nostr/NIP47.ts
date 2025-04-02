@@ -3,7 +3,7 @@
 // https://github.com/getAlby/js-sdk/tree/master/examples/nwc
 // https://github.com/nostr-protocol/nips/blob/master/47.md
 
-import { emptyInvoice, invoice } from "../../interfaces/payments.js";
+import { emptyInvoice, Invoice } from "../../interfaces/payments.js";
 import app from "../../app.js";
 import { logger } from "../logger.js";
 import { nwc as NWC } from "@getalby/sdk";
@@ -14,7 +14,7 @@ const nwc = new NWC.NWCClient({
     nostrWalletConnectUrl: `${app.get("config.payments")["paymentProviders"]["nwc"]["url"]}`,
 });
 
-const generateNwcInvoice = async (LNAddress: string, amount:number) : Promise<invoice> => {
+const generateNwcInvoice = async (LNAddress: string, amount:number) : Promise<Invoice> => {
 
     if (LNAddress == "" || amount == 0) return emptyInvoice;
 

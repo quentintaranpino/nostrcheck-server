@@ -35,8 +35,6 @@ const listAvailableDomains = async (req: Request, res: Response): Promise<Respon
 
 	return res.status(200).send({
 		availableDomains: availableDomains,
-		minUsernameLength: app.get("config.register")["minUsernameLength"],
-		maxUsernameLength: app.get("config.register")["maxUsernameLength"],
 	});
 };
 
