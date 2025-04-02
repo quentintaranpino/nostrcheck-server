@@ -4,7 +4,7 @@ import app from "../../app.js";
 import { ResultMessagev2 } from "../../interfaces/server.js";
 import { dbInsert, dbMultiSelect, dbUpdate } from "../database.js";
 import { logger } from "../logger.js";
-import { isModuleEnabled } from "../config.js";
+import { isModuleEnabled } from "../config/local.js";
 import { RedisService } from "../redis.js";
 
 const redisCore = app.get("redisCore") as RedisService

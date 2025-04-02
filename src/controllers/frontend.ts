@@ -5,7 +5,7 @@ import { logger } from "../lib/logger.js";
 import { markdownToHtml } from "../lib/utils.js";
 import { dbMultiSelect, dbSelect} from "../lib/database.js";
 import { generateAuthToken, generateOTC, isPubkeyAllowed, isPubkeyValid, isUserPasswordValid, verifyOTC } from "../lib/authorization.js";
-import { isModuleEnabled, loadconfigActiveModules } from "../lib/config.js";
+import { isModuleEnabled, loadconfigActiveModules } from "../lib/config/local.js";
 import { countPubkeyFiles, getLegalText, isFirstUse, setAuthCookie } from "../lib/frontend.js";
 import { hextoNpub } from "../lib/nostr/NIP19.js";
 import { themes, particles} from "../interfaces/personalization.js";
@@ -64,6 +64,7 @@ const loadSettingsPage = async (req: Request, res: Response, version:string): Pr
     res.locals.settingServerSecretkey =  app.get("config.server")["secretKey"];
     res.locals.settingsRedisExpireTime = app.get("config.redis")["expireTime"];
 
+    res.locals.settingsServer = app.get("config.server");
     res.locals.settingsStorage = app.get("config.storage");
     res.locals.settingsMedia = app.get("config.media");
     res.locals.settingsPayments = app.get("config.payments");

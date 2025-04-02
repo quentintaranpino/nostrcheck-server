@@ -4,9 +4,10 @@ import app from "../../app.js";
 import { banEntity, isEntityBanned } from "./banned.js";
 import { Request } from "express";
 import { ipInfo } from "../../interfaces/security.js";
-import { isModuleEnabled } from "../config.js";
+import { isModuleEnabled } from "../config/local.js";
 import { RedisService } from "../redis.js";
 import { getDomainId } from "./domain.js";
+import { getConfig } from "../config/core.js";
 
 const ipUpdateBatch = new Map<string, { dbid: string; firstseen: number; lastseen: number; reqcountIncrement: number }>();
 const redisCore = app.get("redisCore") as RedisService
@@ -32,7 +33,7 @@ const logNewIp = async      (ip: string):
         return {dbid: "0", active: "1", checked: "1", banned: "0", firstseen: "0", lastseen: "0", reqcount: "0", infractions: "0", comments: ""};
     }
   
-    if ((!ip || ip.length < 7) && app.get("config.environment") !== "development") {
+    if ((!ip || ip.length < 7) && getConfig("", ["environment"]) !== "development") {
         logger.error(`logNewIp - Invalid IP address: ${ip}`);
         return {dbid: "0", active: "0", checked: "0", banned: "1", firstseen: "0", lastseen: "0", reqcount: "0", infractions: "0", comments: ""};
     }

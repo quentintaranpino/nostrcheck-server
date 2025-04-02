@@ -1,6 +1,6 @@
 import rateLimit from "express-rate-limit";
 import app from "../../app.js";
-import { isModuleEnabled } from "../config.js";
+import { isModuleEnabled } from "../config/local.js";
 import { ResultMessagev2 } from "../../interfaces/server.js";
 
 /**

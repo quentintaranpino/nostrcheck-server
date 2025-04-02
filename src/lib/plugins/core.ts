@@ -10,7 +10,7 @@ import * as NIP19 from "../nostr/NIP19.js";
 import * as registered from "../register.js";
 import { RedisService } from "../redis.js";
 import { getLocalFolder } from "../storage/local.js";
-import { isModuleEnabled } from "../config.js";
+import { isModuleEnabled } from "../config/local.js";
 
 let redisPlugins: RedisService;
 

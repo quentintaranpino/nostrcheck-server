@@ -1,4 +1,5 @@
 import { TenantInfo } from "../interfaces/tenants.js";
+import { getConfig, setConfig } from "./config/core.js";
 import { dbMultiSelect } from "./database.js";
 import { getTenantConfig } from "./tenants.js";
 
@@ -15,9 +16,11 @@ const getAvailableDomains = async (): Promise<{ [key: string]: TenantInfo }> => 
             if (tenantConfig) {
                 domainMap[row.domain] = tenantConfig;
             }
+            const requireInvite = getConfig(row.domain, ["register", "requireinvite"]);
+            console.log("requireInvite", requireInvite);
         })
     );
-    
+        
     return domainMap;
 };
 

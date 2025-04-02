@@ -1,5 +1,5 @@
 import { TenantInfo } from "../interfaces/tenants.js";
-import { isModuleEnabled } from "./config.js";
+import { isModuleEnabled } from "./config/local.js";
 import { dbMultiSelect } from "./database.js";
 import app from "../app.js";
 

@@ -2,8 +2,8 @@ import config from "config";
 import fs from "fs";
 import { exit } from "process";
 import { Application } from "express";
-import { Module, Modules } from "../interfaces/config.js";
-import { localPath } from "../interfaces/config.js";
+import { Module, Modules } from "../../interfaces/config.js";
+import { localPath } from "../../interfaces/config.js";
 
 const syncDefaultConfigValues = async (defaultConf : Record<string,any>, localConf: string) : Promise<boolean> => {
 
@@ -81,7 +81,7 @@ const loadconfigActiveModules = (app: Application): Module[] => {
 		.filter(([_, module]) => module.enabled === true)
 		.map(([_, module]) => module);
 
-	// Always add the logger module to the active modules. It can't
+	// Always add the logger module to the active modules. It can't be disabled.
 	activeModules.push({
 		name: "logger",
 		enabled: true,
@@ -101,7 +101,7 @@ const isModuleEnabled = (moduleName: string, app: Application): boolean => {
 
 const loadConfigOptions = async (section:string) : Promise<Modules> => {
 	try{
-		return config.get(section);
+		return JSON.parse(JSON.stringify(config.get(section)));
 	}catch(err){
 		console.error("Error loading config options: ", err);
 		return {};

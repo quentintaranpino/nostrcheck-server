@@ -1,6 +1,6 @@
 import { bytesToHex } from '@noble/hashes/utils'
 import { logger } from "../logger.js"
-import { Event, generateSecretKey, getEventHash, getPublicKey, validateEvent, verifyEvent } from "nostr-tools";
+import { Event, generateSecretKey, getEventHash, getPublicKey, verifyEvent } from "nostr-tools";
 import { NostrEvent } from "nostr-tools"
 import {SimplePool, useWebSocketImplementation } from "nostr-tools/pool"
 import WebSocket from 'ws'

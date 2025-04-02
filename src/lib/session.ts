@@ -3,7 +3,7 @@ import session from "express-session";
 import crypto from 'crypto';
 import { logger } from "./logger.js";
 import { Application } from "express"
-import { updateLocalConfigKey } from "./config.js";
+import { updateLocalConfigKey } from "./config/local.js";
 import { localUserMetadata } from "../interfaces/frontend.js";
 import app from "../app.js";
 import cookieParser from 'cookie-parser';

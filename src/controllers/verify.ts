@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import { Event } from "nostr-tools";
 import { logger } from "../lib/logger.js";
-import { isModuleEnabled } from "../lib/config.js";
+import { isModuleEnabled } from "../lib/config/local.js";
 import app from "../app.js";
 import { isEventValid } from "../lib/nostr/core.js";
 import { isIpAllowed } from "../lib/security/ips.js";

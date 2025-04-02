@@ -1,8 +1,9 @@
 import cors from "cors";
 import express from "express";
 import helmet from "helmet";
-import { loadConfigOptions } from "./lib/config.js";
+import { loadConfigOptions } from "./lib/config/local.js";
 import { RedisService } from "./lib/redis.js";
+import { getConfig, initGlobalConfig } from "./lib/config/core.js";
 
 const app = express();
 
@@ -18,9 +19,10 @@ app.set("config.security", await loadConfigOptions("security"));
 app.set("config.database", await loadConfigOptions("database"));
 app.set("config.environment", process.env.NODE_ENV ?? await loadConfigOptions("environment"));
 app.set("config.plugins", await loadConfigOptions("plugins"));
-app.set("config.torrent", await loadConfigOptions("torrent"));
 app.set("config.relay", await loadConfigOptions("relay"));
 app.set("version", process.env.npm_package_version ?? "0.0");
+
+await initGlobalConfig();
 
 app.set('trust proxy', 1); 
 app.set("view engine", "ejs")

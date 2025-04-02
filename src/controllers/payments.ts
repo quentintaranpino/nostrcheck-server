@@ -5,7 +5,7 @@ import app from "../app.js";
 import { logger } from "../lib/logger.js";
 import { ResultMessagev2 } from "../interfaces/server.js";
 import { parseAuthHeader} from "../lib/authorization.js";
-import { isModuleEnabled} from "../lib/config.js";
+import { isModuleEnabled} from "../lib/config/local.js";
 import { payInvoiceFromExpenses, addBalance, getBalance, formatAccountNumber, getInvoice, collectInvoice } from "../lib/payments/core.js";
 import { dbMultiSelect } from "../lib/database.js";
 import { isInvoicePaid } from "../lib/payments/core.js";

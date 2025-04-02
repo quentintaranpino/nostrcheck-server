@@ -11,7 +11,7 @@ import { generatePassword } from "../lib/authorization.js";
 import { dbDelete, dbInsert, dbMultiSelect, dbUpdate } from "../lib/database.js";
 import { allowedFieldNames, allowedFieldNamesAndValues, allowedTableNames, moduleDataReturnMessage, moduleDataKeys, moduleDataIndex } from "../interfaces/admin.js";
 import { parseAuthHeader} from "../lib/authorization.js";
-import { isModuleEnabled, updateLocalConfigKey } from "../lib/config.js";
+import { isModuleEnabled, updateLocalConfigKey } from "../lib/config/local.js";
 import { getFileMimeType } from "../lib/media.js";
 import { npubToHex } from "../lib/nostr/NIP19.js";
 import { dbCountModuleData, dbCountMonthModuleData, dbSelectModuleData } from "../lib/admin.js";

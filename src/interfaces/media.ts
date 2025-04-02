@@ -79,7 +79,6 @@ interface FileData{
 	blurhash: string;
 	url: string;
 	magnet: string;
-	torrent_infohash: string;
 	date: number;
 	no_transform: boolean;
 	media_type: typeof UploadTypes[number];

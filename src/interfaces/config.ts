@@ -194,11 +194,6 @@ const defaultConfig = {
 			},
 		},
 	},
-	"torrent": {
-		"enableTorrentSeeding": false,
-		"torrentPort": 6881,
-		"dhtPort": 6882
-	},
 	"logger" :  {
 		"minLevel": "5", 
 		"filename": "nostrcheck-api",
@@ -295,5 +290,22 @@ const defaultConfig = {
 
 const localPath = "./config/local.json";
 
+interface ConfigStore {
+	global: any;
+	tenants: { [domainId: string]: any };
+	domainMap: {
+		idToDomain: { [id: string]: string };
+		domainToId: { [domain: string]: string };
+	};
+}
+		
+const configStore : ConfigStore = {
+	global: {},
+	tenants: {},
+	domainMap: {
+		idToDomain: {},  
+		domainToId: {},
+	}
+};
 
-export { Modules, Module, necessaryKeys, defaultConfig, localPath}
+export { Modules, Module, necessaryKeys, defaultConfig, localPath, configStore};

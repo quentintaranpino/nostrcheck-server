@@ -3,7 +3,7 @@ import { Event } from "nostr-tools";
 import { dbBulkInsert, dbDelete, dbSimpleSelect, dbUpdate} from "../database.js";
 import { logger } from "../logger.js";
 import { CHUNK_SIZE, EventIndex, MetadataEvent, eventStore } from "../../interfaces/relay.js";
-import { isModuleEnabled } from "../config.js";
+import { isModuleEnabled } from "../config/local.js";
 import { decompressEvent, encodeChunk } from "./utils.js";
 import { safeJSONParse } from "../utils.js";
 

@@ -459,7 +459,6 @@ const finalizeFileProcessing = async (filedata: FileData): Promise<boolean> => {
 		await dbUpdate('mediafiles',{'visibility':'1'},['id'], [filedata.fileid]);
 		await dbUpdate('mediafiles',{'active':'1'},['id'], [filedata.fileid]);
 		await dbUpdate('mediafiles', {'hash': filedata.no_transform == true ? filedata.originalhash : await generatefileHashfromfile(filedata.conversionOutputPath)}, ['id'], [filedata.fileid]);
-		// if (config.get("torrent.enableTorrentSeeding")) {await CreateMagnet(filedata.conversionOutputPath, filedata);}
 		await dbUpdate('mediafiles',{'status':'success'},['id'], [filedata.fileid]);
 		const filesize = getFileSize(filedata.no_transform == true ? filedata.conversionInputPath: filedata.conversionOutputPath ,filedata)
 		await dbUpdate('mediafiles', {'filesize':filesize},['id'], [filedata.fileid]);

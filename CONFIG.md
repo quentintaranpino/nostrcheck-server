@@ -165,18 +165,6 @@ The Media files configuration includes settings for maximum file size (in MB), a
 
 If the returnURL is not defined in the configuration, the application will default to returning https://<servername>/media. Here, <servername> is the name of the server where the application is hosted. This default URL points to the location where the media files are stored on the server.
 
-## Torrent
-
-```json
-"torrent": {
-	"enableTorrentSeeding": false,
-	"torrentPort": 6881,
-	"dhtPort": 6882
-}
-```
-
-Torrent configuration, including whether torrent seeding is enabled and the ports for Torrent and DHT.Disabled by default
-
 ## Logger
 
 ```json
@@ -400,11 +388,6 @@ If the configuration file does not exist, the application will automatically gen
 				"height" : "300"
 			}
 		}
-	},
-	"torrent": {
-		"enableTorrentSeeding": false,
-		"torrentPort": 6881,
-		"dhtPort": 6882
 	},
 	"logger" :  {
 		"minLevel": "5", 

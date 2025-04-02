@@ -1,7 +1,7 @@
 import { isIpAllowed } from "../lib/security/ips.js";
 import { Request, Response } from 'express';
 import { logger } from "../lib/logger.js";
-import { isModuleEnabled } from "../lib/config.js";
+import { isModuleEnabled } from "../lib/config/local.js";
 import app from "../app.js";
 import { parseAuthHeader } from "../lib/authorization.js";
 import { setAuthCookie } from "../lib/frontend.js";

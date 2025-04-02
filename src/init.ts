@@ -2,7 +2,7 @@ import fs from "fs";
 import path from "path";
 import { defaultConfig, localPath } from "./interfaces/config.js";
 import { exit } from "process";
-import { syncDefaultConfigValues } from "./lib/config.js";
+import { syncDefaultConfigValues } from "./lib/config/local.js";
 
 console.log("Starting Nostrcheck server", );
 (async () => {

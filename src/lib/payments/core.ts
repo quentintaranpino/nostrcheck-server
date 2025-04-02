@@ -1,6 +1,6 @@
 import app from "../../app.js";
 import { accounts, emptyInvoice, emptyTransaction, Invoice, tableCalculateMode, Transaction } from "../../interfaces/payments.js";
-import { isModuleEnabled } from "../config.js";
+import { isModuleEnabled } from "../config/local.js";
 import { dbDelete, dbInsert, dbMultiSelect, dbSelect, dbUpdate } from "../database.js"
 import { logger } from "../logger.js";
 import { sendMessage } from "../nostr/NIP04.js";
@@ -439,7 +439,7 @@ const collectInvoice = async (invoice: Invoice, collectFromExpenses = false, col
 
 const calculateSatoshi = (mode: "normal" | "reversed", size: number, minSize : number, maxSize : number, maxSatoshi: number): number => {
     
-    if (size <= 0) return 0;
+    if (!size  || !minSize || !maxSize || !maxSatoshi) return 0;
 
     if (!isModuleEnabled("payments", app)) return 0;
   
@@ -456,7 +456,7 @@ const calculateSatoshi = (mode: "normal" | "reversed", size: number, minSize : n
       const m = (1 - maxSatoshi) / (maxSize - minSize);
       const b = maxSatoshi - m * minSize;
       const satoshi = Math.round(m * size + b);
-      return satoshi < 1 ? 1 : satoshi;
+      return satoshi < 1 ? 1 : satoshi ? satoshi : 0;
     }
   
     return 0;

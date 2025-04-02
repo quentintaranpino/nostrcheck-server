@@ -4,7 +4,7 @@ import config from "config";
 import { exit } from "process";
 
 import { defaultConfig, localPath, necessaryKeys } from "../interfaces/config.js";
-import { updateLocalConfigKey } from "../lib/config.js";
+import { updateLocalConfigKey } from "../lib/config/local.js";
 
 const checkConfigNecessaryKeys = async () : Promise<void> => {
 

@@ -454,18 +454,38 @@ interface UserPrefsTableStructure extends RowDataPacket {
 	registered_id: string;
 	preferences: string;
 	updated_at: string;
-  }
+}
   
 const userPreferencesTableFields: UserPrefsTableStructure = {
-id: "int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY",
-registered_id: "int(11) NOT NULL UNIQUE",
-preferences: "JSON NOT NULL DEFAULT '{}'",
-updated_at: "timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP",
-_indexes: [
-	"INDEX idx_registered_id (registered_id)",],
-constructor: {
-	name: 'RowDataPacket',
-},
+	id: "int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY",
+	registered_id: "int(11) NOT NULL UNIQUE",
+	preferences: "JSON NOT NULL DEFAULT '{}'",
+	updated_at: "timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP",
+	_indexes: [
+		"INDEX idx_registered_id (registered_id)",],
+	constructor: {
+		name: 'RowDataPacket',
+	},
+};
+
+interface TenantConfigStructure extends RowDataPacket {
+	id: string;
+	domainid: string;
+	config: string;
+	updated_at: string;
+}
+
+const tenantConfigTableFields : TenantConfigStructure= {
+	id: "int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY",
+	domainid: "int(11) NOT NULL UNIQUE",
+	config: "JSON NOT NULL DEFAULT '{}'",
+	updated_at: "timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP",
+	_indexes: [
+		"INDEX idx_domainid (domainid)",
+	],
+	constructor: {
+		name: 'RowDataPacket',
+	},
 };
 
 //If you add a new field that is substituting an old one, add it here
@@ -490,169 +510,12 @@ const newFieldcompatibility = [
 	{"userprefs": userPreferencesTableFields},
 	{"eventmetadata": eventMetadataTableFields},
 	{"filetypes": fileTypesTableFields},
-];
-
-interface DatabaseView {
-	viewName: string;
-	createStatement: string;
-}
-
-const vRegisteredView: DatabaseView =  {
-    viewName: "vregistered",
-    createStatement: `
-		CREATE OR REPLACE VIEW vregistered AS
-		SELECT 
-		r.id,
-		IF(b.id IS NOT NULL, 1, 0) AS banned,
-		r.checked,
-		r.active,
-		r.allowed,
-		r.pendingotc,
-		r.username,
-		r.balance,
-		IF(t.paid IS NOT NULL, 1, 0) AS paid,
-		t.satoshi,
-		r.transactionid,
-		r.pubkey,
-		r.hex,
-		r.domain,
-		DATE_FORMAT(r.date, '%Y-%m-%d %H:%i') AS date,
-		r.comments
-		FROM registered r
-		LEFT JOIN banned b ON b.originid = r.id 
-							AND b.origintable = 'registered'
-							AND b.active = 1
-		LEFT JOIN transactions t ON r.transactionid = t.id;
-    `
-};
-
-const vFilesView: DatabaseView =  {
-	viewName: "vfiles",
-	createStatement: `
-		CREATE OR REPLACE VIEW vfiles AS
-		SELECT 
-			mf.id,
-			IF(b.id IS NOT NULL, 1, 0) AS banned,
-			mf.checked,
-			mf.active,
-			mf.visibility,
-			t.paid,
-			t.satoshi,
-			mf.transactionid,
-			r.username,
-			r.pubkey AS npub,
-			mf.pubkey,
-			mf.filename,
-			mf.mimetype,
-			mf.original_hash,
-			mf.hash,
-			mf.status,
-			mf.dimensions,
-			ROUND(mf.filesize / 1024 / 1024, 2) AS filesize,
-			DATE_FORMAT(mf.date, '%Y-%m-%d %H:%i') AS date,
-			mf.comments
-		FROM mediafiles mf
-		LEFT JOIN banned b 
-			ON b.originid = mf.id 
-			AND b.origintable = 'mediafiles'
-			AND b.active = 1
-		LEFT JOIN transactions t 
-			ON mf.transactionid = t.id
-		LEFT JOIN registered r 
-			ON mf.pubkey = r.hex;
-	`
-};
-
-const vBannedView: DatabaseView =  {
-	viewName: "vbanned",
-	createStatement: `
-		CREATE OR REPLACE VIEW vbanned AS
-		SELECT 
-			b.id,
-			b.active,
-			b.originid,
-			b.origintable,
-			COALESCE(mf.filename, r.hex, i.ip) AS originkey,
-			b.createddate,
-			b.reason
-		FROM banned b
-		LEFT JOIN mediafiles mf 
-			ON b.originid = mf.id 
-			AND b.origintable = 'mediafiles'
-		LEFT JOIN registered r 
-			ON b.originid = r.id 
-			AND b.origintable = 'registered'
-		LEFT JOIN ips i 
-			ON b.originid = i.id 
-			AND b.origintable = 'ips'`
-};
-
-
-const vIpsView: DatabaseView =  {
-	viewName: "vips",
-	createStatement: `
-		CREATE OR REPLACE VIEW vips AS
-		SELECT 
-			i.id,
-			IF(b.id IS NOT NULL, 1, 0) AS banned,
-			i.active,
-			i.checked,
-			i.ip,
-			DATE_FORMAT(FROM_UNIXTIME(i.firstseen / 1000), '%Y-%m-%d %H:%i') AS firstseen,
-			DATE_FORMAT(FROM_UNIXTIME(i.lastseen / 1000), '%Y-%m-%d %H:%i') AS lastseen,
-			i.reqcount,
-			i.infractions,
-			i.comments
-		FROM ips i
-		LEFT JOIN banned b 
-			ON b.originid = i.id 
-			AND b.origintable = 'ips'
-			AND b.active = 1;`
-};
-
-const vEventsView: DatabaseView = {
-	viewName: "vevents",
-	createStatement: `
-		CREATE OR REPLACE VIEW vevents AS
-		SELECT 
-			e.id,
-			e.active,
-			e.checked,
-			IF(b.id IS NOT NULL, 1, 0) AS banned,
-			e.event_id,
-			e.pubkey,
-			e.kind,
-			COALESCE(et.tags, '') AS tags,
-			e.content,
-			e.created_at,
-			e.received_at,
-			e.comments
-		FROM events e
-		LEFT JOIN banned b 
-			ON b.originid = e.id 
-			AND b.origintable = 'events'
-			AND b.active = 1
-		LEFT JOIN (
-			SELECT 
-				event_id, 
-				GROUP_CONCAT(CONCAT(tag_name, ' : ', tag_value) SEPARATOR ', ') AS tags
-			FROM eventtags
-			GROUP BY event_id
-		) et 
-			ON e.event_id = et.event_id;`
-};
-
-const databaseViews: DatabaseView[] = [
-	vRegisteredView,
-	vFilesView,
-	vBannedView,
-	vIpsView,
-	vEventsView
+	{"tenantconfig": tenantConfigTableFields},
+	
 ];
 
 export {
 	newFieldcompatibility,
-	databaseTables,
-	databaseViews
+	databaseTables
 };	
 	

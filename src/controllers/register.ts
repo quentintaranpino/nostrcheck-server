@@ -3,7 +3,7 @@ import validator from "validator";
 import { logger } from "../lib/logger.js";
 import { getAvailableDomains } from "../lib/domains.js";
 import app from "../app.js";
-import { isModuleEnabled } from "../lib/config.js";
+import { isModuleEnabled } from "../lib/config/local.js";
 import { addNewUsername, isPubkeyOnDomainAvailable, isUsernameAvailable } from "../lib/register.js";
 import { generateOTC, verifyOTC, parseAuthHeader } from "../lib/authorization.js";
 import { npubToHex, validatePubkey } from "../lib/nostr/NIP19.js";
@@ -236,11 +236,12 @@ const calculateRegisterCost = async (req: Request, res: Response): Promise<Respo
 		return res.status(403).send({"status": "error", "message": reqInfo.comments});
 	}
 
-    // Check if current module is enabled
+    // Check if payments module is enabled
     if (!isModuleEnabled("payments", app)) {
         logger.info(`calculateRegisterCost - Attempt to access a non-active module: payments | IP:`, reqInfo.ip);
         return res.status(403).send({"status": "error", "message": "Module is not enabled"});
     }
+	// Check if current module is enabled
 	if (!isModuleEnabled("register", app)) {
         logger.info(`calculateRegisterCost - Attempt to access a non-active module: register | IP:`, reqInfo.ip);
         return res.status(403).send({"status": "error", "message": "Module is not enabled"});

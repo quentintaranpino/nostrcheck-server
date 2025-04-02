@@ -6,7 +6,7 @@ import path from "path";
 import { logger } from "../logger.js";
 import { CHUNK_SIZE, eventStore, MetadataEvent, PendingGetEventsTask, RelayJob, SharedChunk } from "../../interfaces/relay.js";
 import app from "../../app.js";
-import { isModuleEnabled } from "../config.js";
+import { isModuleEnabled } from "../config/local.js";
 import { deleteEvents, storeEvents } from "./database.js";
 import { decodeChunk, dynamicTimeout, encodeChunk, getEventById, updateChunk } from "./utils.js";
 import { RedisConfig } from "../../interfaces/redis.js";

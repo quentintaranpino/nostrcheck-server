@@ -21,7 +21,7 @@ import { NIP94_data, NIP96_event, NIP96_processing } from "../interfaces/nostr.j
 import { PrepareNIP96_event, PrepareNIP96_listEvent } from "../lib/nostr/NIP96.js";
 import { generateQRCode, getNewDate, parseBoolean } from "../lib/utils.js";
 import { generateBlurhash, generatefileHashfrombuffer, hashString } from "../lib/hash.js";
-import { isModuleEnabled } from "../lib/config.js";
+import { isModuleEnabled } from "../lib/config/local.js";
 import { deleteFile, getFilePath } from "../lib/storage/core.js";
 import { saveTmpFile } from "../lib/storage/local.js";
 import { Readable } from "stream";
@@ -156,7 +156,6 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 		hash: "",
 		url: "",
 		magnet: "",
-		torrent_infohash: "",
 		blurhash: "",
 		status: "",
 		description: "File uploaded successfully",
@@ -708,7 +707,6 @@ const getMediaList = async (req: Request, res: Response): Promise<Response> => {
 			height: Number(e.dimensions?.toString().split("x")[1]),
 			url: "",
 			magnet: "",
-			torrent_infohash: "",
 			blurhash: e.blurhash,
 			no_transform: e.hash == e.original_hash ? true : false,
 			media_type: "",
@@ -853,7 +851,6 @@ const getMediaStatusbyID = async (req: Request, res: Response, version:string): 
 		hash: hash,
 		url: getFileUrl(filename, pubkey),
 		magnet: magnet,
-		torrent_infohash: "",
 		blurhash: blurhash,
 		media_type: "", 
 		originalmime: "",

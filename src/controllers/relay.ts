@@ -8,7 +8,7 @@ import { initEvents } from "../lib/relay/database.js";
 
 import app from "../app.js";
 import { isEventValid } from "../lib/nostr/core.js";
-import { isModuleEnabled } from "../lib/config.js";
+import { isModuleEnabled } from "../lib/config/local.js";
 import { logger } from "../lib/logger.js";
 import { isIpAllowed } from "../lib/security/ips.js";
 import { isEntityBanned } from "../lib/security/banned.js";

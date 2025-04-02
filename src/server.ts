@@ -18,12 +18,6 @@ const startServer = async () => {
     const { migrateDBLocalpath } = await import("./controllers/config.js");
     migrateDBLocalpath();
 
-    //Start seeding magnets
-    if (app.get("config.torrent")["enableTorrentSeeding"]) {
-        const { SeedMediafilesMagnets } = await import("./lib/torrent.js");
-        await SeedMediafilesMagnets();
-    }
-    
     // Start server
     const server = app.listen(app.get("config.server")["port"]);
     app.set("server", server);
@@ -45,7 +39,7 @@ const startServer = async () => {
     console.log(await showDBStats());
 
     // Show server active modules
-    const { loadconfigActiveModules } = await import("./lib/config.js");
+    const { loadconfigActiveModules } = await import("./lib/config/local.js");
     console.log("Active modules: ", loadconfigActiveModules(app).map(module => module.name).join(", "));
 
 }

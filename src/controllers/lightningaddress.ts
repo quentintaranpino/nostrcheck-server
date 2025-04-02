@@ -5,7 +5,7 @@ import { logger } from "../lib/logger.js";
 import { ResultMessagev2 } from "../interfaces/server.js";
 import { LightningUsernameResult } from "../interfaces/lightning.js";
 import { parseAuthHeader } from "../lib/authorization.js";
-import { isModuleEnabled } from "../lib/config.js";
+import { isModuleEnabled } from "../lib/config/local.js";
 import app from "../app.js";
 import { setAuthCookie } from "../lib/frontend.js";
 import { PoolConnection} from "mysql2/promise";

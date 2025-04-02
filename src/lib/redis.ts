@@ -1,7 +1,7 @@
 import { createClient, RedisClientType } from "redis";
 import { RedisConfig } from "../interfaces/redis.js";
 import { Application } from "express";
-import { updateLocalConfigKey } from "./config.js";
+import { updateLocalConfigKey } from "./config/local.js";
 
 class RedisService {
   private client: RedisClientType;
