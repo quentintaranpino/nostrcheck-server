@@ -27,6 +27,7 @@ import { isIpAllowed } from "../lib/security/ips.js";
 import { eventStore } from "../interfaces/relay.js";
 import { getEventById } from "../lib/relay/utils.js";
 import { RedisService } from "../lib/redis.js";
+import { setConfig } from "../lib/config/core.js";
 
 const redisCore = app.get("redisCore") as RedisService
 
@@ -814,87 +815,51 @@ const insertDBRecord = async (req: Request, res: Response): Promise<Response> =>
  * @returns A promise that resolves to the response object.
  */
 const updateSettings = async (req: Request, res: Response): Promise<Response> => {
-
-    // Check if the request IP is allowed
     const reqInfo = await isIpAllowed(req);
-    if (reqInfo.banned == true) {
+    if (reqInfo.banned) {
         logger.warn(`updateSettings - Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
-        return res.status(403).send({"status": "error", "message": reqInfo.comments});
+        return res.status(403).send({ status: "error", message: reqInfo.comments });
     }
 
-    // Check if current module is enabled
     if (!isModuleEnabled("admin", app)) {
         logger.warn(`updateSettings - Attempt to access a non-active module: admin | IP:`, reqInfo.ip);
-        return res.status(403).send({"status": "error", "message": "Module is not enabled"});
+        return res.status(403).send({ status: "error", message: "Module is not enabled" });
     }
 
     logger.info(`updateSettings - ${req.method} ${req.path}`, "|", reqInfo.ip);
-    res.setHeader('Content-Type', 'application/json');
+    res.setHeader("Content-Type", "application/json");
 
-     // Check if authorization header is valid
-	const eventHeader = await parseAuthHeader(req, "updateSettings", true, true, true);
-	if (eventHeader.status !== "success") {return res.status(401).send({"status": eventHeader.status, "message" : eventHeader.message});}
+    const eventHeader = await parseAuthHeader(req, "updateSettings", true, true, true);
+    if (eventHeader.status !== "success") {
+        return res.status(401).send({ status: eventHeader.status, message: eventHeader.message });
+    }
     setAuthCookie(res, eventHeader.authkey);
 
-    if (req.body.name === "" || req.body.name === null || req.body.name === undefined) {
-        const result: ResultMessagev2 = {
-            status: "error",
-            message: "Invalid parameters",
-        }
+    const { name, value } = req.body;
+
+    if (!name || typeof name !== "string") {
         logger.error(`updateSettings - Invalid parameters`, "|", reqInfo.ip);
-        return res.status(400).send(result);
+        return res.status(400).send({ status: "error", message: "Invalid parameters" });
     }
 
-    const updated = await updateLocalConfigKey(req.body.name, req.body.value);
-    if (!updated) {
-        const result : ResultMessagev2 = {
-            status: "error",
-            message: "Failed to update settings.",
-            };
+    const keyPath = name.split(".");
+    const success = await setConfig("", keyPath, value);
+
+    if (!success) {
         logger.error(`updateSettings - Failed to update settings`, "|", reqInfo.ip);
-        return res.status(500).send(result);
+        return res.status(500).send({ status: "error", message: "Failed to update settings." });
     }
 
-    const parts = req.body.name.includes('.') ? req.body.name.split('.') : [req.body.name];
-    const mainConfigName = req.body.name.includes('.') ? `config.${parts.shift()}` : `config.${req.body.name}`;
-    if (app.get(mainConfigName) === undefined) {
-        logger.error(`updateSettings - Config field not found: ${mainConfigName} | ${reqInfo.ip}`);
-        return res.status(500).send({"status":"error", "message":`Config field not found: ${mainConfigName}`});
-    }
-    const configField = parts.length > 0 ? parts.pop() : req.body.name;
-    const rootConfig = JSON.parse(JSON.stringify(app.get(mainConfigName))); // Deep copy
-    let currentConfig = rootConfig;
-    
-    for (const part of parts) {
-        if (currentConfig[part] === undefined) {
-            logger.error(`updateSettings - Config field not found: ${part} | ${reqInfo.ip}`);
-            return res.status(500).send({"status":"error", "message":`Config field not found: ${part}`});
-        }
-        currentConfig = currentConfig[part];
-    }
-    
-    if (typeof currentConfig === 'object') {
-        currentConfig[configField] = req.body.value;
-        app.set(mainConfigName, rootConfig);
-    } else {
-        app.set(mainConfigName, req.body.value);
-    }
-
-    // If the setting is expireTime from redis we flush redis cache
-    if (req.body.name == "redis.expireTime") {
+    if (name === "redis.expireTime") {
         const flushResult = await redisCore.flushAll();
-        if (flushResult)logger.info(`updateSettings - Redis cache flushed`, "|", reqInfo.ip);
+        if (flushResult) {
+            logger.info(`updateSettings - Redis cache flushed`, "|", reqInfo.ip);
+        }
     }
 
-    const result : ResultMessagev2 = {
-        status: "success",
-        message: "Succesfully updated settings.",
-        };
-
-    logger.info(`updateSettings - Updated settings succesfully`, "|", reqInfo.ip);
-    return res.status(200).send(result);
-    
-}
+    logger.info(`updateSettings - Updated settings successfully`, "|", reqInfo.ip);
+    return res.status(200).send({ status: "success", message: "Successfully updated settings." });
+};
 
 const getModuleData = async (req: Request, res: Response): Promise<Response> => {
 
