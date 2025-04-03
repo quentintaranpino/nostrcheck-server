@@ -5,7 +5,7 @@ import { hextoNpub, npubToHex, validatePubkey } from "./nostr/NIP19.js";
 import { validateInviteCode } from "./invitations.js";
 import { getNewDate } from "./utils.js";
 import { logger } from "./logger.js";
-import { getTenantConfig } from "./tenants.js";
+import { getPublicTenantConfig } from "./config/tenant.js";
 
 /**
  * 
@@ -68,7 +68,7 @@ const addNewUsername = async (username: string, pubkey: string, password:string,
     if (await isUsernameAvailable(username, domain) == false) {return 0}
     if (await isPubkeyOnDomainAvailable(pubkey, domain) == false) {return 0}
 
-    const tenantConfig = await getTenantConfig(domain);
+    const tenantConfig = await getPublicTenantConfig(domain);
     if (!tenantConfig) {return 0}
     if (tenantConfig.requireinvite == true && checkInvite && inviteCode == "") {return 0}
 
@@ -108,7 +108,6 @@ const addNewUsername = async (username: string, pubkey: string, password:string,
 
     return createUsername;
 }
-
 
 /**
  * 

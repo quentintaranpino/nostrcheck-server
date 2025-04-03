@@ -1,7 +1,7 @@
+
 import { TenantInfo } from "../interfaces/tenants.js";
-import { getConfig, setConfig } from "./config/core.js";
+import { getPublicTenantConfig } from "./config/tenant.js";
 import { dbMultiSelect } from "./database.js";
-import { getTenantConfig } from "./tenants.js";
 
 const getAvailableDomains = async (): Promise<{ [key: string]: TenantInfo }> => {
     const domains = await dbMultiSelect(["id", "domain"], "domains", "active = ?", ["1"], false);
@@ -12,12 +12,10 @@ const getAvailableDomains = async (): Promise<{ [key: string]: TenantInfo }> => 
     
     await Promise.all(
         domains.map(async (row: any) => {
-            const tenantConfig = await getTenantConfig(row.domain);
+            const tenantConfig = await getPublicTenantConfig(row.domain);
             if (tenantConfig) {
                 domainMap[row.domain] = tenantConfig;
             }
-            const requireInvite = getConfig(row.domain, ["register", "requireinvite"]);
-            console.log("requireInvite", requireInvite);
         })
     );
         

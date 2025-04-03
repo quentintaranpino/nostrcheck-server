@@ -14,7 +14,7 @@ import { calculateSatoshi, checkTransaction } from "../lib/payments/core.js";
 import { amountReturnMessage, Transaction } from "../interfaces/payments.js";
 import { setAuthCookie } from "../lib/frontend.js";
 import { isIpAllowed } from "../lib/security/ips.js";
-import { getTenantConfig } from "../lib/tenants.js";
+import { getPublicTenantConfig } from "../lib/config/tenant.js";
 import { ResultMessagev2 } from "../interfaces/server.js";
 
 const registerUsername = async (req: Request, res: Response): Promise<Response> => {
@@ -75,7 +75,7 @@ const registerUsername = async (req: Request, res: Response): Promise<Response> 
 		return res.status(400).send({status: "error", message: "Domain not provided"});
 	}
 
-	const tenantConfig = await getTenantConfig(domain);
+	const tenantConfig = await getPublicTenantConfig(domain);
 	if (!tenantConfig) {
 		logger.info(`registerUsername - 406 Not Acceptable - Invalid domain`, "|", reqInfo.ip);
 		return res.status(406).send({ status: "error", message: "Invalid domain" });
@@ -273,7 +273,7 @@ const calculateRegisterCost = async (req: Request, res: Response): Promise<Respo
 		return res.status(400).send({status: "error", message: "Domain not provided"});
 	}
 
-    const tenanConfig = await getTenantConfig(domain);
+    const tenanConfig = await getPublicTenantConfig(domain);
 	if(!tenanConfig) {
 		logger.info(`calculateRegisterCost - Invalid domain`, "|", reqInfo.ip);
 		return res.status(406).send({ status: "error", message: "Invalid domain" });

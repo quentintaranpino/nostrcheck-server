@@ -3,7 +3,7 @@ import express from "express";
 import helmet from "helmet";
 import { loadConfigOptions } from "./lib/config/local.js";
 import { RedisService } from "./lib/redis.js";
-import { getConfig, initGlobalConfig } from "./lib/config/core.js";
+import { initGlobalConfig } from "./lib/config/core.js";
 
 const app = express();
 

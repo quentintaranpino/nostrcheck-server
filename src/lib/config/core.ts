@@ -41,10 +41,11 @@ const initGlobalConfig = async (): Promise<void> => {
 
 const getConfig = (domain : string | null, keyPath: string[]): any => {
 
+  const multiTenancy = configStore.global?.server?.multiTenancy;
   const domainId = domain ? configStore.domainMap.domainToId[domain] : null;
   
   let value: any;
-  if (domainId && configStore.tenants[domainId]) {
+  if (multiTenancy && domainId && configStore.tenants[domainId]) {
     value = configStore.tenants[domainId];
     for (const key of keyPath) {
       if (value && typeof value === "object" && key in value) {
@@ -56,7 +57,6 @@ const getConfig = (domain : string | null, keyPath: string[]): any => {
     }
     if (value !== undefined) return value;
   }
-  // Fallback: configuración global
   value = configStore.global;
   for (const key of keyPath) {
     if (value && typeof value === "object" && key in value) {
@@ -69,16 +69,6 @@ const getConfig = (domain : string | null, keyPath: string[]): any => {
   return value;
 };
 
-/**
- * Actualiza un valor de configuración en el store en memoria y lo persiste.
- * Si se proporciona un domainId, actualiza la configuración específica para ese dominio en la DB;
- * de lo contrario, actualiza la configuración global y la persiste en el archivo JSON.
- *
- * @param domainId El ID del dominio o null para la global.
- * @param keyPath Un arreglo de claves que define la ruta, ej: ["register", "minUsernameLength"].
- * @param newValue El nuevo valor a asignar.
- * @returns Un booleano indicando si la actualización fue exitosa.
- */
 const setConfig = async (domain: string, keyPath: string[], newValue: string | boolean | number): Promise<boolean> => {
 
   const domainId = domain ? configStore.domainMap.domainToId[domain] : null;
@@ -90,7 +80,6 @@ const setConfig = async (domain: string, keyPath: string[], newValue: string | b
     return false;
   }
 
-  // Seleccionamos el target: overrides o global.
   let target;
   if (domainId && configStore.tenants[domainId]) {
     target = configStore.tenants[domainId];
@@ -98,7 +87,6 @@ const setConfig = async (domain: string, keyPath: string[], newValue: string | b
     target = configStore.global;
   }
   
-  // Recorremos la ruta hasta la penúltima clave
   let current = target;
   for (let i = 0; i < keyPath.length - 1; i++) {
     if (current[keyPath[i]] === undefined || current[keyPath[i]] === null) {
@@ -108,9 +96,6 @@ const setConfig = async (domain: string, keyPath: string[], newValue: string | b
   }
   current[keyPath[keyPath.length - 1]] = newValue;
 
-  
-
-  // Persistencia
   if (domainId) {
     try {
       const configJson = JSON.stringify(configStore.tenants[domainId]);
@@ -123,10 +108,8 @@ const setConfig = async (domain: string, keyPath: string[], newValue: string | b
     }
   } else {
     try {
-      // Para la configuración global, actualizamos el archivo sin llamar a app.set()
       const key = keyPath.join(".");
       const updated = await updateLocalConfigKey(key, newValue.toString());
-      // Opcional: podrías recargar la configuración global desde el archivo y actualizar configStore.global
       return updated;
     } catch (error) {
       console.error("Error updating global config in file", error);
@@ -134,7 +117,5 @@ const setConfig = async (domain: string, keyPath: string[], newValue: string | b
     }
   }
 };
-
-
 
 export { configStore, initGlobalConfig, getConfig, setConfig };

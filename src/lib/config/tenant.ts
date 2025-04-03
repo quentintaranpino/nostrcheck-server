@@ -1,4 +1,5 @@
-import { configStore } from "./core.js";
+import { TenantInfo } from "../../interfaces/tenants.js";
+import { configStore, getConfig, setConfig } from "./core.js";
 
 const loadTenantConfig = async (domainId: string): Promise<any> => {
   try {
@@ -37,4 +38,19 @@ const loadTenants = async (): Promise<void> => {
       }
 };
 
-export { updateTenantConfig, loadTenants };
+
+const getPublicTenantConfig = async (domain: string): Promise<TenantInfo | null> => {
+
+  const tenantInfo : TenantInfo = {
+      maxsatoshi: getConfig(domain, ["payments", "satoshi", "registerMaxSatoshi"]),
+      requireinvite: getConfig(domain, ["register", "requireinvite"]),
+      requirepayment: getConfig(domain, ["register", "requirepayment"]),
+      minUsernameLength: getConfig(domain, ["register", "minUsernameLength"]),
+      maxUsernameLength: getConfig(domain, ["register", "maxUsernameLength"]),
+  };
+
+  return tenantInfo;
+};
+
+
+export { updateTenantConfig, loadTenants, getPublicTenantConfig };
