@@ -98,7 +98,7 @@ const getEventsDB = async (offset: number, limit: number): Promise<MetadataEvent
               JSON_ARRAY(
                 tag_name,
                 tag_value,
-                REPLACE(IFNULL(extra_values, ''), '"', '\\\\"')
+                IFNULL(extra_values, NULL)
               ) ORDER BY position ASC
             ) AS tags
           FROM eventtags
@@ -155,7 +155,22 @@ const getEventsDB = async (offset: number, limit: number): Promise<MetadataEvent
     created_at: row.created_at,
     content: row.content,
     sig: row.sig,
-    tags: row.tags ? safeJSONParse(row.tags, []) : [],
+    tags: row.tags
+    ? safeJSONParse(row.tags, []).map((tag: any[]) => {
+        const [name, value, extra] = tag;
+        let rest: string[] = [];
+        if (typeof extra === "string" && extra.trim().startsWith("[")) {
+          try {
+            rest = JSON.parse(extra);
+          } catch {
+            rest = [extra];
+          }
+        } else if (extra) {
+          rest = [extra];
+        }
+        return [name, value, ...rest];
+      })
+    : [],
     metadata: row.metadata ? safeJSONParse(row.metadata, undefined) : undefined,
   }));
 
@@ -215,7 +230,7 @@ const storeEvents = async (eventsInput: MetadataEvent | MetadataEvent[]): Promis
         e.tags.forEach((tag: string[], index: number) => {
           const tagName = tag[0];
           const tagValue = tag[1] || "";
-          const extraValues = tag.slice(2).join(",") || null;
+          const extraValues = tag.length > 2 ? JSON.stringify(tag.slice(2)) : null;
           allTagValues.push([e.id, tagName, tagValue, index, extraValues]);
         });
       }
