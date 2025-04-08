@@ -48,32 +48,31 @@ const mergeConfigkey = async (defaultConfig: Record<string, unknown>, localConfi
     return hasChanged;
 }
 
-const updateLocalConfigKey = async (key: string, value: string) : Promise<boolean> => {
-	
-	try {
+const updateLocalConfigKey = async (key: string, value: string | number | boolean | object): Promise<boolean> => {
+    try {
+        const LocalConfig = JSON.parse(fs.readFileSync(localPath).toString());
+        const keyParts = key.split(".");
+        let currentPart = LocalConfig;
 
-		const LocalConfig = JSON.parse(fs.readFileSync(localPath).toString());
-		const keyParts = key.split(".");
-		let currentPart = LocalConfig;
+        for (let i = 0; i < keyParts.length - 1; i++) {
+            if (!currentPart[keyParts[i]]) {
+                currentPart[keyParts[i]] = {};
+            }
+            currentPart = currentPart[keyParts[i]];
+        }
 
-		for (let i = 0; i < keyParts.length - 1; i++) {
-			if (!currentPart[keyParts[i]]) {
-				currentPart[keyParts[i]] = {};
-			}
-			currentPart = currentPart[keyParts[i]];
-		}
-		currentPart[keyParts[keyParts.length - 1]] = value;
-        console.debug("Updating config file: " + localPath + " with key: " + key + " and value: " + value)
+        currentPart[keyParts[keyParts.length - 1]] = value;
+
+        console.debug("Updating config file: " + localPath + " with key: " + key + " and value: ", value);
         fs.copyFileSync(localPath, localPath + ".bak");
         fs.writeFileSync(localPath, JSON.stringify(LocalConfig, null, 4));
 
         return true;
-    } catch(err) {
+    } catch (err) {
         console.error("Error writing config file: ", err);
         return false;
     }
-}
-
+};
 
 const loadconfigActiveModules = (app: Application): Module[] => {
 	const availableModules = Object.entries(app.get("config.server")["availableModules"] as Record<string, Module>);

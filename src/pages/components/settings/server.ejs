@@ -11,11 +11,11 @@
     </p>
     <%- include('field', {
         type: "checkbox",
-        name: "server.multiTenancy",
+        name: "multiTenancy",
         label: "Multi-tenancy",
         description: "Enable per-domain config overrides such as relay settings, registration, payments, etc.",
-        value: cfg.multiTenancy,
-        globalValue: globalCfg.multiTenancy,
+        value: locals.globalConfig?.multiTenancy,
+        globalValue: locals.globalConfig?.multiTenancy,
         overridable: false,
         alert: {
           type: "warning",
@@ -25,17 +25,37 @@
       }) %>
 
     <%- include('field', {
+      type: "select",
+      name: "environment",
+      label: "Environment",
+      description: "Set the server environment. 'production' enables security features required for public access.",
+      value: locals.globalConfig?.environment,
+      globalValue: locals.globalConfig?.environment,
+      overridable: false,
+      options: [
+        { value: "development", label: "development" },
+        { value: "production", label: "production" }
+      ],
+      alert: {
+        type: "warning",
+        icon: "fa-triangle-exclamation",
+        message: "If you choose production, make sure the server is under HTTPS or login cookies will not work."
+      }
+    }) %>
+
+    <%- include('field', {
       type: "text",
       name: "server.host",
       label: "Hostname",
       description: "Used to identify the server. Must match the domain.",
       value: cfg.host,
       globalValue: globalCfg.host,
+      placeholder: "example.com (without https://)",
       required: true,
       alert: {
         type: "warning",
         icon: "fa-triangle-exclamation",
-        message: "This must match the external domain name or HTTPS won't work properly."
+        message: "If environment is <b>production</b>, this must match the external domain name or HTTPS won't work properly."
       }
     }) %>
 
@@ -46,25 +66,8 @@
       description: "Displayed in the homepage and used to identify the server.",
       value: cfg.name,
       globalValue: globalCfg.name,
+      placeholder: "My cool Nostrcheck instance",
       required: true
-    }) %>
-
-    <%- include('field', {
-      type: "select",
-      name: "environment",
-      label: "Environment",
-      description: "Set the server environment. 'production' enables security features required for public access.",
-      value: cfg.environment,
-      globalValue: locals.globalConfig?.environment,
-      options: [
-        { value: "development", label: "development" },
-        { value: "production", label: "production" }
-      ],
-      alert: {
-        type: "warning",
-        icon: "fa-triangle-exclamation",
-        message: "If you choose production, make sure the server is under HTTPS or login cookies will not work."
-      }
     }) %>
 
     <%- include('field', {
@@ -81,7 +84,7 @@
       type: "password",
       name: "server.secretKey",
       label: "Server secret key",
-      description: "Used to sign and decrypt the server DM's and notes.",
+      description: "Hex format. Used to sign and decrypt the server DM's and notes.",
       value: cfg.secretKey,
       globalValue: globalCfg.secretKey,
       defaultValue: cfg.secretKey,
@@ -97,9 +100,10 @@
       type: "number",
       name: "redis.expireTime",
       label: "Cache expiration",
-      description: "Set Redis cache TTL in seconds. Recommended: 300 or more for optimal performance.",
-      value: locals.settingsRedisExpireTime,
+      description: "Set Redis cache TTL in seconds. Recommended: 300 to 600 seconds.",
+      value: locals.domainConfig?.redis?.expireTime,
       globalValue: locals.globalConfig?.redis?.expireTime,
+      placeholder: "300",
       required: true
     }) %>
 

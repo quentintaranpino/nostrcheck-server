@@ -1,26 +1,35 @@
 <% 
   const {
     type, name, label, description, value, required,
-    options, alert, globalValue, overridable
+    options, alert, globalValue, overridable, placeholder
   } = typeof locals !== 'undefined' ? locals : {};
 
   const selectedDomain = locals?.selectedDomain || null;
   const isGlobal = !selectedDomain;
   const isOverridable = overridable !== false;
-  const effectiveOverride = typeof globalValue !== 'undefined' && isOverridable && !isGlobal;
+  const keyParts = name.split(".");
+  const localKeys = locals.domainConfig?.[keyParts[0]];
+  const hasOwnValue = localKeys && Object.prototype.hasOwnProperty.call(localKeys, keyParts[1]);
+  const effectiveOverride = hasOwnValue && isOverridable && !isGlobal;
   const shouldDisable = !isGlobal && !isOverridable;
+  const effectiveValue = (value !== undefined) ? value : globalValue;
+
+
 %>
+<% const inputClass = `form-control${shouldDisable ? ' bg-light text-muted' : ''}`; %>
+<% const selectClass = `form-select${shouldDisable ? ' bg-light text-muted' : ''}`; %>
 
 <div class="form-group mt-3">
   <% if (label) { %>
     <label for="<%= name %>" class="fw-bold">
       <%= label %>
-      <% if (effectiveOverride) { %>
-        <% if (globalValue !== value) { %>
-          <span class="badge bg-info ms-2">Overridden</span>
-        <% } else { %>
-          <span class="badge bg-secondary ms-2">Inherited</span>
-        <% } %>
+      <% if (!isGlobal && isOverridable) { %>
+        <span id="badge-<%= name %>" class="badge <%= effectiveOverride && globalValue !== value ? 'bg-success' : 'bg-info' %> ms-2">
+          <%= effectiveOverride && globalValue !== value ? 'Overridden' : 'Inherited' %>
+        </span>
+      <% } %>
+      <% if (shouldDisable) { %>
+        <span class="badge bg-secondary ms-2">Read-only</span>
       <% } %>
     </label>
   <% } %>
@@ -32,11 +41,13 @@
   <% if (type === "text" || type === "number") { %>
     <input 
       type="<%= type %>" 
-      class="form-control" 
+      class="<%= inputClass %>" 
       name="<%= name %>" 
       id="<%= name %>" 
-      value="<%= value %>" 
-      defaultValue="<%= value %>" 
+      value="<%= effectiveValue %>" 
+      defaultValue="<%= effectiveValue %>" 
+      data-global-value="<%= globalValue %>"
+      placeholder="<%= placeholder %>"
       <%= required ? "required" : "" %>
       <%= shouldDisable ? "disabled" : "" %> >
 
@@ -44,12 +55,13 @@
     <div class="input-group">
       <input 
         type="password" 
-        class="form-control mb-2" 
+        class="<%= inputClass %> mb-2" 
         name="<%= name %>" 
         id="<%= name %>" 
-        value="<%= value %>" 
-        defaultValue="<%= value %>" 
-        placeholder="••••••" 
+        value="<%= effectiveValue %>" 
+        defaultValue="<%= effectiveValue %>" 
+        data-global-value="<%= globalValue %>"
+        placeholder="<%= placeholder || '••••••' %>"
         <%= required ? "required" : "" %>
         <%= shouldDisable ? "disabled" : "" %> >
       <button 
@@ -66,28 +78,34 @@
         type="checkbox" 
         name="<%= name %>" 
         id="<%= name %>" 
-        <%= value ? "checked" : "" %> 
-        <%= value ? "defaultChecked" : "" %>
+        data-global-value="<%= globalValue ? 'true' : 'false' %>"
+        <%= effectiveValue  ? "checked" : "" %> 
+        <%= effectiveValue  ? "defaultChecked" : "" %>
         <%= shouldDisable ? "disabled" : "" %> >
     </div>
 
-  <% } else if (type === "select") { %>
-    <select class="form-select" name="<%= name %>" id="<%= name %>" <%= shouldDisable ? "disabled" : "" %>>
-      <% options.forEach(opt => { %>
-        <option 
-          value="<%= opt.value %>" 
-          <%= opt.value === value ? "selected" : "" %> 
-          <%= opt.value === value ? "defaultSelected" : "" %>>
-          <%= opt.label %>
-        </option>
-      <% }) %>
-    </select>
-  <% } %>
+    <% } else if (type === "select") { %>
+      <select
+        class="<%= selectClass %>"
+        name="<%= name %>"
+        id="<%= name %>"
+        data-global-value="<%= globalValue %>"
+        <%= shouldDisable ? "disabled" : "" %>>
+        <% options.forEach(opt => { %>
+          <option 
+            value="<%= opt.value %>" 
+            <%= opt.value === effectiveValue ? "selected" : "" %> 
+            <%= opt.value === effectiveValue ? "defaultSelected" : "" %>>
+            <%= opt.label %>
+          </option>
+        <% }) %>
+      </select>
+    <% } %>
 
   <% if (alert) { %>
     <div class="alert alert-<%= alert.type || 'warning' %> mt-2" role="alert">
       <% if (alert.icon) { %><i class="fa-solid <%= alert.icon %> me-2"></i><% } %>
-      <%= alert.message %>
+      <%- alert.message %> 
     </div>
   <% } %>
 </div>

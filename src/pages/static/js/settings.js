@@ -1,6 +1,12 @@
+const reloadOnChangeFields = [
+    "multiTenancy",
+  ];
+
 async function saveSettings() {
     const formFields = document.querySelectorAll('.form input, .form select, .form textarea, .form checkbox');
     const selectedDomain = document.getElementById('domainSelector')?.value || null;
+
+    let shouldReload = false;
 
     for (const field of formFields) {
 
@@ -18,6 +24,10 @@ async function saveSettings() {
         }
 
         if (value !== defaultValue && field.name !== "log" && !field.name.toString().startsWith('lookandfeel')) {
+
+            if (reloadOnChangeFields.includes(field.name)) {
+                shouldReload = true;
+            }
             
             let url = 'admin/updatesettings';
             let headers = {
@@ -56,6 +66,10 @@ async function saveSettings() {
                 }
             });
         }
+    }
+
+    if (shouldReload) {
+        location.reload();
     }
 }
 
@@ -354,3 +368,39 @@ function handleCheckboxClick(id, isChecked) {
         initAlertModal("#settings", "Attention, if you disable this module, you will need to manage the server only via<b> shell commands.</b>",10000);
     }
 }
+
+document.addEventListener("input", handleFieldLiveUpdate, true);
+document.addEventListener("change", handleFieldLiveUpdate, true);
+
+function handleFieldLiveUpdate(event) {
+    const field = event.target;
+    if (!field.name) return;
+  
+    const badge = document.getElementById(`badge-${field.name}`);
+    if (!badge) return;
+  
+    const globalValueAttr = field.dataset.globalValue;
+    if (globalValueAttr === undefined) return;
+  
+    let current;
+    let globalValue = globalValueAttr;
+  
+    if (field.type === "checkbox") {
+      current = String(field.checked);
+    } else {
+      current = field.value;
+    }
+  
+    // For booleans stored as string
+    if (globalValue === "true" || globalValue === "false") {
+      globalValue = String(globalValue === "true");
+    }
+  
+    if (current !== globalValue) {
+      badge.className = "badge bg-success ms-2";
+      badge.textContent = "Overridden";
+    } else {
+      badge.className = "badge bg-info ms-2";
+      badge.textContent = "Inherited";
+    }
+  }
