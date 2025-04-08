@@ -8,6 +8,21 @@
         <div class="text-center"><h1 class="display-2 mt-2 pb-2 gradient-text">Server settings</h1></div>
         <p class="text-center mt-1 mb-4 lead">Not your server, not your rules. Be sovereing here.        
         </p>
+        <form method="GET" action="/api/v2/settings" class="text-center mt-3 mb-4">
+          <div class="row justify-content-center">
+            <div class="col-auto">
+              <label for="domainSelector" class="form-label fw-bold me-2">Select domain:</label>
+            </div>
+            <div class="col-auto">
+              <select id="domainSelector" name="domain" class="form-select" onchange="this.form.submit()">
+                <option value="">Global settings</option>
+                <% domainsList.forEach(dom => { %>
+                  <option value="<%= dom %>" <%= selectedDomain === dom ? 'selected' : '' %>><%= dom %></option>
+                <% }) %>
+              </select>
+            </div>
+          </div>
+        </form>
         <ul class="nav nav-tabs" id="settingsTabs" role="tablist">
           <li class="nav-item" role="presentation">
               <button class="nav-link active" 
@@ -185,34 +200,34 @@
             <%- include('./components/settings/database'); %>
           </div>
           <div class="tab-pane fade" id="modules" role="tabpanel" aria-labelledby="modules-tab">
-            <%- include('./components/settings/modules'); %>
+            <%- /* include('./components/settings/modules'); */ %>
           </div>
           <div class="tab-pane fade" id="storage" role="tabpanel" aria-labelledby="storage-tab">
-            <%- include('./components/settings/storage'); %>
+            <%- /* include('./components/settings/storage'); */ %>
           </div>
           <div class="tab-pane fade" id="register" role="tabpanel" aria-labelledby="register-tab">
-            <%- include('./components/settings/register'); %>
+            <%- /* include('./components/settings/register'); */ %>
           </div>
           <div class="tab-pane fade" id="media" role="tabpanel" aria-labelledby="media-tab">
-            <%- include('./components/settings/media'); %>
+            <%- /* include('./components/settings/media'); */ %>
           </div>
           <div class="tab-pane fade" id="logging" role="tabpanel" aria-labelledby="logging-tab">
-            <%- include('./components/settings/logging'); %>
+            <%- /* include('./components/settings/logging'); */ %>
           </div>
           <div class="tab-pane fade" id="security" role="tabpanel" aria-labelledby="security-tab">
-            <%- include('./components/settings/security'); %>
+            <%- /* include('./components/settings/security'); */ %>
           </div>
           <div class="tab-pane fade" id="plugins" role="tabpanel" aria-labelledby="plugins-tab">
-            <%- include('./components/settings/plugins'); %>
+            <%- /* include('./components/settings/plugins'); */ %>
           </div>
           <div class="tab-pane fade" id="payments" role="tabpanel" aria-labelledby="payments-tab">
-            <%- include('./components/settings/payments'); %>
+            <%- /* include('./components/settings/payments'); */ %>
           </div>
           <div class="tab-pane fade" id="relay" role="tabpanel" aria-labelledby="relay-tab">
-            <%- include('./components/settings/relay'); %>
+            <%- /* include('./components/settings/relay'); */ %>
           </div>
           <div class="tab-pane fade" id="legal" role="tabpanel" aria-labelledby="legal-tab">
-            <%- include('./components/settings/legal'); %>
+            <%- /* include('./components/settings/legal'); */ %>
           </div>
         </div>
     </main>

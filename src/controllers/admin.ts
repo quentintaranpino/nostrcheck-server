@@ -835,7 +835,7 @@ const updateSettings = async (req: Request, res: Response): Promise<Response> =>
     }
     setAuthCookie(res, eventHeader.authkey);
 
-    const { name, value } = req.body;
+    const { name, value, domain } = req.body;
 
     if (!name || typeof name !== "string") {
         logger.error(`updateSettings - Invalid parameters`, "|", reqInfo.ip);
@@ -843,7 +843,9 @@ const updateSettings = async (req: Request, res: Response): Promise<Response> =>
     }
 
     const keyPath = name.split(".");
-    const success = await setConfig("", keyPath, value);
+    const targetDomain = typeof domain === "string" ? domain : ""; 
+
+    const success = await setConfig(targetDomain, keyPath, value);
 
     if (!success) {
         logger.error(`updateSettings - Failed to update settings`, "|", reqInfo.ip);

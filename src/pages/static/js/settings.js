@@ -1,5 +1,7 @@
 async function saveSettings() {
     const formFields = document.querySelectorAll('.form input, .form select, .form textarea, .form checkbox');
+    const selectedDomain = document.getElementById('domainSelector')?.value || null;
+
     for (const field of formFields) {
 
         let value;
@@ -23,7 +25,8 @@ async function saveSettings() {
             };
             let body = JSON.stringify({
                 name: field.name,
-                value: value
+                value: value, 
+                domain: selectedDomain
             });
 
             if (field.name.startsWith('relay.icon')) {

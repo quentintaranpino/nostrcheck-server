@@ -13,6 +13,7 @@ import { verifyNIP07event } from "../lib/nostr/NIP07.js";
 import { getUsernames } from "../lib/register.js";
 import { getLightningAddress } from "../lib/lightning.js";
 import { getClientIp, isIpAllowed } from "../lib/security/ips.js";
+import { getConfig } from "../lib/config/core.js";
 
 const loadDashboardPage = async (req: Request, res: Response, version:string): Promise<Response | void> => {
 
@@ -39,52 +40,67 @@ const loadDashboardPage = async (req: Request, res: Response, version:string): P
     res.render("dashboard.ejs", {request: req});
 };
 
-const loadSettingsPage = async (req: Request, res: Response, version:string): Promise<Response | void> => {
-
-    // Check if current module is enabled
-	if (!isModuleEnabled("frontend", app)) {
-        logger.info("Attempt to access a non-active module:","frontend","|","IP:", getClientIp(req));
-		return res.status(403).send({"status": "error", "message": "Module is not enabled"});
-	}
-
+const loadSettingsPage = async (req: Request, res: Response, version: string): Promise<Response | void> => {
+    if (!isModuleEnabled("frontend", app)) {
+      logger.info("Attempt to access a non-active module:", "frontend", "|", "IP:", getClientIp(req));
+      return res.status(403).send({ status: "error", message: "Module is not enabled" });
+    }
+  
     logger.info("GET /api/" + version + "/settings", "|", getClientIp(req));
-
-    // Active modules
+  
+    const domain = typeof req.query.domain === "string" ? req.query.domain : null;
     const activeModules = loadconfigActiveModules(app);
-    res.locals.activeModules = activeModules; 
-
+  
+    const globalConfig = {
+      server: getConfig(null, ["server"]),
+      redis: getConfig(null, ["redis"]),
+      environment: getConfig(null, ["environment"]),
+      storage: getConfig(null, ["storage"]),
+      media: getConfig(null, ["media"]),
+      payments: getConfig(null, ["payments"]),
+      register: getConfig(null, ["register"]),
+      logger: getConfig(null, ["logger"]),
+      security: getConfig(null, ["security"]),
+      database: getConfig(null, ["database"]),
+      plugins: getConfig(null, ["plugins"]),
+      relay: getConfig(null, ["relay"]),
+      legal: getConfig(null, ["server", "legal"])
+    };
+  
+    const domainConfig = {
+      server: getConfig(domain, ["server"]),
+      redis: getConfig(domain, ["redis"]),
+      environment: getConfig(domain, ["environment"]),
+      storage: getConfig(domain, ["storage"]),
+      media: getConfig(domain, ["media"]),
+      payments: getConfig(domain, ["payments"]),
+      register: getConfig(domain, ["register"]),
+      logger: getConfig(domain, ["logger"]),
+      security: getConfig(domain, ["security"]),
+      database: getConfig(domain, ["database"]),
+      plugins: getConfig(domain, ["plugins"]),
+      relay: getConfig(domain, ["relay"]),
+      legal: getConfig(domain, ["server", "legal"])
+    };
+  
     res.locals.version = app.get("version");
+    res.locals.serverHost = getConfig(null, ["server", "host"]);
+    res.locals.activeModules = activeModules;
+    res.locals.availableModules = globalConfig.server?.availableModules || {};
+    res.locals.selectedDomain = domain;
+    res.locals.globalConfig = globalConfig;
+    res.locals.domainConfig = domainConfig;
+  
+    const { configStore } = await import("../lib/config/core.js");
+    res.locals.domainsList = configStore?.domainMap?.domainToId ? Object.keys(configStore.domainMap.domainToId) : [];
 
-    res.locals.serverHost = app.get("config.server")["host"];
-    res.locals.availableModules = app.get("config.server")["availableModules"];
-    res.locals.settingsEnvironment = app.get("config.environment");
-    res.locals.settingsServerHost = app.get("config.server")["host"];
-    res.locals.settingsServerName = app.get("config.server")["name"];
-    res.locals.settingServerPubkey = app.get("config.server")["pubkey"];
-    res.locals.settingServerSecretkey =  app.get("config.server")["secretKey"];
-    res.locals.settingsRedisExpireTime = app.get("config.redis")["expireTime"];
-
-    res.locals.settingsServer = app.get("config.server");
-    res.locals.settingsStorage = app.get("config.storage");
-    res.locals.settingsMedia = app.get("config.media");
-    res.locals.settingsPayments = app.get("config.payments");
-    res.locals.settingsRegister = app.get("config.register");
-    res.locals.settingsLogger = app.get("config.logger");
-    res.locals.settingsSecurity = app.get("config.security");
-    res.locals.settingsDatabase = app.get("config.database");
-    res.locals.settingsPlugins = app.get("config.plugins");
-    res.locals.settingsRelay = app.get("config.relay");
-    res.locals.settingsLegal = app.get("config.server")["legal"];
     res.locals.settingsLookAndFeelThemes = themes;
     res.locals.settingsLookAndFeelParticles = particles;
-
     setAuthCookie(res, req.cookies.authkey);
-
-    // Check admin privileges. Only for information, never used for authorization
     req.session.allowed = await isPubkeyAllowed(req.session.identifier);
-    
-    res.render("settings.ejs", {request: req});
-};
+  
+    res.render("settings.ejs", { request: req });
+  };
 
 const loadProfilePage = async (req: Request, res: Response, version:string): Promise<Response | void> => {
 
@@ -233,9 +249,9 @@ const loadIndexPage = async (req: Request, res: Response, version:string): Promi
     res.locals.activeModules = activeModules; 
 
     res.locals.version = app.get("version");
-    res.locals.serverHost = app.get("config.server")["host"];
-    res.locals.serverName = app.get("config.server")["name"];
-    res.locals.serverPubkey = await hextoNpub(app.get("config.server")["pubkey"]);
+    res.locals.serverHost = getConfig("", ["server", "host"]);
+    res.locals.serverName = getConfig("", ["server", "name"]);
+    res.locals.serverPubkey = await hextoNpub(getConfig("", ["server", "pubkey"]));
 
     setAuthCookie(res, req.cookies.authkey);
 

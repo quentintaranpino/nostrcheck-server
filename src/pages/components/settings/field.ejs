@@ -1,0 +1,93 @@
+<% 
+  const {
+    type, name, label, description, value, required,
+    options, alert, globalValue, overridable
+  } = typeof locals !== 'undefined' ? locals : {};
+
+  const selectedDomain = locals?.selectedDomain || null;
+  const isGlobal = !selectedDomain;
+  const isOverridable = overridable !== false;
+  const effectiveOverride = typeof globalValue !== 'undefined' && isOverridable && !isGlobal;
+  const shouldDisable = !isGlobal && !isOverridable;
+%>
+
+<div class="form-group mt-3">
+  <% if (label) { %>
+    <label for="<%= name %>" class="fw-bold">
+      <%= label %>
+      <% if (effectiveOverride) { %>
+        <% if (globalValue !== value) { %>
+          <span class="badge bg-info ms-2">Overridden</span>
+        <% } else { %>
+          <span class="badge bg-secondary ms-2">Inherited</span>
+        <% } %>
+      <% } %>
+    </label>
+  <% } %>
+
+  <% if (description) { %>
+    <p><%= description %></p>
+  <% } %>
+
+  <% if (type === "text" || type === "number") { %>
+    <input 
+      type="<%= type %>" 
+      class="form-control" 
+      name="<%= name %>" 
+      id="<%= name %>" 
+      value="<%= value %>" 
+      defaultValue="<%= value %>" 
+      <%= required ? "required" : "" %>
+      <%= shouldDisable ? "disabled" : "" %> >
+
+  <% } else if (type === "password") { %>
+    <div class="input-group">
+      <input 
+        type="password" 
+        class="form-control mb-2" 
+        name="<%= name %>" 
+        id="<%= name %>" 
+        value="<%= value %>" 
+        defaultValue="<%= value %>" 
+        placeholder="••••••" 
+        <%= required ? "required" : "" %>
+        <%= shouldDisable ? "disabled" : "" %> >
+      <button 
+        type="button" 
+        class="toggle-password d-none"
+        aria-label="Show <%= label %> as plain text. Warning: this will display the text on the screen.">
+      </button>
+    </div>
+
+  <% } else if (type === "checkbox") { %>
+    <div class="form-check form-switch">
+      <input 
+        class="form-check-input" 
+        type="checkbox" 
+        name="<%= name %>" 
+        id="<%= name %>" 
+        <%= value ? "checked" : "" %> 
+        <%= value ? "defaultChecked" : "" %>
+        <%= shouldDisable ? "disabled" : "" %> >
+    </div>
+
+  <% } else if (type === "select") { %>
+    <select class="form-select" name="<%= name %>" id="<%= name %>" <%= shouldDisable ? "disabled" : "" %>>
+      <% options.forEach(opt => { %>
+        <option 
+          value="<%= opt.value %>" 
+          <%= opt.value === value ? "selected" : "" %> 
+          <%= opt.value === value ? "defaultSelected" : "" %>>
+          <%= opt.label %>
+        </option>
+      <% }) %>
+    </select>
+  <% } %>
+
+  <% if (alert) { %>
+    <div class="alert alert-<%= alert.type || 'warning' %> mt-2" role="alert">
+      <% if (alert.icon) { %><i class="fa-solid <%= alert.icon %> me-2"></i><% } %>
+      <%= alert.message %>
+    </div>
+  <% } %>
+</div>
