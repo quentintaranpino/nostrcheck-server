@@ -55,6 +55,7 @@ const loadSettingsPage = async (req: Request, res: Response, version: string): P
       server: getConfig(null, ["server"]),
       redis: getConfig(null, ["redis"]),
       environment: getConfig(null, ["environment"]),
+      multiTenancy: getConfig(null, ["multiTenancy"]),
       storage: getConfig(null, ["storage"]),
       media: getConfig(null, ["media"]),
       payments: getConfig(null, ["payments"]),
@@ -70,7 +71,6 @@ const loadSettingsPage = async (req: Request, res: Response, version: string): P
     const domainConfig = {
       server: getConfig(domain, ["server"]),
       redis: getConfig(domain, ["redis"]),
-      environment: getConfig(domain, ["environment"]),
       storage: getConfig(domain, ["storage"]),
       media: getConfig(domain, ["media"]),
       payments: getConfig(domain, ["payments"]),
@@ -249,9 +249,9 @@ const loadIndexPage = async (req: Request, res: Response, version:string): Promi
     res.locals.activeModules = activeModules; 
 
     res.locals.version = app.get("version");
-    res.locals.serverHost = getConfig("", ["server", "host"]);
-    res.locals.serverName = getConfig("", ["server", "name"]);
-    res.locals.serverPubkey = await hextoNpub(getConfig("", ["server", "pubkey"]));
+    res.locals.serverHost = getConfig(req.hostname, ["server", "host"]);
+    res.locals.serverName = getConfig(req.hostname, ["server", "name"]);
+    res.locals.serverPubkey = await hextoNpub(getConfig(req.hostname, ["server", "pubkey"]));
 
     setAuthCookie(res, req.cookies.authkey);
 

@@ -27,10 +27,10 @@ const necessaryKeys = [
 const defaultConfig = {
 
 	"environment" : "development",
+	"multiTenancy": false,
 	"server": {
 		"host": "localhost",
 		"port": 3000,
-		"multiTenancy": false,
 		"pubkey": "",
 		"secretKey": "",
 		"name": "",

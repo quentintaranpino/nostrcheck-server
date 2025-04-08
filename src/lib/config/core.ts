@@ -16,6 +16,7 @@ const initGlobalConfig = async (): Promise<void> => {
     const securityConfig  = await loadConfigOptions("security");
     const databaseConfig  = await loadConfigOptions("database");
     const environmentConfig = process.env.NODE_ENV ?? await loadConfigOptions("environment");
+    const multiTenancyConfig = await loadConfigOptions("multiTenancy");
     const pluginsConfig   = await loadConfigOptions("plugins");
     const relayConfig     = await loadConfigOptions("relay");
 
@@ -31,6 +32,7 @@ const initGlobalConfig = async (): Promise<void> => {
         security: securityConfig,
         database: databaseConfig,
         environment: environmentConfig,
+        multiTenancy: multiTenancyConfig,
         plugins: pluginsConfig,
         relay: relayConfig,
     };
@@ -39,34 +41,57 @@ const initGlobalConfig = async (): Promise<void> => {
     loadTenants()
 };
 
-const getConfig = (domain : string | null, keyPath: string[]): any => {
+const deepMerge = (base: any, override: any): any => {
+  if (typeof base !== 'object' || base === null) return override;
+  if (typeof override !== 'object' || override === null) return base;
 
-  const multiTenancy = configStore.global?.server?.multiTenancy;
-  const domainId = domain ? configStore.domainMap.domainToId[domain] : null;
-  
-  let value: any;
-  if (multiTenancy && domainId && configStore.tenants[domainId]) {
-    value = configStore.tenants[domainId];
-    for (const key of keyPath) {
-      if (value && typeof value === "object" && key in value) {
-        value = value[key];
+  const result: any = Array.isArray(base) ? [...base] : { ...base };
+
+  for (const key in override) {
+    if (override.hasOwnProperty(key)) {
+      if (key in base) {
+        result[key] = deepMerge(base[key], override[key]);
       } else {
-        value = undefined;
-        break;
+        result[key] = override[key];
       }
     }
-    if (value !== undefined) return value;
   }
-  value = configStore.global;
+
+  return result;
+};
+
+const getConfig = (domain: string | null, keyPath: string[]): any => {
+  const multiTenancy = configStore.global?.multiTenancy;
+  const domainId = domain ? configStore.domainMap.domainToId[domain] : null;
+
+  let globalValue = configStore.global;
   for (const key of keyPath) {
-    if (value && typeof value === "object" && key in value) {
-      value = value[key];
+    if (globalValue && typeof globalValue === "object" && key in globalValue) {
+      globalValue = globalValue[key];
     } else {
-      value = undefined;
+      globalValue = undefined;
       break;
     }
   }
-  return value;
+
+  let domainValue;
+  if (multiTenancy && domainId && configStore.tenants[domainId]) {
+    domainValue = configStore.tenants[domainId];
+    for (const key of keyPath) {
+      if (domainValue && typeof domainValue === "object" && key in domainValue) {
+        domainValue = domainValue[key];
+      } else {
+        domainValue = undefined;
+        break;
+      }
+    }
+  }
+
+  if (globalValue === undefined && domainValue === undefined) return undefined;
+  if (domainValue === undefined) return globalValue;
+  if (globalValue === undefined) return domainValue;
+
+  return deepMerge(globalValue, domainValue);
 };
 
 const setConfig = async (domain: string, keyPath: string[], newValue: string | boolean | number): Promise<boolean> => {
@@ -109,7 +134,7 @@ const setConfig = async (domain: string, keyPath: string[], newValue: string | b
   } else {
     try {
       const key = keyPath.join(".");
-      const updated = await updateLocalConfigKey(key, newValue.toString());
+      const updated = await updateLocalConfigKey(key, newValue);
       return updated;
     } catch (error) {
       console.error("Error updating global config in file", error);
