@@ -519,24 +519,33 @@ const dbUpsert = async (tableName: string, data: Record<string, string | number 
 const dbBulkInsert = async (table: string, columns: string[], valuesArray: any[][]): Promise<number> => {
 
 	if (valuesArray.length === 0) return 0;
-	const pool = await connect("bulkInsert:" + table);
-  
-	const placeholders = valuesArray
-		.map(() => "(" + Array(columns.length).fill("?").join(", ") + ")")
-		.join(", ");
-  
-	const sql = `INSERT IGNORE INTO ${table} (${columns.join(", ")}) VALUES ${placeholders}`;
-	const values = valuesArray.flat();
-  
-	try {
-		const [result]: any = await pool.execute(sql, values);
-		logger.debug(`bulkInsert - Inserted ${result.affectedRows} records into ${table}`);
-		return result.affectedRows;
-	} catch (error) {
-		logger.error(`dbBulkInsert - Error inserting records into ${table} with error: ${error}`);
-		return 0;
-	}
+
+  const pool = await connect("bulkInsert:" + table);
+  const placeholdersPerRow = columns.length;
+  const maxRowsPerChunk = Math.floor(1000 / Math.max(1, placeholdersPerRow));
+  let totalInserted = 0;
+
+  for (let i = 0; i < valuesArray.length; i += maxRowsPerChunk) {
+    const chunk = valuesArray.slice(i, i + maxRowsPerChunk);
+
+    const placeholders = chunk
+      .map(() => "(" + Array(placeholdersPerRow).fill("?").join(", ") + ")")
+      .join(", ");
+
+    const sql = `INSERT IGNORE INTO ${table} (${columns.join(", ")}) VALUES ${placeholders}`;
+    const values = chunk.flat();
+
+    try {
+      const [result]: any = await pool.execute(sql, values);
+      totalInserted += result.affectedRows;
+      logger.debug(`bulkInsert - Inserted ${result.affectedRows} records into ${table}`);
+    } catch (error) {
+      logger.error(`dbBulkInsert - Error inserting records into ${table} with error: ${error}`);
+    }
   }
+
+  return totalInserted;
+};
 
 const showDBStats = async(): Promise<string> => {
 
