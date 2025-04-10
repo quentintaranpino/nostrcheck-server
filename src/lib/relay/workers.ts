@@ -6,7 +6,6 @@ import path from "path";
 import { logger } from "../logger.js";
 import { CHUNK_SIZE, eventStore, MetadataEvent, PendingGetEventsTask, RelayJob, SharedChunk } from "../../interfaces/relay.js";
 import app from "../../app.js";
-import { isModuleEnabled } from "../config/local.js";
 import { deleteEvents, storeEvents } from "./database.js";
 import { decodeChunk, dynamicTimeout, encodeChunk, getEventById, updateChunk } from "./utils.js";
 import { RedisConfig } from "../../interfaces/redis.js";
@@ -24,6 +23,7 @@ const relayWorkers = Number(app.get("config.relay")["workers"]);
 const workersDir = path.resolve('./dist/lib/relay/workers');
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { _getEvents } from "./workers/getEvents.js";
+import { isModuleEnabled } from "../config/core.js";
   
 const relayWorker = async (task: RelayJob): Promise<unknown> => {
   try {
@@ -106,7 +106,7 @@ const relayQueue: queueAsPromised<RelayJob> = fastq.promise(relayWorker, Math.ce
  */
 const persistEvents = async () => {
   if (
-    !isModuleEnabled("relay", app) ||
+    !isModuleEnabled("relay") ||
     !eventStore ||
     !eventStore.pending ||
     !eventStore.relayEventsLoaded ||
@@ -213,7 +213,7 @@ const persistEvents = async () => {
  */
 const unpersistEvents = async () => {
 
-  if (!isModuleEnabled("relay", app)) return;
+  if (!isModuleEnabled("relay")) return;
   if (!eventStore || !eventStore.pendingDelete || !eventStore.relayEventsLoaded) return;
 
   const now = Math.floor(Date.now() / 1000);
@@ -320,7 +320,7 @@ const unpersistEvents = async () => {
 let manageEventsRunning = false;
 const manageEvents = async () => {
 
-  if (!eventStore || !isModuleEnabled("relay", app) || !eventStore.relayEventsLoaded || getRelayHeavyWorkerLength() > 0 || getRelayLightWorkerLength() > 0) {
+  if (!eventStore || !isModuleEnabled("relay") || !eventStore.relayEventsLoaded || getRelayHeavyWorkerLength() > 0 || getRelayLightWorkerLength() > 0) {
     setTimeout(manageEvents, 1 * 60 * 1000); 
     return;
   }

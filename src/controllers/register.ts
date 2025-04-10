@@ -3,7 +3,6 @@ import validator from "validator";
 import { logger } from "../lib/logger.js";
 import { getAvailableDomains } from "../lib/domains.js";
 import app from "../app.js";
-import { isModuleEnabled } from "../lib/config/local.js";
 import { addNewUsername, isPubkeyOnDomainAvailable, isUsernameAvailable } from "../lib/register.js";
 import { generateOTC, verifyOTC, parseAuthHeader } from "../lib/authorization.js";
 import { npubToHex, validatePubkey } from "../lib/nostr/NIP19.js";
@@ -16,6 +15,7 @@ import { setAuthCookie } from "../lib/frontend.js";
 import { isIpAllowed } from "../lib/security/ips.js";
 import { getPublicTenantConfig } from "../lib/config/tenant.js";
 import { ResultMessagev2 } from "../interfaces/server.js";
+import { getConfig, isModuleEnabled } from "../lib/config/core.js";
 
 const registerUsername = async (req: Request, res: Response): Promise<Response> => {
 
@@ -27,7 +27,7 @@ const registerUsername = async (req: Request, res: Response): Promise<Response> 
 	}
 
 	// Check if current module is enabled
-	if (!isModuleEnabled("register", app)) {
+	if (!isModuleEnabled("register")) {
 		logger.warn(`registerUsername - Attempt to access a non-active module: register | IP:`, reqInfo.ip);
 		return res.status(403).send({"status": "error", "message": "Module is not enabled"});
 	}
@@ -62,7 +62,7 @@ const registerUsername = async (req: Request, res: Response): Promise<Response> 
 		return res.status(400).send({status: "error", message: "Username not provided"});
 	}
 	
-	let validUsername = validator.default.isLength(username, { min: app.get("config.register")["minUsernameLength"], max: app.get("config.register")["maxUsernameLength"] }); 
+	let validUsername = validator.default.isLength(username, { min: getConfig(req.hostname, ["register","minUsernameLength"]), max: getConfig(req.hostname, ["register","maxUsernameLength"]) }); 
 	validUsername == true? validUsername = validator.default.matches(username, /^[a-zA-Z0-9-_]+$/) : validUsername = false;
 	if (!validUsername) {
 		logger.warn(`registerUsername - 401 Unauthorized - Invalid username format`, "|", reqInfo.ip);
@@ -73,12 +73,6 @@ const registerUsername = async (req: Request, res: Response): Promise<Response> 
 	if (domain == null || domain == "" || domain == undefined) {
 		logger.info(`registerUsername - 400 Bad request - Domain not provided`, "|", reqInfo.ip);
 		return res.status(400).send({status: "error", message: "Domain not provided"});
-	}
-
-	const tenantConfig = await getPublicTenantConfig(domain);
-	if (!tenantConfig) {
-		logger.info(`registerUsername - 406 Not Acceptable - Invalid domain`, "|", reqInfo.ip);
-		return res.status(406).send({ status: "error", message: "Invalid domain" });
 	}
 
 	if (!await isUsernameAvailable(username, domain)) {
@@ -92,13 +86,13 @@ const registerUsername = async (req: Request, res: Response): Promise<Response> 
 	}
 	
 	const password = req.body.password || "";
-	if (password != null && password != "" && password != undefined && password.length < app.get("config.register")["minPasswordLength"]) {
+	if (password != null && password != "" && password != undefined && password.length < getConfig(req.hostname, ["register","minPasswordLength"])) {
 		logger.info(`registerUsername - 422 Unprocessable Entity - Password too short`, "|", reqInfo.ip);
 		return res.status(422).send({status: "error", message: "Password too short"});
 	}
 
 	const inviteCode = req.body.inviteCode || "";
-	if (tenantConfig.requireinvite == true) {
+	if (getConfig(domain, ["register", "requireinvite"]) == true) {
 		if ((inviteCode == null || inviteCode == "" || inviteCode == undefined)) {
 			logger.info(`registerUsername - 400 Bad request - Invitation key not provided`, "|", reqInfo.ip);
 			return res.status(400).send({status: "error", message: "Invitation key not provided"});
@@ -130,23 +124,26 @@ const registerUsername = async (req: Request, res: Response): Promise<Response> 
 	// Check if payments module is active and if true generate paymentRequest
 	let paymentRequest = "";
 	let satoshi = 0;
-	if (tenantConfig.requirepayment) {
+	const requirePayment = getConfig(domain, ["payments", "satoshi", "registerMaxSatoshi"]);
+	if (requirePayment && isModuleEnabled("payments")) {
 		
 		const transaction : Transaction = await checkTransaction(
 			"0",
 			addUsername.toString(),
-			"reversed",
+			"registered",
 			username.length,
-			tenantConfig.minUsernameLength,
-			tenantConfig.maxUsernameLength,
-			tenantConfig.maxsatoshi,
+			getConfig(domain, ["register", "minUsernameLength"]),
+			getConfig(domain, ["register", "maxUsernameLength"]),
+			getConfig(domain, ["payments", "satoshi", "registerMaxSatoshi"]),
 			req.body.pubkey
 		);
 
 		
-		if (transaction.paymentHash != "" && transaction.isPaid == false && isModuleEnabled("payments", app)) {
+		if (transaction.paymentHash != "" && transaction.isPaid == false && isModuleEnabled("payments")) {
 			paymentRequest = transaction.paymentRequest;
 			satoshi = transaction.satoshi;
+		}else if (transaction.satoshi == 0 && isModuleEnabled("payments")) {
+			logger.debug(`registerUsername - 0 satoshi invoice generated`, "|", reqInfo.ip);
 		}else{
 			// If the payment request is not generated, we will delete the user from the database
 			logger.error(`registerUsername - Failed to generate payment request`, "|", reqInfo.ip);
@@ -171,7 +168,7 @@ const registerUsername = async (req: Request, res: Response): Promise<Response> 
 		satoshi: satoshi
 	};
 
-	logger.info(`registerUsername - New user ${username} registered successfully - Active: ${activateUser} - Require payment : ${tenantConfig.requirepayment}`, "|", reqInfo.ip);
+	logger.info(`registerUsername - New user ${username} registered successfully - Active: ${activateUser} - Require payment : ${requirePayment}`, "|", reqInfo.ip);
 	return res.status(200).send(result);
 
 };
@@ -187,7 +184,7 @@ const validateRegisterOTC = async (req: Request, res: Response): Promise<Respons
 	}
 
 	// Check if current module is enabled
-	if (!isModuleEnabled("register", app)) {
+	if (!isModuleEnabled("register")) {
 		logger.warn(`validateRegisterOTC - Attempt to access a non-active module: register | IP:`, reqInfo.ip);
 		return res.status(403).send({"status": "error", "message": "Module is not enabled"});
 	}
@@ -237,12 +234,12 @@ const calculateRegisterCost = async (req: Request, res: Response): Promise<Respo
 	}
 
     // Check if payments module is enabled
-    if (!isModuleEnabled("payments", app)) {
+    if (!isModuleEnabled("payments")) {
         logger.info(`calculateRegisterCost - Attempt to access a non-active module: payments | IP:`, reqInfo.ip);
         return res.status(403).send({"status": "error", "message": "Module is not enabled"});
     }
 	// Check if current module is enabled
-	if (!isModuleEnabled("register", app)) {
+	if (!isModuleEnabled("register")) {
         logger.info(`calculateRegisterCost - Attempt to access a non-active module: register | IP:`, reqInfo.ip);
         return res.status(403).send({"status": "error", "message": "Module is not enabled"});
     }

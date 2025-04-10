@@ -1,58 +1,69 @@
-<div id ="settingsDatabase">
+<%
+  const cfg = locals.domainConfig?.database || {};
+  const globalCfg = locals.globalConfig?.database || {};
+%>
+
+<div id="settingsDatabase">
     <h3 class="mt-4">Database</h3>
     <form class="form mx-auto">
         <p>
             You can configure the database related settings in this section.
         </p>
+
         <div class="alert alert-warning mt-3" role="alert">
-            <i class="fa-solid fa-triangle-exclamation"></i> <b>Change this only if you know what you are doing.</b> After changing the database settings, you need to <b>restart the server</b> to apply the changes.
+            <i class="fa-solid fa-triangle-exclamation"></i>
+            <b>Change this only if you know what you are doing.</b> After changing the database settings, you need to <b>restart the server</b> to apply the changes.
         </div>
-        <label for="database.host" class="mt-2 mb-1 fw-bold">Host</label>
-        <p>Specify the database host.</p>
-        <input  type="text" 
-                id="database.host"  
-                name="database.host" 
-                class="form-control" 
-                value="<%= locals.settingsDatabase["host"] %>" 
-                placeholder="Database host" 
-                required
-                >
-        <label for="database.database" class="mt-2 mb-1 fw-bold">Name</label>
-        <p>Specify the database name.</p>
-        <input  type="text" 
-                id="database.database"  
-                name="database.database" 
-                class="form-control" 
-                value="<%= locals.settingsDatabase["database"] %>" 
-                placeholder="Database name" 
-                required
-                >
-        <label for="database.user" class="mt-2 mb-1 fw-bold">User</label>
-        <p>Specify the database user.</p>
-        <input  type="text" 
-                id="database.user"  
-                name="database.user" 
-                class="form-control" 
-                value="<%= locals.settingsDatabase["user"] %>" 
-                placeholder="Database user" 
-                required
-                >
-        <label for="database.password" class="mt-2 mb-1 fw-bold">Password</label>
-        <p>Specify the database password.</p>
-        <div class="input-group">
-            <input  type="password" 
-                    id="database.password" 
-                    name="database.password" 
-                    class="form-control mb-2" 
-                    defaultValue="<%= locals.settingsDatabase["password"] %>" 
-                    value="<%= locals.settingsDatabase["password"] %>" 
-                    placeholder="Database password" 
-                    required 
-                    >
-            <button type="button" class="toggle-password d-none"
-            aria-label="Show secret key as plain text. Warning: this will display your password on the screen.">
-            </button>
-        </div> 
+
+        <%- include('field', {
+            type: "text",
+            name: "database.host",
+            label: "Host",
+            description: "Specify the database host.",
+            value: cfg.host,
+            globalValue: globalCfg.host,
+            placeholder: "Database host",
+            required: true,
+            overridable: false,
+        }) %>
+
+        <%- include('field', {
+            type: "text",
+            name: "database.database",
+            label: "Name",
+            description: "Specify the database name.",
+            value: cfg.database,
+            globalValue: globalCfg.database,
+            placeholder: "Database name",
+            required: true,
+            overridable: false,
+
+        }) %>
+
+        <%- include('field', {
+            type: "text",
+            name: "database.user",
+            label: "User",
+            description: "Specify the database user.",
+            value: cfg.user,
+            globalValue: globalCfg.user,
+            placeholder: "Database user",
+            required: true,
+            overridable: false,
+        }) %>
+
+        <%- include('field', {
+            type: "password",
+            name: "database.password",
+            label: "Password",
+            description: "Specify the database password.",
+            value: cfg.password,
+            globalValue: globalCfg.password,
+            placeholder: "Database password",
+            required: true,
+            overridable: false,
+        }) %>
+
         <div class="col-12 col-md-3 mb-5 mt-4 pb-5 pb-lg-0 mb-lg-2">
             <button class="btn btn-lg mb-4 btn-primary w-100" name="Submit" type="button" onclick="saveSettings()">Save</button>
         </div>

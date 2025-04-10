@@ -1,80 +1,68 @@
+<% 
+  const globalCfg = locals.globalConfig?.security || {};
+%>
 <div id="settingsSecurity">
-    <h3 class="mt-4">Security</h3>
-    <form class="form mx-auto">
-        <p> In this section, you can configure the security settings of your server.
-        </p>
-        <div class="alert alert-warning mt-3" role="alert">
-            <i class="fa-solid fa-triangle-exclamation"></i> <b>Change this only if you know what you are doing.</b> After changing security settings, you need to <b>restart the server</b> to apply the changes.
-        </div>
-        <div id="settingsSecurityGeneral">
-            <label for="security.maxDefaultRequestMinute" class="mt-2 mb-1 fw-bold">Default request minute</label>
-            <p>This value is used for the default allowed request per minute on all endpoints.
-            </p>
-            <div class="col-12 col-md-4">
-                <input  type="number" 
-                        id="security.maxDefaultRequestMinute" 
-                        name="security.maxDefaultRequestMinute" 
-                        class="form-control" 
-                        value="<%= locals.settingsSecurity['maxDefaultRequestMinute'] %>" 
-                        placeholder="ex. 60" 
-                        step="10"
-                        required
-                        >
-            </div>
-        </div>
-        <div id ="settingsSecurityFileserver">
-            <h4 class="mt-4">Fileserver</h4>
-            <label for="security.media.maxUploadsMinute" class="mt-2 mb-1 fw-bold">Max uploads per minute</label>
-            <p>This value is used for the maximum allowed uploads per minute on all file server endpoints.
-            </p>
-            <div class="col-12 col-md-4">
-                <input  type="number" 
-                        id="security.media.maxUploadsMinute" 
-                        name="security.media.maxUploadsMinute" 
-                        class="form-control" 
-                        value="<%= locals.settingsSecurity['media']['maxUploadsMinute'] %>" 
-                        placeholder="ex. 10" 
-                        step="1"
-                        required
-                        >
-            </div> 
-        </div>
-        <div id="settingsSecurityRegister">
-            <h4 class="mt-4">Register</h4>
-            <label for="security.register.maxRegisterDay" class="mt-2 mb-1 fw-bold">Max register per day</label>
-            <p>This value is used for the maximum allowed register per day.
-            </p>
-            <div class="col-12 col-md-4">
-                <input  type="number" 
-                        id="security.register.maxRegisterDay" 
-                        name="security.register.maxRegisterDay" 
-                        class="form-control" 
-                        value="<%= locals.settingsSecurity['register']['maxRegisterDay'] %>"
-                        placeholder="ex. 10" 
-                        step="1"
-                        required
-                        >
-            </div>
-        </div>
-        <div id="settingsSecurityRelay">
-            <h4 class="mt-4">Relay</h4>
-            <label for="security.relay.maxMessageMinute" class="mt-2 mb-1 fw-bold">Max relay messages per minute</label>
-            <p>This value is used for the maximum allowed relay messages per minute.
-            </p>
-            <div class="col-12 col-md-4">
-                <input  type="number" 
-                        id="security.relay.maxMessageMinute" 
-                        name="security.relay.maxMessageMinute" 
-                        class="form-control" 
-                        value="<%= locals.settingsSecurity['relay']['maxMessageMinute'] %>" 
-                        placeholder="ex. 300" 
-                        step="1"
-                        required
-                        >
-            </div>
-        </div>
-        <div class="col-12 col-md-3 mb-5 mt-4 pb-5 pb-lg-0 mb-lg-2">
-            <button class="btn btn-lg mb-4 btn-primary w-100" name="Submit" type="button" onclick="saveSettings()">Save</button>
-        </div>
-    </form>
-  </div>
+  <h3 class="mt-4">Security</h3>
+  <form class="form mx-auto">
+    <p> In this section, you can configure the security settings of your server.</p>
+
+    <div class="alert alert-warning mt-3" role="alert">
+      <i class="fa-solid fa-triangle-exclamation"></i> <b>Change this only if you know what you are doing.</b> After changing security settings, you need to <b>restart the server</b> to apply the changes.
+    </div>
+
+    <%- include('field', {
+      type: "number",
+      name: "security.maxDefaultRequestMinute",
+      label: "Default request minute",
+      description: "This value is used for the default allowed request per minute on all endpoints.",
+      value: globalCfg.maxDefaultRequestMinute,
+      globalValue: globalCfg.maxDefaultRequestMinute,
+      placeholder: "ex. 60",
+      required: true,
+      overridable: false
+    }) %>
+
+    <h4 class="mt-4">Fileserver</h4>
+    <%- include('field', {
+      type: "number",
+      name: "security.media.maxUploadsMinute",
+      label: "Max uploads per minute",
+      description: "This value is used for the maximum allowed uploads per minute on all file server endpoints.",
+      value: globalCfg.media?.maxUploadsMinute,
+      globalValue: globalCfg.media?.maxUploadsMinute,
+      placeholder: "ex. 10",
+      required: true,
+      overridable: false
+    }) %>
+
+    <h4 class="mt-4">Register</h4>
+    <%- include('field', {
+      type: "number",
+      name: "security.register.maxRegisterDay",
+      label: "Max register per day",
+      description: "This value is used for the maximum allowed register per day.",
+      value: globalCfg.register?.maxRegisterDay,
+      globalValue: globalCfg.register?.maxRegisterDay,
+      placeholder: "ex. 10",
+      required: true,
+      overridable: false
+    }) %>
+
+    <h4 class="mt-4">Relay</h4>
+    <%- include('field', {
+      type: "number",
+      name: "security.relay.maxMessageMinute",
+      label: "Max relay messages per minute",
+      description: "This value is used for the maximum allowed relay messages per minute.",
+      value: globalCfg.relay?.maxMessageMinute,
+      globalValue: globalCfg.relay?.maxMessageMinute,
+      placeholder: "ex. 300",
+      required: true,
+      overridable: false
+    }) %>
+
+    <div class="col-12 col-md-3 mb-5 mt-4 pb-5 pb-lg-0 mb-lg-2">
+      <button class="btn btn-lg mb-4 btn-primary w-100" name="Submit" type="button" onclick="saveSettings()">Save</button>
+    </div>
+  </form>
+</div>

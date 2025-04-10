@@ -17,13 +17,11 @@ import {
     updateDBRecord,
     insertDBRecord,
     updateSettings,
-    updateLogo,
     getModuleData,
     getModuleCountData,
-    updateTheme,
     moderateDBRecord,
     banDBRecord,
-    updateRelayIcon
+    updateSettingsFile,
 } from "../controllers/admin.js";
 
 const adminCORS = {
@@ -89,38 +87,20 @@ export const loadAdminEndpoint = async (app: Application, version: string): Prom
             cors(adminCORS),
             express.json(), updateSettings);
 
-        // Upload frontend logo (handles files)
-        app.post("/api/" + version + app.get("config.server")["availableModules"]["admin"]["path"] + "/updatelogo/", 
+        // Upload frontend settings file (handles files)
+        app.post("/api/" + version + app.get("config.server")["availableModules"]["admin"]["path"] + "/updatesettingsfile/", 
             limiter(),
             cors(adminCORS),
             function (req, res) {
-            logger.debug("POST /api/" + version + app.get("config.server")["availableModules"]["admin"]["path"] + "/updatelogo", "|", getClientIp(req));
+            logger.debug("POST /api/" + version + app.get("config.server")["availableModules"]["admin"]["path"] + "/uploadfile", "|", getClientIp(req));
             upload.any()(req, res, function (err) {
                 if (err instanceof multer.MulterError && err.code === "LIMIT_FILE_SIZE") {
                     logger.warn("Upload attempt failed: File too large", "|", getClientIp(req));
                     return res.status(413).send({ "status": "error", "message": "File too large, max filesize allowed is " + maxMBfilesize + "MB" });
                 }
-                updateLogo(req, res);
+                updateSettingsFile(req, res);
             });
         });
-
-        // Upload frontend relay icon (handles files)
-        app.post("/api/" + version + app.get("config.server")["availableModules"]["admin"]["path"] + "/updaterelayicon/", 
-            limiter(),
-            cors(adminCORS),
-            function (req, res) {
-            logger.debug("POST /api/" + version + app.get("config.server")["availableModules"]["admin"]["path"] + "/updaterelayicon", "|", getClientIp(req));
-            upload.any()(req, res, function (err) {
-                if (err instanceof multer.MulterError && err.code === "LIMIT_FILE_SIZE") {
-                    logger.warn("Upload attempt failed: File too large", "|", getClientIp(req));
-                    return res.status(413).send({ "status": "error", "message": "File too large, max filesize allowed is " + maxMBfilesize + "MB" });
-                }
-                updateRelayIcon(req, res);
-            });
-        });
-
-        // Update frontend theme
-        app.post("/api/" + version + app.get("config.server")["availableModules"]["admin"]["path"] + "/updatetheme/", limiter(), cors(adminCORS), express.json({ limit: "1mb" }), updateTheme);
 
         // Get module data
         app.get("/api/" + version + app.get("config.server")["availableModules"]["admin"]["path"] + "/moduledata", limiter(), cors(adminCORS),getModuleData);

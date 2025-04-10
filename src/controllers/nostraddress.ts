@@ -5,9 +5,9 @@ import { logger } from "../lib/logger.js";
 import { nostrAddressResult } from "../interfaces/register.js";
 import { ResultMessagev2 } from "../interfaces/server.js";
 import app from "../app.js";
-import { isModuleEnabled } from "../lib/config/local.js";
 import { isIpAllowed } from "../lib/security/ips.js";
 import { RedisService } from "../lib/redis.js";
+import { getConfig, isModuleEnabled } from "../lib/config/core.js";
 
 const redisCore = app.get("redisCore") as RedisService
 
@@ -21,7 +21,7 @@ const getNostraddress = async (req: Request, res: Response): Promise<Response> =
 	}
 
 	// Check if current module is enabled
-	if (!isModuleEnabled("nostraddress", app)) {
+	if (!isModuleEnabled("nostraddress")) {
         logger.info(`getNostraddress - Attempt to access a non-active module: nostraddress | IP:`, reqInfo.ip);
 		return res.status(403).send({"status": "error", "message": "Module is not enabled"});
 	}
@@ -62,7 +62,7 @@ const getNostraddress = async (req: Request, res: Response): Promise<Response> =
 	};
 
 	await redisCore.set(`nostraddress:${name}-${servername}`, JSON.stringify(result), {
-		EX: app.get("config.redis")["expireTime"],
+		EX: getConfig(req.hostname, ["redis", "expireTime"]),
 	});
 	logger.debug(`getNostraddress - Setting cache for ${name} : ${result.names[name]}`, reqInfo.ip);
 

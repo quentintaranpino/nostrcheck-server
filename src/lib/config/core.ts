@@ -1,10 +1,13 @@
 
-import { configStore } from "../../interfaces/config.js";
+import { configStore, Module } from "../../interfaces/config.js";
 import { loadConfigOptions, updateLocalConfigKey } from "./local.js";
 import { loadTenants } from "./tenant.js";
 
 const initGlobalConfig = async (): Promise<void> => {
 
+    const environmentConfig = process.env.NODE_ENV ?? await loadConfigOptions("environment");
+    const multiTenancyConfig = await loadConfigOptions("multiTenancy");
+    const autoLoginConfig = await loadConfigOptions("autoLogin");
     const serverConfig    = await loadConfigOptions("server");
     const mediaConfig     = await loadConfigOptions("media");
     const loggerConfig    = await loadConfigOptions("logger");
@@ -15,12 +18,15 @@ const initGlobalConfig = async (): Promise<void> => {
     const sessionConfig   = await loadConfigOptions("session");
     const securityConfig  = await loadConfigOptions("security");
     const databaseConfig  = await loadConfigOptions("database");
-    const environmentConfig = process.env.NODE_ENV ?? await loadConfigOptions("environment");
-    const multiTenancyConfig = await loadConfigOptions("multiTenancy");
     const pluginsConfig   = await loadConfigOptions("plugins");
     const relayConfig     = await loadConfigOptions("relay");
+    const appearanceConfig = await loadConfigOptions("appearance");
 
     const globalConfig = {
+        version: process.env.npm_package_version ?? "0.0",
+        environment: environmentConfig,
+        multiTenancy: multiTenancyConfig,
+        autoLogin: autoLoginConfig,
         server: serverConfig,
         media: mediaConfig,
         logger: loggerConfig,
@@ -31,10 +37,9 @@ const initGlobalConfig = async (): Promise<void> => {
         session: sessionConfig,
         security: securityConfig,
         database: databaseConfig,
-        environment: environmentConfig,
-        multiTenancy: multiTenancyConfig,
         plugins: pluginsConfig,
         relay: relayConfig,
+        appearance: appearanceConfig,
     };
 
     configStore.global = globalConfig;
@@ -143,4 +148,40 @@ const setConfig = async (domain: string, keyPath: string[], newValue: string | b
   }
 };
 
-export { configStore, initGlobalConfig, getConfig, setConfig };
+const getActiveModules = (domain: string | null = null): Module[] => {
+	const domainId = domain ? configStore.domainMap.domainToId[domain] : null;
+
+	const globalModules = configStore.global?.server?.availableModules || {};
+	const tenantModules = domainId ? configStore.tenants?.[domainId]?.server?.availableModules || {} : {};
+
+	const mergedModules: Record<string, Module> = { ...globalModules };
+
+	for (const mod in tenantModules) {
+		if (!mergedModules[mod]) mergedModules[mod] = tenantModules[mod];
+		else mergedModules[mod] = { ...mergedModules[mod], ...tenantModules[mod] };
+	}
+
+	const activeModules = Object.entries(mergedModules)
+		.filter(([_, module]) => module.enabled === true)
+		.map(([_, module]) => module);
+
+	// Always add logger module
+	activeModules.push({
+		name: "logger",
+		enabled: true,
+		path: "/",
+		methods: ["Library"],
+		description: "This module manages the server logs engine."
+	});
+
+	return activeModules;
+}
+
+const isModuleEnabled = (moduleName: string, domain: string | null = null): boolean => {
+	const availableModules = getActiveModules(domain);
+	const mod = availableModules.find((module) => module.name === moduleName);
+	return mod ? mod.enabled : false;
+}
+
+
+export { configStore, initGlobalConfig, getConfig, setConfig, isModuleEnabled, getActiveModules };

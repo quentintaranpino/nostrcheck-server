@@ -1,15 +1,29 @@
 <% 
-  const cfg = locals.domainConfig?.server || {}; 
-  const globalCfg = locals.globalConfig?.server || {};
+const cfg = locals.domainConfig?.server || {}; 
+const globalCfg = locals.globalConfig?.server || {};
 %>
 <div id="settingsServer">
   <h3 class="mt-4">Server</h3>
-  <form class="form mx-auto">
-    <p>
-      Configure your server’s core settings below.
-      This includes its identity keys, environment mode, and multi-tenancy support.
-    </p>
-    <%- include('field', {
+    <form class="form mx-auto">
+      <p>
+        Configure your server’s core settings below.
+        This includes its identity keys, environment mode, and multi-tenancy support.
+      </p>
+      <%- include('field', {
+        type: "checkbox",
+        name: "autoLogin",
+        label: "Auto-login",
+        description: "Automatically log in with the 'public' admin user. ",
+        value: locals.globalConfig?.autoLogin,
+        globalValue: locals.globalConfig?.autoLogin,
+        overridable: false,
+        alert: {
+        type: "danger",
+        icon: "fa-triangle-exclamation",
+        message: "Recommended only for first-time setup. Disable once you’ve safely stored the server's private key and created at least one additional user"
+        }
+      }) %>
+      <%- include('field', {
         type: "checkbox",
         name: "multiTenancy",
         label: "Multi-tenancy",
@@ -18,97 +32,97 @@
         globalValue: locals.globalConfig?.multiTenancy,
         overridable: false,
         alert: {
-          type: "warning",
-          icon: "fa-triangle-exclamation",
-          message: "When enabled, each domain can override global settings. Otherwise, global config is used for all."
+        type: "warning",
+        icon: "fa-triangle-exclamation",
+        message: "When enabled, each domain can override global settings. Otherwise, global config is used for all."
         }
       }) %>
 
-    <%- include('field', {
-      type: "select",
-      name: "environment",
-      label: "Environment",
-      description: "Set the server environment. 'production' enables security features required for public access.",
-      value: locals.globalConfig?.environment,
-      globalValue: locals.globalConfig?.environment,
-      overridable: false,
-      options: [
-        { value: "development", label: "development" },
-        { value: "production", label: "production" }
-      ],
-      alert: {
-        type: "warning",
-        icon: "fa-triangle-exclamation",
-        message: "If you choose production, make sure the server is under HTTPS or login cookies will not work."
-      }
-    }) %>
+      <%- include('field', {
+        type: "select",
+        name: "environment",
+        label: "Environment",
+        description: "Select the server environment. 'Development' is intended for local testing only. For public-facing servers, 'production' is strongly recommended.",
+        value: locals.globalConfig?.environment,
+        globalValue: locals.globalConfig?.environment,
+        overridable: false,
+        options: [
+          { value: "development", label: "development" },
+          { value: "production", label: "production" }
+        ],
+        alert: {
+          type: "warning",
+          icon: "fa-triangle-exclamation",
+          message: "If you select 'production', make sure the server runs under HTTPS. Otherwise, login cookies will not work and sessions will fail."
+        }
+      }) %>
 
-    <%- include('field', {
-      type: "text",
-      name: "server.host",
-      label: "Hostname",
-      description: "Used to identify the server. Must match the domain.",
-      value: cfg.host,
-      globalValue: globalCfg.host,
-      placeholder: "example.com (without https://)",
-      required: true,
-      alert: {
-        type: "warning",
-        icon: "fa-triangle-exclamation",
-        message: "If environment is <b>production</b>, this must match the external domain name or HTTPS won't work properly."
-      }
-    }) %>
+      <%- include('field', {
+        type: "text",
+        name: "server.host",
+        label: "Hostname",
+        description: "Used to identify the server. Must match the domain.",
+        value: cfg.host,
+        globalValue: globalCfg.host,
+        placeholder: "example.com (without https://)",
+        required: true,
+        alert: {
+          type: "warning",
+          icon: "fa-triangle-exclamation",
+          message: "If environment is <b>production</b>, this must match the external domain name or HTTPS won't work properly."
+        }
+      }) %>
 
-    <%- include('field', {
-      type: "text",
-      name: "server.name",
-      label: "Server name",
-      description: "Displayed in the homepage and used to identify the server.",
-      value: cfg.name,
-      globalValue: globalCfg.name,
-      placeholder: "My cool Nostrcheck instance",
-      required: true
-    }) %>
+      <%- include('field', {
+        type: "text",
+        name: "server.name",
+        label: "Server name",
+        description: "Displayed in the homepage and used to identify the server.",
+        value: cfg.name,
+        globalValue: globalCfg.name,
+        placeholder: "My cool Nostrcheck instance",
+        required: true
+      }) %>
 
-    <%- include('field', {
-      type: "text",
-      name: "server.pubkey",
-      label: "Server pubkey",
-      description: "HEX format public key for this server. Used for NIP05 and NIP96.",
-      value: cfg.pubkey,
-      globalValue: globalCfg.pubkey,
-      required: true
-    }) %>
+      <%- include('field', {
+        type: "text",
+        name: "server.pubkey",
+        label: "Server pubkey",
+        description: "HEX format public key for this server. Used for NIP05 and NIP96.",
+        value: cfg.pubkey,
+        globalValue: globalCfg.pubkey,
+        required: true
+      }) %>
 
-    <%- include('field', {
-      type: "password",
-      name: "server.secretKey",
-      label: "Server secret key",
-      description: "Hex format. Used to sign and decrypt the server DM's and notes.",
-      value: cfg.secretKey,
-      globalValue: globalCfg.secretKey,
-      defaultValue: cfg.secretKey,
-      required: true,
-      alert: {
-        type: "warning",
-        icon: "fa-triangle-exclamation",
-        message: "Both keys must be modified simultaneously and be valid with each other, or the server won't function properly."
-      }
-    }) %>
+      <%- include('field', {
+        type: "password",
+        name: "server.secretKey",
+        label: "Server secret key",
+        description: "Hex format. Used to sign and decrypt the server DM's and notes.",
+        value: cfg.secretKey,
+        globalValue: globalCfg.secretKey,
+        required: true,
+        alert: {
+          type: "warning",
+          icon: "fa-triangle-exclamation",
+          message: "Both keys must be modified simultaneously and be valid with each other, or the server won't function properly."
+        }
+      }) %>
 
-    <%- include('field', {
-      type: "number",
-      name: "redis.expireTime",
-      label: "Cache expiration",
-      description: "Set Redis cache TTL in seconds. Recommended: 300 to 600 seconds.",
-      value: locals.domainConfig?.redis?.expireTime,
-      globalValue: locals.globalConfig?.redis?.expireTime,
-      placeholder: "300",
-      required: true
-    }) %>
+      <%- include('field', {
+        type: "number",
+        name: "redis.expireTime",
+        label: "Cache expiration",
+        description: "Set Redis cache TTL in seconds. Recommended: 300 to 600 seconds.",
+        value: locals.domainConfig?.redis?.expireTime,
+        globalValue: locals.globalConfig?.redis?.expireTime,
+        placeholder: "300",
+        required: true,
+        overridable: false,
+      }) %>
 
-    <div class="col-12 col-md-3 mb-5 mt-4 pb-5 pb-lg-0 mb-lg-2">
-      <button class="btn btn-lg mb-4 btn-primary w-100" name="Submit" type="button" onclick="saveSettings()">Save</button>
-    </div>
-  </form>
+      <div class="col-12 col-md-3 mb-5 mt-4 pb-5 pb-lg-0 mb-lg-2">
+        <button class="btn btn-lg mb-4 btn-primary w-100" name="Submit" type="button" onclick="saveSettings()">Save</button>
+      </div>
+    </form>
 </div>

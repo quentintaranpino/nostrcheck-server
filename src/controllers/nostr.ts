@@ -1,10 +1,10 @@
 import { Request, Response } from "express";
 import { logger } from "../lib/logger.js";
 import { getNIP96file } from "../lib/nostr/NIP96.js";
-import { isModuleEnabled } from "../lib/config/local.js";
 import app from "../app.js";
 import { isIpAllowed } from "../lib/security/ips.js";
 import { getNIP11file } from "../lib/nostr/NIP11.js";
+import { isModuleEnabled } from "../lib/config/core.js";
 
 const NIP96Data = async (req: Request, res: Response): Promise<Response> => {
 
@@ -16,7 +16,7 @@ const NIP96Data = async (req: Request, res: Response): Promise<Response> => {
 	}
 
     // Check if current module is enabled
-	if (!isModuleEnabled("media", app)) {
+	if (!isModuleEnabled("media")) {
         logger.info(`NIP96Data - Attempt to access a non-active module: media | IP:`, reqInfo.ip);
 		return res.status(403).send({"status": "error", "message": "Module is not enabled"});
 	}
@@ -39,7 +39,7 @@ const NIP11Data = async (req: Request, res: Response): Promise<Response> => {
 	}
 
     // Check if current module is enabled
-	if (!isModuleEnabled("relay", app)) {
+	if (!isModuleEnabled("relay")) {
         logger.info(`NIP11Data - Attempt to access a non-active module: relay | IP:`, reqInfo.ip);
 		return res.status(403).send({"status": "error", "message": "Module is not enabled"});
 	}

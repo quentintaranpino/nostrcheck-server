@@ -19,7 +19,8 @@ const startServer = async () => {
     migrateDBLocalpath();
 
     // Start server
-    const server = app.listen(app.get("config.server")["port"]);
+    const { getConfig } = await import("./lib/config/core.js");
+    const server = app.listen(getConfig(null, ["server", "port"]));
     app.set("server", server);
 
     // Initialise API modules
@@ -39,9 +40,16 @@ const startServer = async () => {
     console.log(await showDBStats());
 
     // Show server active modules
-    const { loadconfigActiveModules } = await import("./lib/config/local.js");
-    console.log("Active modules: ", loadconfigActiveModules(app).map(module => module.name).join(", "));
-
+    const { getActiveModules } = await import("./lib/config/core.js");
+    const { configStore } = await import("./lib/config/core.js");
+    const domainList = configStore?.domainMap?.domainToId ? Object.keys(configStore.domainMap.domainToId) : [];
+    console.log("Global active modules: ", getActiveModules().map(module => module.name).join(", "));
+    if (configStore?.global.multiTenancy) {
+        for (const domain of domainList) {
+            const domainModules = await getActiveModules(domain);
+            console.log(`Active modules for domain ${domain}: `, domainModules.map(module => module.name).join(", "));
+        }
+    }
 }
 
 export default startServer;

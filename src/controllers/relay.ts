@@ -8,7 +8,6 @@ import { initEvents } from "../lib/relay/database.js";
 
 import app from "../app.js";
 import { isEventValid } from "../lib/nostr/core.js";
-import { isModuleEnabled } from "../lib/config/local.js";
 import { logger } from "../lib/logger.js";
 import { isIpAllowed } from "../lib/security/ips.js";
 import { isEntityBanned } from "../lib/security/banned.js";
@@ -22,14 +21,15 @@ import { AuthEvent } from "../interfaces/nostr.js";
 import { dbMultiSelect, dbUpdate } from "../lib/database.js";
 import { enqueueRelayTask, getEvents, getPendingHeavyTasks, getPendingLightTasks, getRelayHeavyWorkerLength, getRelayLightWorkerLength, getRelayQueueLength, relayWorkers } from "../lib/relay/workers.js";
 import { parseAuthHeader } from "../lib/authorization.js";
+import { getConfig, isModuleEnabled } from "../lib/config/core.js";
 
-await initEvents(app);
+await initEvents();
 const authSessions: Map<WebSocket, string> = new Map(); 
 
 const handleWebSocketMessage = async (socket: ExtendedWebSocket, data: WebSocket.RawData, req: Request) => {
 
   // Check if the request IP is allowed
-  const reqInfo = await isIpAllowed(req, app.get("config.security")["relay"]["maxMessageMinute"]);
+  const reqInfo = await isIpAllowed(req, getConfig(req.hostname, ["security", "relay", "maxMessageMinute"]));
   if (reqInfo.banned == true) {
     logger.debug(`handleWebSocketMessage - Attempt to access relay with unauthorized IP: ${reqInfo.ip} | Reason: ${reqInfo.comments}`);
     socket.send(JSON.stringify(["NOTICE", `${reqInfo.comments}`]));
@@ -38,7 +38,7 @@ const handleWebSocketMessage = async (socket: ExtendedWebSocket, data: WebSocket
   }
 
   // Check if current module is enabled
-  if (!isModuleEnabled("relay", app)) {
+  if (!isModuleEnabled("relay")) {
     logger.debug(`handleWebSocketMessage - Attempt to access a non-active module: relay | IP: ${reqInfo.ip}`);
     socket.send(JSON.stringify(["NOTICE", "blocked: relay module is not active"]));
     removeAllSubscriptions(socket, 1003);
@@ -47,7 +47,7 @@ const handleWebSocketMessage = async (socket: ExtendedWebSocket, data: WebSocket
 
   try {
 
-    const max_message_length = app.get("config.relay")["limitation"]["max_message_length"];
+    const max_message_length = getConfig(req.hostname, ["relay", "limitation", "max_message_length"]);
     if (Buffer.byteLength(data.toString()) > max_message_length) {
       socket.send(JSON.stringify(["NOTICE", "error: message too large"]));
       logger.debug(`handleWebSocketMessage - Message too large: ${Buffer.byteLength(data.toString())} bytes`);
@@ -152,7 +152,9 @@ const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) =>
   }
 
   // Check if the event is valid
-  const validEvent = await isEventValid(event, app.get("config.relay")["limitation"]["created_at_lower_limit"], app.get("config.relay")["limitation"]["created_at_upper_limit"]);
+  const validEvent = await isEventValid(event, getConfig(reqInfo.domain, ["relay", "limitation", "created_at_lower_limit"]),
+  getConfig(reqInfo.domain, ["relay", "limitation", "created_at_upper_limit"]));
+
   if (validEvent.status !== "success") {
     logger.debug(`handleEvent - Invalid event: ${event.id}, ${validEvent.message}`);
     socket.send(JSON.stringify(["NOTICE", `invalid: ${validEvent.message}`]));
@@ -161,7 +163,7 @@ const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) =>
   }
 
   // Check if the event has a valid AUTH session
-  if (app.get("config.relay")["limitation"]["auth_required"] == true && !authSessions.has(socket)) {
+  if (getConfig(reqInfo.domain, ["relay", "limitation", "auth_required"]) == true && !authSessions.has(socket)) {
     logger.debug(`handleEvent - Blocked event without authentication: ${event.id}`);
     socket.send(JSON.stringify(["NOTICE", "auth-required: you must authenticate first"]));
     socket.send(JSON.stringify(["OK", event.id, false, "auth-required: you must authenticate first"]));
@@ -169,7 +171,7 @@ const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) =>
 }
 
   // Check if the event has more tags than allowed
-  if (event.tags.length > app.get("config.relay")["limitation"]["max_event_tags"]) {
+  if (event.tags.length > getConfig(reqInfo.domain, ["relay", "limitation", "max_event_tags"])) {
     logger.debug(`handleEvent - Blocked event with too many tags: ${event.id}`);
     socket.send(JSON.stringify(["NOTICE", "blocked: too many tags"]));
     socket.send(JSON.stringify(["OK", event.id, false, "blocked: too many tags"]));
@@ -177,7 +179,7 @@ const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) =>
   }
 
   // Check if the event content is too large
-  if (event.content.length > app.get("config.relay")["limitation"]["max_content_length"]) {
+  if (event.content.length > getConfig(reqInfo.domain, ["relay", "limitation", "max_content_length"])) {
     logger.debug(`handleEvent - Blocked event with too large content: ${event.id}`);
     socket.send(JSON.stringify(["NOTICE", "blocked: event content too large"]));
     socket.send(JSON.stringify(["OK", event.id, false, "blocked: event content too large"]));
@@ -203,8 +205,7 @@ const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) =>
   }
 
   // Valid proof of work (NIP-13) if required
-  if (app.get("config.relay")["limitation"]["min_pow_difficulty"] > 0) {
-
+  if (getConfig(reqInfo.domain, ["relay", "limitation", "min_pow_difficulty"]) > 0) {
     const nonceTag = event.tags.find(tag => tag[0] === 'nonce');
     if (!nonceTag || nonceTag.length < 3) {
       logger.debug(`handleEvent - Blocked event with missing or malformed nonce tag: ${event.id}`);
@@ -231,9 +232,9 @@ const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) =>
   }
 
   // Check if the event has invalid tags that are not whitelisted (if whitelist is enabled)
-  if (app.get("config.relay")["tags"].length > 0) {
+  if (getConfig(reqInfo.domain, ["relay", "tags"]).length > 0) {
     const tags = event.tags.map(tag => tag[0]);
-    const invalidTags = tags.filter(tag => !app.get("config.relay")["tags"].includes(tag) && allowedTags.includes(tag) == false);
+    const invalidTags = tags.filter(tag => !getConfig(reqInfo.domain, ["relay", "tags"]).includes(tag) && allowedTags.includes(tag) == false);
     if (invalidTags.length > 0) {
       logger.debug(`handleEvent - Blocked event with invalid tags: ${event.id}, ${invalidTags.join(", ")}`);
       socket.send(JSON.stringify(["NOTICE", `blocked: invalid tags: ${invalidTags.join(", ")}`]));
@@ -243,7 +244,7 @@ const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) =>
   }
 
   // NIP-70 Check if the event has a ["-"] tag and "auth_required" is enabled
-  if (app.get("config.relay")["limitation"]["auth_required"] == true && event.tags.some(tag => tag[0] === "-") && authSessions.get(socket) !== event.pubkey) {
+  if (getConfig(reqInfo.domain, ["relay", "limitation", "auth_required"]) == true && event.tags.some(tag => tag[0] === "-") && authSessions.get(socket) !== event.pubkey) {
       logger.debug(`handleEvent - Blocked private message without authentication: ${event.id}`);
       socket.send(JSON.stringify(["NOTICE", "error: unauthorized to post private messages"]));
       socket.send(JSON.stringify(["OK", event.id, false, "error: unauthorized to post private messages"]));
@@ -381,7 +382,7 @@ const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) =>
       return;
     }
 
-    const relayUrl = app.get("config.server")["host"] + "/api/v2/relay";
+    const relayUrl = getConfig(reqInfo.domain, ["server", "host"]) + "/api/v2/relay";
     const eventUrl = relayTags.some(tag => tag[1].toUpperCase() === "ALL_RELAYS" || tag[1] === relayUrl);
     if (!eventUrl) {
       logger.debug(`handleEvent - Rejected kind:62 event ${event.id} due to invalid relay tag.`);
@@ -468,7 +469,7 @@ const handleReqOrCount = async (socket: WebSocket, subId: string, filters: Filte
     return;
   }
 
-  if (app.get("config.relay")["limitation"]["auth_required"] == true && !authSessions.has(socket)) {
+  if (getConfig(reqInfo.domain, ["relay", "limitation", "auth_required"]) == true && !authSessions.has(socket)) {
     const requestedKinds = filters.flatMap(f => f.kinds || []);
 
     if (requestedKinds.some(kind => [4, 14, 1059].includes(kind))) {
@@ -488,35 +489,19 @@ const handleReqOrCount = async (socket: WebSocket, subId: string, filters: Filte
     return;
   }
 
-  if (filters.length > app.get("config.relay")["limitation"]["max_filters"]) {
+  if (filters.length > getConfig(reqInfo.domain, ["relay", "limitation", "max_filters"])) {
     logger.debug(`handleReqOrCount - Too many filters: ${subId}`);
     socket.send(JSON.stringify(["CLOSED", subId, "unsupported: too many filters"]));
     socket.close(1003, "unsupported: too many filters");
     return;
   }
 
-  if (subId.length > app.get("config.relay")["limitation"]["max_subid_length"]) {
+  if (subId.length > getConfig(reqInfo.domain, ["relay", "limitation", "max_subid_length"])) {
     logger.debug(`handleReqOrCount - Subscription id too long: ${subId}`);
     socket.send(JSON.stringify(["CLOSED", subId, "unsupported: subscription id too long"]));
     socket.close(1003, "unsupported: subscription id too long");
     return;
   }
-
-  // Check if the requested time range is too large or the limit is too high
-  // let since = filters.find(f => f.since)?.since ?? 0;
-  // const until = filters.find(f => f.until)?.until ?? Math.floor(Date.now() / 1000);
-  const maxLimit = app.get("config.relay")["limitation"]["max_limit"];
-  // const maxTimeRange = app.get("config.relay")["limitation"]["max_time_range"];
-  // let limit = filters.find(f => f.limit)?.limit ?? maxLimit;
-
-  // // Check if the query is specific to certain event IDs.
-  // const isIdSpecificQuery = filters.every(f => f.ids && f.ids.length > 0);
-  // if (!isIdSpecificQuery && (limit > maxLimit || until - since > maxTimeRange)) {
-  //   socket.send(JSON.stringify(["NOTICE", `warning: ${limit > maxLimit ? "limit" : "time range"} too high, adjusted to ${limit > maxLimit ? maxLimit : maxTimeRange}`]));
-  //   if (limit > maxLimit) limit = maxLimit;
-  //   if (until - since) since = until - maxTimeRange;
-  //   filters = filters.map(f => ({ ...f, since, until, limit }));
-  // }
 
   // If sharedDBChunks is not initialized, send EOSE and return
   if (!eventStore.sharedDBChunks) {
@@ -533,6 +518,7 @@ const handleReqOrCount = async (socket: WebSocket, subId: string, filters: Filte
   }
 
   try {
+    const maxLimit = getConfig(reqInfo.domain, ["relay", "limitation", "max_limit"]);
     const eventsList = await getEvents(filters, maxLimit, eventStore.sharedDBChunks);
     let count = 0;
     const batchSize = 250;
@@ -544,10 +530,10 @@ const handleReqOrCount = async (socket: WebSocket, subId: string, filters: Filte
         if (type === "REQ") {
           logger.debug(`handleReqOrCount - Sent event: ${event.id}`);
           socket.send(JSON.stringify(["EVENT", subId, event]));
-          if (count >= app.get("config.relay")["limitation"]["max_limit"]) break;
+          if (count >= maxLimit) break;
         }
       }
-      if (count >= app.get("config.relay")["limitation"]["max_limit"]) break;
+      if (count >= maxLimit) break;
       await new Promise(resolve => setImmediate(resolve));
     }
 
@@ -658,7 +644,7 @@ const getRelayStatus = async (req: Request, res: Response): Promise<Response> =>
   }
 
   // Check if current module is enabled
-  if (!isModuleEnabled("relay", app)) {
+  if (!isModuleEnabled("relay")) {
       logger.warn("ServerStatus - Attempt to access a non-active module:","relay","|","IP:", reqInfo.ip);
       return res.status(403).send({"status": "error", "message": "Module is not enabled"});
   }

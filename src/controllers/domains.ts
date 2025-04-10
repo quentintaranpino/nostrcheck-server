@@ -5,10 +5,10 @@ import { ResultMessagev2 } from "../interfaces/server.js";
 import { isIpAllowed } from "../lib/security/ips.js";
 import { getAvailableDomains, getAvailiableUsers } from "../lib/domains.js";
 import { dbUpdate, dbSelect } from "../lib/database.js";
-import { isModuleEnabled } from "../lib/config/local.js";
 import app from "../app.js";
 import { setAuthCookie } from "../lib/frontend.js";
 import { RedisService } from "../lib/redis.js";
+import { isModuleEnabled } from "../lib/config/core.js";
 
 const redisCore = app.get("redisCore") as RedisService
 
@@ -22,7 +22,7 @@ const listAvailableDomains = async (req: Request, res: Response): Promise<Respon
 	}
 
 	// Check if current module is enabled
-	if (!isModuleEnabled("domains", app)) {
+	if (!isModuleEnabled("domains")) {
         logger.warn(`listAvailableDomains - Attempt to access a non-active module: domains | IP:`, reqInfo.ip);
 		return res.status(403).send({"status": "error", "message": "Module is not enabled"});
 	}
@@ -48,7 +48,7 @@ const listAvailableUsers = async (req: Request, res: Response): Promise<Response
 	}
 
 	// Check if current module is enabled
-	if (!isModuleEnabled("domains", app)) {
+	if (!isModuleEnabled("domains")) {
         logger.warn(`listAvailableUsers - Attempt to access a non-active module: domains | IP:`, reqInfo.ip);
 		return res.status(403).send({"status": "error", "message": "Module is not enabled"});
 	}
@@ -70,7 +70,7 @@ const updateUserDomain = async (req: Request, res: Response): Promise<Response> 
 	}
 
 	// Check if current module is enabled
-	if (!isModuleEnabled("domains", app)) {
+	if (!isModuleEnabled("domains")) {
         logger.warn(`updateUserDomain - Attempt to access a non-active module: domains | IP:`, reqInfo.ip);
 		return res.status(403).send({"status": "error", "message": "Module is not enabled"});
 	}

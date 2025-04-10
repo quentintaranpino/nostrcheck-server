@@ -1,13 +1,13 @@
 import { isIpAllowed } from "../lib/security/ips.js";
 import { Request, Response } from 'express';
 import { logger } from "../lib/logger.js";
-import { isModuleEnabled } from "../lib/config/local.js";
 import app from "../app.js";
 import { parseAuthHeader } from "../lib/authorization.js";
 import { setAuthCookie } from "../lib/frontend.js";
-import { userPrefs } from "../interfaces/personalization.js";
+import { userPrefs } from "../interfaces/appearance.js";
 import { dbMultiSelect, dbUpsert } from "../lib/database.js";
 import { getNewDate } from "../lib/utils.js";
+import { isModuleEnabled } from "../lib/config/core.js";
 
 
 const setUserPrefs = async (req: Request, res: Response): Promise<Response> => {
@@ -20,7 +20,7 @@ const setUserPrefs = async (req: Request, res: Response): Promise<Response> => {
     }
 
     // Check if current module is enabled
-    if (!isModuleEnabled("frontend", app)) {
+    if (!isModuleEnabled("frontend")) {
         logger.info(`setUserPrefs - Attempt to access a non-active module: frontend | IP:`, reqInfo.ip);
         return res.status(403).send({"status": "error", "message": "Module is not enabled"});
     }
@@ -56,7 +56,7 @@ const getUserPrefs = async (req: Request, res: Response): Promise<Response> => {
     }
 
     // Check if current module is enabled
-    if (!isModuleEnabled("frontend", app)) {
+    if (!isModuleEnabled("frontend")) {
         logger.info(`getUserPrefs - Attempt to access a non-active module: frontend | IP:`, reqInfo.ip);
         return res.status(403).send({"status": "error", "message": "Module is not enabled"});
     }

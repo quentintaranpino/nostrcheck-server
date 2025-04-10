@@ -21,7 +21,6 @@ import { NIP94_data, NIP96_event, NIP96_processing } from "../interfaces/nostr.j
 import { PrepareNIP96_event, PrepareNIP96_listEvent } from "../lib/nostr/NIP96.js";
 import { generateQRCode, getNewDate, parseBoolean } from "../lib/utils.js";
 import { generateBlurhash, generatefileHashfrombuffer, hashString } from "../lib/hash.js";
-import { isModuleEnabled } from "../lib/config/local.js";
 import { deleteFile, getFilePath } from "../lib/storage/core.js";
 import { saveTmpFile } from "../lib/storage/local.js";
 import { Readable } from "stream";
@@ -37,6 +36,7 @@ import { executePlugins } from "../lib/plugins/core.js";
 import { setAuthCookie } from "../lib/frontend.js";
 import { isIpAllowed } from "../lib/security/ips.js";
 import { RedisService } from "../lib/redis.js";
+import { getConfig, isModuleEnabled } from "../lib/config/core.js";
 
 const redisCore = app.get("redisCore") as RedisService
 
@@ -51,7 +51,7 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 	}
 
 	// Check if current module is enabled
-	if (!isModuleEnabled("media", app)) {
+	if (!isModuleEnabled("media")) {
         logger.info(`uploadMedia - Attempt to access a non-active module: media | IP:`, reqInfo.ip);
 		res.setHeader("X-Reason", "Module is not enabled");
 		return res.status(403).send({"status": "error", "message": "Module is not enabled"});
@@ -77,7 +77,7 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 
 	// Public uploads logic
 	if (await isPubkeyRegistered(pubkey) == false){
-		if (app.get("config.media")["allowPublicUploads"] == false) {
+		if (getConfig(req.hostname, ["media", "allowPublicUploads"]) == false) {
 			logger.info(`uploadMedia - public uploads not allowed | `, reqInfo.ip);
 			if(version != "v2"){return res.status(401).send({"result": false, "description" : "public uploads not allowed"});}
 
@@ -94,7 +94,7 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 	logger.debug(`uploadMedia - pubkey: ${pubkey} | `, reqInfo.ip);
 
 	// getUploadType. If not defined, default is "media"
-	const uploadType : string = pubkey != app.get("config.server")["pubkey"] ? await getUploadType(req) : "media";
+	const uploadType : string = pubkey != getConfig(req.hostname, ["server", "pubkey"]) ? await getUploadType(req) : "media";
 	logger.debug(`uploadMedia - uploadtype: ${uploadType} | `, reqInfo.ip);
 
 	// Uploaded file
@@ -147,8 +147,8 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 		fileid: "",
 		filesize: file.size,
 		pubkey: pubkey,
-		width: app.get("config.media")["transform"]["media"]["undefined"]["width"],
-		height: app.get("config.media")["transform"]["media"]["undefined"]["height"],
+		width: getConfig(req.hostname, ["media", "transform", "media", "undefined", "width"]),
+		height: getConfig(req.hostname, ["media", "transform", "media", "undefined", "height"]),
 		media_type: uploadType,
 		originalmime: "",
 		outputoptions: "",
@@ -186,7 +186,7 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 	logger.debug(`uploadMedia - mime: ${filedata.originalmime} | `, reqInfo.ip);
 
 	// No transform option
-	filedata.no_transform = app.get("config.media")["transform"]["enabled"] == false
+	filedata.no_transform = getConfig(req.hostname, ["media", "transform", "enabled"]) == false
 	? true
 	: parseBoolean(req.body?.no_transform);
 	
@@ -386,7 +386,7 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 	}
 
 	// Payment engine
-	if (isModuleEnabled("payments", app)) {
+	if (isModuleEnabled("payments")) {
 
 		// Get preimage from header
 		const preimage = req.headers["x-lightning"]?.toString().length == 64 ? req.headers["x-lightning"]?.toString() : undefined;
@@ -407,10 +407,10 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 									filedata.transaction_id,
 									filedata.fileid,
 									"mediafiles",
-									filedata.no_transform ? (Number(Number(filedata.filesize)) * 1024 * 1024) : (Number(filedata.filesize)/3) * 1024 * 1024,
+									filedata.no_transform ? (Number(Number(filedata.filesize))) : (Number(filedata.filesize)/3),
 									0,
-									app.get("config.media")["maxMBfilesize"] * 1024 * 1024,
-									app.get("config.payments")["satoshi"]["mediaMaxSatoshi"],
+									getConfig(req.hostname, ["media", "maxMBfilesize"]) * 1024 * 1024,
+									getConfig(req.hostname, ["payments", "satoshi", "mediaMaxSatoshi"]),
 									filedata.pubkey
 									);
 
@@ -433,7 +433,7 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 		}
 
 		// If the file is not paid, and we don't allow upaid uploads, we return an error message and a 402 status code with the payment request
-		if (app.get("config.payments")["allowUnpaidUploads"] === false && transaction.isPaid == false) {
+		if (getConfig(req.hostname, ["payments", "allowUnpaidUploads"]) == false && transaction.isPaid == false) {
 			logger.info(`uploadMedia - 402 Payment required - Payment required`, "|", reqInfo.ip);
 			return res.send({"status": "error", "message": "Payment required"});
 		}
@@ -550,7 +550,7 @@ const headMedia = async (req: Request, res: Response): Promise<Response> => {
 	}
 
 	// Check if current module is enabled
-	if (!isModuleEnabled("media", app)) {
+	if (!isModuleEnabled("media")) {
 		logger.info(`headMedia - Attempt to access a non-active module: media | IP:`, reqInfo.ip);
 		res.setHeader("X-Reason", "Module is not enabled");
 		return res.status(403).send({"status": "error", "message": "Module is not enabled"});
@@ -583,7 +583,7 @@ const headMedia = async (req: Request, res: Response): Promise<Response> => {
 	}
  
 	// Payment required ?
-	if (await isModuleEnabled("payments", app)) {
+	if (await isModuleEnabled("payments")) {
 		const transactionId = (await dbMultiSelect(["transactionid"], "mediafiles", fileData[0].hash != fileData[0].original_hash ? "original_hash = ?" : "hash = ?", [hash], true))[0]?.transactionid || "" ;
 		// const transaction = await checkTransaction(transactionId,"","mediafiles", fileData[0].hash != fileData[0].original_hash ? Number(fileData[0].filesize)/3 : Number(Number(fileData[0].filesize)),"");
 		
@@ -591,16 +591,17 @@ const headMedia = async (req: Request, res: Response): Promise<Response> => {
 			transactionId,
 			"",
 			"mediafiles",
-			fileData[0].hash != fileData[0].original_hash ? (Number(fileData[0].filesize)/3) * 1024 * 1024 : (Number(fileData[0].filesize) * 1024 * 1024),
+			fileData[0].hash != fileData[0].original_hash ? (Number(fileData[0].filesize)/3) : (Number(fileData[0].filesize)),
 			0,
-			app.get("config.media")["maxMBfilesize"] * 1024 * 1024,
-			app.get("config.payments")["satoshi"]["mediaMaxSatoshi"],
+			getConfig(req.hostname, ["media", "maxMBfilesize"]) * 1024 * 1024,
+			getConfig(req.hostname, ["payments", "satoshi", "mediaMaxSatoshi"]),
 			"");		
 		
-		if (transaction.transactionid != 0 && transaction.isPaid == false && app.get("config.payments")["satoshi"]["mediaMaxSatoshi"] > 0) {
+		if (transaction.transactionid != 0 && transaction.isPaid == false && getConfig(req.hostname, ["payments", "satoshi", "mediaMaxSatoshi"]) > 0) {
 			res.setHeader("X-Lightning", transaction.paymentRequest);
 			res.setHeader("X-Lightning-amount", transaction.satoshi);
 			res.setHeader("X-Reason", `Invoice (${transaction.satoshi}) for hash: ${hash}`);
+			res.status(402).send()
 		}
 	}
 
@@ -629,7 +630,7 @@ const getMediaList = async (req: Request, res: Response): Promise<Response> => {
 	}
 
 	// Check if current module is enabled
-	if (!isModuleEnabled("media", app)) {
+	if (!isModuleEnabled("media")) {
 		logger.info(`getMediaList - Attempt to access a non-active module: media | IP:`, reqInfo.ip);
 		res.setHeader("X-Reason", "Module is not enabled");
 		return res.status(403).send({"status": "error", "message": "Module is not enabled"});
@@ -724,16 +725,16 @@ const getMediaList = async (req: Request, res: Response): Promise<Response> => {
 		};
 
 		// Return payment_request if the file is not paid
-		if (isModuleEnabled("payments", app)) {
+		if (isModuleEnabled("payments")) {
 			
 			const transaction : Transaction = await checkTransaction(
 				listedFile.transaction_id,
 				listedFile.fileid,
 				"mediafiles",
-				listedFile.filesize * 1024 * 1024,
+				listedFile.filesize,
 				0,
-				app.get("config.media")["maxMBfilesize"] * 1024 * 1024,
-				app.get("config.payments")["satoshi"]["mediaMaxSatoshi"],
+				getConfig(req.hostname, ["media", "maxMBfilesize"]) * 1024 * 1024,
+				getConfig(req.hostname, ["payments", "satoshi", "mediaMaxSatoshi"]),
 				listedFile.pubkey
 			);
 			
@@ -775,7 +776,7 @@ const getMediaStatusbyID = async (req: Request, res: Response, version:string): 
 	}
 
 	// Check if current module is enabled
-	if (!isModuleEnabled("media", app)) {
+	if (!isModuleEnabled("media")) {
         logger.info(`getMediaStatusbyID - Attempt to access a non-active module: media | IP:`, reqInfo.ip);
 		res.setHeader("X-Reason", "Module is not enabled");
 		return res.status(403).send({"status": "error", "message": "Module is not enabled"});
@@ -816,7 +817,7 @@ const getMediaStatusbyID = async (req: Request, res: Response, version:string): 
 	const mediaFileData = await dbMultiSelect(["id", "filename", "pubkey", "status", "magnet", "original_hash", "hash", "blurhash", "dimensions", "filesize", "transactionid", "visibility"],
 												"mediafiles",
 												"id = ? and (pubkey = ? or pubkey = ?)",
-												[id, eventHeader.pubkey, app.get("config.server")["pubkey"]],
+												[id, eventHeader.pubkey, getConfig(req.hostname, ["server", "pubkey"])],
 												true);
 
 	if (!mediaFileData || mediaFileData.length == 0) {
@@ -898,16 +899,16 @@ const getMediaStatusbyID = async (req: Request, res: Response, version:string): 
 		return res.status(202).send(result);
 	}
 
-	if (isModuleEnabled("payments", app)) {
+	if (isModuleEnabled("payments")) {
 		
 		const transaction : Transaction = await checkTransaction(
 			filedata.transaction_id,
 			filedata.fileid,
 			"mediafiles",
-			filedata.hash != filedata.originalhash ? (Number(filedata.filesize)/3) * 1024 * 1024 : (Number(filedata.filesize) * 1024 * 1024),
+			filedata.hash != filedata.originalhash ? (Number(filedata.filesize)/3) : (Number(filedata.filesize)),
 			0,
-			app.get("config.media")["maxMBfilesize"] * 1024 * 1024,
-			app.get("config.payments")["satoshi"]["mediaMaxSatoshi"],
+			getConfig(req.hostname, ["media", "maxMBfilesize"]) * 1024 * 1024,
+			getConfig(req.hostname, ["payments", "satoshi", "mediaMaxSatoshi"]),
 			filedata.pubkey
 		);
 		
@@ -936,7 +937,7 @@ const getMediabyURL = async (req: Request, res: Response) => {
 	}
 
 	// Check if current module is enabled
-	if (!isModuleEnabled("media", app)) {
+	if (!isModuleEnabled("media")) {
         logger.info(`getMediabyURL - Attempt to access a non-active module: media | IP:`, reqInfo.ip);
 		res.setHeader("X-Reason", "Module is not enabled");
 		return res.status(403).send({"status": "error", "message": "Module is not enabled"});
@@ -1051,10 +1052,10 @@ const getMediabyURL = async (req: Request, res: Response) => {
 			filedata[0].transactionid,
 			filedata[0].id,
 			"mediafiles",
-			filedata[0].hash != filedata[0].original_hash ? (Number(filedata[0].filesize)/3) * 1024 * 1024 : (Number(filedata[0].filesize) * 1024 * 1024),
+			filedata[0].hash != filedata[0].original_hash ? (Number(filedata[0].filesize)/3) : (Number(filedata[0].filesize)),
 			0,
-			app.get("config.media")["maxMBfilesize"] * 1024 * 1024,
-			app.get("config.payments")["satoshi"]["mediaMaxSatoshi"],
+			getConfig(req.hostname, ["media", "maxMBfilesize"]) * 1024 * 1024,
+			getConfig(req.hostname, ["payments", "satoshi", "mediaMaxSatoshi"]),
 			req.params.pubkey
 		);
 		
@@ -1067,7 +1068,7 @@ const getMediabyURL = async (req: Request, res: Response) => {
 			} 
 		}
 
-		if (isModuleEnabled("payments", app) && transaction.paymentHash != "" && transaction.isPaid == false &&  adminRequest == false) {
+		if (isModuleEnabled("payments") && transaction.paymentHash != "" && transaction.isPaid == false &&  adminRequest == false) {
 
 			// If the GET request has no authorization, we return a QR code with the payment request.
 			logger.info(`getMediabyURL - 200 Paid media file ${req.url}`, "|", reqInfo.ip, "|", "cached:", cachedStatus ? true : false);
@@ -1122,7 +1123,7 @@ const getMediabyURL = async (req: Request, res: Response) => {
 		}
 		
 		if (!adminRequest && loggedPubkey == "") {
-			await redisCore.set(req.params.filename + "-" + req.params.pubkey, "1", {EX: app.get("config.redis")["expireTime"]});
+			await redisCore.set(req.params.filename + "-" + req.params.pubkey, "1", {EX: getConfig(req.hostname, ["redis", "expireTime"])});
 		}
 
 	}
@@ -1139,11 +1140,11 @@ const getMediabyURL = async (req: Request, res: Response) => {
 	res.setHeader('Content-Type', mediaType);
 
 	// mediaPath checks
-	const mediaLocation = app.get("config.storage")["type"];
+	const mediaLocation = getConfig(req.hostname, ["storage", "type"]);
 	logger.debug(`getMediabyURL - Media location: ${mediaLocation}`, "|", reqInfo.ip);
 
 	if (mediaLocation == "local") {
-		const mediaPath = path.normalize(path.resolve(app.get("config.storage")["local"]["mediaPath"]));
+		const mediaPath = path.normalize(path.resolve(getConfig(req.hostname, ["storage", "local", "mediaPath"])));
 		if (!mediaPath) {
 			logger.error(`getMediabyURL - 500 Internal Server Error - mediaPath not set`, "|", reqInfo.ip);
 			res.setHeader('Content-Type', 'image/webp');
@@ -1265,7 +1266,7 @@ const getMediaTagsbyID = async (req: Request, res: Response): Promise<Response> 
 	}
 
 	// Check if current module is enabled
-	if (!isModuleEnabled("media", app)) {
+	if (!isModuleEnabled("media")) {
         logger.info(`getMediaTagsbyID - Attempt to access a non-active module: media | IP:`, reqInfo.ip);
 		res.setHeader("X-Reason", "Module is not enabled");
 		return res.status(403).send({"status": "error", "message": "Module is not enabled"});
@@ -1288,7 +1289,7 @@ const getMediaTagsbyID = async (req: Request, res: Response): Promise<Response> 
 	//Query database for media tags
     const fileId = req.params.fileId;
     const userPubkey = eventHeader.pubkey;
-    const serverPubkey = app.get("config.server")["pubkey"];
+    const serverPubkey = getConfig(req.hostname, ["server", "pubkey"]);
 
     // Try with user pubkey
     const rows = await dbMultiSelect(
@@ -1336,7 +1337,7 @@ const getMediabyTags = async (req: Request, res: Response): Promise<Response> =>
 	}
 
 	// Check if current module is enabled
-	if (!isModuleEnabled("media", app)) {
+	if (!isModuleEnabled("media")) {
         logger.info(`getMediabyTags - Attempt to access a non-active module: media | IP:`, reqInfo.ip);
 		res.setHeader("X-Reason", "Module is not enabled");
 		res.status(403).send({"status": "error", "message": "Module is not enabled"});
@@ -1357,7 +1358,7 @@ const getMediabyTags = async (req: Request, res: Response): Promise<Response> =>
 	//Check database for media files by tags
 	const fileTag = req.params.tag;
 	const userPubkey = eventHeader.pubkey;
-	const serverPubkey = app.get("config.server")["pubkey"];
+	const serverPubkey = getConfig(req.hostname, ["server", "pubkey"]);
 
 	// Try with user pubkey
 	const rows = await dbMultiSelect(
@@ -1416,7 +1417,7 @@ const updateMediaVisibility = async (req: Request, res: Response, version: strin
 	}
 
 	// Check if current module is enabled
-	if (!isModuleEnabled("media", app)) {
+	if (!isModuleEnabled("media")) {
         logger.info(`updateMediaVisibility - Attempt to access a non-active module: media | IP:`, reqInfo.ip);
 		res.setHeader("X-Reason", "Module is not enabled");
 		return res.status(403).send({"status": "error", "message": "Module is not enabled"});
@@ -1496,7 +1497,7 @@ const deleteMedia = async (req: Request, res: Response, version:string): Promise
 	}
 
 	// Check if current module is enabled
-	if (!isModuleEnabled("media", app)) {
+	if (!isModuleEnabled("media")) {
         logger.info(`deleteMedia - Attempt to access a non-active module: media | IP:`, reqInfo.ip);
 		res.setHeader("X-Reason", "Module is not enabled");
 		return res.status(403).send({"status": "error", "message": "Module is not enabled"});
@@ -1643,7 +1644,7 @@ const headUpload = async (req: Request, res: Response): Promise<Response> => {
 	}
 
 	// Check if current module is enabled
-	if (!isModuleEnabled("media", app)) {
+	if (!isModuleEnabled("media")) {
 		logger.info(`headUpload - Attempt to access a non-active module: media | IP:`, reqInfo.ip);
 		res.setHeader("X-Reason", "Module is not enabled");
 		return res.status(403).send({"status": "error", "message": "Module is not enabled"});
@@ -1703,14 +1704,14 @@ const headUpload = async (req: Request, res: Response): Promise<Response> => {
 		transactionId,
 		"",
 		"mediafiles",
-		transform != '0' ? (Number(size)/3) * 1024 * 1024 : (Number(size) * 1024 * 1024),
+		transform != '0' ? (Number(size)/3) : (Number(size)),
 		0,
-		app.get("config.media")["maxMBfilesize"] * 1024 * 1024,
-		app.get("config.payments")["satoshi"]["mediaMaxSatoshi"],
+		getConfig(req.hostname, ["media", "maxMBfilesize"]) * 1024 * 1024,
+		getConfig(req.hostname, ["payments", "satoshi", "mediaMaxSatoshi"]),
 		eventHeader.pubkey
 	);
 	
-	if (transaction.transactionid != 0 && transaction.isPaid == false && app.get("config.payments")["satoshi"]["mediaMaxSatoshi"] > 0) {
+	if (transaction.transactionid != 0 && transaction.isPaid == false && getConfig(req.hostname, ["payments", "satoshi", "mediaMaxSatoshi"]) > 0) {
 		res.setHeader("X-Lightning", transaction.paymentRequest);
 		res.setHeader("X-Lightning-Amount", transaction.satoshi);
 		res.setHeader("X-Reason", `Invoice (${transaction.satoshi}) for hash: ${hash}`);

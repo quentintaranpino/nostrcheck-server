@@ -1,4 +1,4 @@
-interface Theme {
+interface DynamicBackground {
     name: string;
     orientation: string;
     color1?: string;
@@ -10,7 +10,19 @@ interface Theme {
     particles?: string;
 }
 
-const themes: { [key: string]: Theme } = {
+const dynamicbackgroundThemes: { [key: string]: DynamicBackground } = {
+
+    default: {
+        name : "Essence",
+        orientation: "to top",
+        color1: "#9795F0",
+        color2: "#9795F0",
+        color3: "#000000",
+        color1Percent: "0%",
+        color2Percent: "25%",
+        color3Percent: "90%",
+        particles: "quantum"
+    },
     essence: {
         name : "Essence",
         orientation: "to top",
@@ -77,6 +89,17 @@ const themes: { [key: string]: Theme } = {
         color3Percent: "95%",
         particles: "nexus"
     },
+    forest: {
+        name : "Forest",
+        orientation: "to top left",
+        color1: "#9bbd3d",
+        color2: "#2cc978",
+        color3: "#209257",
+        color1Percent: "20%",
+        color2Percent: "52%",
+        color3Percent: "92%",
+        particles: "astral"
+    },
 };
 
 const particles = [
@@ -90,17 +113,22 @@ interface UserdashcardPrefs {
     id: string;
     visible: boolean;
     order: number;
-  }
+}
   
-  interface UserProfilePrefs {
-    theme?: Theme;
-  }
+interface UserProfilePrefs {
+    dynamicBackground?: DynamicBackground;
+}
     
-  interface userPrefs {
+interface userPrefs {
     id: string;
     dashcards?: UserdashcardPrefs[];
     profile?: UserProfilePrefs;
-  }
+}
   
+const acceptedSettigsFiles = [
+    "appearance.server.logo.light",
+    "appearance.server.logo.dark",
+    "relay.icon"
+];
 
-export { Theme, themes, particles, userPrefs };
+export { DynamicBackground, dynamicbackgroundThemes, particles, userPrefs, acceptedSettigsFiles };

@@ -3,7 +3,7 @@ import express from "express";
 import helmet from "helmet";
 import { loadConfigOptions } from "./lib/config/local.js";
 import { RedisService } from "./lib/redis.js";
-import { initGlobalConfig } from "./lib/config/core.js";
+import { getConfig, initGlobalConfig } from "./lib/config/core.js";
 
 const app = express();
 
@@ -40,10 +40,10 @@ app.use(cors({
   }));
 
 const redisCore = new RedisService({
-  host: process.env.REDIS_HOST || app.get("config.redis")["host"],
-  port: process.env.REDIS_PORT || app.get("config.redis")["port"],
-  user: process.env.REDIS_USER || app.get("config.redis")["user"],
-  password: process.env.REDIS_PASSWORD || app.get("config.redis")["password"]
+  host: process.env.REDIS_HOST || getConfig(null, ["redis", "host"]),
+  port: process.env.REDIS_PORT || getConfig(null, ["redis", "port"]),
+  user: process.env.REDIS_USER || getConfig(null, ["redis", "user"]),
+  password: process.env.REDIS_PASSWORD || getConfig(null, ["redis", "password"]),
 });
 await redisCore.init(app)
 app.set("redisCore", redisCore);

@@ -44,7 +44,7 @@ const getPublicTenantConfig = async (domain: string): Promise<TenantInfo | null>
   const tenantInfo : TenantInfo = {
       maxsatoshi: getConfig(domain, ["payments", "satoshi", "registerMaxSatoshi"]),
       requireinvite: getConfig(domain, ["register", "requireinvite"]),
-      requirepayment: getConfig(domain, ["register", "requirepayment"]),
+      requirepayment: getConfig(domain, ["payments", "satoshi", "registerMaxSatoshi"]) > 0,
       minUsernameLength: getConfig(domain, ["register", "minUsernameLength"]),
       maxUsernameLength: getConfig(domain, ["register", "maxUsernameLength"]),
   };

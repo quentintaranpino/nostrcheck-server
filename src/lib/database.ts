@@ -5,10 +5,11 @@ import app from "../app.js";
 import { logger } from "./logger.js";
 import { newFieldcompatibility, databaseTables} from "../interfaces/database.js";
 import { accounts } from "../interfaces/payments.js";
-import { isModuleEnabled, updateLocalConfigKey } from "./config/local.js";
+import { updateLocalConfigKey } from "./config/local.js";
 import { addNewUsername } from "./register.js";
 import { getNewDate } from "./utils.js";
 import { fileTypes } from "../interfaces/media.js";
+import { isModuleEnabled } from "./config/core.js";
 
 let pool: Pool | undefined;
 let retry: number = 0;
@@ -527,7 +528,7 @@ const showDBStats = async(): Promise<string> => {
 
 	const result: string[] = [];
 
-	if (isModuleEnabled("register", app)){
+	if (isModuleEnabled("register")){
 
 		const registered = await dbMultiSelect(["id"],"registered", "active = 1",[],false)?.then((result) => {return result.length});
 		result.push(`Registered users: ${registered}`);
@@ -543,7 +544,7 @@ const showDBStats = async(): Promise<string> => {
 
 	}
 
-	if (isModuleEnabled("media", app)){
+	if (isModuleEnabled("media")){
 		const mediafiles = await dbMultiSelect(["id"],"mediafiles", "active = 1",[],false)?.then((result) => {return result.length});
 		result.push(`Hosted files: ${mediafiles}`);
 
@@ -552,7 +553,7 @@ const showDBStats = async(): Promise<string> => {
 	
 	}
 
-	if (isModuleEnabled("payments", app)){
+	if (isModuleEnabled("payments")){
 		const lightning = await dbMultiSelect(["id"],"lightning", "active = 1",[],false)?.then((result) => {return result.length});
 		result.push(`LN redirections: ${lightning}`);
 
@@ -563,7 +564,7 @@ const showDBStats = async(): Promise<string> => {
 		result.push(`Ledger entries: ${ledger}`);
 	}
 
-	if (isModuleEnabled("relay", app)){
+	if (isModuleEnabled("relay")){
 		const events = await dbMultiSelect(["id"],"events", "1 = 1",[],false)?.then((result) => {return result.length});
 		result.push(`Relay events: ${events}`);
 	}
@@ -613,12 +614,6 @@ const initDatabase = async (): Promise<void> => {
 			logger.fatal(`initDatabase - Error updating (allowed -> 1) public username (${app.get("config.server")["pubkey"]}). Exiting.`);
 			process.exit(1);
 		}
-	}
-
-	// Check if the registered table only has the public user and activate firstUse if so.
-	const registeredUsers = await dbMultiSelect(["username"], "registered", "active = 1", [], false);
-	if (registeredUsers.length === 1 && registeredUsers[0]?.username === "public"){
-		app.set("firstUse", true);
 	}
 
 	// Check if public lightning address exist on lightning table and create it if not.

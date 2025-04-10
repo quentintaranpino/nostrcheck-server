@@ -5,12 +5,12 @@ import { logger } from "../lib/logger.js";
 import { ResultMessagev2 } from "../interfaces/server.js";
 import { LightningUsernameResult } from "../interfaces/lightning.js";
 import { parseAuthHeader } from "../lib/authorization.js";
-import { isModuleEnabled } from "../lib/config/local.js";
 import app from "../app.js";
 import { setAuthCookie } from "../lib/frontend.js";
 import { PoolConnection} from "mysql2/promise";
 import { isIpAllowed } from "../lib/security/ips.js";
 import { RedisService } from "../lib/redis.js";
+import { getConfig, isModuleEnabled } from "../lib/config/core.js";
 
 const redisCore = app.get("redisCore") as RedisService
 
@@ -25,7 +25,7 @@ const redirectlightningddress = async (req: Request, res: Response): Promise<Res
 	}
 
 	// Check if current module is enabled
-	if (!isModuleEnabled("lightning", app)) {
+	if (!isModuleEnabled("lightning")) {
         logger.warn(`redirectlightningddress - Attempt to access a non-active module: lightning | IP:`, reqInfo.ip);
 		return res.status(403).send({"status": "error", "message": "Module is not enabled"});
 	}
@@ -120,7 +120,7 @@ const redirectlightningddress = async (req: Request, res: Response): Promise<Res
 
 	// Store in Redis
 	await redisCore.set(`lightningaddress:${name}-${servername}`, JSON.stringify(lightningdata), {
-		EX: app.get("config.redis")["expireTime"],
+		EX: getConfig(null, ["redis", "expireTime"]),
 	});
 	logger.debug(`redirectlightningddress - Lightning redirect cached:`, name, "->", `${lightningdata.lightninguser}@${lightningdata.lightningserver}`);
 
@@ -144,7 +144,7 @@ const updateLightningAddress = async (req: Request, res: Response): Promise<Resp
 	}
 
 	// Check if current module is enabled
-	if (!isModuleEnabled("lightning", app)) {
+	if (!isModuleEnabled("lightning")) {
         logger.info(`updateLightningAddress - Attempt to access a non-active module: lightning | IP:`, reqInfo.ip);
 		return res.status(403).send({"status": "error", "message": "Module is not enabled"});
 	}
@@ -264,7 +264,7 @@ const deleteLightningAddress = async (req: Request, res: Response): Promise<Resp
 	}
 
 	// Check if current module is enabled
-	if (!isModuleEnabled("lightning", app)) {
+	if (!isModuleEnabled("lightning")) {
         logger.info(`deleteLightningAddress - Attempt to access a non-active module: lightning | IP:`, reqInfo.ip);
 		return res.status(403).send({"status": "error", "message": "Module is not enabled"});
 	}

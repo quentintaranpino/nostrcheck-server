@@ -103,24 +103,31 @@ const addTextToImage = async (imageBuffer: Buffer, firstText: string, secondText
 
 	const firstTextImage = await sharp(Buffer.from(svgFirstText)).resize(sideLength + 130).toBuffer();
 	const secondTextImage = await sharp(Buffer.from(svgSecondText)).resize(sideLength + 130).toBuffer();
-	const logoImage = await sharp(fs.readFileSync('./src/pages/static/resources/navbar-logo-dark.png')).resize(sideLength).toBuffer();
+	
+	try{
+		const logoImage = await sharp(fs.readFileSync('./src/pages/static/resources/appearance-server-logo-dark.default.png')).resize(sideLength).toBuffer();
   
-	return sharp({
-		create: {
-		width: sideLength + 130,
-		height: sideLength + 255,
-		channels: 4,
-		background: '#212529',
-		},
-	})
-		.composite([
-		{ input: logoImage, top: 20, left: 65 },
-		{ input: imageBuffer, top: 140, left: 65 },
-		{ input: firstTextImage, top: sideLength + 140, left: 0 },
-		{ input: secondTextImage, top: sideLength + 190, left: 0 },
-		])
-		.webp()
-		.toBuffer();
+		return sharp({
+			create: {
+			width: sideLength + 130,
+			height: sideLength + 255,
+			channels: 4,
+			background: '#212529',
+			},
+		})
+			.composite([
+			{ input: logoImage, top: 20, left: 65 },
+			{ input: imageBuffer, top: 140, left: 65 },
+			{ input: firstTextImage, top: sideLength + 140, left: 0 },
+			{ input: secondTextImage, top: sideLength + 190, left: 0 },
+			])
+			.webp()
+			.toBuffer();
+	}catch(err){
+		logger.error(`generateQRCode - Error generating QR code: ${err}`);
+		return Buffer.from("");
+	}
+	
 };
 
 const generateVideoFromImage = (imageBuffer: Buffer): Promise<Buffer> => {

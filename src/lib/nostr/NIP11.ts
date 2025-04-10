@@ -1,6 +1,7 @@
 // https://github.com/nostr-protocol/nips/blob/master/11.md
 import { Application } from "express"
 import { NIP11File, supported_nips } from "../../interfaces/nostr.js";
+import { getConfig } from "../config/core.js";
 
 const getNIP11file = (app: Application, hostname: string): NIP11File => {
   const nip11file: NIP11File = {
@@ -11,7 +12,7 @@ const getNIP11file = (app: Application, hostname: string): NIP11File => {
     contact: app.get("config.relay")["contact"],
     supported_nips: supported_nips,
     software: "https://github.com/quentintaranpino/nostrcheck-server",
-    version: app.get("version"),
+    version: getConfig(null, ["version"]),
     limitation: {
       max_message_length: Number(app.get("config.relay")["limitation"]["max_message_length"]),
       max_subscriptions: Number(app.get("config.relay")["limitation"]["max_subscriptions"]),

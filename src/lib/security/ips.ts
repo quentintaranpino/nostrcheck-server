@@ -1,13 +1,13 @@
+
+import { Request } from "express";
 import { dbUpdate, dbMultiSelect, dbUpsert } from "../database.js";
 import { logger } from "../logger.js";
 import app from "../../app.js";
 import { banEntity, isEntityBanned } from "./banned.js";
-import { Request } from "express";
 import { ipInfo } from "../../interfaces/security.js";
-import { isModuleEnabled } from "../config/local.js";
 import { RedisService } from "../redis.js";
 import { getDomainId } from "./domain.js";
-import { getConfig } from "../config/core.js";
+import { getConfig, isModuleEnabled } from "../config/core.js";
 
 const ipUpdateBatch = new Map<string, { dbid: string; firstseen: number; lastseen: number; reqcountIncrement: number }>();
 const redisCore = app.get("redisCore") as RedisService
@@ -29,7 +29,7 @@ const logNewIp = async      (ip: string):
                             infractions: string; 
                             comments: string;}> => {
 
-    if (!isModuleEnabled("security", app)) {
+    if (!isModuleEnabled("security")) {
         return {dbid: "0", active: "1", checked: "1", banned: "0", firstseen: "0", lastseen: "0", reqcount: "0", infractions: "0", comments: ""};
     }
   
@@ -119,7 +119,7 @@ const logNewIp = async      (ip: string):
 
 const getClientIp = (req: Request): string => {
 
-    if (!isModuleEnabled("security", app)) {
+    if (!isModuleEnabled("security")) {
         return "";
     }
 
@@ -148,32 +148,32 @@ const getClientIp = (req: Request): string => {
  * @param maxRequestMinute - The maximum number of requests allowed per minute. Default is 300. Optional.
  * @returns An object containing the IP address, request count, whether the IP is banned, and any comments.
  */
-const isIpAllowed = async (req: Request | string, maxRequestMinute : number = app.get('config.security')["maxDefaultRequestMinute"]): Promise<ipInfo> => {
+const isIpAllowed = async (req: Request, maxRequestMinute : number = app.get('config.security')["maxDefaultRequestMinute"]): Promise<ipInfo> => {
 
-    if (!isModuleEnabled("security", app)) return {ip: "", reqcount: 0, banned: false, domain: "", comments: ""};
+    if (!isModuleEnabled("security")) return {ip: "", reqcount: 0, banned: false, domainId: 1, domain: "", comments: ""};
 
     const clientIp = typeof req === "string" ? req : getClientIp(req);
     if (!clientIp) {
         logger.warn(`isIpAllowed - Invalid IP address: ${clientIp}`);
-        return {ip: "", reqcount: 0, banned: true, domain: "", comments: ""};
+        return {ip: "", reqcount: 0, banned: true, domainId: 1, domain: "", comments: ""};
     }
 
     const host = typeof req !== "string" ? req.headers.host || req.hostname : "";
     let clientDomain = typeof req === "string" ? req : await getDomainId(host);
     if (!clientDomain) {
         logger.warn(`isIpAllowed - Domain (${host}) not found for IP: ${clientIp}`);
-        clientDomain = "1"; // Default domain ID for unknown domains
+        clientDomain = 1; // Default domain ID for unknown domains
     }
 
     const ipData = await logNewIp(clientIp);
     if (!ipData || ipData.dbid === "0") {
         logger.error(`isIpAllowed - Error logging IP: ${clientIp}`);
-        return {ip: clientIp, reqcount: 0, banned: true, domain: clientDomain, comments: ""};
+        return {ip: clientIp, reqcount: 0, banned: true, domainId: clientDomain, domain: host,  comments: ""};
     }
     const { dbid, reqcount, firstseen, lastseen, infractions, comments } = ipData;
 
     const banned = await isEntityBanned(dbid, "ips");
-    if (banned) return { ip: clientIp, reqcount: Number(reqcount), banned: true, domain: clientDomain, comments: "banned ip" };
+    if (banned) return { ip: clientIp, reqcount: Number(reqcount), banned: true, domainId: clientDomain, domain: host, comments: "banned ip" };
 
     // Abuse prevention. If the IP has made too many requests in a short period of time, it will be rate-limited and possibly banned.
     const diff = Number(lastseen) - Number(firstseen);
@@ -187,19 +187,19 @@ const isIpAllowed = async (req: Request | string, maxRequestMinute : number = ap
 
         if (!infractions) {
             logger.info(`isIpAllowed - Banning IP due to repeated abuse: ${clientIp}`);
-            return { ip: clientIp, reqcount: Number(reqcount), banned: true, domain: clientDomain, comments: `rate-limited: slow down there chief (${infractions} infractions)` };
+            return { ip: clientIp, reqcount: Number(reqcount), banned: true, domainId: clientDomain, domain: host, comments: `rate-limited: slow down there chief (${infractions} infractions)` };
         }
 
         if (Number(infractions) > 50) {
             logger.info(`isIpAllowed - Banning IP due to repeated abuse: ${clientIp}`);
             await banEntity(Number(dbid), "ips", `Abuse prevention, reqcount: ${reqcount}, infractions: ${infractions}`);
-            return { ip: clientIp, reqcount: Number(reqcount), banned: true, domain: clientDomain, comments: `banned due to repeated abuse (${infractions} infractions)` };
+            return { ip: clientIp, reqcount: Number(reqcount), banned: true, domainId: clientDomain, domain: host, comments: `banned due to repeated abuse (${infractions} infractions)` };
         }
 
-        return { ip: clientIp, reqcount: Number(reqcount), banned: true, domain: clientDomain, comments: `rate-limited: slow down there chief (${infractions} infractions)` };
+        return { ip: clientIp, reqcount: Number(reqcount), banned: true, domainId: clientDomain, domain: host, comments: `rate-limited: slow down there chief (${infractions} infractions)` };
     }
 
-    return {ip: clientIp, reqcount: Number(reqcount), banned, domain: clientDomain, comments: comments || ""};
+    return {ip: clientIp, reqcount: Number(reqcount), banned, domainId: clientDomain, domain: host, comments: comments || ""};
 }
 
 /*
@@ -207,7 +207,7 @@ const isIpAllowed = async (req: Request | string, maxRequestMinute : number = ap
 */
 setInterval(async () => {
 
-    if (!isModuleEnabled("security", app)) return;
+    if (!isModuleEnabled("security")) return;
 
     try {
         const ips = await redisCore.scanKeys("ips:*");
@@ -249,7 +249,7 @@ setInterval(async () => {
 */
 setInterval(async () => {
 
-    if (!isModuleEnabled("security", app)) return;
+    if (!isModuleEnabled("security")) return;
 
     if (ipUpdateBatch.size === 0) return;
 
@@ -277,7 +277,7 @@ setInterval(async () => {
  */
 const queueIpUpdate = (dbid: string, oldLastseen: number, now: number, increment: number = 1) => {
 
-    if (!isModuleEnabled("security", app)) return;
+    if (!isModuleEnabled("security")) return;
 
     if (ipUpdateBatch.has(dbid)) {
         const entry = ipUpdateBatch.get(dbid)!;

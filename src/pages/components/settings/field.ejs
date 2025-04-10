@@ -1,7 +1,8 @@
 <% 
   const {
     type, name, label, description, value, required,
-    options, alert, globalValue, overridable, placeholder
+    options, alert, globalValue, overridable, placeholder,
+    previewSrc, previewSize, previewClass, className
   } = typeof locals !== 'undefined' ? locals : {};
 
   const selectedDomain = locals?.selectedDomain || null;
@@ -13,11 +14,9 @@
   const effectiveOverride = hasOwnValue && isOverridable && !isGlobal;
   const shouldDisable = !isGlobal && !isOverridable;
   const effectiveValue = (value !== undefined) ? value : globalValue;
-
-
 %>
-<% const inputClass = `form-control${shouldDisable ? ' bg-light text-muted' : ''}`; %>
-<% const selectClass = `form-select${shouldDisable ? ' bg-light text-muted' : ''}`; %>
+<% const inputClass = `form-control${shouldDisable ? ' bg-light text-muted' : ''}${className ? ' ' + className : ''}`; %>
+<% const selectClass = `form-select${shouldDisable ? ' bg-light text-muted' : ''}${className ? ' ' + className : ''}`; %>
 
 <div class="form-group mt-3">
   <% if (label) { %>
@@ -38,14 +37,23 @@
     <p><%= description %></p>
   <% } %>
 
-  <% if (type === "text" || type === "number") { %>
+  <% if (type === "hidden") { %>
+    <input 
+      type="hidden" 
+      name="<%= name %>" 
+      id="<%= name %>" 
+      value="<%= effectiveValue %>" 
+      data-default-value="<%= effectiveValue %>" 
+      data-global-value="<%= globalValue %>"
+      >
+  <% } else if (type === "text" || type === "number") { %>
     <input 
       type="<%= type %>" 
       class="<%= inputClass %>" 
       name="<%= name %>" 
       id="<%= name %>" 
       value="<%= effectiveValue %>" 
-      defaultValue="<%= effectiveValue %>" 
+      data-default-value="<%= effectiveValue %>" 
       data-global-value="<%= globalValue %>"
       placeholder="<%= placeholder %>"
       <%= required ? "required" : "" %>
@@ -59,7 +67,7 @@
         name="<%= name %>" 
         id="<%= name %>" 
         value="<%= effectiveValue %>" 
-        defaultValue="<%= effectiveValue %>" 
+        data-default-value="<%= effectiveValue %>" 
         data-global-value="<%= globalValue %>"
         placeholder="<%= placeholder || '••••••' %>"
         <%= required ? "required" : "" %>
@@ -74,7 +82,7 @@
   <% } else if (type === "checkbox") { %>
     <div class="form-check form-switch">
       <input 
-        class="form-check-input" 
+        class="form-check-input<%= className ? ' ' + className : '' %>" 
         type="checkbox" 
         name="<%= name %>" 
         id="<%= name %>" 
@@ -84,23 +92,76 @@
         <%= shouldDisable ? "disabled" : "" %> >
     </div>
 
-    <% } else if (type === "select") { %>
-      <select
-        class="<%= selectClass %>"
-        name="<%= name %>"
+  <% } else if (type === "file") { %>
+    <%
+      const previewWidth = (previewSize && previewSize.width) || 100;
+      const previewHeight = (previewSize && previewSize.height) || 100;
+    %>
+    <div class="row mx-auto mb-1 align-items-center">
+      <div class="col-12 col-xl-3 mx-auto m-3">
+        <div class="mx-auto p-3 text-center bg-light rounded <%= previewClass ? previewClass : "" %>">
+          <img 
+            id="<%= name %>-preview" 
+            src="<%= previewSrc || '/static/resources/relay-icon.png' %>" 
+            alt="Preview" 
+            width="<%= previewWidth %>" 
+            height="<%= previewHeight %>">
+        </div>
+      </div>
+      <div class="col-12 col-md-9 col-xl-6">
+        <input 
+          type="file" 
+          id="<%= name %>" 
+          name="<%= name %>" 
+          class="<%= inputClass %>" 
+          accept="image/*"
+          <%= shouldDisable ? "disabled" : "" %> >
+      </div>
+      <div class="col-12 col-md-3 mt-2 mt-md-0">
+        <input type='text' class="d-none" id='<%= name %>.default' name='<%= name %>' value='false'>
+        <button
+          class="form-control btn btn-md btn-primary"
+          type="button"
+          onclick="saveSettingsFile('<%= name %>', true).then(response => {response.reload ? location.reload() : null})">
+          Restore
+        </button>
+      </div>
+    </div>
+
+  <% } else if (type === "color") { %>
+    <div class="mb-4">
+      <% if (label) { %>
+        <label for="<%= name %>" class="fw-bold"><%= label %></label>
+      <% } %>
+      <% if (description) { %>
+        <p><%= description %></p>
+      <% } %>
+      <input
+        type="color"
         id="<%= name %>"
-        data-global-value="<%= globalValue %>"
-        <%= shouldDisable ? "disabled" : "" %>>
-        <% options.forEach(opt => { %>
-          <option 
-            value="<%= opt.value %>" 
-            <%= opt.value === effectiveValue ? "selected" : "" %> 
-            <%= opt.value === effectiveValue ? "defaultSelected" : "" %>>
-            <%= opt.label %>
-          </option>
-        <% }) %>
-      </select>
-    <% } %>
+        name="<%= name %>"
+        value="<%= value %>"
+        class="form-control form-control-color${className ? ' ' + className : ''}"
+      />
+    </div>
+
+  <% } else if (type === "select") { %>
+    <select
+      class="<%= selectClass %>"
+      name="<%= name %>"
+      id="<%= name %>"
+      data-global-value="<%= globalValue %>"
+      <%= shouldDisable ? "disabled" : "" %>>
+      <% options.forEach(opt => { %>
+        <option 
+          value="<%= opt.value %>" 
+          <%= opt.value === effectiveValue ? "selected" : "" %> 
+          <%= opt.value === effectiveValue ? "defaultSelected" : "" %>>
+          <%= opt.label %>
+        </option>
+      <% }) %>
+    </select>
+  <% } %>
 
   <% if (alert) { %>
     <div class="alert alert-<%= alert.type || 'warning' %> mt-2" role="alert">

@@ -1,7 +1,8 @@
-import app from "../app.js";
 import { generateAuthToken } from "./authorization.js";
+import { getConfig } from "./config/core.js";
 import { dbMultiSelect } from "./database.js";
 import { Request, Response } from "express";
+import { hextoNpub } from "./nostr/NIP19.js";
 
 const countPubkeyFiles = async (pubkey: string): Promise<number> => {
 
@@ -9,50 +10,54 @@ const countPubkeyFiles = async (pubkey: string): Promise<number> => {
     return files ? files.length : 0;
 }
 
-const isFirstUse = async (req : Request, res: Response): Promise<boolean> => {
+const isAutoLoginEnabled = async (req : Request, res: Response): Promise<boolean> => {
 	
-	if (app.get("firstUse") == true){
-        req.session.identifier = app.get("config.server")["pubkey"];
+	if (getConfig(null, ["autoLogin"]) == true){
+        req.session.identifier = getConfig(req.hostname, ["server", "pubkey"]);
         const authToken = generateAuthToken(req.session.identifier, true);
         setAuthCookie(res, authToken);
         req.session.metadata = {
             hostedFiles: 0,
             usernames: [],
-            pubkey: app.get("config.server")["pubkey"],
-            npub: app.get("config.server")["npub"],
+            pubkey: getConfig(req.hostname, ["server", "pubkey"]),
+            npub: await hextoNpub(getConfig(req.hostname, ["server", "pubkey"])),
             lud16: ""
         }
         res.locals.firstUse =  
-        "<h5 class='mt-3 mb-2'>Read this carefully 💜</h5>" + 
-        "<p>You are automatically logged in with the user administrator '<b>public</b>'. This user is created automatically. " + 
-        "It is essential to keep this user in the database for the proper functioning of the server, <b>Don't delete this user</b>.</p>" +
+        "<h5 class='mt-3 mb-2'>Read this carefully 💜</h5>" +
+        "<p>You are currently logged in automatically with the special administrator account: <b>'public'</b>. This user is created by default and is essential for the server's initial operation. <b>Do not delete this user</b>.</p>" +
+      
         "<div class='alert alert-danger ps-2 pe-2 pt-1 pb-0' role='alert'>" +
-        "<p><b>The server will autologin until another user besides 'public' is created.</b> Please create another user as soon as possible and carefully note down the private key hosted in the settings page. " + 
-        "Log in on nostr using this private key and note down the password you will have received via DM.</p>" +
-        "</div>" + 
-        "<h5 class='mt-3 mb-2'>Keys</h5>" +
-        "<p>The public user has been created using the key pair specified in the <a class='text-decoration-none' href='https://github.com/quentintaranpino/nostrcheck-api-ts/blob/main/CONFIG.md' target='blank'>configuration file</a> to facilitate easy first access to the frontend. " +
-        "The server interacts with the outside using the key pair specified in the configuration file located at config/local.json</p> " + 
+          "<p><b>Autologin is currently enabled.</b> This means the server will automatically log in with the 'public' user until <b>you manually disable autologin in the settings</b>.</p>" +
+          "<p><b>We strongly recommend that you:</b><br>" +
+          "- Create a new user as soon as possible.<br>" +
+          "- Backup the <b>private key</b> available on the <a class='text-decoration-none' href='settings#settingsServer' target='blank'>settings page</a>.<br>" +
+          "- Note down the <b>legacy password</b> sent via nostr DM to the 'public' user.</p>" +
+        "</div>" +
+      
+        "<h5 class='mt-3 mb-2'>Key Management</h5>" +
+        "<p>The 'public' user was created using the key pair defined in the configuration file to allow easy access during the first use. The server communicates externally using this same key pair.</p>" +
         "<div class='alert alert-warning ps-2 pe-2 pt-1 pb-0' role='alert'>" +
-        "<p><b>The server's pubkey should always match the public user pubkey.</b> " +
-            "Keep these two keys the same to avoid data inconsistency problems.</p>" +
-        "</div>" + 
-        "<h5 class='mt-3 mb-2'>Store the private key</h5>" +
-        "<p>You will find the server's pubkey and private key on the <a class='text-decoration-none' href='settings#settingsServer' target='blank'>settings page.</a> " + 
-        "Please make a backup. Until another user besides 'public' is created, the server will automatically log in with this user after every restart to prevent losing access. " +
-        "Once you create another user, the autologin will stop, and you will need to log in manually.</p>" +
+          "<p><b>Ensure the server's pubkey matches the 'public' user's pubkey</b> to avoid inconsistencies in communication and data.</p>" +
+        "</div>" +
+      
+        "<h5 class='mt-3 mb-2'>Disabling Autologin</h5>" +
+        "<p>Once you've created another user and are confident you have safely stored the 'public' user's credentials and keys, you should disable autologin from the <a class='text-decoration-none' href='settings#settingsServer' target='blank'>settings page</a>. After that, the server will no longer log in automatically.</p>" +
+      
         "<h5 class='mt-3 mb-2'>Login Methods</h5>" +
-        "<p>All users can log in in three ways:</p>" +
+        "<p>Users can log in using one of the following methods:</p>" +
         "<ul>" +
-        "<li>Using a <b>NIP07 browser extension</b> (more info <a class='text-decoration-none' href='https://nostrcheck.me/register/browser-extension.php' target='blank'>here</a>).</li>" +
-        "<li>Via legacy username and password.</li>" +
-        "<li>Using a <b>one-time login code</b>, which can be generated and sent to the pubkey via nostr DM for secure access.</li>" +
+          "<li>With a <b>NIP-07 browser extension</b> (more info <a class='text-decoration-none' href='https://nostrcheck.me/register/browser-extension.php' target='blank'>here</a>).</li>" +
+          "<li>Via traditional username and password.</li>" +
+          "<li>Using a <b>one-time login code</b> sent via nostr DM to the user's pubkey.</li>" +
         "</ul>" +
+      
         "<div class='alert alert-primary ps-2 pe-2 pt-1 pb-0' role='alert'>" +
-            "<p>The current 'public' legacy password <b>is sent via nostr DM to himself</b>. You can check it using the most popular nostr clients.<p>" +
-        "</div>" + 
-        "<p>You can reset the password of any user, but not set it manually. " +
-        "The password will always be sent via DM to the user's related pubkey.</p>";
+          "<p>The legacy password for the 'public' user <b>has been sent via nostr DM to the same pubkey</b>. You can retrieve it using any nostr client.</p>" +
+        "</div>" +
+      
+        "<p>Note: Passwords are always sent via DM and cannot be set manually. You can reset any user's password at any time.</p>";
+      
         return true;
     }
 
@@ -72,36 +77,38 @@ const setAuthCookie = (res: Response, token: string) => {
     if (currentToken  == token) return;
 
     res.cookie('authkey', token, {
-        httpOnly: app.get('config.environment') != "production" ? false : true,
-        secure: app.get('config.environment') != "production" ? false : true,
+        httpOnly: getConfig(null, ["environment"]) != "production" ? false : true,
+        secure: getConfig(null, ["environment"]) != "production" ? false : true,
         sameSite: 'strict',
-        maxAge: app.get("config.session")["maxAge"],
+        maxAge: getConfig(null, ["session", "maxAge"]),
     });
 };
 
-const getLegalText = (): string => {
+const getLegalText = (hostname : string): string => {
 
-    if (app.get("config.server")["legal"]["entityType"] === "company") {
+    const legal = getConfig(hostname, ["server", "legal"]);
+
+    if (legal.entityType === "company") {
         return `
-* This service is operated by **${app.get("config.server")["legal"]["company"]}**.
-* Contact email: **${app.get("config.server")["legal"]["email"]}**
-* Registered address: **${app.get("config.server")["legal"]["address"]}**
-* Country of operation: **${app.get("config.server")["legal"]["country"]}**
-* Jurisdiction: **${app.get("config.server")["legal"]["jurisdiction"]}**
-* VAT Number: **${app.get("config.server")["legal"]["vat"] ? app.get("config.server")["legal"]["vat"] : "Not applicable"}**
-* PHONE: **${app.get("config.server")["legal"]["phone"] ? app.get("config.server")["legal"]["phone"] : "Not applicable"}**
+* This service is operated by **${legal.company}**.
+* Contact email: **${legal.email}**
+* Registered address: **${legal.address}**
+* Country of operation: **${legal.country}**
+* Jurisdiction: **${legal.jurisdiction}**
+* VAT Number: **${legal.vat || "Not applicable"}**
+* PHONE: **${legal.phone || "Not applicable"}**
         `.trim();
     } else {
         return `
 * This service is operated by an **individual operator**.
-* Contact email: **${app.get("config.server")["legal"]["email"]}**
+* Contact email: **${legal.email}**
 * Registered address: **Confidential**
-* Country of operation: **${app.get("config.server")["legal"]["country"]}**
-* Jurisdiction: **${app.get("config.server")["legal"]["jurisdiction"]}**
+* Country of operation: **${legal.country}**
+* Jurisdiction: **${legal.jurisdiction}**
 * VAT Number: **Not applicable**
 * PHONE: **Not applicable**
         `.trim();
     }
 }
 
-export {isFirstUse, countPubkeyFiles, setAuthCookie, getLegalText};
+export {isAutoLoginEnabled, countPubkeyFiles, setAuthCookie, getLegalText};

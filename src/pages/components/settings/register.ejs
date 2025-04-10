@@ -1,42 +1,57 @@
-<div id ="settingsServer">
-    <h3 class="mt-4">Register</h3>
-    <form class="form mx-auto">
-        <p>
-            In this section, you can configure the register settings of your server. It provides you with the flexibility to customize the registration settings according to your specific requirements.
-        </p>
-        <label for="register.minUsernameLength" class="mt-2 mb-1 fw-bold">Minimum username length</label>
-        <p>
-        Set the minimum number of characters required for a username. The username must be at least this long to be valid.
-        </p>
-        <input type="number" 
-               class="form-control" 
-               id="register.minUsernameLength" 
-               name="register.minUsernameLength" 
-               value="<%= locals.settingsRegister['minUsernameLength'] %>"
-               >
-        <label for="register.maxUsernameLength" class="mt-2 mb-1 fw-bold">Maximum username length</label>
-        <p>
-        Set the maximum number of characters allowed for a username. The username must not exceed this length to be valid.
-        </p>
-        <input type="number" 
-               class="form-control" 
-               id="register.maxUsernameLength" 
-               name="register.maxUsernameLength" 
-               value="<%= locals.settingsRegister['maxUsernameLength'] %>"
-               >
-        <label for="register.minPasswordLength" class="mt-2 mb-1 fw-bold">Minimum password length</label>
-        <p>
-        Set the minimum number of characters required for a password. The password must be at least this long to be valid.
-        </p>
-        <input type="number" 
-               class="form-control" 
-               id="register.minPasswordLength" 
-               name="register.minPasswordLength" 
-               value="<%= locals.settingsRegister['minPasswordLength'] %>"
-               >
-        
-        <div class="col-12 col-md-3 mb-5 mt-4 pb-5 pb-lg-0 mb-lg-2">
-            <button class="btn btn-lg mb-4 btn-primary w-100" name="Submit" type="button" onclick="saveSettings()">Save</button>
-        </div>
-    </form>
-  </div>
+<%
+  const cfg = locals.domainConfig?.register || {};
+  const globalCfg = locals.globalConfig?.register || {};
+%>
+<div id="settingsRegister">
+  <h3 class="mt-4">Register</h3>
+  <form class="form mx-auto">
+    <p>
+      In this section, you can configure the register settings of your server.
+      It provides you with the flexibility to customize the registration settings according to your specific requirements.
+    </p>
+
+    <%- include('field', {
+      type: "number",
+      name: "register.minUsernameLength",
+      label: "Minimum username length",
+      description: "Set the minimum number of characters required for a username. The username must be at least this long to be valid.",
+      value: cfg.minUsernameLength,
+      globalValue: globalCfg.minUsernameLength,
+      overridable: false
+    }) %>
+
+    <%- include('field', {
+      type: "number",
+      name: "register.maxUsernameLength",
+      label: "Maximum username length",
+      description: "Set the maximum number of characters allowed for a username. The username must not exceed this length to be valid.",
+      value: cfg.maxUsernameLength,
+      globalValue: globalCfg.maxUsernameLength,
+      overridable: false
+    }) %>
+
+    <%- include('field', {
+      type: "number",
+      name: "register.minPasswordLength",
+      label: "Minimum password length",
+      description: "Set the minimum number of characters required for a password. The password must be at least this long to be valid.",
+      value: cfg.minPasswordLength,
+      globalValue: globalCfg.minPasswordLength,
+      overridable: false
+    }) %>
+    
+    <%- include('field', {
+      type: "checkbox",
+      name: "register.requireinvite",
+      label: "Require invite",
+      description: "Require an invite code to register. If enabled, users must provide a valid invite code to create an account.",
+      value: cfg.requireinvite,
+      globalValue: globalCfg.requireinvite,
+      overridable: false,
+    }) %>
+
+    <div class="col-12 col-md-3 mb-5 mt-4 pb-5 pb-lg-0 mb-lg-2">
+      <button class="btn btn-lg mb-4 btn-primary w-100" name="Submit" type="button" onclick="saveSettings()">Save</button>
+    </div>
+  </form>
+</div>

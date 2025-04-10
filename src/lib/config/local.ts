@@ -74,30 +74,6 @@ const updateLocalConfigKey = async (key: string, value: string | number | boolea
     }
 };
 
-const loadconfigActiveModules = (app: Application): Module[] => {
-	const availableModules = Object.entries(app.get("config.server")["availableModules"] as Record<string, Module>);
-	const activeModules = availableModules
-		.filter(([_, module]) => module.enabled === true)
-		.map(([_, module]) => module);
-
-	// Always add the logger module to the active modules. It can't be disabled.
-	activeModules.push({
-		name: "logger",
-		enabled: true,
-		path: "/",
-		methods: ["Library"],
-		description: "This module manages the server logs engine."
-	});
-
-	return activeModules;
-}
-
-const isModuleEnabled = (moduleName: string, app: Application): boolean => {
-	const availableModules = loadconfigActiveModules(app);
-	const mod = availableModules.find((module) => module.name === moduleName);
-	return mod ? mod.enabled : false;
-}
-
 const loadConfigOptions = async (section:string) : Promise<Modules> => {
 	try{
 		return JSON.parse(JSON.stringify(config.get(section)));
@@ -110,7 +86,5 @@ const loadConfigOptions = async (section:string) : Promise<Modules> => {
 export { 
 	updateLocalConfigKey, 
 	syncDefaultConfigValues,
-	loadconfigActiveModules,
-	isModuleEnabled,
 	loadConfigOptions,
 };

@@ -1,4 +1,4 @@
-# Changelog 
+# Changelog
 
 ### 0.7.0
 
@@ -12,6 +12,8 @@
 - Improved Dashboard and settings page.
 - Custom file types and extensions.
 - Full multi-tenancy support.
+- Improved theming engine.
+- Fixed isFirstUse logic.
 
 ### 0.6.0
 
@@ -30,4 +32,3 @@
 - User profile page. Nostr profile update.
 - Plugins engine
 - Invites engine
-

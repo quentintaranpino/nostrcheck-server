@@ -4,7 +4,7 @@ import config from "config";
 import { exit } from "process";
 
 import { defaultConfig, localPath, necessaryKeys } from "../interfaces/config.js";
-import { updateLocalConfigKey } from "../lib/config/local.js";
+import { getConfig } from "../lib/config/core.js";
 
 const checkConfigNecessaryKeys = async () : Promise<void> => {
 
@@ -23,16 +23,13 @@ const checkConfigNecessaryKeys = async () : Promise<void> => {
 	
 	// Regenerate pubkey if missing and secretkey is present
 	if (missingFields.includes("server.pubkey") && !missingFields.includes("server.secretKey")){
-		const {default: app} = await import("../app.js");
 		console.warn("No pubkey found in config file. Generating new pubkey.")
+		const { getConfig, setConfig } = await import("../lib/config/core.js");
 		const { getPubkeyFromSecret } = await import("../lib/nostr/core.js");
-		const pubkey = await getPubkeyFromSecret(config.get("server.secretKey"));
+		const pubkey = await getPubkeyFromSecret(getConfig(null, ["server", "secretKey"]));
 		if (pubkey !== "") {
 			missingFields = missingFields.filter((field) => field !== "server.pubkey");
-			await updateLocalConfigKey("server.pubkey", pubkey);
-			const configServer = Object.assign({}, app.get("config.server"));
-			configServer.pubkey = pubkey;
-			app.set("config.server", configServer);
+			setConfig("", ["server", "pubkey"], pubkey);
 		}
 	}
 
@@ -42,13 +39,10 @@ const checkConfigNecessaryKeys = async () : Promise<void> => {
 		const { createkeyPair } = await import("../lib/nostr/core.js");
 		const keyPair = await createkeyPair();
 		if (keyPair.publicKey && keyPair.secretKey){
-			const {default: app} = await import("../app.js");
+			const { setConfig } = await import("../lib/config/core.js");
 			missingFields = missingFields.filter((field) => field !== "server.pubkey" && field !== "server.secretKey");
-			await updateLocalConfigKey("server.pubkey", keyPair.publicKey) && await updateLocalConfigKey("server.secretKey", keyPair.secretKey);
-			const configServer = Object.assign({}, app.get("config.server"));
-			configServer.pubkey = keyPair.publicKey;
-			configServer.secretKey = keyPair.secretKey;
-			app.set("config.server", configServer);
+			setConfig("", ["server", "pubkey"], keyPair.publicKey);
+			setConfig("", ["server", "secretKey"], keyPair.secretKey);
 		}
 	}
 
@@ -74,7 +68,6 @@ const checkConfigNecessaryKeys = async () : Promise<void> => {
 const migrateDBLocalpath = async () : Promise<boolean> => {
 
 	const { dbMultiSelect, dbUpdate} = await import("../lib/database.js");
-	const { default : app } = await import("../app.js");
 	const mediaFiles = await dbMultiSelect(
 									["filename", "pubkey", "type"],
 									"mediafiles",
@@ -87,6 +80,8 @@ const migrateDBLocalpath = async () : Promise<boolean> => {
     }
 
 	console.log("Migrating", mediaFiles.length, "files", "to new localpath folder version, it can take a while...");
+
+	const mediaPath = getConfig(null, ["storage", "local", "mediaPath"]);
 	
 	let count = 0;
 	for (const item of mediaFiles) {
@@ -102,7 +97,7 @@ const migrateDBLocalpath = async () : Promise<boolean> => {
 				console.error(`Failed to update media file ${filename} with type ${newType}`);
 				continue;
 			}
-			const newPath = path.join(app.get("config.storage")["local"]["mediaPath"], pubkey, filename);
+			const newPath = path.join(mediaPath, pubkey, filename);
 			console.log('Checking if file exists:', newPath);
 			if (!fs.existsSync(newPath)) {
 				console.error(`File not found: ${newPath}`);
@@ -125,9 +120,9 @@ const migrateDBLocalpath = async () : Promise<boolean> => {
 				continue;
 			}
 			try{
-				console.log('Trying to rename file:', newPath, 'to', path.join(app.get("config.storage")["local"]["mediaPath"], pubkey, newFilename));
-				await fs.rename(path.join(app.get("config.storage")["local"]["mediaPath"], pubkey, filename),
-								path.join(app.get("config.storage")["local"]["mediaPath"], pubkey, newFilename), async (err) => {
+				console.log('Trying to rename file:', newPath, 'to', path.join(mediaPath, pubkey, newFilename));
+				await fs.rename(path.join(mediaPath, pubkey, filename),
+								path.join(mediaPath, pubkey, newFilename), async (err) => {
 					if (err) {
 						console.error(`Failed to rename ${newType} file to ${newFilename}: ${err}`);
 						await dbUpdate('mediafiles', {'localpath': null}, ['filename', 'pubkey'], [filename, pubkey]);
@@ -163,13 +158,13 @@ const migrateDBLocalpath = async () : Promise<boolean> => {
 			continue;
 		}
 
-		const oldPath = path.join(app.get("config.storage")["local"]["mediaPath"], pubkey, filename);
-		const newPath = path.join(app.get("config.storage")["local"]["mediaPath"], hashpath, filename);
+		const oldPath = path.join(mediaPath, pubkey, filename);
+		const newPath = path.join(mediaPath, hashpath, filename);
 
 		try {
 
-			if (!fs.existsSync(path.join(app.get("config.storage")["local"]["mediaPath"], hashpath))) {
-				fs.mkdirSync(path.join(app.get("config.storage")["local"]["mediaPath"], hashpath));
+			if (!fs.existsSync(path.join(mediaPath, hashpath))) {
+				fs.mkdirSync(path.join(mediaPath, hashpath));
 			}
             await fs.rename(oldPath, newPath, async (err) => {
 				if (err) {
@@ -190,7 +185,7 @@ const migrateDBLocalpath = async () : Promise<boolean> => {
 	console.log("Cleaning empty folders...")
 	for (const item of mediaFiles) {
 		const {filename, pubkey} = item;
-		const oldPath = path.join(app.get("config.storage")["local"]["mediaPath"], pubkey);
+		const oldPath = path.join(mediaPath, pubkey);
 		try {
 			if (fs.existsSync(oldPath) && fs.readdirSync(oldPath).length === 0) {
 				fs.rmdirSync(oldPath);

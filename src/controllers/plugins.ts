@@ -1,11 +1,11 @@
 import { Request, Response } from "express";
 import { logger } from "../lib/logger.js";
 import app from "../app.js";
-import { isModuleEnabled } from "../lib/config/local.js";
 import { initPlugins, listPlugins } from "../lib/plugins/core.js";
 import { parseAuthHeader } from "../lib/authorization.js";
 import { setAuthCookie } from "../lib/frontend.js";
 import { isIpAllowed } from "../lib/security/ips.js";
+import { isModuleEnabled } from "../lib/config/core.js";
 
 const getPlugins = async (req: Request, res: Response): Promise<Response> => {
 
@@ -16,7 +16,7 @@ const getPlugins = async (req: Request, res: Response): Promise<Response> => {
 		return res.status(403).send({"status": "error", "message": reqInfo.comments});
 	}
 
-    if (!isModuleEnabled("plugins", app)) {
+    if (!isModuleEnabled("plugins")) {
         logger.info(`getPlugins - Attempt to access a non-active module: plugins | IP:`, reqInfo.ip);
         return res.status(403).send({"status": "error", "message": "Module is not enabled"});
     }
@@ -46,7 +46,7 @@ const reloadPlugins = async (req: Request, res: Response): Promise<Response> => 
 		return res.status(403).send({"status": "error", "message": reqInfo.comments});
 	}
 
-    if (!isModuleEnabled("plugins", app)) {
+    if (!isModuleEnabled("plugins")) {
         logger.info(`reloadPlugins - Attempt to access a non-active module: plugins | IP:`, reqInfo.ip);
         return res.status(403).send({"status": "error", "message": "Module is not enabled"});
     }

@@ -22,7 +22,7 @@ const loadAllDomains = async (): Promise<void> => {
   }
 };
 
-const getDomainId = async (domain: string): Promise<string | null> => {
+const getDomainId = async (domain: string): Promise<number | null> => {
   if (!domain) return null;
   const hostname = domain.split(':')[0];
 
@@ -37,7 +37,7 @@ const getDomainId = async (domain: string): Promise<string | null> => {
     : hostname;
 
   const cachedId = await redisCore.get(`domains:${mainDomain}`);
-  return cachedId ? cachedId : null;
+  return cachedId ? Number(cachedId) : null;
   
 };
   

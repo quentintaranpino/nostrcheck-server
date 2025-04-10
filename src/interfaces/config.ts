@@ -28,6 +28,7 @@ const defaultConfig = {
 
 	"environment" : "development",
 	"multiTenancy": false,
+	"autoLogin" : true,
 	"server": {
 		"host": "localhost",
 		"port": 3000,
@@ -247,7 +248,6 @@ const defaultConfig = {
 		"maxUsernameLength": 20,
 		"minPasswordLength": 12,
 		"requireinvite": false,
-		"requirepayment": false,
 	},
 	"security" : {
 		"maxDefaultRequestMinute": 150,
@@ -286,6 +286,18 @@ const defaultConfig = {
 		"workers": 2,
 		"maxQueueLength": 1000,
 	},
+	"appearance": {
+		"dynamicbackground": {
+			"orientation": "to top left",
+			"color1": "#007BFF",
+			"color2": "#FF66B2",
+			"color3": "#FF9933",
+			"color1Percent": "0%",
+			"color2Percent": "55%",
+			"color3Percent": "90%",
+			"particles": "astral"
+		},
+	}
 }
 
 const localPath = "./config/local.json";

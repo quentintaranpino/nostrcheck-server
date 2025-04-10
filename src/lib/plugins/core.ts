@@ -10,7 +10,7 @@ import * as NIP19 from "../nostr/NIP19.js";
 import * as registered from "../register.js";
 import { RedisService } from "../redis.js";
 import { getLocalFolder } from "../storage/local.js";
-import { isModuleEnabled } from "../config/local.js";
+import { isModuleEnabled } from '../config/core.js';
 
 let redisPlugins: RedisService;
 
@@ -27,7 +27,7 @@ const initPlugins = async (app: Application): Promise<boolean> => {
 
     app.set("plugins", []);
 
-    if (!isModuleEnabled("plugins", app)) {
+    if (!isModuleEnabled("plugins")) {
         return Promise.resolve(false);
     }
 
@@ -77,7 +77,7 @@ const listPlugins = (app: Application): string[] => {
 
 const executePlugins = async (input: pluginData, app: Application, moduleFilter: string): Promise<boolean> => {
 
-    if (!isModuleEnabled("plugins", app)) return Promise.resolve(true);
+    if (!isModuleEnabled("plugins")) return Promise.resolve(true);
 
     const plugins: plugin[] = app.get("plugins")
         .filter((p: plugin) => p.module === moduleFilter) 

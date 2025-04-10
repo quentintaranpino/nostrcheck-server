@@ -1,123 +1,117 @@
+<% 
+  const cfg = locals.domainConfig?.plugins || {}; 
+  const globalCfg = locals.globalConfig?.plugins || {};
+%>
 <div id="settingsPlugins">
-    <h3 class="mt-4">Plugins</h3>
-    <form class="form mx-auto">
-        <p> In this section, you can configure the plugins engine of your server. You can see more information about the plugins <a target="_blank" href="https://github.com/quentintaranpino/nostrcheck-server/blob/main/PLUGINS.md">here</a>
-        </p>
-        <label for="plugins.path" class="mt-1 mb-1 fw-bold">Plugins folder path</label>
-        <p>Set the path where the plugins are located.
-        </p>
-        <div class="col-12 col-md-4">
-            <input  type="text" 
-                    id="plugins.path"
-                    name="plugins.path" 
-                    class="form-control" 
-                    value="<%= locals.settingsPlugins['path'] %>" 
-                    placeholder="Default: plugins/" 
-                    required
-                    >
-        </div> 
-        <label for="plugins.reload" class="mt-3 mb-1 fw-bold">Reload plugins</label>
-        <p>Rerun the plugins engine to load new plugins or changes in the existing ones.
-        </p>
-        <div class="col-12 col-md-3 mb-5 mt-4 pb-5 pb-lg-0 mb-lg-2">
-            <button class="btn btn-lg mb-4 btn-primary w-100" name="plugins.reload" id="plugins.reload" type="button" onclick="reloadPlugins()"><i class="fa-solid fa-sync"></i> Reload</button>
-        </div>
-        <label for="plugins-table" class="mt-2 mb-1 fw-bold">Plugins list</label>
-        <p>
-            Here you can see the list of plugins that are currently installed in your server. You can change the name, order and enable or disable the plugins edditing the plugin files.
-        </p>
-        <table id="plugins-table" class="table table-striped">
-            <thead>
-                <tr>
-                    <th scope="col">Order</th>
-                    <th scope="col">Enabled</th>
-                    <th scope="col">Name</th>
-                    <th scope="col">Module</th>
-                </tr>
-            </thead>
-            <tbody>
-            </tbody>
-        </table>
-        <div class="alert alert-warning mt-3" role="alert">
-            <i class="fa-solid fa-triangle-exclamation"></i> Every plugin must have a unique name and module. The order is used to determine the order of execution of the plugins. The module 
-            is used to select witch server module will be affected by the plugin. The plugins must be enabled edditing each plugin file and then reloading the plugins engine using the button above.
-            </div>
-        <div class="col-12 col-md-3 mb-5 mt-4 pb-5 pb-lg-0 mb-lg-2">
-            <button class="btn btn-lg mb-4 btn-primary w-100" name="Submit" type="button" onclick="saveSettings()">Save</button>
-        </div>
-    </form>
-  </div>
+  <h3 class="mt-4">Plugins</h3>
+  <form class="form mx-auto">
+    <p>
+      In this section, you can configure the plugins engine of your server.
+      You can see more information about the plugins
+      <a target="_blank" href="https://github.com/quentintaranpino/nostrcheck-server/blob/main/PLUGINS.md">here</a>.
+    </p>
+
+    <%- include('field', {
+      type: "text",
+      name: "plugins.path",
+      label: "Plugins folder path",
+      description: "Set the path where the plugins are located.",
+      value: cfg.path,
+      globalValue: globalCfg.path,
+      placeholder: "Default: plugins/",
+      required: true,
+      overridable: false
+    }) %>
+
+    <div class="mb-4">
+      <label for="plugins.reload" class="mt-3 mb-1 fw-bold">Reload plugins</label>
+      <p>Rerun the plugins engine to load new plugins or changes in the existing ones.</p>
+      <div class="col-12 col-md-3">
+        <button class="btn btn-lg btn-primary w-100" name="plugins.reload" id="plugins.reload" type="button" onclick="reloadPlugins()">
+          <i class="fa-solid fa-sync"></i> Reload
+        </button>
+      </div>
+    </div>
+
+    <label for="plugins-table" class="mt-4 mb-1 fw-bold">Plugins list</label>
+    <p>
+      Here you can see the list of plugins that are currently installed in your server.
+      You can change the name, order and enable or disable the plugins editing the plugin files.
+    </p>
+
+    <table id="plugins-table" class="table table-striped">
+      <thead>
+        <tr>
+          <th scope="col">Order</th>
+          <th scope="col">Enabled</th>
+          <th scope="col">Name</th>
+          <th scope="col">Module</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+
+    <div class="alert alert-warning mt-3" role="alert">
+      <i class="fa-solid fa-triangle-exclamation"></i>
+      Every plugin must have a unique name and module. The order is used to determine the order of execution of the plugins.
+      The module is used to select which server module will be affected by the plugin.
+      The plugins must be enabled by editing each plugin file and then reloading the plugins engine using the button above.
+    </div>
+
+    <div class="col-12 col-md-3 mb-5 mt-4 pb-5 pb-lg-0 mb-lg-2">
+      <button class="btn btn-lg mb-4 btn-primary w-100" name="Submit" type="button" onclick="saveSettings()">Save</button>
+    </div>
+  </form>
+</div>
 
 <script>
 function reloadPlugins() {
-    document.getElementById('plugins.reload').disabled = true;
-    document.getElementById('plugins.reload').innerHTML = '<i class="fa-solid fa-sync fa-spin"></i> Reloading...';
-    fetch('/api/v2/plugins/reload', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        }
-    })
+  const btn = document.getElementById('plugins.reload');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fa-solid fa-sync fa-spin"></i> Reloading...';
+
+  fetch('/api/v2/plugins/reload', { method: 'POST', headers: { 'Content-Type': 'application/json' } })
     .then(response => response.json())
     .then(data => {
-        if (data.status == "success") {
-            showMessage(`Plugins reloaded successfully`, "alert-primary");
-            getPlugins();
-        } else {
-            showMessage(`Error reloading plugins: ${data.message}`, "alert-warning");
-        }
+      if (data.status === "success") {
+        showMessage(`Plugins reloaded successfully`, "alert-primary");
+        getPlugins();
+      } else {
+        showMessage(`Error reloading plugins: ${data.message}`, "alert-warning");
+      }
     })
-    .catch((error) => {
-        console.error('Error:', error);
-    })
+    .catch(error => console.error('Error:', error))
     .finally(() => {
-        document.getElementById('plugins.reload').disabled = false;
-        document.getElementById('plugins.reload').innerHTML = '<i class="fa-solid fa-sync"></i> Reload';
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fa-solid fa-sync"></i> Reload';
     });
 }
 
 function getPlugins() {
-    fetch('/api/v2/plugins', {
-        method: 'GET',
-        headers: {
-            'Content-Type': 'application/json',
-        }
-    })
+  fetch('/api/v2/plugins', {
+    method: 'GET',
+    headers: { 'Content-Type': 'application/json' }
+  })
     .then(response => response.json())
     .then(data => {
-        if (data.status == "success") {
-            $('#plugins-table').bootstrapTable('load', data.plugins);
-        } 
+      if (data.status === "success") {
+        $('#plugins-table').bootstrapTable('load', data.plugins);
+      }
     })
-    .catch((error) => {
-        console.error('Error:', error);
-    });
+    .catch(error => console.error('Error:', error));
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    $('#plugins-table').bootstrapTable({
-        columns: [{
-            field: 'order',
-            title: 'Order',
-            align: 'center',
-        }, {
-            field: 'enabled',
-            title: 'Enabled',
-            formatter: (value) => value ? 'True' : 'False',
-            align: 'center'
-        }, {
-            field: 'name',
-            title: 'Name',
-            align: 'center'
-        }, {
-            field: 'module',
-            title: 'Module',
-            align: 'center'
-        }
+  $('#plugins-table').bootstrapTable({
+    columns: [
+      { field: 'order', title: 'Order', align: 'center' },
+      { field: 'enabled', title: 'Enabled', formatter: (v) => v ? 'True' : 'False', align: 'center' },
+      { field: 'name', title: 'Name', align: 'center' },
+      { field: 'module', title: 'Module', align: 'center' }
     ],
-        sortName: 'order',
-        sortOrder: 'asc'
-    });
-    getPlugins();
+    sortName: 'order',
+    sortOrder: 'asc'
+  });
+  getPlugins();
 });
 </script>
