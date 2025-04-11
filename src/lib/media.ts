@@ -17,6 +17,7 @@ import { deleteLocalFile } from "./storage/local.js";
 import { moderateFile } from "./moderation/core.js";
 import app from "../app.js";
 import { getHostInfo } from "./utils.js";
+import { getConfig } from "./config/core.js";
 
 const prepareFile = async (t: MediaJob): Promise<void> =>{
 
@@ -625,13 +626,13 @@ const extractVideoFrames = async (videoPath: string, outputDir: string): Promise
  * @param type The media type (NIP96 or BLOSSOM)
  * @returns The URL of the media file
  **/
-const getMediaUrl = (type: "NIP96" | "BLOSSOM"): string => {
-	const environment = app.get("config.environment");
-	const useCDNPrefix = app.get("config.media")["useCDNPrefix"];
-	const returnURL = app.get("config.media")["returnURL"];
+const getMediaUrl = (type: "NIP96" | "BLOSSOM", domain: string): string => {
+	const environment = getConfig(null, ["environment"]);
+	const useCDNPrefix = getConfig(domain, ["media", "useCDNPrefix"]);
+	const returnURL = getConfig(domain, ["media", "returnURL"]);
 
-	const hostInfo = getHostInfo();
-	if (environment === "development")return `${hostInfo.url}/api/v2/media`;
+	const hostInfo = getHostInfo(domain);
+	if (environment === "development") return `${hostInfo.url}/api/v2/media`;
 	if (returnURL)	return returnURL;
 	return `https://${useCDNPrefix ? `cdn.${hostInfo.hostname}` : type === "NIP96" ? `${hostInfo.hostname}/media` : hostInfo.hostname}`;
 }
@@ -642,8 +643,8 @@ const getMediaUrl = (type: "NIP96" | "BLOSSOM"): string => {
  * @param pubkey The public key
  * @returns The URL of the file
  **/
-const getFileUrl = (filename: string, pubkey : string = ""): string => {
-	return `${getMediaUrl(pubkey != "" ? "NIP96" : "BLOSSOM")}/${pubkey !== "" ? pubkey + "/" : ""}${filename}`;
+const getFileUrl = (filename: string, pubkey : string = "", domain: string): string => {
+	return `${getMediaUrl(pubkey != "" ? "NIP96" : "BLOSSOM", domain)}/${pubkey !== "" ? pubkey + "/" : ""}${filename}`;
 };
 
 

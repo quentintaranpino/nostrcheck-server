@@ -16,7 +16,7 @@
       value: cfg.description,
       globalValue: globalCfg.description,
       required: true,
-      overridable: false
+      overridable: true
     }) %>
 
     <%- include('field', {
@@ -27,7 +27,7 @@
       value: cfg.contact,
       globalValue: globalCfg.contact,
       required: true,
-      overridable: false
+      overridable: true
     }) %>
 
     <%- include('field', {
@@ -35,9 +35,9 @@
       name: "relay.icon",
       label: "Relay icon",
       description: "Upload a new icon for your relay server. For better results, use an image with transparent background.",
-      previewSrc: "/static/resources/relay-icon.png", 
+      previewSrc: `/static/resources/relay-icon.png${selectedDomain ? `?domain=${selectedDomain}` : ""}`,
       previewSize: { width: 61, height: 61 },
-      overridable: false
+      overridable: true
     }) %>
 
     <%- include('field', {
@@ -48,7 +48,7 @@
       value: cfg.language_tags,
       globalValue: globalCfg.language_tags,
       required: true,
-      overridable: false
+      overridable: true
     }) %>
 
     <%- include('field', {
@@ -59,7 +59,7 @@
       value: cfg.workers,
       globalValue: globalCfg.workers,
       required: true,
-      overridable: false,
+      overridable: true,
       alert: {
         type: "warning",
         icon: "fa-triangle-exclamation",
@@ -75,7 +75,7 @@
       value: cfg.maxQueueLength,
       globalValue: globalCfg.maxQueueLength,
       required: true,
-      overridable: false
+      overridable: true
     }) %>
 
     <% const limitation = cfg.limitation || {}; const globalLimitation = globalCfg.limitation || {}; %>
@@ -91,7 +91,7 @@
       value: limitation.max_message_length,
       globalValue: globalLimitation.max_message_length,
       required: true,
-      overridable: false
+      overridable: true
     }) %>
 
     <%- include('field', {
@@ -102,7 +102,7 @@
       value: limitation.max_subscriptions,
       globalValue: globalLimitation.max_subscriptions,
       required: true,
-      overridable: false
+      overridable: true
     }) %>
 
     <%- include('field', {
@@ -113,7 +113,7 @@
       value: limitation.max_filters,
       globalValue: globalLimitation.max_filters,
       required: true,
-      overridable: false
+      overridable: true
     }) %>
 
     <%- include('field', {
@@ -124,7 +124,7 @@
       value: limitation.max_limit,
       globalValue: globalLimitation.max_limit,
       required: true,
-      overridable: false
+      overridable: true
     }) %>
 
     <%- include('field', {
@@ -135,7 +135,7 @@
       value: limitation.max_subid_length,
       globalValue: globalLimitation.max_subid_length,
       required: true,
-      overridable: false
+      overridable: true
     }) %>
 
     <%- include('field', {
@@ -146,7 +146,7 @@
       value: limitation.max_event_tags,
       globalValue: globalLimitation.max_event_tags,
       required: true,
-      overridable: false
+      overridable: true
     }) %>
 
     <%- include('field', {
@@ -157,7 +157,7 @@
       value: limitation.max_content_length,
       globalValue: globalLimitation.max_content_length,
       required: true,
-      overridable: false
+      overridable: true
     }) %>
 
     <%- include('field', {
@@ -168,7 +168,7 @@
       value: limitation.min_pow_difficulty,
       globalValue: globalLimitation.min_pow_difficulty,
       required: true,
-      overridable: false
+      overridable: true
     }) %>
 
     <%- include('field', {
@@ -178,7 +178,7 @@
       description: "If enabled, all requests must be authenticated. See NIP-42.",
       value: limitation.auth_required,
       globalValue: globalLimitation.auth_required,
-      overridable: false
+      overridable: true
     }) %>
 
     <%- include('field', {
@@ -189,7 +189,7 @@
       value: limitation.created_at_lower_limit,
       globalValue: globalLimitation.created_at_lower_limit,
       required: true,
-      overridable: false
+      overridable: true
     }) %>
 
     <%- include('field', {
@@ -200,7 +200,7 @@
       value: limitation.created_at_upper_limit,
       globalValue: globalLimitation.created_at_upper_limit,
       required: true,
-      overridable: false
+      overridable: true
     }) %>
 
     <%- include('field', {
@@ -211,7 +211,7 @@
       value: limitation.max_time_range,
       globalValue: globalLimitation.max_time_range,
       required: true,
-      overridable: false
+      overridable: true
     }) %>
 
     <%- include('field', {
@@ -222,7 +222,7 @@
       value: cfg.tags,
       globalValue: globalCfg.tags,
       required: true,
-      overridable: false
+      overridable: true
     }) %>
 
     <div class="col-12 col-md-3 mb-5 mt-4 pb-5 pb-lg-0 mb-lg-2">

@@ -63,7 +63,7 @@ const isNIP98Valid = async (authevent: Event, req: Request, checkAdminPrivileges
 
 	// Check if event authorization u tag (URL) is valid (Must be the same as the server endpoint)
 	try {
-		const serverHost = getHostInfo().hostname.toLowerCase().replace(/\/+$/, '');
+		const serverHost = getHostInfo(req.hostname).hostname.toLowerCase().replace(/\/+$/, '');
 
 		if ((eventHost == null || eventHost == undefined || eventHost != serverHost) && app.get('config.environment') != "development") {
 			logger.warn(`isNIP98Valid - Auth header event endpoint is not valid: ${eventHost} <> ${serverHost}`, "|", getClientIp(req));

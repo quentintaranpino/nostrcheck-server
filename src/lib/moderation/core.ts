@@ -26,7 +26,7 @@ async function moderationWorker(task: ModerationJob): Promise<ModerationCategory
         result = await localEngineClassify(filePath);
     } else if (app.get("config.media")["mediainspector"]["type"] === "remote") {
         result = await remoteEngineClassify(
-            getFileUrl(taskData[0].filename),
+            getFileUrl(taskData[0].filename, undefined, ""),
             app.get("config.media")["mediainspector"]["remote"]["endpoint"],
             app.get("config.media")["mediainspector"]["remote"]["apikey"],
             app.get("config.media")["mediainspector"]["remote"]["secretkey"]
@@ -50,6 +50,7 @@ async function moderationWorker(task: ModerationJob): Promise<ModerationCategory
  * @param url - URL of the file.
  * @param originTable - The database table where the record is stored.
  * @param originId - The ID of the record in the database.
+ * @param originDomain - The domain of the file.
  * @returns A Promise resolving to a boolean indicating the moderation task was successfully enqueued.
  */
 const moderateFile = async (originTable: string, originId: string): Promise<boolean> => {

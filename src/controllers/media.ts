@@ -223,7 +223,7 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 		return res.status(401).send({"status": "error", "message": "Not authorized"});
 	}
 
-	filedata.url = (eventHeader.kind == BUDKinds.BUD01_auth || req.method == "PUT") ? getFileUrl(filedata.filename) : getFileUrl(filedata.filename, pubkey);
+	filedata.url = (eventHeader.kind == BUDKinds.BUD01_auth || req.method == "PUT") ? getFileUrl(filedata.filename, undefined, req.hostname) : getFileUrl(filedata.filename, pubkey, req.hostname);
 
 	// Standard media conversions
 	standardMediaConversion(filedata, file);
@@ -442,7 +442,7 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 	if (processFile){
 
 		filedata.description = "File enqueued for processing";
-		filedata.processing_url = filedata.no_transform == true? "" : `${getMediaUrl("NIP96")}/${filedata.fileid}`;
+		filedata.processing_url = filedata.no_transform == true? "" : `${getMediaUrl("NIP96", req.hostname)}/${filedata.fileid}`;
 		res.status(202)
 
 		//Send request to process queue
@@ -741,7 +741,7 @@ const getMediaList = async (req: Request, res: Response): Promise<Response> => {
 			if (transaction.isPaid == false) listedFile.payment_request = transaction.paymentRequest;
 		}
 
-		listedFile.url = pubkey != "" ? getFileUrl(listedFile.filename) : getFileUrl(listedFile.filename, listedFile.pubkey);
+		listedFile.url = pubkey != "" ? getFileUrl(listedFile.filename, undefined, req.hostname) : getFileUrl(listedFile.filename, listedFile.pubkey, req.hostname);
 	
 		const file = req.params.param1 == "list" ? await prepareBlobDescriptor(listedFile) : await PrepareNIP96_listEvent(listedFile);
 		files.push(file);
@@ -850,7 +850,7 @@ const getMediaStatusbyID = async (req: Request, res: Response, version:string): 
 		pubkey: pubkey,
 		originalhash: original_hash,
 		hash: hash,
-		url: getFileUrl(filename, pubkey),
+		url: getFileUrl(filename, pubkey, req.hostname),
 		magnet: magnet,
 		blurhash: blurhash,
 		media_type: "", 

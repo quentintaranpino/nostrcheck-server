@@ -25,7 +25,7 @@ import {
 } from "../controllers/admin.js";
 
 const adminCORS = {
-    origin: getHostInfo().url,
+    origin: getHostInfo("").url,
     Credentials: true,
 }
 

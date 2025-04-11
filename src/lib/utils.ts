@@ -8,6 +8,7 @@ import ffmpeg from "fluent-ffmpeg";
 import app from "../app.js";
 import { randomBytes } from "crypto";
 import MarkdownIt from "markdown-it";
+import { getConfig } from "./config/core.js";
 
 const format = (seconds:number):string =>{
 	function pad(s: number){
@@ -196,10 +197,10 @@ function getCPUUsage(): Promise<number> {
  * Get host information
  * @returns { hostname: string, port: string, url: string, mediaURL: string }
  */
-const getHostInfo = (): { hostname: string, port: string, url: string} => {
-	const environment = app.get("config.environment");
-	const port = app.get("config.server")["port"];
-	const hostname = app.get("config.server")["host"];
+const getHostInfo = (domain: string): { hostname: string, port: string, url: string} => {
+	const environment = getConfig(null, ["environment"]);
+	const port = getConfig(null, ["server", "port"]);
+	const hostname = getConfig(domain, ["server", "host"]);
 	const url = environment === "development" ? `http://localhost:${port}` : `https://${hostname}`;
 	return {hostname, port, url};
 };

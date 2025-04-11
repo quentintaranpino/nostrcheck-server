@@ -7,13 +7,13 @@ import { getHostInfo } from "../utils.js";
 
 //https://github.com/nostr-protocol/nips/blob/master/96.md
 
-const getNIP96file = async (): Promise<NIP96file> => {
+const getNIP96file = async (domain: string): Promise<NIP96file> => {
 
     const nip96file : NIP96file= {
     
-        "api_url": `${getMediaUrl("NIP96")}`,
+        "api_url": `${getMediaUrl("NIP96", domain)}`,
         "supported_nips": supported_nips,
-        "tos_url": `${getHostInfo().url}/api/v2/tos/`,
+        "tos_url": `${getHostInfo(domain).url}/api/v2/tos/`,
         "content_types": await getAllowedMimeTypes(),
         "plans": {
             "free": {

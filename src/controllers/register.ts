@@ -124,7 +124,7 @@ const registerUsername = async (req: Request, res: Response): Promise<Response> 
 	// Check if payments module is active and if true generate paymentRequest
 	let paymentRequest = "";
 	let satoshi = 0;
-	const requirePayment = getConfig(domain, ["payments", "satoshi", "registerMaxSatoshi"]);
+	const requirePayment = getConfig(domain, ["payments", "satoshi", "registerMaxSatoshi"]) > 0;
 	if (requirePayment && isModuleEnabled("payments")) {
 		
 		const transaction : Transaction = await checkTransaction(
