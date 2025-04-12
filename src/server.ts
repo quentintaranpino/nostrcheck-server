@@ -32,8 +32,8 @@ const startServer = async () => {
     await initPlugins(app);
 
     // Show server startup message
-    const { serverBanner } = await import("./lib/server.js");
-    console.log(serverBanner(app));
+    const { serverBanner } = await import("./lib/utils.js");
+    console.log(serverBanner());
 
     // Show server startup stactics
     const { showDBStats } = await import("./lib/database.js");

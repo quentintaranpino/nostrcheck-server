@@ -3,16 +3,16 @@ import { Logger } from "tslog";
 import { LogEvent } from "../interfaces/logger.js";
 import { getNewDate } from "./utils.js";
 import { sendMessage } from "./nostr/NIP04.js";
-import app from "../app.js";
+import { getConfig } from "./config/core.js";
 
 const logHistory: LogEvent[] = [];
 
-const filename = (app.get('config.logger')['filename'] || 'server' ) + '.log'
-const fileInterval = app.get('config.logger')['fileInterval'] || '1d';
-const fileSize = app.get('config.logger')['fileSize'] || '10M';
-const fileCompress = app.get('config.logger')['fileCompress'] || 'gzip';
-const logPath = app.get('config.logger')['logPath'] || 'logs/';
-const minLevel = app.get('config.logger')['minLevel'] || 5;
+const filename = (getConfig(null, ["logger", "filename"]) || 'server' ) + '.log'
+const fileInterval = getConfig(null, ["logger", "fileInterval"]) || '1d';
+const fileSize = getConfig(null, ["logger", "fileSize"]) || '10M';
+const fileCompress = getConfig(null, ["logger", "fileCompress"]) || 'gzip';
+const logPath = getConfig(null, ["logger", "logPath"]) || 'logs/';
+const minLevel = getConfig(null, ["logger", "minLevel"]) || 5;
 
 // Create a rotating write stream
 const stream = createStream(filename, {
@@ -32,7 +32,7 @@ const logger = new Logger({
 	prettyErrorLoggerNameDelimiter: "\t",
 	stylePrettyLogs: true,
 	prettyLogTimeZone: "UTC",
-	hideLogPositionForProduction: app.get('config.environment') === 'production' ? true : false,
+	hideLogPositionForProduction: getConfig(null, ["environment"]) === 'production' ? true : false,
 	prettyLogStyles: {
 		logLevelName: {
 			"*": ["bold", "black", "bgWhiteBright", "dim"],
@@ -76,7 +76,12 @@ logger.attachTransport(async (log) => {
 				message: logMessage,
 			};
 
-			if (app.get('config.logger')['sendDM'] == true && log._meta.logLevelId >= 4) await sendMessage(`${logEvent.severity} message detected: ${logEvent.message}`, app.get('config.logger')['sendPubkey'] != "" ? app.get('config.logger')['sendPubkey'] : app.get('config.server')['pubkey']);
+			if (getConfig(null, ["logger", "sendDM"]) == true && log._meta.logLevelId >= 4){
+				await sendMessage(
+					`${logEvent.severity} message detected: ${logEvent.message}`, 
+					getConfig(null, ["logger", "sendPubkey"]) != "" ? 
+					getConfig(null, ["logger", "sendPubkey"]) : getConfig(null, ["server", "pubkey"]));
+			} 
 
 			logHistory.push(logEvent);
 			if (logHistory.length > 10000) logHistory.shift();

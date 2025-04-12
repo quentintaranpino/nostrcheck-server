@@ -4,10 +4,10 @@ import { Event } from "nostr-tools";
 import { logger } from "../../lib/logger.js";
 import { NIPKinds } from "../../interfaces/nostr.js";
 import { authHeaderResult } from "../../interfaces/authorization.js";
-import app from "../../app.js";
 import { isPubkeyValid } from "../authorization.js";
 import { getClientIp } from "../security/ips.js";
 import { getHostInfo } from "../utils.js";
+import { getConfig } from "../config/core.js";
 
 /**
  * Parses the authorization Nostr header (NIP98) and checks if it is valid. Visit for more information:
@@ -42,7 +42,7 @@ const isNIP98Valid = async (authevent: Event, req: Request, checkAdminPrivileges
 	try {
 		let created_at = authevent.created_at;
 		const now = Math.floor(Date.now() / 1000);
-		if (app.get('config.environment')  == "development") {
+		if (getConfig(null, ["environment"]) == "development") {
 			logger.warn(`isNIP98Valid - DEVMODE: Setting created_at to now`, "|", getClientIp(req)); // If devmode is true, set created_at to now for testing purposes
 			created_at = now - 30;
 		} 
@@ -65,7 +65,7 @@ const isNIP98Valid = async (authevent: Event, req: Request, checkAdminPrivileges
 	try {
 		const serverHost = getHostInfo(req.hostname).hostname.toLowerCase().replace(/\/+$/, '');
 
-		if ((eventHost == null || eventHost == undefined || eventHost != serverHost) && app.get('config.environment') != "development") {
+		if ((eventHost == null || eventHost == undefined || eventHost != serverHost) && getConfig(null, ["environment"]) != "development") {
 			logger.warn(`isNIP98Valid - Auth header event endpoint is not valid: ${eventHost} <> ${serverHost}`, "|", getClientIp(req));
 			// return {status: "error", message: `Auth header (NIP98) event endpoint is not valid: ${eventEndpoint} <> ${serverEndpoint}`, authkey: "", pubkey: "", kind: 0};
 		}

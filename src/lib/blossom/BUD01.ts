@@ -3,10 +3,10 @@ import { authHeaderResult } from "../../interfaces/authorization.js";
 import { Event } from "nostr-tools";
 import { Request } from "express";
 import { logger } from "../logger.js";
-import app from "../../app.js";
 import { BUDKinds } from "../../interfaces/blossom.js";
 import { isPubkeyValid } from "../authorization.js";
 import { getClientIp } from "../security/ips.js";
+import { getConfig } from "../config/core.js";
 
 
 /**
@@ -75,7 +75,7 @@ const isBUD01AuthValid = async (authevent: Event, req: Request, endpoint: string
 	// Check if event authorization u tag (URL) is valid (Must be the same as the server endpoint)
 	try {
 
-		if (app.get('config.environment') == "development") {
+		if (getConfig(null, ["environment"]) == "development") {
 			logger.warn(`isBUD01AuthValid - DEVMODE: Setting 't'(endpoint) tag same as the endpoint URL: ${eventEndpoint} <> ${endpoint}`, "|", getClientIp(req));
 			eventEndpoint = endpoint;
 		} 

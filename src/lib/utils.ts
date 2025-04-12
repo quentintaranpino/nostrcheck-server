@@ -5,7 +5,6 @@ import QRCode from 'qrcode';
 import sharp from "sharp";
 import fs from "fs";
 import ffmpeg from "fluent-ffmpeg";
-import app from "../app.js";
 import { randomBytes } from "crypto";
 import MarkdownIt from "markdown-it";
 import { getConfig } from "./config/core.js";
@@ -133,8 +132,9 @@ const addTextToImage = async (imageBuffer: Buffer, firstText: string, secondText
 
 const generateVideoFromImage = (imageBuffer: Buffer): Promise<Buffer> => {
     return new Promise((resolve) => {
-        const tempImagePath = app.get("config.storage")["local"]["tempPath"] + `/${randomBytes(32).toString('hex')}.webp`;
-        const tempVideoPath = app.get("config.storage")["local"]["tempPath"] + `/${randomBytes(32).toString('hex')}.mp4`;
+
+		const tempImagePath = getConfig(null, ["storage", "local", "tempPath"]) + `/${randomBytes(32).toString('hex')}.webp`;
+		const tempVideoPath = getConfig(null, ["storage", "local", "tempPath"]) + `/${randomBytes(32).toString('hex')}.mp4`;
 
         fs.writeFileSync(tempImagePath, imageBuffer);
 
@@ -244,6 +244,60 @@ const parseBoolean = (value: any): boolean => {
 	return false;
 };
 
+const serverBanner = () : string => {
+
+	const banner : string[] = [];
+
+	banner.push("");
+	banner.push("");
+
+	banner.push(
+	"███╗   ██╗ ██████╗ ███████╗████████╗██████╗  ██████╗██╗  ██╗███████╗ ██████╗██╗  ██╗"
+	);
+	banner.push(
+		"████╗  ██║██╔═══██╗██╔════╝╚══██╔══╝██╔══██╗██╔════╝██║  ██║██╔════╝██╔════╝██║ ██╔╝" 
+	);
+	banner.push(
+		"██╔██╗ ██║██║   ██║███████╗   ██║   ██████╔╝██║     ███████║█████╗  ██║     █████╔╝" 
+	);
+	banner.push(
+		"██║╚██╗██║██║   ██║╚════██║   ██║   ██╔══██╗██║     ██╔══██║██╔══╝  ██║     ██╔═██╗"  
+	);
+	banner.push(
+		"██║ ╚████║╚██████╔╝███████║   ██║   ██║  ██║╚██████╗██║  ██║███████╗╚██████╗██║  ██╗"
+	);
+	banner.push(
+		"╚═╝  ╚═══╝ ╚═════╝ ╚══════╝   ╚═╝   ╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝╚══════╝ ╚═════╝╚═╝  ╚═╝"
+	);
+	banner.push("");
+	banner.push(
+		"███████╗███████╗██████╗ ██╗   ██╗███████╗██████╗ "
+	);
+	banner.push(
+		"██╔════╝██╔════╝██╔══██╗██║   ██║██╔════╝██╔══██╗"
+	);
+	banner.push(
+		"███████╗█████╗  ██████╔╝██║   ██║█████╗  ██████╔╝"
+	);
+	banner.push(
+		"╚════██║██╔══╝  ██╔══██╗╚██╗ ██╔╝██╔══╝  ██╔══██╗"
+	);
+	banner.push(
+		"███████║███████╗██║  ██║ ╚████╔╝ ███████╗██║  ██║"
+	);
+	banner.push(
+		"╚══════╝╚══════╝╚═╝  ╚═╝  ╚═══╝  ╚══════╝╚═╝  ╚═╝"
+	);
+	banner.push(`Nostrcheck server started, version ${getConfig(null, ["version"])}.`);
+	banner.push(`Running at http://localhost:${getConfig(null, ["server", "port"])} in ${getConfig(null, ["environment"])} mode.`);
+	banner.push(`Documentation: https://github.com/quentintaranpino/nostrcheck-server/blob/main/DOCS.md`)
+	banner.push("");
+	banner.push("Press CTRL-C to stop the server");
+	banner.push("");
+
+	return banner.join('\r\n').toString();
+}
+
 export { format, 
 	    currDir, 
 		markdownToHtml, 
@@ -253,4 +307,5 @@ export { format,
 		getCPUUsage, 
 		getHostInfo, 
 		safeJSONParse,
-		parseBoolean};
+		parseBoolean,
+		serverBanner};

@@ -1,12 +1,11 @@
 
 import session from "express-session";
 import crypto from 'crypto';
+import cookieParser from 'cookie-parser';
 import { logger } from "./logger.js";
 import { Application } from "express"
-import { updateLocalConfigKey } from "./config/local.js";
 import { localUserMetadata } from "../interfaces/frontend.js";
-import app from "../app.js";
-import cookieParser from 'cookie-parser';
+import { getConfig, setConfig } from "./config/core.js";
 
 declare module 'express-session' {
 	interface Session {
@@ -29,35 +28,34 @@ const initSession = async (app:Application): Promise<void> => {
         resave: false,
         saveUninitialized: false,
         cookie: {
-            secure: app.get('config.environment') != "production" ? false : true,     //Disable secure cookie in development environment
+            secure: getConfig(null, ["environment"]) != "production" ? false : true,     //Disable secure cookie in development environment
             sameSite: 'strict',
-            httpOnly: app.get('config.environment') != "production" ? false : true,   //Disable httpOnly cookie in development environment
-            maxAge: app.get("config.session")["maxAge"],
-        }
+            httpOnly: getConfig(null, ["environment"]) != "production" ? false : true,   //Disable httpOnly cookie in development environment
+            maxAge: getConfig(null, ["session", "maxAge"]),
+        },
     }))
 
     app.use(cookieParser());
+
 }
 
 const getSessionSecret = async(): Promise<string> => {
 
-    if (app.get('config.session')['secret'] == undefined || 
-        app.get('config.session')['secret'] == "" ||
-        app.get('config.session')['secret']?.length < 64) {
+    const sessionSecret = getConfig(null, ["session", "secret"]);
+
+    if (sessionSecret == undefined || sessionSecret == "" || sessionSecret?.length < 64) {
         
         logger.info(`getSessionSecret - Insecure session.secret detected in config file - Generating random secret`);
         const newSecret = crypto.randomBytes(64).toString('hex');
 
-        if (await updateLocalConfigKey("session.secret", newSecret)){
-            const configSession = { ...app.get('config.session') }; 
-            configSession.secret = newSecret;
-            app.set('config.session', configSession);
+        if (await setConfig("", ["session", "secret"], newSecret)) {
             return newSecret;
         }
-        return "";
+        logger.fatal(`getSessionSecret - Failed to set new session secret. Exiting...`);
+        process.exit(1);
 
     }{
-        return app.get('config.session')['secret'];
+        return sessionSecret;
     }
 
 }

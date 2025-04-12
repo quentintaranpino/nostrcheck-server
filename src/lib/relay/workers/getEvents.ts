@@ -26,7 +26,7 @@ const initWorker = async (redisConfig: RedisConfig): Promise<void> => {
     password : process.env.REDIS_PASSWORD || redisConfig.password,
     defaultDB : redisConfig.defaultDB
     });
-  await redisWorker.init();
+  await redisWorker.init(true);
 
 };
 

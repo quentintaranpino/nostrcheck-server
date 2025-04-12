@@ -45,7 +45,7 @@ const redisCore = new RedisService({
   user: process.env.REDIS_USER || getConfig(null, ["redis", "user"]),
   password: process.env.REDIS_PASSWORD || getConfig(null, ["redis", "password"]),
 });
-await redisCore.init(app)
+await redisCore.init()
 app.set("redisCore", redisCore);
 
 export default app;

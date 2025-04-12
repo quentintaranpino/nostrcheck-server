@@ -23,7 +23,7 @@ const initPlugins = async (app: Application): Promise<boolean> => {
         password: process.env.REDIS_PASSWORD || app.get("config.redis")["password"],
         defaultDB: 1 
     });
-    await redisPlugins.init(app);
+    await redisPlugins.init();
 
     app.set("plugins", []);
 
