@@ -43,7 +43,7 @@ const processFile = async ( inputFile: Express.Multer.File,	options: FileData, r
 
 	if (retry > 5) {return false}
 	
-	options.conversionOutputPath = getConfig(options.domain, ["storage", "local", "tempPath"]) + "out" + crypto.randomBytes(20).toString('hex') + options.filename;
+	options.conversionOutputPath = getConfig(options.tenant, ["storage", "local", "tempPath"]) + "out" + crypto.randomBytes(20).toString('hex') + options.filename;
 
 	logger.debug(`processFile - Processing file: ${inputFile.originalname}, using temporary paths: ${options.conversionInputPath}, ${options.conversionOutputPath}`);
 
@@ -263,25 +263,25 @@ const standardMediaConversion = (filedata : FileData , file:Express.Multer.File)
 
 	// Video or image conversion options
 	if (file.mimetype.toString().startsWith("video")) {
-		filedata.width = getConfig(filedata.domain, ["media", "transform", "media", "video", "width"]);
-		filedata.height = getConfig(filedata.domain, ["media", "transform", "media", "video", "height"]);
+		filedata.width = getConfig(filedata.tenant, ["media", "transform", "media", "video", "width"]);
+		filedata.height = getConfig(filedata.tenant, ["media", "transform", "media", "video", "height"]);
 		filedata.outputoptions = '-preset veryfast';
 	}
 	if (file.mimetype.toString().startsWith("image")) {
-		filedata.width = getConfig(filedata.domain, ["media", "transform", "media", "image", "width"]);
-		filedata.height = getConfig(filedata.domain, ["media", "transform", "media", "image", "height"]);
+		filedata.width = getConfig(filedata.tenant, ["media", "transform", "media", "image", "width"]);
+		filedata.height = getConfig(filedata.tenant, ["media", "transform", "media", "image", "height"]);
 	}
 
 	// Avatar conversion options
 	if (filedata.media_type.toString() === "avatar"){
-		filedata.width = getConfig(filedata.domain, ["media", "transform", "avatar", "width"]);
-		filedata.height = getConfig(filedata.domain, ["media", "transform", "avatar", "height"]);
+		filedata.width = getConfig(filedata.tenant, ["media", "transform", "avatar", "width"]);
+		filedata.height = getConfig(filedata.tenant, ["media", "transform", "avatar", "height"]);
 	}
 
 	// Banner conversion options
 	if (filedata.media_type.toString() === "banner"){
-		filedata.width = getConfig(filedata.domain, ["media", "transform", "banner", "width"]);
-		filedata.height = getConfig(filedata.domain, ["media", "transform", "banner", "height"]);
+		filedata.width = getConfig(filedata.tenant, ["media", "transform", "banner", "width"]);
+		filedata.height = getConfig(filedata.tenant, ["media", "transform", "banner", "height"]);
 	}
 
 	return;
@@ -349,28 +349,28 @@ const setMediaDimensions = async (file:string, options:FileData):Promise<string>
 
 		// Avatar and banner dimensions
 		if (options.media_type == "avatar") {
-			newWidth = getConfig(options.domain, ["media", "transform", "avatar", "width"]);
-			newHeight = getConfig(options.domain, ["media", "transform", "avatar", "height"]);
+			newWidth = getConfig(options.tenant, ["media", "transform", "avatar", "width"]);
+			newHeight = getConfig(options.tenant, ["media", "transform", "avatar", "height"]);
 			resolve(newWidth + "x" + newHeight);
 			return;
 		}
 
 		if (options.media_type == "banner") {
-			newWidth = getConfig(options.domain, ["media", "transform", "banner", "width"]);
-			newHeight = getConfig(options.domain, ["media", "transform", "banner", "height"]);
+			newWidth = getConfig(options.tenant, ["media", "transform", "banner", "width"]);
+			newHeight = getConfig(options.tenant, ["media", "transform", "banner", "height"]);
 			resolve(newWidth + "x" + newHeight);
 			return;
 		}
 
 		// Standard media dimensions 
 		if (options.originalmime.startsWith("video")) {
-			newWidth = getConfig(options.domain, ["media", "transform", "media", "video", "width"]);
-			newHeight = getConfig(options.domain, ["media", "transform", "media", "video", "height"]);
+			newWidth = getConfig(options.tenant, ["media", "transform", "media", "video", "width"]);
+			newHeight = getConfig(options.tenant, ["media", "transform", "media", "video", "height"]);
 		}
 
 		if (options.originalmime.startsWith("image")) {
-			newWidth = getConfig(options.domain, ["media", "transform", "media", "image", "width"]);
-			newHeight = getConfig(options.domain, ["media", "transform", "media", "image", "height"]);
+			newWidth = getConfig(options.tenant, ["media", "transform", "media", "image", "width"]);
+			newHeight = getConfig(options.tenant, ["media", "transform", "media", "image", "height"]);
 		}
 			
 		if (mediaWidth == 0 || mediaHeight == 0) {
@@ -481,7 +481,7 @@ const finalizeFileProcessing = async (filedata: FileData): Promise<boolean> => {
 		if (filedata.no_transform == false) { await deleteLocalFile(filedata.conversionOutputPath);}
 		await deleteLocalFile(filedata.conversionInputPath);
 
-		await moderateFile("mediafiles", filedata.fileid);
+		await moderateFile("mediafiles", filedata.fileid, filedata.tenant);
 
 		return true;
 

@@ -4,7 +4,6 @@ import FormData from 'form-data';
 import fs from 'fs';
 import { logger } from '../logger.js';
 import { emptyModerationCategory, moderationCategories, ModerationCategory } from '../../interfaces/moderation.js';
-import app from '../../app.js';
 import { extractVideoFrames } from '../media.js';
 import { deleteLocalFile } from '../storage/local.js';
 import { getModerationQueueLength } from './core.js';
@@ -173,21 +172,21 @@ const parseResult = (result: string): ModerationCategory => {
  * @param {string} filePath - The path to the file to be moderated
  * @returns {Promise<moderationCategory>} The category of the file
  */
-const localEngineClassify = async (filePath: string): Promise<ModerationCategory> => {
+const localEngineClassify = async (filePath: string, tenant: string): Promise<ModerationCategory> => {
 
 	if (!filePath || filePath === "") {
 		logger.error(`localEngineClassify - File path is empty`);
 		return emptyModerationCategory;
 	}
 
-    const modelName = getConfig(null, ["media", "mediainspector", "local", "modelName"]);
+    const modelName = getConfig(tenant, ["media", "mediainspector", "local", "modelName"]);
     let moderationResult : string = "";
 
     const fileExtension = filePath.split('.').pop();
 
     // Video files need to be split into frames and each frame needs to be moderated
     if (fileExtension == 'mp4' || fileExtension == 'webm' || fileExtension == 'mov') {
-        const frames = await extractVideoFrames(filePath, getConfig(null, ["storage", "local", "tempPath"]));
+        const frames = await extractVideoFrames(filePath, getConfig(tenant, ["storage", "local", "tempPath"]));
         if (frames.length == 0) return emptyModerationCategory;
         let unsafeFrames = 0;
         for (const f of frames) {

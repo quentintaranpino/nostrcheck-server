@@ -80,7 +80,8 @@ logger.attachTransport(async (log) => {
 				await sendMessage(
 					`${logEvent.severity} message detected: ${logEvent.message}`, 
 					getConfig(null, ["logger", "sendPubkey"]) != "" ? 
-					getConfig(null, ["logger", "sendPubkey"]) : getConfig(null, ["server", "pubkey"]));
+					getConfig(null, ["logger", "sendPubkey"]) : getConfig(null, ["server", "pubkey"]),
+					"");
 			} 
 
 			logHistory.push(logEvent);

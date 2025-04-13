@@ -168,7 +168,7 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 		transaction_id: "",
 		payment_request: "",
 		visibility: 1,
-		domain: req.hostname,
+		tenant: req.hostname,
 	};
 
 	// File mime type. If not allowed reject the upload.
@@ -405,6 +405,7 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 		}
 
 		const transaction = await checkTransaction(
+									filedata.tenant,
 									filedata.transaction_id,
 									filedata.fileid,
 									"mediafiles",
@@ -589,6 +590,7 @@ const headMedia = async (req: Request, res: Response): Promise<Response> => {
 		// const transaction = await checkTransaction(transactionId,"","mediafiles", fileData[0].hash != fileData[0].original_hash ? Number(fileData[0].filesize)/3 : Number(Number(fileData[0].filesize)),"");
 		
 		const transaction = await checkTransaction(
+			req.hostname,
 			transactionId,
 			"",
 			"mediafiles",
@@ -723,13 +725,14 @@ const getMediaList = async (req: Request, res: Response): Promise<Response> => {
 			payment_request: "",
 			transaction_id: e.transactionid,
 			visibility: e.visibility,
-			domain: req.hostname,
+			tenant: req.hostname,
 		};
 
 		// Return payment_request if the file is not paid
 		if (isModuleEnabled("payments")) {
 			
 			const transaction : Transaction = await checkTransaction(
+				listedFile.tenant,
 				listedFile.transaction_id,
 				listedFile.fileid,
 				"mediafiles",
@@ -869,7 +872,7 @@ const getMediaStatusbyID = async (req: Request, res: Response, version:string): 
 		transaction_id: transactionid,
 		payment_request: "",
 		visibility: visibility,
-		domain: req.hostname
+		tenant: req.hostname
 	};
 
 	let response = 201;
@@ -905,6 +908,7 @@ const getMediaStatusbyID = async (req: Request, res: Response, version:string): 
 	if (isModuleEnabled("payments")) {
 		
 		const transaction : Transaction = await checkTransaction(
+			req.hostname,
 			filedata.transaction_id,
 			filedata.fileid,
 			"mediafiles",
@@ -1120,6 +1124,7 @@ const getMediabyURL = async (req: Request, res: Response) => {
 
 		// Check if exist a transaction for this media file and if it is paid. Check preimage
 		const transaction : Transaction = await checkTransaction(
+			req.hostname,
 			filedata[0].transactionid,
 			filedata[0].id,
 			"mediafiles",
@@ -1681,6 +1686,7 @@ const headUpload = async (req: Request, res: Response): Promise<Response> => {
 	const transactionId = (await dbMultiSelect(["transactionid"], "mediafiles", transform != '0' ? "original_hash = ?" : "hash = ?", [hash], true))[0]?.transactionid || "" ;
 	
 	const transaction : Transaction = await checkTransaction(
+		req.hostname,
 		transactionId,
 		"",
 		"mediafiles",

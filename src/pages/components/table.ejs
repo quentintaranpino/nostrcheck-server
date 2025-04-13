@@ -559,7 +559,8 @@
             }
 
             if (action === 'password') {
-                data = {pubkey: $(tableId).bootstrapTable('getSelections')[0].hex};
+                data = {pubkey: $(tableId).bootstrapTable('getSelections')[0].hex, domain: $(tableId).bootstrapTable('getSelections')[0].domain};
+                console.log($(tableId).bootstrapTable('getSelections')[0])
             }
 
             if (action === 'pay') {

@@ -17,8 +17,9 @@ interface ModerationCategory {
 }
 
 interface ModerationJob {
-    originTable: string;
+    originTable: string;    
     originId: string;
+    tenant: string;
 }
 
 export { moderationCategories, ModerationCategory, emptyModerationCategory, ModerationJob };

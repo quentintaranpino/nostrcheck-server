@@ -8,7 +8,7 @@ import { generateNwcInvoice, isInvoicePaidNwc } from "../nostr/NIP47.js";
 import { generateLNBitsInvoice, isInvoicePaidLNbits } from "./lnbits.js";
 import { isModuleEnabled } from "../config/core.js";
 
-const checkTransaction = async (transactionid : string, originId: string, originTable : string, size: number, minSize: number, maxSize: number, maxSatoshi: number,  pubkey : string): Promise<Transaction> => {
+const checkTransaction = async (tenant: string, transactionid : string, originId: string, originTable : string, size: number, minSize: number, maxSize: number, maxSatoshi: number,  pubkey : string): Promise<Transaction> => {
 
     if (!isModuleEnabled("payments")) {
         return emptyTransaction;
@@ -51,8 +51,8 @@ const checkTransaction = async (transactionid : string, originId: string, origin
         if (invoice.paymentRequest == "") {return emptyTransaction};
         
         if (app.get("config.payments")["sendMessageToPubkey"] == true){
-            await sendMessage(`Hi, here’s your invoice from ${app.get("config.server")["host"]} service (${invoice.satoshi} satoshi). We appreciate your payment, thanks!`, pubkey)
-            await sendMessage(invoice.paymentRequest,pubkey)
+            await sendMessage(`Hi, here’s your invoice from ${app.get("config.server")["host"]} service (${invoice.satoshi} satoshi). We appreciate your payment, thanks!`, pubkey, tenant)
+            await sendMessage(invoice.paymentRequest, pubkey, tenant)
         }
 	
         // Fill the transaction with the invoice data

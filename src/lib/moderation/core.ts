@@ -1,5 +1,4 @@
 import fastq, { queueAsPromised } from "fastq";
-import app from "../../app.js";
 import { remoteEngineClassify } from "./remote.js";
 import { localEngineClassify } from "./local.js";
 import { getFilePath } from "../storage/core.js";
@@ -22,15 +21,15 @@ async function moderationWorker(task: ModerationJob): Promise<ModerationCategory
 
     const taskData = await dbMultiSelect(["id", task.originTable == "mediafiles" ? "filename" : "content"], task.originTable, "id = ?", [task.originId], true);
 
-    if (getConfig(null, ["media", "mediainspector", "type"]) === "local") {
+    if (getConfig(task.tenant, ["media", "mediainspector", "type"]) === "local") {
         const filePath: string = await getFilePath(taskData[0].filename);
-        result = await localEngineClassify(filePath);
+        result = await localEngineClassify(filePath, task.tenant);
     } else {
         result = await remoteEngineClassify(
             getFileUrl(taskData[0].filename, undefined, ""),
-            getConfig(null, ["media", "mediainspector", "remote", "endpoint"]),
-            getConfig(null, ["media", "mediainspector", "remote", "apikey"]),
-            getConfig(null, ["media", "mediainspector", "remote", "secretkey"]),
+            getConfig(task.tenant, ["media", "mediainspector", "remote", "endpoint"]),
+            getConfig(task.tenant, ["media", "mediainspector", "remote", "apikey"]),
+            getConfig(task.tenant, ["media", "mediainspector", "remote", "secretkey"]),
         );
     }
 
@@ -54,9 +53,9 @@ async function moderationWorker(task: ModerationJob): Promise<ModerationCategory
  * @param originDomain - The domain of the file.
  * @returns A Promise resolving to a boolean indicating the moderation task was successfully enqueued.
  */
-const moderateFile = async (originTable: string, originId: string): Promise<boolean> => {
+const moderateFile = async (originTable: string, originId: string, tenant: string): Promise<boolean> => {
 
-    if (getConfig(null, ["media", "mediainspector", "enabled"]) === false) return false;
+    if (getConfig(tenant, ["media", "mediainspector", "enabled"]) === false) return false;
 
     // Update the record status to "2" to indicate moderation is in progress
     const updateModerating: boolean = await dbUpdate(originTable, { checked: "2" }, ["id"], [originId]);
@@ -69,6 +68,7 @@ const moderateFile = async (originTable: string, originId: string): Promise<bool
          moderationQueue.push({
             originTable,
             originId,
+            tenant
         });
         logger.info(`moderateFile - ${getModerationQueueLength() + 1} items in moderation queue`);
         return true;

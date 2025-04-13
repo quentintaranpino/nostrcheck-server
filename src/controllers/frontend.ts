@@ -478,7 +478,7 @@ const frontendLogin = async (req: Request, res: Response): Promise<Response> => 
 
     // OTC code request and return.
     if (req.params.param1 && req.params.param1.length <= 64) {
-        const OTC = await generateOTC(req.params.param1);
+        const OTC = await generateOTC(req.hostname, req.params.param1);
         if (OTC == true) {
             logger.info(`frontendLogin - One-time code generated for ${req.params.param1}`, "|", getClientIp(req));
             return res.status(200).send({"status": "success", "message": "One-time code generated"});
@@ -559,7 +559,7 @@ const loadResource = async (req: Request, res: Response): Promise<Response | voi
 
     logger.debug(`loadResource - GET /api/resource/${req.params.filename}`, "|", getClientIp(req));
     
-    const tenant = getConfig("", ["multiTenancy"]) ? req.query.domain || req.hostname : "global" as string;
+    const tenant = getConfig("", ["multiTenancy"]) ? req.query.domain || req.hostname : "" as string;
     if (typeof tenant !== "string") {
         logger.error("loadResource - Invalid tenant name:", tenant, "|", getClientIp(req));
         res.status(404).send();

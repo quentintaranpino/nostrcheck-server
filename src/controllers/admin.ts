@@ -255,7 +255,7 @@ const updateSettingsFile = async (req: Request, res: Response): Promise<Response
     }
     setAuthCookie(res, eventHeader.authkey);
 
-    const domain = typeof req.body?.domain === "string" ? req.body.domain : "global";
+    const domain = typeof req.body?.domain === "string" ? req.body.domain : "";
 
     for (const settingKey of acceptedSettigsFiles) {
         const file = (req.files as Express.Multer.File[]).find(f => f.fieldname === settingKey);
@@ -349,7 +349,7 @@ const resetUserPassword = async (req: Request, res: Response): Promise<Response>
     setAuthCookie(res, eventHeader.authkey);
 
     // Check if the request has the required parameters
-    if (!req.body.pubkey) {
+    if (!req.body.pubkey || !req.body.domain) {
         const result : ResultMessagev2 = {
             status: "error",
             message: "Invalid parameters"
@@ -358,7 +358,7 @@ const resetUserPassword = async (req: Request, res: Response): Promise<Response>
         return res.status(400).send(result);
     }
 
-    const newPass = await generatePassword(req.body.pubkey, false, true)
+    const newPass = await generatePassword(req.body.domain, req.body.pubkey, false, true)
     if (newPass == "") {
         const result : ResultMessagev2 = {
             status: "error",
@@ -921,7 +921,7 @@ const moderateDBRecord = async (req: Request, res: Response): Promise<Response> 
 
     logger.info(`moderateDBRecord - ${req.method} ${req.path}`, "|", reqInfo.ip, "|", req.body.id, "|", req.body.filename);
 
-    await moderateFile(table, req.body.id);
+    await moderateFile(table, req.body.id, "");
 
     return res.status(200).send({status: "success", message: "Moderation request sent"});
 

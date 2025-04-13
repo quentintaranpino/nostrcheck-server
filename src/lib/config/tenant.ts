@@ -38,7 +38,6 @@ const loadTenants = async (): Promise<void> => {
       }
 };
 
-
 const getPublicTenantConfig = async (domain: string): Promise<TenantInfo | null> => {
 
   const tenantInfo : TenantInfo = {

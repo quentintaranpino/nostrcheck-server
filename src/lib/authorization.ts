@@ -256,7 +256,7 @@ const isAuthkeyValid = async (authString: string, checkAdminPrivileges: boolean 
  * @returns {Promise<string>} The newly generated password, or an empty string if an error occurs or if the database update fails.
  * @throws {Error} If an error occurs during the password generation or the database update or sending the direct message.
  */
-const generatePassword = async (pubkey :string, returnHashed: boolean = false, sendDM : boolean = false, onlyGenerate : boolean = false, checkActive : boolean = true): Promise<string> => {
+const generatePassword = async (tenant: string, pubkey :string, returnHashed: boolean = false, sendDM : boolean = false, onlyGenerate : boolean = false, checkActive : boolean = true): Promise<string> => {
     try {
 
 		if (onlyGenerate) {
@@ -276,7 +276,7 @@ const generatePassword = async (pubkey :string, returnHashed: boolean = false, s
 		if (update){
 			logger.debug(`generatePassword - New password generated and saved to database`);
 			if (pubkey != "" && sendDM){
-				const DM = await sendMessage(`Your new password: ${credential}`, pubkey);
+				const DM = await sendMessage(`Your new password: ${credential}`, pubkey, tenant);
 				if (!DM) return "";			}
 			if (returnHashed) return hashedCredential;
 			return credential;
@@ -294,7 +294,7 @@ const generatePassword = async (pubkey :string, returnHashed: boolean = false, s
 * @param {string} pubkey - The public key to which to send the OTC code.
 * @returns {Promise<string>} The newly generated OTC code, or an empty string if an error occurs or if the database update fails.
 */
-const generateOTC = async (pubkey: string) : Promise<boolean> => {
+const generateOTC = async (tenant: string, pubkey: string) : Promise<boolean> => {
 
 	if (pubkey === undefined || pubkey === "") {return false;}
 	if (pubkey.startsWith("npub")) pubkey = await npubToHex(pubkey);
@@ -304,7 +304,7 @@ const generateOTC = async (pubkey: string) : Promise<boolean> => {
 	const hashedOTC = await hashString(otc, 'otc');
 	
 	await redisCore.set(`otc:${hashedOTC}`, JSON.stringify({ pubkey }), { EX: 300 });
-	const DM = await sendMessage(`Your one-time code: ${otc}`, pubkey);
+	const DM = await sendMessage(`Your one-time code: ${otc}`, pubkey, tenant);
 	if(!DM) return false;
 
     return true;

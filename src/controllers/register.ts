@@ -2,7 +2,6 @@ import { Request, Response } from "express";
 import validator from "validator";
 import { logger } from "../lib/logger.js";
 import { getAvailableDomains } from "../lib/domains.js";
-import app from "../app.js";
 import { addNewUsername, isPubkeyOnDomainAvailable, isUsernameAvailable } from "../lib/register.js";
 import { generateOTC, verifyOTC, parseAuthHeader } from "../lib/authorization.js";
 import { npubToHex, validatePubkey } from "../lib/nostr/NIP19.js";
@@ -13,9 +12,8 @@ import { calculateSatoshi, checkTransaction } from "../lib/payments/core.js";
 import { amountReturnMessage, Transaction } from "../interfaces/payments.js";
 import { setAuthCookie } from "../lib/frontend.js";
 import { isIpAllowed } from "../lib/security/ips.js";
-import { getPublicTenantConfig } from "../lib/config/tenant.js";
-import { ResultMessagev2 } from "../interfaces/server.js";
 import { getConfig, isModuleEnabled } from "../lib/config/core.js";
+import { ResultMessagev2 } from "../interfaces/server.js";
 
 const registerUsername = async (req: Request, res: Response): Promise<Response> => {
 
@@ -114,7 +112,7 @@ const registerUsername = async (req: Request, res: Response): Promise<Response> 
 
 	// If the user is not activated, we will generate the credentials and send the OTC verification via nost DM.
 	if (activateUser == false) {
-		const OTC = await generateOTC(pubkey)
+		const OTC = await generateOTC(req.hostname, pubkey)
 		if (OTC == false){
 			logger.error(`registerUsername - Failed to generate OTC`, "|", reqInfo.ip);
 			return res.status(500).send({status: "error", message: "Failed to generate OTC"});
@@ -128,6 +126,7 @@ const registerUsername = async (req: Request, res: Response): Promise<Response> 
 	if (requirePayment && isModuleEnabled("payments")) {
 		
 		const transaction : Transaction = await checkTransaction(
+			req.hostname,
 			"0",
 			addUsername.toString(),
 			"registered",
@@ -270,18 +269,12 @@ const calculateRegisterCost = async (req: Request, res: Response): Promise<Respo
 		return res.status(400).send({status: "error", message: "Domain not provided"});
 	}
 
-    const tenanConfig = await getPublicTenantConfig(domain);
-	if(!tenanConfig) {
-		logger.info(`calculateRegisterCost - Invalid domain`, "|", reqInfo.ip);
-		return res.status(406).send({ status: "error", message: "Invalid domain" });
-	}
-
 	const satoshi = await calculateSatoshi(
 		"reversed",
 		size,
-		tenanConfig.minUsernameLength,
-		tenanConfig.maxUsernameLength,
-		tenanConfig.maxsatoshi
+		getConfig(req.hostname, ["register","minUsernameLength"]),
+		getConfig(req.hostname, ["register","maxUsernameLength"]),
+		getConfig(req.hostname, ["payments", "satoshi", "registerMaxSatoshi"]),
 	)
 
     const result : amountReturnMessage = {

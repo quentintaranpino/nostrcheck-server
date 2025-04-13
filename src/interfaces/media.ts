@@ -93,7 +93,7 @@ interface FileData{
 	transaction_id: string;
 	payment_request: string;
 	visibility: number;
-	domain: string;
+	tenant: string;
 }
 
 interface MediaJob {
