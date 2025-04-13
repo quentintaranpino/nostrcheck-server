@@ -105,6 +105,16 @@
     }) %>
 
     <%- include('field', {
+      type: "file",
+      name: "media.file.not.found",
+      label: "Not found banner",
+      description: "Specify the banner to be used when a media file is not found.",
+      previewSrc: `/static/resources/media-file-not-found.webp${selectedDomain ? `?domain=${selectedDomain}` : ""}`,
+      previewSize: { width: 220, height: 220 },
+      overridable: true
+    }) %>
+
+    <%- include('field', {
       type: "checkbox",
       name: "media.mediainspector.enabled",
       label: "Enable AI media inspector",

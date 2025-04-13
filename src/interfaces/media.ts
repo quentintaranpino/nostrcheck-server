@@ -93,6 +93,7 @@ interface FileData{
 	transaction_id: string;
 	payment_request: string;
 	visibility: number;
+	domain: string;
 }
 
 interface MediaJob {
@@ -115,5 +116,5 @@ export {
 	UploadTypes,
 	UploadStatus,
 	MediaStatus,
-	VideoHeaderRange
+	VideoHeaderRange,
 };

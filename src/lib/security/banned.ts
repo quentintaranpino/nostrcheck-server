@@ -1,4 +1,3 @@
-import path from "path";
 import fs from "fs";
 import app from "../../app.js";
 import { ResultMessagev2 } from "../../interfaces/server.js";
@@ -6,6 +5,8 @@ import { dbInsert, dbMultiSelect, dbUpdate } from "../database.js";
 import { logger } from "../logger.js";
 import { RedisService } from "../redis.js";
 import { isModuleEnabled } from "../config/core.js";
+import { getResource } from "../frontend.js";
+import { generateVideoFromImage } from "../utils.js";
 
 const redisCore = app.get("redisCore") as RedisService
 
@@ -215,23 +216,33 @@ const isEntityBanned = async (id: string, table: string): Promise<boolean> => {
 
 /**
  * Gets the banned file banner.
+ * @param domain - The domain of the resource.
+ * @param mimeType - The MIME type of the resource.
  * @returns Promise resolving to a `Buffer` with the banned file banner.
  * @async
 **/
-const getBannedFileBanner = (): Promise<Buffer> => {
-    return new Promise((resolve) => {
-        const bannedFilePath = path.normalize(path.resolve(app.get("config.media")["bannedFilePath"]));
-        fs.readFile(bannedFilePath, (err, data) => {
-            if (err) {
-                logger.error(`getBannedFileBanner - Error reading banned file banner: ${err}`);
-                resolve(Buffer.from(""));
-            } else {
-                resolve(data);
-            }
-        });
-    });
-}
+const getBannedFileBanner = async (domain: string, mimeType: string): Promise<Buffer> => {
 
+	const bannedPath = await getResource(domain, "media-file-banned.default.webp");
+
+	if (bannedPath == null) {
+		logger.error(`getBannedFileBanner - Error getting banned file banner, path is null`);
+		return Buffer.from("");
+	}
+
+	try {
+        const buffer = await fs.promises.readFile(bannedPath);
+		if (mimeType.startsWith('video')) {
+			const videoBuffer = await generateVideoFromImage(buffer);
+			return videoBuffer;
+		} else {
+			return buffer;
+		}
+	} catch (err) {
+		logger.error(`getBannedFileBanner - Error reading file: ${bannedPath} with error: ${err}`);
+		return Buffer.from("");
+	}
+};
 
 /**
 * Loads the banned entities from the database into Redis.

@@ -27,7 +27,7 @@ import { eventStore } from "../interfaces/relay.js";
 import { getEventById } from "../lib/relay/utils.js";
 import { RedisService } from "../lib/redis.js";
 import { isModuleEnabled, setConfig } from "../lib/config/core.js";
-import { acceptedSettigsFiles } from "../interfaces/appearance.js";
+import { acceptedSettigsFiles, settingsFileConfig } from "../interfaces/appearance.js";
 
 const redisCore = app.get("redisCore") as RedisService
 
@@ -260,38 +260,56 @@ const updateSettingsFile = async (req: Request, res: Response): Promise<Response
     for (const settingKey of acceptedSettigsFiles) {
         const file = (req.files as Express.Multer.File[]).find(f => f.fieldname === settingKey);
         const restore = req.body[`${settingKey}.default`] === "true";
-
+    
+        const config = settingsFileConfig[settingKey] || settingsFileConfig["default"];
         const outputPath = path.resolve(`./src/pages/static/resources/tenants/${domain}`);
-        const filePath = path.join(outputPath, settingKey.replace(/\./g, "-") + ".png");
-
+        const baseFilename = settingKey.replace(/\./g, "-");
+    
+        const targetExtension = config.format;
+        const filePath = path.join(outputPath, `${baseFilename}.${targetExtension}`);
+    
         if (restore) {
-            try {
-                await fs.promises.rm(filePath);
-                logger.info(`updateSettingsFile - Removed override for ${settingKey}`, "|", reqInfo.ip);
+            const possibleFiles = [`${baseFilename}.png`, `${baseFilename}.webp`];
+    
+            let deleted = false;
+            for (const file of possibleFiles) {
+                try {
+                    await fs.promises.rm(path.join(outputPath, file));
+                    deleted = true;
+                    logger.info(`updateSettingsFile - Removed override for ${settingKey} (${file})`, "|", reqInfo.ip);
+                } catch {
+                    // File not found, continue to the next one
+                }
+            }
+    
+            if (deleted) {
                 return res.status(200).send({ status: "success", message: `Restored default for ${settingKey}` });
-            } catch (err) {
+            } else {
                 logger.warn(`updateSettingsFile - No override found to delete for ${settingKey}`, "|", reqInfo.ip);
                 return res.status(404).send({ status: "error", message: `No override found to delete for ${settingKey}` });
             }
         }
-        
+    
         if (file) {
-
             if (!["image/png", "image/jpeg", "image/webp"].includes(file.mimetype)) {
                 return res.status(400).send({ status: "error", message: "Unsupported file type." });
             }
-
+    
             await fs.promises.mkdir(outputPath, { recursive: true });
-        
-            const sharpFile = settingKey === "relay.icon"
-                ? sharp(file.buffer).resize(200, 200, { fit: sharp.fit.contain, background: { r: 0, g: 0, b: 0, alpha: 0 } })
-                : sharp(file.buffer).resize(180, 61, { fit: sharp.fit.contain, background: { r: 0, g: 0, b: 0, alpha: 0 } });
-        
-            await sharpFile.png({ quality: 95 }).toFile(filePath);
-        
+    
+            const sharpFile = sharp(file.buffer).resize(config.width, config.height, {
+                fit: sharp.fit.contain,
+                background: config.background
+            });
+    
+            const transformer = config.format === "webp"
+                ? sharpFile.webp({ quality: config.quality || 90 })
+                : sharpFile.png({ quality: config.quality || 95 });
+    
+            await transformer.toFile(filePath);
+    
             logger.info(`updateSettingsFile - Updated settings file successfully, field:${settingKey}`, "|", reqInfo.ip);
             return res.status(200).send({ status: "success", message: `Field: ${settingKey} updated successfully` });
-             
         }
     }
 

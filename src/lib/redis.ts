@@ -1,6 +1,5 @@
 import { createClient, RedisClientType } from "redis";
 import { RedisConfig } from "../interfaces/redis.js";
-import { Application } from "express";
 import { getConfig, setConfig } from "./config/core.js";
 
 class RedisService {

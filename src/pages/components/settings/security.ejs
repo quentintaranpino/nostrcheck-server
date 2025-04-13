@@ -35,6 +35,16 @@
       overridable: false
     }) %>
 
+    <%- include('field', {
+      type: "file",
+      name: "media.file.banned",
+      label: "Banned banner",
+      description: "Specify the banner to be used when a media file is banned.",
+      previewSrc: `/static/resources/media-file-banned.webp${selectedDomain ? `?domain=${selectedDomain}` : ""}`,
+      previewSize: { width: 220, height: 220 },
+      overridable: true
+    }) %>
+
     <h4 class="mt-4">Register</h4>
     <%- include('field', {
       type: "number",

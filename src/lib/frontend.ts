@@ -3,6 +3,8 @@ import { getConfig } from "./config/core.js";
 import { dbMultiSelect } from "./database.js";
 import { Request, Response } from "express";
 import { hextoNpub } from "./nostr/NIP19.js";
+import path from "path";
+import fs from "fs";
 
 const countPubkeyFiles = async (pubkey: string): Promise<number> => {
 
@@ -111,4 +113,32 @@ const getLegalText = (hostname : string): string => {
     }
 }
 
-export {isAutoLoginEnabled, countPubkeyFiles, setAuthCookie, getLegalText};
+
+const getResource = async (tenant : string, filename : string): Promise<string | null> => {
+  
+  const ext = path.extname(filename);
+  const name = path.basename(filename, ext);
+
+  const pathsToTry = [
+      path.resolve(`./src/pages/static/resources/tenants/${tenant}/${filename}`),
+      path.resolve(`./src/pages/static/resources/tenants/global/${filename}`),
+      path.resolve(`./src/pages/static/resources/${name}.default${ext}`),
+      path.resolve(`./src/pages/static/resources/${filename}`),
+  ];
+
+  for (const filePath of pathsToTry) {
+      try {
+          await fs.promises.access(filePath, fs.constants.F_OK);
+          return filePath;
+      }
+      catch (err) {
+          // Ignore the error.
+      }
+  
+  }
+
+  return null;
+
+};
+
+export {isAutoLoginEnabled, countPubkeyFiles, setAuthCookie, getLegalText, getResource};

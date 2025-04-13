@@ -15,9 +15,9 @@ import sharp from "sharp";
 import { saveFile } from "./storage/core.js";
 import { deleteLocalFile } from "./storage/local.js";
 import { moderateFile } from "./moderation/core.js";
-import app from "../app.js";
-import { getHostInfo } from "./utils.js";
+import { generateVideoFromImage, getHostInfo } from "./utils.js";
 import { getConfig } from "./config/core.js";
+import { getResource } from "./frontend.js";
 
 const prepareFile = async (t: MediaJob): Promise<void> =>{
 
@@ -39,11 +39,11 @@ const prepareFile = async (t: MediaJob): Promise<void> =>{
 // Create the fastq queue for media tasks
 const requestQueue: queueAsPromised<MediaJob> = fastq.promise(prepareFile, 1);
 
-const processFile = async(	inputFile: Express.Multer.File,	options: FileData, retry:number = 0): Promise<boolean> =>{
+const processFile = async ( inputFile: Express.Multer.File,	options: FileData, retry:number = 0): Promise<boolean> =>{
 
 	if (retry > 5) {return false}
 	
-	options.conversionOutputPath = app.get("config.storage")["local"]["tempPath"] + "out" + crypto.randomBytes(20).toString('hex') + options.filename;
+	options.conversionOutputPath = getConfig(options.domain, ["storage", "local", "tempPath"]) + "out" + crypto.randomBytes(20).toString('hex') + options.filename;
 
 	logger.debug(`processFile - Processing file: ${inputFile.originalname}, using temporary paths: ${options.conversionInputPath}, ${options.conversionOutputPath}`);
 
@@ -261,30 +261,30 @@ const GetFileTags = async (fileid: string): Promise<string[]> => {
 
 const standardMediaConversion = (filedata : FileData , file:Express.Multer.File) :void  => {
 
-		//Video or image conversion options
-		if (file.mimetype.toString().startsWith("video")) {
-			filedata.width = app.get("config.media")["transform"]["media"]["video"]["width"];
-			filedata.height = app.get("config.media")["transform"]["media"]["video"]["height"];
-			filedata.outputoptions = '-preset veryfast';
-		}
-		if (file.mimetype.toString().startsWith("image")) {
-			filedata.width = app.get("config.media")["transform"]["media"]["image"]["width"];
-			filedata.height = app.get("config.media")["transform"]["media"]["image"]["height"];
-		}
-	
-		//Avatar conversion options
-		if (filedata.media_type.toString() === "avatar"){
-			filedata.width = app.get("config.media")["transform"]["avatar"]["width"];
-			filedata.height = app.get("config.media")["transform"]["avatar"]["height"];
-		}
-	
-		//Banner conversion options
-		if (filedata.media_type.toString() === "banner"){
-			filedata.width = app.get("config.media")["transform"]["banner"]["width"];
-			filedata.height = app.get("config.media")["transform"]["banner"]["height"];
-		}
+	// Video or image conversion options
+	if (file.mimetype.toString().startsWith("video")) {
+		filedata.width = getConfig(filedata.domain, ["media", "transform", "media", "video", "width"]);
+		filedata.height = getConfig(filedata.domain, ["media", "transform", "media", "video", "height"]);
+		filedata.outputoptions = '-preset veryfast';
+	}
+	if (file.mimetype.toString().startsWith("image")) {
+		filedata.width = getConfig(filedata.domain, ["media", "transform", "media", "image", "width"]);
+		filedata.height = getConfig(filedata.domain, ["media", "transform", "media", "image", "height"]);
+	}
 
-		return;
+	// Avatar conversion options
+	if (filedata.media_type.toString() === "avatar"){
+		filedata.width = getConfig(filedata.domain, ["media", "transform", "avatar", "width"]);
+		filedata.height = getConfig(filedata.domain, ["media", "transform", "avatar", "height"]);
+	}
+
+	// Banner conversion options
+	if (filedata.media_type.toString() === "banner"){
+		filedata.width = getConfig(filedata.domain, ["media", "transform", "banner", "width"]);
+		filedata.height = getConfig(filedata.domain, ["media", "transform", "banner", "height"]);
+	}
+
+	return;
 
 }
 
@@ -349,26 +349,28 @@ const setMediaDimensions = async (file:string, options:FileData):Promise<string>
 
 		// Avatar and banner dimensions
 		if (options.media_type == "avatar") {
-			newWidth = app.get("config.media")["transform"]["avatar"]["width"];
-			newHeight = app.get("config.media")["transform"]["avatar"]["height"];
+			newWidth = getConfig(options.domain, ["media", "transform", "avatar", "width"]);
+			newHeight = getConfig(options.domain, ["media", "transform", "avatar", "height"]);
 			resolve(newWidth + "x" + newHeight);
 			return;
 		}
+
 		if (options.media_type == "banner") {
-			newWidth = app.get("config.media")["transform"]["banner"]["width"];
-			newHeight = app.get("config.media")["transform"]["banner"]["height"];
+			newWidth = getConfig(options.domain, ["media", "transform", "banner", "width"]);
+			newHeight = getConfig(options.domain, ["media", "transform", "banner", "height"]);
 			resolve(newWidth + "x" + newHeight);
 			return;
 		}
 
 		// Standard media dimensions 
 		if (options.originalmime.startsWith("video")) {
-			newWidth = app.get("config.media")["transform"]["media"]["video"]["width"];
-			newHeight = app.get("config.media")["transform"]["media"]["video"]["height"];
+			newWidth = getConfig(options.domain, ["media", "transform", "media", "video", "width"]);
+			newHeight = getConfig(options.domain, ["media", "transform", "media", "video", "height"]);
 		}
+
 		if (options.originalmime.startsWith("image")) {
-			newWidth = app.get("config.media")["transform"]["media"]["image"]["width"];
-			newHeight = app.get("config.media")["transform"]["media"]["image"]["height"];
+			newWidth = getConfig(options.domain, ["media", "transform", "media", "image", "width"]);
+			newHeight = getConfig(options.domain, ["media", "transform", "media", "image", "height"]);
 		}
 			
 		if (mediaWidth == 0 || mediaHeight == 0) {
@@ -414,19 +416,28 @@ const getFileSize = (path:string, options:FileData) :number => {
 
 }
 
-const getNotFoundFileBanner = (): Promise<Buffer> => {
-    return new Promise((resolve) => {
-		const notFoundPath = path.normalize(path.resolve(app.get("config.media")["notFoundFilePath"]));
-        fs.readFile(notFoundPath, (err, data) => {
-            if (err) {
-                logger.error(`getNotFoundFileBanner - Error reading file: ${notFoundPath} with error: ${err}`);
-                resolve(Buffer.from(""));
-            } else {
-                resolve(data);
-            }
-        });
-    });
-}
+const getNotFoundFileBanner = async (domain: string, mimeType: string): Promise<Buffer> => {
+
+	const notFoundPath = await getResource(domain, "media-file-not-found.webp");
+
+	if (notFoundPath == null) {
+		logger.error(`getNotFoundFileBanner - Error getting not found file banner, path is null`);
+		return Buffer.from("");
+	}
+
+	try {
+		const buffer = await fs.promises.readFile(notFoundPath);
+		if (mimeType.startsWith('video')) {
+			const videoBuffer = await generateVideoFromImage(buffer);
+			return videoBuffer;
+		} else {
+			return buffer;
+		}
+	} catch (err) {
+		logger.error(`getNotFoundFileBanner - Error reading file: ${notFoundPath} with error: ${err}`);
+		return Buffer.from("");
+	}
+};
 
 const readRangeHeader = (range : string | undefined, totalLength : number ): VideoHeaderRange => {
 
@@ -646,7 +657,6 @@ const getMediaUrl = (type: "NIP96" | "BLOSSOM", domain: string): string => {
 const getFileUrl = (filename: string, pubkey : string = "", domain: string): string => {
 	return `${getMediaUrl(pubkey != "" ? "NIP96" : "BLOSSOM", domain)}/${pubkey !== "" ? pubkey + "/" : ""}${filename}`;
 };
-
 
 export {processFile, 
 		requestQueue, 

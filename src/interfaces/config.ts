@@ -152,8 +152,6 @@ const defaultConfig = {
 	},
 	"media" : {
 		"maxMBfilesize": 100,
-		"notFoundFilePath" : "resources/file-not-found.webp",
-		"bannedFilePath" : "resources/content-banned.webp",
 		"allowPublicUploads" : true,
 		"returnURL" : "",
 		"useCDNPrefix" : false,

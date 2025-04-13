@@ -128,7 +128,49 @@ interface userPrefs {
 const acceptedSettigsFiles = [
     "appearance.server.logo.light",
     "appearance.server.logo.dark",
-    "relay.icon"
+    "relay.icon",
+    "media.image.not.found",
+    "media.image.banned",
 ];
 
-export { DynamicBackground, dynamicbackgroundThemes, particles, userPrefs, acceptedSettigsFiles };
+type SettingsFileOptions = {
+	width: number;
+	height: number;
+	background: { r: number; g: number; b: number; alpha: number };
+	format: "png" | "webp";
+	quality?: number;
+};
+
+const settingsFileConfig: Record<string, SettingsFileOptions> = {
+	"relay.icon": {
+		width: 200,
+		height: 200,
+		background: { r: 0, g: 0, b: 0, alpha: 0 },
+		format: "png",
+		quality: 95
+	},
+	"media.image.not.found": {
+		width: 650,
+		height: 650,
+		background: { r: 0, g: 0, b: 0, alpha: 0 },
+		format: "webp",
+		quality: 95
+	},
+    
+    "media.image.banned": {
+		width: 650,
+		height: 650,
+		background: { r: 0, g: 0, b: 0, alpha: 0 },
+		format: "webp",
+		quality: 95
+	},
+	"default": {
+		width: 180,
+		height: 61,
+		background: { r: 0, g: 0, b: 0, alpha: 0 },
+		format: "png",
+		quality: 95
+	}
+};
+
+export { DynamicBackground, dynamicbackgroundThemes, particles, userPrefs, acceptedSettigsFiles, settingsFileConfig };

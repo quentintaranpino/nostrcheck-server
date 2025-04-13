@@ -4,7 +4,7 @@ import { logger } from "../lib/logger.js";
 import { markdownToHtml } from "../lib/utils.js";
 import { dbMultiSelect, dbSelect} from "../lib/database.js";
 import { generateAuthToken, generateOTC, isPubkeyAllowed, isPubkeyValid, isUserPasswordValid, verifyOTC } from "../lib/authorization.js";
-import { countPubkeyFiles, getLegalText, isAutoLoginEnabled, setAuthCookie } from "../lib/frontend.js";
+import { countPubkeyFiles, getLegalText, getResource, isAutoLoginEnabled, setAuthCookie } from "../lib/frontend.js";
 import { hextoNpub } from "../lib/nostr/NIP19.js";
 import { dynamicbackgroundThemes, particles} from "../interfaces/appearance.js";
 import { verifyNIP07event } from "../lib/nostr/NIP07.js";
@@ -559,31 +559,21 @@ const loadResource = async (req: Request, res: Response): Promise<Response | voi
 
     logger.debug(`loadResource - GET /api/resource/${req.params.filename}`, "|", getClientIp(req));
     
-    const tenant = getConfig("", ["multiTenancy"]) ? req.query.domain || req.hostname : "global";
-
-    const filename = req.params.filename;
-    const ext = path.extname(filename);
-    const name = path.basename(filename, ext);
-
-    const pathsToTry = [
-        path.resolve(`./src/pages/static/resources/tenants/${tenant}/${filename}`),
-        path.resolve(`./src/pages/static/resources/tenants/global/${filename}`),
-        path.resolve(`./src/pages/static/resources/${name}.default${ext}`),
-        path.resolve(`./src/pages/static/resources/${filename}`),
-    ];
-
-    for (const filePath of pathsToTry) {
-        try {
-            await fs.promises.access(filePath, fs.constants.F_OK);
-            res.sendFile(filePath);
-            return;
-        } catch {
-            continue;
-        }
+    const tenant = getConfig("", ["multiTenancy"]) ? req.query.domain || req.hostname : "global" as string;
+    if (typeof tenant !== "string") {
+        logger.error("loadResource - Invalid tenant name:", tenant, "|", getClientIp(req));
+        res.status(404).send();
+        return;
     }
-
-    res.status(404).send();
+    const resourcePath = await getResource(tenant, req.params.filename);
+    if (resourcePath == null) {
+        logger.error(`loadResource - Resource not found: ${req.params.filename}`, "|", getClientIp(req));
+        res.status(404).send();
+        return;
+    }
+    res.sendFile(path.resolve(resourcePath));
     return;
+
 };
 
 const loadTheme = async (req: Request, res: Response): Promise<void> => {

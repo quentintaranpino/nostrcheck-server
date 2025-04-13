@@ -60,6 +60,39 @@ const generateQRCode = async (text: string, firstText: string, secondText: strin
     });
 };
 
+
+const generateVideoFromImage = (imageBuffer: Buffer): Promise<Buffer> => {
+    return new Promise((resolve) => {
+
+		const tempImagePath = getConfig(null, ["storage", "local", "tempPath"]) + `/${randomBytes(32).toString('hex')}.webp`;
+		const tempVideoPath = getConfig(null, ["storage", "local", "tempPath"]) + `/${randomBytes(32).toString('hex')}.mp4`;
+
+        fs.writeFileSync(tempImagePath, imageBuffer);
+
+		ffmpeg(tempImagePath)
+    .loop(1)
+			.outputOptions([
+                '-vf', 'scale=trunc(iw/2)*2:trunc(ih/2)*2', 
+                '-r', '15',                                  
+                '-b:v', '500k',                               
+                '-pix_fmt', 'yuv420p',
+            ])
+    .output(tempVideoPath)
+    .on('end', () => {
+        const videoBuffer = fs.readFileSync(tempVideoPath);
+        fs.unlinkSync(tempImagePath);
+        fs.unlinkSync(tempVideoPath);
+        resolve(videoBuffer);
+    })
+    .on('error', (err) => {
+		logger.error(`generateVideoFromImage - Error generating video from image: ${err}`);
+		resolve(Buffer.from("")); 
+    })
+    .run();
+    });
+};
+
+
 const addTextToImage = async (imageBuffer: Buffer, firstText: string, secondText : string): Promise<Buffer> => {
 
 	const image = sharp(imageBuffer);
@@ -128,37 +161,6 @@ const addTextToImage = async (imageBuffer: Buffer, firstText: string, secondText
 		return Buffer.from("");
 	}
 	
-};
-
-const generateVideoFromImage = (imageBuffer: Buffer): Promise<Buffer> => {
-    return new Promise((resolve) => {
-
-		const tempImagePath = getConfig(null, ["storage", "local", "tempPath"]) + `/${randomBytes(32).toString('hex')}.webp`;
-		const tempVideoPath = getConfig(null, ["storage", "local", "tempPath"]) + `/${randomBytes(32).toString('hex')}.mp4`;
-
-        fs.writeFileSync(tempImagePath, imageBuffer);
-
-		ffmpeg(tempImagePath)
-    .loop(1)
-			.outputOptions([
-                '-vf', 'scale=trunc(iw/2)*2:trunc(ih/2)*2', 
-                '-r', '15',                                  
-                '-b:v', '500k',                               
-                '-pix_fmt', 'yuv420p',
-            ])
-    .output(tempVideoPath)
-    .on('end', () => {
-        const videoBuffer = fs.readFileSync(tempVideoPath);
-        fs.unlinkSync(tempImagePath);
-        fs.unlinkSync(tempVideoPath);
-        resolve(videoBuffer);
-    })
-    .on('error', (err) => {
-		logger.error(`generateVideoFromImage - Error generating video from image: ${err}`);
-		resolve(Buffer.from("")); 
-    })
-    .run();
-    });
 };
 
 const getNewDate = (): string =>{
@@ -298,6 +300,24 @@ const serverBanner = () : string => {
 	return banner.join('\r\n').toString();
 }
 
+const execWithTimeout = <T>(promise: Promise<T>, timeoutMs: number): Promise<T> => {
+    return new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => {
+            reject(new Error(`Timeout after ${timeoutMs}ms`));
+        }, timeoutMs);
+
+        promise
+            .then((result) => {
+                clearTimeout(timeout);
+                resolve(result);
+            })
+            .catch((err) => {
+                clearTimeout(timeout);
+                reject(err);
+            });
+    });
+}
+
 export { format, 
 	    currDir, 
 		markdownToHtml, 
@@ -308,4 +328,6 @@ export { format,
 		getHostInfo, 
 		safeJSONParse,
 		parseBoolean,
-		serverBanner};
+		serverBanner,
+		execWithTimeout,
+		generateVideoFromImage};

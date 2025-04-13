@@ -14,6 +14,7 @@
 - Full multi-tenancy support.
 - Improved theming engine.
 - Fixed isFirstUse logic.
+- Tons of new configurable options.
 
 ### 0.6.0
 

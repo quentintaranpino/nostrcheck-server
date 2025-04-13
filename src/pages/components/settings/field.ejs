@@ -10,8 +10,6 @@
   const isOverridable = overridable !== false;
   const keyParts = name.split(".");
   const localKeys = locals.domainConfig?.[keyParts[0]];
-  const hasOwnValue = localKeys && Object.prototype.hasOwnProperty.call(localKeys, keyParts[1]);
-  const effectiveOverride = hasOwnValue && isOverridable && !isGlobal;
   const shouldDisable = !isGlobal && !isOverridable;
   const effectiveValue = (value !== undefined) ? value : globalValue;
 %>
@@ -23,8 +21,8 @@
     <label for="<%= name %>" class="fw-bold">
       <%= label %>
       <% if (!isGlobal && isOverridable) { %>
-        <span id="badge-<%= name %>" class="badge <%= effectiveOverride && globalValue !== value ? 'bg-success' : 'bg-info' %> ms-2">
-          <%= effectiveOverride && globalValue !== value ? 'Overridden' : 'Inherited' %>
+        <span id="badge-<%= name %>" class="badge <%= value !== globalValue ? 'bg-success' : 'bg-info' %> ms-2">
+          <%= value !== globalValue ? 'Overridden' : 'Inherited' %>
         </span>
       <% } %>
       <% if (shouldDisable) { %>
@@ -127,6 +125,37 @@
         </button>
       </div>
     </div>
+    <script>
+  requestAnimationFrame(async () => {
+    const domainSrc = "<%= previewSrc %>";
+    const globalSrc = "<%= previewSrc?.split('?')[0] %>"; // sin el ?domain=...
+
+    const getHash = async (url) => {
+      const res = await fetch(url);
+      const buf = await res.arrayBuffer();
+      const hashBuf = await crypto.subtle.digest("SHA-256", buf);
+      return Array.from(new Uint8Array(hashBuf)).map(b => b.toString(16).padStart(2, "0")).join("");
+    };
+
+    try {
+      const [domainHash, globalHash] = await Promise.all([getHash(domainSrc), getHash(globalSrc)]);
+      const badge = document.querySelector("#badge-<%= name %>");
+      if (!badge) return;
+
+      if (domainHash !== globalHash) {
+        badge.classList.remove("bg-info");
+        badge.classList.add("bg-success");
+        badge.textContent = "Overridden";
+      } else {
+        badge.classList.remove("bg-success");
+        badge.classList.add("bg-info");
+        badge.textContent = "Inherited";
+      }
+    } catch (err) {
+      console.warn("Error comparing file hashes for setting:", "<%= name %>", err);
+    }
+  });
+</script>
 
   <% } else if (type === "color") { %>
     <div class="mb-4">

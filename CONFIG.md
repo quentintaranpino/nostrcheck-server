@@ -154,7 +154,6 @@ REDIS_PASSWORD
 	"maxMBfilesize": 100,
 	"tempPath": "tmp/",
 	"mediaPath": "media/",
-	"notFoundFilePath" : "resources/file-not-found.webp",
 	"allowPublicUploads" : true,
 	"returnURL" : "",
 	"transform" : {...}
@@ -360,7 +359,6 @@ If the configuration file does not exist, the application will automatically gen
 		"maxMBfilesize": 100,
 		"tempPath": "tmp/",
 		"mediaPath": "media/",
-		"notFoundFilePath" : "resources/file-not-found.webp",
 		"allowPublicUploads" : true,
 		"returnURL" : "",
 		"transform" : {

@@ -137,10 +137,15 @@ const saveSettingsFile = async (settingName, restore = false) => {
     if (result.status === "success") {
         const preview = document.getElementById(`${settingName}-preview`);
         if (preview) {
-            preview.src = preview.src.split("?")[0] + "?" + Date.now(); 
+            if (selectedDomain) {
+                preview.src = preview.src.split("?")[0] + "?domain=" + selectedDomain + "&" + Date.now();
+            } else {
+                preview.src = preview.src.split("?")[0] + "?" + Date.now();
+            }
         }
         field.value = ""; 
         showMessage(`${result.message}`, "alert-primary");
+        updatePreviewBadges();
         return {"result": true, "reload" : reloadOnChangeFields.includes(settingName)};
     } else {
         initAlertModal("#settings", result.message);
@@ -317,6 +322,8 @@ document.addEventListener('DOMContentLoaded', () => {
         handleDynamicBackgroundChange(dynamicBackgroundThemeSelect, JSON.stringify(themes));
     });
 
+    updatePreviewBadges()
+
 });
 
 // Multi-tenancy badges
@@ -356,3 +363,41 @@ function handleFieldLiveUpdate(event) {
       badge.textContent = "Inherited";
     }
   }
+
+  async function updatePreviewBadges() {
+    const previews = document.querySelectorAll('img[id$="-preview"]');
+  
+    const getHash = async (url) => {
+      const res = await fetch(url);
+      const buf = await res.arrayBuffer();
+      const hashBuf = await crypto.subtle.digest("SHA-256", buf);
+      return Array.from(new Uint8Array(hashBuf)).map(b => b.toString(16).padStart(2, "0")).join("");
+    };
+  
+    for (const preview of previews) {
+      const settingName = preview.id.replace(/-preview$/, "");
+      const badge = document.getElementById(`badge-${settingName}`);
+      if (!badge) continue;
+  
+      const domainSrc = preview.src;
+      const globalSrc = preview.src.split("?")[0];
+  
+      try {
+        const [domainHash, globalHash] = await Promise.all([
+          getHash(domainSrc),
+          getHash(globalSrc)
+        ]);
+  
+        if (domainHash !== globalHash) {
+          badge.className = "badge bg-success ms-2";
+          badge.textContent = "Overridden";
+        } else {
+          badge.className = "badge bg-info ms-2";
+          badge.textContent = "Inherited";
+        }
+      } catch (err) {
+        console.warn("Error comparing hashes for", settingName, err);
+      }
+    }
+  }
+  

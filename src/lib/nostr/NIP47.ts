@@ -8,6 +8,7 @@ import app from "../../app.js";
 import { logger } from "../logger.js";
 import { nwc as NWC } from "@getalby/sdk";
 import WebSocket from 'ws'
+import { execWithTimeout } from "../utils.js";
 global.WebSocket = WebSocket as any;
 
 const nwc = new NWC.NWCClient({
@@ -20,7 +21,10 @@ const generateNwcInvoice = async (LNAddress: string, amount:number) : Promise<In
 
     try{
 
-        const response = await nwc.makeInvoice({amount: amount * 1000, description: ""});
+        const response = await execWithTimeout (
+            nwc.makeInvoice({amount: amount * 1000, description: ""}),
+            1000,
+        );
 
         if (!response || response == undefined || response.invoice == "") {
             logger.error(`generateNwcInvoice - Error generating nwc invoice for LNAddress: ${LNAddress} and amount: ${amount}`);

@@ -168,6 +168,7 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 		transaction_id: "",
 		payment_request: "",
 		visibility: 1,
+		domain: req.hostname,
 	};
 
 	// File mime type. If not allowed reject the upload.
@@ -722,6 +723,7 @@ const getMediaList = async (req: Request, res: Response): Promise<Response> => {
 			payment_request: "",
 			transaction_id: e.transactionid,
 			visibility: e.visibility,
+			domain: req.hostname,
 		};
 
 		// Return payment_request if the file is not paid
@@ -867,6 +869,7 @@ const getMediaStatusbyID = async (req: Request, res: Response, version:string): 
 		transaction_id: transactionid,
 		payment_request: "",
 		visibility: visibility,
+		domain: req.hostname
 	};
 
 	let response = 201;
@@ -926,6 +929,71 @@ const getMediaStatusbyID = async (req: Request, res: Response, version:string): 
 
 };
 
+/**
+ * * Serve a buffer to the client with the correct headers.
+ * * @param req - The request object.
+ * * @param res - The response object.
+ * * @param buffer - The buffer to serve.
+ * * @param mime - The MIME type of the buffer.
+ * * @param statusCode - The HTTP status code to send (default is calculated based on the prefix).
+ * */
+const serveBuffer = (req: Request, res: Response, buffer: Buffer, mime: string, noCache: boolean = false, statusCode?: number) => {
+
+	if (buffer.length === 0) {
+		res.status(statusCode ?? 204);
+		return res.end();
+	}
+
+	const prefix = mime.split("/")[0];
+	const size = buffer.length;
+
+	if (noCache) {
+		res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, private");
+		res.setHeader("Expires", "0");
+	} else {
+		res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+	}
+
+	res.setHeader("Content-Type", mime);
+	res.setHeader("Vary", "Origin, Cookie");
+
+	if (prefix === "video" || prefix === "audio") {
+		res.setHeader("Accept-Ranges", "bytes");
+
+		if (req.headers.range) {
+			const range = readRangeHeader(req.headers.range, size);
+
+			if (range.Start >= size || range.End >= size) {
+				res.status(416).setHeader("Content-Range", `bytes */${size}`);
+				return res.end();
+			}
+
+			const contentLength = range.End - range.Start + 1;
+			const chunk = buffer.slice(range.Start, range.End + 1);
+
+			res.status(statusCode ?? 206); 
+			res.setHeader("Content-Range", `bytes ${range.Start}-${range.End}/${size}`);
+			res.setHeader("Content-Length", contentLength);
+
+			const stream = new Readable();
+			stream.push(chunk);
+			stream.push(null);
+			return stream.pipe(res);
+		}
+
+		res.status(statusCode ?? 200); 
+		res.setHeader("Content-Length", size);
+		const stream = new Readable();
+		stream.push(buffer);
+		stream.push(null);
+		return stream.pipe(res);
+	}
+
+	res.status(statusCode ?? 200);
+	res.setHeader("Content-Length", size);
+	return res.send(buffer);
+};
+
 const getMediabyURL = async (req: Request, res: Response) => {
 
 	// Check if the request IP is allowed
@@ -951,7 +1019,6 @@ const getMediabyURL = async (req: Request, res: Response) => {
 	// Global security headers
 	res.setHeader("Content-Security-Policy", "script-src 'none'; object-src 'none';");
 
-
 	// Initial security checks
 	if (
 		req.params.pubkey && req.params.pubkey.length > 64 || 
@@ -959,10 +1026,10 @@ const getMediabyURL = async (req: Request, res: Response) => {
 		!req.params.filename || 
 		req.params.filename.length > 70 ||
 		!validator.matches(req.params.filename, /^[a-zA-Z0-9_]+(\.[a-zA-Z0-9_]+)*$/)) {
-		logger.debug(`getMediabyURL - Bad request - ${req.url}`, "|", reqInfo.ip);
-		res.setHeader('Content-Type', 'image/webp');
-		res.setHeader("X-Reason", "Bad request");
-		return res.status(400).send(await getNotFoundFileBanner());
+			logger.debug(`getMediabyURL - Bad request - ${req.url}`, "|", reqInfo.ip);
+			const notFoundBanner = await getNotFoundFileBanner(req.hostname, "image/webp");
+			res.setHeader("X-Reason", "File not found");
+			return serveBuffer(req, res, notFoundBanner, "image/webp", true);
 	}
 
 	// Old API compatibility (username instead of pubkey)
@@ -993,6 +1060,11 @@ const getMediabyURL = async (req: Request, res: Response) => {
 		setAuthCookie(res, adminHeader.authkey || loggedHeader.authkey);
 	}
 
+	// file extension checks and media type
+	const ext = path.extname(req.params.filename).slice(1);
+	const mediaType: string = await getMimeType(ext) || 'text/html';
+	res.setHeader('Content-Type', mediaType);
+
 	// Check if the file is cached, if not, we check the database for the file.
 	const cachedStatus = await redisCore.get(req.params.filename + "-" + req.params.pubkey);
 	if (cachedStatus === null || cachedStatus === undefined) {
@@ -1021,9 +1093,9 @@ const getMediabyURL = async (req: Request, res: Response) => {
 											true);
 		if (filedata[0] == undefined || filedata[0] == null) {
 			logger.info(`getMediabyURL - 404 Not found - ${req.url}`, "| Returning not found media file.", reqInfo.ip);
-			res.setHeader('Content-Type', 'image/webp');
+			const notFoundBanner = await getNotFoundFileBanner(req.hostname, mediaType);
 			res.setHeader("X-Reason", "File not found");
-			return res.status(200).send(await getNotFoundFileBanner());
+			return serveBuffer(req, res, notFoundBanner, mediaType, true);
 		}
 
 		let isBanned = await isEntityBanned(filedata[0].id, "mediafiles");
@@ -1031,23 +1103,22 @@ const getMediabyURL = async (req: Request, res: Response) => {
 		if (pubkeyId.length > 0 && (await isEntityBanned(pubkeyId[0].id, "registered") == true)) {isBanned = true}
 		if (isBanned && adminRequest == false) {
 			logger.info(`getMediabyURL - 403 Forbidden - ${req.url} | File is banned: ${filedata[0].original_hash}`, reqInfo.ip);
-			res.setHeader('Content-Type', 'image/webp');
+			const bannedBanner = await getBannedFileBanner(req.hostname, mediaType);
 			res.setHeader("X-Reason", "File is banned");
-			return res.status(200).send(await getBannedFileBanner());
+			return serveBuffer(req, res, bannedBanner, mediaType, true);
 		}
 
 		if (filedata[0].active != "1" && adminRequest == false) {
 			logger.info(`getMediabyURL - 401 File not active - ${req.url}`, "returning not found media file |", reqInfo.ip, "|", "cached:", cachedStatus ? true : false);
-			res.setHeader('Content-Type', 'image/webp');
-			res.setHeader("X-Reason", "File not active");
-			return res.status(200).send(await getNotFoundFileBanner());
+			const notFoundBanner = await getNotFoundFileBanner(req.hostname, mediaType);
+			res.setHeader("X-Reason", "File not found");
+			return serveBuffer(req, res, notFoundBanner, mediaType, true);
 		}
 
 		// Allways set the correct filename
 		req.params.filename = filedata[0].filename
 
 		// Check if exist a transaction for this media file and if it is paid. Check preimage
-		
 		const transaction : Transaction = await checkTransaction(
 			filedata[0].transactionid,
 			filedata[0].id,
@@ -1056,7 +1127,7 @@ const getMediabyURL = async (req: Request, res: Response) => {
 			0,
 			getConfig(req.hostname, ["media", "maxMBfilesize"]) * 1024 * 1024,
 			getConfig(req.hostname, ["payments", "satoshi", "mediaMaxSatoshi"]),
-			req.params.pubkey
+			req.params.pubkey ? req.params.pubkey : filedata[0].pubkey
 		);
 		
 		const preimage = req.headers["x-lightning"]?.toString().length == 64 ? req.headers["x-lightning"]?.toString() : undefined;
@@ -1068,9 +1139,8 @@ const getMediabyURL = async (req: Request, res: Response) => {
 			} 
 		}
 
+		// If the GET request has no authorization, we return a QR code with the payment request.
 		if (isModuleEnabled("payments") && transaction.paymentHash != "" && transaction.isPaid == false &&  adminRequest == false) {
-
-			// If the GET request has no authorization, we return a QR code with the payment request.
 			logger.info(`getMediabyURL - 200 Paid media file ${req.url}`, "|", reqInfo.ip, "|", "cached:", cachedStatus ? true : false);
 			const qrCode = await generateQRCode(transaction.paymentRequest, 
 									"Invoice amount: " + transaction.satoshi + " sats", 
@@ -1078,48 +1148,11 @@ const getMediabyURL = async (req: Request, res: Response) => {
 									"is paid. Then, it will be freely available to everyone", filedata[0].mimetype.toString().startsWith("video") ? "video" : "image");
 
 			filedata[0].mimetype.startsWith("video") ? res.setHeader('Content-Type', "video/mp4") : res.setHeader('Content-Type', "image/webp");
-			res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
-			res.setHeader('Expires', '0');
 
 			res.setHeader('X-Lightning', transaction.paymentRequest);
 			res.setHeader('X-Lightning-Amount', transaction.satoshi);
 			res.setHeader("X-Reason", `Invoice (${transaction.satoshi}) for hash: ${filedata[0].original_hash}`);
-
-			
-			if (filedata[0].mimetype.toString().startsWith("video")) {
-				let range : VideoHeaderRange;
-				let videoSize : number;
-				try {
-					videoSize = qrCode.length;
-					range = readRangeHeader(req.headers.range, videoSize);
-				} catch (err) {
-					logger.warn(`getMediabyURL - 200 Not Found - ${req.url}`, "| Returning not found media file.", reqInfo.ip);
-					res.setHeader('Content-Type', 'image/webp');
-					res.setHeader("X-Reason", "File not found");
-					return res.status(200).send(await getNotFoundFileBanner());
-				}
-	
-				res.setHeader("Content-Range", `bytes ${range.Start}-${range.End}/${videoSize}`);
-	
-				// If the range can't be fulfilled.
-				if (range.Start >= videoSize || range.End >= videoSize) {
-					res.setHeader("Content-Range", `bytes */ ${videoSize}`)
-					range.Start = 0;
-					range.End = videoSize - 1;
-				}
-	
-				const contentLength = range.Start == range.End ? 0 : (range.End - range.Start + 1);
-				res.setHeader("Accept-Ranges", "bytes");
-				res.setHeader("Content-Length", contentLength);
-				res.setHeader("Cache-Control", "no-cache")
-				res.status(206);
-				const videoStream = new Readable();
-				videoStream.push(qrCode.slice(range.Start, range.End + 1));
-				videoStream.push(null);
-				return videoStream.pipe(res);
-			}
-
-			return res.status(402).send(qrCode);
+			return serveBuffer(req, res, qrCode, mediaType, true, 402);
 		}
 		
 		if (!adminRequest && loggedPubkey == "") {
@@ -1131,13 +1164,8 @@ const getMediabyURL = async (req: Request, res: Response) => {
 		logger.info(`getMediabyURL -  401 File not active - ${req.url}`, "returning not found media file |", reqInfo.ip, "|", "cached:", cachedStatus ? true : false);
 		res.setHeader('Content-Type', 'image/webp');
 		res.setHeader("X-Reason", "File not active");
-		return res.status(401).send(await getNotFoundFileBanner());
+		return res.status(401).send(await getNotFoundFileBanner(req.hostname, mediaType));
 	}
-
-	// file extension checks and media type
-	const ext = path.extname(req.params.filename).slice(1);
-	const mediaType: string = await getMimeType(ext) || 'text/html';
-	res.setHeader('Content-Type', mediaType);
 
 	// mediaPath checks
 	const mediaLocation = getConfig(req.hostname, ["storage", "type"]);
@@ -1149,7 +1177,7 @@ const getMediabyURL = async (req: Request, res: Response) => {
 			logger.error(`getMediabyURL - 500 Internal Server Error - mediaPath not set`, "|", reqInfo.ip);
 			res.setHeader('Content-Type', 'image/webp');
 			res.setHeader("X-Reason", "Internal Server Error");
-			return res.status(500).send(await getNotFoundFileBanner());
+			return res.status(500).send(await getNotFoundFileBanner(req.hostname, mediaType));
 		}
 
 		// Check if file exist on storage server
@@ -1157,7 +1185,7 @@ const getMediabyURL = async (req: Request, res: Response) => {
 		if (fileName == ""){ 
 				logger.info(`getMediabyURL - 404 Not found - ${req.url}`, "| Returning not found media file.", reqInfo.ip);
 				res.setHeader('Content-Type', 'image/webp');
-				return res.status(200).send(await getNotFoundFileBanner());
+				return res.status(200).send(await getNotFoundFileBanner(req.hostname, mediaType));
 			}
 
 		// Try to prevent directory traversal attacks
@@ -1165,59 +1193,11 @@ const getMediabyURL = async (req: Request, res: Response) => {
 			logger.warn(`getMediabyURL - 403 Forbidden - ${req.url}`, "| Returning not found media file.", reqInfo.ip);
 			res.setHeader('Content-Type', 'image/webp');
 			res.setHeader("X-Reason", "Forbidden");
-			return res.status(403).send(await getNotFoundFileBanner());
+			return res.status(403).send(await getNotFoundFileBanner(req.hostname, mediaType));
 		}
 
-		// If is a video or audio file we return an stream
-		if (mediaType.startsWith("video") || mediaType.startsWith("audio")) {
-			let range: VideoHeaderRange;
-			let videoSize: number;
-		
-			try {
-				videoSize = fs.statSync(fileName).size;
-		
-				if (req.headers.range) {
-					range = readRangeHeader(req.headers.range, videoSize);
-		
-					if (range.Start >= videoSize || range.End >= videoSize) {
-						res.setHeader("Content-Range", `bytes */${videoSize}`);
-						return res.sendStatus(416);
-					}
-		
-					res.setHeader("Content-Range", `bytes ${range.Start}-${range.End}/${videoSize}`);
-					res.setHeader("Accept-Ranges", "bytes");
-					res.setHeader("Content-Length", range.End - range.Start + 1);
-					res.setHeader("Cache-Control", "no-cache");
-					res.setHeader("Content-Type", mediaType);
-					res.status(206);
-		
-					return fs.createReadStream(fileName, { start: range.Start, end: range.End }).pipe(res);
-				}
-			} catch (err) {
-				logger.warn(`getMediabyURL - 200 Not Found - ${req.url}`, "| Returning not found media file.", reqInfo.ip);
-				res.setHeader("Content-Type", "image/webp");
-				return res.status(200).send(await getNotFoundFileBanner());
-			}
-		
-			res.setHeader("Content-Type", mediaType);
-			res.setHeader("Content-Length", videoSize);
-			res.setHeader("Cache-Control", "no-cache");
-			return fs.createReadStream(fileName).pipe(res);
-		}
-		
-
-		// If is not a video or audio file we return the file
-		fs.readFile(fileName, async (err, data) => {
-			if (err) {
-				logger.warn(`getMediabyURL - 200 Not Found - ${req.url}`, "| Returning not found media file.", reqInfo.ip);
-				res.setHeader('Content-Type', 'image/webp');
-				return res.status(200).send(await getNotFoundFileBanner());
-			} 
-			logger.info(`getMediabyURL - Media file found successfully: ${req.url}`, "|", reqInfo.ip, "|", "cached:", cachedStatus ? true : false);
-			res.setHeader('Content-Type', mediaType);
-			res.status(200).send(data);
-
-		});
+		const fileBuffer = await fs.promises.readFile(fileName);
+		return serveBuffer(req, res, fileBuffer, mediaType);
 
 	} else if (mediaLocation == "remote") {
 
@@ -1226,13 +1206,13 @@ const getMediabyURL = async (req: Request, res: Response) => {
 			logger.error(`getMediabyURL - 500 Internal Server Error - remote URL not found`, "|", reqInfo.ip);
 			res.setHeader('Content-Type', 'image/webp');
 			res.setHeader("X-Reason", "Internal Server Error");
-			return res.status(500).send(await getNotFoundFileBanner());
+			return res.status(500).send(await getNotFoundFileBanner(req.hostname,mediaType));
 		}
 		const remoteFile = await fetch(url);
 		if (!remoteFile.ok || !remoteFile.body ) {
 			logger.error('`getMediabyURL - Failed to fetch from remote file server || ' + req.params.filename, reqInfo.ip);
 			res.setHeader('Content-Type', 'image/webp');
-			return res.status(200).send(await getNotFoundFileBanner());
+			return res.status(200).send(await getNotFoundFileBanner(req.hostname, mediaType));
 		}
 
 		const reader = remoteFile.body.getReader();

@@ -7,6 +7,7 @@ import { emptyModerationCategory, ModerationCategory, ModerationJob } from "../.
 import { logger } from "../logger.js";
 import { dbMultiSelect, dbUpdate } from "../database.js";
 import { getFileUrl } from "../media.js";
+import { getConfig } from "../config/core.js";
 
 // Create the fastq queue for moderation tasks
 const moderationQueue: queueAsPromised<ModerationJob> = fastq.promise(moderationWorker, 1);
@@ -21,15 +22,15 @@ async function moderationWorker(task: ModerationJob): Promise<ModerationCategory
 
     const taskData = await dbMultiSelect(["id", task.originTable == "mediafiles" ? "filename" : "content"], task.originTable, "id = ?", [task.originId], true);
 
-    if (app.get("config.media")["mediainspector"]["type"] === "local") {
+    if (getConfig(null, ["media", "mediainspector", "type"]) === "local") {
         const filePath: string = await getFilePath(taskData[0].filename);
         result = await localEngineClassify(filePath);
-    } else if (app.get("config.media")["mediainspector"]["type"] === "remote") {
+    } else {
         result = await remoteEngineClassify(
             getFileUrl(taskData[0].filename, undefined, ""),
-            app.get("config.media")["mediainspector"]["remote"]["endpoint"],
-            app.get("config.media")["mediainspector"]["remote"]["apikey"],
-            app.get("config.media")["mediainspector"]["remote"]["secretkey"]
+            getConfig(null, ["media", "mediainspector", "remote", "endpoint"]),
+            getConfig(null, ["media", "mediainspector", "remote", "apikey"]),
+            getConfig(null, ["media", "mediainspector", "remote", "secretkey"]),
         );
     }
 
@@ -55,7 +56,7 @@ async function moderationWorker(task: ModerationJob): Promise<ModerationCategory
  */
 const moderateFile = async (originTable: string, originId: string): Promise<boolean> => {
 
-    if (app.get("config.media")["mediainspector"]["enabled"] === false) return false;
+    if (getConfig(null, ["media", "mediainspector", "enabled"]) === false) return false;
 
     // Update the record status to "2" to indicate moderation is in progress
     const updateModerating: boolean = await dbUpdate(originTable, { checked: "2" }, ["id"], [originId]);
