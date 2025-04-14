@@ -1066,8 +1066,8 @@ const getMediabyURL = async (req: Request, res: Response) => {
 
 	// file extension checks and media type
 	const ext = path.extname(req.params.filename).slice(1);
-	const mediaType: string = await getMimeType(ext) || 'text/html';
-	res.setHeader('Content-Type', mediaType);
+	const fileType: string = await getMimeType(ext) || 'text/html';
+	res.setHeader('Content-Type', fileType);
 
 	// Check if the file is cached, if not, we check the database for the file.
 	const cachedStatus = await redisCore.get(req.params.filename + "-" + req.params.pubkey);
@@ -1097,9 +1097,10 @@ const getMediabyURL = async (req: Request, res: Response) => {
 											true);
 		if (filedata[0] == undefined || filedata[0] == null) {
 			logger.debug(`getMediabyURL - 404 Not found - ${req.url}`, "| Returning not found media file.", reqInfo.ip);
-			const notFoundBanner = await getNotFoundFileBanner(req.hostname, mediaType);
+			const notFoundBanner = await getNotFoundFileBanner(req.hostname, fileType);
 			res.setHeader("X-Reason", "File not found");
-			return serveBuffer(req, res, notFoundBanner, mediaType, true);
+			res.setHeader('X-Original-Content-Type', fileType);
+			return serveBuffer(req, res, notFoundBanner.buffer, notFoundBanner.type, true);
 		}
 
 		let isBanned = await isEntityBanned(filedata[0].id, "mediafiles");
@@ -1107,16 +1108,18 @@ const getMediabyURL = async (req: Request, res: Response) => {
 		if (pubkeyId.length > 0 && (await isEntityBanned(pubkeyId[0].id, "registered") == true)) {isBanned = true}
 		if (isBanned && adminRequest == false) {
 			logger.debug(`getMediabyURL - 403 Forbidden - ${req.url} | File is banned: ${filedata[0].original_hash}`, reqInfo.ip);
-			const bannedBanner = await getBannedFileBanner(req.hostname, mediaType);
+			const bannedBanner = await getBannedFileBanner(req.hostname, fileType);
 			res.setHeader("X-Reason", "File is banned");
-			return serveBuffer(req, res, bannedBanner, mediaType, true);
+			res.setHeader('X-Original-Content-Type', fileType);
+			return serveBuffer(req, res, bannedBanner.buffer, bannedBanner.type, true);
 		}
 
 		if (filedata[0].active != "1" && adminRequest == false) {
 			logger.debug(`getMediabyURL - 401 File not active - ${req.url}`, "returning not found media file |", reqInfo.ip, "|", "cached:", cachedStatus ? true : false);
-			const notFoundBanner = await getNotFoundFileBanner(req.hostname, mediaType);
+			const notFoundBanner = await getNotFoundFileBanner(req.hostname, fileType);
 			res.setHeader("X-Reason", "File not found");
-			return serveBuffer(req, res, notFoundBanner, mediaType, true);
+			res.setHeader('X-Original-Content-Type', fileType);
+			return serveBuffer(req, res, notFoundBanner.buffer, notFoundBanner.type, true);
 		}
 
 		// Allways set the correct filename
@@ -1150,14 +1153,16 @@ const getMediabyURL = async (req: Request, res: Response) => {
 			const qrCode = await generateQRCode(transaction.paymentRequest, 
 									"Invoice amount: " + transaction.satoshi + " sats", 
 									"This file will be unlocked when the Lightning invoice " + 
-									"is paid. Then, it will be freely available to everyone", filedata[0].mimetype.toString().startsWith("video") ? "video" : "image");
+									"is paid. Then, it will be freely available to everyone", 
+									filedata[0].mimetype.toString().startsWith("video") ? "video" : "image");
 
 			filedata[0].mimetype.startsWith("video") ? res.setHeader('Content-Type', "video/mp4") : res.setHeader('Content-Type', "image/webp");
 
 			res.setHeader('X-Lightning', transaction.paymentRequest);
 			res.setHeader('X-Lightning-Amount', transaction.satoshi);
+			res.setHeader('X-Original-Content-Type', fileType);
 			res.setHeader("X-Reason", `Invoice (${transaction.satoshi}) for hash: ${filedata[0].original_hash}`);
-			return serveBuffer(req, res, qrCode, mediaType, true, 402);
+			return serveBuffer(req, res, qrCode.buffer, qrCode.type, true, 402);
 		}
 		
 		if (!adminRequest && loggedPubkey == "") {
@@ -1169,7 +1174,9 @@ const getMediabyURL = async (req: Request, res: Response) => {
 		logger.debug(`getMediabyURL -  401 File not active - ${req.url}`, "returning not found media file |", reqInfo.ip, "|", "cached:", cachedStatus ? true : false);
 		res.setHeader('Content-Type', 'image/webp');
 		res.setHeader("X-Reason", "File not active");
-		return res.status(401).send(await getNotFoundFileBanner(req.hostname, mediaType));
+		res.setHeader('X-Original-Content-Type', fileType);
+		const notFoundBanner = await getNotFoundFileBanner(req.hostname, fileType);
+		return serveBuffer(req, res, notFoundBanner.buffer, notFoundBanner.type, true);
 	}
 
 	// mediaPath checks
@@ -1180,45 +1187,54 @@ const getMediabyURL = async (req: Request, res: Response) => {
 		const mediaPath = path.normalize(path.resolve(getConfig(req.hostname, ["storage", "local", "mediaPath"])));
 		if (!mediaPath) {
 			logger.error(`getMediabyURL - 500 Internal Server Error - mediaPath not set`, "|", reqInfo.ip);
-			res.setHeader('Content-Type', 'image/webp');
 			res.setHeader("X-Reason", "Internal Server Error");
-			return res.status(500).send(await getNotFoundFileBanner(req.hostname, mediaType));
+			res.setHeader('X-Original-Content-Type', fileType);
+			const notFoundBanner = await getNotFoundFileBanner(req.hostname, fileType);
+			return serveBuffer(req, res, notFoundBanner.buffer, notFoundBanner.type, true, 500);
 		}
 
 		// Check if file exist on storage server
 		const fileName = await getFilePath(req.params.filename);
 		if (fileName == ""){ 
 				logger.debug(`getMediabyURL - 404 Not found - ${req.url}`, "| Returning not found media file.", reqInfo.ip);
-				res.setHeader('Content-Type', 'image/webp');
-				return res.status(200).send(await getNotFoundFileBanner(req.hostname, mediaType));
+				res.setHeader('X-Original-Content-Type', fileType);
+				res.setHeader("X-Reason", "File not found");
+				const notFoundBanner = await getNotFoundFileBanner(req.hostname, fileType);
+				return serveBuffer(req, res, notFoundBanner.buffer, notFoundBanner.type, true);
 			}
 
 		// Try to prevent directory traversal attacks
 		if (!path.normalize(path.resolve(fileName)).startsWith(mediaPath)) {
 			logger.warn(`getMediabyURL - 403 Forbidden - ${req.url}`, "| Returning not found media file.", reqInfo.ip);
-			res.setHeader('Content-Type', 'image/webp');
 			res.setHeader("X-Reason", "Forbidden");
-			return res.status(403).send(await getNotFoundFileBanner(req.hostname, mediaType));
+			res.setHeader('X-Original-Content-Type', fileType);
+			const notFoundBanner = await getNotFoundFileBanner(req.hostname, fileType);
+			return serveBuffer(req, res, notFoundBanner.buffer, notFoundBanner.type, true, 403);
+
 		}
 
 		const fileBuffer = await fs.promises.readFile(fileName);
 		logger.debug(`getMediabyURL - Media file found successfully: ${req.url}`, "|", reqInfo.ip, "|", "cached:", cachedStatus ? true : false);
-		return serveBuffer(req, res, fileBuffer, mediaType);
+		return serveBuffer(req, res, fileBuffer, fileType);
 
 	} else if (mediaLocation == "remote") {
 
 		const url = await getRemoteFile(req.params.filename);
 		if (url == "") {
 			logger.error(`getMediabyURL - 500 Internal Server Error - remote URL not found`, "|", reqInfo.ip);
-			res.setHeader('Content-Type', 'image/webp');
 			res.setHeader("X-Reason", "Internal Server Error");
-			return res.status(500).send(await getNotFoundFileBanner(req.hostname,mediaType));
+			res.setHeader('X-Original-Content-Type', fileType);
+			const notFoundBanner = await getNotFoundFileBanner(req.hostname, fileType);
+			return serveBuffer(req, res, notFoundBanner.buffer, notFoundBanner.type, true, 500);
+
 		}
 		const remoteFile = await fetch(url);
 		if (!remoteFile.ok || !remoteFile.body ) {
 			logger.error('`getMediabyURL - Failed to fetch from remote file server || ' + req.params.filename, reqInfo.ip);
-			res.setHeader('Content-Type', 'image/webp');
-			return res.status(200).send(await getNotFoundFileBanner(req.hostname, mediaType));
+			res.setHeader("X-Reason", "File not found");
+			res.setHeader('X-Original-Content-Type', fileType);
+			const notFoundBanner = await getNotFoundFileBanner(req.hostname, fileType);
+			return serveBuffer(req, res, notFoundBanner.buffer, notFoundBanner.type, true);
 		}
 
 		const reader = remoteFile.body.getReader();
