@@ -223,29 +223,5 @@
 <script src="/static/js/form.js"></script>
 <script src="/static/js/settings.js"></script>
 
-<script>
-  let logHistory = "<%= locals.logHistory %>"
-  window.logData = <%- JSON.stringify(locals.logHistory || []) %>;
-</script>
 </body>
-<style>
-.gradient-bar {
-    position: relative;
-    height: 300px; 
-    width: 100%; 
-    border-radius: 5px; 
-    margin-top: 10px;
-}
-
-.gradient-bar .handle {
-    position: absolute;
-    bottom: 25%;
-    width: 9px;
-    height: 40%;
-    background: #fff;
-    cursor: ew-resize;
-    border-radius: 3px;
-}
-
-</style>
 </html>

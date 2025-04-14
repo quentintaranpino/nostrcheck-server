@@ -2,6 +2,7 @@ const reloadOnChangeFields = [
     "multiTenancy",
     "appearance.server.logo.light",
     "appearance.server.logo.dark",
+    "server.availableModules"
   ];
 
 async function saveSettings() {
@@ -33,14 +34,14 @@ async function saveSettings() {
             if (field.type === 'file') {
                 const isRestore = value === "restore" || field.dataset.restore === "true";
                 await saveSettingsFile(field.name, isRestore).then(response => {
-                    if (response.reload && reloadOnChangeFields.includes(field.name)) {
+                    if (response.reload && reloadOnChangeFields.some(key => field.name === key || field.name.startsWith(`${key}.`))) {
                         shouldReload = true;
                     }
                 });
                 continue;
             }
 
-            if (reloadOnChangeFields.includes(field.name)) {
+            if (reloadOnChangeFields.some(key => field.name === key || field.name.startsWith(`${key}.`))) {
                 shouldReload = true;
             }
             
@@ -146,8 +147,12 @@ const saveSettingsFile = async (settingName, restore = false) => {
         field.value = ""; 
         showMessage(`${result.message}`, "alert-primary");
         updatePreviewBadges();
-        return {"result": true, "reload" : reloadOnChangeFields.includes(settingName)};
-    } else {
+        return {
+            result: true,
+            reload: reloadOnChangeFields.some(key => settingName === key || settingName.startsWith(`${key}.`))
+        };
+        
+        } else {
         initAlertModal("#settings", result.message);
         return { "result": false, "reload" : false };
     }
