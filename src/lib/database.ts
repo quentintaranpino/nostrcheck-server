@@ -689,9 +689,12 @@ const initDatabase = async (): Promise<void> => {
 	}
 
 	// Delete rows from mediafiles where status <> 'success' or 'completed'
-	await dbDelete("mediafiles", ["status"], ["error"]);
-	await dbDelete("mediafiles", ["status"], ["failed"]);
-	await dbDelete("mediafiles", ["status"], ["processing"]);
+	const mediaToDelete = await dbMultiSelect(["id"], "mediafiles", "status <> 'success' AND status <> 'completed'", [], false);
+	if (mediaToDelete.length > 0) {
+		await dbDelete("mediafiles", ["status"], ["error"]);
+		await dbDelete("mediafiles", ["status"], ["failed"]);
+		await dbDelete("mediafiles", ["status"], ["processing"]);
+	}
 	
 }
 
