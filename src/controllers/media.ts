@@ -1003,14 +1003,14 @@ const getMediabyURL = async (req: Request, res: Response) => {
 	// Check if the request IP is allowed
 	const reqInfo = await isIpAllowed(req);
 	if (reqInfo.banned == true) {
-		logger.info(`getMediabyURL - Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
+		logger.debug(`getMediabyURL - Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
 		res.setHeader("X-Reason", reqInfo.comments);
 		return res.status(403).send({"status": "error", "message": reqInfo.comments});
 	}
 
 	// Check if current module is enabled
 	if (!isModuleEnabled("media")) {
-        logger.info(`getMediabyURL - Attempt to access a non-active module: media | IP:`, reqInfo.ip);
+        logger.debug(`getMediabyURL - Attempt to access a non-active module: media | IP:`, reqInfo.ip);
 		res.setHeader("X-Reason", "Module is not enabled");
 		return res.status(403).send({"status": "error", "message": "Module is not enabled"});
 	}
@@ -1096,7 +1096,7 @@ const getMediabyURL = async (req: Request, res: Response) => {
 											whereValues,
 											true);
 		if (filedata[0] == undefined || filedata[0] == null) {
-			logger.info(`getMediabyURL - 404 Not found - ${req.url}`, "| Returning not found media file.", reqInfo.ip);
+			logger.debug(`getMediabyURL - 404 Not found - ${req.url}`, "| Returning not found media file.", reqInfo.ip);
 			const notFoundBanner = await getNotFoundFileBanner(req.hostname, mediaType);
 			res.setHeader("X-Reason", "File not found");
 			return serveBuffer(req, res, notFoundBanner, mediaType, true);
@@ -1106,14 +1106,14 @@ const getMediabyURL = async (req: Request, res: Response) => {
 		const pubkeyId = await dbMultiSelect(["id"], "registered", "hex = ?", [filedata[0].pubkey], true);
 		if (pubkeyId.length > 0 && (await isEntityBanned(pubkeyId[0].id, "registered") == true)) {isBanned = true}
 		if (isBanned && adminRequest == false) {
-			logger.info(`getMediabyURL - 403 Forbidden - ${req.url} | File is banned: ${filedata[0].original_hash}`, reqInfo.ip);
+			logger.debug(`getMediabyURL - 403 Forbidden - ${req.url} | File is banned: ${filedata[0].original_hash}`, reqInfo.ip);
 			const bannedBanner = await getBannedFileBanner(req.hostname, mediaType);
 			res.setHeader("X-Reason", "File is banned");
 			return serveBuffer(req, res, bannedBanner, mediaType, true);
 		}
 
 		if (filedata[0].active != "1" && adminRequest == false) {
-			logger.info(`getMediabyURL - 401 File not active - ${req.url}`, "returning not found media file |", reqInfo.ip, "|", "cached:", cachedStatus ? true : false);
+			logger.debug(`getMediabyURL - 401 File not active - ${req.url}`, "returning not found media file |", reqInfo.ip, "|", "cached:", cachedStatus ? true : false);
 			const notFoundBanner = await getNotFoundFileBanner(req.hostname, mediaType);
 			res.setHeader("X-Reason", "File not found");
 			return serveBuffer(req, res, notFoundBanner, mediaType, true);
@@ -1146,7 +1146,7 @@ const getMediabyURL = async (req: Request, res: Response) => {
 
 		// If the GET request has no authorization, we return a QR code with the payment request.
 		if (isModuleEnabled("payments") && transaction.paymentHash != "" && transaction.isPaid == false &&  adminRequest == false) {
-			logger.info(`getMediabyURL - 200 Paid media file ${req.url}`, "|", reqInfo.ip, "|", "cached:", cachedStatus ? true : false);
+			logger.debug(`getMediabyURL - 200 Paid media file ${req.url}`, "|", reqInfo.ip, "|", "cached:", cachedStatus ? true : false);
 			const qrCode = await generateQRCode(transaction.paymentRequest, 
 									"Invoice amount: " + transaction.satoshi + " sats", 
 									"This file will be unlocked when the Lightning invoice " + 
@@ -1166,7 +1166,7 @@ const getMediabyURL = async (req: Request, res: Response) => {
 
 	}
 	if (cachedStatus === "0") {
-		logger.info(`getMediabyURL -  401 File not active - ${req.url}`, "returning not found media file |", reqInfo.ip, "|", "cached:", cachedStatus ? true : false);
+		logger.debug(`getMediabyURL -  401 File not active - ${req.url}`, "returning not found media file |", reqInfo.ip, "|", "cached:", cachedStatus ? true : false);
 		res.setHeader('Content-Type', 'image/webp');
 		res.setHeader("X-Reason", "File not active");
 		return res.status(401).send(await getNotFoundFileBanner(req.hostname, mediaType));
@@ -1188,7 +1188,7 @@ const getMediabyURL = async (req: Request, res: Response) => {
 		// Check if file exist on storage server
 		const fileName = await getFilePath(req.params.filename);
 		if (fileName == ""){ 
-				logger.info(`getMediabyURL - 404 Not found - ${req.url}`, "| Returning not found media file.", reqInfo.ip);
+				logger.debug(`getMediabyURL - 404 Not found - ${req.url}`, "| Returning not found media file.", reqInfo.ip);
 				res.setHeader('Content-Type', 'image/webp');
 				return res.status(200).send(await getNotFoundFileBanner(req.hostname, mediaType));
 			}
@@ -1202,6 +1202,7 @@ const getMediabyURL = async (req: Request, res: Response) => {
 		}
 
 		const fileBuffer = await fs.promises.readFile(fileName);
+		logger.debug(`getMediabyURL - Media file found successfully: ${req.url}`, "|", reqInfo.ip, "|", "cached:", cachedStatus ? true : false);
 		return serveBuffer(req, res, fileBuffer, mediaType);
 
 	} else if (mediaLocation == "remote") {
@@ -1233,7 +1234,7 @@ const getMediabyURL = async (req: Request, res: Response) => {
 		}
 		});
 
-		logger.info(`getMediabyURL - Media file found successfully (pipe from remote server): ${req.url}`, "|", reqInfo.ip, "|", "cached:", cachedStatus ? true : false);
+		logger.debug(`getMediabyURL - Media file found successfully (pipe from remote server): ${req.url}`, "|", reqInfo.ip, "|", "cached:", cachedStatus ? true : false);
 		stream.pipe(res);
 
 	}
@@ -1245,20 +1246,20 @@ const getMediaTagsbyID = async (req: Request, res: Response): Promise<Response> 
 	// Check if the request IP is allowed
 	const reqInfo = await isIpAllowed(req);
 	if (reqInfo.banned == true) {
-		logger.info(`getMediaTagsbyID - Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
+		logger.debug(`getMediaTagsbyID - Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
 		res.setHeader("X-Reason", reqInfo.comments);
 		return res.status(403).send({"status": "error", "message": reqInfo.comments});
 	}
 
 	// Check if current module is enabled
 	if (!isModuleEnabled("media")) {
-        logger.info(`getMediaTagsbyID - Attempt to access a non-active module: media | IP:`, reqInfo.ip);
+        logger.debug(`getMediaTagsbyID - Attempt to access a non-active module: media | IP:`, reqInfo.ip);
 		res.setHeader("X-Reason", "Module is not enabled");
 		return res.status(403).send({"status": "error", "message": "Module is not enabled"});
 	}
 
 	// Get available tags for a specific media file
-	logger.info(`getMediaTagsbyID - Request from:`, reqInfo.ip);
+	logger.debug(`getMediaTagsbyID - Request from:`, reqInfo.ip);
 
 	// Check if authorization header is valid
 	const eventHeader = await parseAuthHeader(req, "getMediaStatusbyID", false, false, false);
@@ -1286,7 +1287,7 @@ const getMediaTagsbyID = async (req: Request, res: Response): Promise<Response> 
     );
 
     if (rows.length > 0) {
-        logger.info("RES -> Media tag list", "|", reqInfo.ip);
+        logger.debug("RES -> Media tag list", "|", reqInfo.ip);
         return res.status(200).send(rows);
     }
 
@@ -1301,7 +1302,7 @@ const getMediaTagsbyID = async (req: Request, res: Response): Promise<Response> 
     );
 
     if (publicRows.length > 0) {
-        logger.info(`getMediaTagsbyID - Media tag list found successfully, lenght: ${publicRows.length}`, "|", reqInfo.ip);
+        logger.debug(`getMediaTagsbyID - Media tag list found successfully, lenght: ${publicRows.length}`, "|", reqInfo.ip);
         return res.status(200).send(publicRows);
     }
 
@@ -1316,20 +1317,20 @@ const getMediabyTags = async (req: Request, res: Response): Promise<Response> =>
 	// Check if the request IP is allowed
 	const reqInfo = await isIpAllowed(req);
 	if (reqInfo.banned == true) {
-		logger.info(`getMediabyTags - Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
+		logger.debug(`getMediabyTags - Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
 		res.setHeader("X-Reason", reqInfo.comments);
 		return res.status(403).send({"status": "error", "message": reqInfo.comments});
 	}
 
 	// Check if current module is enabled
 	if (!isModuleEnabled("media")) {
-        logger.info(`getMediabyTags - Attempt to access a non-active module: media | IP:`, reqInfo.ip);
+        logger.debug(`getMediabyTags - Attempt to access a non-active module: media | IP:`, reqInfo.ip);
 		res.setHeader("X-Reason", "Module is not enabled");
 		res.status(403).send({"status": "error", "message": "Module is not enabled"});
 	}
 
 	//Get media files by defined tags
-	logger.info(`getMediabyTags - Request from:`, reqInfo.ip);
+	logger.debug(`getMediabyTags - Request from:`, reqInfo.ip);
 
 	// Check if authorization header is valid
 	const eventHeader = await parseAuthHeader(req, "getMediabyTags", false, false, false);
@@ -1355,7 +1356,7 @@ const getMediabyTags = async (req: Request, res: Response): Promise<Response> =>
 	);
 
 	if (rows.length > 0) {
-		logger.info(`getMediabyTags - Media files for specified tag found, lenght: ${rows.length}`, "|", reqInfo.ip);
+		logger.debug(`getMediabyTags - Media files for specified tag found, lenght: ${rows.length}`, "|", reqInfo.ip);
 		const result = {
 			result: true,
 			description: "Media files found",
@@ -1375,7 +1376,7 @@ const getMediabyTags = async (req: Request, res: Response): Promise<Response> =>
 	);
 
 	if (publicRows.length > 0) {
-		logger.info(`getMediabyTags - Media files for specified tag found successfully, lenght: ${publicRows.length}`, "|", reqInfo.ip);
+		logger.debug(`getMediabyTags - Media files for specified tag found successfully, lenght: ${publicRows.length}`, "|", reqInfo.ip);
 		const result = {
 			result: true,
 			description: "Media files found",
