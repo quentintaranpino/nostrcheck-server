@@ -5,6 +5,7 @@ import { loadTenants } from "./tenant.js";
 
 const initGlobalConfig = async (): Promise<void> => {
 
+    const versionConfig = process.env.npm_package_version ?? "0.0";
     const environmentConfig = process.env.NODE_ENV ?? await loadConfigOptions("environment");
     const multiTenancyConfig = await loadConfigOptions("multiTenancy");
     const autoLoginConfig = await loadConfigOptions("autoLogin");
@@ -23,7 +24,7 @@ const initGlobalConfig = async (): Promise<void> => {
     const appearanceConfig = await loadConfigOptions("appearance");
 
     const globalConfig = {
-        version: process.env.npm_package_version ?? "0.0",
+        version: versionConfig,
         environment: environmentConfig,
         multiTenancy: multiTenancyConfig,
         autoLogin: autoLoginConfig,

@@ -2,8 +2,8 @@ import {FileData } from "../../interfaces/media.js";
 import {NIP94_data, NIP96_event, NIP96file, supported_nips} from "../../interfaces/nostr.js";
 import { PrepareNIP94_event } from "./NIP94.js";
 import { getAllowedMimeTypes, getMediaUrl, getMimeType } from "../media.js";
-import app from "../../app.js";
 import { getHostInfo } from "../utils.js";
+import { getConfig } from "../config/core.js";
 
 //https://github.com/nostr-protocol/nips/blob/master/96.md
 
@@ -20,7 +20,7 @@ const getNIP96file = async (domain: string): Promise<NIP96file> => {
               "name": "Free Tier",
               "is_nip98_required": true,
               "url": "",
-              "max_byte_size": Number(app.get("config.media")["maxMBfilesize"])*1024*1024,
+              "max_byte_size": Number(getConfig(domain, ["media", "maxMBfilesize"])) * 1024 * 1024,
               "file_expiration": [0, 0],
               media_transformations: {
                 "image": ["resizing", "format_conversion", "compression", "metadata_stripping"],

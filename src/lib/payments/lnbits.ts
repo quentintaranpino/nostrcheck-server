@@ -1,18 +1,18 @@
-import app from "../../app.js";
+import bolt11 from 'bolt11';
 import { emptyInvoice, Invoice } from "../../interfaces/payments.js";
 import { logger } from "../logger.js";
-import bolt11 from 'bolt11';
 import { getNewDate } from "../utils.js";
+import { getConfig } from "../config/core.js";
 
 const generateLNBitsInvoice = async (amount: number, memo: string) : Promise<Invoice> => {
 
     if (amount == 0) return emptyInvoice
     
     try{
-        const response = await fetch(app.get("config.payments")["paymentProviders"]["lnbits"]["nodeUrl"] + '/api/v1/payments', {
+        const response = await fetch(getConfig(null , ["payments", "paymentProviders", "lnbits", "nodeUrl"]) + '/api/v1/payments', {
             method: 'POST',
             headers: {
-                'X-Api-Key': app.get("config.payments")["paymentProviders"]["lnbits"]["readKey"],
+                'X-Api-Key': getConfig(null, ["payments", "paymentProviders", "lnbits", "readKey"]),
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
@@ -54,10 +54,10 @@ const isInvoicePaidLNbits = async (paymentHash: string) : Promise<{paiddate : st
     if (paymentHash == "") return {paiddate: "", preimage: ""};
 
     try{
-        const response = await fetch(app.get("config.payments")["paymentProviders"]["lnbits"]["nodeUrl"] + "/api/v1/payments/" + paymentHash, {
+        const response = await fetch(getConfig(null, ["payments", "paymentProviders", "lnbits", "nodeUrl"]) + "/api/v1/payments/" + paymentHash, {
             method: 'GET',
             headers: {
-                'X-Api-Key': app.get("config.payments")["paymentProviders"]["lnbits"]["readKey"]
+                'X-Api-Key': getConfig(null, ["payments", "paymentProviders", "lnbits", "readKey"]),
             }
         });
 

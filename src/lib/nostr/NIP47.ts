@@ -4,15 +4,15 @@
 // https://github.com/nostr-protocol/nips/blob/master/47.md
 
 import { emptyInvoice, Invoice } from "../../interfaces/payments.js";
-import app from "../../app.js";
 import { logger } from "../logger.js";
 import { nwc as NWC } from "@getalby/sdk";
 import WebSocket from 'ws'
 import { execWithTimeout } from "../utils.js";
+import { getConfig } from "../config/core.js";
 global.WebSocket = WebSocket as any;
 
 const nwc = new NWC.NWCClient({
-    nostrWalletConnectUrl: `${app.get("config.payments")["paymentProviders"]["nwc"]["url"]}`,
+    nostrWalletConnectUrl: `${getConfig(null, ["payments", "paymentProviders", "nwc", "url"])}`,
 });
 
 const generateNwcInvoice = async (LNAddress: string, amount:number) : Promise<Invoice> => {
@@ -29,7 +29,7 @@ const generateNwcInvoice = async (LNAddress: string, amount:number) : Promise<In
         if (!response || response == undefined || response.invoice == "") {
             logger.error(`generateNwcInvoice - Error generating nwc invoice for LNAddress: ${LNAddress} and amount: ${amount}`);
             return emptyInvoice;
-        };
+        }
     
         return {paymentRequest: response.invoice, 
                 paymentHash: response.payment_hash, 

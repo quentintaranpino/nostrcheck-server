@@ -1,4 +1,3 @@
-import app from "../../app.js";
 import { accounts, emptyInvoice, emptyTransaction, Invoice, tableCalculateMode, Transaction } from "../../interfaces/payments.js";
 import { dbDelete, dbInsert, dbMultiSelect, dbSelect, dbUpdate } from "../database.js"
 import { logger } from "../logger.js";
@@ -6,7 +5,7 @@ import { sendMessage } from "../nostr/NIP04.js";
 import { getNewDate } from "../utils.js";
 import { generateNwcInvoice, isInvoicePaidNwc } from "../nostr/NIP47.js";
 import { generateLNBitsInvoice, isInvoicePaidLNbits } from "./lnbits.js";
-import { isModuleEnabled } from "../config/core.js";
+import { getConfig, isModuleEnabled } from "../config/core.js";
 
 const checkTransaction = async (tenant: string, transactionid : string, originId: string, originTable : string, size: number, minSize: number, maxSize: number, maxSatoshi: number,  pubkey : string): Promise<Transaction> => {
 
@@ -30,7 +29,7 @@ const checkTransaction = async (tenant: string, transactionid : string, originId
     if (transaction.paymentHash != "" && expiryDate > getNewDate()){
 
         // If the transaction is already paid or if the balance is not enough we return the transaction
-        if (transaction.isPaid || balance <= satoshi) {return transaction};
+        if (transaction.isPaid || balance <= satoshi) {return transaction}
         
         // If the balance is enough we pay the transaction and return the updated transaction
         if (balance >= satoshi) {
@@ -39,19 +38,19 @@ const checkTransaction = async (tenant: string, transactionid : string, originId
             if (await collectInvoice(inv)){
                 logger.info(`checkTransaction - Paid invoice with user balance: ${balance} satoshi: ${satoshi} transactionid: ${inv.transactionid} Accountid: ${inv.accountid}`);
                 return await getTransaction(inv.transactionid.toString())
-            };
+            }
         }
-    };
+    }
 
     // If transaction not exist or is expired we generate a new invoice and fill the transaction with the invoice data
     if (transaction.paymentHash == "" || expiryDate < getNewDate()){
 
         const accountid = formatAccountNumber(Number(await dbSelect("SELECT id FROM registered WHERE hex = ?", "id", [pubkey])));
         const invoice = await generateInvoice(accountid, satoshi, originTable, originId, expiryDate < getNewDate() && transaction.transactionid != 0 ? true : false, transaction.transactionid);
-        if (invoice.paymentRequest == "") {return emptyTransaction};
+        if (invoice.paymentRequest == "") {return emptyTransaction}
         
-        if (app.get("config.payments")["sendMessageToPubkey"] == true){
-            await sendMessage(`Hi, here’s your invoice from ${app.get("config.server")["host"]} service (${invoice.satoshi} satoshi). We appreciate your payment, thanks!`, pubkey, tenant)
+        if (getConfig(null, ["payments", "sendMessageToPubkey"]) == true) {
+            await sendMessage(`Hi, here’s your invoice from ${getConfig(null, ["server", "host"])} service (${invoice.satoshi} satoshi). We appreciate your payment, thanks!`, pubkey, tenant)
             await sendMessage(invoice.paymentRequest, pubkey, tenant)
         }
 	
@@ -60,12 +59,12 @@ const checkTransaction = async (tenant: string, transactionid : string, originId
 
         // If the balance is enough we pay the new transaction and return the updated transaction
         if (balance >= satoshi) {
-            let invoice = await getInvoice(transaction.paymentHash);
+            const invoice = await getInvoice(transaction.paymentHash);
             invoice.paidDate = getNewDate();
             if (await collectInvoice(invoice)){
                 logger.info(`checkTransaction - Paid invoice with user balance: ${balance} satoshi: ${satoshi} transactionid: ${invoice.transactionid} Accountid: ${invoice.accountid}`);
                 return await getTransaction(invoice.transactionid.toString())
-            };
+            }
         }
     }
     
@@ -78,15 +77,15 @@ const generateInvoice = async (accountid: number, satoshi: number, originTable :
 
     if (!isModuleEnabled("payments"))return emptyInvoice;
 
-    if (app.get("config.payments")["LNAddress"] == "") {
+    if (getConfig(null, ["payments", "LNAddress"]) == "") {
         logger.error(`generateInvoice - LNAddress not set in config file. Cannot generate invoice.`);
         return emptyInvoice;
     }
 
     if (satoshi == 0) return emptyInvoice;
 
-    const lnurl = `https://${app.get("config.payments")["LNAddress"].split("@")[1]}/.well-known/lnurlp/${app.get("config.payments")["LNAddress"].split("@")[0]}`
-    const generatedInvoice = app.get("config.payments")["paymentProvider"] == 'lnbits' ? await generateLNBitsInvoice(satoshi, "") : await generateNwcInvoice(lnurl, satoshi);
+    const lnurl = `https://${getConfig(null, ["payments", "LNAddress"]).split("@")[1]}/.well-known/lnurlp/${getConfig(null, ["payments", "LNAddress"]).split("@")[0]}`
+    const generatedInvoice = getConfig(null, ["payments", "paymentProvider"]) == 'lnbits' ? await generateLNBitsInvoice(satoshi, "") : await generateNwcInvoice(lnurl, satoshi);
     if (generatedInvoice.paymentRequest == "") {return emptyInvoice}
     
     generatedInvoice.description = "Invoice for: " + originTable + ":" + originId;
@@ -296,7 +295,7 @@ const getInvoice = async (payment_hash: string) : Promise<Invoice> => {
                                                     "transactions",
                                                     "paymenthash = ?", 
                                                     [payment_hash], true);
-    if (result.length == 0) {return emptyInvoice};
+    if (result.length == 0) {return emptyInvoice}
     const {id, accountid, paymentrequest, paymenthash, satoshi, paid, preimage, createddate, expirydate, paiddate, comments} = result[0];
 
     // Update the balance for the invoice's account
@@ -328,7 +327,7 @@ const getTransaction = async (transactionid: string) : Promise<Transaction> => {
                                                             "id = ?",
                                                             [transactionid], true);
 
-    if (result.length == 0) {return emptyTransaction};
+    if (result.length == 0) {return emptyTransaction}
     const {id, type, accountid, paymentrequest, paymenthash, satoshi, paid, preimage, createddate, expirydate, paiddate, comments} = result[0];
     const transaction: Transaction = {
         transactionid: Number(id),
@@ -347,8 +346,10 @@ const getTransaction = async (transactionid: string) : Promise<Transaction> => {
 
     // If transaction expirydate is passed we generate a new LN invoice
     if (transaction.type == "invoice" && transaction.expiryDate < getNewDate()) {
-        const lnurl = `https://${app.get("config.payments")["LNAddress"].split("@")[1]}/.well-known/lnurlp/${app.get("config.payments")["LNAddress"].split("@")[0]}`
-        const inv = app.get("config.payments")["paymentProvider"] == 'lnbits' ? await generateLNBitsInvoice(transaction.satoshi, "") : await generateNwcInvoice(lnurl, transaction.satoshi);
+
+        const lnurl = `https://${getConfig(null, ["payments", "LNAddress"]).split("@")[1]}/.well-known/lnurlp/${getConfig(null, ["payments", "LNAddress"]).split("@")[0]}`
+        const inv = getConfig(null, ["payments", "paymentProvider"]) == 'lnbits' ? await generateLNBitsInvoice(transaction.satoshi, "") : await generateNwcInvoice(lnurl, transaction.satoshi);
+
         transaction.paymentRequest = inv.paymentRequest;
         transaction.paymentHash = inv.paymentHash;
         transaction.createdDate = inv.createdDate;
@@ -377,14 +378,14 @@ const formatAccountNumber = (registeredid: number): number => {
     while (numStr.length < 6) {
         numStr = '0' + numStr;
     }
-    let prefix = accounts[1].accountid.toString();
+    const prefix = accounts[1].accountid.toString();
     return Number(prefix + numStr);
 }
 
 const formatRegisteredId = (accountid: number): number => {
-    let numStr = accountid.toString();
-    let prefixLength = accounts[1].accountid.toString().length;
-    let originalIdStr = numStr.slice(prefixLength);
+    const numStr = accountid.toString();
+    const prefixLength = accounts[1].accountid.toString().length;
+    const originalIdStr = numStr.slice(prefixLength);
     return Number(originalIdStr);
 }
 
@@ -399,9 +400,16 @@ const collectInvoice = async (invoice: Invoice, collectFromExpenses = false, col
         return true;
     }
 
-    const paid = await dbUpdate("transactions", {"paid":"1"}, ["id"], [invoice.transactionid.toString()]);
-    const paiddate = await dbUpdate("transactions", {"paiddate" : new Date(invoice.paidDate).toISOString().slice(0, 19).replace('T', ' ') != '1970-01-01 00:00:00' ? new Date(invoice.paidDate).toISOString().slice(0, 19).replace('T', ' ') : getNewDate()}, ["id"], [invoice.transactionid.toString()]);
-    const preimage = await dbUpdate("transactions", {"preimage" : invoice.preimage}, ["id"], [invoice.transactionid.toString()]);
+    const paidDateObject = new Date(Number(invoice.paidDate) * 1000);
+    const isValidPaidDate = !isNaN(paidDateObject.getTime());
+    
+    const paidDateFormatted = isValidPaidDate
+      ? paidDateObject.toISOString().slice(0, 19).replace('T', ' ')
+      : getNewDate();
+    
+    const paid = await dbUpdate("transactions", { paid: "1" }, ["id"], [invoice.transactionid.toString()]);
+    const paiddate = await dbUpdate("transactions", { paiddate: paidDateFormatted }, ["id"], [invoice.transactionid.toString()]);
+    const preimage = await dbUpdate("transactions", { preimage: invoice.preimage }, ["id"], [invoice.transactionid.toString()]);
     if (paid && paiddate && preimage) {
         logger.info(`collectInvoice - Invoice paid: ${invoice.transactionid}`);
     }else{
@@ -503,7 +511,7 @@ const isInvoicePaid = async (paymentHash: string) : Promise<{paiddate : string, 
         return {paiddate: "", preimage: ""};
     }
 
-    return app.get("config.payments")["paymentProvider"] == 'lnbits' ? await isInvoicePaidLNbits(paymentHash) : await isInvoicePaidNwc(paymentHash);
+    return getConfig(null, ["payments", "paymentProvider"]) == 'lnbits' ? await isInvoicePaidLNbits(paymentHash) : await isInvoicePaidNwc(paymentHash);
 
 }
 
@@ -526,20 +534,20 @@ const processPendingInvoices = async () => {
         }
         isProcessing = false;
     }
-    setTimeout(processPendingInvoices, app.get("config.payments")["invoicePaidInterval"] * 1000);
+    setTimeout(processPendingInvoices, getConfig(null, ["payments", "invoicePaidInterval"]) * 1000);
 };
 
 processPendingInvoices();
 
 const cleanTransactions = async () => {
 
-    setTimeout(cleanTransactions, app.get("config.payments")["invoicePaidInterval"] * 1000);
+    setTimeout(cleanTransactions, getConfig(null, ["payments", "invoicePaidInterval"]) * 1000);
     if (!isModuleEnabled("payments"))return;
 
     const result = await dbMultiSelect(["id"], "transactions", "accountid = ? AND paid = 0 AND createddate < NOW() - INTERVAL 24 HOUR", ["1100000000"], false);
-    result.forEach(async transaction => {
+    for (const transaction of result) {
         await deleteTransaction(transaction.id);
-    })
+    }
     if (result.length > 0){
         logger.info(`cleanTransactions - Cleaned ${result.length} unpaid transactions for account 110000000 (24 hours)`);
     }
