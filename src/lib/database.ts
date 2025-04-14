@@ -687,6 +687,11 @@ const initDatabase = async (): Promise<void> => {
 	
 		logger.info(`initDatabase - Inserted ${inserted} default filetypes`);
 	}
+
+	// Delete rows from mediafiles where status <> 'success' or 'completed'
+	await dbDelete("mediafiles", ["status"], ["error"]);
+	await dbDelete("mediafiles", ["status"], ["failed"]);
+	await dbDelete("mediafiles", ["status"], ["processing"]);
 	
 }
 
