@@ -42,7 +42,7 @@ const markdownToHtml = (text:string) : string => {
     }
 }
 
-const generateQRCode = async (text: string, firstText: string, secondText: string, type: 'image' | 'video'): Promise<Buffer> => {
+const generateQRCode = async (text: string, firstText: string, secondText: string, type: 'image' | 'video'): Promise<{ buffer: Buffer; type: 'image/webp' | 'video/mp4' }> => {
     return new Promise(async (resolve, reject) => {
         try {
             const buffer = await QRCode.toBuffer(text, { type: 'png', width: 290, margin: 3 });
@@ -50,9 +50,9 @@ const generateQRCode = async (text: string, firstText: string, secondText: strin
             
             if (type === 'video') {
                 const videoBuffer = await generateVideoFromImage(imageBuffer);
-                resolve(videoBuffer);
+                resolve({ buffer: videoBuffer, type: 'video/mp4' });
             } else {
-                resolve(imageBuffer);
+                resolve({ buffer: imageBuffer, type: 'image/webp' });
             }
         } catch (err) {
             reject(err);

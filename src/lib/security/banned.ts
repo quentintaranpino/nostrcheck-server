@@ -221,26 +221,26 @@ const isEntityBanned = async (id: string, table: string): Promise<boolean> => {
  * @returns Promise resolving to a `Buffer` with the banned file banner.
  * @async
 **/
-const getBannedFileBanner = async (domain: string, mimeType: string): Promise<Buffer> => {
+const getBannedFileBanner = async (domain: string, mimeType: string): Promise<{ buffer: Buffer; type: 'image/webp' | 'video/mp4' }> => {
 
 	const bannedPath = await getResource(domain, "media-file-banned.default.webp");
 
 	if (bannedPath == null) {
 		logger.error(`getBannedFileBanner - Error getting banned file banner, path is null`);
-		return Buffer.from("");
+		return { buffer: Buffer.from(""), type: "image/webp" };
 	}
 
 	try {
         const buffer = await fs.promises.readFile(bannedPath);
 		if (mimeType.startsWith('video')) {
 			const videoBuffer = await generateVideoFromImage(buffer);
-			return videoBuffer;
+			return { buffer: videoBuffer, type: "video/mp4" };
 		} else {
-			return buffer;
+			return { buffer, type: "image/webp" };
 		}
 	} catch (err) {
 		logger.error(`getBannedFileBanner - Error reading file: ${bannedPath} with error: ${err}`);
-		return Buffer.from("");
+		return { buffer: Buffer.from(""), type: "image/webp" };
 	}
 };
 
