@@ -3,11 +3,10 @@ import { exit } from "process";
 import { logger } from "./logger.js";
 import { newFieldcompatibility, databaseTables} from "../interfaces/database.js";
 import { accounts } from "../interfaces/payments.js";
-import { updateLocalConfigKey } from "./config/local.js";
 import { addNewUsername } from "./register.js";
 import { getNewDate } from "./utils.js";
 import { fileTypes } from "../interfaces/media.js";
-import { getConfig, isModuleEnabled } from "./config/core.js";
+import { getConfig, setConfig } from "./config/core.js";
 
 let pool: Pool | undefined;
 let retry: number = 0;
@@ -62,7 +61,7 @@ const connect = async (source: string): Promise<Pool> => {
 
 async function populateTables(resetTables: boolean): Promise<boolean> {
     if (await resetTables) {
-        if (!await updateLocalConfigKey("database.droptables", "false")){
+		if (!await setConfig("", ["database", "droptables"], false)){
             logger.error("Error updating database.droptables in config file, exiting program to avoid data corruption");
             exit(1);
         }
@@ -531,55 +530,6 @@ const dbBulkInsert = async (table: string, columns: string[], valuesArray: any[]
   return totalInserted;
 };
 
-const showDBStats = async(): Promise<string> => {
-
-	const result: string[] = [];
-
-	if (isModuleEnabled("register")){
-
-		const registered = await dbMultiSelect(["id"],"registered", "active = 1",[],false)?.then((result) => {return result.length});
-		result.push(`Registered users: ${registered}`);
-
-		const banned = await dbMultiSelect(["id"],"banned", "active = 1",[],false)?.then((result) => {return result.length});
-		result.push(`Banned users: ${banned}`);
-
-		const invitations = await dbMultiSelect(["id"],"invitations", "active = 1",[],false)?.then((result) => {return result.length});
-		result.push(`Invitations: ${invitations}`);
-
-		const domains = await dbMultiSelect(["id"],"domains", "active = 1",[],false)?.then((result) => {return result.length});
-		result.push(`Available domains: ${domains}`);
-
-	}
-
-	if (isModuleEnabled("media")){
-		const mediafiles = await dbMultiSelect(["id"],"mediafiles", "active = 1",[],false)?.then((result) => {return result.length});
-		result.push(`Hosted files: ${mediafiles}`);
-
-		const mediatags = await dbMultiSelect(["id"],"mediatags", "1 = 1",[],false)?.then((result) => {return result.length});
-		result.push(`File tags: ${mediatags}`);
-	
-	}
-
-	if (isModuleEnabled("payments")){
-		const lightning = await dbMultiSelect(["id"],"lightning", "active = 1",[],false)?.then((result) => {return result.length});
-		result.push(`LN redirections: ${lightning}`);
-
-		const transactions = await dbMultiSelect(["id"],"transactions", "1 = 1",[],false)?.then((result) => {return result.length});
-		result.push(`Transactions: ${transactions}`);
-
-		const ledger = await dbMultiSelect(["id"],"ledger", "1 = 1",[],false)?.then((result) => {return result.length});
-		result.push(`Ledger entries: ${ledger}`);
-	}
-
-	if (isModuleEnabled("relay")){
-		const events = await dbMultiSelect(["id"],"events", "1 = 1",[],false)?.then((result) => {return result.length});
-		result.push(`Relay events: ${events}`);
-	}
-
-	result.push(``);
-	return result.join('\r\n').toString();
-}
-
 const initDatabase = async (): Promise<void> => {
 
 	const serverHost = getConfig(null, ["server", "host"])
@@ -786,7 +736,6 @@ export {
 	dbMultiSelect,
 	dbSimpleSelect,
 	dbInsert,
-	showDBStats,
 	initDatabase,
 	dbUpsert,
 	dbBulkInsert

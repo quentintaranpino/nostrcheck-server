@@ -35,21 +35,6 @@ const startServer = async () => {
     const { serverBanner } = await import("./lib/utils.js");
     console.log(serverBanner());
 
-    // Show server startup stactics
-    const { showDBStats } = await import("./lib/database.js");
-    console.log(await showDBStats());
-
-    // Show server active modules
-    const { getActiveModules } = await import("./lib/config/core.js");
-    const { configStore } = await import("./lib/config/core.js");
-    const domainList = configStore?.domainMap?.domainToId ? Object.keys(configStore.domainMap.domainToId) : [];
-    console.log("Global active modules: ", getActiveModules().map(module => module.name).join(", "));
-    if (configStore?.global.multiTenancy) {
-        for (const domain of domainList) {
-            const domainModules = await getActiveModules(domain);
-            console.log(`Active modules for domain ${domain}: `, domainModules.map(module => module.name).join(", "));
-        }
-    }
 }
 
 export default startServer;
