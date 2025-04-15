@@ -435,7 +435,7 @@ const getNotFoundFileBanner = async (domain: string, mimeType: string): Promise<
 		}
 	} catch (err) {
 		logger.error(`getNotFoundFileBanner - Error reading file: ${notFoundPath} with error: ${err}`);
-		return { buffer: Buffer.from(""), type: null };
+		return { buffer: Buffer.from(""), type: 'image/webp' };
 	}
 };
 

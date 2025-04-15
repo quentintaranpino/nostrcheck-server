@@ -51,7 +51,7 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 	}
 
 	// Check if current module is enabled
-	if (!isModuleEnabled("media")) {
+	if (!isModuleEnabled("media", req.hostname)) {
         logger.info(`uploadMedia - Attempt to access a non-active module: media | IP:`, reqInfo.ip);
 		res.setHeader("X-Reason", "Module is not enabled");
 		return res.status(403).send({"status": "error", "message": "Module is not enabled"});
@@ -387,7 +387,7 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 	}
 
 	// Payment engine
-	if (isModuleEnabled("payments")) {
+	if (isModuleEnabled("payments", "")) {
 
 		// Get preimage from header
 		const preimage = req.headers["x-lightning"]?.toString().length == 64 ? req.headers["x-lightning"]?.toString() : undefined;
@@ -552,7 +552,7 @@ const headMedia = async (req: Request, res: Response): Promise<Response> => {
 	}
 
 	// Check if current module is enabled
-	if (!isModuleEnabled("media")) {
+	if (!isModuleEnabled("media", req.hostname)) {
 		logger.info(`headMedia - Attempt to access a non-active module: media | IP:`, reqInfo.ip);
 		res.setHeader("X-Reason", "Module is not enabled");
 		return res.status(403).send({"status": "error", "message": "Module is not enabled"});
@@ -585,7 +585,7 @@ const headMedia = async (req: Request, res: Response): Promise<Response> => {
 	}
  
 	// Payment required ?
-	if (await isModuleEnabled("payments")) {
+	if (await isModuleEnabled("payments", "")) {
 		const transactionId = (await dbMultiSelect(["transactionid"], "mediafiles", fileData[0].hash != fileData[0].original_hash ? "original_hash = ?" : "hash = ?", [hash], true))[0]?.transactionid || "" ;
 		// const transaction = await checkTransaction(transactionId,"","mediafiles", fileData[0].hash != fileData[0].original_hash ? Number(fileData[0].filesize)/3 : Number(Number(fileData[0].filesize)),"");
 		
@@ -633,7 +633,7 @@ const getMediaList = async (req: Request, res: Response): Promise<Response> => {
 	}
 
 	// Check if current module is enabled
-	if (!isModuleEnabled("media")) {
+	if (!isModuleEnabled("media", req.hostname)) {
 		logger.info(`getMediaList - Attempt to access a non-active module: media | IP:`, reqInfo.ip);
 		res.setHeader("X-Reason", "Module is not enabled");
 		return res.status(403).send({"status": "error", "message": "Module is not enabled"});
@@ -729,7 +729,7 @@ const getMediaList = async (req: Request, res: Response): Promise<Response> => {
 		};
 
 		// Return payment_request if the file is not paid
-		if (isModuleEnabled("payments")) {
+		if (isModuleEnabled("payments", "")) {
 			
 			const transaction : Transaction = await checkTransaction(
 				listedFile.tenant,
@@ -781,7 +781,7 @@ const getMediaStatusbyID = async (req: Request, res: Response, version:string): 
 	}
 
 	// Check if current module is enabled
-	if (!isModuleEnabled("media")) {
+	if (!isModuleEnabled("media", req.hostname)) {
         logger.info(`getMediaStatusbyID - Attempt to access a non-active module: media | IP:`, reqInfo.ip);
 		res.setHeader("X-Reason", "Module is not enabled");
 		return res.status(403).send({"status": "error", "message": "Module is not enabled"});
@@ -905,7 +905,7 @@ const getMediaStatusbyID = async (req: Request, res: Response, version:string): 
 		return res.status(202).send(result);
 	}
 
-	if (isModuleEnabled("payments")) {
+	if (isModuleEnabled("payments", "")) {
 		
 		const transaction : Transaction = await checkTransaction(
 			req.hostname,
@@ -1009,7 +1009,7 @@ const getMediabyURL = async (req: Request, res: Response) => {
 	}
 
 	// Check if current module is enabled
-	if (!isModuleEnabled("media")) {
+	if (!isModuleEnabled("media", req.hostname)) {
         logger.debug(`getMediabyURL - Attempt to access a non-active module: media | IP:`, reqInfo.ip);
 		res.setHeader("X-Reason", "Module is not enabled");
 		return res.status(403).send({"status": "error", "message": "Module is not enabled"});
@@ -1033,7 +1033,7 @@ const getMediabyURL = async (req: Request, res: Response) => {
 			logger.debug(`getMediabyURL - Bad request - ${req.url}`, "|", reqInfo.ip);
 			const notFoundBanner = await getNotFoundFileBanner(req.hostname, "image/webp");
 			res.setHeader("X-Reason", "File not found");
-			return serveBuffer(req, res, notFoundBanner, "image/webp", true);
+			return serveBuffer(req, res, notFoundBanner.buffer, "image/webp", true);
 	}
 
 	// Old API compatibility (username instead of pubkey)
@@ -1148,7 +1148,7 @@ const getMediabyURL = async (req: Request, res: Response) => {
 		}
 
 		// If the GET request has no authorization, we return a QR code with the payment request.
-		if (isModuleEnabled("payments") && transaction.paymentHash != "" && transaction.isPaid == false &&  adminRequest == false) {
+		if (isModuleEnabled("payments", "") && transaction.paymentHash != "" && transaction.isPaid == false &&  adminRequest == false) {
 			logger.debug(`getMediabyURL - 200 Paid media file ${req.url}`, "|", reqInfo.ip, "|", "cached:", cachedStatus ? true : false);
 			const qrCode = await generateQRCode(transaction.paymentRequest, 
 									"Invoice amount: " + transaction.satoshi + " sats", 
@@ -1268,7 +1268,7 @@ const getMediaTagsbyID = async (req: Request, res: Response): Promise<Response> 
 	}
 
 	// Check if current module is enabled
-	if (!isModuleEnabled("media")) {
+	if (!isModuleEnabled("media", req.hostname)) {
         logger.debug(`getMediaTagsbyID - Attempt to access a non-active module: media | IP:`, reqInfo.ip);
 		res.setHeader("X-Reason", "Module is not enabled");
 		return res.status(403).send({"status": "error", "message": "Module is not enabled"});
@@ -1339,7 +1339,7 @@ const getMediabyTags = async (req: Request, res: Response): Promise<Response> =>
 	}
 
 	// Check if current module is enabled
-	if (!isModuleEnabled("media")) {
+	if (!isModuleEnabled("media", req.hostname)) {
         logger.debug(`getMediabyTags - Attempt to access a non-active module: media | IP:`, reqInfo.ip);
 		res.setHeader("X-Reason", "Module is not enabled");
 		res.status(403).send({"status": "error", "message": "Module is not enabled"});
@@ -1419,7 +1419,7 @@ const updateMediaVisibility = async (req: Request, res: Response, version: strin
 	}
 
 	// Check if current module is enabled
-	if (!isModuleEnabled("media")) {
+	if (!isModuleEnabled("media", req.hostname)) {
         logger.info(`updateMediaVisibility - Attempt to access a non-active module: media | IP:`, reqInfo.ip);
 		res.setHeader("X-Reason", "Module is not enabled");
 		return res.status(403).send({"status": "error", "message": "Module is not enabled"});
@@ -1499,7 +1499,7 @@ const deleteMedia = async (req: Request, res: Response, version:string): Promise
 	}
 
 	// Check if current module is enabled
-	if (!isModuleEnabled("media")) {
+	if (!isModuleEnabled("media", req.hostname)) {
         logger.info(`deleteMedia - Attempt to access a non-active module: media | IP:`, reqInfo.ip);
 		res.setHeader("X-Reason", "Module is not enabled");
 		return res.status(403).send({"status": "error", "message": "Module is not enabled"});
@@ -1646,7 +1646,7 @@ const headUpload = async (req: Request, res: Response): Promise<Response> => {
 	}
 
 	// Check if current module is enabled
-	if (!isModuleEnabled("media")) {
+	if (!isModuleEnabled("media", req.hostname)) {
 		logger.info(`headUpload - Attempt to access a non-active module: media | IP:`, reqInfo.ip);
 		res.setHeader("X-Reason", "Module is not enabled");
 		return res.status(403).send({"status": "error", "message": "Module is not enabled"});

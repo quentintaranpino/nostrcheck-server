@@ -49,7 +49,7 @@ const serverStatus = async (req: Request, res: Response): Promise<Response> => {
     }
 
     // Check if current module is enabled
-    if (!isModuleEnabled("admin")) {
+    if (!isModuleEnabled("admin", "")) {
         logger.warn("ServerStatus - Attempt to access a non-active module:","admin","|","IP:", reqInfo.ip);
         return res.status(403).send({"status": "error", "message": "Module is not enabled"});
     }
@@ -93,7 +93,7 @@ const StopServer = async (req: Request, res: Response): Promise<Response> => {
     }
 
     // Check if current module is enabled
-    if (!isModuleEnabled("admin")) {
+    if (!isModuleEnabled("admin", "")) {
         logger.warn("StopServer - Attempt to access a non-active module:","admin","|","IP:", reqInfo.ip);
         return res.status(403).send({"status": "error", "message": "Module is not enabled"});
     }
@@ -133,7 +133,7 @@ const updateDBRecord = async (req: Request, res: Response): Promise<Response> =>
     }
 
     // Check if current module is enabled
-    if (!isModuleEnabled("admin")) {
+    if (!isModuleEnabled("admin", "")) {
         logger.warn("updateDBRecord - Attempt to access a non-active module:","admin","|","IP:", reqInfo.ip);
         return res.status(403).send({"status": "error", "message": "Module is not enabled"});
     }
@@ -241,7 +241,7 @@ const updateSettingsFile = async (req: Request, res: Response): Promise<Response
         return res.status(403).send({ status: "error", message: reqInfo.comments });
     }
 
-    if (!isModuleEnabled("admin")) {
+    if (!isModuleEnabled("admin", "")) {
         logger.warn(`updateSettingsFile - Admin module disabled | IP:`, reqInfo.ip);
         return res.status(403).send({ status: "error", message: "Module is not enabled" });
     }
@@ -335,7 +335,7 @@ const resetUserPassword = async (req: Request, res: Response): Promise<Response>
     }
 
     // Check if current module is enabled
-    if (!isModuleEnabled("admin")) {
+    if (!isModuleEnabled("admin", "")) {
         logger.warn(`resetUserPassword - Attempt to access a non-active module: admin | IP:`, reqInfo.ip);
         return res.status(403).send({"status": "error", "message": "Module is not enabled"});
     }
@@ -394,7 +394,7 @@ const deleteDBRecord = async (req: Request, res: Response): Promise<Response> =>
     }
 
     // Check if current module is enabled
-    if (!isModuleEnabled("admin")) {
+    if (!isModuleEnabled("admin", "")) {
         logger.warn(`deleteDBRecord - Attempt to access a non-active module: admin | IP:`, reqInfo.ip);
         return res.status(403).send({"status": "error", "message": "Module is not enabled"});
     }
@@ -571,7 +571,7 @@ const insertDBRecord = async (req: Request, res: Response): Promise<Response> =>
     }
 
     // Check if current module is enabled
-    if (!isModuleEnabled("admin")) {
+    if (!isModuleEnabled("admin", "")) {
         logger.warn(`insertDBRecord - Attempt to access a non-active module: admin | IP:`, reqInfo.ip);
         return res.status(403).send({"status": "error", "message": "Module is not enabled"});
     }
@@ -702,7 +702,7 @@ const updateSettings = async (req: Request, res: Response): Promise<Response> =>
         return res.status(403).send({ status: "error", message: reqInfo.comments });
     }
 
-    if (!isModuleEnabled("admin")) {
+    if (!isModuleEnabled("admin", "")) {
         logger.warn(`updateSettings - Attempt to access a non-active module: admin | IP:`, reqInfo.ip);
         return res.status(403).send({ status: "error", message: "Module is not enabled" });
     }
@@ -754,7 +754,7 @@ const getModuleData = async (req: Request, res: Response): Promise<Response> => 
     }
 
     // Check if current module is enabled
-    if (!isModuleEnabled("admin")) {
+    if (!isModuleEnabled("admin", "")) {
         logger.warn(`getModuleData - Attempt to access a non-active module: admin | IP:`, reqInfo.ip);
         return res.status(403).send({"status": "error", "message": "Module is not enabled"});
     }
@@ -821,7 +821,7 @@ const getModuleCountData = async (req: Request, res: Response): Promise<Response
     }
     
     // Check if current module is enabled
-    if (!isModuleEnabled("admin")) {
+    if (!isModuleEnabled("admin", "")) {
         logger.warn(`getModuleCountData - Attempt to access a non-active module: admin | IP:`, reqInfo.ip);
         return res.status(403).send({"status": "error", "message": "Module is not enabled"});
     }
@@ -888,7 +888,7 @@ const moderateDBRecord = async (req: Request, res: Response): Promise<Response> 
     }
   
     // Check if current module is enabled
-    if (!isModuleEnabled("admin")) {
+    if (!isModuleEnabled("admin", "")) {
         logger.warn(`moderateDBRecord - Attempt to access a non-active module: admin | IP:`, reqInfo.ip);
         return res.status(403).send({"status": "error", "message": "Module is not enabled"});
     }
@@ -937,7 +937,7 @@ const banDBRecord = async (req: Request, res: Response): Promise<Response> => {
     }
 
     // Check if current module is enabled
-    if (!isModuleEnabled("admin")) {
+    if (!isModuleEnabled("admin", "")) {
         logger.warn(`banDBRecord - Attempt to access a non-active module: admin | IP:`, reqInfo.ip);
         return res.status(403).send({"status": "error", "message": "Module is not enabled"});
     }

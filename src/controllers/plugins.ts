@@ -16,7 +16,7 @@ const getPlugins = async (req: Request, res: Response): Promise<Response> => {
 		return res.status(403).send({"status": "error", "message": reqInfo.comments});
 	}
 
-    if (!isModuleEnabled("plugins")) {
+    if (!isModuleEnabled("plugins", req.hostname)) {
         logger.info(`getPlugins - Attempt to access a non-active module: plugins | IP:`, reqInfo.ip);
         return res.status(403).send({"status": "error", "message": "Module is not enabled"});
     }
@@ -46,7 +46,7 @@ const reloadPlugins = async (req: Request, res: Response): Promise<Response> => 
 		return res.status(403).send({"status": "error", "message": reqInfo.comments});
 	}
 
-    if (!isModuleEnabled("plugins")) {
+    if (!isModuleEnabled("plugins", req.hostname)) {
         logger.info(`reloadPlugins - Attempt to access a non-active module: plugins | IP:`, reqInfo.ip);
         return res.status(403).send({"status": "error", "message": "Module is not enabled"});
     }
@@ -57,7 +57,7 @@ const reloadPlugins = async (req: Request, res: Response): Promise<Response> => 
 
     logger.info(`reloadPlugins - Request from:`, reqInfo.ip);
 
-    const init = await initPlugins(app);
+    const init = await initPlugins(req.hostname);
     if (!init) {
         const result = {
             "status": "error",

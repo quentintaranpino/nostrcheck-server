@@ -9,7 +9,7 @@ import { getConfig, isModuleEnabled } from "../config/core.js";
 
 const checkTransaction = async (tenant: string, transactionid : string, originId: string, originTable : string, size: number, minSize: number, maxSize: number, maxSatoshi: number,  pubkey : string): Promise<Transaction> => {
 
-    if (!isModuleEnabled("payments")) {
+    if (!isModuleEnabled("payments", "")) {
         return emptyTransaction;
     }
 
@@ -75,7 +75,7 @@ const checkTransaction = async (tenant: string, transactionid : string, originId
 
 const generateInvoice = async (accountid: number, satoshi: number, originTable : string, originId : string, overwrite = false, transactionId = 0) : Promise<Invoice> => {
 
-    if (!isModuleEnabled("payments"))return emptyInvoice;
+    if (!isModuleEnabled("payments", ""))return emptyInvoice;
 
     if (getConfig(null, ["payments", "LNAddress"]) == "") {
         logger.error(`generateInvoice - LNAddress not set in config file. Cannot generate invoice.`);
@@ -131,7 +131,7 @@ const generateInvoice = async (accountid: number, satoshi: number, originTable :
 
 const addTransacion = async (type: string, accountid: number, invoice: Invoice, satoshi: number) : Promise<number> => {
 
-    if (!isModuleEnabled("payments")) {
+    if (!isModuleEnabled("payments", "")) {
         return 0;
     }
 
@@ -163,7 +163,7 @@ const addTransacion = async (type: string, accountid: number, invoice: Invoice, 
 
 const deleteTransaction = async (transactionid: number) : Promise<boolean> => {
     
-        if (!isModuleEnabled("payments"))  return false;
+        if (!isModuleEnabled("payments", ""))  return false;
     
         const deleteTransaction = await dbDelete("transactions", ["id"], [transactionid.toString()]);
         const deleteLedger = await dbDelete("ledger", ["transactionid"], [transactionid.toString()]);
@@ -184,7 +184,7 @@ const deleteTransaction = async (transactionid: number) : Promise<boolean> => {
 
 const addJournalEntry = async (accountid: number, transactionid: number, debit: number, credit: number, comments: string) : Promise<number> => {
     
-    if (!isModuleEnabled("payments"))     return 0;
+    if (!isModuleEnabled("payments", ""))     return 0;
     
     const insert = await dbInsert(  "ledger", 
                             ["accountid", 
@@ -210,7 +210,7 @@ const addJournalEntry = async (accountid: number, transactionid: number, debit: 
 
 const getBalance = async (accountid: number) : Promise<number> => {
 
-    if (!isModuleEnabled("payments")) return 0;
+    if (!isModuleEnabled("payments", "")) return 0;
 
     if (!accountid)  return 0;
     
@@ -226,7 +226,7 @@ const getBalance = async (accountid: number) : Promise<number> => {
 
 const addBalance = async (accountid: number, amount: number) : Promise<boolean> => {
     
-    if (!isModuleEnabled("payments"))  return false;
+    if (!isModuleEnabled("payments", ""))  return false;
 
     const transaction = await addTransacion("credit",   
                                             accountid, 
@@ -259,7 +259,7 @@ const addBalance = async (accountid: number, amount: number) : Promise<boolean> 
 
 const getPendingInvoices = async () : Promise<Invoice[]> => {
 
-    if (!isModuleEnabled("payments"))   return [];
+    if (!isModuleEnabled("payments", ""))   return [];
 
     const result = await dbMultiSelect(["id", "accountid", "paymentrequest", "paymenthash",  "satoshi", "preimage", "createddate", "expirydate", "paiddate", "comments"],
                                                             "transactions",
@@ -287,7 +287,7 @@ const getPendingInvoices = async () : Promise<Invoice[]> => {
 
 const getInvoice = async (payment_hash: string) : Promise<Invoice> => {
 
-    if (!isModuleEnabled("payments"))  return emptyInvoice;
+    if (!isModuleEnabled("payments", ""))  return emptyInvoice;
 
     if (!payment_hash || payment_hash == "0")  return emptyInvoice;
 
@@ -318,7 +318,7 @@ const getInvoice = async (payment_hash: string) : Promise<Invoice> => {
 
 const getTransaction = async (transactionid: string) : Promise<Transaction> => {
 
-    if (!isModuleEnabled("payments"))  return emptyTransaction;
+    if (!isModuleEnabled("payments", ""))  return emptyTransaction;
 
     if (!transactionid || transactionid == "0")   return emptyTransaction;
 
@@ -391,7 +391,7 @@ const formatRegisteredId = (accountid: number): number => {
 
 const collectInvoice = async (invoice: Invoice, collectFromExpenses = false, collectFromPayment = false) : Promise<boolean> => {
 
-    if (!isModuleEnabled("payments")) {
+    if (!isModuleEnabled("payments", "")) {
         return false;
     }
 
@@ -449,7 +449,7 @@ const calculateSatoshi = (mode: "normal" | "reversed", size: number, minSize : n
     
     if (size == null || minSize == null || maxSize == null || maxSatoshi == null) return 0;
 
-    if (!isModuleEnabled("payments")) return 0;
+    if (!isModuleEnabled("payments", "")) return 0;
   
     if (mode === "normal") {
       if (size <= minSize) return 0;
@@ -476,7 +476,7 @@ const getUnpaidTransactionsBalance = async () : Promise<string> => {
 
 const payInvoiceFromExpenses = async (transactionid: string) : Promise<boolean> => {
 
-    if (!isModuleEnabled("payments"))      return false;
+    if (!isModuleEnabled("payments", ""))      return false;
 
     if (!transactionid || transactionid == "0")  return false;
 
@@ -504,7 +504,7 @@ const payInvoiceFromExpenses = async (transactionid: string) : Promise<boolean> 
 
 const isInvoicePaid = async (paymentHash: string) : Promise<{paiddate : string, preimage : string}> => {
 
-    if (!isModuleEnabled("payments"))   return {paiddate: "", preimage: ""};
+    if (!isModuleEnabled("payments", ""))   return {paiddate: "", preimage: ""};
 
     if (paymentHash == "") {
         logger.error(`isInvoicePaid - No payment hash provided`);
@@ -518,7 +518,7 @@ const isInvoicePaid = async (paymentHash: string) : Promise<{paiddate : string, 
 // Check periodically for pending invoices and update the balance
 let isProcessing = false;
 const processPendingInvoices = async () => {
-    if (isModuleEnabled("payments")) {
+    if (isModuleEnabled("payments", "")) {
         if (isProcessing) return;
         isProcessing = true;
         const pendingInvoices = await getPendingInvoices();
@@ -542,7 +542,7 @@ processPendingInvoices();
 const cleanTransactions = async () => {
 
     setTimeout(cleanTransactions, getConfig(null, ["payments", "invoicePaidInterval"]) * 1000);
-    if (!isModuleEnabled("payments"))return;
+    if (!isModuleEnabled("payments", ""))return;
 
     const result = await dbMultiSelect(["id"], "transactions", "accountid = ? AND paid = 0 AND createddate < NOW() - INTERVAL 24 HOUR", ["1100000000"], false);
     for (const transaction of result) {
@@ -558,7 +558,7 @@ const updateAccountId = async (pubkey : string, transaction_id : number) : Promi
 
     if (!pubkey || pubkey == "" || !transaction_id || transaction_id == 0) return false;
 
-    if (!isModuleEnabled("payments")) return false;
+    if (!isModuleEnabled("payments", "")) return false;
 
     const registeredId = await dbMultiSelect(["id"], "registered", "hex = ?", [pubkey], true);
     if (!registeredId || registeredId.length === 0 || !registeredId[0].id) return false;

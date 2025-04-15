@@ -29,7 +29,7 @@ const logNewIp = async      (ip: string):
                             infractions: string; 
                             comments: string;}> => {
 
-    if (!isModuleEnabled("security")) {
+    if (!isModuleEnabled("security", "")) {
         return {dbid: "0", active: "1", checked: "1", banned: "0", firstseen: "0", lastseen: "0", reqcount: "0", infractions: "0", comments: ""};
     }
   
@@ -52,7 +52,7 @@ const logNewIp = async      (ip: string):
     if (Object.keys(redisData).length === 0 || redisData.dbid === undefined) {
         const ipDbData = await dbMultiSelect(["id", "active", "checked", "infractions", "comments"], "ips", "ip = ?", [ip], true);
         if (!ipDbData || ipDbData.length === 0) {
-            let dbid = await dbUpsert("ips", { active: 1, checked: 0, ip, firstseen: now, lastseen: now, reqcount: reqcount }, ["ip"]);
+            const dbid = await dbUpsert("ips", { active: 1, checked: 0, ip, firstseen: now, lastseen: now, reqcount: reqcount }, ["ip"]);
             if (dbid === 0)   logger.error(`logNewIp - Error upserting new IP: ${ip}`);
               
             return { 
@@ -119,7 +119,7 @@ const logNewIp = async      (ip: string):
 
 const getClientIp = (req: Request): string => {
 
-    if (!isModuleEnabled("security")) {
+    if (!isModuleEnabled("security", "")) {
         return "";
     }
 
@@ -150,7 +150,7 @@ const getClientIp = (req: Request): string => {
  */
 const isIpAllowed = async (req: Request, maxRequestMinute : number = app.get('config.security')["maxDefaultRequestMinute"]): Promise<ipInfo> => {
 
-    if (!isModuleEnabled("security")) return {ip: "", reqcount: 0, banned: false, domainId: 1, domain: "", comments: ""};
+    if (!isModuleEnabled("security", "")) return {ip: "", reqcount: 0, banned: false, domainId: 1, domain: "", comments: ""};
 
     const clientIp = typeof req === "string" ? req : getClientIp(req);
     if (!clientIp) {
@@ -207,7 +207,7 @@ const isIpAllowed = async (req: Request, maxRequestMinute : number = app.get('co
 */
 setInterval(async () => {
 
-    if (!isModuleEnabled("security")) return;
+    if (!isModuleEnabled("security", "")) return;
 
     try {
         const ips = await redisCore.scanKeys("ips:*");
@@ -249,7 +249,7 @@ setInterval(async () => {
 */
 setInterval(async () => {
 
-    if (!isModuleEnabled("security")) return;
+    if (!isModuleEnabled("security", "")) return;
 
     if (ipUpdateBatch.size === 0) return;
 
@@ -277,7 +277,7 @@ setInterval(async () => {
  */
 const queueIpUpdate = (dbid: string, oldLastseen: number, now: number, increment: number = 1) => {
 
-    if (!isModuleEnabled("security")) return;
+    if (!isModuleEnabled("security", "")) return;
 
     if (ipUpdateBatch.has(dbid)) {
         const entry = ipUpdateBatch.get(dbid)!;

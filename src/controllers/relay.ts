@@ -38,7 +38,7 @@ const handleWebSocketMessage = async (socket: ExtendedWebSocket, data: WebSocket
   }
 
   // Check if current module is enabled
-  if (!isModuleEnabled("relay")) {
+  if (!isModuleEnabled("relay", req.hostname)) {
     logger.debug(`handleWebSocketMessage - Attempt to access a non-active module: relay | IP: ${reqInfo.ip}`);
     socket.send(JSON.stringify(["NOTICE", "blocked: relay module is not active"]));
     removeAllSubscriptions(socket, 1003);
@@ -644,7 +644,7 @@ const getRelayStatus = async (req: Request, res: Response): Promise<Response> =>
   }
 
   // Check if current module is enabled
-  if (!isModuleEnabled("relay")) {
+  if (!isModuleEnabled("relay", req.hostname)) {
       logger.warn("ServerStatus - Attempt to access a non-active module:","relay","|","IP:", reqInfo.ip);
       return res.status(403).send({"status": "error", "message": "Module is not enabled"});
   }

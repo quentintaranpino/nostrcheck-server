@@ -178,7 +178,7 @@ const getActiveModules = (domain: string | null = null): Module[] => {
 	return activeModules;
 }
 
-const isModuleEnabled = (moduleName: string, domain: string | null = null): boolean => {
+const isModuleEnabled = (moduleName: string, domain: string): boolean => {
 	const availableModules = getActiveModules(domain);
 	const mod = availableModules.find((module) => module.name === moduleName);
 	return mod ? mod.enabled : false;

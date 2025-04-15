@@ -1,4 +1,3 @@
-import { Application } from "express";
 import { Event } from "nostr-tools";
 import { dbBulkInsert, dbDelete, dbSimpleSelect, dbUpdate} from "../database.js";
 import { logger } from "../logger.js";
