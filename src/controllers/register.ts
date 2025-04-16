@@ -123,7 +123,7 @@ const registerUsername = async (req: Request, res: Response): Promise<Response> 
 	let paymentRequest = "";
 	let satoshi = 0;
 	const requirePayment = getConfig(domain, ["payments", "satoshi", "registerMaxSatoshi"]) > 0;
-	if (requirePayment && isModuleEnabled("payments", "")) {
+	if (requirePayment && isModuleEnabled("payments", req.hostname)) {
 		
 		const transaction : Transaction = await checkTransaction(
 			req.hostname,
@@ -141,7 +141,7 @@ const registerUsername = async (req: Request, res: Response): Promise<Response> 
 		if (transaction.paymentHash != "" && transaction.isPaid == false && isModuleEnabled("payments", "")) {
 			paymentRequest = transaction.paymentRequest;
 			satoshi = transaction.satoshi;
-		}else if (transaction.satoshi == 0 && isModuleEnabled("payments", "")) {
+		}else if (transaction.satoshi == 0 && isModuleEnabled("payments", req.hostname)) {
 			logger.debug(`registerUsername - 0 satoshi invoice generated`, "|", reqInfo.ip);
 		}else{
 			// If the payment request is not generated, we will delete the user from the database
@@ -233,7 +233,7 @@ const calculateRegisterCost = async (req: Request, res: Response): Promise<Respo
 	}
 
     // Check if payments module is enabled
-    if (!isModuleEnabled("payments", "")) {
+    if (!isModuleEnabled("payments", req.hostname)) {
         logger.info(`calculateRegisterCost - Attempt to access a non-active module: payments | IP:`, reqInfo.ip);
         return res.status(403).send({"status": "error", "message": "Module is not enabled"});
     }
@@ -270,6 +270,7 @@ const calculateRegisterCost = async (req: Request, res: Response): Promise<Respo
 	}
 
 	const satoshi = await calculateSatoshi(
+		req.hostname,
 		"reversed",
 		size,
 		getConfig(req.hostname, ["register","minUsernameLength"]),

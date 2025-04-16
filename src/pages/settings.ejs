@@ -1,6 +1,9 @@
 <html lang="en">
   <%- include('./partials/head',{title: `${locals.serverHost} - Settings`}); %>
   <link rel="stylesheet" href="/static/css/form.css">
+  <link href="https://cdn.jsdelivr.net/npm/jquery-resizable-columns@0.2.3/dist/jquery.resizableColumns.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-table@1.22.6/dist/bootstrap-table.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/table.css">
    <body class="d-flex flex-column h-100">
     <%- include('./partials/navbar', {active:'settings'}); %>
     <main class="pb-1">
@@ -175,7 +178,7 @@
             </button>
           </li>
         </ul>
-        <div class="tab-content" id="settingsTabsContent">
+        <div class="tab-content w-100 p-3 overflow-auto mb-5" id="settingsTabsContent">
           <div class="tab-pane fade show active" id="appearance" role="tabpanel" aria-labelledby="appearance-tab">
             <%- include('./components/settings/appearance'); %>
           </div>

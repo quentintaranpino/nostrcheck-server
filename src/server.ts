@@ -27,9 +27,14 @@ const startServer = async () => {
     const { loadAPIs } = await import("./routes/routes.js");
     await loadAPIs(app);
 
-    // Init plugins
+    // Initialise plugins
     const { initPlugins } = await import("./lib/plugins/core.js");
-    await initPlugins(app);
+    await initPlugins("");
+    const { getTenants } = await import("./lib/config/core.js");
+    const tenants = getTenants();
+    for (const tenant of tenants) {
+        await initPlugins(tenant.domain);
+    }
 
     // Show server startup message
     const { serverBanner } = await import("./lib/utils.js");

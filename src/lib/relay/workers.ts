@@ -106,7 +106,7 @@ const relayQueue: queueAsPromised<RelayJob> = fastq.promise(relayWorker, Math.ce
  */
 const persistEvents = async () => {
   if (
-    !isModuleEnabled("relay") ||
+    !isModuleEnabled("relay", "") ||
     !eventStore ||
     !eventStore.pending ||
     !eventStore.relayEventsLoaded ||
@@ -213,7 +213,7 @@ const persistEvents = async () => {
  */
 const unpersistEvents = async () => {
 
-  if (!isModuleEnabled("relay")) return;
+  if (!isModuleEnabled("relay", "")) return;
   if (!eventStore || !eventStore.pendingDelete || !eventStore.relayEventsLoaded) return;
 
   const now = Math.floor(Date.now() / 1000);
@@ -320,7 +320,7 @@ const unpersistEvents = async () => {
 let manageEventsRunning = false;
 const manageEvents = async () => {
 
-  if (!eventStore || !isModuleEnabled("relay") || !eventStore.relayEventsLoaded || getRelayHeavyWorkerLength() > 0 || getRelayLightWorkerLength() > 0) {
+  if (!eventStore || !isModuleEnabled("relay", "") || !eventStore.relayEventsLoaded || getRelayHeavyWorkerLength() > 0 || getRelayLightWorkerLength() > 0) {
     setTimeout(manageEvents, 1 * 60 * 1000); 
     return;
   }

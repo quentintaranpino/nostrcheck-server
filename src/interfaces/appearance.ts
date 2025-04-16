@@ -100,6 +100,17 @@ const dynamicbackgroundThemes: { [key: string]: DynamicBackground } = {
         color3Percent: "92%",
         particles: "astral"
     },
+    deepspace: {
+        name : "Deep Space",
+        orientation: "to top left",
+        color1: "#74c200",
+        color2: "#04a424",
+        color3: "#282092",
+        color1Percent: "6%",
+        color2Percent: "30%",
+        color3Percent: "75%",
+        particles: "astral"
+    },
 };
 
 const particles = [

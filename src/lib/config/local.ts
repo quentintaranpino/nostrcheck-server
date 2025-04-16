@@ -48,7 +48,7 @@ const mergeConfigkey = async (defaultConfig: Record<string, unknown>, localConfi
     return hasChanged;
 }
 
-const updateLocalConfigKey = async (key: string, value: string | number | boolean | object): Promise<boolean> => {
+const updateLocalConfigKey = async (key: string, value: string | number | boolean | object | undefined): Promise<boolean> => {
     try {
         const LocalConfig = JSON.parse(fs.readFileSync(localPath).toString());
         const keyParts = key.split(".");

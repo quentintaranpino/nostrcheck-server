@@ -11,7 +11,7 @@ import { verifyNIP07event } from "../lib/nostr/NIP07.js";
 import { getUsernames } from "../lib/register.js";
 import { getLightningAddress } from "../lib/lightning.js";
 import { getClientIp, isIpAllowed } from "../lib/security/ips.js";
-import { getActiveModules, getConfig, isModuleEnabled } from "../lib/config/core.js";
+import { getActiveModules, getConfig, getTenants, isModuleEnabled } from "../lib/config/core.js";
 import path from "path";
 
 const loadDashboardPage = async (req: Request, res: Response, version:string): Promise<Response | void> => {
@@ -86,7 +86,7 @@ const loadSettingsPage = async (req: Request, res: Response, version: string): P
         legal: getConfig(domain, ["server", "legal"]),
         appearance: getConfig(domain, ["appearance"]),
     };
-  
+
     res.locals.serverHost = getConfig(req.hostname, ["server", "host"]);
     res.locals.activeModules = activeModules;
     res.locals.availableModules = globalConfig.server?.availableModules || {};
@@ -94,10 +94,10 @@ const loadSettingsPage = async (req: Request, res: Response, version: string): P
     res.locals.globalConfig = globalConfig;
     res.locals.domainConfig = domainConfig;
   
-    const { configStore } = await import("../lib/config/core.js");
-    res.locals.domainsList = configStore?.domainMap?.domainToId ? Object.keys(configStore.domainMap.domainToId) : [];
+    res.locals.domainsList = getTenants().map((tenant) => tenant.domain);
 
     res.locals.settingsLookAndFeelThemes = dynamicbackgroundThemes;
+    
     res.locals.settingsLookAndFeelParticles = particles;
     setAuthCookie(res, req.cookies.authkey);
     req.session.allowed = await isPubkeyAllowed(req.session.identifier);

@@ -11,6 +11,16 @@
       <a target="_blank" href="https://github.com/quentintaranpino/nostrcheck-server/blob/main/PLUGINS.md">here</a>.
     </p>
 
+    <div class="mb-4">
+      <label for="plugins.reload" class="mt-3 mb-1 fw-bold">Reload plugins</label>
+      <p>Rerun the plugins engine to load new plugins or changes in the existing ones.</p>
+      <div class="col-12 col-md-3">
+        <button class="btn btn-lg btn-primary w-100" name="plugins.reload" id="plugins.reload" type="button" onclick="reloadPlugins()">
+          <i class="fa-solid fa-sync"></i> Reload
+        </button>
+      </div>
+    </div>
+
     <%- include('field', {
       type: "text",
       name: "plugins.path",
@@ -23,48 +33,48 @@
       overridable: false
     }) %>
 
-    <div class="mb-4">
-      <label for="plugins.reload" class="mt-3 mb-1 fw-bold">Reload plugins</label>
-      <p>Rerun the plugins engine to load new plugins or changes in the existing ones.</p>
-      <div class="col-12 col-md-3">
-        <button class="btn btn-lg btn-primary w-100" name="plugins.reload" id="plugins.reload" type="button" onclick="reloadPlugins()">
-          <i class="fa-solid fa-sync"></i> Reload
-        </button>
-      </div>
-    </div>
-
-    <label for="plugins-table" class="mt-4 mb-1 fw-bold">Plugins list</label>
-    <p>
-      Here you can see the list of plugins that are currently installed in your server.
-      You can change the name, order and enable or disable the plugins editing the plugin files.
-    </p>
-
-    <table id="plugins-table" class="table table-striped">
-      <thead>
-        <tr>
-          <th scope="col">Order</th>
-          <th scope="col">Enabled</th>
-          <th scope="col">Name</th>
-          <th scope="col">Module</th>
-        </tr>
-      </thead>
-      <tbody></tbody>
-    </table>
-
-    <div class="alert alert-warning mt-3" role="alert">
-      <i class="fa-solid fa-triangle-exclamation"></i>
-      Every plugin must have a unique name and module. The order is used to determine the order of execution of the plugins.
-      The module is used to select which server module will be affected by the plugin.
-      The plugins must be enabled by editing each plugin file and then reloading the plugins engine using the button above.
-    </div>
-
     <div class="col-12 col-md-3 mb-5 mt-4 pb-5 pb-lg-0 mb-lg-2">
       <button class="btn btn-lg mb-4 btn-primary w-100" name="Submit" type="button" onclick="saveSettings()">Save</button>
     </div>
   </form>
+  <div class="alert alert-warning mt-3" role="alert">
+    <i class="fa-solid fa-triangle-exclamation"></i>
+    Every plugin must have a unique name and module. The order is used to determine the order of execution. and the enabled field is used to enable or disable the plugin.
+    The module is used to select which server module will be affected by the plugin.
+  </div>
+  <%- include('../table', {
+    tableName:"Plugins list", 
+    tableDesc:"Here you can see the list of plugins that are currently installed in your server. You can change the name, order and enable or disable the plugins editing the plugin files.",
+    tableId:"pluginsData", 
+    buttons:[
+      ['add','hide'],
+      ['disable','show'],
+      ['enable','show'],
+      ['visible','hide'],
+      ['invisible','hide'],
+      ['admin','hide'],
+      ['edit','hide'],
+      ['password','hide'],
+      ['remove','hide'],
+      ['pay','hide'],
+      ['balance','hide'],
+      ['moderate','hide'],
+      ['ban','hide']
+    ],
+    fields: [
+      ['name', '50', '', 'disabled show text-center'],
+      ['module', '50', '', 'disabled show text-center'],
+      ['order', '50', '', 'disabled show text-center'],
+      ['enabled', '50', 'formatCheckbox', 'enabled show text-center'],
+    ],
+    datakey: 'plugins',
+    objectName: 'plugin',
+    tenant: selectedDomain,
+  }) %>
 </div>
 
 <script>
+
 function reloadPlugins() {
   const btn = document.getElementById('plugins.reload');
   btn.disabled = true;
@@ -112,6 +122,6 @@ document.addEventListener('DOMContentLoaded', () => {
     sortName: 'order',
     sortOrder: 'asc'
   });
-  getPlugins();
+  // getPlugins();
 });
 </script>

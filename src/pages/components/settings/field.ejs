@@ -2,7 +2,7 @@
   const {
     type, name, label, description, value, required,
     options, alert, globalValue, overridable, placeholder,
-    previewSrc, previewSize, previewClass, className
+    previewSrc, previewSize, previewClass, className, noBadge,
   } = typeof locals !== 'undefined' ? locals : {};
 
   const selectedDomain = locals?.selectedDomain || null;
@@ -20,19 +20,27 @@
   <% if (label) { %>
     <label for="<%= name %>" class="fw-bold">
       <%= label %>
-      <% if (!isGlobal && isOverridable) { %>
+      <% if (!noBadge && !isGlobal && isOverridable) { %>
         <span id="badge-<%= name %>" class="badge <%= value !== globalValue ? 'bg-success' : 'bg-info' %> ms-2">
           <%= value !== globalValue ? 'Overridden' : 'Inherited' %>
         </span>
+        <button 
+            id="reset-<%= name %>"
+            name="reset-<%= name %>"
+            type="button" 
+            class="btn btn-sm btn-outline-secondary p-2 <%= value !== globalValue ? '' : 'd-none' %>"
+            onclick="resetToGlobal('<%= name %>', '<%= globalValue %>')">
+            <i class="fa-solid fa-rotate-left fa-xs"></i>
+          </button>
       <% } %>
-      <% if (shouldDisable) { %>
+      <% if (!noBadge && shouldDisable) { %>
         <span class="badge bg-secondary ms-2">Read-only</span>
       <% } %>
     </label>
   <% } %>
 
   <% if (description) { %>
-    <p><%= description %></p>
+    <p class="mt-1"><%= description %></p>
   <% } %>
 
   <% if (type === "hidden") { %>
@@ -126,42 +134,38 @@
       </div>
     </div>
     <script>
-  requestAnimationFrame(async () => {
-    const domainSrc = "<%= previewSrc %>";
-    const globalSrc = "<%= previewSrc?.split('?')[0] %>"; // sin el ?domain=...
+    requestAnimationFrame(async () => {
+      const domainSrc = "<%= previewSrc %>";
+      const globalSrc = "<%= previewSrc?.split('?')[0] %>"; // sin el ?domain=...
 
-    const getHash = async (url) => {
-      const res = await fetch(url);
-      const buf = await res.arrayBuffer();
-      const hashBuf = await crypto.subtle.digest("SHA-256", buf);
-      return Array.from(new Uint8Array(hashBuf)).map(b => b.toString(16).padStart(2, "0")).join("");
-    };
+      const getHash = async (url) => {
+        const res = await fetch(url);
+        const buf = await res.arrayBuffer();
+        const hashBuf = await crypto.subtle.digest("SHA-256", buf);
+        return Array.from(new Uint8Array(hashBuf)).map(b => b.toString(16).padStart(2, "0")).join("");
+      };
 
-    try {
-      const [domainHash, globalHash] = await Promise.all([getHash(domainSrc), getHash(globalSrc)]);
-      const badge = document.querySelector("#badge-<%= name %>");
-      if (!badge) return;
+      try {
+        const [domainHash, globalHash] = await Promise.all([getHash(domainSrc), getHash(globalSrc)]);
+        const badge = document.querySelector("#badge-<%= name %>");
+        if (!badge) return;
 
-      if (domainHash !== globalHash) {
-        badge.classList.remove("bg-info");
-        badge.classList.add("bg-success");
-        badge.textContent = "Overridden";
-      } else {
-        badge.classList.remove("bg-success");
-        badge.classList.add("bg-info");
-        badge.textContent = "Inherited";
+        if (domainHash !== globalHash) {
+          badge.classList.remove("bg-info");
+          badge.classList.add("bg-success");
+          badge.textContent = "Overridden";
+        } else {
+          badge.classList.remove("bg-success");
+          badge.classList.add("bg-info");
+          badge.textContent = "Inherited";
+        }
+      } catch (err) {
+        console.warn("Error comparing file hashes for setting:", "<%= name %>", err);
       }
-    } catch (err) {
-      console.warn("Error comparing file hashes for setting:", "<%= name %>", err);
-    }
-  });
-</script>
-
+    });
+    </script>
   <% } else if (type === "color") { %>
-    <div class="mb-4">
-      <% if (label) { %>
-        <label for="<%= name %>" class="fw-bold"><%= label %></label>
-      <% } %>
+    <div class="mb-5">
       <% if (description) { %>
         <p><%= description %></p>
       <% } %>
@@ -170,7 +174,8 @@
         id="<%= name %>"
         name="<%= name %>"
         value="<%= value %>"
-        class="form-control form-control-color${className ? ' ' + className : ''}"
+        data-global-value="<%= globalValue %>"
+        class="mt-2 form-control form-control-color${className ? ' ' + className : ''}"
       />
     </div>
 

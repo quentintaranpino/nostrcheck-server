@@ -1,6 +1,5 @@
 import { Request, Response } from "express";
 import { logger } from "../lib/logger.js";
-import app from "../app.js";
 import { initPlugins, listPlugins } from "../lib/plugins/core.js";
 import { parseAuthHeader } from "../lib/authorization.js";
 import { setAuthCookie } from "../lib/frontend.js";
@@ -27,14 +26,10 @@ const getPlugins = async (req: Request, res: Response): Promise<Response> => {
 
     logger.info(`getPlugins - Request from:`, reqInfo.ip);
 
-    const plugins = listPlugins(app);
-    const result = {
-        "status": "success",
-        "plugins": plugins
-    };
+    const plugins = await listPlugins(req.hostname);
 
     logger.info(`getPlugins - Response:`, plugins.join(", "), "|", reqInfo.ip);
-    return res.status(200).send(result);
+    return res.status(200).send({"status": "success", "plugins": plugins});
 }
 
 const reloadPlugins = async (req: Request, res: Response): Promise<Response> => {

@@ -252,7 +252,7 @@ const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) =>
   }
 
   // Plugins engine execution
-  if (await executePlugins({pubkey: event.pubkey, ip: reqInfo.ip, event: event}, app, "relay") == false) {
+  if (await executePlugins({module: "relay", pubkey: event.pubkey, ip: reqInfo.ip, event: event}, reqInfo.domain) == false) {
     logger.debug(`handleEvent - Blocked event by plugins engine: ${event.id}`);
     socket.send(JSON.stringify(["NOTICE", "blocked: can't accept event"]));
     socket.send(JSON.stringify(["OK", event.id, false, "blocked: can't accept event"]));

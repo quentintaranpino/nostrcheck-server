@@ -260,7 +260,9 @@ const defaultConfig = {
 		},
 	},
 	"plugins" : {
-		"path": "plugins"
+		"path": "plugins",
+		"list": {
+		},
 	},
 	"relay" : {
 		"description": "",
@@ -293,7 +295,7 @@ const defaultConfig = {
 			"color1Percent": "0%",
 			"color2Percent": "55%",
 			"color3Percent": "90%",
-			"particles": "astral"
+			"particles": "astral",
 		},
 	}
 }

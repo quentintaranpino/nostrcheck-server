@@ -28,15 +28,36 @@
       }) %>
       <label class="mt-3 mb-1 fw-bold">Dynamic background</label>
       <p>Choose the colors for the dynamic background.</p>
-      <div class="row mx-auto mb-1">
-        <div class="col-12 col-md-4 pb-4 mb-4">
-          <input id="appearance.dynamicbackground.color1" name="appearance.dynamicbackground.color1" type="color" class="form-control position-static"><span class="ms-2">Primary</span>
+      <div class="row mx-auto mb-4">
+        <div class="col-12 col-md-4 pb-4 mb-4" style="height: 90px !important">
+          <%- include('field', {
+            type: "color",
+            name: "appearance.dynamicbackground.color1",
+            label: "Primary color",
+            value: cfg.dynamicbackground.color1,
+            globalValue: globalCfg.dynamicbackground.color1,
+            overridable: true
+          }) %>
         </div>
-        <div class="col-12 col-md-4 pb-4 mb-4">
-        <input id= "appearance.dynamicbackground.color2" name="appearance.dynamicbackground.color2" type="color"  class="form-control position-static "><span class="ms-2">Secondary</span>
-        </div>
-        <div class="col-12 col-md-4 pb-4 mb-4">
-          <input id="appearance.dynamicbackground.color3" name="appearance.dynamicbackground.color3" type="color"  class="form-control position-static "><span class="ms-2">Tertiary</span>
+        <div class="col-12 col-md-4 pb-4 mb-4" style="height: 90px !important">
+        <%- include('field', {
+          type: "color",
+          name: "appearance.dynamicbackground.color2",
+          label: "Secondary color",
+          value: cfg.dynamicbackground.color2,
+          globalValue: globalCfg.dynamicbackground.color2,
+          overridable: true
+        }) %>
+      </div>
+        <div class="col-12 col-md-4 pb-4 mb-4" style="height: 90px !important">
+          <%- include('field', {
+            type: "color",
+            name: "appearance.dynamicbackground.color3",
+            label: "Tertiary color",
+            value: cfg.dynamicbackground.color3,
+            globalValue: globalCfg.dynamicbackground.color3,
+            overridable: true
+          }) %>
         </div>
       </div>
       <div class="mt-3">
@@ -105,22 +126,20 @@
           ]
         }) %>
       </div>
-      <div class="row mx-auto mt-3 ">
+      <div class="row mx-auto mt-3">
         <label for="appearance.dynamicbackground.theme" class="mt-2 mb-1 fw-bold">Dynamic background themes</label>
-        <div class="col-12 col-md-9">
+        <div class="col-12">
           <%- include('field', {
             type: "select",
             name: "appearance.dynamicbackground.theme",
             label: "Theme",
+            description: "Choose a predefined theme for the dynamic background.",
             value: cfg.dynamicbackground.theme,
             globalValue: globalCfg.dynamicbackground.theme,
             overridable: true,
+            noBadge: true,
             options: Object.keys(locals.settingsLookAndFeelThemes || {}).map(key => ({ value: key, label: key })),
           }) %>
-        </div>
-        <div class="col-4 col-md-3 mt-2 mt-md-0">
-          <input type='text' class="d-none" id='appearance.dynamicbackground.theme.default' name='appearance.dynamicbackground.theme.default' value='false'>
-          <button class="form-control btn btn-md mt-1 btn-primary" type="button" onclick="updateTheme('','','','','','','','',true)">Restore</button>            
         </div>
       </div>  
       <div class="col-12 col-md-3 mb-5 mt-4 pb-5 pb-lg-0 mb-lg-2">

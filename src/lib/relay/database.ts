@@ -7,7 +7,7 @@ import { safeJSONParse } from "../utils.js";
 import { isModuleEnabled } from "../config/core.js";
 
 const initEvents = async (): Promise<boolean> => {
-  if (!isModuleEnabled("relay")) return false;
+  if (!isModuleEnabled("relay", "")) return false;
   if (eventStore.sharedDBChunks && eventStore.sharedDBChunks.length > 0) return false;
 
   const eventIndex: Map<string, EventIndex> = new Map();

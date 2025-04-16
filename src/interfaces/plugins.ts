@@ -1,4 +1,3 @@
-import { Application } from "express";
 import { logger } from "../lib/logger";
 import * as NIP01 from "../lib/nostr/NIP01.js";
 import * as NIP19 from "../lib/nostr/NIP19.js";
@@ -7,6 +6,7 @@ import { RedisService } from "../lib/redis.js";
 import { Event } from "nostr-tools";
 
 interface pluginData {
+    module: string;
     pubkey?: string;
     filename?: string;
     ip?: string;
@@ -14,7 +14,7 @@ interface pluginData {
 }
 
 interface pluginContext {
-    app: Application
+    config: Record<string, any>;
     logger: typeof logger;
     redis: RedisService;
     nostr: {
@@ -32,4 +32,10 @@ interface plugin {
     execute: (input: pluginData, context: pluginContext) => Promise<boolean> | boolean;
 }
 
-export { pluginData, plugin, pluginContext };
+interface PluginStore {
+    [tenant: string]: plugin[];
+}
+
+const pluginStore: PluginStore = {};
+
+export { pluginData, plugin, pluginContext, pluginStore };

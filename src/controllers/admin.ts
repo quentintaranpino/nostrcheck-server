@@ -12,7 +12,6 @@ import { generatePassword } from "../lib/authorization.js";
 import { dbDelete, dbInsert, dbMultiSelect, dbUpdate } from "../lib/database.js";
 import { allowedFieldNames, allowedFieldNamesAndValues, allowedTableNames, moduleDataReturnMessage, moduleDataKeys, moduleDataIndex } from "../interfaces/admin.js";
 import { parseAuthHeader} from "../lib/authorization.js";
-import { getFileMimeType } from "../lib/media.js";
 import { npubToHex } from "../lib/nostr/NIP19.js";
 import { dbCountModuleData, dbCountMonthModuleData, dbSelectModuleData } from "../lib/admin.js";
 import { getBalance, getUnpaidTransactionsBalance } from "../lib/payments/core.js";
@@ -28,6 +27,7 @@ import { getEventById } from "../lib/relay/utils.js";
 import { RedisService } from "../lib/redis.js";
 import { isModuleEnabled, setConfig } from "../lib/config/core.js";
 import { acceptedSettigsFiles, settingsFileConfig } from "../interfaces/appearance.js";
+import { listPlugins } from "../lib/plugins/core.js";
 
 const redisCore = app.get("redisCore") as RedisService
 
@@ -206,8 +206,14 @@ const updateDBRecord = async (req: Request, res: Response): Promise<Response> =>
         }
     }
 
-    // Update table with new value
-    const update = await dbUpdate(table, { [req.body.field]: req.body.value }, ["id"], [req.body.id]);
+    let update; 
+    if (table == "plugins"){
+        // Special case for plugins
+        update = await setConfig(req.body.tenant, ["plugins", "list", req.body.id, "enabled"], Boolean(req.body.value));
+    }else {
+        // Update table with new value
+        update = await dbUpdate(table, { [req.body.field]: req.body.value }, ["id"], [req.body.id]);
+    }
     if (update) {
 
         // Create redis key if necessary
@@ -783,6 +789,7 @@ const getModuleData = async (req: Request, res: Response): Promise<Response> => 
     const search = req.query.search as string;
     const sort = req.query.sort as string;
     const filter = req.query.filter as string;
+    const tenant = req.query.tenant as string || '';
 
     let filterObject = {};  
     if (filter!=undefined && filter!=null && filter!="") {
@@ -799,8 +806,32 @@ const getModuleData = async (req: Request, res: Response): Promise<Response> => 
 
     logger.debug("module, offset, limit, order, search, sort, filter) : ", module, offset, limit, order, search, sort, filterObject);
  
-    const data = module === "logs" ? await getLogHistory(offset, limit, order, sort, search, filterObject) : await dbSelectModuleData(module,offset,limit,order,sort,search,filterObject);
-                                                                                                         
+   // const data = module === "logs" ? await getLogHistory(offset, limit, order, sort, search, filterObject) : await dbSelectModuleData(module,offset,limit,order,sort,search,filterObject);
+    
+    let data;
+    if (module === "logs") {
+        data = await getLogHistory(offset, limit, order, sort, search, filterObject);
+    } else if (module === "plugins") {
+        const allPlugins =  (await listPlugins(tenant)).map((p) => ({
+            id: p.name,
+            name: p.name,
+            module: p.module,
+            order: p.order ?? 0,
+            enabled: p.enabled ? 1 : 0
+        }));
+
+      //  const filtered = applyFilters(allPlugins, filterObject, search, sort, order); // esta función puedes adaptarla como haces en otras vistas
+
+        data = {
+            total: allPlugins.length,
+            totalNotFiltered: allPlugins.length,
+            rows: allPlugins.slice(offset, offset + limit)
+        };
+
+    } else {
+        data = await dbSelectModuleData(module, offset, limit, order, sort, search, filterObject);
+    }
+
     const returnMessage : moduleDataReturnMessage = {
         total: data.total,
         totalNotFiltered: data.totalNotFiltered,
@@ -848,7 +879,7 @@ const getModuleCountData = async (req: Request, res: Response): Promise<Response
     const field : string = req.query.field as string;
 
     if (module == "payments" && action == "serverBalance") {
-        const data =  await getBalance(1000);
+        const data =  await getBalance(req.hostname, 1000);
         return res.status(200).send({total: data, field: data});
     }
     if (module == "payments" && action == "unpaidTransactions") {

@@ -185,8 +185,11 @@ const handleDynamicBackgroundChange = (selectElement, themes) => {
         particlesSelect.value = themes[selectedTheme].particles;
 
         primaryColorPercentageHandle.style.left = `${themes[selectedTheme].color1Percent}`;
+        primaryColorPercentageHandle.dataset.position = themes[selectedTheme].color1Percent;
         secondaryColorPercentageHandle.style.left = `${themes[selectedTheme].color2Percent}`;
+        secondaryColorPercentageHandle.dataset.position = themes[selectedTheme].color2Percent;
         tertiaryColorPercentageHandle.style.left = `${themes[selectedTheme].color3Percent}`;
+        tertiaryColorPercentageHandle.dataset.position = themes[selectedTheme].color3Percent;
 
         primaryColorPercentageInput.value = themes[selectedTheme].color1Percent;
         secondaryColorPercentageInput.value = themes[selectedTheme].color2Percent;
@@ -215,6 +218,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const gradientBar = document.getElementById("appearance.dynamicbackground.gradientbar");
     const particlesSelect = document.getElementById("appearance.dynamicbackground.particles");
     const dynamicBackgroundThemeSelect = document.getElementById("appearance.dynamicbackground.theme");
+    console.log(dynamicBackgroundThemeSelect);
+
+    handleParticlesChange(particlesSelect);
 
     const handles = [
         { element: document.createElement('div'), position: 25, id: 'appearance.dynamicbackground.color1Percent.handle', defaultPosition: 25 },
@@ -293,24 +299,24 @@ document.addEventListener('DOMContentLoaded', () => {
     tertiaryColorInput.addEventListener('input', updateGradient);
     orientationSelect.addEventListener('input', updateGradient);
 
-    const rootStyles = getComputedStyle(document.documentElement);
-    primaryColorInput.value = rootStyles.getPropertyValue('--primary-color').trim();
-    primaryColorInput.defaultValue = primaryColorInput.value;
-    secondaryColorInput.value = rootStyles.getPropertyValue('--secondary-color').trim();
-    secondaryColorInput.defaultValue = secondaryColorInput.value;
-    tertiaryColorInput.value = rootStyles.getPropertyValue('--tertiary-color').trim();
-    tertiaryColorInput.defaultValue = tertiaryColorInput.value;
-    orientationSelect.value = rootStyles.getPropertyValue('--gradient-orientation').trim();
-    orientationSelect.defaultValue = orientationSelect.value;
-    particlesSelect.value = rootStyles.getPropertyValue('--particles').trim();
-    particlesSelect.defaultValue = particlesSelect.value;
+    // const rootStyles = getComputedStyle(document.documentElement);
+    // primaryColorInput.value = rootStyles.getPropertyValue('--primary-color').trim();
+    // primaryColorInput.defaultValue = primaryColorInput.value;
+    // secondaryColorInput.value = rootStyles.getPropertyValue('--secondary-color').trim();
+    // secondaryColorInput.defaultValue = secondaryColorInput.value;
+    // tertiaryColorInput.value = rootStyles.getPropertyValue('--tertiary-color').trim();
+    // tertiaryColorInput.defaultValue = tertiaryColorInput.value;
+    // orientationSelect.value = rootStyles.getPropertyValue('--gradient-orientation').trim();
+    // orientationSelect.defaultValue = orientationSelect.value;
+    // particlesSelect.value = rootStyles.getPropertyValue('--particles').trim();
+    // particlesSelect.defaultValue = particlesSelect.value;
 
-    handles[0].position = parseFloat(rootStyles.getPropertyValue('--primary-color-percent').trim());
-    handles[0].defaultPosition = handles[0].position;
-    handles[1].position = parseFloat(rootStyles.getPropertyValue('--secondary-color-percent').trim());
-    handles[1].defaultPosition = handles[1].position;
-    handles[2].position = parseFloat(rootStyles.getPropertyValue('--tertiary-color-percent').trim());
-    handles[2].defaultPosition = handles[2].position;
+    // handles[0].position = parseFloat(rootStyles.getPropertyValue('--primary-color-percent').trim());
+    // handles[0].defaultPosition = handles[0].position;
+    // handles[1].position = parseFloat(rootStyles.getPropertyValue('--secondary-color-percent').trim());
+    // handles[1].defaultPosition = handles[1].position;
+    // handles[2].position = parseFloat(rootStyles.getPropertyValue('--tertiary-color-percent').trim());
+    // handles[2].defaultPosition = handles[2].position;
 
     handles.forEach(handle => {
         handle.element.style.left = `${handle.position}%`;
@@ -329,6 +335,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     updatePreviewBadges()
 
+
 });
 
 // Multi-tenancy badges
@@ -339,6 +346,8 @@ document.addEventListener("change", handleFieldLiveUpdate, true);
 function handleFieldLiveUpdate(event) {
     const field = event.target;
     if (!field.name) return;
+
+    const resetBtn = document.getElementById(`reset-${field.name}`);
   
     const badge = document.getElementById(`badge-${field.name}`);
     if (!badge) return;
@@ -363,9 +372,11 @@ function handleFieldLiveUpdate(event) {
     if (current !== globalValue) {
       badge.className = "badge bg-success ms-2";
       badge.textContent = "Overridden";
+      resetBtn.classList.remove('d-none');
     } else {
       badge.className = "badge bg-info ms-2";
       badge.textContent = "Inherited";
+      resetBtn.classList.add('d-none');
     }
   }
 
@@ -406,3 +417,29 @@ function handleFieldLiveUpdate(event) {
     }
   }
   
+function resetToGlobal(fieldName, globalValue) {
+    const input = document.getElementById(fieldName);
+    if (!input) return;
+
+    const tag = input.tagName.toLowerCase();
+
+    if (tag === 'input') {
+        if (input.type === 'checkbox') {
+        input.checked = globalValue === 'true';
+        } else {
+        input.value = globalValue;
+        }
+    } else if (tag === 'select') {
+        input.value = globalValue;
+    }
+
+    const badge = document.querySelector(`#badge-${fieldName}`);
+    if (badge) {
+        badge.classList.remove('bg-success');
+        badge.classList.add('bg-info');
+        badge.textContent = 'Inherited';
+    }
+
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+input.dispatchEvent(new Event('change', { bubbles: true }));
+}

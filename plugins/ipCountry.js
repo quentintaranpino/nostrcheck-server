@@ -1,7 +1,6 @@
 function plugin() {
   return {
     order: 5,
-    enabled: false,
     name: 'ipCountry',
     module: '',
     execute: async (input, globals) => {

@@ -218,7 +218,7 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 	res.status(200);
 
 	// Plugins engine execution
-	if (await executePlugins({pubkey: filedata.pubkey, filename: filedata.filename, ip: reqInfo.ip}, app, "media") == false) {
+	if (await executePlugins({module: "media", pubkey: filedata.pubkey, filename: filedata.filename, ip: reqInfo.ip}, req.hostname ) == false) {
 		logger.info(`uploadMedia - 401 Unauthorized - Not authorized`, "|", reqInfo.ip);
 		res.setHeader("X-Reason", "Not authorized");
 		return res.status(401).send({"status": "error", "message": "Not authorized"});
@@ -275,7 +275,7 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 			// If the recieved file has a transaction_id and the DB file doesn't have a transaction_id, we update the DB file with the recieved transaction_id
 			if (filedata.transaction_id != "" && dbFile.transactionid == null) {
 				const updateResult = await dbUpdate("mediafiles", {"transactionid": filedata.transaction_id},["id"], [filedata.fileid]);
-				const accountIdResult = await updateAccountId(pubkey, Number(filedata.transaction_id));
+				const accountIdResult = await updateAccountId(req.hostname,pubkey, Number(filedata.transaction_id));
 				if (!updateResult || !accountIdResult) {
 					logger.error(`uploadMedia - Error updating transactionid for file ${filedata.fileid}`, "|", reqInfo.ip);
 					const result: ResultMessagev2 = {
@@ -378,7 +378,7 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 
 		// Update accountid in ledger and transactions tables.
 		if (filedata.transaction_id != "") {
-			const result = await updateAccountId(pubkey, Number(filedata.transaction_id));
+			const result = await updateAccountId(req.hostname, pubkey, Number(filedata.transaction_id));
 			if (result == false) {
 				logger.error(`uploadMedia - Error updating transactionid for file`, filedata.fileid, "|", reqInfo.ip);
 				return res.status(500).send({"status": "error", "message": "Error updating transactionid for file"});
@@ -387,7 +387,7 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 	}
 
 	// Payment engine
-	if (isModuleEnabled("payments", "")) {
+	if (isModuleEnabled("payments", req.hostname)) {
 
 		// Get preimage from header
 		const preimage = req.headers["x-lightning"]?.toString().length == 64 ? req.headers["x-lightning"]?.toString() : undefined;
@@ -418,9 +418,9 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 
 		// If we have a preimage, compare the paymenthash with the transaction paymenthash and update the invoice status
 		if (preimage != undefined) {
-			const receivedInvoice = await getInvoice(await hashString(preimage, "preimage"));
+			const receivedInvoice = await getInvoice(req.hostname, await hashString(preimage, "preimage"));
 			if (receivedInvoice.paymentHash != "" && receivedInvoice.transactionid.toString() == filedata.transaction_id){
-				if (receivedInvoice.isPaid != true) await collectInvoice(receivedInvoice, false, true);
+				if (receivedInvoice.isPaid != true) await collectInvoice(req.hostname, receivedInvoice, false, true);
 				transaction.isPaid = true; // Update transaction object
 			}
 		}
@@ -585,9 +585,8 @@ const headMedia = async (req: Request, res: Response): Promise<Response> => {
 	}
  
 	// Payment required ?
-	if (await isModuleEnabled("payments", "")) {
+	if (await isModuleEnabled("payments", req.hostname)) {
 		const transactionId = (await dbMultiSelect(["transactionid"], "mediafiles", fileData[0].hash != fileData[0].original_hash ? "original_hash = ?" : "hash = ?", [hash], true))[0]?.transactionid || "" ;
-		// const transaction = await checkTransaction(transactionId,"","mediafiles", fileData[0].hash != fileData[0].original_hash ? Number(fileData[0].filesize)/3 : Number(Number(fileData[0].filesize)),"");
 		
 		const transaction = await checkTransaction(
 			req.hostname,
@@ -729,7 +728,7 @@ const getMediaList = async (req: Request, res: Response): Promise<Response> => {
 		};
 
 		// Return payment_request if the file is not paid
-		if (isModuleEnabled("payments", "")) {
+		if (isModuleEnabled("payments", req.hostname)) {
 			
 			const transaction : Transaction = await checkTransaction(
 				listedFile.tenant,
@@ -905,7 +904,7 @@ const getMediaStatusbyID = async (req: Request, res: Response, version:string): 
 		return res.status(202).send(result);
 	}
 
-	if (isModuleEnabled("payments", "")) {
+	if (isModuleEnabled("payments", req.hostname)) {
 		
 		const transaction : Transaction = await checkTransaction(
 			req.hostname,
@@ -1140,9 +1139,9 @@ const getMediabyURL = async (req: Request, res: Response) => {
 		
 		const preimage = req.headers["x-lightning"]?.toString().length == 64 ? req.headers["x-lightning"]?.toString() : undefined;
 		if (preimage && preimage != "") {
-			const receivedInvoice = await getInvoice(await hashString(preimage, "preimage"));
+			const receivedInvoice = await getInvoice(req.hostname, await hashString(preimage, "preimage"));
 			if (receivedInvoice.paymentHash != "" && receivedInvoice.transactionid.toString() == filedata[0].transaction_id){
-				await collectInvoice(receivedInvoice, false, true); 
+				await collectInvoice(req.hostname, receivedInvoice, false, true); 
 				transaction.isPaid = true;
 			} 
 		}

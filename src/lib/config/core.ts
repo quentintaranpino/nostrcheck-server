@@ -100,14 +100,18 @@ const getConfig = (domain: string | null, keyPath: string[]): any => {
   return deepMerge(globalValue, domainValue);
 };
 
-const setConfig = async (domain: string, keyPath: string[], newValue: string | boolean | number): Promise<boolean> => {
+/**
+ * * Set a configuration value for a specific tenant or globally.
+ * * @param {string} domain - The domain for which to set the configuration. If null, sets the global configuration.
+ * * @param {string[]} keyPath - The path to the configuration key as an array of strings.
+ * * @param {string | boolean | number | object | undefined} newValue - The new value to set for the configuration key.
+ * * @returns {Promise<boolean>} - Returns true if the configuration was successfully set, false otherwise.
+ * */
+const setConfig = async (tenant: string, keyPath: string[], newValue: string | boolean | number | object | undefined): Promise<boolean> => {
 
-  const domainId = domain ? configStore.domainMap.domainToId[domain] : null;
+  const domainId = tenant ? configStore.domainMap.domainToId[tenant] : null;
 
   if (!keyPath || keyPath.length === 0) {
-    return false;
-  }
-  if (newValue === undefined) {
     return false;
   }
 
@@ -178,11 +182,32 @@ const getActiveModules = (domain: string | null = null): Module[] => {
 	return activeModules;
 }
 
-const isModuleEnabled = (moduleName: string, domain: string): boolean => {
-	const availableModules = getActiveModules(domain);
+const isModuleEnabled = (moduleName: string, tenant: string): boolean => {
+	const availableModules = getActiveModules(tenant);
 	const mod = availableModules.find((module) => module.name === moduleName);
 	return mod ? mod.enabled : false;
 }
 
+const getTenants = (): { id: string; domain: string }[] => {
+  const result: { id: string; domain: string }[] = [];
 
-export { configStore, initGlobalConfig, getConfig, setConfig, isModuleEnabled, getActiveModules };
+  const ids = configStore?.domainMap?.idToDomain || {};
+  for (const id in ids) {
+    result.push({ id, domain: ids[id] });
+  }
+
+  return result;
+};
+
+
+const getFullConfig = (domain: string | null = null): any => {
+  const domainId = domain ? configStore.domainMap.domainToId[domain] : null;
+
+  if (domainId && configStore.tenants[domainId]) {
+    return deepMerge(configStore.global, configStore.tenants[domainId]);
+  }
+
+  return configStore.global;
+};
+
+export { configStore, initGlobalConfig, getConfig, getFullConfig, setConfig, isModuleEnabled, getActiveModules, getTenants };
