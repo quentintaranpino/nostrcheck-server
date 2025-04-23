@@ -59,7 +59,7 @@
       value: cfg.workers,
       globalValue: globalCfg.workers,
       required: true,
-      overridable: true,
+      overridable: false,
       alert: {
         type: "warning",
         icon: "fa-triangle-exclamation",
@@ -68,12 +68,12 @@
     }) %>
 
     <%- include('field', {
-      type: "number",
-      name: "relay.maxQueueLength",
-      label: "Max queue length",
-      description: "Specify the maximum queue length for the relay server. If this value is reached, the server will start dropping messages.",
-      value: cfg.maxQueueLength,
-      globalValue: globalCfg.maxQueueLength,
+      type: "checkbox",
+      name: "relay.isolated",
+      label: "Isolated relay",
+      description: "If enabled, and multi-tenanting is enabled, this relay will be isolated from other relay instances, behaving as an independent relay from the rest.",
+      value: cfg.isolated,
+      globalValue: globalCfg.isolated,
       required: true,
       overridable: true
     }) %>

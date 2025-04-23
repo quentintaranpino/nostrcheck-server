@@ -93,8 +93,9 @@ const getCachedEventHeaders = async (
 const scanRecentChunks = async (
   chunks: SharedChunk[],
   filter: Filter,
-  maxAgeSeconds: number
-): Promise<Event[]> => {
+  maxAgeSeconds: number,
+  tenantid?: number
+): Promise<MetadataEvent[]> => {
   if (!redisWorker) return [];
 
   const now = Math.floor(Date.now() / 1000);
@@ -122,7 +123,13 @@ const scanRecentChunks = async (
         })
       );
 
-      return decodedEvents.filter(event => matchFilter(filter, event));
+      let matched = decodedEvents.filter(event => matchFilter(filter, event));
+
+      if (tenantid && matched.length > 0) {
+        matched = matched.filter(e => e.tenantid === tenantid);
+      }
+      
+      return matched;
     })
   );
 
@@ -147,7 +154,8 @@ const processSegment = async (
   chunks: SharedChunk[], 
   segmentSince: number, 
   segmentUntil: number,
-  searchQuery: string | null
+  searchQuery: string | null,
+  tenantid?: number
 ): Promise<{ event: MetadataEvent; score: number }[]> => {
   const segmentResults: { event: MetadataEvent; score: number }[] = [];
 
@@ -173,6 +181,8 @@ const processSegment = async (
 
     for (const { event } of decodedEvents) {
       if (!matchFilter(filter, event)) continue;
+
+      if (tenantid && event.tenantid !== tenantid) continue;
 
       let score = 0;
       if (searchQuery) {
@@ -226,6 +236,13 @@ const _getEvents = async (
 
   if (!redisWorker) return [];
 
+  let tenantId: number | undefined;
+  const tenantFilterIndex = filters.findIndex((f: any) => (f as any).tenantid !== undefined);
+  if (tenantFilterIndex !== -1) {
+    tenantId = (filters[tenantFilterIndex] as any).tenantid;
+    filters.splice(tenantFilterIndex, 1);
+  }
+
   const finalResults: Event[] = [];
   const now = Math.floor(Date.now() / 1000);
   const startTimeMs = Date.now();
@@ -245,14 +262,16 @@ const _getEvents = async (
     const filterLimit = Math.min(filter.limit? filter.limit: maxLimit, maxLimit);
 
     const filterHash = createFilterHash(filter);
-    const cacheKey = "filter:" + filterHash;
+    const cacheKey = tenantId !== undefined
+      ? `filter:tenant:${tenantId}:${filterHash}`
+      : `filter:${filterHash}`;
     const cachedEntryRaw = await redisWorker.get(cacheKey);
 
     if (cachedEntryRaw && cachedEntryRaw !== '[]') {
       const cachedEntry = JSON.parse(cachedEntryRaw);
       const cachedResults = cachedEntry.data;
       const elapsed = Math.floor(Date.now() / 1000) - cachedEntry.timestamp;
-      const freshEvents = await scanRecentChunks(chunks, filter, elapsed);
+      const freshEvents = await scanRecentChunks(chunks, filter, elapsed, tenantId);
       let cachedFiltered: MetadataEvent[];
       if (freshEvents.length > 0) {
         const freshestTime = freshEvents[0].created_at;
@@ -282,7 +301,7 @@ const _getEvents = async (
         incompleteResults = true;
         break;
       }
-      const segResults = await processSegment(filter, chunks, seg.segmentSince, seg.segmentUntil, searchQuery);
+      const segResults = await processSegment(filter, chunks, seg.segmentSince, seg.segmentUntil, searchQuery, tenantId);
       accumulatedResults = accumulatedResults.concat(segResults);
       if (accumulatedResults.length >= effectiveLimit) break;
     }
@@ -292,8 +311,10 @@ const _getEvents = async (
     } else {
       accumulatedResults.sort((a, b) => b.event.created_at - a.event.created_at);
     }
-    const finalSegmentEvents = accumulatedResults.slice(0, effectiveLimit).map(({ event }) => {
-      const { metadata, ...eventWithoutMetadata } = event;
+    const finalSegmentEvents = accumulatedResults
+    .slice(0, effectiveLimit)
+    .map(({ event }) => {
+      const { metadata, tenantid, ...eventWithoutMetadata } = event;
       return eventWithoutMetadata;
     });
 

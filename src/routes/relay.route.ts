@@ -11,6 +11,8 @@ import { limiter } from "../lib/security/core.js";
 import { NIP11Data } from "../controllers/nostr.js";
 import { ExtendedWebSocket } from "../interfaces/relay.js";
 import { loadRelayPage } from "../controllers/frontend.js";
+import { getClientInfo, isIpAllowed } from "../lib/security/ips.js";
+import { getConfig } from "../lib/config/core.js";
 
 let server: Server | null = null;
 
@@ -51,10 +53,21 @@ export const loadRelayRoutes = (app: Application, version:string): void => {
     });
   }
 
-  wss.on("connection", (socket: ExtendedWebSocket, req: IncomingMessage) => {
+  wss.on("connection", async (socket: ExtendedWebSocket, req: IncomingMessage) => {
 
     socket.isAlive = true;
-    socket.on("pong", heartbeat);
+    socket.on("pong", heartbeat.bind(socket));
+
+    const clientInfo = getClientInfo(req);
+    logger.info("New WebSocket connection | IP:", clientInfo.ip, "| User-Agent:", req.headers["user-agent"]);
+    socket.reqInfo = await isIpAllowed(req, getConfig(clientInfo.host || "", ["security", "relay", "maxMessageMinute"]));
+
+    if (socket.reqInfo.banned) {
+      removeAllSubscriptions(socket, 1008); 
+      socket.send(JSON.stringify(["NOTICE", socket.reqInfo.comments]));
+      socket.close(1008, "ip banned");
+      return;
+    }
 
     if (app.get("config.relay")["limitation"]["auth_required"] == true){
       const challenge = crypto.randomBytes(32).toString('hex');
@@ -63,7 +76,7 @@ export const loadRelayRoutes = (app: Application, version:string): void => {
     }
     socket.on("message", async (data: RawData) => {
       try {
-        await handleWebSocketMessage(socket, data, req as Request);
+        await handleWebSocketMessage(socket, data, req);
       } catch (error) {
         logger.error("Error handling message:", error);
       }
@@ -95,12 +108,13 @@ export const loadRelayRoutes = (app: Application, version:string): void => {
 
   // Close dead connections
   setInterval(() => {
-    wss.clients.forEach((ws: ExtendedWebSocket) => {
-      if (!ws.isAlive) {
-        ws.terminate();
+    wss.clients.forEach((ws) => {
+      const extendedWs = ws as ExtendedWebSocket;
+      if (!extendedWs.isAlive) {
+        extendedWs.terminate();
       } else {
-        ws.isAlive = false;
-        ws.ping();
+        extendedWs.isAlive = false;
+        extendedWs.ping();
       }
     });
   }, 60 * 1000); // 1 minute

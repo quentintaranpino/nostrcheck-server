@@ -13,33 +13,32 @@ import { isIpAllowed } from "../lib/security/ips.js";
 import { isEntityBanned } from "../lib/security/banned.js";
 import { isEphemeral, isReplaceable } from "../lib/nostr/NIP01.js";
 import { executePlugins } from "../lib/plugins/core.js";
-import { ipInfo } from "../interfaces/security.js";
 import { validatePow } from "../lib/nostr/NIP13.js";
-import { allowedTags, eventStore, ExtendedWebSocket, RelayStatusMessage } from "../interfaces/relay.js";
+import { allowedTags, eventStore, ExtendedWebSocket, MetadataEvent, RelayStatusMessage } from "../interfaces/relay.js";
 import { isBase64 } from "../lib/utils.js";
 import { AuthEvent } from "../interfaces/nostr.js";
 import { dbMultiSelect, dbUpdate } from "../lib/database.js";
 import { enqueueRelayTask, getEvents, getPendingHeavyTasks, getPendingLightTasks, getRelayHeavyWorkerLength, getRelayLightWorkerLength, getRelayQueueLength, relayWorkers } from "../lib/relay/workers.js";
 import { parseAuthHeader } from "../lib/authorization.js";
 import { getConfig, isModuleEnabled } from "../lib/config/core.js";
+import { IncomingMessage } from "http";
 
 await initEvents();
 const authSessions: Map<WebSocket, string> = new Map(); 
 
-const handleWebSocketMessage = async (socket: ExtendedWebSocket, data: WebSocket.RawData, req: Request) => {
+const handleWebSocketMessage = async (socket: ExtendedWebSocket, data: WebSocket.RawData, req: IncomingMessage) => {
 
   // Check if the request IP is allowed
-  const reqInfo = await isIpAllowed(req, getConfig(req.hostname, ["security", "relay", "maxMessageMinute"]));
-  if (reqInfo.banned == true) {
-    logger.debug(`handleWebSocketMessage - Attempt to access relay with unauthorized IP: ${reqInfo.ip} | Reason: ${reqInfo.comments}`);
-    socket.send(JSON.stringify(["NOTICE", `${reqInfo.comments}`]));
+  socket.reqInfo = await isIpAllowed(req); 
+  if (socket.reqInfo.banned) {
+    socket.send(JSON.stringify(["NOTICE", socket.reqInfo.comments]));
     removeAllSubscriptions(socket, 1008);
     return;
   }
 
   // Check if current module is enabled
-  if (!isModuleEnabled("relay", req.hostname)) {
-    logger.debug(`handleWebSocketMessage - Attempt to access a non-active module: relay | IP: ${reqInfo.ip}`);
+  if (!isModuleEnabled("relay", socket.reqInfo.domain)) {
+    logger.debug(`handleWebSocketMessage - Attempt to access a non-active module: relay | IP: ${socket.reqInfo.ip}`);
     socket.send(JSON.stringify(["NOTICE", "blocked: relay module is not active"]));
     removeAllSubscriptions(socket, 1003);
     return;
@@ -47,7 +46,7 @@ const handleWebSocketMessage = async (socket: ExtendedWebSocket, data: WebSocket
 
   try {
 
-    const max_message_length = getConfig(req.hostname, ["relay", "limitation", "max_message_length"]);
+    const max_message_length = getConfig(socket.reqInfo.domain, ["relay", "limitation", "max_message_length"]);
     if (Buffer.byteLength(data.toString()) > max_message_length) {
       socket.send(JSON.stringify(["NOTICE", "error: message too large"]));
       logger.debug(`handleWebSocketMessage - Message too large: ${Buffer.byteLength(data.toString())} bytes`);
@@ -67,7 +66,7 @@ const handleWebSocketMessage = async (socket: ExtendedWebSocket, data: WebSocket
 
     switch (type) {
       case "EVENT" : {
-          const task = await enqueueRelayTask({fn: handleEvent, args: [socket, args[0] as Event, reqInfo]});
+          const task = await enqueueRelayTask({fn: handleEvent, args: [socket, args[0] as Event]});
           if (!task.enqueued) {
             logger.debug(`handleWebSocketMessage - Relay queue limit reached: ${getRelayQueueLength()}`);
             socket.send(JSON.stringify(["NOTICE", "error: relay queue limit reached"]));
@@ -81,7 +80,7 @@ const handleWebSocketMessage = async (socket: ExtendedWebSocket, data: WebSocket
           const filters: Filter[] = args.slice(1) as Filter[];
           try {
             if (typeof args[0] === "string") {
-                await handleReqOrCount(socket, args[0], filters, type, reqInfo);
+                await handleReqOrCount(socket, args[0], filters, type);
             } else {
                 logger.debug(`handleWebSocketMessage - Invalid subscription ID: ${args[0]}`);
                 socket.send(JSON.stringify(["NOTICE", "error: invalid subscription ID"]));
@@ -131,7 +130,7 @@ const handleWebSocketMessage = async (socket: ExtendedWebSocket, data: WebSocket
 };
 
 // Handle EVENT
-const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) => {
+const handleEvent = async (socket: ExtendedWebSocket, event: MetadataEvent) => {
 
   // Check if the event pubkey is banned
   if (await isEntityBanned(event.pubkey, "registered")) {
@@ -152,8 +151,8 @@ const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) =>
   }
 
   // Check if the event is valid
-  const validEvent = await isEventValid(event, getConfig(reqInfo.domain, ["relay", "limitation", "created_at_lower_limit"]),
-  getConfig(reqInfo.domain, ["relay", "limitation", "created_at_upper_limit"]));
+  const validEvent = await isEventValid(event, getConfig(socket.reqInfo.domain, ["relay", "limitation", "created_at_lower_limit"]),
+  getConfig(socket.reqInfo.domain, ["relay", "limitation", "created_at_upper_limit"]));
 
   if (validEvent.status !== "success") {
     logger.debug(`handleEvent - Invalid event: ${event.id}, ${validEvent.message}`);
@@ -163,7 +162,7 @@ const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) =>
   }
 
   // Check if the event has a valid AUTH session
-  if (getConfig(reqInfo.domain, ["relay", "limitation", "auth_required"]) == true && !authSessions.has(socket)) {
+  if (getConfig(socket.reqInfo.domain, ["relay", "limitation", "auth_required"]) == true && !authSessions.has(socket)) {
     logger.debug(`handleEvent - Blocked event without authentication: ${event.id}`);
     socket.send(JSON.stringify(["NOTICE", "auth-required: you must authenticate first"]));
     socket.send(JSON.stringify(["OK", event.id, false, "auth-required: you must authenticate first"]));
@@ -171,7 +170,7 @@ const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) =>
 }
 
   // Check if the event has more tags than allowed
-  if (event.tags.length > getConfig(reqInfo.domain, ["relay", "limitation", "max_event_tags"])) {
+  if (event.tags.length > getConfig(socket.reqInfo.domain, ["relay", "limitation", "max_event_tags"])) {
     logger.debug(`handleEvent - Blocked event with too many tags: ${event.id}`);
     socket.send(JSON.stringify(["NOTICE", "blocked: too many tags"]));
     socket.send(JSON.stringify(["OK", event.id, false, "blocked: too many tags"]));
@@ -179,12 +178,17 @@ const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) =>
   }
 
   // Check if the event content is too large
-  if (event.content.length > getConfig(reqInfo.domain, ["relay", "limitation", "max_content_length"])) {
+  if (event.content.length > getConfig(socket.reqInfo.domain, ["relay", "limitation", "max_content_length"])) {
     logger.debug(`handleEvent - Blocked event with too large content: ${event.id}`);
     socket.send(JSON.stringify(["NOTICE", "blocked: event content too large"]));
     socket.send(JSON.stringify(["OK", event.id, false, "blocked: event content too large"]));
     return;
   }
+
+  // set the tenant id for the event
+  event.tenantid = socket.reqInfo.domainId;
+
+  const isIsolated = getConfig(socket.reqInfo.domain, ["relay","isolated"]) === true;
 
   // NIP-40 Event expiration
   const expirationTag = event.tags.find(tag => tag[0] === "expiration");
@@ -205,7 +209,7 @@ const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) =>
   }
 
   // Valid proof of work (NIP-13) if required
-  if (getConfig(reqInfo.domain, ["relay", "limitation", "min_pow_difficulty"]) > 0) {
+  if (getConfig(socket.reqInfo.domain, ["relay", "limitation", "min_pow_difficulty"]) > 0) {
     const nonceTag = event.tags.find(tag => tag[0] === 'nonce');
     if (!nonceTag || nonceTag.length < 3) {
       logger.debug(`handleEvent - Blocked event with missing or malformed nonce tag: ${event.id}`);
@@ -232,9 +236,9 @@ const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) =>
   }
 
   // Check if the event has invalid tags that are not whitelisted (if whitelist is enabled)
-  if (getConfig(reqInfo.domain, ["relay", "tags"]).length > 0) {
+  if (getConfig(socket.reqInfo.domain, ["relay", "tags"]).length > 0) {
     const tags = event.tags.map(tag => tag[0]);
-    const invalidTags = tags.filter(tag => !getConfig(reqInfo.domain, ["relay", "tags"]).includes(tag) && allowedTags.includes(tag) == false);
+    const invalidTags = tags.filter(tag => !getConfig(socket.reqInfo.domain, ["relay", "tags"]).includes(tag) && allowedTags.includes(tag) == false);
     if (invalidTags.length > 0) {
       logger.debug(`handleEvent - Blocked event with invalid tags: ${event.id}, ${invalidTags.join(", ")}`);
       socket.send(JSON.stringify(["NOTICE", `blocked: invalid tags: ${invalidTags.join(", ")}`]));
@@ -244,7 +248,7 @@ const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) =>
   }
 
   // NIP-70 Check if the event has a ["-"] tag and "auth_required" is enabled
-  if (getConfig(reqInfo.domain, ["relay", "limitation", "auth_required"]) == true && event.tags.some(tag => tag[0] === "-") && authSessions.get(socket) !== event.pubkey) {
+  if (getConfig(socket.reqInfo.domain, ["relay", "limitation", "auth_required"]) == true && event.tags.some(tag => tag[0] === "-") && authSessions.get(socket) !== event.pubkey) {
       logger.debug(`handleEvent - Blocked private message without authentication: ${event.id}`);
       socket.send(JSON.stringify(["NOTICE", "error: unauthorized to post private messages"]));
       socket.send(JSON.stringify(["OK", event.id, false, "error: unauthorized to post private messages"]));
@@ -252,20 +256,22 @@ const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) =>
   }
 
   // Plugins engine execution
-  if (await executePlugins({module: "relay", pubkey: event.pubkey, ip: reqInfo.ip, event: event}, reqInfo.domain) == false) {
+  if (await executePlugins({module: "relay", pubkey: event.pubkey, ip: socket.reqInfo.ip, event: event}, socket.reqInfo.domain) == false) {
     logger.debug(`handleEvent - Blocked event by plugins engine: ${event.id}`);
     socket.send(JSON.stringify(["NOTICE", "blocked: can't accept event"]));
     socket.send(JSON.stringify(["OK", event.id, false, "blocked: can't accept event"]));
     return;
   }
 
-  if (eventStore.eventIndex.has(event.id)) {
-    logger.debug(`handleEvent - Duplicate event: ${event.id}`);
+  // Check if the event is duplicated
+  const existing = eventStore.eventIndex.get(event.id);
+  if (existing && isIsolated && existing.tenantid === event.tenantid) {
+    logger.debug(`handleEvent - Duplicate event in tenant ${event.tenantid}: ${event.id}`);
     socket.send(JSON.stringify(["OK", event.id, false, "duplicate: already have this event"]));
     return;
   }
 
-  logger.debug(`handleEvent - Received event: ${event.id}, kind: ${event.kind} |`, reqInfo.ip);
+  logger.debug(`handleEvent - Received event: ${event.id}, kind: ${event.kind} |`, socket.reqInfo.ip);
 
   // Ephemeral events
   if (isEphemeral(event.kind)) {
@@ -280,7 +286,11 @@ const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) =>
   // Replaceable events
   if (isReplaceable(event.kind)) {
     const replacementCandidates = Array.from(eventStore.eventIndex.entries())
-    .filter(([_, entry]) => entry.kind === event.kind && entry.pubkey === event.pubkey);
+    .filter(([_id, entry]) =>
+      entry.kind === event.kind &&
+      entry.pubkey === event.pubkey &&
+      (isIsolated && entry.tenantid === event.tenantid)
+    );
 
     if (replacementCandidates.length > 0) {
       const oldEventEntry = replacementCandidates[0];
@@ -347,12 +357,22 @@ const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) =>
       return;
     }
 
-    const eventsToDelete = (await Promise.all(
-      receivedEventsToDelete.map(async id => {
-        return eventStore.pending.get(id) || 
-               (eventStore.eventIndex.has(id) ? await getEventById(id, eventStore) : null);
-      })
-    )).filter((e): e is Event => e !== null && e.kind !== 5 && e.pubkey === event.pubkey)
+    const eventsToDelete = (
+      await Promise.all(
+        receivedEventsToDelete.map(async id => {
+          const candidate =
+            eventStore.pending.get(id) ??
+            (eventStore.eventIndex.has(id) ? await getEventById(id, eventStore) : null);
+          if (!candidate) return null;
+    
+          if (isIsolated && candidate.tenantid !== event.tenantid) return null;
+    
+          return candidate;
+        })
+    )).filter(
+      (e): e is MetadataEvent =>
+        e !== null && e.kind !== 5 && e.pubkey === event.pubkey
+    );
   
     if (eventsToDelete.length === 0) {
       logger.debug(`handleEvent - Rejected kind:5 event ${event.id} due to no events found for deletion.`);
@@ -382,7 +402,7 @@ const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) =>
       return;
     }
 
-    const relayUrl = getConfig(reqInfo.domain, ["server", "host"]) + "/api/v2/relay";
+    const relayUrl = getConfig(socket.reqInfo.domain, ["server", "host"]) + "/api/v2/relay";
     const eventUrl = relayTags.some(tag => tag[1].toUpperCase() === "ALL_RELAYS" || tag[1] === relayUrl);
     if (!eventUrl) {
       logger.debug(`handleEvent - Rejected kind:62 event ${event.id} due to invalid relay tag.`);
@@ -391,15 +411,24 @@ const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) =>
       return;
     }
 
-    const pendingEvents = Array.from(eventStore.pending.values());
+    let pendingEvents = Array.from(eventStore.pending.values());
+    if (isIsolated) {
+      pendingEvents = pendingEvents.filter(e => e.tenantid === event.tenantid);
+    }
+
     const storedEvents = await getEventsByTimerange(
       0,                    
       event.created_at - 1, 
       eventStore,
-      entry => entry.pubkey === event.pubkey 
+      entry => {
+        if (!isIsolated) {
+          return entry.pubkey === event.pubkey;
+        }
+        return entry.pubkey === event.pubkey && entry.tenantid === event.tenantid;
+      }
     );
 
-    const eventsToDelete: Event[] = [
+    const eventsToDelete: MetadataEvent[] = [
       ...pendingEvents,
       ...storedEvents
     ].filter(e =>
@@ -417,12 +446,12 @@ const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) =>
       eventStore.pendingDelete.set(e.id, e);
     });
 
-
   }
 
   // Notify all clients about the new event
-  subscriptions.forEach((clientSubscriptions) => {
-    clientSubscriptions.forEach((listener) => {listener(event)} );
+  subscriptions.forEach((clientSubs, ws) => {
+    if (isIsolated && ws.reqInfo.domainId !== event.tenantid) return;
+    clientSubs.forEach(listener => listener(event));
   });
 
   // Save the event to memory
@@ -438,6 +467,7 @@ const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) =>
     kind: event.kind,
     pubkey: event.pubkey,
     expiration: expiration,
+    tenantid: socket.reqInfo.domainId,
   });
   eventStore.pending.set(event.id, event);
   eventStore.globalIds.add(event.id);
@@ -457,7 +487,7 @@ const handleEvent = async (socket: WebSocket, event: Event, reqInfo : ipInfo) =>
 };
 
 // Handle REQ or COUNT
-const handleReqOrCount = async (socket: WebSocket, subId: string, filters: Filter[], type: string, reqInfo: ipInfo) => {
+const handleReqOrCount = async (socket: ExtendedWebSocket, subId: string, filters: Filter[], type: string) => {
 
   logger.debug(`handleReqOrCount - Received ${type} message:`, subId);
   logger.debug(`handleReqOrCount - Filters: ${JSON.stringify(filters, null, 2)}`);
@@ -469,11 +499,11 @@ const handleReqOrCount = async (socket: WebSocket, subId: string, filters: Filte
     return;
   }
 
-  if (getConfig(reqInfo.domain, ["relay", "limitation", "auth_required"]) == true && !authSessions.has(socket)) {
+  if (getConfig(socket.reqInfo.domain, ["relay", "limitation", "auth_required"]) == true && !authSessions.has(socket)) {
     const requestedKinds = filters.flatMap(f => f.kinds || []);
 
     if (requestedKinds.some(kind => [4, 14, 1059].includes(kind))) {
-      logger.debug(`handleReqOrCount - Blocked REQ for private messages without authentication: ${subId} |`, reqInfo.ip);
+      logger.debug(`handleReqOrCount - Blocked REQ for private messages without authentication: ${subId} |`, socket.reqInfo.ip);
       socket.send(JSON.stringify(["NOTICE", "auth-required: must authenticate to request private messages"]));
       socket.send(JSON.stringify(["CLOSED", subId, "auth-required: must authenticate to request private messages"]));
       socket.close(1003, "auth-required: must authenticate to request private messages");
@@ -489,14 +519,14 @@ const handleReqOrCount = async (socket: WebSocket, subId: string, filters: Filte
     return;
   }
 
-  if (filters.length > getConfig(reqInfo.domain, ["relay", "limitation", "max_filters"])) {
+  if (filters.length > getConfig(socket.reqInfo.domain, ["relay", "limitation", "max_filters"])) {
     logger.debug(`handleReqOrCount - Too many filters: ${subId}`);
     socket.send(JSON.stringify(["CLOSED", subId, "unsupported: too many filters"]));
     socket.close(1003, "unsupported: too many filters");
     return;
   }
 
-  if (subId.length > getConfig(reqInfo.domain, ["relay", "limitation", "max_subid_length"])) {
+  if (subId.length > getConfig(socket.reqInfo.domain, ["relay", "limitation", "max_subid_length"])) {
     logger.debug(`handleReqOrCount - Subscription id too long: ${subId}`);
     socket.send(JSON.stringify(["CLOSED", subId, "unsupported: subscription id too long"]));
     socket.close(1003, "unsupported: subscription id too long");
@@ -517,8 +547,14 @@ const handleReqOrCount = async (socket: WebSocket, subId: string, filters: Filte
     return;
   }
 
+  const maxLimit = getConfig(socket.reqInfo.domain, ["relay", "limitation", "max_limit"]);
+
+  const isIsolated = getConfig(socket.reqInfo.domain, ["relay","isolated"]) === true;
+  if (isIsolated) {
+    filters.push({tenantid: socket.reqInfo.domainId } as any);
+  }
+
   try {
-    const maxLimit = getConfig(reqInfo.domain, ["relay", "limitation", "max_limit"]);
     const eventsList = await getEvents(filters, maxLimit, eventStore.sharedDBChunks);
     let count = 0;
     const batchSize = 250;
@@ -544,7 +580,8 @@ const handleReqOrCount = async (socket: WebSocket, subId: string, filters: Filte
         socket.send(JSON.stringify(["EOSE", subId])); 
       }
 
-      const listener = async (event: Event): Promise<void> => {
+      const listener = async (event: MetadataEvent): Promise<void> => {
+        if (isIsolated && event.tenantid !== socket.reqInfo.domainId) return;
         if (filters.some((f) => matchFilter(f, event)) && socket.readyState === WebSocket.OPEN) {
           logger.debug(`handleReqOrCount - Sent live event: ${event.id}`);
           socket.send(JSON.stringify(["EVENT", subId, event]));
@@ -568,7 +605,7 @@ const handleReqOrCount = async (socket: WebSocket, subId: string, filters: Filte
 };
 
 // Handle CLOSE
-const handleClose = (socket: WebSocket, subId?: string) => {
+const handleClose = (socket: ExtendedWebSocket, subId?: string) => {
   removeSubscription(subId, socket);
 };
 

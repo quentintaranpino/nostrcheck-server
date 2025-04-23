@@ -1,10 +1,12 @@
 import { Event, Filter } from "nostr-tools";
 import { WebSocket } from "ws";
 import { ResultMessagev2 } from "./server";
+import { ipInfo } from "./security";
 
 interface ExtendedWebSocket extends WebSocket {
   challenge?: string;
   isAlive?: boolean;
+  reqInfo: ipInfo;  
 }
 
 const allowedTags = [
@@ -98,6 +100,7 @@ const allowedTags = [
 ];
 
 interface MetadataEvent extends Event {
+  tenantid: number;
   metadata?: { [key: string]: string | string[] };
 }
 
@@ -138,8 +141,8 @@ interface SharedChunk {
 const CHUNK_SIZE = 3000; 
 
 interface RelayEvents {
-  pending: Map<string, Event>;
-  pendingDelete: Map<string, Event>;
+  pending: Map<string, MetadataEvent>;
+  pendingDelete: Map<string, MetadataEvent>;
   eventIndex: Map<string, EventIndex>;
   sharedDBChunks: SharedChunk[];
   relayEventsLoaded: boolean;
@@ -150,6 +153,7 @@ interface RelayEvents {
 
 interface EventIndex {
   id: string;     
+  tenantid: number;
   chunkIndex: number;  
   position: number;    
   processed: boolean;   
@@ -160,8 +164,8 @@ interface EventIndex {
 }
 
 const eventStore: RelayEvents = {
-  pending: new Map<string, Event>(),
-  pendingDelete: new Map<string, Event>(),
+  pending: new Map<string, MetadataEvent>(),
+  pendingDelete: new Map<string, MetadataEvent>(),
   eventIndex: new Map<string, EventIndex>(),
   sharedDBChunks: [],
   relayEventsLoaded: false,

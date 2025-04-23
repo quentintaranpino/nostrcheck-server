@@ -284,7 +284,7 @@ const defaultConfig = {
 		"language_tags": ["en", "es"],
 		"tags": [],
 		"workers": 2,
-		"maxQueueLength": 1000,
+		"isolated": false,
 	},
 	"appearance": {
 		"dynamicbackground": {

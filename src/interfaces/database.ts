@@ -363,6 +363,7 @@ interface EventsTableStructure extends RowDataPacket {
 	content: string;
 	sig: string;
 	received_at: string;
+	tenantid: string;
 	comments: string;
 }
 
@@ -377,6 +378,7 @@ const eventsTableFields: EventsTableStructure = {
 	content: "TEXT",
 	sig: "varchar(128) NOT NULL",
 	received_at: "BIGINT NOT NULL",
+	tenantid: "int(11) NOT NULL",
 	comments: "varchar(150)",
 	_indexes: [
 		"INDEX idx_pubkey (pubkey)",
