@@ -3,7 +3,7 @@ import express from "express";
 import multer from "multer";
 import cors from "cors";
 import { logger } from "../lib/logger.js";
-import { getClientIp } from "../lib/security/ips.js";
+import { getClientInfo } from "../lib/security/ips.js";
 import app from "../app.js";
 import { limiter } from "../lib/security/core.js";
 import { getHostInfo } from "../lib/utils.js";
@@ -92,10 +92,10 @@ export const loadAdminEndpoint = async (app: Application, version: string): Prom
             limiter(),
             cors(adminCORS),
             function (req, res) {
-            logger.debug("POST /api/" + version + app.get("config.server")["availableModules"]["admin"]["path"] + "/uploadfile", "|", getClientIp(req));
+            logger.debug("POST /api/" + version + app.get("config.server")["availableModules"]["admin"]["path"] + "/uploadfile", "|", getClientInfo(req).ip);
             upload.any()(req, res, function (err) {
                 if (err instanceof multer.MulterError && err.code === "LIMIT_FILE_SIZE") {
-                    logger.warn("Upload attempt failed: File too large", "|", getClientIp(req));
+                    logger.warn("Upload attempt failed: File too large", "|", getClientInfo(req).ip);
                     return res.status(413).send({ "status": "error", "message": "File too large, max filesize allowed is " + maxMBfilesize + "MB" });
                 }
                 updateSettingsFile(req, res);

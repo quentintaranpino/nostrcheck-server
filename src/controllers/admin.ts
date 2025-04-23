@@ -905,7 +905,7 @@ const getModuleCountData = async (req: Request, res: Response): Promise<Response
         return res.status(200).send({total: countTotal, field: countField});
     }
     
-    logger.info(`getModuleCountData - Data retrieved succesfully`, "|", reqInfo.ip);
+    logger.debug(`getModuleCountData - Data retrieved succesfully`, "|", reqInfo.ip);
     return res.status(200).send({total: 0, field: 0});
 }
 

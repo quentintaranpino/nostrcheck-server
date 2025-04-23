@@ -18,7 +18,7 @@ import { logger } from "../lib/logger.js";
 import { isPubkeyValid } from "../lib/authorization.js";
 import { limiter } from "../lib/security/core.js";
 import { isAutoLoginEnabled } from "../lib/frontend.js";
-import { getClientIp } from "../lib/security/ips.js";
+import { getClientInfo } from "../lib/security/ips.js";
 import { RedisService } from "../lib/redis.js";
 
 export const loadFrontendEndpoint = async (app: Application, version: string): Promise<void> => {
@@ -39,7 +39,7 @@ export const loadFrontendEndpoint = async (app: Application, version: string): P
 		if(req.originalUrl.slice(-1) !== '/') {
 			return res.redirect(301, req.originalUrl + '/');
 		}
-		if (await isAutoLoginEnabled(req,res)){logger.info("Autologin enabled.  Showing alert on frontend", "|", getClientIp(req))}
+		if (await isAutoLoginEnabled(req,res)){logger.info("Autologin enabled.  Showing alert on frontend", "|", getClientInfo(req).ip)}
 		loadIndexPage(req, res, version);
 	});
 
@@ -67,43 +67,43 @@ export const loadFrontendEndpoint = async (app: Application, version: string): P
 
 	// Tos
 	app.get("/api/" +  version + "/tos", limiter(), async (req, res) => {
-		if (await isAutoLoginEnabled(req,res)){logger.info("Autologin enabled.  Showing alert on frontend", "|", getClientIp(req))}
+		if (await isAutoLoginEnabled(req,res)){logger.info("Autologin enabled.  Showing alert on frontend", "|", getClientInfo(req).ip)}
 		loadMdPage(req,res,"tosFilePath",version);
 	});
 
 	// Privacy
 	app.get("/api/" +  version + "/privacy", limiter(), async (req, res) => {
-		if (await isAutoLoginEnabled(req,res)){logger.info("Autologin enabled.  Showing alert on frontend", "|", getClientIp(req))}
+		if (await isAutoLoginEnabled(req,res)){logger.info("Autologin enabled.  Showing alert on frontend", "|", getClientInfo(req).ip)}
 		loadMdPage(req,res,"privacyFilePath",version);
 	});
 
 	// Legal
 	app.get("/api/" +  version + "/legal", limiter(), async (req, res) => {
-		if (await isAutoLoginEnabled(req,res)){logger.info("Autologin enabled.  Showing alert on frontend", "|", getClientIp(req))}
+		if (await isAutoLoginEnabled(req,res)){logger.info("Autologin enabled.  Showing alert on frontend", "|", getClientInfo(req).ip)}
 		loadMdPage(req,res,"legalFilePath",version);
 	});
 
 	// Documentation
 	app.get("/api/" +  version + "/documentation", limiter(), async (req, res) => {
-		if (await isAutoLoginEnabled(req,res)){logger.info("Autologin enabled.  Showing alert on frontend", "|", getClientIp(req))}
+		if (await isAutoLoginEnabled(req,res)){logger.info("Autologin enabled.  Showing alert on frontend", "|", getClientInfo(req).ip)}
 		loadDocsPage(req,res,version);
 	});
 
 	// Gallery
 	app.get("/api/" +  version + "/gallery", limiter(),  async (req, res) => {
-		if (await isAutoLoginEnabled(req,res)){logger.info("Autologin enabled.  Showing alert on frontend", "|", getClientIp(req))}
+		if (await isAutoLoginEnabled(req,res)){logger.info("Autologin enabled.  Showing alert on frontend", "|", getClientInfo(req).ip)}
 		loadGalleryPage(req,res,version);
 	});
 
 	// Register
 	app.get("/api/" +  version + "/register", limiter(), async (req, res) => {
-		if (await isAutoLoginEnabled(req,res)){logger.info("Autologin enabled.  Showing alert on frontend", "|", getClientIp(req))}
+		if (await isAutoLoginEnabled(req,res)){logger.info("Autologin enabled.  Showing alert on frontend", "|", getClientInfo(req).ip)}
 		loadRegisterPage(req,res,version);
 	});
 
 	// Directory
 	app.get("/api/" +  version + "/directory", limiter(), async (req, res) => {
-		if (await isAutoLoginEnabled(req,res)){logger.info("Autologin enabled.  Showing alert on frontend", "|", getClientIp(req))}
+		if (await isAutoLoginEnabled(req,res)){logger.info("Autologin enabled.  Showing alert on frontend", "|", getClientInfo(req).ip)}
 		loadDirectoryPage(req,res,version);
 	});
 
@@ -114,7 +114,7 @@ export const loadFrontendEndpoint = async (app: Application, version: string): P
 		}else if (await isPubkeyValid(req.session.identifier, true) == false){
 			res.redirect("/api/v2/");
 		}else{
-			if (await isAutoLoginEnabled(req,res)){logger.info("Autologin enabled.  Showing alert on frontend", "|", getClientIp(req))}
+			if (await isAutoLoginEnabled(req,res)){logger.info("Autologin enabled.  Showing alert on frontend", "|", getClientInfo(req).ip)}
 			loadDashboardPage(req,res,version);
 		}
 	});
@@ -126,7 +126,7 @@ export const loadFrontendEndpoint = async (app: Application, version: string): P
 		}else if (await isPubkeyValid(req.session.identifier, true) == false){
 			res.redirect("/api/v2/");
 		}else{
-			if (await isAutoLoginEnabled(req,res)){logger.info("Autologin enabled.  Showing alert on frontend", "|", getClientIp(req))}
+			if (await isAutoLoginEnabled(req,res)){logger.info("Autologin enabled.  Showing alert on frontend", "|", getClientInfo(req).ip)}
 			loadSettingsPage(req,res,version);
 		}
 	});
@@ -138,7 +138,7 @@ export const loadFrontendEndpoint = async (app: Application, version: string): P
 		}else if (await isPubkeyValid(req.session.identifier, false) == false){
 			res.redirect("/api/v2/");
 		}else{
-			if (await isAutoLoginEnabled(req,res)){logger.info("Autologin enabled.  Showing alert on frontend", "|", getClientIp(req))}
+			if (await isAutoLoginEnabled(req,res)){logger.info("Autologin enabled.  Showing alert on frontend", "|", getClientInfo(req).ip)}
 			loadProfilePage(req,res,version);
 		}
 	});

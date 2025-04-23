@@ -9,7 +9,7 @@ import app from "../app.js";
 import getRawBody from "raw-body";
 import { Readable } from "stream";
 import { limiter } from "../lib/security/core.js";
-import { getClientIp } from "../lib/security/ips.js";
+import { getClientInfo } from "../lib/security/ips.js";
 
 const maxMBfilesize :number = app.get("config.media")["maxMBfilesize"].toString().replace(',', '.');
 
@@ -24,7 +24,7 @@ export const loadMediaEndpoint = async (app: Application, version:string): Promi
 		upload.any()(req, res, function (err) {
 			//Return 413 Payload Too Large if file size is larger than maxMBfilesize from config file
 			if (err instanceof multer.MulterError && err.code === "LIMIT_FILE_SIZE") {
-				logger.warn("Upload attempt failed: File too large", "|", getClientIp(req));
+				logger.warn("Upload attempt failed: File too large", "|", getClientInfo(req).ip);
 				if (version == "v1"){ const result: ResultMessage = { result: false , description: "File too large, max filesize allowed is " + maxMBfilesize + "MB" }; return res.status(413).send(result); }
 				const result: ResultMessagev2 = {
 					status: "error",

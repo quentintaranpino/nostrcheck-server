@@ -31,14 +31,13 @@ const getDomainId = async (domain: string): Promise<number | null> => {
     return await getDomainId(hostname);
   }
 
-  const parts = hostname.split('.');
-  const mainDomain = parts.length >= 2 
-    ? `${parts[parts.length - 2]}.${parts[parts.length - 1]}` 
-    : hostname;
+  const isLocal = /^[\d.]+$/.test(hostname) || hostname === 'localhost';
+  const mainDomain = isLocal
+    ? hostname
+    : (hostname.split('.').slice(-2).join('.'));
 
   const cachedId = await redisCore.get(`domains:${mainDomain}`);
   return cachedId ? Number(cachedId) : null;
-  
 };
   
 export { getDomainId };

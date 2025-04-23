@@ -9,7 +9,7 @@ import {fileTypeFromBuffer} from 'file-type';
 import { Request } from "express";
 import { generatefileHashfromfile } from "./hash.js";
 import crypto from "crypto";
-import { getClientIp } from "./security/ips.js";
+import { getClientInfo } from "./security/ips.js";
 import path from "path";
 import sharp from "sharp";
 import { saveFile } from "./storage/core.js";
@@ -24,15 +24,15 @@ const prepareFile = async (t: MediaJob): Promise<void> =>{
 	logger.info(`prepareFile - Processing file, queue size = ${requestQueue.length() +1}`);
 
 	if (!Array.isArray(t.req.files) || t.req.files.length == 0) {
-		logger.error(`prepareFile - Error, file is empty | ${getClientIp(t.req)}`);
+		logger.error(`prepareFile - Error, file is empty | ${getClientInfo(t.req).ip}`);
 		return;
 	}
-	if (!t.req.files[0]) {logger.error(`prepareFile - Error, file is empty | ${getClientIp(t.req)}`);return;}
-	if (!t.req.files[0].mimetype) {logger.error(`prepareFile - Error, file mimetype is empty | ${getClientIp(t.req)}`);return;}
-	if (!t.filedata.media_type) {logger.error(`prepareFile - Error, file type is empty | ${getClientIp(t.req)}`);return;}
-	if (!t.filedata.pubkey) {logger.error(`prepareFile - Error, file pubkey is empty | ${getClientIp(t.req)}`);return;}
+	if (!t.req.files[0]) {logger.error(`prepareFile - Error, file is empty | ${getClientInfo(t.req).ip}`);return;}
+	if (!t.req.files[0].mimetype) {logger.error(`prepareFile - Error, file mimetype is empty | ${getClientInfo(t.req).ip}`);return;}
+	if (!t.filedata.media_type) {logger.error(`prepareFile - Error, file type is empty | ${getClientInfo(t.req).ip}`);return;}
+	if (!t.filedata.pubkey) {logger.error(`prepareFile - Error, file pubkey is empty | ${getClientInfo(t.req).ip}`);return;}
 
-	logger.info(`prepareFile - Processing file ${t.req.files[0].originalname} | ${getClientIp(t.req)}`);
+	logger.info(`prepareFile - Processing file ${t.req.files[0].originalname} | ${getClientInfo(t.req).ip}`);
 	await processFile(t.req.files[0], t.filedata, 0);
 
 }
@@ -199,7 +199,7 @@ const getUploadType = (req : Request): string  => {
 	if (req.body?.uploadtype != undefined && req.body?.uploadtype != "") {uploadtype = req.body.uploadtype;}
 
 	//Check if media_type is valid
-	!UploadTypes.includes(uploadtype)? logger.debug(`getUploadType - Incorrect uploadtype or not present: ${uploadtype} setting "media" | ${getClientIp(req)}`) : null;
+	!UploadTypes.includes(uploadtype)? logger.debug(`getUploadType - Incorrect uploadtype or not present: ${uploadtype} setting "media" | ${getClientInfo(req).ip}`) : null;
 	return uploadtype;
 
 }
@@ -228,7 +228,7 @@ const getFileMimeType = async (req: Request, file :Express.Multer.File): Promise
 	}
 
 	if(!(await getAllowedMimeTypes()).includes(fileType.mime)){
-		logger.info(`getFileMimeType - Filetype not allowed: ${file.mimetype} | ${getClientIp(req)}`);
+		logger.info(`getFileMimeType - Filetype not allowed: ${file.mimetype} | ${getClientInfo(req).ip}`);
 		return "";
 	}
 	

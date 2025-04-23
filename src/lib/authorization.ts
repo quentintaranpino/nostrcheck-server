@@ -12,7 +12,7 @@ import { isBUD01AuthValid } from "./blossom/BUD01.js";
 import { NIPKinds } from "../interfaces/nostr.js";
 import { BUDKinds } from "../interfaces/blossom.js";
 import { isEntityBanned } from "./security/banned.js";
-import { getClientIp } from "./security/ips.js";
+import { getClientInfo } from "./security/ips.js";
 import app from "../app.js";
 import { npubToHex } from "./nostr/NIP19.js";
 import { RedisService } from "./redis.js";
@@ -35,20 +35,20 @@ const parseAuthHeader = async (req: Request, endpoint: string = "", checkAdminPr
 
 	// Apikey. Will be deprecated on 0.7.0
 	if ((req.query.apikey || req.body?.apikey?.length > 0) && checkRegistered) {
-		logger.debug(`parseAuthHeader - Apikey found on request: ${req.query.apikey || req.body.apikey}`, "|", getClientIp(req));
+		logger.debug(`parseAuthHeader - Apikey found on request: ${req.query.apikey || req.body.apikey}`, "|", getClientInfo(req).ip);
 		return await isApikeyValid(req, endpoint, checkAdminPrivileges);
 	}
 
 	// Authkey. Cookie bearer token
 	if (req.cookies && req.cookies.authkey && checkRegistered) {
-		logger.debug(`parseAuthHeader - authkey found in cookie: ${req.cookies.authkey}`, "|", getClientIp(req));
+		logger.debug(`parseAuthHeader - authkey found in cookie: ${req.cookies.authkey}`, "|", getClientInfo(req).ip);
         return await isAuthkeyValid(req.cookies.authkey, checkAdminPrivileges); 
     }
 
 	//Check if request has authorization header.
 	if (req.headers.authorization === undefined) {
 		if(endpoint != 'getMediaByURL' && endpoint != 'list' && endpoint != 'getMediaStatusbyID'){
-			logger.warn(`parseAuthHeader - Authorization header not found, endpoint: ${endpoint}, URL: ${req.url}`, "|", getClientIp(req));
+			logger.warn(`parseAuthHeader - Authorization header not found, endpoint: ${endpoint}, URL: ${req.url}`, "|", getClientInfo(req).ip);
 		} 
 		return {status: "error", message: "Authorization header not found", pubkey:"", authkey:"", kind: 0};
 	}
@@ -56,7 +56,7 @@ const parseAuthHeader = async (req: Request, endpoint: string = "", checkAdminPr
 	// NIP98 or BUD01. Nostr / Blossom token
 	if (req.headers.authorization.startsWith('Nostr ')) {
 		let authevent: Event;
-		logger.debug(`parseAuthHeader - NIP98 / BUD01 found on request: ${req.headers.authorization}`, "|", getClientIp(req));
+		logger.debug(`parseAuthHeader - NIP98 / BUD01 found on request: ${req.headers.authorization}`, "|", getClientInfo(req).ip);
 		try {
 			authevent = JSON.parse(
 				Buffer.from(
@@ -75,14 +75,14 @@ const parseAuthHeader = async (req: Request, endpoint: string = "", checkAdminPr
 			}
 
 		} catch (error) {
-			logger.warn(`parseAuthHeader - 400 Bad request - ${error}`, "|", getClientIp(req));
+			logger.warn(`parseAuthHeader - 400 Bad request - ${error}`, "|", getClientInfo(req).ip);
 			return {status: "error", message: "Malformed authorization header", pubkey:"", authkey : "", kind: 0};
 		}
 		
 	}
 	
 	// If none of the above, return error
-	logger.warn(`parseAuthHeader - Authorization header not found`, "|", getClientIp(req));
+	logger.warn(`parseAuthHeader - Authorization header not found`, "|", getClientInfo(req).ip);
 	return {status: "error", message: "Authorization header not found", pubkey:"", authkey:"", kind: 0};
 
 };
@@ -340,7 +340,7 @@ const isApikeyValid = async (req: Request, endpoint: string = "", checkAdminPriv
 
 	const apikey = req.query.apikey || req.body.apikey;
 	if (!apikey) {
-		logger.warn(`isApikeyValid - Apikey not found`, "|", getClientIp(req));
+		logger.warn(`isApikeyValid - Apikey not found`, "|", getClientInfo(req).ip);
 		return {status: "error", message: "Apikey not found", pubkey:"", authkey:"", kind: 0};
 	}
 
@@ -356,15 +356,15 @@ const isApikeyValid = async (req: Request, endpoint: string = "", checkAdminPriv
 
 	if (hexApikey === "" || hexApikey === undefined) {
 		if (serverApikey){
-			logger.warn(`isApikeyValid - Apikey not authorized for this action`, "|", getClientIp(req));
+			logger.warn(`isApikeyValid - Apikey not authorized for this action`, "|", getClientInfo(req).ip);
 			return {status: "error", message: "Apikey not authorized for this action", pubkey:"", authkey:"", kind: 0};
 		}
-		logger.warn(`isApikeyValid - Apikey not found`, "|", getClientIp(req));
+		logger.warn(`isApikeyValid - Apikey not found`, "|", getClientInfo(req).ip);
 		return {status: "error", message: "Apikey not authorized for this action", pubkey:"", authkey:"", kind: 0};
 	}
 
 	if (await isPubkeyValid(hexApikey, checkAdminPrivileges) == false){
-		logger.warn("isApikeyValid - Apikey not authorized for this action", "|", getClientIp(req));
+		logger.warn("isApikeyValid - Apikey not authorized for this action", "|", getClientInfo(req).ip);
 		return {status: "error", message: "Apikey not authorized for this action", pubkey:"", authkey:"", kind: 0};
 	}
 
