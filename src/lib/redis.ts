@@ -1,7 +1,6 @@
 import { createClient, RedisClientType } from "redis";
 import { RedisConfig } from "../interfaces/redis.js";
-import { Application } from "express";
-import { updateLocalConfigKey } from "./config.js";
+import { getConfig, setConfig } from "./config/core.js";
 
 class RedisService {
   private client: RedisClientType;
@@ -23,12 +22,13 @@ class RedisService {
     return `${this.instancePrefix}:${key}`;
   }
 
-  public async init(app?: Application): Promise<boolean> {
+  public async init(isolated : boolean = false): Promise<boolean> {
     this.client.on("error", () => false);
-    if (app) {
-      this.instancePrefix = `ns:${await getInstancePrefix(app)}`;
-    } else {
+    if (isolated) {
       this.instancePrefix = `ns:${Math.random().toString(36).substring(2, 10)}`;
+    } else {
+      this.instancePrefix = `ns:${await getInstancePrefix()}`;
+
     }
   
     if (!this.instancePrefix) return false;
@@ -192,16 +192,13 @@ class RedisService {
 
 }
 
-const getInstancePrefix = async (app: Application): Promise<string> => {
-  const configPrefix = app.get('config.redis')['instancePrefix'];
+const getInstancePrefix = async (domain : string = ""): Promise<string> => {
+  const configPrefix = getConfig(domain, ["redis", "instancePrefix"]);
 
   if (!configPrefix || configPrefix.length < 8) {
     const newPrefix = Math.random().toString(36).substring(2, 10);
 
-    if (await updateLocalConfigKey("redis.instancePrefix", newPrefix)) {
-      const configRedis = { ...app.get('config.redis') }; 
-      configRedis.instancePrefix = newPrefix;
-      app.set('config.redis', configRedis);
+    if (await setConfig(domain, ["redis", "instancePrefix"], newPrefix)) {
       return newPrefix;
     }
 

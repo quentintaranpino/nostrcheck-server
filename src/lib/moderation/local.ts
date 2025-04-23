@@ -4,9 +4,10 @@ import FormData from 'form-data';
 import fs from 'fs';
 import { logger } from '../logger.js';
 import { emptyModerationCategory, moderationCategories, ModerationCategory } from '../../interfaces/moderation.js';
-import app from '../../app.js';
 import { extractVideoFrames } from '../media.js';
 import { deleteLocalFile } from '../storage/local.js';
+import { getModerationQueueLength } from './core.js';
+import { getConfig } from '../config/core.js';
 
 let localModel: PythonShell | null = null;
 
@@ -21,7 +22,7 @@ const localEngineStart = async (): Promise<boolean> => {
         const venvPythonPath = process.platform === "win32" ? ".\\.venv\\Scripts\\python.exe" : "./.venv/bin/python";
 
         if (localModel) {
-            logger.info(`localEngineStart - Local AI moderation server is already running.`);
+            logger.debug(`localEngineStart - Local AI moderation server is already running.`);
             resolve(true);
             return;
         }
@@ -37,7 +38,7 @@ const localEngineStart = async (): Promise<boolean> => {
             return;
         }
 
-        logger.info(`localEngineStart - Starting local AI moderation server using Python virtual environment: ${venvPythonPath}`);
+        logger.debug(`localEngineStart - Starting local AI moderation server using Python virtual environment: ${venvPythonPath}`);
 
         try{
             localModel =  new PythonShell(localModelPath, {
@@ -52,8 +53,8 @@ const localEngineStart = async (): Promise<boolean> => {
 
 
         localModel.on('message', (message) => {
-            logger.info(`localEngineStart - ${message}`);
-            logger.info(`localEngineStart - Local AI moderation server started successfully.`);
+            logger.debug(`localEngineStart - ${message}`);
+            logger.debug(`localEngineStart - Local AI moderation server started successfully.`);
             resolve(true); 
             return;
         });
@@ -66,7 +67,7 @@ const localEngineStart = async (): Promise<boolean> => {
         });
 
         localModel.on('close', () => {
-            logger.info('localEngineStart - Local AI moderation server stopped.');
+            logger.debug('localEngineStart - Local AI moderation server stopped.');
             localModel = null;
 			resolve(false);
             return;
@@ -74,21 +75,24 @@ const localEngineStart = async (): Promise<boolean> => {
     });
 };
 
-
 /* 
 * Stop the local AI moderation server
 * @returns {void}
 */
 const localEngineStop = () => {
     if (!localModel) {
-        logger.info(`localEngineStop - Local AI moderation server stopped.`);
+        logger.debug(`localEngineStop - AI server already stopped.`);
         return;
     }
-
-    localModel.terminate();
-    localModel = null;
-    logger.info(`localEngineStop - Local AI moderation server stopped.`);
-}
+    try {
+        localModel.terminate();
+    } catch (e) {
+        logger.error(`localEngineStop - Error terminating server: ${e}`);
+    } finally {
+        localModel = null;
+        logger.debug(`localEngineStop - Local AI moderation server stopped.`);
+    }
+};
 
 /**
  * Send a request to the local AI moderation server
@@ -116,26 +120,35 @@ const sendRequest = async (modelName: string, endpoint: string,  filePath: strin
         logger.debug(`sendRequest - Sending request to local AI moderation server: ${endpoint}`);
 
 		if (endpoint === "classify"){
-			const response = await axios.post(`http://localhost:3001/${endpoint}?model_name=${modelName}`, form, {
-				headers: {
-					...form.getHeaders(),
-				},
-			});
-			return response.data.label.toString();
+			const response = await axios.post(`http://localhost:3001/${endpoint}?model_name=${modelName}`, 
+                form,
+                {
+                    headers: {...form.getHeaders()},
+                    timeout: 60000 
+                }
+            );
+			return response.data ? response.data.label.toString() : "99:Unknown";
 		}
-		if (endpoint === "classes"){
-			const response = await axios.get(`http://localhost:3001/${endpoint}?model_name=${modelName}`);
-			return response.data ? JSON.stringify(response.data) : "No classes found";
-		}
+        if (endpoint === "classes") {
+            const response = await axios.get(
+                `http://localhost:3001/${endpoint}?model_name=${modelName}`,
+                {
+                    timeout: 60000,
+                }
+            );
+            return response.data ? JSON.stringify(response.data) : "No classes found";
+        }
 
 		return "99:Unknown";
 
     } catch (error) {
         if (error instanceof AggregateError) {
-            error.errors.forEach(err => logger.error(`sendRequest - Error individual: ${err}`));
+            error.errors.forEach(err => logger.error(`sendRequest - Error: ${err}`));
         } else {
             logger.error(`sendRequest - There was an error running the model script: ${error}`);
         }
+        // Stop the local model if it fails.
+        localEngineStop();
         return endpoint === "classify" ? "99:Unknown" : "No classes found";
     }
 }
@@ -159,21 +172,21 @@ const parseResult = (result: string): ModerationCategory => {
  * @param {string} filePath - The path to the file to be moderated
  * @returns {Promise<moderationCategory>} The category of the file
  */
-const localEngineClassify = async (filePath: string): Promise<ModerationCategory> => {
+const localEngineClassify = async (filePath: string, tenant: string): Promise<ModerationCategory> => {
 
 	if (!filePath || filePath === "") {
 		logger.error(`localEngineClassify - File path is empty`);
 		return emptyModerationCategory;
 	}
 
-    const modelName = app.get("config.media")["mediainspector"]["local"]["modelName"];   
+    const modelName = getConfig(tenant, ["media", "mediainspector", "local", "modelName"]);
     let moderationResult : string = "";
 
     const fileExtension = filePath.split('.').pop();
 
     // Video files need to be split into frames and each frame needs to be moderated
     if (fileExtension == 'mp4' || fileExtension == 'webm' || fileExtension == 'mov') {
-        const frames = await extractVideoFrames(filePath, app.get("config.storage")["local"]["tempPath"]);
+        const frames = await extractVideoFrames(filePath, getConfig(tenant, ["storage", "local", "tempPath"]));
         if (frames.length == 0) return emptyModerationCategory;
         let unsafeFrames = 0;
         for (const f of frames) {
@@ -196,10 +209,19 @@ const localEngineClassify = async (filePath: string): Promise<ModerationCategory
 
     logger.info(`localEngineClassify - File moderation result: ${moderationResult}`);
 
+    // Stop the local model after 30 seconds of inactivity
+    if (getModerationQueueLength() == 0) {
+        setTimeout(async () => {
+            if (getModerationQueueLength() === 0) {
+                await localEngineStop();
+            }
+        }, 30000);
+    }
+
     return parseResult(moderationResult);
 }
 
 
 
 
-export { localEngineClassify, localEngineStart, localEngineStop }
+export { localEngineClassify}

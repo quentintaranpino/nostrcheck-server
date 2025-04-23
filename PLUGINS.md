@@ -7,7 +7,6 @@ The server uses a flexible plugin system to extend and customize functionality. 
 Each plugin is an object with the following properties:
 
 - **`order`**: Determines the execution priority of the plugin. Plugins with lower `order` values are executed first.
-- **`enabled`**: A boolean flag to enable or disable the plugin.
 - **`name`**: A unique name for the plugin.
 - **`module`**: The server module that affects the plugin. This is used to group plugins based on server functionality.
 - **`execute`**: The core function of the plugin, which contains the logic to be executed. This function is asynchronous and receives two parameters:
@@ -22,7 +21,6 @@ Here is a typical structure of a plugin:
 function plugin() {
     return {
         order: 1,
-        enabled: true,
         name: 'examplePlugin',
         module: 'relay',
         execute: async (input, globals) => {
@@ -95,4 +93,4 @@ The following global variables are available to plugins:
 - **`globals.logger`**: Used for logging any relevant information or errors during plugin execution.
 - **`globals.redis`**: Provides access to Redis for caching or storing data
 - **`globals.nostr`**: Allows interaction with the Nostr protocol for fetching pubkey information, followers, and metadata.
-- **`globals.app`**: Accesses server configurations or settings like pubkey or other server-specific data.
+- **`globals.config`**: Accesses server configurations or settings like pubkey or other server-specific data.

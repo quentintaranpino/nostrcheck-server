@@ -1,109 +1,112 @@
-<div id ="settingsLegal">
-    <h3 class="mt-4">Legal</h3>
-    <form class="form mx-auto">
-        <p>
-            You can configure the server legal related settings in this section.
-        </p>
-        <label for="server.legal.entityType" class="mt-2 mb-1 fw-bold">Entity type</label>
-        <p>
-            Entity type is used to identify the server's entity type, can be individual or company.
-        </p>
-        <div class="col-12 col-md-4 col-lg-5">
-            <select id="server.legal.entityType" name="server.legal.entityType" class="form-select">
-                <option value="individual" <% if (locals.settingsLegal['entityType'] === 'individual') { %>selected<% } %>>individual</option>
-                <option value="company" <% if (locals.settingsLegal['entityType'] === 'company') { %>selected<% } %>>company</option>
-            </select>
-            </div>
-        <label for="server.legal.email" class="mt-2 mb-1 fw-bold">Server email</label>
-        <p>
-            Server email is used to identify the server contact for legal notice, privacy policy, etc.
-        </p>
-        <input  type="email" 
-                id="server.legal.email"  
-                name="server.legal.email" 
-                class="form-control" 
-                value="<%= locals.settingsLegal['email'] %>"
-                placeholder="Server email" 
-                required
-                >
-        <label for="server.legal.country" class="mt-2 mb-1 fw-bold">Server country</label>
-        <p>
-            Server country is used to identify the real server's country, this is used to display the server's country in legal notice, privacy policy, etc.
-        </p>
-        <input  type="text" 
-                id="server.legal.country"  
-                name="server.legal.country" 
-                class="form-control" 
-                value="<%= locals.settingsLegal['country'] %>"
-                placeholder="Server country" 
-                required
-                >
-        <label for="server.legal.jurisdiction" class="mt-2 mb-1 fw-bold">Server jurisdiction</label>
-        <p>
-            Server jurisdiction is used to identify the server's jurisdiction, this is used to display the server's jurisdiction in legal notice, privacy policy, etc.
-        </p>
-        <input  type="text" 
-                id="server.legal.jurisdiction"  
-                name="server.legal.jurisdiction" 
-                class="form-control" 
-                value="<%= locals.settingsLegal['jurisdiction'] %>"
-                placeholder="Server jurisdiction" 
-                required
-                >
-        <label for="server.legal.company" class="mt-2 mb-1 fw-bold">Company name</label>
-        <p>
-            Company name is used to identify the server's company name, this is used to display the server's company name in legal notice, privacy policy, etc. If you selected
-            `individual` in the entity type, you can leave this field empty.
-        </p>
-        <input type="text" 
-                id="server.legal.company"  
-                name="server.legal.company" 
-                class="form-control" 
-                value="<%= locals.settingsLegal['company'] %>"
-                placeholder="Company name" 
-                required
-                >
-        <label for="server.legal.vat" class="mt-2 mb-1 fw-bold">VAT number</label>
-        <p>
-            VAT number is used to identify the server's VAT number, this is used to display the server's VAT number in legal notice, privacy policy, etc. If you selected
-            `individual` in the entity type, you can leave this field empty.
-        </p>
-        <input type="text" 
-                id="server.legal.vat"  
-                name="server.legal.vat" 
-                class="form-control" 
-                value="<%= locals.settingsLegal['vat'] %>"
-                placeholder="VAT number" 
-                required
-                >
-        <label for="server.legal.address" class="mt-2 mb-1 fw-bold">Company address</label>
-        <p>
-            Company address is used to identify the server's company address, this is used to display the server's company address in legal notice, privacy policy, etc. If you selected
-            `individual` in the entity type, you can leave this field empty.
-        </p>
-        <input type="text" 
-                id="server.legal.address"  
-                name="server.legal.address" 
-                class="form-control" 
-                value="<%= locals.settingsLegal['address'] %>"
-                placeholder="Company address" 
-                required
-                >
-        <label for="server.legal.phone" class="mt-2 mb-1 fw-bold">Company phone</label>
-        <p>
-            Company phone is used to identify the server's company phone, this is used to display the server's company phone in legal notice, privacy policy, etc. If you selected
-            `individual` in the entity type, you can leave this field empty.
-        </p>
-        <input type="text" 
-                id="server.legal.phone"  
-                name="server.legal.phone" 
-                class="form-control" 
-                value="<%= locals.settingsLegal['phone'] %>"
-                placeholder="Company phone" 
-                required
-                >
-        <div class="col-12 col-md-3 mb-5 mt-4 pb-5 pb-lg-0 mb-lg-2">
-            <button class="btn btn-lg mb-4 btn-primary w-100" name="Submit" type="button" onclick="saveSettings()">Save</button>
-        </div>
-    </form>
-  </div>
+<%
+  const cfg = locals.domainConfig?.server?.legal || {};
+  const globalCfg = locals.globalConfig?.server?.legal || {};
+%>
+<div id="settingsLegal">
+  <h3 class="mt-4">Legal</h3>
+  <form class="form mx-auto">
+    <p>You can configure the server legal related settings in this section.</p>
+
+    <%- include('field', {
+      type: "select",
+      name: "server.legal.entityType",
+      label: "Entity type",
+      description: "Entity type is used to identify the server's entity type, can be individual or company.",
+      value: cfg.entityType,
+      globalValue: globalCfg.entityType,
+      overridable: false,
+      options: [
+        { value: "individual", label: "individual" },
+        { value: "company", label: "company" }
+      ]
+    }) %>
+
+    <%- include('field', {
+      type: "text",
+      name: "server.legal.email",
+      label: "Server email",
+      description: "Server email is used to identify the server contact for legal notice, privacy policy, etc.",
+      value: cfg.email,
+      globalValue: globalCfg.email,
+      overridable: false,
+      placeholder: "Server email",
+      required: true
+    }) %>
+
+    <%- include('field', {
+      type: "text",
+      name: "server.legal.country",
+      label: "Server country",
+      description: "Country where the server is legally based.",
+      value: cfg.country,
+      globalValue: globalCfg.country,
+      overridable: false,
+      placeholder: "Country",
+      required: true
+    }) %>
+
+    <%- include('field', {
+      type: "text",
+      name: "server.legal.jurisdiction",
+      label: "Server jurisdiction",
+      description: "Jurisdiction where the server complies with regulations.",
+      value: cfg.jurisdiction,
+      globalValue: globalCfg.jurisdiction,
+      overridable: false,
+      placeholder: "Jurisdiction",
+      required: true
+    }) %>
+
+    <%- include('field', {
+      type: "text",
+      name: "server.legal.company",
+      label: "Company name",
+      description: "Name of the company running the server. Leave empty if 'individual'.",
+      value: cfg.company,
+      globalValue: globalCfg.company,
+      overridable: false,
+      placeholder: "Company name",
+      required: false
+    }) %>
+
+    <%- include('field', {
+      type: "text",
+      name: "server.legal.vat",
+      label: "VAT number",
+      description: "VAT ID used for tax/legal info. Leave empty if 'individual'.",
+      value: cfg.vat,
+      globalValue: globalCfg.vat,
+      overridable: false,
+      placeholder: "VAT number",
+      required: false
+    }) %>
+
+    <%- include('field', {
+      type: "text",
+      name: "server.legal.address",
+      label: "Company address",
+      description: "Address of the company operating the server. Leave empty if 'individual'.",
+      value: cfg.address,
+      globalValue: globalCfg.address,
+      overridable: false,
+      placeholder: "Company address",
+      required: false
+    }) %>
+
+    <%- include('field', {
+      type: "text",
+      name: "server.legal.phone",
+      label: "Company phone",
+      description: "Contact phone of the server operator. Leave empty if 'individual'.",
+      value: cfg.phone,
+      globalValue: globalCfg.phone,
+      overridable: false,
+      placeholder: "Phone number",
+      required: false
+    }) %>
+
+    <div class="col-12 col-md-3 mb-5 mt-4 pb-5 pb-lg-0 mb-lg-2">
+      <button class="btn btn-lg mb-4 btn-primary w-100" name="Submit" type="button" onclick="saveSettings()">Save</button>
+    </div>
+  </form>
+</div>

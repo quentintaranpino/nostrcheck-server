@@ -79,7 +79,6 @@ interface FileData{
 	blurhash: string;
 	url: string;
 	magnet: string;
-	torrent_infohash: string;
 	date: number;
 	no_transform: boolean;
 	media_type: typeof UploadTypes[number];
@@ -94,6 +93,7 @@ interface FileData{
 	transaction_id: string;
 	payment_request: string;
 	visibility: number;
+	tenant: string;
 }
 
 interface MediaJob {
@@ -116,5 +116,5 @@ export {
 	UploadTypes,
 	UploadStatus,
 	MediaStatus,
-	VideoHeaderRange
+	VideoHeaderRange,
 };

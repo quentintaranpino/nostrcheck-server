@@ -9,40 +9,41 @@ import {fileTypeFromBuffer} from 'file-type';
 import { Request } from "express";
 import { generatefileHashfromfile } from "./hash.js";
 import crypto from "crypto";
-import { getClientIp } from "./security/ips.js";
+import { getClientInfo } from "./security/ips.js";
 import path from "path";
 import sharp from "sharp";
 import { saveFile } from "./storage/core.js";
 import { deleteLocalFile } from "./storage/local.js";
 import { moderateFile } from "./moderation/core.js";
-import app from "../app.js";
-import { getHostInfo } from "./utils.js";
+import { generateVideoFromImage, getHostInfo } from "./utils.js";
+import { getConfig } from "./config/core.js";
+import { getResource } from "./frontend.js";
 
 const prepareFile = async (t: MediaJob): Promise<void> =>{
 
 	logger.info(`prepareFile - Processing file, queue size = ${requestQueue.length() +1}`);
 
 	if (!Array.isArray(t.req.files) || t.req.files.length == 0) {
-		logger.error(`prepareFile - Error, file is empty | ${getClientIp(t.req)}`);
+		logger.error(`prepareFile - Error, file is empty | ${getClientInfo(t.req).ip}`);
 		return;
 	}
-	if (!t.req.files[0]) {logger.error(`prepareFile - Error, file is empty | ${getClientIp(t.req)}`);return;}
-	if (!t.req.files[0].mimetype) {logger.error(`prepareFile - Error, file mimetype is empty | ${getClientIp(t.req)}`);return;}
-	if (!t.filedata.media_type) {logger.error(`prepareFile - Error, file type is empty | ${getClientIp(t.req)}`);return;}
-	if (!t.filedata.pubkey) {logger.error(`prepareFile - Error, file pubkey is empty | ${getClientIp(t.req)}`);return;}
+	if (!t.req.files[0]) {logger.error(`prepareFile - Error, file is empty | ${getClientInfo(t.req).ip}`);return;}
+	if (!t.req.files[0].mimetype) {logger.error(`prepareFile - Error, file mimetype is empty | ${getClientInfo(t.req).ip}`);return;}
+	if (!t.filedata.media_type) {logger.error(`prepareFile - Error, file type is empty | ${getClientInfo(t.req).ip}`);return;}
+	if (!t.filedata.pubkey) {logger.error(`prepareFile - Error, file pubkey is empty | ${getClientInfo(t.req).ip}`);return;}
 
-	logger.info(`prepareFile - Processing file ${t.req.files[0].originalname} | ${getClientIp(t.req)}`);
+	logger.info(`prepareFile - Processing file ${t.req.files[0].originalname} | ${getClientInfo(t.req).ip}`);
 	await processFile(t.req.files[0], t.filedata, 0);
 
 }
 // Create the fastq queue for media tasks
 const requestQueue: queueAsPromised<MediaJob> = fastq.promise(prepareFile, 1);
 
-const processFile = async(	inputFile: Express.Multer.File,	options: FileData, retry:number = 0): Promise<boolean> =>{
+const processFile = async ( inputFile: Express.Multer.File,	options: FileData, retry:number = 0): Promise<boolean> =>{
 
 	if (retry > 5) {return false}
 	
-	options.conversionOutputPath = app.get("config.storage")["local"]["tempPath"] + "out" + crypto.randomBytes(20).toString('hex') + options.filename;
+	options.conversionOutputPath = getConfig(options.tenant, ["storage", "local", "tempPath"]) + "out" + crypto.randomBytes(20).toString('hex') + options.filename;
 
 	logger.debug(`processFile - Processing file: ${inputFile.originalname}, using temporary paths: ${options.conversionInputPath}, ${options.conversionOutputPath}`);
 
@@ -198,7 +199,7 @@ const getUploadType = (req : Request): string  => {
 	if (req.body?.uploadtype != undefined && req.body?.uploadtype != "") {uploadtype = req.body.uploadtype;}
 
 	//Check if media_type is valid
-	!UploadTypes.includes(uploadtype)? logger.debug(`getUploadType - Incorrect uploadtype or not present: ${uploadtype} setting "media" | ${getClientIp(req)}`) : null;
+	!UploadTypes.includes(uploadtype)? logger.debug(`getUploadType - Incorrect uploadtype or not present: ${uploadtype} setting "media" | ${getClientInfo(req).ip}`) : null;
 	return uploadtype;
 
 }
@@ -227,7 +228,7 @@ const getFileMimeType = async (req: Request, file :Express.Multer.File): Promise
 	}
 
 	if(!(await getAllowedMimeTypes()).includes(fileType.mime)){
-		logger.info(`getFileMimeType - Filetype not allowed: ${file.mimetype} | ${getClientIp(req)}`);
+		logger.info(`getFileMimeType - Filetype not allowed: ${file.mimetype} | ${getClientInfo(req).ip}`);
 		return "";
 	}
 	
@@ -260,30 +261,30 @@ const GetFileTags = async (fileid: string): Promise<string[]> => {
 
 const standardMediaConversion = (filedata : FileData , file:Express.Multer.File) :void  => {
 
-		//Video or image conversion options
-		if (file.mimetype.toString().startsWith("video")) {
-			filedata.width = app.get("config.media")["transform"]["media"]["video"]["width"];
-			filedata.height = app.get("config.media")["transform"]["media"]["video"]["height"];
-			filedata.outputoptions = '-preset veryfast';
-		}
-		if (file.mimetype.toString().startsWith("image")) {
-			filedata.width = app.get("config.media")["transform"]["media"]["image"]["width"];
-			filedata.height = app.get("config.media")["transform"]["media"]["image"]["height"];
-		}
-	
-		//Avatar conversion options
-		if (filedata.media_type.toString() === "avatar"){
-			filedata.width = app.get("config.media")["transform"]["avatar"]["width"];
-			filedata.height = app.get("config.media")["transform"]["avatar"]["height"];
-		}
-	
-		//Banner conversion options
-		if (filedata.media_type.toString() === "banner"){
-			filedata.width = app.get("config.media")["transform"]["banner"]["width"];
-			filedata.height = app.get("config.media")["transform"]["banner"]["height"];
-		}
+	// Video or image conversion options
+	if (file.mimetype.toString().startsWith("video")) {
+		filedata.width = getConfig(filedata.tenant, ["media", "transform", "media", "video", "width"]);
+		filedata.height = getConfig(filedata.tenant, ["media", "transform", "media", "video", "height"]);
+		filedata.outputoptions = '-preset veryfast';
+	}
+	if (file.mimetype.toString().startsWith("image")) {
+		filedata.width = getConfig(filedata.tenant, ["media", "transform", "media", "image", "width"]);
+		filedata.height = getConfig(filedata.tenant, ["media", "transform", "media", "image", "height"]);
+	}
 
-		return;
+	// Avatar conversion options
+	if (filedata.media_type.toString() === "avatar"){
+		filedata.width = getConfig(filedata.tenant, ["media", "transform", "avatar", "width"]);
+		filedata.height = getConfig(filedata.tenant, ["media", "transform", "avatar", "height"]);
+	}
+
+	// Banner conversion options
+	if (filedata.media_type.toString() === "banner"){
+		filedata.width = getConfig(filedata.tenant, ["media", "transform", "banner", "width"]);
+		filedata.height = getConfig(filedata.tenant, ["media", "transform", "banner", "height"]);
+	}
+
+	return;
 
 }
 
@@ -348,26 +349,28 @@ const setMediaDimensions = async (file:string, options:FileData):Promise<string>
 
 		// Avatar and banner dimensions
 		if (options.media_type == "avatar") {
-			newWidth = app.get("config.media")["transform"]["avatar"]["width"];
-			newHeight = app.get("config.media")["transform"]["avatar"]["height"];
+			newWidth = getConfig(options.tenant, ["media", "transform", "avatar", "width"]);
+			newHeight = getConfig(options.tenant, ["media", "transform", "avatar", "height"]);
 			resolve(newWidth + "x" + newHeight);
 			return;
 		}
+
 		if (options.media_type == "banner") {
-			newWidth = app.get("config.media")["transform"]["banner"]["width"];
-			newHeight = app.get("config.media")["transform"]["banner"]["height"];
+			newWidth = getConfig(options.tenant, ["media", "transform", "banner", "width"]);
+			newHeight = getConfig(options.tenant, ["media", "transform", "banner", "height"]);
 			resolve(newWidth + "x" + newHeight);
 			return;
 		}
 
 		// Standard media dimensions 
 		if (options.originalmime.startsWith("video")) {
-			newWidth = app.get("config.media")["transform"]["media"]["video"]["width"];
-			newHeight = app.get("config.media")["transform"]["media"]["video"]["height"];
+			newWidth = getConfig(options.tenant, ["media", "transform", "media", "video", "width"]);
+			newHeight = getConfig(options.tenant, ["media", "transform", "media", "video", "height"]);
 		}
+
 		if (options.originalmime.startsWith("image")) {
-			newWidth = app.get("config.media")["transform"]["media"]["image"]["width"];
-			newHeight = app.get("config.media")["transform"]["media"]["image"]["height"];
+			newWidth = getConfig(options.tenant, ["media", "transform", "media", "image", "width"]);
+			newHeight = getConfig(options.tenant, ["media", "transform", "media", "image", "height"]);
 		}
 			
 		if (mediaWidth == 0 || mediaHeight == 0) {
@@ -413,19 +416,28 @@ const getFileSize = (path:string, options:FileData) :number => {
 
 }
 
-const getNotFoundFileBanner = (): Promise<Buffer> => {
-    return new Promise((resolve) => {
-		const notFoundPath = path.normalize(path.resolve(app.get("config.media")["notFoundFilePath"]));
-        fs.readFile(notFoundPath, (err, data) => {
-            if (err) {
-                logger.error(`getNotFoundFileBanner - Error reading file: ${notFoundPath} with error: ${err}`);
-                resolve(Buffer.from(""));
-            } else {
-                resolve(data);
-            }
-        });
-    });
-}
+const getNotFoundFileBanner = async (domain: string, mimeType: string): Promise<{ buffer: Buffer; type: 'image/webp' | 'video/mp4' }> => {
+
+	const notFoundPath = await getResource(domain, "media-file-not-found.webp");
+
+	if (notFoundPath == null) {
+		logger.error(`getNotFoundFileBanner - Error getting not found file banner, path is null`);
+		return { buffer: Buffer.from(""), type: 'image/webp' };
+	}
+
+	try {
+		const buffer = await fs.promises.readFile(notFoundPath);
+		if (mimeType.startsWith('video')) {
+			const videoBuffer = await generateVideoFromImage(buffer);
+			return { buffer: videoBuffer, type: 'video/mp4' };
+		} else {
+			return { buffer, type: 'image/webp' };
+		}
+	} catch (err) {
+		logger.error(`getNotFoundFileBanner - Error reading file: ${notFoundPath} with error: ${err}`);
+		return { buffer: Buffer.from(""), type: 'image/webp' };
+	}
+};
 
 const readRangeHeader = (range : string | undefined, totalLength : number ): VideoHeaderRange => {
 
@@ -459,7 +471,6 @@ const finalizeFileProcessing = async (filedata: FileData): Promise<boolean> => {
 		await dbUpdate('mediafiles',{'visibility':'1'},['id'], [filedata.fileid]);
 		await dbUpdate('mediafiles',{'active':'1'},['id'], [filedata.fileid]);
 		await dbUpdate('mediafiles', {'hash': filedata.no_transform == true ? filedata.originalhash : await generatefileHashfromfile(filedata.conversionOutputPath)}, ['id'], [filedata.fileid]);
-		// if (config.get("torrent.enableTorrentSeeding")) {await CreateMagnet(filedata.conversionOutputPath, filedata);}
 		await dbUpdate('mediafiles',{'status':'success'},['id'], [filedata.fileid]);
 		const filesize = getFileSize(filedata.no_transform == true ? filedata.conversionInputPath: filedata.conversionOutputPath ,filedata)
 		await dbUpdate('mediafiles', {'filesize':filesize},['id'], [filedata.fileid]);
@@ -470,7 +481,7 @@ const finalizeFileProcessing = async (filedata: FileData): Promise<boolean> => {
 		if (filedata.no_transform == false) { await deleteLocalFile(filedata.conversionOutputPath);}
 		await deleteLocalFile(filedata.conversionInputPath);
 
-		await moderateFile("mediafiles", filedata.fileid);
+		await moderateFile("mediafiles", filedata.fileid, filedata.tenant);
 
 		return true;
 
@@ -626,13 +637,13 @@ const extractVideoFrames = async (videoPath: string, outputDir: string): Promise
  * @param type The media type (NIP96 or BLOSSOM)
  * @returns The URL of the media file
  **/
-const getMediaUrl = (type: "NIP96" | "BLOSSOM"): string => {
-	const environment = app.get("config.environment");
-	const useCDNPrefix = app.get("config.media")["useCDNPrefix"];
-	const returnURL = app.get("config.media")["returnURL"];
+const getMediaUrl = (type: "NIP96" | "BLOSSOM", domain: string): string => {
+	const environment = getConfig(null, ["environment"]);
+	const useCDNPrefix = getConfig(domain, ["media", "useCDNPrefix"]);
+	const returnURL = getConfig(domain, ["media", "returnURL"]);
 
-	const hostInfo = getHostInfo();
-	if (environment === "development")return `${hostInfo.url}/api/v2/media`;
+	const hostInfo = getHostInfo(domain);
+	if (environment === "development") return `${hostInfo.url}/api/v2/media`;
 	if (returnURL)	return returnURL;
 	return `https://${useCDNPrefix ? `cdn.${hostInfo.hostname}` : type === "NIP96" ? `${hostInfo.hostname}/media` : hostInfo.hostname}`;
 }
@@ -643,10 +654,9 @@ const getMediaUrl = (type: "NIP96" | "BLOSSOM"): string => {
  * @param pubkey The public key
  * @returns The URL of the file
  **/
-const getFileUrl = (filename: string, pubkey : string = ""): string => {
-	return `${getMediaUrl(pubkey != "" ? "NIP96" : "BLOSSOM")}/${pubkey !== "" ? pubkey + "/" : ""}${filename}`;
+const getFileUrl = (filename: string, pubkey : string = "", domain: string): string => {
+	return `${getMediaUrl(pubkey != "" ? "NIP96" : "BLOSSOM", domain)}/${pubkey !== "" ? pubkey + "/" : ""}${filename}`;
 };
-
 
 export {processFile, 
 		requestQueue, 

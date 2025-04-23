@@ -1,91 +1,128 @@
-<div id ="settingsServer">
-    <h3 class="mt-4">Server</h3>
+<% 
+const cfg = locals.domainConfig?.server || {}; 
+const globalCfg = locals.globalConfig?.server || {};
+%>
+<div id="settingsServer">
+  <h3 class="mt-4">Server</h3>
     <form class="form mx-auto">
-        <p>
-            You can configure the server related settings in this section. 
-        Server is identified using this public/private keypair, it will use the following credentials to interact with nostr. The public key will be used in NIP96 and NIP05. The private key will be used to send DM's and sign notes.
-        </p>
-        <label for="server.host" class="mt-2 mb-1 fw-bold">Hostname</label>
-        <p> 
-        Server hostname is used to identify the server, this <b>must</b> be the same as the server's domain name.
-        </p>
-        <input  type="text" 
-                id="server.host"  
-                name="server.host" 
-                class="form-control" 
-                value="<%= locals.settingsServerHost %>" 
-                placeholder="Server host" 
-                required
-                >
+      <p>
+        Configure your server’s core settings below.
+        This includes its identity keys, environment mode, and multi-tenancy support.
+      </p>
+      <%- include('field', {
+        type: "checkbox",
+        name: "autoLogin",
+        label: "Auto-login",
+        description: "Automatically log in with the 'public' admin user. ",
+        value: locals.globalConfig?.autoLogin,
+        globalValue: locals.globalConfig?.autoLogin,
+        overridable: false,
+        alert: {
+        type: "danger",
+        icon: "fa-triangle-exclamation",
+        message: "Recommended only for first-time setup. Disable once you’ve safely stored the server's private key and created at least one additional user"
+        }
+      }) %>
+      <%- include('field', {
+        type: "checkbox",
+        name: "multiTenancy",
+        label: "Multi-tenancy",
+        description: "Enable per-domain config overrides such as relay settings, registration, payments, etc.",
+        value: locals.globalConfig?.multiTenancy,
+        globalValue: locals.globalConfig?.multiTenancy,
+        overridable: false,
+        alert: {
+        type: "warning",
+        icon: "fa-triangle-exclamation",
+        message: "When enabled, each domain can override global settings. Otherwise, global config is used for all."
+        }
+      }) %>
 
-        <label for="server.name" class="mt-2 mb-1 fw-bold">Server name</label>
-        <p>
-        Server name is used to identify the server, this can be any name you want to give to the server. It will be displayed in the server's home page, etc.
-        </p>
-        <input  type="text" 
-                id="server.name"  
-                name="server.name" 
-                class="form-control" 
-                value="<%= locals.settingsServerName %>" 
-                placeholder="Server name" 
-                required
-                >
-        <label for="environment" class="mt-2 mb-1 fw-bold">Environment</label>
-        <p>Configure the server's environment. For security reasons, a server exposed to the internet should be set to "production" mode, it enables certain security features that are not necessary in a development environment.</p>
-        <div class="col-12 col-md-4 col-lg-5">
-        <select id="environment" name="environment" class="form-select">
-            <option value="development" <% if (locals.settingsEnvironment === 'development') { %>selected<% } %>>development</option>
-            <option value="production" <% if (locals.settingsEnvironment === 'production') { %>selected<% } %>>production</option>
-        </select>
-        </div>
-        <div class="alert alert-warning mt-3" role="alert">
-        <i class="fa-solid fa-triangle-exclamation"></i> If you specify "production" mode, <b>the server must be configured under HTTPS.</b> Otherwise, users will not be able to log in because the server will not be able to set the cookies under insecure connections.
-        </div>
+      <%- include('field', {
+        type: "select",
+        name: "environment",
+        label: "Environment",
+        description: "Select the server environment. 'Development' is intended for local testing only. For public-facing servers, 'production' is strongly recommended.",
+        value: locals.globalConfig?.environment,
+        globalValue: locals.globalConfig?.environment,
+        overridable: false,
+        options: [
+          { value: "development", label: "development" },
+          { value: "production", label: "production" }
+        ],
+        alert: {
+          type: "warning",
+          icon: "fa-triangle-exclamation",
+          message: "If you select 'production', make sure the server runs under HTTPS. Otherwise, login cookies will not work and sessions will fail."
+        }
+      }) %>
 
-        <label for="server.pubkey" class="mt-3 mb-1 fw-bold">Server pubkey</label>
-        <p>This is the public key of the server. It's used to return the server's pubkey to the "_" NIP05 requests.</p>
-        <input  type="text" 
-                id="server.pubkey"  
-                name="server.pubkey" 
-                class="form-control" 
-                value="<%= locals.settingServerPubkey %>" 
-                placeholder="Server pubkey (HEX format)" 
-                required
-                >
-        <label for="server.secretKey" class="mt-2 mb-1 fw-bold">Server secret key</label>
-        <p>Used to sign and decrypt the server DM's and notes.</p>
-        <div class="input-group">
-            <input  type="password" 
-            id="server.secretKey" 
-            name="server.secretKey" 
-            class="form-control mb-2" 
-            defaultValue="<%= locals.settingServerSecretkey %>" 
-            value="<%= locals.settingServerSecretkey %>" 
-            placeholder="Server secret key (HEX format)" 
-            required 
-            >
-            <button type="button" class="toggle-password d-none"
-            aria-label="Show secret key as plain text. Warning: this will display your password on the screen.">
-            </button>
-        </div>
-        <div class="alert alert-warning mt-3" role="alert">
-        <i class="fa-solid fa-triangle-exclamation"></i> Be careful, <b>both keys must be modified simultaneously, and be valid with each other.
-        </b> otherwise the server won't function properly.
-        </div>
-        <label for="redis.expireTime" class="mt-3 mb-1 fw-bold">Cache expiration</label>
-        <p>Specify the cache expiration time in seconds. This will be used to cache the server's data. Is recommended to set this value to 300 or higher to increase the server's performance.</p>
-        <div class="col-12 col-sm-5 col-md-4">
-                <input  type="text" 
-                id="redis.expireTime"  
-                name="redis.expireTime" 
-                class="form-control" 
-                value="<%= locals.settingsRedisExpireTime %>" 
-                placeholder="Expiration time (seconds)" 
-                required
-                >
-        </div>
-        <div class="col-12 col-md-3 mb-5 mt-4 pb-5 pb-lg-0 mb-lg-2">
-            <button class="btn btn-lg mb-4 btn-primary w-100" name="Submit" type="button" onclick="saveSettings()">Save</button>
-        </div>
+      <%- include('field', {
+        type: "text",
+        name: "server.host",
+        label: "Hostname",
+        description: "Used to identify the server. Must match the domain.",
+        value: cfg.host,
+        globalValue: globalCfg.host,
+        placeholder: "example.com (without https://)",
+        required: true,
+        alert: {
+          type: "warning",
+          icon: "fa-triangle-exclamation",
+          message: "If environment is <b>production</b>, this must match the external domain name or HTTPS won't work properly."
+        }
+      }) %>
+
+      <%- include('field', {
+        type: "text",
+        name: "server.name",
+        label: "Server name",
+        description: "Displayed in the homepage and used to identify the server.",
+        value: cfg.name,
+        globalValue: globalCfg.name,
+        placeholder: "My cool Nostrcheck instance",
+        required: true
+      }) %>
+
+      <%- include('field', {
+        type: "text",
+        name: "server.pubkey",
+        label: "Server pubkey",
+        description: "HEX format public key for this server. Used for NIP05 and NIP96.",
+        value: cfg.pubkey,
+        globalValue: globalCfg.pubkey,
+        required: true
+      }) %>
+
+      <%- include('field', {
+        type: "password",
+        name: "server.secretKey",
+        label: "Server secret key",
+        description: "Hex format. Used to sign and decrypt the server DM's and notes.",
+        value: cfg.secretKey,
+        globalValue: globalCfg.secretKey,
+        required: true,
+        alert: {
+          type: "warning",
+          icon: "fa-triangle-exclamation",
+          message: "Both keys must be modified simultaneously and be valid with each other, or the server won't function properly."
+        }
+      }) %>
+
+      <%- include('field', {
+        type: "number",
+        name: "redis.expireTime",
+        label: "Cache expiration",
+        description: "Set Redis cache TTL in seconds. Recommended: 300 to 600 seconds.",
+        value: locals.domainConfig?.redis?.expireTime,
+        globalValue: locals.globalConfig?.redis?.expireTime,
+        placeholder: "300",
+        required: true,
+        overridable: false,
+      }) %>
+
+      <div class="col-12 col-md-3 mb-5 mt-4 pb-5 pb-lg-0 mb-lg-2">
+        <button class="btn btn-lg mb-4 btn-primary w-100" name="Submit" type="button" onclick="saveSettings()">Save</button>
+      </div>
     </form>
-  </div>
+</div>

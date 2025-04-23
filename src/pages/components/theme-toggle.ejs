@@ -41,7 +41,7 @@ function applyTheme(theme) {
     document.documentElement.setAttribute('data-bs-theme', 'dark');
     document.querySelector('meta[name=theme-color]').setAttribute('content', '#2B3035F5');
     const serverLogo = document.getElementById(serverLogoId);
-    serverLogo.src = `/static/resources/navbar-logo-dark.png?` + new Date().getTime();
+    serverLogo.src = `/static/resources/appearance-server-logo-dark.png?` + new Date().getTime();
     serverLogo.id = Math.random().toString(36).substring(7);
     serverLogoId = serverLogo.id;
   } else {
@@ -52,7 +52,7 @@ function applyTheme(theme) {
     document.documentElement.setAttribute('data-bs-theme', 'light');
     document.querySelector('meta[name=theme-color]').setAttribute('content', '#e8e8e8f5');
     const serverLogo = document.getElementById(serverLogoId);
-    serverLogo.src = `/static/resources/navbar-logo-light.png?` + new Date().getTime();
+    serverLogo.src = `/static/resources/appearance-server-logo-light.png?` + new Date().getTime();
     serverLogo.id = Math.random().toString(36).substring(7);
     serverLogoId = serverLogo.id;
   }

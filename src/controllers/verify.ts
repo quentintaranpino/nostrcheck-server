@@ -1,10 +1,9 @@
 import { Request, Response } from "express";
 import { Event } from "nostr-tools";
 import { logger } from "../lib/logger.js";
-import { isModuleEnabled } from "../lib/config.js";
-import app from "../app.js";
 import { isEventValid } from "../lib/nostr/core.js";
 import { isIpAllowed } from "../lib/security/ips.js";
+import { isModuleEnabled } from "../lib/config/core.js";
 
 const verifyEventController = async (req: Request, res: Response): Promise<Response> => {
 
@@ -16,7 +15,7 @@ const verifyEventController = async (req: Request, res: Response): Promise<Respo
 	}
 
 	// Check if current module is enabled
-	if (!isModuleEnabled("verify", app)) {
+	if (!isModuleEnabled("verify", req.hostname)) {
         logger.info("verifyEventController - Attempt to access a non-active module:","verify","|","IP:", reqInfo.ip);
 		return res.status(403).send({"status": "error", "message": "Module is not enabled"});
 	}

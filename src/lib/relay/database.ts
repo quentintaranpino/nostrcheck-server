@@ -1,19 +1,18 @@
-import { Application } from "express";
 import { Event } from "nostr-tools";
 import { dbBulkInsert, dbDelete, dbSimpleSelect, dbUpdate} from "../database.js";
 import { logger } from "../logger.js";
 import { CHUNK_SIZE, EventIndex, MetadataEvent, eventStore } from "../../interfaces/relay.js";
-import { isModuleEnabled } from "../config.js";
 import { decompressEvent, encodeChunk } from "./utils.js";
 import { safeJSONParse } from "../utils.js";
+import { isModuleEnabled } from "../config/core.js";
 
-const initEvents = async (app: Application): Promise<boolean> => {
-  if (!isModuleEnabled("relay", app)) return false;
+const initEvents = async (): Promise<boolean> => {
+  if (!isModuleEnabled("relay", "")) return false;
   if (eventStore.sharedDBChunks && eventStore.sharedDBChunks.length > 0) return false;
 
   const eventIndex: Map<string, EventIndex> = new Map();
-  const pending: Map<string, Event> = new Map();
-  const pendingDelete: Map<string, Event> = new Map();
+  const pending: Map<string, MetadataEvent> = new Map();
+  const pendingDelete: Map<string, MetadataEvent> = new Map();
   eventStore.pending = pending;
   eventStore.pendingDelete = pendingDelete;
   eventStore.sharedDBChunks = [];
@@ -55,6 +54,7 @@ const initEvents = async (app: Application): Promise<boolean> => {
               kind: event.kind,
               pubkey: event.pubkey,
               expiration: expiration,
+              tenantid: event.tenantid,
             });
 
             eventStore.globalIds.add(event.id);
@@ -125,6 +125,7 @@ const getEventsDB = async (offset: number, limit: number): Promise<MetadataEvent
           ev.created_at,
           ev.content,
           ev.sig,
+          ev.tenantid,
           COALESCE(tagAgg.tags, JSON_ARRAY()) AS tags,
           COALESCE(metaAgg.metadata, JSON_OBJECT()) AS metadata
         FROM ev
@@ -143,6 +144,7 @@ const getEventsDB = async (offset: number, limit: number): Promise<MetadataEvent
     content: string;
     sig: string;
     tags?: string;     
+    tenantid?: string;
     metadata?: string;
   }
 
@@ -171,6 +173,7 @@ const getEventsDB = async (offset: number, limit: number): Promise<MetadataEvent
         return [name, value, ...rest];
       })
     : [],
+    tenantid: Number(row.tenantid) || 0,
     metadata: row.metadata ? safeJSONParse(row.metadata, undefined) : undefined,
   }));
 
@@ -203,7 +206,8 @@ const storeEvents = async (eventsInput: MetadataEvent | MetadataEvent[]): Promis
       e.created_at,
       e.content || "",
       e.sig,
-      now
+      now,
+      e.tenantid,
     ]);
   
     const eventColumns = [
@@ -215,7 +219,8 @@ const storeEvents = async (eventsInput: MetadataEvent | MetadataEvent[]): Promis
       "created_at",
       "content",
       "sig",
-      "received_at"
+      "received_at",
+      "tenantid"
     ];
   
     const insertedRows = await dbBulkInsert("events", eventColumns, eventValues);

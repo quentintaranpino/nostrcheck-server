@@ -37,3 +37,7 @@ debug.log
 
 # Ignore Python virtual environment
 .venv/
+
+# Ignore tenants folder
+src/pages/static/resources/tenants/*
+

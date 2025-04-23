@@ -170,6 +170,7 @@
         const datakey = "<%= datakey %>";
         const objectName = "<%= objectName %>";
         const timeout = Number("<%= typeof timeout !== 'undefined' ? timeout : 60000 %>");
+        const tenant = "<%= typeof tenant !== 'undefined' ? tenant : 'null' %>";
 
         const initTable = async (tableId, dataKey, objectName) => {
 
@@ -326,7 +327,7 @@
             };
 
             $(tableId).bootstrapTable({
-                url: 'admin/moduledata?module=' + dataKey,
+                url: 'admin/moduledata?module=' + dataKey + '&tenant=' + tenant,
                 ajax: function (params) {fetchTabledata(params, tableId)},
                 idField: 'id',
                 uniqueId: 'id',
@@ -559,7 +560,8 @@
             }
 
             if (action === 'password') {
-                data = {pubkey: $(tableId).bootstrapTable('getSelections')[0].hex};
+                data = {pubkey: $(tableId).bootstrapTable('getSelections')[0].hex, domain: $(tableId).bootstrapTable('getSelections')[0].domain};
+                console.log($(tableId).bootstrapTable('getSelections')[0])
             }
 
             if (action === 'pay') {
@@ -591,6 +593,8 @@
                     table: tableId.split('-')[0].split('#')[1],
                 };
             }
+
+            data.tenant = tenant;
 
             return fetch(url, {
                 method: "POST",
@@ -790,6 +794,7 @@
         }
 
         const refreshTable = async (table) => {
+
             return new Promise((resolve, reject) => {
                 const $table = table.startsWith('#') ? $(table) : $(`#${table}`);
                 const tableSelections = $table.bootstrapTable('getSelections');

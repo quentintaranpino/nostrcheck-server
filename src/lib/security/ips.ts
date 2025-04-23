@@ -1,12 +1,15 @@
+
+import { Request } from "express";
 import { dbUpdate, dbMultiSelect, dbUpsert } from "../database.js";
 import { logger } from "../logger.js";
 import app from "../../app.js";
 import { banEntity, isEntityBanned } from "./banned.js";
-import { Request } from "express";
 import { ipInfo } from "../../interfaces/security.js";
-import { isModuleEnabled } from "../config.js";
 import { RedisService } from "../redis.js";
 import { getDomainId } from "./domain.js";
+import { getConfig, isModuleEnabled } from "../config/core.js";
+import { IncomingMessage } from "http";
+import net from "net";
 
 const ipUpdateBatch = new Map<string, { dbid: string; firstseen: number; lastseen: number; reqcountIncrement: number }>();
 const redisCore = app.get("redisCore") as RedisService
@@ -28,11 +31,11 @@ const logNewIp = async      (ip: string):
                             infractions: string; 
                             comments: string;}> => {
 
-    if (!isModuleEnabled("security", app)) {
+    if (!isModuleEnabled("security", "")) {
         return {dbid: "0", active: "1", checked: "1", banned: "0", firstseen: "0", lastseen: "0", reqcount: "0", infractions: "0", comments: ""};
     }
   
-    if ((!ip || ip.length < 7) && app.get("config.environment") !== "development") {
+    if ((!ip || ip.length < 2) && getConfig("", ["environment"]) !== "development") {
         logger.error(`logNewIp - Invalid IP address: ${ip}`);
         return {dbid: "0", active: "0", checked: "0", banned: "1", firstseen: "0", lastseen: "0", reqcount: "0", infractions: "0", comments: ""};
     }
@@ -51,7 +54,7 @@ const logNewIp = async      (ip: string):
     if (Object.keys(redisData).length === 0 || redisData.dbid === undefined) {
         const ipDbData = await dbMultiSelect(["id", "active", "checked", "infractions", "comments"], "ips", "ip = ?", [ip], true);
         if (!ipDbData || ipDbData.length === 0) {
-            let dbid = await dbUpsert("ips", { active: 1, checked: 0, ip, firstseen: now, lastseen: now, reqcount: reqcount }, ["ip"]);
+            const dbid = await dbUpsert("ips", { active: 1, checked: 0, ip, firstseen: now, lastseen: now, reqcount: reqcount }, ["ip"]);
             if (dbid === 0)   logger.error(`logNewIp - Error upserting new IP: ${ip}`);
               
             return { 
@@ -116,27 +119,60 @@ const logNewIp = async      (ip: string):
     }   
 };
 
-const getClientIp = (req: Request): string => {
-
-    if (!isModuleEnabled("security", app)) {
-        return "";
+const firstForwarded = (val: string | string[] | undefined): string | undefined =>
+    !val ? undefined : Array.isArray(val) ? val[0].trim() : val.split(",")[0].trim();
+  
+const stripIpv6Prefix = (ip: string): string =>
+ip.startsWith("::ffff:") ? ip.slice(7) : ip === "::1" ? "127.0.0.1" : ip;
+  
+const normalizeIp = (raw: string): string => stripIpv6Prefix(raw);
+ 
+/**
+ * Retrieves the client IP address and host from the request object.
+ * @param req - The request object or IP address as a string.
+ * @returns An object containing the IP address and host.
+ */
+const getClientInfo = (req: Request | IncomingMessage | string ): { ip: string; host: string } => {
+    
+    if (!isModuleEnabled("security", "")) return { ip: "", host: "" };
+  
+    if (typeof req === "string") {
+      const ip = normalizeIp(req);
+      return net.isIP(ip) ? { ip, host: "" } : { ip: "", host: "" };
     }
-
-    let ip = req.headers['x-forwarded-for'];
-    if (Array.isArray(ip)) {
-        ip = ip[0];
-    } else if (typeof ip === 'string') {
-        ip = ip.split(',')[0].trim();
-    } else {
-        ip = req.connection.remoteAddress || "";
+  
+    if ("ip" in req) {
+      const r = req as Request;
+      const raw =
+        r.ip ||
+        firstForwarded(r.headers["x-forwarded-for"]) ||
+        r.connection.remoteAddress ||
+        "";
+      const ip = normalizeIp(raw);
+      const rawHost = r.hostname || r.headers.host || "";
+      const host    = rawHost.split(":")[0];     
+      if (net.isIP(ip) === 0) {
+        logger.warn(`getClientInfo – invalid IP from HTTP: ${raw}`);
+        return { ip: "", host };
+      }
+      return { ip, host };
     }
-    if (typeof ip === 'string' && ip.startsWith("::ffff:")) {
-        ip = ip.substring(7);
+  
+    const r = req as IncomingMessage;
+    const raw =
+      firstForwarded(r.headers["x-forwarded-for"]) ||
+      r.socket.remoteAddress ||
+      "";
+    const ip = normalizeIp(raw);
+    const rawHost = r.headers.host || "";
+    const host    = rawHost.split(":")[0];    
+    if (net.isIP(ip) === 0) {
+      logger.warn(`getClientInfo – invalid IP from WS: ${raw}`);
+      return { ip: "", host };
     }
-    return ip || "";
-};
-
-
+    return { ip, host };
+  };
+  
 /**
  * Checks if an IP address is allowed to access the server. 
  * 
@@ -147,58 +183,61 @@ const getClientIp = (req: Request): string => {
  * @param maxRequestMinute - The maximum number of requests allowed per minute. Default is 300. Optional.
  * @returns An object containing the IP address, request count, whether the IP is banned, and any comments.
  */
-const isIpAllowed = async (req: Request | string, maxRequestMinute : number = app.get('config.security')["maxDefaultRequestMinute"]): Promise<ipInfo> => {
+const isIpAllowed = async (req: Request | IncomingMessage | string, maxRequestMinute : number = 0): Promise<ipInfo> => {
 
-    if (!isModuleEnabled("security", app)) return {ip: "", reqcount: 0, banned: false, domain: "", comments: ""};
+    if (!isModuleEnabled("security", "")) return {ip: "", reqcount: 0, banned: false, domainId: 1, domain: "", comments: ""};
 
-    const clientIp = typeof req === "string" ? req : getClientIp(req);
-    if (!clientIp) {
-        logger.warn(`isIpAllowed - Invalid IP address: ${clientIp}`);
-        return {ip: "", reqcount: 0, banned: true, domain: "", comments: ""};
+    if (maxRequestMinute === 0) maxRequestMinute = getConfig(null, ["security", "maxDefaultRequestMinute"]) || 300;
+
+    const { ip, host } = getClientInfo(req);
+
+     if (!ip) {
+        logger.warn(`isIpAllowed - Invalid IP address: ${ip}`);
+        return {ip: "", reqcount: 0, banned: true, domainId: 1, domain: "", comments: ""};
     }
 
-    const host = typeof req !== "string" ? req.headers.host || req.hostname : "";
-    let clientDomain = typeof req === "string" ? req : await getDomainId(host);
+    let clientDomain = await getDomainId(host);
     if (!clientDomain) {
-        logger.warn(`isIpAllowed - Domain (${host}) not found for IP: ${clientIp}`);
-        clientDomain = "1"; // Default domain ID for unknown domains
+        logger.warn(`isIpAllowed - Domain (${host}) not found for IP: ${ip}`);
+        clientDomain = 1; // Default domain ID for unknown domains
     }
 
-    const ipData = await logNewIp(clientIp);
+    const ipData = await logNewIp(ip);
     if (!ipData || ipData.dbid === "0") {
-        logger.error(`isIpAllowed - Error logging IP: ${clientIp}`);
-        return {ip: clientIp, reqcount: 0, banned: true, domain: clientDomain, comments: ""};
+        logger.error(`isIpAllowed - Error logging IP: ${ip}`);
+        return {ip: ip, reqcount: 0, banned: true, domainId: clientDomain, domain: host,  comments: ""};
     }
     const { dbid, reqcount, firstseen, lastseen, infractions, comments } = ipData;
 
     const banned = await isEntityBanned(dbid, "ips");
-    if (banned) return { ip: clientIp, reqcount: Number(reqcount), banned: true, domain: clientDomain, comments: "banned ip" };
+    if (banned) return { ip: ip, reqcount: Number(reqcount), banned: true, domainId: clientDomain, domain: host, comments: "banned ip" };
 
     // Abuse prevention. If the IP has made too many requests in a short period of time, it will be rate-limited and possibly banned.
     const diff = Number(lastseen) - Number(firstseen);
     if (((diff < 15 && lastseen !== firstseen) && Number(reqcount) > (maxRequestMinute / 3)) || Number(reqcount) > maxRequestMinute) {
 
-        logger.debug(`isIpAllowed - Possible abuse detected from IP: ${clientIp} | Infraction count: ${infractions}, reqcount: ${reqcount}`);
+        logger.debug(`isIpAllowed - Possible abuse detected from IP: ${ip} | Infraction count: ${infractions}, reqcount: ${reqcount}`);
 
         // Update infractions and ban it for 30 seconds
-        await redisCore.hashSet(`ips:${clientIp}`, { infractions: Number(infractions)+1 }, app.get("config.redis")["expireTime"]);
+        await redisCore.hashSet(`ips:${ip}`, { infractions: Number(infractions)+1 }, getConfig(null, ["redis", "expireTime"]));
+        
         await redisCore.set(`banned:ips:${dbid}`, JSON.stringify("1"), { EX: 30 });
 
         if (!infractions) {
-            logger.info(`isIpAllowed - Banning IP due to repeated abuse: ${clientIp}`);
-            return { ip: clientIp, reqcount: Number(reqcount), banned: true, domain: clientDomain, comments: `rate-limited: slow down there chief (${infractions} infractions)` };
+            logger.info(`isIpAllowed - Banning IP due to repeated abuse: ${ip}`);
+            return { ip: ip, reqcount: Number(reqcount), banned: true, domainId: clientDomain, domain: host, comments: `rate-limited: slow down there chief (${infractions} infractions)` };
         }
 
         if (Number(infractions) > 50) {
-            logger.info(`isIpAllowed - Banning IP due to repeated abuse: ${clientIp}`);
+            logger.info(`isIpAllowed - Banning IP due to repeated abuse: ${ip}`);
             await banEntity(Number(dbid), "ips", `Abuse prevention, reqcount: ${reqcount}, infractions: ${infractions}`);
-            return { ip: clientIp, reqcount: Number(reqcount), banned: true, domain: clientDomain, comments: `banned due to repeated abuse (${infractions} infractions)` };
+            return { ip: ip, reqcount: Number(reqcount), banned: true, domainId: clientDomain, domain: host, comments: `banned due to repeated abuse (${infractions} infractions)` };
         }
 
-        return { ip: clientIp, reqcount: Number(reqcount), banned: true, domain: clientDomain, comments: `rate-limited: slow down there chief (${infractions} infractions)` };
+        return { ip: ip, reqcount: Number(reqcount), banned: true, domainId: clientDomain, domain: host, comments: `rate-limited: slow down there chief (${infractions} infractions)` };
     }
 
-    return {ip: clientIp, reqcount: Number(reqcount), banned, domain: clientDomain, comments: comments || ""};
+    return {ip: ip, reqcount: Number(reqcount), banned, domainId: clientDomain, domain: host, comments: comments || ""};
 }
 
 /*
@@ -206,7 +245,7 @@ const isIpAllowed = async (req: Request | string, maxRequestMinute : number = ap
 */
 setInterval(async () => {
 
-    if (!isModuleEnabled("security", app)) return;
+    if (!isModuleEnabled("security", "")) return;
 
     try {
         const ips = await redisCore.scanKeys("ips:*");
@@ -230,7 +269,7 @@ setInterval(async () => {
                     if (!updateSuccess) {
                         logger.error(`ipsLib - Interval - Error processing IP '${ip}': Error updating IP infractions`);
                     } else {
-                        await redisCore.hashSet(ip, { infractions: 0 }, app.get("config.redis")["expireTime"]);
+                        await redisCore.hashSet(ip, { infractions: 0 }, getConfig(null, ["redis", "expireTime"]));
                     }
                 } catch (error) {
                     logger.error(`ipsLib - Interval - Error processing IP '${ip}': ${error}`);
@@ -248,7 +287,7 @@ setInterval(async () => {
 */
 setInterval(async () => {
 
-    if (!isModuleEnabled("security", app)) return;
+    if (!isModuleEnabled("security", "")) return;
 
     if (ipUpdateBatch.size === 0) return;
 
@@ -276,7 +315,7 @@ setInterval(async () => {
  */
 const queueIpUpdate = (dbid: string, oldLastseen: number, now: number, increment: number = 1) => {
 
-    if (!isModuleEnabled("security", app)) return;
+    if (!isModuleEnabled("security", "")) return;
 
     if (ipUpdateBatch.has(dbid)) {
         const entry = ipUpdateBatch.get(dbid)!;
@@ -287,4 +326,4 @@ const queueIpUpdate = (dbid: string, oldLastseen: number, now: number, increment
     }
 };
 
-export { getClientIp, isIpAllowed };
+export { getClientInfo, isIpAllowed };

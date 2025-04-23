@@ -2,22 +2,21 @@ import { Application } from "express";
 import express from "express";
 import { listAvailableDomains, listAvailableUsers, updateUserDomain } from "../controllers/domains.js";
 import { limiter } from "../lib/security/core.js";
+import { getModuleInfo } from "../lib/config/core.js";
 
 export const loadDomainsEndpoint = async (app: Application, version: string): Promise<void> => {
 
-    if (version == "v1" || version == "v2") {
+    if (version != "v1" && version != "v2") return;
 
-        // Route to list available domains
-        app.get("/api/" + version + app.get("config.server")["availableModules"]["domains"]["path"], limiter(), listAvailableDomains);
+    const base = `/api/${version}${getModuleInfo("domains", "")?.path}`;
 
-        // Route to list users for a domain
-        app.get("/api/" + version + app.get("config.server")["availableModules"]["domains"]["path"] + "/:domain/users", limiter(), listAvailableUsers);
+    // Route to list available domains
+    app.get(`${base}`, limiter(), listAvailableDomains);
 
-        // Route to update user domain
-        app.put("/api/" + version + app.get("config.server")["availableModules"]["domains"]["path"] + "/:domain", 
-            limiter(),
-            express.json(), 
-            updateUserDomain);
-    }
+    // Route to list users for a domain
+    app.get(`${base}/:domain/users`, limiter(), listAvailableUsers);
+
+    // Route to update user domain
+    app.put(`${base}/:domain`, limiter(), express.json(), updateUserDomain);
 
 };

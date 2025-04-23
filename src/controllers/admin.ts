@@ -1,6 +1,7 @@
 
 import { Request, Response } from "express";
 import fs from "fs";
+import path from "path";
 import sharp from "sharp";
 
 import app from "../app.js";
@@ -11,12 +12,9 @@ import { generatePassword } from "../lib/authorization.js";
 import { dbDelete, dbInsert, dbMultiSelect, dbUpdate } from "../lib/database.js";
 import { allowedFieldNames, allowedFieldNamesAndValues, allowedTableNames, moduleDataReturnMessage, moduleDataKeys, moduleDataIndex } from "../interfaces/admin.js";
 import { parseAuthHeader} from "../lib/authorization.js";
-import { isModuleEnabled, updateLocalConfigKey } from "../lib/config.js";
-import { getFileMimeType } from "../lib/media.js";
 import { npubToHex } from "../lib/nostr/NIP19.js";
 import { dbCountModuleData, dbCountMonthModuleData, dbSelectModuleData } from "../lib/admin.js";
 import { getBalance, getUnpaidTransactionsBalance } from "../lib/payments/core.js";
-import { themes } from "../interfaces/personalization.js";
 import { getModerationQueueLength, moderateFile } from "../lib/moderation/core.js";
 import { addNewUsername } from "../lib/register.js";
 import { banEntity, unbanEntity } from "../lib/security/banned.js";
@@ -27,6 +25,9 @@ import { isIpAllowed } from "../lib/security/ips.js";
 import { eventStore } from "../interfaces/relay.js";
 import { getEventById } from "../lib/relay/utils.js";
 import { RedisService } from "../lib/redis.js";
+import { isModuleEnabled, setConfig } from "../lib/config/core.js";
+import { acceptedSettigsFiles, settingsFileConfig } from "../interfaces/appearance.js";
+import { listPlugins } from "../lib/plugins/core.js";
 
 const redisCore = app.get("redisCore") as RedisService
 
@@ -48,7 +49,7 @@ const serverStatus = async (req: Request, res: Response): Promise<Response> => {
     }
 
     // Check if current module is enabled
-    if (!isModuleEnabled("admin", app)) {
+    if (!isModuleEnabled("admin", "")) {
         logger.warn("ServerStatus - Attempt to access a non-active module:","admin","|","IP:", reqInfo.ip);
         return res.status(403).send({"status": "error", "message": "Module is not enabled"});
     }
@@ -62,7 +63,7 @@ const serverStatus = async (req: Request, res: Response): Promise<Response> => {
         status: "success",
         message: "Nostrcheck-server is running.",
 		version: process.env.npm_package_version || "0.0.0",
-		uptime: format(process.uptime()),
+		uptime: format(process.uptime()), 
         ramUsage: Math.floor(process.memoryUsage().rss / 1024 / 1024),
         cpuUsage: await getCPUUsage(),
         moderationQueue: getModerationQueueLength(),
@@ -92,7 +93,7 @@ const StopServer = async (req: Request, res: Response): Promise<Response> => {
     }
 
     // Check if current module is enabled
-    if (!isModuleEnabled("admin", app)) {
+    if (!isModuleEnabled("admin", "")) {
         logger.warn("StopServer - Attempt to access a non-active module:","admin","|","IP:", reqInfo.ip);
         return res.status(403).send({"status": "error", "message": "Module is not enabled"});
     }
@@ -132,7 +133,7 @@ const updateDBRecord = async (req: Request, res: Response): Promise<Response> =>
     }
 
     // Check if current module is enabled
-    if (!isModuleEnabled("admin", app)) {
+    if (!isModuleEnabled("admin", "")) {
         logger.warn("updateDBRecord - Attempt to access a non-active module:","admin","|","IP:", reqInfo.ip);
         return res.status(403).send({"status": "error", "message": "Module is not enabled"});
     }
@@ -205,8 +206,14 @@ const updateDBRecord = async (req: Request, res: Response): Promise<Response> =>
         }
     }
 
-    // Update table with new value
-    const update = await dbUpdate(table, { [req.body.field]: req.body.value }, ["id"], [req.body.id]);
+    let update; 
+    if (table == "plugins"){
+        // Special case for plugins
+        update = await setConfig(req.body.tenant, ["plugins", "list", req.body.id, "enabled"], Boolean(req.body.value));
+    }else {
+        // Update table with new value
+        update = await dbUpdate(table, { [req.body.field]: req.body.value }, ["id"], [req.body.id]);
+    }
     if (update) {
 
         // Create redis key if necessary
@@ -230,211 +237,92 @@ const updateDBRecord = async (req: Request, res: Response): Promise<Response> =>
     }
 }
 
-const updateLogo = async (req: Request, res: Response): Promise<Response> => {
-
-    // Check if the request IP is allowed
+/**
+ * Handles upload or restore of custom file settings like logos and icons.
+ */
+const updateSettingsFile = async (req: Request, res: Response): Promise<Response> => {
     const reqInfo = await isIpAllowed(req);
-    if (reqInfo.banned == true) {
-        logger.warn(`updateLogo - Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
-        return res.status(403).send({"status": "error", "message": reqInfo.comments});
+    if (reqInfo.banned) {
+        logger.warn(`updateSettingsFile - Unauthorized IP:`, reqInfo.ip);
+        return res.status(403).send({ status: "error", message: reqInfo.comments });
     }
 
-    // Check if current module is enabled
-    if (!isModuleEnabled("admin", app)) {
-        logger.warn(`updateLogo - Attempt to access a non-active module: admin | IP:`, reqInfo.ip);
-        return res.status(403).send({"status": "error", "message": "Module is not enabled"});
+    if (!isModuleEnabled("admin", "")) {
+        logger.warn(`updateSettingsFile - Admin module disabled | IP:`, reqInfo.ip);
+        return res.status(403).send({ status: "error", message: "Module is not enabled" });
     }
 
-    logger.info(`updateLogo - ${req.method} ${req.path}`, "|", reqInfo.ip);
+    logger.info(`updateSettingsFile - ${req.method} ${req.path}`, "|", reqInfo.ip);
+    res.setHeader("Content-Type", "application/json");
 
-     // Check if authorization header is valid
-	const eventHeader = await parseAuthHeader(req, "updateDBRecord", true, true, true);
-	if (eventHeader.status !== "success") {return res.status(401).send({"status": eventHeader.status, "message" : eventHeader.message});}
+    const eventHeader = await parseAuthHeader(req, "updateSettingsFile", true, true, true);
+    if (eventHeader.status !== "success") {
+        return res.status(401).send({ status: eventHeader.status, message: eventHeader.message });
+    }
     setAuthCookie(res, eventHeader.authkey);
 
-    const theme = req.body.theme || "light";
+    const domain = typeof req.body?.domain === "string" ? req.body.domain : "";
 
-    let file: Express.Multer.File | null = null;
-	if (Array.isArray(req.files) && req.files.length > 0) {
-		file = req.files[0];
-	}
-
-    if (!req.files || req.files == undefined || req.files.length == 0 || !file) {
-        try {
-            await fs.promises.copyFile(`./src/pages/static/resources/navbar-logo-${theme}.default.png`, `./src/pages/static/resources/navbar-logo-${theme}.png`);
-            logger.info(`updateLogo - Default logo restored successfully`, "|", reqInfo.ip);
-            return res.status(200).send({status: "success", message: "Default logo restored"});
-        } catch (error) {
-            logger.error(`updateLogo - Failed to restore default logo`, "|", reqInfo.ip);
-            return res.status(500).send({status: "error", message: "Failed to restore default logo"});
+    for (const settingKey of acceptedSettigsFiles) {
+        const file = (req.files as Express.Multer.File[]).find(f => f.fieldname === settingKey);
+        const restore = req.body[`${settingKey}.default`] === "true";
+    
+        const config = settingsFileConfig[settingKey] || settingsFileConfig["default"];
+        const outputPath = path.resolve(`./src/pages/static/resources/tenants/${domain}`);
+        const baseFilename = settingKey.replace(/\./g, "-");
+    
+        const targetExtension = config.format;
+        const filePath = path.join(outputPath, `${baseFilename}.${targetExtension}`);
+    
+        if (restore) {
+            const possibleFiles = [`${baseFilename}.png`, `${baseFilename}.webp`];
+    
+            let deleted = false;
+            for (const file of possibleFiles) {
+                try {
+                    await fs.promises.rm(path.join(outputPath, file));
+                    deleted = true;
+                    logger.info(`updateSettingsFile - Removed override for ${settingKey} (${file})`, "|", reqInfo.ip);
+                } catch {
+                    // File not found, continue to the next one
+                }
+            }
+    
+            if (deleted) {
+                return res.status(200).send({ status: "success", message: `Restored default for ${settingKey}` });
+            } else {
+                logger.warn(`updateSettingsFile - No override found to delete for ${settingKey}`, "|", reqInfo.ip);
+                return res.status(404).send({ status: "error", message: `No override found to delete for ${settingKey}` });
+            }
+        }
+    
+        if (file) {
+            if (!["image/png", "image/jpeg", "image/webp"].includes(file.mimetype)) {
+                return res.status(400).send({ status: "error", message: "Unsupported file type." });
+            }
+    
+            await fs.promises.mkdir(outputPath, { recursive: true });
+    
+            const sharpFile = sharp(file.buffer).resize(config.width, config.height, {
+                fit: sharp.fit.contain,
+                background: config.background
+            });
+    
+            const transformer = config.format === "webp"
+                ? sharpFile.webp({ quality: config.quality || 90 })
+                : sharpFile.png({ quality: config.quality || 95 });
+    
+            await transformer.toFile(filePath);
+    
+            logger.info(`updateSettingsFile - Updated settings file successfully, field:${settingKey}`, "|", reqInfo.ip);
+            return res.status(200).send({ status: "success", message: `Field: ${settingKey} updated successfully` });
         }
     }
 
-	if (await getFileMimeType(req, file) == "") {
-		logger.error(`updateLogo - 400 Bad request - `, file.mimetype, ` filetype not detected`, "|", reqInfo.ip);
-		return res.status(400).send({"status": "error", "message": "file type not detected or not allowed"});
-	}
+    logger.warn(`updateSettingsFile - No file or restore directive received`, "|", reqInfo.ip);
+    return res.status(400).send({ status: "error", message: "No valid file or restore directive received." });
 
-    await sharp(file.buffer)
-        .resize(180, 61, { fit: sharp.fit.contain, background: { r: 0, g: 0, b: 0, alpha: 0 } }) 
-        .png({ quality: 95 })
-        .toBuffer()
-        .then(async data => { 
-            await fs.promises.writeFile(`./src/pages/static/resources/navbar-logo-${theme}.png`, data);
-            logger.info(`updateLogo - Logo updated successfully`, "|", reqInfo.ip);
-        })
-        .catch(err => { 
-            logger.error(`updateLogo - Error updating logo`, "|", err);
-            return res.status(500).send({"status": "error", "message": "Error updating logo"});
-        });
-
-     return res.status(200).send({"status": "success", "message": "Logo updated"});
-
-}
-
-const updateRelayIcon = async (req: Request, res: Response): Promise<Response> => {
-
-    // Check if the request IP is allowed
-    const reqInfo = await isIpAllowed(req);
-    if (reqInfo.banned == true) {
-        logger.warn(`updateRelayIcon - Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
-        return res.status(403).send({"status": "error", "message": reqInfo.comments});
-    }
-
-    // Check if current module is enabled
-    if (!isModuleEnabled("admin", app)) {
-        logger.warn(`updateRelayIcon - Attempt to access a non-active module: admin | IP:`, reqInfo.ip);
-        return res.status(403).send({"status": "error", "message": "Module is not enabled"});
-    }
-
-    logger.info(`updateRelayIcon - ${req.method} ${req.path}`, "|", reqInfo.ip);
-
-     // Check if authorization header is valid
-	const eventHeader = await parseAuthHeader(req, "updateDBRecord", true, true, true);
-	if (eventHeader.status !== "success") {return res.status(401).send({"status": eventHeader.status, "message" : eventHeader.message});}
-    setAuthCookie(res, eventHeader.authkey);
-
-    let file: Express.Multer.File | null = null;
-	if (Array.isArray(req.files) && req.files.length > 0) {
-		file = req.files[0];
-	}
-
-    if (!req.files || req.files == undefined || req.files.length == 0 || !file) {
-        try {
-            await fs.promises.copyFile(`./src/pages/static/resources/relay-icon.default.png`, `./src/pages/static/resources/relay-icon.png`);
-            logger.info(`updateRelayIcon - Default relay icon restored successfully`, "|", reqInfo.ip);
-            return res.status(200).send({status: "success", message: "Default relay icon restored"});
-        } catch (error) {
-            logger.error(`updateRelayIcon - Failed to restore default relay icon`, "|", reqInfo.ip);
-            return res.status(500).send({status: "error", message: "Failed to restore default relay icon"});
-        }
-    }
-
-	if (await getFileMimeType(req, file) == "") {
-		logger.error(`updateRelayIcon - 400 Bad request - `, file.mimetype, ` filetype not detected`, "|", reqInfo.ip);
-		return res.status(400).send({"status": "error", "message": "file type not detected or not allowed"});
-	}
-
-    await sharp(file.buffer)
-        .resize(200, 200, { fit: sharp.fit.contain, background: { r: 0, g: 0, b: 0, alpha: 0 } }) 
-        .png({ quality: 95 })
-        .toBuffer()
-        .then(async data => { 
-            await fs.promises.writeFile(`./src/pages/static/resources/relay-icon.png`, data);
-            logger.info(`updateRelayIcon - Relay icon updated successfully`, "|", reqInfo.ip);
-        })
-        .catch(err => { 
-            logger.error(`updateRelayIcon - Error updating relay icon`, "|", err);
-            return res.status(500).send({"status": "error", "message": "Error updating relay icon"});
-        });
-
-     return res.status(200).send({"status": "success", "message": "Relay icon updated"});
-
-}
-
-const updateTheme = async (req: Request, res: Response): Promise<Response> => {
-
-    // Check if the request IP is allowed
-    const reqInfo = await isIpAllowed(req);
-    if (reqInfo.banned == true) {
-        logger.warn(`updateTheme - Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
-        return res.status(403).send({"status": "error", "message": reqInfo.comments});
-    }
-
-    // Check if current module is enabled
-    if (!isModuleEnabled("admin", app)) {
-        logger.warn(`updateTheme - Attempt to access a non-active module: admin | IP:`, reqInfo.ip);
-        return res.status(403).send({"status": "error", "message": "Module is not enabled"});
-    }
-
-    logger.info(`updateTheme - ${req.method} ${req.path}`, "|", reqInfo.ip);
-
-     // Check if authorization header is valid
-    const eventHeader = await parseAuthHeader(req, "updateDBRecord", true, true, true);
-    if (eventHeader.status !== "success") {return res.status(401).send({"status": eventHeader.status, "message" : eventHeader.message});}
-    setAuthCookie(res, eventHeader.authkey);
-
-    if (!req.body || req.body == undefined || req.body.length == 0) {
-        logger.error(`updateTheme - Empty body`, "|", reqInfo.ip);
-        return res.status(400).send({"status": "error", "message": "Empty body"});
-    }
-
-    let primaryColor = req.body.color1 || null;
-    let secondaryColor = req.body.color2 || null;
-    let tertiaryColor = req.body.color3 || null;
-    let orientation = req.body.orientation || "to right";
-    let primaryColorPercent = req.body.color1Percent || "0%";
-    let secondaryColorPercent = req.body.color2Percent || "50%";
-    let tertiaryColorPercent = req.body.color3Percent || "100%";
-    let particles = req.body.particles || null;
-
-    if (primaryColor == null || secondaryColor == null || tertiaryColor == null) {
-
-        // Load default theme
-        const theme = themes["essence"];
-        primaryColor = theme.color1;
-        secondaryColor = theme.color2;
-        tertiaryColor = theme.color3;
-        orientation = theme.orientation;
-        primaryColorPercent = theme.color1Percent;
-        secondaryColorPercent = theme.color2Percent;
-        tertiaryColorPercent = theme.color3Percent;
-        particles = null;
-
-    }
-
-    const theme = `
-        :root {
-            --primary-color: ${primaryColor};
-            --secondary-color: ${secondaryColor};
-            --tertiary-color: ${tertiaryColor};
-            --primary-color-percent: ${primaryColorPercent};
-            --secondary-color-percent: ${secondaryColorPercent};
-            --tertiary-color-percent: ${tertiaryColorPercent};
-            --gradient-orientation: ${orientation};
-            --particles: ${particles};
-        }
-
-        .background-theme {
-            background-image: -webkit-linear-gradient(var(--gradient-orientation), var(--primary-color) var(--primary-color-percent), var(--secondary-color) var(--secondary-color-percent), var(--tertiary-color) var(--tertiary-color-percent));
-            background-image: linear-gradient(var(--gradient-orientation), var(--primary-color) var(--primary-color-percent), var(--secondary-color) var(--secondary-color-percent), var(--tertiary-color) var(--tertiary-color-percent));
-            background-repeat: no-repeat;
-            background-size: cover;
-            background-attachment: fixed;
-            particles: var(--particles);
-        }
-        `;
-
-    try{
-        await fs.promises.writeFile('./src/pages/static/css/theme.css', theme);
-        logger.info(`updateTheme - Theme updated successfully`, "|", reqInfo.ip);
-        return res.status(200).send({status: "success", message: "Theme updated"});
-    }catch(e){
-        logger.error(`updateTheme - Error updating theme`, "|", reqInfo.ip);
-        return res.status(500).send({status: "error", message: "Error updating theme"});
-    }
-
-}
+};
 
 /**
  * Resets the password for a user.
@@ -453,7 +341,7 @@ const resetUserPassword = async (req: Request, res: Response): Promise<Response>
     }
 
     // Check if current module is enabled
-    if (!isModuleEnabled("admin", app)) {
+    if (!isModuleEnabled("admin", "")) {
         logger.warn(`resetUserPassword - Attempt to access a non-active module: admin | IP:`, reqInfo.ip);
         return res.status(403).send({"status": "error", "message": "Module is not enabled"});
     }
@@ -467,7 +355,7 @@ const resetUserPassword = async (req: Request, res: Response): Promise<Response>
     setAuthCookie(res, eventHeader.authkey);
 
     // Check if the request has the required parameters
-    if (!req.body.pubkey) {
+    if (!req.body.pubkey || !req.body.domain) {
         const result : ResultMessagev2 = {
             status: "error",
             message: "Invalid parameters"
@@ -476,7 +364,7 @@ const resetUserPassword = async (req: Request, res: Response): Promise<Response>
         return res.status(400).send(result);
     }
 
-    const newPass = await generatePassword(req.body.pubkey, false, true)
+    const newPass = await generatePassword(req.body.domain, req.body.pubkey, false, true)
     if (newPass == "") {
         const result : ResultMessagev2 = {
             status: "error",
@@ -512,7 +400,7 @@ const deleteDBRecord = async (req: Request, res: Response): Promise<Response> =>
     }
 
     // Check if current module is enabled
-    if (!isModuleEnabled("admin", app)) {
+    if (!isModuleEnabled("admin", "")) {
         logger.warn(`deleteDBRecord - Attempt to access a non-active module: admin | IP:`, reqInfo.ip);
         return res.status(403).send({"status": "error", "message": "Module is not enabled"});
     }
@@ -689,7 +577,7 @@ const insertDBRecord = async (req: Request, res: Response): Promise<Response> =>
     }
 
     // Check if current module is enabled
-    if (!isModuleEnabled("admin", app)) {
+    if (!isModuleEnabled("admin", "")) {
         logger.warn(`insertDBRecord - Attempt to access a non-active module: admin | IP:`, reqInfo.ip);
         return res.status(403).send({"status": "error", "message": "Module is not enabled"});
     }
@@ -814,87 +702,53 @@ const insertDBRecord = async (req: Request, res: Response): Promise<Response> =>
  * @returns A promise that resolves to the response object.
  */
 const updateSettings = async (req: Request, res: Response): Promise<Response> => {
-
-    // Check if the request IP is allowed
     const reqInfo = await isIpAllowed(req);
-    if (reqInfo.banned == true) {
+    if (reqInfo.banned) {
         logger.warn(`updateSettings - Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
-        return res.status(403).send({"status": "error", "message": reqInfo.comments});
+        return res.status(403).send({ status: "error", message: reqInfo.comments });
     }
 
-    // Check if current module is enabled
-    if (!isModuleEnabled("admin", app)) {
+    if (!isModuleEnabled("admin", "")) {
         logger.warn(`updateSettings - Attempt to access a non-active module: admin | IP:`, reqInfo.ip);
-        return res.status(403).send({"status": "error", "message": "Module is not enabled"});
+        return res.status(403).send({ status: "error", message: "Module is not enabled" });
     }
 
     logger.info(`updateSettings - ${req.method} ${req.path}`, "|", reqInfo.ip);
-    res.setHeader('Content-Type', 'application/json');
+    res.setHeader("Content-Type", "application/json");
 
-     // Check if authorization header is valid
-	const eventHeader = await parseAuthHeader(req, "updateSettings", true, true, true);
-	if (eventHeader.status !== "success") {return res.status(401).send({"status": eventHeader.status, "message" : eventHeader.message});}
+    const eventHeader = await parseAuthHeader(req, "updateSettings", true, true, true);
+    if (eventHeader.status !== "success") {
+        return res.status(401).send({ status: eventHeader.status, message: eventHeader.message });
+    }
     setAuthCookie(res, eventHeader.authkey);
 
-    if (req.body.name === "" || req.body.name === null || req.body.name === undefined) {
-        const result: ResultMessagev2 = {
-            status: "error",
-            message: "Invalid parameters",
-        }
+    const { name, value, domain } = req.body;
+
+    if (!name || typeof name !== "string") {
         logger.error(`updateSettings - Invalid parameters`, "|", reqInfo.ip);
-        return res.status(400).send(result);
+        return res.status(400).send({ status: "error", message: "Invalid parameters" });
     }
 
-    const updated = await updateLocalConfigKey(req.body.name, req.body.value);
-    if (!updated) {
-        const result : ResultMessagev2 = {
-            status: "error",
-            message: "Failed to update settings.",
-            };
-        logger.error(`updateSettings - Failed to update settings`, "|", reqInfo.ip);
-        return res.status(500).send(result);
+    const keyPath = name.split(".");
+    const targetDomain = typeof domain === "string" ? domain : ""; 
+
+    const success = await setConfig(targetDomain, keyPath, value);
+
+    if (!success) {
+        logger.error(`updateSettings - Failed to update settings, field:${name} `, "|", reqInfo.ip);
+        return res.status(500).send({ status: "error", message: `Failed to update field: ${name}` });
     }
 
-    const parts = req.body.name.includes('.') ? req.body.name.split('.') : [req.body.name];
-    const mainConfigName = req.body.name.includes('.') ? `config.${parts.shift()}` : `config.${req.body.name}`;
-    if (app.get(mainConfigName) === undefined) {
-        logger.error(`updateSettings - Config field not found: ${mainConfigName} | ${reqInfo.ip}`);
-        return res.status(500).send({"status":"error", "message":`Config field not found: ${mainConfigName}`});
-    }
-    const configField = parts.length > 0 ? parts.pop() : req.body.name;
-    const rootConfig = JSON.parse(JSON.stringify(app.get(mainConfigName))); // Deep copy
-    let currentConfig = rootConfig;
-    
-    for (const part of parts) {
-        if (currentConfig[part] === undefined) {
-            logger.error(`updateSettings - Config field not found: ${part} | ${reqInfo.ip}`);
-            return res.status(500).send({"status":"error", "message":`Config field not found: ${part}`});
-        }
-        currentConfig = currentConfig[part];
-    }
-    
-    if (typeof currentConfig === 'object') {
-        currentConfig[configField] = req.body.value;
-        app.set(mainConfigName, rootConfig);
-    } else {
-        app.set(mainConfigName, req.body.value);
-    }
-
-    // If the setting is expireTime from redis we flush redis cache
-    if (req.body.name == "redis.expireTime") {
+    if (name === "redis.expireTime") {
         const flushResult = await redisCore.flushAll();
-        if (flushResult)logger.info(`updateSettings - Redis cache flushed`, "|", reqInfo.ip);
+        if (flushResult) {
+            logger.info(`updateSettings - Redis cache flushed`, "|", reqInfo.ip);
+        }
     }
 
-    const result : ResultMessagev2 = {
-        status: "success",
-        message: "Succesfully updated settings.",
-        };
-
-    logger.info(`updateSettings - Updated settings succesfully`, "|", reqInfo.ip);
-    return res.status(200).send(result);
-    
-}
+    logger.info(`updateSettings - Updated settings successfully, field:${name}`, "|", reqInfo.ip);
+    return res.status(200).send({ status: "success", message: `Field: ${name} updated successfully` });
+};
 
 const getModuleData = async (req: Request, res: Response): Promise<Response> => {
 
@@ -906,7 +760,7 @@ const getModuleData = async (req: Request, res: Response): Promise<Response> => 
     }
 
     // Check if current module is enabled
-    if (!isModuleEnabled("admin", app)) {
+    if (!isModuleEnabled("admin", "")) {
         logger.warn(`getModuleData - Attempt to access a non-active module: admin | IP:`, reqInfo.ip);
         return res.status(403).send({"status": "error", "message": "Module is not enabled"});
     }
@@ -935,6 +789,7 @@ const getModuleData = async (req: Request, res: Response): Promise<Response> => 
     const search = req.query.search as string;
     const sort = req.query.sort as string;
     const filter = req.query.filter as string;
+    const tenant = req.query.tenant as string || '';
 
     let filterObject = {};  
     if (filter!=undefined && filter!=null && filter!="") {
@@ -951,8 +806,32 @@ const getModuleData = async (req: Request, res: Response): Promise<Response> => 
 
     logger.debug("module, offset, limit, order, search, sort, filter) : ", module, offset, limit, order, search, sort, filterObject);
  
-    const data = module === "logs" ? await getLogHistory(offset, limit, order, sort, search, filterObject) : await dbSelectModuleData(module,offset,limit,order,sort,search,filterObject);
-                                                                                                         
+   // const data = module === "logs" ? await getLogHistory(offset, limit, order, sort, search, filterObject) : await dbSelectModuleData(module,offset,limit,order,sort,search,filterObject);
+    
+    let data;
+    if (module === "logs") {
+        data = await getLogHistory(offset, limit, order, sort, search, filterObject);
+    } else if (module === "plugins") {
+        const allPlugins =  (await listPlugins(tenant)).map((p) => ({
+            id: p.name,
+            name: p.name,
+            module: p.module,
+            order: p.order ?? 0,
+            enabled: p.enabled ? 1 : 0
+        }));
+
+      //  const filtered = applyFilters(allPlugins, filterObject, search, sort, order); // esta función puedes adaptarla como haces en otras vistas
+
+        data = {
+            total: allPlugins.length,
+            totalNotFiltered: allPlugins.length,
+            rows: allPlugins.slice(offset, offset + limit)
+        };
+
+    } else {
+        data = await dbSelectModuleData(module, offset, limit, order, sort, search, filterObject);
+    }
+
     const returnMessage : moduleDataReturnMessage = {
         total: data.total,
         totalNotFiltered: data.totalNotFiltered,
@@ -973,7 +852,7 @@ const getModuleCountData = async (req: Request, res: Response): Promise<Response
     }
     
     // Check if current module is enabled
-    if (!isModuleEnabled("admin", app)) {
+    if (!isModuleEnabled("admin", "")) {
         logger.warn(`getModuleCountData - Attempt to access a non-active module: admin | IP:`, reqInfo.ip);
         return res.status(403).send({"status": "error", "message": "Module is not enabled"});
     }
@@ -1000,7 +879,7 @@ const getModuleCountData = async (req: Request, res: Response): Promise<Response
     const field : string = req.query.field as string;
 
     if (module == "payments" && action == "serverBalance") {
-        const data =  await getBalance(1000);
+        const data =  await getBalance(req.hostname, 1000);
         return res.status(200).send({total: data, field: data});
     }
     if (module == "payments" && action == "unpaidTransactions") {
@@ -1026,7 +905,7 @@ const getModuleCountData = async (req: Request, res: Response): Promise<Response
         return res.status(200).send({total: countTotal, field: countField});
     }
     
-    logger.info(`getModuleCountData - Data retrieved succesfully`, "|", reqInfo.ip);
+    logger.debug(`getModuleCountData - Data retrieved succesfully`, "|", reqInfo.ip);
     return res.status(200).send({total: 0, field: 0});
 }
 
@@ -1040,7 +919,7 @@ const moderateDBRecord = async (req: Request, res: Response): Promise<Response> 
     }
   
     // Check if current module is enabled
-    if (!isModuleEnabled("admin", app)) {
+    if (!isModuleEnabled("admin", "")) {
         logger.warn(`moderateDBRecord - Attempt to access a non-active module: admin | IP:`, reqInfo.ip);
         return res.status(403).send({"status": "error", "message": "Module is not enabled"});
     }
@@ -1073,7 +952,7 @@ const moderateDBRecord = async (req: Request, res: Response): Promise<Response> 
 
     logger.info(`moderateDBRecord - ${req.method} ${req.path}`, "|", reqInfo.ip, "|", req.body.id, "|", req.body.filename);
 
-    await moderateFile(table, req.body.id);
+    await moderateFile(table, req.body.id, "");
 
     return res.status(200).send({status: "success", message: "Moderation request sent"});
 
@@ -1089,7 +968,7 @@ const banDBRecord = async (req: Request, res: Response): Promise<Response> => {
     }
 
     // Check if current module is enabled
-    if (!isModuleEnabled("admin", app)) {
+    if (!isModuleEnabled("admin", "")) {
         logger.warn(`banDBRecord - Attempt to access a non-active module: admin | IP:`, reqInfo.ip);
         return res.status(403).send({"status": "error", "message": "Module is not enabled"});
     }
@@ -1153,10 +1032,8 @@ export {    serverStatus,
             insertDBRecord, 
             moderateDBRecord,
             updateSettings, 
-            updateLogo,
-            updateTheme,
+            updateSettingsFile,
             getModuleData,
             getModuleCountData,
-            banDBRecord,
-            updateRelayIcon   
+            banDBRecord   
         };

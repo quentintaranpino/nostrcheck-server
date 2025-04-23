@@ -4,10 +4,10 @@ import { Event } from "nostr-tools";
 import { logger } from "../../lib/logger.js";
 import { NIPKinds } from "../../interfaces/nostr.js";
 import { authHeaderResult } from "../../interfaces/authorization.js";
-import app from "../../app.js";
 import { isPubkeyValid } from "../authorization.js";
-import { getClientIp } from "../security/ips.js";
+import { getClientInfo } from "../security/ips.js";
 import { getHostInfo } from "../utils.js";
+import { getConfig } from "../config/core.js";
 
 /**
  * Parses the authorization Nostr header (NIP98) and checks if it is valid. Visit for more information:
@@ -29,12 +29,12 @@ const isNIP98Valid = async (authevent: Event, req: Request, checkAdminPrivileges
 	try {
 		const eventKind: number = +authevent.kind;
 		if (eventKind == null || eventKind == undefined || eventKind != NIPKinds.NIP98) {
-			logger.warn(`isNIP98Valid - Auth header event kind is not 27235: ${eventKind}`, "|", getClientIp(req));
+			logger.warn(`isNIP98Valid - Auth header event kind is not 27235: ${eventKind}`, "|", getClientInfo(req).ip);
 			return {status: "error", message: "Auth header event kind is not 27235", authkey: "", pubkey: "", kind: 0};
 		}
 
 	} catch (error) {
-		logger.error(`isNIP98Valid - Inetrnal server error: ${error}`, "|", getClientIp(req));
+		logger.error(`isNIP98Valid - Inetrnal server error: ${error}`, "|", getClientInfo(req).ip);
 		return {status: "error", message: "Auth header event kind is not 27235", authkey: "", pubkey: "", kind: 0};
 	}
 
@@ -42,17 +42,17 @@ const isNIP98Valid = async (authevent: Event, req: Request, checkAdminPrivileges
 	try {
 		let created_at = authevent.created_at;
 		const now = Math.floor(Date.now() / 1000);
-		if (app.get('config.environment')  == "development") {
-			logger.warn(`isNIP98Valid - DEVMODE: Setting created_at to now`, "|", getClientIp(req)); // If devmode is true, set created_at to now for testing purposes
+		if (getConfig(null, ["environment"]) == "development") {
+			logger.warn(`isNIP98Valid - DEVMODE: Setting created_at to now`, "|", getClientInfo(req).ip); // If devmode is true, set created_at to now for testing purposes
 			created_at = now - 30;
 		} 
 		const diff = now - created_at;
 		if (diff > 60) {
-			logger.warn(`isNIP98Valid - Auth header event created_at is not within a reasonable time window ${created_at}<>${now}`, "|", getClientIp(req));
+			logger.warn(`isNIP98Valid - Auth header event created_at is not within a reasonable time window ${created_at}<>${now}`, "|", getClientInfo(req).ip);
 			return {status: "error", message: `Auth header event created_at is not within a reasonable time window ${created_at}<>${now}`, authkey: "", pubkey: "", kind: 0};
 		}
 	} catch (error) {
-		logger.error(`isNIP98Valid - internal server error: ${error}`, "|", getClientIp(req));
+		logger.error(`isNIP98Valid - internal server error: ${error}`, "|", getClientInfo(req).ip);
 		return {status: "error", message: "Auth header event created_at is not within a reasonable time window", authkey: "", pubkey: "", kind: 0};
 	}
 
@@ -63,14 +63,14 @@ const isNIP98Valid = async (authevent: Event, req: Request, checkAdminPrivileges
 
 	// Check if event authorization u tag (URL) is valid (Must be the same as the server endpoint)
 	try {
-		const serverHost = getHostInfo().hostname.toLowerCase().replace(/\/+$/, '');
+		const serverHost = getHostInfo(req.hostname).hostname.toLowerCase().replace(/\/+$/, '');
 
-		if ((eventHost == null || eventHost == undefined || eventHost != serverHost) && app.get('config.environment') != "development") {
-			logger.warn(`isNIP98Valid - Auth header event endpoint is not valid: ${eventHost} <> ${serverHost}`, "|", getClientIp(req));
+		if ((eventHost == null || eventHost == undefined || eventHost != serverHost) && getConfig(null, ["environment"]) != "development") {
+			logger.warn(`isNIP98Valid - Auth header event endpoint is not valid: ${eventHost} <> ${serverHost}`, "|", getClientInfo(req).ip);
 			// return {status: "error", message: `Auth header (NIP98) event endpoint is not valid: ${eventEndpoint} <> ${serverEndpoint}`, authkey: "", pubkey: "", kind: 0};
 		}
 	} catch (error) {
-		logger.error(`isNIP98Valid - Internal server error: ${error}`, "|", getClientIp(req));
+		logger.error(`isNIP98Valid - Internal server error: ${error}`, "|", getClientInfo(req).ip);
 		return {status: "error", message: "Auth header (NIP98) event endpoint is not valid", authkey: "", pubkey: "", kind: 0};
 	}
 
@@ -81,11 +81,11 @@ const isNIP98Valid = async (authevent: Event, req: Request, checkAdminPrivileges
 	// Check if authorization event method tag is valid (Must be the same as the request method)
 	try {
 		if (eventMethod == null || eventMethod == undefined || eventMethod != req.method) {
-			logger.warn(`isNIP98Valid - Auth header event method is not valid: ${eventMethod} <> ${req.method}`, "|", getClientIp(req));
+			logger.warn(`isNIP98Valid - Auth header event method is not valid: ${eventMethod} <> ${req.method}`, "|", getClientInfo(req).ip);
 			return {status: "error", message: `Auth header event method is not valid`, authkey: "", pubkey: "", kind: 0};
 		}
 	} catch (error) {
-		logger.error(`isNIP98Valid - Internal server error: ${error}`, "|", getClientIp(req));
+		logger.error(`isNIP98Valid - Internal server error: ${error}`, "|", getClientInfo(req).ip);
 		return {status: "error", message: "Auth header event method is not valid", authkey: "", pubkey: "", kind: 0};
 	}
 
@@ -101,10 +101,10 @@ const isNIP98Valid = async (authevent: Event, req: Request, checkAdminPrivileges
 				.update(JSON.stringify(req.body), "binary")
 				.digest("hex"); 
 
-			if (eventPayload != receivedpayload) logger.debug(`isNIP98Valid - Auth header event payload is not valid: ${eventPayload} <> ${receivedpayload}`, "|", getClientIp(req));
+			if (eventPayload != receivedpayload) logger.debug(`isNIP98Valid - Auth header event payload is not valid: ${eventPayload} <> ${receivedpayload}`, "|", getClientInfo(req).ip);
 
 		} catch (error) {
-			logger.error(`isNIP98Valid - Internal server error: ${error}`, "|", getClientIp(req));
+			logger.error(`isNIP98Valid - Internal server error: ${error}`, "|", getClientInfo(req).ip);
 		}
 	}
 
@@ -112,11 +112,11 @@ const isNIP98Valid = async (authevent: Event, req: Request, checkAdminPrivileges
 
     // This is not from NIP98 spec, check local pubkey validation
 	if (await isPubkeyValid(authevent.pubkey, checkAdminPrivileges, checkRegistered, checkActive) == false) {
-		logger.warn(`isNIP98Valid - Auth header pubkey is not valid: ${authevent.pubkey}`, "|", getClientIp(req));
+		logger.warn(`isNIP98Valid - Auth header pubkey is not valid: ${authevent.pubkey}`, "|", getClientInfo(req).ip);
 		return {status: "error", message: "Auth header pubkey is not valid", authkey: "", pubkey: "", kind: 0};
 	}
 
-	logger.info(`isNIP98Valid - Auth header event is valid`, "|", getClientIp(req));
+	logger.info(`isNIP98Valid - Auth header event is valid`, "|", getClientInfo(req).ip);
 	return { status: "success", message: "Auth header event is valid", authkey: "", pubkey: authevent.pubkey, kind: +authevent.kind};
 };
 

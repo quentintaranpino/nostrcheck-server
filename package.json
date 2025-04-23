@@ -1,6 +1,6 @@
 {
   "name": "nostrcheck-api-ts",
-  "version": "0.7.0.1867",
+  "version": "0.7.0.2044",
   "description": "",
   "exports": "./index.js",
   "type": "module",
@@ -29,7 +29,6 @@
     "@types/node": "^20.17.13",
     "@types/qrcode": "^1.5.5",
     "@types/validator": "13.11.10",
-    "@types/webtorrent": "^0.109.8",
     "@types/ws": "^8.5.10",
     "eslint": "^8.56.0",
     "typescript": "^5.5.4",
@@ -79,8 +78,8 @@
     "ts-node": "^10.9.2",
     "tslog": "4.9.2",
     "validator": "13.12.0",
-    "webtorrent": "^2.5.0",
     "workerpool": "^9.2.0",
+    "ws": "^8.18.1",
     "zod": "^3.24.1"
   },
   "engines": {

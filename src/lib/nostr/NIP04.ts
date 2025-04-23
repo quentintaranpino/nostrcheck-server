@@ -3,8 +3,8 @@ import { hexToBytes } from '@noble/hashes/utils'
 import { logger } from "../logger.js";
 import { publishEvent } from "./core.js";
 import { NIP04_event } from "../../interfaces/nostr.js";
-import app from "../../app.js";
 import { npubToHex } from "./NIP19.js";
+import { getConfig } from "../config/core.js";
 
 /**
  * Sends a message to a specified public key.
@@ -13,9 +13,9 @@ import { npubToHex } from "./NIP19.js";
  * @param sendToPubkey - The public key of the recipient.
  * @returns A promise that resolves to a boolean indicating whether the message was sent successfully.
  */
-const sendMessage = async (message: string, sendToPubkey : string) : Promise<boolean> => {
+const sendMessage = async (message: string, sendToPubkey : string, tenant: string) : Promise<boolean> => {
 
-    const sk : string = app.get("config.server")["secretKey"];
+    const sk : string = getConfig(tenant, ["server", "secretKey"]);
     if (sk == "" || sk == undefined) {
         logger.error(`sendMessage - Error: No secret key found in config file`)
         return false

@@ -6,24 +6,24 @@ import path from "path";
 import { logger } from "../logger.js";
 import { CHUNK_SIZE, eventStore, MetadataEvent, PendingGetEventsTask, RelayJob, SharedChunk } from "../../interfaces/relay.js";
 import app from "../../app.js";
-import { isModuleEnabled } from "../config.js";
 import { deleteEvents, storeEvents } from "./database.js";
 import { decodeChunk, dynamicTimeout, encodeChunk, getEventById, updateChunk } from "./utils.js";
 import { RedisConfig } from "../../interfaces/redis.js";
 
-const redisConfig : RedisConfig= {
-  host: app.get("config.redis")["host"],
-  port: app.get("config.redis")["port"],
-  user: app.get("config.redis")["user"],
-  password: app.get("config.redis")["password"],
+const redisRelay : RedisConfig= {
+  host: process.env.REDIS_HOST || getConfig(null, ["redis", "host"]),
+  port: process.env.REDIS_PORT || getConfig(null, ["redis", "port"]),
+  user: process.env.REDIS_USER || getConfig(null, ["redis", "user"]),
+  password: process.env.REDIS_PASSWORD || getConfig(null, ["redis", "password"]),
   defaultDB: 2 // database "2" for relay DB
 };
 
 // Workers
-const relayWorkers = Number(app.get("config.relay")["workers"]);
+const relayWorkers = Number(getConfig(null, ["relay", "workers"]));
 const workersDir = path.resolve('./dist/lib/relay/workers');
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { _getEvents } from "./workers/getEvents.js";
+import { getConfig, isModuleEnabled } from "../config/core.js";
   
 const relayWorker = async (task: RelayJob): Promise<unknown> => {
   try {
@@ -69,11 +69,7 @@ function isHeavyFilter(filters: Filter[]): boolean {
 
 const enqueueRelayTask = async <T>(task: RelayJob): Promise<{enqueued: boolean; result: T | null;}> => {
   try {
-      const queueLength = getRelayQueueLength();
-      if (queueLength > app.get("config.relay")["maxQueueLength"]) {
-          logger.debug(`enqueueRelayTask - Relay queue limit reached: ${queueLength}`);
-          return { enqueued: false, result: null };
-      }
+    const queueLength = getRelayQueueLength();
       const result = await relayQueue.push(task);
       logger.debug(`enqueueRelayTask - Task added to relay queue: ${task.fn.name}, queue length: ${queueLength}`);
       return { enqueued: true, result };
@@ -106,7 +102,7 @@ const relayQueue: queueAsPromised<RelayJob> = fastq.promise(relayWorker, Math.ce
  */
 const persistEvents = async () => {
   if (
-    !isModuleEnabled("relay", app) ||
+    !isModuleEnabled("relay", "") ||
     !eventStore ||
     !eventStore.pending ||
     !eventStore.relayEventsLoaded ||
@@ -213,7 +209,7 @@ const persistEvents = async () => {
  */
 const unpersistEvents = async () => {
 
-  if (!isModuleEnabled("relay", app)) return;
+  if (!isModuleEnabled("relay", "")) return;
   if (!eventStore || !eventStore.pendingDelete || !eventStore.relayEventsLoaded) return;
 
   const now = Math.floor(Date.now() / 1000);
@@ -264,63 +260,11 @@ const unpersistEvents = async () => {
   }
 };
 
-// const updateEventsMetadata = async () => {
-//   if (!isModuleEnabled("relay", app)) return;
-//   if (!app.get("relayEventsLoaded")) return;
-
-//   const relayEvents = app.get("relayEvents") as RelayEvents;
-//   if (!relayEvents) return;
-
-//   const dbEvents = await dbMultiSelect(
-//     ["id", "event_id"],
-//     "events",
-//     "event_id is not null",
-//     [""],
-//     false
-//   );
-//   const dbEventsIds = dbEvents.map((e: { event_id: string }) => e.event_id);
-
-//   logger.debug(dbEventsIds);
-
-//   const metadataPromises = dbEventsIds.map(async (e) => {
-//     const memEvent = relayEvents.memoryDB.get(e);
-//     if (!memEvent) return [];
-//     const metadata = await parseEventMetadata(memEvent.event);
-//     return metadata;
-//   });
-
-//   const metadataResults = await Promise.all(metadataPromises);
-//   const allMetadataValues: Array<[string, string, string, number, string | null, string]> = [];
-//   metadataResults.forEach((metadata) => {
-//     metadata.forEach((tuple) => {
-//       allMetadataValues.push(tuple);
-//     });
-//   });
-
-//   if (allMetadataValues.length > 0) {
-//     for (const value of allMetadataValues) {
-//       await dbUpsert(
-//         "eventmetadata",
-//         {
-//           event_id: value[0],
-//           metadata_type: value[1],
-//           metadata_value: value[2],
-//           position: value[3],
-//           extra_data: value[4],
-//           created_at: value[5],
-//         },
-//         ["event_id", "metadata_type", "position"]
-//       );
-//     }
-//   }
-  
-// };
-
 // interval to persist and unpersist events
 let manageEventsRunning = false;
 const manageEvents = async () => {
 
-  if (!eventStore || !isModuleEnabled("relay", app) || !eventStore.relayEventsLoaded || getRelayHeavyWorkerLength() > 0 || getRelayLightWorkerLength() > 0) {
+  if (!eventStore || !isModuleEnabled("relay", "") || !eventStore.relayEventsLoaded || getRelayHeavyWorkerLength() > 0 || getRelayLightWorkerLength() > 0) {
     setTimeout(manageEvents, 1 * 60 * 1000); 
     return;
   }
@@ -353,8 +297,8 @@ let heavyGetEventsPool = workerpool.pool(
   { maxWorkers: Math.ceil(relayWorkers * 0.75) }
 );
 (async () => {
-  await lightGetEventsPool.exec("initWorker", [redisConfig]);
-  await heavyGetEventsPool.exec("initWorker", [redisConfig]);
+  await lightGetEventsPool.exec("initWorker", [redisRelay]);
+  await heavyGetEventsPool.exec("initWorker", [redisRelay]);
 })();
 
 const pendingLightTasks: Map<string, PendingGetEventsTask> = new Map();
@@ -390,7 +334,7 @@ const getEvents = async (filters: any, maxLimit: number, chunks: SharedChunk[]):
 
     const getEventsWorker = isHeavy ? heavyGetEventsPool : lightGetEventsPool
 
-    await getEventsWorker.exec("initWorker", [redisConfig]);
+    await getEventsWorker.exec("initWorker", [redisRelay]);
 
     const result =  await getEventsWorker.exec("_getEvents", [
       JSON.parse(JSON.stringify(filters)),

@@ -1,0 +1,206 @@
+<% 
+  const {
+    type, name, label, description, value, required,
+    options, alert, globalValue, overridable, placeholder,
+    previewSrc, previewSize, previewClass, className, noBadge,
+  } = typeof locals !== 'undefined' ? locals : {};
+
+  const selectedDomain = locals?.selectedDomain || null;
+  const isGlobal = !selectedDomain;
+  const isOverridable = overridable !== false;
+  const keyParts = name.split(".");
+  const localKeys = locals.domainConfig?.[keyParts[0]];
+  const shouldDisable = !isGlobal && !isOverridable;
+  const effectiveValue = (value !== undefined) ? value : globalValue;
+%>
+<% const inputClass = `form-control${shouldDisable ? ' bg-light text-muted' : ''}${className ? ' ' + className : ''}`; %>
+<% const selectClass = `form-select${shouldDisable ? ' bg-light text-muted' : ''}${className ? ' ' + className : ''}`; %>
+
+<div class="form-group mt-3">
+  <% if (label) { %>
+    <label for="<%= name %>" class="fw-bold">
+      <%= label %>
+      <% if (!noBadge && !isGlobal && isOverridable) { %>
+        <span id="badge-<%= name %>" class="badge <%= value !== globalValue ? 'bg-success' : 'bg-info' %> ms-2">
+          <%= value !== globalValue ? 'Overridden' : 'Inherited' %>
+        </span>
+        <button 
+            id="reset-<%= name %>"
+            name="reset-<%= name %>"
+            type="button" 
+            class="btn btn-sm btn-outline-secondary p-2 <%= value !== globalValue ? '' : 'd-none' %>"
+            onclick="resetToGlobal('<%= name %>', '<%= globalValue %>')">
+            <i class="fa-solid fa-rotate-left fa-xs"></i>
+          </button>
+      <% } %>
+      <% if (!noBadge && shouldDisable) { %>
+        <span class="badge bg-secondary ms-2">Read-only</span>
+      <% } %>
+    </label>
+  <% } %>
+
+  <% if (description) { %>
+    <p class="mt-1"><%= description %></p>
+  <% } %>
+
+  <% if (type === "hidden") { %>
+    <input 
+      type="hidden" 
+      name="<%= name %>" 
+      id="<%= name %>" 
+      value="<%= effectiveValue %>" 
+      data-default-value="<%= effectiveValue %>" 
+      data-global-value="<%= globalValue %>"
+      >
+  <% } else if (type === "text" || type === "number") { %>
+    <input 
+      type="<%= type %>" 
+      class="<%= inputClass %>" 
+      name="<%= name %>" 
+      id="<%= name %>" 
+      value="<%= effectiveValue %>" 
+      data-default-value="<%= effectiveValue %>" 
+      data-global-value="<%= globalValue %>"
+      placeholder="<%= placeholder %>"
+      <%= required ? "required" : "" %>
+      <%= shouldDisable ? "disabled" : "" %> >
+
+  <% } else if (type === "password") { %>
+    <div class="input-group">
+      <input 
+        type="password" 
+        class="<%= inputClass %> mb-2" 
+        name="<%= name %>" 
+        id="<%= name %>" 
+        value="<%= effectiveValue %>" 
+        data-default-value="<%= effectiveValue %>" 
+        data-global-value="<%= globalValue %>"
+        placeholder="<%= placeholder || '••••••' %>"
+        <%= required ? "required" : "" %>
+        <%= shouldDisable ? "disabled" : "" %> >
+      <button 
+        type="button" 
+        class="toggle-password d-none"
+        aria-label="Show <%= label %> as plain text. Warning: this will display the text on the screen.">
+      </button>
+    </div>
+
+  <% } else if (type === "checkbox") { %>
+    <div class="form-check form-switch">
+      <input 
+        class="form-check-input<%= className ? ' ' + className : '' %>" 
+        type="checkbox" 
+        name="<%= name %>" 
+        id="<%= name %>" 
+        data-global-value="<%= globalValue ? 'true' : 'false' %>"
+        <%= effectiveValue  ? "checked" : "" %> 
+        <%= effectiveValue  ? "defaultChecked" : "" %>
+        <%= shouldDisable ? "disabled" : "" %> >
+    </div>
+
+  <% } else if (type === "file") { %>
+    <%
+      const previewWidth = (previewSize && previewSize.width) || 100;
+      const previewHeight = (previewSize && previewSize.height) || 100;
+    %>
+    <div class="row mx-auto mb-1 align-items-center">
+      <div class="col-12 col-xl-3 mx-auto m-3">
+        <div class="mx-auto p-3 text-center bg-light rounded <%= previewClass ? previewClass : "" %>">
+          <img 
+            id="<%= name %>-preview" 
+            src="<%= previewSrc || '/static/resources/relay-icon.png' %>" 
+            alt="Preview" 
+            width="<%= previewWidth %>" 
+            height="<%= previewHeight %>">
+        </div>
+      </div>
+      <div class="col-12 col-md-9 col-xl-6">
+        <input 
+          type="file" 
+          id="<%= name %>" 
+          name="<%= name %>" 
+          class="<%= inputClass %>" 
+          accept="image/*"
+          <%= shouldDisable ? "disabled" : "" %> >
+      </div>
+      <div class="col-12 col-md-3 mt-2 mt-md-0">
+        <input type='text' class="d-none" id='<%= name %>.default' name='<%= name %>' value='false'>
+        <button
+          class="form-control btn btn-md btn-primary"
+          type="button"
+          onclick="saveSettingsFile('<%= name %>', true).then(response => {response.reload ? location.reload() : null})">
+          Restore
+        </button>
+      </div>
+    </div>
+    <script>
+    requestAnimationFrame(async () => {
+      const domainSrc = "<%= previewSrc %>";
+      const globalSrc = "<%= previewSrc?.split('?')[0] %>"; // sin el ?domain=...
+
+      const getHash = async (url) => {
+        const res = await fetch(url);
+        const buf = await res.arrayBuffer();
+        const hashBuf = await crypto.subtle.digest("SHA-256", buf);
+        return Array.from(new Uint8Array(hashBuf)).map(b => b.toString(16).padStart(2, "0")).join("");
+      };
+
+      try {
+        const [domainHash, globalHash] = await Promise.all([getHash(domainSrc), getHash(globalSrc)]);
+        const badge = document.querySelector("#badge-<%= name %>");
+        if (!badge) return;
+
+        if (domainHash !== globalHash) {
+          badge.classList.remove("bg-info");
+          badge.classList.add("bg-success");
+          badge.textContent = "Overridden";
+        } else {
+          badge.classList.remove("bg-success");
+          badge.classList.add("bg-info");
+          badge.textContent = "Inherited";
+        }
+      } catch (err) {
+        console.warn("Error comparing file hashes for setting:", "<%= name %>", err);
+      }
+    });
+    </script>
+  <% } else if (type === "color") { %>
+    <div class="mb-5">
+      <% if (description) { %>
+        <p><%= description %></p>
+      <% } %>
+      <input
+        type="color"
+        id="<%= name %>"
+        name="<%= name %>"
+        value="<%= value %>"
+        data-global-value="<%= globalValue %>"
+        class="mt-2 form-control form-control-color${className ? ' ' + className : ''}"
+      />
+    </div>
+
+  <% } else if (type === "select") { %>
+    <select
+      class="<%= selectClass %>"
+      name="<%= name %>"
+      id="<%= name %>"
+      data-global-value="<%= globalValue %>"
+      <%= shouldDisable ? "disabled" : "" %>>
+      <% options.forEach(opt => { %>
+        <option 
+          value="<%= opt.value %>" 
+          <%= opt.value === effectiveValue ? "selected" : "" %> 
+          <%= opt.value === effectiveValue ? "defaultSelected" : "" %>>
+          <%= opt.label %>
+        </option>
+      <% }) %>
+    </select>
+  <% } %>
+
+  <% if (alert) { %>
+    <div class="alert alert-<%= alert.type || 'warning' %> mt-2" role="alert">
+      <% if (alert.icon) { %><i class="fa-solid <%= alert.icon %> me-2"></i><% } %>
+      <%- alert.message %> 
+    </div>
+  <% } %>
+</div>

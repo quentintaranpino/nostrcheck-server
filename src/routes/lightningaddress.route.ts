@@ -1,28 +1,22 @@
 import { Application } from "express";
 import express from "express";
-import { redirectlightningddress, updateLightningAddress, deleteLightningAddress } from "../controllers/lightningaddress.js";
+import { redirectlightningddress, updateLightningRedirect, deleteLightningRedirect } from "../controllers/lightningaddress.js";
 import { limiter } from "../lib/security/core.js";
+import { getModuleInfo } from "../lib/config/core.js";
 
 export const loadLightningaddressEndpoint = async (app: Application, version: string): Promise<void> => {
 
-    // Get lightning address redirect
-    app.get("/api/" + version + app.get("config.server")["availableModules"]["lightning"]["path"], 
-        limiter(),
-        redirectlightningddress); // V0 and V1
+    if (version != "v1" && version != "v2") return;
 
-    app.get("/api/" + version + app.get("config.server")["availableModules"]["lightning"]["path"] + "/:name", 
-        limiter(),
-        redirectlightningddress); // V2
+    const base = `/api/${version}${getModuleInfo("lightning", "")?.path}`;
+
+    // Route to redirect lightning address
+    app.get(`${base}/:name`, limiter(), redirectlightningddress); 
 
     // Update lightning address
-    app.put("/api/" + version + app.get("config.server")["availableModules"]["lightning"]["path"] + "/:lightningaddress", 
-        limiter(),
-        express.json(), 
-        updateLightningAddress);
+    app.put(`${base}/:lightningaddress`, limiter(), express.json(), updateLightningRedirect);
 
     // Delete lightning address
-    app.delete("/api/" + version + app.get("config.server")["availableModules"]["lightning"]["path"], 
-        limiter(),
-        deleteLightningAddress);
+    app.delete(`${base}`, limiter(), express.json(), deleteLightningRedirect);
 
 };

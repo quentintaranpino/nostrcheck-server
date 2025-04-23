@@ -163,7 +163,9 @@
 
         select.addEventListener('change', (event) => {
           const selectedDomain = event.target.value;
+
           const domainInfo = data.availableDomains[selectedDomain];
+          console.log("domainInfo", domainInfo)
 
           if (domainInfo.requireinvite) {
             invitationGroup.classList.remove('d-none');
@@ -193,9 +195,13 @@
 
 
       usernameField.addEventListener('input', async (event) => {
+        const selectedDomain = document.getElementById('domain-selection').value;
         const length = event.target.value.length;
+        const domainInfo = domainsData.availableDomains[selectedDomain];
+        console.log(domainInfo)
 
-        if (length < domainsData.minUsernameLength || length > domainsData.maxUsernameLength) {
+
+        if (length < domainInfo.minUsernameLength || length > domainInfo.maxUsernameLength) {
           satoshiField.classList.add('d-none');
           event.target.classList.add('text-danger');
           event.target.classList.add('is-invalid');
@@ -240,7 +246,7 @@
       return;
     }
 
-    if (username.length < domainsData.minUsernameLength || username.length > domainsData.maxUsernameLength) {
+    if (username.length < domainsData.availableDomains[domain].minUsernameLength || username.length > domainsData.availableDomains[domain].maxUsernameLength) {
       initAlertModal("#register", "Username length is not valid.");
       document.getElementById('input-register-username').focus();
       return;
@@ -446,8 +452,10 @@
       satoshiField.classList.add('d-none');
       return;
     }
+
+    console.log("calculateSatoshi", length)
     
-    await fetch('/api/v2/payments/calculateamount', {
+    await fetch('/api/v2/register/calculateamount', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -456,6 +464,7 @@
     })
     .then(response => response.json())
     .then(async data => {
+      console.log("AMOUNT", data)
       satoshiField.classList.remove('d-none');
       satoshiField.innerHTML = `${data.amount} <i class="fa-solid fa-bolt ms-1" style="color:rgb(255, 128, 24)"></i>`;
     })

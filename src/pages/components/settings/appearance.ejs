@@ -1,0 +1,173 @@
+<%
+  const cfg = locals.domainConfig?.appearance || {};
+  const globalCfg = locals.globalConfig?.appearance|| {};
+%>
+<div id ="settingsLookAndFeel">
+    <h3 class="mt-4">Appearance</h3>
+    <form class="form mx-auto">
+      <p> In this section, you can personalize the server color scheme and logo according to your specific requirements. 
+      </p>
+      <%- include('field', {
+        type: "file",
+        name: "appearance.server.logo.light",
+        label: "Light logo",
+        description: "Upload a new logo for light theme. Use transparent background.",
+        previewSrc: `/static/resources/appearance-server-logo-light.png${selectedDomain ? `?domain=${selectedDomain}` : ""}`,
+        previewSize: { width: 180, height: 61 },
+        overridable: true
+      }) %>
+      <%- include('field', {
+        type: "file",
+        name: "appearance.server.logo.dark",
+        label: "Dark logo",
+        description: "Upload a new logo for dark theme. Use transparent background.",
+        previewSrc: `/static/resources/appearance-server-logo-dark.png${selectedDomain ? `?domain=${selectedDomain}` : ""}`,
+        previewSize: { width: 180, height: 61 },
+        previewClass: "bg-dark",
+        overridable: true
+      }) %>
+      <label class="mt-3 mb-1 fw-bold">Dynamic background</label>
+      <p>Choose the colors for the dynamic background.</p>
+      <div class="row mx-auto mb-4">
+        <div class="col-12 col-md-4 pb-4 mb-4" style="height: 90px !important">
+          <%- include('field', {
+            type: "color",
+            name: "appearance.dynamicbackground.color1",
+            label: "Primary color",
+            value: cfg.dynamicbackground.color1,
+            globalValue: globalCfg.dynamicbackground.color1,
+            overridable: true
+          }) %>
+        </div>
+        <div class="col-12 col-md-4 pb-4 mb-4" style="height: 90px !important">
+        <%- include('field', {
+          type: "color",
+          name: "appearance.dynamicbackground.color2",
+          label: "Secondary color",
+          value: cfg.dynamicbackground.color2,
+          globalValue: globalCfg.dynamicbackground.color2,
+          overridable: true
+        }) %>
+      </div>
+        <div class="col-12 col-md-4 pb-4 mb-4" style="height: 90px !important">
+          <%- include('field', {
+            type: "color",
+            name: "appearance.dynamicbackground.color3",
+            label: "Tertiary color",
+            value: cfg.dynamicbackground.color3,
+            globalValue: globalCfg.dynamicbackground.color3,
+            overridable: true
+          }) %>
+        </div>
+      </div>
+      <div class="mt-3">
+        <%- include('field', {
+          type: "select",
+          name: "appearance.dynamicbackground.orientation",
+          label: "Orientation",
+          description: "Choose the direction of the gradient.",
+          value: cfg.dynamicbackground.orientation,
+          globalValue: globalCfg.dynamicbackground.orientation,
+          overridable: true,
+          options: [
+            { value: "to top", label: "To Top" },
+            { value: "to right", label: "To Right" },
+            { value: "to bottom", label: "To Bottom" },
+            { value: "to left", label: "To Left" },
+            { value: "to top left", label: "To Top Left" },
+            { value: "to top right", label: "To Top Right" },
+            { value: "to bottom left", label: "To Bottom Left" },
+            { value: "to bottom right", label: "To Bottom Right" }
+          ]
+        }) %>
+        <div class="col-12">
+            <div id="appearance.dynamicbackground.gradientbar" class="gradient-bar"><div id="particles-js" style="height: 300px;"></div></div>           
+        </div>
+        <%- include('field', {
+          type: "hidden",
+          name: "appearance.dynamicbackground.color1Percent",
+          value: cfg.dynamicbackground.color1Percent,
+          globalValue: globalCfg.dynamicbackground.color1Percent,
+          overridable: true,
+          placeholder: "",
+          required: true
+        }) %>
+        <%- include('field', {
+          type: "hidden",
+          name: "appearance.dynamicbackground.color2Percent",
+          value: cfg.dynamicbackground.color2Percent,
+          globalValue: globalCfg.dynamicbackground.color2Percent,
+          overridable: true,
+          placeholder: "",
+          required: true
+        }) %>
+        <%- include('field', {
+          type: "hidden",
+          name: "appearance.dynamicbackground.color3Percent",
+          value: cfg.dynamicbackground.color3Percent,
+          globalValue: globalCfg.dynamicbackground.color3Percent,
+          overridable: true,
+          placeholder: "",
+          required: true
+        }) %>
+        <%- include('field', {
+          type: "select",
+          name: "appearance.dynamicbackground.particles",
+          label: "Particles effect",
+          description: "Choose the visual particle effect for the dynamic background.",
+          value: cfg.dynamicbackground.particles,
+          globalValue: globalCfg.dynamicbackground.particles,
+          overridable: true,
+          options: [
+            { value: "quantum", label: "Quantum" },
+            { value: "astral", label: "Astral" },
+            { value: "nexus", label: "Nexus" },
+            { value: "none", label: "None" }
+          ]
+        }) %>
+      </div>
+      <div class="row mx-auto mt-3">
+        <label for="appearance.dynamicbackground.theme" class="mt-2 mb-1 fw-bold">Dynamic background themes</label>
+        <div class="col-12">
+          <%- include('field', {
+            type: "select",
+            name: "appearance.dynamicbackground.theme",
+            label: "Theme",
+            description: "Choose a predefined theme for the dynamic background.",
+            value: cfg.dynamicbackground.theme,
+            globalValue: globalCfg.dynamicbackground.theme,
+            overridable: true,
+            noBadge: true,
+            options: Object.keys(locals.settingsLookAndFeelThemes || {}).map(key => ({ value: key, label: key })),
+          }) %>
+        </div>
+      </div>  
+      <div class="col-12 col-md-3 mb-5 mt-4 pb-5 pb-lg-0 mb-lg-2">
+        <button class="btn btn-lg mb-4 btn-primary w-100" name="Submit" type="button" onclick="saveSettings()">Save</button>
+      </div>
+    </form>
+  </div>
+  <script src="/static/js/particles.min.js"></script>
+  <script type="application/json" id="theme-data-json">
+    <%- JSON.stringify(locals.settingsLookAndFeelThemes || {}) %>
+  </script>
+  <style>
+    .gradient-bar {
+        position: relative;
+        height: 300px; 
+        width: 100%; 
+        border-radius: 5px; 
+        margin-top: 10px;
+    }
+    
+    .gradient-bar .handle {
+        position: absolute;
+        bottom: 25%;
+        width: 9px;
+        height: 40%;
+        background: #fff;
+        cursor: ew-resize;
+        border-radius: 3px;
+    }
+    
+    </style>

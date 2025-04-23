@@ -1,6 +1,6 @@
 import { ResultMessagev2 } from "./server.js";
 
-interface invoice {
+interface Invoice {
     paymentRequest: string;
     paymentHash: string;
     satoshi: number;
@@ -14,7 +14,7 @@ interface invoice {
     preimage: string;
 }
 
-const emptyInvoice: invoice = {
+const emptyInvoice: Invoice = {
     paymentRequest: "",
     paymentHash: "",
     satoshi: 0,
@@ -28,7 +28,7 @@ const emptyInvoice: invoice = {
     preimage: ""
 }
 
-interface transaction {
+interface Transaction {
     transactionid: number;
     type: string;
     accountid: number;
@@ -43,7 +43,7 @@ interface transaction {
     comments: any;
 }
 
-const emptyTransaction: transaction = {
+const emptyTransaction: Transaction = {
     transactionid: 0,
     type: "",
     accountid: 0,
@@ -72,14 +72,14 @@ interface paymentResultMessage extends ResultMessagev2 {
 }
 
 interface invoiceReturnMessage extends ResultMessagev2 {
-    invoice: invoice;
+    invoice: Invoice;
 }
 
 interface amountReturnMessage extends ResultMessagev2 {
     amount: number;
 }
 
-interface macaroon {
+interface Macaroon {
     ID: string;
     version: string;
     payment_hash: string;
@@ -88,12 +88,17 @@ interface macaroon {
     caveats: string[];
 }
 
-interface checkMacaroonResult  extends ResultMessagev2 {
+interface MacaroonResult  extends ResultMessagev2 {
     macaroon?: string;
     Invoice?: string;
     satoshi?: number;
 }
 
 
+const tableCalculateMode: { [key: string]: "normal" | "reversed" } = {
+    "registered": "reversed",
+    "mediafiles": "normal",
+   
+};
 
-export { invoice, emptyInvoice, transaction, emptyTransaction, accounts, paymentResultMessage, invoiceReturnMessage, amountReturnMessage, macaroon, checkMacaroonResult}
+export { Invoice, emptyInvoice, Transaction, emptyTransaction, accounts, paymentResultMessage, invoiceReturnMessage, amountReturnMessage, Macaroon, MacaroonResult, tableCalculateMode}

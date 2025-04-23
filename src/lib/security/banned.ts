@@ -1,17 +1,18 @@
-import path from "path";
 import fs from "fs";
 import app from "../../app.js";
 import { ResultMessagev2 } from "../../interfaces/server.js";
 import { dbInsert, dbMultiSelect, dbUpdate } from "../database.js";
 import { logger } from "../logger.js";
-import { isModuleEnabled } from "../config.js";
 import { RedisService } from "../redis.js";
+import { getConfig, isModuleEnabled } from "../config/core.js";
+import { getResource } from "../frontend.js";
+import { generateVideoFromImage } from "../utils.js";
 
 const redisCore = app.get("redisCore") as RedisService
 
 const manageEntity = async (originId: number, originTable: string, action: "ban" | "unban", reason?: string): Promise<ResultMessagev2> => {
 
-    if (!isModuleEnabled("security", app))  return { status: "error", message: "Banned module not enabled" };
+    if (!isModuleEnabled("security", ""))  return { status: "error", message: "Banned module not enabled" };
 
     if (originId == 0 || originId == null || originTable == "" || originTable == null || (action === "ban" && (!reason || reason === ""))) {
         return { status: "error", message: "Invalid parameters" };
@@ -41,19 +42,20 @@ const manageEntity = async (originId: number, originTable: string, action: "ban"
             keyField = "event_id";
             break;
     
-        case "banned":
+        case "banned": {
             const result = await dbMultiSelect(["originid", "origintable"], "banned", "id = ?", [originId], true) as any;
             if (!result || result.length === 0) {
                 return { status: "error", message: "Record not found" };
             }
             return manageEntity(result[0].originid, result[0].origintable, action, reason);
-    
-        default:
+        }
+        default: {
             return { status: "error", message: "Invalid table name" };
+        }
     }
 
     const result = await dbMultiSelect(whereFields, originTable, "id = ?", [originId], true) as any;
-    if (originTable == "registered" && result.hex == app.get("config.server")["pubkey"]) {
+    if (originTable == "registered" && result.hex == getConfig(null, ["server", "pubkey"])) {
         return { status: "error", message: `You can't ${action} the server pubkey` };
     }
 
@@ -97,49 +99,51 @@ const manageEntity = async (originId: number, originTable: string, action: "ban"
             await redisCore.set(redisKeyPrimary, JSON.stringify("1"));
 
             switch (originTable) {
-                case "registered":
+                case "registered": {
                     const redisKeyHex = `banned:${originTable}:${result[0].hex}`;
                     await redisCore.set(redisKeyHex, JSON.stringify("1"));
                     break;
-
-                case "mediafiles":
+                }
+                case "mediafiles": {
                     const redisKeyHash = `banned:${originTable}:${result[0].original_hash}`;
                     await redisCore.set(redisKeyHash, JSON.stringify("1"));
                     break;
-
-                case "ips":
+                }
+                case "ips": {
                     const redisKeyIp = `banned:${originTable}:${result[0].ip}`;
                     await redisCore.set(redisKeyIp, JSON.stringify("1"));
                     break;
-
-                case "events":
+                }
+                case "events": {
                     const redisKeyEvent = `banned:${originTable}:${result[0].event_id}`;
                     await redisCore.set(redisKeyEvent, JSON.stringify("1"));
                     break;
+                }
             }
         } else if (action === "unban") {
             await redisCore.del(redisKeyPrimary);
 
             switch (originTable) {
-                case "registered":
+                case "registered": {
                     const redisKeyHex = `banned:${originTable}:${result[0].hex}`;
                     await redisCore.del(redisKeyHex);
                     break;
-
-                case "mediafiles":
+                }
+                case "mediafiles": {
                     const redisKeyHash = `banned:${originTable}:${result[0].original_hash}`;
                     await redisCore.del(redisKeyHash);
                     break;
-
-                case "ips":
+                }
+                case "ips": {
                     const redisKeyIp = `banned:${originTable}:${result[0].ip}`;
                     await redisCore.del(redisKeyIp);
                     break;
-
-                case "events":
+                }
+                case "events": {
                     const redisKeyEvent = `banned:${originTable}:${result[0].event_id}`;
                     await redisCore.del(redisKeyEvent);
                     break;
+                }
             }
         }
 
@@ -193,7 +197,7 @@ const unbanEntity = async (originId: number, originTable: string): Promise<Resul
 **/
 const isEntityBanned = async (id: string, table: string): Promise<boolean> => {
 
-    if (!isModuleEnabled("security", app))  return false;
+    if (!isModuleEnabled("security", ""))  return false;
 
     if (id === "" || table === "") return true;
 
@@ -215,30 +219,40 @@ const isEntityBanned = async (id: string, table: string): Promise<boolean> => {
 
 /**
  * Gets the banned file banner.
+ * @param domain - The domain of the resource.
+ * @param mimeType - The MIME type of the resource.
  * @returns Promise resolving to a `Buffer` with the banned file banner.
  * @async
 **/
-const getBannedFileBanner = (): Promise<Buffer> => {
-    return new Promise((resolve) => {
-        const bannedFilePath = path.normalize(path.resolve(app.get("config.media")["bannedFilePath"]));
-        fs.readFile(bannedFilePath, (err, data) => {
-            if (err) {
-                logger.error(`getBannedFileBanner - Error reading banned file banner: ${err}`);
-                resolve(Buffer.from(""));
-            } else {
-                resolve(data);
-            }
-        });
-    });
-}
+const getBannedFileBanner = async (domain: string, mimeType: string): Promise<{ buffer: Buffer; type: 'image/webp' | 'video/mp4' }> => {
 
+	const bannedPath = await getResource(domain, "media-file-banned.default.webp");
+
+	if (bannedPath == null) {
+		logger.error(`getBannedFileBanner - Error getting banned file banner, path is null`);
+		return { buffer: Buffer.from(""), type: "image/webp" };
+	}
+
+	try {
+        const buffer = await fs.promises.readFile(bannedPath);
+		if (mimeType.startsWith('video')) {
+			const videoBuffer = await generateVideoFromImage(buffer);
+			return { buffer: videoBuffer, type: "video/mp4" };
+		} else {
+			return { buffer, type: "image/webp" };
+		}
+	} catch (err) {
+		logger.error(`getBannedFileBanner - Error reading file: ${bannedPath} with error: ${err}`);
+		return { buffer: Buffer.from(""), type: "image/webp" };
+	}
+};
 
 /**
 * Loads the banned entities from the database into Redis.
 **/
 const loadBannedEntities = async (): Promise<void> => {
 
-    if (!isModuleEnabled("security", app)) return;
+    if (!isModuleEnabled("security", "")) return;
 
     const bannedEntities = await dbMultiSelect(["originid", "origintable"], "banned", "active = 1", [], false);
 
@@ -247,45 +261,46 @@ const loadBannedEntities = async (): Promise<void> => {
         await redisCore.set(redisKeyPrimary, JSON.stringify("1"));
 
         switch (entity.origintable) {
-            case "registered":
+            case "registered": {
                 const regResult = await dbMultiSelect(["hex"], "registered", "id = ?", [entity.originid], true);
                 if (regResult.length > 0) {
                     const redisKeyHex = `banned:registered:${regResult[0].hex}`;
                     await redisCore.set(redisKeyHex, JSON.stringify("1"));
                 }
                 break;
-
-            case "mediafiles":
+            }
+            case "mediafiles": {
                 const mediaResult = await dbMultiSelect(["original_hash"], "mediafiles", "id = ?", [entity.originid], true);
                 if (mediaResult.length > 0) {
                     const redisKeyHash = `banned:mediafiles:${mediaResult[0].original_hash}`;
                     await redisCore.set(redisKeyHash, JSON.stringify("1"));
                 }
                 break;
-
-            case "ips":
+            }
+            case "ips": {
                 const ipResult = await dbMultiSelect(["ip"], "ips", "id = ?", [entity.originid], true);
                 if (ipResult.length > 0) {
                     const redisKeyIp = `banned:ips:${ipResult[0].ip}`;
                     await redisCore.set(redisKeyIp, JSON.stringify("1"));
                 }
                 break;
-
-            case "events":
+            }
+            case "events": {
                 const eventResult = await dbMultiSelect(["event_id"], "events", "id = ?", [entity.originid], true);
                 if (eventResult.length > 0) {
                     const redisKeyEvent = `banned:events:${eventResult[0].event_id}`;
                     await redisCore.set(redisKeyEvent, JSON.stringify("1"));
                 }
                 break;
-
-            default:
+            }
+            default: {
                 logger.warn(`loadBanEntities - Unsupported table for banned entity: ${entity.origintable}`);
                 break;
+            }
         }
     }
 
-    await redisCore.set("banned:cache", JSON.stringify("1"), { EX: app.get("config.redis")["expireTime"] });
+    await redisCore.set("banned:cache", JSON.stringify("1"), { EX: getConfig(null, ["redis", "expireTime"]) });
 };
 
 

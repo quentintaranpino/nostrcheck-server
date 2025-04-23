@@ -122,7 +122,6 @@ const initEditModal = async (objectId, row, objectName, newRow, columns) => {
                             }
                         
                             updatingFields = false;
-                            checkFieldsMatch();
                         });
                     }
                     if (key == 'hex') {
@@ -147,7 +146,6 @@ const initEditModal = async (objectId, row, objectName, newRow, columns) => {
                             }
                         
                             updatingFields = false;
-                            checkFieldsMatch();
                         });
                     }
                     if (key == 'domain') {

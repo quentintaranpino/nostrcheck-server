@@ -1,7 +1,7 @@
 import rateLimit from "express-rate-limit";
 import app from "../../app.js";
-import { isModuleEnabled } from "../config.js";
 import { ResultMessagev2 } from "../../interfaces/server.js";
+import { getConfig, isModuleEnabled } from "../config/core.js";
 
 /**
  * Creates a rate limiter middleware for express applications.
@@ -12,9 +12,13 @@ import { ResultMessagev2 } from "../../interfaces/server.js";
  *
  * @returns An instance of rate limit middleware configured with the provided or default parameters.
  */
-const limiter = (limit:number = app.get('config.security')['maxDefaultRequestMinute'] || 150, message?: ResultMessagev2, windowMS:number = 1 * 60 * 1000) => {
+const limiter = (limit:number = 0, message?: ResultMessagev2, windowMS:number = 1 * 60 * 1000) => {
 
-    if (!isModuleEnabled("security", app))   return (_req:any, _res:any, next:any) => { next(); }
+    if (limit == 0) {
+        limit = getConfig(null, ["security", "maxDefaultRequestMinute"]);
+    }
+
+    if (!isModuleEnabled("security",""))   return (_req:any, _res:any, next:any) => { next(); }
    
     if (!message)  message = { status: "error", message: "Rate limit exceeded. Try again in a few minutes."};
 

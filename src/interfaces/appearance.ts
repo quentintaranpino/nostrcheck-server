@@ -1,4 +1,4 @@
-interface Theme {
+interface DynamicBackground {
     name: string;
     orientation: string;
     color1?: string;
@@ -10,7 +10,19 @@ interface Theme {
     particles?: string;
 }
 
-const themes: { [key: string]: Theme } = {
+const dynamicbackgroundThemes: { [key: string]: DynamicBackground } = {
+
+    default: {
+        name : "Essence",
+        orientation: "to top",
+        color1: "#9795F0",
+        color2: "#9795F0",
+        color3: "#000000",
+        color1Percent: "0%",
+        color2Percent: "25%",
+        color3Percent: "90%",
+        particles: "quantum"
+    },
     essence: {
         name : "Essence",
         orientation: "to top",
@@ -77,6 +89,28 @@ const themes: { [key: string]: Theme } = {
         color3Percent: "95%",
         particles: "nexus"
     },
+    forest: {
+        name : "Forest",
+        orientation: "to top left",
+        color1: "#9bbd3d",
+        color2: "#2cc978",
+        color3: "#209257",
+        color1Percent: "20%",
+        color2Percent: "52%",
+        color3Percent: "92%",
+        particles: "astral"
+    },
+    deepspace: {
+        name : "Deep Space",
+        orientation: "to top left",
+        color1: "#74c200",
+        color2: "#04a424",
+        color3: "#282092",
+        color1Percent: "6%",
+        color2Percent: "30%",
+        color3Percent: "75%",
+        particles: "astral"
+    },
 };
 
 const particles = [
@@ -90,17 +124,64 @@ interface UserdashcardPrefs {
     id: string;
     visible: boolean;
     order: number;
-  }
+}
   
-  interface UserProfilePrefs {
-    theme?: Theme;
-  }
+interface UserProfilePrefs {
+    dynamicBackground?: DynamicBackground;
+}
     
-  interface userPrefs {
+interface userPrefs {
     id: string;
     dashcards?: UserdashcardPrefs[];
     profile?: UserProfilePrefs;
-  }
+}
   
+const acceptedSettigsFiles = [
+    "appearance.server.logo.light",
+    "appearance.server.logo.dark",
+    "relay.icon",
+    "media.image.not.found",
+    "media.image.banned",
+];
 
-export { Theme, themes, particles, userPrefs };
+type SettingsFileOptions = {
+	width: number;
+	height: number;
+	background: { r: number; g: number; b: number; alpha: number };
+	format: "png" | "webp";
+	quality?: number;
+};
+
+const settingsFileConfig: Record<string, SettingsFileOptions> = {
+	"relay.icon": {
+		width: 200,
+		height: 200,
+		background: { r: 0, g: 0, b: 0, alpha: 0 },
+		format: "png",
+		quality: 95
+	},
+	"media.image.not.found": {
+		width: 650,
+		height: 650,
+		background: { r: 0, g: 0, b: 0, alpha: 0 },
+		format: "webp",
+		quality: 95
+	},
+    
+    "media.image.banned": {
+		width: 650,
+		height: 650,
+		background: { r: 0, g: 0, b: 0, alpha: 0 },
+		format: "webp",
+		quality: 95
+	},
+	"default": {
+		width: 180,
+		height: 61,
+		background: { r: 0, g: 0, b: 0, alpha: 0 },
+		format: "png",
+		quality: 95
+	}
+};
+
+export { DynamicBackground, dynamicbackgroundThemes, particles, userPrefs, acceptedSettigsFiles, settingsFileConfig };

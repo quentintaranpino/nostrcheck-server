@@ -1,5 +1,5 @@
-import app from "../../app.js";
 import { FileData } from "../../interfaces/media.js";
+import { getConfig } from "../config/core.js";
 import { dbMultiSelect, dbSelect, dbUpdate } from "../database.js";
 import { getHashedPath } from "../hash.js";
 import { logger } from "../logger.js";
@@ -14,13 +14,13 @@ import { deleteRemoteFile, getRemoteFile, saveRemoteFile } from "./remote.js";
  */
 const saveFile = async (filedata: FileData, originPath : string) : Promise<boolean> => {
     
-    logger.debug(`saveFile - Saving file: ${filedata.filename}, storage type: ${app.get("config.storage")["type"]}`);
+    logger.debug(`saveFile - Saving file: ${filedata.filename}, storage type: ${getConfig(null, ["storage", "type"])}`);    
 
-    if (app.get("config.storage")["type"] === "local") {
+    if (getConfig(null, ["storage", "type"]) === "local") {
 
         const hashpath = await getHashedPath(filedata.filename);
 
-        const mediaPath = app.get("config.storage")["local"]["mediaPath"] + hashpath
+        const mediaPath = getConfig(null, ["storage", "local", "mediaPath"]) + hashpath;
         const filePath = mediaPath + "/" + filedata.filename;
 
         if(!await createLocalFolder(mediaPath)){
@@ -44,7 +44,7 @@ const saveFile = async (filedata: FileData, originPath : string) : Promise<boole
 
     }
 
-    if (app.get("config.storage")["type"] === "remote") {
+    if (getConfig(null, ["storage", "type"]) === "remote") {
         return saveRemoteFile(originPath, filedata);
     } 
 
@@ -58,7 +58,7 @@ const saveFile = async (filedata: FileData, originPath : string) : Promise<boole
  */
 const getFilePath = async (value: string) : Promise<string> => {
 
-    logger.debug(`getFilePath - Checking file exist: ${value}, storage type: ${app.get("config.storage")["type"]}`);
+    logger.debug(`getFilePath - Checking file exist: ${value}, storage type: ${getConfig(null, ["storage", "type"])}`);    
 
     const result  = await dbMultiSelect(["localpath", "filename"],
         "mediafiles",
@@ -69,9 +69,9 @@ const getFilePath = async (value: string) : Promise<string> => {
 
     const {localpath, filename} = result[0];
 
-    if (app.get("config.storage")["type"] === "local") {
+    if (getConfig(null, ["storage", "type"]) === "local") {
 
-        const mediaPath = app.get("config.storage")["local"]["mediaPath"];
+        const mediaPath = getConfig(null, ["storage", "local", "mediaPath"]);
 
         if (await getLocalFile(mediaPath + localpath +  "/" + filename)){
             return mediaPath + localpath +  "/" + filename;
@@ -79,7 +79,8 @@ const getFilePath = async (value: string) : Promise<string> => {
 
     }
 
-    if (app.get("config.storage")["type"] === "remote") {
+    if (getConfig(null, ["storage", "type"]) === "remote") {
+    
         return await getRemoteFile(filename);
     }
 
@@ -94,11 +95,11 @@ const getFilePath = async (value: string) : Promise<string> => {
  */
 const deleteFile = async (fileName: string, forceLocal : boolean = false) : Promise<boolean> => {
     
-    logger.debug(`deleteFile - Deleting file: ${fileName}, storage type: ${app.get("config.storage")["type"]}`);
+    logger.debug(`deleteFile - Deleting file: ${fileName}, storage type: ${getConfig(null, ["storage", "type"])}`);    
 
-    if (app.get("config.storage")["type"] === "local" || forceLocal) {
+    if (getConfig(null, ["storage", "type"]) === "local" || forceLocal) {
 
-        const mediaPath = app.get("config.storage")["local"]["mediaPath"];
+        const mediaPath = getConfig(null, ["storage", "local", "mediaPath"]);
         const localPath = await dbSelect("SELECT localPath FROM mediafiles WHERE filename = ?", "localPath", [fileName]);
         const filePath = mediaPath + localPath +  "/" + fileName;
 
@@ -108,7 +109,7 @@ const deleteFile = async (fileName: string, forceLocal : boolean = false) : Prom
 
     }
 
-    if (app.get("config.storage")["type"] === "remote") {
+    if (getConfig(null, ["storage", "type"]) === "remote") {
         return deleteRemoteFile(fileName);
     }
 

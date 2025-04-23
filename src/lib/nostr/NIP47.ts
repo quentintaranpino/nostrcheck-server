@@ -3,29 +3,33 @@
 // https://github.com/getAlby/js-sdk/tree/master/examples/nwc
 // https://github.com/nostr-protocol/nips/blob/master/47.md
 
-import { emptyInvoice, invoice } from "../../interfaces/payments.js";
-import app from "../../app.js";
+import { emptyInvoice, Invoice } from "../../interfaces/payments.js";
 import { logger } from "../logger.js";
 import { nwc as NWC } from "@getalby/sdk";
 import WebSocket from 'ws'
+import { execWithTimeout } from "../utils.js";
+import { getConfig } from "../config/core.js";
 global.WebSocket = WebSocket as any;
 
 const nwc = new NWC.NWCClient({
-    nostrWalletConnectUrl: `${app.get("config.payments")["paymentProviders"]["nwc"]["url"]}`,
+    nostrWalletConnectUrl: `${getConfig(null, ["payments", "paymentProviders", "nwc", "url"])}`,
 });
 
-const generateNwcInvoice = async (LNAddress: string, amount:number) : Promise<invoice> => {
+const generateNwcInvoice = async (LNAddress: string, amount:number) : Promise<Invoice> => {
 
     if (LNAddress == "" || amount == 0) return emptyInvoice;
 
     try{
 
-        const response = await nwc.makeInvoice({amount: amount * 1000, description: ""});
+        const response = await execWithTimeout (
+            nwc.makeInvoice({amount: amount * 1000, description: ""}),
+            1000,
+        );
 
         if (!response || response == undefined || response.invoice == "") {
             logger.error(`generateNwcInvoice - Error generating nwc invoice for LNAddress: ${LNAddress} and amount: ${amount}`);
             return emptyInvoice;
-        };
+        }
     
         return {paymentRequest: response.invoice, 
                 paymentHash: response.payment_hash, 

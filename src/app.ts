@@ -1,8 +1,9 @@
 import cors from "cors";
 import express from "express";
 import helmet from "helmet";
-import { loadConfigOptions } from "./lib/config.js";
+import { loadConfigOptions } from "./lib/config/local.js";
 import { RedisService } from "./lib/redis.js";
+import { getConfig, initGlobalConfig } from "./lib/config/core.js";
 
 const app = express();
 
@@ -18,9 +19,10 @@ app.set("config.security", await loadConfigOptions("security"));
 app.set("config.database", await loadConfigOptions("database"));
 app.set("config.environment", process.env.NODE_ENV ?? await loadConfigOptions("environment"));
 app.set("config.plugins", await loadConfigOptions("plugins"));
-app.set("config.torrent", await loadConfigOptions("torrent"));
 app.set("config.relay", await loadConfigOptions("relay"));
 app.set("version", process.env.npm_package_version ?? "0.0");
+
+await initGlobalConfig();
 
 app.set('trust proxy', 1); 
 app.set("view engine", "ejs")
@@ -38,12 +40,12 @@ app.use(cors({
   }));
 
 const redisCore = new RedisService({
-  host: process.env.REDIS_HOST || app.get("config.redis")["host"],
-  port: process.env.REDIS_PORT || app.get("config.redis")["port"],
-  user: process.env.REDIS_USER || app.get("config.redis")["user"],
-  password: process.env.REDIS_PASSWORD || app.get("config.redis")["password"]
+  host: process.env.REDIS_HOST || getConfig(null, ["redis", "host"]),
+  port: process.env.REDIS_PORT || getConfig(null, ["redis", "port"]),
+  user: process.env.REDIS_USER || getConfig(null, ["redis", "user"]),
+  password: process.env.REDIS_PASSWORD || getConfig(null, ["redis", "password"]),
 });
-await redisCore.init(app)
+await redisCore.init()
 app.set("redisCore", redisCore);
 
 export default app;

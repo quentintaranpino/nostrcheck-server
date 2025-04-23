@@ -1,35 +1,35 @@
 import { Request, Response } from "express";
 import fs from "fs";
-import app from "../app.js";
 import { logger } from "../lib/logger.js";
 import { markdownToHtml } from "../lib/utils.js";
 import { dbMultiSelect, dbSelect} from "../lib/database.js";
 import { generateAuthToken, generateOTC, isPubkeyAllowed, isPubkeyValid, isUserPasswordValid, verifyOTC } from "../lib/authorization.js";
-import { isModuleEnabled, loadconfigActiveModules } from "../lib/config.js";
-import { countPubkeyFiles, getLegalText, isFirstUse, setAuthCookie } from "../lib/frontend.js";
+import { countPubkeyFiles, getLegalText, getResource, isAutoLoginEnabled, setAuthCookie } from "../lib/frontend.js";
 import { hextoNpub } from "../lib/nostr/NIP19.js";
-import { themes, particles} from "../interfaces/personalization.js";
+import { dynamicbackgroundThemes, particles} from "../interfaces/appearance.js";
 import { verifyNIP07event } from "../lib/nostr/NIP07.js";
 import { getUsernames } from "../lib/register.js";
 import { getLightningAddress } from "../lib/lightning.js";
-import { getClientIp, isIpAllowed } from "../lib/security/ips.js";
+import { getClientInfo, isIpAllowed } from "../lib/security/ips.js";
+import { getModules, getConfig, getTenants, isModuleEnabled } from "../lib/config/core.js";
+import path from "path";
 
 const loadDashboardPage = async (req: Request, res: Response, version:string): Promise<Response | void> => {
 
     // Check if current module is enabled
-	if (!isModuleEnabled("frontend", app)) {
-        logger.info("Attempt to access a non-active module:","frontend","|","IP:", getClientIp(req));
+	if (!isModuleEnabled("frontend", req.hostname)) {
+        logger.info("Attempt to access a non-active module:","frontend","|","IP:", getClientInfo(req).ip);
 		return res.status(403).send({"status": "error", "message": "Module is not enabled"});
 	}
 
-	logger.info("GET /api/" + version + "/dashboard", "|", getClientIp(req));
+	logger.info("GET /api/" + version + "/dashboard", "|", getClientInfo(req).ip);
 
 
-    const activeModules = loadconfigActiveModules(app);
+    const activeModules = getModules(req.hostname,true)
     res.locals.activeModules = activeModules; 
-    res.locals.version = app.get("version");
-    res.locals.serverHost = app.get("config.server")["host"];
-    res.locals.settingsMedia = app.get("config.media");
+    res.locals.version = getConfig(req.hostname, ["version"]);
+    res.locals.serverHost = getConfig(req.hostname, ["server", "host"]);
+    res.locals.settingsMedia = getConfig(req.hostname, ["media"]);
 
     setAuthCookie(res, req.cookies.authkey);
 
@@ -39,50 +39,71 @@ const loadDashboardPage = async (req: Request, res: Response, version:string): P
     res.render("dashboard.ejs", {request: req});
 };
 
-const loadSettingsPage = async (req: Request, res: Response, version:string): Promise<Response | void> => {
+const loadSettingsPage = async (req: Request, res: Response, version: string): Promise<Response | void> => {
 
-    // Check if current module is enabled
-	if (!isModuleEnabled("frontend", app)) {
-        logger.info("Attempt to access a non-active module:","frontend","|","IP:", getClientIp(req));
-		return res.status(403).send({"status": "error", "message": "Module is not enabled"});
-	}
+	if (!isModuleEnabled("frontend", req.hostname)) {
+        logger.info("Attempt to access a non-active module:", "frontend", "|", "IP:", getClientInfo(req).ip);
+        return res.status(403).send({ status: "error", message: "Module is not enabled" });
+    }
+  
+    logger.info("GET /api/" + version + "/settings", "|", getClientInfo(req).ip);
+  
+    const domain = typeof req.query.domain === "string" ? req.query.domain : null;
+    const activeModules = getModules(req.hostname,true)
+      
+    const globalConfig = {
+        version: getConfig(null, ["version"]),
+        environment: getConfig(null, ["environment"]),
+        multiTenancy: getConfig(null, ["multiTenancy"]),
+        autoLogin: getConfig(null, ["autoLogin"]),
+        server: getConfig(null, ["server"]),
+        redis: getConfig(null, ["redis"]),
+        storage: getConfig(null, ["storage"]),
+        media: getConfig(null, ["media"]),
+        payments: getConfig(null, ["payments"]),
+        register: getConfig(null, ["register"]),
+        logger: getConfig(null, ["logger"]),
+        security: getConfig(null, ["security"]),
+        database: getConfig(null, ["database"]),
+        plugins: getConfig(null, ["plugins"]),
+        relay: getConfig(null, ["relay"]),
+        legal: getConfig(null, ["server", "legal"]),
+        appearance: getConfig(null, ["appearance"]),
+    };
+  
+    const domainConfig = {
+        server: getConfig(domain, ["server"]),
+        redis: getConfig(domain, ["redis"]),
+        storage: getConfig(domain, ["storage"]),
+        media: getConfig(domain, ["media"]),
+        payments: getConfig(domain, ["payments"]),
+        register: getConfig(domain, ["register"]),
+        logger: getConfig(domain, ["logger"]),
+        security: getConfig(domain, ["security"]),
+        database: getConfig(domain, ["database"]),
+        plugins: getConfig(domain, ["plugins"]),
+        relay: getConfig(domain, ["relay"]),
+        legal: getConfig(domain, ["server", "legal"]),
+        appearance: getConfig(domain, ["appearance"]),
+    };
 
-    logger.info("GET /api/" + version + "/settings", "|", getClientIp(req));
+    res.locals.serverHost = getConfig(req.hostname, ["server", "host"]);
+    res.locals.activeModules = activeModules;
+    res.locals.availableModules = globalConfig.server?.availableModules || {};
+    res.locals.selectedDomain = domain;
+    res.locals.globalConfig = globalConfig;
+    res.locals.domainConfig = domainConfig;
+  
+    res.locals.domainsList = getTenants().map((tenant) => tenant.domain);
 
-    // Active modules
-    const activeModules = loadconfigActiveModules(app);
-    res.locals.activeModules = activeModules; 
-
-    res.locals.version = app.get("version");
-
-    res.locals.serverHost = app.get("config.server")["host"];
-    res.locals.availableModules = app.get("config.server")["availableModules"];
-    res.locals.settingsEnvironment = app.get("config.environment");
-    res.locals.settingsServerHost = app.get("config.server")["host"];
-    res.locals.settingsServerName = app.get("config.server")["name"];
-    res.locals.settingServerPubkey = app.get("config.server")["pubkey"];
-    res.locals.settingServerSecretkey =  app.get("config.server")["secretKey"];
-    res.locals.settingsRedisExpireTime = app.get("config.redis")["expireTime"];
-
-    res.locals.settingsStorage = app.get("config.storage");
-    res.locals.settingsMedia = app.get("config.media");
-    res.locals.settingsPayments = app.get("config.payments");
-    res.locals.settingsRegister = app.get("config.register");
-    res.locals.settingsLogger = app.get("config.logger");
-    res.locals.settingsSecurity = app.get("config.security");
-    res.locals.settingsDatabase = app.get("config.database");
-    res.locals.settingsPlugins = app.get("config.plugins");
-    res.locals.settingsRelay = app.get("config.relay");
-    res.locals.settingsLegal = app.get("config.server")["legal"];
-    res.locals.settingsLookAndFeelThemes = themes;
-    res.locals.settingsLookAndFeelParticles = particles;
-
-    setAuthCookie(res, req.cookies.authkey);
-
-    // Check admin privileges. Only for information, never used for authorization
-    req.session.allowed = await isPubkeyAllowed(req.session.identifier);
+    res.locals.settingsLookAndFeelThemes = dynamicbackgroundThemes;
     
-    res.render("settings.ejs", {request: req});
+    res.locals.settingsLookAndFeelParticles = particles;
+    setAuthCookie(res, req.cookies.authkey);
+    req.session.allowed = await isPubkeyAllowed(req.session.identifier);
+  
+    res.render("settings.ejs", { request: req });
+
 };
 
 const loadProfilePage = async (req: Request, res: Response, version:string): Promise<Response | void> => {
@@ -90,24 +111,24 @@ const loadProfilePage = async (req: Request, res: Response, version:string): Pro
     // Check if the request IP is allowed
 	const reqInfo = await isIpAllowed(req);
 	if (reqInfo.banned == true) {
-		logger.info(`loadProfilePage - Attempt to access ${req.path} with unauthorized IP:`, getClientIp(req));
+		logger.info(`loadProfilePage - Attempt to access ${req.path} with unauthorized IP:`, getClientInfo(req).ip);
 		return res.status(403).send({"status": "error", "message": reqInfo.comments});
 	}
 
     // Check if current module is enabled
-	if (!isModuleEnabled("frontend", app)) {
-        logger.info(`loadProfilePage - Attempt to access a non-active module: frontend | IP:`, getClientIp(req));
+	if (!isModuleEnabled("frontend", req.hostname)) {
+        logger.info(`loadProfilePage - Attempt to access a non-active module: frontend | IP:`, getClientInfo(req).ip);
 		return res.status(403).send({"status": "error", "message": "Module is not enabled"});
 	}
 
-	logger.debug(`loadProfilePage - GET /api/${version}/profile`, "|", getClientIp(req));
+	logger.debug(`loadProfilePage - GET /api/${version}/profile`, "|", getClientInfo(req).ip);
 
     // Active modules
-    const activeModules = loadconfigActiveModules(app);
+    const activeModules = getModules(req.hostname,true)
+
     res.locals.activeModules = activeModules; 
 
-    res.locals.version = app.get("version");
-    res.locals.serverHost = app.get("config.server")["host"];
+    res.locals.serverHost = getConfig(req.hostname, ["server", "host"]);
 
     setAuthCookie(res, req.cookies.authkey);
 
@@ -131,42 +152,41 @@ const loadMdPage = async (req: Request, res: Response, mdFileName : string, vers
 	// Check if the request IP is allowed
 	const reqInfo = await isIpAllowed(req);
 	if (reqInfo.banned == true) {
-		logger.info(`loadTosPage - Attempt to access ${req.path} with unauthorized IP:`, getClientIp(req));
+		logger.info(`loadTosPage - Attempt to access ${req.path} with unauthorized IP:`, getClientInfo(req).ip);
 		return res.status(403).send({"status": "error", "message": reqInfo.comments});
 	}
 
     // Check if current module is enabled
-	if (!isModuleEnabled("frontend", app)) {
-        logger.info(`loadTosPage - Attempt to access a non-active module: frontend | IP:`, getClientIp(req));
+	if (!isModuleEnabled("frontend", req.hostname)) {
+        logger.info(`loadTosPage - Attempt to access a non-active module: frontend | IP:`, getClientInfo(req).ip);
 		return res.status(403).send({"status": "error", "message": "Module is not enabled"});
 	}
 
-	logger.info(`loadTosPage - GET /api/${version}/${mdFileName}`, "|", getClientIp(req));
+	logger.info(`loadTosPage - GET /api/${version}/${mdFileName}`, "|", getClientInfo(req).ip);
 
     // Active modules
-    const activeModules = loadconfigActiveModules(app);
+    const activeModules = getModules(req.hostname,true);
     res.locals.activeModules = activeModules;
 
-    res.locals.version = app.get("version");
-    res.locals.serverHost = app.get("config.server")["host"];
+    res.locals.serverHost = getConfig(req.hostname, ["server", "host"]);
     let mdFile : string = "";
     try{
-        mdFile = fs.readFileSync(app.get("config.server")[mdFileName]).toString();
+        mdFile = fs.readFileSync(getConfig(req.hostname, ["server", mdFileName])).toString();
 
         // Standard replacements
-        mdFile = mdFile.replace(/SERVERHOST/g, app.get("config.server")["host"]);
-        mdFile = mdFile.replace(/SERVERCONTACT/g, app.get("config.server")["pubkey"]);
+        mdFile = mdFile.replace(/SERVERHOST/g, getConfig(req.hostname, ["server", "host"]));
+        mdFile = mdFile.replace(/SERVERCONTACT/g, getConfig(req.hostname, ["server", "pubkey"]));
 
         // Legal replacements
-        mdFile = mdFile.replace(/LEGALINFO/g, getLegalText());
-        mdFile = mdFile.replace(/SERVERCOUNTRY/g, app.get("config.server")["legal"]["country"]);
-        mdFile = mdFile.replace(/SERVERJURISDICTION/g, app.get("config.server")["legal"]["jurisdiction"]);
-        mdFile = mdFile.replace(/SERVEREMAIL/g, app.get("config.server")["legal"]["email"]);
+        mdFile = mdFile.replace(/LEGALINFO/g, getLegalText(req.hostname));
+        mdFile = mdFile.replace(/SERVERCOUNTRY/g, getConfig(req.hostname, ["server", "legal", "country"]));
+        mdFile = mdFile.replace(/SERVERJURISDICTION/g, getConfig(req.hostname, ["server", "legal", "jurisdiction"]));
+        mdFile = mdFile.replace(/SERVEREMAIL/g, getConfig(req.hostname, ["server", "legal", "email"]));
 
         mdFile = markdownToHtml(mdFile);
         
     }catch(e){
-        logger.error(`load - Failed to read markdown file: ${mdFileName}`, "|", getClientIp(req));
+        logger.error(`load - Failed to read markdown file: ${mdFileName}`, "|", getClientInfo(req).ip);
         mdFile = `Failed to read markdown file ${mdFileName}`;
     }
 
@@ -183,24 +203,23 @@ const loadLoginPage = async (req: Request, res: Response, version:string): Promi
 	// Check if the request IP is allowed
 	const reqInfo = await isIpAllowed(req);
 	if (reqInfo.banned == true) {
-		logger.info(`loadLoginPage - Attempt to access ${req.path} with unauthorized IP:`, getClientIp(req));
+		logger.info(`loadLoginPage - Attempt to access ${req.path} with unauthorized IP:`, getClientInfo(req).ip);
 		return res.status(403).send({"status": "error", "message": reqInfo.comments});
 	}
 
     // Check if current module is enabled
-	if (!isModuleEnabled("frontend", app)) {
-        logger.info(`loadLoginPage - Attempt to access a non-active module: frontend | IP:`, getClientIp(req));
+	if (!isModuleEnabled("frontend", req.hostname)) {
+        logger.info(`loadLoginPage - Attempt to access a non-active module: frontend | IP:`, getClientInfo(req).ip);
 		return res.status(403).send({"status": "error", "message": "Module is not enabled"});
 	}
 
-	logger.info(`loadLoginPage - GET /api/${version}/login`, "|", getClientIp(req));
+	logger.info(`loadLoginPage - GET /api/${version}/login`, "|", getClientInfo(req).ip);
 
     // Active modules
-    const activeModules = loadconfigActiveModules(app);
+    const activeModules = getModules(req.hostname,true);
     res.locals.activeModules = activeModules; 
 
-    res.locals.version = app.get("version");
-    res.locals.serverHost = app.get("config.server")["host"];
+    res.locals.serverHost = getConfig(req.hostname, ["server", "host"]);
 
     setAuthCookie(res, req.cookies.authkey);
 
@@ -215,26 +234,25 @@ const loadIndexPage = async (req: Request, res: Response, version:string): Promi
 	// Check if the request IP is allowed
 	const reqInfo = await isIpAllowed(req);
 	if (reqInfo.banned == true) {
-		logger.info(`loadIndexPage - Attempt to access ${req.path} with unauthorized IP:`, getClientIp(req));
+		logger.info(`loadIndexPage - Attempt to access ${req.path} with unauthorized IP:`, getClientInfo(req).ip);
 		return res.status(403).send({"status": "error", "message": reqInfo.comments});
 	}
 
     // Check if current module is enabled
-	if (!isModuleEnabled("frontend", app)) {
-        logger.info(`loadIndexPage - Attempt to access a non-active module: frontend | IP:`, getClientIp(req));
+	if (!isModuleEnabled("frontend", req.hostname)) {
+        logger.info(`loadIndexPage - Attempt to access a non-active module: frontend | IP:`, getClientInfo(req).ip);
 		return res.status(403).send({"status": "error", "message": "Module is not enabled"});
 	}
 
-	logger.info(`loadIndexPage - GET /api/${version}/index`, "|", getClientIp(req));
+	logger.info(`loadIndexPage - GET /api/${version}/index`, "|", getClientInfo(req).ip);
 
     // Active modules
-    const activeModules = loadconfigActiveModules(app);
+    const activeModules = getModules(req.hostname,true);
     res.locals.activeModules = activeModules; 
 
-    res.locals.version = app.get("version");
-    res.locals.serverHost = app.get("config.server")["host"];
-    res.locals.serverName = app.get("config.server")["name"];
-    res.locals.serverPubkey = await hextoNpub(app.get("config.server")["pubkey"]);
+    res.locals.serverHost = getConfig(req.hostname, ["server", "host"]);
+    res.locals.serverName = getConfig(req.hostname, ["server", "name"]);
+    res.locals.serverPubkey = await hextoNpub(getConfig(req.hostname, ["server", "pubkey"]));
 
     setAuthCookie(res, req.cookies.authkey);
 
@@ -249,26 +267,24 @@ const loadDocsPage = async (req: Request, res: Response, version: string): Promi
 	// Check if the request IP is allowed
 	const reqInfo = await isIpAllowed(req);
 	if (reqInfo.banned == true) {
-		logger.info(`loadDocsPage - Attempt to access ${req.path} with unauthorized IP:`, getClientIp(req));
+		logger.info(`loadDocsPage - Attempt to access ${req.path} with unauthorized IP:`, getClientInfo(req).ip);
 		return res.status(403).send({"status": "error", "message": reqInfo.comments});
 	}
 
     // Check if current module is enabled
-    if (!isModuleEnabled("frontend", app)) {
-        logger.info(`loadDocsPage - Attempt to access a non-active module: frontend | IP:`, getClientIp(req));
+    if (!isModuleEnabled("frontend", req.hostname)) {
+        logger.info(`loadDocsPage - Attempt to access a non-active module: frontend | IP:`, getClientInfo(req).ip);
         return res.status(403).send({ "status": "error", "message": "Module is not enabled" });
     }
 
-    logger.info(`loadDocsPage - GET /api/${version}/docs`, "|", getClientIp(req));
+    logger.info(`loadDocsPage - GET /api/${version}/docs`, "|", getClientInfo(req).ip);
 
     // Active modules
-    const activeModules = loadconfigActiveModules(app);
+    const activeModules = getModules(req.hostname,true);
     res.locals.activeModules = activeModules; 
 
-    res.locals.version = app.get("version");
-    res.locals.serverHost = app.get("config.server")["host"];
-    res.locals.serverPubkey = await hextoNpub(app.get("config.server")["pubkey"]);
-
+    res.locals.serverHost = getConfig(req.hostname, ["server", "host"]);
+    res.locals.serverPubkey = await hextoNpub(getConfig(req.hostname, ["server", "pubkey"]));
     setAuthCookie(res, req.cookies.authkey);
 
     // Check admin privileges. Only for information, never used for authorization
@@ -283,24 +299,23 @@ const loadGalleryPage = async (req: Request, res: Response, version:string): Pro
 	// Check if the request IP is allowed
 	const reqInfo = await isIpAllowed(req);
 	if (reqInfo.banned == true) {
-		logger.info(`loadGalleryPage - Attempt to access ${req.path} with unauthorized IP:`, getClientIp(req));
+		logger.info(`loadGalleryPage - Attempt to access ${req.path} with unauthorized IP:`, getClientInfo(req).ip);
 		return res.status(403).send({"status": "error", "message": reqInfo.comments});
 	}
 
     // Check if current module is enabled
-	if (!isModuleEnabled("frontend", app)) {
-        logger.info(`loadGalleryPage - Attempt to access a non-active module: frontend | IP:`, getClientIp(req));
+	if (!isModuleEnabled("frontend", req.hostname)) {
+        logger.info(`loadGalleryPage - Attempt to access a non-active module: frontend | IP:`, getClientInfo(req).ip);
 		return res.status(403).send({"status": "error", "message": "Module is not enabled"});
 	}
 
-	logger.info(`loadGalleryPage - GET /api/${version}/gallery`, "|", getClientIp(req));
+	logger.info(`loadGalleryPage - GET /api/${version}/gallery`, "|", getClientInfo(req).ip);
 
     // Active modules
-    const activeModules = loadconfigActiveModules(app);
+    const activeModules = getModules(req.hostname,true);
     res.locals.activeModules = activeModules; 
 
-    res.locals.version = app.get("version");
-    res.locals.serverHost = app.get("config.server")["host"];
+    res.locals.serverHost = getConfig(req.hostname, ["server", "host"]);
 
     setAuthCookie(res, req.cookies.authkey);
 
@@ -315,24 +330,23 @@ const loadDirectoryPage = async (req: Request, res: Response, version:string): P
 	// Check if the request IP is allowed
 	const reqInfo = await isIpAllowed(req);
 	if (reqInfo.banned == true) {
-		logger.info(`loadDirectoryPage - Attempt to access ${req.path} with unauthorized IP:`, getClientIp(req));
+		logger.info(`loadDirectoryPage - Attempt to access ${req.path} with unauthorized IP:`, getClientInfo(req).ip);
 		return res.status(403).send({"status": "error", "message": reqInfo.comments});
 	}
 
     // Check if current module is enabled
-	if (!isModuleEnabled("frontend", app)) {
-        logger.info(`loadDirectoryPage - Attempt to access a non-active module: frontend | IP:`, getClientIp(req));
+	if (!isModuleEnabled("frontend", req.hostname)) {
+        logger.info(`loadDirectoryPage - Attempt to access a non-active module: frontend | IP:`, getClientInfo(req).ip);
 		return res.status(403).send({"status": "error", "message": "Module is not enabled"});
 	}
 
-	logger.info(`loadDirectoryPage - GET /api/${version}/directory`, "|", getClientIp(req));
+	logger.info(`loadDirectoryPage - GET /api/${version}/directory`, "|", getClientInfo(req).ip);
 
     // Active modules
-    const activeModules = loadconfigActiveModules(app);
+    const activeModules = getModules(req.hostname,true);
     res.locals.activeModules = activeModules; 
 
-    res.locals.version = app.get("version");
-    res.locals.serverHost = app.get("config.server")["host"];
+    res.locals.serverHost = getConfig(req.hostname, ["server", "host"]);
 
     setAuthCookie(res, req.cookies.authkey);
 
@@ -347,24 +361,23 @@ const loadRegisterPage = async (req: Request, res: Response, version:string): Pr
 	// Check if the request IP is allowed
 	const reqInfo = await isIpAllowed(req);
 	if (reqInfo.banned == true) {
-		logger.info(`loadRegisterPage - Attempt to access ${req.path} with unauthorized IP:`, getClientIp(req));
+		logger.info(`loadRegisterPage - Attempt to access ${req.path} with unauthorized IP:`, getClientInfo(req).ip);
 		return res.status(403).send({"status": "error", "message": reqInfo.comments});
 	}
 
     // Check if current module is enabled
-	if (!isModuleEnabled("frontend", app)) {
-        logger.info(`loadRegisterPage - Attempt to access a non-active module: frontend | IP:`, getClientIp(req));
+	if (!isModuleEnabled("frontend", req.hostname)) {
+        logger.info(`loadRegisterPage - Attempt to access a non-active module: frontend | IP:`, getClientInfo(req).ip);
 		return res.status(403).send({"status": "error", "message": "Module is not enabled"});
 	}
 
-	logger.info(`loadRegisterPage - GET /api/${version}/register`, "|", getClientIp(req));
+	logger.info(`loadRegisterPage - GET /api/${version}/register`, "|", getClientInfo(req).ip);
 
     // Active modules
-    const activeModules = loadconfigActiveModules(app);
+    const activeModules = getModules(req.hostname,true);
     res.locals.activeModules = activeModules; 
 
-    res.locals.version = app.get("version");
-    res.locals.serverHost = app.get("config.server")["host"];
+    res.locals.serverHost = getConfig(req.hostname, ["server", "host"]);
 
     setAuthCookie(res, req.cookies.authkey);
 
@@ -379,26 +392,25 @@ const loadCdnPage = async (req: Request, res: Response, version:string): Promise
 	// Check if the request IP is allowed
 	const reqInfo = await isIpAllowed(req);
 	if (reqInfo.banned == true) {
-		logger.info(`loadCdnPage - Attempt to access ${req.path} with unauthorized IP:`, getClientIp(req));
+		logger.info(`loadCdnPage - Attempt to access ${req.path} with unauthorized IP:`, getClientInfo(req).ip);
 		return res.status(403).send({"status": "error", "message": reqInfo.comments});
 	}
 
     // Check if current module is enabled
-    if (!isModuleEnabled("frontend", app)) {
-        logger.info(`loadCdnPage - Attempt to access a non-active module: frontend | IP:`, getClientIp(req));
+    if (!isModuleEnabled("frontend", req.hostname)) {
+        logger.info(`loadCdnPage - Attempt to access a non-active module: frontend | IP:`, getClientInfo(req).ip);
         return res.status(403).send({"status": "error", "message": "Module is not enabled"});
     }
 
-    logger.info(`loadCdnPage - GET /api/${version}/cdn`, "|", getClientIp(req));
+    logger.info(`loadCdnPage - GET /api/${version}/cdn`, "|", getClientInfo(req).ip);
 
-    if (await isFirstUse(req,res)){logger.info("First use detected. Showing alert on frontend", "|", )}
+    if (await isAutoLoginEnabled(req,res)){logger.info("First use detected. Showing alert on frontend", "|", )}
 
     // Active modules
-    const activeModules = loadconfigActiveModules(app);
+    const activeModules = getModules(req.hostname,true);
     res.locals.activeModules = activeModules; 
 
-    res.locals.version = app.get("version");
-    res.locals.serverHost = app.get("config.server")["host"];
+    res.locals.serverHost = getConfig(req.hostname, ["server", "host"]);
 
     setAuthCookie(res, req.cookies.authkey);
 
@@ -413,25 +425,24 @@ const loadRelayPage = async (req: Request, res: Response, version:string): Promi
 	// Check if the request IP is allowed
 	const reqInfo = await isIpAllowed(req);
 	if (reqInfo.banned == true) {
-		logger.info(`loadRelayPage - Attempt to access ${req.path} with unauthorized IP:`, getClientIp(req));
+		logger.info(`loadRelayPage - Attempt to access ${req.path} with unauthorized IP:`, getClientInfo(req).ip);
 		return res.status(403).send({"status": "error", "message": reqInfo.comments});
 	}
 
     // Check if current module is enabled
-    if (!isModuleEnabled("frontend", app)) {
-        logger.info(`loadRelayPage - Attempt to access a non-active module: frontend | IP:`, getClientIp(req));
+    if (!isModuleEnabled("frontend", req.hostname)) {
+        logger.info(`loadRelayPage - Attempt to access a non-active module: frontend | IP:`, getClientInfo(req).ip);
         return res.status(403).send({"status": "error", "message": "Module is not enabled"});
     }
 
-    logger.info(`loadRelayPage - GET /api/${version}/relay`, "|", getClientIp(req));
+    logger.info(`loadRelayPage - GET /api/${version}/relay`, "|", getClientInfo(req).ip);
 
     // Active modules
-    const activeModules = loadconfigActiveModules(app);
+    const activeModules = getModules(req.hostname,true);
     res.locals.activeModules = activeModules; 
 
-    res.locals.version = app.get("version");
-    res.locals.serverHost = app.get("config.server")["host"];
-    res.locals.serverPubkey = await hextoNpub(app.get("config.server")["pubkey"]);
+    res.locals.serverHost = getConfig(req.hostname, ["server", "host"]);
+    res.locals.serverPubkey = await hextoNpub(getConfig(req.hostname, ["server", "pubkey"]));
 
     res.locals.lastRelayNotes = await dbMultiSelect(["pubkey","created_at","content"], "events", "kind = ? AND active = ?", ["1", "1"], false,"ORDER BY id DESC LIMIT 15");
 
@@ -448,43 +459,43 @@ const frontendLogin = async (req: Request, res: Response): Promise<Response> => 
 	// Check if the request IP is allowed
 	const reqInfo = await isIpAllowed(req);
 	if (reqInfo.banned == true) {
-		logger.warn(`frontendLogin - Attempt to access ${req.path} with unauthorized IP:`, getClientIp(req));
+		logger.warn(`frontendLogin - Attempt to access ${req.path} with unauthorized IP:`, getClientInfo(req).ip);
 		return res.status(403).send({"status": "error", "message": reqInfo.comments});
 	}
 
     // Check if current module is enabled
-	if (!isModuleEnabled("frontend", app)) {
-        logger.warn(`frontendLogin - Attempt to access a non-active module: frontend | IP:`, getClientIp(req));
+	if (!isModuleEnabled("frontend", req.hostname)) {
+        logger.warn(`frontendLogin - Attempt to access a non-active module: frontend | IP:`, getClientInfo(req).ip);
 		return res.status(403).send({"status": "error", "message": "Module is not enabled"});
 	}
 
-    logger.info(`frontendLogin - POST /api/login`, "|", getClientIp(req));
+    logger.info(`frontendLogin - POST /api/login`, "|", getClientInfo(req).ip);
 
     // Check if secureCookie is true and if the request is not secure
     if (req.session.cookie.secure && !req.secure) {
-        logger.warn("Attempt to access a secure session over HTTP:","|","IP:", getClientIp(req));
+        logger.warn("Attempt to access a secure session over HTTP:","|","IP:", getClientInfo(req).ip);
         return res.status(400).send({"status": "error", "message": "Insecure connection"});
     }
 
     // OTC code request and return.
     if (req.params.param1 && req.params.param1.length <= 64) {
-        const OTC = await generateOTC(req.params.param1);
+        const OTC = await generateOTC(req.hostname, req.params.param1);
         if (OTC == true) {
-            logger.info(`frontendLogin - One-time code generated for ${req.params.param1}`, "|", getClientIp(req));
+            logger.info(`frontendLogin - One-time code generated for ${req.params.param1}`, "|", getClientInfo(req).ip);
             return res.status(200).send({"status": "success", "message": "One-time code generated"});
         } else {
-            logger.warn(`frontendLogin - Failed to generate one-time code for ${req.params.param1}`, "|", getClientIp(req));
+            logger.warn(`frontendLogin - Failed to generate one-time code for ${req.params.param1}`, "|", getClientInfo(req).ip);
             return res.status(401).send({"status": "error", "message": "Failed to generate one-time code"});
         }
     }
 
     if ((req.body.pubkey === "" || req.body.pubkey == undefined) && (req.body.username === '' || req.body.password === '')){
-        logger.warn(`frontendLogin - No credentials used to login. Refusing`, getClientIp(req));
+        logger.warn(`frontendLogin - No credentials used to login. Refusing`, getClientInfo(req).ip);
         return res.status(401).send({"status": "error", "message": "No credentials used to login"});
     }
 
     const rememberMe = req.body.rememberMe || (Array.isArray(req.body.tags) ? req.body.tags.find((tag: string[]) => tag[0] === "cookie")?.[1] : "false");
-    if (rememberMe == "true"){req.session.cookie.maxAge = app.get("config.session")["maxAge"];}
+    if (rememberMe == "true"){req.session.cookie.maxAge = getConfig(req.hostname, ["session", "maxAge"]);}
 
     let canLogin = false;
     let loginMessage = "Invalid credentials";
@@ -507,7 +518,7 @@ const frontendLogin = async (req: Request, res: Response): Promise<Response> => 
         }
     } 
     if (!canLogin) {
-        logger.warn(`frontendLogin - Failed login attempt for ${req.body.pubkey || req.body.username}`, "|", getClientIp(req));
+        logger.warn(`frontendLogin - Failed login attempt for ${req.body.pubkey || req.body.username}`, "|", getClientInfo(req).ip);
         return res.status(401).send({"status": "error", "message": loginMessage});
     }
 
@@ -525,9 +536,92 @@ const frontendLogin = async (req: Request, res: Response): Promise<Response> => 
     // Check admin privileges. Only for information, never used for authorization
     req.session.allowed = await isPubkeyAllowed(req.session.identifier);
 
-    logger.info(`frontendLogin - logged in as ${req.session.identifier} successfully`, "|", getClientIp(req));
+    logger.info(`frontendLogin - logged in as ${req.session.identifier} successfully`, "|", getClientInfo(req).ip);
     return res.status(200).send({"status": "success", "message": "Logged in successfully"});
     
+};
+
+const loadResource = async (req: Request, res: Response): Promise<Response | void> => {
+
+    // Check if the request IP is allowed
+	const reqInfo = await isIpAllowed(req);
+	if (reqInfo.banned == true) {
+		logger.info(`loadResource - Attempt to access ${req.path} with unauthorized IP:`, getClientInfo(req).ip);
+        res.status(404).send();
+        return;
+	}
+
+    // Check if current module is enabled
+	if (!isModuleEnabled("frontend", req.hostname)) {
+        logger.info(`loadResource - Attempt to access a non-active module: frontend | IP:`, getClientInfo(req).ip);
+        res.status(404).send();
+        return;
+	}
+
+    logger.debug(`loadResource - GET /api/resource/${req.params.filename}`, "|", getClientInfo(req).ip);
+    
+    const tenant = getConfig("", ["multiTenancy"]) ? req.query.domain || req.hostname : "" as string;
+    if (typeof tenant !== "string") {
+        logger.error("loadResource - Invalid tenant name:", tenant, "|", getClientInfo(req).ip);
+        res.status(404).send();
+        return;
+    }
+    const resourcePath = await getResource(tenant, req.params.filename);
+    if (resourcePath == null) {
+        logger.error(`loadResource - Resource not found: ${req.params.filename}`, "|", getClientInfo(req).ip);
+        res.status(404).send();
+        return;
+    }
+    res.sendFile(path.resolve(resourcePath));
+    return;
+
+};
+
+const loadTheme = async (req: Request, res: Response): Promise<void> => {
+
+    const reqInfo = await isIpAllowed(req);
+    if (reqInfo.banned || !isModuleEnabled("frontend", req.hostname)) {
+        logger.info(`loadTheme - Attempt to access ${req.path} with unauthorized IP:`, getClientInfo(req).ip);
+        res.status(404).send();
+        return;
+    }
+
+    // Check if current module is enabled
+	if (!isModuleEnabled("frontend", req.hostname)) {
+        logger.info(`loadTheme - Attempt to access a non-active module: frontend | IP:`, getClientInfo(req).ip);
+        res.status(404).send();
+        return;
+	}
+
+    logger.debug(`loadTheme - GET /api/resource/${req.params.filename}`, "|", getClientInfo(req).ip);
+
+    const tenant = getConfig("", ["multiTenancy"]) ? req.hostname : "";
+    const theme = getConfig(tenant, ["appearance", "dynamicbackground"]) || dynamicbackgroundThemes["default"];
+
+    const css = `
+        :root {
+            --primary-color: ${theme.color1};
+            --secondary-color: ${theme.color2};
+            --tertiary-color: ${theme.color3};
+            --primary-color-percent: ${theme.color1Percent};
+            --secondary-color-percent: ${theme.color2Percent};
+            --tertiary-color-percent: ${theme.color3Percent};
+            --gradient-orientation: ${theme.orientation};
+            --particles: ${theme.particles};
+        }
+
+        .background-theme {
+            background-image: -webkit-linear-gradient(var(--gradient-orientation), var(--primary-color) var(--primary-color-percent), var(--secondary-color) var(--secondary-color-percent), var(--tertiary-color) var(--tertiary-color-percent));
+            background-image: linear-gradient(var(--gradient-orientation), var(--primary-color) var(--primary-color-percent), var(--secondary-color) var(--secondary-color-percent), var(--tertiary-color) var(--tertiary-color-percent));
+            background-repeat: no-repeat;
+            background-size: cover;
+            background-attachment: fixed;
+            particles: var(--particles);
+        }
+    `;
+
+    res.setHeader("Content-Type", "text/css");
+    res.send(css);
 };
 
 export {loadDashboardPage, 
@@ -542,4 +636,6 @@ export {loadDashboardPage,
         frontendLogin,
         loadProfilePage,
         loadDirectoryPage,
-        loadRelayPage};
+        loadRelayPage,
+        loadResource,
+        loadTheme};

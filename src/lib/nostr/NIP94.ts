@@ -21,7 +21,6 @@ const PrepareNIP94_event = async (filedata : FileData): Promise<NIP94_event> => 
                         ["size", filedata.processing_url == "" ? filedata.filesize? filedata.filesize.toString() : "" : ""],
                         ["dim",filedata.processing_url == "" ? filedata.width != 0 && filedata.height != 0? filedata.width + "x" + filedata.height : "" : ""],
                         ["magnet", filedata.magnet],
-                        ["i", filedata.torrent_infohash],
                         ["blurhash", filedata.blurhash],
                         ["no_transform", filedata.no_transform.valueOf().toString() ],
                         ["payment_request", filedata.payment_request],

@@ -2,8 +2,10 @@ import WebSocket from "ws";
 import app from "../../app.js";
 import { Event } from "nostr-tools";
 import { logger } from "../logger.js";
+import { ExtendedWebSocket, MetadataEvent } from "../../interfaces/relay.js";
+import { getConfig } from "../config/core.js";
 
-const subscriptions: Map<WebSocket, Map<string, (event: Event) => void>> = new Map();
+const subscriptions: Map<ExtendedWebSocket, Map<string, (event: MetadataEvent) => void>> = new Map();
 
 /**
  * Add a subscription to a client socket
@@ -11,7 +13,7 @@ const subscriptions: Map<WebSocket, Map<string, (event: Event) => void>> = new M
  * @param socket Client socket
  * @param listener Event listener
  */
-const addSubscription = (subId: string, socket: WebSocket, listener: (event: Event) => void) => {
+const addSubscription = (subId: string, socket: ExtendedWebSocket, listener: (event: MetadataEvent) => void) => {
   if (!subscriptions.has(socket)) {
     subscriptions.set(socket, new Map());
   }
@@ -25,7 +27,7 @@ const addSubscription = (subId: string, socket: WebSocket, listener: (event: Eve
     clientSubscriptions.delete(subId);
   }
 
-  const max_subscriptions = app.get("config.relay")["limitation"]["max_subscriptions"];
+  const max_subscriptions = getConfig(socket.reqInfo.domain,["relay","limitation","max_subscriptions"]);
   if (clientSubscriptions.size >= max_subscriptions) {
     logger.debug(`addSubscription - Subscription limit reached: ${max_subscriptions} | IP:`, socket.url);
     socket.send(JSON.stringify(["NOTICE", "error: subscription limit reached"]));
@@ -41,7 +43,7 @@ const addSubscription = (subId: string, socket: WebSocket, listener: (event: Eve
  * @param subId Subscription ID
  * @param socket Client socket
  */
-const removeSubscription = (subId?: string, socket?: WebSocket) => {
+const removeSubscription = (subId?: string, socket?: ExtendedWebSocket) => {
   
   if (!socket || !subscriptions.has(socket))    return;
   const clientSubscriptions = subscriptions.get(socket);
@@ -74,17 +76,26 @@ const removeSubscription = (subId?: string, socket?: WebSocket) => {
  * @param socket Client socket
  * @param closeCode Close code for the socket
  */
-const removeAllSubscriptions = (socket: WebSocket, closeCode = 1000) => {
-  const clientSubscriptions = subscriptions.get(socket);
-  if (clientSubscriptions) {
-    clientSubscriptions.forEach((_, subId) => {
-      socket.send(JSON.stringify(["CLOSED", subId, "Subscription forcibly closed"]));
-      logger.debug(`removeAllSubscriptions - Subscription forcibly closed: ${subId}, IP:`, socket.url);
+const removeAllSubscriptions = (socket: ExtendedWebSocket, closeCode = 1000): void => {
+  const clientSubs = subscriptions.get(socket);
+  if (clientSubs) {
+    clientSubs.forEach((_, subId) => {
+      if (socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify(["CLOSED", subId, "Subscription forcibly closed"]));
+      }
+      logger.debug(`removeAllSubscriptions – sub ${subId} closed, IP: ${socket.reqInfo.ip}`);
     });
     subscriptions.delete(socket);
   }
-  logger.debug(`removeAllSubscriptions - All subscriptions forcibly closed`, {readyState: socket.readyState, url: socket.url});
-  socket.close(closeCode, "All subscriptions removed");
+
+  logger.debug("removeAllSubscriptions – all subs closed", {
+    readyState: socket.readyState,
+    ip        : socket.reqInfo.ip,
+  });
+
+  if (socket.readyState !== WebSocket.CLOSED && socket.readyState !== WebSocket.CLOSING) {
+    socket.close(closeCode, "All subscriptions removed");
+  }
 };
 
 export {subscriptions, addSubscription, removeSubscription, removeAllSubscriptions};

@@ -1,5 +1,5 @@
 
-const allowedTableNames = ["registered", "mediafiles", "lightning", "domains", "banned", "invitations", "ips", "events", "filetypes"];
+const allowedTableNames = ["registered", "mediafiles", "lightning", "domains", "banned", "invitations", "ips", "events", "filetypes", "plugins"];
 const allowedFieldNames = [ "allowed", 
                             "active", 
                             "banned",
@@ -88,6 +88,7 @@ const moduleDataKeys: { [key: string]: string } = {
     "ipsData": "ips",
     "eventsData": "events",
     "filetypesData": "filetypes",
+    "pluginsData": "plugins",
 };
 
 const moduleDataIndex: { [key: string]: string } = {

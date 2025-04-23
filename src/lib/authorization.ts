@@ -12,10 +12,11 @@ import { isBUD01AuthValid } from "./blossom/BUD01.js";
 import { NIPKinds } from "../interfaces/nostr.js";
 import { BUDKinds } from "../interfaces/blossom.js";
 import { isEntityBanned } from "./security/banned.js";
-import { getClientIp } from "./security/ips.js";
+import { getClientInfo } from "./security/ips.js";
 import app from "../app.js";
 import { npubToHex } from "./nostr/NIP19.js";
 import { RedisService } from "./redis.js";
+import { getConfig } from "./config/core.js";
 
 const redisCore = app.get("redisCore") as RedisService
 
@@ -34,20 +35,20 @@ const parseAuthHeader = async (req: Request, endpoint: string = "", checkAdminPr
 
 	// Apikey. Will be deprecated on 0.7.0
 	if ((req.query.apikey || req.body?.apikey?.length > 0) && checkRegistered) {
-		logger.debug(`parseAuthHeader - Apikey found on request: ${req.query.apikey || req.body.apikey}`, "|", getClientIp(req));
+		logger.debug(`parseAuthHeader - Apikey found on request: ${req.query.apikey || req.body.apikey}`, "|", getClientInfo(req).ip);
 		return await isApikeyValid(req, endpoint, checkAdminPrivileges);
 	}
 
 	// Authkey. Cookie bearer token
 	if (req.cookies && req.cookies.authkey && checkRegistered) {
-		logger.debug(`parseAuthHeader - authkey found in cookie: ${req.cookies.authkey}`, "|", getClientIp(req));
+		logger.debug(`parseAuthHeader - authkey found in cookie: ${req.cookies.authkey}`, "|", getClientInfo(req).ip);
         return await isAuthkeyValid(req.cookies.authkey, checkAdminPrivileges); 
     }
 
 	//Check if request has authorization header.
 	if (req.headers.authorization === undefined) {
 		if(endpoint != 'getMediaByURL' && endpoint != 'list' && endpoint != 'getMediaStatusbyID'){
-			logger.warn(`parseAuthHeader - Authorization header not found, endpoint: ${endpoint}, URL: ${req.url}`, "|", getClientIp(req));
+			logger.warn(`parseAuthHeader - Authorization header not found, endpoint: ${endpoint}, URL: ${req.url}`, "|", getClientInfo(req).ip);
 		} 
 		return {status: "error", message: "Authorization header not found", pubkey:"", authkey:"", kind: 0};
 	}
@@ -55,7 +56,7 @@ const parseAuthHeader = async (req: Request, endpoint: string = "", checkAdminPr
 	// NIP98 or BUD01. Nostr / Blossom token
 	if (req.headers.authorization.startsWith('Nostr ')) {
 		let authevent: Event;
-		logger.debug(`parseAuthHeader - NIP98 / BUD01 found on request: ${req.headers.authorization}`, "|", getClientIp(req));
+		logger.debug(`parseAuthHeader - NIP98 / BUD01 found on request: ${req.headers.authorization}`, "|", getClientInfo(req).ip);
 		try {
 			authevent = JSON.parse(
 				Buffer.from(
@@ -74,14 +75,14 @@ const parseAuthHeader = async (req: Request, endpoint: string = "", checkAdminPr
 			}
 
 		} catch (error) {
-			logger.warn(`parseAuthHeader - 400 Bad request - ${error}`, "|", getClientIp(req));
+			logger.warn(`parseAuthHeader - 400 Bad request - ${error}`, "|", getClientInfo(req).ip);
 			return {status: "error", message: "Malformed authorization header", pubkey:"", authkey : "", kind: 0};
 		}
 		
 	}
 	
 	// If none of the above, return error
-	logger.warn(`parseAuthHeader - Authorization header not found`, "|", getClientIp(req));
+	logger.warn(`parseAuthHeader - Authorization header not found`, "|", getClientInfo(req).ip);
 	return {status: "error", message: "Authorization header not found", pubkey:"", authkey:"", kind: 0};
 
 };
@@ -205,7 +206,7 @@ const isAuthkeyValid = async (authString: string, checkAdminPrivileges: boolean 
     }
 
     try {
-        const decoded = jwt.verify(authString, app.get("config.session")["secret"]) as { identifier: string, allowed: boolean, exp: number };
+		const decoded = jwt.verify(authString, getConfig(null, ["session", "secret"])) as { identifier: string, allowed: boolean, exp: number };
 		if ((decoded.exp - Math.floor(Date.now() / 1000)) < 900){
 			authString = generateAuthToken(decoded.identifier, decoded.allowed);
 		} 
@@ -255,7 +256,7 @@ const isAuthkeyValid = async (authString: string, checkAdminPrivileges: boolean 
  * @returns {Promise<string>} The newly generated password, or an empty string if an error occurs or if the database update fails.
  * @throws {Error} If an error occurs during the password generation or the database update or sending the direct message.
  */
-const generatePassword = async (pubkey :string, returnHashed: boolean = false, sendDM : boolean = false, onlyGenerate : boolean = false, checkActive : boolean = true): Promise<string> => {
+const generatePassword = async (tenant: string, pubkey :string, returnHashed: boolean = false, sendDM : boolean = false, onlyGenerate : boolean = false, checkActive : boolean = true): Promise<string> => {
     try {
 
 		if (onlyGenerate) {
@@ -275,7 +276,7 @@ const generatePassword = async (pubkey :string, returnHashed: boolean = false, s
 		if (update){
 			logger.debug(`generatePassword - New password generated and saved to database`);
 			if (pubkey != "" && sendDM){
-				const DM = await sendMessage(`Your new password: ${credential}`, pubkey);
+				const DM = await sendMessage(`Your new password: ${credential}`, pubkey, tenant);
 				if (!DM) return "";			}
 			if (returnHashed) return hashedCredential;
 			return credential;
@@ -293,7 +294,7 @@ const generatePassword = async (pubkey :string, returnHashed: boolean = false, s
 * @param {string} pubkey - The public key to which to send the OTC code.
 * @returns {Promise<string>} The newly generated OTC code, or an empty string if an error occurs or if the database update fails.
 */
-const generateOTC = async (pubkey: string) : Promise<boolean> => {
+const generateOTC = async (tenant: string, pubkey: string) : Promise<boolean> => {
 
 	if (pubkey === undefined || pubkey === "") {return false;}
 	if (pubkey.startsWith("npub")) pubkey = await npubToHex(pubkey);
@@ -303,7 +304,7 @@ const generateOTC = async (pubkey: string) : Promise<boolean> => {
 	const hashedOTC = await hashString(otc, 'otc');
 	
 	await redisCore.set(`otc:${hashedOTC}`, JSON.stringify({ pubkey }), { EX: 300 });
-	const DM = await sendMessage(`Your one-time code: ${otc}`, pubkey);
+	const DM = await sendMessage(`Your one-time code: ${otc}`, pubkey, tenant);
 	if(!DM) return false;
 
     return true;
@@ -339,7 +340,7 @@ const isApikeyValid = async (req: Request, endpoint: string = "", checkAdminPriv
 
 	const apikey = req.query.apikey || req.body.apikey;
 	if (!apikey) {
-		logger.warn(`isApikeyValid - Apikey not found`, "|", getClientIp(req));
+		logger.warn(`isApikeyValid - Apikey not found`, "|", getClientInfo(req).ip);
 		return {status: "error", message: "Apikey not found", pubkey:"", authkey:"", kind: 0};
 	}
 
@@ -355,15 +356,15 @@ const isApikeyValid = async (req: Request, endpoint: string = "", checkAdminPriv
 
 	if (hexApikey === "" || hexApikey === undefined) {
 		if (serverApikey){
-			logger.warn(`isApikeyValid - Apikey not authorized for this action`, "|", getClientIp(req));
+			logger.warn(`isApikeyValid - Apikey not authorized for this action`, "|", getClientInfo(req).ip);
 			return {status: "error", message: "Apikey not authorized for this action", pubkey:"", authkey:"", kind: 0};
 		}
-		logger.warn(`isApikeyValid - Apikey not found`, "|", getClientIp(req));
+		logger.warn(`isApikeyValid - Apikey not found`, "|", getClientInfo(req).ip);
 		return {status: "error", message: "Apikey not authorized for this action", pubkey:"", authkey:"", kind: 0};
 	}
 
 	if (await isPubkeyValid(hexApikey, checkAdminPrivileges) == false){
-		logger.warn("isApikeyValid - Apikey not authorized for this action", "|", getClientIp(req));
+		logger.warn("isApikeyValid - Apikey not authorized for this action", "|", getClientInfo(req).ip);
 		return {status: "error", message: "Apikey not authorized for this action", pubkey:"", authkey:"", kind: 0};
 	}
 
@@ -378,8 +379,9 @@ const isApikeyValid = async (req: Request, endpoint: string = "", checkAdminPriv
 };
 
 const generateAuthToken = (identifier: string, allowed: boolean): string => {
-    const secretKey = app.get("config.session")["secret"];
-    const expiresIn = app.get("config.session")["maxAge"] /1000;
+    const secretKey = getConfig(null, ["session", "secret"]);
+    const expiresIn = getConfig(null, ["session", "maxAge"]) /1000;
+	
 
     return jwt.sign(
         { identifier, allowed }, 

@@ -43,7 +43,6 @@ interface NIP94_data {
             ["size", string],
             ["dim",string],
             ["magnet", string],
-            ["i", string],
             ["blurhash", string],
             ["no_transform", string],
             ["payment_request", string],

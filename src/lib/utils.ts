@@ -5,9 +5,9 @@ import QRCode from 'qrcode';
 import sharp from "sharp";
 import fs from "fs";
 import ffmpeg from "fluent-ffmpeg";
-import app from "../app.js";
 import { randomBytes } from "crypto";
 import MarkdownIt from "markdown-it";
+import { getConfig } from "./config/core.js";
 
 const format = (seconds:number):string =>{
 	function pad(s: number){
@@ -42,7 +42,7 @@ const markdownToHtml = (text:string) : string => {
     }
 }
 
-const generateQRCode = async (text: string, firstText: string, secondText: string, type: 'image' | 'video'): Promise<Buffer> => {
+const generateQRCode = async (text: string, firstText: string, secondText: string, type: 'image' | 'video'): Promise<{ buffer: Buffer; type: 'image/webp' | 'video/mp4' }> => {
     return new Promise(async (resolve, reject) => {
         try {
             const buffer = await QRCode.toBuffer(text, { type: 'png', width: 290, margin: 3 });
@@ -50,15 +50,48 @@ const generateQRCode = async (text: string, firstText: string, secondText: strin
             
             if (type === 'video') {
                 const videoBuffer = await generateVideoFromImage(imageBuffer);
-                resolve(videoBuffer);
+                resolve({ buffer: videoBuffer, type: 'video/mp4' });
             } else {
-                resolve(imageBuffer);
+                resolve({ buffer: imageBuffer, type: 'image/webp' });
             }
         } catch (err) {
             reject(err);
         }
     });
 };
+
+
+const generateVideoFromImage = (imageBuffer: Buffer): Promise<Buffer> => {
+    return new Promise((resolve) => {
+
+		const tempImagePath = getConfig(null, ["storage", "local", "tempPath"]) + `/${randomBytes(32).toString('hex')}.webp`;
+		const tempVideoPath = getConfig(null, ["storage", "local", "tempPath"]) + `/${randomBytes(32).toString('hex')}.mp4`;
+
+        fs.writeFileSync(tempImagePath, imageBuffer);
+
+		ffmpeg(tempImagePath)
+    .loop(1)
+			.outputOptions([
+                '-vf', 'scale=trunc(iw/2)*2:trunc(ih/2)*2', 
+                '-r', '15',                                  
+                '-b:v', '500k',                               
+                '-pix_fmt', 'yuv420p',
+            ])
+    .output(tempVideoPath)
+    .on('end', () => {
+        const videoBuffer = fs.readFileSync(tempVideoPath);
+        fs.unlinkSync(tempImagePath);
+        fs.unlinkSync(tempVideoPath);
+        resolve(videoBuffer);
+    })
+    .on('error', (err) => {
+		logger.error(`generateVideoFromImage - Error generating video from image: ${err}`);
+		resolve(Buffer.from("")); 
+    })
+    .run();
+    });
+};
+
 
 const addTextToImage = async (imageBuffer: Buffer, firstText: string, secondText : string): Promise<Buffer> => {
 
@@ -103,54 +136,31 @@ const addTextToImage = async (imageBuffer: Buffer, firstText: string, secondText
 
 	const firstTextImage = await sharp(Buffer.from(svgFirstText)).resize(sideLength + 130).toBuffer();
 	const secondTextImage = await sharp(Buffer.from(svgSecondText)).resize(sideLength + 130).toBuffer();
-	const logoImage = await sharp(fs.readFileSync('./src/pages/static/resources/navbar-logo-dark.png')).resize(sideLength).toBuffer();
+	
+	try{
+		const logoImage = await sharp(fs.readFileSync('./src/pages/static/resources/appearance-server-logo-dark.default.png')).resize(sideLength).toBuffer();
   
-	return sharp({
-		create: {
-		width: sideLength + 130,
-		height: sideLength + 255,
-		channels: 4,
-		background: '#212529',
-		},
-	})
-		.composite([
-		{ input: logoImage, top: 20, left: 65 },
-		{ input: imageBuffer, top: 140, left: 65 },
-		{ input: firstTextImage, top: sideLength + 140, left: 0 },
-		{ input: secondTextImage, top: sideLength + 190, left: 0 },
-		])
-		.webp()
-		.toBuffer();
-};
-
-const generateVideoFromImage = (imageBuffer: Buffer): Promise<Buffer> => {
-    return new Promise((resolve) => {
-        const tempImagePath = app.get("config.storage")["local"]["tempPath"] + `/${randomBytes(32).toString('hex')}.webp`;
-        const tempVideoPath = app.get("config.storage")["local"]["tempPath"] + `/${randomBytes(32).toString('hex')}.mp4`;
-
-        fs.writeFileSync(tempImagePath, imageBuffer);
-
-		ffmpeg(tempImagePath)
-    .loop(1)
-			.outputOptions([
-                '-vf', 'scale=trunc(iw/2)*2:trunc(ih/2)*2', 
-                '-r', '15',                                  
-                '-b:v', '500k',                               
-                '-pix_fmt', 'yuv420p',
-            ])
-    .output(tempVideoPath)
-    .on('end', () => {
-        const videoBuffer = fs.readFileSync(tempVideoPath);
-        fs.unlinkSync(tempImagePath);
-        fs.unlinkSync(tempVideoPath);
-        resolve(videoBuffer);
-    })
-    .on('error', (err) => {
-		logger.error(`generateVideoFromImage - Error generating video from image: ${err}`);
-		resolve(Buffer.from("")); 
-    })
-    .run();
-    });
+		return sharp({
+			create: {
+			width: sideLength + 130,
+			height: sideLength + 255,
+			channels: 4,
+			background: '#212529',
+			},
+		})
+			.composite([
+			{ input: logoImage, top: 20, left: 65 },
+			{ input: imageBuffer, top: 140, left: 65 },
+			{ input: firstTextImage, top: sideLength + 140, left: 0 },
+			{ input: secondTextImage, top: sideLength + 190, left: 0 },
+			])
+			.webp()
+			.toBuffer();
+	}catch(err){
+		logger.error(`generateQRCode - Error generating QR code: ${err}`);
+		return Buffer.from("");
+	}
+	
 };
 
 const getNewDate = (): string =>{
@@ -189,10 +199,10 @@ function getCPUUsage(): Promise<number> {
  * Get host information
  * @returns { hostname: string, port: string, url: string, mediaURL: string }
  */
-const getHostInfo = (): { hostname: string, port: string, url: string} => {
-	const environment = app.get("config.environment");
-	const port = app.get("config.server")["port"];
-	const hostname = app.get("config.server")["host"];
+const getHostInfo = (domain: string): { hostname: string, port: string, url: string} => {
+	const environment = getConfig(null, ["environment"]);
+	const port = getConfig(null, ["server", "port"]);
+	const hostname = getConfig(domain, ["server", "host"]);
 	const url = environment === "development" ? `http://localhost:${port}` : `https://${hostname}`;
 	return {hostname, port, url};
 };
@@ -236,6 +246,78 @@ const parseBoolean = (value: any): boolean => {
 	return false;
 };
 
+const serverBanner = () : string => {
+
+	const banner : string[] = [];
+
+	banner.push("");
+	banner.push("");
+
+	banner.push(
+	"███╗   ██╗ ██████╗ ███████╗████████╗██████╗  ██████╗██╗  ██╗███████╗ ██████╗██╗  ██╗"
+	);
+	banner.push(
+		"████╗  ██║██╔═══██╗██╔════╝╚══██╔══╝██╔══██╗██╔════╝██║  ██║██╔════╝██╔════╝██║ ██╔╝" 
+	);
+	banner.push(
+		"██╔██╗ ██║██║   ██║███████╗   ██║   ██████╔╝██║     ███████║█████╗  ██║     █████╔╝" 
+	);
+	banner.push(
+		"██║╚██╗██║██║   ██║╚════██║   ██║   ██╔══██╗██║     ██╔══██║██╔══╝  ██║     ██╔═██╗"  
+	);
+	banner.push(
+		"██║ ╚████║╚██████╔╝███████║   ██║   ██║  ██║╚██████╗██║  ██║███████╗╚██████╗██║  ██╗"
+	);
+	banner.push(
+		"╚═╝  ╚═══╝ ╚═════╝ ╚══════╝   ╚═╝   ╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝╚══════╝ ╚═════╝╚═╝  ╚═╝"
+	);
+	banner.push("");
+	banner.push(
+		"███████╗███████╗██████╗ ██╗   ██╗███████╗██████╗ "
+	);
+	banner.push(
+		"██╔════╝██╔════╝██╔══██╗██║   ██║██╔════╝██╔══██╗"
+	);
+	banner.push(
+		"███████╗█████╗  ██████╔╝██║   ██║█████╗  ██████╔╝"
+	);
+	banner.push(
+		"╚════██║██╔══╝  ██╔══██╗╚██╗ ██╔╝██╔══╝  ██╔══██╗"
+	);
+	banner.push(
+		"███████║███████╗██║  ██║ ╚████╔╝ ███████╗██║  ██║"
+	);
+	banner.push(
+		"╚══════╝╚══════╝╚═╝  ╚═╝  ╚═══╝  ╚══════╝╚═╝  ╚═╝"
+	);
+	banner.push(`Nostrcheck server started, version ${getConfig(null, ["version"])}.`);
+	banner.push(`Running at http://localhost:${getConfig(null, ["server", "port"])} in ${getConfig(null, ["environment"])} mode.`);
+	banner.push(`Documentation: https://github.com/quentintaranpino/nostrcheck-server/blob/main/DOCS.md`)
+	banner.push("");
+	banner.push("Press CTRL-C to stop the server");
+	banner.push("");
+
+	return banner.join('\r\n').toString();
+}
+
+const execWithTimeout = <T>(promise: Promise<T>, timeoutMs: number): Promise<T> => {
+    return new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => {
+            reject(new Error(`Timeout after ${timeoutMs}ms`));
+        }, timeoutMs);
+
+        promise
+            .then((result) => {
+                clearTimeout(timeout);
+                resolve(result);
+            })
+            .catch((err) => {
+                clearTimeout(timeout);
+                reject(err);
+            });
+    });
+}
+
 export { format, 
 	    currDir, 
 		markdownToHtml, 
@@ -245,4 +327,7 @@ export { format,
 		getCPUUsage, 
 		getHostInfo, 
 		safeJSONParse,
-		parseBoolean};
+		parseBoolean,
+		serverBanner,
+		execWithTimeout,
+		generateVideoFromImage};

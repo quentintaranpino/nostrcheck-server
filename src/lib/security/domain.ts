@@ -2,6 +2,7 @@ import { dbMultiSelect } from "../database.js";
 import { logger } from "../logger.js";
 import app from "../../app.js";
 import { RedisService } from "../redis.js";
+import { getConfig } from "../config/core.js";
 
 const redisCore = app.get("redisCore") as RedisService;
 
@@ -15,14 +16,14 @@ const loadAllDomains = async (): Promise<void> => {
     for (const domain of domains) {
         await redisCore.set(`domains:${domain.domain}`, domain.id.toString());
     }
-    await redisCore.set("domains:cache", "1", { EX: app.get("config.redis")["expireTime"] });
+    await redisCore.set("domains:cache", "1", { EX: getConfig(null, ["redis", "expireTime"]) });
     logger.debug(`loadAllDomains - Loaded ${domains.length} domains into cache`);
   } catch (error) {
     logger.error("loadAllDomains - Error loading domains into Redis", error);
   }
 };
 
-const getDomainId = async (domain: string): Promise<string | null> => {
+const getDomainId = async (domain: string): Promise<number | null> => {
   if (!domain) return null;
   const hostname = domain.split(':')[0];
 
@@ -31,14 +32,13 @@ const getDomainId = async (domain: string): Promise<string | null> => {
     return await getDomainId(hostname);
   }
 
-  const parts = hostname.split('.');
-  const mainDomain = parts.length >= 2 
-    ? `${parts[parts.length - 2]}.${parts[parts.length - 1]}` 
-    : hostname;
+  const isLocal = /^[\d.]+$/.test(hostname) || hostname === 'localhost';
+  const mainDomain = isLocal
+    ? hostname
+    : (hostname.split('.').slice(-2).join('.'));
 
   const cachedId = await redisCore.get(`domains:${mainDomain}`);
-  return cachedId ? cachedId : null;
-  
+  return cachedId ? Number(cachedId) : null;
 };
   
 export { getDomainId };

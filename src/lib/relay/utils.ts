@@ -11,7 +11,7 @@ import crypto from "crypto";
  * @param e Event to compress
  * @returns Compressed event or original if compression is not beneficial
  */
-const compressEvent = async (e: Event): Promise<Event> => {
+const compressEvent = async (e: MetadataEvent): Promise<MetadataEvent> => {
     try {
         if (!e.content) return e;
         const compressed = LZString.compressToBase64(e.content);
@@ -27,7 +27,7 @@ const compressEvent = async (e: Event): Promise<Event> => {
  * @param e Event to decompress
  * @returns Decompressed event
  */
-const decompressEvent = async (e: Event): Promise<Event> => {
+const decompressEvent = async (e: MetadataEvent): Promise<MetadataEvent> => {
     try {
         if (!e.content || !e.content.startsWith('lz:')) return e;
         const decompressed = LZString.decompressFromBase64(e.content.substring(3)) ?? e.content;
@@ -85,7 +85,7 @@ const validateFilter = (filter: unknown): boolean => {
   }
 };
 
-const parseEventMetadata = async (event: Event): Promise<[string, string, string, number, (string | null), string][]> => {
+const parseEventMetadata = async (event: MetadataEvent): Promise<[string, string, string, number, (string | null), string][]> => {
   const metadata: [string, string, string, number, (string | null), string][] = [];
   let position = 0;
   const now = Math.floor(Date.now() / 1000);
@@ -102,8 +102,8 @@ const parseEventMetadata = async (event: Event): Promise<[string, string, string
   return metadata;
 };
 
-const fillEventMetadata = async (event: Event): Promise<MetadataEvent> => {
-  const metaRows = await parseEventMetadata(event); // Devuelve: [event_id, metadata_type, metadata_value, position, extra_data, created_at][]
+const fillEventMetadata = async (event: MetadataEvent): Promise<MetadataEvent> => {
+  const metaRows = await parseEventMetadata(event); 
   const metaObj: { [key: string]: string | string[] } = {};
 
   metaRows.forEach(row => {
@@ -172,23 +172,23 @@ const parseSearchTokens = (search: string): { plainSearch: string, specialTokens
  * 8. tagsSize      : 4 bytes
  * 9. tags          : tagsSize bytes (variable, JSON)
  * 10. content      : contentSize bytes (variable, UTF-8)
- * 11. metadataSize : 4 bytes
- * 12. metadata     : metadataSize bytes (variable, JSON)
+ * 11. tenantCode   : 1 byte  (0–255 numeric code)
+ * 12. metadataSize : 4 bytes
+ * 13. metadata     : metadataSize bytes (variable, JSON)
  *
  * If the content starts with "lz:", it will be decompressed.
  */
 const hexTable = Array.from({ length: 256 }, (_, i) => i.toString(16).padStart(2, '0'));
 const textDecoder = new TextDecoder();
 
-const decodeEvent = async (sharedDB: SharedArrayBuffer, view: DataView, offset: number): Promise<{ event: MetadataEvent; newOffset: number }> => {
-
+const decodeEvent = async (
+  sharedDB: SharedArrayBuffer,
+  view: DataView,
+  offset: number
+): Promise<{ event: MetadataEvent; newOffset: number }> => {
   const { header, offset: offsetAfterHeader } = decodeEventHeaders(sharedDB, view, offset);
   offset = offsetAfterHeader;
-  const created_at = header.created_at;
-  const id = header.id;
-  const kind = header.kind;
-  const pubkey = header.pubkey;
-  const sig = header.sig;
+  const { created_at, id, kind, pubkey, sig, contentSize } = header;
 
   // 8. tagsSize (4 bytes)
   const tagsSize = view.getUint32(offset, true);
@@ -205,15 +205,20 @@ const decodeEvent = async (sharedDB: SharedArrayBuffer, view: DataView, offset: 
   offset += tagsSize;
 
   // 10. content (variable)
-  const contentBytes = new Uint8Array(sharedDB, offset, header.contentSize);
+  const contentBytes = new Uint8Array(sharedDB, offset, contentSize);
   let content = textDecoder.decode(contentBytes);
-  offset += header.contentSize;
+  offset += contentSize;
 
-  // 11. metadataSize (4 bytes)
+  // 11. tenantCode (1 byte)
+  const codeNum = view.getUint8(offset);
+  offset += 1;
+  const tenantid = Number(codeNum) || 0;
+
+  // 12. metadataSize (4 bytes)
   const metadataSize = view.getUint32(offset, true);
   offset += 4;
 
-  // 12. metadata (variable)
+  // 13. metadata (variable)
   let metadata: any = {};
   if (metadataSize > 0) {
     const metadataBytes = new Uint8Array(sharedDB, offset, metadataSize);
@@ -225,8 +230,9 @@ const decodeEvent = async (sharedDB: SharedArrayBuffer, view: DataView, offset: 
     offset += metadataSize;
   }
 
-  let event: MetadataEvent = { created_at, id, kind, pubkey, sig, tags, content, metadata };
-  if (content.startsWith("lz:")) {
+  let event: MetadataEvent = { created_at, id, kind, pubkey, sig, tags, content, metadata, tenantid };
+
+  if (content.startsWith('lz:')) {
     event = await decompressEvent(event);
   }
 
@@ -278,9 +284,9 @@ const decodeEventHeaders = (sharedDB: SharedArrayBuffer, view: DataView, offset:
   return { header: { created_at, kind, pubkey, id, sig, contentSize }, offset };
 };
 
-
 /**
  * Encodes a single event into the SharedArrayBuffer starting at the given offset.
+ * Uses a 1-byte tenant code instead of variable-length encoding for performance.
  * Returns the new offset after writing the event.
  *
  * Event layout:
@@ -294,13 +300,19 @@ const decodeEventHeaders = (sharedDB: SharedArrayBuffer, view: DataView, offset:
  * 8. tagsSize      : 4 bytes
  * 9. tags          : tagsSize bytes (variable, JSON)
  * 10. content      : contentSize bytes (variable, UTF-8)
- * 11. metadataSize : 4 bytes
- * 12. metadata     : metadataSize bytes (variable, JSON)
+ * 11. tenantid     : 1 byte  (0–255 mapped from domain)
+ * 12. metadataSize : 4 bytes
+ * 13. metadata     : metadataSize bytes (variable, JSON)
  *
- * Note: It is assumed that the buffer has enough space.
+ * Note: Assumes buffer has sufficient space and tenant code fits in one byte.
  */
-const encodeEvent = async (event: MetadataEvent, view: DataView, buffer: SharedArrayBuffer, offset: number, index: number): Promise<number> => {
-
+export const encodeEvent = async (
+  event: MetadataEvent,
+  view: DataView,
+  buffer: SharedArrayBuffer,
+  offset: number,
+  index: number
+): Promise<number> => {
   // Encode content and tags as UTF-8/JSON.
   const encodedContent = new TextEncoder().encode(event.content);
   const contentSize = encodedContent.length;
@@ -313,65 +325,68 @@ const encodeEvent = async (event: MetadataEvent, view: DataView, buffer: SharedA
     : new Uint8Array(0);
   const metadataSize = encodedMetadata.length;
 
-  // 1. Write created_at (4 bytes)
+  // 1. created_at (4 bytes)
   view.setInt32(offset, event.created_at, true);
   offset += 4;
 
-  // 2. Write index (4 bytes)
+  // 2. index (4 bytes)
   view.setUint32(offset, index, true);
   offset += 4;
 
-  // 3. Write contentSize (4 bytes)
+  // 3. contentSize (4 bytes)
   view.setUint32(offset, contentSize, true);
   offset += 4;
 
-  // 4. Write kind (4 bytes)
+  // 4. kind (4 bytes)
   view.setInt32(offset, event.kind, true);
   offset += 4;
 
-  // 5. Write pubkey (32 bytes)
+  // 5. pubkey (32 bytes)
   const pubkeyBytes = Buffer.from(event.pubkey, "hex");
-  
-  // 6. Write sig (64 bytes)
-  const sigBytes = Buffer.from(event.sig, "hex");
-
-  // 7. Write id (32 bytes)
-  const idBytes = Buffer.from(event.id, "hex");
-
-  if (pubkeyBytes.length !== 32 || sigBytes.length !== 64 || idBytes.length !== 32) {
-    console.error(`encodeEvent - Invalid pubkey, sig or id length for event ${event.id}`);
-    return offset;
-  }
-
   new Uint8Array(buffer, offset, 32).set(pubkeyBytes);
   offset += 32;
+
+  // 6. sig (64 bytes)
+  const sigBytes = Buffer.from(event.sig, "hex");
   new Uint8Array(buffer, offset, 64).set(sigBytes);
   offset += 64;
+
+  // 7. id (32 bytes)
+  const idBytes = Buffer.from(event.id, "hex");
   new Uint8Array(buffer, offset, 32).set(idBytes);
   offset += 32;
 
-  // 8. Write tagsSize (4 bytes)
+  // 8. tagsSize (4 bytes)
   view.setUint32(offset, tagsSize, true);
   offset += 4;
 
-  // 9. Write tags (variable)
+  // 9. tags (variable length)
   new Uint8Array(buffer, offset, tagsSize).set(encodedTags);
   offset += tagsSize;
 
-  // 10. Write content (variable)
+  // 10. content (variable length)
   new Uint8Array(buffer, offset, contentSize).set(encodedContent);
   offset += contentSize;
 
-  // 11. Write metadataSize (4 bytes)
+  // 11. tenantid (1 byte)
+  let codeNum = Number(event.tenantid);
+  if (isNaN(codeNum) || codeNum < 0 || codeNum > 255) {
+    codeNum = 0;
+  }
+  view.setUint8(offset, codeNum);
+  offset += 1;
+
+  // 12. metadataSize (4 bytes)
   view.setUint32(offset, metadataSize, true);
   offset += 4;
 
-  // 12. Write metadata (variable)
+  // 13. metadata (variable length)
   new Uint8Array(buffer, offset, metadataSize).set(encodedMetadata);
   offset += metadataSize;
 
   return offset;
 };
+
 
 /**
  * Binary search for the index of the first element in indexMap that is less than the target.
@@ -428,8 +443,6 @@ const binarySearchCreatedAt = (arr: Event[], target: number): number => {
   }
   return low;
 }
-
-
 
 const expandBuffer = (oldBuffer: SharedArrayBuffer, newSize: number): SharedArrayBuffer => {
   const newBuffer = new SharedArrayBuffer(newSize);
@@ -585,7 +598,7 @@ const updateChunk = async (
  * @param id - The ID of the event to retrieve.
  * @returns A Promise that resolves to the Event object, or null if not found.
  */
-const getEventById = async (id: string, eventStore : RelayEvents): Promise<Event | null> => {
+const getEventById = async (id: string, eventStore : RelayEvents): Promise<MetadataEvent | null> => {
   const indexEntry = eventStore.eventIndex.get(id);
   if (!indexEntry) return null;
   
@@ -617,7 +630,7 @@ const getEventById = async (id: string, eventStore : RelayEvents): Promise<Event
  * @param filter - An optional filter function to apply to each event.
  * @returns A Promise that resolves to an array of Event objects.
  */
-const getEventsByTimerange = async (startTime: number, endTime: number, eventStore: RelayEvents, filter?: (entry: EventIndex) => boolean): Promise<Event[]> => {
+const getEventsByTimerange = async (startTime: number, endTime: number, eventStore: RelayEvents, filter?: (entry: EventIndex) => boolean): Promise<MetadataEvent[]> => {
   const matchingEntries: [string, EventIndex][] = Array.from(eventStore.eventIndex.entries())
     .filter(([_, entry]) => 
       entry.created_at >= startTime && 
@@ -639,7 +652,7 @@ const getEventsByTimerange = async (startTime: number, endTime: number, eventSto
     });
   }
   
-  const results: Event[] = [];
+  const results: MetadataEvent[] = [];
   
   await Promise.all(Array.from(entriesByChunk.entries()).map(async ([chunkIndex, entries]) => {
     const chunk = eventStore.sharedDBChunks[chunkIndex];

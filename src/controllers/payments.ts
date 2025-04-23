@@ -5,14 +5,13 @@ import app from "../app.js";
 import { logger } from "../lib/logger.js";
 import { ResultMessagev2 } from "../interfaces/server.js";
 import { parseAuthHeader} from "../lib/authorization.js";
-import { isModuleEnabled} from "../lib/config.js";
-import { payInvoiceFromExpenses, addBalance, getBalance, formatAccountNumber, getInvoice, calculateSatoshi, collectInvoice } from "../lib/payments/core.js";
+import { payInvoiceFromExpenses, addBalance, getBalance, formatAccountNumber, getInvoice, collectInvoice } from "../lib/payments/core.js";
 import { dbMultiSelect } from "../lib/database.js";
 import { isInvoicePaid } from "../lib/payments/core.js";
-import { amountReturnMessage, invoiceReturnMessage } from "../interfaces/payments.js";
-import { getDomainInfo } from "../lib/domains.js";
+import { invoiceReturnMessage } from "../interfaces/payments.js";
 import { setAuthCookie } from "../lib/frontend.js";
 import { isIpAllowed } from "../lib/security/ips.js";
+import { isModuleEnabled } from "../lib/config/core.js";
 
 /**
  * Pays an item from the expenses account.
@@ -31,7 +30,7 @@ const payTransaction = async (req: Request, res: Response): Promise<Response> =>
 	}
 
     // Check if current module is enabled
-    if (!isModuleEnabled("admin", app)) {
+    if (!isModuleEnabled("payments", req.hostname)) {
         logger.info(`payTransaction - Attempt to access a non-active module: admin | IP:`, reqInfo.ip);
         return res.status(403).send({"status": "error", "message": "Module is not enabled"});
     }
@@ -54,7 +53,7 @@ const payTransaction = async (req: Request, res: Response): Promise<Response> =>
         return res.status(400).send(result);
     }
 
-    const payTransaction = await payInvoiceFromExpenses(req.body.transactionid)
+    const payTransaction = await payInvoiceFromExpenses(req.hostname, req.body.transactionid)
     if (payTransaction) {
         const result : ResultMessagev2 = {
             status: "success",
@@ -77,7 +76,7 @@ const addBalanceUser = async (req: Request, res: Response): Promise<Response> =>
 	}
 
     // Check if current module is enabled
-    if (!isModuleEnabled("admin", app)) {
+    if (!isModuleEnabled("payments", req.hostname)) {
         logger.info(`addBalanceUser - Attempt to access a non-active module: admin | IP:`, reqInfo.ip);
         return res.status(403).send({"status": "error", "message": "Module is not enabled"});
     }
@@ -101,9 +100,9 @@ const addBalanceUser = async (req: Request, res: Response): Promise<Response> =>
     }
 
     const accountid = formatAccountNumber(req.body.id)
-    const balance = await addBalance(accountid, req.body.amount)
+    const balance = await addBalance(req.hostname, accountid, req.body.amount)
     if (balance) {
-        const userBalance = await getBalance(accountid);
+        const userBalance = await getBalance(req.hostname, accountid);
 
         const result : ResultMessagev2 = {
             status: "success",
@@ -126,7 +125,7 @@ const getInvoiceStatus = async (req: Request, res: Response): Promise<Response> 
 	}
 
     // Check if current module is enabled
-    if (!isModuleEnabled("admin", app)) {
+    if (!isModuleEnabled("payments", req.hostname)) {
         logger.info(`getInvoiceStatus - Attempt to access a non-active module: admin | IP:`, reqInfo.ip);
         return res.status(403).send({"status": "error", "message": "Module is not enabled"});
     }
@@ -154,13 +153,13 @@ const getInvoiceStatus = async (req: Request, res: Response): Promise<Response> 
         return res.status(404).send(result);
     }
 
-    const invoice = await getInvoice(payment_hash[0].paymenthash);
+    const invoice = await getInvoice(req.hostname, payment_hash[0].paymenthash);
     if (invoice.isPaid == false) {
-        const paidInfo = await isInvoicePaid(invoice.paymentHash);
+        const paidInfo = await isInvoicePaid(req.hostname, invoice.paymentHash);
         if (paidInfo.paiddate != "" && paidInfo.paiddate != undefined && paidInfo.preimage != "" && paidInfo.preimage != undefined) {
             invoice.paidDate = paidInfo.paiddate;
             invoice.preimage = paidInfo.preimage;
-            await collectInvoice(invoice, false, true);
+            await collectInvoice(req.hostname, invoice, false, true);
         }
     }
 
@@ -175,50 +174,6 @@ const getInvoiceStatus = async (req: Request, res: Response): Promise<Response> 
     return res.status(200).send(result);
 }
 
-const calculateObjectAmount = async (req: Request, res: Response): Promise<Response> => {
-
-    // Check if the request IP is allowed
-	const reqInfo = await isIpAllowed(req);
-	if (reqInfo.banned == true) {
-		logger.info(`calculateObjectAmount - Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
-		return res.status(403).send({"status": "error", "message": reqInfo.comments});
-	}
-
-    // Check if current module is enabled
-    if (!isModuleEnabled("admin", app)) {
-        logger.info(`calculateObjectAmount - Attempt to access a non-active module: admin | IP:`, reqInfo.ip);
-        return res.status(403).send({"status": "error", "message": "Module is not enabled"});
-    }
-
-    logger.info(`calculateObjectAmount - Request from:`, req.hostname, "|", reqInfo.ip);
-    res.setHeader('Content-Type', 'application/json');
-
-    // Check if the request has the required parameters
-    if (req.body.size === undefined || req.body.size === null) {
-        const result : ResultMessagev2 = {
-            status: "error",
-            message: "Invalid parameters"
-            };
-        logger.error(`calculateObjectAmount - Invalid parameters | ${reqInfo.ip}`);
-        return res.status(400).send(result);
-    }
-
-    const size = req.body.size;
-    const domain = req.body.domain || "";
-    const domainInfo = await getDomainInfo(domain)
-
-    const satoshi = await calculateSatoshi(domain != "" ? 'registered': 'mediafiles', size, domainInfo != "" ? domainInfo.maxsatoshi : app.get("config.payments")["satoshi"]["mediaMaxSatoshi"]);
-
-    const result : amountReturnMessage = {
-        status: "success",
-        message: "Calculated satoshi successfully",
-        amount: satoshi
-        };
-    logger.info(`calculateObjectAmount - Calculated satoshi successfully: ${satoshi}, size: ${size}, domain: ${domain} | ${reqInfo.ip}`);
-    return res.status(200).send(result);
-    
-}
-
 const getBalanceUser = async (req: Request, res: Response): Promise<Response> => {
 
     // Check if the request IP is allowed
@@ -229,7 +184,7 @@ const getBalanceUser = async (req: Request, res: Response): Promise<Response> =>
 	}
 
     // Check if current module is enabled
-    if (!isModuleEnabled("admin", app)) {
+    if (!isModuleEnabled("payments", req.hostname)) {
         logger.info(`getBalanceUser - Attempt to access a non-active module: admin | IP:`, reqInfo.ip);
         return res.status(403).send({"status": "error", "message": "Module is not enabled"});
     }
@@ -256,7 +211,7 @@ const getBalanceUser = async (req: Request, res: Response): Promise<Response> =>
     let balance = 0;
 
     for (const e of id) {
-        balance += await getBalance(formatAccountNumber(e.id));
+        balance += await getBalance(req.hostname, formatAccountNumber(e.id));
     }
 
     const result : ResultMessagev2 = {
@@ -273,5 +228,4 @@ export {
     addBalanceUser,
     getBalanceUser,
     getInvoiceStatus,
-    calculateObjectAmount
 }

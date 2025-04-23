@@ -2,10 +2,10 @@ import { dbDelete, dbInsert, dbMultiSelect, dbUpdate, dbUpsert } from "./databas
 import { generatePassword } from "./authorization.js";
 import { hashString } from "./hash.js";
 import { hextoNpub, npubToHex, validatePubkey } from "./nostr/NIP19.js";
-import { getDomainInfo } from "./domains.js";
 import { validateInviteCode } from "./invitations.js";
 import { getNewDate } from "./utils.js";
 import { logger } from "./logger.js";
+import { getConfig } from "./config/core.js";
 
 /**
  * 
@@ -62,17 +62,15 @@ const addNewUsername = async (username: string, pubkey: string, password:string,
     let regeneratePassword = false;
     if (password == "" || password == undefined) {
         regeneratePassword = true;
-		password = await generatePassword(pubkey, false, false, true, false);
+		password = await generatePassword(domain, pubkey, false, false, true, false);
 	}
 
     if (await isUsernameAvailable(username, domain) == false) {return 0}
     if (await isPubkeyOnDomainAvailable(pubkey, domain) == false) {return 0}
 
-    const domainInfo = await getDomainInfo(domain);
-    if (domainInfo == "") {return 0}
-    if (domainInfo.requireinvite == true && checkInvite && inviteCode == "") {return 0}
+    if (getConfig(domain, ["register", "requireinvite"]) == true && checkInvite && inviteCode == "") {return 0}
 
-    if (domainInfo.requireinvite == true && checkInvite &&  await validateInviteCode(inviteCode) == false) {return 0}
+    if (getConfig(domain, ["register", "requireinvite"]) == true && checkInvite &&  await validateInviteCode(inviteCode) == false) {return 0}
 
     const createUsername = await dbUpsert("registered", {
         pubkey: await hextoNpub(pubkey),
@@ -89,7 +87,7 @@ const addNewUsername = async (username: string, pubkey: string, password:string,
                                     
     if (createUsername == 0) {return 0}
 
-    if (domainInfo.requireinvite == true && checkInvite ) {
+    if (getConfig(domain, ["register", "requireinvite"]) == true && checkInvite ) {
         const updateInviteeid = await dbUpdate("invitations", {"inviteeid":createUsername}, ["code"], [inviteCode]);
         if (updateInviteeid == false) {return 0}
 
@@ -100,7 +98,7 @@ const addNewUsername = async (username: string, pubkey: string, password:string,
     
     if (regeneratePassword) {
         // Generate definitive password for the user and send it to the user via nostr DM.
-        const newPassword = await generatePassword(pubkey, true, sendDM, false, false);
+        const newPassword = await generatePassword(domain, pubkey, true, sendDM, false, false);
         if (!newPassword) {return 0}
     }
 
@@ -108,7 +106,6 @@ const addNewUsername = async (username: string, pubkey: string, password:string,
 
     return createUsername;
 }
-
 
 /**
  * 

@@ -912,14 +912,6 @@ http://localhost:3000/api/v2/media/7
 				"1096x620"
 			],
 			[
-				"magnet",
-				"magnet:?xt=urn:btih:721e3cb561a006228cc6a4b7f8d8a48e1c81bdab&dn=61b08dd1809b459e16d917bfae87c7b11acf0f4f2061334a567b3976de73c388.webp&tr=udp%3A%2F%2Ftracker.leechers-paradise.org%3A6969&tr=udp%3A%2F%2Ftracker.coppersurfer.tk%3A6969&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337&tr=udp%3A%2F%2Fexplodie.org%3A6969&tr=udp%3A%2F%2Ftracker.empire-js.us%3A1337&tr=wss%3A%2F%2Ftracker.btorrent.xyz&tr=wss%3A%2F%2Ftracker.openwebtorrent.com&tr=wss%3A%2F%2Ftracker.webtorrent.dev"
-			],
-			[
-				"i",
-				""
-			],
-			[
 				"blurhash",
 				""
 			]

@@ -27,6 +27,8 @@ const necessaryKeys = [
 const defaultConfig = {
 
 	"environment" : "development",
+	"multiTenancy": false,
+	"autoLogin" : true,
 	"server": {
 		"host": "localhost",
 		"port": 3000,
@@ -150,8 +152,6 @@ const defaultConfig = {
 	},
 	"media" : {
 		"maxMBfilesize": 100,
-		"notFoundFilePath" : "resources/file-not-found.webp",
-		"bannedFilePath" : "resources/content-banned.webp",
 		"allowPublicUploads" : true,
 		"returnURL" : "",
 		"useCDNPrefix" : false,
@@ -192,11 +192,6 @@ const defaultConfig = {
 				"secretkey": ""
 			},
 		},
-	},
-	"torrent": {
-		"enableTorrentSeeding": false,
-		"torrentPort": 6881,
-		"dhtPort": 6882
 	},
 	"logger" :  {
 		"minLevel": "5", 
@@ -250,6 +245,7 @@ const defaultConfig = {
 		"minUsernameLength": 3,
 		"maxUsernameLength": 20,
 		"minPasswordLength": 12,
+		"requireinvite": false,
 	},
 	"security" : {
 		"maxDefaultRequestMinute": 150,
@@ -264,7 +260,9 @@ const defaultConfig = {
 		},
 	},
 	"plugins" : {
-		"path": "plugins"
+		"path": "plugins",
+		"list": {
+		},
 	},
 	"relay" : {
 		"description": "",
@@ -286,11 +284,40 @@ const defaultConfig = {
 		"language_tags": ["en", "es"],
 		"tags": [],
 		"workers": 2,
-		"maxQueueLength": 1000,
+		"isolated": false,
 	},
+	"appearance": {
+		"dynamicbackground": {
+			"orientation": "to top left",
+			"color1": "#007BFF",
+			"color2": "#FF66B2",
+			"color3": "#FF9933",
+			"color1Percent": "0%",
+			"color2Percent": "55%",
+			"color3Percent": "90%",
+			"particles": "astral",
+		},
+	}
 }
 
 const localPath = "./config/local.json";
 
+interface ConfigStore {
+	global: any;
+	tenants: { [domainId: string]: any };
+	domainMap: {
+		idToDomain: { [id: string]: string };
+		domainToId: { [domain: string]: string };
+	};
+}
+		
+const configStore : ConfigStore = {
+	global: {},
+	tenants: {},
+	domainMap: {
+		idToDomain: {},  
+		domainToId: {},
+	}
+};
 
-export { Modules, Module, necessaryKeys, defaultConfig, localPath}
+export { Modules, Module, necessaryKeys, defaultConfig, localPath, configStore};
