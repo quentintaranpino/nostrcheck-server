@@ -30,7 +30,7 @@
       globalValue: globalCfg.satoshi?.mediaMaxSatoshi,
       placeholder: 'ex. 1000',
       required: true,
-      overridable: false
+      overridable: true
     }) %>
 
     <%- include('field', {
@@ -42,7 +42,7 @@
       globalValue: globalCfg.satoshi?.registerMaxSatoshi,
       placeholder: 'ex. 1000',
       required: true,
-      overridable: false
+      overridable: true
     }) %>
 
     <%- include('field', {
@@ -52,7 +52,7 @@
       description: 'If active, uploads are allowed while the invoice is pending payment.',
       value: globalCfg.allowUnpaidUploads,
       globalValue: globalCfg.allowUnpaidUploads,
-      overridable: false
+      overridable: true
     }) %>
 
     <%- include('field', {
