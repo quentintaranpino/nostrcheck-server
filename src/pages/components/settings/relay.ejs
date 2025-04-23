@@ -84,6 +84,16 @@
     <p>Specify the maximum allowed values for the relay server.</p>
 
     <%- include('field', {
+      type: "checkbox",
+      name: "relay.limitation.auth_required",
+      label: "Authentication required",
+      description: "If enabled, all requests must be authenticated. See NIP-42.",
+      value: limitation.auth_required,
+      globalValue: globalLimitation.auth_required,
+      overridable: true
+    }) %>
+
+    <%- include('field', {
       type: "number",
       name: "relay.limitation.max_message_length",
       label: "Max message length",
@@ -168,16 +178,6 @@
       value: limitation.min_pow_difficulty,
       globalValue: globalLimitation.min_pow_difficulty,
       required: true,
-      overridable: true
-    }) %>
-
-    <%- include('field', {
-      type: "checkbox",
-      name: "relay.limitation.auth_required",
-      label: "Authentication required",
-      description: "If enabled, all requests must be authenticated. See NIP-42.",
-      value: limitation.auth_required,
-      globalValue: globalLimitation.auth_required,
       overridable: true
     }) %>
 

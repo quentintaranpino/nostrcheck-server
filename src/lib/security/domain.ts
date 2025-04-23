@@ -2,6 +2,7 @@ import { dbMultiSelect } from "../database.js";
 import { logger } from "../logger.js";
 import app from "../../app.js";
 import { RedisService } from "../redis.js";
+import { getConfig } from "../config/core.js";
 
 const redisCore = app.get("redisCore") as RedisService;
 
@@ -15,7 +16,7 @@ const loadAllDomains = async (): Promise<void> => {
     for (const domain of domains) {
         await redisCore.set(`domains:${domain.domain}`, domain.id.toString());
     }
-    await redisCore.set("domains:cache", "1", { EX: app.get("config.redis")["expireTime"] });
+    await redisCore.set("domains:cache", "1", { EX: getConfig(null, ["redis", "expireTime"]) });
     logger.debug(`loadAllDomains - Loaded ${domains.length} domains into cache`);
   } catch (error) {
     logger.error("loadAllDomains - Error loading domains into Redis", error);

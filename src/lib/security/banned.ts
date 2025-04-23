@@ -4,7 +4,7 @@ import { ResultMessagev2 } from "../../interfaces/server.js";
 import { dbInsert, dbMultiSelect, dbUpdate } from "../database.js";
 import { logger } from "../logger.js";
 import { RedisService } from "../redis.js";
-import { isModuleEnabled } from "../config/core.js";
+import { getConfig, isModuleEnabled } from "../config/core.js";
 import { getResource } from "../frontend.js";
 import { generateVideoFromImage } from "../utils.js";
 
@@ -55,7 +55,7 @@ const manageEntity = async (originId: number, originTable: string, action: "ban"
     }
 
     const result = await dbMultiSelect(whereFields, originTable, "id = ?", [originId], true) as any;
-    if (originTable == "registered" && result.hex == app.get("config.server")["pubkey"]) {
+    if (originTable == "registered" && result.hex == getConfig(null, ["server", "pubkey"])) {
         return { status: "error", message: `You can't ${action} the server pubkey` };
     }
 
@@ -300,7 +300,7 @@ const loadBannedEntities = async (): Promise<void> => {
         }
     }
 
-    await redisCore.set("banned:cache", JSON.stringify("1"), { EX: app.get("config.redis")["expireTime"] });
+    await redisCore.set("banned:cache", JSON.stringify("1"), { EX: getConfig(null, ["redis", "expireTime"]) });
 };
 
 

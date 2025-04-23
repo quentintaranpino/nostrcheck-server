@@ -1,4 +1,4 @@
-import WebSocket from "ws";
+import WebSocket, { WebSocketServer } from "ws";
 import { Event, Filter, matchFilter } from "nostr-tools";
 import { Request, Response } from "express";
 
@@ -6,7 +6,6 @@ import { subscriptions, addSubscription, removeAllSubscriptions, removeSubscript
 import { compressEvent, fillEventMetadata, getEventById, getEventsByTimerange, validateFilter, parseRelayMessage, getChunkSize, filterEarlyDiscard } from "../lib/relay/utils.js";
 import { initEvents } from "../lib/relay/database.js";
 
-import app from "../app.js";
 import { isEventValid } from "../lib/nostr/core.js";
 import { logger } from "../lib/logger.js";
 import { isIpAllowed } from "../lib/security/ips.js";
@@ -22,6 +21,7 @@ import { enqueueRelayTask, getEvents, getPendingHeavyTasks, getPendingLightTasks
 import { parseAuthHeader } from "../lib/authorization.js";
 import { getConfig, isModuleEnabled } from "../lib/config/core.js";
 import { IncomingMessage } from "http";
+import crypto from "crypto";
 
 await initEvents();
 const authSessions: Map<WebSocket, string> = new Map(); 
@@ -64,6 +64,20 @@ const handleWebSocketMessage = async (socket: ExtendedWebSocket, data: WebSocket
 
     const [type, ...args] = message;
 
+    // Auth required (NIP-42)
+    if (type === "AUTH") {
+      await handleAuthMessage(socket, ["AUTH", args[0] as AuthEvent]);
+      return;
+    }
+    const authRequired = getConfig(socket.reqInfo.domain, ["relay","limitation","auth_required"]);
+    if (authRequired === true && !authSessions.has(socket)) {
+      if (!socket.challenge) {
+        socket.challenge = crypto.randomBytes(32).toString("hex");
+        socket.send(JSON.stringify(["AUTH", socket.challenge]));
+      }
+      return;
+    }
+
     switch (type) {
       case "EVENT" : {
           const task = await enqueueRelayTask({fn: handleEvent, args: [socket, args[0] as Event]});
@@ -76,24 +90,24 @@ const handleWebSocketMessage = async (socket: ExtendedWebSocket, data: WebSocket
       }
 
       case "REQ":
-        case "COUNT": {
-          const filters: Filter[] = args.slice(1) as Filter[];
-          try {
-            if (typeof args[0] === "string") {
-                await handleReqOrCount(socket, args[0], filters, type);
-            } else {
-                logger.debug(`handleWebSocketMessage - Invalid subscription ID: ${args[0]}`);
-                socket.send(JSON.stringify(["NOTICE", "error: invalid subscription ID"]));
-                socket.close(1003, "error: invalid subscription ID");
-            }
-          } catch (error) {
-            logger.error(`handleWebSocketMessage - Failed to handle REQ/COUNT: ${error}`);
-            socket.send(JSON.stringify(["NOTICE", "error: internal server error"]));
-            socket.close(1011, "error: internal server error");
+      case "COUNT": {
+        const filters: Filter[] = args.slice(1) as Filter[];
+        try {
+          if (typeof args[0] === "string") {
+              await handleReqOrCount(socket, args[0], filters, type);
+          } else {
+              logger.debug(`handleWebSocketMessage - Invalid subscription ID: ${args[0]}`);
+              socket.send(JSON.stringify(["NOTICE", "error: invalid subscription ID"]));
+              socket.close(1003, "error: invalid subscription ID");
           }
-        
-          break;
+        } catch (error) {
+          logger.error(`handleWebSocketMessage - Failed to handle REQ/COUNT: ${error}`);
+          socket.send(JSON.stringify(["NOTICE", "error: internal server error"]));
+          socket.close(1011, "error: internal server error");
         }
+      
+        break;
+      }
 
       case "CLOSE": {
         const task = await enqueueRelayTask({fn: handleClose, args: [socket, typeof args[0] === 'string' ? args[0] : undefined]});
@@ -104,16 +118,6 @@ const handleWebSocketMessage = async (socket: ExtendedWebSocket, data: WebSocket
         }
         break;
       }
-
-      case "AUTH" : {
-          const task = await enqueueRelayTask({fn: handleAuthMessage, args: [socket, ["AUTH", args[0] as AuthEvent]]});
-          if (!task.enqueued) {
-            logger.debug(`handleWebSocketMessage - Relay queue limit reached: ${getRelayQueueLength()}`);
-            socket.send(JSON.stringify(["NOTICE", "error: relay queue limit reached"]));
-            socket.close(1009, "error: relay queue limit reached");
-          }
-        break;
-      }   
 
       default: {
         logger.debug(`handleWebSocketMessage - Unknown command: ${type}`);
@@ -160,14 +164,6 @@ const handleEvent = async (socket: ExtendedWebSocket, event: MetadataEvent) => {
     socket.send(JSON.stringify(["OK", event.id, false, `invalid: ${validEvent.message}`]));
     return;
   }
-
-  // Check if the event has a valid AUTH session
-  if (getConfig(socket.reqInfo.domain, ["relay", "limitation", "auth_required"]) == true && !authSessions.has(socket)) {
-    logger.debug(`handleEvent - Blocked event without authentication: ${event.id}`);
-    socket.send(JSON.stringify(["NOTICE", "auth-required: you must authenticate first"]));
-    socket.send(JSON.stringify(["OK", event.id, false, "auth-required: you must authenticate first"]));
-    return;
-}
 
   // Check if the event has more tags than allowed
   if (event.tags.length > getConfig(socket.reqInfo.domain, ["relay", "limitation", "max_event_tags"])) {
@@ -495,7 +491,6 @@ const handleReqOrCount = async (socket: ExtendedWebSocket, subId: string, filter
   if (!filters || !Array.isArray(filters) || filters.length === 0) {
     logger.debug(`handleReqOrCount - No filters provided: ${subId}`);
     socket.send(JSON.stringify(["CLOSED", subId, "unsupported: no filters provided"]));
-    socket.close(1003, "unsupported: no filters provided");
     return;
   }
 
@@ -515,21 +510,18 @@ const handleReqOrCount = async (socket: ExtendedWebSocket, subId: string, filter
   if (!validFilters) {
     logger.debug(`handleReqOrCount - Invalid filters: ${subId}`);
     socket.send(JSON.stringify(["CLOSED", subId, "unsupported: invalid filters"]));
-    socket.close(1003, "unsupported: invalid filters");
     return;
   }
 
   if (filters.length > getConfig(socket.reqInfo.domain, ["relay", "limitation", "max_filters"])) {
     logger.debug(`handleReqOrCount - Too many filters: ${subId}`);
     socket.send(JSON.stringify(["CLOSED", subId, "unsupported: too many filters"]));
-    socket.close(1003, "unsupported: too many filters");
     return;
   }
 
   if (subId.length > getConfig(socket.reqInfo.domain, ["relay", "limitation", "max_subid_length"])) {
     logger.debug(`handleReqOrCount - Subscription id too long: ${subId}`);
     socket.send(JSON.stringify(["CLOSED", subId, "unsupported: subscription id too long"]));
-    socket.close(1003, "unsupported: subscription id too long");
     return;
   }
 
@@ -671,7 +663,7 @@ const handleAuthMessage = async (socket: ExtendedWebSocket, message: ["AUTH", Au
   socket.send(JSON.stringify(["OK", authData.id, true, "AUTH successful"]));
 };
 
-const getRelayStatus = async (req: Request, res: Response): Promise<Response> => {
+const getRelayStatus = async (req: Request, res: Response, wss: WebSocketServer): Promise<Response> => {
 
   // Check if the request IP is allowed
   const reqInfo = await isIpAllowed(req);
@@ -693,7 +685,7 @@ const getRelayStatus = async (req: Request, res: Response): Promise<Response> =>
   const result : RelayStatusMessage = {
     status: "success",
     message: "Relay status retrieved successfully",
-    websocketConnections: app.get("wss").clients.size || 0,
+    websocketConnections: wss?.clients.size || 0,
     usedMemory: eventStore.sharedDBChunks.reduce((sum, chunk) => sum + getChunkSize(chunk).totalMB, 0),
     queueLength: getRelayQueueLength() || 0,
     workerCount: relayWorkers,

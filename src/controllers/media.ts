@@ -603,7 +603,7 @@ const headMedia = async (req: Request, res: Response): Promise<Response> => {
 			res.setHeader("X-Lightning", transaction.paymentRequest);
 			res.setHeader("X-Lightning-amount", transaction.satoshi);
 			res.setHeader("X-Reason", `Invoice (${transaction.satoshi}) for hash: ${hash}`);
-			res.status(402).send()
+			return res.status(402).send()
 		}
 	}
 

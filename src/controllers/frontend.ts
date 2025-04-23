@@ -11,7 +11,7 @@ import { verifyNIP07event } from "../lib/nostr/NIP07.js";
 import { getUsernames } from "../lib/register.js";
 import { getLightningAddress } from "../lib/lightning.js";
 import { getClientInfo, isIpAllowed } from "../lib/security/ips.js";
-import { getActiveModules, getConfig, getTenants, isModuleEnabled } from "../lib/config/core.js";
+import { getModules, getConfig, getTenants, isModuleEnabled } from "../lib/config/core.js";
 import path from "path";
 
 const loadDashboardPage = async (req: Request, res: Response, version:string): Promise<Response | void> => {
@@ -25,7 +25,7 @@ const loadDashboardPage = async (req: Request, res: Response, version:string): P
 	logger.info("GET /api/" + version + "/dashboard", "|", getClientInfo(req).ip);
 
 
-    const activeModules = getActiveModules(req.hostname);
+    const activeModules = getModules(req.hostname,true)
     res.locals.activeModules = activeModules; 
     res.locals.version = getConfig(req.hostname, ["version"]);
     res.locals.serverHost = getConfig(req.hostname, ["server", "host"]);
@@ -49,8 +49,8 @@ const loadSettingsPage = async (req: Request, res: Response, version: string): P
     logger.info("GET /api/" + version + "/settings", "|", getClientInfo(req).ip);
   
     const domain = typeof req.query.domain === "string" ? req.query.domain : null;
-    const activeModules = getActiveModules(req.hostname);
-  
+    const activeModules = getModules(req.hostname,true)
+      
     const globalConfig = {
         version: getConfig(null, ["version"]),
         environment: getConfig(null, ["environment"]),
@@ -124,7 +124,8 @@ const loadProfilePage = async (req: Request, res: Response, version:string): Pro
 	logger.debug(`loadProfilePage - GET /api/${version}/profile`, "|", getClientInfo(req).ip);
 
     // Active modules
-    const activeModules = getActiveModules(req.hostname);
+    const activeModules = getModules(req.hostname,true)
+
     res.locals.activeModules = activeModules; 
 
     res.locals.serverHost = getConfig(req.hostname, ["server", "host"]);
@@ -164,7 +165,7 @@ const loadMdPage = async (req: Request, res: Response, mdFileName : string, vers
 	logger.info(`loadTosPage - GET /api/${version}/${mdFileName}`, "|", getClientInfo(req).ip);
 
     // Active modules
-    const activeModules = getActiveModules(req.hostname);
+    const activeModules = getModules(req.hostname,true);
     res.locals.activeModules = activeModules;
 
     res.locals.serverHost = getConfig(req.hostname, ["server", "host"]);
@@ -215,7 +216,7 @@ const loadLoginPage = async (req: Request, res: Response, version:string): Promi
 	logger.info(`loadLoginPage - GET /api/${version}/login`, "|", getClientInfo(req).ip);
 
     // Active modules
-    const activeModules = getActiveModules(req.hostname);
+    const activeModules = getModules(req.hostname,true);
     res.locals.activeModules = activeModules; 
 
     res.locals.serverHost = getConfig(req.hostname, ["server", "host"]);
@@ -246,7 +247,7 @@ const loadIndexPage = async (req: Request, res: Response, version:string): Promi
 	logger.info(`loadIndexPage - GET /api/${version}/index`, "|", getClientInfo(req).ip);
 
     // Active modules
-    const activeModules = getActiveModules(req.hostname);
+    const activeModules = getModules(req.hostname,true);
     res.locals.activeModules = activeModules; 
 
     res.locals.serverHost = getConfig(req.hostname, ["server", "host"]);
@@ -279,7 +280,7 @@ const loadDocsPage = async (req: Request, res: Response, version: string): Promi
     logger.info(`loadDocsPage - GET /api/${version}/docs`, "|", getClientInfo(req).ip);
 
     // Active modules
-    const activeModules = getActiveModules(req.hostname);
+    const activeModules = getModules(req.hostname,true);
     res.locals.activeModules = activeModules; 
 
     res.locals.serverHost = getConfig(req.hostname, ["server", "host"]);
@@ -311,7 +312,7 @@ const loadGalleryPage = async (req: Request, res: Response, version:string): Pro
 	logger.info(`loadGalleryPage - GET /api/${version}/gallery`, "|", getClientInfo(req).ip);
 
     // Active modules
-    const activeModules = getActiveModules(req.hostname);
+    const activeModules = getModules(req.hostname,true);
     res.locals.activeModules = activeModules; 
 
     res.locals.serverHost = getConfig(req.hostname, ["server", "host"]);
@@ -342,7 +343,7 @@ const loadDirectoryPage = async (req: Request, res: Response, version:string): P
 	logger.info(`loadDirectoryPage - GET /api/${version}/directory`, "|", getClientInfo(req).ip);
 
     // Active modules
-    const activeModules = getActiveModules(req.hostname);
+    const activeModules = getModules(req.hostname,true);
     res.locals.activeModules = activeModules; 
 
     res.locals.serverHost = getConfig(req.hostname, ["server", "host"]);
@@ -373,7 +374,7 @@ const loadRegisterPage = async (req: Request, res: Response, version:string): Pr
 	logger.info(`loadRegisterPage - GET /api/${version}/register`, "|", getClientInfo(req).ip);
 
     // Active modules
-    const activeModules = getActiveModules(req.hostname);
+    const activeModules = getModules(req.hostname,true);
     res.locals.activeModules = activeModules; 
 
     res.locals.serverHost = getConfig(req.hostname, ["server", "host"]);
@@ -406,7 +407,7 @@ const loadCdnPage = async (req: Request, res: Response, version:string): Promise
     if (await isAutoLoginEnabled(req,res)){logger.info("First use detected. Showing alert on frontend", "|", )}
 
     // Active modules
-    const activeModules = getActiveModules(req.hostname);
+    const activeModules = getModules(req.hostname,true);
     res.locals.activeModules = activeModules; 
 
     res.locals.serverHost = getConfig(req.hostname, ["server", "host"]);
@@ -437,7 +438,7 @@ const loadRelayPage = async (req: Request, res: Response, version:string): Promi
     logger.info(`loadRelayPage - GET /api/${version}/relay`, "|", getClientInfo(req).ip);
 
     // Active modules
-    const activeModules = getActiveModules(req.hostname);
+    const activeModules = getModules(req.hostname,true);
     res.locals.activeModules = activeModules; 
 
     res.locals.serverHost = getConfig(req.hostname, ["server", "host"]);

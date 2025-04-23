@@ -187,7 +187,7 @@ const isIpAllowed = async (req: Request | IncomingMessage | string, maxRequestMi
 
     if (!isModuleEnabled("security", "")) return {ip: "", reqcount: 0, banned: false, domainId: 1, domain: "", comments: ""};
 
-    if (maxRequestMinute === 0) maxRequestMinute = getConfig("", ["security", "maxDefaultRequestMinute"]) || 300;
+    if (maxRequestMinute === 0) maxRequestMinute = getConfig(null, ["security", "maxDefaultRequestMinute"]) || 300;
 
     const { ip, host } = getClientInfo(req);
 
@@ -219,7 +219,8 @@ const isIpAllowed = async (req: Request | IncomingMessage | string, maxRequestMi
         logger.debug(`isIpAllowed - Possible abuse detected from IP: ${ip} | Infraction count: ${infractions}, reqcount: ${reqcount}`);
 
         // Update infractions and ban it for 30 seconds
-        await redisCore.hashSet(`ips:${ip}`, { infractions: Number(infractions)+1 }, app.get("config.redis")["expireTime"]);
+        await redisCore.hashSet(`ips:${ip}`, { infractions: Number(infractions)+1 }, getConfig(null, ["redis", "expireTime"]));
+        
         await redisCore.set(`banned:ips:${dbid}`, JSON.stringify("1"), { EX: 30 });
 
         if (!infractions) {
@@ -268,7 +269,7 @@ setInterval(async () => {
                     if (!updateSuccess) {
                         logger.error(`ipsLib - Interval - Error processing IP '${ip}': Error updating IP infractions`);
                     } else {
-                        await redisCore.hashSet(ip, { infractions: 0 }, app.get("config.redis")["expireTime"]);
+                        await redisCore.hashSet(ip, { infractions: 0 }, getConfig(null, ["redis", "expireTime"]));
                     }
                 } catch (error) {
                     logger.error(`ipsLib - Interval - Error processing IP '${ip}': ${error}`);

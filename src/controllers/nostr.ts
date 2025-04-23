@@ -20,10 +20,10 @@ const NIP96Data = async (req: Request, res: Response): Promise<Response> => {
 		return res.status(403).send({"status": "error", "message": "Module is not enabled"});
 	}
 
-    logger.info(`NIP96Data - Request from:`, req.hostname, "|", reqInfo.ip);
+    logger.debug(`NIP96Data - Request from:`, req.hostname, "|", reqInfo.ip);
 
     res.setHeader('Content-Type', 'application/json');
-	logger.info(`NIP96Data - Successfully sent NIP96 data to:`, req.hostname, "|", reqInfo.ip);
+	logger.debug(`NIP96Data - Successfully sent NIP96 data to:`, req.hostname, "|", reqInfo.ip);
 	return res.status(200).send(JSON.stringify(await getNIP96file(req.hostname)));
 
 };
@@ -43,14 +43,14 @@ const NIP11Data = async (req: Request, res: Response): Promise<Response> => {
 		return res.status(403).send({"status": "error", "message": "Module is not enabled"});
 	}
 
-	logger.info(`NIP11Data - Request from:`, req.hostname, "|", reqInfo.ip);
+	logger.debug(`NIP11Data - Request from:`, req.hostname, "|", reqInfo.ip);
 
 	res.setHeader('Content-Type', 'application/json');
 
 	res.set("access-control-allow-origin", "*");
 	res.set("access-control-allow-methods", "GET");
 
-	logger.info(`NIP11Data - Successfully sent NIP11 data to:`, req.hostname, "|", reqInfo.ip);
+	logger.debug(`NIP11Data - Successfully sent NIP11 data to:`, req.hostname, "|", reqInfo.ip);
 	return res.status(200).send(JSON.stringify(getNIP11file(req.hostname)));
 	
 };

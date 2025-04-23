@@ -21,11 +21,10 @@ const startServer = async () => {
     // Start server
     const { getConfig } = await import("./lib/config/core.js");
     const server = app.listen(getConfig(null, ["server", "port"]));
-    app.set("server", server);
 
     // Initialise API modules
     const { loadAPIs } = await import("./routes/routes.js");
-    await loadAPIs(app);
+    await loadAPIs(app, server);
 
     // Initialise plugins
     const { initPlugins } = await import("./lib/plugins/core.js");

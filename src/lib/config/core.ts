@@ -152,40 +152,45 @@ const setConfig = async (tenant: string, keyPath: string[], newValue: string | b
     }
   }
 };
+const getModules = (domain: string | null = null, onlyActive : boolean): Module[] => {
 
-const getActiveModules = (domain: string | null = null): Module[] => {
-	const domainId = domain ? configStore.domainMap.domainToId[domain] : null;
+  const domainId = domain ? configStore.domainMap.domainToId[domain] : null;
 
-	const globalModules = configStore.global?.server?.availableModules || {};
-	const tenantModules = domainId ? configStore.tenants?.[domainId]?.server?.availableModules || {} : {};
+  const globalModules = configStore.global?.server?.availableModules || {};
+  const tenantModules = domainId ? configStore.tenants?.[domainId]?.server?.availableModules || {} : {};
 
-	const mergedModules: Record<string, Module> = { ...globalModules };
+  const merged: Record<string, Module> = { ...globalModules };
+  for (const name in tenantModules) {
+    merged[name] = {
+      ...merged[name],
+      ...tenantModules[name],
+    };
+  }
 
-	for (const mod in tenantModules) {
-		if (!mergedModules[mod]) mergedModules[mod] = tenantModules[mod];
-		else mergedModules[mod] = { ...mergedModules[mod], ...tenantModules[mod] };
-	}
+  let modules = Object.values(merged);
+  if (onlyActive) {
+    modules = modules.filter((m) => m.enabled);
+  }
 
-	const activeModules = Object.entries(mergedModules)
-		.filter(([_, module]) => module.enabled === true)
-		.map(([_, module]) => module);
+  // Always add the logger module
+  modules.push({
+    name: "logger",
+    enabled: true,
+    path: "/",
+    methods: ["Library"],
+    description: "This module manages the server logs engine.",
+  });
 
-	// Always add logger module
-	activeModules.push({
-		name: "logger",
-		enabled: true,
-		path: "/",
-		methods: ["Library"],
-		description: "This module manages the server logs engine."
-	});
-
-	return activeModules;
-}
+  return modules;
+};
 
 const isModuleEnabled = (moduleName: string, tenant: string): boolean => {
-	const availableModules = getActiveModules(tenant);
-	const mod = availableModules.find((module) => module.name === moduleName);
-	return mod ? mod.enabled : false;
+  return getModules(tenant, true).some((m) => m.name === moduleName);
+}
+
+const getModuleInfo = (moduleName: string, tenant: string): Module | undefined => {
+  const modules = getModules(tenant, false);
+  return modules.find((m) => m.name === moduleName);
 }
 
 const getTenants = (): { id: string; domain: string }[] => {
@@ -210,4 +215,4 @@ const getFullConfig = (domain: string | null = null): any => {
   return configStore.global;
 };
 
-export { configStore, initGlobalConfig, getConfig, getFullConfig, setConfig, isModuleEnabled, getActiveModules, getTenants };
+export { configStore, initGlobalConfig, getConfig, getFullConfig, setConfig, isModuleEnabled, getModules, getModuleInfo, getTenants };

@@ -134,7 +134,7 @@ const redirectlightningddress = async (req: Request, res: Response): Promise<Res
 
 };
 
-const updateLightningAddress = async (req: Request, res: Response): Promise<Response> => {
+const updateLightningRedirect = async (req: Request, res: Response): Promise<Response> => {
 
 	// Check if the request IP is allowed
 	const reqInfo = await isIpAllowed(req);
@@ -254,7 +254,7 @@ const updateLightningAddress = async (req: Request, res: Response): Promise<Resp
 
 };
 
-const deleteLightningAddress = async (req: Request, res: Response): Promise<Response> => {
+const deleteLightningRedirect = async (req: Request, res: Response): Promise<Response> => {
 
 	// Check if the request IP is allowed
 	const reqInfo = await isIpAllowed(req);
@@ -364,4 +364,4 @@ const deleteLightningAddress = async (req: Request, res: Response): Promise<Resp
 	return res.status(200).send(result);
 };
 
-export { redirectlightningddress, updateLightningAddress, deleteLightningAddress };
+export { redirectlightningddress, updateLightningRedirect, deleteLightningRedirect };

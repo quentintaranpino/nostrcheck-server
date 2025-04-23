@@ -638,12 +638,14 @@ const initDatabase = async (): Promise<void> => {
 		logger.info(`initDatabase - Inserted ${inserted} default filetypes`);
 	}
 
-	// Delete rows from mediafiles where status <> 'success' or 'completed'
-	const mediaToDelete = await dbMultiSelect(["id"], "mediafiles", "status <> 'success' AND status <> 'completed'", [], false);
+	// Delete rows from mediafiles where status <> 'success' or 'completed' or 'percentage' = '0'
+	// This is to delete any media that is not processed or failed.
+	const mediaToDelete = await dbMultiSelect(["id"], "mediafiles", "(status <> 'success' AND status <> 'completed') OR percentage = '0' ", [], false);
 	if (mediaToDelete.length > 0) {
 		await dbDelete("mediafiles", ["status"], ["error"]);
 		await dbDelete("mediafiles", ["status"], ["failed"]);
 		await dbDelete("mediafiles", ["status"], ["processing"]);
+		await dbDelete("mediafiles", ["percentage"], ["0"]);
 	}
 	
 }
