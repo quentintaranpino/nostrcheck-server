@@ -7,21 +7,6 @@ import { getConfig, initGlobalConfig } from "./lib/config/core.js";
 
 const app = express();
 
-app.set("config.server", await loadConfigOptions("server"));
-app.set("config.media", await loadConfigOptions("media"));
-app.set("config.logger", await loadConfigOptions("logger"));
-app.set("config.redis", await loadConfigOptions("redis"));
-app.set("config.storage", await loadConfigOptions("storage"));
-app.set("config.payments", await loadConfigOptions("payments"));
-app.set("config.register", await loadConfigOptions("register"));
-app.set("config.session", await loadConfigOptions("session"));
-app.set("config.security", await loadConfigOptions("security"));
-app.set("config.database", await loadConfigOptions("database"));
-app.set("config.environment", process.env.NODE_ENV ?? await loadConfigOptions("environment"));
-app.set("config.plugins", await loadConfigOptions("plugins"));
-app.set("config.relay", await loadConfigOptions("relay"));
-app.set("version", process.env.npm_package_version ?? "0.0");
-
 await initGlobalConfig();
 
 app.set('trust proxy', 1); 
@@ -45,7 +30,11 @@ const redisCore = new RedisService({
   user: process.env.REDIS_USER || getConfig(null, ["redis", "user"]),
   password: process.env.REDIS_PASSWORD || getConfig(null, ["redis", "password"]),
 });
-await redisCore.init()
+const result = await redisCore.init()
+if (!result) {
+  console.error("Redis server not available. Cannot start the server, please check your configuration.");
+  process.exit(1);
+}
 app.set("redisCore", redisCore);
 
 export default app;

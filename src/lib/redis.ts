@@ -12,7 +12,10 @@ class RedisService {
 
     this.client = createClient({
       url: `redis://${config.user}:${config.password}@${config.host}:${config.port}`,
-      database: this.defaultDB
+      database: this.defaultDB,
+      socket: {
+        connectTimeout: 5000,
+      }
     });
 
     this.instancePrefix = '';
@@ -23,7 +26,7 @@ class RedisService {
   }
 
   public async init(isolated : boolean = false): Promise<boolean> {
-    this.client.on("error", () => false);
+
     if (isolated) {
       this.instancePrefix = `ns:${Math.random().toString(36).substring(2, 10)}`;
     } else {
@@ -33,7 +36,11 @@ class RedisService {
   
     if (!this.instancePrefix) return false;
   
-    await this.client.connect();
+    try {
+      await this.client.connect();
+    } catch (err) {
+      return false;
+    }
     await this.flushInstanceKeys();
     return true;
   }

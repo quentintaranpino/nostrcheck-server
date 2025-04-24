@@ -23,7 +23,11 @@ const initPlugins = async (tenant: string): Promise<boolean> => {
         password: process.env.REDIS_PASSWORD || getConfig(null, ["redis", "password"]),
         defaultDB: 1 
     });
-    await redisPlugins.init();
+    const result = await redisPlugins.init();
+    if (!result) {
+        logger.error("Redis server not available. Cannot start the plugins, please check your configuration.");
+        return Promise.resolve(false);
+    }
 
     if (!isModuleEnabled("plugins", tenant)) {
         return Promise.resolve(false);

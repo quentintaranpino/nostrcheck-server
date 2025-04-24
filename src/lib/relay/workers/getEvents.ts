@@ -26,7 +26,10 @@ const initWorker = async (redisConfig: RedisConfig): Promise<void> => {
     password : process.env.REDIS_PASSWORD || redisConfig.password,
     defaultDB : redisConfig.defaultDB
     });
-  await redisWorker.init(true);
+  const result = await redisWorker.init(true);
+  if (!result) {
+    throw new Error("Redis server not available. Cannot start the worker, please check your configuration.");
+  }
 
 };
 
