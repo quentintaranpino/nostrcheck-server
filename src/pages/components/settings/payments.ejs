@@ -26,7 +26,7 @@
       name: 'payments.satoshi.mediaMaxSatoshi',
       label: 'File uploads (max sats)',
       description: 'Maximum sats for uploading files. Set to 0 to disable payment requirement.',
-      value: globalCfg.satoshi?.mediaMaxSatoshi,
+      value: cfg.satoshi?.mediaMaxSatoshi,
       globalValue: globalCfg.satoshi?.mediaMaxSatoshi,
       placeholder: 'ex. 1000',
       required: true,
@@ -38,7 +38,7 @@
       name: 'payments.satoshi.registerMaxSatoshi',
       label: 'Register form (max sats)',
       description: 'Maximum sats for registering. Set to 0 to disable payment requirement.',
-      value: globalCfg.satoshi?.registerMaxSatoshi,
+      value: cfg.satoshi?.registerMaxSatoshi,
       globalValue: globalCfg.satoshi?.registerMaxSatoshi,
       placeholder: 'ex. 1000',
       required: true,
@@ -50,7 +50,7 @@
       name: 'payments.allowUnpaidUploads',
       label: 'Allow unpaid uploads',
       description: 'If active, uploads are allowed while the invoice is pending payment.',
-      value: globalCfg.allowUnpaidUploads,
+      value: cfg.allowUnpaidUploads,
       globalValue: globalCfg.allowUnpaidUploads,
       overridable: true
     }) %>
