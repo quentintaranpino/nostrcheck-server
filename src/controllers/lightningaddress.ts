@@ -5,15 +5,13 @@ import { logger } from "../lib/logger.js";
 import { ResultMessagev2 } from "../interfaces/server.js";
 import { LightningUsernameResult } from "../interfaces/lightning.js";
 import { parseAuthHeader } from "../lib/authorization.js";
-import app from "../app.js";
 import { setAuthCookie } from "../lib/frontend.js";
 import { PoolConnection} from "mysql2/promise";
 import { isIpAllowed } from "../lib/security/ips.js";
-import { RedisService } from "../lib/redis.js";
 import { getConfig, isModuleEnabled } from "../lib/config/core.js";
+import { initRedis } from "../lib/redis/client.js";
 
-const redisCore = app.get("redisCore") as RedisService
-
+const redisCore = await initRedis(0, false);
 
 const redirectlightningddress = async (req: Request, res: Response): Promise<Response> => {
 

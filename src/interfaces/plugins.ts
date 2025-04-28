@@ -2,7 +2,7 @@ import { logger } from "../lib/logger";
 import * as NIP01 from "../lib/nostr/NIP01.js";
 import * as NIP19 from "../lib/nostr/NIP19.js";
 import * as registered from "../lib/register.js";
-import { RedisService } from "../lib/redis.js";
+import { RedisService } from "../lib/redis/core.js";
 import { Event } from "nostr-tools";
 
 interface pluginData {

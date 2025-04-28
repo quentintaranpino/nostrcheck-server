@@ -1,5 +1,6 @@
 import { Application } from "express";
 import express from "express";
+
 import { 	loadDashboardPage, 
 			loadSettingsPage, 
 			loadMdPage, 
@@ -19,7 +20,7 @@ import { isPubkeyValid } from "../lib/authorization.js";
 import { limiter } from "../lib/security/core.js";
 import { isAutoLoginEnabled } from "../lib/frontend.js";
 import { getClientInfo } from "../lib/security/ips.js";
-import { RedisService } from "../lib/redis.js";
+import { initRedis } from "../lib/redis/client.js";
 
 export const loadFrontendEndpoint = async (app: Application, version: string): Promise<void> => {
 
@@ -157,10 +158,9 @@ export const loadFrontendEndpoint = async (app: Application, version: string): P
 			if (err) {
 				logger.error("Failed to destroy session:", err);
 			}
-			const redisCore = app.get("redisCore") as RedisService
+			const redisCore = await initRedis(0, false);
 			res.clearCookie("connect.sid");
 			res.clearCookie("authkey");
-			await redisCore.del(`activeStatus:${identifier}`);
 
 			res.redirect("/api/" +  version + "/login");
 		});

@@ -23,7 +23,7 @@ const initEvents = async (): Promise<boolean> => {
   (async function loadBatch() {
     try {
       while (true) {
-        logger.info(`initEvents - Loaded ${eventIndex.size} events from DB (offset: ${offset})`);
+        logger.debug(`initEvents - Loaded ${eventIndex.size} events from DB (offset: ${offset})`);
         const loadedEvents = await getEventsDB(offset, CHUNK_SIZE);
         if (loadedEvents.length === 0) {
           eventStore.relayEventsLoaded = true;

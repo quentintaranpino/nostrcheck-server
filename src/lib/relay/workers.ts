@@ -5,18 +5,8 @@ import path from "path";
 
 import { logger } from "../logger.js";
 import { CHUNK_SIZE, eventStore, MetadataEvent, PendingGetEventsTask, RelayJob, SharedChunk } from "../../interfaces/relay.js";
-import app from "../../app.js";
 import { deleteEvents, storeEvents } from "./database.js";
 import { decodeChunk, dynamicTimeout, encodeChunk, getEventById, updateChunk } from "./utils.js";
-import { RedisConfig } from "../../interfaces/redis.js";
-
-const redisRelay : RedisConfig= {
-  host: process.env.REDIS_HOST || getConfig(null, ["redis", "host"]),
-  port: process.env.REDIS_PORT || getConfig(null, ["redis", "port"]),
-  user: process.env.REDIS_USER || getConfig(null, ["redis", "user"]),
-  password: process.env.REDIS_PASSWORD || getConfig(null, ["redis", "password"]),
-  defaultDB: 2 // database "2" for relay DB
-};
 
 // Workers
 const relayWorkers = Number(getConfig(null, ["relay", "workers"]));
@@ -297,8 +287,8 @@ let heavyGetEventsPool = workerpool.pool(
   { maxWorkers: Math.ceil(relayWorkers * 0.75) }
 );
 (async () => {
-  await lightGetEventsPool.exec("initWorker", [redisRelay]);
-  await heavyGetEventsPool.exec("initWorker", [redisRelay]);
+  await lightGetEventsPool.exec("initWorker", []);
+  await heavyGetEventsPool.exec("initWorker", []);
 })();
 
 const pendingLightTasks: Map<string, PendingGetEventsTask> = new Map();
@@ -334,7 +324,7 @@ const getEvents = async (filters: any, maxLimit: number, chunks: SharedChunk[]):
 
     const getEventsWorker = isHeavy ? heavyGetEventsPool : lightGetEventsPool
 
-    await getEventsWorker.exec("initWorker", [redisRelay]);
+    await getEventsWorker.exec("initWorker", []);
 
     const result =  await getEventsWorker.exec("_getEvents", [
       JSON.parse(JSON.stringify(filters)),

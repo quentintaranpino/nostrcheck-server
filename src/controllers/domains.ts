@@ -1,16 +1,16 @@
 import { Request, Response } from "express";
+
 import { logger } from "../lib/logger.js";
 import { parseAuthHeader} from "../lib/authorization.js";
 import { ResultMessagev2 } from "../interfaces/server.js";
 import { isIpAllowed } from "../lib/security/ips.js";
 import { getAvailableDomains, getAvailiableUsers } from "../lib/domains.js";
 import { dbUpdate, dbSelect } from "../lib/database.js";
-import app from "../app.js";
 import { setAuthCookie } from "../lib/frontend.js";
-import { RedisService } from "../lib/redis.js";
 import { isModuleEnabled } from "../lib/config/core.js";
+import { initRedis } from "../lib/redis/client.js";
 
-const redisCore = app.get("redisCore") as RedisService
+const redisCore = await initRedis(0, false);
 
 const listAvailableDomains = async (req: Request, res: Response): Promise<Response> => {
 

@@ -1,5 +1,9 @@
 import { Request, Response } from "express";
-import app from "../app.js";
+import { Readable } from "stream";
+import path from "path";
+import validator from "validator";
+import fs from "fs";
+
 import { dbDelete, dbInsert, dbMultiSelect, dbSelect, dbUpdate } from "../lib/database.js";
 import { logger } from "../lib/logger.js";
 import { isPubkeyRegistered, parseAuthHeader } from "../lib//authorization.js";
@@ -10,20 +14,15 @@ import {
 	LegacyMediaReturnMessage,
 	UploadStatus,
 	MediaStatus,
-	VideoHeaderRange,
 	FileData,
 	} from "../interfaces/media.js";
 import { ResultMessage, ResultMessagev2 } from "../interfaces/server.js";
-import path from "path";
-import validator from "validator";
-import fs from "fs";
 import { NIP94_data, NIP96_event, NIP96_processing } from "../interfaces/nostr.js";
 import { PrepareNIP96_event, PrepareNIP96_listEvent } from "../lib/nostr/NIP96.js";
 import { generateQRCode, getNewDate, parseBoolean } from "../lib/utils.js";
 import { generateBlurhash, generatefileHashfrombuffer, hashString } from "../lib/hash.js";
 import { deleteFile, getFilePath } from "../lib/storage/core.js";
 import { saveTmpFile } from "../lib/storage/local.js";
-import { Readable } from "stream";
 import { getRemoteFile } from "../lib/storage/remote.js";
 import { Transaction } from "../interfaces/payments.js";
 import { checkTransaction, collectInvoice, getInvoice, updateAccountId } from "../lib/payments/core.js";
@@ -35,10 +34,10 @@ import { mirrorFile } from "../lib/blossom/BUD04.js";
 import { executePlugins } from "../lib/plugins/core.js";
 import { setAuthCookie } from "../lib/frontend.js";
 import { isIpAllowed } from "../lib/security/ips.js";
-import { RedisService } from "../lib/redis.js";
 import { getConfig, isModuleEnabled } from "../lib/config/core.js";
+import { initRedis } from "../lib/redis/client.js";
 
-const redisCore = app.get("redisCore") as RedisService
+const redisCore = await initRedis(0, false);
 
 const uploadMedia = async (req: Request, res: Response, version:string): Promise<Response> => {
 

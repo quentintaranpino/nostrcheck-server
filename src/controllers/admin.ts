@@ -24,12 +24,12 @@ import { deleteFile } from "../lib/storage/core.js";
 import { isIpAllowed } from "../lib/security/ips.js";
 import { eventStore } from "../interfaces/relay.js";
 import { getEventById } from "../lib/relay/utils.js";
-import { RedisService } from "../lib/redis.js";
 import { isModuleEnabled, setConfig } from "../lib/config/core.js";
 import { acceptedSettigsFiles, settingsFileConfig } from "../interfaces/appearance.js";
 import { listPlugins } from "../lib/plugins/core.js";
+import { initRedis } from "../lib/redis/client.js";
 
-const redisCore = app.get("redisCore") as RedisService
+const redisCore = await initRedis(0, false);
 
 let hits = 0;
 /**

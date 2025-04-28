@@ -1,6 +1,5 @@
 import WebSocket from "ws";
-import app from "../../app.js";
-import { Event } from "nostr-tools";
+
 import { logger } from "../logger.js";
 import { ExtendedWebSocket, MetadataEvent } from "../../interfaces/relay.js";
 import { getConfig } from "../config/core.js";

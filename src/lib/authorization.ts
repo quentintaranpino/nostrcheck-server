@@ -1,24 +1,25 @@
-import { dbMultiSelect, dbSelect, dbUpdate } from "../lib/database.js";
+import { Request } from "express";
 import jwt from "jsonwebtoken";
+import crypto from "crypto";
+import { Event } from "nostr-tools";
+
+
+import { dbMultiSelect, dbSelect, dbUpdate } from "../lib/database.js";
 import { logger } from "./logger.js";
 import { authHeaderResult } from "../interfaces/authorization.js";
 import { hashString, validateHash } from "./hash.js";
-import { Request } from "express";
-import crypto from "crypto";
 import { sendMessage } from "./nostr/NIP04.js";
 import { isNIP98Valid } from "./nostr/NIP98.js";
-import { Event } from "nostr-tools";
 import { isBUD01AuthValid } from "./blossom/BUD01.js";
 import { NIPKinds } from "../interfaces/nostr.js";
 import { BUDKinds } from "../interfaces/blossom.js";
 import { isEntityBanned } from "./security/banned.js";
 import { getClientInfo } from "./security/ips.js";
-import app from "../app.js";
 import { npubToHex } from "./nostr/NIP19.js";
-import { RedisService } from "./redis.js";
 import { getConfig } from "./config/core.js";
+import { initRedis } from "./redis/client.js";
 
-const redisCore = app.get("redisCore") as RedisService
+const redisCore = await initRedis(0, false);
 
 /**
  * Parses the authorization header and checks if it is valid. (apikey, authkey, NIP98 or BUD01)
@@ -210,15 +211,6 @@ const isAuthkeyValid = async (authString: string, checkAdminPrivileges: boolean 
 		if ((decoded.exp - Math.floor(Date.now() / 1000)) < 900){
 			authString = generateAuthToken(decoded.identifier, decoded.allowed);
 		} 
-
-        if (checkActive) {
-			const redisData = await redisCore.getJSON<{ isActive: boolean }> (`activeStatus:${decoded.identifier}`);
-			const isActive = redisData?.isActive ?? true;
-            if (!isActive) {
-				logger.warn(`isAuthkeyValid - Unauthorized request, user not active. Authkey: ${authString}`);
-                return { status: "error", message: "User not active", authkey: "", pubkey: "", kind: 0 };
-            }
-        }
 
         if (checkAdminPrivileges && !decoded.allowed) {
 			logger.warn(`isAuthkeyValid - Unauthorized request, insufficient privileges. Authkey: ${authString}`);

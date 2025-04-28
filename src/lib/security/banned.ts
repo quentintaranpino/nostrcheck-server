@@ -1,14 +1,14 @@
 import fs from "fs";
-import app from "../../app.js";
+
 import { ResultMessagev2 } from "../../interfaces/server.js";
 import { dbInsert, dbMultiSelect, dbUpdate } from "../database.js";
 import { logger } from "../logger.js";
-import { RedisService } from "../redis.js";
 import { getConfig, isModuleEnabled } from "../config/core.js";
 import { getResource } from "../frontend.js";
 import { generateVideoFromImage } from "../utils.js";
+import { initRedis } from "../redis/client.js";
 
-const redisCore = app.get("redisCore") as RedisService
+const redisCore = await initRedis(0, false);
 
 const manageEntity = async (originId: number, originTable: string, action: "ban" | "unban", reason?: string): Promise<ResultMessagev2> => {
 

@@ -1,18 +1,19 @@
 
 import { Request } from "express";
-import { dbUpdate, dbMultiSelect, dbUpsert } from "../database.js";
-import { logger } from "../logger.js";
-import app from "../../app.js";
-import { banEntity, isEntityBanned } from "./banned.js";
-import { ipInfo } from "../../interfaces/security.js";
-import { RedisService } from "../redis.js";
-import { getDomainId } from "./domain.js";
-import { getConfig, isModuleEnabled } from "../config/core.js";
 import { IncomingMessage } from "http";
 import net from "net";
 
+import { dbUpdate, dbMultiSelect, dbUpsert } from "../database.js";
+import { logger } from "../logger.js";
+
+import { banEntity, isEntityBanned } from "./banned.js";
+import { ipInfo } from "../../interfaces/security.js";
+import { getDomainId } from "./domain.js";
+import { getConfig, isModuleEnabled } from "../config/core.js";
+import { initRedis } from "../redis/client.js";
+
 const ipUpdateBatch = new Map<string, { dbid: string; firstseen: number; lastseen: number; reqcountIncrement: number }>();
-const redisCore = app.get("redisCore") as RedisService
+const redisCore = await initRedis(0, false);
 
 
 /**

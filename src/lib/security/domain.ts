@@ -1,10 +1,9 @@
 import { dbMultiSelect } from "../database.js";
 import { logger } from "../logger.js";
-import app from "../../app.js";
-import { RedisService } from "../redis.js";
 import { getConfig } from "../config/core.js";
+import { initRedis } from "../redis/client.js";
 
-const redisCore = app.get("redisCore") as RedisService;
+const redisCore = await initRedis(0, false);
 
 const loadAllDomains = async (): Promise<void> => {
   try {

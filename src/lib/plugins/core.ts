@@ -1,33 +1,20 @@
 
 import * as fs from 'fs';
-import { Application } from "express";
 import path from 'path';
 import { pathToFileURL } from 'url';
+
 import { logger } from "../logger.js";
 import { plugin, pluginContext, pluginData, pluginStore } from "../../interfaces/plugins.js";
 import * as NIP01 from "../nostr/NIP01.js";
 import * as NIP19 from "../nostr/NIP19.js";
 import * as registered from "../register.js";
-import { RedisService } from "../redis.js";
 import { getLocalFolder } from "../storage/local.js";
 import { getConfig, getFullConfig, isModuleEnabled, setConfig } from '../config/core.js';
+import { initRedis } from '../redis/client.js';
 
-let redisPlugins: RedisService;
+const redisPlugins = await initRedis (1, false);
 
 const initPlugins = async (tenant: string): Promise<boolean> => {
-
-    redisPlugins = new RedisService({
-        host: process.env.REDIS_HOST || getConfig(null, ["redis", "host"]),
-        port: process.env.REDIS_PORT || getConfig(null, ["redis", "port"]),
-        user: process.env.REDIS_USER || getConfig(null, ["redis", "user"]),
-        password: process.env.REDIS_PASSWORD || getConfig(null, ["redis", "password"]),
-        defaultDB: 1 
-    });
-    const result = await redisPlugins.init();
-    if (!result) {
-        logger.error("Redis server not available. Cannot start the plugins, please check your configuration.");
-        return Promise.resolve(false);
-    }
 
     if (!isModuleEnabled("plugins", tenant)) {
         return Promise.resolve(false);

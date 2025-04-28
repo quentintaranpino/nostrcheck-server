@@ -1,6 +1,6 @@
 import { createClient, RedisClientType } from "redis";
-import { RedisConfig } from "../interfaces/redis.js";
-import { getConfig, setConfig } from "./config/core.js";
+import { RedisConfig } from "../../interfaces/redis.js";
+import { getConfig, setConfig } from "../config/core.js";
 
 class RedisService {
   private client: RedisClientType;
@@ -25,23 +25,31 @@ class RedisService {
     return `${this.instancePrefix}:${key}`;
   }
 
+  private _initialized = false;
+
   public async init(isolated : boolean = false): Promise<boolean> {
+    if (this._initialized) return true;
 
     if (isolated) {
-      this.instancePrefix = `ns:${Math.random().toString(36).substring(2, 10)}`;
+      this.instancePrefix = `ns:${await getInstancePrefix()}:${Math.random().toString(36).substring(2, 10)}`;
     } else {
       this.instancePrefix = `ns:${await getInstancePrefix()}`;
-
     }
   
     if (!this.instancePrefix) return false;
+
+    if (this.client.isOpen) {
+      return true;
+    }
   
     try {
       await this.client.connect();
     } catch (err) {
+      console.log(err)
       return false;
     }
     await this.flushInstanceKeys();
+    this._initialized = true;
     return true;
   }
 
@@ -156,8 +164,6 @@ class RedisService {
       pipeline.expire(prefixedKey, expireSeconds);
   
       const results = await pipeline.exec();
-      // El resultado de zCard es el tercer comando, por lo que está en results[2]
-      // Cada elemento de results es [error, respuestaDelComando]
       const count = (results && typeof results[2] === "number") ? results[2] : 0;
   
       return count;

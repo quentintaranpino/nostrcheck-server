@@ -1,33 +1,30 @@
 import { Filter, matchFilter, Event } from "nostr-tools";
 import workerpool from "workerpool";
+
 import { createFilterHash, decodeChunkHeaders, decodeEvent } from "../utils.js";
 import { MetadataEvent, SharedChunk } from "../../../interfaces/relay.js";
-import { RedisConfig } from "../../../interfaces/redis.js";
-import { RedisService } from "../../redis.js";
+import { RedisService } from "../../redis/core.js";
+import { initGlobalConfig } from "../../config/core.js";
+import { initRedis } from "../../redis/client.js";
 
 const FILTER_CACHE_TTL = 120; 
 
 let redisWorker: RedisService | null = null;
 
 /**
- * Initializes the worker with a Redis connection.
+ * Initializes the worker with a Redis connection and global configuration.
  * 
 **/
-const initWorker = async (redisConfig: RedisConfig): Promise<void> => {
+const initWorker = async (): Promise<void> => {
 
   if (redisWorker !== null) {
     return;
   }
 
-  redisWorker = new RedisService({
-    host : process.env.REDIS_HOST || redisConfig.host,
-    port : process.env.REDIS_PORT || redisConfig.port,
-    user : process.env.REDIS_USER || redisConfig.user,
-    password : process.env.REDIS_PASSWORD || redisConfig.password,
-    defaultDB : redisConfig.defaultDB
-    });
-  const result = await redisWorker.init(true);
-  if (!result) {
+  await initGlobalConfig();
+
+  redisWorker = await initRedis(2, true);
+  if (!redisWorker) {
     throw new Error("Redis server not available. Cannot start the worker, please check your configuration.");
   }
 
