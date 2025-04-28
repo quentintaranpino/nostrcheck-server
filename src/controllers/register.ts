@@ -270,7 +270,7 @@ const calculateRegisterCost = async (req: Request, res: Response): Promise<Respo
 	}
 
 	const satoshi = await calculateSatoshi(
-		req.hostname,
+		domain,
 		"reversed",
 		size,
 		getConfig(domain, ["register","minUsernameLength"]),
