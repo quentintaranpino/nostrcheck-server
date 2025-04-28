@@ -273,9 +273,9 @@ const calculateRegisterCost = async (req: Request, res: Response): Promise<Respo
 		req.hostname,
 		"reversed",
 		size,
-		getConfig(req.hostname, ["register","minUsernameLength"]),
-		getConfig(req.hostname, ["register","maxUsernameLength"]),
-		getConfig(req.hostname, ["payments", "satoshi", "registerMaxSatoshi"]),
+		getConfig(domain, ["register","minUsernameLength"]),
+		getConfig(domain, ["register","maxUsernameLength"]),
+		getConfig(domain, ["payments", "satoshi", "registerMaxSatoshi"]),
 	)
 
     const result : amountReturnMessage = {
