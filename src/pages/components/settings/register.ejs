@@ -17,7 +17,7 @@
       description: "Set the minimum number of characters required for a username. The username must be at least this long to be valid.",
       value: cfg.minUsernameLength,
       globalValue: globalCfg.minUsernameLength,
-      overridable: false
+      overridable: true
     }) %>
 
     <%- include('field', {
@@ -27,7 +27,7 @@
       description: "Set the maximum number of characters allowed for a username. The username must not exceed this length to be valid.",
       value: cfg.maxUsernameLength,
       globalValue: globalCfg.maxUsernameLength,
-      overridable: false
+      overridable: true
     }) %>
 
     <%- include('field', {
