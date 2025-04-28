@@ -212,6 +212,11 @@ const isAuthkeyValid = async (authString: string, checkAdminPrivileges: boolean 
 			authString = generateAuthToken(decoded.identifier, decoded.allowed);
 		} 
 
+		if (checkActive && await isPubkeyActive(decoded.identifier) == false) {
+			logger.warn(`isAuthkeyValid - Unauthorized request, user is not active. Authkey: ${authString}`);
+			return { status: "error", message: "Unauthorized", authkey: "", pubkey: "", kind: 0 };
+		}
+
         if (checkAdminPrivileges && !decoded.allowed) {
 			logger.warn(`isAuthkeyValid - Unauthorized request, insufficient privileges. Authkey: ${authString}`);
             return { status: "error", message: "Unauthorized", authkey: "", pubkey: "", kind: 0 };
