@@ -22,7 +22,7 @@ import { initRedis } from "./redis/client.js";
 const redisCore = await initRedis(0, false);
 
 /**
- * Parses the authorization header and checks if it is valid. (apikey, authkey, NIP98 or BUD01)
+ * Parses the authorization header and checks if it is valid. (Authkey, NIP98 or BUD01)
  * Always check if the header's pubkey is banned.
  * 
  * @param req - The request object.
@@ -33,12 +33,6 @@ const redisCore = await initRedis(0, false);
  * @returns A promise that resolves to a VerifyResultMessage object.
  */
 const parseAuthHeader = async (req: Request, endpoint: string = "", checkAdminPrivileges : boolean, checkRegistered : boolean, checkActive : boolean): Promise<authHeaderResult> => {
-
-	// Apikey. Will be deprecated on 0.7.0
-	if ((req.query.apikey || req.body?.apikey?.length > 0) && checkRegistered) {
-		logger.debug(`parseAuthHeader - Apikey found on request: ${req.query.apikey || req.body.apikey}`, "|", getClientInfo(req).ip);
-		return await isApikeyValid(req, endpoint, checkAdminPrivileges);
-	}
 
 	// Authkey. Cookie bearer token
 	if (req.cookies && req.cookies.authkey && checkRegistered) {
@@ -325,56 +319,6 @@ const verifyOTC = async (otc: string): Promise<string> => {
     return pubkey;
 }
 
-/**
- * Checks if the request has a valid apikey.
- * 
- * @param req - The request object.
- * @param endpoint - The endpoint of the request.
- * @param checkAdminPrivileges - A boolean indicating whether to check if the apikey has admin privileges. Optional.
- * @returns A promise that resolves to a boolean indicating whether the apikey is valid. Returns false if the apikey is not found or if an error occurs.
- */
-const isApikeyValid = async (req: Request, endpoint: string = "", checkAdminPrivileges = true): Promise<authHeaderResult> => {
-
-	const apikey = req.query.apikey || req.body.apikey;
-	if (!apikey) {
-		logger.warn(`isApikeyValid - Apikey not found`, "|", getClientInfo(req).ip);
-		return {status: "error", message: "Apikey not found", pubkey:"", authkey:"", kind: 0};
-	}
-
-	// We only allow server apikey for uploadMedia endpoint
-	const serverApikey = await dbSelect("SELECT apikey FROM registered WHERE username = ?", "apikey", ["public"]);
-	const hexApikey = await dbSelect(
-		(endpoint != "upload" && endpoint != "getMediaStatusbyID")
-			? "SELECT hex FROM registered WHERE apikey = ? and apikey <> ?"
-			: "SELECT hex FROM registered WHERE apikey = ?",
-		"hex",
-		endpoint != "upload" ? [apikey, serverApikey] : [apikey.toString()]
-	) as string;
-
-	if (hexApikey === "" || hexApikey === undefined) {
-		if (serverApikey){
-			logger.warn(`isApikeyValid - Apikey not authorized for this action`, "|", getClientInfo(req).ip);
-			return {status: "error", message: "Apikey not authorized for this action", pubkey:"", authkey:"", kind: 0};
-		}
-		logger.warn(`isApikeyValid - Apikey not found`, "|", getClientInfo(req).ip);
-		return {status: "error", message: "Apikey not authorized for this action", pubkey:"", authkey:"", kind: 0};
-	}
-
-	if (await isPubkeyValid(hexApikey, checkAdminPrivileges) == false){
-		logger.warn("isApikeyValid - Apikey not authorized for this action", "|", getClientInfo(req).ip);
-		return {status: "error", message: "Apikey not authorized for this action", pubkey:"", authkey:"", kind: 0};
-	}
-
-	const result: authHeaderResult = {
-		status: "success",
-		message: "Apikey is valid",
-		pubkey: hexApikey,
-		authkey: "",
-		kind: 0
-	};
-	return result;
-};
-
 const generateAuthToken = (identifier: string, allowed: boolean): string => {
     const secretKey = getConfig(null, ["session", "secret"]);
     const expiresIn = getConfig(null, ["session", "maxAge"]) /1000;
@@ -391,7 +335,6 @@ export { 	isPubkeyValid,
 			isPubkeyRegistered, 
 			isPubkeyAllowed,
 			isUserPasswordValid, 
-			isApikeyValid, 
 			isAuthkeyValid, 
 			generatePassword,
 			generateOTC,
