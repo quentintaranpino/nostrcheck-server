@@ -18,6 +18,7 @@ Nostrcheck Server is a comprehensive solution for managing and offering services
 
 - **Nostraddress Management (NIP05):** Configure and manage personalized Nostr addresses.
 - **Hosting of Multimedia Files:** Fully compatible with NIP94, NIP96, and Blossom🌸 for uploading and sharing content.
+- **Nostr relay:** The server can act as a Nostr relay, allowing admins to manage their own Nostr relay.
 - **Lightning Redirects:** Allow your users to redirect payments to their Lightning wallets using their Nostraddress.
 - **Full LN Integration:** Compatible with **Nostr Wallet Connect** and **LNBits**, enabling LN payments for file uploads, downloads, and user registrations.
 - **Advanced User Management:** Control profiles, invitations, and permissions.
@@ -27,7 +28,6 @@ Nostrcheck Server is a comprehensive solution for managing and offering services
 - **Ban Module:** Includes tools to ban users, ensuring data security and enabling the reporting of illegal activities to the authorities.
 - **Integrated AI:** Automatically analyzes uploaded multimedia to detect sensitive or illegal content, reducing the workload for server administrators.
 - **Invitation Module:** Allows administrators to manage invitation codes for controlled access to specific domains.
-- **Nostr relay:** The server can act as a Nostr relay, allowing admins to manage their own Nostr relay.
 
 The server is highly customizable and can be deployed in any environment, allowing anyone to become a Nostr service provider.
 
@@ -214,7 +214,6 @@ See plugins [here](https://github.com/quentintaranpino/nostrcheck-api-ts/blob/ma
 - [x] AI media moderation
 - [x] Plugins engine
 - [ ] Private Direct Messages (NIP17)
-- [ ] Multi-server mirroring
 - [ ] Import / Export data
 - [ ] Custom frontend templates
 - [x] Frontend UI (directory)
@@ -223,9 +222,10 @@ See plugins [here](https://github.com/quentintaranpino/nostrcheck-api-ts/blob/ma
 - [x] Integrated nostr relay
 - [X] AI event relay moderation
 - [x] Nostr wallet connect
-- [x] Security Engine.
+- [x] Security Engine
 - [x] Frontend UI (relay)
 - [x] Alby Hub appstore integration
+- [x] Full multy-tenancy support
 
 ## License
 
