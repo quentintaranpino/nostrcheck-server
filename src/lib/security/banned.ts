@@ -12,7 +12,7 @@ const redisCore = await initRedis(0, false);
 
 const manageEntity = async (originId: number, originTable: string, action: "ban" | "unban", reason?: string): Promise<ResultMessagev2> => {
 
-    if (!isModuleEnabled("security", ""))  return { status: "error", message: "Banned module not enabled" };
+    if (!isModuleEnabled("security", ""))  return { status: "error", message: "Security module is not enabled" };
 
     if (originId == 0 || originId == null || originTable == "" || originTable == null || (action === "ban" && (!reason || reason === ""))) {
         return { status: "error", message: "Invalid parameters" };

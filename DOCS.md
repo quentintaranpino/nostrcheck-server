@@ -2,385 +2,258 @@
 
 ## Admin
 
-### resetpassword [POST]
-This method generates a new password for a user. The request must include a valid pubkey and an Authorization header with a valid authkey. On success, it returns a message indicating that the new password was generated, along with an authkey.
+The **Admin API** provides endpoints to manage server operations, database records, and configuration. All endpoints are mounted under `/api/v2/admin` and enforce CORS (configured origin), rate limiting, and HTTP authentication (Bearer authkey or NIP98 HTTP Auth or Blossom HTTP Auth (BUD01)). Include a valid `Authorization` header in every request, and use `application/json` or `multipart/form-data` as specified.
 
-Endpoint: https://nostrcheck.me/api/v2/admin/resetpassword
+### Stop server [POST]
 
-**Headers**
+Stops the server process immediately.
 
-- `Content-Type`: application/json
-- `Authorization`: Bearer {authkey}
+- **Endpoint:** `POST /api/v2/admin/stop`
+- **Headers**
+  - `Content-Type`: application/json
+  - `Authorization`: Bearer {authkey} or Nostr HTTP Auth (NIP98) or Blossom HTTP Auth (BUD01)
 
-**Parameters**
-
-- `pubkey`: The public key of the user.
-
-**Example Request**
+Response:
 
 ```json
 {
-    "method": "POST",
-    "url": "https://nostrcheck.me/api/v2/admin/resetpassword",
-    "headers": {
-        "Content-Type": "application/json",      
-	"Authorization": "Bearer Auth37f3352fe10584d7396f010eb501482930dd712f"
-    },
-    "body": {
-        "pubkey": "user_public_key"
-    }
+  "status": "success",
+  "message": "Stopping server..."
 }
 ```
 
-**Example Response**
+### Server status [GET]
+
+Retrieves server health and usage metrics.
+
+- **Endpoint:** `GET /api/v2/admin/status`
+- **Headers**
+  - `Content-Type`: application/json
+  - `Authorization`: Bearer {authkey} or Nostr HTTP Auth (NIP98) or Blossom HTTP Auth (BUD01)
+
+Response:
 
 ```json
 {
-    "status": "success",
-    "message": "New password generated for user_key",
-    "authkey": "auth_key"
+  "status": "success",
+  "message": "Nostrcheck-server is running.",
+  "version": "0.7.0",
+  "uptime": "01:23:45",
+  "ramUsage": 123,            // in MB
+  "cpuUsage": 0.15,           // fraction of CPU
+  "moderationQueue": 5        // number of items pending moderation
 }
 ```
 
-### stop [POST]
-This method stops the server. The request must include a valid Authorization header with a valid authkey. On success, it returns a message indicating that the server is stopping, along with an authkey.
+### Reset user password [POST]
 
-Endpoint: https://nostrcheck.me/api/v2/admin/stop
+Generates a random new password for a user.
 
-**Headers**
+- **Endpoint:** `POST /api/v2/admin/resetpassword`
+- **Headers**
+  - `Content-Type`: application/json
+  - `Authorization`: Bearer {authkey} or Nostr HTTP Auth (NIP98) or Blossom HTTP Auth (BUD01)
+- **Body** (JSON)
+  - `pubkey` (string) – User's public key
+  - `domain` (string) – Tenant domain
 
-- `Content-Type`: application/json
-- `Authorization`: Bearer {authkey}
-
-**Example Request**
+Response:
 
 ```json
 {
-    "method": "POST",
-    "url": "https://nostrcheck.me/api/v2/admin/stop",
-    "headers": {
-        "Content-Type": "application/json",      
-        "Authorization": "Bearer Auth37f3352fe10584d7396f010eb501482930dd712f"
-    }
+  "status": "success",
+  "message": "New password generated for {pubkey}"
 }
 ```
 
-**Example Response**
+### Update database record [POST]
+
+Modifies a specific field of a database record.
+
+- **Endpoint:** `POST /api/v2/admin/updaterecord`
+- **Headers**
+  - `Content-Type`: application/json
+  - `Authorization`: Bearer {authkey} or Nostr HTTP Auth (NIP98) or Blossom HTTP Auth (BUD01)
+- **Body** (JSON)
+  - `table` (alias) – Logical name defined in `moduleDataKeys`
+  - `field` (string) – Field name to update
+  - `value` (any) – New value
+  - `id` (string|number) – Record identifier
+  - `tenant` (optional,string) – Tenant for plugin records
+
+Response:
 
 ```json
-{
-    "status": "success",
-    "message": "Stopping server...",
-    "authkey": "auth_key"
-}
+{ "status": "success", "message": "{value}" }
 ```
 
-### status [GET]
-This method returns the status of the server. It does not require any parameters or an Authorization header.
+### Insert database record [POST]
 
-Endpoint: https://nostrcheck.me/api/v2/admin/status
+Adds a new record to a specified table.
 
-**Example Request**
+- **Endpoint:** `POST /api/v2/admin/insertrecord`
+- **Headers**
+  - `Content-Type`: application/json
+  - `Authorization`: Bearer {authkey} or Nostr HTTP Auth (NIP98) or Blossom HTTP Auth (BUD01)
+- **Body** (JSON)
+  - `table` (alias)
+  - `row` (object) – Field‑value pairs (omit `id`)
+
+Response:
 
 ```json
-{
-    "method": "GET",
-    "url": "https://nostrcheck.me/api/v2/admin/status",
-    "headers": {
-        "Content-Type": "application/json"
-    }
-}
+{ "status": "success", "message": "{newRecordId}" }
 ```
 
-**Example Response**
+### Delete database record [POST]
+
+Removes a record and any related artifacts (files, cache, pending deletes).
+
+- **Endpoint:** `POST /api/v2/admin/deleterecord`
+- **Headers**
+  - `Content-Type`: application/json
+  - `Authorization`: Bearer {authkey} or Nostr HTTP Auth (NIP98) or Blossom HTTP Auth (BUD01)
+- **Body** (JSON)
+  - `table` (alias)
+  - `id` (number)
+
+Response:
 
 ```json
-{
-    "status": "success",
-    "message": "Nostrcheck API server is running.",
-    "version": "0.5.0.1470",
-    "uptime": "01:45:04"
-}
+{ "status": "success", "message": "Record deleted succesfully" }
 ```
 
-### updaterecord [POST]
-This method updates a record in the database. The request must include a valid Authorization header with a valid authkey. The request body must include the table name, field name, new value, and the id of the record to be updated.
+### Moderate file record [POST]
 
-Endpoint: https://nostrcheck.me/api/v2/admin/updaterecord
+Enqueues an object for moderation review.
 
-**Headers**
+- **Endpoint:** `POST /api/v2/admin/moderaterecord`
+- **Headers**
+  - `Content-Type`: application/json
+  - `Authorization`: Bearer {authkey} or Nostr HTTP Auth (NIP98) or Blossom HTTP Auth (BUD01)
+- **Body** (JSON)
+  - `table` (alias)
+  - `id` (string|number)
 
-- `Content-Type`: application/json
-- `Authorization`: Bearer {authkey}
-
-**Body**
-
-- `table`: The name of the table in the database.
-- `field`: The name of the field to be updated.
-- `value`: The new value for the field.
-- `id`: The id of the record to be updated.
-
-**Example Request**
+Response:
 
 ```json
-{
-    "method": "POST",
-    "url": "https://nostrcheck.me/api/v2/admin/updaterecord",
-    "headers": {
-        "Content-Type": "application/json",
-   "Authorization": "Bearer Auth37f3352fe10584d7396f010eb501482930dd712f"
-    },
-    "body": {
-        "table": "registered",
-        "field": "username",
-        "value": "newUsername",
-        "id": "123"
-    }
-}
+{ "status": "success", "message": "Moderation request sent" }
 ```
 
-**Example Response**
+### Ban entity [POST]
+
+Bans a database entity by ID and reason.
+
+- **Endpoint:** `POST /api/v2/admin/ban`
+- **Headers**
+  - `Content-Type`: application/json
+  - `Authorization`: Bearer {authkey} or Nostr HTTP Auth (NIP98) or Blossom HTTP Auth (BUD01)
+- **Body** (JSON)
+  - `table` (alias)
+  - `id` (string|number)
+  - `reason` (string)
+
+Response:
 
 ```json
-{
-    "status": "success",
-    "message": "newUsername",
-    "authkey": "auth_key"
-}
+{ "status": "success", "message": "{reason}" }
 ```
 
-### deleterecord [POST]
-This method deletes a record in the database. The request must include a valid Authorization header with a valid authkey. The request body must include the table name and the id of the record to be deleted.
+### Update settings [POST]
 
-Endpoint: https://nostrcheck.me/api/v2/admin/deleterecord
+Updates configuration keys dynamically.
 
-**Headers**
+- **Endpoint:** `POST /api/v2/admin/updatesettings`
+- **Headers**
+  - `Content-Type`: application/json
+  - `Authorization`: Bearer {authkey} or Nostr HTTP Auth (NIP98) or Blossom HTTP Auth (BUD01)
+- **Body** (JSON)
+  - `name` (string) – Dot‑separated config path (e.g. `frontend.maxAge`)
+  - `value` (any)
+  - `domain` (optional,string) – Specific tenant.
 
-- `Content-Type`: application/json
-- `Authorization`: Bearer {authkey}
-
-**Body**
-
-- `table`: The name of the table in the database.
-- `id`: The id of the record to be deleted.
-
-**Example Request**
+Response:
 
 ```json
-{
-    "method": "POST",
-    "url": "https://nostrcheck.me/api/v2/admin/deleterecord",
-    "headers": {
-        "Content-Type": "application/json",
-        "Authorization": "Bearer Auth37f3352fe10584d7396f010eb501482930dd712f"
-    },
-    "body": {
-        "table": "registered",
-        "id": 123
-    }
-}
+{ "status": "success", "message": "Field: {name} updated successfully" }
 ```
 
-**Example Response**
+### Upload custom settings file [POST]
+
+Uploads or restores files (logos, icons) per tenant (if applicable).
+
+- **Endpoint:** `POST /api/v2/admin/updatesettingsfile`
+- **Headers**
+  - `Content-Type`: multipart/form-data
+  - `Authorization`: Bearer {authkey} or Nostr HTTP Auth (NIP98) or Blossom HTTP Auth (BUD01)
+- **Form Fields**
+  - File inputs matching keys in `acceptedSettingsFiles`
+  - `{key}.default` = "true" to restore default
+  - `domain` (optional,string) – Specific tenant.
+
+Response:
 
 ```json
-{
-    "status": "success",
-    "message": "Record deleted succesfully",
-    "authkey": "auth_key"
-}
+{ "status": "success", "message": "Field: {key} updated successfully" }
 ```
 
-### insertrecord [POST]
-This method inserts a new record into a specified table in the database. The request must include a valid table name, a row object with field-value pairs, and an Authorization header with a valid authkey. On success, it returns a message indicating that the record was inserted, along with an authkey.
+### Module data [GET]
 
-Endpoint: https://nostrcheck.me/api/v2/admin/insertrecord
+Fetches paginated rows for admin modules (logs, plugins, etc.).
 
-**Headers**
+- **Endpoint:** `GET /api/v2/admin/moduledata`
+- **Headers**
+  - `Authorization`: Bearer {authkey} or Nostr HTTP Auth (NIP98) or Blossom HTTP Auth (BUD01)
+- **Query Parameters**
+  - `module` (string, required)
+  - `offset`, `limit` (numbers)
+  - `order` (ASC|DESC), `sort` (field)
+  - `search` (string), `filter` (JSON string)
+  - `tenant` (string, optional)
 
-- `Content-Type`: application/json
-- `Authorization`: Bearer {authkey}
-
-**Parameters**
-
-- `table`: The name of the table where the record will be inserted.
-- `row`: An object containing field-value pairs to be inserted as a new record.
-
-**Example Request**
+Response:
 
 ```json
-{
-    "method": "POST",
-    "url": "https://nostrcheck.me/api/v2/admin/insertrecord",
-    "headers": {
-        "Content-Type": "application/json",      
-	"Authorization": "Bearer Auth37f3352fe10584d7396f010eb501482930dd712f"
-    },
-    "body": {
-        "table": "table_name",
-        "row": {
-            "field1": "value1",
-            "field2": "value2",
-            ...
-        }
-    }
-}
+{ "total":0, "totalNotFiltered":0, "rows":[...] }
 ```
 
-**Example Response**
+### Module count data [GET]
+
+Retrieves metrics or counts for modules.
+
+- **Endpoint:** `GET /api/v2/admin/modulecountdata`
+- **Headers**
+  - `Authorization`: Bearer {authkey} or Nostr HTTP Auth (NIP98) or Blossom HTTP Auth (BUD01)
+- **Query Parameters**
+  - `module` (string, required)
+  - `action` (string, required)
+  - `field` (string, optional)
+
+Supported actions:
+
+- `serverBalance`, `unpaidTransactions`, `countWarning`, `countSynced`, `monthCount`
+
+Response examples:
 
 ```json
-{
-    "status": "success",
-    "message": "Records inserted",
-    "authkey": "auth_key"
-}
+{ "total": 100, "field": 20 }
 ```
 
-### updatesettings [POST]
-This method updates the settings of a specified module in the application. The request must include a valid module name, a setting name, a new value for the setting, and an Authorization header with a valid authkey. On success, it returns a message indicating that the settings were updated, along with an authkey.
+## Domains
 
-Endpoint: https://nostrcheck.me/api/v2/admin/updatesettings
-
-**Headers**
-
-- `Content-Type`: application/json
-- `Authorization`: Bearer {authkey}
-
-**Parameters**
-
-- `name`: The name of the setting to be updated.
-- `value`: The new value for the setting.
-
-**Example Request**
-
-```json
-{
-    "method": "POST",
-    "url": "https://nostrcheck.me/api/v2/admin/updatesettings",
-    "headers": {
-        "Content-Type": "application/json",      
-	"Authorization": "Bearer Auth37f3352fe10584d7396f010eb501482930dd712f"
-    },
-    "body": {
-        "name": "setting_name",
-        "value": "new_value"
-    }
-}
-```
-
-**Example Response**
-
-```json
-{
-    "status": "success",
-    "message": "Succesfully updated settings.",
-    "authkey": "auth_key"
-}
-```
-### updatelogo [POST]
-This method updates the logo of the application. The request must include a valid module name, an Authorization header with a valid authkey, and a file with the new logo. If no file is provided, the default logo is restored. The logo is resized and converted to png format before being saved. On success, it returns a message indicating that the logo was updated, along with an authkey.
-
-Endpoint: https://nostrcheck.me/api/v2/admin/updatelogo
-
-**Headers**
-
-- `Content-Type`: multipart/form-data
-- `Authorization`: Bearer {authkey}
-
-**Parameters**
-
-- `file`: The new logo file.
-
-**Example Request**
-
-```json
-{
-    "method": "POST",
-    "url": "https://nostrcheck.me/api/v2/admin/updatelogo",
-    "headers": {
-        "Content-Type": "multipart/form-data",
-	"Authorization "Bearer Auth37f3352fe10584d7396f010eb501482930dd712f"
-    },
-    "body": {
-        "file": "logo_file"
-    }
-}
-```
-
-**Example Response**
-
-```json
-{
-    "status": "success",
-    "message": "Logo updated",
-    "authkey": "auth_key"
-}
-```
-
-### updaterelayicon [POST]
-This method updates the relay icon of the application. The request must include a valid module name, an Authorization header with a valid authkey, and a file with the new icon. If no file is provided, the default icon is restored. The relay icon is resized and converted to png format before being saved. On success, it returns a message indicating that the logo was updated, along with an authkey.
-
-Endpoint: https://nostrcheck.me/api/v2/admin/updaterelayicon
-
-**Headers**
-
-- `Content-Type`: multipart/form-data
-- `Authorization`: Bearer {authkey}
-
-**Parameters**
-
-- `file`: The new icon file.
-
-**Example Request**
-
-```json
-{
-    "method": "POST",
-    "url": "https://nostrcheck.me/api/v2/admin/updaterelayicon",
-    "headers": {
-        "Content-Type": "multipart/form-data",
-	"Authorization "Bearer Auth37f3352fe10584d7396f010eb501482930dd712f"
-    },
-    "body": {
-        "file": "icon_file"
-    }
-}
-```
-
-**Example Response**
-
-```json
-{
-    "status": "success",
-    "message": "Relay icon updated",
-    "authkey": "auth_key"
-}
-```
-
-### Domains
-
-### domains [GET]
-
-This method retrieves a list of available domains with their requirements (invite, payment and maxsatoshi) in the application. Also returns the minimum and maximum length of the username.
+The **Domains API** provides endpoints to list available domains, list users per domain, and update a user's domain. All endpoints are mounted under `/api/v2/domains` and enforce CORS (configured origin), rate limiting, and HTTP authentication (Bearer authkey or NIP98 HTTP Auth or Blossom HTTP Auth (BUD01)). Include a valid `Authorization` header in every request, and use `application/json` as specified.
 
 
-Endpoint: https://nostrcheck.me/api/v2/domains
+### List available domains [GET]
 
-**Headers**
+Retrieves all domains currently available for registration, including their invite/payment requirements and maximum allowed satoshis.
 
-- `Content-Type`: application/json
+- **Endpoint:** `GET /api/v2/domains`
+- **Headers**
+  - `Content-Type`: application/json
 
-**Example Request**
-
-```json
-{
-    "method": "GET",
-    "url": "https://nostrcheck.me/api/v2/domains/",
-}
-```
-
-**Example Response**
+**Response:**
 
 ```json
 {
@@ -388,118 +261,46 @@ Endpoint: https://nostrcheck.me/api/v2/domains
         "nostrcheck.me": {
             "requireinvite": false,
             "requirepayment": true,
-            "maxsatoshi": 10000
+            "maxsatoshi": 10000,
+            "minUsernameLength": 3,
+            "maxUsernameLength": "10"
         },
         "nostr-check.me": {
             "requireinvite": true,
             "requirepayment": false,
-            "maxSatoshi": 0
+            "maxSatoshi": 0,
+            "minUsernameLength": 3,
+            "maxUsernameLength": "10"
+        }
+    }
+}
+```
+
+### List domain users [GET]
+
+Returns a list of registered usernames for a specific domain.
+
+- **Endpoint:** `GET /api/v2/domains/{domain}/users`
+- **Headers**
+  - `Content-Type`: application/json
+  - `Authorization`: Bearer {authkey} or Nostr HTTP Auth (NIP98) or Blossom HTTP Auth (BUD01)
+
+**Response:**
+
+```json
+{
+    "localhost": [
+        {
+            "id": 1,
+            "username": "quentin",
+            "hex": "89e14be49ed0073da83b678279cd29ba5ad86cf000b6a3d1a4c3dc4aa4fdd02c"
         },
-    },
-    "minUsernameLength": 3,
-    "maxUsernameLength": 20
-}
-```
-
-### users [GET]
-This method retrieves a list of available users for a specific domain in the application. The request must include a valid module name, an Authorization header with a valid authkey, and a domain parameter in the URL. 
-
-This endpoint also can use the [NIP98](https://github.com/nostr-protocol/nips/blob/master/98.md) HTTP Auth for getting the user's authkey. The NIP98's pubkey must have the "allowed" field with "1" on registered database.
-
-Endpoint: https://nostrcheck.me/api/v2/domains/{domain}/users
-
-**Headers**
-
-- `Content-Type`: application/json
-- `Authorization`: Bearer {authkey}
-
-**Parameters**
-
-- `domain`: The domain for which to retrieve the list of available users.
-
-**Example Request**
-
-With authkey
-```json
-{
-    "method": "GET",
-    "url": "https://nostrcheck.me/api/v2/domains/example.com/users",
-    "headers": {
-        "Content-Type": "/json",
-        "Authorization": "Bearer Auth37f3352fe10584d7396f010eb501482930dd712f"
-    }
-}
-```
-
-With NIP98
-```json
-{
-    "method": "GET",
-    "url": "https://nostrcheck.me/api/v2/domains/domain1.com/users",
-    "headers": {
-        "Content-Type": "application/json",
-        "Authorization": "Nostr ewogICJpZCI6ICI5MzMxMDUyY2FlYzQzNTE4NDRlMzM4YTgyZDhmMGRhNzEzZmVkNDk1ODViN2ZjNTVkMDg5MWVlOWZiMDYyYTJjIiwKICAicHVia2V5IjogIjgyMDhmYWNkY2FiMjk4NzgyYzllM2I3YjllZmIyMmJjMjQ2ZDE1NzcwZTBiNGY5NmJiZTUxYzQwNjViODJhZjAiLAogICJjcmVhdGVkX2F0IjogMTcwOTExNDEwNywKICAia2luZCI6IDI3MjM1LAogICJ0YWdzIjogWwogICAgWwogICAgICAibWV0aG9kIiwKICAgICAgIkdFVCIKICAgIF0sCiAgICBbCiAgICAgICJ1IiwKICAgICAgImh0dHBzOi8vbm9zdHJjaGVjay5tZS9hcGkvdjIvZG9tYWlucyIKICAgIF0KICBdLAogICJjb250ZW50IjogIiIsCiAgInNpZyI6ICI3ZDYyMzk1OGZhMjY5ZTY2NzhlYmZlOGVhN2JlOTlhMzgxNDlhYTc2NTdmZjJlZTVlYmM0ODYyNWFlODY3M2Y4Yjk0ZDM2YWUxMTAyOGVhOWU0MzNjZWY3ZmZhNWEwZDcxYjIyYzI0OGMyNDA5M2NkNGFmMjBmYjVjM2Y5MGE0MiIKfQ"
-    }
-}
-```
-
-**Example Response**
-
-```json
-{
-    "domain1.com": ["user1", "user2"],
-    "authkey": "auth_key"
-}
-```
-
-### domain [PUT]
-This method updates the domain of a user in the application. The request must include a valid module name, an Authorization header with a valid authkey, and a domain parameter in the request URL. On success, it returns a success message.
-
-This endpoint also can use the [NIP98](https://github.com/nostr-protocol/nips/blob/master/98.md) HTTP Auth for getting the user's authkey. The NIP98's pubkey must have the "allowed" field with "1" on registered database.
-
-Endpoint: https://nostrcheck.me/api/v2/domains/{domain}
-
-**Headers**
-
-- `Content-Type`: application/json
-- `Authorization`: Bearer {authkey}
-
-**Parameters**
-
-- `domain`: The domain to be updated for the user.
-
-**Example Request**
-
-With authkey
-```json
-{
-    "method": "PUT",
-    "url": "https://nostrcheck.me/api/v2/domains/example.com",
-    "headers": {
-        "Content-Type": "application/json",
-	"Authorization": "Bearer Auth37f3352fe10584d7396f010eb501482930dd712f"
-    }
-}
-```
-
-With NIP98
-```json
-{
-    "method": "GET",
-    "url": "https://nostrcheck.me/api/v2/domains/domain1.com",
-    "headers": {
-        "Content-Type": "application/json",
-        "Authorization": "Nostr ewogICJpZCI6ICJlYjlkMWY2OWJhZDYwN2IyZDg5OTFhYjJmNTAxYzQwMGNkZTQ4MTk0YmZlMDg3NmI5ZWMzN2I4NjRlZDYwMmVmIiwKICAicHVia2V5IjogIjgyMDhmYWNkY2FiMjk4NzgyYzllM2I3YjllZmIyMmJjMjQ2ZDE1NzcwZTBiNGY5NmJiZTUxYzQwNjViODJhZjAiLAogICJjcmVhdGVkX2F0IjogMTcwOTExNDEwNywKICAia2luZCI6IDI3MjM1LAogICJ0YWdzIjogWwogICAgWwogICAgICAibWV0aG9kIiwKICAgICAgIlBVVCIKICAgIF0sCiAgICBbCiAgICAgICJ1IiwKICAgICAgImh0dHBzOi8vbm9zdHJjaGVjay5tZS9hcGkvdjIvZG9tYWlucyIKICAgIF0KICBdLAogICJjb250ZW50IjogIiIsCiAgInNpZyI6ICI5MjZlZGNhYThkNjllNTUyZTI4NDZlZWJlMjY3ZGMxMDQ3YWU3ZjJiMjc0NzU0ZjZlYWI4YWQwZTQxZDJmZGY1YzI2MDdmNTM3YmE3NTUxMmRkZWIzNWE2NWVlZDQxZjEzNDRiODE2YTlmMzgzZWUzYTJkZTljMTgzNWU3MjBjOCIKfQ=="
-    }
-}
-```
-
-**Example Response**
-
-```json
-{
-    "status": "success",
-    "message": "User domain for pubkey Auth37f3352fe10584d7396f010eb501482930dd712f updated"
+        {
+            "id": 2,
+            "username": "public",
+            "hex": "7168fba7e5c29eaf2b6f9d3e7736443459f478e19e0613e411c99df8244ed2e3"
+        }
+    ]
 }
 ```
 

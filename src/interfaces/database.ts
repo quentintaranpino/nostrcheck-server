@@ -135,7 +135,6 @@ interface RegisteredTableStructure extends RowDataPacket{
 	date: string;
 	allowed: string;
 	authkey: string;
-	apikey: string;
 	comments: string;
 	checked: string;
 	balance: string;
@@ -155,7 +154,6 @@ const registeredTableFields: RegisteredTableStructure = {
 	date: "datetime NOT NULL",
 	allowed: "boolean NOT NULL DEFAULT 0",
 	authkey: "varchar(64)",
-	apikey: "varchar(64)",
 	comments: "varchar(150)",
 	checked: "boolean NOT NULL DEFAULT 0",
 	balance: "int(11) NOT NULL DEFAULT 0",

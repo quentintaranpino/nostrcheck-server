@@ -1,6 +1,6 @@
 import { Application } from "express";
-import express from "express";
-import { listAvailableDomains, listAvailableUsers, updateUserDomain } from "../controllers/domains.js";
+
+import { listDomains, listDomainUsers } from "../controllers/domains.js";
 import { limiter } from "../lib/security/core.js";
 import { getModuleInfo } from "../lib/config/core.js";
 
@@ -11,12 +11,9 @@ export const loadDomainsEndpoint = async (app: Application, version: string): Pr
     const base = `/api/${version}${getModuleInfo("domains", "")?.path}`;
 
     // Route to list available domains
-    app.get(`${base}`, limiter(), listAvailableDomains);
+    app.get(`${base}`, limiter(), listDomains);
 
     // Route to list users for a domain
-    app.get(`${base}/:domain/users`, limiter(), listAvailableUsers);
-
-    // Route to update user domain
-    app.put(`${base}/:domain`, limiter(), express.json(), updateUserDomain);
+    app.get(`${base}/:domain/users`, limiter(), listDomainUsers);
 
 };

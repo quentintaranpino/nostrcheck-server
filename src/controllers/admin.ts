@@ -4,7 +4,6 @@ import fs from "fs";
 import path from "path";
 import sharp from "sharp";
 
-import app from "../app.js";
 import { getLogHistory, logger } from "../lib/logger.js";
 import { format, getCPUUsage, getNewDate } from "../lib/utils.js";
 import { ResultMessagev2, ServerStatusMessage } from "../interfaces/server.js";
@@ -240,7 +239,7 @@ const updateDBRecord = async (req: Request, res: Response): Promise<Response> =>
 /**
  * Handles upload or restore of custom file settings like logos and icons.
  */
-const updateSettingsFile = async (req: Request, res: Response): Promise<Response> => {
+const updateSettingsFile = async (req: Request, res: Response): Promise<Response> => {    
     const reqInfo = await isIpAllowed(req);
     if (reqInfo.banned) {
         logger.warn(`updateSettingsFile - Unauthorized IP:`, reqInfo.ip);
@@ -261,7 +260,7 @@ const updateSettingsFile = async (req: Request, res: Response): Promise<Response
     }
     setAuthCookie(res, eventHeader.authkey);
 
-    const domain = typeof req.body?.domain === "string" ? req.body.domain : "";
+    const domain = typeof req.body?.domain === "string" ? req.body.domain : "global";
 
     for (const settingKey of acceptedSettigsFiles) {
         const file = (req.files as Express.Multer.File[]).find(f => f.fieldname === settingKey);
@@ -930,7 +929,6 @@ const moderateDBRecord = async (req: Request, res: Response): Promise<Response> 
     setAuthCookie(res, eventHeader.authkey);
 
     if (req.body.id === "" || req.body.id === null ||  req.body.id === undefined || 
-        req.body.filename === "" || req.body.filename === null || req.body.filename === undefined ||
         req.body.table === "" || req.body.table === null || req.body.table === undefined) {
         const result: ResultMessagev2 = {
             status: "error",
@@ -950,7 +948,7 @@ const moderateDBRecord = async (req: Request, res: Response): Promise<Response> 
         return res.status(400).send(result);
     }
 
-    logger.info(`moderateDBRecord - ${req.method} ${req.path}`, "|", reqInfo.ip, "|", req.body.id, "|", req.body.filename);
+    logger.info(`moderateDBRecord - ${req.method} ${req.path}`, "|", reqInfo.ip, "|", req.body.id, "|");
 
     await moderateFile(table, req.body.id, "");
 
