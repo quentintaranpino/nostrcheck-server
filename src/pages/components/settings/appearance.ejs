@@ -14,7 +14,8 @@
         description: "Upload a new logo for light theme. Use transparent background.",
         previewSrc: `/static/resources/appearance-server-logo-light.png${selectedDomain ? `?domain=${selectedDomain}` : ""}`,
         previewSize: { width: 180, height: 61 },
-        overridable: true
+        overridable: true,
+        noBadge: true
       }) %>
       <%- include('field', {
         type: "file",
@@ -24,7 +25,8 @@
         previewSrc: `/static/resources/appearance-server-logo-dark.png${selectedDomain ? `?domain=${selectedDomain}` : ""}`,
         previewSize: { width: 180, height: 61 },
         previewClass: "bg-dark",
-        overridable: true
+        overridable: true,
+        noBadge: true
       }) %>
       <label class="mt-3 mb-1 fw-bold">Dynamic background</label>
       <p>Choose the colors for the dynamic background.</p>
