@@ -1,7 +1,6 @@
 import { Request, Response } from "express";
 import validator from "validator";
 import { logger } from "../lib/logger.js";
-import { getAvailableDomains } from "../lib/domains.js";
 import { addNewUsername, isPubkeyOnDomainAvailable, isUsernameAvailable } from "../lib/register.js";
 import { generateOTC, verifyOTC, parseAuthHeader } from "../lib/authorization.js";
 import { npubToHex, validatePubkey } from "../lib/nostr/NIP19.js";
@@ -14,6 +13,7 @@ import { setAuthCookie } from "../lib/frontend.js";
 import { isIpAllowed } from "../lib/security/ips.js";
 import { getConfig, isModuleEnabled } from "../lib/config/core.js";
 import { ResultMessagev2 } from "../interfaces/server.js";
+import { getDomains } from "../lib/domains.js";
 
 const registerUsername = async (req: Request, res: Response): Promise<Response> => {
 
@@ -196,7 +196,7 @@ const validateRegisterOTC = async (req: Request, res: Response): Promise<Respons
 	}
 
 	let validDomain = false;
-	const availableDomains = await getAvailableDomains();
+	const availableDomains = await getDomains();
 	if (Object.prototype.hasOwnProperty.call(availableDomains, req.body.domain)) {
 		validDomain = true;
 	}
