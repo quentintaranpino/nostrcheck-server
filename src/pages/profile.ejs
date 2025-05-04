@@ -1,4 +1,4 @@
-<%- include('./partials/head',{title: `${locals.serverHost} - Profile`}); %>
+<%- include('./partials/head',{title: `${request.session.metadata.usernames[0].username} public profile -  ${locals.serverHost}`}); %>
 <link rel="stylesheet" href="/static/css/particles.css">
 <style>
 
