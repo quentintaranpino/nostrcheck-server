@@ -357,10 +357,10 @@
     subscribeRelays(0,["<%= request.session.identifier %>"], "from", Math.floor(Date.now() / 1000) - (730 * 24 * 60 * 60)).then((data) => {
         if (!data || data.length == 0) return;
         data = JSON.parse(data[0].content);
-        if (Object.keys(profileData).length == 0 || (data.picture != JSON.parse(profileData.picture))) {
+        if (Object.keys(profileData).length == 0 || (data.picture != profileData.picture)) {
           loadMedia(data.picture || '/static/resources/picture-default.webp' || '/static/resources/picture-default.webp', document.querySelectorAll('.picture-container'), ['img-thumbnail', 'border-0', 'object-fit-cover', 'w-100', 'h-100']);
         }
-        if (Object.keys(profileData).length == 0 || (data.picture != JSON.parse(profileData.banner))) {
+        if (Object.keys(profileData).length == 0 || (data.picture != profileData.banner)) {
           loadMedia(data.banner || '/static/resources/banner-default.webp', document.querySelectorAll('.banner-container'), [], { autoplay: true, loop: true, muted: true });
         }
         localStorage.setItem('profileData', JSON.stringify(data));

@@ -486,7 +486,7 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 
 const getMedia = async (req: Request, res: Response, version:string) => {
 
-	if ((req.params.param1 && req.params.param2) && (req.params.param1 != "list" && req.params.param1 != "public")) {
+	if ((req.params.param1 && req.params.param2) && (req.params.param1 != "list" && req.params.param1 != "public" && req.params.param1 != "vanity")) {
 		if (req.params.param2 == 'tags'){
 			req.params.fileId = req.params.param1;
 			getMediaTagsbyID(req, res); 
@@ -513,8 +513,8 @@ const getMedia = async (req: Request, res: Response, version:string) => {
 	// Get media by ID, getmedia listing
 	if (req.params.param1 && req.params.param1.length < 11) {
 
-		if(req.params.param1 == "list" || req.params.param1 == "public"){
-			 // List media Blossom compatibility amd public media
+		if(req.params.param1 == "list" || req.params.param1 == "public" || req.params.param1 == "vanity"){
+			 // Blossom, public and vanity media listing
 			getMediaList(req, res);
 			return;
 		}else{
@@ -640,14 +640,26 @@ const getMediaList = async (req: Request, res: Response): Promise<Response> => {
 
 	logger.info(`getMediaList - Request from:`, reqInfo.ip);
 
-	// NOTE: This is not a NIP96 or BUD02 endpoint, but a custom endpoint for public gallery mode
-	const isPublicGalleryMode = req.params.param1 === "public";
-
+	let listType;
+	switch (req.params.param1) {
+		case "list":
+			listType = "Blossom";
+			break;
+		case "public":
+			listType = "public";
+			break;
+		case "vanity":
+			listType = "vanity";
+			break;
+		default:
+			listType = "NIP96";
+			break;
+	}
 
 	// Check if authorization header is valid
 	const eventHeader = await parseAuthHeader(req, "list", false, true, true);
 	if (eventHeader.status != "success") {
-		if (!req.params.param2 && !isPublicGalleryMode) {
+		if (!req.params.param2 && listType == "NIP96") {
 			return res.status(401).send({ result: false, description: eventHeader.message });
 		}
 		logger.debug(`getMediaList - Invalid auth, fallback to public files for pubkey: ${req.params.param2}`, "|", reqInfo.ip);
@@ -669,13 +681,15 @@ const getMediaList = async (req: Request, res: Response): Promise<Response> => {
 	let whereStatement = "";
 	let whereFields: (string | number)[] = [];
 	
-	if (isPublicGalleryMode) {
-		// Public gallery mode
+	if (listType == "public") {
 		whereStatement = "active = '1' AND visibility = '1' AND checked = '1' AND original_hash IS NOT NULL ORDER BY date DESC LIMIT ? OFFSET ?";
 		whereFields = [count, offset];
 	}
-	else if (pubkey != "") {
-		// Blossom
+	else if (listType == "vanity") {
+		whereStatement = "active = '1' AND visibility = '1' AND checked = '1' AND original_hash IS NOT NULL AND pubkey = ? ORDER BY date DESC LIMIT ? OFFSET ?";
+		whereFields = [pubkey, count, offset];
+	} 
+	else if (listType == "Blossom") {
 		whereStatement = eventHeader.pubkey == pubkey
 			? "pubkey = ? and active = ? and original_hash is not null"
 			: "pubkey = ? and active = ? and visibility = ? and checked = ? and original_hash is not null";
@@ -697,12 +711,8 @@ const getMediaList = async (req: Request, res: Response): Promise<Response> => {
 	}
 	else {
 		// NIP96
-		whereStatement = eventHeader.pubkey
-			? "pubkey = ? and active = ? ORDER BY date DESC LIMIT ? OFFSET ?"
-			: "active = ? and visibility = ? and checked = ? ORDER BY date DESC LIMIT ? OFFSET ?";
-		whereFields = eventHeader.pubkey
-			? [eventHeader.pubkey, "1", count, offset]
-			: ["1", "1", "1", count, offset];
+		whereStatement = "pubkey = ? and active = ? ORDER BY date DESC LIMIT ? OFFSET ?";
+		whereFields = [eventHeader.pubkey, "1", count, offset];
 	}
 
 	// Get files and total from database
@@ -711,6 +721,7 @@ const getMediaList = async (req: Request, res: Response): Promise<Response> => {
 										`${whereStatement}`,
 										whereFields, false);
 	
+	// Only for NIP96 compatibility
 	const selectStatement = eventHeader.pubkey || pubkey ? "SELECT COUNT(*) AS count FROM mediafiles WHERE pubkey = ? and active = '1'" : "SELECT COUNT(*) AS count FROM mediafiles WHERE active = '1' and visibility = '1'";									
 	const total = await dbSelect(selectStatement, "count", [eventHeader.pubkey || pubkey]);
 	
@@ -777,8 +788,8 @@ const getMediaList = async (req: Request, res: Response): Promise<Response> => {
 
 	logger.info(`getMediaList - Successfully listed ${files.length} files`, "|", reqInfo.ip);
 
-	// NIP96 compatibility
-	if (pubkey == "") {
+	// NIP96, public and vanity compatibility
+	if (listType != "Blossom") {
 		const response = {
 			count: files.length,
 			total: total || 0,

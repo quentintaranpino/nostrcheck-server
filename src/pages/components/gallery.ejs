@@ -11,16 +11,15 @@
             </div>
     </div>
 
-    <div id="list-container" class="visually-hidden g-2 p-2 pt-0">
+    <div id="list-container" class="g-2 p-2 pt-0 <%= privateGallery ? '' : 'visually-hidden' %>">
         <table id="fileTable"></table>
-    </div>
+      </div>
 
 <% }%>
 
-<div id="masonry-container" class="g-2 p-1"></div>
+<div id="masonry-container" class="g-2 p-1 <%= privateGallery ? 'visually-hidden' : '' %>"></div>
 <div id="no-media" class="visually-hidden text-center py-5 fs-4"><p>No media files found</p></div>
 <div id="sentinelEnd"></div>
-<%- include('./loading', {objectId: 'gallery-list', dataName: 'Files'}) %>
 <style>
     #masonry-container {
         display: flex;
@@ -251,7 +250,8 @@ document.addEventListener('DOMContentLoaded', (event) => {
         for (const entry of entries) {
             if (entry.isIntersecting) {
                 page++;
-                const response = await fetch(privateGallery ? `/api/v2/media?page=${page}&count=${mediaCount}` : `/api/v2/media/public/${pubkey}?page=${page}&count=${mediaCount}`, {
+                const apiURL = privateGallery ? `/api/v2/media?page=${page}&count=${mediaCount}` : pubkey ? `/api/v2/media/vanity/${pubkey}?page=${page}&count=${mediaCount}` : `/api/v2/media/public?page=${page}&count=${mediaCount}`;
+                const response = await fetch(apiURL, {
                     method: "GET",
                     credentials: privateGallery ? 'include' : 'omit',
                 });
