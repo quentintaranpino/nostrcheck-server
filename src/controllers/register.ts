@@ -256,12 +256,11 @@ const calculateRegisterCost = async (req: Request, res: Response): Promise<Respo
         return res.status(400).send(result);
     }
 
-    const size = req.body.size;
+    let size = req.body.size;
     const domain = req.body.domain || "";
 
 	if (size == null || size == "" || size == undefined || size < 1) {
-		logger.info(`calculateRegisterCost - 400 Bad request - Size not provided`, "|", reqInfo.ip);
-		return res.status(400).send({status: "error", message: "Size not provided"});
+		size = getConfig(domain, ["register","minUsernameLength"]);
 	}
 
 	if (domain == null || domain == "" || domain == undefined) {
