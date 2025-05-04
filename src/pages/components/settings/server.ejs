@@ -75,17 +75,6 @@ const globalCfg = locals.globalConfig?.server || {};
 
       <%- include('field', {
         type: "text",
-        name: "server.name",
-        label: "Server name",
-        description: "Displayed in the homepage and used to identify the server.",
-        value: cfg.name,
-        globalValue: globalCfg.name,
-        placeholder: "My cool Nostrcheck instance",
-        required: true
-      }) %>
-
-      <%- include('field', {
-        type: "text",
         name: "server.pubkey",
         label: "Server pubkey",
         description: "HEX format public key for this server. Used for NIP05 and NIP96.",

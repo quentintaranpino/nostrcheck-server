@@ -278,7 +278,8 @@ const loadIndexPage = async (req: Request, res: Response, version:string): Promi
     res.locals.activeModules = activeModules; 
     res.locals.version = getConfig(req.hostname, ["version"]);
     res.locals.serverHost = getConfig(req.hostname, ["server", "host"]);
-    res.locals.serverName = getConfig(req.hostname, ["server", "name"]);
+    res.locals.serverName = getConfig(req.hostname, ["appearance", "serverName"]);
+    res.locals.serverDescription = getConfig(req.hostname, ["appearance", "serverDescription"]);
     res.locals.serverPubkey = await hextoNpub(getConfig(req.hostname, ["server", "pubkey"]));
 
     setAuthCookie(res, req.cookies.authkey);

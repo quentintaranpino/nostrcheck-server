@@ -34,7 +34,6 @@ const defaultConfig = {
 		"port": 3000,
 		"pubkey": "",
 		"secretKey": "",
-		"name": "",
 		"tosFilePath" : "resources/tos.md",
 		"privacyFilePath" : "resources/privacy.md",
 		"legalFilePath" : "resources/legal.md",
@@ -287,6 +286,8 @@ const defaultConfig = {
 		"isolated": false,
 	},
 	"appearance": {
+		"serverName" : "",
+		"serverDescription" : "",
 		"dynamicbackground": {
 			"orientation": "to top left",
 			"color1": "#007BFF",

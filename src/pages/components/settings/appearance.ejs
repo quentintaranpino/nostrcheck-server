@@ -8,6 +8,26 @@
       <p> In this section, you can personalize the server color scheme and logo according to your specific requirements. 
       </p>
       <%- include('field', {
+        type: "text",
+        name: "appearance.serverName",
+        label: "Server name",
+        description: "Displayed in the homepage and used to identify the server in the frontend.",
+        value: cfg.serverName,
+        globalValue: globalCfg.serverName,
+        placeholder: "My cool Nostrcheck instance",
+        required: true
+      }) %>
+      <%- include('field', {
+        type: "text",
+        name: "appearance.serverDescription",
+        label: "Server description",
+        description: "Displayed in the homepage",
+        value: cfg.serverName,
+        globalValue: globalCfg.serverName,
+        placeholder: "Be sovereign of your data",
+        required: true
+      }) %>
+      <%- include('field', {
         type: "file",
         name: "appearance.server.logo.light",
         label: "Light logo",
