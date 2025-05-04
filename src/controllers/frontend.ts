@@ -93,6 +93,7 @@ const loadSettingsPage = async (req: Request, res: Response, version: string): P
     res.locals.selectedDomain = domain;
     res.locals.globalConfig = globalConfig;
     res.locals.domainConfig = domainConfig;
+    res.locals.version = getConfig(req.hostname, ["version"]);
   
     res.locals.domainsList = getTenants().map((tenant) => tenant.domain);
 
@@ -127,7 +128,7 @@ const loadProfilePage = async (req: Request, res: Response, version:string): Pro
     const activeModules = getModules(req.hostname,true)
 
     res.locals.activeModules = activeModules; 
-
+    res.locals.version = getConfig(req.hostname, ["version"]);
     res.locals.serverHost = getConfig(req.hostname, ["server", "host"]);
 
     setAuthCookie(res, req.cookies.authkey);
@@ -192,6 +193,7 @@ const loadMdPage = async (req: Request, res: Response, mdFileName : string, vers
     // Active modules
     const activeModules = getModules(req.hostname,true);
     res.locals.activeModules = activeModules;
+    res.locals.version = getConfig(req.hostname, ["version"]);
 
     res.locals.serverHost = getConfig(req.hostname, ["server", "host"]);
     let mdFile : string = "";
@@ -243,7 +245,7 @@ const loadLoginPage = async (req: Request, res: Response, version:string): Promi
     // Active modules
     const activeModules = getModules(req.hostname,true);
     res.locals.activeModules = activeModules; 
-
+    res.locals.version = getConfig(req.hostname, ["version"]);
     res.locals.serverHost = getConfig(req.hostname, ["server", "host"]);
 
     setAuthCookie(res, req.cookies.authkey);
@@ -274,7 +276,7 @@ const loadIndexPage = async (req: Request, res: Response, version:string): Promi
     // Active modules
     const activeModules = getModules(req.hostname,true);
     res.locals.activeModules = activeModules; 
-
+    res.locals.version = getConfig(req.hostname, ["version"]);
     res.locals.serverHost = getConfig(req.hostname, ["server", "host"]);
     res.locals.serverName = getConfig(req.hostname, ["server", "name"]);
     res.locals.serverPubkey = await hextoNpub(getConfig(req.hostname, ["server", "pubkey"]));
@@ -307,7 +309,7 @@ const loadDocsPage = async (req: Request, res: Response, version: string): Promi
     // Active modules
     const activeModules = getModules(req.hostname,true);
     res.locals.activeModules = activeModules; 
-
+    res.locals.version = getConfig(req.hostname, ["version"]);
     res.locals.serverHost = getConfig(req.hostname, ["server", "host"]);
     res.locals.serverPubkey = await hextoNpub(getConfig(req.hostname, ["server", "pubkey"]));
     setAuthCookie(res, req.cookies.authkey);
@@ -339,7 +341,7 @@ const loadGalleryPage = async (req: Request, res: Response, version:string): Pro
     // Active modules
     const activeModules = getModules(req.hostname,true);
     res.locals.activeModules = activeModules; 
-
+    res.locals.version = getConfig(req.hostname, ["version"]);
     res.locals.serverHost = getConfig(req.hostname, ["server", "host"]);
 
     setAuthCookie(res, req.cookies.authkey);
@@ -370,7 +372,7 @@ const loadDirectoryPage = async (req: Request, res: Response, version:string): P
     // Active modules
     const activeModules = getModules(req.hostname,true);
     res.locals.activeModules = activeModules; 
-
+    res.locals.version = getConfig(req.hostname, ["version"]);
     res.locals.serverHost = getConfig(req.hostname, ["server", "host"]);
 
     setAuthCookie(res, req.cookies.authkey);
@@ -401,7 +403,7 @@ const loadRegisterPage = async (req: Request, res: Response, version:string): Pr
     // Active modules
     const activeModules = getModules(req.hostname,true);
     res.locals.activeModules = activeModules; 
-
+    res.locals.version = getConfig(req.hostname, ["version"]);
     res.locals.serverHost = getConfig(req.hostname, ["server", "host"]);
 
     setAuthCookie(res, req.cookies.authkey);
@@ -434,7 +436,7 @@ const loadCdnPage = async (req: Request, res: Response, version:string): Promise
     // Active modules
     const activeModules = getModules(req.hostname,true);
     res.locals.activeModules = activeModules; 
-
+    res.locals.version = getConfig(req.hostname, ["version"]);
     res.locals.serverHost = getConfig(req.hostname, ["server", "host"]);
 
     setAuthCookie(res, req.cookies.authkey);
@@ -465,7 +467,7 @@ const loadRelayPage = async (req: Request, res: Response, version:string): Promi
     // Active modules
     const activeModules = getModules(req.hostname,true);
     res.locals.activeModules = activeModules; 
-
+    res.locals.version = getConfig(req.hostname, ["version"]);
     res.locals.serverHost = getConfig(req.hostname, ["server", "host"]);
     res.locals.serverPubkey = await hextoNpub(getConfig(req.hostname, ["server", "pubkey"]));
 
