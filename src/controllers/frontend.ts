@@ -13,6 +13,7 @@ import { getLightningAddress } from "../lib/lightning.js";
 import { getClientInfo, isIpAllowed } from "../lib/security/ips.js";
 import { getModules, getConfig, getTenants, isModuleEnabled } from "../lib/config/core.js";
 import path from "path";
+import { getDomains } from "../lib/domains.js";
 
 const loadDashboardPage = async (req: Request, res: Response, version:string): Promise<Response | void> => {
 
@@ -147,6 +148,13 @@ const loadProfilePage = async (req: Request, res: Response, version:string): Pro
 
     // username
     if (!identifier.startsWith("npub") && identifier.length != 64) {
+        if (identifier.includes("@")) {
+            const [username, domain] = identifier.split("@");
+            const domains = await getDomains();
+            if (domain in domains) {
+                identifier = (await dbMultiSelect(["hex"], "registered", "username = ? and domain = ?", [username, domain], true))[0]?.hex;
+            }
+        }
         identifier = (await dbMultiSelect(["hex"], "registered", "username = ?", [identifier], true))[0]?.hex;
     }
 
