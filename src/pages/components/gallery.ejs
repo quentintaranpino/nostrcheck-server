@@ -251,7 +251,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
         for (const entry of entries) {
             if (entry.isIntersecting) {
                 page++;
-                const response = await fetch(`/api/v2/media?page=${page}&count=${mediaCount}`, {
+                const response = await fetch(privateGallery ? `/api/v2/media?page=${page}&count=${mediaCount}` : `/api/v2/media/public/${pubkey}?page=${page}&count=${mediaCount}`, {
                     method: "GET",
                     credentials: privateGallery ? 'include' : 'omit',
                 });
@@ -262,10 +262,11 @@ document.addEventListener('DOMContentLoaded', (event) => {
                     return;
                 }
                 const userData = await response.json();
+                const files = Array.isArray(userData) ? userData : userData.files;
 
-                if (userData.files && userData.files.length === 0) {
+                if (!files || files.length === 0) {
                     document.getElementById('gallery-list-loading')?.remove();
-                    observer.unobserve(sentinelEnd);
+                    document.getElementById('no-media').classList.remove('visually-hidden');
                     return;
                 }
                 populateMasonryData(userData.files, privateGallery? true : false);
@@ -385,6 +386,12 @@ document.addEventListener('DOMContentLoaded', (event) => {
 });
 
 async function populateMasonryData (files, auth) {
+
+    if (!files || files.length === 0) {
+        document.getElementById('gallery-list-loading')?.remove();
+        document.getElementById('no-media').classList.remove('visually-hidden');
+        return;
+    }
 
     for (const file of files) {
         const url = file.tags.find(tag => tag[0] === 'url')[1];

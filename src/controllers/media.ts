@@ -513,8 +513,9 @@ const getMedia = async (req: Request, res: Response, version:string) => {
 	// Get media by ID, getmedia listing
 	if (req.params.param1 && req.params.param1.length < 11) {
 
-		if(req.params.param1 == "list"){
-			getMediaList(req, res); // List media Blossom compatibility
+		if(req.params.param1 == "list" || req.params.param1 == "public"){
+			 // List media Blossom compatibility amd public media
+			getMediaList(req, res);
 			return;
 		}else{
 			req.params.id = req.params.param1;
@@ -639,8 +640,20 @@ const getMediaList = async (req: Request, res: Response): Promise<Response> => {
 
 	logger.info(`getMediaList - Request from:`, reqInfo.ip);
 
+	// NOTE: This is not a NIP96 or BUD02 endpoint, but a custom endpoint for public gallery mode
+	const isPublicGalleryMode = req.params.param1 === "public";
+
+
 	// Check if authorization header is valid
 	const eventHeader = await parseAuthHeader(req, "list", false, true, true);
+	if (eventHeader.status != "success") {
+		if (!req.params.param2 && !isPublicGalleryMode) {
+			return res.status(401).send({ result: false, description: eventHeader.message });
+		}
+		logger.debug(`getMediaList - Invalid auth, fallback to public files for pubkey: ${req.params.param2}`, "|", reqInfo.ip);
+	  
+		eventHeader.pubkey = "";
+	}
 
 	// Get NIP96 query parameters
 	const page = Number(req.query.page) || 0;
@@ -656,28 +669,40 @@ const getMediaList = async (req: Request, res: Response): Promise<Response> => {
 	let whereStatement = "";
 	let whereFields: (string | number)[] = [];
 	
-	// Blossom where statement
-	if (pubkey != "") {
-		whereStatement = eventHeader.pubkey == pubkey ? "pubkey = ? and active = ? and original_hash is not null" : "active = ? and visibility = ? and checked = ? and original_hash is not null";
-		whereFields = eventHeader.pubkey == pubkey ? [pubkey, "1"] : ["1", "1", "1"];
-
+	if (isPublicGalleryMode) {
+		// Public gallery mode
+		whereStatement = "active = '1' AND visibility = '1' AND checked = '1' AND original_hash IS NOT NULL ORDER BY date DESC LIMIT ? OFFSET ?";
+		whereFields = [count, offset];
+	}
+	else if (pubkey != "") {
+		// Blossom
+		whereStatement = eventHeader.pubkey == pubkey
+			? "pubkey = ? and active = ? and original_hash is not null"
+			: "pubkey = ? and active = ? and visibility = ? and checked = ? and original_hash is not null";
+		whereFields = eventHeader.pubkey == pubkey
+			? [pubkey, "1"]
+			: [pubkey, "1", "1", "1"];
+	
 		if (since != 0) {
 			whereStatement += " and date >= ?";
 			whereFields.push(new Date(Number(since) * 1000).toISOString().slice(0, 19).replace('T', ' '));
 		}
-
+	
 		if (until != 0) {
 			whereStatement += " and date <= ?";
 			whereFields.push(new Date(Number(until) * 1000).toISOString().slice(0, 19).replace('T', ' '));
 		}
-
+	
 		whereStatement += " ORDER BY date DESC";
 	}
-
-	// NIP96 where statement
-	if (pubkey == "") {
-		whereStatement = eventHeader.pubkey ? "pubkey = ? and active = ? ORDER BY date DESC LIMIT ? OFFSET ?" : "active = ? and visibility = ? and checked = ? ORDER BY date DESC LIMIT ? OFFSET ?";
-		whereFields = eventHeader.pubkey ? [eventHeader.pubkey, "1", count, offset] : ["1", "1", "1", count, offset];
+	else {
+		// NIP96
+		whereStatement = eventHeader.pubkey
+			? "pubkey = ? and active = ? ORDER BY date DESC LIMIT ? OFFSET ?"
+			: "active = ? and visibility = ? and checked = ? ORDER BY date DESC LIMIT ? OFFSET ?";
+		whereFields = eventHeader.pubkey
+			? [eventHeader.pubkey, "1", count, offset]
+			: ["1", "1", "1", count, offset];
 	}
 
 	// Get files and total from database
@@ -756,7 +781,7 @@ const getMediaList = async (req: Request, res: Response): Promise<Response> => {
 	if (pubkey == "") {
 		const response = {
 			count: files.length,
-			total: total,
+			total: total || 0,
 			page: page,
 			files: files,
 		};
