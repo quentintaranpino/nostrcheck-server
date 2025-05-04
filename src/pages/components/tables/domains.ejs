@@ -2,15 +2,10 @@
 let domainsFields = [
   ['active'           , '30' , 'formatCheckbox', 'enabled   show text-center              '],
   ['checked'          , '30' , 'formatCheckbox', 'enabled   hide text-center              '],
-  ['requireinvite'    , '30' , 'formatCheckbox', 'enabled   show text-center              '],
   ['domain'           , '40' , ''              , 'enabled   show text-center              '],
   ['comments'         , ''   , ''              , 'enabled   show mobile-hide              '],
 ];
 
-if(locals.activeModules.some(mod => mod.name === 'payments')) { 
-  domainsFields.splice(3, 0, ['requirepayment', '30', 'formatCheckbox', 'enabled show text-center'],);
-  domainsFields.splice(4, 0, ['maxsatoshi','30', 'formatSatoshi', 'enabled show text-end'],);
-}
 
 %>
 <% if(locals.activeModules.some(mod => mod.name === 'nostraddress')) { %>
