@@ -2,11 +2,11 @@
     <div id="gallery-view" class="d-flex justify-content-start align-items-center p-2">
         <span class="me-2 lead fs-6">Select view</span>
             <div id="viewSelector" class="btn-group">
-                <button type="button" class="btn btn-secondary active" data-view="masonry" id="galleryView">
-                    <i class="fas fa-images"></i>
-                </button>
-                <button type="button" class="btn btn-secondary" data-view="list" id="listView">
+                <button type="button" class="btn btn-secondary active" data-view="list" id="listView">
                     <i class="fas fa-list"></i> 
+                </button>
+                <button type="button" class="btn btn-secondary" data-view="masonry" id="galleryView">
+                    <i class="fas fa-images"></i>
                 </button>
             </div>
     </div>
@@ -20,6 +20,7 @@
 <div id="masonry-container" class="g-2 p-1 <%= privateGallery ? 'visually-hidden' : '' %>"></div>
 <div id="no-media" class="visually-hidden text-center py-5 fs-4"><p>No media files found</p></div>
 <div id="sentinelEnd"></div>
+<%- !privateGallery ? include('./loading', {objectId: 'gallery-list', dataName: 'Files'}) : '' %>
 <style>
     #masonry-container {
         display: flex;
