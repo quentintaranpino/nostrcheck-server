@@ -8,12 +8,14 @@ import { logger } from "../logger.js";
  */
 const hextoNpub = async (hex : string) : Promise<string> => {
 
-    if (hex != "" && hex.startsWith("npub")) {
-        return hex;
-    }
-
     try {
+
+        if (hex != "" && hex != undefined && hex.startsWith("npub")) {
+            return hex;
+        }
+
         return await nip19.npubEncode(hex);
+        
     } catch (error) {
         logger.error(`hextoNpub - Error while encoding pubkey to npub: ${error}`);
     }
@@ -23,18 +25,20 @@ const hextoNpub = async (hex : string) : Promise<string> => {
 }
 
 const npubToHex = async (npub : string) : Promise<string> => {
+   
+    try {
 
-    if (npub != "" && !npub.startsWith("npub")) {
-        return npub;
-    }
-    
-        try {
-            return await nip19.decode(npub).data.toString();
-        } catch (error) {
-            logger.error(`npubToHex - Error while decoding npub to hex: ${error}`);
+        if (npub != "" && npub != undefined && !npub.startsWith("npub")) {
+            return npub;
         }
-    
-        return "";
+
+        return await nip19.decode(npub).data.toString();
+
+    } catch (error) {
+        logger.error(`npubToHex - Error while decoding npub to hex: ${error}`);
+    }
+
+    return "";
 }
 
 /**
