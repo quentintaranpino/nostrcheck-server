@@ -251,7 +251,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
         for (const entry of entries) {
             if (entry.isIntersecting) {
                 page++;
-                const response = await fetch(privateGallery ? `/api/v2/media?page=${page}&count=${mediaCount}` : `/api/v2/media/public/${pubkey}?page=${page}&count=${mediaCount}`, {
+                const response = await fetch(privateGallery ? `/api/v2/media?page=${page}&count=${mediaCount}` : `/api/v2/media/list/${pubkey}?page=${page}&count=${mediaCount}`, {
                     method: "GET",
                     credentials: privateGallery ? 'include' : 'omit',
                 });
@@ -262,14 +262,15 @@ document.addEventListener('DOMContentLoaded', (event) => {
                     return;
                 }
                 const userData = await response.json();
-                const files = Array.isArray(userData) ? userData : userData.files;
+                console.log('Fetched media data', userData);
 
-                if (!files || files.length === 0) {
+                if (!userData || !Array.isArray(userData) || userData.length === 0) {
                     document.getElementById('gallery-list-loading')?.remove();
                     document.getElementById('no-media').classList.remove('visually-hidden');
                     return;
                 }
-                populateMasonryData(userData.files, privateGallery? true : false);
+
+                populateMasonryData(userData, privateGallery? true : false);
             };
         }
     }, {
@@ -384,19 +385,26 @@ document.addEventListener('DOMContentLoaded', (event) => {
     });
 
 });
-
-async function populateMasonryData (files, auth) {
-
+async function populateMasonryData(files, auth) {
     if (!files || files.length === 0) {
         document.getElementById('gallery-list-loading')?.remove();
         document.getElementById('no-media').classList.remove('visually-hidden');
         return;
     }
 
+    const getTagValue = (file, key) => {
+        if (Array.isArray(file.tags)) {
+            const found = file.tags.find(tag => tag[0] === key);
+            return found ? found[1] : null;
+        }
+        return file[key] || null;
+    };
+
     for (const file of files) {
-        const url = file.tags.find(tag => tag[0] === 'url')[1];
-        const ext = url.split('.').pop();
-        const height = parseInt(file.tags.find(tag => tag[0] === 'dim')[1].trim().split('x')[1], 10) || 220;
+        const url = getTagValue(file, 'url');
+        const dim = getTagValue(file, 'dim');
+        const ext = url?.split('.').pop() || '';
+        const height = parseInt(dim?.split('x')[1], 10) || 220;
 
         let mediaLink = document.createElement('a');
         mediaLink.href = url;
@@ -412,16 +420,15 @@ async function populateMasonryData (files, auth) {
             let mediaLoader = new Image();
             mediaLoader.src = url;
 
-            mediaLoader.onload = function () {
+            mediaLoader.onload = () => {
                 mediaElement.classList.add('fade-in');
                 mediaElement.src = mediaLoader.src;
             };
 
-            mediaLoader.onerror = function () {
+            mediaLoader.onerror = () => {
                 console.error('Error loading image', url);
             };
-
-        } else if (ext === 'mp4' || ext === 'mov') {
+        } else if (['mp4', 'mov'].includes(ext)) {
             mediaElement = document.createElement('video');
             mediaElement.classList.add("rounded-1", "w-100", "object-fit-contain");
             mediaElement.setAttribute('muted', '');
@@ -431,37 +438,33 @@ async function populateMasonryData (files, auth) {
             mediaElement.setAttribute('poster', '/static/resources/loading-video.webp');
             mediaElement.setAttribute('preload', 'metadata');
 
-            const handleVideoError = function(error) {
-                mediaElement.removeEventListener('error', handleVideoError);
-                mediaElement.poster = `${url}`;
+            const handleVideoError = () => {
+                mediaElement.poster = url;
                 videoObserver.unobserve(mediaElement);
             };
 
-            mediaElement.onloadedmetadata = function() {
+            mediaElement.onloadedmetadata = () => {
                 mediaElement.classList.add('fade-in');
             };
 
             mediaElement.addEventListener('error', handleVideoError);
 
-            interserctingVideo = false;
+            let interserctingVideo = false;
             const videoObserver = new IntersectionObserver((entries) => {
                 entries.forEach(entry => {
-                    if (entry.isIntersecting) {
-                        if (interserctingVideo) return;
+                    if (entry.isIntersecting && !interserctingVideo) {
                         interserctingVideo = true;
-                        mediaElement.setAttribute('preload', 'auto'); 
+                        mediaElement.setAttribute('preload', 'auto');
                         setTimeout(() => {
                             mediaElement.style.width = '100%';
                             mediaElement.style.opacity = 1;
                             try {
                                 mediaElement.play();
-                            } catch (error) {
-                                console.debug('cant play video', error)
+                            } catch (err) {
+                                console.debug('cant play video', err);
                             }
                         }, 100);
-                        interserctingVideo = false;
-                    } else {
-                        if (!interserctingVideo) return;
+                    } else if (!entry.isIntersecting && interserctingVideo) {
                         mediaElement.style.width = '1px';
                         mediaElement.style.opacity = 0;
                         mediaElement.pause();
@@ -470,27 +473,25 @@ async function populateMasonryData (files, auth) {
                 });
             });
 
-            mediaElement.addEventListener('canplaythrough', function() {
+            mediaElement.addEventListener('canplaythrough', () => {
                 mediaElement.classList.add('fade-in');
                 mediaElement.removeAttribute('poster');
             });
 
-            mediaElement.src = `${url}`;
+            mediaElement.src = url;
             mediaElement.load();
 
-            // Autoplay video patch
             try {
-            mediaElement.muted = true;
-                mediaElement.play()
-            } catch (error) {
-                console.debug('cant play video', error)
+                mediaElement.muted = true;
+                mediaElement.play();
+            } catch (err) {
+                console.debug('cant play video', err);
             }
 
             videoObserver.observe(mediaElement);
-
         } else if (ext === 'mp3') {
             mediaElement = document.createElement('audio');
-            mediaElement.src = `${url}`;
+            mediaElement.src = url;
             mediaElement.classList.add("ps-5", "pe-5");
             mediaElement.setAttribute('controls', '');
 
@@ -499,47 +500,45 @@ async function populateMasonryData (files, auth) {
                 hasBeenPlayed = true;
             });
 
-            // Pause audio when it's not in the viewport
             const audioObserver = new IntersectionObserver((entries) => {
                 entries.forEach(entry => {
                     if (!entry.isIntersecting) {
                         setTimeout(() => {
                             try {
                                 mediaElement.pause();
-                            } catch (error) {
-                                console.debug('cant pause video', error)
+                            } catch (err) {
+                                console.debug('cant pause audio', err);
                             }
                         }, 100);
                     } else if (hasBeenPlayed) {
                         setTimeout(() => {
                             try {
                                 mediaElement.play();
-                            } catch (error) {
-                                console.debug('cant play video', error)
+                            } catch (err) {
+                                console.debug('cant play audio', err);
                             }
                         }, 100);
                     }
                 });
             });
             audioObserver.observe(mediaElement);
-        }else if (ext === 'stl') {
+        } else if (ext === 'stl') {
             mediaElement = document.createElement('canvas');
             mediaElement.classList.add("rounded-2", "w-100", "object-fit-contain");
-            mediaElement.style.backgroundColor = '#D1CDCD'
+            mediaElement.style.backgroundColor = '#D1CDCD';
             mediaElement.style.width = '100%';
-            mediaElement.style.height = '200';
+            mediaElement.style.height = '200px';
             mediaElement.style.position = "relative";
             mediaElement.id = `media-3d-${fileMasonryId}`;
 
             setTimeout(() => {
-                init3dViewer(mediaElement.id, 'column-0', `${url}`, 250, 200);
+                init3dViewer(mediaElement.id, 'column-0', url, 250, 200);
                 mediaElement.classList.add('fade-in');
             }, 100);
-        }
-        else{
+        } else {
             mediaElement = document.createElement('div');
             mediaElement.classList.add("rounded-2", "w-100", "object-fit-contain", "text-center", "d-flex", "align-items-center", "justify-content-center");
-            mediaElement.style.height = '180px'
+            mediaElement.style.height = '180px';
             mediaElement.style.backgroundColor = '#ffffff';
             mediaElement.style.border = '1px solid #D1CDCD';
             mediaElement.innerHTML = `<a href="${url}" download><span class="display-4 mb-1 pb-2 font-weight-normal gradient-text">.${ext}</span></a>`;
@@ -550,12 +549,10 @@ async function populateMasonryData (files, auth) {
             const mediaDiv = document.createElement('div');
             mediaDiv.classList.add("mb-0", "fade-in", "media-div", "text-center");
             file.id = fileMasonryId;
-            mediaDiv.id = `media-${fileMasonryId}`;
-            fileMasonryId++;
-            mediaDiv.style.height = ext === 'mp3'? '220px' : `${height}px`;
+            mediaDiv.id = `media-${fileMasonryId++}`;
+            mediaDiv.style.height = ext === 'mp3' ? '220px' : `${height}px`;
             mediaDiv.style.position = "relative";
             if (ext === 'mp3') {
-                mediaDiv.style.height = "220px";
                 mediaDiv.style.background = "url('/static/resources/loading-music.webp') center center / cover no-repeat";
                 mediaDiv.classList.add("rounded-3", "d-flex", "flex-column", "align-items-center", "justify-content-end", "pb-2");
             }
@@ -572,43 +569,33 @@ async function populateMasonryData (files, auth) {
                     }
                 }
                 if (buttonContainer) {
-                    buttonContainer.classList.style.opacity = 1;
+                    buttonContainer.style.opacity = 1;
                 }
                 lastClickedMedia = mediaElement;
             });
 
-            mediaDiv.appendChild(buttonContainer("masonry",file, auth));
+            mediaDiv.appendChild(buttonContainer("masonry", file, auth));
 
-            // Add the element to the shortest column
             const shortestColumnIndex = columnHeights.indexOf(Math.min(...columnHeights));
             const shortestColumn = columnElements[shortestColumnIndex];
             shortestColumn.appendChild(mediaDiv);
 
-            // Update the height of the shortest column
             columnHeights[shortestColumnIndex] += height;
 
-            // Rescan the real height of the elements
-            mediaDiv.style.height = ext === 'mp3'? '220px' : 'auto';
-
-            // Save the server height for using it when resizing the window
+            mediaDiv.style.height = ext === 'mp3' ? '220px' : 'auto';
             mediaDiv.dataset.serverHeight = `${height}`;
         }
-
     }
 
-    // Rescan the real height of all the columns
     columnHeights.fill(0);
     for (const [index, column] of columnElements.entries()) {
-        await (async () => {
-            column.querySelectorAll('.media-div').forEach(mediaDiv => {
-                const height = mediaDiv.clientHeight;
-                columnHeights[index] += height;
-                // Move the sentinel to the shortest column
-                const shortestColumnIndex = columnHeights.indexOf(Math.min(...columnHeights));
-                const shortestColumn = columnElements[shortestColumnIndex];
-                shortestColumn.appendChild(sentinelEnd);
-            });
-        })();
+        column.querySelectorAll('.media-div').forEach(mediaDiv => {
+            const height = mediaDiv.clientHeight;
+            columnHeights[index] += height;
+            const shortestColumnIndex = columnHeights.indexOf(Math.min(...columnHeights));
+            const shortestColumn = columnElements[shortestColumnIndex];
+            shortestColumn.appendChild(sentinelEnd);
+        });
     }
 }
 
