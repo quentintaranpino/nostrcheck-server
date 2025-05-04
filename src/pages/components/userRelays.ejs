@@ -187,29 +187,33 @@ document.addEventListener('DOMContentLoaded', async (event) => {
             document.getElementById("user-relay-list-save").classList.remove("d-none");
             document.getElementById("user-relay-list-add").classList.remove("d-none");
 
+            <% if (!locals.isPublic) {%>
             showMessage(
                 `✅ Default relays loaded. Please save your relays data on relays tab to apply the changes on nostr network.`,
                 'alert-warning', false, 7000
             );
+            <% } %>
         }
 
         const checkRelaysOnline = async () => {
             for (const relay of userRelays) {
                 const r = await isRelayOnline(relay.url);
                 if (r.online) {
-                    document.getElementById(`user-relay-online-${relay.id}`).classList.remove('text-danger');
+                    document.getElementById(`user-relay-online-${relay.id}`)?.classList.remove('text-danger');
                     if (r.ping < 500) {
-                        document.getElementById(`user-relay-online-${relay.id}`).classList.add('text-success');
-                        document.getElementById(`user-relay-online-${relay.id}`).classList.remove('text-warning');
+                        document.getElementById(`user-relay-online-${relay.id}`)?.classList.add('text-success');
+                        document.getElementById(`user-relay-online-${relay.id}`)?.classList.remove('text-warning');
                     } else {
-                        document.getElementById(`user-relay-online-${relay.id}`).classList.add('text-warning');
-                        document.getElementById(`user-relay-online-${relay.id}`).classList.remove('text-success');
+                        document.getElementById(`user-relay-online-${relay.id}`)?.classList.add('text-warning');
+                        document.getElementById(`user-relay-online-${relay.id}`)?.classList.remove('text-success');
                     }
-                    document.getElementById(`user-relay-ping-${relay.id}`).innerText = `${r.ping}ms`;
+                    if (document.getElementById(`user-relay-ping-${relay.id}`)){
+                        document.getElementById(`user-relay-ping-${relay.id}`).innerText = `${r.ping}ms`;
+                    }
                 } else {
-                    document.getElementById(`user-relay-online-${relay.id}`).classList.remove('text-success');
-                    document.getElementById(`user-relay-online-${relay.id}`).classList.add('text-warning');
-                    document.getElementById(`user-relay-online-${relay.id}`).classList.add('text-danger');
+                    document.getElementById(`user-relay-online-${relay.id}`)?.classList.remove('text-success');
+                    document.getElementById(`user-relay-online-${relay.id}`)?.classList.add('text-warning');
+                    document.getElementById(`user-relay-online-${relay.id}`)?.classList.add('text-danger');
                 }
             }
             setTimeout(checkRelaysOnline, 1000);
