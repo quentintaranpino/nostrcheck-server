@@ -180,8 +180,12 @@ async function renderUserCard(user) {
         pubkeyDiv.classList.add('pubkey');
         userCard.appendChild(pubkeyDiv);
 
+
         masonryContainer.appendChild(userCard);
         userCardMap.set(user.hex, userCard);
+
+        userCard.style.cursor = 'pointer';
+        userCard.addEventListener('click', () => {window.location.href = `/api/v2/profile/${user.hex}`});
     }
 
     const mediaContainer = userCard.querySelector('.media-container');
@@ -243,6 +247,7 @@ async function renderUserCard(user) {
                     style="--bs-btn-padding-y: .1rem; --bs-btn-padding-x: .5rem; --bs-btn-font-size: .8rem;">
                     ${truncatedText}<i class="fa-solid fa-copy ms-2"></i>
                 </button>`;
+            pubkeyDiv.querySelector('#npub-btn')?.addEventListener('click', (e) => e.stopPropagation());
         });
     }
 }

@@ -129,9 +129,11 @@
             <div class="px-2 fs-6 lead">
               <p class="small text-muted mb-0">Relays: <span class="fw-medium d-block d-sm-inline-flex align-items-center" id="relays-header-count">0</span></p> 
             </div>
-            <div class="px-2 fs-6 lead d-none" id="balance-header">
-              <p class="small text-muted mb-0">Balance: <span class="fw-normal d-block d-sm-inline-flex align-items-center" id="balance-header-count">0</span></p> 
-            </div>
+            <% if (!locals.isPublic) { %>
+              <div class="px-2 fs-6 lead d-none" id="balance-header">
+                <p class="small text-muted mb-0">Balance: <span class="fw-normal d-block d-sm-inline-flex align-items-center" id="balance-header-count">0</span></p> 
+              </div>
+            <% } %>
           </div>
           <div class="pt-1 pe-3 pb-2 z-1">
             <div class="ps-3 pe-4 ms-2">
@@ -204,23 +206,30 @@
               <li class="nav-item">
                 <button class="nav-link fs-6" id="userRelays-tab" data-bs-toggle="tab" data-bs-target="#userRelays" type="button" role="tab" aria-controls="userRelays" aria-selected="false"><i class="fa-solid fa-tower-broadcast me-2"></i><span class="d-none d-sm-inline lead fs-6">Relays</span></button>
               </li>
-              <li class="nav-item">
-                <button class="nav-link fs-6" id="userSettings-tab" data-bs-toggle="tab" data-bs-target="#userSettings" type="button" role="tab" aria-controls="userSettings" aria-selected="true"><i class="fa-solid fa-gear me-2"></i><span class="d-none d-sm-inline lead fs-6">Settings</span></button>
-              </li>
+              <% if (!locals.isPublic) { %>
+                <li class="nav-item">
+                  <button class="nav-link fs-6" id="userSettings-tab" data-bs-toggle="tab" data-bs-target="#userSettings" type="button" role="tab" aria-controls="userSettings" aria-selected="true">
+                    <i class="fa-solid fa-gear me-2"></i>
+                    <span class="d-none d-sm-inline lead fs-6">Settings</span>
+                  </button>
+                </li>
+              <% } %>
             </ul>
             <div class="tab-content mb-3" id="profileTabsContent">
               <div class="tab-pane fade show active" id="nostrNotes" role="tabpanel" aria-labelledby="nostrNotes-tab">
                 <%- include('./components/userNotes'); %>
               </div>
               <div class="tab-pane fade" id="hostedFiles" role="tabpanel" aria-labelledby="hostedFiles-tab">
-                <%- include('./components/gallery', { maxImageWidth: 350, maxColumns: 3, privateGallery: true, pubkey: request.session.metadata.pubkey }) %>
+                <%- include('./components/gallery', { maxImageWidth: 350, maxColumns: 3, privateGallery:  locals.isPublic ? false : true, pubkey: request.session.metadata.pubkey }) %>
               </div>
               <div class="tab-pane fade" id="userRelays" role="tabpanel" aria-labelledby="userRelays-tab">
                 <%- include('./components/userRelays'); %>
               </div>
-              <div class="tab-pane fade p-3" id="userSettings" role="tabpanel" aria-labelledby="userSettings-tab">
-                <%- include('./components/userSettings'); %>
-              </div>
+              <% if (!locals.isPublic) { %>
+                <div class="tab-pane fade p-3" id="userSettings" role="tabpanel" aria-labelledby="userSettings-tab">
+                  <%- include('./components/userSettings'); %>
+                </div>
+              <% } %>
             </div>
           </div>
         </div>
@@ -234,7 +243,7 @@
 
 <script>
 
-const profileNIP05 = <%- JSON.stringify(request.session.metadata.usernames) %>;
+  const profileNIP05 = <%- JSON.stringify(request.session.metadata.usernames) %>;
 
   document.addEventListener('DOMContentLoaded', async () => {
 
@@ -264,10 +273,100 @@ const profileNIP05 = <%- JSON.stringify(request.session.metadata.usernames) %>;
       document.getElementById('relays-header-count').innerHTML = userRelays.length;
     });
 
-    if (localStorage.getItem('profileData')){
-      document.getElementById('name-header').innerHTML = JSON.parse(localStorage.getItem('profileData')).display_name || JSON.parse(localStorage.getItem('profileData')).name || "<%= request.session.metadata.usernames[0].username %>";
+    // Public vanity profile data
+    if (<%= locals.isPublic %>) {
       
+      let publicData = localStorage.getItem('publicData') ? JSON.parse(localStorage.getItem('publicData')) : null;
+      
+      if (publicData && publicData.pubkey == "<%= locals.publicIdentifier %>"){
+
+        loadMedia(publicData.picture || '/static/resources/picture-default.webp' || '/static/resources/picture-default.webp', document.querySelectorAll('.picture-container'), ['img-thumbnail', 'border-0', 'object-fit-cover', 'w-100', 'h-100']);
+        loadMedia(publicData.banner || '/static/resources/banner-default.webp', document.querySelectorAll('.banner-container'), [], { autoplay: true, loop: true, muted: true });
+        document.getElementById('name-header').innerHTML = publicData.display_name || publicData.name || "<%= request.session.metadata.usernames[0].username %>";
+        if (publicData.nip05 != ''){
+          document.getElementById('nip05-header-row').classList.remove('d-none');
+          document.getElementById('nip05-header-text').innerHTML = publicData.nip05;
+        }
+        if (publicData.website != ''){
+          document.getElementById('website-header-row').classList.remove('d-none');
+          document.getElementById('website-header').innerHTML = publicData.website;
+          document.getElementById('website-header').href = publicData.website;
+        }
+        if (publicData.lud16 != ''){
+          document.getElementById('lud16-header-row').classList.remove('d-none');
+          document.getElementById('lud16-header').innerHTML = publicData.lud16;
+          document.getElementById('lud16-header').href = `lightning:${publicData.lud16}`;
+        }
+        if (publicData.about != ''){
+          document.getElementById('about-header-row').classList.remove('d-none');
+          document.getElementById('about-header').innerHTML = publicData.about;
+        }
+      } else {
+
+        localStorage.removeItem('publicData');
+        loadMedia('/static/resources/picture-default.webp', document.querySelectorAll('.picture-container'), ['img-thumbnail', 'border-0', 'object-fit-cover', 'w-100', 'h-100']);
+        loadMedia('/static/resources/banner-default.webp', document.querySelectorAll('.banner-container'), [], { autoplay: true, loop: true, muted: true });
+
+        subscribeRelays(0,["<%= locals.publicIdentifier %>"], "from", Math.floor(Date.now() / 1000) - (730 * 24 * 60 * 60)).then((r) => {
+
+          if (!r || r.length == 0) return;
+          publicData = JSON.parse(r[0].content);
+          publicData.pubkey = r[0].pubkey;
+          loadMedia(publicData.picture || '/static/resources/picture-default.webp', document.querySelectorAll('.picture-container'), ['img-thumbnail', 'border-0', 'object-fit-cover', 'w-100', 'h-100']);
+          loadMedia(publicData.banner || '/static/resources/banner-default.webp', document.querySelectorAll('.banner-container'), [], { autoplay: true, loop: true, muted: true });
+        
+          localStorage.setItem('publicData', JSON.stringify(publicData));
+          document.getElementById('name-header').innerHTML = publicData.display_name || publicData.name || "<%= request.session.metadata.usernames[0].username %>";
+          if (publicData.nip05 != ''){
+            document.getElementById('nip05-header-row').classList.remove('d-none');
+            document.getElementById('nip05-header-text').innerHTML = publicData.nip05;
+          }
+          if (publicData.website != ''){
+            document.getElementById('website-header-row').classList.remove('d-none');
+            document.getElementById('website-header').innerHTML = publicData.website;
+            document.getElementById('website-header').href = publicData.website;
+          }
+          if (publicData.lud16 != ''){
+            document.getElementById('lud16-header-row').classList.remove('d-none');
+            document.getElementById('lud16-header').innerHTML = publicData.lud16;
+            document.getElementById('lud16-header').href = `lightning:${publicData.lud16}`;
+          }
+          if (publicData.about != ''){
+            document.getElementById('about-header-row').classList.remove('d-none');
+            document.getElementById('about-header').innerHTML = publicData.about;
+          }
+        });
+      }
+
+    };
+
+    // Private profile data
+    if (<%= !locals.isPublic %>) {
+
       const profileData = JSON.parse(localStorage.getItem('profileData') || '{}');
+
+    // Profile picture
+    if (profileData && Object.keys(profileData).length > 0) {
+        loadMedia(JSON.parse(localStorage.getItem('profileData')).picture || '/static/resources/picture-default.webp', document.querySelectorAll('.picture-container'), ['img-thumbnail', 'border-0', 'object-fit-cover', 'w-100', 'h-100']);
+        loadMedia(JSON.parse(localStorage.getItem('profileData')).banner || '/static/resources/banner-default.webp', document.querySelectorAll('.banner-container'), [], { autoplay: true, loop: true, muted: true });
+    }else{
+        loadMedia('/static/resources/picture-default.webp', document.querySelectorAll('.picture-container'), ['img-thumbnail', 'border-0', 'object-fit-cover', 'w-100', 'h-100']);
+        loadMedia('/static/resources/banner-default.webp', document.querySelectorAll('.banner-container'), [], { autoplay: true, loop: true, muted: true });
+    }
+
+    subscribeRelays(0,["<%= request.session.identifier %>"], "from", Math.floor(Date.now() / 1000) - (730 * 24 * 60 * 60)).then((data) => {
+        if (!data || data.length == 0) return;
+        data = JSON.parse(data[0].content);
+        if (Object.keys(profileData).length == 0 || (data.picture != JSON.parse(profileData.picture))) {
+          loadMedia(data.picture || '/static/resources/picture-default.webp' || '/static/resources/picture-default.webp', document.querySelectorAll('.picture-container'), ['img-thumbnail', 'border-0', 'object-fit-cover', 'w-100', 'h-100']);
+        }
+        if (Object.keys(profileData).length == 0 || (data.picture != JSON.parse(profileData.banner))) {
+          loadMedia(data.banner || '/static/resources/banner-default.webp', document.querySelectorAll('.banner-container'), [], { autoplay: true, loop: true, muted: true });
+        }
+        localStorage.setItem('profileData', JSON.stringify(data));
+    });
+
+      document.getElementById('name-header').innerHTML = profileData.display_name || profileData.name || "<%= request.session.metadata.usernames[0].username %>";
 
       if (profileData.nip05 != ''){
         document.getElementById('nip05-header-row').classList.remove('d-none');
@@ -298,6 +397,8 @@ const profileNIP05 = <%- JSON.stringify(request.session.metadata.usernames) %>;
   const getProfileBalance = async (pubkey) => {
     counter++;
     if (!pubkey) return 0;
+    // If activeModules don't have payments, return 0
+    if (!activeModules.some(mod => mod.name === 'payments')) return 0;
       fetch(
         `/api/v2/payments/getBalance`,
         {headers: {
@@ -318,10 +419,10 @@ const profileNIP05 = <%- JSON.stringify(request.session.metadata.usernames) %>;
   }
 
   // Profile balance
-  if(activeModules.some(mod => mod.name === 'payments')){
+    if(activeModules.some(mod => mod.name === 'payments') && !<%= locals.isPublic %>) {
     getProfileBalance("<%= request.session.metadata.pubkey %>");
     setInterval(() => {getProfileBalance("<%= request.session.metadata.pubkey %>")}, 5000);
-    document.getElementById('balance-header').classList.remove('d-none');
+    document.getElementById('balance-header')?.classList.remove('d-none');
   }
 
   function activateTabFromHash() {

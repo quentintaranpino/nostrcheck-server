@@ -1,18 +1,19 @@
 <div class="ms-3 me-3 mt-3 mb-5 mb-lg-3">
     <div class="text-end mb-3 form">
         <div id="user-relay-list-add" class="input-group mb-3 mt-2 d-none">
-            <input type="text" data-otc='relay-name' class="form-control" id="input-add-relay"
+            <input type="text" data-otc='relay-name' class="form-control <% if (locals.isPublic) {%> d-none <% } %>" id="input-add-relay"
             placeholder="wss://relay.server.com" required autocomplete="relay"
             pattern="(wss://|ws://).*" title="Relay url must start with wss:// or ws://">
-            <button id="addRelay-btn" type="button" class="btn btn-primary"><i class="fas fa-solid fa-plus"></i> Add new relay</button>
+            <button id="addRelay-btn" type="button" class="btn btn-primary <% if (locals.isPublic) {%> d-none <% } %>"><i class="fas fa-solid fa-plus"></i> Add new relay</button>
         </div>
     </div>
     <%- include('./loading', {objectId: 'user-relay-list', dataName: 'Relays'}) %>
     <ul id="user-relay-list" class="list-group"></ul>
     <div id="user-relay-list-save" class="text-center mb-5 mb-lg-2 d-none">
-        <button id="saveRelayData-btn" type="submit" class="btn btn-primary col-4">Save</button>
+        <button id="saveRelayData-btn" type="submit" class="btn btn-primary col-4 <% if (locals.isPublic) {%> d-none <% } %>">Save</button>
     </div>
 </div>
+
 <script>
 
 let relaysUnsaved = false;
@@ -105,7 +106,7 @@ const addRelayToList = (relay) => {
                         <span class="lead">${relay.name != "" ? relay.name : relay.url.replace('wss://', '').replace('/','').replace('ws://', '')}</span>
                     </div>
                     <div>
-                        <button id="btn-enable-${relay.id}" class="btn btn-sm" type="button" onclick="updateRelay('${relay.id}', 'enabled')">
+                        <button id="btn-enable-${relay.id}" class="btn btn-sm <% if (locals.isPublic) {%> d-none <% } %>" type="button" onclick="updateRelay('${relay.id}', 'enabled')">
                             <i class="fas fa-times text-danger"></i>
                         </button>
                     </div>
@@ -123,7 +124,7 @@ const addRelayToList = (relay) => {
                 </div>
                 <p class="ms-1 mb-2 mt-2">${relay.description}</p>
                 ${relay.supported_nips && relay.supported_nips != "" ? `
-                <p class="ms-1 mb-0"><small><b>NIPS:</b> ${relay.supported_nips.join(', ')}</small></p>` : ''
+                <p class="ms-1 mb-0"><small><b>NIPS:</b> ${relay.supported_nips}</small></p>` : ''
                 }
                 <button class="btn btn-primary p-0 ps-2 pe-2 fs-6 mt-1 mb-2 font-monospace" style="font-size:13px !important" type="button" id="picture-copy-btn" onclick="copyToClipboard(this,document.getElementById('user-relay-url-${relay.id}').innerText)">
                 <span id="user-relay-url-${relay.id}">${relay.url}<i class="fa-solid fa-copy ms-2"></i></span>
@@ -217,7 +218,7 @@ document.addEventListener('DOMContentLoaded', async (event) => {
         checkRelaysOnline();
     }).catch((error) => {
         console.error("Error fetching user relays:", error);
-        document.getElementById("user-relay-list-loading").remove();
+        document.getElementById("user-relay-list-loading") ? document.getElementById("user-relay-list-loading").remove() : null;
 
         console.error("Error fetching relays. Loading default relays...");
         defaultRelays.forEach((relay) => {

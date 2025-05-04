@@ -27,6 +27,8 @@ let allNotesLoaded = false;
 let notesData = [];
 let pubkeysData = [];
 
+const isPublic = <%= locals.isPublic %>;
+
 async function loadNotes() {
     if (loading || allNotesLoaded) return; 
     loading = true;
@@ -42,7 +44,7 @@ async function loadNotes() {
             noNotesText.innerHTML = '<i class="fas fa-sticky-note me-2"></i>No more notes to show';
             noNotesContainer.appendChild(noNotesText);
             document.getElementById("user-notes-list").appendChild(noNotesContainer);
-            document.getElementById("user-notes-list-loading").remove();
+            document.getElementById("user-notes-list-loading") ? document.getElementById("user-notes-list-loading").remove() : null;
             return;
         }
 
@@ -54,7 +56,7 @@ async function loadNotes() {
             noteItem.id = `note-${note.id}`;
             noteItem.classList.add("list-group-item", "p-3", "m-3", "mt-0", "border", "border-1", "rounded-3", `note-${currentSince}`, `shadow-sm`);
             noteItem.style.backgroundColor = "rgba(0, 0, 0, .075)";
-            const profileName  = localStorage.getItem('profileData')? JSON.parse(localStorage.getItem('profileData')).display_name || JSON.parse(localStorage.getItem('profileData')).name : "<%= request.session.metadata.usernames[0].username %>";
+            const profileName = isPublic ? (localStorage.getItem('publicData') ? JSON.parse(localStorage.getItem('publicData')).display_name || JSON.parse(localStorage.getItem('publicData')).name : "<%= request.session.metadata.usernames[0].username %>") : (localStorage.getItem('profileData') ? JSON.parse(localStorage.getItem('profileData')).display_name || JSON.parse(localStorage.getItem('profileData')).name : "<%= request.session.metadata.usernames[0].username %>");
             noteItem.innerHTML = `
                 <div class="d-flex align-items-center mb-2">
                     <div class="note-picture-container-${currentSince} picture-container" style="width:40px; height:40px; margin-right:10px;"></div>
@@ -109,12 +111,17 @@ async function loadNotes() {
                 });
             });
 
-        const profilePicture = localStorage.getItem('profileData')? JSON.parse(localStorage.getItem('profileData')).picture || '/static/resources/picture-default.webp' : "<%= request ? request.session.metadata.picture : '/static/resources/picture-default.webp' %>";
+        const profilePicture = 
+            isPublic ? 
+            (localStorage.getItem('publicData') ? JSON.parse(localStorage.getItem('publicData')).picture : '/static/resources/picture-default.webp')
+            :
+            (localStorage.getItem('profileData') ? JSON.parse(localStorage.getItem('profileData')).picture : '/static/resources/picture-default.webp');
+
         loadMedia(profilePicture, document.querySelectorAll(`.note-picture-container-${currentSince}`), ['img-thumbnail', 'border-0', 'object-fit-cover', 'w-100', 'h-100']);
         currentUntil = currentSince; 
         currentSince -= 60 * 24 * 60 * 60; 
         loading = false;
-        document.getElementById("user-notes-list-loading").remove();
+        document.getElementById("user-notes-list-loading") ? document.getElementById("user-notes-list-loading").remove() : null;
         });
        
     });

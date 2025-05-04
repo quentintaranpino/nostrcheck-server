@@ -39,7 +39,7 @@
             <li class="nav-item" role="presentation" <% if (!request.session.identifier) { %>style="display: none;"<% } %> >
                 <button class="nav-link" type="button" aria-controls="intro" aria-selected="false" aria-label="Profile">
                     <span class="fs-2"><a href="profile" role="button">
-                        <div class="picture-container overflow-hidden d-flex align-items-center rounded-circle mx-auto" style="width: 60px; height: 60px;"></div>
+                        <div class="picture-container-navbar overflow-hidden d-flex align-items-center rounded-circle mx-auto" style="width: 60px; height: 60px;"></div>
                         <span class="visually-hidden">Profile</span></a>
                     </span>
                 </button>
@@ -105,23 +105,19 @@
 <script src="/static/js/nostr.js"></script>
 <script>
 
-// Profile picture and banner
+// Navbar profile picture
 if (localStorage.getItem('profileData')) {
-    loadMedia(JSON.parse(localStorage.getItem('profileData')).picture || '/static/resources/picture-default.webp', document.querySelectorAll('.picture-container'), ['img-thumbnail', 'border-0', 'object-fit-cover', 'w-100', 'h-100']);
-    loadMedia(JSON.parse(localStorage.getItem('profileData')).banner || '/static/resources/banner-default.webp', document.querySelectorAll('.banner-container'), [], { autoplay: true, loop: true, muted: true });
+    loadMedia(JSON.parse(localStorage.getItem('profileData')).picture || '/static/resources/picture-default.webp', document.querySelectorAll('.picture-container-navbar'), ['img-thumbnail', 'border-0', 'object-fit-cover', 'w-100', 'h-100']);
 }else{
-    loadMedia('/static/resources/picture-default.webp', document.querySelectorAll('.picture-container'), ['img-thumbnail', 'border-0', 'object-fit-cover', 'w-100', 'h-100']);
-    loadMedia('/static/resources/banner-default.webp', document.querySelectorAll('.banner-container'), [], { autoplay: true, loop: true, muted: true });
+    loadMedia('/static/resources/picture-default.webp', document.querySelectorAll('.picture-container-navbar'), ['img-thumbnail', 'border-0', 'object-fit-cover', 'w-100', 'h-100']);
 }
 subscribeRelays(0,["<%= request.session.identifier %>"], "from", Math.floor(Date.now() / 1000) - (730 * 24 * 60 * 60)).then((data) => {
     if (!data || data.length == 0) return;
     data = JSON.parse(data[0].content);
     if (localStorage.getItem('profileData') == null || (localStorage.getItem('profileData') != null && data.picture != JSON.parse(localStorage.getItem('profileData')).picture)) {
-        loadMedia(data.picture || '/static/resources/picture-default.webp' || '/static/resources/picture-default.webp', document.querySelectorAll('.picture-container'), ['img-thumbnail', 'border-0', 'object-fit-cover', 'w-100', 'h-100']);
-    }
-    if (localStorage.getItem('profileData') == null || (localStorage.getItem('profileData') != null && data.banner != JSON.parse(localStorage.getItem('profileData')).banner)) {
-        loadMedia(data.banner || '/static/resources/banner-default.webp', document.querySelectorAll('.banner-container'), [], { autoplay: true, loop: true, muted: true });
+        loadMedia(data.picture || '/static/resources/picture-default.webp' || '/static/resources/picture-default.webp', document.querySelectorAll('.picture-container-navbar'), ['img-thumbnail', 'border-0', 'object-fit-cover', 'w-100', 'h-100']);
     }
     localStorage.setItem('profileData', JSON.stringify(data));
 });
+
 </script>

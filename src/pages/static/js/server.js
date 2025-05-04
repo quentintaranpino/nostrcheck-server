@@ -202,36 +202,32 @@ const loadMedia = (mediaUrl, containers, imgClassList = [], videoOptions = {}) =
         spinner.appendChild(spinnerSpan);
         container.appendChild(spinner);
 
-        fetch(mediaUrl)
-            .then(response => response.blob())
-            .then(blob => {
-                const mimeType = blob.type;
-                container.innerHTML = '';
-                container.classList.remove('d-flex', 'justify-content-center', 'align-items-center'); 
-
-                if (mimeType.startsWith('image/')) {
-                    const img = document.createElement('img');
-                    img.src = mediaUrl;
-                    img.alt = 'Media image';
-                    imgClassList.forEach(className => img.classList.add(className));
-                    container.appendChild(img);
-                } else if (mimeType.startsWith('video/')) {
-                    const video = document.createElement('video');
-                    video.src = mediaUrl;
-                    video.autoplay = videoOptions.autoplay || true;
-                    video.loop = videoOptions.loop || false;
-                    video.muted = videoOptions.muted || true;
-                    video.controls = videoOptions.controls || false;
-                    imgClassList.forEach(className => video.classList.add(className));
-                    container.appendChild(video);
-                } else {
-                    console.error('Unknown media type:', mimeType);
-                }
-            })
-            .catch(error => {
-                console.error('Error fetching media:', error);
-                container.innerHTML = '<p>Error loading media</p>';
-            });
+        const extension = mediaUrl.split('.').pop()?.toLowerCase() || '';
+        const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+        const videoExtensions = ['mp4', 'webm', 'ogg'];
+        
+        container.innerHTML = '';
+        container.classList.remove('d-flex', 'justify-content-center', 'align-items-center');
+        
+        if (imageExtensions.includes(extension)) {
+          const img = document.createElement('img');
+          img.src = mediaUrl;
+          img.alt = 'Media image';
+          imgClassList.forEach(className => img.classList.add(className));
+          container.appendChild(img);
+        
+        } else if (videoExtensions.includes(extension)) {
+          const video = document.createElement('video');
+          video.src = mediaUrl;
+          video.autoplay = videoOptions.autoplay ?? true;
+          video.loop = videoOptions.loop ?? false;
+          video.muted = videoOptions.muted ?? true;
+          video.controls = videoOptions.controls ?? false;
+          imgClassList.forEach(className => video.classList.add(className));
+          container.appendChild(video);
+        
+        } 
+        
     });
 };
 

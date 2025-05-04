@@ -118,27 +118,30 @@ const getRelayData = async (relay) => {
  * @param {string} relayUrl - The URL of the relay to check.
  * @returns {Promise<Object>} - A promise that resolves to an object with the online status and response time.
  */
-const isRelayOnline = async (relayUrl) => {
-  return new Promise(async (resolve) => {
-      const startTime = Date.now(); 
-      const timeout = setTimeout(() => {
-          resolve({ online: false, ping: null });
-      }, 5000);
+const isRelayOnline = async (url, timeoutMs = 3000) => {
+  return new Promise(resolve => {
+    let settled = false;
+    const ws = new WebSocket(url);
+    const start = Date.now();
 
-      const url = relayUrl.replace(/^wss?:\/\//, (match) => match === 'wss://' ? 'https://' : 'http://');
+    const finish = (online) => {
+      if (settled) return;
+      settled = true;
+      const ping = online ? Date.now() - start : null;
+      ws.close();
+      resolve({ online, ping });
+    };
 
-      try {
-          const response = await fetch(url, { method: 'GET', mode: 'no-cors' });
-          clearTimeout(timeout);
-          const responseTime = Date.now() - startTime;
-          if (response.ok || response.type === 'opaque') { 
-              resolve({ online: true, ping: responseTime });
-          } else {
-              resolve({ online: false, ping: null });
-          }
-      } catch (error) {
-          resolve({ online: false, ping: null });
-      }
+    const timer = setTimeout(() => finish(false), timeoutMs);
+
+    ws.onopen = () => {
+      clearTimeout(timer);
+      finish(true);
+    };
+    ws.onerror = () => {
+      clearTimeout(timer);
+      finish(false);
+    };
   });
 };
 

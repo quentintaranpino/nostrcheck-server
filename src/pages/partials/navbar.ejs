@@ -81,7 +81,7 @@
       </li>
       <li class="nav-item dropdown d-none d-lg-flex"  <% if (!request.session.identifier) { %>style="display: none !important;"<% } %> >
         <a class="nav-link dropdown-toggle d-flex align-items-center" href="#" id="navbarDropdownMenuLink" role="button" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-          <div class="picture-container" style="width:40px; height:40px;"></div>
+          <div class="picture-container-navbar" style="width:40px; height:40px;"></div>
         </a>
         <div class="dropdown-menu dropdown-menu-end">
           <a href="/api/v2/profile"  <% if(active === 'profile'){ %><%- "class='dropdown-item nav-link active'"%><% } else { %><%- "class='dropdown-item nav-link'"%><%}%>>Profile</a>

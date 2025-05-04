@@ -5,7 +5,7 @@ import { markdownToHtml } from "../lib/utils.js";
 import { dbMultiSelect, dbSelect} from "../lib/database.js";
 import { generateAuthToken, generateOTC, isPubkeyAllowed, isPubkeyValid, isUserPasswordValid, verifyOTC } from "../lib/authorization.js";
 import { countPubkeyFiles, getLegalText, getResource, isAutoLoginEnabled, setAuthCookie } from "../lib/frontend.js";
-import { hextoNpub } from "../lib/nostr/NIP19.js";
+import { hextoNpub, npubToHex } from "../lib/nostr/NIP19.js";
 import { dynamicbackgroundThemes, particles} from "../interfaces/appearance.js";
 import { verifyNIP07event } from "../lib/nostr/NIP07.js";
 import { getUsernames } from "../lib/register.js";
@@ -132,19 +132,44 @@ const loadProfilePage = async (req: Request, res: Response, version:string): Pro
 
     setAuthCookie(res, req.cookies.authkey);
 
+    let identifier = req.params.param1 || req.session.identifier;
+
+    if (!identifier) {
+        logger.debug("loadProfilePage - No identifier provided. Redirecting to login page", "|", getClientInfo(req).ip);
+        return res.render("register.ejs", {request: req});
+    }
+
+    // npub
+    if (identifier.startsWith("npub")) {
+        identifier = await npubToHex(identifier);
+    }
+
+    // username
+    if (!identifier.startsWith("npub") && identifier.length != 64) {
+        identifier = (await dbMultiSelect(["hex"], "registered", "username = ?", [identifier], true))[0]?.hex;
+    }
+
     // User metadata
     req.session.metadata = {
-        pubkey: req.session.identifier,
-        npub: await hextoNpub(req.session.identifier),
-        hostedFiles: await countPubkeyFiles(req.session.identifier),
-        usernames: await getUsernames(req.session.identifier),
-        lud16: await getLightningAddress(req.session.identifier)
+        pubkey: identifier,
+        npub: await hextoNpub(identifier),
+        hostedFiles: await countPubkeyFiles(identifier),
+        usernames: await getUsernames(identifier),
+        lud16: await getLightningAddress(identifier)
     }
 
     // Check admin privileges. Only for information, never used for authorization
     req.session.allowed = await isPubkeyAllowed(req.session.identifier);
 
-    res.render("profile.ejs", {request: req});
+    // Public identifier (for vanity URL)
+    res.locals.publicIdentifier = identifier;
+    res.locals.isPublic = identifier != req.session.identifier;
+
+    if (req.session.metadata.usernames.length == 0){
+        return loadRegisterPage(req,res,version);
+    }
+
+    return res.render("profile.ejs", {request: req});
 };
 
 const loadMdPage = async (req: Request, res: Response, mdFileName : string, version:string): Promise<Response | void> => {

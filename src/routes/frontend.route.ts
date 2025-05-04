@@ -132,16 +132,12 @@ export const loadFrontendEndpoint = async (app: Application, version: string): P
 		}
 	});
 
-	// Profile
-	app.get("/api/" +  version + "/profile", limiter(), async (req, res) => {
-		if (req.session.identifier == null){
-			res.redirect("/api/" +  version + "/login");
-		}else if (await isPubkeyValid(req.session.identifier, false) == false){
-			res.redirect("/api/v2/");
-		}else{
-			if (await isAutoLoginEnabled(req,res)){logger.info("Autologin enabled.  Showing alert on frontend", "|", getClientInfo(req).ip)}
-			loadProfilePage(req,res,version);
+	// Profile (private and public)
+	app.get("/api/" + version + "/profile/:param1?", limiter(), async (req, res) => {
+		if (await isAutoLoginEnabled(req,res)){
+			logger.info("Autologin enabled. Showing alert on frontend", "|", getClientInfo(req).ip)
 		}
+		loadProfilePage(req,res,version);
 	});
 
 	// Serve dynamic resources with multi-tenant and fallback logic
