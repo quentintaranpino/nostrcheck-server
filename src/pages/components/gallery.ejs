@@ -261,16 +261,20 @@ document.addEventListener('DOMContentLoaded', (event) => {
                     console.error('Error fetching media', response);
                     return;
                 }
+                
                 const userData = await response.json();
                 console.log('Fetched media data', userData);
 
-                if (!userData || !Array.isArray(userData) || userData.length === 0) {
+                const files = Array.isArray(userData) ? userData : userData.files;
+
+                if (!files || !Array.isArray(files) || files.length === 0) {
+                    console.log('No more media to load');
                     document.getElementById('gallery-list-loading')?.remove();
                     document.getElementById('no-media').classList.remove('visually-hidden');
                     return;
                 }
 
-                populateMasonryData(userData, privateGallery? true : false);
+                populateMasonryData(files, privateGallery? true : false);
             };
         }
     }, {

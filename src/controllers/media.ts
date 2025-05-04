@@ -486,7 +486,7 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 
 const getMedia = async (req: Request, res: Response, version:string) => {
 
-	if ((req.params.param1 && req.params.param2) && req.params.param1 != "list") {
+	if ((req.params.param1 && req.params.param2) && (req.params.param1 != "list" && req.params.param1 != "public")) {
 		if (req.params.param2 == 'tags'){
 			req.params.fileId = req.params.param1;
 			getMediaTagsbyID(req, res); 
