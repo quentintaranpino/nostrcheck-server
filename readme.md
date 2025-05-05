@@ -38,8 +38,9 @@ The server is highly customizable and can be deployed in any environment, allowi
   - [Standalone Installation](#installation-standalone)
   - [Docker Installation](#installation-docker)
 - [Documentation](#documentation)
-- [Configuration](#configuration)
-- [Plugins](#plugins)
+  - [API docs](#api-docs)
+  - [Configuration](#configuration)
+  - [Plugins](#plugins)
 - [Screenshots](#screenshots)
 - [Supported Nostr NIPs](#supported-nostr-nips)
 - [Supported Blossom BUDs](#supported-blossom-buds)
@@ -78,15 +79,15 @@ git clone https://github.com/quentintaranpino/nostrcheck-server.git && cd nostrc
 
 See documentation [here](https://github.com/quentintaranpino/nostrcheck-server/wiki)
 
-## API Documentation
+### API docs
 
 See API documentation [here](https://github.com/quentintaranpino/nostrcheck-server/wiki/API)
 
-## Configuration
+### Configuration
 
 See configuration [here](https://github.com/quentintaranpino/nostrcheck-server/wiki/Config)
 
-## Plugins
+### Plugins
 
 See plugins [here](https://github.com/quentintaranpino/nostrcheck-server/wiki/Plugins)
 
