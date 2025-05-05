@@ -640,7 +640,7 @@ const initDatabase = async (): Promise<void> => {
 
 	// Delete rows from mediafiles where status <> 'success' or 'completed' or 'percentage' = '0'
 	// This is to delete any media that is not processed or failed.
-	const mediaToDelete = await dbMultiSelect(["id"], "mediafiles", "(status <> 'success' AND status <> 'completed') OR percentage = '0' ", [], false);
+	const mediaToDelete = await dbMultiSelect(["id"], "mediafiles", "(status <> 'success' AND status <> 'completed')", [], false);
 	if (mediaToDelete.length > 0) {
 		await dbDelete("mediafiles", ["status"], ["error"]);
 		await dbDelete("mediafiles", ["status"], ["failed"]);
