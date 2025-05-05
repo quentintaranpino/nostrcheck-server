@@ -81,15 +81,19 @@ See documentation [here](https://github.com/quentintaranpino/nostrcheck-server/w
 
 ### API docs
 
-See API documentation [here](https://github.com/quentintaranpino/nostrcheck-server/wiki/API)
+See API documentation [here](https://github.com/quentintaranpino/nostrcheck-server/wiki/API-Documentation)
 
 ### Configuration
 
-See configuration [here](https://github.com/quentintaranpino/nostrcheck-server/wiki/Config)
+See configuration [here](https://github.com/quentintaranpino/nostrcheck-server/wiki/Configuration)
 
 ### Plugins
 
 See plugins [here](https://github.com/quentintaranpino/nostrcheck-server/wiki/Plugins)
+
+### Multi tenancy
+
+See multi-tenancy [here](https://github.com/quentintaranpino/nostrcheck-server/wiki/Multi-tenancy)
 
 ## Supported Nostr NIP's
 
