@@ -84,7 +84,7 @@ See configuration [here](https://github.com/quentintaranpino/nostrcheck-api-ts/b
 
 ## Plugins
 
-See plugins [here](https://github.com/quentintaranpino/nostrcheck-api-ts/blob/main/PLUGINS.md)
+See plugins [here](https://github.com/quentintaranpino/nostrcheck-server/wiki/Plugins)
 
 ## Supported Nostr NIP's
 
