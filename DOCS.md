@@ -306,9 +306,11 @@ Returns a list of registered usernames for a specific domain.
 
 ## Frontend
 
+The Frontend API provides routes for rendering the web interface. All endpoints are mounted under /api/v2 (commonly /api/v2/) and enforce module-enabled checks, IP-based bans, rate limiting, and session authentication where required. Public pages render templates directly; protected pages redirect to the login flow if the user is not authenticated.
+
 ### api/v2 [GET]
 
-Loads the index page. If it's the first use, it shows an alert on the frontend.
+Loads the index page. 
 
 ### api/v2/login [GET]
 
@@ -324,6 +326,7 @@ Handles the login request. The user can log in using either a public key or a us
 - `username`: The user's username (optional).
 - `password`: The user's password (optional).
 - `rememberMe`: Whether to remember the user's login (optional).
+- `otc`: The one-time code for 2FA (optional).
 
 **Example Request**
 
@@ -331,31 +334,44 @@ Handles the login request. The user can log in using either a public key or a us
 {
     "username": "user123",
     "password": "password123",
-    "rememberMe": "true"
+    "rememberMe": "true",
 }
 ```
 
 **Example Response**
 
 ```json
-true
+{ "status": "success", "message": "Logged in successfully" }
 ```
 
-This response indicates that the login was successful. If the login fails, the response will be `false`.
+**Possible Responses**
 
-**Error Responses**
-
-- `400`: The frontend module is not enabled, or an attempt was made to access a secure session over HTTP.
+- `200`: Login successful.
+- `400`: Invalid request. Missing required parameters or invalid data.
 - `401`: No credentials were provided, or the provided credentials were invalid.
 - `500`: Failed to generate an authkey for the user.
 
-### api/v2/tos [GET]
+### Load markdown pages [GET]
 
-Loads the Terms of Service page. If it's the first use, it shows an alert on the frontend.
+Renders Terms of Service, Privacy, or Legal pages from markdown.
+
+- **Endpoints:** `/api/v2/legal`, `/api/v2/privacy`, `/api/v2/tos`
 
 ### api/v2/documentation [GET]
 
-Loads the documentation page. If it's the first use, it shows an alert on the frontend.
+Loads the documentation page.
+
+### api/v2/gallery [GET]
+
+Loads the gallery page. 
+
+### api/v2/register [GET]
+
+Loads the register page.
+
+### api/v2/directory [GET]
+
+Loads the directory page.
 
 ### api/v2/dashboard [GET]
 
@@ -369,42 +385,23 @@ Loads the settings page. If the user is not logged in or the public key is not v
 
 Loads the profile page. If the user is not logged in or the public key is not valid, it redirects to the login page or the current API version respectively.
 
+### Server static resources [GET]
 
-**Parameters**
+Delivers multi-tenant assets (images, icons).
 
-- `page`: The page number (optional).
+Endpoint: GET /static/resources/:filename
 
-**Example Response**
+Headers: none
 
-```json
-{
-    "username": "user123",
-    "mediaFiles": [
-        {
-            "id": "file1",
-            "url": "https://example.com/media/file1.jpg",
-            "title": "File 1",
-            "description": "This is file 1",
-            "uploadDate": "2022-01-01T00:00:00Z"
-        },
-        {
-            "id": "file2",
-            "url": "https://example.com/media/file2.jpg",
-            "title": "File 2",
-            "description": "This is file 2",
-            "uploadDate": "2022-01-02T00:00:00Z"
-        },
-        // ... more media files ...
-    ]
-}
-```
+Response: Returns the requested file or a 404 error if not found.
 
-This response includes the username and an array of media files. Each media file object includes the file ID, URL, title, description, and upload date.
+### Serve dynamic theme CSS [GET]
+
+Generates CSS variables for theming.
 
 ### api/v2/logout [GET]
 
 Logs out the user and redirects to the login page. If there's an error during the session destruction, it redirects to the current API version.
-
 
 Note: All routes are rate-limited for security reasons. The limit varies depending on the route.
 
