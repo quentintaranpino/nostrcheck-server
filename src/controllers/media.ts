@@ -663,7 +663,6 @@ const getMediaList = async (req: Request, res: Response): Promise<Response> => {
 			return res.status(401).send({ result: false, description: eventHeader.message });
 		}
 		logger.debug(`getMediaList - Invalid auth, fallback to public files for pubkey: ${req.params.param2}`, "|", reqInfo.ip);
-	  
 		eventHeader.pubkey = "";
 	}
 

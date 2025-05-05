@@ -168,13 +168,15 @@ const initVideoConversionEngine = (file: FileData) => {
     return ffmpegEngine;
 }
 
-
 async function initImageConversionEngine(file: FileData) {
+	
 	try {
-		await sharp(file.conversionInputPath, {"animated":true} ).resize({
-		width: parseInt(file.newFileDimensions.split("x")[0]), 
-		height: parseInt(file.newFileDimensions.split("x")[1]),
-		fit: 'cover', 
+		await sharp(file.conversionInputPath, {"animated": true} )
+		.rotate()
+		.resize({
+			width: parseInt(file.newFileDimensions.split("x")[0]), 
+			height: parseInt(file.newFileDimensions.split("x")[1]),
+			fit: 'cover', 
 		})
 
 		.webp({ quality: 80, loop: 0 }) 
@@ -297,43 +299,48 @@ const getMediaDimensions = async (file: string, fileData: { originalmime: string
 
     if (!fileData.originalmime.startsWith("image") && !fileData.originalmime.startsWith("video")) return { width: 0, height: 0 };
 
-    return new Promise<{ width: number; height: number }>(async (resolve) => {
-        try {
-            if (fileData.originalmime.startsWith("image")) {
-				const imageInfo = await sharp(file).rotate().metadata();
-				logger.debug(`getMediaDimensions - Image info: ${imageInfo.width}x${imageInfo.height}`);
-				resolve({ width: imageInfo.width!, height: imageInfo.height! });
-            } else {
-                ffmpeg.ffprobe(file, (err, metadata) => {
-                    if (err) {
-						logger.debug(`getMediaDimensions - Error getting media dimensions of file: ${file}, using defaults (640 x 480)`);
-                        resolve({ width: 640, height: 480 });
-                    } else {
-                        const videoStream = metadata.streams.find(stream => stream.codec_type === 'video');
-                        if (videoStream) {
+	try {
+		if (fileData.originalmime.startsWith("image")) {
 
-							let width = videoStream?.width || 640;
-							let height = videoStream?.height || 480;
-							const rotation = videoStream?.rotation || "0";
+			const { info } = await sharp(file)
+				.rotate()
+				.toBuffer({ resolveWithObject: true });
+			
+			logger.debug(`getMediaDimensions - Image info: ${info.width}x${info.height}`);
+		
+			return { width: info.width, height: info.height };
+
+		} else {
+			ffmpeg.ffprobe(file, (err, metadata) => {
+				if (err) {
+					logger.debug(`getMediaDimensions - Error getting media dimensions of file: ${file}, using defaults (640 x 480)`);
+					return { width: 640, height: 480 };
+				} else {
+					const videoStream = metadata.streams.find(stream => stream.codec_type === 'video');
+					if (videoStream) {
+
+						let width = videoStream?.width || 640;
+						let height = videoStream?.height || 480;
+						const rotation = videoStream?.rotation || "0";
+				
+						if (rotation === "-90" || rotation === "90") [width, height] = [height, width];
 					
-							if (rotation === "-90" || rotation === "90") [width, height] = [height, width];
-						
-                            resolve({ width, height });
+						return { width, height };
 
-                        } else {
-							logger.debug(`getMediaDimensions - Could not get media dimensions of file: ${file}, using defaults (640 x 480)`);
-                            resolve({ width: 640, height: 480 });
-                        }
-                    }
-                });
-            }
-        } catch (error) {
-			logger.error(`getMediaDimensions - Error processing file: ${error}`);
-            resolve({ width: 640, height: 480 });
-        }
-    });
+					} else {
+						logger.debug(`getMediaDimensions - Could not get media dimensions of file: ${file}, using defaults (640 x 480)`);
+						return { width: 640, height: 480 };
+					}
+				}
+			});
+		}
+	} catch (error) {
+		logger.error(`getMediaDimensions - Error processing file: ${error}`);
+		return { width: 640, height: 480 };
+	}
+
+	return { width: 640, height: 480 };
 };
-
 
 const setMediaDimensions = async (file:string, options:FileData):Promise<string> => {
 
