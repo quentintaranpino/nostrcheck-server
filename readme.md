@@ -86,72 +86,6 @@ See configuration [here](https://github.com/quentintaranpino/nostrcheck-api-ts/b
 
 See plugins [here](https://github.com/quentintaranpino/nostrcheck-api-ts/blob/main/PLUGINS.md)
 
-## Screenshots
-
-### Dashboard
-
-![image](https://github.com/user-attachments/assets/5f634568-9374-40d1-81fa-35e75cd2c9e2)
-
-### User public / private profile
-
-![image](https://github.com/user-attachments/assets/aa65f649-1537-43a3-a26d-b85c4af12a30)
-
-### Nostr settings page
-
-![image](https://github.com/user-attachments/assets/537e6e04-cfb4-4448-99a5-0a0c6c24d8af)
-
-### Nostr relay management
-
-![image](https://github.com/user-attachments/assets/6dd491ef-af55-4472-bdd9-a750537ad28b)
-
-### Nostr file manager
-
-![image](https://github.com/user-attachments/assets/06b09897-e37e-4e7c-8149-f2b96462b21b)
-
-### Server settings page
-
-![image](https://github.com/user-attachments/assets/44c0a420-bd01-4ea8-8250-fbe657ef3019)
-
-### Login
-
-![image](https://github.com/user-attachments/assets/aed1716b-e8f2-4ded-8ec0-edd4b6ada802)
-
-### Gallery
-
-![image](https://github.com/user-attachments/assets/179f01f9-b52c-44dc-b375-68a57d89f18a)
-
-### Uploads
-
-![image](https://github.com/user-attachments/assets/a598bd89-bae8-447f-947c-1a2a645c454d)
-
-### Directory
-
-![image](https://github.com/user-attachments/assets/808c741e-2916-49df-95c7-8a3a55661ac9)
-
-### Public API docs
-
-![image](https://github.com/user-attachments/assets/62dedb9b-18fa-4bc7-acd1-a2f13772a797)
-
-### Customizable frontpage and logo
-
-![image](https://github.com/user-attachments/assets/612941f9-4348-45ee-8d11-e02f1eff6f57)
-
-### Register form
-
-![image](https://github.com/user-attachments/assets/7de9bdc8-ee8e-4f0a-b180-3a62f25788fe)
-
-### Payments (register)
-
-![image](https://github.com/user-attachments/assets/ccfff366-a46b-46c2-9a75-5009645fc77a)
-
-### Payments (file hosting)
-
-![image](https://github.com/user-attachments/assets/8e2f0ca3-4395-4611-bacd-874a38f9941b)
-
-### Plugins
-
-![image](https://github.com/user-attachments/assets/ca3a13ee-179a-4ea8-a022-37497e35f6be)
-
 ## Supported Nostr NIP's
 
 - [x] NIP01 - Basic protocol flow description
@@ -226,6 +160,72 @@ See plugins [here](https://github.com/quentintaranpino/nostrcheck-api-ts/blob/ma
 - [x] Frontend UI (relay)
 - [x] Alby Hub appstore integration
 - [x] Full multy-tenancy support
+
+## Screenshots
+
+### Dashboard
+
+![image](https://github.com/user-attachments/assets/5f634568-9374-40d1-81fa-35e75cd2c9e2)
+
+### User public / private profile
+
+![image](https://github.com/user-attachments/assets/aa65f649-1537-43a3-a26d-b85c4af12a30)
+
+### Nostr settings page
+
+![image](https://github.com/user-attachments/assets/537e6e04-cfb4-4448-99a5-0a0c6c24d8af)
+
+### Nostr relay management
+
+![image](https://github.com/user-attachments/assets/6dd491ef-af55-4472-bdd9-a750537ad28b)
+
+### Nostr file manager
+
+![image](https://github.com/user-attachments/assets/06b09897-e37e-4e7c-8149-f2b96462b21b)
+
+### Server settings page
+
+![image](https://github.com/user-attachments/assets/44c0a420-bd01-4ea8-8250-fbe657ef3019)
+
+### Login
+
+![image](https://github.com/user-attachments/assets/aed1716b-e8f2-4ded-8ec0-edd4b6ada802)
+
+### Gallery
+
+![image](https://github.com/user-attachments/assets/179f01f9-b52c-44dc-b375-68a57d89f18a)
+
+### Uploads
+
+![image](https://github.com/user-attachments/assets/a598bd89-bae8-447f-947c-1a2a645c454d)
+
+### Directory
+
+![image](https://github.com/user-attachments/assets/808c741e-2916-49df-95c7-8a3a55661ac9)
+
+### Public API docs
+
+![image](https://github.com/user-attachments/assets/62dedb9b-18fa-4bc7-acd1-a2f13772a797)
+
+### Customizable frontpage and logo
+
+![image](https://github.com/user-attachments/assets/612941f9-4348-45ee-8d11-e02f1eff6f57)
+
+### Register form
+
+![image](https://github.com/user-attachments/assets/7de9bdc8-ee8e-4f0a-b180-3a62f25788fe)
+
+### Payments (register)
+
+![image](https://github.com/user-attachments/assets/ccfff366-a46b-46c2-9a75-5009645fc77a)
+
+### Payments (file hosting)
+
+![image](https://github.com/user-attachments/assets/8e2f0ca3-4395-4611-bacd-874a38f9941b)
+
+### Plugins
+
+![image](https://github.com/user-attachments/assets/ca3a13ee-179a-4ea8-a022-37497e35f6be)
 
 ## License
 
