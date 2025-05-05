@@ -27,7 +27,7 @@ const dbCountMonthModuleData = async (module: string, field: string): Promise<ob
 			'%Y-%m') as month`
 		],
 		`${table}`,
-		`1=1 GROUP BY month ORDER BY month DESC LIMIT 24`,
+		`1=1 GROUP BY month ORDER BY month DESC LIMIT 36`,
 		[],
 		false
 	);
