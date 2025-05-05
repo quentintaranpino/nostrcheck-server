@@ -80,7 +80,7 @@ See documentation [here](https://github.com/quentintaranpino/nostrcheck-api-ts/b
 
 ## Configuration
 
-See configuration [here](https://github.com/quentintaranpino/nostrcheck-api-ts/blob/main/CONFIG.md)
+See configuration [here](https://github.com/quentintaranpino/nostrcheck-server/wiki/Config)
 
 ## Plugins
 
