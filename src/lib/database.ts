@@ -645,7 +645,6 @@ const initDatabase = async (): Promise<void> => {
 		await dbDelete("mediafiles", ["status"], ["error"]);
 		await dbDelete("mediafiles", ["status"], ["failed"]);
 		await dbDelete("mediafiles", ["status"], ["processing"]);
-		await dbDelete("mediafiles", ["percentage"], ["0"]);
 	}
 	
 }
