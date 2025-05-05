@@ -76,7 +76,11 @@ git clone https://github.com/quentintaranpino/nostrcheck-server.git && cd nostrc
 
 ## Documentation
 
-See documentation [here](https://github.com/quentintaranpino/nostrcheck-api-ts/blob/main/DOCS.md)
+See documentation [here](https://github.com/quentintaranpino/nostrcheck-server/wiki)
+
+## API Documentation
+
+See API documentation [here](https://github.com/quentintaranpino/nostrcheck-server/wiki/API)
 
 ## Configuration
 
