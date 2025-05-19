@@ -510,6 +510,14 @@ const getMedia = async (req: Request, res: Response, version:string) => {
 		return;
 	}
 
+	// Old public file URL
+	const isOldPublicFile = !!req.params.param2 && req.params.param2.includes('.') && req.params.param2.split('.').pop()!.length >= 2;
+	if (req.params.param1 && req.params.param2 && isOldPublicFile) {
+		req.params.pubkey   = req.params.param1;
+		req.params.filename = req.params.param2;
+		return getMediabyURL(req, res);
+	}
+
 	// Get media by ID, getmedia listing
 	if (req.params.param1 && req.params.param1.length < 11) {
 
