@@ -83,6 +83,22 @@ const getRelayHeavyWorkerLength = (): number => {
 
 const relayQueue: queueAsPromised<RelayJob> = fastq.promise(relayWorker, Math.ceil(relayWorkers));
 
+const CHUNK_BATCH = 100;
+
+const findChunkFor = (ts: number, chunks: SharedChunk[]): SharedChunk | undefined => {
+  let lo = 0, hi = chunks.length - 1;
+  while (lo <= hi) {
+    const mid = (lo + hi) >>> 1;
+    if (chunks[mid].timeRange.min > ts) {
+      hi = mid - 1;
+    } else {
+      lo = mid + 1;
+    }
+  }
+  const candidate = chunks[hi];
+  return candidate && ts <= candidate.timeRange.max ? candidate : undefined;
+};
+
 /**
  * Persist events to the database and update shared memory chunks.
  * New events are assigned to an existing chunk based on their created_at.
@@ -101,93 +117,91 @@ const persistEvents = async () => {
     return;
   }
 
-  const affectedChunks: SharedChunk[] = [];
-  const unassignedEvents : MetadataEvent[] = [];
+  const events = Array.from(eventStore.pending.values()) as MetadataEvent[];
 
-  const eventsToPersist = Array.from(eventStore.pending.values()) as MetadataEvent[];
-  if (eventsToPersist.length > 0) {
-    const insertedCount: number = await storeEvents(eventsToPersist);
+  const inserted = await storeEvents(events);
+
+  eventStore.sharedDBChunks.sort((a, b) => b.timeRange.max - a.timeRange.max);
+  const newest = eventStore.sharedDBChunks[0];
+
+  const affected = new Set<SharedChunk>();
+  const unassigned: MetadataEvent[] = [];
+
+  for (let i = 0; i < events.length; i += CHUNK_BATCH) {
+    const batch = events.slice(i, i + CHUNK_BATCH);
+    for (const ev of batch) {
+      const entry = eventStore.eventIndex.get(ev.id);
+      if (entry) entry.processed = true;
+      eventStore.pending.delete(ev.id);
+
+      let chunk = findChunkFor(ev.created_at, eventStore.sharedDBChunks);
+      if (!chunk && ev.created_at >= newest.timeRange.min && newest.indexMap.length < CHUNK_SIZE) {
+        chunk = newest;
+        newest.timeRange.max = ev.created_at;
+      }
+      if (chunk) {
+        affected.add(chunk);
+      } else {
+        unassigned.push(ev);
+      }
+    }
+    await new Promise(r => setImmediate(r));
+  }
+
+  const chunkToEvents = new Map<SharedChunk, MetadataEvent[]>();
+  for (const ev of events) {
+    for (const chunk of affected) {
+      if (ev.created_at >= chunk.timeRange.min && ev.created_at <= chunk.timeRange.max) {
+        const arr = chunkToEvents.get(chunk) || [];
+        arr.push(ev);
+        chunkToEvents.set(chunk, arr);
+        break;
+      }
+    }
+  }
+  for (const [chunk, evs] of chunkToEvents.entries()) {
+    const updated = await updateChunk(chunk, evs, "add");
+    const idx = eventStore.sharedDBChunks.findIndex(c => c === chunk);
+    if (idx !== -1) {
+      eventStore.sharedDBChunks[idx] = updated;
+      const decoded = await decodeChunk(updated);
+      decoded.forEach((d, pos) => {
+        const e = eventStore.eventIndex.get(d.id);
+        if (e) {
+          e.chunkIndex = idx;
+          e.position = pos;
+          e.processed = true;
+        }
+      });
+    }
+  }
+
+  if (unassigned.length > 0) {
+    await new Promise(r => setImmediate(r));
+    unassigned.sort((a, b) => b.created_at - a.created_at);
+    const newChunk = await encodeChunk(unassigned);
+    const newIndex = eventStore.sharedDBChunks.length;
+    unassigned.forEach((ev, pos) => {
+      const e = eventStore.eventIndex.get(ev.id);
+      if (e) {
+        e.chunkIndex = newIndex;
+        e.position = pos;
+        e.processed = true;
+      }
+    });
+    eventStore.sharedDBChunks.push(newChunk);
     eventStore.sharedDBChunks.sort((a, b) => b.timeRange.max - a.timeRange.max);
-    const newestChunk = eventStore.sharedDBChunks[0];
+  }
 
-    for (const event of eventsToPersist) {
-      await new Promise(resolve => setImmediate(resolve));
-      const indexEntry = eventStore.eventIndex.get(event.id);
-      if (indexEntry) indexEntry.processed = true;
-      eventStore.pending.delete(event.id);
+  if (inserted !== events.length) {
+    logger.debug(
+      `persistEvents – ${inserted} inserted, ${events.length - inserted} duplicates`
+    );
+  }
 
-      let assigned = false;
-      for (const chunk of eventStore.sharedDBChunks) {
-        await new Promise(resolve => setImmediate(resolve));
-        if (
-          event.created_at >= chunk.timeRange.min &&
-          event.created_at <= chunk.timeRange.max
-        ) {
-          affectedChunks.push(chunk);
-          assigned = true;
-          break;
-        }
-        
-      }
-
-      if (!assigned && event.created_at >= newestChunk.timeRange.min && newestChunk.indexMap.length < CHUNK_SIZE) {
-        newestChunk.timeRange.max = event.created_at;
-        affectedChunks.push(newestChunk);
-        assigned = true;
-      }
-
-      if (!assigned) {
-        unassignedEvents.push(event);
-      }
-    }
-
-    for (const chunk of affectedChunks) {
-      await new Promise(resolve => setImmediate(resolve));
-      const newChunkEvents = eventsToPersist.filter(
-        event => event.created_at >= chunk.timeRange.min && event.created_at <= chunk.timeRange.max
-      );
-    
-      if (newChunkEvents.length > 0) {
-        const updatedChunk = await updateChunk(chunk, newChunkEvents, "add");
-        const idx = eventStore.sharedDBChunks.findIndex(c => c === chunk);
-        if (idx !== -1) {
-          eventStore.sharedDBChunks[idx] = updatedChunk;
-    
-          const updatedEvents = await decodeChunk(updatedChunk);
-          for (let position = 0; position < updatedEvents.length; position++) {
-            const event = updatedEvents[position];
-            const entry = eventStore.eventIndex.get(event.id);
-            if (entry) {
-              entry.chunkIndex = idx;
-              entry.position = position;
-              entry.processed = true;
-            }
-          }
-        }
-      }
-    }
-
-    if (unassignedEvents.length > 0) {
-      await new Promise(resolve => setImmediate(resolve));
-      unassignedEvents.sort((a, b) => b.created_at - a.created_at);
-      const newChunk = await encodeChunk(unassignedEvents);
-      const newChunkIndex = eventStore.sharedDBChunks.length;
-      for (let position = 0; position < unassignedEvents.length; position++) {
-        await new Promise(resolve => setImmediate(resolve));
-        const event = unassignedEvents[position];
-        const entry = eventStore.eventIndex.get(event.id);
-        if (entry) {
-          entry.chunkIndex = newChunkIndex;
-          entry.position = position;
-          entry.processed = true;
-        }
-      }
-      eventStore.sharedDBChunks.push(newChunk);
-      eventStore.sharedDBChunks.sort((a, b) => b.timeRange.max - a.timeRange.max);
-    }
-
-    if (insertedCount !== eventsToPersist.length) {
-      logger.debug(`persistEvents - ${insertedCount} new events inserted, ${eventsToPersist.length - insertedCount} duplicates or ignored`);
+  for (const [id, entry] of eventStore.eventIndex) {
+    if (entry.processed) {
+      eventStore.eventIndex.delete(id);
     }
   }
 };
