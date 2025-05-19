@@ -459,7 +459,7 @@ interface UserPrefsTableStructure extends RowDataPacket {
 const userPreferencesTableFields: UserPrefsTableStructure = {
 	id: "int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY",
 	registered_id: "int(11) NOT NULL UNIQUE",
-	preferences: "JSON NOT NULL DEFAULT '{}'",
+	preferences: "JSON NOT NULL",
 	updated_at: "timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP",
 	_indexes: [
 		"INDEX idx_registered_id (registered_id)",],
@@ -478,7 +478,7 @@ interface TenantConfigStructure extends RowDataPacket {
 const tenantConfigTableFields : TenantConfigStructure= {
 	id: "int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY",
 	domainid: "int(11) NOT NULL UNIQUE",
-	config: "JSON NOT NULL DEFAULT '{}'",
+	config: "JSON NOT NULL",
 	updated_at: "timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP",
 	_indexes: [
 		"INDEX idx_domainid (domainid)",

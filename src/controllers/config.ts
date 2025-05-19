@@ -67,7 +67,7 @@ const checkConfigNecessaryKeys = async () : Promise<void> => {
 
 const migrateDBLocalpath = async () : Promise<boolean> => {
 
-	const { dbMultiSelect, dbUpdate} = await import("../lib/database.js");
+	const { dbMultiSelect, dbUpdate} = await import("../lib/database/core.js");
 	const mediaFiles = await dbMultiSelect(
 									["filename", "pubkey", "type"],
 									"mediafiles",

@@ -4,7 +4,7 @@ import { logger } from "../lib/logger.js";
 import { parseAuthHeader } from "../lib/authorization.js";
 import { setAuthCookie } from "../lib/frontend.js";
 import { userPrefs } from "../interfaces/appearance.js";
-import { dbMultiSelect, dbUpsert } from "../lib/database.js";
+import { dbMultiSelect, dbUpsert } from "../lib/database/core.js";
 import { getNewDate } from "../lib/utils.js";
 import { isModuleEnabled } from "../lib/config/core.js";
 

@@ -8,7 +8,7 @@ import { getLogHistory, logger } from "../lib/logger.js";
 import { format, getCPUUsage, getNewDate } from "../lib/utils.js";
 import { ResultMessagev2, ServerStatusMessage } from "../interfaces/server.js";
 import { generatePassword } from "../lib/authorization.js";
-import { dbDelete, dbInsert, dbMultiSelect, dbUpdate } from "../lib/database.js";
+import { dbDelete, dbInsert, dbMultiSelect, dbUpdate } from "../lib/database/core.js";
 import { allowedFieldNames, allowedFieldNamesAndValues, allowedTableNames, moduleDataReturnMessage, moduleDataKeys, moduleDataIndex } from "../interfaces/admin.js";
 import { parseAuthHeader} from "../lib/authorization.js";
 import { npubToHex } from "../lib/nostr/NIP19.js";

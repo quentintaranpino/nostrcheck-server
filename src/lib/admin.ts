@@ -1,5 +1,5 @@
 import { ModuleDataTables, moduleDataSelectFields, moduleDataWhereFields } from "../interfaces/admin.js";
-import { dbMultiSelect, dbSelect, dbSimpleSelect } from "./database.js";
+import { dbMultiSelect, dbSelect, dbSimpleSelect } from "./database/core.js";
 import { logger } from "./logger.js";
 
 const dbCountModuleData = async (module: string, field = ""): Promise<number> => {

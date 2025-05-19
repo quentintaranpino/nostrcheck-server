@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 
-import { connect, dbSelect } from "../lib/database.js";
+import { connect, dbSelect } from "../lib/database/core.js";
 import { logger } from "../lib/logger.js";
 import { ResultMessagev2 } from "../interfaces/server.js";
 import { LightningUsernameResult } from "../interfaces/lightning.js";

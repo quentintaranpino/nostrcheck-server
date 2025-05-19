@@ -16,7 +16,7 @@ import { validatePow } from "../lib/nostr/NIP13.js";
 import { allowedTags, eventStore, ExtendedWebSocket, MetadataEvent, RelayStatusMessage } from "../interfaces/relay.js";
 import { isBase64 } from "../lib/utils.js";
 import { AuthEvent } from "../interfaces/nostr.js";
-import { dbMultiSelect, dbUpdate } from "../lib/database.js";
+import { dbMultiSelect, dbUpdate } from "../lib/database/core.js";
 import { enqueueRelayTask, getEvents, getPendingHeavyTasks, getPendingLightTasks, getRelayHeavyWorkerLength, getRelayLightWorkerLength, getRelayQueueLength, relayWorkers } from "../lib/relay/workers.js";
 import { parseAuthHeader } from "../lib/authorization.js";
 import { getConfig, isModuleEnabled } from "../lib/config/core.js";

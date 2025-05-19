@@ -1,5 +1,5 @@
 import { accounts, emptyInvoice, emptyTransaction, Invoice, tableCalculateMode, Transaction } from "../../interfaces/payments.js";
-import { dbDelete, dbInsert, dbMultiSelect, dbSelect, dbUpdate } from "../database.js"
+import { dbDelete, dbInsert, dbMultiSelect, dbSelect, dbUpdate } from "../database/core.js"
 import { logger } from "../logger.js";
 import { sendMessage } from "../nostr/NIP04.js";
 import { getNewDate } from "../utils.js";

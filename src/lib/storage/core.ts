@@ -1,6 +1,6 @@
 import { FileData } from "../../interfaces/media.js";
 import { getConfig } from "../config/core.js";
-import { dbMultiSelect, dbSelect, dbUpdate } from "../database.js";
+import { dbMultiSelect, dbSelect, dbUpdate } from "../database/core.js";
 import { getHashedPath } from "../hash.js";
 import { logger } from "../logger.js";
 import { copyLocalFile, createLocalFolder, getLocalFile, deleteLocalFile } from "./local.js";

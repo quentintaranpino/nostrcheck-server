@@ -3,7 +3,7 @@
 
 import * as fs from "fs";
 import * as csv from "fast-csv";
-import { dbUpsert, dbInsert, dbMultiSelect } from "./database.js"; 
+import { dbUpsert, dbInsert, dbMultiSelect } from "./database/core.js"; 
 import { logger } from "./logger.js";
 
 const importCSV = async (filePath: string) => {

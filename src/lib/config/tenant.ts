@@ -4,7 +4,7 @@ import { configStore, getConfig, setConfig } from "./core.js";
 const loadTenantConfig = async (domainId: string): Promise<any> => {
   try {
     const query = "SELECT config FROM tenantconfig WHERE domainid = ?";
-    const { dbSelect } = await import("../database.js");
+    const { dbSelect } = await import("../database/core.js");
     const configString = await dbSelect(query, "config", [domainId]);
     if (configString && typeof configString === "string" && configString !== "") {
       return JSON.parse(configString);
@@ -19,7 +19,7 @@ const loadTenantConfig = async (domainId: string): Promise<any> => {
 const updateTenantConfig = async (domainId: string, config: any): Promise<boolean> => {
   try {
     const configJson = JSON.stringify(config);
-    const { dbUpsert } = await import("../database.js");
+    const { dbUpsert } = await import("../database/core.js");
     const result = await dbUpsert("tenantconfig", { domainid: domainId, config: configJson }, ["domainid"]);
     return result > 0;
   } catch (error) {
@@ -28,7 +28,7 @@ const updateTenantConfig = async (domainId: string, config: any): Promise<boolea
   }
 };
 const loadTenants = async (): Promise<void> => {
-      const { dbMultiSelect } = await import("../database.js");
+      const { dbMultiSelect } = await import("../database/core.js");
       const domainRows = await dbMultiSelect(["id", "domain"], "domains", "active = ?", ["1"], false);
       for (const row of domainRows) {
         const tenantConfig = await loadTenantConfig(row.id);5

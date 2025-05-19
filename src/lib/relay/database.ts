@@ -1,5 +1,5 @@
 import { Event } from "nostr-tools";
-import { dbBulkInsert, dbDelete, dbSimpleSelect, dbUpdate} from "../database.js";
+import { dbBulkInsert, dbDelete, dbSimpleSelect, dbUpdate} from "../database/core.js";
 import { logger } from "../logger.js";
 import { CHUNK_SIZE, EventIndex, MetadataEvent, eventStore } from "../../interfaces/relay.js";
 import { decompressEvent, encodeChunk } from "./utils.js";

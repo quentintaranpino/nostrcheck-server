@@ -1,6 +1,6 @@
 import { generateAuthToken } from "./authorization.js";
 import { getConfig } from "./config/core.js";
-import { dbMultiSelect } from "./database.js";
+import { dbMultiSelect } from "./database/core.js";
 import { Request, Response } from "express";
 import { hextoNpub } from "./nostr/NIP19.js";
 import path from "path";

@@ -44,7 +44,6 @@ const initGlobalConfig = async (): Promise<void> => {
     };
 
     configStore.global = globalConfig;
-    loadTenants()
 };
 
 const deepMerge = (base: any, override: any): any => {
@@ -134,7 +133,7 @@ const setConfig = async (tenant: string, keyPath: string[], newValue: string | b
   if (domainId) {
     try {
       const configJson = JSON.stringify(configStore.tenants[domainId]);
-      const { dbUpsert } = await import("../database.js");
+      const { dbUpsert } = await import("../database/core.js");
       const result = await dbUpsert("tenantconfig", { domainid: domainId, config: configJson }, ["domainid"]);
       return result > 0;
     } catch (error) {
@@ -152,6 +151,7 @@ const setConfig = async (tenant: string, keyPath: string[], newValue: string | b
     }
   }
 };
+
 const getModules = (domain: string | null = null, onlyActive : boolean): Module[] => {
 
   const domainId = domain ? configStore.domainMap.domainToId[domain] : null;

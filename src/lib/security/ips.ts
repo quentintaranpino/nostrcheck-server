@@ -3,7 +3,7 @@ import { Request } from "express";
 import { IncomingMessage } from "http";
 import net from "net";
 
-import { dbUpdate, dbMultiSelect, dbUpsert } from "../database.js";
+import { dbUpdate, dbMultiSelect, dbUpsert } from "../database/core.js";
 import { logger } from "../logger.js";
 
 import { banEntity, isEntityBanned } from "./banned.js";

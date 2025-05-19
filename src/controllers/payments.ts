@@ -4,7 +4,7 @@ import { logger } from "../lib/logger.js";
 import { ResultMessagev2 } from "../interfaces/server.js";
 import { parseAuthHeader} from "../lib/authorization.js";
 import { payInvoiceFromExpenses, addBalance, getBalance, formatAccountNumber, getInvoice, collectInvoice } from "../lib/payments/core.js";
-import { dbMultiSelect } from "../lib/database.js";
+import { dbMultiSelect } from "../lib/database/core.js";
 import { isInvoicePaid } from "../lib/payments/core.js";
 import { invoiceReturnMessage } from "../interfaces/payments.js";
 import { setAuthCookie } from "../lib/frontend.js";

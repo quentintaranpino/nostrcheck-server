@@ -4,7 +4,7 @@ import fs from "fs";
 
 import { MediaJob, LegacyMediaReturnMessage, FileData, UploadTypes, VideoHeaderRange } from "../interfaces/media.js";
 import { logger } from "./logger.js";
-import { connect, dbMultiSelect, dbUpdate } from "./database.js";
+import { connect, dbMultiSelect, dbUpdate } from "./database/core.js";
 import {fileTypeFromBuffer} from 'file-type';
 import { Request } from "express";
 import { generatefileHashfromfile } from "./hash.js";

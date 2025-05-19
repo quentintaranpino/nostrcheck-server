@@ -4,7 +4,7 @@ import crypto from "crypto";
 import { Event } from "nostr-tools";
 
 
-import { dbMultiSelect, dbSelect, dbUpdate } from "../lib/database.js";
+import { dbMultiSelect, dbSelect, dbUpdate } from "./database/core.js";
 import { logger } from "./logger.js";
 import { authHeaderResult } from "../interfaces/authorization.js";
 import { hashString, validateHash } from "./hash.js";

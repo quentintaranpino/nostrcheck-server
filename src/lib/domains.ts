@@ -1,7 +1,7 @@
 
 import { TenantInfo } from "../interfaces/tenants.js";
 import { getPublicTenantConfig } from "./config/tenant.js";
-import { dbMultiSelect } from "./database.js";
+import { dbMultiSelect } from "./database/core.js";
 
 const getDomains = async (): Promise<{ [key: string]: TenantInfo }> => {
     const domains = await dbMultiSelect(["id", "domain"], "domains", "active = ?", ["1"], false);

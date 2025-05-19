@@ -2,7 +2,7 @@ import { Request, Response } from "express";
 import fs from "fs";
 import { logger } from "../lib/logger.js";
 import { markdownToHtml } from "../lib/utils.js";
-import { dbMultiSelect, dbSelect} from "../lib/database.js";
+import { dbMultiSelect, dbSelect} from "../lib/database/core.js";
 import { generateAuthToken, generateOTC, isPubkeyAllowed, isPubkeyValid, isUserPasswordValid, verifyOTC } from "../lib/authorization.js";
 import { countPubkeyFiles, getLegalText, getResource, isAutoLoginEnabled, setAuthCookie } from "../lib/frontend.js";
 import { hextoNpub, npubToHex } from "../lib/nostr/NIP19.js";

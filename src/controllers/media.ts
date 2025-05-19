@@ -4,7 +4,7 @@ import path from "path";
 import validator from "validator";
 import fs from "fs";
 
-import { dbDelete, dbInsert, dbMultiSelect, dbSelect, dbUpdate } from "../lib/database.js";
+import { dbDelete, dbInsert, dbMultiSelect, dbSelect, dbUpdate } from "../lib/database/core.js";
 import { logger } from "../lib/logger.js";
 import { isPubkeyRegistered, parseAuthHeader } from "../lib//authorization.js";
 import { getUploadType, getFileMimeType, standardMediaConversion, getNotFoundFileBanner, readRangeHeader, prepareLegacMediaEvent, getMediaDimensions, getExtension, getMimeType, getAllowedMimeTypes, getFileUrl, getMediaUrl } from "../lib/media.js"

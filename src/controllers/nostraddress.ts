@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 
-import { dbMultiSelect } from "../lib/database.js";
+import { dbMultiSelect } from "../lib/database/core.js";
 import { logger } from "../lib/logger.js";
 import { nostrAddressResult } from "../interfaces/register.js";
 import { ResultMessagev2 } from "../interfaces/server.js";

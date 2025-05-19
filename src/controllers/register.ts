@@ -5,7 +5,7 @@ import { addNewUsername, isPubkeyOnDomainAvailable, isUsernameAvailable } from "
 import { generateOTC, verifyOTC, parseAuthHeader } from "../lib/authorization.js";
 import { npubToHex, validatePubkey } from "../lib/nostr/NIP19.js";
 import { registerFormResult } from "../interfaces/register.js";
-import { dbDelete, dbUpdate } from "../lib/database.js";
+import { dbDelete, dbUpdate } from "../lib/database/core.js";
 import { validateInviteCode } from "../lib/invitations.js";
 import { calculateSatoshi, checkTransaction } from "../lib/payments/core.js";
 import { amountReturnMessage, Transaction } from "../interfaces/payments.js";

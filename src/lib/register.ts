@@ -1,4 +1,4 @@
-import { dbDelete, dbMultiSelect, dbUpdate, dbUpsert } from "./database.js";
+import { dbDelete, dbMultiSelect, dbUpdate, dbUpsert } from "./database/core.js";
 import { generatePassword } from "./authorization.js";
 import { hashString } from "./hash.js";
 import { hextoNpub, npubToHex, validatePubkey } from "./nostr/NIP19.js";

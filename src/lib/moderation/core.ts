@@ -4,7 +4,7 @@ import { localEngineClassify } from "./local.js";
 import { getFilePath } from "../storage/core.js";
 import { emptyModerationCategory, ModerationCategory, ModerationJob } from "../../interfaces/moderation.js";
 import { logger } from "../logger.js";
-import { dbMultiSelect, dbUpdate } from "../database.js";
+import { dbMultiSelect, dbUpdate } from "../database/core.js";
 import { getFileUrl } from "../media.js";
 import { getConfig } from "../config/core.js";
 

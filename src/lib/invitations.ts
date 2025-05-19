@@ -1,5 +1,5 @@
 import crypto from "crypto";
-import { dbMultiSelect } from "./database.js";
+import { dbMultiSelect } from "./database/core.js";
 import { logger } from "./logger.js";
 
 /**

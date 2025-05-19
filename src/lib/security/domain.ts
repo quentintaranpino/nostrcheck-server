@@ -1,4 +1,4 @@
-import { dbMultiSelect } from "../database.js";
+import { dbMultiSelect } from "../database/core.js";
 import { logger } from "../logger.js";
 import { getConfig } from "../config/core.js";
 import { initRedis } from "../redis/client.js";

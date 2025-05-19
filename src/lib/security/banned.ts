@@ -1,7 +1,7 @@
 import fs from "fs";
 
 import { ResultMessagev2 } from "../../interfaces/server.js";
-import { dbInsert, dbMultiSelect, dbUpdate } from "../database.js";
+import { dbInsert, dbMultiSelect, dbUpdate } from "../database/core.js";
 import { logger } from "../logger.js";
 import { getConfig, isModuleEnabled } from "../config/core.js";
 import { getResource } from "../frontend.js";
