@@ -2,11 +2,7 @@ import cors from "cors";
 import express from "express";
 import helmet from "helmet";
 
-import { initGlobalConfig } from "./lib/config/core.js";
-
 const app = express();
-
-await initGlobalConfig();
 
 app.set('trust proxy', 1); 
 app.set("view engine", "ejs")
