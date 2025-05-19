@@ -458,7 +458,7 @@ const encodeEvents = async (events: MetadataEvent[]): Promise<{ buffer: SharedAr
   const indexMap = new Uint32Array(events.length);
   let offset = 0;
 
-  // Fixed header size is 152 bytes (for the fixed-length fields)
+  // Fixed header size is 153 bytes (for the fixed-length fields)
   for (let i = 0; i < events.length; i++) {
     let event = events[i];
 
@@ -478,7 +478,7 @@ const encodeEvents = async (events: MetadataEvent[]): Promise<{ buffer: SharedAr
       : new Uint8Array(0);
     const metadataSize = encodedMetadata.length;
 
-    const requiredSize = offset + 152 + tagsSize + contentSize + metadataSize;
+    const requiredSize = offset + 153 + tagsSize + contentSize + metadataSize;
     if (requiredSize > buffer.byteLength) {
       bufferSize = Math.ceil(requiredSize * 1.2);
       buffer = expandBuffer(buffer, bufferSize);
