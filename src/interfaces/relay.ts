@@ -129,6 +129,8 @@ interface PendingGetEventsTask {
 }
 
 interface SharedChunk {
+  id: string;           
+  isActive: boolean;    
   buffer: SharedArrayBuffer;
   indexMap: Uint32Array;
   timeRange: {

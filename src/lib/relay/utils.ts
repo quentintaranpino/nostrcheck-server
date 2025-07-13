@@ -510,7 +510,14 @@ const encodeEvents = async (events: MetadataEvent[]): Promise<{ buffer: SharedAr
  */
 const encodeChunk = async (events: MetadataEvent[]): Promise<SharedChunk> => {
   if (events.length === 0) {
-    return { buffer: new SharedArrayBuffer(0), indexMap: new Uint32Array(0), timeRange: { min: 0, max: 0 }, usedBytes: 0 };
+    return { 
+              id: crypto.randomUUID(),
+              isActive: false,  
+              buffer: new SharedArrayBuffer(0), 
+              indexMap: new Uint32Array(0), 
+              timeRange: { min: 0, max: 0 }, 
+              usedBytes: 0 
+            };
   }
   events.sort((a, b) => b.created_at - a.created_at);
   const { buffer, indexMap, usedBytes } = await encodeEvents(events);
@@ -518,7 +525,14 @@ const encodeChunk = async (events: MetadataEvent[]): Promise<SharedChunk> => {
     max: events[0].created_at,
     min: events[events.length - 1].created_at,
   };
-  return { buffer, indexMap, timeRange: newTimeRange, usedBytes };
+  return { 
+    id: crypto.randomUUID(),
+    isActive: false,
+    buffer, 
+    indexMap, 
+    timeRange: newTimeRange, 
+    usedBytes 
+  };
 }
 
 /**
@@ -586,7 +600,9 @@ const updateChunk = async (
 
   updatedEvents.sort((a, b) => b.created_at - a.created_at);
 
-  return await encodeChunk(updatedEvents);
+  const rebuilt = await encodeChunk(updatedEvents);
+  rebuilt.isActive = chunk.isActive;
+  return rebuilt;
 };
 
 

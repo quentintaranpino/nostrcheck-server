@@ -118,12 +118,8 @@ const persistEvents = async () => {
   }
 
   const events = Array.from(eventStore.pending.values()) as MetadataEvent[];
-
   const inserted = await storeEvents(events);
-
-  eventStore.sharedDBChunks.sort((a, b) => b.timeRange.max - a.timeRange.max);
-  const newest = eventStore.sharedDBChunks[0];
-
+  const newest = eventStore.sharedDBChunks.find(c => c.isActive)!;
   const affected = new Set<SharedChunk>();
   const unassigned: MetadataEvent[] = [];
 
@@ -178,19 +174,35 @@ const persistEvents = async () => {
 
   if (unassigned.length > 0) {
     await new Promise(r => setImmediate(r));
+
     unassigned.sort((a, b) => b.created_at - a.created_at);
+
+    const currentActive = eventStore.sharedDBChunks.find(c => c.isActive);
+    if (currentActive) currentActive.isActive = false;
+
     const newChunk = await encodeChunk(unassigned);
-    const newIndex = eventStore.sharedDBChunks.length;
+    newChunk.isActive = true;
+    newChunk.id = crypto.randomUUID();
+
+    let insertAt = 0;
+    while (
+      insertAt < eventStore.sharedDBChunks.length &&
+      eventStore.sharedDBChunks[insertAt].timeRange.max > newChunk.timeRange.max
+    ) {
+      insertAt++;
+    }
+
+    eventStore.sharedDBChunks.splice(insertAt, 0, newChunk);
+
     unassigned.forEach((ev, pos) => {
       const e = eventStore.eventIndex.get(ev.id);
       if (e) {
-        e.chunkIndex = newIndex;
-        e.position = pos;
-        e.processed = true;
+        e.chunkIndex = insertAt; 
+        e.position   = pos;      
+        e.processed  = true;
       }
     });
-    eventStore.sharedDBChunks.push(newChunk);
-    eventStore.sharedDBChunks.sort((a, b) => b.timeRange.max - a.timeRange.max);
+
   }
 
   if (inserted !== events.length) {

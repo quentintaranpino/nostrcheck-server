@@ -40,6 +40,11 @@ const initEvents = async (): Promise<boolean> => {
           const chunkIndex = eventStore.sharedDBChunks.length;
           eventStore.sharedDBChunks.push(newChunk);
 
+          // Set isActive to true for the first chunk (the newest chunk).
+          if (offset === 0) {
+            newChunk.isActive = true;
+          }
+
           // Add the events to the eventIndex map.
           for (let i = 0; i < batchEvents.length; i++) {
             const event = batchEvents[i];

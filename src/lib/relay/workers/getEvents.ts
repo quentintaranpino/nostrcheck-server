@@ -7,7 +7,8 @@ import { RedisService } from "../../redis/core.js";
 import { initGlobalConfig } from "../../config/core.js";
 import { initRedis } from "../../redis/client.js";
 
-const FILTER_CACHE_TTL = 120; 
+const FILTER_RESULT_TTL = 120;
+const HEADER_TTL_ACTIVE  = 300;
 
 let redisWorker: RedisService | null = null;
 
@@ -78,7 +79,11 @@ const getCachedEventHeaders = async (
 
   const headers = decodeChunkHeaders(chunk);
 
-  await redisWorker.set(cacheKey, JSON.stringify(headers), { EX: FILTER_CACHE_TTL});
+  if (chunk.isActive) {
+    await redisWorker.set(cacheKey, JSON.stringify(headers), { EX: HEADER_TTL_ACTIVE });
+  } else {
+    await redisWorker.set(cacheKey, JSON.stringify(headers));
+  }
   return headers;
 };
 
@@ -326,7 +331,7 @@ const _getEvents = async (
         timestamp: Math.floor(Date.now() / 1000),
         data: finalSegmentEvents,
       };
-      await redisWorker.set(cacheKey, JSON.stringify(cacheEntry), { EX: FILTER_CACHE_TTL });
+      await redisWorker.set(cacheKey, JSON.stringify(cacheEntry), { EX: FILTER_RESULT_TTL });
     }
   }
 
