@@ -199,11 +199,6 @@ const persistEvents = async () => {
     );
   }
 
-  for (const [id, entry] of eventStore.eventIndex) {
-    if (entry.processed) {
-      eventStore.eventIndex.delete(id);
-    }
-  }
 };
 
 /**
