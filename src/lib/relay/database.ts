@@ -25,7 +25,7 @@ const initEvents = async (): Promise<boolean> => {
       while (true) {
         logger.debug(`initEvents - Loaded ${eventIndex.size} events from DB (offset: ${offset})`);
         const loadedEvents = await getEventsDB(offset, CHUNK_SIZE);
-        if (loadedEvents.length === 0) {
+        if (loadedEvents.length === 0 || offset >= 1000000) {
           eventStore.relayEventsLoaded = true;
           logger.info(`initEvents - Finished loading ${eventIndex.size} events in ${eventStore.sharedDBChunks.length} chunks from DB`);
           break;
