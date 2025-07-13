@@ -3,7 +3,7 @@ import { Request } from "express";
 import { IncomingMessage } from "http";
 import net from "net";
 
-import { dbUpdate, dbMultiSelect, dbUpsert } from "../database/core.js";
+import { dbUpdate, dbMultiSelect, dbUpsert, dbDelete } from "../database/core.js";
 import { logger } from "../logger.js";
 
 import { banEntity, isEntityBanned } from "./banned.js";
@@ -308,6 +308,42 @@ setInterval(async () => {
         }
     }
 }, 10000); // 10 seconds
+
+/*
+* Periodically clean up old IP's from database and Redis.
+*/
+setInterval(async () => {
+    if (!isModuleEnabled("security", "")) return;
+
+    try {
+        const ips = await redisCore.scanKeys("ips:*");
+        if (!ips || ips.length === 0) return;
+
+        await Promise.all(
+            ips.map(async (ip) => {
+                try {
+                    const redisData = await redisCore.hashGetAll(ip);
+                    if (!redisData || !redisData.dbid) return;
+
+                    const lastseen = Number(redisData.lastseen);
+                    const infractions = Number(redisData.infractions || "0");
+                    const now = Date.now();
+                    const diff = now - lastseen;
+
+                    if (diff > 86400000 && infractions === 0) { // 1 day in milliseconds
+                        await redisCore.del(ip);
+                        await dbDelete("ips", ["id"], [redisData.dbid]);
+                    }
+
+                } catch (error) {
+                    logger.error(`ipsLib - Interval - Error processing IP '${ip}': ${error}`);
+                }
+            })
+        );
+    } catch (error) {
+        logger.error(`ipsLib - Interval - Error processing IPs: ${error}`);
+    }
+}, 3600000); // 1 hour
 
 /**
  * Adds or updates an entry in the batch for the given IP.
