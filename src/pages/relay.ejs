@@ -3,7 +3,7 @@
 <link rel="stylesheet" href="/static/css/particles.css">
 <body class="d-flex flex-column h-100">
   <%- include('./partials/navbar', {active:'relay'}); %>
-  <div class="background-theme overflow-scroll">
+  <div class="background-theme overflow-scroll h-100">
     <div class="container px-4 px-lg-5 d-flex align-items-center justify-content-center">
         <div class="d-flex justify-content-center" style="min-height: 100%;">
             <div class="text-center z-1 mt-4">
@@ -12,9 +12,9 @@
                 <div class="d-flex align-items-center justify-content-center">
                   <button id="relay-url-btn" class="btn btn-primary ms-2" type="button" 
                     onclick="copyToClipboard(this,document.getElementById('relay-url-btn').getAttribute('data-value'))"
-                    data-value="wss://relay.<%= locals.serverHost %>"
+                    data-value="wss://<%= locals.serverHost %>"
                     style="--bs-btn-padding-y: .1rem; --bs-btn-padding-x: .5rem; --bs-btn-font-size: 1.2rem;">
-                    wss://relay.<%= locals.serverHost %><i class="fa-solid fa-copy ms-2"></i>
+                    wss://<%= locals.serverHost %><i class="fa-solid fa-copy ms-2"></i>
                   </button>
                 </div>
                
