@@ -7,7 +7,7 @@ import { dbUpdate, dbMultiSelect, dbUpsert } from "../database/core.js";
 import { logger } from "../logger.js";
 
 import { banEntity, isEntityBanned } from "./banned.js";
-import { ipInfo } from "../../interfaces/security.js";
+import { IpInfo } from "../../interfaces/security.js";
 import { getDomainId } from "./domain.js";
 import { getConfig, isModuleEnabled } from "../config/core.js";
 import { initRedis } from "../redis/client.js";
@@ -184,7 +184,7 @@ const getClientInfo = (req: Request | IncomingMessage | string ): { ip: string; 
  * @param maxRequestMinute - The maximum number of requests allowed per minute. Default is 300. Optional.
  * @returns An object containing the IP address, request count, whether the IP is banned, and any comments.
  */
-const isIpAllowed = async (req: Request | IncomingMessage | string, maxRequestMinute : number = 0): Promise<ipInfo> => {
+const isIpAllowed = async (req: Request | IncomingMessage | string, maxRequestMinute : number = 0): Promise<IpInfo> => {
 
     if (!isModuleEnabled("security", "")) return {ip: "", reqcount: 0, banned: false, domainId: 1, domain: "", comments: ""};
 
@@ -208,7 +208,18 @@ const isIpAllowed = async (req: Request | IncomingMessage | string, maxRequestMi
         logger.error(`isIpAllowed - Error logging IP: ${ip}`);
         return {ip: ip, reqcount: 0, banned: true, domainId: clientDomain, domain: host,  comments: ""};
     }
-    const { dbid, reqcount, firstseen, lastseen, infractions, comments } = ipData;
+    const { dbid, reqcount, firstseen, lastseen, infractions, comments, checked, active } = ipData;
+
+    // If the IP is checked we trust it like a white-list.
+    if (checked === "1") {
+        return { ip: ip, reqcount: Number(reqcount), banned: false, domainId: clientDomain, domain: host, comments: comments || "" };
+    }
+
+    // If the IP is not active, we consider it banned.
+    if (active === "0") {
+        logger.warn(`isIpAllowed - Inactive IP: ${ip}`);
+        return { ip: ip, reqcount: Number(reqcount), banned: true, domainId: clientDomain, domain: host, comments: "inactive ip" };
+    }
 
     const banned = await isEntityBanned(dbid, "ips");
     if (banned) return { ip: ip, reqcount: Number(reqcount), banned: true, domainId: clientDomain, domain: host, comments: "banned ip" };
@@ -220,7 +231,7 @@ const isIpAllowed = async (req: Request | IncomingMessage | string, maxRequestMi
         logger.debug(`isIpAllowed - Possible abuse detected from IP: ${ip} | Infraction count: ${infractions}, reqcount: ${reqcount}`);
 
         // Update infractions and ban it for 30 seconds
-        await redisCore.hashSet(`ips:${ip}`, { infractions: Number(infractions)+1 }, getConfig(null, ["redis", "expireTime"]));
+        await redisCore.hashSet(`ips:${ip}`, { infractions: Number(infractions) + 1 }, getConfig(null, ["redis", "expireTime"]));
         
         await redisCore.set(`banned:ips:${dbid}`, JSON.stringify("1"), { EX: 30 });
 
@@ -242,7 +253,7 @@ const isIpAllowed = async (req: Request | IncomingMessage | string, maxRequestMi
 }
 
 /*
-* Save infractions to DB and reset Redis
+* Periodically save infractions from Redis to the database.
 */
 setInterval(async () => {
 
@@ -258,20 +269,12 @@ setInterval(async () => {
                     const redisData = await redisCore.hashGetAll(ip);
                     if (!redisData || !redisData.dbid || redisData.infractions === '0') return;
 
-                    const dbData = await dbMultiSelect(["infractions"], "ips", "id = ?", [redisData.dbid], true);
-                    if (!dbData || dbData.length === 0) return;
+                    const update = await dbUpdate("ips", {"infractions" : Number(redisData.infractions)}, ["id"], [redisData.dbid]);
 
-                    const dbInfractions = dbData[0].infractions || 0;
-                    if (dbInfractions === Number(redisData.infractions)) return;
-
-                    const newInfractions = Number(redisData.infractions) + dbInfractions;
-                    const updateSuccess = await dbUpdate("ips", {"infractions" : newInfractions}, ["id"], [redisData.dbid]);
-
-                    if (!updateSuccess) {
+                    if (!update) {
                         logger.error(`ipsLib - Interval - Error processing IP '${ip}': Error updating IP infractions`);
-                    } else {
-                        await redisCore.hashSet(ip, { infractions: 0 }, getConfig(null, ["redis", "expireTime"]));
-                    }
+                    } 
+
                 } catch (error) {
                     logger.error(`ipsLib - Interval - Error processing IP '${ip}': ${error}`);
                 }
@@ -281,7 +284,6 @@ setInterval(async () => {
         logger.error(`ipsLib - Interval - Error processing IPs: ${error}`);
     }
 }, 60000);
-
 
 /*
 * Periodically persist the accumulated IP updates (batch) to the database.

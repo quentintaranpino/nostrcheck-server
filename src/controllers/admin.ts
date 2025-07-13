@@ -220,6 +220,15 @@ const updateDBRecord = async (req: Request, res: Response): Promise<Response> =>
             await redisCore.set(`${table}:${req.body.value}`, req.body.id.toString());
         }
 
+        // If we are updating ips table, we need to update the Redis cache
+        if (table === "ips") {
+            const ipData = await dbMultiSelect(["ip", "checked", "active"], table, "id = ?", [req.body.id]);
+            await redisCore.hashSet(`ips:${ipData[0].ip}`, {
+                checked: ipData[0].checked.toString(),
+                active: ipData[0].active.toString()
+            });
+        }
+
         const result : ResultMessagev2 = {
             status: "success",
             message: req.body.value,

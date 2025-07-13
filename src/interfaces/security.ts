@@ -1,4 +1,4 @@
-interface ipInfo {
+interface IpInfo {
     ip: string;
     reqcount: number;
     banned: boolean;
@@ -7,4 +7,4 @@ interface ipInfo {
     comments: string;
 } 
 
-export { ipInfo };
+export { IpInfo };

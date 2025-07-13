@@ -1,12 +1,12 @@
 import { Event, Filter } from "nostr-tools";
 import { WebSocket } from "ws";
 import { ResultMessagev2 } from "./server";
-import { ipInfo } from "./security";
+import { IpInfo } from "./security";
 
 interface ExtendedWebSocket extends WebSocket {
   challenge?: string;
   isAlive?: boolean;
-  reqInfo: ipInfo;  
+  reqInfo: IpInfo;
 }
 
 const allowedTags = [

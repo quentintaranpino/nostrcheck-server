@@ -144,7 +144,8 @@ class RedisService {
       do {
         const result = await this.client.scan(cursor, { MATCH: fullPattern, COUNT: 100 });
         cursor = result.cursor;
-        keys.push(...result.keys);
+        const prefix = `${this.instancePrefix}:`;
+        keys.push(...result.keys.map(k => k.startsWith(prefix) ? k.slice(prefix.length) : k));
       } while (cursor !== 0);
 
       return keys;
