@@ -316,30 +316,15 @@ setInterval(async () => {
     if (!isModuleEnabled("security", "")) return;
 
     try {
-        const ips = await redisCore.scanKeys("ips:*");
-        if (!ips || ips.length === 0) return;
 
-        await Promise.all(
-            ips.map(async (ip) => {
-                try {
-                    const redisData = await redisCore.hashGetAll(ip);
-                    if (!redisData || !redisData.dbid) return;
-
-                    const lastseen = Number(redisData.lastseen);
-                    const infractions = Number(redisData.infractions || "0");
-                    const now = Date.now();
-                    const diff = now - lastseen;
-
-                    if (diff > 86400000 && infractions === 0) { // 1 day in milliseconds
-                        await redisCore.del(ip);
-                        await dbDelete("ips", ["id"], [redisData.dbid]);
-                    }
-
-                } catch (error) {
-                    logger.error(`ipsLib - Interval - Error processing IP '${ip}': ${error}`);
-                }
-            })
-        );
+        const expiredIPs = await dbMultiSelect(["id"], "ips", "lastseen < ? AND infractions = 0", [Date.now() - 86400000], true); 
+        if (expiredIPs && expiredIPs.length > 0) {
+            const idsToDelete = expiredIPs.map(ip => ip.id);
+            if (idsToDelete.length === 0) return;
+            await dbDelete("ips", ["id"], idsToDelete);
+            await Promise.all(idsToDelete.map(id => redisCore.del(`ips:${id}`)));
+        }
+      
     } catch (error) {
         logger.error(`ipsLib - Interval - Error processing IPs: ${error}`);
     }
