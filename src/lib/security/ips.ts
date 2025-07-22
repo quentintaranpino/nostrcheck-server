@@ -317,7 +317,7 @@ setInterval(async () => {
 
     try {
 
-        const expiredIPs = await dbMultiSelect(["id"], "ips", "lastseen < ? AND infractions = 0", [Date.now() - 43200000], true); 
+        const expiredIPs = await dbMultiSelect(["id"], "ips", "lastseen < ? AND infractions = 0", [Date.now() - 7200000], true); 
         if (expiredIPs && expiredIPs.length > 0) {
             const idsToDelete = expiredIPs.map(ip => ip.id);
             if (idsToDelete.length === 0) return;
