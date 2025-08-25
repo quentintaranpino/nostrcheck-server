@@ -20,7 +20,8 @@ async function saveSettings() {
             defaultValue = field.defaultChecked;
         } else if (field.tagName.toLowerCase() === 'select') {
             value = field.value;
-            defaultValue = Array.from(field.options).find(option => option.defaultSelected)?.value || field.value;
+            defaultValue = field.dataset.defaultValue
+               ?? (Array.from(field.options).find(o => o.defaultSelected)?.value || field.value); 
         } else if (field.type === 'file') {
             value = field.files[0]?.name || field.value;
             defaultValue = field.defaultValue;
@@ -63,6 +64,7 @@ async function saveSettings() {
                         Array.from(field.options).forEach(option => {
                             option.defaultSelected = option.selected;
                         });
+                        field.dataset.defaultValue = field.value;
                     } else {
                         field.defaultValue = field.value;
                         field.dataset.defaultValue = field.value;

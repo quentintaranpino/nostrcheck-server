@@ -93,6 +93,7 @@
         name="<%= name %>" 
         id="<%= name %>" 
         data-global-value="<%= globalValue ? 'true' : 'false' %>"
+        data-default-value="<%= effectiveValue ? 'true' : 'false' %>"
         <%= effectiveValue  ? "checked" : "" %> 
         <%= effectiveValue  ? "defaultChecked" : "" %>
         <%= shouldDisable ? "disabled" : "" %> >
@@ -185,6 +186,7 @@
       name="<%= name %>"
       id="<%= name %>"
       data-global-value="<%= globalValue %>"
+      data-default-value="<%= effectiveValue %>"
       <%= shouldDisable ? "disabled" : "" %>>
       <% options.forEach(opt => { %>
         <option 
