@@ -6,7 +6,9 @@ const app = express();
 
 app.set('trust proxy', 1); 
 app.set("view engine", "ejs")
-app.set('views','./src/pages/'); 
+app.set('views','./src/pages/');
+app.set("view cache", true);
+app.locals.cache = true;   
 
 app.use(express.static('./src/pages/'));
 app.use('/static/js/modules/nostr-tools/', express.static('./node_modules/nostr-tools'));

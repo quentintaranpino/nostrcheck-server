@@ -1,7 +1,6 @@
 
 import { configStore, Module } from "../../interfaces/config.js";
 import { loadConfigOptions, updateLocalConfigKey } from "./local.js";
-import { loadTenants } from "./tenant.js";
 
 const initGlobalConfig = async (): Promise<void> => {
 
