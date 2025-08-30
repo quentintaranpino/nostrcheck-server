@@ -65,7 +65,7 @@ export const loadRelayRoutes = (app: Application, version:string, httpServer : S
     if (socket.reqInfo.banned) {
       removeAllSubscriptions(socket, 1008); 
       socket.send(JSON.stringify(["NOTICE", socket.reqInfo.comments]));
-      socket.close(1008, "ip banned");
+      socket.terminate();
       return;
     }
 
