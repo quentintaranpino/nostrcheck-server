@@ -1,4 +1,44 @@
 <%
+let relayWSConnectionFields = [
+
+  ['ip'               , '30' , ''               , 'disabled  show text-center              '],
+  ['reqcount'         , '30' , ''               , 'disabled  show text-center              '],
+  ['banned'           , ''   , 'formatCheckbox' , 'disabled  hide                          '],
+  ['domainId'         , ''   , ''               , 'disabled  hide text-center              '],
+  ['domain'           , ''   , ''               , 'disabled  show text-center              '],
+  ['comments'         , ''   , ''               , 'disabled  show mobile-hide              '],
+];
+
+%>
+
+<% if (locals.activeModules.some(mod => mod.name === 'relay')) { %>
+  <%- include('../table', {
+    tableName:"Relay Connections", 
+    tableDesc:"",
+    tableId:"relayWSConnectionsData", 
+    buttons:[
+      ['add','hide'],
+      ['disable','show'],
+      ['enable','show'],
+      ['visible','hide'],
+      ['invisible','hide'],
+      ['admin','hide'],
+      ['edit','show'],
+      ['password','hide'],
+      ['remove','show'],
+      ['pay', 'hide'],
+      ['balance','hide'],
+      ['moderate','hide'],
+      ['ban','show']
+    ],
+    fields: relayWSConnectionFields,
+    datakey: 'relay.connections',
+    objectName: 'connection',
+    }); %> 
+
+<% } %>
+
+<%
 let eventsFields = [
   ['active'           , '30' , 'formatCheckbox' , 'disabled   show text-center             '],
   ['checked'          , '30' , 'formatCheckbox' , 'enabled   show text-center              '],

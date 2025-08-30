@@ -2,7 +2,6 @@ import { Application} from "express";
 import { getRelayStatus, handleWebSocketMessage } from "../controllers/relay.js";
 import { WebSocketServer, RawData } from "ws";
 import { IncomingMessage } from "http";
-import crypto from "crypto";
 import { logger } from "../lib/logger.js";
 import { removeAllSubscriptions } from "../lib/relay/core.js";
 import { Server } from "http";

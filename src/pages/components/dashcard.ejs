@@ -194,13 +194,6 @@ document.addEventListener('DOMContentLoaded', async () => {
           if (dashcardDataKey === 'relay' && action == 'status') {
               const res = await fetch('relay/status');
               const serverInfo = await res.json();
-              if (serverInfo.heavyTasks.length > 0) {
-                  console.log('Heavy tasks:', serverInfo.heavyTasks);
-              }
-              if (serverInfo.lightTasks.length > 0) {
-                  console.log('Light tasks:', serverInfo.lightTasks);
-              }
-              
               return { field: serverInfo[field], total: serverInfo[field] };
           }
           

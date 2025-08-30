@@ -21,12 +21,14 @@ import { generateInviteCode } from "../lib/invitations.js";
 import { setAuthCookie } from "../lib/frontend.js";
 import { deleteFile } from "../lib/storage/core.js";
 import { isIpAllowed } from "../lib/security/ips.js";
-import { eventStore } from "../interfaces/relay.js";
+import { eventStore, ExtendedWebSocket } from "../interfaces/relay.js";
 import { getEventById } from "../lib/relay/utils.js";
 import { isModuleEnabled, setConfig } from "../lib/config/core.js";
 import { acceptedSettigsFiles, settingsFileConfig } from "../interfaces/appearance.js";
 import { listPlugins } from "../lib/plugins/core.js";
 import { initRedis } from "../lib/redis/client.js";
+import { wss } from "../routes/relay.route.js";
+import { IpInfo } from "../interfaces/security.js";
 
 const redisCore = await initRedis(0, false);
 
@@ -828,15 +830,30 @@ const getModuleData = async (req: Request, res: Response): Promise<Response> => 
             enabled: p.enabled ? 1 : 0
         }));
 
-      //  const filtered = applyFilters(allPlugins, filterObject, search, sort, order); // esta función puedes adaptarla como haces en otras vistas
-
         data = {
             total: allPlugins.length,
             totalNotFiltered: allPlugins.length,
             rows: allPlugins.slice(offset, offset + limit)
         };
 
-    } else {
+    } else if (module == "relay.connections") {
+
+        const reqInfos: IpInfo[] = [];
+        wss?.clients.forEach((client) => {
+            const ws = client as ExtendedWebSocket;
+            if (ws.reqInfo) {
+                reqInfos.push(ws.reqInfo);
+            }
+        });
+
+        data = {
+            total: reqInfos.length,
+            totalNotFiltered: reqInfos.length,
+            rows: reqInfos.slice(offset, offset + limit)
+        };
+    }
+    
+    else {
         data = await dbSelectModuleData(module, offset, limit, order, sort, search, filterObject);
     }
 
