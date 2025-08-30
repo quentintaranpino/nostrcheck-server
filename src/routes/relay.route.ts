@@ -42,7 +42,14 @@ export const loadRelayRoutes = (app: Application, version:string, httpServer : S
 
   wss = getWSS();
 
-  httpServer.on("upgrade", (req, socket, head) => {
+  httpServer.on("upgrade", async (req, socket, head) => {
+
+    const ipInfo = await isIpAllowed(req);
+    if (ipInfo.banned) {
+      socket.write("HTTP/1.1 403 Forbidden\r\n\r\n");
+      socket.destroy();
+      return;
+    }
     if (req.url === "/api/v2/relay") {
       wss.handleUpgrade(req, socket, head, ws =>
         wss.emit("connection", ws, req)
