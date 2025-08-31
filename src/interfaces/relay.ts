@@ -162,7 +162,7 @@ interface SharedChunk {
   usedBytes?: number; 
 }
 
-const CHUNK_SIZE = 3000; 
+const CHUNK_SIZE = 10000; 
 
 interface RelayEvents {
   pending: Map<string, MetadataEvent>;
