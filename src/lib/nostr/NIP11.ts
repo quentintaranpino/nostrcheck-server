@@ -1,5 +1,5 @@
 // https://github.com/nostr-protocol/nips/blob/master/11.md
-import { Application } from "express"
+
 import { NIP11File, supported_nips } from "../../interfaces/nostr.js";
 import { getConfig } from "../config/core.js";
 import { getHostInfo } from "../utils.js";
@@ -31,7 +31,8 @@ const getNIP11file = (hostname: string): NIP11File => {
     },
     language_tags: getConfig(hostname, ["relay", "language_tags"]),
     tags: getConfig(hostname, ["relay", "tags"]),
-    posting_policy: `${getHostInfo(hostname).url}/api/v2/tos/`,
+    terms_of_service: `${getHostInfo(hostname).url}/api/v2/tos/`,
+    privacy_policy: `${getHostInfo(hostname).url}/api/v2/privacy/`,
   };
 
   return nip11file;

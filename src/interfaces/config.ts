@@ -272,7 +272,7 @@ const defaultConfig = {
 			"max_filters": 5,
 			"max_limit": 1000,
 			"max_subid_length": 100,
-			"max_event_tags": 4000,
+			"max_event_tags": 500,
 			"max_content_length": 20000,
 			"min_pow_difficulty": 0,
 			"auth_required": false,

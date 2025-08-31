@@ -322,13 +322,13 @@ const handleEvent = async (socket: ExtendedWebSocket, event: MetadataEvent) => {
 
   // Event kind 1040 (NIP-03)
   if (event.kind === 1040) {
-    const hasEtag = event.tags.some(tag => tag[0] === "e");
-    const hasAltTag = event.tags.some(tag => tag[0] === "alt" && tag[1].toLocaleLowerCase() === "opentimestamps attestation");
+    const validEtag = event.tags.some(tag => tag[0] === "e" &&  typeof tag[1] === "string" &&  /^[a-f0-9]{64}$/i.test(tag[1]));
+    const validKtag = event.tags.some(tag => tag[0] === "k" &&  typeof tag[1] === "string" &&  /^\d+$/.test(tag[1]) && Number(tag[1]) >= 0 && Number(tag[1]) <= 65535);
 
-    if (!hasEtag || !hasAltTag) {
+    if (!validEtag || !validKtag) {
       logger.debug(`handleEvent - Rejected kind:1040 event ${event.id} due to missing required tags.`);
       socket.send(JSON.stringify(["NOTICE", "invalid: missing required OpenTimestamps tags"]));
-      socket.send(JSON.stringify(["OK", event.id, false, "invalid: missing required OpenTimestamps tags"]));
+      socket.send(JSON.stringify(["OK", event.id, false, "invalid: missing required OpenTimestamps tags (e,k)"]));
       return;
     }
 
@@ -442,6 +442,54 @@ const handleEvent = async (socket: ExtendedWebSocket, event: MetadataEvent) => {
       eventStore.pendingDelete.set(e.id, e);
     });
 
+  }
+
+  // NIP-7D (Threads)
+  if (event.kind === 11 || event.kind === 1111) {
+    const hasTitleTag = event.tags.some(tag => tag[0] === "title" && typeof tag[1] === "string" && tag[1].trim().length > 0);
+    const hasK11Tag = event.tags.some(tag => tag[0] === "K" && tag[1] === "11");
+    const hasEtag = event.tags.some(tag => tag[0] === "E" && tag[1] !== "");
+    if ((!hasTitleTag && event.kind === 11) || ((!hasK11Tag || !hasEtag) && event.kind === 1111)) {
+      logger.debug(`handleEvent - Rejected kind:${event.kind} event ${event.id} due to missing required tags.`);
+      socket.send(JSON.stringify(["NOTICE", "invalid: missing required tags"]));
+      socket.send(JSON.stringify(["OK", event.id, false, "invalid: missing required tags"]));
+      return;
+    }
+  }
+
+  // NIP-B0 (Bookmarks)
+  if (event.kind === 39701) {
+    const d = event.tags.find(t => t[0] === "d")?.[1] ?? "";
+    const hasD = typeof d === "string" && d.trim().length > 0;
+    const hasScheme = /^https?:\/\//i.test(d);
+    if (!hasD || hasScheme) {
+      logger.debug(`Rejected kind:39701 ${event.id} (missing d or d has scheme)`);
+      socket.send(JSON.stringify(["NOTICE", "invalid: d tag required without scheme"]));
+      socket.send(JSON.stringify(["OK", event.id, false, "invalid: d tag required without scheme"]));
+      return;
+    }
+  }
+
+  // NIP-A0 (Voice Messages)
+  if (event.kind === 1222 || event.kind === 1244) {
+    const isHttpUrl = typeof event.content === "string" && /^(https?:)\/\/\S+$/i.test(event.content);
+    if (!isHttpUrl) {
+      socket.send(JSON.stringify(["NOTICE", "invalid: content must be a direct http(s) URL"]));
+      socket.send(JSON.stringify(["OK", event.id, false, "invalid: content must be a direct http(s) URL"]));
+      return;
+    }
+
+    if (event.kind === 1244) {
+      const hasParentRef = event.tags.some(t =>
+        (t[0] === "E" || t[0] === "e" || t[0] === "a") &&
+        typeof t[1] === "string" && t[1].trim().length > 0
+      );
+      if (!hasParentRef) {
+        socket.send(JSON.stringify(["NOTICE", "invalid: reply must reference a parent (E/e or a)"]));
+        socket.send(JSON.stringify(["OK", event.id, false, "invalid: missing parent reference"]));
+        return;
+      }
+    }
   }
 
   // Notify all clients about the new event

@@ -201,9 +201,11 @@ interface NIP11File {
   relay_countries?: string[];
   language_tags?: string[];
   tags?: string[];
-  posting_policy?: string;
   payments_url?: string;
   fees?: NIP11Fees;
+  privacy_policy?: string;
+  terms_of_service?: string;
+
 }
 
 interface AuthEvent {
@@ -216,7 +218,7 @@ interface AuthEvent {
   sig: string;
 }
 
-const supported_nips = [1, 2, 3, 4, 5, 7, 9, 11, 13, 14, 19, 40, 44, 47, 48, 50, 62, 70, 78, 94, 96, 98];
+const supported_nips = [1, 2, 3, 4, 5, 7, 9, 11, 13, 14, 19, 28, 40, 44, 47, 48, 50, 62, 70, 73, 78, 94, 96, 98];
 
 export {
           supported_nips,
