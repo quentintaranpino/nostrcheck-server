@@ -41,3 +41,4 @@ debug.log
 # Ignore tenants folder
 src/pages/static/resources/tenants/*
 
+profiles/*

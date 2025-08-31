@@ -476,8 +476,18 @@ const handleEvent = async (socket: ExtendedWebSocket, event: MetadataEvent) => {
   }
 
   // Send confirmation to the client
+  logIfHighBuffer(socket, "pre-sent EVENT");
   logger.debug(`handleEvent - Accepted event: ${event.id}`);
   socket.send(JSON.stringify(["OK", event.id, true, returnMessage]));
+
+
+      // const end = performance.now();
+    // const elapsedMs = end - start;
+
+    // Puedes mandarlo a tu logger
+    // console.log(`handleEvent - Procesado en ${elapsedMs.toFixed(2)} ms | Event ${event.id}`);
+    
+
   return;
   
 };
