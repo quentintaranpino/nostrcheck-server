@@ -5,8 +5,8 @@ BASEDIR=$(dirname "$0")
 echo "$BASEDIR"
 
 readonly E_BADARGS=65
-readonly version="0.2.6.5"
-readonly date="20240914"
+readonly version="0.2.7"
+readonly date="20250831"
 
 # Variables
 NODE_MAJOR=20
@@ -18,14 +18,15 @@ PUBKEY=""
 SECRETKEY=""
 REPO_URL="https://github.com/quentintaranpino/nostrcheck-server.git"
 REPO_BRANCH="main"
-PACKAGES="nginx git redis-server mariadb-server mariadb-client ffmpeg jq certbot python3-certbot-nginx python3 python3-pip python3-dev python3-venv pkg-config libjpeg-dev zlib1g-dev libssl-dev"
+PACKAGES="nginx git redis-server mariadb-server mariadb-client ffmpeg jq certbot python3-certbot-nginx python3 python3-pip python3-dev python3-venv pkg-config libjpeg-dev zlib1g-dev libssl-dev build-essential libbz2-dev libreadline-dev libsqlite3-dev libffi-dev liblzma-dev tk-dev uuid-dev libncurses5-dev libncursesw5-dev"
 
 # Python environment variables
 VENV_DIR=".venv"
+PYENV_PY_VERSION="3.12.4"
 TRANSFORMERS_VERSION="4.44.2"
 FLASK_VERSION="3.0.3"
 PILLOW_VERSION="10.4.0"
-TORCH_VERSION="2.6.0"
+TORCH_VERSION="2.4.1"
 
 clear
 echo ""
@@ -184,9 +185,35 @@ echo "        🐍 Creating Python virtual environment and installing packages  
 echo "═══════════════════════════════════════════════════════════════════════════════"
 echo ""
 
+if ! command -v pyenv >/dev/null 2>&1; then
+  echo "⬇️ Installing pyenv..."
+  curl https://pyenv.run | bash
+  export PATH="$HOME/.pyenv/bin:$PATH"
+  eval "$(pyenv init -)"
+  eval "$(pyenv virtualenv-init -)"
+  if ! grep -q 'pyenv init' "$HOME/.bashrc" 2>/dev/null; then
+    {
+      echo 'export PATH="$HOME/.pyenv/bin:$PATH"'
+      echo 'eval "$(pyenv init -)"'
+      echo 'eval "$(pyenv virtualenv-init -)"'
+    } >> "$HOME/.bashrc"
+  fi
+else
+  export PATH="$HOME/.pyenv/bin:$PATH"
+  eval "$(pyenv init -)"
+  eval "$(pyenv virtualenv-init -)"
+fi
+
+if [ ! -x "$HOME/.pyenv/versions/${PYENV_PY_VERSION}/bin/python" ]; then
+    echo "🔄 Installing Python $PYENV_PY_VERSION using pyenv..."
+    pyenv install -s "${PYENV_PY_VERSION}" || { echo "❌ pyenv install falló"; exit 1; }
+fi
+
+PY_CMD="$HOME/.pyenv/versions/${PYENV_PY_VERSION}/bin/python"
+
 if [ ! -d "$VENV_DIR" ]; then
     echo "🔄 Creating virtual environment in $VENV_DIR..."
-    python3 -m venv "$VENV_DIR" || { echo "❌ Failed to create virtual environment"; exit 1; }
+    $PY_CMD -m venv "$VENV_DIR" || { echo "❌ Failed to create virtual environment"; exit 1; }
 else
     echo "🔄 Virtual environment already exists in $VENV_DIR."
 fi
@@ -195,17 +222,19 @@ echo "🔄 Activating virtual environment..."
 source "$VENV_DIR/bin/activate" || { echo "❌ Failed to activate virtual environment"; exit 1; }
 
 install_packages() {
+    pip install -U pip setuptools wheel
+
     echo "🔄 Installing transformers==$TRANSFORMERS_VERSION..."
-    pip install transformers==$TRANSFORMERS_VERSION || { echo "❌ Failed to install transformers"; exit 1; }
+    pip install "transformers==$TRANSFORMERS_VERSION" || { echo "❌ Failed to install transformers"; exit 1; }
     
     echo "🔄 Installing Flask==$FLASK_VERSION..."
-    pip install Flask==$FLASK_VERSION || { echo "❌ Failed to install Flask"; exit 1; }
+    pip install "Flask==$FLASK_VERSION" || { echo "❌ Failed to install Flask"; exit 1; }
 
     echo "🔄 Installing Pillow==$PILLOW_VERSION..."
-    pip install Pillow==$PILLOW_VERSION || { echo "❌ Failed to install Pillow"; exit 1; }
+    pip install "Pillow==$PILLOW_VERSION" || { echo "❌ Failed to install Pillow"; exit 1; }
 
     echo "🔄 Installing torch==$TORCH_VERSION..."
-    pip install torch==$TORCH_VERSION  || { echo "❌ Failed to install torch"; exit 1; }
+    pip install "torch==$TORCH_VERSION" || { echo "❌ Failed to install torch"; exit 1; }
 }
 
 install_packages
@@ -719,7 +748,7 @@ fi
 echo "⚙️ Enabling nginx site for $HOST..."
 
 # Create a symbolic link to enable the site
-if sudo ln -s /etc/nginx/sites-available/$HOST.conf /etc/nginx/sites-enabled/$HOST.conf; then
+if sudo ln -sf /etc/nginx/sites-available/$HOST.conf /etc/nginx/sites-enabled/$HOST.conf; then
     echo "✅ Nginx site for $HOST enabled successfully."
     sleep 3
 else
