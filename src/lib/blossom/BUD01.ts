@@ -7,6 +7,7 @@ import { BUDKinds } from "../../interfaces/blossom.js";
 import { isPubkeyValid } from "../authorization.js";
 import { getClientInfo } from "../security/ips.js";
 import { getConfig } from "../config/core.js";
+import { isEventValid } from "../nostr/core.js";
 
 
 /**
@@ -24,6 +25,19 @@ import { getConfig } from "../config/core.js";
  * @returns A promise that resolves to a VerifyResultMessage object.
   */
 const isBUD01AuthValid = async (authevent: Event, req: Request, endpoint: string, checkAdminPrivileges = true, checkRegistered = true, checkActive = true): Promise<authHeaderResult> => {
+
+	// Check if event is valid
+	try {
+		const isValid = (await isEventValid(authevent)).status === "success";
+		if (!isValid) {
+			logger.warn(`isNIP98Valid - Auth header event is not valid`, "|", getClientInfo(req).ip);
+			return {status: "error", message: "Auth header event is not valid", authkey: "", pubkey: "", kind: 0};
+		}
+	} catch (error) {
+		logger.error(`isNIP98Valid - Internal server error: ${error}`, "|", getClientInfo(req).ip);
+		return {status: "error", message: "Auth header event is not valid", authkey: "", pubkey: "", kind: 0};
+	}
+
 
     // Check if event authorization kind is valid (Must be 24242)
 	try {

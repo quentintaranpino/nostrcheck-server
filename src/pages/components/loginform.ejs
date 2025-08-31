@@ -105,15 +105,15 @@ const logIn = async (type, rememberMe, buttonId) =>{
           if (!pubKey){console.debug('NIP07 public key not found');return;}
 
           let event = {
-              kind: 30078,
+              kind: 27235,
               created_at: Math.floor(Date.now() / 1000),
               tags: [
-                      ["cookie",
-                      rememberMe? "true": "false"]
+                      ["u", window.location.href ],
+                      ["method", "POST"],
+                      ["cookie", rememberMe? "true": "false"]
                       ],
-              content: 'This will not be published on nostr. Its purpose is to verify that you have control of your pubkey'
+              content: ''
           };
-          console.debug(event);
           const loginEvent = JSON.stringify(await window.nostr.signEvent(event));
 
           if (loginEvent){

@@ -69,8 +69,11 @@ const publishEvent = async (event : NostrEvent): Promise<boolean> => {
  * @returns A promise that resolves to a result message indicating the status of the event verification.
  */
 const isEventValid = async (event:Event, created_at_lower_limit = 60, created_at_upper_limit = 60): Promise<ResultMessagev2> => {
-    logger.debug(`isEventValid - Verifying event: ${event.id}`)
+	
 	try {
+
+    	logger.debug(`isEventValid - Verifying event: ${event.id}`)
+
 		const IsEventHashValid = await getEventHash(event);
 		if (IsEventHashValid != event.id) {
             logger.debug(`isEventValid - Event hash is not valid: ${event.id}`);

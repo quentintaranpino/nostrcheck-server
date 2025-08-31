@@ -7,13 +7,13 @@ import { generateAuthToken, generateOTC, isPubkeyAllowed, isPubkeyValid, isUserP
 import { countPubkeyFiles, getLegalText, getResource, isAutoLoginEnabled, setAuthCookie } from "../lib/frontend.js";
 import { hextoNpub, npubToHex } from "../lib/nostr/NIP19.js";
 import { dynamicbackgroundThemes, particles} from "../interfaces/appearance.js";
-import { verifyNIP07event } from "../lib/nostr/NIP07.js";
 import { getUsernames } from "../lib/register.js";
 import { getLightningAddress } from "../lib/lightning.js";
 import { getClientInfo, isIpAllowed } from "../lib/security/ips.js";
 import { getModules, getConfig, getTenants, isModuleEnabled } from "../lib/config/core.js";
 import path from "path";
 import { getDomains } from "../lib/domains.js";
+import { isNIP98Valid } from "../lib/nostr/NIP98.js";
 
 const loadDashboardPage = async (req: Request, res: Response, version:string): Promise<Response | void> => {
 
@@ -531,14 +531,13 @@ const frontendLogin = async (req: Request, res: Response): Promise<Response> => 
     }
 
     const rememberMe = req.body.rememberMe || (Array.isArray(req.body.tags) ? req.body.tags.find((tag: string[]) => tag[0] === "cookie")?.[1] : "false");
-    if (rememberMe == "true"){req.session.cookie.maxAge = getConfig(req.hostname, ["session", "maxAge"]);}
+    if (rememberMe === "true"){req.session.cookie.maxAge = getConfig(req.hostname, ["session", "maxAge"]);}
 
     let canLogin = false;
     let loginMessage = "Invalid credentials";
     if (req.body.pubkey != undefined){
-        canLogin = await isPubkeyValid(req.session.identifier || req.body.pubkey, false);
-        if (canLogin == true) {canLogin == await verifyNIP07event(req)}
-        if (!canLogin) loginMessage = "Pubkey not registered";
+        canLogin = ((await isNIP98Valid(req.body, req, false, true, true)).status === "success")
+        if (!canLogin) loginMessage = "NIP98 event verification failed";
     }
     if (req.body.username != undefined && req.body.password != undefined){
         canLogin = await isUserPasswordValid(req.body.username, req.body.password, false);
@@ -549,7 +548,7 @@ const frontendLogin = async (req: Request, res: Response): Promise<Response> => 
         const result = await verifyOTC(req.body.otc);
         if(result != ""){
             req.body.pubkey = result;
-            canLogin = await isPubkeyValid(req.session.identifier || req.body.pubkey, false);
+            canLogin = await isPubkeyValid(req.body.pubkey || req.body.pubkey, false);
             if (!canLogin) {loginMessage = "Invalid one-time code"}
         }
     } 

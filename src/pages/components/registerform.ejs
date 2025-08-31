@@ -221,7 +221,9 @@
     const username = document.getElementById('input-register-username').value
     const password = document.getElementById('input-register-password').value
     const inviteCode = document.getElementById('input-register-invitation').value
-    const pubkey = type === 'nip07' && document.getElementById('input-register-invitation').value == '' ? await window.nostr.getPublicKey() : document.getElementById('input-register-pubkey').value
+    const pubkey = type === 'nip07' && document.getElementById('input-register-invitation').value == '' ? 
+                    await window.nostr.getPublicKey() : 
+                    document.getElementById('input-register-pubkey').value
 
     if (!domain || !username || !pubkey ) {
         initAlertModal("#register", "Username, public key and domain are required.");
@@ -292,19 +294,20 @@
         content: content,
       }
 
-      signedAuthEvent = await window.nostr.signEvent(authEvent);
+      signedAuthEvent = 'Nostr ' + btoa(JSON.stringify(await window.nostr.signEvent(authEvent)));
       if (!signedAuthEvent) {
         initAlertModal("#register", "Error signing auth event.");
         return;
       }
     }
 
+    const headers = { 'Content-Type': 'application/json' };
+    if (type == 'nip07') {
+      headers['Authorization'] = signedAuthEvent;
+    }
     await fetch('/api/v2/register', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Nostr ' + btoa(JSON.stringify(signedAuthEvent))
-        },
+        headers: headers,
         body: JSON.stringify(body)
       })
       .then(response => response.json())

@@ -3,7 +3,6 @@ import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import { Event } from "nostr-tools";
 
-
 import { dbMultiSelect, dbSelect, dbUpdate } from "./database/core.js";
 import { logger } from "./logger.js";
 import { authHeaderResult } from "../interfaces/authorization.js";
@@ -42,7 +41,7 @@ const parseAuthHeader = async (req: Request, endpoint: string = "", checkAdminPr
 
 	//Check if request has authorization header.
 	if (req.headers.authorization === undefined) {
-		if(endpoint != 'getMediaByURL' && endpoint != 'list' && endpoint != 'getMediaStatusbyID'){
+		if(endpoint != 'getMediaByURL' && endpoint != 'list' && endpoint != 'getMediaStatusbyID' && endpoint != 'registerUsername'){
 			logger.warn(`parseAuthHeader - Authorization header not found, endpoint: ${endpoint}, URL: ${req.url}`, "|", getClientInfo(req).ip);
 		} 
 		return {status: "error", message: "Authorization header not found", pubkey:"", authkey:"", kind: 0};

@@ -8,6 +8,7 @@ import { isPubkeyValid } from "../authorization.js";
 import { getClientInfo } from "../security/ips.js";
 import { getHostInfo } from "../utils.js";
 import { getConfig } from "../config/core.js";
+import { isEventValid } from "./core.js";
 
 /**
  * Parses the authorization Nostr header (NIP98) and checks if it is valid. Visit for more information:
@@ -24,6 +25,18 @@ import { getConfig } from "../config/core.js";
  * 
  */
 const isNIP98Valid = async (authevent: Event, req: Request, checkAdminPrivileges = true, checkRegistered = true, checkActive = true): Promise<authHeaderResult> => {
+
+	// Check if event is valid
+	try {
+		const isValid = (await isEventValid(authevent)).status === "success";
+		if (!isValid) {
+			logger.warn(`isNIP98Valid - Auth header event is not valid`, "|", getClientInfo(req).ip);
+			return {status: "error", message: "Auth header event is not valid", authkey: "", pubkey: "", kind: 0};
+		}
+	} catch (error) {
+		logger.error(`isNIP98Valid - Internal server error: ${error}`, "|", getClientInfo(req).ip);
+		return {status: "error", message: "Auth header event is not valid", authkey: "", pubkey: "", kind: 0};
+	}
 
 	// Check if event authorization kind is valid (Must be 27235)
 	try {

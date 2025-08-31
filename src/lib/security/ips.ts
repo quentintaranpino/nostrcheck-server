@@ -45,24 +45,30 @@ const logNewIp = async      (ip: string):
     const redisKey = `ips:${ip}`;
     const redisWindowKey = `ips:window:${ip}`;
     const reqcount = await redisCore.slidingWindowIncrement(redisWindowKey, now, 60000, 70);
-    const oldestTimestamp = await redisCore.slidingWindowOldest(redisWindowKey);
-    const firstseenValue = oldestTimestamp ? oldestTimestamp.toString() : now.toString();
+    const redisData = await redisCore.hashGetAll(redisKey);
+
+    let firstseenValue: string;
+    let oldestTimestamp: number | null = null;
+    if (!redisData || !redisData.firstseen) {
+        oldestTimestamp = await redisCore.slidingWindowOldest(redisWindowKey);
+        firstseenValue = (oldestTimestamp ?? now).toString();
+    } else {
+        firstseenValue = redisData.firstseen; 
+    }
 
     logger.debug(`logNewIp - IP: ${ip} | reqcount: ${reqcount}, oldestTimestamp: ${oldestTimestamp}, firstseen: ${firstseenValue}`);
-    
-    const redisData = await redisCore.hashGetAll(redisKey);
 
     if (Object.keys(redisData).length === 0 || redisData.dbid === undefined) {
         const ipDbData = await dbMultiSelect(["id", "active", "checked", "infractions", "comments"], "ips", "ip = ?", [ip], true);
         if (!ipDbData || ipDbData.length === 0) {
             const dbid = await dbUpsert("ips", { active: 1, checked: 0, ip, firstseen: now, lastseen: now, reqcount: reqcount }, ["ip"]);
-            if (dbid === 0)   logger.error(`logNewIp - Error upserting new IP: ${ip}`);
+            if (dbid === 0) logger.error(`logNewIp - Error upserting new IP: ${ip}`);
               
             return { 
                 dbid: dbid.toString(), 
                 active: "1", 
                 checked: "0", 
-                banned: "1", 
+                banned: "0", 
                 firstseen: now.toString(), 
                 lastseen: now.toString(), 
                 reqcount: reqcount.toString(), 
@@ -256,34 +262,42 @@ const isIpAllowed = async (req: Request | IncomingMessage | string, maxRequestMi
 * Periodically save infractions from Redis to the database.
 */
 setInterval(async () => {
+  if (!isModuleEnabled("security", "")) return;
 
-    if (!isModuleEnabled("security", "")) return;
+  try {
+    const keys = await redisCore.scanKeys("ips:*");
+    if (!keys || keys.length === 0) return;
 
-    try {
-        const ips = await redisCore.scanKeys("ips:*");
-        if (!ips || ips.length === 0) return;
+    const hashKeys = keys.filter(k => !k.startsWith("ips:window:"));
+    if (hashKeys.length === 0) return;
 
-        await Promise.all(
-            ips.map(async (ip) => {
-                try {
-                    const redisData = await redisCore.hashGetAll(ip);
-                    if (!redisData || !redisData.dbid || redisData.infractions === '0') return;
+    const BATCH_SIZE = 500;
+    for (let i = 0; i < hashKeys.length; i += BATCH_SIZE) {
+      const slice = hashKeys.slice(i, i + BATCH_SIZE);
 
-                    const update = await dbUpdate("ips", {"infractions" : Number(redisData.infractions)}, ["id"], [redisData.dbid]);
+      await Promise.all(
+        slice.map(async (key) => {
+          try {
+            const redisData = await redisCore.hashGetAll(key);
+            const dbid = redisData?.dbid;
+            const infractions = Number(redisData?.infractions ?? 0);
 
-                    if (!update) {
-                        logger.error(`ipsLib - Interval - Error processing IP '${ip}': Error updating IP infractions`);
-                    } 
+            if (!dbid || infractions === 0) return;
 
-                } catch (error) {
-                    logger.error(`ipsLib - Interval - Error processing IP '${ip}': ${error}`);
-                }
-            })
-        );
-    } catch (error) {
-        logger.error(`ipsLib - Interval - Error processing IPs: ${error}`);
+            const ok = await dbUpdate("ips", { infractions }, ["id"], [dbid]);
+            if (!ok) {
+              logger.error(`ipsLib - Interval - Error processing key '${key}': Error updating IP infractions`);
+            }
+          } catch (error) {
+            logger.error(`ipsLib - Interval - Error processing key '${key}': ${error}`);
+          }
+        })
+      );
     }
-}, 60000);
+  } catch (error) {
+    logger.error(`ipsLib - Interval - Error processing IPs: ${error}`);
+  }
+}, 60000); // 1 minute
 
 /*
 * Periodically persist the accumulated IP updates (batch) to the database.
@@ -317,18 +331,24 @@ setInterval(async () => {
 
     try {
 
-        const expiredIPs = await dbMultiSelect(["id"], "ips", "lastseen < ? AND infractions = 0", [Date.now() - 7200000], true); 
+        const expiredIPs = await dbMultiSelect(["id", "ip"], "ips", "lastseen < ? AND infractions = 0 AND checked = 0", [Date.now() - 3600000], true); 
         if (expiredIPs && expiredIPs.length > 0) {
             const idsToDelete = expiredIPs.map(ip => ip.id);
+            const ipsToDelete = expiredIPs.map(ip => ip.ip);
             if (idsToDelete.length === 0) return;
             await dbDelete("ips", ["id"], idsToDelete);
-            await Promise.all(idsToDelete.map(id => redisCore.del(`ips:${id}`)));
+            await Promise.all(
+                ipsToDelete.flatMap(ip => [
+                redisCore.del(`ips:${ip}`),
+                redisCore.del(`ips:window:${ip}`)
+                ])
+            );
         }
       
     } catch (error) {
         logger.error(`ipsLib - Interval - Error processing IPs: ${error}`);
     }
-}, 3600000); // 1 hour
+}, 3600000); // 1hour
 
 /**
  * Adds or updates an entry in the batch for the given IP.

@@ -146,8 +146,7 @@ const moduleDataWhereFields: { [key: string]: [string] } = {
                         "banned.originid, " +
                         "banned.origintable, " +
                         "banned.reason, " +
-                        "banned.createddate, " +
-                        "banned.comments"],
+                        "banned.createddate"],
     "invites":          ["invitations.id, " +
                         "invitations.originid, " +
                         "invitations.inviteeid, " +
