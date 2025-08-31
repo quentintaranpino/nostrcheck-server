@@ -399,13 +399,10 @@
     if (!pubkey) return 0;
     // If activeModules don't have payments, return 0
     if (!activeModules.some(mod => mod.name === 'payments')) return 0;
-      fetch(
-        `/api/v2/payments/getBalance`,
-        {headers: {
-              "Content-Type": "application/json",
-              "Credentials": "include",
-              },
-        }).then(response => {
+      fetch('/api/v2/payments/getBalance', {
+        method: 'GET',
+        credentials: 'include' 
+      }).then(response => {
           response.json().then(async data => {
             if (isNaN(Number(data.message))) return;
             document.getElementById('balance-header-count').classList.remove('text-warning', 'text-danger');
@@ -413,9 +410,9 @@
             document.getElementById('balance-header-count').innerHTML = data.message + '<i class="fa-solid fa-bolt ms-1"></i>'
 
           });
-        }).catch(error => {
-          
-        });
+      }).catch(error => {
+        
+      });
   }
 
   // Profile balance
