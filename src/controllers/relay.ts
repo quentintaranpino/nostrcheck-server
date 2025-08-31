@@ -652,6 +652,7 @@ const handleAuthMessage = async (socket: ExtendedWebSocket, message: ["AUTH", Au
 
   authSessions.set(socket, authData.pubkey);
   delete socket.challenge;
+  socket.reqInfo.pubkey = authData.pubkey;
 
   const registeredData = await dbMultiSelect(["id", "username"],"registered","hex = ?", [authData.pubkey], true);
   if (registeredData.length === 0) {

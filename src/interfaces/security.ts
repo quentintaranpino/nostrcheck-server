@@ -5,6 +5,7 @@ interface IpInfo {
     domainId: number;
     domain: string;
     comments: string;
+    pubkey?: string;
 } 
 
 export { IpInfo };
