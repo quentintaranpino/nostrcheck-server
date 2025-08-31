@@ -638,12 +638,12 @@ server {
     }
 
     location ~ ^/([a-fA-F0-9]{64})(\.[a-zA-Z0-9]+)?(/([a-fA-F0-9]{64})(\.[a-zA-Z0-9]+)?)?$ {
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_set_header Host \$host;
         proxy_pass http://127.0.0.1:3000/api/v2/media/mirror;
         proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Upgrade \$http_upgrade;
         proxy_set_header Connection "upgrade";
     }
 
