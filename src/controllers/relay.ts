@@ -1,10 +1,6 @@
 import WebSocket, { WebSocketServer } from "ws";
 import { Event, Filter, matchFilter } from "nostr-tools";
 import { Request, Response } from "express";
-import inspector from "inspector";
-import path from "path";
-import fs from "fs";
-
 
 import { subscriptions, addSubscription, removeAllSubscriptions, removeSubscription } from "../lib/relay/core.js";
 import { compressEvent, fillEventMetadata, getEventById, getEventsByTimerange, validateFilter, parseRelayMessage, getChunkSize, filterEarlyDiscard } from "../lib/relay/utils.js";
@@ -29,60 +25,6 @@ import crypto from "crypto";
 
 await initEvents();
 const authSessions: Map<WebSocket, string> = new Map(); 
-
-
-// DEBUG CPU PROFILER
-function logIfHighBuffer(socket: WebSocket, label: string) {
-  const b = socket.bufferedAmount;
-  if (b > 512 * 1024) { // 512KB
-    console.log(`[WS backpressure] ${label} bufferedAmount=${b} ip=${(socket as any).reqInfo?.ip}`);
-  }
-}
-
-const session = new inspector.Session();
-session.connect();
-
-function post<T = any>(method: string, params?: Record<string, unknown>): Promise<T> {
-  return new Promise((resolve, reject) => {
-    session.post(method, params ?? {}, (err, res) => (err ? reject(err) : resolve(res as T)));
-  });
-}
-
-async function captureCPUProfile(label = "lag", durationMs = 4000): Promise<string> {
-  await post("Profiler.enable");
-  await post("Profiler.start");
-  await new Promise(res => setTimeout(res, durationMs));
-  const { profile } = await post<{ profile: unknown }>("Profiler.stop");
-  const outDir = path.resolve(process.cwd(), "profiles");
-  fs.mkdirSync(outDir, { recursive: true });
-  const file = path.join(outDir, `${label}-${Date.now()}.cpuprofile`);
-  fs.writeFileSync(file, JSON.stringify(profile), "utf8");
-  return file;
-}
-
-let last = performance.now();
-let profiling = false;
-
-setInterval(async () => {
-  const now = performance.now();
-  const drift = now - last - 1000;
-  last = now;
-
-  if (drift > 100 && !profiling) {
-    profiling = true;
-    try {
-      const file = await captureCPUProfile("loop-lag", 4000);
-      console.warn(`[Loop lag] ${drift.toFixed(1)} ms → CPU profile saved: ${file}`);
-    } catch (e) {
-      console.error( e);
-    } finally {
-      profiling = false;
-    }
-  }
-}, 1000);
-
-// END DEBUG CPU PROFILER
-
 
 const handleWebSocketMessage = async (socket: ExtendedWebSocket, data: WebSocket.RawData, req: IncomingMessage) => {
 
