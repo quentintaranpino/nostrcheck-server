@@ -26,7 +26,7 @@ const necessaryKeys = [
 
 const defaultConfig = {
 
-	"environment" : "development",
+	"environment" : "production",
 	"multiTenancy": false,
 	"autoLogin" : true,
 	"server": {
