@@ -581,6 +581,9 @@ server {
     listen 80;
     server_name $HOST;
 
+    # Default max upload size. If you increase this on settings must be less or equal to this value
+    client_max_body_size 100M;
+
     location / {
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto \$scheme;
@@ -672,6 +675,9 @@ server {
 server {
     listen 80;
     server_name cdn.$HOST;
+
+    # Default max upload size. If you increase this on settings must be less or equal to this value
+    client_max_body_size 100M;
 
     # Static folder always redirects to the root host folder
     location /static {
