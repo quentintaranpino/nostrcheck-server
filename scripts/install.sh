@@ -5,7 +5,7 @@ BASEDIR=$(dirname "$0")
 echo "$BASEDIR"
 
 readonly E_BADARGS=65
-readonly version="0.2.7.0001"
+readonly version="0.2.7"
 readonly date="20250831"
 
 # Variables
@@ -576,182 +576,185 @@ echo "                           🔄 Configuring Nginx...                      
 echo "═══════════════════════════════════════════════════════════════════════════════"
 echo ""
 
-# --- BEGIN: write Nginx vhost ---
-sudo tee /etc/nginx/sites-available/$HOST.conf > /dev/null <<'EOF'
+sudo tee /etc/nginx/sites-available/$HOST.conf > /dev/null <<EOF
 server {
     listen 80;
-    server_name __HOST__;
+    server_name $HOST;
 
     location / {
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_set_header Host \$host;
         proxy_pass http://localhost:3000;
         proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host \$host;
     }
 
-    # API redirect for nostr.json
+    # API redirect for nostr.json requests
     location /.well-known/nostr.json {
-      proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-      proxy_set_header X-Forwarded-Proto $scheme;
-      proxy_set_header Host $host;
+      proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+      proxy_set_header X-Forwarded-Proto \$scheme;
+      proxy_set_header Host \$host;
       proxy_pass http://localhost:3000/api/v2/nostraddress;
       proxy_http_version 1.1;
-      proxy_set_header Upgrade $http_upgrade;
+      proxy_set_header Upgrade \$http_upgrade;
       proxy_set_header Connection "upgrade";
     }
 
-    # API redirect for nip96.json
+    # API redirect for nip96.json requests
     location /.well-known/nostr/nip96.json {
-      proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-      proxy_set_header X-Forwarded-Proto $scheme;
-      proxy_set_header Host $host;
+      proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+      proxy_set_header X-Forwarded-Proto \$scheme;
+      proxy_set_header Host \$host;
       proxy_pass http://127.0.0.1:3000/api/v2/nip96;
       proxy_http_version 1.1;
-      proxy_set_header Upgrade $http_upgrade;
+      proxy_set_header Upgrade \$http_upgrade;
       proxy_set_header Connection "upgrade";
     }
 
-    # API redirect for LNURLP
+    # API redirect for lightning redirect requests
     location /.well-known/lnurlp/ {
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_set_header Host \$host;
         proxy_pass http://127.0.0.1:3000/api/v2/lightningaddress/;
         proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Upgrade \$http_upgrade;
         proxy_set_header Connection "upgrade";
     }
 
-    # Media endpoints
+    # API redirect for media URL requests
     location /media {
-       proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-       proxy_set_header X-Forwarded-Proto $scheme;
-       proxy_set_header Host $host;
+       proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+       proxy_set_header X-Forwarded-Proto \$scheme;
+       proxy_set_header Host \$host;
        proxy_pass http://127.0.0.1:3000/api/v2/media;
        proxy_http_version 1.1;
-       proxy_set_header Upgrade $http_upgrade;
+       proxy_set_header Upgrade \$http_upgrade;
        proxy_set_header Connection "upgrade";
     }
 
     location /upload {
-       proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-       proxy_set_header X-Forwarded-Proto $scheme;
-       proxy_set_header Host $host;
+       proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+       proxy_set_header X-Forwarded-Proto \$scheme;
+       proxy_set_header Host \$host;
        proxy_pass http://127.0.0.1:3000/api/v2/media/upload;
        proxy_http_version 1.1;
-       proxy_set_header Upgrade $http_upgrade;
+       proxy_set_header Upgrade \$http_upgrade;
        proxy_set_header Connection "upgrade";
     }
 
     location /list {
-       proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-       proxy_set_header X-Forwarded-Proto $scheme;
-       proxy_set_header Host $host;
+       proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+       proxy_set_header X-Forwarded-Proto \$scheme;
+       proxy_set_header Host \$host;
        proxy_pass http://127.0.0.1:3000/api/v2/media/list;
        proxy_http_version 1.1;
-       proxy_set_header Upgrade $http_upgrade;
+       proxy_set_header Upgrade \$http_upgrade;
        proxy_set_header Connection "upgrade";
     }
 
     location /mirror {
-       proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-       proxy_set_header X-Forwarded-Proto $scheme;
-       proxy_set_header Host $host;
+       proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+       proxy_set_header X-Forwarded-Proto \$scheme;
+       proxy_set_header Host \$host;
        proxy_pass http://127.0.0.1:3000/api/v2/media/mirror;
        proxy_http_version 1.1;
-       proxy_set_header Upgrade $http_upgrade;
+       proxy_set_header Upgrade \$http_upgrade;
        proxy_set_header Connection "upgrade";
     }
 
-    # file: /<64hex>[.ext]
-    location ~* ^/[0-9A-Fa-f]{64}(\.[A-Za-z0-9]+)?$ {
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_set_header Host $host;
-        proxy_pass http://127.0.0.1:3000/api/v2/media/mirror;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
-    }
-
-    # file with pubkey: /<64hex>[.ext]/<64hex>[.ext]
-    location ~* ^/[0-9A-Fa-f]{64}(\.[A-Za-z0-9]+)?/[0-9A-Fa-f]{64}(\.[A-Za-z0-9]+)?$ {
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_set_header Host $host;
-        proxy_pass http://127.0.0.1:3000/api/v2/media/mirror;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
-    }
 }
 
+# Additional server block for cdn.$HOST
 server {
     listen 80;
-    server_name cdn.__HOST__;
+    server_name cdn.$HOST;
 
+    # Static folder always redirects to the root host folder
     location /static {
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_set_header Host \$host;
         proxy_pass http://127.0.0.1:3000/static;
         proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Upgrade \$http_upgrade;
         proxy_set_header Connection "upgrade";
     }
 
+    # API redirect for media URL requests
     location / {
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_set_header Host \$host;
         proxy_pass http://127.0.0.1:3000/api/v2/media/;
         proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Upgrade \$http_upgrade;
         proxy_set_header Connection "upgrade";
     }
 }
 
+# Additional server block for relay.$HOST
 server {
     listen 80;
-    server_name relay.__HOST__;
+    server_name relay.$HOST;
 
     location / {
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_set_header Host \$host;
         proxy_pass http://127.0.0.1:3000/api/v2/relay;
         proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Upgrade \$http_upgrade;
         proxy_set_header Connection "upgrade";
     }
 
     location /static {
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_set_header Host \$host;
         proxy_pass http://127.0.0.1:3000/static;
         proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Upgrade \$http_upgrade;
         proxy_set_header Connection "upgrade";
     }
 }
+
 EOF
 
-sudo sed -i "s/__HOST__/$HOST/g" /etc/nginx/sites-available/$HOST.conf
-
-sudo ln -sf /etc/nginx/sites-available/$HOST.conf /etc/nginx/sites-enabled/$HOST.conf
-
-if ! sudo nginx -t; then
-  echo "❌ Nginx test failed. See output above."
-  exit 1
+if [ -f /etc/nginx/sites-available/$HOST.conf ]; then
+    echo "✅ nginx config file for $HOST created successfully."
+    sleep 3
+else
+    echo "❌ Failed to create nginx config file for $HOST."
+    echo " Please check the nginx configuration and try again."
+    sleep 3
+    exit 1
 fi
 
-sudo systemctl reload nginx
-echo "✅ Nginx configured successfully!"
+# Enable the nginx site
+echo "⚙️ Enabling nginx site for $HOST..."
 
+# Create a symbolic link to enable the site
+if sudo ln -sf /etc/nginx/sites-available/$HOST.conf /etc/nginx/sites-enabled/$HOST.conf; then
+    echo "✅ Nginx site for $HOST enabled successfully."
+    sleep 3
+else
+    echo "Failed to enable nginx site for $HOST. Please check the configuration and try again."
+    sleep 3
+    exit 1
+fi
+
+# Restart the Nginx service
+if sudo service nginx restart; then
+    echo "✅ Nginx configured successfully!"
+    sleep 3
+else
+    echo "❌ Failed to configure Nginx. Please check the service status for more details."
+    exit 1
+fi
 
 # Ask user if they want to create a systemd service for the server
 clear
