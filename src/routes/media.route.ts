@@ -61,11 +61,10 @@ export const loadMediaEndpoint = async (app: Application, version:string): Promi
 	app.get(`${base}/:param1?/:param2?`, limiter(1000),	(req, res) => {	getMedia(req, res, version) } );
 
 	// GET root (media)
-	app.get("/:param1([a-fA-F0-9]{64})(\.[a-zA-Z0-9._-]{1,15})?(/:param2([a-fA-F0-9]{64})(\.[a-zA-Z0-9._-]{1,15})?)?", 
+	app.get("/:param1([a-fA-F0-9]{64}(?:\\.[a-zA-Z0-9._-]{1,15})?)(?:/:param2([a-fA-F0-9]{64}(?:\\.[a-zA-Z0-9._-]{1,15})?))?",
 	limiter(1000),
-	(req, res) => {
-		getMedia(req, res, version);
-	});
+	(req, res) => getMedia(req, res, version)
+	);
 
 	// PUT (visibility)
 	app.put(`${base}/:fileId/visibility/:visibility`, limiter(), (req, res) => { updateMediaVisibility(req, res, version) } );
