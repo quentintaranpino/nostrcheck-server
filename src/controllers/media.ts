@@ -1105,10 +1105,8 @@ const getMediabyURL = async (req: Request, res: Response) => {
 		setAuthCookie(res, adminHeader.authkey || loggedHeader.authkey);
 	}
 
-	// file extension checks and media type
-	const ext = path.extname(req.params.filename).slice(1);
-	const fileType: string = await getMimeType(ext) || 'text/html';
-	res.setHeader('Content-Type', fileType);
+	// Default filetype
+	let fileType : string = "application/octet-stream";
 
 	// Check if the file is cached, if not, we check the database for the file.
 	const cachedStatus = await redisCore.get(req.params.filename + "-" + req.params.pubkey);
@@ -1138,11 +1136,19 @@ const getMediabyURL = async (req: Request, res: Response) => {
 											true);
 		if (filedata[0] == undefined || filedata[0] == null) {
 			logger.debug(`getMediabyURL - 404 Not found - ${req.url}`, "| Returning not found media file.", reqInfo.ip);
-			const notFoundBanner = await getNotFoundFileBanner(req.hostname, fileType);
+			const notFoundBanner = await getNotFoundFileBanner(req.hostname, "image/webp");
 			res.setHeader("X-Reason", "File not found");
-			res.setHeader('X-Original-Content-Type', fileType);
+			res.setHeader('X-Original-Content-Type', "image/webp");
 			return serveBuffer(req, res, notFoundBanner.buffer, notFoundBanner.type, true);
 		}
+
+		// Allways set the correct filename
+		req.params.filename = filedata[0].filename
+
+		// file extension checks and media type
+		const ext = path.extname(req.params.filename).slice(1);
+		fileType = filedata[0].mimetype || (await getMimeType(ext)) || "application/octet-stream";
+		res.setHeader("Content-Type", fileType);
 
 		let isBanned = await isEntityBanned(filedata[0].id, "mediafiles");
 		const pubkeyId = await dbMultiSelect(["id"], "registered", "hex = ?", [filedata[0].pubkey], true);
@@ -1162,9 +1168,6 @@ const getMediabyURL = async (req: Request, res: Response) => {
 			res.setHeader('X-Original-Content-Type', fileType);
 			return serveBuffer(req, res, notFoundBanner.buffer, notFoundBanner.type, true);
 		}
-
-		// Allways set the correct filename
-		req.params.filename = filedata[0].filename
 
 		// Check if exist a transaction for this media file and if it is paid. Check preimage
 		const transaction : Transaction = await checkTransaction(
@@ -1211,12 +1214,13 @@ const getMediabyURL = async (req: Request, res: Response) => {
 		}
 
 	}
+
 	if (cachedStatus === "0") {
 		logger.debug(`getMediabyURL -  401 File not active - ${req.url}`, "returning not found media file |", reqInfo.ip, "|", "cached:", cachedStatus ? true : false);
 		res.setHeader('Content-Type', 'image/webp');
 		res.setHeader("X-Reason", "File not active");
-		res.setHeader('X-Original-Content-Type', fileType);
-		const notFoundBanner = await getNotFoundFileBanner(req.hostname, fileType);
+		res.setHeader('X-Original-Content-Type', "image/webp");
+		const notFoundBanner = await getNotFoundFileBanner(req.hostname, "image/webp");
 		return serveBuffer(req, res, notFoundBanner.buffer, notFoundBanner.type, true);
 	}
 
@@ -1292,6 +1296,7 @@ const getMediabyURL = async (req: Request, res: Response) => {
 		});
 
 		logger.debug(`getMediabyURL - Media file found successfully (pipe from remote server): ${req.url}`, "|", reqInfo.ip, "|", "cached:", cachedStatus ? true : false);
+		res.setHeader('Content-Type', fileType);
 		stream.pipe(res);
 
 	}
