@@ -5,7 +5,7 @@ BASEDIR=$(dirname "$0")
 echo "$BASEDIR"
 
 readonly E_BADARGS=65
-readonly version="0.2.7"
+readonly version="0.2.7.0001"
 readonly date="20250831"
 
 # Variables
