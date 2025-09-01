@@ -576,6 +576,7 @@ echo "                           🔄 Configuring Nginx...                      
 echo "═══════════════════════════════════════════════════════════════════════════════"
 echo ""
 
+# --- BEGIN: write Nginx vhost ---
 sudo tee /etc/nginx/sites-available/$HOST.conf > /dev/null <<'EOF'
 server {
     listen 80;
@@ -588,10 +589,10 @@ server {
         proxy_pass http://localhost:3000;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection 'upgrade';
+        proxy_set_header Connection "upgrade";
     }
 
-    # API redirect for nostr.json requests
+    # API redirect for nostr.json
     location /.well-known/nostr.json {
       proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
       proxy_set_header X-Forwarded-Proto $scheme;
@@ -602,7 +603,7 @@ server {
       proxy_set_header Connection "upgrade";
     }
 
-    # API redirect for nip96.json requests
+    # API redirect for nip96.json
     location /.well-known/nostr/nip96.json {
       proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
       proxy_set_header X-Forwarded-Proto $scheme;
@@ -613,7 +614,7 @@ server {
       proxy_set_header Connection "upgrade";
     }
 
-    # API redirect for lightning redirect requests
+    # API redirect for LNURLP
     location /.well-known/lnurlp/ {
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
@@ -624,7 +625,7 @@ server {
         proxy_set_header Connection "upgrade";
     }
 
-    # API redirect for media URL requests
+    # Media endpoints
     location /media {
        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
        proxy_set_header X-Forwarded-Proto $scheme;
@@ -666,7 +667,7 @@ server {
     }
 
     # file: /<64hex>[.ext]
-    location ~ ^/[0-9A-Fa-f]{64}(\.[A-Za-z0-9]+)?$ {
+    location ~* ^/[0-9A-Fa-f]{64}(\.[A-Za-z0-9]+)?$ {
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
         proxy_set_header Host $host;
@@ -677,7 +678,7 @@ server {
     }
 
     # file with pubkey: /<64hex>[.ext]/<64hex>[.ext]
-    location ~ ^/[0-9A-Fa-f]{64}(\.[A-Za-z0-9]+)?/[0-9A-Fa-f]{64}(\.[A-Za-z0-9]+)?$ {
+    location ~* ^/[0-9A-Fa-f]{64}(\.[A-Za-z0-9]+)?/[0-9A-Fa-f]{64}(\.[A-Za-z0-9]+)?$ {
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
         proxy_set_header Host $host;
@@ -688,7 +689,6 @@ server {
     }
 }
 
-# Additional server block for cdn.__HOST__
 server {
     listen 80;
     server_name cdn.__HOST__;
@@ -714,7 +714,6 @@ server {
     }
 }
 
-# Additional server block for relay.__HOST__
 server {
     listen 80;
     server_name relay.__HOST__;
@@ -743,20 +742,15 @@ EOF
 
 sudo sed -i "s/__HOST__/$HOST/g" /etc/nginx/sites-available/$HOST.conf
 
-if sudo ln -sf /etc/nginx/sites-available/$HOST.conf /etc/nginx/sites-enabled/$HOST.conf; then
-    echo "✅ Nginx site for $HOST enabled successfully."
-else
-    echo "Failed to enable nginx site for $HOST. Please check the configuration and try again."
-    exit 1
+sudo ln -sf /etc/nginx/sites-available/$HOST.conf /etc/nginx/sites-enabled/$HOST.conf
+
+if ! sudo nginx -t; then
+  echo "❌ Nginx test failed. See output above."
+  exit 1
 fi
 
-if sudo nginx -t; then
-    sudo systemctl reload nginx
-    echo "✅ Nginx configured successfully!"
-else
-    echo "❌ Nginx test failed. See output above."
-    exit 1
-fi
+sudo systemctl reload nginx
+echo "✅ Nginx configured successfully!"
 
 
 # Ask user if they want to create a systemd service for the server
