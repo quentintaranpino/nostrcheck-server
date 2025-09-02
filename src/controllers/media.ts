@@ -1241,12 +1241,12 @@ const getMediabyURL = async (req: Request, res: Response) => {
 		// Check if file exist on storage server
 		const fileName = await getFilePath(req.params.filename);
 		if (fileName == ""){ 
-				logger.debug(`getMediabyURL - 404 Not found - ${req.url}`, "| Returning not found media file.", reqInfo.ip);
-				res.setHeader('X-Original-Content-Type', fileType);
-				res.setHeader("X-Reason", "File not found");
-				const notFoundBanner = await getNotFoundFileBanner(req.hostname, fileType);
-				return serveBuffer(req, res, notFoundBanner.buffer, notFoundBanner.type, true);
-			}
+			logger.debug(`getMediabyURL - 404 Not found - ${req.url}`, "| Returning not found media file.", reqInfo.ip);
+			res.setHeader('X-Original-Content-Type', fileType);
+			res.setHeader("X-Reason", "File not found");
+			const notFoundBanner = await getNotFoundFileBanner(req.hostname, fileType);
+			return serveBuffer(req, res, notFoundBanner.buffer, notFoundBanner.type, true);
+		}
 
 		// Try to prevent directory traversal attacks
 		if (!path.normalize(path.resolve(fileName)).startsWith(mediaPath)) {
@@ -1255,7 +1255,12 @@ const getMediabyURL = async (req: Request, res: Response) => {
 			res.setHeader('X-Original-Content-Type', fileType);
 			const notFoundBanner = await getNotFoundFileBanner(req.hostname, fileType);
 			return serveBuffer(req, res, notFoundBanner.buffer, notFoundBanner.type, true, 403);
+		}
 
+		if (fileType === "application/octet-stream") {
+			const extFromPath = path.extname(fileName).slice(1);
+			const guessed = (await getMimeType(extFromPath)) || "application/octet-stream";
+			fileType = guessed;
 		}
 
 		const fileBuffer = await fs.promises.readFile(fileName);
@@ -1280,6 +1285,14 @@ const getMediabyURL = async (req: Request, res: Response) => {
 			res.setHeader('X-Original-Content-Type', fileType);
 			const notFoundBanner = await getNotFoundFileBanner(req.hostname, fileType);
 			return serveBuffer(req, res, notFoundBanner.buffer, notFoundBanner.type, true);
+		}
+
+		if (fileType === "application/octet-stream") {
+			try {
+				const extFromUrl = path.extname(new URL(url).pathname).slice(1);
+				const guessed = (await getMimeType(extFromUrl)) || "application/octet-stream";
+				fileType = guessed;
+			} catch {/* no-op */}
 		}
 
 		const reader = remoteFile.body.getReader();
