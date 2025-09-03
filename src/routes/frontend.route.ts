@@ -11,6 +11,7 @@ import { 	loadDashboardPage,
 			loadGalleryPage,
 			loadRegisterPage,
 			loadDirectoryPage,
+			loadConverterPage,
 			loadResource,
 			loadTheme,
 		} from "../controllers/frontend.js";
@@ -106,6 +107,12 @@ export const loadFrontendEndpoint = async (app: Application, version: string): P
 	app.get("/api/" +  version + "/directory", limiter(), async (req, res) => {
 		if (await isAutoLoginEnabled(req,res)){logger.info("Autologin enabled.  Showing alert on frontend", "|", getClientInfo(req).ip)}
 		loadDirectoryPage(req,res,version);
+	});
+
+	// Directory
+	app.get("/api/" +  version + "/converter", limiter(), async (req, res) => {
+		if (await isAutoLoginEnabled(req,res)){logger.info("Autologin enabled.  Showing alert on frontend", "|", getClientInfo(req).ip)}
+		loadConverterPage(req,res,version);
 	});
 
 	// Dashboard

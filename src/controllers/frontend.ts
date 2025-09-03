@@ -392,6 +392,37 @@ const loadDirectoryPage = async (req: Request, res: Response, version:string): P
     res.render("directory.ejs", {request: req});
 };
 
+const loadConverterPage = async (req: Request, res: Response, version:string): Promise<Response | void>  => {
+
+	// Check if the request IP is allowed
+	const reqInfo = await isIpAllowed(req);
+	if (reqInfo.banned == true) {
+		logger.info(`loadConverterPage - Attempt to access ${req.path} with unauthorized IP:`, getClientInfo(req).ip);
+		return res.status(403).send({"status": "error", "message": reqInfo.comments});
+	}
+
+    // Check if current module is enabled
+	if (!isModuleEnabled("frontend", req.hostname)) {
+        logger.info(`loadConverterPage - Attempt to access a non-active module: frontend | IP:`, getClientInfo(req).ip);
+		return res.status(403).send({"status": "error", "message": "Module is not enabled"});
+	}
+
+	logger.info(`loadConverterPage - GET /api/${version}/directory`, "|", getClientInfo(req).ip);
+
+    // Active modules
+    const activeModules = getModules(req.hostname,true);
+    res.locals.activeModules = activeModules; 
+    res.locals.version = getConfig(req.hostname, ["version"]);
+    res.locals.serverHost = getConfig(req.hostname, ["server", "host"]);
+
+    setAuthCookie(res, req.cookies.authkey);
+
+    // Check admin privileges. Only for information, never used for authorization
+    req.session.allowed = await isPubkeyAllowed(req.session.identifier);
+
+    res.render("converter.ejs", {request: req});
+};
+
 const loadRegisterPage = async (req: Request, res: Response, version:string): Promise<Response | void>  => {
 
 	// Check if the request IP is allowed
@@ -671,6 +702,7 @@ export {loadDashboardPage,
         frontendLogin,
         loadProfilePage,
         loadDirectoryPage,
+        loadConverterPage,
         loadRelayPage,
         loadResource,
         loadTheme};
