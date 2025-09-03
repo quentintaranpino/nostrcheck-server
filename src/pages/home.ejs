@@ -1,5 +1,5 @@
 <html lang="en">
-<%- include('./partials/head',{title: `${locals.serverHost} - Home`}); %>
+<%- include('./partials/head'); %>
 <link rel="stylesheet" href="/static/css/particles.css">
 <body class="d-flex flex-column h-100">
   <%- include('./partials/navbar', {active:'home'}); %>
@@ -7,8 +7,8 @@
     <div class="container px-4 px-lg-5 d-flex h-100 align-items-center justify-content-center">
         <div class="d-flex justify-content-center">
             <div class="text-center z-1">
-                <h1 class="text-white mx-auto my-0 text-uppercase gradien display-4">Welcome to <%= locals.serverName || locals.serverHost %></h1>
-                <h2 class="text-white-50 mx-auto mt-1 mb-4 display-6"><%= locals.serverDescription || "Be sovereign of your data" %></h2>
+                <h1 class="text-white mx-auto my-0 text-uppercase gradien display-4"><%= locals.pageTitle || "Welcome to " + locals.serverHost %></h1>
+                <h2 class="text-white-50 mx-auto mt-1 mb-4 display-6"><%= locals.pageSubtitle || "Be sovereign over your data" %></h2>
                 <p class="text-white-50 mx-auto mt-2 mb-1"> Contact: <a class="text-white-50 text-decoration-none" href="https://nostrcheck.me/u/<%- locals.serverPubkey %>"><%- locals.serverPubkey.toString().substring(0, 15) + ":" + locals.serverPubkey.toString().substring(locals.serverPubkey.toString().length - 15) %></a></p>
                 <p  class="text-white mx-auto mt-2 mb-4">By using our services you agree the <a class="text-white link-offset-1 link-underline-opacity-25" href='tos'>Terms of Service</a></p>
                 <a class="btn btn-primary" href="/api/v2/register"><i class="bi bi-person-plus-fill"></i> Claim your username</a>

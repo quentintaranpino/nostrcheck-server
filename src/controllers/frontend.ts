@@ -4,7 +4,7 @@ import { logger } from "../lib/logger.js";
 import { markdownToHtml } from "../lib/utils.js";
 import { dbMultiSelect, dbSelect} from "../lib/database/core.js";
 import { generateAuthToken, generateOTC, isPubkeyAllowed, isPubkeyValid, isUserPasswordValid, verifyOTC } from "../lib/authorization.js";
-import { countPubkeyFiles, getLegalText, getResource, isAutoLoginEnabled, setAuthCookie } from "../lib/frontend.js";
+import { countPubkeyFiles, getLegalText, getResource, isAutoLoginEnabled, replaceTokens, setAuthCookie } from "../lib/frontend.js";
 import { hextoNpub, npubToHex } from "../lib/nostr/NIP19.js";
 import { dynamicbackgroundThemes, particles} from "../interfaces/appearance.js";
 import { getUsernames } from "../lib/register.js";
@@ -28,10 +28,20 @@ const loadDashboardPage = async (req: Request, res: Response, version:string): P
 
     const activeModules = getModules(req.hostname,true)
     res.locals.activeModules = activeModules; 
+
+    // General locals
+    const page = "dashboard"
     res.locals.version = getConfig(req.hostname, ["version"]);
     res.locals.serverHost = getConfig(req.hostname, ["server", "host"]);
+    res.locals.title = replaceTokens(req.hostname, getConfig(req.hostname, ["appearance", "pages", page, "title"]));
+    res.locals.description = replaceTokens(req.hostname, getConfig(req.hostname, ["appearance", "pages", page, "description"]));
+    res.locals.noindex = getConfig(req.hostname, ["appearance", "pages", page, "noindex"]);
+    res.locals.socialImage = getConfig(req.hostname, ["appearance", "pages", page, "socialImage"]) || getConfig(req.hostname, ["appearance", "socialImage"]);
+
+    // Specific locals
     res.locals.settingsMedia = getConfig(req.hostname, ["media"]);
 
+    // Set auth cookie
     setAuthCookie(res, req.cookies.authkey);
 
     // Check admin privileges. Only for information, never used for authorization
@@ -88,19 +98,28 @@ const loadSettingsPage = async (req: Request, res: Response, version: string): P
         appearance: getConfig(domain, ["appearance"]),
     };
 
-    res.locals.serverHost = getConfig(req.hostname, ["server", "host"]);
+
     res.locals.activeModules = activeModules;
     res.locals.availableModules = globalConfig.server?.availableModules || {};
+
+    // General locals
+    const page = "settings"
+    res.locals.version = getConfig(req.hostname, ["version"]);
+    res.locals.serverHost = getConfig(req.hostname, ["server", "host"]);
+    res.locals.title = replaceTokens(req.hostname, getConfig(req.hostname, ["appearance", "pages", page, "title"]));
+    res.locals.description = replaceTokens(req.hostname, getConfig(req.hostname, ["appearance", "pages", page, "description"]));
+    res.locals.noindex = getConfig(req.hostname, ["appearance", "pages", page, "noindex"]);
+    res.locals.socialImage = getConfig(req.hostname, ["appearance", "pages", page, "socialImage"]) || getConfig(req.hostname, ["appearance", "socialImage"]);
+
+    // Specific locals
     res.locals.selectedDomain = domain;
     res.locals.globalConfig = globalConfig;
     res.locals.domainConfig = domainConfig;
-    res.locals.version = getConfig(req.hostname, ["version"]);
-  
     res.locals.domainsList = getTenants().map((tenant) => tenant.domain);
-
     res.locals.settingsLookAndFeelThemes = dynamicbackgroundThemes;
-    
     res.locals.settingsLookAndFeelParticles = particles;
+
+    // Set auth cookie
     setAuthCookie(res, req.cookies.authkey);
     req.session.allowed = await isPubkeyAllowed(req.session.identifier);
   
@@ -127,13 +146,18 @@ const loadProfilePage = async (req: Request, res: Response, version:string): Pro
 
     // Active modules
     const activeModules = getModules(req.hostname,true)
+    res.locals.activeModules = activeModules;
 
-    res.locals.activeModules = activeModules; 
+    // General locals
+    const page = "profile"
     res.locals.version = getConfig(req.hostname, ["version"]);
     res.locals.serverHost = getConfig(req.hostname, ["server", "host"]);
+    res.locals.title = replaceTokens(req.hostname, getConfig(req.hostname, ["appearance", "pages", page, "title"]));
+    res.locals.description = replaceTokens(req.hostname, getConfig(req.hostname, ["appearance", "pages", page, "description"]));
+    res.locals.noindex = getConfig(req.hostname, ["appearance", "pages", page, "noindex"]);
+    res.locals.socialImage = getConfig(req.hostname, ["appearance", "pages", page, "socialImage"]) || getConfig(req.hostname, ["appearance", "socialImage"]);
 
-    setAuthCookie(res, req.cookies.authkey);
-
+    // Specific locals
     let identifier = req.params.param1 || req.session.identifier;
 
     if (!identifier) {
@@ -178,6 +202,10 @@ const loadProfilePage = async (req: Request, res: Response, version:string): Pro
         return loadRegisterPage(req,res,version);
     }
 
+    // Set auth cookie
+    setAuthCookie(res, req.cookies.authkey);
+
+
     return res.render("profile.ejs", {request: req});
 };
 
@@ -201,9 +229,16 @@ const loadMdPage = async (req: Request, res: Response, mdFileName : string, vers
     // Active modules
     const activeModules = getModules(req.hostname,true);
     res.locals.activeModules = activeModules;
-    res.locals.version = getConfig(req.hostname, ["version"]);
 
+    // General locals
+    const page = mdFileName.replace(/FilePath$/, ""); 
+    res.locals.version = getConfig(req.hostname, ["version"]);
     res.locals.serverHost = getConfig(req.hostname, ["server", "host"]);
+    res.locals.title = replaceTokens(req.hostname, getConfig(req.hostname, ["appearance", "pages", page, "title"]));
+    res.locals.description = replaceTokens(req.hostname, getConfig(req.hostname, ["appearance", "pages", page, "description"]));
+    res.locals.noindex = getConfig(req.hostname, ["appearance", "pages", page, "noindex"]);
+    res.locals.socialImage = getConfig(req.hostname, ["appearance", "pages", page, "socialImage"]) || getConfig(req.hostname, ["appearance", "socialImage"]);
+
     let mdFile : string = "";
     try{
         mdFile = fs.readFileSync(getConfig(req.hostname, ["server", mdFileName])).toString();
@@ -225,6 +260,7 @@ const loadMdPage = async (req: Request, res: Response, mdFileName : string, vers
         mdFile = `Failed to read markdown file ${mdFileName}`;
     }
 
+    // Set auth cookie
     setAuthCookie(res, req.cookies.authkey);
 
     // Check admin privileges. Only for information, never used for authorization
@@ -253,9 +289,17 @@ const loadLoginPage = async (req: Request, res: Response, version:string): Promi
     // Active modules
     const activeModules = getModules(req.hostname,true);
     res.locals.activeModules = activeModules; 
+
+    // General locals
+    const page = "login"
     res.locals.version = getConfig(req.hostname, ["version"]);
     res.locals.serverHost = getConfig(req.hostname, ["server", "host"]);
+    res.locals.title = replaceTokens(req.hostname, getConfig(req.hostname, ["appearance", "pages", page, "title"]));
+    res.locals.description = replaceTokens(req.hostname, getConfig(req.hostname, ["appearance", "pages", page, "description"]));
+    res.locals.noindex = getConfig(req.hostname, ["appearance", "pages", page, "noindex"]);
+    res.locals.socialImage = getConfig(req.hostname, ["appearance", "pages", page, "socialImage"]) || getConfig(req.hostname, ["appearance", "socialImage"]);
 
+    // Set auth cookie
     setAuthCookie(res, req.cookies.authkey);
 
     // Check admin privileges. Only for information, never used for authorization
@@ -264,7 +308,7 @@ const loadLoginPage = async (req: Request, res: Response, version:string): Promi
     res.render("login.ejs", {request: req});
 };
 
-const loadIndexPage = async (req: Request, res: Response, version:string): Promise<Response | void>  => {
+const loadHomePage = async (req: Request, res: Response, version:string): Promise<Response | void>  => {
 
 	// Check if the request IP is allowed
 	const reqInfo = await isIpAllowed(req);
@@ -284,18 +328,28 @@ const loadIndexPage = async (req: Request, res: Response, version:string): Promi
     // Active modules
     const activeModules = getModules(req.hostname,true);
     res.locals.activeModules = activeModules; 
+
+    // General locals
+    const page = "home"
     res.locals.version = getConfig(req.hostname, ["version"]);
     res.locals.serverHost = getConfig(req.hostname, ["server", "host"]);
-    res.locals.serverName = getConfig(req.hostname, ["appearance", "serverName"]);
-    res.locals.serverDescription = getConfig(req.hostname, ["appearance", "serverDescription"]);
+    res.locals.title = replaceTokens(req.hostname, getConfig(req.hostname, ["appearance", "pages", page, "title"]));
+    res.locals.description = replaceTokens(req.hostname, getConfig(req.hostname, ["appearance", "pages", page, "description"]));
+    res.locals.noindex = getConfig(req.hostname, ["appearance", "pages", page, "noindex"]);
+    res.locals.socialImage = getConfig(req.hostname, ["appearance", "pages", page, "socialImage"]) || getConfig(req.hostname, ["appearance", "socialImage"]);
+
+    // Specific page locals
+    res.locals.pageTitle = replaceTokens(req.hostname, getConfig(req.hostname, ["appearance", "pages", page, "pageTitle"]));
+    res.locals.pageSubtitle = replaceTokens(req.hostname, getConfig(req.hostname, ["appearance", "pages", page, "pageSubtitle"]));
     res.locals.serverPubkey = await hextoNpub(getConfig(req.hostname, ["server", "pubkey"]));
 
+    // Set auth cookie
     setAuthCookie(res, req.cookies.authkey);
 
     // Check admin privileges. Only for information, never used for authorization
     req.session.allowed = await isPubkeyAllowed(req.session.identifier);
     
-    res.render("index.ejs", {request: req});
+    res.render(page +".ejs", {request: req});
 };
 
 const loadDocsPage = async (req: Request, res: Response, version: string): Promise<Response | void> => {
@@ -318,9 +372,20 @@ const loadDocsPage = async (req: Request, res: Response, version: string): Promi
     // Active modules
     const activeModules = getModules(req.hostname,true);
     res.locals.activeModules = activeModules; 
+
+    // General locals
+    const page = "docs"
     res.locals.version = getConfig(req.hostname, ["version"]);
     res.locals.serverHost = getConfig(req.hostname, ["server", "host"]);
+    res.locals.title = replaceTokens(req.hostname, getConfig(req.hostname, ["appearance", "pages", page, "title"]));
+    res.locals.description = replaceTokens(req.hostname, getConfig(req.hostname, ["appearance", "pages", page, "description"]));
+    res.locals.noindex = getConfig(req.hostname, ["appearance", "pages", page, "noindex"]);
+    res.locals.socialImage = getConfig(req.hostname, ["appearance", "pages", page, "socialImage"]) || getConfig(req.hostname, ["appearance", "socialImage"]);
+
+    // Specific locals
     res.locals.serverPubkey = await hextoNpub(getConfig(req.hostname, ["server", "pubkey"]));
+
+    // Set auth cookie
     setAuthCookie(res, req.cookies.authkey);
 
     // Check admin privileges. Only for information, never used for authorization
@@ -350,9 +415,17 @@ const loadGalleryPage = async (req: Request, res: Response, version:string): Pro
     // Active modules
     const activeModules = getModules(req.hostname,true);
     res.locals.activeModules = activeModules; 
+
+    // General locals
+    const page = "gallery"
     res.locals.version = getConfig(req.hostname, ["version"]);
     res.locals.serverHost = getConfig(req.hostname, ["server", "host"]);
+    res.locals.title = replaceTokens(req.hostname, getConfig(req.hostname, ["appearance", "pages", page, "title"]));
+    res.locals.description = replaceTokens(req.hostname, getConfig(req.hostname, ["appearance", "pages", page, "description"]));
+    res.locals.noindex = getConfig(req.hostname, ["appearance", "pages", page, "noindex"]);
+    res.locals.socialImage = getConfig(req.hostname, ["appearance", "pages", page, "socialImage"]) || getConfig(req.hostname, ["appearance", "socialImage"]);
 
+    // Set auth cookie
     setAuthCookie(res, req.cookies.authkey);
 
     // Check admin privileges. Only for information, never used for authorization
@@ -381,9 +454,17 @@ const loadDirectoryPage = async (req: Request, res: Response, version:string): P
     // Active modules
     const activeModules = getModules(req.hostname,true);
     res.locals.activeModules = activeModules; 
+
+    // General locals
+    const page = "directory"
     res.locals.version = getConfig(req.hostname, ["version"]);
     res.locals.serverHost = getConfig(req.hostname, ["server", "host"]);
+    res.locals.title = replaceTokens(req.hostname, getConfig(req.hostname, ["appearance", "pages", page, "title"]));
+    res.locals.description = replaceTokens(req.hostname, getConfig(req.hostname, ["appearance", "pages", page, "description"]));
+    res.locals.noindex = getConfig(req.hostname, ["appearance", "pages", page, "noindex"]);
+    res.locals.socialImage = getConfig(req.hostname, ["appearance", "pages", page, "socialImage"]) || getConfig(req.hostname, ["appearance", "socialImage"]);
 
+    // Set auth cookie
     setAuthCookie(res, req.cookies.authkey);
 
     // Check admin privileges. Only for information, never used for authorization
@@ -412,9 +493,17 @@ const loadConverterPage = async (req: Request, res: Response, version:string): P
     // Active modules
     const activeModules = getModules(req.hostname,true);
     res.locals.activeModules = activeModules; 
+
+    // General locals
+    const page = "converter"
     res.locals.version = getConfig(req.hostname, ["version"]);
     res.locals.serverHost = getConfig(req.hostname, ["server", "host"]);
+    res.locals.title = replaceTokens(req.hostname, getConfig(req.hostname, ["appearance", "pages", page, "title"]));
+    res.locals.description = replaceTokens(req.hostname, getConfig(req.hostname, ["appearance", "pages", page, "description"]));
+    res.locals.noindex = getConfig(req.hostname, ["appearance", "pages", page, "noindex"]);
+    res.locals.socialImage = getConfig(req.hostname, ["appearance", "pages", page, "socialImage"]) || getConfig(req.hostname, ["appearance", "socialImage"]);
 
+    // Set auth cookie
     setAuthCookie(res, req.cookies.authkey);
 
     // Check admin privileges. Only for information, never used for authorization
@@ -443,9 +532,17 @@ const loadRegisterPage = async (req: Request, res: Response, version:string): Pr
     // Active modules
     const activeModules = getModules(req.hostname,true);
     res.locals.activeModules = activeModules; 
+
+    // General locals
+    const page = "register"
     res.locals.version = getConfig(req.hostname, ["version"]);
     res.locals.serverHost = getConfig(req.hostname, ["server", "host"]);
+    res.locals.title = replaceTokens(req.hostname, getConfig(req.hostname, ["appearance", "pages", page, "title"]));
+    res.locals.description = replaceTokens(req.hostname, getConfig(req.hostname, ["appearance", "pages", page, "description"]));
+    res.locals.noindex = getConfig(req.hostname, ["appearance", "pages", page, "noindex"]);
+    res.locals.socialImage = getConfig(req.hostname, ["appearance", "pages", page, "socialImage"]) || getConfig(req.hostname, ["appearance", "socialImage"]);
 
+    // Set auth cookie
     setAuthCookie(res, req.cookies.authkey);
 
     // Check admin privileges. Only for information, never used for authorization
@@ -476,9 +573,17 @@ const loadCdnPage = async (req: Request, res: Response, version:string): Promise
     // Active modules
     const activeModules = getModules(req.hostname,true);
     res.locals.activeModules = activeModules; 
+
+    // General locals
+    const page = "cdn"
     res.locals.version = getConfig(req.hostname, ["version"]);
     res.locals.serverHost = getConfig(req.hostname, ["server", "host"]);
+    res.locals.title = replaceTokens(req.hostname, getConfig(req.hostname, ["appearance", "pages", page, "title"]));
+    res.locals.description = replaceTokens(req.hostname, getConfig(req.hostname, ["appearance", "pages", page, "description"]));
+    res.locals.noindex = getConfig(req.hostname, ["appearance", "pages", page, "noindex"]);
+    res.locals.socialImage = getConfig(req.hostname, ["appearance", "pages", page, "socialImage"]) || getConfig(req.hostname, ["appearance", "socialImage"]);
 
+    // Set auth cookie
     setAuthCookie(res, req.cookies.authkey);
 
     // Check admin privileges. Only for information, never used for authorization
@@ -507,12 +612,21 @@ const loadRelayPage = async (req: Request, res: Response, version:string): Promi
     // Active modules
     const activeModules = getModules(req.hostname,true);
     res.locals.activeModules = activeModules; 
+
+    // General locals
+    const page = "relay"
     res.locals.version = getConfig(req.hostname, ["version"]);
     res.locals.serverHost = getConfig(req.hostname, ["server", "host"]);
-    res.locals.serverPubkey = await hextoNpub(getConfig(req.hostname, ["server", "pubkey"]));
+    res.locals.title = replaceTokens(req.hostname, getConfig(req.hostname, ["appearance", "pages", page, "title"]));
+    res.locals.description = replaceTokens(req.hostname, getConfig(req.hostname, ["appearance", "pages", page, "description"]));
+    res.locals.noindex = getConfig(req.hostname, ["appearance", "pages", page, "noindex"]);
+    res.locals.socialImage = getConfig(req.hostname, ["appearance", "pages", page, "socialImage"]) || getConfig(req.hostname, ["appearance", "socialImage"]);
 
+    // Specific locals
+    res.locals.serverPubkey = await hextoNpub(getConfig(req.hostname, ["server", "pubkey"]));
     res.locals.lastRelayNotes = await dbMultiSelect(["pubkey","created_at","content"], "events", "kind = ? AND active = ?", ["1", "1"], false,"ORDER BY id DESC LIMIT 15");
 
+    // Set auth cookie
     setAuthCookie(res, req.cookies.authkey);
 
     // Check admin privileges. Only for information, never used for authorization
@@ -697,7 +811,7 @@ export {loadDashboardPage,
         loadDocsPage, 
         loadRegisterPage,
         loadLoginPage, 
-        loadIndexPage,
+        loadHomePage,
         loadCdnPage,
         frontendLogin,
         loadProfilePage,

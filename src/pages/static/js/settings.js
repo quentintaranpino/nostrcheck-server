@@ -443,5 +443,26 @@ function resetToGlobal(fieldName, globalValue) {
     }
 
     input.dispatchEvent(new Event('input', { bubbles: true }));
-input.dispatchEvent(new Event('change', { bubbles: true }));
+    input.dispatchEvent(new Event('change', { bubbles: true }));
 }
+
+// Intercept Ctrl+S for save settings
+(function () {
+document.addEventListener('keydown', function (e) {
+    if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'S')) {
+        if (e.repeat) return; 
+        e.preventDefault();
+
+        const activePane = document.querySelector('#settingsTabsContent .tab-pane.active');
+        const saveBtn = activePane?.querySelector('button[onclick="saveSettings()"], button[name="Submit"]');
+
+        if (document.activeElement) document.activeElement.blur?.();
+
+        if (saveBtn) {
+            saveBtn.click();
+        } else if (typeof saveSettings === 'function') {
+            saveSettings();
+        }
+    }
+}, { passive: false });
+})();

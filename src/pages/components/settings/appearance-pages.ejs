@@ -1,0 +1,703 @@
+<%
+  const cfg = locals.domainConfig?.appearance || {};
+  const globalCfg = locals.globalConfig?.appearance|| {};
+%>
+
+<h3 class="mt-4">Pages</h3>
+<span>In this section, you can customize specific page title, description, and other settings.</span>
+<ul class="nav nav-tabs mt-3" id="appearancePagesTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active" 
+                id="appearance-home-tab" 
+                data-bs-toggle="tab" 
+                data-bs-target="#appearance-home-tab-content" 
+                type="button" 
+                role="tab" 
+                aria-controls="Home" 
+                aria-selected="true">
+                <i class="fas fa-home me-2"></i><span>Home</span>
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" 
+                id="appearance-login-tab" 
+                data-bs-toggle="tab" 
+                data-bs-target="#appearance-login-tab-content" 
+                type="button" 
+                role="tab" 
+                aria-controls="Login" 
+                aria-selected="true">
+                <i class="fas fa-sign-in-alt me-2"></i><span>Login</span>
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" 
+                id="appearance-register-tab" 
+                data-bs-toggle="tab" 
+                data-bs-target="#appearance-register-tab-content" 
+                type="button" 
+                role="tab" 
+                aria-controls="Register" 
+                aria-selected="true">
+                <i class="fas fa-user-plus me-2"></i><span>Register</span>
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" 
+                id="appearance-gallery-tab" 
+                data-bs-toggle="tab" 
+                data-bs-target="#appearance-gallery-tab-content" 
+                type="button" 
+                role="tab" 
+                aria-controls="Gallery" 
+                aria-selected="true">
+                <i class="fas fa-user-plus me-2"></i><span>Gallery</span>
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" 
+                id="appearance-directory-tab" 
+                data-bs-toggle="tab" 
+                data-bs-target="#appearance-directory-tab-content" 
+                type="button" 
+                role="tab" 
+                aria-controls="Directory" 
+                aria-selected="true">
+                <i class="fas fa-user-plus me-2"></i><span>Directory</span>
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" 
+                id="appearance-converter-tab" 
+                data-bs-toggle="tab" 
+                data-bs-target="#appearance-converter-tab-content" 
+                type="button" 
+                role="tab" 
+                aria-controls="Converter" 
+                aria-selected="true">
+                <i class="fas fa-user-plus me-2"></i><span>Converter</span>
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" 
+                id="appearance-dashboard-tab" 
+                data-bs-toggle="tab" 
+                data-bs-target="#appearance-dashboard-tab-content" 
+                type="button" 
+                role="tab" 
+                aria-controls="Dashboard" 
+                aria-selected="true">
+                <i class="fas fa-user-plus me-2"></i><span>Dashboard</span>
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" 
+                id="appearance-settings-tab" 
+                data-bs-toggle="tab" 
+                data-bs-target="#appearance-settings-tab-content" 
+                type="button" 
+                role="tab" 
+                aria-controls="Settings" 
+                aria-selected="true">
+                <i class="fas fa-user me-2"></i><span>Settings</span>
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" 
+                id="appearance-docs-tab" 
+                data-bs-toggle="tab" 
+                data-bs-target="#appearance-docs-tab-content" 
+                type="button" 
+                role="tab" 
+                aria-controls="Docs" 
+                aria-selected="true">
+                <i class="fas fa-cog me-2"></i><span>Docs</span>
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" 
+                id="appearance-tos-tab" 
+                data-bs-toggle="tab" 
+                data-bs-target="#appearance-tos-tab-content" 
+                type="button" 
+                role="tab" 
+                aria-controls="Terms of Service" 
+                aria-selected="true">
+                <i class="fas fa-cog me-2"></i><span>Terms of Service</span>
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" 
+                id="appearance-privacy-tab" 
+                data-bs-toggle="tab" 
+                data-bs-target="#appearance-privacy-tab-content" 
+                type="button" 
+                role="tab" 
+                aria-controls="Privacy" 
+                aria-selected="true">
+                <i class="fas fa-cog me-2"></i><span>Privacy</span>
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" 
+                id="appearance-legal-tab" 
+                data-bs-toggle="tab" 
+                data-bs-target="#appearance-legal-tab-content" 
+                type="button" 
+                role="tab" 
+                aria-controls="Legal" 
+                aria-selected="true">
+                <i class="fas fa-cog me-2"></i><span>Legal</span>
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" 
+                id="appearance-profile-tab" 
+                data-bs-toggle="tab" 
+                data-bs-target="#appearance-profile-tab-content" 
+                type="button" 
+                role="tab" 
+                aria-controls="Profile" 
+                aria-selected="true">
+                <i class="fas fa-cog me-2"></i><span>Profile</span>
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" 
+                id="appearance-cdn-tab" 
+                data-bs-toggle="tab" 
+                data-bs-target="#appearance-cdn-tab-content" 
+                type="button" 
+                role="tab" 
+                aria-controls="CDN" 
+                aria-selected="true">
+                <i class="fas fa-cog me-2"></i><span>CDN</span>
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" 
+                id="appearance-relay-tab" 
+                data-bs-toggle="tab" 
+                data-bs-target="#appearance-relay-tab-content" 
+                type="button" 
+                role="tab" 
+                aria-controls="Relay" 
+                aria-selected="true">
+                <i class="fas fa-cog me-2"></i><span>Relay</span>
+        </button>
+    </li>
+</ul>
+<div class="tab-content w-100 p-3 overflow-auto mb-5" id="appearancePagesTabsContent">
+    <!-- Home -->
+    <div class="tab-pane fade show active" id="appearance-home-tab-content" role="tabpanel" aria-labelledby="appearance-home-tab-content">
+    <%- include('field', {
+    type: "text",
+    name: "appearance.pages.home.title",
+    label: "SEO Page title",
+    description: "Displayed in the browser tab and used to identify the server in search engines.",
+    value: cfg.pages.home.title,
+    globalValue: globalCfg.pages.home.title,
+    placeholder: "{server.host} — Home",
+    required: true
+    }) %>
+    <%- include('field', {
+    type: "text",
+    name: "appearance.pages.home.description",
+    label: "SEO Page description",
+    description: "Displayed in the browser tab and used to identify the server in search engines.",
+    value: cfg.pages.home.description,
+    globalValue: globalCfg.pages.home.description,
+    placeholder: "Self-hosted nostrcheck-server instance",
+    required: true
+    }) %>
+    <%- include('field', {
+        type: "checkbox",
+        name: "appearance.pages.home.noindex",
+        label: "Noindex",
+        description: "Prevent search engines from indexing this page.",
+        value: cfg.pages.home.noindex,
+        globalValue: globalCfg.pages.home.noindex,
+        overridable: true
+    }) %>
+    <%- include('field', {
+    type: "text",
+    name: "appearance.pages.home.pageTitle",
+    label: "Page title",
+    description: "Displayed in the homepage as web title.",
+    value: cfg.pages.home.pageTitle,
+    globalValue: globalCfg.pages.home.pageTitle,
+    placeholder: "Welcome to {server.host}",
+    required: true
+    }) %>
+    <%- include('field', {
+        type: "text",
+        name: "appearance.pages.home.pageSubtitle",
+        label: "Page subtitle",
+        description: "Displayed in the homepage as description",
+        value: cfg.pages.home.pageSubtitle,
+        globalValue: globalCfg.pages.home.pageSubtitle,
+        placeholder: "Be sovereign over your data",
+        required: true
+    }) %>
+    </div>
+    <!-- Login -->
+    <div class="tab-pane fade" id="appearance-login-tab-content" role="tabpanel" aria-labelledby="appearance-login-tab-content">
+    <%- include('field', {
+        type: "text",
+        name: "appearance.pages.login.title",
+        label: "SEO Page title",
+        description: "Displayed in the browser tab and used to identify the server in search engines.",
+        value: cfg.pages.login.title,
+        globalValue: globalCfg.pages.login.title,
+        placeholder: "{server.host} — Login",
+        required: true
+    }) %>
+    <%- include('field', {
+        type: "text",
+        name: "appearance.pages.login.description",
+        label: "SEO Page description",
+        description: "Displayed in the browser tab and used to identify the server in search engines.",
+        value: cfg.pages.login.description,
+        globalValue: globalCfg.pages.login.description,
+        placeholder: "Self-hosted nostrcheck-server instance",
+        required: true
+    }) %>
+    <%- include('field', {
+        type: "checkbox",
+        name: "appearance.pages.relay.noindex",
+        label: "Noindex",
+        description: "Prevent search engines from indexing this page.",
+        value: cfg.pages.relay.noindex,
+        globalValue: globalCfg.pages.relay.noindex,
+        overridable: true
+    }) %>
+    </div>
+    <!-- Register -->
+    <div class="tab-pane fade" id="appearance-register-tab-content" role="tabpanel" aria-labelledby="appearance-register-tab">
+      <%- include('field', {
+        type: "text",
+        name: "appearance.pages.register.title",
+        label: "SEO Page title",
+        description: "Displayed in the browser tab and used to identify the server in search engines.",
+        value: cfg.pages.register.title,
+        globalValue: globalCfg.pages.register.title,
+        placeholder: "{server.host} — Register",
+        required: true
+      }) %>
+      <%- include('field', {
+        type: "text",
+        name: "appearance.pages.register.description",
+        label: "SEO Page description",
+        description: "Displayed in the browser tab and used to identify the server in search engines.",
+        value: cfg.pages.register.description,
+        globalValue: globalCfg.pages.register.description,
+        placeholder: "Self-hosted nostrcheck-server instance",
+        required: true
+      }) %>
+      <%- include('field', {
+        type: "checkbox",
+        name: "appearance.pages.register.noindex",
+        label: "Noindex",
+        description: "Prevent search engines from indexing this page.",
+        value: cfg.pages.register.noindex,
+        globalValue: globalCfg.pages.register.noindex,
+        overridable: true
+      }) %>
+    </div>
+
+    <!-- Gallery -->
+    <div class="tab-pane fade" id="appearance-gallery-tab-content" role="tabpanel" aria-labelledby="appearance-gallery-tab">
+      <%- include('field', {
+        type: "text",
+        name: "appearance.pages.gallery.title",
+        label: "SEO Page title",
+        description: "Displayed in the browser tab and used to identify the server in search engines.",
+        value: cfg.pages.gallery.title,
+        globalValue: globalCfg.pages.gallery.title,
+        placeholder: "{server.host} — Gallery",
+        required: true
+      }) %>
+      <%- include('field', {
+        type: "text",
+        name: "appearance.pages.gallery.description",
+        label: "SEO Page description",
+        description: "Displayed in the browser tab and used to identify the server in search engines.",
+        value: cfg.pages.gallery.description,
+        globalValue: globalCfg.pages.gallery.description,
+        placeholder: "Self-hosted nostrcheck-server instance",
+        required: true
+      }) %>
+      <%- include('field', {
+        type: "checkbox",
+        name: "appearance.pages.gallery.noindex",
+        label: "Noindex",
+        description: "Prevent search engines from indexing this page.",
+        value: cfg.pages.gallery.noindex,
+        globalValue: globalCfg.pages.gallery.noindex,
+        overridable: true
+      }) %>
+    </div>
+
+    <!-- Directory -->
+    <div class="tab-pane fade" id="appearance-directory-tab-content" role="tabpanel" aria-labelledby="appearance-directory-tab">
+      <%- include('field', {
+        type: "text",
+        name: "appearance.pages.directory.title",
+        label: "SEO Page title",
+        description: "Displayed in the browser tab and used to identify the server in search engines.",
+        value: cfg.pages.directory.title,
+        globalValue: globalCfg.pages.directory.title,
+        placeholder: "{server.host} — Directory",
+        required: true
+      }) %>
+      <%- include('field', {
+        type: "text",
+        name: "appearance.pages.directory.description",
+        label: "SEO Page description",
+        description: "Displayed in the browser tab and used to identify the server in search engines.",
+        value: cfg.pages.directory.description,
+        globalValue: globalCfg.pages.directory.description,
+        placeholder: "Self-hosted nostrcheck-server instance",
+        required: true
+      }) %>
+      <%- include('field', {
+        type: "checkbox",
+        name: "appearance.pages.directory.noindex",
+        label: "Noindex",
+        description: "Prevent search engines from indexing this page.",
+        value: cfg.pages.directory.noindex,
+        globalValue: globalCfg.pages.directory.noindex,
+        overridable: true
+      }) %>
+    </div>
+
+    <!-- Converter -->
+    <div class="tab-pane fade" id="appearance-converter-tab-content" role="tabpanel" aria-labelledby="appearance-converter-tab">
+      <%- include('field', {
+        type: "text",
+        name: "appearance.pages.converter.title",
+        label: "SEO Page title",
+        description: "Displayed in the browser tab and used to identify the server in search engines.",
+        value: cfg.pages.converter.title,
+        globalValue: globalCfg.pages.converter.title,
+        placeholder: "{server.host} — Converter",
+        required: true
+      }) %>
+      <%- include('field', {
+        type: "text",
+        name: "appearance.pages.converter.description",
+        label: "SEO Page description",
+        description: "Displayed in the browser tab and used to identify the server in search engines.",
+        value: cfg.pages.converter.description,
+        globalValue: globalCfg.pages.converter.description,
+        placeholder: "Self-hosted nostrcheck-server instance",
+        required: true
+      }) %>
+      <%- include('field', {
+        type: "checkbox",
+        name: "appearance.pages.converter.noindex",
+        label: "Noindex",
+        description: "Prevent search engines from indexing this page.",
+        value: cfg.pages.converter.noindex,
+        globalValue: globalCfg.pages.converter.noindex,
+        overridable: true
+      }) %>
+    </div>
+
+    <!-- Dashboard -->
+    <div class="tab-pane fade" id="appearance-dashboard-tab-content" role="tabpanel" aria-labelledby="appearance-dashboard-tab">
+      <%- include('field', {
+        type: "text",
+        name: "appearance.pages.dashboard.title",
+        label: "SEO Page title",
+        description: "Displayed in the browser tab and used to identify the server in search engines.",
+        value: cfg.pages.dashboard.title,
+        globalValue: globalCfg.pages.dashboard.title,
+        placeholder: "{server.host} — Dashboard",
+        required: true
+      }) %>
+      <%- include('field', {
+        type: "text",
+        name: "appearance.pages.dashboard.description",
+        label: "SEO Page description",
+        description: "Displayed in the browser tab and used to identify the server in search engines.",
+        value: cfg.pages.dashboard.description,
+        globalValue: globalCfg.pages.dashboard.description,
+        placeholder: "Self-hosted nostrcheck-server instance",
+        required: true
+      }) %>
+      <%- include('field', {
+        type: "checkbox",
+        name: "appearance.pages.dashboard.noindex",
+        label: "Noindex",
+        description: "Prevent search engines from indexing this page.",
+        value: cfg.pages.dashboard.noindex,
+        globalValue: globalCfg.pages.dashboard.noindex,
+        overridable: true
+      }) %>
+    </div>
+
+    <!-- Settings -->
+    <div class="tab-pane fade" id="appearance-settings-tab-content" role="tabpanel" aria-labelledby="appearance-settings-tab">
+      <%- include('field', {
+        type: "text",
+        name: "appearance.pages.settings.title",
+        label: "SEO Page title",
+        description: "Displayed in the browser tab and used to identify the server in search engines.",
+        value: cfg.pages.settings.title,
+        globalValue: globalCfg.pages.settings.title,
+        placeholder: "{server.host} — Settings",
+        required: true
+      }) %>
+      <%- include('field', {
+        type: "text",
+        name: "appearance.pages.settings.description",
+        label: "SEO Page description",
+        description: "Displayed in the browser tab and used to identify the server in search engines.",
+        value: cfg.pages.settings.description,
+        globalValue: globalCfg.pages.settings.description,
+        placeholder: "Self-hosted nostrcheck-server instance",
+        required: true
+      }) %>
+      <%- include('field', {
+        type: "checkbox",
+        name: "appearance.pages.settings.noindex",
+        label: "Noindex",
+        description: "Prevent search engines from indexing this page.",
+        value: cfg.pages.settings.noindex,
+        globalValue: globalCfg.pages.settings.noindex,
+        overridable: true
+      }) %>
+    </div>
+
+    <!-- Docs -->
+    <div class="tab-pane fade" id="appearance-docs-tab-content" role="tabpanel" aria-labelledby="appearance-docs-tab">
+      <%- include('field', {
+        type: "text",
+        name: "appearance.pages.docs.title",
+        label: "SEO Page title",
+        description: "Displayed in the browser tab and used to identify the server in search engines.",
+        value: cfg.pages.docs.title,
+        globalValue: globalCfg.pages.docs.title,
+        placeholder: "{server.host} — Docs",
+        required: true
+      }) %>
+      <%- include('field', {
+        type: "text",
+        name: "appearance.pages.docs.description",
+        label: "SEO Page description",
+        description: "Displayed in the browser tab and used to identify the server in search engines.",
+        value: cfg.pages.docs.description,
+        globalValue: globalCfg.pages.docs.description,
+        placeholder: "Self-hosted nostrcheck-server instance",
+        required: true
+      }) %>
+      <%- include('field', {
+        type: "checkbox",
+        name: "appearance.pages.docs.noindex",
+        label: "Noindex",
+        description: "Prevent search engines from indexing this page.",
+        value: cfg.pages.docs.noindex,
+        globalValue: globalCfg.pages.docs.noindex,
+        overridable: true
+      }) %>
+    </div>
+
+    <!-- Terms of Service -->
+    <div class="tab-pane fade" id="appearance-tos-tab-content" role="tabpanel" aria-labelledby="appearance-tos-tab">
+      <%- include('field', {
+        type: "text",
+        name: "appearance.pages.tos.title",
+        label: "SEO Page title",
+        description: "Displayed in the browser tab and used to identify the server in search engines.",
+        value: cfg.pages.tos.title,
+        globalValue: globalCfg.pages.tos.title,
+        placeholder: "{server.host} — Terms of Service",
+        required: true
+      }) %>
+      <%- include('field', {
+        type: "text",
+        name: "appearance.pages.tos.description",
+        label: "SEO Page description",
+        description: "Displayed in the browser tab and used to identify the server in search engines.",
+        value: cfg.pages.tos.description,
+        globalValue: globalCfg.pages.tos.description,
+        placeholder: "Self-hosted nostrcheck-server instance",
+        required: true
+      }) %>
+      <%- include('field', {
+        type: "checkbox",
+        name: "appearance.pages.tos.noindex",
+        label: "Noindex",
+        description: "Prevent search engines from indexing this page.",
+        value: cfg.pages.tos.noindex,
+        globalValue: globalCfg.pages.tos.noindex,
+        overridable: true
+      }) %>
+    </div>
+
+    <!-- Privacy -->
+    <div class="tab-pane fade" id="appearance-privacy-tab-content" role="tabpanel" aria-labelledby="appearance-privacy-tab">
+      <%- include('field', {
+        type: "text",
+        name: "appearance.pages.privacy.title",
+        label: "SEO Page title",
+        description: "Displayed in the browser tab and used to identify the server in search engines.",
+        value: cfg.pages.privacy.title,
+        globalValue: globalCfg.pages.privacy.title,
+        placeholder: "{server.host} — Privacy Policy",
+        required: true
+      }) %>
+      <%- include('field', {
+        type: "text",
+        name: "appearance.pages.privacy.description",
+        label: "SEO Page description",
+        description: "Displayed in the browser tab and used to identify the server in search engines.",
+        value: cfg.pages.privacy.description,
+        globalValue: globalCfg.pages.privacy.description,
+        placeholder: "Self-hosted nostrcheck-server instance",
+        required: true
+      }) %>
+      <%- include('field', {
+        type: "checkbox",
+        name: "appearance.pages.privacy.noindex",
+        label: "Noindex",
+        description: "Prevent search engines from indexing this page.",
+        value: cfg.pages.privacy.noindex,
+        globalValue: globalCfg.pages.privacy.noindex,
+        overridable: true
+      }) %>
+    </div>
+
+    <!-- Legal -->
+    <div class="tab-pane fade" id="appearance-legal-tab-content" role="tabpanel" aria-labelledby="appearance-legal-tab">
+      <%- include('field', {
+        type: "text",
+        name: "appearance.pages.legal.title",
+        label: "SEO Page title",
+        description: "Displayed in the browser tab and used to identify the server in search engines.",
+        value: cfg.pages.legal.title,
+        globalValue: globalCfg.pages.legal.title,
+        placeholder: "{server.host} — Legal",
+        required: true
+      }) %>
+      <%- include('field', {
+        type: "text",
+        name: "appearance.pages.legal.description",
+        label: "SEO Page description",
+        description: "Displayed in the browser tab and used to identify the server in search engines.",
+        value: cfg.pages.legal.description,
+        globalValue: globalCfg.pages.legal.description,
+        placeholder: "Self-hosted nostrcheck-server instance",
+        required: true
+      }) %>
+      <%- include('field', {
+        type: "checkbox",
+        name: "appearance.pages.legal.noindex",
+        label: "Noindex",
+        description: "Prevent search engines from indexing this page.",
+        value: cfg.pages.legal.noindex,
+        globalValue: globalCfg.pages.legal.noindex,
+        overridable: true
+      }) %>
+    </div>
+
+    <!-- Profile -->
+    <div class="tab-pane fade" id="appearance-profile-tab-content" role="tabpanel" aria-labelledby="appearance-profile-tab">
+      <%- include('field', {
+        type: "text",
+        name: "appearance.pages.profile.title",
+        label: "SEO Page title",
+        description: "Displayed in the browser tab and used to identify the server in search engines.",
+        value: cfg.pages.profile.title,
+        globalValue: globalCfg.pages.profile.title,
+        placeholder: "{server.host} — Profile",
+        required: true
+      }) %>
+      <%- include('field', {
+        type: "text",
+        name: "appearance.pages.profile.description",
+        label: "SEO Page description",
+        description: "Displayed in the browser tab and used to identify the server in search engines.",
+        value: cfg.pages.profile.description,
+        globalValue: globalCfg.pages.profile.description,
+        placeholder: "Self-hosted nostrcheck-server instance",
+        required: true
+      }) %>
+      <%- include('field', {
+        type: "checkbox",
+        name: "appearance.pages.profile.noindex",
+        label: "Noindex",
+        description: "Prevent search engines from indexing this page.",
+        value: cfg.pages.profile.noindex,
+        globalValue: globalCfg.pages.profile.noindex,
+        overridable: true
+      }) %>
+    </div>
+
+    <!-- CDN -->
+    <div class="tab-pane fade" id="appearance-cdn-tab-content" role="tabpanel" aria-labelledby="appearance-cdn-tab">
+      <%- include('field', {
+        type: "text",
+        name: "appearance.pages.cdn.title",
+        label: "SEO Page title",
+        description: "Displayed in the browser tab and used to identify the server in search engines.",
+        value: cfg.pages.cdn.title,
+        globalValue: globalCfg.pages.cdn.title,
+        placeholder: "{server.host} — CDN",
+        required: true
+      }) %>
+      <%- include('field', {
+        type: "text",
+        name: "appearance.pages.cdn.description",
+        label: "SEO Page description",
+        description: "Displayed in the browser tab and used to identify the server in search engines.",
+        value: cfg.pages.cdn.description,
+        globalValue: globalCfg.pages.cdn.description,
+        placeholder: "Self-hosted nostrcheck-server instance",
+        required: true
+      }) %>
+      <%- include('field', {
+        type: "checkbox",
+        name: "appearance.pages.cdn.noindex",
+        label: "Noindex",
+        description: "Prevent search engines from indexing this page.",
+        value: cfg.pages.cdn.noindex,
+        globalValue: globalCfg.pages.cdn.noindex,
+        overridable: true
+      }) %>
+    </div>
+
+    <!-- Relay -->
+    <div class="tab-pane fade" id="appearance-relay-tab-content" role="tabpanel" aria-labelledby="appearance-relay-tab">
+      <%- include('field', {
+        type: "text",
+        name: "appearance.pages.relay.title",
+        label: "SEO Page title",
+        description: "Displayed in the browser tab and used to identify the server in search engines.",
+        value: cfg.pages.relay.title,
+        globalValue: globalCfg.pages.relay.title,
+        placeholder: "{server.host} — Relay",
+        required: true
+      }) %>
+      <%- include('field', {
+        type: "text",
+        name: "appearance.pages.relay.description",
+        label: "SEO Page description",
+        description: "Displayed in the browser tab and used to identify the server in search engines.",
+        value: cfg.pages.relay.description,
+        globalValue: globalCfg.pages.relay.description,
+        placeholder: "Self-hosted nostrcheck-server instance",
+        required: true
+      }) %>
+      <%- include('field', {
+        type: "checkbox",
+        name: "appearance.pages.relay.noindex",
+        label: "Noindex",
+        description: "Prevent search engines from indexing this page.",
+        value: cfg.pages.relay.noindex,
+        globalValue: globalCfg.pages.relay.noindex,
+        overridable: true
+      }) %>
+    </div>
+</div>

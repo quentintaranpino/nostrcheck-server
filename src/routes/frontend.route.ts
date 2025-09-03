@@ -6,7 +6,7 @@ import { 	loadDashboardPage,
 			loadMdPage, 
 			loadDocsPage, 
 			loadLoginPage, 
-			loadIndexPage, 
+			loadHomePage, 
 			loadProfilePage,
 			loadGalleryPage,
 			loadRegisterPage,
@@ -19,7 +19,7 @@ import { frontendLogin } from "../controllers/frontend.js";
 import { logger } from "../lib/logger.js";
 import { isPubkeyValid } from "../lib/authorization.js";
 import { limiter } from "../lib/security/core.js";
-import { isAutoLoginEnabled } from "../lib/frontend.js";
+import { getResource, getSiteManifest, isAutoLoginEnabled } from "../lib/frontend.js";
 import { getClientInfo } from "../lib/security/ips.js";
 import { initRedis } from "../lib/redis/client.js";
 
@@ -42,7 +42,7 @@ export const loadFrontendEndpoint = async (app: Application, version: string): P
 			return res.redirect(301, req.originalUrl + '/');
 		}
 		if (await isAutoLoginEnabled(req,res)){logger.info("Autologin enabled.  Showing alert on frontend", "|", getClientInfo(req).ip)}
-		loadIndexPage(req, res, version);
+		loadHomePage(req, res, version);
 	});
 
 	// Login page
@@ -156,12 +156,10 @@ export const loadFrontendEndpoint = async (app: Application, version: string): P
 
 	// Logout
 	app.get("/api/" +  version + "/logout", limiter(), (req, res) => {
-		const identifier = req.session.identifier;
 		req.session.destroy(async (err) => {
 			if (err) {
 				logger.error("Failed to destroy session:", err);
 			}
-			const redisCore = await initRedis(0, false);
 			res.clearCookie("connect.sid");
 			res.clearCookie("authkey");
 
@@ -170,4 +168,63 @@ export const loadFrontendEndpoint = async (app: Application, version: string): P
 	});
 
 	// The relay frontend page is managed by the relay.route.ts file
+
+	// Favicons
+	app.get("/favicon.ico", async (req, res) => {
+		const filePath = await getResource(req.hostname, "favicon.ico");
+		if (filePath) {
+			res.type("image/x-icon");
+			return res.sendFile(filePath);
+		}
+		return res.status(404).send("Favicon not found");
+	});
+
+	app.get("/favicon-32x32.png", async (req, res) => {
+		const filePath = await getResource(req.hostname, "favicon-32x32.png");
+		if (filePath) { 
+			res.type("image/png"); 
+			return res.sendFile(filePath); 
+		}
+		return res.status(404).send("Favicon 32 not found");
+	});
+
+	app.get("/favicon-16x16.png", async (req, res) => {
+		const filePath = await getResource(req.hostname, "favicon-16x16.png");
+		if (filePath) { 
+			res.type("image/png"); 
+			return res.sendFile(filePath); 
+		}
+		return res.status(404).send("Favicon 16 not found");
+	});
+
+	app.get("/apple-touch-icon.png", async (req, res) => {
+	const filePath = await getResource(req.hostname, "apple-touch-icon.png");
+	if (filePath) {
+		res.type("image/png");
+		return res.sendFile(filePath);
+	}
+	return res.status(404).send("Apple Touch Icon not found");
+	});
+
+	app.get("/android-chrome-192x192.png", async (req, res) => {
+	const filePath = await getResource(req.hostname, "android-chrome-192x192.png");
+	if (filePath) {
+		res.type("image/png");
+		return res.sendFile(filePath);
+	}
+	return res.status(404).send("Android Chrome 192x192 Icon not found");
+	});
+
+	app.get("/android-chrome-512x512.png", async (req, res) => {
+	const filePath = await getResource(req.hostname, "android-chrome-512x512.png");
+	if (filePath) {
+		res.type("image/png");
+		return res.sendFile(filePath);
+	}
+	return res.status(404).send("Android Chrome 512x512 Icon not found");
+	});
+
+	// Manifest
+	app.get("/site.webmanifest", getSiteManifest);
+
 };

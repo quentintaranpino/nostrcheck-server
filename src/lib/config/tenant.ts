@@ -1,5 +1,5 @@
 import { TenantInfo } from "../../interfaces/tenants.js";
-import { configStore, getConfig, setConfig } from "./core.js";
+import { configStore, getConfig } from "./core.js";
 
 const loadTenantConfig = async (domainId: string): Promise<any> => {
   try {

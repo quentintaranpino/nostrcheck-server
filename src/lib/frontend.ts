@@ -113,7 +113,6 @@ const getLegalText = (hostname : string): string => {
     }
 }
 
-
 const getResource = async (tenant : string, filename : string): Promise<string | null> => {
   
   const ext = path.extname(filename);
@@ -141,4 +140,49 @@ const getResource = async (tenant : string, filename : string): Promise<string |
 
 };
 
-export {isAutoLoginEnabled, countPubkeyFiles, setAuthCookie, getLegalText, getResource};
+const getSiteManifest = async (req: Request, res: Response) => {
+  const domain = req.hostname;
+
+  const siteName = getConfig(domain, ["appearance", "siteName"]) || getConfig(domain, ["server", "host"]) || "Nostrcheck Server";
+  const shortName = siteName.slice(0, 12);
+  const themeColor = getConfig(domain, ["appearance", "themeColor"]) || "#ffffff";
+  const backgroundColor = "#ffffff"; 
+
+  const manifest = {
+    name: siteName,
+    short_name: shortName,
+    icons: [
+      {
+        src: "/static/resources/android-chrome-192x192.png",
+        sizes: "192x192",
+        type: "image/png"
+      },
+      {
+        src: "/static/resources/android-chrome-512x512.png",
+        sizes: "512x512",
+        type: "image/png"
+      }
+    ],
+    theme_color: themeColor,
+    background_color: backgroundColor,
+    display: "standalone",
+    orientation: "portrait",
+  };
+
+  res.setHeader("Content-Type", "application/manifest+json");
+  res.send(JSON.stringify(manifest, null, 2));
+};
+
+const replaceTokens = (domain: string | null, input: string | null | undefined): string => {
+  if (typeof input !== 'string') return '';
+  return input.replace(/{([^}]+)}/g, (match, tokenPath) => {
+    const keys = tokenPath.split(".");
+    const value = getConfig(domain, keys);
+    if (value === undefined || value === null) {
+      return match;
+    }
+    return String(value);
+  });
+};
+
+export {isAutoLoginEnabled, countPubkeyFiles, setAuthCookie, getLegalText, getResource, replaceTokens, getSiteManifest};

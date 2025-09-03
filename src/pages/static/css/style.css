@@ -167,14 +167,13 @@ html[data-bs-theme="dark"] {
   }
 }
 
-@media (max-width: 992px) {
-  .nav-tabs {
-    flex-wrap: nowrap;  
-    overflow-x: auto;   
-    overflow-y: hidden; 
-    white-space: nowrap; 
-    display: flex;
-    -webkit-overflow-scrolling: touch; 
-    scrollbar-width: thin; 
-  } 
-}
+
+.nav-tabs {
+  flex-wrap: nowrap;  
+  overflow-x: auto;   
+  overflow-y: hidden; 
+  white-space: nowrap; 
+  display: flex;
+  -webkit-overflow-scrolling: touch; 
+  scrollbar-width: thin; 
+} 

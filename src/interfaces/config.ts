@@ -286,8 +286,7 @@ const defaultConfig = {
 		"isolated": false,
 	},
 	"appearance": {
-		"serverName" : "",
-		"serverDescription" : "",
+		"siteName": "",
 		"dynamicbackground": {
 			"orientation": "to top left",
 			"color1": "#007BFF",
@@ -298,6 +297,70 @@ const defaultConfig = {
 			"color3Percent": "90%",
 			"particles": "astral",
 		},
+		"pages": {
+			"home":     { 	"title": "{server.host} — Home",
+							"description": "",
+							"noindex": false,
+							"pageTitle" : "",
+							"pageSubtitle" : "",
+			},
+			"login":    { 	"title": "{server.host} — Login",
+							"description": "",
+							"noindex": false,
+			},
+			"register": { 	"title": "{server.host} — Register",
+							"description": "",
+							"noindex": false
+			},
+			"gallery":  {	"title": "{server.host} — Gallery",
+							"description": "",
+							"noindex": false
+			},
+			"directory": { 	"title": "{server.host} — Directory",
+							"description": "",
+							"noindex": false
+			},
+			"converter": { 	"title": "{server.host} — Converter",
+							"description": "",
+							"noindex": false
+			},
+			"dashboard": { 	"title": "{server.host} — Dashboard",
+							"description": "",
+							"noindex": true
+			},
+			"settings":  { 	"title": "{server.host} — Settings",
+							"description": "",
+							"noindex": true
+			},
+			"docs":      { 	"title": "{server.host} — Docs",
+							"description": "",
+							"noindex": false
+			},
+			"tos":       { 	"title": "{server.host} — Terms",
+							"description": "",
+							"noindex": false
+			},
+			"privacy":   { 	"title": "{server.host} — Privacy",
+							"description": "",
+							"noindex": false
+			},
+			"legal":     { 	"title": "{server.host} — Legal",
+							"description": "",
+							"noindex": false
+			},
+			"profile":   { 	"title": "{server.host} — Profile",
+							"description": "",
+							"noindex": false
+			},
+			"cdn":     { 	"title": "{server.host} — CDN",
+							"description": "",
+							"noindex": true
+			},
+			"relay":     { 	"title": "{server.host} — Relay",
+							"description": "",
+							"noindex": false
+			}
+		}
 	}
 }
 
@@ -320,5 +383,7 @@ const configStore : ConfigStore = {
 		domainToId: {},
 	}
 };
+
+
 
 export { Modules, Module, necessaryKeys, defaultConfig, localPath, configStore};

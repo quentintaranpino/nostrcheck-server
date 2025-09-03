@@ -18,7 +18,12 @@
 
 <div class="form-group mt-3">
   <% if (label) { %>
-    <label for="<%= name %>" class="fw-bold">
+      <label
+        for="<%= name %>"
+        class="fw-bold"
+        data-bs-toggle="tooltip"
+        data-bs-placement="top"
+        title="<%= name %>">
       <%= label %>
       <% if (!noBadge && !isGlobal && isOverridable) { %>
         <span id="badge-<%= name %>" class="badge <%= value !== globalValue ? 'bg-success' : 'bg-info' %> ms-2">
