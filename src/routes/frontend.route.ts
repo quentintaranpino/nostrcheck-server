@@ -88,7 +88,7 @@ export const loadFrontendEndpoint = async (app: Application, version: string): P
 	});
 
 	// Gallery
-	app.get([`/api/${version}/gallery`, `/gallery`], limiter(),  async (req, res) => {
+	app.get([`/api/${version}/gallery`, `/gallery`, `/public`], limiter(),  async (req, res) => {
 		if (await isAutoLoginEnabled(req,res)){logger.info("Autologin enabled.  Showing alert on frontend", "|", getClientInfo(req).ip)}
 		loadGalleryPage(req,res,version);
 	});
