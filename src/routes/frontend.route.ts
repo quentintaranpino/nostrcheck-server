@@ -21,7 +21,6 @@ import { isPubkeyValid } from "../lib/authorization.js";
 import { limiter } from "../lib/security/core.js";
 import { getResource, getSiteManifest, isAutoLoginEnabled } from "../lib/frontend.js";
 import { getClientInfo } from "../lib/security/ips.js";
-import { initRedis } from "../lib/redis/client.js";
 
 export const loadFrontendEndpoint = async (app: Application, version: string): Promise<void> => {
 
@@ -109,8 +108,8 @@ export const loadFrontendEndpoint = async (app: Application, version: string): P
 		loadDirectoryPage(req,res,version);
 	});
 
-	// Directory
-	app.get("/api/" +  version + "/converter", limiter(), async (req, res) => {
+	// Converter
+	app.get([`/api/${version}/converter`, `/converter`], limiter(), async (req, res) => {
 		if (await isAutoLoginEnabled(req,res)){logger.info("Autologin enabled.  Showing alert on frontend", "|", getClientInfo(req).ip)}
 		loadConverterPage(req,res,version);
 	});
