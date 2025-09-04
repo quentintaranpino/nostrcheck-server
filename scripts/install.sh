@@ -5,8 +5,8 @@ BASEDIR=$(dirname "$0")
 echo "$BASEDIR"
 
 readonly E_BADARGS=65
-readonly version="0.2.6.6"
-readonly date="20240914"
+readonly version="0.2.7"
+readonly date="20250831"
 
 # Variables
 NODE_MAJOR=20
@@ -18,14 +18,15 @@ PUBKEY=""
 SECRETKEY=""
 REPO_URL="https://github.com/quentintaranpino/nostrcheck-server.git"
 REPO_BRANCH="main"
-PACKAGES="nginx git redis-server mariadb-server mariadb-client ffmpeg jq certbot python3-certbot-nginx python3 python3-pip python3-dev python3-venv pkg-config libjpeg-dev zlib1g-dev libssl-dev"
+PACKAGES="nginx git redis-server mariadb-server mariadb-client ffmpeg jq certbot python3-certbot-nginx python3 python3-pip python3-dev python3-venv pkg-config libjpeg-dev zlib1g-dev libssl-dev build-essential libbz2-dev libreadline-dev libsqlite3-dev libffi-dev liblzma-dev tk-dev uuid-dev libncurses5-dev libncursesw5-dev"
 
 # Python environment variables
 VENV_DIR=".venv"
+PYENV_PY_VERSION="3.12.4"
 TRANSFORMERS_VERSION="4.44.2"
 FLASK_VERSION="3.0.3"
 PILLOW_VERSION="10.4.0"
-TORCH_VERSION="2.6.0"
+TORCH_VERSION="2.4.1"
 
 clear
 echo ""
@@ -177,16 +178,42 @@ cd "nostrcheck-server" || { echo "❌ Failed to enter the repository directory";
 echo "✅ Repository cloned and ready for installation!"
 sleep 3
 
-# Install Python packages from requirements.txt
+# Install Python packages
 clear
 echo "═══════════════════════════════════════════════════════════════════════════════"
 echo "        🐍 Creating Python virtual environment and installing packages       "
 echo "═══════════════════════════════════════════════════════════════════════════════"
 echo ""
 
+if ! command -v pyenv >/dev/null 2>&1; then
+  echo "⬇️ Installing pyenv..."
+  curl https://pyenv.run | bash
+  export PATH="$HOME/.pyenv/bin:$PATH"
+  eval "$(pyenv init -)"
+  eval "$(pyenv virtualenv-init -)"
+  if ! grep -q 'pyenv init' "$HOME/.bashrc" 2>/dev/null; then
+    {
+      echo 'export PATH="$HOME/.pyenv/bin:$PATH"'
+      echo 'eval "$(pyenv init -)"'
+      echo 'eval "$(pyenv virtualenv-init -)"'
+    } >> "$HOME/.bashrc"
+  fi
+else
+  export PATH="$HOME/.pyenv/bin:$PATH"
+  eval "$(pyenv init -)"
+  eval "$(pyenv virtualenv-init -)"
+fi
+
+if [ ! -x "$HOME/.pyenv/versions/${PYENV_PY_VERSION}/bin/python" ]; then
+    echo "🔄 Installing Python $PYENV_PY_VERSION using pyenv..."
+    pyenv install -s "${PYENV_PY_VERSION}" || { echo "❌ pyenv install falló"; exit 1; }
+fi
+
+PY_CMD="$HOME/.pyenv/versions/${PYENV_PY_VERSION}/bin/python"
+
 if [ ! -d "$VENV_DIR" ]; then
     echo "🔄 Creating virtual environment in $VENV_DIR..."
-    python3 -m venv "$VENV_DIR" || { echo "❌ Failed to create virtual environment"; exit 1; }
+    $PY_CMD -m venv "$VENV_DIR" || { echo "❌ Failed to create virtual environment"; exit 1; }
 else
     echo "🔄 Virtual environment already exists in $VENV_DIR."
 fi
@@ -195,17 +222,19 @@ echo "🔄 Activating virtual environment..."
 source "$VENV_DIR/bin/activate" || { echo "❌ Failed to activate virtual environment"; exit 1; }
 
 install_packages() {
+    pip install -U pip setuptools wheel
+
     echo "🔄 Installing transformers==$TRANSFORMERS_VERSION..."
-    pip install transformers==$TRANSFORMERS_VERSION || { echo "❌ Failed to install transformers"; exit 1; }
+    pip install "transformers==$TRANSFORMERS_VERSION" || { echo "❌ Failed to install transformers"; exit 1; }
     
     echo "🔄 Installing Flask==$FLASK_VERSION..."
-    pip install Flask==$FLASK_VERSION || { echo "❌ Failed to install Flask"; exit 1; }
+    pip install "Flask==$FLASK_VERSION" || { echo "❌ Failed to install Flask"; exit 1; }
 
     echo "🔄 Installing Pillow==$PILLOW_VERSION..."
-    pip install Pillow==$PILLOW_VERSION || { echo "❌ Failed to install Pillow"; exit 1; }
+    pip install "Pillow==$PILLOW_VERSION" || { echo "❌ Failed to install Pillow"; exit 1; }
 
     echo "🔄 Installing torch==$TORCH_VERSION..."
-    pip install torch==$TORCH_VERSION  || { echo "❌ Failed to install torch"; exit 1; }
+    pip install "torch==$TORCH_VERSION" || { echo "❌ Failed to install torch"; exit 1; }
 }
 
 install_packages
@@ -552,6 +581,9 @@ server {
     listen 80;
     server_name $HOST;
 
+    # Default max upload size. If you increase this on settings must be less or equal to this value
+    client_max_body_size 100M;
+
     location / {
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto \$scheme;
@@ -637,22 +669,15 @@ server {
        proxy_set_header Connection "upgrade";
     }
 
-    location ~ ^/([a-fA-F0-9]{64})(\.[a-zA-Z0-9]+)?(/([a-fA-F0-9]{64})(\.[a-zA-Z0-9]+)?)?$ {
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_set_header Host $host;
-        proxy_pass http://127.0.0.1:3000/api/v2/media/mirror;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
-    }
-
 }
 
 # Additional server block for cdn.$HOST
 server {
     listen 80;
     server_name cdn.$HOST;
+
+    # Default max upload size. If you increase this on settings must be less or equal to this value
+    client_max_body_size 100M;
 
     # Static folder always redirects to the root host folder
     location /static {
@@ -676,6 +701,33 @@ server {
         proxy_set_header Connection "upgrade";
     }
 }
+
+# Additional server block for relay.$HOST
+server {
+    listen 80;
+    server_name relay.$HOST;
+
+    location / {
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_set_header Host \$host;
+        proxy_pass http://127.0.0.1:3000/api/v2/relay;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection "upgrade";
+    }
+
+    location /static {
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_set_header Host \$host;
+        proxy_pass http://127.0.0.1:3000/static;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection "upgrade";
+    }
+}
+
 EOF
 
 if [ -f /etc/nginx/sites-available/$HOST.conf ]; then
@@ -692,7 +744,7 @@ fi
 echo "⚙️ Enabling nginx site for $HOST..."
 
 # Create a symbolic link to enable the site
-if sudo ln -s /etc/nginx/sites-available/$HOST.conf /etc/nginx/sites-enabled/$HOST.conf; then
+if sudo ln -sf /etc/nginx/sites-available/$HOST.conf /etc/nginx/sites-enabled/$HOST.conf; then
     echo "✅ Nginx site for $HOST enabled successfully."
     sleep 3
 else
@@ -758,104 +810,6 @@ RestartSec=5s
 WantedBy=multi-user.target
 EOF"
 
-# Ask user if they want to execute certbot for SSL
-clear
-echo "═══════════════════════════════════════════════════════════════════════════════"
-echo "               🔒 Do you want to secure your server with SSL? 🔒             "
-echo "═══════════════════════════════════════════════════════════════════════════════"
-echo ""
-echo "Certbot can automatically obtain and install a free SSL certificate for your server."
-echo "This will enable HTTPS, ensuring secure communication between your server and clients."
-echo ""
-echo "🌐 Domain to be secured: $HOST"
-echo ""
-echo "⚠️ IMPORTANT: Make sure your domain's DNS records are correctly configured"
-echo "   to point to this server before proceeding."
-echo ""
-echo "Would you like to proceed with Certbot to obtain an SSL certificate? [y/n]"
-echo ""
-read -r input
-
-if [ "$input" = "y" ]; then
-    clear
-    echo ""
-    echo "═══════════════════════════════════════════════════════════════════════════════"
-    echo "          🔐 Executing Certbot to Obtain SSL Certificate for $HOST              "
-    echo "═══════════════════════════════════════════════════════════════════════════════"
-    echo ""
-    
-    # Run certbot with nginx plugin for the specified domain
-    if sudo certbot --nginx -d "$HOST"; then
-        echo "✅ SSL certificate obtained successfully for $HOST."
-
-        # Restart nginx to apply the new SSL certificate
-        echo ""
-        echo "🔄 Restarting Nginx to apply the new SSL certificate..."
-        echo ""
-        if sudo service nginx restart; then
-            echo "✅ Certbot configured successfully!"
-            sleep 3
-        else
-            echo "❌ Failed to restart Nginx. Please check the service status."
-            sleep 3
-            exit 1
-        fi
-    else
-        echo "❌ Failed to obtain SSL certificate for $HOST. Please check the Certbot logs for details."
-        sleep 3
-        exit 1
-    fi
-fi
-
-# Ask user if they want to execute certbot for SSL certificate for cdn.$HOST
-clear
-echo "═══════════════════════════════════════════════════════════════════════════════"
-echo "          🔒 Do you want to secure your CDN subdomain with SSL? 🔒        "
-echo "═══════════════════════════════════════════════════════════════════════════════"
-echo ""
-echo "Certbot can automatically obtain and install a free SSL certificate for your CDN subdomain."
-echo "This will enable HTTPS, ensuring secure communication for content delivery from cdn.$HOST."
-echo ""
-echo "🌐 Subdomain to be secured: cdn.$HOST"
-echo ""
-echo "⚠️ IMPORTANT: Make sure the DNS records for 'cdn.$HOST' are correctly configured"
-echo "   to point to this server before proceeding."
-echo ""
-echo "Would you like to proceed with Certbot to obtain an SSL certificate for your CDN? [y/n]"
-echo ""
-read -r input_cdn
-
-if [ "$input_cdn" = "y" ]; then
-    clear
-    echo ""
-    echo "═══════════════════════════════════════════════════════════════════════════════"
-    echo "      🔐 Executing Certbot to Obtain SSL Certificate for cdn.$HOST              "
-    echo "═══════════════════════════════════════════════════════════════════════════════"
-    echo ""
-    
-    # Run certbot with nginx plugin for the cdn subdomain
-    if sudo certbot --nginx -d "cdn.$HOST"; then
-        echo "✅ SSL certificate obtained successfully for cdn.$HOST."
-
-        # Restart nginx to apply the new SSL certificate
-        echo ""
-        echo "🔄 Restarting Nginx to apply the new SSL certificate..."
-        echo ""
-        if sudo service nginx restart; then
-            echo "✅ Certbot configured successfully!"
-            sleep 3
-        else
-            echo "❌ Failed to restart Nginx. Please check the service status."
-            sleep 3
-            exit 1
-        fi
-    else
-        echo "❌ Failed to obtain SSL certificate for cdn.$HOST. Please check the Certbot logs for details."
-        sleep 3
-        exit 1
-    fi
-fi
-
 if [ -f /etc/systemd/system/nostrcheck.service ]; then
     clear
     echo ""
@@ -882,6 +836,80 @@ if [ -f /etc/systemd/system/nostrcheck.service ]; then
         sleep 5
     fi
 fi
+
+# --- Certbot SSL (fault-tolerant per domain) ---
+clear
+echo "═══════════════════════════════════════════════════════════════════════════════"
+echo "        🔒 Do you want to secure your server with SSL (Let's Encrypt)?        "
+echo "═══════════════════════════════════════════════════════════════════════════════"
+echo ""
+echo "A certificate will be requested for (if resolvable):"
+echo " - $HOST"
+echo " - cdn.$HOST"
+echo " - relay.$HOST"
+echo ""
+echo "Make sure DNS A/AAAA records point to this server."
+echo ""
+read -r -p "Proceed with Certbot now? [y/n]: " input_ssl
+
+if [ "$input_ssl" = "y" ]; then
+  # Build candidate list
+  CANDIDATES=("$HOST" "cdn.$HOST" "relay.$HOST")
+
+  # Filter by DNS resolution (best-effort)
+  RESOLVING=()
+  for d in "${CANDIDATES[@]}"; do
+    if getent hosts "$d" >/dev/null; then
+      RESOLVING+=("$d")
+    else
+      echo "⚠️  Warning: $d does not resolve from this machine; skipping in first pass."
+    fi
+  done
+
+  if [ "${#RESOLVING[@]}" -eq 0 ]; then
+    echo "⚠️  No resolvable domains detected. Skipping SSL setup."
+  else
+    # Try one-shot multidomain first
+    CB_ARGS=()
+    for d in "${RESOLVING[@]}"; do CB_ARGS+=("-d" "$d"); done
+
+    CERT_ANY_OK=0
+    echo "🔑 Attempting multi-domain certificate for: ${RESOLVING[*]}"
+    if sudo certbot --nginx --redirect "${CB_ARGS[@]}"; then
+      CERT_ANY_OK=1
+      echo "✅ Multi-domain certificate obtained."
+    else
+      echo "⚠️  Multi-domain attempt failed. Falling back to per-domain attempts..."
+      # Fallback: try each domain independently; do not abort on failures
+      for d in "${RESOLVING[@]}"; do
+        echo "🔑 Trying single-domain certificate for: $d"
+        if sudo certbot --nginx --redirect -d "$d"; then
+          CERT_ANY_OK=1
+          echo "✅ Certificate obtained for $d."
+        else
+          echo "⚠️  Failed to obtain certificate for $d. Continuing..."
+        fi
+      done
+    fi
+
+    # If at least one certificate succeeded, test & restart nginx
+    if [ "$CERT_ANY_OK" -eq 1 ]; then
+      echo "🔄 Validating Nginx configuration..."
+      if sudo nginx -t; then
+        if sudo systemctl restart nginx; then
+          echo "✅ Nginx restarted with SSL."
+        else
+          echo "⚠️  Nginx restart failed. Please check service status. Continuing installer..."
+        fi
+      else
+        echo "⚠️  nginx -t failed after Certbot changes. Review configs. Continuing installer..."
+      fi
+    else
+      echo "⚠️  No certificates could be issued. Continuing without SSL."
+    fi
+  fi
+fi
+# --- End Certbot SSL ---
 
 # End message
 clear

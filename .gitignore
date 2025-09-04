@@ -22,6 +22,7 @@ installation.md
 coverage/*
 models/*
 env/*
+.venv/*
 
 # Docker compose volumes
 compose.override.yml
