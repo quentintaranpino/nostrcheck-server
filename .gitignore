@@ -30,3 +30,7 @@ data/
 # Ignore logs
 logs/*
 *.csv
+
+# Python venv
+.venv/*
+
