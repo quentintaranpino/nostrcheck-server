@@ -82,7 +82,7 @@ const logIn = async (type, rememberMe, buttonId) =>{
                                       ), 'login').then(response => {
                                         response.json().then(data => {
                                             if (data.status === "success") {
-                                                window.location.href = "/api";
+                                                window.location.href = "/profile";
                                             } else {
                                                 initAlertModal("#login", data.message);
                                                 document.getElementById(buttonId).innerHTML = buttonText;
@@ -120,7 +120,7 @@ const logIn = async (type, rememberMe, buttonId) =>{
               await fetchServer(loginEvent,'login').then(response => {
                   response.json().then(data => {
                       if (data.status === "success") {
-                          window.location.href = "/api";
+                          window.location.href = "/profile";
                       } else {
                           initAlertModal("#login", data.message);
                           document.getElementById(buttonId).innerHTML = buttonText;
@@ -171,7 +171,7 @@ const logIn = async (type, rememberMe, buttonId) =>{
     await fetchServer(JSON.stringify(data), `login`).then(response => {
       response.json().then(data => {
           if (data.status === 'success') {
-              window.location.href = "/api";
+              window.location.href = "/profile";
           } else {
               initAlertModal("#login", data.message);
               document.getElementById('otc_submit').innerHTML = buttonText;
