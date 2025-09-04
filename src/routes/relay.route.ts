@@ -50,7 +50,7 @@ export const loadRelayRoutes = (app: Application, version:string, httpServer : S
       socket.destroy();
       return;
     }
-    if (req.url === "/api/v2/relay") {
+    if (req.url === "/api/v2/relay" || req.url === "/relay") {
       wss.handleUpgrade(req, socket, head, ws =>
         wss.emit("connection", ws, req)
       );
@@ -98,7 +98,7 @@ export const loadRelayRoutes = (app: Application, version:string, httpServer : S
   });
 
   // Relay & NIP 11 info
-  app.get("/api/v2/relay", limiter(), (req, res) => {
+  app.get([`/api/v2/relay`, `/relay`], limiter(), (req, res) => {
     const acceptHeader = req.headers['accept'] || '';
     if (!acceptHeader.includes('application/nostr+json'))  return loadRelayPage(req,res,version);
     return NIP11Data(req, res);

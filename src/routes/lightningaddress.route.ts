@@ -11,7 +11,7 @@ export const loadLightningaddressEndpoint = async (app: Application, version: st
     const base = `/api/${version}${getModuleInfo("lightning", "")?.path}`;
 
     // Route to redirect lightning address
-    app.get(`${base}/:name`, limiter(), redirectlightningddress); 
+    app.get([`${base}/:name`, `/.well-known/lnurlp/:name`], limiter(), redirectlightningddress);
 
     // Update lightning address
     app.put(`${base}/:lightningaddress`, limiter(), express.json(), updateLightningRedirect);

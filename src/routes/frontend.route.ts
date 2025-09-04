@@ -55,7 +55,7 @@ export const loadFrontendEndpoint = async (app: Application, version: string): P
 	});
 
 	// Login POST
-	app.post("/api/" + version + "/login/:param1?", 
+	app.post(["/api/" + version + "/login/:param1?", "/login/:param1?"], 
 		limiter(4), 
 		express.json({limit: '1mb'}), 
 		(req, res) => {
