@@ -9,6 +9,6 @@ export const loadNostraddressEndpoint = async (app: Application, version:string)
 	const base = `/api/${version}${getModuleInfo("nostraddress", "")?.path}`;
 
 	// Nostraddress endpoint
-	app.get(`${base}`, limiter(), getNostraddress);
+	app.get([`/.well-known/nostr.json`, `${base}`], limiter(), getNostraddress);
 
 };

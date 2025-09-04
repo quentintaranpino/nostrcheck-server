@@ -486,61 +486,23 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 
 const getMedia = async (req: Request, res: Response, version:string) => {
 
-	if ((req.params.param1 && req.params.param2) && (req.params.param1 != "list" && req.params.param1 != "public" && req.params.param1 != "vanity")) {
-		if (req.params.param2 == 'tags'){
-			req.params.fileId = req.params.param1;
-			getMediaTagsbyID(req, res); 
-			return;
-		}else if(req.params.param1 == 'tag'){
-			req.params.tag = req.params.param2;
-			getMediabyTags(req, res);
-			return;
-		}else{
-			req.params.pubkey = req.params.param1;
-			req.params.filename = req.params.param2;
-			getMediabyURL(req, res);
-			return;
-		}
-	}
-
-	// Get media by URL (only filename)
-	if (req.params.param1 && req.params.param1.length >= 11) {
-		req.params.filename = req.params.param1;
-		getMediabyURL(req, res);
-		return;
-	}
-
-	// Old public file URL
-	const isOldPublicFile = !!req.params.param2 && req.params.param2.includes('.') && req.params.param2.split('.').pop()!.length >= 2;
-	if (req.params.param1 && req.params.param2 && isOldPublicFile) {
-		req.params.pubkey   = req.params.param1;
-		req.params.filename = req.params.param2;
-		return getMediabyURL(req, res);
-	}
-
-	// Get media by ID, getmedia listing
-	if (req.params.param1 && req.params.param1.length < 11) {
-
-		if(req.params.param1 == "list" || req.params.param1 == "public" || req.params.param1 == "vanity"){
-			 // Blossom, public and vanity media listing
-			getMediaList(req, res);
-			return;
-		}else{
-			req.params.id = req.params.param1;
-			getMediaStatusbyID(req, res, version);
-			return;
-		}
-	}
-
-	// List media
-	if (req.query && Object.keys(req.query).length > 0 && req.query.page != undefined && req.query.count != undefined) {
-		getMediaList(req, res); // List media NIP96 compatibility
-		return;
-	}
-
 	// CDN home page
 	if (req.params.param1 == undefined && req.params.param2 == undefined) {
 		loadCdnPage(req, res, version) 
+		return;
+	}
+
+	// Get media by URL
+	if (req.params.param2 || (req.params.param1 && req.params.param1.length >= 11)) {
+		req.params.filename = req.params.param2 ?? req.params.param1;
+		if (req.params.param2) req.params.pubkey = req.params.param1; 
+		return getMediabyURL(req, res);
+	}
+
+	// Get media by ID
+	if (req.params.param1 && req.params.param1.length < 11) {
+		req.params.id = req.params.param1;
+		getMediaStatusbyID(req, res, version);
 		return;
 	}
 
@@ -569,25 +531,27 @@ const headMedia = async (req: Request, res: Response): Promise<Response> => {
 	logger.info(`headMedia - Request from:`, reqInfo.ip);
 
 	// Get file hash from URL
-	const hash = req.params.param1.toString().split(".")[0];
-	if (!hash) {
-		logger.warn(`headMedia - 400 Bad request - missing hash`, "|", reqInfo.ip);
-		res.setHeader("X-Reason", "Missing hash");
-		return res.status(400).send();
-	}
+	const raw = (req.params as any).sha ?? "";
+	const hash = String(raw).split(".")[0].toLowerCase();
 
-	// Check if file exist on storage server
-	const filePath = await getFilePath(hash);
-	if (filePath == "") {
-		logger.info(`headMedia - 404 Not found - file not found on storage server: ${hash}`, "|", reqInfo.ip);
-		res.setHeader("X-Reason", "File not found on storage server");	
-		return res.status(404).send();
+	if (!hash || !/^[a-f0-9]{64}$/.test(hash)) {
+		logger.warn(`headMedia - 400 Missing/invalid hash`, "|", reqInfo.ip);
+		res.setHeader("X-Reason", "Missing or invalid hash");
+		return res.status(400).send();
 	}
 
 	// Check if file exist on database
 	const fileData = await dbMultiSelect(["id", "filesize", "hash", "original_hash", "mimetype"], "mediafiles", "original_hash = ?", [hash], true);
 	if (fileData.length == 0) {
 		logger.error(`headMedia - 404 Not found - file not found in database: ${hash}`, "|", reqInfo.ip);
+		res.setHeader("X-Reason", "File not found on storage server");	
+		return res.status(404).send();
+	}
+
+	// Check if file exist on storage server
+	const filePath = await getFilePath(hash);
+	if (filePath == "") {
+		logger.info(`headMedia - 404 Not found - file not found on storage server: ${hash}`, "|", reqInfo.ip);
 		res.setHeader("X-Reason", "File not found on storage server");	
 		return res.status(404).send();
 	}
@@ -609,7 +573,7 @@ const headMedia = async (req: Request, res: Response): Promise<Response> => {
 		
 		if (transaction.transactionid != 0 && transaction.isPaid == false && getConfig(req.hostname, ["payments", "satoshi", "mediaMaxSatoshi"]) > 0) {
 			res.setHeader("X-Lightning", transaction.paymentRequest);
-			res.setHeader("X-Lightning-amount", transaction.satoshi);
+			res.setHeader("X-Lightning-Amount", transaction.satoshi);
 			res.setHeader("X-Reason", `Invoice (${transaction.satoshi}) for hash: ${hash}`);
 			return res.status(402).send()
 		}
@@ -622,8 +586,21 @@ const headMedia = async (req: Request, res: Response): Promise<Response> => {
 		return res.status(403).send();
 	}
 
+	// Set headers
+	const mime = fileData[0].mimetype || "application/octet-stream";
+	let size = Number(fileData[0].filesize) || 0;
+	if (!size) {
+		try {
+		const st = await fs.promises.stat(filePath);
+		size = st.size;
+		} catch { /* no-op */ }
+	}
+	res.setHeader("Content-Type", mime);
+	if (size) res.setHeader("Content-Length", String(size));
+	res.setHeader("Accept-Ranges", "bytes");
+	res.setHeader("ETag", `"${hash}"`);
+
 	logger.info(`headMedia - File found successfully: ${hash}`, "|", reqInfo.ip);
-	res.setHeader("Content-Type", fileData[0].mimetype);
 
 	return res.status(200).send();
 
@@ -648,30 +625,31 @@ const getMediaList = async (req: Request, res: Response): Promise<Response> => {
 
 	logger.info(`getMediaList - Request from:`, reqInfo.ip);
 
-	let listType;
-	switch (req.params.param1) {
-		case "list":
-			listType = "Blossom";
-			break;
-		case "public":
-			listType = "public";
-			break;
-		case "vanity":
-			listType = "vanity";
-			break;
-		default:
-			listType = "NIP96";
-			break;
+	let listType: "Blossom" | "public" | "vanity" | "NIP96";
+	const routePath = (req.path || "").toString();
+	if (routePath.includes("/listpublic")) {
+		listType = "public";
+	} else if (routePath.includes("/vanity")) {
+		listType = "vanity";
+	} else if (routePath.includes("/list")) {
+		listType = "Blossom";
+	} else if (req.query.page !== undefined && req.query.count !== undefined) {
+		listType = "NIP96";
+	} else {
+		listType = "NIP96"; 
 	}
+
+	// Get pubkey from request
+	const pubkey = (req.params.pubkey || (req as any).params?.param2 || req.query.pubkey || "").toString();
 
 	// Check if authorization header is valid
 	const eventHeader = await parseAuthHeader(req, "list", false, true, true);
 	if (eventHeader.status != "success") {
-		if (!req.params.param2 && listType == "NIP96") {
+		if (listType == "NIP96") {
 			return res.status(401).send({ result: false, description: eventHeader.message });
 		}
-		logger.debug(`getMediaList - Invalid auth, fallback to public files for pubkey: ${req.params.param2}`, "|", reqInfo.ip);
-		eventHeader.pubkey = "";
+  		logger.debug(`getMediaList - Invalid auth, fallback to public files ${pubkey ? "for pubkey: " + pubkey : ""}`);
+  		eventHeader.pubkey = "";
 	}
 
 	// Get NIP96 query parameters
@@ -681,45 +659,45 @@ const getMediaList = async (req: Request, res: Response): Promise<Response> => {
 	const offset = count * page; 
 
 	// Get Blossom query parameters
-	const since = req.query.since?.toString() || 0;
-	const until = req.query.until?.toString() || 0;
-	const pubkey = req.params.param2 || "";
+	const since = req.query.since?.toString() || "0";
+	const until = req.query.until?.toString() || "0";
 
 	let whereStatement = "";
 	let whereFields: (string | number)[] = [];
-	
-	if (listType == "public") {
-		whereStatement = "active = '1' AND visibility = '1' AND checked = '1' AND original_hash IS NOT NULL ORDER BY date DESC LIMIT ? OFFSET ?";
-		whereFields = [count, offset];
+
+	if (listType === "public") {
+	// Todos los públicos (tu no-estándar)
+	whereStatement = "active = '1' AND visibility = '1' AND checked = '1' AND original_hash IS NOT NULL ORDER BY date DESC LIMIT ? OFFSET ?";
+	whereFields = [count, offset];
+
+	} else if (listType === "vanity") {
+	// Públicos de un pubkey concreto (tu no-estándar)
+	whereStatement = "active = '1' AND visibility = '1' AND checked = '1' AND original_hash IS NOT NULL AND pubkey = ? ORDER BY date DESC LIMIT ? OFFSET ?";
+	whereFields = [pubkey, count, offset];
+
+	} else if (listType === "Blossom") {
+	// BUD-02 /list/:pubkey (auth opcional)
+	const isOwner = eventHeader.pubkey && eventHeader.pubkey === pubkey;
+	if (isOwner) {
+		whereStatement = "pubkey = ? AND active = '1' AND original_hash IS NOT NULL";
+		whereFields = [pubkey];
+	} else {
+		whereStatement = "pubkey = ? AND active = '1' AND visibility = '1' AND checked = '1' AND original_hash IS NOT NULL";
+		whereFields = [pubkey];
 	}
-	else if (listType == "vanity") {
-		whereStatement = "active = '1' AND visibility = '1' AND checked = '1' AND original_hash IS NOT NULL AND pubkey = ? ORDER BY date DESC LIMIT ? OFFSET ?";
-		whereFields = [pubkey, count, offset];
-	} 
-	else if (listType == "Blossom") {
-		whereStatement = eventHeader.pubkey == pubkey
-			? "pubkey = ? and active = ? and original_hash is not null"
-			: "pubkey = ? and active = ? and visibility = ? and checked = ? and original_hash is not null";
-		whereFields = eventHeader.pubkey == pubkey
-			? [pubkey, "1"]
-			: [pubkey, "1", "1", "1"];
-	
-		if (since != 0) {
-			whereStatement += " and date >= ?";
-			whereFields.push(new Date(Number(since) * 1000).toISOString().slice(0, 19).replace('T', ' '));
-		}
-	
-		if (until != 0) {
-			whereStatement += " and date <= ?";
-			whereFields.push(new Date(Number(until) * 1000).toISOString().slice(0, 19).replace('T', ' '));
-		}
-	
-		whereStatement += " ORDER BY date DESC";
+	if (since !== "0") {
+		whereStatement += " AND date >= ?";
+		whereFields.push(new Date(Number(since) * 1000).toISOString().slice(0, 19).replace("T", " "));
 	}
-	else {
-		// NIP96
-		whereStatement = "pubkey = ? and active = ? ORDER BY date DESC LIMIT ? OFFSET ?";
-		whereFields = [eventHeader.pubkey, "1", count, offset];
+	if (until !== "0") {
+		whereStatement += " AND date <= ?";
+		whereFields.push(new Date(Number(until) * 1000).toISOString().slice(0, 19).replace("T", " "));
+	}
+	whereStatement += " ORDER BY date DESC";
+
+	} else {
+		whereStatement = "pubkey = ? AND active = '1' ORDER BY date DESC LIMIT ? OFFSET ?";
+		whereFields = [eventHeader.pubkey, count, offset];
 	}
 
 	// Get files and total from database
@@ -727,10 +705,30 @@ const getMediaList = async (req: Request, res: Response): Promise<Response> => {
 										"mediafiles",
 										`${whereStatement}`,
 										whereFields, false);
+
+
 	
-	// Only for NIP96 compatibility
-	const selectStatement = eventHeader.pubkey || pubkey ? "SELECT COUNT(*) AS count FROM mediafiles WHERE pubkey = ? and active = '1'" : "SELECT COUNT(*) AS count FROM mediafiles WHERE active = '1' and visibility = '1'";									
-	const total = await dbSelect(selectStatement, "count", [eventHeader.pubkey || pubkey]);
+	// Only for NIP96 / Public / Vanity
+	let total;
+	if (listType === "NIP96") {
+		total = await dbSelect(
+			"SELECT COUNT(*) AS count FROM mediafiles WHERE pubkey = ? AND active = '1'",
+			"count",
+			[eventHeader.pubkey]
+		);
+	} else if (listType === "public") {
+		total = await dbSelect(
+			"SELECT COUNT(*) AS count FROM mediafiles WHERE active = '1' AND visibility = '1' AND checked = '1' AND original_hash IS NOT NULL",
+			"count",
+			[]
+		);
+	} else if (listType === "vanity") {
+		total = await dbSelect(
+			"SELECT COUNT(*) AS count FROM mediafiles WHERE active = '1' AND visibility = '1' AND checked = '1' AND original_hash IS NOT NULL AND pubkey = ?",
+			"count",
+			[pubkey]
+		);
+	}
 	
 	const files : (BlobDescriptor | NIP94_data)[] = [];
 	for (const e of result) {
@@ -789,25 +787,26 @@ const getMediaList = async (req: Request, res: Response): Promise<Response> => {
 
 		listedFile.url = pubkey != "" ? getFileUrl(listedFile.filename, undefined, req.hostname) : getFileUrl(listedFile.filename, listedFile.pubkey, req.hostname);
 	
-		const file = req.params.param1 == "list" ? await prepareBlobDescriptor(listedFile) : await PrepareNIP96_listEvent(listedFile);
+		const file = listType === "Blossom"
+					? await prepareBlobDescriptor(listedFile)   
+					: await PrepareNIP96_listEvent(listedFile);
 		files.push(file);
 	}
 
 	logger.info(`getMediaList - Successfully listed ${files.length} files`, "|", reqInfo.ip);
 
-	// NIP96, public and vanity compatibility
-	if (listType != "Blossom") {
-		const response = {
-			count: files.length,
-			total: total || 0,
-			page: page,
-			files: files,
-		};
-		return res.status(200).send(response);
-	}else{
-	// Blossom compatibility
-		return res.status(200).send(Array.isArray(files) ? files : [files]);
+	// NIP96, public y vanity -> objeto con {count,total,page,files}
+	if (listType !== "Blossom") {
+	return res.status(200).send({
+		count: files.length,
+		total: total || 0,
+		page,
+		files
+	});
 	}
+
+	// Blossom -> array de BlobDescriptor
+	return res.status(200).send(Array.isArray(files) ? files : [files]);
 
 };
 
@@ -1787,6 +1786,7 @@ const headUpload = async (req: Request, res: Response): Promise<Response> => {
 
 export { uploadMedia,
 		getMedia, 
+		getMediaList,
 		headMedia,
 		getMediabyURL, 
 		deleteMedia, 

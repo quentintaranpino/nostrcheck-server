@@ -251,7 +251,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
         for (const entry of entries) {
             if (entry.isIntersecting) {
                 page++;
-                const apiURL = privateGallery ? `/api/v2/media?page=${page}&count=${mediaCount}` : pubkey ? `/api/v2/media/vanity/${pubkey}?page=${page}&count=${mediaCount}` : `/api/v2/media/public?page=${page}&count=${mediaCount}`;
+                const apiURL = privateGallery ? `/api/v2/media?page=${page}&count=${mediaCount}` : pubkey ? `/api/v2/media/vanity/${pubkey}?page=${page}&count=${mediaCount}` : `/api/v2/media/listpublic?page=${page}&count=${mediaCount}`;
                 const response = await fetch(apiURL, {
                     method: "GET",
                     credentials: privateGallery ? 'include' : 'omit',
