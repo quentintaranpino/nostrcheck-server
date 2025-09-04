@@ -12,6 +12,10 @@ a, .nav-link, .nav-link:hover, .nav-link:active, .nav-link:visited {
   max-width: 300px;
 }
 
+code{
+    color: #84888b;
+}
+
 
 html[data-bs-theme="light"] {
   .btn-primary {

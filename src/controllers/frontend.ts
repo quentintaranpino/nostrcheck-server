@@ -624,7 +624,7 @@ const loadRelayPage = async (req: Request, res: Response, version:string): Promi
 
     // Specific locals
     res.locals.serverPubkey = await hextoNpub(getConfig(req.hostname, ["server", "pubkey"]));
-    res.locals.lastRelayNotes = await dbMultiSelect(["pubkey","created_at","content"], "events", "kind = ? AND active = ?", ["1", "1"], false,"ORDER BY id DESC LIMIT 15");
+    res.locals.lastRelayNotes = await dbMultiSelect(["event_id","pubkey","created_at","content", "kind"], "events", "active = ?", ["1"], false,"ORDER BY id DESC LIMIT 500");
 
     // Set auth cookie
     setAuthCookie(res, req.cookies.authkey);
