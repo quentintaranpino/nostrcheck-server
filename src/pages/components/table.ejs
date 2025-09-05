@@ -473,7 +473,7 @@
                     var columns = $(tableId).bootstrapTable('getOptions').columns[0];
                     await initEditModal(tableId,row,objectName, true, columns).then(async (editedRow) => {
                         console.debug(editedRow)
-                        if (editedRow) {await modifyRecord("admin/insertrecord/",tableId, null, null, null, 'insert', editedRow)};
+                        if (editedRow) {await modifyRecord("/api/v2/admin/insertrecord/",tableId, null, null, null, 'insert', editedRow)};
                     });
                     return
                 }
@@ -488,7 +488,7 @@
                                 console.debug(editedRow)
                                 console.debug(row)
                                 if (editedRow[field] != row[field]){
-                                    await modifyRecord("admin/updaterecord/", tableId, row.id, field, editedRow[field], 'modify')                     
+                                    await modifyRecord("/api/v2/admin/updaterecord/", tableId, row.id, field, editedRow[field], 'modify')                     
                                 }
                             }
                         }
@@ -504,19 +504,19 @@
                     if (modal.result == true) {
                         for (let id of ids) {
                             if (modaltext === 'remove') {
-                                modifyRecord("admin/deleterecord/", tableId, id, field, fieldValue, 'remove');
+                                modifyRecord("/api/v2/admin/deleterecord/", tableId, id, field, fieldValue, 'remove');
                             } else if (modaltext === 'reset password') {
-                                modifyRecord("admin/resetpassword/", tableId, id, field, fieldValue, 'password');
+                                modifyRecord("/api/v2/admin/resetpassword/", tableId, id, field, fieldValue, 'password');
                             }else if (modaltext === 'pay') {
-                                modifyRecord("payments/paytransaction/", tableId, id, field, fieldValue, 'pay');
+                                modifyRecord("/api/v2/payments/paytransaction/", tableId, id, field, fieldValue, 'pay');
                             }else if (modaltext === 'balance') {
-                                modifyRecord("payments/addbalance/", tableId, id, field, modal.value, 'balance');
+                                modifyRecord("/api/v2/payments/addbalance/", tableId, id, field, modal.value, 'balance');
                             }else if (modaltext === 'ban') {
-                                modifyRecord("admin/ban", tableId, id, field, modal.value, 'ban');
+                                modifyRecord("/api/v2/admin/ban", tableId, id, field, modal.value, 'ban');
                             }else if (modaltext === 'moderate') {
-                                modifyRecord("admin/moderaterecord/", tableId, id, field, fieldValue, 'moderate');
+                                modifyRecord("/api/v2/admin/moderaterecord/", tableId, id, field, fieldValue, 'moderate');
                             } else {
-                                modifyRecord("admin/updaterecord/", tableId, id, field, fieldValue, 'modify');
+                                modifyRecord("/api/v2/admin/updaterecord/", tableId, id, field, fieldValue, 'modify');
                             }
                         }
                     }
@@ -736,7 +736,7 @@
                         let modalResult = modal.data;
                         for (let field in modalResult) {
                             if (modalResult[field] != row[field]) {
-                                await modifyRecord("admin/updaterecord/", '#filesData', row.id, field, modalResult[field], 'modify');
+                                await modifyRecord("/api/v2/admin/updaterecord/", '#filesData', row.id, field, modalResult[field], 'modify');
                                 refreshTable('#filesData');
                             }
                         }
@@ -760,7 +760,7 @@
                     let modalResult = modal.data;
                     for (let field in modalResult) {
                         if (modalResult[field] != row[field]) {
-                            await modifyRecord("admin/updaterecord/", '#filesData', row.id, field, modalResult[field], 'modify');
+                            await modifyRecord("/api/v2/admin/updaterecord/", '#filesData', row.id, field, modalResult[field], 'modify');
                             refreshTable('#filesData');
                         }
                     }
