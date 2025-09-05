@@ -5,6 +5,7 @@ import { Request, Response } from "express";
 import { hextoNpub } from "./nostr/NIP19.js";
 import path from "path";
 import fs from "fs";
+import { Page } from "../interfaces/frontend.js";
 
 const countPubkeyFiles = async (pubkey: string): Promise<number> => {
 
@@ -185,4 +186,28 @@ const replaceTokens = (domain: string | null, input: string | null | undefined):
   });
 };
 
-export {isAutoLoginEnabled, countPubkeyFiles, setAuthCookie, getLegalText, getResource, replaceTokens, getSiteManifest};
+
+const generateSitemap = (pages: Page[], baseUrl: string): string => {
+  const urlset = pages.map((page: Page) => {
+    const loc = `${baseUrl.replace(/\/+$/, "")}${page.path}`;
+    const lastmod = page.lastmod ? `<lastmod>${page.lastmod}</lastmod>` : "";
+    const changefreq = page.changefreq ? `<changefreq>${page.changefreq}</changefreq>` : "";
+    const priority = page.priority !== undefined ? `<priority>${page.priority.toFixed(1)}</priority>` : "";
+    return `
+  <url>
+    <loc>${loc}</loc>
+    ${lastmod}
+    ${changefreq}
+    ${priority}
+  </url>`;
+  }).join("");
+
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+${urlset}
+</urlset>`;
+
+}
+
+
+export {isAutoLoginEnabled, countPubkeyFiles, setAuthCookie, getLegalText, getResource, replaceTokens, getSiteManifest, generateSitemap};

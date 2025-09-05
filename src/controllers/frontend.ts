@@ -4,7 +4,7 @@ import { logger } from "../lib/logger.js";
 import { markdownToHtml } from "../lib/utils.js";
 import { dbMultiSelect, dbSelect} from "../lib/database/core.js";
 import { generateAuthToken, generateOTC, isPubkeyAllowed, isPubkeyValid, isUserPasswordValid, verifyOTC } from "../lib/authorization.js";
-import { countPubkeyFiles, getLegalText, getResource, isAutoLoginEnabled, replaceTokens, setAuthCookie } from "../lib/frontend.js";
+import { countPubkeyFiles, generateSitemap, getLegalText, getResource, isAutoLoginEnabled, replaceTokens, setAuthCookie } from "../lib/frontend.js";
 import { hextoNpub, npubToHex } from "../lib/nostr/NIP19.js";
 import { dynamicbackgroundThemes, particles} from "../interfaces/appearance.js";
 import { getUsernames } from "../lib/register.js";
@@ -14,6 +14,7 @@ import { getModules, getConfig, getTenants, isModuleEnabled } from "../lib/confi
 import path from "path";
 import { getDomains } from "../lib/domains.js";
 import { isNIP98Valid } from "../lib/nostr/NIP98.js";
+import { sitemapPages } from "../interfaces/frontend.js";
 
 const loadDashboardPage = async (req: Request, res: Response, version:string): Promise<Response | void> => {
 
@@ -804,6 +805,13 @@ const loadTheme = async (req: Request, res: Response): Promise<void> => {
     res.send(css);
 };
 
+const loadSitemap = async (req: Request, res: Response): Promise<void> => {
+    const baseUrl = `${req.protocol}://${req.hostname}`;
+    const sitemap = generateSitemap(sitemapPages, baseUrl);
+    res.setHeader("Content-Type", "application/xml");
+    res.send(sitemap);
+};
+
 export {loadDashboardPage, 
         loadSettingsPage, 
         loadMdPage, 
@@ -819,4 +827,6 @@ export {loadDashboardPage,
         loadConverterPage,
         loadRelayPage,
         loadResource,
-        loadTheme};
+        loadTheme,
+        loadSitemap
+    };

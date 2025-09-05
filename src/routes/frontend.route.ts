@@ -14,6 +14,7 @@ import { 	loadDashboardPage,
 			loadConverterPage,
 			loadResource,
 			loadTheme,
+			loadSitemap,
 		} from "../controllers/frontend.js";
 import { frontendLogin } from "../controllers/frontend.js";
 import { logger } from "../lib/logger.js";
@@ -222,5 +223,8 @@ export const loadFrontendEndpoint = async (app: Application, version: string): P
 
 	// Manifest
 	app.get("/site.webmanifest", getSiteManifest);
+
+	// Sitemap
+	app.get("/sitemap.xml", loadSitemap);
 
 };
