@@ -398,7 +398,7 @@ const handleEvent = async (socket: ExtendedWebSocket, event: MetadataEvent) => {
       return;
     }
 
-    const relayUrl = getConfig(socket.reqInfo.domain, ["server", "host"]) + "/api/v2/relay";
+    const relayUrl = getConfig(socket.reqInfo.domain, ["server", "host"]) + "/relay";
     const eventUrl = relayTags.some(tag => tag[1].toUpperCase() === "ALL_RELAYS" || tag[1] === relayUrl);
     if (!eventUrl) {
       logger.debug(`handleEvent - Rejected kind:62 event ${event.id} due to invalid relay tag.`);

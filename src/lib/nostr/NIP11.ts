@@ -31,8 +31,8 @@ const getNIP11file = (hostname: string): NIP11File => {
     },
     language_tags: getConfig(hostname, ["relay", "language_tags"]),
     tags: getConfig(hostname, ["relay", "tags"]),
-    terms_of_service: `${getHostInfo(hostname).url}/api/v2/tos/`,
-    privacy_policy: `${getHostInfo(hostname).url}/api/v2/privacy/`,
+    terms_of_service: `${getHostInfo(hostname).url}/tos/`,
+    privacy_policy: `${getHostInfo(hostname).url}/privacy/`,
   };
 
   return nip11file;

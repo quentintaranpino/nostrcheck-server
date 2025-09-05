@@ -46,7 +46,7 @@ SERVERHOST strictly prohibits the hosting, uploading, or sharing of:
 ## 6. Data Privacy and Storage
 
 * **SERVERHOST** may log connection data, including IP addresses, for security and legal compliance.
-* Any data stored will be handled in accordance with our [**Privacy Policy**](/api/v2/privacy).
+* Any data stored will be handled in accordance with our [**Privacy Policy**](/privacy).
 
 ## 7. Final Notes
 

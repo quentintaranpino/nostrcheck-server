@@ -13,7 +13,7 @@ const getNIP96file = async (domain: string): Promise<NIP96file> => {
     
         "api_url": `${getMediaUrl("NIP96", domain)}`,
         "supported_nips": supported_nips,
-        "tos_url": `${getHostInfo(domain).url}/api/v2/tos/`,
+        "tos_url": `${getHostInfo(domain).url}/tos/`,
         "content_types": await getAllowedMimeTypes(),
         "plans": {
             "free": {

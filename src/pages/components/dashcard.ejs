@@ -179,7 +179,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const fetchDashcardData = async (dashcardDataKey, action, field) => {
       try {
           if (dashcardDataKey === 'admin' && action == 'status') {
-              const res = await fetch('admin/status');
+              const res = await fetch('/api/v2/admin/status');
               const serverInfo = await res.json();
               if (field === 'uptime') {
                   const timeParts = serverInfo.uptime.split(':');
@@ -192,13 +192,13 @@ document.addEventListener('DOMContentLoaded', async () => {
           }
 
           if (dashcardDataKey === 'relay' && action == 'status') {
-              const res = await fetch('relay/status');
+              const res = await fetch('/api/v2/relay/status');
               const serverInfo = await res.json();
               return { field: serverInfo[field], total: serverInfo[field] };
           }
           
 
-          const res = await fetch(`admin/modulecountdata?module=${dashcardDataKey}&action=${action}&field=${field}`, {
+          const res = await fetch(`/api/v2/admin/modulecountdata?module=${dashcardDataKey}&action=${action}&field=${field}`, {
               method: 'GET',
               headers: { 'Content-Type': 'application/json' },
           });

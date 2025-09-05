@@ -46,7 +46,7 @@ async function saveSettings() {
                 shouldReload = true;
             }
             
-            const url = 'admin/updatesettings';
+            const url = '/api/v2/admin/updatesettings';
             const headers = {
                 "Content-Type": "application/json"
             };

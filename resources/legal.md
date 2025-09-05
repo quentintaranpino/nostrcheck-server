@@ -9,7 +9,7 @@ LEGALINFO
 ## 2. Nature of the Service
 
 * The service is a decentralized and community-driven platform designed to facilitate communication and data sharing.
-* The service **is provided as is** and is subject to the **[Privacy Policy](/api/v2/privacy)** and **[Terms of Service](/api/v2/tos)**.
+* The service **is provided as is** and is subject to the **[Privacy Policy](/privacy)** and **[Terms of Service](/tos)**.
 * The service may receive voluntary donations for maintenance and development.
 * The service does not endorse any user-generated content and operates under the principle of minimal intervention except for cases that violate legal obligations.
 
@@ -24,7 +24,7 @@ LEGALINFO
 
 * Users have the right to access, rectify, or delete their personal data as required by applicable data protection laws in their jurisdiction.
 * Requests for data modification or deletion can be made via Nostr **[here](https://primal.net/p/SERVERCONTACT)** or via **SERVEREMAIL**.
-* See our **[Privacy Policy](/api/v2/privacy)** for more information on data collection, processing, and storage.
+* See our **[Privacy Policy](/privacy)** for more information on data collection, processing, and storage.
 
 ### Legal Basis for Data Processing
 

@@ -160,7 +160,7 @@
 
         const fetchCountData = async (datakey, action, field) => {
             let serverData  = ""
-            await fetch(`admin/modulecountdata?module=${datakey}&action=${action}&field=${field}`, {
+            await fetch(`/api/v2/admin/modulecountdata?module=${datakey}&action=${action}&field=${field}`, {
             method: 'GET', headers: {'Content-Type': 'application/json'}})
             .then(response => response.json())
             .then(data => {

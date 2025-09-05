@@ -327,7 +327,7 @@
             };
 
             $(tableId).bootstrapTable({
-                url: 'admin/moduledata?module=' + dataKey + '&tenant=' + tenant,
+                url: '/api/v2/admin/moduledata?module=' + dataKey + '&tenant=' + tenant,
                 ajax: function (params) {fetchTabledata(params, tableId)},
                 idField: 'id',
                 uniqueId: 'id',
