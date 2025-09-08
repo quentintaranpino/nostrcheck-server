@@ -5,13 +5,14 @@
 
 import { emptyInvoice, Invoice } from "../../interfaces/payments.js";
 import { logger } from "../logger.js";
-import { nwc as NWC } from "@getalby/sdk";
 import WebSocket from 'ws'
 import { execWithTimeout } from "../utils.js";
 import { getConfig } from "../config/core.js";
 global.WebSocket = WebSocket as any;
+import { NWCClient } from "@getalby/sdk/nwc";
 
-const nwc = new NWC.NWCClient({
+
+const nwc = new NWCClient({
     nostrWalletConnectUrl: `${getConfig(null, ["payments", "paymentProviders", "nwc", "url"])}`,
 });
 
