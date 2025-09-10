@@ -17,6 +17,7 @@ RUN npm install -g npm@latest && npm ci --include=optional
 COPY resources ./resources
 COPY src ./src
 
+# Install Python dependencies
 RUN python3 -m venv "$VENV_DIR" && \
     . "$VENV_DIR/bin/activate" && \
     pip install --upgrade pip && \
@@ -24,9 +25,15 @@ RUN python3 -m venv "$VENV_DIR" && \
         torch==2.4.1 && \
     pip install transformers==4.44.2 Flask==3.0.3 Pillow==10.4.0
 
+# Install Rust (for tokenizers)
+ENV CARGO_HOME=/usr/local/cargo \
+    RUSTUP_HOME=/usr/local/rustup
+ENV PATH="${CARGO_HOME}/bin:${PATH}"
 SHELL ["/bin/bash", "-lc"]
-RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y && \
-    rustc --version && cargo --version
+RUN set -eux; \
+  curl -fsSL https://sh.rustup.rs | sh -s -- -y --profile minimal; \
+  "${CARGO_HOME}/bin/rustc" -V; \
+  "${CARGO_HOME}/bin/cargo" -V
 
 RUN npm run build
 

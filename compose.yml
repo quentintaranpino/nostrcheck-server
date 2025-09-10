@@ -5,7 +5,6 @@ services:
     networks:
     - localnet
     image: nostrcheckme/nostrcheck-server:testing
-    build: .
     depends_on:
       - mariadb
       - redis
@@ -29,7 +28,6 @@ services:
       - "traefik.http.services.app.loadbalancer.sticky=true"
       - "traefik.http.services.app.loadbalancer.sticky.cookie.name=app_session"
       - "traefik.http.routers.app.entrypoints=web"
-      # 
       - "traefik.http.routers.app.rule=PathPrefix(`/`)"
       - "traefik.http.routers.app.service=app"
     command: "npm run start"
