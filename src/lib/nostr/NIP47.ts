@@ -12,9 +12,16 @@ global.WebSocket = WebSocket as any;
 import { NWCClient } from "@getalby/sdk/nwc";
 
 
-const nwc = new NWCClient({
-    nostrWalletConnectUrl: `${getConfig(null, ["payments", "paymentProviders", "nwc", "url"])}`,
-});
+// Lazy NWC client
+let nwc: NWCClient | null = null;
+function getNwc(): NWCClient | null {
+    const url = getConfig(null, ["payments", "paymentProviders", "nwc", "url"]);
+    if (!url) return null;
+    if (!nwc) {
+        nwc = new NWCClient({ nostrWalletConnectUrl: url });
+    }
+    return nwc;
+}
 
 const generateNwcInvoice = async (LNAddress: string, amount:number) : Promise<Invoice> => {
 
@@ -22,8 +29,11 @@ const generateNwcInvoice = async (LNAddress: string, amount:number) : Promise<In
 
     try{
 
+        const nwcClient = getNwc();
+        if (!nwcClient) return emptyInvoice;
+
         const response = await execWithTimeout (
-            nwc.makeInvoice({amount: amount * 1000, description: ""}),
+            nwcClient.makeInvoice({amount: amount * 1000, description: ""}),
             1000,
         );
 
@@ -61,7 +71,11 @@ const isInvoicePaidNwc = async (paymentHash: string): Promise<{ paiddate: string
     const lookupWithRetry = async (retries: number): Promise<{ paiddate: string, preimage: string }> => {
         while (retries > 0) {
             try {
-                const invoice = await nwc.lookupInvoice({ payment_hash: paymentHash });
+
+                const nwcClient = getNwc();
+                if (!nwcClient) return emptyResponse;
+
+                const invoice = await nwcClient.lookupInvoice({ payment_hash: paymentHash });
                 if (invoice && invoice.preimage && invoice.preimage !== "null") {
                     return { paiddate: invoice.settled_at.toString(), preimage: invoice.preimage };
                 }
