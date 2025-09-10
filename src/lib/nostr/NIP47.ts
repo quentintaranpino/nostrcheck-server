@@ -11,14 +11,18 @@ import { getConfig } from "../config/core.js";
 global.WebSocket = WebSocket as any;
 import { NWCClient } from "@getalby/sdk/nwc";
 
-
 // Lazy NWC client
 let nwc: NWCClient | null = null;
+let nwcUrl: string | null = null;
+
 function getNwc(): NWCClient | null {
     const url = getConfig(null, ["payments", "paymentProviders", "nwc", "url"]);
     if (!url) return null;
-    if (!nwc) {
+
+    // recreate client if url changed
+    if (!nwc || nwcUrl !== url) {
         nwc = new NWCClient({ nostrWalletConnectUrl: url });
+        nwcUrl = url;
     }
     return nwc;
 }
