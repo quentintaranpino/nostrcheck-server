@@ -48,12 +48,12 @@ const globalCfg = locals.globalConfig?.server || {};
         overridable: false,
         options: [
           { value: "development", label: "development" },
-          { value: "production", label: "production" }
+          { value: "production",  label: "production"  }
         ],
         alert: {
-          type: "warning",
+          type: "danger",
           icon: "fa-triangle-exclamation",
-          message: "If you select 'production', make sure the server runs under HTTPS. Otherwise, login cookies will not work and sessions will fail."
+          message: "If you set <b>production</b> but the site is not served over <b>HTTPS</b>, login cookies will not be stored and you will lose access to <b>Dashboard</b> and <b>Settings</b>. Put a reverse proxy with TLS (Nginx/Traefik) or keep <b>development</b> until HTTPS is ready."
         }
       }) %>
 
@@ -61,7 +61,7 @@ const globalCfg = locals.globalConfig?.server || {};
         type: "text",
         name: "server.host",
         label: "Hostname",
-        description: "Used to identify the server. Must match the domain.",
+        description: "Used to identify the server. Must match the server domain name.",
         value: cfg.host,
         globalValue: globalCfg.host,
         placeholder: "example.com (without https://)",

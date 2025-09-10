@@ -29,7 +29,14 @@ const isAutoLoginEnabled = async (req : Request, res: Response): Promise<boolean
         res.locals.firstUse =  
         "<h5 class='mt-3 mb-2'>Read this carefully 💜</h5>" +
         "<p>You are currently logged in automatically with the special administrator account: <b>'public'</b>. This user is created by default and is essential for the server's initial operation. <b>Do not delete this user</b>.</p>" +
-      
+        "<div class='alert alert-warning ps-2 pe-2 pt-1 pb-0' role='alert'>" +
+          "<p><b>The server is currently running in development mode.</b> " +
+          "Make sure you switch to <b>production</b> environment and place the server " +
+          "behind a secure HTTPS proxy (like Nginx or Traefik). Running in development mode keeps the server " +
+          "less secure and should only be used temporarily during initial setup or local testing.</p>" +
+          "<p>If the environment is set to <b>production</b> but the site is not served over <b>HTTPS</b>, " +
+          "your login session will not persist (Secure cookies are ignored over HTTP). You will lose access to <b>Dashboard</b> and <b>Settings</b> pages." +
+        "</div>" +
         "<div class='alert alert-danger ps-2 pe-2 pt-1 pb-0' role='alert'>" +
           "<p><b>Autologin is currently enabled.</b> This means the server will automatically log in with the 'public' user until <b>you manually disable autologin in the settings</b>.</p>" +
           "<p><b>We strongly recommend that you:</b><br>" +
