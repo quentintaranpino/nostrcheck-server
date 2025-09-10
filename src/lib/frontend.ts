@@ -74,17 +74,15 @@ const isAutoLoginEnabled = async (req : Request, res: Response): Promise<boolean
  * @param token - The JWT token to be set in the cookie
  */
 const setAuthCookie = (res: Response, token: string) => {
+
     const currentToken = res.getHeader('Set-Cookie')?.toString().includes(`authkey=${token}`) ? token : null;
-    if (currentToken === token) return;
 
-    const forwardedProto = (res.req?.headers["x-forwarded-proto"] || "").toString();
-    const isHttps = forwardedProto === "https";
-    const isProd = getConfig(null, ["environment"]) === "production";
+    if (currentToken  == token) return;
 
-    res.cookie("authkey", token, {
-        httpOnly: true,
-        secure: isProd ? isHttps : false,
-        sameSite: "strict",
+    res.cookie('authkey', token, {
+        httpOnly: getConfig(null, ["environment"]) != "production" ? false : true,
+        secure: getConfig(null, ["environment"]) != "production" ? false : true,
+        sameSite: 'strict',
         maxAge: getConfig(null, ["session", "maxAge"]),
     });
 };

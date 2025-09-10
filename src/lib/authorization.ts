@@ -90,7 +90,10 @@ const parseAuthHeader = async (req: Request, endpoint: string = "", checkAdminPr
  */
 const isPubkeyValid = async (pubkey: string, checkAdminPrivileges = false, checkRegistered = true, checkActive = true): Promise<boolean> => {
 
-	if (pubkey === undefined || pubkey === "") {return false;}
+	if (pubkey === undefined || pubkey === "") {
+		logger.debug(`isPubkeyValid - No pubkey provided`);
+		return false;
+	}
 
 	if (await isPubkeyRegistered(pubkey) == false) {
 		logger.debug(`isPubkeyValid - Pubkey not registered: ${pubkey}`);
