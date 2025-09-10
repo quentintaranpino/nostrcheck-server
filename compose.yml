@@ -12,6 +12,7 @@ services:
       - ./files:/usr/src/app/files
       - ./resources:/usr/src/app/resources
       - ./config:/usr/src/app/config
+      - ./logs:/usr/src/app/logs
     restart: always
     environment: 
       DATABASE_HOST: "mariadb"
@@ -68,8 +69,5 @@ services:
     volumes:
       - "/var/run/docker.sock:/var/run/docker.sock"
     restart: always
-volumes:
-  files:
-  resources:
 networks:
   localnet:
