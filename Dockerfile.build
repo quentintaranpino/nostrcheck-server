@@ -1,40 +1,34 @@
-FROM node:20
-
+# syntax=docker/dockerfile:1.6
+FROM node:20 AS base
 ENV DEBIAN_FRONTEND=noninteractive
-
-# Environment variables
 ENV VENV_DIR=/usr/src/app/.venv
-ENV PATH="$VENV_DIR/bin:$PATH"
-
-# Install ffmpeg
-RUN apt-get update && \
-    apt-get install -y ffmpeg nano && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
-
-# App packages
+ENV PATH="$VENV_DIR/bin:/root/.cargo/bin:$PATH"
 WORKDIR /usr/src/app
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+      ffmpeg ca-certificates curl bash nano \
+      python3 python3-venv \
+    && rm -rf /var/lib/apt/lists/*
+
 COPY package*.json tsconfig.json ./
-RUN npm install -g npm@latest
-RUN npm install --include=optional sharp
+RUN npm install -g npm@latest && npm ci --include=optional
 
-# Copy the rest of the app
-COPY /resources ./resources
-COPY ./src ./src
+COPY resources ./resources
+COPY src ./src
 
-# Install Python dependencies
-RUN python3 -m venv $VENV_DIR && \
-    source $VENV_DIR/bin/activate && \
+RUN python3 -m venv "$VENV_DIR" && \
+    . "$VENV_DIR/bin/activate" && \
     pip install --upgrade pip && \
-    pip install transformers==4.37.2 Flask==3.1.0 Pillow==10.4.0 torch==2.6.0 
+    pip install --index-url https://download.pytorch.org/whl/cpu \
+        torch==2.4.1 && \
+    pip install transformers==4.44.2 Flask==3.0.3 Pillow==10.4.0
 
-# Install Rust
+SHELL ["/bin/bash", "-lc"]
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y && \
-source $HOME/.cargo/env && \
-rustc --version && cargo --version
+    rustc --version && cargo --version
 
 RUN npm run build
 
 EXPOSE 3000
-
 CMD ["npm", "start"]
