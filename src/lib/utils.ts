@@ -199,12 +199,13 @@ function getCPUUsage(): Promise<number> {
  * Get host information
  * @returns { hostname: string, port: string, url: string, mediaURL: string }
  */
-const getHostInfo = (domain: string): { hostname: string, port: string, url: string} => {
+const getHostInfo = (domain: string): { hostname: string, port: string, url: string, fullHostname: string } => {
 	const environment = getConfig(null, ["environment"]);
 	const port = getConfig(null, ["server", "port"]);
 	const hostname = getConfig(domain, ["server", "host"]);
-	const url = environment === "development" ? `http://localhost:${port}` : `https://${hostname}`;
-	return {hostname, port, url};
+	const fullHostname = hostname === "localhost" || hostname === "127.0.0.1" ? `${hostname}:${port}` : hostname;
+	const url = environment === "development" ? `http://${fullHostname}` : `https://${fullHostname}`;
+	return {hostname, port, url, fullHostname};
 };
 
 /**

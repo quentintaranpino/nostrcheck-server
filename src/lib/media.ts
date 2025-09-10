@@ -650,9 +650,15 @@ const getMediaUrl = (type: "NIP96" | "BLOSSOM", domain: string): string => {
 	const returnURL = getConfig(domain, ["media", "returnURL"]);
 
 	const hostInfo = getHostInfo(domain);
-	if (environment === "development") return `${hostInfo.url}/api/v2/media`;
+
 	if (returnURL)	return returnURL;
-	return `https://${useCDNPrefix ? `cdn.${hostInfo.hostname}` : type === "NIP96" ? `${hostInfo.hostname}/media` : hostInfo.hostname}`;
+	if (environment === "development") return `${hostInfo.url}/api/v2/media`;
+	if (useCDNPrefix) return `https://cdn.${hostInfo.fullHostname}`;
+	if (type === "NIP96") return `https://${hostInfo.fullHostname}/media`;
+	if (type === "BLOSSOM") return `https://${hostInfo.fullHostname}`;
+
+	logger.error(`getMediaUrl - Error getting media URL, type: ${type}, domain: ${domain}`);
+	return "";
 }
 
 /**
