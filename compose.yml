@@ -24,6 +24,8 @@ services:
       REDIS_USER: "default"
       REDIS_PASSWORD: ""
     command: "npm run start"
+    ports:
+      - "3000:3000"
   mariadb:
     networks:
      - localnet
