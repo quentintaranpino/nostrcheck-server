@@ -497,7 +497,7 @@
                             ? window.location.protocol + "//" + window.location.hostname + '/api/v2/media/' 
                             : window.location.protocol + "//" + window.location.hostname + '/api/v2/media'],
                             ["x", file.fileData.hash],
-                            ["expiration", Math.floor(Date.now() / 1000) + 3600],
+                            ["expiration", (Math.floor(Date.now() / 1000) + 3600).toString()],
                             ["method", "POST"],
                             ],
                         content: 'NIP98 authorization event for file upload',
@@ -512,7 +512,7 @@
                         tags: [
                             ["t", 'upload'],
                             ["x", file.fileData.hash],
-                            ["expiration", Math.floor(Date.now() / 1000) + 3600],
+                            ["expiration", (Math.floor(Date.now() / 1000) + 3600).toString()],
                             ],
                         content: 'Blossom authorization event for file upload',
                     };
@@ -520,6 +520,7 @@
                 }
 
                 authEvent = btoa(JSON.stringify(await window.nostr.signEvent(authEvent)));
+                console.log("AUTH EVENT SIGNED", authEvent)
 
             } catch (error) {
                 console.error(error);
@@ -655,12 +656,13 @@
                     tags: [
                         ["t", 'upload'],
                         ["x", file.fileData.hash],
-                        ["expiration", Math.floor(Date.now() / 1000) + 3600],
+                        ["expiration", (Math.floor(Date.now() / 1000) + 3600).toString()],
                         ],
                     content: 'Blossom authorization event for file upload',
                 };
 
                 authEvent = btoa(JSON.stringify(await window.nostr.signEvent(authEvent)));
+                console.log("AUTH EVENT SIGNED", authEvent);
 
             } catch (error) {
                 console.error(error);
