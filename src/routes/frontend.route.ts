@@ -22,6 +22,7 @@ import { isPubkeyValid } from "../lib/authorization.js";
 import { limiter } from "../lib/security/core.js";
 import { getSiteManifest, isAutoLoginEnabled } from "../lib/frontend.js";
 import { getClientInfo } from "../lib/security/ips.js";
+import { faviconPaths } from "../interfaces/media.js";
 
 export const loadFrontendEndpoint = async (app: Application, version: string): Promise<void> => {
 
@@ -164,11 +165,14 @@ export const loadFrontendEndpoint = async (app: Application, version: string): P
 		});
 	});
 
-	// The relay frontend page is managed by the relay.route.ts file
-
 	// Favicons
-	app.get(["/favicon.ico", "/favicon-32x32.png", "/favicon-16x16.png", "/apple-touch-icon.png", "/android-chrome-192x192.png", "/android-chrome-512x512.png"],
-			limiter(), loadResource);
+	app.get(
+	[
+		...faviconPaths,                    			// root (normal host)
+		...faviconPaths.map(p => `/api/v2/media${p}`), 	// cdn subdomain favicons
+		...faviconPaths.map(p => `/api/v2/relay${p}`)  	// relay subdomain favicons
+	],
+		limiter(), loadResource);
 
 	// Manifest
 	app.get("/site.webmanifest", getSiteManifest);
