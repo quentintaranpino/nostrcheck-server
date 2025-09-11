@@ -747,12 +747,48 @@ const loadResource = async (req: Request, res: Response): Promise<Response | voi
         res.status(404).send();
         return;
     }
-    const resourcePath = await getResource(tenant, req.params.filename);
+    const resourcePath = await getResource(tenant, req.params.filename || req.path.replace("/", ""));
     if (resourcePath == null) {
         logger.error(`loadResource - Resource not found: ${req.params.filename}`, "|", getClientInfo(req).ip);
         res.status(404).send();
         return;
     }
+
+    // Set headers
+    const ext = path.extname(resourcePath).toLowerCase();
+    const mimeTypes: {[key: string]: string} = {
+        ".js": "application/javascript",
+        ".css": "text/css",
+        ".png": "image/png",
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".gif": "image/gif",
+        ".webp": "image/webp",
+        ".json": "application/json",
+        ".html": "text/html",
+        ".svg": "image/svg+xml",    
+        ".ico": "image/x-icon",
+        ".woff": "font/woff",
+        ".woff2": "font/woff2",
+        ".ttf": "font/ttf",
+        ".eot": "application/vnd.ms-fontobject",
+        ".otf": "font/otf"
+    };
+
+    const contentType = mimeTypes[ext] || "application/octet-stream";
+    res.setHeader("Content-Type", contentType);
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Cache-Control", "public, max-age=14400, immutable");
+    if (
+        contentType.startsWith("image/") ||
+        contentType.startsWith("font/")  ||
+        contentType.startsWith("video/") ||
+        contentType.startsWith("audio/")
+    ) {
+        res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+    }
+    res.removeHeader("Cross-Origin-Opener-Policy");
+
     res.sendFile(path.resolve(resourcePath));
     return;
 

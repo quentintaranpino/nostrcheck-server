@@ -167,59 +167,8 @@ export const loadFrontendEndpoint = async (app: Application, version: string): P
 	// The relay frontend page is managed by the relay.route.ts file
 
 	// Favicons
-	app.get("/favicon.ico", async (req, res) => {
-		const filePath = await getResource(req.hostname, "favicon.ico");
-		if (filePath) {
-			res.type("image/x-icon");
-			return res.sendFile(filePath);
-		}
-		return res.status(404).send("Favicon not found");
-	});
-
-	app.get("/favicon-32x32.png", async (req, res) => {
-		const filePath = await getResource(req.hostname, "favicon-32x32.png");
-		if (filePath) { 
-			res.type("image/png"); 
-			return res.sendFile(filePath); 
-		}
-		return res.status(404).send("Favicon 32 not found");
-	});
-
-	app.get("/favicon-16x16.png", async (req, res) => {
-		const filePath = await getResource(req.hostname, "favicon-16x16.png");
-		if (filePath) { 
-			res.type("image/png"); 
-			return res.sendFile(filePath); 
-		}
-		return res.status(404).send("Favicon 16 not found");
-	});
-
-	app.get("/apple-touch-icon.png", async (req, res) => {
-	const filePath = await getResource(req.hostname, "apple-touch-icon.png");
-	if (filePath) {
-		res.type("image/png");
-		return res.sendFile(filePath);
-	}
-	return res.status(404).send("Apple Touch Icon not found");
-	});
-
-	app.get("/android-chrome-192x192.png", async (req, res) => {
-	const filePath = await getResource(req.hostname, "android-chrome-192x192.png");
-	if (filePath) {
-		res.type("image/png");
-		return res.sendFile(filePath);
-	}
-	return res.status(404).send("Android Chrome 192x192 Icon not found");
-	});
-
-	app.get("/android-chrome-512x512.png", async (req, res) => {
-	const filePath = await getResource(req.hostname, "android-chrome-512x512.png");
-	if (filePath) {
-		res.type("image/png");
-		return res.sendFile(filePath);
-	}
-	return res.status(404).send("Android Chrome 512x512 Icon not found");
-	});
+	app.get(["/favicon.ico", "/favicon-32x32.png", "/favicon-16x16.png", "/apple-touch-icon.png", "/android-chrome-192x192.png", "/android-chrome-512x512.png"],
+			limiter(), loadResource);
 
 	// Manifest
 	app.get("/site.webmanifest", getSiteManifest);
