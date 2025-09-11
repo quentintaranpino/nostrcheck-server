@@ -82,6 +82,8 @@ const getConfig = (tenant: string | null, keyPath: string[]): any => {
       normalizedTenant = normalizedTenant.split(".").slice(1).join(".");
     }
   }
+
+  console.log(normalizedTenant, configStore.domainMap.domainToId, multiTenancy);
   const domainId = normalizedTenant ? configStore.domainMap.domainToId[normalizedTenant] : null;
 
   let globalValue = configStore.global;
