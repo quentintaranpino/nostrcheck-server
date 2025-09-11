@@ -247,7 +247,7 @@ const defaultConfig = {
 		"requireinvite": false,
 	},
 	"security" : {
-		"maxDefaultRequestMinute": 150,
+		"maxDefaultRequestMinute": 300,
 		"media" : {
 			"maxUploadsMinute": 10,
 		},
