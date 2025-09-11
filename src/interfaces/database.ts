@@ -100,7 +100,7 @@ const mediafilesTableFields: MediafilesTableStructure = {
 		"INDEX idx_filename (filename)",
 		"INDEX idx_original_hash (original_hash)",
 		"INDEX idx_filename_original_hash (filename, original_hash)",
-		"INDEX idx_localpath (localpath)",
+		"INDEX idx_localPath (localPath)",
 		"INDEX idx_checked (checked)",
 		"INDEX idx_checked_active (checked, active)"
 	],

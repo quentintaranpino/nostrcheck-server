@@ -71,7 +71,7 @@ const migrateDBLocalpath = async () : Promise<boolean> => {
 	const mediaFiles = await dbMultiSelect(
 									["filename", "pubkey", "type"],
 									"mediafiles",
-									"(localpath IS NULL or localpath = '') ORDER BY id DESC",
+									"(localPath IS NULL or localPath = '') ORDER BY id DESC",
 									['1=1'], 
 									false);
 
@@ -79,7 +79,7 @@ const migrateDBLocalpath = async () : Promise<boolean> => {
         return false;
     }
 
-	console.log("Migrating", mediaFiles.length, "files", "to new localpath folder version, it can take a while...");
+	console.log("Migrating", mediaFiles.length, "files", "to new localPath folder version, it can take a while...");
 
 	const mediaPath = getConfig(null, ["storage", "local", "mediaPath"]);
 	
@@ -101,7 +101,7 @@ const migrateDBLocalpath = async () : Promise<boolean> => {
 			console.log('Checking if file exists:', newPath);
 			if (!fs.existsSync(newPath)) {
 				console.error(`File not found: ${newPath}`);
-				await dbUpdate('mediafiles', {'localpath': null}, ['filename', 'pubkey'], [filename, pubkey]);
+				await dbUpdate('mediafiles', {'localPath': null}, ['filename', 'pubkey'], [filename, pubkey]);
 				continue;
 			}
 			const { generatefileHashfromfile } = await import("../lib/hash.js");
@@ -109,14 +109,14 @@ const migrateDBLocalpath = async () : Promise<boolean> => {
 			console.log('Generated new filename:', newFilename);
 			if (!newFilename || newFilename === path.extname(filename)) {
 				console.error(`Failed to generate new filename for ${filename}`);
-				await dbUpdate('mediafiles', {'localpath': null}, ['filename', 'pubkey'], [filename, pubkey]);
+				await dbUpdate('mediafiles', {'localPath': null}, ['filename', 'pubkey'], [filename, pubkey]);
 				continue;
 			}
 			console.log('Trying to update database with new filename:', newFilename, 'for', filename, 'and pubkey', pubkey);	
 			const updFilename = await dbUpdate('mediafiles', {'filename': newFilename}, ['filename', 'pubkey'], [filename, pubkey]);
 			if (!updFilename) {
 				console.error(`Failed to update media file ${filename} with new filename`);
-				await dbUpdate('mediafiles', {'localpath': null}, ['filename', 'pubkey'], [filename, pubkey]);
+				await dbUpdate('mediafiles', {'localPath': null}, ['filename', 'pubkey'], [filename, pubkey]);
 				continue;
 			}
 			try{
@@ -125,7 +125,7 @@ const migrateDBLocalpath = async () : Promise<boolean> => {
 								path.join(mediaPath, pubkey, newFilename), async (err) => {
 					if (err) {
 						console.error(`Failed to rename ${newType} file to ${newFilename}: ${err}`);
-						await dbUpdate('mediafiles', {'localpath': null}, ['filename', 'pubkey'], [filename, pubkey]);
+						await dbUpdate('mediafiles', {'localPath': null}, ['filename', 'pubkey'], [filename, pubkey]);
 					} else {
 						console.log(`Renamed ${newType} file to ${newFilename}`);
 					}
@@ -133,7 +133,7 @@ const migrateDBLocalpath = async () : Promise<boolean> => {
 				filename = newFilename;
 			}catch (error) {
 				console.error(`Failed to rename ${newType} file to ${newFilename}: ${error}`);
-				await dbUpdate('mediafiles', {'localpath': null}, ['filename', 'pubkey'], [filename, pubkey]);
+				await dbUpdate('mediafiles', {'localPath': null}, ['filename', 'pubkey'], [filename, pubkey]);
 				continue;
 			}
 		}else{
@@ -142,7 +142,7 @@ const migrateDBLocalpath = async () : Promise<boolean> => {
 				const updtType = await dbUpdate('mediafiles', {'type': "media"}, ['filename', 'pubkey'], [filename, pubkey]);
 				if (!updtType) {
 					console.error(`Failed to update media file ${filename} with type media`);
-					await dbUpdate('mediafiles', {'localpath': null}, ['filename', 'pubkey'], [filename, pubkey]);
+					await dbUpdate('mediafiles', {'localPath': null}, ['filename', 'pubkey'], [filename, pubkey]);
 					continue;
 				}
 			}
@@ -150,11 +150,11 @@ const migrateDBLocalpath = async () : Promise<boolean> => {
 
 		const { getHashedPath } = await import("../lib/hash.js");
 		const hashpath = await getHashedPath(filename);
-        const updLocalPath = await dbUpdate('mediafiles', {'localpath': hashpath}, ['filename', 'pubkey'], [filename, pubkey]);
+        const updLocalPath = await dbUpdate('mediafiles', {'localPath': hashpath}, ['filename', 'pubkey'], [filename, pubkey]);
 
 		if (!updLocalPath) {
 			console.error(`Failed to update media file ${filename} with hashpath ${hashpath}`);
-			await dbUpdate('mediafiles', {'localpath': null}, ['filename', 'pubkey'], [filename, pubkey]);
+			await dbUpdate('mediafiles', {'localPath': null}, ['filename', 'pubkey'], [filename, pubkey]);
 			continue;
 		}
 
@@ -169,7 +169,7 @@ const migrateDBLocalpath = async () : Promise<boolean> => {
             await fs.rename(oldPath, newPath, async (err) => {
 				if (err) {
 					console.error(`Failed to move file ${filename} to ${newPath}: ${err}`);
-					await dbUpdate('mediafiles', {'localpath': null}, ['filename', 'pubkey'], [filename, pubkey]);
+					await dbUpdate('mediafiles', {'localPath': null}, ['filename', 'pubkey'], [filename, pubkey]);
 				} else {
 					console.log(`${count} | ${mediaFiles.length} - Moved file ${filename} to ${newPath}`);
 				}
@@ -177,7 +177,7 @@ const migrateDBLocalpath = async () : Promise<boolean> => {
 			count++;
         } catch (error) {
             console.error(`Failed to move file ${filename} to ${newPath}: ${error}`);
-			await dbUpdate('mediafiles', {'localpath': null}, ['filename', 'pubkey'], [filename, pubkey]);
+			await dbUpdate('mediafiles', {'localPath': null}, ['filename', 'pubkey'], [filename, pubkey]);
 			continue;
         }
     }

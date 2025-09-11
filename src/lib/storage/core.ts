@@ -37,7 +37,7 @@ const saveFile = async (filedata: FileData, originPath : string) : Promise<boole
         }
 
         // save local path to database
-		const updateLocalPath = await dbUpdate('mediafiles',{'localpath':hashpath}, ['filename'], [filedata.filename]);
+		const updateLocalPath = await dbUpdate('mediafiles',{'localPath':hashpath}, ['filename'], [filedata.filename]);
         if (!updateLocalPath)  return false;
 
         return true;
@@ -60,21 +60,21 @@ const getFilePath = async (value: string) : Promise<string> => {
 
     logger.debug(`getFilePath - Checking file exist: ${value}, storage type: ${getConfig(null, ["storage", "type"])}`);    
 
-    const result  = await dbMultiSelect(["localpath", "filename"],
+    const result  = await dbMultiSelect(["localPath", "filename"],
         "mediafiles",
-        "filename = ? or original_hash = ? and localpath is not null",
+        "(filename = ? or original_hash = ?) and localPath is not null",
         [value, value]);
 
     if (result.length === 0) {return "";}
 
-    const {localpath, filename} = result[0];
+    const {localPath, filename} = result[0];
 
     if (getConfig(null, ["storage", "type"]) === "local") {
 
         const mediaPath = getConfig(null, ["storage", "local", "mediaPath"]);
 
-        if (await getLocalFile(mediaPath + localpath +  "/" + filename)){
-            return mediaPath + localpath +  "/" + filename;
+        if (await getLocalFile(mediaPath + localPath +  "/" + filename)){
+            return mediaPath + localPath +  "/" + filename;
         }
 
     }
