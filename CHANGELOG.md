@@ -1,9 +1,9 @@
 # Changelog
 
-### 0.7.0
+## 0.7.0
 
 - The Nostr relay.
-- Improved ban engine.
+- Improved security engine.
 - Improved database engine.
 - Improved redis engine.
 - New log engine.
@@ -15,8 +15,9 @@
 - Improved theming engine.
 - Fixed isFirstUse logic.
 - Tons of new configurable options.
+- General refactor and code cleanup.
 
-### 0.6.0
+## 0.6.0
 
 - New module for local and remote blob storage. Compatibility with S3 remote storage.
 - Lightning support. The server services now can be paid with Lightning.
