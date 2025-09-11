@@ -73,20 +73,17 @@ const deepMerge = (base: any, override: any): any => {
 const getConfig = (tenant: string | null, keyPath: string[]): any => {
 
   const multiTenancy = configStore.global?.multiTenancy;
-  // let normalizedTenant: string | null = tenant ? tenant.toLowerCase() : null;
-  // if (normalizedTenant) {
-  //   while (
-  //     normalizedTenant.split(".").length > 2 &&
-  //     !configStore.domainMap.domainToId[normalizedTenant]
-  //   ) {
-  //     normalizedTenant = normalizedTenant.split(".").slice(1).join(".");
-  //   }
-  // }
+  let normalizedTenant: string | null = tenant ? tenant.toLowerCase() : null;
+  if (normalizedTenant) {
+    while (
+      normalizedTenant.split(".").length > 2 &&
+      !configStore.domainMap.domainToId[normalizedTenant]
+    ) {
+      normalizedTenant = normalizedTenant.split(".").slice(1).join(".");
+    }
+  }
 
-  // const domainId = normalizedTenant ? configStore.domainMap.domainToId[normalizedTenant] : null;
-  const domainId = tenant ? configStore.domainMap.domainToId[tenant] : null;
-
-  console.log(tenant, domainId, keyPath);
+  const domainId = normalizedTenant ? configStore.domainMap.domainToId[normalizedTenant] : null;
 
   let globalValue = configStore.global;
   for (const key of keyPath) {
