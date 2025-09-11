@@ -83,7 +83,6 @@ const getConfig = (tenant: string | null, keyPath: string[]): any => {
     }
   }
 
-  console.log(normalizedTenant, configStore.domainMap.domainToId, multiTenancy);
   const domainId = normalizedTenant ? configStore.domainMap.domainToId[normalizedTenant] : null;
 
   let globalValue = configStore.global;
