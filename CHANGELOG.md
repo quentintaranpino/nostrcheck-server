@@ -16,6 +16,9 @@
 - Fixed isFirstUse logic.
 - Tons of new configurable options.
 - General refactor and code cleanup.
+- Key converter frontend page.
+- Relay frontend page.
+- Improved install script.
 
 ## 0.6.0
 
