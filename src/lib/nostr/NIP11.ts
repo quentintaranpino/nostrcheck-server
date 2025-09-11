@@ -35,6 +35,10 @@ const getNIP11file = (hostname: string): NIP11File => {
     privacy_policy: `${getHostInfo(hostname).url}/privacy/`,
   };
 
+  console.log("NIP11 file generated:", nip11file);
+  console.log("HOSTINFO:", getHostInfo(hostname));
+  console.log("HOSTNAME:", hostname);
+
   return nip11file;
 };
 
