@@ -28,52 +28,48 @@ const isAutoLoginEnabled = async (req : Request, res: Response): Promise<boolean
         }
         res.locals.firstUse =  
         "<h5 class='mt-3 mb-2'>Read this carefully 💜</h5>" +
-        "<p>You are currently logged in automatically with the special administrator account: <b>'public'</b>." + 
-        "This user is created by default and is essential for the server's initial operation. <b>Do not delete this user</b>.</p>";
+        "<p>The server is <b>ready to run</b> as it is, but you must be very clear about the following points.</p>" +
+        "<p>You are currently logged in automatically with the super administrator account: <b>'public'</b>." + 
+        "This user is created by default and is essential for the server's operation. <b>Do not delete this user</b>.</p>";
 
         if(getConfig(null, ["environment"]) != "production"){
           res.locals.firstUse +=
+          "<h5 class='mt-3 mb-2'>Development mode</h5>" +
           "<div class='alert alert-warning ps-2 pe-2 pt-1 pb-0' role='alert'>" +
-            "<p><b>The server is currently running in development mode.</b> " +
-            "Make sure you switch to <b>production</b> environment and place the server " +
+            "<p>Development mode is currently enabled.</p>" +
+            "<p>Make sure you switch to <b>production</b> environment and place the server " +
             "behind a secure HTTPS proxy (like Nginx or Traefik). Running in development mode keeps the server " +
             "less secure and should only be used temporarily during initial setup or local testing.</p>" +
             "<p>If the environment is set to <b>production</b> but the site is not served over <b>HTTPS</b>, " +
-            "your login session will not persist (Secure cookies are ignored over HTTP). You will lose access to <b>Dashboard</b> and <b>Settings</b> pages." +
+            "you will lose access</b> to manage the server. <b>Never run a public server in development mode.</b>" +
           "</div>";
         }
 
         res.locals.firstUse +=
+        "<h5 class='mt-3 mb-2'>Autologin enabled</h5>" +
         "<div class='alert alert-danger ps-2 pe-2 pt-1 pb-0' role='alert'>" +
-          "<p><b>Autologin is currently enabled.</b> This means the server will automatically log in with the 'public' user until <b>you manually disable autologin in the settings</b>.</p>" +
+          "<p><b>Autologin is currently enabled.</b> This means the server will automatically log in with the public user until you manually disable autologin in the settings.</p>" +
           "<p><b>We strongly recommend that you:</b><br>" +
-          "- Create a new user as soon as possible.<br>" +
-          "- Backup the <b>private key</b> available on the <a class='text-decoration-none' href='settings#settingsServer' target='blank'>settings page</a>.<br>" +
-          "- Note down the <b>legacy password</b> sent via nostr DM to the 'public' user.</p>" +
+          "- Backup the public/private key available on the <a class='text-decoration-none' href='settings#settingsServer' target='blank'>settings page</a>.<br>" +
+          "- Note down the legacy password sent via nostr DM to this 'public' user.<br>" +
+          "- Create your own user on <a class='text-decoration-none' href='dashboard'>dashboard</a> and set it as <code>allowed</code> (admin rights).<br>" +
+          "- Disable autologin in the <a class='text-decoration-none' href='settings' target='blank'>settings page</a>.</p>" +
         "</div>" +
       
-        "<h5 class='mt-3 mb-2'>Key Management</h5>" +
-        "<p>The 'public' user was created using the key pair defined in the configuration file to allow easy access during the first use. The server communicates externally using this same key pair.</p>" +
+        "<h5 class='mt-3 mb-2'>Server public user</h5>" +
+        "<p>The 'public' user was created using the key pair defined in the configuration file to allow easy access during the the initial setup steps. The server communicates externally using this same key pair.</p>" +
+        "<p>This 'public' user is also the one that answers <code>NIP-05</code> requests of the form <code>_@server.com</code>. Clients usually treat the identifier <code>_@domain</code> as the root identifier.</p>" +
+       
         "<div class='alert alert-warning ps-2 pe-2 pt-1 pb-0' role='alert'>" +
-          "<p><b>Ensure the server's pubkey matches the 'public' user's pubkey</b> to avoid inconsistencies in communication and data.</p>" +
+          "<p>Ensure the server's configuration file pubkey matches the 'public' user's pubkey to <b>avoid inconsistencies</b> in communication and data.</p>" +
+          "<p>If you need to change the server's pubkey/secret, update it in both places (Settings and editing the 'public' user) before restarting the server.</p>" +
         "</div>" +
+
+        "<h5 class='mt-3 mb-2'>Documentation</h5>" +
+        "<p>It is highly recommended to review the <a href='https://github.com/quentintaranpino/nostrcheck-server/wiki' target='_blank'>project documentation</a> " +
+        "before proceeding with further server configuration steps.</p>" +
       
-        "<h5 class='mt-3 mb-2'>Disabling Autologin</h5>" +
-        "<p>Once you've created another user and are confident you have safely stored the 'public' user's credentials and keys, you should disable autologin from the <a class='text-decoration-none' href='settings#settingsServer' target='blank'>settings page</a>. After that, the server will no longer log in automatically.</p>" +
-      
-        "<h5 class='mt-3 mb-2'>Login Methods</h5>" +
-        "<p>Users can log in using one of the following methods:</p>" +
-        "<ul>" +
-          "<li>With a <b>NIP-07 browser extension</b> (more info <a class='text-decoration-none' href='https://nostrcheck.me/register/browser-extension.php' target='blank'>here</a>).</li>" +
-          "<li>Via traditional username and password.</li>" +
-          "<li>Using a <b>one-time login code</b> sent via nostr DM to the user's pubkey.</li>" +
-        "</ul>" +
-      
-        "<div class='alert alert-primary ps-2 pe-2 pt-1 pb-0' role='alert'>" +
-          "<p>The legacy password for the 'public' user <b>has been sent via nostr DM to the same pubkey</b>. You can retrieve it using any nostr client.</p>" +
-        "</div>" +
-      
-        "<p>Note: Passwords are always sent via DM and cannot be set manually. You can reset any user's password at any time.</p>";
+        "";
       
         return true;
     }
