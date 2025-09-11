@@ -44,6 +44,8 @@ export const loadRelayRoutes = (app: Application, version:string, httpServer : S
 
   httpServer.on("upgrade", async (req, socket, head) => {
 
+    console.log("REQ.URL",req.url)
+
     const ipInfo = await isIpAllowed(req);
     if (ipInfo.banned) {
       socket.write("HTTP/1.1 403 Forbidden\r\n\r\n");
