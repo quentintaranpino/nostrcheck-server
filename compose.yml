@@ -13,6 +13,7 @@ services:
       - ./resources:/usr/src/app/resources
       - ./config:/usr/src/app/config
       - ./logs:/usr/src/app/logs
+      - ./plugins:/usr/src/app/plugins
     restart: always
     environment: 
       DATABASE_HOST: "mariadb"
@@ -25,7 +26,7 @@ services:
       REDIS_PASSWORD: ""
     command: "npm run start"
     ports:
-      - "3000:3000"
+      - "3000:3000"sudo 
   mariadb:
     networks:
      - localnet
