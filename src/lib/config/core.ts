@@ -64,9 +64,25 @@ const deepMerge = (base: any, override: any): any => {
   return result;
 };
 
-const getConfig = (domain: string | null, keyPath: string[]): any => {
+/**
+ * * Get a configuration value for a specific tenant or globally.
+ * * @param {string | null} tenant - The tenant (domain) for which to get the configuration. If null, gets the global configuration.
+ * * @param {string[]} keyPath - The path to the configuration key as an array of strings.
+ * * @returns {any} - The configuration value, or undefined if not found.
+ * */
+const getConfig = (tenant: string | null, keyPath: string[]): any => {
+
   const multiTenancy = configStore.global?.multiTenancy;
-  const domainId = domain ? configStore.domainMap.domainToId[domain] : null;
+  let normalizedTenant: string | null = tenant ? tenant.toLowerCase() : null;
+  if (normalizedTenant) {
+    while (
+      normalizedTenant.split(".").length > 2 &&
+      !configStore.domainMap.domainToId[normalizedTenant]
+    ) {
+      normalizedTenant = normalizedTenant.split(".").slice(1).join(".");
+    }
+  }
+  const domainId = normalizedTenant ? configStore.domainMap.domainToId[normalizedTenant] : null;
 
   let globalValue = configStore.global;
   for (const key of keyPath) {

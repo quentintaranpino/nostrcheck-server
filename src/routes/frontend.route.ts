@@ -20,7 +20,7 @@ import { frontendLogin } from "../controllers/frontend.js";
 import { logger } from "../lib/logger.js";
 import { isPubkeyValid } from "../lib/authorization.js";
 import { limiter } from "../lib/security/core.js";
-import { getResource, getSiteManifest, isAutoLoginEnabled } from "../lib/frontend.js";
+import { getSiteManifest, isAutoLoginEnabled } from "../lib/frontend.js";
 import { getClientInfo } from "../lib/security/ips.js";
 
 export const loadFrontendEndpoint = async (app: Application, version: string): Promise<void> => {
