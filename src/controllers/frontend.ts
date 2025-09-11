@@ -747,7 +747,7 @@ const loadResource = async (req: Request, res: Response): Promise<Response | voi
         res.status(404).send();
         return;
     }
-    const resourcePath = await getResource(tenant, req.params.filename || req.path.replace("/", ""));
+    const resourcePath = await getResource(tenant, req.params.filename || req.path.toString().split("/").pop() || "");
     if (resourcePath == null) {
         logger.error(`loadResource - Resource not found: ${req.params.filename}`, "|", getClientInfo(req).ip);
         res.status(404).send();
