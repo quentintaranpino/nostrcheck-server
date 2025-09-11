@@ -218,7 +218,7 @@ const safeJSONParse = <T>(str: string, defaultVal: T): T => {
 	try {
 		return JSON.parse(str);
 	} catch (e) {
-		logger.error("getEventsDB - Error parsing JSON", e);
+		logger.warn("safeJSONParse - Error parsing JSON", e);
 		return defaultVal;
 	}
 };
