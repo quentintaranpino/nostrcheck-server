@@ -5,6 +5,7 @@ import { NIP96Data } from "../controllers/nostr.js";
 import { limiter } from "../lib/security/core.js";
 import { getConfig, getModuleInfo } from "../lib/config/core.js";
 import { multipartUploadMiddleware, rawUploadMiddleware } from "../lib/middleware/upload.js";
+import { loadCdnPage } from "../controllers/frontend.js";
 
 export const loadMediaEndpoint = async (app: Application, version:string): Promise<void> => {
 
@@ -77,6 +78,21 @@ export const loadMediaEndpoint = async (app: Application, version:string): Promi
 	app.get([`${base}/:param1?/:param2?`, `/media/:param1?/:param2?`, `/:param1([a-fA-F0-9]{64})(.[a-zA-Z0-9._-]{1,15})?(/:param2([a-fA-F0-9]{64})(.[a-zA-Z0-9._-]{1,15})?)?`], 
 	limiter(1000),
 	(req, res) => {
+
+		// No parameters, load CDN frontend
+		if (req.params.param1 == undefined && req.params.param2 == undefined) {
+
+			// Redirect cdn subdomain requests for frontend.
+			if (req.hostname.startsWith("cdn.")) {
+				return res.redirect(301, `https://${req.hostname.replace(/^cdn\./, "")}/media`);
+			}
+
+			// CDN frontend
+			loadCdnPage(req, res, version) 
+			return;
+		}
+
+		// Get media by URL, get Media by ID.
 		getMedia(req, res, version);
 	});
 

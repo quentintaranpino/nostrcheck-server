@@ -486,12 +486,6 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 
 const getMedia = async (req: Request, res: Response, version:string) => {
 
-	// CDN home page
-	if (req.params.param1 == undefined && req.params.param2 == undefined) {
-		loadCdnPage(req, res, version) 
-		return;
-	}
-
 	// Get media by URL
 	if (req.params.param2 || (req.params.param1 && req.params.param1.length >= 11)) {
 		req.params.filename = req.params.param2 ?? req.params.param1;
