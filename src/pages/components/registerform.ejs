@@ -143,6 +143,7 @@
 
             const domainInfo = data.availableDomains[domain];
             let icons = '<i class="fa-solid fa-star me-2" style="color:#a06bc9"></i> Free';
+            console.log("domainInfo", domain, domainInfo)
             if (domainInfo.requirepayment) {
               icons = ' <i class="fa-solid fa-bolt ms-2 me-2" style="color:rgb(255, 128, 24)"></i> Paid';
             }
@@ -165,7 +166,7 @@
           const selectedDomain = event.target.value;
 
           const domainInfo = data.availableDomains[selectedDomain];
-          console.log("domainInfo", domainInfo)
+          console.log("domainInfo", selectedDomain, domainInfo)
 
           if (domainInfo.requireinvite) {
             invitationGroup.classList.remove('d-none');

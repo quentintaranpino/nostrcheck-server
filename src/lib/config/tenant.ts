@@ -1,5 +1,5 @@
 import { TenantInfo } from "../../interfaces/tenants.js";
-import { configStore, getConfig } from "./core.js";
+import { configStore, getConfig, isModuleEnabled } from "./core.js";
 
 const loadTenantConfig = async (domainId: string): Promise<any> => {
   try {
@@ -41,15 +41,14 @@ const loadTenants = async (): Promise<void> => {
 const getPublicTenantConfig = async (domain: string): Promise<TenantInfo | null> => {
 
   const tenantInfo : TenantInfo = {
-      maxsatoshi: getConfig(domain, ["payments", "satoshi", "registerMaxSatoshi"]),
+      maxsatoshi: isModuleEnabled("payments",domain) ? getConfig(domain, ["payments", "satoshi", "registerMaxSatoshi"]) : 0,
       requireinvite: getConfig(domain, ["register", "requireinvite"]),
-      requirepayment: getConfig(domain, ["payments", "satoshi", "registerMaxSatoshi"]) > 0,
+      requirepayment: isModuleEnabled("payments",domain) ? getConfig(domain, ["payments", "satoshi", "registerMaxSatoshi"]) > 0 : false,
       minUsernameLength: getConfig(domain, ["register", "minUsernameLength"]),
       maxUsernameLength: getConfig(domain, ["register", "maxUsernameLength"]),
   };
 
   return tenantInfo;
 };
-
 
 export { updateTenantConfig, loadTenants, getPublicTenantConfig };

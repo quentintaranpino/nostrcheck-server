@@ -232,10 +232,21 @@ const calculateRegisterCost = async (req: Request, res: Response): Promise<Respo
 		return res.status(403).send({"status": "error", "message": reqInfo.comments});
 	}
 
+	const domain = req.body.domain || "";
+		if (domain == null || domain == "" || domain == undefined) {
+		logger.info(`calculateRegisterCost - 400 Bad request - Domain not provided`, "|", reqInfo.ip);
+		return res.status(400).send({status: "error", message: "Domain not provided"});
+	}
+
     // Check if payments module is enabled
-    if (!isModuleEnabled("payments", req.hostname)) {
+    if (!isModuleEnabled("payments", domain)) {
         logger.info(`calculateRegisterCost - Attempt to access a non-active module: payments | IP:`, reqInfo.ip);
-        return res.status(403).send({"status": "error", "message": "Module is not enabled"});
+		const result : amountReturnMessage = {
+			status: "success",
+			message: "Payments module is disabled for this domain",
+			amount: 0
+        };
+		return res.status(200).send(result);
     }
 	// Check if current module is enabled
 	if (!isModuleEnabled("register", req.hostname)) {
@@ -257,15 +268,9 @@ const calculateRegisterCost = async (req: Request, res: Response): Promise<Respo
     }
 
     let size = req.body.size;
-    const domain = req.body.domain || "";
 
 	if (size == null || size == "" || size == undefined || size < 1) {
 		size = getConfig(domain, ["register","minUsernameLength"]);
-	}
-
-	if (domain == null || domain == "" || domain == undefined) {
-		logger.info(`calculateRegisterCost - 400 Bad request - Domain not provided`, "|", reqInfo.ip);
-		return res.status(400).send({status: "error", message: "Domain not provided"});
 	}
 
 	const satoshi = await calculateSatoshi(
