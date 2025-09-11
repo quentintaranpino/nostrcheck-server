@@ -12,9 +12,20 @@ const loadAllDomains = async (): Promise<void> => {
       logger.warn("loadAllDomains - No active domains found in DB");
       return;
     }
-    for (const domain of domains) {
-        await redisCore.set(`domains:${domain.domain}`, domain.id.toString());
+
+    for (const row of domains) {
+      const d = String(row.domain).trim().toLowerCase();
+      if (!d) continue;
+
+      await redisCore.set(`domains:${d}`, String(row.id));
+
+      const parts = d.split(".");
+      if (parts.length >= 2) {
+        const apex = parts.slice(-2).join(".");
+        await redisCore.set(`domains:${apex}`, String(row.id));
+      }
     }
+
     await redisCore.set("domains:cache", "1", { EX: getConfig(null, ["redis", "expireTime"]) });
     logger.debug(`loadAllDomains - Loaded ${domains.length} domains into cache`);
   } catch (error) {
@@ -24,20 +35,33 @@ const loadAllDomains = async (): Promise<void> => {
 
 const getDomainId = async (domain: string): Promise<number | null> => {
   if (!domain) return null;
-  const hostname = domain.split(':')[0];
+
+  const host = domain.split(":")[0].replace(/\.$/, "").toLowerCase();
 
   if (await redisCore.get("domains:cache") === null) {
     await loadAllDomains();
-    return await getDomainId(hostname);
   }
 
-  const isLocal = /^[\d.]+$/.test(hostname) || hostname === 'localhost';
-  const mainDomain = isLocal
-    ? hostname
-    : (hostname.split('.').slice(-2).join('.'));
+  const isLocal = /^[\d.]+$/.test(host) || host === "localhost";
+  if (isLocal) {
+    const id = await redisCore.get(`domains:${host}`);
+    return id ? Number(id) : null;
+  }
 
-  const cachedId = await redisCore.get(`domains:${mainDomain}`);
-  return cachedId ? Number(cachedId) : null;
+  const parts = host.split(".");
+  const candidates: string[] = [];
+  for (let i = 0; i <= Math.max(0, parts.length - 2); i++) {
+    const cand = parts.slice(i).join(".");
+    if (cand.split(".").length >= 2) candidates.push(cand);
+  }
+
+  for (const cand of candidates) {
+    const cachedId = await redisCore.get(`domains:${cand}`);
+    if (cachedId) return Number(cachedId);
+  }
+
+  return null;
+  
 };
   
 export { getDomainId };
