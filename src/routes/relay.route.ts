@@ -100,9 +100,20 @@ export const loadRelayRoutes = (app: Application, version:string, httpServer : S
   // Relay & NIP 11 info
   app.get([`/api/v2/relay`, `/relay`], limiter(), (req, res) => {
     const acceptHeader = req.headers['accept'] || '';
-    if (!acceptHeader.includes('application/nostr+json'))  return loadRelayPage(req,res,version);
+
+    // Redirect relay subdomain requests for frontend.
+    if ( req.hostname.startsWith("relay.") && !acceptHeader.includes("application/nostr+json")) {
+      return res.redirect(301, `https://${req.hostname.replace(/^relay\./, "")}/relay`);
+    }
+
+    // Serve relay frontend 
+    if (!acceptHeader.includes('application/nostr+json')) {
+      return loadRelayPage(req,res,version);
+    }
+
     return NIP11Data(req, res);
   });
+
 
 
   // Get Relay status
