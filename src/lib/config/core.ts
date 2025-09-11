@@ -86,6 +86,8 @@ const getConfig = (tenant: string | null, keyPath: string[]): any => {
   // const domainId = normalizedTenant ? configStore.domainMap.domainToId[normalizedTenant] : null;
   const domainId = tenant ? configStore.domainMap.domainToId[tenant] : null;
 
+  console.log(tenant, domainId, keyPath);
+
   let globalValue = configStore.global;
   for (const key of keyPath) {
     if (globalValue && typeof globalValue === "object" && key in globalValue) {
