@@ -38,7 +38,7 @@ const generateNwcInvoice = async (LNAddress: string, amount:number) : Promise<In
 
         const response = await execWithTimeout (
             nwcClient.makeInvoice({amount: amount * 1000, description: ""}),
-            1000,
+            2000,
         );
 
         if (!response || response == undefined || response.invoice == "") {
