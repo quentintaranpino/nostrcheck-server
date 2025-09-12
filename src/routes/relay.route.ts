@@ -18,14 +18,13 @@ export function getWSS(): WebSocketServer {
   if (!wss) {
     wss = new WebSocketServer({
       noServer: true,
+      maxPayload: Math.ceil(Number(getConfig(null, ["relay", "limitation", "max_message_length"])) * 1.5) || 524288,
       perMessageDeflate: {
-        zlibDeflateOptions: {
-          level: 4 
-        },
-        zlibInflateOptions: {
-          chunkSize: 1024 * 8 
-        },
+        zlibDeflateOptions: { level: 2 },
+        zlibInflateOptions: { chunkSize: 1024 * 8 },
         clientNoContextTakeover: true,
+        threshold: 2048,
+        serverNoContextTakeover: true,
       }
     });
   }
