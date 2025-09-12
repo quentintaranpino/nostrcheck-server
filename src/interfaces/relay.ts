@@ -198,4 +198,22 @@ const eventStore: RelayEvents = {
   globalExpirable: new Set<string>(),
 };
 
-export { ExtendedWebSocket, allowedTags, SharedChunk, PendingGetEventsTask, RelayJob, RelayStatusMessage, MetadataEvent, EventIndex, RelayEvents, eventStore, CHUNK_SIZE };
+type WSConnectionBucket = { 
+  tokens: number; 
+  lastRefill: number; 
+  overflows: number,
+  lastSeen: number
+}; 
+
+export {  ExtendedWebSocket, 
+          allowedTags, 
+          SharedChunk, 
+          PendingGetEventsTask, 
+          RelayJob, 
+          RelayStatusMessage, 
+          MetadataEvent, 
+          EventIndex, 
+          RelayEvents, 
+          eventStore, 
+          CHUNK_SIZE,
+          WSConnectionBucket };

@@ -2,13 +2,13 @@ import WebSocket, { WebSocketServer } from "ws";
 import { Event, Filter, matchFilter } from "nostr-tools";
 import { Request, Response } from "express";
 
-import { subscriptions, addSubscription, removeAllSubscriptions, removeSubscription, socketSafeSend } from "../lib/relay/core.js";
+import { subscriptions, addSubscription, removeAllSubscriptions, removeSubscription, socketSafeSend, checkWSConnectionRate } from "../lib/relay/core.js";
 import { compressEvent, fillEventMetadata, getEventById, getEventsByTimerange, validateFilter, parseRelayMessage, getChunkSize, filterEarlyDiscard } from "../lib/relay/utils.js";
 import { initEvents } from "../lib/relay/database.js";
 
 import { isEventValid } from "../lib/nostr/core.js";
 import { logger } from "../lib/logger.js";
-import { isIpAllowed } from "../lib/security/ips.js";
+import { getClientInfo, isIpAllowed } from "../lib/security/ips.js";
 import { isEntityBanned } from "../lib/security/banned.js";
 import { isEphemeral, isReplaceable } from "../lib/nostr/NIP01.js";
 import { executePlugins } from "../lib/plugins/core.js";
@@ -28,11 +28,24 @@ const authSessions: Map<WebSocket, string> = new Map();
 
 const handleWebSocketMessage = async (socket: ExtendedWebSocket, data: WebSocket.RawData, req: IncomingMessage) => {
 
-  // Check if the request IP is allowed
-  socket.reqInfo = await isIpAllowed(req); 
-  if (socket.reqInfo.banned) {
-    await socketSafeSend(socket, ["NOTICE", socket.reqInfo?.comments || "forbidden"]);
-    removeAllSubscriptions(socket, 1008);
+  
+
+  // Check if the WS connection is rate limited
+  if (!socket.reqInfo) socket.reqInfo = await isIpAllowed(req, getConfig(getClientInfo(req).host, ["security","relay","maxMessageMinute"]));
+  const maxMessageMinute = getConfig(socket.reqInfo.domain, ["security","relay", "maxMessageMinute"]) || 150;
+  const ratePerSec = Math.max(1, Math.floor(maxMessageMinute / 60));
+  const burst = Math.max(20, ratePerSec * 2);
+  const { ok, overflows } = checkWSConnectionRate(`${socket.reqInfo.domain}:${socket.reqInfo.ip}`, ratePerSec, burst);
+  if (!ok) {
+    await socketSafeSend(socket, ["NOTICE", "rate-limited: too many messages"]);
+    if (overflows === 1 || overflows % 5 === 0) {
+      socket.reqInfo = await isIpAllowed(req, maxMessageMinute); 
+      if (socket.reqInfo.banned) {
+        await socketSafeSend(socket, ["NOTICE", socket.reqInfo?.comments || "forbidden"]);
+        removeAllSubscriptions(socket, 1008);
+        return;
+      }
+    }
     return;
   }
 
