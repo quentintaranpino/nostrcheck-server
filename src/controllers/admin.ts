@@ -778,7 +778,7 @@ const getModuleData = async (req: Request, res: Response): Promise<Response> => 
     logger.info(`getModuleData - ${req.method} ${req.path}`, "|", reqInfo.ip);
 
     // Check if authorization header is valid
-	const eventHeader = await parseAuthHeader(req, "updateSettings", true, true, true);
+	const eventHeader = await parseAuthHeader(req, "getModuleData", true, true, true);
 	if (eventHeader.status !== "success") {return res.status(401).send({"status": eventHeader.status, "message" : eventHeader.message});}
     setAuthCookie(res, eventHeader.authkey);  
 
