@@ -47,9 +47,8 @@ const loadAPI = async (app: Application, version:string, httpServer: Server): Pr
 			case "admin":
 				await loadAdminEndpoint(app, version);
 				break;
-			case "frontend":
-				await loadFrontendEndpoint(app, version);
-				await loadUserEndpoint(app, version);
+			case "relay":
+				await loadRelayRoutes(app, version, httpServer);
 				break;
 			case "payments":
 				await loadPaymentsEndpoint(app, version);
@@ -57,8 +56,9 @@ const loadAPI = async (app: Application, version:string, httpServer: Server): Pr
 			case "plugins":
 				await loadPluginsEndpoint(app, version);
 				break;
-			case "relay":
-				await loadRelayRoutes(app, version, httpServer);
+			case "frontend":
+				await loadFrontendEndpoint(app, version);
+				await loadUserEndpoint(app, version);
 				break;
 			default:
 				break;
