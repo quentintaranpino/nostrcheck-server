@@ -97,4 +97,29 @@ const removeAllSubscriptions = (socket: ExtendedWebSocket, closeCode = 1000): vo
   }
 };
 
-export {subscriptions, addSubscription, removeSubscription, removeAllSubscriptions};
+/**
+ * Safely send a message to a WebSocket, ensuring the socket is open and not overloaded.
+ * @param ws The WebSocket to send the message to.
+ * @param payload The message payload to send.
+ * @param highWaterMark The maximum buffered amount before pausing sends (default: 1MB).
+ * @returns A promise that resolves to true if the message was sent successfully, false otherwise.
+ */
+const socketSafeSend = async (ws: ExtendedWebSocket, payload: any, highWaterMark = 1 << 20): Promise<boolean> => {
+
+  const sleep = (ms: number) => new Promise(res => setTimeout(res, ms));
+
+  if (ws.readyState !== WebSocket.OPEN) return false;
+
+  while (ws.bufferedAmount > highWaterMark) {
+    if (ws.readyState !== WebSocket.OPEN) return false;
+    await sleep(8);
+  }
+
+  const data = typeof payload === "string" ? payload : JSON.stringify(payload);
+
+  return new Promise<boolean>(resolve => {
+    ws.send(data, (err?: Error) => resolve(!err));
+  });
+}
+
+export {subscriptions, addSubscription, removeSubscription, removeAllSubscriptions, socketSafeSend};

@@ -2,7 +2,7 @@ import WebSocket, { WebSocketServer } from "ws";
 import { Event, Filter, matchFilter } from "nostr-tools";
 import { Request, Response } from "express";
 
-import { subscriptions, addSubscription, removeAllSubscriptions, removeSubscription } from "../lib/relay/core.js";
+import { subscriptions, addSubscription, removeAllSubscriptions, removeSubscription, socketSafeSend } from "../lib/relay/core.js";
 import { compressEvent, fillEventMetadata, getEventById, getEventsByTimerange, validateFilter, parseRelayMessage, getChunkSize, filterEarlyDiscard } from "../lib/relay/utils.js";
 import { initEvents } from "../lib/relay/database.js";
 
@@ -31,7 +31,7 @@ const handleWebSocketMessage = async (socket: ExtendedWebSocket, data: WebSocket
   // Check if the request IP is allowed
   socket.reqInfo = await isIpAllowed(req); 
   if (socket.reqInfo.banned) {
-    socket.send(JSON.stringify(["NOTICE", socket.reqInfo.comments]));
+    await socketSafeSend(socket, ["NOTICE", socket.reqInfo?.comments || "forbidden"]);
     removeAllSubscriptions(socket, 1008);
     return;
   }
@@ -39,7 +39,7 @@ const handleWebSocketMessage = async (socket: ExtendedWebSocket, data: WebSocket
   // Check if current module is enabled
   if (!isModuleEnabled("relay", socket.reqInfo.domain)) {
     logger.debug(`handleWebSocketMessage - Attempt to access a non-active module: relay | IP: ${socket.reqInfo.ip}`);
-    socket.send(JSON.stringify(["NOTICE", "blocked: relay module is not active"]));
+    await socketSafeSend(socket, ["NOTICE", "blocked: relay module is not active"]);
     removeAllSubscriptions(socket, 1003);
     return;
   }
@@ -57,14 +57,14 @@ const handleWebSocketMessage = async (socket: ExtendedWebSocket, data: WebSocket
       null;
 
     if (messageSize === null) {
-      socket.send(JSON.stringify(["NOTICE", "error: unsupported data"]));
+      await socketSafeSend(socket, ["NOTICE", "error: unsupported data"]);
       logger.debug(`handleWebSocketMessage - Unsupported data: ${typeof data}`);
       socket.close(1003, "error: unsupported data");
       return; 
     }
 
     if (messageSize > max_message_length) {
-      socket.send(JSON.stringify(["NOTICE", "error: message too large"]));
+      await socketSafeSend(socket, ["NOTICE", "error: message too large"]);
       logger.debug(`handleWebSocketMessage - Message too large: ${messageSize}B (limit ${max_message_length}B)`);
       socket.close(1009, "message too large");
       return;
@@ -73,8 +73,8 @@ const handleWebSocketMessage = async (socket: ExtendedWebSocket, data: WebSocket
     // Parse message
     const message = parseRelayMessage(data);
     if (!message) {
-      socket.send(JSON.stringify(["NOTICE", "invalid: malformed note"]));
-      logger.debug(`handleWebSocketMessage - Invalid message: malformed note: ${data.toString()}`);
+      await socketSafeSend(socket, ["NOTICE", "invalid: malformed note"]);
+      logger.debug(`handleWebSocketMessage - Invalid message: malformed note`);
       socket.close(1003, "invalid: malformed note");
       return;
     }
@@ -90,7 +90,7 @@ const handleWebSocketMessage = async (socket: ExtendedWebSocket, data: WebSocket
     if (authRequired === true && !authSessions.has(socket)) {
       if (!socket.challenge) {
         socket.challenge = crypto.randomBytes(32).toString("hex");
-        socket.send(JSON.stringify(["AUTH", socket.challenge]));
+        await socketSafeSend(socket, ["AUTH", socket.challenge]);
       }
       return;
     }
@@ -100,7 +100,7 @@ const handleWebSocketMessage = async (socket: ExtendedWebSocket, data: WebSocket
           const task = await enqueueRelayTask({fn: handleEvent, args: [socket, args[0] as Event]});
           if (!task.enqueued) {
             logger.debug(`handleWebSocketMessage - Relay queue limit reached: ${getRelayQueueLength()}`);
-            socket.send(JSON.stringify(["NOTICE", "error: relay queue limit reached"]));
+            await socketSafeSend(socket, ["NOTICE", "error: relay queue limit reached"]);
             socket.close(1009, "error: relay queue limit reached");
           }
         break;
@@ -114,12 +114,12 @@ const handleWebSocketMessage = async (socket: ExtendedWebSocket, data: WebSocket
               await handleReqOrCount(socket, args[0], filters, type);
           } else {
               logger.debug(`handleWebSocketMessage - Invalid subscription ID: ${args[0]}`);
-              socket.send(JSON.stringify(["NOTICE", "error: invalid subscription ID"]));
+              await socketSafeSend(socket, ["NOTICE", "error: invalid subscription ID"]);
               socket.close(1003, "error: invalid subscription ID");
           }
         } catch (error) {
           logger.error(`handleWebSocketMessage - Failed to handle REQ/COUNT: ${error}`);
-          socket.send(JSON.stringify(["NOTICE", "error: internal server error"]));
+          await socketSafeSend(socket, ["NOTICE", "error: internal server error"]);
           socket.close(1011, "error: internal server error");
         }
       
@@ -130,7 +130,7 @@ const handleWebSocketMessage = async (socket: ExtendedWebSocket, data: WebSocket
         const task = await enqueueRelayTask({fn: handleClose, args: [socket, typeof args[0] === 'string' ? args[0] : undefined]});
         if (!task.enqueued) {
           logger.debug(`handleWebSocketMessage - Relay queue limit reached: ${getRelayQueueLength()}`);
-          socket.send(JSON.stringify(["NOTICE", "error: relay queue limit reached"]));
+          await socketSafeSend(socket, ["NOTICE", "error: relay queue limit reached"]);
           socket.close(1009, "error: relay queue limit reached");
         }
         break;
@@ -138,15 +138,15 @@ const handleWebSocketMessage = async (socket: ExtendedWebSocket, data: WebSocket
 
       default: {
         logger.debug(`handleWebSocketMessage - Unknown command: ${type}`);
-        socket.send(JSON.stringify(["NOTICE", "error: unknown command"]));
+        await socketSafeSend(socket, ["NOTICE", "error: unknown command"]);
         socket.close(1003, "error: unknown command");
         break;
       }
     }
   } catch (error) {
     logger.error(`handleWebSocketMessage - Internal server error: ${error}`);
-    socket.send(JSON.stringify(["NOTICE", "error: internal server error"]));
-    socket.close(1011, "error: internal server error"); 
+    await socketSafeSend(socket, ["NOTICE", "error: internal server error"]);
+    socket.close(1011, "error: internal server error");
   }
 };
 
@@ -156,8 +156,8 @@ const handleEvent = async (socket: ExtendedWebSocket, event: MetadataEvent) => {
   // Check if the event pubkey is banned
   if (await isEntityBanned(event.pubkey, "registered")) {
     logger.debug(`handleEvent - Blocked banned pubkey: ${event.pubkey}`);
-    socket.send(JSON.stringify(["NOTICE", "blocked: banned pubkey"]));
-    socket.send(JSON.stringify(["OK", event.id, false, "blocked: banned pubkey"]));
+    await socketSafeSend(socket, ["NOTICE", "blocked: banned pubkey"]);
+    await socketSafeSend(socket, ["OK", event.id, false, "blocked: banned pubkey"]);
     removeAllSubscriptions(socket, 1008);
     return;
   }
@@ -165,8 +165,8 @@ const handleEvent = async (socket: ExtendedWebSocket, event: MetadataEvent) => {
   // Check if the event is banned
   if (await isEntityBanned(event.id, "events")) {
     logger.debug(`handleEvent - Blocked banned event: ${event.id}`);
-    socket.send(JSON.stringify(["NOTICE", "blocked: banned event"]));
-    socket.send(JSON.stringify(["OK", event.id, false, "blocked: banned event"]));
+    await socketSafeSend(socket, ["NOTICE", "blocked: banned event"]);
+    await socketSafeSend(socket, ["OK", event.id, false, "blocked: banned event"]);
     removeAllSubscriptions(socket, 1008);
     return;
   }
@@ -177,24 +177,24 @@ const handleEvent = async (socket: ExtendedWebSocket, event: MetadataEvent) => {
 
   if (validEvent.status !== "success") {
     logger.debug(`handleEvent - Invalid event: ${event.id}, ${validEvent.message}`);
-    socket.send(JSON.stringify(["NOTICE", `invalid: ${validEvent.message}`]));
-    socket.send(JSON.stringify(["OK", event.id, false, `invalid: ${validEvent.message}`]));
+    await socketSafeSend(socket, ["NOTICE", `invalid: ${validEvent.message}`]);
+    await socketSafeSend(socket, ["OK", event.id, false, `invalid: ${validEvent.message}`]);
     return;
   }
 
   // Check if the event has more tags than allowed
   if (event.tags.length > getConfig(socket.reqInfo.domain, ["relay", "limitation", "max_event_tags"])) {
     logger.debug(`handleEvent - Blocked event with too many tags: ${event.id}`);
-    socket.send(JSON.stringify(["NOTICE", "blocked: too many tags"]));
-    socket.send(JSON.stringify(["OK", event.id, false, "blocked: too many tags"]));
+    await socketSafeSend(socket, ["NOTICE", "blocked: too many tags"]);
+    await socketSafeSend(socket, ["OK", event.id, false, "blocked: too many tags"]);
     return;
   }
 
   // Check if the event content is too large
   if (event.content.length > getConfig(socket.reqInfo.domain, ["relay", "limitation", "max_content_length"])) {
     logger.debug(`handleEvent - Blocked event with too large content: ${event.id}`);
-    socket.send(JSON.stringify(["NOTICE", "blocked: event content too large"]));
-    socket.send(JSON.stringify(["OK", event.id, false, "blocked: event content too large"]));
+    await socketSafeSend(socket, ["NOTICE", "blocked: event content too large"]);
+    await socketSafeSend(socket, ["OK", event.id, false, "blocked: event content too large"]);
     return;
   }
 
@@ -209,14 +209,14 @@ const handleEvent = async (socket: ExtendedWebSocket, event: MetadataEvent) => {
     const expirationTimestamp = parseInt(expirationTag[1], 10);
     if (isNaN(expirationTimestamp)) {
       logger.debug(`handleEvent - Blocked event with invalid expiration timestamp: ${event.id}`);
-      socket.send(JSON.stringify(["NOTICE", "error: invalid expiration timestamp"]));
-      socket.send(JSON.stringify(["OK", event.id, false, "invalid expiration value"]));
+      await socketSafeSend(socket, ["NOTICE", "error: invalid expiration timestamp"]);
+      await socketSafeSend(socket, ["OK", event.id, false, "invalid expiration value"]);
       return;
     }
     if ( Math.floor(Date.now() / 1000) > expirationTimestamp) {
       logger.debug(`handleEvent - Blocked expired event: ${event.id}, expiration: ${expirationTimestamp}`);
-      socket.send(JSON.stringify(["NOTICE", "error: event expired"]));
-      socket.send(JSON.stringify(["OK", event.id, false, "expired event"]));
+      await socketSafeSend(socket, ["NOTICE", "error: event expired"]);
+      await socketSafeSend(socket, ["OK", event.id, false, "expired event"]);
       return;
     }
   }
@@ -226,24 +226,24 @@ const handleEvent = async (socket: ExtendedWebSocket, event: MetadataEvent) => {
     const nonceTag = event.tags.find(tag => tag[0] === 'nonce');
     if (!nonceTag || nonceTag.length < 3) {
       logger.debug(`handleEvent - Blocked event with missing or malformed nonce tag: ${event.id}`);
-      socket.send(JSON.stringify(["NOTICE", "error: missing or malformed nonce tag"]));
-      socket.send(JSON.stringify(["OK", event.id, false, "error: missing or malformed nonce tag"]));
+      await socketSafeSend(socket, ["NOTICE", "error: missing or malformed nonce tag"]);
+      await socketSafeSend(socket, ["OK", event.id, false, "error: missing or malformed nonce tag"]);
       return;
     }
 
     const targetDifficulty  = parseInt(nonceTag[2], 10);
     if (isNaN(targetDifficulty)) {
       logger.debug(`handleEvent - Blocked event with invalid target difficulty in nonce tag: ${event.id}`);
-      socket.send(JSON.stringify(["NOTICE", "error: invalid target difficulty in nonce tag"]));
-      socket.send(JSON.stringify(["OK", event.id, false, "error: invalid target difficulty in nonce tag"]));
+      await socketSafeSend(socket, ["NOTICE", "error: invalid target difficulty in nonce tag"]);
+      await socketSafeSend(socket, ["OK", event.id, false, "error: invalid target difficulty in nonce tag"]);
       return;
     }
 
     const resultPow = await validatePow(event.id, targetDifficulty);
     if (!resultPow) {
       logger.debug(`handleEvent - Blocked event with invalid proof of work: ${event.id}`);
-      socket.send(JSON.stringify(["NOTICE", "error: invalid proof of work"]));
-      socket.send(JSON.stringify(["OK", event.id, false, "error: invalid proof of work"]));
+      await socketSafeSend(socket, ["NOTICE", "error: invalid proof of work"]);
+      await socketSafeSend(socket, ["OK", event.id, false, "error: invalid proof of work"]);
       return;
     }
   }
@@ -254,8 +254,8 @@ const handleEvent = async (socket: ExtendedWebSocket, event: MetadataEvent) => {
     const invalidTags = tags.filter(tag => !getConfig(socket.reqInfo.domain, ["relay", "tags"]).includes(tag) && allowedTags.includes(tag) == false);
     if (invalidTags.length > 0) {
       logger.debug(`handleEvent - Blocked event with invalid tags: ${event.id}, ${invalidTags.join(", ")}`);
-      socket.send(JSON.stringify(["NOTICE", `blocked: invalid tags: ${invalidTags.join(", ")}`]));
-      socket.send(JSON.stringify(["OK", event.id, false, `blocked: invalid tags: ${invalidTags.join(", ")}`]));
+      await socketSafeSend(socket, ["NOTICE", `blocked: invalid tags: ${invalidTags.join(", ")}`]);
+      await socketSafeSend(socket, ["OK", event.id, false, `blocked: invalid tags: ${invalidTags.join(", ")}`]);
       return;
     }
   }
@@ -263,16 +263,16 @@ const handleEvent = async (socket: ExtendedWebSocket, event: MetadataEvent) => {
   // NIP-70 Check if the event has a ["-"] tag and "auth_required" is enabled
   if (getConfig(socket.reqInfo.domain, ["relay", "limitation", "auth_required"]) == true && event.tags.some(tag => tag[0] === "-") && authSessions.get(socket) !== event.pubkey) {
       logger.debug(`handleEvent - Blocked private message without authentication: ${event.id}`);
-      socket.send(JSON.stringify(["NOTICE", "error: unauthorized to post private messages"]));
-      socket.send(JSON.stringify(["OK", event.id, false, "error: unauthorized to post private messages"]));
+      await socketSafeSend(socket, ["NOTICE", "error: unauthorized to post private messages"]);
+      await socketSafeSend(socket, ["OK", event.id, false, "error: unauthorized to post private messages"]);
       return;
   }
 
   // Plugins engine execution
   if (await executePlugins({module: "relay", pubkey: event.pubkey, ip: socket.reqInfo.ip, event: event}, socket.reqInfo.domain) == false) {
     logger.debug(`handleEvent - Blocked event by plugins engine: ${event.id}`);
-    socket.send(JSON.stringify(["NOTICE", "blocked: can't accept event"]));
-    socket.send(JSON.stringify(["OK", event.id, false, "blocked: can't accept event"]));
+    await socketSafeSend(socket, ["NOTICE", "blocked: can't accept event"]);
+    await socketSafeSend(socket, ["OK", event.id, false, "blocked: can't accept event"]);
     return;
   }
 
@@ -280,7 +280,7 @@ const handleEvent = async (socket: ExtendedWebSocket, event: MetadataEvent) => {
   const existing = eventStore.eventIndex.get(event.id);
   if (existing && isIsolated && existing.tenantid === event.tenantid) {
     logger.debug(`handleEvent - Duplicate event in tenant ${event.tenantid}: ${event.id}`);
-    socket.send(JSON.stringify(["OK", event.id, false, "duplicate: already have this event"]));
+    await socketSafeSend(socket, ["OK", event.id, false, "duplicate: already have this event"]);
     return;
   }
 
@@ -292,7 +292,7 @@ const handleEvent = async (socket: ExtendedWebSocket, event: MetadataEvent) => {
       clientSubscriptions.forEach((listener) => listener(event));
     });
     logger.debug(`handleEvent - Accepted ephemeral event successfully: ${event.id}`);
-    socket.send(JSON.stringify(["OK", event.id, true, "ephemeral: accepted but not stored"]));
+    await socketSafeSend(socket, ["OK", event.id, true, "ephemeral: accepted but not stored"]);
     return;
   }
 
@@ -321,8 +321,8 @@ const handleEvent = async (socket: ExtendedWebSocket, event: MetadataEvent) => {
           const deleteResult = await dbUpdate("events", {"active": "0"}, ["event_id"], [oldEvent.id]);
           if (!deleteResult) {
             logger.debug(`handleEvent - Failed to delete replaceable event: ${oldEvent.id}`);
-            socket.send(JSON.stringify(["NOTICE", "error: failed to delete replaceable event"]));
-            socket.send(JSON.stringify(["OK", event.id, false, "error: failed to delete replaceable event"]));
+            await socketSafeSend(socket, ["NOTICE", "error: failed to delete replaceable event"]);
+            await socketSafeSend(socket, ["OK", event.id, false, "error: failed to delete replaceable event"]);
             return;
           }
           eventStore.pendingDelete.set(oldEvent.id, oldEvent);
@@ -330,7 +330,7 @@ const handleEvent = async (socket: ExtendedWebSocket, event: MetadataEvent) => {
           logger.debug(`handleEvent - Replaced processed event: ${oldEvent.id}`);
         } else {
           logger.debug(`handleEvent - Rejected replaceable event: ${event.id}`);
-          socket.send(JSON.stringify(["OK", event.id, false, "rejected: replaceable event is older or equal to existing event"]));
+          await socketSafeSend(socket, ["OK", event.id, false, "rejected: replaceable event is older or equal to existing event"]);
           return;
         }
       }
@@ -344,15 +344,15 @@ const handleEvent = async (socket: ExtendedWebSocket, event: MetadataEvent) => {
 
     if (!validEtag || !validKtag) {
       logger.debug(`handleEvent - Rejected kind:1040 event ${event.id} due to missing required tags.`);
-      socket.send(JSON.stringify(["NOTICE", "invalid: missing required OpenTimestamps tags"]));
-      socket.send(JSON.stringify(["OK", event.id, false, "invalid: missing required OpenTimestamps tags (e,k)"]));
+      await socketSafeSend(socket, ["NOTICE", "invalid: missing required OpenTimestamps tags"]);
+      await socketSafeSend(socket, ["OK", event.id, false, "invalid: missing required OpenTimestamps tags (e,k)"]);
       return;
     }
 
     if(!isBase64(event.content)) {
       logger.debug(`handleEvent - Rejected kind:1040 event ${event.id} due to invalid encoding.`);
-      socket.send(JSON.stringify(["NOTICE", "invalid: OpenTimestamps proof must be Base64 encoded"]));
-      socket.send(JSON.stringify(["OK", event.id, false, "invalid: OpenTimestamps proof must be Base64 encoded"]));
+      await socketSafeSend(socket, ["NOTICE", "invalid: OpenTimestamps proof must be Base64 encoded"]);
+      await socketSafeSend(socket, ["OK", event.id, false, "invalid: OpenTimestamps proof must be Base64 encoded"]);
       return;
     }
   }
@@ -365,8 +365,8 @@ const handleEvent = async (socket: ExtendedWebSocket, event: MetadataEvent) => {
     const receivedEventsToDelete = event.tags.filter(tag => tag[0] === "e" || tag[0] === "a").map(tag => tag[1].trim());
     if (receivedEventsToDelete.length === 0) {
       logger.error(`handleEvent - Rejected kind:5 event ${event.id} due to missing required tags.`);
-      socket.send(JSON.stringify(["NOTICE", "invalid: missing required tags"]));
-      socket.send(JSON.stringify(["OK", event.id, false, "invalid: missing required tags"]));
+      await socketSafeSend(socket, ["NOTICE", "invalid: missing required tags"]);
+      await socketSafeSend(socket, ["OK", event.id, false, "invalid: missing required tags"]);
       return;
     }
 
@@ -389,8 +389,8 @@ const handleEvent = async (socket: ExtendedWebSocket, event: MetadataEvent) => {
   
     if (eventsToDelete.length === 0) {
       logger.debug(`handleEvent - Rejected kind:5 event ${event.id} due to no events found for deletion.`);
-      socket.send(JSON.stringify(["NOTICE", "invalid: no events found for deletion"]));
-      socket.send(JSON.stringify(["OK", event.id, false, "invalid: no events found for deletion"]));
+      await socketSafeSend(socket, ["NOTICE", "invalid: no events found for deletion"]);
+      await socketSafeSend(socket, ["OK", event.id, false, "invalid: no events found for deletion"]);
       return;
     }
 
@@ -410,8 +410,8 @@ const handleEvent = async (socket: ExtendedWebSocket, event: MetadataEvent) => {
     const relayTags = event.tags.filter(tag => tag[0] === "relay");
     if (relayTags.length === 0) {
       logger.debug(`handleEvent - Rejected kind:62 event ${event.id} due to missing required tags.`);
-      socket.send(JSON.stringify(["NOTICE", "invalid: missing required tags"]));
-      socket.send(JSON.stringify(["OK", event.id, false, "invalid: missing required tags"]));
+      await socketSafeSend(socket, ["NOTICE", "invalid: missing required tags"]);
+      await socketSafeSend(socket, ["OK", event.id, false, "invalid: missing required tags"]);
       return;
     }
 
@@ -419,8 +419,8 @@ const handleEvent = async (socket: ExtendedWebSocket, event: MetadataEvent) => {
     const eventUrl = relayTags.some(tag => tag[1].toUpperCase() === "ALL_RELAYS" || tag[1] === relayUrl);
     if (!eventUrl) {
       logger.debug(`handleEvent - Rejected kind:62 event ${event.id} due to invalid relay tag.`);
-      socket.send(JSON.stringify(["NOTICE", "invalid: invalid relay tag"]));
-      socket.send(JSON.stringify(["OK", event.id, false, "invalid: invalid relay tag"]));
+      await socketSafeSend(socket, ["NOTICE", "invalid: invalid relay tag"]);
+      await socketSafeSend(socket, ["OK", event.id, false, "invalid: invalid relay tag"]);
       return;
     }
 
@@ -468,8 +468,8 @@ const handleEvent = async (socket: ExtendedWebSocket, event: MetadataEvent) => {
     const hasEtag = event.tags.some(tag => tag[0] === "E" && tag[1] !== "");
     if ((!hasTitleTag && event.kind === 11) || ((!hasK11Tag || !hasEtag) && event.kind === 1111)) {
       logger.debug(`handleEvent - Rejected kind:${event.kind} event ${event.id} due to missing required tags.`);
-      socket.send(JSON.stringify(["NOTICE", "invalid: missing required tags"]));
-      socket.send(JSON.stringify(["OK", event.id, false, "invalid: missing required tags"]));
+      await socketSafeSend(socket, ["NOTICE", "invalid: missing required tags"]);
+      await socketSafeSend(socket, ["OK", event.id, false, "invalid: missing required tags"]);
       return;
     }
   }
@@ -481,8 +481,8 @@ const handleEvent = async (socket: ExtendedWebSocket, event: MetadataEvent) => {
     const hasScheme = /^https?:\/\//i.test(d);
     if (!hasD || hasScheme) {
       logger.debug(`Rejected kind:39701 ${event.id} (missing d or d has scheme)`);
-      socket.send(JSON.stringify(["NOTICE", "invalid: d tag required without scheme"]));
-      socket.send(JSON.stringify(["OK", event.id, false, "invalid: d tag required without scheme"]));
+      await socketSafeSend(socket, ["NOTICE", "invalid: d tag required without scheme"]);
+      await socketSafeSend(socket, ["OK", event.id, false, "invalid: d tag required without scheme"]);
       return;
     }
   }
@@ -491,8 +491,8 @@ const handleEvent = async (socket: ExtendedWebSocket, event: MetadataEvent) => {
   if (event.kind === 1222 || event.kind === 1244) {
     const isHttpUrl = typeof event.content === "string" && /^(https?:)\/\/\S+$/i.test(event.content);
     if (!isHttpUrl) {
-      socket.send(JSON.stringify(["NOTICE", "invalid: content must be a direct http(s) URL"]));
-      socket.send(JSON.stringify(["OK", event.id, false, "invalid: content must be a direct http(s) URL"]));
+      await socketSafeSend(socket, ["NOTICE", "invalid: content must be a direct http(s) URL"]);
+      await socketSafeSend(socket, ["OK", event.id, false, "invalid: content must be a direct http(s) URL"]);
       return;
     }
 
@@ -502,8 +502,8 @@ const handleEvent = async (socket: ExtendedWebSocket, event: MetadataEvent) => {
         typeof t[1] === "string" && t[1].trim().length > 0
       );
       if (!hasParentRef) {
-        socket.send(JSON.stringify(["NOTICE", "invalid: reply must reference a parent (E/e or a)"]));
-        socket.send(JSON.stringify(["OK", event.id, false, "invalid: missing parent reference"]));
+        await socketSafeSend(socket, ["NOTICE", "invalid: reply must reference a parent (E/e or a)"]);
+        await socketSafeSend(socket, ["OK", event.id, false, "invalid: missing parent reference"]);
         return;
       }
     }
@@ -542,7 +542,7 @@ const handleEvent = async (socket: ExtendedWebSocket, event: MetadataEvent) => {
 
   // Send confirmation to the client
   logger.debug(`handleEvent - Accepted event: ${event.id}`);
-  socket.send(JSON.stringify(["OK", event.id, true, returnMessage]));
+  await socketSafeSend(socket, ["OK", event.id, true, returnMessage]);
 
   return;
   
@@ -556,7 +556,7 @@ const handleReqOrCount = async (socket: ExtendedWebSocket, subId: string, filter
 
   if (!filters || !Array.isArray(filters) || filters.length === 0) {
     logger.debug(`handleReqOrCount - No filters provided: ${subId}`);
-    socket.send(JSON.stringify(["CLOSED", subId, "unsupported: no filters provided"]));
+    await socketSafeSend(socket, ["CLOSED", subId, "unsupported: no filters provided"]);
     return;
   }
 
@@ -565,8 +565,8 @@ const handleReqOrCount = async (socket: ExtendedWebSocket, subId: string, filter
 
     if (requestedKinds.some(kind => [4, 14, 1059].includes(kind))) {
       logger.debug(`handleReqOrCount - Blocked REQ for private messages without authentication: ${subId} |`, socket.reqInfo.ip);
-      socket.send(JSON.stringify(["NOTICE", "auth-required: must authenticate to request private messages"]));
-      socket.send(JSON.stringify(["CLOSED", subId, "auth-required: must authenticate to request private messages"]));
+      await socketSafeSend(socket, ["NOTICE", "auth-required: must authenticate to request private messages"]);
+      await socketSafeSend(socket, ["CLOSED", subId, "auth-required: must authenticate to request private messages"]);
       socket.close(1003, "auth-required: must authenticate to request private messages");
       return;
     }
@@ -575,37 +575,37 @@ const handleReqOrCount = async (socket: ExtendedWebSocket, subId: string, filter
   const validFilters = filters.every(filter => validateFilter(filter));
   if (!validFilters) {
     logger.debug(`handleReqOrCount - Invalid filters: ${subId}`);
-    socket.send(JSON.stringify(["CLOSED", subId, "unsupported: invalid filters"]));
+    await socketSafeSend(socket, ["CLOSED", subId, "unsupported: invalid filters"]);
     return;
   }
 
   if (filters.length > getConfig(socket.reqInfo.domain, ["relay", "limitation", "max_filters"])) {
     logger.debug(`handleReqOrCount - Too many filters: ${subId}`);
-    socket.send(JSON.stringify(["CLOSED", subId, "unsupported: too many filters"]));
+    await socketSafeSend(socket, ["CLOSED", subId, "unsupported: too many filters"]);
     return;
   }
 
   if (subId.length > getConfig(socket.reqInfo.domain, ["relay", "limitation", "max_subid_length"])) {
     logger.debug(`handleReqOrCount - Subscription id too long: ${subId}`);
-    socket.send(JSON.stringify(["CLOSED", subId, "unsupported: subscription id too long"]));
+    await socketSafeSend(socket, ["CLOSED", subId, "unsupported: subscription id too long"]);
     return;
   }
 
   // If sharedDBChunks is not initialized, send EOSE and return
   if (!eventStore.sharedDBChunks) {
     logger.debug(`handleReqOrCount - SharedDB not initialized: ${subId}`);
-    socket.send(JSON.stringify(["EOSE", subId])); 
+    await socketSafeSend(socket, ["EOSE", subId]);
     return;
   }
 
   // Early discard filters that not match the event store (pubkey or id)
   if (filterEarlyDiscard(filters, eventStore)) {
     logger.debug(`handleReqOrCount - Filter early discard: ${subId}`);
-    socket.send(JSON.stringify(["EOSE", subId])); 
+    await socketSafeSend(socket, ["EOSE", subId]);
     return;
   }
 
-  const maxLimit = getConfig(socket.reqInfo.domain, ["relay", "limitation", "max_limit"]);
+  const maxLimit = Math.min(Number(getConfig(socket.reqInfo.domain, ["relay", "limitation", "max_limit"])) || 5000, 5000);
 
   const isIsolated = getConfig(socket.reqInfo.domain, ["relay","isolated"]) === true;
   if (isIsolated) {
@@ -613,17 +613,19 @@ const handleReqOrCount = async (socket: ExtendedWebSocket, subId: string, filter
   }
 
   try {
-    const eventsList = await getEvents(filters, maxLimit, eventStore.sharedDBChunks);
+   const eventsList = await getEvents(filters, maxLimit, eventStore.sharedDBChunks);
     let count = 0;
+    let aborted = false;
     const batchSize = 250;
-    for (let i = 0; i < eventsList.length; i += batchSize) {
+
+    for (let i = 0; i < eventsList.length && !aborted; i += batchSize) {
       const batch = eventsList.slice(i, i + batchSize);
       for (const event of batch) {
-        if (socket.readyState !== WebSocket.OPEN) break;
-        count++;
+        if (socket.readyState !== WebSocket.OPEN) { aborted = true; break; }
         if (type === "REQ") {
-          logger.debug(`handleReqOrCount - Sent event: ${event.id}`);
-          socket.send(JSON.stringify(["EVENT", subId, event]));
+          count++;
+          const sentOK = await socketSafeSend(socket, ["EVENT", subId, event]);
+          if (!sentOK) { aborted = true; break; }
           if (count >= maxLimit) break;
         }
       }
@@ -631,18 +633,17 @@ const handleReqOrCount = async (socket: ExtendedWebSocket, subId: string, filter
       await new Promise(resolve => setImmediate(resolve));
     }
 
-    if (type === "REQ"){
-      
-      if (socket.readyState === WebSocket.OPEN) {
-        logger.debug(`handleReqOrCount - EOSE - Sent ${count} events to subscription: ${subId}`);
-        socket.send(JSON.stringify(["EOSE", subId])); 
-      }
+    if (type === "REQ" && !aborted && socket.readyState === WebSocket.OPEN) {
+      logger.debug(`handleReqOrCount - EOSE - Sent ${count} events to subscription: ${subId}`);
+      await socketSafeSend(socket, ["EOSE", subId]);
+    }
 
+    if (type === "REQ") {
       const listener = async (event: MetadataEvent): Promise<void> => {
         if (isIsolated && event.tenantid !== socket.reqInfo.domainId) return;
         if (filters.some((f) => matchFilter(f, event)) && socket.readyState === WebSocket.OPEN) {
           logger.debug(`handleReqOrCount - Sent live event: ${event.id}`);
-          socket.send(JSON.stringify(["EVENT", subId, event]));
+          await socketSafeSend(socket, ["EVENT", subId, event]);
         }
       };
       addSubscription(subId, socket, listener);
@@ -650,13 +651,13 @@ const handleReqOrCount = async (socket: ExtendedWebSocket, subId: string, filter
 
     if (type === "COUNT") {
       logger.debug(`handleReqOrCount - Sent count: ${count} to subscription: ${subId}`);
-      socket.send(JSON.stringify(["COUNT", subId, { count }]));
+      await socketSafeSend(socket, ["COUNT", subId, { count }]);
     }
 
   } catch (error) {
     logger.error(`handleReqOrCount - Failed to process subscription: ${subId}, error: ${error}`);
     if (socket.readyState === WebSocket.OPEN) {
-      socket.send(JSON.stringify(["CLOSED", subId, "error: failed to process subscription"]));
+      await socketSafeSend(socket, ["NOTICE", "error: failed to process subscription"]);
       socket.close(1003, "error: failed to process subscription");
     }
   }
@@ -672,7 +673,7 @@ const handleAuthMessage = async (socket: ExtendedWebSocket, message: ["AUTH", Au
 
   if (!Array.isArray(message) || message.length !== 2) {
     logger.debug(`handleAuthMessage - Malformed AUTH message: ${message}`);
-    socket.send(JSON.stringify(["NOTICE", "error: malformed AUTH message"]));
+    await socketSafeSend(socket, ["NOTICE", "error: malformed AUTH message"]);
     return;
   }
 
@@ -680,13 +681,13 @@ const handleAuthMessage = async (socket: ExtendedWebSocket, message: ["AUTH", Au
 
   if (typeof authData !== "object" || authData === null) {
     logger.debug(`handleAuthMessage - Invalid AUTH payload: ${authData}`);
-    socket.send(JSON.stringify(["NOTICE", "error: AUTH payload must be an object"]));
+    await socketSafeSend(socket, ["NOTICE", "error: AUTH payload must be an object"]);
     return;
   }
 
   if (authData.kind !== 22242) {
     logger.debug(`handleAuthMessage - Invalid AUTH event kind: ${authData.kind}`);
-    socket.send(JSON.stringify(["NOTICE", "error: invalid AUTH event kind"]));
+    await socketSafeSend(socket, ["NOTICE", "error: invalid AUTH event kind"]);
     return;
   }
 
@@ -695,21 +696,21 @@ const handleAuthMessage = async (socket: ExtendedWebSocket, message: ["AUTH", Au
 
   if (!relayTag || !challengeTag) {
     logger.debug(`handleAuthMessage - Missing relay or challenge tag: ${authData.tags}`);
-    socket.send(JSON.stringify(["NOTICE", "error: missing relay or challenge tag"]));
+    await socketSafeSend(socket, ["NOTICE", "error: missing relay or challenge tag"]);
     return;
   }
 
   const challenge = challengeTag[1];
   if (!socket.challenge || socket.challenge !== challenge) {
     logger.debug(`handleAuthMessage - Invalid challenge: ${challenge}`);
-    socket.send(JSON.stringify(["NOTICE", "error: invalid challenge"]));
+    await socketSafeSend(socket, ["NOTICE", "error: invalid challenge"]);
     return;
   }
 
   const validEvent = await isEventValid(authData, 60, 10);
   if (validEvent.status !== "success") {
     logger.debug(`handleAuthMessage - Invalid AUTH event: ${validEvent.message}`);
-    socket.send(JSON.stringify(["NOTICE", `error: ${validEvent.message}`]));
+    await socketSafeSend(socket, ["NOTICE", `error: ${validEvent.message}`]);
     return;
   }
 
@@ -722,12 +723,12 @@ const handleAuthMessage = async (socket: ExtendedWebSocket, message: ["AUTH", Au
   const registeredData = await dbMultiSelect(["id", "username"],"registered","hex = ?", [authData.pubkey], true);
   if (registeredData.length === 0) {
     logger.debug("AUTH failed: pubkey not registered:", authData.id);
-    socket.send(JSON.stringify(["NOTICE", "error: pubkey not registered"]));
+    await socketSafeSend(socket, ["NOTICE", "error: pubkey not registered"]);
     return;
   }
 
   logger.debug(`handleAuthMessage - AUTH successful: ${authData.id}, ${registeredData[0].username}`);
-  socket.send(JSON.stringify(["OK", authData.id, true, "AUTH successful"]));
+  await socketSafeSend(socket, ["OK", authData.id, true, "AUTH successful"]);
 };
 
 const getRelayStatus = async (req: Request, res: Response, wss: WebSocketServer): Promise<Response> => {
