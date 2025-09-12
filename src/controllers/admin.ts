@@ -56,7 +56,7 @@ const serverStatus = async (req: Request, res: Response): Promise<Response> => {
     }
 
     // Check if authorization header is valid
-	const eventHeader = await parseAuthHeader(req,"StopServer", true, true, true);
+	const eventHeader = await parseAuthHeader(req,"serverStatus", true, true, true);
 	if (eventHeader.status !== "success") {return res.status(401).send({"status": eventHeader.status, "message" : eventHeader.message});}
     setAuthCookie(res, eventHeader.authkey);
 
