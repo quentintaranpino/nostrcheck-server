@@ -451,7 +451,7 @@ const expandBuffer = (oldBuffer: SharedArrayBuffer, newSize: number): SharedArra
 };
 
 const encodeEvents = async (events: MetadataEvent[]): Promise<{ buffer: SharedArrayBuffer; indexMap: Uint32Array; usedBytes: number }> => {
-  const estimatedSize = Math.max(1 * 1024 * 1024, events.length * 1024);
+  const estimatedSize = Math.max(1 * 1024 * 1024, events.length * 2048);
   let bufferSize = estimatedSize; 
   let buffer = new SharedArrayBuffer(bufferSize);
   let view = new DataView(buffer);
@@ -462,7 +462,7 @@ const encodeEvents = async (events: MetadataEvent[]): Promise<{ buffer: SharedAr
   for (let i = 0; i < events.length; i++) {
     let event = events[i];
 
-    if (event.content.length > 15) {
+    if (event.content.length > 64) {
       event = await compressEvent(event);
     }
 
