@@ -255,7 +255,7 @@ const defaultConfig = {
 			"maxRegisterDay": 2,
 		},
 		"relay" : {
-			"maxMessageMinute": 300,
+			"maxMessageMinute": 150,
 		},
 	},
 	"plugins" : {
