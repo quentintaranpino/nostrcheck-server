@@ -592,13 +592,9 @@ const handleReqOrCount = async (socket: ExtendedWebSocket, subId: string, filter
   }
 
   // Early discard filters that not match the event store (pubkey or id)
-  if (filterEarlyDiscard(filters, eventStore)) {
+  if (type === "REQ" && filterEarlyDiscard(filters, eventStore)) {
     logger.debug(`handleReqOrCount - Filter early discard: ${subId}`);
-    if (type === "COUNT") {
-      await socketSafeSend(socket, ["COUNT", subId, { count: 0 }]);
-    } else {
-      await socketSafeSend(socket, ["EOSE", subId]);
-    }
+    await socketSafeSend(socket, ["EOSE", subId]);
     return;
   }
 
