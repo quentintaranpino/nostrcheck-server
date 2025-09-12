@@ -20,7 +20,7 @@ export function getWSS(): WebSocketServer {
       noServer: true,
       perMessageDeflate: {
         zlibDeflateOptions: {
-          level: 7 
+          level: 4 
         },
         zlibInflateOptions: {
           chunkSize: 1024 * 8 
@@ -44,7 +44,8 @@ export const loadRelayRoutes = (app: Application, version:string, httpServer : S
 
   httpServer.on("upgrade", async (req, socket, head) => {
 
-    const ipInfo = await isIpAllowed(req);
+    const ipInfo = await isIpAllowed(req, getConfig(getClientInfo(req).host, ["security", "relay", "maxMessageMinute"]));
+    (req as any)._ipInfo = ipInfo;
     if (ipInfo.banned) {
       socket.write("HTTP/1.1 403 Forbidden\r\n\r\n");
       socket.destroy();
@@ -67,11 +68,11 @@ export const loadRelayRoutes = (app: Application, version:string, httpServer : S
 
     const clientInfo = getClientInfo(req);
     logger.info("New WebSocket connection | IP:", clientInfo.ip, "| User-Agent:", req.headers["user-agent"]);
-    socket.reqInfo = await isIpAllowed(req, getConfig(clientInfo.host || "", ["security", "relay", "maxMessageMinute"]));
+    socket.reqInfo = (req as any)._ipInfo;
 
-    if (socket.reqInfo.banned) {
+    if (!socket.reqInfo || socket.reqInfo.banned) {
       removeAllSubscriptions(socket, 1008); 
-      socket.send(JSON.stringify(["NOTICE", socket.reqInfo.comments]));
+      socket.send(JSON.stringify(["NOTICE", socket.reqInfo?.comments]));
       socket.terminate();
       return;
     }
