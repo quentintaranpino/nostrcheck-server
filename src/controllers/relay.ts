@@ -46,14 +46,31 @@ const handleWebSocketMessage = async (socket: ExtendedWebSocket, data: WebSocket
 
   try {
 
-    const max_message_length = getConfig(socket.reqInfo.domain, ["relay", "limitation", "max_message_length"]);
-    if (Buffer.byteLength(data.toString()) > max_message_length) {
+    // Check max message length
+    const max_message_length = Number(getConfig(socket.reqInfo.domain, ["relay", "limitation", "max_message_length"])) || 256000;
+    const chunkLen = (b: unknown) => Buffer.isBuffer(b) ? b.length : b instanceof ArrayBuffer ? b.byteLength : 0;
+    const messageSize =
+      Buffer.isBuffer(data)       ? data.length :
+      Array.isArray(data)         ? data.reduce((n, b) => n + chunkLen(b), 0) :
+      data instanceof ArrayBuffer ? data.byteLength :
+      typeof data === "string"    ? Buffer.byteLength(data, "utf8") :
+      null;
+
+    if (messageSize === null) {
+      socket.send(JSON.stringify(["NOTICE", "error: unsupported data"]));
+      logger.debug(`handleWebSocketMessage - Unsupported data: ${typeof data}`);
+      socket.close(1003, "error: unsupported data");
+      return; 
+    }
+
+    if (messageSize > max_message_length) {
       socket.send(JSON.stringify(["NOTICE", "error: message too large"]));
-      logger.debug(`handleWebSocketMessage - Message too large: ${Buffer.byteLength(data.toString())} bytes`);
+      logger.debug(`handleWebSocketMessage - Message too large: ${messageSize}B (limit ${max_message_length}B)`);
       socket.close(1009, "message too large");
       return;
     }
 
+    // Parse message
     const message = parseRelayMessage(data);
     if (!message) {
       socket.send(JSON.stringify(["NOTICE", "invalid: malformed note"]));

@@ -267,7 +267,7 @@ const defaultConfig = {
 		"description": "",
 		"contact": "",
 		"limitation": {
-			"max_message_length": 524288,
+			"max_message_length": 256000,
 			"max_subscriptions": 10,
 			"max_filters": 5,
 			"max_limit": 1000,
