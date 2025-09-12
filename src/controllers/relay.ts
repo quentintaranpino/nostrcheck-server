@@ -284,14 +284,11 @@ const handleEvent = async (socket: ExtendedWebSocket, event: MetadataEvent) => {
     return;
   }
 
-  logger.debug(`handleEvent - Received event: ${event.id}, kind: ${event.kind} |`, socket.reqInfo.ip);
-
   // Ephemeral events
   if (isEphemeral(event.kind)) {
     subscriptions.forEach((clientSubscriptions) => {
       clientSubscriptions.forEach((listener) => listener(event));
     });
-    logger.debug(`handleEvent - Accepted ephemeral event successfully: ${event.id}`);
     await socketSafeSend(socket, ["OK", event.id, true, "ephemeral: accepted but not stored"]);
     return;
   }
@@ -313,7 +310,6 @@ const handleEvent = async (socket: ExtendedWebSocket, event: MetadataEvent) => {
       if (!oldEvent && !oldEventEntry[1].processed) {
         eventStore.eventIndex.delete(oldEventEntry[0]);
         eventStore.pending.delete(oldEventEntry[0]);
-        logger.debug(`handleEvent - Replaced pending event: ${oldEventEntry[0]}`);
       } 
       else if (oldEvent) {
         if (event.created_at > oldEvent.created_at || 
@@ -327,7 +323,6 @@ const handleEvent = async (socket: ExtendedWebSocket, event: MetadataEvent) => {
           }
           eventStore.pendingDelete.set(oldEvent.id, oldEvent);
           eventStore.eventIndex.delete(oldEvent.id);
-          logger.debug(`handleEvent - Replaced processed event: ${oldEvent.id}`);
         } else {
           logger.debug(`handleEvent - Rejected replaceable event: ${event.id}`);
           await socketSafeSend(socket, ["OK", event.id, false, "rejected: replaceable event is older or equal to existing event"]);
@@ -364,7 +359,7 @@ const handleEvent = async (socket: ExtendedWebSocket, event: MetadataEvent) => {
 
     const receivedEventsToDelete = event.tags.filter(tag => tag[0] === "e" || tag[0] === "a").map(tag => tag[1].trim());
     if (receivedEventsToDelete.length === 0) {
-      logger.error(`handleEvent - Rejected kind:5 event ${event.id} due to missing required tags.`);
+      logger.debug(`handleEvent - Rejected kind:5 event ${event.id} due to missing required tags.`);
       await socketSafeSend(socket, ["NOTICE", "invalid: missing required tags"]);
       await socketSafeSend(socket, ["OK", event.id, false, "invalid: missing required tags"]);
       return;
@@ -394,7 +389,6 @@ const handleEvent = async (socket: ExtendedWebSocket, event: MetadataEvent) => {
       return;
     }
 
-    logger.debug(`handleEvent - Accepted kind:5 event ${event.id} and deleted events: ${eventsToDelete.map(e => e.id).join(", ")}`);
     returnMessage = "deleted: events successfully deleted (kind 5)";
 
     // Add events to pendingDelete
@@ -451,7 +445,6 @@ const handleEvent = async (socket: ExtendedWebSocket, event: MetadataEvent) => {
       e.kind !== 62
     );
 
-    logger.debug(`handleEvent - Accepted kind:62 event ${event.id} and deleted events ${eventsToDelete.length}`);
     returnMessage = "deleted: events successfully deleted (kind 62)";
 
     // Add events to pendingDelete
@@ -541,7 +534,6 @@ const handleEvent = async (socket: ExtendedWebSocket, event: MetadataEvent) => {
   }
 
   // Send confirmation to the client
-  logger.debug(`handleEvent - Accepted event: ${event.id}`);
   await socketSafeSend(socket, ["OK", event.id, true, returnMessage]);
 
   return;
@@ -550,9 +542,6 @@ const handleEvent = async (socket: ExtendedWebSocket, event: MetadataEvent) => {
 
 // Handle REQ or COUNT
 const handleReqOrCount = async (socket: ExtendedWebSocket, subId: string, filters: Filter[], type: string) => {
-
-  logger.debug(`handleReqOrCount - Received ${type} message:`, subId);
-  logger.debug(`handleReqOrCount - Filters: ${JSON.stringify(filters, null, 2)}`);
 
   if (!filters || !Array.isArray(filters) || filters.length === 0) {
     logger.debug(`handleReqOrCount - No filters provided: ${subId}`);
@@ -591,17 +580,25 @@ const handleReqOrCount = async (socket: ExtendedWebSocket, subId: string, filter
     return;
   }
 
-  // If sharedDBChunks is not initialized, send EOSE and return
+  // If sharedDBChunks is not initialized, send EOSE (or 0 for COUNT)
   if (!eventStore.sharedDBChunks) {
     logger.debug(`handleReqOrCount - SharedDB not initialized: ${subId}`);
-    await socketSafeSend(socket, ["EOSE", subId]);
+    if (type === "COUNT") {
+      await socketSafeSend(socket, ["COUNT", subId, { count: 0 }]);
+    } else {
+      await socketSafeSend(socket, ["EOSE", subId]);
+    }
     return;
   }
 
   // Early discard filters that not match the event store (pubkey or id)
   if (filterEarlyDiscard(filters, eventStore)) {
     logger.debug(`handleReqOrCount - Filter early discard: ${subId}`);
-    await socketSafeSend(socket, ["EOSE", subId]);
+    if (type === "COUNT") {
+      await socketSafeSend(socket, ["COUNT", subId, { count: 0 }]);
+    } else {
+      await socketSafeSend(socket, ["EOSE", subId]);
+    }
     return;
   }
 
@@ -614,44 +611,42 @@ const handleReqOrCount = async (socket: ExtendedWebSocket, subId: string, filter
 
   try {
    const eventsList = await getEvents(filters, maxLimit, eventStore.sharedDBChunks);
-    let count = 0;
-    let aborted = false;
-    const batchSize = 250;
 
+    if (type === "COUNT") {
+      await socketSafeSend(socket, ["COUNT", subId, { count: eventsList.length }]);
+      return;
+    }
+
+    let sent = 0;
+    let aborted = false;
+    const batchSize = 100;
     for (let i = 0; i < eventsList.length && !aborted; i += batchSize) {
       const batch = eventsList.slice(i, i + batchSize);
       for (const event of batch) {
         if (socket.readyState !== WebSocket.OPEN) { aborted = true; break; }
         if (type === "REQ") {
-          count++;
+          sent++;
           const sentOK = await socketSafeSend(socket, ["EVENT", subId, event]);
           if (!sentOK) { aborted = true; break; }
-          if (count >= maxLimit) break;
+          if (sent >= maxLimit) break;
         }
       }
-      if (count >= maxLimit) break;
+      if (sent >= maxLimit) break;
       await new Promise(resolve => setImmediate(resolve));
     }
 
     if (type === "REQ" && !aborted && socket.readyState === WebSocket.OPEN) {
-      logger.debug(`handleReqOrCount - EOSE - Sent ${count} events to subscription: ${subId}`);
       await socketSafeSend(socket, ["EOSE", subId]);
     }
 
     if (type === "REQ") {
       const listener = async (event: MetadataEvent): Promise<void> => {
-        if (isIsolated && event.tenantid !== socket.reqInfo.domainId) return;
-        if (filters.some((f) => matchFilter(f, event)) && socket.readyState === WebSocket.OPEN) {
-          logger.debug(`handleReqOrCount - Sent live event: ${event.id}`);
-          await socketSafeSend(socket, ["EVENT", subId, event]);
-        }
+      if (isIsolated && event.tenantid !== socket.reqInfo.domainId) return;
+      if (filters.some((f) => matchFilter(f, event)) && socket.readyState === WebSocket.OPEN) {
+        await socketSafeSend(socket, ["EVENT", subId, event]);
+      }
       };
       addSubscription(subId, socket, listener);
-    }
-
-    if (type === "COUNT") {
-      logger.debug(`handleReqOrCount - Sent count: ${count} to subscription: ${subId}`);
-      await socketSafeSend(socket, ["COUNT", subId, { count }]);
     }
 
   } catch (error) {
@@ -714,8 +709,6 @@ const handleAuthMessage = async (socket: ExtendedWebSocket, message: ["AUTH", Au
     return;
   }
 
-  logger.debug(`handleAuthMessage - AUTH event received: ${authData.id}`);
-
   authSessions.set(socket, authData.pubkey);
   delete socket.challenge;
   socket.reqInfo.pubkey = authData.pubkey;
@@ -727,7 +720,6 @@ const handleAuthMessage = async (socket: ExtendedWebSocket, message: ["AUTH", Au
     return;
   }
 
-  logger.debug(`handleAuthMessage - AUTH successful: ${authData.id}, ${registeredData[0].username}`);
   await socketSafeSend(socket, ["OK", authData.id, true, "AUTH successful"]);
 };
 
