@@ -8,6 +8,7 @@ import ffmpeg from "fluent-ffmpeg";
 import { randomBytes } from "crypto";
 import MarkdownIt from "markdown-it";
 import { getConfig } from "./config/core.js";
+import os from "os";
 
 const format = (seconds:number):string =>{
 	function pad(s: number){
@@ -179,20 +180,21 @@ function isBase64(str: string): boolean {
 }
 
 function getCPUUsage(): Promise<number> {
-	return new Promise((resolve) => {
-		const startUsage = process.cpuUsage();
-		const startTime = process.hrtime();
+  return new Promise((resolve) => {
+    const startUsage = process.cpuUsage();
+    const startTime = process.hrtime();
+    const numCPUs = os.cpus().length;
 
-		setTimeout(() => {
-			const endUsage = process.cpuUsage(startUsage);
-			const elapsedTime = process.hrtime(startTime);
+    setTimeout(() => {
+      const endUsage = process.cpuUsage(startUsage);
+      const elapsedTime = process.hrtime(startTime);
 
-			const elapsedMs = (elapsedTime[0] * 1000) + (elapsedTime[1] / 1e6);
-			const totalCPU = (endUsage.user + endUsage.system) / 1000;
-			const cpuPercentage = (totalCPU / elapsedMs) * 100;
-			resolve(Math.floor(cpuPercentage));	
-		}, 1000);
-	});
+      const elapsedMs = (elapsedTime[0] * 1000) + (elapsedTime[1] / 1e6);
+      const totalCPU = (endUsage.user + endUsage.system) / 1000;
+      const cpuPercentage = (totalCPU / elapsedMs) * 100 / numCPUs;
+      resolve(Math.floor(cpuPercentage));
+    }, 1000);
+  });
 }
 
 /**
