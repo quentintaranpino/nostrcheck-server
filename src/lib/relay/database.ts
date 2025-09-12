@@ -22,9 +22,11 @@ const initEvents = async (): Promise<boolean> => {
 
   (async function loadBatch() {
     try {
+      let lastCreatedAt: number | null = null;
+      let lastId: string | null = null;
       while (true) {
         logger.debug(`initEvents - Loaded ${eventIndex.size} events from DB (offset: ${offset})`);
-        const loadedEvents = await getEventsDB(offset, CHUNK_SIZE);
+        const loadedEvents = await getEventsDB(lastCreatedAt, lastId, CHUNK_SIZE);
         if (loadedEvents.length === 0 ) {
           eventStore.relayEventsLoaded = true;
           logger.info(`initEvents - Finished loading ${eventIndex.size} events in ${eventStore.sharedDBChunks.length} chunks from DB`);
@@ -72,6 +74,9 @@ const initEvents = async (): Promise<boolean> => {
           }
 
           offset += CHUNK_SIZE;
+          const tail = loadedEvents[loadedEvents.length - 1];
+          lastCreatedAt = tail.created_at;
+          lastId = tail.id;
 
           // Yield control to the event loop to avoid blocking.
           await new Promise(resolve => setImmediate(resolve));
@@ -86,76 +91,80 @@ const initEvents = async (): Promise<boolean> => {
   return true;
 };
 
-const getEventsDB = async (offset: number, limit: number): Promise<MetadataEvent[]> => {
+const getEventsDB = async (lastCreatedAt: number | null, lastEventId: string | null, limit: number): Promise<MetadataEvent[]> => {
+
+  const isU32 = (n: unknown) => Number.isInteger(n) && (n as number) >= 0 && (n as number) <= 0xFFFFFFFF;
+  const isHex64 = (s: unknown) => typeof s === "string" && /^[a-f0-9]{64}$/i.test(s);
+  const safeLimit = Number.isInteger(limit) && limit! > 0 ? Math.min(limit, 100000) : 10000;
+
+  let cursorWhere = "";
+  if (lastCreatedAt != null && isU32(lastCreatedAt)) {
+    if (lastEventId && isHex64(lastEventId)) {
+      cursorWhere = `
+        AND (
+          e.created_at < ${lastCreatedAt}
+          OR (e.created_at = ${lastCreatedAt} AND e.event_id < '${lastEventId}')
+        )`;
+    } else {
+      cursorWhere = `AND e.created_at < ${lastCreatedAt}`;
+    }
+  }
 
   const query = `
-        WITH ev AS (
-          SELECT *
-          FROM events
-          WHERE active = '1'
-          ORDER BY created_at DESC, id DESC
-          LIMIT ${limit} OFFSET ${offset}
-        ),
-        tagAgg AS (
-          SELECT 
-            event_id,
-            JSON_ARRAYAGG(
-              JSON_ARRAY(
-                tag_name,
-                tag_value,
-                IFNULL(extra_values, NULL)
-              ) ORDER BY position ASC
-            ) AS tags
-          FROM eventtags
-          GROUP BY event_id
-        ),
-        metaAgg AS (
-          SELECT 
-            event_id,
-            JSON_OBJECTAGG(metadata_type, metadata_values) AS metadata
-          FROM (
-            SELECT 
-              event_id,
-              metadata_type,
-              JSON_ARRAYAGG(metadata_value ORDER BY position ASC) AS metadata_values
-            FROM eventmetadata
-            GROUP BY event_id, metadata_type
-          ) sub
-          GROUP BY event_id
-        )
-        SELECT
-          ev.event_id,
-          ev.pubkey,
-          ev.kind,
-          ev.created_at,
-          ev.content,
-          ev.sig,
-          ev.tenantid,
-          COALESCE(tagAgg.tags, JSON_ARRAY()) AS tags,
-          COALESCE(metaAgg.metadata, JSON_OBJECT()) AS metadata
-        FROM ev
-        LEFT JOIN tagAgg ON ev.event_id = tagAgg.event_id
-        LEFT JOIN metaAgg ON ev.event_id = metaAgg.event_id;
-    `;
+    WITH ev AS (
+      SELECT e.event_id, e.pubkey, e.kind, e.created_at, e.content, e.sig, e.tenantid
+      FROM events e
+      WHERE e.active = '1'
+      ${cursorWhere}
+      ORDER BY e.created_at DESC, e.event_id DESC
+      LIMIT ${safeLimit}
+    ),
+    tagAgg AS (
+      SELECT et.event_id,
+             JSON_ARRAYAGG(JSON_ARRAY(et.tag_name, et.tag_value, et.extra_values) ORDER BY et.position) AS tags
+      FROM eventtags et
+      JOIN ev ON ev.event_id = et.event_id
+      GROUP BY et.event_id
+    ),
+    metaAgg AS (
+      SELECT em.event_id,
+             JSON_OBJECTAGG(em.metadata_type, em.metadata_values) AS metadata
+      FROM (
+        SELECT m.event_id, m.metadata_type,
+               JSON_ARRAYAGG(m.metadata_value ORDER BY m.position) AS metadata_values
+        FROM eventmetadata m
+        JOIN ev ON ev.event_id = m.event_id
+        GROUP BY m.event_id, m.metadata_type
+      ) em
+      GROUP BY em.event_id
+    )
+    SELECT
+      ev.event_id, ev.pubkey, ev.kind, ev.created_at, ev.content, ev.sig, ev.tenantid,
+      COALESCE(tagAgg.tags, JSON_ARRAY())       AS tags,
+      COALESCE(metaAgg.metadata, JSON_OBJECT()) AS metadata
+    FROM ev
+    LEFT JOIN tagAgg  ON ev.event_id = tagAgg.event_id
+    LEFT JOIN metaAgg ON ev.event_id = metaAgg.event_id;
+  `;
 
   const dbResult = await dbSimpleSelect("events", query, "SET SESSION group_concat_max_len = 8388608;");
   if (!dbResult) return [];
 
-  interface EventRow {
+  type EventRow = {
     event_id: string;
     pubkey: string;
     kind: number;
     created_at: number;
     content: string;
     sig: string;
-    tags?: string;     
     tenantid?: string;
+    tags?: string;
     metadata?: string;
-  }
+  };
 
   const rows: EventRow[] = JSON.parse(JSON.stringify(dbResult));
 
-  const events: MetadataEvent[] = rows.map((row: EventRow) => ({
+  const events: MetadataEvent[] = rows.map((row) => ({
     id: row.event_id,
     pubkey: row.pubkey,
     kind: row.kind,
@@ -163,27 +172,22 @@ const getEventsDB = async (offset: number, limit: number): Promise<MetadataEvent
     content: row.content,
     sig: row.sig,
     tags: row.tags
-    ? safeJSONParse(row.tags, []).map((tag: any[]) => {
-        const [name, value, extra] = tag;
-        let rest: string[] = [];
-        if (typeof extra === "string" && extra.trim().startsWith("[")) {
-          try {
-            rest = JSON.parse(extra);
-          } catch {
+      ? safeJSONParse(row.tags, []).map((tag: any[]) => {
+          const [name, value, extra] = tag;
+          let rest: string[] = [];
+          if (typeof extra === "string" && extra.trim().startsWith("[")) {
+            try { rest = JSON.parse(extra); } catch { rest = [extra]; }
+          } else if (extra) {
             rest = [extra];
           }
-        } else if (extra) {
-          rest = [extra];
-        }
-        return [name, value, ...rest];
-      })
-    : [],
+          return [name, value, ...rest];
+        })
+      : [],
     tenantid: Number(row.tenantid) || 0,
     metadata: row.metadata ? safeJSONParse(row.metadata, undefined) : undefined,
   }));
 
   return events;
-
 };
 
 
