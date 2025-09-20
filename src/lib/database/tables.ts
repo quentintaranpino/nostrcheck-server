@@ -269,13 +269,6 @@ const initDatabase = async (): Promise<void> => {
 			logger.error(`initDatabase - Error creating public username (${serverPubkey}). Exiting.`);
 			process.exit(1);
 		}
-
-        const { dbUpdate } = await import("./core.js");
-		const allowed = await dbUpdate("registered",{"allowed" : "1" }, ["username"], ["public"]);
-		if (!allowed) {
-			logger.error(`initDatabase - Error updating (allowed -> 1) public username (${serverPubkey}). Exiting.`);
-			process.exit(1);
-		}
 	}
 
 	// Check if public lightning address exist on lightning table and create it if not.
