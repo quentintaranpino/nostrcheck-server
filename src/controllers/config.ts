@@ -43,6 +43,8 @@ const checkConfigNecessaryKeys = async () : Promise<void> => {
 			missingFields = missingFields.filter((field) => field !== "server.pubkey" && field !== "server.secretKey");
 			setConfig("", ["server", "pubkey"], keyPair.publicKey);
 			setConfig("", ["server", "secretKey"], keyPair.secretKey);
+			console.info("Config file updated with new default fields. Please restart the server");
+        	exit(3);
 		}
 	}
 
