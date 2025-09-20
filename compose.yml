@@ -2,13 +2,7 @@ services:
   app:
     networks:
     - localnet
-<<<<<<< HEAD
-    image: nostrcheckme/nostrcheck-server:latest
-    build:
-      context: .
-=======
     image: nostrcheckme/nostrcheck-server:testing
->>>>>>> 0.7.0
     depends_on:
       - mariadb
       - redis
@@ -29,39 +23,6 @@ services:
       REDIS_PORT: "6379"
       REDIS_USER: "default"
       REDIS_PASSWORD: ""
-<<<<<<< HEAD
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.services.app.loadbalancer.server.port=3000"
-      - "traefik.http.services.app.loadbalancer.sticky=true"
-      - "traefik.http.services.app.loadbalancer.sticky.cookie.name=app_session"
-      - "traefik.http.routers.app.entrypoints=web"
-      # /.well-known/nostr.json -> /api/v2/nostraddress
-      - "traefik.http.routers.app-nostrjson.rule=Path(`/.well-known/nostr.json`)"
-      - "traefik.http.routers.app-nostrjson.middlewares=replacepath-nostrjson"
-      - "traefik.http.middlewares.replacepath-nostrjson.replacepath.path=/api/v2/nostraddress"
-      - "traefik.http.routers.app-nostrjson.service=app"
-      # /.well-known/nostr/nip96.json -> /api/v2/nip96
-      - "traefik.http.routers.app-nip96.rule=Path(`/.well-known/nostr/nip96.json`)"
-      - "traefik.http.routers.app-nip96.middlewares=replacepath-nip96"
-      - "traefik.http.middlewares.replacepath-nip96.replacepath.path=/api/v2/nip96"
-      - "traefik.http.routers.app-nip96.service=app"
-      # /media -> /api/v2/media
-      - "traefik.http.routers.app-media.rule=PathPrefix(`/media`)"
-      - "traefik.http.routers.app-media.middlewares=replacepathregex-media"
-      - "traefik.http.middlewares.replacepathregex-media.replacepathregex.regex=^/media/(.*)"
-      - "traefik.http.middlewares.replacepathregex-media.replacepathregex.replacement=/api/v2/media/$$1"
-      - "traefik.http.routers.app-media.service=app"
-      # 
-      - "traefik.http.routers.app.rule=PathPrefix(`/`)"
-      - "traefik.http.routers.app.service=app"
-      # /.well-known/lnurlp -> /api/v2/lightning
-      - "traefik.http.routers.app-lightning.rule=Path(`/.well-known/lnurlp/`)"
-      - "traefik.http.routers.app-lightning.middlewares=replacepath-lightning"
-      - "traefik.http.middlewares.replacepath-lightning.replacepath.path=/api/v2/lightningaddress/"
-      - "traefik.http.routers.app-lightning.service=app"
-=======
->>>>>>> 0.7.0
     command: "npm run start"
     ports:
       - "3000:3000"
@@ -89,24 +50,5 @@ services:
       interval: 30s
       timeout: 10s
       retries: 5
-<<<<<<< HEAD
-  traefik:
-    networks:
-      - localnet
-    image: traefik:2.10
-    command:
-      - "--providers.docker=true"
-      - "--providers.docker.exposedbydefault=false"
-      - "--entrypoints.web.address=:3000"
-    ports:
-      - "3000:3000"
-    volumes:
-      - "/var/run/docker.sock:/var/run/docker.sock"
-    restart: always
-volumes:
-  media:
-  resources:
-=======
->>>>>>> 0.7.0
 networks:
   localnet:
