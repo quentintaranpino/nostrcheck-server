@@ -546,6 +546,19 @@ const deleteDBRecord = async (req: Request, res: Response): Promise<Response> =>
         await redisCore.del(redisKeyIpWindow);
     }
 
+    // Special case for registered table (can't delete public user)
+    if (table == "registered") {
+        const dbData = await dbMultiSelect(["username"], table, "id = ?", [req.body.id]);
+        if (dbData[0].username === "public") {
+            const result : ResultMessagev2 = {
+                status: "error",
+                message: "Cannot delete public user"
+            };
+            logger.warn(`deleteDBRecord - Attempt to delete public user`, "|", reqInfo.ip);
+            return res.status(400).send(result);
+        }
+    }
+
     // Unban the record if it was banned and delete it from banned redis cache.
     await unbanEntity(req.body.id, table);
 
