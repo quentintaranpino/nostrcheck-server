@@ -234,7 +234,7 @@ const storeEvents = async (eventsInput: MetadataEvent | MetadataEvent[]): Promis
   
     const insertedRows = await dbBulkInsert("events", eventColumns, eventValues);
     if (insertedRows !== eventsToStore.length) {
-      logger.error(`storeEvents - Failed to insert events. Expected: ${eventsToStore.length}, Inserted: ${insertedRows}`);
+      logger.debug(`storeEvents - Not all events inserted. Expected: ${eventsToStore.length}, Inserted: ${insertedRows}`);
     }
   
     // Store tags
