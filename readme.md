@@ -178,7 +178,7 @@ See multi-tenancy [here](https://github.com/quentintaranpino/nostrcheck-server/w
 
 ### User public / private profile
 
-![image](https://github.com/user-attachments/assets/aa65f649-1537-43a3-a26d-b85c4af12a30)
+<img width="1187" height="889" alt="image" src="https://github.com/user-attachments/assets/e4320b7f-9e07-4957-b9c0-afc17b3d8274" />
 
 ### Nostr settings page
 
