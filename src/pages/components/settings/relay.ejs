@@ -1,0 +1,232 @@
+<%
+  const cfg = locals.domainConfig?.relay || {};
+  const globalCfg = locals.globalConfig?.relay || {};
+%>
+
+<div id="settingsRelay">
+  <h3 class="mt-4">Relay</h3>
+  <form class="form mx-auto">
+    <p>In this section, you can configure the relay settings of your server.</p>
+
+    <%- include('field', {
+      type: "text",
+      name: "relay.description",
+      label: "Relay description",
+      description: "Specify a human readable description for the relay server.",
+      value: cfg.description,
+      globalValue: globalCfg.description,
+      required: true,
+      overridable: true
+    }) %>
+
+    <%- include('field', {
+      type: "text",
+      name: "relay.contact",
+      label: "Relay contact",
+      description: "This is the second administrative contact for the relay server. The first contact is the server's pubkey.",
+      value: cfg.contact,
+      globalValue: globalCfg.contact,
+      required: true,
+      overridable: true
+    }) %>
+
+    <%- include('field', {
+      type: "file",
+      name: "relay.icon",
+      label: "Relay icon",
+      description: "Upload a new icon for your relay server. For better results, use an image with transparent background.",
+      previewSrc: `/static/resources/relay-icon.png${selectedDomain ? `?domain=${selectedDomain}` : ""}`,
+      previewSize: { width: 61, height: 61 },
+      overridable: true
+    }) %>
+
+    <%- include('field', {
+      type: "text",
+      name: "relay.language_tags",
+      label: "Language tags",
+      description: "Specify the language tags indicating the major languages spoken on the relay separated by commas.",
+      value: cfg.language_tags,
+      globalValue: globalCfg.language_tags,
+      required: true,
+      overridable: true
+    }) %>
+
+    <%- include('field', {
+      type: "number",
+      name: "relay.workers",
+      label: "Workers",
+      description: "Specify the number of workers to be used by the relay server. You must restart the relay server for changes to take effect.",
+      value: cfg.workers,
+      globalValue: globalCfg.workers,
+      required: true,
+      overridable: false,
+      alert: {
+        type: "warning",
+        icon: "fa-triangle-exclamation",
+        message: "The number of workers should be less than the number of CPU cores available on the server."
+      }
+    }) %>
+
+    <%- include('field', {
+      type: "checkbox",
+      name: "relay.isolated",
+      label: "Isolated relay",
+      description: "If enabled, and multi-tenanting is enabled, this relay will be isolated from other relay instances, behaving as an independent relay from the rest.",
+      value: cfg.isolated,
+      globalValue: globalCfg.isolated,
+      required: true,
+      overridable: true
+    }) %>
+
+    <% const limitation = cfg.limitation || {}; const globalLimitation = globalCfg.limitation || {}; %>
+
+    <h4 class="mt-4">Server limits</h4>
+    <p>Specify the maximum allowed values for the relay server.</p>
+
+    <%- include('field', {
+      type: "checkbox",
+      name: "relay.limitation.auth_required",
+      label: "Authentication required",
+      description: "If enabled, all requests must be authenticated. See NIP-42.",
+      value: limitation.auth_required,
+      globalValue: globalLimitation.auth_required,
+      overridable: true
+    }) %>
+
+    <%- include('field', {
+      type: "number",
+      name: "relay.limitation.max_message_length",
+      label: "Max message length",
+      description: "Maximum allowed message length (in bytes) per socket.",
+      value: limitation.max_message_length,
+      globalValue: globalLimitation.max_message_length,
+      required: true,
+      overridable: true
+    }) %>
+
+    <%- include('field', {
+      type: "number",
+      name: "relay.limitation.max_subscriptions",
+      label: "Max subscriptions",
+      description: "Maximum allowed subscriptions per socket.",
+      value: limitation.max_subscriptions,
+      globalValue: globalLimitation.max_subscriptions,
+      required: true,
+      overridable: true
+    }) %>
+
+    <%- include('field', {
+      type: "number",
+      name: "relay.limitation.max_filters",
+      label: "Max filters",
+      description: "Maximum allowed filters per socket.",
+      value: limitation.max_filters,
+      globalValue: globalLimitation.max_filters,
+      required: true,
+      overridable: true
+    }) %>
+
+    <%- include('field', {
+      type: "number",
+      name: "relay.limitation.max_limit",
+      label: "Max filter limit",
+      description: "Maximum allowed filtered results.",
+      value: limitation.max_limit,
+      globalValue: globalLimitation.max_limit,
+      required: true,
+      overridable: true
+    }) %>
+
+    <%- include('field', {
+      type: "number",
+      name: "relay.limitation.max_subid_length",
+      label: "Max subscription ID length",
+      description: "Maximum allowed length of the subscription id.",
+      value: limitation.max_subid_length,
+      globalValue: globalLimitation.max_subid_length,
+      required: true,
+      overridable: true
+    }) %>
+
+    <%- include('field', {
+      type: "number",
+      name: "relay.limitation.max_event_tags",
+      label: "Max event tags",
+      description: "Maximum number of tags that can be used in an event.",
+      value: limitation.max_event_tags,
+      globalValue: globalLimitation.max_event_tags,
+      required: true,
+      overridable: true
+    }) %>
+
+    <%- include('field', {
+      type: "number",
+      name: "relay.limitation.max_content_length",
+      label: "Max content length",
+      description: "Maximum number of characters in the content field of any event.",
+      value: limitation.max_content_length,
+      globalValue: globalLimitation.max_content_length,
+      required: true,
+      overridable: true
+    }) %>
+
+    <%- include('field', {
+      type: "number",
+      name: "relay.limitation.min_pow_difficulty",
+      label: "Min PoW difficulty",
+      description: "Minimum required PoW difficulty based on NIP-13. Set to 0 to disable PoW.",
+      value: limitation.min_pow_difficulty,
+      globalValue: globalLimitation.min_pow_difficulty,
+      required: true,
+      overridable: true
+    }) %>
+
+    <%- include('field', {
+      type: "number",
+      name: "relay.limitation.created_at_lower_limit",
+      label: "Created_at lower limit",
+      description: "Lower limit of the created_at field of any event (in timestamp format).",
+      value: limitation.created_at_lower_limit,
+      globalValue: globalLimitation.created_at_lower_limit,
+      required: true,
+      overridable: true
+    }) %>
+
+    <%- include('field', {
+      type: "number",
+      name: "relay.limitation.created_at_upper_limit",
+      label: "Created_at upper limit",
+      description: "Upper limit of the created_at field of any event (in timestamp format).",
+      value: limitation.created_at_upper_limit,
+      globalValue: globalLimitation.created_at_upper_limit,
+      required: true,
+      overridable: true
+    }) %>
+
+    <%- include('field', {
+      type: "number",
+      name: "relay.limitation.max_time_range",
+      label: "Max time range (REQ)",
+      description: "Maximum time range for the REQ command.",
+      value: limitation.max_time_range,
+      globalValue: globalLimitation.max_time_range,
+      required: true,
+      overridable: true
+    }) %>
+
+    <%- include('field', {
+      type: "text",
+      name: "relay.tags",
+      label: "Allowed tags",
+      description: "Comma-separated list of allowed tags for this relay. Leave empty to allow all.",
+      value: cfg.tags,
+      globalValue: globalCfg.tags,
+      required: true,
+      overridable: true
+    }) %>
+
+    <div class="col-12 col-md-3 mb-5 mt-4 pb-5 pb-lg-0 mb-lg-2">
+      <button class="btn btn-lg mb-4 btn-primary w-100" name="Submit" type="button" onclick="saveSettings()">Save</button>
+    </div>
+  </form>
+</div>

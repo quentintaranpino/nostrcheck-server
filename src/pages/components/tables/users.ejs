@@ -1,0 +1,60 @@
+<% 
+let nostraddressFields = [
+  ['checked',       '30' , 'formatCheckbox', 'enabled   show text-center              '],
+  ['active',        '30' , 'formatCheckbox', 'enabled   show text-center              '],
+  ['allowed',       '30' , 'formatCheckbox', 'enabled   hide text-center mobile-hide  '],
+  ['pendingotc',    '30' , 'formatCheckbox', 'disabled  hide text-center              '],
+  ['banned',        ''   , 'formatCheckbox', 'disabled  hide                          '],
+  ['username',      ''   , ''              , 'enabled   show text-center              '],
+  ['pubkey',        ''   , 'formatPubkey'  , 'enabled   show                          '],
+  ['hex',           ''   , 'formatPubkey'  , 'enabled   hide                          '],
+  ['domain',        ''   , ''              , 'enabled   show text-center              '],
+  ['comments',      ''   , ''              , 'enabled   hide                          '],
+  ['date',          '290', ''              , 'disabled  show text-center              '],
+];
+
+if(locals.activeModules.some(mod => mod.name === 'payments')) {
+  nostraddressFields.splice(5, 0, ['paid', '30', 'formatCheckbox', 'disabled show text-center'],);
+  nostraddressFields.splice(6, 0, ['satoshi','30', 'formatSatoshi', 'disabled show text-end'],);
+  nostraddressFields.splice(7, 0, ['balance', '30', 'formatSatoshi', 'disabled  show text-end'],);
+  nostraddressFields.splice(8, 0, ['transactionid','', '', 'disabled hide']);
+}
+
+let nostraddressButtons = [
+  ['add','show'],
+  ['disable','show'],
+  ['enable','show'],
+  ['visible','hide'],
+  ['invisible','hide'],
+  ['admin','show'],
+  ['edit','show'],
+  ['password','show'],
+  ['remove','show'],
+  ['pay', locals.activeModules.some(mod => mod.name === 'payments') ? 'show' : 'hide'],
+  ['balance', locals.activeModules.some(mod => mod.name === 'payments') ? 'show' : 'hide'],
+  ['moderate','hide'],
+  ['ban','show']
+];
+
+%>
+<% if(locals.activeModules.some(mod => mod.name === 'nostraddress')) { %>
+  <%- include('../table', {
+    tableName:"Registered users", 
+    tableDesc:"",
+    tableId:"registeredData", 
+    buttons:nostraddressButtons,
+    fields: nostraddressFields, 
+    datakey: 'nostraddress',
+    objectName: 'user',
+  });         
+  %>
+  <%- include('../charts/combined', {
+    chartId: 'registeredData',
+    datakey: 'nostraddress',
+    doughnutField: 'checked',
+    doughnutName: 'pubkey',
+    action: 'count',
+    monthField: 'date',
+    monthName: 'Registered pubkeys',
+  }); %>
+<% } %>

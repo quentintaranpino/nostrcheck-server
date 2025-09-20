@@ -1,4 +1,4 @@
-import { dbMultiSelect } from "./database.js";
+import { dbMultiSelect } from "./database/core.js";
 
 const getLightningAddress = async (pubkey: string) => {
 

@@ -1,0 +1,181 @@
+<canvas id="<%- chartId %>-doughnut-chart" class="mx-auto"></canvas>
+
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', async () => {
+
+        const chartId = "<%- chartId %>-doughnut-chart";
+        const datakey = "<%= datakey %>";
+        const doughnutField = "<%= doughnutField %>";
+        const doughnutName = "<%= typeof doughnutName !== 'undefined' ? doughnutName : '' %>";
+        const timeout = Number("<%= typeof timeout !== 'undefined' ? timeout : 60000 %>");
+        const width = "<%= typeof width !== 'undefined' ? width : '' %>";
+        const height = "<%= typeof height !== 'undefined' ? height : '' %>";
+        const showTitle = "<%= showTitle %>";
+        const showLegend = "<%= showLegend %>";
+        const showTooltip = "<%= showTooltip %>";
+        const externalTooltip = "<%= externalTooltip  %>";
+        const type = "<%= type %>";
+        const action ="<%= action %>";
+
+        // Set the width and height of the chart
+        document.getElementById(chartId).style.width = width;
+        document.getElementById(chartId).style.height = height;
+
+        let doughnutCharts = {};
+        async function initDoughnutChart(type, chartId, title, data, field, showTitle = false, showLegend = false, showTooltip = false,  externalTooltip = "") {
+
+            const values = [data.field, data.total - data.field];
+            const labels = [field, 'un' + field];
+
+            if (!chartId.toString().startsWith('#')) chartId = '#' + chartId;
+            if (externalTooltip !== "" && !externalTooltip.toString().startsWith('#')) externalTooltip = '#' + externalTooltip;
+            
+            // delete previous chart if exists
+            if (doughnutCharts[chartId]) {
+                doughnutCharts[chartId].destroy();
+                delete doughnutCharts[chartId];
+            }
+
+            const ctx = document.querySelector(chartId).getContext('2d');
+            doughnutCharts[chartId] = new Chart(ctx, {
+                type: type,
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: values,
+                        backgroundColor: [
+                            'rgba(255, 159, 64, 0.6)', 
+                            'rgba(186, 85, 211, 0.6)'  
+                        ],
+                        borderWidth: 1,
+                        offset: 4,
+                        hoverOffset: 20
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    resizeDelay: 100,
+                    plugins: {
+                        title: {
+                            display: showTitle,
+                            text: title,
+                            font: {
+                                size: 20,
+                                family: 'system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", "Noto Sans", "Liberation Sans", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"',
+                                weight: 'bold'
+                            },
+                            color: localStorage.getItem('theme') === 'dark' ? '#FFFFFF' : '#4d4c4c',
+                            padding: {
+                                top: 10,
+                                bottom: 30
+                            }
+                        },
+                        tooltip: {
+                                enabled: showTooltip,
+                                external: externalTooltip !== "" ? function(context) {
+                                // Tooltip Element
+                                const tooltipEl = $(externalTooltip)[0];
+
+                                // Hide if no tooltip
+                                if (context.tooltip.opacity === 0) {
+                                tooltipEl.classList.remove('visible');
+                                return;
+                                }
+
+                            // Set Text
+                            if (context.tooltip.body) {
+                                const bodyLines = context.tooltip.body.map(b => b.lines);
+                                const titleLines = context.tooltip.title || [];
+                                let innerHtml = '';
+
+                                titleLines.forEach(function(title) {
+                                innerHtml += '<div>' + '<b>' + title + '</b>  : '
+                                bodyLines.forEach((body, i) => {
+                                    innerHtml += body + '</div>';
+                                });
+                                });
+                
+                                tooltipEl.innerHTML = innerHtml;
+                                tooltipEl.classList.add('visible');
+                            }
+                            }: null,
+                        },
+                        legend: {
+                            display: showLegend,
+                            labels: {
+                                font: {
+                                    size: 12,
+
+                                    family: 'system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", "Noto Sans", "Liberation Sans", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"',
+                                },
+                                color: localStorage.getItem('theme') === 'dark' ? '#FFFFFF' : '#4d4c4c',
+                                boxHeight: 20,
+                                position: 'bottom'
+                            }
+                        }
+                    }
+                }
+            });
+
+        };
+
+        document.getElementById('theme-switch').addEventListener('click', () => {
+            const isDarkMode = document.documentElement.getAttribute('data-bs-theme') === 'dark';
+            Object.values(doughnutCharts).forEach(chart => {
+                chart.options.plugins.title.color = isDarkMode ? '#FFFFFF' : 'var(--bs-secondary)';
+                chart.options.plugins.legend.labels.color = isDarkMode ? '#FFFFFF' : '#4d4c4c';
+                chart.update();
+            });
+        });
+
+        const fetchCountData = async (datakey, action, field) => {
+            let serverData  = ""
+            await fetch(`/api/v2/admin/modulecountdata?module=${datakey}&action=${action}&field=${field}`, {
+            method: 'GET', headers: {'Content-Type': 'application/json'}})
+            .then(response => response.json())
+            .then(data => {
+                serverData = data;
+            })
+            .catch(error => console.error('Error:', error));
+
+            return serverData || { total: 0 }
+        }
+
+        const updateDoughnutChart = async () => {
+            const doughnutCount = await fetchCountData(datakey, action, doughnutField);
+            await initDoughnutChart(
+                type,
+                chartId,
+                doughnutField.charAt(0).toUpperCase() + doughnutField.slice(1) + ' ' + doughnutName + 's',
+                { field: doughnutCount.field, total: doughnutCount.total },
+                doughnutField,
+                showTitle === 'true',
+                showLegend === 'true',
+                showTooltip === 'true',
+                externalTooltip
+            );
+
+        };
+
+        setInterval(() => {updateDoughnutChart()}, timeout);
+        updateDoughnutChart();
+
+        // Intersection Observer for updating charts when they are in view
+        const activeChart = document.getElementById(chartId);
+        const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+            setTimeout(() => {
+                updateDoughnutChart();
+            }, 150);
+            observer.unobserve(entry.target); 
+            }
+        });
+        }, { threshold: 0.90 });
+        observer.observe(activeChart);
+
+    });
+</script>

@@ -18,6 +18,7 @@ Nostrcheck Server is a comprehensive solution for managing and offering services
 
 - **Nostraddress Management (NIP05):** Configure and manage personalized Nostr addresses.
 - **Hosting of Multimedia Files:** Fully compatible with NIP94, NIP96, and Blossom🌸 for uploading and sharing content.
+- **Nostr relay:** The server can act as a Nostr relay, allowing admins to manage their own Nostr relay.
 - **Lightning Redirects:** Allow your users to redirect payments to their Lightning wallets using their Nostraddress.
 - **Full LN Integration:** Compatible with **Nostr Wallet Connect** and **LNBits**, enabling LN payments for file uploads, downloads, and user registrations.
 - **Advanced User Management:** Control profiles, invitations, and permissions.
@@ -37,8 +38,9 @@ The server is highly customizable and can be deployed in any environment, allowi
   - [Standalone Installation](#installation-standalone)
   - [Docker Installation](#installation-docker)
 - [Documentation](#documentation)
-- [Configuration](#configuration)
-- [Plugins](#plugins)
+  - [API docs](#api-docs)
+  - [Configuration](#configuration)
+  - [Plugins](#plugins)
 - [Screenshots](#screenshots)
 - [Supported Nostr NIPs](#supported-nostr-nips)
 - [Supported Blossom BUDs](#supported-blossom-buds)
@@ -75,15 +77,98 @@ git clone https://github.com/quentintaranpino/nostrcheck-server.git && cd nostrc
 
 ## Documentation
 
-See documentation [here](https://github.com/quentintaranpino/nostrcheck-api-ts/blob/main/DOCS.md)
+See documentation [here](https://github.com/quentintaranpino/nostrcheck-server/wiki)
 
-## Configuration
+### API docs
 
-See configuration [here](https://github.com/quentintaranpino/nostrcheck-api-ts/blob/main/CONFIG.md)
+See API documentation [here](https://github.com/quentintaranpino/nostrcheck-server/wiki/API-Documentation)
 
-## Plugins
+### Configuration
 
-See plugins [here](https://github.com/quentintaranpino/nostrcheck-api-ts/blob/main/PLUGINS.md)
+See configuration [here](https://github.com/quentintaranpino/nostrcheck-server/wiki/Configuration)
+
+### Plugins
+
+See plugins [here](https://github.com/quentintaranpino/nostrcheck-server/wiki/Plugins)
+
+### Multi tenancy
+
+See multi-tenancy [here](https://github.com/quentintaranpino/nostrcheck-server/wiki/Multi-tenancy)
+
+## Supported Nostr NIP's
+
+- [x] NIP01 - Basic protocol flow description
+- [x] NIP02 - Follow List
+- [x] NIP03 - OpenTimestamps Attestations for Events
+- [x] NIP04 - Encrypted Direct Message
+- [x] NIP05 - Mapping Nostr keys to DNS-based internet identifiers
+- [x] NIP07 - window.nostr capability for web browsers
+- [x] NIP09 - Event Deletion Request
+- [x] NIP11 - Relay Information Document
+- [x] NIP13 - Proof of Work
+- [x] NIP14 - Subject tag in Text events
+- [x] NIP19 - bech32-encoded entities
+- [x] NIP40 - Expiration Timestamp
+- [x] NIP42 - Authentication of clients to relays
+- [x] NIP45 - Event Counts
+- [x] NIP47 - Nostr Wallet Connect (NWC)
+- [x] NIP48 - Proxy Tags
+- [x] NIP50 - Search Capability
+- [x] NIP62 - Request to Vanish
+- [x] NIP70 - Protected Events
+- [x] NIP78 - Arbitrary custom app data
+- [x] NIP94 - File Metadata
+- [x] NIP96 - HTTP File Storage Integration
+- [x] NIP98 - HTTP Auth
+
+## Supported Blossom BUD's
+
+- [x] BUD01 - Server requirements and blob retrieval
+- [x] BUD02 - Blob upload and management
+- [x] BUD03 - User Server List
+- [x] BUD04 - Mirroring blobs
+- [x] BUD06 - Upload requirements
+- [x] BUD07 - Paid upload and download
+
+## Supported Lightning LUD's
+
+- [x] LUD06 - payRequest base spec
+
+## Roadmap
+
+- [x] Nostraddress service
+- [x] Media uploads
+- [x] Lightning redirects
+- [x] Standalone Installation script
+- [x] Docker installation
+- [x] Nostr DM integration (NIP04)
+- [x] Frontend UI (dashboard)
+- [x] Frontend UI (settings)
+- [x] Frontend UI (homepage)
+- [x] Frontend UI (docs and ToS)
+- [x] Remote Object Storage (s3)
+- [x] Blossom spec compatible
+- [x] Lightning payments
+- [x] Frontend UI (profile)
+- [x] Frontend UI (public gallery)
+- [x] Frontend UI (public upload)
+- [x] Frontend UI (register)
+- [x] Ban system
+- [x] AI media moderation
+- [x] Plugins engine
+- [ ] Private Direct Messages (NIP17)
+- [ ] Import / Export data
+- [ ] Custom frontend templates
+- [x] Frontend UI (directory)
+- [ ] Umbrel appstore integration
+- [ ] Start9 appstore integration
+- [x] Integrated nostr relay
+- [X] AI event relay moderation
+- [x] Nostr wallet connect
+- [x] Security Engine
+- [x] Frontend UI (relay)
+- [x] Alby Hub appstore integration
+- [x] Full multy-tenancy support
 
 ## Screenshots
 
@@ -150,64 +235,6 @@ See plugins [here](https://github.com/quentintaranpino/nostrcheck-api-ts/blob/ma
 ### Plugins
 
 ![image](https://github.com/user-attachments/assets/ca3a13ee-179a-4ea8-a022-37497e35f6be)
-
-## Supported Nostr NIP's
-
-- [x] NIP01
-- [x] NIP04
-- [x] NIP05
-- [x] NIP07
-- [x] NIP19
-- [x] NIP44
-- [x] NIP47
-- [x] NIP94
-- [x] NIP96
-- [x] NIP98
-
-## Supported Blossom BUD's
-
-- [x] BUD01
-- [x] BUD02
-- [x] BUD03
-- [x] BUD04
-- [x] BUD06
-- [x] BUD07
-
-## Supported Lightning LUD's
-
-- [x] LUD06
-
-## Roadmap
-
-- [x] Nostraddress service
-- [x] Media uploads
-- [x] Lightning redirects
-- [x] Standalone Installation script
-- [x] Docker installation
-- [x] Nostr DM integration (NIP04)
-- [x] Frontend UI (dashboard)
-- [x] Frontend UI (settings)
-- [x] Frontend UI (homepage)
-- [x] Frontend UI (docs and ToS)
-- [x] Remote Object Storage (s3)
-- [x] Blossom spec compatible
-- [x] Lightning payments
-- [x] Frontend UI (profile)
-- [x] Frontend UI (public gallery)
-- [x] Frontend UI (public upload)
-- [x] Frontend UI (register)
-- [x] Ban system
-- [x] AI moderation
-- [x] Plugins engine
-- [ ] Private Direct Messages (NIP17)
-- [ ] Multi-server mirroring
-- [ ] Import / Export data
-- [ ] Custom frontend templates
-- [x] Frontend UI (directory)
-- [ ] Umbrel appstore integration
-- [ ] Start9 appstore integration
-- [ ] Integrated micro-relay
-- [x] Nostr wallet connect
 
 ## License
 

@@ -48,7 +48,7 @@ document.querySelectorAll('a[href^="#"]').forEach(anchor => {
 // Reload page when loaded from cache
 window.addEventListener('pageshow', (event) => {
   if (event.persisted || (performance && performance.navigation.type === 2)) {
-      console.log('Page loaded from cache, reloading...');
+      console.debug('Page loaded from cache, reloading...');
       window.location.reload();
   }
 });
@@ -202,35 +202,86 @@ const loadMedia = (mediaUrl, containers, imgClassList = [], videoOptions = {}) =
         spinner.appendChild(spinnerSpan);
         container.appendChild(spinner);
 
-        fetch(mediaUrl)
-            .then(response => response.blob())
-            .then(blob => {
-                const mimeType = blob.type;
-                container.innerHTML = '';
-                container.classList.remove('d-flex', 'justify-content-center', 'align-items-center'); 
-
-                if (mimeType.startsWith('image/')) {
-                    const img = document.createElement('img');
-                    img.src = mediaUrl;
-                    img.alt = 'Media image';
-                    imgClassList.forEach(className => img.classList.add(className));
-                    container.appendChild(img);
-                } else if (mimeType.startsWith('video/')) {
-                    const video = document.createElement('video');
-                    video.src = mediaUrl;
-                    video.autoplay = videoOptions.autoplay || true;
-                    video.loop = videoOptions.loop || false;
-                    video.muted = videoOptions.muted || true;
-                    video.controls = videoOptions.controls || false;
-                    imgClassList.forEach(className => video.classList.add(className));
-                    container.appendChild(video);
-                } else {
-                    console.error('Unknown media type:', mimeType);
-                }
-            })
-            .catch(error => {
-                console.error('Error fetching media:', error);
-                container.innerHTML = '<p>Error loading media</p>';
-            });
+        const extension = mediaUrl.split('.').pop()?.toLowerCase() || '';
+        const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+        const videoExtensions = ['mp4', 'webm', 'ogg'];
+        
+        container.innerHTML = '';
+        container.classList.remove('d-flex', 'justify-content-center', 'align-items-center');
+        
+        if (imageExtensions.includes(extension)) {
+          const img = document.createElement('img');
+          img.src = mediaUrl;
+          img.alt = 'Media image';
+          imgClassList.forEach(className => img.classList.add(className));
+          container.appendChild(img);
+        
+        } else if (videoExtensions.includes(extension)) {
+          const video = document.createElement('video');
+          video.src = mediaUrl;
+          video.autoplay = videoOptions.autoplay ?? true;
+          video.loop = videoOptions.loop ?? false;
+          video.muted = videoOptions.muted ?? true;
+          video.controls = videoOptions.controls ?? false;
+          imgClassList.forEach(className => video.classList.add(className));
+          container.appendChild(video);
+        
+        } 
+        
     });
 };
+
+const markdownToHTML = (text) => {
+    return text
+        .replace(/^### (.*$)/gm, '<h3>$1</h3>')
+        .replace(/^## (.*$)/gm, '<h2>$1</h2>')
+        .replace(/^# (.*$)/gm, '<h1>$1</h1>')
+        .replace(/\*\*(.*)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.*)\*/g, '<em>$1</em>')
+        .replace(/!\[(.*?)\]\((.*?)\)/g, '<img alt="$1" src="$2">')
+        .replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2">$1</a>')
+        .replace(/\n/g, '<br>');
+};
+
+
+// tab touch scropp
+document.addEventListener("DOMContentLoaded", function () {
+    document.querySelectorAll(".nav-tabs").forEach((tabsContainer) => {
+      let isDown = false;
+      let startX;
+      let scrollLeft;
+  
+      tabsContainer.addEventListener("mousedown", (e) => {
+        isDown = true;
+        tabsContainer.classList.add("active");
+        startX = e.pageX - tabsContainer.offsetLeft;
+        scrollLeft = tabsContainer.scrollLeft;
+      });
+  
+      tabsContainer.addEventListener("mouseleave", () => {
+        isDown = false;
+        tabsContainer.classList.remove("active");
+      });
+  
+      tabsContainer.addEventListener("mouseup", () => {
+        isDown = false;
+        tabsContainer.classList.remove("active");
+      });
+  
+      tabsContainer.addEventListener("mousemove", (e) => {
+        if (!isDown) return;
+        e.preventDefault();
+        const x = e.pageX - tabsContainer.offsetLeft;
+        const walk = (x - startX) * 2; 
+        tabsContainer.scrollLeft = scrollLeft - walk;
+      });
+    });
+  });
+
+  async function computeSHA256(data) {
+    const encoder = new TextEncoder();
+    const hashBuffer = await window.crypto.subtle.digest('SHA-256', encoder.encode(data));
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    return hashHex;
+  }

@@ -1,0 +1,36 @@
+<%
+let invitesFields = [
+  ['active'           , '30' , 'formatCheckbox'  , 'enabled   show text-center              '],
+  ['code'             , '40' , ''                , 'disabled   show text-center             '],
+  ['originid'         , '40' , ''                , 'enabled   show text-center              '],
+  ['inviteeid'        , '40' , ''                , 'disabled  show text-center              '],
+  ['createdate'       , ''   , ''                , 'disabled  show text-center              '],
+  ['inviteedate'      , ''   , ''                , 'disabled  show text-center              '],
+  ['comments'         , ''   , ''                , 'enabled   show mobile-hide              '],
+];
+%>
+<% if(locals.activeModules.some(mod => mod.name === 'register')) { %>
+  <%- include('../table', {
+    tableName:"Invites", 
+    tableDesc:"",
+    tableId:"invitesData", 
+    buttons:[
+      ['add','show'],
+      ['disable','show'],
+      ['enable','show'],
+      ['visible','hide'],
+      ['invisible','hide'],
+      ['admin','hide'],
+      ['edit','show'],
+      ['password','hide'],
+      ['remove','show'],
+      ['pay', 'hide'],
+      ['balance','hide'],
+      ['moderate','hide'],
+      ['ban','hide']
+    ],
+    fields: invitesFields,
+    datakey: 'register',
+    objectName: 'invitation',
+    }); %> 
+  <% } %>

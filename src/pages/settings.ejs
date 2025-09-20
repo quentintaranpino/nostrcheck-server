@@ -1,6 +1,9 @@
 <html lang="en">
-  <%- include('./partials/head',{title: `${locals.serverHost} - Settings`}); %>
+  <%- include('./partials/head'); %>
   <link rel="stylesheet" href="/static/css/form.css">
+  <link href="https://cdn.jsdelivr.net/npm/jquery-resizable-columns@0.2.3/dist/jquery.resizableColumns.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-table@1.22.6/dist/bootstrap-table.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/table.css">
    <body class="d-flex flex-column h-100">
     <%- include('./partials/navbar', {active:'settings'}); %>
     <main class="pb-1">
@@ -8,17 +11,18 @@
         <div class="text-center"><h1 class="display-2 mt-2 pb-2 gradient-text">Server settings</h1></div>
         <p class="text-center mt-1 mb-4 lead">Not your server, not your rules. Be sovereing here.        
         </p>
+        <%-  include('./components/settings/multitenant'); %>
         <ul class="nav nav-tabs" id="settingsTabs" role="tablist">
           <li class="nav-item" role="presentation">
               <button class="nav-link active" 
-                      id="lookandfeel-tab" 
+                      id="appearance-tab" 
                       data-bs-toggle="tab" 
-                      data-bs-target="#lookandfeel" 
+                      data-bs-target="#appearance" 
                       type="button" 
                       role="tab" 
-                      aria-controls="lookandfeel" 
+                      aria-controls="appearance" 
                       aria-selected="true">
-                        <i class="fas fa-paint-brush me-2"></i><span>Personalization</span>
+                        <i class="fas fa-paint-brush me-2"></i><span>Appearance</span>
               </button>
           </li>
           <li class="nav-item" role="presentation">
@@ -70,14 +74,16 @@
             </button>
           </li>
           <li class="nav-item" role="presentation">
-            <button class="nav-link" 
+            <button class="nav-link <%= locals.availableModules['security'] && locals.availableModules['security'].enabled ? '' : 'disabled' %>" 
+
                     id="security-tab" 
                     data-bs-toggle="tab" 
                     data-bs-target="#security" 
                     type="button" 
                     role="tab" 
                     aria-controls="security" 
-                    aria-selected="false">
+                    aria-selected="false"
+                    <%= locals.availableModules['security'] && locals.availableModules['security'].enabled ? '' : 'disabled' %>>
                     <i class="fas fa-shield-alt me-2"></i>Security
             </button>
           </li>
@@ -146,10 +152,35 @@
                     <i class="fas fa-plug me-2"></i>Plugins
             </button>
           </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link <%= locals.availableModules['relay'] && locals.availableModules['relay'].enabled ? '' : 'disabled' %>" 
+                    id="relay-tab" 
+                    data-bs-toggle="tab" 
+                    data-bs-target="#relay" 
+                    type="button" 
+                    role="tab" 
+                    aria-controls="relay" 
+                    aria-selected="false" 
+                    <%= locals.availableModules['relay'] && locals.availableModules['relay'].enabled ? '' : 'disabled' %>>
+                    <i class="fas fa-wifi me-2"></i>Relay
+            </button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" 
+                    id="legal-tab" 
+                    data-bs-toggle="tab" 
+                    data-bs-target="#legal" 
+                    type="button" 
+                    role="tab" 
+                    aria-controls="legal" 
+                    aria-selected="false">
+                    <i class="fas fa-gavel me-2"></i>Legal
+            </button>
+          </li>
         </ul>
-        <div class="tab-content" id="settingsTabsContent">
-          <div class="tab-pane fade show active" id="lookandfeel" role="tabpanel" aria-labelledby="lookandfeel-tab">
-            <%- include('./components/settings/lookandfeel'); %>
+        <div class="tab-content w-100 p-3 overflow-auto mb-5" id="settingsTabsContent">
+          <div class="tab-pane fade show active" id="appearance" role="tabpanel" aria-labelledby="appearance-tab">
+            <%- include('./components/settings/appearance'); %>
           </div>
           <div class="tab-pane fade" id="server" role="tabpanel" aria-labelledby="server-tab">
             <%- include('./components/settings/server'); %>
@@ -160,6 +191,12 @@
           <div class="tab-pane fade" id="modules" role="tabpanel" aria-labelledby="modules-tab">
             <%- include('./components/settings/modules'); %>
           </div>
+          <div class="tab-pane fade" id="logging" role="tabpanel" aria-labelledby="logging-tab">
+            <%- include('./components/settings/logging'); %>
+          </div>
+          <div class="tab-pane fade" id="security" role="tabpanel" aria-labelledby="security-tab">
+            <%- include('./components/settings/security'); %>
+          </div>
           <div class="tab-pane fade" id="storage" role="tabpanel" aria-labelledby="storage-tab">
             <%- include('./components/settings/storage'); %>
           </div>
@@ -169,17 +206,17 @@
           <div class="tab-pane fade" id="media" role="tabpanel" aria-labelledby="media-tab">
             <%- include('./components/settings/media'); %>
           </div>
-          <div class="tab-pane fade" id="logging" role="tabpanel" aria-labelledby="logging-tab">
-            <%- include('./components/settings/logging'); %>
-          </div>
-          <div class="tab-pane fade" id="security" role="tabpanel" aria-labelledby="security-tab">
-            <%- include('./components/settings/security'); %>
+          <div class="tab-pane fade" id="payments" role="tabpanel" aria-labelledby="payments-tab">
+            <%- include('./components/settings/payments'); %>
           </div>
           <div class="tab-pane fade" id="plugins" role="tabpanel" aria-labelledby="plugins-tab">
             <%- include('./components/settings/plugins'); %>
           </div>
-          <div class="tab-pane fade" id="payments" role="tabpanel" aria-labelledby="payments-tab">
-            <%- include('./components/settings/payments'); %>
+          <div class="tab-pane fade" id="relay" role="tabpanel" aria-labelledby="relay-tab">
+            <%- include('./components/settings/relay'); %>
+          </div>
+          <div class="tab-pane fade" id="legal" role="tabpanel" aria-labelledby="legal-tab">
+            <%- include('./components/settings/legal'); %>
           </div>
         </div>
     </main>
@@ -189,29 +226,5 @@
 <script src="/static/js/form.js"></script>
 <script src="/static/js/settings.js"></script>
 
-<script>
-  let logHistory = "<%= locals.logHistory %>"
-  window.logData = <%- JSON.stringify(locals.logHistory || []) %>;
-</script>
 </body>
-<style>
-.gradient-bar {
-    position: relative;
-    height: 300px; 
-    width: 100%; 
-    border-radius: 5px; 
-    margin-top: 10px;
-}
-
-.gradient-bar .handle {
-    position: absolute;
-    bottom: 25%;
-    width: 9px;
-    height: 40%;
-    background: #fff;
-    cursor: ew-resize;
-    border-radius: 3px;
-}
-
-</style>
 </html>

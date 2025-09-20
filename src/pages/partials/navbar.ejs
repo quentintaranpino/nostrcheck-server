@@ -48,7 +48,7 @@
   </style>
 <nav class="navbar sticky-top navbar-expand-lg ps-3 pe-3 shadow-lg">
   <a class="navbar-brand" href="/">
-    <img id="server-logo" src="/static/resources/navbar-logo-light.png" 
+    <img id="server-logo" src="/static/resources/appearance-server-logo-light.png" 
     alt='Server logo' 
     width='180' 
     height='61'>
@@ -68,7 +68,7 @@
           aria-controls="intro" 
           aria-selected="false" 
           aria-label="Upload file" 
-          onclick="semaphore.execute(async () => {await initUploaderModal();})" 
+          onclick="initUploaderModal();" 
           >
           <span class="fs-2">
             <i class="bi bi-cloud-arrow-up-fill" aria-hidden="true"></i>
@@ -77,17 +77,17 @@
         </button>
       </li>
       <li class="d-none d-lg-flex">
-        <a <% if (request.session.identifier) { %>style="display: none !important;"<% } %> <% if(active === 'login'){ %><%- "class='nav-link d-none d-lg-flex'"%><% } else { %><%- "class='nav-link '"%><%}%> href="/api/v2/login"><i class="fa-solid fa-user fa-lg me-1"></i></a>
+        <a <% if (request.session.identifier) { %>style="display: none !important;"<% } %> <% if(active === 'login'){ %><%- "class='nav-link d-none d-lg-flex'"%><% } else { %><%- "class='nav-link '"%><%}%> href="/login"><i class="fa-solid fa-user fa-lg me-1"></i></a>
       </li>
       <li class="nav-item dropdown d-none d-lg-flex"  <% if (!request.session.identifier) { %>style="display: none !important;"<% } %> >
         <a class="nav-link dropdown-toggle d-flex align-items-center" href="#" id="navbarDropdownMenuLink" role="button" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-          <div class="picture-container" style="width:40px; height:40px;"></div>
+          <div class="picture-container-navbar" style="width:40px; height:40px;"></div>
         </a>
         <div class="dropdown-menu dropdown-menu-end">
-          <a href="/api/v2/profile"  <% if(active === 'profile'){ %><%- "class='dropdown-item nav-link active'"%><% } else { %><%- "class='dropdown-item nav-link'"%><%}%>>Profile</a>
+          <a href="/profile"  <% if(active === 'profile'){ %><%- "class='dropdown-item nav-link active'"%><% } else { %><%- "class='dropdown-item nav-link'"%><%}%>>Profile</a>
           <% if (request.session.allowed == true) { %>
-            <a href="/api/v2/dashboard" <% if(active === 'dashboard'){ %><%- "class='dropdown-item nav-link active'"%><% } else { %><%- "class='dropdown-item nav-link'"%><%}%>>Dashboard</a>
-            <a href="/api/v2/settings" <% if(active === 'settings'){ %><%- "class='dropdown-item nav-link active'"%><% } else { %><%- "class='dropdown-item nav-link'"%><%}%>>Settings</a>
+            <a href="/dashboard" <% if(active === 'dashboard'){ %><%- "class='dropdown-item nav-link active'"%><% } else { %><%- "class='dropdown-item nav-link'"%><%}%>>Dashboard</a>
+            <a href="/settings" <% if(active === 'settings'){ %><%- "class='dropdown-item nav-link active'"%><% } else { %><%- "class='dropdown-item nav-link'"%><%}%>>Settings</a>
           <%}%>
           <div class="dropdown-divider"></div>
           <button class="nav-link" type="button" aria-controls="intro" aria-selected="false" aria-label="Logout" onclick="logout()">
@@ -100,35 +100,48 @@
   <div class="collapse navbar-collapse" id="server-navbar">
     <ul class="nav navbar-nav">
       <li>
-        <a <% if(active === 'home'){ %><%- "class='nav-link active'"%><% } else { %><%- "class='nav-link'"%><%}%> href="/api/v2/">HOME <span class="sr-only">(current)</span></a>
+        <a <% if(active === 'home'){ %><%- "class='nav-link active'"%><% } else { %><%- "class='nav-link'"%><%}%> href="/">HOME <span class="sr-only">(current)</span></a>
       </li>
       <li id="registerMenu">
-        <a <% if(active === 'register'){ %><%- "class='nav-link active'"%><% } else { %><%- "class='nav-link'"%><%}%> href="/api/v2/register">REGISTER <span class="sr-only">(current)</span></a>
+        <a <% if(active === 'register'){ %><%- "class='nav-link active'"%><% } else { %><%- "class='nav-link'"%><%}%> href="/register">REGISTER <span class="sr-only">(current)</span></a>
       </li>
       <li id="galleryMenu">
-        <a <% if(active === 'gallery'){ %><%- "class='nav-link active'"%><% } else { %><%- "class='nav-link'"%><%}%> href="/api/v2/gallery">GALLERY <span class="sr-only">(current)</span></a>
+        <a <% if(active === 'gallery'){ %><%- "class='nav-link active'"%><% } else { %><%- "class='nav-link'"%><%}%> href="/gallery">GALLERY <span class="sr-only">(current)</span></a>
       </li>
       <li id="cdnMenu">
-        <a  <% if(active === 'media'){ %><%- "class='nav-link active'"%><% } else { %><%- "class='nav-link'"%><%}%> href="/api/v2/media">UPLOAD</a>
+        <a  <% if(active === 'media'){ %><%- "class='nav-link active'"%><% } else { %><%- "class='nav-link'"%><%}%> href="/media">UPLOAD</a>
       </li>   
       <li id="docsMenu">
-        <a <% if(active === 'documentation'){ %><%- "class='nav-link active'"%><% } else { %><%- "class='nav-link'"%><%}%> href="/api/v2/documentation">DOCS <span class="sr-only">(current)</span></a>
+        <a <% if(active === 'documentation'){ %><%- "class='nav-link active'"%><% } else { %><%- "class='nav-link'"%><%}%> href="/documentation">DOCS <span class="sr-only">(current)</span></a>
       </li>  
       <li id="directoryMenu">
-        <a <% if(active === 'directory'){ %><%- "class='nav-link active'"%><% } else { %><%- "class='nav-link'"%><%}%> href="/api/v2/directory">DIRECTORY <span class="sr-only">(current)</span></a>
-      </li>          
+        <a <% if(active === 'directory'){ %><%- "class='nav-link active'"%><% } else { %><%- "class='nav-link'"%><%}%> href="/directory">DIRECTORY <span class="sr-only">(current)</span></a>
+      </li>         
+      <li id="relayMenu">
+        <a <% if(active === 'relay'){ %><%- "class='nav-link active'"%><% } else { %><%- "class='nav-link'"%><%}%> href="/relay">RELAY <span class="sr-only">(current)</span></a>
+      </li>   
+      <li id="converterMenu">
+        <a <% if(active === 'converter'){ %><%- "class='nav-link active'"%><% } else { %><%- "class='nav-link'"%><%}%> href="/converter">CONVERTER <span class="sr-only">(current)</span></a>
+      </li>   
     </ul>
   </div>
 </nav>
 <%- include('../components/modals/uploader-modal', {instance: "navbar", hideTos:false}) %>
 <script>
-  // Hide or show navbar items based on active modules
-  const activeModules = [];
-  <% for(const key in locals.activeModules) { %>
-    activeModules.push('<%- locals.activeModules[key] %>');
-  <% } %>
-  activeModules.find((element) => element === 'register') ? null : document.getElementById('registerMenu').classList.add('d-none');
-  activeModules.find((element) => element === 'register') ? null : document.getElementById('directoryMenu').classList.add('d-none');
-  activeModules.find((element) => element === 'media') ? null : document.getElementById('galleryMenu').classList.add('d-none');
-  activeModules.find((element) => element === 'media') ? null : document.getElementById('cdnMenu').classList.add('d-none');
+
+
+const activeModules = <%- JSON.stringify(locals.activeModules) %>;
+
+
+  if (!activeModules.some(mod => mod.name === 'register')) {
+    document.getElementById('registerMenu').classList.add('d-none');
+    document.getElementById('directoryMenu').classList.add('d-none');
+  }
+  if (!activeModules.some(mod => mod.name === 'media')) {
+    document.getElementById('galleryMenu').classList.add('d-none');
+    document.getElementById('cdnMenu').classList.add('d-none');
+  }
+  if (!activeModules.some(mod => mod.name === 'relay')) {
+    document.getElementById('relayMenu').classList.add('d-none');
+  }
 </script>

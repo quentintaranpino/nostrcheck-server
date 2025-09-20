@@ -1,10 +1,10 @@
 import axios from 'axios';
 import * as bolt11 from 'bolt11';
-import { emptyInvoice, invoice } from '../../interfaces/payments.js';
+import { emptyInvoice, Invoice } from '../../interfaces/payments.js';
 import { logger } from '../logger.js';
 import { getNewDate } from '../utils.js';
 
-async function generateLUD06Invoice(lnurl: string, amount: number): Promise<invoice> {
+async function generateLUD06Invoice(lnurl: string, amount: number): Promise<Invoice> {
 
   if (lnurl === '' || amount === 0) {return emptyInvoice;}
 
@@ -37,7 +37,7 @@ async function generateLUD06Invoice(lnurl: string, amount: number): Promise<invo
     }
 
   } catch (e: any) {
-    logger.error('Error generating LNURL invoice', e.message);
+    logger.error(`generateLUD06Invoice - Error generating LUD06 invoice with error ${e}`);
     return  emptyInvoice;
   }
 }

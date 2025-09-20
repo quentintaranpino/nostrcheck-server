@@ -1,0 +1,36 @@
+<%
+let filetypesFields = [
+  ['active'             , '30' , 'formatCheckbox', 'enabled   show text-center'],
+  ['original_mime'      , '30' , '', 'enabled   show text-center              '],
+  ['original_extension' , '30' , '', 'enabled   show text-center              '],
+  ['converted_mime'     , '' , '', 'enabled   hide text-center              '],
+  ['converted_extension', '' , '', 'enabled   hide text-center              '],
+  ['comments'           , ''   , '', 'enabled   show mobile-hide              '],
+];
+
+%>
+<% if(locals.activeModules.some(mod => mod.name === 'media')) { %>
+  <%- include('../table', {
+    tableName:"Filetypes", 
+    tableDesc:"Manage the accepted file types for uploads.",
+    tableId:"filetypesData", 
+    buttons:[
+      ['add','show'],
+      ['disable','show'],
+      ['enable','show'],
+      ['visible','hide'],
+      ['invisible','hide'],
+      ['admin','hide'],
+      ['edit','show'],
+      ['password','hide'],
+      ['remove','show'],
+      ['pay', 'hide'],
+      ['balance','hide'],
+      ['moderate','hide'],
+      ['ban','hide']
+    ],
+    fields: filetypesFields,
+    datakey: 'filetypes',
+    objectName: 'file type',
+    }); %> 
+  <% } %>

@@ -1,0 +1,112 @@
+<%
+  const cfg = locals.domainConfig?.server?.legal || {};
+  const globalCfg = locals.globalConfig?.server?.legal || {};
+%>
+<div id="settingsLegal">
+  <h3 class="mt-4">Legal</h3>
+  <form class="form mx-auto">
+    <p>You can configure the server legal related settings in this section.</p>
+
+    <%- include('field', {
+      type: "select",
+      name: "server.legal.entityType",
+      label: "Entity type",
+      description: "Entity type is used to identify the server's entity type, can be individual or company.",
+      value: cfg.entityType,
+      globalValue: globalCfg.entityType,
+      overridable: false,
+      options: [
+        { value: "individual", label: "individual" },
+        { value: "company", label: "company" }
+      ]
+    }) %>
+
+    <%- include('field', {
+      type: "text",
+      name: "server.legal.email",
+      label: "Server email",
+      description: "Server email is used to identify the server contact for legal notice, privacy policy, etc.",
+      value: cfg.email,
+      globalValue: globalCfg.email,
+      overridable: false,
+      placeholder: "Server email",
+      required: true
+    }) %>
+
+    <%- include('field', {
+      type: "text",
+      name: "server.legal.country",
+      label: "Server country",
+      description: "Country where the server is legally based.",
+      value: cfg.country,
+      globalValue: globalCfg.country,
+      overridable: false,
+      placeholder: "Country",
+      required: true
+    }) %>
+
+    <%- include('field', {
+      type: "text",
+      name: "server.legal.jurisdiction",
+      label: "Server jurisdiction",
+      description: "Jurisdiction where the server complies with regulations.",
+      value: cfg.jurisdiction,
+      globalValue: globalCfg.jurisdiction,
+      overridable: false,
+      placeholder: "Jurisdiction",
+      required: true
+    }) %>
+
+    <%- include('field', {
+      type: "text",
+      name: "server.legal.company",
+      label: "Company name",
+      description: "Name of the company running the server. Leave empty if 'individual'.",
+      value: cfg.company,
+      globalValue: globalCfg.company,
+      overridable: false,
+      placeholder: "Company name",
+      required: false
+    }) %>
+
+    <%- include('field', {
+      type: "text",
+      name: "server.legal.vat",
+      label: "VAT number",
+      description: "VAT ID used for tax/legal info. Leave empty if 'individual'.",
+      value: cfg.vat,
+      globalValue: globalCfg.vat,
+      overridable: false,
+      placeholder: "VAT number",
+      required: false
+    }) %>
+
+    <%- include('field', {
+      type: "text",
+      name: "server.legal.address",
+      label: "Company address",
+      description: "Address of the company operating the server. Leave empty if 'individual'.",
+      value: cfg.address,
+      globalValue: globalCfg.address,
+      overridable: false,
+      placeholder: "Company address",
+      required: false
+    }) %>
+
+    <%- include('field', {
+      type: "text",
+      name: "server.legal.phone",
+      label: "Company phone",
+      description: "Contact phone of the server operator. Leave empty if 'individual'.",
+      value: cfg.phone,
+      globalValue: globalCfg.phone,
+      overridable: false,
+      placeholder: "Phone number",
+      required: false
+    }) %>
+
+    <div class="col-12 col-md-3 mb-5 mt-4 pb-5 pb-lg-0 mb-lg-2">
+      <button class="btn btn-lg mb-4 btn-primary w-100" name="Submit" type="button" onclick="saveSettings()">Save</button>
+    </div>
+  </form>
+</div>

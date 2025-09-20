@@ -9,7 +9,7 @@ const mirrorFile = async (url: string): Promise<Express.Multer.File | null> => {
     }
 
     const filename = url.split('/').pop() || '';
-
+    
     try {
         const response = await fetch(url);
 
@@ -34,10 +34,11 @@ const mirrorFile = async (url: string): Promise<Express.Multer.File | null> => {
             path: '', 
         };
 
+        logger.info(`mirrorFile - File mirrored: ${filename} to url: ${url}`);
         return file;
 
     } catch (err) {
-        logger.error(`Error mirroring file: ${err}`);
+        logger.error(`mirrorFile - Internal server error: ${err}`);
         return null;
     }
 };

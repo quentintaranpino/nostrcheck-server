@@ -1,0 +1,62 @@
+<% 
+let filesFields = [
+  ['checked',       '30' , 'formatCheckbox' , 'enabled   show text-center              '],
+  ['active',        '30' , 'formatCheckbox' , 'enabled   show text-center mobile-hide  '],
+  ['banned',        ''   , 'formatCheckbox' , 'disabled  hide                          '],      
+  ['visibility',    '30' , 'formatCheckbox' , 'enabled   show text-center mobile-hide  '],
+  ['username',      '50' , ''               , 'disabled  show text-center              '],
+  ['npub',          ''   , 'formatPubkey'   , 'disabled  hide                          '],
+  ['pubkey',        ''   , 'formatPubkey'   , 'disabled  hide text-center              '],
+  ['filename',      ''   , 'formatMediaFile', 'disabled  show                          '],
+  ['mimetype',      '50' , ''               , 'disabled  show text-center              '],
+  ['original_hash', ''   , ''               , 'disabled  hide                          '],
+  ['hash',          ''   , ''               , 'disabled  hide                          '],
+  ['status',        '50' , ''               , 'disabled  show text-center mobile-hide  '],
+  ['dimensions',    '40' , ''               , 'disabled  hide text-center mobile-hide  '],
+  ['filesize',      '40' , ''               , 'disabled  show text-center mobile-hide  '],
+  ['date',          '200', ''               , 'disabled  show text-center              '],
+  ['comments',      ''   , ''               , 'enabled   hide                          '],
+];
+if(locals.activeModules.some(mod => mod.name === 'payments'))  {
+    filesFields.splice(3, 0, ['paid', '30', 'formatCheckbox', 'disabled show text-center'],);
+    filesFields.splice(4, 0, ['satoshi','30', 'formatSatoshi', 'disabled show text-end'],);
+    filesFields.splice(5, 0, ['transactionid','', '', 'disabled hide']);
+}
+
+%>
+<% if(locals.activeModules.some(mod => mod.name === 'media')) { %> 
+  <%- include('../table', {
+    tableName:"Hosted files", 
+    tableDesc:"",
+    tableId:"filesData", 
+    buttons:[
+            ['add','hide'],
+            ['disable','show'],
+            ['enable','show'],      
+            ['visible','show'],
+            ['invisible','show'],                                        
+            ['admin','hide'],
+            ['edit','show'],
+            ['password','hide'],
+            ['remove','show'],
+            ['pay', locals.activeModules.some(mod => mod.name === 'payments') ? 'show' : 'hide'],
+            ['balance','hide'],
+            ['moderate', locals.settingsMedia['mediainspector']['enabled'] ? 'show' : 'hide'],
+            ['ban','show']
+            ],
+    fields: filesFields,
+    datakey: 'media',
+    objectName: 'file'
+  }); %>
+  <%- include('../charts/combined', {
+    chartId: 'filesData',
+    datakey: 'media',
+    doughnutField: 'checked',
+    doughnutName: 'file',
+    action: 'count',
+    monthField: 'date',
+    monthName: 'Hosted files',
+  }); %>
+  
+
+<% } %>

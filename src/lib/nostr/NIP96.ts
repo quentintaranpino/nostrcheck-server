@@ -1,26 +1,26 @@
-import config from "config";
-import {fileData } from "../../interfaces/media.js";
-import {NIP94_data, NIP96_event, NIP96file} from "../../interfaces/nostr.js";
+import {FileData } from "../../interfaces/media.js";
+import {NIP94_data, NIP96_event, NIP96file, supported_nips} from "../../interfaces/nostr.js";
 import { PrepareNIP94_event } from "./NIP94.js";
-import { getAllowedMimeTypes, getMimeFromExtension } from "../media.js";
+import { getAllowedMimeTypes, getMediaUrl, getMimeType } from "../media.js";
+import { getHostInfo } from "../utils.js";
+import { getConfig } from "../config/core.js";
 
 //https://github.com/nostr-protocol/nips/blob/master/96.md
 
-const getNIP96file = (hostname : string): NIP96file => {
+const getNIP96file = async (domain: string): Promise<NIP96file> => {
 
     const nip96file : NIP96file= {
     
-        "api_url": "https://" + hostname + "/api/v2/media",
-        "download_url": "https://" + hostname + "/media",
-        "supported_nips": [1,4,5,78,94,96,98],
-        "tos_url": "https://" + hostname + "/api/v2/tos/",
-        "content_types": getAllowedMimeTypes(),
+        "api_url": `${getMediaUrl("NIP96", domain)}`,
+        "supported_nips": supported_nips,
+        "tos_url": `${getHostInfo(domain).url}/tos/`,
+        "content_types": await getAllowedMimeTypes(),
         "plans": {
             "free": {
               "name": "Free Tier",
               "is_nip98_required": true,
               "url": "",
-              "max_byte_size": Number(config.get("media.maxMBfilesize"))*1024*1024,
+              "max_byte_size": Number(getConfig(domain, ["media", "maxMBfilesize"])) * 1024 * 1024,
               "file_expiration": [0, 0],
               media_transformations: {
                 "image": ["resizing", "format_conversion", "compression", "metadata_stripping"],
@@ -34,7 +34,7 @@ const getNIP96file = (hostname : string): NIP96file => {
 
 }
 
-const PrepareNIP96_event = async (filedata : fileData): Promise<NIP96_event> => {
+const PrepareNIP96_event = async (filedata : FileData): Promise<NIP96_event> => {
 
     const event: NIP96_event = {
         status: filedata.status,
@@ -47,18 +47,17 @@ const PrepareNIP96_event = async (filedata : fileData): Promise<NIP96_event> => 
     return event;
 }
 
-const PrepareNIP96_listEvent = async (filedata : fileData): Promise<NIP94_data> => {
+const PrepareNIP96_listEvent = async (filedata : FileData): Promise<NIP94_data> => {
 
     const event : NIP94_data = {
             tags: [
                     ["url", filedata.url],
-                    ["m", filedata.originalmime != '' ? filedata.originalmime : getMimeFromExtension(filedata.filename.split('.').pop() || '') || ''],
+                    ["m", filedata.originalmime != '' ? filedata.originalmime : await getMimeType(filedata.filename.split('.').pop() || '') || ''],
                     ["x", filedata.hash],
                     ["ox", filedata.originalhash],
                     ["size", filedata.filesize?.toString()],
                     ["dim",filedata.width + "x" + filedata.height],
                     ["magnet", filedata.magnet],
-                    ["i", filedata.torrent_infohash],
                     ["blurhash", filedata.blurhash],
                     ["no_transform", filedata.no_transform.valueOf().toString() ],
                     ["payment_request", filedata.payment_request],

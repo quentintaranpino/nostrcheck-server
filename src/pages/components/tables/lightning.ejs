@@ -1,0 +1,38 @@
+<%
+let lightningFields = [
+  ['active'           , '30' , 'formatCheckbox', 'enabled   show text-center mobile-hide  '],
+  ['checked'          , '30' , 'formatCheckbox', 'enabled   show text-center              '],
+  ['pubkey'           , '40' , 'formatPubkey'  , 'enabled   show                          '],
+  ['lightningaddress' , '40' , ''              , 'enabled   show                          '],
+  ['comments'         , ''   , ''              , 'enabled   show mobile-hide              '],
+ 
+];
+if(locals.activeModules.some(mod => mod.name === 'payments')) {
+  lightningFields.splice(5, 0,  ['transactionid', 'disabled', 'hide']);
+}
+%>
+<% if(locals.activeModules.some(mod => mod.name === 'lightning')) { %>
+  <%- include('../table', {
+    tableName:"Lightning redirects", 
+    tableDesc:"Manage user's lightning redirects",
+    tableId:"lightningData", 
+    buttons:[
+      ['add','show'],
+      ['disable','show'],
+      ['enable','show'],
+      ['visible','hide'],
+      ['invisible','hide'],
+      ['admin','hide'],
+      ['edit','show'],
+      ['password','hide'],
+      ['remove','show'],
+      ['pay','hide'],
+      ['balance','hide'],
+      ['moderate','hide'],
+      ['ban','hide']
+    ],
+    fields: lightningFields,
+    datakey: 'lightning',
+    objectName: 'lightning redirection',
+  }); %> 
+<% } %>

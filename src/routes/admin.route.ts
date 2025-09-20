@@ -1,9 +1,11 @@
 import { Application } from "express";
 import express from "express";
-import multer from "multer";
-import config from "config";
-import { logger } from "../lib/logger.js";
-import { getClientIp } from "../lib/utils.js";
+import cors from "cors";
+
+import { limiter } from "../lib/security/core.js";
+import { getHostInfo } from "../lib/utils.js";
+import { getModuleInfo } from "../lib/config/core.js";
+import { multipartUploadMiddleware } from "../lib/middleware/upload.js";
 
 import {
     deleteDBRecord,
@@ -13,92 +15,51 @@ import {
     updateDBRecord,
     insertDBRecord,
     updateSettings,
-    updateLogo,
     getModuleData,
     getModuleCountData,
-    updateTheme,
     moderateDBRecord,
-    banDBRecord
+    banDBRecord,
+    updateSettingsFile,
 } from "../controllers/admin.js";
-import { limiter } from "../lib/session.js";
 
-const maxMBfilesize: number = config.get('media.maxMBfilesize');
-
-const upload = multer({
-    storage: multer.memoryStorage(),
-    limits: { fileSize: maxMBfilesize * 1024 * 1024 },
-});
+const adminCORS = {
+    origin: getHostInfo("").url,
+    Credentials: true,
+}
 
 export const loadAdminEndpoint = async (app: Application, version: string): Promise<void> => {
 
-    if (version == "v2") {
+    if (version !== "v2") return;
 
-        // Stop the server
-        app.post("/api/" + version + app.get("config.server")["availableModules"]["admin"]["path"] + "/stop", limiter(), StopServer);
+    const base = `/api/${version}${getModuleInfo("admin", "")?.path}`;
 
-        // Legacy status endpoint
-        app.get("/api/" + version + "/status", limiter(), (_req, res) => {
-            res.redirect("/api/" + version + app.get("config.server")["availableModules"]["admin"]["path"] + "/status");
-        });
+    // Stop the server
+    app.post(`${base}/stop`, limiter(), cors(adminCORS), StopServer);
 
-        // Get server status
-        app.get("/api/" + version + app.get("config.server")["availableModules"]["admin"]["path"] + "/status", limiter(), serverStatus);
+    // Get server status
+    app.get(`${base}/status`, limiter(), cors(adminCORS), serverStatus);
 
-        // Reset user password
-        app.post("/api/" + version + app.get("config.server")["availableModules"]["admin"]["path"] + "/resetpassword/",
-            limiter(),
-            express.json(), resetUserPassword);
+    // Reset user password
+    app.post(`${base}/resetpassword`, limiter(), cors(adminCORS), express.json(), resetUserPassword);
 
-        // Update a database record
-        app.post("/api/" + version + app.get("config.server")["availableModules"]["admin"]["path"] + "/updaterecord/",
-            limiter(),
-            express.json(), updateDBRecord);
+    // Update/insert/delete/moderate DB records
+    app.post(`${base}/updaterecord`, limiter(), cors(adminCORS), express.json(), updateDBRecord);
+    app.post(`${base}/insertrecord`, limiter(), cors(adminCORS), express.json(), insertDBRecord);
+    app.post(`${base}/deleterecord`, limiter(), cors(adminCORS), express.json(), deleteDBRecord);
+    app.post(`${base}/moderaterecord`, limiter(), cors(adminCORS), express.json(), moderateDBRecord);
+    app.post(`${base}/ban`, limiter(), cors(adminCORS), express.json(), banDBRecord);
 
-        // Delete a database record
-        app.post("/api/" + version + app.get("config.server")["availableModules"]["admin"]["path"] + "/deleterecord/",
-            limiter(),
-            express.json(), deleteDBRecord);
+    // Update settings
+    app.post(`${base}/updatesettings`, limiter(), cors(adminCORS), express.json(), updateSettings);
 
-        // Insert a database record
-        app.post("/api/" + version + app.get("config.server")["availableModules"]["admin"]["path"] + "/insertrecord/",
-            limiter(),    
-            express.json(), insertDBRecord);
+    // Upload frontend settings file (handles files)
+    app.post(`${base}/updatesettingsfile`, limiter(), cors(adminCORS), multipartUploadMiddleware(), updateSettingsFile);
 
-        // Moderate a database record
-        app.post("/api/" + version + app.get("config.server")["availableModules"]["admin"]["path"] + "/moderaterecord",
-            limiter(),
-            express.json(), moderateDBRecord);
+    // Module data endpoints
+    app.get(`${base}/moduledata`, limiter(), cors(adminCORS), getModuleData);
+    app.get(`${base}/modulecountdata`, limiter(), cors(adminCORS), getModuleCountData);
 
-        // Update settings
-        app.post("/api/" + version + app.get("config.server")["availableModules"]["admin"]["path"] + "/updatesettings/",
-            limiter(),
-            express.json(), updateSettings);
-
-        // Upload frontend logo (handles files)
-        app.post("/api/" + version + app.get("config.server")["availableModules"]["admin"]["path"] + "/updatelogo/", 
-            limiter(),
-            function (req, res) {
-            logger.debug("POST /api/" + version + app.get("config.server")["availableModules"]["admin"]["path"] + "/updatelogo", "|", getClientIp(req));
-            upload.any()(req, res, function (err) {
-                if (err instanceof multer.MulterError && err.code === "LIMIT_FILE_SIZE") {
-                    logger.warn("Upload attempt failed: File too large", "|", getClientIp(req));
-                    return res.status(413).send({ "status": "error", "message": "File too large, max filesize allowed is " + maxMBfilesize + "MB" });
-                }
-                updateLogo(req, res);
-            });
-        });
-
-        // Update frontend theme
-        app.post("/api/" + version + app.get("config.server")["availableModules"]["admin"]["path"] + "/updatetheme/", limiter(), express.json({ limit: "1mb" }), updateTheme);
-
-        // Get module data
-        app.get("/api/" + version + app.get("config.server")["availableModules"]["admin"]["path"] + "/moduledata", limiter(), getModuleData);
-        app.get("/api/" + version + app.get("config.server")["availableModules"]["admin"]["path"] + "/moduleCountdata", limiter(), getModuleCountData);
-
-        // Ban a remote source
-        app.post("/api/" + version + app.get("config.server")["availableModules"]["admin"]["path"] + "/ban",
-            limiter(),
-            express.json(), banDBRecord);
-    }
+    // Ban a remote source
+    app.post(`${base}/ban`, limiter(), cors(adminCORS), express.json(), banDBRecord);
 
 };

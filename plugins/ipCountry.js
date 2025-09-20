@@ -1,8 +1,8 @@
 function plugin() {
   return {
     order: 5,
-    enabled: false,
     name: 'ipCountry',
+    module: '',
     execute: async (input, globals) => {
       try {
         let geoData = JSON.parse(await globals.redis.get(`ipCountry - ${input.ip}`));

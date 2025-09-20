@@ -1,14 +1,14 @@
 function plugin() {
     return {
         order: 1,
-        enabled: false,
         name: 'activeNIP05',
+        module: '',
         execute: async (input, globals) => {
             try {
                 let pubkeyMetadata = JSON.parse(await globals.redis.get(`pubkeyMetadata-${input.pubkey}`));
 
                 if (!pubkeyMetadata) {
-                    pubkeyMetadata = await globals.nostr.NIP01.getPubkeyMedatada(input.pubkey);
+                    pubkeyMetadata = await globals.nostr.NIP01.getPubkeyMetadata(input.pubkey);
                     await globals.redis.set(`pubkeyMetadata-${input.pubkey}`, JSON.stringify(pubkeyMetadata), { EX: 3600 });
                 }
 

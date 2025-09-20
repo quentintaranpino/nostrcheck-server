@@ -3,8 +3,8 @@ import { hexToBytes } from '@noble/hashes/utils'
 import { logger } from "../logger.js";
 import { publishEvent } from "./core.js";
 import { NIP04_event } from "../../interfaces/nostr.js";
-import app from "../../app.js";
 import { npubToHex } from "./NIP19.js";
+import { getConfig } from "../config/core.js";
 
 /**
  * Sends a message to a specified public key.
@@ -13,11 +13,11 @@ import { npubToHex } from "./NIP19.js";
  * @param sendToPubkey - The public key of the recipient.
  * @returns A promise that resolves to a boolean indicating whether the message was sent successfully.
  */
-const sendMessage = async (message: string, sendToPubkey : string) : Promise<boolean> => {
+const sendMessage = async (message: string, sendToPubkey : string, tenant: string) : Promise<boolean> => {
 
-    const sk : string = app.get("config.server")["secretKey"];
+    const sk : string = getConfig(tenant, ["server", "secretKey"]);
     if (sk == "" || sk == undefined) {
-        logger.error("No secret key found in config file, if you want to send nostr DM's edit config/local.json file and add the secret key (HEX) on server.secretKey field. The restart the server.");
+        logger.error(`sendMessage - Error: No secret key found in config file`)
         return false
     }
 
@@ -26,7 +26,7 @@ const sendMessage = async (message: string, sendToPubkey : string) : Promise<boo
     }
 
     if (!message || !sendToPubkey || sendToPubkey.length != 64) {
-        logger.error("Invalid message or public key provided")
+        logger.error(`sendMessage - Error: Invalid message or public key`)
         return false
     }
 
@@ -45,7 +45,7 @@ const sendMessage = async (message: string, sendToPubkey : string) : Promise<boo
         return await publishEvent(signedEvent)
 
     } catch (error) {
-        logger.fatal("Cannot send DM")
+        logger.fatal(`sendMessage - Error sending message: ${error}`)
         return false
     }
 

@@ -9,11 +9,7 @@
 <div id="masonry-container" class="g-2 p-1 mt-1"></div>
 <div id="no-users" class="visually-hidden text-center py-5 fs-4"><p>No users found</p></div>
 <div id="sentinelEnd"></div>
-<div class="d-flex justify-content-center mt-5 mb-5">
-    <div class="spinner-border text-secondary" id="loading-spinner" role="status">
-        <span class="visually-hidden">Loading...</span>
-    </div>
-</div>
+<%- include('./loading', {objectId: 'directory-list', dataName: 'directory'}) %>
 
 <style>
     #masonry-container {
@@ -58,7 +54,7 @@
 const apiBaseUrl = "/api/v2";
 const masonryContainer = document.getElementById('masonry-container');
 const noUsersDiv = document.getElementById('no-users');
-const loadingSpinner = document.getElementById('loading-spinner');
+const loadingSpinner = document.getElementById('directory-list-loading');
 const searchInput = document.getElementById('userSearch');
 let allUsers = [];
 
@@ -95,8 +91,6 @@ async function loadAllUsers(domains) {
         for (let i = 0; i < allHexes.length; i += maxBatchSize) {
             batches.push(allHexes.slice(i, i + maxBatchSize));
         }
-
-        console.log(`Processing ${batches.length} batch(es) with up to ${maxBatchSize} pubkeys each.`);
 
         const batchPromises = batches.map(batch =>
             subscribeRelays(0, batch, "from", Math.floor(Date.now() / 1000) - (720 * 24 * 60 * 60))
@@ -186,8 +180,12 @@ async function renderUserCard(user) {
         pubkeyDiv.classList.add('pubkey');
         userCard.appendChild(pubkeyDiv);
 
+
         masonryContainer.appendChild(userCard);
         userCardMap.set(user.hex, userCard);
+
+        userCard.style.cursor = 'pointer';
+        userCard.addEventListener('click', () => {window.location.href = `/api/v2/profile/${user.hex}`});
     }
 
     const mediaContainer = userCard.querySelector('.media-container');
@@ -204,7 +202,6 @@ async function renderUserCard(user) {
             videoElement.style.width = '100%';
             videoElement.style.height = '100%';
             videoElement.style.objectFit = 'cover';
-            console.log(`loading video ${pictureUrl}`);
             videoElement.onerror = () => {
                 videoElement.poster = '/static/resources/loading-image.webp';
             };
@@ -250,6 +247,7 @@ async function renderUserCard(user) {
                     style="--bs-btn-padding-y: .1rem; --bs-btn-padding-x: .5rem; --bs-btn-font-size: .8rem;">
                     ${truncatedText}<i class="fa-solid fa-copy ms-2"></i>
                 </button>`;
+            pubkeyDiv.querySelector('#npub-btn')?.addEventListener('click', (e) => e.stopPropagation());
         });
     }
 }

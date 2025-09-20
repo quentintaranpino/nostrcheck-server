@@ -1,19 +1,19 @@
-import { blobDescriptor } from "../../interfaces/blossom.js";
-import { fileData } from "../../interfaces/media.js";
-import { getMimeFromExtension } from "../media.js";
+import { BlobDescriptor } from "../../interfaces/blossom.js";
+import { FileData } from "../../interfaces/media.js";
+import { getMimeType } from "../media.js";
 
 // https://github.com/hzrd149/blossom/blob/master/buds/02.md
 
-const prepareBlobDescriptor = async (filedata : fileData): Promise<blobDescriptor> => {
+const prepareBlobDescriptor = async (filedata : FileData): Promise<BlobDescriptor> => {
 
-    const event : blobDescriptor = {
+    const event : BlobDescriptor = {
 
         status: filedata.status,
         message: filedata.description,
         url: filedata.url,
         sha256: filedata.originalhash,
         size: filedata.filesize,
-        type: filedata.originalmime != '' ? filedata.originalmime : getMimeFromExtension(filedata.filename.split('.').pop() || '') || '',
+        type: filedata.originalmime != '' ? filedata.originalmime : await getMimeType(filedata.filename.split('.').pop() || '') || '',
         uploaded: filedata.date,
         blurhash: filedata.blurhash,
         dim: filedata.width + "x" + filedata.height,

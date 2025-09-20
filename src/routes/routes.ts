@@ -11,16 +11,21 @@ import { loadAdminEndpoint } from "./admin.route.js";
 import { loadFrontendEndpoint } from "./frontend.route.js";
 import { loadPaymentsEndpoint } from "./payments.route.js";
 import { loadPluginsEndpoint } from "./plugins.route.js";
+import { loadRelayRoutes } from "./relay.route.js";
+import { loadUserEndpoint } from "./user.route.js";
+import { Server } from "http";
+import { getModules } from "../lib/config/core.js";
 
 // Load API modules
-const loadAPI = async (app: Application, version:string): Promise<boolean> => {
+const loadAPI = async (app: Application, version:string, httpServer: Server): Promise<boolean> => {
 
 	logger.debug("Loading API modules", "version: " + version);
 
-	for (const module in app.get("config.server")["availableModules"]) {
+	for (const m of getModules(null, false)) {
 
-		logger.debug("Loading module: " + module + " version: " + version)
-		switch (module) {
+		logger.debug("Loading module: " + m.name + " version: " + version)
+
+		switch (m.name) {
 			case "nostraddress":
 				await loadNostraddressEndpoint(app, version);
 				break;
@@ -42,8 +47,8 @@ const loadAPI = async (app: Application, version:string): Promise<boolean> => {
 			case "admin":
 				await loadAdminEndpoint(app, version);
 				break;
-			case "frontend":
-				await loadFrontendEndpoint(app, version);
+			case "relay":
+				await loadRelayRoutes(app, version, httpServer);
 				break;
 			case "payments":
 				await loadPaymentsEndpoint(app, version);
@@ -51,8 +56,11 @@ const loadAPI = async (app: Application, version:string): Promise<boolean> => {
 			case "plugins":
 				await loadPluginsEndpoint(app, version);
 				break;
+			case "frontend":
+				await loadFrontendEndpoint(app, version);
+				await loadUserEndpoint(app, version);
+				break;
 			default:
-				logger.warn("Unknown module: " + module);
 				break;
 		}
 	}
@@ -61,9 +69,9 @@ const loadAPI = async (app: Application, version:string): Promise<boolean> => {
 };
 
 // Initialise routes
-const loadAPIs = async (app: Application) => {
-	await loadAPI(app, "v1");
-	await loadAPI(app, "v2");
+const loadAPIs = async (app: Application, httpServer: Server) => {
+	await loadAPI(app, "v1", httpServer);
+	await loadAPI(app, "v2", httpServer);
 }
 
 export { loadAPIs };

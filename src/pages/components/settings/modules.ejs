@@ -1,36 +1,46 @@
-<div id= "settingsModules">
-    <h3 class="mt-4">Modules</h3>
-    <form class="form mx-auto">
-        <p>
-            In this section, you can enable or disable server modules as needed. 
-            It provides you with the flexibility to customize the functionality of your server according to your specific requirements. 
-        </p>
-        <div class="row mx-auto ">
-        <% let counter = 0; %>
-        <% for(const key in locals.availableModules) { %>
-            <% if (counter % 6 === 0 && counter !== 0) { %>
-                </div><div class="row mx-auto ">
-            <% } %>
-            <div class="col-6">
-                <label for="<%= key %>" class="mt-3 mb-1 fw-bold"><%= key %></label>
-                <div class="form-check form-switch">
-                    <input 
-                    class="form-check-input" 
-                    type="checkbox" 
-                    value="<%= locals.availableModules[key]['enabled'] ? true : false %>" 
-                    <%= locals.availableModules[key]['enabled'] ? 'checked' : '' %> 
-                    name="server.availableModules.<%= key %>.enabled" 
-                    id="server.availableModules.<%= key %>.enabled" 
-                    onclick="handleCheckboxClick('<%= key %>',this.checked)">
-                </div>
-                <p class="form-check-label mt-4"><%= locals.availableModules[key]['description'] %></p>
+<%
+  const modules = locals.availableModules || {};
+  const cfg = locals.domainConfig?.server?.availableModules || {};
+  const globalCfg = locals.globalConfig?.server?.availableModules || {};
+%>
 
-            </div>
-            <% counter++; %>
+<div id="settingsModules">
+  <h3 class="mt-4">Modules</h3>
+  <form class="form mx-auto">
+    <p>
+      In this section, you can enable or disable server modules as needed. 
+      It provides you with the flexibility to customize the functionality of your server according to your specific requirements. 
+    </p>
+
+    <div class="row mx-auto">
+      <% let counter = 0; %>
+      <% for (const key in modules) { 
+           const mod = modules[key];
+           const fieldName = `server.availableModules.${key}.enabled`;
+           const localValue = cfg?.[key]?.enabled;
+           const globalValue = globalCfg?.[key]?.enabled;
+           const isEnabled = localValue !== undefined ? localValue : globalValue;
+      %>
+        <% if (counter % 6 === 0 && counter !== 0) { %>
+          </div><div class="row mx-auto">
         <% } %>
+        <div class="col-6">
+          <%- include('field', {
+            type: "checkbox",
+            name: fieldName,
+            label: key,
+            description: mod.description,
+            value: isEnabled,
+            globalValue: globalValue,
+            overridable: key == "frontend" || key == "media" || key == "lightning" || key == "nostraddress" || key == "plugins" || key == "register" || key == "relay" || key == "verify" || key == "payments" ? true : false
+          }) %>
         </div>
-        <div class="col-12 col-md-3 mb-5 mt-4 pb-5 pb-lg-0 mb-lg-2">
-            <button class="btn btn-lg mb-4 btn-primary w-100" name="Submit" type="button" onclick="saveSettings()">Save</button>
-        </div>
-    </form>
+        <% counter++; %>
+      <% } %>
+    </div>
+
+    <div class="col-12 col-md-3 mb-5 mt-4 pb-5 pb-lg-0 mb-lg-2">
+      <button class="btn btn-lg mb-4 btn-primary w-100" name="Submit" type="button" onclick="saveSettings()">Save</button>
+    </div>
+  </form>
 </div>

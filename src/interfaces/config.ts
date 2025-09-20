@@ -17,6 +17,7 @@ const necessaryKeys = [
 	"server.pubkey", 
 	"server.secretKey", 
 	"server.tosFilePath", 
+	"server.privacyFilePath", 
 	"database.host",
 	"database.user",
 	"database.password",
@@ -26,12 +27,26 @@ const necessaryKeys = [
 const defaultConfig = {
 
 	"environment" : "development",
+	"multiTenancy": false,
+	"autoLogin" : true,
 	"server": {
 		"host": "localhost",
 		"port": 3000,
 		"pubkey": "",
 		"secretKey": "",
 		"tosFilePath" : "resources/tos.md",
+		"privacyFilePath" : "resources/privacy.md",
+		"legalFilePath" : "resources/legal.md",
+		"legal" : {
+			"entityType": "individual",
+			"email": "",
+			"country": "",
+			"jurisdiction": "",
+			"company": "",
+			"address": "",
+			"vat": "",
+			"phone": ""
+		},
 		"availableModules": {
 			"nostraddress" :{
 				"name": "nostraddress",
@@ -103,6 +118,20 @@ const defaultConfig = {
 				"methods": ["GET"],
 				"description": "This module handles plugins, load, unload, etc."
 			},
+			"relay" : {
+				"name": "relay",
+				"enabled": false,
+				"path": "/relay",
+				"methods": ["WebSocket", "GET"],
+				"description": "This module handles the Nostr relay"
+			},
+			"security" : {
+				"name": "security",
+				"enabled": true,
+				"path": "/",
+				"methods": ["Library"],
+				"description": "This module handles security, ip logs, automatic ban, etc."
+			},
 		}
 	},
 	"database": {
@@ -117,14 +146,14 @@ const defaultConfig = {
 		"port": "6379",
 		"user": "default",
 		"password": "",
-		"expireTime": 300
+		"expireTime": 300,
+		"instancePrefix": "",
 	},
 	"media" : {
 		"maxMBfilesize": 100,
-		"notFoundFilePath" : "resources/file-not-found.webp",
-		"bannedFilePath" : "resources/content-banned.webp",
 		"allowPublicUploads" : true,
 		"returnURL" : "",
+		"useCDNPrefix" : false,
 		"transform" : {
 			"enabled" : true,
 			"media":{
@@ -154,7 +183,7 @@ const defaultConfig = {
 			"enabled": false,
 			"type" : "local",
 			"local" : {
-				"modelName": "quentintaranpino/vision-transformer-moderator",
+				"modelName": "quentintaranpino/nsfw-image-classifier",
 			},
 			"remote" : {
 				"endpoint": "",
@@ -162,11 +191,6 @@ const defaultConfig = {
 				"secretkey": ""
 			},
 		},
-	},
-	"torrent": {
-		"enableTorrentSeeding": false,
-		"torrentPort": 6881,
-		"dhtPort": 6882
 	},
 	"logger" :  {
 		"minLevel": "5", 
@@ -220,22 +244,146 @@ const defaultConfig = {
 		"minUsernameLength": 3,
 		"maxUsernameLength": 20,
 		"minPasswordLength": 12,
+		"requireinvite": false,
 	},
 	"security" : {
-		"maxDefaultRequestMinute": 150,
+		"maxDefaultRequestMinute": 300,
 		"media" : {
 			"maxUploadsMinute": 10,
 		},
 		"register" : {
 			"maxRegisterDay": 2,
-		}
+		},
+		"relay" : {
+			"maxMessageMinute": 150,
+		},
 	},
 	"plugins" : {
-		"path": "plugins"
+		"path": "plugins",
+		"list": {
+		},
+	},
+	"relay" : {
+		"description": "",
+		"contact": "",
+		"limitation": {
+			"max_message_length": 256000,
+			"max_subscriptions": 10,
+			"max_filters": 5,
+			"max_limit": 1000,
+			"max_subid_length": 100,
+			"max_event_tags": 500,
+			"max_content_length": 20000,
+			"min_pow_difficulty": 0,
+			"auth_required": false,
+			"created_at_lower_limit": 94608000,
+			"created_at_upper_limit": 300,
+			"max_time_range": 5184000,
+		},
+		"language_tags": ["en", "es"],
+		"tags": [],
+		"workers": 2,
+		"isolated": false,
+	},
+	"appearance": {
+		"siteName": "",
+		"dynamicbackground": {
+			"orientation": "to top left",
+			"color1": "#007BFF",
+			"color2": "#FF66B2",
+			"color3": "#FF9933",
+			"color1Percent": "0%",
+			"color2Percent": "55%",
+			"color3Percent": "90%",
+			"particles": "astral",
+		},
+		"pages": {
+			"home":     { 	"title": "{server.host} — Home",
+							"description": "",
+							"noindex": false,
+							"pageTitle" : "",
+							"pageSubtitle" : "",
+			},
+			"login":    { 	"title": "{server.host} — Login",
+							"description": "",
+							"noindex": false,
+			},
+			"register": { 	"title": "{server.host} — Register",
+							"description": "",
+							"noindex": false
+			},
+			"gallery":  {	"title": "{server.host} — Gallery",
+							"description": "",
+							"noindex": false
+			},
+			"directory": { 	"title": "{server.host} — Directory",
+							"description": "",
+							"noindex": false
+			},
+			"converter": { 	"title": "{server.host} — Converter",
+							"description": "",
+							"noindex": false
+			},
+			"dashboard": { 	"title": "{server.host} — Dashboard",
+							"description": "",
+							"noindex": true
+			},
+			"settings":  { 	"title": "{server.host} — Settings",
+							"description": "",
+							"noindex": true
+			},
+			"docs":      { 	"title": "{server.host} — Docs",
+							"description": "",
+							"noindex": false
+			},
+			"tos":       { 	"title": "{server.host} — Terms",
+							"description": "",
+							"noindex": false
+			},
+			"privacy":   { 	"title": "{server.host} — Privacy",
+							"description": "",
+							"noindex": false
+			},
+			"legal":     { 	"title": "{server.host} — Legal",
+							"description": "",
+							"noindex": false
+			},
+			"profile":   { 	"title": "{server.host} — Profile",
+							"description": "",
+							"noindex": false
+			},
+			"cdn":     { 	"title": "{server.host} — CDN",
+							"description": "",
+							"noindex": true
+			},
+			"relay":     { 	"title": "{server.host} — Relay",
+							"description": "",
+							"noindex": false
+			}
+		}
 	}
 }
 
 const localPath = "./config/local.json";
 
+interface ConfigStore {
+	global: any;
+	tenants: { [domainId: string]: any };
+	domainMap: {
+		idToDomain: { [id: string]: string };
+		domainToId: { [domain: string]: string };
+	};
+}
+		
+const configStore : ConfigStore = {
+	global: {},
+	tenants: {},
+	domainMap: {
+		idToDomain: {},  
+		domainToId: {},
+	}
+};
 
-export { Modules, Module, necessaryKeys, defaultConfig, localPath}
+
+
+export { Modules, Module, necessaryKeys, defaultConfig, localPath, configStore};

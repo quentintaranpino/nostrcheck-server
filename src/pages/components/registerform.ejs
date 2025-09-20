@@ -1,7 +1,7 @@
 <div class="row">
     <div class="text-center col-11 col-sm-9 col-md-8 mx-auto" id="register-title">
         <h1 class="display-4 mb-1 pb-2 font-weight-normal gradient-text">Be part of our community</h1>
-        <p class="lead">Public nostr profile page, multimedia uploads, lightning redirects and much more. Thank you for giving us the opportunity to serve you.</p>
+        <p class="lead">Public nostr profile page, multimedia uploads, lightning redirects, private relay and much more. Thank you for giving us the opportunity to serve you.</p>
     </div>
 </div>
 <div class="row">
@@ -47,8 +47,11 @@
               aria-label="Show password as plain text. Warning: this will display your password on the screen.">
             </button>
             </div>
-          </form>
-          
+          </form>          
+      <div id="register-spinner" class="d-flex flex-column align-items-center mt-4 d-none">
+        <div class="spinner-border" style="width: 3rem; height: 3rem;" role="status" aria-hidden="true"></div>
+        <p class="mt-3 lead"><i class="fa-regular fa-heart me-2 gradient-text"></i> Registering, be patient can take a while...</p>
+      </div>
       <div id="register-buttons" class="mt-3">
         <p class="text-center lead">You can register using a one time code or using a <a href="https://nostr.net/#nip-07-browser-extensions" class="link-body-emphasis link-offset-3 link-underline-opacity-25 link-underline-opacity-75-hover" target="_blank">browser extension.</a></p>
         <div class="d-grid mb-3 mt-4 w-300 mx-auto">
@@ -58,6 +61,8 @@
         <div class="d-grid w-300 mx-auto mt-3 mb-3">
           <button class="btn btn-lg btn-primary" name="NIP07_submit" id="NIP07_submit" type="button" onclick="register('nip07')"><i class="nostr-logo me-2"></i>Browser extension</button>
         </div>
+        <p class="text-center lead fs-6">By using our services you agree the <a id="register-tos-link" class="link-body-emphasis link-offset-3 link-underline-opacity-25 link-underline-opacity-75-hover" href='/api/v2/tos' target="_blank">Terms of Service</a></p>
+      
       </div>
     </div>  
     <div id="register-second-phase" class="col-11 col-sm-9 col-md-8 col-lg-7 col-xl-6 col-xxl-5 mx-auto d-none">
@@ -79,7 +84,7 @@
           One time code required        
         </h5>
         <p>
-          We have sent you an nostr direct message with a one time code to ensure that you are the owner of the pubkey. Use your favorite <a class="link-offset-2"href="https://nostr.net/" target="_blank">nostr client</a> to retrieve the code and complete the registration process.
+          We have sent you an nostr direct message with a one time code to ensure that you are the owner of the pubkey. Use your favorite <a class="link-offset-2"href="https://nostr.net/" target="_blank">nostr client</a> to retrieve the code paste it here and press submit.
         </p>
         <div class="input-group mb-3 mt-2">
           <input type="text" class="form-control" id="input-register-otc" placeholder="One time code" required>
@@ -93,7 +98,7 @@
           Payment required
         </h5>
         <p>
-          We have generated a lightning invoice for you to pay. Once confirmed this QR will disappear. Use your favorite lightning wallet to pay the invoice. 
+          We have generated a lightning invoice for you to pay. Once confirmed this QR will disappear automatically. Use your favorite lightning wallet to pay the invoice. 
         </p>
         <p class="lead mb-1 text-center">Invoice amount: <span id="payment-request-satoshi"></span> sats</p>
         <div id="payment-request-qr" class="mx-auto" style="width: 250px;"></div>
@@ -138,6 +143,7 @@
 
             const domainInfo = data.availableDomains[domain];
             let icons = '<i class="fa-solid fa-star me-2" style="color:#a06bc9"></i> Free';
+            console.log("domainInfo", domain, domainInfo)
             if (domainInfo.requirepayment) {
               icons = ' <i class="fa-solid fa-bolt ms-2 me-2" style="color:rgb(255, 128, 24)"></i> Paid';
             }
@@ -158,7 +164,9 @@
 
         select.addEventListener('change', (event) => {
           const selectedDomain = event.target.value;
+
           const domainInfo = data.availableDomains[selectedDomain];
+          console.log("domainInfo", selectedDomain, domainInfo)
 
           if (domainInfo.requireinvite) {
             invitationGroup.classList.remove('d-none');
@@ -188,9 +196,13 @@
 
 
       usernameField.addEventListener('input', async (event) => {
+        const selectedDomain = document.getElementById('domain-selection').value;
         const length = event.target.value.length;
+        const domainInfo = domainsData.availableDomains[selectedDomain];
+        console.log(domainInfo)
 
-        if (length < domainsData.minUsernameLength || length > domainsData.maxUsernameLength) {
+
+        if (length < domainInfo.minUsernameLength || length > domainInfo.maxUsernameLength) {
           satoshiField.classList.add('d-none');
           event.target.classList.add('text-danger');
           event.target.classList.add('is-invalid');
@@ -208,9 +220,11 @@
 
     const domain = document.getElementById('input-register-domain').innerText.split('@')[1]
     const username = document.getElementById('input-register-username').value
-    const pubkey = document.getElementById('input-register-pubkey').value
     const password = document.getElementById('input-register-password').value
     const inviteCode = document.getElementById('input-register-invitation').value
+    const pubkey = type === 'nip07' && document.getElementById('input-register-invitation').value == '' ? 
+                    await window.nostr.getPublicKey() : 
+                    document.getElementById('input-register-pubkey').value
 
     if (!domain || !username || !pubkey ) {
         initAlertModal("#register", "Username, public key and domain are required.");
@@ -235,7 +249,7 @@
       return;
     }
 
-    if (username.length < domainsData.minUsernameLength || username.length > domainsData.maxUsernameLength) {
+    if (username.length < domainsData.availableDomains[domain].minUsernameLength || username.length > domainsData.availableDomains[domain].maxUsernameLength) {
       initAlertModal("#register", "Username length is not valid.");
       document.getElementById('input-register-username').focus();
       return;
@@ -249,7 +263,17 @@
       inviteCode: inviteCode
     }
 
+    // Hide register buttons and show spinner
+    const registerButtons = document.getElementById('register-buttons');
+    registerButtons.classList.add('d-none');
+
+    const registerSpinner = document.getElementById('register-spinner');
+    registerSpinner.classList.remove('d-none');
+
+
     let signedAuthEvent;
+    let content = "NIP98 auth event - This event is used to check that you can sign with the pubkey you want to register. Will not be published on nostr.";
+    let payload = await computeSHA256(JSON.stringify(body));
     if (type == 'nip07'){
       let authEvent = {
         created_at: Math.floor(Date.now() / 1000),
@@ -262,29 +286,33 @@
           [
             "u",
             window.location.href
+          ],
+          [
+            "payload",
+            payload
           ]
         ],
-        content: "NIP98 auth event - This event is used to check that you can sign with the pubkey you want to register. Will not be published on nostr.",
+        content: content,
       }
 
-      signedAuthEvent = await window.nostr.signEvent(authEvent);
+      signedAuthEvent = 'Nostr ' + btoa(JSON.stringify(await window.nostr.signEvent(authEvent)));
       if (!signedAuthEvent) {
         initAlertModal("#register", "Error signing auth event.");
         return;
       }
     }
 
+    const headers = { 'Content-Type': 'application/json' };
+    if (type == 'nip07') {
+      headers['Authorization'] = signedAuthEvent;
+    }
     await fetch('/api/v2/register', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Nostr ' + btoa(JSON.stringify(signedAuthEvent))
-        },
+        headers: headers,
         body: JSON.stringify(body)
       })
       .then(response => response.json())
       .then(async data => {
-        console.log (data.status)
         if (data.status == 'success'){
 
           document.getElementById('register-form').classList.add('d-none');
@@ -325,6 +353,8 @@
 
         }else{
           initAlertModal("#register", data.message);
+          registerSpinner.classList.add('d-none');
+          registerButtons.classList.remove('d-none');
         }
         
       })
@@ -426,8 +456,10 @@
       satoshiField.classList.add('d-none');
       return;
     }
+
+    console.log("calculateSatoshi", length)
     
-    await fetch('/api/v2/payments/calculateamount', {
+    await fetch('/api/v2/register/calculateamount', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -436,6 +468,7 @@
     })
     .then(response => response.json())
     .then(async data => {
+      console.log("AMOUNT", data)
       satoshiField.classList.remove('d-none');
       satoshiField.innerHTML = `${data.amount} <i class="fa-solid fa-bolt ms-1" style="color:rgb(255, 128, 24)"></i>`;
     })

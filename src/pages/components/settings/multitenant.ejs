@@ -1,0 +1,27 @@
+<% const multiTenancy = locals.globalConfig?.multiTenancy || false %>
+<% if (multiTenancy) { %>
+  <div class="card p-3 shadow-lg mt-3 mb-4">
+    <div class="mb-3 text-start">
+      <h5 class="fw-bold">Multi-tenancy enabled</h5>
+      <p class="mb-2">
+        Multi-tenancy is <strong>enabled</strong>. This allows each domain to have its own independent configuration.
+        Use the selector below to view and edit settings specific to each domain. If a domain is not selected, global settings apply.
+      </p>
+    </div>
+    <form method="GET" action="/api/v2/settings" class="text-center">
+      <div class="row justify-content-center align-items-center">
+        <div class="col-auto">
+          <label for="domainSelector" class="form-label fw-bold me-2 mb-0">Select domain:</label>
+        </div>
+        <div class="col-auto">
+          <select id="domainSelector" name="domain" class="form-select" onchange="this.form.submit()">
+            <option value="">Global settings</option>
+            <% domainsList.forEach(dom => { %>
+              <option value="<%= dom %>" <%= selectedDomain === dom ? 'selected' : '' %>><%= dom %></option>
+            <% }) %>
+          </select>
+        </div>
+      </div>
+    </form>
+  </div>
+<% } %>

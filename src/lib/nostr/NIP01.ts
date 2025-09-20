@@ -8,7 +8,7 @@ import { emptyNostrProfileData, nostrProfileData } from "../../interfaces/nostr.
  * @param pubkey - The public key of the user, hex format.
  * @returns A promise that resolves to the content data of the kind 0 note.
  */
-const getPubkeyMedatada = async (pubkey: string): Promise<nostrProfileData> => {
+const getPubkeyMetadata = async (pubkey: string): Promise<nostrProfileData> => {
 	const metadataEvents: Event[] = []
 
 	return new Promise((resolve) => {
@@ -46,7 +46,7 @@ const getPubkeyMedatada = async (pubkey: string): Promise<nostrProfileData> => {
 				},
 			);
 		}catch (error) {
-			logger.error(error)
+			logger.error(`getPubkeyMetadata - Error retrieving pubkey metadata: ${error}`)
 			resolve(emptyNostrProfileData)
 		}
 	});
@@ -86,7 +86,7 @@ const getPubkeyFollowing = (pubkey : string) : Promise<string[]> => {
 				},
 			);
 		}catch (error) {
-			logger.error(error)
+			logger.error(`getPubkeyFollowing - Error retrieving pubkey following: ${error}`)
 			resolve([])
 		}
 	});
@@ -124,10 +124,18 @@ const getPubkeyFollowers = (pubkey : string) : Promise<string[]> => {
 				},
 			);
 		}catch (error) {
-			logger.error(error)
+			logger.error(`getPubkeyFollowers - Error retrieving pubkey followers: ${error}`)
 			resolve([])
 		}
 	});
 }
 
-export {getPubkeyMedatada, getPubkeyFollowing, getPubkeyFollowers}
+const isEphemeral = (kind: number) => {
+	return (kind >= 20000 && kind < 30000);
+}
+
+const isReplaceable = (kind: number) => {
+	return ((kind >= 10000 && kind < 20000) || kind === 0 || kind === 3);
+}
+
+export {getPubkeyMetadata, getPubkeyFollowing, getPubkeyFollowers, isEphemeral, isReplaceable}

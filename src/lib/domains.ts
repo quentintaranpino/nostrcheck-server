@@ -1,42 +1,34 @@
-import app from "../app.js";
-import { domainInfo } from "../interfaces/domains.js";
-import { isModuleEnabled } from "./config.js";
-import { dbMultiSelect } from "./database.js";
 
-const getAvailableDomains = async (): Promise<{ [key: string]: domainInfo }> => {
-    const domains = await dbMultiSelect(["domain", "requireinvite", "requirepayment", "maxsatoshi"], "domains", "active = ?", ["1"], false);
+import { TenantInfo } from "../interfaces/tenants.js";
+import { getPublicTenantConfig } from "./config/tenant.js";
+import { dbMultiSelect } from "./database/core.js";
+
+const getDomains = async (): Promise<{ [key: string]: TenantInfo }> => {
+    const domains = await dbMultiSelect(["id", "domain"], "domains", "active = ?", ["1"], false);
     if (domains.length == 0) {
         return {};
     }
-    const domainMap: { [key: string]: domainInfo } = {};
-    domains.forEach((row) => {
-        domainMap[row.domain] = {
-            requireinvite: Boolean(row.requireinvite),
-            requirepayment: isModuleEnabled("payments", app) ? Boolean(row.requirepayment) : false,
-			maxsatoshi: row.maxsatoshi != 0? row.maxsatoshi : app.get("config.payments")["satoshi"]["registerMaxSatoshi"],
-        };
-    });
+    const domainMap: { [key: string]: TenantInfo } = {};
+    
+    await Promise.all(
+        domains.map(async (row: any) => {
+            const tenantConfig = await getPublicTenantConfig(row.domain);
+            if (tenantConfig) {
+                domainMap[row.domain] = tenantConfig;
+            }
+        })
+    );
+        
     return domainMap;
 };
 
-const getAvailiableUsers = async (domain:string): Promise<JSON[]> => {
+const getDomainUsers = async (domain:string): Promise<JSON[]> => {
 
-	const users = await dbMultiSelect(["username", "hex"], "registered","domain = ?",[domain],false);
+	const users = await dbMultiSelect(["id","username", "hex"], "registered","domain = ? and active = ? ",[domain, "1"],false);
 	if (users.length == 0) {return [];}
 
 	return users;
 
 };
 
-const getDomainInfo = async (domain: string): Promise<domainInfo | ""> => {
-	const domains = await dbMultiSelect(["domain", "requireinvite", "requirepayment", "maxsatoshi"], "domains", "domain = ?", [domain], false);
-	if (domains.length == 0) {return "";}
-
-	return {
-		requireinvite: Boolean(domains[0].requireinvite),
-		requirepayment: isModuleEnabled("payments", app) ? Boolean(domains[0].requirepayment) : false,
-		maxsatoshi: domains[0].maxsatoshi != 0? domains[0].maxsatoshi : app.get("config.payments")["satoshi"]["registerMaxSatoshi"],
-	};
-}
-
-export { getAvailableDomains, getAvailiableUsers, getDomainInfo };
+export { getDomains, getDomainUsers };

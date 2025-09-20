@@ -1,4 +1,5 @@
 <h3 id="<%= tableName.toLowerCase() %>" class="mt-4 mb-2 display-5 gradient-text"><%- tableName %></h3>
+<p><%= tableDesc %></p>
 <div id="<%- tableId %>-toolbar">
     <div class="btn-group mt-2" role="group" aria-label="Add buttons">
         <div tabindex="0" data-bs-toggle="tooltip" data-bs-title="Add new item">
@@ -160,4 +161,690 @@
 <%- include('./modals/edit-modal', {"objectId":tableId, "fields": fields}); %>
 <%- include('./modals/confirm-modal', {"objectId":tableId}); %>
 <%- include('./modals/alert-modal', {"objectId":tableId}); %>
-<%- include('./modals/media-modal', {"objectId":tableId}); %>
+
+<script>
+    document.addEventListener('DOMContentLoaded', async () => {
+
+        const tableName = "<%= tableName %>";
+        const tableId = "<%= tableId %>";
+        const datakey = "<%= datakey %>";
+        const objectName = "<%= objectName %>";
+        const timeout = Number("<%= typeof timeout !== 'undefined' ? timeout : 60000 %>");
+        const tenant = "<%= typeof tenant !== 'undefined' ? tenant : 'null' %>";
+
+        const initTable = async (tableId, dataKey, objectName) => {
+
+            if (dataKey == "") { // dummy data for table creation
+                resolve();
+                return;
+            }
+
+            // General filters (registered, files, ips)
+            let checkedFilter = false;
+            let bannedFilter = false;
+
+            // Logger filters
+            let debugFilter = false;
+            let infoFilter = false;
+            let warnFilter = false;
+            let errorFilter = false;
+
+            const toolbarButtons = () => {
+                return {
+                    checkedButton: {
+                        text: 'checked',
+                        icon: 'bi-check-circle-fill',
+                        event: () => {
+                            const checkedButton = $(tableId).closest('.bootstrap-table').find('[name="checkedButton"]');
+                            const icon = checkedButton.find('i')
+                            if (checkedFilter) {
+                                checkedFilter = false;
+                                icon.removeClass('text-primary');
+                            } else {
+                                checkedFilter = true;
+                                icon.addClass('text-primary');
+                            }
+                            $(tableId).bootstrapTable('refresh');
+                        },
+                        attributes: {
+                            title: 'Filter unchecked items',
+                            id: tableId + '-customShowChecked',
+                            'data-toggle': 'tooltip'
+                        }
+                    },
+                    bannedButton: {
+                        text: 'banned',
+                        icon: 'bi-exclamation-triangle-fill',
+                        event: () => {
+                            const bannedButton = $(tableId).closest('.bootstrap-table').find('[name="bannedButton"]');
+                            const icon = bannedButton.find('i')
+                            if (bannedFilter) {
+                                bannedFilter = false;
+                                icon.removeClass('text-warning'); 
+
+                            } else {
+                                bannedFilter = true;
+                                icon.addClass('text-warning'); 
+                            }
+                            $(tableId).bootstrapTable('refresh');
+                        },
+                        attributes: {
+                            title: 'Filter banned items',
+                            id: tableId + '-customShowBanned',
+                            'data-toggle': 'tooltip'
+                        }
+                    },
+                };
+            };
+            
+            const loggerButtons = () => {
+                return {
+                    debugButton: {
+                        text: 'debug',
+                        icon: 'bi-bug-fill',
+                        event: () => {
+                            const debugButton = $(tableId).closest('.bootstrap-table').find('[name="debugButton"]');
+                            const icon = debugButton.find('i')
+                            if (debugFilter) {
+                                debugFilter = false;
+                                icon.removeClass('text-primary');
+                            } else {
+                                debugFilter = true;
+                                icon.addClass('text-primary');
+                            }
+                            $(tableId).bootstrapTable('refresh');
+                        },
+                        attributes: {
+                            title: 'Filter debug log messages',
+                            id: tableId + '-customShowDebug',
+                            'data-toggle': 'tooltip'
+                        }
+                    },
+                    infoButton: {
+                        text: 'info',
+                        icon: 'bi-info-circle-fill',
+                        event: () => {
+                            const infoButton = $(tableId).closest('.bootstrap-table').find('[name="infoButton"]');
+                            const icon = infoButton.find('i')
+                            if (infoFilter) {
+                                infoFilter = false;
+                                icon.removeClass('text-info');
+                            } else {
+                                infoFilter = true;
+                                icon.addClass('text-info');
+                            }
+                            $(tableId).bootstrapTable('refresh');
+                        },
+                        attributes: {
+                            title: 'Filter info log messages',
+                            id: tableId + '-customShowInfo',
+                            'data-toggle': 'tooltip'
+                        }
+                    },
+                    warnButton: {
+                        text: 'warn',
+                        icon: 'bi-exclamation-triangle-fill',
+                        event: () => {
+                            const warnButton = $(tableId).closest('.bootstrap-table').find('[name="warnButton"]');
+                            const icon = warnButton.find('i')
+                            if (warnFilter) {
+                                warnFilter = false;
+                                icon.removeClass('text-warning');
+                            } else {
+                                warnFilter = true;
+                                icon.addClass('text-warning');
+                            }
+                            $(tableId).bootstrapTable('refresh');
+                        },
+                        attributes: {
+                            title: 'Filter warn log messages',
+                            id: tableId + '-customShowWarn',
+                            'data-toggle': 'tooltip'
+                        }
+                    },
+                    errorButton: {
+                        text: 'error',
+                        icon: 'bi-x-circle-fill',
+                        event: () => {
+                            const errorButton = $(tableId).closest('.bootstrap-table').find('[name="errorButton"]');
+                            const icon = errorButton.find('i')
+                            if (errorFilter) {
+                                errorFilter = false;
+                                icon.removeClass('text-danger');
+                            } else {
+                                errorFilter = true;
+                                icon.addClass('text-danger');
+                            }
+                            $(tableId).bootstrapTable('refresh');
+                        },
+                        attributes: {
+                            title: 'Filter error log messages',
+                            id: tableId + '-customShowError',
+                            'data-toggle': 'tooltip'
+                        }
+                    },
+                };
+            };
+
+            $(tableId).bootstrapTable({
+                url: '/api/v2/admin/moduledata?module=' + dataKey + '&tenant=' + tenant,
+                ajax: function (params) {fetchTabledata(params, tableId)},
+                idField: 'id',
+                uniqueId: 'id',
+                showFilterControlSwitch: true,
+                filterControlVisible: false,
+                sidePagination: "server",
+                pagination: true,
+                sortable: true,
+                search: true,
+                searchClearButton: true,
+                pageSize: 5,
+                toolbar: tableId + '-toolbar',
+                resizable: true,
+                clickToSelect: true,
+                showRefresh: true,
+                showColumns: true,
+                detailView: true,
+                mobileResponsive: true,
+                minWidth: 1024,
+                checkOnInit: true,
+                detailFormatter: "detailFormatter",
+                rowStyle: rowStyle,
+                buttons: (tableId === '#registeredData' || tableId === '#filesData' || tableId === '#ipsData' ) ? toolbarButtons() : tableId === '#loggerData' ? loggerButtons() : null,
+                queryParams: function (params) {
+                    let filters = params.filter ? JSON.parse(params.filter) : {};
+                    if (checkedFilter)  {filters.checked = "!1"};
+                    if (bannedFilter)  filters.banned = "1";
+                    if (debugFilter) filters.severity = "DEBUG";
+                    if (infoFilter) filters.severity = "INFO";
+                    if (warnFilter) filters.severity = "WARN";
+                    if (errorFilter) filters.severity = "ERROR";
+                    params.filter = JSON.stringify(filters);
+                    return params;
+                },
+            })
+
+            // Hide columns function
+            const hideShowColumns = (columns, className, action = "hideColumn") => {
+                for (let column of columns) {
+                    if (column.class) {
+                        var classes = column.class.split(' ');
+                        classes.forEach(function(e) {
+                            if (e == className) {
+                                $(tableId).bootstrapTable(action, column.field);
+                            }
+                        });
+                    }
+                }
+            }
+
+            // Default columns to hide
+            var columns = $(tableId).bootstrapTable('getOptions').columns[0];
+            hideShowColumns(columns, 'hide', 'hideColumn');
+
+            // Hide or show columns based on the screen size
+            $(document).ready(function () {
+                if ($(window).width() < 768) {
+                    hideShowColumns(columns, 'mobile-hide', 'hideColumn');
+                }
+            });
+            $(window).resize(function () {
+                let windowWidth = $(window).width();
+                if (windowWidth && windowWidth < 768) {
+                    hideShowColumns(columns, 'mobile-hide', 'hideColumn');
+                } else {
+                    hideShowColumns(columns, 'mobile-hide', 'showColumn');
+                }
+            });
+
+            // Prevent refresh button spamming
+            $(tableId).on('refresh.bs.table', function (e, data) {
+                const refreshButton = $(tableId).closest('.bootstrap-table').find('[name="refresh"]');
+                refreshButton.prop('disabled', true);
+                setTimeout(() => { refreshButton.prop('disabled', false)}, 1000);
+            })
+
+            // Prevent sorting spamming
+            $(tableId).on('sort.bs.table', function(e, name, order) {
+                var sortingButtons = $(tableId).find('.sortable');
+                sortingButtons.addClass('disabled');
+                sortingButtons.css('pointer-events', 'none');
+                setTimeout(() => {
+                    sortingButtons.removeClass('disabled');
+                    sortingButtons.css('pointer-events', 'auto');
+                }, 1000);
+            });
+
+            // Buttons logic
+            $(tableId).on('check.bs.table uncheck.bs.table check-all.bs.table uncheck-all.bs.table', function () {
+                $(tableId + '-button-disable').prop('disabled', !$(tableId).bootstrapTable('getSelections').length)
+                $(tableId + '-button-enable').prop('disabled', !$(tableId).bootstrapTable('getSelections').length)
+                $(tableId + '-button-show').prop('disabled', !$(tableId).bootstrapTable('getSelections').length)
+                $(tableId + '-button-hide').prop('disabled', !$(tableId).bootstrapTable('getSelections').length)
+                $(tableId + '-button-remove').prop('disabled', !$(tableId).bootstrapTable('getSelections').length)
+                $(tableId + '-button-moderate').prop('disabled', !$(tableId).bootstrapTable('getSelections').length)
+                $(tableId + '-button-ban').prop('disabled', !$(tableId).bootstrapTable('getSelections').length)
+
+                if ($(tableId).bootstrapTable('getSelections').length == 1) {
+                    $(tableId + '-button-admin').prop('disabled', false)
+                    $(tableId + '-button-edit').prop('disabled', false)
+                    $(tableId + '-button-password').prop('disabled', false)
+                    $(tableId + '-button-pay').prop('disabled', false)
+                    $(tableId + '-button-balance').prop('disabled', false)
+                }
+                else {
+                    $(tableId + '-button-add').prop('disabled', false)
+                    $(tableId + '-button-admin').prop('disabled', true)
+                    $(tableId + '-button-edit').prop('disabled', true)
+                    $(tableId + '-button-password').prop('disabled', true)
+                    $(tableId + '-button-pay').prop('disabled', true)
+                    $(tableId + '-button-balance').prop('disabled', true)
+                }
+            })
+
+            // Buttons initialization
+            initButton(tableId, '-button-admin',        objectName, 'toggle admin permissions', 'allowed', null)
+            initButton(tableId, '-button-hide',         objectName, 'hide', 'visibility', 0)
+            initButton(tableId, '-button-show',         objectName, 'show', 'visibility', 1)
+            initButton(tableId, '-button-disable',      objectName, 'disable', 'active', 0)
+            initButton(tableId, '-button-enable',       objectName, 'enable', 'active', 1)
+            initButton(tableId, '-button-remove',       objectName, 'remove', '', null)
+            initButton(tableId, '-button-edit',         objectName, 'edit', '', null)
+            initButton(tableId, '-button-add',          objectName, 'add', '', null)
+            initButton(tableId, '-button-password',     objectName, 'reset password', 'password', '')
+            initButton(tableId, '-button-pay',          objectName, 'pay', 'paid', 1)
+            initButton(tableId, '-button-balance',      objectName, 'balance', 'balance', 100, true)
+            initButton(tableId, '-button-moderate',     objectName, 'moderate', 'checked', 1)
+            initButton(tableId, '-button-ban',          objectName, 'ban', 'reason', '',  true)
+        }
+
+        async function initButton(tableId, buttonSuffix, objectName, modaltext, field, fieldValue, enableEditText = false) {
+            $(tableId + buttonSuffix).click(async function () {
+
+                // Add button
+                if (buttonSuffix === '-button-add') {
+                    $(tableId).bootstrapTable('uncheckAll')
+                    var row = {}
+                    $(tableId).bootstrapTable('getOptions').columns[0].forEach(element => {
+                        if (element.field != 'state'){
+                            row[element.field] = ''
+                        }
+                    });
+                    var columns = $(tableId).bootstrapTable('getOptions').columns[0];
+                    await initEditModal(tableId,row,objectName, true, columns).then(async (editedRow) => {
+                        console.debug(editedRow)
+                        if (editedRow) {await modifyRecord("/api/v2/admin/insertrecord/",tableId, null, null, null, 'insert', editedRow)};
+                    });
+                    return
+                }
+
+                // Edit button
+                if (buttonSuffix === '-button-edit') {
+                    var row = $(tableId).bootstrapTable('getSelections')[0]
+                    var columns = $(tableId).bootstrapTable('getOptions').columns[0];
+                    await initEditModal(tableId,row,objectName,false,columns).then(async (editedRow) => {
+                        if (editedRow) {
+                            for (let field in editedRow) {
+                                console.debug(editedRow)
+                                console.debug(row)
+                                if (editedRow[field] != row[field]){
+                                    await modifyRecord("/api/v2/admin/updaterecord/", tableId, row.id, field, editedRow[field], 'modify')                     
+                                }
+                            }
+                        }
+                    });
+                    return
+                }
+
+                // Admin, hide and show, password, pay, balance, ban, enable, moderate and disable buttons
+                var ids = $.map($(tableId).bootstrapTable('getSelections'), function (row) {
+                    return row.id
+                })
+                await initConfirmModal(tableId, ids, modaltext, objectName, fieldValue, enableEditText).then(async (modal) => {
+                    if (modal.result == true) {
+                        for (let id of ids) {
+                            if (modaltext === 'remove') {
+                                modifyRecord("/api/v2/admin/deleterecord/", tableId, id, field, fieldValue, 'remove');
+                            } else if (modaltext === 'reset password') {
+                                modifyRecord("/api/v2/admin/resetpassword/", tableId, id, field, fieldValue, 'password');
+                            }else if (modaltext === 'pay') {
+                                modifyRecord("/api/v2/payments/paytransaction/", tableId, id, field, fieldValue, 'pay');
+                            }else if (modaltext === 'balance') {
+                                modifyRecord("/api/v2/payments/addbalance/", tableId, id, field, modal.value, 'balance');
+                            }else if (modaltext === 'ban') {
+                                modifyRecord("/api/v2/admin/ban", tableId, id, field, modal.value, 'ban');
+                            }else if (modaltext === 'moderate') {
+                                modifyRecord("/api/v2/admin/moderaterecord/", tableId, id, field, fieldValue, 'moderate');
+                            } else {
+                                modifyRecord("/api/v2/admin/updaterecord/", tableId, id, field, fieldValue, 'modify');
+                            }
+                        }
+                    }
+                })});
+            };
+        
+        
+        function highlihtRow(tableId, row) {
+            var index = $(tableId).bootstrapTable('getData').indexOf(row);
+            var $row = $(tableId).find('tbody tr').eq(index);
+            $row.removeClass('selected');
+            $row.addClass('table-danger');
+            setTimeout(function () {
+                $row.removeClass('table-danger');
+                $row.addClass('selected');
+            }, 2000);
+        }
+        window.highlihtRow = highlihtRow;
+
+        async function modifyRecord(url, tableId, id, field, fieldValue, action = 'modify', row = null){
+
+            if(row === null) {row = $(tableId).bootstrapTable('getRowByUniqueId', id)};
+            if (field === "allowed") {fieldValue = $(tableId).bootstrapTable('getSelections')[0].allowed === 0 ? 1 : 0;}
+            let data = {};
+
+            if (action === 'remove' || action === 'modify') {
+                data.table = tableId.split('-')[0].split('#')[1],
+                data.field = field,
+                data.value = fieldValue,
+                data.id = id
+            }
+
+            if (action === 'insert') {
+                if (!row) {
+                    console.error('No row data to insert', row);
+                    return
+                }
+                data.table = tableId.split('-')[0].split('#')[1],
+                data.row = row
+                
+            }
+
+            if (action === 'password') {
+                data = {pubkey: $(tableId).bootstrapTable('getSelections')[0].hex, domain: $(tableId).bootstrapTable('getSelections')[0].domain};
+                console.log($(tableId).bootstrapTable('getSelections')[0])
+            }
+
+            if (action === 'pay') {
+                data = {
+                    transactionid: $(tableId).bootstrapTable('getSelections')[0].transactionid || $(tableId).bootstrapTable('getSelections')[0].id,
+                    satoshi: $(tableId).bootstrapTable('getSelections')[0].satoshi,
+                };
+            }
+
+            if (action === 'balance') {
+                data = {
+                    id: $(tableId).bootstrapTable('getSelections')[0].id,
+                    amount: fieldValue,
+                };
+            }
+
+            if (action === 'ban') {
+                data = {
+                    id: id,
+                    table: tableId.split('-')[0].split('#')[1],
+                    reason: fieldValue,
+                };
+            }
+
+            if (action === 'moderate') {
+                data = {
+                    id: id,
+                    filename : $(tableId).bootstrapTable('getRowByUniqueId', id).filename,
+                    table: tableId.split('-')[0].split('#')[1],
+                };
+            }
+
+            data.tenant = tenant;
+
+            return fetch(url, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify(data)
+            })
+            .then(response => response.json())
+            .then(refreshTable(tableId))
+            .then(async responseData => {
+                if (responseData.status === "success") {
+                    if (action === 'remove') {
+                        $(tableId).bootstrapTable('removeByUniqueId', id);
+                    }else if (action === 'insert') {
+                        row.id = +responseData.message;
+                        $(tableId).bootstrapTable('insertRow', {
+                            index: 0,
+                            row: data.row
+                        });
+                    }else if (action === 'modify' || action === 'pay' || action === 'balance'){
+                        let updateData = {};
+                        updateData[field] = responseData.message;
+                        $(tableId).bootstrapTable('updateByUniqueId', {
+                            id: id,
+                            row: updateData
+                        });
+                    }
+
+                    if (action === 'password'){
+                        showMessage(`New password for ${$(tableId).bootstrapTable('getSelections')[0].username} has been sent via nostr DM successfully 🥳`, "alert-success");
+                    }else if (action === 'balance'){
+                        showMessage(`Balance for ${$(tableId).bootstrapTable('getSelections')[0].username} has been updated successfully 🥳`, "alert-success");
+                    }else if (action === 'ban'){
+                        showMessage(`Record ${id} from table ${tableId} has been banned successfully 🥳`, "alert-success");
+                        $(`#bannedData`).bootstrapTable('refresh');
+                    }else{
+                        showMessage(`Action ${action} completed successfully for id ${id}. 🥳`, "alert-success");
+                    }
+
+                    refreshTable(tableId);
+
+                } else {
+                    initAlertModal(tableId, responseData.message);
+                    await highlihtRow(tableId, row);
+                    console.error(responseData);
+                }
+
+                })
+            .catch((error) => {
+                console.error(error);
+                initAlertModal(tableId, error);
+            });
+        }
+        window.modifyRecord = modifyRecord;
+
+        // Cell formatting functions
+        function formatCheckbox(value, row, index) {
+            if (value === 1) {
+            return '<div class="text-center"><i class="fas fa-check-circle purple-text"></i></div>';
+            } else if (value === 0) {
+            return '<div class="text-center"><i class="fas fa-times-circle text-secondary"></i></div>';
+            } else if (value === 2) {
+                // show a spinner
+            return '<div class="spinner-border spinner-border-sm text-info" role="status"><span class="visually-hidden">Loading...</span></div>';
+            }
+            return '';
+        }
+        window.formatCheckbox = formatCheckbox;
+
+        function formatSatoshi(value, row, index) {
+            return (value? value : "0") + ' <i class="fa-solid fa-bolt text-warning"></i>'
+        }
+        window.formatSatoshi = formatSatoshi;
+
+        function formatPubkey(value) {
+
+            let textValue = value;
+            if ($(window).width() < 768) {textValue = value.slice(0, (value.length / 2)-18 ) + ':' + value.slice((value.length / 2)+18 );}
+            return '<a href="https://njump.me/' + value + '" target="_blank" class="link-secondary text-decoration-none">' +  textValue + '</a>';
+        }
+        window.formatPubkey = formatPubkey;
+
+        function formatPaymentHash(value) {
+
+            let textValue = value;
+            if ($(window).width() < 768) {textValue = value.slice(0, (value.length / 2)-18 ) + ':' + value.slice((value.length / 2)+18 );}
+            return textValue;
+
+        }
+        window.formatPaymentHash = formatPaymentHash;
+
+        function formatTimestamp(value) {
+            const d = new Date(value * 1000);
+            const year = d.getFullYear();
+            const month = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            const hours = String(d.getHours()).padStart(2, '0');
+            const minutes = String(d.getMinutes()).padStart(2, '0');
+            return `${year}-${month}-${day} ${hours}:${minutes}`;
+        }
+        window.formatTimestamp = formatTimestamp;
+        function formatLogDate(value) {
+            return new Date(value).toISOString().slice(0, 23).replace('T', ' ');
+        }
+        window.formatLogDate = formatLogDate;
+
+        function formatLogSeverity(value) {
+            if (value === 'ERROR') {
+                return '<div class="text-center"><i class="fas fa-exclamation-triangle text-danger"></i></div>';
+            } else if (value === 'WARN') {
+                return '<div class="text-center"><i class="fas fa-exclamation-circle text-warning"></i></div>';
+            } else if (value === 'INFO') {
+                return '<div class="text-center"><i class="fas fa-info-circle text-info"></i></div>';
+            } else if (value === 'DEBUG') {
+                return '<div class="text-center"><i class="fas fa-bug text-secondary"></i></div>';
+            }
+            return '';
+        }
+        window.formatLogSeverity = formatLogSeverity;
+
+        function formatMediaFile(value, row, index) {
+
+            let textValue = value;
+            if ($(window).width() < 768) {
+                textValue = value.slice(0, (value.length / 2) - 20) + ':' + value.slice((value.length / 2) + 20);
+            }
+
+            // If value is not a filename exit the function
+            if (!value || value.indexOf('.') === -1) {
+                return textValue;
+            }
+
+            let modalFileCheck = '<div id="media_' + index + '_preview"><span class="cursor-zoom-in text-secondary">' + textValue + '</span></div>';
+
+            // Attach the click event handler to the document and delegate it to the clickable element
+            $(document).off('click', '#media_' + index + '_preview').on('click', '#media_' + index + '_preview', async function () {
+                    initMediaModal(row.pubkey + "/" + value, row.checked, row.visibility, true).then(async (modal) => {
+                        let modalResult = modal.data;
+                        for (let field in modalResult) {
+                            if (modalResult[field] != row[field]) {
+                                await modifyRecord("/api/v2/admin/updaterecord/", '#filesData', row.id, field, modalResult[field], 'modify');
+                                refreshTable('#filesData');
+                            }
+                        }
+                    })
+            });
+
+            return modalFileCheck;
+        }
+        window.formatMediaFile = formatMediaFile;
+
+        function formatBannedFile(value, row, index) {
+            
+            let textValue = value;
+            
+            if ($(window).width() < 768)  textValue = value.slice(0, (value.length / 2) - 20) + ':' + value.slice((value.length / 2) + 20);
+            if (!value || value.indexOf('.') === -1 || value.length < 64)   return textValue;
+
+            let modalFileCheck = '<div id="banned_' + index + '_preview"><span class="cursor-zoom-in text-secondary">' + textValue + '</span></div>';
+            $(document).off('click', '#banned_' + index + '_preview').on('click', '#banned_' + index + '_preview', async function () {
+                await initMediaModal(value, row.checked, row.visibility, false).then(async (modal) => {
+                    let modalResult = modal.data;
+                    for (let field in modalResult) {
+                        if (modalResult[field] != row[field]) {
+                            await modifyRecord("/api/v2/admin/updaterecord/", '#filesData', row.id, field, modalResult[field], 'modify');
+                            refreshTable('#filesData');
+                        }
+                    }
+                });
+            });
+
+            return modalFileCheck;
+        }
+        window.formatBannedFile = formatBannedFile;
+
+        function detailFormatter(index, row) {
+            var html = [];
+            $.each(row, function (key, value) {
+                if (key === 'state') { return; }
+                html.push('<p><span class="key">' + key + ':</span> <span class="value">' + value + '</span></p>');
+            });
+
+            return `
+                <div class="detail-container">
+                    ${html.join('')}
+                </div>
+            `;
+        }
+        window.detailFormatter = detailFormatter;
+
+        // Dynamic row styling
+        const rowStyle = (row, index) =>{
+            if (row.banned === 1)  return {classes: 'banned-row'};
+            if (row.pendingotc === 1) return {classes: 'pending-otc-row'};
+            return {};
+        }
+
+        const refreshTable = async (table) => {
+
+            return new Promise((resolve, reject) => {
+                const $table = table.startsWith('#') ? $(table) : $(`#${table}`);
+                const tableSelections = $table.bootstrapTable('getSelections');
+
+                $table.one('load-success.bs.table', function (e, data) {
+                    for (const selection of tableSelections) {
+                        $table.bootstrapTable('checkBy', { field: 'id', values: [selection.id] });
+                    }
+                    resolve();
+                });
+
+                $table.one('load-error.bs.table', function (e, status) {
+                    console.error(`Load error for table ${table}: ${status}`);
+                    reject(`Error loading data for table ${table}: ${status}`);
+                });
+
+                $table.bootstrapTable('refresh');
+
+            });
+        }
+
+        function fetchTabledata(params, tableId) {
+            console.time(`fetchTabledata-${params.url}`);
+            return new Promise((resolve, reject) => {
+                $.ajax({
+                    url: params.url,
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    data: params.data,
+                    dataType: 'json',
+                    success: async function(result) {
+                        console.timeEnd(`fetchTabledata-${params.url}`);
+                        params.success(result);
+                        resolve(params);
+                    },
+                    error: function(err) {
+                        console.timeEnd(`fetchTabledata-${params.url}`);
+                        params.error(err);
+                        reject(err);
+                    }
+                });
+            });
+        }
+
+        await initTable(`#${tableId}`, datakey, objectName);
+
+        // Refresh table every timeout
+        setInterval(async () => {await refreshTable(`#${tableId}`)}, timeout);
+
+    });
+</script>

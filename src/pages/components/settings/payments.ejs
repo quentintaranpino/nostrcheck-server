@@ -1,174 +1,135 @@
+<% 
+  const cfg = locals.domainConfig?.payments || {}; 
+  const globalCfg = locals.globalConfig?.payments || {}; 
+%>
 <div id="settingsPayments">
-    <h3 class="mt-4">Payments</h3>
-    <form class="form mx-auto">
-        <p> In this section, you can configure the LN payment provider of your server. Currently only Nostr wallet connect and LNBits are supported. 
-        </p>
-        <label for="payments.provider" class="mt-2 mb-1 fw-bold">Payment provider</label>
-        <p>Choose the payment provider for your server. Currently only <a href="https://lnbits.com/" target="_blank">LNbits</a> and <a href="https://nwc.dev/" target="_blank">Nostr wallet connect</a> are supported.
-        </p>
-        <div class="col-12 col-md-4">
-            <select id="payments.paymentProvider" name="payments.paymentProvider" class="form-select">
-                <% 
-                    const paymentProviders = Object.keys(locals.settingsPayments.paymentProviders);
-                    for (let provider of paymentProviders) { 
-                %>
-                    <option value="<%= provider %>" 
-                        <% if (locals.settingsPayments.paymentProvider === provider) { %> 
-                            selected 
-                        <% } %>
-                    ><%= provider %></option>
-                <% } %>
-            </select>
-        </div>
-        <label for="payments.maxSatoshi" class="mt-4 mb-1 fw-bold">Max Satoshi</label>
-        <p>
-            The following two fields allow you to configure the payment structure for new user registrations and file uploads. 
-            These settings determine the maximum amount of sats that can be charged, ensuring that shorter usernames and 
-            larger files are priced accordingly. Additionally, setting the value to 0 for either field will disable the payment requirement for the 
-            respective action (user registration or file uploads).
-        </p>
-        <div class="row">
-            <div class="col-12 col-md-4">
-                <label for="payments.satoshi.mediaMaxSatoshi" class="mt-2 mb-1 fw-bold">File uploads</label>
-                <input  type="number" 
-                        id="payments.satoshi.mediaMaxSatoshi" 
-                        name="payments.satoshi.mediaMaxSatoshi" 
-                        class="form-control" 
-                        value="<%= locals.settingsPayments['satoshi']['mediaMaxSatoshi'] %>" 
-                        placeholder="ex. 1000" 
-                        step="50"
-                        required
-                        > 
-            </div>
-            <div class="col-12 col-md-4">
-                <label for="payments.satoshi.registerMaxSatoshi" class="mt-2 mb-1 fw-bold">Register form</label>
-                <input  type="number" 
-                        id="payments.satoshi.registerMaxSatoshi"
-                        name="payments.satoshi.registerMaxSatoshi"
-                        class="form-control" 
-                        value="<%= locals.settingsPayments['satoshi']['registerMaxSatoshi'] %>" 
-                        placeholder="ex. 1000" 
-                        step="50"
-                        required
-                        > 
-            </div>
-        </div>
-        <div class="alert alert-warning mt-3" role="alert">
-            <i class="fa-solid fa-triangle-exclamation"></i> In the dashboard's <a href="dashboard#domains">Domains</a> section, you can customize the payment settings for each domain.
-            If a domain isn't configured, the default values set here will be automatically applied.
-        </div>
-        <label for="payments.allowUnpaidUploads" class="mt-4 mb-1 fw-bold">Allow unpaid uploads</label>
-        <p>
-            Specify whether file uploads are allowed without prior payment. If set to inactive, 
-            file uploads are only permitted if the user has already paid the required amount of sats. If set to active, 
-            file uploads will be allowed, but payment in sats will be required for each request until the invoice is fully paid.
-        </p>
-        <div class="col-12 col-md-4">
-            <div class="form-check form-switch">
-                <input 
-                    class="form-check-input" 
-                    type="checkbox" 
-                    name="payments.allowUnpaidUploads" 
-                    id="payments.allowUnpaidUploads" 
-                    <%= locals.settingsPayments['allowUnpaidUploads'] ? 'checked' : '' %> 
-                >
-            </div>
-        </div>
-        <label for="payments.sendMessageToPubkey" class="mt-4 mb-1 fw-bold">Send invoice to pubkey</label>
-        <p>
-            Specify whether the server should send a nostr direct message to the uploader's pubkey with the invoice details.
-        </p>
-        <div class="col-12 col-md-4">
-            <div class="form-check form-switch">
-                <input 
-                    class="form-check-input" 
-                    type="checkbox" 
-                    name="payments.sendMessageToPubkey" 
-                    id="payments.sendMessageToPubkey" 
-                    <%= locals.settingsPayments['sendMessageToPubkey'] ? 'checked' : '' %> 
-                >
-            </div>
-        </div>
-        <div class="row">
-            <label for="payments.invoicePaidInterval" class="mt-4 mb-1 fw-bold">Invoice paid interval</label>
-            <p>Specify the interval in seconds to check if pending invoices are paid.</p>
-            <div class="col-12 col-md-4">
-                <div class="input-group mb-3 mt-2"  data-bs-tooltip="test">
-                <input  type="number" 
-                        id="payments.invoicePaidInterval" 
-                        name="payments.invoicePaidInterval" 
-                        class="form-control" 
-                        value="<%= locals.settingsPayments['invoicePaidInterval'] %>" 
-                        placeholder="Example 60 seconds" 
-                        required
-                        step="10"
-                        >  
-                <span class="input-group-text">seconds</span>
-                </div>
-            </div>
-        </div>
-        <label for="payments.LNAddress" class="mt-3 mb-1 fw-bold"> LN address</label>
-        <p>Specify the LN address for payment provider.</p>
-        <input  type="text" 
-                id="payments.LNAddress" 
-                name="payments.LNAddress" 
-                class="form-control" 
-                value="<%= locals.settingsPayments['LNAddress'] %>" 
-                placeholder="LNAddress" 
-                required
-                >
-        <div>
-            <h4 class="mt-4">Payment providers settings</h4>
-            <p> In this section, you can configure the payment provider settings for your server. You can choose between Nostr wallet connect and LNbits.
-            </p>
-            <h5 class="mt-4"> Nostr wallet connect settings</h5>
-            <label for="payments.paymentProviders.nwc.url" class="mt-1 mb-1 fw-bold">URL</label>
-            <p>Specify the nostr wallet connect url </p>
-            <div class="input-group">
-                <input  type="password" 
-                id="payments.paymentProviders.nwc.url" 
-                name="payments.paymentProviders.nwc.url" 
-                class="form-control mb-2" 
-                defaultValue="<%= locals.settingsPayments['paymentProviders']['nwc']['url'] %>"
-                value="<%= locals.settingsPayments['paymentProviders']['nwc']['url'] %>" 
-                placeholder="Nostr wallet connect url"
-                required 
-                >
-                <button type="button" class="toggle-password d-none"
-                aria-label="Show secret key as plain text. Warning: this will display your password on the screen.">
-                </button>
-            </div>
-        </div>
-            <h5 class="mt-4"> LNbits settings</h5>
-            <label for="payments.lnbits.nodeUrl" class="mt-1 mb-1 fw-bold">Node URL</label>
-            <p>Specify the url for LNbits payment provider node.</p>
-            <input  type="text" 
-                    id="payments.paymentProviders.lnbits.nodeUrl" 
-                    name="payments.paymentProviders.lnbits.nodeUrl" 
-                    class="form-control" 
-                    value="<%= locals.settingsPayments['paymentProviders']['lnbits']['nodeUrl'] %>" 
-                    placeholder="LNbits nodeUrl" 
-                    required
-                    >
-            <label for="payments.lnbits.readKey" class="mt-1 mb-1 fw-bold">readKey</label>
-            <p>Specify the readKey for LNbits payment provider.</p>
-            <div class="input-group">
-                <input  type="password" 
-                id="payments.paymentProviders.lnbits.readKey" 
-                name="payments.paymentProviders.lnbits.readKey" 
-                class="form-control mb-2" 
-                defaultValue="<%= locals.settingsPayments['paymentProviders']['lnbits']['readKey'] %>" 
-                value="<%= locals.settingsPayments['paymentProviders']['lnbits']['readKey'] %>" 
-                placeholder="LNbits readKey" 
-                required 
-                >
-                <button type="button" class="toggle-password d-none"
-                aria-label="Show secret key as plain text. Warning: this will display your password on the screen.">
-                </button>
-            </div>
-        </div>
-        <div class="col-12 col-md-3 mb-5 mt-4 pb-5 pb-lg-0 mb-lg-2">
-            <button class="btn btn-lg mb-4 btn-primary w-100" name="Submit" type="button" onclick="saveSettings()">Save</button>
-        </div>
-    </form>
-  </div>
+  <h3 class="mt-4">Payments</h3>
+  <form class="form mx-auto">
+    <p>
+      In this section, you can configure the LN payment provider of your server.
+      Currently only Nostr Wallet Connect and LNBits are supported.
+    </p>
+
+    <%- include('field', {
+      type: 'select',
+      name: 'payments.paymentProvider',
+      label: 'Payment provider',
+      description: 'Choose the payment provider: LNbits or Nostr wallet connect.',
+      value: globalCfg.paymentProvider,
+      globalValue: globalCfg.paymentProvider,
+      options: Object.keys(globalCfg.paymentProviders || {}).map(p => ({ value: p, label: p })),
+      overridable: false
+    }) %>
+
+    <%- include('field', {
+      type: 'number',
+      name: 'payments.satoshi.mediaMaxSatoshi',
+      label: 'File uploads (max sats)',
+      description: 'Maximum sats for uploading files. Set to 0 to disable payment requirement.',
+      value: cfg.satoshi?.mediaMaxSatoshi,
+      globalValue: globalCfg.satoshi?.mediaMaxSatoshi,
+      placeholder: 'ex. 1000',
+      required: true,
+      overridable: true
+    }) %>
+
+    <%- include('field', {
+      type: 'number',
+      name: 'payments.satoshi.registerMaxSatoshi',
+      label: 'Register form (max sats)',
+      description: 'Maximum sats for registering. Set to 0 to disable payment requirement.',
+      value: cfg.satoshi?.registerMaxSatoshi,
+      globalValue: globalCfg.satoshi?.registerMaxSatoshi,
+      placeholder: 'ex. 1000',
+      required: true,
+      overridable: true
+    }) %>
+
+    <%- include('field', {
+      type: 'checkbox',
+      name: 'payments.allowUnpaidUploads',
+      label: 'Allow unpaid uploads',
+      description: 'If active, uploads are allowed while the invoice is pending payment.',
+      value: cfg.allowUnpaidUploads,
+      globalValue: globalCfg.allowUnpaidUploads,
+      overridable: true
+    }) %>
+
+    <%- include('field', {
+      type: 'checkbox',
+      name: 'payments.sendMessageToPubkey',
+      label: 'Send invoice to pubkey',
+      description: 'Send a Nostr DM to uploader with invoice details.',
+      value: globalCfg.sendMessageToPubkey,
+      globalValue: globalCfg.sendMessageToPubkey,
+      overridable: false
+    }) %>
+
+    <%- include('field', {
+      type: 'number',
+      name: 'payments.invoicePaidInterval',
+      label: 'Invoice paid interval (sec)',
+      description: 'Interval (in seconds) to check invoice status.',
+      value: globalCfg.invoicePaidInterval,
+      globalValue: globalCfg.invoicePaidInterval,
+      placeholder: 'Example 60',
+      required: true,
+      overridable: false
+    }) %>
+
+    <%- include('field', {
+      type: 'text',
+      name: 'payments.LNAddress',
+      label: 'LN Address',
+      description: 'LN Address for payment provider.',
+      value: globalCfg.LNAddress,
+      globalValue: globalCfg.LNAddress,
+      placeholder: 'LN address here',
+      required: true,
+      overridable: false
+    }) %>
+
+    <h4 class="mt-4">Payment providers settings</h4>
+    <h5 class="mt-4">Nostr Wallet Connect</h5>
+    <%- include('field', {
+      type: 'password',
+      name: 'payments.paymentProviders.nwc.url',
+      label: 'NWC URL',
+      description: 'Nostr Wallet Connect URL.',
+      value: globalCfg.paymentProviders?.nwc?.url,
+      globalValue: globalCfg.paymentProviders?.nwc?.url,
+      placeholder: 'nwc://...',
+      required: true,
+      overridable: false
+    }) %>
+
+    <h5 class="mt-4">LNBits</h5>
+    <%- include('field', {
+      type: 'text',
+      name: 'payments.paymentProviders.lnbits.nodeUrl',
+      label: 'LNBits Node URL',
+      description: 'LNBits node URL for the payment provider.',
+      value: globalCfg.paymentProviders?.lnbits?.nodeUrl,
+      globalValue: globalCfg.paymentProviders?.lnbits?.nodeUrl,
+      placeholder: 'https://lnbits...',
+      required: true,
+      overridable: false
+    }) %>
+
+    <%- include('field', {
+      type: 'password',
+      name: 'payments.paymentProviders.lnbits.readKey',
+      label: 'LNBits readKey',
+      description: 'ReadKey for LNBits.',
+      value: globalCfg.paymentProviders?.lnbits?.readKey,
+      globalValue: globalCfg.paymentProviders?.lnbits?.readKey,
+      placeholder: 'ReadKey',
+      required: true,
+      overridable: false
+    }) %>
+
+    <div class="col-12 col-md-3 mb-5 mt-4 pb-5 pb-lg-0 mb-lg-2">
+      <button class="btn btn-lg mb-4 btn-primary w-100" name="Submit" type="button" onclick="saveSettings()">Save</button>
+    </div>
+  </form>
+</div>

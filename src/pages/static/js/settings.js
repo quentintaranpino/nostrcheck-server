@@ -1,7 +1,18 @@
-async function saveSettings() {
-    const formFields = document.querySelectorAll('.form input, .form select, .form textarea, .form checkbox');
-    formFields.forEach(async field => {
+const reloadOnChangeFields = [
+    "multiTenancy",
+    "appearance.server.logo.light",
+    "appearance.server.logo.dark",
+    "server.availableModules"
+  ];
 
+async function saveSettings() {
+    const formFields = document.querySelectorAll('.form input, .form select, .form textarea');
+    
+    const selectedDomain = document.getElementById('domainSelector')?.value || null;
+
+    let shouldReload = false;
+
+    for (const field of formFields) {
         let value;
         let defaultValue;
         if (field.type === 'checkbox') {
@@ -9,25 +20,43 @@ async function saveSettings() {
             defaultValue = field.defaultChecked;
         } else if (field.tagName.toLowerCase() === 'select') {
             value = field.value;
-            defaultValue = Array.from(field.options).find(option => option.defaultSelected)?.value || field.value;
+            defaultValue = field.dataset.defaultValue
+               ?? (Array.from(field.options).find(o => o.defaultSelected)?.value || field.value); 
+        } else if (field.type === 'file') {
+            value = field.files[0]?.name || field.value;
+            defaultValue = field.defaultValue;
         } else {
             value = field.value;
-            defaultValue = field.defaultValue;
+            defaultValue = field.dataset.defaultValue || field.defaultValue;
         }
 
-        if (value !== defaultValue && field.name !== "log" && !field.name.toString().startsWith('lookandfeel')) {
+        if (value !== defaultValue) {
+
+            if (field.type === 'file') {
+                const isRestore = value === "restore" || field.dataset.restore === "true";
+                await saveSettingsFile(field.name, isRestore).then(response => {
+                    if (response.reload && reloadOnChangeFields.some(key => field.name === key || field.name.startsWith(`${key}.`))) {
+                        shouldReload = true;
+                    }
+                });
+                continue;
+            }
+
+            if (reloadOnChangeFields.some(key => field.name === key || field.name.startsWith(`${key}.`))) {
+                shouldReload = true;
+            }
             
-            let url = 'admin/updatesettings';
-            let headers = {
+            const url = '/api/v2/admin/updatesettings';
+            const headers = {
                 "Content-Type": "application/json"
             };
-            let body = JSON.stringify({
+            const body = JSON.stringify({
                 name: field.name,
-                value: value
+                value: value, 
+                domain: selectedDomain
             });
-            
-            await updateSettings(field.name, value, url, body, headers).then(result => {
-                console.log(result);
+
+            await updateSettings(url, body, headers).then(result => {
                 if (result === true) {
                     if (field.type === 'checkbox') {
                         field.defaultChecked = field.checked;
@@ -35,8 +64,10 @@ async function saveSettings() {
                         Array.from(field.options).forEach(option => {
                             option.defaultSelected = option.selected;
                         });
+                        field.dataset.defaultValue = field.value;
                     } else {
                         field.defaultValue = field.value;
+                        field.dataset.defaultValue = field.value;
                     }
                 } else {
                     if (field.type === 'checkbox') {
@@ -44,15 +75,19 @@ async function saveSettings() {
                     } else if (field.tagName.toLowerCase() === 'select') {
                         field.value = Array.from(field.options).find(option => option.defaultSelected).value;
                     } else {
-                        field.value = field.defaultValue;
+                        field.value = field.dataset.defaultValue || field.defaultValue;
                     }
                 }
             });
         }
-    });
+    }
+
+    if (shouldReload) {
+        location.reload();
+    }
 }
 
-const updateSettings = (fieldName, fieldValue, url, body, headers) => {
+const updateSettings = (url, body, headers) => {
 
     return fetch(url, {
         method: 'POST',
@@ -62,10 +97,12 @@ const updateSettings = (fieldName, fieldValue, url, body, headers) => {
     .then(response => response.json())
     .then(async data => {
         if (data.status === 'success') {
-            const fieldId = document.getElementById(fieldName);
-            fieldId.defaultValue = fieldValue;
+            const name = await JSON.parse(body).name;
+            const value = await JSON.parse(body).value;
+            const fieldId = document.getElementById(name);
+            fieldId.dataset.defaultValue = value;
 
-            showMessage(`${data.message} field ${fieldName}`, "alert-primary");
+            showMessage(`${data.message}`, "alert-primary");
             return true;
         } else {
             console.error('Error:', data);
@@ -79,119 +116,69 @@ const updateSettings = (fieldName, fieldValue, url, body, headers) => {
     });
 }
 
-// Log data
-window.onload = function() {
-    let logHistory = document.getElementById('log');
-    window.logData.slice().reverse().forEach(function(log, index) {
-        var date = new Date(log.date);
-        var formattedDate = date.getFullYear() + '-' + 
-            ('0' + (date.getMonth()+1)).slice(-2) + '-' + 
-            ('0' + date.getDate()).slice(-2) + ' ' + 
-            ('0' + date.getHours()).slice(-2) + ':' + 
-            ('0' + date.getMinutes()).slice(-2) + ':' + 
-            ('0' + date.getSeconds()).slice(-2) + '.' + 
-            ('00' + date.getMilliseconds()).slice(-3);
-        logHistory.value += `${index + 1}-  ${log.severity} - ${formattedDate} - ${log.message}\n`;
-    });
-}
+// Update settings files
+const saveSettingsFile = async (settingName, restore = false) => {
+    const selectedDomain = document.getElementById("domainSelector")?.value || null;
+    const field = document.getElementById(settingName);
 
-// Update logo or restore default
-serverLogoLightId = 'server-logo-light-preview';
-serverLogoDarkId = 'server-logo-dark-preview';
-const updateLogo = (fieldName, setDefault = false) => {
+    const form = new FormData();
+    form.append("name", settingName);
+    if (selectedDomain) form.append("domain", selectedDomain);
 
-    let body = new FormData();
-    let field = document.getElementById(fieldName);
-    body.append(fieldName, field.files[0]);
-    body.append('theme', fieldName.split('.')[3]);
-
-    if (field.files.length === 0 && setDefault === false) return;
-
-    console.log(body.theme)
-
-    if (setDefault === true) {
-        document.getElementById(`${fieldName}.default`).value = setDefault;
-        body[fieldName] = null;
-        fieldName = `${fieldName}.default`;
+    if (restore) {
+        form.append(`${settingName}.default`, "true");
+    } else {
+        form.append(settingName, field.files[0]);
     }
-       
-    let headers = {};
-    
-    updateSettings(fieldName, '', 'admin/updatelogo', body, headers).then(result => {
-        if (result) {
 
-            if ((fieldName.includes('light') && document.documentElement.getAttribute('data-bs-theme') === 'light') || 
-                (fieldName.includes('dark') && document.documentElement.getAttribute('data-bs-theme') === 'dark')) {
-                const serverLogo = document.getElementById(serverLogoId);
-                serverLogo.src = serverLogo.src + '?' + new Date().getTime();
-                serverLogo.id = Math.random().toString(36).substring(7);
-                serverLogoId = serverLogo.id;
+    const response = await fetch("admin/updatesettingsfile", {
+        method: "POST",
+        body: form
+    });
+
+    const result = await response.json();
+    if (result.status === "success") {
+        const preview = document.getElementById(`${settingName}-preview`);
+        if (preview) {
+            if (selectedDomain) {
+                preview.src = preview.src.split("?")[0] + "?domain=" + selectedDomain + "&" + Date.now();
+            } else {
+                preview.src = preview.src.split("?")[0] + "?" + Date.now();
             }
-            $('input[type=file]').val('');
-
-            if (fieldName.startsWith('lookandfeel.server.logo.light')) {
-                const serverLogoLight = document.getElementById(serverLogoLightId);
-                serverLogoLight.src = serverLogoLight.src + '?' + new Date().getTime();
-                serverLogoLight.id = Math.random().toString(36).substring(7);
-                serverLogoLightId = serverLogoLight.id;
-            }
-
-            if (fieldName.startsWith('lookandfeel.server.logo.dark')) {
-                const serverLogoDark = document.getElementById(serverLogoDarkId);
-                serverLogoDark.src = serverLogoDark.src + '?' + new Date().getTime();
-                serverLogoDark.id = Math.random().toString(36).substring(7);
-                serverLogoDarkId = serverLogoDark.id;
-            }
-
         }
-    });
-
-}
-
-const updateTheme = async (primaryColor, secondaryColor, tertiaryColor, orientation, primaryPercent, secondaryPercent, tertiaryPercent, particles, setDefault = false) => {
-
-    let fieldName = 'lookandfeel.server.colors.theme';
-    let body = {
-        color1: primaryColor,
-        color2: secondaryColor,
-        color3: tertiaryColor,
-        orientation: orientation,
-        color1Percent: primaryPercent,
-        color2Percent: secondaryPercent,
-        color3Percent: tertiaryPercent,
-        particles: particles
-    };
-
-    if (setDefault === true) {
-        body.primaryColor = null;
-        body.secondaryColor = null;
-        body.tertiaryColor = null;
-        body.themeName = '';
-        body.particles = '';
+        field.value = ""; 
+        showMessage(`${result.message}`, "alert-primary");
+        updatePreviewBadges();
+        return {
+            result: true,
+            reload: reloadOnChangeFields.some(key => settingName === key || settingName.startsWith(`${key}.`))
+        };
+        
+        } else {
+        initAlertModal("#settings", result.message);
+        return { "result": false, "reload" : false };
     }
+};
 
-    let headers = {
-        "Content-Type": "application/json", 
-    };
-
-    updateSettings(fieldName, '', 'admin/updatetheme', JSON.stringify(body), headers)
-
-}
-
-const handleThemeChange = (selectElement, themes) => {
+const handleDynamicBackgroundChange = (selectElement, themes) => {
     themes = JSON.parse(themes);
     const selectedTheme = selectElement.value;
 
     if (selectedTheme && themes[selectedTheme]) {
-        const primaryColorInput = document.getElementById("lookandfeel.server.colors.primaryColor");
-        const secondaryColorInput = document.getElementById("lookandfeel.server.colors.secondaryColor");
-        const tertiaryColorInput = document.getElementById("lookandfeel.server.colors.tertiaryColor");
-        const orientationSelect = document.getElementById("lookandfeel.server.colors.orientation");
-        const particlesSelect = document.getElementById("lookandfeel.server.particles");
 
-        const primaryColorPercentage = document.getElementById("lookandfeel.server.colors.primaryColor.percent");
-        const secondaryColorPercentage = document.getElementById("lookandfeel.server.colors.secondaryColor.percent");
-        const tertiaryColorPercentage = document.getElementById("lookandfeel.server.colors.tertiaryColor.percent");
+        const primaryColorInput = document.getElementById("appearance.dynamicbackground.color1");
+        const secondaryColorInput = document.getElementById("appearance.dynamicbackground.color2");
+        const tertiaryColorInput = document.getElementById("appearance.dynamicbackground.color3");
+        const orientationSelect = document.getElementById("appearance.dynamicbackground.orientation");
+        const particlesSelect = document.getElementById("appearance.dynamicbackground.particles");
+
+        const primaryColorPercentageHandle = document.getElementById("appearance.dynamicbackground.color1Percent.handle");
+        const secondaryColorPercentageHandle = document.getElementById("appearance.dynamicbackground.color2Percent.handle");
+        const tertiaryColorPercentageHandle = document.getElementById("appearance.dynamicbackground.color3Percent.handle");
+
+        const primaryColorPercentageInput = document.getElementById("appearance.dynamicbackground.color1Percent");
+        const secondaryColorPercentageInput = document.getElementById("appearance.dynamicbackground.color2Percent");
+        const tertiaryColorPercentageInput = document.getElementById("appearance.dynamicbackground.color3Percent");
 
         primaryColorInput.value = themes[selectedTheme].color1;
         secondaryColorInput.value = themes[selectedTheme].color2;
@@ -199,9 +186,18 @@ const handleThemeChange = (selectElement, themes) => {
         orientationSelect.value = themes[selectedTheme].orientation;
         particlesSelect.value = themes[selectedTheme].particles;
 
-        primaryColorPercentage.style.left = `${themes[selectedTheme].color1Percent}`;
-        secondaryColorPercentage.style.left = `${themes[selectedTheme].color2Percent}`;
-        tertiaryColorPercentage.style.left = `${themes[selectedTheme].color3Percent}`;
+        primaryColorPercentageHandle.style.left = `${themes[selectedTheme].color1Percent}`;
+        primaryColorPercentageHandle.dataset.position = themes[selectedTheme].color1Percent;
+        secondaryColorPercentageHandle.style.left = `${themes[selectedTheme].color2Percent}`;
+        secondaryColorPercentageHandle.dataset.position = themes[selectedTheme].color2Percent;
+        tertiaryColorPercentageHandle.style.left = `${themes[selectedTheme].color3Percent}`;
+        tertiaryColorPercentageHandle.dataset.position = themes[selectedTheme].color3Percent;
+
+        primaryColorPercentageInput.value = themes[selectedTheme].color1Percent;
+        secondaryColorPercentageInput.value = themes[selectedTheme].color2Percent;
+        tertiaryColorPercentageInput.value = themes[selectedTheme].color3Percent;
+
+
 
         primaryColorInput.dispatchEvent(new Event('input', { bubbles: true }));
         secondaryColorInput.dispatchEvent(new Event('input', { bubbles: true }));
@@ -216,17 +212,22 @@ const handleParticlesChange = (selectElement) => {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    const primaryColorInput = document.getElementById("lookandfeel.server.colors.primaryColor");
-    const secondaryColorInput = document.getElementById("lookandfeel.server.colors.secondaryColor");
-    const tertiaryColorInput = document.getElementById("lookandfeel.server.colors.tertiaryColor");
-    const orientationSelect = document.getElementById("lookandfeel.server.colors.orientation");
-    const gradientBar = document.getElementById("lookandfeel.server.colors.gradientbar");
-    const particlesSelect = document.getElementById("lookandfeel.server.particles");
+    
+    const primaryColorInput = document.getElementById("appearance.dynamicbackground.color1");
+    const secondaryColorInput = document.getElementById("appearance.dynamicbackground.color2");
+    const tertiaryColorInput = document.getElementById("appearance.dynamicbackground.color3");
+    const orientationSelect = document.getElementById("appearance.dynamicbackground.orientation");
+    const gradientBar = document.getElementById("appearance.dynamicbackground.gradientbar");
+    const particlesSelect = document.getElementById("appearance.dynamicbackground.particles");
+    const dynamicBackgroundThemeSelect = document.getElementById("appearance.dynamicbackground.theme");
+    console.log(dynamicBackgroundThemeSelect);
+
+    handleParticlesChange(particlesSelect);
 
     const handles = [
-        { element: document.createElement('div'), position: 25, id: 'lookandfeel.server.colors.primaryColor.percent', defaultPosition: 25 },
-        { element: document.createElement('div'), position: 50, id: 'lookandfeel.server.colors.secondaryColor.percent', defaultPosition: 50 },
-        { element: document.createElement('div'), position: 75, id: 'lookandfeel.server.colors.tertiaryColor.percent', defaultPosition: 75 }
+        { element: document.createElement('div'), position: 25, id: 'appearance.dynamicbackground.color1Percent.handle', defaultPosition: 25 },
+        { element: document.createElement('div'), position: 50, id: 'appearance.dynamicbackground.color2Percent.handle', defaultPosition: 50 },
+        { element: document.createElement('div'), position: 75, id: 'appearance.dynamicbackground.color3Percent.handle', defaultPosition: 75 }
     ];
 
     handles.forEach(handle => {
@@ -257,6 +258,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 handle.position = newPosition;
                 handle.element.dataset.position = newPosition;
                 handle.element.style.left = `${newPosition}%`;
+
+                const hiddenInput = document.getElementById(handle.id.slice(0, -7));
+                if (hiddenInput) {
+                    const value = newPosition.toFixed(2) + "%";
+                    hiddenInput.value = value;
+                    hiddenInput.defaultChecked
+                }
+
                 updateGradient();
             };
     
@@ -292,70 +301,168 @@ document.addEventListener('DOMContentLoaded', () => {
     tertiaryColorInput.addEventListener('input', updateGradient);
     orientationSelect.addEventListener('input', updateGradient);
 
-    const rootStyles = getComputedStyle(document.documentElement);
-    primaryColorInput.value = rootStyles.getPropertyValue('--primary-color').trim();
-    primaryColorInput.defaultValue = primaryColorInput.value;
-    secondaryColorInput.value = rootStyles.getPropertyValue('--secondary-color').trim();
-    secondaryColorInput.defaultValue = secondaryColorInput.value;
-    tertiaryColorInput.value = rootStyles.getPropertyValue('--tertiary-color').trim();
-    tertiaryColorInput.defaultValue = tertiaryColorInput.value;
-    orientationSelect.value = rootStyles.getPropertyValue('--gradient-orientation').trim();
-    orientationSelect.defaultValue = orientationSelect.value;
-    particlesSelect.value = rootStyles.getPropertyValue('--particles').trim();
-    particlesSelect.defaultValue = particlesSelect.value;
+    // const rootStyles = getComputedStyle(document.documentElement);
+    // primaryColorInput.value = rootStyles.getPropertyValue('--primary-color').trim();
+    // primaryColorInput.defaultValue = primaryColorInput.value;
+    // secondaryColorInput.value = rootStyles.getPropertyValue('--secondary-color').trim();
+    // secondaryColorInput.defaultValue = secondaryColorInput.value;
+    // tertiaryColorInput.value = rootStyles.getPropertyValue('--tertiary-color').trim();
+    // tertiaryColorInput.defaultValue = tertiaryColorInput.value;
+    // orientationSelect.value = rootStyles.getPropertyValue('--gradient-orientation').trim();
+    // orientationSelect.defaultValue = orientationSelect.value;
+    // particlesSelect.value = rootStyles.getPropertyValue('--particles').trim();
+    // particlesSelect.defaultValue = particlesSelect.value;
 
-    handles[0].position = parseFloat(rootStyles.getPropertyValue('--primary-color-percent').trim());
-    handles[0].defaultPosition = handles[0].position;
-    handles[1].position = parseFloat(rootStyles.getPropertyValue('--secondary-color-percent').trim());
-    handles[1].defaultPosition = handles[1].position;
-    handles[2].position = parseFloat(rootStyles.getPropertyValue('--tertiary-color-percent').trim());
-    handles[2].defaultPosition = handles[2].position;
+    // handles[0].position = parseFloat(rootStyles.getPropertyValue('--primary-color-percent').trim());
+    // handles[0].defaultPosition = handles[0].position;
+    // handles[1].position = parseFloat(rootStyles.getPropertyValue('--secondary-color-percent').trim());
+    // handles[1].defaultPosition = handles[1].position;
+    // handles[2].position = parseFloat(rootStyles.getPropertyValue('--tertiary-color-percent').trim());
+    // handles[2].defaultPosition = handles[2].position;
 
     handles.forEach(handle => {
         handle.element.style.left = `${handle.position}%`;
     });
 
     updateGradient();
+
+    particlesSelect.addEventListener('change', () => {
+        handleParticlesChange(particlesSelect);
+    });
+
+    dynamicBackgroundThemeSelect.addEventListener('change', () => {
+        const themes = JSON.parse(document.getElementById('theme-data-json')?.textContent || '{}');
+        handleDynamicBackgroundChange(dynamicBackgroundThemeSelect, JSON.stringify(themes));
+    });
+
+    updatePreviewBadges()
+
+
 });
 
-const saveLookAndFeel = async () => {
+// Multi-tenancy badges
 
-    if (document.getElementById('lookandfeel.server.logo.light').files.length > 0 || document.getElementById('lookandfeel.server.logo.light').files.length > 0) {
-        await updateLogo('lookandfeel.server.logo.light');
+document.addEventListener("input", handleFieldLiveUpdate, true);
+document.addEventListener("change", handleFieldLiveUpdate, true);
+
+function handleFieldLiveUpdate(event) {
+    const field = event.target;
+    if (!field.name) return;
+
+    const resetBtn = document.getElementById(`reset-${field.name}`);
+  
+    const badge = document.getElementById(`badge-${field.name}`);
+    if (!badge) return;
+  
+    const globalValueAttr = field.dataset.globalValue;
+    if (globalValueAttr === undefined) return;
+  
+    let current;
+    let globalValue = globalValueAttr;
+  
+    if (field.type === "checkbox") {
+      current = String(field.checked);
+    } else {
+      current = field.value;
+    }
+  
+    // For booleans stored as string
+    if (globalValue === "true" || globalValue === "false") {
+      globalValue = String(globalValue === "true");
+    }
+  
+    if (current !== globalValue) {
+      badge.className = "badge bg-success ms-2";
+      badge.textContent = "Overridden";
+      resetBtn.classList.remove('d-none');
+    } else {
+      badge.className = "badge bg-info ms-2";
+      badge.textContent = "Inherited";
+      resetBtn.classList.add('d-none');
+    }
+  }
+
+  async function updatePreviewBadges() {
+    const previews = document.querySelectorAll('img[id$="-preview"]');
+  
+    const getHash = async (url) => {
+      const res = await fetch(url);
+      const buf = await res.arrayBuffer();
+      const hashBuf = await crypto.subtle.digest("SHA-256", buf);
+      return Array.from(new Uint8Array(hashBuf)).map(b => b.toString(16).padStart(2, "0")).join("");
+    };
+  
+    for (const preview of previews) {
+      const settingName = preview.id.replace(/-preview$/, "");
+      const badge = document.getElementById(`badge-${settingName}`);
+      if (!badge) continue;
+  
+      const domainSrc = preview.src;
+      const globalSrc = preview.src.split("?")[0];
+  
+      try {
+        const [domainHash, globalHash] = await Promise.all([
+          getHash(domainSrc),
+          getHash(globalSrc)
+        ]);
+  
+        if (domainHash !== globalHash) {
+          badge.className = "badge bg-success ms-2";
+          badge.textContent = "Overridden";
+        } else {
+          badge.className = "badge bg-info ms-2";
+          badge.textContent = "Inherited";
+        }
+      } catch (err) {
+        console.warn("Error comparing hashes for", settingName, err);
+      }
+    }
+  }
+  
+function resetToGlobal(fieldName, globalValue) {
+    const input = document.getElementById(fieldName);
+    if (!input) return;
+
+    const tag = input.tagName.toLowerCase();
+
+    if (tag === 'input') {
+        if (input.type === 'checkbox') {
+        input.checked = globalValue === 'true';
+        } else {
+        input.value = globalValue;
+        }
+    } else if (tag === 'select') {
+        input.value = globalValue;
     }
 
-    if (document.getElementById('lookandfeel.server.logo.dark').files.length > 0 || document.getElementById('lookandfeel.server.logo.dark').files.length > 0) {
-        await updateLogo('lookandfeel.server.logo.dark');
+    const badge = document.querySelector(`#badge-${fieldName}`);
+    if (badge) {
+        badge.classList.remove('bg-success');
+        badge.classList.add('bg-info');
+        badge.textContent = 'Inherited';
     }
 
-    // Check if the fields have been modified
-    if(document.getElementById('lookandfeel.server.colors.primaryColor').value === document.getElementById('lookandfeel.server.colors.primaryColor').defaultValue && 
-        document.getElementById('lookandfeel.server.colors.secondaryColor').value === document.getElementById('lookandfeel.server.colors.secondaryColor').defaultValue &&
-        document.getElementById('lookandfeel.server.colors.tertiaryColor').value === document.getElementById('lookandfeel.server.colors.tertiaryColor').defaultValue &&
-        document.getElementById('lookandfeel.server.colors.orientation').value === document.getElementById('lookandfeel.server.colors.orientation').defaultValue &&
-        document.getElementById('lookandfeel.server.colors.primaryColor.percent').dataset.position === document.getElementById('lookandfeel.server.colors.primaryColor.percent').dataset.defaultPosition &&
-        document.getElementById('lookandfeel.server.colors.secondaryColor.percent').dataset.position === document.getElementById('lookandfeel.server.colors.secondaryColor.percent').dataset.defaultPosition &&
-        document.getElementById('lookandfeel.server.colors.tertiaryColor.percent').dataset.position === document.getElementById('lookandfeel.server.colors.tertiaryColor.percent').dataset.defaultPosition &&
-        document.getElementById('lookandfeel.server.particles').value === document.getElementById('lookandfeel.server.particles').defaultValue) {
-        console.log('No changes');
-        return;
-    }
-
-    await updateTheme(
-        document.getElementById('lookandfeel.server.colors.primaryColor').value,
-        document.getElementById('lookandfeel.server.colors.secondaryColor').value,
-        document.getElementById('lookandfeel.server.colors.tertiaryColor').value,
-        document.getElementById('lookandfeel.server.colors.orientation').value,
-        document.getElementById('lookandfeel.server.colors.primaryColor.percent').style.left,
-        document.getElementById('lookandfeel.server.colors.secondaryColor.percent').style.left,
-        document.getElementById('lookandfeel.server.colors.tertiaryColor.percent').style.left,
-        document.getElementById('lookandfeel.server.particles').value
-    );
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    input.dispatchEvent(new Event('change', { bubbles: true }));
 }
 
-function handleCheckboxClick(id, isChecked) {
-    if ((id === 'admin' || id === 'frontend') && !isChecked) {
-        initAlertModal("#settings", "Attention, if you disable this module, you will need to manage the server only via<b> shell commands.</b>",10000);
-    }
-}
+// Intercept Ctrl+S for save settings
+(function () {
+document.addEventListener('keydown', function (e) {
+    if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'S')) {
+        if (e.repeat) return; 
+        e.preventDefault();
 
+        const activePane = document.querySelector('#settingsTabsContent .tab-pane.active');
+        const saveBtn = activePane?.querySelector('button[onclick="saveSettings()"], button[name="Submit"]');
+
+        if (document.activeElement) document.activeElement.blur?.();
+
+        if (saveBtn) {
+            saveBtn.click();
+        } else if (typeof saveSettings === 'function') {
+            saveSettings();
+        }
+    }
+}, { passive: false });
+})();

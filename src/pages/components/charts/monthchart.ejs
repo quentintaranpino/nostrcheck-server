@@ -1,0 +1,197 @@
+<canvas id="<%- chartId %>-month-chart" class="mx-auto w-100"></canvas>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', async () => {
+
+        let chartId = "<%- chartId %>";
+        const datakey = "<%= datakey %>";
+        const monthField = "<%= monthField %>";
+        const monthName = "<%= monthName %>";
+        const timeout = Number("<%= typeof timeout !== 'undefined' ? timeout : 60000 %>");
+
+        chartId = chartId + '-month-chart';
+
+        let monthCharts = {};
+
+        function initMonthChart(chartId, title, rawData) {
+
+            if (!rawData || !Array.isArray(rawData.data)) {
+                console.error("Invalid rawData format", rawData);
+                return;
+            }
+
+            if (!chartId.toString().startsWith('#')) {
+                chartId = '#' + chartId;
+            }
+
+            const dataArray = rawData.data;
+            const monthCountsCurrentYear = new Array(12).fill(0);
+            const monthCountsLastYear = new Array(12).fill(0);
+            const monthCountsLastPrevYear = new Array(12).fill(0);
+            const currentYear = new Date().getFullYear();
+
+            dataArray.forEach(item => {
+                const { count, month } = item;
+                const year = parseInt(month.substring(0, 4));
+                const monthIndex = parseInt(month.substring(5)) - 1;
+                if (year === currentYear) {
+                monthCountsCurrentYear[monthIndex] += parseInt(count);
+                } else if (year === currentYear - 1) {
+                monthCountsLastYear[monthIndex] += parseInt(count);
+                } else if (year === currentYear - 2) {
+                monthCountsLastPrevYear[monthIndex] += parseInt(count);
+                }
+            });
+
+            const labels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+            if (monthCharts[chartId]) {
+                monthCharts[chartId].destroy();
+                delete monthCharts[chartId];
+            }
+
+            const canvas = document.querySelector(chartId);
+            if (!canvas) {
+                console.error(`No se encontró el canvas con id ${chartId}`);
+                return;
+            }
+            const ctx = canvas.getContext('2d');
+            monthCharts[chartId] = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                labels: labels,
+                datasets: [
+                    {
+                    label: currentYear,
+                    data: monthCountsCurrentYear,
+                    backgroundColor: 'rgba(165, 117, 255, 0.7)',
+                    borderRadius: 5,
+                    hoverBackgroundColor: '#A575FF'
+                    },
+                    {
+                    label: currentYear - 1,
+                    data: monthCountsLastYear,
+                    backgroundColor: 'rgba(156, 162, 167, 0.7)',
+                    borderRadius: 5,
+                    hoverBackgroundColor: '#8E9396'
+                    },
+                    {
+                    label: currentYear - 2,
+                    data: monthCountsLastPrevYear,
+                    backgroundColor: 'rgba(255, 159, 64, 0.7)',
+                    borderRadius: 5,
+                    hoverBackgroundColor: '#FF9F40'
+                    }
+                ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    resizeDelay: 200,
+                    plugins: {
+                        title: {
+                        display: true,
+                        text: `${title} (${currentYear} vs ${currentYear - 1})`,
+                        font: {
+                            size: 20,
+                            family: 'system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", "Noto Sans", "Liberation Sans", Arial, sans-serif',
+                            weight: 'bold'
+                        },
+                        color: localStorage.getItem('theme') === 'dark' ? '#FFFFFF' : '#4d4c4c',
+                        padding: {
+                            top: 10,
+                            bottom: 30
+                        }
+                        },
+                        legend: {
+                        labels: {
+                            font: {
+                            size: 12,
+                            family: 'system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", "Noto Sans", "Liberation Sans", Arial, sans-serif'
+                            },
+                            color: localStorage.getItem('theme') === 'dark' ? '#FFFFFF' : '#4d4c4c'
+                        }
+                        }
+                    },
+                    scales: {
+                        x: {
+                        ticks: {
+                            font: {
+                            size: 12,
+                            family: 'system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", "Noto Sans", "Liberation Sans", Arial, sans-serif'
+                            },
+                            color: localStorage.getItem('theme') === 'dark' ? '#FFFFFF' : '#4d4c4c'
+                        },
+                        grid: {
+                            display: false
+                        }
+                        },
+                        y: {
+                        beginAtZero: true,
+                        ticks: {
+                            font: {
+                            size: 12,
+                            family: 'system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", "Noto Sans", "Liberation Sans", Arial, sans-serif'
+                            },
+                            color: localStorage.getItem('theme') === 'dark' ? '#FFFFFF' : '#4d4c4c'
+                        },
+                        grid: {
+                            color: 'rgba(0, 0, 0, 0.1)'
+                        }
+                        }
+                    }
+                }
+            });
+
+            canvas.style.height = '400px';
+        }
+
+        document.getElementById('theme-switch').addEventListener('click', () => {
+            const isDarkMode = document.documentElement.getAttribute('data-bs-theme') === 'dark';
+            Object.values(monthCharts).forEach(chart => {
+                chart.options.plugins.title.color = isDarkMode ? '#FFFFFF' : '#4d4c4c';
+                chart.options.plugins.legend.labels.color = isDarkMode ? '#FFFFFF' : '#4d4c4c';
+                chart.options.scales.x.ticks.color = isDarkMode ? '#FFFFFF' : '#4d4c4c';
+                chart.options.scales.y.ticks.color = isDarkMode ? '#FFFFFF' : '#4d4c4c';
+                
+                chart.update();
+            });
+        });
+
+        const fetchCountData = async (datakey, action, field) => {
+            let serverData  = ""
+            await fetch(`/api/v2/admin/modulecountdata?module=${datakey}&action=${action}&field=${field}`, {
+            method: 'GET', headers: {'Content-Type': 'application/json'}})
+            .then(response => response.json())
+            .then(data => {
+                serverData = data;
+            })
+            .catch(error => console.error('Error:', error));
+
+            return serverData || { total: 0 }
+        }
+
+        const updateMonthChart = async () => {
+            const monthCount = await fetchCountData(datakey, 'monthCount', monthField);
+            initMonthChart(chartId, monthName, monthCount);
+        };
+
+        setInterval(() => {updateMonthChart()}, timeout);
+        
+
+        // Intersection Observer for updating charts when they are in view
+        const activeChart = document.getElementById(chartId);
+        const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+            setTimeout(() => {
+                updateMonthChart();
+            }, 150);
+            observer.unobserve(entry.target);   
+         }
+        });
+        }, { threshold: 0.90 });
+        observer.observe(activeChart);
+
+    });
+</script>

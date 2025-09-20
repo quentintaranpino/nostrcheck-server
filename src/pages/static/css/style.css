@@ -12,6 +12,10 @@ a, .nav-link, .nav-link:hover, .nav-link:active, .nav-link:visited {
   max-width: 300px;
 }
 
+code{
+    color: #84888b;
+}
+
 
 html[data-bs-theme="light"] {
   .btn-primary {
@@ -166,3 +170,14 @@ html[data-bs-theme="dark"] {
     text-align: center;
   }
 }
+
+
+.nav-tabs {
+  flex-wrap: nowrap;  
+  overflow-x: auto;   
+  overflow-y: hidden; 
+  white-space: nowrap; 
+  display: flex;
+  -webkit-overflow-scrolling: touch; 
+  scrollbar-width: thin; 
+} 

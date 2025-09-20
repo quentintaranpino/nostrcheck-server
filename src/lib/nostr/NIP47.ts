@@ -3,43 +3,63 @@
 // https://github.com/getAlby/js-sdk/tree/master/examples/nwc
 // https://github.com/nostr-protocol/nips/blob/master/47.md
 
-import { emptyInvoice, invoice } from "../../interfaces/payments.js";
-import app from "../../app.js";
+import { emptyInvoice, Invoice } from "../../interfaces/payments.js";
 import { logger } from "../logger.js";
-import { nwc as NWC } from "@getalby/sdk";
 import WebSocket from 'ws'
+import { execWithTimeout } from "../utils.js";
+import { getConfig } from "../config/core.js";
 global.WebSocket = WebSocket as any;
+import { NWCClient } from "@getalby/sdk/nwc";
 
-const nwc = new NWC.NWCClient({
-    nostrWalletConnectUrl: `${app.get("config.payments")["paymentProviders"]["nwc"]["url"]}`,
-});
+// Lazy NWC client
+let nwc: NWCClient | null = null;
+let nwcUrl: string | null = null;
 
-const generateNwcInvoice = async (LNAddress: string, amount:number) : Promise<invoice> => {
+function getNwc(): NWCClient | null {
+    const url = getConfig(null, ["payments", "paymentProviders", "nwc", "url"]);
+    if (!url) return null;
+
+    // recreate client if url changed
+    if (!nwc || nwcUrl !== url) {
+        nwc = new NWCClient({ nostrWalletConnectUrl: url });
+        nwcUrl = url;
+    }
+    return nwc;
+}
+
+const generateNwcInvoice = async (LNAddress: string, amount:number) : Promise<Invoice> => {
 
     if (LNAddress == "" || amount == 0) return emptyInvoice;
 
     try{
 
-        const response = await nwc.makeInvoice({amount: amount * 1000, description: ""});
+        const nwcClient = getNwc();
+        if (!nwcClient) return emptyInvoice;
+
+        const response = await execWithTimeout (
+            nwcClient.makeInvoice({amount: amount * 1000, description: ""}),
+            2000,
+        );
 
         if (!response || response == undefined || response.invoice == "") {
-            logger.error("Error checking invoice status");
-        };
+            logger.error(`generateNwcInvoice - Error generating nwc invoice for LNAddress: ${LNAddress} and amount: ${amount}`);
+            return emptyInvoice;
+        }
     
         return {paymentRequest: response.invoice, 
                 paymentHash: response.payment_hash, 
                 satoshi: response.amount, 
                 isPaid: false, 
                 preimage: "",
-                createdDate: new Date(response.created_at).toISOString().slice(0, 19).replace('T', ' '),
-                expiryDate: new Date(response.expires_at).toISOString().slice(0, 19).replace('T', ' '),
+                createdDate: new Date(response.created_at * 1000).toISOString().slice(0, 19).replace('T', ' '),
+                expiryDate: new Date(response.expires_at * 1000).toISOString().slice(0, 19).replace('T', ' '),
                 paidDate: "", 
                 description: response.description, 
                 transactionid: 0, 
-                accountid: 0};
+                accountid: 0};4
         
     }catch(e){
-        logger.error("Error generating nwc invoice", e);
+        logger.error(`generateNwcInvoice - Error generating nwc invoice for LNAddress: ${LNAddress} and amount: ${amount} with error ${e}`);
         return emptyInvoice;
     }
 
@@ -51,27 +71,30 @@ const isInvoicePaidNwc = async (paymentHash: string): Promise<{ paiddate: string
 
     const maxRetries = 3;
     const emptyResponse = { paiddate: "", preimage: "" };
-    type LookupInvoiceResponse = Awaited<ReturnType<typeof nwc.lookupInvoice>>;
 
     const lookupWithRetry = async (retries: number): Promise<{ paiddate: string, preimage: string }> => {
         while (retries > 0) {
             try {
-                const invoice = await nwc.lookupInvoice({ payment_hash: paymentHash });
+
+                const nwcClient = getNwc();
+                if (!nwcClient) return emptyResponse;
+
+                const invoice = await nwcClient.lookupInvoice({ payment_hash: paymentHash });
                 if (invoice && invoice.preimage && invoice.preimage !== "null") {
                     return { paiddate: invoice.settled_at.toString(), preimage: invoice.preimage };
                 }
                 return emptyResponse;
             } catch (e: any) {
-                if (e.message && e.message.includes("timeout")) {
-                    logger.debug(`Timeout checking nwc invoice status for paymentHash: ${paymentHash}. Retries left: ${retries - 1}`);
+                if (e.message && (e.message.includes("timeout") || e.message.includes("relay connection closed"))) {
+                    logger.debug(`isInvoicePaidNwc - Error checking nwc invoice status for paymentHash: ${paymentHash}, retries left: ${retries - 1}`, e.message);
                 } else {
-                    logger.error(`Error checking nwc invoice status for paymentHash: ${paymentHash}`, e.message);
+                    logger.error(`isInvoicePaidNwc - Error checking nwc invoice status for paymentHash: ${paymentHash}`, e.message);
                     break;
                 }
             }
             retries--;
         }
-        logger.debug("Max retries reached checking nwc invoice status for paymentHash: ", paymentHash);
+        logger.debug(`isInvoicePaidNwc - Failed to check nwc invoice status for paymentHash: ${paymentHash}`);
         return emptyResponse;
     };
 

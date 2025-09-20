@@ -7,8 +7,6 @@ async function initFontViewer (containerId, fontUrl) {
 
     container.innerHTML = '';
 
-    console.log(fontUrl)
-
     const fontName = 'customFont';
     const fontFace = new FontFace(fontName, `url(${fontUrl})`);
     await fontFace.load();

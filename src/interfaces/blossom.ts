@@ -18,7 +18,7 @@ interface BUD01_authEvent {
     sig: string;
 }
 
-interface blobDescriptor extends ResultMessagev2{
+interface BlobDescriptor extends ResultMessagev2{
     url: string; 
     sha256: string; 
     size: number;
@@ -32,4 +32,4 @@ interface blobDescriptor extends ResultMessagev2{
 
 
 
-export { BUDKinds, BUD01_authEvent, blobDescriptor };
+export { BUDKinds, BUD01_authEvent, BlobDescriptor };

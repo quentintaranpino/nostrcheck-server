@@ -1,20 +1,22 @@
 <html lang="en">
-  <%- include('./partials/head',{title: `${locals.serverHost} - Terms of service`}); %>
+  <%- include('./partials/head'); %>
   <body class="d-flex flex-column h-100">
     <%- include('./partials/navbar', {active:"tos"}); %>
     <main class="pb-1">
-      <div class="container mt-3">
-        <div class="col-xl-10 col-lg-11 col-md-12 col-sm-12">
-          <%- tos %>
+      <div class="container mt-4 mb-5">
+        <div class="col-xl-10 col-lg-11 col-md-12 col-sm-12 mx-auto">
+          <div class="p-4 lh-lg">
+            <%- md %>
+          </div>
         </div>
       </div>
     </main>
     <%- include('./partials/footer', {active:'tos'}); %>
-    <%- include('./components/modals/message-modal', {"object":"fisrtUse"}); %>
+    <%- include('./components/modals/message-modal', {"object":"firstUse"}); %>
   </body>
   <script>
     if ("<%= locals.firstUse %>" != undefined && "<%= locals.firstUse %>" != null && "<%= locals.firstUse %>" != "") {
-      initMessageModal("#fisrtUse", "<%- locals.firstUse %>", "Welcome to your sovereignty");
+      initMessageModal("#firstUse", "<%- locals.firstUse %>", "Welcome to your sovereignty");
     }
   </script>
 </html>

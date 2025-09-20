@@ -1,5 +1,5 @@
 <html lang="en">
-  <%- include('./partials/head',{title: `${locals.serverHost} - Register`}); %>
+  <%- include('./partials/head'); %>
   <link rel="stylesheet" href="/static/css/form.css">
   <body class="d-flex flex-column h-100">
     <%- include('./partials/navbar', {active:'register'}); %>
@@ -8,11 +8,11 @@
     </main>
     <%- include('./partials/footer', {active:'register'}); %>
     <%- include('./components/modals/alert-modal', {"objectId":"register"}); %>
-    <%- include('./components/modals/message-modal', {"object":"fisrtUse"}); %>
+    <%- include('./components/modals/message-modal', {"object":"firstUse"}); %>
   </body>
   <script>
     if ("<%= locals.firstUse %>" != undefined && "<%= locals.firstUse %>" != null && "<%= locals.firstUse %>" != "") {
-      initMessageModal("#fisrtUse", "<%- locals.firstUse %>", "Welcome to your sovereignty");
+      initMessageModal("#firstUse", "<%- locals.firstUse %>", "Welcome to your sovereignty");
     }
   </script>
 </html>

@@ -1,44 +1,58 @@
 import { Request, Response } from "express";
 import { logger } from "../lib/logger.js";
-import { getClientIp } from "../lib/utils.js";
-import app from "../app.js";
-import { isModuleEnabled } from "../lib/config.js";
 import { initPlugins, listPlugins } from "../lib/plugins/core.js";
 import { parseAuthHeader } from "../lib/authorization.js";
 import { setAuthCookie } from "../lib/frontend.js";
+import { isIpAllowed } from "../lib/security/ips.js";
+import { isModuleEnabled } from "../lib/config/core.js";
 
 const getPlugins = async (req: Request, res: Response): Promise<Response> => {
 
-    if (!isModuleEnabled("plugins", app)) {
-        logger.warn("Attempt to access a non-active module:","plugins","|","IP:", getClientIp(req));
+    // Check if the request IP is allowed
+	const reqInfo = await isIpAllowed(req);
+	if (reqInfo.banned == true) {
+		logger.warn(`getPlugins - Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
+		return res.status(403).send({"status": "error", "message": reqInfo.comments});
+	}
+
+    if (!isModuleEnabled("plugins", req.hostname)) {
+        logger.info(`getPlugins - Attempt to access a non-active module: plugins | IP:`, reqInfo.ip);
         return res.status(403).send({"status": "error", "message": "Module is not enabled"});
     }
 
-	const eventHeader = await parseAuthHeader(req,"getPlugins", true);
+	const eventHeader = await parseAuthHeader(req,"getPlugins", true, true, true);
 	if (eventHeader.status !== "success") {return res.status(401).send({"status": eventHeader.status, "message" : eventHeader.message});}
     setAuthCookie(res, eventHeader.authkey);
 
-    const plugins = listPlugins(app);
-    const result = {
-        "status": "success",
-        "plugins": plugins
-    };
+    logger.info(`getPlugins - Request from:`, reqInfo.ip);
 
-    return res.status(200).send(result);
+    const plugins = await listPlugins(req.hostname);
+
+    logger.info(`getPlugins - Response:`, plugins.join(", "), "|", reqInfo.ip);
+    return res.status(200).send({"status": "success", "plugins": plugins});
 }
 
 const reloadPlugins = async (req: Request, res: Response): Promise<Response> => {
 
-    if (!isModuleEnabled("plugins", app)) {
-        logger.warn("Attempt to access a non-active module:","plugins","|","IP:", getClientIp(req));
+    // Check if the request IP is allowed
+	const reqInfo = await isIpAllowed(req);
+	if (reqInfo.banned == true) {
+		logger.warn(`reloadPlugins - Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
+		return res.status(403).send({"status": "error", "message": reqInfo.comments});
+	}
+
+    if (!isModuleEnabled("plugins", req.hostname)) {
+        logger.info(`reloadPlugins - Attempt to access a non-active module: plugins | IP:`, reqInfo.ip);
         return res.status(403).send({"status": "error", "message": "Module is not enabled"});
     }
 
-	const eventHeader = await parseAuthHeader(req,"reloadPlugins", true);
+	const eventHeader = await parseAuthHeader(req,"reloadPlugins", true, true, true);
 	if (eventHeader.status !== "success") {return res.status(401).send({"status": eventHeader.status, "message" : eventHeader.message});}
     setAuthCookie(res, eventHeader.authkey);
 
-    const init = await initPlugins(app);
+    logger.info(`reloadPlugins - Request from:`, reqInfo.ip);
+
+    const init = await initPlugins(req.hostname);
     if (!init) {
         const result = {
             "status": "error",
@@ -52,6 +66,7 @@ const reloadPlugins = async (req: Request, res: Response): Promise<Response> => 
         "message": "Plugins reloaded"
     };
     
+    logger.info(`reloadPlugins - Response:`, result.message, "|", reqInfo.ip);
     return res.status(200).send(result);
 
 }

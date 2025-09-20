@@ -4,7 +4,7 @@ import { Event, generateSecretKey, getEventHash, getPublicKey, verifyEvent } fro
 import { NostrEvent } from "nostr-tools"
 import {SimplePool, useWebSocketImplementation } from "nostr-tools/pool"
 import WebSocket from 'ws'
-import { eventVerifyTypes } from '../../interfaces/nostr.js';
+import { ResultMessagev2 } from '../../interfaces/server.js';
 useWebSocketImplementation(WebSocket)
 
 const relays = [
@@ -25,6 +25,7 @@ const relaysPool = new SimplePool()
 const createkeyPair = async () : Promise<{publicKey : string, secretKey : string}> => {
 	const sk = generateSecretKey();
 	const pk = getPublicKey(sk)
+	logger.debug(`createkeyPair - Created key pair, public key: ${pk}`)
 	return {publicKey : pk, secretKey : bytesToHex(sk)}
 }
 
@@ -36,9 +37,10 @@ const createkeyPair = async () : Promise<{publicKey : string, secretKey : string
 const getPubkeyFromSecret = async (secretKey : string) : Promise<string> => {
 	try{
 		const sk = Uint8Array.from(Buffer.from(secretKey, 'hex'));
+		logger.debug(`getPubkeyFromSecret - Generating public key from secret key: ${secretKey}`)
 		return getPublicKey(sk)
 	}catch (error) {
-		logger.error(error)
+		logger.error(`getPubkeyFromSecret - Error generating public key from secret key: ${error}`)
 		return ""
 	}
 }
@@ -51,9 +53,10 @@ const getPubkeyFromSecret = async (secretKey : string) : Promise<string> => {
 const publishEvent = async (event : NostrEvent): Promise<boolean> => {
 	try{
 			await Promise.any(relaysPool.publish(relays, event))
+			logger.debug(`publishEvent - Event published successfully: ${event.id}`)
 			return true
 	}catch (error) {
-			logger.error(error)
+			logger.error(`publishEvent - Error publishing event: ${error}`)
 			return false
 	}
 }
@@ -61,43 +64,56 @@ const publishEvent = async (event : NostrEvent): Promise<boolean> => {
 /**
  * Verifies the integrity of an event.
  * @param event - The event to be verified.
- * @returns A promise that resolves to a number indicating whether the event is valid. 
- * 0 = valid, -1 = hash error, -2 = signature error, -3 = malformed event.
+ * @param created_at_lower_limit - The maximum number of seconds the event timestamp can be in the past. Optional
+ * @param created_at_upper_limit - The maximum number of seconds the event timestamp can be in the future. Optional
+ * @returns A promise that resolves to a result message indicating the status of the event verification.
  */
-const isEventValid = async (event:Event): Promise<eventVerifyTypes> => {
-    logger.debug("Verifying event", event);
+const isEventValid = async (event:Event, created_at_lower_limit = 60, created_at_upper_limit = 60): Promise<ResultMessagev2> => {
+	
 	try {
-		const IsEventHashValid = getEventHash(event);
+
+    	logger.debug(`isEventValid - Verifying event: ${event.id}`)
+
+		const IsEventHashValid = await getEventHash(event);
 		if (IsEventHashValid != event.id) {
-            logger.debug("Event hash is not valid");
-			return eventVerifyTypes.hashError;
+            logger.debug(`isEventValid - Event hash is not valid: ${event.id}`);
+			return {status: "error", message: "Event hash is not valid"};
 		}
-		const IsEventValid = verifyEvent(event);
+		const IsEventValid = await verifyEvent(event);
 		if (!IsEventValid) {
-            logger.debug("Event signature is not valid");
-			return eventVerifyTypes.signatureError;
+            logger.debug(`isEventValid - Event signature is not valid: ${event.id}`);
+			return {status: "error", message: "Event signature is not valid"};
 		}
+
+		const IsEventTimestampValid = await isEventTimestampValid(event, created_at_lower_limit, created_at_upper_limit);
+		if (!IsEventTimestampValid) {
+			logger.debug(`isEventValid - Event timestamp is not valid: ${event.id}`);
+			return {status: "error", message: "Event timestamp is not valid"};
+		}
+
+		logger.debug(`isEventValid - Valid event: ${event.id}`);
+		return {status: "success", message: "Valid event"};
+
 	} catch (error) {
-        logger.debug("Malformed event");
-        return eventVerifyTypes.malformed;
+        logger.debug(`isEventValid - Malformed event: ${event.id}`);
+        return {status: "error", message: "Malformed event"};
 	}
-    logger.debug("Valid event");
-    return eventVerifyTypes.valid;
+
 };
 
 /**
  * Verifies the timestamp of an event.
  * @param event - The event to be verified.
+ * @param created_at_lower_limit - The maximum number of seconds the event timestamp can be in the past. Optional
+ * @param created_at_upper_limit - The maximum number of seconds the event timestamp can be in the future. Optional
  * @returns A promise that resolves to a boolean indicating whether the event timestamp is valid.
  */
-const verifyEventTimestamp = async (event:Event): Promise<boolean> => {
-	logger.debug("Verifying event timestamp", event);
-	const diff =  (Math.floor(Date.now() / 1000) - event.created_at);
-	logger.debug("Event is", diff, "seconds old");
-	if (diff > 60){ //60 seconds max event age
-		return false;
-	}
+function isEventTimestampValid(event: Event, created_at_lower_limit = 60, created_at_upper_limit = 60): boolean {
+	const nowSec = Math.floor(Date.now() / 1000);
+	const diff = nowSec - event.created_at;
+	if (diff > created_at_lower_limit) 	return false;
+	if (diff < -created_at_upper_limit) return false;
 	return true;
 }
 
-export {publishEvent, isEventValid, verifyEventTimestamp, createkeyPair, getPubkeyFromSecret, relays, relaysPool}
+export {publishEvent, isEventValid, isEventTimestampValid, createkeyPair, getPubkeyFromSecret, relays, relaysPool}

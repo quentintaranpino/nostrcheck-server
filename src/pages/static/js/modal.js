@@ -2,9 +2,6 @@ const initConfirmModal = async (objectId, ids, action, objectName, value = null,
 
     var alert = new bootstrap.Modal($(objectId + '-confirm-modal'));
 
-
-    console.log('Confirming ' + action + ' of ' + ids.length + ' ' + objectName + (ids.length > 1 ? 's' : ''));
-
     $(alert._element).on('show.bs.modal', function () {
         $(objectId + '-confirm-modal .modal-body').text('Are you sure you want to ' + action + ' ' + ids.length + ' ' + objectName + (ids.length > 1 ? 's' : '') + '?');
         if (action == 'remove')$(objectId + '-confirm-modal .modal-body').append('<br><br><strong>Warning:</strong> This action cannot be undone.');
@@ -47,7 +44,7 @@ const initEditModal = async (objectId, row, objectName, newRow, columns) => {
 
     var edit = new bootstrap.Modal($(objectId + '-edit-modal'));
 
-    $(edit._element).on('show.bs.modal', function () {
+    $(edit._element).on('show.bs.modal', async function () {
 
         // Clear the modal body and append the title
         $(objectId + '-edit-modal .modal-title').empty();
@@ -66,6 +63,7 @@ const initEditModal = async (objectId, row, objectName, newRow, columns) => {
                     row[key] = '';
                 }
 
+                // Check if the field is a checkbox
                 var isCheckbox = false;
                 columns.forEach(function(column) {
                     if (column.field == key && column.class && column.class.includes('formatCheckbox')) {
@@ -83,8 +81,22 @@ const initEditModal = async (objectId, row, objectName, newRow, columns) => {
                     $('#' + key).prop('disabled', true)
                 }
 
+                // Comments field
+                if (key == 'comments') {               
+                    const formattedContent = formatNostrContent(row[key]);
+                    $('#' + key).replaceWith(
+                        `
+                         <textarea class="form-control" id="${key}" placeholder="${key}" style="height:150px;">${row[key] || ''}</textarea>`
+                    );
+                }
+
+                 // Specific case for paid fields when payments module is disabled
+                if (!activeModules.some(mod => mod.name === 'payments') && (key == 'paid' || key == 'transactionid' || key == 'satoshi' || key == 'balance')) {
+                    $('#' + key).prop('disabled', true).addClass('d-none');
+                }
+
                 // Special case for editing or creating an user
-                if (objectId == '#nostraddressData') {
+                if (objectId == '#registeredData') {
 
                     let updatingFields = false;
                     
@@ -110,7 +122,6 @@ const initEditModal = async (objectId, row, objectName, newRow, columns) => {
                             }
                         
                             updatingFields = false;
-                            checkFieldsMatch();
                         });
                     }
                     if (key == 'hex') {
@@ -135,9 +146,82 @@ const initEditModal = async (objectId, row, objectName, newRow, columns) => {
                             }
                         
                             updatingFields = false;
-                            checkFieldsMatch();
                         });
                     }
+                    if (key == 'domain') {
+                        const response = await fetch('/api/v2/domains');
+
+                        if (!response.ok)  return;
+                        const data = await response.json();
+                        if (!data.availableDomains || typeof data.availableDomains !== 'object')   return;
+                        const domains = Object.keys(data.availableDomains);
+                        const domainSelect = document.createElement('select');
+                        domainSelect.classList.add('form-select');
+                        domainSelect.id = 'domain';
+                        domainSelect.name = 'domain';
+                        domainSelect.required = true;
+                        domainSelect.innerHTML = domains.map(domain => 
+                            `<option value="${domain}">${domain}</option>`
+                        ).join('');
+                        
+                        document.querySelector("#domain").replaceWith(domainSelect);
+                    }
+                }
+
+                // Special case for editting a nostr event
+                if (objectId == '#eventsData') {
+                    if (key == 'content') {               
+                        const formattedContent = formatNostrContent(row[key]);
+                        $('#' + key).replaceWith(
+                            `<div class="markdown-preview" style="height:250px; overflow-y:auto; border:1px solid #ddd; padding:10px">${formattedContent}</div>`
+                        );
+                    }
+
+                    if (key == 'tags') {
+                        let tagsArray = row[key] ? row[key].split(', ') : [];
+                        $('#' + key).replaceWith(
+                            `<div class="tags-preview" style="border:1px solid #ddd; border-radius:2px; padding:10px; display: flex; flex-direction: column; align-items: flex-start;">` +
+                            tagsArray.map(tag => `<span class="badge bg-secondary text-wrap mb-1 pt-2 pb-2" style="white-space: normal; max-width: 100%;">${tag}</span>`).join('') +
+                            `</div>`
+                        );
+                    }
+                }
+
+                // Special case for editting or creating invites
+                if (objectId === '#invitesData' && key === 'originid') {
+
+                    const domainsResponse = await fetch('/api/v2/domains');
+                    if (!domainsResponse.ok)  throw new Error('Error fetching domains');
+                    const domainsData = await domainsResponse.json();
+                    const availableDomains = Object.keys(domainsData.availableDomains);
+
+                    // Para cada dominio, obtenemos los usuarios
+                    let allUsers = [];
+                    for (const domain of availableDomains) {
+                        const usersResponse = await fetch(`/api/v2/domains/${domain}/users`);
+                        if (usersResponse.ok) {
+                        const usersData = await usersResponse.json();
+                        allUsers = allUsers.concat(usersData[domain].map(user => {
+                            return {
+                            id: user.id,
+                            username: user.username,
+                            domain: domain
+                            };
+                        }));
+                        }
+                    }
+
+                    const usersSelect = document.createElement('select');
+                    usersSelect.classList.add('form-select');
+                    usersSelect.id = 'originid';
+                    usersSelect.name = 'originid';
+                    usersSelect.required = true;
+                    usersSelect.innerHTML = allUsers.map(user =>
+                        `<option value="${user.id}">${user.username} (${user.domain})</option>`
+                    ).join('');
+
+                    document.querySelector("#originid").replaceWith(usersSelect);
+                
                 }
 
                 columns.forEach(function(column) {
@@ -152,6 +236,7 @@ const initEditModal = async (objectId, row, objectName, newRow, columns) => {
                         }
                     }
                 });
+
             }
         }
 
@@ -185,6 +270,7 @@ const initEditModal = async (objectId, row, objectName, newRow, columns) => {
                         }
                     } else {
                         if (row[key] != $('#' + key).val()) {
+                            console.log('Key modified: ' + key + ' - Old value: ' + row[key] + ' - New value: ' + $('#' + key).val());
                             editedRow[key] = $('#' + key).val();
                         }
                     }
@@ -347,13 +433,7 @@ const initMediaModal = async (filename, checked, visible, showButtons = true) =>
 
     var mediaModal = new bootstrap.Modal($('#media-modal'));
 
-    MediaData = await loadMediaWithToken('/api/v2/media/' + filename).then(async data => {
-        return data;
-    });
-
-    let contentType = MediaData.mimeType || '';
-
-    $('#modalSwitch-checked').prop('checked', checked);
+    $('#modalSwitch-checked').prop('checked', checked == '1'? true : false);
     $('#modalSwitch-checked').change(function() {
         checked = this.checked ? 1 : 0; 
     });
@@ -371,9 +451,11 @@ const initMediaModal = async (filename, checked, visible, showButtons = true) =>
 
     const mediaPreviewIframe = $('#mediapreview-iframe');
     const mediapreviewImg = $('#mediapreview-img');
+    const mediaPreviewVideo = $('#mediapreview-video');
     const mediaPreview3d = $('#mediapreview-3d');
     const fontPreview = $('#mediapreview-font');
     const yamlPreview = $('#mediapreview-yaml');
+    const downloadWrapper = $('#mediapreview-download');
 
     mediapreviewImg.addClass('d-none');
     mediaPreviewIframe.addClass('d-none');
@@ -384,17 +466,30 @@ const initMediaModal = async (filename, checked, visible, showButtons = true) =>
         mediaPreviewIframe.addClass('d-none');
         mediapreviewImg.attr('src', '');
         mediapreviewImg.addClass('d-none');
+        mediaPreviewVideo.attr('src', '');
+        mediaPreviewVideo.addClass('d-none');
         mediaPreview3d.addClass('d-none');
         fontPreview.addClass('d-none');
         yamlPreview.addClass('d-none');
+        downloadWrapper.addClass('d-none');
 
         contentType = '';
     });
 
-    $('#media-modal').on('shown.bs.modal', function () {
+    $('#media-modal').one('shown.bs.modal', async function () {
+
+        $('#media-loading').removeClass('d-none');
+
+        MediaData = await loadMediaWithToken('/api/v2/media/' + filename).then(async data => {
+            return data;
+        });
+    
+        $('#media-loading').addClass('d-none');
+    
+        let contentType = MediaData.mimeType || '';
+
         $('#modalSwitch-checked').focus();
 
-        console.log("Content type: " + contentType);
         if (contentType.includes('image')) {
             mediapreviewImg.attr('src', MediaData.url);
             mediapreviewImg.removeClass('d-none');
@@ -407,12 +502,20 @@ const initMediaModal = async (filename, checked, visible, showButtons = true) =>
         } else if (contentType.includes('yaml') || contentType.includes('yml')) {
             initYamlViewer('mediapreview-yaml', MediaData.url);
             yamlPreview.removeClass('d-none');
-        }else {
-            if (contentType == '') {
-                return;
+        } else if (contentType.includes('video')) {
+            mediaPreviewVideo.attr('src', MediaData.url);
+            mediaPreviewVideo.removeClass('d-none');
+        } else {
+            if (contentType === '') return;
+        
+            if (contentType.includes('text') || contentType.includes('application/json') || contentType.includes('xml')) {
+                mediaPreviewIframe.attr('src', MediaData.url);
+                mediaPreviewIframe.removeClass('d-none');
+            } else {
+                const downloadBtn = $('#mediapreview-download-btn');
+                downloadBtn.attr('href', MediaData.url);
+                downloadWrapper.removeClass('d-none');
             }
-            mediaPreviewIframe.attr('src', MediaData.url);
-            mediaPreviewIframe.removeClass('d-none');
         }
 
     });
@@ -429,6 +532,7 @@ const initMediaModal = async (filename, checked, visible, showButtons = true) =>
 }
 
 async function loadMediaWithToken(url) {
+
     try{
         const response = await fetch(url, {
             method: 'GET',

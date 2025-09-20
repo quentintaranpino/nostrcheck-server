@@ -1,73 +1,241 @@
-<div id="<%- dashcardId %>" class="col-xl-3 col-lg-4 col-md-6 col-sm-12">
-    <div class="card mb-3 shadow-sm default-bg" style="min-height: 185px">
-            <div class="card-body text-center">
-                <% if (link) { %>
-                    <a href = "<%- link %>" class="text-decoration-none text-reset">
-                    <% } %>
-                <div class="d-flex justify-content-between align-items-center">
-                    <h5 id="<%- dashcardId %>-name" class="card-title mb-0"></h5>
-                    <div id="<%- dashcardId %>-icon-container">
-                        <i id="<%- dashcardId %>-icon" class="fas fa-chart-simple fa-3x card-icon"></i>
-                    </div>
-                </div>
-                <h1 id="<%- dashcardId %>-text" class="display-2 font-weight-bold">0</h1>     
-                <% if (link) { %>
-                </a>
-                <% } %>
-                <div id="<%- dashcardId %>-tooltip-text" class="chart-tooltip-content">0</div>
-            </div>
-            <button id="<%- dashcardId %>-reload-button" class="btn btn-reload"><i class="fas fa-sync-alt"></i></button>
+<div id="<%- dashcardId %>" class="col-xxl-2 col-lg-3 col-md-4 col-sm-6 dashcard d-none">
+    <div id="<%- dashcardId %>-card" class="card mb-3 shadow-sm default-bg" style="min-height: 220px">
+      <div id="<%- dashcardId %>-module-indicator" class="module-indicator"></div>
+      <div class="card-body text-center">
+        <% if (link) { %>
+          <a href="<%- link %>" class="text-decoration-none text-reset">
+        <% } %>
+        <div class="d-flex justify-content-between align-items-center">
+          <h5 id="<%- dashcardId %>-name" class="card-title mb-0"></h5>
+          <div>
+            <i id="<%- dashcardId %>-icon" class="fas fa-chart-simple card-icon" ></i>
+            <% if (icon=='doughnut') { %>
+                <%- include('./charts/doughnutchart', { 
+                                                        type: 'doughnut',
+                                                        chartId: dashcardId, 
+                                                        datakey: dashcardDataKey, 
+                                                        doughnutField: field, 
+                                                        doughnutName: "", 
+                                                        timeout: typeof timeout !== 'undefined' ? timeout : 60000,
+                                                        width:"40", 
+                                                        height:"40", 
+                                                        showTitle:false, 
+                                                        showLegend:false, 
+                                                        showTooltip:false,
+                                                        externalTooltip:`${dashcardId}-tooltip-text`,
+                                                      }) %>
+            <% } %>
+          </div>
+        </div>
+        <h1 id="<%- dashcardId %>-text-field" class="display-3 mt-3 m-0 font-weight-bold dash-text">0</h1>     
+        <% if(showField){ %><h1 id="<%- dashcardId %>-text-total" class="lead fs-6 font-weight-bold dash-text">0</h1> <% } %>    
+        <% if (link) { %>
+          </a>
+        <% } %>
+        <div id="<%- dashcardId %>-tooltip-text" class="chart-tooltip-content text-start fs-6 fw-light">0</div>
+      </div>
+      <button id="<%- dashcardId %>-reload-button" class="btn btn-dashcard btn-dash-reload">
+        <i class="fas fa-sync-alt"></i>
+      </button>
+      <div class="btn-dash-edit-container">
+        <button id="<%- dashcardId %>-handle-button" class="btn btn-dashcard btn-dash-edit btn-dash-handle handle d-none">
+          <i class="fas fa-arrows-alt"></i>
+        </button>
+        <button id="<%- dashcardId %>-visibility-button" class="btn btn-dashcard btn-dash-edit btn-dash-visibility handle d-none">
+          <i class="fas fa-eye"></i>
+        </button>
+      </div>
     </div>
-</div>
-
+  </div>
 <style>
-    .card {
-        transition: transform 0.3s;
-        color: var(--bs-secondary-color);
-    }
-    
-    .card:hover { transform: scale(1.04); }
-    
-    .card-icon { color: #a575ff; }   
+.card {
+    position: relative;
+    transition: transform 0.3s;
+    color: var(--bs-secondary-color);
+}
 
-    .card-icon-container {
-        width: 55px;
-        height: 55px;
-    }
+.card:hover { 
+    transform: scale(1.03);
+}
 
-    .btn-reload {
-        position: absolute;
-        bottom: 10px;
-        right: 10px;
-        background-color: rgba(0, 0, 0, 0.1);
-        border: none;
-        border-radius: 50%;
-        padding: 10px;
-        cursor: pointer;
-        transition: background-color 0.3s;
-    }
-
-    .btn-reload:hover {
+.btn-dashcard:hover {
         background-color: rgba(0, 0, 0, 0.2); 
     }
 
-    .btn-reload i {
-        font-size: 14px; 
-    }
+.btn-dashcard {
+    position: absolute;
+    background-color: rgba(0, 0, 0, 0.1);
+    border: none;
+    border-radius: 50%;
+    padding: 10px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
 
-    .chart-tooltip-content {
-        font-size: 14px;
-        text-align: left;
-        visibility: hidden; 
-        opacity: 0;
-        transition: opacity 0.5s !important;
-    }
+.btn-dash-reload {
+    bottom: 10px;
+    right: 10px;
+}
 
-    .chart-tooltip-content.visible {
-        visibility: visible;
-        opacity: 1;
-        transition: opacity 0.5s !important;
+.btn-dash-edit-container {
+    position: absolute;
+    top: 60%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    display: flex;
+    gap: 30px;  /* Espacio entre los botones */
+}
 
-    }
-    
+.btn-dash-edit-container .btn-dashcard {
+    position: static; 
+}
+
+.btn-dash-edit {
+    transform: scale(1.5);
+}
+
+.chart-tooltip-content {
+    position: absolute;
+    bottom: 11px;
+    opacity: 0;
+    transition: opacity 0.5s !important;
+}
+
+.chart-tooltip-content.visible {
+    visibility: visible;
+    opacity: 1;
+    transition: opacity 0.5s !important;
+}
+
+.module-indicator {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 4px;
+  height: 100%;
+  border-radius: 8px 0 0 8px;
+}
+
 </style>
+<script>
+document.addEventListener('DOMContentLoaded', async () => {
+
+  const dashcardId = "<%- dashcardId %>";
+  const dashcardName = "<%- dashcardName %>";
+  const dashcardDataKey = "<%- dashcardDataKey %>";
+  const icon = "<%- icon %>";
+  const link = "<%- link %>";
+  const action = "<%- action %>";
+  const field = "<%- field %>";
+  const timeout = Number("<%= typeof timeout !== 'undefined' ? timeout : 60000 %>");
+  const showField = "<%- showField %>";
+
+    $('#' + dashcardId + '-name').text(dashcardName)
+    const iconElement = $('#' + dashcardId + '-icon');
+    iconElement.removeClass(); 
+    iconElement.addClass('fa-2x card-icon');
+
+    if (icon === "chart") {
+      iconElement.addClass('fas fa-chart-simple');
+    } else if (icon === "warning") {
+      iconElement.addClass('fas fa-exclamation-triangle text-warning');
+    } else if (icon === "satoshi") {
+      iconElement.addClass('fas fa-bolt-lightning text-warning');
+    } else if (icon === "doughnut") {
+      iconElement.addClass('d-none');
+    } else if (icon === "time") {
+      iconElement.addClass('fas fa-clock');
+    } else if (icon === "hourglass") {
+      iconElement.addClass('fas fa-hourglass-half');
+    } else if (icon === "relay") {
+      iconElement.addClass('bi bi-broadcast-pin');
+    } else if (icon == "activity") {
+      iconElement.addClass('fas fa-chart-line');
+    } else if (icon == "list") {
+      iconElement.addClass('fas fa-solid fa-list-ul');
+    } else if (icon == "worker") {
+      iconElement.addClass('fas fa-solid fa-robot');
+    } else if (icon == "cpu") {
+      iconElement.addClass('fas fa-solid fa-microchip');
+    } else if (icon == "memory") {
+      iconElement.addClass('fas fa-solid fa-database');
+    } else {
+      iconElement.addClass('fas fa-chart-simple');
+    }
+
+    const moduleIndicator = document.getElementById(`${dashcardId}-module-indicator`);
+    if (dashcardDataKey == "nostraddress" || dashcardDataKey == "domains" ){
+      moduleIndicator.style.backgroundColor = "#c154fd59";
+    } else if (dashcardDataKey == "media"){
+      moduleIndicator.style.backgroundColor = "#5ea3f57d";
+    } else if (dashcardDataKey == "relay"){
+      moduleIndicator.style.backgroundColor = "#4ef0857d";
+    } else if (dashcardDataKey == "admin" || dashcardDataKey == "logger"){
+      moduleIndicator.style.backgroundColor = "#ff7a7a7d";
+    } else if (dashcardDataKey == "payments" || dashcardDataKey == "lightning"){
+      moduleIndicator.style.backgroundColor = "#ffc7677d";
+    } 
+
+    const fetchDashcardData = async (dashcardDataKey, action, field) => {
+      try {
+          if (dashcardDataKey === 'admin' && action == 'status') {
+              const res = await fetch('/api/v2/admin/status');
+              const serverInfo = await res.json();
+              if (field === 'uptime') {
+                  const timeParts = serverInfo.uptime.split(':');
+                  if (timeParts.length === 3) serverInfo.uptime = `${timeParts[0]}:${timeParts[1]}`;
+              }
+              const timeParts = serverInfo.uptime.split(':');
+              if (timeParts.length === 3) serverInfo.uptime = `${timeParts[0]}:${timeParts[1]}`;
+
+              return { field: serverInfo[field], total: serverInfo[field] };
+          }
+
+          if (dashcardDataKey === 'relay' && action == 'status') {
+              const res = await fetch('/api/v2/relay/status');
+              const serverInfo = await res.json();
+              return { field: serverInfo[field], total: serverInfo[field] };
+          }
+          
+
+          const res = await fetch(`/api/v2/admin/modulecountdata?module=${dashcardDataKey}&action=${action}&field=${field}`, {
+              method: 'GET',
+              headers: { 'Content-Type': 'application/json' },
+          });
+
+          const data = await res.json();
+          return data || { total: 0 };
+      } catch (error) {
+          console.error('Error:', error);
+          return { total: 0 };
+      }
+    };
+
+    const refreshDashcard = async(dashcardId, dashcardDataKey, action, field) => {
+      $('#' + dashcardId + '-tooltip-text').addClass('visible');
+      $('#' + dashcardId + '-tooltip-text').text('Retrieving data...');
+
+      const countData = await fetchDashcardData(dashcardDataKey, action, field)
+      if (showField == "true"){
+        $('#' + dashcardId + '-text-field').text(countData.field);
+        $('#' + dashcardId + '-text-total').text(`of ${countData.total}`);
+      }else{
+        $('#' + dashcardId + '-text-field').text(countData.total);
+      }
+    
+      setTimeout(() => {$('#' + dashcardId + '-tooltip-text').removeClass('visible')}, 1000);
+    }
+
+    $('#' + dashcardId + '-reload-button').on('click', async function() {
+      await refreshDashcard(dashcardId, dashcardDataKey, action, field);
+    });
+
+    setInterval(async () => {
+      await refreshDashcard(dashcardId, dashcardDataKey, action, field);
+    }, timeout);
+
+    await refreshDashcard(dashcardId, dashcardDataKey, action, field);
+
+});
+
+</script>

@@ -4,408 +4,100 @@
 <link rel="stylesheet" href="/static/css/form.css">
 
 <html lang="en">
-  <%- include('./partials/head',{title: `${locals.serverHost} - Dashboard`}); %>
+  <%- include('./partials/head'); %>
   <body class="d-flex flex-column h-100">
     <%- include('./partials/navbar', {active:'dashboard'}); %>
     <main class="pb-1">
       <div class="text-center"><h1 class="display-2 mt-2 gradient-text">Dashboard</h1></div>
       <p class="text-center mt-2 display-6" id="welcome-text"></p>
       <div class= "container-fluid mt-5">
-        <div class="row">
-          <% if(locals.activeModules.includes('nostraddress')) { %> 
-          <%- include('./components/dashcard', { dashcardId: 'nostraddressCount', link: '#nostraddressData'}); %>
+        <%- include('./components/dashcards'); %>
+        <ul class="nav nav-tabs mt-3 lead " id="dashboardTabs" role="tablist">
+          <% if(locals.activeModules.some(mod => mod.name === 'nostraddress')) { %>
+            <li class="nav-item" role="presentation">
+              <button class="nav-link active" id="users-tab" data-bs-toggle="tab" data-bs-target="#users" type="button" role="tab"><i class="fa fa-user-group me-2"></i>Registered users</button>
+            </li>
           <% } %>
-          <% if(locals.activeModules.includes('media')) { %> 
-            <%- include('./components/dashcard', { dashcardId: 'mediaCount', link: '#mediaData' }); %>
+          <% if(locals.activeModules.some(mod => mod.name === 'nostraddress')) { %>
+            <li class="nav-item" role="presentation">
+              <button class="nav-link" id="invites-tab" data-bs-toggle="tab" data-bs-target="#invites" type="button" role="tab"><i class="fa fa-handshake me-2"></i>Invites</button>
+            </li>
           <% } %>
-          <% if(locals.activeModules.includes('lightning')) { %>
-            <%- include('./components/dashcard', { dashcardId: 'lightningCount', link: '#lightningData' }); %>
+          <% if(locals.activeModules.some(mod => mod.name === 'media')) { %>
+            <li class="nav-item" role="presentation">
+              <button class="nav-link" id="files-tab" data-bs-toggle="tab" data-bs-target="#files" type="button" role="tab"><i class="fa fa-server me-2"></i>Hosted files</button>
+            </li>
           <% } %>
-          <% if(locals.activeModules.includes('domains')) { %>
-            <%- include('./components/dashcard', { dashcardId: 'domainsCount', link: '#domainsData'}); %>
+          <% if(locals.activeModules.some(mod => mod.name === 'lightning')) { %>
+            <li class="nav-item" role="presentation">
+              <button class="nav-link" id="lightning-tab" data-bs-toggle="tab" data-bs-target="#lightning" type="button" role="tab"><i class="fa fa-diamond-turn-right me-2"></i></i>Lightning redirects</button>
+            </li>
           <% } %>
-            <%- include('./components/dashcard', { dashcardId: 'logHistory', link: 'settings/#settingsLogger'}); %>
-          <% if(locals.activeModules.includes('payments')) { %>
-            <%- include('./components/dashcard', { dashcardId: 'paymentsCount', link: '#paymentsData'}); %>
-            <%- include('./components/dashcard', { dashcardId: 'unpaidTransactionsBalance', link: '#paymentsData'}); %>
-            <%- include('./components/dashcard', { dashcardId: 'serverBalance', link: ''}); %>
+          <% if(locals.activeModules.some(mod => mod.name === 'domains')) { %>
+            <li class="nav-item" role="presentation">
+              <button class="nav-link" id="domains-tab" data-bs-toggle="tab" data-bs-target="#domains" type="button" role="tab"><i class="fa fa-earth-americas me-2"></i>Domains</button>
+            </li>
           <% } %>
-          <%- include('./components/dashcard', { dashcardId: 'serverUptime', link: ''}); %>
-        </div>
+          <% if(locals.activeModules.some(mod => mod.name === 'payments')) { %>
+            <li class="nav-item" role="presentation">
+              <button class="nav-link" id="payments-tab" data-bs-toggle="tab" data-bs-target="#payments" type="button" role="tab"><i class="fa fa-bolt-lightning text-warning  me-2"></i>Payments</button>
+            </li>
+          <% } %>
+          <% if(locals.activeModules.some(mod => mod.name === 'security')) { %>
+            <li class="nav-item" role="presentation">
+              <button class="nav-link" id="security-tab" data-bs-toggle="tab" data-bs-target="#security" type="button" role="tab"><i class="fa fa-shield-halved me-2"></i>Security</button>
+            </li>
+          <% } %>
+          <% if(locals.activeModules.some(mod => mod.name === 'relay')) { %>
+            <li class="nav-item" role="presentation">
+              <button class="nav-link" id="relay-tab" data-bs-toggle="tab" data-bs-target="#relay" type="button" role="tab"><i class="fa fa-wifi  me-2"></i> Relay</button>
+            </li>
+          <% } %>
+          <% if(locals.activeModules.some(mod => mod.name === 'logger')) { %>
+            <li class="nav-item" role="presentation">
+              <button class="nav-link" id="logger-tab" data-bs-toggle="tab" data-bs-target="#logger" type="button" role="tab"><i class="fa fa-file-lines me-2"></i>Logs</button>
+            </li>
+          <% } %>
+        </ul>
       </div>
-      <div class="container-fluid mt-4 mb-5 overflow-auto ">
-        <% 
-        let nostraddressFields = [
-          ['checked',       '30' , 'formatCheckbox', 'enabled   show text-center              '],
-          ['active',        '30' , 'formatCheckbox', 'enabled   show text-center mobile-hide  '],
-          ['allowed',       '30' , 'formatCheckbox', 'enabled   hide text-center mobile-hide  '],
-          ['banned',        ''   , 'formatCheckbox', 'disabled  hide                          '],
-          ['username',      ''   , ''              , 'enabled   show text-center              '],
-          ['pubkey',        ''   , 'formatPubkey'  , 'enabled   show                          '],
-          ['hex',           ''   , 'formatPubkey'  , 'enabled   hide                          '],
-          ['domain',        ''   , ''              , 'enabled   show text-center              '],
-          ['comments',      ''   , ''              , 'enabled   hide                          '],
-          ['date',          '290', ''              , 'disabled  show text-center              '],
-        ];
-
-        if (locals.activeModules.includes("payments")) {
-          nostraddressFields.splice(3, 0, ['paid', '30', 'formatCheckbox', 'disabled show text-center'],);
-          nostraddressFields.splice(4, 0, ['satoshi','30', 'formatSatoshi', 'disabled show text-end'],);
-          nostraddressFields.splice(5, 0, ['balance', '30', 'formatSatoshi', 'disabled  show text-end'],);
-          nostraddressFields.splice(6, 0, ['transactionid','', '', 'disabled hide']);
-        }
-
-        let nostraddressButtons = [
-          ['add','show'],
-          ['disable','show'],
-          ['enable','show'],
-          ['visible','hide'],
-          ['invisible','hide'],
-          ['admin','show'],
-          ['edit','show'],
-          ['password','show'],
-          ['remove','show'],
-          ['pay','hide'],
-          ['balance','hide'],
-          ['moderate','hide'],
-          ['ban','show']
-        ];
-
-        %>
-        <% if(locals.activeModules.includes('nostraddress')) { %> 
-          <%- include('./components/table', {
-            tableName:"Registered users", 
-            tableId:"nostraddressData", 
-            buttons:nostraddressButtons,
-            fields: nostraddressFields
-          });         
-          %>
-          <div class="mt-2 d-flex flex-column align-items-center">
-            <div class="row d-flex w-100">
-              <div class="col-xl-8 col-lg-12 col-md-12 col-sm-12 mb-4" style="height:450px;">
-                <div class="w-100 h-100 default-bg rounded d-flex me-2 shadow-sm ">
-                  <canvas id="nostraddressData-chart" class="mx-auto w-100"></canvas>
-                  </div>  
-              </div>
-              <div class="col-xl-4 col-lg-12 col-md-12 col-sm-12" style="height:450px;">
-                <div class="w-100 h-100 default-bg rounded d-flex me-2 p-3 shadow-sm ">
-                <canvas id="nostraddressData-doughnut-chart" class="mx-auto"></canvas>
-                </div>  
-              </div>
-            </div>
-          </div>
-        <% } %>
-        <% 
-        let mediaFields = [
-          ['checked',       '30' , 'formatCheckbox' , 'enabled   show text-center              '],
-          ['active',        '30' , 'formatCheckbox' , 'enabled   show text-center mobile-hide  '],
-          ['banned',        ''   , 'formatCheckbox' , 'disabled  hide                          '],      
-          ['visibility',    '30' , 'formatCheckbox' , 'enabled   show text-center mobile-hide  '],
-          ['username',      '50' , ''               , 'disabled  show text-center              '],
-          ['npub',          ''   , 'formatPubkey'   , 'disabled  hide                          '],
-          ['pubkey',        ''   , 'formatPubkey'   , 'disabled  hide text-center              '],
-          ['filename',      ''   , 'formatMediaFile', 'disabled  show                          '],
-          ['mimetype',      '50' , ''               , 'disabled  show text-center              '],
-          ['original_hash', ''   , ''               , 'disabled  hide                          '],
-          ['hash',          ''   , ''               , 'disabled  hide                          '],
-          ['status',        '50' , ''               , 'disabled  show text-center mobile-hide  '],
-          ['dimensions',    '40' , ''               , 'disabled  hide text-center mobile-hide  '],
-          ['filesize',      '40' , ''               , 'disabled  show text-center mobile-hide  '],
-          ['date',          '200', ''               , 'disabled  show text-center              '],
-          ['comments',      ''   , ''               , 'enabled   hide                          '],
-        ];
-
-        if (locals.activeModules.includes("payments")) {
-          mediaFields.splice(3, 0, ['paid', '30', 'formatCheckbox', 'disabled show text-center'],);
-          mediaFields.splice(4, 0, ['satoshi','30', 'formatSatoshi', 'disabled show text-end'],);
-          mediaFields.splice(5, 0, ['transactionid','', '', 'disabled hide']);
-        }
-
-        %>
-        <% if(locals.activeModules.includes('media')) { %> 
-          <%- include('./components/table', {
-            tableName:"Hosted files", 
-            tableId:"mediaData", 
-            buttons:[
-                    ['add','hide'],
-                    ['disable','show'],
-                    ['enable','show'],      
-                    ['visible','show'],
-                    ['invisible','show'],                                        
-                    ['admin','hide'],
-                    ['edit','show'],
-                    ['password','hide'],
-                    ['remove','show'],
-                    ['pay','hide'],
-                    ['balance','hide'],
-                    ['moderate','show'],
-                    ['ban','show']
-                    ],
-            fields: mediaFields
-          }); %>
-        <div class="mt-2 d-flex flex-column align-items-center">
-          <div class="row d-flex w-100">
-            <div class="col-xl-8 col-lg-12 col-md-12 col-sm-12 mb-4" style="height:450px;">
-              <div class="w-100 h-100 default-bg rounded d-flex me-2 p-3 shadow-sm ">
-                <canvas id="mediaData-chart" class="mx-auto w-100"></canvas>
-                </div>  
-            </div>
-            <div class="col-xl-4 col-lg-12 col-md-12 col-sm-12" style="height:450px;">
-              <div class="w-100 h-100 default-bg rounded d-flex me-2 p-3 shadow-sm ">
-              <canvas id="mediaData-doughnut-chart" class="mx-auto"></canvas>
-              </div>  
-            </div>
-          </div>
+      <div class="tab-content w-100 p-3 overflow-auto mb-5" id="dashboardTabsContent">
+        <div class="tab-pane fade show active" id="users" role="tabpanel" aria-labelledby="users-tab">
+          <%- include('./components/tables/users'); %>
         </div>
-        <% } %>
-        <%
-        let lightningFields = [
-          ['active'           , '30' , 'formatCheckbox', 'enabled   show text-center mobile-hide  '],
-          ['checked'          , '30' , 'formatCheckbox', 'enabled   show text-center              '],
-          ['pubkey'           , '40' , 'formatPubkey'  , 'enabled   show                          '],
-          ['lightningaddress' , '40' , ''              , 'enabled   show                          '],
-          ['comments'         , ''   , ''              , 'enabled   show mobile-hide              '],
-         
-        ];
-        if (locals.activeModules.includes("payments")) {
-          lightningFields.splice(5, 0,  ['transactionid', 'disabled', 'hide']);
-        }
-        %>
-        <% if(locals.activeModules.includes('lightning')) { %> 
-          <%- include('./components/table', {
-            tableName:"Lightning redirects", 
-            tableId:"lightningData", 
-            buttons:[
-              ['add','show'],
-              ['disable','show'],
-              ['enable','show'],
-              ['visible','hide'],
-              ['invisible','hide'],
-              ['admin','hide'],
-              ['edit','show'],
-              ['password','hide'],
-              ['remove','show'],
-              ['pay','hide'],
-              ['balance','hide'],
-              ['moderate','hide'],
-              ['ban','hide']
-            ],
-            fields: lightningFields
-          }); %> 
-        <% } %>
-        <%
-        let domainsFields = [
-          ['active'           , '30' , 'formatCheckbox', 'enabled   show text-center              '],
-          ['checked'          , '30' , 'formatCheckbox', 'enabled   hide text-center              '],
-          ['requireinvite'    , '30' , 'formatCheckbox', 'enabled   show text-center              '],
-          ['domain'           , '40' , ''              , 'enabled   show text-center              '],
-          ['comments'         , ''   , ''              , 'enabled   show mobile-hide              '],
-        ];
-
-        if (locals.activeModules.includes("payments")) {
-          domainsFields.splice(3, 0, ['requirepayment', '30', 'formatCheckbox', 'enabled show text-center'],);
-          domainsFields.splice(4, 0, ['maxsatoshi','30', 'formatSatoshi', 'enabled show text-end'],);
-        }
-
-        %>
-        <% if(locals.activeModules.includes('domains')) { %> 
-          <%- include('./components/table', {
-            tableName:"Domains", 
-            tableId:"domainsData", 
-            buttons:[
-              ['add','show'],
-              ['disable','show'],
-              ['enable','show'],
-              ['visible','hide'],
-              ['invisible','hide'],
-              ['admin','hide'],
-              ['edit','show'],
-              ['password','hide'],
-              ['remove','show'],
-              ['pay', 'hide'],
-              ['balance','hide'],
-              ['moderate','hide'],
-              ['ban','hide']
-            ],
-            fields: domainsFields
-            }); %> 
-          <% } %>
-          <%
-          let paymentsFields = [
-
-            ['accountid'           , '40' , ''                  , 'disabled   show text-center mobile-hide  '],
-            ['type'                , '40' , ''                  , 'disabled   show text-center              '],
-            ['paymentrequest'      , ''   , ''                  , 'disabled   hide                          '],
-            ['paymenthash'         , ''   , 'formatPaymentHash' , 'disabled   show                          '],
-            ['paid'                , '30' , 'formatCheckbox'    , 'disabled   show text-center              '],
-            ['satoshi'             , '30' , 'formatSatoshi'     , 'disabled   show text-end                 '],
-            ['createddate'         , '150', ''                  , 'disabled   show text-center              '],
-            ["expirydate"          , '150', ''                  , 'disabled   hide text-center mobile-hide  '],
-            ['paiddate'            , '150', ''                  , 'disabled   show text-center mobile-hide  '],
-            ['comments'            , ''   , ''                  , 'enabled    show mobile-hide              '],
-
-          ];
-          %>
-          <% if(locals.activeModules.includes('payments')) { %> 
-           <%- include('./components/table', {
-              tableName:"Transactions", 
-              tableId:"paymentsData", 
-              buttons:[
-                ['add','hide'],
-                ['disable','hide'],
-                ['enable','hide'],
-                ['visible','hide'],
-                ['invisible','hide'],
-                ['admin','hide'],
-                ['edit','show'],
-                ['password','hide'],
-                ['remove','hide'],
-                ['pay', 'show'],
-                ['balance','hide'],
-                ['moderate','hide'],
-                ['ban','hide']
-              ],
-              fields: paymentsFields
-              }); %> 
-        <div class="mt-2 d-flex flex-column align-items-center">
-          <div class="row d-flex w-100">
-            <div class="col-xl-8 col-lg-12 col-md-12 col-sm-12 mb-4" style="height:450px;">
-              <div class="w-100 h-100 default-bg rounded d-flex me-2 p-3 shadow-sm ">
-                <canvas id="paymentsData-chart" class="mx-auto w-100"></canvas>
-                </div>  
-            </div>
-            <div class="col-xl-4 col-lg-12 col-md-12 col-sm-12" style="height:450px;">
-              <div class="w-100 h-100 default-bg rounded d-flex me-2 p-3 shadow-sm ">
-              <canvas id="paymentsData-doughnut-chart" class="mx-auto"></canvas>
-              </div>  
-            </div>
-          </div>
+        <div class="tab-pane fade " id="invites" role="tabpanel" aria-labelledby="invites-tab">
+          <%- include('./components/tables/invites'); %>
         </div>
-          <% } %>
-          <%
-          let bannedFields = [
-            ['active'           , '30' , 'formatCheckbox'  , 'enabled   show text-center              '],
-            ['originid'         , '40' , ''                , 'disabled   show text-center              '],
-            ['origintable'      , '40' , ''                , 'disabled   show text-center              '],
-            ['originkey'        , ''   , 'formatBannedFile', 'disabled  show mobile-hide              '],
-            ['reason'           , ''   , ''                , 'enabled   show mobile-hide              '],
-          ];
-          %>
-          <% if((locals.activeModules.includes('media') || locals.activeModules.includes('nostraddress')) && locals.activeModules.includes('admin')  ) { %> 
-            <%- include('./components/table', {
-              tableName:"Banned objects", 
-              tableId:"bannedData", 
-              buttons:[
-                ['add','hide'],
-                ['disable','show'],
-                ['enable','show'],
-                ['visible','hide'],
-                ['invisible','hide'],
-                ['admin','hide'],
-                ['edit','show'],
-                ['password','hide'],
-                ['remove','show'],
-                ['pay', 'hide'],
-                ['balance','hide'],
-                ['moderate','hide'],
-                ['ban','hide']
-              ],
-              fields: bannedFields
-              }); %> 
-            <% } %>
-            <%
-          let invitesFields = [
-            ['active'           , '30' , 'formatCheckbox'  , 'enabled   show text-center              '],
-            ['code'             , '40' , ''                , 'disabled   show text-center             '],
-            ['originid'         , '40' , ''                , 'enabled   show text-center              '],
-            ['inviteeid'        , '40' , ''                , 'disabled  show text-center              '],
-            ['createdate'       , ''   , ''                , 'disabled  show text-center              '],
-            ['inviteedate'      , ''   , ''                , 'disabled  show text-center              '],
-            ['comments'         , ''   , ''                , 'enabled   show mobile-hide              '],
-          ];
-          %>
-          <% if(locals.activeModules.includes('register')) { %> 
-            <%- include('./components/table', {
-              tableName:"Invites", 
-              tableId:"invitesData", 
-              buttons:[
-                ['add','show'],
-                ['disable','show'],
-                ['enable','show'],
-                ['visible','hide'],
-                ['invisible','hide'],
-                ['admin','hide'],
-                ['edit','show'],
-                ['password','hide'],
-                ['remove','show'],
-                ['pay', 'hide'],
-                ['balance','hide'],
-                ['moderate','hide'],
-                ['ban','hide']
-              ],
-              fields: invitesFields
-              }); %> 
-            <% } %>
-
+        <div class="tab-pane fade " id="files" role="tabpanel" aria-labelledby="files-tab">
+          <%- include('./components/tables/files'); %>
+          <%- include('./components/tables/filetypes'); %>
+        </div>
+        <div class="tab-pane fade " id="lightning" role="tabpanel" aria-labelledby="lightning-tab">
+          <%- include('./components/tables/lightning'); %>
+        </div>
+        <div class="tab-pane fade " id="domains" role="tabpanel" aria-labelledby="domains-tab">
+          <%- include('./components/tables/domains'); %>
+        </div>
+        <div class="tab-pane fade " id="payments" role="tabpanel" aria-labelledby="payments-tab">
+          <%- include('./components/tables/payments'); %>
+        </div>
+        <div class="tab-pane fade " id="security" role="tabpanel" aria-labelledby="security-tab">
+          <%- include('./components/tables/security'); %>
+        </div>
+        <div class="tab-pane fade " id="relay" role="tabpanel" aria-labelledby="relay-tab">
+          <%- include('./components/tables/relay'); %>
+        </div>
+        <div class="tab-pane fade " id="logger" role="tabpanel" aria-labelledby="logger-tab">
+          <%- include('./components/tables/logger'); %>
+        </div>
       </div>
      </main>
-    <%- include('./partials/footer', {active:'dashboard'}); %>     
-                           
+    <%- include('./partials/footer', {active:'dashboard'}); %>    
+    <%- include('./components/modals/media-modal'); %>
   </body>
-
 <script>
-</script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="/static/js/chart.js"></script>
-<script src="/static/js/dashcard.js"></script>
-<script src="/static/js/table.js"></script>
-
-<script>
-  
-  // Welcome text
+    // Welcome text
   if (localStorage.getItem('profileData')){
   document.getElementById('welcome-text').innerHTML = `Welcome ${JSON.parse(localStorage.getItem('profileData')).display_name}, this is the status of your server today`;
   }
-  
-  const initData = async() => {
-    for (const dashcard of dashcards) {
-      if (activeModules.includes(dashcard.dataKey)) {
-        semaphore.execute(async() => await initDashcard(dashcard.dashcardId,dashcard.dashcardName, dashcard.dataKey, dashcard.icon, dashcard.link, dashcard.action, dashcard.field));
-      }
-    }
-    for (const table of tables) {
-      console.log(table.dataKey);
-      console.log(activeModules);
-      if (activeModules.includes(table.dataKey) || table.dataKey == 'banned') {
-        await initTable(`#${table.tableId}`, table.dataKey, table.objectName, table.dataKey, table.field);
-      }
-    }
-  }
-  const refreshData  = async() => {
-    refreshTables();
-    refreshDashcards();
-  }
-
-  initData();
-  setInterval(refreshData, 60000);
-
-
-  if (activeModules.includes("nostraddress")) {
-  semaphore.execute(async() => await initMonthChart("#nostraddressData-chart",'Registered users', await fetchTableCountData('nostraddress','monthCount', 'date')))
-  }
-  if (activeModules.includes("media")) {
-  semaphore.execute(async() => await initMonthChart('#mediaData-chart','Hosted files', await fetchTableCountData('media','monthCount', 'date')))
-  }
-  if (activeModules.includes("payments")) {
-  semaphore.execute(async() => await initMonthChart("#paymentsData-chart",'Transactions', await fetchTableCountData('payments','monthCount', 'createddate')))
-  }
-
-  if (activeModules.includes("payments")) {
-    $('#nostraddressData-button-pay').removeClass('d-none');
-    $('#nostraddressData-button-balance').removeClass('d-none');
-    $('#mediaData-button-pay').removeClass('d-none');
-    $('#lightningData-button-pay').removeClass('d-none');
-  }
-
 </script>
 </html>

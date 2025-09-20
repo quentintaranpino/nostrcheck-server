@@ -47,12 +47,12 @@ echo ""
 echo "══════════════════════════════════════════════════════════════════════════════"
 echo " Nostrcheck-server installation script v$version"
 echo ""
-echo "📅 Last updated: $date"
-echo "🔗 Project repository: https://github.com/quentintaranpino/nostrcheck-server/"
-echo "📝 License: MIT"
+echo " Last updated: $date"
+echo " Project repository: https://github.com/quentintaranpino/nostrcheck-server/"
+echo " License: MIT"
 echo ""
-echo "📢 This script will install and configure the Nostrcheck server on your system."
-echo "⚠️ WARNING: This software is still in development and may not work as expected."
+echo " This script will install and configure the Nostrcheck server on your system."
+echo " WARNING: This software is still in development and may not work as expected."
 echo ""
 echo "══════════════════════════════════════════════════════════════════════════════"
 
@@ -595,80 +595,6 @@ server {
         proxy_set_header Host \$host;
     }
 
-    # API redirect for nostr.json requests
-    location /.well-known/nostr.json {
-      proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-      proxy_set_header X-Forwarded-Proto \$scheme;
-      proxy_set_header Host \$host;
-      proxy_pass http://localhost:3000/api/v2/nostraddress;
-      proxy_http_version 1.1;
-      proxy_set_header Upgrade \$http_upgrade;
-      proxy_set_header Connection "upgrade";
-    }
-
-    # API redirect for nip96.json requests
-    location /.well-known/nostr/nip96.json {
-      proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-      proxy_set_header X-Forwarded-Proto \$scheme;
-      proxy_set_header Host \$host;
-      proxy_pass http://127.0.0.1:3000/api/v2/nip96;
-      proxy_http_version 1.1;
-      proxy_set_header Upgrade \$http_upgrade;
-      proxy_set_header Connection "upgrade";
-    }
-
-    # API redirect for lightning redirect requests
-    location /.well-known/lnurlp/ {
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
-        proxy_set_header Host \$host;
-        proxy_pass http://127.0.0.1:3000/api/v2/lightningaddress/;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade \$http_upgrade;
-        proxy_set_header Connection "upgrade";
-    }
-
-    # API redirect for media URL requests
-    location /media {
-       proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-       proxy_set_header X-Forwarded-Proto \$scheme;
-       proxy_set_header Host \$host;
-       proxy_pass http://127.0.0.1:3000/api/v2/media;
-       proxy_http_version 1.1;
-       proxy_set_header Upgrade \$http_upgrade;
-       proxy_set_header Connection "upgrade";
-    }
-
-    location /upload {
-       proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-       proxy_set_header X-Forwarded-Proto \$scheme;
-       proxy_set_header Host \$host;
-       proxy_pass http://127.0.0.1:3000/api/v2/media/upload;
-       proxy_http_version 1.1;
-       proxy_set_header Upgrade \$http_upgrade;
-       proxy_set_header Connection "upgrade";
-    }
-
-    location /list {
-       proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-       proxy_set_header X-Forwarded-Proto \$scheme;
-       proxy_set_header Host \$host;
-       proxy_pass http://127.0.0.1:3000/api/v2/media/list;
-       proxy_http_version 1.1;
-       proxy_set_header Upgrade \$http_upgrade;
-       proxy_set_header Connection "upgrade";
-    }
-
-    location /mirror {
-       proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-       proxy_set_header X-Forwarded-Proto \$scheme;
-       proxy_set_header Host \$host;
-       proxy_pass http://127.0.0.1:3000/api/v2/media/mirror;
-       proxy_http_version 1.1;
-       proxy_set_header Upgrade \$http_upgrade;
-       proxy_set_header Connection "upgrade";
-    }
-
 }
 
 # Additional server block for cdn.$HOST
@@ -711,10 +637,17 @@ server {
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto \$scheme;
         proxy_set_header Host \$host;
-        proxy_pass http://127.0.0.1:3000/api/v2/relay;
+        proxy_pass http://127.0.0.1:3000/api/v2/relay/;
         proxy_http_version 1.1;
         proxy_set_header Upgrade \$http_upgrade;
         proxy_set_header Connection "upgrade";
+
+        proxy_buffering off;
+        proxy_request_buffering off;
+        proxy_read_timeout 300s;
+        proxy_send_timeout 300s;
+        keepalive_timeout 65s;
+        keepalive_requests 10000;
     }
 
     location /static {

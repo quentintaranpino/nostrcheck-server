@@ -1,0 +1,87 @@
+<html lang="en">
+  <%- include('./partials/head'); %>
+  <link rel="stylesheet" href="/static/css/form.css">
+  <link rel="stylesheet" href="/static/css/particles.css">
+<body class="d-flex flex-column h-100">
+    <%- include('./partials/navbar', {active:'converter'}); %>
+    <div class="background-theme h-100">
+        <div class="container px-4 px-lg-5 d-flex h-100 align-items-center justify-content-center">
+            <div class="d-flex justify-content-center">
+                <div class="text-center z-1">
+                    <h1 class="text-white mx-auto my-0 text-uppercase gradien display-4">Key converter</h1>
+                    <h2 class="text-white-50 mx-auto mt-1 mb-4 display-6">A simple tool to turn your Nostr keys into npub or hex in just seconds.
+                    </h2>
+                    <div class="col-12 col-md-9 mt-5 mb-5 mx-auto">
+                        <div class="input-group flex-nowrap mt-2 mb-3">
+                            <span class="input-group-text col-2 d-inline" id="input-converter-npub">npub</span>
+                            <input type="text" class="form-control" id="npub" placeholder="Paste your npub key here">
+                            <button id="npub-btn" class="btn btn-primary" type="button" id="npub-copy-btn"
+                                onclick="copyToClipboard(this,document.getElementById('npub').value)"
+                                style="--bs-btn-padding-y: .1rem; --bs-btn-padding-x: .5rem; --bs-btn-font-size: .8rem;">
+                                    <i class="fa-solid fa-copy"></i>
+                            </button>
+                        </div>
+                        <div class="input-group flex-nowrap mt-2 mb-3">
+                            <span class="input-group-text col-2 d-inline" id="input-converter-hex">Hex</span>
+                            <input type="text" class="form-control" id="hex" placeholder="Paste your hex key here">
+                            <button id="hex-btn" class="btn btn-primary" type="button" id="hex-copy-btn" 
+                                onclick="copyToClipboard(this,document.getElementById('hex').value)"
+                                style="--bs-btn-padding-y: .1rem; --bs-btn-padding-x: .5rem; --bs-btn-font-size: .8rem;">
+                                    <i class="fa-solid fa-copy"></i>
+                            </button>
+                        </div>
+                        <button class="btn btn-primary w-100" onclick="resetFields()">Reset</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <%- include('./partials/footer', {active:'converter'}); %>
+    <%- include('./components/modals/message-modal', {"object":"firstUse"}); %>
+  </body>
+  <script>
+    if ("<%= locals.firstUse %>" != undefined && "<%= locals.firstUse %>" != null && "<%= locals.firstUse %>" != "") {
+      initMessageModal("#firstUse", "<%- locals.firstUse %>", "Welcome to your sovereignty");
+    }
+  </script>
+</html>
+<script type="module">
+    import * as NostrTools from "https://esm.sh/nostr-tools";
+    const npubField = document.getElementById("npub");
+    const hexField = document.getElementById("hex");
+
+    // npub -> hex
+    npubField.addEventListener("input", () => {
+    const value = npubField.value.trim();
+    if (value.startsWith("npub")) {
+        try {
+        const decoded = NostrTools.nip19.decode(value);
+        hexField.value = decoded.data;
+        } catch (err) {
+        hexField.value = "";
+        }
+    } else if (value === "") {
+        hexField.value = "";
+    }
+    });
+
+    // hex -> npub
+    hexField.addEventListener("input", () => {
+    const value = hexField.value.trim();
+    if (/^[0-9a-fA-F]{64}$/.test(value)) {
+        try {
+        const npub = NostrTools.nip19.npubEncode(value);
+        npubField.value = npub;
+        } catch (err) {
+        npubField.value = "";
+        }
+    } else if (value === "") {
+        npubField.value = "";
+    }
+    });
+
+    window.resetFields = () => {
+    npubField.value = "";
+    hexField.value = "";
+    };
+</script>

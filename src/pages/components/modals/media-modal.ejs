@@ -5,12 +5,21 @@
                 <h5 class="modal-title" id="media-modal-title">Media preview</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="modal-body text-center" id="media-modal-body" style="min-height: 450px;">
+            <div class="modal-body text-center d-flex flex-column align-items-center justify-content-center" id="media-modal-body" style="min-height: 450px;">
+                <%- include('../loading', {objectId: 'media', dataName: 'media'}) %>
                 <img src="" id="mediapreview-img" class="img-fluid d-none rounded mx-auto">
-                <canvas id="mediapreview-3d" class= "d-none rounded mx-auto"></canvas>
-                <iframe  id="mediapreview-iframe" class="img-fluid d-none rounded mx-auto" style="width: 100%; min-height: 450px;" frameborder="0"></iframe>
+                <video id="mediapreview-video" class="d-none rounded mx-auto" style="width: 100%; min-height: 400px; object-fit: contain; max-height: 400px;" autoplay muted playsinline controls></video>
+                <canvas id="mediapreview-3d" class="d-none rounded mx-auto"></canvas>
+                <iframe id="mediapreview-iframe" class="img-fluid d-none rounded mx-auto" style="width: 100%; min-height: 450px;" frameborder="0"></iframe>
                 <div id="mediapreview-font" class="d-none rounded mx-auto" style="min-height: 450px; align-items: center; justify-content: center;"></div>
                 <div id="mediapreview-yaml" class="d-none rounded mx-auto text-start p-4" style="min-height: 450px;"></div>
+                <div id="mediapreview-download" class="d-none text-center">
+                    <p>This file can't be previewed 🙃</p>
+                    <a class="btn btn-outline-secondary mt-3" id="mediapreview-download-btn" target="_blank" download>
+                        <i class="fa-solid fa-download me-2"></i>Download
+                    </a>
+                </div>
+
             </div>
             <div id="modalSwitch-footer" class="modal-footer">
                 <div class="form-check form-switch mx-auto">
@@ -31,3 +40,8 @@
 <script src="/static/js/viewers/3dviewer.js"></script>
 <script src="/static/js/viewers/fontviewer.js"></script>
 <script src="/static/js/viewers/yamlviewer.js"></script>
+<script>
+    document.getElementById('mediapreview-video').addEventListener('loadedmetadata', function() {
+    this.playbackRate = 5; 
+});
+</script>

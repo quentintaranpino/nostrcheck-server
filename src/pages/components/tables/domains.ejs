@@ -1,0 +1,35 @@
+<%
+let domainsFields = [
+  ['active'           , '30' , 'formatCheckbox', 'enabled   show text-center              '],
+  ['checked'          , '30' , 'formatCheckbox', 'enabled   hide text-center              '],
+  ['domain'           , '40' , ''              , 'enabled   show text-center              '],
+  ['comments'         , ''   , ''              , 'enabled   show mobile-hide              '],
+];
+
+
+%>
+<% if(locals.activeModules.some(mod => mod.name === 'nostraddress')) { %>
+  <%- include('../table', {
+    tableName:"Domains", 
+    tableDesc:"",
+    tableId:"domainsData", 
+    buttons:[
+      ['add','show'],
+      ['disable','show'],
+      ['enable','show'],
+      ['visible','hide'],
+      ['invisible','hide'],
+      ['admin','hide'],
+      ['edit','show'],
+      ['password','hide'],
+      ['remove','show'],
+      ['pay', 'hide'],
+      ['balance','hide'],
+      ['moderate','hide'],
+      ['ban','hide']
+    ],
+    fields: domainsFields,
+    datakey: 'domains',
+    objectName: 'domain name',
+    }); %> 
+  <% } %>

@@ -1,0 +1,51 @@
+<%
+let paymentsFields = [
+
+  ['accountid'           , '40' , ''                  , 'disabled   show text-center mobile-hide  '],
+  ['type'                , '40' , ''                  , 'disabled   show text-center              '],
+  ['paymentrequest'      , ''   , ''                  , 'disabled   hide                          '],
+  ['paymenthash'         , ''   , 'formatPaymentHash' , 'disabled   show                          '],
+  ['paid'                , '30' , 'formatCheckbox'    , 'disabled   show text-center              '],
+  ['satoshi'             , '30' , 'formatSatoshi'     , 'disabled   show text-end                 '],
+  ['createddate'         , '150', ''                  , 'disabled   show text-center              '],
+  ["expirydate"          , '150', ''                  , 'disabled   hide text-center mobile-hide  '],
+  ['paiddate'            , '150', ''                  , 'disabled   show text-center mobile-hide  '],
+  ['comments'            , ''   , ''                  , 'enabled    show mobile-hide              '],
+
+];
+%>
+<% if(locals.activeModules.some(mod => mod.name === 'payments')) { %>
+ <%- include('../table', {
+    tableName:"Transactions", 
+    tableDesc:"",
+    tableId:"paymentsData", 
+    buttons:[
+      ['add','hide'],
+      ['disable','hide'],
+      ['enable','hide'],
+      ['visible','hide'],
+      ['invisible','hide'],
+      ['admin','hide'],
+      ['edit','show'],
+      ['password','hide'],
+      ['remove','hide'],
+      ['pay', locals.activeModules.some(mod => mod.name === 'payments') ? 'show' : 'hide'],
+      ['balance','hide'],
+      ['moderate','hide'],
+      ['ban','hide']
+    ],
+    fields: paymentsFields,
+    datakey: 'payments',
+    objectName: 'transaction',
+    }); %> 
+  <%- include('../charts/combined', {
+      chartId: 'paymentsData',
+      datakey: 'payments',
+      doughnutField: 'paid',
+      action: 'count',
+      doughnutName: 'transaction',
+      monthField: 'createddate',
+      monthName: 'Transactions',
+    }); %>
+
+<% } %>

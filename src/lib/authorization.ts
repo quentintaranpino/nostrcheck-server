@@ -1,55 +1,56 @@
-import { dbMultiSelect, dbSelect, dbUpdate } from "../lib/database.js";
+import { Request } from "express";
 import jwt from "jsonwebtoken";
+import crypto from "crypto";
+import { Event } from "nostr-tools";
+
+import { dbMultiSelect, dbSelect, dbUpdate } from "./database/core.js";
 import { logger } from "./logger.js";
 import { authHeaderResult } from "../interfaces/authorization.js";
 import { hashString, validateHash } from "./hash.js";
-import { Request } from "express";
-import crypto from "crypto";
 import { sendMessage } from "./nostr/NIP04.js";
 import { isNIP98Valid } from "./nostr/NIP98.js";
-import { Event } from "nostr-tools";
 import { isBUD01AuthValid } from "./blossom/BUD01.js";
 import { NIPKinds } from "../interfaces/nostr.js";
 import { BUDKinds } from "../interfaces/blossom.js";
-import { isContentBanned } from "./banned.js";
-import { getClientIp } from "./utils.js";
-import app from "../app.js";
-import { getActiveStatusFromRedis, redisClient } from "./redis.js";
+import { isEntityBanned } from "./security/banned.js";
+import { getClientInfo } from "./security/ips.js";
 import { npubToHex } from "./nostr/NIP19.js";
+import { getConfig } from "./config/core.js";
+import { initRedis } from "./redis/client.js";
 
+const redisCore = await initRedis(0, false);
 
 /**
- * Parses the authorization header and checks if it is valid. (apikey, authkey, or NIP98 event)
+ * Parses the authorization header and checks if it is valid. (Authkey, NIP98 or BUD01)
+ * Always check if the header's pubkey is banned.
  * 
  * @param req - The request object.
  * @param endpoint - The endpoint of the request.
- * @param checkAdminPrivileges - A boolean indicating whether to check if the apikey has admin privileges. Optional.
+ * @param checkAdminPrivileges - A boolean indicating whether to check if the header's pubkey has admin privileges.
+ * @param checkRegistered - A boolean indicating whether to check if the header's pubkey is registered.
+ * @param checkActive - A boolean indicating whether to check if the header's pubkey is active.
  * @returns A promise that resolves to a VerifyResultMessage object.
  */
-const parseAuthHeader = async (req: Request, endpoint: string = "", checkAdminPrivileges = true): Promise<authHeaderResult> => {
-
-	// Apikey. Will be deprecated on 0.7.0
-	if (req.query.apikey || req.body?.apikey?.length > 0) {
-		logger.debug("Apikey found on request", req.query.apikey || req.body.apikey, "|", getClientIp(req))
-		return await isApikeyValid(req, endpoint, checkAdminPrivileges);
-	}
+const parseAuthHeader = async (req: Request, endpoint: string = "", checkAdminPrivileges : boolean, checkRegistered : boolean, checkActive : boolean): Promise<authHeaderResult> => {
 
 	// Authkey. Cookie bearer token
-	if (req.cookies && req.cookies.authkey) {
-        logger.debug("authkey found in cookie: ", req.cookies.authkey, "|", getClientIp(req));
+	if (req.cookies && req.cookies.authkey && checkRegistered) {
+		logger.debug(`parseAuthHeader - authkey found in cookie: ${req.cookies.authkey}`, "|", getClientInfo(req).ip);
         return await isAuthkeyValid(req.cookies.authkey, checkAdminPrivileges); 
     }
 
 	//Check if request has authorization header.
 	if (req.headers.authorization === undefined) {
-		if(endpoint != 'getMediaByURL' && endpoint != 'list' && endpoint != 'getMediaStatusbyID') logger.warn(`Authorization header not found- Enpoint: ${endpoint} | URL: ${req.url} | ${getClientIp(req)}`);
+		if(endpoint != 'getMediaByURL' && endpoint != 'list' && endpoint != 'getMediaStatusbyID' && endpoint != 'registerUsername'){
+			logger.warn(`parseAuthHeader - Authorization header not found, endpoint: ${endpoint}, URL: ${req.url}`, "|", getClientInfo(req).ip);
+		} 
 		return {status: "error", message: "Authorization header not found", pubkey:"", authkey:"", kind: 0};
 	}
 
 	// NIP98 or BUD01. Nostr / Blossom token
 	if (req.headers.authorization.startsWith('Nostr ')) {
 		let authevent: Event;
-		logger.debug("NIP98 / BUD01 found on request", req.headers.authorization, "|", getClientIp(req));
+		logger.debug(`parseAuthHeader - NIP98 / BUD01 found on request: ${req.headers.authorization}`, "|", getClientInfo(req).ip);
 		try {
 			authevent = JSON.parse(
 				Buffer.from(
@@ -60,22 +61,22 @@ const parseAuthHeader = async (req: Request, endpoint: string = "", checkAdminPr
 
 			// Check NIP98 / BUD01
 			if (authevent.kind == BUDKinds.BUD01_auth) {
-				return await isBUD01AuthValid(authevent, req, endpoint, checkAdminPrivileges);
+				return await isBUD01AuthValid(authevent, req, endpoint, checkAdminPrivileges, checkRegistered, checkActive);
 			}
 
 			if (authevent.kind == NIPKinds.NIP98){
-				return await isNIP98Valid(authevent, req, checkAdminPrivileges);
+				return await isNIP98Valid(authevent, req, checkAdminPrivileges, checkRegistered, checkActive);
 			}
 
 		} catch (error) {
-			logger.warn(`RES -> 400 Bad request - ${error}`, "|", getClientIp(req));
+			logger.warn(`parseAuthHeader - 400 Bad request - ${error}`, "|", getClientInfo(req).ip);
 			return {status: "error", message: "Malformed authorization header", pubkey:"", authkey : "", kind: 0};
 		}
 		
 	}
 	
 	// If none of the above, return error
-	logger.warn("RES -> 400 Bad request - Authorization header not found", "|", getClientIp(req));
+	logger.warn(`parseAuthHeader - Authorization header not found`, "|", getClientInfo(req).ip);
 	return {status: "error", message: "Authorization header not found", pubkey:"", authkey:"", kind: 0};
 
 };
@@ -89,22 +90,25 @@ const parseAuthHeader = async (req: Request, endpoint: string = "", checkAdminPr
  */
 const isPubkeyValid = async (pubkey: string, checkAdminPrivileges = false, checkRegistered = true, checkActive = true): Promise<boolean> => {
 
-	if (pubkey === undefined || pubkey === "") {return false;}
+	if (pubkey === undefined || pubkey === "") {
+		logger.debug(`isPubkeyValid - No pubkey provided`);
+		return false;
+	}
 
 	if (await isPubkeyRegistered(pubkey) == false) {
-		logger.debug("Pubkey not registered", pubkey);
+		logger.debug(`isPubkeyValid - Pubkey not registered: ${pubkey}`);
 		return checkRegistered? false : true
 	}
 	if (await isPubkeyBanned(pubkey) == true) {
-		logger.debug("Pubkey is banned", pubkey);
+		logger.debug(`isPubkeyValid - Pubkey is banned: ${pubkey}`);
 		return false;
 	}
 	if (checkActive && await isPubkeyActive(pubkey) == false) {
-		logger.debug("Pubkey is not active", pubkey);
+		logger.debug(`isPubkeyValid - Pubkey is not active: ${pubkey}`);
 		return false;
 	}
 	if (checkAdminPrivileges && await isPubkeyAllowed(pubkey) == false) {
-		logger.debug("Pubkey is not allowed", pubkey);
+		logger.debug(`isPubkeyValid - Pubkey is not allowed: ${pubkey}`);
 		return false;}
 
 	return true;
@@ -117,7 +121,6 @@ const isPubkeyValid = async (pubkey: string, checkAdminPrivileges = false, check
  * @returns {Promise<boolean>} A promise that resolves to a boolean indicating whether the public key is registered. Returns false if an error occurs.
  */
 const isPubkeyRegistered = async (pubkey: string): Promise<boolean> => {
-	
 	if (!pubkey) {return false}
 	const pubkeyData = await dbMultiSelect(["id"], "registered", "hex = ?", [pubkey], true);
 	if (pubkeyData.length == 0) {return false;}
@@ -130,7 +133,6 @@ const isPubkeyRegistered = async (pubkey: string): Promise<boolean> => {
  * @returns {Promise<boolean>} A promise that resolves to a boolean indicating whether the public key is active. Returns false if an error occurs.
  */
 const isPubkeyActive = async (pubkey: string): Promise<boolean> => {
-	
 	if (!pubkey) {return false}
 	const pubkeyData = await dbMultiSelect(["active"], "registered", "hex = ?", [pubkey], true);
 	if (pubkeyData.length == 0) {return false;}
@@ -144,7 +146,6 @@ const isPubkeyActive = async (pubkey: string): Promise<boolean> => {
  * @returns {Promise<boolean>} A promise that resolves to a boolean indicating whether the public key is allowed. Returns false if an error occurs.
  */
 const isPubkeyAllowed = async (pubkey: string): Promise<boolean> => {
-
 	if (!pubkey) {return false}
 	const pubkeyData = await dbMultiSelect(["allowed"], "registered", "hex = ?", [pubkey], true);
 	if (pubkeyData.length == 0) {return false;}
@@ -158,11 +159,10 @@ const isPubkeyAllowed = async (pubkey: string): Promise<boolean> => {
  * @returns {Promise<boolean>} A promise that resolves to a boolean indicating whether the public key is banned. Returns true if an error occurs.
  */
 const isPubkeyBanned = async (pubkey: string): Promise<boolean> => {
-
 	if (!pubkey) {return false}
 	const pubkeyData = await dbMultiSelect(["id"], "registered", "hex = ?", [pubkey], true);
 	if (pubkeyData.length == 0) {return false;}
-	if (await isContentBanned(pubkeyData[0].id, "registered")) {return true;}
+	if (await isEntityBanned(pubkeyData[0].id, "registered")) {return true;}
 	return false;
 }
 
@@ -198,26 +198,23 @@ const isUserPasswordValid = async (username:string, password:string, checkAdminP
  */
 const isAuthkeyValid = async (authString: string, checkAdminPrivileges: boolean = true, checkActive: boolean = true): Promise<authHeaderResult> => {
     if (!authString) {
-        logger.warn("Unauthorized request, no authorization header");
+		logger.warn(`isAuthkeyValid - Unauthorized request, no authorization header`);
         return { status: "error", message: "Unauthorized", authkey: "", pubkey: "", kind: 0 };
     }
 
     try {
-        const decoded = jwt.verify(authString, app.get("config.session")["secret"]) as { identifier: string, allowed: boolean, exp: number };
+		const decoded = jwt.verify(authString, getConfig(null, ["session", "secret"])) as { identifier: string, allowed: boolean, exp: number };
 		if ((decoded.exp - Math.floor(Date.now() / 1000)) < 900){
 			authString = generateAuthToken(decoded.identifier, decoded.allowed);
 		} 
 
-        if (checkActive) {
-            const isActive = await getActiveStatusFromRedis(decoded.identifier);
-            if (!isActive) {
-                logger.warn(`Unauthorized request, user not active. Authkey: ${authString}`);
-                return { status: "error", message: "User not active", authkey: "", pubkey: "", kind: 0 };
-            }
-        }
+		if (checkActive && await isPubkeyActive(decoded.identifier) == false) {
+			logger.warn(`isAuthkeyValid - Unauthorized request, user is not active. Authkey: ${authString}`);
+			return { status: "error", message: "Unauthorized", authkey: "", pubkey: "", kind: 0 };
+		}
 
         if (checkAdminPrivileges && !decoded.allowed) {
-            logger.warn(`Unauthorized request, insufficient privileges. Authkey: ${authString}`);
+			logger.warn(`isAuthkeyValid - Unauthorized request, insufficient privileges. Authkey: ${authString}`);
             return { status: "error", message: "Unauthorized", authkey: "", pubkey: "", kind: 0 };
         }
 
@@ -231,10 +228,10 @@ const isAuthkeyValid = async (authString: string, checkAdminPrivileges: boolean 
 
     } catch (error) {
 		if (error instanceof Error && error.name === 'TokenExpiredError') {
-            logger.warn("Unauthorized request, token expired");
+			logger.warn(`isAuthkeyValid - Unauthorized request, token expired. Authkey: ${authString}`);
             return { status: "error", message: "Token expired", authkey: "", pubkey: "", kind: 0 };
         } else {
-            logger.warn("Unauthorized request, invalid token");
+			logger.warn(`isAuthkeyValid - Unauthorized request, invalid token. Authkey: ${authString}`);
             return { status: "error", message: "Invalid token", authkey: "", pubkey: "", kind: 0 };
         }
     }
@@ -252,7 +249,7 @@ const isAuthkeyValid = async (authString: string, checkAdminPrivileges: boolean 
  * @returns {Promise<string>} The newly generated password, or an empty string if an error occurs or if the database update fails.
  * @throws {Error} If an error occurs during the password generation or the database update or sending the direct message.
  */
-const generatePassword = async (pubkey :string, returnHashed: boolean = false, sendDM : boolean = false, onlyGenerate : boolean = false, checkActive : boolean = true): Promise<string> => {
+const generatePassword = async (tenant: string, pubkey :string, returnHashed: boolean = false, sendDM : boolean = false, onlyGenerate : boolean = false, checkActive : boolean = true): Promise<string> => {
     try {
 
 		if (onlyGenerate) {
@@ -268,18 +265,18 @@ const generatePassword = async (pubkey :string, returnHashed: boolean = false, s
 
 		const credential = crypto.randomBytes(13).toString('hex');
 		const hashedCredential = await hashString(credential, 'password');
-		const update = await dbUpdate("registered", "password", hashedCredential, ["hex"], [pubkey]);
+		const update = await dbUpdate("registered", {"password" : hashedCredential}, ["hex"], [pubkey]);
 		if (update){
-			logger.debug("New credential generated and saved to database");
+			logger.debug(`generatePassword - New password generated and saved to database`);
 			if (pubkey != "" && sendDM){
-				const DM = await sendMessage(`Your new password: ${credential}`, pubkey);
+				const DM = await sendMessage(`Your new password: ${credential}`, pubkey, tenant);
 				if (!DM) return "";			}
 			if (returnHashed) return hashedCredential;
 			return credential;
 		}
 		return "";
     } catch (error) {
-        logger.error(error);
+		logger.error(`generatePassword - Internal server error: ${error}`);
         return "";
     }
 }
@@ -290,19 +287,17 @@ const generatePassword = async (pubkey :string, returnHashed: boolean = false, s
 * @param {string} pubkey - The public key to which to send the OTC code.
 * @returns {Promise<string>} The newly generated OTC code, or an empty string if an error occurs or if the database update fails.
 */
-const generateOTC = async (pubkey: string) : Promise<boolean> => {
+const generateOTC = async (tenant: string, pubkey: string) : Promise<boolean> => {
 
 	if (pubkey === undefined || pubkey === "") {return false;}
-
 	if (pubkey.startsWith("npub")) pubkey = await npubToHex(pubkey);
-
 	if (pubkey.length != 64) {return false;}
 
     const otc = Math.floor(100000 + Math.random() * 900000).toString()
 	const hashedOTC = await hashString(otc, 'otc');
 	
-	await redisClient.set(`otc:${hashedOTC}`, JSON.stringify({ pubkey }), { EX: 300 });
-	const DM = await sendMessage(`Your one-time code: ${otc}`, pubkey);
+	await redisCore.set(`otc:${hashedOTC}`, JSON.stringify({ pubkey }), { EX: 300 });
+	const DM = await sendMessage(`Your one-time code: ${otc}`, pubkey, tenant);
 	if(!DM) return false;
 
     return true;
@@ -317,68 +312,19 @@ const generateOTC = async (pubkey: string) : Promise<boolean> => {
 const verifyOTC = async (otc: string): Promise<string> => {
 
     const hashedOTC = await hashString(otc, 'otc');
-    const storedData = await redisClient.get(`otc:${hashedOTC}`);
+    const storedData = await redisCore.get(`otc:${hashedOTC}`);
     
     if (!storedData) return "";
 
 	const { pubkey } = JSON.parse(storedData);
-    await redisClient.del(`otc:${hashedOTC}`);
+    await redisCore.del(`otc:${hashedOTC}`);
     return pubkey;
 }
 
-/**
- * Checks if the request has a valid apikey.
- * 
- * @param req - The request object.
- * @param endpoint - The endpoint of the request.
- * @param checkAdminPrivileges - A boolean indicating whether to check if the apikey has admin privileges. Optional.
- * @returns A promise that resolves to a boolean indicating whether the apikey is valid. Returns false if the apikey is not found or if an error occurs.
- */
-const isApikeyValid = async (req: Request, endpoint: string = "", checkAdminPrivileges = true): Promise<authHeaderResult> => {
-
-	const apikey = req.query.apikey || req.body.apikey;
-	if (!apikey) {
-		logger.warn("RES -> 400 Bad request - Apikey not found", "|", getClientIp(req));
-		return {status: "error", message: "Apikey not found", pubkey:"", authkey:"", kind: 0};
-	}
-
-	// We only allow server apikey for uploadMedia endpoint
-	const serverApikey = await dbSelect("SELECT apikey FROM registered WHERE username = ?", "apikey", ["public"]);
-	const hexApikey = await dbSelect(
-		(endpoint != "upload" && endpoint != "getMediaStatusbyID")
-			? "SELECT hex FROM registered WHERE apikey = ? and apikey <> ?"
-			: "SELECT hex FROM registered WHERE apikey = ?",
-		"hex",
-		endpoint != "upload" ? [apikey, serverApikey] : [apikey.toString()]
-	) as string;
-
-	if (hexApikey === "" || hexApikey === undefined) {
-		if (serverApikey){
-			logger.warn("RES -> 401 unauthorized - Apikey not authorized for this action", "|", getClientIp(req));
-			return {status: "error", message: "Apikey not authorized for this action", pubkey:"", authkey:"", kind: 0};
-		}
-		logger.warn("RES -> 401 unauthorized - Apikey not found", "|", getClientIp(req));
-		return {status: "error", message: "Apikey not authorized for this action", pubkey:"", authkey:"", kind: 0};
-	}
-
-	if (await isPubkeyValid(hexApikey, checkAdminPrivileges) == false){
-		logger.warn("RES -> 401 unauthorized - Apikey not authorized for this action", "|", getClientIp(req));
-		return {status: "error", message: "Apikey not authorized for this action", pubkey:"", authkey:"", kind: 0};
-	}
-
-	const result: authHeaderResult = {
-		status: "success",
-		message: "Apikey is valid",
-		pubkey: hexApikey,
-		authkey: "",
-		kind: 0
-	};
-	return result;
-};
-
 const generateAuthToken = (identifier: string, allowed: boolean): string => {
-    const secretKey = app.get("config.session")["secret"];
-    const expiresIn = app.get("config.session")["maxAge"];
+    const secretKey = getConfig(null, ["session", "secret"]);
+    const expiresIn = getConfig(null, ["session", "maxAge"]) /1000;
+	
 
     return jwt.sign(
         { identifier, allowed }, 
@@ -391,10 +337,10 @@ export { 	isPubkeyValid,
 			isPubkeyRegistered, 
 			isPubkeyAllowed,
 			isUserPasswordValid, 
-			isApikeyValid, 
 			isAuthkeyValid, 
 			generatePassword,
 			generateOTC,
 			verifyOTC, 
 			parseAuthHeader,
-			generateAuthToken };
+			generateAuthToken 
+};

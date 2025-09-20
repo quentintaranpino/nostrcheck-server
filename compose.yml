@@ -2,9 +2,13 @@ services:
   app:
     networks:
     - localnet
+<<<<<<< HEAD
     image: nostrcheckme/nostrcheck-server:latest
     build:
       context: .
+=======
+    image: nostrcheckme/nostrcheck-server:testing
+>>>>>>> 0.7.0
     depends_on:
       - mariadb
       - redis
@@ -12,6 +16,7 @@ services:
       - ./files:/usr/src/app/files
       - ./resources:/usr/src/app/resources
       - ./config:/usr/src/app/config
+      - ./logs:/usr/src/app/logs
       - ./plugins:/usr/src/app/plugins
 
     restart: always
@@ -24,6 +29,7 @@ services:
       REDIS_PORT: "6379"
       REDIS_USER: "default"
       REDIS_PASSWORD: ""
+<<<<<<< HEAD
     labels:
       - "traefik.enable=true"
       - "traefik.http.services.app.loadbalancer.server.port=3000"
@@ -54,7 +60,11 @@ services:
       - "traefik.http.routers.app-lightning.middlewares=replacepath-lightning"
       - "traefik.http.middlewares.replacepath-lightning.replacepath.path=/api/v2/lightningaddress/"
       - "traefik.http.routers.app-lightning.service=app"
+=======
+>>>>>>> 0.7.0
     command: "npm run start"
+    ports:
+      - "3000:3000"
   mariadb:
     networks:
      - localnet
@@ -79,6 +89,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 5
+<<<<<<< HEAD
   traefik:
     networks:
       - localnet
@@ -95,5 +106,7 @@ services:
 volumes:
   media:
   resources:
+=======
+>>>>>>> 0.7.0
 networks:
   localnet:

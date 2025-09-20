@@ -23,15 +23,22 @@ coverage/*
 models/*
 env/*
 
-
 # Docker compose volumes
 compose.override.yml
 data/
 
 # Ignore logs
 logs/*
+debug.log
+
+# Ignore csv files
 *.csv
 
-# Python venv
-.venv/*
 
+# Ignore Python virtual environment
+.venv/
+
+# Ignore tenants folder
+src/pages/static/resources/tenants/*
+
+profiles/*

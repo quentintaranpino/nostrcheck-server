@@ -1,26 +1,35 @@
 import { Application } from "express";
 import express from "express";
-import { validateRegisterOTC, registerUsername } from "../controllers/register.js";
-import { limiter } from "../lib/session.js";
+
+import { limiter } from "../lib/security/core.js";
+import { getConfig, getModuleInfo } from "../lib/config/core.js";
+import { validateRegisterOTC, calculateRegisterCost, registerUsername } from "../controllers/register.js";
 
 export const loadRegisterEndpoint = async (app: Application, version: string): Promise<void> => {
 
     const limitMessage = { status: "error", message: "Rate limit exceeded. Try again later." };
 
-    if (version == "v1" || version == "v2") {
-        app.post("/api/" + version + app.get("config.server")["availableModules"]["register"]["path"],
-            express.json(), 
-            limiter(app.get('config.security')['register']['maxRegisterDay'], limitMessage, 24 * 60 * 60 * 1000),
-            registerUsername
-        );
-    }
+	const base = `/api/${version}${getModuleInfo("register", "")?.path}`;
 
-    if (version == "v1" || version == "v2") {
-        app.post("/api/" + version + app.get("config.server")["availableModules"]["register"]["path"] + "/validate",
-            express.json(), 
-            limiter(app.get('config.security')['register']['maxRegisterDay'], limitMessage, 24 * 60 * 60 * 1000),
-            validateRegisterOTC
-        );
-    }
+    // Register endpoint
+    app.post(`${base}`,
+        express.json(), 
+        limiter(getConfig(null, ["security", "register", "maxRegisterDay"]), limitMessage, 24 * 60 * 60 * 1000),
+        registerUsername
+    );
 
-};
+    // Validate OTC endpoint
+    app.post(`${base}/validate`,
+        express.json(), 
+        limiter(getConfig(null, ["security", "register", "maxRegisterDay"]), limitMessage, 24 * 60 * 60 * 1000),
+        validateRegisterOTC
+    );
+
+    // Calculate username satoshi cost endpoint
+    app.post(`${base}/calculateamount`,
+        limiter(),
+        express.json(),
+        calculateRegisterCost
+    );
+
+}

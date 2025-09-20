@@ -11,6 +11,9 @@ interface ResultMessagev2 {
 interface ServerStatusMessage extends ResultMessagev2 {
 	uptime: string;
 	version: string;
+	ramUsage: number;
+	cpuUsage: number;
+	moderationQueue? : number;
 }
 
 export { ResultMessage, ResultMessagev2, ServerStatusMessage };

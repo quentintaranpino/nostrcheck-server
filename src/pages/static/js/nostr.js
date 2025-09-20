@@ -25,6 +25,7 @@ const getRelaysFromUser = async (publicKey) => {
         relays.map(relay => relay.url),
         [{ kinds: [10002, 10050], authors: [publicKey] }],
         {
+          maxWait: 5000,
           async onevent(event) {
             event.tags.forEach(tag => {
               if (tag[0] === 'r' || tag[0] === 'relay') {
@@ -66,8 +67,6 @@ const getRelaysFromUser = async (publicKey) => {
                 for (const relay of userRelays) {
                     await getRelayData(relay);
                 }
-                console.log('User relays:', userRelays);
-            
                 resolve(userRelays);
             })();
           }
@@ -81,21 +80,36 @@ const getRelaysFromUser = async (publicKey) => {
 };
 
 const getRelayData = async (relay) => {
-    try {
-      const response = await fetch(relay.url.replace('wss://', 'https://').replace('ws://', 'http://'), {
-          headers: {
-              'Accept': 'application/nostr+json'
-          }
-      });
-      const data = await response.json();
-      relay.name = data.name;
-      relay.description = data.description;
-      relay.pubkey = data.pubkey;
-      relay.contact = data.contact;
-      relay.supported_nips = data.supported_nips;
-      relay.pubkey = data.pubkey;
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 1000); 
+
+  try {
+    const response = await fetch(relay.url.replace('wss://', 'https://').replace('ws://', 'http://'), {
+      headers: {
+        'Accept': 'application/nostr+json'
+      }, 
+      signal: controller.signal,
+
+    });
+
+    clearTimeout(timeout)
+
+    if (!response.ok) throw new Error('Failed to fetch relay data', relay.url);
+
+    const data = await response.json();
+    relay.name = data.name;
+    relay.description = data.description;
+    relay.pubkey = data.pubkey;
+    relay.contact = data.contact;
+    relay.supported_nips = data.supported_nips;
+    relay.pubkey = data.pubkey;
   } catch (error) {
-      console.debug('Error fetching relay data:', error);
+    if (error.name === "AbortError") {
+      console.debug(`Timeout: ${relay.url} took too long to respond.`);
+    } else {
+      console.debug(`Error fetching relay data: ${error.message}`);
+    }
   }
 }
 
@@ -104,27 +118,30 @@ const getRelayData = async (relay) => {
  * @param {string} relayUrl - The URL of the relay to check.
  * @returns {Promise<Object>} - A promise that resolves to an object with the online status and response time.
  */
-const isRelayOnline = async (relayUrl) => {
-  return new Promise(async (resolve) => {
-      const startTime = Date.now(); 
-      const timeout = setTimeout(() => {
-          resolve({ online: false, ping: null });
-      }, 5000);
+const isRelayOnline = async (url, timeoutMs = 3000) => {
+  return new Promise(resolve => {
+    let settled = false;
+    const ws = new WebSocket(url);
+    const start = Date.now();
 
-      const url = relayUrl.replace(/^wss?:\/\//, (match) => match === 'wss://' ? 'https://' : 'http://');
+    const finish = (online) => {
+      if (settled) return;
+      settled = true;
+      const ping = online ? Date.now() - start : null;
+      ws.close();
+      resolve({ online, ping });
+    };
 
-      try {
-          const response = await fetch(url, { method: 'GET', mode: 'no-cors' });
-          clearTimeout(timeout);
-          const responseTime = Date.now() - startTime;
-          if (response.ok || response.type === 'opaque') { 
-              resolve({ online: true, ping: responseTime });
-          } else {
-              resolve({ online: false, ping: null });
-          }
-      } catch (error) {
-          resolve({ online: false, ping: null });
-      }
+    const timer = setTimeout(() => finish(false), timeoutMs);
+
+    ws.onopen = () => {
+      clearTimeout(timer);
+      finish(true);
+    };
+    ws.onerror = () => {
+      clearTimeout(timer);
+      finish(false);
+    };
   });
 };
 
@@ -159,7 +176,7 @@ const publishProfileData = async (updatedFields, publicKey, secretKey) => {
     return;
   }
 
-  console.log("Default relays:", relays.map(relay => relay.url));
+  console.debug("Default relays:", relays.map(relay => relay.url));
 
   let result = await getRelaysFromUser(publicKey);
   if (!result || userRelays.length === 0) {
@@ -168,7 +185,7 @@ const publishProfileData = async (updatedFields, publicKey, secretKey) => {
     relays = result;
   }
 
-  console.log("Relays to use:", relays.map(relay => relay.url));
+  console.debug("Relays to use:", relays.map(relay => relay.url));
 
   return new Promise((resolve, reject) => {
     let combinedContent = {};
@@ -178,10 +195,11 @@ const publishProfileData = async (updatedFields, publicKey, secretKey) => {
         relays.map(relay => relay.url),
         [{ kinds: [0], authors: [publicKey] }],
         {
+          maxWait: 5000,
           async onevent(event) {
             try {
               const eventContent = JSON.parse(event.content);
-              console.log("Received event:", eventContent);
+              console.debug("Received event:", eventContent);
               combinedContent = { ...combinedContent, ...eventContent };
             } catch (error) {
               console.error("Error parsing event content:", error);
@@ -220,7 +238,7 @@ const publishProfileData = async (updatedFields, publicKey, secretKey) => {
               reject("Signed event is not valid.");
             }
 
-            console.log("Signed event generated:", signedEvent);
+            console.debug("Signed event generated:", signedEvent);
 
             try {
               await Promise.any(pool.publish(relays.map(relay => relay.url), signedEvent));
@@ -253,7 +271,7 @@ const publishProfileRelays = async (relays, publicKey, secretKey, type) => {
     return;
   }
 
-  console.log("enabledRelays:", enabledRelays);
+  console.debug("enabledRelays:", enabledRelays);
 
   // Check if every relay is online
   const onlineRelays = (await Promise.all(
@@ -263,7 +281,7 @@ const publishProfileRelays = async (relays, publicKey, secretKey, type) => {
     })
   )).filter(relay => relay.online);
 
-  console.log("onlineRelays:", onlineRelays);
+  console.debug("onlineRelays:", onlineRelays);
 
   const appRelayTags = onlineRelays.map(relay => {
     const tag = [type == 'app' ? "r" : "relay", relay.url];
@@ -277,7 +295,7 @@ const publishProfileRelays = async (relays, publicKey, secretKey, type) => {
     return tag;
   });
 
-  console.log("Relay tags to publish:", appRelayTags);
+  console.debug("Relay tags to publish:", appRelayTags);
 
   const appRelayEvent = {
     kind: type == 'app' ? 10002 : 10050,
@@ -304,7 +322,7 @@ const publishProfileRelays = async (relays, publicKey, secretKey, type) => {
       return;
     }
 
-    console.log("Signed event generated:", signedEvent);
+    console.debug("Signed event generated:", signedEvent);
 
     try {
       await Promise.any(pool.publish(enabledRelays.map(relay => relay.url), signedEvent));
@@ -357,6 +375,7 @@ const subscribeRelays = async (kind, pubkeys, type, since, until) => {
         userRelays.length > 0 ? userRelays.map(relay => relay.url) : relays.map(relay => relay.url),
         [filter],
         {
+          maxWait: 5000,
           async onevent(event) {
             notes.push(event);
           },

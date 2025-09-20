@@ -1,11 +1,11 @@
 function plugin() {
     return {
         order: 4,
-        enabled: false,
         name: 'pubkeyFollowers',
+        module: '',
         execute: async (input, globals) => {
             try {
-                const serverPubkey = globals.app.get("config.server")["pubkey"];
+                const serverPubkey = globals.config.server.pubkey;
                 let followersList = JSON.parse(await globals.redis.get(`pubkeyFollowers-${serverPubkey}`));
 
                 if (!followersList) {

@@ -1,0 +1,141 @@
+<html lang="en">
+<%- include('./partials/head'); %>
+<link rel="stylesheet" href="/static/css/particles.css">
+<body class="d-flex flex-column h-100">
+  <%- include('./partials/navbar', {active:'relay'}); %>
+  <div class="background-theme overflow-scroll h-100">
+    <div class="container px-4 px-lg-5 d-flex align-items-center justify-content-center">
+      <div class="d-flex justify-content-center" style="min-height: 100%;">
+        <div class="text-center z-1 mt-4">
+          <h1 class="text-white mx-auto my-0 display-4"><%= locals.serverHost %> relay</h1>
+          <h2 class="text-white-50 mx-auto mt-1 mb-4 display-6">Latest notes from our community</h2>
+
+          <div class="d-flex align-items-center justify-content-center">
+            <button id="relay-url-btn" class="btn btn-primary ms-2 ps-3 pe-3 pt-1 pb-1" type="button"
+              onclick="copyToClipboard(this,document.getElementById('relay-url-btn').getAttribute('data-value'))"
+              data-value="wss://relay.<%= locals.serverHost %>"
+              style="--bs-btn-padding-y:.1rem;--bs-btn-padding-x:.5rem;--bs-btn-font-size:1.2rem;">
+              wss://relay.<%= locals.serverHost %><i class="fa-solid fa-copy ms-2"></i>
+            </button>
+          </div>
+
+          <div class="container mt-4">
+            <div class="row g-4">
+              <% locals.lastRelayNotes.forEach(note => { %>
+                <div class="col-12 col-md-6 col-xl-4">
+                  <div class="card note-card shadow-lg h-100">
+                    <div class="card-header d-flex align-items-center justify-content-between">
+                      <div class="d-flex align-items-center gap-2 ">
+                        <span class="badge text-bg-secondary">kind <%= note.kind %></span>
+                        <code class="pubkey text-truncate pe-3" title="<%= note.pubkey %>">
+                          <%= note.pubkey.slice(0, 8) %>…<%= note.pubkey.slice(-8) %>
+                        </code>
+                      </div>
+                      <div class="d-flex gap-2">
+                        <button class="btn btn-primary btn-sm" type="button"
+                          onclick="copyToClipboard(this,'<%= note.pubkey %>')"
+                          title="Copy pubkey">
+                          <i class="fa-solid fa-copy"></i>
+                        </button>
+                        <a class="btn btn-primary btn-sm"
+                          href="https://njump.me/<%= note.event_id %>"
+                          target="_blank" rel="noopener noreferrer"
+                          title="Open event in explorer">
+                          <i class="fa-solid fa-up-right-from-square"></i>
+                        </a>
+                      </div>
+                    </div>
+                    <div class="card-body">
+                      <p class="card-text note-text">
+                        <%= note.content.toString().trim().substring(0, 180) %><%= note.content.toString().trim().length > 180 ? '…' : '' %>
+                      </p>
+                    </div>
+
+                    <div class="card-footer small text-muted d-flex justify-content-between align-items-center">
+                      <span>
+                        <i class="fa-regular fa-clock me-2"></i>Published 
+                        <time class="note-time" datetime="<%= new Date(note.created_at * 1000).toISOString() %>">
+                          <%= new Date(note.created_at * 1000).toLocaleString('en', { year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit', hour12:false }) %>
+                        </time>
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              <% }); %>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="particles-js"></div>
+  <%- include('./partials/footer', {active:'relay'}); %>
+  <%- include('./components/modals/message-modal', {"object":"firstUse"}); %>
+</body>
+
+<script>
+  (function toRelativeTimes(){
+    const els = document.querySelectorAll('.note-time');
+    const rtf = new Intl.RelativeTimeFormat('en', { numeric: 'auto' });
+    const units = [
+      ['year',   60*60*24*365],
+      ['month',  60*60*24*30],
+      ['week',   60*60*24*7],
+      ['day',    60*60*24],
+      ['hour',   60*60],
+      ['minute', 60],
+      ['second', 1]
+    ];
+    function rel(iso){
+      const now = Date.now();
+      let diff = Math.round((new Date(iso).getTime() - now)/1000);
+      for (const [unit, sec] of units){
+        if (Math.abs(diff) >= sec || unit === 'second'){
+          return rtf.format(Math.round(diff/sec), unit);
+        }
+      }
+    }
+    els.forEach(el=>{
+      const iso = el.getAttribute('datetime');
+      if (iso) el.textContent = rel(iso);
+    });
+  })();
+
+  if ("<%= locals.firstUse %>" != undefined && "<%= locals.firstUse %>" != null && "<%= locals.firstUse %>" != "") {
+    initMessageModal("#firstUse", "<%- locals.firstUse %>", "Welcome to your sovereignty");
+  }
+</script>
+
+<style>
+  .note-card {
+    border: 1px solid rgba(255,255,255,.08);
+    border-radius: 1rem;
+    overflow: hidden;
+    transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease;
+    backdrop-filter: blur(2px);
+  }
+  .note-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0,0,0,.25);
+    border-color: rgba(255,255,255,.18);
+  }
+
+  .note-text {
+    white-space: pre-line;
+    margin: 0;
+    line-height: 1.45;
+    min-height: 4.5rem;
+  }
+  .card-footer {
+    background: rgba(0,0,0,.03);
+  }
+  .card:hover {
+    transform: scale(1.02);
+    transition: transform 0.2s;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  }
+
+</style>
+</html>

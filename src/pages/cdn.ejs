@@ -1,6 +1,6 @@
 <link rel="stylesheet" href="/static/css/particles.css">
 <html lang="en">
-<%- include('./partials/head',{title: `${locals.serverHost} - CDN`}); %>
+<%- include('./partials/head'); %>
 <body class="d-flex flex-column h-100">
   <%- include('./partials/navbar', {active:'media'}); %>
   <div class="background-theme h-100">
@@ -18,12 +18,11 @@
   </div>
   <div id="particles-js"></div> 
   <%- include('./partials/footer', {active:'media'}); %>     
-  <%- include('./components/modals/message-modal', {"object":"fisrtUse"}); %>
+  <%- include('./components/modals/message-modal', {"object":"firstUse"}); %>
 </body>
 <script>
-  console.log("locals.firstUse:", "<%- locals.firstUse %>");
   if ("<%= locals.firstUse %>" != undefined && "<%= locals.firstUse %>" != null && "<%= locals.firstUse %>" != "") {
-    initMessageModal("#fisrtUse", "<%- locals.firstUse %>", "Welcome to your sovereignty");
+    initMessageModal("#firstUse", "<%- locals.firstUse %>", "Welcome to your sovereignty");
   }
 </script>
 </html>

@@ -1,0 +1,74 @@
+<%
+let ipsFields = [
+  ['active'           , '30' , 'formatCheckbox', 'enabled   show text-center              '],
+  ['checked'          , '30' , 'formatCheckbox', 'enabled   show text-center              '],
+  ['banned'           , ''   , 'formatCheckbox', 'disabled  hide                          '],
+  ['ip'               , '30' , ''              , 'disabled  show text-center              '],
+  ['firstseen'        ,'200' , ''              , 'disabled  show text-center              '],
+  ['lastseen'         ,'200' , ''              , 'disabled  show text-center              '],
+  ['reqcount'         ,''    , ''              , 'disabled  show text-center              '],
+  ['infractions'      ,''    , ''              , 'enabled   show text-center              '],
+  ['comments'         ,''    , ''              , 'enabled   show mobile-hide              '],
+];
+%>
+<% if(locals.activeModules.some(mod => mod.name === 'security')) { %>
+  <%- include('../table', {
+    tableName:"Ips", 
+    tableDesc:"",
+    tableId:"ipsData", 
+    buttons:[
+      ['add','hide'],
+      ['disable','show'],
+      ['enable','show'],
+      ['visible','hide'],
+      ['invisible','hide'],
+      ['admin','hide'],
+      ['edit','show'],
+      ['password','hide'],
+      ['remove','show'],
+      ['pay', 'hide'],
+      ['balance','hide'],
+      ['moderate','hide'],
+      ['ban','show']
+    ],
+    fields: ipsFields,
+    datakey: 'ips',
+    objectName: 'ip address',
+    }); %> 
+  
+<%
+  let bannedFields = [
+  ['active'           , '30' , 'formatCheckbox'  , 'enabled   show text-center               '],
+  ['originid'         , '40' , ''                , 'disabled   show text-center              '],
+  ['origintable'      , '40' , ''                , 'disabled   show text-center              '],
+  ['originkey'        , ''   , 'formatBannedFile', 'disabled  show text-center               '],
+  ['createddate'      , '200', 'formatTimestamp' , 'disabled  show text-center               '],
+  ['reason'           , ''   , ''                , 'enabled   show mobile-hide               '],
+  ];
+%>
+
+<%- include('../table', {
+  tableName:"Banned objects", 
+  tableDesc:"",
+  tableId:"bannedData", 
+  buttons:[
+    ['add','hide'],
+    ['disable','show'],
+    ['enable','show'],
+    ['visible','hide'],
+    ['invisible','hide'],
+    ['admin','hide'],
+    ['edit','show'],
+    ['password','hide'],
+    ['remove','show'],
+    ['pay', 'hide'],
+    ['balance','hide'],
+    ['moderate','hide'],
+    ['ban','hide']
+  ],
+  fields: bannedFields,
+  datakey: 'banned',
+  objectName: 'banned object',
+  }); %> 
+
+<% } %>
