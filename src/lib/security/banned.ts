@@ -300,7 +300,8 @@ const loadBannedEntities = async (): Promise<void> => {
         }
     }
 
-    await redisCore.set("banned:cache", JSON.stringify("1"), { EX: getConfig(null, ["redis", "expireTime"]) });
+    await redisCore.set('banned:cache', '1', { EX: Number(getConfig(null, ['redis','expireTime'])) || 300 } );
+
 };
 
 
