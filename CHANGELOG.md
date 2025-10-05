@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.7.1
+
+- Updated dependencies.
+- New experimental updates engine for notifying users of new versions.
+- Fixed error when uploading STL files.
+
 ## 0.7.0
 
 - The Nostr relay.
