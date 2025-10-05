@@ -16,6 +16,13 @@ code{
     color: #84888b;
 }
 
+.fs-7 {
+  font-size: clamp(0.75rem, 1.2cqw, 0.825rem);
+}
+
+.fa-2x {
+    font-size: 1.8em;
+}
 
 html[data-bs-theme="light"] {
   .btn-primary {
