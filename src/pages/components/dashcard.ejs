@@ -1,5 +1,5 @@
 <div id="<%- dashcardId %>" class="col-xxl-2 col-lg-3 col-md-4 col-sm-6 dashcard d-none">
-    <div id="<%- dashcardId %>-card" class="card mb-3 shadow-sm default-bg" style="min-height: 220px">
+    <div id="<%- dashcardId %>-card" class="card mb-3 shadow-sm default-bg">
       <div id="<%- dashcardId %>-module-indicator" class="module-indicator"></div>
       <div class="card-body text-center">
         <% if (link) { %>
@@ -17,8 +17,8 @@
                                                         doughnutField: field, 
                                                         doughnutName: "", 
                                                         timeout: typeof timeout !== 'undefined' ? timeout : 60000,
-                                                        width:"40", 
-                                                        height:"40", 
+                                                        width:"30", 
+                                                        height:"30", 
                                                         showTitle:false, 
                                                         showLegend:false, 
                                                         showTooltip:false,
@@ -27,12 +27,12 @@
             <% } %>
           </div>
         </div>
-        <h1 id="<%- dashcardId %>-text-field" class="display-3 mt-3 m-0 font-weight-bold dash-text">0</h1>     
+        <h1 id="<%- dashcardId %>-text-field" class="display-3 mt-2 m-0 font-weight-bold dash-text">0</h1>     
         <% if(showField){ %><h1 id="<%- dashcardId %>-text-total" class="lead fs-6 font-weight-bold dash-text">0</h1> <% } %>    
         <% if (link) { %>
           </a>
         <% } %>
-        <div id="<%- dashcardId %>-tooltip-text" class="chart-tooltip-content text-start fs-6 fw-light">0</div>
+        <div id="<%- dashcardId %>-tooltip-text" class="chart-tooltip-content text-start fs-7 fw-light">0</div>
       </div>
       <button id="<%- dashcardId %>-reload-button" class="btn btn-dashcard btn-dash-reload">
         <i class="fas fa-sync-alt"></i>
@@ -48,70 +48,87 @@
     </div>
   </div>
 <style>
+
 .card {
     position: relative;
     transition: transform 0.3s;
     color: var(--bs-secondary-color);
+    min-height: 180px;
+}
+
+.card .card-body {
+  container-type: inline-size;
 }
 
 .card:hover { 
-    transform: scale(1.03);
+  transform: scale(1.03);
+}
+
+.card-title {
+    font-size: clamp(1.2rem, 1.7cqw, 1.50rem);
+    font-weight: 600;
+}
+
+.dash-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: clamp(20px, 19cqw, 64px);
 }
 
 .btn-dashcard:hover {
-        background-color: rgba(0, 0, 0, 0.2); 
-    }
+  background-color: rgba(0, 0, 0, 0.2); 
+}
 
 .btn-dashcard {
-    position: absolute;
-    background-color: rgba(0, 0, 0, 0.1);
-    border: none;
-    border-radius: 50%;
-    padding: 10px;
-    cursor: pointer;
-    transition: background-color 0.3s;
+  position: absolute;
+  background-color: rgba(0, 0, 0, 0.1);
+  border: none;
+  border-radius: 50%;
+  padding: 10px;
+  cursor: pointer;
+  transition: background-color 0.3s;
 }
 
 .btn-dash-reload {
-    bottom: 10px;
-    right: 10px;
+  bottom: 10px;
+  right: 10px;
 }
 
 .btn-dash-edit-container {
-    position: absolute;
-    top: 60%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    display: flex;
-    gap: 30px;  /* Espacio entre los botones */
+  position: absolute;
+  top: 60%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  gap: 30px; 
 }
 
 .btn-dash-edit-container .btn-dashcard {
-    position: static; 
+  position: static; 
 }
 
 .btn-dash-edit {
-    transform: scale(1.5);
+  transform: scale(1.5);
 }
 
 .chart-tooltip-content {
-    position: absolute;
-    bottom: 11px;
-    opacity: 0;
-    transition: opacity 0.5s !important;
+  position: absolute;
+  bottom: 11px;
+  opacity: 0;
+  transition: opacity 0.5s !important;
 }
 
 .chart-tooltip-content.visible {
-    visibility: visible;
-    opacity: 1;
-    transition: opacity 0.5s !important;
+  visibility: visible;
+  opacity: 1;
+  transition: opacity 0.5s !important;
 }
 
 .module-indicator {
   position: absolute;
   top: 0;
   left: 0;
-  width: 4px;
+  width: 5px;
   height: 100%;
   border-radius: 8px 0 0 8px;
 }
@@ -159,6 +176,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       iconElement.addClass('fas fa-solid fa-microchip');
     } else if (icon == "memory") {
       iconElement.addClass('fas fa-solid fa-database');
+    } else if (icon == "rocket") {
+      iconElement.addClass('fas fa-solid fa-rocket');
     } else {
       iconElement.addClass('fas fa-chart-simple');
     }
@@ -174,7 +193,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       moduleIndicator.style.backgroundColor = "#ff7a7a7d";
     } else if (dashcardDataKey == "payments" || dashcardDataKey == "lightning"){
       moduleIndicator.style.backgroundColor = "#ffc7677d";
-    } 
+    } else{
+      moduleIndicator.style.backgroundColor = "#c154fd59";
+    }
 
     const fetchDashcardData = async (dashcardDataKey, action, field) => {
       try {
