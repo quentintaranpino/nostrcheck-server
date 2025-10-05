@@ -171,7 +171,7 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 	};
 
 	// File mime type. If not allowed reject the upload.
-	filedata.originalmime = await getFileMimeType(req, file);
+	filedata.originalmime = await getFileMimeType(file);
 	if (filedata.originalmime == "") {
 		logger.warn(`uploadMedia - 400 Bad request - file type not detected or not allowed: ${file.mimetype}`, "|", reqInfo.ip);
 		if(version != "v2"){return res.status(400).send({"result": false, "description" : "file type not detected or not allowed"});}

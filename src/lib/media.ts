@@ -206,7 +206,20 @@ const getUploadType = (req : Request): string  => {
 
 }
 
-const getFileMimeType = async (req: Request, file :Express.Multer.File): Promise<string> => {
+const isBinarySTL = (buf: Buffer): boolean => {
+  if (!buf || buf.length < 84) return false;
+  const triCount = buf.readUInt32LE(80);
+  const expected = 84 + (triCount * 50);
+  return expected === buf.length || (buf.length > 84 && (buf.length - 84) % 50 === 0);
+}
+
+const isAsciiSTL = (buf: Buffer): boolean => {
+  if (!buf || buf.length < 15) return false;
+  const head = buf.subarray(0, Math.min(buf.length, 2048)).toString('utf8');
+  return head.startsWith('solid') && head.includes('facet normal');
+}
+
+const getFileMimeType = async (file : Express.Multer.File): Promise<string> => {
 
 	const fileType: {mime: string, ext: string} = await fileTypeFromBuffer(file.buffer) || {mime: "", ext: ""};
 
@@ -229,8 +242,13 @@ const getFileMimeType = async (req: Request, file :Express.Multer.File): Promise
 		fileType.ext = 'hbs';
 	}
 
+	// For stl files. file-type library does not detect them.
+	if (isBinarySTL(file.buffer) || isAsciiSTL(file.buffer)) {
+		fileType.mime = 'model/stl';
+		fileType.ext = 'stl';
+	}
+
 	if(!(await getAllowedMimeTypes()).includes(fileType.mime)){
-		logger.info(`getFileMimeType - Filetype not allowed: ${file.mimetype} | ${getClientInfo(req).ip}`);
 		return "";
 	}
 	
