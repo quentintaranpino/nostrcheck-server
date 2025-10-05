@@ -12,54 +12,55 @@
       <p class="text-center mt-2 display-6" id="welcome-text"></p>
       <div class= "container-fluid mt-5">
         <%- include('./components/dashcards'); %>
-        <ul class="nav nav-tabs mt-3 lead " id="dashboardTabs" role="tablist">
-          <% if(locals.activeModules.some(mod => mod.name === 'nostraddress')) { %>
-            <li class="nav-item" role="presentation">
-              <button class="nav-link active" id="users-tab" data-bs-toggle="tab" data-bs-target="#users" type="button" role="tab"><i class="fa fa-user-group me-2"></i>Registered users</button>
-            </li>
-          <% } %>
-          <% if(locals.activeModules.some(mod => mod.name === 'nostraddress')) { %>
-            <li class="nav-item" role="presentation">
-              <button class="nav-link" id="invites-tab" data-bs-toggle="tab" data-bs-target="#invites" type="button" role="tab"><i class="fa fa-handshake me-2"></i>Invites</button>
-            </li>
-          <% } %>
-          <% if(locals.activeModules.some(mod => mod.name === 'media')) { %>
-            <li class="nav-item" role="presentation">
-              <button class="nav-link" id="files-tab" data-bs-toggle="tab" data-bs-target="#files" type="button" role="tab"><i class="fa fa-server me-2"></i>Hosted files</button>
-            </li>
-          <% } %>
-          <% if(locals.activeModules.some(mod => mod.name === 'lightning')) { %>
-            <li class="nav-item" role="presentation">
-              <button class="nav-link" id="lightning-tab" data-bs-toggle="tab" data-bs-target="#lightning" type="button" role="tab"><i class="fa fa-diamond-turn-right me-2"></i></i>Lightning redirects</button>
-            </li>
-          <% } %>
-          <% if(locals.activeModules.some(mod => mod.name === 'domains')) { %>
-            <li class="nav-item" role="presentation">
-              <button class="nav-link" id="domains-tab" data-bs-toggle="tab" data-bs-target="#domains" type="button" role="tab"><i class="fa fa-earth-americas me-2"></i>Domains</button>
-            </li>
-          <% } %>
-          <% if(locals.activeModules.some(mod => mod.name === 'payments')) { %>
-            <li class="nav-item" role="presentation">
-              <button class="nav-link" id="payments-tab" data-bs-toggle="tab" data-bs-target="#payments" type="button" role="tab"><i class="fa fa-bolt-lightning text-warning  me-2"></i>Payments</button>
-            </li>
-          <% } %>
-          <% if(locals.activeModules.some(mod => mod.name === 'security')) { %>
-            <li class="nav-item" role="presentation">
-              <button class="nav-link" id="security-tab" data-bs-toggle="tab" data-bs-target="#security" type="button" role="tab"><i class="fa fa-shield-halved me-2"></i>Security</button>
-            </li>
-          <% } %>
-          <% if(locals.activeModules.some(mod => mod.name === 'relay')) { %>
-            <li class="nav-item" role="presentation">
-              <button class="nav-link" id="relay-tab" data-bs-toggle="tab" data-bs-target="#relay" type="button" role="tab"><i class="fa fa-wifi  me-2"></i> Relay</button>
-            </li>
-          <% } %>
-          <% if(locals.activeModules.some(mod => mod.name === 'logger')) { %>
-            <li class="nav-item" role="presentation">
-              <button class="nav-link" id="logger-tab" data-bs-toggle="tab" data-bs-target="#logger" type="button" role="tab"><i class="fa fa-file-lines me-2"></i>Logs</button>
-            </li>
-          <% } %>
-        </ul>
+        <%- include('./components/update'); %>
       </div>
+      <ul class="nav nav-tabs mt-3 lead " id="dashboardTabs" role="tablist">
+        <% if(locals.activeModules.some(mod => mod.name === 'nostraddress')) { %>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="users-tab" data-bs-toggle="tab" data-bs-target="#users" type="button" role="tab"><i class="fa fa-user-group me-2"></i>Registered users</button>
+          </li>
+        <% } %>
+        <% if(locals.activeModules.some(mod => mod.name === 'nostraddress')) { %>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" id="invites-tab" data-bs-toggle="tab" data-bs-target="#invites" type="button" role="tab"><i class="fa fa-handshake me-2"></i>Invites</button>
+          </li>
+        <% } %>
+        <% if(locals.activeModules.some(mod => mod.name === 'media')) { %>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" id="files-tab" data-bs-toggle="tab" data-bs-target="#files" type="button" role="tab"><i class="fa fa-server me-2"></i>Hosted files</button>
+          </li>
+        <% } %>
+        <% if(locals.activeModules.some(mod => mod.name === 'lightning')) { %>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" id="lightning-tab" data-bs-toggle="tab" data-bs-target="#lightning" type="button" role="tab"><i class="fa fa-diamond-turn-right me-2"></i></i>Lightning redirects</button>
+          </li>
+        <% } %>
+        <% if(locals.activeModules.some(mod => mod.name === 'domains')) { %>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" id="domains-tab" data-bs-toggle="tab" data-bs-target="#domains" type="button" role="tab"><i class="fa fa-earth-americas me-2"></i>Domains</button>
+          </li>
+        <% } %>
+        <% if(locals.activeModules.some(mod => mod.name === 'payments')) { %>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" id="payments-tab" data-bs-toggle="tab" data-bs-target="#payments" type="button" role="tab"><i class="fa fa-bolt-lightning text-warning  me-2"></i>Payments</button>
+          </li>
+        <% } %>
+        <% if(locals.activeModules.some(mod => mod.name === 'security')) { %>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" id="security-tab" data-bs-toggle="tab" data-bs-target="#security" type="button" role="tab"><i class="fa fa-shield-halved me-2"></i>Security</button>
+          </li>
+        <% } %>
+        <% if(locals.activeModules.some(mod => mod.name === 'relay')) { %>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" id="relay-tab" data-bs-toggle="tab" data-bs-target="#relay" type="button" role="tab"><i class="fa fa-wifi  me-2"></i> Relay</button>
+          </li>
+        <% } %>
+        <% if(locals.activeModules.some(mod => mod.name === 'logger')) { %>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" id="logger-tab" data-bs-toggle="tab" data-bs-target="#logger" type="button" role="tab"><i class="fa fa-file-lines me-2"></i>Logs</button>
+          </li>
+        <% } %>
+      </ul>
       <div class="tab-content w-100 p-3 overflow-auto mb-5" id="dashboardTabsContent">
         <div class="tab-pane fade show active" id="users" role="tabpanel" aria-labelledby="users-tab">
           <%- include('./components/tables/users'); %>
@@ -93,11 +94,11 @@
      </main>
     <%- include('./partials/footer', {active:'dashboard'}); %>    
     <%- include('./components/modals/media-modal'); %>
-  </body>
 <script>
-    // Welcome text
+  // Welcome text
   if (localStorage.getItem('profileData')){
-  document.getElementById('welcome-text').innerHTML = `Welcome ${JSON.parse(localStorage.getItem('profileData')).display_name}, this is the status of your server today`;
+    document.getElementById('welcome-text').innerHTML = `Welcome ${JSON.parse(localStorage.getItem('profileData')).display_name}, this is the status of your server today`;
   }
 </script>
+</body>
 </html>

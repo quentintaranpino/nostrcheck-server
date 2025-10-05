@@ -1,0 +1,76 @@
+<div id="update-banner"
+     class="alert alert-success d-none align-items-center gap-2"
+     role="status" aria-live="polite"
+     data-endpoint="/api/v2/admin/updates">
+  <i class="fas fa-rocket"></i>
+  <span>
+    <strong>New update available:</strong>
+    <span id="update-version" class="ms-1 me-1"></span>
+  </span>
+
+  <a id="update-notes" class="btn btn-sm btn-success ms-auto" href="" target="_blank">Release notes</a>
+  <button id="update-dismiss" class="btn btn-sm btn-outline-secondary ms-2" type="button" aria-label="Dismiss">
+    Dismiss
+  </button>
+</div>
+
+<script>
+(function () {
+    const banner = document.getElementById('update-banner');
+    if (!banner) return;
+
+    async function fetchStatus() {
+        const url = banner.dataset.endpoint;
+        const res = await fetch(url, { headers: { 'Accept': 'application/json' }});
+        if (!res.ok) throw new Error('status fetch failed');
+        return res.json();
+    }
+
+    function storageKey(v) { return `update-dismissed:${v}`; }
+
+    function showRocket(latest, url){
+        const rocket = document.getElementById('nav-update-rocket');
+        if(!rocket) return;
+        rocket.classList.remove('d-none');
+        rocket.classList.add('pulse');
+        rocket.href = url || '/admin/updates';
+        rocket.setAttribute('title', latest ? `New update available: ${latest}` : 'New update available');
+    }
+
+    function show(status) {
+        const latest = status.latestVersion || status.latest || status.version;
+        const current = status.currentVersion || status.current;
+        const releaseUrl = status.releaseUrl || status.releaseNotes || '#';
+        const updateAvailable = !!status.updateAvailable || (latest && current && latest !== current);
+
+        if (!updateAvailable) return;
+        showRocket(latest, releaseUrl);
+
+        if (latest && localStorage.getItem(storageKey(latest)) === '1') return;
+
+        document.getElementById('update-version').textContent = latest || 'unknown';
+        document.getElementById('update-notes').href = releaseUrl;
+        banner.classList.remove('d-none');
+
+        window.dispatchEvent(new CustomEvent('update:available', { detail: { latest, current, releaseUrl }}));
+    }
+
+    async function init() {
+        try {
+            const status = await fetchStatus();
+            show(status);
+        } catch (e) {
+            console.debug('update banner: no status', e);
+        }
+    }
+
+    document.getElementById('update-dismiss')?.addEventListener('click', () => {
+        const ver = document.getElementById('update-version')?.textContent?.trim();
+        if (ver) localStorage.setItem(storageKey(ver), '1');
+        banner.classList.add('d-none');
+    });
+
+    init();
+
+})();
+</script>

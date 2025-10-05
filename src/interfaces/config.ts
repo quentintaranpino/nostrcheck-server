@@ -37,6 +37,7 @@ const defaultConfig = {
 		"tosFilePath" : "resources/tos.md",
 		"privacyFilePath" : "resources/privacy.md",
 		"legalFilePath" : "resources/legal.md",
+		"updateSource": "https://raw.githubusercontent.com/quentintaranpino/nostrcheck-server/main/package.json",
 		"legal" : {
 			"entityType": "individual",
 			"email": "",

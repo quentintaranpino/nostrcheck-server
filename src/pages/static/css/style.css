@@ -129,6 +129,19 @@ html[data-bs-theme="dark"] {
   border-width: 2px;
 }
 
+.color-pulse {
+  animation: color-pulse 5s ease-in-out infinite;
+  will-change: color; 
+}
+
+@keyframes color-pulse {
+  0%   { opacity: 1;   color: #7c3aed; } 
+  25%  { opacity: 0.8; color: #22c55e; } 
+  50%  { opacity: 0.6; color: #ec4899; } 
+  75%  { opacity: 0.8; color: #22c55e; } 
+  100% { opacity: 1;   color: #7c3aed; } 
+}
+
 /* Hr with text */
 .hr-text {
   display: flex;
@@ -177,7 +190,6 @@ html[data-bs-theme="dark"] {
     text-align: center;
   }
 }
-
 
 .nav-tabs {
   flex-wrap: nowrap;  

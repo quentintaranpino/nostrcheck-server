@@ -16,4 +16,11 @@ interface ServerStatusMessage extends ResultMessagev2 {
 	moderationQueue? : number;
 }
 
-export { ResultMessage, ResultMessagev2, ServerStatusMessage };
+interface ServerUpdateMessage extends ResultMessagev2 {
+	currentVersion: string;
+	latestVersion: string;
+	updateAvailable: boolean;
+	releaseUrl: string;
+}
+
+export { ResultMessage, ResultMessagev2, ServerStatusMessage, ServerUpdateMessage };

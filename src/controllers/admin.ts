@@ -6,7 +6,7 @@ import sharp from "sharp";
 
 import { getLogHistory, logger } from "../lib/logger.js";
 import { format, getCPUUsage, getNewDate } from "../lib/utils.js";
-import { ResultMessagev2, ServerStatusMessage } from "../interfaces/server.js";
+import { ResultMessagev2, ServerStatusMessage, ServerUpdateMessage } from "../interfaces/server.js";
 import { generatePassword } from "../lib/authorization.js";
 import { dbDelete, dbInsert, dbMultiSelect, dbUpdate } from "../lib/database/core.js";
 import { allowedFieldNames, allowedFieldNamesAndValues, allowedTableNames, moduleDataReturnMessage, moduleDataKeys, moduleDataIndex } from "../interfaces/admin.js";
@@ -23,12 +23,13 @@ import { deleteFile } from "../lib/storage/core.js";
 import { isIpAllowed } from "../lib/security/ips.js";
 import { eventStore, ExtendedWebSocket } from "../interfaces/relay.js";
 import { getEventById } from "../lib/relay/utils.js";
-import { isModuleEnabled, setConfig } from "../lib/config/core.js";
+import { getConfig, isModuleEnabled, setConfig } from "../lib/config/core.js";
 import { acceptedSettigsFiles, settingsFileConfig } from "../interfaces/appearance.js";
 import { listPlugins } from "../lib/plugins/core.js";
 import { initRedis } from "../lib/redis/client.js";
 import { wss } from "../routes/relay.route.js";
 import { IpInfo } from "../interfaces/security.js";
+import { getLatestVersion } from "../lib/updater.js";
 
 const redisCore = await initRedis(0, false);
 
@@ -76,6 +77,47 @@ const serverStatus = async (req: Request, res: Response): Promise<Response> => {
 	return res.status(200).send(result);
 };
 
+/**
+ * Retrieves the server update status.
+ *  
+ * @param req - The request object.
+ * @param res - The response object.
+ * @returns A promise that resolves to the server update status response.
+ **/
+const serverUpdates = async (req: Request, res: Response): Promise<Response> => {
+
+    // Check if the request IP is allowed
+    const reqInfo = await isIpAllowed(req);
+    if (reqInfo.banned == true) {
+        logger.warn(`serverUpdates - Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
+        return res.status(403).send({"status": "error", "message": reqInfo.comments});
+    }
+
+    // Check if current module is enabled
+    if (!isModuleEnabled("admin", "")) {
+        logger.warn("serverUpdates - Attempt to access a non-active module:","admin","|","IP:", reqInfo.ip);
+        return res.status(403).send({"status": "error", "message": "Module is not enabled"});
+    }
+
+    // Check if authorization header is valid
+	const eventHeader = await parseAuthHeader(req,"serverUpdates", true, true, true);
+	if (eventHeader.status !== "success") {return res.status(401).send({"status": eventHeader.status, "message" : eventHeader.message});}
+    setAuthCookie(res, eventHeader.authkey);
+
+	const result: ServerUpdateMessage = {
+        status: "success",
+        message: "Nostrcheck-server update status.",
+        currentVersion: process.env.npm_package_version || "0.0.0",
+        latestVersion: await getLatestVersion(),
+        updateAvailable: await getLatestVersion() !== process.env.npm_package_version ? true : false,
+        releaseUrl: (getConfig(null, ["server", "updateSource"]) || "")
+            .replace("raw.githubusercontent.com", "github.com")
+            .replace(/\/(main|master)\/package.*$/, "")
+    };
+
+	return res.status(200).send(result);
+    
+};
 
 /**
  * Stops the server.
@@ -1062,6 +1104,7 @@ const banDBRecord = async (req: Request, res: Response): Promise<Response> => {
 }
 
 export {    serverStatus, 
+            serverUpdates,
             StopServer, 
             resetUserPassword, 
             updateDBRecord, 

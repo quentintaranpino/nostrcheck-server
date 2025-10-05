@@ -29,7 +29,7 @@
     background-color: #a575ffb0;
     border-radius: 5px;
   }
-  
+
   @media (max-width: 994.98px) {
     #profile-dropdown {
       position: absolute;
@@ -45,7 +45,8 @@
     }
   
   }
-  </style>
+
+</style>
 <nav class="navbar sticky-top navbar-expand-lg ps-3 pe-3 shadow-lg">
   <a class="navbar-brand" href="/">
     <img id="server-logo" src="/static/resources/appearance-server-logo-light.png" 
@@ -58,6 +59,11 @@
   </button>
   <div id="profile-dropdown">
     <ul class="navbar-nav ms-auto align-items-center">
+      <li class="nav-item">
+        <a id="nav-update-rocket" class="nav-link d-none position-relative" href="" target="_blank" title="New update available">
+          <i class="fas fa-rocket color-pulse rotate-up"></i><span class="visually-hidden">New update available</span>
+        </a>
+      </li>
       <li>
         <span class='dropdown-item'><%- include('../components/theme-toggle'); %></span>
       </li>

@@ -20,6 +20,7 @@ import {
     moderateDBRecord,
     banDBRecord,
     updateSettingsFile,
+    serverUpdates,
 } from "../controllers/admin.js";
 
 const adminCORS = {
@@ -38,6 +39,9 @@ export const loadAdminEndpoint = async (app: Application, version: string): Prom
 
     // Get server status
     app.get(`${base}/status`, limiter(), cors(adminCORS), serverStatus);
+
+    // Get server updates
+    app.get(`${base}/updates`, limiter(), cors(adminCORS), serverUpdates);
 
     // Reset user password
     app.post(`${base}/resetpassword`, limiter(), cors(adminCORS), express.json(), resetUserPassword);
