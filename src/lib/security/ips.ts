@@ -331,7 +331,7 @@ setInterval(async () => {
 
     try {
 
-        const expiredIPs = await dbMultiSelect(["id", "ip"], "ips", "lastseen < ? AND infractions = 0 AND checked = 0", [Date.now() - 3600000], true); 
+        const expiredIPs = await dbMultiSelect(["id", "ip"], "ips", "lastseen < ? AND infractions = 0 AND checked = 0", [Date.now() - 3600000], false);
         if (expiredIPs && expiredIPs.length > 0) {
             const idsToDelete = expiredIPs.map(ip => ip.id);
             const ipsToDelete = expiredIPs.map(ip => ip.ip);
@@ -348,7 +348,7 @@ setInterval(async () => {
     } catch (error) {
         logger.error(`ipsLib - Interval - Error processing IPs: ${error}`);
     }
-}, 3600000); // 1hour
+}, 3600000); // 1 hour
 
 /**
  * Adds or updates an entry in the batch for the given IP.

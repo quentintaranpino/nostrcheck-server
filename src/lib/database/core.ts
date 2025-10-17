@@ -1,4 +1,4 @@
-import { ConnectionOptions, createPool, Pool, RowDataPacket } from "mysql2/promise";
+import { ConnectionOptions, createPool, Pool, ResultSetHeader, RowDataPacket } from "mysql2/promise";
 import { logger } from "../logger.js";
 import { getConfig } from "../config/core.js";
 
@@ -252,31 +252,45 @@ const dbSimpleSelect = async (table:string, query:string, extraCommand : string 
  * @param whereFieldValues - An array of corresponding values for the field names in `whereFieldNames` that will be used in the WHERE clause of the DELETE query.
  * @returns A Promise that resolves to a boolean. The Promise will resolve to `true` if the deletion was successful, and `false` otherwise.
  */
-const dbDelete = async (tableName :string, whereFieldNames :string[], whereFieldValues: string[]): Promise<boolean> =>{
-	
-	// Check if wherefieldValue is not empty
-	if (whereFieldValues.length == 0){
-		logger.error(`dbDelete - Error deleting data from ${tableName} table, whereFieldValue is empty`);
-		return false;
-	}
+const dbDelete = async (tableName: string, whereFieldNames: string[], whereFieldValues: (string | number)[]): Promise<boolean> => {
 
-	const pool = await connect("dbDelete:" + tableName);
+  if (!whereFieldNames.length || !whereFieldValues.length) {
+    logger.error(`dbDelete - Error deleting data from ${tableName} table, whereFieldNames or whereFieldValues is empty`);
+    return false;
+  }
 
-	try{
-		const [dbFileDelete] = await pool.execute(
-			"DELETE FROM " + tableName + " WHERE " + whereFieldNames.join(" = ? and ") + " = ?",
-			[...whereFieldValues]
-		);
-		if (!dbFileDelete) {
-			logger.error(`dbDelete - Error deleting data from ${tableName} table | Fields: ${whereFieldNames.join(", ")} | Values: ${whereFieldValues.join(", ")}`);
-			return false;
-		}
-		return true;
-	} catch (error) {
-		logger.error(`dbDelete - Error deleting data from ${tableName} table with error: ${error}`);
-		return false;
-	}
-}
+  const pool = await connect("dbDelete:" + tableName);
+
+  let deleteStatement: string;
+  let params: (string | number)[];
+
+  if (whereFieldNames.length === 1) {
+    const field = whereFieldNames[0];
+    if (whereFieldValues.length === 1) {
+      deleteStatement = `DELETE FROM ${tableName} WHERE ${field} = ?`;
+      params = whereFieldValues;
+    } else {
+      const placeholders = whereFieldValues.map(() => "?").join(", ");
+      deleteStatement = `DELETE FROM ${tableName} WHERE ${field} IN (${placeholders})`;
+      params = whereFieldValues;
+    }
+  } else {
+    deleteStatement = `DELETE FROM ${tableName} WHERE ${whereFieldNames.map(name => `${name} = ?`).join(" AND ")}`;
+    params = whereFieldValues;
+  }
+
+  try {
+    const [result] = await pool.execute(deleteStatement, params);
+    const ok = (result as ResultSetHeader).affectedRows > 0;
+    if (!ok) {
+      logger.warn(`dbDelete - 0 filas afectadas | ${deleteStatement} | params=${JSON.stringify(params)}`);
+    }
+    return ok;
+  } catch (error) {
+    logger.error(`dbDelete - Error deleting data from ${tableName} table with error: ${error}`);
+    return false;
+  }
+};
 
 /**
  * Inserts or updates a record in the specified table in the database.
