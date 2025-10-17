@@ -293,6 +293,9 @@ const generateOTC = async (tenant: string, pubkey: string) : Promise<boolean> =>
 	if (pubkey.startsWith("npub")) pubkey = await npubToHex(pubkey);
 	if (pubkey.length != 64) {return false;}
 
+	if (await isPubkeyRegistered(pubkey) === false) return false;
+    if (await isPubkeyBanned(pubkey) === true) return false;
+
     const otc = Math.floor(100000 + Math.random() * 900000).toString()
 	const hashedOTC = await hashString(otc, 'otc');
 	
