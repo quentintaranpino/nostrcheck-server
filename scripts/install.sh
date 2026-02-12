@@ -18,7 +18,7 @@ PUBKEY=""
 SECRETKEY=""
 REPO_URL="https://github.com/quentintaranpino/nostrcheck-server.git"
 REPO_BRANCH="main"
-PACKAGES="nginx git redis-server mariadb-server mariadb-client ffmpeg jq certbot python3-certbot-nginx python3 python3-pip python3-dev python3-venv pkg-config libjpeg-dev zlib1g-dev libssl-dev build-essential libbz2-dev libreadline-dev libsqlite3-dev libffi-dev liblzma-dev tk-dev uuid-dev libncurses5-dev libncursesw5-dev"
+PACKAGES="nginx git redis-server mariadb-server mariadb-client ffmpeg jq certbot python3-certbot-nginx python3 python3-pip python3-dev python3-venv pkg-config libjpeg-dev zlib1g-dev libssl-dev build-essential libbz2-dev libreadline-dev libsqlite3-dev libffi-dev liblzma-dev tk-dev uuid-dev libncurses5-dev libncursesw5-dev curl"
 
 # Python environment variables
 VENV_DIR=".venv"
