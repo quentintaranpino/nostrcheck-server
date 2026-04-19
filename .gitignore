@@ -42,3 +42,4 @@ debug.log
 src/pages/static/resources/tenants/*
 
 profiles/*
+.claude/*
