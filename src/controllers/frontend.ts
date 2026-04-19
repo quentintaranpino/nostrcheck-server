@@ -2,7 +2,7 @@ import { Request, Response } from "express";
 import fs from "fs";
 import { logger } from "../lib/logger.js";
 import { markdownToHtml } from "../lib/utils.js";
-import { dbMultiSelect, dbSelect} from "../lib/database/core.js";
+import { dbMultiSelect, dbSelect, dbUpdate} from "../lib/database/core.js";
 import { generateAuthToken, generateOTC, isPubkeyAllowed, isPubkeyValid, isUserPasswordValid, verifyOTC } from "../lib/authorization.js";
 import { countPubkeyFiles, generateSitemap, getLegalText, getResource, isAutoLoginEnabled, replaceTokens, setAuthCookie } from "../lib/frontend.js";
 import { hextoNpub, npubToHex } from "../lib/nostr/NIP19.js";
@@ -694,7 +694,11 @@ const frontendLogin = async (req: Request, res: Response): Promise<Response> => 
         const result = await verifyOTC(req.body.otc);
         if(result != ""){
             req.body.pubkey = result;
-            canLogin = await isPubkeyValid(req.body.pubkey || req.body.pubkey, false);
+            const row = await dbMultiSelect(["pendingotc"], "registered", "hex = ?", [req.body.pubkey], true);
+            if (row.length > 0 && row[0].pendingotc == 1) {
+                await dbUpdate("registered", {"pendingotc": 0}, ["hex"], [req.body.pubkey]);
+            }
+            canLogin = await isPubkeyValid(req.body.pubkey, false);
             if (!canLogin) {loginMessage = "Invalid one-time code"}
         }
     } 

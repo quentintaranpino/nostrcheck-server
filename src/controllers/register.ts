@@ -31,10 +31,14 @@ const registerUsername = async (req: Request, res: Response): Promise<Response> 
 	}
 	
 	let activateUser = true;
+	let needOTC = false;
 
-    // Check if authorization header is valid, if not we will set the otc flag to true, we don't want to check jwt cookie here.
+    // Check if authorization header is valid, if not we will set the activateUser to false.
 	const eventHeader = await parseAuthHeader(req,"registerUsername", false, false, false);
-	if (eventHeader.status != "success") {activateUser = false}
+	if (eventHeader.status != "success") {
+		activateUser = false;
+		needOTC = true;
+	}
 	setAuthCookie(res, eventHeader.authkey);
 
 	logger.info(`registerUsername - Request from:`, reqInfo.ip);
@@ -51,26 +55,29 @@ const registerUsername = async (req: Request, res: Response): Promise<Response> 
 		return res.status(422).send({status: "error", message: "Invalid public key format"});
 	}
 
-	// Check if the pubkey is the same as the one in the authorization header, if not we will set the otc flag to true
-	if (pubkey != eventHeader.pubkey && await npubToHex(pubkey) != eventHeader.pubkey) {activateUser = false}
+	// If the pubkey from the auth header is different than the one provided in the body, we will set the needOTC to true and activateUser to false
+	if (pubkey != eventHeader.pubkey && await npubToHex(pubkey) != eventHeader.pubkey) {
+		activateUser = false;
+		needOTC = true;
+	}
 	
 	const username = req.body.username || "";
 	if (username == null || username == "" || username == undefined) {
 		logger.info(`registerUsername - 400 Bad request - Username not provided`, "|", reqInfo.ip);
 		return res.status(400).send({status: "error", message: "Username not provided"});
 	}
-	
-	let validUsername = validator.default.isLength(username, { min: getConfig(req.hostname, ["register","minUsernameLength"]), max: getConfig(req.hostname, ["register","maxUsernameLength"]) }); 
-	validUsername == true? validUsername = validator.default.matches(username, /^[a-zA-Z0-9-_]+$/) : validUsername = false;
-	if (!validUsername) {
-		logger.warn(`registerUsername - 401 Unauthorized - Invalid username format`, "|", reqInfo.ip);
-		return res.status(401).send({status: "error", message: "Invalid username format"});
-	}
 
 	const domain = req.body.domain || "";
 	if (domain == null || domain == "" || domain == undefined) {
 		logger.info(`registerUsername - 400 Bad request - Domain not provided`, "|", reqInfo.ip);
 		return res.status(400).send({status: "error", message: "Domain not provided"});
+	}
+
+	let validUsername = validator.default.isLength(username, { min: getConfig(domain, ["register","minUsernameLength"]), max: getConfig(domain, ["register","maxUsernameLength"]) });
+	validUsername == true? validUsername = validator.default.matches(username, /^[a-zA-Z0-9-_]+$/) : validUsername = false;
+	if (!validUsername) {
+		logger.warn(`registerUsername - 401 Unauthorized - Invalid username format`, "|", reqInfo.ip);
+		return res.status(401).send({status: "error", message: "Invalid username format"});
 	}
 
 	if (!await isUsernameAvailable(username, domain)) {
@@ -84,7 +91,7 @@ const registerUsername = async (req: Request, res: Response): Promise<Response> 
 	}
 	
 	const password = req.body.password || "";
-	if (password != null && password != "" && password != undefined && password.length < getConfig(req.hostname, ["register","minPasswordLength"])) {
+	if (password != null && password != "" && password != undefined && password.length < getConfig(domain, ["register","minPasswordLength"])) {
 		logger.info(`registerUsername - 422 Unprocessable Entity - Password too short`, "|", reqInfo.ip);
 		return res.status(422).send({status: "error", message: "Password too short"});
 	}
@@ -102,7 +109,10 @@ const registerUsername = async (req: Request, res: Response): Promise<Response> 
 		}
 	}
 
-	const comments = eventHeader.status == "success" ? "" : "Pending OTC verification";
+	const requirePayment = getConfig(domain, ["payments", "satoshi", "registerMaxSatoshi"]) > 0 && isModuleEnabled("payments", domain);
+	if (requirePayment) activateUser = false;
+
+	const comments = needOTC ? "Pending OTC verification" : !activateUser ? "Pending payment" : "";
 
 	const addUsername = await addNewUsername(username, req.body.pubkey, password, domain, comments, activateUser, inviteCode);
 	if (addUsername == 0) {
@@ -110,9 +120,12 @@ const registerUsername = async (req: Request, res: Response): Promise<Response> 
 		return res.status(500).send({status: "error", message: "Failed to add new username to the database"});
 	}
 
-	// If the user is not activated, we will generate the credentials and send the OTC verification via nost DM.
-	if (activateUser == false) {
-		const OTC = await generateOTC(req.hostname, pubkey)
+	// If no OTC is needed, clear the pendingotc flag so cleanPendingOTCUsers doesn't delete payment-pending users.
+	if (!needOTC) await dbUpdate("registered", {"pendingotc": 0}, ["id"], [addUsername.toString()]);
+
+	// If needOTC is true, generate OTC and send it to the user
+	if (needOTC) {
+		const OTC = await generateOTC(domain, pubkey)
 		if (OTC == false){
 			logger.error(`registerUsername - Failed to generate OTC`, "|", reqInfo.ip);
 			return res.status(500).send({status: "error", message: "Failed to generate OTC"});
@@ -122,11 +135,11 @@ const registerUsername = async (req: Request, res: Response): Promise<Response> 
 	// Check if payments module is active and if true generate paymentRequest
 	let paymentRequest = "";
 	let satoshi = 0;
-	const requirePayment = getConfig(domain, ["payments", "satoshi", "registerMaxSatoshi"]) > 0;
-	if (requirePayment && isModuleEnabled("payments", req.hostname)) {
+
+	if (requirePayment && isModuleEnabled("payments", domain)) {
 		
 		const transaction : Transaction = await checkTransaction(
-			req.hostname,
+			domain,
 			"0",
 			addUsername.toString(),
 			"registered",
@@ -138,10 +151,10 @@ const registerUsername = async (req: Request, res: Response): Promise<Response> 
 		);
 
 		
-		if (transaction.paymentHash != "" && transaction.isPaid == false && isModuleEnabled("payments", "")) {
+		if (transaction.paymentHash != "" && transaction.isPaid == false) {
 			paymentRequest = transaction.paymentRequest;
 			satoshi = transaction.satoshi;
-		}else if (transaction.satoshi == 0 && isModuleEnabled("payments", req.hostname)) {
+		}else if (transaction.satoshi == 0) {
 			logger.debug(`registerUsername - 0 satoshi invoice generated`, "|", reqInfo.ip);
 		}else{
 			// If the payment request is not generated, we will delete the user from the database
@@ -153,7 +166,7 @@ const registerUsername = async (req: Request, res: Response): Promise<Response> 
 	}
 
 	let message : string = "User registered successfully";
-	if (activateUser == false) {
+	if (needOTC) {
 		message = message + ", please verify your account with the OTC sent to your nostr pubkey via DM";
 	}
 	if (paymentRequest != "") {
@@ -162,7 +175,7 @@ const registerUsername = async (req: Request, res: Response): Promise<Response> 
 	const result : registerFormResult = {
 		status: "success",
 		message: message,
-		otc: activateUser == false ? true : false,
+		otc: needOTC,
 		payment_request: paymentRequest,
 		satoshi: satoshi
 	};
@@ -171,7 +184,6 @@ const registerUsername = async (req: Request, res: Response): Promise<Response> 
 	return res.status(200).send(result);
 
 };
-
 
 const validateRegisterOTC = async (req: Request, res: Response): Promise<Response> => {
 
