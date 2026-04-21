@@ -9,6 +9,9 @@ import { getClientInfo } from "../security/ips.js";
 import { getHostInfo } from "../utils.js";
 import { getConfig } from "../config/core.js";
 import { isEventValid } from "./core.js";
+import { initRedis } from "../redis/client.js";
+
+const redisCore = await initRedis(0, false);
 
 /**
  * Parses the authorization Nostr header (NIP98) and checks if it is valid. Visit for more information:
@@ -80,7 +83,7 @@ const isNIP98Valid = async (authevent: Event, req: Request, checkAdminPrivileges
 
 		if ((eventHost == null || eventHost == undefined || eventHost != serverHost) && getConfig(null, ["environment"]) != "development") {
 			logger.warn(`isNIP98Valid - Auth header event endpoint is not valid: ${eventHost} <> ${serverHost}`, "|", getClientInfo(req).ip);
-			// return {status: "error", message: `Auth header (NIP98) event endpoint is not valid: ${eventEndpoint} <> ${serverEndpoint}`, authkey: "", pubkey: "", kind: 0};
+			return {status: "error", message: `Auth header event endpoint is not valid: ${eventHost} <> ${serverHost}`, authkey: "", pubkey: "", kind: 0};
 		}
 	} catch (error) {
 		logger.error(`isNIP98Valid - Internal server error: ${error}`, "|", getClientInfo(req).ip);
@@ -106,18 +109,34 @@ const isNIP98Valid = async (authevent: Event, req: Request, checkAdminPrivileges
 	const payloadTag = authevent.tags.find(tag => tag[0] === "payload");
 	const eventPayload = payloadTag ? payloadTag[1] : null;
 
-	// Check if authorization event payload tag is valid (must be equal than the request body sha256) (!GET)
+	// Check authorization event payload tag. For uploads the payload tag is REQUIRED and must match the file sha256.
+	// For other POST/PUT/PATCH requests the payload tag is OPTIONAL per NIP-98 spec, but if present it must match the body sha256.
 	if (req.method == "POST" || req.method == "PUT" || req.method == "PATCH") {
 		try {
-			const receivedpayload = crypto
-				.createHash("sha256")
-				.update(JSON.stringify(req.body), "binary")
-				.digest("hex"); 
+			const files = (req as any).files;
+			const file = Array.isArray(files) && files.length > 0 ? files[0] : null;
 
-			if (eventPayload != receivedpayload) logger.debug(`isNIP98Valid - Auth header event payload is not valid: ${eventPayload} <> ${receivedpayload}`, "|", getClientInfo(req).ip);
+			if (file && file.buffer) {
+				if (!eventPayload) {
+					logger.warn(`isNIP98Valid - Auth header missing payload tag on upload`, "|", getClientInfo(req).ip);
+					return {status: "error", message: "Missing payload tag on upload auth", authkey: "", pubkey: "", kind: 0};
+				}
+				const fileHash = crypto.createHash("sha256").update(file.buffer).digest("hex");
+				if (eventPayload != fileHash) {
+					logger.warn(`isNIP98Valid - Auth header payload hash mismatch on upload: ${eventPayload} <> ${fileHash}`, "|", getClientInfo(req).ip);
+					return {status: "error", message: "Auth header payload hash mismatch on upload", authkey: "", pubkey: "", kind: 0};
+				}
+			} else if (eventPayload) {
+				const bodyHash = crypto.createHash("sha256").update(JSON.stringify(req.body), "binary").digest("hex");
+				if (eventPayload != bodyHash) {
+					logger.warn(`isNIP98Valid - Auth header event payload mismatch: ${eventPayload} <> ${bodyHash}`, "|", getClientInfo(req).ip);
+					return {status: "error", message: "Auth header event payload mismatch", authkey: "", pubkey: "", kind: 0};
+				}
+			}
 
 		} catch (error) {
 			logger.error(`isNIP98Valid - Internal server error: ${error}`, "|", getClientInfo(req).ip);
+			return {status: "error", message: "Auth header event payload verification failed", authkey: "", pubkey: "", kind: 0};
 		}
 	}
 
@@ -127,6 +146,14 @@ const isNIP98Valid = async (authevent: Event, req: Request, checkAdminPrivileges
 	if (await isPubkeyValid(authevent.pubkey, checkAdminPrivileges, checkRegistered, checkActive) == false) {
 		logger.warn(`isNIP98Valid - Auth header pubkey is not valid: ${authevent.pubkey}`, "|", getClientInfo(req).ip);
 		return {status: "error", message: "Auth header pubkey is not valid", authkey: "", pubkey: "", kind: 0};
+	}
+
+	// Anti-replay: reject if the same event.id was already used within the allowed window
+	const ttl = Math.max(1, 60 - (Math.floor(Date.now() / 1000) - authevent.created_at));
+	const seen = await redisCore.setNX(`auth:seen:${authevent.id}`, "1", ttl);
+	if (!seen) {
+		logger.warn(`isNIP98Valid - Auth event already used (replay): ${authevent.id}`, "|", getClientInfo(req).ip);
+		return {status: "error", message: "Auth event already used", authkey: "", pubkey: "", kind: 0};
 	}
 
 	logger.info(`isNIP98Valid - Auth header event is valid`, "|", getClientInfo(req).ip);

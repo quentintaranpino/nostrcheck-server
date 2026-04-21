@@ -89,6 +89,15 @@ class RedisService {
     }
   }
 
+  public async setNX(key: string, value: string, expireSeconds: number): Promise<boolean> {
+    try {
+      const result = await this.client.set(this.withPrefix(key), value, { EX: expireSeconds, NX: true });
+      return result === "OK";
+    } catch (error) {
+      return false;
+    }
+  }
+
   public async del(key: string): Promise<boolean> {
     try {
       const result = await this.client.del(this.withPrefix(key));

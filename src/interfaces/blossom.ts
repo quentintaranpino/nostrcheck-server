@@ -1,10 +1,10 @@
 import { ResultMessagev2 } from "./server";
 
 enum BUDKinds {
-	BUD01_auth = 24242,
+	BUD11_auth = 24242,
 }
 
-interface BUD01_authEvent {
+interface BUD11_authEvent {
     id: string;
     pubkey: string;
     kind: number;
@@ -32,4 +32,4 @@ interface BlobDescriptor extends ResultMessagev2{
 
 
 
-export { BUDKinds, BUD01_authEvent, BlobDescriptor };
+export { BUDKinds, BUD11_authEvent, BlobDescriptor };

@@ -223,7 +223,7 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 		return res.status(401).send({"status": "error", "message": "Not authorized"});
 	}
 
-	filedata.url = (eventHeader.kind == BUDKinds.BUD01_auth || req.method == "PUT") ? getFileUrl(filedata.filename, undefined, req.hostname) : getFileUrl(filedata.filename, pubkey, req.hostname);
+	filedata.url = (eventHeader.kind == BUDKinds.BUD11_auth || req.method == "PUT") ? getFileUrl(filedata.filename, undefined, req.hostname) : getFileUrl(filedata.filename, pubkey, req.hostname);
 
 	// Standard media conversions
 	standardMediaConversion(filedata, file);
@@ -472,7 +472,7 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 	}
 
 	// Blossom compatibility
-	if (eventHeader.kind == BUDKinds.BUD01_auth) {
+	if (eventHeader.kind == BUDKinds.BUD11_auth) {
 		const returnmessage: BlobDescriptor = await prepareBlobDescriptor(filedata);
 		res.status(200);
 		return res.json(returnmessage);

@@ -9,7 +9,7 @@ import { authHeaderResult } from "../interfaces/authorization.js";
 import { hashString, validateHash } from "./hash.js";
 import { sendMessage } from "./nostr/NIP04.js";
 import { isNIP98Valid } from "./nostr/NIP98.js";
-import { isBUD01AuthValid } from "./blossom/BUD01.js";
+import { isBUD11AuthValid } from "./blossom/BUD11.js";
 import { NIPKinds } from "../interfaces/nostr.js";
 import { BUDKinds } from "../interfaces/blossom.js";
 import { isEntityBanned } from "./security/banned.js";
@@ -21,7 +21,7 @@ import { initRedis } from "./redis/client.js";
 const redisCore = await initRedis(0, false);
 
 /**
- * Parses the authorization header and checks if it is valid. (Authkey, NIP98 or BUD01)
+ * Parses the authorization header and checks if it is valid. (Authkey, NIP98 or BUD11)
  * Always check if the header's pubkey is banned.
  * 
  * @param req - The request object.
@@ -47,10 +47,10 @@ const parseAuthHeader = async (req: Request, endpoint: string = "", checkAdminPr
 		return {status: "error", message: "Authorization header not found", pubkey:"", authkey:"", kind: 0};
 	}
 
-	// NIP98 or BUD01. Nostr / Blossom token
+	// NIP98 or BUD11. Nostr / Blossom token
 	if (req.headers.authorization.startsWith('Nostr ')) {
 		let authevent: Event;
-		logger.debug(`parseAuthHeader - NIP98 / BUD01 found on request: ${req.headers.authorization}`, "|", getClientInfo(req).ip);
+		logger.debug(`parseAuthHeader - NIP98 / BUD11 found on request: ${req.headers.authorization}`, "|", getClientInfo(req).ip);
 		try {
 			authevent = JSON.parse(
 				Buffer.from(
@@ -59,9 +59,9 @@ const parseAuthHeader = async (req: Request, endpoint: string = "", checkAdminPr
 				).toString("utf8")
 			);
 
-			// Check NIP98 / BUD01
-			if (authevent.kind == BUDKinds.BUD01_auth) {
-				return await isBUD01AuthValid(authevent, req, endpoint, checkAdminPrivileges, checkRegistered, checkActive);
+			// Check NIP98 / BUD11
+			if (authevent.kind == BUDKinds.BUD11_auth) {
+				return await isBUD11AuthValid(authevent, req, endpoint, checkAdminPrivileges, checkRegistered, checkActive);
 			}
 
 			if (authevent.kind == NIPKinds.NIP98){

@@ -489,16 +489,15 @@
 
                 if (method == 'POST') {
                     authEvent= {
-                        
+
                         kind: 27235,
                         created_at: Math.floor(Date.now() / 1000),
                         tags: [
-                            ["u", window.location.hostname.includes("cdn") 
-                            ? window.location.protocol + "//" + window.location.hostname + '/api/v2/media/' 
+                            ["u", window.location.hostname.includes("cdn")
+                            ? window.location.protocol + "//" + window.location.hostname + '/api/v2/media/'
                             : window.location.protocol + "//" + window.location.hostname + '/api/v2/media'],
-                            ["x", file.fileData.hash],
-                            ["expiration", (Math.floor(Date.now() / 1000) + 3600).toString()],
                             ["method", "POST"],
+                            ["payload", file.fileData.hash],
                             ],
                         content: 'NIP98 authorization event for file upload',
                     };
