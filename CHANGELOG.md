@@ -2,6 +2,13 @@
 
 ## 0.7.1
 
+- Hardened NIP-98 and Blossom upload authentication with anti-replay.
+- Moved Blossom auth module from BUD-01 to BUD-11.
+- Fixed authentication event tags in the built-in uploader.
+- Improved register flow and decoupled OTC from user activation.
+- Prevented DM spam during registration.
+- Fixed periodic IP cleanup job.
+- Added curl to install script.
 - Updated dependencies.
 - New experimental updates engine for notifying users of new versions.
 - Fixed error when uploading STL files.
