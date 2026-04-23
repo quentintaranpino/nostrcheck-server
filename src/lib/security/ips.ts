@@ -388,6 +388,14 @@ const addIpInfraction = async (ip: string, reason: string, banThreshold: number 
     if (!isModuleEnabled("security", "")) return;
     if (!ip) return;
 
+    // In dev we don't want the integration test runner (all requests come
+    // from the same loopback IP) to lock itself out after a handful of
+    // abuse-detection tests.
+    if (getConfig(null, ["environment"]) == "development") {
+        logger.debug(`addIpInfraction - Skipping in development environment: ${ip} | ${reason}`);
+        return;
+    }
+
     const redisKey = `ips:${ip}`;
     const redisData = await redisCore.hashGetAll(redisKey);
 
@@ -412,5 +420,32 @@ const addIpInfraction = async (ip: string, reason: string, banThreshold: number 
         await banEntity(Number(redisData.dbid), "ips", `${reason} (${infractions} infractions)`);
     }
 };
+
+/*
+* Dev-only boot hook: ensure loopback IPs are trust-listed and not banned,
+* so integration tests that hit abuse paths don't wedge themselves across
+* restarts.
+*/
+if (getConfig(null, ["environment"]) == "development") {
+    (async () => {
+        for (const ip of ["127.0.0.1", "::1"]) {
+            try {
+                const row = await dbMultiSelect(["id"], "ips", "ip = ?", [ip], true);
+                if (!row || row.length == 0) continue;
+                const id = row[0].id;
+                await dbUpdate("ips", { checked: 1, active: 1 }, ["id"], [id]);
+                const bans = await dbMultiSelect(["id"], "banned", "originid = ? AND origintable = ? AND active = 1", [id, "ips"], false);
+                for (const b of bans) {
+                    await dbUpdate("banned", { active: 0 }, ["id"], [b.id]);
+                }
+                await redisCore.del(`banned:ips:${id}`);
+                await redisCore.del(`banned:ips:${ip}`);
+                logger.info(`ipsLib - Dev boot cleanup: loopback ${ip} trust-listed and unbanned`);
+            } catch (error) {
+                logger.warn(`ipsLib - Dev boot cleanup failed for ${ip}: ${error}`);
+            }
+        }
+    })();
+}
 
 export { getClientInfo, isIpAllowed, addIpInfraction };

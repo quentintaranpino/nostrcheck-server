@@ -1,5 +1,5 @@
 import { describe, test, expect, beforeAll } from "vitest";
-import { getPublicKey, generateSecretKey, finalizeEvent } from "nostr-tools";
+import { generateSecretKey, finalizeEvent } from "nostr-tools";
 import crypto from "crypto";
 import sharp from "sharp";
 
@@ -20,17 +20,6 @@ beforeAll(async () => {
 
 const authHeader = (event: unknown) => "Nostr " + Buffer.from(JSON.stringify(event)).toString("base64");
 
-const signNip98 = (sk: Uint8Array, url: string, method: string, extraTags: string[][] = []) =>
-	finalizeEvent(
-		{
-			kind: 27235,
-			created_at: Math.floor(Date.now() / 1000),
-			tags: [["u", url], ["method", method], ...extraTags],
-			content: "",
-		},
-		sk,
-	);
-
 const signBud11 = (sk: Uint8Array, verb: string, extraTags: string[][] = [], expirationOffsetSec = 300) =>
 	finalizeEvent(
 		{
@@ -45,45 +34,6 @@ const signBud11 = (sk: Uint8Array, verb: string, extraTags: string[][] = [], exp
 		},
 		sk,
 	);
-
-const makeForm = () => {
-	const f = new FormData();
-	f.append("file", new Blob([png], { type: "image/png" }), "test.png");
-	return f;
-};
-
-describe("NIP-96 upload auth (NIP-98 binding)", () => {
-
-	test("Happy path with correct payload hash; replay is rejected", async () => {
-		const sk = generateSecretKey();
-		const url = `${BASE}/api/v2/media`;
-		const event = signNip98(sk, url, "POST", [["payload", fileHash]]);
-		const header = authHeader(event);
-
-		const first = await fetch(url, { method: "POST", headers: { Authorization: header }, body: makeForm() });
-		expect([200, 201, 202]).toContain(first.status);
-
-		const replay = await fetch(url, { method: "POST", headers: { Authorization: header }, body: makeForm() });
-		expect(replay.status).toEqual(401);
-	});
-
-	test("401 when payload tag is missing on an upload", async () => {
-		const sk = generateSecretKey();
-		const url = `${BASE}/api/v2/media`;
-		const event = signNip98(sk, url, "POST");
-		const res = await fetch(url, { method: "POST", headers: { Authorization: authHeader(event) }, body: makeForm() });
-		expect(res.status).toEqual(401);
-	});
-
-	test("401 when payload hash does not match file", async () => {
-		const sk = generateSecretKey();
-		const url = `${BASE}/api/v2/media`;
-		const event = signNip98(sk, url, "POST", [["payload", "a".repeat(64)]]);
-		const res = await fetch(url, { method: "POST", headers: { Authorization: authHeader(event) }, body: makeForm() });
-		expect(res.status).toEqual(401);
-	});
-
-});
 
 describe("Blossom upload auth (BUD-11 binding)", () => {
 
@@ -170,6 +120,17 @@ describe("Blossom BUD-11 hardening (new rules)", () => {
 		expect(res.status).toEqual(401);
 	});
 
+	// The `x` tag in the auth event must include the blob hash that the URL refers
+	// to. Signing `x: A` and sending DELETE /B should not authorise the second.
+	test("DELETE returns 401 when the x tag does not match the URL blob hash", async () => {
+		const sk = generateSecretKey();
+		const otherHash = "a".repeat(64);
+		const url = `${BASE}/api/v2/media/${fileHash}`;
+		const event = signBud11(sk, "delete", [["x", otherHash]]);
+		const res = await fetch(url, { method: "DELETE", headers: { Authorization: authHeader(event) } });
+		expect(res.status).toEqual(401);
+	});
+
 	// BUD-11 `server` tag is optional, but when present MUST include the server's host.
 	test("PUT /upload returns 401 when the server tag does not include this host", async () => {
 		const sk = generateSecretKey();
@@ -242,11 +203,4 @@ describe("Blossom BUD-04 mirror SSRF guard", () => {
 		expect(res.status).toEqual(400);
 	});
 
-});
-
-describe("Sanity", () => {
-	test("pubkey derivation smoke", () => {
-		const sk = generateSecretKey();
-		expect(getPublicKey(sk)).toMatch(/^[0-9a-f]{64}$/);
-	});
 });

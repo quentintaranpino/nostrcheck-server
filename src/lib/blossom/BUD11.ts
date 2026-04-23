@@ -164,6 +164,15 @@ const isBUD11AuthValid = async (authevent: Event, req: Request, endpoint: string
 			return {status: "error", message: "x tag does not match X-SHA-256 header", authkey: "", pubkey: "", kind: 0};
 		}
 
+		// For endpoints whose URL carries the target blob hash (DELETE /<sha256>,
+		// mirror variants...), the `x` tag must include it. This binds the signed
+		// event to the specific blob that the URL refers to, per BUD-11.
+		const urlHash = (req.params?.id || "").toLowerCase().split(".")[0];
+		if (/^[a-f0-9]{64}$/.test(urlHash) && !xTags.map(x => x.toLowerCase()).includes(urlHash)) {
+			logger.warn(`isBUD11AuthValid - x tag does not match URL blob hash: ${xTags.join(",")} <> ${urlHash} | ${getClientInfo(req).ip}`);
+			return {status: "error", message: "x tag does not match URL blob hash", authkey: "", pubkey: "", kind: 0};
+		}
+
 		const files = (req as any).files;
 		const file = Array.isArray(files) && files.length > 0 ? files[0] : null;
 		if (file && file.buffer) {
