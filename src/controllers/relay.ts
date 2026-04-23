@@ -289,9 +289,10 @@ const handleEvent = async (socket: ExtendedWebSocket, event: MetadataEvent) => {
     return;
   }
 
-  // Check if the event is duplicated
+  // Check if the event is duplicated. In isolated mode the check is scoped to
+  // the current tenant; otherwise any matching id is a duplicate.
   const existing = eventStore.eventIndex.get(event.id);
-  if (existing && isIsolated && existing.tenantid === event.tenantid) {
+  if (existing && (!isIsolated || existing.tenantid === event.tenantid)) {
     logger.debug(`handleEvent - Duplicate event in tenant ${event.tenantid}: ${event.id}`);
     await socketSafeSend(socket, ["OK", event.id, false, "duplicate: already have this event"]);
     return;
