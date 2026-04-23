@@ -199,6 +199,51 @@ describe("Blossom BUD-11 hardening (new rules)", () => {
 
 });
 
+describe("Blossom BUD-04 mirror SSRF guard", () => {
+
+	// The /mirror endpoint fetches an arbitrary URL server-side. Without an SSRF
+	// guard an attacker could ask the server to fetch the cloud metadata endpoint
+	// (AWS / GCP / Azure at 169.254.169.254) or poke internal services. These
+	// tests assert that the guard in `lib/security/urls.ts` refuses such URLs.
+	// The mirror endpoint returns 400 when the fetch fails (empty file).
+
+	const mirror = async (url: string): Promise<Response> => {
+		const sk = generateSecretKey();
+		const event = signBud11(sk, "upload", [["x", fileHash]]);
+		return fetch(`${BASE}/mirror`, {
+			method: "PUT",
+			headers: { Authorization: authHeader(event), "Content-Type": "application/json" },
+			body: JSON.stringify({ url }),
+		});
+	};
+
+	test("refuses http://127.0.0.1 (IPv4 loopback literal)", async () => {
+		const res = await mirror("http://127.0.0.1/anything");
+		expect(res.status).toEqual(400);
+	});
+
+	test("refuses AWS / GCP metadata 169.254.169.254", async () => {
+		const res = await mirror("http://169.254.169.254/latest/meta-data/");
+		expect(res.status).toEqual(400);
+	});
+
+	test("refuses an RFC1918 private range", async () => {
+		const res = await mirror("http://10.0.0.1/x");
+		expect(res.status).toEqual(400);
+	});
+
+	test("refuses the IPv6 loopback ::1", async () => {
+		const res = await mirror("http://[::1]/x");
+		expect(res.status).toEqual(400);
+	});
+
+	test("refuses a non http(s) scheme (file://)", async () => {
+		const res = await mirror("file:///etc/passwd");
+		expect(res.status).toEqual(400);
+	});
+
+});
+
 describe("Sanity", () => {
 	test("pubkey derivation smoke", () => {
 		const sk = generateSecretKey();

@@ -7,6 +7,7 @@ import { dbUpdate, dbMultiSelect, dbUpsert, dbDelete } from "../database/core.js
 import { logger } from "../logger.js";
 
 import { banEntity, isEntityBanned } from "./banned.js";
+
 import { IpInfo } from "../../interfaces/security.js";
 import { getDomainId } from "./domain.js";
 import { getConfig, isModuleEnabled } from "../config/core.js";
@@ -370,4 +371,46 @@ const queueIpUpdate = (dbid: string, oldLastseen: number, now: number, increment
     }
 };
 
-export { getClientInfo, isIpAllowed };
+/**
+ * Records an infraction for an IP and bans it if the threshold is exceeded.
+ * The counter lives in the `ips:<ip>` Redis hash and gets persisted to the
+ * `ips` table by the periodic sync (same field `infractions` used elsewhere).
+ *
+ * Whitelisted IPs (`checked = 1`) are not penalised — useful so that local
+ * dev or trusted egress IPs don't accidentally ban themselves during tests.
+ *
+ * @param ip - The offending IP.
+ * @param reason - Short human-readable reason (goes to logs and ban record).
+ * @param banThreshold - Infractions needed to trigger a permanent ban. Default 3.
+ */
+const addIpInfraction = async (ip: string, reason: string, banThreshold: number = 3): Promise<void> => {
+
+    if (!isModuleEnabled("security", "")) return;
+    if (!ip) return;
+
+    const redisKey = `ips:${ip}`;
+    const redisData = await redisCore.hashGetAll(redisKey);
+
+    if (redisData?.checked == "1") {
+        logger.debug(`addIpInfraction - Skipping trust-listed IP: ${ip} | ${reason}`);
+        return;
+    }
+
+    const infractions = Number(redisData?.infractions ?? 0) + 1;
+
+    try {
+        await redisCore.hashSet(redisKey, { infractions }, getConfig(null, ["redis", "expireTime"]));
+    } catch (error) {
+        logger.error(`addIpInfraction - Error updating Redis counter for ${ip}: ${error}`);
+        return;
+    }
+
+    logger.warn(`addIpInfraction - ${ip} | ${reason} | count: ${infractions}`);
+
+    if (infractions >= banThreshold && redisData?.dbid) {
+        logger.info(`addIpInfraction - Banning ${ip} after ${infractions} infractions: ${reason}`);
+        await banEntity(Number(redisData.dbid), "ips", `${reason} (${infractions} infractions)`);
+    }
+};
+
+export { getClientInfo, isIpAllowed, addIpInfraction };

@@ -2,14 +2,22 @@
 
 import { Readable } from "stream";
 import { logger } from "../logger.js";
+import { isPublicUrl } from "../security/urls.js";
 
 const mirrorFile = async (url: string): Promise<Express.Multer.File | null> => {
     if (url === "") {
         return null;
     }
 
+    // SSRF guard: reject URLs that point to private/internal IPs, non http(s)
+    // schemes, or hostnames that resolve to the cloud metadata service.
+    if (!(await isPublicUrl(url))) {
+        logger.warn(`mirrorFile - Refused unsafe mirror target: ${url}`);
+        return null;
+    }
+
     const filename = url.split('/').pop() || '';
-    
+
     try {
         const response = await fetch(url);
 

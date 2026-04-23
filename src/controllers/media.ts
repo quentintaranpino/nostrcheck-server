@@ -33,7 +33,8 @@ import { getBannedFileBanner, isEntityBanned } from "../lib/security/banned.js";
 import { mirrorFile } from "../lib/blossom/BUD04.js";
 import { executePlugins } from "../lib/plugins/core.js";
 import { setAuthCookie } from "../lib/frontend.js";
-import { isIpAllowed } from "../lib/security/ips.js";
+import { addIpInfraction, isIpAllowed } from "../lib/security/ips.js";
+import { isPublicUrl } from "../lib/security/urls.js";
 import { getConfig, isModuleEnabled } from "../lib/config/core.js";
 import { initRedis } from "../lib/redis/client.js";
 
@@ -112,6 +113,18 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 			res.setHeader("X-Reason", "Error mirroring file, empty URL");
 			return res.status(400).send(result);
 		}
+
+		// SSRF guard. Legitimate clients never mirror from private/internal
+		// targets, so a failure here is treated as an intentional probe and
+		// the IP picks up an infraction.
+		if (!(await isPublicUrl(req.body.url))) {
+			logger.warn(`uploadMedia - SSRF attempt on /mirror: ${req.body.url}`, "|", reqInfo.ip);
+			await addIpInfraction(reqInfo.ip, `SSRF attempt on /mirror: ${req.body.url}`);
+			res.setHeader("X-Reason", "Refused mirror target");
+			if(version != "v2"){return res.status(400).send({"result": false, "description" : "Refused mirror target"});}
+			return res.status(400).send({status: MediaStatus[1], message: "Refused mirror target"});
+		}
+
 		file = await mirrorFile(req.body.url)
 		if (!file) {
 			logger.debug(`uploadMedia - 400 Bad request - Empty file`, "|", reqInfo.ip);
