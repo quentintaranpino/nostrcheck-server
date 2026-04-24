@@ -296,7 +296,7 @@ const generateOTC = async (tenant: string, pubkey: string) : Promise<boolean> =>
 	if (await isPubkeyRegistered(pubkey) === false) return false;
     if (await isPubkeyBanned(pubkey) === true) return false;
 
-    const otc = Math.floor(100000 + Math.random() * 900000).toString()
+    const otc = crypto.randomInt(100000, 1000000).toString()
 	const hashedOTC = await hashString(otc, 'otc');
 	
 	await redisCore.set(`otc:${hashedOTC}`, JSON.stringify({ pubkey }), { EX: 300 });
