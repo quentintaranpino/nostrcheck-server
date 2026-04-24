@@ -14,6 +14,41 @@ import { initRedis } from '../redis/client.js';
 
 const redisPlugins = await initRedis (1, false);
 
+// Config subtrees hidden from plugins. These carry credentials (session
+// signing secret, redis/database/storage/payments/lightning creds) or the
+// server's nostr private key. Anything not listed here is considered
+// public-ish config that a plugin may legitimately read.
+const pluginConfigBlocklist: string[] = [
+	"session",
+	"redis",
+	"database",
+	"storage",
+	"lightning",
+	"payments",
+	"server.secretKey",
+];
+
+/**
+ * Returns a deep clone of the tenant config with the blocklisted paths
+ * removed, so a plugin never sees live credentials or the server's nostr
+ * secret key through its context.
+ */
+const sanitizePluginConfig = (config: any): any => {
+	const cloned = JSON.parse(JSON.stringify(config || {}));
+	for (const p of pluginConfigBlocklist) {
+		const parts = p.split(".");
+		let obj: any = cloned;
+		for (let i = 0; i < parts.length - 1; i++) {
+			if (!obj || typeof obj !== "object") { obj = null; break; }
+			obj = obj[parts[i]];
+		}
+		if (obj && typeof obj === "object") {
+			delete obj[parts[parts.length - 1]];
+		}
+	}
+	return cloned;
+};
+
 const initPlugins = async (tenant: string): Promise<boolean> => {
 
     if (!isModuleEnabled("plugins", tenant)) {
@@ -106,7 +141,7 @@ const executePlugins = async (input: pluginData, tenant: string): Promise<boolea
     if (plugins.length === 0) return Promise.resolve(true);
 
     const context: pluginContext = {
-        config: getFullConfig(tenant),
+        config: sanitizePluginConfig(getFullConfig(tenant)),
         logger: logger,
         redis: redisPlugins,
         nostr: {
