@@ -203,7 +203,7 @@ const isAuthkeyValid = async (authString: string, checkAdminPrivileges: boolean 
     }
 
     try {
-		const decoded = jwt.verify(authString, getConfig(null, ["session", "secret"])) as { identifier: string, allowed: boolean, exp: number };
+		const decoded = jwt.verify(authString, getConfig(null, ["session", "secret"]), { algorithms: ["HS256"] }) as { identifier: string, allowed: boolean, exp: number };
 		if ((decoded.exp - Math.floor(Date.now() / 1000)) < 900){
 			authString = generateAuthToken(decoded.identifier, decoded.allowed);
 		} 
