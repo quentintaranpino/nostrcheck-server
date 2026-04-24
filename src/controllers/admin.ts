@@ -315,12 +315,28 @@ const updateSettingsFile = async (req: Request, res: Response): Promise<Response
 
     const domain = typeof req.body?.domain === "string" ? req.body.domain : "global";
 
+    // Domain maps to a subdirectory, so it MUST be a simple tenant label.
+    // Reject anything with path separators, traversal sequences, or non-safe chars.
+    if (!/^[a-zA-Z0-9._-]+$/.test(domain) || domain == "." || domain == "..") {
+        logger.warn(`updateSettingsFile - Rejected unsafe domain value: ${domain} | ${reqInfo.ip}`);
+        return res.status(400).send({ status: "error", message: "Invalid domain" });
+    }
+
+    const tenantsBase = path.resolve("./src/pages/static/resources/tenants");
+
     for (const settingKey of acceptedSettigsFiles) {
         const file = (req.files as Express.Multer.File[]).find(f => f.fieldname === settingKey);
         const restore = req.body[`${settingKey}.default`] === "true";
-    
+
         const config = settingsFileConfig[settingKey] || settingsFileConfig["default"];
-        const outputPath = path.resolve(`./src/pages/static/resources/tenants/${domain}`);
+        const outputPath = path.resolve(tenantsBase, domain);
+
+        // Defence in depth: the resolved path must still sit inside the tenants dir.
+        if (outputPath !== tenantsBase && !outputPath.startsWith(tenantsBase + path.sep)) {
+            logger.warn(`updateSettingsFile - Path escapes tenants dir: ${outputPath} | ${reqInfo.ip}`);
+            return res.status(400).send({ status: "error", message: "Invalid domain" });
+        }
+
         const baseFilename = settingKey.replace(/\./g, "-");
     
         const targetExtension = config.format;
