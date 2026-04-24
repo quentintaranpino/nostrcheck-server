@@ -5,6 +5,7 @@ import sharp from 'sharp'
 import { encode } from 'blurhash'
 import { credentialTypes } from '../interfaces/authorization.js';
 import bcrypt from 'bcrypt';
+import { getConfig } from './config/core.js'
 
 const generatefileHashfromfile = (filepath:string): string => {
 
@@ -56,7 +57,7 @@ const generateBlurhash = async (path: string): Promise<string> =>
   new Promise((resolve) => {
     logger.debug(`generateBlurhash - INIT blurhash generation for file: ${path}`);
     sharp.cache(false);
-    sharp(path)
+    sharp(path, { limitInputPixels: getConfig(null, ["media", "maxInputPixels"]) })
       .raw()
       .ensureAlpha()
       .resize(32, 32, { fit: "inside" })

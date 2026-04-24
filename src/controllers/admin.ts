@@ -371,7 +371,7 @@ const updateSettingsFile = async (req: Request, res: Response): Promise<Response
     
             await fs.promises.mkdir(outputPath, { recursive: true });
     
-            const sharpFile = sharp(file.buffer).resize(config.width, config.height, {
+            const sharpFile = sharp(file.buffer, { limitInputPixels: getConfig(null, ["media", "maxInputPixels"]) }).resize(config.width, config.height, {
                 fit: sharp.fit.contain,
                 background: config.background
             });

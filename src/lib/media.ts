@@ -171,7 +171,7 @@ const initVideoConversionEngine = (file: FileData) => {
 async function initImageConversionEngine(file: FileData) {
 	
 	try {
-		await sharp(file.conversionInputPath, {"animated": true} )
+		await sharp(file.conversionInputPath, {"animated": true, limitInputPixels: getConfig(null, ["media", "maxInputPixels"])} )
 		.rotate()
 		.resize({
 			width: parseInt(file.newFileDimensions.split("x")[0]), 
@@ -320,7 +320,7 @@ const getMediaDimensions = async (file: string, fileData: { originalmime: string
 	try {
 		if (fileData.originalmime.startsWith("image")) {
 
-			const { info } = await sharp(file)
+			const { info } = await sharp(file, { limitInputPixels: getConfig(null, ["media", "maxInputPixels"]) })
 				.rotate()
 				.toBuffer({ resolveWithObject: true });
 			

@@ -66,6 +66,18 @@
 
     <%- include('field', {
       type: "number",
+      name: "media.maxInputPixels",
+      label: "Max input pixels",
+      description: "Hard cap on the decoded pixel count of uploaded images. Protects against image bombs (a tiny compressed file that expands to hundreds of megapixels in memory). 200,000,000 covers 10K x 20K content; 50,000,000 is stricter and still covers 8K. Below 20,000,000 will start rejecting common phone photos.",
+      value: cfg.maxInputPixels,
+      globalValue: globalCfg.maxInputPixels,
+      placeholder: "e.g. 200000000",
+      required: true,
+      overridable: true
+    }) %>
+
+    <%- include('field', {
+      type: "number",
       name: "media.transform.media.image.width",
       label: "Image width",
       description: "Target width for image resizing.",

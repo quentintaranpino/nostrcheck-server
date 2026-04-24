@@ -152,6 +152,7 @@ const defaultConfig = {
 	},
 	"media" : {
 		"maxMBfilesize": 100,
+		"maxInputPixels": 200000000,
 		"allowPublicUploads" : true,
 		"returnURL" : "",
 		"useCDNPrefix" : false,
