@@ -35,8 +35,8 @@ const parseAuthHeader = async (req: Request, endpoint: string = "", checkAdminPr
 
 	// Authkey. Cookie bearer token
 	if (req.cookies && req.cookies.authkey && checkRegistered) {
-		logger.debug(`parseAuthHeader - authkey found in cookie: ${req.cookies.authkey}`, "|", getClientInfo(req).ip);
-        return await isAuthkeyValid(req.cookies.authkey, checkAdminPrivileges); 
+		logger.debug(`parseAuthHeader - authkey cookie present`, "|", getClientInfo(req).ip);
+        return await isAuthkeyValid(req.cookies.authkey, checkAdminPrivileges);
     }
 
 	//Check if request has authorization header.
@@ -50,7 +50,7 @@ const parseAuthHeader = async (req: Request, endpoint: string = "", checkAdminPr
 	// NIP98 or BUD11. Nostr / Blossom token
 	if (req.headers.authorization.startsWith('Nostr ')) {
 		let authevent: Event;
-		logger.debug(`parseAuthHeader - NIP98 / BUD11 found on request: ${req.headers.authorization}`, "|", getClientInfo(req).ip);
+		logger.debug(`parseAuthHeader - NIP98 / BUD11 auth present on request`, "|", getClientInfo(req).ip);
 		try {
 			authevent = JSON.parse(
 				Buffer.from(
@@ -209,12 +209,12 @@ const isAuthkeyValid = async (authString: string, checkAdminPrivileges: boolean 
 		} 
 
 		if (checkActive && await isPubkeyActive(decoded.identifier) == false) {
-			logger.warn(`isAuthkeyValid - Unauthorized request, user is not active. Authkey: ${authString}`);
+			logger.warn(`isAuthkeyValid - Unauthorized request, user is not active. pubkey: ${decoded.identifier}`);
 			return { status: "error", message: "Unauthorized", authkey: "", pubkey: "", kind: 0 };
 		}
 
         if (checkAdminPrivileges && !decoded.allowed) {
-			logger.warn(`isAuthkeyValid - Unauthorized request, insufficient privileges. Authkey: ${authString}`);
+			logger.warn(`isAuthkeyValid - Unauthorized request, insufficient privileges. pubkey: ${decoded.identifier}`);
             return { status: "error", message: "Unauthorized", authkey: "", pubkey: "", kind: 0 };
         }
 
@@ -228,10 +228,10 @@ const isAuthkeyValid = async (authString: string, checkAdminPrivileges: boolean 
 
     } catch (error) {
 		if (error instanceof Error && error.name === 'TokenExpiredError') {
-			logger.warn(`isAuthkeyValid - Unauthorized request, token expired. Authkey: ${authString}`);
+			logger.warn(`isAuthkeyValid - Unauthorized request, token expired`);
             return { status: "error", message: "Token expired", authkey: "", pubkey: "", kind: 0 };
         } else {
-			logger.warn(`isAuthkeyValid - Unauthorized request, invalid token. Authkey: ${authString}`);
+			logger.warn(`isAuthkeyValid - Unauthorized request, invalid token`);
             return { status: "error", message: "Invalid token", authkey: "", pubkey: "", kind: 0 };
         }
     }

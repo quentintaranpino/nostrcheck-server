@@ -37,7 +37,6 @@ const createkeyPair = async () : Promise<{publicKey : string, secretKey : string
 const getPubkeyFromSecret = async (secretKey : string) : Promise<string> => {
 	try{
 		const sk = Uint8Array.from(Buffer.from(secretKey, 'hex'));
-		logger.debug(`getPubkeyFromSecret - Generating public key from secret key: ${secretKey}`)
 		return getPublicKey(sk)
 	}catch (error) {
 		logger.error(`getPubkeyFromSecret - Error generating public key from secret key: ${error}`)
