@@ -121,9 +121,18 @@ const isNIP98Valid = async (authevent: Event, req: Request, checkAdminPrivileges
 					logger.warn(`isNIP98Valid - Auth header missing payload tag on upload`, "|", getClientInfo(req).ip);
 					return {status: "error", message: "Missing payload tag on upload auth", authkey: "", pubkey: "", kind: 0};
 				}
-				const fileHash = crypto.createHash("sha256").update(file.buffer).digest("hex");
-				if (eventPayload != fileHash) {
-					logger.warn(`isNIP98Valid - Auth header payload hash mismatch on upload: ${eventPayload} <> ${fileHash}`, "|", getClientInfo(req).ip);
+				// NIP-98 says hex, NIP-96 says base64. Some clients (e.g. Damus)
+				// send base64, others send hex with mixed case. Compare against
+				// hex (lowercased) and base64 / base64url variants of the same
+				// 32-byte digest before refusing.
+				const fileHashBytes = crypto.createHash("sha256").update(file.buffer).digest();
+				const fileHashHex = fileHashBytes.toString("hex");
+				const fileHashB64 = fileHashBytes.toString("base64");
+				const fileHashB64Url = fileHashBytes.toString("base64url");
+				const claimed = eventPayload.trim();
+				const claimedLower = claimed.toLowerCase();
+				if (claimedLower != fileHashHex && claimed != fileHashB64 && claimed != fileHashB64Url) {
+					logger.warn(`isNIP98Valid - Auth header payload hash mismatch on upload: ${claimed} <> ${fileHashHex}`, "|", getClientInfo(req).ip);
 					return {status: "error", message: "Auth header payload hash mismatch on upload", authkey: "", pubkey: "", kind: 0};
 				}
 			} else if (eventPayload) {
