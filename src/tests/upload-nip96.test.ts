@@ -52,12 +52,15 @@ describe("NIP-96 upload auth (NIP-98 binding)", () => {
 		expect(replay.status).toEqual(401);
 	});
 
-	test("401 when payload tag is missing on an upload", async () => {
+	// Per NIP-98 the payload tag is SHOULD (not MUST). Missing it on an upload
+	// is allowed; the signature, method/u-tag and anti-replay still gate the
+	// request. We just log a warning when the tag isn't there.
+	test("Accepts an upload without a payload tag (lenient per spec)", async () => {
 		const sk = generateSecretKey();
 		const url = `${BASE}/api/v2/media`;
 		const event = signNip98(sk, url, "POST");
 		const res = await fetch(url, { method: "POST", headers: { Authorization: authHeader(event) }, body: makeForm() });
-		expect(res.status).toEqual(401);
+		expect([200, 201, 202]).toContain(res.status);
 	});
 
 	test("401 when payload hash does not match file", async () => {

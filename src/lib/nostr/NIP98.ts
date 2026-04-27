@@ -105,12 +105,18 @@ const isNIP98Valid = async (authevent: Event, req: Request, checkAdminPrivileges
 		return {status: "error", message: "Auth header event method is not valid", authkey: "", pubkey: "", kind: 0};
 	}
 
-	// Payload
+	// Payload tag. NIP-98 spec uses `payload`; some Nostr clients flavour their
+	// upload events Blossom-style and use `x` instead. We accept either as a
+	// hash-binding tag, preferring `payload` when both are present.
 	const payloadTag = authevent.tags.find(tag => tag[0] === "payload");
-	const eventPayload = payloadTag ? payloadTag[1] : null;
+	const xTag = authevent.tags.find(tag => tag[0] === "x");
+	const eventPayload = payloadTag ? payloadTag[1] : (xTag ? xTag[1] : null);
 
-	// Check authorization event payload tag. For uploads the payload tag is REQUIRED and must match the file sha256.
-	// For other POST/PUT/PATCH requests the payload tag is OPTIONAL per NIP-98 spec, but if present it must match the body sha256.
+	// Check authorization event payload tag. Per NIP-98 ("SHOULD") and NIP-96
+	// ("optionally"), the payload tag is OPTIONAL. If present we MUST validate
+	// it against the file (uploads) or body hash (other writes). If absent we
+	// log a warning and accept the request — the event signature, anti-replay
+	// and method/u-tag checks still gate access.
 	if (req.method == "POST" || req.method == "PUT" || req.method == "PATCH") {
 		try {
 			const files = (req as any).files;
@@ -118,22 +124,21 @@ const isNIP98Valid = async (authevent: Event, req: Request, checkAdminPrivileges
 
 			if (file && file.buffer) {
 				if (!eventPayload) {
-					logger.warn(`isNIP98Valid - Auth header missing payload tag on upload`, "|", getClientInfo(req).ip);
-					return {status: "error", message: "Missing payload tag on upload auth", authkey: "", pubkey: "", kind: 0};
-				}
-				// NIP-98 says hex, NIP-96 says base64. Some clients (e.g. Damus)
-				// send base64, others send hex with mixed case. Compare against
-				// hex (lowercased) and base64 / base64url variants of the same
-				// 32-byte digest before refusing.
-				const fileHashBytes = crypto.createHash("sha256").update(file.buffer).digest();
-				const fileHashHex = fileHashBytes.toString("hex");
-				const fileHashB64 = fileHashBytes.toString("base64");
-				const fileHashB64Url = fileHashBytes.toString("base64url");
-				const claimed = eventPayload.trim();
-				const claimedLower = claimed.toLowerCase();
-				if (claimedLower != fileHashHex && claimed != fileHashB64 && claimed != fileHashB64Url) {
-					logger.warn(`isNIP98Valid - Auth header payload hash mismatch on upload: ${claimed} <> ${fileHashHex}`, "|", getClientInfo(req).ip);
-					return {status: "error", message: "Auth header payload hash mismatch on upload", authkey: "", pubkey: "", kind: 0};
+					logger.warn(`isNIP98Valid - Upload without payload/x tag, accepting on lenient interpretation`, "|", getClientInfo(req).ip);
+				} else {
+					// NIP-98 says hex, NIP-96 says base64. Compare against hex
+					// (lowercased) and base64 / base64url variants of the same
+					// 32-byte digest before refusing.
+					const fileHashBytes = crypto.createHash("sha256").update(file.buffer).digest();
+					const fileHashHex = fileHashBytes.toString("hex");
+					const fileHashB64 = fileHashBytes.toString("base64");
+					const fileHashB64Url = fileHashBytes.toString("base64url");
+					const claimed = eventPayload.trim();
+					const claimedLower = claimed.toLowerCase();
+					if (claimedLower != fileHashHex && claimed != fileHashB64 && claimed != fileHashB64Url) {
+						logger.warn(`isNIP98Valid - Auth header payload hash mismatch on upload: ${claimed} <> ${fileHashHex}`, "|", getClientInfo(req).ip);
+						return {status: "error", message: "Auth header payload hash mismatch on upload", authkey: "", pubkey: "", kind: 0};
+					}
 				}
 			} else if (eventPayload) {
 				const bodyHash = crypto.createHash("sha256").update(JSON.stringify(req.body), "binary").digest("hex");
