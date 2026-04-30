@@ -16,52 +16,51 @@
     </div>
 <% } %>
 
-<div id="gallery-grid" class="gallery-grid <%= privateGallery ? 'visually-hidden' : '' %>" role="list"></div>
+<div id="gallery-wrapper" class="gallery-wrapper <%= privateGallery ? 'visually-hidden' : '' %>">
+    <div id="gallery-grid" class="gallery-grid" role="list"></div>
+</div>
 <div id="no-media" class="visually-hidden text-center py-5 fs-4"><p>No media files found</p></div>
 <div id="sentinel-end" aria-hidden="true"></div>
 <%- !privateGallery ? include('./loading', {objectId: 'gallery-list', dataName: 'Files'}) : '' %>
 
 <style>
-    .gallery-grid {
-        column-gap: 6px;
+    /* Wrapper holds the full virtual height. The grid itself is positioned
+       absolutely inside and only contains tiles in the visible window. */
+    .gallery-wrapper {
+        position: relative;
+        width: 100%;
         padding: 4px;
-        --gallery-cols: <%= maxColumns %>;
-        column-count: var(--gallery-cols);
     }
-    @media (max-width: 1400px) { .gallery-grid { --gallery-cols: 5; } }
-    @media (max-width: 1100px) { .gallery-grid { --gallery-cols: 4; } }
-    @media (max-width: 800px)  { .gallery-grid { --gallery-cols: 3; } }
-    @media (max-width: 540px)  { .gallery-grid { --gallery-cols: 2; } }
+    .gallery-grid {
+        position: absolute;
+        left: 4px;
+        right: 4px;
+        display: grid;
+        grid-template-columns: repeat(var(--gallery-cols, 5), 1fr);
+        gap: 4px;
+        will-change: transform;
+    }
 
     .gallery-tile {
-        break-inside: avoid;
-        margin: 0 0 6px 0;
         position: relative;
-        border-radius: 6px;
+        aspect-ratio: 1;
         overflow: hidden;
+        border-radius: 6px;
         background: #1a1a1a;
-        contain: layout paint;
-        content-visibility: auto;
-        contain-intrinsic-size: 220px 280px;
-        opacity: 0;
-        transform: translateY(8px);
-        animation: tileEnter 0.45s ease-out forwards;
+        cursor: pointer;
     }
-    @keyframes tileEnter {
-        to { opacity: 1; transform: translateY(0); }
-    }
-    .gallery-tile > a { display: block; line-height: 0; }
     .gallery-tile img,
     .gallery-tile video,
     .gallery-tile canvas {
         display: block;
         width: 100%;
-        height: auto;
+        height: 100%;
+        object-fit: cover;
     }
     .gallery-tile img,
     .gallery-tile video {
         opacity: 0;
-        transition: opacity 0.5s ease;
+        transition: opacity 0.3s ease;
     }
     .gallery-tile img.is-loaded,
     .gallery-tile video.is-loaded { opacity: 1; }
@@ -71,26 +70,29 @@
         width: 100%;
         height: 100%;
         z-index: 0;
-        transition: opacity 0.4s ease;
     }
     .gallery-tile img.is-loaded ~ .blur-placeholder,
-    .gallery-tile video.is-loaded ~ .blur-placeholder { opacity: 0; pointer-events: none; }
-    .gallery-tile .placeholder-fallback {
-        width: 100%;
-        aspect-ratio: 4 / 3;
-        background: linear-gradient(135deg, #2a2a2a, #1a1a1a);
-    }
+    .gallery-tile video.is-loaded ~ .blur-placeholder { opacity: 0; pointer-events: none; transition: opacity 0.3s ease; }
     .gallery-tile .file-fallback {
+        width: 100%;
+        height: 100%;
         display: flex;
         align-items: center;
         justify-content: center;
-        width: 100%;
-        aspect-ratio: 4 / 3;
         background: #fff;
         color: #333;
-        font-size: 1.5rem;
+        font-size: 1.4rem;
         text-align: center;
     }
+    .gallery-tile .audio-tile {
+        background: url('/static/resources/loading-music.webp') center / cover no-repeat;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: flex-end;
+        padding: 8px;
+    }
+    .gallery-tile .audio-tile audio { width: 100%; }
     .gallery-tile .btn-container {
         position: absolute;
         bottom: 4px;
@@ -106,15 +108,7 @@
     }
     .gallery-tile:hover .btn-container,
     .gallery-tile:focus-within .btn-container { opacity: 1; transform: translateY(0); }
-    .gallery-tile .btn-container .btn { min-width: 40px; }
-    .gallery-tile .audio-tile {
-        background: url('/static/resources/loading-music.webp') center / cover no-repeat;
-        aspect-ratio: 4 / 3;
-        display: flex;
-        align-items: flex-end;
-        padding: 8px;
-    }
-    .gallery-tile .audio-tile audio { width: 100%; }
+    .gallery-tile .btn-container .btn { min-width: 36px; }
 </style>
 
 <script src="https://cdn.jsdelivr.net/npm/blurhash@1.1.4/dist/blurhash.min.js"></script>
@@ -122,25 +116,31 @@
 const privateGallery = <%= privateGallery %>;
 const pubkey = "<%= pubkey %>";
 
-// Single source of truth for the gallery state. Reset entirely on view switch
-// to avoid the memory leaks the old masonry impl had on repeated toggles.
+// Virtual scroll state. The wrapper holds the full virtual height, the grid
+// absolute-positioned inside renders only the window of tiles around the
+// viewport. Tiles outside that window are not in the DOM at all — that's how
+// we scale to 100k+ items without choking the browser.
 const galleryState = {
-    aborter: null,        // AbortController for the in-flight fetch
-    cursor: null,         // last-seen fileid; null on first load
-    pageSize: 30,
+    aborter: null,
+    cursor: null,
+    pageSize: 60,
     loading: false,
     exhausted: false,
-    observer: null,       // sentinel observer for pagination
-    videoObserver: null,  // SHARED observer for all video tiles
+    videoObserver: null,
+    items: [],                       // ALL fetched items (data only, no DOM)
+    tileSize: 180,                   // px, computed from container width
+    columnsCount: 5,                 // computed from container width
+    bufferRows: 3,
+    renderedRange: { start: -1, end: -1 },
+    scrollScheduled: false,
+    resizeTimer: null,
     fileMasonryId: 0,
 };
 
 let fileTableId = 0;
-let lastClickedTile = null;
 
 document.addEventListener('DOMContentLoaded', () => {
 
-    // Private gallery list view (bootstrap-table). Untouched.
     if (privateGallery) {
         $('#fileTable').bootstrapTable({
             columns: [
@@ -175,27 +175,15 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    const grid = document.getElementById('gallery-grid');
-    const sentinel = document.getElementById('sentinel-end');
-
-    // One observer for the whole gallery — never per-tile. Re-armed only when
-    // a fetch finishes; this dedups the storm of intersections on fast scroll.
-    galleryState.observer = new IntersectionObserver((entries) => {
-        if (entries.some(e => e.isIntersecting)) loadNextPage();
-    }, { rootMargin: '300px' });
-
-    // Single shared observer for ALL video tiles. The old impl created one
-    // observer per video — that's what leaked on long sessions. Here every
-    // <video> registers itself once on render and we centralise play/pause
-    // based on viewport intersection.
+    // Single shared observer for ALL video tiles. Lazy-attaches src on first
+    // intersection and pause/play based on viewport — same pattern as before
+    // but adapted to virtual scroll: tiles in the window register themselves
+    // and unregister when they're removed (via disconnect on rebuild).
     galleryState.videoObserver = new IntersectionObserver((entries) => {
         for (const entry of entries) {
             const video = entry.target;
             if (entry.isIntersecting) {
-                // Lazy attach the source the first time it intersects.
-                if (!video.src && video.dataset.src) {
-                    video.src = video.dataset.src;
-                }
+                if (!video.src && video.dataset.src) video.src = video.dataset.src;
                 video.play().catch(() => {});
             } else {
                 video.pause();
@@ -203,18 +191,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }, { rootMargin: '200px', threshold: 0.1 });
 
-    // Only attach the observer when there's an actual gallery to populate
-    // (private view starts on the list tab; switching to masonry attaches it).
-    if (!privateGallery) {
-        galleryState.observer.observe(sentinel);
-    }
-
-    // Private gallery view switcher.
     document.getElementById('viewSelector')?.addEventListener('click', (event) => {
         const btn = event.target.closest('.btn');
         if (!btn) return;
         const view = btn.getAttribute('data-view');
-        const masonryView = document.getElementById('gallery-grid');
+        const masonryView = document.getElementById('gallery-wrapper');
         const listView = document.getElementById('list-container');
         document.querySelectorAll('#viewSelector .btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
@@ -222,30 +203,38 @@ document.addEventListener('DOMContentLoaded', () => {
         if (view === 'masonry') {
             masonryView.classList.remove('visually-hidden');
             listView.classList.add('visually-hidden');
-            // Reset cursor and re-arm observer.
             resetGallery();
-            galleryState.observer.observe(sentinel);
+            initVirtualScroll();
         } else {
             masonryView.classList.add('visually-hidden');
             listView.classList.remove('visually-hidden');
             document.getElementById('gallery-list-loading')?.remove();
-            galleryState.observer.unobserve(sentinel);
-            // Cancel any in-flight fetch — we won't need its result.
             galleryState.aborter?.abort();
         }
     });
 
-    // Tile action delegation. Single listener at document level, no per-tile
-    // bindings (the old code attached observers and click handlers per item).
+    if (!privateGallery) {
+        initVirtualScroll();
+    }
+
+    // Tile-level click → open the file details modal. Action buttons stop
+    // propagation, so they keep their own behaviour.
+    $(document).on('click', '.gallery-tile', function(event) {
+        if (event.target.closest('.btn-container')) return;
+        event.preventDefault();
+        const url = this.dataset.url;
+        const visibility = this.dataset.visibility;
+        if (!url) return;
+        const filename = url.substring(url.lastIndexOf('/') + 1);
+        const fileInfo = this._fileInfo || null;
+        initMediaModal(filename, undefined, visibility, false, fileInfo);
+    });
+
     $(document).on('click', '.btn-view', function(event) {
         event.stopPropagation();
         window.open($(this).data('url'), '_blank');
     });
 
-    // Info popup. Reuses initMediaModal — the modal already auto-detects the
-    // mime type and renders the right preview (image/video/3d/font/yaml/text).
-    // showButtons=false hides the admin toggles, leaving it as info-only;
-    // the fileInfo arg fills the metadata panel below the preview.
     $(document).on('click', '.btn-info-action', function(event) {
         event.stopPropagation();
         event.preventDefault();
@@ -268,7 +257,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 method: 'DELETE',
                 success: function() {
                     $('#fileTable').bootstrapTable('remove', { field: 'sha256', values: [sha256] });
-                    document.getElementById(`media-${id}`)?.remove();
+                    // Drop from virtual list and re-render the window.
+                    galleryState.items = galleryState.items.filter(f => (f.sha256 || (f.tags && f.tags.find(t => t[0] === 'ox')?.[1])) !== sha256);
+                    galleryState.renderedRange = { start: -1, end: -1 };
+                    renderVisible();
                     showMessage(`File with sha256 ${sha256} deleted successfully`, 'alert-success');
                 },
                 error: function(err) {
@@ -321,6 +313,52 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
+function initVirtualScroll() {
+    computeMetrics();
+    // Attach listeners only once. If already attached, skip.
+    if (!galleryState._listenersAttached) {
+        window.addEventListener('scroll', onScroll, { passive: true });
+        window.addEventListener('resize', onResize);
+        galleryState._listenersAttached = true;
+    }
+    // Kick off the first page.
+    if (galleryState.items.length === 0 && !galleryState.loading) {
+        loadNextPage();
+    } else {
+        renderVisible();
+    }
+}
+
+function computeMetrics() {
+    const wrapper = document.getElementById('gallery-wrapper');
+    if (!wrapper) return;
+    const w = wrapper.clientWidth - 8; // padding
+    if (w <= 0) return;
+    const minTile = 240;
+    const gap = 4;
+    galleryState.columnsCount = Math.max(1, Math.floor((w + gap) / (minTile + gap)));
+    galleryState.tileSize = Math.floor((w - (galleryState.columnsCount - 1) * gap) / galleryState.columnsCount);
+    document.getElementById('gallery-grid').style.setProperty('--gallery-cols', galleryState.columnsCount);
+}
+
+function onScroll() {
+    if (galleryState.scrollScheduled) return;
+    galleryState.scrollScheduled = true;
+    requestAnimationFrame(() => {
+        galleryState.scrollScheduled = false;
+        renderVisible();
+    });
+}
+
+function onResize() {
+    clearTimeout(galleryState.resizeTimer);
+    galleryState.resizeTimer = setTimeout(() => {
+        computeMetrics();
+        galleryState.renderedRange = { start: -1, end: -1 };
+        renderVisible();
+    }, 100);
+}
+
 function resetGallery() {
     galleryState.aborter?.abort();
     galleryState.aborter = null;
@@ -328,11 +366,16 @@ function resetGallery() {
     galleryState.loading = false;
     galleryState.exhausted = false;
     galleryState.fileMasonryId = 0;
-    // Detach all videos from the shared observer; they'll be GC'd with the
-    // grid contents below. Disconnect/observe again is cheaper than walking
-    // every <video> element to unobserve it individually.
+    galleryState.items = [];
+    galleryState.renderedRange = { start: -1, end: -1 };
     galleryState.videoObserver?.disconnect();
-    document.getElementById('gallery-grid').innerHTML = '';
+    const grid = document.getElementById('gallery-grid');
+    if (grid) {
+        grid.innerHTML = '';
+        grid.style.transform = 'translateY(0)';
+    }
+    const wrapper = document.getElementById('gallery-wrapper');
+    if (wrapper) wrapper.style.height = '0px';
     document.getElementById('no-media')?.classList.add('visually-hidden');
 }
 
@@ -340,17 +383,13 @@ async function loadNextPage() {
     if (galleryState.loading || galleryState.exhausted) return;
     galleryState.loading = true;
 
-    // Cancel any previous in-flight fetch — defensive, the loading flag
-    // should already prevent this, but cheap insurance.
     galleryState.aborter?.abort();
     galleryState.aborter = new AbortController();
 
     const params = new URLSearchParams();
     params.set('limit', String(galleryState.pageSize));
     params.set('count', String(galleryState.pageSize));
-    if (galleryState.cursor != null) {
-        params.set('before', String(galleryState.cursor));
-    }
+    if (galleryState.cursor != null) params.set('before', String(galleryState.cursor));
 
     const apiURL = privateGallery
         ? `/api/v2/media?${params}`
@@ -365,9 +404,7 @@ async function loadNextPage() {
             credentials: privateGallery ? 'include' : 'omit',
             signal: galleryState.aborter.signal,
         });
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}`);
-        }
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
         payload = await response.json();
     } catch (err) {
         if (err.name === 'AbortError') return;
@@ -382,28 +419,25 @@ async function loadNextPage() {
         galleryState.exhausted = true;
         galleryState.loading = false;
         document.getElementById('gallery-list-loading')?.remove();
-        if (galleryState.cursor === null) {
-            // First page came back empty — nothing to show.
+        if (galleryState.items.length === 0) {
             document.getElementById('no-media')?.classList.remove('visually-hidden');
         }
+        renderVisible();
         return;
     }
 
-    renderTiles(files, privateGallery);
+    // Append to the master list and advance the cursor to the smallest fileid.
+    galleryState.items.push(...files);
 
-    // Advance the cursor to the smallest fileid we just received.
     const fileIds = files.map(f => Number(f.fileid)).filter(n => Number.isFinite(n) && n > 0);
     if (fileIds.length > 0) {
         const minId = Math.min(...fileIds);
-        // Only advance if it actually moved; otherwise we'd loop on the same
-        // page forever if the backend returned junk fileids.
         if (galleryState.cursor === null || minId < galleryState.cursor) {
             galleryState.cursor = minId;
         } else {
             galleryState.exhausted = true;
         }
     } else {
-        // No usable cursor in the response → stop, we'd loop otherwise.
         galleryState.exhausted = true;
     }
 
@@ -411,6 +445,66 @@ async function loadNextPage() {
     if (galleryState.exhausted) document.getElementById('gallery-list-loading')?.remove();
 
     galleryState.loading = false;
+    renderVisible();
+}
+
+function renderVisible() {
+    const grid = document.getElementById('gallery-grid');
+    const wrapper = document.getElementById('gallery-wrapper');
+    if (!grid || !wrapper) return;
+
+    if (galleryState.items.length === 0) {
+        grid.innerHTML = '';
+        wrapper.style.height = '0px';
+        return;
+    }
+
+    const cols = galleryState.columnsCount;
+    const gap = 4;
+    const rowH = galleryState.tileSize + gap;
+    const totalRows = Math.ceil(galleryState.items.length / cols);
+
+    // Wrapper height = total virtual height. Lets the scrollbar reflect the
+    // whole feed even though only a slice is mounted.
+    wrapper.style.height = (totalRows * rowH) + 'px';
+
+    // Compute the visible row range relative to the wrapper's top.
+    const wrapperRect = wrapper.getBoundingClientRect();
+    const wrapperTop = wrapperRect.top + window.scrollY;
+    const viewTop = window.scrollY;
+    const viewBottom = viewTop + window.innerHeight;
+    const firstVisibleRow = Math.max(0, Math.floor((viewTop - wrapperTop) / rowH));
+    const lastVisibleRow = Math.max(0, Math.ceil((viewBottom - wrapperTop) / rowH));
+
+    const buffer = galleryState.bufferRows;
+    const startRow = Math.max(0, firstVisibleRow - buffer);
+    const endRow = Math.min(totalRows - 1, lastVisibleRow + buffer);
+    const startIdx = startRow * cols;
+    const endIdx = Math.min(galleryState.items.length, (endRow + 1) * cols);
+
+    const sameRange = galleryState.renderedRange.start === startIdx && galleryState.renderedRange.end === endIdx;
+
+    if (!sameRange) {
+        // Disconnect existing video observers so removed videos don't keep
+        // play/pause callbacks alive.
+        galleryState.videoObserver?.disconnect();
+
+        grid.innerHTML = '';
+        grid.style.transform = `translateY(${startRow * rowH}px)`;
+
+        const fragment = document.createDocumentFragment();
+        for (let i = startIdx; i < endIdx; i++) {
+            fragment.appendChild(createTile(galleryState.items[i]));
+        }
+        grid.appendChild(fragment);
+
+        galleryState.renderedRange = { start: startIdx, end: endIdx };
+    }
+
+    // Pre-fetch next page when within the last few rows of what we have.
+    if (lastVisibleRow >= totalRows - 5 && !galleryState.exhausted && !galleryState.loading) {
+        loadNextPage();
+    }
 }
 
 function getTagValue(file, key) {
@@ -434,108 +528,91 @@ function paintBlurhash(canvas, hash, w, h) {
     }
 }
 
-function renderTiles(files, auth) {
-    const grid = document.getElementById('gallery-grid');
-    const fragment = document.createDocumentFragment();
+function createTile(file) {
+    const url = getTagValue(file, 'url');
+    const blurhashStr = getTagValue(file, 'blurhash') || '';
+    const visibility = getTagValue(file, 'visibility') ?? '';
+    const ext = (url?.split('.').pop() || '').toLowerCase();
 
-    for (const file of files) {
-        const url = getTagValue(file, 'url');
-        if (!url) continue;
-        const dim = getTagValue(file, 'dim') || '';
-        const blurhashStr = getTagValue(file, 'blurhash') || '';
-        const ext = (url.split('.').pop() || '').toLowerCase();
-        const [w, h] = dim.split('x').map(n => parseInt(n, 10));
-        const aspect = (Number.isFinite(w) && Number.isFinite(h) && w > 0 && h > 0) ? `${w} / ${h}` : '4 / 3';
+    const tile = document.createElement('div');
+    tile.classList.add('gallery-tile');
+    tile.setAttribute('role', 'listitem');
+    const tileId = galleryState.fileMasonryId++;
+    file.id = file.id ?? tileId;
+    tile.id = `media-${tileId}`;
+    tile.dataset.url = url || '';
+    tile.dataset.visibility = visibility;
+    tile._fileInfo = file;
 
-        const tile = document.createElement('div');
-        tile.classList.add('gallery-tile');
-        tile.setAttribute('role', 'listitem');
-        const tileId = galleryState.fileMasonryId++;
-        file.id = file.id ?? tileId;
-        tile.id = `media-${tileId}`;
-        tile.style.aspectRatio = aspect;
-
-        // Blurhash placeholder — decoded synchronously but to a 32x32 canvas
-        // so it's cheap. Falls back to a flat gradient if no hash.
-        if (blurhashStr) {
-            const ph = document.createElement('canvas');
-            ph.classList.add('blur-placeholder');
-            ph.width = 32; ph.height = 32;
-            tile.appendChild(ph);
-            paintBlurhash(ph, blurhashStr, 32, 32);
-        }
-
-        const link = document.createElement('a');
-        link.href = url;
-        link.target = '_blank';
-        link.rel = 'noopener noreferrer';
-        tile.appendChild(link);
-
-        if (['webp', 'gif', 'jpg', 'jpeg', 'png', 'avif'].includes(ext)) {
-            const img = document.createElement('img');
-            img.src = url;
-            img.loading = 'lazy';
-            img.decoding = 'async';
-            img.fetchPriority = 'low';
-            img.alt = '';
-            img.addEventListener('load', () => img.classList.add('is-loaded'), { once: true });
-            link.appendChild(img);
-        } else if (['mp4', 'mov', 'webm'].includes(ext)) {
-            // Autoplay-on-visible. The src is attached lazily by the shared
-            // videoObserver the first time the tile enters the viewport, so
-            // we don't kick off N concurrent video downloads on first render.
-            const video = document.createElement('video');
-            video.dataset.src = url;
-            video.preload = 'metadata';
-            video.muted = true;
-            video.loop = true;
-            video.playsInline = true;
-            video.setAttribute('poster', '/static/resources/loading-video.webp');
-            video.addEventListener('loadeddata', () => video.classList.add('is-loaded'), { once: true });
-            link.appendChild(video);
-            galleryState.videoObserver.observe(video);
-        } else if (ext === 'mp3' || ext === 'wav' || ext === 'ogg') {
-            const wrap = document.createElement('div');
-            wrap.classList.add('audio-tile');
-            const audio = document.createElement('audio');
-            audio.preload = 'none';
-            audio.controls = true;
-            audio.src = url;
-            wrap.appendChild(audio);
-            link.appendChild(wrap);
-        } else if (ext === 'stl') {
-            const canvas = document.createElement('canvas');
-            canvas.id = `media-3d-${tileId}`;
-            canvas.style.background = '#D1CDCD';
-            canvas.style.width = '100%';
-            canvas.style.height = '220px';
-            link.appendChild(canvas);
-            // Defer so the tile is in the DOM when the viewer initialises.
-            requestAnimationFrame(() => init3dViewer(canvas.id, tile.id, url, 250, 200));
-        } else {
-            const fallback = document.createElement('div');
-            fallback.classList.add('file-fallback');
-            fallback.innerHTML = `<a href="${url}" download class="text-decoration-none"><span class="display-6 gradient-text">.${ext || 'file'}</span></a>`;
-            link.appendChild(fallback);
-        }
-
-        // Action buttons (view / report / visibility / delete) — same
-        // helper as before, just attached to the tile root.
-        tile.appendChild(buttonContainer('masonry', file, auth));
-
-        // Click toggles button container visibility (single tile-at-a-time).
-        tile.addEventListener('click', () => {
-            if (lastClickedTile && lastClickedTile !== tile) {
-                lastClickedTile.querySelector('.btn-container')?.style.setProperty('opacity', '0');
-            }
-            tile.querySelector('.btn-container')?.style.setProperty('opacity', '1');
-            lastClickedTile = tile;
-        });
-
-        fragment.appendChild(tile);
+    if (blurhashStr) {
+        const ph = document.createElement('canvas');
+        ph.classList.add('blur-placeholder');
+        ph.width = 32; ph.height = 32;
+        tile.appendChild(ph);
+        paintBlurhash(ph, blurhashStr, 32, 32);
     }
 
-    grid.appendChild(fragment);
+    if (!url) {
+        const fb = document.createElement('div');
+        fb.classList.add('file-fallback');
+        fb.textContent = '?';
+        tile.appendChild(fb);
+        return tile;
+    }
+
+    if (['webp', 'gif', 'jpg', 'jpeg', 'png', 'avif'].includes(ext)) {
+        const img = document.createElement('img');
+        img.loading = 'lazy';
+        img.decoding = 'async';
+        img.fetchPriority = 'low';
+        img.alt = '';
+        img.src = url;
+        // Cache hit: the load event already fired and won't fire again, so
+        // mark it loaded synchronously to skip the fade-in (and the flash
+        // that would happen on every virtual-scroll re-mount).
+        if (img.complete && img.naturalWidth > 0) {
+            img.classList.add('is-loaded');
+        } else {
+            img.addEventListener('load', () => img.classList.add('is-loaded'), { once: true });
+        }
+        tile.appendChild(img);
+    } else if (['mp4', 'mov', 'webm'].includes(ext)) {
+        const video = document.createElement('video');
+        video.dataset.src = url;
+        video.preload = 'metadata';
+        video.muted = true;
+        video.loop = true;
+        video.playsInline = true;
+        video.setAttribute('poster', '/static/resources/loading-video.webp');
+        video.addEventListener('loadeddata', () => video.classList.add('is-loaded'), { once: true });
+        tile.appendChild(video);
+        galleryState.videoObserver.observe(video);
+    } else if (ext === 'mp3' || ext === 'wav' || ext === 'ogg') {
+        const wrap = document.createElement('div');
+        wrap.classList.add('audio-tile');
+        const audio = document.createElement('audio');
+        audio.preload = 'none';
+        audio.controls = true;
+        audio.src = url;
+        wrap.appendChild(audio);
+        tile.appendChild(wrap);
+    } else if (ext === 'stl') {
+        const canvas = document.createElement('canvas');
+        canvas.id = `media-3d-${tileId}`;
+        canvas.style.background = '#D1CDCD';
+        tile.appendChild(canvas);
+        requestAnimationFrame(() => init3dViewer(canvas.id, tile.id, url, galleryState.tileSize, galleryState.tileSize));
+    } else {
+        const fb = document.createElement('div');
+        fb.classList.add('file-fallback');
+        fb.innerHTML = `<span class="display-6 gradient-text">.${ext || 'file'}</span>`;
+        tile.appendChild(fb);
+    }
+
+    // Action buttons (info / view / report / visibility / delete).
+    tile.appendChild(buttonContainer('masonry', file, privateGallery ? true : false));
+
+    return tile;
 }
 
 function buttonContainer(type, file, auth) {
@@ -548,10 +625,7 @@ function buttonContainer(type, file, auth) {
 
     const container = document.createElement('div');
     container.id = type + '-button-container-' + sha256;
-
-    if (type === 'masonry') {
-        container.classList.add('btn-container');
-    }
+    if (type === 'masonry') container.classList.add('btn-container');
 
     if (type === 'masonry') {
         const infoButton = document.createElement('button');
@@ -560,8 +634,6 @@ function buttonContainer(type, file, auth) {
         infoButton.setAttribute('data-visibility', visibility);
         infoButton.setAttribute('title', 'File info');
         infoButton.innerHTML = '<i class="fas fa-info"></i>';
-        // Stash the full file payload on the element so the click handler
-        // can read every NIP-94 tag without re-fetching.
         infoButton._fileInfo = file;
         container.appendChild(infoButton);
     }
