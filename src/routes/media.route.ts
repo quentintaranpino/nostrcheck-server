@@ -80,13 +80,15 @@ export const loadMediaEndpoint = async (app: Application, version:string): Promi
 		(req, res) => { getMediaList(req, res) }
 	);
 
-	// NIP-96 media list 
+	// NIP-96 media list
 	app.get(
 		[`${base}`, `/`],
 		limiter(1000),
 		(req, res, next) => {
-			const { page, count } = req.query;
-			if (page !== undefined && count !== undefined) 	return getMediaList(req, res);
+			const { page, count, before } = req.query;
+			if (page !== undefined || count !== undefined || before !== undefined) {
+				return getMediaList(req, res);
+			}
 			return next();
 		}
 	);

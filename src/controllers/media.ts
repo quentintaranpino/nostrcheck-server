@@ -824,12 +824,12 @@ const getMediaList = async (req: Request, res: Response): Promise<Response> => {
 					? await prepareBlobDescriptor(listedFile)
 					: await PrepareNIP96_listEvent(listedFile);
 
-		// Expose the DB id as a top-level field for cursor pagination on the
-		// gallery. NIP-94 / Blossom payloads stay spec-compliant; this is an
-		// extra field consumers can ignore.
-		if (listType === "public" || listType === "vanity") {
-			(file as any).fileid = listedFile.fileid;
-		}
+		// Expose the DB id and uploader pubkey as top-level fields for cursor
+		// pagination and the gallery / admin info panel. NIP-94 / Blossom
+		// payloads stay spec-compliant; these are extra fields consumers can
+		// ignore.
+		(file as any).fileid = listedFile.fileid;
+		(file as any).pubkey = listedFile.pubkey;
 
 		files.push(file);
 	}

@@ -15,6 +15,7 @@
   <%- include('./partials/footer', {active:'gallery'}); %>
   <%- include('./components/modals/message-modal', {"object":"firstUse"}); %>
   <%- include('./components/modals/report-modal'); %>
+  <%- include('./components/modals/media-modal'); %>
 </body>
 <script>
   if ("<%= locals.firstUse %>" != undefined && "<%= locals.firstUse %>" != null && "<%= locals.firstUse %>" != "") {

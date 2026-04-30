@@ -429,7 +429,7 @@ const initUploaderModal = async () => {
     uploader.show();
 }
 
-const initMediaModal = async (filename, checked, visible, showButtons = true) => {
+const initMediaModal = async (filename, checked, visible, showButtons = true, fileInfo = null) => {
 
     var mediaModal = new bootstrap.Modal($('#media-modal'));
 
@@ -461,6 +461,82 @@ const initMediaModal = async (filename, checked, visible, showButtons = true) =>
     mediaPreviewIframe.addClass('d-none');
     mediaPreview3d.addClass('d-none');
 
+    // Reset and populate the info panel from fileInfo (file metadata coming
+    // from the gallery / list payload). Works with either NIP-94 tag arrays
+    // or flat objects (Blossom blob descriptors / DB rows).
+    const infoPanel = $('#media-info');
+    const infoRows = $('#media-info-rows');
+    infoRows.empty();
+    infoPanel.addClass('d-none');
+    if (fileInfo) {
+        const tagVal = (key) => {
+            if (Array.isArray(fileInfo.tags)) {
+                const t = fileInfo.tags.find(x => x[0] === key);
+                return t ? t[1] : null;
+            }
+            return fileInfo[key] ?? null;
+        };
+        // Three shapes can land here: NIP-94 list event (tags array), Blossom
+        // blob descriptor (sha256/type/size/uploaded) and DB row from admin
+        // (original_hash/mimetype/filesize/dimensions/date). Fall back across
+        // all three so the panel works in every entry point.
+        const sha = tagVal('ox') || tagVal('x') || tagVal('sha256')
+            || fileInfo.sha256 || fileInfo.original_hash || fileInfo.hash;
+        const mime = tagVal('m') || fileInfo.type || fileInfo.mimetype;
+        const dim = tagVal('dim') || fileInfo.dim || fileInfo.dimensions;
+        const blurhash = tagVal('blurhash') || fileInfo.blurhash;
+        const pubkey = fileInfo.pubkey || tagVal('pubkey');
+        const paymentRequest = tagVal('payment_request') || fileInfo.payment_request;
+        const uploaded = fileInfo.created_at || fileInfo.uploaded || fileInfo.date;
+        // size may arrive as bytes (number), bytes-as-string, or pre-formatted
+        // ("1234.56 KB" from the admin table). Resolve to a display string.
+        const sizeRaw = tagVal('size') || fileInfo.filesize || fileInfo.size;
+        const sizeNum = Number(sizeRaw);
+
+        const fmtSize = (b) => {
+            const n = Number(b);
+            if (!Number.isFinite(n) || n <= 0) return '';
+            const units = ['B', 'KB', 'MB', 'GB'];
+            let i = 0; let v = n;
+            while (v >= 1024 && i < units.length - 1) { v /= 1024; i++; }
+            return `${v.toFixed(v >= 100 || i === 0 ? 0 : 1)} ${units[i]}`;
+        };
+        const fmtDate = (v) => {
+            if (v == null || v === '') return '';
+            const n = Number(v);
+            if (Number.isFinite(n) && n > 0) {
+                // Seconds vs ms heuristic: anything below ~year 5138 in
+                // seconds fits under 1e11.
+                const ms = n < 1e11 ? n * 1000 : n;
+                return new Date(ms).toLocaleString();
+            }
+            const d = new Date(v);
+            return isNaN(d.getTime()) ? String(v) : d.toLocaleString();
+        };
+        const truncate = (s, n) => (s && s.length > n) ? s.slice(0, n) + '…' : (s || '');
+        const sizeDisplay = (Number.isFinite(sizeNum) && sizeNum > 0)
+            ? fmtSize(sizeNum)
+            : (typeof sizeRaw === 'string' && sizeRaw ? sizeRaw : '');
+
+        const rows = [
+            sha && ['Hash', `<code class="user-select-all">${sha}</code>`],
+            pubkey && ['Pubkey', `<code class="user-select-all">${pubkey}</code>`],
+            mime && ['Type', mime],
+            sizeDisplay && ['Size', sizeDisplay],
+            dim && ['Dimensions', dim],
+            uploaded && ['Uploaded', fmtDate(uploaded)],
+            blurhash && ['Blurhash', `<code>${truncate(blurhash, 24)}</code>`],
+            paymentRequest && ['Payment', `<code>${truncate(paymentRequest, 32)}</code>`],
+        ].filter(Boolean);
+
+        if (rows.length > 0) {
+            for (const [k, v] of rows) {
+                infoRows.append(`<tr><td class="text-secondary pe-3" style="width: 35%;">${k}</td><td class="text-break">${v}</td></tr>`);
+            }
+            infoPanel.removeClass('d-none');
+        }
+    }
+
     $(mediaModal._element).on('hidden.bs.modal', function () {
         mediaPreviewIframe.attr('src', '');
         mediaPreviewIframe.addClass('d-none');
@@ -472,6 +548,8 @@ const initMediaModal = async (filename, checked, visible, showButtons = true) =>
         fontPreview.addClass('d-none');
         yamlPreview.addClass('d-none');
         downloadWrapper.addClass('d-none');
+        infoPanel.addClass('d-none');
+        infoRows.empty();
 
         contentType = '';
     });

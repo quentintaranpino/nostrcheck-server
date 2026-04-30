@@ -2,22 +2,38 @@
     <div class="modal-dialog modal-dialog-centered modal-fullscreen-md-down modal-lg">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="media-modal-title">Media preview</h5>
+                <h5 class="modal-title" id="media-modal-title">File details</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body text-center d-flex flex-column align-items-center justify-content-center" id="media-modal-body" style="min-height: 450px;">
                 <%- include('../loading', {objectId: 'media', dataName: 'media'}) %>
-                <img src="" id="mediapreview-img" class="img-fluid d-none rounded mx-auto">
-                <video id="mediapreview-video" class="d-none rounded mx-auto" style="width: 100%; min-height: 400px; object-fit: contain; max-height: 400px;" autoplay muted playsinline controls></video>
-                <canvas id="mediapreview-3d" class="d-none rounded mx-auto"></canvas>
-                <iframe id="mediapreview-iframe" class="img-fluid d-none rounded mx-auto" style="width: 100%; min-height: 450px;" frameborder="0"></iframe>
-                <div id="mediapreview-font" class="d-none rounded mx-auto" style="min-height: 450px; align-items: center; justify-content: center;"></div>
-                <div id="mediapreview-yaml" class="d-none rounded mx-auto text-start p-4" style="min-height: 450px;"></div>
+                <img src="" id="mediapreview-img" class="img-fluid d-none rounded mx-auto" style="max-height: 60vh; object-fit: contain;">
+                <video id="mediapreview-video" class="d-none rounded mx-auto" style="width: 100%; max-height: 60vh; object-fit: contain;" autoplay muted playsinline controls></video>
+                <canvas id="mediapreview-3d" class="d-none rounded mx-auto" style="max-height: 60vh;"></canvas>
+                <iframe id="mediapreview-iframe" class="img-fluid d-none rounded mx-auto" style="width: 100%; height: 60vh;" frameborder="0"></iframe>
+                <div id="mediapreview-font" class="d-none rounded mx-auto" style="min-height: 240px; align-items: center; justify-content: center;"></div>
+                <div id="mediapreview-yaml" class="d-none rounded mx-auto text-start p-4" style="min-height: 240px; max-height: 60vh; overflow: auto;"></div>
                 <div id="mediapreview-download" class="d-none text-center">
                     <p>This file can't be previewed 🙃</p>
                     <a class="btn btn-outline-secondary mt-3" id="mediapreview-download-btn" target="_blank" download>
                         <i class="fa-solid fa-download me-2"></i>Download
                     </a>
+                </div>
+
+                <div id="media-info" class="d-none w-100 mt-3 text-start small">
+                    <style>
+                        #media-info code {
+                            font-size: 0.72rem;
+                            word-break: break-all;
+                            white-space: normal;
+                            display: inline-block;
+                            line-height: 1.25;
+                        }
+                        #media-info td { vertical-align: top; }
+                    </style>
+                    <table class="table table-sm table-borderless mb-0">
+                        <tbody id="media-info-rows"></tbody>
+                    </table>
                 </div>
 
             </div>

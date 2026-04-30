@@ -750,7 +750,7 @@
 
             // Attach the click event handler to the document and delegate it to the clickable element
             $(document).off('click', '#media_' + index + '_preview').on('click', '#media_' + index + '_preview', async function () {
-                    initMediaModal(row.pubkey + "/" + value, row.checked, row.visibility, true).then(async (modal) => {
+                    initMediaModal(row.pubkey + "/" + value, row.checked, row.visibility, true, row).then(async (modal) => {
                         let modalResult = modal.data;
                         for (let field in modalResult) {
                             if (modalResult[field] != row[field]) {
@@ -774,7 +774,7 @@
 
             let modalFileCheck = '<div id="banned_' + index + '_preview"><span class="cursor-zoom-in text-secondary">' + textValue + '</span></div>';
             $(document).off('click', '#banned_' + index + '_preview').on('click', '#banned_' + index + '_preview', async function () {
-                await initMediaModal(value, row.checked, row.visibility, false).then(async (modal) => {
+                await initMediaModal(value, row.checked, row.visibility, false, row).then(async (modal) => {
                     let modalResult = modal.data;
                     for (let field in modalResult) {
                         if (modalResult[field] != row[field]) {

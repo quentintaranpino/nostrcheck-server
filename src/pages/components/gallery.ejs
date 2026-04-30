@@ -242,6 +242,21 @@ document.addEventListener('DOMContentLoaded', () => {
         window.open($(this).data('url'), '_blank');
     });
 
+    // Info popup. Reuses initMediaModal — the modal already auto-detects the
+    // mime type and renders the right preview (image/video/3d/font/yaml/text).
+    // showButtons=false hides the admin toggles, leaving it as info-only;
+    // the fileInfo arg fills the metadata panel below the preview.
+    $(document).on('click', '.btn-info-action', function(event) {
+        event.stopPropagation();
+        event.preventDefault();
+        const url = $(this).data('url') || '';
+        const visibility = $(this).data('visibility');
+        if (!url) return;
+        const filename = url.substring(url.lastIndexOf('/') + 1);
+        const fileInfo = this._fileInfo || null;
+        initMediaModal(filename, undefined, visibility, false, fileInfo);
+    });
+
     $(document).on('click', '.btn-delete', async function(event) {
         event.stopPropagation();
         const sha256 = $(this).data('sha256');
@@ -540,8 +555,14 @@ function buttonContainer(type, file, auth) {
 
     if (type === 'masonry') {
         const infoButton = document.createElement('button');
-        infoButton.classList.add('btn', 'btn-primary', 'btn-xl', 'me-1');
+        infoButton.classList.add('btn', 'btn-primary', 'btn-xl', 'me-1', 'btn-info-action');
+        infoButton.setAttribute('data-url', url);
+        infoButton.setAttribute('data-visibility', visibility);
+        infoButton.setAttribute('title', 'File info');
         infoButton.innerHTML = '<i class="fas fa-info"></i>';
+        // Stash the full file payload on the element so the click handler
+        // can read every NIP-94 tag without re-fetching.
+        infoButton._fileInfo = file;
         container.appendChild(infoButton);
     }
 
@@ -605,7 +626,7 @@ function filenameFormatter(value, row, index) {
     const textValue = value.slice(0, (value.length / 2) - 20) + ':' + value.slice((value.length / 2) + 20);
     const modalFileCheck = '<div id="file_' + index + '_preview"><span class="cursor-zoom-in text-secondary">' + textValue + '</span></div>';
     $(document).off('click', '#file_' + index + '_preview').on('click', '#file_' + index + '_preview', async function () {
-        await initMediaModal(`${row.url.substring(row.url.lastIndexOf('/') + 1)}`, row.checked, row.visibility, false);
+        await initMediaModal(`${row.url.substring(row.url.lastIndexOf('/') + 1)}`, row.checked, row.visibility, false, row);
     });
     return modalFileCheck;
 }
