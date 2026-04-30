@@ -283,7 +283,7 @@ const dbDelete = async (tableName: string, whereFieldNames: string[], whereField
     const [result] = await pool.execute(deleteStatement, params);
     const ok = (result as ResultSetHeader).affectedRows > 0;
     if (!ok) {
-      logger.warn(`dbDelete - 0 filas afectadas | ${deleteStatement} | params=${JSON.stringify(params)}`);
+      logger.debug(`dbDelete - 0 rows affected | ${deleteStatement} | params=${JSON.stringify(params)}`);
     }
     return ok;
   } catch (error) {

@@ -3,7 +3,7 @@
         <span class="me-2 lead fs-6">Select view</span>
             <div id="viewSelector" class="btn-group">
                 <button type="button" class="btn btn-secondary active" data-view="list" id="listView">
-                    <i class="fas fa-list"></i> 
+                    <i class="fas fa-list"></i>
                 </button>
                 <button type="button" class="btn btn-secondary" data-view="masonry" id="galleryView">
                     <i class="fas fa-images"></i>
@@ -13,349 +13,242 @@
 
     <div id="list-container" class="g-2 p-2 pt-0 <%= privateGallery ? '' : 'visually-hidden' %>">
         <table id="fileTable"></table>
-      </div>
+    </div>
+<% } %>
 
-<% }%>
-
-<div id="masonry-container" class="g-2 p-1 <%= privateGallery ? 'visually-hidden' : '' %>"></div>
+<div id="gallery-grid" class="gallery-grid <%= privateGallery ? 'visually-hidden' : '' %>" role="list"></div>
 <div id="no-media" class="visually-hidden text-center py-5 fs-4"><p>No media files found</p></div>
-<div id="sentinelEnd"></div>
+<div id="sentinel-end" aria-hidden="true"></div>
 <%- !privateGallery ? include('./loading', {objectId: 'gallery-list', dataName: 'Files'}) : '' %>
+
 <style>
-    #masonry-container {
+    .gallery-grid {
+        column-gap: 6px;
+        padding: 4px;
+        --gallery-cols: <%= maxColumns %>;
+        column-count: var(--gallery-cols);
+    }
+    @media (max-width: 1400px) { .gallery-grid { --gallery-cols: 5; } }
+    @media (max-width: 1100px) { .gallery-grid { --gallery-cols: 4; } }
+    @media (max-width: 800px)  { .gallery-grid { --gallery-cols: 3; } }
+    @media (max-width: 540px)  { .gallery-grid { --gallery-cols: 2; } }
+
+    .gallery-tile {
+        break-inside: avoid;
+        margin: 0 0 6px 0;
+        position: relative;
+        border-radius: 6px;
+        overflow: hidden;
+        background: #1a1a1a;
+        contain: layout paint;
+        content-visibility: auto;
+        contain-intrinsic-size: 220px 280px;
+    }
+    .gallery-tile > a { display: block; line-height: 0; }
+    .gallery-tile img,
+    .gallery-tile video,
+    .gallery-tile canvas {
+        display: block;
+        width: 100%;
+        height: auto;
+    }
+    .gallery-tile .blur-placeholder {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 0;
+        transition: opacity 0.4s ease;
+    }
+    .gallery-tile img.is-loaded ~ .blur-placeholder,
+    .gallery-tile video.is-loaded ~ .blur-placeholder { opacity: 0; pointer-events: none; }
+    .gallery-tile .placeholder-fallback {
+        width: 100%;
+        aspect-ratio: 4 / 3;
+        background: linear-gradient(135deg, #2a2a2a, #1a1a1a);
+    }
+    .gallery-tile .video-overlay {
+        position: absolute;
+        inset: 0;
         display: flex;
+        align-items: center;
         justify-content: center;
-        gap: 5px; 
+        background: rgba(0,0,0,0.25);
+        color: #fff;
+        font-size: 2.5rem;
+        z-index: 2;
+        cursor: pointer;
+        pointer-events: auto;
     }
-
-    .media-column {
+    .gallery-tile .file-fallback {
         display: flex;
-        flex-direction: column;
-        gap: 5px; 
-        flex: 1; 
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        aspect-ratio: 4 / 3;
+        background: #fff;
+        color: #333;
+        font-size: 1.5rem;
+        text-align: center;
     }
-
-    .btn-container {
+    .gallery-tile .btn-container {
+        position: absolute;
+        bottom: 4px;
+        left: 4px;
+        right: 4px;
+        padding: 4px;
+        background: rgba(0,0,0,0.45);
+        border-radius: 5px;
         opacity: 0;
-        transform: translateY(20px);
-        transition: all 0.3s ease-in-out;
+        transform: translateY(8px);
+        transition: opacity 0.2s ease, transform 0.2s ease;
+        z-index: 5;
     }
-
-    .btn-container .btn{
-        min-width: 45px;
+    .gallery-tile:hover .btn-container,
+    .gallery-tile:focus-within .btn-container { opacity: 1; transform: translateY(0); }
+    .gallery-tile .btn-container .btn { min-width: 40px; }
+    .gallery-tile .audio-tile {
+        background: url('/static/resources/loading-music.webp') center / cover no-repeat;
+        aspect-ratio: 4 / 3;
+        display: flex;
+        align-items: flex-end;
+        padding: 8px;
     }
-
-    .media-div:hover .btn-container {
-        opacity: 1;
-        transform: translateY(0);
-    }
-
-    .fade-in {
-    opacity: 0;
-    animation: fadeIn 0.5s forwards;
-    }
-
-    @keyframes fadeIn {
-    to {
-        opacity: 1;
-    }
-    }
+    .gallery-tile .audio-tile audio { width: 100%; }
 </style>
+
 <script src="https://cdn.jsdelivr.net/npm/blurhash@1.1.4/dist/blurhash.min.js"></script>
 <script>
-const maxImageWidth = <%= maxImageWidth %>;
-const maxColumns = <%= maxColumns %>;
 const privateGallery = <%= privateGallery %>;
 const pubkey = "<%= pubkey %>";
 
-let mediaCount = 20;
-const resizeThreshold = 50;
+// Single source of truth for the gallery state. Reset entirely on view switch
+// to avoid the memory leaks the old masonry impl had on repeated toggles.
+const galleryState = {
+    aborter: null,        // AbortController for the in-flight fetch
+    cursor: null,         // last-seen fileid; null on first load
+    pageSize: 30,
+    loading: false,
+    exhausted: false,
+    observer: null,
+    fileMasonryId: 0,
+};
 
-let page = -1;
-let lastClickedMedia = null;
-let columns = Math.floor(window.innerWidth / maxImageWidth) < maxColumns ? Math.floor(window.innerWidth / maxImageWidth) : maxColumns;
-const columnElements = [];
-const columnHeights = Array(columns).fill(0); 
-
-let fileMasonryId = 0;
 let fileTableId = 0;
+let lastClickedTile = null;
 
-document.addEventListener('DOMContentLoaded', (event) => {
-    
-    $('#fileTable').bootstrapTable({
-        columns: [
-            {
-                field: 'id',
-                title: 'ID',
-                class: 'text-center',
-                sortable: true
-            },
-            {
-                field: 'sha256',
-                title: 'Filename',
-                formatter: filenameFormatter,
-                class: 'text-center',
-                sortable: true
-            },
-            {
-                field: 'm',
-                title: 'Type',
-                class: 'text-center',
-                sortable: true
-            },
-            {
-                field: 'url',
-                title: 'Url',
-                formatter: filenameFormatter,
-                class: 'text-center d-none',
-                sortable: true
-            }, 
-            {
-                field: 'size',
-                title: 'Size',
-                class: 'text-center',
-                sortable: true
-            },
-            {
-                field: 'dim',
-                title: 'Dimensions',
-                class: 'text-center',
-                sortable: true,
-                visible: false
+document.addEventListener('DOMContentLoaded', () => {
 
-            },
-            {
-                field: 'date',
-                title: 'Date',
-                class: 'text-center',
-                sortable: true,
-                sorter: dateSorter 
-
-            },
-            {
-                field: 'payment_request',
-                title: 'Payment Request',
-                class: 'text-center',
-                sortable: true,
-                visible: false
-            },
-            {
-                field: 'actions',
-                title: 'Actions',
-                formatter: actionsFormatter,
-                class: 'text-center',
-                sortable: false
-            },
-            {  
-                field: 'visibility',
-                title: 'Visibility',
-                class: 'text-center',
-                visible: false
-            },
-            {
-                field: 'auth',
-                visible: false
-            }
-        ],
-        idField: 'id',
-        uniqueId: 'id',
-        url: `/api/v2/media/list/${pubkey}`,
-        ajax: function (params) {fetchTabledata(params)},
-        data: [], 
-        search: true,
-        searchAlign: 'left', 
-        mobileResponsive: true,
-        minWidth: 1024,
-        sortable: true,
-        pagination: true,
-        sidePagination: "client",
-        pageSize: 10,
-        showColumns: true,
-        detailView: true,
-        detailFormatter: detailFormatter,
-    });
-
-    const sentinelEnd = document.getElementById('sentinelEnd');
-
-    const mediaContainer = document.getElementById('masonry-container');
-    for (let i = 0; i < columns; i++) {
-        const column = document.createElement('div');
-        column.classList.add('media-column');
-        column.style.flex = '1'; 
-        column.id = `column-${i}`; 
-        column.style.width = `${100 / columns}%`;
-        mediaContainer.appendChild(column);
-        columnElements.push(column);
+    // Private gallery list view (bootstrap-table). Untouched.
+    if (privateGallery) {
+        $('#fileTable').bootstrapTable({
+            columns: [
+                { field: 'id', title: 'ID', class: 'text-center', sortable: true },
+                { field: 'sha256', title: 'Filename', formatter: filenameFormatter, class: 'text-center', sortable: true },
+                { field: 'm', title: 'Type', class: 'text-center', sortable: true },
+                { field: 'url', title: 'Url', formatter: filenameFormatter, class: 'text-center d-none', sortable: true },
+                { field: 'size', title: 'Size', class: 'text-center', sortable: true },
+                { field: 'dim', title: 'Dimensions', class: 'text-center', sortable: true, visible: false },
+                { field: 'date', title: 'Date', class: 'text-center', sortable: true, sorter: dateSorter },
+                { field: 'payment_request', title: 'Payment Request', class: 'text-center', sortable: true, visible: false },
+                { field: 'actions', title: 'Actions', formatter: actionsFormatter, class: 'text-center', sortable: false },
+                { field: 'visibility', title: 'Visibility', class: 'text-center', visible: false },
+                { field: 'auth', visible: false }
+            ],
+            idField: 'id',
+            uniqueId: 'id',
+            url: `/api/v2/media/list/${pubkey}`,
+            ajax: function (params) { fetchTabledata(params) },
+            data: [],
+            search: true,
+            searchAlign: 'left',
+            mobileResponsive: true,
+            minWidth: 1024,
+            sortable: true,
+            pagination: true,
+            sidePagination: 'client',
+            pageSize: 10,
+            showColumns: true,
+            detailView: true,
+            detailFormatter: detailFormatter,
+        });
     }
 
-    let lastWindowWidth = window.innerWidth;
-    const redistributeMedia = () => {
+    const grid = document.getElementById('gallery-grid');
+    const sentinel = document.getElementById('sentinel-end');
 
-        if (Math.abs(window.innerWidth - lastWindowWidth) < resizeThreshold) return;
-        lastWindowWidth = window.innerWidth;
+    // One observer for the whole gallery — never per-tile. Re-armed only when
+    // a fetch finishes; this dedups the storm of intersections on fast scroll.
+    galleryState.observer = new IntersectionObserver((entries) => {
+        if (entries.some(e => e.isIntersecting)) loadNextPage();
+    }, { rootMargin: '300px' });
 
-        observerSentinels.unobserve(sentinelEnd);
+    // Only attach the observer when there's an actual gallery to populate
+    // (private view starts on the list tab; switching to masonry attaches it).
+    if (!privateGallery) {
+        galleryState.observer.observe(sentinel);
+    }
 
-        const allMediaDivs = Array.from(document.querySelectorAll('.media-div')).sort((a, b) => {
-            const idA = parseInt(a.id.split('-')[1], 10);
-            const idB = parseInt(b.id.split('-')[1], 10);
-            return idA - idB;
-        });
-
-        const fragment = document.createDocumentFragment();
-
-        while (mediaContainer.firstChild) {
-            mediaContainer.removeChild(mediaContainer.firstChild);
-        }
-
-        columns = Math.floor(window.innerWidth / maxImageWidth) < maxColumns ? Math.floor(window.innerWidth / maxImageWidth) : maxColumns;
-        columnElements.length = 0;
-        columnHeights.length = columns;
-        columnHeights.fill(0);
-
-        for (let i = 0; i < columns; i++) {
-            const column = document.createElement('div');
-            column.classList.add('media-column');
-            column.id = `column-${i}`;
-            column.style.width = `${100 / columns}%`;
-            fragment.appendChild(column);
-            columnElements.push(column);
-        }
-
-        allMediaDivs.forEach(mediaDiv => {
-            const shortestColumnIndex = columnHeights.indexOf(Math.min(...columnHeights));
-            const shortestColumn = columnElements[shortestColumnIndex];
-            shortestColumn.appendChild(mediaDiv);
-            columnHeights[shortestColumnIndex] += parseInt(mediaDiv.dataset.serverHeight, 10);
-        });
-
-        columnElements.forEach((column, index) => {
-            column.querySelectorAll('.media-div').forEach(mediaDiv => {
-                const height = mediaDiv.clientHeight;
-                columnHeights[index] += height;
-            });
-        });
-
-        const shortestColumnIndex = columnHeights.indexOf(Math.min(...columnHeights));
-        const shortestColumn = columnElements[shortestColumnIndex];
-        shortestColumn.appendChild(sentinelEnd);
-
-        mediaContainer.appendChild(fragment);
-
-        observerSentinels.observe(sentinelEnd);
-    };
-
-    window.addEventListener('resize', redistributeMedia);
-
-    const observerSentinels = new IntersectionObserver(async (entries, observer) => {
-        for (const entry of entries) {
-            if (entry.isIntersecting) {
-                page++;
-                const apiURL = privateGallery ? `/api/v2/media?page=${page}&count=${mediaCount}` : pubkey ? `/api/v2/media/vanity/${pubkey}?page=${page}&count=${mediaCount}` : `/api/v2/media/listpublic?page=${page}&count=${mediaCount}`;
-                const response = await fetch(apiURL, {
-                    method: "GET",
-                    credentials: privateGallery ? 'include' : 'omit',
-                });
-                if (!response.ok) {
-                    document.getElementById('gallery-list-loading').remove();
-                    document.getElementById('no-media').classList.remove('visually-hidden');
-                    console.error('Error fetching media', response);
-                    return;
-                }
-                
-                const userData = await response.json();
-                console.log('Fetched media data', userData);
-
-                const files = Array.isArray(userData) ? userData : userData.files;
-
-                if (!files || !Array.isArray(files) || files.length === 0) {
-                    console.log('No more media to load');
-                    document.getElementById('gallery-list-loading')?.remove();
-                    document.getElementById('no-media').classList.remove('visually-hidden');
-                    return;
-                }
-
-                populateMasonryData(files, privateGallery? true : false);
-            };
-        }
-    }, {
-        rootMargin: '1500px'
-    });
-    observerSentinels.observe(sentinelEnd);
-
+    // Private gallery view switcher.
     document.getElementById('viewSelector')?.addEventListener('click', (event) => {
-        const selectedButton = event.target.closest('.btn');
-         if (!selectedButton) return;
-
-        const selectedView = selectedButton.getAttribute('data-view');
-        const masonryView = document.getElementById('masonry-container');
+        const btn = event.target.closest('.btn');
+        if (!btn) return;
+        const view = btn.getAttribute('data-view');
+        const masonryView = document.getElementById('gallery-grid');
         const listView = document.getElementById('list-container');
+        document.querySelectorAll('#viewSelector .btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
 
-        document.querySelectorAll('#viewSelector .btn').forEach(btn => btn.classList.remove('active'));
-        selectedButton.classList.add('active');
-
-        if (selectedView === 'masonry') {
+        if (view === 'masonry') {
             masonryView.classList.remove('visually-hidden');
             listView.classList.add('visually-hidden');
-            masonryView.insertAdjacentElement('afterend', sentinelEnd);
-            observerSentinels.observe(sentinelEnd);
+            // Reset cursor and re-arm observer.
+            resetGallery();
+            galleryState.observer.observe(sentinel);
         } else {
             masonryView.classList.add('visually-hidden');
             listView.classList.remove('visually-hidden');
             document.getElementById('gallery-list-loading')?.remove();
-            observerSentinels.unobserve(sentinelEnd);
+            galleryState.observer.unobserve(sentinel);
+            // Cancel any in-flight fetch — we won't need its result.
+            galleryState.aborter?.abort();
         }
-        page = -1;
-        mediaCount = 50;
     });
 
-    //View button click event
+    // Tile action delegation. Single listener at document level, no per-tile
+    // bindings (the old code attached observers and click handlers per item).
     $(document).on('click', '.btn-view', function(event) {
         event.stopPropagation();
-        const url = $(this).data('url');
-        window.open(url, '_blank');
+        window.open($(this).data('url'), '_blank');
     });
 
-    // Delete button click event
     $(document).on('click', '.btn-delete', async function(event) {
-
         event.stopPropagation();
         const sha256 = $(this).data('sha256');
-        const id = $(this).data('id')
-        const url = `/api/v2/media/${sha256}`;
-
-        await initConfirmModal('#fileTable', [id], "delete", "file", "", false).then(async (modal) => {
-            if (modal.result != true) return;
+        const id = $(this).data('id');
+        await initConfirmModal('#fileTable', [id], 'delete', 'file', '', false).then(async (modal) => {
+            if (modal.result !== true) return;
             $.ajax({
-                url: url,
+                url: `/api/v2/media/${sha256}`,
                 method: 'DELETE',
-                success: function(result) {
-                    $('#fileTable').bootstrapTable('remove', {
-                        field: 'sha256',
-                        values: [sha256]
-                    });
-
-                    const mediaDiv = document.getElementById(`media-${id}`);
-                    mediaDiv.remove();
-
-                    showMessage(`File with sha256 ${sha256} deleted successfully`, "alert-success");
-
+                success: function() {
+                    $('#fileTable').bootstrapTable('remove', { field: 'sha256', values: [sha256] });
+                    document.getElementById(`media-${id}`)?.remove();
+                    showMessage(`File with sha256 ${sha256} deleted successfully`, 'alert-success');
                 },
                 error: function(err) {
                     console.error('Error deleting media', err);
-                    showMessage(`Error deleting file with sha256 ${sha256}`, "alert-danger");
+                    showMessage(`Error deleting file with sha256 ${sha256}`, 'alert-danger');
                 }
             });
         });
-
     });
 
-    // Report button click event
     $(document).on('click', '.btn-report', async function(event) {
         event.stopPropagation();
         const sha256 = $(this).data('sha256');
         if (!sha256 || sha256 === 'N/A') {
-            showMessage("Could not determine the file hash to report.", "alert-danger");
+            showMessage('Could not determine the file hash to report.', 'alert-danger');
             return;
         }
         const choice = await initReportModal(sha256);
@@ -363,418 +256,378 @@ document.addEventListener('DOMContentLoaded', (event) => {
         await submitBlobReport(choice.sha256, choice.type, choice.content);
     });
 
-    // Visibility button click event
     $(document).on('click', '.btn-visibility', async function(event) {
         event.stopPropagation();
         const sha256 = $(this).data('sha256');
         const visibility = $(this).data('visibility') === 1 ? 0 : 1;
-        const url = `/api/v2/media/${sha256}/visibility/${visibility}`;
         const id = $(this).data('id');
-
-        await initConfirmModal('#fileTable', [id], visibility === 1 ? "show in gallery" : "hide from gallery", "file", "", false)
+        await initConfirmModal('#fileTable', [id], visibility === 1 ? 'show in gallery' : 'hide from gallery', 'file', '', false)
             .then(async (modal) => {
                 if (modal.result !== true) return;
                 $.ajax({
-                    url: url,
+                    url: `/api/v2/media/${sha256}/visibility/${visibility}`,
                     method: 'PUT',
                     contentType: 'application/json',
-                    success: function(result) {
-                        $('#fileTable').bootstrapTable('updateByUniqueId', {    
-                            id: id,  
-                            row: { visibility: visibility }
-                        });
-                        
-                        // Update the data attribute visibility without modifying the DOM manually
+                    success: function() {
+                        $('#fileTable').bootstrapTable('updateByUniqueId', { id: id, row: { visibility: visibility } });
                         $(`[data-sha256="${sha256}"].btn-visibility`).each(function() {
                             $(this).attr('data-visibility', visibility);
                             $(this).data('visibility', visibility);
                             $(this).html(visibility === 1 ? '<i class="fas fa-eye"></i>' : '<i class="fas fa-eye-slash"></i>');
-
                         });
-
-                        showMessage(`Visibility of file with sha256 ${sha256} updated successfully`, "alert-success");
+                        showMessage(`Visibility of file with sha256 ${sha256} updated successfully`, 'alert-success');
                     },
                     error: function(err) {
                         console.error('Error updating visibility', err);
-                        showMessage(`Error updating visibility of file with sha256 ${sha256}`, "alert-danger");
+                        showMessage(`Error updating visibility of file with sha256 ${sha256}`, 'alert-danger');
                     }
                 });
             });
     });
-
 });
-async function populateMasonryData(files, auth) {
-    if (!files || files.length === 0) {
+
+function resetGallery() {
+    galleryState.aborter?.abort();
+    galleryState.aborter = null;
+    galleryState.cursor = null;
+    galleryState.loading = false;
+    galleryState.exhausted = false;
+    galleryState.fileMasonryId = 0;
+    document.getElementById('gallery-grid').innerHTML = '';
+    document.getElementById('no-media')?.classList.add('visually-hidden');
+}
+
+async function loadNextPage() {
+    if (galleryState.loading || galleryState.exhausted) return;
+    galleryState.loading = true;
+
+    // Cancel any previous in-flight fetch — defensive, the loading flag
+    // should already prevent this, but cheap insurance.
+    galleryState.aborter?.abort();
+    galleryState.aborter = new AbortController();
+
+    const params = new URLSearchParams();
+    params.set('limit', String(galleryState.pageSize));
+    params.set('count', String(galleryState.pageSize));
+    if (galleryState.cursor != null) {
+        params.set('before', String(galleryState.cursor));
+    }
+
+    const apiURL = privateGallery
+        ? `/api/v2/media?${params}`
+        : pubkey
+            ? `/api/v2/media/vanity/${pubkey}?${params}`
+            : `/api/v2/media/listpublic?${params}`;
+
+    let payload;
+    try {
+        const response = await fetch(apiURL, {
+            method: 'GET',
+            credentials: privateGallery ? 'include' : 'omit',
+            signal: galleryState.aborter.signal,
+        });
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+        payload = await response.json();
+    } catch (err) {
+        if (err.name === 'AbortError') return;
+        console.error('gallery - fetch failed', err);
         document.getElementById('gallery-list-loading')?.remove();
-        document.getElementById('no-media').classList.remove('visually-hidden');
+        galleryState.loading = false;
         return;
     }
 
-    const getTagValue = (file, key) => {
-        if (Array.isArray(file.tags)) {
-            const found = file.tags.find(tag => tag[0] === key);
-            return found ? found[1] : null;
+    const files = Array.isArray(payload) ? payload : payload.files;
+    if (!Array.isArray(files) || files.length === 0) {
+        galleryState.exhausted = true;
+        galleryState.loading = false;
+        document.getElementById('gallery-list-loading')?.remove();
+        if (galleryState.cursor === null) {
+            // First page came back empty — nothing to show.
+            document.getElementById('no-media')?.classList.remove('visually-hidden');
         }
-        return file[key] || null;
-    };
-
-    for (const file of files) {
-        const url = getTagValue(file, 'url');
-        const dim = getTagValue(file, 'dim');
-        const ext = url?.split('.').pop() || '';
-        const height = parseInt(dim?.split('x')[1], 10) || 220;
-
-        let mediaLink = document.createElement('a');
-        mediaLink.href = url;
-        mediaLink.target = '_blank';
-
-        let mediaElement;
-
-        if (['webp', 'gif', 'jpg', 'jpeg', 'png'].includes(ext)) {
-            mediaElement = document.createElement('img');
-            mediaElement.src = '/static/resources/loading-image.webp';
-            mediaElement.classList.add("rounded-1", "w-100", "object-fit-contain");
-
-            let mediaLoader = new Image();
-            mediaLoader.src = url;
-
-            mediaLoader.onload = () => {
-                mediaElement.classList.add('fade-in');
-                mediaElement.src = mediaLoader.src;
-            };
-
-            mediaLoader.onerror = () => {
-                console.error('Error loading image', url);
-            };
-        } else if (['mp4', 'mov'].includes(ext)) {
-            mediaElement = document.createElement('video');
-            mediaElement.classList.add("rounded-1", "w-100", "object-fit-contain");
-            mediaElement.setAttribute('muted', '');
-            mediaElement.setAttribute('playsinline', '');
-            mediaElement.setAttribute('autoplay', '');
-            mediaElement.setAttribute('loop', '');
-            mediaElement.setAttribute('poster', '/static/resources/loading-video.webp');
-            mediaElement.setAttribute('preload', 'metadata');
-
-            const handleVideoError = () => {
-                mediaElement.poster = url;
-                videoObserver.unobserve(mediaElement);
-            };
-
-            mediaElement.onloadedmetadata = () => {
-                mediaElement.classList.add('fade-in');
-            };
-
-            mediaElement.addEventListener('error', handleVideoError);
-
-            let interserctingVideo = false;
-            const videoObserver = new IntersectionObserver((entries) => {
-                entries.forEach(entry => {
-                    if (entry.isIntersecting && !interserctingVideo) {
-                        interserctingVideo = true;
-                        mediaElement.setAttribute('preload', 'auto');
-                        setTimeout(() => {
-                            mediaElement.style.width = '100%';
-                            mediaElement.style.opacity = 1;
-                            try {
-                                mediaElement.play();
-                            } catch (err) {
-                                console.debug('cant play video', err);
-                            }
-                        }, 100);
-                    } else if (!entry.isIntersecting && interserctingVideo) {
-                        mediaElement.style.width = '1px';
-                        mediaElement.style.opacity = 0;
-                        mediaElement.pause();
-                        interserctingVideo = false;
-                    }
-                });
-            });
-
-            mediaElement.addEventListener('canplaythrough', () => {
-                mediaElement.classList.add('fade-in');
-                mediaElement.removeAttribute('poster');
-            });
-
-            mediaElement.src = url;
-            mediaElement.load();
-
-            try {
-                mediaElement.muted = true;
-                mediaElement.play();
-            } catch (err) {
-                console.debug('cant play video', err);
-            }
-
-            videoObserver.observe(mediaElement);
-        } else if (ext === 'mp3') {
-            mediaElement = document.createElement('audio');
-            mediaElement.src = url;
-            mediaElement.classList.add("ps-5", "pe-5");
-            mediaElement.setAttribute('controls', '');
-
-            let hasBeenPlayed = false;
-            mediaElement.addEventListener('play', () => {
-                hasBeenPlayed = true;
-            });
-
-            const audioObserver = new IntersectionObserver((entries) => {
-                entries.forEach(entry => {
-                    if (!entry.isIntersecting) {
-                        setTimeout(() => {
-                            try {
-                                mediaElement.pause();
-                            } catch (err) {
-                                console.debug('cant pause audio', err);
-                            }
-                        }, 100);
-                    } else if (hasBeenPlayed) {
-                        setTimeout(() => {
-                            try {
-                                mediaElement.play();
-                            } catch (err) {
-                                console.debug('cant play audio', err);
-                            }
-                        }, 100);
-                    }
-                });
-            });
-            audioObserver.observe(mediaElement);
-        } else if (ext === 'stl') {
-            mediaElement = document.createElement('canvas');
-            mediaElement.classList.add("rounded-2", "w-100", "object-fit-contain");
-            mediaElement.style.backgroundColor = '#D1CDCD';
-            mediaElement.style.width = '100%';
-            mediaElement.style.height = '200px';
-            mediaElement.style.position = "relative";
-            mediaElement.id = `media-3d-${fileMasonryId}`;
-
-            setTimeout(() => {
-                init3dViewer(mediaElement.id, 'column-0', url, 250, 200);
-                mediaElement.classList.add('fade-in');
-            }, 100);
-        } else {
-            mediaElement = document.createElement('div');
-            mediaElement.classList.add("rounded-2", "w-100", "object-fit-contain", "text-center", "d-flex", "align-items-center", "justify-content-center");
-            mediaElement.style.height = '180px';
-            mediaElement.style.backgroundColor = '#ffffff';
-            mediaElement.style.border = '1px solid #D1CDCD';
-            mediaElement.innerHTML = `<a href="${url}" download><span class="display-4 mb-1 pb-2 font-weight-normal gradient-text">.${ext}</span></a>`;
-            mediaElement.classList.add('fade-in');
-        }
-
-        if (mediaElement) {
-            const mediaDiv = document.createElement('div');
-            mediaDiv.classList.add("mb-0", "fade-in", "media-div", "text-center");
-            file.id = fileMasonryId;
-            mediaDiv.id = `media-${fileMasonryId++}`;
-            mediaDiv.style.height = ext === 'mp3' ? '220px' : `${height}px`;
-            mediaDiv.style.position = "relative";
-            if (ext === 'mp3') {
-                mediaDiv.style.background = "url('/static/resources/loading-music.webp') center center / cover no-repeat";
-                mediaDiv.classList.add("rounded-3", "d-flex", "flex-column", "align-items-center", "justify-content-end", "pb-2");
-            }
-            mediaDiv.appendChild(mediaLink);
-            mediaLink.appendChild(mediaElement);
-
-            mediaElement.addEventListener('click', (event) => {
-                event.preventDefault();
-                const buttonContainer = mediaDiv.querySelector('.btn-container');
-                if (lastClickedMedia && lastClickedMedia !== mediaElement) {
-                    const lastButtonContainer = lastClickedMedia.closest('.media-div').querySelector('.btn-container');
-                    if (lastButtonContainer) {
-                        lastButtonContainer.style.opacity = 0;
-                    }
-                }
-                if (buttonContainer) {
-                    buttonContainer.style.opacity = 1;
-                }
-                lastClickedMedia = mediaElement;
-            });
-
-            mediaDiv.appendChild(buttonContainer("masonry", file, auth));
-
-            const shortestColumnIndex = columnHeights.indexOf(Math.min(...columnHeights));
-            const shortestColumn = columnElements[shortestColumnIndex];
-            shortestColumn.appendChild(mediaDiv);
-
-            columnHeights[shortestColumnIndex] += height;
-
-            mediaDiv.style.height = ext === 'mp3' ? '220px' : 'auto';
-            mediaDiv.dataset.serverHeight = `${height}`;
-        }
+        return;
     }
 
-    columnHeights.fill(0);
-    for (const [index, column] of columnElements.entries()) {
-        column.querySelectorAll('.media-div').forEach(mediaDiv => {
-            const height = mediaDiv.clientHeight;
-            columnHeights[index] += height;
-            const shortestColumnIndex = columnHeights.indexOf(Math.min(...columnHeights));
-            const shortestColumn = columnElements[shortestColumnIndex];
-            shortestColumn.appendChild(sentinelEnd);
-        });
+    renderTiles(files, privateGallery);
+
+    // Advance the cursor to the smallest fileid we just received.
+    const fileIds = files.map(f => Number(f.fileid)).filter(n => Number.isFinite(n) && n > 0);
+    if (fileIds.length > 0) {
+        const minId = Math.min(...fileIds);
+        // Only advance if it actually moved; otherwise we'd loop on the same
+        // page forever if the backend returned junk fileids.
+        if (galleryState.cursor === null || minId < galleryState.cursor) {
+            galleryState.cursor = minId;
+        } else {
+            galleryState.exhausted = true;
+        }
+    } else {
+        // No usable cursor in the response → stop, we'd loop otherwise.
+        galleryState.exhausted = true;
+    }
+
+    if (files.length < galleryState.pageSize) galleryState.exhausted = true;
+    if (galleryState.exhausted) document.getElementById('gallery-list-loading')?.remove();
+
+    galleryState.loading = false;
+}
+
+function getTagValue(file, key) {
+    if (Array.isArray(file.tags)) {
+        const found = file.tags.find(tag => tag[0] === key);
+        return found ? found[1] : null;
+    }
+    return file[key] ?? null;
+}
+
+function paintBlurhash(canvas, hash, w, h) {
+    if (!hash || typeof blurhash === 'undefined') return;
+    try {
+        const pixels = blurhash.decode(hash, w, h);
+        const ctx = canvas.getContext('2d');
+        const imgData = ctx.createImageData(w, h);
+        imgData.data.set(pixels);
+        ctx.putImageData(imgData, 0, 0);
+    } catch (e) {
+        // Silent — placeholder just stays solid.
     }
 }
 
-function buttonContainer(type, file, auth){
+function renderTiles(files, auth) {
+    const grid = document.getElementById('gallery-grid');
+    const fragment = document.createDocumentFragment();
 
-    const id = file.tags?.find(tag => tag[0] === 'id')?.[1] || file.id || "";
-    const sha256 = file.tags?.find(tag => tag[0] === 'ox')?.[1] || file.sha256 || "";
-    const url = file.tags?.find(tag => tag[0] === 'url')?.[1] || file.url || "";
-    const payment_request = file.tags?.find(tag => tag[0] === 'payment_request')?.[1] || file.payment_request || "";
-    const visibility = file.tags?.find(tag => tag[0] === 'visibility')?.[1] || file.visibility || "";
+    for (const file of files) {
+        const url = getTagValue(file, 'url');
+        if (!url) continue;
+        const dim = getTagValue(file, 'dim') || '';
+        const blurhashStr = getTagValue(file, 'blurhash') || '';
+        const ext = (url.split('.').pop() || '').toLowerCase();
+        const [w, h] = dim.split('x').map(n => parseInt(n, 10));
+        const aspect = (Number.isFinite(w) && Number.isFinite(h) && w > 0 && h > 0) ? `${w} / ${h}` : '4 / 3';
 
-    const buttonContainer = document.createElement('div');
-    buttonContainer.id = type + '-button-container-' + file.sha256;
+        const tile = document.createElement('div');
+        tile.classList.add('gallery-tile');
+        tile.setAttribute('role', 'listitem');
+        const tileId = galleryState.fileMasonryId++;
+        file.id = file.id ?? tileId;
+        tile.id = `media-${tileId}`;
+        tile.style.aspectRatio = aspect;
 
-    if (type == "masonry"){
-        buttonContainer.classList.add('btn-container', 'position-absolute', 'p-1', 'w-100');
-        buttonContainer.style.background = 'rgba(0, 0, 0, 0.1)';
-        buttonContainer.style.borderRadius = '5px';
-        buttonContainer.style.zIndex = '10';
-        buttonContainer.style.bottom = '1px';
+        // Blurhash placeholder — decoded synchronously but to a 32x32 canvas
+        // so it's cheap. Falls back to a flat gradient if no hash.
+        if (blurhashStr) {
+            const ph = document.createElement('canvas');
+            ph.classList.add('blur-placeholder');
+            ph.width = 32; ph.height = 32;
+            tile.appendChild(ph);
+            paintBlurhash(ph, blurhashStr, 32, 32);
+        }
+
+        const link = document.createElement('a');
+        link.href = url;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        tile.appendChild(link);
+
+        if (['webp', 'gif', 'jpg', 'jpeg', 'png', 'avif'].includes(ext)) {
+            const img = document.createElement('img');
+            img.src = url;
+            img.loading = 'lazy';
+            img.decoding = 'async';
+            img.fetchPriority = 'low';
+            img.alt = '';
+            img.addEventListener('load', () => img.classList.add('is-loaded'), { once: true });
+            link.appendChild(img);
+        } else if (['mp4', 'mov', 'webm'].includes(ext)) {
+            // Click-to-load video — no autoplay, no per-tile observer.
+            const overlay = document.createElement('div');
+            overlay.classList.add('video-overlay');
+            overlay.innerHTML = '<i class="fas fa-play-circle"></i>';
+            tile.appendChild(overlay);
+
+            const video = document.createElement('video');
+            video.preload = 'none';
+            video.controls = true;
+            video.playsInline = true;
+            video.muted = true;
+            video.classList.add('visually-hidden');
+            link.appendChild(video);
+
+            overlay.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                video.src = url;
+                video.classList.remove('visually-hidden');
+                video.classList.add('is-loaded');
+                overlay.remove();
+                video.play().catch(() => {});
+            }, { once: true });
+        } else if (ext === 'mp3' || ext === 'wav' || ext === 'ogg') {
+            const wrap = document.createElement('div');
+            wrap.classList.add('audio-tile');
+            const audio = document.createElement('audio');
+            audio.preload = 'none';
+            audio.controls = true;
+            audio.src = url;
+            wrap.appendChild(audio);
+            link.appendChild(wrap);
+        } else if (ext === 'stl') {
+            const canvas = document.createElement('canvas');
+            canvas.id = `media-3d-${tileId}`;
+            canvas.style.background = '#D1CDCD';
+            canvas.style.width = '100%';
+            canvas.style.height = '220px';
+            link.appendChild(canvas);
+            // Defer so the tile is in the DOM when the viewer initialises.
+            requestAnimationFrame(() => init3dViewer(canvas.id, tile.id, url, 250, 200));
+        } else {
+            const fallback = document.createElement('div');
+            fallback.classList.add('file-fallback');
+            fallback.innerHTML = `<a href="${url}" download class="text-decoration-none"><span class="display-6 gradient-text">.${ext || 'file'}</span></a>`;
+            link.appendChild(fallback);
+        }
+
+        // Action buttons (view / report / visibility / delete) — same
+        // helper as before, just attached to the tile root.
+        tile.appendChild(buttonContainer('masonry', file, auth));
+
+        // Click toggles button container visibility (single tile-at-a-time).
+        tile.addEventListener('click', () => {
+            if (lastClickedTile && lastClickedTile !== tile) {
+                lastClickedTile.querySelector('.btn-container')?.style.setProperty('opacity', '0');
+            }
+            tile.querySelector('.btn-container')?.style.setProperty('opacity', '1');
+            lastClickedTile = tile;
+        });
+
+        fragment.appendChild(tile);
     }
 
-    if (type == "masonry"){
+    grid.appendChild(fragment);
+}
+
+function buttonContainer(type, file, auth) {
+
+    const id = file.tags?.find(tag => tag[0] === 'id')?.[1] || file.id || '';
+    const sha256 = file.tags?.find(tag => tag[0] === 'ox')?.[1] || file.sha256 || '';
+    const url = file.tags?.find(tag => tag[0] === 'url')?.[1] || file.url || '';
+    const payment_request = file.tags?.find(tag => tag[0] === 'payment_request')?.[1] || file.payment_request || '';
+    const visibility = file.tags?.find(tag => tag[0] === 'visibility')?.[1] || file.visibility || '';
+
+    const container = document.createElement('div');
+    container.id = type + '-button-container-' + sha256;
+
+    if (type === 'masonry') {
+        container.classList.add('btn-container');
+    }
+
+    if (type === 'masonry') {
         const infoButton = document.createElement('button');
         infoButton.classList.add('btn', 'btn-primary', 'btn-xl', 'me-1');
         infoButton.innerHTML = '<i class="fas fa-info"></i>';
-        buttonContainer.appendChild(infoButton);
+        container.appendChild(infoButton);
     }
 
     const viewButton = document.createElement('button');
-    viewButton.id = type + '-view-button-' + file.sha256;
+    viewButton.id = type + '-view-button-' + sha256;
     viewButton.classList.add('btn', 'btn-primary', 'btn-xl', 'me-1', 'btn-dark', 'btn-view');
     viewButton.setAttribute('data-url', url);
     viewButton.innerHTML = '<i class="fa-solid fa-arrow-up-right-from-square"></i>';
+    container.appendChild(viewButton);
 
-    buttonContainer.appendChild(viewButton);
-
-    // Report button. Anyone can report, even guests. Requires a NIP-07 extension
-    // to sign the kind 1984 event; if no extension is present the user is told
-    // when they click submit.
     const reportButton = document.createElement('button');
     reportButton.classList.add('btn', 'btn-warning', 'btn-xl', 'me-1', 'btn-report');
     reportButton.setAttribute('data-sha256', sha256);
     reportButton.setAttribute('title', 'Report this file');
     reportButton.innerHTML = '<i class="fa-solid fa-flag"></i>';
-    buttonContainer.appendChild(reportButton);
-    
+    container.appendChild(reportButton);
 
     if (auth) {
-
         const visibleButton = document.createElement('button');
-        visibleButton.classList.add('btn','btn-secondary', 'btn-xl', 'me-1', 'btn-visibility');
+        visibleButton.classList.add('btn', 'btn-secondary', 'btn-xl', 'me-1', 'btn-visibility');
         visibleButton.setAttribute('data-sha256', sha256);
         visibleButton.setAttribute('data-visibility', visibility);
         visibleButton.setAttribute('data-id', file.id);
-        visibleButton.innerHTML = visibleButton.getAttribute('data-visibility') == 1? '<i class="fas fa-eye"></i>' : '<i class="fas fa-eye-slash"></i>';
-        buttonContainer.appendChild(visibleButton);
+        visibleButton.innerHTML = visibleButton.getAttribute('data-visibility') == 1
+            ? '<i class="fas fa-eye"></i>'
+            : '<i class="fas fa-eye-slash"></i>';
+        container.appendChild(visibleButton);
 
         const deleteButton = document.createElement('button');
-        deleteButton.classList.add('btn','btn-danger', 'btn-xl', 'me-1', 'btn-delete');
+        deleteButton.classList.add('btn', 'btn-danger', 'btn-xl', 'me-1', 'btn-delete');
         deleteButton.setAttribute('data-sha256', sha256);
         deleteButton.setAttribute('data-id', file.id);
         deleteButton.innerHTML = '<i class="fas fa-trash"></i>';
-        buttonContainer.appendChild(deleteButton);
+        container.appendChild(deleteButton);
 
-        if (payment_request != ""){
+        if (payment_request !== '') {
             const payButton = document.createElement('button');
-            payButton.classList.add('btn','btn-warning', 'btn-xl', 'me-1');
+            payButton.classList.add('btn', 'btn-warning', 'btn-xl', 'me-1');
             payButton.innerHTML = '<i class="fas fa-bolt"></i>';
-            buttonContainer.appendChild(payButton);
+            container.appendChild(payButton);
         }
-
     }
 
-    return buttonContainer;
-
+    return container;
 }
 
-function actionsFormatter(value, row, index) {
-
-    return `<div class="text-start">${buttonContainer("list", row, row.auth).innerHTML}</div>`;
+function actionsFormatter(value, row) {
+    return `<div class="text-start">${buttonContainer('list', row, row.auth).innerHTML}</div>`;
 }
 
 function detailFormatter(index, row) {
-    var html = [];
+    const html = [];
     $.each(row, function (key, value) {
-        if (key === 'state') { return; }
+        if (key === 'state') return;
         html.push('<p><span class="key">' + key + ':</span> <span class="value">' + value + '</span></p>');
     });
-
-    return `
-        <div class="detail-container">
-            ${html.join('')}
-        </div>
-    `;
+    return `<div class="detail-container">${html.join('')}</div>`;
 }
 
 function filenameFormatter(value, row, index) {
-
-    let textValue = value.slice(0, (value.length / 2) - 20) + ':' + value.slice((value.length / 2) + 20);
-
-    let modalFileCheck = '<div id="file_' + index + '_preview"><span class="cursor-zoom-in text-secondary">' + textValue + '</span></div>';
-
-    // Attach the click event handler to the document and delegate it to the clickable element
+    const textValue = value.slice(0, (value.length / 2) - 20) + ':' + value.slice((value.length / 2) + 20);
+    const modalFileCheck = '<div id="file_' + index + '_preview"><span class="cursor-zoom-in text-secondary">' + textValue + '</span></div>';
     $(document).off('click', '#file_' + index + '_preview').on('click', '#file_' + index + '_preview', async function () {
-        await initMediaModal(`${row.url.substring(row.url.lastIndexOf('/') + 1)}`, row.checked, row.visibility, false)
+        await initMediaModal(`${row.url.substring(row.url.lastIndexOf('/') + 1)}`, row.checked, row.visibility, false);
     });
-
     return modalFileCheck;
 }
 
 function dateSorter(a, b) {
     const [dayA, monthA, yearA] = a.split('/');
     const [dayB, monthB, yearB] = b.split('/');
-    
-    const dateA = new Date(`${yearA}-${monthA}-${dayA}`);
-    const dateB = new Date(`${yearB}-${monthB}-${dayB}`);
-
-    return dateA - dateB;
+    return new Date(`${yearA}-${monthA}-${dayA}`) - new Date(`${yearB}-${monthB}-${dayB}`);
 }
 
 function fetchTabledata(params) {
-    return new Promise((resolve, reject) => {
-
-        const pageSize = params.data.pageSize;
-
-        fetch(params.url, {
+    const pageSize = params.data.pageSize;
+    fetch(params.url, {
         method: 'GET',
-        credentials: 'include', 
-        headers: {
-            'Content-Type': 'application/json'
-        }
-        })
-        .then(response => response.json())
-        .then(result => {
-            const rows = result.slice(0, pageSize).map(file => ({
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+    })
+    .then(response => response.json())
+    .then(result => {
+        const rows = result.slice(0, pageSize).map(file => ({
             id: fileTableId++,
             sha256: file.sha256 || 'N/A',
             m: file.type?.split('/')[1] || 'N/A',
             url: file.url || 'N/A',
             size: file.size ? (file.size / 1024).toFixed(2) + ' KB' : 'N/A',
-            dim: file.dim && file.dim !== "0x0" ? file.dim : '',
+            dim: file.dim && file.dim !== '0x0' ? file.dim : '',
             date: new Date(file.uploaded * 1000).toLocaleString().split(',')[0],
             payment_request: file.payment_request || '',
-            actions: "",
+            actions: '',
             auth: privateGallery,
-            visibility: file.visibility
-            }));
-
-            params.success({
-            total: result.length,
-            rows: rows
-            });
-        })
-        .catch(err => {
-            params.error(err);
-        });
-
-            });
+            visibility: file.visibility,
+        }));
+        params.success({ total: result.length, rows: rows });
+    })
+    .catch(err => params.error(err));
 }
-
 </script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/STLLoader.js"></script>
