@@ -8,7 +8,7 @@ import { getLogHistory, logger } from "../lib/logger.js";
 import { format, getCPUUsage, getNewDate } from "../lib/utils.js";
 import { ResultMessagev2, ServerStatusMessage, ServerUpdateMessage } from "../interfaces/server.js";
 import { generatePassword } from "../lib/authorization.js";
-import { dbDelete, dbInsert, dbMultiSelect, dbUpdate } from "../lib/database/core.js";
+import { dbDelete, dbInsert, dbMultiSelect, dbSimpleSelect, dbUpdate } from "../lib/database/core.js";
 import { allowedFieldNames, allowedFieldNamesAndValues, allowedTableNames, moduleDataReturnMessage, moduleDataKeys, moduleDataIndex } from "../interfaces/admin.js";
 import { parseAuthHeader} from "../lib/authorization.js";
 import { npubToHex } from "../lib/nostr/NIP19.js";
@@ -922,8 +922,59 @@ const getModuleData = async (req: Request, res: Response): Promise<Response> => 
             totalNotFiltered: reqInfos.length,
             rows: reqInfos.slice(offset, offset + limit)
         };
+    } else if (module == "reports") {
+
+        // BUD-09 reports are stored as kind 1984 nostr events. Each `x` tag in
+        // the event spawns one row in the admin view, joined to mediafiles by
+        // hash so the admin can see which blob each row refers to.
+        // dbSimpleSelect doesn't take params arrays, so search and sort have
+        // to be sanitised in-place (same approach dbSelectModuleData uses).
+        const sortColumn = sort && /^[a-zA-Z0-9_.]+$/.test(sort) ? sort : "events.created_at";
+        const sortOrder = order && /^(ASC|DESC)$/i.test(order) ? order : "DESC";
+        const safeSearch = (search || "").replace(/[^a-zA-Z0-9._-]/g, "").slice(0, 64);
+        const searchClause = safeSearch.length > 0 ? `AND (events.pubkey LIKE '%${safeSearch}%' OR events.content LIKE '%${safeSearch}%' OR eventtags.tag_value LIKE '%${safeSearch}%')` : "";
+
+        // Custom filter handling. The frontend toolbar uses {checked: "!1"} to
+        // mean "show only pending reports". We honour it here to scope the
+        // SQL; same convention dbSelectModuleData uses for the other tables.
+        let extraFilterClause = "";
+        if (Array.isArray(filterObject)) {
+            for (const item of filterObject as { field: string, value: string }[]) {
+                if (item.field === "checked" && typeof item.value === "string") {
+                    if (item.value.startsWith("!")) {
+                        const v = item.value.split("!")[1];
+                        if (v === "0" || v === "1") extraFilterClause += ` AND events.checked != '${v}'`;
+                    } else if (item.value === "0" || item.value === "1") {
+                        extraFilterClause += ` AND events.checked = '${item.value}'`;
+                    }
+                }
+            }
+        }
+
+        const baseFrom = `FROM events INNER JOIN eventtags ON eventtags.event_id = events.event_id WHERE events.kind = 1984 AND eventtags.tag_name = 'x' ${searchClause} ${extraFilterClause}`;
+        const baseFromUnfiltered = `FROM events INNER JOIN eventtags ON eventtags.event_id = events.event_id WHERE events.kind = 1984 AND eventtags.tag_name = 'x'`;
+
+        const totalRow = await dbSimpleSelect("events", `SELECT COUNT(*) as total ${baseFrom}`);
+        const totalNotFilteredRow = await dbSimpleSelect("events", `SELECT COUNT(*) as total ${baseFromUnfiltered}`);
+
+        const rows = await dbSimpleSelect("events",
+            `SELECT events.id, events.event_id, events.checked, events.pubkey AS reporter, events.content, events.created_at,
+                    eventtags.tag_value AS blob_hash, eventtags.extra_values AS report_type_extra,
+                    (SELECT mediafiles.id FROM mediafiles WHERE mediafiles.original_hash = eventtags.tag_value LIMIT 1) AS blob_id,
+                    (SELECT mediafiles.active FROM mediafiles WHERE mediafiles.original_hash = eventtags.tag_value LIMIT 1) AS blob_active,
+                    (SELECT mediafiles.filename FROM mediafiles WHERE mediafiles.original_hash = eventtags.tag_value LIMIT 1) AS blob_filename
+             ${baseFrom}
+             ORDER BY ${sortColumn} ${sortOrder}
+             LIMIT ${Number(offset) || 0}, ${Number(limit) || 50}`
+        );
+
+        data = {
+            total: totalRow ? JSON.parse(JSON.stringify(totalRow[0])).total : 0,
+            totalNotFiltered: totalNotFilteredRow ? JSON.parse(JSON.stringify(totalNotFilteredRow[0])).total : 0,
+            rows: rows || []
+        };
     }
-    
+
     else {
         data = await dbSelectModuleData(module, offset, limit, order, sort, search, filterObject);
     }

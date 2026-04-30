@@ -1,0 +1,134 @@
+<div class="modal fade" id="report-modal" tabindex="-1" aria-labelledby="report-modal" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Report this file</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p class="text-secondary small">Reports are public NIP-56 events signed with your nostr key. The server stores them and the admin reviews them. CSAM reports automatically hide the file pending review.</p>
+        <div class="mb-3">
+          <label class="form-label fw-bold">Report type</label>
+          <div class="btn-group-vertical w-100" role="group">
+            <input type="radio" class="btn-check" name="report-type" id="report-type-nudity" value="nudity" autocomplete="off">
+            <label class="btn btn-outline-secondary text-start" for="report-type-nudity">Nudity / NSFW</label>
+            <input type="radio" class="btn-check" name="report-type" id="report-type-spam" value="spam" autocomplete="off">
+            <label class="btn btn-outline-secondary text-start" for="report-type-spam">Spam</label>
+            <input type="radio" class="btn-check" name="report-type" id="report-type-malware" value="malware" autocomplete="off">
+            <label class="btn btn-outline-secondary text-start" for="report-type-malware">Malware</label>
+            <input type="radio" class="btn-check" name="report-type" id="report-type-profanity" value="profanity" autocomplete="off">
+            <label class="btn btn-outline-secondary text-start" for="report-type-profanity">Profanity</label>
+            <input type="radio" class="btn-check" name="report-type" id="report-type-illegal" value="illegal" autocomplete="off">
+            <label class="btn btn-outline-secondary text-start" for="report-type-illegal">Illegal content</label>
+            <input type="radio" class="btn-check" name="report-type" id="report-type-csam" value="csam" autocomplete="off">
+            <label class="btn btn-outline-danger text-start" for="report-type-csam">CSAM (auto-hides the file)</label>
+            <input type="radio" class="btn-check" name="report-type" id="report-type-other" value="other" autocomplete="off">
+            <label class="btn btn-outline-secondary text-start" for="report-type-other">Other</label>
+          </div>
+        </div>
+        <div class="mb-3">
+          <label for="report-content" class="form-label fw-bold">Reason</label>
+          <textarea class="form-control" id="report-content" rows="3" placeholder="Briefly explain why you're reporting this file" maxlength="500"></textarea>
+        </div>
+        <div id="report-feedback" class="small"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-danger" id="report-submit-button" disabled>Submit report</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// Opens the report modal for a given blob sha256 and resolves with the chosen
+// report type + content once the user submits, or null if cancelled. The
+// caller is responsible for signing the kind 1984 event and PUTting it to
+// the BUD-09 /report endpoint.
+const initReportModal = (sha256) => new Promise((resolve) => {
+    const modalEl = document.getElementById('report-modal');
+    const submitBtn = document.getElementById('report-submit-button');
+    const feedback = document.getElementById('report-feedback');
+    const radios = document.querySelectorAll('input[name="report-type"]');
+    const content = document.getElementById('report-content');
+
+    radios.forEach(r => { r.checked = false; });
+    content.value = '';
+    feedback.innerHTML = '';
+    submitBtn.disabled = true;
+
+    const updateState = () => {
+        const anyChecked = Array.from(radios).some(r => r.checked);
+        submitBtn.disabled = !anyChecked;
+    };
+    radios.forEach(r => r.addEventListener('change', updateState));
+
+    const onSubmit = () => {
+        const selected = Array.from(radios).find(r => r.checked);
+        cleanup();
+        bsModal.hide();
+        resolve({ sha256, type: selected.value, content: content.value.trim() });
+    };
+    const onHide = () => {
+        cleanup();
+        resolve(null);
+    };
+
+    const cleanup = () => {
+        submitBtn.removeEventListener('click', onSubmit);
+        modalEl.removeEventListener('hidden.bs.modal', onHide);
+        radios.forEach(r => r.removeEventListener('change', updateState));
+    };
+
+    submitBtn.addEventListener('click', onSubmit);
+    modalEl.addEventListener('hidden.bs.modal', onHide, { once: true });
+
+    const bsModal = bootstrap.Modal.getOrCreateInstance(modalEl);
+    bsModal.show();
+});
+
+// Signs the kind 1984 event via NIP-07 and PUTs it to /report.
+// Returns true on success, false otherwise. Shows a feedback message via showMessage.
+const submitBlobReport = async (sha256, type, content) => {
+
+    if (!window.nostr) {
+        showMessage("NIP-07 browser extension not found. Cannot sign the report.", "alert-danger");
+        return false;
+    }
+
+    let signed;
+    try {
+        const event = {
+            kind: 1984,
+            created_at: Math.floor(Date.now() / 1000),
+            tags: [["x", sha256, type]],
+            content: content || `Reported as ${type}`,
+        };
+        signed = await window.nostr.signEvent(event);
+    } catch (err) {
+        console.error("submitBlobReport - error signing event", err);
+        showMessage("Could not sign the report. Is your NIP-07 extension unlocked?", "alert-danger");
+        return false;
+    }
+
+    try {
+        const res = await fetch("/report", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(signed),
+        });
+        if (!res.ok) {
+            const text = await res.text();
+            console.error("submitBlobReport - server rejected report", res.status, text);
+            showMessage(`Report rejected by server (${res.status})`, "alert-danger");
+            return false;
+        }
+        showMessage("Report submitted. Thanks for letting us know.", "alert-success");
+        return true;
+    } catch (err) {
+        console.error("submitBlobReport - network error", err);
+        showMessage("Network error while sending the report.", "alert-danger");
+        return false;
+    }
+};
+</script>

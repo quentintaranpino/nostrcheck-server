@@ -108,14 +108,19 @@ See multi-tenancy [here](https://github.com/quentintaranpino/nostrcheck-server/w
 - [x] NIP13 - Proof of Work
 - [x] NIP14 - Subject tag in Text events
 - [x] NIP19 - bech32-encoded entities
+- [x] NIP28 - Public Chat
 - [x] NIP40 - Expiration Timestamp
 - [x] NIP42 - Authentication of clients to relays
+- [x] NIP44 - Versioned Encryption
 - [x] NIP45 - Event Counts
 - [x] NIP47 - Nostr Wallet Connect (NWC)
 - [x] NIP48 - Proxy Tags
 - [x] NIP50 - Search Capability
+- [x] NIP56 - Reporting
 - [x] NIP62 - Request to Vanish
+- [x] NIP65 - Relay List Metadata
 - [x] NIP70 - Protected Events
+- [x] NIP73 - External Content IDs
 - [x] NIP78 - Arbitrary custom app data
 - [x] NIP94 - File Metadata
 - [x] NIP96 - HTTP File Storage Integration
@@ -129,6 +134,8 @@ See multi-tenancy [here](https://github.com/quentintaranpino/nostrcheck-server/w
 - [x] BUD04 - Mirroring blobs
 - [x] BUD06 - Upload requirements
 - [x] BUD07 - Paid upload and download
+- [x] BUD09 - Blob Report
+- [x] BUD11 - Nostr Authorization
 
 ## Supported Lightning LUD's
 

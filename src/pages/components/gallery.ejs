@@ -350,6 +350,19 @@ document.addEventListener('DOMContentLoaded', (event) => {
 
     });
 
+    // Report button click event
+    $(document).on('click', '.btn-report', async function(event) {
+        event.stopPropagation();
+        const sha256 = $(this).data('sha256');
+        if (!sha256 || sha256 === 'N/A') {
+            showMessage("Could not determine the file hash to report.", "alert-danger");
+            return;
+        }
+        const choice = await initReportModal(sha256);
+        if (!choice) return;
+        await submitBlobReport(choice.sha256, choice.type, choice.content);
+    });
+
     // Visibility button click event
     $(document).on('click', '.btn-visibility', async function(event) {
         event.stopPropagation();
@@ -633,10 +646,20 @@ function buttonContainer(type, file, auth){
     const viewButton = document.createElement('button');
     viewButton.id = type + '-view-button-' + file.sha256;
     viewButton.classList.add('btn', 'btn-primary', 'btn-xl', 'me-1', 'btn-dark', 'btn-view');
-    viewButton.setAttribute('data-url', url);    
+    viewButton.setAttribute('data-url', url);
     viewButton.innerHTML = '<i class="fa-solid fa-arrow-up-right-from-square"></i>';
 
     buttonContainer.appendChild(viewButton);
+
+    // Report button. Anyone can report, even guests. Requires a NIP-07 extension
+    // to sign the kind 1984 event; if no extension is present the user is told
+    // when they click submit.
+    const reportButton = document.createElement('button');
+    reportButton.classList.add('btn', 'btn-warning', 'btn-xl', 'me-1', 'btn-report');
+    reportButton.setAttribute('data-sha256', sha256);
+    reportButton.setAttribute('title', 'Report this file');
+    reportButton.innerHTML = '<i class="fa-solid fa-flag"></i>';
+    buttonContainer.appendChild(reportButton);
     
 
     if (auth) {

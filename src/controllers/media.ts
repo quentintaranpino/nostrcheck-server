@@ -3,6 +3,7 @@ import { Readable } from "stream";
 import path from "path";
 import validator from "validator";
 import fs from "fs";
+import { Event } from "nostr-tools";
 
 import { dbDelete, dbInsert, dbMultiSelect, dbSelect, dbUpdate } from "../lib/database/core.js";
 import { logger } from "../lib/logger.js";
@@ -31,6 +32,7 @@ import { prepareBlobDescriptor } from "../lib/blossom/BUD02.js";
 import { loadCdnPage } from "./frontend.js";
 import { getBannedFileBanner, isEntityBanned } from "../lib/security/banned.js";
 import { mirrorFile } from "../lib/blossom/BUD04.js";
+import { isBUD09ReportValid, saveBlobReport } from "../lib/blossom/BUD09.js";
 import { executePlugins } from "../lib/plugins/core.js";
 import { setAuthCookie } from "../lib/frontend.js";
 import { addIpInfraction, isIpAllowed } from "../lib/security/ips.js";
@@ -1791,13 +1793,66 @@ const headUpload = async (req: Request, res: Response): Promise<Response> => {
 	return res.status(200).send();
 }
 
+const reportBlob = async (req: Request, res: Response): Promise<Response> => {
+
+	// Check if the request IP is allowed
+	const reqInfo = await isIpAllowed(req);
+	if (reqInfo.banned == true) {
+		logger.info(`reportBlob - Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
+		res.setHeader("X-Reason", reqInfo.comments);
+		return res.status(403).send({"status": "error", "message": reqInfo.comments});
+	}
+
+	// Check if current module is enabled
+	if (!isModuleEnabled("media", req.hostname)) {
+		logger.info(`reportBlob - Attempt to access a non-active module: media | IP:`, reqInfo.ip);
+		res.setHeader("X-Reason", "Module is not enabled");
+		return res.status(403).send({"status": "error", "message": "Module is not enabled"});
+	}
+
+	// BUD-09 reporting can be turned off without disabling the whole media module.
+	if (getConfig(req.hostname, ["media", "reports", "enabled"]) === false) {
+		logger.info(`reportBlob - BUD-09 reporting disabled by config | IP:`, reqInfo.ip);
+		res.setHeader("X-Reason", "Reports disabled");
+		return res.status(403).send({"status": "error", "message": "Reports disabled"});
+	}
+
+	logger.info(`reportBlob - Request from:`, reqInfo.ip);
+
+	// Body must be a NIP-56 / kind 1984 nostr event in JSON form.
+	if (!req.body || typeof req.body !== "object" || Array.isArray(req.body)) {
+		logger.warn(`reportBlob - 400 Bad request - Body is not a JSON object`, "|", reqInfo.ip);
+		res.setHeader("X-Reason", "Body must be a kind 1984 nostr event");
+		return res.status(400).send({status: "error", message: "Body must be a kind 1984 nostr event"});
+	}
+
+	// Validate event shape, signature, kind and presence of at least one x tag.
+	const validation = await isBUD09ReportValid(req.body as Event, req);
+	if (validation.status !== "success") {
+		res.setHeader("X-Reason", validation.message);
+		return res.status(400).send(validation);
+	}
+
+	// Persist the report. Duplicates of the same event_id are silently dropped.
+	const stored = await saveBlobReport(req.body as Event, req);
+	if (!stored) {
+		logger.warn(`reportBlob - Report not stored for event: ${(req.body as Event).id} | ${reqInfo.ip}`);
+		res.setHeader("X-Reason", "Report not stored");
+		return res.status(500).send({status: "error", message: "Report not stored"});
+	}
+
+	logger.info(`reportBlob - Report stored successfully`, "|", reqInfo.ip);
+	return res.status(200).send({status: "success", message: "Report accepted"});
+}
+
 export { uploadMedia,
-		getMedia, 
+		getMedia,
 		getMediaList,
 		headMedia,
-		getMediabyURL, 
-		deleteMedia, 
-		updateMediaVisibility, 
-		getMediaTagsbyID, 
-		getMediabyTags, 
-		headUpload };
+		getMediabyURL,
+		deleteMedia,
+		updateMediaVisibility,
+		getMediaTagsbyID,
+		getMediabyTags,
+		headUpload,
+		reportBlob };

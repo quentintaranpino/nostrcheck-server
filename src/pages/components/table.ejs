@@ -179,8 +179,9 @@
                 return;
             }
 
-            // General filters (registered, files, ips)
-            let checkedFilter = false;
+            // General filters (registered, files, ips, reports). Reports default
+            // to "show only pending" because that's the moderation work queue.
+            let checkedFilter = tableId === '#reportsData';
             let bannedFilter = false;
 
             // Logger filters
@@ -350,7 +351,7 @@
                 checkOnInit: true,
                 detailFormatter: "detailFormatter",
                 rowStyle: rowStyle,
-                buttons: (tableId === '#registeredData' || tableId === '#filesData' || tableId === '#ipsData' ) ? toolbarButtons() : tableId === '#loggerData' ? loggerButtons() : null,
+                buttons: (tableId === '#registeredData' || tableId === '#filesData' || tableId === '#ipsData' || tableId === '#reportsData' ) ? toolbarButtons() : tableId === '#loggerData' ? loggerButtons() : null,
                 queryParams: function (params) {
                     let filters = params.filter ? JSON.parse(params.filter) : {};
                     if (checkedFilter)  {filters.checked = "!1"};
@@ -670,13 +671,30 @@
         }
         window.formatSatoshi = formatSatoshi;
 
-        function formatPubkey(value) {
-
-            let textValue = value;
-            if ($(window).width() < 768) {textValue = value.slice(0, (value.length / 2)-18 ) + ':' + value.slice((value.length / 2)+18 );}
-            return '<a href="https://njump.me/' + value + '" target="_blank" class="link-secondary text-decoration-none">' +  textValue + '</a>';
+        // Factory: renders a 64-char hex (pubkey or blob sha256) as a link
+        // with the same styling and mobile truncation, just different target.
+        function linkFormatter(urlPrefix) {
+            return function(value) {
+                if (!value) return '';
+                let textValue = value;
+                if ($(window).width() < 768) {textValue = value.slice(0, (value.length / 2)-18 ) + ':' + value.slice((value.length / 2)+18 );}
+                return '<a href="' + urlPrefix + value + '" target="_blank" class="link-secondary text-decoration-none">' + textValue + '</a>';
+            };
         }
-        window.formatPubkey = formatPubkey;
+        window.formatPubkey = linkFormatter('https://njump.me/');
+        window.formatBlobHash = linkFormatter('/');
+
+        // Same as formatCheckbox for the active/inactive states, but when the
+        // value is null/undefined (blob not in our mediafiles table) we render
+        // a "not hosted" badge so admins can tell external reports apart from
+        // locally-hosted ones.
+        function formatBlobActive(value) {
+            if (value === null || value === undefined) {
+                return '<span class="badge bg-light text-secondary border" title="Blob is not hosted on this server">not hosted</span>';
+            }
+            return formatCheckbox(Number(value));
+        }
+        window.formatBlobActive = formatBlobActive;
 
         function formatPaymentHash(value) {
 

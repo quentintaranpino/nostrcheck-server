@@ -1,0 +1,214 @@
+<%
+let reportsFields = [
+  ['checked'           , '30' , 'formatCheckbox'  , 'enabled  show text-center               '],
+  ['blob_hash'         , ''   , 'formatBlobHash'  , 'disabled show text-center               '],
+  ['blob_active'       , '30' , 'formatBlobActive', 'disabled show text-center mobile-hide   '],
+  ['report_type_extra' , '60' , ''                , 'disabled show text-center               '],
+  ['reporter'          , ''   , 'formatPubkey'    , 'disabled show text-center               '],
+  ['content'           , ''   , ''                , 'disabled show mobile-hide               '],
+  ['created_at'        , '180', 'formatTimestamp' , 'disabled show text-center               '],
+  ['blob_id'           , ''   , ''                , 'disabled hide                           '],
+  ['event_id'          , ''   , ''                , 'disabled hide                           '],
+];
+%>
+<% if(locals.activeModules.some(mod => mod.name === 'media')) { %>
+  <%- include('../table', {
+    tableName:"Reports (BUD-09)",
+    tableDesc:"User-submitted reports for hosted blobs. CSAM-tagged reports auto-hide the blob (active = 0) until you review. Default view shows only pending reports; toggle the filter in the toolbar to see processed history.",
+    tableId:"reportsData",
+    buttons:[
+      ['add','hide'],
+      ['disable','hide'],
+      ['enable','hide'],
+      ['visible','hide'],
+      ['invisible','hide'],
+      ['admin','hide'],
+      ['edit','hide'],
+      ['password','hide'],
+      ['remove','hide'],
+      ['pay','hide'],
+      ['balance','hide'],
+      ['moderate','hide'],
+      ['ban','hide']
+    ],
+    fields: reportsFields,
+    datakey: 'reports',
+    objectName: 'report',
+  }); %>
+
+  <script>
+    // Custom toolbar buttons for the BUD-09 reports table. Two btn-groups:
+    // "decisión" (Accept / Dismiss) acts on the report itself, "visibilidad"
+    // (Hide / Show) toggles mediafiles.active for the targeted blob without
+    // touching the report state. Mirrors the visual pattern of the standard
+    // toolbar but the actions cross tables, so they don't fit table.ejs.
+    document.addEventListener('DOMContentLoaded', () => {
+
+      const tableId = '#reportsData';
+      const toolbarSelector = '#reportsData-toolbar';
+      const refreshReports = () => $(tableId).bootstrapTable('refresh');
+
+      const toolbarHTML = `
+        <div class="btn-group mt-2 me-2" role="group" aria-label="Report decision">
+          <div tabindex="0" data-bs-toggle="tooltip" data-bs-title="Accept (ban blob and close report)">
+            <button id="reportsData-button-accept" class="btn btn-danger" style="border-top-right-radius: 0; border-bottom-right-radius: 0;" disabled>
+              <i class="fa-solid fa-ban fa-fw"></i>
+            </button>
+          </div>
+          <div tabindex="0" data-bs-toggle="tooltip" data-bs-title="Dismiss (mark report as processed without acting on the blob)">
+            <button id="reportsData-button-dismiss" class="btn btn-secondary" style="border-top-left-radius: 0; border-bottom-left-radius: 0;" disabled>
+              <i class="fa-solid fa-check-double fa-fw"></i>
+            </button>
+          </div>
+        </div>
+        <div class="btn-group mt-2" role="group" aria-label="Blob visibility">
+          <div tabindex="0" data-bs-toggle="tooltip" data-bs-title="Hide blob (active = 0)">
+            <button id="reportsData-button-hide" class="btn btn-secondary" style="border-top-right-radius: 0; border-bottom-right-radius: 0;" disabled>
+              <i class="fa-solid fa-eye-slash fa-fw"></i>
+            </button>
+          </div>
+          <div tabindex="0" data-bs-toggle="tooltip" data-bs-title="Show blob (active = 1)">
+            <button id="reportsData-button-show" class="btn btn-success" style="border-top-left-radius: 0; border-bottom-left-radius: 0;" disabled>
+              <i class="fa-solid fa-eye fa-fw"></i>
+            </button>
+          </div>
+        </div>
+      `;
+
+      // Prepend at the start of the toolbar so the empty btn-groups (whose
+      // standard buttons are all hidden via d-none) sit AFTER our actions.
+      const inject = () => {
+        const toolbar = document.querySelector(toolbarSelector);
+        if (!toolbar) {
+          setTimeout(inject, 100);
+          return;
+        }
+        if (!toolbar.querySelector('#reportsData-button-accept')) {
+          toolbar.insertAdjacentHTML('afterbegin', toolbarHTML);
+          // Init Bootstrap tooltips on the freshly-injected wrappers (same
+          // pattern used in components/registerform.ejs).
+          toolbar.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => new bootstrap.Tooltip(el));
+        }
+      };
+      inject();
+
+      // Enable/disable buttons based on row selection. Hosted Files visibility
+      // buttons fire idempotently (no current-state check), so Hide/Show here
+      // just require a target blob (mediafile_id present) on every row.
+      const refreshButtonState = () => {
+        const sel = $(tableId).bootstrapTable('getSelections');
+        const hasSel = sel.length > 0;
+        const allHaveBlob = hasSel && sel.every(r => !!r.blob_id);
+        $('#reportsData-button-accept').prop('disabled', !allHaveBlob);
+        $('#reportsData-button-dismiss').prop('disabled', !hasSel);
+        $('#reportsData-button-hide').prop('disabled', !allHaveBlob);
+        $('#reportsData-button-show').prop('disabled', !allHaveBlob);
+      };
+      $(tableId).on('check.bs.table uncheck.bs.table check-all.bs.table uncheck-all.bs.table load-success.bs.table', refreshButtonState);
+
+      const closeReport = (rowId) =>
+        fetch('/api/v2/admin/updaterecord/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ table: 'eventsData', field: 'checked', value: 1, id: rowId }),
+        });
+
+      const setBlobActive = (mediafileId, value) =>
+        fetch('/api/v2/admin/updaterecord/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ table: 'filesData', field: 'active', value, id: mediafileId }),
+        });
+
+      // Pack 1 — Accept: ban each selected blob + close its report. Uses the
+      // existing initConfirmModal so the admin gets a "specify the reason"
+      // prompt (action 'ban' triggers that branch in modal.js).
+      $(document).on('click', '#reportsData-button-accept', async () => {
+        const selections = $(tableId).bootstrapTable('getSelections');
+        if (selections.length === 0) return;
+        const ids = selections.map(r => r.id);
+        const modal = await initConfirmModal('#reportsData', ids, 'ban', 'report', 'Reported via BUD-09', true);
+        if (modal.result !== true) return;
+        const reason = modal.value || 'Reported via BUD-09';
+        let ok = 0;
+        for (const row of selections) {
+          if (!row.blob_id) continue;
+          try {
+            const banRes = await fetch('/api/v2/admin/ban', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ id: row.blob_id, table: 'filesData', reason }),
+            });
+            if (!banRes.ok) continue;
+            await closeReport(row.id);
+            ok++;
+          } catch (err) {
+            console.error('reports - accept failed', err);
+          }
+        }
+        showMessage(`Accepted ${ok} report(s) (blob banned).`, ok > 0 ? 'alert-success' : 'alert-danger');
+        refreshReports();
+      });
+
+      // Pack 1 — Dismiss: only mark each selected report as processed.
+      $(document).on('click', '#reportsData-button-dismiss', async () => {
+        const selections = $(tableId).bootstrapTable('getSelections');
+        if (selections.length === 0) return;
+        const ids = selections.map(r => r.id);
+        const modal = await initConfirmModal('#reportsData', ids, 'dismiss', 'report', null, false);
+        if (modal.result !== true) return;
+        let ok = 0;
+        for (const row of selections) {
+          try {
+            const res = await closeReport(row.id);
+            if (res.ok) ok++;
+          } catch (err) {
+            console.error('reports - dismiss failed', err);
+          }
+        }
+        showMessage(`Dismissed ${ok} report(s).`, ok > 0 ? 'alert-success' : 'alert-danger');
+        refreshReports();
+      });
+
+      // Pack 2 — Hide: set mediafiles.active = 0 on each targeted blob. Does
+      // not close the report. One-click, no confirm (matches the Hosted Files
+      // visibility UX, idempotent and reversible via Show).
+      $(document).on('click', '#reportsData-button-hide', async () => {
+        const selections = $(tableId).bootstrapTable('getSelections');
+        if (selections.length === 0) return;
+        let ok = 0;
+        for (const row of selections) {
+          if (!row.blob_id) continue;
+          try {
+            const res = await setBlobActive(row.blob_id, 0);
+            if (res.ok) ok++;
+          } catch (err) {
+            console.error('reports - hide failed', err);
+          }
+        }
+        showMessage(`Hid ${ok} blob(s).`, ok > 0 ? 'alert-success' : 'alert-danger');
+        refreshReports();
+      });
+
+      // Pack 2 — Show: set mediafiles.active = 1 on each targeted blob.
+      // Reverses the Hide / CSAM-auto-hide state. Does not close the report.
+      $(document).on('click', '#reportsData-button-show', async () => {
+        const selections = $(tableId).bootstrapTable('getSelections');
+        if (selections.length === 0) return;
+        let ok = 0;
+        for (const row of selections) {
+          if (!row.blob_id) continue;
+          try {
+            const res = await setBlobActive(row.blob_id, 1);
+            if (res.ok) ok++;
+          } catch (err) {
+            console.error('reports - show failed', err);
+          }
+        }
+        showMessage(`Showed ${ok} blob(s).`, ok > 0 ? 'alert-success' : 'alert-danger');
+        refreshReports();
+      });
+
+    });
+  </script>
+<% } %>

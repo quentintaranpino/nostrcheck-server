@@ -160,6 +160,65 @@ describe("Blossom BUD-11 hardening (new rules)", () => {
 
 });
 
+describe("Blossom BUD-09 blob reports", () => {
+
+	const REPORT_URL = `${BASE}/report`;
+
+	const signReport = (sk: Uint8Array, xTags: string[][], content = "test report") =>
+		finalizeEvent(
+			{
+				kind: 1984,
+				created_at: Math.floor(Date.now() / 1000),
+				tags: xTags,
+				content,
+			},
+			sk,
+		);
+
+	test("Accepts a well-formed kind 1984 report event", async () => {
+		const sk = generateSecretKey();
+		const event = signReport(sk, [["x", fileHash, "spam"]], "test spam report");
+		const res = await fetch(REPORT_URL, {
+			method: "PUT",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify(event),
+		});
+		expect(res.status).toEqual(200);
+	});
+
+	test("Rejects a non-1984 event with 400", async () => {
+		const sk = generateSecretKey();
+		const wrongKind = finalizeEvent({ kind: 1, created_at: Math.floor(Date.now() / 1000), tags: [["x", fileHash]], content: "" }, sk);
+		const res = await fetch(REPORT_URL, {
+			method: "PUT",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify(wrongKind),
+		});
+		expect(res.status).toEqual(400);
+	});
+
+	test("Rejects a 1984 event without any x tag with 400", async () => {
+		const sk = generateSecretKey();
+		const event = signReport(sk, [["e", "f".repeat(64)]], "missing x tag");
+		const res = await fetch(REPORT_URL, {
+			method: "PUT",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify(event),
+		});
+		expect(res.status).toEqual(400);
+	});
+
+	test("Rejects a non-JSON body with 400", async () => {
+		const res = await fetch(REPORT_URL, {
+			method: "PUT",
+			headers: { "Content-Type": "application/json" },
+			body: "not a json object",
+		});
+		expect(res.status).toEqual(400);
+	});
+
+});
+
 describe("Blossom BUD-04 mirror SSRF guard", () => {
 
 	// The /mirror endpoint fetches an arbitrary URL server-side. Without an SSRF

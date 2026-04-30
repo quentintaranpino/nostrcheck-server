@@ -77,6 +77,16 @@
     }) %>
 
     <%- include('field', {
+      type: "checkbox",
+      name: "media.reports.enabled",
+      label: "Accept blob reports (BUD-09)",
+      description: "Lets users PUT a NIP-56 / kind 1984 event to /report flagging blobs hosted here. Reports are stored as nostr events and visible to the admin. CSAM-typed reports auto-hide the affected blob until you review it.",
+      value: cfg.reports?.enabled,
+      globalValue: globalCfg.reports?.enabled,
+      overridable: true
+    }) %>
+
+    <%- include('field', {
       type: "number",
       name: "media.transform.media.image.width",
       label: "Image width",

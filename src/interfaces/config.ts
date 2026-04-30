@@ -154,6 +154,9 @@ const defaultConfig = {
 		"maxMBfilesize": 100,
 		"maxInputPixels": 200000000,
 		"allowPublicUploads" : true,
+		"reports" : {
+			"enabled" : true
+		},
 		"returnURL" : "",
 		"useCDNPrefix" : false,
 		"transform" : {
