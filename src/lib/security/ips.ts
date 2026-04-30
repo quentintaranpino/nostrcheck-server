@@ -206,7 +206,7 @@ const isIpAllowed = async (req: Request | IncomingMessage | string, maxRequestMi
 
     let clientDomain = await getDomainId(host);
     if (!clientDomain) {
-        logger.warn(`isIpAllowed - Domain (${host}) not found for IP: ${ip}`);
+        logger.debug(`isIpAllowed - Domain (${host}) not found for IP: ${ip}`);
         clientDomain = 1; // Default domain ID for unknown domains
     }
 
@@ -337,7 +337,12 @@ setInterval(async () => {
             const idsToDelete = expiredIPs.map(ip => ip.id);
             const ipsToDelete = expiredIPs.map(ip => ip.ip);
             if (idsToDelete.length === 0) return;
-            await dbDelete("ips", ["id"], idsToDelete);
+            // MySQL prepared statements cap placeholders at 65535. Chunk the
+            // DELETE so a busy server's cleanup pass doesn't blow up.
+            const CHUNK = 1000;
+            for (let i = 0; i < idsToDelete.length; i += CHUNK) {
+                await dbDelete("ips", ["id"], idsToDelete.slice(i, i + CHUNK));
+            }
             await Promise.all(
                 ipsToDelete.flatMap(ip => [
                 redisCore.del(`ips:${ip}`),

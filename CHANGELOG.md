@@ -12,6 +12,13 @@
 - Updated dependencies.
 - New experimental updates engine for notifying users of new versions.
 - Fixed error when uploading STL files.
+- Added Blossom blob reports (BUD-09) with admin moderation queue.
+- Improved Blossom spec compliance: PUT /media, HEAD pre-flight, /mirror auth, server tag matching, CORS and plain 404 on unknown blobs.
+- Lenient NIP-98 payload binding to interoperate with more Nostr clients.
+- Advertised NIP-45 (COUNT), NIP-56 (reports) and NIP-65 (relay list).
+- Several security hardening fixes around uploads, plugins and admin file handling.
+- Chunked IP cleanup to avoid prepared-statement limits on busy servers.
+- Reduced log noise from unknown-host probes.
 
 ## 0.7.0
 
