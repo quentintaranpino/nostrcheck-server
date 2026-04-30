@@ -246,7 +246,9 @@ const unpersistEvents = async () => {
   for (const { event, isExpirable } of eventsToProcess) {
     const success = await deleteEvents(event, !isExpirable, isExpirable ? "event expired (NIP-40)" : "");
     if (!success) {
-      logger.error(`relayController - Interval - Failed to delete event: ${event.id}`);
+      // Already cleaned up via another path; the in-memory store has been
+      // dropped inside deleteEvents() so we won't re-enter this branch.
+      logger.debug(`relayController - Interval - Event ${event.id} already gone`);
     }
   }
 

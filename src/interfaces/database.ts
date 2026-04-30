@@ -102,7 +102,8 @@ const mediafilesTableFields: MediafilesTableStructure = {
 		"INDEX idx_filename_original_hash (filename, original_hash)",
 		"INDEX idx_localPath (localPath)",
 		"INDEX idx_checked (checked)",
-		"INDEX idx_checked_active (checked, active)"
+		"INDEX idx_checked_active (checked, active)",
+		"INDEX idx_public_id (active, visibility, checked, id)"
 	],
 	constructor: {
 		name: 'RowDataPacket',

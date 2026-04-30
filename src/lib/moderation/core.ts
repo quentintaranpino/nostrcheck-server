@@ -19,7 +19,13 @@ const moderationQueue: queueAsPromised<ModerationJob> = fastq.promise(moderation
 async function moderationWorker(task: ModerationJob): Promise<ModerationCategory> {
   let result: ModerationCategory = emptyModerationCategory;
 
+  try {
     const taskData = await dbMultiSelect(["id", task.originTable == "mediafiles" ? "filename" : "content"], task.originTable, "id = ?", [task.originId], true);
+
+    if (!taskData || taskData.length === 0) {
+        logger.warn(`moderateFile - Record not found | ${task.originTable}#${task.originId}`);
+        return result;
+    }
 
     if (getConfig(task.tenant, ["media", "mediainspector", "type"]) === "local") {
         const filePath: string = await getFilePath(taskData[0].filename);
@@ -33,14 +39,20 @@ async function moderationWorker(task: ModerationJob): Promise<ModerationCategory
         );
     }
 
-  logger.info(`moderateFile - File moderation result: ${result.description} for file ${taskData[0].filename}`);
+    logger.info(`moderateFile - File moderation result: ${result.description} for file ${taskData[0].filename}`);
 
-  // Update the final status in the database:
-  // If result.code === '0', set status to '1' (approved); otherwise, set to '0' (rejected).
-  const updateChecked: boolean = await dbUpdate(task.originTable, { checked: result.code === "0" ? "1" : "0" }, ["id"], [task.originId]);
-  if (!updateChecked) logger.error(`moderateFile - Failed to update record | ${task.originId}`);
+    // Update the final status in the database:
+    // If result.code === '0', set status to '1' (approved); otherwise, set to '0' (rejected).
+    const updateChecked: boolean = await dbUpdate(task.originTable, { checked: result.code === "0" ? "1" : "0" }, ["id"], [task.originId]);
+    if (!updateChecked) logger.error(`moderateFile - Failed to update record | ${task.originId}`);
 
-  return result;
+    return result;
+  } catch (error) {
+    // Never let the worker reject — fastq with concurrency=1 would stall the
+    // entire moderation queue on the first thrown error in production.
+    logger.error(`moderateFile - Worker exception on ${task.originTable}#${task.originId}: ${error}`);
+    return result;
+  }
 }
 
 /**

@@ -69,8 +69,23 @@ const initPlugins = async (tenant: string): Promise<boolean> => {
 	const pluginList = getConfig(tenant, ["plugins", "list"]) || {};
 	const foundPluginNames = new Set<string>();
 
+	// Only load plugins explicitly listed in config.plugins.list. Filenames
+	// must match a strict identifier and the file's basename must equal the
+	// listed plugin name; anything else is ignored (defense against
+	// arbitrary .js dropped in the plugins folder).
 	for (const p of fs.readdirSync(pluginsPath)) {
 		if (p.split('.').pop() !== "js") continue;
+
+		const baseName = p.replace(/\.js$/, "");
+		if (!/^[A-Za-z0-9_-]+$/.test(baseName)) {
+			logger.warn(`initPlugins - Skipping plugin file with non-standard name: ${p}`);
+			continue;
+		}
+		if (!(baseName in pluginList)) {
+			logger.warn(`initPlugins - Plugin '${baseName}' not in config.plugins.list, skipping`);
+			continue;
+		}
+
 		logger.info(`initPlugins - Found plugin: ${p}`);
 		const fullPath = path.join(pluginsPath, p);
 		const modulePath = pathToFileURL(fullPath).href;
@@ -82,21 +97,20 @@ const initPlugins = async (tenant: string): Promise<boolean> => {
 				const pluginInstance = pluginModule.default();
 
 				if (pluginInstance && typeof pluginInstance.execute === 'function' && typeof pluginInstance.module === 'string') {
-					
+
+					if (pluginInstance.name !== baseName) {
+						logger.warn(`initPlugins - Plugin name '${pluginInstance.name}' does not match filename '${baseName}', skipping`);
+						continue;
+					}
+
 					if (!pluginStore[tenant]){
 						pluginStore[tenant] = [];
-					} 
-
-					if (!(pluginInstance.name in pluginList)) {
-						await setConfig(tenant, ["plugins", "list", pluginInstance.name], {
-							enabled: false,
-						});
 					}
 
 					pluginInstance.enabled = getConfig(tenant, ["plugins", "list", pluginInstance.name, "enabled"]) ?? false;
 
 					pluginStore[tenant].push(pluginInstance);
-					foundPluginNames.add(pluginInstance.name); 
+					foundPluginNames.add(pluginInstance.name);
 
 					logger.info(`initPlugins - Plugin ${p} loaded successfully in module '${pluginInstance.module}'`);
 				} else {

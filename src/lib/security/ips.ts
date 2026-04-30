@@ -337,18 +337,22 @@ setInterval(async () => {
             const idsToDelete = expiredIPs.map(ip => ip.id);
             const ipsToDelete = expiredIPs.map(ip => ip.ip);
             if (idsToDelete.length === 0) return;
-            // MySQL prepared statements cap placeholders at 65535. Chunk the
-            // DELETE so a busy server's cleanup pass doesn't blow up.
+            // MySQL prepared statements cap placeholders at 65535, and 200k
+            // concurrent Redis del() calls would also stall the event loop.
+            // Walk both in fixed chunks.
             const CHUNK = 1000;
             for (let i = 0; i < idsToDelete.length; i += CHUNK) {
                 await dbDelete("ips", ["id"], idsToDelete.slice(i, i + CHUNK));
             }
-            await Promise.all(
-                ipsToDelete.flatMap(ip => [
-                redisCore.del(`ips:${ip}`),
-                redisCore.del(`ips:window:${ip}`)
-                ])
-            );
+            for (let i = 0; i < ipsToDelete.length; i += CHUNK) {
+                const slice = ipsToDelete.slice(i, i + CHUNK);
+                await Promise.all(
+                    slice.flatMap(ip => [
+                        redisCore.del(`ips:${ip}`),
+                        redisCore.del(`ips:window:${ip}`)
+                    ])
+                );
+            }
         }
       
     } catch (error) {

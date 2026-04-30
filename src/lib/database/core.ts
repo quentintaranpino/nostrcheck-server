@@ -222,7 +222,7 @@ const dbMultiSelect = async (queryFields: string[], fromStatement: string, where
 /* @param {string} extraCommand - Additional command to be sent to the database (e.g. "SET SESSION group_concat_max_len = 4194304;").
 /* @returns {Promise<string>} A promise that resolves to the result of the query, or an empty string if an error occurs or if the result is empty.
  */
-const dbSimpleSelect = async (table:string, query:string, extraCommand : string = ""): Promise<string> =>{
+const dbSimpleSelect = async (table:string, query:string, extraCommand : string = "", params: (string | number)[] = []): Promise<string> =>{
 
 	const pool = await connect("dbSimpleSelect " + table);
 
@@ -230,7 +230,7 @@ const dbSimpleSelect = async (table:string, query:string, extraCommand : string 
 		if (extraCommand != "") {
 			await pool.execute(extraCommand);
 		}
-		const [dbResult] = await pool.execute(query);
+		const [dbResult] = await pool.execute(query, params);
 		const rowstemp = JSON.parse(JSON.stringify(dbResult));
 		if (rowstemp[0] == undefined || rowstemp[0] == "") {
 			return "";

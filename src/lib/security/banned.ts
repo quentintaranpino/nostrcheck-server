@@ -10,6 +10,12 @@ import { initRedis } from "../redis/client.js";
 
 const redisCore = await initRedis(0, false);
 
+// Ban keys are a cache of the `banned` table, not the source of truth.
+// Without TTL they grow forever in Redis — give them a finite lifetime so
+// expired or rotated entries can't pile up. The periodic reload from DB
+// re-populates them when needed.
+const BAN_KEY_TTL = 7 * 24 * 60 * 60; // 7 days
+
 const manageEntity = async (originId: number, originTable: string, action: "ban" | "unban", reason?: string): Promise<ResultMessagev2> => {
 
     if (!isModuleEnabled("security", ""))  return { status: "error", message: "Security module is not enabled" };
@@ -96,27 +102,27 @@ const manageEntity = async (originId: number, originTable: string, action: "ban"
 
         const redisKeyPrimary = `banned:${originTable}:${originId}`;
         if (action === "ban") {
-            await redisCore.set(redisKeyPrimary, JSON.stringify("1"));
+            await redisCore.set(redisKeyPrimary, JSON.stringify("1"), { EX: BAN_KEY_TTL });
 
             switch (originTable) {
                 case "registered": {
                     const redisKeyHex = `banned:${originTable}:${result[0].hex}`;
-                    await redisCore.set(redisKeyHex, JSON.stringify("1"));
+                    await redisCore.set(redisKeyHex, JSON.stringify("1"), { EX: BAN_KEY_TTL });
                     break;
                 }
                 case "mediafiles": {
                     const redisKeyHash = `banned:${originTable}:${result[0].original_hash}`;
-                    await redisCore.set(redisKeyHash, JSON.stringify("1"));
+                    await redisCore.set(redisKeyHash, JSON.stringify("1"), { EX: BAN_KEY_TTL });
                     break;
                 }
                 case "ips": {
                     const redisKeyIp = `banned:${originTable}:${result[0].ip}`;
-                    await redisCore.set(redisKeyIp, JSON.stringify("1"));
+                    await redisCore.set(redisKeyIp, JSON.stringify("1"), { EX: BAN_KEY_TTL });
                     break;
                 }
                 case "events": {
                     const redisKeyEvent = `banned:${originTable}:${result[0].event_id}`;
-                    await redisCore.set(redisKeyEvent, JSON.stringify("1"));
+                    await redisCore.set(redisKeyEvent, JSON.stringify("1"), { EX: BAN_KEY_TTL });
                     break;
                 }
             }
@@ -258,14 +264,14 @@ const loadBannedEntities = async (): Promise<void> => {
 
     for (const entity of bannedEntities) {
         const redisKeyPrimary = `banned:${entity.origintable}:${entity.originid}`;
-        await redisCore.set(redisKeyPrimary, JSON.stringify("1"));
+        await redisCore.set(redisKeyPrimary, JSON.stringify("1"), { EX: BAN_KEY_TTL });
 
         switch (entity.origintable) {
             case "registered": {
                 const regResult = await dbMultiSelect(["hex"], "registered", "id = ?", [entity.originid], true);
                 if (regResult.length > 0) {
                     const redisKeyHex = `banned:registered:${regResult[0].hex}`;
-                    await redisCore.set(redisKeyHex, JSON.stringify("1"));
+                    await redisCore.set(redisKeyHex, JSON.stringify("1"), { EX: BAN_KEY_TTL });
                 }
                 break;
             }
@@ -273,7 +279,7 @@ const loadBannedEntities = async (): Promise<void> => {
                 const mediaResult = await dbMultiSelect(["original_hash"], "mediafiles", "id = ?", [entity.originid], true);
                 if (mediaResult.length > 0) {
                     const redisKeyHash = `banned:mediafiles:${mediaResult[0].original_hash}`;
-                    await redisCore.set(redisKeyHash, JSON.stringify("1"));
+                    await redisCore.set(redisKeyHash, JSON.stringify("1"), { EX: BAN_KEY_TTL });
                 }
                 break;
             }
@@ -281,7 +287,7 @@ const loadBannedEntities = async (): Promise<void> => {
                 const ipResult = await dbMultiSelect(["ip"], "ips", "id = ?", [entity.originid], true);
                 if (ipResult.length > 0) {
                     const redisKeyIp = `banned:ips:${ipResult[0].ip}`;
-                    await redisCore.set(redisKeyIp, JSON.stringify("1"));
+                    await redisCore.set(redisKeyIp, JSON.stringify("1"), { EX: BAN_KEY_TTL });
                 }
                 break;
             }
@@ -289,7 +295,7 @@ const loadBannedEntities = async (): Promise<void> => {
                 const eventResult = await dbMultiSelect(["event_id"], "events", "id = ?", [entity.originid], true);
                 if (eventResult.length > 0) {
                     const redisKeyEvent = `banned:events:${eventResult[0].event_id}`;
-                    await redisCore.set(redisKeyEvent, JSON.stringify("1"));
+                    await redisCore.set(redisKeyEvent, JSON.stringify("1"), { EX: BAN_KEY_TTL });
                 }
                 break;
             }

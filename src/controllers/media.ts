@@ -672,24 +672,41 @@ const getMediaList = async (req: Request, res: Response): Promise<Response> => {
 	const page = Number(req.query.page) || 0;
 	let count = Number(req.query.count) || 10;
 	count > 100 ? count = 100 : count; // Limit count value to 100
-	const offset = count * page; 
+	const offset = count * page;
 
 	// Get Blossom query parameters
 	const since = req.query.since?.toString() || "0";
 	const until = req.query.until?.toString() || "0";
+
+	// Cursor pagination (gallery): when ?before=<id> is present, switch from
+	// LIMIT/OFFSET (slow on large tables) to id-keyset pagination, which uses
+	// the (active, visibility, checked, id) index. The legacy ?page&count
+	// remains for NIP-96 and external consumers.
+	const before = Number(req.query.before) || 0;
+	const useCursor = before > 0;
 
 	let whereStatement = "";
 	let whereFields: (string | number)[] = [];
 
 	if (listType === "public") {
 	// Todos los públicos (tu no-estándar)
-	whereStatement = "active = '1' AND visibility = '1' AND checked = '1' AND original_hash IS NOT NULL ORDER BY date DESC LIMIT ? OFFSET ?";
-	whereFields = [count, offset];
+	if (useCursor) {
+		whereStatement = "active = '1' AND visibility = '1' AND checked = '1' AND original_hash IS NOT NULL AND id < ? ORDER BY id DESC LIMIT ?";
+		whereFields = [before, count];
+	} else {
+		whereStatement = "active = '1' AND visibility = '1' AND checked = '1' AND original_hash IS NOT NULL ORDER BY date DESC LIMIT ? OFFSET ?";
+		whereFields = [count, offset];
+	}
 
 	} else if (listType === "vanity") {
 	// Públicos de un pubkey concreto (tu no-estándar)
-	whereStatement = "active = '1' AND visibility = '1' AND checked = '1' AND original_hash IS NOT NULL AND pubkey = ? ORDER BY date DESC LIMIT ? OFFSET ?";
-	whereFields = [pubkey, count, offset];
+	if (useCursor) {
+		whereStatement = "active = '1' AND visibility = '1' AND checked = '1' AND original_hash IS NOT NULL AND pubkey = ? AND id < ? ORDER BY id DESC LIMIT ?";
+		whereFields = [pubkey, before, count];
+	} else {
+		whereStatement = "active = '1' AND visibility = '1' AND checked = '1' AND original_hash IS NOT NULL AND pubkey = ? ORDER BY date DESC LIMIT ? OFFSET ?";
+		whereFields = [pubkey, count, offset];
+	}
 
 	} else if (listType === "Blossom") {
 	// BUD-02 /list/:pubkey (auth opcional)

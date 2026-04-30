@@ -47,6 +47,15 @@ const startServer = async () => {
     const { serverBanner } = await import("./lib/utils.js");
     console.log(serverBanner());
 
+    // Loud warning when running outside production: NIP-98 / BUD-11 relax
+    // their host/created_at/t-tag checks in development mode, so leaving the
+    // environment misset on a public server effectively neutralises auth.
+    const env = getConfig(null, ["environment"]);
+    if (env !== "production") {
+        const { logger } = await import("./lib/logger.js");
+        logger.warn(`*** ENVIRONMENT="${env}" — AUTH IS RELAXED. Set "environment":"production" in config before exposing this server. ***`);
+    }
+
 }
 
 export default startServer;

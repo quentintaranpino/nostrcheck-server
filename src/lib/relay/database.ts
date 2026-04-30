@@ -98,15 +98,18 @@ const getEventsDB = async (lastCreatedAt: number | null, lastEventId: string | n
   const safeLimit = Number.isInteger(limit) && limit! > 0 ? Math.min(limit, 100000) : 10000;
 
   let cursorWhere = "";
+  const cursorParams: (string | number)[] = [];
   if (lastCreatedAt != null && isU32(lastCreatedAt)) {
     if (lastEventId && isHex64(lastEventId)) {
       cursorWhere = `
         AND (
-          e.created_at < ${lastCreatedAt}
-          OR (e.created_at = ${lastCreatedAt} AND e.event_id < '${lastEventId}')
+          e.created_at < ?
+          OR (e.created_at = ? AND e.event_id < ?)
         )`;
+      cursorParams.push(lastCreatedAt, lastCreatedAt, lastEventId);
     } else {
-      cursorWhere = `AND e.created_at < ${lastCreatedAt}`;
+      cursorWhere = `AND e.created_at < ?`;
+      cursorParams.push(lastCreatedAt);
     }
   }
 
@@ -147,7 +150,7 @@ const getEventsDB = async (lastCreatedAt: number | null, lastEventId: string | n
     LEFT JOIN metaAgg ON ev.event_id = metaAgg.event_id;
   `;
 
-  const dbResult = await dbSimpleSelect("events", query, "SET SESSION group_concat_max_len = 8388608;");
+  const dbResult = await dbSimpleSelect("events", query, "SET SESSION group_concat_max_len = 8388608;", cursorParams);
   if (!dbResult) return [];
 
   type EventRow = {
@@ -311,19 +314,22 @@ const deleteEvents = async (eventsInput: MetadataEvent | MetadataEvent[], delete
     }
 
     if (dbResult) {
-
       affectedCount++;
-
-      eventStore.eventIndex.delete(event.id);
-      eventStore.pending.delete(event.id);
-      eventStore.pendingDelete.delete(event.id);
-      eventStore.globalIds.delete(event.id);
-      eventStore.globalPubkeys.delete(event.pubkey);
-      eventStore.globalExpirable.delete(event.id);
-
     } else {
-      logger.error(`deleteEvents - Failed to delete process event ${event.id}`);
+      // The DB row is already gone (cleaned up via another path). Don't keep
+      // the event in the in-memory store or the next interval will try to
+      // delete it again and log another error.
+      logger.warn(`deleteEvents - Event ${event.id} already gone from DB, dropping from store`);
     }
+
+    // Always clear the in-memory references — whether the DB had the row or
+    // not, the event is no longer something we should track.
+    eventStore.eventIndex.delete(event.id);
+    eventStore.pending.delete(event.id);
+    eventStore.pendingDelete.delete(event.id);
+    eventStore.globalIds.delete(event.id);
+    eventStore.globalPubkeys.delete(event.pubkey);
+    eventStore.globalExpirable.delete(event.id);
   }
 
   return affectedCount;
