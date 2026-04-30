@@ -43,6 +43,12 @@
         contain: layout paint;
         content-visibility: auto;
         contain-intrinsic-size: 220px 280px;
+        opacity: 0;
+        transform: translateY(8px);
+        animation: tileEnter 0.45s ease-out forwards;
+    }
+    @keyframes tileEnter {
+        to { opacity: 1; transform: translateY(0); }
     }
     .gallery-tile > a { display: block; line-height: 0; }
     .gallery-tile img,
@@ -52,6 +58,13 @@
         width: 100%;
         height: auto;
     }
+    .gallery-tile img,
+    .gallery-tile video {
+        opacity: 0;
+        transition: opacity 0.5s ease;
+    }
+    .gallery-tile img.is-loaded,
+    .gallery-tile video.is-loaded { opacity: 1; }
     .gallery-tile .blur-placeholder {
         position: absolute;
         inset: 0;
@@ -66,19 +79,6 @@
         width: 100%;
         aspect-ratio: 4 / 3;
         background: linear-gradient(135deg, #2a2a2a, #1a1a1a);
-    }
-    .gallery-tile .video-overlay {
-        position: absolute;
-        inset: 0;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background: rgba(0,0,0,0.25);
-        color: #fff;
-        font-size: 2.5rem;
-        z-index: 2;
-        cursor: pointer;
-        pointer-events: auto;
     }
     .gallery-tile .file-fallback {
         display: flex;
@@ -130,7 +130,8 @@ const galleryState = {
     pageSize: 30,
     loading: false,
     exhausted: false,
-    observer: null,
+    observer: null,       // sentinel observer for pagination
+    videoObserver: null,  // SHARED observer for all video tiles
     fileMasonryId: 0,
 };
 
@@ -182,6 +183,25 @@ document.addEventListener('DOMContentLoaded', () => {
     galleryState.observer = new IntersectionObserver((entries) => {
         if (entries.some(e => e.isIntersecting)) loadNextPage();
     }, { rootMargin: '300px' });
+
+    // Single shared observer for ALL video tiles. The old impl created one
+    // observer per video — that's what leaked on long sessions. Here every
+    // <video> registers itself once on render and we centralise play/pause
+    // based on viewport intersection.
+    galleryState.videoObserver = new IntersectionObserver((entries) => {
+        for (const entry of entries) {
+            const video = entry.target;
+            if (entry.isIntersecting) {
+                // Lazy attach the source the first time it intersects.
+                if (!video.src && video.dataset.src) {
+                    video.src = video.dataset.src;
+                }
+                video.play().catch(() => {});
+            } else {
+                video.pause();
+            }
+        }
+    }, { rootMargin: '200px', threshold: 0.1 });
 
     // Only attach the observer when there's an actual gallery to populate
     // (private view starts on the list tab; switching to masonry attaches it).
@@ -293,6 +313,10 @@ function resetGallery() {
     galleryState.loading = false;
     galleryState.exhausted = false;
     galleryState.fileMasonryId = 0;
+    // Detach all videos from the shared observer; they'll be GC'd with the
+    // grid contents below. Disconnect/observe again is cheaper than walking
+    // every <video> element to unobserve it individually.
+    galleryState.videoObserver?.disconnect();
     document.getElementById('gallery-grid').innerHTML = '';
     document.getElementById('no-media')?.classList.add('visually-hidden');
 }
@@ -442,29 +466,19 @@ function renderTiles(files, auth) {
             img.addEventListener('load', () => img.classList.add('is-loaded'), { once: true });
             link.appendChild(img);
         } else if (['mp4', 'mov', 'webm'].includes(ext)) {
-            // Click-to-load video — no autoplay, no per-tile observer.
-            const overlay = document.createElement('div');
-            overlay.classList.add('video-overlay');
-            overlay.innerHTML = '<i class="fas fa-play-circle"></i>';
-            tile.appendChild(overlay);
-
+            // Autoplay-on-visible. The src is attached lazily by the shared
+            // videoObserver the first time the tile enters the viewport, so
+            // we don't kick off N concurrent video downloads on first render.
             const video = document.createElement('video');
-            video.preload = 'none';
-            video.controls = true;
-            video.playsInline = true;
+            video.dataset.src = url;
+            video.preload = 'metadata';
             video.muted = true;
-            video.classList.add('visually-hidden');
+            video.loop = true;
+            video.playsInline = true;
+            video.setAttribute('poster', '/static/resources/loading-video.webp');
+            video.addEventListener('loadeddata', () => video.classList.add('is-loaded'), { once: true });
             link.appendChild(video);
-
-            overlay.addEventListener('click', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                video.src = url;
-                video.classList.remove('visually-hidden');
-                video.classList.add('is-loaded');
-                overlay.remove();
-                video.play().catch(() => {});
-            }, { once: true });
+            galleryState.videoObserver.observe(video);
         } else if (ext === 'mp3' || ext === 'wav' || ext === 'ogg') {
             const wrap = document.createElement('div');
             wrap.classList.add('audio-tile');
