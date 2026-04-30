@@ -61,8 +61,15 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 
 	logger.info(`uploadMedia - Request from:`, reqInfo.ip);
 
-	// Check if authorization header is valid
-	const eventHeader = await parseAuthHeader(req, "upload", false, false, false);
+	// Check if authorization header is valid. The Blossom `t` tag must match the
+	// requested verb: `mirror` for PUT /mirror (BUD-04), `media` for PUT /media
+	// (BUD-05), `upload` for PUT /upload or POST /media (BUD-02 / NIP-96).
+	const authEndpoint = req.originalUrl.endsWith('/mirror')
+		? "mirror"
+		: (req.method === "PUT" && (req.originalUrl.endsWith('/media') || /\/media\b/.test(req.originalUrl)))
+			? "media"
+			: "upload";
+	const eventHeader = await parseAuthHeader(req, authEndpoint, false, false, false);
 	if (eventHeader.status != "success") {
 		if(version != "v2"){return res.status(401).send({"result": false, "description" : eventHeader.message});}
 		const result : ResultMessagev2 = {
@@ -1144,6 +1151,14 @@ const getMediabyURL = async (req: Request, res: Response) => {
 											true);
 		if (filedata[0] == undefined || filedata[0] == null) {
 			logger.debug(`getMediabyURL - 404 Not found - ${req.url}`, "| Returning not found media file.", reqInfo.ip);
+			// Blossom GET /<sha256> requires a real 404, not a banner-as-200. Detect
+			// Blossom-style requests (no pubkey segment, filename is a 64-char hex
+			// hash) and respond plain. Legacy gallery URLs keep the banner UX.
+			const isBlossomLookup = !req.params.pubkey && /^[a-f0-9]{64}/i.test(req.params.filename || "");
+			if (isBlossomLookup) {
+				res.setHeader("X-Reason", "Blob not found");
+				return res.status(404).send({"status": "error", "message": "Blob not found"});
+			}
 			const notFoundBanner = await getNotFoundFileBanner(req.hostname, "image/webp");
 			res.setHeader("X-Reason", "File not found");
 			res.setHeader('X-Original-Content-Type', "image/webp");

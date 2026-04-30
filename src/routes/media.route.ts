@@ -35,6 +35,15 @@ export const loadMediaEndpoint = async (app: Application, version:string): Promi
 		async (req, res) => { uploadMedia(req,res, version) }
 	);
 
+	// PUT (Blossom BUD-05 media upload). Same pipeline as /upload but the auth
+	// event must carry `t=media` instead of `t=upload`.
+	app.put(
+		[`${base}`, `/media`],
+		limiter(getConfig(null, ["security", "media", "maxUploadsMinute"])),
+		rawUploadMiddleware(),
+		async (req, res) => { uploadMedia(req,res, version) }
+	);
+
 	// HEAD upload (Blossom)
 	app.head(
 		[`${base}/upload`, `/upload`],

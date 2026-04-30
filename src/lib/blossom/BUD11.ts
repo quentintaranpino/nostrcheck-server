@@ -20,7 +20,19 @@ const MAX_REPLAY_TTL = 60 * 60 * 24;
 
 // Endpoints that, per BUD-02/BUD-11, MUST carry an `x` tag scoping the event
 // to a specific blob hash. Other endpoints (list, get, ...) leave `x` optional.
-const X_TAG_REQUIRED_ENDPOINTS = new Set(["upload", "delete"]);
+const X_TAG_REQUIRED_ENDPOINTS = new Set(["upload", "delete", "media"]);
+
+// Normalize a host string for comparison: strip protocol, path, port and the
+// `cdn.` prefix. Clients may sign the `server` tag with a full URL or a bare
+// hostname; the request hostname can come in as the cdn subdomain.
+const normalizeHost = (s: string): string => {
+	let h = (s || "").toLowerCase().trim();
+	h = h.replace(/^https?:\/\//, "");
+	h = h.split("/")[0];
+	h = h.split(":")[0];
+	h = h.replace(/^cdn\./, "");
+	return h;
+};
 
 
 /**
@@ -128,10 +140,12 @@ const isBUD11AuthValid = async (authevent: Event, req: Request, endpoint: string
 	}
 
     // `server` tag is optional. If present, the value MUST include the server's domain (BUD-11).
+    // Both sides are normalized (protocol, path, port and cdn. prefix stripped) so a client
+    // signing `https://nostrcheck.me` matches a request landing on `cdn.nostrcheck.me`.
     try {
-        const serverTags = authevent.tags.filter(tag => tag[0] === "server").map(tag => (tag[1] || "").toLowerCase());
+        const serverTags = authevent.tags.filter(tag => tag[0] === "server").map(tag => normalizeHost(tag[1] || ""));
         if (serverTags.length > 0) {
-            const serverHost = getHostInfo(req.hostname).hostname.toLowerCase().replace(/\/+$/, '');
+            const serverHost = normalizeHost(getHostInfo(req.hostname).hostname);
             if (!serverTags.includes(serverHost)) {
                 logger.warn(`isBUD11AuthValid - Auth header server tag does not include this host: ${serverTags.join(",")} <> ${serverHost} | ${getClientInfo(req).ip}`);
                 return {status: "error", message: "Auth header server tag does not include this host", authkey: "", pubkey: "", kind: 0};
@@ -186,11 +200,15 @@ const isBUD11AuthValid = async (authevent: Event, req: Request, endpoint: string
 
 	// Anti-replay: reject if the same event.id was already used before its expiration.
 	// TTL is capped so a far-future `expiration` can't pin the key indefinitely.
-	const ttl = Math.min(MAX_REPLAY_TTL, Math.max(1, expiration - Math.floor(Date.now() / 1000)));
-	const seen = await redisCore.setNX(`auth:seen:${authevent.id}`, "1", ttl);
-	if (!seen) {
-		logger.warn(`isBUD11AuthValid - Auth event already used (replay): ${authevent.id} | ${getClientInfo(req).ip}`);
-		return {status: "error", message: "Auth event already used", authkey: "", pubkey: "", kind: 0};
+	// HEAD requests are skipped: BUD-02 pre-flight reuses the same auth event for
+	// the subsequent PUT, so registering the id at HEAD time would 401 the upload.
+	if (req.method !== "HEAD") {
+		const ttl = Math.min(MAX_REPLAY_TTL, Math.max(1, expiration - Math.floor(Date.now() / 1000)));
+		const seen = await redisCore.setNX(`auth:seen:${authevent.id}`, "1", ttl);
+		if (!seen) {
+			logger.warn(`isBUD11AuthValid - Auth event already used (replay): ${authevent.id} | ${getClientInfo(req).ip}`);
+			return {status: "error", message: "Auth event already used", authkey: "", pubkey: "", kind: 0};
+		}
 	}
 
 	logger.info(`isBUD11AuthValid - Auth header is valid: ${authevent.id} | ${getClientInfo(req).ip}`);
