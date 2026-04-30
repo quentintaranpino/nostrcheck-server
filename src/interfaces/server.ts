@@ -18,9 +18,10 @@ interface ServerStatusMessage extends ResultMessagev2 {
 
 interface ServerUpdateMessage extends ResultMessagev2 {
 	currentVersion: string;
-	latestVersion: string;
+	latestVersion: string | null;
 	updateAvailable: boolean;
 	releaseUrl: string;
+	checkFailed: boolean;
 }
 
 export { ResultMessage, ResultMessagev2, ServerStatusMessage, ServerUpdateMessage };

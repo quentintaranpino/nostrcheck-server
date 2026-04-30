@@ -29,7 +29,7 @@ import { listPlugins } from "../lib/plugins/core.js";
 import { initRedis } from "../lib/redis/client.js";
 import { wss } from "../routes/relay.route.js";
 import { IpInfo } from "../interfaces/security.js";
-import { getLatestVersion } from "../lib/updater.js";
+import { getLatestRelease, compareVersions } from "../lib/updater.js";
 
 const redisCore = await initRedis(0, false);
 
@@ -104,15 +104,18 @@ const serverUpdates = async (req: Request, res: Response): Promise<Response> => 
 	if (eventHeader.status !== "success") {return res.status(401).send({"status": eventHeader.status, "message" : eventHeader.message});}
     setAuthCookie(res, eventHeader.authkey);
 
+	const currentVersion = process.env.npm_package_version || "0.0.0";
+	const latest = await getLatestRelease();
+	const checkFailed = latest.version === null;
+
 	const result: ServerUpdateMessage = {
         status: "success",
         message: "Nostrcheck-server update status.",
-        currentVersion: process.env.npm_package_version || "0.0.0",
-        latestVersion: await getLatestVersion(),
-        updateAvailable: await getLatestVersion() !== process.env.npm_package_version ? true : false,
-        releaseUrl: (getConfig(null, ["server", "updateSource"]) || "")
-            .replace("raw.githubusercontent.com", "github.com")
-            .replace(/\/(main|master)\/package.*$/, "")
+        currentVersion,
+        latestVersion: latest.version,
+        updateAvailable: !checkFailed && compareVersions(latest.version!, currentVersion) > 0,
+        releaseUrl: latest.url,
+        checkFailed,
     };
 
 	return res.status(200).send(result);

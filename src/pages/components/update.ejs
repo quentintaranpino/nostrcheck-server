@@ -38,10 +38,12 @@
     }
 
     function show(status) {
+        if (status.checkFailed) return;
+
         const latest = status.latestVersion || status.latest || status.version;
         const current = status.currentVersion || status.current;
         const releaseUrl = status.releaseUrl || status.releaseNotes || '#';
-        const updateAvailable = !!status.updateAvailable || (latest && current && latest !== current);
+        const updateAvailable = !!status.updateAvailable;
 
         if (!updateAvailable) return;
         showRocket(latest, releaseUrl);
