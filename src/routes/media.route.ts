@@ -1,6 +1,6 @@
 import { Application } from "express";
 import express from "express";
-import { uploadMedia, getMedia, deleteMedia, updateMediaVisibility, headMedia, headUpload, getMediaList, reportBlob } from "../controllers/media.js";
+import { uploadBlossom, uploadNip96, getMedia, deleteMedia, updateMediaVisibility, headMedia, headUpload, getMediaList, reportBlob } from "../controllers/media.js";
 import { NIP96Data } from "../controllers/nostr.js";
 import { limiter } from "../lib/security/core.js";
 import { getConfig, getModuleInfo } from "../lib/config/core.js";
@@ -21,7 +21,7 @@ export const loadMediaEndpoint = async (app: Application, version:string): Promi
 		withRoot([`${base}/mirror`, `/mirror`]),
 		express.json(),
 		limiter(getConfig(null, ["security", "media", "maxUploadsMinute"])),
-		async (req, res) => { uploadMedia(req,res, version) }
+		async (req, res) => { uploadBlossom(req, res, version) }
 	);
 
 	// POST (NIP96 upload)
@@ -29,7 +29,7 @@ export const loadMediaEndpoint = async (app: Application, version:string): Promi
 		`${base}`,
 		limiter(getConfig(null, ["security", "media", "maxUploadsMinute"])),
 		multipartUploadMiddleware(),
-		async (req, res) => { uploadMedia(req,res, version) }
+		async (req, res) => { uploadNip96(req, res, version) }
 	);
 
 	// PUT (Blossom upload)
@@ -37,7 +37,7 @@ export const loadMediaEndpoint = async (app: Application, version:string): Promi
 		withRoot([`${base}/upload`, `/upload`]),
 		limiter(getConfig(null, ["security", "media", "maxUploadsMinute"])),
 		rawUploadMiddleware(),
-		async (req, res) => { uploadMedia(req,res, version) }
+		async (req, res) => { uploadBlossom(req, res, version) }
 	);
 
 	// PUT (Blossom BUD-05 media upload). Auth event must carry t=media.
@@ -45,7 +45,7 @@ export const loadMediaEndpoint = async (app: Application, version:string): Promi
 		withRoot([`${base}`, `/media`]),
 		limiter(getConfig(null, ["security", "media", "maxUploadsMinute"])),
 		rawUploadMiddleware(),
-		async (req, res) => { uploadMedia(req,res, version) }
+		async (req, res) => { uploadBlossom(req, res, version) }
 	);
 
 	// HEAD upload (Blossom)

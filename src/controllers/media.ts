@@ -11,13 +11,7 @@ import { logger } from "../lib/logger.js";
 import { isPubkeyRegistered, parseAuthHeader } from "../lib//authorization.js";
 import { getUploadType, getFileMimeType, standardMediaConversion, getNotFoundFileBanner, readRangeHeader, prepareLegacMediaEvent, getMediaDimensions, getExtension, getMimeType, getAllowedMimeTypes, getFileUrl, getMediaUrl } from "../lib/media.js"
 import { requestQueue } from "../lib/media.js";
-import {
-	MediaJob,
-	LegacyMediaReturnMessage,
-	UploadStatus,
-	MediaStatus,
-	FileData,
-	} from "../interfaces/media.js";
+import { MediaJob, LegacyMediaReturnMessage, UploadStatus, UploadMode, MediaStatus, FileData} from "../interfaces/media.js";
 import { ResultMessage, ResultMessagev2 } from "../interfaces/server.js";
 import { NIP94_data, NIP96_event, NIP96_processing } from "../interfaces/nostr.js";
 import { PrepareNIP96_event, PrepareNIP96_listEvent } from "../lib/nostr/NIP96.js";
@@ -43,7 +37,7 @@ import { initRedis } from "../lib/redis/client.js";
 
 const redisCore = await initRedis(0, false);
 
-const uploadMedia = async (req: Request, res: Response, version:string): Promise<Response> => {
+const uploadMedia = async (req: Request, res: Response, version: string, mode: UploadMode): Promise<Response> => {
 
 	// Check if the request IP is allowed
 	const reqInfo = await isIpAllowed(req);
@@ -84,6 +78,15 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 		res.setHeader("X-Reason", eventHeader.message);
 		return res.status(code).send(result);
 
+	}
+
+	// Reject cross-kind requests: Blossom endpoints want kind 24242, NIP-96 wants kind 27235.
+	const expectedKind = mode === "blossom" ? BUDKinds.BUD11_auth : 27235;
+	if (eventHeader.kind != expectedKind) {
+		const msg = `Auth event kind ${eventHeader.kind} does not match this endpoint (expected ${expectedKind})`;
+		logger.warn(`uploadMedia - ${msg} | ${reqInfo.ip}`);
+		res.setHeader("X-Reason", msg);
+		return res.status(401).send({ status: MediaStatus[1], message: msg });
 	}
 
 	const pubkey = eventHeader.pubkey;
@@ -510,7 +513,7 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 
 		// BUD-05 needs sync: await the worker before building the descriptor.
 		// NIP-96 keeps its async processing_url contract.
-		if (eventHeader.kind == BUDKinds.BUD11_auth) {
+		if (mode === "blossom") {
 			try {
 				await requestQueue.push(t);
 			} catch (err) {
@@ -537,8 +540,8 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 		return res.json(returnmessage);
 	}
 
-	// Blossom compatibility
-	if (eventHeader.kind == BUDKinds.BUD11_auth) {
+	// Blossom response
+	if (mode === "blossom") {
 		const returnmessage: BlobDescriptor = await prepareBlobDescriptor(filedata);
 		res.status(200);
 		return res.json(returnmessage);
@@ -1969,7 +1972,13 @@ const reportBlob = async (req: Request, res: Response): Promise<Response> => {
 	return res.status(200).send({status: "success", message: "Report accepted"});
 }
 
-export { uploadMedia,
+// Endpoint-specific entry points. Both delegate to uploadMedia which now
+// asserts the auth event kind matches the mode (24242 for Blossom, 27235 for NIP-96).
+const uploadBlossom = (req: Request, res: Response, version: string) => uploadMedia(req, res, version, "blossom");
+const uploadNip96   = (req: Request, res: Response, version: string) => uploadMedia(req, res, version, "nip96");
+
+export { uploadBlossom,
+		uploadNip96,
 		getMedia,
 		getMediaList,
 		headMedia,

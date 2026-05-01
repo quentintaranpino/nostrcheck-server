@@ -19,6 +19,8 @@ const UploadTypes = ["avatar", "banner", "media"];
 const UploadStatus = ["pending", "processing", "completed", "failed"];
 const MediaStatus = ["success", "error", "processing"];
 
+type UploadMode = "blossom" | "nip96";
+
 interface MediaTypeInfo {
     originalMime: string;
     extension: string;
@@ -127,6 +129,7 @@ export {
 	ResultMessage,
 	UploadTypes,
 	UploadStatus,
+	UploadMode,
 	MediaStatus,
 	VideoHeaderRange,
 	faviconPaths
