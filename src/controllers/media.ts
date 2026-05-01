@@ -223,7 +223,11 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 		return res.status(400).send(result);
 	}
 
-	if (req.params.param1 == "upload" || req.params.param1 == "mirror") filedata.no_transform = true;
+	// BUD-02 /upload and BUD-04 /mirror MUST not modify the blob.
+	const url = req.originalUrl || '';
+	if (/\/upload(\?|$)/.test(url) || /\/mirror(\?|$)/.test(url)) {
+		filedata.no_transform = true;
+	}
 	if (!filedata.originalmime.toString().startsWith("image") && !filedata.originalmime.toString().startsWith("video")) filedata.no_transform = true;
 
 	// Uploaded file SHA256 hash and filename
