@@ -763,13 +763,20 @@
                             // Mirror the same filters/search/sort the table is
                             // applying so the modal navigates only the visible
                             // dataset (e.g. "checked != 1" or banned-only).
+                            // checkedFilter / bannedFilter are local to
+                            // initTable() so we read their state from the
+                            // toolbar icons instead (they get text-primary /
+                            // text-warning when active).
                             const opts = $('#filesData').bootstrapTable('getOptions') || {};
                             const search = opts.searchText || '';
                             const sortName = opts.sortName || '';
                             const sortOrder = opts.sortOrder || '';
+                            const tableWrap = $('#filesData').closest('.bootstrap-table');
+                            const checkedOn = tableWrap.find('[name="checkedButton"] i').hasClass('text-primary');
+                            const bannedOn = tableWrap.find('[name="bannedButton"] i').hasClass('text-warning');
                             const filterObj = {};
-                            if (typeof checkedFilter !== 'undefined' && checkedFilter) filterObj.checked = "!1";
-                            if (typeof bannedFilter !== 'undefined' && bannedFilter) filterObj.banned = "1";
+                            if (checkedOn) filterObj.checked = "!1";
+                            if (bannedOn) filterObj.banned = "1";
                             const params = new URLSearchParams();
                             params.set('module', 'media');
                             params.set('offset', String(currentLen));
