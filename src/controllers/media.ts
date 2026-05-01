@@ -126,10 +126,22 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 			return res.status(400).send(result);
 		}
 
-		// SSRF guard. Legitimate clients never mirror from private/internal
-		// targets, so a failure here is treated as an intentional probe and
-		// the IP picks up an infraction.
+		// SSRF guard. Distinguish "URL refuses to resolve" (502 Bad Gateway,
+		// upstream's fault) from "URL points at a private/internal target"
+		// (400, the client is probing). DNS-only failures shouldn't earn an
+		// IP infraction.
 		if (!(await isPublicUrl(req.body.url))) {
+			let dnsResolved = false;
+			try {
+				const u = new URL(req.body.url);
+				const dnsMod = await import("dns");
+				await dnsMod.promises.lookup(u.hostname);
+				dnsResolved = true;
+			} catch { /* dns failed → unreachable */ }
+			if (!dnsResolved) {
+				res.setHeader("X-Reason", "Mirror target unreachable");
+				return res.status(502).send({status: MediaStatus[1], message: "Mirror target unreachable"});
+			}
 			logger.warn(`uploadMedia - SSRF attempt on /mirror: ${req.body.url}`, "|", reqInfo.ip);
 			await addIpInfraction(reqInfo.ip, `SSRF attempt on /mirror: ${req.body.url}`);
 			res.setHeader("X-Reason", "Refused mirror target");
@@ -677,7 +689,16 @@ const getMediaList = async (req: Request, res: Response): Promise<Response> => {
 
 	// Get NIP96 query parameters
 	const page = Number(req.query.page) || 0;
-	let count = Number(req.query.count) || 10;
+	// Reject malformed limit/count query (BUD-12). When the value is present
+	// but unparseable / non-positive we 400 instead of silently coercing.
+	for (const key of ["count", "limit"] as const) {
+		const raw = req.query[key];
+		if (raw !== undefined && (Array.isArray(raw) || !/^\d+$/.test(String(raw)) || Number(raw) <= 0)) {
+			res.setHeader("X-Reason", `Invalid ${key} parameter`);
+			return res.status(400).send({status: "error", message: `Invalid ${key} parameter`});
+		}
+	}
+	let count = Number(req.query.count) || Number(req.query.limit) || 10;
 	count > 100 ? count = 100 : count; // Limit count value to 100
 	const offset = count * page;
 
@@ -1896,6 +1917,16 @@ const reportBlob = async (req: Request, res: Response): Promise<Response> => {
 	if (validation.status !== "success") {
 		res.setHeader("X-Reason", validation.message);
 		return res.status(400).send(validation);
+	}
+
+	// At least one x tag must reference a hash we actually host.
+	const xHashes = (req.body as Event).tags.filter(t => t[0] === "x" && /^[a-f0-9]{64}$/i.test(t[1])).map(t => t[1].toLowerCase());
+	if (xHashes.length > 0) {
+		const found = await dbMultiSelect(["id"], "mediafiles", "original_hash IN (" + xHashes.map(() => "?").join(",") + ")", xHashes, false);
+		if (!found || found.length === 0) {
+			res.setHeader("X-Reason", "No referenced blob exists on this server");
+			return res.status(400).send({status: "error", message: "No referenced blob exists on this server"});
+		}
 	}
 
 	// Persist the report. Duplicates of the same event_id are silently dropped.

@@ -55,6 +55,13 @@ export const loadMediaEndpoint = async (app: Application, version:string): Promi
 		async (req, res) => { headUpload(req,res) }
 	);
 
+	// HEAD media (Blossom BUD-05 pre-flight). Same validation as HEAD /upload.
+	app.head(
+		withRoot([`${base}`, `/media`]),
+		limiter(),
+		async (req, res) => { headUpload(req,res) }
+	);
+
 	// PUT report (Blossom BUD-09)
 	app.put(
 		withRoot([`${base}/report`, `/report`]),
