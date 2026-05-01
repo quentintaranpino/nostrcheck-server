@@ -1,8 +1,15 @@
 <div class="modal fade" id="media-modal" tabindex="-1" aria-labelledby="media-modal" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-fullscreen-md-down modal-lg">
-        <div class="modal-content">
+        <div class="modal-content position-relative">
+            <button type="button" id="media-modal-nav-prev" class="btn btn-dark d-none position-absolute top-0 start-50 translate-middle-x" style="z-index: 10; border-radius: 0 0 8px 8px; opacity: 0.85;" title="Previous (↑)">
+                <i class="fas fa-chevron-up"></i>
+            </button>
+            <button type="button" id="media-modal-nav-next" class="btn btn-dark d-none position-absolute bottom-0 start-50 translate-middle-x" style="z-index: 10; border-radius: 8px 8px 0 0; opacity: 0.85; margin-bottom: -14px;" title="Next (↓)">
+                <i class="fas fa-chevron-down"></i>
+            </button>
             <div class="modal-header">
                 <h5 class="modal-title" id="media-modal-title">File details</h5>
+                <span id="media-modal-nav-pos" class="ms-auto me-2 small text-secondary d-none"></span>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body text-center d-flex flex-column align-items-center justify-content-center" id="media-modal-body" style="min-height: 450px;">
@@ -19,6 +26,10 @@
                         <i class="fa-solid fa-download me-2"></i>Download
                     </a>
                 </div>
+
+                <button type="button" id="media-info-toggle" class="btn btn-sm btn-outline-secondary mt-3 d-none">
+                    <i class="fas fa-circle-info me-1"></i><span id="media-info-toggle-label">Expand details</span>
+                </button>
 
                 <div id="media-info" class="d-none w-100 mt-3 text-start small">
                     <style>
@@ -40,11 +51,11 @@
             <div id="modalSwitch-footer" class="modal-footer">
                 <div class="form-check form-switch mx-auto">
                     <input class="form-check-input" type="checkbox" id="modalSwitch-visible">
-                    <label class="form-check-label" for="modalSwitch-visible">Visible</label>
+                    <label class="form-check-label" for="modalSwitch-visible">Visible <span class="text-secondary small ms-1">(V)</span></label>
                 </div>
                 <div class="form-check form-switch mx-auto">
                     <input class="form-check-input" type="checkbox" id="modalSwitch-checked">
-                    <label class="form-check-label" for="modalSwitch-checked">Checked</label>
+                    <label class="form-check-label" for="modalSwitch-checked">Checked <span class="text-secondary small ms-1">(Space)</span></label>
                 </div>
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
             </div>

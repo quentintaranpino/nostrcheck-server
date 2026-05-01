@@ -750,14 +750,32 @@
 
             // Attach the click event handler to the document and delegate it to the clickable element
             $(document).off('click', '#media_' + index + '_preview').on('click', '#media_' + index + '_preview', async function () {
-                    initMediaModal(row.pubkey + "/" + value, row.checked, row.visibility, true, row).then(async (modal) => {
-                        let modalResult = modal.data;
-                        for (let field in modalResult) {
-                            if (modalResult[field] != row[field]) {
-                                await modifyRecord("/api/v2/admin/updaterecord/", '#filesData', row.id, field, modalResult[field], 'modify');
-                                refreshTable('#filesData');
-                            }
+                    // Build nav payload so the modal can browse Hosted files with
+                    // arrow keys + Space (checked) + V (visibility). The initial
+                    // window comes from bootstrap-table getData(); loadMore pulls
+                    // more rows from /admin/moduledata so the user can navigate
+                    // through the whole dataset, not just the current page.
+                    const allRows = $('#filesData').bootstrapTable('getData') || [];
+                    const navIdx = allRows.findIndex(r => r && r.id === row.id);
+                    const PAGE = 100;
+                    const loadMore = async (currentLen) => {
+                        try {
+                            // The endpoint expects module=<dataKey> (e.g. "media"),
+                            // not the table id ("filesData"). Use the same datakey
+                            // bootstrap-table itself uses for this table.
+                            const url = '/api/v2/admin/moduledata?module=media&offset=' + currentLen + '&limit=' + PAGE;
+                            const res = await fetch(url, { method: 'GET', credentials: 'include' });
+                            if (!res.ok) return [];
+                            const data = await res.json();
+                            return Array.isArray(data?.rows) ? data.rows : [];
+                        } catch (e) {
+                            console.error('moduledata loadMore failed', e);
+                            return [];
                         }
+                    };
+                    const nav = navIdx >= 0 ? { rows: allRows, index: navIdx, loadMore } : null;
+                    initMediaModal(row.pubkey + "/" + value, row.checked, row.visibility, true, row, nav).then(async () => {
+                        try { refreshTable('#filesData'); } catch (e) { /* table may not exist */ }
                     })
             });
 

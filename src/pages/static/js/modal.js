@@ -429,24 +429,172 @@ const initUploaderModal = async () => {
     uploader.show();
 }
 
-const initMediaModal = async (filename, checked, visible, showButtons = true, fileInfo = null) => {
+const initMediaModal = async (filename, checked, visible, showButtons = true, fileInfo = null, nav = null) => {
 
     var mediaModal = new bootstrap.Modal($('#media-modal'));
 
-    $('#modalSwitch-checked').prop('checked', checked == '1'? true : false);
-    $('#modalSwitch-checked').change(function() {
-        checked = this.checked ? 1 : 0; 
-    });
+    // When `nav` is provided ({rows, index, loadMore?}) the modal becomes a
+    // triage tool: arrow keys move through the rows, Space toggles checked,
+    // V toggles visibility, and toggles persist via /admin/updaterecord.
+    // `loadMore(currentLen)` is an optional async callback that returns more
+    // rows so the user can browse beyond the table's current page (for
+    // 100k+ datasets we paginate behind the scenes). Without `nav` the modal
+    // keeps the legacy behaviour (return checked/visibility on close).
+    let navRows = nav && Array.isArray(nav.rows) ? nav.rows.slice() : null;
+    let navIndex = navRows && typeof nav.index === 'number' ? nav.index : -1;
+    let navLoadMore = nav && typeof nav.loadMore === 'function' ? nav.loadMore : null;
+    let navLoading = false;
+    let navExhausted = !navLoadMore;
+    // Sliding window: never hold more than NAV_WINDOW_MAX rows in memory.
+    // When we exceed it and the user has navigated past NAV_WINDOW_TRIM rows,
+    // drop the oldest NAV_WINDOW_TRIM and adjust the index. Trade-off: at the
+    // top of the window you can't ↑ further (the rows are gone), but the
+    // browser stays under control on 400k-row datasets.
+    const NAV_WINDOW_MAX = 2000;
+    const NAV_WINDOW_TRIM = 1000;
+    let curFilename = filename;
+    let curChecked = checked;
+    let curVisible = visible;
+    let curFileInfo = fileInfo;
+    let curRow = navRows && navIndex >= 0 ? navRows[navIndex] : null;
 
-    $('#modalSwitch-visible').prop('checked', visible);
-    $('#modalSwitch-visible').change(function() {
-        visible = this.checked ? 1 : 0;
-    });
+    const navPrev = $('#media-modal-nav-prev');
+    const navNext = $('#media-modal-nav-next');
+    const navPos = $('#media-modal-nav-pos');
+    if (navRows) {
+        navPrev.removeClass('d-none');
+        navNext.removeClass('d-none');
+        navPos.removeClass('d-none');
+    } else {
+        navPrev.addClass('d-none');
+        navNext.addClass('d-none');
+        navPos.addClass('d-none');
+    }
+
+    $('#modalSwitch-checked').prop('checked', checked == '1' || checked === 1);
+    $('#modalSwitch-visible').prop('checked', visible == '1' || visible === 1 || visible === true);
 
     if (!showButtons) {
         $('#modalSwitch-footer').addClass('d-none');
-    }else {
+    } else {
         $('#modalSwitch-footer').removeClass('d-none');
+    }
+
+    // Switches: when in nav mode, persist via admin endpoint; otherwise
+    // just track local state to be returned on close.
+    $('#modalSwitch-checked').off('change').on('change', function () {
+        const next = this.checked ? 1 : 0;
+        if (navRows && curRow?.id != null) {
+            persistField('checked', next);
+        } else {
+            curChecked = next;
+        }
+    });
+    $('#modalSwitch-visible').off('change').on('change', function () {
+        const next = this.checked ? 1 : 0;
+        if (navRows && curRow?.id != null) {
+            persistField('visibility', next);
+        } else {
+            curVisible = next;
+        }
+    });
+
+    function persistField(field, value) {
+        if (!curRow || curRow.id == null) return;
+        const id = curRow.id;
+        $.ajax({
+            url: '/api/v2/admin/updaterecord/',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({ table: 'filesData', field, value: String(value), id }),
+            success: function () {
+                if (field === 'checked') { curChecked = value; curRow.checked = value; }
+                if (field === 'visibility') { curVisible = value; curRow.visibility = value; }
+                if (typeof refreshTable === 'function') {
+                    try { refreshTable('#filesData'); } catch (e) { /* table may not exist on this page */ }
+                }
+            },
+            error: function (err) {
+                console.error(`Error updating ${field}`, err);
+                // revert UI
+                $('#modalSwitch-checked').prop('checked', curChecked == 1 || curChecked === '1');
+                $('#modalSwitch-visible').prop('checked', curVisible == 1 || curVisible === '1');
+            }
+        });
+    }
+
+    function trimNavWindow() {
+        if (!navRows) return;
+        if (navRows.length <= NAV_WINDOW_MAX) return;
+        if (navIndex < NAV_WINDOW_TRIM) return; // user still close to the head
+        navRows.splice(0, NAV_WINDOW_TRIM);
+        navIndex -= NAV_WINDOW_TRIM;
+    }
+
+    async function ensureNavBuffer() {
+        // Pull more rows from the backend when we're getting close to the
+        // tail of the cached array. Bails out cleanly when the loader returns
+        // an empty page (or errors out).
+        if (!navLoadMore || navLoading || navExhausted) return;
+        if (navIndex < navRows.length - 5) return;
+        navLoading = true;
+        updateNavPos();
+        try {
+            const more = await navLoadMore(navRows.length);
+            if (Array.isArray(more) && more.length > 0) {
+                navRows.push(...more);
+                trimNavWindow();
+            } else {
+                navExhausted = true;
+            }
+        } catch (e) {
+            console.error('media-modal nav loadMore failed', e);
+            navExhausted = true;
+        } finally {
+            navLoading = false;
+            updateNavPos();
+        }
+    }
+
+    async function navigate(delta) {
+        if (!navRows) return;
+        const next = navIndex + delta;
+        if (next < 0) return;
+        if (next >= navRows.length) {
+            await ensureNavBuffer();
+            if (next >= navRows.length) return; // truly at the end
+        }
+        navIndex = next;
+        curRow = navRows[navIndex];
+        // Re-derive params from the new row
+        const url = curRow.url || '';
+        curFilename = url ? url.substring(url.lastIndexOf('/') + 1) : (curRow.filename || '');
+        curChecked = curRow.checked ?? curChecked;
+        curVisible = curRow.visibility ?? curVisible;
+        curFileInfo = curRow;
+        renderFile();
+        // Background prefetch so the next ↓ is instant.
+        ensureNavBuffer();
+    }
+
+    function onKeydown(e) {
+        const tag = (e.target && e.target.tagName) || '';
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || e.target?.isContentEditable) return;
+        if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            navigate(-1);
+        } else if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            navigate(1);
+        } else if (e.code === 'Space') {
+            e.preventDefault();
+            const cb = document.getElementById('modalSwitch-checked');
+            if (cb) { cb.checked = !cb.checked; $(cb).trigger('change'); }
+        } else if (e.key === 'v' || e.key === 'V') {
+            e.preventDefault();
+            const cb = document.getElementById('modalSwitch-visible');
+            if (cb) { cb.checked = !cb.checked; $(cb).trigger('change'); }
+        }
     }
 
     const mediaPreviewIframe = $('#mediapreview-iframe');
@@ -457,40 +605,72 @@ const initMediaModal = async (filename, checked, visible, showButtons = true, fi
     const yamlPreview = $('#mediapreview-yaml');
     const downloadWrapper = $('#mediapreview-download');
 
-    mediapreviewImg.addClass('d-none');
-    mediaPreviewIframe.addClass('d-none');
-    mediaPreview3d.addClass('d-none');
-
-    // Reset and populate the info panel from fileInfo (file metadata coming
-    // from the gallery / list payload). Works with either NIP-94 tag arrays
-    // or flat objects (Blossom blob descriptors / DB rows).
     const infoPanel = $('#media-info');
     const infoRows = $('#media-info-rows');
-    infoRows.empty();
-    infoPanel.addClass('d-none');
-    if (fileInfo) {
+
+    // loadMediaWithToken hands us a `blob:` URL on every fetch. Without
+    // revoking the previous one, browsing 1000 files in a triage session
+    // leaks 1000 blobs into browser memory until the tab is closed.
+    let lastBlobUrl = null;
+    function releaseLastBlob() {
+        if (lastBlobUrl) {
+            try { URL.revokeObjectURL(lastBlobUrl); } catch (e) { /* ignore */ }
+            lastBlobUrl = null;
+        }
+    }
+
+    function resetPreviews() {
+        mediaPreviewIframe.attr('src', '').addClass('d-none');
+        mediapreviewImg.attr('src', '').addClass('d-none');
+        mediaPreviewVideo.attr('src', '').addClass('d-none');
+        mediaPreview3d.addClass('d-none');
+        fontPreview.addClass('d-none');
+        yamlPreview.addClass('d-none');
+        downloadWrapper.addClass('d-none');
+        infoPanel.addClass('d-none');
+        infoRows.empty();
+        releaseLastBlob();
+    }
+
+    // In nav (admin triage) mode the info panel starts collapsed so the
+    // preview gets the spotlight; an "Expand details" button below the
+    // preview opens it. In regular File-details mode it shows inline.
+    const infoToggleBtn = $('#media-info-toggle');
+    const infoToggleLabel = $('#media-info-toggle-label');
+    let navInfoVisible = !navRows;
+    if (navRows) {
+        infoToggleBtn.removeClass('d-none');
+        infoToggleLabel.text('Expand details');
+        infoToggleBtn.off('click').on('click', () => {
+            navInfoVisible = !navInfoVisible;
+            infoToggleLabel.text(navInfoVisible ? 'Collapse details' : 'Expand details');
+            renderInfoPanel(curFileInfo);
+        });
+    } else {
+        infoToggleBtn.addClass('d-none');
+    }
+
+    function renderInfoPanel(info) {
+        infoRows.empty();
+        infoPanel.addClass('d-none');
+        if (!info) return;
+        if (navRows && !navInfoVisible) return; // collapsed in triage mode
         const tagVal = (key) => {
-            if (Array.isArray(fileInfo.tags)) {
-                const t = fileInfo.tags.find(x => x[0] === key);
+            if (Array.isArray(info.tags)) {
+                const t = info.tags.find(x => x[0] === key);
                 return t ? t[1] : null;
             }
-            return fileInfo[key] ?? null;
+            return info[key] ?? null;
         };
-        // Three shapes can land here: NIP-94 list event (tags array), Blossom
-        // blob descriptor (sha256/type/size/uploaded) and DB row from admin
-        // (original_hash/mimetype/filesize/dimensions/date). Fall back across
-        // all three so the panel works in every entry point.
         const sha = tagVal('ox') || tagVal('x') || tagVal('sha256')
-            || fileInfo.sha256 || fileInfo.original_hash || fileInfo.hash;
-        const mime = tagVal('m') || fileInfo.type || fileInfo.mimetype;
-        const dim = tagVal('dim') || fileInfo.dim || fileInfo.dimensions;
-        const blurhash = tagVal('blurhash') || fileInfo.blurhash;
-        const pubkey = fileInfo.pubkey || tagVal('pubkey');
-        const paymentRequest = tagVal('payment_request') || fileInfo.payment_request;
-        const uploaded = fileInfo.created_at || fileInfo.uploaded || fileInfo.date;
-        // size may arrive as bytes (number), bytes-as-string, or pre-formatted
-        // ("1234.56 KB" from the admin table). Resolve to a display string.
-        const sizeRaw = tagVal('size') || fileInfo.filesize || fileInfo.size;
+            || info.sha256 || info.original_hash || info.hash;
+        const mime = tagVal('m') || info.type || info.mimetype;
+        const dim = tagVal('dim') || info.dim || info.dimensions;
+        const blurhash = tagVal('blurhash') || info.blurhash;
+        const pubkey = info.pubkey || tagVal('pubkey');
+        const paymentRequest = tagVal('payment_request') || info.payment_request;
+        const uploaded = info.created_at || info.uploaded || info.date;
+        const sizeRaw = tagVal('size') || info.filesize || info.size;
         const sizeNum = Number(sizeRaw);
 
         const fmtSize = (b) => {
@@ -505,8 +685,6 @@ const initMediaModal = async (filename, checked, visible, showButtons = true, fi
             if (v == null || v === '') return '';
             const n = Number(v);
             if (Number.isFinite(n) && n > 0) {
-                // Seconds vs ms heuristic: anything below ~year 5138 in
-                // seconds fits under 1e11.
                 const ms = n < 1e11 ? n * 1000 : n;
                 return new Date(ms).toLocaleString();
             }
@@ -537,72 +715,76 @@ const initMediaModal = async (filename, checked, visible, showButtons = true, fi
         }
     }
 
-    $(mediaModal._element).on('hidden.bs.modal', function () {
-        mediaPreviewIframe.attr('src', '');
-        mediaPreviewIframe.addClass('d-none');
-        mediapreviewImg.attr('src', '');
-        mediapreviewImg.addClass('d-none');
-        mediaPreviewVideo.attr('src', '');
-        mediaPreviewVideo.addClass('d-none');
-        mediaPreview3d.addClass('d-none');
-        fontPreview.addClass('d-none');
-        yamlPreview.addClass('d-none');
-        downloadWrapper.addClass('d-none');
-        infoPanel.addClass('d-none');
-        infoRows.empty();
+    async function loadPreview(name) {
+        $('#media-loading').removeClass('d-none');
+        const data = await loadMediaWithToken('/api/v2/media/' + name);
+        $('#media-loading').addClass('d-none');
+        // Track the new blob URL so we can revoke it before the next load.
+        // resetPreviews() (called at the start of every renderFile) revokes
+        // the previous one already; we just store the current.
+        lastBlobUrl = data?.url || null;
+        const ct = data.mimeType || '';
+        if (ct.includes('image')) {
+            mediapreviewImg.attr('src', data.url).removeClass('d-none');
+        } else if (ct.includes('model')) {
+            init3dViewer('mediapreview-3d', 'media-modal-body', data.url);
+            mediaPreview3d.removeClass('d-none');
+        } else if (ct.includes('font') || ct.includes('ttf') || ct.includes('woff') || ct.includes('eot')) {
+            initFontViewer('mediapreview-font', data.url);
+            fontPreview.removeClass('d-none');
+        } else if (ct.includes('yaml') || ct.includes('yml')) {
+            initYamlViewer('mediapreview-yaml', data.url);
+            yamlPreview.removeClass('d-none');
+        } else if (ct.includes('video')) {
+            mediaPreviewVideo.attr('src', data.url).removeClass('d-none');
+        } else if (ct === '') {
+            // nothing
+        } else if (ct.includes('text') || ct.includes('application/json') || ct.includes('xml')) {
+            mediaPreviewIframe.attr('src', data.url).removeClass('d-none');
+        } else {
+            $('#mediapreview-download-btn').attr('href', data.url);
+            downloadWrapper.removeClass('d-none');
+        }
+    }
 
-        contentType = '';
+    function updateNavPos() {
+        if (!navRows) return;
+        const totalLabel = navExhausted ? String(navRows.length) : `${navRows.length}+`;
+        const loadingMark = navLoading ? ' ⋯' : '';
+        navPos.text(`${navIndex + 1} / ${totalLabel}${loadingMark}`);
+        navPrev.prop('disabled', navIndex <= 0);
+        navNext.prop('disabled', navExhausted && navIndex >= navRows.length - 1);
+    }
+
+    async function renderFile() {
+        resetPreviews();
+        renderInfoPanel(curFileInfo);
+        $('#modalSwitch-checked').prop('checked', curChecked == 1 || curChecked === '1');
+        $('#modalSwitch-visible').prop('checked', curVisible == 1 || curVisible === '1' || curVisible === true);
+        updateNavPos();
+        if (curFilename) await loadPreview(curFilename);
+    }
+
+    if (navRows) {
+        navPrev.off('click').on('click', () => navigate(-1));
+        navNext.off('click').on('click', () => navigate(1));
+    }
+
+    $(mediaModal._element).off('hidden.bs.modal.gallery').on('hidden.bs.modal.gallery', function () {
+        resetPreviews();
+        document.removeEventListener('keydown', onKeydown);
     });
 
-    $('#media-modal').one('shown.bs.modal', async function () {
-
-        $('#media-loading').removeClass('d-none');
-
-        MediaData = await loadMediaWithToken('/api/v2/media/' + filename).then(async data => {
-            return data;
-        });
-    
-        $('#media-loading').addClass('d-none');
-    
-        let contentType = MediaData.mimeType || '';
-
-        $('#modalSwitch-checked').focus();
-
-        if (contentType.includes('image')) {
-            mediapreviewImg.attr('src', MediaData.url);
-            mediapreviewImg.removeClass('d-none');
-        }else if(contentType.includes('model')) {
-            init3dViewer('mediapreview-3d', 'media-modal-body', MediaData.url);
-            mediaPreview3d.removeClass('d-none');
-        } else if (contentType.includes('font') || contentType.includes('ttf') || contentType.includes('woff') || contentType.includes('eot')) {
-            initFontViewer('mediapreview-font', MediaData.url);
-            fontPreview.removeClass('d-none');
-        } else if (contentType.includes('yaml') || contentType.includes('yml')) {
-            initYamlViewer('mediapreview-yaml', MediaData.url);
-            yamlPreview.removeClass('d-none');
-        } else if (contentType.includes('video')) {
-            mediaPreviewVideo.attr('src', MediaData.url);
-            mediaPreviewVideo.removeClass('d-none');
-        } else {
-            if (contentType === '') return;
-        
-            if (contentType.includes('text') || contentType.includes('application/json') || contentType.includes('xml')) {
-                mediaPreviewIframe.attr('src', MediaData.url);
-                mediaPreviewIframe.removeClass('d-none');
-            } else {
-                const downloadBtn = $('#mediapreview-download-btn');
-                downloadBtn.attr('href', MediaData.url);
-                downloadWrapper.removeClass('d-none');
-            }
-        }
-
+    $(mediaModal._element).off('shown.bs.modal.gallery').on('shown.bs.modal.gallery', function () {
+        if (navRows) document.addEventListener('keydown', onKeydown);
+        renderFile();
     });
 
     mediaModal.show();
 
     let result = await new Promise((resolve) => {
-        $(mediaModal._element).on('hidden.bs.modal', function () {
-            resolve({ "checked": checked, "visibility": visible }); 
+        $(mediaModal._element).one('hidden.bs.modal', function () {
+            resolve({ checked: curChecked, visibility: curVisible });
         });
     });
 
