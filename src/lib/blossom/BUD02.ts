@@ -6,14 +6,15 @@ import { getMimeType } from "../media.js";
 
 const prepareBlobDescriptor = async (filedata : FileData): Promise<BlobDescriptor> => {
 
+    // Descriptor must describe served bytes, not the input.
     const event : BlobDescriptor = {
 
         status: filedata.status,
         message: filedata.description,
         url: filedata.url,
-        sha256: filedata.originalhash,
+        sha256: filedata.hash || filedata.originalhash,
         size: filedata.filesize,
-        type: filedata.originalmime != '' ? filedata.originalmime : await getMimeType(filedata.filename.split('.').pop() || '') || '',
+        type: filedata.mimetype || filedata.originalmime || (await getMimeType(filedata.filename.split('.').pop() || '')) || '',
         uploaded: filedata.date,
         blurhash: filedata.blurhash,
         dim: filedata.width + "x" + filedata.height,

@@ -52,7 +52,7 @@ const PrepareNIP96_listEvent = async (filedata : FileData): Promise<NIP94_data> 
     const event : NIP94_data = {
             tags: [
                     ["url", filedata.url],
-                    ["m", filedata.originalmime != '' ? filedata.originalmime : await getMimeType(filedata.filename.split('.').pop() || '') || ''],
+                    ["m", filedata.mimetype || filedata.originalmime || (await getMimeType(filedata.filename.split('.').pop() || '')) || ''],
                     ["x", filedata.hash],
                     ["ox", filedata.originalhash],
                     ["size", filedata.filesize?.toString()],

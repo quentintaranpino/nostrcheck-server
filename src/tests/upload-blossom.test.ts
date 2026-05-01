@@ -263,3 +263,150 @@ describe("Blossom BUD-04 mirror SSRF guard", () => {
 	});
 
 });
+
+// Fresh PNG per test (different sha256) avoids dedup hits.
+const makePng = async (r: number, g: number, b: number): Promise<{bytes: Uint8Array<ArrayBuffer>; sha256: string}> => {
+	const buf = await sharp({ create: { width: 64, height: 64, channels: 4, background: { r, g, b, alpha: 1 } } }).png().toBuffer();
+	const ab = new ArrayBuffer(buf.length);
+	const bytes = new Uint8Array(ab);
+	bytes.set(buf);
+	const sha256 = crypto.createHash("sha256").update(bytes).digest("hex");
+	return { bytes, sha256 };
+};
+
+describe("BUD-02 BlobDescriptor shape (PUT /upload, no transform)", () => {
+
+	test("Descriptor reports correct sha256, size, type, url for the served bytes", async () => {
+		const sk = generateSecretKey();
+		const { bytes, sha256 } = await makePng(11, 22, 33);
+		const event = signBud11(sk, "upload", [["x", sha256]]);
+		const res = await fetch(`${BASE}/upload`, { method: "PUT", headers: { Authorization: authHeader(event), "Content-Type": "image/png" }, body: bytes });
+		expect([200, 201]).toContain(res.status);
+		const body = await res.json();
+		expect(body.sha256).toEqual(sha256);          // hash of the bytes we sent (no_transform)
+		expect(typeof body.size).toEqual("number");   // BUD-02 size MUST be number
+		expect(body.size).toEqual(bytes.length);
+		expect(body.type).toEqual("image/png");
+		expect(typeof body.url).toEqual("string");
+		expect(body.url.length).toBeGreaterThan(0);
+		expect(typeof body.uploaded).toEqual("number");
+	});
+
+	test("Descriptor URL is fetchable immediately (no async processing)", async () => {
+		const sk = generateSecretKey();
+		const { bytes, sha256 } = await makePng(44, 55, 66);
+		const event = signBud11(sk, "upload", [["x", sha256]]);
+		const upload = await fetch(`${BASE}/upload`, { method: "PUT", headers: { Authorization: authHeader(event), "Content-Type": "image/png" }, body: bytes });
+		const body = await upload.json();
+		const get = await fetch(body.url);
+		expect(get.status).toEqual(200);
+	});
+
+});
+
+describe("BUD-05 Media Optimization (PUT /media)", () => {
+
+	test("Transform produces a descriptor whose sha256/size differ from the original (post-transform bytes)", async () => {
+		const sk = generateSecretKey();
+		const { bytes, sha256 } = await makePng(77, 88, 99);
+		// PUT /media accepts t=upload as alias (server-side normalization)
+		const event = signBud11(sk, "upload", [["x", sha256]]);
+		const res = await fetch(`${BASE}/media`, { method: "PUT", headers: { Authorization: authHeader(event), "Content-Type": "image/png" }, body: bytes });
+		expect([200, 201]).toContain(res.status);
+		const body = await res.json();
+		// After transform, the served blob differs from the input — descriptor MUST reflect served bytes.
+		expect(body.sha256).not.toEqual(sha256);
+		expect(typeof body.size).toEqual("number");
+		expect(body.size).not.toEqual(bytes.length);
+		expect(typeof body.type).toEqual("string");
+		expect(body.type.length).toBeGreaterThan(0);
+	});
+
+	test("Descriptor URL is fetchable immediately after PUT /media (sync flow)", async () => {
+		const sk = generateSecretKey();
+		const { bytes, sha256 } = await makePng(100, 110, 120);
+		const event = signBud11(sk, "upload", [["x", sha256]]);
+		const upload = await fetch(`${BASE}/media`, { method: "PUT", headers: { Authorization: authHeader(event), "Content-Type": "image/png" }, body: bytes });
+		expect([200, 201]).toContain(upload.status);
+		const body = await upload.json();
+		const get = await fetch(body.url);
+		expect(get.status).toEqual(200);
+	});
+
+});
+
+describe("HEAD /media (BUD-05 pre-flight)", () => {
+
+	test("HEAD /media with valid headers passes auth", async () => {
+		const sk = generateSecretKey();
+		const event = signBud11(sk, "media", [["x", fileHash]]);
+		const res = await fetch(`${BASE}/media`, {
+			method: "HEAD",
+			headers: {
+				Authorization: authHeader(event),
+				"x-sha-256": fileHash,
+				"x-content-length": String(png.length),
+				"x-content-type": "image/png",
+			},
+		});
+		expect(res.status).not.toEqual(401);
+	});
+
+	test("HEAD /media returns 409 when X-SHA-256 disagrees with x tag", async () => {
+		const sk = generateSecretKey();
+		const event = signBud11(sk, "media", [["x", fileHash]]);
+		const res = await fetch(`${BASE}/media`, {
+			method: "HEAD",
+			headers: {
+				Authorization: authHeader(event),
+				"x-sha-256": "b".repeat(64),
+				"x-content-length": String(png.length),
+				"x-content-type": "image/png",
+			},
+		});
+		expect(res.status).toEqual(409);
+	});
+
+});
+
+describe("NIP-96 POST /api/v2/media", () => {
+
+	const signNip98 = (sk: Uint8Array, url: string, method: string, payload: string) =>
+		finalizeEvent({
+			kind: 27235,
+			created_at: Math.floor(Date.now() / 1000),
+			tags: [
+				["u", url],
+				["method", method],
+				["payload", payload],
+			],
+			content: "NIP-98 auth for upload test",
+		}, sk);
+
+	test("POST returns nip94_event with url and m tag describing the served bytes", async () => {
+		const sk = generateSecretKey();
+		const { bytes, sha256 } = await makePng(130, 140, 150);
+		const url = `${BASE}/api/v2/media`;
+		const event = signNip98(sk, url, "POST", sha256);
+		const fd = new FormData();
+		fd.append("file", new Blob([bytes], { type: "image/png" }), "test.png");
+		const res = await fetch(url, {
+			method: "POST",
+			headers: { Authorization: authHeader(event) },
+			body: fd,
+		});
+		// NIP-96 may return 200/201 (sync no-transform) or 202 (async legacy with processing_url)
+		expect([200, 201, 202]).toContain(res.status);
+		const body = await res.json();
+		expect(body.nip94_event).toBeTruthy();
+		expect(Array.isArray(body.nip94_event.tags)).toEqual(true);
+		const urlTag = body.nip94_event.tags.find((t: string[]) => t[0] === "url");
+		expect(urlTag).toBeTruthy();
+		expect(typeof urlTag[1]).toEqual("string");
+		expect(urlTag[1].length).toBeGreaterThan(0);
+		const mTag = body.nip94_event.tags.find((t: string[]) => t[0] === "m");
+		expect(mTag).toBeTruthy();
+		expect(mTag[1]).toMatch(/^image\//);
+	});
+
+});

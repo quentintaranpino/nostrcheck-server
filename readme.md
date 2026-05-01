@@ -132,6 +132,7 @@ See multi-tenancy [here](https://github.com/quentintaranpino/nostrcheck-server/w
 - [x] BUD02 - Blob upload and management
 - [x] BUD03 - User Server List
 - [x] BUD04 - Mirroring blobs
+- [x] BUD05 - Media Optimization
 - [x] BUD06 - Upload requirements
 - [x] BUD07 - Paid upload and download
 - [x] BUD09 - Blob Report

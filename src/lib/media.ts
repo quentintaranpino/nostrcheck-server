@@ -495,12 +495,20 @@ const finalizeFileProcessing = async (filedata: FileData): Promise<boolean> => {
 		await dbUpdate('mediafiles',{'percentage':'100'},['id'], [filedata.fileid]);
 		await dbUpdate('mediafiles',{'visibility':'1'},['id'], [filedata.fileid]);
 		await dbUpdate('mediafiles',{'active':'1'},['id'], [filedata.fileid]);
-		await dbUpdate('mediafiles', {'hash': filedata.no_transform == true ? filedata.originalhash : await generatefileHashfromfile(filedata.conversionOutputPath)}, ['id'], [filedata.fileid]);
+		// Mirror final values on filedata so awaiting callers (BUD-05 sync) read them.
+		const finalHash = filedata.no_transform == true ? filedata.originalhash : await generatefileHashfromfile(filedata.conversionOutputPath);
+		filedata.hash = finalHash;
+		await dbUpdate('mediafiles', {'hash': finalHash}, ['id'], [filedata.fileid]);
 		await dbUpdate('mediafiles',{'status':'success'},['id'], [filedata.fileid]);
-		const filesize = getFileSize(filedata.no_transform == true ? filedata.conversionInputPath: filedata.conversionOutputPath ,filedata)
-		await dbUpdate('mediafiles', {'filesize':filesize},['id'], [filedata.fileid]);
+		const finalSize = getFileSize(filedata.no_transform == true ? filedata.conversionInputPath: filedata.conversionOutputPath, filedata);
+		filedata.filesize = finalSize;
+		await dbUpdate('mediafiles', {'filesize': finalSize}, ['id'], [filedata.fileid]);
 		await dbUpdate('mediafiles',{'dimensions':filedata.newFileDimensions},['id'], [filedata.fileid]);
-		if (filedata.no_transform == false) await dbUpdate('mediafiles',{'mimetype': await getMimeType(filedata.originalmime,true)},['id'], [filedata.fileid]);
+		// Mime of the served bytes (converted_mime when transformed). Read by descriptors.
+		filedata.mimetype = filedata.no_transform == true
+			? filedata.originalmime
+			: ((await getMimeType(filedata.originalmime, true)) || filedata.originalmime);
+		if (filedata.no_transform == false) await dbUpdate('mediafiles',{'mimetype': filedata.mimetype},['id'], [filedata.fileid]);
 		await saveFile(filedata, filedata.no_transform == true ? filedata.conversionInputPath: filedata.conversionOutputPath );
 
 		if (filedata.no_transform == false) { await deleteLocalFile(filedata.conversionOutputPath);}

@@ -206,6 +206,7 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 		height: getConfig(req.hostname, ["media", "transform", "media", "undefined", "height"]),
 		media_type: uploadType,
 		originalmime: "",
+		mimetype: "",
 		outputoptions: "",
 		originalhash: "",
 		hash: "",
@@ -325,6 +326,8 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 			filedata.magnet = dbFile.magnet;
 			filedata.blurhash = dbFile.blurhash;
 			filedata.originalmime = dbFile.mimetype ? dbFile.mimetype : filedata.originalmime;
+			// Cached row: stored mimetype already reflects any transform.
+			filedata.mimetype = dbFile.mimetype || filedata.originalmime;
 			filedata.filesize = +dbFile.filesize;
 			filedata.width = +(dbFile.dimensions.split("x")[0]);
 			filedata.height = +(dbFile.dimensions.split("x")[1]);
@@ -502,25 +505,28 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 
 	if (processFile){
 
-		filedata.description = "File enqueued for processing";
-		filedata.processing_url = filedata.no_transform == true? "" : `${getMediaUrl("NIP96", req.hostname)}/${filedata.fileid}`;
-		res.status(202)
+		const t: MediaJob = {req, filedata};
+		logger.info(`uploadMedia - ${requestQueue.length() + 1} items in media processing queue`);
 
-		//Send request to process queue
-		const t: MediaJob = {req,filedata,};
-		logger.info(`uploadMedia - ${requestQueue.length() +1} items in media processing queue`);
-		filedata.description + "File queued for conversion";
-		requestQueue.push(t).catch((err) => {
-			logger.error(`uploadMedia - Error pushing file to queue`, err);
-			if(version != "v2"){return res.status(500).send({"result": false, "description" : "Error queueing file"});}
-
-			const result: ResultMessagev2 = {
-				status: MediaStatus[1],
-				message: "Error queueing file",
-			};
-			res.setHeader("X-Reason", "Internal server error");
-			return res.status(500).send(result);
-		});
+		// BUD-05 needs sync: await the worker before building the descriptor.
+		// NIP-96 keeps its async processing_url contract.
+		if (eventHeader.kind == BUDKinds.BUD11_auth) {
+			try {
+				await requestQueue.push(t);
+			} catch (err) {
+				logger.error(`uploadMedia - Error processing Blossom upload: ${err}`, "|", reqInfo.ip);
+				const result: ResultMessagev2 = { status: MediaStatus[1], message: "Processing failed" };
+				res.setHeader("X-Reason", "Processing failed");
+				return res.status(500).send(result);
+			}
+		} else {
+			filedata.description = "File enqueued for processing";
+			filedata.processing_url = filedata.no_transform == true ? "" : `${getMediaUrl("NIP96", req.hostname)}/${filedata.fileid}`;
+			res.status(202);
+			requestQueue.push(t).catch((err) => {
+				logger.error(`uploadMedia - Error pushing file to queue`, err);
+			});
+		}
 	}
 
 	logger.info(`uploadMedia - File uploaded successfully: ${filedata.filename}`, "|", reqInfo.ip);
@@ -834,6 +840,7 @@ const getMediaList = async (req: Request, res: Response): Promise<Response> => {
 			no_transform: e.hash == e.original_hash ? true : false,
 			media_type: "",
 			originalmime: e.mimetype != '' ? e.mimetype : await getMimeType(e.filename.split('.').pop() || '') || '',
+			mimetype: e.mimetype != '' ? e.mimetype : await getMimeType(e.filename.split('.').pop() || '') || '',
 			status: "success",
 			description: "",
 			outputoptions: "",
@@ -947,7 +954,7 @@ const getMediaStatusbyID = async (req: Request, res: Response, version:string): 
 
 	logger.info(`getMediaStatusbyID - Requested file ID: ${id}`, "|", reqInfo.ip);
 
-	const mediaFileData = await dbMultiSelect(["id", "filename", "pubkey", "status", "magnet", "original_hash", "hash", "blurhash", "dimensions", "filesize", "transactionid", "visibility"],
+	const mediaFileData = await dbMultiSelect(["id", "filename", "pubkey", "status", "magnet", "original_hash", "hash", "blurhash", "dimensions", "filesize", "mimetype", "transactionid", "visibility"],
 												"mediafiles",
 												"id = ? and (pubkey = ? or pubkey = ?)",
 												[id, eventHeader.pubkey, getConfig(req.hostname, ["server", "pubkey"])],
@@ -967,7 +974,7 @@ const getMediaStatusbyID = async (req: Request, res: Response, version:string): 
 		return res.status(404).send(result);
 	}
 
-	const { filename, pubkey, status, magnet, original_hash, hash, blurhash, filesize, transactionid, visibility  } = mediaFileData[0];
+	const { filename, pubkey, status, magnet, original_hash, hash, blurhash, filesize, mimetype, transactionid, visibility  } = mediaFileData[0];
 	let { dimensions } = mediaFileData[0];
 
 	//Fix dimensions for old API requests
@@ -986,8 +993,9 @@ const getMediaStatusbyID = async (req: Request, res: Response, version:string): 
 		url: getFileUrl(filename, pubkey, req.hostname),
 		magnet: magnet,
 		blurhash: blurhash,
-		media_type: "", 
-		originalmime: "",
+		media_type: "",
+		originalmime: mimetype || "",
+		mimetype: mimetype || "",
 		outputoptions: "",
 		status: status,
 		description: "The requested file was found",

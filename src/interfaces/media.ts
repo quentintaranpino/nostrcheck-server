@@ -83,6 +83,7 @@ interface FileData{
 	no_transform: boolean;
 	media_type: typeof UploadTypes[number];
 	originalmime: string;
+	mimetype: string;
 	outputoptions: string;
 	status: string;
 	description: string;
