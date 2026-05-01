@@ -123,10 +123,9 @@ const isBUD11AuthValid = async (authevent: Event, req: Request, endpoint: string
 	const endpointTag = authevent.tags.find(tag => tag[0] === "t");
 	let eventEndpoint = endpointTag ? endpointTag[1] : null;
 
-	// Most Blossom clients reuse one t=upload event for both /upload and
-	// /media. Accept the alias.
-	if (endpoint == "media" && eventEndpoint == "upload") {
-		eventEndpoint = "media";
+	// Many clients reuse a single t=upload event for /upload, /media and /mirror.
+	if (eventEndpoint == "upload" && (endpoint == "media" || endpoint == "mirror")) {
+		eventEndpoint = endpoint;
 	}
 
 	// Check if event authorization t tag is valid (Must be the same as the server endpoint)

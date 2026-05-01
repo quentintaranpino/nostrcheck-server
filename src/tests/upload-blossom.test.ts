@@ -58,12 +58,12 @@ describe("Blossom upload auth (BUD-11 binding)", () => {
 		expect(res.status).toEqual(401);
 	});
 
-	test("401 when x tag does not match blob", async () => {
+	test("409 when x tag does not match blob", async () => {
 		const sk = generateSecretKey();
 		const url = `${BASE}/upload`;
 		const event = signBud11(sk, "upload", [["x", "a".repeat(64)]]);
 		const res = await fetch(url, { method: "PUT", headers: { Authorization: authHeader(event), "Content-Type": "image/png" }, body: png });
-		expect(res.status).toEqual(401);
+		expect(res.status).toEqual(409);
 	});
 
 	test("401 when event expiration is in the past", async () => {
@@ -141,8 +141,8 @@ describe("Blossom BUD-11 hardening (new rules)", () => {
 	});
 
 	// HEAD /upload pre-flight declares the intended blob via X-SHA-256. The auth `x` tag
-	// must include that same hash (BUD-11 cross-check).
-	test("HEAD /upload returns 401 when X-SHA-256 header disagrees with the x tag", async () => {
+	// must include that same hash (BUD-11 cross-check) — mismatch is 409 Conflict.
+	test("HEAD /upload returns 409 when X-SHA-256 header disagrees with the x tag", async () => {
 		const sk = generateSecretKey();
 		const url = `${BASE}/upload`;
 		const event = signBud11(sk, "upload", [["x", fileHash]]);
@@ -155,7 +155,7 @@ describe("Blossom BUD-11 hardening (new rules)", () => {
 				"x-content-type": "image/png",
 			},
 		});
-		expect(res.status).toEqual(401);
+		expect(res.status).toEqual(409);
 	});
 
 });

@@ -72,13 +72,16 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 	const eventHeader = await parseAuthHeader(req, authEndpoint, false, false, false);
 	if (eventHeader.status != "success") {
 		if(version != "v2"){return res.status(401).send({"result": false, "description" : eventHeader.message});}
+		// Hash mismatches are a content conflict, not an auth problem (BUD-02).
+		const isHashMismatch = /hash mismatch|x tag does not match/i.test(eventHeader.message);
+		const code = isHashMismatch ? 409 : 401;
 		const result : ResultMessagev2 = {
 			status: MediaStatus[1],
 			message: eventHeader.message
 		}
 		logger.debug(`uploadMedia - Invalid authorization header:`, eventHeader.message, "|", reqInfo.ip);
 		res.setHeader("X-Reason", eventHeader.message);
-		return res.status(401).send(result);
+		return res.status(code).send(result);
 
 	}
 
@@ -1768,12 +1771,15 @@ const headUpload = async (req: Request, res: Response): Promise<Response> => {
 	// Check if authorization header is valid
 	const eventHeader = await parseAuthHeader(req, "upload", false, false, false);
 	if (eventHeader.status != "success") {
+		// Hash mismatches are a content conflict, not an auth problem (BUD-02).
+		const isHashMismatch = /hash mismatch|x tag does not match/i.test(eventHeader.message);
+		const code = isHashMismatch ? 409 : 401;
 		const result : ResultMessagev2 = {
 			status: MediaStatus[1],
 			message: eventHeader.message
 		}
 		res.setHeader("X-Reason", eventHeader.message);
-		return res.status(401).send(result);
+		return res.status(code).send(result);
 
 	}
 
@@ -1785,20 +1791,35 @@ const headUpload = async (req: Request, res: Response): Promise<Response> => {
 		return res.status(403).send();
 	}
 
-	const size = req.headers['x-content-length'] || 0;
+	const sizeHeader = req.headers['x-content-length'];
 	const type = Array.isArray(req.headers['x-content-type']) ? req.headers['x-content-type'][0] || "" : req.headers['x-content-type'] || "";
 	const hash = Array.isArray(req.headers['x-sha-256']) ? req.headers['x-sha-256'][0] : req.headers['x-sha-256'] || "";
 	const transform = Array.isArray(req.headers['x-content-transform']) ? req.headers['x-content-transform'][0] || "" : req.headers['x-content-transform'] || "";
+	const size = Number(sizeHeader) || 0;
 
-	if (!Number(size) || size == 0 || type == "" || hash == "") {
-		logger.info(`headUpload - 400 Bad request - Missing size, MIME type or SHA-256`, "|", reqInfo.ip);
-		res.setHeader("X-Reason", "Missing size, MIME type or SHA-256");
+	// 411 when X-Content-Length is missing, 400 for malformed sha or other.
+	if (sizeHeader === undefined || sizeHeader === "" || !Number.isFinite(size) || size <= 0) {
+		res.setHeader("X-Reason", "Missing or invalid X-Content-Length");
+		return res.status(411).send();
+	}
+	if (!hash || !/^[a-f0-9]{64}$/i.test(hash)) {
+		res.setHeader("X-Reason", "Missing or malformed X-SHA-256");
 		return res.status(400).send();
+	}
+	if (type == "") {
+		res.setHeader("X-Reason", "Missing X-Content-Type");
+		return res.status(400).send();
+	}
+
+	// 413 if the declared size exceeds the configured maximum.
+	const maxBytes = getConfig(req.hostname, ["media", "maxMBfilesize"]) * 1024 * 1024;
+	if (Number.isFinite(maxBytes) && maxBytes > 0 && size > maxBytes) {
+		res.setHeader("X-Reason", "Payload too large");
+		return res.status(413).send();
 	}
 
 	// Check if the MIME type is allowed
 	if(!(await getAllowedMimeTypes()).includes(type)){
-		logger.info(`headUpload - 400 Bad request - Filetype not allowed`, "|", reqInfo.ip);
 		res.setHeader("X-Reason", "Filetype not allowed");
 		return res.status(400).send();
 	}
