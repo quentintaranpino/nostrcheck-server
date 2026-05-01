@@ -19,6 +19,9 @@
 - Several security hardening fixes around uploads, plugins and admin file handling.
 - Chunked IP cleanup to avoid prepared-statement limits on busy servers.
 - Reduced log noise from unknown-host probes.
+- Gallery rewritten Instagram-style: uniform CSS grid, virtual scroll, blurhash placeholders and cursor pagination — designed for 100k+ items.
+- New file-details modal with metadata panel (hash, pubkey, type, size, dimensions, uploaded, blurhash) reused across gallery, profile and admin.
+- Admin triage modal: keyboard navigation through the whole files dataset (↑/↓), instant checked / visibility toggles (Space / V) that respect the table's active filters.
 
 ## 0.7.0
 
