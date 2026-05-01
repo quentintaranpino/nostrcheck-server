@@ -188,6 +188,78 @@ async function populateTables(): Promise<boolean> {
 }
 
 
+/**
+ * Declarative column migrations applied at boot. populateTables() only creates
+ * missing columns; this registry handles type changes on existing columns.
+ * Add new entries here when a column's spec changes — the migration is
+ * idempotent so reboots are no-ops once applied.
+ *
+ * - expectedType: the lowercase DATA_TYPE returned by INFORMATION_SCHEMA.COLUMNS
+ *                 (e.g. "bigint", "int", "varchar"). The migration triggers
+ *                 when the live type differs from this.
+ * - fullSpec:     used verbatim in `ALTER TABLE … MODIFY <column> <fullSpec>`.
+ * - preCleanup:   optional SQL run before the ALTER (e.g. NULL→0 fixups
+ *                 needed when the new type adds NOT NULL).
+ */
+interface ColumnMigration {
+	table: string;
+	column: string;
+	expectedType: string;
+	fullSpec: string;
+	preCleanup?: string;
+	description: string;
+}
+
+const columnMigrations: ColumnMigration[] = [
+	{
+		table: "mediafiles",
+		column: "filesize",
+		expectedType: "bigint",
+		fullSpec: "BIGINT UNSIGNED NOT NULL DEFAULT 0",
+		preCleanup: "UPDATE mediafiles SET filesize = '0' WHERE filesize IS NULL OR filesize = '' OR filesize NOT REGEXP '^[0-9]+$'",
+		description: "VARCHAR(15) → BIGINT UNSIGNED (lexicographic comparisons silently broke numeric queries)",
+	},
+];
+
+const ensureColumnType = async (m: ColumnMigration): Promise<boolean> => {
+
+	const { connect } = await import("./core.js");
+	const pool = await connect(`ensureColumnType | ${m.table}.${m.column}`);
+	try {
+		const [rows] = await pool.execute(
+			`SELECT DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS
+			 WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?`,
+			[m.table, m.column]
+		);
+		const dataType = (rows as any[])[0]?.DATA_TYPE?.toLowerCase();
+		if (!dataType) return true;                   // column not present yet, populateTables will create it
+		if (dataType === m.expectedType) return true; // already migrated
+
+		logger.warn(`ensureColumnType - ${m.table}.${m.column}: '${dataType}' → '${m.expectedType}' (${m.description})`);
+
+		if (m.preCleanup) {
+			const [r] = await pool.execute(m.preCleanup);
+			const cleaned = (r as any).affectedRows || 0;
+			if (cleaned > 0) logger.warn(`ensureColumnType - ${m.table}.${m.column}: cleaned ${cleaned} rows before ALTER`);
+		}
+
+		await pool.execute(`ALTER TABLE \`${m.table}\` MODIFY \`${m.column}\` ${m.fullSpec}`);
+		logger.info(`ensureColumnType - ${m.table}.${m.column} migrated to ${m.fullSpec}`);
+		return true;
+	} catch (error) {
+		logger.error(`ensureColumnType - ${m.table}.${m.column}: ${error}`);
+		return false;
+	}
+}
+
+const applyColumnMigrations = async (): Promise<boolean> => {
+	for (const m of columnMigrations) {
+		const ok = await ensureColumnType(m);
+		if (!ok) return false;
+	}
+	return true;
+}
+
 const fixOldMimeType = async (): Promise<boolean> => {
 
     const { connect } = await import("./core.js");
@@ -234,6 +306,13 @@ const initDatabase = async (): Promise<void> => {
 	const dbtables = await populateTables();
 	if (!dbtables) {
 		logger.error(`initDatabase - Error checking database integrity. Exiting.`);
+		process.exit(1);
+	}
+
+	// Type migrations on existing columns (populateTables only creates missing columns).
+	const migrationsOk = await applyColumnMigrations();
+	if (!migrationsOk) {
+		logger.error(`initDatabase - Error applying column migrations. Exiting.`);
 		process.exit(1);
 	}
 

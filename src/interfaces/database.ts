@@ -88,7 +88,7 @@ const mediafilesTableFields: MediafilesTableStructure = {
 	magnet: "varchar(512)",
 	blurhash: "varchar(256)",
 	dimensions: "varchar(15)",
-	filesize: "varchar(15)",
+	filesize: "bigint unsigned NOT NULL DEFAULT 0",
 	comments: "varchar(150)",
 	checked: "boolean NOT NULL DEFAULT 0",
 	transactionid: "int(11)",
