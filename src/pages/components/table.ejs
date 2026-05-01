@@ -760,11 +760,25 @@
                     const PAGE = 100;
                     const loadMore = async (currentLen) => {
                         try {
-                            // The endpoint expects module=<dataKey> (e.g. "media"),
-                            // not the table id ("filesData"). Use the same datakey
-                            // bootstrap-table itself uses for this table.
-                            const url = '/api/v2/admin/moduledata?module=media&offset=' + currentLen + '&limit=' + PAGE;
-                            const res = await fetch(url, { method: 'GET', credentials: 'include' });
+                            // Mirror the same filters/search/sort the table is
+                            // applying so the modal navigates only the visible
+                            // dataset (e.g. "checked != 1" or banned-only).
+                            const opts = $('#filesData').bootstrapTable('getOptions') || {};
+                            const search = opts.searchText || '';
+                            const sortName = opts.sortName || '';
+                            const sortOrder = opts.sortOrder || '';
+                            const filterObj = {};
+                            if (typeof checkedFilter !== 'undefined' && checkedFilter) filterObj.checked = "!1";
+                            if (typeof bannedFilter !== 'undefined' && bannedFilter) filterObj.banned = "1";
+                            const params = new URLSearchParams();
+                            params.set('module', 'media');
+                            params.set('offset', String(currentLen));
+                            params.set('limit', String(PAGE));
+                            if (search) params.set('search', search);
+                            if (sortName) params.set('sort', sortName);
+                            if (sortOrder) params.set('order', sortOrder);
+                            if (Object.keys(filterObj).length) params.set('filter', JSON.stringify(filterObj));
+                            const res = await fetch('/api/v2/admin/moduledata?' + params, { method: 'GET', credentials: 'include' });
                             if (!res.ok) return [];
                             const data = await res.json();
                             return Array.isArray(data?.rows) ? data.rows : [];
