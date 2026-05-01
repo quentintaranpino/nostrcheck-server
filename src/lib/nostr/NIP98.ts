@@ -1,5 +1,4 @@
 import crypto from "crypto";
-import fs from "fs";
 import { Request } from "express";
 import { Event } from "nostr-tools";
 import { logger } from "../../lib/logger.js";
@@ -77,37 +76,6 @@ const isNIP98Valid = async (authevent: Event, req: Request, checkAdminPrivileges
 	const u = authevent.tags.find((t) => t.length === 2 && t[0] === "u")?.[1]
 	if (!u) return {status: "error", message: "Auth header event endpoint is not valid", authkey: "", pubkey: "", kind: 0};
 	const eventHost = new URL(u).hostname.toLowerCase().replace(/^cdn\./, '').replace(/\/+$/, '');
-
-	// === TEMPORARY INSTRUMENTATION (remove once we have enough samples) ===
-	// Capture the u-tag of every upload event before the host check runs, so
-	// we can see what real clients (Damus, snort, amethyst, ...) are putting
-	// there in production and decide how strict our check should be. Writes
-	// JSONL to logs/nip98-utags.log so it's easy to tail / pipe through jq.
-	try {
-		if (req.method == "POST" || req.method == "PUT" || req.method == "PATCH") {
-			const files = (req as any).files;
-			const file = Array.isArray(files) && files.length > 0 ? files[0] : null;
-			if (file && file.buffer) {
-				const entry = {
-					ts: new Date().toISOString(),
-					ip: getClientInfo(req).ip,
-					request_method: req.method,
-					request_host: req.hostname,
-					request_url: req.originalUrl || req.url,
-					u_tag: u,
-					method_tag: authevent.tags.find(t => t[0] === "method")?.[1] || null,
-					user_agent: req.headers["user-agent"] || "",
-					pubkey: authevent.pubkey,
-				};
-				fs.promises.appendFile("logs/nip98-utags.log", JSON.stringify(entry) + "\n").catch(err => {
-					logger.warn(`isNIP98Valid - u-tag log write failed: ${err}`);
-				});
-			}
-		}
-	} catch (err) {
-		logger.warn(`isNIP98Valid - u-tag instrumentation error: ${err}`);
-	}
-	// === END TEMPORARY INSTRUMENTATION ===
 
 	// Check if event authorization u tag (URL) is valid (Must be the same as the server endpoint)
 	try {
