@@ -3,6 +3,7 @@ import { Readable } from "stream";
 import path from "path";
 import validator from "validator";
 import fs from "fs";
+import crypto from "crypto";
 import { Event } from "nostr-tools";
 
 import { dbDelete, dbInsert, dbMultiSelect, dbSelect, dbUpdate } from "../lib/database/core.js";
@@ -161,6 +162,24 @@ const uploadMedia = async (req: Request, res: Response, version:string): Promise
 			res.setHeader("X-Reason", "Error mirroring file, empty file");
 			return res.status(400).send(result);
 		}
+
+		// Mirror auth check happens before download, so the x-tag binding has
+		// to be re-verified now against the actual blob bytes (BUD-04).
+		try {
+			const raw = (req.headers.authorization || "").split(" ")[1];
+			if (raw) {
+				const ev: Event = JSON.parse(Buffer.from(raw, "base64").toString("utf8"));
+				const xTags = ev.tags.filter(t => t[0] === "x").map(t => t[1]);
+				if (xTags.length > 0) {
+					const dlHash = crypto.createHash("sha256").update(file.buffer).digest("hex");
+					if (!xTags.includes(dlHash)) {
+						res.setHeader("X-Reason", "Blob hash mismatch");
+						return res.status(409).send({status: MediaStatus[1], message: "Blob hash mismatch"});
+					}
+				}
+			}
+		} catch { /* malformed header was already rejected by parseAuthHeader earlier */ }
+
 		req.files = [file];
 	}
 
@@ -1789,8 +1808,9 @@ const headUpload = async (req: Request, res: Response): Promise<Response> => {
 
 	logger.info(`headUpload - Request from:`, reqInfo.ip);
 
-	// Check if authorization header is valid
-	const eventHeader = await parseAuthHeader(req, "upload", false, false, false);
+	// Pre-flight verb depends on which endpoint we were routed to.
+	const headEndpoint = (req.originalUrl || "").includes('/media') && !(req.originalUrl || "").includes('/upload') ? "media" : "upload";
+	const eventHeader = await parseAuthHeader(req, headEndpoint, false, false, false);
 	if (eventHeader.status != "success") {
 		// Hash mismatches are a content conflict, not an auth problem (BUD-02).
 		const isHashMismatch = /hash mismatch|x tag does not match/i.test(eventHeader.message);
