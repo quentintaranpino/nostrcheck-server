@@ -31,37 +31,51 @@ const generateNwcInvoice = async (LNAddress: string, amount:number) : Promise<In
 
     if (LNAddress == "" || amount == 0) return emptyInvoice;
 
-    try{
+    const nwcClient = getNwc();
+    if (!nwcClient) return emptyInvoice;
 
-        const nwcClient = getNwc();
-        if (!nwcClient) return emptyInvoice;
+    // NWC roundtrips a relay → wallet → relay; under congestion 2s isn't
+    // enough and the user is told the invoice failed when really we just
+    // gave up too soon. Give it 8s and one retry on timeout.
+    const TIMEOUT_MS = 8000;
+    const MAX_ATTEMPTS = 2;
 
-        const response = await execWithTimeout (
-            nwcClient.makeInvoice({amount: amount * 1000, description: ""}),
-            2000,
-        );
+    let lastErr: unknown = null;
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+        try {
+            const response = await execWithTimeout(
+                nwcClient.makeInvoice({ amount: amount * 1000, description: "" }),
+                TIMEOUT_MS,
+            );
 
-        if (!response || response == undefined || response.invoice == "") {
-            logger.error(`generateNwcInvoice - Error generating nwc invoice for LNAddress: ${LNAddress} and amount: ${amount}`);
-            return emptyInvoice;
+            if (!response || response.invoice == "") {
+                logger.error(`generateNwcInvoice - Empty response for LNAddress: ${LNAddress} amount: ${amount} (attempt ${attempt}/${MAX_ATTEMPTS})`);
+                continue;
+            }
+
+            return {paymentRequest: response.invoice,
+                    paymentHash: response.payment_hash,
+                    satoshi: response.amount,
+                    isPaid: false,
+                    preimage: "",
+                    createdDate: new Date(response.created_at * 1000).toISOString().slice(0, 19).replace('T', ' '),
+                    expiryDate: new Date(response.expires_at * 1000).toISOString().slice(0, 19).replace('T', ' '),
+                    paidDate: "",
+                    description: response.description,
+                    transactionid: 0,
+                    accountid: 0};
+
+        } catch (e) {
+            lastErr = e;
+            const msg = (e as any)?.message || String(e);
+            const transient = /timeout|relay/i.test(msg);
+            logger.warn(`generateNwcInvoice - Attempt ${attempt}/${MAX_ATTEMPTS} failed for ${LNAddress} amount ${amount}: ${msg}`);
+            if (!transient) break;
         }
-    
-        return {paymentRequest: response.invoice, 
-                paymentHash: response.payment_hash, 
-                satoshi: response.amount, 
-                isPaid: false, 
-                preimage: "",
-                createdDate: new Date(response.created_at * 1000).toISOString().slice(0, 19).replace('T', ' '),
-                expiryDate: new Date(response.expires_at * 1000).toISOString().slice(0, 19).replace('T', ' '),
-                paidDate: "", 
-                description: response.description, 
-                transactionid: 0, 
-                accountid: 0};4
-        
-    }catch(e){
-        logger.error(`generateNwcInvoice - Error generating nwc invoice for LNAddress: ${LNAddress} and amount: ${amount} with error ${e}`);
-        return emptyInvoice;
     }
+
+    logger.error(`generateNwcInvoice - Giving up for LNAddress: ${LNAddress} amount: ${amount} after ${MAX_ATTEMPTS} attempts; last error: ${lastErr}`);
+    return emptyInvoice;
 
 }
 
