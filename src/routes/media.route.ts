@@ -10,15 +10,20 @@ import { loadCdnPage } from "../controllers/frontend.js";
 export const loadMediaEndpoint = async (app: Application, version:string): Promise<void> => {
 
 	const base = `/api/${version}${getModuleInfo("media", "")?.path}`;
+	// Root-level routes (/upload, /mirror, /media, ...) are exclusive to v2.
+	// Otherwise v1 (loaded first) wins the match in Express and the modern
+	// Blossom flow never gets to run.
+	const isV2 = version === "v2";
+	const withRoot = (paths: string[]) => isV2 ? paths : paths.filter(p => p.startsWith(`${base}`));
 
 	// PUT (mirror)
 	app.put(
-		[`${base}/mirror`, `/mirror`],
+		withRoot([`${base}/mirror`, `/mirror`]),
 		express.json(),
 		limiter(getConfig(null, ["security", "media", "maxUploadsMinute"])),
 		async (req, res) => { uploadMedia(req,res, version) }
 	);
-	
+
 	// POST (NIP96 upload)
 	app.post(
 		`${base}`,
@@ -26,19 +31,18 @@ export const loadMediaEndpoint = async (app: Application, version:string): Promi
 		multipartUploadMiddleware(),
 		async (req, res) => { uploadMedia(req,res, version) }
 	);
-	
+
 	// PUT (Blossom upload)
 	app.put(
-		[`${base}/upload`, `/upload`],
+		withRoot([`${base}/upload`, `/upload`]),
 		limiter(getConfig(null, ["security", "media", "maxUploadsMinute"])),
 		rawUploadMiddleware(),
 		async (req, res) => { uploadMedia(req,res, version) }
 	);
 
-	// PUT (Blossom BUD-05 media upload). Same pipeline as /upload but the auth
-	// event must carry `t=media` instead of `t=upload`.
+	// PUT (Blossom BUD-05 media upload). Auth event must carry t=media.
 	app.put(
-		[`${base}`, `/media`],
+		withRoot([`${base}`, `/media`]),
 		limiter(getConfig(null, ["security", "media", "maxUploadsMinute"])),
 		rawUploadMiddleware(),
 		async (req, res) => { uploadMedia(req,res, version) }
@@ -46,14 +50,14 @@ export const loadMediaEndpoint = async (app: Application, version:string): Promi
 
 	// HEAD upload (Blossom)
 	app.head(
-		[`${base}/upload`, `/upload`],
+		withRoot([`${base}/upload`, `/upload`]),
 		limiter(),
 		async (req, res) => { headUpload(req,res) }
 	);
 
 	// PUT report (Blossom BUD-09)
 	app.put(
-		[`${base}/report`, `/report`],
+		withRoot([`${base}/report`, `/report`]),
 		express.json(),
 		limiter(),
 		async (req, res) => { reportBlob(req, res) }
@@ -61,28 +65,28 @@ export const loadMediaEndpoint = async (app: Application, version:string): Promi
 
 	// DELETE (NIP96 & Blossom)
 	app.delete(
-		[`${base}/:id([a-fA-F0-9]{64})(\\.[a-zA-Z0-9._-]{1,15})?`,`/:id([a-fA-F0-9]{64})(\\.[a-zA-Z0-9._-]{1,15})?`],
+		withRoot([`${base}/:id([a-fA-F0-9]{64})(\\.[a-zA-Z0-9._-]{1,15})?`,`/:id([a-fA-F0-9]{64})(\\.[a-zA-Z0-9._-]{1,15})?`]),
 		limiter(),
 		(req, res) => { deleteMedia(req, res, version); }
 	);
 
 	// HEAD file (Blossom)
 	app.head(
-		[ `${base}/:sha([a-fA-F0-9]{64})(\\.[a-zA-Z0-9._-]{1,15})?`, `/:sha([a-fA-F0-9]{64})(\\.[a-zA-Z0-9._-]{1,15})?`], 
-		limiter(1000), 
+		withRoot([ `${base}/:sha([a-fA-F0-9]{64})(\\.[a-zA-Z0-9._-]{1,15})?`, `/:sha([a-fA-F0-9]{64})(\\.[a-zA-Z0-9._-]{1,15})?`]),
+		limiter(1000),
 		headMedia
 	);
 
 	// Blossom media list
 	app.get(
-		[`${base}/list/:pubkey([a-fA-F0-9]{64})`, `/list/:pubkey([a-fA-F0-9]{64})`, `${base}/listpublic`, `${base}/vanity/:pubkey([a-fA-F0-9]{64})`],
-		limiter(1000), 
+		withRoot([`${base}/list/:pubkey([a-fA-F0-9]{64})`, `/list/:pubkey([a-fA-F0-9]{64})`, `${base}/listpublic`, `${base}/vanity/:pubkey([a-fA-F0-9]{64})`]),
+		limiter(1000),
 		(req, res) => { getMediaList(req, res) }
 	);
 
 	// NIP-96 media list
 	app.get(
-		[`${base}`, `/`],
+		withRoot([`${base}`, `/`]),
 		limiter(1000),
 		(req, res, next) => {
 			const { page, count, before } = req.query;
@@ -94,7 +98,7 @@ export const loadMediaEndpoint = async (app: Application, version:string): Promi
 	);
 
 	// GET file
-	app.get([`${base}/:param1?/:param2?`, `/media/:param1?/:param2?`, `/:param1([a-fA-F0-9]{64})(.[a-zA-Z0-9._-]{1,15})?(/:param2([a-fA-F0-9]{64})(.[a-zA-Z0-9._-]{1,15})?)?`], 
+	app.get(withRoot([`${base}/:param1?/:param2?`, `/media/:param1?/:param2?`, `/:param1([a-fA-F0-9]{64})(.[a-zA-Z0-9._-]{1,15})?(/:param2([a-fA-F0-9]{64})(.[a-zA-Z0-9._-]{1,15})?)?`]),
 	limiter(1000),
 	(req, res) => {
 
