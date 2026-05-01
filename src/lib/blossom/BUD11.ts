@@ -34,6 +34,14 @@ const normalizeHost = (s: string): string => {
 	return h;
 };
 
+// Some clients sign the `server` tag with a comma-joined list of URLs. Split first, 
+// then normalize each piece, and drop empties.
+const normalizeHostList = (s: string): string[] =>
+	(s || "")
+		.split(",")
+		.map(normalizeHost)
+		.filter(h => h.length > 0);
+
 
 /**
  * Parses a Blossom authorization event (kind 24242) and checks if it is valid. Visit for more information:
@@ -146,13 +154,18 @@ const isBUD11AuthValid = async (authevent: Event, req: Request, endpoint: string
 
     // `server` tag is optional. If present, the value MUST include the server's domain (BUD-11).
     // Both sides are normalized (protocol, path, port and cdn. prefix stripped) so a client
-    // signing `https://nostrcheck.me` matches a request landing on `cdn.nostrcheck.me`.
+    // signing `https://nostrcheck.me` matches a request landing on `cdn.nostrcheck.me`. We also
+    // accept a single tag whose value is a comma-joined list of URLs (multi-server test runners).
     try {
-        const serverTags = authevent.tags.filter(tag => tag[0] === "server").map(tag => normalizeHost(tag[1] || ""));
+        const serverTags = authevent.tags
+            .filter(tag => tag[0] === "server")
+            .flatMap(tag => normalizeHostList(tag[1] || ""));
         if (serverTags.length > 0) {
-            const serverHost = normalizeHost(getHostInfo(req.hostname).hostname);
-            if (!serverTags.includes(serverHost)) {
-                logger.warn(`isBUD11AuthValid - Auth header server tag does not include this host: ${serverTags.join(",")} <> ${serverHost} | ${getClientInfo(req).ip}`);
+            const reqHost = normalizeHost(req.hostname);
+            const cfgHost = normalizeHost(getHostInfo(req.hostname).hostname);
+            const allowed = new Set([reqHost, cfgHost].filter(h => h.length > 0));
+            if (!serverTags.some(t => allowed.has(t))) {
+                logger.warn(`isBUD11AuthValid - Auth header server tag does not include this host: ${serverTags.join(",")} <> ${[...allowed].join("|")} | ${getClientInfo(req).ip}`);
                 return {status: "error", message: "Auth header server tag does not include this host", authkey: "", pubkey: "", kind: 0};
             }
         }
