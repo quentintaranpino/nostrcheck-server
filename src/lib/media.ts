@@ -42,8 +42,14 @@ const requestQueue: queueAsPromised<MediaJob> = fastq.promise(prepareFile, 1);
 const processFile = async ( inputFile: Express.Multer.File,	options: FileData, retry:number = 0): Promise<boolean> =>{
 
 	if (retry > 5) {return false}
-	
-	options.conversionOutputPath = getConfig(options.tenant, ["storage", "local", "tempPath"]) + "out" + crypto.randomBytes(20).toString('hex') + options.filename;
+
+	// path.basename strips any directory components in case a hostile filename
+	// ever bypasses upstream sanitisation.
+	const safeFilename = path.basename(options.filename);
+	options.conversionOutputPath = path.join(
+		getConfig(options.tenant, ["storage", "local", "tempPath"]),
+		"out" + crypto.randomBytes(20).toString('hex') + safeFilename
+	);
 
 	logger.debug(`processFile - Processing file: ${inputFile.originalname}, using temporary paths: ${options.conversionInputPath}, ${options.conversionOutputPath}`);
 
