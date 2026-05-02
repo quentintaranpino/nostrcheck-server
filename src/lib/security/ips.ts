@@ -324,15 +324,21 @@ setInterval(async () => {
     }
 }, 10000); // 10 seconds
 
-/*
-* Periodically clean up old IP's from database and Redis.
-*/
-setInterval(async () => {
+
+const cleanupIps = async () => {
     if (!isModuleEnabled("security", "")) return;
 
     try {
+        const now = Date.now();
+        const cleanCutoff = now - 3600000;             // 1h
+        const lightInfractionCutoff = now - 7*86400000; // 7d
 
-        const expiredIPs = await dbMultiSelect(["id", "ip"], "ips", "lastseen < ? AND infractions = 0 AND checked = 0", [Date.now() - 3600000], false);
+        const expiredIPs = await dbMultiSelect(
+            ["id", "ip"], "ips",
+            "checked = 0 AND ((infractions = 0 AND lastseen < ?) OR (infractions BETWEEN 1 AND 2 AND lastseen < ?))",
+            [cleanCutoff, lightInfractionCutoff],
+            false
+        );
         if (expiredIPs && expiredIPs.length > 0) {
             const idsToDelete = expiredIPs.map(ip => ip.id);
             const ipsToDelete = expiredIPs.map(ip => ip.ip);
@@ -353,12 +359,19 @@ setInterval(async () => {
                     ])
                 );
             }
+            logger.info(`cleanupIps - Removed ${idsToDelete.length} stale IP entries`);
         }
-      
+
     } catch (error) {
-        logger.error(`ipsLib - Interval - Error processing IPs: ${error}`);
+        logger.error(`cleanupIps - Error processing IPs: ${error}`);
     }
-}, 3600000); // 1 hour
+};
+
+/*
+* Periodically clean up old IP's from database and Redis.
+*/
+setInterval(cleanupIps, 3600000);
+setTimeout(cleanupIps, 5 * 60 * 1000);
 
 /**
  * Adds or updates an entry in the batch for the given IP.
