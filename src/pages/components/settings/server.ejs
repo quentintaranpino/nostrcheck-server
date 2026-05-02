@@ -99,6 +99,17 @@ const globalCfg = locals.globalConfig?.server || {};
       }) %>
 
       <%- include('field', {
+        type: "text",
+        name: "server.updateSource",
+        label: "Update check URL",
+        description: "Endpoint the server polls to detect new releases. Must return JSON with a <code>tag_name</code> field (GitHub releases API shape).",
+        value: cfg.updateSource,
+        globalValue: globalCfg.updateSource,
+        placeholder: "https://api.github.com/repos/&lt;owner&gt;/&lt;repo&gt;/releases/latest",
+        required: false
+      }) %>
+
+      <%- include('field', {
         type: "number",
         name: "redis.expireTime",
         label: "Cache expiration",
