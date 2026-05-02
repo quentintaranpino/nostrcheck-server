@@ -4,6 +4,18 @@ import { defaultConfig, localPath } from "./interfaces/config.js";
 import { exit } from "process";
 import { syncDefaultConfigValues } from "./lib/config/local.js";
 
+// Surface unhandled rejections with their full payload — Node's default
+// stringifies non-Error reasons to "[object Object]" and loses the cause.
+process.on("unhandledRejection", (reason) => {
+    console.error("=== UNHANDLED REJECTION ===");
+    if (reason instanceof Error) {
+        console.error(reason.stack || reason.message);
+    } else {
+        console.error(reason);
+        try { console.error("JSON:", JSON.stringify(reason, null, 2)); } catch { /* circular */ }
+    }
+});
+
 console.log("Starting Nostrcheck server", );
 (async () => {
     if (!fs.existsSync(localPath)){

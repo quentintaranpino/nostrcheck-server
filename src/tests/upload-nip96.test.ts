@@ -63,12 +63,13 @@ describe("NIP-96 upload auth (NIP-98 binding)", () => {
 		expect([200, 201, 202]).toContain(res.status);
 	});
 
-	test("401 when payload hash does not match file", async () => {
+	test("409 when payload hash does not match file", async () => {
+		// Hash mismatch is a content conflict, not an auth failure.
 		const sk = generateSecretKey();
 		const url = `${BASE}/api/v2/media`;
 		const event = signNip98(sk, url, "POST", [["payload", "a".repeat(64)]]);
 		const res = await fetch(url, { method: "POST", headers: { Authorization: authHeader(event) }, body: makeForm() });
-		expect(res.status).toEqual(401);
+		expect(res.status).toEqual(409);
 	});
 
 });

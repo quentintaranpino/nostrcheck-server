@@ -15,10 +15,10 @@ const getPubkeyMetadata = async (pubkey: string): Promise<nostrProfileData> => {
 		try{
 			const data = relaysPool.subscribeMany(
 				relays,
-				[{
+				{
 					authors: [pubkey],
 					kinds: [0],
-				}],
+				},
 				{
 					eoseTimeout: 1000,
 					onevent(e) {
@@ -65,10 +65,10 @@ const getPubkeyFollowing = (pubkey : string) : Promise<string[]> => {
 		try{
 			const data = relaysPool.subscribeMany(
 				relays,
-				[{
+				{
 					authors: [pubkey],
 					kinds: [3],
-				}],
+				},
 				{
 					eoseTimeout: 1000,
 					onevent(e) {
@@ -106,12 +106,12 @@ const getPubkeyFollowers = (pubkey : string) : Promise<string[]> => {
 		try{
 			const data = relaysPool.subscribeMany(
 				relays,
-				[{
+				{
 					kinds: [3],
 					"#p": [pubkey],
 					since: Math.floor(Date.now() / 1000) - (365 * 24 * 60 * 60),
 					until: Math.floor(Date.now() / 1000),
-				}],
+				},
 				{
 					eoseTimeout: 1000,
 					onevent(e) {
