@@ -124,7 +124,7 @@ const isNIP98Valid = async (authevent: Event, req: Request, checkAdminPrivileges
 
 			if (file && file.buffer) {
 				if (!eventPayload) {
-					logger.warn(`isNIP98Valid - Upload without payload/x tag, accepting on lenient interpretation`, "|", getClientInfo(req).ip);
+					logger.info(`isNIP98Valid - Upload without payload/x tag, accepting on lenient interpretation`, "|", getClientInfo(req).ip);
 				} else {
 					// NIP-98 says hex, NIP-96 says base64. Compare against hex
 					// (lowercased) and base64 / base64url variants of the same
@@ -166,7 +166,7 @@ const isNIP98Valid = async (authevent: Event, req: Request, checkAdminPrivileges
 	const ttl = Math.max(1, 60 - (Math.floor(Date.now() / 1000) - authevent.created_at));
 	const seen = await redisCore.setNX(`auth:seen:${authevent.id}`, "1", ttl);
 	if (!seen) {
-		logger.warn(`isNIP98Valid - Auth event already used (replay): ${authevent.id}`, "|", getClientInfo(req).ip);
+		logger.info(`isNIP98Valid - Auth event already used (replay): ${authevent.id}`, "|", getClientInfo(req).ip);
 		return {status: "error", message: "Auth event already used", authkey: "", pubkey: "", kind: 0};
 	}
 

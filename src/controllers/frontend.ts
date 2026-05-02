@@ -183,6 +183,12 @@ const loadProfilePage = async (req: Request, res: Response, version:string): Pro
         identifier = (await dbMultiSelect(["hex"], "registered", "username = ?", [identifier], true))[0]?.hex;
     }
 
+    // No match → don't propagate undefined to hextoNpub / dbMultiSelect downstream.
+    if (!identifier) {
+        logger.debug(`loadProfilePage - No user found for ${req.params.param1 || req.session.identifier}`, "|", getClientInfo(req).ip);
+        return res.status(404).send("User not found");
+    }
+
     // User metadata
     req.session.metadata = {
         pubkey: identifier,

@@ -224,7 +224,7 @@ const isBUD11AuthValid = async (authevent: Event, req: Request, endpoint: string
 		const ttl = Math.min(MAX_REPLAY_TTL, Math.max(1, expiration - Math.floor(Date.now() / 1000)));
 		const seen = await redisCore.setNX(`auth:seen:${authevent.id}`, "1", ttl);
 		if (!seen) {
-			logger.warn(`isBUD11AuthValid - Auth event already used (replay): ${authevent.id} | ${getClientInfo(req).ip}`);
+			logger.info(`isBUD11AuthValid - Auth event already used (replay): ${authevent.id} | ${getClientInfo(req).ip}`);
 			return {status: "error", message: "Auth event already used", authkey: "", pubkey: "", kind: 0};
 		}
 	}

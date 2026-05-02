@@ -310,16 +310,17 @@ const deleteEvents = async (eventsInput: MetadataEvent | MetadataEvent[], delete
       dbResult = await dbDelete("events", ["event_id"], [event.id]);
     } else {
       dbResult = await dbUpdate("events", { active: "0" }, ["event_id"], [event.id]);
-      await dbUpdate("events", { comments: comments }, ["event_id"], [event.id]);
+      // Skip the comment update if the row is already gone
+      if (dbResult) {
+        await dbUpdate("events", { comments: comments }, ["event_id"], [event.id]);
+      }
     }
 
     if (dbResult) {
       affectedCount++;
     } else {
-      // The DB row is already gone (cleaned up via another path). Don't keep
-      // the event in the in-memory store or the next interval will try to
-      // delete it again and log another error.
-      logger.warn(`deleteEvents - Event ${event.id} already gone from DB, dropping from store`);
+      // Already cleaned up via another path; just drop the in-memory ref.
+      logger.debug(`deleteEvents - Event ${event.id} already gone from DB, dropping from store`);
     }
 
     // Always clear the in-memory references — whether the DB had the row or

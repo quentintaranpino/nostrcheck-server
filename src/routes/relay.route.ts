@@ -89,8 +89,9 @@ export const loadRelayRoutes = (app: Application, version:string, httpServer : S
       removeAllSubscriptions(socket, 1000);
     });
   
-    socket.on("error", (code: number, reason: Error) => {
-      logger.warn("Socket error | Code:", code, "| Reason:", reason);
+    socket.on("error", (err: Error) => {
+      const code = (err as { code?: string }).code || "unknown";
+      logger.warn(`Socket error | Code: ${code} | Reason: ${err.message}`);
       removeAllSubscriptions(socket, 1011);
     });
 
