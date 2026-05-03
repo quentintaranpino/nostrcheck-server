@@ -1,6 +1,6 @@
 {
   "name": "nostrcheck-api-ts",
-  "version": "0.7.1.0047",
+  "version": "0.7.1.0048",
   "description": "",
   "exports": "./index.js",
   "type": "module",
@@ -37,12 +37,10 @@
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1041.0",
     "@aws-sdk/s3-request-presigner": "^3.1041.0",
-    "@getalby/lightning-tools": "^5.0.3",
     "@getalby/sdk": "^6.0.1",
     "@noble/hashes": "^1.4.0",
     "@typescript-eslint/eslint-plugin": "^7.11.0",
     "@typescript-eslint/parser": "^7.11.0",
-    "@webbtc/webln-types": "^3.0.0",
     "axios": "^1.7.2",
     "bcrypt": "^6.0.0",
     "blurhash": "^2.0.5",
@@ -73,7 +71,6 @@
     "raw-body": "^3.0.0",
     "redis": "^4.6.14",
     "rotating-file-stream": "3.2.1",
-    "sha256": "^0.2.0",
     "sharp": "^0.34.2-rc.0",
     "ts-node": "^10.9.2",
     "tslog": "4.9.2",
