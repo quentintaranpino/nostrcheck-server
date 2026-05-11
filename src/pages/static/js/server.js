@@ -63,13 +63,20 @@ const showMessage = (message, messageClass = "alert-warning", persistent = false
 
   const messageBox = 'message-box-' + Date.now();
   const messageBoxHtml = `
-      <div id="${messageBox}" class="alert alert-modal mb-2 message-box ${messageClass}">
-          ${message}
+      <div id="${messageBox}" class="alert alert-dismissible alert-modal mb-2 message-box ${messageClass}" role="alert">
+          <span>${message}</span>
+          <button type="button" class="btn-close" aria-label="Close"></button>
       </div>
   `;
 
   const $messagesContainer = $('#' + messagesContainer);
   $messagesContainer.prepend(messageBoxHtml);
+
+  // Manual close: fade and drop. Auto-close still fires below; if it lands
+  // after a manual close it's a no-op because the node is already gone.
+  $('#' + messageBox).find('.btn-close').on('click', function () {
+      $('#' + messageBox).fadeOut(200, function () { $(this).remove(); });
+  });
 
   const maxMessages = 5;
   const currentMessages = $messagesContainer.children('.message-box');
@@ -86,7 +93,7 @@ const showMessage = (message, messageClass = "alert-warning", persistent = false
     }
 
     return messageBox;
-  
+
 }
 
 const hideMessage = (messageBox, timeout = 2500) => {
@@ -98,9 +105,10 @@ const hideMessage = (messageBox, timeout = 2500) => {
 }
 
 const updateMessage = (messageBox, newMessage, messageClass) => {
-    $('#' + messageBox).html(newMessage);
+    // Replace only the text span so the close button survives.
+    $('#' + messageBox).find('span').first().html(newMessage);
     if (messageClass) {
-        $('#' + messageBox).removeClass().addClass('alert alert-modal mb-2 message-box ' + messageClass);
+        $('#' + messageBox).removeClass().addClass('alert alert-dismissible alert-modal mb-2 message-box ' + messageClass);
     }
 }
 
