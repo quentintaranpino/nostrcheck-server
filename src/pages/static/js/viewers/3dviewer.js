@@ -43,18 +43,20 @@ async function init3dViewer (canvasId, containerId, url, width = "", height = ""
         const u8 = new Uint8Array(buf);
 
         // STLLoader 0.128 doesn't validate the binary triangle count and
-        // blows up with RangeError on ASCII or corrupt files. Detect ASCII
-        // first: "solid" header + size mismatch on the binary frame (which
-        // would be 84 + triangles*50 bytes).
+        // blows up with RangeError on ASCII / corrupt / non-STL files
+        // (e.g. an HTML challenge page from Cloudflare). Decide the format
+        // ourselves and refuse anything that isn't STL.
         const head = u8.length >= 5 ? new TextDecoder().decode(u8.subarray(0, 5)) : "";
         let asAscii = false;
-        if (head === "solid") {
-            if (buf.byteLength <= 84) {
-                asAscii = true;
-            } else {
-                const triCount = new DataView(buf).getUint32(80, true);
-                if (84 + triCount * 50 !== buf.byteLength) asAscii = true;
-            }
+        let validBinary = false;
+        if (buf.byteLength > 84) {
+            const triCount = new DataView(buf).getUint32(80, true);
+            validBinary = 84 + triCount * 50 === buf.byteLength;
+        }
+        if (head === "solid" && !validBinary) {
+            asAscii = true;
+        } else if (!validBinary) {
+            throw new Error(`Not a valid STL (${buf.byteLength} bytes, header "${head}")`);
         }
 
         const loader = new THREE.STLLoader();
