@@ -727,8 +727,11 @@ const initMediaModal = async (filename, checked, visible, showButtons = true, fi
         if (ct.includes('image')) {
             mediapreviewImg.attr('src', data.url).removeClass('d-none');
         } else if (ct.includes('model')) {
-            init3dViewer('mediapreview-3d', 'media-modal-body', data.url);
+            // Reveal the canvas before init: it needs non-zero dimensions to
+            // size the WebGL context, otherwise it stays at 0x0 and only the
+            // canvas background is visible.
             mediaPreview3d.removeClass('d-none');
+            init3dViewer('mediapreview-3d', 'media-modal-body', data.url);
         } else if (ct.includes('font') || ct.includes('ttf') || ct.includes('woff') || ct.includes('eot')) {
             initFontViewer('mediapreview-font', data.url);
             fontPreview.removeClass('d-none');
