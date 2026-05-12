@@ -1,8 +1,11 @@
+const __failedStlUrls = new Set();
+
 async function init3dViewer (canvasId, containerId, url, width = "", height = "") {
 
     const container = document.getElementById(containerId);
     const canvas = document.getElementById(canvasId);
     if (!canvas || !container) return;
+    if (__failedStlUrls.has(url)) return; // avoid re-fetching a blob that already failed parse
 
     const w = Number(width) || container.clientWidth || 400;
     const h = Number(height) || container.clientHeight || 400;
@@ -82,6 +85,7 @@ async function init3dViewer (canvasId, containerId, url, width = "", height = ""
         controls.target.set(0, 0, 0);
         controls.update();
     } catch (e) {
+        __failedStlUrls.add(url);
         console.error("init3dViewer - failed to load STL:", e);
         cleanup();
         return;

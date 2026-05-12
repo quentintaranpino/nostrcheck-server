@@ -59,6 +59,8 @@
     }
     .gallery-tile img,
     .gallery-tile video {
+        position: relative;
+        z-index: 1;
         opacity: 0;
         transition: opacity 0.3s ease;
     }
@@ -70,9 +72,10 @@
         width: 100%;
         height: 100%;
         z-index: 0;
+        transition: opacity 0.3s ease;
     }
-    .gallery-tile img.is-loaded ~ .blur-placeholder,
-    .gallery-tile video.is-loaded ~ .blur-placeholder { opacity: 0; pointer-events: none; transition: opacity 0.3s ease; }
+    .gallery-tile:has(img.is-loaded) .blur-placeholder,
+    .gallery-tile:has(video.is-loaded) .blur-placeholder { opacity: 0; pointer-events: none; }
     .gallery-tile .file-fallback {
         width: 100%;
         height: 100%;
@@ -111,7 +114,16 @@
     .gallery-tile .btn-container .btn { min-width: 36px; }
 </style>
 
-<script src="https://cdn.jsdelivr.net/npm/blurhash@1.1.4/dist/blurhash.min.js"></script>
+<script type="module">
+    // blurhash@1.1.4 is ESM-only; import via esm.sh and signal on ready.
+    try {
+        const { decode } = await import('https://esm.sh/blurhash@1.1.4');
+        window.blurhashDecode = decode;
+        window.dispatchEvent(new Event('blurhash-ready'));
+    } catch (e) {
+        console.warn('blurhash lib failed to load', e);
+    }
+</script>
 <script>
 const privateGallery = <%= privateGallery %>;
 const pubkey = "<%= pubkey %>";
@@ -516,9 +528,11 @@ function getTagValue(file, key) {
 }
 
 function paintBlurhash(canvas, hash, w, h) {
-    if (!hash || typeof blurhash === 'undefined') return;
+    if (!hash) return;
+    canvas.dataset.bh = hash; // for the blurhash-ready repaint pass
+    if (typeof window.blurhashDecode !== 'function') return;
     try {
-        const pixels = blurhash.decode(hash, w, h);
+        const pixels = window.blurhashDecode(hash, w, h);
         const ctx = canvas.getContext('2d');
         const imgData = ctx.createImageData(w, h);
         imgData.data.set(pixels);
@@ -527,6 +541,13 @@ function paintBlurhash(canvas, hash, w, h) {
         // Silent — placeholder just stays solid.
     }
 }
+
+// Repaint any placeholders that were appended before the lib finished loading.
+window.addEventListener('blurhash-ready', () => {
+    document.querySelectorAll('.blur-placeholder[data-bh]').forEach(c => {
+        paintBlurhash(c, c.dataset.bh, 32, 32);
+    });
+});
 
 function createTile(file) {
     const url = getTagValue(file, 'url');
