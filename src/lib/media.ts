@@ -213,10 +213,12 @@ const getUploadType = (req : Request): string  => {
 }
 
 const isBinarySTL = (buf: Buffer): boolean => {
-  if (!buf || buf.length < 84) return false;
-  const triCount = buf.readUInt32LE(80);
-  const expected = 84 + (triCount * 50);
-  return expected === buf.length || (buf.length > 84 && (buf.length - 84) % 50 === 0);
+	if (!buf || buf.length < 84) return false;
+	// strict frame: header(80) + uint32 triCount(4) + triangles * 50 bytes.
+	// The looser `(buf.length - 84) % 50 == 0` fallback false-matched any
+	// random binary of the right size (JPEGs, etc).
+	const triCount = buf.readUInt32LE(80);
+	return 84 + (triCount * 50) === buf.length;
 }
 
 const isAsciiSTL = (buf: Buffer): boolean => {
@@ -228,9 +230,12 @@ const isAsciiSTL = (buf: Buffer): boolean => {
 const getFileMimeType = async (file : Express.Multer.File): Promise<string> => {
 
 	const fileType: {mime: string, ext: string} = await fileTypeFromBuffer(file.buffer) || {mime: "", ext: ""};
+	// Remember whether file-type actually identified the bytes, so the STL
+	// fallback below doesn't override a real detection (a JPEG saying it's an STL).
+	const sniffed = fileType.mime;
 
 	// Try to get mime type from file object.
-	if (fileType.mime == "") fileType.mime = file.mimetype 
+	if (fileType.mime == "") fileType.mime = file.mimetype
 
 	// Normalize the mime type for application/x- types
 	if (fileType.mime.startsWith("application/x-")) {
@@ -248,8 +253,9 @@ const getFileMimeType = async (file : Express.Multer.File): Promise<string> => {
 		fileType.ext = 'hbs';
 	}
 
-	// For stl files. file-type library does not detect them.
-	if (isBinarySTL(file.buffer) || isAsciiSTL(file.buffer)) {
+	// STL is not in file-type's table; apply heuristic only when file-type
+	// returned nothing, so a real JPEG/PNG/etc never gets relabelled as STL.
+	if (sniffed == "" && (isBinarySTL(file.buffer) || isAsciiSTL(file.buffer))) {
 		fileType.mime = 'model/stl';
 		fileType.ext = 'stl';
 	}
