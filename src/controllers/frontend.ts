@@ -384,10 +384,10 @@ const loadHomePage = async (req: Request, res: Response, version:string): Promis
                 ? Number(await dbSelect("SELECT COUNT(*) AS c FROM registered WHERE active = 1", "c", []) || 0)
                 : 0;
             const files = mediaEnabled
-                ? Number(await dbSelect("SELECT COUNT(*) AS c FROM mediafiles WHERE active = 1 AND visibility = 1 AND checked = 1", "c", []) || 0)
+                ? Number(await dbSelect("SELECT COUNT(*) AS c FROM mediafiles WHERE active = 1 AND visibility = 1", "c", []) || 0)
                 : 0;
             const bytes = mediaEnabled
-                ? Number(await dbSelect("SELECT COALESCE(SUM(filesize), 0) AS s FROM mediafiles WHERE active = 1 AND visibility = 1 AND checked = 1", "s", []) || 0)
+                ? Number(await dbSelect("SELECT COALESCE(SUM(filesize), 0) AS s FROM mediafiles WHERE active = 1 AND visibility = 1", "s", []) || 0)
                 : 0;
             const eventsTotal = relayEnabled
                 ? Number(await dbSelect("SELECT COUNT(*) AS c FROM events WHERE active = 1", "c", []) || 0)
