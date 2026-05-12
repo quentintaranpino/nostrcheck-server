@@ -386,7 +386,11 @@ const eventsTableFields: EventsTableStructure = {
 		"INDEX idx_created_at (created_at)",
 		"INDEX idx_active (active)",
 		"INDEX idx_active_checked (active, checked)",
-		"INDEX idx_received_at (received_at)"
+		"INDEX idx_received_at (received_at)",
+		// Critical for the relay startup load query. Covers WHERE active=? plus
+		// ORDER BY created_at DESC, event_id DESC in a single index range scan
+		// so MariaDB doesn't fall back to filesort over millions of rows.
+		"INDEX idx_active_created_event (active, created_at, event_id)"
 	],
 	constructor: {
 		name: 'RowDataPacket',
