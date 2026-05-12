@@ -151,29 +151,35 @@ const getClientInfo = (req: Request | IncomingMessage | string ): { ip: string; 
   
     if ("ip" in req) {
       const r = req as Request;
+      // Prefer CF / Nginx single-value headers; X-Forwarded-For can be
+      // rewritten by intermediate proxies and lump traffic onto a proxy IP.
       const raw =
-        r.ip ||
+        firstForwarded(r.headers["cf-connecting-ip"]) ||
+        firstForwarded(r.headers["x-real-ip"]) ||
         firstForwarded(r.headers["x-forwarded-for"]) ||
+        r.ip ||
         r.connection.remoteAddress ||
         "";
       const ip = normalizeIp(raw);
       const rawHost = r.hostname || r.headers.host || "";
-      const host    = rawHost.split(":")[0];     
+      const host    = rawHost.split(":")[0];
       if (net.isIP(ip) === 0) {
         logger.warn(`getClientInfo – invalid IP from HTTP: ${raw}`);
         return { ip: "", host };
       }
       return { ip, host };
     }
-  
+
     const r = req as IncomingMessage;
     const raw =
+      firstForwarded(r.headers["cf-connecting-ip"]) ||
+      firstForwarded(r.headers["x-real-ip"]) ||
       firstForwarded(r.headers["x-forwarded-for"]) ||
       r.socket.remoteAddress ||
       "";
     const ip = normalizeIp(raw);
     const rawHost = r.headers.host || "";
-    const host    = rawHost.split(":")[0];    
+    const host    = rawHost.split(":")[0];
     if (net.isIP(ip) === 0) {
       logger.warn(`getClientInfo – invalid IP from WS: ${raw}`);
       return { ip: "", host };
