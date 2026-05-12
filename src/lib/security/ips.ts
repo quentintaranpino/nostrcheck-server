@@ -311,13 +311,14 @@ setInterval(async () => {
 
     for (const [dbid, update] of ipUpdateBatch.entries()) {
         try {
-        const success = await dbUpdate("ips",{ firstseen: update.firstseen, lastseen: update.lastseen, reqcount: update.reqcountIncrement }, ["id"], [dbid]);
-        if (success) {
-            // Remove the entry from the batch if the update was successful.
-            ipUpdateBatch.delete(dbid);
-        } else {
-            logger.error(`ipslib - Interval - Error updating batch for IP with dbid: ${dbid}`);
-        }
+            const success = await dbUpdate("ips",{ firstseen: update.firstseen, lastseen: update.lastseen, reqcount: update.reqcountIncrement }, ["id"], [dbid]);
+            if (success) {
+                ipUpdateBatch.delete(dbid);
+            } else {
+                // 0 rows means the cleanup interval dropped the row; nothing to persist.
+                ipUpdateBatch.delete(dbid);
+                logger.debug(`ipslib - Interval - Dropping batch entry for vanished ip dbid: ${dbid}`);
+            }
         } catch (error) {
             logger.error(`ipslib - Interval - Exception updating batch for IP with dbid: ${dbid}: ${error}`);
         }
