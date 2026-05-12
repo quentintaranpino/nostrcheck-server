@@ -4,14 +4,14 @@
     const defaultBucket = locals.defaultBucket || "month";
     const availableBuckets = locals.availableBuckets || ["week", "month", "year"];
 %>
-<div class="d-flex justify-content-end mb-2">
-    <select id="<%- chartId %>-bucket-select" class="form-select form-select-sm" style="width: auto;">
+<div class="position-relative w-100 h-100">
+    <select id="<%- chartId %>-bucket-select" class="form-select form-select-sm position-absolute" style="top: 0; right: 0; width: auto; font-size: 0.7rem; padding: 1px 20px 1px 6px; z-index: 2;">
         <% availableBuckets.forEach(b => { %>
             <option value="<%- b %>" <%- b === defaultBucket ? 'selected' : '' %>><%- b.charAt(0).toUpperCase() + b.slice(1) %></option>
         <% }); %>
     </select>
+    <canvas id="<%- chartId %>-month-chart" class="mx-auto w-100 h-100"></canvas>
 </div>
-<canvas id="<%- chartId %>-month-chart" class="mx-auto w-100"></canvas>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
     document.addEventListener('DOMContentLoaded', async () => {
