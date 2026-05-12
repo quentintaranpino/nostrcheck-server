@@ -50,6 +50,7 @@ const loadDashboardPage = async (req: Request, res: Response, version:string): P
     const page = "dashboard"
     res.locals.version = getConfig(req.hostname, ["version"]);
     res.locals.serverHost = getConfig(req.hostname, ["server", "host"]);
+    res.locals.siteName = getConfig(req.hostname, ["appearance", "siteName"]) || res.locals.serverHost;
     res.locals.title = replaceTokens(req.hostname, getConfig(req.hostname, ["appearance", "pages", page, "title"]));
     res.locals.description = replaceTokens(req.hostname, getConfig(req.hostname, ["appearance", "pages", page, "description"]));
     res.locals.noindex = getConfig(req.hostname, ["appearance", "pages", page, "noindex"]);
@@ -123,6 +124,7 @@ const loadSettingsPage = async (req: Request, res: Response, version: string): P
     const page = "settings"
     res.locals.version = getConfig(req.hostname, ["version"]);
     res.locals.serverHost = getConfig(req.hostname, ["server", "host"]);
+    res.locals.siteName = getConfig(req.hostname, ["appearance", "siteName"]) || res.locals.serverHost;
     res.locals.title = replaceTokens(req.hostname, getConfig(req.hostname, ["appearance", "pages", page, "title"]));
     res.locals.description = replaceTokens(req.hostname, getConfig(req.hostname, ["appearance", "pages", page, "description"]));
     res.locals.noindex = getConfig(req.hostname, ["appearance", "pages", page, "noindex"]);
@@ -169,6 +171,7 @@ const loadProfilePage = async (req: Request, res: Response, version:string): Pro
     const page = "profile"
     res.locals.version = getConfig(req.hostname, ["version"]);
     res.locals.serverHost = getConfig(req.hostname, ["server", "host"]);
+    res.locals.siteName = getConfig(req.hostname, ["appearance", "siteName"]) || res.locals.serverHost;
     res.locals.title = replaceTokens(req.hostname, getConfig(req.hostname, ["appearance", "pages", page, "title"]));
     res.locals.description = replaceTokens(req.hostname, getConfig(req.hostname, ["appearance", "pages", page, "description"]));
     res.locals.noindex = getConfig(req.hostname, ["appearance", "pages", page, "noindex"]);
@@ -257,6 +260,7 @@ const loadMdPage = async (req: Request, res: Response, mdFileName : string, vers
     const page = mdFileName.replace(/FilePath$/, ""); 
     res.locals.version = getConfig(req.hostname, ["version"]);
     res.locals.serverHost = getConfig(req.hostname, ["server", "host"]);
+    res.locals.siteName = getConfig(req.hostname, ["appearance", "siteName"]) || res.locals.serverHost;
     res.locals.title = replaceTokens(req.hostname, getConfig(req.hostname, ["appearance", "pages", page, "title"]));
     res.locals.description = replaceTokens(req.hostname, getConfig(req.hostname, ["appearance", "pages", page, "description"]));
     res.locals.noindex = getConfig(req.hostname, ["appearance", "pages", page, "noindex"]);
@@ -317,6 +321,7 @@ const loadLoginPage = async (req: Request, res: Response, version:string): Promi
     const page = "login"
     res.locals.version = getConfig(req.hostname, ["version"]);
     res.locals.serverHost = getConfig(req.hostname, ["server", "host"]);
+    res.locals.siteName = getConfig(req.hostname, ["appearance", "siteName"]) || res.locals.serverHost;
     res.locals.title = replaceTokens(req.hostname, getConfig(req.hostname, ["appearance", "pages", page, "title"]));
     res.locals.description = replaceTokens(req.hostname, getConfig(req.hostname, ["appearance", "pages", page, "description"]));
     res.locals.noindex = getConfig(req.hostname, ["appearance", "pages", page, "noindex"]);
@@ -356,6 +361,7 @@ const loadHomePage = async (req: Request, res: Response, version:string): Promis
     const page = "home"
     res.locals.version = getConfig(req.hostname, ["version"]);
     res.locals.serverHost = getConfig(req.hostname, ["server", "host"]);
+    res.locals.siteName = getConfig(req.hostname, ["appearance", "siteName"]) || res.locals.serverHost;
     res.locals.title = replaceTokens(req.hostname, getConfig(req.hostname, ["appearance", "pages", page, "title"]));
     res.locals.description = replaceTokens(req.hostname, getConfig(req.hostname, ["appearance", "pages", page, "description"]));
     res.locals.noindex = getConfig(req.hostname, ["appearance", "pages", page, "noindex"]);
@@ -466,6 +472,7 @@ const loadDocsPage = async (req: Request, res: Response, version: string): Promi
     const page = "docs"
     res.locals.version = getConfig(req.hostname, ["version"]);
     res.locals.serverHost = getConfig(req.hostname, ["server", "host"]);
+    res.locals.siteName = getConfig(req.hostname, ["appearance", "siteName"]) || res.locals.serverHost;
     res.locals.title = replaceTokens(req.hostname, getConfig(req.hostname, ["appearance", "pages", page, "title"]));
     res.locals.description = replaceTokens(req.hostname, getConfig(req.hostname, ["appearance", "pages", page, "description"]));
     res.locals.noindex = getConfig(req.hostname, ["appearance", "pages", page, "noindex"]);
@@ -572,6 +579,7 @@ const loadGalleryPage = async (req: Request, res: Response, version:string): Pro
     const page = "gallery"
     res.locals.version = getConfig(req.hostname, ["version"]);
     res.locals.serverHost = getConfig(req.hostname, ["server", "host"]);
+    res.locals.siteName = getConfig(req.hostname, ["appearance", "siteName"]) || res.locals.serverHost;
     res.locals.title = replaceTokens(req.hostname, getConfig(req.hostname, ["appearance", "pages", page, "title"]));
     res.locals.description = replaceTokens(req.hostname, getConfig(req.hostname, ["appearance", "pages", page, "description"]));
     res.locals.noindex = getConfig(req.hostname, ["appearance", "pages", page, "noindex"]);
@@ -611,6 +619,7 @@ const loadDirectoryPage = async (req: Request, res: Response, version:string): P
     const page = "directory"
     res.locals.version = getConfig(req.hostname, ["version"]);
     res.locals.serverHost = getConfig(req.hostname, ["server", "host"]);
+    res.locals.siteName = getConfig(req.hostname, ["appearance", "siteName"]) || res.locals.serverHost;
     res.locals.title = replaceTokens(req.hostname, getConfig(req.hostname, ["appearance", "pages", page, "title"]));
     res.locals.description = replaceTokens(req.hostname, getConfig(req.hostname, ["appearance", "pages", page, "description"]));
     res.locals.noindex = getConfig(req.hostname, ["appearance", "pages", page, "noindex"]);
@@ -650,6 +659,7 @@ const loadConverterPage = async (req: Request, res: Response, version:string): P
     const page = "converter"
     res.locals.version = getConfig(req.hostname, ["version"]);
     res.locals.serverHost = getConfig(req.hostname, ["server", "host"]);
+    res.locals.siteName = getConfig(req.hostname, ["appearance", "siteName"]) || res.locals.serverHost;
     res.locals.title = replaceTokens(req.hostname, getConfig(req.hostname, ["appearance", "pages", page, "title"]));
     res.locals.description = replaceTokens(req.hostname, getConfig(req.hostname, ["appearance", "pages", page, "description"]));
     res.locals.noindex = getConfig(req.hostname, ["appearance", "pages", page, "noindex"]);
@@ -689,6 +699,7 @@ const loadRegisterPage = async (req: Request, res: Response, version:string): Pr
     const page = "register"
     res.locals.version = getConfig(req.hostname, ["version"]);
     res.locals.serverHost = getConfig(req.hostname, ["server", "host"]);
+    res.locals.siteName = getConfig(req.hostname, ["appearance", "siteName"]) || res.locals.serverHost;
     res.locals.title = replaceTokens(req.hostname, getConfig(req.hostname, ["appearance", "pages", page, "title"]));
     res.locals.description = replaceTokens(req.hostname, getConfig(req.hostname, ["appearance", "pages", page, "description"]));
     res.locals.noindex = getConfig(req.hostname, ["appearance", "pages", page, "noindex"]);
@@ -730,6 +741,7 @@ const loadCdnPage = async (req: Request, res: Response, version:string): Promise
     const page = "cdn"
     res.locals.version = getConfig(req.hostname, ["version"]);
     res.locals.serverHost = getConfig(req.hostname, ["server", "host"]);
+    res.locals.siteName = getConfig(req.hostname, ["appearance", "siteName"]) || res.locals.serverHost;
     res.locals.title = replaceTokens(req.hostname, getConfig(req.hostname, ["appearance", "pages", page, "title"]));
     res.locals.description = replaceTokens(req.hostname, getConfig(req.hostname, ["appearance", "pages", page, "description"]));
     res.locals.noindex = getConfig(req.hostname, ["appearance", "pages", page, "noindex"]);
@@ -769,6 +781,7 @@ const loadRelayPage = async (req: Request, res: Response, version:string): Promi
     const page = "relay"
     res.locals.version = getConfig(req.hostname, ["version"]);
     res.locals.serverHost = getConfig(req.hostname, ["server", "host"]);
+    res.locals.siteName = getConfig(req.hostname, ["appearance", "siteName"]) || res.locals.serverHost;
     res.locals.title = replaceTokens(req.hostname, getConfig(req.hostname, ["appearance", "pages", page, "title"]));
     res.locals.description = replaceTokens(req.hostname, getConfig(req.hostname, ["appearance", "pages", page, "description"]));
     res.locals.noindex = getConfig(req.hostname, ["appearance", "pages", page, "noindex"]);
@@ -1003,6 +1016,24 @@ const loadSitemap = async (req: Request, res: Response): Promise<void> => {
     res.send(sitemap);
 };
 
+const loadRobots = async (req: Request, res: Response): Promise<void> => {
+    const proto = (req.headers["x-forwarded-proto"] as string) || req.protocol || "https";
+    const baseUrl = `${proto}://${req.hostname}`;
+    const body = [
+        "User-agent: *",
+        "Disallow: /api/v2/admin",
+        "Disallow: /dashboard",
+        "Disallow: /settings",
+        "Allow: /",
+        "",
+        `Sitemap: ${baseUrl}/sitemap.xml`,
+        "",
+    ].join("\n");
+    res.setHeader("Content-Type", "text/plain");
+    res.setHeader("Cache-Control", "public, max-age=3600");
+    res.send(body);
+};
+
 const unifiedSearch = async (req: Request, res: Response): Promise<Response | void> => {
 
     const reqInfo = await isIpAllowed(req);
@@ -1060,5 +1091,6 @@ export {loadDashboardPage,
         loadResource,
         loadTheme,
         loadSitemap,
+        loadRobots,
         unifiedSearch
     };

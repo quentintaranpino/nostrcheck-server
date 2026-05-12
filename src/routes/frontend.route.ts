@@ -15,6 +15,7 @@ import { 	loadDashboardPage,
 			loadResource,
 			loadTheme,
 			loadSitemap,
+			loadRobots,
 			unifiedSearch,
 		} from "../controllers/frontend.js";
 import { frontendLogin } from "../controllers/frontend.js";
@@ -183,5 +184,8 @@ export const loadFrontendEndpoint = async (app: Application, version: string): P
 
 	// Sitemap
 	app.get("/sitemap.xml", loadSitemap);
+
+	// robots.txt
+	app.get("/robots.txt", loadRobots);
 
 };

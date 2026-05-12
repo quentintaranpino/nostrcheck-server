@@ -295,7 +295,7 @@ const serverBanner = () : string => {
 	);
 	banner.push(`Nostrcheck server started, version ${getConfig(null, ["version"])}.`);
 	banner.push(`Running at http://localhost:${getConfig(null, ["server", "port"])} in ${getConfig(null, ["environment"])} mode.`);
-	banner.push(`Documentation: https://github.com/quentintaranpino/nostrcheck-server/blob/main/DOCS.md`)
+	banner.push(`Documentation: https://github.com/quentintaranpino/nostrcheck-server/wiki`)
 	banner.push("");
 	banner.push("Press CTRL-C to stop the server");
 	banner.push("");

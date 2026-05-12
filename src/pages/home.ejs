@@ -50,7 +50,7 @@
             <% } %>
             <a class="btn btn-primary" href="/login"><i class="bi bi-box-arrow-in-right me-1"></i> Sign in with Nostr</a>
           <% } %>
-          <a class="btn btn-outline-light" href="https://github.com/quentintaranpino/nostrcheck-api-ts" target="_blank" rel="noopener"><i class="fa-brands fa-github me-1"></i> Self-host this</a>
+          <a class="btn btn-outline-light" href="https://github.com/quentintaranpino/nostrcheck-server" target="_blank" rel="noopener"><i class="fa-brands fa-github me-1"></i> Self-host this</a>
         </div>
 
         <p class="text-white-50 small mt-3 mb-0">
@@ -152,7 +152,7 @@
                  data-dim="<%= m.dimensions || '' %>"
                  data-pubkey="<%= m.pubkey || '' %>">
               <% if (isImg) { %>
-                <img loading="lazy" decoding="async" src="<%= m.url %>" alt="">
+                <img loading="lazy" decoding="async" src="<%= m.url %>" alt="<%= m.filename %>">
               <% } else if (isVid) { %>
                 <video preload="metadata" muted playsinline loop><source src="<%= m.url %>" type="<%= mime %>"></video>
               <% } else if (isStl) { %>
@@ -338,7 +338,9 @@
           try { meta = JSON.parse(e.content); } catch { continue; }
           const avatar = card.querySelector(".home-user-avatar");
           if (meta.picture && avatar) {
-            avatar.innerHTML = `<img loading="lazy" decoding="async" alt="" src="${meta.picture.replace(/"/g, "&quot;")}" onerror="this.parentElement.textContent='${(card.querySelector('.home-user-name')?.textContent || '?').substring(0,1).toUpperCase()}'">`;
+            const name = card.querySelector(".home-user-name")?.textContent || "?";
+            const safeName = name.replace(/"/g, "&quot;");
+            avatar.innerHTML = `<img loading="lazy" decoding="async" alt="${safeName}" src="${meta.picture.replace(/"/g, "&quot;")}" onerror="this.parentElement.textContent='${name.substring(0,1).toUpperCase()}'">`;
           }
           if (meta.display_name || meta.name) {
             const nameEl = card.querySelector(".home-user-name");
