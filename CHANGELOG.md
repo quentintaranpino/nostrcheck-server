@@ -2,9 +2,10 @@
 
 ## 0.7.1
 
-- New home page with stats and recent activity from the server.
+- New home page with quickstart, connect endpoints, stats and recent activity.
 - Global search across users, media and notes. Available from the navbar and via Ctrl+K / Ctrl+F / `/`.
 - New popup modals to preview images, videos, STL files and Nostr notes.
+- Documentation page rewritten with endpoint specs, supported NIPs / BUDs and wiki chapter links.
 - Smaller header for more content space.
 - Hardened NIP-98 and Blossom upload authentication with anti-replay.
 - Moved Blossom auth module from BUD-01 to BUD-11.

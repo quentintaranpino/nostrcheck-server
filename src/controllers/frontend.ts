@@ -17,6 +17,7 @@ import { isNIP98Valid } from "../lib/nostr/NIP98.js";
 import { sitemapPages } from "../interfaces/frontend.js";
 import { initRedis } from "../lib/redis/client.js";
 import { getFileUrl } from "../lib/media.js";
+import { supported_nips } from "../interfaces/nostr.js";
 
 const homeFeedCache = async <T>(key: string, ttl: number, loader: () => Promise<T>): Promise<T> => {
 	try {
@@ -410,7 +411,7 @@ const loadHomePage = async (req: Request, res: Response, version:string): Promis
             return await dbMultiSelect(
                 ["event_id", "pubkey", "created_at", "content"],
                 "events",
-                "active = '1' AND kind = '1' ORDER BY id DESC LIMIT 5",
+                "active = '1' AND kind = '1' ORDER BY id DESC LIMIT 8",
                 [], false);
         }) : Promise.resolve([]),
     ]);
@@ -419,7 +420,17 @@ const loadHomePage = async (req: Request, res: Response, version:string): Promis
     res.locals.homeMedia = recentMedia;
     res.locals.homeUsers = recentUsers;
     res.locals.homeNotes = recentNotes;
-    res.locals.homeFlags = { media: mediaEnabled, relay: relayEnabled, register: registerEnabled };
+    const lightningEnabled = isModuleEnabled("payments", req.hostname);
+    res.locals.homeFlags = { media: mediaEnabled, relay: relayEnabled, register: registerEnabled, lightning: lightningEnabled };
+
+    // Connectable endpoints (relay WS, NIP-96 upload, Blossom CDN) for power
+    // users to paste into their Nostr client. Shown with copy buttons.
+    const useCDNPrefix = getConfig(req.hostname, ["media", "useCDNPrefix"]);
+    res.locals.homeEndpoints = {
+        relay: relayEnabled ? `wss://relay.${req.hostname}` : null,
+        nip96: mediaEnabled ? `https://${req.hostname}/.well-known/nostr/nip96.json` : null,
+        blossom: mediaEnabled ? (useCDNPrefix ? `https://cdn.${req.hostname}` : `https://${req.hostname}`) : null,
+    };
 
     // Set auth cookie
     setAuthCookie(res, req.cookies.authkey);
@@ -462,6 +473,69 @@ const loadDocsPage = async (req: Request, res: Response, version: string): Promi
 
     // Specific locals
     res.locals.serverPubkey = await hextoNpub(getConfig(req.hostname, ["server", "pubkey"]));
+
+    const docsMediaEnabled = isModuleEnabled("media", req.hostname);
+    const docsRelayEnabled = isModuleEnabled("relay", req.hostname);
+    const docsRegisterEnabled = isModuleEnabled("register", req.hostname);
+    const docsNostraddressEnabled = isModuleEnabled("nostraddress", req.hostname);
+    const docsUseCDNPrefix = getConfig(req.hostname, ["media", "useCDNPrefix"]);
+
+    res.locals.docsEndpoints = {
+        relay: docsRelayEnabled ? `wss://relay.${req.hostname}` : null,
+        nip96: docsMediaEnabled ? `https://${req.hostname}/.well-known/nostr/nip96.json` : null,
+        blossom: docsMediaEnabled ? (docsUseCDNPrefix ? `https://cdn.${req.hostname}` : `https://${req.hostname}`) : null,
+        nip05: docsNostraddressEnabled ? `https://${req.hostname}/.well-known/nostr.json` : null,
+    };
+
+    // NIPs and BUDs with short human descriptions for the documentation page.
+    // Order kept stable for the chip grid.
+    const nipDescriptions: Record<number, string> = {
+        1: "Basic protocol flow",
+        2: "Follow lists",
+        3: "OpenTimestamps",
+        4: "Encrypted DMs (deprecated)",
+        5: "Mapping Nostr keys to DNS identifiers (name@server)",
+        7: "Browser extension signing",
+        9: "Event deletion",
+        11: "Relay information document",
+        13: "Proof of work",
+        14: "Sensitive content tag",
+        19: "bech32 entities (npub, note, nprofile)",
+        28: "Public chat",
+        40: "Expiration timestamp",
+        42: "Auth on relays",
+        44: "Encrypted payloads (v2)",
+        45: "Event counts",
+        47: "Nostr Wallet Connect",
+        48: "Proxy tags",
+        50: "Search filter",
+        56: "Reports",
+        62: "Request to vanish",
+        65: "Relay list metadata",
+        70: "Protected events",
+        73: "External content IDs",
+        78: "Application-specific data",
+        94: "File metadata",
+        96: "HTTP file storage integration",
+        98: "HTTP auth",
+    };
+    const budDescriptions: Record<string, string> = {
+        "01": "Server requirements and blob descriptor",
+        "02": "Blob retrieval and listing",
+        "03": "User server list",
+        "04": "Mirror blobs from another server",
+        "05": "Media optimization",
+        "06": "Upload requirements",
+        "08": "Nostr file metadata events",
+        "09": "Blob reports",
+        "11": "Authorization with NIP-98",
+    };
+    res.locals.docsNips = supported_nips.map(n => ({ num: n, label: String(n).padStart(2, "0"), desc: nipDescriptions[n] || "" }));
+    res.locals.docsBuds = ["01", "02", "03", "04", "05", "06", "08", "09", "11"].map(b => ({ num: b, desc: budDescriptions[b] || "" }));
+    res.locals.docsLightning = isModuleEnabled("payments", req.hostname);
+    res.locals.docsMediaEnabled = docsMediaEnabled;
+    res.locals.docsRelayEnabled = docsRelayEnabled;
+    res.locals.docsRegisterEnabled = docsRegisterEnabled;
 
     // Set auth cookie
     setAuthCookie(res, req.cookies.authkey);

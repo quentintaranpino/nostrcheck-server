@@ -10,7 +10,7 @@
     <section class="home-hero position-relative">
       <div class="container px-4 px-lg-5 position-relative z-1 py-3 py-lg-4">
         <h1 class="text-white mx-auto my-0 text-uppercase gradien display-4"><%= locals.pageTitle || "Welcome to " + locals.serverHost %></h1>
-        <h2 class="text-white-50 mx-auto mt-1 mb-4 display-6"><%= locals.pageSubtitle || "Be sovereign over your data" %></h2>
+        <h2 class="text-white-50 mx-auto mt-1 mb-3 display-6"><%= locals.pageSubtitle || "Be sovereign over your data" %></h2>
 
         <div class="home-stats text-white-50 small mb-1">
           <% if (locals.homeFlags.register) { %><span><strong class="text-white"><%= locals.homeStats.users.toLocaleString() %></strong> users</span><% } %>
@@ -25,7 +25,7 @@
           <% if (locals.homeFlags.relay) { %><span><strong class="text-white"><%= locals.homeStats.eventsTotal.toLocaleString() %></strong> events</span><% } %>
         </div>
         <div class="text-white-50 small mb-3">
-          admin <a class="text-white text-decoration-none text-break" href="/u/<%= locals.serverPubkey %>" data-shorten-hex="<%= locals.serverPubkey %>" data-shorten-prefix="16" data-shorten-suffix="8"><%= locals.serverPubkey %></a>
+          operator <a class="text-white text-decoration-none text-break" href="/u/<%= locals.serverPubkey %>" data-shorten-hex="<%= locals.serverPubkey %>" data-shorten-prefix="16" data-shorten-suffix="8"><%= locals.serverPubkey %></a>
         </div>
 
         <div class="mb-2">
@@ -43,13 +43,14 @@
             <% } %>
           <% } else { %>
             <% if (locals.homeFlags.register) { %>
-              <a class="btn btn-primary" href="/api/v2/register"><i class="bi bi-person-plus-fill me-1"></i> Claim your username</a>
+              <a class="btn btn-primary" href="/api/v2/register"><i class="bi bi-person-plus-fill me-1"></i> Get your verified npub</a>
             <% } %>
             <% if (locals.homeFlags.media) { %>
-              <a class="btn btn-primary" href="/gallery"><i class="bi bi-images me-1"></i> Browse gallery</a>
+              <a class="btn btn-primary" href="/gallery"><i class="bi bi-images me-1"></i> Explore community blobs</a>
             <% } %>
-            <a class="btn btn-primary" href="/login"><i class="bi bi-box-arrow-in-right me-1"></i> Log in</a>
+            <a class="btn btn-primary" href="/login"><i class="bi bi-box-arrow-in-right me-1"></i> Sign in with Nostr</a>
           <% } %>
+          <a class="btn btn-outline-light" href="https://github.com/quentintaranpino/nostrcheck-api-ts" target="_blank" rel="noopener"><i class="fa-brands fa-github me-1"></i> Self-host this</a>
         </div>
 
         <p class="text-white-50 small mt-3 mb-0">
@@ -60,6 +61,73 @@
 
     <div class="container-fluid px-0 home-panels position-relative">
       <div class="container px-4 px-lg-5 py-4">
+
+      <!-- Inline Quickstart: three compact steps for new visitors. -->
+      <section class="mb-4">
+        <h5 class="mb-2">Quickstart</h5>
+        <div class="home-quickstart">
+          <% if (locals.homeFlags.relay) { %>
+          <div class="home-quickstart-step">
+            <span class="home-step-badge">1</span>
+            <div>
+              <div class="fw-semibold small">Add the relay</div>
+              <div class="small text-muted">Paste the relay URL below into your Nostr client.</div>
+            </div>
+          </div>
+          <% } %>
+          <% if (locals.homeFlags.register) { %>
+          <div class="home-quickstart-step">
+            <span class="home-step-badge">2</span>
+            <div>
+              <div class="fw-semibold small">Get a verified npub</div>
+              <div class="small text-muted">Claim your name@<%= locals.serverHost %>. <a class="btn btn-primary btn-sm py-0 px-2 align-baseline ms-1" href="/api/v2/register">Register</a></div>
+            </div>
+          </div>
+          <% } %>
+          <% if (locals.homeFlags.media) { %>
+          <div class="home-quickstart-step">
+            <span class="home-step-badge">3</span>
+            <div>
+              <div class="fw-semibold small">Upload media from your client</div>
+              <div class="small text-muted">Set the NIP-96 or Blossom URL below in your client's upload settings.</div>
+            </div>
+          </div>
+          <% } %>
+        </div>
+      </section>
+
+      <% const endpoints = locals.homeEndpoints; %>
+      <% if (endpoints.relay || endpoints.nip96 || endpoints.blossom) { %>
+      <section class="mb-4">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <h5 class="m-0">Connect</h5>
+          <span class="small text-muted">Paste in your Nostr client</span>
+        </div>
+        <div class="home-endpoints">
+          <% if (endpoints.relay) { %>
+          <div class="home-endpoint" role="button" tabindex="0">
+            <span class="home-endpoint-label">Relay</span>
+            <code class="home-endpoint-url" data-value="<%= endpoints.relay %>"><%= endpoints.relay %></code>
+            <span class="btn btn-sm btn-outline-secondary pe-none" title="Copy"><i class="fa-solid fa-copy"></i></span>
+          </div>
+          <% } %>
+          <% if (endpoints.nip96) { %>
+          <div class="home-endpoint" role="button" tabindex="0">
+            <span class="home-endpoint-label">NIP-96</span>
+            <code class="home-endpoint-url" data-value="<%= endpoints.nip96 %>"><%= endpoints.nip96 %></code>
+            <span class="btn btn-sm btn-outline-secondary pe-none" title="Copy"><i class="fa-solid fa-copy"></i></span>
+          </div>
+          <% } %>
+          <% if (endpoints.blossom) { %>
+          <div class="home-endpoint" role="button" tabindex="0">
+            <span class="home-endpoint-label">Blossom</span>
+            <code class="home-endpoint-url" data-value="<%= endpoints.blossom %>"><%= endpoints.blossom %></code>
+            <span class="btn btn-sm btn-outline-secondary pe-none" title="Copy"><i class="fa-solid fa-copy"></i></span>
+          </div>
+          <% } %>
+        </div>
+      </section>
+      <% } %>
 
       <% if (locals.homeFlags.media && locals.homeMedia.length > 0) { %>
       <% const hasSTL = locals.homeMedia.some(m => (m.ext || "") === "stl"); %>
@@ -108,7 +176,7 @@
         </div>
         <div class="home-user-grid">
           <% for (const u of locals.homeUsers) { %>
-            <a href="/api/v2/profile/<%= u.hex %>" class="home-user-card">
+            <a href="/api/v2/profile/<%= u.hex %>" class="home-user-card" data-hex="<%= u.hex %>">
               <div class="home-user-avatar"><%= (u.username || "?").substring(0,1).toUpperCase() %></div>
               <div class="home-user-name text-truncate"><%= u.username %></div>
               <div class="home-user-domain text-truncate small text-muted">@<%= u.domain %></div>
@@ -174,6 +242,19 @@
     .home-note { padding: 10px 12px; border: 1px solid rgba(128,128,128,0.2); border-radius: 6px; cursor: pointer; transition: border-color 0.15s; }
     .home-note:hover { border-color: rgba(165, 117, 255, 0.6); }
     .home-note-body { white-space: pre-wrap; word-break: break-word; margin-top: 4px; }
+
+    /* Quickstart inline: three compact steps. */
+    .home-quickstart { display: grid; grid-template-columns: 1fr; gap: 8px; }
+    @media (min-width: 768px) { .home-quickstart { grid-template-columns: repeat(3, 1fr); } }
+    .home-quickstart-step { display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; border: 1px solid rgba(128,128,128,0.2); border-radius: 8px; }
+    .home-step-badge { display: inline-flex; align-items: center; justify-content: center; width: 1.5rem; height: 1.5rem; background: #a575ff; color: #fff; border-radius: 50%; font-size: 0.8rem; font-weight: 600; flex-shrink: 0; }
+
+    /* Endpoints copy-row. */
+    .home-endpoints { display: flex; flex-direction: column; gap: 6px; }
+    .home-endpoint { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border: 1px solid rgba(128,128,128,0.2); border-radius: 6px; background: rgba(0,0,0,0.03); cursor: pointer; transition: border-color 0.15s, background 0.15s; }
+    .home-endpoint:hover { border-color: rgba(165, 117, 255, 0.6); background: rgba(165, 117, 255, 0.06); }
+    .home-endpoint-label { font-size: 0.75rem; font-weight: 600; text-transform: uppercase; color: #888; min-width: 70px; flex-shrink: 0; }
+    .home-endpoint-url { flex: 1; min-width: 0; word-break: break-all; font-size: 0.85rem; color: var(--bs-body-color); background: none; padding: 0; }
   </style>
 
   <script>
@@ -223,11 +304,50 @@
       if (typeof init3dViewer === "function") init3dViewer(c.id, parent.id, c.dataset.stlUrl);
     });
 
+    document.querySelectorAll(".home-endpoint").forEach(row => {
+      const copy = () => {
+        const url = row.querySelector(".home-endpoint-url")?.dataset.value;
+        if (url) copyToClipboard(row, url);
+      };
+      row.addEventListener("click", copy);
+      row.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); copy(); } });
+    });
+
     document.querySelectorAll(".home-note[data-event]").forEach(el => {
       const open = () => { try { window.openEventModal(JSON.parse(el.dataset.event)); } catch (e) { console.error("openEventModal failed", e); } };
       el.addEventListener("click", open);
       el.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(); } });
     });
+
+    // Fetch real profile pictures for recent users (kind:0) so the grid shows
+    // actual faces instead of initial-letter placeholders. Best-effort; on
+    // failure the initial avatar stays.
+    (async () => {
+      const cards = Array.from(document.querySelectorAll(".home-user-card[data-hex]"));
+      if (!cards.length || typeof subscribeRelays !== "function") return;
+      const hexes = cards.map(c => c.dataset.hex).filter(Boolean);
+      try {
+        const since = Math.floor(Date.now() / 1000) - (720 * 24 * 60 * 60);
+        const events = await subscribeRelays(0, hexes, "from", since);
+        if (!Array.isArray(events)) return;
+        for (const e of events) {
+          const card = cards.find(c => c.dataset.hex === e.pubkey);
+          if (!card) continue;
+          let meta;
+          try { meta = JSON.parse(e.content); } catch { continue; }
+          const avatar = card.querySelector(".home-user-avatar");
+          if (meta.picture && avatar) {
+            avatar.innerHTML = `<img loading="lazy" decoding="async" alt="" src="${meta.picture.replace(/"/g, "&quot;")}" onerror="this.parentElement.textContent='${(card.querySelector('.home-user-name')?.textContent || '?').substring(0,1).toUpperCase()}'">`;
+          }
+          if (meta.display_name || meta.name) {
+            const nameEl = card.querySelector(".home-user-name");
+            if (nameEl) nameEl.textContent = meta.display_name || meta.name;
+          }
+        }
+      } catch (err) {
+        console.debug("home recent users metadata fetch failed", err);
+      }
+    })();
 
   </script>
 </body>

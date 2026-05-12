@@ -2,51 +2,226 @@
   <%- include('./partials/head'); %>
 <body class="d-flex flex-column h-100">
     <%- include('./partials/navbar', {active:'documentation'}); %>
-    <main class="pb-1">
-    <div class="text-center"><h1 class="display-2 mt-2 gradient-text">Documentation</h1></div>
-    <p class="text-center mt-2 lead">Here you can find the documentation for the active modules.</p>
-    <div class="container mt-4">
-      <div class="row">
-        <% for(const key in locals.activeModules) { %>
-          <div class="col-xl-3 col-lg-4 col-md-6 col-sm-12">
-            <div class="card mb-3 container-fluid shadow-sm default-bg" style="width: 16rem; min-height: 15rem;">
-              <div class="card-body pl-1 pr-1">
-                <h4 class="card-title"><%= locals.activeModules[key]["name"] %></h5>
-                <h6 class="card-subtitle mb-2 text-muted"><%= locals.activeModules[key]['path'] %></h6>
-                <% for(const method in locals.activeModules[key]["methods"]) { %>
-                  <% var badgeClass; %>
-                  <% if (locals.activeModules[key]["methods"][method]  === 'GET') { %>
-                      <% badgeClass = 'text-bg-success'; %>
-                  <% } %>
-                  <% if (locals.activeModules[key]["methods"][method]  === 'POST') { %>
-                      <% badgeClass = 'text-bg-warning'; %>
-                  <% } %>
-                  <% if (locals.activeModules[key]["methods"][method]  === 'PUT') { %>
-                      <% badgeClass = 'text-bg-primary'; %>
-                  <% } %>
-                  <% if (locals.activeModules[key]["methods"][method]  === 'DELETE') { %>
-                      <% badgeClass = 'text-bg-danger'; %>
-                  <% } %>
-                  <span class="badge <%= badgeClass %>"><%= locals.activeModules[key]["methods"][method]  %></span>
-                  <% } %>
-                <p class="card-text mt-2"><%= locals.activeModules[key]["description"] %></p>
-                <button class="btn btn-primary" type="button">                
-                  <a href="https://github.com/quentintaranpino/nostrcheck-api-ts/blob/main/DOCS.md#<%= locals.activeModules[key]["name"] %>" class="card-link link-offset-2 link-underline link-underline-opacity-0"><i class="fa-solid fa-book me-2"></i>Docs</a>
-                </button>
+    <main class="pb-5">
+      <div class="container mt-4 px-3 px-md-4">
 
+        <div class="text-center mb-2">
+          <h1 class="display-4 gradient-text">Documentation</h1>
+          <p class="lead text-muted">Everything you need to use, integrate or self-host this Nostr server.</p>
+        </div>
+
+        <!-- Endpoints (technical) -->
+        <section id="connect" class="mt-5">
+          <h2 class="mb-3">Endpoints</h2>
+          <p class="text-muted">Wire protocols exposed by this server. Click a row to copy the URL.</p>
+          <% const ep = locals.docsEndpoints; %>
+          <div class="docs-endpoints">
+            <% if (ep.relay) { %>
+            <div class="docs-endpoint" role="button" tabindex="0">
+              <div class="docs-endpoint-row">
+                <span class="docs-endpoint-label">Relay</span>
+                <code class="docs-endpoint-url" data-value="<%= ep.relay %>"><%= ep.relay %></code>
+                <span class="btn btn-sm btn-outline-secondary pe-none"><i class="fa-solid fa-copy"></i></span>
               </div>
+              <div class="docs-endpoint-meta"><span class="docs-method">WSS</span> Nostr relay (NIP-01). NIP-11 info available via HTTPS with <code>Accept: application/nostr+json</code>.</div>
+            </div>
+            <% } %>
+            <% if (ep.nip96) { %>
+            <div class="docs-endpoint" role="button" tabindex="0">
+              <div class="docs-endpoint-row">
+                <span class="docs-endpoint-label">NIP-96</span>
+                <code class="docs-endpoint-url" data-value="<%= ep.nip96 %>"><%= ep.nip96 %></code>
+                <span class="btn btn-sm btn-outline-secondary pe-none"><i class="fa-solid fa-copy"></i></span>
+              </div>
+              <div class="docs-endpoint-meta"><span class="docs-method">GET</span> Service info JSON: <code>api_url</code>, <code>download_url</code>, supported MIMEs, plans, content type policy.</div>
+            </div>
+            <% } %>
+            <% if (ep.blossom) { %>
+            <div class="docs-endpoint" role="button" tabindex="0">
+              <div class="docs-endpoint-row">
+                <span class="docs-endpoint-label">Blossom</span>
+                <code class="docs-endpoint-url" data-value="<%= ep.blossom %>"><%= ep.blossom %></code>
+                <span class="btn btn-sm btn-outline-secondary pe-none"><i class="fa-solid fa-copy"></i></span>
+              </div>
+              <div class="docs-endpoint-meta"><span class="docs-method">HTTPS</span> Blob root. <code>GET /&lt;sha256&gt;</code>, <code>HEAD /&lt;sha256&gt;</code>, <code>PUT /upload</code>, <code>PUT /mirror</code>, <code>DELETE /&lt;sha256&gt;</code>. Auth via BUD-11 (Nostr-signed event header).</div>
+            </div>
+            <% } %>
+            <% if (ep.nip05) { %>
+            <div class="docs-endpoint" role="button" tabindex="0">
+              <div class="docs-endpoint-row">
+                <span class="docs-endpoint-label">NIP-05</span>
+                <code class="docs-endpoint-url" data-value="<%= ep.nip05 %>"><%= ep.nip05 %></code>
+                <span class="btn btn-sm btn-outline-secondary pe-none"><i class="fa-solid fa-copy"></i></span>
+              </div>
+              <div class="docs-endpoint-meta"><span class="docs-method">GET</span> <code>?name=&lt;local-part&gt;</code> → JSON with <code>names</code> map and optional <code>relays</code>, <code>nip96</code> fields.</div>
+            </div>
+            <% } %>
+          </div>
+        </section>
+
+        <!-- API modules -->
+        <section id="api" class="mt-5">
+          <h2 class="mb-3">Active modules</h2>
+          <p class="text-muted">REST API surface. Each module links to its wiki chapter.</p>
+          <div class="table-responsive">
+            <table class="table table-sm table-hover align-middle">
+              <thead><tr><th>Module</th><th>Path</th><th>Methods</th><th>Description</th></tr></thead>
+              <tbody>
+                <% for(const key in locals.activeModules) {
+                     const mod = locals.activeModules[key];
+                     const anchor = (mod.name || "").toLowerCase(); %>
+                <tr>
+                  <td><a class="text-decoration-none" href="https://github.com/quentintaranpino/nostrcheck-server/wiki/API-Documentation#<%= anchor %>" target="_blank" rel="noopener"><strong><%= mod.name %></strong> <i class="fa-solid fa-arrow-up-right-from-square ms-1 small opacity-50"></i></a></td>
+                  <td><code class="small"><%= mod.path %></code></td>
+                  <td>
+                    <% (mod.methods || []).forEach(m => {
+                        let cls = "secondary";
+                        if (m === "GET") cls = "success";
+                        else if (m === "POST") cls = "warning";
+                        else if (m === "PUT") cls = "primary";
+                        else if (m === "DELETE") cls = "danger";
+                    %>
+                    <span class="badge text-bg-<%= cls %> me-1"><%= m %></span>
+                    <% }); %>
+                  </td>
+                  <td class="small text-muted"><%= mod.description %></td>
+                </tr>
+                <% } %>
+              </tbody>
+            </table>
+          </div>
+          <p class="small text-muted mt-2">
+            More on the <a href="https://github.com/quentintaranpino/nostrcheck-server/wiki" target="_blank" rel="noopener">wiki</a>:
+            <a href="https://github.com/quentintaranpino/nostrcheck-server/wiki/Configuration" target="_blank" rel="noopener">Configuration</a> ·
+            <a href="https://github.com/quentintaranpino/nostrcheck-server/wiki/Multi-tenancy" target="_blank" rel="noopener">Multi-tenancy</a> ·
+            <a href="https://github.com/quentintaranpino/nostrcheck-server/wiki/Plugins" target="_blank" rel="noopener">Plugins</a>
+          </p>
+        </section>
+
+        <!-- Supported NIPs -->
+        <% if (locals.docsRelayEnabled) { %>
+        <section id="nips" class="mt-5">
+          <h2 class="mb-3">Supported NIPs <small class="text-muted">(Nostr)</small></h2>
+          <p class="text-muted">Each one links to the official spec.</p>
+          <div class="row g-2">
+            <% locals.docsNips.forEach(n => { %>
+            <div class="col-12 col-sm-6 col-lg-4">
+              <a class="docs-cap-row d-flex align-items-start gap-2 p-2 rounded text-decoration-none" href="https://github.com/nostr-protocol/nips/blob/master/<%= n.label %>.md" target="_blank" rel="noopener">
+                <span class="badge text-bg-secondary">NIP-<%= n.label %></span>
+                <span class="small text-muted flex-grow-1"><%= n.desc %></span>
+              </a>
+            </div>
+            <% }); %>
+          </div>
+        </section>
+        <% } %>
+
+        <!-- Supported BUDs -->
+        <% if (locals.docsMediaEnabled) { %>
+        <section id="buds" class="mt-5">
+          <h2 class="mb-3">Supported BUDs <small class="text-muted">(Blossom)</small></h2>
+          <p class="text-muted">Blossom Upgrade Documents implemented by this server.</p>
+          <div class="row g-2">
+            <% locals.docsBuds.forEach(b => { %>
+            <div class="col-12 col-sm-6 col-lg-4">
+              <a class="docs-cap-row d-flex align-items-start gap-2 p-2 rounded text-decoration-none" href="https://github.com/hzrd149/blossom/blob/master/buds/<%= b.num %>.md" target="_blank" rel="noopener">
+                <span class="badge text-bg-secondary" style="background:#a575ff !important;">BUD-<%= b.num %></span>
+                <span class="small text-muted flex-grow-1"><%= b.desc %></span>
+              </a>
+            </div>
+            <% }); %>
+          </div>
+        </section>
+        <% } %>
+
+        <!-- Lightning -->
+        <% if (locals.docsLightning) { %>
+        <section id="lightning" class="mt-5">
+          <h2 class="mb-3">Lightning</h2>
+          <p class="text-muted">Payments and zaps via Lightning Network. Specs supported:</p>
+          <div class="row g-2">
+            <% [
+              { num: "06", url: "https://github.com/lnurl/luds/blob/luds/06.md", desc: "payRequest base" },
+              { num: "16", url: "https://github.com/lnurl/luds/blob/luds/16.md", desc: "Lightning addresses (name@server)" },
+              { num: "21", url: "https://github.com/lnurl/luds/blob/luds/21.md", desc: "verify (proof of payment)" }
+            ].forEach(l => { %>
+            <div class="col-12 col-sm-6 col-lg-4">
+              <a class="docs-cap-row d-flex align-items-start gap-2 p-2 rounded text-decoration-none" href="<%= l.url %>" target="_blank" rel="noopener">
+                <span class="badge text-bg-warning">LUD-<%= l.num %></span>
+                <span class="small text-muted flex-grow-1"><%= l.desc %></span>
+              </a>
+            </div>
+            <% }); %>
+            <div class="col-12 col-sm-6 col-lg-4">
+              <a class="docs-cap-row d-flex align-items-start gap-2 p-2 rounded text-decoration-none" href="https://github.com/nostr-protocol/nips/blob/master/57.md" target="_blank" rel="noopener">
+                <span class="badge text-bg-secondary">NIP-57</span>
+                <span class="small text-muted flex-grow-1">Zaps (Lightning payments on Nostr)</span>
+              </a>
             </div>
           </div>
+        </section>
         <% } %>
+
+        <!-- Self-host -->
+        <section id="selfhost" class="mt-5 mb-5">
+          <div class="card border-0 shadow-sm bg-body-tertiary">
+            <div class="card-body p-4">
+              <h2 class="mb-2"><i class="fa-brands fa-github me-2"></i>Self-host this server</h2>
+              <p class="mb-3">This server runs <strong>nostrcheck-server</strong>, an open-source project (MIT). You can run your own instance — same software, your rules.</p>
+              <a class="btn btn-primary" href="https://github.com/quentintaranpino/nostrcheck-server" target="_blank" rel="noopener">
+                <i class="fa-brands fa-github me-1"></i> View on GitHub
+              </a>
+            </div>
+          </div>
+        </section>
+
       </div>
-    </div>
     </main>
+
     <%- include('./partials/footer', {active:'documentation'}); %>
     <%- include('./components/modals/message-modal', {"object":"firstUse"}); %>
   </body>
+
+  <style>
+    .docs-endpoints { display: flex; flex-direction: column; gap: 8px; }
+    .docs-endpoint { padding: 10px 12px; border: 1px solid rgba(128,128,128,0.2); border-radius: 6px; background: rgba(0,0,0,0.03); cursor: pointer; transition: border-color 0.15s, background 0.15s; }
+    .docs-endpoint:hover { border-color: rgba(165, 117, 255, 0.6); background: rgba(165, 117, 255, 0.06); }
+    .docs-endpoint-row { display: flex; align-items: center; gap: 8px; }
+    .docs-endpoint-label { font-size: 0.75rem; font-weight: 600; text-transform: uppercase; color: #888; min-width: 80px; flex-shrink: 0; }
+    .docs-endpoint-url { flex: 1; min-width: 0; word-break: break-all; font-size: 0.85rem; color: var(--bs-body-color); background: none; padding: 0; }
+    .docs-endpoint-meta { font-size: 0.78rem; color: var(--bs-secondary-color); margin-top: 6px; padding-left: 88px; line-height: 1.5; }
+    .docs-endpoint-meta code { font-size: 0.85em; padding: 1px 4px; background: rgba(128,128,128,0.15); border-radius: 3px; color: var(--bs-body-color); }
+    .docs-method { display: inline-block; font-weight: 600; color: #a575ff; margin-right: 6px; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.5px; }
+    @media (max-width: 575.98px) { .docs-endpoint-meta { padding-left: 0; } }
+
+    .docs-cap-row { border: 1px solid rgba(128,128,128,0.15); }
+    .docs-cap-row:hover { border-color: rgba(165, 117, 255, 0.6); background: rgba(165, 117, 255, 0.04); }
+
+    .docs-step-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 1.75rem; height: 1.75rem;
+      background: #a575ff;
+      color: #fff;
+      border-radius: 50%;
+      font-size: 0.95rem;
+      font-weight: 600;
+    }
+  </style>
+
 <script>
   if ("<%= locals.firstUse %>" != undefined && "<%= locals.firstUse %>" != null && "<%= locals.firstUse %>" != "") {
     initMessageModal("#firstUse", "<%- locals.firstUse %>", "Welcome to your sovereignty");
   }
+
+  document.querySelectorAll(".docs-endpoint").forEach(row => {
+    const copy = () => {
+      const url = row.querySelector(".docs-endpoint-url")?.dataset.value;
+      if (url) copyToClipboard(row, url);
+    };
+    row.addEventListener("click", copy);
+    row.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); copy(); } });
+  });
 </script>
 </html>
