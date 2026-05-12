@@ -12,7 +12,7 @@ import { dbDelete, dbInsert, dbMultiSelect, dbSimpleSelect, dbUpdate } from "../
 import { allowedFieldNames, allowedFieldNamesAndValues, allowedTableNames, moduleDataReturnMessage, moduleDataKeys, moduleDataIndex } from "../interfaces/admin.js";
 import { parseAuthHeader} from "../lib/authorization.js";
 import { npubToHex } from "../lib/nostr/NIP19.js";
-import { dbCountModuleData, dbCountMonthModuleData, dbSelectModuleData } from "../lib/admin.js";
+import { dbCountModuleData, dbCountMonthModuleData, dbCountBucketModuleData, dbSelectModuleData } from "../lib/admin.js";
 import { getBalance, getUnpaidTransactionsBalance } from "../lib/payments/core.js";
 import { getModerationQueueLength, moderateFile } from "../lib/moderation/core.js";
 import { addNewUsername } from "../lib/register.js";
@@ -1047,6 +1047,16 @@ const getModuleCountData = async (req: Request, res: Response): Promise<Response
     if (action == "monthCount") {
         const count = await dbCountMonthModuleData(module, field);
         return res.status(200).send({data: count});
+    }
+
+    if (action == "bucketCount") {
+        const bucketParam = (req.query.bucket || "month").toString();
+        const bucket: "week" | "month" | "year" =
+            (["week","month","year"] as const).includes(bucketParam as any)
+                ? (bucketParam as "week" | "month" | "year")
+                : "month";
+        const count = await dbCountBucketModuleData(module, field, bucket);
+        return res.status(200).send({data: count, bucket});
     }
 
     if (field != "" && field != undefined && field != 'undefined') {

@@ -11,10 +11,28 @@ const dbCountModuleData = async (module: string, field = ""): Promise<number> =>
 
 
 const dbCountMonthModuleData = async (module: string, field: string): Promise<object> => {
-	
+	return dbCountBucketModuleData(module, field, "month");
+};
+
+/**
+ * Counts rows grouped by time bucket (week / month / year).
+ * - week: last 52 ISO weeks
+ * - month: last 60 months (5 years)
+ * - year: all years present in the table
+ * The field can be either a datetime column or a unix timestamp (s or ms).
+ */
+const dbCountBucketModuleData = async (module: string, field: string, bucket: "week" | "month" | "year" = "month"): Promise<object> => {
+
 	const table = ModuleDataTables[module];
 	if (!table) return {};
-  
+
+	const formatByBucket: Record<string, { fmt: string; limit: number }> = {
+		week:  { fmt: "%x-%v", limit: 52 },
+		month: { fmt: "%Y-%m", limit: 60 },
+		year:  { fmt: "%Y",    limit: 100 },
+	};
+	const { fmt, limit } = formatByBucket[bucket] || formatByBucket.month;
+
 	const data = await dbMultiSelect(
 		[
 		`COUNT(*) as 'count'`,
@@ -24,16 +42,16 @@ const dbCountMonthModuleData = async (module: string, field: string): Promise<ob
 				IF(${field} > 9999999999, FROM_UNIXTIME(${field} / 1000), FROM_UNIXTIME(${field})),
 				${field}
 			),
-			'%Y-%m') as month`
+			'${fmt}') as bucket`
 		],
 		`${table}`,
-		`1=1 GROUP BY month ORDER BY month DESC LIMIT 36`,
+		`1=1 GROUP BY bucket ORDER BY bucket DESC LIMIT ${limit}`,
 		[],
 		false
 	);
-  
+
 	return data;
-  };
+};
 
 async function dbSelectModuleData(module:string, offset:number, limit:number, order:string = "DESC", sort:string, search:string, filter: any): Promise<{ total: number; totalNotFiltered: number; rows: string | never[]; }>{
 
@@ -78,4 +96,4 @@ async function dbSelectModuleData(module:string, offset:number, limit:number, or
 	return result;
 }
 
-export { dbCountModuleData, dbSelectModuleData, dbCountMonthModuleData };
+export { dbCountModuleData, dbSelectModuleData, dbCountMonthModuleData, dbCountBucketModuleData };

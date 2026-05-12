@@ -7,6 +7,8 @@
                     datakey: datakey,
                     monthField: monthField,
                     monthName: monthName,
+                    defaultBucket: locals.defaultBucket || "month",
+                    availableBuckets: locals.availableBuckets || ["week", "month", "year"],
                 }); %>
             </div>  
         </div>

@@ -1,88 +1,123 @@
+<%
+    // Time-bucketed bar chart. Renamed internally to "bucket chart" but the
+    // include path stays monthchart.ejs for backwards compatibility.
+    const defaultBucket = locals.defaultBucket || "month";
+    const availableBuckets = locals.availableBuckets || ["week", "month", "year"];
+%>
+<div class="d-flex justify-content-end mb-2">
+    <select id="<%- chartId %>-bucket-select" class="form-select form-select-sm" style="width: auto;">
+        <% availableBuckets.forEach(b => { %>
+            <option value="<%- b %>" <%- b === defaultBucket ? 'selected' : '' %>><%- b.charAt(0).toUpperCase() + b.slice(1) %></option>
+        <% }); %>
+    </select>
+</div>
 <canvas id="<%- chartId %>-month-chart" class="mx-auto w-100"></canvas>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
     document.addEventListener('DOMContentLoaded', async () => {
 
-        let chartId = "<%- chartId %>";
+        const chartId = "<%- chartId %>-month-chart";
         const datakey = "<%= datakey %>";
         const monthField = "<%= monthField %>";
         const monthName = "<%= monthName %>";
         const timeout = Number("<%= typeof timeout !== 'undefined' ? timeout : 60000 %>");
+        const selectEl = document.getElementById("<%- chartId %>-bucket-select");
 
-        chartId = chartId + '-month-chart';
+        let currentBucket = "<%- defaultBucket %>";
+        let bucketCharts = {};
 
-        let monthCharts = {};
+        // Builds the X axis labels for the last N buckets (oldest → newest) so
+        // the chart reads left-to-right chronologically.
+        function bucketLabels(bucket, count) {
+            const labels = [];
+            const now = new Date();
+            for (let i = count - 1; i >= 0; i--) {
+                if (bucket === "month") {
+                    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+                    labels.push(d.toLocaleString("en", { month: "short", year: "2-digit" }));
+                } else if (bucket === "week") {
+                    const d = new Date(now);
+                    d.setDate(d.getDate() - i * 7);
+                    labels.push("W" + isoWeek(d));
+                } else if (bucket === "year") {
+                    labels.push(String(now.getFullYear() - i));
+                }
+            }
+            return labels;
+        }
 
-        function initMonthChart(chartId, title, rawData) {
+        function isoWeek(date) {
+            // Standard ISO 8601 week number computation.
+            const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+            const dayNum = d.getUTCDay() || 7;
+            d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+            const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+            return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+        }
 
+        // Maps a server-returned bucket key (e.g. "2026-04", "2026-15",
+        // "2026") to an index in the labels array (newest = last).
+        function bucketKeyToOffset(bucket, key, count) {
+            const now = new Date();
+            if (bucket === "month") {
+                const [y, m] = key.split("-").map(Number);
+                const monthsAgo = (now.getFullYear() - y) * 12 + (now.getMonth() - (m - 1));
+                return monthsAgo >= 0 && monthsAgo < count ? (count - 1 - monthsAgo) : -1;
+            }
+            if (bucket === "week") {
+                const [y, w] = key.split("-").map(Number);
+                const nowWeek = isoWeek(now);
+                const weeksAgo = (now.getFullYear() - y) * 52 + (nowWeek - w);
+                return weeksAgo >= 0 && weeksAgo < count ? (count - 1 - weeksAgo) : -1;
+            }
+            if (bucket === "year") {
+                const y = Number(key);
+                const yearsAgo = now.getFullYear() - y;
+                return yearsAgo >= 0 && yearsAgo < count ? (count - 1 - yearsAgo) : -1;
+            }
+            return -1;
+        }
+
+        function bucketBarColor(bucket) {
+            return "rgba(165, 117, 255, 0.7)";
+        }
+
+        function initChart(bucket, rawData) {
             if (!rawData || !Array.isArray(rawData.data)) {
                 console.error("Invalid rawData format", rawData);
                 return;
             }
 
-            if (!chartId.toString().startsWith('#')) {
-                chartId = '#' + chartId;
+            // How many buckets to render on screen. Year may have fewer real
+            // data points than visible slots so we widen to all the rows we
+            // got back, capped at 100.
+            const count = bucket === "week" ? 52 : bucket === "month" ? 24 : Math.min(20, rawData.data.length || 5);
+            const labels = bucketLabels(bucket, count);
+            const counts = new Array(count).fill(0);
+
+            for (const row of rawData.data) {
+                const key = row.bucket || row.month;
+                if (!key) continue;
+                const idx = bucketKeyToOffset(bucket, key, count);
+                if (idx >= 0) counts[idx] += parseInt(row.count) || 0;
             }
 
-            const dataArray = rawData.data;
-            const monthCountsCurrentYear = new Array(12).fill(0);
-            const monthCountsLastYear = new Array(12).fill(0);
-            const monthCountsLastPrevYear = new Array(12).fill(0);
-            const currentYear = new Date().getFullYear();
+            const canvas = document.getElementById(chartId);
+            if (!canvas) return;
+            if (bucketCharts[chartId]) { bucketCharts[chartId].destroy(); delete bucketCharts[chartId]; }
 
-            dataArray.forEach(item => {
-                const { count, month } = item;
-                const year = parseInt(month.substring(0, 4));
-                const monthIndex = parseInt(month.substring(5)) - 1;
-                if (year === currentYear) {
-                monthCountsCurrentYear[monthIndex] += parseInt(count);
-                } else if (year === currentYear - 1) {
-                monthCountsLastYear[monthIndex] += parseInt(count);
-                } else if (year === currentYear - 2) {
-                monthCountsLastPrevYear[monthIndex] += parseInt(count);
-                }
-            });
-
-            const labels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-
-            if (monthCharts[chartId]) {
-                monthCharts[chartId].destroy();
-                delete monthCharts[chartId];
-            }
-
-            const canvas = document.querySelector(chartId);
-            if (!canvas) {
-                console.error(`No se encontró el canvas con id ${chartId}`);
-                return;
-            }
             const ctx = canvas.getContext('2d');
-            monthCharts[chartId] = new Chart(ctx, {
+            bucketCharts[chartId] = new Chart(ctx, {
                 type: 'bar',
                 data: {
-                labels: labels,
-                datasets: [
-                    {
-                    label: currentYear,
-                    data: monthCountsCurrentYear,
-                    backgroundColor: 'rgba(165, 117, 255, 0.7)',
-                    borderRadius: 5,
-                    hoverBackgroundColor: '#A575FF'
-                    },
-                    {
-                    label: currentYear - 1,
-                    data: monthCountsLastYear,
-                    backgroundColor: 'rgba(156, 162, 167, 0.7)',
-                    borderRadius: 5,
-                    hoverBackgroundColor: '#8E9396'
-                    },
-                    {
-                    label: currentYear - 2,
-                    data: monthCountsLastPrevYear,
-                    backgroundColor: 'rgba(255, 159, 64, 0.7)',
-                    borderRadius: 5,
-                    hoverBackgroundColor: '#FF9F40'
-                    }
-                ]
+                    labels,
+                    datasets: [{
+                        label: monthName,
+                        data: counts,
+                        backgroundColor: bucketBarColor(bucket),
+                        borderRadius: 5,
+                        hoverBackgroundColor: '#A575FF',
+                    }],
                 },
                 options: {
                     responsive: true,
@@ -90,57 +125,26 @@
                     resizeDelay: 200,
                     plugins: {
                         title: {
-                        display: true,
-                        text: `${title} (${currentYear} vs ${currentYear - 1})`,
-                        font: {
-                            size: 20,
-                            family: 'system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", "Noto Sans", "Liberation Sans", Arial, sans-serif',
-                            weight: 'bold'
+                            display: true,
+                            text: `${monthName} (last ${count} ${bucket}s)`,
+                            font: { size: 18, family: 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif', weight: 'bold' },
+                            color: localStorage.getItem('theme') === 'dark' ? '#FFFFFF' : '#4d4c4c',
+                            padding: { top: 10, bottom: 20 },
                         },
-                        color: localStorage.getItem('theme') === 'dark' ? '#FFFFFF' : '#4d4c4c',
-                        padding: {
-                            top: 10,
-                            bottom: 30
-                        }
-                        },
-                        legend: {
-                        labels: {
-                            font: {
-                            size: 12,
-                            family: 'system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", "Noto Sans", "Liberation Sans", Arial, sans-serif'
-                            },
-                            color: localStorage.getItem('theme') === 'dark' ? '#FFFFFF' : '#4d4c4c'
-                        }
-                        }
+                        legend: { display: false },
                     },
                     scales: {
                         x: {
-                        ticks: {
-                            font: {
-                            size: 12,
-                            family: 'system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", "Noto Sans", "Liberation Sans", Arial, sans-serif'
-                            },
-                            color: localStorage.getItem('theme') === 'dark' ? '#FFFFFF' : '#4d4c4c'
-                        },
-                        grid: {
-                            display: false
-                        }
+                            ticks: { font: { size: 11 }, color: localStorage.getItem('theme') === 'dark' ? '#FFFFFF' : '#4d4c4c', maxRotation: 0, autoSkip: true },
+                            grid: { display: false },
                         },
                         y: {
-                        beginAtZero: true,
-                        ticks: {
-                            font: {
-                            size: 12,
-                            family: 'system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", "Noto Sans", "Liberation Sans", Arial, sans-serif'
-                            },
-                            color: localStorage.getItem('theme') === 'dark' ? '#FFFFFF' : '#4d4c4c'
+                            beginAtZero: true,
+                            ticks: { font: { size: 12 }, color: localStorage.getItem('theme') === 'dark' ? '#FFFFFF' : '#4d4c4c' },
+                            grid: { color: 'rgba(0, 0, 0, 0.1)' },
                         },
-                        grid: {
-                            color: 'rgba(0, 0, 0, 0.1)'
-                        }
-                        }
-                    }
-                }
+                    },
+                },
             });
 
             canvas.style.height = '400px';
@@ -148,50 +152,46 @@
 
         document.getElementById('theme-switch').addEventListener('click', () => {
             const isDarkMode = document.documentElement.getAttribute('data-bs-theme') === 'dark';
-            Object.values(monthCharts).forEach(chart => {
+            Object.values(bucketCharts).forEach(chart => {
                 chart.options.plugins.title.color = isDarkMode ? '#FFFFFF' : '#4d4c4c';
-                chart.options.plugins.legend.labels.color = isDarkMode ? '#FFFFFF' : '#4d4c4c';
                 chart.options.scales.x.ticks.color = isDarkMode ? '#FFFFFF' : '#4d4c4c';
                 chart.options.scales.y.ticks.color = isDarkMode ? '#FFFFFF' : '#4d4c4c';
-                
                 chart.update();
             });
         });
 
-        const fetchCountData = async (datakey, action, field) => {
-            let serverData  = ""
-            await fetch(`/api/v2/admin/modulecountdata?module=${datakey}&action=${action}&field=${field}`, {
-            method: 'GET', headers: {'Content-Type': 'application/json'}})
-            .then(response => response.json())
-            .then(data => {
-                serverData = data;
-            })
-            .catch(error => console.error('Error:', error));
-
-            return serverData || { total: 0 }
-        }
-
-        const updateMonthChart = async () => {
-            const monthCount = await fetchCountData(datakey, 'monthCount', monthField);
-            initMonthChart(chartId, monthName, monthCount);
+        const fetchBucketData = async (bucket) => {
+            try {
+                const r = await fetch(`/api/v2/admin/modulecountdata?module=${datakey}&action=bucketCount&field=${monthField}&bucket=${bucket}`);
+                if (!r.ok) return { data: [] };
+                return await r.json();
+            } catch (e) {
+                console.error("bucket chart fetch failed", e);
+                return { data: [] };
+            }
         };
 
-        setInterval(() => {updateMonthChart()}, timeout);
-        
+        const updateChart = async () => {
+            const data = await fetchBucketData(currentBucket);
+            initChart(currentBucket, data);
+        };
 
-        // Intersection Observer for updating charts when they are in view
+        selectEl.addEventListener("change", () => {
+            currentBucket = selectEl.value;
+            updateChart();
+        });
+
+        setInterval(updateChart, timeout);
+
         const activeChart = document.getElementById(chartId);
         const observer = new IntersectionObserver((entries) => {
-        entries.forEach(entry => {
-            if (entry.isIntersecting) {
-            setTimeout(() => {
-                updateMonthChart();
-            }, 150);
-            observer.unobserve(entry.target);   
-         }
-        });
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    setTimeout(updateChart, 150);
+                    observer.unobserve(entry.target);
+                }
+            });
         }, { threshold: 0.90 });
         observer.observe(activeChart);
-
     });
 </script>
