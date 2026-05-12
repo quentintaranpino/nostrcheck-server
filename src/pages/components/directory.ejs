@@ -238,16 +238,15 @@ async function renderUserCard(user) {
     if (pubkeyDiv) {
         await hextoNpub(user.hex).then((npub) => {
             user.npub = npub;
-            const visibleChars = Math.min(8, Math.floor(window.innerWidth / 50));
-            const truncatedText = `${npub.slice(0, visibleChars)}:${npub.slice(-visibleChars)}`;
+            const truncatedText = window.shortenHex ? window.shortenHex(npub) : npub;
             pubkeyDiv.innerHTML = `
-                <button id="npub-btn" class="btn btn-primary" type="button"
+                <button class="btn btn-primary npub-copy-btn" type="button"
                     onclick="copyToClipboard(this, '${npub}')"
                     data-value="${npub}"
                     style="--bs-btn-padding-y: .1rem; --bs-btn-padding-x: .5rem; --bs-btn-font-size: .8rem;">
                     ${truncatedText}<i class="fa-solid fa-copy ms-2"></i>
                 </button>`;
-            pubkeyDiv.querySelector('#npub-btn')?.addEventListener('click', (e) => e.stopPropagation());
+            pubkeyDiv.querySelector('.npub-copy-btn')?.addEventListener('click', (e) => e.stopPropagation());
         });
     }
 }

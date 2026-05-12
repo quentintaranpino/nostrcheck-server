@@ -5,13 +5,14 @@
 <body class="d-flex flex-column h-100">
     <%- include('./partials/navbar', {active:'converter'}); %>
     <div class="background-theme h-100">
+        <div id="particles-js"></div>
         <div class="container px-4 px-lg-5 d-flex h-100 align-items-center justify-content-center">
             <div class="d-flex justify-content-center">
                 <div class="text-center z-1">
                     <h1 class="text-white mx-auto my-0 text-uppercase gradien display-4">Key converter</h1>
                     <h2 class="text-white-50 mx-auto mt-1 mb-4 display-6">A simple tool to turn your Nostr keys into npub or hex in just seconds.
                     </h2>
-                    <div class="col-12 col-md-9 mt-5 mb-5 mx-auto">
+                    <div class="col-12 col-md-9 mt-5 mb-5 mx-auto converter-light">
                         <div class="input-group flex-nowrap mt-2 mb-3">
                             <span class="input-group-text col-2 d-inline" id="input-converter-npub">npub</span>
                             <input type="text" class="form-control" id="npub" placeholder="Paste your npub key here">
@@ -38,6 +39,13 @@
     </div>
     <%- include('./partials/footer', {active:'converter'}); %>
     <%- include('./components/modals/message-modal', {"object":"firstUse"}); %>
+
+    <style>
+      .converter-light .input-group-text { background: #fff; color: #333; border-color: #ddd; }
+      .converter-light .form-control { background: #fff; color: #333; box-shadow: none; }
+      .converter-light .form-control:focus { background: #fff; color: #333; box-shadow: none; }
+      .converter-light .form-control::placeholder { color: #999; }
+    </style>
   </body>
   <script>
     if ("<%= locals.firstUse %>" != undefined && "<%= locals.firstUse %>" != null && "<%= locals.firstUse %>" != "") {

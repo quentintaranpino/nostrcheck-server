@@ -23,7 +23,8 @@
             <div class="row g-4">
               <% locals.lastRelayNotes.forEach(note => { %>
                 <div class="col-12 col-md-6 col-xl-4">
-                  <div class="card note-card shadow-lg h-100">
+                  <div class="card note-card shadow-lg h-100" role="button" tabindex="0"
+                       data-event='<%= JSON.stringify(note).replace(/'/g, "&#39;") %>'>
                     <div class="card-header d-flex align-items-center justify-content-between">
                       <div class="d-flex align-items-center gap-2 ">
                         <span class="badge text-bg-secondary">kind <%= note.kind %></span>
@@ -73,6 +74,7 @@
   <div id="particles-js"></div>
   <%- include('./partials/footer', {active:'relay'}); %>
   <%- include('./components/modals/message-modal', {"object":"firstUse"}); %>
+  <%- include('./components/modals/event-modal'); %>
 </body>
 
 <script>
@@ -106,6 +108,16 @@
   if ("<%= locals.firstUse %>" != undefined && "<%= locals.firstUse %>" != null && "<%= locals.firstUse %>" != "") {
     initMessageModal("#firstUse", "<%- locals.firstUse %>", "Welcome to your sovereignty");
   }
+
+  document.querySelectorAll(".note-card[data-event]").forEach(card => {
+    const open = (e) => {
+      if (e.target.closest("button, a")) return; // copy/njump buttons keep their own action
+      try { window.openEventModal(JSON.parse(card.dataset.event)); }
+      catch (err) { console.error("openEventModal failed", err); }
+    };
+    card.addEventListener("click", open);
+    card.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(e); } });
+  });
 </script>
 
 <style>

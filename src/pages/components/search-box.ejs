@@ -1,0 +1,9 @@
+<div class="search-box position-relative <%= locals.boxClass || '' %>">
+  <div class="input-group <%= locals.size || '' %>">
+    <span class="input-group-text border-0"><i class="bi bi-search"></i></span>
+    <input type="search" autocomplete="off" class="form-control search-box-input border-0"
+           placeholder="<%= locals.placeholder || 'Search users, media, notes…' %>"
+           aria-label="Search">
+  </div>
+  <div class="search-box-results d-none"></div>
+</div>

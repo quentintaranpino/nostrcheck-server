@@ -1,0 +1,84 @@
+<div class="modal fade" id="event-modal" tabindex="-1" aria-labelledby="event-modal" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div class="d-flex align-items-center gap-2">
+          <div class="event-avatar" id="event-modal-avatar"></div>
+          <div>
+            <div class="event-author fw-semibold" id="event-modal-author">Loading…</div>
+            <div class="small text-muted" id="event-modal-meta"></div>
+          </div>
+        </div>
+        <button type="button" class="btn-close ms-auto" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="event-content" id="event-modal-content"></div>
+        <div class="mt-3 d-flex justify-content-between align-items-center">
+          <a href="#" id="event-modal-njump" target="_blank" rel="noopener" class="small text-decoration-none">
+            <i class="bi bi-box-arrow-up-right me-1"></i>View on njump.me
+          </a>
+          <button type="button" class="btn btn-sm btn-outline-secondary" id="event-modal-raw-toggle">
+            <i class="fas fa-code me-1"></i><span>Raw event</span>
+          </button>
+        </div>
+        <pre id="event-modal-raw" class="event-raw d-none mt-3"></pre>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  #event-modal .event-avatar { width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(135deg, #a575ff, #6f4eaa); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 600; flex-shrink: 0; overflow: hidden; }
+  #event-modal .event-avatar img { width: 100%; height: 100%; object-fit: cover; }
+  #event-modal .event-content { white-space: pre-wrap; word-break: break-word; line-height: 1.5; font-size: 1rem; }
+  #event-modal .event-content a { color: var(--bs-primary); word-break: break-all; }
+  #event-modal .event-content img, #event-modal .event-content video { max-width: 100%; max-height: 60vh; border-radius: 6px; margin-top: 8px; }
+  #event-modal .event-raw { background: #1d1f23; color: #d4d4d4; padding: 12px; border-radius: 6px; font-size: 0.75rem; max-height: 40vh; overflow: auto; }
+</style>
+
+<script>
+  // Linkify URLs (text URLs, image/video by extension) and npubs/nostr: refs.
+  window.formatEventContent = (text) => {
+    const esc = s => String(s || "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"})[c]);
+    const out = esc(text);
+    return out.replace(/(https?:\/\/[^\s]+)/g, (url) => {
+      const lower = url.toLowerCase();
+      if (/\.(jpg|jpeg|png|gif|webp|avif)(\?|$)/.test(lower)) {
+        return `<a href="${url}" target="_blank" rel="noopener">${url}</a><br><img loading="lazy" src="${url}" alt="">`;
+      }
+      if (/\.(mp4|webm|mov)(\?|$)/.test(lower)) {
+        return `<a href="${url}" target="_blank" rel="noopener">${url}</a><br><video controls preload="metadata" src="${url}"></video>`;
+      }
+      return `<a href="${url}" target="_blank" rel="noopener">${url}</a>`;
+    });
+  };
+
+  window.openEventModal = (event) => {
+    if (!event) return;
+    const modalEl = document.getElementById("event-modal");
+    const modal = new bootstrap.Modal(modalEl);
+
+    const pubkey = event.pubkey || "";
+    const npubShort = window.shortenHex ? window.shortenHex(pubkey, 12, 6) : pubkey.slice(0, 12) + "…";
+    document.getElementById("event-modal-avatar").innerHTML = `<span>${(pubkey[0] || "?").toUpperCase()}</span>`;
+    document.getElementById("event-modal-author").textContent = npubShort;
+
+    const created = Number(event.created_at);
+    const date = created ? new Date(created * 1000) : null;
+    document.getElementById("event-modal-meta").textContent = date ? date.toLocaleString() : "";
+
+    document.getElementById("event-modal-content").innerHTML = window.formatEventContent(event.content || "");
+
+    const njumpId = event.event_id || event.id || "";
+    document.getElementById("event-modal-njump").href = `https://njump.me/${njumpId}`;
+
+    document.getElementById("event-modal-raw").textContent = JSON.stringify(event, null, 2);
+    document.getElementById("event-modal-raw").classList.add("d-none");
+
+    modal.show();
+  };
+
+  document.getElementById("event-modal-raw-toggle")?.addEventListener("click", () => {
+    document.getElementById("event-modal-raw").classList.toggle("d-none");
+  });
+</script>

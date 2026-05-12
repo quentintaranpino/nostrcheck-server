@@ -1,4 +1,149 @@
 
+// Truncates a long hex/npub for display: "abcdef…123456".
+window.shortenHex = (value, prefix = 12, suffix = 6) => {
+    const s = String(value || "");
+    if (s.length <= prefix + suffix + 1) return s;
+    return s.substring(0, prefix) + "…" + s.slice(-suffix);
+};
+
+// Auto-replaces text content of any element with [data-shorten-hex] on load.
+document.addEventListener("DOMContentLoaded", () => {
+    document.querySelectorAll("[data-shorten-hex]").forEach(el => {
+        const full = el.dataset.shortenHex || el.textContent.trim();
+        const prefix = Number(el.dataset.shortenPrefix) || 12;
+        const suffix = Number(el.dataset.shortenSuffix) || 6;
+        el.textContent = window.shortenHex(full, prefix, suffix);
+    });
+});
+
+// Wires every .search-box on the page to the unified search endpoint.
+// One instance can live in the navbar and another in a page hero — they share
+// the backend and the renderer, only the surrounding markup differs.
+document.addEventListener("DOMContentLoaded", () => {
+    const esc = s => String(s || "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"})[c]);
+
+    document.querySelectorAll(".search-box").forEach(box => {
+        const input = box.querySelector(".search-box-input");
+        const results = box.querySelector(".search-box-results");
+        if (!input || !results) return;
+
+        let aborter = null;
+        let lastQuery = "";
+        let debounceId = null;
+
+        const hide = () => { results.classList.add("d-none"); results.innerHTML = ""; };
+        const renderEmpty = () => { results.innerHTML = '<div class="search-box-empty">No results</div>'; results.classList.remove("d-none"); };
+
+        const run = async (q) => {
+            if (aborter) aborter.abort();
+            aborter = new AbortController();
+            try {
+                const r = await fetch(`/api/v2/search?q=${encodeURIComponent(q)}`, { signal: aborter.signal });
+                if (!r.ok) return hide();
+                const data = await r.json();
+                if (input.value.trim() !== q) return; // stale
+
+                const sections = [];
+                if (Array.isArray(data.users) && data.users.length) {
+                    sections.push(`<div class="search-box-section"><div class="search-box-section-title">Users</div>` +
+                        data.users.map(u => `
+                            <div class="search-box-item" data-kind="user" data-hex="${esc(u.hex)}">
+                              <div class="search-box-item-thumb"><i class="bi bi-person-fill"></i></div>
+                              <div class="search-box-item-main">
+                                <div class="search-box-item-title">${esc(u.username)}</div>
+                                <div class="search-box-item-sub">@${esc(u.domain)}</div>
+                              </div>
+                            </div>`).join("") + `</div>`);
+                }
+
+                if (Array.isArray(data.media) && data.media.length) {
+                    sections.push(`<div class="search-box-section"><div class="search-box-section-title">Media</div>` +
+                        data.media.map(m => {
+                            const mime = m.mimetype || "";
+                            const isImg = /^image\//.test(mime);
+                            const thumb = isImg ? `<img loading="lazy" src="${esc(m.url)}" alt="">` : `<i class="bi bi-${/^video\//.test(mime) ? "play-btn" : (/^audio\//.test(mime) ? "music-note-beamed" : "file-earmark")}"></i>`;
+                            return `<div class="search-box-item" data-kind="media"
+                                      data-filename="${esc(m.filename)}"
+                                      data-url="${esc(m.url)}"
+                                      data-mime="${esc(mime)}"
+                                      data-hash="${esc(m.hash)}"
+                                      data-blurhash="${esc(m.blurhash || "")}"
+                                      data-dim="${esc(m.dimensions || "")}"
+                                      data-pubkey="${esc(m.pubkey || "")}">
+                              <div class="search-box-item-thumb">${thumb}</div>
+                              <div class="search-box-item-main">
+                                <div class="search-box-item-title">${esc(m.filename)}</div>
+                                <div class="search-box-item-sub">${esc(mime)}</div>
+                              </div>
+                            </div>`;
+                        }).join("") + `</div>`);
+                }
+
+                if (Array.isArray(data.events) && data.events.length) {
+                    sections.push(`<div class="search-box-section"><div class="search-box-section-title">Notes</div>` +
+                        data.events.map(n => `
+                            <div class="search-box-item" data-kind="event" data-event='${esc(JSON.stringify(n))}'>
+                              <div class="search-box-item-thumb"><i class="bi bi-chat-square-text"></i></div>
+                              <div class="search-box-item-main">
+                                <div class="search-box-item-title">${esc((n.content || "").slice(0, 80))}</div>
+                                <div class="search-box-item-sub"><code>${esc((n.pubkey || "").slice(0, 12))}…</code></div>
+                              </div>
+                            </div>`).join("") + `</div>`);
+                }
+
+                if (!sections.length) return renderEmpty();
+                results.innerHTML = sections.join("");
+                results.classList.remove("d-none");
+            } catch (e) {
+                if (e.name !== "AbortError") console.error("search-box fetch failed", e);
+            }
+        };
+
+        input.addEventListener("input", () => {
+            const q = input.value.trim();
+            if (debounceId) clearTimeout(debounceId);
+            if (q.length < 2) { hide(); lastQuery = q; return; }
+            if (q === lastQuery) return;
+            lastQuery = q;
+            debounceId = setTimeout(() => run(q), 250);
+        });
+
+        input.addEventListener("focus", () => { if (input.value.trim().length >= 2) results.classList.remove("d-none"); });
+        document.addEventListener("click", e => {
+            if (!box.contains(e.target)) hide();
+        });
+
+        results.addEventListener("click", e => {
+            const item = e.target.closest(".search-box-item");
+            if (!item) return;
+            const kind = item.dataset.kind;
+            if (kind === "user") {
+                window.location.href = `/u/${item.dataset.hex}`;
+            } else if (kind === "media") {
+                const fileInfo = {
+                    filename: item.dataset.filename,
+                    url: item.dataset.url,
+                    mimetype: item.dataset.mime,
+                    type: item.dataset.mime,
+                    hash: item.dataset.hash,
+                    sha256: item.dataset.hash,
+                    original_hash: item.dataset.hash,
+                    blurhash: item.dataset.blurhash,
+                    dimensions: item.dataset.dim,
+                    dim: item.dataset.dim,
+                    pubkey: item.dataset.pubkey,
+                    visibility: 1,
+                };
+                hide();
+                if (typeof initMediaModal === "function") initMediaModal(item.dataset.filename, undefined, 1, false, fileInfo);
+            } else if (kind === "event") {
+                hide();
+                try { window.openEventModal(JSON.parse(item.dataset.event)); } catch (err) { console.error("openEventModal failed", err); }
+            }
+        });
+    });
+});
+
 // Smooth scroll and offset by 200px
 function smoothScroll(target, duration) {
 
@@ -183,6 +328,50 @@ const getParticles = (selectElement) => {
     }
 }
 getParticles();
+
+// theme.css is injected async by head.ejs so getComputedStyle('--particles')
+// can be empty on the first call → particles preset falls back to "None" (0
+// particles, blank canvas). On `load` the stylesheet is guaranteed parsed;
+// if the first call left an empty canvas, destroy and re-init.
+window.addEventListener("load", () => {
+    const cssParticles = getComputedStyle(document.documentElement).getPropertyValue('--particles').trim();
+    const drewParticles = Array.isArray(window.pJSDom)
+        && window.pJSDom[0]?.pJS?.particles?.array?.length > 0;
+    if (!cssParticles || drewParticles) return;
+    if (Array.isArray(window.pJSDom)) {
+        window.pJSDom.forEach(inst => { try { inst?.pJS?.fn?.vendors?.destroypJS?.(); } catch (e) { /* ignore */ } });
+        window.pJSDom = [];
+    }
+    const div = document.getElementById("particles-js");
+    if (div) div.innerHTML = "";
+    getParticles();
+}, { once: true });
+
+// bfcache restore: lib's internal state doesn't survive cleanly, full reload.
+window.addEventListener("pageshow", (event) => {
+    if (event.persisted) location.reload();
+});
+
+// Global hotkeys: Ctrl/Cmd+K, Ctrl/Cmd+F and `/` open the navbar search.
+// Capture phase + stopPropagation so we beat the browser's own bindings
+// (Ctrl+K focuses the address bar, Ctrl+F opens find-in-page). F3 still
+// works as a native fallback for users who want browser find.
+window.addEventListener("keydown", (e) => {
+    const isCmdK = (e.key === "k" || e.key === "K") && (e.ctrlKey || e.metaKey);
+    const isCmdF = (e.key === "f" || e.key === "F") && (e.ctrlKey || e.metaKey);
+    const target = e.target;
+    const inField = target.matches && target.matches("input, textarea, [contenteditable='true']");
+    const isSlash = e.key === "/" && !inField && !e.ctrlKey && !e.metaKey && !e.altKey;
+    if (!isCmdK && !isCmdF && !isSlash) return;
+
+    const li = document.getElementById("navbar-search-li");
+    if (!li) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const toggle = li.querySelector('[data-bs-toggle="dropdown"]');
+    if (!toggle) return;
+    bootstrap.Dropdown.getOrCreateInstance(toggle).show();
+}, { capture: true });
 
 /**
  * 

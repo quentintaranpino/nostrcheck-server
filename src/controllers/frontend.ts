@@ -15,6 +15,21 @@ import path from "path";
 import { getDomains } from "../lib/domains.js";
 import { isNIP98Valid } from "../lib/nostr/NIP98.js";
 import { sitemapPages } from "../interfaces/frontend.js";
+import { initRedis } from "../lib/redis/client.js";
+import { getFileUrl } from "../lib/media.js";
+
+const homeFeedCache = async <T>(key: string, ttl: number, loader: () => Promise<T>): Promise<T> => {
+	try {
+		const redis = await initRedis();
+		const cached = await redis.getJSON<T>(key);
+		if (cached !== null) return cached;
+		const fresh = await loader();
+		await redis.set(key, JSON.stringify(fresh), { EX: ttl });
+		return fresh;
+	} catch {
+		return loader();
+	}
+};
 
 const loadDashboardPage = async (req: Request, res: Response, version:string): Promise<Response | void> => {
 
@@ -350,12 +365,68 @@ const loadHomePage = async (req: Request, res: Response, version:string): Promis
     res.locals.pageSubtitle = replaceTokens(req.hostname, getConfig(req.hostname, ["appearance", "pages", page, "pageSubtitle"]));
     res.locals.serverPubkey = await hextoNpub(getConfig(req.hostname, ["server", "pubkey"]));
 
+    // Guest dashboard data, per-section Redis cache.
+    const hostKey = req.hostname || "default";
+    const mediaEnabled = isModuleEnabled("media", req.hostname);
+    const relayEnabled = isModuleEnabled("relay", req.hostname);
+    const registerEnabled = isModuleEnabled("register", req.hostname);
+
+    const [stats, recentMedia, recentUsers, recentNotes] = await Promise.all([
+        homeFeedCache(`home:${hostKey}:stats`, 120, async () => {
+            const users = registerEnabled
+                ? Number(await dbSelect("SELECT COUNT(*) AS c FROM registered WHERE active = 1", "c", []) || 0)
+                : 0;
+            const files = mediaEnabled
+                ? Number(await dbSelect("SELECT COUNT(*) AS c FROM mediafiles WHERE active = 1 AND visibility = 1 AND checked = 1", "c", []) || 0)
+                : 0;
+            const bytes = mediaEnabled
+                ? Number(await dbSelect("SELECT COALESCE(SUM(filesize), 0) AS s FROM mediafiles WHERE active = 1 AND visibility = 1 AND checked = 1", "s", []) || 0)
+                : 0;
+            const eventsTotal = relayEnabled
+                ? Number(await dbSelect("SELECT COUNT(*) AS c FROM events WHERE active = 1", "c", []) || 0)
+                : 0;
+            return { users, files, bytes, eventsTotal };
+        }),
+        mediaEnabled ? homeFeedCache(`home:${hostKey}:media`, 60, async () => {
+            const rows = await dbMultiSelect(
+                ["id", "filename", "hash", "mimetype", "dimensions", "blurhash", "pubkey"],
+                "mediafiles",
+                "active = '1' AND visibility = '1' AND checked = '1' AND original_hash IS NOT NULL ORDER BY id DESC LIMIT 16",
+                [], false);
+            return rows.map((r: any) => ({
+                ...r,
+                url: getFileUrl(r.filename, "", req.hostname),
+                ext: (r.filename || "").toString().toLowerCase().split(".").pop() || "",
+            }));
+        }) : Promise.resolve([]),
+        registerEnabled ? homeFeedCache(`home:${hostKey}:users`, 120, async () => {
+            return await dbMultiSelect(
+                ["username", "domain", "hex"],
+                "registered",
+                "active = '1' ORDER BY id DESC LIMIT 8",
+                [], false);
+        }) : Promise.resolve([]),
+        relayEnabled ? homeFeedCache(`home:${hostKey}:notes`, 30, async () => {
+            return await dbMultiSelect(
+                ["event_id", "pubkey", "created_at", "content"],
+                "events",
+                "active = '1' AND kind = '1' ORDER BY id DESC LIMIT 5",
+                [], false);
+        }) : Promise.resolve([]),
+    ]);
+
+    res.locals.homeStats = stats;
+    res.locals.homeMedia = recentMedia;
+    res.locals.homeUsers = recentUsers;
+    res.locals.homeNotes = recentNotes;
+    res.locals.homeFlags = { media: mediaEnabled, relay: relayEnabled, register: registerEnabled };
+
     // Set auth cookie
     setAuthCookie(res, req.cookies.authkey);
 
     // Check admin privileges. Only for information, never used for authorization
     req.session.allowed = await isPubkeyAllowed(req.session.identifier);
-    
+
     res.render(page +".ejs", {request: req});
 };
 
@@ -858,6 +929,46 @@ const loadSitemap = async (req: Request, res: Response): Promise<void> => {
     res.send(sitemap);
 };
 
+const unifiedSearch = async (req: Request, res: Response): Promise<Response | void> => {
+
+    const reqInfo = await isIpAllowed(req);
+    if (reqInfo.banned) return res.status(403).send({status:"error", message:reqInfo.comments});
+    if (!isModuleEnabled("frontend", req.hostname)) return res.status(403).send({status:"error", message:"Module is not enabled"});
+
+    const q = (req.query.q || "").toString().trim();
+    if (q.length < 2 || q.length > 64) return res.json({ users: [], media: [], events: [] });
+
+    const mediaEnabled = isModuleEnabled("media", req.hostname);
+    const relayEnabled = isModuleEnabled("relay", req.hostname);
+    const registerEnabled = isModuleEnabled("register", req.hostname);
+    const like = `%${q.replace(/[%_]/g, c => "\\" + c)}%`;
+    const hostKey = req.hostname || "default";
+
+    const result = await homeFeedCache(`search:${hostKey}:${q.toLowerCase()}`, 30, async () => {
+        const [users, media, events] = await Promise.all([
+            registerEnabled
+                ? dbMultiSelect(["username", "domain", "hex"], "registered",
+                    "active = 1 AND username LIKE ? ORDER BY id DESC LIMIT 8",
+                    [like], false)
+                : Promise.resolve([]),
+            mediaEnabled
+                ? dbMultiSelect(["id", "filename", "hash", "mimetype", "dimensions", "blurhash", "pubkey"], "mediafiles",
+                    "active = 1 AND visibility = 1 AND checked = 1 AND original_hash IS NOT NULL AND filename LIKE ? ORDER BY id DESC LIMIT 8",
+                    [like], false)
+                : Promise.resolve([]),
+            relayEnabled
+                ? dbMultiSelect(["event_id", "pubkey", "created_at", "content"], "events",
+                    "active = 1 AND kind = '1' AND content LIKE ? ORDER BY id DESC LIMIT 5",
+                    [like], false)
+                : Promise.resolve([]),
+        ]);
+        const mediaWithUrl = (media as any[]).map(m => ({ ...m, url: getFileUrl(m.filename, "", req.hostname) }));
+        return { users, media: mediaWithUrl, events };
+    });
+
+    return res.json(result);
+};
+
 export {loadDashboardPage, 
         loadSettingsPage, 
         loadMdPage, 
@@ -874,5 +985,6 @@ export {loadDashboardPage,
         loadRelayPage,
         loadResource,
         loadTheme,
-        loadSitemap
+        loadSitemap,
+        unifiedSearch
     };

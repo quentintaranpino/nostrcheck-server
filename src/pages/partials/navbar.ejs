@@ -33,8 +33,9 @@
   @media (max-width: 994.98px) {
     #profile-dropdown {
       position: absolute;
-      right: 85;
-      top: 10;
+      right: 85px;
+      top: 50%;
+      transform: translateY(-50%);
     }
     #profile-dropdown .navbar-nav {
       display: flex;
@@ -43,22 +44,34 @@
     #profile-dropdown .navbar-nav .dropdown-menu {
       position: absolute;
     }
-  
   }
 
 </style>
-<nav class="navbar sticky-top navbar-expand-lg ps-3 pe-3 shadow-lg">
+<nav class="navbar sticky-top navbar-expand-lg ps-3 pe-3 py-1 shadow-lg">
   <a class="navbar-brand" href="/">
     <img id="server-logo" src="/static/resources/appearance-server-logo-light.png" 
-    alt='Server logo' 
-    width='180' 
-    height='61'>
+    alt='Server logo'
+    width='130'
+    height='44'>
   </a>
   <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#server-navbar" aria-controls="server-navbar" aria-expanded="false" aria-label="Toggle navigation">
     <span class="navbar-toggler-icon"></span>
   </button>
   <div id="profile-dropdown">
     <ul class="navbar-nav ms-auto align-items-center">
+      <li id="navbar-search-li" class="nav-item dropdown d-none d-lg-flex">
+        <button class="nav-link px-2" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false" aria-label="Search" title="Search (Ctrl+K · Ctrl+F · /)">
+          <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+        </button>
+        <div class="dropdown-menu dropdown-menu-end p-2" style="width: 320px;">
+          <%- include('../components/search-box', { boxClass: 'search-box-navbar', size: 'input-group-sm', placeholder: 'Search users, media, notes…' }); %>
+        </div>
+      </li>
+      <script>
+        document.getElementById("navbar-search-li")?.addEventListener("shown.bs.dropdown", () => {
+          document.querySelector("#navbar-search-li .search-box-input")?.focus();
+        });
+      </script>
       <li class="nav-item">
         <a id="nav-update-rocket" class="nav-link d-none position-relative" href="" target="_blank" title="New update available">
           <i class="fas fa-rocket color-pulse rotate-up"></i><span class="visually-hidden">New update available</span>
@@ -68,13 +81,13 @@
         <span class='dropdown-item'><%- include('../components/theme-toggle'); %></span>
       </li>
       <li class="d-none d-lg-flex">
-        <button 
-          class="nav-link" 
-          type="button" 
-          aria-controls="intro" 
-          aria-selected="false" 
-          aria-label="Upload file" 
-          onclick="initUploaderModal();" 
+        <button
+          class="nav-link"
+          type="button"
+          aria-controls="intro"
+          aria-selected="false"
+          aria-label="Upload file"
+          onclick="initUploaderModal();"
           >
           <span class="fs-2">
             <i class="bi bi-cloud-arrow-up-fill" aria-hidden="true"></i>
@@ -105,9 +118,6 @@
   </div>  
   <div class="collapse navbar-collapse" id="server-navbar">
     <ul class="nav navbar-nav">
-      <li>
-        <a <% if(active === 'home'){ %><%- "class='nav-link active'"%><% } else { %><%- "class='nav-link'"%><%}%> href="/">HOME <span class="sr-only">(current)</span></a>
-      </li>
       <li id="registerMenu">
         <a <% if(active === 'register'){ %><%- "class='nav-link active'"%><% } else { %><%- "class='nav-link'"%><%}%> href="/register">REGISTER <span class="sr-only">(current)</span></a>
       </li>

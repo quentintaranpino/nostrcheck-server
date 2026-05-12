@@ -3,26 +3,232 @@
 <link rel="stylesheet" href="/static/css/particles.css">
 <body class="d-flex flex-column h-100">
   <%- include('./partials/navbar', {active:'home'}); %>
-  <div class="background-theme h-100">
-    <div class="container px-4 px-lg-5 d-flex h-100 align-items-center justify-content-center">
-        <div class="d-flex justify-content-center">
-            <div class="text-center z-1">
-                <h1 class="text-white mx-auto my-0 text-uppercase gradien display-4"><%= locals.pageTitle || "Welcome to " + locals.serverHost %></h1>
-                <h2 class="text-white-50 mx-auto mt-1 mb-4 display-6"><%= locals.pageSubtitle || "Be sovereign over your data" %></h2>
-                <p class="text-white-50 mx-auto mt-2 mb-1"> Contact: <a class="text-white-50 text-decoration-none" href="https://nostrcheck.me/u/<%- locals.serverPubkey %>"><%- locals.serverPubkey.toString().substring(0, 15) + ":" + locals.serverPubkey.toString().substring(locals.serverPubkey.toString().length - 15) %></a></p>
-                <p  class="text-white mx-auto mt-2 mb-4">By using our services you agree the <a class="text-white link-offset-1 link-underline-opacity-25" href='tos'>Terms of Service</a></p>
-                <a class="btn btn-primary" href="/api/v2/register"><i class="bi bi-person-plus-fill"></i> Claim your username</a>
-            </div>
+  <div class="background-theme flex-grow-1 home-page">
+
+    <div id="particles-js"></div>
+
+    <section class="home-hero position-relative">
+      <div class="container px-4 px-lg-5 position-relative z-1 py-3 py-lg-4">
+        <h1 class="text-white mx-auto my-0 text-uppercase gradien display-4"><%= locals.pageTitle || "Welcome to " + locals.serverHost %></h1>
+        <h2 class="text-white-50 mx-auto mt-1 mb-4 display-6"><%= locals.pageSubtitle || "Be sovereign over your data" %></h2>
+
+        <div class="home-stats text-white-50 small mb-1">
+          <% if (locals.homeFlags.register) { %><span><strong class="text-white"><%= locals.homeStats.users.toLocaleString() %></strong> users</span><% } %>
+          <% if (locals.homeFlags.media) { %><span><strong class="text-white"><%= locals.homeStats.files.toLocaleString() %></strong> files</span><% } %>
+          <% if (locals.homeFlags.media && locals.homeStats.bytes > 0) {
+              const b = Number(locals.homeStats.bytes);
+              let v, u;
+              if (b >= 1073741824) { v = (b / 1073741824).toFixed(1); u = "GB"; }
+              else if (b >= 1048576) { v = (b / 1048576).toFixed(1); u = "MB"; }
+              else { v = (b / 1024).toFixed(0); u = "KB"; }
+          %><span><strong class="text-white"><%= v %></strong> <%= u %></span><% } %>
+          <% if (locals.homeFlags.relay) { %><span><strong class="text-white"><%= locals.homeStats.eventsTotal.toLocaleString() %></strong> events</span><% } %>
         </div>
+        <div class="text-white-50 small mb-3">
+          admin <a class="text-white text-decoration-none text-break" href="/u/<%= locals.serverPubkey %>" data-shorten-hex="<%= locals.serverPubkey %>" data-shorten-prefix="16" data-shorten-suffix="8"><%= locals.serverPubkey %></a>
+        </div>
+
+        <div class="mb-2">
+          <%- include('./components/search-box', { boxClass: 'search-box-hero', size: 'shadow-sm', placeholder: 'Search users, media, notes…' }); %>
+        </div>
+
+        <div class="d-flex flex-wrap gap-2 mt-3">
+          <% if (request.session.identifier) { %>
+            <% if (request.session.allowed) { %>
+              <a class="btn btn-primary" href="/dashboard"><i class="bi bi-speedometer2 me-1"></i> Dashboard</a>
+            <% } %>
+            <a class="btn btn-primary" href="/profile"><i class="bi bi-person me-1"></i> Profile</a>
+            <% if (locals.homeFlags.media) { %>
+              <button class="btn btn-primary" type="button" onclick="initUploaderModal();"><i class="bi bi-cloud-arrow-up me-1"></i> Upload</button>
+            <% } %>
+          <% } else { %>
+            <% if (locals.homeFlags.register) { %>
+              <a class="btn btn-primary" href="/api/v2/register"><i class="bi bi-person-plus-fill me-1"></i> Claim your username</a>
+            <% } %>
+            <% if (locals.homeFlags.media) { %>
+              <a class="btn btn-primary" href="/gallery"><i class="bi bi-images me-1"></i> Browse gallery</a>
+            <% } %>
+            <a class="btn btn-primary" href="/login"><i class="bi bi-box-arrow-in-right me-1"></i> Log in</a>
+          <% } %>
+        </div>
+
+        <p class="text-white-50 small mt-3 mb-0">
+          By using our services you agree to our <a class="text-white text-decoration-underline" href="/tos">Terms of Service</a>.
+        </p>
+      </div>
+    </section>
+
+    <div class="container-fluid px-0 home-panels position-relative">
+      <div class="container px-4 px-lg-5 py-4">
+
+      <% if (locals.homeFlags.media && locals.homeMedia.length > 0) { %>
+      <% const hasSTL = locals.homeMedia.some(m => (m.ext || "") === "stl"); %>
+      <section class="mb-4">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <h5 class="m-0">Recent media</h5>
+          <a href="/gallery" class="small text-decoration-none">Open gallery →</a>
+        </div>
+        <div class="home-media-strip">
+          <% for (const m of locals.homeMedia) { %>
+            <% const mime = (m.mimetype || ""); const ext = (m.ext || ""); %>
+            <% const isImg = ["webp","gif","jpg","jpeg","png","avif"].includes(ext) || mime.startsWith("image/"); %>
+            <% const isVid = ["mp4","mov","webm"].includes(ext) || mime.startsWith("video/"); %>
+            <% const isAud = ["mp3","ogg","wav","m4a","flac"].includes(ext) || mime.startsWith("audio/"); %>
+            <% const isStl = ext === "stl"; %>
+            <div class="home-media-tile" role="button" tabindex="0" title="<%= mime || ext %>"
+                 data-filename="<%= m.filename %>"
+                 data-url="<%= m.url %>"
+                 data-mime="<%= mime %>"
+                 data-hash="<%= m.hash %>"
+                 data-blurhash="<%= m.blurhash || '' %>"
+                 data-dim="<%= m.dimensions || '' %>"
+                 data-pubkey="<%= m.pubkey || '' %>">
+              <% if (isImg) { %>
+                <img loading="lazy" decoding="async" src="<%= m.url %>" alt="">
+              <% } else if (isVid) { %>
+                <video preload="metadata" muted playsinline loop><source src="<%= m.url %>" type="<%= mime %>"></video>
+              <% } else if (isStl) { %>
+                <canvas class="home-stl" data-stl-url="<%= m.url %>" id="home-stl-<%= m.id %>"></canvas>
+              <% } else if (isAud) { %>
+                <span class="home-media-icon"><i class="bi bi-music-note-beamed"></i></span>
+              <% } else { %>
+                <span class="home-media-icon"><i class="bi bi-file-earmark"></i></span>
+              <% } %>
+            </div>
+          <% } %>
+        </div>
+      </section>
+      <% } %>
+
+      <% if (locals.homeFlags.register && locals.homeUsers.length > 0) { %>
+      <section class="mb-4">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <h5 class="m-0">Recent users</h5>
+          <a href="/directory" class="small text-decoration-none">Open directory →</a>
+        </div>
+        <div class="home-user-grid">
+          <% for (const u of locals.homeUsers) { %>
+            <a href="/api/v2/profile/<%= u.hex %>" class="home-user-card">
+              <div class="home-user-avatar"><%= (u.username || "?").substring(0,1).toUpperCase() %></div>
+              <div class="home-user-name text-truncate"><%= u.username %></div>
+              <div class="home-user-domain text-truncate small text-muted">@<%= u.domain %></div>
+            </a>
+          <% } %>
+        </div>
+      </section>
+      <% } %>
+
+      <% if (locals.homeFlags.relay && locals.homeNotes.length > 0) { %>
+      <section class="mb-4">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <h5 class="m-0">Recent notes</h5>
+          <a href="/relay" class="small text-decoration-none">Open relay →</a>
+        </div>
+        <div class="home-notes">
+          <% for (const n of locals.homeNotes) { %>
+            <div class="home-note" role="button" tabindex="0" data-event='<%= JSON.stringify(n).replace(/'/g, "&#39;") %>'>
+              <div class="home-note-meta small text-muted">
+                <code><%= (n.pubkey || "").substring(0,12) %>…</code>
+                · <span data-relative-ts="<%= n.created_at %>"></span>
+              </div>
+              <div class="home-note-body"><%= (n.content || "").substring(0, 240) %><%= (n.content && n.content.length > 240) ? "…" : "" %></div>
+            </div>
+          <% } %>
+        </div>
+      </section>
+      <% } %>
+
+      </div>
     </div>
   </div>
-  <div id="particles-js"></div> 
+
   <%- include('./partials/footer', {active:'home'}); %>
   <%- include('./components/modals/message-modal', {"object":"firstUse"}); %>
+  <%- include('./components/modals/media-modal'); %>
+  <%- include('./components/modals/event-modal'); %>
+
+  <style>
+    .home-page { display: flex; flex-direction: column; }
+    .home-hero { min-height: 40vh; display: flex; align-items: center; }
+    /* Solid bg so the fixed particles canvas doesn't leak through. */
+    .home-panels { background: var(--bs-body-bg, #fff); }
+    [data-bs-theme="dark"] .home-panels { background: #1c1f24; }
+    .home-stats { display: flex; flex-wrap: wrap; gap: 1.25rem; align-items: baseline; }
+    /* Search box CSS lives in style.css so navbar + hero share it. */
+
+    .home-media-strip { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+    @media (min-width: 768px) { .home-media-strip { grid-template-columns: repeat(8, 1fr); } }
+    .home-media-tile { aspect-ratio: 1 / 1; background: #1d1f23; border-radius: 6px; overflow: hidden; display: flex; align-items: center; justify-content: center; color: #888; position: relative; cursor: pointer; }
+    .home-media-tile img, .home-media-tile video, .home-media-tile canvas { width: 100%; height: 100%; object-fit: cover; display: block; }
+    /* So clicks bubble to the tile (videos/STL canvas would otherwise eat them). */
+    .home-media-tile > * { pointer-events: none; }
+    .home-media-tile .home-media-icon { font-size: 2rem; opacity: 0.6; }
+
+    .home-user-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
+    .home-user-card { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 12px 8px; text-align: center; color: inherit; text-decoration: none; border: 1px solid rgba(128,128,128,0.2); border-radius: 8px; transition: transform 0.15s, border-color 0.15s; }
+    .home-user-card:hover { transform: translateY(-2px); border-color: rgba(165, 117, 255, 0.6); }
+    .home-user-avatar { width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(135deg, #a575ff, #6f4eaa); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 600; }
+    .home-user-name { font-weight: 500; max-width: 100%; }
+
+    .home-notes { display: flex; flex-direction: column; gap: 8px; }
+    .home-note { padding: 10px 12px; border: 1px solid rgba(128,128,128,0.2); border-radius: 6px; cursor: pointer; transition: border-color 0.15s; }
+    .home-note:hover { border-color: rgba(165, 117, 255, 0.6); }
+    .home-note-body { white-space: pre-wrap; word-break: break-word; margin-top: 4px; }
+  </style>
+
+  <script>
+    if ("<%= locals.firstUse %>" != undefined && "<%= locals.firstUse %>" != null && "<%= locals.firstUse %>" != "") {
+      initMessageModal("#firstUse", "<%- locals.firstUse %>", "Welcome to your sovereignty");
+    }
+
+    document.querySelectorAll("[data-relative-ts]").forEach(el => {
+      const ts = Number(el.dataset.relativeTs);
+      if (!ts) return;
+      const diff = Math.floor(Date.now() / 1000) - ts;
+      let label;
+      if (diff < 60) label = diff + "s ago";
+      else if (diff < 3600) label = Math.floor(diff / 60) + "m ago";
+      else if (diff < 86400) label = Math.floor(diff / 3600) + "h ago";
+      else label = Math.floor(diff / 86400) + "d ago";
+      el.textContent = label;
+    });
+
+    document.querySelectorAll(".home-media-tile").forEach(tile => {
+      const open = () => {
+        const fileInfo = {
+          filename: tile.dataset.filename,
+          url: tile.dataset.url,
+          mimetype: tile.dataset.mime,
+          type: tile.dataset.mime,
+          hash: tile.dataset.hash,
+          sha256: tile.dataset.hash,
+          original_hash: tile.dataset.hash,
+          blurhash: tile.dataset.blurhash,
+          dimensions: tile.dataset.dim,
+          dim: tile.dataset.dim,
+          pubkey: tile.dataset.pubkey,
+          visibility: 1,
+        };
+        if (typeof initMediaModal === "function") {
+          initMediaModal(tile.dataset.filename, undefined, 1, false, fileInfo);
+        }
+      };
+      tile.addEventListener("click", open);
+      tile.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(); } });
+    });
+
+    document.querySelectorAll(".home-stl[data-stl-url]").forEach(c => {
+      const parent = c.parentElement;
+      if (!parent.id) parent.id = c.id + "-container";
+      if (typeof init3dViewer === "function") init3dViewer(c.id, parent.id, c.dataset.stlUrl);
+    });
+
+    document.querySelectorAll(".home-note[data-event]").forEach(el => {
+      const open = () => { try { window.openEventModal(JSON.parse(el.dataset.event)); } catch (e) { console.error("openEventModal failed", e); } };
+      el.addEventListener("click", open);
+      el.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(); } });
+    });
+
+  </script>
 </body>
-<script>
-  if ("<%= locals.firstUse %>" != undefined && "<%= locals.firstUse %>" != null && "<%= locals.firstUse %>" != "") {
-    initMessageModal("#firstUse", "<%- locals.firstUse %>", "Welcome to your sovereignty");
-  }
-</script>
 </html>

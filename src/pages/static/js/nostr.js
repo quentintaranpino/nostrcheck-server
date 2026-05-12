@@ -23,7 +23,7 @@ const getRelaysFromUser = async (publicKey) => {
     try {
       const subscription = pool.subscribeMany(
         relays.map(relay => relay.url),
-        [{ kinds: [10002, 10050], authors: [publicKey] }],
+        { kinds: [10002, 10050], authors: [publicKey] },
         {
           maxWait: 5000,
           async onevent(event) {
@@ -193,7 +193,7 @@ const publishProfileData = async (updatedFields, publicKey, secretKey) => {
     try {
       const subscription = pool.subscribeMany(
         relays.map(relay => relay.url),
-        [{ kinds: [0], authors: [publicKey] }],
+        { kinds: [0], authors: [publicKey] },
         {
           maxWait: 5000,
           async onevent(event) {
@@ -373,7 +373,7 @@ const subscribeRelays = async (kind, pubkeys, type, since, until) => {
     try {
       const subscription = pool.subscribeMany(
         userRelays.length > 0 ? userRelays.map(relay => relay.url) : relays.map(relay => relay.url),
-        [filter],
+        filter,
         {
           maxWait: 5000,
           async onevent(event) {

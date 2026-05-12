@@ -1,12 +1,12 @@
 import { Application } from "express";
 import express from "express";
 
-import { 	loadDashboardPage, 
-			loadSettingsPage, 
-			loadMdPage, 
-			loadDocsPage, 
-			loadLoginPage, 
-			loadHomePage, 
+import { 	loadDashboardPage,
+			loadSettingsPage,
+			loadMdPage,
+			loadDocsPage,
+			loadLoginPage,
+			loadHomePage,
 			loadProfilePage,
 			loadGalleryPage,
 			loadRegisterPage,
@@ -15,6 +15,7 @@ import { 	loadDashboardPage,
 			loadResource,
 			loadTheme,
 			loadSitemap,
+			unifiedSearch,
 		} from "../controllers/frontend.js";
 import { frontendLogin } from "../controllers/frontend.js";
 import { logger } from "../lib/logger.js";
@@ -150,6 +151,9 @@ export const loadFrontendEndpoint = async (app: Application, version: string): P
 
 	// Dynamic themes
 	app.get("/static/css/theme.css", limiter(), loadTheme);
+
+	// Unified search (users + media + events)
+	app.get(`/api/${version}/search`, limiter(), unifiedSearch);
 
 
 	// Logout
