@@ -9,8 +9,8 @@
 
     <section class="home-hero position-relative">
       <div class="container px-4 px-lg-5 position-relative z-1 py-3 py-lg-4">
-        <h1 class="text-white mx-auto my-0 text-uppercase gradien display-4"><%= locals.pageTitle || "Welcome to " + locals.serverHost %></h1>
-        <h2 class="text-white-50 mx-auto mt-1 mb-3 display-6"><%= locals.pageSubtitle || "Be sovereign over your data" %></h2>
+        <h1 class="text-white mx-auto my-0 text-uppercase gradien display-5"><%= locals.pageTitle || "Welcome to " + locals.serverHost %></h1>
+        <h2 class="text-white-50 mx-auto mt-1 mb-3 fs-3 fw-light"><%= locals.pageSubtitle || "Be sovereign over your data" %></h2>
 
         <div class="home-stats text-white-50 small mb-1">
           <% if (locals.homeFlags.register) { %><span><strong class="text-white"><%= locals.homeStats.users.toLocaleString() %></strong> users</span><% } %>
@@ -46,7 +46,7 @@
               <a class="btn btn-primary" href="/api/v2/register"><i class="bi bi-person-plus-fill me-1"></i> Get your verified npub</a>
             <% } %>
             <% if (locals.homeFlags.media) { %>
-              <a class="btn btn-primary" href="/gallery"><i class="bi bi-images me-1"></i> Explore community blobs</a>
+              <a class="btn btn-primary" href="/gallery"><i class="bi bi-images me-1"></i> Explore gallery</a>
             <% } %>
             <a class="btn btn-primary" href="/login"><i class="bi bi-box-arrow-in-right me-1"></i> Sign in with Nostr</a>
           <% } %>
@@ -133,7 +133,7 @@
       <% const hasSTL = locals.homeMedia.some(m => (m.ext || "") === "stl"); %>
       <section class="mb-4">
         <div class="d-flex justify-content-between align-items-center mb-2">
-          <h5 class="m-0">Recent media</h5>
+          <h5 class="m-0">Recent files</h5>
           <a href="/gallery" class="small text-decoration-none">Open gallery →</a>
         </div>
         <div class="home-media-strip">
