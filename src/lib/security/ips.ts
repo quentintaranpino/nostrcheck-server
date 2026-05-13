@@ -3,7 +3,7 @@ import { Request } from "express";
 import { IncomingMessage } from "http";
 import net from "net";
 
-import { dbUpdate, dbMultiSelect, dbUpsert, dbDelete } from "../database/core.js";
+import { connect, dbUpdate, dbMultiSelect, dbUpsert, dbDelete } from "../database/core.js";
 import { logger } from "../logger.js";
 
 import { banEntity, isEntityBanned } from "./banned.js";
@@ -237,23 +237,23 @@ const isIpAllowed = async (req: Request | IncomingMessage | string, maxRequestMi
     const banned = await isEntityBanned(dbid, "ips");
     if (banned) return { ip: ip, reqcount: Number(reqcount), banned: true, domainId: clientDomain, domain: host, comments: "banned ip" };
 
-    // Abuse prevention. If the IP has made too many requests in a short period of time, it will be rate-limited and possibly banned.
+    // Abuse prevention. Only the initial-burst check (high rate during the first
+    // 15 seconds of an IP's life). The legacy lifetime counter `reqcount >
+    // maxRequestMinute` was removed because reqcount is monotonic and poisons
+    // any shared-egress IP (VPNs, mobile carriers, CF WARP) over time.
     const diff = Number(lastseen) - Number(firstseen);
-    if (((diff < 15 && lastseen !== firstseen) && Number(reqcount) > (maxRequestMinute / 3)) || Number(reqcount) > maxRequestMinute) {
+    if (diff < 15 && lastseen !== firstseen && Number(reqcount) > (maxRequestMinute / 3)) {
 
         logger.debug(`isIpAllowed - Possible abuse detected from IP: ${ip} | Infraction count: ${infractions}, reqcount: ${reqcount}`);
 
-        // Update infractions and ban it for 30 seconds
+        // Update infractions and rate-limit (soft) for 30 seconds
         await redisCore.hashSet(`ips:${ip}`, { infractions: Number(infractions) + 1 }, getConfig(null, ["redis", "expireTime"]));
-        
+
         await redisCore.set(`banned:ips:${dbid}`, JSON.stringify("1"), { EX: 30 });
 
-        if (!infractions) {
-            logger.info(`isIpAllowed - Banning IP due to repeated abuse: ${ip}`);
-            return { ip: ip, reqcount: Number(reqcount), banned: true, domainId: clientDomain, domain: host, comments: `rate-limited: slow down there chief (${infractions} infractions)` };
-        }
-
-        if (Number(infractions) > 50) {
+        // Permanent ban threshold bumped 50 -> 500. Real abusers will still
+        // cross it; legit users behind shared exits won't.
+        if (Number(infractions) > 500) {
             logger.info(`isIpAllowed - Banning IP due to repeated abuse: ${ip}`);
             await banEntity(Number(dbid), "ips", `Abuse prevention, reqcount: ${reqcount}, infractions: ${infractions}`);
             return { ip: ip, reqcount: Number(reqcount), banned: true, domainId: clientDomain, domain: host, comments: `banned due to repeated abuse (${infractions} infractions)` };
@@ -367,6 +367,22 @@ const cleanupIps = async () => {
                 );
             }
             logger.info(`cleanupIps - Removed ${idsToDelete.length} stale IP entries`);
+        }
+
+        // Auto-decay: any IP idle 24h+ has its abuse reputation reset. Lets
+        // shared-egress IPs (VPNs, WARP, mobile carriers) recover after a
+        // quiet period instead of being poisoned forever.
+        try {
+            const decayCutoff = now - 86400000; // 24h
+            const pool = await connect("cleanupIps decay");
+            const [result]: any = await pool.execute(
+                "UPDATE ips SET reqcount = 0, infractions = 0 WHERE lastseen < ? AND (reqcount > 0 OR infractions > 0) AND checked = 0",
+                [decayCutoff]
+            );
+            const decayed = result?.affectedRows || 0;
+            if (decayed > 0) logger.info(`cleanupIps - Decayed reqcount/infractions on ${decayed} idle IPs`);
+        } catch (err) {
+            logger.error(`cleanupIps - decay step failed: ${err}`);
         }
 
     } catch (error) {
