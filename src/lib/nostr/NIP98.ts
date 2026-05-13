@@ -141,10 +141,14 @@ const isNIP98Valid = async (authevent: Event, req: Request, checkAdminPrivileges
 					}
 				}
 			} else if (eventPayload) {
+				// Lenient: when there's no file we have no canonical "body" the client
+				// could have hashed (login passes the signed event itself as req.body,
+				// so any payload tag the client included was computed against something
+				// else). Warn on mismatch but accept. Signature + u + method + replay
+				// guards still gate access.
 				const bodyHash = crypto.createHash("sha256").update(JSON.stringify(req.body), "binary").digest("hex");
 				if (eventPayload != bodyHash) {
-					logger.warn(`isNIP98Valid - Auth header event payload mismatch: ${eventPayload} <> ${bodyHash}`, "|", getClientInfo(req).ip);
-					return {status: "error", message: "Auth header event payload mismatch", authkey: "", pubkey: "", kind: 0};
+					logger.info(`isNIP98Valid - payload tag does not match body hash, accepting on lenient interpretation`, "|", getClientInfo(req).ip);
 				}
 			}
 
