@@ -70,6 +70,18 @@
       <%= required ? "required" : "" %>
       <%= shouldDisable ? "disabled" : "" %> >
 
+  <% } else if (type === "textarea") { %>
+    <textarea
+      class="<%= inputClass %>"
+      name="<%= name %>"
+      id="<%= name %>"
+      rows="<%= locals.rows || 3 %>"
+      data-default-value="<%= effectiveValue %>"
+      data-global-value="<%= globalValue %>"
+      placeholder="<%= placeholder %>"
+      <%= required ? "required" : "" %>
+      <%= shouldDisable ? "disabled" : "" %>><%= effectiveValue %></textarea>
+
   <% } else if (type === "password") { %>
     <div class="input-group">
       <input 

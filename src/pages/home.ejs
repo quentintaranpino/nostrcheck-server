@@ -11,6 +11,9 @@
       <div class="container px-4 px-lg-5 position-relative z-1 py-3 py-lg-4">
         <h1 class="text-white mx-auto my-0 text-uppercase gradien display-5"><%= locals.pageTitle || "Welcome to " + locals.serverHost %></h1>
         <h2 class="text-white-50 mx-auto mt-1 mb-3 fs-3 fw-light"><%= locals.pageSubtitle || "Be sovereign over your data" %></h2>
+        <% if (locals.intro && locals.intro.trim()) { %>
+        <p class="text-white-50 mt-0 mb-3" style="max-width: 720px;"><%= locals.intro %></p>
+        <% } %>
 
         <div class="home-stats text-white-50 small mb-1">
           <% if (locals.homeFlags.register) { %><span><strong class="text-white"><%= locals.homeStats.users.toLocaleString() %></strong> users</span><% } %>

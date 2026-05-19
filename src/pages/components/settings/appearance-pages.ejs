@@ -239,6 +239,18 @@
         placeholder: "Be sovereign over your data",
         required: true
     }) %>
+
+    <%- include('field', {
+        type: "textarea",
+        name: "appearance.pages.home.intro",
+        label: "Intro paragraph",
+        description: "Plain-text paragraph rendered under the hero subtitle. Write 2-3 factual sentences describing what your instance offers — this is what crawlers and AI assistants read to understand your service.",
+        value: cfg.pages.home.intro,
+        globalValue: globalCfg.pages.home.intro,
+        placeholder: "Public Nostr server: relay, identity verification, NIP-96 and Blossom media hosting. Free to use, fully self-hostable, open source.",
+        rows: 4,
+        overridable: true
+    }) %>
     </div>
     <!-- Login -->
     <div class="tab-pane fade" id="appearance-login-tab-content" role="tabpanel" aria-labelledby="appearance-login-tab-content">

@@ -363,7 +363,7 @@ const loadHomePage = async (req: Request, res: Response, version:string): Promis
     res.locals.serverHost = getConfig(req.hostname, ["server", "host"]);
     res.locals.siteName = getConfig(req.hostname, ["appearance", "siteName"]) || res.locals.serverHost;
     res.locals.title = replaceTokens(req.hostname, getConfig(req.hostname, ["appearance", "pages", page, "title"]));
-    res.locals.description = replaceTokens(req.hostname, getConfig(req.hostname, ["appearance", "pages", page, "description"]));
+    res.locals.description = replaceTokens(req.hostname, getConfig(req.hostname, ["appearance", "pages", page, "description"]) || "");
     res.locals.noindex = getConfig(req.hostname, ["appearance", "pages", page, "noindex"]);
     res.locals.socialImage = getConfig(req.hostname, ["appearance", "pages", page, "socialImage"]) || getConfig(req.hostname, ["appearance", "socialImage"]);
 
@@ -371,6 +371,9 @@ const loadHomePage = async (req: Request, res: Response, version:string): Promis
     res.locals.pageTitle = replaceTokens(req.hostname, getConfig(req.hostname, ["appearance", "pages", page, "pageTitle"]));
     res.locals.pageSubtitle = replaceTokens(req.hostname, getConfig(req.hostname, ["appearance", "pages", page, "pageSubtitle"]));
     res.locals.serverPubkey = await hextoNpub(getConfig(req.hostname, ["server", "pubkey"]));
+
+    // Narrative paragraph rendered under the hero subtitle. Optional
+    res.locals.intro = replaceTokens(req.hostname, getConfig(req.hostname, ["appearance", "pages", page, "intro"]) || "");
 
     // Guest dashboard data, per-section Redis cache.
     const hostKey = req.hostname || "default";

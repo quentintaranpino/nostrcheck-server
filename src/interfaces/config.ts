@@ -308,6 +308,7 @@ const defaultConfig = {
 							"noindex": false,
 							"pageTitle" : "",
 							"pageSubtitle" : "",
+							"intro": "",
 			},
 			"login":    { 	"title": "{server.host} — Login",
 							"description": "",

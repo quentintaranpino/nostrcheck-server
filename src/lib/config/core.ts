@@ -46,7 +46,12 @@ const initGlobalConfig = async (): Promise<void> => {
 };
 
 const deepMerge = (base: any, override: any): any => {
-  if (typeof base !== 'object' || base === null) return override;
+  // For primitives, empty string in override means "inherit from base".
+  // Without this a stale empty tenant value wipes out a populated global value.
+  if (typeof base !== 'object' || base === null) {
+    if (override === undefined || override === null || override === "") return base;
+    return override;
+  }
   if (typeof override !== 'object' || override === null) return base;
 
   const result: any = Array.isArray(base) ? [...base] : { ...base };
