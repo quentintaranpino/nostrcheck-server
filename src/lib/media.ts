@@ -321,55 +321,66 @@ const standardMediaConversion = (filedata : FileData , file:Express.Multer.File)
 }
 
 const getMediaDimensions = async (file: string, fileData: { originalmime: string }): Promise<{ width: number; height: number }> => {
-	
-    if (file === "" || fileData === undefined) {
+
+	if (file === "" || fileData === undefined) {
 		logger.error(`getMediaDimensions - Error processing file: file or fileData is empty`);
-        return { width: 640, height: 480 };
-    }
-
-    if (!fileData.originalmime.startsWith("image") && !fileData.originalmime.startsWith("video")) return { width: 0, height: 0 };
-
-	try {
-		if (fileData.originalmime.startsWith("image")) {
-
-			const { info } = await sharp(file, { limitInputPixels: getConfig(null, ["media", "maxInputPixels"]) })
-				.rotate()
-				.toBuffer({ resolveWithObject: true });
-			
-			logger.debug(`getMediaDimensions - Image info: ${info.width}x${info.height}`);
-		
-			return { width: info.width, height: info.height };
-
-		} else {
-			ffmpeg.ffprobe(file, (err, metadata) => {
-				if (err) {
-					logger.debug(`getMediaDimensions - Error getting media dimensions of file: ${file}, using defaults (640 x 480)`);
-					return { width: 640, height: 480 };
-				} else {
-					const videoStream = metadata.streams.find(stream => stream.codec_type === 'video');
-					if (videoStream) {
-
-						let width = videoStream?.width || 640;
-						let height = videoStream?.height || 480;
-						const rotation = videoStream?.rotation || "0";
-				
-						if (rotation === "-90" || rotation === "90") [width, height] = [height, width];
-					
-						return { width, height };
-
-					} else {
-						logger.debug(`getMediaDimensions - Could not get media dimensions of file: ${file}, using defaults (640 x 480)`);
-						return { width: 640, height: 480 };
-					}
-				}
-			});
-		}
-	} catch (error) {
-		logger.error(`getMediaDimensions - Error processing file: ${error}`);
 		return { width: 640, height: 480 };
 	}
 
-	return { width: 640, height: 480 };
+	if (!fileData.originalmime.startsWith("image") && !fileData.originalmime.startsWith("video")) return { width: 0, height: 0 };
+
+	return new Promise<{ width: number; height: number }>((resolve) => {
+		(async () => {
+			try {
+				if (fileData.originalmime.startsWith("image")) {
+
+					const { info } = await sharp(file, { limitInputPixels: getConfig(null, ["media", "maxInputPixels"]) })
+						.rotate()
+						.toBuffer({ resolveWithObject: true });
+
+					logger.debug(`getMediaDimensions - Image info: ${info.width}x${info.height}`);
+					resolve({ width: info.width, height: info.height });
+					return;
+				}
+
+				ffmpeg.ffprobe(file, (err, metadata) => {
+					if (err) {
+						logger.debug(`getMediaDimensions - Error getting media dimensions of file: ${file}, using defaults (640 x 480): ${err}`);
+						resolve({ width: 640, height: 480 });
+						return;
+					}
+
+					const videoStream = metadata.streams.find(stream => stream.codec_type === 'video');
+					if (!videoStream) {
+						logger.debug(`getMediaDimensions - Could not get media dimensions of file: ${file}, using defaults (640 x 480)`);
+						resolve({ width: 640, height: 480 });
+						return;
+					}
+
+					let width = videoStream.width || 640;
+					let height = videoStream.height || 480;
+
+					// Rotation metadata may live on the stream itself, on `tags.rotate`,
+					// or on the displaymatrix side_data depending on muxer/encoder.
+					const rot = String(
+						(videoStream as any).rotation ??
+						videoStream.tags?.rotate ??
+						(videoStream.side_data_list?.[0] as any)?.rotation ??
+						0
+					);
+					if (rot === "90" || rot === "-90" || rot === "270" || rot === "-270") {
+						[width, height] = [height, width];
+					}
+
+					logger.debug(`getMediaDimensions - Video info: ${width}x${height} rotation=${rot}`);
+					resolve({ width, height });
+				});
+			} catch (error) {
+				logger.error(`getMediaDimensions - Error processing file: ${error}`);
+				resolve({ width: 640, height: 480 });
+			}
+		})();
+	});
 };
 
 const setMediaDimensions = async (file:string, options:FileData):Promise<string> => {
