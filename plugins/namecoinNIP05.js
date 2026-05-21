@@ -16,7 +16,7 @@
 // UI / config file (the plugin loader writes `enabled: false` on first
 // discovery; flip it to `true` to activate).
 
-import { resolveNamecoinNIP05, isNamecoinIdentifier } from "../dist/lib/nostr/NIP05Namecoin.js";
+import { resolveNamecoinNIP05, isNamecoinIdentifier } from "./namecoinNIP05.lib.js";
 
 function plugin() {
     return {

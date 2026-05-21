@@ -10,7 +10,7 @@ import {
     parseIdentifier,
     parseNameUpdateScript,
     resolveNamecoinNIP05,
-} from "./NIP05Namecoin.js";
+} from "./namecoinNIP05.lib.js";
 
 const PK1 = "460c25e682fda7832b52d1f22d3d22b3176d972f60dcdc3212ed8c92ef85065c";
 const PK2 = "6cdebcca8b8b9f5e1ab3b3aa1d2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8091a2";
@@ -39,9 +39,7 @@ describe("isNamecoinIdentifier", () => {
         expect(parseIdentifier("d/")).toBeNull();
         expect(parseIdentifier("id/")).toBeNull();
         expect(parseIdentifier(".bit")).toBeNull();
-        // non-string is rejected at the type guard
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        expect(isNamecoinIdentifier(null as any)).toBe(false);
+        expect(isNamecoinIdentifier(null)).toBe(false);
     });
 });
 
@@ -53,50 +51,50 @@ describe("parseIdentifier", () => {
     it("parses user@domain.bit", () => {
         const addr = parseIdentifier("alice@example.bit");
         expect(addr).not.toBeNull();
-        expect(addr!.namecoinName).toBe("d/example");
-        expect(addr!.namespace).toBe("d/example");
-        expect(addr!.localPart).toBe("alice");
-        expect(addr!.isDomain).toBe(true);
+        expect(addr.namecoinName).toBe("d/example");
+        expect(addr.namespace).toBe("d/example");
+        expect(addr.localPart).toBe("alice");
+        expect(addr.isDomain).toBe(true);
     });
 
     it("parses bare domain.bit", () => {
         const addr = parseIdentifier("example.bit");
-        expect(addr!.namecoinName).toBe("d/example");
-        expect(addr!.localPart).toBe("_");
-        expect(addr!.isDomain).toBe(true);
+        expect(addr.namecoinName).toBe("d/example");
+        expect(addr.localPart).toBe("_");
+        expect(addr.isDomain).toBe(true);
     });
 
     it("parses d/<name>", () => {
         const addr = parseIdentifier("d/example");
-        expect(addr!.namecoinName).toBe("d/example");
-        expect(addr!.localPart).toBe("_");
-        expect(addr!.isDomain).toBe(true);
+        expect(addr.namecoinName).toBe("d/example");
+        expect(addr.localPart).toBe("_");
+        expect(addr.isDomain).toBe(true);
     });
 
     it("parses id/<name>", () => {
         const addr = parseIdentifier("id/alice");
-        expect(addr!.namecoinName).toBe("id/alice");
-        expect(addr!.localPart).toBe("_");
-        expect(addr!.isDomain).toBe(false);
+        expect(addr.namecoinName).toBe("id/alice");
+        expect(addr.localPart).toBe("_");
+        expect(addr.isDomain).toBe(false);
     });
 
     it("strips a leading nostr: prefix", () => {
         const addr = parseIdentifier("nostr:alice@example.bit");
-        expect(addr!.namecoinName).toBe("d/example");
-        expect(addr!.localPart).toBe("alice");
+        expect(addr.namecoinName).toBe("d/example");
+        expect(addr.localPart).toBe("alice");
     });
 
     it("is case-insensitive", () => {
         const addr = parseIdentifier("ALICE@EXAMPLE.BIT");
-        expect(addr!.namecoinName).toBe("d/example");
-        expect(addr!.localPart).toBe("alice");
+        expect(addr.namecoinName).toBe("d/example");
+        expect(addr.localPart).toBe("alice");
     });
 
     it("normalises empty local-part to _", () => {
         const addr = parseIdentifier("@example.bit");
         expect(addr).not.toBeNull();
-        expect(addr!.localPart).toBe("_");
-        expect(addr!.namecoinName).toBe("d/example");
+        expect(addr.localPart).toBe("_");
+        expect(addr.namecoinName).toBe("d/example");
     });
 
     it("rejects garbage / non-bit DNS / empty namespaces", () => {
@@ -117,8 +115,8 @@ describe("extractPubkeyFromNamecoinValue", () => {
         const value = `{ "nostr": "${PK1}" }`;
         const r = extractPubkeyFromNamecoinValue(value, "_");
         expect(r).not.toBeNull();
-        expect(r!.pubkey).toBe(PK1);
-        expect(r!.relays).toBeUndefined();
+        expect(r.pubkey).toBe(PK1);
+        expect(r.relays).toBeUndefined();
     });
 
     it("rejects the simple form when a local-part is requested", () => {
@@ -135,14 +133,14 @@ describe("extractPubkeyFromNamecoinValue", () => {
         });
         const r = extractPubkeyFromNamecoinValue(value, "alice");
         expect(r).not.toBeNull();
-        expect(r!.pubkey).toBe(PK2);
-        expect(r!.relays).toEqual(["wss://relay.example.com"]);
+        expect(r.pubkey).toBe(PK2);
+        expect(r.relays).toEqual(["wss://relay.example.com"]);
     });
 
     it("falls back to the _ root entry when the local-part is missing", () => {
         const value = JSON.stringify({ nostr: { names: { _: PK1 } } });
         const r = extractPubkeyFromNamecoinValue(value, "ghost");
-        expect(r!.pubkey).toBe(PK1);
+        expect(r.pubkey).toBe(PK1);
     });
 
     it("falls back to the first valid pubkey only when the caller asked for _", () => {
@@ -151,7 +149,7 @@ describe("extractPubkeyFromNamecoinValue", () => {
         expect(extractPubkeyFromNamecoinValue(value, "ghost")).toBeNull();
         // when asking for the root, the first valid hex is fine
         const r = extractPubkeyFromNamecoinValue(value, "_");
-        expect(r!.pubkey).toBe(PK1);
+        expect(r.pubkey).toBe(PK1);
     });
 
     it("supports the identity-namespace pubkey field", () => {
@@ -159,14 +157,14 @@ describe("extractPubkeyFromNamecoinValue", () => {
             nostr: { pubkey: PK1, relays: ["wss://relay.example.com"] },
         });
         const r = extractPubkeyFromNamecoinValue(value, "_");
-        expect(r!.pubkey).toBe(PK1);
-        expect(r!.relays).toEqual(["wss://relay.example.com"]);
+        expect(r.pubkey).toBe(PK1);
+        expect(r.relays).toEqual(["wss://relay.example.com"]);
     });
 
     it("tolerates a nostr: prefix on the local-part", () => {
         const value = JSON.stringify({ nostr: { names: { alice: PK1 } } });
         const r = extractPubkeyFromNamecoinValue(value, "nostr:alice");
-        expect(r!.pubkey).toBe(PK1);
+        expect(r.pubkey).toBe(PK1);
     });
 
     it("returns null on missing or non-hex nostr fields", () => {
@@ -201,7 +199,7 @@ describe("name index script + scripthash", () => {
 
     it("round-trips parseNameUpdateScript with a small value", () => {
         // OP_NAME_UPDATE push("d/example") push("{}") OP_2DROP OP_DROP <addr>
-        const parts: number[] = [];
+        const parts = [];
         parts.push(0x53);
         parts.push(9);
         parts.push(..."d/example".split("").map((c) => c.charCodeAt(0)));
@@ -211,8 +209,8 @@ describe("name index script + scripthash", () => {
         parts.push(0x76, 0xa9, 0x14, 0xde, 0xad, 0xbe, 0xef);
         const decoded = parseNameUpdateScript(Buffer.from(parts));
         expect(decoded).not.toBeNull();
-        expect(decoded!.name.toString("utf8")).toBe("d/example");
-        expect(decoded!.value.toString("utf8")).toBe("{}");
+        expect(decoded.name.toString("utf8")).toBe("d/example");
+        expect(decoded.value.toString("utf8")).toBe("{}");
     });
 
     it("rejects garbage scripts", () => {
@@ -267,12 +265,8 @@ const integration = process.env.NOSTRCHECK_NAMECOIN_INTEGRATION === "1";
 
 describe.skipIf(!integration)("resolveNamecoinNIP05 — live ElectrumX (integration)", () => {
     it("resolves a known .bit identity", async () => {
-        // Set NOSTRCHECK_NAMECOIN_INTEGRATION=1 and provide your own
-        // identifier here when running the integration suite locally.
         const id = process.env.NOSTRCHECK_NAMECOIN_TEST_ID ?? "d/test";
         const r = await resolveNamecoinNIP05(id, { connectTimeoutMs: 8000, readTimeoutMs: 12000 });
-        // We don't assert success — the public network may be offline; the
-        // suite is here to provide a manual smoke check, not a guarantee.
         expect(r === null || typeof r === "object").toBe(true);
     });
 });
