@@ -91,6 +91,27 @@ See configuration [here](https://github.com/quentintaranpino/nostrcheck-server/w
 
 See plugins [here](https://github.com/quentintaranpino/nostrcheck-server/wiki/Plugins)
 
+#### NIP-05 over Namecoin (`.bit`) — optional
+
+The bundled `namecoinNIP05` plugin lets each NIP-05 registrar also act as a
+Namecoin (`.bit`) registrar with zero Namecoin expertise required. It is
+**opt-in** and **disabled by default** — like every other plugin, it appears
+in the plugins config UI / config file on first discovery with
+`enabled: false`, and operators enable it from there.
+
+When enabled the plugin verifies that the pubkey owns the `.bit` NIP-05 they
+claim. It queries public Namecoin ElectrumX servers over TCP+TLS (pinned
+trust store, no extra npm dependencies) and matches the on-chain `nostr`
+value against the pubkey's published kind-0 metadata. Operators that prefer
+to run their own ElectrumX server can override the default server list in
+the plugin source.
+
+`namecoinNIP05` **does not replace** the existing `activeNIP05` DNS check;
+the two compose. Each identifier is either a DNS NIP-05 or a `.bit` NIP-05,
+so the two plugins are mutually exclusive on a per-pubkey basis: non-`.bit`
+identifiers pass through `namecoinNIP05` unchanged, leaving the DNS verdict
+to `activeNIP05`. Spec draft: [nostr-protocol/nips#2349](https://github.com/nostr-protocol/nips/pull/2349).
+
 ### Multi tenancy
 
 See multi-tenancy [here](https://github.com/quentintaranpino/nostrcheck-server/wiki/Multi-tenancy)
