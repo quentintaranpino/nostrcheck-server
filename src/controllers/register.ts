@@ -8,7 +8,7 @@ import { registerFormResult } from "../interfaces/register.js";
 import { dbDelete, dbUpdate } from "../lib/database/core.js";
 import { validateInviteCode } from "../lib/invitations.js";
 import { calculateSatoshi, checkTransaction } from "../lib/payments/core.js";
-import { amountReturnMessage, Transaction } from "../interfaces/payments.js";
+import { Transaction } from "../interfaces/payments.js";
 import { setAuthCookie } from "../lib/frontend.js";
 import { isIpAllowed } from "../lib/security/ips.js";
 import { getConfig, isModuleEnabled } from "../lib/config/core.js";
@@ -235,75 +235,69 @@ const validateRegisterOTC = async (req: Request, res: Response): Promise<Respons
 }
 
 
-const calculateRegisterCost = async (req: Request, res: Response): Promise<Response> => {
+const checkUsernameAvailable = async (req: Request, res: Response): Promise<Response> => {
 
-    // Check if the request IP is allowed
+	// Check if the request IP is allowed
 	const reqInfo = await isIpAllowed(req);
 	if (reqInfo.banned == true) {
-		logger.info(`calculateRegisterCost - Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
-		return res.status(403).send({"status": "error", "message": reqInfo.comments});
+		return res.status(403).send({status: "error", message: reqInfo.comments});
 	}
 
-	const domain = req.body.domain || "";
-		if (domain == null || domain == "" || domain == undefined) {
-		logger.info(`calculateRegisterCost - 400 Bad request - Domain not provided`, "|", reqInfo.ip);
-		return res.status(400).send({status: "error", message: "Domain not provided"});
+	// Resolve target domain. Optional ?domain= lets registerform check availability/price
+	// for a tenant different from the one serving the page; fall back to req.hostname for
+	// the home widget. Unknown domains collapse to req.hostname to avoid config leaks.
+	let domain = (req.query.domain as string || req.hostname).toLowerCase().trim();
+	try {
+		const domains = await getDomains();
+		if (!domains[domain]) domain = req.hostname;
+	} catch {
+		domain = req.hostname;
 	}
 
-    // Check if payments module is enabled
-    if (!isModuleEnabled("payments", domain)) {
-        logger.info(`calculateRegisterCost - Attempt to access a non-active module: payments | IP:`, reqInfo.ip);
-		const result : amountReturnMessage = {
-			status: "success",
-			message: "Payments module is disabled for this domain",
-			amount: 0
-        };
-		return res.status(200).send(result);
-    }
-	// Check if current module is enabled
-	if (!isModuleEnabled("register", req.hostname)) {
-        logger.info(`calculateRegisterCost - Attempt to access a non-active module: register | IP:`, reqInfo.ip);
-        return res.status(403).send({"status": "error", "message": "Module is not enabled"});
-    }
-
-    logger.info(`calculateRegisterCost - Request from:`, req.hostname, "|", reqInfo.ip);
-    res.setHeader('Content-Type', 'application/json');
-
-    // Check if the request has the required parameters
-    if (req.body.size === undefined || req.body.size === null) {
-        const result : ResultMessagev2 = {
-            status: "error",
-            message: "Invalid parameters"
-            };
-        logger.error(`calculateRegisterCost - Invalid parameters | ${reqInfo.ip}`);
-        return res.status(400).send(result);
-    }
-
-    let size = req.body.size;
-
-	if (size == null || size == "" || size == undefined || size < 1) {
-		size = getConfig(domain, ["register","minUsernameLength"]);
+	if (!isModuleEnabled("register", domain)) {
+		return res.status(403).send({status: "error", message: "Module is not enabled"});
 	}
 
-	const satoshi = await calculateSatoshi(
-		domain,
-		"reversed",
-		size,
-		getConfig(domain, ["register","minUsernameLength"]),
-		getConfig(domain, ["register","maxUsernameLength"]),
-		getConfig(domain, ["payments", "satoshi", "registerMaxSatoshi"]),
-	)
+	const name = (req.query.name as string || "").toLowerCase().trim();
+	if (name === "") {
+		return res.status(400).send({status: "error", available: false, reason: "Username not provided"});
+	}
 
-    const result : amountReturnMessage = {
-        status: "success",
-        message: "Calculated satoshi successfully",
-        amount: satoshi
-        };
+	// Character set must match the registerform server-side rule.
+	if (!/^[a-z0-9_-]+$/.test(name)) {
+		return res.status(200).send({status: "success", available: false, reason: "Invalid characters"});
+	}
 
-    logger.info(`calculateRegisterCost - Calculated satoshi successfully: ${satoshi}, size: ${size}, domain: ${domain} | ${reqInfo.ip}`);
-    return res.status(200).send(result);
-    
-}
+	// Per-domain length limits 
+	const minLen = Number(getConfig(domain, ["register","minUsernameLength"]) || 1);
+	const maxLen = Number(getConfig(domain, ["register","maxUsernameLength"]) || 64);
+	if (name.length < minLen) {
+		return res.status(200).send({status: "success", available: false, reason: `Too short (min ${minLen})`});
+	}
+	if (name.length > maxLen) {
+		return res.status(200).send({status: "success", available: false, reason: `Too long (max ${maxLen})`});
+	}
 
+	const available = await isUsernameAvailable(name, domain);
 
-export { registerUsername, validateRegisterOTC, calculateRegisterCost };
+	let price: number | null = null;
+	const maxSats = Number(getConfig(domain, ["payments", "satoshi", "registerMaxSatoshi"]) || 0);
+	if (isModuleEnabled("payments", domain) && maxSats > 0) {
+		try {
+			price = await calculateSatoshi(
+				domain,
+				"reversed",
+				name.length,
+				getConfig(domain, ["register","minUsernameLength"]),
+				getConfig(domain, ["register","maxUsernameLength"]),
+				maxSats,
+			);
+		} catch (e) {
+			logger.error(`checkUsernameAvailable - calculateSatoshi failed for ${name}@${domain}`, e);
+		}
+	}
+
+	return res.status(200).send({status: "success", available, name, domain, price});
+};
+
+export { registerUsername, validateRegisterOTC, checkUsernameAvailable };

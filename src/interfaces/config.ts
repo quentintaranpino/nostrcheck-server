@@ -364,7 +364,10 @@ const defaultConfig = {
 			},
 			"relay":     { 	"title": "{server.host} — Relay",
 							"description": "",
-							"noindex": false
+							"noindex": false,
+							"pageTitle" : "",
+							"pageSubtitle" : "",
+							"intro": "",
 			}
 		}
 	}

@@ -711,5 +711,36 @@
         globalValue: globalCfg.pages.relay.noindex,
         overridable: true
       }) %>
+      <%- include('field', {
+        type: "text",
+        name: "appearance.pages.relay.pageTitle",
+        label: "Page title",
+        description: "Displayed in the relay hero as the main heading.",
+        value: cfg.pages.relay.pageTitle,
+        globalValue: globalCfg.pages.relay.pageTitle,
+        placeholder: "{server.host} relay",
+        required: false
+      }) %>
+      <%- include('field', {
+        type: "text",
+        name: "appearance.pages.relay.pageSubtitle",
+        label: "Page subtitle",
+        description: "Tagline shown under the hero heading.",
+        value: cfg.pages.relay.pageSubtitle,
+        globalValue: globalCfg.pages.relay.pageSubtitle,
+        placeholder: "Latest public notes from the community",
+        required: false
+      }) %>
+      <%- include('field', {
+        type: "textarea",
+        name: "appearance.pages.relay.intro",
+        label: "Intro paragraph",
+        description: "Plain-text paragraph rendered under the hero subtitle. Describe the relay (NIPs supported, write policy, anything operator-specific) — this is what crawlers and AI assistants read.",
+        value: cfg.pages.relay.intro,
+        globalValue: globalCfg.pages.relay.intro,
+        placeholder: "An open Nostr relay supporting the major NIPs. Open to read for anyone; publishing requires a registered Nostr address. Self-hostable and open source.",
+        rows: 4,
+        overridable: true
+      }) %>
     </div>
 </div>

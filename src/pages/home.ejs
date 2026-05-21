@@ -8,11 +8,11 @@
     <div id="particles-js"></div>
 
     <section class="home-hero position-relative">
-      <div class="container px-4 px-lg-5 position-relative z-1 py-3 py-lg-4">
-        <h1 class="text-white mx-auto my-0 text-uppercase gradien display-5"><%= locals.pageTitle || "Welcome to " + locals.serverHost %></h1>
-        <h2 class="text-white-50 mx-auto mt-1 mb-3 fs-3 fw-light"><%= locals.pageSubtitle || "Be sovereign over your data" %></h2>
+      <div class="container px-4 px-lg-5 position-relative z-1 pt-3 pt-lg-4 pb-1 pb-lg-2">
+        <h1 class="text-white mx-auto my-0 text-uppercase gradien display-5"><%= locals.pageTitle || locals.serverHost %></h1>
+        <h2 class="text-white-50 mx-auto mt-1 mb-3 fs-3 fw-light"><%= locals.pageSubtitle || "Self-hosted Nostr server" %></h2>
         <% if (locals.intro && locals.intro.trim()) { %>
-        <p class="text-white-50 mt-0 mb-3" style="max-width: 720px;"><%= locals.intro %></p>
+        <p class="text-white-50 mt-0 mb-3" style="max-width: 820px;"><%= locals.intro %></p>
         <% } %>
 
         <div class="home-stats text-white-50 small mb-1">
@@ -27,8 +27,8 @@
           %><span><strong class="text-white"><%= v %></strong> <%= u %></span><% } %>
           <% if (locals.homeFlags.relay) { %><span><strong class="text-white"><%= locals.homeStats.eventsTotal.toLocaleString() %></strong> events</span><% } %>
         </div>
-        <div class="text-white-50 small mb-3">
-          operator <a class="text-white text-decoration-none text-break" href="/u/<%= locals.serverPubkey %>" data-shorten-hex="<%= locals.serverPubkey %>" data-shorten-prefix="16" data-shorten-suffix="8"><%= locals.serverPubkey %></a>
+        <div class="text-white-50 small mb-3" style="opacity: 0.7;">
+          operator <a class="text-white-50 text-decoration-none text-break" href="/u/<%= locals.serverPubkey %>" data-shorten-hex="<%= locals.serverPubkey %>" data-shorten-prefix="16" data-shorten-suffix="8"><%= locals.serverPubkey %></a>
         </div>
 
         <div class="mb-2">
@@ -44,20 +44,13 @@
             <% if (locals.homeFlags.media) { %>
               <button class="btn btn-primary" type="button" onclick="initUploaderModal();"><i class="bi bi-cloud-arrow-up me-1"></i> Upload</button>
             <% } %>
-          <% } else { %>
-            <% if (locals.homeFlags.register) { %>
-              <a class="btn btn-primary" href="/api/v2/register"><i class="bi bi-person-plus-fill me-1"></i> Get your verified npub</a>
-            <% } %>
-            <% if (locals.homeFlags.media) { %>
-              <a class="btn btn-primary" href="/gallery"><i class="bi bi-images me-1"></i> Explore gallery</a>
-            <% } %>
-            <a class="btn btn-primary" href="/login"><i class="bi bi-box-arrow-in-right me-1"></i> Sign in with Nostr</a>
+          <% } else if (locals.homeFlags.media) { %>
+            <a class="btn btn-primary" href="/gallery"><i class="bi bi-images me-1"></i> Explore gallery</a>
           <% } %>
-          <a class="btn btn-outline-light" href="https://github.com/quentintaranpino/nostrcheck-server" target="_blank" rel="noopener"><i class="fa-brands fa-github me-1"></i> Self-host this</a>
         </div>
 
         <p class="text-white-50 small mt-3 mb-0">
-          By using our services you agree to our <a class="text-white text-decoration-underline" href="/tos">Terms of Service</a>.
+          <a class="text-white text-decoration-underline" href="https://github.com/quentintaranpino/nostrcheck-server" target="_blank" rel="noopener">Self-host this</a> · By using our services you agree to our <a class="text-white text-decoration-underline" href="/tos">Terms of Service</a>.
         </p>
       </div>
     </section>
@@ -81,9 +74,22 @@
           <% if (locals.homeFlags.register) { %>
           <div class="home-quickstart-step">
             <span class="home-step-badge">2</span>
-            <div>
-              <div class="fw-semibold small">Get a verified npub</div>
-              <div class="small text-muted">Claim your name@<%= locals.serverHost %>. <a class="btn btn-primary btn-sm py-0 px-2 align-baseline ms-1" href="/api/v2/register">Register</a></div>
+            <div class="flex-grow-1 home-claim-widget">
+              <div class="fw-semibold small">Get a Nostr address</div>
+              <div class="small text-muted mb-2">Your NIP-05 address, recognized across Nostr clients.</div>
+              <% if (!request.session.identifier) { %>
+              <div class="input-group input-group-sm">
+                <input type="text" class="form-control" id="home-claim-username" placeholder="username" aria-label="Username" autocomplete="off" maxlength="64" spellcheck="false">
+                <span class="input-group-text px-2">@</span>
+                <select class="form-select" id="home-claim-domain" aria-label="Domain">
+                  <option value="<%= locals.serverHost %>" selected><%= locals.serverHost %></option>
+                </select>
+                <button class="btn btn-primary" type="button" id="home-claim-btn" disabled>Claim it</button>
+              </div>
+              <div id="home-claim-feedback" class="mt-1 text-muted" style="min-height: 1.1rem; font-size: 0.75rem; opacity: 0.85; padding-left: 3px;"></div>
+              <% } else { %>
+              <a class="btn btn-primary btn-sm py-0 px-2 align-baseline" href="/api/v2/register">Claim it</a>
+              <% } %>
             </div>
           </div>
           <% } %>
@@ -104,7 +110,6 @@
       <section class="mb-4">
         <div class="d-flex justify-content-between align-items-center mb-2">
           <h5 class="m-0">Connect</h5>
-          <span class="small text-muted">Paste in your Nostr client</span>
         </div>
         <div class="home-endpoints">
           <% if (endpoints.relay) { %>
@@ -259,6 +264,17 @@
     .home-endpoint:hover { border-color: rgba(165, 117, 255, 0.6); background: rgba(165, 117, 255, 0.06); }
     .home-endpoint-label { font-size: 0.75rem; font-weight: 600; text-transform: uppercase; color: #888; min-width: 70px; flex-shrink: 0; }
     .home-endpoint-url { flex: 1; min-width: 0; word-break: break-all; font-size: 0.85rem; color: var(--bs-body-color); background: none; padding: 0; }
+
+    /* Claim widget lives inside Quickstart step 2: username input + domain selector +
+       Claim button, with live availability feedback (no price — that shows up later
+       in the register flow). */
+    .home-claim-widget #home-claim-domain { font-weight: 500; max-width: 10rem; }
+    .home-claim-widget #home-claim-domain:focus { box-shadow: none; }
+    .home-claim-widget #home-claim-feedback { line-height: 1.4; }
+    .home-claim-widget #home-claim-feedback .spinner-border-sm { width: 0.85rem; height: 0.85rem; vertical-align: -0.15em; }
+    @media (max-width: 575px) {
+      .home-claim-widget #home-claim-domain { font-size: 0.85rem; max-width: 8rem; }
+    }
   </style>
 
   <script>
@@ -353,6 +369,123 @@
       } catch (err) {
         console.debug("home recent users metadata fetch failed", err);
       }
+    })();
+
+    // Claim widget: live username availability + price (when payments enabled).
+    (function() {
+      const input = document.getElementById("home-claim-username");
+      const btn = document.getElementById("home-claim-btn");
+      const feedback = document.getElementById("home-claim-feedback");
+      const domainSelect = document.getElementById("home-claim-domain");
+      if (!input || !btn || !feedback || !domainSelect) return;
+
+      let lastKey = "";
+      let debounceTimer = null;
+      let inFlight = null;
+
+      // Populate the domain select from /api/v2/domains so visitors can change tenants
+      // before claiming. The current hostname stays preselected; if the fetch fails the
+      // single hardcoded option (server hostname) is kept.
+      (async () => {
+        try {
+          const res = await fetch("/api/v2/domains");
+          const data = await res.json();
+          if (!data || !data.availableDomains) return;
+          const currentHost = window.location.hostname;
+          const fragment = document.createDocumentFragment();
+          let hasCurrent = false;
+          Object.keys(data.availableDomains).forEach(domain => {
+            const option = document.createElement("option");
+            option.value = domain;
+            option.text = domain;
+            if (domain === currentHost) { option.selected = true; hasCurrent = true; }
+            fragment.appendChild(option);
+          });
+          domainSelect.innerHTML = "";
+          domainSelect.appendChild(fragment);
+          if (!hasCurrent && domainSelect.options.length > 0) domainSelect.options[0].selected = true;
+        } catch (err) {
+          console.debug("home claim: domain load failed, keeping default", err);
+        }
+      })();
+
+      const setState = (state, message) => {
+        // Preserve inline styles (font-size, opacity, padding) — only swap colour class.
+        feedback.classList.remove("text-muted", "text-success", "text-danger", "text-warning");
+        btn.disabled = state !== "available";
+        if (state === "idle") {
+          feedback.innerHTML = "";
+          feedback.classList.add("text-muted");
+        } else if (state === "checking") {
+          feedback.innerHTML = "Checking…";
+          feedback.classList.add("text-muted");
+        } else if (state === "available") {
+          feedback.innerHTML = "Available";
+          feedback.classList.add("text-success");
+        } else if (state === "taken") {
+          feedback.innerHTML = "Already taken";
+          feedback.classList.add("text-danger");
+        } else if (state === "invalid") {
+          feedback.innerHTML = message || "Invalid characters";
+          feedback.classList.add("text-warning");
+        } else if (state === "error") {
+          feedback.innerHTML = "Check failed, try again";
+          feedback.classList.add("text-warning");
+        }
+      };
+
+      const check = async (value, domain) => {
+        if (inFlight) { try { inFlight.abort(); } catch (e) {} }
+        const controller = new AbortController();
+        inFlight = controller;
+        setState("checking");
+        try {
+          const res = await fetch("/api/v2/register/available?name=" + encodeURIComponent(value) + "&domain=" + encodeURIComponent(domain), { signal: controller.signal });
+          const data = await res.json();
+          if (value !== input.value.trim().toLowerCase() || domain !== domainSelect.value) return;
+          // The endpoint is the single source of truth: available=true → green;
+          // available=false with a reason → show the reason verbatim; available=false
+          // without reason → name is taken.
+          if (data.available === true) {
+            setState("available");
+          } else if (data.reason) {
+            setState("invalid", data.reason);
+          } else {
+            setState("taken");
+          }
+        } catch (err) {
+          if (err.name === "AbortError") return;
+          console.debug("claim check failed", err);
+          setState("error");
+        }
+      };
+
+      const triggerCheck = (immediate) => {
+        const value = input.value.trim().toLowerCase();
+        const domain = domainSelect.value;
+        const key = value + "|" + domain;
+        if (key === lastKey) return;
+        lastKey = key;
+        if (debounceTimer) clearTimeout(debounceTimer);
+        // Empty input → idle. Anything else (including too-short) hits the backend so
+        // the per-domain limit error message comes from the single source of truth.
+        if (value.length === 0) { setState("idle"); return; }
+        const run = () => check(value, domain);
+        if (immediate) run(); else debounceTimer = setTimeout(run, 400);
+      };
+
+      input.addEventListener("input", () => triggerCheck(false));
+      domainSelect.addEventListener("change", () => triggerCheck(true));
+
+      const claim = () => {
+        const value = input.value.trim().toLowerCase();
+        if (!value || btn.disabled) return;
+        window.location.href = "/api/v2/register?name=" + encodeURIComponent(value) + "&domain=" + encodeURIComponent(domainSelect.value);
+      };
+      btn.addEventListener("click", claim);
+      input.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" && !btn.disabled) { e.preventDefault(); claim(); }
+      });
     })();
 
   </script>

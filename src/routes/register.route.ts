@@ -3,7 +3,7 @@ import express from "express";
 
 import { limiter } from "../lib/security/core.js";
 import { getConfig, getModuleInfo } from "../lib/config/core.js";
-import { validateRegisterOTC, calculateRegisterCost, registerUsername } from "../controllers/register.js";
+import { validateRegisterOTC, registerUsername, checkUsernameAvailable } from "../controllers/register.js";
 
 export const loadRegisterEndpoint = async (app: Application, version: string): Promise<void> => {
 
@@ -25,11 +25,10 @@ export const loadRegisterEndpoint = async (app: Application, version: string): P
         validateRegisterOTC
     );
 
-    // Calculate username satoshi cost endpoint
-    app.post(`${base}/calculateamount`,
-        limiter(),
-        express.json(),
-        calculateRegisterCost
+    // Username availability 
+    app.get(`${base}/available`,
+        limiter(60),
+        checkUsernameAvailable
     );
 
 }

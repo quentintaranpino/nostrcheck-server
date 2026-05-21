@@ -417,11 +417,10 @@ const loadHomePage = async (req: Request, res: Response, version:string): Promis
                 [], false);
         }) : Promise.resolve([]),
         relayEnabled ? homeFeedCache(`home:${hostKey}:notes`, 30, async () => {
-            return await dbMultiSelect(
-                ["event_id", "pubkey", "created_at", "content"],
-                "events",
-                "active = '1' AND kind = '1' ORDER BY id DESC LIMIT 8",
-                [], false);
+            // Same shape as the relay feed so the event modal gets `id`, `kind` and `tags`
+            // for the metadata chips (otherwise the popup looks bare when opened from home).
+            // Restricted to kind 1 — the home preview shows short notes, not long-form.
+            return await fetchRelayNotes(null, 8, 30, [1]);
         }) : Promise.resolve([]),
     ]);
 
@@ -759,6 +758,78 @@ const loadCdnPage = async (req: Request, res: Response, version:string): Promise
     res.render("cdn.ejs", {request: req});
 };
 
+/**
+ * Fetch a slice of public notes (kind 1) for the relay feed. Filters out non-note
+ * events that the previous query was leaking (reactions, follows, profile metadata,
+ * deletions, etc.) and caps the time window so we don't drag in months of history.
+ * Used by both the SSR relay page and the load-more API endpoint.
+ *
+ * @param before   Cursor: only return events with `id < before`. Pass null for the first page.
+ * @param limit    Max rows to return (clamped to [1,100]).
+ * @param daysBack How far back to look in days (default 30).
+ */
+const fetchRelayNotes = async (before: number | null = null, limit: number = 30, daysBack: number = 30, kinds: number[] = [1, 30023]): Promise<any[]> => {
+    const sinceTimestamp = Math.floor(Date.now() / 1000) - (daysBack * 24 * 60 * 60);
+    // Public-facing kinds with visual content: kind 1 (short notes) + kind 30023 (long-form
+    // articles) by default. Caller can narrow the set (e.g. the home page uses only kind 1
+    // for the snippet preview).
+    const safeKinds = (kinds && kinds.length > 0 ? kinds : [1]).map(n => Number(n)).filter(n => Number.isFinite(n));
+    const kindsClause = safeKinds.map(() => "?").join(",");
+    let where = `active = ? AND kind IN (${kindsClause}) AND created_at >= ?`;
+    const params: (string | number)[] = ["1", ...safeKinds.map(k => String(k)), sinceTimestamp];
+    if (before != null && Number.isFinite(before) && before > 0) {
+        where += " AND id < ?";
+        params.push(before);
+    }
+    const safeLimit = Math.max(1, Math.min(100, Number(limit) || 30));
+    const order = `ORDER BY id DESC LIMIT ${safeLimit}`;
+    // Tags live in a separate `eventtags` table. Bringing them inline as a JSON string
+    // lets the event modal render metadata chips (hashtags, mentions, client, reply
+    // context, title for kind 30023, etc.) without an extra round-trip per click.
+    const tagsField = "COALESCE((SELECT JSON_ARRAYAGG(JSON_ARRAY(tag_name, COALESCE(tag_value, ''), COALESCE(extra_values, ''))) FROM eventtags WHERE event_id = events.event_id), '[]') AS tags";
+    return await dbMultiSelect(["id","event_id","pubkey","created_at","content","kind", tagsField], "events", where, params, false, order);
+};
+
+const getRelayStatsAPI = async (req: Request, res: Response): Promise<Response> => {
+
+    const reqInfo = await isIpAllowed(req);
+    if (reqInfo.banned == true) {
+        return res.status(403).send({status: "error", message: reqInfo.comments});
+    }
+
+    if (!isModuleEnabled("relay", req.hostname)) {
+        return res.status(403).send({status: "error", message: "Module is not enabled"});
+    }
+
+    const oneHourAgo = Math.floor(Date.now() / 1000) - 3600;
+    const [totalRaw, recentRaw] = await Promise.all([
+        dbSelect("SELECT COUNT(*) AS c FROM events WHERE active = ?", "c", ["1"]),
+        dbSelect("SELECT COUNT(*) AS c FROM events WHERE active = ? AND created_at >= ?", "c", ["1", oneHourAgo.toString()]),
+    ]);
+    return res.status(200).send({
+        status: "success",
+        total: Number(totalRaw || 0),
+        recent: Number(recentRaw || 0),
+    });
+};
+
+const getRelayNotesAPI = async (req: Request, res: Response): Promise<Response> => {
+
+    const reqInfo = await isIpAllowed(req);
+    if (reqInfo.banned == true) {
+        return res.status(403).send({status: "error", message: reqInfo.comments});
+    }
+
+    if (!isModuleEnabled("relay", req.hostname)) {
+        return res.status(403).send({status: "error", message: "Module is not enabled"});
+    }
+
+    const before = req.query.before ? Number(req.query.before) : null;
+    const limit = req.query.limit ? Number(req.query.limit) : 30;
+    const notes = await fetchRelayNotes(before, limit, 30);
+    return res.status(200).send({status: "success", notes});
+};
+
 const loadRelayPage = async (req: Request, res: Response, version:string): Promise<Response | void>  => {
 
 	// Check if the request IP is allowed
@@ -790,9 +861,32 @@ const loadRelayPage = async (req: Request, res: Response, version:string): Promi
     res.locals.noindex = getConfig(req.hostname, ["appearance", "pages", page, "noindex"]);
     res.locals.socialImage = getConfig(req.hostname, ["appearance", "pages", page, "socialImage"]) || getConfig(req.hostname, ["appearance", "socialImage"]);
 
+    // Operator-configurable hero copy (matches the home page pattern). Each tenant sets
+    // its own pageTitle/pageSubtitle/intro under appearance.pages.relay.* so multi-tenant
+    // instances don't compete for SEO with identical defaults.
+    res.locals.pageTitle = replaceTokens(req.hostname, getConfig(req.hostname, ["appearance", "pages", page, "pageTitle"]));
+    res.locals.pageSubtitle = replaceTokens(req.hostname, getConfig(req.hostname, ["appearance", "pages", page, "pageSubtitle"]));
+    res.locals.intro = replaceTokens(req.hostname, getConfig(req.hostname, ["appearance", "pages", page, "intro"]) || "");
+
     // Specific locals
     res.locals.serverPubkey = await hextoNpub(getConfig(req.hostname, ["server", "pubkey"]));
-    res.locals.lastRelayNotes = await dbMultiSelect(["event_id","pubkey","created_at","content", "kind"], "events", "active = ?", ["1"], false,"ORDER BY id DESC LIMIT 500");
+    res.locals.lastRelayNotes = await fetchRelayNotes(null, 30, 30);
+
+    // KPIs for the relay hero: total event count + last-hour count (live indicator).
+    // Counts ALL kinds — bigger numbers, more impressive. Note: replaceable events
+    // (kind 0/3/10002) make the "last hour" delta noisy when a single user updates
+    // their profile from inside the window; we accept that trade-off for the lift.
+    const oneHourAgo = Math.floor(Date.now() / 1000) - 3600;
+    const [totalEventsRaw, recentEventsRaw] = await Promise.all([
+        dbSelect("SELECT COUNT(*) AS c FROM events WHERE active = ?", "c", ["1"]),
+        dbSelect("SELECT COUNT(*) AS c FROM events WHERE active = ? AND created_at >= ?", "c", ["1", oneHourAgo.toString()]),
+    ]);
+    res.locals.relayTotalEvents = Number(totalEventsRaw || 0);
+    res.locals.relayRecentEvents = Number(recentEventsRaw || 0);
+    res.locals.relaySupportedNipsCount = supported_nips.length;
+    // Per-tenant write policy. The hero badge label flips between "Public" and
+    // "Authenticated" depending on `relay.limitation.auth_required` in the config.
+    res.locals.relayAuthRequired = Boolean(getConfig(req.hostname, ["relay", "limitation", "auth_required"]));
 
     // Set auth cookie
     setAuthCookie(res, req.cookies.authkey);
@@ -1091,6 +1185,8 @@ export {loadDashboardPage,
         loadDirectoryPage,
         loadConverterPage,
         loadRelayPage,
+        getRelayNotesAPI,
+        getRelayStatsAPI,
         loadResource,
         loadTheme,
         loadSitemap,

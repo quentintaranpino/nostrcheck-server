@@ -8,7 +8,7 @@ import { Server } from "http";
 import { limiter } from "../lib/security/core.js";
 import { NIP11Data } from "../controllers/nostr.js";
 import { ExtendedWebSocket } from "../interfaces/relay.js";
-import { loadRelayPage } from "../controllers/frontend.js";
+import { loadRelayPage, getRelayNotesAPI, getRelayStatsAPI } from "../controllers/frontend.js";
 import { getClientInfo, isIpAllowed } from "../lib/security/ips.js";
 import { getConfig } from "../lib/config/core.js";
 
@@ -118,6 +118,12 @@ export const loadRelayRoutes = (app: Application, version:string, httpServer : S
 
   // Get Relay status
   app.get("/api/v2/relay/status", limiter(), (req, res) => getRelayStatus(req, res, wss));
+
+  // Public notes feed
+  app.get("/api/v2/relay/notes", limiter(60), getRelayNotesAPI);
+
+  // Live KPIs for the relay hero (polled every ~15s by the frontend)
+  app.get("/api/v2/relay/stats", limiter(60), getRelayStatsAPI);
 
   // Close dead connections
   setInterval(() => {

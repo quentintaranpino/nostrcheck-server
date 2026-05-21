@@ -27,17 +27,18 @@
             </p>
               <input type="input" data-otc='invitation' id="input-register-invitation" name="inviteCode" class="form-control" placeholder="Invite code" autocomplete="invite">
           </div>
-            <div class="input-group mb-3 mt-2">
+            <div class="input-group mt-2">
               <input type="text" data-otc='username' class="form-control " id="input-register-username" placeholder="username" required autocomplete="username">
               <span class="input-group-text" id="input-register-domain" data-bs-placement="top">@domain.com</span>
-              <span class="input-group-text d-none" 
-                    id="input-register-payment" 
+              <span class="input-group-text d-none"
+                    id="input-register-payment"
                     data-bs-placement="top"
-                    data-bs-toggle="tooltip" 
+                    data-bs-toggle="tooltip"
                     data-bs-title="Shorter usernames are more expensive, while longer usernames are cheaper. As you add more characters, the cost will decrease.">
               </span>
             </div>
-            
+            <div id="input-register-availability" class="mt-1 mb-3 text-muted" style="min-height: 1.1rem; font-size: 0.75rem; opacity: 0.85; padding-left: 3px;"></div>
+
             <input type="text" data-otc='pubkey' class="form-control mt-2 mb-3" id="input-register-pubkey" placeholder="public key (npub or hex)" required autocomplete="pubkey">
             <div class="input-group flex-nowrap mt-2 mb-3">
               <span class="input-group-text" id="input-register-password-label">Optional</span>
@@ -198,19 +199,27 @@
         const selectedDomain = document.getElementById('domain-selection').value;
         const length = event.target.value.length;
         const domainInfo = domainsData.availableDomains[selectedDomain];
-        console.log(domainInfo)
 
+        // Empty input → wipe everything and bail. Without this the last "Already taken"
+        // message would stay visible after the user clears the field.
+        if (length === 0) {
+          satoshiField.classList.add('d-none');
+          event.target.classList.remove('text-danger', 'is-invalid');
+          setAvailability('idle');
+          return;
+        }
 
+        // Length out of range still hits the endpoint so the backend reason
+        // (e.g. "Too short (min 3)") shows in the availability line — single source of truth.
         if (length < domainInfo.minUsernameLength || length > domainInfo.maxUsernameLength) {
           satoshiField.classList.add('d-none');
           event.target.classList.add('text-danger');
           event.target.classList.add('is-invalid');
-          return;
-        }else{
+        } else {
           event.target.classList.remove('text-danger');
           event.target.classList.remove('is-invalid');
         }
-      
+
         calculateSatoshi(length);
       });
   }
@@ -449,36 +458,104 @@
     }
 
 
+  const availabilityField = document.getElementById('input-register-availability');
+
+  const setAvailability = (state, message) => {
+    if (!availabilityField) return;
+    // Keep inline styles intact (font-size + opacity from the HTML); only swap colour class.
+    availabilityField.classList.remove('text-muted', 'text-success', 'text-danger', 'text-warning');
+    if (state === 'idle') {
+      availabilityField.innerHTML = '';
+      availabilityField.classList.add('text-muted');
+    } else if (state === 'checking') {
+      availabilityField.innerHTML = 'Checking…';
+      availabilityField.classList.add('text-muted');
+    } else if (state === 'available') {
+      availabilityField.innerHTML = 'Available';
+      availabilityField.classList.add('text-success');
+    } else if (state === 'taken') {
+      availabilityField.innerHTML = 'Already taken';
+      availabilityField.classList.add('text-danger');
+    } else if (state === 'invalid') {
+      availabilityField.innerHTML = message || 'Invalid';
+      availabilityField.classList.add('text-warning');
+    }
+  };
+
+  // Single fetch to /available drives both the price chip and the availability line.
+  // We always hit the endpoint so the live availability feedback works on every domain
+  // (free or paid). When the input is empty we synthesize a probe of the requested
+  // length to keep the price preview alive but skip the availability state — taking
+  // the placeholder name as "taken" would be misleading.
   const calculateSatoshi = async (length) => {
 
-    if (domainsData.availableDomains[document.getElementById('input-register-domain').innerText.split('@')[1]].requirepayment == false) {
-      satoshiField.classList.add('d-none');
-      return;
+    const targetDomain = document.getElementById('input-register-domain').innerText.split('@')[1];
+    const rawUsername = (document.getElementById('input-register-username').value || '').toLowerCase().trim().replace(/[^a-z0-9._-]/g, '');
+    const hasRealUsername = rawUsername.length > 0;
+    const probeName = rawUsername || 'a'.repeat(Math.max(1, length));
+
+    if (hasRealUsername) {
+      setAvailability('checking');
+    } else {
+      setAvailability('idle');
     }
 
-    console.log("calculateSatoshi", length)
-    
-    await fetch('/api/v2/register/calculateamount', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({size: length, domain: document.getElementById('input-register-domain').innerText.split('@')[1]})
-    })
-    .then(response => response.json())
-    .then(async data => {
-      console.log("AMOUNT", data)
-      satoshiField.classList.remove('d-none');
-      satoshiField.innerHTML = `${data.amount} <i class="fa-solid fa-bolt ms-1" style="color:rgb(255, 128, 24)"></i>`;
-    })
-    .catch((error) => {
+    try {
+      const response = await fetch('/api/v2/register/available?name=' + encodeURIComponent(probeName) + '&domain=' + encodeURIComponent(targetDomain));
+      const data = await response.json();
+      console.log("checkUsername", data);
+
+      const n = data && data.price != null ? Number(data.price) : NaN;
+      if (Number.isFinite(n) && n > 0) {
+        satoshiField.classList.remove('d-none');
+        satoshiField.innerHTML = `${n.toLocaleString()} <i class="fa-solid fa-bolt ms-1" style="color:rgb(255, 128, 24)"></i>`;
+      } else {
+        satoshiField.classList.add('d-none');
+      }
+
+      if (hasRealUsername) {
+        if (data.available === true) {
+          setAvailability('available');
+        } else if (data.reason) {
+          setAvailability('invalid', data.reason);
+        } else {
+          setAvailability('taken');
+        }
+      }
+    } catch (error) {
       console.error('Error:', error);
-    });
+    }
   }
 
     
   document.addEventListener('DOMContentLoaded', async (event) => {
-    initRegisterForm();  
+    await initRegisterForm();
+
+    // Pre-fill from query string. Used by the home claim widget so the visitor lands
+    // here with both their chosen username and domain already applied. Set domain first
+    // (its change handler updates the @domain label and price), then the username.
+    const params = new URLSearchParams(window.location.search);
+    const prefillDomain = params.get('domain');
+    if (prefillDomain) {
+      const domainSelect = document.getElementById('domain-selection');
+      if (domainSelect) {
+        const match = Array.from(domainSelect.options).find(o => o.value === prefillDomain);
+        if (match) {
+          domainSelect.value = prefillDomain;
+          domainSelect.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+      }
+    }
+
+    const prefillName = params.get('name');
+    if (prefillName) {
+      const usernameInput = document.getElementById('input-register-username');
+      if (usernameInput) {
+        usernameInput.value = prefillName.toLowerCase().replace(/[^a-z0-9._-]/g, '').slice(0, 64);
+        usernameInput.dispatchEvent(new Event('input', { bubbles: true }));
+        usernameInput.focus();
+      }
+    }
   });
 
 </script>

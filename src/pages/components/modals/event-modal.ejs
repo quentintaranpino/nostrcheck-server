@@ -12,6 +12,8 @@
         <button type="button" class="btn-close ms-auto" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <div class="modal-body">
+        <h5 class="event-title d-none mb-2" id="event-modal-title"></h5>
+        <div class="event-tags-section" id="event-modal-tags"></div>
         <div class="event-content" id="event-modal-content"></div>
         <div class="mt-3 d-flex justify-content-between align-items-center">
           <a href="#" id="event-modal-njump" target="_blank" rel="noopener" class="small text-decoration-none">
@@ -34,6 +36,14 @@
   #event-modal .event-content a { color: var(--bs-primary); word-break: break-all; }
   #event-modal .event-content img, #event-modal .event-content video { max-width: 100%; max-height: 60vh; border-radius: 6px; margin-top: 8px; }
   #event-modal .event-raw { background: #1d1f23; color: #d4d4d4; padding: 12px; border-radius: 6px; font-size: 0.75rem; max-height: 40vh; overflow: auto; }
+  #event-modal .event-title { font-weight: 600; line-height: 1.3; }
+  #event-modal .event-tags-section { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 12px; }
+  #event-modal .event-tags-section:empty { display: none; }
+  #event-modal .event-tag-chip { display: inline-flex; align-items: center; font-size: 0.7rem; padding: 3px 9px; border-radius: 12px; background: rgba(165, 117, 255, 0.08); color: var(--bs-body-color); border: 1px solid rgba(165, 117, 255, 0.18); line-height: 1.4; }
+  #event-modal .event-tag-chip.event-tag-kind { background: rgba(165, 117, 255, 0.22); font-weight: 500; }
+  #event-modal .event-tag-chip.event-tag-hash { background: rgba(128, 128, 128, 0.1); border-color: rgba(128, 128, 128, 0.18); }
+  #event-modal .event-tag-chip.event-tag-warning { background: rgba(255, 140, 0, 0.12); border-color: rgba(255, 140, 0, 0.25); }
+  #event-modal .event-tag-chip i { font-size: 0.75em; }
 </style>
 
 <script>
@@ -53,6 +63,80 @@
     });
   };
 
+  // Pull useful metadata tags out of an event and render them as chips. Returns the
+  // chips HTML and also surfaces the title tag (used for kind 30023 long-form articles)
+  // separately so the modal can render it as a heading instead of a small chip.
+  window.renderEventTagChips = (event) => {
+    const esc = s => String(s || "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"})[c]);
+    // event.tags can arrive as an array (events read via WebSocket / nostr-tools) or as
+    // a JSON string (events read via SQL with the inline JSON_ARRAYAGG subquery). Be
+    // defensive — either shape should produce the same chips.
+    let tags = [];
+    if (Array.isArray(event && event.tags)) {
+      tags = event.tags;
+    } else if (typeof (event && event.tags) === "string") {
+      try { tags = JSON.parse(event.tags); } catch { tags = []; }
+    }
+    if (!Array.isArray(tags)) tags = [];
+    const findTag = (name) => tags.find(t => Array.isArray(t) && t[0] === name && t[1]);
+    const findAll = (name) => tags.filter(t => Array.isArray(t) && t[0] === name && t[1]);
+
+    const chips = [];
+
+    if (event.kind != null) {
+      chips.push(`<span class="event-tag-chip event-tag-kind">kind ${event.kind}</span>`);
+    }
+
+    const subjectTag = findTag("subject");
+    if (subjectTag) chips.push(`<span class="event-tag-chip"><i class="fa-solid fa-tag me-1"></i>${esc(subjectTag[1])}</span>`);
+
+    const summaryTag = findTag("summary");
+    if (summaryTag && (!subjectTag || subjectTag[1] !== summaryTag[1])) {
+      const sum = String(summaryTag[1]).slice(0, 60) + (String(summaryTag[1]).length > 60 ? "…" : "");
+      chips.push(`<span class="event-tag-chip"><i class="fa-regular fa-file-lines me-1"></i>${esc(sum)}</span>`);
+    }
+
+    const hashtags = findAll("t").slice(0, 8).map(t => t[1]);
+    hashtags.forEach(h => chips.push(`<span class="event-tag-chip event-tag-hash">#${esc(h)}</span>`));
+
+    const mentionCount = findAll("p").length;
+    if (mentionCount > 0) chips.push(`<span class="event-tag-chip"><i class="fa-regular fa-at me-1"></i>${mentionCount} mention${mentionCount > 1 ? "s" : ""}</span>`);
+
+    const eTags = findAll("e");
+    const replyMarker = eTags.find(t => t[3] === "reply");
+    const rootMarker = eTags.find(t => t[3] === "root");
+    if (replyMarker) chips.push(`<span class="event-tag-chip"><i class="fa-solid fa-reply me-1"></i>Reply</span>`);
+    else if (rootMarker || eTags.length > 0) chips.push(`<span class="event-tag-chip"><i class="fa-solid fa-comments me-1"></i>In thread</span>`);
+
+    const clientTag = findTag("client");
+    if (clientTag) chips.push(`<span class="event-tag-chip"><i class="fa-regular fa-window-restore me-1"></i>${esc(clientTag[1])}</span>`);
+
+    const proxyTag = tags.find(t => Array.isArray(t) && t[0] === "proxy" && t[2]);
+    if (proxyTag) chips.push(`<span class="event-tag-chip"><i class="fa-solid fa-shuffle me-1"></i>via ${esc(proxyTag[2])}</span>`);
+
+    const expirationTag = findTag("expiration");
+    if (expirationTag) {
+      const exp = Number(expirationTag[1]);
+      if (Number.isFinite(exp)) {
+        const date = new Date(exp * 1000);
+        const past = exp * 1000 < Date.now();
+        chips.push(`<span class="event-tag-chip"><i class="fa-regular fa-clock me-1"></i>${past ? "Expired" : "Expires"} ${date.toLocaleDateString()}</span>`);
+      }
+    }
+
+    const cwTag = findTag("content-warning");
+    if (cwTag) chips.push(`<span class="event-tag-chip event-tag-warning"><i class="fa-solid fa-triangle-exclamation me-1"></i>${esc(cwTag[1] || "content warning")}</span>`);
+
+    const titleTag = findTag("title");
+    const publishedAtTag = findTag("published_at");
+
+    return {
+      chips: chips.join(""),
+      title: titleTag ? titleTag[1] : null,
+      publishedAt: publishedAtTag ? Number(publishedAtTag[1]) : null,
+    };
+  };
+
   window.openEventModal = (event) => {
     if (!event) return;
     const modalEl = document.getElementById("event-modal");
@@ -63,10 +147,22 @@
     document.getElementById("event-modal-avatar").innerHTML = `<span>${(pubkey[0] || "?").toUpperCase()}</span>`;
     document.getElementById("event-modal-author").textContent = npubShort;
 
-    const created = Number(event.created_at);
+    const meta = window.renderEventTagChips(event);
+
+    const created = meta.publishedAt || Number(event.created_at);
     const date = created ? new Date(created * 1000) : null;
     document.getElementById("event-modal-meta").textContent = date ? date.toLocaleString() : "";
 
+    const titleEl = document.getElementById("event-modal-title");
+    if (meta.title) {
+      titleEl.textContent = meta.title;
+      titleEl.classList.remove("d-none");
+    } else {
+      titleEl.textContent = "";
+      titleEl.classList.add("d-none");
+    }
+
+    document.getElementById("event-modal-tags").innerHTML = meta.chips;
     document.getElementById("event-modal-content").innerHTML = window.formatEventContent(event.content || "");
 
     const njumpId = event.event_id || event.id || "";
