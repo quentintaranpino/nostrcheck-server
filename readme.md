@@ -112,6 +112,14 @@ so the two plugins are mutually exclusive on a per-pubkey basis: non-`.bit`
 identifiers pass through `namecoinNIP05` unchanged, leaving the DNS verdict
 to `activeNIP05`. Spec draft: [nostr-protocol/nips#2349](https://github.com/nostr-protocol/nips/pull/2349).
 
+Resolution follows the ifa-0001 §"import" chain: if an apex record like
+`d/foo` carries an `"import"` key (typical for `.bit` deployments that
+delegate their `nostr.names` block to a sibling name such as `dd/foo` to
+stay under Namecoin's 520-byte per-name limit), the plugin recursively
+merges the imported sibling — with importer-wins precedence and a default
+recursion depth of four — before extracting the `nostr` field. Records
+without an `import` key pay zero extra I/O.
+
 ### Multi tenancy
 
 See multi-tenancy [here](https://github.com/quentintaranpino/nostrcheck-server/wiki/Multi-tenancy)

@@ -245,27 +245,12 @@ const extractFromIdentity = (obj) => {
     return null;
 };
 
-/**
- * Extract a NIP-05 result from a raw Namecoin name value string.
- *
- * Handles both the simple `{ "nostr": "hex" }` form and the extended
- * `{ "nostr": { "names": {...}, "relays": {...} } }` form used by Amethyst
- * and the `.bit` NIP-05 spec draft.
- */
-export const extractPubkeyFromNamecoinValue = (value, localPart) => {
-    if (typeof value !== "string" || !value) return null;
+const extractFromParsedObject = (parsed, localPart) => {
+    if (!isPlainObject(parsed)) return null;
     const normalisedLocal = stripNostrPrefix(localPart || "_").toLowerCase() || "_";
 
-    let parsed;
-    try {
-        parsed = JSON.parse(value);
-    } catch {
-        return null;
-    }
-    if (!isPlainObject(parsed)) return null;
-
     const nostrField = parsed.nostr;
-    if (nostrField === undefined) return null;
+    if (nostrField === undefined || nostrField === null) return null;
 
     // Simple form: "nostr": "hex-pubkey".
     if (typeof nostrField === "string") {
@@ -280,6 +265,238 @@ export const extractPubkeyFromNamecoinValue = (value, localPart) => {
     if (domainHit) return domainHit;
 
     return extractFromIdentity(nostrField);
+};
+
+/**
+ * Extract a NIP-05 result from a raw Namecoin name value string.
+ *
+ * Handles both the simple `{ "nostr": "hex" }` form and the extended
+ * `{ "nostr": { "names": {...}, "relays": {...} } }` form used by Amethyst
+ * and the `.bit` NIP-05 spec draft.
+ */
+export const extractPubkeyFromNamecoinValue = (value, localPart) => {
+    if (typeof value !== "string" || !value) return null;
+    let parsed;
+    try {
+        parsed = JSON.parse(value);
+    } catch {
+        return null;
+    }
+    return extractFromParsedObject(parsed, localPart);
+};
+
+// -----------------------------------------------------------------------------
+// Import-chain expansion (ifa-0001 §"import")
+//
+// The 520-byte per-name limit on Namecoin makes apex records (`d/<name>`)
+// crowded. ifa-0001 lets a name delegate shared blocks into a sibling name
+// (typically `dd/<name>`) via an `"import"` key on the JSON value. NIP-05
+// resolution that ignores the import key silently fails on records that use
+// this pattern (e.g. the canonical `testls.bit` demo) — the resolver sees
+// the apex value, finds no `nostr` field, returns null.
+//
+// `expandImports` recursively merges imported values into the importing
+// object before the caller extracts record-specific fields. The importing
+// object's items take precedence (`null` items in the importer act as
+// "delete" markers per spec). Records without an `import` key pay zero I/O.
+//
+// Behaviour mirrors the Kotlin reference (`NamecoinImportResolver`):
+//
+//   - Four shorthand forms for the `import` value accepted alongside the
+//     canonical array-of-arrays.
+//   - Selector walk on the imported value's `map` tree per ifa-0001 §"map":
+//     exact label → `*` wildcard → empty-key default, DNS right-to-left.
+//   - Recursion budget defaults to 4 (spec minimum).
+//   - Cycles broken via a visited `(name|selector)` set.
+//   - Lookup failures (null, throw, malformed JSON) treated as `{}`.
+//
+// -----------------------------------------------------------------------------
+
+/** Minimum recursion depth ifa-0001 mandates implementations support. */
+export const DEFAULT_IMPORT_MAX_DEPTH = 4;
+
+const hasOwn = (obj, key) => Object.prototype.hasOwnProperty.call(obj, key);
+
+const parseImportItem = (item) => {
+    // Shorthand: bare string → one op with no selector.
+    if (typeof item === "string") {
+        const name = item.trim();
+        if (!name) return [];
+        return [{ name, selector: "" }];
+    }
+    if (!Array.isArray(item) || item.length === 0) {
+        // Empty array → no-op; non-array (number/bool/object) → malformed.
+        if (Array.isArray(item)) return [];
+        return null;
+    }
+
+    const firstIsArray = Array.isArray(item[0]);
+    if (firstIsArray) {
+        // Canonical form: array of arrays.
+        const ops = [];
+        for (const entry of item) {
+            if (!Array.isArray(entry)) continue;
+            const op = opFromArray(entry);
+            if (op) ops.push(op);
+        }
+        return ops;
+    }
+    // Shorthand: ["name"] or ["name", "selector"].
+    const op = opFromArray(item);
+    return op ? [op] : [];
+};
+
+const opFromArray = (arr) => {
+    if (!Array.isArray(arr) || arr.length === 0) return null;
+    if (typeof arr[0] !== "string") return null;
+    const name = arr[0].trim();
+    if (!name) return null;
+    let selector = "";
+    if (arr.length >= 2) {
+        if (typeof arr[1] !== "string") return null;
+        selector = arr[1].trim();
+    }
+    // Trailing dot is forbidden by spec; treat as malformed → drop op.
+    if (selector.endsWith(".")) return null;
+    return { name, selector };
+};
+
+/**
+ * Walk the imported object's `map` tree to the node addressed by
+ * `selector` (DNS dotted, e.g. `relay`, `a.b.c`). Empty selector
+ * returns `root` unchanged.
+ *
+ * Resolution rules per ifa-0001 §"map":
+ *   - Exact label match wins.
+ *   - Wildcard `*` matches any single label.
+ *   - Empty key `""` is the default for the current level.
+ *   - A non-object child terminates the walk with `null`.
+ *
+ * Labels are walked right-to-left (DNS leaf-toward-root): the rightmost
+ * label is the immediate child of the parent's `map`.
+ */
+const applySelector = (root, selector) => {
+    if (!selector) return root;
+    const labels = selector.split(".").filter((l) => l.length > 0).reverse();
+    if (labels.length === 0) return root;
+    let current = root;
+    for (const label of labels) {
+        if (!isPlainObject(current)) return null;
+        const map = current.map;
+        if (!isPlainObject(map)) return null;
+        let child = null;
+        if (isPlainObject(map[label])) {
+            child = map[label];
+        } else if (isPlainObject(map["*"])) {
+            child = map["*"];
+        } else if (isPlainObject(map[""])) {
+            child = map[""];
+        }
+        if (!child) return null;
+        current = child;
+    }
+    return current;
+};
+
+/**
+ * Merge two objects with importer-wins semantics. Every key present in
+ * `importer` (including `null` values, which suppress the imported
+ * counterpart per ifa-0001) stays as-is. Keys present only in `imported`
+ * are added. Shallow per-key — nested objects are replaced wholesale by
+ * the importer, matching the Kotlin reference and the integration test
+ * for `nostr.names` precedence.
+ */
+const mergeImporterWins = (importer, imported) => {
+    if (!isPlainObject(imported) || Object.keys(imported).length === 0) return importer;
+    if (!isPlainObject(importer) || Object.keys(importer).length === 0) return imported;
+    const out = {};
+    // Imported first so importer can overwrite.
+    for (const k of Object.keys(imported)) out[k] = imported[k];
+    for (const k of Object.keys(importer)) out[k] = importer[k];
+    return out;
+};
+
+const removeImportKey = (obj) => {
+    if (!hasOwn(obj, "import")) return obj;
+    const out = {};
+    for (const k of Object.keys(obj)) {
+        if (k !== "import") out[k] = obj[k];
+    }
+    return out;
+};
+
+const safeParseObject = (raw) => {
+    if (typeof raw !== "string" || !raw) return null;
+    try {
+        const v = JSON.parse(raw);
+        return isPlainObject(v) ? v : null;
+    } catch {
+        return null;
+    }
+};
+
+const expandRecursive = async (obj, lookup, budgetRemaining, visited) => {
+    if (!isPlainObject(obj) || !hasOwn(obj, "import")) return obj;
+    const ops = parseImportItem(obj.import);
+    if (ops === null) {
+        // Malformed import value (number/bool/object) — strip and stop.
+        return removeImportKey(obj);
+    }
+    if (ops.length === 0 || budgetRemaining <= 0) {
+        return removeImportKey(obj);
+    }
+
+    // Walk imports left-to-right. Later imports override earlier ones in
+    // the same array; the importing object stacks on top of everything.
+    let accumulator = {};
+    for (const op of ops) {
+        const visitKey = `${op.name}|${op.selector}`;
+        if (visited.has(visitKey)) continue;
+        visited.add(visitKey);
+        try {
+            let importedRaw;
+            try {
+                importedRaw = await lookup(op.name);
+            } catch {
+                importedRaw = null;
+            }
+            if (importedRaw == null) continue;
+            const importedRoot = safeParseObject(importedRaw);
+            if (!importedRoot) continue;
+            const selectorView = applySelector(importedRoot, op.selector);
+            if (!isPlainObject(selectorView)) continue;
+            const expanded = await expandRecursive(
+                selectorView,
+                lookup,
+                budgetRemaining - 1,
+                visited,
+            );
+            accumulator = mergeImporterWins(expanded, accumulator);
+        } finally {
+            visited.delete(visitKey);
+        }
+    }
+
+    const withoutImport = removeImportKey(obj);
+    return mergeImporterWins(withoutImport, accumulator);
+};
+
+/**
+ * Expand all `import` items in `root` (and recursively in imported
+ * objects) up to `maxDepth` levels deep, returning a single merged object
+ * with no `import` key.
+ *
+ * `lookup(name)` is an async function returning the raw value JSON string
+ * of the named record, or `null` if the name does not exist / could not be
+ * fetched. Failures are absorbed — the returned object is always usable.
+ *
+ * If `root` has no `import` key, it is returned unchanged with zero extra
+ * I/O (regression-guarded by the integration suite).
+ */
+export const expandImports = async (root, lookup, maxDepth = DEFAULT_IMPORT_MAX_DEPTH) => {
+    if (!isPlainObject(root)) return root;
+    if (!hasOwn(root, "import")) return root;
+    return expandRecursive(root, lookup, maxDepth, new Set());
 };
 
 // -----------------------------------------------------------------------------
@@ -644,7 +861,36 @@ export const resolveNamecoinNIP05 = async (id, options = {}) => {
         try {
             const value = await queryNameValue(parsed.namecoinName, server, options);
             if (!value) continue;
-            const extracted = extractPubkeyFromNamecoinValue(value, parsed.localPart);
+
+            // Parse the apex value once. If it is malformed, fall back to
+            // the simple extractor so we preserve the pre-existing "null on
+            // bad JSON" behaviour without paying any import-resolver cost.
+            let parsedValue;
+            try {
+                parsedValue = JSON.parse(value);
+            } catch {
+                return null;
+            }
+            if (!parsedValue || typeof parsedValue !== "object" || Array.isArray(parsedValue)) {
+                return null;
+            }
+
+            // ifa-0001 §"import": expand any import chain on this name
+            // before extracting the `nostr` field. The fetcher reuses the
+            // same server (per-import dial — imports are rare and the
+            // 4-deep budget caps the worst case). Lookup failures are
+            // absorbed inside `expandImports`, so a transient sibling
+            // miss does not nuke an otherwise resolvable record.
+            const lookup = async (name) => {
+                try {
+                    return await queryNameValue(name, server, options);
+                } catch {
+                    return null;
+                }
+            };
+            const merged = await expandImports(parsedValue, lookup);
+
+            const extracted = extractFromParsedObject(merged, parsed.localPart);
             if (extracted) return extracted;
             return null;
         } catch {
