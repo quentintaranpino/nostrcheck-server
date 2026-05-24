@@ -1,0 +1,45 @@
+<%
+  // Renders a single Nostr note card. Used by both /relay (feed) and / (Recent notes).
+  // Locals expected:
+  //   note          - the event object ({id?, event_id, pubkey, created_at, content, kind?, tags?})
+  //   contentLimit  - (optional) max chars of content, default 360
+  //
+  // Styles live in static/css/style.css (.relay-note*) and helper JS lives in
+  // static/js/note-card.js (window.noteCard.applyRelativeTimes / highlightHashtags /
+  // attachClickHandlers / hydrateMetadata). Page-specific behaviour (pagination, KPI
+  // polling) stays in the page template.
+  const limit = (typeof contentLimit === "number" && contentLimit > 0) ? contentLimit : 360;
+  const raw = (note && note.content) ? String(note.content).trim() : "";
+  const trimmed = raw.length > limit ? (raw.slice(0, limit) + "…") : raw;
+  const pubkey = (note && note.pubkey) ? String(note.pubkey) : "";
+  const iso = (note && note.created_at) ? new Date(Number(note.created_at) * 1000).toISOString() : "";
+  const localTime = (note && note.created_at) ? new Date(Number(note.created_at) * 1000).toLocaleString('en', { year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit', hour12:false }) : "";
+%>
+<article class="relay-note"
+         <% if (note && note.id != null) { %>data-id="<%= note.id %>"<% } %>
+         data-pubkey="<%= pubkey %>"
+         data-event='<%= JSON.stringify(note).replace(/'/g, "&#39;") %>'
+         role="button"
+         tabindex="0">
+  <div class="relay-note-header">
+    <div class="relay-note-avatar" data-pubkey="<%= pubkey %>">
+      <span class="relay-note-avatar-fallback"><%= pubkey.slice(0, 2).toUpperCase() %></span>
+    </div>
+    <div class="relay-note-meta flex-grow-1 min-w-0">
+      <div class="relay-note-name" data-pubkey="<%= pubkey %>">
+        <code class="text-muted"><%= pubkey.slice(0, 12) %>…<%= pubkey.slice(-6) %></code>
+      </div>
+      <time class="relay-note-time text-muted" datetime="<%= iso %>"><%= localTime %></time>
+    </div>
+    <% if (note && note.event_id) { %>
+    <a class="relay-note-action"
+       href="https://njump.me/<%= note.event_id %>"
+       target="_blank" rel="noopener noreferrer"
+       title="Open in njump"
+       onclick="event.stopPropagation();">
+      <i class="fa-solid fa-up-right-from-square"></i>
+    </a>
+    <% } %>
+  </div>
+  <div class="relay-note-content"><%= trimmed %></div>
+</article>

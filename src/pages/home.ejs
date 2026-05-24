@@ -44,8 +44,13 @@
             <% if (locals.homeFlags.media) { %>
               <button class="btn btn-primary" type="button" onclick="initUploaderModal();"><i class="bi bi-cloud-arrow-up me-1"></i> Upload</button>
             <% } %>
-          <% } else if (locals.homeFlags.media) { %>
-            <a class="btn btn-primary" href="/gallery"><i class="bi bi-images me-1"></i> Explore gallery</a>
+          <% } else { %>
+            <% if (locals.homeFlags.media) { %>
+              <a class="btn btn-primary" href="/gallery"><i class="bi bi-images me-1"></i> Explore gallery</a>
+            <% } %>
+            <% if (locals.homeFlags.relay) { %>
+              <a class="btn btn-primary" href="/relay"><i class="bi bi-broadcast me-1"></i> Explore relay</a>
+            <% } %>
           <% } %>
         </div>
 
@@ -195,20 +200,14 @@
       <% } %>
 
       <% if (locals.homeFlags.relay && locals.homeNotes.length > 0) { %>
-      <section class="mb-4">
+      <section class="mb-4" id="home-recent-notes-section">
         <div class="d-flex justify-content-between align-items-center mb-2">
           <h5 class="m-0">Recent notes</h5>
           <a href="/relay" class="small text-decoration-none">Open relay →</a>
         </div>
-        <div class="home-notes">
+        <div class="relay-feed">
           <% for (const n of locals.homeNotes) { %>
-            <div class="home-note" role="button" tabindex="0" data-event='<%= JSON.stringify(n).replace(/'/g, "&#39;") %>'>
-              <div class="home-note-meta small text-muted">
-                <code><%= (n.pubkey || "").substring(0,12) %>…</code>
-                · <span data-relative-ts="<%= n.created_at %>"></span>
-              </div>
-              <div class="home-note-body"><%= (n.content || "").substring(0, 240) %><%= (n.content && n.content.length > 240) ? "…" : "" %></div>
-            </div>
+            <%- include('./components/note-card', { note: n, contentLimit: 240 }) %>
           <% } %>
         </div>
       </section>
@@ -247,10 +246,8 @@
     .home-user-avatar img { width: 100%; height: 100%; object-fit: cover; }
     .home-user-name { font-weight: 500; max-width: 100%; }
 
-    .home-notes { display: flex; flex-direction: column; gap: 8px; }
-    .home-note { padding: 10px 12px; border: 1px solid rgba(128,128,128,0.2); border-radius: 6px; cursor: pointer; transition: border-color 0.15s; }
-    .home-note:hover { border-color: rgba(165, 117, 255, 0.6); }
-    .home-note-body { white-space: pre-wrap; word-break: break-word; margin-top: 4px; }
+    /* Recent notes section reuses .relay-note* from style.css unchanged so the
+       rhythm matches the /relay feed pixel-for-pixel. */
 
     /* Quickstart inline: three compact steps. */
     .home-quickstart { display: grid; grid-template-columns: 1fr; gap: 8px; }
@@ -281,18 +278,6 @@
     if ("<%= locals.firstUse %>" != undefined && "<%= locals.firstUse %>" != null && "<%= locals.firstUse %>" != "") {
       initMessageModal("#firstUse", "<%- locals.firstUse %>", "Welcome to your sovereignty");
     }
-
-    document.querySelectorAll("[data-relative-ts]").forEach(el => {
-      const ts = Number(el.dataset.relativeTs);
-      if (!ts) return;
-      const diff = Math.floor(Date.now() / 1000) - ts;
-      let label;
-      if (diff < 60) label = diff + "s ago";
-      else if (diff < 3600) label = Math.floor(diff / 60) + "m ago";
-      else if (diff < 86400) label = Math.floor(diff / 3600) + "h ago";
-      else label = Math.floor(diff / 86400) + "d ago";
-      el.textContent = label;
-    });
 
     document.querySelectorAll(".home-media-tile").forEach(tile => {
       const open = () => {
@@ -333,11 +318,9 @@
       row.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); copy(); } });
     });
 
-    document.querySelectorAll(".home-note[data-event]").forEach(el => {
-      const open = () => { try { window.openEventModal(JSON.parse(el.dataset.event)); } catch (e) { console.error("openEventModal failed", e); } };
-      el.addEventListener("click", open);
-      el.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(); } });
-    });
+    // Recent notes: hydrate the shared note-card component (relative times, hashtag
+    // highlight, click → openEventModal, kind 0 metadata for avatars + display names).
+    if (window.noteCard) window.noteCard.hydrateAll(document.getElementById("home-recent-notes-section"));
 
     // Fetch real profile pictures for recent users (kind:0) so the grid shows
     // actual faces instead of initial-letter placeholders. Best-effort; on

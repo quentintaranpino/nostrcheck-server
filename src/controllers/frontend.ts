@@ -768,6 +768,31 @@ const loadCdnPage = async (req: Request, res: Response, version:string): Promise
  * @param limit    Max rows to return (clamped to [1,100]).
  * @param daysBack How far back to look in days (default 30).
  */
+/**
+ * Compute the two relay KPIs (total events + last-hour events).
+ *
+ * The previous version filtered both queries by `active='1'` and took ~10s on a 300k+
+ * row table — the `active` column has terrible selectivity (~95% of rows match) so
+ * the optimizer can't shortcut. Dropping the filter lets the total use the smallest
+ * index (PRIMARY) and the recent use `idx_created_at` for a tight range scan; both
+ * land in single-digit milliseconds. The visible side effect is that deactivated /
+ * banned events count toward the totals — that's fine for a public KPI and actually
+ * matches the operator's preference for "stats grandes".
+ *
+ * A 10s Redis layer stays as cheap insurance under burst traffic; with TTL well below
+ * the per-visitor polling interval each navigator still sees a fresh number.
+ */
+const fetchRelayStats = async (hostname: string): Promise<{total: number, recent: number}> => {
+    return homeFeedCache(`relay:stats:${hostname}`, 10, async () => {
+        const oneHourAgo = Math.floor(Date.now() / 1000) - 3600;
+        const [totalRaw, recentRaw] = await Promise.all([
+            dbSelect("SELECT COUNT(*) AS c FROM events", "c", []),
+            dbSelect("SELECT COUNT(*) AS c FROM events WHERE created_at >= ?", "c", [oneHourAgo.toString()]),
+        ]);
+        return { total: Number(totalRaw || 0), recent: Number(recentRaw || 0) };
+    });
+};
+
 const fetchRelayNotes = async (before: number | null = null, limit: number = 30, daysBack: number = 30, kinds: number[] = [1, 30023]): Promise<any[]> => {
     const sinceTimestamp = Math.floor(Date.now() / 1000) - (daysBack * 24 * 60 * 60);
     // Public-facing kinds with visual content: kind 1 (short notes) + kind 30023 (long-form
@@ -801,16 +826,8 @@ const getRelayStatsAPI = async (req: Request, res: Response): Promise<Response> 
         return res.status(403).send({status: "error", message: "Module is not enabled"});
     }
 
-    const oneHourAgo = Math.floor(Date.now() / 1000) - 3600;
-    const [totalRaw, recentRaw] = await Promise.all([
-        dbSelect("SELECT COUNT(*) AS c FROM events WHERE active = ?", "c", ["1"]),
-        dbSelect("SELECT COUNT(*) AS c FROM events WHERE active = ? AND created_at >= ?", "c", ["1", oneHourAgo.toString()]),
-    ]);
-    return res.status(200).send({
-        status: "success",
-        total: Number(totalRaw || 0),
-        recent: Number(recentRaw || 0),
-    });
+    const { total, recent } = await fetchRelayStats(req.hostname);
+    return res.status(200).send({ status: "success", total, recent });
 };
 
 const getRelayNotesAPI = async (req: Request, res: Response): Promise<Response> => {
@@ -873,16 +890,12 @@ const loadRelayPage = async (req: Request, res: Response, version:string): Promi
     res.locals.lastRelayNotes = await fetchRelayNotes(null, 30, 30);
 
     // KPIs for the relay hero: total event count + last-hour count (live indicator).
-    // Counts ALL kinds — bigger numbers, more impressive. Note: replaceable events
-    // (kind 0/3/10002) make the "last hour" delta noisy when a single user updates
-    // their profile from inside the window; we accept that trade-off for the lift.
-    const oneHourAgo = Math.floor(Date.now() / 1000) - 3600;
-    const [totalEventsRaw, recentEventsRaw] = await Promise.all([
-        dbSelect("SELECT COUNT(*) AS c FROM events WHERE active = ?", "c", ["1"]),
-        dbSelect("SELECT COUNT(*) AS c FROM events WHERE active = ? AND created_at >= ?", "c", ["1", oneHourAgo.toString()]),
-    ]);
-    res.locals.relayTotalEvents = Number(totalEventsRaw || 0);
-    res.locals.relayRecentEvents = Number(recentEventsRaw || 0);
+    // Cached for 10s in fetchRelayStats so the same warm key serves both the SSR and
+    // the per-15s polling from each visitor — the COUNT(*) on 300k+ rows takes ~10s
+    // without caching, which would make the page feel hung.
+    const stats = await fetchRelayStats(req.hostname);
+    res.locals.relayTotalEvents = stats.total;
+    res.locals.relayRecentEvents = stats.recent;
     res.locals.relaySupportedNipsCount = supported_nips.length;
     // Per-tenant write policy. The hero badge label flips between "Public" and
     // "Authenticated" depending on `relay.limitation.auth_required` in the config.

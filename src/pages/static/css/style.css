@@ -224,3 +224,76 @@ html[data-bs-theme="dark"] {
 .search-box-navbar { width: 100%; }
 .search-box-navbar .input-group-text, .search-box-navbar .form-control { background: #fff; }
 .search-box-navbar .search-box-results { box-shadow: none; border: 1px solid #eee; }
+
+
+/* ============================================================
+ * Note card (shared between /relay feed and home Recent notes)
+ * ============================================================ */
+.relay-note {
+  background: var(--bs-body-bg, #fff);
+  border: 1px solid rgba(128, 128, 128, 0.18);
+  border-radius: 12px;
+  padding: 16px 18px;
+  cursor: pointer;
+  transition: border-color 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease, background 0.2s ease;
+  position: relative;
+  animation: relay-card-in 0.4s ease both;
+}
+/* Spacing between stacked notes lives on the note itself, not on a container's
+   `gap`, so wherever you drop a .relay-note (relay feed, home recent notes, any
+   future view) the rhythm stays identical. Adjacent-sibling selector means the
+   first card sits flush against whatever is above it. */
+.relay-note + .relay-note { margin-top: 14px; }
+@keyframes relay-card-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+[data-bs-theme="dark"] .relay-note {
+  background: #1c1f24;
+  border-color: rgba(255, 255, 255, 0.08);
+}
+.relay-note:hover {
+  border-color: rgba(165, 117, 255, 0.55);
+  box-shadow: 0 8px 24px rgba(165, 117, 255, 0.12);
+  transform: translateY(-2px);
+}
+.relay-note-header { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+.relay-note-avatar {
+  width: 48px; height: 48px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #a575ff, #6f4eaa);
+  color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 600;
+  flex-shrink: 0;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(165, 117, 255, 0.25);
+}
+.relay-note-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.relay-note-avatar-fallback { font-size: 1rem; letter-spacing: 0.5px; }
+.relay-note-meta { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.relay-note-name { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 0.95rem; }
+.relay-note-name code { font-size: 0.85rem; }
+.relay-note-time { font-size: 0.75rem; }
+.relay-note-action {
+  color: var(--bs-secondary-color, #6c757d);
+  padding: 6px 8px;
+  border-radius: 6px;
+  flex-shrink: 0;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+.relay-note-action:hover { color: #a575ff; background: rgba(165, 117, 255, 0.12); }
+.relay-note-content {
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.55;
+  margin: 0;
+  font-size: 0.95rem;
+}
+.relay-note-content .relay-hashtag {
+  color: #a575ff;
+  font-weight: 500;
+  text-decoration: none;
+}
+[data-bs-theme="light"] .relay-note-content .relay-hashtag { color: #7a4ed8; }
+.min-w-0 { min-width: 0; }
