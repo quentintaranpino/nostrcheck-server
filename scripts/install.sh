@@ -177,10 +177,7 @@ echo "  License: MIT"
 echo ""
 echo "  Targets Debian/Ubuntu. Tested on Ubuntu 22.04 and 24.04."
 if [ "${QUIET}" = "yes" ]; then
-    echo "  Quiet mode. Full output streams to: ${LOG_FILE}"
-    echo "  (re-run with --verbose to see commands on screen)"
-else
-    echo "  Verbose mode. Mirroring all output to: ${LOG_FILE}"
+    echo "  re-run with --verbose to see commands on screen"
 fi
 echo ""
 
@@ -558,10 +555,10 @@ ok "nginx configured for ${HOST}, cdn.${HOST}, relay.${HOST}"
 
 # --- systemd -----------------------------------------------------------------
 step "systemd service"
-read -r -p "Create a systemd service so the server starts on boot? [y/n] " input
+read -r -p "Create a systemd service so the server starts on boot? [Y/n] " input
 SYSTEMD_SERVICE_CREATED="no"
 ABSOLUTE_PATH=$(realpath "$(pwd)")
-if [ "${input:-}" = "y" ]; then
+if [ "${input:-y}" != "n" ] && [ "${input:-y}" != "N" ]; then
     sudo tee /etc/systemd/system/nostrcheck.service > /dev/null <<EOF
 [Unit]
 Description=Nostrcheck server
@@ -594,8 +591,8 @@ fi
 step "SSL via Let's Encrypt"
 sub "Certbot will attempt to issue for ${HOST}, cdn.${HOST}, relay.${HOST}"
 sub "DNS A/AAAA records must point to this server"
-read -r -p "Proceed with Certbot now? [y/n] " input_ssl
-if [ "${input_ssl:-}" = "y" ]; then
+read -r -p "Proceed with Certbot now? [Y/n] " input_ssl
+if [ "${input_ssl:-y}" != "n" ] && [ "${input_ssl:-y}" != "N" ]; then
     CANDIDATES=("${HOST}" "cdn.${HOST}" "relay.${HOST}")
     RESOLVING=()
     for d in "${CANDIDATES[@]}"; do
