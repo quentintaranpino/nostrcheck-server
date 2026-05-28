@@ -3,7 +3,7 @@
 ![License](https://img.shields.io/github/license/quentintaranpino/nostrcheck-server)
 
 <p align="center">
-<img src= "https://github.com/quentintaranpino/nostrcheck-api-ts/assets/125748180/b4a7a4c3-938f-4f60-af81-3af4e5178ec4">
+<img src= "https://github.com/quentintaranpino/nostrcheck-server/assets/125748180/b4a7a4c3-938f-4f60-af81-3af4e5178ec4">
 </p>
 
 ## Powered by
@@ -58,7 +58,7 @@ In either case, all parameters can be modified using the settings page in the se
 
 ### Installation (standalone)
 
-To make a standalone installation you can use the following script. You can find the code [here](https://github.com/quentintaranpino/nostrcheck-api-ts/blob/main/scripts/install.sh)
+To make a standalone installation you can use the following script. You can find the code [here](https://github.com/quentintaranpino/nostrcheck-server/blob/main/scripts/install.sh)
 
 ```
 curl https://raw.githubusercontent.com/quentintaranpino/nostrcheck-server/refs/heads/main/scripts/install.sh --output install.sh && chmod +x install.sh && ./install.sh
@@ -73,7 +73,7 @@ git clone https://github.com/quentintaranpino/nostrcheck-server.git && cd nostrc
 
 ```
 
-[Video demonstration](https://github.com/quentintaranpino/nostrcheck-api-ts/assets/125748180/dff0933a-0325-4c0b-bad5-5e2702337ea0)
+[Video demonstration](https://github.com/quentintaranpino/nostrcheck-server/assets/125748180/dff0933a-0325-4c0b-bad5-5e2702337ea0)
 
 ## Documentation
 
