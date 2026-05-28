@@ -293,23 +293,32 @@ ok "Repository ready at $(pwd)"
 
 # --- Python venv -------------------------------------------------------------
 step "Setting up Python environment (${PYENV_PY_VERSION})"
-if ! command -v pyenv >/dev/null 2>&1; then
+# pyenv.run refuses to install over an existing ${HOME}/.pyenv, so we check
+# the directory (not just PATH) to know whether pyenv is already there from
+# a previous run on this box.
+if [ -d "${HOME}/.pyenv" ]; then
+    sub "pyenv already present at ${HOME}/.pyenv, reusing it"
+    export PATH="${HOME}/.pyenv/bin:${PATH}"
+    eval "$(pyenv init -)"
+    # virtualenv-init may not be installed; ignore if missing.
+    eval "$(pyenv virtualenv-init - 2>/dev/null || true)"
+elif ! command -v pyenv >/dev/null 2>&1; then
     sub "Installing pyenv"
     run_sh "curl https://pyenv.run | bash"
     export PATH="${HOME}/.pyenv/bin:${PATH}"
     eval "$(pyenv init -)"
-    eval "$(pyenv virtualenv-init -)"
+    eval "$(pyenv virtualenv-init - 2>/dev/null || true)"
     if ! grep -q 'pyenv init' "${HOME}/.bashrc" 2>/dev/null; then
         {
             echo 'export PATH="$HOME/.pyenv/bin:$PATH"'
             echo 'eval "$(pyenv init -)"'
-            echo 'eval "$(pyenv virtualenv-init -)"'
+            echo 'eval "$(pyenv virtualenv-init - 2>/dev/null || true)"'
         } >> "${HOME}/.bashrc"
     fi
 else
     export PATH="${HOME}/.pyenv/bin:${PATH}"
     eval "$(pyenv init -)"
-    eval "$(pyenv virtualenv-init -)"
+    eval "$(pyenv virtualenv-init - 2>/dev/null || true)"
 fi
 
 if [ ! -e "${HOME}/.pyenv/versions/${PYENV_PY_VERSION}/bin/python" ]; then
