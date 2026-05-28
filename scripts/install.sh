@@ -24,28 +24,70 @@ readonly E_BADARGS=65
 
 # --- Arg parsing -------------------------------------------------------------
 QUIET="yes"
-PURGE_BUILD_DEPS="ask"  # ask|yes|no
+PURGE_BUILD_DEPS="ask"   # ask|yes|no
+NON_INTERACTIVE="no"
+NO_SSL="no"
+NO_SYSTEMD="no"
+# Field defaults come from env vars when set; CLI flags override them.
+FLAG_HOST="${NOSTRCHECK_HOST:-}"
+FLAG_DB="${NOSTRCHECK_DB:-}"
+FLAG_USER="${NOSTRCHECK_USER:-}"
+FLAG_MEDIAPATH="${NOSTRCHECK_MEDIAPATH:-}"
+FLAG_PUBKEY="${NOSTRCHECK_PUBKEY:-}"
+FLAG_SECRETKEY="${NOSTRCHECK_SECRETKEY:-}"
+
 while [ $# -gt 0 ]; do
     case "$1" in
-        -v|--verbose)        QUIET="no"; shift ;;
-        -q|--quiet)          QUIET="yes"; shift ;;
-        --purge-build-deps)  PURGE_BUILD_DEPS="yes"; shift ;;
-        --keep-build-deps)   PURGE_BUILD_DEPS="no"; shift ;;
+        -v|--verbose)         QUIET="no"; shift ;;
+        -q|--quiet)           QUIET="yes"; shift ;;
+        --purge-build-deps)   PURGE_BUILD_DEPS="yes"; shift ;;
+        --keep-build-deps)    PURGE_BUILD_DEPS="no"; shift ;;
+        -y|--non-interactive) NON_INTERACTIVE="yes"; shift ;;
+        --no-ssl)             NO_SSL="yes"; shift ;;
+        --no-systemd)         NO_SYSTEMD="yes"; shift ;;
+        --host)               FLAG_HOST="${2:-}"; shift 2 ;;
+        --db)                 FLAG_DB="${2:-}"; shift 2 ;;
+        --user)               FLAG_USER="${2:-}"; shift 2 ;;
+        --media-path)         FLAG_MEDIAPATH="${2:-}"; shift 2 ;;
+        --pubkey)             FLAG_PUBKEY="${2:-}"; shift 2 ;;
+        --secret)             FLAG_SECRETKEY="${2:-}"; shift 2 ;;
         -h|--help)
             cat <<EOF
 Usage: $(basename "$0") [options]
 
-Options:
-  -v, --verbose         Show full command output on screen.
-  -q, --quiet           Only show step summaries (default). Full log in install.log.
-  --purge-build-deps    At the end, remove Rust and -dev headers without asking.
-  --keep-build-deps     At the end, keep Rust and -dev headers without asking.
-  -h, --help            Show this help.
+Output options:
+  -v, --verbose            Show full command output on screen.
+  -q, --quiet              Only show step summaries (default). Full log in install.log.
+
+Non-interactive mode (for CI / Ansible / cloud-init):
+  -y, --non-interactive    Don't prompt. Use defaults + values from flags below.
+  --host <hostname>        Server hostname (required in --non-interactive unless
+                           NOSTRCHECK_HOST env var is set).
+  --db <name>              Database name (default: nostrcheck).
+  --user <name>            Database user (default: nostrcheck).
+  --media-path <path>      Local media path (default: files/).
+  --pubkey <hex>           Server public key in hex. Leave unset to auto-generate.
+  --secret <hex>           Server secret key in hex (required if --pubkey given).
+  --no-ssl                 Skip certbot.
+  --no-systemd             Skip systemd service creation.
+
+Cleanup:
+  --purge-build-deps       At the end, remove Rust and -dev headers without asking.
+  --keep-build-deps        At the end, keep Rust and -dev headers without asking.
+
+  -h, --help               Show this help.
+
+Environment variables (lower precedence than flags):
+  NOSTRCHECK_HOST, NOSTRCHECK_DB, NOSTRCHECK_USER, NOSTRCHECK_MEDIAPATH,
+  NOSTRCHECK_PUBKEY, NOSTRCHECK_SECRETKEY.
 
 Examples:
-  Quiet install (default):      $(basename "$0")
-  Verbose for debugging:        $(basename "$0") --verbose
-  Slim install + purge:         $(basename "$0") --purge-build-deps
+  Interactive install (default):
+    $(basename "$0")
+
+  Unattended CI install:
+    $(basename "$0") --non-interactive --host nostrcheck.test \\
+        --no-ssl --keep-build-deps --verbose
 EOF
             exit 0
             ;;
@@ -56,6 +98,22 @@ EOF
             ;;
     esac
 done
+
+# --non-interactive needs at least --host (or NOSTRCHECK_HOST). Validate now so
+# we fail fast before any side-effects.
+if [ "${NON_INTERACTIVE}" = "yes" ] && [ -z "${FLAG_HOST}" ]; then
+    printf 'Error: --non-interactive requires --host <hostname> (or NOSTRCHECK_HOST env var).\n' >&2
+    exit "${E_BADARGS}"
+fi
+if [ -n "${FLAG_PUBKEY}" ] && [ -z "${FLAG_SECRETKEY}" ]; then
+    printf 'Error: --pubkey requires --secret (or NOSTRCHECK_SECRETKEY env var).\n' >&2
+    exit "${E_BADARGS}"
+fi
+
+# In non-interactive mode, an unset PURGE_BUILD_DEPS becomes "no" (conservative).
+if [ "${PURGE_BUILD_DEPS}" = "ask" ] && [ "${NON_INTERACTIVE}" = "yes" ]; then
+    PURGE_BUILD_DEPS="no"
+fi
 
 # --- Color helpers -----------------------------------------------------------
 if [ -t 1 ] && command -v tput >/dev/null 2>&1; then
@@ -181,10 +239,14 @@ if [ "${QUIET}" = "yes" ]; then
 fi
 echo ""
 
-read -r -p "Proceed with installation? [y/n] " input
-if [ "${input:-}" != "y" ]; then
-    err "Aborted by user."
-    exit "${E_BADARGS}"
+if [ "${NON_INTERACTIVE}" = "yes" ]; then
+    sub "Non-interactive mode, proceeding without confirmation"
+else
+    read -r -p "Proceed with installation? [y/n] " input
+    if [ "${input:-}" != "y" ]; then
+        err "Aborted by user."
+        exit "${E_BADARGS}"
+    fi
 fi
 
 # --- Detect previous installation -------------------------------------------
@@ -198,9 +260,15 @@ done
 if [ -n "${EXISTING_CONFIG}" ]; then
     step "Previous installation detected"
     sub "Found existing config at: ${EXISTING_CONFIG}"
-    echo "      [y] Reuse it (skip DB user creation and config rewrite)"
-    echo "      [n] Start fresh (a timestamped backup will be created)"
-    read -r -p "Reuse existing configuration? [y/n] " input
+    if [ "${NON_INTERACTIVE}" = "yes" ]; then
+        # In non-interactive mode, default to reuse so re-runs are safe.
+        input="y"
+        sub "Non-interactive mode: reusing existing config"
+    else
+        echo "      [y] Reuse it (skip DB user creation and config rewrite)"
+        echo "      [n] Start fresh (a timestamped backup will be created)"
+        read -r -p "Reuse existing configuration? [y/n] " input
+    fi
     if [ "${input:-}" = "y" ]; then
         REUSE_CONFIG="yes"
         if command -v jq >/dev/null 2>&1; then
@@ -380,11 +448,24 @@ if [ "${REUSE_CONFIG}" = "yes" ]; then
     sub "db=${DB} user=${USER} (skipping DB creation)"
 else
     step "Database configuration"
-    read -r -p "Database name [${DB}]: " inputDB
-    [ -n "${inputDB:-}" ] && DB="${inputDB}"
-
-    read -r -p "Database user [${USER}]: " inputUSER
-    [ -n "${inputUSER:-}" ] && USER="${inputUSER}"
+    if [ -n "${FLAG_DB}" ]; then
+        DB="${FLAG_DB}"
+        sub "Database name: ${DB} (from flag/env)"
+    elif [ "${NON_INTERACTIVE}" = "yes" ]; then
+        sub "Database name: ${DB} (default)"
+    else
+        read -r -p "Database name [${DB}]: " inputDB
+        [ -n "${inputDB:-}" ] && DB="${inputDB}"
+    fi
+    if [ -n "${FLAG_USER}" ]; then
+        USER="${FLAG_USER}"
+        sub "Database user: ${USER} (from flag/env)"
+    elif [ "${NON_INTERACTIVE}" = "yes" ]; then
+        sub "Database user: ${USER} (default)"
+    else
+        read -r -p "Database user [${USER}]: " inputUSER
+        [ -n "${inputUSER:-}" ] && USER="${inputUSER}"
+    fi
 
     PASS=$(random_str 32)
     SECRET=$(random_str 32)
@@ -413,6 +494,9 @@ fi
 # --- Hostname ----------------------------------------------------------------
 if [ "${REUSE_CONFIG}" = "yes" ] && [ -n "${HOST}" ]; then
     step "Server hostname: ${HOST} (reused)"
+elif [ -n "${FLAG_HOST}" ]; then
+    HOST="${FLAG_HOST}"
+    step "Server hostname: ${HOST} (from flag/env)"
 else
     step "Server hostname"
     sub "Used for nginx server_name; SSL certs will be requested for HOST, cdn.HOST, relay.HOST"
@@ -426,27 +510,42 @@ fi
 
 # --- Media path --------------------------------------------------------------
 if [ "${REUSE_CONFIG}" != "yes" ]; then
-    step "Media storage path"
-    sub "Where uploaded media files will be stored (local). S3 can be configured later in admin settings."
-    read -r -p "Files path [${MEDIAPATH}]: " inputMEDIAPATH
-    [ -n "${inputMEDIAPATH:-}" ] && MEDIAPATH="${inputMEDIAPATH}"
+    if [ -n "${FLAG_MEDIAPATH}" ]; then
+        MEDIAPATH="${FLAG_MEDIAPATH}"
+        step "Media storage path: ${MEDIAPATH} (from flag/env)"
+    elif [ "${NON_INTERACTIVE}" = "yes" ]; then
+        step "Media storage path: ${MEDIAPATH} (default)"
+    else
+        step "Media storage path"
+        sub "Where uploaded media files will be stored (local). S3 can be configured later in admin settings."
+        read -r -p "Files path [${MEDIAPATH}]: " inputMEDIAPATH
+        [ -n "${inputMEDIAPATH:-}" ] && MEDIAPATH="${inputMEDIAPATH}"
+    fi
 fi
 
 # --- Server keypair ----------------------------------------------------------
 if [ "${REUSE_CONFIG}" != "yes" ]; then
-    step "Server keypair"
-    sub "Leave empty to let the server generate one on first run"
-    sub "Hex format. Convert npub→hex at https://nostrcheck.me/converter/"
-    read -r -p "Public key (hex, optional): " PUBKEY
-    if [ -n "${PUBKEY}" ]; then
-        while [ -z "${SECRETKEY}" ]; do
-            read -r -p "Secret key (hex, required if pubkey given): " SECRETKEY
-            if [ -z "${SECRETKEY}" ]; then
-                warn "Secret key empty — discarding pubkey, server will generate one"
-                PUBKEY=""
-                break
-            fi
-        done
+    if [ -n "${FLAG_PUBKEY}" ]; then
+        PUBKEY="${FLAG_PUBKEY}"
+        SECRETKEY="${FLAG_SECRETKEY}"
+        step "Server keypair: provided via flag/env"
+    elif [ "${NON_INTERACTIVE}" = "yes" ]; then
+        step "Server keypair: none provided, will be auto-generated on first run"
+    else
+        step "Server keypair"
+        sub "Leave empty to let the server generate one on first run"
+        sub "Hex format. Convert npub→hex at https://nostrcheck.me/converter/"
+        read -r -p "Public key (hex, optional): " PUBKEY
+        if [ -n "${PUBKEY}" ]; then
+            while [ -z "${SECRETKEY}" ]; do
+                read -r -p "Secret key (hex, required if pubkey given): " SECRETKEY
+                if [ -z "${SECRETKEY}" ]; then
+                    warn "Secret key empty — discarding pubkey, server will generate one"
+                    PUBKEY=""
+                    break
+                fi
+            done
+        fi
     fi
 fi
 
@@ -555,9 +654,17 @@ ok "nginx configured for ${HOST}, cdn.${HOST}, relay.${HOST}"
 
 # --- systemd -----------------------------------------------------------------
 step "systemd service"
-read -r -p "Create a systemd service so the server starts on boot? [Y/n] " input
 SYSTEMD_SERVICE_CREATED="no"
 ABSOLUTE_PATH=$(realpath "$(pwd)")
+if [ "${NO_SYSTEMD}" = "yes" ]; then
+    input="n"
+    sub "Skipping systemd service (--no-systemd)"
+elif [ "${NON_INTERACTIVE}" = "yes" ]; then
+    input="y"
+    sub "Non-interactive mode: creating systemd service"
+else
+    read -r -p "Create a systemd service so the server starts on boot? [Y/n] " input
+fi
 if [ "${input:-y}" != "n" ] && [ "${input:-y}" != "N" ]; then
     sudo tee /etc/systemd/system/nostrcheck.service > /dev/null <<EOF
 [Unit]
@@ -591,7 +698,17 @@ fi
 step "SSL via Let's Encrypt"
 sub "Certbot will attempt to issue for ${HOST}, cdn.${HOST}, relay.${HOST}"
 sub "DNS A/AAAA records must point to this server"
-read -r -p "Proceed with Certbot now? [Y/n] " input_ssl
+if [ "${NO_SSL}" = "yes" ]; then
+    input_ssl="n"
+    sub "Skipping SSL (--no-ssl)"
+elif [ "${NON_INTERACTIVE}" = "yes" ]; then
+    # Certbot needs email + ToS acceptance interactively, so skip in CI/unattended
+    # unless the caller explicitly wants to handle it themselves (then drop --no-ssl).
+    input_ssl="n"
+    sub "Non-interactive mode: skipping certbot (pass an explicit cert manually if needed)"
+else
+    read -r -p "Proceed with Certbot now? [Y/n] " input_ssl
+fi
 if [ "${input_ssl:-y}" != "n" ] && [ "${input_ssl:-y}" != "N" ]; then
     CANDIDATES=("${HOST}" "cdn.${HOST}" "relay.${HOST}")
     RESOLVING=()
@@ -660,15 +777,19 @@ case "${PURGE_BUILD_DEPS}" in
     yes) should_purge="yes" ;;
     no)  should_purge="no" ;;
     ask)
-        step "Reclaim extra disk by removing build toolchains?"
-        sub "Removes: Rust toolchain (~500 MB) and -dev headers (~300 MB)."
-        sub "These are only needed to recompile native modules from source."
-        sub "Runtime libraries stay. Re-running the installer reinstalls them if needed."
-        read -r -p "Remove now? [y/N] " input
-        case "${input:-}" in
-            y|Y) should_purge="yes" ;;
-            *)   should_purge="no" ;;
-        esac
+        if [ "${NON_INTERACTIVE}" = "yes" ]; then
+            should_purge="no"
+        else
+            step "Reclaim extra disk by removing build toolchains?"
+            sub "Removes: Rust toolchain (~500 MB) and -dev headers (~300 MB)."
+            sub "These are only needed to recompile native modules from source."
+            sub "Runtime libraries stay. Re-running the installer reinstalls them if needed."
+            read -r -p "Remove now? [y/N] " input
+            case "${input:-}" in
+                y|Y) should_purge="yes" ;;
+                *)   should_purge="no" ;;
+            esac
+        fi
         ;;
 esac
 

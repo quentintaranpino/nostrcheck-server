@@ -1,0 +1,91 @@
+name: Installer test
+
+on:
+  push:
+    branches: [main, 0.7.1]
+    paths:
+      - 'scripts/install.sh'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/installer-test.yml'
+  pull_request:
+    paths:
+      - 'scripts/install.sh'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/installer-test.yml'
+  workflow_dispatch:
+
+jobs:
+  install:
+    name: Install on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, ubuntu-24.04]
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      # GitHub-hosted runners ship MySQL preinstalled, which conflicts with the
+      # mariadb-server the installer expects. Drop it so we start from a known state.
+      - name: Remove pre-installed MySQL
+        run: |
+          sudo systemctl stop mysql.service 2>/dev/null || true
+          sudo apt-get purge -y 'mysql-*' 'libmysql*' 2>/dev/null || true
+          sudo apt-get autoremove -y
+          sudo rm -rf /var/lib/mysql /etc/mysql
+
+      - name: Run installer (non-interactive, no SSL)
+        run: |
+          chmod +x scripts/install.sh
+          ./scripts/install.sh \
+            --non-interactive \
+            --verbose \
+            --host nostrcheck.test \
+            --db nostrcheck \
+            --user nostrcheck \
+            --no-ssl \
+            --keep-build-deps
+
+      - name: Wait for service to settle
+        run: sleep 15
+
+      - name: Verify systemd service is active
+        run: |
+          if ! sudo systemctl is-active --quiet nostrcheck; then
+            echo "::error::nostrcheck service is not active"
+            sudo systemctl status nostrcheck --no-pager || true
+            sudo journalctl -u nostrcheck --no-pager -n 200 || true
+            exit 1
+          fi
+          echo "nostrcheck service is active"
+
+      - name: Verify HTTP endpoint responds
+        run: |
+          for i in $(seq 1 6); do
+            if curl --fail --silent --max-time 5 --output /dev/null http://localhost:3000/ ; then
+              echo "Server is responding on port 3000"
+              exit 0
+            fi
+            echo "Attempt $i: not yet, sleeping 5s..."
+            sleep 5
+          done
+          echo "::error::server did not respond on port 3000 after 30s"
+          sudo systemctl status nostrcheck --no-pager || true
+          echo ""
+          echo "=== journalctl -u nostrcheck (last 200 lines) ==="
+          sudo journalctl -u nostrcheck --no-pager -n 200 || true
+          exit 1
+
+      - name: Upload install log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: install-log-${{ matrix.os }}
+          path: |
+            install.log
+            /tmp/nostrcheck-install.log
+          if-no-files-found: ignore
