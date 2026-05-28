@@ -1,4 +1,6 @@
 # Force LF line endings on shell scripts so they run on Linux when the
 # repository is cloned on Windows hosts (CRLF in the shebang breaks bash).
 *.sh        text eol=lf
+*.yml       text eol=lf
+*.yaml      text eol=lf
 Dockerfile* text eol=lf
