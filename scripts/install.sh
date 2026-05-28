@@ -22,6 +22,41 @@ readonly PACKAGES="nginx git redis-server mariadb-server mariadb-client ffmpeg j
 
 readonly E_BADARGS=65
 
+# --- Arg parsing -------------------------------------------------------------
+QUIET="yes"
+PURGE_BUILD_DEPS="ask"  # ask|yes|no
+while [ $# -gt 0 ]; do
+    case "$1" in
+        -v|--verbose)        QUIET="no"; shift ;;
+        -q|--quiet)          QUIET="yes"; shift ;;
+        --purge-build-deps)  PURGE_BUILD_DEPS="yes"; shift ;;
+        --keep-build-deps)   PURGE_BUILD_DEPS="no"; shift ;;
+        -h|--help)
+            cat <<EOF
+Usage: $(basename "$0") [options]
+
+Options:
+  -v, --verbose         Show full command output on screen.
+  -q, --quiet           Only show step summaries (default). Full log in install.log.
+  --purge-build-deps    At the end, remove Rust and -dev headers without asking.
+  --keep-build-deps     At the end, keep Rust and -dev headers without asking.
+  -h, --help            Show this help.
+
+Examples:
+  Quiet install (default):      $(basename "$0")
+  Verbose for debugging:        $(basename "$0") --verbose
+  Slim install + purge:         $(basename "$0") --purge-build-deps
+EOF
+            exit 0
+            ;;
+        *)
+            printf 'Unknown argument: %s\n' "$1" >&2
+            printf 'Run with --help for usage.\n' >&2
+            exit "${E_BADARGS}"
+            ;;
+    esac
+done
+
 # --- Color helpers -----------------------------------------------------------
 if [ -t 1 ] && command -v tput >/dev/null 2>&1; then
     BOLD=$(tput bold || true)
@@ -41,10 +76,34 @@ ok()    { printf '%s[OK]%s    %s\n' "${GREEN}" "${RESET}" "$*"; }
 warn()  { printf '%s[WARN]%s  %s\n' "${YELLOW}" "${RESET}" "$*"; }
 err()   { printf '%s[ERR]%s   %s\n' "${RED}" "${RESET}" "$*" >&2; }
 
-# --- Logging + error trap ----------------------------------------------------
+# --- Logging + run helpers ---------------------------------------------------
 LOG_FILE="${LOG_FILE:-$(pwd)/install.log}"
 : > "${LOG_FILE}" 2>/dev/null || LOG_FILE="/tmp/nostrcheck-install.log"
-exec > >(tee -a "${LOG_FILE}") 2>&1
+
+# In verbose mode tee everything to the log AND keep it on screen.
+# In quiet mode leave stdout to the terminal so step/ok/warn helpers show,
+# and only the output of run()/run_sh() gets routed to the log.
+if [ "${QUIET}" != "yes" ]; then
+    exec > >(tee -a "${LOG_FILE}") 2>&1
+fi
+
+# Execute a single command, honoring QUIET.
+run() {
+    if [ "${QUIET}" = "yes" ]; then
+        "$@" >>"${LOG_FILE}" 2>&1
+    else
+        "$@"
+    fi
+}
+
+# Execute a shell pipeline (supports |, &&, redirects), honoring QUIET.
+run_sh() {
+    if [ "${QUIET}" = "yes" ]; then
+        bash -c "$*" >>"${LOG_FILE}" 2>&1
+    else
+        bash -c "$*"
+    fi
+}
 
 DB_CREATED=""
 NGINX_CONF_CREATED=""
@@ -57,6 +116,10 @@ on_error() {
     echo ""
     err "Installation failed (exit ${exit_code}) at line ${lineno}"
     echo "      Full log: ${LOG_FILE}"
+    if [ "${QUIET}" = "yes" ] && [ -s "${LOG_FILE}" ]; then
+        echo "      Last 30 lines of the log:"
+        tail -n 30 "${LOG_FILE}" | sed 's/^/        /'
+    fi
     echo ""
     echo "      Resources that may have been partially created:"
     [ -n "${REPO_CLONED}" ]          && echo "        - repository clone: ${REPO_CLONED}"
@@ -99,8 +162,8 @@ random_str() {
 
 install_node() {
     sub "Installing Node.js ${NODE_MAJOR} via NodeSource"
-    curl -fsSL "https://deb.nodesource.com/setup_${NODE_MAJOR}.x" | sudo -E bash -
-    sudo apt-get install -y nodejs
+    run_sh "curl -fsSL 'https://deb.nodesource.com/setup_${NODE_MAJOR}.x' | sudo -E bash -"
+    run sudo apt-get install -y --no-install-recommends nodejs
     if command -v node >/dev/null 2>&1; then
         INSTALLED_NODE_MAJOR=$(node -v | grep -oP '^v\K[0-9]+' || echo 0)
     fi
@@ -113,6 +176,12 @@ echo "  https://github.com/quentintaranpino/nostrcheck-server"
 echo "  License: MIT"
 echo ""
 echo "  Targets Debian/Ubuntu. Tested on Ubuntu 22.04 and 24.04."
+if [ "${QUIET}" = "yes" ]; then
+    echo "  Quiet mode. Full output streams to: ${LOG_FILE}"
+    echo "  (re-run with --verbose to see commands on screen)"
+else
+    echo "  Verbose mode. Mirroring all output to: ${LOG_FILE}"
+fi
 echo ""
 
 read -r -p "Proceed with installation? [y/n] " input
@@ -175,38 +244,39 @@ fi
 
 # --- System packages ---------------------------------------------------------
 step "Updating package list"
-sudo apt-get update
+run sudo apt-get update
 ok "Package list updated"
 
 step "Installing system packages"
 sub "${PACKAGES}"
-sudo apt-get install -y ${PACKAGES}
+# shellcheck disable=SC2086
+run sudo apt-get install -y --no-install-recommends ${PACKAGES}
 ok "System packages installed"
 
 # --- Rust --------------------------------------------------------------------
 step "Installing Rust toolchain (required by Python tokenizers)"
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal
+run_sh "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal"
 # shellcheck disable=SC1091
 source "${HOME}/.cargo/env"
 if ! grep -q 'cargo/bin' "${HOME}/.bashrc" 2>/dev/null; then
     echo 'export PATH="$HOME/.cargo/bin:$PATH"' >> "${HOME}/.bashrc"
 fi
-rustc --version
-cargo --version
+sub "$(rustc --version)"
+sub "$(cargo --version)"
 ok "Rust toolchain ready"
 
 # --- Repository --------------------------------------------------------------
 step "Fetching repository"
 if [ -f "package.json" ] && grep -q '"name": "nostrcheck-server"' package.json 2>/dev/null; then
     sub "Running from inside the repository, pulling latest"
-    git pull --ff-only origin "${REPO_BRANCH}" || warn "git pull failed, continuing with current code"
+    run git pull --ff-only origin "${REPO_BRANCH}" || warn "git pull failed, continuing with current code"
 elif [ -d "nostrcheck-server/.git" ]; then
     sub "Repository already cloned, pulling latest"
     cd "nostrcheck-server"
-    git pull --ff-only origin "${REPO_BRANCH}" || warn "git pull failed, continuing with current code"
+    run git pull --ff-only origin "${REPO_BRANCH}" || warn "git pull failed, continuing with current code"
 else
     sub "git clone ${REPO_URL} (branch ${REPO_BRANCH})"
-    git clone -b "${REPO_BRANCH}" --single-branch "${REPO_URL}"
+    run git clone -b "${REPO_BRANCH}" --single-branch "${REPO_URL}"
     REPO_CLONED="$(pwd)/nostrcheck-server"
     cd "nostrcheck-server"
 fi
@@ -225,7 +295,7 @@ ok "Repository ready at $(pwd)"
 step "Setting up Python environment (${PYENV_PY_VERSION})"
 if ! command -v pyenv >/dev/null 2>&1; then
     sub "Installing pyenv"
-    curl https://pyenv.run | bash
+    run_sh "curl https://pyenv.run | bash"
     export PATH="${HOME}/.pyenv/bin:${PATH}"
     eval "$(pyenv init -)"
     eval "$(pyenv virtualenv-init -)"
@@ -243,24 +313,24 @@ else
 fi
 
 if [ ! -e "${HOME}/.pyenv/versions/${PYENV_PY_VERSION}/bin/python" ]; then
-    sub "Installing Python ${PYENV_PY_VERSION} via pyenv"
-    pyenv install -s "${PYENV_PY_VERSION}"
+    sub "Installing Python ${PYENV_PY_VERSION} via pyenv (compiles from source, may take several minutes)"
+    run pyenv install -s "${PYENV_PY_VERSION}"
 fi
 
 PY_CMD="${HOME}/.pyenv/versions/${PYENV_PY_VERSION}/bin/python"
 VENV_DIR=".venv"
 if [ ! -d "${VENV_DIR}" ]; then
     sub "Creating virtualenv at ${VENV_DIR}"
-    "${PY_CMD}" -m venv "${VENV_DIR}"
+    run "${PY_CMD}" -m venv "${VENV_DIR}"
 else
     sub "Virtualenv already exists at ${VENV_DIR}"
 fi
 # shellcheck disable=SC1091
 source "${VENV_DIR}/bin/activate"
 
-sub "Installing Python packages"
-pip install -U pip setuptools wheel
-pip install \
+sub "Installing Python packages (torch is ~900 MB, expect a few minutes)"
+run pip install --no-cache-dir -U pip setuptools wheel
+run pip install --no-cache-dir \
     "transformers==${TRANSFORMERS_VERSION}" \
     "Flask==${FLASK_VERSION}" \
     "Pillow==${PILLOW_VERSION}" \
@@ -269,26 +339,27 @@ ok "Python environment ready"
 
 # --- npm ---------------------------------------------------------------------
 step "Installing npm dependencies"
-sudo npm install -g npm@latest
+sub "Updating npm itself"
+run sudo npm install -g npm@latest
 if [ -f "package-lock.json" ]; then
-    sub "npm ci --include=optional"
-    npm ci --include=optional
+    sub "npm ci --include=optional --no-audit --no-fund"
+    run npm ci --include=optional --no-audit --no-fund
 else
-    sub "npm install --include=optional"
-    npm install --include=optional
+    sub "npm install --include=optional --no-audit --no-fund"
+    run npm install --include=optional --no-audit --no-fund
 fi
 ok "npm dependencies installed"
 
 # --- Build -------------------------------------------------------------------
 step "Building project"
 sub "npm run build"
-npm run build
+run npm run build
 ok "Build complete"
 
 # --- MariaDB + Redis ---------------------------------------------------------
 step "Starting MariaDB and Redis"
-sudo service redis-server start
-sudo service mariadb start
+run sudo service redis-server start
+run sudo service mariadb start
 ok "Services started"
 
 MYSQL=$(which mysql || true)
@@ -472,8 +543,8 @@ server {
 EOF
 NGINX_CONF_CREATED="${NGINX_CONF}"
 sudo ln -sf "${NGINX_CONF}" "/etc/nginx/sites-enabled/${HOST}.conf"
-sudo nginx -t
-sudo service nginx restart
+run sudo nginx -t
+run sudo service nginx restart
 ok "nginx configured for ${HOST}, cdn.${HOST}, relay.${HOST}"
 
 # --- systemd -----------------------------------------------------------------
@@ -499,9 +570,9 @@ RestartSec=5s
 WantedBy=multi-user.target
 EOF
     SYSTEMD_UNIT_CREATED="/etc/systemd/system/nostrcheck.service"
-    sudo systemctl daemon-reload
-    sudo systemctl enable nostrcheck
-    sudo systemctl start nostrcheck
+    run sudo systemctl daemon-reload
+    run sudo systemctl enable nostrcheck
+    run sudo systemctl start nostrcheck
     if sudo systemctl is-active --quiet nostrcheck; then
         SYSTEMD_SERVICE_CREATED="yes"
         ok "systemd service nostrcheck.service running as ${INVOKING_USER}"
@@ -560,6 +631,55 @@ if [ "${input_ssl:-}" = "y" ]; then
             warn "No certificates issued, continuing without SSL"
         fi
     fi
+fi
+
+# --- Cleanup -----------------------------------------------------------------
+step "Cleaning install-time caches"
+sub "pip cache"
+run_sh "pip cache purge || true"
+sub "npm cache"
+run npm cache clean --force
+sub "apt downloaded .deb files"
+run sudo apt-get clean
+sub "pyenv tarball cache"
+rm -rf "${HOME}/.pyenv/cache" 2>/dev/null || true
+ok "Caches cleared (~500 MB-1 GB reclaimed)"
+
+# Optional: drop Rust toolchain and -dev headers used only at compile time.
+# Their runtime libraries (libssl3, libjpeg62-turbo, etc.) stay installed,
+# so the running app is unaffected. If the user later updates a native
+# dep and pip/npm need to rebuild, the toolchain will have to be reinstalled.
+should_purge="no"
+case "${PURGE_BUILD_DEPS}" in
+    yes) should_purge="yes" ;;
+    no)  should_purge="no" ;;
+    ask)
+        step "Reclaim extra disk by removing build toolchains?"
+        sub "Removes: Rust toolchain (~500 MB) and -dev headers (~300 MB)."
+        sub "These are only needed to recompile native modules from source."
+        sub "Runtime libraries stay. Re-running the installer reinstalls them if needed."
+        read -r -p "Remove now? [y/N] " input
+        case "${input:-}" in
+            y|Y) should_purge="yes" ;;
+            *)   should_purge="no" ;;
+        esac
+        ;;
+esac
+
+if [ "${should_purge}" = "yes" ]; then
+    step "Removing build toolchains"
+    sub "Removing -dev headers and build-essential"
+    # shellcheck disable=SC2086
+    run sudo apt-get remove --purge -y \
+        libjpeg-dev zlib1g-dev libssl-dev libbz2-dev libreadline-dev \
+        libsqlite3-dev libffi-dev liblzma-dev tk-dev uuid-dev \
+        libncurses5-dev libncursesw5-dev python3-dev pkg-config build-essential
+    run sudo apt-get autoremove -y
+    sub "Removing Rust toolchain"
+    rm -rf "${HOME}/.cargo" "${HOME}/.rustup" 2>/dev/null || true
+    sudo rm -rf /usr/local/cargo /usr/local/rustup 2>/dev/null || true
+    sed -i '/cargo\/bin/d' "${HOME}/.bashrc" 2>/dev/null || true
+    ok "Build toolchains removed (~700-800 MB freed)"
 fi
 
 # --- Done --------------------------------------------------------------------
