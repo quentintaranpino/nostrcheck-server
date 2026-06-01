@@ -1,5 +1,6 @@
 # syntax=docker/dockerfile:1.6
 FROM node:20 AS base
+ARG TARGETPLATFORM
 ENV DEBIAN_FRONTEND=noninteractive
 ENV VENV_DIR=/usr/src/app/.venv
 ENV PATH="$VENV_DIR/bin:/root/.cargo/bin:$PATH"
@@ -19,15 +20,19 @@ COPY src ./src
 COPY scripts ./scripts
 COPY plugins ./plugins
 
-# Install Python dependencies
+# torch ships CPU-only wheels on download.pytorch.org for amd64; arm64 wheels
+# are only on the default PyPI index, so split the install by TARGETPLATFORM.
 RUN python3 -m venv "$VENV_DIR" && \
     . "$VENV_DIR/bin/activate" && \
     pip install --upgrade pip && \
-    pip install --index-url https://download.pytorch.org/whl/cpu \
-        torch==2.4.1 && \
+    if [ "$TARGETPLATFORM" = "linux/amd64" ]; then \
+        pip install --index-url https://download.pytorch.org/whl/cpu torch==2.4.1; \
+    else \
+        pip install torch==2.4.1; \
+    fi && \
     pip install transformers==4.44.2 Flask==3.0.3 Pillow==10.4.0
 
-# Install Rust (for tokenizers)
+# Rust toolchain (needed when Python tokenizers has no prebuilt wheel for the arch).
 ENV CARGO_HOME=/usr/local/cargo \
     RUSTUP_HOME=/usr/local/rustup
 ENV PATH="${CARGO_HOME}/bin:${PATH}"
