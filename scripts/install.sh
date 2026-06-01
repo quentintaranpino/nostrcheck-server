@@ -333,8 +333,7 @@ ok "Rust toolchain ready"
 # --- Repository --------------------------------------------------------------
 step "Fetching repository"
 if [ -f "package.json" ] && grep -q '"name": "nostrcheck-server"' package.json 2>/dev/null; then
-    sub "Running from inside the repository, pulling latest"
-    run git pull --ff-only origin "${REPO_BRANCH}" || warn "git pull failed, continuing with current code"
+    sub "Running from inside the repository, using checked-out code as-is (no pull)"
 elif [ -d "nostrcheck-server/.git" ]; then
     sub "Repository already cloned, pulling latest"
     cd "nostrcheck-server"
@@ -413,8 +412,9 @@ ok "Python environment ready"
 
 # --- npm ---------------------------------------------------------------------
 step "Installing npm dependencies"
-sub "Updating npm itself"
-run sudo npm install -g npm@latest
+# Note: we deliberately do NOT upgrade npm globally. The version that ships
+# with Node 20 (npm 10.x) runs install scripts (bcrypt/sharp/secp256k1
+# native builds) without the allowScripts gate that npm 11 introduced.
 if [ -f "package-lock.json" ]; then
     sub "npm ci --include=optional --no-audit --no-fund"
     run npm ci --include=optional --no-audit --no-fund
@@ -666,6 +666,9 @@ else
     read -r -p "Create a systemd service so the server starts on boot? [Y/n] " input
 fi
 if [ "${input:-y}" != "n" ] && [ "${input:-y}" != "N" ]; then
+    # Resolve absolute npm path (CI runners and some distros ship it under
+    # /usr/local/bin, not /usr/bin). Fall back to /usr/bin/npm if not found.
+    NPM_BIN=$(command -v npm || echo /usr/bin/npm)
     sudo tee /etc/systemd/system/nostrcheck.service > /dev/null <<EOF
 [Unit]
 Description=Nostrcheck server
@@ -675,7 +678,7 @@ After=network.target
 Type=simple
 User=${INVOKING_USER}
 WorkingDirectory=${ABSOLUTE_PATH}
-ExecStart=/usr/bin/npm run start
+ExecStart=${NPM_BIN} run start
 Restart=on-failure
 RestartSec=5s
 
