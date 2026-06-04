@@ -92,12 +92,13 @@
         width: 100%;
         height: 100%;
         display: flex;
-        align-items: center;
-        padding: 8px;
-        /* Centred (not bottom) so the transport bar never sits under the hover
-           button overlay. The wrapper ignores pointer events so the tile click
-           and the action buttons still work; only the <audio> itself catches
-           clicks, which is what lets play/seek work instead of opening the modal. */
+        align-items: flex-end;
+        /* Sits low (clearing the hover buttons via the bottom padding) so the
+           music artwork stays visible above it. The wrapper ignores pointer
+           events so the tile click and the action buttons still work; only the
+           <audio> itself catches clicks, which is what lets play/seek work
+           instead of opening the modal. */
+        padding: 8px 8px 52px 8px;
         pointer-events: none;
     }
     .gallery-tile .audio-tile audio { width: 100%; pointer-events: auto; }
