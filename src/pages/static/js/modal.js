@@ -600,6 +600,7 @@ const initMediaModal = async (filename, checked, visible, showButtons = true, fi
     const mediaPreviewIframe = $('#mediapreview-iframe');
     const mediapreviewImg = $('#mediapreview-img');
     const mediaPreviewVideo = $('#mediapreview-video');
+    const mediaPreviewAudio = $('#mediapreview-audio');
     const mediaPreview3d = $('#mediapreview-3d');
     const fontPreview = $('#mediapreview-font');
     const yamlPreview = $('#mediapreview-yaml');
@@ -623,6 +624,7 @@ const initMediaModal = async (filename, checked, visible, showButtons = true, fi
         mediaPreviewIframe.attr('src', '').addClass('d-none');
         mediapreviewImg.attr('src', '').addClass('d-none');
         mediaPreviewVideo.attr('src', '').addClass('d-none');
+        mediaPreviewAudio.attr('src', '').addClass('d-none');
         mediaPreview3d.addClass('d-none');
         fontPreview.addClass('d-none');
         yamlPreview.addClass('d-none');
@@ -740,6 +742,10 @@ const initMediaModal = async (filename, checked, visible, showButtons = true, fi
             yamlPreview.removeClass('d-none');
         } else if (ct.includes('video')) {
             mediaPreviewVideo.attr('src', data.url).removeClass('d-none');
+        } else if (ct.includes('audio')) {
+            mediaPreviewAudio.attr('src', data.url).removeClass('d-none');
+        } else if (ct.includes('pdf')) {
+            mediaPreviewIframe.attr('src', data.url).removeClass('d-none');
         } else if (ct === '') {
             // nothing
         } else if (ct.includes('text') || ct.includes('application/json') || ct.includes('xml')) {

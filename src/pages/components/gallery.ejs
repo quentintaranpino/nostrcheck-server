@@ -92,10 +92,15 @@
         width: 100%;
         height: 100%;
         display: flex;
-        align-items: flex-end;
+        align-items: center;
         padding: 8px;
+        /* Centred (not bottom) so the transport bar never sits under the hover
+           button overlay. The wrapper ignores pointer events so the tile click
+           and the action buttons still work; only the <audio> itself catches
+           clicks, which is what lets play/seek work instead of opening the modal. */
+        pointer-events: none;
     }
-    .gallery-tile .audio-tile audio { width: 100%; }
+    .gallery-tile .audio-tile audio { width: 100%; pointer-events: auto; }
     .gallery-tile .btn-container {
         position: absolute;
         bottom: 4px;
@@ -233,6 +238,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // propagation, so they keep their own behaviour.
     $(document).on('click', '.gallery-tile', function(event) {
         if (event.target.closest('.btn-container')) return;
+        // Clicks on the inline audio player drive play/seek, not the modal.
+        if (event.target.closest('.audio-tile')) return;
         event.preventDefault();
         const url = this.dataset.url;
         const visibility = this.dataset.visibility;
