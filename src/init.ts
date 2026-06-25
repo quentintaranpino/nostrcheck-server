@@ -14,7 +14,7 @@ console.log("Starting Nostrcheck server", );
             console.info("Creating local config file: " + localPath, "Please edit the file and restart the server");
             exit(0);
         } catch (err) {
-            console.error("An error occured while writing config JSON File.", err);
+            console.error("An error occurred while writing config JSON File.", err);
             exit(1);
         }
     }
