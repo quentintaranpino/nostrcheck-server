@@ -1116,6 +1116,9 @@ const loadTheme = async (req: Request, res: Response): Promise<void> => {
     `;
 
     res.setHeader("Content-Type", "text/css");
+    // Cacheable: it only changes when an admin edits appearance settings.
+    // Express's auto-ETag turns revalidations into cheap 304s after max-age.
+    res.setHeader("Cache-Control", "public, max-age=300, must-revalidate");
     res.send(css);
 };
 
