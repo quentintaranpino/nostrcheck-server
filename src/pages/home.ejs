@@ -9,7 +9,7 @@
 
     <section class="home-hero position-relative">
       <div class="container px-4 px-lg-5 position-relative z-1 pt-3 pt-lg-4 pb-1 pb-lg-2">
-        <h1 class="text-white mx-auto my-0 text-uppercase gradien display-5"><%= locals.pageTitle || locals.serverHost %></h1>
+        <h1 class="text-white mx-auto my-0 text-uppercase display-5"><%= locals.pageTitle || locals.serverHost %></h1>
         <h2 class="text-white-50 mx-auto mt-1 mb-3 fs-3 fw-light"><%= locals.pageSubtitle || "Self-hosted Nostr server" %></h2>
         <% if (locals.intro && locals.intro.trim()) { %>
         <p class="text-white-50 mt-0 mb-3" style="max-width: 820px;"><%= locals.intro %></p>
