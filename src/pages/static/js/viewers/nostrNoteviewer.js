@@ -2,6 +2,10 @@ function formatNostrContent(content, pubkeysArray = []) {
 
     if (!content) return '';
 
+    // Note content is attacker-controlled: escape everything up front, then
+    // let the regexes below rebuild the media/link tags over the safe text.
+    content = escapeHtml(content);
+
    // Regular expressions for matching media types and line breaks
    const imgRegex = /https?:\/\/[^\s"]+\.(png|jpg|jpeg|gif|webp)/g;
    const videoRegex = /https?:\/\/[^\s"]+\.(mp4|webm|ogg)/g;

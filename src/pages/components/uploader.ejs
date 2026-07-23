@@ -515,11 +515,9 @@
                             ],
                         content: 'Blossom authorization event for file upload',
                     };
-                    console.log("AUTH EVENT", authEvent)
                 }
 
                 authEvent = btoa(JSON.stringify(await window.nostr.signEvent(authEvent)));
-                console.log("AUTH EVENT SIGNED", authEvent)
 
             } catch (error) {
                 console.error(error);
@@ -661,7 +659,6 @@
                 };
 
                 authEvent = btoa(JSON.stringify(await window.nostr.signEvent(authEvent)));
-                console.log("AUTH EVENT SIGNED", authEvent);
 
             } catch (error) {
                 console.error(error);

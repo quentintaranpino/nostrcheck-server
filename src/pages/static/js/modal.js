@@ -2,17 +2,18 @@ const initConfirmModal = async (objectId, ids, action, objectName, value = null,
 
     var alert = new bootstrap.Modal($(objectId + '-confirm-modal'));
 
-    $(alert._element).on('show.bs.modal', function () {
+    // .off() first: this init runs on every open, stacking handlers otherwise.
+    $(alert._element).off('show.bs.modal').on('show.bs.modal', function () {
         $(objectId + '-confirm-modal .modal-body').text('Are you sure you want to ' + action + ' ' + ids.length + ' ' + objectName + (ids.length > 1 ? 's' : '') + '?');
         if (action == 'remove')$(objectId + '-confirm-modal .modal-body').append('<br><br><strong>Warning:</strong> This action cannot be undone.');
         if (action == 'disable')$(objectId + '-confirm-modal .modal-body').append('<br><br><strong>Attention:</strong> Disabling a record can take up to 5 minutes to become effective.');
         if (action == 'balance')$(objectId + '-confirm-modal .modal-body').text('Specify the amount to be added to user balance:');
         if (action == 'ban')$(objectId + '-confirm-modal .modal-body').append('<br><br>Specify the reason for banning:');
         if (value != null && enableEditText){
-            $(objectId + '-confirm-modal .modal-body').append(  '<input type="text" class="form-control mt-4 mb-2" id="data" placeholder="' + 
-                                                                action + 
-                                                                '" value="' + 
-                                                                value + 
+            $(objectId + '-confirm-modal .modal-body').append(  '<input type="text" class="form-control mt-4 mb-2" id="data" placeholder="' +
+                                                                escapeHtml(action) +
+                                                                '" value="' +
+                                                                escapeHtml(value) +
                                                                 '">');
         }
 
@@ -23,14 +24,14 @@ const initConfirmModal = async (objectId, ids, action, objectName, value = null,
     alert.show();
 
     let result = await new Promise((resolve) => {
-        $(objectId + '-confirm-modal .save-button').click(function () {
+        $(objectId + '-confirm-modal .save-button').off('click').on('click', function () {
             value = $('#data').val();
             resolve({result : true, value : value});
         });
-        $(objectId + '-confirm-modal .cancel-button').click(function () {
+        $(objectId + '-confirm-modal .cancel-button').off('click').on('click', function () {
             resolve({result : false, value : value});
         });
-        $(alert._element).on('hidden.bs.modal', function () {
+        $(alert._element).off('hidden.bs.modal').on('hidden.bs.modal', function () {
             resolve({result : false, value : value});
         });
     });
@@ -44,7 +45,8 @@ const initEditModal = async (objectId, row, objectName, newRow, columns) => {
 
     var edit = new bootstrap.Modal($(objectId + '-edit-modal'));
 
-    $(edit._element).on('show.bs.modal', async function () {
+    // .off() first: this init runs on every open, stacking handlers otherwise.
+    $(edit._element).off('show.bs.modal').on('show.bs.modal', async function () {
 
         // Clear the modal body and append the title
         $(objectId + '-edit-modal .modal-title').empty();
@@ -75,7 +77,7 @@ const initEditModal = async (objectId, row, objectName, newRow, columns) => {
                         .append('<div class="form-check form-switch mt-3 mb-2"><input type="checkbox" class="form-check-input" id="' + key + '" ' + (row[key] ? 'checked' : '') + '><label for="' + key + '" class="form-check-label strong">' + key + '</label></div>');
                 } else {
                     $(objectId + '-edit-modal .modal-body')
-                        .append('<label for="' + key + '" class="col-form-label strong">' + key + '</label><input type="text" class="form-control" id="' + key + '" placeholder="' + key + '" value="' + row[key] + '">');
+                        .append('<label for="' + key + '" class="col-form-label strong">' + key + '</label><input type="text" class="form-control" id="' + key + '" placeholder="' + key + '" value="' + escapeHtml(row[key]) + '">');
                 }
                 if (key == 'id') {
                     $('#' + key).prop('disabled', true)
@@ -86,7 +88,7 @@ const initEditModal = async (objectId, row, objectName, newRow, columns) => {
                     const formattedContent = formatNostrContent(row[key]);
                     $('#' + key).replaceWith(
                         `
-                         <textarea class="form-control" id="${key}" placeholder="${key}" style="height:150px;">${row[key] || ''}</textarea>`
+                         <textarea class="form-control" id="${key}" placeholder="${key}" style="height:150px;">${escapeHtml(row[key] || '')}</textarea>`
                     );
                 }
 
@@ -160,8 +162,8 @@ const initEditModal = async (objectId, row, objectName, newRow, columns) => {
                         domainSelect.id = 'domain';
                         domainSelect.name = 'domain';
                         domainSelect.required = true;
-                        domainSelect.innerHTML = domains.map(domain => 
-                            `<option value="${domain}">${domain}</option>`
+                        domainSelect.innerHTML = domains.map(domain =>
+                            `<option value="${escapeHtml(domain)}">${escapeHtml(domain)}</option>`
                         ).join('');
                         
                         document.querySelector("#domain").replaceWith(domainSelect);
@@ -181,7 +183,7 @@ const initEditModal = async (objectId, row, objectName, newRow, columns) => {
                         let tagsArray = row[key] ? row[key].split(', ') : [];
                         $('#' + key).replaceWith(
                             `<div class="tags-preview" style="border:1px solid #ddd; border-radius:2px; padding:10px; display: flex; flex-direction: column; align-items: flex-start;">` +
-                            tagsArray.map(tag => `<span class="badge bg-secondary text-wrap mb-1 pt-2 pb-2" style="white-space: normal; max-width: 100%;">${tag}</span>`).join('') +
+                            tagsArray.map(tag => `<span class="badge bg-secondary text-wrap mb-1 pt-2 pb-2" style="white-space: normal; max-width: 100%;">${escapeHtml(tag)}</span>`).join('') +
                             `</div>`
                         );
                     }
@@ -217,7 +219,7 @@ const initEditModal = async (objectId, row, objectName, newRow, columns) => {
                     usersSelect.name = 'originid';
                     usersSelect.required = true;
                     usersSelect.innerHTML = allUsers.map(user =>
-                        `<option value="${user.id}">${user.username} (${user.domain})</option>`
+                        `<option value="${escapeHtml(user.id)}">${escapeHtml(user.username)} (${escapeHtml(user.domain)})</option>`
                     ).join('');
 
                     document.querySelector("#originid").replaceWith(usersSelect);
@@ -242,7 +244,7 @@ const initEditModal = async (objectId, row, objectName, newRow, columns) => {
 
     })
 
-    $(edit._element).on('hide.bs.modal', function () {
+    $(edit._element).off('hide.bs.modal').on('hide.bs.modal', function () {
         $(objectId + '-edit-modal .modal-body').empty();
         row = {}
     });
@@ -250,7 +252,7 @@ const initEditModal = async (objectId, row, objectName, newRow, columns) => {
     edit.show();
 
     let result = await new Promise((resolve) => {
-        $(objectId + '-edit-modal .save-button').click(function () {
+        $(objectId + '-edit-modal .save-button').off('click').on('click', function () {
             // Create a new row object and fill it with modal form inputs
             let editedRow = {}
             for (var key in row) {
@@ -270,7 +272,6 @@ const initEditModal = async (objectId, row, objectName, newRow, columns) => {
                         }
                     } else {
                         if (row[key] != $('#' + key).val()) {
-                            console.log('Key modified: ' + key + ' - Old value: ' + row[key] + ' - New value: ' + $('#' + key).val());
                             editedRow[key] = $('#' + key).val();
                         }
                     }
@@ -278,10 +279,10 @@ const initEditModal = async (objectId, row, objectName, newRow, columns) => {
             }
             resolve(editedRow);
         });
-        $(objectId + '-edit-modal .cancel-button').click(function () {
+        $(objectId + '-edit-modal .cancel-button').off('click').on('click', function () {
             resolve(null);
         });
-        $(objectId + '-edit-modal .btn-close').click(function () {
+        $(objectId + '-edit-modal .btn-close').off('click').on('click', function () {
             resolve(null);
         });
     });
@@ -297,12 +298,14 @@ const initAlertModal = async (objectId, message, timeout = 2000, alertClass = "a
     $(objectId + '-alert-modal .alert').addClass(alertClass);
 
 
-    $(alert._element).on('show.bs.modal', function () {
+    $(alert._element).off('show.bs.modal').on('show.bs.modal', function () {
         $(objectId + '-alert-modal .alert').empty();
         if (alertClass === "alert-warning") {
             $(objectId + '-alert-modal .alert').append('<i class="fa-solid fa-triangle-exclamation"></i> ');
-        } 
-        $(objectId + '-alert-modal .alert ').append(message)
+        }
+        // Text node: callers pass server messages and raw Error objects here,
+        // never markup — appending as HTML was an XSS sink.
+        $(objectId + '-alert-modal .alert ').append(document.createTextNode(String(message)))
     })
     alert.show();
 
@@ -334,16 +337,16 @@ const initMessageModal = async (objectId, message, title, modalSize = '') => {
 
     var alert = new bootstrap.Modal($(objectId + '-message-modal'));
 
-    $(alert._element).on('show.bs.modal', function () {
+    $(alert._element).off('show.bs.modal').on('show.bs.modal', function () {
         $(objectId + '-message-modal .modal-body').empty();
         $(objectId + '-message-modal .modal-body').append(message);
         $(objectId + '-message-modal .modal-title').text(title);
     });
-    
+
     alert.show();
 
     let result = await new Promise((resolve, reject) => {
-        $(objectId + '-message-modal .btn-close').click(function () {
+        $(objectId + '-message-modal .btn-close').off('click').on('click', function () {
             resolve(true);
         });
     });
@@ -390,14 +393,16 @@ const initPaymentModal = async (paymentRequest, satoshi, instance) => {
     paymentModal.show();
 
     let stopProcessing = false;
-    setInterval(() => {
+    // Keep the id so the poll dies with the modal: without clearInterval it
+    // kept firing (or idling) forever after close.
+    const pollId = setInterval(() => {
         if (stopProcessing) return;
         fetch(`payments/invoices/${$(`#${instance}payment-request`).text()}`)
             .then(response => response.json())
             .then(data => {
                 if (data.invoice.isPaid == true) {
-                    console.log('Payment successful');
                     stopProcessing = true;
+                    clearInterval(pollId);
                     $(`#${instance}payment-preimage`).text(data.invoice.preimage);
                     $(`#${instance}payment-link`).hide();
                     $(`#${instance}payment-qr`).hide();
@@ -406,11 +411,11 @@ const initPaymentModal = async (paymentRequest, satoshi, instance) => {
                     $(`#${instance}payment-success`).show();
                 }
             });
-    }, 3000); 
+    }, 3000);
 
     let result = await new Promise((resolve) => {
-        $(paymentModal._element).on('hidden.bs.modal', function () {
-            console.log($(`#${instance}payment-request`).text());
+        $(paymentModal._element).off('hidden.bs.modal').on('hidden.bs.modal', function () {
+            clearInterval(pollId);
             if(stopProcessing) {
                 resolve($(`#${instance}payment-preimage`).text());
             }else{
@@ -698,15 +703,17 @@ const initMediaModal = async (filename, checked, visible, showButtons = true, fi
             ? fmtSize(sizeNum)
             : (typeof sizeRaw === 'string' && sizeRaw ? sizeRaw : '');
 
+        // Every value below can come from Nostr event tags (attacker-controlled):
+        // escape before interpolating into the info table.
         const rows = [
-            sha && ['Hash', `<code class="user-select-all">${sha}</code>`],
-            pubkey && ['Pubkey', `<code class="user-select-all">${pubkey}</code>`],
-            mime && ['Type', mime],
-            sizeDisplay && ['Size', sizeDisplay],
-            dim && ['Dimensions', dim],
-            uploaded && ['Uploaded', fmtDate(uploaded)],
-            blurhash && ['Blurhash', `<code>${truncate(blurhash, 24)}</code>`],
-            paymentRequest && ['Payment', `<code>${truncate(paymentRequest, 32)}</code>`],
+            sha && ['Hash', `<code class="user-select-all">${escapeHtml(sha)}</code>`],
+            pubkey && ['Pubkey', `<code class="user-select-all">${escapeHtml(pubkey)}</code>`],
+            mime && ['Type', escapeHtml(mime)],
+            sizeDisplay && ['Size', escapeHtml(sizeDisplay)],
+            dim && ['Dimensions', escapeHtml(dim)],
+            uploaded && ['Uploaded', escapeHtml(fmtDate(uploaded))],
+            blurhash && ['Blurhash', `<code>${escapeHtml(truncate(blurhash, 24))}</code>`],
+            paymentRequest && ['Payment', `<code>${escapeHtml(truncate(paymentRequest, 32))}</code>`],
         ].filter(Boolean);
 
         if (rows.length > 0) {
