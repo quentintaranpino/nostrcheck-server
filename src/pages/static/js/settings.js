@@ -6,8 +6,13 @@ const reloadOnChangeFields = [
   ];
 
 async function saveSettings() {
-    const formFields = document.querySelectorAll('.form input, .form select, .form textarea');
-    
+    // Scope to the active tab: each section's Save button must only persist
+    // its own fields. Unscoped, one click silently saved dirty fields from
+    // every other tab too.
+    const activePane = document.querySelector('#settingsTabsContent .tab-pane.active');
+    const scope = activePane || document;
+    const formFields = scope.querySelectorAll('.form input, .form select, .form textarea');
+
     const selectedDomain = document.getElementById('domainSelector')?.value || null;
 
     let shouldReload = false;
@@ -445,6 +450,30 @@ function resetToGlobal(fieldName, globalValue) {
     input.dispatchEvent(new Event('input', { bubbles: true }));
     input.dispatchEvent(new Event('change', { bubbles: true }));
 }
+
+// Warn before leaving the page with unsaved settings changes.
+const isDirtySettingsField = (field) => {
+    if (field.id === 'domainSelector') return false;
+    if (field.type === 'checkbox') return field.checked !== field.defaultChecked;
+    if (field.tagName.toLowerCase() === 'select') {
+        const def = field.dataset.defaultValue
+            ?? (Array.from(field.options).find(o => o.defaultSelected)?.value || field.value);
+        return field.value !== def;
+    }
+    if (field.type === 'file') return field.files.length > 0;
+    return field.value !== (field.dataset.defaultValue || field.defaultValue);
+};
+
+window.addEventListener('beforeunload', (e) => {
+    const fields = document.querySelectorAll('.form input, .form select, .form textarea');
+    for (const field of fields) {
+        if (isDirtySettingsField(field)) {
+            e.preventDefault();
+            e.returnValue = '';
+            return;
+        }
+    }
+});
 
 // Intercept Ctrl+S for save settings
 (function () {
