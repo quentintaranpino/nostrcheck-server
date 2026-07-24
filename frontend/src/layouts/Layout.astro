@@ -238,7 +238,7 @@ const logoDark = '/static/resources/appearance-server-logo-dark.png';
 		color: var(--ink);
 		border: 1px solid var(--border);
 		border-radius: var(--radius-sm);
-		font-size: 0.875rem;
+		font-size: var(--text-sm);
 		text-decoration: none;
 		transform: translateY(-200%);
 	}
@@ -288,7 +288,7 @@ const logoDark = '/static/resources/appearance-server-logo-dark.png';
 	.nav-link {
 		color: var(--ink-muted);
 		text-decoration: none;
-		font-size: 0.9rem;
+		font-size: var(--text-sm);
 		font-weight: 500;
 		padding: var(--space-1) var(--space-2);
 		border-radius: var(--radius-sm);
@@ -313,7 +313,7 @@ const logoDark = '/static/resources/appearance-server-logo-dark.png';
 	.nav-search:hover, .nav-search:focus-visible { color: var(--ink); border-color: var(--ink-muted); outline: none; }
 	.nav-search kbd {
 		font-family: var(--font-mono);
-		font-size: 0.7rem;
+		font-size: var(--text-xs);
 		color: var(--ink-muted);
 	}
 
@@ -321,7 +321,7 @@ const logoDark = '/static/resources/appearance-server-logo-dark.png';
 		color: var(--bg);
 		background: var(--accent);
 		text-decoration: none;
-		font-size: 0.9rem;
+		font-size: var(--text-sm);
 		font-weight: 600;
 		padding: var(--space-1) var(--space-4);
 		border-radius: var(--radius-sm);
@@ -360,7 +360,7 @@ const logoDark = '/static/resources/appearance-server-logo-dark.png';
 	.nav-menu a {
 		color: var(--ink-muted);
 		text-decoration: none;
-		font-size: 0.9rem;
+		font-size: var(--text-sm);
 		padding: var(--space-2) var(--space-3);
 		border-radius: var(--radius-sm);
 		transition: color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
@@ -393,7 +393,7 @@ const logoDark = '/static/resources/appearance-server-logo-dark.png';
 		gap: var(--space-3);
 		flex-wrap: wrap;
 		padding: var(--space-5);
-		font-size: 0.8125rem;
+		font-size: var(--text-sm);
 		color: var(--ink-muted);
 	}
 	/* padding, not bare text: the links were ~20px tall, under the 24px floor */
@@ -405,8 +405,8 @@ const logoDark = '/static/resources/appearance-server-logo-dark.png';
 		transition: color var(--dur-fast) var(--ease-out);
 	}
 	.foot a:hover, .foot a:focus-visible { color: var(--ink); outline: none; }
-	.foot-ver { font-family: var(--font-mono); font-size: 0.75rem; }
-	.foot-lic { margin-left: auto; font-family: var(--font-mono); font-size: 0.75rem; }
+	.foot-ver { font-family: var(--font-mono); font-size: var(--text-xs); }
+	.foot-lic { margin-left: auto; font-family: var(--font-mono); font-size: var(--text-xs); }
 	.foot-sep { opacity: 0.5; }
 
 	/* Tablet and small laptops: the whole row (6 links + search + both auth

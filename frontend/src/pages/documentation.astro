@@ -148,11 +148,7 @@ const specGroups = [
 
 <style>
 	.docs-head { margin-bottom: var(--space-7); }
-	.docs-head h1 {
-		font-size: 2rem;
-		letter-spacing: -0.02em;
-		margin: 0 0 var(--space-3);
-	}
+	.docs-head h1 { margin: 0 0 var(--space-3); }
 	.docs-head p {
 		color: var(--ink-muted);
 		max-width: 62ch;
@@ -160,14 +156,10 @@ const specGroups = [
 	}
 
 	.docs-section { margin-bottom: var(--space-8); }
-	.docs-section h2 {
-		font-size: 1.25rem;
-		letter-spacing: -0.01em;
-		margin: 0 0 var(--space-2);
-	}
+	.docs-section h2 { margin: 0 0 var(--space-2); }
 	.docs-note {
 		color: var(--ink-muted);
-		font-size: 0.9375rem;
+		font-size: var(--text-sm);
 		max-width: 62ch;
 		margin: 0 0 var(--space-4);
 	}
@@ -191,12 +183,12 @@ const specGroups = [
 		background: var(--surface);
 	}
 	.ep-top { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; }
-	.ep-name { font-weight: 600; font-size: 0.9375rem; min-width: 5.5rem; }
+	.ep-name { font-weight: 600; font-size: var(--text-base); min-width: 5.5rem; }
 	.ep-url {
 		flex: 1;
 		min-width: 12rem;
 		font-family: var(--font-mono);
-		font-size: 0.875rem;
+		font-size: var(--text-sm);
 		color: var(--ink);
 		word-break: break-all;
 		user-select: all;
@@ -212,7 +204,7 @@ const specGroups = [
 		border-radius: var(--radius-sm);
 		padding: var(--space-2) var(--space-3);
 		font: inherit;
-		font-size: 0.8125rem;
+		font-size: var(--text-sm);
 		cursor: pointer;
 		transition: color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
 	}
@@ -220,7 +212,7 @@ const specGroups = [
 	.ep-copy[data-copied] { color: var(--success); border-color: var(--success); }
 	.ep-hint {
 		color: var(--ink-muted);
-		font-size: 0.8125rem;
+		font-size: var(--text-sm);
 		line-height: 1.6;
 		margin: var(--space-2) 0 0;
 	}
@@ -235,7 +227,7 @@ const specGroups = [
 	.mod-table {
 		width: 100%;
 		border-collapse: collapse;
-		font-size: 0.9375rem;
+		font-size: var(--text-base);
 	}
 	.mod-table th, .mod-table td {
 		text-align: left;
@@ -246,18 +238,18 @@ const specGroups = [
 	.mod-table th {
 		color: var(--ink-muted);
 		font-weight: 600;
-		font-size: 0.8125rem;
+		font-size: var(--text-sm);
 		white-space: nowrap;
 	}
 	.mod-table a { color: var(--ink); text-decoration: none; font-weight: 600; }
 	.mod-table a:hover { text-decoration: underline; }
-	.mod-table code { font-family: var(--font-mono); font-size: 0.8125rem; color: var(--ink-muted); white-space: nowrap; }
+	.mod-table code { font-family: var(--font-mono); font-size: var(--text-sm); color: var(--ink-muted); white-space: nowrap; }
 	.mod-desc { color: var(--ink-muted); }
 
 	.methods { display: inline-flex; gap: var(--space-2); flex-wrap: wrap; }
 	.method {
 		font-family: var(--font-mono);
-		font-size: 0.75rem;
+		font-size: var(--text-xs);
 		font-weight: 600;
 	}
 	.method[data-tone="ok"] { color: var(--success); }
@@ -287,15 +279,15 @@ const specGroups = [
 	.spec-list a:hover { background: var(--surface); }
 	.spec-tag {
 		font-family: var(--font-mono);
-		font-size: 0.75rem;
+		font-size: var(--text-xs);
 		font-weight: 600;
 		color: var(--accent);
 		min-width: 4.5rem;
 		flex-shrink: 0;
 	}
-	.spec-desc { color: var(--ink-muted); font-size: 0.875rem; }
+	.spec-desc { color: var(--ink-muted); font-size: var(--text-sm); }
 
-	.selfhost-link { font-size: 0.9375rem; }
+	.selfhost-link { font-size: var(--text-base); }
 
 	@media (max-width: 560px) {
 		.ep-name { min-width: 0; }

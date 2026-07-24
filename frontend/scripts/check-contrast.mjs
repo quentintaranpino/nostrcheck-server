@@ -6,17 +6,19 @@ import { readFileSync } from 'fs';
 
 const css = readFileSync(new URL('../src/styles/tokens.css', import.meta.url), 'utf8');
 const layout = readFileSync(new URL('../src/layouts/Layout.astro', import.meta.url), 'utf8');
+// The converter carries its own page-local palette; it ships, so it's gated.
+const converter = readFileSync(new URL('../src/pages/converter.astro', import.meta.url), 'utf8');
 
 // Each theme is one declaration block: `:root {…}` is dark, the
 // `[data-bs-theme="light"]` block overrides it. Light inherits anything it
 // doesn't redeclare, so resolve it on top of dark.
-const block = (selector) => {
-	const start = css.indexOf(selector);
+const block = (selector, source = css) => {
+	const start = source.indexOf(selector);
 	if (start === -1) throw new Error(`block ${selector} not found`);
-	const open = css.indexOf('{', start);
-	const close = css.indexOf('}', open);
+	const open = source.indexOf('{', start);
+	const close = source.indexOf('}', open);
 	const out = {};
-	for (const line of css.slice(open + 1, close).split('\n')) {
+	for (const line of source.slice(open + 1, close).split('\n')) {
 		const m = line.match(/(--[\w-]+):\s*([^;]+);/);
 		if (m) out[m[1]] = m[2].trim();
 	}
@@ -25,6 +27,9 @@ const block = (selector) => {
 
 const dark = block(':root');
 const light = { ...dark, ...block('html[data-bs-theme="light"]') };
+
+const termDark = block('.term {', converter);
+const termLight = { ...termDark, ...block('html[data-bs-theme="light"] .term {', converter) };
 
 // [foreground, background, minimum]. 4.5 = body text (1.4.3), 3 = large text,
 // UI component boundaries and meaningful graphics (1.4.11).
@@ -59,6 +64,31 @@ let failed = false;
 for (const [name, theme] of [['dark', dark], ['light', light]]) {
 	console.log(`\n${name}`);
 	for (const [fg, bg, min] of pairs) {
+		const ratio = wcagContrast(theme[fg], theme[bg]);
+		const ok = ratio >= min;
+		if (!ok) failed = true;
+		console.log(`  ${ok ? 'PASS' : 'FAIL'} ${fg} on ${bg}: ${ratio.toFixed(2)} (min ${min})`);
+	}
+}
+
+// Converter page palette (terminal register).
+const termPairs = [
+	['--term-ink', '--term-bg', 4.5],
+	['--term-ink', '--term-surface', 4.5],
+	['--term-dim', '--term-bg', 4.5],
+	['--term-dim', '--term-surface', 4.5],
+	['--term-phosphor', '--term-bg', 4.5],
+	['--term-phosphor', '--term-surface', 4.5],
+	['--term-danger', '--term-bg', 4.5],
+	['--term-danger', '--term-surface', 4.5],
+	['--term-rule', '--term-bg', 3],
+	['--term-rule', '--term-surface', 3],
+	// generate button inverts on hover: page bg over the phosphor fill
+	['--term-bg', '--term-phosphor', 4.5],
+];
+for (const [name, theme] of [['converter dark', termDark], ['converter light', termLight]]) {
+	console.log(`\n${name}`);
+	for (const [fg, bg, min] of termPairs) {
 		const ratio = wcagContrast(theme[fg], theme[bg]);
 		const ok = ratio >= min;
 		if (!ok) failed = true;

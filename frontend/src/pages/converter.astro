@@ -3,126 +3,299 @@ import Layout from '../layouts/Layout.astro';
 import ConverterIsland from '../components/ConverterIsland.tsx';
 ---
 <Layout page="converter">
-	<section class="converter-hero">
-		<h1>Key converter</h1>
-		<p class="converter-sub">
-			npub, hex, note, nevent, nprofile — paste it and it's converted.
-			Everything runs <strong>in your browser</strong>; keys never touch the server.
-		</p>
-	</section>
+	<div class="term">
+		<div class="term-inner">
+			<header class="term-head">
+				<h1>Key converter</h1>
+				<p class="term-lede">
+					npub, nsec, note, nevent, nprofile, hex — one field, decoded as you type.{' '}
+					<strong>Nothing leaves this browser.</strong>
+				</p>
+			</header>
 
-	<ConverterIsland client:load />
+			<ConverterIsland client:load />
+		</div>
+	</div>
 </Layout>
 
 <style is:global>
-	.converter-hero { margin-bottom: var(--space-6); }
-	.converter-hero h1 {
-		font-size: clamp(2rem, 5vw, 3rem);
-		letter-spacing: -0.02em;
-		margin: 0 0 var(--space-3);
+	/* ─────────────────────────────────────────────────────────────
+	   Terminal register, scoped to this page. The tokens below are
+	   local on purpose: this surface is the pilot for the look, so
+	   nothing leaks into the shared system until it's agreed.
+	   Dark = phosphor on a CRT. Light = ink on a technical printout;
+	   glow makes no physical sense on paper, so it's dropped there.
+	   ───────────────────────────────────────────────────────────── */
+	.term {
+		--term-bg: oklch(0.11 0.018 300);
+		--term-surface: oklch(0.145 0.022 300);
+		--term-phosphor: oklch(0.8 0.19 300);
+		--term-ink: oklch(0.94 0.01 300);
+		--term-dim: oklch(0.66 0.05 300);
+		/* --term-rule outlines the field, so 1.4.11 wants 3:1. --term-hair is
+		   for the readout separators, which aren't component boundaries. */
+		--term-rule: oklch(0.5 0.03 300);
+		--term-hair: oklch(0.3 0.03 300);
+		--term-glow: 0 0 0.4em oklch(0.8 0.19 300 / 0.45);
+		--term-glow-strong: 0 0 0.75em oklch(0.8 0.19 300 / 0.55);
+		--term-danger: oklch(0.75 0.19 25);
+
+		position: relative;
+		/* Break out of main's reading column: the screen is the whole width,
+		   the content stays in a column inside it. */
+		width: 100vw;
+		margin-left: calc(50% - 50vw);
+		margin-block: calc(var(--space-6) * -1) calc(var(--space-8) * -1);
+		padding: var(--space-8) var(--space-5) var(--space-8);
+		min-height: 78vh;
+		background: var(--term-bg);
+		color: var(--term-ink);
+		font-family: var(--font-mono);
+		overflow: hidden;
 	}
-	.converter-sub {
-		color: var(--ink-muted);
-		max-width: 60ch;
-		margin: 0;
+	.term-inner {
+		max-width: 48rem;
+		margin-inline: auto;
 	}
 
-	.converter-label {
-		display: block;
-		color: var(--ink-muted);
-		font-size: 0.875rem;
+	html[data-bs-theme="light"] .term {
+		--term-bg: oklch(0.99 0.004 300);
+		--term-surface: oklch(0.965 0.008 300);
+		--term-phosphor: oklch(0.42 0.21 296.8);
+		--term-ink: oklch(0.2 0.02 300);
+		--term-dim: oklch(0.44 0.03 300);
+		--term-rule: oklch(0.62 0.02 300);
+		--term-hair: oklch(0.86 0.01 300);
+		--term-glow: none;
+		--term-glow-strong: none;
+		--term-danger: oklch(0.48 0.19 25);
+	}
+
+	/* ── Masthead ─────────────────────────────────────────────── */
+	/* No grid, no shouting title: the costume was doing the work. The page
+	   earns its presence from the values and the field, not the scenery. */
+	.term-head { margin-bottom: var(--space-6); }
+	.term h1 {
+		font-family: var(--font-mono);
+		font-size: var(--text-xl);
+		line-height: var(--leading-tight);
+		letter-spacing: -0.01em;
+		font-weight: 600;
+		color: var(--term-ink);
+		margin: 0 0 var(--space-3);
+	}
+	.term-lede {
+		color: var(--term-dim);
+		font-size: var(--text-sm);
+		line-height: var(--leading-normal);
+		max-width: 58ch;
+		margin: 0;
+	}
+	.term-lede strong { color: var(--term-ink); font-weight: 600; }
+
+	/* ── Prompt ───────────────────────────────────────────────── */
+	.term-prompt {
+		display: flex;
+		align-items: center;
+		gap: var(--space-2);
+		color: var(--term-dim);
+		font-size: var(--text-sm);
+		text-transform: uppercase;
 		margin-bottom: var(--space-2);
 	}
-	.converter-inputwrap {
+	.term-caret { color: var(--term-phosphor); text-shadow: var(--term-glow); }
+	.term-cursor {
+		width: 0.55em;
+		height: 1.05em;
+		background: var(--term-phosphor);
+		box-shadow: var(--term-glow);
+		animation: term-blink 1.1s steps(1) infinite;
+	}
+	@keyframes term-blink { 50% { opacity: 0; } }
+
+	/* ── Field ────────────────────────────────────────────────── */
+	.term-field {
 		position: relative;
 		display: flex;
 		align-items: center;
+		background: var(--term-surface);
+		border: 1px solid var(--term-rule);
+		/* Hard corners: the whole point of the register. */
+		border-radius: 0;
+		transition: border-color var(--dur-base) var(--ease-out), box-shadow var(--dur-base) var(--ease-out);
 	}
-	.converter-input {
-		width: 100%;
-		background: var(--surface);
-		color: var(--ink);
-		border: 1px solid var(--border);
-		border-radius: var(--radius-md);
-		padding: var(--space-4);
+	/* The one moment of emphasis: recognising the input lights the field. */
+	.term-field:not([data-type="empty"]):not([data-type="unknown"]) {
+		border-color: var(--term-phosphor);
+		box-shadow: inset 0 0 0 1px oklch(0.8 0.19 300 / 0.25), var(--term-glow);
+	}
+	.term-field[data-type="nsec"] {
+		border-color: var(--term-danger);
+		box-shadow: inset 0 0 0 1px oklch(0.75 0.19 25 / 0.3);
+	}
+	.term-input {
+		flex: 1;
+		min-width: 0;
+		background: none;
+		border: 0;
+		color: var(--term-ink);
 		font-family: var(--font-mono);
-		font-size: 1rem;
-		transition: border-color var(--dur-fast) var(--ease-out);
+		font-size: var(--text-base);
+		padding: var(--space-4);
+		text-shadow: var(--term-glow);
 	}
-	.converter-input:focus-visible {
-		outline: 2px solid var(--accent);
-		outline-offset: 1px;
-		border-color: var(--accent);
+	.term-input:focus { outline: none; }
+	.term-field:focus-within { border-color: var(--term-phosphor); }
+	.term-input::placeholder {
+		color: var(--term-dim);
+		opacity: 1;
+		text-shadow: none;
 	}
-	/* UA default placeholder greys aren't theme-aware or contrast-checked. */
-	.converter-input::placeholder { color: var(--ink-muted); opacity: 1; }
-	/* badge sits over the input's right edge: reserve room so it never covers the value */
-	.converter-inputwrap:not([data-type="empty"]):not([data-type="unknown"]) .converter-input {
-		padding-right: calc(var(--space-4) + 7.5rem);
+	/* Reserve room so the tag never covers the tail of a pasted key. */
+	.term-field:not([data-type="empty"]):not([data-type="unknown"]) .term-input {
+		padding-right: 11rem;
 	}
-	.converter-badge {
+	.term-tag {
 		position: absolute;
 		right: var(--space-3);
-		background: var(--surface-raised);
-		color: var(--accent);
-		font-size: 0.75rem;
-		font-weight: 600;
-		padding: var(--space-1) var(--space-2);
-		border-radius: var(--radius-sm);
+		color: var(--term-phosphor);
+		font-size: var(--text-xs);
+		text-transform: uppercase;
+		letter-spacing: 0.06em;
+		white-space: nowrap;
+		text-shadow: var(--term-glow);
 	}
-	.converter-inputwrap[data-type="nsec"] .converter-badge { color: var(--danger); }
+	.term-tag[data-type="nsec"] { color: var(--term-danger); text-shadow: none; }
 
-	.converter-warning {
-		color: var(--danger);
-		margin: var(--space-3) 0 0;
-	}
-	.converter-empty {
-		color: var(--ink-muted);
-		margin: var(--space-3) 0 0;
-	}
-
-	.converter-results {
-		list-style: none;
-		margin: var(--space-5) 0 0;
-		padding: 0;
-		display: flex;
-		flex-direction: column;
-		gap: var(--space-3);
-	}
-	.converter-row-label {
-		display: block;
-		color: var(--ink-muted);
-		font-size: 0.8125rem;
-		margin-bottom: var(--space-1);
-	}
-	.converter-row-value {
-		width: 100%;
+	/* ── Accepted formats, click to fill ─────────────────────── */
+	.term-hints {
 		display: flex;
 		align-items: center;
-		justify-content: space-between;
-		gap: var(--space-3);
-		background: var(--surface);
-		border: 1px solid var(--border);
-		border-radius: var(--radius-md);
-		padding: var(--space-3) var(--space-4);
+		gap: var(--space-2);
+		flex-wrap: wrap;
+		margin-top: var(--space-3);
+		font-size: var(--text-xs);
+		color: var(--term-dim);
+	}
+	/* Generate is a real capability, so it looks like the action it is. */
+	.term-generate {
+		background: none;
+		border: 1px solid var(--term-phosphor);
+		border-radius: 0;
+		color: var(--term-phosphor);
+		font-family: var(--font-mono);
+		font-size: var(--text-xs);
+		text-transform: uppercase;
+		letter-spacing: 0.08em;
+		padding: var(--space-2) var(--space-4);
 		cursor: pointer;
+		transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+	}
+	.term-generate:hover {
+		background: var(--term-phosphor);
+		color: var(--term-bg);
+	}
+	.term-hint {
+		background: none;
+		border: 1px solid var(--term-rule);
+		border-radius: 0;
+		color: var(--term-dim);
+		font-family: var(--font-mono);
+		font-size: var(--text-xs);
+		padding: var(--space-1) var(--space-2);
+		cursor: pointer;
+		transition: color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
+	}
+	.term-hint:hover { color: var(--term-phosphor); border-color: var(--term-phosphor); }
+	.term-hints-note { margin-left: auto; opacity: 0.85; }
+
+	/* ── Readout ──────────────────────────────────────────────── */
+	.term-warn {
+		display: flex;
+		gap: var(--space-2);
+		color: var(--term-danger);
+		font-size: var(--text-sm);
+		line-height: var(--leading-normal);
+		margin: var(--space-4) 0 0;
+	}
+	.term-warn-mark { font-weight: 700; flex-shrink: 0; }
+	.term-empty {
+		color: var(--term-dim);
+		font-size: var(--text-sm);
+		margin: var(--space-4) 0 0;
+	}
+
+	.term-out {
+		list-style: none;
+		margin: var(--space-6) 0 0;
+		padding: 0;
+		border-top: 1px solid var(--term-hair);
+	}
+	.term-out li {
+		border-bottom: 1px solid var(--term-hair);
+		padding: var(--space-3) 0;
+		animation: term-in 220ms var(--ease-out) backwards;
+		animation-delay: calc(var(--i, 0) * 45ms);
+	}
+	@keyframes term-in { from { opacity: 0; transform: translateY(4px); } }
+
+	.term-out-key {
+		display: block;
+		color: var(--term-dim);
+		font-size: var(--text-xs);
+		text-transform: uppercase;
+		letter-spacing: 0.08em;
+		margin-bottom: var(--space-2);
+	}
+	.term-out-val {
+		width: 100%;
+		display: flex;
+		align-items: baseline;
+		justify-content: space-between;
+		gap: var(--space-4);
+		background: none;
+		border: 0;
+		border-radius: 0;
+		padding: 0;
 		text-align: left;
-		transition: border-color var(--dur-fast) var(--ease-out);
+		cursor: pointer;
+		font: inherit;
 	}
-	.converter-row-value:hover { border-color: var(--accent); }
-	.converter-row-value:focus-visible {
-		border-color: var(--accent);
-		outline: 2px solid var(--accent);
-		outline-offset: 1px;
-	}
-	.converter-row-value code {
-		color: var(--ink);
-		font-size: 0.9375rem;
+	.term-out-val code {
+		font-family: var(--font-mono);
+		font-size: var(--text-base);
+		color: var(--term-phosphor);
+		text-shadow: var(--term-glow);
 		word-break: break-all;
 	}
-	.converter-row-copy {
-		color: var(--accent);
-		font-size: 0.8125rem;
+	.term-out-copy {
 		flex-shrink: 0;
+		color: var(--term-dim);
+		font-size: var(--text-xs);
+		text-transform: uppercase;
+		letter-spacing: 0.08em;
+		transition: color var(--dur-fast) var(--ease-out);
+	}
+	.term-out-val:hover .term-out-copy { color: var(--term-ink); }
+
+	.term-hint:focus-visible,
+	.term-out-val:focus-visible,
+	.term-field:focus-within {
+		outline: 2px solid var(--term-phosphor);
+		outline-offset: 2px;
+	}
+
+	@media (max-width: 560px) {
+		.term-field:not([data-type="empty"]):not([data-type="unknown"]) .term-input {
+			/* No room for the tag beside the value on a phone: let it sit under. */
+			padding-right: var(--space-4);
+			padding-bottom: var(--space-6);
+		}
+		.term-tag { right: var(--space-4); bottom: var(--space-2); }
+		.term-hints-note { margin-left: 0; }
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.term-cursor { animation: none; }
 	}
 </style>

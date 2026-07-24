@@ -33,6 +33,25 @@
 	--font-ui: 'Space Grotesk Variable', system-ui, sans-serif;
 	--font-mono: 'JetBrains Mono Variable', ui-monospace, 'Cascadia Mono', monospace;
 
+	/* Type scale, 7 steps at roughly 1.2. Pages must use these, never their
+	   own numbers — that's how three surfaces ended up with three different
+	   h1 sizes. --text-hero is reserved for the home claim box. */
+	--text-xs: 0.75rem;    /* badges, kbd, method tags */
+	--text-sm: 0.875rem;   /* meta, captions, table cells */
+	--text-base: 1rem;     /* body */
+	--text-lg: 1.25rem;    /* h3 */
+	--text-xl: 1.5rem;     /* h2 */
+	--text-2xl: 2rem;      /* h1, every page title */
+	--text-hero: 2.75rem;
+
+	--leading-tight: 1.2;
+	--leading-snug: 1.4;
+	--leading-normal: 1.6;
+	--leading-relaxed: 1.7;
+
+	--tracking-tight: -0.02em;
+	--tracking-snug: -0.01em;
+
 	/* space (4px scale) */
 	--space-1: 0.25rem; --space-2: 0.5rem; --space-3: 0.75rem;
 	--space-4: 1rem; --space-5: 1.5rem; --space-6: 2rem;
@@ -74,7 +93,17 @@ body {
 	line-height: 1.5;
 	-webkit-font-smoothing: antialiased;
 }
-h1, h2, h3 { text-wrap: balance; }
+/* One heading scale for the whole site. Pages set margins, never sizes. */
+h1, h2, h3, h4 {
+	text-wrap: balance;
+	font-weight: 600;
+	line-height: var(--leading-tight);
+}
+h1 { font-size: var(--text-2xl); letter-spacing: var(--tracking-tight); }
+h2 { font-size: var(--text-xl); letter-spacing: var(--tracking-snug); }
+h3 { font-size: var(--text-lg); line-height: var(--leading-snug); }
+h4 { font-size: var(--text-base); line-height: var(--leading-snug); }
+
 code, .mono { font-family: var(--font-mono); }
 
 @media (prefers-reduced-motion: reduce) {
