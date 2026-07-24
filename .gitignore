@@ -44,3 +44,4 @@ src/pages/static/resources/tenants/*
 profiles/*
 .claude/*
 frontend/node_modules
+frontend/.astro
