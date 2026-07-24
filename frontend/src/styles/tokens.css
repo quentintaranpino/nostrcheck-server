@@ -1,0 +1,47 @@
+/* nostrcheck v8 design tokens — seed of the full system. Dark-committed. */
+:root {
+	/* color */
+	--bg: oklch(0.15 0.02 300);
+	--surface: oklch(0.19 0.025 300);
+	--surface-raised: oklch(0.23 0.03 300);
+	--ink: oklch(0.95 0.01 300);
+	--ink-muted: oklch(0.76 0.02 300);
+	--accent: oklch(0.6736329492866907 0.19765374941006172 296.8027562973752);
+	--danger: oklch(0.72 0.17 25);
+	--border: oklch(0.32 0.03 300);
+
+	/* type */
+	--font-ui: 'Space Grotesk Variable', system-ui, sans-serif;
+	--font-mono: 'JetBrains Mono Variable', ui-monospace, 'Cascadia Mono', monospace;
+
+	/* space (4px scale) */
+	--space-1: 0.25rem; --space-2: 0.5rem; --space-3: 0.75rem;
+	--space-4: 1rem; --space-5: 1.5rem; --space-6: 2rem;
+	--space-7: 3rem; --space-8: 4rem;
+
+	/* shape */
+	--radius-sm: 6px; --radius-md: 10px;
+
+	/* motion */
+	--dur-fast: 120ms; --dur-base: 200ms;
+	--ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+body {
+	margin: 0;
+	background: var(--bg);
+	color: var(--ink);
+	font-family: var(--font-ui);
+	line-height: 1.5;
+	-webkit-font-smoothing: antialiased;
+}
+h1, h2, h3 { text-wrap: balance; }
+code, .mono { font-family: var(--font-mono); }
+
+@media (prefers-reduced-motion: reduce) {
+	*, *::before, *::after {
+		animation-duration: 0.01ms !important;
+		transition-duration: 0.01ms !important;
+	}
+}

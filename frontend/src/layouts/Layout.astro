@@ -1,0 +1,48 @@
+---
+import '@fontsource-variable/space-grotesk';
+import '@fontsource-variable/jetbrains-mono';
+import '../styles/tokens.css';
+
+interface Props { title: string; description?: string; }
+const { title, description = 'Self-hosted Nostr infrastructure' } = Astro.props;
+const host = Astro.locals.host ?? Astro.url.hostname;
+---
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<meta name="theme-color" content="#16121f" />
+		<title>{title}</title>
+		<meta name="description" content={description} />
+	</head>
+	<body>
+		<header class="site-header">
+			<a href="/" class="site-header-brand">{host}</a>
+		</header>
+		<main><slot /></main>
+		<footer class="site-footer">
+			<a href="https://github.com/quentintaranpino/nostrcheck-server/">source</a>
+		</footer>
+	</body>
+</html>
+
+<style>
+	.site-header { padding: var(--space-4) var(--space-5); }
+	.site-header-brand {
+		color: var(--ink);
+		text-decoration: none;
+		font-weight: 600;
+		letter-spacing: -0.01em;
+	}
+	main {
+		max-width: 44rem;
+		margin: 0 auto;
+		padding: var(--space-6) var(--space-5) var(--space-8);
+	}
+	.site-footer {
+		padding: var(--space-5);
+		text-align: center;
+	}
+	.site-footer a { color: var(--ink-muted); }
+</style>
