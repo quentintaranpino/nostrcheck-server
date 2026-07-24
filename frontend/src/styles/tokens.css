@@ -12,6 +12,10 @@
 	--ink-muted: oklch(0.76 0.02 300);
 	--accent: oklch(0.6736329492866907 0.19765374941006172 296.8027562973752);
 	--danger: oklch(0.72 0.17 25);
+	/* state colours: HTTP method badges in the docs today, admin states later */
+	--success: oklch(0.62 0.14 150);
+	--warning: oklch(0.64 0.15 75);
+	--info: oklch(0.64 0.15 250);
 	/* --border outlines interactive components, so WCAG 1.4.11 wants 3:1
 	   against every surface it sits on. --border-subtle is for decorative
 	   rules (nav hairline, menu separators), which that rule doesn't cover. */
@@ -53,6 +57,9 @@ html[data-bs-theme="light"] {
 	--ink-muted: oklch(0.46 0.02 300);
 	--accent: oklch(0.5 0.21 296.8);
 	--danger: oklch(0.5 0.19 25);
+	--success: oklch(0.51 0.14 150);
+	--warning: oklch(0.53 0.15 75);
+	--info: oklch(0.52 0.15 250);
 	--border: oklch(0.64 0.02 300);
 	--border-subtle: oklch(0.88 0.008 300);
 	--shadow-menu: 0 12px 32px oklch(0.3 0.03 300 / 0.14);

@@ -38,6 +38,13 @@ const pairs = [
 	['--accent', '--surface-raised', 3],
 	['--danger', '--surface', 3],
 	['--danger', '--surface-raised', 3],
+	// state colours label small badge text, so they need the body threshold
+	['--success', '--surface', 4.5],
+	['--success', '--surface-raised', 4.5],
+	['--warning', '--surface', 4.5],
+	['--warning', '--surface-raised', 4.5],
+	['--info', '--surface', 4.5],
+	['--info', '--surface-raised', 4.5],
 	// component outlines: every surface the border can land on
 	['--border', '--bg', 3],
 	['--border', '--surface', 3],

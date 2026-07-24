@@ -1,0 +1,305 @@
+---
+import Layout from '../layouts/Layout.astro';
+
+const docs = Astro.locals.getDocsData();
+const { siteName } = Astro.locals;
+
+const WIKI = 'https://github.com/quentintaranpino/nostrcheck-server/wiki';
+const REPO = 'https://github.com/quentintaranpino/nostrcheck-server';
+
+// What each wire endpoint is for, in the operator's terms.
+const endpoints = [
+	{ key: 'relay', name: 'Relay', proto: 'wss', url: docs.endpoints.relay,
+		hint: 'Nostr relay (NIP-01). NIP-11 info over HTTPS with an Accept: application/nostr+json header.' },
+	{ key: 'nip96', name: 'NIP-96', proto: 'https', url: docs.endpoints.nip96,
+		hint: 'Service info: api_url, download_url, accepted MIME types, plans and content policy.' },
+	{ key: 'blossom', name: 'Blossom', proto: 'https', url: docs.endpoints.blossom,
+		hint: 'Blob root. GET and HEAD by sha256, PUT /upload, PUT /mirror, DELETE by sha256. Auth via BUD-11.' },
+	{ key: 'nip05', name: 'NIP-05', proto: 'https', url: docs.endpoints.nip05,
+		hint: 'Takes ?name=<local-part> and answers with a names map, plus optional relays and nip96 fields.' },
+].filter(e => e.url);
+
+// GET reads, POST/PUT write, DELETE destroys — colour carries that, not decoration.
+const methodTone: Record<string, string> = { GET: 'ok', POST: 'warn', PUT: 'info', PATCH: 'info', DELETE: 'danger' };
+
+const specGroups = [
+	docs.relayEnabled && {
+		id: 'nips', title: 'Nostr NIPs', note: 'Protocol documents this relay implements.',
+		items: docs.nips.map(n => ({ tag: `NIP-${n.label}`, desc: n.desc, href: `https://github.com/nostr-protocol/nips/blob/master/${n.label}.md` })),
+	},
+	docs.mediaEnabled && {
+		id: 'buds', title: 'Blossom BUDs', note: 'Blossom Upgrade Documents implemented by the media server.',
+		items: docs.buds.map(b => ({ tag: `BUD-${b.num}`, desc: b.desc, href: `https://github.com/hzrd149/blossom/blob/master/buds/${b.num}.md` })),
+	},
+	docs.lightningEnabled && {
+		id: 'lightning', title: 'Lightning', note: 'Payments and zaps.',
+		items: [
+			...docs.luds.map(l => ({ tag: `LUD-${l.num}`, desc: l.desc, href: l.url })),
+			{ tag: 'NIP-57', desc: 'Zaps (Lightning payments over Nostr)', href: 'https://github.com/nostr-protocol/nips/blob/master/57.md' },
+		],
+	},
+].filter(Boolean) as { id: string; title: string; note: string; items: { tag: string; desc: string; href: string }[] }[];
+---
+<Layout page="docs" width="wide">
+	<header class="docs-head">
+		<h1>Documentation</h1>
+		<p>Everything you need to connect a client to {siteName}, integrate with its API, or run your own.</p>
+	</header>
+
+	{endpoints.length > 0 && (
+		<section id="connect" class="docs-section">
+			<h2>Connect</h2>
+			<p class="docs-note">Paste these into your Nostr client.</p>
+			<ul class="ep-list">
+				{endpoints.map(e => (
+					<li class="ep">
+						<div class="ep-top">
+							<span class="ep-name">{e.name}</span>
+							<code class="ep-url">{e.url}</code>
+							<button type="button" class="ep-copy" data-copy={e.url} aria-label={`Copy the ${e.name} endpoint`}>
+								<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
+								<span class="ep-copy-text">Copy</span>
+							</button>
+						</div>
+						<p class="ep-hint"><span class="ep-proto">{e.proto}</span>{e.hint}</p>
+					</li>
+				))}
+			</ul>
+		</section>
+	)}
+
+	<section id="api" class="docs-section">
+		<h2>API modules</h2>
+		<p class="docs-note">Active on this server. Each name links to its chapter in the wiki.</p>
+		<div class="table-scroll">
+			<table class="mod-table">
+				<thead>
+					<tr><th>Module</th><th>Path</th><th>Methods</th><th>What it does</th></tr>
+				</thead>
+				<tbody>
+					{docs.modules.map(m => (
+						<tr>
+							<td><a href={`${WIKI}/API-Documentation#${(m.name || '').toLowerCase()}`} target="_blank" rel="noopener">{m.name}</a></td>
+							<td><code>{m.path}</code></td>
+							<td>
+								<span class="methods">
+									{m.methods.map(x => <span class="method" data-tone={methodTone[x] ?? 'muted'}>{x}</span>)}
+								</span>
+							</td>
+							<td class="mod-desc">{m.description}</td>
+						</tr>
+					))}
+				</tbody>
+			</table>
+		</div>
+		<p class="docs-note">
+			Also in the wiki: <a href={`${WIKI}/Configuration`} target="_blank" rel="noopener">Configuration</a>{', '}
+			<a href={`${WIKI}/Multi-tenancy`} target="_blank" rel="noopener">Multi-tenancy</a>{' and '}
+			<a href={`${WIKI}/Plugins`} target="_blank" rel="noopener">Plugins</a>.
+		</p>
+	</section>
+
+	{specGroups.map(g => (
+		<section id={g.id} class="docs-section">
+			<h2>{g.title}</h2>
+			<p class="docs-note">{g.note}</p>
+			<ul class="spec-list">
+				{g.items.map(s => (
+					<li>
+						<a href={s.href} target="_blank" rel="noopener">
+							<span class="spec-tag">{s.tag}</span>
+							<span class="spec-desc">{s.desc}</span>
+						</a>
+					</li>
+				))}
+			</ul>
+		</section>
+	))}
+
+	<section id="selfhost" class="docs-section">
+		<h2>Run your own</h2>
+		<p class="docs-note">
+			This is <strong>nostrcheck-server</strong>, MIT licensed. Same software, your rules.
+		</p>
+		<a class="selfhost-link" href={REPO} target="_blank" rel="noopener">Source and install guide &rarr;</a>
+	</section>
+</Layout>
+
+<script>
+	// Copy the endpoint, then say so on the button itself.
+	document.querySelectorAll<HTMLButtonElement>('.ep-copy').forEach(btn => {
+		const label = btn.querySelector('.ep-copy-text');
+		const original = label?.textContent ?? 'Copy';
+		btn.addEventListener('click', async () => {
+			const value = btn.dataset.copy;
+			if (!value) return;
+			try {
+				await navigator.clipboard.writeText(value);
+				btn.dataset.copied = 'true';
+				if (label) label.textContent = 'Copied';
+				setTimeout(() => {
+					delete btn.dataset.copied;
+					if (label) label.textContent = original;
+				}, 2500);
+			} catch (e) { /* clipboard blocked: the url is selectable text anyway */ }
+		});
+	});
+</script>
+
+<style>
+	.docs-head { margin-bottom: var(--space-7); }
+	.docs-head h1 {
+		font-size: 2rem;
+		letter-spacing: -0.02em;
+		margin: 0 0 var(--space-3);
+	}
+	.docs-head p {
+		color: var(--ink-muted);
+		max-width: 62ch;
+		margin: 0;
+	}
+
+	.docs-section { margin-bottom: var(--space-8); }
+	.docs-section h2 {
+		font-size: 1.25rem;
+		letter-spacing: -0.01em;
+		margin: 0 0 var(--space-2);
+	}
+	.docs-note {
+		color: var(--ink-muted);
+		font-size: 0.9375rem;
+		max-width: 62ch;
+		margin: 0 0 var(--space-4);
+	}
+	.docs-note a, .selfhost-link {
+		color: var(--accent);
+		text-decoration: underline;
+		text-underline-offset: 2px;
+	}
+	.docs-note a:focus-visible, .selfhost-link:focus-visible,
+	.mod-table a:focus-visible, .spec-list a:focus-visible, .ep-copy:focus-visible {
+		outline: 2px solid var(--accent);
+		outline-offset: 2px;
+	}
+
+	/* Endpoints: the reason most people open this page. */
+	.ep-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-3); }
+	.ep {
+		border: 1px solid var(--border);
+		border-radius: var(--radius-md);
+		padding: var(--space-3) var(--space-4);
+		background: var(--surface);
+	}
+	.ep-top { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; }
+	.ep-name { font-weight: 600; font-size: 0.9375rem; min-width: 5.5rem; }
+	.ep-url {
+		flex: 1;
+		min-width: 12rem;
+		font-family: var(--font-mono);
+		font-size: 0.875rem;
+		color: var(--ink);
+		word-break: break-all;
+		user-select: all;
+	}
+	.ep-copy {
+		display: inline-flex;
+		align-items: center;
+		gap: var(--space-2);
+		flex-shrink: 0;
+		background: none;
+		color: var(--ink-muted);
+		border: 1px solid var(--border);
+		border-radius: var(--radius-sm);
+		padding: var(--space-2) var(--space-3);
+		font: inherit;
+		font-size: 0.8125rem;
+		cursor: pointer;
+		transition: color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
+	}
+	.ep-copy:hover { color: var(--ink); border-color: var(--ink-muted); }
+	.ep-copy[data-copied] { color: var(--success); border-color: var(--success); }
+	.ep-hint {
+		color: var(--ink-muted);
+		font-size: 0.8125rem;
+		line-height: 1.6;
+		margin: var(--space-2) 0 0;
+	}
+	/* Protocol, not a decorative kicker: it names how you reach the endpoint. */
+	.ep-proto {
+		font-family: var(--font-mono);
+		color: var(--accent);
+		margin-right: var(--space-2);
+	}
+
+	.table-scroll { overflow-x: auto; }
+	.mod-table {
+		width: 100%;
+		border-collapse: collapse;
+		font-size: 0.9375rem;
+	}
+	.mod-table th, .mod-table td {
+		text-align: left;
+		padding: var(--space-3);
+		border-bottom: 1px solid var(--border-subtle);
+		vertical-align: top;
+	}
+	.mod-table th {
+		color: var(--ink-muted);
+		font-weight: 600;
+		font-size: 0.8125rem;
+		white-space: nowrap;
+	}
+	.mod-table a { color: var(--ink); text-decoration: none; font-weight: 600; }
+	.mod-table a:hover { text-decoration: underline; }
+	.mod-table code { font-family: var(--font-mono); font-size: 0.8125rem; color: var(--ink-muted); white-space: nowrap; }
+	.mod-desc { color: var(--ink-muted); }
+
+	.methods { display: inline-flex; gap: var(--space-2); flex-wrap: wrap; }
+	.method {
+		font-family: var(--font-mono);
+		font-size: 0.75rem;
+		font-weight: 600;
+	}
+	.method[data-tone="ok"] { color: var(--success); }
+	.method[data-tone="warn"] { color: var(--warning); }
+	.method[data-tone="info"] { color: var(--info); }
+	.method[data-tone="danger"] { color: var(--danger); }
+	.method[data-tone="muted"] { color: var(--ink-muted); }
+
+	/* Spec lists are lists, not cards: no boxes, just scannable rows. */
+	.spec-list {
+		list-style: none;
+		margin: 0;
+		padding: 0;
+		display: grid;
+		grid-template-columns: repeat(auto-fill, minmax(19rem, 1fr));
+		gap: 2px;
+	}
+	.spec-list a {
+		display: flex;
+		align-items: baseline;
+		gap: var(--space-3);
+		padding: var(--space-2) var(--space-3);
+		border-radius: var(--radius-sm);
+		text-decoration: none;
+		transition: background var(--dur-fast) var(--ease-out);
+	}
+	.spec-list a:hover { background: var(--surface); }
+	.spec-tag {
+		font-family: var(--font-mono);
+		font-size: 0.75rem;
+		font-weight: 600;
+		color: var(--accent);
+		min-width: 4.5rem;
+		flex-shrink: 0;
+	}
+	.spec-desc { color: var(--ink-muted); font-size: 0.875rem; }
+
+	.selfhost-link { font-size: 0.9375rem; }
+
+	@media (max-width: 560px) {
+		.ep-name { min-width: 0; }
+		.ep-copy-text { display: none; }
+		.ep-copy { padding: var(--space-2); }
+	}
+</style>

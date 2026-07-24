@@ -5,7 +5,7 @@ import '../styles/tokens.css';
 
 // `page` pulls the SEO the operator set in settings (title/description/
 // noindex/socialImage, per tenant); explicit props still override it.
-interface Props { page?: string; title?: string; description?: string; image?: string; noindex?: boolean; }
+interface Props { page?: string; title?: string; description?: string; image?: string; noindex?: boolean; width?: 'default' | 'wide'; }
 const props = Astro.props;
 const { siteName, version, loggedIn, isAdmin, modules } = Astro.locals;
 const seo = props.page && Astro.locals.getSeo ? Astro.locals.getSeo(props.page) : null;
@@ -134,7 +134,7 @@ const logoDark = '/static/resources/appearance-server-logo-dark.png';
 			</div>
 		</header>
 
-		<main id="main"><slot /></main>
+		<main id="main" data-width={props.width ?? 'default'}><slot /></main>
 
 		<footer class="foot">
 			{version && <span class="foot-ver">v{version}</span>}
@@ -381,6 +381,8 @@ const logoDark = '/static/resources/appearance-server-logo-dark.png';
 		margin: 0 auto;
 		padding: var(--space-6) var(--space-5) var(--space-8);
 	}
+	/* Reference pages with tables need more room than a reading column. */
+	main[data-width="wide"] { max-width: 68rem; }
 	@media (max-width: 480px) {
 		main { padding-inline: var(--space-4); }
 	}
