@@ -7,16 +7,29 @@ import '../styles/tokens.css';
 // noindex/socialImage, per tenant); explicit props still override it.
 interface Props { page?: string; title?: string; description?: string; image?: string; noindex?: boolean; }
 const props = Astro.props;
-const host = Astro.locals.host ?? Astro.url.hostname;
+const { siteName, version, loggedIn, isAdmin, modules } = Astro.locals;
 const seo = props.page && Astro.locals.getSeo ? Astro.locals.getSeo(props.page) : null;
 
-const siteName = seo?.siteName || host;
 const title = props.title ?? (seo?.title || siteName);
 const description = props.description ?? (seo?.description || 'Self-hosted Nostr infrastructure');
 const noindex = props.noindex ?? seo?.noindex ?? false;
-// canonical + og:url without the query string; images absolute for scrapers
 const canonical = Astro.url.origin + Astro.url.pathname;
 const ogImage = new URL(props.image ?? (seo?.socialImage || '/static/resources/logo-server.webp'), Astro.url).href;
+
+// Public nav, gated by the same modules the EJS navbar checks. `active`
+// matches the current page key so the item marks itself current.
+const current = props.page;
+const navItems = [
+	{ label: 'Gallery', href: '/gallery', page: 'gallery', on: modules.media },
+	{ label: 'Upload', href: '/media', page: 'cdn', on: modules.media },
+	{ label: 'Directory', href: '/directory', page: 'directory', on: modules.register },
+	{ label: 'Relay', href: '/relay', page: 'relay', on: modules.relay },
+	{ label: 'Docs', href: '/documentation', page: 'docs', on: true },
+	{ label: 'Converter', href: '/converter', page: 'converter', on: true },
+].filter(i => i.on);
+// dark-committed in A1: the dark logo variant; falls back to the wordmark
+// when the tenant ships no logo (onerror).
+const logoSrc = '/static/resources/appearance-server-logo-dark.png';
 ---
 <!doctype html>
 <html lang="en">
@@ -42,32 +55,234 @@ const ogImage = new URL(props.image ?? (seo?.socialImage || '/static/resources/l
 		<meta name="twitter:image" content={ogImage} />
 	</head>
 	<body>
-		<header class="site-header">
-			<a href="/" class="site-header-brand">{siteName}</a>
+		<header class="nav" id="site-nav">
+			<a href="/" class="nav-brand" aria-label={siteName}>
+				<img src={logoSrc} alt={siteName} height="28" width="auto"
+					onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'nav-wordmark',textContent:this.alt}))" />
+			</a>
+
+			<nav class="nav-links" aria-label="Primary">
+				{navItems.map(i => (
+					<a href={i.href} class="nav-link" aria-current={current === i.page ? 'page' : undefined}>{i.label}</a>
+				))}
+			</nav>
+
+			<div class="nav-actions">
+				<a href="/directory" class="nav-search" aria-label="Search">
+					<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+					<kbd>⌘K</kbd>
+				</a>
+
+				{!loggedIn && (
+					<>
+						<a href="/login" class="nav-link">Login</a>
+						{modules.register && <a href="/register" class="nav-cta">Register</a>}
+					</>
+				)}
+
+				{loggedIn && (
+					<details class="nav-acct">
+						<summary aria-label="Account">
+							<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1"/></svg>
+						</summary>
+						<div class="nav-menu">
+							<a href="/profile">Profile</a>
+							{isAdmin && <a href="/dashboard">Dashboard</a>}
+							{isAdmin && <a href="/settings">Settings</a>}
+							<a href="/api/v2/logout" class="nav-menu-danger" data-logout>Log out</a>
+						</div>
+					</details>
+				)}
+
+				<details class="nav-burger">
+					<summary aria-label="Menu">
+						<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+					</summary>
+					<div class="nav-menu">
+						{navItems.map(i => <a href={i.href} aria-current={current === i.page ? 'page' : undefined}>{i.label}</a>)}
+						<div class="nav-menu-sep"></div>
+						{!loggedIn && <a href="/login">Login</a>}
+						{!loggedIn && modules.register && <a href="/register">Register</a>}
+						{loggedIn && <a href="/profile">Profile</a>}
+						{loggedIn && isAdmin && <a href="/dashboard">Dashboard</a>}
+						{loggedIn && isAdmin && <a href="/settings">Settings</a>}
+						{loggedIn && <a href="/api/v2/logout" class="nav-menu-danger" data-logout>Log out</a>}
+					</div>
+				</details>
+			</div>
 		</header>
+
 		<main><slot /></main>
-		<footer class="site-footer">
+
+		<footer class="foot">
+			{version && <span class="foot-ver">v{version}</span>}
 			<a href="https://github.com/quentintaranpino/nostrcheck-server/">source</a>
+			<span class="foot-sep">·</span>
+			<a href="/privacy">Privacy</a>
+			<a href="/legal">Legal</a>
+			<a href="/tos">Terms</a>
+			<span class="foot-lic">MIT</span>
 		</footer>
+
+		<script>
+			// Hairline appears once the content scrolls under the bar.
+			const nav = document.getElementById('site-nav');
+			const onScroll = () => nav?.classList.toggle('scrolled', window.scrollY > 4);
+			onScroll();
+			addEventListener('scroll', onScroll, { passive: true });
+
+			// The endpoint kills the session, but the cached profile lives in
+			// localStorage — drop it too or the EJS pages keep the old avatar.
+			document.querySelectorAll('[data-logout]').forEach(a => {
+				a.addEventListener('click', () => {
+					try { localStorage.removeItem('profileData'); } catch (e) { /* private mode */ }
+				});
+			});
+		</script>
 	</body>
 </html>
 
 <style>
-	.site-header { padding: var(--space-4) var(--space-5); }
-	.site-header-brand {
-		color: var(--ink);
-		text-decoration: none;
+	.nav {
+		position: sticky;
+		top: 0;
+		z-index: 100;
+		display: flex;
+		align-items: center;
+		gap: var(--space-5);
+		padding: 0 var(--space-5);
+		height: 52px;
+		background: color-mix(in oklch, var(--bg) 88%, transparent);
+		backdrop-filter: blur(8px);
+		border-bottom: 1px solid transparent;
+		transition: border-color var(--dur-base) var(--ease-out);
+	}
+	.nav.scrolled { border-bottom-color: var(--border); }
+
+	.nav-brand { display: inline-flex; align-items: center; flex-shrink: 0; }
+	.nav-brand img { display: block; }
+	.nav-wordmark {
 		font-weight: 600;
 		letter-spacing: -0.01em;
+		color: var(--ink);
+		font-size: 1.0625rem;
 	}
-	main {
-		max-width: 44rem;
-		margin: 0 auto;
-		padding: var(--space-6) var(--space-5) var(--space-8);
+
+	.nav-links { display: flex; align-items: center; gap: var(--space-1); margin-right: auto; }
+	.nav-link {
+		color: var(--ink-muted);
+		text-decoration: none;
+		font-size: 0.9rem;
+		font-weight: 500;
+		padding: var(--space-1) var(--space-2);
+		border-radius: var(--radius-sm);
+		transition: color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
 	}
-	.site-footer {
+	.nav-link:hover, .nav-link:focus-visible { color: var(--ink); outline: none; }
+	.nav-link[aria-current="page"] { color: var(--ink); background: var(--surface); }
+
+	.nav-actions { display: flex; align-items: center; gap: var(--space-3); flex-shrink: 0; }
+
+	.nav-search {
+		display: inline-flex;
+		align-items: center;
+		gap: var(--space-2);
+		color: var(--ink-muted);
+		text-decoration: none;
+		padding: var(--space-1) var(--space-2);
+		border: 1px solid var(--border);
+		border-radius: var(--radius-sm);
+		transition: color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
+	}
+	.nav-search:hover, .nav-search:focus-visible { color: var(--ink); border-color: var(--ink-muted); outline: none; }
+	.nav-search kbd {
+		font-family: var(--font-mono);
+		font-size: 0.7rem;
+		color: var(--ink-muted);
+	}
+
+	.nav-cta {
+		color: var(--bg);
+		background: var(--accent);
+		text-decoration: none;
+		font-size: 0.9rem;
+		font-weight: 600;
+		padding: var(--space-1) var(--space-4);
+		border-radius: var(--radius-sm);
+		transition: filter var(--dur-fast) var(--ease-out);
+	}
+	.nav-cta:hover, .nav-cta:focus-visible { filter: brightness(1.1); outline: none; }
+
+	/* Account + burger share the same native <details> dropdown. */
+	.nav-acct, .nav-burger { position: relative; }
+	.nav-acct summary, .nav-burger summary {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		color: var(--ink-muted);
+		cursor: pointer;
+		list-style: none;
+		padding: var(--space-1);
+		border-radius: var(--radius-sm);
+		transition: color var(--dur-fast) var(--ease-out);
+	}
+	.nav-acct summary::-webkit-details-marker, .nav-burger summary::-webkit-details-marker { display: none; }
+	.nav-acct summary:hover, .nav-burger summary:hover { color: var(--ink); }
+	.nav-menu {
+		position: absolute;
+		right: 0;
+		top: calc(100% + var(--space-2));
+		display: flex;
+		flex-direction: column;
+		min-width: 168px;
+		padding: var(--space-2);
+		background: var(--surface-raised);
+		border: 1px solid var(--border);
+		border-radius: var(--radius-md);
+		box-shadow: 0 12px 32px oklch(0 0 0 / 0.4);
+	}
+	.nav-menu a {
+		color: var(--ink-muted);
+		text-decoration: none;
+		font-size: 0.9rem;
+		padding: var(--space-2) var(--space-3);
+		border-radius: var(--radius-sm);
+		transition: color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
+	}
+	.nav-menu a:hover, .nav-menu a:focus-visible { color: var(--ink); background: var(--bg); outline: none; }
+	.nav-menu-danger { color: var(--danger) !important; }
+	.nav-menu-sep { height: 1px; background: var(--border); margin: var(--space-2) 0; }
+
+	.nav-burger { display: none; }
+
+	/* Footer sits at the bottom without hardcoding the chrome heights. */
+	body { display: flex; flex-direction: column; min-height: 100vh; }
+	main { flex: 1; }
+
+	.foot {
+		display: flex;
+		align-items: center;
+		gap: var(--space-3);
+		flex-wrap: wrap;
 		padding: var(--space-5);
-		text-align: center;
+		font-size: 0.8125rem;
+		color: var(--ink-muted);
 	}
-	.site-footer a { color: var(--ink-muted); }
+	.foot a { color: var(--ink-muted); text-decoration: none; transition: color var(--dur-fast) var(--ease-out); }
+	.foot a:hover, .foot a:focus-visible { color: var(--ink); outline: none; }
+	.foot-ver { font-family: var(--font-mono); font-size: 0.75rem; }
+	.foot-lic { margin-left: auto; font-family: var(--font-mono); font-size: 0.75rem; }
+	.foot-sep { opacity: 0.5; }
+
+	/* Mobile: nav and account fold into the burger, but Register stays in the
+	   bar — it's the primary action and doesn't belong behind a menu. */
+	@media (max-width: 720px) {
+		.nav-links, .nav-search, .nav-acct { display: none; }
+		.nav-actions { margin-left: auto; }
+		.nav-burger { display: block; }
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.nav, .nav-link, .nav-search, .nav-cta, .nav-menu a, .foot a { transition: none; }
+	}
 </style>

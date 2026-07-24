@@ -4,7 +4,7 @@ import { pathToFileURL } from "url";
 import express, { Application, Request, Response, NextFunction } from "express";
 
 import { logger } from "../logger.js";
-import { getConfig } from "../config/core.js";
+import { getConfig, isModuleEnabled } from "../config/core.js";
 import { replaceTokens } from "../frontend.js";
 
 // Per-page SEO resolved from the tenant's config (editable in the admin),
@@ -38,7 +38,23 @@ const mountAstroFrontend = async (app: Application): Promise<boolean> => {
 		if (typeof handler !== "function") throw new Error("dist/frontend entry has no handler export");
 		app.use(express.static(path.join(process.cwd(), "dist", "frontend", "client")));
 		app.use((req: Request, res: Response, next: NextFunction) => {
-			handler(req, res, next, { host: req.hostname, getSeo: buildSeoResolver(req.hostname) });
+			const host = req.hostname;
+				// Same shared-navbar inputs the EJS partials read from res.locals /
+				// req.session, so migrated pages keep module-gating and auth state.
+				const session = (req as Request & { session?: { identifier?: string; allowed?: boolean } }).session;
+				handler(req, res, next, {
+					host,
+					siteName: getConfig(host, ["appearance", "siteName"]) || getConfig(host, ["server", "host"]) || host,
+					version: getConfig(host, ["version"]) || "",
+					loggedIn: !!session?.identifier,
+					isAdmin: session?.allowed === true,
+					modules: {
+						register: isModuleEnabled("register", host),
+						media: isModuleEnabled("media", host),
+						relay: isModuleEnabled("relay", host),
+					},
+					getSeo: buildSeoResolver(host),
+				});
 		});
 		logger.info("mountAstroFrontend - Astro frontend mounted");
 		return true;

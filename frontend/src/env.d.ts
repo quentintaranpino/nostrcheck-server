@@ -12,6 +12,11 @@ type PageSeo = {
 declare namespace App {
 	interface Locals {
 		host: string;
+		siteName: string;
+		version: string;
+		loggedIn: boolean;
+		isAdmin: boolean;
+		modules: { register: boolean; media: boolean; relay: boolean };
 		getSeo: (page: string) => PageSeo;
 	}
 }
