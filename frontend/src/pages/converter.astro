@@ -50,9 +50,12 @@ import ConverterIsland from '../components/ConverterIsland.tsx';
 		transition: border-color var(--dur-fast) var(--ease-out);
 	}
 	.converter-input:focus-visible {
-		outline: none;
+		outline: 2px solid var(--accent);
+		outline-offset: 1px;
 		border-color: var(--accent);
 	}
+	/* UA default placeholder greys aren't theme-aware or contrast-checked. */
+	.converter-input::placeholder { color: var(--ink-muted); opacity: 1; }
 	/* badge sits over the input's right edge: reserve room so it never covers the value */
 	.converter-inputwrap:not([data-type="empty"]):not([data-type="unknown"]) .converter-input {
 		padding-right: calc(var(--space-4) + 7.5rem);
@@ -106,9 +109,11 @@ import ConverterIsland from '../components/ConverterIsland.tsx';
 		text-align: left;
 		transition: border-color var(--dur-fast) var(--ease-out);
 	}
-	.converter-row-value:hover, .converter-row-value:focus-visible {
+	.converter-row-value:hover { border-color: var(--accent); }
+	.converter-row-value:focus-visible {
 		border-color: var(--accent);
-		outline: none;
+		outline: 2px solid var(--accent);
+		outline-offset: 1px;
 	}
 	.converter-row-value code {
 		color: var(--ink);

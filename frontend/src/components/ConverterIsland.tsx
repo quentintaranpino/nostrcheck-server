@@ -15,7 +15,8 @@ export default function ConverterIsland() {
 		try {
 			await navigator.clipboard.writeText(value);
 			setCopied(value);
-			setTimeout(() => setCopied(null), 1500);
+			// long enough for a screen reader to reach the live-region update
+			setTimeout(() => setCopied(null), 3000);
 		} catch { /* clipboard denied: selection still works */ }
 	};
 
@@ -54,6 +55,7 @@ export default function ConverterIsland() {
 									type="button"
 									className="converter-row-value"
 									onClick={() => copy(row.value)}
+									aria-label={`Copy ${row.label}`}
 									title="Copy to clipboard"
 								>
 									<code>{row.value}</code>

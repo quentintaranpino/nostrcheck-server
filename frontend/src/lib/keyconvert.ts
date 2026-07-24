@@ -1,4 +1,7 @@
-import { nip19, getPublicKey } from 'nostr-tools';
+// Subpaths, not the root barrel: that one bundles relay/pool/WebSocket code
+// this page has no business shipping to the browser.
+import * as nip19 from 'nostr-tools/nip19';
+import { getPublicKey } from 'nostr-tools/pure';
 import { bytesToHex } from '@noble/hashes/utils.js';
 
 export type ConversionRow = { label: string; value: string };

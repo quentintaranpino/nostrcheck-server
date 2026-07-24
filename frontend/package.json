@@ -4,7 +4,8 @@
 	"type": "module",
 	"scripts": {
 		"dev": "astro build --watch",
-		"build": "astro build",
+		"build": "node scripts/check-contrast.mjs && astro build",
+		"check:contrast": "node scripts/check-contrast.mjs",
 		"test": "vitest run"
 	},
 	"dependencies": {
