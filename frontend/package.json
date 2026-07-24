@@ -18,6 +18,7 @@
 		"react-dom": "latest"
 	},
 	"devDependencies": {
+		"@noble/hashes": "^2.2.0",
 		"@types/react": "latest",
 		"@types/react-dom": "latest",
 		"culori": "latest",
