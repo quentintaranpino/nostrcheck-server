@@ -8,4 +8,9 @@ export default defineConfig({
 	integrations: [react()],
 	// Build into the server's dist so `npm start` ships one artifact.
 	outDir: '../dist/frontend',
+	vite: {
+		// build lands outside frontend/'s node_modules tree, so bundle
+		// everything into the entry instead of externalizing
+		ssr: { noExternal: true },
+	},
 });
