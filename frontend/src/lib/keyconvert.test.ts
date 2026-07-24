@@ -60,4 +60,10 @@ describe('detectAndConvert', () => {
 	it('uppercase hex accepted', () => {
 		expect(detectAndConvert(HEX.toUpperCase()).type).toBe('hex');
 	});
+
+	it('uppercase npub accepted', () => {
+		const d = detectAndConvert(NPUB.toUpperCase());
+		expect(d.type).toBe('npub');
+		expect(d.rows[0].value).toBe(HEX);
+	});
 });

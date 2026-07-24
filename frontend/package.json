@@ -12,13 +12,13 @@
 		"@astrojs/react": "latest",
 		"@fontsource-variable/jetbrains-mono": "latest",
 		"@fontsource-variable/space-grotesk": "latest",
+		"@noble/hashes": "^2.2.0",
 		"astro": "latest",
 		"nostr-tools": "latest",
 		"react": "latest",
 		"react-dom": "latest"
 	},
 	"devDependencies": {
-		"@noble/hashes": "^2.2.0",
 		"@types/react": "latest",
 		"@types/react-dom": "latest",
 		"culori": "latest",
