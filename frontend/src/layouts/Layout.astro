@@ -5,7 +5,7 @@ import '../styles/tokens.css';
 
 // `page` pulls the SEO the operator set in settings (title/description/
 // noindex/socialImage, per tenant); explicit props still override it.
-interface Props { page?: string; title?: string; description?: string; image?: string; noindex?: boolean; width?: 'default' | 'wide'; }
+interface Props { page?: string; title?: string; description?: string; image?: string; noindex?: boolean; width?: 'default' | 'wide' | 'bleed'; }
 const props = Astro.props;
 const { siteName, version, loggedIn, isAdmin, modules } = Astro.locals;
 const seo = props.page && Astro.locals.getSeo ? Astro.locals.getSeo(props.page) : null;
@@ -383,6 +383,10 @@ const logoDark = '/static/resources/appearance-server-logo-dark.png';
 	}
 	/* Reference pages with tables need more room than a reading column. */
 	main[data-width="wide"] { max-width: 68rem; }
+	/* Full-bleed: the page owns the width and its own inner column. Done here
+	   rather than with 100vw margins in the page — those overflow by the width
+	   of the vertical scrollbar. */
+	main[data-width="bleed"] { max-width: none; padding: 0; }
 	@media (max-width: 480px) {
 		main { padding-inline: var(--space-4); }
 	}

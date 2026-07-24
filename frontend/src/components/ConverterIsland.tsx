@@ -4,7 +4,7 @@ import * as nip19 from 'nostr-tools/nip19';
 import { detectAndConvert } from '../lib/keyconvert';
 
 const TYPE_LABEL: Record<string, string> = {
-	npub: 'public key', nsec: 'SECRET KEY', note: 'note id',
+	npub: 'public key', nsec: 'secret key', note: 'note id',
 	nevent: 'event pointer', nprofile: 'profile pointer', hex: 'hex',
 };
 
@@ -23,24 +23,21 @@ export default function ConverterIsland() {
 	};
 
 	// A fresh keypair, made here in the browser. Filling the field with the
-	// nsec means the readout immediately shows its hex and derived npub —
-	// and the secret-key warning fires, which is the honest thing to show.
+	// nsec means the readout shows its hex and derived npub straight away —
+	// and the secret-key warning fires, which is the honest thing to do.
 	const generate = () => setInput(nip19.nsecEncode(generateSecretKey()));
 
 	const tag = TYPE_LABEL[detection.type];
 
 	return (
-		<div className="term-io">
-			<label className="term-prompt" htmlFor="converter-input">
-				<span className="term-caret" aria-hidden="true">&gt;</span>
-				paste anything
-				<span className="term-cursor" aria-hidden="true" />
-			</label>
+		<div className="kc">
+			<label className="kc-prompt" htmlFor="converter-input">Paste anything</label>
 
-			<div className="term-field" data-type={detection.type}>
+			{/* Flex row, not an overlay: the type tag can never cover the value. */}
+			<div className="kc-field" data-type={detection.type}>
 				<input
 					id="converter-input"
-					className="term-input"
+					className="kc-input"
 					type="text"
 					value={input}
 					onChange={e => setInput(e.target.value)}
@@ -48,44 +45,38 @@ export default function ConverterIsland() {
 					autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false}
 					autoFocus
 				/>
-				{tag && <span className="term-tag" data-type={detection.type}>[&nbsp;{tag}&nbsp;]</span>}
+				{tag && <span className="kc-tag" data-type={detection.type}>{tag}</span>}
 			</div>
 
-			<div className="term-hints">
-				<button type="button" className="term-generate" onClick={generate}>
-					generate a new keypair
-				</button>
-				{input !== '' && (
-					<button type="button" className="term-hint" onClick={() => setInput('')}>clear</button>
-				)}
-				<span className="term-hints-note">generated in your browser, never sent anywhere</span>
+			<div className="kc-actions">
+				<button type="button" className="kc-generate" onClick={generate}>Generate a keypair</button>
+				{input !== '' && <button type="button" className="kc-clear" onClick={() => setInput('')}>Clear</button>}
+				<span className="kc-note">Made and decoded in your browser. Never sent anywhere.</span>
 			</div>
 
 			<div aria-live="polite">
-				{detection.warning && (
-					<p className="term-warn" role="alert">
-						<span className="term-warn-mark" aria-hidden="true">!!</span>
-						{detection.warning}
-					</p>
-				)}
+				{detection.warning && <p className="kc-warn" role="alert">{detection.warning}</p>}
 
 				{detection.type === 'unknown' && input.trim() !== '' && (
-					<p className="term-empty">not a recognisable Nostr entity</p>
+					<p className="kc-nothing">Not a recognisable Nostr entity.</p>
 				)}
 
 				{detection.rows.length > 0 && (
-					<ol className="term-out">
+					<ol className="kc-out">
 						{detection.rows.map((row, i) => (
 							<li key={row.label + row.value} style={{ '--i': i } as CSSProperties}>
-								<span className="term-out-key">{row.label}</span>
 								<button
 									type="button"
-									className="term-out-val"
+									className="kc-out-btn"
 									onClick={() => copy(row.value)}
 									aria-label={`Copy ${row.label}`}
 								>
-									<code>{row.value}</code>
-									<span className="term-out-copy">{copied === row.value ? 'copied' : 'copy'}</span>
+									<span className="kc-out-label">
+										{row.label}
+										<span className="kc-out-copy">{copied === row.value ? 'copied' : 'copy'}</span>
+									</span>
+									{/* The value is the whole point of the page, so it gets the size. */}
+									<code className="kc-out-value">{row.value}</code>
 								</button>
 							</li>
 						))}

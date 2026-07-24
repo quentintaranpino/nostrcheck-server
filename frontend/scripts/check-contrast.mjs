@@ -28,8 +28,8 @@ const block = (selector, source = css) => {
 const dark = block(':root');
 const light = { ...dark, ...block('html[data-bs-theme="light"]') };
 
-const termDark = block('.term {', converter);
-const termLight = { ...termDark, ...block('html[data-bs-theme="light"] .term {', converter) };
+const termDark = block('.kc-page {', converter);
+const termLight = { ...termDark, ...block('html[data-bs-theme="light"] .kc-page {', converter) };
 
 // [foreground, background, minimum]. 4.5 = body text (1.4.3), 3 = large text,
 // UI component boundaries and meaningful graphics (1.4.11).
@@ -71,20 +71,16 @@ for (const [name, theme] of [['dark', dark], ['light', light]]) {
 	}
 }
 
-// Converter page palette (terminal register).
+// Converter page palette (drenched register): the brand purple is the
+// surface, so every pair is measured against the field itself.
 const termPairs = [
-	['--term-ink', '--term-bg', 4.5],
-	['--term-ink', '--term-surface', 4.5],
-	['--term-dim', '--term-bg', 4.5],
-	['--term-dim', '--term-surface', 4.5],
-	['--term-phosphor', '--term-bg', 4.5],
-	['--term-phosphor', '--term-surface', 4.5],
-	['--term-danger', '--term-bg', 4.5],
-	['--term-danger', '--term-surface', 4.5],
-	['--term-rule', '--term-bg', 3],
-	['--term-rule', '--term-surface', 3],
-	// generate button inverts on hover: page bg over the phosphor fill
-	['--term-bg', '--term-phosphor', 4.5],
+	['--kc-ink', '--kc-field', 4.5],
+	['--kc-dim', '--kc-field', 4.5],
+	['--kc-tag', '--kc-field', 4.5],
+	['--kc-danger', '--kc-field', 4.5],
+	['--kc-rule', '--kc-field', 3],
+	// the generate button and the row hover both invert: field over ink
+	['--kc-field', '--kc-ink', 4.5],
 ];
 for (const [name, theme] of [['converter dark', termDark], ['converter light', termLight]]) {
 	console.log(`\n${name}`);
