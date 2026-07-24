@@ -1,10 +1,119 @@
 ---
-const host = Astro.locals.host ?? Astro.url.hostname;
+import Layout from '../layouts/Layout.astro';
+import ConverterIsland from '../components/ConverterIsland.tsx';
 ---
-<!doctype html>
-<html lang="en">
-	<head><meta charset="utf-8" /><title>Key converter</title></head>
-	<body>
-		<h1>Converter (Astro scaffold) on {host}</h1>
-	</body>
-</html>
+<Layout title="Key converter" description="Convert Nostr keys and identifiers between npub, hex, note, nevent and nprofile. Runs entirely in your browser.">
+	<section class="converter-hero">
+		<h1>Key converter</h1>
+		<p class="converter-sub">
+			npub, hex, note, nevent, nprofile — paste it and it's converted.
+			Everything runs <strong>in your browser</strong>; keys never touch the server.
+		</p>
+	</section>
+
+	<ConverterIsland client:load />
+</Layout>
+
+<style is:global>
+	.converter-hero { margin-bottom: var(--space-6); }
+	.converter-hero h1 {
+		font-size: clamp(2rem, 5vw, 3rem);
+		letter-spacing: -0.02em;
+		margin: 0 0 var(--space-3);
+	}
+	.converter-sub {
+		color: var(--ink-muted);
+		max-width: 60ch;
+		margin: 0;
+	}
+
+	.converter-label {
+		display: block;
+		color: var(--ink-muted);
+		font-size: 0.875rem;
+		margin-bottom: var(--space-2);
+	}
+	.converter-inputwrap {
+		position: relative;
+		display: flex;
+		align-items: center;
+	}
+	.converter-input {
+		width: 100%;
+		background: var(--surface);
+		color: var(--ink);
+		border: 1px solid var(--border);
+		border-radius: var(--radius-md);
+		padding: var(--space-4);
+		font-family: var(--font-mono);
+		font-size: 1rem;
+		transition: border-color var(--dur-fast) var(--ease-out);
+	}
+	.converter-input:focus-visible {
+		outline: none;
+		border-color: var(--accent);
+	}
+	.converter-badge {
+		position: absolute;
+		right: var(--space-3);
+		background: var(--surface-raised);
+		color: var(--accent);
+		font-size: 0.75rem;
+		font-weight: 600;
+		padding: var(--space-1) var(--space-2);
+		border-radius: var(--radius-sm);
+	}
+	.converter-inputwrap[data-type="nsec"] .converter-badge { color: var(--danger); }
+
+	.converter-warning {
+		color: var(--danger);
+		margin: var(--space-3) 0 0;
+	}
+	.converter-empty {
+		color: var(--ink-muted);
+		margin: var(--space-3) 0 0;
+	}
+
+	.converter-results {
+		list-style: none;
+		margin: var(--space-5) 0 0;
+		padding: 0;
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-3);
+	}
+	.converter-row-label {
+		display: block;
+		color: var(--ink-muted);
+		font-size: 0.8125rem;
+		margin-bottom: var(--space-1);
+	}
+	.converter-row-value {
+		width: 100%;
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: var(--space-3);
+		background: var(--surface);
+		border: 1px solid var(--border);
+		border-radius: var(--radius-md);
+		padding: var(--space-3) var(--space-4);
+		cursor: pointer;
+		text-align: left;
+		transition: border-color var(--dur-fast) var(--ease-out);
+	}
+	.converter-row-value:hover, .converter-row-value:focus-visible {
+		border-color: var(--accent);
+		outline: none;
+	}
+	.converter-row-value code {
+		color: var(--ink);
+		font-size: 0.9375rem;
+		word-break: break-all;
+	}
+	.converter-row-copy {
+		color: var(--accent);
+		font-size: 0.8125rem;
+		flex-shrink: 0;
+	}
+</style>
