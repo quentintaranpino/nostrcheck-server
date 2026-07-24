@@ -20,6 +20,7 @@ const mountAstroFrontend = async (app: Application): Promise<boolean> => {
 
 	try {
 		const { handler } = await import(pathToFileURL(entry).href);
+		if (typeof handler !== "function") throw new Error("dist/frontend entry has no handler export");
 		app.use(express.static(path.join(process.cwd(), "dist", "frontend", "client")));
 		app.use((req: Request, res: Response, next: NextFunction) => {
 			handler(req, res, next, { host: req.hostname });
