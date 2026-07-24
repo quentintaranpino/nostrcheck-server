@@ -1,6 +1,6 @@
 // Validates token pairs against WCAG. Fails the build conversation early
 // instead of shipping unreadable text. Run: node scripts/check-contrast.mjs
-import { wcagContrast, oklch, formatHex } from 'culori';
+import { wcagContrast } from 'culori';
 import { readFileSync } from 'fs';
 
 const css = readFileSync(new URL('../src/styles/tokens.css', import.meta.url), 'utf8');

@@ -3,9 +3,12 @@ import '@fontsource-variable/space-grotesk';
 import '@fontsource-variable/jetbrains-mono';
 import '../styles/tokens.css';
 
-interface Props { title: string; description?: string; }
-const { title, description = 'Self-hosted Nostr infrastructure' } = Astro.props;
+interface Props { title: string; description?: string; image?: string; noindex?: boolean; }
+const { title, description = 'Self-hosted Nostr infrastructure', image, noindex = false } = Astro.props;
 const host = Astro.locals.host ?? Astro.url.hostname;
+// canonical + og:url without the query string; images absolute for scrapers
+const canonical = Astro.url.origin + Astro.url.pathname;
+const ogImage = new URL(image ?? '/static/resources/logo-server.webp', Astro.url).href;
 ---
 <!doctype html>
 <html lang="en">
@@ -15,6 +18,20 @@ const host = Astro.locals.host ?? Astro.url.hostname;
 		<meta name="theme-color" content="#16121f" />
 		<title>{title}</title>
 		<meta name="description" content={description} />
+		{noindex && <meta name="robots" content="noindex,nofollow" />}
+		<link rel="canonical" href={canonical} />
+
+		<meta property="og:type" content="website" />
+		<meta property="og:site_name" content={host} />
+		<meta property="og:title" content={title} />
+		<meta property="og:description" content={description} />
+		<meta property="og:image" content={ogImage} />
+		<meta property="og:url" content={canonical} />
+
+		<meta name="twitter:card" content="summary_large_image" />
+		<meta name="twitter:title" content={title} />
+		<meta name="twitter:description" content={description} />
+		<meta name="twitter:image" content={ogImage} />
 	</head>
 	<body>
 		<header class="site-header">

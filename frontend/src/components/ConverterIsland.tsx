@@ -20,7 +20,7 @@ export default function ConverterIsland() {
 	};
 
 	return (
-		<div className="converter">
+		<div>
 			<label className="converter-label" htmlFor="converter-input">
 				Paste anything — npub, nsec, note, nevent, nprofile or hex
 			</label>
