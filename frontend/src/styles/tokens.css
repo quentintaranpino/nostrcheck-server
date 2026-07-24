@@ -1,4 +1,8 @@
-/* nostrcheck v8 design tokens — seed of the full system. Dark-committed. */
+/* nostrcheck v8 design tokens — seed of the full system.
+   Dark is the base; [data-bs-theme="light"] overrides it, same attribute the
+   EJS pages use so the saved preference carries across both frontends.
+   Every pair here is gated by scripts/check-contrast.mjs — run it after
+   touching a colour. */
 :root {
 	/* color */
 	--bg: oklch(0.15 0.02 300);
@@ -9,6 +13,7 @@
 	--accent: oklch(0.6736329492866907 0.19765374941006172 296.8027562973752);
 	--danger: oklch(0.72 0.17 25);
 	--border: oklch(0.32 0.03 300);
+	--shadow-menu: 0 12px 32px oklch(0 0 0 / 0.4);
 
 	/* type */
 	--font-ui: 'Space Grotesk Variable', system-ui, sans-serif;
@@ -25,6 +30,21 @@
 	/* motion */
 	--dur-fast: 120ms; --dur-base: 200ms;
 	--ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Light: not a warm near-white — the neutrals stay tinted toward the brand
+   hue. The accent goes darker than its dark-mode twin because the primary
+   button paints --bg over it, and near-white needs a dark enough field. */
+html[data-bs-theme="light"] {
+	--bg: oklch(0.99 0.004 300);
+	--surface: oklch(0.968 0.006 300);
+	--surface-raised: oklch(1 0 0);
+	--ink: oklch(0.22 0.02 300);
+	--ink-muted: oklch(0.46 0.02 300);
+	--accent: oklch(0.5 0.21 296.8);
+	--danger: oklch(0.5 0.19 25);
+	--border: oklch(0.88 0.008 300);
+	--shadow-menu: 0 12px 32px oklch(0.3 0.03 300 / 0.14);
 }
 
 *, *::before, *::after { box-sizing: border-box; }
