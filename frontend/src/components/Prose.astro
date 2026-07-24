@@ -1,0 +1,111 @@
+---
+// Long-form document body (tos / privacy / legal, and docs later). The HTML
+// comes from operator-authored markdown, already converted server-side.
+interface Props { html: string; }
+const { html } = Astro.props;
+---
+<div class="prose" set:html={html} />
+
+<!-- Global, not scoped: set:html content carries no scope attributes, so
+     scoped selectors would never reach it. Everything is nested under
+     .prose, so nothing leaks. -->
+<style is:global>
+	.prose {
+		/* Prose wants a narrower measure than a form does: ~68ch keeps lines
+		   inside the comfortable 65-75 range at this size. */
+		max-width: 68ch;
+		/* narrower than main, so centre it or the block reads off-axis */
+		margin-inline: auto;
+		color: var(--ink);
+		font-size: 1rem;
+		line-height: 1.7;
+	}
+
+	.prose > :first-child { margin-top: 0; }
+	.prose > :last-child { margin-bottom: 0; }
+
+	.prose h1 {
+		font-size: 2rem;
+		line-height: 1.2;
+		letter-spacing: -0.02em;
+		margin: 0 0 var(--space-5);
+	}
+	/* Headings hug the text they introduce: big gap above, small below. */
+	.prose h2 {
+		font-size: 1.375rem;
+		line-height: 1.3;
+		letter-spacing: -0.01em;
+		margin: var(--space-7) 0 var(--space-3);
+	}
+	.prose h3 {
+		font-size: 1.0625rem;
+		margin: var(--space-6) 0 var(--space-2);
+	}
+
+	.prose p {
+		margin: 0 0 var(--space-4);
+		text-wrap: pretty;
+	}
+
+	.prose ul, .prose ol {
+		margin: 0 0 var(--space-4);
+		padding-left: var(--space-5);
+	}
+	.prose li { margin-bottom: var(--space-2); }
+	.prose li::marker { color: var(--ink-muted); }
+	.prose ul ul, .prose ol ol { margin: var(--space-2) 0 0; }
+
+	.prose strong { font-weight: 600; }
+
+	/* Underlined, not colour-only: these sit inside running text. */
+	.prose a {
+		color: var(--accent);
+		text-decoration: underline;
+		text-decoration-thickness: 1px;
+		text-underline-offset: 2px;
+		border-radius: 2px;
+	}
+	.prose a:hover { text-decoration-thickness: 2px; }
+	.prose a:focus-visible {
+		outline: 2px solid var(--accent);
+		outline-offset: 2px;
+		text-decoration: none;
+	}
+
+	.prose code {
+		font-family: var(--font-mono);
+		font-size: 0.875em;
+		background: var(--surface);
+		border: 1px solid var(--border-subtle);
+		border-radius: var(--radius-sm);
+		padding: 0.1em 0.35em;
+		word-break: break-word;
+	}
+
+	.prose blockquote {
+		margin: 0 0 var(--space-4);
+		padding: var(--space-3) var(--space-4);
+		background: var(--surface);
+		border-radius: var(--radius-md);
+		color: var(--ink-muted);
+	}
+
+	.prose hr {
+		border: 0;
+		border-top: 1px solid var(--border-subtle);
+		margin: var(--space-7) 0;
+	}
+
+	.prose table {
+		width: 100%;
+		border-collapse: collapse;
+		margin: 0 0 var(--space-4);
+		font-size: 0.9375rem;
+	}
+	.prose th, .prose td {
+		text-align: left;
+		padding: var(--space-2) var(--space-3);
+		border-bottom: 1px solid var(--border-subtle);
+	}
+	.prose th { color: var(--ink-muted); font-weight: 600; }
+</style>

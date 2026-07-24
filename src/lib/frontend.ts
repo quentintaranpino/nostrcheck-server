@@ -6,6 +6,32 @@ import { hextoNpub } from "./nostr/NIP19.js";
 import path from "path";
 import fs from "fs";
 import { Page } from "../interfaces/frontend.js";
+import { markdownToHtml } from "./utils.js";
+import { logger } from "./logger.js";
+
+/**
+ * Reads one of the legal markdown files (tos / privacy / legal), applies the
+ * operator token replacements and returns HTML. Shared by the EJS controller
+ * and the Astro pages so both render exactly the same document.
+ */
+const renderMdPage = (hostname: string, mdFileName: string): string => {
+
+	try {
+		let md = fs.readFileSync(getConfig(hostname, ["server", mdFileName])).toString();
+
+		md = md.replace(/SERVERHOST/g, getConfig(hostname, ["server", "host"]));
+		md = md.replace(/SERVERCONTACT/g, getConfig(hostname, ["server", "pubkey"]));
+		md = md.replace(/LEGALINFO/g, getLegalText(hostname));
+		md = md.replace(/SERVERCOUNTRY/g, getConfig(hostname, ["server", "legal", "country"]));
+		md = md.replace(/SERVERJURISDICTION/g, getConfig(hostname, ["server", "legal", "jurisdiction"]));
+		md = md.replace(/SERVEREMAIL/g, getConfig(hostname, ["server", "legal", "email"]));
+
+		return markdownToHtml(md);
+	} catch (e) {
+		logger.error(`renderMdPage - Failed to read markdown file: ${mdFileName}`);
+		return `Failed to read markdown file ${mdFileName}`;
+	}
+}
 
 const countPubkeyFiles = async (pubkey: string): Promise<number> => {
 
@@ -220,4 +246,4 @@ ${urlset}
 }
 
 
-export {isAutoLoginEnabled, countPubkeyFiles, setAuthCookie, getLegalText, getResource, replaceTokens, getSiteManifest, generateSitemap};
+export {isAutoLoginEnabled, countPubkeyFiles, setAuthCookie, getLegalText, getResource, replaceTokens, getSiteManifest, generateSitemap, renderMdPage};

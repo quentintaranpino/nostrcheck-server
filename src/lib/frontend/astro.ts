@@ -5,7 +5,7 @@ import express, { Application, Request, Response, NextFunction } from "express";
 
 import { logger } from "../logger.js";
 import { getConfig, isModuleEnabled } from "../config/core.js";
-import { replaceTokens } from "../frontend.js";
+import { renderMdPage, replaceTokens } from "../frontend.js";
 
 // Per-page SEO resolved from the tenant's config (editable in the admin),
 // same source the EJS pages read via res.locals. Astro pages ask for it by
@@ -54,6 +54,9 @@ const mountAstroFrontend = async (app: Application): Promise<boolean> => {
 						relay: isModuleEnabled("relay", host),
 					},
 					getSeo: buildSeoResolver(host),
+					// tos/privacy/legal come from operator markdown; same
+					// pipeline the EJS pages use, so both stay identical.
+					getMdPage: (page: string) => renderMdPage(host, `${page}FilePath`),
 				});
 		});
 		logger.info("mountAstroFrontend - Astro frontend mounted");

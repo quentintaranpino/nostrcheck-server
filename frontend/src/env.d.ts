@@ -18,5 +18,6 @@ declare namespace App {
 		isAdmin: boolean;
 		modules: { register: boolean; media: boolean; relay: boolean };
 		getSeo: (page: string) => PageSeo;
+		getMdPage: (page: 'tos' | 'privacy' | 'legal') => string;
 	}
 }

@@ -1,0 +1,9 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Prose from '../components/Prose.astro';
+
+const html = Astro.locals.getMdPage('privacy');
+---
+<Layout page="privacy">
+	<Prose html={html} />
+</Layout>

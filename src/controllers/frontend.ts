@@ -4,7 +4,7 @@ import { logger } from "../lib/logger.js";
 import { markdownToHtml } from "../lib/utils.js";
 import { dbMultiSelect, dbSelect, dbUpdate} from "../lib/database/core.js";
 import { generateAuthToken, generateOTC, isPubkeyAllowed, isPubkeyValid, isUserPasswordValid, verifyOTC } from "../lib/authorization.js";
-import { countPubkeyFiles, generateSitemap, getLegalText, getResource, isAutoLoginEnabled, replaceTokens, setAuthCookie } from "../lib/frontend.js";
+import { countPubkeyFiles, generateSitemap, getLegalText, getResource, isAutoLoginEnabled, renderMdPage, replaceTokens, setAuthCookie } from "../lib/frontend.js";
 import { hextoNpub, npubToHex } from "../lib/nostr/NIP19.js";
 import { dynamicbackgroundThemes, particles} from "../interfaces/appearance.js";
 import { getUsernames } from "../lib/register.js";
@@ -266,26 +266,7 @@ const loadMdPage = async (req: Request, res: Response, mdFileName : string, vers
     res.locals.noindex = getConfig(req.hostname, ["appearance", "pages", page, "noindex"]);
     res.locals.socialImage = getConfig(req.hostname, ["appearance", "pages", page, "socialImage"]) || getConfig(req.hostname, ["appearance", "socialImage"]);
 
-    let mdFile : string = "";
-    try{
-        mdFile = fs.readFileSync(getConfig(req.hostname, ["server", mdFileName])).toString();
-
-        // Standard replacements
-        mdFile = mdFile.replace(/SERVERHOST/g, getConfig(req.hostname, ["server", "host"]));
-        mdFile = mdFile.replace(/SERVERCONTACT/g, getConfig(req.hostname, ["server", "pubkey"]));
-
-        // Legal replacements
-        mdFile = mdFile.replace(/LEGALINFO/g, getLegalText(req.hostname));
-        mdFile = mdFile.replace(/SERVERCOUNTRY/g, getConfig(req.hostname, ["server", "legal", "country"]));
-        mdFile = mdFile.replace(/SERVERJURISDICTION/g, getConfig(req.hostname, ["server", "legal", "jurisdiction"]));
-        mdFile = mdFile.replace(/SERVEREMAIL/g, getConfig(req.hostname, ["server", "legal", "email"]));
-
-        mdFile = markdownToHtml(mdFile);
-        
-    }catch(e){
-        logger.error(`load - Failed to read markdown file: ${mdFileName}`, "|", getClientInfo(req).ip);
-        mdFile = `Failed to read markdown file ${mdFileName}`;
-    }
+    const mdFile : string = renderMdPage(req.hostname, mdFileName);
 
     // Set auth cookie
     setAuthCookie(res, req.cookies.authkey);

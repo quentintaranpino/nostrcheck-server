@@ -1,0 +1,9 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Prose from '../components/Prose.astro';
+
+const html = Astro.locals.getMdPage('legal');
+---
+<Layout page="legal">
+	<Prose html={html} />
+</Layout>
