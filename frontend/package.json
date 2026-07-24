@@ -1,0 +1,26 @@
+{
+	"name": "nostrcheck-frontend",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"dev": "astro build --watch",
+		"build": "astro build",
+		"test": "vitest run"
+	},
+	"dependencies": {
+		"@astrojs/node": "latest",
+		"@astrojs/react": "latest",
+		"@fontsource-variable/jetbrains-mono": "latest",
+		"@fontsource-variable/space-grotesk": "latest",
+		"astro": "latest",
+		"nostr-tools": "latest",
+		"react": "latest",
+		"react-dom": "latest"
+	},
+	"devDependencies": {
+		"@types/react": "latest",
+		"@types/react-dom": "latest",
+		"culori": "latest",
+		"vitest": "latest"
+	}
+}
