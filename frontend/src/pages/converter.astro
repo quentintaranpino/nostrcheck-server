@@ -3,11 +3,11 @@ import Layout from '../layouts/Layout.astro';
 import ConverterIsland from '../components/ConverterIsland.tsx';
 ---
 <Layout page="converter" width="bleed">
-	<div class="kc-page">
-		<div class="kc-page-inner">
-			<header class="kc-head">
+	<div class="pc-page">
+		<div class="pc-page-inner">
+			<header class="pc-head">
 				<h1>Key converter</h1>
-				<p class="kc-lede">
+				<p class="pc-lede">
 					One field. It reads npub, nsec, note, nevent, nprofile and raw hex,
 					and shows you everything it can derive.
 				</p>
@@ -20,111 +20,140 @@ import ConverterIsland from '../components/ConverterIsland.tsx';
 
 <style is:global>
 	/* ─────────────────────────────────────────────────────────────
-	   Drenched register. The colour strategy here is not "restrained
-	   plus an accent" — the brand purple IS the surface. The drama
-	   comes from saturation and from the size of the values, because
-	   the value is what the visitor came for. No glow, no grid, no
-	   scanlines: the data carries the page.
-	   Tokens are page-local; check-contrast.mjs gates them.
+	   Poster register. Colour blocking carries the hierarchy: the
+	   input sits on a saturated block so the action is unmistakable,
+	   and the recognised type is set enormous behind the composition
+	   — decoration that is also information, since it names what the
+	   field just understood. No glow, no grid, no neon.
+	   Page-local tokens, gated by check-contrast.mjs.
 	   ───────────────────────────────────────────────────────────── */
-	.kc-page {
-		--kc-field: oklch(0.24 0.13 300);
-		--kc-ink: oklch(0.97 0.01 300);
-		--kc-dim: oklch(0.8 0.05 300);
-		--kc-rule: oklch(0.55 0.1 300);
-		--kc-tag: oklch(0.88 0.1 300);
-		--kc-danger: oklch(0.8 0.16 25);
+	.pc-page {
+		--pc-bg: oklch(0.13 0.02 300);
+		--pc-ink: oklch(0.97 0.01 300);
+		--pc-dim: oklch(0.72 0.04 300);
+		--pc-block: oklch(0.5 0.19 300);
+		--pc-block-ink: oklch(0.99 0.005 300);
+		--pc-ghost: oklch(0.22 0.045 300);
+		--pc-rule: oklch(0.49 0.03 300);
+		--pc-danger: oklch(0.72 0.18 25);
 
-		/* Layout is in bleed mode, so this is already the full width — no vw
-		   maths, no scrollbar overflow. */
-		padding: var(--space-8) var(--space-5);
-		min-height: 82vh;
-		background: var(--kc-field);
-		color: var(--kc-ink);
+		padding: var(--space-8) var(--space-5) var(--space-8);
+		min-height: 84vh;
+		background: var(--pc-bg);
+		color: var(--pc-ink);
 	}
-	html[data-bs-theme="light"] .kc-page {
-		--kc-field: oklch(0.95 0.05 300);
-		--kc-ink: oklch(0.24 0.13 300);
-		--kc-dim: oklch(0.44 0.1 300);
-		--kc-rule: oklch(0.62 0.1 300);
-		--kc-tag: oklch(0.36 0.16 300);
-		--kc-danger: oklch(0.44 0.18 25);
+	html[data-bs-theme="light"] .pc-page {
+		--pc-bg: oklch(0.985 0.004 300);
+		--pc-ink: oklch(0.18 0.02 300);
+		--pc-dim: oklch(0.44 0.04 300);
+		--pc-block: oklch(0.42 0.19 300);
+		--pc-block-ink: oklch(0.99 0.005 300);
+		--pc-ghost: oklch(0.93 0.025 300);
+		--pc-rule: oklch(0.64 0.02 300);
+		--pc-danger: oklch(0.46 0.19 25);
 	}
 
-	.kc-page-inner { max-width: 54rem; margin-inline: auto; }
+	.pc-page-inner { max-width: 62rem; margin-inline: auto; }
 
-	.kc-head { margin-bottom: var(--space-7); }
-	.kc-page h1 {
+	.pc-head { margin-bottom: var(--space-6); }
+	.pc-page h1 {
 		font-size: var(--text-xl);
 		letter-spacing: var(--tracking-snug);
 		margin: 0 0 var(--space-3);
 	}
-	.kc-lede {
-		color: var(--kc-dim);
+	.pc-lede {
+		color: var(--pc-dim);
 		font-size: var(--text-base);
 		line-height: var(--leading-normal);
 		max-width: 54ch;
 		margin: 0;
 	}
 
-	/* ── Input: a line to write on, not a box ─────────────────── */
-	.kc-prompt {
+	/* ── The ghost word ───────────────────────────────────────── */
+	/* Its own band under the action block, clipped: it fills the empty space
+	   below and sits behind the readout, and it can never reach the copy. */
+	.pc-readout {
+		position: relative;
+		overflow: clip;
+		min-height: 16rem;
+		padding-top: var(--space-5);
+	}
+	.pc-ghost {
+		position: absolute;
+		top: 0;
+		right: 0;
+		z-index: 0;
+		max-width: 100%;
+		font-family: var(--font-mono);
+		font-size: clamp(4rem, 15vw, 11rem);
+		font-weight: 700;
+		line-height: 0.85;
+		letter-spacing: -0.05em;
+		text-transform: uppercase;
+		color: var(--pc-ghost);
+		pointer-events: none;
+		user-select: none;
+		/* It's texture, so it must never fight the readout it sits over. */
+		transition: color var(--dur-base) var(--ease-out);
+	}
+	.pc[data-type="nsec"] .pc-ghost { color: oklch(0.26 0.07 25); }
+	html[data-bs-theme="light"] .pc[data-type="nsec"] .pc-ghost { color: oklch(0.92 0.04 25); }
+
+	.pc-panel, .pc-out, .pc-warn, .pc-nothing { position: relative; z-index: 1; }
+
+	/* ── The action block ─────────────────────────────────────── */
+	.pc-panel {
+		background: var(--pc-block);
+		color: var(--pc-block-ink);
+		padding: var(--space-5);
+	}
+	.pc-prompt {
 		display: block;
 		font-size: var(--text-xs);
 		text-transform: uppercase;
-		letter-spacing: 0.1em;
-		color: var(--kc-dim);
+		letter-spacing: 0.12em;
+		opacity: 0.85;
 		margin-bottom: var(--space-3);
 	}
-	.kc-field {
+	.pc-field {
 		display: flex;
 		align-items: baseline;
 		gap: var(--space-4);
-		border-bottom: 2px solid var(--kc-rule);
+		border-bottom: 2px solid var(--pc-block-ink);
 		padding-bottom: var(--space-3);
-		transition: border-color var(--dur-base) var(--ease-out);
 	}
-	.kc-field:focus-within,
-	.kc-field:not([data-type="empty"]):not([data-type="unknown"]) { border-bottom-color: var(--kc-ink); }
-	.kc-field[data-type="nsec"] { border-bottom-color: var(--kc-danger); }
-
-	.kc-input {
+	.pc-input {
 		flex: 1;
 		min-width: 0;
 		background: none;
 		border: 0;
 		padding: 0;
-		color: var(--kc-ink);
+		color: var(--pc-block-ink);
 		font-family: var(--font-mono);
 		font-size: clamp(1rem, 2.2vw, 1.375rem);
 	}
-	.kc-input:focus { outline: none; }
-	.kc-input::placeholder {
-		color: var(--kc-dim);
-		opacity: 1;
-		font-size: var(--text-sm);
-	}
-	.kc-tag {
+	.pc-input:focus { outline: none; }
+	.pc-input::placeholder { color: var(--pc-block-ink); opacity: 0.6; font-size: var(--text-sm); }
+	.pc-field:focus-within { border-bottom-color: var(--pc-block-ink); }
+	.pc-tag {
 		flex-shrink: 0;
 		font-family: var(--font-mono);
 		font-size: var(--text-xs);
 		text-transform: uppercase;
-		letter-spacing: 0.1em;
-		color: var(--kc-tag);
+		letter-spacing: 0.12em;
+		opacity: 0.9;
 	}
-	.kc-tag[data-type="nsec"] { color: var(--kc-danger); }
 
-	/* ── Actions ──────────────────────────────────────────────── */
-	.kc-actions {
+	.pc-actions {
 		display: flex;
 		align-items: center;
 		gap: var(--space-3);
 		flex-wrap: wrap;
 		margin-top: var(--space-4);
 	}
-	.kc-generate {
-		background: var(--kc-ink);
-		color: var(--kc-field);
+	.pc-generate {
+		background: var(--pc-block-ink);
+		color: var(--pc-block);
 		border: 0;
 		border-radius: 0;
 		font: inherit;
@@ -134,53 +163,42 @@ import ConverterIsland from '../components/ConverterIsland.tsx';
 		cursor: pointer;
 		transition: opacity var(--dur-fast) var(--ease-out);
 	}
-	.kc-generate:hover { opacity: 0.85; }
-	.kc-clear {
+	.pc-generate:hover { opacity: 0.88; }
+	.pc-clear {
 		background: none;
-		border: 1px solid var(--kc-rule);
+		border: 1px solid var(--pc-block-ink);
 		border-radius: 0;
-		color: var(--kc-dim);
+		color: var(--pc-block-ink);
 		font: inherit;
 		font-size: var(--text-sm);
 		padding: var(--space-3) var(--space-4);
 		cursor: pointer;
-		transition: color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
+		opacity: 0.8;
+		transition: opacity var(--dur-fast) var(--ease-out);
 	}
-	.kc-clear:hover { color: var(--kc-ink); border-color: var(--kc-ink); }
-	.kc-note {
-		margin-left: auto;
-		color: var(--kc-dim);
-		font-size: var(--text-xs);
-	}
+	.pc-clear:hover { opacity: 1; }
+	.pc-note { margin-left: auto; font-size: var(--text-xs); opacity: 0.8; }
 
-	/* ── Readout: the value is the hero ───────────────────────── */
-	.kc-warn, .kc-nothing {
+	/* ── Readout ──────────────────────────────────────────────── */
+	.pc-warn, .pc-nothing {
 		font-size: var(--text-sm);
 		line-height: var(--leading-normal);
 		margin: var(--space-5) 0 0;
 		max-width: 60ch;
 	}
-	.kc-warn { color: var(--kc-danger); font-weight: 600; }
-	.kc-nothing { color: var(--kc-dim); }
+	.pc-warn { color: var(--pc-danger); font-weight: 600; }
+	.pc-nothing { color: var(--pc-dim); }
 
-	.kc-out {
-		list-style: none;
-		margin: var(--space-7) 0 0;
-		padding: 0;
+	.pc-out { list-style: none; margin: var(--space-6) 0 0; padding: 0; }
+	.pc-out li {
+		border-top: 1px solid var(--pc-rule);
+		animation: pc-in 280ms var(--ease-out) backwards;
+		animation-delay: calc(var(--i, 0) * 60ms);
 	}
-	.kc-out li {
-		border-top: 1px solid var(--kc-rule);
-		animation: kc-wipe 320ms var(--ease-out) backwards;
-		animation-delay: calc(var(--i, 0) * 70ms);
-	}
-	.kc-out li:last-child { border-bottom: 1px solid var(--kc-rule); }
-	/* Prints in rather than fading in — it's a readout. */
-	@keyframes kc-wipe {
-		from { opacity: 0; clip-path: inset(0 100% 0 0); }
-		to { opacity: 1; clip-path: inset(0 0 0 0); }
-	}
+	.pc-out li:last-child { border-bottom: 1px solid var(--pc-rule); }
+	@keyframes pc-in { from { opacity: 0; transform: translateY(6px); } }
 
-	.kc-out-btn {
+	.pc-out-btn {
 		width: 100%;
 		display: block;
 		background: none;
@@ -193,44 +211,42 @@ import ConverterIsland from '../components/ConverterIsland.tsx';
 		color: inherit;
 		transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
 	}
-	/* The committed idea: the row inverts under the pointer. */
-	.kc-out-btn:hover, .kc-out-btn:focus-visible {
-		background: var(--kc-ink);
-		color: var(--kc-field);
+	.pc-out-btn:hover, .pc-out-btn:focus-visible {
+		background: var(--pc-block);
+		color: var(--pc-block-ink);
 		outline: none;
 	}
-
-	.kc-out-label {
+	.pc-out-head {
 		display: flex;
 		align-items: baseline;
 		justify-content: space-between;
 		gap: var(--space-4);
 		font-size: var(--text-xs);
 		text-transform: uppercase;
-		letter-spacing: 0.1em;
-		color: var(--kc-dim);
+		letter-spacing: 0.12em;
+		color: var(--pc-dim);
 		margin-bottom: var(--space-3);
 		transition: color var(--dur-fast) var(--ease-out);
 	}
-	.kc-out-btn:hover .kc-out-label,
-	.kc-out-btn:focus-visible .kc-out-label { color: var(--kc-field); }
-	.kc-out-copy { flex-shrink: 0; }
-
-	.kc-out-value {
+	.pc-out-btn:hover .pc-out-head,
+	.pc-out-btn:focus-visible .pc-out-head { color: var(--pc-block-ink); }
+	.pc-out-copy { flex-shrink: 0; }
+	.pc-out-value {
 		display: block;
 		font-family: var(--font-mono);
-		font-size: clamp(1.125rem, 3.4vw, 2rem);
-		line-height: 1.25;
+		font-size: clamp(1.0625rem, 3vw, 1.75rem);
+		line-height: 1.3;
 		letter-spacing: -0.02em;
 		word-break: break-all;
 	}
 
-	@media (max-width: 560px) {
-		.kc-note { margin-left: 0; }
-		.kc-field { gap: var(--space-3); }
+	@media (max-width: 620px) {
+		.pc-note { margin-left: 0; }
+		.pc-ghost { top: -0.2em; opacity: 0.75; }
 	}
 
 	@media (prefers-reduced-motion: reduce) {
-		.kc-out li { animation: none; }
+		.pc-out li { animation: none; }
+		.pc-ghost { transition: none; }
 	}
 </style>
