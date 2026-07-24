@@ -30,6 +30,11 @@ const startServer = async () => {
     const { getConfig } = await import("./lib/config/core.js");
     const server = app.listen(getConfig(null, ["server", "port"]));
 
+    // Astro frontend (0.8.0 incremental migration): mounted before the EJS
+    // routes so migrated pages win and everything else falls through.
+    const { default: mountAstroFrontend } = await import("./lib/frontend/astro.js");
+    await mountAstroFrontend(app);
+
     // Initialise API modules
     const { loadAPIs } = await import("./routes/routes.js");
     await loadAPIs(app, server);
