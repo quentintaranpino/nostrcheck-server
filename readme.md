@@ -87,6 +87,12 @@ See API documentation [here](https://github.com/quentintaranpino/nostrcheck-serv
 
 See configuration [here](https://github.com/quentintaranpino/nostrcheck-server/wiki/Configuration)
 
+### Frontend (0.8.0+, Astro)
+
+The `frontend/` directory holds the Astro pages (incremental migration from EJS).
+- `npm run build:frontend` — one-shot build into `dist/frontend`
+- `npm run dev:frontend` — rebuild on change (run alongside `npm run dev`; restart the server to pick up server-side page changes)
+
 ### Plugins
 
 See plugins [here](https://github.com/quentintaranpino/nostrcheck-server/wiki/Plugins)
