@@ -3,12 +3,20 @@ import '@fontsource-variable/space-grotesk';
 import '@fontsource-variable/jetbrains-mono';
 import '../styles/tokens.css';
 
-interface Props { title: string; description?: string; image?: string; noindex?: boolean; }
-const { title, description = 'Self-hosted Nostr infrastructure', image, noindex = false } = Astro.props;
+// `page` pulls the SEO the operator set in settings (title/description/
+// noindex/socialImage, per tenant); explicit props still override it.
+interface Props { page?: string; title?: string; description?: string; image?: string; noindex?: boolean; }
+const props = Astro.props;
 const host = Astro.locals.host ?? Astro.url.hostname;
+const seo = props.page && Astro.locals.getSeo ? Astro.locals.getSeo(props.page) : null;
+
+const siteName = seo?.siteName || host;
+const title = props.title ?? (seo?.title || siteName);
+const description = props.description ?? (seo?.description || 'Self-hosted Nostr infrastructure');
+const noindex = props.noindex ?? seo?.noindex ?? false;
 // canonical + og:url without the query string; images absolute for scrapers
 const canonical = Astro.url.origin + Astro.url.pathname;
-const ogImage = new URL(image ?? '/static/resources/logo-server.webp', Astro.url).href;
+const ogImage = new URL(props.image ?? (seo?.socialImage || '/static/resources/logo-server.webp'), Astro.url).href;
 ---
 <!doctype html>
 <html lang="en">
@@ -22,7 +30,7 @@ const ogImage = new URL(image ?? '/static/resources/logo-server.webp', Astro.url
 		<link rel="canonical" href={canonical} />
 
 		<meta property="og:type" content="website" />
-		<meta property="og:site_name" content={host} />
+		<meta property="og:site_name" content={siteName} />
 		<meta property="og:title" content={title} />
 		<meta property="og:description" content={description} />
 		<meta property="og:image" content={ogImage} />
@@ -35,7 +43,7 @@ const ogImage = new URL(image ?? '/static/resources/logo-server.webp', Astro.url
 	</head>
 	<body>
 		<header class="site-header">
-			<a href="/" class="site-header-brand">{host}</a>
+			<a href="/" class="site-header-brand">{siteName}</a>
 		</header>
 		<main><slot /></main>
 		<footer class="site-footer">
