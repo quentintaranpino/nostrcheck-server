@@ -11,7 +11,6 @@ import { 	loadDashboardPage,
 			loadGalleryPage,
 			loadRegisterPage,
 			loadDirectoryPage,
-			loadConverterPage,
 			loadResource,
 			loadTheme,
 			loadSitemap,
@@ -109,10 +108,9 @@ export const loadFrontendEndpoint = async (app: Application, version: string): P
 		loadDirectoryPage(req,res,version);
 	});
 
-	// Converter
-	app.get([`/api/${version}/converter`, `/converter`], limiter(), async (req, res) => {
-		if (await isAutoLoginEnabled(req,res)){logger.info("Autologin enabled.  Showing alert on frontend", "|", getClientInfo(req).ip)}
-		loadConverterPage(req,res,version);
+	// The converter grew into a set of tools; keep the old address working.
+	app.get([`/api/${version}/converter`, `/converter`], limiter(), (_req, res) => {
+		res.redirect(301, "/tools");
 	});
 
 	// Dashboard

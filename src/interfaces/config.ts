@@ -326,6 +326,12 @@ const defaultConfig = {
 							"description": "",
 							"noindex": false
 			},
+			"tools":     { 	"title": "{server.host} — Nostr tools",
+							"description": "",
+							"noindex": false
+			},
+			// Kept so existing installs don't lose the value; /converter now
+			// 301s to /tools.
 			"converter": { 	"title": "{server.host} — Converter",
 							"description": "",
 							"noindex": false

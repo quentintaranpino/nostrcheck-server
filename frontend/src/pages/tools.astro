@@ -1,0 +1,275 @@
+---
+import Layout from '../layouts/Layout.astro';
+import KeyConverter from '../components/tools/KeyConverter.tsx';
+import KeypairGenerator from '../components/tools/KeypairGenerator.tsx';
+import EventVerifier from '../components/tools/EventVerifier.tsx';
+import BlobHasher from '../components/tools/BlobHasher.tsx';
+
+const tools = [
+	{ id: 'convert', name: 'Key converter', blurb: 'Reads npub, nsec, note, nevent, nprofile or raw hex and shows everything it can derive.' },
+	{ id: 'generate', name: 'Keypair generator', blurb: 'A brand new Nostr identity, made in this browser and never sent anywhere.' },
+	{ id: 'verify', name: 'Event verifier', blurb: 'Checks that a signed event really hashes to its id and that the signature holds.' },
+	{ id: 'hash', name: 'Blob hash', blurb: 'The sha256 of a file — the same id Blossom uses, computed without uploading it.' },
+];
+---
+<Layout page="tools">
+	<header class="tools-head">
+		<h1>Nostr tools</h1>
+		<p class="tools-lede">
+			Small utilities for working with Nostr keys and events. All of them run
+			entirely in your browser — nothing you paste or pick is sent to the server.
+		</p>
+		<nav class="tools-jump" aria-label="Tools">
+			{tools.map(t => <a href={`#${t.id}`}>{t.name}</a>)}
+		</nav>
+	</header>
+
+	<section id="convert" class="tool">
+		<h2>{tools[0].name}</h2>
+		<p class="tool-blurb">{tools[0].blurb}</p>
+		<KeyConverter client:load />
+	</section>
+
+	<section id="generate" class="tool">
+		<h2>{tools[1].name}</h2>
+		<p class="tool-blurb">{tools[1].blurb}</p>
+		<KeypairGenerator client:visible />
+	</section>
+
+	<section id="verify" class="tool">
+		<h2>{tools[2].name}</h2>
+		<p class="tool-blurb">{tools[2].blurb}</p>
+		<EventVerifier client:visible />
+	</section>
+
+	<section id="hash" class="tool">
+		<h2>{tools[3].name}</h2>
+		<p class="tool-blurb">{tools[3].blurb}</p>
+		<BlobHasher client:visible />
+	</section>
+</Layout>
+
+<style is:global>
+	/* Shared surface for every tool. Uses the system tokens rather than a
+	   page-local palette: the visual direction is still being decided, and
+	   these should follow it rather than fight it. */
+	.tools-head { margin-bottom: var(--space-7); }
+	.tools-head h1 { margin: 0 0 var(--space-3); }
+	.tools-lede {
+		color: var(--ink-muted);
+		line-height: var(--leading-normal);
+		max-width: 62ch;
+		margin: 0 0 var(--space-4);
+	}
+	.tools-jump { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+	.tools-jump a {
+		font-size: var(--text-sm);
+		color: var(--ink-muted);
+		text-decoration: none;
+		padding: var(--space-2) var(--space-3);
+		border: 1px solid var(--border);
+		border-radius: var(--radius-sm);
+		transition: color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
+	}
+	.tools-jump a:hover { color: var(--ink); border-color: var(--ink-muted); }
+	.tools-jump a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+	/* Each tool is a bounded region because they are genuinely separate
+	   instruments — not decorative cards. Hence a rule, not a floating box. */
+	.tool {
+		border-top: 1px solid var(--border);
+		padding-top: var(--space-6);
+		margin-bottom: var(--space-7);
+		/* scroll-margin so the jump links don't tuck the heading under the nav */
+		scroll-margin-top: 4rem;
+	}
+	.tool h2 { margin: 0 0 var(--space-2); }
+	.tool-blurb {
+		color: var(--ink-muted);
+		font-size: var(--text-sm);
+		line-height: var(--leading-normal);
+		max-width: 62ch;
+		margin: 0 0 var(--space-5);
+	}
+
+	.tool-label {
+		display: block;
+		font-size: var(--text-sm);
+		color: var(--ink-muted);
+		margin-bottom: var(--space-2);
+	}
+
+	.tool-field {
+		display: flex;
+		align-items: center;
+		gap: var(--space-3);
+		background: var(--surface);
+		border: 1px solid var(--border);
+		border-radius: var(--radius-md);
+		padding: var(--space-3) var(--space-4);
+		transition: border-color var(--dur-fast) var(--ease-out);
+	}
+	.tool-field:focus-within { border-color: var(--accent); }
+	.tool-field[data-tone="danger"] { border-color: var(--danger); }
+	.tool-input {
+		flex: 1;
+		min-width: 0;
+		background: none;
+		border: 0;
+		padding: 0;
+		color: var(--ink);
+		font-family: var(--font-mono);
+		font-size: var(--text-base);
+	}
+	.tool-input:focus { outline: none; }
+	.tool-input::placeholder { color: var(--ink-muted); opacity: 1; font-size: var(--text-sm); }
+	.tool-tag {
+		flex-shrink: 0;
+		font-family: var(--font-mono);
+		font-size: var(--text-xs);
+		text-transform: uppercase;
+		letter-spacing: 0.08em;
+		color: var(--accent);
+	}
+	.tool-tag[data-tone="danger"] { color: var(--danger); }
+
+	.tool-textarea {
+		width: 100%;
+		background: var(--surface);
+		color: var(--ink);
+		border: 1px solid var(--border);
+		border-radius: var(--radius-md);
+		padding: var(--space-3) var(--space-4);
+		font-family: var(--font-mono);
+		font-size: var(--text-sm);
+		line-height: var(--leading-normal);
+		resize: vertical;
+	}
+	.tool-textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; border-color: var(--accent); }
+	.tool-textarea::placeholder { color: var(--ink-muted); opacity: 1; }
+
+	.tool-file {
+		font-family: var(--font-ui);
+		font-size: var(--text-sm);
+		color: var(--ink-muted);
+	}
+	.tool-file::file-selector-button {
+		font: inherit;
+		font-weight: 600;
+		color: var(--bg);
+		background: var(--accent);
+		border: 0;
+		border-radius: var(--radius-sm);
+		padding: var(--space-2) var(--space-4);
+		margin-right: var(--space-3);
+		cursor: pointer;
+	}
+
+	.tool-actions { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; }
+	.tool-primary {
+		background: var(--accent);
+		color: var(--bg);
+		border: 0;
+		border-radius: var(--radius-sm);
+		font: inherit;
+		font-weight: 600;
+		padding: var(--space-3) var(--space-5);
+		cursor: pointer;
+		transition: filter var(--dur-fast) var(--ease-out);
+	}
+	.tool-primary:hover { filter: brightness(1.1); }
+	.tool-secondary {
+		background: none;
+		border: 1px solid var(--border);
+		border-radius: var(--radius-sm);
+		color: var(--ink-muted);
+		font: inherit;
+		padding: var(--space-3) var(--space-4);
+		cursor: pointer;
+		transition: color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
+	}
+	.tool-secondary:hover { color: var(--ink); border-color: var(--ink-muted); }
+	.tool-primary:focus-visible, .tool-secondary:focus-visible,
+	.tool-file:focus-visible, .tool-row-btn:focus-visible {
+		outline: 2px solid var(--accent);
+		outline-offset: 2px;
+	}
+
+	.tool-warn {
+		color: var(--danger);
+		font-size: var(--text-sm);
+		line-height: var(--leading-normal);
+		max-width: 62ch;
+		margin: var(--space-4) 0 0;
+	}
+	.tool-muted {
+		color: var(--ink-muted);
+		font-size: var(--text-sm);
+		margin: var(--space-4) 0 0;
+	}
+
+	/* ── Readout rows ─────────────────────────────────────────── */
+	.tool-out { list-style: none; margin: var(--space-5) 0 0; padding: 0; }
+	.tool-row { border-top: 1px solid var(--border); }
+	.tool-row:last-child { border-bottom: 1px solid var(--border); }
+	.tool-row-btn {
+		width: 100%;
+		display: block;
+		background: none;
+		border: 0;
+		border-radius: 0;
+		padding: var(--space-3);
+		text-align: left;
+		cursor: pointer;
+		font: inherit;
+		color: inherit;
+		transition: background var(--dur-fast) var(--ease-out);
+	}
+	.tool-row-btn:hover { background: var(--surface); }
+	.tool-row-head {
+		display: flex;
+		align-items: baseline;
+		justify-content: space-between;
+		gap: var(--space-4);
+		font-size: var(--text-xs);
+		text-transform: uppercase;
+		letter-spacing: 0.08em;
+		color: var(--ink-muted);
+		margin-bottom: var(--space-2);
+	}
+	.tool-row-label[data-tone="danger"] { color: var(--danger); }
+	.tool-row-copy { flex-shrink: 0; }
+	.tool-row-value {
+		display: block;
+		font-family: var(--font-mono);
+		font-size: var(--text-base);
+		line-height: 1.4;
+		word-break: break-all;
+	}
+
+	/* ── Verifier ─────────────────────────────────────────────── */
+	.tool-checks { list-style: none; margin: var(--space-5) 0 0; padding: 0; }
+	.tool-checks li {
+		display: flex;
+		gap: var(--space-3);
+		align-items: baseline;
+		font-size: var(--text-sm);
+		line-height: var(--leading-normal);
+		margin-bottom: var(--space-2);
+	}
+	.tool-check-mark { font-weight: 700; flex-shrink: 0; }
+	.tool-checks li[data-ok="true"] .tool-check-mark { color: var(--success); }
+	.tool-checks li[data-ok="false"] .tool-check-mark { color: var(--danger); }
+
+	.tool-facts {
+		display: flex;
+		flex-wrap: wrap;
+		gap: var(--space-3) var(--space-6);
+		margin: var(--space-5) 0 0;
+		font-size: var(--text-sm);
+	}
+	.tool-facts div { display: flex; gap: var(--space-2); align-items: baseline; }
+	.tool-facts dt { color: var(--ink-muted); }
+	.tool-facts dd { margin: 0; }
+	.tool-facts code { font-family: var(--font-mono); font-size: var(--text-xs); word-break: break-all; }
+</style>

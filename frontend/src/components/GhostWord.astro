@@ -1,0 +1,43 @@
+---
+/**
+ * Oversized word set behind a content band as texture.
+ *
+ * Parked, not used anywhere right now: it came out of the converter's poster
+ * pass and Jaume didn't want it there, but it's worth keeping for a surface
+ * that has a big empty band to fill — a home hero, a gallery empty state, a
+ * 404. Two rules learned the hard way when it shipped on the converter:
+ *   - it must live in its own `position: relative; overflow: clip` band, or
+ *     it spills past the column and lands on top of the copy
+ *   - it must stay near 1.1:1 against the background. It is decoration, so
+ *     it can be low contrast, but it must never read as text competing with
+ *     the real content, and it is aria-hidden for the same reason.
+ */
+interface Props { word: string; tone?: 'neutral' | 'danger'; }
+const { word, tone = 'neutral' } = Astro.props;
+---
+<span class="ghost-word" data-tone={tone} aria-hidden="true">{word}</span>
+
+<style>
+	.ghost-word {
+		position: absolute;
+		top: 0;
+		right: 0;
+		z-index: 0;
+		max-width: 100%;
+		font-family: var(--font-mono);
+		font-size: clamp(4rem, 15vw, 11rem);
+		font-weight: 700;
+		line-height: 0.85;
+		letter-spacing: -0.05em;
+		text-transform: uppercase;
+		color: color-mix(in oklch, var(--ink) 8%, var(--bg));
+		pointer-events: none;
+		user-select: none;
+		transition: color var(--dur-base) var(--ease-out);
+	}
+	.ghost-word[data-tone="danger"] { color: color-mix(in oklch, var(--danger) 16%, var(--bg)); }
+
+	@media (prefers-reduced-motion: reduce) {
+		.ghost-word { transition: none; }
+	}
+</style>

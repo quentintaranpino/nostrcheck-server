@@ -6,8 +6,6 @@ import { readFileSync } from 'fs';
 
 const css = readFileSync(new URL('../src/styles/tokens.css', import.meta.url), 'utf8');
 const layout = readFileSync(new URL('../src/layouts/Layout.astro', import.meta.url), 'utf8');
-// The converter carries its own page-local palette; it ships, so it's gated.
-const converter = readFileSync(new URL('../src/pages/converter.astro', import.meta.url), 'utf8');
 
 // Each theme is one declaration block: `:root {…}` is dark, the
 // `[data-bs-theme="light"]` block overrides it. Light inherits anything it
@@ -28,8 +26,6 @@ const block = (selector, source = css) => {
 const dark = block(':root');
 const light = { ...dark, ...block('html[data-bs-theme="light"]') };
 
-const termDark = block('.pc-page {', converter);
-const termLight = { ...termDark, ...block('html[data-bs-theme="light"] .pc-page {', converter) };
 
 // [foreground, background, minimum]. 4.5 = body text (1.4.3), 3 = large text,
 // UI component boundaries and meaningful graphics (1.4.11).
@@ -64,29 +60,6 @@ let failed = false;
 for (const [name, theme] of [['dark', dark], ['light', light]]) {
 	console.log(`\n${name}`);
 	for (const [fg, bg, min] of pairs) {
-		const ratio = wcagContrast(theme[fg], theme[bg]);
-		const ok = ratio >= min;
-		if (!ok) failed = true;
-		console.log(`  ${ok ? 'PASS' : 'FAIL'} ${fg} on ${bg}: ${ratio.toFixed(2)} (min ${min})`);
-	}
-}
-
-// Converter page palette (drenched register): the brand purple is the
-// surface, so every pair is measured against the field itself.
-const termPairs = [
-	['--pc-ink', '--pc-bg', 4.5],
-	['--pc-dim', '--pc-bg', 4.5],
-	['--pc-danger', '--pc-bg', 4.5],
-	['--pc-rule', '--pc-bg', 3],
-	// the input block: its own boundary, and the text painted on it
-	['--pc-block', '--pc-bg', 3],
-	['--pc-block-ink', '--pc-block', 4.5],
-	// generate button and row hover invert the block
-	['--pc-block', '--pc-block-ink', 4.5],
-];
-for (const [name, theme] of [['converter dark', termDark], ['converter light', termLight]]) {
-	console.log(`\n${name}`);
-	for (const [fg, bg, min] of termPairs) {
 		const ratio = wcagContrast(theme[fg], theme[bg]);
 		const ok = ratio >= min;
 		if (!ok) failed = true;
