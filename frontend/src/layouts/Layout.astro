@@ -369,7 +369,9 @@ const logoDark = '/static/resources/appearance-server-logo-dark.png';
 		min-width: 168px;
 		padding: var(--space-2);
 		background: var(--surface-raised);
-		border: 1px solid var(--border);
+		/* The shadow and the raised fill already say 'panel'; a 3:1 stroke on
+		   top of them just makes it heavy. */
+		border: 1px solid var(--border-subtle);
 		border-radius: var(--radius-md);
 		box-shadow: var(--shadow-menu);
 	}

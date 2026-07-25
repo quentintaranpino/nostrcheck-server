@@ -85,6 +85,12 @@ html[data-bs-theme="light"] {
 }
 
 *, *::before, *::after { box-sizing: border-box; }
+
+/* Reserve the scrollbar always. Without this a short page and a long one
+   centre their column ~7px apart, so the logo and the content jump sideways
+   as you move between them. */
+html { scrollbar-gutter: stable; }
+
 body {
 	margin: 0;
 	background: var(--bg);
