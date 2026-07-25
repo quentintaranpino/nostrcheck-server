@@ -1,22 +1,18 @@
 import { useState } from 'react';
 import { generateSecretKey, getPublicKey } from 'nostr-tools/pure';
 import * as nip19 from 'nostr-tools/nip19';
-import { bytesToHex } from '@noble/hashes/utils.js';
 import CopyRow from './CopyRow';
 
-type Pair = { nsec: string; hexSec: string; npub: string; hexPub: string };
+type Pair = { nsec: string; npub: string };
 
 export default function KeypairGenerator() {
 	const [pair, setPair] = useState<Pair | null>(null);
 
 	const generate = () => {
 		const sk = generateSecretKey();
-		const pk = getPublicKey(sk);
 		setPair({
 			nsec: nip19.nsecEncode(sk),
-			hexSec: bytesToHex(sk),
-			npub: nip19.npubEncode(pk),
-			hexPub: pk,
+			npub: nip19.npubEncode(getPublicKey(sk)),
 		});
 	};
 
@@ -36,11 +32,11 @@ export default function KeypairGenerator() {
 							Write the secret key down somewhere safe before you leave this page.
 							It was made here and is not stored anywhere — close the tab and it is gone.
 						</p>
+						{/* Just the two you save. The hex forms are a keypress away
+						    in the converter if you ever need them. */}
 						<ol className="tool-out">
 							<CopyRow label="nsec (secret key)" value={pair.nsec} tone="danger" />
-							<CopyRow label="hex secret key" value={pair.hexSec} tone="danger" />
 							<CopyRow label="npub (public key)" value={pair.npub} />
-							<CopyRow label="hex public key" value={pair.hexPub} />
 						</ol>
 					</>
 				)}
