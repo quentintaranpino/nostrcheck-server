@@ -203,7 +203,9 @@ const specGroups = [
 	/* Endpoints: the reason most people open this page. */
 	.ep-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-3); }
 	.ep {
-		border: 1px solid var(--border);
+		/* A grouping container with its own fill, not a control — the copy
+		   button inside is the component that needs the 3:1 boundary. */
+		border: 1px solid var(--border-subtle);
 		border-radius: var(--radius-md);
 		padding: var(--space-3) var(--space-4);
 		background: var(--surface);

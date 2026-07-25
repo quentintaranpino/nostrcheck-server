@@ -6,8 +6,8 @@
 :root {
 	/* color */
 	--bg: oklch(0.15 0.02 300);
-	--surface: oklch(0.19 0.025 300);
-	--surface-raised: oklch(0.23 0.03 300);
+	--surface: oklch(0.225 0.025 300);
+	--surface-raised: oklch(0.235 0.03 300);
 	--ink: oklch(0.95 0.01 300);
 	--ink-muted: oklch(0.76 0.02 300);
 	--accent: oklch(0.6736329492866907 0.19765374941006172 296.8027562973752);
@@ -19,7 +19,7 @@
 	/* --border outlines interactive components, so WCAG 1.4.11 wants 3:1
 	   against every surface it sits on. --border-subtle is for decorative
 	   rules (nav hairline, menu separators), which that rule doesn't cover. */
-	--border: oklch(0.52 0.03 300);
+	--border: oklch(0.52 0.012 300);
 	--border-subtle: oklch(0.32 0.03 300);
 	--shadow-menu: 0 12px 32px oklch(0 0 0 / 0.4);
 
@@ -58,7 +58,7 @@
 	--space-7: 3rem; --space-8: 4rem;
 
 	/* shape */
-	--radius-sm: 6px; --radius-md: 10px;
+	--radius-sm: 4px; --radius-md: 6px;
 
 	/* motion */
 	--dur-fast: 120ms; --dur-base: 200ms;
@@ -70,7 +70,7 @@
    button paints --bg over it, and near-white needs a dark enough field. */
 html[data-bs-theme="light"] {
 	--bg: oklch(0.99 0.004 300);
-	--surface: oklch(0.968 0.006 300);
+	--surface: oklch(0.95 0.008 300);
 	--surface-raised: oklch(1 0 0);
 	--ink: oklch(0.22 0.02 300);
 	--ink-muted: oklch(0.46 0.02 300);
@@ -79,7 +79,7 @@ html[data-bs-theme="light"] {
 	--success: oklch(0.51 0.14 150);
 	--warning: oklch(0.53 0.15 75);
 	--info: oklch(0.52 0.15 250);
-	--border: oklch(0.64 0.02 300);
+	--border: oklch(0.62 0.012 300);
 	--border-subtle: oklch(0.88 0.008 300);
 	--shadow-menu: 0 12px 32px oklch(0.3 0.03 300 / 0.14);
 }

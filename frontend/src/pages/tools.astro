@@ -43,7 +43,7 @@ const { siteName } = Astro.locals;
 		grid-template-columns: 16rem 1fr;
 		gap: var(--space-6);
 		align-items: start;
-		border-top: 1px solid var(--border);
+		border-top: 1px solid var(--border-subtle);
 		padding-top: var(--space-5);
 	}
 	.ws-rail ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
@@ -227,8 +227,8 @@ const { siteName } = Astro.locals;
 
 	/* ── Readout rows ─────────────────────────────────────────── */
 	.tool-out { list-style: none; margin: var(--space-5) 0 0; padding: 0; }
-	.tool-row { border-top: 1px solid var(--border); }
-	.tool-row:last-child { border-bottom: 1px solid var(--border); }
+	.tool-row { border-top: 1px solid var(--border-subtle); }
+	.tool-row:last-child { border-bottom: 1px solid var(--border-subtle); }
 	.tool-row-btn {
 		width: 100%;
 		display: block;
