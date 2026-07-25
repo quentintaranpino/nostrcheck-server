@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { verifyEvent, getEventHash } from 'nostr-tools/pure';
 import * as nip19 from 'nostr-tools/nip19';
+import CopyRow from './CopyRow';
 
 type Check = { ok: boolean; label: string; detail: string };
 
@@ -97,11 +98,19 @@ export default function EventVerifier() {
 						<dl className="tool-facts">
 							<div><dt>Kind</dt><dd>{result.kind}</dd></div>
 							<div><dt>Created</dt><dd>{result.created}</dd></div>
-							{result.npub && <div><dt>Author</dt><dd><code>{result.npub}</code></dd></div>}
 						</dl>
 					</>
 				)}
 			</div>
+
+			{/* Deliberately outside the live region: 63 characters of bech32 read
+			    aloud on every keystroke is noise. It still gets the same copy
+			    affordance as every other derived value on the page. */}
+			{result.state === 'checked' && result.npub && (
+				<ol className="tool-out">
+					<CopyRow label="author (npub)" value={result.npub} />
+				</ol>
+			)}
 		</div>
 	);
 }

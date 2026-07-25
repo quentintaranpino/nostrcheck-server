@@ -53,6 +53,15 @@ describe('detectAndConvert', () => {
 		expect(d.rows.map(r => r.value)).toContain(NPUB);
 	});
 
+	it('naddr round-trip', () => {
+		const naddr = nip19.naddrEncode({ identifier: 'my-article', pubkey: HEX, kind: 30023, relays: ['wss://relay.example.com'] });
+		const d = detectAndConvert(naddr);
+		expect(d.type).toBe('naddr');
+		expect(d.rows.map(r => r.value)).toContain(HEX);
+		expect(d.rows.map(r => r.value)).toContain('my-article');
+		expect(d.rows.map(r => r.value)).toContain('30023');
+	});
+
 	it('garbage → unknown', () => {
 		expect(detectAndConvert('not-a-key').type).toBe('unknown');
 	});

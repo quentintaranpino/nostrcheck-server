@@ -4,7 +4,7 @@ import CopyRow from './CopyRow';
 
 const TYPE_LABEL: Record<string, string> = {
 	npub: 'public key', nsec: 'secret key', note: 'note id',
-	nevent: 'event pointer', nprofile: 'profile pointer', hex: 'hex',
+	nevent: 'event pointer', nprofile: 'profile pointer', naddr: 'address', hex: 'hex',
 };
 
 export default function KeyConverter() {

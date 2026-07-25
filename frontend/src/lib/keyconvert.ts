@@ -6,7 +6,7 @@ import { bytesToHex } from '@noble/hashes/utils.js';
 
 export type ConversionRow = { label: string; value: string };
 export type Detection = {
-	type: 'npub' | 'nsec' | 'note' | 'nevent' | 'nprofile' | 'hex' | 'empty' | 'unknown';
+	type: 'npub' | 'nsec' | 'note' | 'nevent' | 'nprofile' | 'naddr' | 'hex' | 'empty' | 'unknown';
 	rows: ConversionRow[];
 	warning?: string;
 };
@@ -64,6 +64,18 @@ export const detectAndConvert = (raw: string): Detection => {
 			];
 			for (const r of decoded.data.relays ?? []) rows.push({ label: 'relay hint', value: r });
 			return { type: 'nprofile', rows };
+		}
+		case 'naddr': {
+			// Addressable events (long-form posts, lists): the coordinate is
+			// kind + author + identifier, so all three are worth showing.
+			const rows: ConversionRow[] = [
+				{ label: 'identifier (d tag)', value: decoded.data.identifier },
+				{ label: 'kind', value: String(decoded.data.kind) },
+				{ label: 'author (hex)', value: decoded.data.pubkey },
+				{ label: 'author (npub)', value: nip19.npubEncode(decoded.data.pubkey) },
+			];
+			for (const r of decoded.data.relays ?? []) rows.push({ label: 'relay hint', value: r });
+			return { type: 'naddr', rows };
 		}
 		default:
 			return { type: 'unknown', rows: [] };

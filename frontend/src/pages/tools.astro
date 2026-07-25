@@ -24,33 +24,39 @@ const tools = [
 		</nav>
 	</header>
 
-	<section id="convert" class="tool">
-		<h2>{tools[0].name}</h2>
+	<section id="convert" class="tool" aria-labelledby="convert-h">
+		<h2 id="convert-h">{tools[0].name}</h2>
 		<p class="tool-blurb">{tools[0].blurb}</p>
 		<KeyConverter client:load />
 	</section>
 
-	<section id="generate" class="tool">
-		<h2>{tools[1].name}</h2>
+	<section id="generate" class="tool" aria-labelledby="generate-h">
+		<h2 id="generate-h">{tools[1].name}</h2>
 		<p class="tool-blurb">{tools[1].blurb}</p>
-		<KeypairGenerator client:visible />
+		<KeypairGenerator client:idle />
 	</section>
 
-	<section id="verify" class="tool">
-		<h2>{tools[2].name}</h2>
+	<section id="verify" class="tool" aria-labelledby="verify-h">
+		<h2 id="verify-h">{tools[2].name}</h2>
 		<p class="tool-blurb">{tools[2].blurb}</p>
-		<EventVerifier client:visible />
+		<EventVerifier client:idle />
 	</section>
 
-	<section id="hash" class="tool">
-		<h2>{tools[3].name}</h2>
+	<section id="hash" class="tool" aria-labelledby="hash-h">
+		<h2 id="hash-h">{tools[3].name}</h2>
 		<p class="tool-blurb">{tools[3].blurb}</p>
-		<BlobHasher client:visible />
+		<BlobHasher client:idle />
 	</section>
 </Layout>
 
 <style is:global>
-	/* Shared surface for every tool. Uses the system tokens rather than a
+	/* client:idle, not client:visible, on the three below-fold tools: Astro
+	   renders every island as display:contents, so the element has a 0x0 box
+	   and an IntersectionObserver on it never fires — the tools stayed
+	   unhydrated and their controls did nothing. idle still defers the work
+	   past first paint. Verified in the browser, not assumed.
+
+	   Shared surface for every tool. Uses the system tokens rather than a
 	   page-local palette: the visual direction is still being decided, and
 	   these should follow it rather than fight it. */
 	.tools-head { margin-bottom: var(--space-7); }
@@ -149,6 +155,7 @@ const tools = [
 	.tool-textarea::placeholder { color: var(--ink-muted); opacity: 1; }
 
 	.tool-file {
+		max-width: 100%;
 		font-family: var(--font-ui);
 		font-size: var(--text-sm);
 		color: var(--ink-muted);
@@ -268,7 +275,10 @@ const tools = [
 		margin: var(--space-5) 0 0;
 		font-size: var(--text-sm);
 	}
-	.tool-facts div { display: flex; gap: var(--space-2); align-items: baseline; }
+	/* min-width:0 or the flex item refuses to shrink below its content and the
+	   npub pushes the page sideways — break-all never gets a chance to fire. */
+	.tool-facts div { display: flex; gap: var(--space-2); align-items: baseline; min-width: 0; }
+	.tool-facts dd { min-width: 0; }
 	.tool-facts dt { color: var(--ink-muted); }
 	.tool-facts dd { margin: 0; }
 	.tool-facts code { font-family: var(--font-mono); font-size: var(--text-xs); word-break: break-all; }

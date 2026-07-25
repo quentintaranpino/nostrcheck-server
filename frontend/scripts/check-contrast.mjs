@@ -39,6 +39,14 @@ const pairs = [
 	['--accent', '--surface-raised', 3],
 	['--danger', '--surface', 3],
 	['--danger', '--surface-raised', 3],
+	// These are used as text straight on the page background too (tool
+	// warnings, check marks, the type tag), so they need the body threshold
+	// there as well — not just over a card surface.
+	['--danger', '--bg', 4.5],
+	['--success', '--bg', 4.5],
+	['--warning', '--bg', 4.5],
+	['--info', '--bg', 4.5],
+	['--accent', '--surface', 4.5],
 	// state colours label small badge text, so they need the body threshold
 	['--success', '--surface', 4.5],
 	['--success', '--surface-raised', 4.5],
