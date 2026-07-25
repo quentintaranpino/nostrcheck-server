@@ -2,7 +2,7 @@
 import Layout from '../layouts/Layout.astro';
 
 const docs = Astro.locals.getDocsData();
-const { siteName } = Astro.locals;
+const { siteName, version } = Astro.locals;
 
 const WIKI = 'https://github.com/quentintaranpino/nostrcheck-server/wiki';
 const REPO = 'https://github.com/quentintaranpino/nostrcheck-server';
@@ -44,6 +44,13 @@ const specGroups = [
 	<header class="docs-head">
 		<h1>Documentation</h1>
 		<p>Everything you need to connect a client to {siteName}, integrate with its API, or run your own.</p>
+		<p class="docs-summary">
+			{docs.relayEnabled && <span><strong>{docs.nips.length}</strong>NIPs</span>}
+			{docs.mediaEnabled && <span><strong>{docs.buds.length}</strong>BUDs</span>}
+			{docs.lightningEnabled && <span><strong>{docs.luds.length}</strong>LUDs</span>}
+			<span><strong>{docs.modules.length}</strong>modules</span>
+			<span class="docs-summary-ver">nostrcheck-server <code>{version}</code></span>
+		</p>
 	</header>
 
 	{endpoints.length > 0 && (
@@ -154,6 +161,25 @@ const specGroups = [
 		max-width: 62ch;
 		margin: 0;
 	}
+	/* What this server is, at a glance, before the detail below. */
+	.docs-summary {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: baseline;
+		gap: var(--space-2) var(--space-5);
+		margin-top: var(--space-4) !important;
+		max-width: none !important;
+		font-size: var(--text-sm);
+	}
+	.docs-summary strong {
+		color: var(--ink);
+		font-family: var(--font-mono);
+		font-size: var(--text-lg);
+		margin-right: var(--space-2);
+	}
+	.docs-summary-ver { margin-left: auto; }
+	.docs-summary-ver code { font-family: var(--font-mono); font-size: var(--text-xs); }
+	@media (max-width: 620px) { .docs-summary-ver { margin-left: 0; } }
 
 	.docs-section { margin-bottom: var(--space-8); }
 	.docs-section h2 { margin: 0 0 var(--space-2); }

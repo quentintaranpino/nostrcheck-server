@@ -2,17 +2,7 @@
 import Layout from '../layouts/Layout.astro';
 import ToolsWorkspace from '../components/tools/ToolsWorkspace.tsx';
 
-const { siteName, version } = Astro.locals;
-const docs = Astro.locals.getDocsData();
-
-// Real state from this server, not decoration: you are converting keys and
-// hashing blobs *for this host*, so its wire addresses belong on the page.
-const endpoints = [
-	{ label: 'relay', value: docs.endpoints.relay },
-	{ label: 'blossom', value: docs.endpoints.blossom },
-	{ label: 'nip-96', value: docs.endpoints.nip96 },
-	{ label: 'nip-05', value: docs.endpoints.nip05 },
-].filter(e => e.value);
+const { siteName } = Astro.locals;
 ---
 <Layout page="tools" width="wide">
 	<header class="tools-head">
@@ -25,34 +15,6 @@ const endpoints = [
 
 	<ToolsWorkspace client:load />
 
-	<aside class="server" aria-labelledby="server-h">
-		<h2 id="server-h">This server</h2>
-		<div class="server-grid">
-			{endpoints.length > 0 && (
-				<div class="server-block">
-					<h3>Wire addresses</h3>
-					<dl class="server-list">
-						{endpoints.map(e => (
-							<div><dt>{e.label}</dt><dd><code>{e.value}</code></dd></div>
-						))}
-					</dl>
-				</div>
-			)}
-			<div class="server-block">
-				<h3>Implements</h3>
-				<p class="server-counts">
-					{docs.relayEnabled && <span><strong>{docs.nips.length}</strong>NIPs</span>}
-					{docs.mediaEnabled && <span><strong>{docs.buds.length}</strong>BUDs</span>}
-					{docs.lightningEnabled && <span><strong>{docs.luds.length}</strong>LUDs</span>}
-					<span><strong>{docs.modules.length}</strong>modules</span>
-				</p>
-				<p class="server-note">
-					Running nostrcheck-server <code>{version}</code>. The full list, with
-					what each one does, is in the <a href="/documentation">documentation</a>.
-				</p>
-			</div>
-		</div>
-	</aside>
 </Layout>
 
 <style is:global>
@@ -137,74 +99,6 @@ const endpoints = [
 		margin: 0;
 	}
 
-	/* ── This server: real state, so the page isn't a lonely input ── */
-	.server {
-		margin-top: var(--space-8);
-		border-top: 1px solid var(--border);
-		padding-top: var(--space-5);
-	}
-	.server h2 {
-		font-size: var(--text-sm);
-		text-transform: uppercase;
-		letter-spacing: 0.1em;
-		color: var(--ink-muted);
-		font-weight: 600;
-		margin: 0 0 var(--space-4);
-	}
-	.server-grid {
-		display: grid;
-		grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr));
-		gap: var(--space-6);
-	}
-	.server-block h3 { font-size: var(--text-sm); margin: 0 0 var(--space-3); }
-	.server-list { margin: 0; }
-	.server-list div {
-		display: grid;
-		grid-template-columns: 5rem 1fr;
-		gap: var(--space-3);
-		align-items: baseline;
-		padding: var(--space-2) 0;
-		border-bottom: 1px solid var(--border-subtle);
-		min-width: 0;
-	}
-	.server-list dt {
-		font-family: var(--font-mono);
-		font-size: var(--text-xs);
-		text-transform: uppercase;
-		letter-spacing: 0.08em;
-		color: var(--ink-muted);
-	}
-	.server-list dd { margin: 0; min-width: 0; }
-	.server-list code {
-		font-family: var(--font-mono);
-		font-size: var(--text-sm);
-		word-break: break-all;
-		user-select: all;
-	}
-	.server-counts {
-		display: flex;
-		flex-wrap: wrap;
-		gap: var(--space-2) var(--space-5);
-		margin: 0 0 var(--space-3);
-		font-size: var(--text-sm);
-		color: var(--ink-muted);
-	}
-	.server-counts strong {
-		color: var(--ink);
-		font-family: var(--font-mono);
-		font-size: var(--text-lg);
-		margin-right: var(--space-2);
-	}
-	.server-note {
-		color: var(--ink-muted);
-		font-size: var(--text-sm);
-		line-height: var(--leading-normal);
-		max-width: 60ch;
-		margin: 0;
-	}
-	.server-note code { font-family: var(--font-mono); font-size: var(--text-xs); }
-	.server-note a { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
-	.server-note a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 	@media (max-width: 800px) {
 		.ws { grid-template-columns: 1fr; gap: var(--space-5); }

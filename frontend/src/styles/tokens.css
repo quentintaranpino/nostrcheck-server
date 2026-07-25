@@ -30,8 +30,8 @@
 	--z-toast: 600;
 
 	/* type */
-	--font-ui: 'Space Grotesk Variable', system-ui, sans-serif;
-	--font-mono: 'JetBrains Mono Variable', ui-monospace, 'Cascadia Mono', monospace;
+	--font-ui: 'Geist Variable', system-ui, sans-serif;
+	--font-mono: 'Geist Mono Variable', ui-monospace, 'Cascadia Mono', monospace;
 
 	/* Type scale, 7 steps at roughly 1.2. Pages must use these, never their
 	   own numbers — that's how three surfaces ended up with three different
