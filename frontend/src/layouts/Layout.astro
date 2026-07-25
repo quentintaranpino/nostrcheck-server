@@ -72,7 +72,9 @@ const logoDark = '/static/resources/appearance-server-logo-dark.png';
 	</head>
 	<body>
 		<a href="#main" class="skip-link">Skip to content</a>
-		<header class="nav" id="site-nav">
+		<!-- The bar spans, its contents sit on the same column as the page. -->
+		<header class="nav" id="site-nav" data-width={props.width ?? 'default'}>
+			<div class="nav-inner">
 			<a href="/" class="nav-brand">
 				<img class="nav-logo nav-logo-light" src={logoLight} alt={siteName} width="82" height="28" />
 				<img class="nav-logo nav-logo-dark" src={logoDark} alt={siteName} width="82" height="28" />
@@ -132,18 +134,21 @@ const logoDark = '/static/resources/appearance-server-logo-dark.png';
 					</div>
 				</details>
 			</div>
+			</div>
 		</header>
 
 		<main id="main" data-width={props.width ?? 'default'}><slot /></main>
 
-		<footer class="foot">
-			{version && <span class="foot-ver">v{version}</span>}
-			<a href="https://github.com/quentintaranpino/nostrcheck-server/">source</a>
-			<span class="foot-sep">·</span>
-			<a href="/privacy">Privacy</a>
-			<a href="/legal">Legal</a>
-			<a href="/tos">Terms</a>
-			<span class="foot-lic">MIT</span>
+		<footer class="foot" data-width={props.width ?? 'default'}>
+			<div class="foot-inner">
+				{version && <span class="foot-ver">v{version}</span>}
+				<a href="https://github.com/quentintaranpino/nostrcheck-server/">source</a>
+				<span class="foot-sep">·</span>
+				<a href="/privacy">Privacy</a>
+				<a href="/legal">Legal</a>
+				<a href="/tos">Terms</a>
+				<span class="foot-lic">MIT</span>
+			</div>
 		</footer>
 
 		<script>
@@ -248,10 +253,6 @@ const logoDark = '/static/resources/appearance-server-logo-dark.png';
 		position: sticky;
 		top: 0;
 		z-index: var(--z-sticky);
-		display: flex;
-		align-items: center;
-		gap: var(--space-5);
-		padding: 0 var(--space-5);
 		height: 52px;
 		background: color-mix(in oklch, var(--bg) 88%, transparent);
 		backdrop-filter: blur(8px);
@@ -259,6 +260,21 @@ const logoDark = '/static/resources/appearance-server-logo-dark.png';
 		transition: border-color var(--dur-base) var(--ease-out);
 	}
 	.nav.scrolled { border-bottom-color: var(--border-subtle); }
+
+	/* Mirrors main's column exactly, per width mode, so the logo lines up with
+	   the h1 and the account menu with the content's right edge. */
+	.nav-inner, .foot-inner {
+		display: flex;
+		align-items: center;
+		gap: var(--space-5);
+		height: 100%;
+		width: 100%;
+		max-width: 48rem;
+		margin-inline: auto;
+		padding-inline: var(--space-5);
+	}
+	.nav[data-width="wide"] .nav-inner, .foot[data-width="wide"] .foot-inner { max-width: 68rem; }
+	.nav[data-width="bleed"] .nav-inner, .foot[data-width="bleed"] .foot-inner { max-width: none; }
 
 	.nav-brand { display: inline-flex; align-items: center; flex-shrink: 0; }
 	.nav-logo { display: block; width: auto; }
@@ -392,14 +408,11 @@ const logoDark = '/static/resources/appearance-server-logo-dark.png';
 	}
 
 	.foot {
-		display: flex;
-		align-items: center;
-		gap: var(--space-3);
-		flex-wrap: wrap;
-		padding: var(--space-5);
+		padding-block: var(--space-5);
 		font-size: var(--text-sm);
 		color: var(--ink-muted);
 	}
+	.foot-inner { gap: var(--space-3); flex-wrap: wrap; height: auto; }
 	/* padding, not bare text: the links were ~20px tall, under the 24px floor */
 	.foot a {
 		color: var(--ink-muted);
