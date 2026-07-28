@@ -9,6 +9,7 @@ import { initRedis } from "../../redis/client.js";
 
 const FILTER_RESULT_TTL = 120;
 const HEADER_TTL_ACTIVE  = 300;
+const HEADER_TTL_INACTIVE = 1800;
 
 let redisWorker: RedisService | null = null;
 
@@ -24,7 +25,10 @@ const initWorker = async (): Promise<void> => {
 
   await initGlobalConfig();
 
-  redisWorker = await initRedis(2, true);
+  // Shared namespace on purpose: chunk headers and filter results are identical for every
+  // worker, so an isolated prefix per worker multiplied the cache by the pool size and left
+  // the previous run's keys orphaned on restart.
+  redisWorker = await initRedis(2, false);
   if (!redisWorker) {
     throw new Error("Redis server not available. Cannot start the worker, please check your configuration.");
   }
@@ -82,7 +86,7 @@ const getCachedEventHeaders = async (
   if (chunk.isActive) {
     await redisWorker.set(cacheKey, JSON.stringify(headers), { EX: HEADER_TTL_ACTIVE });
   } else {
-    await redisWorker.set(cacheKey, JSON.stringify(headers));
+    await redisWorker.set(cacheKey, JSON.stringify(headers), { EX: HEADER_TTL_INACTIVE });
   }
   return headers;
 };
