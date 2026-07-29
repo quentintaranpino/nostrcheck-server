@@ -21,6 +21,7 @@ const initGlobalConfig = async (): Promise<void> => {
     const pluginsConfig   = await loadConfigOptions("plugins");
     const relayConfig     = await loadConfigOptions("relay");
     const appearanceConfig = await loadConfigOptions("appearance");
+    const notificationsConfig = await loadConfigOptions("notifications");
 
     const globalConfig = {
         version: versionConfig,
@@ -40,8 +41,13 @@ const initGlobalConfig = async (): Promise<void> => {
         plugins: pluginsConfig,
         relay: relayConfig,
         appearance: appearanceConfig,
+        notifications: notificationsConfig,
     };
 
+    // This list is the whole runtime config: a section present in local.json but
+    // missing here reads back as undefined everywhere, and the feature behind it
+    // is silently off with the file saying otherwise. Add new sections here as
+    // well as to defaultConfig.
     configStore.global = globalConfig;
 };
 

@@ -122,9 +122,10 @@ const attemptDelivery = async (row: {id: number, eventtype: string, tenant: stri
 	const retries = Number(getConfig(row.tenant || null, ["notifications", "retries"])) || 3;
 	const attempts = Number(row.attempts) || 0;
 
-	// Nothing to deliver to. The audit row is already written, which is the part
-	// that matters; retrying can't help until config changes, so stop here
-	// instead of burning the retry budget.
+	// Nothing to deliver to. The row stays notified = 1 and lands on failed, so it
+	// reads as what it is: an event that had to be notified and wasn't. Retrying
+	// can't help until config changes, so it does not burn the retry budget and
+	// the sweep leaves it alone until somebody sets a url and retries it.
 	if (url == "") {
 		try {
 			await dbUpdate("auditlog", {"channel": "none", "status": "failed", "lasterror": "No delivery channel configured"}, ["id"], [row.id]);
@@ -132,7 +133,7 @@ const attemptDelivery = async (row: {id: number, eventtype: string, tenant: stri
 			logger.error(`deliver - Cannot mark event ${row.id} as undeliverable: ${error}`);
 		}
 		backoffMap.delete(row.id);
-		logger.info(`deliver - Event ${row.id} (${row.eventtype}) recorded but not sent: no webhook url configured`);
+		logger.warn(`deliver - Event ${row.id} (${row.eventtype}) had to be notified and was not: no webhook url configured`);
 		return false;
 	}
 
@@ -414,7 +415,10 @@ const processPending = async (): Promise<void> => {
 		const nextAttempt = backoffMap.get(Number(row.id));
 		if (nextAttempt != undefined && nextAttempt > now) continue;
 
-		if (!consumeRateToken(row.tenant)) {
+		// A row with no channel is going to be marked failed, not sent, so it must
+		// not spend a token from the sending budget on its way there.
+		const hasChannel = (getConfig(row.tenant || null, ["notifications", "webhook", "url"]) || "") != "";
+		if (hasChannel && !consumeRateToken(row.tenant)) {
 			logger.warn(`processPending - Rate limit reached, ${rows.length - attempted} pending notification(s) left for the next sweep`);
 			break;
 		}
