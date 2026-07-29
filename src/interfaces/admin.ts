@@ -155,6 +155,22 @@ const moduleDataKeys: { [key: string]: string } = {
     "auditlogData": "auditlog",
 };
 
+// What identifies a row in human terms, per table. Read before a delete so the
+// audit entry can say what was removed: after the DELETE the row is gone and an
+// id on its own tells nobody anything a year later.
+const recordKeyFields: { [key: string]: string[] } = {
+    "mediafiles": ["filename"],
+    "registered": ["username", "hex"],
+    "ips": ["ip"],
+    "events": ["event_id"],
+    "banned": ["originid", "origintable"],
+    "domains": ["domain"],
+    "lightning": ["lightningaddress"],
+    "invitations": ["code"],
+    "filetypes": ["original_mime"],
+    "auditlog": ["eventtype", "origintable", "originid"],
+};
+
 const moduleDataIndex: { [key: string]: string } = {
     "registeredData": "hex",
     "filesData": "filename",
@@ -411,6 +427,7 @@ export { allowedTableNames,
          moduleDataWhereFields,
          moduleDataKeys,
          moduleDataIndex,
+         recordKeyFields,
          mediaModerationSelectFields,
          mediaModerationStatus,
          mediaModerationNsfwFields,

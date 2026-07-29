@@ -9,7 +9,7 @@ import { format, getCPUUsage, getNewDate } from "../lib/utils.js";
 import { ResultMessagev2, ServerStatusMessage, ServerUpdateMessage } from "../interfaces/server.js";
 import { generatePassword } from "../lib/authorization.js";
 import { dbDelete, dbInsert, dbMultiSelect, dbSimpleSelect, dbUpdate } from "../lib/database/core.js";
-import { allowedFieldNames, allowedFieldNamesAndValues, allowedTableNames, moduleDataReturnMessage, moduleDataKeys, moduleDataIndex, mediaModerationFilters, mediaModerationStatus, mediaModerationNsfwFields, notificationStatusRow } from "../interfaces/admin.js";
+import { allowedFieldNames, allowedFieldNamesAndValues, allowedTableNames, moduleDataReturnMessage, moduleDataKeys, moduleDataIndex, recordKeyFields, mediaModerationFilters, mediaModerationStatus, mediaModerationNsfwFields, notificationStatusRow } from "../interfaces/admin.js";
 import { parseAuthHeader} from "../lib/authorization.js";
 import { npubToHex } from "../lib/nostr/NIP19.js";
 import { dbCountModuleData, dbCountMonthModuleData, dbCountBucketModuleData, dbSelectModuleData, dbSelectMediaModerationData, dbSelectMediaModerationFacets, dbSelectNotificationStatusBulk } from "../lib/admin.js";
@@ -559,6 +559,11 @@ const deleteDBRecord = async (req: Request, res: Response): Promise<Response> =>
         return res.status(400).send(result);
     }
 
+    // Read what is about to disappear, before anything touches it. This has to
+    // happen here and not next to the audit call: by then the row is gone and all
+    // that could be recorded is an id nobody will be able to interpret later.
+    const deleteSnapshot = await readModerationSnapshot(table, recordKeyFields[table] || [], [Number(req.body.id)]);
+
     // Special case for mediafiles table
     if (table == "mediafiles") {
         let fileName = await dbMultiSelect(["filename"], "mediafiles", "id = ?", [req.body.id]);
@@ -652,6 +657,32 @@ const deleteDBRecord = async (req: Request, res: Response): Promise<Response> =>
     // Delete record from table
     const deletedRecord = await dbDelete(table, ['id'], [req.body.id]);
     if(deletedRecord){
+
+        // A deletion is the one change nobody can reconstruct from the data
+        // afterwards, so it gets the same trail as the rest. previous_value keeps
+        // the human key of the row (filename, username, ip...), new_value says it
+        // is gone, and details carries the remaining key columns.
+        const before = deleteSnapshot[String(req.body.id)];
+        const keyFields = recordKeyFields[table] || [];
+        const details : Record<string, unknown> = { table };
+        for (const keyField of keyFields) {
+            if (before && before[keyField] != undefined) details[keyField] = String(before[keyField]);
+        }
+        await recordModerationEvent({
+            eventtype: "deleted",
+            origintable: table,
+            originid: String(req.body.id),
+            actor: eventHeader.pubkey,
+            source: "admin",
+            tenant: req.hostname,
+            pubkey: before ? String(before.pubkey || "") : "",
+            ip: reqInfo.ip,
+            filehash: before ? String(before.original_hash || "") : "",
+            previous_value: before && keyFields.length > 0 ? String(before[keyFields[0]] || "") : "",
+            new_value: "deleted",
+            details,
+        });
+
         const result : ResultMessagev2 = {
             status: "success",
             message: "Record deleted succesfully",
