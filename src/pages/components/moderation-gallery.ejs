@@ -81,7 +81,13 @@ const modTriggerTabId = typeof triggerTabId !== 'undefined' ? triggerTabId : '';
     <span id="moderationGallery-counter" class="text-secondary small ms-auto"></span>
   </div>
 
-  <div id="moderationGallery-bulkbar" class="mod-bulkbar card default-bg shadow-sm flex-row flex-wrap align-items-center gap-2 p-2 mb-3 d-none">
+  <%# No `card` class on purpose. dashcard.ejs redefines .card globally with
+      min-height: 180px and a scale(1.03) on hover, so any element borrowing that
+      class inherits a 180px floor and zooms under the pointer: a toolbar is not an
+      interactive tile. The look comes from default-bg (border + background) plus
+      the rounded and shadow-sm utilities, which carry no behaviour. Same
+      proportions as the filter row above: gap-2, p-2 and btn-sm buttons. %>
+  <div id="moderationGallery-bulkbar" class="mod-bulkbar default-bg rounded shadow-sm flex-wrap align-items-center gap-2 p-2 mb-3 d-none">
     <span id="moderationGallery-bulkcount" class="fw-bold me-2"></span>
     <button id="moderationGallery-bulk-checked" class="btn btn-success btn-sm" type="button"><i class="fa-solid fa-check-circle me-1"></i>Mark checked</button>
     <button id="moderationGallery-bulk-nsfw" class="btn btn-sm mod-btn-nsfw" type="button" title="Checked + hidden from public listings. Still reachable by direct URL."><i class="fa-solid fa-mask me-1"></i>Mark NSFW</button>
@@ -345,12 +351,12 @@ const modTriggerTabId = typeof triggerTabId !== 'undefined' ? triggerTabId : '';
     z-index: 6;
   }
 
-  /* Surface, spacing and shadow come from the same classes the dashcards use
-     (card + default-bg + shadow-sm), so the bar reads as part of the panel
-     instead of a widget pasted on top. All that is left here is the position:
-     display stays in CSS so Bootstrap's .d-none (which is !important) can still
-     hide it, and the top offset clears the sticky navbar. z-index sits under the
-     navbar (1020) and over the cards. */
+  /* Only position and layout live here; the surface is default-bg + rounded +
+     shadow-sm in the markup. display stays in CSS so Bootstrap's .d-none (which is
+     !important) can still hide it, and the top offset clears the sticky navbar.
+     z-index sits under the navbar (1020) and over the cards.
+     No min-height and no transition: the height is whatever one row of btn-sm
+     needs plus the p-2 padding, exactly like the filter row above. */
   .mod-bulkbar {
     position: sticky;
     top: 3.75rem;
@@ -1397,18 +1403,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        const checkedButton = event.target.closest('.mod-btn-checked');
-        if (checkedButton) {
-            // Two presses, no dialog. With a six figure queue a confirmation
-            // modal per file would make the screen unusable, so the button turns
-            // into its own confirmation and gives up after a few seconds. The
-            // other three keep a single press: ban already demands a reason, and
-            // active and NSFW are visible and reversible in place.
-            if (checkedButton.dataset.confirming !== '1') {
-                armCheckedConfirm(checkedButton);
-                return;
-            }
-            disarmCheckedConfirm(checkedButton);
+        if (event.target.closest('.mod-btn-checked')) {
             await applyAction([id], 'checked', isFlagOn(row.checked) ? 0 : 1);
             return;
         }
