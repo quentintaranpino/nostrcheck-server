@@ -35,7 +35,6 @@ const fileTypes: MediaTypeInfo[] = [
     { originalMime: "image/jpeg", extension: "jpeg", convertedMime: "image/webp" , convertedExtension: "webp" },
     { originalMime: "image/gif", extension: "gif", convertedMime: "image/webp" , convertedExtension: "webp" },
     { originalMime: "image/webp", extension: "webp", convertedMime: "image/webp" , convertedExtension: "webp" },
-    { originalMime: "image/svg+xml", extension: "svg", convertedMime: "image/svg+xml" },
 
     { originalMime: "video/mp4", extension: "mp4", convertedMime: "video/mp4" , convertedExtension: "mp4" },
     { originalMime: "video/quicktime", extension: "mov", convertedMime: "video/mp4" , convertedExtension: "mp4" },
@@ -47,26 +46,15 @@ const fileTypes: MediaTypeInfo[] = [
     { originalMime: "audio/mpeg3", extension: "mp3", convertedMime: "audio/mpeg", convertedExtension: "mp3" },
     { originalMime: "audio/mp3", extension: "mp3", convertedMime: "audio/mpeg" , convertedExtension: "mp3" },
 
-    { originalMime: "application/pdf", extension: "pdf", convertedMime: "application/pdf", convertedExtension: "pdf" },
-	{ originalMime: "application/javascript", extension: "js", convertedMime: "application/javascript", convertedExtension: "js" },
-    { originalMime: "application/json", extension: "json", convertedMime: "application/json", convertedExtension: "json" },
-    { originalMime: "application/vnd.ms-fontobject", extension: "eot", convertedMime: "application/vnd.ms-fontobject" , convertedExtension: "eot" },
-    { originalMime: "application/yaml", extension: "yaml", convertedMime: "application/yaml" , convertedExtension: "yaml" },
-	{ originalMime: "application/xml", extension: "xml", convertedMime: "application/xml" , convertedExtension: "xml" },
+    // Only media is accepted by default. svg, html, js, css, fonts, pdf, xml/yaml, json,
+    // plain text and stl are deliberately absent: they turn a media server into hosting for
+    // a working website — phishing pages and inline scripts on your own origin — and no
+    // image classifier can review them. Re-enable any of them from the admin filetypes
+    // table if your deployment really needs it.
 
-    { originalMime: "font/otf", extension: "otf", convertedMime: "font/otf" , convertedExtension: "otf" },
-    { originalMime: "font/ttf", extension: "ttf", convertedMime: "font/ttf" , convertedExtension: "ttf" },
-    { originalMime: "font/woff", extension: "woff", convertedMime: "font/woff" , convertedExtension: "woff" },
-    { originalMime: "font/woff2", extension: "woff2", convertedMime: "font/woff2" , convertedExtension: "woff2" },
 
-	{ originalMime: "text/html", extension: "map", convertedMime: "text/html" , convertedExtension: "map" },
-    { originalMime: "text/markdown", extension: "md", convertedMime: "text/markdown" , convertedExtension: "md" },
-    { originalMime: "text/css", extension: "css", convertedMime: "text/css" , convertedExtension: "css" },
-    { originalMime: "text/x-handlebars-template", extension: "hbs", convertedMime: "text/x-handlebars-template" , convertedExtension: "hbs" },
-    { originalMime: "text/plain", extension: "txt", convertedMime: "text/plain" , convertedExtension: "txt" },
-	{ originalMime: "text/yaml", extension: "yaml", convertedMime: "text/yaml" , convertedExtension: "yaml" },
 
-	{ originalMime: "model/stl", extension: "stl", convertedMime: "model/stl" , convertedExtension: "stl" },
+
 ];
 
 interface FileData{

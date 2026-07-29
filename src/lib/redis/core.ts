@@ -53,6 +53,29 @@ class RedisService {
     return true;
   }
 
+  public async delByPattern(pattern: string): Promise<number> {
+    try {
+      let cursor = 0;
+      let deleted = 0;
+      const matchPattern = `${this.instancePrefix}:${pattern}`;
+
+      do {
+        const result = await this.client.scan(cursor, { MATCH: matchPattern, COUNT: 100 });
+        cursor = result.cursor;
+
+        if (result.keys.length > 0) {
+          await this.client.del(result.keys);
+          deleted += result.keys.length;
+        }
+      } while (cursor !== 0);
+
+      return deleted;
+
+    } catch (error) {
+      return 0;
+    }
+  }
+
   public async flushAll(): Promise<boolean> {
     try {
       await this.client.sendCommand(["flushall"]);

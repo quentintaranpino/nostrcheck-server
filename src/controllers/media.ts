@@ -277,6 +277,21 @@ const uploadMedia = async (req: Request, res: Response, version: string, mode: U
 	logger.debug(`uploadMedia - filename: ${filedata.filename} | `, reqInfo.ip);
 	logger.debug(`uploadMedia - no_transform: ${filedata.no_transform} | `, reqInfo.ip);
 
+	// A ban is recorded per row id, so re-uploading the same blob used to create a fresh
+	// unbanned row and serve the content again under the very same URL. Reject by hash,
+	// the check headUpload already does on the BUD-06 pre-flight.
+	if (await isEntityBanned(filedata.originalhash, "mediafiles")) {
+		logger.warn(`uploadMedia - 403 Forbidden - SHA-256 hash banned: ${filedata.originalhash}`, "|", reqInfo.ip);
+		if(version != "v2"){return res.status(403).send({"result": false, "description" : "SHA-256 hash banned"});}
+
+		const bannedResult: ResultMessagev2 = {
+			status: MediaStatus[1],
+			message: `SHA-256 hash banned`,
+		};
+		res.setHeader("X-Reason", "SHA-256 hash banned");
+		return res.status(403).send(bannedResult);
+	}
+
 	// Default return status
 	res.status(200);
 
@@ -604,7 +619,7 @@ const headMedia = async (req: Request, res: Response): Promise<Response> => {
 	}
 
 	// Check if file exist on database
-	const fileData = await dbMultiSelect(["id", "filesize", "hash", "original_hash", "mimetype"], "mediafiles", "original_hash = ?", [hash], true);
+	const fileData = await dbMultiSelect(["id", "filesize", "hash", "original_hash", "mimetype", "active"], "mediafiles", "original_hash = ?", [hash], true);
 	if (fileData.length == 0) {
 		logger.info(`headMedia - 404 Not found - file not found in database: ${hash}`, "|", reqInfo.ip);
 		res.setHeader("X-Reason", "File not found on storage server");	
@@ -647,6 +662,14 @@ const headMedia = async (req: Request, res: Response): Promise<Response> => {
 		logger.warn(`headMedia - 403 Forbidden - file is banned: ${hash}`, "|", reqInfo.ip);
 		res.setHeader("X-Reason", "File is banned");
 		return res.status(403).send();
+	}
+
+	// Same rule getMediabyURL applies: an inactive file must not be confirmed either,
+	// or a HEAD still leaks its existence, size and mimetype.
+	if (fileData[0].active != "1") {
+		logger.info(`headMedia - 404 Not found - file not active: ${hash}`, "|", reqInfo.ip);
+		res.setHeader("X-Reason", "File not found on storage server");
+		return res.status(404).send();
 	}
 
 	// Set headers

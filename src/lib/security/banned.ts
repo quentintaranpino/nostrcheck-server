@@ -113,6 +113,14 @@ const manageEntity = async (originId: number, originTable: string, action: "ban"
                 case "mediafiles": {
                     const redisKeyHash = `banned:${originTable}:${result[0].original_hash}`;
                     await redisCore.set(redisKeyHash, JSON.stringify("1"), { EX: BAN_KEY_TTL });
+
+                    // getMediabyURL caches a per-file "servable" flag under `<filename>-<pubkey>`
+                    // (plus host-prefixed variants), and a cache hit short-circuits this very ban
+                    // check. Drop those keys or the file keeps being served until they expire.
+                    const bannedFiles = await dbMultiSelect(["filename"], "mediafiles", "original_hash = ?", [result[0].original_hash], false);
+                    for (const bannedFile of bannedFiles) {
+                        if (bannedFile.filename) await redisCore.delByPattern(`*${bannedFile.filename}*`);
+                    }
                     break;
                 }
                 case "ips": {
@@ -138,6 +146,12 @@ const manageEntity = async (originId: number, originTable: string, action: "ban"
                 case "mediafiles": {
                     const redisKeyHash = `banned:${originTable}:${result[0].original_hash}`;
                     await redisCore.del(redisKeyHash);
+
+                    // Same cache as in the ban branch: clear it so the file is servable again at once.
+                    const unbannedFiles = await dbMultiSelect(["filename"], "mediafiles", "original_hash = ?", [result[0].original_hash], false);
+                    for (const unbannedFile of unbannedFiles) {
+                        if (unbannedFile.filename) await redisCore.delByPattern(`*${unbannedFile.filename}*`);
+                    }
                     break;
                 }
                 case "ips": {
