@@ -1,0 +1,952 @@
+<%
+// Dense thumbnail grid for moderating the hosted files backlog.
+// locals:
+//   triggerTabId : id of the tab button that reveals this view. When set, the
+//                  first page is only fetched once that tab is shown, so the
+//                  dashboard doesn't pay for it on every load. Empty = load now.
+const modTriggerTabId = typeof triggerTabId !== 'undefined' ? triggerTabId : '';
+%>
+<div id="moderationGallery" class="mt-2">
+
+  <h3 class="mt-4 mb-2 display-5 gradient-text">Moderation gallery</h3>
+  <p>Thumbnail triage for the hosted files queue. Every card carries its own checked, active and ban buttons; select several to apply one action to the lot.</p>
+
+  <div class="row g-2 align-items-end">
+    <div class="col-12 col-md-3 col-lg-2">
+      <label for="moderationGallery-status" class="form-label mb-1">Status</label>
+      <select id="moderationGallery-status" class="form-select form-select-sm">
+        <option value="pending" selected>Pending review</option>
+        <option value="checked">Checked</option>
+        <option value="active">Active</option>
+        <option value="inactive">Inactive</option>
+        <option value="banned">Banned</option>
+        <option value="all">All files</option>
+      </select>
+    </div>
+    <div class="col-12 col-md-3 col-lg-2">
+      <label for="moderationGallery-mimetype" class="form-label mb-1">Type</label>
+      <select id="moderationGallery-mimetype" class="form-select form-select-sm">
+        <option value="">All types</option>
+      </select>
+    </div>
+    <div class="col-12 col-md-3 col-lg-3">
+      <label for="moderationGallery-uploader" class="form-label mb-1">Top uploaders</label>
+      <select id="moderationGallery-uploader" class="form-select form-select-sm">
+        <option value="">All uploaders</option>
+      </select>
+    </div>
+    <div class="col-12 col-md-3 col-lg-3">
+      <label for="moderationGallery-pubkey" class="form-label mb-1">Pubkey (hex or npub)</label>
+      <div class="input-group input-group-sm">
+        <input id="moderationGallery-pubkey" type="text" class="form-control" placeholder="filter by pubkey" autocomplete="off">
+        <button id="moderationGallery-pubkey-clear" class="btn btn-outline-secondary" type="button" title="Clear pubkey filter"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+    </div>
+    <div class="col-6 col-md-2 col-lg-1">
+      <label for="moderationGallery-size" class="form-label mb-1">Tiles</label>
+      <select id="moderationGallery-size" class="form-select form-select-sm">
+        <option value="110">S</option>
+        <option value="150" selected>M</option>
+        <option value="210">L</option>
+      </select>
+    </div>
+    <div class="col-6 col-md-2 col-lg-1">
+      <button id="moderationGallery-refresh" class="btn btn-secondary btn-sm w-100" type="button" title="Reload the queue"><i class="fa-solid fa-rotate"></i></button>
+    </div>
+  </div>
+
+  <div class="d-flex flex-wrap align-items-center gap-2 mt-3">
+    <button id="moderationGallery-select-all" class="btn btn-outline-secondary btn-sm" type="button">Select all loaded</button>
+    <button id="moderationGallery-select-none" class="btn btn-outline-secondary btn-sm" type="button">Clear selection</button>
+    <span id="moderationGallery-counter" class="text-secondary small ms-auto"></span>
+  </div>
+
+  <div id="moderationGallery-bulkbar" class="mod-bulkbar d-none">
+    <span id="moderationGallery-bulkcount" class="fw-bold me-2"></span>
+    <button id="moderationGallery-bulk-checked" class="btn btn-success btn-sm" type="button"><i class="fa-solid fa-check-circle me-1"></i>Mark checked</button>
+    <button id="moderationGallery-bulk-enable" class="btn btn-primary btn-sm" type="button"><i class="fa-solid fa-eye me-1"></i>Activate</button>
+    <button id="moderationGallery-bulk-disable" class="btn btn-warning btn-sm" type="button"><i class="fa-solid fa-eye-slash me-1"></i>Deactivate</button>
+    <button id="moderationGallery-bulk-ban" class="btn btn-danger btn-sm" type="button"><i class="fa-solid fa-triangle-exclamation me-1"></i>Ban</button>
+    <button id="moderationGallery-bulk-close" class="btn btn-outline-light btn-sm ms-1" type="button" title="Clear selection"><i class="fa-solid fa-xmark"></i></button>
+  </div>
+
+  <div id="moderationGallery-error" class="alert alert-danger mt-3 d-none" role="alert"></div>
+  <div id="moderationGallery-empty" class="text-center py-5 fs-5 text-secondary d-none">Nothing to review with these filters</div>
+
+  <div id="moderationGallery-grid" class="mod-grid mt-3" role="list"></div>
+
+  <div class="d-flex justify-content-center align-items-center py-4 gap-3">
+    <div id="moderationGallery-spinner" class="spinner-border text-secondary d-none" role="status"><span class="visually-hidden">Loading…</span></div>
+    <button id="moderationGallery-more" class="btn btn-outline-secondary d-none" type="button">Load more</button>
+  </div>
+  <div id="moderationGallery-sentinel" aria-hidden="true"></div>
+</div>
+
+<%- include('./modals/confirm-modal', {"objectId":"moderationGallery"}); %>
+
+<style>
+  .mod-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(var(--mod-tile, 150px), 1fr));
+    gap: 6px;
+  }
+  .mod-tile {
+    position: relative;
+    aspect-ratio: 1;
+    overflow: hidden;
+    border: 2px solid transparent;
+    border-radius: 6px;
+    background: #1a1a1a;
+    cursor: zoom-in;
+    transition: opacity 0.25s ease;
+  }
+  .mod-tile.is-pending  { border-color: #ffc107; }
+  .mod-tile.is-checked  { border-color: #198754; }
+  .mod-tile.is-banned   { border-color: #dc3545; }
+  .mod-tile.is-selected { outline: 3px solid #a575ff; outline-offset: -3px; }
+  .mod-tile.is-leaving  { opacity: 0; }
+  .mod-tile.is-busy     { pointer-events: none; }
+  .mod-tile.is-busy .mod-media { filter: blur(2px); }
+
+  .mod-tile .mod-media {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .mod-tile.is-inactive .mod-media { opacity: 0.35; filter: grayscale(1); }
+  .mod-tile img.mod-media { opacity: 0; transition: opacity 0.25s ease; }
+  .mod-tile img.mod-media.is-loaded { opacity: 1; }
+  .mod-tile.is-inactive img.mod-media.is-loaded { opacity: 0.35; }
+  .mod-tile canvas.mod-placeholder {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 0;
+  }
+  .mod-tile img.mod-media { position: relative; z-index: 1; }
+
+  .mod-fallback {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: 4px;
+    text-align: center;
+    color: #cfcfcf;
+    background: #2b3035;
+    position: relative;
+    z-index: 1;
+  }
+  .mod-fallback i { font-size: 1.6rem; }
+  .mod-fallback .mod-fallback-label {
+    font-size: 0.62rem;
+    line-height: 1.1;
+    word-break: break-all;
+    opacity: 0.85;
+  }
+  .mod-play {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-size: 1.6rem;
+    text-shadow: 0 0 6px rgba(0,0,0,0.8);
+    z-index: 2;
+    pointer-events: none;
+  }
+
+  .mod-check {
+    position: absolute;
+    top: 4px;
+    left: 4px;
+    z-index: 5;
+    margin: 0;
+    cursor: pointer;
+  }
+  .mod-badges {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    display: flex;
+    gap: 2px;
+    z-index: 4;
+    font-size: 0.7rem;
+  }
+  .mod-badges i {
+    background: rgba(0,0,0,0.55);
+    border-radius: 3px;
+    padding: 2px 3px;
+  }
+  .mod-actions {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    display: flex;
+    justify-content: center;
+    gap: 3px;
+    padding: 3px;
+    background: rgba(0,0,0,0.55);
+    z-index: 4;
+  }
+  .mod-actions .btn {
+    --bs-btn-padding-y: 0.05rem;
+    --bs-btn-padding-x: 0.3rem;
+    --bs-btn-font-size: 0.7rem;
+  }
+  .mod-spin {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 6;
+  }
+
+  .mod-bulkbar {
+    position: sticky;
+    bottom: 10px;
+    z-index: 20;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    margin-top: 10px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    background: rgba(43,48,53,0.96);
+    color: #fff;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.35);
+  }
+</style>
+
+<script type="module">
+  // blurhash@1.1.4 is ESM only. Same import the public gallery uses; when it
+  // fails the tiles just keep their solid placeholder.
+  try {
+      const { decode } = await import('https://esm.sh/blurhash@1.1.4');
+      window.blurhashDecode = decode;
+      window.dispatchEvent(new Event('blurhash-ready'));
+  } catch (e) {
+      console.warn('blurhash lib failed to load', e);
+  }
+</script>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+
+    const triggerTabId = "<%= modTriggerTabId %>";
+
+    // 'filesData' is the public alias of the mediafiles table, the same one the
+    // hosted files table posts to /updaterecord with.
+    const tableKey = 'filesData';
+    const pageSize = 60;
+    const batchSize = 200;
+
+    const state = {
+        status: 'pending',
+        mimetype: '',
+        pubkey: '',
+        cursor: 0,          // last id received, the queue pages by id not offset
+        total: 0,
+        loading: false,
+        exhausted: false,
+        started: false,
+        needFacets: true,
+        aborter: null,
+        rows: new Map(),        // id -> row data
+        selected: new Set(),    // ids
+    };
+
+    const el = {
+        grid: document.getElementById('moderationGallery-grid'),
+        status: document.getElementById('moderationGallery-status'),
+        mimetype: document.getElementById('moderationGallery-mimetype'),
+        uploader: document.getElementById('moderationGallery-uploader'),
+        pubkey: document.getElementById('moderationGallery-pubkey'),
+        pubkeyClear: document.getElementById('moderationGallery-pubkey-clear'),
+        size: document.getElementById('moderationGallery-size'),
+        refresh: document.getElementById('moderationGallery-refresh'),
+        selectAll: document.getElementById('moderationGallery-select-all'),
+        selectNone: document.getElementById('moderationGallery-select-none'),
+        counter: document.getElementById('moderationGallery-counter'),
+        bulkbar: document.getElementById('moderationGallery-bulkbar'),
+        bulkcount: document.getElementById('moderationGallery-bulkcount'),
+        error: document.getElementById('moderationGallery-error'),
+        empty: document.getElementById('moderationGallery-empty'),
+        spinner: document.getElementById('moderationGallery-spinner'),
+        more: document.getElementById('moderationGallery-more'),
+        sentinel: document.getElementById('moderationGallery-sentinel'),
+    };
+
+    if (!el.grid) return;
+
+    // ---------------------------------------------------------------- helpers
+
+    const showError = (message) => {
+        el.error.textContent = message;
+        el.error.classList.remove('d-none');
+    };
+
+    const clearError = () => {
+        el.error.textContent = '';
+        el.error.classList.add('d-none');
+    };
+
+    const toast = (message, alertClass) => {
+        if (typeof showMessage === 'function') showMessage(escapeHtml(message), alertClass);
+    };
+
+    const formatSize = (bytes) => {
+        const n = Number(bytes);
+        if (!Number.isFinite(n) || n <= 0) return '';
+        const units = ['B', 'KB', 'MB', 'GB'];
+        let i = 0;
+        let v = n;
+        while (v >= 1024 && i < units.length - 1) { v /= 1024; i++; }
+        return `${v.toFixed(v >= 100 || i === 0 ? 0 : 1)} ${units[i]}`;
+    };
+
+    const mediaKind = (mimetype) => {
+        const mime = String(mimetype || '');
+        if (mime.startsWith('image/')) return 'image';
+        if (mime.startsWith('video/')) return 'video';
+        if (mime.startsWith('audio/')) return 'audio';
+        return 'other';
+    };
+
+    const fileUrl = (row) => `/api/v2/media/${encodeURIComponent(row.pubkey || '')}/${encodeURIComponent(row.filename || '')}`;
+
+    const tileOf = (id) => el.grid.querySelector(`[data-id="${CSS.escape(String(id))}"]`);
+
+    const isFlagOn = (value) => Number(value) === 1;
+
+    // A row stops belonging to the current view when the action just taken
+    // pushes it out of the status filter. Dropping the tile is the feedback:
+    // the queue visibly shrinks as you work through it.
+    const matchesStatus = (row) => {
+        switch (state.status) {
+            case 'pending':  return !isFlagOn(row.checked);
+            case 'checked':  return isFlagOn(row.checked);
+            case 'active':   return isFlagOn(row.active);
+            case 'inactive': return !isFlagOn(row.active);
+            case 'banned':   return isFlagOn(row.banned);
+            default:         return true;
+        }
+    };
+
+    const paintBlurhash = (canvas, hash) => {
+        canvas.dataset.bh = hash;
+        if (typeof window.blurhashDecode !== 'function') return;
+        try {
+            const pixels = window.blurhashDecode(hash, 32, 32);
+            const ctx = canvas.getContext('2d');
+            const imgData = ctx.createImageData(32, 32);
+            imgData.data.set(pixels);
+            ctx.putImageData(imgData, 0, 0);
+        } catch (e) {
+            // Placeholder stays solid, nothing else to do.
+        }
+    };
+
+    window.addEventListener('blurhash-ready', () => {
+        el.grid.querySelectorAll('canvas.mod-placeholder[data-bh]').forEach(c => paintBlurhash(c, c.dataset.bh));
+    });
+
+    // ------------------------------------------------------------- tile build
+
+    const applyTileState = (tile, row) => {
+        tile.classList.toggle('is-banned', isFlagOn(row.banned));
+        tile.classList.toggle('is-checked', !isFlagOn(row.banned) && isFlagOn(row.checked));
+        tile.classList.toggle('is-pending', !isFlagOn(row.banned) && !isFlagOn(row.checked));
+        tile.classList.toggle('is-inactive', !isFlagOn(row.active));
+        tile.classList.toggle('is-selected', state.selected.has(row.id));
+
+        const badges = tile.querySelector('.mod-badges');
+        if (badges) {
+            const marks = [];
+            if (isFlagOn(row.banned)) marks.push('<i class="fa-solid fa-triangle-exclamation text-danger" title="Banned"></i>');
+            if (isFlagOn(row.checked)) marks.push('<i class="fa-solid fa-check-circle text-success" title="Checked"></i>');
+            if (!isFlagOn(row.active)) marks.push('<i class="fa-solid fa-eye-slash text-warning" title="Inactive"></i>');
+            if (!isFlagOn(row.visibility)) marks.push('<i class="fa-solid fa-lock text-secondary" title="Not visible on the gallery"></i>');
+            badges.innerHTML = marks.join('');
+        }
+
+        const checkbox = tile.querySelector('.mod-check');
+        if (checkbox) checkbox.checked = state.selected.has(row.id);
+
+        const checkedButton = tile.querySelector('.mod-btn-checked');
+        if (checkedButton) {
+            checkedButton.classList.toggle('btn-success', !isFlagOn(row.checked));
+            checkedButton.classList.toggle('btn-secondary', isFlagOn(row.checked));
+            checkedButton.title = isFlagOn(row.checked) ? 'Unmark as checked' : 'Mark as checked';
+        }
+
+        const activeButton = tile.querySelector('.mod-btn-active');
+        if (activeButton) {
+            activeButton.innerHTML = isFlagOn(row.active) ? '<i class="fa-solid fa-eye"></i>' : '<i class="fa-solid fa-eye-slash"></i>';
+            activeButton.title = isFlagOn(row.active) ? 'Deactivate file' : 'Activate file';
+        }
+    };
+
+    const buildMedia = (row) => {
+        const kind = mediaKind(row.mimetype);
+        const fragment = document.createDocumentFragment();
+
+        // Placeholder first so it sits under whatever comes next. Only images
+        // carry a blurhash (it is generated on upload for images only).
+        if (row.blurhash) {
+            const canvas = document.createElement('canvas');
+            canvas.className = 'mod-placeholder';
+            canvas.width = 32;
+            canvas.height = 32;
+            fragment.appendChild(canvas);
+            paintBlurhash(canvas, row.blurhash);
+        }
+
+        if (kind === 'image') {
+            const img = document.createElement('img');
+            img.className = 'mod-media';
+            img.loading = 'lazy';
+            img.decoding = 'async';
+            img.fetchPriority = 'low';
+            img.alt = '';
+            img.src = fileUrl(row);
+            if (img.complete && img.naturalWidth > 0) {
+                img.classList.add('is-loaded');
+            } else {
+                img.addEventListener('load', () => img.classList.add('is-loaded'), { once: true });
+                img.addEventListener('error', () => img.classList.add('is-loaded'), { once: true });
+            }
+            fragment.appendChild(img);
+            return fragment;
+        }
+
+        // Video, audio and everything else: never mount a player. A hundred
+        // <video> elements on one screen is how you kill the browser, so the
+        // card shows the blurhash (when there is one) plus an icon and the
+        // mimetype, and the full file only opens in the modal on click.
+        if (kind === 'video' && row.blurhash) {
+            const overlay = document.createElement('div');
+            overlay.className = 'mod-play';
+            overlay.innerHTML = '<i class="fa-solid fa-circle-play"></i>';
+            fragment.appendChild(overlay);
+            return fragment;
+        }
+
+        const icons = { video: 'fa-film', audio: 'fa-music', other: 'fa-file-lines' };
+        const fallback = document.createElement('div');
+        fallback.className = 'mod-fallback';
+        const icon = document.createElement('i');
+        icon.className = `fa-solid ${icons[kind] || icons.other}`;
+        fallback.appendChild(icon);
+        const label = document.createElement('div');
+        label.className = 'mod-fallback-label';
+        // textContent: mimetype and dimensions come from the database.
+        label.textContent = String(row.mimetype || 'unknown');
+        fallback.appendChild(label);
+        const meta = document.createElement('div');
+        meta.className = 'mod-fallback-label';
+        meta.textContent = [row.dimensions, formatSize(row.filesize)].filter(Boolean).join(' · ');
+        fallback.appendChild(meta);
+        fragment.appendChild(fallback);
+        return fragment;
+    };
+
+    const createTile = (row) => {
+
+        const tile = document.createElement('div');
+        tile.className = 'mod-tile';
+        tile.setAttribute('role', 'listitem');
+        tile.dataset.id = String(row.id);
+        // Attributes are never HTML-parsed, and the tooltip is the only place
+        // the raw filename shows up.
+        tile.title = `${row.filename || ''}\n${row.mimetype || ''} · ${formatSize(row.filesize)}\n${row.username ? row.username + ' · ' : ''}${row.pubkey || ''}\n${row.date || ''}`;
+
+        tile.appendChild(buildMedia(row));
+
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.className = 'form-check-input mod-check';
+        checkbox.setAttribute('aria-label', 'Select file');
+        tile.appendChild(checkbox);
+
+        const badges = document.createElement('div');
+        badges.className = 'mod-badges';
+        tile.appendChild(badges);
+
+        const actions = document.createElement('div');
+        actions.className = 'mod-actions';
+
+        const checkedButton = document.createElement('button');
+        checkedButton.type = 'button';
+        checkedButton.className = 'btn btn-success mod-btn-checked';
+        checkedButton.innerHTML = '<i class="fa-solid fa-check"></i>';
+        actions.appendChild(checkedButton);
+
+        const activeButton = document.createElement('button');
+        activeButton.type = 'button';
+        activeButton.className = 'btn btn-secondary mod-btn-active';
+        actions.appendChild(activeButton);
+
+        const banButton = document.createElement('button');
+        banButton.type = 'button';
+        banButton.className = 'btn btn-danger mod-btn-ban';
+        banButton.title = 'Ban file';
+        banButton.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i>';
+        actions.appendChild(banButton);
+
+        tile.appendChild(actions);
+
+        applyTileState(tile, row);
+        return tile;
+    };
+
+    // ------------------------------------------------------------- selection
+
+    const refreshBulkbar = () => {
+        const count = state.selected.size;
+        el.bulkcount.textContent = `${count} selected`;
+        el.bulkbar.classList.toggle('d-none', count === 0);
+    };
+
+    const refreshCounter = () => {
+        const loaded = state.rows.size;
+        el.counter.textContent = `${loaded} loaded of ${state.total} ${state.status === 'all' ? 'files' : state.status}`;
+    };
+
+    const setSelected = (id, selected) => {
+        if (selected) {
+            state.selected.add(id);
+        } else {
+            state.selected.delete(id);
+        }
+        const tile = tileOf(id);
+        if (tile) {
+            tile.classList.toggle('is-selected', selected);
+            const checkbox = tile.querySelector('.mod-check');
+            if (checkbox) checkbox.checked = selected;
+        }
+        refreshBulkbar();
+    };
+
+    const clearSelection = () => {
+        state.selected.clear();
+        el.grid.querySelectorAll('.mod-tile.is-selected').forEach(tile => {
+            tile.classList.remove('is-selected');
+            const checkbox = tile.querySelector('.mod-check');
+            if (checkbox) checkbox.checked = false;
+        });
+        refreshBulkbar();
+    };
+
+    // ---------------------------------------------------------------- loading
+
+    const resetGrid = (needFacets) => {
+        state.aborter?.abort();
+        state.aborter = null;
+        state.cursor = 0;
+        state.total = 0;
+        state.loading = false;
+        state.exhausted = false;
+        state.needFacets = needFacets === true;
+        state.rows.clear();
+        state.selected.clear();
+        el.grid.innerHTML = '';
+        el.empty.classList.add('d-none');
+        el.more.classList.add('d-none');
+        clearError();
+        refreshBulkbar();
+        refreshCounter();
+    };
+
+    const loadPage = async () => {
+
+        if (state.loading || state.exhausted) return;
+        state.loading = true;
+        el.spinner.classList.remove('d-none');
+        el.more.classList.add('d-none');
+
+        state.aborter?.abort();
+        state.aborter = new AbortController();
+
+        const params = new URLSearchParams();
+        params.set('status', state.status);
+        params.set('limit', String(pageSize));
+        if (state.cursor > 0) params.set('cursor', String(state.cursor));
+        if (state.mimetype) params.set('mimetype', state.mimetype);
+        if (state.pubkey) params.set('pubkey', state.pubkey);
+        if (state.needFacets) params.set('facets', '1');
+
+        let payload;
+        try {
+            const response = await fetch(`/api/v2/admin/mediamoderation?${params}`, {
+                method: 'GET',
+                credentials: 'include',
+                signal: state.aborter.signal,
+            });
+            payload = await response.json().catch(() => null);
+            if (!response.ok || !payload || payload.status !== 'success') {
+                throw new Error(payload?.message || `HTTP ${response.status}`);
+            }
+        } catch (err) {
+            if (err.name === 'AbortError') return;
+            console.error('moderation gallery - fetch failed', err);
+            state.loading = false;
+            el.spinner.classList.add('d-none');
+            showError(`Could not load the moderation queue: ${err.message}`);
+            el.more.classList.toggle('d-none', state.rows.size === 0);
+            return;
+        }
+
+        clearError();
+        state.total = Number(payload.total) || 0;
+
+        if (state.needFacets && payload.facets) {
+            renderFacets(payload.facets);
+            state.needFacets = false;
+        }
+
+        const rows = Array.isArray(payload.rows) ? payload.rows : [];
+        const fragment = document.createDocumentFragment();
+        for (const row of rows) {
+            row.id = Number(row.id);
+            // The cursor advances even for rows already on screen, otherwise a
+            // duplicate would stall the paging.
+            if (state.cursor === 0 || row.id < state.cursor) state.cursor = row.id;
+            if (state.rows.has(row.id)) continue;
+            state.rows.set(row.id, row);
+            fragment.appendChild(createTile(row));
+        }
+        el.grid.appendChild(fragment);
+
+        if (rows.length < pageSize) state.exhausted = true;
+
+        state.loading = false;
+        el.spinner.classList.add('d-none');
+        el.more.classList.toggle('d-none', state.exhausted);
+        el.empty.classList.toggle('d-none', state.rows.size > 0);
+        refreshCounter();
+    };
+
+    const renderFacets = (facets) => {
+
+        const currentMimetype = state.mimetype;
+        el.mimetype.innerHTML = '';
+        const allTypes = document.createElement('option');
+        allTypes.value = '';
+        allTypes.textContent = 'All types';
+        el.mimetype.appendChild(allTypes);
+
+        // Group shortcuts first, they are what an operator actually reaches for.
+        for (const group of ['image/*', 'video/*', 'audio/*']) {
+            const option = document.createElement('option');
+            option.value = group;
+            option.textContent = group;
+            el.mimetype.appendChild(option);
+        }
+
+        for (const item of (facets.mimetypes || [])) {
+            const option = document.createElement('option');
+            option.value = String(item.mimetype || '');
+            option.textContent = `${item.mimetype || 'unknown'} (${item.count})`;
+            el.mimetype.appendChild(option);
+        }
+        el.mimetype.value = currentMimetype;
+        if (el.mimetype.value !== currentMimetype) el.mimetype.value = '';
+
+        el.uploader.innerHTML = '';
+        const allUploaders = document.createElement('option');
+        allUploaders.value = '';
+        allUploaders.textContent = 'All uploaders';
+        el.uploader.appendChild(allUploaders);
+        for (const item of (facets.pubkeys || [])) {
+            const option = document.createElement('option');
+            option.value = String(item.pubkey || '');
+            const who = item.username ? String(item.username) : String(item.pubkey || '').slice(0, 12) + '…';
+            option.textContent = `${who} (${item.count})`;
+            el.uploader.appendChild(option);
+        }
+        el.uploader.value = state.pubkey;
+        if (el.uploader.value !== state.pubkey) el.uploader.value = '';
+    };
+
+    // ---------------------------------------------------------------- actions
+
+    const dropTile = (id) => {
+        const tile = tileOf(id);
+        state.rows.delete(id);
+        state.selected.delete(id);
+        if (state.total > 0) state.total--;
+        if (!tile) return;
+        tile.classList.add('is-leaving');
+        setTimeout(() => tile.remove(), 250);
+    };
+
+    const setBusy = (ids, busy) => {
+        for (const id of ids) {
+            const tile = tileOf(id);
+            if (!tile) continue;
+            tile.classList.toggle('is-busy', busy);
+            if (busy) {
+                const spin = document.createElement('div');
+                spin.className = 'mod-spin';
+                spin.innerHTML = '<div class="spinner-border spinner-border-sm text-light" role="status"></div>';
+                tile.appendChild(spin);
+            } else {
+                tile.querySelector('.mod-spin')?.remove();
+            }
+        }
+    };
+
+    // Sends the action in chunks (the endpoint caps a batch at 500) and only
+    // touches the local rows for the ids the server confirmed.
+    const applyAction = async (ids, field, value, reason) => {
+
+        if (ids.length === 0) return;
+
+        setBusy(ids, true);
+        const failed = new Set();
+        let processed = 0;
+        let lastError = '';
+
+        for (let i = 0; i < ids.length; i += batchSize) {
+            const chunk = ids.slice(i, i + batchSize);
+            try {
+                const response = await fetch('/api/v2/admin/bulkmoderate', {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ table: tableKey, ids: chunk, field, value: String(value), reason: reason || '' }),
+                });
+                const payload = await response.json().catch(() => null);
+                if (!response.ok || !payload || payload.status !== 'success') {
+                    lastError = payload?.message || `HTTP ${response.status}`;
+                    chunk.forEach(id => failed.add(id));
+                    continue;
+                }
+                processed += Number(payload.processed) || 0;
+                for (const id of (payload.failed || [])) failed.add(Number(id));
+            } catch (err) {
+                console.error('moderation gallery - action failed', err);
+                lastError = err.message;
+                chunk.forEach(id => failed.add(id));
+            }
+        }
+
+        setBusy(ids, false);
+
+        for (const id of ids) {
+            if (failed.has(id)) continue;
+            const row = state.rows.get(id);
+            if (!row) continue;
+            if (field === 'banned') {
+                row.banned = Number(value);
+            } else {
+                row[field] = Number(value);
+            }
+            if (!matchesStatus(row)) {
+                dropTile(id);
+                continue;
+            }
+            const tile = tileOf(id);
+            if (tile) applyTileState(tile, row);
+        }
+
+        refreshBulkbar();
+        refreshCounter();
+
+        if (failed.size > 0) {
+            toast(`${failed.size} file(s) could not be updated${lastError ? ': ' + lastError : ''}`, 'alert-danger');
+        }
+        if (processed > 0) {
+            toast(`${processed} file(s) updated`, 'alert-success');
+        }
+    };
+
+    const confirmAction = async (ids, actionText, askReason) => {
+        if (typeof initConfirmModal !== 'function') return { result: true, value: '' };
+        return await initConfirmModal('#moderationGallery', ids, actionText, 'file', askReason ? '' : null, askReason === true);
+    };
+
+    const banFiles = async (ids) => {
+        if (ids.length === 0) return;
+        const modal = await confirmAction(ids, 'ban', true);
+        if (modal.result !== true) return;
+        const reason = (modal.value || '').trim();
+        if (reason === '') {
+            toast('A ban needs a reason', 'alert-warning');
+            return;
+        }
+        await applyAction(ids, 'banned', 1, reason);
+    };
+
+    // ----------------------------------------------------------------- events
+
+    el.grid.addEventListener('click', async (event) => {
+
+        const tile = event.target.closest('.mod-tile');
+        if (!tile) return;
+        const id = Number(tile.dataset.id);
+        const row = state.rows.get(id);
+        if (!row) return;
+
+        if (event.target.closest('.mod-check')) {
+            setSelected(id, event.target.checked);
+            return;
+        }
+
+        if (event.target.closest('.mod-btn-checked')) {
+            event.stopPropagation();
+            await applyAction([id], 'checked', isFlagOn(row.checked) ? 0 : 1);
+            return;
+        }
+
+        if (event.target.closest('.mod-btn-active')) {
+            event.stopPropagation();
+            await applyAction([id], 'active', isFlagOn(row.active) ? 0 : 1);
+            return;
+        }
+
+        if (event.target.closest('.mod-btn-ban')) {
+            event.stopPropagation();
+            await banFiles([id]);
+            return;
+        }
+
+        // Tile body: open the file in the shared media modal (read only, the
+        // buttons on the card are the ones that write).
+        if (typeof initMediaModal === 'function') {
+            initMediaModal(`${row.pubkey}/${row.filename}`, row.checked, row.visibility, false, row);
+        }
+    });
+
+    el.status.addEventListener('change', () => {
+        state.status = el.status.value;
+        state.mimetype = '';
+        resetGrid(true);
+        loadPage();
+    });
+
+    el.mimetype.addEventListener('change', () => {
+        state.mimetype = el.mimetype.value;
+        resetGrid(false);
+        loadPage();
+    });
+
+    el.uploader.addEventListener('change', () => {
+        state.pubkey = el.uploader.value;
+        el.pubkey.value = state.pubkey;
+        resetGrid(false);
+        loadPage();
+    });
+
+    let pubkeyTimer = null;
+    el.pubkey.addEventListener('input', () => {
+        clearTimeout(pubkeyTimer);
+        pubkeyTimer = setTimeout(() => {
+            const value = el.pubkey.value.trim();
+            if (value !== '' && !/^[a-f0-9]{64}$/i.test(value) && !value.startsWith('npub')) {
+                showError('Pubkey must be 64 hex chars or an npub');
+                return;
+            }
+            clearError();
+            state.pubkey = value;
+            el.uploader.value = el.uploader.querySelector(`option[value="${CSS.escape(value)}"]`) ? value : '';
+            resetGrid(false);
+            loadPage();
+        }, 400);
+    });
+
+    el.pubkeyClear.addEventListener('click', () => {
+        el.pubkey.value = '';
+        el.uploader.value = '';
+        state.pubkey = '';
+        clearError();
+        resetGrid(false);
+        loadPage();
+    });
+
+    el.size.addEventListener('change', () => {
+        el.grid.style.setProperty('--mod-tile', `${el.size.value}px`);
+    });
+
+    el.refresh.addEventListener('click', () => {
+        resetGrid(true);
+        loadPage();
+    });
+
+    el.more.addEventListener('click', () => loadPage());
+
+    el.selectAll.addEventListener('click', () => {
+        for (const id of state.rows.keys()) state.selected.add(id);
+        el.grid.querySelectorAll('.mod-tile').forEach(tile => {
+            tile.classList.add('is-selected');
+            const checkbox = tile.querySelector('.mod-check');
+            if (checkbox) checkbox.checked = true;
+        });
+        refreshBulkbar();
+    });
+
+    el.selectNone.addEventListener('click', clearSelection);
+    document.getElementById('moderationGallery-bulk-close').addEventListener('click', clearSelection);
+
+    document.getElementById('moderationGallery-bulk-checked').addEventListener('click', async () => {
+        await applyAction([...state.selected], 'checked', 1);
+    });
+
+    document.getElementById('moderationGallery-bulk-enable').addEventListener('click', async () => {
+        const ids = [...state.selected];
+        const modal = await confirmAction(ids, 'activate', false);
+        if (modal.result !== true) return;
+        await applyAction(ids, 'active', 1);
+    });
+
+    document.getElementById('moderationGallery-bulk-disable').addEventListener('click', async () => {
+        const ids = [...state.selected];
+        const modal = await confirmAction(ids, 'disable', false);
+        if (modal.result !== true) return;
+        await applyAction(ids, 'active', 0);
+    });
+
+    document.getElementById('moderationGallery-bulk-ban').addEventListener('click', async () => {
+        await banFiles([...state.selected]);
+    });
+
+    // Incremental scroll. The button next to it is the fallback for when the
+    // grid lives inside a scrolling container the observer can't see.
+    if ('IntersectionObserver' in window) {
+        new IntersectionObserver((entries) => {
+            if (!state.started) return;
+            if (entries.some(entry => entry.isIntersecting)) loadPage();
+        }, { rootMargin: '400px' }).observe(el.sentinel);
+    }
+
+    const start = () => {
+        if (state.started) return;
+        state.started = true;
+        el.grid.style.setProperty('--mod-tile', `${el.size.value}px`);
+        loadPage();
+    };
+
+    if (triggerTabId !== '') {
+        const tabButton = document.getElementById(triggerTabId);
+        if (tabButton) {
+            tabButton.addEventListener('shown.bs.tab', start);
+            if (tabButton.classList.contains('active')) start();
+        } else {
+            start();
+        }
+    } else {
+        start();
+    }
+
+});
+</script>

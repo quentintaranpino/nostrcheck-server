@@ -21,6 +21,8 @@ import {
     banDBRecord,
     updateSettingsFile,
     serverUpdates,
+    getMediaModerationData,
+    bulkModerateRecords,
 } from "../controllers/admin.js";
 
 const adminCORS = {
@@ -62,6 +64,10 @@ export const loadAdminEndpoint = async (app: Application, version: string): Prom
     // Module data endpoints
     app.get(`${base}/moduledata`, limiter(), cors(adminCORS), getModuleData);
     app.get(`${base}/modulecountdata`, limiter(), cors(adminCORS), getModuleCountData);
+
+    // Moderation gallery: paged thumbnails and batch actions
+    app.get(`${base}/mediamoderation`, limiter(), cors(adminCORS), getMediaModerationData);
+    app.post(`${base}/bulkmoderate`, limiter(), cors(adminCORS), express.json(), bulkModerateRecords);
 
     // Ban a remote source
     app.post(`${base}/ban`, limiter(), cors(adminCORS), express.json(), banDBRecord);

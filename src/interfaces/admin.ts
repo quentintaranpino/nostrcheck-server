@@ -64,6 +64,36 @@ interface moduleDataReturnMessage {
     rows: any;
 }
 
+// Moderation gallery (dense thumbnail grid on the dashboard). It needs the
+// blurhash for the tile placeholder and the raw filesize, neither of which the
+// hosted files table asks for, so it carries its own field list.
+const mediaModerationSelectFields: string[] = [
+    "mediafiles.id",
+    "mediafiles.pubkey",
+    "mediafiles.filename",
+    "mediafiles.mimetype",
+    "mediafiles.original_hash",
+    "mediafiles.blurhash",
+    "mediafiles.dimensions",
+    "mediafiles.filesize",
+    "mediafiles.checked",
+    "mediafiles.active",
+    "mediafiles.visibility",
+    "DATE_FORMAT(mediafiles.date, '%Y-%m-%d %H:%i') as date",
+    "CASE WHEN EXISTS (SELECT 1 FROM banned WHERE banned.originid = mediafiles.id AND banned.origintable = 'mediafiles' AND banned.active = '1') THEN 1 ELSE 0 END as banned",
+    "(SELECT registered.username FROM registered WHERE registered.hex = mediafiles.pubkey LIMIT 1) as username",
+];
+
+// Status buckets the gallery can filter by. Anything else is rejected, the
+// value never reaches the SQL.
+const mediaModerationStatus = ["pending", "checked", "active", "inactive", "banned", "all"];
+
+interface mediaModerationFilters {
+    status: string;
+    mimetype: string;
+    pubkey: string;
+}
+
 const ModuleDataTables: { [key: string]: string } = {
     "nostraddress": "registered",
     "media": "mediafiles",
@@ -295,12 +325,15 @@ const moduleDataSelectFields: { [key: string]: string } = {
                         "filetypes.comments"
 };
 
-export { allowedTableNames, 
-         allowedFieldNames, 
-         allowedFieldNamesAndValues, 
-         moduleDataReturnMessage, 
-         ModuleDataTables, 
-         moduleDataSelectFields, 
-         moduleDataWhereFields, 
+export { allowedTableNames,
+         allowedFieldNames,
+         allowedFieldNamesAndValues,
+         moduleDataReturnMessage,
+         ModuleDataTables,
+         moduleDataSelectFields,
+         moduleDataWhereFields,
          moduleDataKeys,
-         moduleDataIndex };
+         moduleDataIndex,
+         mediaModerationSelectFields,
+         mediaModerationStatus,
+         mediaModerationFilters };

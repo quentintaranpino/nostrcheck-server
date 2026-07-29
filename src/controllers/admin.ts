@@ -9,10 +9,10 @@ import { format, getCPUUsage, getNewDate } from "../lib/utils.js";
 import { ResultMessagev2, ServerStatusMessage, ServerUpdateMessage } from "../interfaces/server.js";
 import { generatePassword } from "../lib/authorization.js";
 import { dbDelete, dbInsert, dbMultiSelect, dbSimpleSelect, dbUpdate } from "../lib/database/core.js";
-import { allowedFieldNames, allowedFieldNamesAndValues, allowedTableNames, moduleDataReturnMessage, moduleDataKeys, moduleDataIndex } from "../interfaces/admin.js";
+import { allowedFieldNames, allowedFieldNamesAndValues, allowedTableNames, moduleDataReturnMessage, moduleDataKeys, moduleDataIndex, mediaModerationFilters, mediaModerationStatus } from "../interfaces/admin.js";
 import { parseAuthHeader} from "../lib/authorization.js";
 import { npubToHex } from "../lib/nostr/NIP19.js";
-import { dbCountModuleData, dbCountMonthModuleData, dbCountBucketModuleData, dbSelectModuleData } from "../lib/admin.js";
+import { dbCountModuleData, dbCountMonthModuleData, dbCountBucketModuleData, dbSelectModuleData, dbSelectMediaModerationData, dbSelectMediaModerationFacets } from "../lib/admin.js";
 import { getBalance, getUnpaidTransactionsBalance } from "../lib/payments/core.js";
 import { getModerationQueueLength, moderateFile } from "../lib/moderation/core.js";
 import { addNewUsername } from "../lib/register.js";
@@ -1183,7 +1183,236 @@ const banDBRecord = async (req: Request, res: Response): Promise<Response> => {
         
 }
 
-export {    serverStatus, 
+/**
+ * Retrieves a page of media files for the moderation gallery.
+ *
+ * @param req - The request object. Query: status, mimetype, pubkey, cursor, limit, order, facets.
+ * @param res - The response object.
+ * @returns A promise that resolves to the response object.
+ */
+const getMediaModerationData = async (req: Request, res: Response): Promise<Response> => {
+
+    // Check if the request IP is allowed
+    const reqInfo = await isIpAllowed(req);
+    if (reqInfo.banned == true) {
+        logger.warn(`getMediaModerationData - Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
+        return res.status(403).send({"status": "error", "message": reqInfo.comments});
+    }
+
+    // Check if current module is enabled
+    if (!isModuleEnabled("admin", "")) {
+        logger.warn(`getMediaModerationData - Attempt to access a non-active module: admin | IP:`, reqInfo.ip);
+        return res.status(403).send({"status": "error", "message": "Module is not enabled"});
+    }
+
+    logger.debug(`getMediaModerationData - ${req.method} ${req.path}`, "|", reqInfo.ip);
+
+    // Check if authorization header is valid
+    const eventHeader = await parseAuthHeader(req, "getMediaModerationData", true, true, true);
+    if (eventHeader.status !== "success") {return res.status(401).send({"status": eventHeader.status, "message" : eventHeader.message});}
+    setAuthCookie(res, eventHeader.authkey);
+
+    // Status. Unknown buckets fall back to the pending queue, which is the default view.
+    const requestedStatus = typeof req.query.status === "string" ? req.query.status : "";
+    const status = mediaModerationStatus.includes(requestedStatus) ? requestedStatus : "pending";
+
+    // Mimetype. Either an exact type or a "image/*" style group.
+    const requestedMimetype = typeof req.query.mimetype === "string" ? req.query.mimetype : "";
+    const mimetype = /^[a-zA-Z0-9.+-]+\/([a-zA-Z0-9.+-]+|\*)$/.test(requestedMimetype) ? requestedMimetype : "";
+    if (requestedMimetype != "" && mimetype == "") {
+        logger.warn(`getMediaModerationData - Invalid mimetype filter: ${requestedMimetype}`, "|", reqInfo.ip);
+        return res.status(400).send({"status": "error", "message": "Invalid mimetype filter"});
+    }
+
+    // Pubkey. npub is accepted for convenience, everything is stored as hex.
+    // A malformed npub decodes to an empty string, don't let that silently turn
+    // into "no filter at all".
+    let pubkey = typeof req.query.pubkey === "string" ? req.query.pubkey.trim() : "";
+    const pubkeyWasNpub = pubkey.startsWith("npub");
+    if (pubkeyWasNpub) pubkey = await npubToHex(pubkey);
+    if ((pubkeyWasNpub && pubkey == "") || (pubkey != "" && !/^[a-f0-9]{64}$/i.test(pubkey))) {
+        logger.warn(`getMediaModerationData - Invalid pubkey filter`, "|", reqInfo.ip);
+        return res.status(400).send({"status": "error", "message": "Invalid pubkey filter"});
+    }
+
+    const filters : mediaModerationFilters = {status, mimetype, pubkey};
+    const cursor = Number(req.query.cursor) || 0;
+    const limit = Number(req.query.limit) || 60;
+    const order = typeof req.query.order === "string" ? req.query.order : "DESC";
+
+    const data = await dbSelectMediaModerationData(filters, cursor, limit, order);
+
+    // Facets are only worth a couple of GROUP BY scans when the toolbar asks
+    // for them (first load and whenever the status bucket changes).
+    const facets = req.query.facets === "1" ? await dbSelectMediaModerationFacets(filters) : undefined;
+
+    logger.info(`getMediaModerationData - Data retrieved succesfully, status: ${status} | total: ${data.total}`, "|", reqInfo.ip);
+    return res.status(200).send({
+        status: "success",
+        message: "Moderation data retrieved succesfully",
+        total: data.total,
+        cursor,
+        limit,
+        rows: data.rows,
+        facets,
+    });
+
+}
+
+/**
+ * Applies one moderation action to several records at once.
+ *
+ * The gallery selects dozens of files at a time, one request per file would
+ * burn the rate limit before the batch is done. Field and table go through the
+ * same allowlists updateDBRecord uses, and banning is delegated to banEntity.
+ *
+ * @param req - The request object. Body: table, ids, field, value and reason (bans only).
+ * @param res - The response object.
+ * @returns A promise that resolves to the response object.
+ */
+const bulkModerateRecords = async (req: Request, res: Response): Promise<Response> => {
+
+    // Check if the request IP is allowed
+    const reqInfo = await isIpAllowed(req);
+    if (reqInfo.banned == true) {
+        logger.warn(`bulkModerateRecords - Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
+        return res.status(403).send({"status": "error", "message": reqInfo.comments});
+    }
+
+    // Check if current module is enabled
+    if (!isModuleEnabled("admin", "")) {
+        logger.warn(`bulkModerateRecords - Attempt to access a non-active module: admin | IP:`, reqInfo.ip);
+        return res.status(403).send({"status": "error", "message": "Module is not enabled"});
+    }
+
+    logger.info(`bulkModerateRecords - ${req.method} ${req.path}`, "|", reqInfo.ip);
+    res.setHeader('Content-Type', 'application/json');
+
+    // Check if authorization header is valid
+    const eventHeader = await parseAuthHeader(req, "bulkModerateRecords", true, true, true);
+    if (eventHeader.status !== "success") {return res.status(401).send({"status": eventHeader.status, "message" : eventHeader.message});}
+    setAuthCookie(res, eventHeader.authkey);
+
+    // Check if the request has the required parameters
+    if (!req.body.table || !req.body.field || !Array.isArray(req.body.ids) || req.body.ids.length === 0) {
+        logger.error(`bulkModerateRecords - Invalid parameters`, "|", reqInfo.ip);
+        return res.status(400).send({"status": "error", "message": "Invalid parameters"});
+    }
+
+    // One batch, one bite. Bigger selections come back as more requests.
+    if (req.body.ids.length > 500) {
+        logger.warn(`bulkModerateRecords - Too many records in a single batch: ${req.body.ids.length}`, "|", reqInfo.ip);
+        return res.status(400).send({"status": "error", "message": "Too many records in a single batch (max 500)"});
+    }
+
+    const ids : number[] = req.body.ids.map((id: string | number) => Number(id)).filter((id: number) => Number.isInteger(id) && id > 0);
+    if (ids.length === 0) {
+        logger.error(`bulkModerateRecords - No valid ids received`, "|", reqInfo.ip);
+        return res.status(400).send({"status": "error", "message": "No valid ids received"});
+    }
+
+    // Don't show the user the real table names
+    const table = moduleDataKeys[req.body.table];
+    if (!table || !allowedTableNames.includes(table)) {
+        logger.warn(`bulkModerateRecords - Invalid table name`, "|", reqInfo.ip);
+        return res.status(400).send({"status": "error", "message": "Invalid table name"});
+    }
+
+    const field : string = String(req.body.field);
+    const value = req.body.value;
+    const failed : number[] = [];
+    let processed = 0;
+
+    // Ban / unban. It lives in its own table so it can't go through dbUpdate.
+    if (field === "banned") {
+
+        if (String(value) !== "0" && String(value) !== "1") {
+            logger.error(`bulkModerateRecords - Invalid value for banned field`, "|", reqInfo.ip);
+            return res.status(400).send({"status": "error", "message": "Invalid value for banned field"});
+        }
+
+        if (String(value) === "1" && (req.body.reason === "" || req.body.reason === null || req.body.reason === undefined)) {
+            logger.error(`bulkModerateRecords - Reason cannot be empty`, "|", reqInfo.ip);
+            return res.status(400).send({"status": "error", "message": "Reason cannot be empty"});
+        }
+
+        for (const id of ids) {
+            const result = String(value) === "1" ? await banEntity(id, table, req.body.reason) : await unbanEntity(id, table);
+            if (result.status === "error") {
+                logger.warn(`bulkModerateRecords - Failed to ban record ${id}: ${result.message}`, "|", reqInfo.ip);
+                failed.push(id);
+                continue;
+            }
+            processed++;
+        }
+
+    } else {
+
+        // Check if the provided field name is allowed.
+        if (!allowedFieldNames.includes(field) || !allowedFieldNamesAndValues.some(e => e.field === field)) {
+            logger.warn(`bulkModerateRecords - Invalid field name: ${field}`, "|", reqInfo.ip);
+            return res.status(400).send({"status": "error", "message": "Invalid field name"});
+        }
+
+        // Redis index fields (filename, domain, ...) are not moderation flags,
+        // rewriting them in bulk would desync the cache.
+        if (moduleDataIndex[req.body.table] === field) {
+            logger.warn(`bulkModerateRecords - Field ${field} cannot be updated in bulk`, "|", reqInfo.ip);
+            return res.status(400).send({"status": "error", "message": `Field ${field} cannot be updated in bulk`});
+        }
+
+        if (value === "" || value === null || value === undefined) {
+            logger.error(`bulkModerateRecords - ${field} cannot be empty`, "|", reqInfo.ip);
+            return res.status(400).send({"status": "error", "message": field + " cannot be empty."});
+        }
+
+        // Flag fields only accept their declared values.
+        const fieldRule = allowedFieldNamesAndValues.find(e => e.field === field);
+        const allowedValues = (fieldRule?.values || []) as (string | number)[];
+        if (fieldRule && !allowedValues.includes("string") && !allowedValues.includes("number") && !allowedValues.includes(Number(value))) {
+            logger.warn(`bulkModerateRecords - Invalid value for field ${field}: ${value}`, "|", reqInfo.ip);
+            return res.status(400).send({"status": "error", "message": `Invalid value for field ${field}`});
+        }
+
+        for (const id of ids) {
+            const update = await dbUpdate(table, { [field]: value }, ["id"], [id]);
+            if (!update) {
+                logger.warn(`bulkModerateRecords - Failed to update record ${id}`, "|", reqInfo.ip);
+                failed.push(id);
+                continue;
+            }
+            processed++;
+        }
+
+        // Same cache refresh updateDBRecord does for the ips table.
+        if (table === "ips") {
+            for (const id of ids) {
+                const ipData = await dbMultiSelect(["ip", "checked", "active"], table, "id = ?", [id]);
+                if (ipData.length === 0) continue;
+                await redisCore.hashSet(`ips:${ipData[0].ip}`, {
+                    checked: ipData[0].checked.toString(),
+                    active: ipData[0].active.toString()
+                });
+            }
+        }
+    }
+
+    if (processed === 0) {
+        logger.error(`bulkModerateRecords - Failed to apply ${field} to ${ids.length} records`, "|", reqInfo.ip);
+        return res.status(500).send({"status": "error", "message": `Failed to update ${ids.length} records`, "processed": 0, "failed": failed});
+    }
+
+    logger.info(`bulkModerateRecords - ${field} set to ${field === "banned" ? value : value} on ${processed} records from ${req.body.table}, ${failed.length} failed`, "|", reqInfo.ip);
+    return res.status(200).send({
+        status: "success",
+        message: failed.length === 0 ? `${processed} records updated succesfully` : `${processed} records updated, ${failed.length} failed`,
+        processed,
+        failed,
+    });
+
+}
+
+export {    serverStatus,
             serverUpdates,
             StopServer, 
             resetUserPassword, 
@@ -1195,5 +1424,7 @@ export {    serverStatus,
             updateSettingsFile,
             getModuleData,
             getModuleCountData,
-            banDBRecord   
+            banDBRecord,
+            getMediaModerationData,
+            bulkModerateRecords
         };
