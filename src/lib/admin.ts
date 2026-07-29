@@ -297,6 +297,54 @@ const mediaModerationWhere = (filters: mediaModerationFilters): { clause: string
 };
 
 /**
+ * How much is left to review on the whole server, regardless of what the gallery
+ * is filtered to. This is the number that answers "how much is left" after 1,500
+ * manual actions, which a per-filter total cannot.
+ *
+ * Uses the same predicate as the "pending" bucket (unchecked and not banned) so
+ * the figure matches what the grid shows when that bucket is selected; a global
+ * that counted banned files would never reach zero.
+ *
+ * Deliberately NOT the information_schema estimate: that shortcut is for whole
+ * table totals with no WHERE, and an approximate progress counter would drift
+ * between reloads without the operator having done anything, which is worse than
+ * showing nothing.
+ *
+ * Both counts are memoised for countCacheTTL so the incremental scroll never pays
+ * for them: the caller only asks on first load, on a filter change and on refresh.
+ *
+ * @returns Pending files, and how many of those are image or video.
+ */
+const dbCountPendingOverview = async (): Promise<{ total: number; visual: number }> => {
+
+	const { clause, params } = mediaModerationWhere({ status: "pending", mimetype: "", pubkey: "" });
+	const visualClause = `${clause} AND (mediafiles.mimetype LIKE 'image/%' OR mediafiles.mimetype LIKE 'video/%')`;
+
+	const readCount = async (cacheKey: string, whereClause: string): Promise<number> => {
+
+		const cached = await countCacheGet(cacheKey);
+		if (cached !== null) return Number(cached) || 0;
+
+		const counted = await dbMultiSelect(["COUNT(*) as total"], "mediafiles", whereClause, params, true);
+		if (counted.length === 0) {
+			// A failed count is not zero pending files. Report 0 for this response
+			// but never freeze it into the cache.
+			logger.error(`dbCountPendingOverview - Count failed for ${cacheKey}, returning 0 without caching it`);
+			return 0;
+		}
+
+		const total = Number(counted[0].total) || 0;
+		await countCacheSet(cacheKey, String(total));
+		return total;
+	};
+
+	const total = await readCount("admincount:v1:pending:global:total", clause);
+	const visual = await readCount("admincount:v1:pending:global:visual", visualClause);
+
+	return { total, visual };
+};
+
+/**
  * Reads a page of files for the moderation gallery.
  *
  * Pages by id cursor, not by offset: the operator is changing the very flags
@@ -346,7 +394,7 @@ const dbSelectMediaModerationData = async (filters: mediaModerationFilters, curs
  * @param filters - status bucket (mimetype and pubkey are ignored on purpose).
  * @returns Mimetypes and uploaders with their counts, most files first.
  */
-const dbSelectMediaModerationFacets = async (filters: mediaModerationFilters): Promise<{ mimetypes: Record<string, unknown>[]; pubkeys: Record<string, unknown>[] }> => {
+const dbSelectMediaModerationFacets = async (filters: mediaModerationFilters): Promise<{ mimetypes: Record<string, unknown>[]; pubkeys: Record<string, unknown>[]; pending: { total: number; visual: number } }> => {
 
 	const { clause, params } = mediaModerationWhere({ status: filters.status, mimetype: "", pubkey: "" });
 
@@ -368,7 +416,11 @@ const dbSelectMediaModerationFacets = async (filters: mediaModerationFilters): P
 										params,
 										false);
 
-	return { mimetypes: mimetypes || [], pubkeys: pubkeys || [] };
+	// Rides along with the facets because they share the same triggers: first load,
+	// status change and refresh. The scroll never asks for either.
+	const pending = await dbCountPendingOverview();
+
+	return { mimetypes: mimetypes || [], pubkeys: pubkeys || [], pending };
 };
 
 // null = not probed yet. Installations that haven't migrated simply get no

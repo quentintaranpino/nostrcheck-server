@@ -1,13 +1,17 @@
-// Why a ban exists, as a closed set. Kept in the same order as the server's
-// banCategories (interfaces/admin.ts): CSAM first because it is 93% of the bans
-// this server has issued, so it is the shortest reach. The severity drives the
-// colour so CSAM never reads like QUESTIONABLE.
+// Why a ban exists, as a closed set. banCategories in interfaces/admin.ts is the
+// source of truth and validates every request; this list has to mirror it, name
+// for name, because modal.js is served static and can't read server locals. CSAM
+// first because it is 93% of the bans this server has issued, so it is the
+// shortest reach. The severity drives the colour so CSAM never reads like
+// QUESTIONABLE, and SERVICE_ABUSE stays neutral because it is misuse of resources,
+// not illegal content.
 const banCategoryTags = [
-    { name: 'CSAM',         severity: 'danger' },
-    { name: 'ILLEGAL',      severity: 'danger' },
-    { name: 'VIOLENCE',     severity: 'warning' },
-    { name: 'QUESTIONABLE', severity: 'secondary' },
-    { name: 'OTHER',        severity: 'secondary' },
+    { name: 'CSAM',          severity: 'danger',    description: 'Child sexual abuse material' },
+    { name: 'ILLEGAL',       severity: 'danger',    description: 'Otherwise illegal content' },
+    { name: 'VIOLENCE',      severity: 'warning',   description: 'Graphic violence or gore' },
+    { name: 'QUESTIONABLE',  severity: 'secondary', description: 'Borderline, kept out of the public listings' },
+    { name: 'SERVICE_ABUSE', severity: 'secondary', description: 'Resource abuse: declared type that does not match the content, or the server used as hosting or a CDN' },
+    { name: 'OTHER',         severity: 'secondary', description: 'Anything the categories above do not cover' },
 ];
 
 const initConfirmModal = async (objectId, ids, action, objectName, value = null, enableEditText = false) => {
@@ -38,6 +42,9 @@ const initConfirmModal = async (objectId, ids, action, objectName, value = null,
                 $('<button type="button" class="btn btn-sm btn-outline-' + tag.severity + ' ban-category-tag"></button>')
                     .attr('data-category', tag.name)
                     .attr('data-severity', tag.severity)
+                    // What each category is for, so SERVICE_ABUSE doesn't have to be
+                    // guessed from its name and OTHER stops being the default dump.
+                    .attr('title', tag.description)
                     .text(tag.name)
                     .appendTo(tagRow);
             }

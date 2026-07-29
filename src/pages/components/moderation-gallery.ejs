@@ -84,10 +84,15 @@ const modTriggerTabId = typeof triggerTabId !== 'undefined' ? triggerTabId : '';
   <%# No `card` class on purpose. dashcard.ejs redefines .card globally with
       min-height: 180px and a scale(1.03) on hover, so any element borrowing that
       class inherits a 180px floor and zooms under the pointer: a toolbar is not an
-      interactive tile. The look comes from default-bg (border + background) plus
-      the rounded and shadow-sm utilities, which carry no behaviour. Same
-      proportions as the filter row above: gap-2, p-2 and btn-sm buttons. %>
-  <div id="moderationGallery-bulkbar" class="mod-bulkbar default-bg rounded shadow-sm flex-wrap align-items-center gap-2 p-2 mb-3 d-none">
+      interactive tile.
+      bg-body-tertiary and not default-bg: default-bg is rgba(0,0,0,.075), and a bar
+      that floats over the grid cannot be 92% transparent or the thumbnails show
+      through it. bg-body-tertiary is opaque and theme-driven (--bs-tertiary-bg:
+      #f8f9fa light, #2b3035 dark, the same surface the navbar and footer use), the
+      same utility documentation.ejs already uses for a box. border and shadow-sm
+      separate it from whatever it is sitting on. Same proportions as the filter row
+      above: gap-2, p-2 and btn-sm buttons. %>
+  <div id="moderationGallery-bulkbar" class="mod-bulkbar bg-body-tertiary border rounded shadow-sm flex-wrap align-items-center gap-2 p-2 mb-3 d-none">
     <span id="moderationGallery-bulkcount" class="fw-bold me-2"></span>
     <button id="moderationGallery-bulk-checked" class="btn btn-success btn-sm" type="button"><i class="fa-solid fa-check-circle me-1"></i>Mark checked</button>
     <button id="moderationGallery-bulk-nsfw" class="btn btn-sm mod-btn-nsfw" type="button" title="Checked + hidden from public listings. Still reachable by direct URL."><i class="fa-solid fa-mask me-1"></i>Mark NSFW</button>
@@ -412,6 +417,7 @@ document.addEventListener('DOMContentLoaded', () => {
         rows: new Map(),        // id -> row data
         selected: new Set(),    // ids
         spent: new Map(),       // id -> {field, previous} for the processed slots
+        globalPending: null,    // {total, visual} for the whole server, filter independent
         videosInView: new Set(),
         videosPlaying: new Set(),
         videoObserver: null,
@@ -899,15 +905,56 @@ document.addEventListener('DOMContentLoaded', () => {
         el.bulkbar.classList.toggle('d-none', count === 0);
     };
 
+    const count = (value) => Number(value || 0).toLocaleString();
+
+    // Where the operator is, not just what is on the page. The global figure comes
+    // first because it is the one that answers "how much is left"; the filtered one
+    // is only repeated when it actually differs from it.
     const refreshCounter = () => {
+
         const processed = state.spent.size;
         const loaded = state.rows.size - processed;
         const bucket = state.status === 'all' ? 'files' : state.status;
-        el.counter.textContent = processed > 0
-                                    ? `${loaded} loaded of ${state.total} ${bucket} · ${processed} processed`
-                                    : `${loaded} loaded of ${state.total} ${bucket}`;
+        const parts = [];
+
+        if (state.globalPending !== null) {
+            parts.push(`${count(state.globalPending.total)} pending on the server`);
+            // The honest perspective: the non visual ones (JSON, text, PDF) have
+            // nothing to look at, so the real work is smaller than the total.
+            if (state.globalPending.visual > 0 && state.globalPending.visual < state.globalPending.total) {
+                parts.push(`${count(state.globalPending.visual)} of them image or video`);
+            }
+            if (state.total !== state.globalPending.total) parts.push(`${count(state.total)} in this filter`);
+        } else {
+            parts.push(`${count(state.total)} ${bucket}`);
+        }
+
+        parts.push(`${count(loaded)} loaded`);
+        if (processed > 0) parts.push(`${count(processed)} done here`);
+
+        el.counter.textContent = parts.join(' · ');
         el.clearSpent.classList.toggle('d-none', processed === 0);
         el.clearSpent.textContent = `Clear processed (${processed})`;
+    };
+
+    // A file leaves the global pending set when it becomes checked or banned, which
+    // is the same predicate the server counts. Adjusting it locally is what makes
+    // the number visibly go down while working instead of standing still until the
+    // next refresh; the next real fetch corrects any drift.
+    const isGlobalPending = (row) => !isFlagOn(row.checked) && !isFlagOn(row.banned);
+
+    const isVisualRow = (row) => {
+        const kind = mediaKind(row.mimetype);
+        return kind === 'image' || kind === 'video';
+    };
+
+    const trackGlobalPending = (row, wasPending) => {
+        if (state.globalPending === null) return;
+        const nowPending = isGlobalPending(row);
+        if (wasPending === nowPending) return;
+        const delta = nowPending ? 1 : -1;
+        state.globalPending.total = Math.max(0, state.globalPending.total + delta);
+        if (isVisualRow(row)) state.globalPending.visual = Math.max(0, state.globalPending.visual + delta);
     };
 
     const setSelected = (id, selected) => {
@@ -964,6 +1011,8 @@ document.addEventListener('DOMContentLoaded', () => {
         // Changing filter or reloading is the other moment the grid is allowed to
         // rebuild: the processed slots go with it.
         state.spent.clear();
+        // globalPending is deliberately kept: it does not depend on the filter, so
+        // blanking it on a filter change would make the number flicker for nothing.
         stopAllVideos();
         state.videosInView.clear();
         state.videoObserver?.disconnect();
@@ -1027,6 +1076,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (state.needFacets && payload.facets) {
             renderFacets(payload.facets);
+            // Rides with the facets, so the incremental scroll never asks for it.
+            if (payload.facets.pending) state.globalPending = { total: Number(payload.facets.pending.total) || 0, visual: Number(payload.facets.pending.visual) || 0 };
             state.needFacets = false;
         }
 
@@ -1171,6 +1222,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (steps.length === 0) return;
 
         setBusy([id], true);
+        const wasPending = isGlobalPending(row);
         let failed = false;
         let lastError = '';
 
@@ -1190,6 +1242,9 @@ document.addEventListener('DOMContentLoaded', () => {
             toast(`Could not undo this file${lastError ? ': ' + lastError : ''}`, 'alert-danger');
             return;
         }
+
+        // Undo puts the file back in the queue, so the global figure goes back up.
+        trackGlobalPending(row, wasPending);
 
         // Back to a normal card, in the same cell it never left.
         state.spent.delete(id);
@@ -1296,6 +1351,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (failed.has(id)) continue;
             const row = state.rows.get(id);
             if (!row) continue;
+            const wasPending = isGlobalPending(row);
             if (field === 'nsfw') {
                 // The same pair the server wrote in a single UPDATE. visibility
                 // is not part of it any more.
@@ -1306,6 +1362,7 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 row[field] = Number(value);
             }
+            trackGlobalPending(row, wasPending);
             if (!matchesStatus(row)) {
                 if (state.total > 0) state.total--;
                 markSpent(id, field, before.get(id));
@@ -1481,6 +1538,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const row = state.rows.get(id);
         if (!row) return;
 
+        const wasPending = isGlobalPending(row);
+
         if (field === 'nsfw') {
             row.nsfw = Number(value);
             row.checked = 1;
@@ -1489,6 +1548,8 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             row[field] = Number(value);
         }
+
+        trackGlobalPending(row, wasPending);
 
         if (isSpent(id)) {
             // Already processed and being changed again from the viewer: keep the

@@ -97,12 +97,19 @@ const mediaModerationSelectFields: string[] = [
 // they get used, not alphabetically: CSAM is 93% of the existing 488 bans, so it
 // is the first thing the operator's hand reaches for. `severity` drives the
 // colour, so CSAM never reads like QUESTIONABLE.
-const banCategories: { name: string; severity: string }[] = [
-    { name: "CSAM",         severity: "danger" },
-    { name: "ILLEGAL",      severity: "danger" },
-    { name: "VIOLENCE",     severity: "warning" },
-    { name: "QUESTIONABLE", severity: "secondary" },
-    { name: "OTHER",        severity: "secondary" },
+//
+// SERVICE_ABUSE and not ABUSE: in a list where CSAM is most of the traffic,
+// "abuse" gets read as child abuse. It is also not illegal content, so it stays
+// neutral in colour and away from the two reds. It covers resource abuse: a
+// declared type that doesn't match the bytes, or the server being used as private
+// hosting or a CDN.
+const banCategories: { name: string; severity: string; description: string }[] = [
+    { name: "CSAM",          severity: "danger",    description: "Child sexual abuse material" },
+    { name: "ILLEGAL",       severity: "danger",    description: "Otherwise illegal content" },
+    { name: "VIOLENCE",      severity: "warning",   description: "Graphic violence or gore" },
+    { name: "QUESTIONABLE",  severity: "secondary", description: "Borderline, kept out of the public listings" },
+    { name: "SERVICE_ABUSE", severity: "secondary", description: "Resource abuse: declared type that does not match the content, or the server used as hosting or a CDN" },
+    { name: "OTHER",         severity: "secondary", description: "Anything the categories above do not cover" },
 ];
 
 const banCategoryNames: string[] = banCategories.map(category => category.name);
