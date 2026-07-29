@@ -66,7 +66,14 @@
           </li>
         <% } %>
       </ul>
-      <div class="tab-content w-100 p-3 overflow-auto mb-5" id="dashboardTabsContent">
+      <%# overflow-auto removed on purpose: it made this div the scroll container
+          for anything sticky inside a tab, and since it never scrolls itself (the
+          page does) a sticky element had no scrollport to stick to and just
+          scrolled away. The bulk bar in the moderation gallery depends on this.
+          Nothing here needed the scroll: the wide tables carry their own
+          horizontal scroll in bootstrap-table's .fixed-table-body, and the tab bar
+          has its own overflow-x in .nav-tabs. %>
+      <div class="tab-content w-100 p-3 mb-5" id="dashboardTabsContent">
         <div class="tab-pane fade show active" id="users" role="tabpanel" aria-labelledby="users-tab">
           <%- include('./components/tables/users'); %>
         </div>

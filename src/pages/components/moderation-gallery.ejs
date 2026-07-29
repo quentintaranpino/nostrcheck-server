@@ -81,7 +81,7 @@ const modTriggerTabId = typeof triggerTabId !== 'undefined' ? triggerTabId : '';
     <span id="moderationGallery-counter" class="text-secondary small ms-auto"></span>
   </div>
 
-  <div id="moderationGallery-bulkbar" class="mod-bulkbar d-none">
+  <div id="moderationGallery-bulkbar" class="mod-bulkbar card default-bg shadow-sm flex-row flex-wrap align-items-center gap-2 p-2 mb-3 d-none">
     <span id="moderationGallery-bulkcount" class="fw-bold me-2"></span>
     <button id="moderationGallery-bulk-checked" class="btn btn-success btn-sm" type="button"><i class="fa-solid fa-check-circle me-1"></i>Mark checked</button>
     <button id="moderationGallery-bulk-nsfw" class="btn btn-sm mod-btn-nsfw" type="button" title="Checked + hidden from public listings. Still reachable by direct URL."><i class="fa-solid fa-mask me-1"></i>Mark NSFW</button>
@@ -89,7 +89,8 @@ const modTriggerTabId = typeof triggerTabId !== 'undefined' ? triggerTabId : '';
     <button id="moderationGallery-bulk-disable" class="btn btn-warning btn-sm" type="button"><i class="fa-solid fa-eye-slash me-1"></i>Deactivate</button>
     <button id="moderationGallery-bulk-ban" class="btn btn-danger btn-sm" type="button"><i class="fa-solid fa-triangle-exclamation me-1"></i>Ban</button>
     <button id="moderationGallery-bulk-retry" class="btn btn-info btn-sm" type="button" title="Put pending or failed notifications for the selection back in the queue"><i class="fa-solid fa-paper-plane me-1"></i>Retry notification</button>
-    <button id="moderationGallery-bulk-close" class="btn btn-outline-light btn-sm ms-1" type="button" title="Clear selection"><i class="fa-solid fa-xmark"></i></button>
+    <%# Outline secondary, not light: the bar is a light surface now. %>
+    <button id="moderationGallery-bulk-close" class="btn btn-outline-secondary btn-sm ms-1" type="button" title="Clear selection"><i class="fa-solid fa-xmark"></i></button>
   </div>
 
   <div id="moderationGallery-error" class="alert alert-danger mt-3 d-none" role="alert"></div>
@@ -286,20 +287,9 @@ const modTriggerTabId = typeof triggerTabId !== 'undefined' ? triggerTabId : '';
     min-height: 32px;
   }
 
-  /* checked asks twice: it is the one button whose consequence (the file leaves
-     the queue) is invisible until it is too late, and the only one with no
-     friction of its own. Ban already demands a reason. */
-  /* 52px keeps the armed button inside the smallest tile: 52 + 4x36 + gaps + the
-     bar padding is 214px against the 221px of usable width at S, so the row never
-     wraps mid-decision. */
-  .mod-actions .mod-btn-checked.is-confirming {
-    --bs-btn-font-size: 0.7rem;
-    --bs-btn-padding-x: 0.35rem;
-    background: #0a58ca;
-    border-color: #0a58ca;
-    color: #fff;
-    min-width: 52px;
-  }
+  /* checked is a single press like the other three: the processed slot carries an
+     Undo, so charging a toll on every press to prevent something already
+     reversible afterwards was the wrong trade. */
 
   /* A processed card keeps its cell. Nothing below it moves, so the next click
      lands where the operator aimed. */
@@ -355,20 +345,17 @@ const modTriggerTabId = typeof triggerTabId !== 'undefined' ? triggerTabId : '';
     z-index: 6;
   }
 
+  /* Surface, spacing and shadow come from the same classes the dashcards use
+     (card + default-bg + shadow-sm), so the bar reads as part of the panel
+     instead of a widget pasted on top. All that is left here is the position:
+     display stays in CSS so Bootstrap's .d-none (which is !important) can still
+     hide it, and the top offset clears the sticky navbar. z-index sits under the
+     navbar (1020) and over the cards. */
   .mod-bulkbar {
     position: sticky;
-    bottom: 10px;
-    z-index: 20;
+    top: 3.75rem;
+    z-index: 1015;
     display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 6px;
-    margin-top: 10px;
-    padding: 8px 10px;
-    border-radius: 8px;
-    background: rgba(43,48,53,0.96);
-    color: #fff;
-    box-shadow: 0 4px 14px rgba(0,0,0,0.35);
   }
 </style>
 
@@ -1246,7 +1233,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Sends one action to the bulk endpoint in chunks (it caps a batch at 500)
     // and reports back which ids the server refused.
-    const postBulk = async (table, ids, field, value, reason) => {
+    const postBulk = async (table, ids, field, value, reason, category) => {
 
         const failed = new Set();
         let processed = 0;
@@ -1259,7 +1246,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     method: 'POST',
                     credentials: 'include',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ table, ids: chunk, field, value: String(value), reason: reason || '' }),
+                    body: JSON.stringify({ table, ids: chunk, field, value: String(value), reason: reason || '', category: category || '' }),
                 });
                 const payload = await response.json().catch(() => null);
                 if (!response.ok || !payload || payload.status !== 'success') {
@@ -1281,7 +1268,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Applies a moderation action to media rows and only touches the local state
     // for the ids the server confirmed.
-    const applyAction = async (ids, field, value, reason) => {
+    const applyAction = async (ids, field, value, reason, category) => {
 
         if (ids.length === 0) return;
 
@@ -1296,7 +1283,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         setBusy(ids, true);
-        const { processed, failed, lastError } = await postBulk(tableKey, ids, field, value, reason);
+        const { processed, failed, lastError } = await postBulk(tableKey, ids, field, value, reason, category);
         setBusy(ids, false);
 
         for (const id of ids) {
@@ -1345,12 +1332,15 @@ document.addEventListener('DOMContentLoaded', () => {
         if (ids.length === 0) return false;
         const modal = await confirmAction(ids, 'ban', true);
         if (modal.result !== true) return false;
-        const reason = (modal.value || '').trim();
-        if (reason === '') {
-            toast('A ban needs a reason', 'alert-warning');
+        // The category is what the ban needs; the comment is optional detail. The
+        // dialog won't confirm without a category, and the server rejects the
+        // request if one arrives without it anyway.
+        const category = (modal.category || '').trim();
+        if (category === '') {
+            toast('A ban needs a category', 'alert-warning');
             return false;
         }
-        await applyAction(ids, 'banned', 1, reason);
+        await applyAction(ids, 'banned', 1, (modal.value || '').trim(), category);
         return true;
     };
 
@@ -1382,32 +1372,6 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // ----------------------------------------------------------------- events
-
-    // The confirmation lives on the button itself. It reverts on its own so an
-    // armed button never waits around to be pressed by accident later, and only
-    // one is ever armed at a time.
-    const checkedConfirmMs = 3000;
-    let armedChecked = null;
-    let armedCheckedTimer = null;
-
-    const disarmCheckedConfirm = (button) => {
-        if (!button) return;
-        clearTimeout(armedCheckedTimer);
-        button.dataset.confirming = '0';
-        button.classList.remove('is-confirming');
-        button.innerHTML = '<i class="fa-solid fa-check"></i>';
-        if (armedChecked === button) armedChecked = null;
-    };
-
-    const armCheckedConfirm = (button) => {
-        if (armedChecked && armedChecked !== button) disarmCheckedConfirm(armedChecked);
-        armedChecked = button;
-        button.dataset.confirming = '1';
-        button.classList.add('is-confirming');
-        button.textContent = 'sure?';
-        clearTimeout(armedCheckedTimer);
-        armedCheckedTimer = setTimeout(() => disarmCheckedConfirm(button), checkedConfirmMs);
-    };
 
     el.grid.addEventListener('click', async (event) => {
 

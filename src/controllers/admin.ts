@@ -9,7 +9,7 @@ import { format, getCPUUsage, getNewDate } from "../lib/utils.js";
 import { ResultMessagev2, ServerStatusMessage, ServerUpdateMessage } from "../interfaces/server.js";
 import { generatePassword } from "../lib/authorization.js";
 import { dbDelete, dbInsert, dbMultiSelect, dbSimpleSelect, dbUpdate } from "../lib/database/core.js";
-import { allowedFieldNames, allowedFieldNamesAndValues, allowedTableNames, moduleDataReturnMessage, moduleDataKeys, moduleDataIndex, recordKeyFields, mediaModerationFilters, mediaModerationStatus, mediaModerationNsfwFields, notificationStatusRow } from "../interfaces/admin.js";
+import { allowedFieldNames, allowedFieldNamesAndValues, allowedTableNames, moduleDataReturnMessage, moduleDataKeys, moduleDataIndex, recordKeyFields, banCategoryNames, mediaModerationFilters, mediaModerationStatus, mediaModerationNsfwFields, notificationStatusRow } from "../interfaces/admin.js";
 import { parseAuthHeader} from "../lib/authorization.js";
 import { npubToHex } from "../lib/nostr/NIP19.js";
 import { dbCountModuleData, dbCountTableRows, dbCountMonthModuleData, dbCountBucketModuleData, dbSelectModuleData, dbSelectMediaModerationData, dbSelectMediaModerationFacets, dbSelectNotificationStatusBulk } from "../lib/admin.js";
@@ -1212,11 +1212,16 @@ const banDBRecord = async (req: Request, res: Response): Promise<Response> => {
 
     logger.info(`banDBRecord - ${req.method} ${req.path}`, "|", reqInfo.ip, "|", req.body.id, "|", req.body.table);
 
-    if (req.body.reason === "" || req.body.reason === null || req.body.reason === undefined) {
+    // The category replaces the old "reason cannot be empty" rule: it is the
+    // closed set the ban dialog offers, so bans can be grouped and filtered by
+    // type. The comment stays optional.
+    const banCategory = typeof req.body.category === "string" ? req.body.category.trim().toUpperCase() : "";
+    if (!banCategoryNames.includes(banCategory)) {
         const result: ResultMessagev2 = {
             status: "error",
-            message: "Reason cannot be empty",
+            message: "A ban needs one of these categories: " + banCategoryNames.join(", "),
         }
+        logger.warn(`banDBRecord - Ban rejected, invalid category: ${banCategory}`, "|", reqInfo.ip);
         return res.status(400).send(result);
     }
 
@@ -1233,7 +1238,7 @@ const banDBRecord = async (req: Request, res: Response): Promise<Response> => {
 
     // Attribution: banEntity writes its own audit row, and without these it would
     // be filed under "system" instead of the admin who pressed the button.
-    const banResult = await banEntity(req.body.id, table, req.body.reason, eventHeader.pubkey, "admin");
+    const banResult = await banEntity(req.body.id, table, req.body.reason || "", eventHeader.pubkey, "admin", banCategory);
 
     if (banResult.status == "error") {
         logger.error(`banDBRecord - Failed to ban record`, "|", reqInfo.ip);
@@ -1538,9 +1543,11 @@ const bulkModerateRecords = async (req: Request, res: Response): Promise<Respons
             return res.status(400).send({"status": "error", "message": "Invalid value for banned field"});
         }
 
-        if (String(value) === "1" && (req.body.reason === "" || req.body.reason === null || req.body.reason === undefined)) {
-            logger.error(`bulkModerateRecords - Reason cannot be empty`, "|", reqInfo.ip);
-            return res.status(400).send({"status": "error", "message": "Reason cannot be empty"});
+        // One category for the whole batch, same closed set as the single ban.
+        const batchCategory = typeof req.body.category === "string" ? req.body.category.trim().toUpperCase() : "";
+        if (String(value) === "1" && !banCategoryNames.includes(batchCategory)) {
+            logger.warn(`bulkModerateRecords - Ban rejected, invalid category: ${batchCategory}`, "|", reqInfo.ip);
+            return res.status(400).send({"status": "error", "message": "A ban needs one of these categories: " + banCategoryNames.join(", ")});
         }
 
         // banEntity / unbanEntity record their own audit event, so the only thing
@@ -1548,7 +1555,7 @@ const bulkModerateRecords = async (req: Request, res: Response): Promise<Respons
         // land in the log as "system".
         for (const id of ids) {
             const result = String(value) === "1"
-                            ? await banEntity(id, table, req.body.reason, eventHeader.pubkey, "admin")
+                            ? await banEntity(id, table, req.body.reason || "", eventHeader.pubkey, "admin", batchCategory)
                             : await unbanEntity(id, table, eventHeader.pubkey, "admin");
             if (result.status === "error") {
                 logger.warn(`bulkModerateRecords - Failed to ban record ${id}: ${result.message}`, "|", reqInfo.ip);

@@ -93,6 +93,20 @@ const mediaModerationSelectFields: string[] = [
     "(SELECT registered.username FROM registered WHERE registered.hex = mediafiles.pubkey LIMIT 1) as username",
 ];
 
+// Why a ban exists, as a closed set instead of free text. Ordered by how often
+// they get used, not alphabetically: CSAM is 93% of the existing 488 bans, so it
+// is the first thing the operator's hand reaches for. `severity` drives the
+// colour, so CSAM never reads like QUESTIONABLE.
+const banCategories: { name: string; severity: string }[] = [
+    { name: "CSAM",         severity: "danger" },
+    { name: "ILLEGAL",      severity: "danger" },
+    { name: "VIOLENCE",     severity: "warning" },
+    { name: "QUESTIONABLE", severity: "secondary" },
+    { name: "OTHER",        severity: "secondary" },
+];
+
+const banCategoryNames: string[] = banCategories.map(category => category.name);
+
 // Status buckets the gallery can filter by. Anything else is rejected, the
 // value never reaches the SQL.
 // "nsfw" is its own column now, and it overlaps "checked" on purpose: flagging a
@@ -225,6 +239,7 @@ const moduleDataWhereFields: { [key: string]: [string] } = {
                         "banned.active, " +
                         "banned.originid, " +
                         "banned.origintable, " +
+                        "banned.category, " +
                         "banned.reason, " +
                         "banned.createddate"],
     "invites":          ["invitations.id, " +
@@ -347,6 +362,7 @@ const moduleDataSelectFields: { [key: string]: string } = {
                         "transactions.comments",
     "banned":           "banned.id, " +
                         "banned.active, " +
+                        "banned.category, " +
                         "banned.originid, " +
                         "banned.origintable, " +
                         "COALESCE(  (SELECT mediafiles.filename FROM mediafiles WHERE mediafiles.id = banned.originid and banned.origintable = 'mediafiles' LIMIT 1), " +
@@ -428,6 +444,8 @@ export { allowedTableNames,
          moduleDataKeys,
          moduleDataIndex,
          recordKeyFields,
+         banCategories,
+         banCategoryNames,
          mediaModerationSelectFields,
          mediaModerationStatus,
          mediaModerationNsfwFields,

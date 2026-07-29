@@ -114,7 +114,30 @@ const mediafilesTableFields: MediafilesTableStructure = {
 		// it never redefines one that already exists.
 		"INDEX idx_public_nsfw_id (active, visibility, checked, nsfw, id)",
 		// Leading nsfw, for the moderation gallery bucket.
-		"INDEX idx_nsfw (nsfw)"
+		"INDEX idx_nsfw (nsfw)",
+		// The moderation gallery filters by uploader and by mimetype, and without
+		// these two it scans the whole table for both.
+		//
+		// Simple and not composite with checked, on purpose. Every gallery query
+		// ends in ORDER BY id DESC with an id keyset, and in InnoDB a secondary
+		// index already carries the primary key as its row locator, so (pubkey) is
+		// physically (pubkey, id) and the optimizer can use that suffix for the
+		// ordering. Adding checked instead would help only the checked = 1 bucket:
+		// "pending" filters checked <> 1 (an inequality, so nothing after it in the
+		// index is usable) and the active / nsfw / banned buckets don't mention
+		// checked at all. With three distinct values over ~280k rows its
+		// selectivity after a pubkey equality is nil, so it would be a composite
+		// that never pays for itself.
+		//
+		// mimetype is also queried as a prefix range (LIKE 'image/%'), and no
+		// column after a range can be used either, which rules out
+		// (mimetype, checked) for the filter that gets used most.
+		//
+		// Neither one overlaps what is already there: no existing index on this
+		// table starts with pubkey or mimetype (idx_filename_hash_pubkey has pubkey
+		// third, which a lookup cannot use).
+		"INDEX idx_pubkey (pubkey)",
+		"INDEX idx_mimetype (mimetype)"
 	],
 	constructor: {
 		name: 'RowDataPacket',
@@ -268,6 +291,7 @@ interface BannedTableStructure extends RowDataPacket{
 	originid: string;
 	origintable: string
 	createddate: string;
+	category: string;
 	reason: string;
 }
 
@@ -277,9 +301,19 @@ const bannedTableFields: BannedTableStructure = {
 	"originid" : "varchar(11) NOT NULL",
 	"origintable" : "varchar(50) NOT NULL",
 	"createddate" : "bigint NOT NULL",
+	// Why the ban exists, as one of a closed set: CSAM, ILLEGAL, VIOLENCE,
+	// QUESTIONABLE, OTHER. Before this column the category lived inside the reason
+	// text, which produced 32 spellings for five real categories (typos included)
+	// and made grouping impossible.
+	"category" : "varchar(20)",
+	// Free comment, still optional. It no longer has to carry the category.
 	"reason" : "varchar(150)",
 	_indexes: [
 		"INDEX idx_origin (originid, origintable, active)",
+		// No index on category on purpose: the whole table is 488 rows and only
+		// grows one moderation decision at a time, so filtering or grouping by it
+		// is a scan of a few hundred rows. An index here would be rent paid for
+		// nothing.
 	],
 	constructor: {
 		name: 'RowDataPacket',

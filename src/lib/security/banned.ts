@@ -17,11 +17,16 @@ const redisCore = await initRedis(0, false);
 // re-populates them when needed.
 const BAN_KEY_TTL = 7 * 24 * 60 * 60; // 7 days
 
-const manageEntity = async (originId: number, originTable: string, action: "ban" | "unban", reason?: string, actor?: string, source?: string): Promise<ResultMessagev2> => {
+const manageEntity = async (originId: number, originTable: string, action: "ban" | "unban", reason?: string, actor?: string, source?: string, category?: string): Promise<ResultMessagev2> => {
 
     if (!isModuleEnabled("security", ""))  return { status: "error", message: "Security module is not enabled" };
 
-    if (originId == 0 || originId == null || originTable == "" || originTable == null || (action === "ban" && (!reason || reason === ""))) {
+    // A ban needs a category, which is the closed set the admin dialog offers.
+    // Before the category column that requirement fell on `reason`, and free text
+    // produced 32 spellings for five real categories. `reason` is now an optional
+    // comment, so callers that only send one still work.
+    if (originId == 0 || originId == null || originTable == "" || originTable == null ||
+        (action === "ban" && (!category || category === "") && (!reason || reason === ""))) {
         return { status: "error", message: "Invalid parameters" };
     }
 
@@ -54,7 +59,7 @@ const manageEntity = async (originId: number, originTable: string, action: "ban"
             if (!result || result.length === 0) {
                 return { status: "error", message: "Record not found" };
             }
-            return manageEntity(result[0].originid, result[0].origintable, action, reason, actor, source);
+            return manageEntity(result[0].originid, result[0].origintable, action, reason, actor, source, category);
         }
         default: {
             return { status: "error", message: "Invalid table name" };
@@ -80,14 +85,16 @@ const manageEntity = async (originId: number, originTable: string, action: "ban"
             if (action === "ban") {
                 if (resultBanTable.length > 0 && resultBanTable[0].active == 1) { continue; }
                 if (resultBanTable.length > 0 && resultBanTable[0].active == 0) {
-                    const updateResult = await dbUpdate("banned", {"active": "1"}, ["originid", "origintable"], [record.id, originTable]);
+                    // Re-banning an old row: the category and comment of this
+                    // decision replace the ones from the previous ban.
+                    const updateResult = await dbUpdate("banned", {"active": "1", "category": category || "", "reason": reason || ""}, ["originid", "origintable"], [record.id, originTable]);
                     if (!updateResult) {
                         return { status: "error", message: "Error setting active ban to record" };
                     }
                     continue;
                 }
 
-                const insertResult = await dbInsert("banned", ["originid", "origintable", "createddate", "reason"], [record.id, originTable, Math.floor(Date.now() / 1000), reason]);
+                const insertResult = await dbInsert("banned", ["originid", "origintable", "createddate", "category", "reason"], [record.id, originTable, Math.floor(Date.now() / 1000), category || "", reason || ""]);
                 if (insertResult == 0) {
                     return { status: "error", message: "Error inserting record ban" };
                 }
@@ -183,7 +190,7 @@ const manageEntity = async (originId: number, originTable: string, action: "ban"
             new_value: action === "ban" ? "banned" : "not banned",
             action: `${resultRecords.length} row(s) ${action}ned in ${originTable}`,
             reason: reason || "",
-            details: {keyfield: keyField, keyvalue: result[0][keyField], rows: resultRecords.length},
+            details: {keyfield: keyField, keyvalue: result[0][keyField], rows: resultRecords.length, category: category || ""},
             notify: action === "ban" && notifiableBan,
         });
 
@@ -207,8 +214,8 @@ const manageEntity = async (originId: number, originTable: string, action: "ban"
  * const banResult = await banEntity(1, "registered", "Spamming the network", adminPubkey, "admin");
  * ```
  **/
-const banEntity = async (originId: number, originTable: string, reason: string, actor?: string, source?: string): Promise<ResultMessagev2> => {
-    return manageEntity(originId, originTable, "ban", reason, actor, source);
+const banEntity = async (originId: number, originTable: string, reason: string, actor?: string, source?: string, category?: string): Promise<ResultMessagev2> => {
+    return manageEntity(originId, originTable, "ban", reason, actor, source, category);
 };
 
 /**

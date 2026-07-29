@@ -517,7 +517,7 @@
                             }else if (modaltext === 'balance') {
                                 modifyRecord("/api/v2/payments/addbalance/", tableId, id, field, modal.value, 'balance');
                             }else if (modaltext === 'ban') {
-                                modifyRecord("/api/v2/admin/ban", tableId, id, field, modal.value, 'ban');
+                                modifyRecord("/api/v2/admin/ban", tableId, id, field, modal.value, 'ban', null, modal.category);
                             }else if (modaltext === 'moderate') {
                                 modifyRecord("/api/v2/admin/moderaterecord/", tableId, id, field, fieldValue, 'moderate');
                             } else {
@@ -541,7 +541,7 @@
         }
         window.highlihtRow = highlihtRow;
 
-        async function modifyRecord(url, tableId, id, field, fieldValue, action = 'modify', row = null){
+        async function modifyRecord(url, tableId, id, field, fieldValue, action = 'modify', row = null, category = ''){
 
             if(row === null) {row = $(tableId).bootstrapTable('getRowByUniqueId', id)};
             if (field === "allowed") {fieldValue = $(tableId).bootstrapTable('getSelections')[0].allowed === 0 ? 1 : 0;}
@@ -584,10 +584,12 @@
             }
 
             if (action === 'ban') {
+                // The category is the required part; the reason is a free comment.
                 data = {
                     id: id,
                     table: tableId.split('-')[0].split('#')[1],
                     reason: fieldValue,
+                    category: category,
                 };
             }
 
@@ -813,12 +815,12 @@
                     const onBan = async (targetRow) => {
                         const modal = await initConfirmModal('#filesData', [targetRow.id], 'ban', 'file', '', true);
                         if (modal.result !== true) return false;
-                        const reason = (modal.value || '').trim();
-                        if (reason === '') {
-                            showMessage('A ban needs a reason', 'alert-warning');
+                        const category = (modal.category || '').trim();
+                        if (category === '') {
+                            showMessage('A ban needs a category', 'alert-warning');
                             return false;
                         }
-                        await modifyRecord("/api/v2/admin/ban", '#filesData', targetRow.id, 'reason', reason, 'ban');
+                        await modifyRecord("/api/v2/admin/ban", '#filesData', targetRow.id, 'reason', (modal.value || '').trim(), 'ban', null, category);
                         return true;
                     };
                     const nav = navIdx >= 0 ? { rows: allRows, index: navIdx, loadMore, onBan } : null;

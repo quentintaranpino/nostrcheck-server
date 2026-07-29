@@ -1,17 +1,70 @@
+// Why a ban exists, as a closed set. Kept in the same order as the server's
+// banCategories (interfaces/admin.ts): CSAM first because it is 93% of the bans
+// this server has issued, so it is the shortest reach. The severity drives the
+// colour so CSAM never reads like QUESTIONABLE.
+const banCategoryTags = [
+    { name: 'CSAM',         severity: 'danger' },
+    { name: 'ILLEGAL',      severity: 'danger' },
+    { name: 'VIOLENCE',     severity: 'warning' },
+    { name: 'QUESTIONABLE', severity: 'secondary' },
+    { name: 'OTHER',        severity: 'secondary' },
+];
+
 const initConfirmModal = async (objectId, ids, action, objectName, value = null, enableEditText = false) => {
 
     var alert = new bootstrap.Modal($(objectId + '-confirm-modal'));
+    const isBan = action == 'ban';
+    // One category per dialog, so a bulk ban asks once for the whole selection.
+    let selectedCategory = '';
 
     // .off() first: this init runs on every open, stacking handlers otherwise.
     $(alert._element).off('show.bs.modal').on('show.bs.modal', function () {
-        $(objectId + '-confirm-modal .modal-body').text('Are you sure you want to ' + action + ' ' + ids.length + ' ' + objectName + (ids.length > 1 ? 's' : '') + '?');
-        if (action == 'remove')$(objectId + '-confirm-modal .modal-body').append('<br><br><strong>Warning:</strong> This action cannot be undone.');
-        if (action == 'disable')$(objectId + '-confirm-modal .modal-body').append('<br><br><strong>Attention:</strong> Disabling a record can take up to 5 minutes to become effective.');
-        if (action == 'balance')$(objectId + '-confirm-modal .modal-body').text('Specify the amount to be added to user balance:');
-        if (action == 'ban')$(objectId + '-confirm-modal .modal-body').append('<br><br>Specify the reason for banning:');
+        const body = $(objectId + '-confirm-modal .modal-body');
+        const saveButton = $(objectId + '-confirm-modal .save-button');
+        selectedCategory = '';
+
+        body.text('Are you sure you want to ' + action + ' ' + ids.length + ' ' + objectName + (ids.length > 1 ? 's' : '') + '?');
+        if (action == 'remove') body.append('<br><br><strong>Warning:</strong> This action cannot be undone.');
+        if (action == 'disable') body.append('<br><br><strong>Attention:</strong> Disabling a record can take up to 5 minutes to become effective.');
+        if (action == 'balance') body.text('Specify the amount to be added to user balance:');
+
+        // A ban is categorised, not described. Typing the reason by hand is what
+        // produced 32 spellings for five categories, so the category is a click
+        // from a closed set and the comment is optional detail on top.
+        if (isBan) {
+            body.append('<br><br><strong>Category</strong> (required):');
+            const tagRow = $('<div class="d-flex flex-wrap gap-2 mt-2 mb-1"></div>');
+            for (const tag of banCategoryTags) {
+                $('<button type="button" class="btn btn-sm btn-outline-' + tag.severity + ' ban-category-tag"></button>')
+                    .attr('data-category', tag.name)
+                    .attr('data-severity', tag.severity)
+                    .text(tag.name)
+                    .appendTo(tagRow);
+            }
+            body.append(tagRow);
+
+            // Nothing to confirm until a category is picked: cheaper than an alert
+            // after the fact, and it makes the requirement obvious.
+            saveButton.prop('disabled', true);
+            body.off('click', '.ban-category-tag').on('click', '.ban-category-tag', function () {
+                const button = $(this);
+                body.find('.ban-category-tag').each(function () {
+                    const other = $(this);
+                    other.removeClass('btn-' + other.attr('data-severity')).addClass('btn-outline-' + other.attr('data-severity'));
+                });
+                button.removeClass('btn-outline-' + button.attr('data-severity')).addClass('btn-' + button.attr('data-severity'));
+                selectedCategory = button.attr('data-category');
+                saveButton.prop('disabled', false);
+            });
+            body.append('<div class="mt-3">Comment (optional):</div>');
+        } else {
+            // The button is shared across actions, so it has to be re-enabled.
+            saveButton.prop('disabled', false);
+        }
+
         if (value != null && enableEditText){
-            $(objectId + '-confirm-modal .modal-body').append(  '<input type="text" class="form-control mt-4 mb-2" id="data" placeholder="' +
-                                                                escapeHtml(action) +
+            body.append(  '<input type="text" class="form-control mt-2 mb-2" id="data" placeholder="' +
+                                                                escapeHtml(isBan ? 'optional comment' : action) +
                                                                 '" value="' +
                                                                 escapeHtml(value) +
                                                                 '">');
@@ -26,13 +79,13 @@ const initConfirmModal = async (objectId, ids, action, objectName, value = null,
     let result = await new Promise((resolve) => {
         $(objectId + '-confirm-modal .save-button').off('click').on('click', function () {
             value = $('#data').val();
-            resolve({result : true, value : value});
+            resolve({result : true, value : value, category : selectedCategory});
         });
         $(objectId + '-confirm-modal .cancel-button').off('click').on('click', function () {
-            resolve({result : false, value : value});
+            resolve({result : false, value : value, category : ''});
         });
         $(alert._element).off('hidden.bs.modal').on('hidden.bs.modal', function () {
-            resolve({result : false, value : value});
+            resolve({result : false, value : value, category : ''});
         });
     });
 

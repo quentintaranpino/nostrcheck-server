@@ -38,12 +38,15 @@ let ipsFields = [
   
 <%
   let bannedFields = [
-  ['active'           , '30' , 'formatCheckbox'  , 'enabled   show text-center               '],
-  ['originid'         , '40' , ''                , 'disabled   show text-center              '],
-  ['origintable'      , '40' , ''                , 'disabled   show text-center              '],
-  ['originkey'        , ''   , 'formatBannedFile', 'disabled  show text-center               '],
-  ['createddate'      , '200', 'formatTimestamp' , 'disabled  show text-center               '],
-  ['reason'           , ''   , ''                , 'enabled   show mobile-hide               '],
+  ['active'           , '30' , 'formatCheckbox'    , 'enabled   show text-center               '],
+  // The category is a closed set now, so bans can finally be grouped by type
+  // instead of by whichever of the 32 spellings of the reason was typed that day.
+  ['category'         , '60' , 'formatBanCategory' , 'disabled  show text-center               '],
+  ['originid'         , '40' , ''                  , 'disabled   show text-center              '],
+  ['origintable'      , '40' , ''                  , 'disabled   show text-center              '],
+  ['originkey'        , ''   , 'formatBannedFile'  , 'disabled  show text-center               '],
+  ['createddate'      , '200', 'formatTimestamp'   , 'disabled  show text-center               '],
+  ['reason'           , ''   , ''                  , 'enabled   show mobile-hide               ', 'comment'],
   ];
 %>
 
@@ -69,6 +72,19 @@ let ipsFields = [
   fields: bannedFields,
   datakey: 'banned',
   objectName: 'banned object',
-  }); %> 
+  }); %>
+
+<script>
+  // Same severity reading as the audit log: CSAM and ILLEGAL in red, VIOLENCE in
+  // amber, the rest neutral. Rows from before the category column show a dash,
+  // not a fake category.
+  function formatBanCategory(value) {
+      const category = String(value || '');
+      if (category === '') return '<span class="text-secondary" title="Banned before categories existed, the reason column has the original text">—</span>';
+      const severity = { CSAM: 'danger', ILLEGAL: 'danger', VIOLENCE: 'warning' };
+      return `<span class="badge bg-${severity[category] || 'secondary'}">${escapeHtml(category)}</span>`;
+  }
+  window.formatBanCategory = formatBanCategory;
+</script>
 
 <% } %>
